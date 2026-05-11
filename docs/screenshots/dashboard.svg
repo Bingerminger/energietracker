@@ -1,0 +1,239 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 660" font-family="-apple-system, system-ui, sans-serif">
+  <defs>
+    <style>
+      .bg{fill:#080c12}
+      .topbar{fill:#111827}
+      .sidebar{fill:#111827}
+      .card{fill:#111827;stroke:rgba(255,255,255,.07)}
+      .border{stroke:rgba(255,255,255,.07);fill:none}
+      .text{fill:#dce8f5}
+      .muted{fill:#6b7f99}
+      .dim{fill:#3d5070}
+      .gas{fill:#ff7b2e}
+      .strom{fill:#2de8a4}
+      .blue{fill:#4a90e2}
+      .violet{fill:#8b5cf6}
+      .red{fill:#ef4444}
+      .yellow{fill:#f5c842}
+      .mono{font-family:'DM Mono',ui-monospace,monospace}
+      .num{font-family:'DM Mono',ui-monospace,monospace}
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect class="bg" width="1100" height="660"/>
+
+  <!-- Topbar -->
+  <rect class="topbar" width="1100" height="48"/>
+  <rect x="20" y="14" width="20" height="20" rx="4" fill="url(#logo-grad)"/>
+  <defs>
+    <linearGradient id="logo-grad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ff7b2e"/>
+      <stop offset="100%" stop-color="#2de8a4"/>
+    </linearGradient>
+  </defs>
+  <text x="48" y="29" class="mono text" font-size="13" font-weight="500">ENERGIE TRACKING</text>
+  <rect x="930" y="20" width="74" height="22" rx="4" fill="#1c2636" stroke="rgba(255,255,255,.12)"/>
+  <text x="938" y="34" class="muted" font-size="11">+ Ablesung</text>
+  <circle cx="1016" cy="24" r="3.5" class="strom"/>
+  <text x="1028" y="29" class="muted mono" font-size="10">1074 Temp · 24 / 15 Abl.</text>
+
+  <!-- Sidebar -->
+  <rect class="sidebar" x="0" y="48" width="200" height="612"/>
+  <text x="20" y="78" class="dim" font-size="9" letter-spacing="1.2">ÜBERSICHT</text>
+  <rect x="12" y="86" width="176" height="34" rx="6" fill="#1c2636"/>
+  <rect x="12" y="86" width="2" height="34" class="blue"/>
+  <text x="50" y="107" class="text" font-size="13" font-weight="500">Dashboard</text>
+  <rect x="22" y="92" width="22" height="22" rx="4" fill="#243044"/>
+  <text x="29" y="107" font-size="11">🏠</text>
+
+  <text x="20" y="148" class="dim" font-size="9" letter-spacing="1.2">VERBRAUCH</text>
+  <text x="50" y="178" class="muted" font-size="13">Gas</text>
+  <rect x="22" y="163" width="22" height="22" rx="4" fill="#243044"/>
+  <text x="29" y="178" font-size="11">🔥</text>
+  <text x="50" y="207" class="muted" font-size="13">Strom</text>
+  <rect x="22" y="192" width="22" height="22" rx="4" fill="#243044"/>
+  <text x="29" y="207" font-size="11">⚡</text>
+  <text x="50" y="236" class="muted" font-size="13">Wasser</text>
+  <rect x="22" y="221" width="22" height="22" rx="4" fill="#243044"/>
+  <text x="29" y="236" font-size="11">💧</text>
+  <text x="50" y="265" class="muted" font-size="13">Temperaturen</text>
+  <rect x="22" y="250" width="22" height="22" rx="4" fill="#243044"/>
+  <text x="29" y="265" font-size="11">🌡️</text>
+
+  <text x="20" y="305" class="dim" font-size="9" letter-spacing="1.2">ANALYSE</text>
+  <text x="50" y="335" class="muted" font-size="13">Korrelation</text>
+  <text x="50" y="364" class="muted" font-size="13">Prognose</text>
+
+  <text x="20" y="404" class="dim" font-size="9" letter-spacing="1.2">SYSTEM</text>
+  <text x="50" y="434" class="muted" font-size="13">Einstellungen</text>
+  <rect x="22" y="419" width="22" height="22" rx="4" fill="#243044"/>
+  <text x="29" y="434" font-size="11">⚙️</text>
+
+  <!-- Main content -->
+  <g transform="translate(220,72)">
+    <!-- View header -->
+    <text class="text" font-size="20" font-weight="700">🏠 Dashboard</text>
+    <text y="22" class="muted" font-size="12">Übersicht der letzten 12 Monate · Trends · Alerts</text>
+
+    <!-- Status banner (overdue alert for Strom) -->
+    <g transform="translate(0,42)">
+      <rect width="855" height="50" rx="8" fill="rgba(245,200,66,.08)" stroke="rgba(245,200,66,.3)"/>
+      <text x="18" y="32" font-size="20">⚡</text>
+      <text x="50" y="26" fill="#f5c842" font-size="13" font-weight="600">Ablesung empfohlen</text>
+      <text x="50" y="42" fill="#f5c842" font-size="12">Strom: 73 Tage seit letzter Ablesung am 2026-02-24</text>
+      <rect x="745" y="14" width="96" height="22" rx="4" fill="rgba(45,232,164,.2)" stroke="rgba(45,232,164,.3)"/>
+      <text x="752" y="29" class="strom" font-size="11">+ Strom Ablesung</text>
+    </g>
+
+    <!-- KPI grid -->
+    <g transform="translate(0,108)">
+      <!-- Gas KPI -->
+      <rect width="207" height="98" class="card" rx="10"/>
+      <line x1="0" y1="2" x2="120" y2="2" stroke="#ff7b2e" stroke-width="2"/>
+      <text x="14" y="22" class="muted" font-size="10" letter-spacing=".7">🔥 GAS 12 M</text>
+      <rect x="115" y="14" width="44" height="13" rx="6" fill="rgba(45,232,164,.12)"/>
+      <text x="120" y="24" class="strom" font-size="9" font-weight="600">↓ 8.5%</text>
+      <text x="14" y="56" class="num text" font-size="22" font-weight="500">18.261 kWh</text>
+      <text x="14" y="78" class="num muted" font-size="11">9.2000 ct/kWh</text>
+
+      <!-- Strom KPI -->
+      <rect x="221" width="207" height="98" class="card" rx="10"/>
+      <line x1="221" y1="2" x2="341" y2="2" stroke="#2de8a4" stroke-width="2"/>
+      <text x="235" y="22" class="muted" font-size="10" letter-spacing=".7">⚡ STROM 12 M</text>
+      <rect x="335" y="14" width="42" height="13" rx="6" fill="#243044"/>
+      <text x="340" y="24" class="muted" font-size="9" font-weight="600">→ 0.2%</text>
+      <text x="235" y="56" class="num text" font-size="22" font-weight="500">2.670 kWh</text>
+      <text x="235" y="78" class="num muted" font-size="11">26.8000 ct/kWh</text>
+
+      <!-- CO2 KPI -->
+      <rect x="442" width="207" height="98" class="card" rx="10"/>
+      <line x1="442" y1="2" x2="562" y2="2" stroke="#4a90e2" stroke-width="2"/>
+      <text x="456" y="22" class="muted" font-size="10" letter-spacing=".7">🌍 CO₂ 12 M</text>
+      <text x="456" y="56" class="num text" font-size="22" font-weight="500">4.685 kg</text>
+      <text x="456" y="78" class="num muted" font-size="11">3.670 Gas · 1.015 Strom</text>
+
+      <!-- Cost KPI -->
+      <rect x="663" width="192" height="98" class="card" rx="10"/>
+      <line x1="663" y1="2" x2="783" y2="2" stroke="#8b5cf6" stroke-width="2"/>
+      <text x="677" y="22" class="muted" font-size="10" letter-spacing=".7">💶 KOSTEN 12 M</text>
+      <text x="677" y="56" class="num text" font-size="22" font-weight="500">2.300 €</text>
+      <text x="677" y="78" class="num muted" font-size="11">Gas+Strom kombiniert</text>
+    </g>
+
+    <!-- Two charts row -->
+    <g transform="translate(0,222)">
+      <!-- Gas chart card -->
+      <rect width="420" height="210" class="card" rx="10"/>
+      <text x="14" y="22" class="muted" font-size="11" letter-spacing=".5"><tspan class="gas">●</tspan> GASVERLAUF</text>
+
+      <!-- Bar chart -->
+      <g transform="translate(20,40)">
+        <!-- Y axis lines -->
+        <line x1="0" y1="0" x2="380" y2="0" class="border" stroke-dasharray="2,2"/>
+        <line x1="0" y1="40" x2="380" y2="40" class="border" stroke-dasharray="2,2"/>
+        <line x1="0" y1="80" x2="380" y2="80" class="border" stroke-dasharray="2,2"/>
+        <line x1="0" y1="120" x2="380" y2="120" class="border" stroke-dasharray="2,2"/>
+        <!-- Bars (12 months Mai-Apr) -->
+        <g fill="rgba(255,123,46,.3)" stroke="#ff7b2e">
+          <rect x="0"   y="100" width="22" height="20"/>
+          <rect x="32"  y="95"  width="22" height="25"/>
+          <rect x="64"  y="105" width="22" height="15"/>
+          <rect x="96"  y="100" width="22" height="20"/>
+          <rect x="128" y="80"  width="22" height="40"/>
+          <rect x="160" y="40"  width="22" height="80"/>
+          <rect x="192" y="10"  width="22" height="110"/>
+          <rect x="224" y="20"  width="22" height="100"/>
+          <rect x="256" y="55"  width="22" height="65"/>
+          <rect x="288" y="90"  width="22" height="30"/>
+          <rect x="320" y="105" width="22" height="15"/>
+          <rect x="352" y="108" width="22" height="12"/>
+        </g>
+        <!-- Temperature line -->
+        <polyline points="11,30 43,25 75,35 107,55 139,75 171,90 203,110 235,108 267,90 299,72 331,52 363,32"
+                  stroke="#4a90e2" fill="none" stroke-width="1.5"/>
+        <!-- Month labels -->
+        <g class="muted" font-size="9">
+          <text x="11" y="135" text-anchor="middle">M</text>
+          <text x="43" y="135" text-anchor="middle">J</text>
+          <text x="75" y="135" text-anchor="middle">J</text>
+          <text x="107" y="135" text-anchor="middle">A</text>
+          <text x="139" y="135" text-anchor="middle">S</text>
+          <text x="171" y="135" text-anchor="middle">O</text>
+          <text x="203" y="135" text-anchor="middle">N</text>
+          <text x="235" y="135" text-anchor="middle">D</text>
+          <text x="267" y="135" text-anchor="middle">J</text>
+          <text x="299" y="135" text-anchor="middle">F</text>
+          <text x="331" y="135" text-anchor="middle">M</text>
+          <text x="363" y="135" text-anchor="middle">A</text>
+        </g>
+      </g>
+
+      <!-- Strom chart card -->
+      <rect x="435" width="420" height="210" class="card" rx="10"/>
+      <text x="449" y="22" class="muted" font-size="11" letter-spacing=".5"><tspan class="strom">●</tspan> STROMVERLAUF</text>
+
+      <g transform="translate(455,40)">
+        <line x1="0" y1="0" x2="380" y2="0" class="border" stroke-dasharray="2,2"/>
+        <line x1="0" y1="40" x2="380" y2="40" class="border" stroke-dasharray="2,2"/>
+        <line x1="0" y1="80" x2="380" y2="80" class="border" stroke-dasharray="2,2"/>
+        <line x1="0" y1="120" x2="380" y2="120" class="border" stroke-dasharray="2,2"/>
+        <g fill="rgba(45,232,164,.3)" stroke="#2de8a4">
+          <rect x="0"   y="65" width="22" height="55"/>
+          <rect x="32"  y="60" width="22" height="60"/>
+          <rect x="64"  y="68" width="22" height="52"/>
+          <rect x="96"  y="80" width="22" height="40"/>
+          <rect x="128" y="62" width="22" height="58"/>
+          <rect x="160" y="55" width="22" height="65"/>
+          <rect x="192" y="48" width="22" height="72"/>
+          <rect x="224" y="50" width="22" height="70"/>
+          <rect x="256" y="55" width="22" height="65"/>
+          <rect x="288" y="60" width="22" height="60"/>
+          <rect x="320" y="62" width="22" height="58"/>
+          <rect x="352" y="65" width="22" height="55"/>
+        </g>
+        <polyline points="11,30 43,25 75,35 107,55 139,75 171,90 203,110 235,108 267,90 299,72 331,52 363,32"
+                  stroke="#4a90e2" fill="none" stroke-width="1.5"/>
+        <g class="muted" font-size="9">
+          <text x="11" y="135" text-anchor="middle">M</text>
+          <text x="43" y="135" text-anchor="middle">J</text>
+          <text x="75" y="135" text-anchor="middle">J</text>
+          <text x="107" y="135" text-anchor="middle">A</text>
+          <text x="139" y="135" text-anchor="middle">S</text>
+          <text x="171" y="135" text-anchor="middle">O</text>
+          <text x="203" y="135" text-anchor="middle">N</text>
+          <text x="235" y="135" text-anchor="middle">D</text>
+          <text x="267" y="135" text-anchor="middle">J</text>
+          <text x="299" y="135" text-anchor="middle">F</text>
+          <text x="331" y="135" text-anchor="middle">M</text>
+          <text x="363" y="135" text-anchor="middle">A</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Last reading summaries -->
+    <g transform="translate(0,448)">
+      <rect width="420" height="130" class="card" rx="10"/>
+      <text x="14" y="22" class="muted" font-size="11" letter-spacing=".5">🔥 LETZTE ABLESUNG <tspan x="380" text-anchor="end" fill="#2de8a4" font-size="9">35 TAGE</tspan></text>
+      <text x="14" y="48" class="muted" font-size="12">Datum</text>
+      <text x="406" y="48" class="num text" font-size="12" text-anchor="end">2026-04-03</text>
+      <line x1="14" y1="58" x2="406" y2="58" class="border"/>
+      <text x="14" y="76" class="muted" font-size="12">Zählerstand</text>
+      <text x="406" y="76" class="num text" font-size="12" text-anchor="end">23.545 m³</text>
+      <line x1="14" y1="86" x2="406" y2="86" class="border"/>
+      <text x="14" y="104" class="muted" font-size="12">Preis</text>
+      <text x="406" y="104" class="num text" font-size="12" text-anchor="end">9.2000 ct/kWh</text>
+
+      <rect x="435" width="420" height="130" class="card" rx="10"/>
+      <text x="449" y="22" class="muted" font-size="11" letter-spacing=".5">⚡ LETZTE ABLESUNG <tspan x="841" text-anchor="end" fill="#f5c842" font-size="9">73 TAGE</tspan></text>
+      <text x="449" y="48" class="muted" font-size="12">Datum</text>
+      <text x="841" y="48" class="num text" font-size="12" text-anchor="end">2026-02-24</text>
+      <line x1="449" y1="58" x2="841" y2="58" class="border"/>
+      <text x="449" y="76" class="muted" font-size="12">Zählerstand</text>
+      <text x="841" y="76" class="num text" font-size="12" text-anchor="end">52.507 kWh</text>
+      <line x1="449" y1="86" x2="841" y2="86" class="border"/>
+      <text x="449" y="104" class="muted" font-size="12">Preis</text>
+      <text x="841" y="104" class="num text" font-size="12" text-anchor="end">26.8000 ct/kWh</text>
+    </g>
+  </g>
+</svg>

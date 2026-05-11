@@ -1,0 +1,29 @@
+## User data — never committed
+/data/*/readings.json
+/data/*/contracts.json
+/data/*/meters.json
+/data/temperatures.json
+/data/settings.json
+/data/meta.json
+/data/backups/
+/data/input.xlsx
+/data/Temperatur_*.csv
+
+## Allow demo & default seed
+!/data/.gitkeep
+!/demo-data/
+
+## OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+## PHP / Python
+vendor/
+__pycache__/
+*.pyc
+.venv/
+venv/

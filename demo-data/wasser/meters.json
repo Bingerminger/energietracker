@@ -1,0 +1,40 @@
+[
+  {
+    "id": "m_wasser_haupt",
+    "name": "Hauptzähler",
+    "icon": "💧",
+    "created_at": "2023-01-01",
+    "active": true,
+    "notes": "Keller",
+    "devices": [
+      {
+        "id": "d_wasser_h_001",
+        "serial": "W-2020-447",
+        "installed_on": "2020-06-01",
+        "initial_counter": 0.0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "id": "m_wasser_garten",
+    "name": "Gartenzähler",
+    "icon": "💧",
+    "created_at": "2023-01-01",
+    "active": true,
+    "notes": "Außenanschluss",
+    "devices": [
+      {
+        "id": "d_wasser_g_001",
+        "serial": "W-2022-991",
+        "installed_on": "2022-04-15",
+        "initial_counter": 0.0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  }
+]

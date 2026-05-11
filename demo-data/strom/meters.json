@@ -1,0 +1,21 @@
+[
+  {
+    "id": "m_strom_main",
+    "name": "Hauptzähler Strom",
+    "icon": "⚡",
+    "created_at": "2023-01-01",
+    "active": true,
+    "notes": "Keller",
+    "devices": [
+      {
+        "id": "d_strom_001",
+        "serial": "S-2019-112",
+        "installed_on": "2019-05-01",
+        "initial_counter": 0.0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  }
+]

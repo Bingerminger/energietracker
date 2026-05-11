@@ -1,0 +1,104 @@
+/* =================================================================
+   Energietracker v1.0.2 — Design Tokens
+   Industrial dark theme. DM Mono for numbers, DM Sans for prose.
+   Aligned with v0.9.0 palette so the look stays consistent.
+   ================================================================= */
+
+:root {
+  /* ── Surfaces ─────────────────────────────────────────────────── */
+  --bg-0:        #080c12;      /* page background — deeper than v1.0.0 */
+  --bg-1:        #111827;      /* card / sidebar background */
+  --bg-2:        #1c2636;      /* nested surface, table header, button bg */
+  --bg-3:        #243044;      /* hover / focus / icon-box */
+  --bg-overlay:  rgba(8, 11, 16, 0.85);
+
+  /* ── Borders ──────────────────────────────────────────────────── */
+  --border-1:    rgba(255, 255, 255, 0.07);
+  --border-2:    rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.20);
+
+  /* ── Text ─────────────────────────────────────────────────────── */
+  --text-1:      #dce8f5;      /* primary */
+  --text-2:      #6b7f99;      /* secondary / muted */
+  --text-3:      #6b7385;      /* tertiary */
+  --text-disabled:#3d5070;
+
+  /* ── Brand / accents ──────────────────────────────────────────── */
+  --accent:      #4a90e2;
+  --accent-hover:#74acea;
+
+  /* ── Utility colors (v0.9.0 palette) ──────────────────────────── */
+  --util-gas:    #ff7b2e;       /* orange */
+  --util-strom:  #2de8a4;       /* mint-green */
+  --util-wasser: #3b82f6;       /* blue (new in v1.0.0) */
+
+  --util-gas-soft:    rgba(255, 123, 46, 0.12);
+  --util-strom-soft:  rgba(45, 232, 164, 0.12);
+  --util-wasser-soft: rgba(59, 130, 246, 0.14);
+
+  /* Semantic accent colors used in v0.9.0 KPI ribbons */
+  --c-blue:      #4a90e2;
+  --c-violet:    #8b5cf6;
+  --c-yellow:    #f5c842;
+  --c-red:       #ef4444;
+  --c-blue-soft: rgba(74, 144, 226, 0.12);
+  --c-violet-soft: rgba(139, 92, 246, 0.14);
+  --c-yellow-soft: rgba(245, 200, 66, 0.14);
+
+  /* ── Semantic ─────────────────────────────────────────────────── */
+  --success:     #2de8a4;
+  --warning:     #f5c842;
+  --danger:      #ef4444;
+  --info:        #4a90e2;
+
+  --success-soft:rgba(45, 232, 164, 0.14);
+  --warning-soft:rgba(245, 200, 66, 0.14);
+  --danger-soft: rgba(239, 68, 68, 0.14);
+
+  /* ── Fonts ────────────────────────────────────────────────────── */
+  --font-sans:   "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono:   "DM Mono", "SF Mono", Menlo, Consolas, monospace;
+
+  /* ── Sizes ────────────────────────────────────────────────────── */
+  --fs-xs:       0.75rem;
+  --fs-sm:       0.8125rem;
+  --fs-base:     0.9375rem;
+  --fs-md:       1rem;
+  --fs-lg:       1.125rem;
+  --fs-xl:       1.375rem;
+  --fs-2xl:      1.75rem;
+  --fs-3xl:      2.25rem;
+
+  /* ── Spacing ──────────────────────────────────────────────────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+
+  /* ── Radii ────────────────────────────────────────────────────── */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* ── Shadows ──────────────────────────────────────────────────── */
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 4px 16px rgba(0,0,0,0.35);
+  --shadow-3: 0 10px 32px rgba(0,0,0,0.5);
+
+  /* ── Layout ───────────────────────────────────────────────────── */
+  --topbar-h:    48px;
+  --sidebar-w:   220px;
+  --content-max: 1400px;
+  --transition:  150ms ease-out;
+}
+
+/* Per-utility CSS variable binding — set on body via JS or on per-view containers */
+[data-utility="gas"]    { --util: var(--util-gas);    --util-soft: var(--util-gas-soft); }
+[data-utility="strom"]  { --util: var(--util-strom);  --util-soft: var(--util-strom-soft); }
+[data-utility="wasser"] { --util: var(--util-wasser); --util-soft: var(--util-wasser-soft); }

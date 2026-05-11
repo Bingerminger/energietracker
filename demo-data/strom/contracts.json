@@ -1,0 +1,121 @@
+[
+  {
+    "id": "c_strom_001",
+    "meter_id": "m_strom_main",
+    "provider": "Stadtwerke Leipzig",
+    "tariff_name": "Strom Basis 2023",
+    "start": "2023-01-01",
+    "end": "2023-12-31",
+    "notes": "",
+    "working_prices": [
+      {
+        "from": "2023-01-01",
+        "ct_per_kwh": 42.0
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2023-01-01",
+        "eur_per_month": 12.5
+      }
+    ],
+    "advance_payments": [
+      {
+        "from": "2023-01-01",
+        "amount_eur": 130.0
+      }
+    ],
+    "bonuses": []
+  },
+  {
+    "id": "c_strom_002",
+    "meter_id": "m_strom_main",
+    "provider": "E.ON",
+    "tariff_name": "Strom Direkt 12",
+    "start": "2024-01-01",
+    "end": "2024-12-31",
+    "notes": "Neukundenbonus",
+    "working_prices": [
+      {
+        "from": "2024-01-01",
+        "ct_per_kwh": 29.5
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2024-01-01",
+        "eur_per_month": 11.2
+      }
+    ],
+    "advance_payments": [
+      {
+        "from": "2024-01-01",
+        "amount_eur": 95.0
+      }
+    ],
+    "bonuses": [
+      {
+        "credit_date": "2024-02-15",
+        "amount_eur": 120.0,
+        "type": "neukunde",
+        "label": "Neukundenbonus"
+      }
+    ]
+  },
+  {
+    "id": "c_strom_003",
+    "meter_id": "m_strom_main",
+    "provider": "E.ON",
+    "tariff_name": "Strom Direkt 12 — Verlängerung",
+    "start": "2025-01-01",
+    "end": "2025-12-31",
+    "notes": "",
+    "working_prices": [
+      {
+        "from": "2025-01-01",
+        "ct_per_kwh": 30.8
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2025-01-01",
+        "eur_per_month": 11.2
+      }
+    ],
+    "advance_payments": [
+      {
+        "from": "2025-01-01",
+        "amount_eur": 100.0
+      }
+    ],
+    "bonuses": []
+  },
+  {
+    "id": "c_strom_004",
+    "meter_id": "m_strom_main",
+    "provider": "E.ON",
+    "tariff_name": "Strom Direkt 12 — 2026",
+    "start": "2026-01-01",
+    "end": "2026-12-31",
+    "notes": "",
+    "working_prices": [
+      {
+        "from": "2026-01-01",
+        "ct_per_kwh": 31.5
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2026-01-01",
+        "eur_per_month": 11.5
+      }
+    ],
+    "advance_payments": [
+      {
+        "from": "2026-01-01",
+        "amount_eur": 105.0
+      }
+    ],
+    "bonuses": []
+  }
+]

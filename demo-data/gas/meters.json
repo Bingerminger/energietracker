@@ -1,0 +1,30 @@
+[
+  {
+    "id": "m_gas_main",
+    "name": "Hauptzähler Gas",
+    "icon": "🔥",
+    "created_at": "2023-01-01",
+    "active": true,
+    "notes": "Keller, links",
+    "devices": [
+      {
+        "id": "d_gas_001",
+        "serial": "G-2018-447",
+        "installed_on": "2018-03-01",
+        "initial_counter": 0.0,
+        "removed_on": "2024-10-01",
+        "final_counter": 1562.0,
+        "reason": "Eichtausch"
+      },
+      {
+        "id": "d_gas_002",
+        "serial": "G-2024-998",
+        "installed_on": "2024-10-01",
+        "initial_counter": 10.0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  }
+]

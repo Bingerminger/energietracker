@@ -1,0 +1,54 @@
+<?php
+declare(strict_types=1);
+
+namespace Energietracker\Controllers;
+
+use Energietracker\Http\Request;
+use Energietracker\Http\Response;
+use Energietracker\Services\MeterService;
+
+/**
+ * Zähler-CRUD inkl. F2-Zählertausch (`replace-device`). Beim
+ * Anlegen ohne explizites Device wird ein Default-Device erzeugt.
+ */
+final class MeterController
+{
+    public function __construct(private MeterService $meters) {}
+
+    public function index(Request $req): never
+    {
+        Response::json($this->meters->list($req->param('utility')));
+    }
+
+    public function show(Request $req): never
+    {
+        $m = $this->meters->get($req->param('utility'), $req->param('id'));
+        if (!$m) Response::error('Zähler nicht gefunden', 404);
+        Response::json($m);
+    }
+
+    public function create(Request $req): never
+    {
+        $m = $this->meters->create($req->param('utility'), (array)$req->body);
+        Response::json($m, 201);
+    }
+
+    public function update(Request $req): never
+    {
+        $m = $this->meters->update($req->param('utility'), $req->param('id'), (array)$req->body);
+        Response::json($m);
+    }
+
+    public function destroy(Request $req): never
+    {
+        $this->meters->delete($req->param('utility'), $req->param('id'));
+        Response::json(['deleted' => true]);
+    }
+
+    /** POST /api/utility/{utility}/meters/{id}/replace-device */
+    public function replaceDevice(Request $req): never
+    {
+        $m = $this->meters->replaceDevice($req->param('utility'), $req->param('id'), (array)$req->body);
+        Response::json($m);
+    }
+}

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "c_wasser_haupt_001",
+    "meter_id": "m_wasser_haupt",
+    "provider": "Kommunale Wasserwerke Leipzig",
+    "tariff_name": "Trink- und Abwasser 2023-2025",
+    "start": "2023-01-01",
+    "end": "2026-12-31",
+    "notes": "Frisch + Abwasser kombiniert (ct_per_kwh-Feld speichert hier ct/m³)",
+    "working_prices": [
+      {
+        "from": "2023-01-01",
+        "ct_per_kwh": 480.0
+      },
+      {
+        "from": "2024-01-01",
+        "ct_per_kwh": 510.0
+      },
+      {
+        "from": "2025-01-01",
+        "ct_per_kwh": 530.0
+      },
+      {
+        "from": "2026-01-01",
+        "ct_per_kwh": 545.0
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2023-01-01",
+        "eur_per_month": 8.5
+      }
+    ],
+    "advance_payments": [
+      {
+        "from": "2023-01-01",
+        "amount_eur": 65.0
+      }
+    ],
+    "bonuses": []
+  },
+  {
+    "id": "c_wasser_garten_001",
+    "meter_id": "m_wasser_garten",
+    "provider": "Kommunale Wasserwerke Leipzig",
+    "tariff_name": "Gartenwasser (nur Frischwasser, ohne Abwasser)",
+    "start": "2023-01-01",
+    "end": "2026-12-31",
+    "notes": "Kein Abwasser-Anteil",
+    "working_prices": [
+      {
+        "from": "2023-01-01",
+        "ct_per_kwh": 210.0
+      },
+      {
+        "from": "2024-01-01",
+        "ct_per_kwh": 225.0
+      },
+      {
+        "from": "2025-01-01",
+        "ct_per_kwh": 240.0
+      },
+      {
+        "from": "2026-01-01",
+        "ct_per_kwh": 255.0
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2023-01-01",
+        "eur_per_month": 0.0
+      }
+    ],
+    "advance_payments": [
+      {
+        "from": "2023-01-01",
+        "amount_eur": 8.0
+      }
+    ],
+    "bonuses": []
+  }
+]

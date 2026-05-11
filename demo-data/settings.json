@@ -1,0 +1,22 @@
+{
+  "gas_conversion_factor": 11.5,
+  "hdd_base_temp": 15.0,
+  "co2_gas": 201.0,
+  "co2_strom": 380.0,
+  "co2_wasser": 350.0,
+  "min_days_period": 20,
+  "min_hdd_regression": 5.0,
+  "blend_max": 0.8,
+  "forecast_months": 12,
+  "min_temp_days_forecast": 20,
+  "forecast_model": "linear",
+  "dashboard_months": 12,
+  "alert_days_since_reading": 45,
+  "anomaly_threshold": 2.0,
+  "location_name": "Leipzig Zentrum",
+  "latitude": 51.3397,
+  "longitude": 12.3731,
+  "weather_auto_fill": true,
+  "wasser_personen_anzahl": 3,
+  "wasser_personen_referenz": 127.0
+}
