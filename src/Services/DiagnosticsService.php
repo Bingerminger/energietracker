@@ -23,7 +23,7 @@ final class DiagnosticsService
     {
         $rootDir = $this->store->rootDir();
         $info = [
-            'app_version'    => trim(@file_get_contents(__DIR__ . '/../../VERSION') ?: '1.0.2'),
+            'app_version'    => trim(@file_get_contents(__DIR__ . '/../../VERSION') ?: '1.0.3'),
             'schema_version' => $this->store->read('meta.json', [])['schema_version'] ?? '?',
             'php_version'    => PHP_VERSION,
             'data_dir'       => $rootDir,

@@ -25,7 +25,7 @@ final class BackupService
     {
         $payload = [
             'backup_version' => self::BACKUP_VERSION,
-            'app_version'    => trim(@file_get_contents(__DIR__ . '/../../VERSION') ?: '1.0.2'),
+            'app_version'    => trim(@file_get_contents(__DIR__ . '/../../VERSION') ?: '1.0.3'),
             'exported_at'    => date('c'),
             'meta'           => $this->store->read('meta.json', []),
             'temperatures'   => $this->store->read('temperatures.json', []),

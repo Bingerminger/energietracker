@@ -269,16 +269,29 @@ function balanceCard(c, u) {
   const dateLabel = c.is_open_ended
     ? `geschätztes Ende: ${fmt.date(c.effective_end)} (offener Vertrag, +12 M)`
     : `Vertragsende: ${fmt.date(c.effective_end)}`;
+
   const tariffParts = [];
-  if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + ' ct/kWh');
+  const isWater = u.key === 'wasser';
+  if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + (isWater ? ' ct/m³ Trinkwasser' : ' ct/kWh'));
   if (c.current_base_price_eur   != null) tariffParts.push(fmt.num(c.current_base_price_eur, 2) + ' €/Monat');
   if (c.current_advance_amount   != null) tariffParts.push('Abschlag ' + fmt.eur(c.current_advance_amount));
   const tariffText = tariffParts.length ? tariffParts.join(' · ') : 'keine Tarifdaten';
 
-  const breakdown = [];
-  if (c.actual_kwh_cost != null)    breakdown.push(`${fmt.eur(c.actual_kwh_cost)} Verbrauch`);
-  if (c.actual_base_total > 0)      breakdown.push(`+ ${fmt.eur(c.actual_base_total)} Grundpreis`);
-  if (c.actual_bonus_total > 0)     breakdown.push(`− ${fmt.eur(c.actual_bonus_total)} Bonus`);
+  const consumedSub = isWater
+    ? `${c.months_actual} Monate · ${fmt.num(c.actual_m3 || 0, 1)} m³`
+    : `${c.months_actual} Monate · ${fmt.int(c.actual_kwh)} kWh`;
+
+  // Breakdown row: for water we want three component pills, for gas/strom the
+  // simple verbrauch+grundpreis+bonus line.
+  const breakdownHtml = isWater && c.components
+    ? renderWaterBreakdown(c.components, c.actual_bonus_total)
+    : (() => {
+        const parts = [];
+        if (c.actual_kwh_cost != null)    parts.push(`${fmt.eur(c.actual_kwh_cost)} Verbrauch`);
+        if (c.actual_base_total > 0)      parts.push(`+ ${fmt.eur(c.actual_base_total)} Grundpreis`);
+        if (c.actual_bonus_total > 0)     parts.push(`− ${fmt.eur(c.actual_bonus_total)} Bonus`);
+        return parts.length > 1 ? `<div class="balance-col__breakdown">${parts.join(' ')}</div>` : '';
+      })();
 
   return `
     <div class="card card--${u.key}">
@@ -288,8 +301,8 @@ function balanceCard(c, u) {
         <div>
           <div class="balance-col__label">Verbraucht (Stand heute)</div>
           <div class="balance-col__value">${fmt.eur(c.actual_cost)}</div>
-          <div class="balance-col__sub">${c.months_actual} Monate · ${fmt.int(c.actual_kwh)} kWh</div>
-          ${breakdown.length > 1 ? `<div class="balance-col__breakdown">${breakdown.join(' ')}</div>` : ''}
+          <div class="balance-col__sub">${consumedSub}</div>
+          ${breakdownHtml}
         </div>
         <div>
           <div class="balance-col__label">Abschlag bezahlt</div>
@@ -306,6 +319,49 @@ function balanceCard(c, u) {
           <div class="balance-verdict__value">${sign(proj)}${fmt.eur(proj)}</div>
           <div class="balance-verdict__verdict">${verdict}</div>
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
+        </div>
+      </div>
+      ${isWater && c.components ? renderWaterComponentRow(c.components) : ''}
+    </div>
+  `;
+}
+
+function renderWaterBreakdown(components, bonusTotal) {
+  const tw = components.trinkwasser || {};
+  const sw = components.schmutzwasser || {};
+  const nw = components.niederschlagswasser || {};
+  const parts = [];
+  if (tw.total > 0) parts.push(`${fmt.eur(tw.total)} Trinkw.`);
+  if (sw.total > 0) parts.push(`+ ${fmt.eur(sw.total)} Schmutzw.`);
+  if (nw.total > 0) parts.push(`+ ${fmt.eur(nw.total)} Niederschlag`);
+  if (bonusTotal > 0) parts.push(`− ${fmt.eur(bonusTotal)} Bonus`);
+  return parts.length > 1 ? `<div class="balance-col__breakdown">${parts.join(' ')}</div>` : '';
+}
+
+function renderWaterComponentRow(components) {
+  const tw = components.trinkwasser || {};
+  const sw = components.schmutzwasser || {};
+  const nw = components.niederschlagswasser || {};
+  return `
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border-1)">
+      <div class="balance-col__label" style="margin-bottom:10px">💧 Komponenten</div>
+      <div class="grid grid-3">
+        <div>
+          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">Trinkwasser</div>
+          <div class="balance-col__sub" style="margin-top:2px">${tw.current_ct_per_m3 != null ? fmt.num(tw.current_ct_per_m3, 2) + ' ct/m³' : '–'}${tw.current_eur_per_month != null ? ' · ' + fmt.num(tw.current_eur_per_month, 2) + ' €/M GP' : ''}</div>
+          <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(tw.total)}</div>
+          <div class="balance-col__breakdown">${fmt.eur(tw.working_cost)} Verbr.${tw.base_cost > 0 ? ' + ' + fmt.eur(tw.base_cost) + ' GP' : ''}</div>
+        </div>
+        <div>
+          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">Schmutzwasser</div>
+          <div class="balance-col__sub" style="margin-top:2px">${sw.current_ct_per_m3 != null ? fmt.num(sw.current_ct_per_m3, 2) + ' ct/m³' : '–'} · Basis: ${sw.basis === 'separater_zaehler' ? 'sep. Zähler' : 'Trinkwasser-Verbr.'}</div>
+          <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(sw.total)}</div>
+        </div>
+        <div>
+          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">Niederschlagswasser</div>
+          <div class="balance-col__sub" style="margin-top:2px">${nw.current_eur_per_m2_year != null ? fmt.num(nw.current_eur_per_m2_year, 2) + ' €/m²/J · ' + fmt.int(nw.current_versiegelte_m2) + ' m²' : '–'}</div>
+          <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(nw.total)}</div>
+          ${nw.current_monthly != null ? `<div class="balance-col__breakdown">${fmt.eur(nw.current_monthly)}/Monat</div>` : ''}
         </div>
       </div>
     </div>

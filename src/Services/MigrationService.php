@@ -7,13 +7,13 @@ use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 
 /**
- * Migration of legacy v0.9.0 backup files into the v1.0.2 data model.
+ * Migration of legacy v0.9.0 backup files into the v1.0.3 data model.
  *
  * Why a separate service:
  *   The v0.9.0 backup format (version "2.1") does not know meters, devices,
  *   or the three-utility layout. It stores readings as flat arrays under
  *   "gas"/"strom", contracts in a {gas: [], strom: []} sub-object, and a
- *   compact reading shape with `comment` + `is_notable`. The v1.0.2 model
+ *   compact reading shape with `comment` + `is_notable`. The v1.0.3 model
  *   requires `meter_id`, `device_id`, `note`, optional `is_estimated`,
  *   plus the new "wasser" utility.
  *
@@ -27,7 +27,7 @@ use Energietracker\Config\Utilities;
  *   - is_estimated defaults to false (v0.9.0 had no such field)
  *   - Contracts gain meter_id = m_<utility>_main
  *   - Temperatures: format identical, copied verbatim
- *   - Settings: v0.9.0 keys are a subset of v1.0.2 keys, merged onto defaults
+ *   - Settings: v0.9.0 keys are a subset of v1.0.3 keys, merged onto defaults
  *
  * The migration is split into two phases:
  *   1. preview()  — pure transform, no writes. Returns the translated
@@ -48,7 +48,7 @@ final class MigrationService
     ) {}
 
     /**
-     * Validate a v0.9.0 backup and translate it into the v1.0.2 shape.
+     * Validate a v0.9.0 backup and translate it into the v1.0.3 shape.
      * No data is written. Returns:
      *   {
      *     ok: bool,
@@ -79,7 +79,7 @@ final class MigrationService
             throw new \InvalidArgumentException(
                 "Backup-Version \"$legacyVer\" wird nicht erkannt. " .
                 'Unterstützt werden v0.9.0-Backup-Formate: ' . implode(', ', self::SUPPORTED_LEGACY_VERSIONS) . '. ' .
-                'Für native v1.0.2-Backups (backup_version 3.0+) bitte den Standard-Import in Einstellungen → Backup & Restore nutzen.'
+                'Für native v1.0.3-Backups (backup_version 3.0+) bitte den Standard-Import in Einstellungen → Backup & Restore nutzen.'
             );
         }
 
@@ -88,7 +88,7 @@ final class MigrationService
 
         // ── 1. Meta ────────────────────────────────────────────────
         $meta = [
-            'schema_version' => '1.0.2',
+            'schema_version' => '1.0.3',
             'created_at'     => date('c'),
             'migrated_from'  => "v0.9.0 backup (format $legacyVer)",
         ];
@@ -98,7 +98,7 @@ final class MigrationService
         unset($legacySettings['version']); // legacy meta field
         $settings = $this->mergeSettings($legacySettings);
         if (count($legacySettings) === 0) {
-            $warnings[] = 'Keine Settings im Backup gefunden — v1.0.2-Standardwerte werden verwendet.';
+            $warnings[] = 'Keine Settings im Backup gefunden — v1.0.3-Standardwerte werden verwendet.';
         }
 
         // ── 3. Temperatures ────────────────────────────────────────
@@ -328,11 +328,11 @@ final class MigrationService
         ];
     }
 
-    /** Merge legacy settings onto v1.0.2 defaults. */
+    /** Merge legacy settings onto v1.0.3 defaults. */
     private function mergeSettings(array $legacy): array
     {
         // Read current effective settings (= defaults + any user overrides
-        // already on disk). This preserves new v1.0.2-only keys.
+        // already on disk). This preserves new v1.0.3-only keys.
         $current = $this->store->read('settings.json', []);
         $defaults = [
             'gas_conversion_factor' => 11.5,

@@ -346,7 +346,7 @@ Query-Parameter `meter_id` filtert auf einen Zähler.
 
 ### `POST /api/utility/{utility}/contracts`
 
-**Body:**
+**Body für Gas / Strom:**
 
 ```json
 {
@@ -362,6 +362,39 @@ Query-Parameter `meter_id` filtert auf einen Zähler.
   "bonuses":          [{"credit_date": "2025-06-30", "amount_eur": 100, "type": "neukunde", "label": "Neukundenbonus"}]
 }
 ```
+
+**Body für Wasser** (drei Komponenten-Blöcke, seit v1.0.3):
+
+```json
+{
+  "meter_id": "m_wasser_haupt",
+  "provider": "Kommunale Wasserwerke Leipzig",
+  "tariff_name": "Trink-, Schmutz- und Niederschlagswasser 2025",
+  "start": "2025-01-01",
+  "end":   "2026-12-31",
+  "notes": "",
+  "trinkwasser": {
+    "working_prices": [{"from": "2025-01-01", "ct_per_m3": 255.0}],
+    "base_prices":    [{"from": "2025-01-01", "eur_per_month": 8.50}]
+  },
+  "schmutzwasser": {
+    "basis": "trinkwasser",
+    "separater_zaehler_meter_id": null,
+    "working_prices": [{"from": "2025-01-01", "ct_per_m3": 305.0}]
+  },
+  "niederschlagswasser": {
+    "rates": [{"from": "2025-01-01", "eur_per_m2_year": 1.50, "versiegelte_flaeche_m2": 120}]
+  },
+  "advance_payments": [{"from": "2025-01-01", "amount_eur": 72.00}],
+  "bonuses": []
+}
+```
+
+`schmutzwasser.basis` ist `"trinkwasser"` (Standard, Schmutzwasser-Menge =
+Trinkwasser-Verbrauch) oder `"separater_zaehler"` (mit
+`separater_zaehler_meter_id` als Verweis auf einen zweiten Zähler — wird in
+v1.0.3 wie `trinkwasser` berechnet, echte Separat-Auswertung folgt in
+einer späteren Version).
 
 Strikte F4-Validierung: halb-ausgefüllte Subzeilen (z.B. `{from: "2025-01-01"}` ohne
 `ct_per_kwh`) führen zu HTTP 400 mit präziser Fehlermeldung wie
@@ -495,6 +528,43 @@ Vertrag* Karte und die *Verträge & Abschläge* Tabelle in der UI.
 
 `verdict` ist `Nachzahlung` bei `projected_end_balance > 5`,
 `Erstattung` bei `< -5`, sonst `Ausgeglichen`.
+
+**Wasser-spezifische Antwort** (seit v1.0.3): jedes Vertrags-Objekt enthält
+zusätzlich `actual_m3` und `components` mit der Aufschlüsselung der drei
+Komponenten:
+
+```json
+{
+  "contract_id": "c_wasser_...",
+  "actual_m3": 187.5,
+  "current_balance": +52.28,
+  "projected_end_balance": +85.40,
+  "verdict": "Nachzahlung",
+  "components": {
+    "trinkwasser": {
+      "working_cost": 482.69,
+      "base_cost": 102.00,
+      "total": 584.69,
+      "current_ct_per_m3": 265.0,
+      "current_eur_per_month": 8.50
+    },
+    "schmutzwasser": {
+      "total": 424.59,
+      "current_ct_per_m3": 315.0,
+      "basis": "trinkwasser"
+    },
+    "niederschlagswasser": {
+      "total": 225.00,
+      "current_eur_per_m2_year": 1.50,
+      "current_versiegelte_m2": 120,
+      "current_monthly": 15.00
+    }
+  }
+}
+```
+
+Pro Monat liefert `meterConsumption` für Wasser jede Komponente separat
+unter `monthly[].trinkwasser`, `.schmutzwasser`, `.niederschlagswasser`.
 
 ### `GET /api/utility/{utility}/meters/{id}/forecast`
 

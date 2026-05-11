@@ -1,6 +1,6 @@
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.0.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.0.3-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -17,7 +17,7 @@ Klima, vier Regressionsmodelle (linear, polynomial, robust, segmentiert), und
 einen Saldo pro Vertrag — sowohl aktueller Stand als auch erwartete
 End-Saldierung.
 
-> **Status:** v1.0.2 ist die erste öffentliche Version. Wer aus einem privat
+> **Status:** v1.0.3 ist die erste öffentliche Version. Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -178,7 +178,7 @@ cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
 
 ## Datenmodell
 
-Alles liegt als JSON unter `data/`. Schema-Version steht in
+Alles liegt als JSON unter `data/`. Schema-Version (`1.0.3`) steht in
 `data/meta.json` und in jedem exportierten Backup unter
 `backup_version`.
 
@@ -299,7 +299,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.0.2"
+├── VERSION                  ← „1.0.3"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE
@@ -343,7 +343,7 @@ Wer aus einem v0.9.0-Backup migrieren möchte:
 1. In v0.9.0 ein vollständiges JSON-Backup exportieren (Format-Version
    `2.1` mit Top-Level-Schlüssel `gas`, `strom`, `temperatures`, `settings`,
    `contracts`).
-2. v1.0.2 frisch installieren (siehe [Schnellstart](#schnellstart)) oder
+2. v1.0.3 frisch installieren (siehe [Schnellstart](#schnellstart)) oder
    die Demo-Daten löschen.
 3. **Einstellungen → Backup & Restore → 📦 Migration aus v0.9.0** öffnen
    und die JSON-Datei hochladen.
@@ -352,7 +352,7 @@ Wer aus einem v0.9.0-Backup migrieren möchte:
    Zählerwechsel-Kandidaten).
 5. **Ersetzen** oder **Zusammenführen** wählen → Import. Vor dem
    Schreiben wird automatisch ein Sicherungs-Snapshot der aktuellen
-   v1.0.2-Daten unter `data/backups/` angelegt.
+   v1.0.3-Daten unter `data/backups/` angelegt.
 
 Vollständige Schritt-für-Schritt-Anleitung inkl. Schema-Mapping und
 Fehlerbehandlung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md).

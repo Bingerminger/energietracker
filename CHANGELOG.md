@@ -6,6 +6,116 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.0.3] — 2026-05-11 — Wasser-Vertragsmodell
+
+Fachlicher Bugfix am Wassermodul. In v1.0.2 wurden Wasserverträge mit
+demselben Schema wie Gas und Strom modelliert (ein `working_prices`-Array
+mit `ct_per_kwh`), was bei Wasser strukturell falsch ist: eine deutsche
+Wasserrechnung enthält drei separate Positionen — Trinkwasser, Schmutzwasser
+und Niederschlagswasser — mit jeweils eigener Berechnungslogik.
+
+### Changed — Wasser-Vertragsmodell (Schema 1.0.3)
+
+Wasserverträge haben jetzt drei Komponenten-Blöcke. Gas- und Strom-
+verträge bleiben strukturell unverändert.
+
+```json
+{
+  "id": "c_wasser_...",
+  "meter_id": "m_wasser_haupt",
+  "provider": "Kommunale Wasserwerke Leipzig",
+  "tariff_name": "Trink-, Schmutz- und Niederschlagswasser 2025",
+  "start": "2025-01-01",
+  "end":   "2026-12-31",
+
+  "trinkwasser": {
+    "working_prices": [{"from": "2025-01-01", "ct_per_m3": 255.0}],
+    "base_prices":    [{"from": "2025-01-01", "eur_per_month": 8.50}]
+  },
+
+  "schmutzwasser": {
+    "basis": "trinkwasser",
+    "separater_zaehler_meter_id": null,
+    "working_prices": [{"from": "2025-01-01", "ct_per_m3": 305.0}]
+  },
+
+  "niederschlagswasser": {
+    "rates": [
+      {"from": "2025-01-01", "eur_per_m2_year": 1.50, "versiegelte_flaeche_m2": 120}
+    ]
+  },
+
+  "advance_payments": [{"from": "2025-01-01", "amount_eur": 72.00}],
+  "bonuses": []
+}
+```
+
+**Berechnungen pro Monat:**
+
+- *Trinkwasser*: `m³ × ct_per_m3 / 100 + eur_per_month`
+- *Schmutzwasser*: `m³ × ct_per_m3 / 100`. `m³` ist standardmäßig der
+  Trinkwasser-Verbrauch (Basis `trinkwasser`, Standard in 95% der DE-Haushalte).
+  Bei Basis `separater_zaehler` wird in v1.0.3 vorerst der gleiche Trinkwasser-
+  Wert verwendet — eine echte Auswertung des separaten Zählers folgt in
+  einer späteren Version.
+- *Niederschlagswasser*: `(versiegelte_flaeche_m2 × eur_per_m2_year) / 12`.
+  Stichtag-Historie für Tarif **und** Fläche, falls sich beides ändert.
+
+### Added — Auto-Migration
+
+Beim ersten Start auf v1.0.3 prüft `Storage\Migrator::needsWaterContractsUpgrade()`
+ob noch Wasser-Verträge in der alten v1.0.2-Form (`working_prices` + `base_prices` direkt
+am Vertrag) vorliegen. Falls ja:
+
+- Alte `working_prices` wandern nach `trinkwasser.working_prices`, wobei das
+  Feld `ct_per_kwh` (das bei Wasser semantisch schon ct/m³ war) zu `ct_per_m3`
+  umbenannt wird.
+- Alte `base_prices` wandern nach `trinkwasser.base_prices`.
+- `schmutzwasser` und `niederschlagswasser` werden mit leeren Arrays
+  initialisiert. Eine Notiz im `notes`-Feld weist die User darauf hin,
+  beide Komponenten manuell nachzupflegen, da die alten Daten sie
+  nicht enthalten haben.
+- `advance_payments` und `bonuses` bleiben unverändert.
+
+Schema-Marker in `data/meta.json` springt von `1.0.0` auf `1.0.3`.
+
+### Added — UI
+
+- **Wasser-Saldo-Karte** zeigt unterhalb der 4 Hauptspalten eine
+  Komponenten-Zeile mit drei Kacheln (Trinkwasser, Schmutzwasser,
+  Niederschlagswasser), jeweils mit aktuellem Tarif, kumuliertem
+  Verbrauchsanteil und Grundpreis-Aufschlüsselung.
+- **Wasser-Vertragsdialog** (`openWaterContractModal`) mit drei
+  ein-/ausklappbaren Komponenten-Sektionen plus Abschläge und Boni.
+  Schmutzwasser-Basis ist umschaltbar (Trinkwasser-Verbrauch /
+  separater Zähler).
+- **Vertragstabelle** für Wasser zeigt die Anzahl der Stichtage pro
+  Komponente statt der Standard-Spalten.
+
+### Backend-Änderungen
+
+- `ContractService::normalizeWater()` — strikte F4-Validierung der
+  drei Komponenten-Blöcke. Halb-ausgefüllte Niederschlagswasser-Zeilen
+  (z.B. Fläche fehlt, Tarif vorhanden) werden mit HTTP 400 abgelehnt.
+- `ConsumptionService::applyWaterContracts()` — neue Pro-Monat-Berechnung
+  mit drei Komponenten und Aufschlüsselung in `monthly[].trinkwasser`,
+  `.schmutzwasser`, `.niederschlagswasser`.
+- `ConsumptionService::contractStatus()` für Wasser ergänzt um
+  `components.{trinkwasser, schmutzwasser, niederschlagswasser}` mit
+  Pro-Komponenten-Summen und aktuellen Tarifwerten.
+
+### Migration
+
+Update von v1.0.2 → v1.0.3 ist beim ersten App-Start automatisch.
+Bestehende Backups (Format `backup_version: "3.0"`) bleiben kompatibel,
+weil sie unter `utilities.wasser.contracts` die alte Struktur
+enthielten — beim Import wird sie wie laufende v1.0.2-Daten erkannt und
+in die neue Struktur überführt.
+
+[1.0.3]: https://github.com/Bingerminger/energietracker/releases/tag/v1.0.3
+
+---
+
 ## [1.0.2] — 2026-05-11 — Initial public release
 
 Erste öffentliche Version des Energietrackers. Selbst-gehostete Web-App

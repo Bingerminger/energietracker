@@ -1,5 +1,5 @@
 // =====================================================================
-// Energietracker v1.0.2 — Frontend entry point.
+// Energietracker v1.0.3 — Frontend entry point.
 // =====================================================================
 
 import { startRouter } from './router.js';

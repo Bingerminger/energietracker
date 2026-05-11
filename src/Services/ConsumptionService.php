@@ -129,21 +129,51 @@ final class ConsumptionService
             // Aggregate over the months we actually have for this contract
             $actualKwh   = 0.0; $actualCost = 0.0; $actualKwhCost = 0.0;
             $actualBase  = 0.0; $actualBonus = 0.0; $advancePaid = 0.0;
+            // Water component aggregates (v1.0.3)
+            $twWorking = 0.0; $twBase = 0.0; $twTotal = 0.0;
+            $swTotal   = 0.0;
+            $nwTotal   = 0.0;
+            $actualM3  = 0.0;
             foreach ($mList as $m) {
                 $actualKwh     += (float)($m['kwh'] ?? 0);
+                $actualM3      += (float)($m['m3']  ?? 0);
                 $actualCost    += (float)($m['cost'] ?? 0);
                 $actualKwhCost += (float)($m['kwh_cost'] ?? 0);
                 $actualBase    += (float)($m['base_price_eur'] ?? 0);
                 $actualBonus   += (float)($m['bonus_eur'] ?? 0);
                 $advancePaid   += (float)($m['advance_eur'] ?? 0);
+                if ($utility === 'wasser') {
+                    $tw = $m['trinkwasser']         ?? null;
+                    $sw = $m['schmutzwasser']       ?? null;
+                    $nw = $m['niederschlagswasser'] ?? null;
+                    if (is_array($tw)) {
+                        $twWorking += (float)($tw['working_cost'] ?? 0);
+                        $twBase    += (float)($tw['base_cost']    ?? 0);
+                        $twTotal   += (float)($tw['total']        ?? 0);
+                    }
+                    if (is_array($sw)) $swTotal += (float)($sw['total'] ?? 0);
+                    if (is_array($nw)) $nwTotal += (float)($nw['total'] ?? 0);
+                }
             }
             $monthsActual = count($mList);
             $currentBalance = round($actualCost - $advancePaid, 2);
 
-            // Current tariff values (those valid today, for the active contract)
+            // Current tariff values (those valid today, for the active contract).
             [$y, $mn] = [(int)date('Y'), (int)date('n')];
-            $curWp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn);
-            $curBp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
+            if ($utility === 'wasser') {
+                $tw = $c['trinkwasser']         ?? [];
+                $sw = $c['schmutzwasser']       ?? [];
+                $nw = $c['niederschlagswasser'] ?? [];
+                $curWp = $this->contracts->valueValidOn($tw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
+                $curBp = $this->contracts->valueValidOn($tw['base_prices']    ?? [], 'eur_per_month', $y, $mn);
+                $curSwWp = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
+                $curNwRate = $this->valueValidOnGeneric($nw['rates'] ?? [], 'eur_per_m2_year',        $y, $mn);
+                $curNwArea = $this->valueValidOnGeneric($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $y, $mn);
+            } else {
+                $curWp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn);
+                $curBp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
+                $curSwWp = $curNwRate = $curNwArea = null;
+            }
             $curAp = $this->contracts->valueValidOn($c['advance_payments'] ?? [], 'amount_eur', $y, $mn);
 
             // Project balance to contract end:
@@ -161,7 +191,7 @@ final class ConsumptionService
             $verdict = $projected > 5 ? 'Nachzahlung'
                      : ($projected < -5 ? 'Erstattung' : 'Ausgeglichen');
 
-            $out[] = [
+            $row = [
                 'contract_id'                 => $cid,
                 'provider'                    => $c['provider']    ?? '',
                 'tariff_name'                 => $c['tariff_name'] ?? '',
@@ -186,6 +216,31 @@ final class ConsumptionService
                 'projected_end_balance'       => $projected,
                 'verdict'                     => $verdict,
             ];
+            if ($utility === 'wasser') {
+                $row['actual_m3']    = round($actualM3, 1);
+                $row['components']   = [
+                    'trinkwasser' => [
+                        'working_cost'     => round($twWorking, 2),
+                        'base_cost'        => round($twBase, 2),
+                        'total'            => round($twTotal, 2),
+                        'current_ct_per_m3'   => $curWp,
+                        'current_eur_per_month' => $curBp,
+                    ],
+                    'schmutzwasser' => [
+                        'total'                => round($swTotal, 2),
+                        'current_ct_per_m3'    => $curSwWp,
+                        'basis'                => $c['schmutzwasser']['basis'] ?? 'trinkwasser',
+                    ],
+                    'niederschlagswasser' => [
+                        'total'                       => round($nwTotal, 2),
+                        'current_eur_per_m2_year'     => $curNwRate,
+                        'current_versiegelte_m2'      => $curNwArea,
+                        'current_monthly'             => ($curNwRate !== null && $curNwArea !== null)
+                            ? round((float)$curNwRate * (float)$curNwArea / 12.0, 2) : null,
+                    ],
+                ];
+            }
+            $out[] = $row;
         }
 
         // Sort by start ascending so the table reads chronologically
@@ -408,20 +463,38 @@ final class ConsumptionService
     {
         $contracts = $this->contracts->list($utility, $meterId);
         if (empty($contracts)) {
-            foreach ($monthly as &$m) {
-                $m['contract_id']      = null;
-                $m['advance_eur']      = null;
+            return $this->applyEmptyContractFields($monthly, $utility);
+        }
+        return $utility === 'wasser'
+            ? $this->applyWaterContracts($monthly, $contracts)
+            : $this->applyStandardContracts($monthly, $contracts);
+    }
+
+    private function applyEmptyContractFields(array $monthly, string $utility): array
+    {
+        foreach ($monthly as &$m) {
+            $m['contract_id']        = null;
+            $m['advance_eur']        = null;
+            $m['bonus_eur']          = null;
+            $m['monthly_balance']    = null;
+            $m['cumulative_balance'] = null;
+            if ($utility === 'wasser') {
+                $m['trinkwasser']         = null;
+                $m['schmutzwasser']       = null;
+                $m['niederschlagswasser'] = null;
+            } else {
                 $m['base_price_eur']   = null;
                 $m['working_price_ct'] = null;
-                $m['bonus_eur']        = null;
                 $m['kwh_cost']         = $m['cost'] ?? null;
-                $m['monthly_balance']  = null;
-                $m['cumulative_balance']=null;
             }
-            unset($m);
-            return $monthly;
         }
+        unset($m);
+        return $monthly;
+    }
 
+    /** Gas / Strom — original flat shape with working_prices / base_prices. */
+    private function applyStandardContracts(array $monthly, array $contracts): array
+    {
         $running = [];
         foreach ($monthly as &$m) {
             $first = $m['ym'] . '-01';
@@ -440,8 +513,7 @@ final class ConsumptionService
             $ap = $this->contracts->valueValidOn($c['advance_payments'] ?? [], 'amount_eur', $y, $mn);
             $bn = $this->contracts->bonusForMonth($c, $y, $mn);
 
-            $valueField = isset($m['kwh']) && $m['kwh'] > 0 ? 'kwh' : 'm3';
-            $value = (float)($m[$valueField] ?? 0);
+            $value = (float)($m['kwh'] ?? 0);
             $kwhCost = (float)($m['cost'] ?? 0);
             if ($wp !== null && $value > 0) {
                 $kwhCost = round($value * $wp / 100.0, 2);
@@ -468,6 +540,133 @@ final class ConsumptionService
         }
         unset($m);
         return $monthly;
+    }
+
+    /**
+     * Water — three priced components per contract (v1.0.3).
+     *
+     * Per month, computes:
+     *   trinkwasser   = m³_trinkwasser × ct/m³ + Grundpreis
+     *   schmutzwasser = m³_schmutzwasser × ct/m³
+     *                 (m³_schmutzwasser = m³_trinkwasser when basis = 'trinkwasser')
+     *   niederschlagswasser = versiegelte_m² × eur/m²/Jahr / 12
+     *
+     * Result fields per month:
+     *   m.trinkwasser         = { m3, ct_per_m3, base_price_eur, working_cost, base_cost, total }
+     *   m.schmutzwasser       = { basis, m3, ct_per_m3, total }
+     *   m.niederschlagswasser = { eur_per_m2_year, versiegelte_flaeche_m2, total }
+     *   m.cost                = trinkwasser.total + schmutzwasser.total + niederschlagswasser.total − bonus
+     */
+    private function applyWaterContracts(array $monthly, array $contracts): array
+    {
+        $running = [];
+        foreach ($monthly as &$m) {
+            $first = $m['ym'] . '-01';
+            $c = $this->contracts->findActiveForDate($contracts, $first);
+            if (!$c) {
+                $m['contract_id'] = null; $m['advance_eur'] = null;
+                $m['trinkwasser'] = null; $m['schmutzwasser'] = null; $m['niederschlagswasser'] = null;
+                $m['bonus_eur'] = null;
+                $m['monthly_balance'] = null; $m['cumulative_balance'] = null;
+                continue;
+            }
+            $y = (int)$m['year']; $mn = (int)$m['month'];
+
+            $m3 = (float)($m['m3'] ?? 0);
+            $tw = $c['trinkwasser']         ?? [];
+            $sw = $c['schmutzwasser']       ?? [];
+            $nw = $c['niederschlagswasser'] ?? [];
+
+            // ── Trinkwasser ─────────────────────────────────────────
+            $twWp = $this->contracts->valueValidOn($tw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
+            $twBp = $this->contracts->valueValidOn($tw['base_prices']    ?? [], 'eur_per_month', $y, $mn);
+            $twWorking = ($twWp !== null && $m3 > 0) ? round($m3 * $twWp / 100.0, 2) : 0.0;
+            $twBase    = $twBp !== null ? (float)$twBp : 0.0;
+            $twTotal   = round($twWorking + $twBase, 2);
+
+            // ── Schmutzwasser ──────────────────────────────────────
+            // For 'separater_zaehler' the volume is currently the
+            // trinkwasser-m³ as well (we can't measure a separate counter
+            // without wiring it up in the meter list). Future v1.1 work
+            // can read the linked meter's volume.
+            $swWp = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
+            $swM3 = $m3; // basis = trinkwasser → identical; separater_zaehler currently same
+            $swTotal = ($swWp !== null && $swM3 > 0) ? round($swM3 * $swWp / 100.0, 2) : 0.0;
+
+            // ── Niederschlagswasser ────────────────────────────────
+            $nwRate = $this->valueValidOnGeneric($nw['rates'] ?? [], 'eur_per_m2_year', $y, $mn);
+            $nwArea = $this->valueValidOnGeneric($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $y, $mn);
+            $nwTotal = ($nwRate !== null && $nwArea !== null)
+                ? round(((float)$nwArea * (float)$nwRate) / 12.0, 2)
+                : 0.0;
+
+            $ap = $this->contracts->valueValidOn($c['advance_payments'] ?? [], 'amount_eur', $y, $mn);
+            $bn = $this->contracts->bonusForMonth($c, $y, $mn);
+
+            $combined = round($twTotal + $swTotal + $nwTotal - $bn, 2);
+
+            $m['contract_id']  = $c['id'];
+            $m['advance_eur']  = $ap;
+            $m['bonus_eur']    = round($bn, 2);
+            $m['trinkwasser']  = [
+                'm3'             => $m3,
+                'ct_per_m3'      => $twWp,
+                'base_price_eur' => $twBp,
+                'working_cost'   => $twWorking,
+                'base_cost'      => $twBase,
+                'total'          => $twTotal,
+            ];
+            $m['schmutzwasser'] = [
+                'basis'                       => (string)($sw['basis'] ?? 'trinkwasser'),
+                'separater_zaehler_meter_id'  => $sw['separater_zaehler_meter_id'] ?? null,
+                'm3'                          => $swM3,
+                'ct_per_m3'                   => $swWp,
+                'total'                       => $swTotal,
+            ];
+            $m['niederschlagswasser'] = [
+                'eur_per_m2_year'        => $nwRate,
+                'versiegelte_flaeche_m2' => $nwArea,
+                'total'                  => $nwTotal,
+            ];
+            $m['cost'] = $combined;
+
+            // For the legacy/standard fields the UI's monthly table reads,
+            // we keep working_price_ct = trinkwasser ct/m³ (the headline
+            // tariff) and base_price_eur = trinkwasser base + niederschlag/month.
+            $m['working_price_ct'] = $twWp;
+            $m['base_price_eur']   = round($twBase + $nwTotal, 2);
+            $m['kwh_cost']         = round($twWorking + $swTotal, 2); // Verbrauchsabhängig
+
+            if ($ap !== null) {
+                $delta = $combined - (float)$ap;
+                $m['monthly_balance'] = round($delta, 2);
+                $running[$c['id']] = ($running[$c['id']] ?? 0.0) + $delta;
+                $m['cumulative_balance'] = round($running[$c['id']], 2);
+            } else {
+                $m['monthly_balance'] = null;
+                $m['cumulative_balance'] = null;
+            }
+        }
+        unset($m);
+        return $monthly;
+    }
+
+    /**
+     * Generic stichtag-lookup for entries with an arbitrary numeric field
+     * (used by the Niederschlagswasser rates which have two fields per entry).
+     */
+    private function valueValidOnGeneric(array $entries, string $field, int $year, int $month): ?float
+    {
+        if (empty($entries)) return null;
+        $first = sprintf('%04d-%02d-01', $year, $month);
+        usort($entries, fn($a, $b) => strcmp($a['from'] ?? '', $b['from'] ?? ''));
+        $val = null;
+        foreach ($entries as $e) {
+            if (($e['from'] ?? '9999') <= $first) {
+                if (isset($e[$field]) && is_numeric($e[$field])) $val = (float)$e[$field];
+            } else break;
+        }
+        return $val;
     }
 
     private function addMovingAverages(array $monthly, string $field): array

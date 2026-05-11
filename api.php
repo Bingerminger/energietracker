@@ -1,6 +1,6 @@
 <?php
 /**
- * Energietracker v1.0.2 — API entry point.
+ * Energietracker v1.0.3 — API entry point.
  *
  * This file is intentionally tiny. All wiring lives in src/bootstrap.php.
  * Every HTTP request hits this file via the web server.
