@@ -223,7 +223,7 @@ spätere Readings angewandt — als Fallback wenn kein passender Vertrag
 existiert. In der Praxis lässt man `price_cents` leer und pflegt
 stattdessen Verträge.
 
-### Meter und Device (F2 Zählertausch)
+### Meter und Device (Zählertausch)
 
 ```json
 {
