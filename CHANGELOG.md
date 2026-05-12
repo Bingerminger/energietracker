@@ -6,6 +6,61 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.0.4] — 2026-05-12 — Bugfixes UI
+
+Drei via GitHub gemeldete Bugs in der Vertragsverwaltung und in der
+Korrelations-Ansicht.
+
+### Fixed
+
+- **[#1] Vertrags-Button irreführend benannt.** Auf den Utility-Seiten
+  (Gas/Strom/Wasser) zeigte der Action-Button in der „Verträge &
+  Abschläge"-Karte den Text *„+ Neuer Vertrag"* — er führte aber zur
+  Vertragsverwaltungs-Seite, nicht zum Vertrag-Anlegen-Dialog. Neu:
+  *„⚙️ Verträge verwalten"* mit passendem Icon. Das eigentliche
+  Anlegen ist weiterhin in der Vertragsverwaltung selbst per
+  „+ Neuer Vertrag"-Button erreichbar.
+
+- **[#2] Speichern/Abbrechen-Buttons im Vertrag-Edit-Modal funktionierten
+  nicht bei manchen Verträgen.** Wenn beim Aufbau des Modals ein
+  Wiring-Schritt (Boni-Sektion oder Zeilen-Buttons einer Stichtag-
+  Gruppe) eine Exception warf — etwa weil ein migriertes v0.9.0-Format
+  unerwartete Strukturen mitbrachte — wurden die Fußleisten-Buttons nie
+  verbunden, weil sie nach den anderen Handlern gebunden wurden.
+  Fixes:
+  - Cancel/Save werden jetzt **als allererstes** gebunden, bevor
+    irgendein anderer Sub-Handler läuft. Selbst wenn ein nachfolgender
+    Schritt fehlschlägt, bleibt das Modal benutzbar.
+  - Alle DOM-Lookups in `bindRowHandlers`, `bindBonusHandlers`,
+    `bindBonusRow` defensiv mit Optional-Chaining (`?.`). Fehlt ein
+    Element, gibt's eine `console.warn`, aber kein TypeError mehr.
+  - Die globale ID `#bonus-section` wurde durch `[data-section="bonus"]`
+    ersetzt, damit gestapelte Modale nicht über IDs kollidieren können.
+
+- **[#3] Anomalien-Tabelle in der Korrelations-Ansicht zeigte leere
+  Werte.** Feldnamen-Mismatch zwischen Backend und Frontend:
+  `AnomalyService` liefert `value` / `z_score` / `deviation` / `percent`
+  / `kind` / `hdd` / `avg_temp` — das Frontend las `a.actual` und `a.z`
+  (existieren nicht), wodurch *Verbrauch* und *Abweichung (σ)* immer
+  NaN bzw. leer waren. Das schuf den Eindruck, dass die Anomalien nicht
+  zu den eigentlichen Zählerdaten passten.
+  Die Anomalien-Tabelle wurde dabei gleich angereichert: Absolute
+  Abweichung, Prozent-Abweichung, σ-Wert, plus HGT und ø-Temperatur bei
+  HGT-relevanten Utilities. Empty-State-Text erklärt jetzt, gegen welches
+  Modell die Schwelle gerechnet wird.
+
+### Notes
+
+- Das geänderte Anomalien-Markup ist nicht-breaking; alle Backend-Felder
+  waren bereits vorhanden, nur das Frontend hat sie schlicht nicht
+  gelesen.
+- Schema-Version (`data/meta.json`) bleibt auf `1.0.3` — keine
+  Datenmodell-Änderung in v1.0.4.
+
+[1.0.4]: https://github.com/Bingerminger/energietracker/releases/tag/v1.0.4
+
+---
+
 ## [1.0.3] — 2026-05-11 — Wasser-Vertragsmodell
 
 Fachlicher Bugfix am Wassermodul. In v1.0.2 wurden Wasserverträge mit

@@ -1,5 +1,5 @@
 // =====================================================================
-// Energietracker v1.0.3 — API client
+// Energietracker v1.0.4 — API client
 // Thin wrapper around fetch. Mirrors the backend route layout from
 // src/bootstrap.php. Every method returns parsed JSON `data` or throws.
 // =====================================================================

@@ -192,7 +192,7 @@ async function rerender(container) {
     <div class="card">
       <div class="card__title">📑 Verträge & Abschläge
         <span class="card__title-action">
-          <button class="btn btn--ghost btn--sm" id="btn-new-contract">+ Neuer Vertrag</button>
+          <button class="btn btn--ghost btn--sm" id="btn-new-contract" title="Zur Vertragsverwaltung">⚙️ Verträge verwalten</button>
         </span>
       </div>
       ${contractsTable(contracts, u)}

@@ -95,17 +95,41 @@ async function renderForMeter(u, meterId, body) {
 
     <div class="card" style="margin-top: var(--sp-5)">
       <h3 class="card__title">Anomalien (${anomalies.length})</h3>
-      ${anomalies.length === 0 ? '<p class="muted">Keine Anomalien erkannt.</p>' : `
+      ${anomalies.length === 0 ? '<p class="muted">Keine Anomalien erkannt — alle Monate liegen innerhalb des Erwartungsbereichs (σ-Schwelle aus Einstellungen).</p>' : `
+        <p class="muted" style="margin-bottom:12px">
+          ${u.hgt_relevant
+            ? 'Monate, deren Verbrauch mehr als die σ-Schwelle vom HGT-Regressionsmodell abweicht.'
+            : 'Monate, deren Verbrauch mehr als die σ-Schwelle vom Saisonprofil abweicht.'}
+        </p>
         <div class="table-wrap"><table class="table">
-          <thead><tr><th>Monat</th><th class="num">Verbrauch</th><th class="num">Erwartet</th><th class="num">Abweichung (σ)</th></tr></thead>
+          <thead><tr>
+            <th>Monat</th>
+            <th class="num">Verbrauch</th>
+            <th class="num">Erwartet</th>
+            <th class="num">Δ absolut</th>
+            <th class="num">Δ %</th>
+            <th class="num">σ-Wert</th>
+            ${u.hgt_relevant ? '<th class="num">HGT</th><th class="num">ø Temp</th>' : ''}
+          </tr></thead>
           <tbody>
-            ${anomalies.map(a => `
-              <tr>
-                <td>${fmt.month(a.ym)}</td>
-                <td class="num">${fmt.num(a.actual, 0)}</td>
-                <td class="num">${fmt.num(a.expected, 0)}</td>
-                <td class="num ${a.z >= 0 ? 'danger-text' : 'success-text'}">${fmt.num(a.z, 2)}</td>
-              </tr>`).join('')}
+            ${anomalies.map(a => {
+              const z = a.z_score ?? 0;
+              const val = a.value ?? 0;
+              const dev = a.deviation ?? 0;
+              const pct = a.percent ?? 0;
+              const cls = z >= 0 ? 'danger-text' : 'success-text';
+              const unit = u.consumption_unit;
+              return `
+                <tr>
+                  <td><strong>${fmt.month(a.ym)}</strong></td>
+                  <td class="num">${fmt.num(val, 0)} ${unit}</td>
+                  <td class="num">${fmt.num(a.expected, 0)} ${unit}</td>
+                  <td class="num ${cls}">${dev >= 0 ? '+' : ''}${fmt.num(dev, 0)}</td>
+                  <td class="num ${cls}">${pct >= 0 ? '+' : ''}${fmt.num(pct, 1)} %</td>
+                  <td class="num ${cls}" style="font-weight:600">${z >= 0 ? '+' : ''}${fmt.num(z, 2)}</td>
+                  ${u.hgt_relevant ? `<td class="num">${a.hdd != null ? fmt.int(a.hdd) : '–'}</td><td class="num">${a.avg_temp != null ? fmt.num(a.avg_temp, 1) + ' °C' : '–'}</td>` : ''}
+                </tr>`;
+            }).join('')}
           </tbody></table></div>
       `}
     </div>
