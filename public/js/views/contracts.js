@@ -191,11 +191,11 @@ async function openContractModal(u, meters, existing) {
         <button type="button" class="btn btn--util" data-act="save">Speichern</button>
       `,
       onMount({ modalEl, close }) {
-        bindEntryGroupHandlers(modalEl);
-        bindBonusHandlers(modalEl);
-
-        modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(false); resolve(false); });
-        modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        // Cancel/Save ZUERST binden — selbst wenn die Sub-Handler unten
+        // wegen ungewöhnlicher Daten (z.B. migriertes v0.9.0-Format)
+        // eine Exception werfen, bleiben die Fußleisten-Buttons funktional.
+        modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => { close(false); resolve(false); });
+        modalEl.querySelector('[data-act="save"]')?.addEventListener('click', async () => {
           const f = modalEl.querySelector('#contract-form');
           if (!validateAllGroups(modalEl)) {
             toastErr('Bitte halb-leere Zeilen vervollständigen oder leeren');
@@ -209,6 +209,11 @@ async function openContractModal(u, meters, existing) {
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
         });
+
+        try { bindEntryGroupHandlers(modalEl); }
+        catch (e) { console.warn('contract modal: entry-group binding failed:', e); }
+        try { bindBonusHandlers(modalEl); }
+        catch (e) { console.warn('contract modal: bonus binding failed:', e); }
       }
     });
   });
@@ -272,29 +277,30 @@ function bindRowHandlers(modalEl, row) {
   const copyBtn     = row.querySelector('[data-action="copy-start"]');
   const removeBtn   = row.querySelector('[data-action="remove-row"]');
 
-  copyBtn.addEventListener('click', () => {
-    const start = modalEl.querySelector('input[name="start"]').value;
+  copyBtn?.addEventListener('click', () => {
+    const start = modalEl.querySelector('input[name="start"]')?.value;
     if (!start) { toastErr('Bitte zuerst Vertragsbeginn setzen'); return; }
-    dateInput.value = start;
+    if (dateInput) dateInput.value = start;
     validateRow(row);
   });
 
-  removeBtn.addEventListener('click', () => {
+  removeBtn?.addEventListener('click', () => {
     const group = row.closest('[data-group]');
     row.remove();
     // Keep at least one row visible
-    if (group.querySelectorAll('.entry-row').length === 0) {
+    if (group && group.querySelectorAll('.entry-row').length === 0) {
       const gKey = group.getAttribute('data-group');
       const g = GROUPS.find(x => x.key === gKey);
+      if (!g) return;
       const wrap = document.createElement('div');
       wrap.innerHTML = renderEntryRow(g, { [g.dateKey]: '', [g.amountKey]: '' });
       const newRow = wrap.firstElementChild;
-      group.querySelector('.entries').appendChild(newRow);
+      group.querySelector('.entries')?.appendChild(newRow);
       bindRowHandlers(modalEl, newRow);
     }
   });
 
-  [dateInput, amountInput].forEach(i => {
+  [dateInput, amountInput].filter(Boolean).forEach(i => {
     i.addEventListener('input', () => validateRow(row));
     i.addEventListener('blur',  () => validateRow(row));
   });
@@ -323,7 +329,7 @@ function validateAllGroups(modalEl) {
 function renderBonusSection(bonuses) {
   if (!bonuses || bonuses.length === 0) bonuses = [];
   return `
-    <div class="entry-group" id="bonus-section">
+    <div class="entry-group" data-section="bonus">
       <div class="entry-group__head">
         <div class="entry-group__title">Boni / Gutschriften</div>
         <button type="button" class="btn btn--sm btn--ghost" data-action="add-bonus">+ Bonus</button>
@@ -360,26 +366,29 @@ function renderBonusRow(b = {}) {
 }
 
 function bindBonusHandlers(modalEl) {
-  const sec = modalEl.querySelector('#bonus-section');
-  sec.querySelector('[data-action="add-bonus"]').addEventListener('click', () => {
+  const sec = modalEl.querySelector('[data-section="bonus"]');
+  if (!sec) return;
+  sec.querySelector('[data-action="add-bonus"]')?.addEventListener('click', () => {
     const wrap = document.createElement('div');
     wrap.innerHTML = renderBonusRow({});
     const row = wrap.firstElementChild;
-    sec.querySelector('.entries').appendChild(row);
+    sec.querySelector('.entries')?.appendChild(row);
     bindBonusRow(row);
   });
   sec.querySelectorAll('.bonus-row').forEach(bindBonusRow);
 }
 
 function bindBonusRow(row) {
-  row.querySelector('[data-action="remove-bonus"]').addEventListener('click', () => row.remove());
-  [row.querySelector('[data-role="date"]'), row.querySelector('[data-role="amount"]')].forEach(i => {
+  row.querySelector('[data-action="remove-bonus"]')?.addEventListener('click', () => row.remove());
+  const dateEl   = row.querySelector('[data-role="date"]');
+  const amountEl = row.querySelector('[data-role="amount"]');
+  [dateEl, amountEl].filter(Boolean).forEach(i => {
     i.addEventListener('input', () => {
-      const dateFilled   = row.querySelector('[data-role="date"]').value.trim()   !== '';
-      const amountFilled = row.querySelector('[data-role="amount"]').value.trim() !== '';
+      const dateFilled   = (dateEl?.value || '').trim()   !== '';
+      const amountFilled = (amountEl?.value || '').trim() !== '';
       const halfFilled   = dateFilled !== amountFilled;
-      row.querySelector('[data-role="date"]').classList.toggle('invalid',   halfFilled && !dateFilled);
-      row.querySelector('[data-role="amount"]').classList.toggle('invalid', halfFilled && !amountFilled);
+      dateEl?.classList.toggle('invalid',   halfFilled && !dateFilled);
+      amountEl?.classList.toggle('invalid', halfFilled && !amountFilled);
     });
   });
 }
