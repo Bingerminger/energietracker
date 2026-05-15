@@ -1,5 +1,5 @@
 /* =================================================================
-   Energietracker v1.1.0 — Design Tokens
+   Energietracker v1.2.0 — Design Tokens
    Industrial dark theme. DM Mono for numbers, DM Sans for prose.
    Aligned with v0.9.0 palette so the look stays consistent.
    ================================================================= */
@@ -102,3 +102,65 @@
 [data-utility="gas"]    { --util: var(--util-gas);    --util-soft: var(--util-gas-soft); }
 [data-utility="strom"]  { --util: var(--util-strom);  --util-soft: var(--util-strom-soft); }
 [data-utility="wasser"] { --util: var(--util-wasser); --util-soft: var(--util-wasser-soft); }
+
+/* =================================================================
+   Light theme — v1.2.0
+   Aktiviert über `data-theme="light"` auf <html> (gesetzt vom
+   Anti-Flash-Skript in index.php bzw. vom Theme-Toggle). Überschreibt
+   nur die Tokens, die in beiden Themes inhaltlich unterschiedlich
+   sind; die Layout- und Größentokens bleiben gemeinsam.
+   ================================================================= */
+[data-theme="light"] {
+  /* ── Surfaces ─────────────────────────────────────────────────── */
+  --bg-0:        #f6f8fa;
+  --bg-1:        #ffffff;
+  --bg-2:        #eef2f7;
+  --bg-3:        #dde4ed;
+  --bg-overlay:  rgba(15, 23, 42, 0.45);
+
+  /* ── Borders ──────────────────────────────────────────────────── */
+  --border-1:    rgba(15, 23, 42, 0.08);
+  --border-2:    rgba(15, 23, 42, 0.14);
+  --border-strong: rgba(15, 23, 42, 0.22);
+
+  /* ── Text ─────────────────────────────────────────────────────── */
+  --text-1:      #0f172a;
+  --text-2:      #475569;
+  --text-3:      #64748b;
+  --text-disabled: #94a3b8;
+
+  /* ── Brand / accents — dunklere Schattierungen für Weiß-Bg-Kontrast */
+  --accent:      #2563eb;
+  --accent-hover:#1d4ed8;
+
+  --util-gas:    #ea580c;
+  --util-strom:  #059669;
+  --util-wasser: #2563eb;
+
+  --util-gas-soft:    rgba(234,  88,  12, 0.10);
+  --util-strom-soft:  rgba(  5, 150, 105, 0.10);
+  --util-wasser-soft: rgba( 37,  99, 235, 0.10);
+
+  --c-blue:      #2563eb;
+  --c-violet:    #7c3aed;
+  --c-yellow:    #d97706;
+  --c-red:       #dc2626;
+  --c-blue-soft:   rgba( 37,  99, 235, 0.10);
+  --c-violet-soft: rgba(124,  58, 237, 0.10);
+  --c-yellow-soft: rgba(217, 119,   6, 0.10);
+
+  /* ── Semantic ─────────────────────────────────────────────────── */
+  --success:     #059669;
+  --warning:     #d97706;
+  --danger:      #dc2626;
+  --info:        #2563eb;
+
+  --success-soft:rgba(  5, 150, 105, 0.10);
+  --warning-soft:rgba(217, 119,   6, 0.10);
+  --danger-soft: rgba(220,  38,  38, 0.10);
+
+  /* ── Shadows — weicher und dunkler auf hellem Grund ──────────── */
+  --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-2: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-3: 0 10px 32px rgba(15, 23, 42, 0.12);
+}

@@ -6,7 +6,56 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
-## [1.1.0] — 2026-05-14 — Forecast-Finanzen, Datenexport, mehr Komfort
+## [1.2.0] — 2026-05-15 — Theme-Toggle + Diagnose-Bugfix
+
+Tag/Nacht-Umschaltung für die gesamte UI plus eine kosmetische
+Aufräumung der System-Diagnose. Keine Backend- oder Datenmodell-
+Änderungen — Schema bleibt unverändert bei **1.0.3**.
+
+### Added
+
+- **Tag/Nacht-Umschaltung.** Ein Toggle-Knopf rechts in der Topbar
+  schaltet zwischen Dunkel- und Hellmodus. Die Wahl wird in
+  `localStorage["et-theme"]` persistiert; auf den ersten Besuch ohne
+  gespeicherte Wahl wird `prefers-color-scheme` respektiert. Ein
+  Anti-Flash-Inline-Skript in `index.php` setzt das Theme bereits vor
+  dem CSS-Laden, damit es keinen Aufblitz-Effekt gibt. Solange der User
+  noch nicht selbst geklickt hat, folgt die App OS-Theme-Änderungen
+  live (z.B. macOS schaltet abends auf dunkel). Implementierung via
+  `[data-theme="light|dark"]`-Attribut auf `<html>` plus CSS-Variablen
+  in `tokens.css` — keine Style-Duplikation.
+
+### Fixed
+
+- **[#1] System-Diagnose-Optik.** In v1.0.4 → v1.1.0 sah die System-
+  Diagnose (unter Einstellungen) hässlich aus, vor allem die Zeilen
+  `utilities`, `temperatures` und `settings_known_keys` waren rohe
+  JSON-Dumps und liefen seitlich aus dem Layout. Neu:
+  - Header-Felder (App-Version, PHP, Datenverzeichnis usw.) in einem
+    sauberen Definition-Grid.
+  - `utilities` als kompakte Tabelle mit Spalten Zähler / Ablesungen /
+    Verträge / Letzte Ablesung.
+  - `temperatures` als „N Tageswerte gespeichert"-Klartext.
+  - `settings_known_keys` als gewickelte Mono-Chips.
+  - Boolean-Felder (`data_dir_writable`, `curl_available`,
+    `migration_needed`) als farbige Badges.
+
+### Notes
+
+- Mehrere bislang hardcodierte `rgba(…)`-Farbwerte in `app.css` und
+  `components.css` wurden durch `var(--token)` bzw. `color-mix(in srgb,
+  var(--token) NN%, transparent)` ersetzt, damit das Light-Theme korrekt
+  durchschlägt. Funktional unverändert für das Dark-Theme.
+- `components/chart.js` liest Theme-Farben jetzt live aus CSS-Variablen
+  (per Proxy). Beim Theme-Wechsel werden `Chart.defaults` neu gesetzt;
+  bereits gerenderte Charts ziehen die neuen Farben aber erst beim
+  nächsten Re-Render an (eine Navigation in der App genügt).
+- Keine neuen Settings-Keys, keine Datenmodell-Änderung. Schema-Version
+  unverändert `1.0.3`.
+
+[1.2.0]: https://github.com/Bingerminger/energietracker/releases/tag/v1.2.0
+
+---
 
 Erstes MINOR-Release nach der v1.0.x-Bugfix-Serie. Sieben neue Funktionen
 und ein Datenmodell-Fix — alle additiv und abwärtskompatibel. **Das

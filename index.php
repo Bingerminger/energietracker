@@ -1,6 +1,6 @@
 <?php
 /**
- * Energietracker v1.1.0 — SPA shell.
+ * Energietracker v1.2.0 — SPA shell.
  *
  * Layout: thin top bar + 220px left sidebar (v0.9.0-style),
  * main content area on the right. All rendering happens client-side
@@ -8,7 +8,7 @@
  */
 declare(strict_types=1);
 
-$version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.1.0';
+$version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.2.0';
 $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 ?>
 <!doctype html>
@@ -16,8 +16,28 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light dark">
 <title>Energietracker <?= htmlspecialchars($version, ENT_QUOTES) ?></title>
+<!--
+  Theme anti-flash. Läuft synchron vor dem CSS-Laden und setzt
+  data-theme="light|dark" auf <html>, damit das Layout nicht erst dunkel
+  rendert und dann auf hell umspringt (umgekehrt analog).
+  Quelle der Wahrheit: localStorage["et-theme"] (vom Toggle gesetzt) →
+  Fallback prefers-color-scheme → Fallback "dark".
+-->
+<script>
+(function() {
+  try {
+    var saved = localStorage.getItem('et-theme');
+    var theme = (saved === 'light' || saved === 'dark')
+      ? saved
+      : (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -35,7 +55,12 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
       <span class="topbar__title">ENERGIE TRACKING</span>
       <span class="topbar__version">v<?= htmlspecialchars($version, ENT_QUOTES) ?></span>
     </div>
-    <div class="topbar__status" id="topbar-status"></div>
+    <div class="topbar__actions">
+      <button type="button" id="theme-toggle" class="topbar__btn" aria-label="Theme wechseln" title="Theme wechseln">
+        <span class="topbar__btn-icon" aria-hidden="true"></span>
+      </button>
+      <div class="topbar__status" id="topbar-status"></div>
+    </div>
   </header>
 
   <!-- Left sidebar -->

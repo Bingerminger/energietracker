@@ -1,5 +1,5 @@
 // =====================================================================
-// Energietracker v1.1.0 — Lightweight state store
+// Energietracker v1.2.0 — Lightweight state store
 // Caches utilities config & settings so views don't refetch on every nav.
 // =====================================================================
 
@@ -8,7 +8,7 @@ import { api } from './api.js';
 const state = {
   utilities: null,
   settings: null,
-  version: document.body.getAttribute('data-app-version') || '1.1.0',
+  version: document.body.getAttribute('data-app-version') || '1.2.0',
 };
 
 export async function getUtilities() {

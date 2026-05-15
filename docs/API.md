@@ -1,4 +1,4 @@
-# API-Referenz v1.1.0
+# API-Referenz v1.2.0
 
 REST-API über einen einzigen Entry-Point: `api.php`. Pfade haben das
 Präfix `/api/`, das nach dem Script-Name folgt:

@@ -1,35 +1,63 @@
 // =====================================================================
-// Chart.js helper. Applies theme defaults (dark, DM Mono, ticks etc.)
+// Energietracker v1.2.0 — Chart.js helper
+// Liest alle Theme-Farben aus den CSS-Variablen, damit das Dark/Light-
+// Theme-Toggle keine zweite Quelle der Wahrheit braucht. Beim Theme-
+// Wechsel werden Chart.defaults neu gesetzt; bereits gerenderte Charts
+// rendern sich erst auf Re-Render neu (akzeptabel — eine Navigation
+// genügt).
 // =====================================================================
 
-const T = {
-  text1: '#dce8f5',
-  text2: '#6b7f99',
-  text3: '#3d5070',
-  accent:'#4a90e2',
-  grid:  'rgba(255,255,255,0.06)',
-  border:'rgba(255,255,255,0.12)',
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// Live-View auf die aktuellen Theme-Tokens. Frühere Versionen (≤ v1.1.0)
+// exportierten dies als statisches Objekt — der Lookup über einen Proxy
+// hält den Zugriff API-kompatibel, liefert aber stets den Live-Wert.
+const TOKEN_MAP = {
+  text1:  '--text-1',
+  text2:  '--text-2',
+  text3:  '--text-3',
+  accent: '--accent',
+  bg1:    '--bg-1',
+  bg2:    '--bg-2',
+  border: '--border-2',
 };
+
+export const themeColors = new Proxy({}, {
+  get(_t, prop) {
+    const cssName = TOKEN_MAP[prop];
+    return cssName ? cssVar(cssName) : undefined;
+  }
+});
+
+function gridColor() {
+  // Halbtransparente Gitterlinien — funktionieren auf beiden Themes,
+  // tönen aber je nach Hintergrund unterschiedlich.
+  return document.documentElement.getAttribute('data-theme') === 'light'
+    ? 'rgba(15, 23, 42, 0.06)'
+    : 'rgba(255, 255, 255, 0.06)';
+}
 
 function applyDefaults() {
   if (!window.Chart) return;
-  if (window.Chart._etThemed) return;
-  Chart.defaults.color = T.text2;
-  Chart.defaults.borderColor = T.grid;
+  Chart.defaults.color = themeColors.text2;
+  Chart.defaults.borderColor = gridColor();
   Chart.defaults.font.family = 'DM Sans, system-ui, sans-serif';
   Chart.defaults.font.size = 12;
-  Chart.defaults.plugins.legend.labels.color = T.text1;
-  Chart.defaults.plugins.tooltip.backgroundColor = '#1a1f29';
-  Chart.defaults.plugins.tooltip.borderColor = '#2e3645';
+  Chart.defaults.plugins.legend.labels.color = themeColors.text1;
+  Chart.defaults.plugins.tooltip.backgroundColor = themeColors.bg2;
+  Chart.defaults.plugins.tooltip.borderColor = themeColors.border;
   Chart.defaults.plugins.tooltip.borderWidth = 1;
-  Chart.defaults.plugins.tooltip.titleColor = T.text1;
-  Chart.defaults.plugins.tooltip.bodyColor  = T.text2;
-  window.Chart._etThemed = true;
+  Chart.defaults.plugins.tooltip.titleColor = themeColors.text1;
+  Chart.defaults.plugins.tooltip.bodyColor  = themeColors.text2;
 }
+
+// Beim Theme-Wechsel die Defaults neu setzen, damit neu erstellte Charts
+// sofort korrekt eingefärbt sind.
+document.addEventListener('et:themechange', applyDefaults);
 
 export function makeChart(canvas, config) {
   applyDefaults();
   return new Chart(canvas, config);
 }
-
-export const themeColors = T;

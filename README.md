@@ -1,6 +1,6 @@
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -17,7 +17,7 @@ Klima, vier Regressionsmodelle (linear, polynomial, robust, segmentiert), und
 einen Saldo pro Vertrag — sowohl aktueller Stand als auch erwartete
 End-Saldierung.
 
-> **Status:** v1.1.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.2.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -113,6 +113,9 @@ End-Saldierung.
 - **CSV-Export** für Monatsübersicht, Zählerstände und Temperaturreihe —
   semikolon-getrennt, UTF-8 mit BOM, direkt in Excel/LibreOffice nutzbar.
   Ergänzt das vollständige JSON-Backup.
+- **Tag/Nacht-Umschaltung** rechts in der Topbar. Respektiert beim
+  ersten Besuch `prefers-color-scheme`, persistiert die Wahl danach
+  in `localStorage`.
 - **System-Diagnose** unter Einstellungen: PHP-Version, Datenverzeichnis,
   Schreibrechte, Schema-Version, Anzahl Zähler/Ablesungen pro Utility.
 
@@ -197,8 +200,8 @@ cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
 ## Datenmodell
 
 Alles liegt als JSON unter `data/`. Schema-Version (`1.0.3` — seit
-v1.0.3 unverändert; v1.1.0 fügt nur additive Settings-Defaults hinzu)
-steht in `data/meta.json` und in jedem exportierten Backup unter
+v1.0.3 unverändert; v1.1.0 fügte additive Settings-Defaults hinzu,
+v1.2.0 ist eine reine UI-Erweiterung) steht in `data/meta.json` und in jedem exportierten Backup unter
 `backup_version`.
 
 ```
@@ -320,7 +323,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.1.0"
+├── VERSION                  ← „1.2.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE
@@ -364,7 +367,7 @@ Wer aus einem v0.9.0-Backup migrieren möchte:
 1. In v0.9.0 ein vollständiges JSON-Backup exportieren (Format-Version
    `2.1` mit Top-Level-Schlüssel `gas`, `strom`, `temperatures`, `settings`,
    `contracts`).
-2. v1.1.0 frisch installieren (siehe [Schnellstart](#schnellstart)) oder
+2. v1.2.0 frisch installieren (siehe [Schnellstart](#schnellstart)) oder
    die Demo-Daten löschen.
 3. **Einstellungen → Backup & Restore → 📦 Migration aus v0.9.0** öffnen
    und die JSON-Datei hochladen.

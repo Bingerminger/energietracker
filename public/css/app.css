@@ -1,5 +1,5 @@
 /* =================================================================
-   Energietracker v1.1.0 — App Shell
+   Energietracker v1.2.0 — App Shell
    Sidebar + thin topbar layout, restored from v0.9.0.
    ================================================================= */
 
@@ -71,6 +71,30 @@ h1, h2, h3, h4 { margin: 0; }
   background: var(--util-strom);
   display: inline-block;
 }
+.topbar__actions {
+  display: flex; align-items: center; gap: var(--sp-3);
+}
+.topbar__btn {
+  background: transparent;
+  border: 1px solid var(--border-2);
+  color: var(--text-1);
+  width: 32px; height: 32px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 15px; line-height: 1;
+  transition: var(--transition);
+}
+.topbar__btn:hover {
+  background: var(--bg-2);
+  border-color: var(--border-strong);
+}
+.topbar__btn:active { transform: translateY(1px); }
+.topbar__btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.topbar__btn-icon { display: inline-block; }
 
 /* ── Sidebar ────────────────────────────────────────────────────── */
 .sidebar {
@@ -219,7 +243,7 @@ h1, h2, h3, h4 { margin: 0; }
   font-size: 11px; font-weight: 600;
   border-radius: 100px;
 }
-.kpi__trend.up { background: rgba(239,68,68,.12); color: var(--c-red); }
+.kpi__trend.up { background: var(--danger-soft); color: var(--c-red); }
 .kpi__trend.down { background: var(--util-strom-soft); color: var(--util-strom); }
 .kpi__trend.flat { background: var(--bg-3); color: var(--text-2); }
 
@@ -232,9 +256,9 @@ h1, h2, h3, h4 { margin: 0; }
   border: 1px solid;
   font-size: 13px;
 }
-.status-banner.ok    { background: var(--success-soft); border-color: rgba(45,232,164,.3); color: var(--success); }
+.status-banner.ok    { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 30%, transparent); color: var(--success); }
 .status-banner.warn  { background: var(--warning-soft); border-color: rgba(245,200,66,.3); color: var(--warning); }
-.status-banner.alert { background: rgba(239,68,68,.08);  border-color: rgba(239,68,68,.3); color: var(--danger); }
+.status-banner.alert { background: var(--danger-soft);   border-color: color-mix(in srgb, var(--danger) 30%, transparent); color: var(--danger); }
 .status-banner__icon { font-size: 18px; line-height: 1; }
 .status-banner__text { flex: 1; }
 .status-banner strong { font-weight: 600; }

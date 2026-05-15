@@ -57,10 +57,10 @@
 }
 .input:focus, .select:focus, textarea.input:focus {
   outline: none; border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(96,165,250,0.15);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .input.invalid, .select.invalid { border-color: var(--danger); }
-.input.invalid:focus { box-shadow: 0 0 0 3px rgba(239,68,68,0.20); }
+.input.invalid:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 25%, transparent); }
 
 .input--text { font-family: var(--font-sans); }
 
@@ -221,7 +221,7 @@ textarea.input { min-height: 80px; resize: vertical; }
   cursor: pointer;
 }
 .drop-zone:hover, .drop-zone.dragover {
-  border-color: var(--accent); background: rgba(96,165,250,0.05);
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent);
   color: var(--text-1);
 }
 
@@ -231,7 +231,7 @@ textarea.input { min-height: 80px; resize: vertical; }
   margin-bottom: var(--sp-4); font-size: var(--fs-sm);
   border: 1px solid var(--border-1);
 }
-.banner--info    { background: rgba(96,165,250,0.08);  border-color: rgba(96,165,250,0.3); }
+.banner--info    { background: color-mix(in srgb, var(--info) 8%, transparent);  border-color: color-mix(in srgb, var(--info) 30%, transparent); color: var(--info); }
 .banner--warning { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
 .banner--error   { background: var(--danger-soft);  border-color: var(--danger);  color: var(--danger); }
 .banner--success { background: var(--success-soft); border-color: var(--success); color: var(--success); }
@@ -265,7 +265,7 @@ textarea.input { min-height: 80px; resize: vertical; }
 .badge--success { background: var(--success-soft); color: var(--success); }
 .badge--warning { background: var(--warning-soft); color: var(--warning); }
 .badge--danger  { background: var(--danger-soft);  color: var(--danger); }
-.badge--info    { background: rgba(96,165,250,0.12); color: var(--accent); }
+.badge--info    { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 
 /* ── Regression summary block (analysis view) ─────────────────── */
 .regression-summary {
@@ -279,11 +279,11 @@ textarea.input { min-height: 80px; resize: vertical; }
 /* ── Subtler button gradient ───────────────────────────────────── */
 .btn--primary {
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, var(--bg-0)));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 2px 8px -2px rgba(96,165,250,0.4);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 2px 8px -2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .btn--primary:hover {
   background: linear-gradient(180deg, var(--accent-hover), var(--accent));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 12px -2px rgba(96,165,250,0.55);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 12px -2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .btn--util {
   background: linear-gradient(180deg, var(--util, var(--accent)), color-mix(in srgb, var(--util, var(--accent)) 80%, var(--bg-0)));
@@ -294,8 +294,8 @@ textarea.input { min-height: 80px; resize: vertical; }
 .input:focus, .select:focus, textarea.input:focus {
   outline: none; border-color: var(--accent);
   box-shadow:
-    0 0 0 3px rgba(96,165,250,0.18),
-    0 1px 8px -2px rgba(96,165,250,0.3);
+    0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 1px 8px -2px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 /* ── Meter card hover ──────────────────────────────────────────── */
@@ -355,8 +355,8 @@ textarea.input { min-height: 80px; resize: vertical; }
   border: 1px solid var(--border-1);
   display: flex; flex-direction: column; justify-content: center;
 }
-.balance-verdict.refund   { background: var(--success-soft); border-color: rgba(45,232,164,0.3); }
-.balance-verdict.surcharge{ background: rgba(239,68,68,.08); border-color: rgba(239,68,68,0.3); }
+.balance-verdict.refund   { background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.balance-verdict.surcharge{ background: var(--danger-soft);  border-color: color-mix(in srgb, var(--danger) 30%, transparent); }
 .balance-verdict.balanced { background: var(--bg-2); border-color: var(--border-2); }
 .balance-verdict__label {
   font-size: 10px; font-weight: 500;
@@ -422,9 +422,9 @@ textarea.input { min-height: 80px; resize: vertical; }
 .icon-btn:hover { background: var(--bg-3); color: var(--text-1); }
 
 /* ── Refined buttons for utility-tinted CTAs ────────────────────── */
-.btn-gas    { background: var(--util-gas-soft);    border-color: rgba(255,123,46,0.3); color: var(--util-gas); }
-.btn-strom  { background: var(--util-strom-soft);  border-color: rgba(45,232,164,0.3); color: var(--util-strom); }
-.btn-wasser { background: var(--util-wasser-soft); border-color: rgba(59,130,246,0.35); color: var(--util-wasser); }
+.btn-gas    { background: var(--util-gas-soft);    border-color: color-mix(in srgb, var(--util-gas) 30%, transparent); color: var(--util-gas); }
+.btn-strom  { background: var(--util-strom-soft);  border-color: color-mix(in srgb, var(--util-strom) 30%, transparent); color: var(--util-strom); }
+.btn-wasser { background: var(--util-wasser-soft); border-color: color-mix(in srgb, var(--util-wasser) 35%, transparent); color: var(--util-wasser); }
 .btn-gas:hover    { background: var(--util-gas);    color: #fff; }
 .btn-strom:hover  { background: var(--util-strom);  color: #0a0d12; }
 .btn-wasser:hover { background: var(--util-wasser); color: #fff; }
@@ -565,4 +565,66 @@ textarea.input { min-height: 80px; resize: vertical; }
   font-size: 10px; color: var(--text-disabled);
   font-family: var(--font-mono);
   margin-top: 6px;
+}
+
+/* =================================================================
+   v1.2.0 — System-Diagnose Layout + Chip-Listen
+   ================================================================= */
+
+/* Zweispaltiges Definition-Grid für die Diag-Header-Zeilen. */
+.diag-grid {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0 0 var(--sp-5);
+  padding: 0;
+}
+.diag-grid dt {
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  align-self: center;
+}
+.diag-grid dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text-1);
+  word-break: break-word;
+}
+.diag-grid dd.mono { font-family: var(--font-mono); font-size: var(--fs-xs); }
+.diag-grid dd.path {
+  background: var(--bg-2);
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  display: inline-block;
+  border: 1px solid var(--border-1);
+}
+
+.diag-subhead {
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: var(--sp-5) 0 var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-1);
+}
+.diag-line { font-size: var(--fs-sm); margin: 0 0 var(--sp-3); }
+
+.diag-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.chip {
+  display: inline-block;
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 3px 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-sm);
+  color: var(--text-1);
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .diag-grid { grid-template-columns: 1fr; gap: 2px var(--sp-4); }
+  .diag-grid dt { padding-top: var(--sp-2); }
 }

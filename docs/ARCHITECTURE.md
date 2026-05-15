@@ -1,4 +1,4 @@
-# Architektur v1.1.0
+# Architektur v1.2.0
 
 Aufbau, Datenfluss und Kernalgorithmen des Energietrackers.
 

@@ -1,5 +1,5 @@
 // =====================================================================
-// Energietracker v1.1.0 — Settings view
+// Energietracker v1.2.0 — Settings view
 //   - configurable values, grouped into professional setting cards
 //   - CSV export (F-07), JSON backup/restore, v0.9.0 migration
 //   - system diagnostics
@@ -337,18 +337,65 @@ function renderDiagnostics(d) {
   return `
     <div class="card">
       <h3 class="card__title">🩺 System-Diagnose</h3>
-      <div class="table-wrap"><table class="table">
-        <thead><tr><th>Schlüssel</th><th>Wert</th></tr></thead>
+      <dl class="diag-grid">
+        ${renderDiagRow('App-Version',       d.app_version,    'mono')}
+        ${renderDiagRow('Schema-Version',    d.schema_version, 'mono')}
+        ${renderDiagRow('PHP-Version',       d.php_version,    'mono')}
+        ${renderDiagRow('Datenverzeichnis',  d.data_dir,       'mono path')}
+        ${renderDiagRow('Verzeichnis schreibbar', renderBool(d.data_dir_writable))}
+        ${renderDiagRow('cURL verfügbar',    renderBool(d.curl_available))}
+        ${renderDiagRow('Zeitzone',          d.time_zone,      'mono')}
+        ${renderDiagRow('Server-Zeit',       fmt.date(String(d.now).slice(0,10)) + ' ' + String(d.now).slice(11,19), 'mono')}
+        ${renderDiagRow('Migration nötig',   renderBool(d.migration_needed, /*inverted*/ true))}
+      </dl>
+
+      <h4 class="diag-subhead">Verbrauchsarten</h4>
+      <div class="table-wrap"><table class="table table--compact">
+        <thead><tr>
+          <th>Verbrauchsart</th>
+          <th class="num">Zähler</th>
+          <th class="num">Ablesungen</th>
+          <th class="num">Verträge</th>
+          <th>Letzte Ablesung</th>
+        </tr></thead>
         <tbody>
-          ${Object.entries(d).map(([k, v]) => `
+          ${Object.entries(d.utilities || {}).map(([key, u]) => `
             <tr>
-              <td><code class="mono">${escapeHtml(k)}</code></td>
-              <td><code class="mono">${escapeHtml(typeof v === 'object' ? JSON.stringify(v) : String(v))}</code></td>
+              <td><strong>${escapeHtml(key)}</strong></td>
+              <td class="num">${fmt.int(u.meters)}</td>
+              <td class="num">${fmt.int(u.readings)}</td>
+              <td class="num">${fmt.int(u.contracts)}</td>
+              <td class="num">${u.last_reading_date ? fmt.date(u.last_reading_date) : '<span class="dim">–</span>'}</td>
             </tr>`).join('')}
         </tbody>
       </table></div>
+
+      <h4 class="diag-subhead">Temperaturreihe</h4>
+      <p class="diag-line"><strong>${fmt.int(d.temperatures?.rows ?? 0)}</strong> Tageswerte gespeichert.</p>
+
+      <h4 class="diag-subhead">Bekannte Settings-Schlüssel
+        <span class="muted" style="font-weight:400">(${(d.settings_known_keys || []).length})</span>
+      </h4>
+      <div class="diag-chips">
+        ${(d.settings_known_keys || []).map(k => `<code class="chip">${escapeHtml(k)}</code>`).join('')}
+      </div>
     </div>
   `;
+}
+
+function renderDiagRow(label, value, valueClass = '') {
+  return `
+    <dt>${escapeHtml(label)}</dt>
+    <dd class="${valueClass}">${value === null || value === undefined || value === '' ? '<span class="dim">–</span>' : value}</dd>
+  `;
+}
+
+// Render a boolean as a colored pill. When `inverted` is true, `false` is the
+// good/green state (used for "Migration nötig" — false = nothing to do).
+function renderBool(v, inverted = false) {
+  const truthy = !!v;
+  const good = inverted ? !truthy : truthy;
+  return `<span class="badge badge--${good ? 'success' : 'warning'}">${truthy ? 'ja' : 'nein'}</span>`;
 }
 
 // ── Migrations-Dialog v0.9.0 ───────────────────────────────────────

@@ -1,5 +1,5 @@
 // =====================================================================
-// Energietracker v1.1.0 — Hash router
+// Energietracker v1.2.0 — Hash router
 // Each route maps to a view module that exports `render(container, params)`.
 // =====================================================================
 
