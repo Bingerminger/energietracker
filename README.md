@@ -1,6 +1,6 @@
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.0.4-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -17,7 +17,7 @@ Klima, vier Regressionsmodelle (linear, polynomial, robust, segmentiert), und
 einen Saldo pro Vertrag — sowohl aktueller Stand als auch erwartete
 End-Saldierung.
 
-> **Status:** v1.0.4 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.1.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -55,6 +55,9 @@ End-Saldierung.
 - **Temperatur-Import** als CSV (Format
   `DD.MM.YYYY"avg"min"max`, double-quote-getrennt) oder per Open-Meteo-Sync
   über Standort-Koordinaten in den Einstellungen.
+- **CSV-Import von Ablesungen** je Zähler: eine Datei mit
+  `datum;zählerstand;notiz;geschätzt` einlesen — vorhandene Ablesungen am
+  selben Datum werden überschrieben und im Ergebnis gemeldet.
 
 ### Verträge und Saldo
 
@@ -68,8 +71,13 @@ End-Saldierung.
 - **Saldo-Berechnung** pro Vertrag:
   - *Aktueller Saldo* = bereits angefallene Kosten − bisher bezahlte Abschläge
   - *Erwarteter End-Saldo* = aktueller Saldo + (verbleibende Monate × ø
-    Monatskosten − Monatsabschlag)
+    Monatskosten − Monatsabschlag). Offene Verträge werden bis zum
+    nächsten Abrechnungsstichtag projiziert (je Utility konfigurierbar,
+    Default 1. Januar).
   - *Verdict*: Erstattung / Nachzahlung / Ausgeglichen mit Schwellwert ±5 €
+- **Erinnerung an Vertragsende**: Verträge, deren Ende innerhalb einer
+  konfigurierbaren Frist liegt (drei Stufen, Default 90 / 30 / 1 Tage),
+  werden in der Korrelations-Ansicht als gestufter Hinweis angezeigt.
 
 ### Analyse
 
@@ -86,7 +94,14 @@ End-Saldierung.
 - **Anomalien**: Monate, in denen der Verbrauch mehr als 2σ (anpassbar) vom
   Modell-Erwartungswert abweicht.
 - **Forecast** über 12 Monate als R²-gewichtete Mischung aus
-  Regressionsmodell und Saisonprofil.
+  Regressionsmodell und Saisonprofil. Die Kostenprognose ist
+  vertragsbasiert: pro Monat wird der dann gültige Arbeits- und
+  Grundpreis aus der Vertragshistorie verwendet, plus projizierter
+  Abschlag und laufender Saldo.
+- **Jahresvergleich mit Monatsdeltas**: Monat-für-Monat-Differenz der
+  beiden jüngsten Jahre, absolut und prozentual.
+- **Wasser-Spar-Index** `(Liter/Person/Tag) / Referenz × 100` mit
+  konfigurierbaren Bandgrenzen.
 
 ### Operativ
 
@@ -95,6 +110,9 @@ End-Saldierung.
 - **Migration aus v0.9.0**: ein altes Backup-Format (`version: "2.1"`) kann
   direkt importiert werden, entweder ersetzend oder zusammenführend mit
   bestehenden Daten. Siehe [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md).
+- **CSV-Export** für Monatsübersicht, Zählerstände und Temperaturreihe —
+  semikolon-getrennt, UTF-8 mit BOM, direkt in Excel/LibreOffice nutzbar.
+  Ergänzt das vollständige JSON-Backup.
 - **System-Diagnose** unter Einstellungen: PHP-Version, Datenverzeichnis,
   Schreibrechte, Schema-Version, Anzahl Zähler/Ablesungen pro Utility.
 
@@ -178,8 +196,9 @@ cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
 
 ## Datenmodell
 
-Alles liegt als JSON unter `data/`. Schema-Version (`1.0.4`) steht in
-`data/meta.json` und in jedem exportierten Backup unter
+Alles liegt als JSON unter `data/`. Schema-Version (`1.0.3` — seit
+v1.0.3 unverändert; v1.1.0 fügt nur additive Settings-Defaults hinzu)
+steht in `data/meta.json` und in jedem exportierten Backup unter
 `backup_version`.
 
 ```
@@ -283,10 +302,12 @@ Bei Wasser bedeutet das Feld `ct_per_kwh` semantisch *ct/m³* —
 die Einheit wird aus dem Utility-Config (`consumption_unit`) abgeleitet,
 nicht aus dem Feldnamen.
 
-`end: null` entspricht einem offenen Vertrag. Für die Projection wird das
-effektive Ende dann auf *heute + 12 Monate* gesetzt.
+`end: null` entspricht einem offenen Vertrag. Für die Saldo-Projektion
+wird das effektive Ende dann auf den nächsten Abrechnungsstichtag der
+jeweiligen Utility gesetzt (Settings `billing_cycle_anchor_*`, Default
+1. Januar).
 
-### Settings (20 Schlüssel)
+### Settings (28 Schlüssel)
 
 Vollständige Liste der konfigurierbaren Werte siehe
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) → *Settings-Inventar*.
@@ -299,7 +320,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.0.4"
+├── VERSION                  ← „1.1.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE
@@ -316,8 +337,8 @@ energietracker/
 │   ├── Storage/
 │   │   ├── JsonStore.php    ← LOCK_EX writes, atomic reads
 │   │   └── Migrator.php     ← Bootstrap-Logik für leeres `data/`
-│   ├── Services/            ← 13 Services (Consumption, Forecast, Migration, …)
-│   └── Controllers/         ← 11 Controllers, 1 Klasse pro Datei
+│   ├── Services/            ← 15 Services (Consumption, Forecast, ReadingImport, CsvExport, …)
+│   └── Controllers/         ← 12 Controllers, 1 Klasse pro Datei
 ├── public/
 │   ├── css/                 ← tokens.css + app.css + components.css
 │   └── js/                  ← Vanilla-JS SPA
@@ -343,7 +364,7 @@ Wer aus einem v0.9.0-Backup migrieren möchte:
 1. In v0.9.0 ein vollständiges JSON-Backup exportieren (Format-Version
    `2.1` mit Top-Level-Schlüssel `gas`, `strom`, `temperatures`, `settings`,
    `contracts`).
-2. v1.0.4 frisch installieren (siehe [Schnellstart](#schnellstart)) oder
+2. v1.1.0 frisch installieren (siehe [Schnellstart](#schnellstart)) oder
    die Demo-Daten löschen.
 3. **Einstellungen → Backup & Restore → 📦 Migration aus v0.9.0** öffnen
    und die JSON-Datei hochladen.
@@ -352,7 +373,7 @@ Wer aus einem v0.9.0-Backup migrieren möchte:
    Zählerwechsel-Kandidaten).
 5. **Ersetzen** oder **Zusammenführen** wählen → Import. Vor dem
    Schreiben wird automatisch ein Sicherungs-Snapshot der aktuellen
-   v1.0.4-Daten unter `data/backups/` angelegt.
+   aktuellen Daten unter `data/backups/` angelegt.
 
 Vollständige Schritt-für-Schritt-Anleitung inkl. Schema-Mapping und
 Fehlerbehandlung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md).

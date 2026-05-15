@@ -6,10 +6,14 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 
 /**
- * Settings (`data/settings.json`). Liest und mergt 20 Schlüssel über
+ * Settings (`data/settings.json`). Liest und mergt 28 Schlüssel über
  * die Defaults der Anwendung. `get($key, $default)` bringt einen
  * type-cast für numerische Settings (float/int). `update($payload)` ist
  * eine partielle PATCH-Semantik: nur übergebene Schlüssel werden überschrieben.
+ *
+ * Neue Schlüssel werden über `array_merge` mit den Defaults zusammengeführt;
+ * eine `settings.json` aus einer älteren Version (ohne die v1.1.0-Schlüssel)
+ * funktioniert unverändert weiter — kein Migrationsschritt nötig.
  */
 final class SettingsService
 {
@@ -50,6 +54,30 @@ final class SettingsService
         // ── Wasser ──
         'wasser_personen_anzahl'   => 2,
         'wasser_personen_referenz' => 127.0,   // L/Person/Tag [Unverifiziert — UBA-Richtwert-Größenordnung]
+
+        // ── Abrechnungszyklus (F-03, v1.1.0) ──
+        // Stichtag der Jahresabrechnung je Verbrauchsart, Format 'MM-TT'.
+        // Wird nur für die Saldo-Projektion offener (end = null) Verträge
+        // genutzt: statt „heute + 12 Monate" projiziert die App bis zum
+        // nächsten Abrechnungsstichtag. Verträge mit gepflegtem Ende
+        // (`end`) verwenden weiterhin dieses Ende. Default '01-01' =
+        // Kalenderjahr = identisches Verhalten wie vor v1.1.0.
+        'billing_cycle_anchor_gas'    => '01-01',
+        'billing_cycle_anchor_strom'  => '01-01',
+        'billing_cycle_anchor_wasser' => '01-01',
+
+        // ── Vertragserinnerungen (F-05, v1.1.0) ──
+        // Tage vor Vertragsende, ab denen `should_remind` true wird.
+        // Drei Stufen, absteigend (frühe Warnung → letzter Tag).
+        'contract_remind_days_1'   => 90,
+        'contract_remind_days_2'   => 30,
+        'contract_remind_days_3'   => 1,
+
+        // ── Wasser-Spar-Index (F-10, v1.1.0) ──
+        // Index = (Liter/Person/Tag) / Referenz × 100.
+        // ≤ gut = unauffällig, ≥ warnung = Sparpotenzial.
+        'wasser_sparindex_gut'     => 100,
+        'wasser_sparindex_warnung' => 150,
     ];
 
     public function __construct(private JsonStore $store) {}

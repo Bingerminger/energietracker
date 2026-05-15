@@ -6,7 +6,91 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
-## [1.0.4] — 2026-05-12 — Bugfixes UI
+## [1.1.0] — 2026-05-14 — Forecast-Finanzen, Datenexport, mehr Komfort
+
+Erstes MINOR-Release nach der v1.0.x-Bugfix-Serie. Sieben neue Funktionen
+und ein Datenmodell-Fix — alle additiv und abwärtskompatibel. **Das
+Speicherschema bleibt unverändert bei 1.0.3**; die neuen Einstellungen
+werden über die Defaults gemerged, eine `settings.json` aus einer älteren
+Version funktioniert ohne Migrationsschritt weiter.
+
+### Added
+
+- **[F-02] Vertragsbasierte Kostenprognose.** Die Prognose rechnete bisher
+  mit dem letzten bekannten Arbeitspreis. Jetzt löst der `ForecastService`
+  pro Prognosemonat den dann aktiven Vertrag auf und verwendet den **für
+  diesen Monat gültigen** Arbeits- und Grundpreis aus der Preishistorie —
+  ein im Vertrag für die Zukunft gepflegter Preiswechsel schlägt damit
+  korrekt in `cost_estimated` durch. Die Monatsdetail-Tabelle hat zwei
+  neue Spalten: *projizierter Abschlag* und *laufender Saldo* (kumuliert
+  Kosten − Abschlag). Künftige Boni werden nicht fortgeschrieben — nur im
+  Vertrag mit Gutschriftdatum gepflegte Boni fließen ein.
+- **[F-03] Abrechnungszyklus je Verbrauchsart.** Drei neue Settings-Keys
+  `billing_cycle_anchor_gas|strom|wasser` (Format `MM-TT`, Default
+  `01-01`). Der Saldo offener Verträge (`end = null`) wird nun bis zum
+  nächsten Abrechnungsstichtag projiziert statt bis „heute + 12 Monate".
+  Verträge mit gepflegtem Ende verwenden weiterhin dieses Ende.
+- **[F-04] Jahresvergleich mit Monatsdeltas.** Die Korrelations-Ansicht
+  bekommt ein eigenes Widget mit der Monat-für-Monat-Differenz der beiden
+  jüngsten Jahre mit Daten — absolut und prozentual, inklusive
+  Summenzeile über die gemeinsamen Monate. Das bestehende
+  „Jahresvergleich"-Liniendiagramm bleibt unverändert daneben bestehen.
+- **[F-05] Erinnerung an Vertragsende.** Die `contract-status`-Antwort
+  enthält pro Vertrag `days_until_end`, `should_remind` und `remind_stage`
+  (0–3). Drei Schwellen sind als Settings-Keys `contract_remind_days_1|2|3`
+  konfigurierbar (Default 90 / 30 / 1 Tage). Die Korrelations-Ansicht
+  zeigt fällige Verträge als gestuften Hinweis-Banner.
+- **[F-06] CSV-Import von Ablesungen.** Neuer zähler-gebundener Endpoint
+  `POST /api/utility/{utility}/meters/{id}/readings/import-csv` (Body:
+  CSV als `text/plain`). Bereits vorhandene Ablesungen am selben Datum
+  werden **überschrieben und im Ergebnis gemeldet** (`imported`,
+  `overwritten`, `skipped`, `errors`). Akzeptiert `;`/`,` als Trenner,
+  `TT.MM.JJJJ` oder ISO-Datum, deutsches Dezimalkomma. Die Import-Logik
+  steckt im quell-agnostischen `ReadingImportService` — eine künftige
+  Smart-Meter-Anbindung (siehe Roadmap) kann denselben Kern ohne
+  CSV-Parsing wiederverwenden. UI: „CSV-Import"-Knopf je Zähler in der
+  Zählerverwaltung.
+- **[F-07] CSV-Export.** Drei neue Endpoints liefern tabellarische
+  Exporte als Datei-Download: `GET /api/export/{utility}/monthly.csv`
+  (Monatsaggregate), `GET /api/export/{utility}/readings.csv`
+  (Rohablesungen), `GET /api/export/temperatures.csv` (Temperaturreihe).
+  Semikolon-getrennt, UTF-8 mit BOM, deutsches Dezimalkomma — direkt in
+  Excel/LibreOffice/Google Sheets nutzbar. UI: Export-Kacheln in den
+  Einstellungen. Ergänzt das vollständige JSON-Backup, ersetzt es nicht.
+- **[F-10] Wasser-Spar-Index.** Die Korrelations-Ansicht zeigt für Wasser
+  einen Index `(Liter/Person/Tag) / Referenz × 100` über die jüngsten bis
+  zu 12 Monate, mit Einordnung auf einem Band. Die Bandgrenzen sind als
+  Settings-Keys `wasser_sparindex_gut` / `wasser_sparindex_warnung`
+  konfigurierbar (Default 100 / 150).
+- Einstellungs-Ansicht überarbeitet: gruppierte Settings-Karten in einem
+  responsiven Raster, Feld-Erklärungen, Einheitenkennzeichnung. Das
+  Settings-Inventar wächst von 20 auf 28 Schlüssel.
+
+### Fixed
+
+- **[#2 — Datenmodell] Schmutzwasser-Basis `separater_zaehler` war ohne
+  Wirkung.** Im Wasser-Vertragsmodell (v1.0.3) konnte für die
+  Schmutzwasser-Komponente die Basis `separater_zaehler` gewählt werden —
+  die Verbrauchsberechnung nutzte aber in jedem Fall das Trinkwasser-m³.
+  Jetzt löst der `ConsumptionService` die Basis `separater_zaehler` über
+  das Feld `separater_zaehler_meter_id` auf und rechnet mit dem
+  monatlichen m³ des referenzierten Zählers. Eine Rekursionssperre
+  verhindert Endlosschleifen bei (fehlerhaft) gegenseitig
+  referenzierenden Zählern. Kein Schema-Eingriff — das Feld existierte
+  bereits, wurde nur nicht ausgewertet.
+
+### Notes
+
+- Schema-Version unverändert **1.0.3**. Keine Migration nötig: fehlende
+  Settings-Keys werden beim Lesen aus den Defaults ergänzt.
+- Bekannte Einschränkung F-02: bei Wasser mit Schmutzwasser-Basis
+  `separater_zaehler` nutzt die *Vorausschau* das Trinkwasser-Volumen als
+  Schmutzwasser-Basis (der separate Zähler wird nicht selbst prognostiziert).
+  Die *historische* Auswertung rechnet das separate Volumen korrekt.
+
+[1.1.0]: https://github.com/Bingerminger/energietracker/releases/tag/v1.1.0
+
+---
 
 Drei via GitHub gemeldete Bugs in der Vertragsverwaltung und in der
 Korrelations-Ansicht.
@@ -263,3 +347,39 @@ wasser_personen_anzahl             wasser_personen_referenz
 - Keine Mehrbenutzer- oder Auth-Schicht — Single-Tenant per Design.
 
 [1.0.2]: https://github.com/Bingerminger/energietracker/releases/tag/v1.0.2
+
+---
+
+## Roadmap
+
+Nicht terminiert — Reihenfolge und Umfang können sich ändern.
+
+### Smart-Meter-Anbindung (Aufbau auf F-06)
+
+F-06 hat den Ablesungs-Import in zwei Schichten getrennt: die
+CSV-Parsing-Schicht und den quell-agnostischen Kern
+`ReadingImportService::importRows()`. Damit ist **Variante 1** (gekapselte,
+wiederverwendbare Importlogik) bereits umgesetzt.
+
+Offen ist **Variante 2** — ein unbeaufsichtigter Endpoint, über den ein
+Smart-Meter-Gateway oder ein Heimautomatisierungs-System Ablesungen ohne
+UI-Interaktion einliefert. Dafür nötig:
+
+- Ein Token-geschützter Endpoint (z.B.
+  `POST /api/ingest/{utility}/{meter}` mit `Authorization: Bearer …`),
+  da die übrige App bewusst auth-frei und Single-Tenant ist.
+- Token-Verwaltung (Erzeugen/Widerrufen) in den Einstellungen.
+- `importRows()` ist bereits der passende Aufsetzpunkt — der neue
+  Endpoint muss nur Auth + Payload-Parsing ergänzen, die Schreib- und
+  Überschreiblogik bleibt unverändert.
+
+### Weitere Verbrauchsarten
+
+- Heizöl und Pellets als zusätzliche Utilities (`Config/Utilities.php`
+  ist die Single Source of Truth — additiv erweiterbar, ähnlich wie
+  Wasser in v1.0.0).
+
+### Internationalisierung
+
+- Englische UI-Sprache. Aktuell sind Labels und Meldungen
+  durchgängig deutsch verdrahtet.

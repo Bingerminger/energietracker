@@ -25,6 +25,16 @@ use Energietracker\Config\Utilities;
  */
 final class ConsumptionService
 {
+    /**
+     * Meter ids currently being computed — recursion guard for the
+     * Schmutzwasser `separater_zaehler` lookup (a meter referencing another
+     * meter as its waste-water measurement basis). Prevents infinite
+     * recursion if two meters reference each other.
+     *
+     * @var string[]
+     */
+    private array $meterComputeStack = [];
+
     public function __construct(
         private JsonStore $store,
         private MeterService $meters,
@@ -124,7 +134,13 @@ final class ConsumptionService
             $isPast  = !empty($c['end']) && $c['end'] < $today;
             $isFut   = ($c['start'] ?? '9999') > $today;
             $isOpen  = empty($c['end']);
-            $effEnd  = $c['end'] ?? date('Y-m-d', strtotime('+12 months'));
+            // F-03: a contract with a pflegtem Ende ends on that date. An open
+            // contract (end = null) is projected to the next billing-cycle
+            // anchor of its utility (Settings: billing_cycle_anchor_<utility>),
+            // not the arbitrary "today + 12 months" of v1.0.x.
+            $effEnd  = !empty($c['end'])
+                ? $c['end']
+                : $this->nextBillingAnchor($utility, $today);
 
             // Aggregate over the months we actually have for this contract
             $actualKwh   = 0.0; $actualCost = 0.0; $actualKwhCost = 0.0;
@@ -191,6 +207,32 @@ final class ConsumptionService
             $verdict = $projected > 5 ? 'Nachzahlung'
                      : ($projected < -5 ? 'Erstattung' : 'Ausgeglichen');
 
+            // F-05: contract-end reminder. Only meaningful for contracts with a
+            // pflegtem Ende that is still in the future — an open contract has
+            // no real end to remind about. days_until_end is signed (negative
+            // = end already passed). remind_stage ∈ {0,1,2,3}: 0 = no reminder,
+            // 1 = within the earliest threshold, 3 = within the last.
+            $daysUntilEnd = null;
+            $shouldRemind = false;
+            $remindStage  = 0;
+            if (!empty($c['end'])) {
+                try {
+                    $diff = (new \DateTime($today))->diff(new \DateTime($c['end']));
+                    $daysUntilEnd = (int)$diff->days * ($c['end'] < $today ? -1 : 1);
+                } catch (\Exception) {
+                    $daysUntilEnd = null;
+                }
+                if ($daysUntilEnd !== null && $daysUntilEnd >= 0) {
+                    $r1 = (int)$this->settings->get('contract_remind_days_1', 90);
+                    $r2 = (int)$this->settings->get('contract_remind_days_2', 30);
+                    $r3 = (int)$this->settings->get('contract_remind_days_3', 1);
+                    if ($daysUntilEnd <= $r3)      { $remindStage = 3; }
+                    elseif ($daysUntilEnd <= $r2)  { $remindStage = 2; }
+                    elseif ($daysUntilEnd <= $r1)  { $remindStage = 1; }
+                    $shouldRemind = $remindStage > 0;
+                }
+            }
+
             $row = [
                 'contract_id'                 => $cid,
                 'provider'                    => $c['provider']    ?? '',
@@ -215,6 +257,10 @@ final class ConsumptionService
                 'current_balance'             => $currentBalance,
                 'projected_end_balance'       => $projected,
                 'verdict'                     => $verdict,
+                // F-05 — contract-end reminder
+                'days_until_end'              => $daysUntilEnd,
+                'should_remind'               => $shouldRemind,
+                'remind_stage'                => $remindStage,
             ];
             if ($utility === 'wasser') {
                 $row['actual_m3']    = round($actualM3, 1);
@@ -261,8 +307,57 @@ final class ConsumptionService
         }
     }
 
-    /** Compute monthly aggregates for a single meter, honouring device chain. */
+    /**
+     * F-03: the next billing-cycle anchor date (>= today) for a utility.
+     *
+     * The anchor is a Settings value `billing_cycle_anchor_<utility>` in
+     * 'MM-TT' form (default '01-01' = Kalenderjahr). Used to project the
+     * Saldo of open-ended contracts up to the next Jahresabrechnung instead
+     * of the arbitrary "today + 12 months" of v1.0.x.
+     */
+    private function nextBillingAnchor(string $utility, string $today): string
+    {
+        $anchor = (string)$this->settings->get('billing_cycle_anchor_' . $utility, '01-01');
+        if (!preg_match('/^(\d{2})-(\d{2})$/', $anchor, $mm)) {
+            $anchor = '01-01';
+            $mm = [null, '01', '01'];
+        }
+        // Clamp 29.–31. Feb. to 28 to keep the resulting date constructible
+        // in every (also non-leap) year.
+        if ($mm[1] === '02' && (int)$mm[2] > 28) {
+            $anchor = '02-28';
+        }
+        $year = (int)substr($today, 0, 4);
+        $candidate = sprintf('%04d-%s', $year, $anchor);
+        if ($candidate < $today) {
+            $candidate = sprintf('%04d-%s', $year + 1, $anchor);
+        }
+        return $candidate;
+    }
+
+    /**
+     * Compute monthly aggregates for a single meter, honouring device chain.
+     *
+     * Wraps {@see computeForMeter()} in a recursion guard so a Schmutzwasser
+     * `separater_zaehler` reference (see {@see applyWaterContracts()}) cannot
+     * trigger infinite recursion.
+     */
     public function forMeter(string $utility, array $meter, ?float $hddBaseOverride = null): array
+    {
+        $meterId = (string)($meter['id'] ?? '');
+        if ($meterId !== '' && in_array($meterId, $this->meterComputeStack, true)) {
+            return []; // cycle detected — break it
+        }
+        $this->meterComputeStack[] = $meterId;
+        try {
+            return $this->computeForMeter($utility, $meter, $hddBaseOverride);
+        } finally {
+            array_pop($this->meterComputeStack);
+        }
+    }
+
+    /** @internal actual implementation, wrapped by forMeter()'s recursion guard */
+    private function computeForMeter(string $utility, array $meter, ?float $hddBaseOverride = null): array
     {
         $u = Utilities::get($utility);
         $readings = $this->readings->list($utility, $meter['id']);
@@ -466,7 +561,7 @@ final class ConsumptionService
             return $this->applyEmptyContractFields($monthly, $utility);
         }
         return $utility === 'wasser'
-            ? $this->applyWaterContracts($monthly, $contracts)
+            ? $this->applyWaterContracts($monthly, $contracts, $utility)
             : $this->applyStandardContracts($monthly, $contracts);
     }
 
@@ -548,7 +643,9 @@ final class ConsumptionService
      * Per month, computes:
      *   trinkwasser   = m³_trinkwasser × ct/m³ + Grundpreis
      *   schmutzwasser = m³_schmutzwasser × ct/m³
-     *                 (m³_schmutzwasser = m³_trinkwasser when basis = 'trinkwasser')
+     *                 (m³_schmutzwasser = m³_trinkwasser when basis = 'trinkwasser';
+     *                  when basis = 'separater_zaehler' the volume is read from
+     *                  the referenced meter — F-01 fix, v1.1.0)
      *   niederschlagswasser = versiegelte_m² × eur/m²/Jahr / 12
      *
      * Result fields per month:
@@ -557,9 +654,14 @@ final class ConsumptionService
      *   m.niederschlagswasser = { eur_per_m2_year, versiegelte_flaeche_m2, total }
      *   m.cost                = trinkwasser.total + schmutzwasser.total + niederschlagswasser.total − bonus
      */
-    private function applyWaterContracts(array $monthly, array $contracts): array
+    private function applyWaterContracts(array $monthly, array $contracts, string $utility): array
     {
         $running = [];
+        // Lazily-filled cache: separate-meter id → (ym → m³). Computed on first
+        // use so a contract without a separater_zaehler reference costs nothing,
+        // and so two contracts referencing the same meter share one computation.
+        $sepMeterM3Cache = [];
+
         foreach ($monthly as &$m) {
             $first = $m['ym'] . '-01';
             $c = $this->contracts->findActiveForDate($contracts, $first);
@@ -585,12 +687,22 @@ final class ConsumptionService
             $twTotal   = round($twWorking + $twBase, 2);
 
             // ── Schmutzwasser ──────────────────────────────────────
-            // For 'separater_zaehler' the volume is currently the
-            // trinkwasser-m³ as well (we can't measure a separate counter
-            // without wiring it up in the meter list). Future v1.1 work
-            // can read the linked meter's volume.
-            $swWp = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
-            $swM3 = $m3; // basis = trinkwasser → identical; separater_zaehler currently same
+            // basis = 'trinkwasser'       → identical volume as Trinkwasser
+            // basis = 'separater_zaehler' → volume read from the referenced
+            //   meter's monthly m³ (F-01 fix). If the reference is missing or
+            //   produces no data for the month, the volume falls back to 0 so
+            //   the cost is not silently wrong-by-trinkwasser-volume.
+            $swWp    = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
+            $swBasis = (string)($sw['basis'] ?? 'trinkwasser');
+            $swMeterId = $sw['separater_zaehler_meter_id'] ?? null;
+            if ($swBasis === 'separater_zaehler' && $swMeterId) {
+                if (!array_key_exists($swMeterId, $sepMeterM3Cache)) {
+                    $sepMeterM3Cache[$swMeterId] = $this->monthlyM3ForMeterId($utility, (string)$swMeterId);
+                }
+                $swM3 = (float)($sepMeterM3Cache[$swMeterId][$m['ym']] ?? 0.0);
+            } else {
+                $swM3 = $m3;
+            }
             $swTotal = ($swWp !== null && $swM3 > 0) ? round($swM3 * $swWp / 100.0, 2) : 0.0;
 
             // ── Niederschlagswasser ────────────────────────────────
@@ -617,8 +729,8 @@ final class ConsumptionService
                 'total'          => $twTotal,
             ];
             $m['schmutzwasser'] = [
-                'basis'                       => (string)($sw['basis'] ?? 'trinkwasser'),
-                'separater_zaehler_meter_id'  => $sw['separater_zaehler_meter_id'] ?? null,
+                'basis'                       => $swBasis,
+                'separater_zaehler_meter_id'  => $swMeterId,
                 'm3'                          => $swM3,
                 'ct_per_m3'                   => $swWp,
                 'total'                       => $swTotal,
@@ -649,6 +761,29 @@ final class ConsumptionService
         }
         unset($m);
         return $monthly;
+    }
+
+    /**
+     * Monthly m³ map (ym → m³) for a meter referenced by id.
+     *
+     * Used by {@see applyWaterContracts()} to resolve a Schmutzwasser
+     * `separater_zaehler` reference. Goes through {@see forMeter()} so the
+     * recursion guard applies — a self- or mutually-referential configuration
+     * yields an empty map rather than an infinite loop.
+     *
+     * @return array<string,float>
+     */
+    private function monthlyM3ForMeterId(string $utility, string $meterId): array
+    {
+        $meter = $this->meters->get($utility, $meterId);
+        if (!$meter) return [];
+        $out = [];
+        foreach ($this->forMeter($utility, $meter) as $m) {
+            if (isset($m['ym'])) {
+                $out[$m['ym']] = (float)($m['m3'] ?? 0);
+            }
+        }
+        return $out;
     }
 
     /**

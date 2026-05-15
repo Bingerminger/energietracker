@@ -440,3 +440,129 @@ textarea.input { min-height: 80px; resize: vertical; }
 .chart-wrap.h220 { height: 220px; }
 .chart-wrap.h300 { height: 300px; }
 .chart-wrap.h360 { height: 360px; }
+
+/* =================================================================
+   v1.1.0 — Settings rework, CSV export tiles, water spar-index
+   ================================================================= */
+
+/* ── section-head (used across views, previously unstyled) ───────── */
+.section-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-4); flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+.section-head h1 {
+  font-size: 20px; font-weight: 700; line-height: 1.2; color: var(--text-1);
+}
+.section-actions {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+}
+
+/* ── Settings: grouped cards in a responsive grid ───────────────── */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-2);
+}
+.settings-card { margin-bottom: 0; }
+.settings-card__hint {
+  font-size: var(--fs-xs); color: var(--text-2);
+  margin: -6px 0 var(--sp-4); line-height: 1.5;
+}
+.settings-fields {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+}
+.settings-field { margin-bottom: 0; }
+.settings-field > label {
+  display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+}
+.settings-field__unit {
+  font-size: 10px; color: var(--text-disabled);
+  text-transform: none; letter-spacing: 0;
+  font-family: var(--font-mono);
+}
+.settings-field__hint {
+  font-size: var(--fs-xs); color: var(--text-3);
+  line-height: 1.45; margin-top: 2px;
+}
+.settings-field__check {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-sans); font-size: var(--fs-sm);
+  color: var(--text-1); text-transform: none; letter-spacing: 0;
+  padding: 6px 0;
+}
+.settings-rule {
+  border: none; border-top: 1px solid var(--border-1);
+  margin: var(--sp-4) 0;
+}
+.settings-subhead {
+  margin: 0 0 8px; font-size: 13px; color: var(--text-1); font-weight: 600;
+}
+
+/* ── CSV export tiles (F-07) ────────────────────────────────────── */
+.export-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--sp-3);
+}
+.export-tile {
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.export-tile__label {
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text-1);
+}
+.export-tile__hint {
+  font-size: var(--fs-xs); color: var(--text-2); line-height: 1.45;
+  flex: 1;
+}
+.export-tile__actions {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-top: var(--sp-2);
+}
+
+/* ── Water spar-index (F-10) ────────────────────────────────────── */
+.sparindex {
+  display: flex; align-items: center; gap: var(--sp-5);
+  flex-wrap: wrap;
+}
+.sparindex__main {
+  display: flex; align-items: baseline; gap: var(--sp-3);
+}
+.sparindex__value {
+  font-family: var(--font-mono); font-size: 40px; font-weight: 500;
+  line-height: 1;
+}
+.sparindex__badge { vertical-align: middle; }
+.sparindex__detail {
+  font-family: var(--font-mono); font-size: var(--fs-sm);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.sparindex__bar { margin-top: var(--sp-4); }
+.sparindex__bar-track {
+  position: relative; height: 12px;
+  border-radius: 999px; overflow: hidden;
+  background: var(--bg-3);
+}
+.sparindex__bar-zone {
+  position: absolute; top: 0; bottom: 0;
+}
+.sparindex__bar-zone--gut     { left: 0; background: var(--success-soft); }
+.sparindex__bar-zone--mittel  { background: var(--warning-soft); }
+.sparindex__bar-zone--warnung { background: var(--danger-soft); }
+.sparindex__bar-marker {
+  position: absolute; top: -3px; bottom: -3px; width: 3px;
+  background: var(--text-1);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--bg-1);
+  transform: translateX(-50%);
+}
+.sparindex__bar-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--text-disabled);
+  font-family: var(--font-mono);
+  margin-top: 6px;
+}

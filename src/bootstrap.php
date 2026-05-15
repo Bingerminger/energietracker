@@ -13,13 +13,13 @@ use Energietracker\Services\{
     MeterService, ReadingService, ContractService, ConsumptionService,
     TemperatureService, RegressionService, ForecastService, AnomalyService,
     WeatherService, BackupService, SettingsService, DiagnosticsService,
-    MigrationService
+    MigrationService, ReadingImportService, CsvExportService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
     ConsumptionController, ForecastController, TemperatureController,
     SettingsController, BackupController, DiagnosticsController, UtilitiesController,
-    MigrationController
+    MigrationController, ExportController
 };
 
 /**
@@ -51,6 +51,8 @@ final class App
     public BackupService $backups;
     public DiagnosticsService $diagnostics;
     public MigrationService $migrationLegacy;
+    public ReadingImportService $readingImport;
+    public CsvExportService $csvExport;
 
     public function __construct(string $dataDir)
     {
@@ -68,11 +70,17 @@ final class App
         $this->weather      = new WeatherService();
         $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather);
         $this->regression   = new RegressionService();
-        $this->forecasts    = new ForecastService($this->consumption, $this->regression, $this->settings);
+        $this->forecasts    = new ForecastService(
+            $this->consumption, $this->regression, $this->settings, $this->contracts
+        );
         $this->anomalies    = new AnomalyService($this->regression, $this->settings);
         $this->backups      = new BackupService($this->store);
         $this->diagnostics  = new DiagnosticsService($this->store, $this->settings);
         $this->migrationLegacy = new MigrationService($this->store, $this->backups);
+        $this->readingImport = new ReadingImportService($this->readings, $this->meters);
+        $this->csvExport    = new CsvExportService(
+            $this->consumption, $this->readings, $this->meters, $this->temperatures
+        );
 
         // Auto-migrate or initialize on first run
         $migrator = new Migrator($this->store);
@@ -117,11 +125,14 @@ final class App
                                                                 fn($req) => $meterCtrl->replaceDevice($req));
 
         // ── Readings ──
-        $readingCtrl = new ReadingController($this->readings);
+        $readingCtrl = new ReadingController($this->readings, $this->readingImport);
         $r->get('/api/utility/{utility}/readings',     fn($req) => $readingCtrl->index($req));
         $r->post('/api/utility/{utility}/readings',    fn($req) => $readingCtrl->create($req));
         $r->patch('/api/utility/{utility}/readings/{id}', fn($req) => $readingCtrl->update($req));
         $r->delete('/api/utility/{utility}/readings/{id}',fn($req) => $readingCtrl->destroy($req));
+        // F-06: zähler-gebundener CSV-Bulk-Import (Body: text/plain CSV)
+        $r->post('/api/utility/{utility}/meters/{id}/readings/import-csv',
+                                                       fn($req) => $readingCtrl->importCsv($req));
 
         // ── Contracts ──
         $contractCtrl = new ContractController($this->contracts);
@@ -158,6 +169,12 @@ final class App
         $r->get('/api/backup/export',     fn($req) => $bCtrl->export($req));
         $r->post('/api/backup/import',    fn($req) => $bCtrl->import($req));
         $r->post('/api/backup/snapshot',  fn($req) => $bCtrl->snapshot($req));
+
+        // ── CSV-Export (F-07) ──
+        $exCtrl = new ExportController($this->csvExport);
+        $r->get('/api/export/temperatures.csv',          fn($req) => $exCtrl->temperatures($req));
+        $r->get('/api/export/{utility}/monthly.csv',     fn($req) => $exCtrl->monthly($req));
+        $r->get('/api/export/{utility}/readings.csv',    fn($req) => $exCtrl->readings($req));
 
         // ── Migration aus v0.9.0 ──
         $mgCtrl = new MigrationController($this->migrationLegacy);

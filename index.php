@@ -1,6 +1,6 @@
 <?php
 /**
- * Energietracker v1.0.2 — SPA shell.
+ * Energietracker v1.1.0 — SPA shell.
  *
  * Layout: thin top bar + 220px left sidebar (v0.9.0-style),
  * main content area on the right. All rendering happens client-side
@@ -8,7 +8,7 @@
  */
 declare(strict_types=1);
 
-$version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.0.2';
+$version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.1.0';
 $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 ?>
 <!doctype html>

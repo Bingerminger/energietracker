@@ -42,4 +42,24 @@ final class Response
         if (!headers_sent()) http_response_code(204);
         exit;
     }
+
+    /**
+     * Emit a CSV body as a file download (F-07). The body is expected to be
+     * a complete CSV string (including any BOM); this only sets the headers
+     * and writes it out.
+     */
+    public static function csv(string $body, string $filename, int $status = 200): never
+    {
+        while (ob_get_level() > 0) ob_end_clean();
+        if (!headers_sent()) {
+            http_response_code($status);
+            // Override the JSON content type set by App::handle().
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="' . str_replace('"', '', $filename) . '"');
+            header('Cache-Control: no-cache, no-store, must-revalidate');
+            header('X-Content-Type-Options: nosniff');
+        }
+        echo $body;
+        exit;
+    }
 }

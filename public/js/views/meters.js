@@ -1,7 +1,8 @@
 // =====================================================================
-// Meters view — F2 (Zählertausch) and F3 (multiple meters per utility).
+// Energietracker v1.1.0 — Meters view
+// F2 (Zählertausch) and F3 (multiple meters per utility).
 // One row per meter showing its device chain. Buttons: add meter,
-// replace device, edit, delete.
+// replace device, CSV import (F-06), edit, delete.
 // =====================================================================
 
 import { api } from '../api.js';
@@ -70,6 +71,15 @@ async function refresh(container, u) {
     });
   });
 
+  container.querySelectorAll('[data-import-readings]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const id = b.getAttribute('data-import-readings');
+      const m = meters.find(x => x.id === id);
+      const changed = await openImportReadingsModal(u, m);
+      if (changed) refresh(container, u);
+    });
+  });
+
   container.querySelectorAll('[data-delete-meter]').forEach(b => {
     b.addEventListener('click', async () => {
       const id = b.getAttribute('data-delete-meter');
@@ -114,6 +124,7 @@ function renderMeterCard(meter, u) {
       </div>
       <div class="row-actions" style="flex-direction:column; gap: 4px">
         <button class="btn btn--sm" data-replace-device="${meter.id}">Zählertausch</button>
+        <button class="btn btn--sm" data-import-readings="${meter.id}">CSV-Import</button>
         <button class="btn btn--sm btn--ghost" data-edit-meter="${meter.id}">Bearbeiten</button>
         <button class="btn btn--sm btn--danger" data-delete-meter="${meter.id}">Löschen</button>
       </div>
@@ -257,6 +268,91 @@ async function openReplaceDeviceModal(u, meter) {
             toastOk('Zähler getauscht');
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
+        });
+      }
+    });
+  });
+}
+
+// ───── CSV reading import (F-06) ────────────────────────────────────
+// Bulk-imports meter readings from a CSV into one specific meter.
+// Existing readings on the same date are overwritten and reported.
+async function openImportReadingsModal(u, meter) {
+  return new Promise(resolve => {
+    const body = `
+      <p>
+        Importiert Ablesungen aus einer CSV-Datei direkt in den Zähler
+        <strong>${escapeHtml(meter.name)}</strong>. Eine bereits vorhandene
+        Ablesung am selben Datum wird <strong>überschrieben</strong> und im
+        Ergebnis gemeldet.
+      </p>
+      <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:12px 0;font-size:12px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);margin-bottom:6px">Erwartetes Format</div>
+        <code class="mono" style="display:block;color:var(--text-1)">datum;zaehlerstand;notiz;geschaetzt</code>
+        <code class="mono" style="display:block;color:var(--text-2)">01.02.2026;12345,6;Jahresanfang;false</code>
+        <code class="mono" style="display:block;color:var(--text-2)">2026-03-01;12567.8;;ja</code>
+        <div style="margin-top:8px;color:var(--text-2)">
+          Trenner <code>;</code> oder <code>,</code> · Datum <code>TT.MM.JJJJ</code> oder
+          <code>JJJJ-MM-TT</code> · Dezimalkomma erlaubt · Spalten <em>Notiz</em> und
+          <em>geschätzt</em> optional · eine Kopfzeile wird automatisch erkannt.
+        </div>
+      </div>
+      <div class="drop-zone" id="import-drop">
+        <p>CSV-Datei hier ablegen oder klicken zum Auswählen</p>
+        <input type="file" id="import-csv-input" accept=".csv,text/csv,text/plain" style="display:none">
+      </div>
+      <div id="import-result" style="margin-top:12px"></div>
+    `;
+    openModal({
+      title: `Ablesungen importieren: ${meter.name}`,
+      body,
+      footer: `
+        <button type="button" class="btn btn--ghost" data-act="cancel">Schließen</button>
+      `,
+      onMount({ modalEl, close }) {
+        let didImport = false;
+        const drop   = modalEl.querySelector('#import-drop');
+        const input  = modalEl.querySelector('#import-csv-input');
+        const result = modalEl.querySelector('#import-result');
+
+        const handleFile = async (file) => {
+          if (!file) return;
+          result.innerHTML = '<p class="muted">Importiere…</p>';
+          try {
+            const text = await file.text();
+            const res = await api.importReadingCsv(u.key, meter.id, text);
+            didImport = didImport || (res.imported > 0 || res.overwritten > 0);
+            const errs = res.errors || [];
+            result.innerHTML = `
+              <div class="banner ${res.skipped || errs.length ? 'banner--warning' : 'banner--success'}" style="font-size:12px">
+                <div><strong>${res.imported}</strong> neu importiert ·
+                     <strong>${res.overwritten}</strong> überschrieben ·
+                     <strong>${res.skipped}</strong> übersprungen</div>
+                ${errs.length ? `<div style="margin-top:6px;color:var(--text-2)">
+                  ${errs.slice(0, 8).map(e => `· ${escapeHtml(e)}`).join('<br>')}
+                  ${errs.length > 8 ? `<br>… und ${errs.length - 8} weitere` : ''}
+                </div>` : ''}
+              </div>
+            `;
+            if (res.imported > 0 || res.overwritten > 0) {
+              toastOk(`${res.imported + res.overwritten} Ablesung(en) übernommen`);
+            }
+          } catch (e) {
+            result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`;
+          }
+        };
+
+        drop.addEventListener('click', () => input.click());
+        drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+        drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+        drop.addEventListener('drop', (e) => {
+          e.preventDefault(); drop.classList.remove('dragover');
+          handleFile(e.dataTransfer.files[0]);
+        });
+        input.addEventListener('change', (e) => handleFile(e.target.files[0]));
+
+        modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => {
+          close(didImport); resolve(didImport);
         });
       }
     });

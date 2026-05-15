@@ -1,4 +1,4 @@
-# Architektur v1.0.2
+# Architektur v1.1.0
 
 Aufbau, Datenfluss und Kernalgorithmen des Energietrackers.
 
@@ -18,7 +18,7 @@ Aufbau, Datenfluss und Kernalgorithmen des Energietrackers.
                           └──┬───────────────┬──────────────┘
                              │               │
               ┌──────────────▼──────┐  ┌─────▼──────────────────┐
-              │  Controllers (11)   │  │   Services (13)        │
+              │  Controllers (12)   │  │   Services (15)        │
               │  - 1 Klasse / Datei │  │   - Reine Domain-      │
               │  - dünner Adapter   │  │     Logik              │
               │  - keine Logik      │  │   - kein HTTP-Wissen   │
@@ -101,14 +101,16 @@ und kennt kein HTTP. Aufruf-Sicht von außen geht über die Controller.
 | `MeterService` | CRUD von Metern + F2 (Device-Replace) |
 | `ReadingService` | CRUD von Readings, Auto-Zuweisung von `device_id` zum aktiven Device |
 | `ContractService` | CRUD von Verträgen, F4-strikte Validierung, `valueValidOn(...)` für Stichtag-Lookup, `bonusForMonth(...)` |
-| `ConsumptionService` | Monatsaggregation, F2-Device-Bridging, F3-Multi-Meter-Aggregation, **`contractStatus()`** für Saldo-Karte |
+| `ConsumptionService` | Monatsaggregation, F2-Device-Bridging, F3-Multi-Meter-Aggregation, **`contractStatus()`** für Saldo-Karte; F-03 Abrechnungszyklus-Projektion offener Verträge, F-05 Vertragsende-Erinnerung, Schmutzwasser-`separater_zaehler`-Auflösung mit Rekursionssperre |
 | `TemperatureService` | CSV-Import, Day-Map-Update |
 | `WeatherService` | Open-Meteo-API-Wrapper (Archive + Forecast) |
 | `RegressionService` | Vier Modelle (linear, polynomial, robust, segmented) + `fit()` Dispatcher + `predict()` |
-| `ForecastService` | R²-gewichtete Mischung aus Regression und Saisonprofil über 12 Monate |
+| `ForecastService` | R²-gewichtete Mischung aus Regression und Saisonprofil über 12 Monate; F-02 vertragsbasierte Kostenprognose (`projectMonthFinances()`) mit projiziertem Abschlag und laufendem Saldo |
 | `AnomalyService` | Z-Score-basierte Ausreißerdetektion |
 | `BackupService` | Export/Import im 3.0-Format, Snapshot-Erzeugung |
-| `MigrationService` | v0.9.0 → v1.0.2 Translation, Preview + Apply mit Replace/Merge-Modus |
+| `MigrationService` | v0.9.0 → aktuelles Schema, Preview + Apply mit Replace/Merge-Modus |
+| `ReadingImportService` | CSV-Bulk-Import von Ablesungen (F-06); quell-agnostischer Kern `importRows()`, überschreibt vorhandene Ablesungen am selben Datum |
+| `CsvExportService` | Tabellarischer CSV-Export (F-07) für Monatsübersicht, Zählerstände, Temperaturreihe |
 | `DiagnosticsService` | System-Status, totals pro Utility |
 
 ### 2.5 Controllers (`src/Controllers/`)
@@ -123,11 +125,12 @@ direkt antworten (terminieren mit `exit`).
 | `SettingsController`       | `GET/PATCH /api/settings` |
 | `TemperatureController`    | `GET/POST/DELETE /api/temperatures*` |
 | `MeterController`          | `GET/POST/PATCH/DELETE /api/utility/{u}/meters*` + replace-device |
-| `ReadingController`        | `GET/POST/PATCH/DELETE /api/utility/{u}/readings*` |
+| `ReadingController`        | `GET/POST/PATCH/DELETE /api/utility/{u}/readings*`, `POST .../meters/{id}/readings/import-csv` (F-06) |
 | `ContractController`       | `GET/POST/PATCH/DELETE /api/utility/{u}/contracts*` |
 | `ConsumptionController`    | `GET /api/utility/{u}/consumption`, `GET .../meters/{id}/consumption`, `GET .../meters/{id}/contract-status` |
 | `ForecastController`       | `GET /api/utility/{u}/meters/{id}/forecast` |
 | `BackupController`         | `GET /api/backup/export`, `POST /api/backup/import`, `POST /api/backup/snapshot` |
+| `ExportController`         | `GET /api/export/{u}/monthly.csv`, `GET /api/export/{u}/readings.csv`, `GET /api/export/temperatures.csv` (F-07) |
 | `MigrationController`      | `POST /api/migration/v09/preview`, `POST /api/migration/v09/import` |
 | `DiagnosticsController`    | `GET /api/diagnostics` |
 
@@ -284,9 +287,18 @@ forecast_kwh = weight × regression_pred + (1 − weight) × seasonal_avg
 Bei `hgt_relevant: false` (Wasser) wird `weight = 0` gesetzt — die
 Vorhersage besteht ausschließlich aus dem Saisonprofil.
 
+**Kostenprognose (F-02, seit v1.1.0).** Pro Prognosemonat löst
+`projectMonthFinances()` den dann aktiven Vertrag auf und verwendet den
+für diesen Monat gültigen Arbeits- und Grundpreis aus der Preishistorie
+(`ContractService::valueValidOn(...)`). Daraus entstehen `cost_estimated`
+(Arbeitspreis × Menge + Grundpreis − bekannte Boni), `advance_estimated`
+(der gültige Abschlag) und `balance_running` (kumuliert Kosten − Abschlag).
+Künftige Boni werden nicht fortgeschrieben. Fehlt ein aktiver Vertrag,
+greift `last_price_ct` als Fallback-Arbeitspreis.
+
 ---
 
-## 6. Settings-Inventar (20 Schlüssel)
+## 6. Settings-Inventar (28 Schlüssel)
 
 | Schlüssel | Typ | Default | Bedeutung |
 |---|---|---|---|
@@ -310,6 +322,19 @@ Vorhersage besteht ausschließlich aus dem Saisonprofil.
 | `weather_auto_fill` | bool | true | Sync beim Start automatisch ausführen |
 | `wasser_personen_anzahl` | int | 2 | Personen im Haushalt für Wasser-Referenz |
 | `wasser_personen_referenz` | int | 127 | Referenz-Liter pro Person pro Tag |
+| `billing_cycle_anchor_gas` | string | `01-01` | Abrechnungsstichtag Gas (`MM-TT`); Saldo offener Verträge wird bis dorthin projiziert (F-03) |
+| `billing_cycle_anchor_strom` | string | `01-01` | Abrechnungsstichtag Strom (F-03) |
+| `billing_cycle_anchor_wasser` | string | `01-01` | Abrechnungsstichtag Wasser (F-03) |
+| `contract_remind_days_1` | int | 90 | Vertragsende-Erinnerung Stufe 1 — Tage vorher (F-05) |
+| `contract_remind_days_2` | int | 30 | Vertragsende-Erinnerung Stufe 2 (F-05) |
+| `contract_remind_days_3` | int | 1 | Vertragsende-Erinnerung Stufe 3 — dringend (F-05) |
+| `wasser_sparindex_gut` | int | 100 | Wasser-Spar-Index: Werte ≤ gelten als unauffällig (F-10) |
+| `wasser_sparindex_warnung` | int | 150 | Wasser-Spar-Index: Werte ≥ zeigen Sparpotenzial (F-10) |
+
+Alle acht v1.1.0-Schlüssel sind additiv: der `SettingsService` merged sie
+beim Lesen aus den Defaults, eine `settings.json` aus einer früheren
+Version funktioniert ohne Migrationsschritt weiter. Das Speicherschema
+(`Migrator::SCHEMA_VERSION`) bleibt unverändert bei `1.0.3`.
 
 ---
 

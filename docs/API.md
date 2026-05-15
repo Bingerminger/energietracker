@@ -1,4 +1,4 @@
-# API-Referenz v1.0.2
+# API-Referenz v1.1.0
 
 REST-API über einen einzigen Entry-Point: `api.php`. Pfade haben das
 Präfix `/api/`, das nach dem Script-Name folgt:
@@ -72,6 +72,7 @@ die Fehlerklasse:
 | POST   | `/api/utility/{utility}/readings`                                 | Ablesung anlegen |
 | PATCH  | `/api/utility/{utility}/readings/{id}`                            | Ablesung aktualisieren |
 | DELETE | `/api/utility/{utility}/readings/{id}`                            | Ablesung löschen |
+| POST   | `/api/utility/{utility}/meters/{id}/readings/import-csv`          | CSV-Bulk-Import von Ablesungen (F-06) |
 | GET    | `/api/utility/{utility}/contracts`                                | Vertrags-Liste |
 | POST   | `/api/utility/{utility}/contracts`                                | Vertrag anlegen |
 | GET    | `/api/utility/{utility}/contracts/{id}`                           | Einzelner Vertrag |
@@ -84,6 +85,9 @@ die Fehlerklasse:
 | GET    | `/api/backup/export`                                              | Volles Backup als JSON |
 | POST   | `/api/backup/import`                                              | Backup zurückspielen (Format 3.0+) |
 | POST   | `/api/backup/snapshot`                                            | Snapshot im Datenverzeichnis ablegen |
+| GET    | `/api/export/{utility}/monthly.csv`                               | Monatsübersicht als CSV (F-07) |
+| GET    | `/api/export/{utility}/readings.csv`                              | Zählerstände als CSV (F-07) |
+| GET    | `/api/export/temperatures.csv`                                    | Temperaturreihe als CSV (F-07) |
 | POST   | `/api/migration/v09/preview`                                      | v0.9.0-Backup analysieren |
 | POST   | `/api/migration/v09/import`                                       | v0.9.0-Backup übernehmen |
 
@@ -101,7 +105,7 @@ Liefert Systemzustand und Schema-Informationen.
 {
   "success": true,
   "data": {
-    "app_version": "1.0.2",
+    "app_version": "1.1.0",
     "schema_version": "1.0.0",
     "php_version": "8.4.0",
     "data_dir": "/var/www/energietracker/data",
@@ -336,6 +340,48 @@ nicht ausgebauten) Device des Meters abgeleitet.
 
 ### `DELETE /api/utility/{utility}/readings/{id}`
 
+### `POST /api/utility/{utility}/meters/{id}/readings/import-csv`
+
+CSV-Bulk-Import von Ablesungen in einen konkreten Zähler (F-06, seit
+v1.1.0). Eine bereits vorhandene Ablesung am selben Datum wird
+**überschrieben**, nicht dupliziert.
+
+**Content-Type:** `text/plain` — der Request-Body ist der rohe CSV-Text,
+**kein** JSON.
+
+**CSV-Format** (eine Kopfzeile wird automatisch erkannt und übersprungen):
+
+```
+datum;zaehlerstand;notiz;geschaetzt
+01.02.2026;12345,6;Jahresanfang;false
+2026-03-01;12567.8;;ja
+```
+
+- **Trenner:** `;` bevorzugt, `,` als Fallback.
+- **Datum:** `TT.MM.JJJJ` oder ISO `JJJJ-MM-TT`.
+- **Zählerstand:** deutsches Dezimalkomma und Tausenderpunkt werden erkannt.
+- **notiz** und **geschaetzt** sind optional; `geschaetzt` akzeptiert
+  `true/false/1/0/ja/nein/x` (leer = `false`).
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "imported":    2,
+    "overwritten": 0,
+    "skipped":     0,
+    "errors":      []
+  }
+}
+```
+
+`errors` enthält pro nicht verarbeitbarer Zeile eine deutschsprachige
+Meldung mit Zeilennummer. Die Importlogik steckt im quell-agnostischen
+`ReadingImportService` — eine künftige Smart-Meter-Anbindung kann
+denselben Kern (`importRows()`) ohne CSV-Parsing wiederverwenden.
+
 ---
 
 ## Contracts
@@ -392,9 +438,10 @@ Query-Parameter `meter_id` filtert auf einen Zähler.
 
 `schmutzwasser.basis` ist `"trinkwasser"` (Standard, Schmutzwasser-Menge =
 Trinkwasser-Verbrauch) oder `"separater_zaehler"` (mit
-`separater_zaehler_meter_id` als Verweis auf einen zweiten Zähler — wird in
-v1.0.3 wie `trinkwasser` berechnet, echte Separat-Auswertung folgt in
-einer späteren Version).
+`separater_zaehler_meter_id` als Verweis auf einen zweiten Zähler — seit
+v1.1.0 wird in diesem Fall das monatliche m³ des referenzierten Zählers
+verwendet; die historische Auswertung rechnet damit korrekt, die
+Forecast-Vorausschau nutzt vereinfachend das Trinkwasser-Volumen).
 
 Strikte F4-Validierung: halb-ausgefüllte Subzeilen (z.B. `{from: "2025-01-01"}` ohne
 `ct_per_kwh`) führen zu HTTP 400 mit präziser Fehlermeldung wie
@@ -519,7 +566,10 @@ Vertrag* Karte und die *Verträge & Abschläge* Tabelle in der UI.
         "advance_paid":       1740.0,
         "current_balance":    -18.21,
         "projected_end_balance": -18.21,
-        "verdict": "Erstattung"
+        "verdict": "Erstattung",
+        "days_until_end": 231,
+        "should_remind":  false,
+        "remind_stage":   0
       }
     ]
   }
@@ -528,6 +578,22 @@ Vertrag* Karte und die *Verträge & Abschläge* Tabelle in der UI.
 
 `verdict` ist `Nachzahlung` bei `projected_end_balance > 5`,
 `Erstattung` bei `< -5`, sonst `Ausgeglichen`.
+
+`effective_end` ist bei Verträgen mit gepflegtem Ende identisch mit
+`end`; bei offenen Verträgen (`end: null`, `is_open_ended: true`) ist es
+der nächste Abrechnungsstichtag der Utility (Settings
+`billing_cycle_anchor_<utility>`, Default `01-01`) — bis dorthin wird der
+`projected_end_balance` projiziert (F-03, seit v1.1.0).
+
+**Vertragsende-Erinnerung** (F-05, seit v1.1.0) — drei zusätzliche Felder
+pro Vertrag:
+
+- `days_until_end` — Tage bis zum Vertragsende, vorzeichenbehaftet
+  (negativ = Ende liegt in der Vergangenheit); `null` bei offenen Verträgen.
+- `remind_stage` — `0` (keine Erinnerung) bis `3` (dringend). Die
+  Schwellen sind als Settings-Keys `contract_remind_days_1|2|3`
+  konfigurierbar (Default 90 / 30 / 1 Tage).
+- `should_remind` — `true`, sobald `remind_stage > 0`.
 
 **Wasser-spezifische Antwort** (seit v1.0.3): jedes Vertrags-Objekt enthält
 zusätzlich `actual_m3` und `components` mit der Aufschlüsselung der drei
@@ -568,12 +634,21 @@ unter `monthly[].trinkwasser`, `.schmutzwasser`, `.niederschlagswasser`.
 
 ### `GET /api/utility/{utility}/meters/{id}/forecast`
 
-12-Monats-Forecast als R²-gewichtete Mischung aus Regressionsmodell
-und Saisonprofil.
+12-Monats-Forecast pro Zähler. Für HGT-relevante Verbrauchsarten (Gas)
+eine R²-gewichtete Mischung aus Regressionsmodell und Saisonprofil; für
+nicht-HGT-relevante (Strom, Wasser) ein reines Saisonprofil.
 
-**Query-Parameter:**
-- `model` (optional, default = setting `forecast_model`): einer von
-  `linear | polynomial | robust | segmented`
+Die **Kostenprognose ist vertragsbasiert** (F-02, seit v1.1.0): für jeden
+Prognosemonat wird der dann aktive Vertrag aufgelöst und der für diesen
+Monat gültige Arbeits- und Grundpreis aus der Preishistorie verwendet.
+
+**Query-Parameter** (alle optional):
+- `model` — `linear | polynomial | robust | segmented` (default = setting
+  `forecast_model`)
+- `temp_offset` — °C-Verschiebung der HGT-Annahme (What-if)
+- `price_factor` — Multiplikator auf die Arbeitspreise (What-if)
+- `forecast_months` — Horizont in Monaten (default = setting
+  `forecast_months`)
 
 **Response:**
 
@@ -581,18 +656,49 @@ und Saisonprofil.
 {
   "success": true,
   "data": {
-    "model": "linear",
-    "r2": 0.967,
-    "blend_weight": 0.8,
-    "monthly": [
-      { "ym": "2026-06", "kwh": 540, "from_regression": 480, "from_seasonal": 700 }
+    "valid": true,
+    "utility": "gas",
+    "meter_id": "m_gas_main",
+    "blend_weight": 0.75,
+    "last_price_ct": 8.2,
+    "regression": { "model": "linear", "valid": true, "r2": 0.967, "a": 11.86, "b": 1023.0, "n": 30 },
+    "historical": [ ... Monatsreihe wie bei meterConsumption ... ],
+    "forecast": [
+      {
+        "ym": "2026-06", "year": 2026, "month": 6,
+        "kwh": 540,
+        "hdd_estimated": 12.4,
+        "cost_estimated": 47.79,
+        "advance_estimated": 130.0,
+        "balance_running": -216.71,
+        "working_price_ct": 8.2,
+        "contract_id": "c_gas_004",
+        "method": "blend(reg=0.75, seasonal=0.25)"
+      }
     ],
-    "year_total": 18420,
-    "year_total_lower": 16800,
-    "year_total_upper": 20300
+    "options": { "temp_offset": 0, "price_factor": 1, "forecast_months": 12 }
   }
 }
 ```
+
+Pro Prognosemonat:
+- `kwh` bzw. `m3` — der prognostizierte Verbrauch (Feldname je nach
+  `consumption_unit` der Utility).
+- `cost_estimated` — Arbeitspreis × Menge + Grundpreis − bekannte Boni.
+- `advance_estimated` — der für den Monat gültige Abschlag, oder `null`
+  wenn kein Vertrag/kein Abschlag gepflegt ist.
+- `balance_running` — kumuliert `cost_estimated − advance_estimated`.
+  Negativ = Guthaben, positiv = Nachzahlung; der Wert des letzten Monats
+  ist der projizierte Saldo am Horizontende.
+- `working_price_ct` — der angesetzte Arbeitspreis (Headline-Tarif).
+- `contract_id` — der aktive Vertrag, oder `null` (dann Fallback auf
+  `last_price_ct`).
+- `method` — `seasonal_only` oder `blend(reg=…, seasonal=…)`.
+
+Künftige Boni werden **nicht** fortgeschrieben — nur im Vertrag mit
+Gutschriftdatum im Prognosezeitraum gepflegte Boni fließen ein. Bei zu
+wenig Historie (< 6 Monate) ist die Antwort
+`{ "valid": false, "reason": "…" }`.
 
 ---
 
@@ -610,7 +716,7 @@ direkt als JSON-Datei abspeichern.
   "success": true,
   "data": {
     "backup_version": "3.0",
-    "app_version": "1.0.2",
+    "app_version": "1.1.0",
     "exported_at": "2026-05-11T14:00:00+02:00",
     "meta": { ... },
     "temperatures": { ... },
@@ -655,6 +761,35 @@ unten) zuständig.
 Legt einen Snapshot unter `data/backups/backup_YYYY-MM-DD_HHMMSS.json` ab.
 
 **Response:** `{ "success": true, "data": { "path": "backup_2026-05-11_140000.json" } }`
+
+---
+
+## CSV-Export
+
+Tabellarischer Export für Tabellenkalkulationen (F-07, seit v1.1.0).
+Drei Datensätze, jeweils als **Datei-Download** — die Antwort ist
+**kein** JSON, sondern `text/csv` mit `Content-Disposition: attachment`.
+Format: Semikolon-getrennt, UTF-8 mit BOM (Excel erkennt die Kodierung),
+CRLF-Zeilenenden, deutsches Dezimalkomma, ISO-Datumsangaben.
+
+Ergänzt das vollständige JSON-Backup — für eine wieder-importierbare
+Sicherung weiterhin `GET /api/backup/export` verwenden.
+
+### `GET /api/export/{utility}/monthly.csv`
+
+Monatsaggregate einer Verbrauchsart über alle Zähler: Monat, Tage,
+Verbrauch, Kosten, Abschlag, Monatssaldo, kumulierter Saldo, ø Temperatur,
+HGT, CO₂.
+
+### `GET /api/export/{utility}/readings.csv`
+
+Alle Rohablesungen einer Verbrauchsart, eine Zeile pro Ablesung: Zähler-ID,
+Zählername, Geräte-ID, Datum, Zählerstand, Preis, Notiz, geschätzt-Flag,
+Zukunft-Flag.
+
+### `GET /api/export/temperatures.csv`
+
+Die Temperaturreihe als Tageswerte: Datum, ø, Min, Max.
 
 ---
 

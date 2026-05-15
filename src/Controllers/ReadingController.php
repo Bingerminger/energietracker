@@ -6,14 +6,22 @@ namespace Energietracker\Controllers;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\ReadingService;
+use Energietracker\Services\ReadingImportService;
 
 /**
  * Ablesungs-CRUD. Auto-Zuweisung von device_id zum aktiven Device
  * des Meters.
+ *
+ * F-06 (v1.1.0): `importCsv` nimmt einen rohen CSV-Text-Body und importiert
+ * ihn zähler-gebunden über den ReadingImportService — vorhandene Ablesungen
+ * am selben Datum werden überschrieben und im Report gemeldet.
  */
 final class ReadingController
 {
-    public function __construct(private ReadingService $readings) {}
+    public function __construct(
+        private ReadingService $readings,
+        private ReadingImportService $import,
+    ) {}
 
     public function index(Request $req): never
     {
@@ -37,5 +45,19 @@ final class ReadingController
     {
         $this->readings->delete($req->param('utility'), $req->param('id'));
         Response::json(['deleted' => true]);
+    }
+
+    /**
+     * POST /api/utility/{utility}/meters/{id}/readings/import-csv
+     * Body: raw CSV text (Content-Type: text/plain).
+     */
+    public function importCsv(Request $req): never
+    {
+        $report = $this->import->importCsv(
+            $req->param('utility'),
+            $req->param('id'),
+            $req->rawBody
+        );
+        Response::json($report);
     }
 }

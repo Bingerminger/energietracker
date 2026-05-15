@@ -1,5 +1,5 @@
 // =====================================================================
-// Energietracker v1.0.4 — API client
+// Energietracker v1.1.0 — API client
 // Thin wrapper around fetch. Mirrors the backend route layout from
 // src/bootstrap.php. Every method returns parsed JSON `data` or throws.
 // =====================================================================
@@ -53,6 +53,9 @@ export const api = {
   createReading: (u, data)             => request('POST', `/api/utility/${u}/readings`, data),
   updateReading: (u, id, data)         => request('PATCH',`/api/utility/${u}/readings/${id}`, data),
   deleteReading: (u, id)               => request('DELETE',`/api/utility/${u}/readings/${id}`),
+  // F-06: zähler-gebundener CSV-Bulk-Import (Body: text/plain CSV).
+  importReadingCsv: (u, meterId, csvText) =>
+    request('POST', `/api/utility/${u}/meters/${meterId}/readings/import-csv`, csvText, { raw: true }),
 
   // Contracts
   contracts:     (u, meterId)          => {
@@ -95,6 +98,13 @@ export const api = {
   exportBackup:  ()                    => request('GET',  '/api/backup/export'),
   importBackup:  (data)                => request('POST', '/api/backup/import', data),
   snapshotBackup:()                    => request('POST', '/api/backup/snapshot'),
+
+  // ── CSV-Export (F-07) ──
+  // These return a file download, not JSON — so they are plain URLs the
+  // browser navigates to / anchors to, not request() calls.
+  exportMonthlyCsvUrl:      (u) => `${BASE}/api/export/${u}/monthly.csv`,
+  exportReadingsCsvUrl:     (u) => `${BASE}/api/export/${u}/readings.csv`,
+  exportTemperaturesCsvUrl: ()  => `${BASE}/api/export/temperatures.csv`,
 
   // ── Migration aus v0.9.0 ──
   migrationV09Preview: (backup)         => request('POST', '/api/migration/v09/preview', { backup }),

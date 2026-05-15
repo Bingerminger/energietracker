@@ -1,12 +1,14 @@
 // =====================================================================
-// Analysis view — works for any utility:
+// Energietracker v1.1.0 — Analysis view (per utility):
 //   - HGT scatter + regression (only for HGT-relevant utilities)
-//   - Year-over-year comparison
+//   - Year-over-year comparison chart + YoY delta widget (F-04)
+//   - Contract-end reminders (F-05)
+//   - Water spar-index (F-10)
 //   - Anomalies (per meter)
 // =====================================================================
 
 import { api } from '../api.js';
-import { getUtilities } from '../state.js';
+import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
@@ -66,12 +68,20 @@ async function renderForMeter(u, meterId, body) {
   let meterData;
   try { meterData = await api.meterConsumption(u.key, meterId); }
   catch (e) { toastErr(e.message); body.innerHTML = `<div class="banner banner--error">${escapeHtml(e.message)}</div>`; return; }
+  // Contract status drives the F-05 contract-end reminder. It is optional —
+  // a meter without contracts simply yields no reminder banner.
+  let contractStatus = null;
+  try { contractStatus = await api.contractStatus(u.key, meterId); }
+  catch { contractStatus = null; }
+
   const monthly     = meterData.monthly || [];
   const anomalies   = meterData.anomalies || [];
   const regressions = meterData.regressions || {};
   const consKey     = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
 
   body.innerHTML = `
+    ${renderContractReminders(contractStatus)}
+    ${u.key === 'wasser' ? await renderWaterSparindex(monthly) : ''}
     <div class="grid grid-2">
       ${u.hgt_relevant ? `
         <div class="card">
@@ -92,6 +102,8 @@ async function renderForMeter(u, meterId, body) {
         <div class="chart-wrap"><canvas id="ch-years"></canvas></div>
       </div>
     </div>
+
+    ${renderYoyWidget(monthly, u, consKey)}
 
     <div class="card" style="margin-top: var(--sp-5)">
       <h3 class="card__title">Anomalien (${anomalies.length})</h3>
@@ -308,4 +320,199 @@ function renderYearComparison(monthly, u, consKey) {
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: u.consumption_unit } } } }
   }));
+}
+
+// ── F-05: contract-end reminders ───────────────────────────────────
+// Renders a banner per contract whose `should_remind` flag is set by the
+// backend (days_until_end within one of the configured thresholds).
+// remind_stage 1..3 maps to info / warning / danger styling.
+function renderContractReminders(contractStatus) {
+  const contracts = contractStatus?.contracts || [];
+  const due = contracts.filter(c => c.should_remind);
+  if (!due.length) return '';
+
+  const stageClass = { 1: 'banner--info', 2: 'banner--warning', 3: 'banner--error' };
+  const stageLabel = { 1: 'Vorwarnung', 2: 'Erinnerung', 3: 'Dringend' };
+
+  return due.map(c => {
+    const stage = c.remind_stage || 1;
+    const days = c.days_until_end;
+    const provider = c.provider || c.tariff_name || 'Vertrag';
+    return `
+      <div class="banner ${stageClass[stage] || 'banner--info'}" style="margin-bottom: var(--sp-3)">
+        <strong>Vertragsende ${stageLabel[stage] || ''}:</strong>
+        ${escapeHtml(provider)} endet
+        ${days === 0 ? 'heute' : days === 1 ? 'morgen' : `in ${days} Tagen`}
+        ${c.end ? `(${fmt.date(c.end)})` : ''}.
+        <span class="muted"> Kündigungsfrist und Anschlussvertrag prüfen.</span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── F-04: year-over-year delta widget ──────────────────────────────
+// Month-by-month comparison of the two most recent years that have data,
+// with absolute and percentage deltas. Complements the existing
+// "Jahresvergleich" line chart with concrete numbers.
+function renderYoyWidget(monthly, u, consKey) {
+  const byYear = {};
+  monthly.forEach(m => {
+    if (!byYear[m.year]) byYear[m.year] = Array(12).fill(null);
+    byYear[m.year][m.month - 1] = m[consKey];
+  });
+  const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+  if (years.length < 2) {
+    return `
+      <div class="card" style="margin-top: var(--sp-5)">
+        <h3 class="card__title">Jahresvergleich · Monatsdeltas</h3>
+        <p class="muted">Mindestens zwei Jahre mit Daten nötig — aktuell ${years.length}.</p>
+      </div>
+    `;
+  }
+  const prev = years[years.length - 2];
+  const curr = years[years.length - 1];
+  const monthNames = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const unit = u.consumption_unit;
+
+  let sumPrev = 0, sumCurr = 0, nBoth = 0;
+  const rows = monthNames.map((name, i) => {
+    const a = byYear[prev][i];
+    const b = byYear[curr][i];
+    let delta = null, pct = null;
+    if (a != null && b != null) {
+      delta = b - a;
+      pct = a !== 0 ? (delta / a) * 100 : null;
+      sumPrev += a; sumCurr += b; nBoth++;
+    }
+    return { name, a, b, delta, pct };
+  });
+  const totalDelta = nBoth ? sumCurr - sumPrev : null;
+  const totalPct = nBoth && sumPrev !== 0 ? (totalDelta / sumPrev) * 100 : null;
+
+  const cell = (v, d = 0) => v == null ? '<span class="dim">–</span>' : fmt.num(v, d);
+  const deltaCell = (delta, pct) => {
+    if (delta == null) return '<td class="num"><span class="dim">–</span></td><td class="num"><span class="dim">–</span></td>';
+    const cls = delta > 0 ? 'danger-text' : delta < 0 ? 'success-text' : '';
+    const sign = delta > 0 ? '+' : '';
+    return `
+      <td class="num ${cls}">${sign}${fmt.num(delta, 0)}</td>
+      <td class="num ${cls}">${pct == null ? '–' : sign + fmt.num(pct, 1) + ' %'}</td>
+    `;
+  };
+
+  return `
+    <div class="card" style="margin-top: var(--sp-5)">
+      <h3 class="card__title">Jahresvergleich · Monatsdeltas (${prev} → ${curr})</h3>
+      <div class="table-wrap"><table class="table">
+        <thead><tr>
+          <th>Monat</th>
+          <th class="num">${prev} (${unit})</th>
+          <th class="num">${curr} (${unit})</th>
+          <th class="num">Δ absolut</th>
+          <th class="num">Δ %</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td><strong>${r.name}</strong></td>
+              <td class="num">${cell(r.a)}</td>
+              <td class="num">${cell(r.b)}</td>
+              ${deltaCell(r.delta, r.pct)}
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot><tr>
+          <td><strong>Summe (gemeinsame Monate)</strong></td>
+          <td class="num">${cell(nBoth ? sumPrev : null)}</td>
+          <td class="num">${cell(nBoth ? sumCurr : null)}</td>
+          ${deltaCell(totalDelta, totalPct)}
+        </tr></tfoot>
+      </table></div>
+      <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">
+        Vergleich nur über Monate, die in beiden Jahren Daten haben.
+        Positive Werte = Mehrverbrauch gegenüber dem Vorjahr.
+      </p>
+    </div>
+  `;
+}
+
+// ── F-10: water spar-index ─────────────────────────────────────────
+// Index = (Liter/Person/Tag) / Referenz × 100, computed over the most
+// recent up-to-12 months of data. Bands (gut / Warnung) come from
+// Settings. Only meaningful for the water utility.
+async function renderWaterSparindex(monthly) {
+  const settings = await getSettings().catch(() => ({}));
+  const personen = Number(settings.wasser_personen_anzahl) || 1;
+  const referenz = Number(settings.wasser_personen_referenz) || 127;
+  const bandGut = Number(settings.wasser_sparindex_gut) || 100;
+  const bandWarn = Number(settings.wasser_sparindex_warnung) || 150;
+
+  // Sum m³ and days over the most recent 12 months that carry data.
+  const recent = monthly.filter(m => (m.m3 ?? 0) > 0 && (m.days ?? 0) > 0).slice(-12);
+  if (!recent.length) {
+    return `
+      <div class="card">
+        <h3 class="card__title">💧 Wasser-Spar-Index</h3>
+        <p class="muted">Noch keine ausreichenden Verbrauchsdaten.</p>
+      </div>
+    `;
+  }
+  const totalM3 = recent.reduce((s, m) => s + (m.m3 || 0), 0);
+  const totalDays = recent.reduce((s, m) => s + (m.days || 0), 0);
+  const litersPerPersonDay = totalDays > 0
+    ? (totalM3 * 1000) / totalDays / personen
+    : 0;
+  const index = referenz > 0 ? (litersPerPersonDay / referenz) * 100 : 0;
+
+  const band = index <= bandGut ? 'gut'
+             : index >= bandWarn ? 'warnung'
+             : 'mittel';
+  const bandMeta = {
+    gut:     { cls: 'success', label: 'Unauffällig', note: 'Verbrauch im oder unter dem Referenzbereich.' },
+    mittel:  { cls: 'warning', label: 'Beobachten',  note: 'Verbrauch über dem guten Band, aber noch unter der Warnschwelle.' },
+    warnung: { cls: 'danger',  label: 'Sparpotenzial', note: 'Verbrauch deutlich über der Referenz — Einsparpotenzial prüfen.' },
+  }[band];
+
+  // Position of the index on a 0..(bandWarn × 1.5) scale for the bar.
+  const scaleMax = Math.max(bandWarn * 1.5, index * 1.1);
+  const pos = Math.min(100, (index / scaleMax) * 100);
+  const gutPos = Math.min(100, (bandGut / scaleMax) * 100);
+  const warnPos = Math.min(100, (bandWarn / scaleMax) * 100);
+
+  return `
+    <div class="card">
+      <h3 class="card__title">💧 Wasser-Spar-Index</h3>
+      <div class="sparindex">
+        <div class="sparindex__main">
+          <div class="sparindex__value ${bandMeta.cls}-text">${fmt.num(index, 0)}</div>
+          <div class="sparindex__badge badge badge--${bandMeta.cls}">${bandMeta.label}</div>
+        </div>
+        <div class="sparindex__detail">
+          <div>${fmt.num(litersPerPersonDay, 0)} L / Person / Tag
+               <span class="muted">· Referenz ${fmt.num(referenz, 0)} L</span></div>
+          <div class="muted" style="font-size: var(--fs-xs)">
+            Basis: ${recent.length} Monat${recent.length === 1 ? '' : 'e'} ·
+            ${fmt.num(totalM3, 1)} m³ · ${personen} Person${personen === 1 ? '' : 'en'}
+          </div>
+        </div>
+      </div>
+      <div class="sparindex__bar">
+        <div class="sparindex__bar-track">
+          <div class="sparindex__bar-zone sparindex__bar-zone--gut" style="width:${gutPos}%"></div>
+          <div class="sparindex__bar-zone sparindex__bar-zone--mittel" style="left:${gutPos}%;width:${warnPos - gutPos}%"></div>
+          <div class="sparindex__bar-zone sparindex__bar-zone--warnung" style="left:${warnPos}%;right:0"></div>
+          <div class="sparindex__bar-marker" style="left:${pos}%"></div>
+        </div>
+        <div class="sparindex__bar-labels">
+          <span>0</span>
+          <span>gut ≤ ${bandGut}</span>
+          <span>Warnung ≥ ${bandWarn}</span>
+        </div>
+      </div>
+      <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-3)">
+        ${bandMeta.note} Index 100 = exakt der in den Einstellungen hinterlegte
+        Referenzverbrauch pro Person.
+      </p>
+    </div>
+  `;
 }

@@ -1,7 +1,8 @@
 // =====================================================================
-// Forecast view — works for any utility and meter.
+// Forecast view — works for any utility and meter.            v1.1.0
 //   - 12-month chart (historical + forecast)
-//   - Per-month detail table with method label (blend or seasonal_only)
+//   - Per-month detail table: Verbrauch, HGT, Kosten, projizierter
+//     Abschlag, laufender Saldo (F-02), method label
 //   - What-if controls: temp offset, price factor, model
 // =====================================================================
 
@@ -147,23 +148,56 @@ function renderResult(u, result, container) {
     Letzter Arbeitspreis: <strong>${fmt.num(result.last_price_ct, 3)} ct/${u.consumption_unit}</strong>
   `;
 
+  // F-02: the forecast now carries a full contract-aware finance projection.
+  // `cost_estimated` uses the per-month working/base price of the active
+  // contract; `advance_estimated` is the projected Abschlag; `balance_running`
+  // is the cumulative (Kosten − Abschlag) — negative = Guthaben, positive =
+  // Nachzahlung. The running balance of the final month is the projected
+  // year-end balance.
+  const hasFinance = fc.some(r => r.advance_estimated != null || r.balance_running != null);
+  const lastBalance = fc.length ? fc[fc.length - 1].balance_running : null;
+
   tbl.innerHTML = `
+    ${hasFinance && lastBalance != null ? `
+      <div class="banner ${lastBalance > 5 ? 'banner--warning' : lastBalance < -5 ? 'banner--success' : 'banner--info'}"
+           style="margin-bottom: var(--sp-3)">
+        Projizierter Saldo am Ende des Horizonts:
+        <strong>${fmt.eur(Math.abs(lastBalance))}</strong>
+        ${lastBalance > 5 ? 'Nachzahlung' : lastBalance < -5 ? 'Guthaben' : '(ausgeglichen)'}
+        <span class="muted"> · kumuliert aus geschätzten Kosten minus projizierten Abschlägen</span>
+      </div>
+    ` : ''}
     <div class="table-wrap"><table class="table">
       <thead><tr>
         <th>Monat</th><th class="num">Verbrauch (${u.consumption_unit})</th>
         ${u.hgt_relevant ? '<th class="num">HGT geschätzt</th>' : ''}
-        <th class="num">Kosten geschätzt</th><th>Methode</th>
+        <th class="num">Kosten geschätzt</th>
+        <th class="num">Abschlag projiziert</th>
+        <th class="num">Saldo laufend</th>
+        <th>Methode</th>
       </tr></thead>
       <tbody>
-        ${fc.map(r => `
+        ${fc.map(r => {
+          const bal = r.balance_running;
+          const balCls = bal == null ? '' : (bal > 0 ? 'danger-text' : bal < 0 ? 'success-text' : '');
+          return `
           <tr>
             <td>${fmt.month(r.ym)}</td>
             <td class="num">${fmt.num(r[consKey], 0)}</td>
             ${u.hgt_relevant ? `<td class="num">${fmt.num(r.hdd_estimated, 0)}</td>` : ''}
             <td class="num">${fmt.eur(r.cost_estimated)}</td>
+            <td class="num">${r.advance_estimated != null ? fmt.eur(r.advance_estimated) : '<span class="dim">–</span>'}</td>
+            <td class="num ${balCls}">${bal != null ? fmt.eur(bal) : '<span class="dim">–</span>'}</td>
             <td><code class="mono" style="font-size: var(--fs-xs)">${escapeHtml(r.method)}</code></td>
-          </tr>`).join('')}
+          </tr>`;
+        }).join('')}
       </tbody>
     </table></div>
+    ${hasFinance ? `
+      <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">
+        Künftige Boni werden nicht fortgeschrieben — nur im Vertrag gepflegte Boni
+        mit Gutschriftdatum im Prognosezeitraum fließen in die Kosten ein.
+      </p>
+    ` : ''}
   `;
 }
