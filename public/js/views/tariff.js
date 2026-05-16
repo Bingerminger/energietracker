@@ -21,11 +21,15 @@ export async function render(container) {
 
   const active = Array.isArray(settings.active_utilities) && settings.active_utilities.length
     ? settings.active_utilities : utilities.map(u => u.key);
-  // Wasser ist im Tarifvergleich nicht unterstützt
-  const usable = utilities.filter(u => active.includes(u.key) && u.key !== 'wasser');
+  // Tarifvergleich/Schattenverträge ergeben nur für vertragsbasierte
+  // Arten Sinn. Wasser nutzt ein eigenes Drei-Komponenten-Modell und
+  // ist nicht unterstützt; Heizöl/Pellets (lieferbasiert) haben keine
+  // Verträge — dort ist die Tankrechnung die Kostenbasis.
+  const usable = utilities.filter(u =>
+    active.includes(u.key) && u.key !== 'wasser' && u.reading_kind !== 'delivery');
 
   if (usable.length === 0) {
-    container.innerHTML = `<div class="banner banner--info">Keine vergleichbaren Verbrauchsarten aktiv.</div>`;
+    container.innerHTML = `<div class="banner banner--info">Keine vergleichbaren Verbrauchsarten aktiv. Tarifvergleich gilt für vertragsbasierte Arten (Gas, Strom, Fernwärme).</div>`;
     return;
   }
   if (!sel.utility || !usable.find(u => u.key === sel.utility)) {

@@ -2,8 +2,11 @@
 
 [← Szenario Eigenheim](08-szenario-eigenheim.md) · [Kompendium-Index](../README.md)
 
-Kompakte Referenz aller Begriffe und Formeln. Ausführliche Herleitung in
-[Grundlagen & Methodik](00-overview.md).
+Kompakte Referenz aller Begriffe und Formeln. Ausführliche Herleitung
+in [Grundlagen & Methodik](00-overview.md).
+
+> Formeln stehen als Klartext-Codeblöcke, damit sie überall (GitHub,
+> Editor, Viewer) identisch und korrekt dargestellt werden.
 
 ---
 
@@ -33,73 +36,103 @@ Kompakte Referenz aller Begriffe und Formeln. Ausführliche Herleitung in
 ## Formeln (gegen Code geprüft)
 
 **Tagesverbrauch (kumulativ):**
-$$
-\text{kWh}_{\text{Tag}} = \frac{c_2 - c_1}{t_2 - t_1}
-$$
+
+```text
+kWh_Tag = (c2 - c1) / (t2 - t1)
+```
 
 **Zählertausch:**
-$$
-(c_{\text{final,alt}} - c_{\text{prev}}) + (c_{\text{curr}} - c_{\text{initial,neu}})
-$$
+
+```text
+Verbrauch = (final_alt - prev) + (curr - initial_neu)
+```
 
 **Energieumrechnung:**
-$$
-\text{Gas: } \text{kWh}=V_{m^3}\cdot f_{\text{conv}}\quad
-\text{Öl: } \text{kWh}=L\cdot H_u\quad
-\text{Pellets: } \text{kWh}=\text{kg}\cdot H_u
-$$
+
+```text
+Gas:     kWh = m³ × Brennwertfaktor
+Heizöl:  kWh = Liter × Hu
+Pellets: kWh = kg × Hu
+```
 
 **Heizgradtage:**
-$$
-\text{HGT}_{\text{Tag}}=\max(0,\;T_{\text{base}}-T_{\text{avg}})
-$$
+
+```text
+HGT_Tag = max(0, T_base - T_avg)
+```
 
 **Bestimmtheitsmaß:**
-$$
-R^2 = 1 - \frac{\sum (y_i-\hat{y}_i)^2}{\sum (y_i-\bar{y})^2}
-$$
+
+```text
+R² = 1 - ( Σ (yi - ŷi)² ) / ( Σ (yi - ȳ)² )
+```
+
+**Sigmoid-Heizsignatur** (Backend `sigmoidPredict`):
+
+```text
+kWh = A / (1 + (B / (HGT - θ0))^C) + D     für HGT > θ0
+kWh = D                                     sonst
+```
 
 **Prognose-Blend:**
-$$
-w=\min(R^2,\;\text{blend\_max}),\qquad
-\hat{y}=w\,\hat{y}_{\text{Reg}}+(1-w)\,\hat{y}_{\text{Saison}}
-$$
+
+```text
+w        = min(R², blend_max)
+Prognose = w · Regressionswert + (1 - w) · Saisonwert
+```
 
 **Effizienzkennzahl (je Heizquelle):**
-$$
-\frac{\sum \text{Heiz-kWh}_{\text{Jahr}}}{\text{Wohnfläche}_{m^2}}
-$$
+
+```text
+Kennzahl = (Σ Heiz-kWh des Jahres) / Wohnfläche_m²     [kWh / (m²·a)]
+```
 
 **Lieferenergie-Bilanz (Öl/Pellets):**
-$$
-\text{Gesamt-kWh}=\big(\text{initial\_stock}+\textstyle\sum\text{Lieferungen}\big)\cdot H_u
-$$
+
+```text
+Gesamt-kWh = (initial_stock + Σ Lieferungen) × Hu
+```
 
 **Tagesabzug Bestandskurve (v1.4.0):**
-$$
-\text{rate}=\frac{(\sum\text{Lief. ohne letzte})(1-s)}{\sum\text{HGT}_{[\text{erste},\text{letzte}]}},\quad
-\text{stock}_t=\max(0,\;\text{stock}_{t-1}+\text{Lief}_t-(\text{GL}+\text{rate}\cdot\text{HGT}_t))
-$$
+
+```text
+rate      = (Σ Lieferungen ohne die letzte) · (1 - s)
+            / Σ HGT im Fenster [erste .. letzte Lieferung]
+
+stock_Tag = max(0, stock_Vortag + Lieferung_Tag
+                   - (Grundlast_L + rate · HGT_Tag))
+```
 
 **Lieferkosten (v1.4.2, Gesamtbetrag-Vorrang):**
-$$
-\text{Kosten}=\begin{cases}\text{total\_eur}&\text{falls gesetzt}\\ \text{Menge}\cdot\text{unit\_price\_cents}/100&\text{sonst}\end{cases}
-$$
+
+```text
+Kosten = total_eur                          falls gesetzt
+Kosten = Menge × unit_price_cents / 100     sonst
+```
 
 **Saldo:**
-$$
-\text{Saldo}=\sum\text{Abschläge}-\sum\text{Kosten}
-$$
+
+```text
+Saldo = Σ Abschläge - Σ Kosten
+```
 
 **Wasser-Spar-Index:**
-$$
-\frac{\text{L/Person/Tag}}{\text{Referenz}}\times 100
-$$
 
-**CO₂:**
-$$
-\text{CO}_2=\text{Verbrauch}\times f_{\text{CO}_2}\quad[\text{Unverifiziert: Default-Faktoren}]
-$$
+```text
+Spar-Index = (Liter pro Person und Tag) / Referenz × 100
+```
+
+**CO₂** *(Default-Faktoren [Unverifiziert])*:
+
+```text
+CO2 = Verbrauch × CO2-Faktor
+```
+
+**Z-Score (Anomalie):**
+
+```text
+z = (Ist - Mittel) / Standardabweichung
+```
 
 ---
 

@@ -30,9 +30,9 @@ Dieses Modell wurde mit Schema 1.0.3 eingeführt; ein Auto-Migrator
 
 ## Wasser-Spar-Index
 
-$$
-\text{Spar-Index} = \frac{\text{Liter pro Person und Tag}}{\text{Referenz}}\times 100
-$$
+```text
+Spar-Index = (Liter pro Person und Tag) / Referenz × 100
+```
 
 mit `wasser_personen_anzahl` und `wasser_personen_referenz`
 (Default-Referenz ~127 L/Person/Tag, deutscher Durchschnitt). Werte

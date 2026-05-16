@@ -167,6 +167,14 @@ function predictFor(model, reg, x) {
       if (x >= split) return Math.max(0, (reg.heat?.a ?? 0) * x + (reg.heat?.b ?? 0));
       return Math.max(0, (reg.base?.a ?? 0) * x + (reg.base?.b ?? 0));
     }
+    case 'sigmoid': {
+      // Spiegelt RegressionService::sigmoidPredict
+      const A = reg.A ?? 0, B = reg.B ?? 1, C = reg.C ?? 3;
+      const t0 = reg.theta0 ?? 0, D = reg.D ?? 0;
+      const denom = x - t0;
+      if (denom <= 1e-6) return Math.max(0, D);
+      return Math.max(0, A / (1 + Math.pow(B / denom, C)) + D);
+    }
     default: return null;
   }
 }
@@ -176,6 +184,7 @@ const MODEL_STYLE = {
   polynomial: { label: 'Polynomial (2)', color: '#a78bfa', dash: [6, 4]  },
   robust:     { label: 'Robust (Huber)', color: '#10b981', dash: [2, 3]  },
   segmented:  { label: 'Segmentiert',    color: '#f59e0b', dash: [10, 4] },
+  sigmoid:    { label: 'Sigmoid',        color: '#ec4899', dash: [4, 2]  },
 };
 
 function renderHgtScatter(monthly, u, consKey, regressions) {
@@ -190,7 +199,7 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
   // Build one polyline per model. For non-linear models, sample evenly.
   const lineDatasets = [];
   const summaryRows  = [];
-  ['linear', 'polynomial', 'robust', 'segmented'].forEach(model => {
+  ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'].forEach(model => {
     const reg = regressions[model];
     const style = MODEL_STYLE[model];
     if (!reg?.valid) {
@@ -279,6 +288,10 @@ function formatCoefficients(model, reg, u) {
       const heat = reg.heat || {}; const base = reg.base || {};
       return `HGT≥${reg.split}: ${heat.a?.toFixed(2) ?? '–'}×HGT+${heat.b?.toFixed(1) ?? '–'} | HGT<${reg.split}: ${base.a?.toFixed(2) ?? '–'}×HGT+${base.b?.toFixed(1) ?? '–'}`;
     }
+    case 'sigmoid':
+      return reg.predict
+        ? reg.predict
+        : `A=${(reg.A ?? 0).toFixed(1)}, B=${(reg.B ?? 0).toFixed(1)}, C=${reg.C ?? '–'}, θ₀=${(reg.theta0 ?? 0).toFixed(1)}, D=${(reg.D ?? 0).toFixed(0)}`;
     default: return '';
   }
 }

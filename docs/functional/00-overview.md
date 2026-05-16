@@ -3,55 +3,58 @@
 [← Kompendium-Index](../README.md)
 
 Dieses Kapitel erklärt die Rechenkerne, die für *alle* Verbrauchsarten
-gelten: Verbrauchsverteilung, Heizgradtage, Regression, Wetterbereinigung,
-Prognose, Effizienzklasse. Alle Formeln sind gegen den Quellcode geprüft.
+gelten: Verbrauchsverteilung, Heizgradtage, Regression,
+Wetterbereinigung, Prognose, Effizienzklasse. Alle Formeln sind gegen
+den Quellcode geprüft.
+
+> **Hinweis zur Darstellung:** Formeln stehen bewusst als
+> Klartext-Codeblöcke (keine LaTeX-Mathematik), damit sie auf GitHub,
+> in Editoren und in jedem Markdown-Viewer **identisch und korrekt**
+> dargestellt werden.
 
 ---
 
 ## 1. Vom Zählerstand zum Monatsverbrauch
 
 Zähler werden in unregelmäßigen Abständen abgelesen. Zwischen zwei
-Ablesungen $r_1$ (Datum $t_1$, Stand $c_1$) und $r_2$ ($t_2$, $c_2$) gilt:
+Ablesungen `r1` (Datum `t1`, Stand `c1`) und `r2` (`t2`, `c2`) gilt:
 
-$$
-\text{Verbrauch}_{[t_1,t_2]} = c_2 - c_1
-\qquad
-\text{Tage} = t_2 - t_1
-$$
+```text
+Verbrauch[t1..t2] = c2 - c1
+Tage              = t2 - t1
+```
 
 Dieser Verbrauch wird **linear über die Tage interpoliert** und dann den
 Kalendermonaten zugeschlagen:
 
-$$
-\text{Verbrauch}_{\text{Tag}} = \frac{c_2 - c_1}{t_2 - t_1}
-$$
+```text
+Verbrauch pro Tag = (c2 - c1) / (t2 - t1)
+```
 
 Über eine **Zählertausch-Grenze** hinweg (altes Gerät → neues Gerät):
 
-$$
-\text{Verbrauch} =
-\underbrace{(c_{\text{final,alt}} - c_{\text{prev}})}_{\text{Restweg altes Gerät}}
-+
-\underbrace{(c_{\text{curr}} - c_{\text{initial,neu}})}_{\text{neues Gerät}}
-$$
+```text
+Verbrauch = (final_alt - prev) + (curr - initial_neu)
+            \__ Restweg altes Gerät __/  \__ neues Gerät __/
+```
 
 Zukunfts-Ablesungen (`is_future`) werden ignoriert. Bei lieferbasierten
 Arten (Heizöl/Pellets) entfällt die Zähler-Differenz — dort wird der
-Verbrauch energetisch bilanziert (siehe
-[Heizöl](05-heizoel.md)).
+Verbrauch energetisch bilanziert (siehe [Heizöl](05-heizoel.md)).
 
 ---
 
 ## 2. Energieumrechnung
 
-Damit Arten vergleichbar werden, rechnet Energietracker intern in **kWh**
-(Wasser bleibt in m³). Die Umrechnung steckt in den Einstellungen:
+Damit Arten vergleichbar werden, rechnet Energietracker intern in
+**kWh** (Wasser bleibt in m³). Die Umrechnung steckt in den
+Einstellungen:
 
 | Art | Formel | Default |
 |---|---|---|
-| Gas | $\text{kWh} = V_{m^3} \times \text{Brennwert} \times \text{Zustandszahl}$ | `gas_conversion_factor` = 11.5 kWh/m³ |
-| Heizöl | $\text{kWh} = L \times H_u$ | `heizoel_kwh_per_l` = 10.0 kWh/L |
-| Pellets | $\text{kWh} = \text{kg} \times H_u$ | `pellets_kwh_per_kg` = 4.8 kWh/kg |
+| Gas | `kWh = m³ × Brennwert × Zustandszahl` | `gas_conversion_factor` = 11,5 kWh/m³ |
+| Heizöl | `kWh = Liter × Hu` | `heizoel_kwh_per_l` = 10,0 kWh/L |
+| Pellets | `kWh = kg × Hu` | `pellets_kwh_per_kg` = 4,8 kWh/kg |
 | Strom, Fernwärme | bereits kWh | — |
 | Wasser | bleibt m³ | — |
 
@@ -63,44 +66,51 @@ und sollte dort abgelesen und in den Einstellungen gepflegt werden.
 ## 3. Heizgradtage (HGT)
 
 Der zentrale Wetterbezug. Pro Tag mit mittlerer Außentemperatur
-$T_{\text{avg}}$ und Heizgrenztemperatur $T_{\text{base}}$
-(`hdd_base_temp`, Default **15 °C**):
+`T_avg` und Heizgrenztemperatur `T_base` (`hdd_base_temp`, Default
+**15 °C**):
 
-$$
-\text{HGT}_{\text{Tag}} = \max\!\left(0,\; T_{\text{base}} - T_{\text{avg}}\right)
-$$
+```text
+HGT_Tag = max(0, T_base - T_avg)
+```
 
-Monats-HGT = Summe der Tageswerte. Anschaulich: An einem 5-°C-Tag fallen
-$15-5 = 10$ HGT an, an einem 20-°C-Tag null. Je kälter, desto mehr HGT,
-desto mehr Heizenergie. Nur HGT-relevante Arten (Gas, Fernwärme, Heizöl,
-Pellets) nutzen das; Strom und Wasser nicht.
+Monats-HGT = Summe der Tageswerte. Anschaulich: An einem 5-°C-Tag
+fallen `15 - 5 = 10` HGT an, an einem 20-°C-Tag null. Je kälter, desto
+mehr HGT, desto mehr Heizenergie. Nur HGT-relevante Arten (Gas,
+Fernwärme, Heizöl, Pellets) nutzen das; Strom und Wasser nicht.
 
 ---
 
 ## 4. Regressionsmodelle
 
 Energietracker fittet den Zusammenhang **HGT → Verbrauch** mit fünf
-Modellen (`RegressionService`). Jedes liefert Parameter, Bestimmtheits-
-maß $R^2$ und ein `valid`-Flag (genug Datenpunkte?).
+Modellen (`RegressionService`). Jedes liefert Parameter,
+Bestimmtheitsmaß `R²` und ein `valid`-Flag (genug Datenpunkte?).
 
 | Modell | Form | Einsatz |
 |---|---|---|
-| **linear** | $y = a\cdot x + b$ | Grundfall, robust ab 3 Punkten |
-| **polynomial** | $y = a x^2 + b x + c$ | leichte Krümmung, ab 4 Punkten |
+| **linear** | `y = a·x + b` | Grundfall, robust ab 3 Punkten |
+| **polynomial** | `y = a·x² + b·x + c` | leichte Krümmung, ab 4 Punkten |
 | **robust** | linear, Huber-gewichtet | dämpft Ausreißer |
 | **segmented** | Knick: Sommer-Sockel + Heizast | Heiz-/Sommerbetrieb getrennt; Knickpunkt `auto` oder fix |
 | **sigmoid** | S-Kurve (Heizsignatur) | sättigende Heizkennlinie, TU-München/BDEW-Form |
 
-$R^2$ misst, wie gut das Modell die Streuung erklärt
-($R^2 = 1$: perfekt, $0$: nicht besser als der Mittelwert):
+Die Sigmoid-Form (exakt wie im Backend `sigmoidPredict`):
 
-$$
-R^2 = 1 - \frac{\sum_i (y_i - \hat{y}_i)^2}{\sum_i (y_i - \bar{y})^2}
-$$
+```text
+kWh = A / (1 + (B / (HGT - θ0))^C) + D     für HGT > θ0
+kWh = D                                     sonst
+```
+
+`R²` misst, wie gut das Modell die Streuung erklärt (`R² = 1`:
+perfekt, `0`: nicht besser als der Mittelwert):
+
+```text
+R² = 1 - ( Σ (yi - ŷi)² ) / ( Σ (yi - ȳ)² )
+```
 
 Das Standardmodell ist in den Einstellungen wählbar
-(`forecast_model`); in der **Prognose** kann es zusätzlich pro Abruf
-umgeschaltet werden (alle fünf Modelle, seit v1.4.1).
+(`forecast_model`); in der **Prognose** und im
+**Analyse-Korrelationschart** werden alle fünf Modelle dargestellt.
 
 ---
 
@@ -110,12 +120,16 @@ Für HGT-relevante Arten wird je Monat ausgewiesen:
 
 - **`expected_hgt`** — der vom Regressionsmodell für das
   Monats-HGT *erwartete* Verbrauch,
-- **`weather_adjusted`** — der auf das *langjährige* Kalendermonats-HGT
-  normierte Verbrauch (nach VDI-3807-Logik),
-- **`delta_pct`** — die prozentuale Abweichung Ist gegen Erwartung.
+- **`weather_adjusted`** — der auf das *langjährige*
+  Kalendermonats-HGT normierte Verbrauch (nach VDI-3807-Logik),
+- **`delta_pct`** — die prozentuale Abweichung Ist gegen Erwartung:
+
+```text
+delta_pct = (Ist - Erwartet) / Erwartet × 100
+```
 
 Damit lässt sich ein kalter Winter von echtem Mehrverbrauch trennen.
-Schwachlastmonate (kaum HGT) werden korrekt ausgeblendet, um
+Schwachlastmonate (kaum HGT) werden ausgeblendet, um
 Division-durch-fast-null-Artefakte zu vermeiden.
 
 ---
@@ -128,18 +142,15 @@ Division-durch-fast-null-Artefakte zu vermeiden.
    langjährigen Saisonprofil der Temperaturen),
 2. **reines Saisonprofil** des Verbrauchs (Monatsmittel der Historie).
 
-Die Mischung ist mit dem Regressions-$R^2$ gewichtet, gedeckelt durch
-`blend_max` (Default **0.80**):
+Die Mischung ist mit dem Regressions-`R²` gewichtet, gedeckelt durch
+`blend_max` (Default **0,80**):
 
-$$
-w = \min(R^2,\; \text{blend\_max})
-$$
-$$
-\hat{y}_{\text{Monat}} = w \cdot \hat{y}_{\text{Regression}}
-                        + (1-w)\cdot \hat{y}_{\text{Saison}}
-$$
+```text
+w        = min(R², blend_max)
+Prognose = w · Regressionswert + (1 - w) · Saisonwert
+```
 
-Anschaulich: Erklärt die Heizsignatur den Verbrauch gut ($R^2$ hoch),
+Anschaulich: Erklärt die Heizsignatur den Verbrauch gut (`R²` hoch),
 zählt die Regression stärker — aber nie mehr als 80 %, damit ein
 einzelnes gutes Jahr die Prognose nicht dominiert. Für **nicht**
 HGT-relevante Arten (Strom, Wasser) entfällt die Regression komplett:
@@ -155,10 +166,9 @@ Format `TT-MM` in der UI) inklusive Abschlag und laufendem Saldo.
 
 `BenchmarkService` rechnet den spezifischen Heizenergiebedarf:
 
-$$
-\text{Kennzahl} = \frac{\sum \text{Heiz-kWh des Jahres}}{\text{Wohnfläche}_{m^2}}
-\quad \left[\frac{\text{kWh}}{m^2\cdot a}\right]
-$$
+```text
+Kennzahl = (Σ Heiz-kWh des Jahres) / Wohnfläche_m²     [kWh / (m²·a)]
+```
 
 und ordnet ihn anhand der Bandgrenzen
 (`efficiency_class_thresholds`, Default A+ < 30, A < 50, B < 75,
@@ -174,9 +184,9 @@ Pellets-Grundlast + Gas-Spitzenlast sinnvoll).
 
 ## 8. CO₂
 
-$$
-\text{CO}_2 = \text{Verbrauch} \times f_{\text{CO}_2}
-$$
+```text
+CO2 = Verbrauch × CO2-Faktor
+```
 
 mit artspezifischem Faktor (`co2_gas`, `co2_strom`, …). Die Defaults
 sind **[Unverifiziert]** grobe Richtwerte und sollten in den
@@ -188,10 +198,15 @@ angepasst werden.
 ## 9. Anomalien
 
 `AnomalyService` markiert Monate, deren Verbrauch mehr als
-`recommendation_anomaly_sigma` Standardabweichungen vom erwarteten Wert
-abweicht (Z-Score). Anomalien sind Hinweise, keine Urteile — ein
-Umzug, eine neue Wärmepumpe oder ein defekter Zähler erzeugen sie
-gleichermaßen.
+`recommendation_anomaly_sigma` Standardabweichungen vom erwarteten
+Wert abweicht (Z-Score):
+
+```text
+z = (Ist - Mittel) / Standardabweichung
+```
+
+Anomalien sind Hinweise, keine Urteile — ein Umzug, eine neue
+Wärmepumpe oder ein defekter Zähler erzeugen sie gleichermaßen.
 
 ---
 

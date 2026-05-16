@@ -28,9 +28,9 @@ geliefert und gelagert, nicht in Litern. Entsprechend:
 - Lieferpreis ist **ct/kg**, Gesamtbetrag €
 - Heizwert `pellets_kwh_per_kg` statt `heizoel_kwh_per_l`
 
-$$
-\text{kWh} = \text{kg}\times \underbrace{H_u}_{\approx 4{,}8\,\frac{kWh}{kg}}
-$$
+```text
+kWh = kg × Hu     (Hu ≈ 4,8 kWh/kg)
+```
 
 Alle Exporte, Tabellen und Tooltips zeigen entsprechend „kg" statt „L"
 (seit v1.4.2 auch der Lieferungs-CSV-Export mit korrekter Einheit im

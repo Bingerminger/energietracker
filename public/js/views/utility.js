@@ -194,8 +194,9 @@ async function rerender(container) {
       </div>
     </div>
 
-    ${currentContract ? balanceCard(currentContract, u) : ''}
+    ${!isDelivery && currentContract ? balanceCard(currentContract, u) : ''}
 
+    ${!isDelivery ? `
     <div class="card">
       <div class="card__title">📑 Verträge & Abschläge
         <span class="card__title-action">
@@ -204,6 +205,7 @@ async function rerender(container) {
       </div>
       ${contractsTable(contracts, u)}
     </div>
+    ` : ''}
 
     <div class="card">
       <div class="card__title">${u.icon} Monatsverbrauch ${yr}</div>

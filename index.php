@@ -56,7 +56,7 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
   <header class="topbar">
     <div class="topbar__brand">
       <span class="topbar__logo" aria-hidden="true"></span>
-      <span class="topbar__title">ENERGIE TRACKING</span>
+      <span class="topbar__title">ENERGIETRACKER</span>
       <span class="topbar__version">v<?= htmlspecialchars($version, ENT_QUOTES) ?></span>
     </div>
     <div class="topbar__actions">

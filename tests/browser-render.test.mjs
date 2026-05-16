@@ -207,6 +207,35 @@ async function renderView(modPath, params = []) {
       opts.join(','));
   } catch (e) { t('forecast: render', false, e.message); }
 
+  // ── 9. Analyse-View: Sigmoid im Korrelations-Chart (Fix v1.4.3 #1) ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/analysis.js`, ['gas']);
+    await new Promise(r => setTimeout(r, 600));
+    const html = view.innerHTML;
+    t('analyse(gas): render ohne Exception', html.length > 50 && !html.includes('Lade '));
+    t('analyse(gas): Sigmoid in R²-Tabelle',
+      /Sigmoid/i.test(html), 'kein Sigmoid-Eintrag in der Regressionsübersicht');
+  } catch (e) { t('analyse(gas): render', false, e.message); }
+
+  // ── 10. Contracts-View: Liefer-Arten ohne Verträge (Fix v1.4.3 #2) ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/contracts.js`, ['heizoel']);
+    await new Promise(r => setTimeout(r, 400));
+    const html = view.innerHTML;
+    t('contracts(heizoel): Hinweis statt Vertragsformular',
+      /keine Verträge/i.test(html) && !view.querySelector('[data-action="new-contract"]'),
+      'Heizöl sollte erklärenden Hinweis zeigen, kein "+ Neuer Vertrag"');
+  } catch (e) { t('contracts(heizoel): render', false, e.message); }
+
+  // ── 11. Contracts-View: kumulative Art behält Vertragsverwaltung ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/contracts.js`, ['gas']);
+    await new Promise(r => setTimeout(r, 400));
+    t('contracts(gas): Vertragsverwaltung vorhanden',
+      !!view.querySelector('[data-action="new-contract"]'),
+      'Gas sollte "+ Neuer Vertrag" anbieten');
+  } catch (e) { t('contracts(gas): render', false, e.message); }
+
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('  HARNESS-FEHLER:', e.stack || e.message); process.exit(2); });

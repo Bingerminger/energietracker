@@ -10,7 +10,7 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.1.0**
 
 ## 1. Verzeichnis- und Dateilayout
 
-```
+```text
 data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
 ├── settings.json             # 50 Schlüssel (s. u.)

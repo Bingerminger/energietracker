@@ -40,9 +40,9 @@ Heizung nur tracken, wenn die Wohnung eigene Zähler hat.
 
 Der laufende Saldo ist für Mieter besonders wertvoll:
 
-$$
-\text{Saldo} = \sum \text{geleistete Abschläge} - \sum \text{tatsächliche Kosten}
-$$
+```text
+Saldo = Σ geleistete Abschläge - Σ tatsächliche Kosten
+```
 
 Ein stark negativer Saldo Monate vor der Jahresabrechnung warnt früh
 vor einer Nachzahlung — du kannst den Abschlag aktiv anpassen lassen,
@@ -72,7 +72,7 @@ Lesarten:
   nach Dauerverbrauchern (alter Kühlschrank, Server, Aquarium). Die
   Trend-/Anomalieregel macht darauf aufmerksam.
 - **Spar-Check**: Eine Reduktion der Grundlast um 50 W spart über ein
-  Jahr ≈ $0{,}05\,\text{kW}\times 8760\,\text{h} \approx 438$ kWh.
+  Jahr ≈ `0,05 kW × 8760 h ≈ 438 kWh`.
 
 ---
 

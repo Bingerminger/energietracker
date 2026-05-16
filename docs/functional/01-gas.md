@@ -15,9 +15,10 @@
 Der Gaszähler misst **Volumen** (m³), abgerechnet wird **Energie**
 (kWh). Die Umrechnung steht auf jeder Gasrechnung:
 
-$$
-\text{kWh} = V_{m^3}\times \underbrace{\text{Brennwert}}_{\approx 10\text{–}11,5\,\frac{kWh}{m^3}}\times \underbrace{\text{Zustandszahl}}_{\approx 0,95\text{–}1,0}
-$$
+```text
+kWh = m³ × Brennwert × Zustandszahl
+          (≈ 10–11,5 kWh/m³)  (≈ 0,95–1,0)
+```
 
 Trage das Produkt (oft 11,4–11,6) als `gas_conversion_factor` ein —
 sonst weichen die Kosten von der Rechnung ab.
@@ -27,7 +28,7 @@ sonst weichen die Kosten von der Rechnung ab.
 - **Monatsverbrauch** durch lineare Interpolation zwischen Ablesungen.
 - **Heizsignatur**: Da Gas meist heizt, korreliert der Verbrauch stark
   mit den Heizgradtagen. Die Analyse zeigt die Regression (oft hohes
-  $R^2$); die `sigmoid`-Kurve bildet die Sättigung an sehr kalten Tagen
+  `R²`); die `sigmoid`-Kurve bildet die Sättigung an sehr kalten Tagen
   gut ab.
 - **Wetterbereinigung**: trennt „kalter Winter" von „real mehr
   verbraucht" (siehe [Grundlagen §5](00-overview.md)).

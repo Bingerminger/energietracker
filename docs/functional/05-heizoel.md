@@ -34,19 +34,17 @@ Heizöl wird zu Tagespreisen gekauft, nicht über einen Liefervertrag mit
 festem Arbeitspreis. **Es gibt bewusst keine Vertrags-Entität für
 Heizöl.** Die Kostenbasis ist die jeweilige **Tankrechnung**:
 
-$$
-\text{Kosten der Lieferung} =
-\begin{cases}
-\text{total\_eur} & \text{falls Gesamtbetrag erfasst} \\[4pt]
-\text{quantity}\times \dfrac{\text{unit\_price\_cents}}{100} & \text{sonst}
-\end{cases}
-$$
+```text
+Kosten der Lieferung =
+    total_eur                          falls Gesamtbetrag erfasst
+    quantity × unit_price_cents / 100  sonst
+```
 
 **Seit v1.4.2** hat `total_eur` Vorrang: Der Rechnungs-Gesamtbetrag ist
 die tatsächlich bezahlte Größe und enthält Liefergebühr, Mindermengen-
 zuschlag oder Rabatte, die ein reines *Preis × Menge* nicht abbildet.
 Der effektive Stückpreis wird daraus abgeleitet
-($\text{ct/L} = \text{total\_eur}\times 100 / \text{Menge}$) und über
+(`ct/L = total_eur × 100 / Menge`) und über
 Forward-Fill den Verbrauchstagen zugeordnet.
 
 > Praktisch: Trage einfach den **Rechnungsbetrag** und die **Liter** der
@@ -59,20 +57,18 @@ Forward-Fill den Verbrauchstagen zugeordnet.
 Über die Nutzungsdauer gilt die Bilanz: Was im Tank war plus was
 geliefert wurde, wird verbraucht. In Energie:
 
-$$
-\text{Gesamt-kWh} = \big(\text{initial\_stock} + \textstyle\sum \text{Lieferungen}\big)\times H_u
-$$
+```text
+Gesamt-kWh = (initial_stock + Σ Lieferungen) × Hu
+```
 
 Diese Energie wird auf die Tage verteilt: ein wetterunabhängiger
 **Grundlastanteil** (`delivery_baseload_share`, Default 0,15 — z. B.
 Warmwasser) flach, der **Rest HGT-gewichtet**:
 
-$$
-\text{kWh}_{\text{Tag}} =
-\underbrace{\frac{\text{Gesamt-kWh}\cdot s}{\text{Tage}}}_{\text{Grundlast},\ s=0{,}15}
-+
-\underbrace{(1-s)\cdot\text{Gesamt-kWh}\cdot\frac{\text{HGT}_{\text{Tag}}}{\sum \text{HGT}}}_{\text{Heizanteil}}
-$$
+```text
+kWh_Tag =  Gesamt-kWh · s / Tage                       (Grundlast, s = 0,15)
+         + (1 - s) · Gesamt-kWh · HGT_Tag / Σ HGT       (Heizanteil)
+```
 
 Daraus folgen Monatsverbrauch, Kosten (über den Lieferpreis je Tag) und
 die Heizsignatur-Analyse — analog zu Gas.
@@ -94,12 +90,11 @@ erzwang damit Endbestand ≈ 0 — die Tankkurve war praktisch unbrauchbar
 eine **aus den geschlossenen Lieferintervallen kalibrierte
 HGT-Rate**:
 
-$$
-\text{rate} =
-\frac{\big(\sum \text{Lieferungen ohne die letzte}\big)\cdot(1-s)}
-     {\sum \text{HGT}_{[\text{erste Lieferung},\ \text{letzte Lieferung}]}}
-\quad\left[\frac{L}{\text{HGT}}\right]
-$$
+```text
+rate = (Σ Lieferungen ohne die letzte) · (1 - s)
+       ----------------------------------------------------   [ L / HGT ]
+       Σ HGT im Fenster [erste Lieferung .. letzte Lieferung]
+```
 
 Begründung: Im eingeschwungenen Betrieb refüllt ein Haushalt je Zyklus
 ungefähr das, was es seit der letzten Lieferung verbraucht hat — also
@@ -107,11 +102,10 @@ entspricht „alle Lieferungen außer der letzten" dem Verbrauch im
 geschlossenen Zeitfenster. Diese Rate wird auf Kopf (vor erster
 Lieferung) und offenen Schwanz (nach letzter Lieferung) extrapoliert:
 
-$$
-\text{stock}_{\text{Tag}} = \max\!\big(0,\;
-\text{stock}_{\text{Vortag}} + \text{Lieferung}_{\text{Tag}}
-- (\text{Grundlast}_L + \text{rate}\cdot \text{HGT}_{\text{Tag}})\big)
-$$
+```text
+stock_Tag = max(0, stock_Vortag + Lieferung_Tag
+                   - (Grundlast_L + rate · HGT_Tag))
+```
 
 Es wird **kein** Endbestand 0 mehr erzwungen — der Restbestand ergibt
 sich physisch. Fallback bei < 2 Lieferungen (keine Kadenz ableitbar):

@@ -26,22 +26,22 @@ Hier entfaltet Energietracker den vollen Funktionsumfang.
 
 ## 2. Den vollen Analysezyklus nutzen
 
-```
-Ablesungen/Lieferungen ─► Monatsverbrauch ─► HGT-Regression
-        │                                          │
-        ▼                                          ▼
-   Wetterbereinigung ◄──────────────────── Saisonprofil
-        │                                          │
-        └──────────────► Prognose (R²-Blend) ◄─────┘
-                                │
-                                ▼
-                  Effizienzklasse · Empfehlungen
+```text
+Ablesungen/Lieferungen --> Monatsverbrauch --> HGT-Regression
+        |                                            |
+        v                                            v
+   Wetterbereinigung <----------------------- Saisonprofil
+        |                                            |
+        +--------------> Prognose (R2-Blend) <-------+
+                                |
+                                v
+                  Effizienzklasse / Empfehlungen
 ```
 
 Konkret:
 
 - **Heizsignatur** (Analyse): Wie stark hängt dein Verbrauch von der
-  Kälte ab? Hohes $R^2$ = stark heizgetrieben. Die `sigmoid`-Kurve
+  Kälte ab? Hohes `R²` = stark heizgetrieben. Die `sigmoid`-Kurve
   zeigt die Sättigung bei sehr kalten Tagen.
 - **Wetterbereinigung**: Trennt „kalter Winter" von echtem
   Mehrverbrauch — die Kernfrage nach einer Sanierung („bringt die neue
@@ -96,12 +96,10 @@ Die wertvollste Anwendung. Vorgehen:
    kWh-Differenz Jahr/Jahr ist irreführend, wenn die Winter
    unterschiedlich kalt waren.
 
-$$
-\text{Einsparung}_{\text{echt}} \approx
-\text{Verbrauch}^{\text{vorher}}_{\text{wetterbereinigt}}
--
-\text{Verbrauch}^{\text{nachher}}_{\text{wetterbereinigt}}
-$$
+```text
+Einsparung_echt ≈ Verbrauch_vorher_wetterbereinigt
+                 - Verbrauch_nachher_wetterbereinigt
+```
 
 ---
 

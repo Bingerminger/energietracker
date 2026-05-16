@@ -6,6 +6,69 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.4.3] — 2026-05-16 — Sigmoid in der Analyse, Vertragslogik je Energieart, valides Doku-Markdown, korrekter App-Name
+
+### Fixed
+
+- **#1 Sigmoid-Kurve fehlte im Analyse-Korrelationschart.** Der
+  HGT-Streudiagramm-Block iterierte nur über vier Modelle (linear,
+  polynomial, robust, segmentiert). `sigmoid` ist jetzt ergänzt: in der
+  Vorhersagefunktion (spiegelt `RegressionService::sigmoidPredict`
+  exakt — numerisch verifiziert, Abweichung < 1e-9), im Kurvenstil, in
+  der Modell-Iteration und in der R²-Koeffizienten-Übersicht.
+- **#2 Vertrags-Views ergaben für lieferbasierte Arten keinen Sinn.**
+  Heizöl/Pellets haben per Logik keine Verträge (die Tankrechnung ist
+  die Kostenbasis). Behoben an drei Stellen:
+  - `utility.js` blendet die Vertrags- und Saldo-Karte für
+    lieferbasierte Arten aus.
+  - Die Vertrags-View (`contracts.js`) zeigt für Heizöl/Pellets einen
+    erklärenden Hinweis statt eines (sinnlosen) Gas-Vertragsformulars
+    und leitet zu den Lieferungen.
+  - Der Tarifvergleich (`tariff.js`) schließt lieferbasierte Arten aus
+    (Schattenverträge sind dort nicht anwendbar) — zusätzlich zum
+    bereits ausgeschlossenen Wasser.
+  - Geprüft und bestätigt: **Fernwärme** ist korrekt kumulativ mit
+    echten Verträgen (Arbeits- + Grundpreis) — bleibt unverändert.
+- **#3 Doku-Markdown wurde teils falsch dargestellt.** Alle
+  LaTeX-Formeln (`$…$` / `$$…$$`) wurden durch GitHub-sichere
+  Klartext-Codeblöcke ersetzt (rendern überall identisch). Das
+  Architektur- und das Analysezyklus-Diagramm wurden mit sauber
+  ausgerichtetem Plain-ASCII neu gezeichnet. Alle Codeblöcke erhielten
+  eine Sprachangabe; geprüft: balancierte Fences, keine defekten
+  internen Links, keine LaTeX-Reste, keine render-kritischen
+  Lint-Fehler.
+- **#4 Falscher App-Name im Topbar-Titel.** „ENERGIE TRACKING" →
+  **„ENERGIETRACKER"** (einzige Fundstelle; die extrahierten Logo-Icons
+  sind bereits textfrei).
+
+### Changed
+
+- **Test-Harness browser-realistisch erweitert.** `browser-render`
+  löst relative URLs jetzt wie ein Browser gegen die Basis-URL auf und
+  stellt einen Chart.js-Stub bereit (zuvor zwei Setup-Lücken, die
+  Render-Checks blockierten). Neue Regressionstests für #1 (Sigmoid in
+  der Analyse) und #2 (Liefer-Arten ohne Verträge / kumulative Arten
+  mit Verträgen). Stand: **Backend-Shape 9/9, Browser-Render 28/28**.
+
+### Verifiziert (numerische Logik)
+
+- Eigenständige Referenz-Nachrechnung von 16 Kern-Formeln gegen den
+  realen Code: HGT, lineare Tagesinterpolation, R², Regressions-
+  steigung/-achsenabschnitt, Sigmoid (fit↔predict konsistent),
+  Prognose-Blend (`w = min(R², blend_max)`).
+- End-to-End: `total_eur`-Vorrang isoliert exakt (1500 €/2000 L → genau
+  7,5000 ct/kWh, Energiebilanz aufs kWh genau); Saldo-Formel
+  (`current_balance = actual_cost − advance_paid`) und Kostenzerlegung
+  (`Arbeit + Grund − Bonus`) über alle Demo-Verträge mit 0,00
+  Abweichung; Tank-Bestandskurve nie negativ / nie über Kapazität.
+
+### Migration
+
+- **Kein Schema-Change** (Schema bleibt 1.1.0). Reine UI-/Anzeige- und
+  Doku-Korrekturen; keine Daten- oder API-Änderung.
+
+---
+
 ## [1.4.2] — 2026-05-16 — Export aller Energiearten, Datumsformat, PDF-Kennzahlen, neues Logo, Doku-Kompendium
 
 ### Added

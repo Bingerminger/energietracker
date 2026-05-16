@@ -9,21 +9,24 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
 
 ## 1. Gesamtbild
 
-```
-                    Browser (SPA, ES-Module)
-                              │  fetch /api/…
-                              ▼
-   index.php  ─ liefert SPA-Hülle (HTML, lädt public/js/app.js)
-   api.php    ─ 20-Zeilen-Einstiegspunkt → Router
-                              │
-              ┌───────────────┴───────────────┐
-              │  Controllers (18)   │   Services (22)        │
-              │  HTTP rein/raus     │   Fachlogik, kein HTTP │
-              └───────────────┬───────────────┘
-                              ▼
-              Storage  ─ JsonStore (LOCK_EX) + Migrator
-                              ▼
-              data/  ─ flache JSON-Dateien je Verbrauchsart
+```text
+                  Browser (SPA, ES-Module)
+                          |  fetch /api/...
+                          v
+  index.php  - liefert SPA-Huelle (HTML, laedt public/js/app.js)
+  api.php    - 20-Zeilen-Einstiegspunkt -> Router
+                          |
+                          v
+  +-----------------------------------------------------------+
+  |  Controllers (18)        |  Services (22)                  |
+  |  HTTP rein / raus        |  Fachlogik, kein HTTP           |
+  +-----------------------------------------------------------+
+                          |
+                          v
+  Storage  - JsonStore (LOCK_EX) + Migrator
+                          |
+                          v
+  data/    - flache JSON-Dateien je Verbrauchsart
 ```
 
 Es gibt **keine** Datenbank. Persistenz ist eine Menge von JSON-Dateien
@@ -34,7 +37,7 @@ parallele Requests sich nicht zerstören. Schema-Stand: **1.1.0**.
 
 ## 2. Verzeichnislayout
 
-```
+```text
 energietracker/
 ├── api.php                 # API-Einstiegspunkt (~20 Zeilen)
 ├── index.php               # SPA-Shell (HTML, Favicon, Theme-Anti-Flash)

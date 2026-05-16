@@ -26,6 +26,38 @@ export async function render(container, params) {
     return;
   }
   container.setAttribute('data-utility', u.key);
+
+  // Heizöl/Pellets haben per Logik keine Verträge — die Tankrechnung
+  // (Menge × Preis bzw. Gesamtbetrag der Lieferung) ist die Kostenbasis.
+  // Ein Vertragsformular (Arbeits-/Grundpreis, Abschläge, Boni) ergibt
+  // hier keinen Sinn; stattdessen zu den Lieferungen leiten.
+  if (u.reading_kind === 'delivery') {
+    container.innerHTML = `
+      <div data-utility="${u.key}">
+        <div class="section-head">
+          <h1>${u.icon} ${escapeHtml(u.label)} · Verträge</h1>
+          <div class="section-actions">
+            <a class="btn btn--ghost" href="#/utility/${u.key}">Zur Übersicht</a>
+          </div>
+        </div>
+        <div class="banner banner--info">
+          <strong>${escapeHtml(u.label)} hat keine Verträge.</strong>
+          Anders als bei Gas, Strom, Wasser oder Fernwärme gibt es hier
+          keinen Liefervertrag mit Arbeits- und Grundpreis. Die Kosten
+          ergeben sich direkt aus jeder <em>Lieferung/Tankrechnung</em>
+          (Menge × Preis je ${escapeHtml(u.volume_unit || 'Einheit')},
+          bzw. dem erfassten Gesamtbetrag). Auch ein Tarifvergleich mit
+          Schattenverträgen ist für ${escapeHtml(u.label)} nicht
+          anwendbar.
+          <div style="margin-top: var(--sp-3)">
+            <a class="btn btn--util" href="#/utility/${u.key}">→ Zu den Lieferungen</a>
+          </div>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   await refresh(container, u);
 }
 
