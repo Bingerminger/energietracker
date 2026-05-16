@@ -1,0 +1,35 @@
+[
+  {
+    "id": "del_pellets_a1",
+    "meter_id": "m_pellets_lager",
+    "date": "2023-08-15",
+    "quantity": 2400.0,
+    "unit_price_cents": 34.0,
+    "total_eur": 816.0,
+    "supplier": "Pellet-Hof Sachsen",
+    "note": "Sommereinkauf",
+    "is_planned": false
+  },
+  {
+    "id": "del_pellets_a2",
+    "meter_id": "m_pellets_lager",
+    "date": "2024-08-22",
+    "quantity": 2400.0,
+    "unit_price_cents": 31.5,
+    "total_eur": 756.0,
+    "supplier": "Pellet-Hof Sachsen",
+    "note": "",
+    "is_planned": false
+  },
+  {
+    "id": "del_pellets_a3",
+    "meter_id": "m_pellets_lager",
+    "date": "2025-08-10",
+    "quantity": 2400.0,
+    "unit_price_cents": 33.0,
+    "total_eur": 792.0,
+    "supplier": "Pellet-Hof Sachsen",
+    "note": "",
+    "is_planned": false
+  }
+]

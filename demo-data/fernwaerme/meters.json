@@ -1,0 +1,21 @@
+[
+  {
+    "id": "m_fernwaerme_main",
+    "name": "Fernwärme-Hauptzähler",
+    "icon": "🌡️",
+    "created_at": "2023-01-01",
+    "active": true,
+    "notes": "Hausanschlussraum",
+    "devices": [
+      {
+        "id": "d_fw_001",
+        "serial": "FW-2020-1123",
+        "installed_on": "2020-06-01",
+        "initial_counter": 0.0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  }
+]

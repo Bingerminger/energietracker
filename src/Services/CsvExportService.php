@@ -28,6 +28,7 @@ final class CsvExportService
         private ReadingService $readings,
         private MeterService $meters,
         private TemperatureService $temperatures,
+        private DeliveryService $deliveries,
     ) {}
 
     /** Per-utility monthly aggregates across all meters. */
@@ -88,6 +89,53 @@ final class CsvExportService
                 (string)($r['note'] ?? ''),
                 !empty($r['is_estimated']) ? 'ja' : 'nein',
                 !empty($r['is_future']) ? 'ja' : 'nein',
+            ];
+        }
+        return $this->build($rows);
+    }
+
+    /**
+     * Brennstofflieferungen einer lieferbasierten Verbrauchsart
+     * (Heizöl/Pellets), eine Zeile je Lieferung, über alle Tanks/Lager.
+     * v1.4.2 — ergänzt den fehlenden Export für die neuen Energiearten.
+     */
+    public function deliveries(string $utility): string
+    {
+        if (!Utilities::exists($utility)) {
+            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+        }
+        if (!Utilities::isDelivery($utility)) {
+            throw new \InvalidArgumentException(
+                'Verbrauchsart „' . $utility . '" ist nicht lieferungs-basiert; nutze den Ablesungs-Export.'
+            );
+        }
+        $u = Utilities::get($utility);
+        $unit = $u['volume_unit'] ?? ($utility === 'pellets' ? 'kg' : 'L');
+        $meterNames = [];
+        foreach ($this->meters->list($utility) as $meter) {
+            $meterNames[$meter['id']] = $meter['name'] ?? $meter['id'];
+        }
+        $rows = [[
+            'Tank/Lager-ID', 'Tank/Lager', 'Datum', 'Menge (' . $unit . ')',
+            'Preis (ct/' . $unit . ')', 'Gesamt (EUR)', 'Lieferant', 'Notiz', 'Geplant',
+        ]];
+        foreach ($this->deliveries->list($utility) as $d) {
+            $qty = isset($d['quantity']) ? (float)$d['quantity'] : null;
+            $upc = isset($d['unit_price_cents']) && $d['unit_price_cents'] !== null
+                ? (float)$d['unit_price_cents'] : null;
+            $tot = isset($d['total_eur']) && $d['total_eur'] !== null
+                ? (float)$d['total_eur']
+                : ($qty !== null && $upc !== null ? $qty * $upc / 100.0 : null);
+            $rows[] = [
+                $d['meter_id'] ?? '',
+                $meterNames[$d['meter_id'] ?? ''] ?? '',
+                $d['date'] ?? '',
+                $this->num($qty),
+                $this->num($upc),
+                $this->num($tot),
+                (string)($d['supplier'] ?? ''),
+                (string)($d['note'] ?? ''),
+                !empty($d['is_planned']) ? 'ja' : 'nein',
             ];
         }
         return $this->build($rows);

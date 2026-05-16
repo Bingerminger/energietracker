@@ -1,0 +1,35 @@
+[
+  {
+    "id": "del_heizoel_a1",
+    "meter_id": "m_heizoel_tank",
+    "date": "2023-09-12",
+    "quantity": 1150.0,
+    "unit_price_cents": 104.5,
+    "total_eur": 1201.75,
+    "supplier": "Öl Müller GmbH",
+    "note": "Herbstbefüllung vor Heizsaison",
+    "is_planned": false
+  },
+  {
+    "id": "del_heizoel_a2",
+    "meter_id": "m_heizoel_tank",
+    "date": "2024-09-25",
+    "quantity": 1150.0,
+    "unit_price_cents": 98.0,
+    "total_eur": 1127.0,
+    "supplier": "Öl Müller GmbH",
+    "note": "",
+    "is_planned": false
+  },
+  {
+    "id": "del_heizoel_a3",
+    "meter_id": "m_heizoel_tank",
+    "date": "2025-09-18",
+    "quantity": 1150.0,
+    "unit_price_cents": 91.5,
+    "total_eur": 1052.25,
+    "supplier": "HeizölDirekt",
+    "note": "Anbieterwechsel",
+    "is_planned": false
+  }
+]

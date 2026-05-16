@@ -87,6 +87,31 @@ final class MeterService
         if (empty($u['allow_multiple_meters']) && !empty($this->list($utility))) {
             throw new \InvalidArgumentException('Mehrere Zähler für ' . $utility . ' nicht erlaubt');
         }
+        $isDelivery = Utilities::isDelivery($utility);
+
+        // Devices: entweder explizit als komplettes Array übergeben,
+        // oder aus den convenience-Feldern abgeleitet.
+        if (isset($input['devices']) && is_array($input['devices']) && count($input['devices']) > 0) {
+            $devices = array_map(fn($d) => [
+                'id'              => (string)($d['id'] ?? 'd_' . bin2hex(random_bytes(4))),
+                'serial'          => $d['serial'] ?? null,
+                'installed_on'    => (string)($d['installed_on'] ?? date('Y-m-d')),
+                'initial_counter' => (float)($d['initial_counter'] ?? 0.0),
+                'removed_on'      => $d['removed_on'] ?? null,
+                'final_counter'   => isset($d['final_counter']) ? (float)$d['final_counter'] : null,
+                'reason'          => $d['reason'] ?? null,
+            ], $input['devices']);
+        } else {
+            $devices = [[
+                'id'              => 'd_' . bin2hex(random_bytes(4)),
+                'serial'          => $input['device_serial'] ?? null,
+                'installed_on'    => $input['installed_on'] ?? date('Y-m-d'),
+                'initial_counter' => (float)($input['initial_counter'] ?? 0.0),
+                'removed_on'      => null,
+                'final_counter'   => null,
+                'reason'          => null,
+            ]];
+        }
 
         $meter = [
             'id'         => 'm_' . $utility . '_' . bin2hex(random_bytes(4)),
@@ -95,16 +120,29 @@ final class MeterService
             'created_at' => date('Y-m-d'),
             'active'     => true,
             'notes'      => (string)($input['notes'] ?? ''),
-            'devices'    => [[
-                'id'              => 'd_' . bin2hex(random_bytes(4)),
-                'serial'          => $input['device_serial'] ?? null,
-                'installed_on'    => $input['installed_on'] ?? date('Y-m-d'),
-                'initial_counter' => (float)($input['initial_counter'] ?? 0.0),
-                'removed_on'      => null,
-                'final_counter'   => null,
-                'reason'          => null,
-            ]],
+            'devices'    => $devices,
         ];
+
+        // v1.3.0 — Tank-/Lager-Felder bei Delivery-Utilities (Heizöl/Pellets).
+        // Pflicht: capacity > 0 und initial_stock ≥ 0 — ohne diese werden
+        // Bestand und Tank-Warnung sinnlos. capacity_unit wird per Default
+        // aus der Utility-Definition übernommen.
+        if ($isDelivery) {
+            if (!isset($input['capacity']) || (float)$input['capacity'] <= 0) {
+                throw new \InvalidArgumentException(
+                    'Tank-Kapazität (capacity) > 0 ist für ' . $u['label'] . ' Pflicht'
+                );
+            }
+            if (!isset($input['initial_stock']) || (float)$input['initial_stock'] < 0) {
+                throw new \InvalidArgumentException(
+                    'Anfangsbestand (initial_stock) ≥ 0 ist für ' . $u['label'] . ' Pflicht'
+                );
+            }
+            $meter['capacity']      = (float)$input['capacity'];
+            $meter['capacity_unit'] = (string)($input['capacity_unit'] ?? $u['volume_unit'] ?? '');
+            $meter['initial_stock'] = (float)$input['initial_stock'];
+        }
+
         if ($meter['name'] === '') {
             throw new \InvalidArgumentException('Zählername darf nicht leer sein');
         }
@@ -119,12 +157,25 @@ final class MeterService
     {
         $all = $this->list($utility);
         $found = false;
+        $isDelivery = Utilities::isDelivery($utility);
         foreach ($all as &$m) {
             if (($m['id'] ?? null) !== $meterId) continue;
             $found = true;
             foreach (['name', 'icon', 'notes', 'active'] as $f) {
                 if (array_key_exists($f, $input)) {
                     $m[$f] = $f === 'active' ? (bool)$input[$f] : (string)$input[$f];
+                }
+            }
+            // v1.3.0 — Tank-Felder updatebar (nur bei Delivery-Utilities)
+            if ($isDelivery) {
+                if (array_key_exists('capacity', $input)) {
+                    $m['capacity'] = (float)$input['capacity'];
+                }
+                if (array_key_exists('capacity_unit', $input)) {
+                    $m['capacity_unit'] = (string)$input['capacity_unit'];
+                }
+                if (array_key_exists('initial_stock', $input)) {
+                    $m['initial_stock'] = (float)$input['initial_stock'];
                 }
             }
         }
@@ -140,6 +191,13 @@ final class MeterService
         foreach ($readings as $r) {
             if (($r['meter_id'] ?? null) === $meterId) {
                 throw new \InvalidArgumentException('Zähler hat noch Ablesungen — bitte zuerst Ablesungen löschen oder umhängen');
+            }
+        }
+        // v1.3.0 — auch Lieferungen blocken die Tank-Löschung
+        $deliveries = $this->store->read("$utility/deliveries.json", []);
+        foreach ($deliveries as $d) {
+            if (($d['meter_id'] ?? null) === $meterId) {
+                throw new \InvalidArgumentException('Tank/Lager hat noch Lieferungen — bitte zuerst Lieferungen löschen oder umhängen');
             }
         }
         $contracts = $this->store->read("$utility/contracts.json", []);

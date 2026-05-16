@@ -90,13 +90,20 @@ async function rerender(container) {
 
   const monthly   = consumptionData.monthly   || [];
   const contracts = contractStatusData.contracts || [];
-  const readings  = await api.readings(u.key, meter.id);
+  const isDelivery = u.reading_kind === 'delivery';
+  let readings = [], deliveries = [], stockHist = null;
+  if (isDelivery) {
+    deliveries = await api.deliveries(u.key, meter.id).catch(() => []);
+    stockHist  = await api.stockHistory(u.key, meter.id).catch(() => null);
+  } else {
+    readings = await api.readings(u.key, meter.id);
+  }
 
   // ── Status banner: how many days since last reading ─────────────
   const sortedReadings = [...readings]
     .filter(r => !r.is_future)
     .sort((a, b) => b.date.localeCompare(a.date));
-  const lastReading = sortedReadings[0];
+  const lastReading = !isDelivery ? sortedReadings[0] : null;
   let statusBannerHtml = '';
   if (lastReading) {
     const today = new Date(todayIso());
@@ -208,6 +215,26 @@ async function rerender(container) {
       ${monthlyTable(monthlyYear, u, hasContract)}
     </div>
 
+    ${isDelivery ? `
+    <div class="card">
+      <div class="card__title">🛢️ Bestand &amp; Tank
+        ${stockHist && stockHist.capacity ? `<span class="card__title-action">
+          <span class="muted" style="font-size:12px">${stockTankSummary(stockHist, u)}</span>
+        </span>` : ''}
+      </div>
+      ${stockTankBar(stockHist, u)}
+    </div>
+
+    <div class="card">
+      <div class="card__title">🚚 Lieferungen
+        <span class="card__title-action">
+          <span class="muted" style="font-size:12px;margin-right:8px">${deliveries.length} Lieferungen gesamt</span>
+          <button class="btn btn-${u.key} btn--sm" id="btn-new-delivery">+ Lieferung</button>
+        </span>
+      </div>
+      ${deliveriesTable(deliveries, u)}
+    </div>
+    ` : `
     <div class="card">
       <div class="card__title">🔢 Zählerstände
         <span class="card__title-action">
@@ -217,13 +244,14 @@ async function rerender(container) {
       </div>
       ${readingsTable(readings, u)}
     </div>
+    `}
   `;
 
   // Chart
   drawMonthChart('month-chart', monthlyYear, u);
 
   // Wire up events
-  wireEvents(container, u, meter, readings, contracts);
+  wireEvents(container, u, meter, readings, contracts, deliveries);
 }
 
 function header(u, meter = null) {
@@ -517,6 +545,85 @@ function readingsTable(readings, u) {
   </table></div>`;
 }
 
+// ── Lieferungen (Heizöl/Pellets) ────────────────────────────────────
+function deliveriesTable(deliveries, u) {
+  if (!deliveries.length) {
+    return '<div class="empty" style="padding:32px"><div class="empty-icon">🚚</div><h3>Keine Lieferungen</h3><p>Lege die erste Brennstofflieferung an.</p></div>';
+  }
+  const unit = u.volume_unit || u.unit || 'L';
+  const sorted = [...deliveries].sort((a, b) => b.date.localeCompare(a.date));
+  return `<div class="table-wrap"><table class="table">
+    <thead><tr>
+      <th>Datum</th>
+      <th class="num">Menge</th>
+      <th class="num">Preis/Einheit</th>
+      <th class="num">Gesamt</th>
+      <th>Lieferant</th>
+      <th>Notiz</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+    ${sorted.map(d => {
+      const qty = Number(d.quantity || 0);
+      const upC = d.unit_price_cents != null ? Number(d.unit_price_cents) : null;
+      const tot = d.total_eur != null ? Number(d.total_eur)
+                  : (upC != null ? qty * upC / 100 : null);
+      return `<tr data-delivery-id="${escapeHtml(d.id)}">
+        <td><strong>${fmt.date(d.date)}</strong> ${d.is_planned ? '<span class="status-pill future">GEPLANT</span>' : ''}</td>
+        <td class="num">${fmt.num(qty, 0)} ${unit}</td>
+        <td class="num">${upC != null ? fmt.num(upC, 2) + ' ct' : '–'}</td>
+        <td class="num">${tot != null ? fmt.eur(tot) : '–'}</td>
+        <td>${escapeHtml(d.supplier || '')}</td>
+        <td class="muted" style="font-size:12px">${escapeHtml(d.note || '')}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="icon-btn" data-action="edit-delivery" data-id="${escapeHtml(d.id)}" title="Bearbeiten">✏️</button>
+          <button class="icon-btn" data-action="delete-delivery" data-id="${escapeHtml(d.id)}" title="Löschen">🗑️</button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+function stockTankSummary(stockHist, u) {
+  if (!stockHist || !stockHist.capacity) return '';
+  const unit = stockHist.capacity_unit || u.volume_unit || 'L';
+  const days = stockHist.days || [];
+  const last = days.length ? days[days.length - 1] : null;
+  const stock = last ? Number(last.stock || 0) : 0;
+  const pct = stockHist.capacity > 0 ? (stock / stockHist.capacity * 100) : 0;
+  return `aktuell ~${fmt.num(stock, 0)} ${unit} / ${fmt.num(stockHist.capacity, 0)} ${unit} (${pct.toFixed(0)} %)`;
+}
+
+function stockTankBar(stockHist, u) {
+  if (!stockHist || !stockHist.capacity) {
+    return '<div class="empty" style="padding:24px"><p class="muted">Keine Tankkapazität hinterlegt — beim Zähler eintragen, um die Bestandskurve zu sehen.</p></div>';
+  }
+  const unit = stockHist.capacity_unit || u.volume_unit || 'L';
+  const days = stockHist.days || [];
+  const last = days.length ? days[days.length - 1] : null;
+  const stock = last ? Number(last.stock || 0) : 0;
+  const cap = Number(stockHist.capacity);
+  const pct = cap > 0 ? Math.max(0, Math.min(100, stock / cap * 100)) : 0;
+  let barCls = 'ok';
+  if (pct <= 8)  barCls = 'alert';
+  else if (pct <= 15) barCls = 'warn';
+  return `
+    <div class="tank-bar-wrap">
+      <div class="tank-bar">
+        <div class="tank-bar__fill tank-bar__fill--${barCls}" style="width:${pct.toFixed(1)}%"></div>
+      </div>
+      <div class="tank-bar__legend">
+        <span><strong>${fmt.num(stock, 0)} ${unit}</strong> Restbestand (modelliert)</span>
+        <span class="muted">${pct.toFixed(0)} % von ${fmt.num(cap, 0)} ${unit}</span>
+      </div>
+      <p class="muted" style="font-size:12px;margin-top:8px">
+        Der Bestand wird aus Anfangsbestand + Lieferungen − HGT-gewichtetem Verbrauch
+        modelliert; er ist eine Schätzung, keine Tankpeilung.
+      </p>
+    </div>`;
+}
+
 // ── Chart ───────────────────────────────────────────────────────────
 function drawMonthChart(canvasId, monthly, u) {
   const canvas = document.getElementById(canvasId);
@@ -576,7 +683,7 @@ function hexToRgba(hex, alpha) {
 }
 
 // ── Event wiring ────────────────────────────────────────────────────
-function wireEvents(container, u, meter, readings, contracts) {
+function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
   // Year pills
   container.querySelectorAll('.year-pills .pill').forEach(p => {
     p.addEventListener('click', () => {
@@ -610,6 +717,26 @@ function wireEvents(container, u, meter, readings, contracts) {
       const reading = readings.find(r => r.id === id);
       if (!confirm(`Ablesung vom ${fmt.date(reading?.date)} wirklich löschen?`)) return;
       try { await api.deleteReading(u.key, id); toastOk('Ablesung gelöscht'); rerender(container); }
+      catch (e) { toastErr(e.message); }
+    });
+  });
+
+  // Delivery actions (Heizöl/Pellets)
+  container.querySelector('#btn-new-delivery')?.addEventListener('click',
+    () => openDeliveryModal(container, u, meter, null));
+  container.querySelectorAll('[data-action="edit-delivery"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-id');
+      const d = deliveries.find(x => x.id === id);
+      openDeliveryModal(container, u, meter, d);
+    });
+  });
+  container.querySelectorAll('[data-action="delete-delivery"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-id');
+      const d = deliveries.find(x => x.id === id);
+      if (!confirm(`Lieferung vom ${fmt.date(d?.date)} wirklich löschen?`)) return;
+      try { await api.deleteDelivery(u.key, id); toastOk('Lieferung gelöscht'); rerender(container); }
       catch (e) { toastErr(e.message); }
     });
   });
@@ -669,6 +796,84 @@ function openReadingModal(container, u, meter, reading) {
           if (isEdit) await api.updateReading(u.key, reading.id, data);
           else        await api.createReading(u.key, data);
           toastOk(isEdit ? 'Ablesung aktualisiert' : 'Ablesung gespeichert');
+          close(true);
+          rerender(container);
+        } catch (e) { toastErr(e.message); }
+      });
+    },
+  });
+}
+
+// ── Delivery modal (add / edit) — Heizöl/Pellets ────────────────────
+function openDeliveryModal(container, u, meter, delivery) {
+  const isEdit = !!delivery;
+  const today = todayIso();
+  const unit = u.volume_unit || u.unit || 'L';
+  const body = `
+    <form id="delivery-form">
+      <div class="field">
+        <label>Lieferdatum</label>
+        <input class="input" type="date" name="date" value="${delivery?.date || today}" required>
+      </div>
+      <div class="field">
+        <label>Menge (${unit})</label>
+        <input class="input" type="number" step="0.01" name="quantity" value="${delivery?.quantity ?? ''}" required>
+      </div>
+      <div class="field">
+        <label>Preis pro ${unit} (ct, optional)</label>
+        <input class="input" type="number" step="0.01" name="unit_price_cents" value="${delivery?.unit_price_cents ?? ''}">
+      </div>
+      <div class="field">
+        <label>Gesamtbetrag (€, optional — überschreibt Preis×Menge)</label>
+        <input class="input" type="number" step="0.01" name="total_eur" value="${delivery?.total_eur ?? ''}">
+      </div>
+      <div class="field">
+        <label>Lieferant (optional)</label>
+        <input class="input input--text" type="text" name="supplier" value="${escapeHtml(delivery?.supplier || '')}">
+      </div>
+      <div class="field">
+        <label>Notiz (optional)</label>
+        <input class="input input--text" type="text" name="note" value="${escapeHtml(delivery?.note || '')}">
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+          <input type="checkbox" name="is_planned" ${delivery?.is_planned ? 'checked' : ''}>
+          <span>Geplante (noch nicht erfolgte) Lieferung</span>
+        </label>
+      </div>
+    </form>
+  `;
+  const footer = `
+    <button type="button" class="btn btn--ghost" data-act="cancel">Abbrechen</button>
+    <button type="button" class="btn btn--primary" data-act="save">${isEdit ? 'Speichern' : 'Anlegen'}</button>
+  `;
+  openModal({
+    title: isEdit ? `Lieferung bearbeiten · ${u.label}` : `Neue Lieferung · ${u.label}`,
+    body, footer,
+    onMount({ modalEl, close }) {
+      modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
+      modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const form = modalEl.querySelector('#delivery-form');
+        const qty = Number(form.quantity.value);
+        if (!form.date.value || isNaN(qty) || qty <= 0) {
+          toastErr('Datum und positive Menge sind Pflicht.'); return;
+        }
+        const data = {
+          meter_id: meter.id,
+          date: form.date.value,
+          quantity: qty,
+          supplier: form.supplier.value.trim(),
+          note: form.note.value.trim(),
+          is_planned: form.is_planned.checked,
+        };
+        const upc = form.unit_price_cents.value;
+        const tot = form.total_eur.value;
+        if (upc !== '') data.unit_price_cents = Number(upc);
+        if (tot !== '') data.total_eur = Number(tot);
+        try {
+          if (isEdit) await api.updateDelivery(u.key, delivery.id, data);
+          else        await api.createDelivery(u.key, data);
+          toastOk(isEdit ? 'Lieferung aktualisiert' : 'Lieferung gespeichert');
           close(true);
           rerender(container);
         } catch (e) { toastErr(e.message); }

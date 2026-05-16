@@ -1,0 +1,24 @@
+[
+  {
+    "id": "m_heizoel_tank",
+    "name": "Heizöltank Keller",
+    "icon": "🛢️",
+    "created_at": "2023-01-01",
+    "active": true,
+    "notes": "Stahltank, 3000 L",
+    "capacity": 3000.0,
+    "capacity_unit": "L",
+    "initial_stock": 2400.0,
+    "devices": [
+      {
+        "id": "d_oel_001",
+        "serial": "TANK-4000-A",
+        "installed_on": "2023-01-01",
+        "initial_counter": 0.0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  }
+]

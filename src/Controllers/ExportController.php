@@ -40,6 +40,15 @@ final class ExportController
         );
     }
 
+    public function deliveries(Request $req): never
+    {
+        $utility = $req->param('utility');
+        Response::csv(
+            $this->export->deliveries($utility),
+            $this->export->filename('lieferungen', $utility)
+        );
+    }
+
     public function temperatures(Request $req): never
     {
         Response::csv(

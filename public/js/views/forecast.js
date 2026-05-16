@@ -47,6 +47,7 @@ export async function render(container) {
             <option value="polynomial">Polynomial (Grad 2)</option>
             <option value="robust">Robust (Huber)</option>
             <option value="segmented">Segmentiert (Heizen/Sommer)</option>
+            <option value="sigmoid">Sigmoid (Heizsignatur)</option>
           </select>
         </div>
         <div class="field">

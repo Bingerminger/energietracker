@@ -13,13 +13,17 @@ use Energietracker\Services\{
     MeterService, ReadingService, ContractService, ConsumptionService,
     TemperatureService, RegressionService, ForecastService, AnomalyService,
     WeatherService, BackupService, SettingsService, DiagnosticsService,
-    MigrationService, ReadingImportService, CsvExportService
+    MigrationService, ReadingImportService, CsvExportService,
+    DeliveryService, BenchmarkService, TariffComparisonService,
+    RecommendationService, ReminderService, PdfReportService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
     ConsumptionController, ForecastController, TemperatureController,
     SettingsController, BackupController, DiagnosticsController, UtilitiesController,
-    MigrationController, ExportController
+    MigrationController, ExportController,
+    DeliveryController, BenchmarkController, TariffComparisonController,
+    RecommendationController, ReminderController, ReportController
 };
 
 /**
@@ -53,6 +57,12 @@ final class App
     public MigrationService $migrationLegacy;
     public ReadingImportService $readingImport;
     public CsvExportService $csvExport;
+    public DeliveryService $deliveries;
+    public BenchmarkService $benchmark;
+    public TariffComparisonService $tariffs;
+    public RecommendationService $recommendations;
+    public ReminderService $reminders;
+    public PdfReportService $reports;
 
     public function __construct(string $dataDir)
     {
@@ -64,12 +74,13 @@ final class App
         $this->meters       = new MeterService($this->store);
         $this->readings     = new ReadingService($this->store, $this->meters);
         $this->contracts    = new ContractService($this->store, $this->meters);
+        $this->regression   = new RegressionService();
         $this->consumption  = new ConsumptionService(
-            $this->store, $this->meters, $this->readings, $this->contracts, $this->settings
+            $this->store, $this->meters, $this->readings, $this->contracts, $this->settings,
+            $this->regression
         );
         $this->weather      = new WeatherService();
         $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather);
-        $this->regression   = new RegressionService();
         $this->forecasts    = new ForecastService(
             $this->consumption, $this->regression, $this->settings, $this->contracts
         );
@@ -78,9 +89,15 @@ final class App
         $this->diagnostics  = new DiagnosticsService($this->store, $this->settings);
         $this->migrationLegacy = new MigrationService($this->store, $this->backups);
         $this->readingImport = new ReadingImportService($this->readings, $this->meters);
+        $this->deliveries   = new DeliveryService($this->store, $this->meters);
         $this->csvExport    = new CsvExportService(
-            $this->consumption, $this->readings, $this->meters, $this->temperatures
+            $this->consumption, $this->readings, $this->meters, $this->temperatures, $this->deliveries
         );
+        $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings);
+        $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters);
+        $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries);
+        $this->reminders    = new ReminderService($this->store, $this->settings);
+        $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark, $this->recommendations);
 
         // Auto-migrate or initialize on first run
         $migrator = new Migrator($this->store);
@@ -134,6 +151,15 @@ final class App
         $r->post('/api/utility/{utility}/meters/{id}/readings/import-csv',
                                                        fn($req) => $readingCtrl->importCsv($req));
 
+        // ── Deliveries (v1.3.0 — Heizöl/Pellets) ──
+        $deliveryCtrl = new DeliveryController($this->deliveries, $this->consumption, $this->meters);
+        $r->get('/api/utility/{utility}/deliveries',         fn($req) => $deliveryCtrl->index($req));
+        $r->post('/api/utility/{utility}/deliveries',        fn($req) => $deliveryCtrl->create($req));
+        $r->patch('/api/utility/{utility}/deliveries/{id}',  fn($req) => $deliveryCtrl->update($req));
+        $r->delete('/api/utility/{utility}/deliveries/{id}', fn($req) => $deliveryCtrl->destroy($req));
+        $r->get('/api/utility/{utility}/meters/{id}/stock-history',
+                                                             fn($req) => $deliveryCtrl->stockHistory($req));
+
         // ── Contracts ──
         $contractCtrl = new ContractController($this->contracts);
         $r->get('/api/utility/{utility}/contracts',         fn($req) => $contractCtrl->index($req));
@@ -143,7 +169,7 @@ final class App
         $r->delete('/api/utility/{utility}/contracts/{id}', fn($req) => $contractCtrl->destroy($req));
 
         // ── Consumption (monthly aggregates) ──
-        $cCtrl = new ConsumptionController($this->consumption, $this->anomalies, $this->meters, $this->regression);
+        $cCtrl = new ConsumptionController($this->consumption, $this->anomalies, $this->meters, $this->regression, $this->settings);
         $r->get('/api/utility/{utility}/consumption',              fn($req) => $cCtrl->utility($req));
         $r->get('/api/utility/{utility}/meters/{id}/consumption',  fn($req) => $cCtrl->meter($req));
         $r->get('/api/utility/{utility}/meters/{id}/contract-status', fn($req) => $cCtrl->contractStatus($req));
@@ -175,6 +201,7 @@ final class App
         $r->get('/api/export/temperatures.csv',          fn($req) => $exCtrl->temperatures($req));
         $r->get('/api/export/{utility}/monthly.csv',     fn($req) => $exCtrl->monthly($req));
         $r->get('/api/export/{utility}/readings.csv',    fn($req) => $exCtrl->readings($req));
+        $r->get('/api/export/{utility}/deliveries.csv',  fn($req) => $exCtrl->deliveries($req));
 
         // ── Migration aus v0.9.0 ──
         $mgCtrl = new MigrationController($this->migrationLegacy);
@@ -183,5 +210,31 @@ final class App
 
         $dCtrl = new DiagnosticsController($this->diagnostics);
         $r->get('/api/diagnostics', fn($req) => $dCtrl->index($req));
+
+        // ── Benchmark (v1.3.0 — Effizienzklasse kWh/m²) ──
+        $bCtrl = new BenchmarkController($this->benchmark);
+        $r->get('/api/benchmarks/efficiency', fn($req) => $bCtrl->efficiency($req));
+
+        // ── Tarifvergleich (v1.3.0 — Schattenverträge) ──
+        $tcCtrl = new TariffComparisonController($this->tariffs);
+        $r->get('/api/utility/{utility}/meters/{id}/tariff-comparison',
+                                              fn($req) => $tcCtrl->compare($req));
+
+        // ── Empfehlungen (v1.3.0 — statistische Insights) ──
+        $recCtrl = new RecommendationController($this->recommendations);
+        $r->get('/api/recommendations', fn($req) => $recCtrl->index($req));
+        $r->post('/api/recommendations/{id}/dismiss', fn($req) => $recCtrl->dismiss($req));
+
+        // ── Termine/Erinnerungen (v1.3.0) ──
+        $remCtrl = new ReminderController($this->reminders);
+        $r->get('/api/reminders',            fn($req) => $remCtrl->index($req));
+        $r->post('/api/reminders',           fn($req) => $remCtrl->create($req));
+        $r->patch('/api/reminders/{id}',     fn($req) => $remCtrl->update($req));
+        $r->delete('/api/reminders/{id}',    fn($req) => $remCtrl->destroy($req));
+        $r->post('/api/reminders/{id}/done', fn($req) => $remCtrl->done($req));
+
+        // ── PDF-Jahresbericht (v1.3.0) ──
+        $repCtrl = new ReportController($this->reports);
+        $r->get('/api/reports/yearly.pdf', fn($req) => $repCtrl->yearly($req));
     }
 }

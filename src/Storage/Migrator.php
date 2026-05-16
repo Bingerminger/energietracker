@@ -6,31 +6,33 @@ namespace Energietracker\Storage;
 use Energietracker\Config\Utilities;
 
 /**
- * One-way migration from v0.9.0 data layout to v1.0.0.
+ * Migration zwischen den Daten-Schemaversionen.
  *
- * v0.9.0 layout (flat):
+ * Schema-Geschichte:
+ *   v0.9.0  — flache `data/gas.json`, `data/strom.json`, `data/contracts.json`
+ *   v1.0.0  — utility-orientiert: `data/<utility>/{meters,readings,contracts}.json`
+ *   v1.0.3  — Wasser-Verträge als 3-Komponentenmodell (Trink-, Schmutz-, Niederschlagswasser)
+ *   v1.1.0  — drei neue Verbrauchsarten: Fernwärme (kumulativ) sowie Heizöl
+ *             und Pellets (lieferungs-basiert mit `deliveries.json` statt
+ *             `readings.json`); zentrale `data/reminders.json` für Termine.
+ *
+ * Die Migration ist additiv und idempotent: das wiederholte Aufrufen ist
+ * unschädlich, bestehende Dateien werden nicht überschrieben.
+ *
+ * v0.9.0-Layout-Notiz für Historiker:
  *   data/gas.json          — array of readings
  *   data/strom.json        — array of readings
  *   data/contracts.json    — {gas: [...], strom: [...]}
  *   data/temperatures.json — keep as-is
  *   data/settings.json     — keep & extend
  *
- * v1.0.0 layout (utility-orientiert):
- *   data/meta.json
- *   data/gas/meters.json     — meter chains with device history (Zählertausch)
- *   data/gas/readings.json   — readings, each carries meter_id
- *   data/gas/contracts.json  — contracts, each carries meter_id
- *   data/strom/...           — same shape
- *   data/wasser/...          — empty defaults (new utility)
- *   data/temperatures.json   — unchanged
- *   data/settings.json       — extended with wasser_* keys
- *
- * Safety: the migration writes new files only; the old files are renamed to
- * *.v0_9_0_backup so they can be inspected or restored manually.
+ * Safety: die Migration schreibt neue Dateien nur, wenn sie noch nicht
+ * existieren; eine v0.9.0 → v1.0.0-Migration benennt die alten Dateien
+ * zu *.v0_9_0_backup um, damit sie inspizierbar/restorierbar bleiben.
  */
 final class Migrator
 {
-    public const SCHEMA_VERSION = '1.0.3';
+    public const SCHEMA_VERSION = '1.1.0';
 
     public function __construct(private JsonStore $store) {}
 
@@ -50,7 +52,9 @@ final class Migrator
             return true;
         }
         // Otherwise we may need a 1.0.x → 1.0.3 schema bump (water contracts).
-        return $this->needsWaterContractsUpgrade();
+        if ($this->needsWaterContractsUpgrade()) return true;
+        // v1.0.3 → v1.1.0 — neue Utilities + reminders.json fehlen?
+        return $this->needsV110Upgrade();
     }
 
     /**
@@ -72,6 +76,24 @@ final class Migrator
         return false;
     }
 
+    /**
+     * v1.0.3 → v1.1.0 — fehlen die Verzeichnisse der neuen Utilities oder
+     * die zentrale `reminders.json`? Idempotent: wenn alles schon da ist,
+     * gibt das false zurück und der Aufruf von `upgradeToV110()` ist ein No-Op.
+     */
+    public function needsV110Upgrade(): bool
+    {
+        foreach (['fernwaerme', 'heizoel', 'pellets'] as $u) {
+            if (!$this->store->exists($u . '/meters.json')) return true;
+            if (!$this->store->exists($u . '/contracts.json')) return true;
+        }
+        if (!$this->store->exists('heizoel/deliveries.json')) return true;
+        if (!$this->store->exists('pellets/deliveries.json')) return true;
+        if (!$this->store->exists('fernwaerme/readings.json')) return true;
+        if (!$this->store->exists('reminders.json')) return true;
+        return false;
+    }
+
     public function migrate(): array
     {
         $log = [];
@@ -86,6 +108,11 @@ final class Migrator
         // ── v1.0.x → v1.0.3 water-contract upgrade ────────────────────────
         if ($this->needsWaterContractsUpgrade()) {
             $log = array_merge($log, $this->upgradeWaterContracts());
+        }
+
+        // ── v1.0.3 → v1.1.0 — neue Utilities + reminders.json ─────────────
+        if ($this->needsV110Upgrade()) {
+            $log = array_merge($log, $this->upgradeToV110());
         }
 
         // ── write meta marker ─────────────────────────────────────────────
@@ -167,6 +194,60 @@ final class Migrator
         }
         $log[] = sprintf('wasser: %d Verträge auf v1.0.3-Komponentenmodell aufgewertet, %d bereits aktuell', $upgraded, $skipped);
         return $log;
+    }
+
+    /**
+     * v1.0.3 → v1.1.0 — neue Verbrauchsarten und zentrale Termin-Datei.
+     *
+     * Legt für jede neue Utility (Fernwärme, Heizöl, Pellets) die
+     * Standard-Dateistruktur an, sofern sie noch nicht existiert:
+     *
+     *   data/fernwaerme/meters.json     — leer
+     *   data/fernwaerme/readings.json   — leer (cumulative)
+     *   data/fernwaerme/contracts.json  — leer
+     *   data/heizoel/meters.json        — leer
+     *   data/heizoel/deliveries.json    — leer (delivery)
+     *   data/heizoel/contracts.json     — leer
+     *   data/pellets/...                — analog Heizöl
+     *
+     * Zusätzlich: data/reminders.json (zentrale Termin-Datei, leeres Array).
+     *
+     * Idempotent — bereits existierende Dateien werden nicht angetastet.
+     *
+     * Keine Default-Meter werden angelegt: die Auswahl „Tank vorhanden?"
+     * trifft der User aktiv, sonst hätten alle Installationen einen leeren
+     * Heizöltank-Eintrag, den sie nicht haben.
+     */
+    public function upgradeToV110(): array
+    {
+        $log = [];
+
+        // Cumulative utility — Fernwärme
+        $this->ensureFile('fernwaerme/meters.json',    []);
+        $this->ensureFile('fernwaerme/readings.json',  []);
+        $this->ensureFile('fernwaerme/contracts.json', []);
+
+        // Delivery utilities — Heizöl, Pellets
+        foreach (['heizoel', 'pellets'] as $u) {
+            $this->ensureFile($u . '/meters.json',     []);
+            $this->ensureFile($u . '/deliveries.json', []);
+            $this->ensureFile($u . '/contracts.json',  []);
+        }
+
+        // Zentrale Termin-Datei
+        $this->ensureFile('reminders.json', []);
+
+        $log[] = 'v1.1.0: Verzeichnisstruktur für Fernwärme/Heizöl/Pellets angelegt';
+        $log[] = 'v1.1.0: data/reminders.json initialisiert';
+        return $log;
+    }
+
+    /** Hilfsmethode: legt eine Datei nur an, wenn sie noch nicht existiert. */
+    private function ensureFile(string $relative, mixed $default): void
+    {
+        if (!$this->store->exists($relative)) {
+            $this->store->write($relative, $default);
+        }
     }
 
     private function migrateFromV09(): array
@@ -269,28 +350,45 @@ final class Migrator
     public function initFresh(): void
     {
         foreach (Utilities::keys() as $key) {
+            $u = Utilities::get($key);
+            $isDelivery = ($u['reading_kind'] ?? 'cumulative') === 'delivery';
+
             if (!$this->store->exists($key . '/meters.json')) {
-                $meterId = 'm_' . $key . '_default';
-                $this->store->write($key . '/meters.json', [[
-                    'id' => $meterId,
-                    'name' => Utilities::get($key)['default_meter_name'],
-                    'icon' => Utilities::get($key)['icon'],
-                    'created_at' => date('Y-m-d'),
-                    'active' => true,
-                    'notes' => '',
-                    'devices' => [[
-                        'id' => 'd_' . $key . '_1',
-                        'serial' => null,
-                        'installed_on' => date('Y-m-d'),
-                        'initial_counter' => 0.0,
-                        'removed_on' => null,
-                        'final_counter' => null,
-                        'reason' => null,
-                    ]],
-                ]]);
+                if ($isDelivery) {
+                    // Delivery-Utilities (Heizöl/Pellets): kein Default-Tank.
+                    // Der User soll seinen tatsächlichen Tank aktiv anlegen.
+                    $this->store->write($key . '/meters.json', []);
+                } else {
+                    $meterId = 'm_' . $key . '_default';
+                    $this->store->write($key . '/meters.json', [[
+                        'id' => $meterId,
+                        'name' => $u['default_meter_name'],
+                        'icon' => $u['icon'],
+                        'created_at' => date('Y-m-d'),
+                        'active' => true,
+                        'notes' => '',
+                        'devices' => [[
+                            'id' => 'd_' . $key . '_1',
+                            'serial' => null,
+                            'installed_on' => date('Y-m-d'),
+                            'initial_counter' => 0.0,
+                            'removed_on' => null,
+                            'final_counter' => null,
+                            'reason' => null,
+                        ]],
+                    ]]);
+                }
             }
-            if (!$this->store->exists($key . '/readings.json')) {
-                $this->store->write($key . '/readings.json', []);
+
+            // Cumulative → readings.json. Delivery → deliveries.json.
+            if ($isDelivery) {
+                if (!$this->store->exists($key . '/deliveries.json')) {
+                    $this->store->write($key . '/deliveries.json', []);
+                }
+            } else {
+                if (!$this->store->exists($key . '/readings.json')) {
+                    $this->store->write($key . '/readings.json', []);
+                }
             }
             if (!$this->store->exists($key . '/contracts.json')) {
                 $this->store->write($key . '/contracts.json', []);
@@ -301,6 +399,9 @@ final class Migrator
         }
         if (!$this->store->exists('settings.json')) {
             $this->store->write('settings.json', []);
+        }
+        if (!$this->store->exists('reminders.json')) {
+            $this->store->write('reminders.json', []);
         }
         $this->store->write('meta.json', [
             'schema_version' => self::SCHEMA_VERSION,

@@ -89,7 +89,7 @@ final class ForecastService
                 }
             }
             $model = (string)($opts['model'] ?? $this->settings->get('forecast_model', 'linear'));
-            $reg = $this->regression->fit($model, $rx, $ry);
+            $reg = $this->regression->fit($model, $rx, $ry, $this->settings);
         }
 
         // Fallback working price — the last month that carries one. Used only

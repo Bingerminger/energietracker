@@ -1,0 +1,24 @@
+[
+  {
+    "id": "m_pellets_lager",
+    "name": "Pelletlager",
+    "icon": "🪵",
+    "created_at": "2023-01-01",
+    "active": true,
+    "notes": "Sacksilo 5 t",
+    "capacity": 5000.0,
+    "capacity_unit": "kg",
+    "initial_stock": 4000.0,
+    "devices": [
+      {
+        "id": "d_pel_001",
+        "serial": "SILO-8T-1",
+        "installed_on": "2023-01-01",
+        "initial_counter": 0.0,
+        "removed_on": null,
+        "final_counter": null,
+        "reason": null
+      }
+    ]
+  }
+]

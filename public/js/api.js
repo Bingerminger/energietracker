@@ -104,10 +104,44 @@ export const api = {
   // browser navigates to / anchors to, not request() calls.
   exportMonthlyCsvUrl:      (u) => `${BASE}/api/export/${u}/monthly.csv`,
   exportReadingsCsvUrl:     (u) => `${BASE}/api/export/${u}/readings.csv`,
+  exportDeliveriesCsvUrl:   (u) => `${BASE}/api/export/${u}/deliveries.csv`,
   exportTemperaturesCsvUrl: ()  => `${BASE}/api/export/temperatures.csv`,
 
   // ── Migration aus v0.9.0 ──
   migrationV09Preview: (backup)         => request('POST', '/api/migration/v09/preview', { backup }),
   migrationV09Import:  (translated, mode) => request('POST', '/api/migration/v09/import',  { translated, mode }),
   diagnostics:   ()                    => request('GET',  '/api/diagnostics'),
+
+  // ── v1.3.0 — Lieferungen (Heizöl/Pellets) ──
+  deliveries:    (u, meterId) => {
+    const q = meterId ? `?meter_id=${encodeURIComponent(meterId)}` : '';
+    return request('GET', `/api/utility/${u}/deliveries${q}`);
+  },
+  createDelivery:(u, data)     => request('POST',  `/api/utility/${u}/deliveries`, data),
+  updateDelivery:(u, id, data) => request('PATCH', `/api/utility/${u}/deliveries/${id}`, data),
+  deleteDelivery:(u, id)       => request('DELETE',`/api/utility/${u}/deliveries/${id}`),
+  stockHistory:  (u, meterId)  => request('GET',   `/api/utility/${u}/meters/${meterId}/stock-history`),
+
+  // ── v1.3.0 — Benchmark / Effizienz ──
+  efficiency:    (year) => request('GET', `/api/benchmarks/efficiency${year ? `?year=${year}` : ''}`),
+
+  // ── v1.3.0 — Tarifvergleich ──
+  tariffComparison: (u, meterId, year) =>
+    request('GET', `/api/utility/${u}/meters/${meterId}/tariff-comparison${year ? `?year=${year}` : ''}`),
+
+  // ── v1.3.0 — Empfehlungen ──
+  recommendations:      (inclDismissed=false) =>
+    request('GET', `/api/recommendations${inclDismissed ? '?include_dismissed=1' : ''}`),
+  dismissRecommendation:(id, until=null) =>
+    request('POST', `/api/recommendations/${id}/dismiss`, until ? { until } : {}),
+
+  // ── v1.3.0 — Termine/Erinnerungen ──
+  reminders:     ()           => request('GET',   '/api/reminders'),
+  createReminder:(data)       => request('POST',  '/api/reminders', data),
+  updateReminder:(id, data)   => request('PATCH', `/api/reminders/${id}`, data),
+  deleteReminder:(id)         => request('DELETE',`/api/reminders/${id}`),
+  reminderDone:  (id, dt=null)=> request('POST',  `/api/reminders/${id}/done`, dt ? { done_date: dt } : {}),
+
+  // ── v1.3.0 — PDF-Jahresbericht (Datei-Download, kein JSON) ──
+  yearlyReportUrl: (year) => `${BASE}/api/reports/yearly.pdf${year ? `?year=${year}` : ''}`,
 };

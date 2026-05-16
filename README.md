@@ -1,6 +1,8 @@
+<p align="center"><img src="public/img/icon-light-180.png" alt="Energietracker" width="96"></p>
+
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.2-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -9,25 +11,36 @@ Energie- und Wasserverbrauchs. Single-File PHP-Backend, Vanilla-JS SPA-Frontend,
 flat-file JSON-Persistenz — keine Datenbank, kein Server-Setup, keine externen
 Abhängigkeiten zur Laufzeit (außer Chart.js per CDN).
 
-Drei Verbrauchsarten parallel: **Gas**, **Strom**, **Wasser**. Pro Utility:
-mehrere Zähler mit voll modelliertem Zählertausch, beliebige Vertragshistorie
-mit Tarifänderungen, Grundpreis-Verlauf, Abschlägen und Boni. Daraus berechnet
-die App Monatsverbräuche (linear interpoliert), Heizgradtage gegen das lokale
-Klima, vier Regressionsmodelle (linear, polynomial, robust, segmentiert), und
-einen Saldo pro Vertrag — sowohl aktueller Stand als auch erwartete
-End-Saldierung.
+Bis zu sechs Verbrauchsarten parallel: **Gas**, **Strom**, **Wasser**,
+**Fernwärme**, **Heizöl** und **Pellets** (Heizöl/Pellets lieferbasiert
+statt zählerbasiert). Pro Verbrauchsart: mehrere Zähler mit voll
+modelliertem Zählertausch, beliebige Vertragshistorie mit
+Tarifänderungen, Grundpreis-Verlauf, Abschlägen und Boni. Daraus
+berechnet die App Monatsverbräuche (linear interpoliert bzw. energetisch
+bilanziert), Heizgradtage gegen das lokale Klima, fünf Regressionsmodelle
+(linear, polynomial, robust, segmentiert mit datenbasiertem Knickpunkt,
+Sigmoid), Wetterbereinigung, eine Effizienzklasse (kWh/m²·a) und einen
+Saldo pro Vertrag — sowohl aktueller Stand als auch erwartete
+End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
+Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
+PDF-Jahresbericht.
 
-> **Status:** v1.2.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.4.2 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
+
+> 📚 **Vollständige Dokumentation:** Das getrennte technische und
+> fachliche Kompendium (Installation, API, Datenmodell, je Energieart
+> mit Formeln, Anwender-Szenarien, UI-Referenz) liegt unter
+> **[`docs/`](docs/README.md)**.
 
 ---
 
 ## Inhalt
 
 - [Funktionen](#funktionen)
-- [Screenshots](#screenshots)
+- [Dokumentation](#dokumentation)
 - [Schnellstart](#schnellstart)
 - [Datenmodell](#datenmodell)
 - [Verzeichnisstruktur](#verzeichnisstruktur)
@@ -103,6 +116,40 @@ End-Saldierung.
 - **Wasser-Spar-Index** `(Liter/Person/Tag) / Referenz × 100` mit
   konfigurierbaren Bandgrenzen.
 
+### Lieferbasierte Energieträger (v1.3.0)
+
+- **Heizöl & Pellets** werden über **Lieferungen** statt Zählerständen
+  erfasst (Datum, Menge, Preis/Einheit oder Gesamtbetrag, Lieferant,
+  Notiz, „geplant"-Flag). Der Monatsverbrauch wird energetisch
+  bilanziert und über einen Sockelanteil plus HGT-Gewichtung verteilt.
+- **Tank-Bestandskurve**: modellierter Restbestand
+  (Anfangsbestand + Lieferungen − HGT-gewichteter Verbrauch) mit
+  Warnschwelle. Eine Schätzung, keine Tankpeilung.
+- **Fernwärme** als zusätzliche kumulative, HGT-relevante Verbrauchsart.
+
+### Auswertung & Insights (v1.3.0)
+
+- **Wetterbereinigung**: „mehr verbraucht oder nur kälter?" — Verbrauch
+  normiert auf das langjährige Kalendermonats-HGT, plus
+  Regressionserwartung und Abweichung in Prozent.
+- **Effizienzklasse** A+…H aus dem Heizenergiebedarf in kWh/m²·a,
+  konfigurierbare Bandgrenzen, Wohnfläche/Baujahr/Gebäudetyp pflegbar.
+- **Empfehlungs-Engine**: sieben statistische Regelfamilien aus den
+  Eigendaten, mit Schweregrad und einzeln ausblendbar.
+- **Sigmoid- und auto-segmentiertes Regressionsmodell** zusätzlich zu
+  linear/polynomial/robust.
+
+### Verwaltung (v1.3.0)
+
+- **Termine & Wartung**: wiederkehrende Erinnerungen (Heizungswartung,
+  Schornsteinfeger, Zähler-Eichfristen …) mit Fälligkeitsstatus.
+- **Tarifvergleich** mit **Schattenverträgen**: hypothetische Tarife auf
+  die echten Verbräuche rechnen, ohne Saldo/Prognose zu beeinflussen.
+- **PDF-Jahresbericht** als Datei-Download (abhängigkeitsfreier
+  PDF-Writer, kein composer/mPDF nötig).
+- **Aktivierbare Verbrauchsarten**: nicht genutzte Arten ausblenden,
+  ohne Daten zu verlieren.
+
 ### Operativ
 
 - **Backup & Restore** über die UI: vollständiges JSON-Backup im neuen
@@ -121,20 +168,31 @@ End-Saldierung.
 
 ---
 
-## Screenshots
+## Dokumentation
 
-> **Hinweis:** Die folgenden Bilder unter [`docs/screenshots/`](docs/screenshots/)
-> sind aktuell *SVG-Mockups*, die das Layout abbilden. Wer die App lokal
-> laufen lässt, sollte die Mockups durch eigene Screenshots ersetzen
-> (Erklärung in [`docs/screenshots/README.md`](docs/screenshots/README.md)).
+Die vollständige Doku liegt als **Kompendium** unter
+[`docs/`](docs/README.md) — getrennt in einen technischen und einen
+fachlichen Teil plus eine UI-Referenz mit schematischen Mockups
+**aller 11 Ansichten**:
 
-| Dashboard | Utility (Gas) | Korrelation |
-|---|---|---|
-| ![Dashboard](docs/screenshots/dashboard.svg) | ![Gas-Ansicht](docs/screenshots/gas-view.svg) | ![Korrelation](docs/screenshots/analyse.svg) |
+- 🔧 **Technisch:** [Installation](docs/technical/01-installation.md) ·
+  [Architektur](docs/technical/02-architecture.md) ·
+  [API](docs/technical/03-api-reference.md) ·
+  [Datenmodell](docs/technical/04-data-model.md) ·
+  [Tests](docs/technical/05-testing.md) ·
+  [Release-Prozess](docs/technical/06-release-process.md)
+- 📚 **Fachlich:** [Grundlagen & Formeln](docs/functional/00-overview.md) ·
+  je Energieart ([Gas](docs/functional/01-gas.md) …
+  [Pellets](docs/functional/06-pellets.md)) ·
+  [Szenario Wohnung](docs/functional/07-szenario-wohnung.md) ·
+  [Szenario Eigenheim](docs/functional/08-szenario-eigenheim.md) ·
+  [Glossar](docs/functional/09-glossar.md)
+- 🖥️ **UI-Referenz:** [Alle Ansichten](docs/ui/01-views.md)
 
-| Prognose | Migration aus v0.9.0 |
-|---|---|
-| ![Prognose](docs/screenshots/prognose.svg) | ![Migration](docs/screenshots/migration.svg) |
+> Die Bilder im Kompendium sind **schematische SVG-Mockups**, keine
+> echten Pixel-Screenshots — sie bilden Layout und Farblogik korrekt
+> ab. Echte Screenshots lassen sich lokal nach Anleitung in der
+> [Installation](docs/technical/01-installation.md) erstellen.
 
 ---
 
@@ -199,9 +257,9 @@ cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
 
 ## Datenmodell
 
-Alles liegt als JSON unter `data/`. Schema-Version (`1.0.3` — seit
-v1.0.3 unverändert; v1.1.0 fügte additive Settings-Defaults hinzu,
-v1.2.0 ist eine reine UI-Erweiterung) steht in `data/meta.json` und in jedem exportierten Backup unter
+Alles liegt als JSON unter `data/`. Schema-Version (`1.1.0` — seit
+v1.3.0; v1.0.3 führte das Wasser-Vertragsmodell ein, v1.1.0 ergänzte die
+lieferbasierten Verbrauchsarten und `reminders.json`) steht in `data/meta.json` und in jedem exportierten Backup unter
 `backup_version`.
 
 ```
@@ -313,7 +371,7 @@ jeweiligen Utility gesetzt (Settings `billing_cycle_anchor_*`, Default
 ### Settings (28 Schlüssel)
 
 Vollständige Liste der konfigurierbaren Werte siehe
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) → *Settings-Inventar*.
+[`docs/technical/04-data-model.md`](docs/technical/04-data-model.md) → *Einstellungen*.
 
 ---
 
@@ -385,12 +443,10 @@ Fehlerbehandlung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md)
 
 ## Weiterführende Dokumentation
 
-- [`docs/API.md`](docs/API.md) — REST-Referenz mit Request/Response-Beispielen
-  für alle Endpoints
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Modul-Karte, Datenfluss
-  Reading → Monat → Saldo, Forecast-Algorithmus, Settings-Inventar
-- [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md) — Migration
-  aus v0.9.0 mit Feld-Mapping und Heuristiken
+- [`docs/README.md`](docs/README.md) — **Kompendium-Index** (technisch · fachlich · UI)
+- [`docs/technical/03-api-reference.md`](docs/technical/03-api-reference.md) — vollständige API-Referenz
+- [`docs/technical/04-data-model.md`](docs/technical/04-data-model.md) — Datenmodell & Schemata
+- [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md) — Migration aus v0.9.0
 - [`CHANGELOG.md`](CHANGELOG.md) — Versionshistorie
 
 ---

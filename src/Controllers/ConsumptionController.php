@@ -9,6 +9,7 @@ use Energietracker\Services\ConsumptionService;
 use Energietracker\Services\AnomalyService;
 use Energietracker\Services\MeterService;
 use Energietracker\Services\RegressionService;
+use Energietracker\Services\SettingsService;
 use Energietracker\Config\Utilities;
 
 /**
@@ -24,6 +25,7 @@ final class ConsumptionController
         private AnomalyService $anomalies,
         private MeterService $meters,
         private RegressionService $regression,
+        private SettingsService $settings,
     ) {}
 
     /** GET /api/utility/{utility}/consumption — all meters + totals */
@@ -57,8 +59,8 @@ final class ConsumptionController
             ));
             $x = array_map(fn($m) => (float)$m['hdd'],     $points);
             $y = array_map(fn($m) => (float)$m[$consKey],  $points);
-            foreach (['linear', 'polynomial', 'robust', 'segmented'] as $model) {
-                $regressions[$model] = $this->regression->fit($model, $x, $y);
+            foreach (['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] as $model) {
+                $regressions[$model] = $this->regression->fit($model, $x, $y, $this->settings);
             }
         }
 

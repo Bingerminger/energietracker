@@ -35,15 +35,30 @@ final class DiagnosticsService
 
         $info['utilities'] = [];
         foreach (Utilities::keys() as $key) {
+            $isDelivery = Utilities::isDelivery($key);
             $meters    = $this->store->read("$key/meters.json", []);
-            $readings  = $this->store->read("$key/readings.json", []);
             $contracts = $this->store->read("$key/contracts.json", []);
-            $info['utilities'][$key] = [
-                'meters'    => count($meters),
-                'readings'  => count($readings),
-                'contracts' => count($contracts),
-                'last_reading_date' => $this->lastReadingDate($readings),
-            ];
+
+            // v1.3.0 — bei Delivery-Utilities Lieferungen statt Ablesungen zählen
+            if ($isDelivery) {
+                $deliveries = $this->store->read("$key/deliveries.json", []);
+                $info['utilities'][$key] = [
+                    'kind'              => 'delivery',
+                    'meters'            => count($meters),
+                    'deliveries'        => count($deliveries),
+                    'contracts'         => count($contracts),
+                    'last_delivery_date' => $this->lastDeliveryDate($deliveries),
+                ];
+            } else {
+                $readings  = $this->store->read("$key/readings.json", []);
+                $info['utilities'][$key] = [
+                    'kind'              => 'cumulative',
+                    'meters'            => count($meters),
+                    'readings'          => count($readings),
+                    'contracts'         => count($contracts),
+                    'last_reading_date' => $this->lastReadingDate($readings),
+                ];
+            }
         }
         $info['temperatures'] = [
             'rows' => count($this->store->read('temperatures.json', [])),
@@ -57,6 +72,15 @@ final class DiagnosticsService
     private function lastReadingDate(array $readings): ?string
     {
         $dates = array_filter(array_map(fn($r) => is_array($r) ? ($r['date'] ?? null) : null, $readings));
+        return $dates ? max($dates) : null;
+    }
+
+    private function lastDeliveryDate(array $deliveries): ?string
+    {
+        $dates = array_filter(array_map(
+            fn($d) => is_array($d) && empty($d['is_planned']) ? ($d['date'] ?? null) : null,
+            $deliveries
+        ));
         return $dates ? max($dates) : null;
     }
 }

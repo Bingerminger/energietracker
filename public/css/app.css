@@ -44,9 +44,14 @@ h1, h2, h3, h4 { margin: 0; }
   display: flex; align-items: center; gap: var(--sp-3);
 }
 .topbar__logo {
-  width: 20px; height: 20px;
-  border-radius: 4px;
-  background: linear-gradient(135deg, var(--util-gas), var(--util-strom));
+  width: 22px; height: 22px;
+  background-image: url("../img/icon-light.png");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+[data-theme="dark"] .topbar__logo {
+  background-image: url("../img/icon-dark.png");
 }
 .topbar__title {
   font-family: var(--font-mono);

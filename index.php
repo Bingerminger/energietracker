@@ -1,6 +1,6 @@
 <?php
 /**
- * Energietracker v1.2.0 — SPA shell.
+ * Energietracker v1.3.0 — SPA shell.
  *
  * Layout: thin top bar + 220px left sidebar (v0.9.0-style),
  * main content area on the right. All rendering happens client-side
@@ -8,7 +8,7 @@
  */
 declare(strict_types=1);
 
-$version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.2.0';
+$version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.3.0';
 $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 ?>
 <!doctype html>
@@ -18,6 +18,10 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Energietracker <?= htmlspecialchars($version, ENT_QUOTES) ?></title>
+<link rel="icon" type="image/png" sizes="32x32" href="public/img/icon-light-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="public/img/icon-light-16.png">
+<link rel="shortcut icon" href="public/favicon.ico">
+<link rel="apple-touch-icon" sizes="180x180" href="public/img/icon-light-180.png">
 <!--
   Theme anti-flash. Läuft synchron vor dem CSS-Laden und setzt
   data-theme="light|dark" auf <html>, damit das Layout nicht erst dunkel
@@ -66,47 +70,7 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
   <!-- Left sidebar -->
   <aside class="sidebar" id="sidebar">
     <nav class="sidebar__nav" id="primary-nav">
-
-      <div class="sidebar__group">
-        <div class="sidebar__group-label">Übersicht</div>
-        <a class="sidebar__item" href="#/dashboard" data-route="dashboard">
-          <span class="sidebar__icon">🏠</span><span>Dashboard</span>
-        </a>
-      </div>
-
-      <div class="sidebar__group">
-        <div class="sidebar__group-label">Verbrauch</div>
-        <a class="sidebar__item" href="#/utility/gas"    data-route="utility:gas"    data-utility="gas">
-          <span class="sidebar__icon">🔥</span><span>Gas</span>
-        </a>
-        <a class="sidebar__item" href="#/utility/strom"  data-route="utility:strom"  data-utility="strom">
-          <span class="sidebar__icon">⚡</span><span>Strom</span>
-        </a>
-        <a class="sidebar__item" href="#/utility/wasser" data-route="utility:wasser" data-utility="wasser">
-          <span class="sidebar__icon">💧</span><span>Wasser</span>
-        </a>
-        <a class="sidebar__item" href="#/temperatures"   data-route="temperatures">
-          <span class="sidebar__icon">🌡️</span><span>Temperaturen</span>
-        </a>
-      </div>
-
-      <div class="sidebar__group">
-        <div class="sidebar__group-label">Analyse</div>
-        <a class="sidebar__item" href="#/analysis" data-route="analysis">
-          <span class="sidebar__icon">📊</span><span>Korrelation</span>
-        </a>
-        <a class="sidebar__item" href="#/forecast" data-route="forecast">
-          <span class="sidebar__icon">🎯</span><span>Prognose</span>
-        </a>
-      </div>
-
-      <div class="sidebar__group">
-        <div class="sidebar__group-label">System</div>
-        <a class="sidebar__item" href="#/settings" data-route="settings">
-          <span class="sidebar__icon">⚙️</span><span>Einstellungen</span>
-        </a>
-      </div>
-
+      <div class="loading">…</div>
     </nav>
     <div class="sidebar__footer">
       <a href="https://github.com/Bingerminger/energietracker" target="_blank" rel="noopener">GitHub</a>

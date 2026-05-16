@@ -91,6 +91,10 @@ final class ContractService
             'end'          => $input['end'] ?? null,
             'notes'        => (string)($input['notes'] ?? ''),
             'bonuses'      => $input['bonuses'] ?? [],
+            // v1.3.0 — Schattenvertrag: rein hypothetisch, fließt NICHT in
+            // Saldo/Forecast/contractStatus ein, nur in den Tarifvergleich.
+            'is_shadow'    => (bool)($input['is_shadow'] ?? false),
+            'shadow_label' => isset($input['shadow_label']) ? (string)$input['shadow_label'] : null,
         ];
 
         if ($utility === 'wasser') {
@@ -120,10 +124,12 @@ final class ContractService
         $found = null;
 
         $standardFields = ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
-                           'working_prices', 'base_prices', 'advance_payments', 'bonuses'];
+                           'working_prices', 'base_prices', 'advance_payments', 'bonuses',
+                           'is_shadow', 'shadow_label'];
         $waterFields    = ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                            'trinkwasser', 'schmutzwasser', 'niederschlagswasser',
-                           'advance_payments', 'bonuses'];
+                           'advance_payments', 'bonuses',
+                           'is_shadow', 'shadow_label'];
 
         foreach ($all as &$c) {
             if (($c['id'] ?? null) !== $id) continue;

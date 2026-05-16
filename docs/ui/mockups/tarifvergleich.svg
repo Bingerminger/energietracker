@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 680" font-family="-apple-system,system-ui,Segoe UI,sans-serif">
+  <rect width="1100" height="680" fill="#080c12"/>
+  <!-- MOCKUP-Banner -->
+  <rect x="0" y="0" width="1100" height="22" fill="#4a90e2" opacity="0.18"/>
+  <text x="550.0" y="15" fill="#4a90e2" font-size="11" text-anchor="middle" font-weight="600">SCHEMATISCHES MOCKUP — keine echte Pixel-Darstellung</text>
+  <!-- Topbar -->
+  <rect x="0" y="22" width="1100" height="46" fill="#111827"/>
+  <circle cx="26" cy="45.0" r="9" fill="none" stroke="#6b7f99" stroke-width="1.5"/>
+  <circle cx="26" cy="45.0" r="4" fill="#4a90e2"/>
+  <text x="44" y="49.0" fill="#dce8f5" font-size="13" font-weight="600">Energietracker</text>
+  <text x="1040" y="49.0" fill="#6b7f99" font-size="13">☾</text>
+  <!-- Sidebar -->
+  <rect x="0" y="68" width="210" height="612" fill="#111827"/>
+  <rect x="8" y="77" width="194" height="26" rx="5" fill="#243044"/><text x="20" y="95" fill="#4a90e2" font-size="12">⌂ Übersicht</text><text x="20" y="124" fill="#6b7f99" font-size="12">🔥 Gas</text><text x="20" y="153" fill="#6b7f99" font-size="12">⚡ Strom</text><text x="20" y="182" fill="#6b7f99" font-size="12">💧 Wasser</text><text x="20" y="211" fill="#6b7f99" font-size="12">🌡 Fernwärme</text><text x="20" y="240" fill="#6b7f99" font-size="12">🛢 Heizöl</text><text x="20" y="269" fill="#6b7f99" font-size="12">🪵 Pellets</text><text x="20" y="298" fill="#6b7f99" font-size="12">📈 Analyse</text><text x="20" y="327" fill="#6b7f99" font-size="12">🔮 Prognose</text><text x="20" y="356" fill="#6b7f99" font-size="12">📊 Tarifvergleich</text><text x="20" y="385" fill="#6b7f99" font-size="12">💡 Empfehlungen</text><text x="20" y="414" fill="#6b7f99" font-size="12">📌 Termine</text><text x="20" y="443" fill="#6b7f99" font-size="12">🌡 Temperaturen</text><text x="20" y="472" fill="#6b7f99" font-size="12">⚙ Einstellungen</text>
+  <!-- Content title -->
+  <text x="238" y="108" fill="#dce8f5" font-size="20" font-weight="700">Tarifvergleich</text>
+  <line x1="238" y1="120" x2="1072" y2="120" stroke="#4a90e2" stroke-width="1.5"/>
+  <rect x="238" y="140" width="834" height="46" rx="8" fill="#1c2636"/><text x="254" y="168" fill="#dce8f5" font-size="12">Verbrauchsart: Gas ▾   Jahr: 2024 ▾</text><rect x="238" y="202" width="834" height="354" rx="8" fill="#111827"/><text x="254" y="226" fill="#dce8f5" font-size="13" font-weight="600">Echte + Schattenverträge auf Ist-Verbrauch</text><text x="254" y="232" fill="#6b7f99" font-size="11">Anbieter · Tarif · Typ · Jahreskosten · Δ vs. real</text><rect x="254" y="244" width="802" height="32" rx="4" fill="#1c2636"/><text x="266" y="264" fill="#2de8a4" font-size="11">● echt · Anbieter 1 · 1180 €</text><rect x="254" y="284" width="802" height="32" rx="4" fill="#1c2636"/><text x="266" y="304" fill="#4a90e2" font-size="11">○ Schatten · Anbieter 2 · 1240 €</text><rect x="254" y="324" width="802" height="32" rx="4" fill="#1c2636"/><text x="266" y="344" fill="#6b7f99" font-size="11">○ Schatten · Anbieter 3 · 1300 €</text><rect x="254" y="364" width="802" height="32" rx="4" fill="#1c2636"/><text x="266" y="384" fill="#4a90e2" font-size="11">○ Schatten · Anbieter 4 · 1360 €</text><rect x="254" y="404" width="802" height="32" rx="4" fill="#1c2636"/><text x="266" y="424" fill="#6b7f99" font-size="11">○ Schatten · Anbieter 5 · 1420 €</text><rect x="254" y="444" width="802" height="32" rx="4" fill="#1c2636"/><text x="266" y="464" fill="#4a90e2" font-size="11">○ Schatten · Anbieter 6 · 1480 €</text>
+</svg>

@@ -1,0 +1,36 @@
+[
+  {
+    "id": "c_fw_001",
+    "meter_id": "m_fernwaerme_main",
+    "provider": "Stadtwerke Leipzig",
+    "tariff_name": "Fernwärme Komfort",
+    "start": "2023-01-01",
+    "end": null,
+    "notes": "",
+    "working_prices": [
+      {
+        "from": "2023-01-01",
+        "ct_per_kwh": 9.4
+      },
+      {
+        "from": "2024-01-01",
+        "ct_per_kwh": 11.2
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2023-01-01",
+        "eur_per_month": 28.0
+      }
+    ],
+    "advance_payments": [
+      {
+        "from": "2023-01-01",
+        "amount_eur": 140.0
+      }
+    ],
+    "bonuses": [],
+    "is_shadow": false,
+    "shadow_label": null
+  }
+]

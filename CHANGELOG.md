@@ -6,6 +6,226 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.4.2] — 2026-05-16 — Export aller Energiearten, Datumsformat, PDF-Kennzahlen, neues Logo, Doku-Kompendium
+
+### Added
+
+- **CSV-Lieferungs-Export** für lieferbasierte Arten:
+  `GET /api/export/{utility}/deliveries.csv` (Heizöl/Pellets) mit
+  korrekter Einheit (L bzw. kg) im Spaltenkopf.
+- **Neues App-Icon** (Haus mit Farbring) aus dem gelieferten Logo
+  extrahiert — Tag-/Nacht-Variante, als Favicon, Apple-Touch-Icon und
+  themenabhängiges Topbar-Logo eingebunden (`public/img/`).
+- **Doku-Kompendium** unter `docs/` — getrennt technisch
+  (`docs/technical/`, 6 Kapitel), fachlich (`docs/functional/`, je
+  Energieart + Szenarien + Glossar) und UI (`docs/ui/` mit Mockups
+  aller 11 Views). Wird ab dieser Version bei jedem Release gepflegt.
+
+### Fixed
+
+- **#2 Export war nicht für alle Energiearten verfügbar.** Die
+  Export-UI in den Einstellungen war auf gas/strom/wasser hartkodiert.
+  Sie baut die Kacheln jetzt dynamisch aus den aktiven Verbrauchsarten;
+  Fernwärme erhält Monats-/Ablesungs-Export, Heizöl/Pellets den neuen
+  Lieferungs-Export.
+- **#3 PDF-Diagramm ohne Achsen/Beschriftung.** Das achsenlose
+  Mini-Liniendiagramm im Jahresbericht wurde entfernt und durch eine
+  Kennzahlen-Leiste (Jahresverbrauch, Ø/Monat, Gesamtkosten,
+  stärkster/schwächster Monat) plus die bestehende Monatstabelle
+  ersetzt.
+- **#4 Abrechnungszyklus im falschen Datumsformat.** Der Stichtag wurde
+  als `MM-TT` angezeigt/eingegeben. Die UI nutzt jetzt das deutsche
+  Format `TT-MM`; die Speicherung bleibt kanonisch `MM-TT`, damit das
+  Backend valide Datümer baut (Konvertierung nur an der UI-Grenze,
+  inkl. Validierung/Februar-Klemmung).
+
+### Changed
+
+- **#5/#6 Heizöl/Pellets-Kosten — Gesamtbetrag hat Vorrang.** Ist auf
+  einer Tankrechnung der Gesamtbetrag (`total_eur`) erfasst, wird
+  dieser als Kostenbasis genutzt (enthält Liefergebühr/Rabatt); der
+  effektive Stückpreis wird daraus abgeleitet. Nur ohne Gesamtbetrag
+  wird wie bisher `unit_price_cents` × Menge gerechnet. Bestätigt:
+  Heizöl/Pellets haben bewusst **keine** Vertrags-Entität — die
+  Tankrechnung selbst ist die Kostenbasis.
+- **Doku ersetzt.** Die alten Einzeldateien `docs/API.md`,
+  `docs/ARCHITECTURE.md` und `docs/screenshots/` sind in das
+  strukturierte Kompendium übergegangen. `docs/MIGRATION-FROM-V090.md`
+  bleibt erhalten und wird aus dem Kompendium verlinkt.
+
+### Migration
+
+- **Kein Schema-Change** (Schema bleibt 1.1.0). Neue Exporte und der
+  neue Lieferungs-Endpoint sind rein additiv. Bestehende
+  `billing_cycle_anchor_*`-Werte bleiben gültig (kanonische Speicherung
+  unverändert `MM-TT`; geändert wurde nur die Anzeige).
+
+---
+
+## [1.4.1] — 2026-05-16 — Bugfix: Sigmoid-Modell in der Prognose wählbar
+
+### Fixed
+
+- **Sigmoid-Regressionsmodell war in der Prognose nicht auswählbar.**
+  Der Modell-Selektor in der Forecast-Ansicht
+  (`public/js/views/forecast.js`) listete nur vier der fünf Modelle —
+  `sigmoid` fehlte, obwohl es in den Einstellungen als Standardmodell
+  wählbar war und das Backend (`ForecastService` →
+  `RegressionService::fit`) es längst unterstützte. Reine Frontend-
+  Lücke; Option ergänzt. Der Browser-Render-Test prüft jetzt, dass
+  alle fünf Modelle (linear, polynomial, robust, segmented, sigmoid)
+  in der Prognose wählbar sind.
+
+### Migration
+
+- Keine Schema-, Datenmodell- oder API-Änderung. Reiner UI-Bugfix.
+
+## [1.4.0] — 2026-05-16 — Tank-Bestandsmodell & Effizienz pro Heizquelle
+
+Korrektur zweier Modell-/Darstellungsschwächen, die beim Anlegen der
+Demo-Daten für die neuen Energieträger sichtbar wurden, plus ein
+kritischer Startup-Bugfix.
+
+### Fixed
+
+- **App startete nicht (kritisch).** `public/js/lib/sidebar.js`
+  importierte `./state.js` / `./api.js` statt `../state.js` /
+  `../api.js`. Da `sidebar.js` von `app.js` geladen wird, brach dieser
+  404 den gesamten ES-Modulgraphen — die Oberfläche blieb bei „Lade…"
+  stehen. Pfade korrigiert; neuer Modulgraph-Regressionstest
+  (`tests/browser-render.test.mjs`) crawlt `app.js` samt aller
+  transitiven Importe über HTTP und fängt solche Fehler künftig.
+- **Tank-Bestandskurve zeigte konstruktionsbedingt immer ~0 %.** Das
+  alte Modell verteilte die *gesamte* gelieferte Energie HGT-gewichtet
+  über die Laufzeit und erzwang damit Endbestand ≈ 0 — unabhängig von
+  den Liefermengen. Zusätzlich mischte `stockHistory()` Liter mit kWh
+  (latenter Einheitenfehler, von der 0-Normierung maskiert). Neu:
+  `ConsumptionService::dailyDeliveryStockDraw()` berechnet den Abzug in
+  Mengeneinheiten aus einer **aus den geschlossenen Lieferintervallen
+  kalibrierten kWh/HGT-Rate**. Die Bestandskurve ist jetzt ein
+  realistischer Sägezahn ohne Zwang auf 0. Die Kosten-/Effizienz-
+  Berechnung (`dailyDeliveryConsumption()`, Energiebilanz) bleibt
+  unverändert — sie ist für die Verbrauchs-/Kostensicht korrekt.
+
+### Changed
+
+- **Effizienz-Benchmark jetzt pro Heizquelle.** Statt alle
+  Heizenergie-Arten zu summieren (was bei mehreren aktiven Heizquellen
+  eine unsinnige Klasse ergab), weist `/api/benchmarks/efficiency` nun
+  `per_source` (Klasse je Quelle), `primary` (größte Quelle) und
+  `combined` (Summe, nur für bewusst kombinierten Heizbetrieb) aus.
+  Die Top-Level-Felder `class`/`kwh_per_m2`/`total_kwh` bleiben als
+  rückwärtskompatible Aliase erhalten, zeigen aber nun die **primäre
+  Heizquelle** statt der Summe. Dashboard-Karte und PDF-Bericht zeigen
+  bei mehreren Quellen eine Aufschlüsselung; die Empfehlungsregel R7
+  bewertet jede Quelle einzeln.
+- **Demo-Daten vollständig.** Demo-Datensätze für Fernwärme, Heizöl und
+  Pellets ergänzt (zuvor nur Gas/Strom/Wasser), inkl. realistischer
+  Tankgrößen und Lieferkadenz, sodass jede Verbrauchsart ab Start
+  bedienbar ist.
+
+### Migration
+
+- Keine Schema- oder Datenmodell-Änderung; Schema bleibt **1.1.0**.
+  Reine Berechnungs-/Darstellungs- und Bugfix-Änderungen. API-Antwort
+  von `/api/benchmarks/efficiency` ist additiv erweitert; bestehende
+  Felder bleiben kompatibel.
+
+---
+
+## [1.3.0] — 2026-05-16 — Lieferbasierte Energieträger, Effizienz, Insights
+
+Das bislang umfangreichste Release. Drei neue Verbrauchsarten, ein
+zweites Datenmodell (lieferbasiert statt kumulativ), Wetterbereinigung,
+Effizienzklassen, eine Empfehlungs-Engine, Termin-/Wartungsverwaltung,
+Tarifvergleich mit Schattenverträgen und ein PDF-Jahresbericht.
+
+**Schema-Migration 1.0.3 → 1.1.0** — automatisch und idempotent beim
+ersten Start. Bestehende Gas-/Strom-/Wasser-Daten bleiben unverändert;
+neue Verbrauchsarten und `data/reminders.json` werden angelegt.
+
+### Added
+
+- **Drei neue Verbrauchsarten.** Fernwärme (kumulativ, kWh,
+  HGT-relevant), Heizöl und Pellets (beide **lieferbasiert** —
+  Brennstofflieferungen statt Zählerständen). Heizöl rechnet in Litern,
+  Pellets in kg; Energiegehalt je Einheit ist konfigurierbar
+  (`heizoel_kwh_per_l`, `pellets_kwh_per_kg`).
+- **Lieferbasiertes Datenmodell.** Für Heizöl/Pellets werden Lieferungen
+  erfasst (`{date, quantity, unit_price_cents, total_eur, supplier,
+  note, is_planned}`). Der Monatsverbrauch wird aus
+  Anfangsbestand + Lieferungen energetisch bilanziert und über einen
+  konfigurierbaren Sockelanteil (flach) plus HGT-Gewichtung (Rest)
+  auf die Monate verteilt. Tank-Bestandskurve über die Zeit.
+- **Wetterbereinigung.** Monatstabelle HGT-relevanter Arten erhält
+  `expected_hgt` (Regressionserwartung), `weather_adjusted`
+  (auf das langjährige Kalendermonats-HGT normierter Verbrauch nach
+  VDI-3807-Logik) und `delta_pct`. Schwachlastmonate werden korrekt
+  ausgeblendet.
+- **Effizienzklasse.** Heizenergiebedarf in kWh/m²·a über alle
+  Heizenergie-Arten, eingestuft in A+…H gegen konfigurierbare
+  Bandgrenzen (`/api/benchmarks/efficiency`). Wohnfläche, Baujahr und
+  Gebäudetyp sind in den Einstellungen pflegbar.
+- **Empfehlungs-Engine.** Sieben rein statistische Regelfamilien aus
+  den Eigendaten (wetterbereinigter Mehrverbrauch, schleichender Trend,
+  hoher Sommerverbrauch, Anomalie, Tank-Niveau, Vertragsende,
+  Effizienzklasse) mit Schweregrad und stabiler ID; einzeln
+  ausblendbar (`/api/recommendations`).
+- **Termin- & Wartungsverwaltung.** Wiederkehrende Termine
+  (Heizungswartung, Schornsteinfeger, Zähler-Eichfristen u. a.) mit
+  Fälligkeitsstatus und Recurrence-Fortschreibung beim Erledigen
+  (`/api/reminders`).
+- **Tarifvergleich mit Schattenverträgen.** Hypothetische Tarife
+  (`is_shadow`) lassen sich auf die tatsächlichen historischen
+  Verbräuche rechnen und echten Verträgen gegenüberstellen, ohne Saldo
+  oder Prognose zu beeinflussen
+  (`/api/utility/{u}/meters/{id}/tariff-comparison`).
+- **PDF-Jahresbericht.** Mehrseitiger A4-Bericht (Deckblatt,
+  Übersicht/Effizienz, je Verbrauchsart Tabelle + Verlaufsdiagramm,
+  Empfehlungen) als Datei-Download — erzeugt von einem eigenen,
+  abhängigkeitsfreien PDF-Writer (`/api/reports/yearly.pdf`).
+- **Neue Regressionsmodelle.** `sigmoid` (Heizsignatur nach
+  TU-München/BDEW-Form, robust gefittet) sowie `segmented` mit
+  **datenbasiertem Knickpunkt** (`segmented_split_mode = auto`).
+- **Aktivierbare Verbrauchsarten.** `active_utilities` steuert, welche
+  Arten in Sidebar, Dashboard und Bericht erscheinen — inaktive Daten
+  bleiben erhalten. Sidebar wird dynamisch daraus aufgebaut.
+- **Dashboard-Insight-Karten.** Effizienzklasse, Tank-Bestände,
+  Top-Empfehlungen und anstehende Termine auf einen Blick.
+
+### Changed
+
+- **Einstellungen erweitert** von 28 auf **50 Schlüssel** plus die
+  `active_utilities`-Auswahl: Gebäude/Effizienz, Energieträger-
+  Energiegehalte, Tank-Warnschwelle, Termin- und Empfehlungs-Schwellen,
+  Abrechnungs-Stichtage der neuen Arten, Segment-Knickpunktmodus,
+  `sigmoid` im Prognosemodell-Picker, PDF-Download.
+- **Sidebar** ist nicht mehr statisch in `index.php` verdrahtet, sondern
+  wird zur Laufzeit aus aktiven Verbrauchsarten und neuen Views
+  (Tarifvergleich, Empfehlungen, Termine) erzeugt; Badges für offene
+  Empfehlungen und fällige Termine.
+
+### Migration
+
+- Schema-Version steigt auf **1.1.0**. Der Migrator erkennt 1.0.3 und
+  ergänzt fehlende Verzeichnisse/Dateien idempotent — kein manueller
+  Schritt nötig. Ein Sicherheits-Snapshot wird wie üblich vor dem
+  ersten Schreiben angelegt. Ein Downgrade auf 1.0.x wird nicht
+  unterstützt (die neuen Verbrauchsarten würden ignoriert).
+
+### Hinweise
+
+- Der PDF-Writer nutzt bewusst **keine externe Bibliothek** (kein
+  composer, mPDF, gd oder mbstring) — konsistent mit der
+  abhängigkeitsfreien, flat-file-Architektur der App.
+- Die Tank-Bestandskurve ist eine Modellschätzung (Anfangsbestand +
+  Lieferungen − HGT-gewichteter Verbrauch), keine Tankpeilung; bei
+  langen Lieferintervallen kann der modellierte Bestand 0 erreichen.
+- Tarifvergleich ist für Wasser (Drei-Komponenten-Tarif) bewusst nicht
+  enthalten.
+
+---
+
 ## [1.2.0] — 2026-05-15 — Theme-Toggle + Diagnose-Bugfix
 
 Tag/Nacht-Umschaltung für die gesamte UI plus eine kosmetische

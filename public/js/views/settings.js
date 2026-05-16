@@ -33,18 +33,22 @@ const GROUPS = [
       { key: 'co2_gas',    label: 'CO₂ Gas',    unit: 'g/kWh', step: '1' },
       { key: 'co2_strom',  label: 'CO₂ Strom',  unit: 'g/kWh', step: '1' },
       { key: 'co2_wasser', label: 'CO₂ Wasser', unit: 'g/m³',  step: '1' },
+      { key: 'co2_fernwaerme', label: 'CO₂ Fernwärme', unit: 'g/kWh', step: '1' },
+      { key: 'co2_heizoel',    label: 'CO₂ Heizöl',    unit: 'g/L',   step: '1' },
+      { key: 'co2_pellets',    label: 'CO₂ Pellets',   unit: 'g/kg',  step: '1' },
     ],
   },
   {
     title: 'Abrechnungszyklus',
     icon: '📅',
-    hint: 'Stichtag der Jahresabrechnung je Verbrauchsart (Format MM-TT). '
+    hint: 'Stichtag der Jahresabrechnung je Verbrauchsart (Format TT-MM, '
+        + 'z. B. 01-01 für 1. Januar, 15-04 für 15. April). '
         + 'Bestimmt, bis wann der Saldo offener Verträge projiziert wird; '
         + 'Verträge mit gepflegtem Ende nutzen weiterhin dieses Ende.',
     fields: [
-      { key: 'billing_cycle_anchor_gas',    label: 'Stichtag Gas',    type: 'text', placeholder: '01-01' },
-      { key: 'billing_cycle_anchor_strom',  label: 'Stichtag Strom',  type: 'text', placeholder: '01-01' },
-      { key: 'billing_cycle_anchor_wasser', label: 'Stichtag Wasser', type: 'text', placeholder: '01-01' },
+      { key: 'billing_cycle_anchor_gas',    label: 'Stichtag Gas', type: 'datemd', placeholder: 'TT-MM (01-01)' },
+      { key: 'billing_cycle_anchor_strom',  label: 'Stichtag Strom', type: 'datemd', placeholder: 'TT-MM (01-01)' },
+      { key: 'billing_cycle_anchor_wasser', label: 'Stichtag Wasser', type: 'datemd', placeholder: 'TT-MM (01-01)' },
     ],
   },
   {
@@ -82,7 +86,12 @@ const GROUPS = [
       { key: 'forecast_months',        label: 'Prognose-Horizont', unit: 'Monate', step: '1' },
       { key: 'min_temp_days_forecast', label: 'Min. Temp-Tage Prognose',  step: '1' },
       { key: 'forecast_model',         label: 'Standardmodell', type: 'select',
-        options: ['linear', 'polynomial', 'robust', 'segmented'] },
+        options: ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] },
+      { key: 'segmented_split_mode',   label: 'Segment-Knickpunkt', type: 'select',
+        options: ['auto', 'fixed'],
+        hint: 'auto = datenbasiert gefittet, fixed = fester HGT-Wert unten.' },
+      { key: 'segmented_fixed_split',  label: 'Fester Knickpunkt', unit: 'HGT', step: '1',
+        hint: 'Nur wirksam bei Modus „fixed".' },
       { key: 'anomaly_threshold',      label: 'Anomalie-Schwelle', unit: 'σ', step: '0.1' },
     ],
   },
@@ -93,6 +102,45 @@ const GROUPS = [
     fields: [
       { key: 'dashboard_months',         label: 'Monate auf Dashboard', step: '1' },
       { key: 'alert_days_since_reading', label: 'Warnung nach', unit: 'Tagen ohne Ablesung', step: '1' },
+    ],
+  },
+  {
+    title: 'Gebäude & Effizienz',
+    icon: '🏢',
+    hint: 'Bezugsgrößen für die Effizienzklasse (kWh/m²·a) und den Heizenergie-Benchmark.',
+    fields: [
+      { key: 'wohnflaeche_m2', label: 'Wohnfläche', unit: 'm²', step: '1',
+        hint: 'Beheizte Fläche — Nenner der Effizienzkennzahl.' },
+      { key: 'baujahr',        label: 'Baujahr', type: 'text', placeholder: 'z. B. 1998' },
+      { key: 'gebaeudetyp',    label: 'Gebäudetyp', type: 'select',
+        options: ['efh', 'rh', 'mfh', 'whg'],
+        hint: 'efh = Einfam., rh = Reihenhaus, mfh = Mehrfam., whg = Wohnung.' },
+    ],
+  },
+  {
+    title: 'Energieträger (Lieferung)',
+    icon: '🛢️',
+    hint: 'Energiegehalt der lieferbasierten Brennstoffe und Tank-Warnschwelle.',
+    fields: [
+      { key: 'heizoel_kwh_per_l', label: 'Heizöl Energiegehalt', unit: 'kWh/L', step: '0.1' },
+      { key: 'pellets_kwh_per_kg', label: 'Pellets Energiegehalt', unit: 'kWh/kg', step: '0.1' },
+      { key: 'delivery_baseload_share', label: 'Sockel-Anteil Verteilung', step: '0.05',
+        hint: 'Anteil des Verbrauchs als wetterunabhängige Grundlast (Rest HGT-gewichtet).' },
+      { key: 'tank_warn_pct', label: 'Tank-Warnung ab', unit: '% Restbestand', step: '1' },
+    ],
+  },
+  {
+    title: 'Termine & Empfehlungen',
+    icon: '📌',
+    hint: 'Schwellen für Fälligkeits-Status und die Empfehlungs-Engine.',
+    fields: [
+      { key: 'reminder_warn_days_before', label: 'Termin „bald fällig" ab', unit: 'Tage vorher', step: '1' },
+      { key: 'reminder_overdue_days',     label: 'Kulanz bis „überfällig"', unit: 'Tage', step: '1' },
+      { key: 'recommendation_anomaly_sigma', label: 'Empfehlung Anomalie-Schwelle', unit: 'σ', step: '0.1' },
+      { key: 'recommendation_trend_pct_year', label: 'Empfehlung Trend-Schwelle', unit: '%/Jahr', step: '0.5' },
+      { key: 'billing_cycle_anchor_fernwaerme', label: 'Stichtag Fernwärme', type: 'datemd', placeholder: 'TT-MM (01-01)' },
+      { key: 'billing_cycle_anchor_heizoel',    label: 'Stichtag Heizöl', type: 'datemd', placeholder: 'TT-MM (01-01)' },
+      { key: 'billing_cycle_anchor_pellets',    label: 'Stichtag Pellets', type: 'datemd', placeholder: 'TT-MM (01-01)' },
     ],
   },
   {
@@ -110,9 +158,10 @@ const GROUPS = [
 
 export async function render(container) {
   container.innerHTML = '<div class="loading">Lade…</div>';
-  const [settings, diag] = await Promise.all([
+  const [settings, diag, utilities] = await Promise.all([
     api.settings(),
     api.diagnostics().catch(() => null),
+    api.listUtilities().catch(() => []),
   ]);
 
   container.innerHTML = `
@@ -128,6 +177,41 @@ export async function render(container) {
 
     <div class="settings-grid">
       ${GROUPS.map(g => renderGroup(g, settings)).join('')}
+    </div>
+
+    <div class="card settings-card">
+      <h3 class="card__title">🧩 Aktive Verbrauchsarten</h3>
+      <p class="settings-card__hint">Nur angehakte Verbrauchsarten erscheinen in Sidebar,
+        Dashboard und Jahresbericht. Daten inaktiver Arten bleiben erhalten.</p>
+      <div class="settings-fields" id="active-utils">
+        ${(utilities || []).map(u => {
+          const act = Array.isArray(settings.active_utilities) && settings.active_utilities.length
+            ? settings.active_utilities.includes(u.key)
+            : true;
+          return `<label class="settings-field__check">
+            <input type="checkbox" data-active-util="${u.key}" ${act ? 'checked' : ''}>
+            ${u.icon ? u.icon + ' ' : ''}${escapeHtml(u.label)}
+          </label>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card__title">📄 PDF-Jahresbericht</h3>
+      <p class="muted" style="margin-bottom: var(--sp-3)">
+        Mehrseitiger Bericht mit Übersicht, Effizienzklasse, Verbrauchstabellen
+        je Verbrauchsart und offenen Empfehlungen.
+      </p>
+      <div class="section-actions">
+        <label>Jahr
+          <select class="select" id="pdf-year" style="margin-left: var(--sp-2)">
+            ${pdfYearOpts()}
+          </select>
+        </label>
+        <a class="btn btn--primary" id="pdf-dl" href="${api.yearlyReportUrl(new Date().getFullYear() - 1)}">
+          Jahresbericht herunterladen
+        </a>
+      </div>
     </div>
 
     <div class="form-actions" style="margin-top: var(--sp-4)">
@@ -146,18 +230,25 @@ export async function render(container) {
           <div class="export-tile__label">Monatsübersicht</div>
           <div class="export-tile__hint">Verbrauch, Kosten, Abschlag und Saldo je Monat.</div>
           <div class="export-tile__actions">
-            <a class="btn btn--sm btn-gas"    href="${api.exportMonthlyCsvUrl('gas')}"    download>Gas</a>
-            <a class="btn btn--sm btn-strom"  href="${api.exportMonthlyCsvUrl('strom')}"  download>Strom</a>
-            <a class="btn btn--sm btn-wasser" href="${api.exportMonthlyCsvUrl('wasser')}" download>Wasser</a>
+            ${(utilities || [])
+              .filter(u => exportActive(settings, u.key))
+              .map(u => `<a class="btn btn--sm btn-${u.key}" href="${api.exportMonthlyCsvUrl(u.key)}" download>${escapeHtml(u.label)}</a>`)
+              .join('') || '<span class="muted" style="font-size:12px">Keine aktive Verbrauchsart.</span>'}
           </div>
         </div>
         <div class="export-tile">
-          <div class="export-tile__label">Zählerstände</div>
-          <div class="export-tile__hint">Alle Rohablesungen, eine Zeile je Ablesung.</div>
+          <div class="export-tile__label">Zählerstände / Lieferungen</div>
+          <div class="export-tile__hint">Kumulative Arten: Rohablesungen. Heizöl/Pellets: Brennstofflieferungen (eine Zeile je Lieferung).</div>
           <div class="export-tile__actions">
-            <a class="btn btn--sm btn-gas"    href="${api.exportReadingsCsvUrl('gas')}"    download>Gas</a>
-            <a class="btn btn--sm btn-strom"  href="${api.exportReadingsCsvUrl('strom')}"  download>Strom</a>
-            <a class="btn btn--sm btn-wasser" href="${api.exportReadingsCsvUrl('wasser')}" download>Wasser</a>
+            ${(utilities || [])
+              .filter(u => exportActive(settings, u.key))
+              .map(u => {
+                const isDelivery = u.reading_kind === 'delivery';
+                const url = isDelivery ? api.exportDeliveriesCsvUrl(u.key) : api.exportReadingsCsvUrl(u.key);
+                const tag = isDelivery ? ' (Lieferungen)' : '';
+                return `<a class="btn btn--sm btn-${u.key}" href="${url}" download>${escapeHtml(u.label)}${tag}</a>`;
+              })
+              .join('') || '<span class="muted" style="font-size:12px">Keine aktive Verbrauchsart.</span>'}
           </div>
         </div>
         <div class="export-tile">
@@ -213,6 +304,15 @@ export async function render(container) {
   };
   container.querySelector('#btn-save').addEventListener('click', save);
   container.querySelector('#btn-save-2').addEventListener('click', save);
+
+  // v1.3.0 — PDF-Jahr-Auswahl aktualisiert den Download-Link
+  const pdfYear = container.querySelector('#pdf-year');
+  const pdfDl   = container.querySelector('#pdf-dl');
+  if (pdfYear && pdfDl) {
+    pdfYear.addEventListener('change', () => {
+      pdfDl.setAttribute('href', api.yearlyReportUrl(pdfYear.value));
+    });
+  }
 
   container.querySelector('#btn-export').addEventListener('click', async () => {
     try {
@@ -304,6 +404,17 @@ function renderField(f, value) {
       ${hint}
     </div>`;
   }
+  if (f.type === 'datemd') {
+    // Speicherung kanonisch MM-TT (für valide Datumskonstruktion im
+    // Backend), Anzeige im deutschen Format TT-MM.
+    const disp = mmddToDdmm(value);
+    return `<div class="field settings-field">
+      ${labelHtml}
+      <input class="input input--text" type="text" data-key="${f.key}" data-type="datemd"
+             value="${escapeHtml(disp)}" ${f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : ''}>
+      ${hint}
+    </div>`;
+  }
   if (f.type === 'text') {
     return `<div class="field settings-field">
       ${labelHtml}
@@ -325,12 +436,32 @@ function collectSettings(container) {
     const key = el.getAttribute('data-key');
     if (el.tagName === 'SELECT') out[key] = el.value;
     else if (el.getAttribute('data-type') === 'bool') out[key] = el.checked;
+    else if (el.getAttribute('data-type') === 'datemd') {
+      // Eingabe TT-MM → kanonisch MM-TT; ungültig ⇒ Default 01-01
+      out[key] = ddmmToMmdd(el.value);
+    }
     else if (el.type === 'number') {
       const v = el.value;
       out[key] = v === '' ? null : Number(v);
     } else out[key] = el.value;
   });
+  // v1.3.0 — aktive Verbrauchsarten aus den Checkboxen
+  const utilBoxes = container.querySelectorAll('[data-active-util]');
+  if (utilBoxes.length) {
+    out.active_utilities = [...utilBoxes]
+      .filter(b => b.checked)
+      .map(b => b.getAttribute('data-active-util'));
+  }
   return out;
+}
+
+function pdfYearOpts() {
+  const now = new Date().getFullYear();
+  let o = '';
+  for (let y = now; y >= now - 6; y--) {
+    o += `<option value="${y}" ${y === now - 1 ? 'selected' : ''}>${y}</option>`;
+  }
+  return o;
 }
 
 function renderDiagnostics(d) {
@@ -503,4 +634,29 @@ function openMigrationDialog(previewResult, onDone) {
       });
     },
   });
+}
+
+// Ist eine Verbrauchsart für den Export aktiv? (active_utilities leer ⇒ alle)
+function exportActive(settings, key) {
+  const a = settings && settings.active_utilities;
+  return Array.isArray(a) && a.length ? a.includes(key) : true;
+}
+
+// ── Abrechnungs-Stichtag: Datums-Konvertierung (v1.4.2, Bug #4) ──
+// Speicherung kanonisch "MM-TT" (damit das Backend YYYY-MM-TT bauen
+// kann), Anzeige/Eingabe im deutschen Format "TT-MM".
+function mmddToDdmm(v) {
+  const m = /^(\d{2})-(\d{2})$/.exec(String(v ?? '').trim());
+  if (!m) return '01-01';
+  return `${m[2]}-${m[1]}`; // MM-TT → TT-MM
+}
+function ddmmToMmdd(v) {
+  const m = /^(\d{1,2})[-.\/](\d{1,2})$/.exec(String(v ?? '').trim());
+  if (!m) return '01-01';
+  let d = Math.min(31, Math.max(1, parseInt(m[1], 10)));
+  let mo = Math.min(12, Math.max(1, parseInt(m[2], 10)));
+  // 29.–31. Februar auf 28 begrenzen (Backend klemmt zusätzlich)
+  if (mo === 2 && d > 28) d = 28;
+  const p = n => String(n).padStart(2, '0');
+  return `${p(mo)}-${p(d)}`; // → MM-TT
 }

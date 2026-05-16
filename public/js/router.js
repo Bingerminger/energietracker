@@ -1,5 +1,5 @@
 // =====================================================================
-// Energietracker v1.2.0 — Hash router
+// Energietracker v1.3.0 — Hash router
 // Each route maps to a view module that exports `render(container, params)`.
 // =====================================================================
 
@@ -11,6 +11,9 @@ import * as Temperatures from './views/temperatures.js';
 import * as Analysis     from './views/analysis.js';
 import * as Forecast     from './views/forecast.js';
 import * as Settings     from './views/settings.js';
+import * as Tariffs      from './views/tariff.js';
+import * as Recommendations from './views/recommendations.js';
+import * as Reminders    from './views/reminders.js';
 
 const ROUTES = [
   { pattern: /^#?\/?$/,                             handler: 'dashboard' },
@@ -21,6 +24,9 @@ const ROUTES = [
   { pattern: /^#\/temperatures$/,                   handler: 'temperatures' },
   { pattern: /^#\/analysis$/,                       handler: 'analysis'  },
   { pattern: /^#\/forecast$/,                       handler: 'forecast'  },
+  { pattern: /^#\/tariffs$/,                        handler: 'tariffs'   },
+  { pattern: /^#\/recommendations$/,                handler: 'recommendations' },
+  { pattern: /^#\/reminders$/,                      handler: 'reminders' },
   { pattern: /^#\/settings$/,                       handler: 'settings'  },
 ];
 
@@ -32,6 +38,9 @@ const HANDLERS = {
   temperatures: Temperatures,
   analysis:     Analysis,
   forecast:     Forecast,
+  tariffs:      Tariffs,
+  recommendations: Recommendations,
+  reminders:    Reminders,
   settings:     Settings,
 };
 
@@ -59,6 +68,9 @@ export function startRouter(container) {
           (handler === 'temperatures' && route === 'temperatures') ||
           (handler === 'analysis' && route === 'analysis') ||
           (handler === 'forecast' && route === 'forecast') ||
+          (handler === 'tariffs' && route === 'tariffs') ||
+          (handler === 'recommendations' && route === 'recommendations') ||
+          (handler === 'reminders' && route === 'reminders') ||
           (handler === 'settings' && route === 'settings');
         a.classList.toggle('active', isActive);
       });
