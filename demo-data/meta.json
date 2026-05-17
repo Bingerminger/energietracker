@@ -1,10 +1,10 @@
 {
-  "schema_version": "1.0.0",
-  "migrated_at": "2026-05-11T08:00:00+02:00",
+  "schema_version": "1.1.0",
+  "migrated_at": "2026-05-12T08:00:00+02:00",
   "log": [
     {
       "step": "demo-data-seed",
-      "utilities": 3
+      "utilities": 6
     }
   ]
 }

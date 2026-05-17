@@ -1,4 +1,10 @@
-# API-Referenz v1.2.0
+# API-Referenz (Kurzfassung)
+
+> **Hinweis:** Die kanonische, bei jedem Release gepflegte
+> API-Referenz ist das Kompendium unter
+> [`docs/technical/03-api-reference.md`](technical/03-api-reference.md).
+> Dieses ältere Top-Level-Dokument wird nur noch faktisch
+> nachgeführt (Stand: v1.4.4).
 
 REST-API über einen einzigen Entry-Point: `api.php`. Pfade haben das
 Präfix `/api/`, das nach dem Script-Name folgt:

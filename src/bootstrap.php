@@ -14,8 +14,8 @@ use Energietracker\Services\{
     TemperatureService, RegressionService, ForecastService, AnomalyService,
     WeatherService, BackupService, SettingsService, DiagnosticsService,
     MigrationService, ReadingImportService, CsvExportService,
-    DeliveryService, BenchmarkService, TariffComparisonService,
-    RecommendationService, ReminderService, PdfReportService
+    DeliveryService, DeliveryConsumptionService, BenchmarkService,
+    TariffComparisonService, RecommendationService, ReminderService, PdfReportService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -58,6 +58,7 @@ final class App
     public ReadingImportService $readingImport;
     public CsvExportService $csvExport;
     public DeliveryService $deliveries;
+    public DeliveryConsumptionService $deliveryConsumption;
     public BenchmarkService $benchmark;
     public TariffComparisonService $tariffs;
     public RecommendationService $recommendations;
@@ -75,9 +76,10 @@ final class App
         $this->readings     = new ReadingService($this->store, $this->meters);
         $this->contracts    = new ContractService($this->store, $this->meters);
         $this->regression   = new RegressionService();
+        $this->deliveryConsumption = new DeliveryConsumptionService($this->store, $this->settings);
         $this->consumption  = new ConsumptionService(
             $this->store, $this->meters, $this->readings, $this->contracts, $this->settings,
-            $this->regression
+            $this->regression, $this->deliveryConsumption
         );
         $this->weather      = new WeatherService();
         $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather);

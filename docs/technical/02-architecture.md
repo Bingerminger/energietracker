@@ -97,7 +97,7 @@ Daraus ergeben sich zwei Berechnungspfade (siehe
 
 ---
 
-## 4. Services (`src/Services/`, 22)
+## 4. Services (`src/Services/`, 22 + `Pdf\PdfWriter`)
 
 Jeder Service ist `final`, hat einen dependency-injizierten Konstruktor
 und kennt **kein HTTP**.
@@ -108,7 +108,8 @@ und kennt **kein HTTP**.
 | `MeterService` | CRUD Zähler/Tanks, Gerätetausch (Devices) |
 | `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device |
 | `ContractService` | CRUD Verträge, strikte Validierung, Stichtag-Lookup |
-| `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo, Wetterbereinigung, Bestandsabzug |
+| `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo, Wetterbereinigung; delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService` |
+| `DeliveryConsumptionService` | **(seit v1.4.4)** Tages-Verbrauchsverteilung & Tank-Bestandsabzug für Heizöl/Pellets — aus `ConsumptionService` extrahiert (~350 Zeilen) |
 | `DeliveryService` | CRUD Lieferungen, Tank-Bestandskurve |
 | `TemperatureService` | CSV-Import, Tages-Map |
 | `WeatherService` | Open-Meteo-Wrapper (Archiv + Vorhersage) |
@@ -160,6 +161,17 @@ Die vollständige Routen-Liste steht in der
 Antwort-Hülle einheitlich:
 `{ "success": true, "data": … }` oder
 `{ "success": false, "error": "…", "detail": … }`.
+
+### 6.1 Speicher-Pfad-Sicherheit (seit v1.4.4)
+
+`JsonStore::path()` baut den Dateipfad aus `rootDir` plus relativem
+Schlüssel. Zusätzlich zur Whitelist-Prüfung im Service-Layer
+(`Utilities::exists()` lässt nur bekannte Energieart-Schlüssel zu) prüft
+`path()` per `realpath` + Präfix-Vergleich, dass der aufgelöste Pfad
+**innerhalb** von `rootDir` liegt. Jeder Versuch, über `../` aus dem
+Datenverzeichnis auszubrechen, wirft eine `InvalidArgumentException`
+(→ HTTP 400). Defense-in-Depth: der Schutz greift auch dann, wenn ein
+künftiger Endpunkt die Service-Layer-Validierung umgehen sollte.
 
 ---
 

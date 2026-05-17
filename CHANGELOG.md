@@ -6,6 +6,70 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.4.4] — 2026-05-17 — Code-Qualität, CI-Pipeline, Audit-Härtung
+
+### Added
+
+- **CI/CD-Pipeline (GitHub Actions).** Neues `.github/workflows/ci.yml`
+  mit zwei Jobs:
+  - `test` — startet den PHP-Backend-Server mit Demo-Daten, führt
+    `frontend-api-shape.test.js` und `browser-render.test.mjs` aus.
+  - `lint-php` — prüft die Syntax aller PHP-Dateien parallel mit
+    `php -l` (PHP 8.4). Beide Jobs laufen auf `push` und `pull_request`
+    gegen `main`.
+- **`ET_DATA_DIR`-Umgebungsvariable in `api.php`.** Der Storage-Pfad
+  ist jetzt per ENV überschreibbar (Fallback: `./data`). Ermöglicht
+  CI-Tests gegen `/tmp/etdata` ohne Änderung an produktivem Code.
+- **`DeliveryConsumptionService` (neue Klasse).** Die drei Delivery-
+  Berechnungsmethoden (`dailyDeliveryConsumption`, `dailyDeliveryStockDraw`,
+  `deliveryMeterStartDate`) wurden aus `ConsumptionService` in eine
+  eigenständige Klasse extrahiert. `ConsumptionService` delegiert über
+  schlanke Wrapper; das öffentliche API bleibt vollständig kompatibel.
+  Der interne Dispatch (`computeForDeliveryMeter`) nutzt einen
+  Lazy-Getter, der auch funktioniert, wenn `DeliveryConsumptionService`
+  nicht explizit injiziert wird — kein Breaking Change für bestehende
+  Aufrufer. `ConsumptionService` schrumpft dadurch um ~350 Zeilen.
+
+### Fixed
+
+- **`JsonStore::path()` Traversal-Schutz (Defense-in-Depth).** Nach dem
+  Pfadaufbau wird per `realpath` + Präfix-Check geprüft, dass der
+  resultierende Pfad innerhalb von `rootDir` liegt. Bisher war nur der
+  Service-Layer-Whitelist-Check in `Utilities::exists()` aktiv; der neue
+  Schutz auf Speicherebene ist unabhängig davon und fängt jeden Pfad ab,
+  der aus dem Datenverzeichnis ausbricht.
+- **`DiagnosticsService` Fallback-Version.** `'1.2.0'` → `'unknown'`.
+  Der Fallback tritt nur auf, wenn die `VERSION`-Datei fehlt; eine
+  konkrete veraltete Versionsnummer war irreführend.
+- **Demo-Daten `schema_version`.** `demo-data/meta.json` wurde auf
+  `"schema_version": "1.1.0"` aktualisiert und `demo-data/reminders.json`
+  angelegt. Damit startet eine Demo-Instanz ohne unnötige
+  Migrations-Durchläufe und der Migrator-Status ist konsistent mit dem
+  tatsächlichen Datenstand.
+
+### Changed
+
+- **`tests/backend-shape.test.js` → `tests/frontend-api-shape.test.js`.**
+  Datei umbenannt — der neue Name spiegelt die tatsächliche Perspektive
+  wider (Frontend-seitige Erwartungen an die API-Shapes, nicht
+  Backend-interne Prüfung). Leerer `loadModule`-Stub entfernt (war
+  toter, nie aufgerufener Code). `tests/README.md` entsprechend
+  aktualisiert.
+- **Stale Versions-Kommentare bereinigt.** `utility.js` (trug `v1.0.2`),
+  `api.js` (`v1.2.0`) und `api.php` (`v1.2.0`) trugen veraltete
+  Versionsnummern im Datei-Header. Kommentare auf neutralen Text ohne
+  konkrete Versionsnummer umgestellt — die kanonische Quelle ist
+  `VERSION`.
+
+### Internal
+
+- `src/bootstrap.php` initialisiert `DeliveryConsumptionService` explizit
+  vor `ConsumptionService` und übergibt es als Abhängigkeit.
+- `ConsumptionService`-Konstruktor hat neuen optionalen Parameter
+  `?DeliveryConsumptionService $deliveryConsumption = null` (abwärtskompatibel).
+
+---
+
 ## [1.4.3] — 2026-05-16 — Sigmoid in der Analyse, Vertragslogik je Energieart, valides Doku-Markdown, korrekter App-Name
 
 ### Fixed

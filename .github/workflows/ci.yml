@@ -1,0 +1,95 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test:
+    name: Backend-Shape & Browser-Render Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP einrichten (8.4)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, json
+          coverage: none
+
+      - name: Node.js einrichten (20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: jsdom installieren
+        run: npm install jsdom
+
+      - name: Demo-Daten vorbereiten
+        run: cp -r demo-data /tmp/etdata
+
+      - name: Migrations-Smoke (1.0.0 → aktuelles Schema)
+        run: |
+          # Separater Datensatz mit künstlich heruntergesetztem Schema,
+          # damit der Migrationspfad weiterhin in der CI durchlaufen wird
+          # (Demo-Daten selbst tragen seit v1.4.4 bereits 1.1.0).
+          cp -r demo-data /tmp/etmigrate
+          php -r '$f="/tmp/etmigrate/meta.json";
+            $m=json_decode(file_get_contents($f),true);
+            $m["schema_version"]="1.0.0"; unset($m["log"]);
+            file_put_contents($f,json_encode($m));'
+          rm -f /tmp/etmigrate/reminders.json
+          php -r 'require "src/bootstrap.php";
+            $s=new \Energietracker\Storage\JsonStore("/tmp/etmigrate");
+            $mig=new \Energietracker\Storage\Migrator($s);
+            if(!$mig->needsMigration()){fwrite(STDERR,"erwartete Migration nicht erkannt\n");exit(1);}
+            $mig->migrate();
+            $v=$s->read("meta.json",[])["schema_version"]??"?";
+            if($v!=="1.1.0"){fwrite(STDERR,"Schema nach Migration: $v (erwartet 1.1.0)\n");exit(1);}
+            if(!$s->exists("reminders.json")){fwrite(STDERR,"reminders.json fehlt nach Migration\n");exit(1);}
+            echo "Migrations-Smoke OK: 1.0.0 -> $v\n";'
+
+      - name: Backend-Testserver starten
+        run: |
+          php -S 127.0.0.1:8899 -t . api.php &
+          # Kurz warten bis der Server bereit ist
+          sleep 1
+          curl -sf http://127.0.0.1:8899/api/settings > /dev/null
+        env:
+          ET_DATA_DIR: /tmp/etdata
+
+      - name: Frontend-API-Shape-Tests
+        run: node tests/frontend-api-shape.test.js
+        env:
+          ET_TEST_HOST: http://127.0.0.1:8899
+          ET_DATA_DIR: /tmp/etdata
+
+      - name: Browser-Render-Tests
+        run: |
+          node \
+            --import='data:text/javascript,import{register}from"node:module";import{pathToFileURL}from"node:url";register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
+            tests/browser-render.test.mjs
+        env:
+          ET_TEST_HOST: http://127.0.0.1:8899
+          ET_DATA_DIR: /tmp/etdata
+
+  lint-php:
+    name: PHP Syntax-Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP einrichten (8.4)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, json
+          coverage: none
+
+      - name: Syntax aller PHP-Dateien prüfen
+        run: find . -name "*.php" -not -path "./.git/*" | xargs -P4 -I{} php -l {}

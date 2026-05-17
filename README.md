@@ -2,7 +2,7 @@
 
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.4.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.4.4-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -25,7 +25,7 @@ End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v1.4.3 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.4.4 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -165,6 +165,9 @@ PDF-Jahresbericht.
   in `localStorage`.
 - **System-Diagnose** unter Einstellungen: PHP-Version, Datenverzeichnis,
   Schreibrechte, Schema-Version, Anzahl Zähler/Ablesungen pro Utility.
+- **CI-Pipeline** (GitHub Actions, seit v1.4.4): PHP-Syntax-Lint aller
+  Dateien plus Frontend-API-Shape- und Browser-Render-Tests gegen einen
+  echten Backend-Server bei jedem Push/PR auf `main`.
 
 ---
 
@@ -381,7 +384,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.2.0"
+├── VERSION                  ← „1.4.4"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE
@@ -393,13 +396,13 @@ energietracker/
 ├── src/                     ← PHP backend
 │   ├── bootstrap.php        ← App-Container, Routing
 │   ├── Config/
-│   │   └── Utilities.php    ← Single source of truth für gas/strom/wasser
+│   │   └── Utilities.php    ← Single source of truth für alle 6 Energiearten
 │   ├── Http/                ← Router, Request, Response, ErrorHandler
 │   ├── Storage/
 │   │   ├── JsonStore.php    ← LOCK_EX writes, atomic reads
 │   │   └── Migrator.php     ← Bootstrap-Logik für leeres `data/`
-│   ├── Services/            ← 15 Services (Consumption, Forecast, ReadingImport, CsvExport, …)
-│   └── Controllers/         ← 12 Controllers, 1 Klasse pro Datei
+│   ├── Services/            ← 22 Services (Consumption, DeliveryConsumption, Forecast, …)
+│   └── Controllers/         ← 18 Controllers, 1 Klasse pro Datei
 ├── public/
 │   ├── css/                 ← tokens.css + app.css + components.css
 │   └── js/                  ← Vanilla-JS SPA

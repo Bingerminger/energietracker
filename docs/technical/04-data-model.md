@@ -167,9 +167,14 @@ Gruppen (Auswahl der Default-Werte):
 - legt **vor** dem ersten Schreiben einen Sicherheits-Snapshot an,
 - hebt die Version schrittweise auf den aktuellen Stand (**1.1.0**).
 
-Die Demo-Daten tragen bewusst `schema_version: 1.0.0`, damit der
-Migrationspfad bei jedem Demo-Start real durchlaufen und mitgetestet
-wird. Ein Downgrade wird nicht unterstützt.
+Die Demo-Daten tragen seit **v1.4.4** `schema_version: 1.1.0` und
+enthalten alle in 1.1.0 erwarteten Dateien (inkl. `reminders.json`
+sowie der Verzeichnisse für Fernwärme/Heizöl/Pellets). Dadurch startet
+eine Demo-Instanz **ohne** Migrationslauf und ist konsistent mit dem
+realen Datenstand. *(Bis v1.4.3 trugen die Demo-Daten bewusst
+`1.0.0`, um den Migrationspfad bei jedem Start mitzutesten — dieser
+Pfad wird seit v1.4.4 stattdessen in der CI über einen separaten
+Migrations-Smoke geprüft.)* Ein Downgrade wird nicht unterstützt.
 
 ---
 

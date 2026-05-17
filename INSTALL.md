@@ -19,7 +19,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 1.4.3
+├── VERSION                ← 1.4.4
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein
@@ -48,6 +48,20 @@ php -S 127.0.0.1:8080
 
 Im Browser <http://127.0.0.1:8080> aufrufen. Beim ersten Request
 initialisiert die App das `data/`-Verzeichnis automatisch.
+
+### Datenverzeichnis verschieben (optional)
+
+Standardmäßig liegt der JSON-Speicher unter `./data` relativ zu
+`api.php`. Mit der Umgebungsvariable `ET_DATA_DIR` lässt sich ein
+beliebiger absoluter Pfad erzwingen (seit v1.4.4) — nützlich für
+getrennte Daten-/Code-Mounts oder mehrere Instanzen:
+
+```bash
+ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080
+```
+
+Bei Apache/nginx wird die Variable über `SetEnv` bzw.
+`fastcgi_param ET_DATA_DIR …` gesetzt.
 
 ## Produktiv: Apache
 
@@ -104,10 +118,20 @@ server {
 
 ```bash
 find data/ -mindepth 1 -not -name '.gitkeep' -delete
-mkdir -p data/gas data/strom data/wasser data/backups
-cp -r demo-data/gas demo-data/strom demo-data/wasser data/
-cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
+cp -r demo-data/gas demo-data/strom demo-data/wasser \
+      demo-data/fernwaerme demo-data/heizoel demo-data/pellets data/
+mkdir -p data/backups
+cp demo-data/meta.json demo-data/settings.json \
+   demo-data/temperatures.json demo-data/reminders.json data/
 ```
+
+> Alternativ einfach das gesamte Verzeichnis kopieren — der Migrator
+> ist idempotent und der Demo-Datensatz trägt bereits `schema_version
+> 1.1.0` (seit v1.4.4), sodass kein Migrationslauf nötig ist:
+>
+> ```bash
+> rm -rf data && cp -r demo-data data
+> ```
 
 ## Migration aus v0.9.0
 

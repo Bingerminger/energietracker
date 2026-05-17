@@ -62,9 +62,11 @@ rm -rf data && cp -r demo-data data
 php -S 127.0.0.1:8080
 ```
 
-Der Migrator hebt die Demo-Daten beim ersten Start von Schema 1.0.0 auf
-1.1.0 — die Demo-Dateien selbst bleiben auf 1.0.0, damit der
-Migrationspfad mitgetestet wird.
+Die Demo-Daten tragen seit v1.4.4 bereits `schema_version: 1.1.0` und
+enthalten alle erwarteten Dateien — eine Demo-Instanz startet daher
+**ohne** Migrationslauf. Der Migrationspfad (1.0.0 → 1.1.0) wird
+weiterhin abgesichert, jetzt über einen separaten Migrations-Smoke in
+der CI statt über den Demo-Start.
 
 ---
 
@@ -115,6 +117,24 @@ Der Webserver-Benutzer braucht **Schreibrecht** auf `data/` (inklusive
 Zugriffe sich nicht gegenseitig zerstören. Die System-Diagnose
 (`Einstellungen → Diagnose`, bzw. `GET /api/diagnostics`) zeigt an, ob
 die Schreibrechte korrekt gesetzt sind.
+
+### 3.4 Datenverzeichnis verschieben (`ET_DATA_DIR`)
+
+Standardmäßig liegt der JSON-Speicher unter `./data` relativ zu
+`api.php`. Seit **v1.4.4** kann die Umgebungsvariable `ET_DATA_DIR`
+einen beliebigen absoluten Pfad erzwingen — sinnvoll für getrennte
+Daten-/Code-Mounts, mehrere Instanzen oder schreibgeschützte
+Code-Deployments:
+
+```bash
+ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080
+```
+
+Bei Apache via `SetEnv ET_DATA_DIR /srv/…` im VirtualHost, bei nginx +
+PHP-FPM via `fastcgi_param ET_DATA_DIR /srv/…;`. Fehlt die Variable,
+bleibt es beim Standardpfad `./data` — vollständig abwärtskompatibel.
+Der `realpath`-Traversal-Schutz in `JsonStore` (ebenfalls v1.4.4)
+greift unabhängig vom gewählten Verzeichnis.
 
 ---
 

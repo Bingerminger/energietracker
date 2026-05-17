@@ -8,7 +8,11 @@ Philosophie. Zwei sich ergänzende Harnesses unter `tests/`, Node ≥ 20 +
 
 ---
 
-## 1. `backend-shape.test.js`
+## 1. `frontend-api-shape.test.js`
+
+*(bis v1.4.3 `backend-shape.test.js` — in v1.4.4 umbenannt, da der
+Name die Frontend-seitige Perspektive widerspiegeln soll; der leere
+`loadModule`-Stub wurde entfernt.)*
 
 Prüft, dass die API exakt die Datenstrukturen liefert, die das Frontend
 erwartet (Feldnamen, Typen, Hüllen). Hintergrund: mehrere historische
@@ -43,27 +47,30 @@ nicht über den Browser-Graphen). Der HTTP-Crawl fängt es.
 ## 3. Ausführen
 
 ```bash
-# 1. Testdaten + Migration
+# 1. Testdaten (Demo-Datensatz trägt seit v1.4.4 schema_version 1.1.0 —
+#    kein Migrationslauf nötig)
 cp -r demo-data /tmp/etdata
-php -r 'require "src/bootstrap.php";
-  (new \Energietracker\Storage\Migrator(
-     new \Energietracker\Storage\JsonStore("/tmp/etdata")))->migrate();'
 
-# 2. Server, der API UND statische JS ausliefert (router.php-Muster,
-#    SCRIPT_NAME auf /api.php gesetzt — Details im tests/README.md)
-php -S 127.0.0.1:8899 router.php &
+# 2. Server, der API UND statische JS ausliefert; ET_DATA_DIR lenkt
+#    den Speicher auf das Testverzeichnis (seit v1.4.4)
+ET_DATA_DIR=/tmp/etdata php -S 127.0.0.1:8899 -t . api.php &
 
 # 3. Tests
-node tests/backend-shape.test.js
+node tests/frontend-api-shape.test.js
 node --import='data:text/javascript,import{register}from"node:module";\
 import{pathToFileURL}from"node:url";\
 register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v1.4.2:
-**Backend-Shape 9/9**, **Browser-Render 24/24** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v1.4.4:
+**Frontend-API-Shape 9/9**, **Browser-Render 28/28** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle).
+
+Seit v1.4.4 läuft genau diese Sequenz automatisiert in der
+**CI-Pipeline** (`.github/workflows/ci.yml`) bei jedem Push und Pull
+Request gegen `main` — zusätzlich zu einem PHP-Syntax-Lint aller
+`*.php`-Dateien (`php -l`).
 
 ---
 

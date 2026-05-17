@@ -1,4 +1,10 @@
-# Architektur v1.2.0
+# Architektur (Kurzfassung)
+
+> **Hinweis:** Die kanonische, bei jedem Release gepflegte
+> Architektur-Dokumentation ist das Kompendium unter
+> [`docs/technical/02-architecture.md`](technical/02-architecture.md).
+> Dieses ältere Top-Level-Dokument wird nur noch faktisch
+> nachgeführt (Stand: v1.4.4) und bietet eine kompakte Übersicht.
 
 Aufbau, Datenfluss und Kernalgorithmen des Energietrackers.
 
@@ -18,7 +24,7 @@ Aufbau, Datenfluss und Kernalgorithmen des Energietrackers.
                           └──┬───────────────┬──────────────┘
                              │               │
               ┌──────────────▼──────┐  ┌─────▼──────────────────┐
-              │  Controllers (12)   │  │   Services (15)        │
+              │  Controllers (18)   │  │   Services (22)        │
               │  - 1 Klasse / Datei │  │   - Reine Domain-      │
               │  - dünner Adapter   │  │     Logik              │
               │  - keine Logik      │  │   - kein HTTP-Wissen   │
@@ -102,9 +108,10 @@ und kennt kein HTTP. Aufruf-Sicht von außen geht über die Controller.
 | `ReadingService` | CRUD von Readings, Auto-Zuweisung von `device_id` zum aktiven Device |
 | `ContractService` | CRUD von Verträgen, F4-strikte Validierung, `valueValidOn(...)` für Stichtag-Lookup, `bonusForMonth(...)` |
 | `ConsumptionService` | Monatsaggregation, F2-Device-Bridging, F3-Multi-Meter-Aggregation, **`contractStatus()`** für Saldo-Karte; F-03 Abrechnungszyklus-Projektion offener Verträge, F-05 Vertragsende-Erinnerung, Schmutzwasser-`separater_zaehler`-Auflösung mit Rekursionssperre |
+| `DeliveryConsumptionService` | **(v1.4.4)** Tages-Verbrauchsverteilung & Tank-Bestandsabzug für Heizöl/Pellets — aus `ConsumptionService` extrahiert |
 | `TemperatureService` | CSV-Import, Day-Map-Update |
 | `WeatherService` | Open-Meteo-API-Wrapper (Archive + Forecast) |
-| `RegressionService` | Vier Modelle (linear, polynomial, robust, segmented) + `fit()` Dispatcher + `predict()` |
+| `RegressionService` | Fünf Modelle (linear, polynomial, robust, segmented, sigmoid) + `fit()` Dispatcher + `predict()` |
 | `ForecastService` | R²-gewichtete Mischung aus Regression und Saisonprofil über 12 Monate; F-02 vertragsbasierte Kostenprognose (`projectMonthFinances()`) mit projiziertem Abschlag und laufendem Saldo |
 | `AnomalyService` | Z-Score-basierte Ausreißerdetektion |
 | `BackupService` | Export/Import im 3.0-Format, Snapshot-Erzeugung |

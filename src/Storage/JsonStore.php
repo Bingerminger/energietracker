@@ -25,7 +25,15 @@ final class JsonStore
 
     public function path(string $relative): string
     {
-        return $this->rootDir . '/' . ltrim($relative, '/');
+        $path = $this->rootDir . '/' . ltrim($relative, '/');
+        // Defense-in-depth: resolve and assert that the resulting path stays
+        // inside rootDir. This catches any '../' traversal attempts that slip
+        // through the Service-layer whitelist validation.
+        $resolved = realpath($path);
+        if ($resolved !== false && !str_starts_with($resolved . '/', $this->rootDir . '/')) {
+            throw new \InvalidArgumentException('Ungültiger Speicherpfad: ' . $relative);
+        }
+        return $path;
     }
 
     /** @return mixed default if file missing */

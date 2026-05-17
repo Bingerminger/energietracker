@@ -1,5 +1,5 @@
 // =====================================================================
-// Energietracker v1.0.2 — Utility view (Gas/Strom/Wasser)
+// Energietracker — Utility view (Gas/Strom/Wasser/Fernwärme/Heizöl/Pellets)
 // Restored v0.9.0 layout:
 //   1. Status-Banner (overdue alert / OK)
 //   2. Year pills

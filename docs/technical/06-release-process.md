@@ -23,6 +23,13 @@ Beispiele aus der Historie:
 - v1.4.2 — Export neue Energiearten, Datumsformat, PDF-Kennzahlen,
   Gesamtbetrag-Vorrang, Logo, Kompendium → MINOR (additive Exporte +
   API-Erweiterung)
+- v1.4.3 — Sigmoid in der Analyse, Vertragslogik je Energieart,
+  Doku-Markdown, App-Name → PATCH (reine Fixes, kein neues Feature)
+- v1.4.4 — Audit-Härtung: Service-Extraktion (`DeliveryConsumptionService`,
+  intern, API unverändert), CI-Pipeline, `JsonStore`-Traversal-Schutz,
+  Demo-Daten-Schema, Test-Umbenennung → PATCH (kein neues
+  Nutzer-Feature, kein API-/Datenmodell-Bruch; rein Code-Qualität und
+  Operatives)
 
 ---
 
@@ -44,9 +51,11 @@ Beispiele aus der Historie:
    Verhalten/Modell → betroffenes `functional/*`; neue/­geänderte View
    → `ui/01-views.md` + Mockup; Migrationshinweise bei
    Datenmodell-Änderung in `technical/04-data-model.md`.
-6. **Tests** grün: `backend-shape` + `browser-render` (inkl.
-   Modulgraph-Vorprüfung). Bei Datenmodell-Änderung Demo-Daten und
-   Schemata mitziehen.
+6. **Tests** grün: `frontend-api-shape` + `browser-render` (inkl.
+   Modulgraph-Vorprüfung). Seit v1.4.4 laufen beide plus ein
+   PHP-Syntax-Lint automatisch in der CI (`.github/workflows/ci.yml`)
+   — der grüne CI-Lauf ist Voraussetzung fürs Taggen. Bei
+   Datenmodell-Änderung Demo-Daten und Schemata mitziehen.
 7. **Frischer Smoke aus der gepackten ZIP**: entpacken, Migration,
    Server, Kern-Endpunkte + die geänderten Pfade prüfen.
 8. **ZIP bauen** (Ausschluss: `.git`, `*.pyc`, `__pycache__`,
@@ -98,6 +107,13 @@ git push origin main --tags
 - **Modell-Doppelnutzung erkennen.** `dailyDeliveryConsumption` diente
   Kosten *und* Bestandskurve; die Endbestand-0-Annahme war für Kosten
   korrekt, für die Bestandskurve aber falsch → in v1.4.0 entkoppelt.
+- **Service-Extraktion ohne Breaking Change (v1.4.4).** Beim Herauslösen
+  von `DeliveryConsumptionService` wurde die öffentliche Signatur von
+  `ConsumptionService` bewahrt: neuer Konstruktor-Parameter ist
+  `?DeliveryConsumptionService = null`, ein Lazy-Getter erzeugt den
+  Service notfalls selbst. So brechen bestehende Aufrufer (Tests,
+  `DeliveryService::stockHistory()`) nicht. Faustregel: interne Refactors
+  dürfen die äußere API nicht zwingen, sich zu ändern.
 
 ---
 

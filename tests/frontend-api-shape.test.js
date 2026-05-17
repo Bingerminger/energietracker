@@ -1,6 +1,7 @@
-// JSDOM-Rendertest v1.3.0 — rendert die neuen Views gegen den echten
-// Backend-Server (php -S auf :8899) und prüft, dass ohne JS-Exception
-// sinnvoller DOM entsteht. Muster aus v1.1.0/v1.2.0 fortgeführt.
+// Frontend-API-Shape-Test — prüft, dass die Backend-Endpoints exakt die
+// Datenstrukturen liefern, die das Frontend erwartet. Benötigt einen
+// laufenden Backend-Server (php -S auf :8899).
+// v1.4.4: loadModule-Stub entfernt (war nicht-aufgerufener toter Code).
 const { JSDOM } = require('jsdom');
 const fs = require('fs');
 const path = require('path');
@@ -8,13 +9,6 @@ const path = require('path');
 const BASE = process.env.ET_TEST_HOST || 'http://127.0.0.1:8899';
 const ROOT = require('path').resolve(__dirname, '..');
 
-async function loadModule(dom, rel) {
-  // ES-Module im JSDOM-Kontext: per dynamic import über file:// + Rewrites.
-  // Einfacher: Quelltext lesen, api.js BASE-Rewrite, via vm evaluieren ist
-  // aufwendig. Stattdessen: echten Browser-nahen Pfad simulieren mit
-  // dom.window + eval der transpilierten Module ist zu komplex — wir
-  // testen daher den DOM-Aufbau über fetch-gestützte Render-Aufrufe.
-}
 
 (async () => {
   const results = [];
