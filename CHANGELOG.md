@@ -6,6 +6,26 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.4.5] — 2026-05-17 — CI: Node-24-Action-Runtime
+
+### Fixed
+
+- **GitHub-Actions-Deprecation-Warnung behoben.** `actions/checkout`
+  und `actions/setup-node` von `@v4` auf `@v5` gehoben. Die `@v4`-Tags
+  laufen intern auf Node.js 20, das von GitHub deprecated wurde (ab
+  2026-06-02 ist Node 24 Runner-Default, ab 2026-09-16 wird Node 20
+  entfernt). `@v5` ist die etablierte Node-24-Baseline. **Kein
+  funktionaler Eingriff** — die CI lief auch mit `@v4` grün durch
+  (es war eine Warnung, kein Fehler); der Bump entfernt sie und macht
+  die Pipeline zukunftssicher.
+- Bewusst **nicht** geändert: `node-version: "20"` im Test-Job (das ist
+  die Node-Version für die *Testausführung*, nicht die Action-Runtime
+  — die Test-Harnesses sind auf Node ≥ 20 ausgelegt) sowie
+  `shivammathur/setup-php@v2` (von der Deprecation nicht betroffen,
+  in GitHubs Warnung nicht gelistet).
+
+---
+
 ## [1.4.4] — 2026-05-17 — Code-Qualität, CI-Pipeline, Audit-Härtung
 
 ### Added

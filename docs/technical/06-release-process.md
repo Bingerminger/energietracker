@@ -30,6 +30,9 @@ Beispiele aus der Historie:
   Demo-Daten-Schema, Test-Umbenennung → PATCH (kein neues
   Nutzer-Feature, kein API-/Datenmodell-Bruch; rein Code-Qualität und
   Operatives)
+- v1.4.5 — CI-Actions auf Node-24-Runtime (`checkout`/`setup-node`
+  `@v4`→`@v5`) → PATCH (reine Build-Infrastruktur-Wartung, keine
+  Code-/Verhaltens-Änderung; behebt eine GitHub-Deprecation-Warnung)
 
 ---
 
@@ -114,6 +117,14 @@ git push origin main --tags
   Service notfalls selbst. So brechen bestehende Aufrufer (Tests,
   `DeliveryService::stockHistory()`) nicht. Faustregel: interne Refactors
   dürfen die äußere API nicht zwingen, sich zu ändern.
+- **CI-Action-Runtime im Blick behalten (v1.4.5).** GitHub deprecatet
+  periodisch die Node-Runtime, auf der Actions *selbst* laufen
+  (Node 20 → 24). Das ist unabhängig von der Node-Version, die man im
+  Workflow für die eigenen Tests einrichtet. Pinning auf Major-Tags
+  (`@v5` statt SHA) lässt GitHub Patch-Updates automatisch nachziehen;
+  beim Major-Bump prüfen, ob sich Verhalten ändert (z. B. `checkout@v6`
+  verlagerte die Credential-Ablage → für simple CI irrelevant, aber
+  bewusst entscheiden, nicht blind den neuesten Tag nehmen).
 
 ---
 
