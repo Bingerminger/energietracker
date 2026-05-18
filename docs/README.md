@@ -1,6 +1,6 @@
 # Energietracker — Kompendium
 
-> Vollständige Dokumentation zu Energietracker **v1.4.5**.
+> Vollständige Dokumentation zu Energietracker **v1.5.0**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit Mockups aller Ansichten.
 
@@ -39,6 +39,7 @@ auf dem eigenen Rechner.
 | [Szenario: Wohnungsnutzer](functional/07-szenario-wohnung.md) | Best Practices Mietwohnung |
 | [Szenario: Eigenheimbesitzer](functional/08-szenario-eigenheim.md) | Best Practices Eigenheim |
 | [Glossar & Formelsammlung](functional/09-glossar.md) | Alle Begriffe und Formeln kompakt |
+| [Sonderzahlungen (F1003)](functional/10-sonderzahlungen.md) | Rück-/Nachzahlung, Abschlagszahlung, Saldo-Wirkung |
 
 ### 🖥️ UI-Referenz
 
@@ -79,6 +80,6 @@ auf dem eigenen Rechner.
   Gedächtnis notiert.
 - Pfadangaben sind relativ zum Projektwurzelverzeichnis.
 
-Versionsstand dieses Kompendiums: **v1.4.5** (2026-05-17). Die Doku wird
+Versionsstand dieses Kompendiums: **v1.5.0** (2026-05-17). Die Doku wird
 ab v1.4.2 bei **jedem** Release synchron mitgeführt — siehe
 [Release-Prozess](technical/06-release-process.md).

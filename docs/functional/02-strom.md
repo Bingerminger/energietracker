@@ -35,6 +35,10 @@ Wie Gas: Arbeitspreis (ct/kWh), Grundpreis (€/Monat), Abschläge, Boni.
 Schattenverträge erlauben „Was hätte Tarif X gekostet?" auf den echten
 Verbrauch — ohne Saldo/Prognose zu verfälschen.
 
+Rück-/Nachzahlungen und zusätzliche Abschlagszahlungen werden als
+**[Sonderzahlungen](10-sonderzahlungen.md)** (F1003) erfasst und gehen
+in den Saldo ein.
+
 ## Typische Stolpersteine
 
 - **Erwartung einer Temperaturkorrelation.** Bei reinem Haushaltsstrom

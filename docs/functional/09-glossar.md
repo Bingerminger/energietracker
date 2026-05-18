@@ -25,6 +25,7 @@ in [Grundlagen & Methodik](00-overview.md).
 | **Blend** | R²-gewichtete Mischung Regression × Saisonprofil in der Prognose. |
 | **Saldo** | Geleistete Abschläge − tatsächliche Kosten. |
 | **Schattenvertrag** | Hypothetischer Tarif für „Was hätte das gekostet?" — ohne Saldo/Prognose-Wirkung. |
+| **Sonderzahlung** | F1003: Rück-/Nachzahlung oder zusätzliche Abschlagszahlung. Saldo = Kosten - Abschläge + (Σ Rückzahlung - Σ Nachzahlung - Σ Abschlagszahlung). "mit Auswirkung" setzt zusätzlich den künftigen Abschlag. Nur Gas/Strom/Fernwärme. |
 | **Effizienzklasse** | kWh/m²·a-Einordnung der Heizenergie (A+…H), seit v1.4.0 pro Quelle. |
 | **Grundlast** | Wetterunabhängiger Sockel (Warmwasser, Standby). |
 | **Anomalie** | Monat mit Z-Score-Abweichung über Schwelle. |

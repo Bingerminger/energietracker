@@ -33,6 +33,9 @@ Beispiele aus der Historie:
 - v1.4.5 — CI-Actions auf Node-24-Runtime (`checkout`/`setup-node`
   `@v4`→`@v5`) → PATCH (reine Build-Infrastruktur-Wartung, keine
   Code-/Verhaltens-Änderung; behebt eine GitHub-Deprecation-Warnung)
+- v1.5.0 — F1003 Sonderzahlungen (Rück-/Nachzahlung, Abschlagszahlung)
+  → MINOR (neues, abwärtskompatibles Feature; additive Datenstruktur,
+  kein Migrationsschritt, Schema unverändert 1.1.0)
 
 ---
 
@@ -125,6 +128,15 @@ git push origin main --tags
   beim Major-Bump prüfen, ob sich Verhalten ändert (z. B. `checkout@v6`
   verlagerte die Credential-Ablage → für simple CI irrelevant, aber
   bewusst entscheiden, nicht blind den neuesten Tag nehmen).
+- **Additives Feature ohne Migration (v1.5.0, F1003).** `special_payments`
+  wurde wie `bonuses` als optionales Array modelliert, das beim
+  Normalisieren auf `[]` defaultet. Dadurch funktionieren Bestands­
+  verträge ohne das Feld unverändert — kein Migrationsschritt, Schema
+  bleibt 1.1.0. Faustregel: ein neues Vertrags-Unterfeld additiv und
+  default-`[]` halten, dann ist es per Konstruktion abwärtskompatibel.
+  Scope-Gating gehört in `Utilities` (Single Source of Truth:
+  `hasAdvancePaymentContracts()`), nicht in hartkodierte Utility-Listen
+  in Service/Frontend.
 
 ---
 

@@ -30,6 +30,10 @@ Arbeitspreis (ct/kWh) + Grundpreis (€/Monat, oft als Leistungspreis).
 Preisänderungen werden über die `working_prices`/`base_prices`-Historie
 mit Forward-Fill korrekt zeitlich zugeordnet.
 
+Rück-/Nachzahlungen und zusätzliche Abschlagszahlungen werden als
+**[Sonderzahlungen](10-sonderzahlungen.md)** (F1003) erfasst und gehen
+in den Saldo ein.
+
 ## Typische Stolpersteine
 
 - **Grundpreis unterschätzt**: Bei Fernwärme ist der fixe Anteil oft

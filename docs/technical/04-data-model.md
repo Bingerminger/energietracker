@@ -114,6 +114,11 @@ Gesamtbetrag gesetzt ist, wird `unit_price_cents` genutzt.
   "bonuses":          [ { "credit_date": "2024-01-15",
                           "amount_eur": 60, "type": "wechselbonus",
                           "label": "Neukundenbonus" } ],
+  "special_payments": [ { "id": "sp_…", "date": "2024-03-15",
+                          "kind": "rueckzahlung_mit",
+                          "amount_eur": 142.5, "note": "JA 2023",
+                          "new_advance_eur": 95,
+                          "advance_from": "2024-04-01" } ],
   "is_shadow": false, "shadow_label": null
 }
 ```
@@ -122,6 +127,17 @@ Gesamtbetrag gesetzt ist, wird `unit_price_cents` genutzt.
 **weder** Saldo **noch** Prognose. Wasser nutzt zusätzlich ein
 Drei-Komponenten-Modell (Trink-/Schmutz-/Niederschlagswasser), siehe
 [Wasser](../functional/03-wasser.md).
+
+**`special_payments` (F1003, ab v1.5.0)** — nur bei Gas/Strom/Fernwärme
+(Single-Source-of-Truth: `Utilities::hasAdvancePaymentContracts()`).
+`kind` ∈ {`rueckzahlung_mit`, `rueckzahlung_ohne`, `nachzahlung_mit`,
+`nachzahlung_ohne`, `abschlagszahlung`}. `amount_eur` ist stets positiv;
+das Vorzeichen im Saldo ergibt sich aus `kind` (Rückzahlung erhöht den
+Saldo, Nach-/Abschlagszahlung senkt ihn). Nur `*_mit`-Arten tragen
+`new_advance_eur` + `advance_from`; diese Punkte werden in den
+effektiven Abschlagsplan gemischt. Additiv & abwärtskompatibel — fehlt
+das Feld, wird es beim Normalisieren zu `[]` (kein Migrationsschritt,
+Schema bleibt 1.1.0).
 
 ---
 

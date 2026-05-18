@@ -57,7 +57,27 @@
         "amount_eur": 145.0
       }
     ],
-    "bonuses": []
+    "bonuses": [],
+    "special_payments": [
+      {
+        "id": "sp_demo_rz24",
+        "date": "2024-03-15",
+        "kind": "rueckzahlung_mit",
+        "amount_eur": 142.5,
+        "note": "Jahresabrechnung 2023 — Guthaben, Abschlag gesenkt",
+        "new_advance_eur": 95.0,
+        "advance_from": "2024-04-01"
+      },
+      {
+        "id": "sp_demo_az24",
+        "date": "2024-09-01",
+        "kind": "abschlagszahlung",
+        "amount_eur": 100.0,
+        "note": "Freiwillige Zusatzzahlung vor dem Winter",
+        "new_advance_eur": null,
+        "advance_from": null
+      }
+    ]
   },
   {
     "id": "c_gas_003",

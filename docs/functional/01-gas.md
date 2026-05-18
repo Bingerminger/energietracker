@@ -43,6 +43,10 @@ Gas hat klassische Lieferverträge: Arbeitspreis (ct/kWh), Grundpreis
 ihre Laufzeiten korrekt verkettet; der Saldo zeigt Stand heute und
 erwartete Endsaldierung bis zum Abrechnungsstichtag.
 
+Rück-/Nachzahlungen und zusätzliche Abschlagszahlungen werden als
+**[Sonderzahlungen](10-sonderzahlungen.md)** (F1003) erfasst und gehen in
+den Saldo ein.
+
 ## Typische Stolpersteine
 
 - **Falscher Brennwertfaktor** → Kosten stimmen nicht. Immer von der

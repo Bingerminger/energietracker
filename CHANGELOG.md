@@ -6,6 +6,68 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.5.0] — 2026-05-17 — F1003: Sonderzahlungen
+
+### Added
+
+- **F1003 — Sonderzahlungen bei vertragsrelevanten Energieträgern**
+  (Gas, Strom, Fernwärme). Pro Standard-Vertrag lässt sich eine Liste
+  von Sonderzahlungen pflegen, mit exakt fünf Arten:
+  1. **Rückzahlung (mit Auswirkung auf Abschlagszahlungen)** — Guthaben
+     vom Versorger; setzt zusätzlich einen neuen Monatsabschlag ab
+     Stichtag.
+  2. **Rückzahlung (ohne Auswirkung auf Abschlagszahlungen)** — reine
+     Gutschrift, Abschlag unverändert.
+  3. **Nachzahlung (mit Auswirkung auf Abschlagszahlungen)** — Zuzahlung
+     nach Abrechnung; setzt zusätzlich einen neuen Monatsabschlag.
+  4. **Nachzahlung (ohne Auswirkung auf Abschlagszahlungen)** — reine
+     Zuzahlung, Abschlag unverändert.
+  5. **Abschlagszahlung** — zusätzliche/einmalige Abschlagszahlung des
+     Kunden.
+- **Saldo-Integration.** Der Saldo rechnet jetzt
+  `Kosten − gezahlte Abschläge + Sonderzahlungs-Netto`, wobei
+  `Netto = Σ Rückzahlung − Σ Nachzahlung − Σ Abschlagszahlung`.
+  Rückzahlungen gleichen eine Überzahlung aus (Saldo steigt),
+  Nach-/Abschlagszahlungen senken die Schuld.
+- **„mit Auswirkung auf Abschlagszahlungen".** Solche Einträge tragen
+  zusätzlich `new_advance_eur` + `advance_from`. Diese Punkte werden in
+  den effektiven Abschlagsplan (`ContractService::effectiveAdvance‐
+  Schedule()`) gemischt; jede monatliche Abschlagsbildung greift
+  automatisch — ohne Sonderlogik in der Saldo-Aggregation.
+- **UI.** Neue Sektion „Sonderzahlungen" im Vertragsformular (nur
+  Gas/Strom/Fernwärme), mit 5-Arten-Auswahl und kontextabhängig
+  eingeblendeten Abschlagsfeldern. Die Saldo-Karte weist
+  Rückzahlung/Nachzahlung/Abschlagszahlung getrennt aus; die
+  Vertragskarte zeigt die Anzahl.
+- **Validierung** (F4-analog): leere Zeilen werden still verworfen,
+  halb-gefüllte Datum/Betrag-Zeilen abgelehnt, unbekannte Arten
+  abgelehnt, `*_mit` mit nur einem von neuem-Abschlag/Stichtag
+  abgelehnt. Beträge werden auf positiv erzwungen (Vorzeichen ergibt
+  sich aus der Art).
+
+### Internal
+
+- `Utilities::hasAdvancePaymentContracts()` als Single-Source-of-Truth
+  für den F1003-Scope (kumulativ und nicht Wasser → Gas/Strom/
+  Fernwärme). Frontend spiegelt dieselbe Logik.
+- `ContractService`: `normalizeSpecialPayments()`,
+  `effectiveAdvanceSchedule()`, `specialPaymentSummary()`.
+- `ConsumptionService` nutzt im Standard-Pfad den effektiven
+  Abschlagsplan statt `advance_payments` direkt; Wasser-Pfad
+  unverändert (No-op, da Wasser keine Sonderzahlungen hat).
+- `contractStatus()` liefert zusätzlich `special_refund_total`,
+  `special_surcharge_total`, `special_advance_total`,
+  `special_payment_net`, `special_payments_count`.
+
+### Migration
+
+- **Kein Migrationsschritt nötig.** `special_payments` ist additiv und
+  defaultet beim Normalisieren auf `[]` (gleiches Muster wie
+  `bonuses`). Bestandsverträge ohne das Feld funktionieren unverändert.
+  Schema bleibt **1.1.0** (abwärtskompatibel).
+
+---
+
 ## [1.4.5] — 2026-05-17 — CI: Node-24-Action-Runtime
 
 ### Fixed

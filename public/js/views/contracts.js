@@ -18,6 +18,26 @@ const GROUPS = [
   { key: 'advance_payments', title: 'Abschlag',        dateKey: 'from', amountKey: 'amount_eur',  amountLabel: '€/Monat', step: '0.01' },
 ];
 
+// F1003 — Sonderzahlungs-Arten (1:1 zur fachlichen Spezifikation).
+// Die *_mit-Arten verändern zusätzlich den künftigen Abschlag.
+const SPECIAL_PAYMENT_KINDS = [
+  { value: 'rueckzahlung_mit',  label: 'Rückzahlung (mit Auswirkung auf Abschläge)',  affectsAdvance: true  },
+  { value: 'rueckzahlung_ohne', label: 'Rückzahlung (ohne Auswirkung auf Abschläge)', affectsAdvance: false },
+  { value: 'nachzahlung_mit',   label: 'Nachzahlung (mit Auswirkung auf Abschläge)',  affectsAdvance: true  },
+  { value: 'nachzahlung_ohne',  label: 'Nachzahlung (ohne Auswirkung auf Abschläge)', affectsAdvance: false },
+  { value: 'abschlagszahlung',  label: 'Abschlagszahlung',                            affectsAdvance: false },
+];
+const SPECIAL_KIND_AFFECTS_ADVANCE = new Set(
+  SPECIAL_PAYMENT_KINDS.filter(k => k.affectsAdvance).map(k => k.value)
+);
+
+// F1003-Scope (Spiegel von Utilities::hasAdvancePaymentContracts):
+// Standard-Abschlagsvertrag = kumulativ und nicht Wasser → Gas, Strom,
+// Fernwärme. Heizöl/Pellets (delivery) und Wasser bleiben außen vor.
+function hasAdvancePaymentContracts(u) {
+  return (u?.reading_kind || 'cumulative') === 'cumulative' && u?.key !== 'wasser';
+}
+
 export async function render(container, params) {
   const utilityKey = params[0];
   const u = await getUtility(utilityKey);
@@ -139,6 +159,9 @@ function renderContractCard(c, meters, u) {
       `${(c.base_prices?.length || 0)} Grundpreise`,
       `${(c.advance_payments?.length || 0)} Abschläge`,
       `${(c.bonuses?.length || 0)} Boni`,
+      ...(hasAdvancePaymentContracts(u)
+          ? [`${(c.special_payments?.length || 0)} Sonderzahlungen`]
+          : []),
     ].join(' · ');
   }
   return `
@@ -172,6 +195,7 @@ async function openContractModal(u, meters, existing) {
       base_prices:    [{ from: '', eur_per_month: '' }],
       advance_payments:[{ from: '', amount_eur: '' }],
       bonuses:        [],
+      special_payments: [],
     };
 
     const body = document.createElement('div');
@@ -211,6 +235,8 @@ async function openContractModal(u, meters, existing) {
         ${GROUPS.map(g => renderGroupSection(g, initial[g.key] || [])).join('')}
 
         ${renderBonusSection(initial.bonuses || [])}
+
+        ${hasAdvancePaymentContracts(u) ? renderSpecialPaymentSection(initial.special_payments || []) : ''}
       </form>
     `;
 
@@ -246,6 +272,8 @@ async function openContractModal(u, meters, existing) {
         catch (e) { console.warn('contract modal: entry-group binding failed:', e); }
         try { bindBonusHandlers(modalEl); }
         catch (e) { console.warn('contract modal: bonus binding failed:', e); }
+        try { bindSpecialPaymentHandlers(modalEl); }
+        catch (e) { console.warn('contract modal: special-payment binding failed:', e); }
       }
     });
   });
@@ -425,6 +453,122 @@ function bindBonusRow(row) {
   });
 }
 
+// ───── F1003 — Sonderzahlungen ──────────────────────────────────────
+function renderSpecialPaymentSection(items) {
+  if (!Array.isArray(items)) items = [];
+  return `
+    <div class="entry-group" data-section="special">
+      <div class="entry-group__head">
+        <div class="entry-group__title">Sonderzahlungen</div>
+        <button type="button" class="btn btn--sm btn--ghost" data-action="add-special">+ Sonderzahlung</button>
+      </div>
+      <div class="muted" style="font-size:var(--fs-sm);margin:-4px 0 8px">
+        Rückzahlung, Nachzahlung oder zusätzliche Abschlagszahlung.
+        „mit Auswirkung" passt zusätzlich den künftigen Monatsabschlag an.
+      </div>
+      <div class="entries">
+        ${items.map(s => renderSpecialPaymentRow(s)).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function renderSpecialPaymentRow(s = {}) {
+  const kind = s.kind || 'abschlagszahlung';
+  const showAdvance = SPECIAL_KIND_AFFECTS_ADVANCE.has(kind);
+  return `
+    <div class="entry-row special-row" data-kind="${kind}">
+      <div class="field">
+        <label>Datum</label>
+        <input class="input" type="date" data-role="date" value="${s.date || ''}">
+      </div>
+      <div class="field">
+        <label>Betrag €</label>
+        <input class="input" type="number" step="0.01" min="0" data-role="amount" value="${s.amount_eur ?? ''}">
+      </div>
+      <div class="field">
+        <label>Art</label>
+        <select class="select" data-role="kind">
+          ${SPECIAL_PAYMENT_KINDS.map(k =>
+            `<option value="${k.value}" ${k.value === kind ? 'selected' : ''}>${k.label}</option>`
+          ).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Notiz</label>
+        <input class="input input--text" data-role="note" value="${escapeHtml(s.note || '')}">
+      </div>
+      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-special" title="Entfernen">×</button>
+      <div class="special-advance" data-role="advance-block"
+           style="${showAdvance ? '' : 'display:none'};flex-basis:100%;display:${showAdvance ? 'flex' : 'none'};gap:var(--sp-3);margin-top:var(--sp-2)">
+        <div class="field">
+          <label>Neuer Abschlag €/Monat</label>
+          <input class="input" type="number" step="0.01" min="0" data-role="new-advance" value="${s.new_advance_eur ?? ''}">
+        </div>
+        <div class="field">
+          <label>Abschlag gültig ab</label>
+          <input class="input" type="date" data-role="advance-from" value="${s.advance_from || ''}">
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindSpecialPaymentHandlers(modalEl) {
+  const sec = modalEl.querySelector('[data-section="special"]');
+  if (!sec) return;
+  sec.querySelector('[data-action="add-special"]')?.addEventListener('click', () => {
+    const wrap = document.createElement('div');
+    wrap.innerHTML = renderSpecialPaymentRow({});
+    const row = wrap.firstElementChild;
+    sec.querySelector('.entries')?.appendChild(row);
+    bindSpecialPaymentRow(row);
+  });
+  sec.querySelectorAll('.special-row').forEach(bindSpecialPaymentRow);
+}
+
+function bindSpecialPaymentRow(row) {
+  row.querySelector('[data-action="remove-special"]')?.addEventListener('click', () => row.remove());
+  const kindEl    = row.querySelector('[data-role="kind"]');
+  const advBlock  = row.querySelector('[data-role="advance-block"]');
+  const dateEl    = row.querySelector('[data-role="date"]');
+  const amountEl  = row.querySelector('[data-role="amount"]');
+  const naEl      = row.querySelector('[data-role="new-advance"]');
+  const afEl      = row.querySelector('[data-role="advance-from"]');
+
+  const syncAdvanceVisibility = () => {
+    const affects = SPECIAL_KIND_AFFECTS_ADVANCE.has(kindEl?.value);
+    if (advBlock) advBlock.style.display = affects ? 'flex' : 'none';
+    if (!affects) { // beim Wechsel auf "ohne" die Abschlagsfelder leeren
+      if (naEl) naEl.value = '';
+      if (afEl) afEl.value = '';
+    }
+    row.dataset.kind = kindEl?.value || '';
+  };
+  kindEl?.addEventListener('change', syncAdvanceVisibility);
+
+  // Halb-leer-Markierung Datum/Betrag (analog Bonus)
+  [dateEl, amountEl].filter(Boolean).forEach(i => {
+    i.addEventListener('input', () => {
+      const d = (dateEl?.value || '').trim() !== '';
+      const a = (amountEl?.value || '').trim() !== '';
+      const half = d !== a;
+      dateEl?.classList.toggle('invalid',   half && !d);
+      amountEl?.classList.toggle('invalid', half && !a);
+    });
+  });
+  // Halb-leer-Markierung der Abschlagsfelder (nur bei *_mit relevant)
+  [naEl, afEl].filter(Boolean).forEach(i => {
+    i.addEventListener('input', () => {
+      const n = (naEl?.value || '').trim() !== '';
+      const f = (afEl?.value || '').trim() !== '';
+      const half = n !== f;
+      naEl?.classList.toggle('invalid', half && !n);
+      afEl?.classList.toggle('invalid', half && !f);
+    });
+  });
+}
+
 // ───── Payload extraction ───────────────────────────────────────────
 function collectPayload(form) {
   const payload = {
@@ -460,6 +604,30 @@ function collectPayload(form) {
     bonusEntries.push({ credit_date: cd, amount_eur: am === '' ? '' : Number(am), type: tp, label: '' });
   });
   payload.bonuses = bonusEntries;
+
+  // F1003 — Sonderzahlungen
+  const specialEntries = [];
+  form.querySelectorAll('.special-row').forEach(row => {
+    const date = row.querySelector('[data-role="date"]').value.trim();
+    const am   = row.querySelector('[data-role="amount"]').value.trim();
+    const kind = row.querySelector('[data-role="kind"]').value;
+    const note = row.querySelector('[data-role="note"]')?.value.trim() || '';
+    if (!date && !am) return; // leere Vorlagezeile überspringen
+    const entry = {
+      date,
+      amount_eur: am === '' ? '' : Number(am),
+      kind,
+      note,
+    };
+    if (SPECIAL_KIND_AFFECTS_ADVANCE.has(kind)) {
+      const na = row.querySelector('[data-role="new-advance"]')?.value.trim() || '';
+      const af = row.querySelector('[data-role="advance-from"]')?.value.trim() || '';
+      entry.new_advance_eur = na === '' ? '' : Number(na);
+      entry.advance_from    = af;
+    }
+    specialEntries.push(entry);
+  });
+  payload.special_payments = specialEntries;
 
   return payload;
 }

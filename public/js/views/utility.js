@@ -323,6 +323,18 @@ function balanceCard(c, u) {
         return parts.length > 1 ? `<div class="balance-col__breakdown">${parts.join(' ')}</div>` : '';
       })();
 
+  // F1003 — Sonderzahlungen unter dem Abschlag ausweisen (nur wenn welche
+  // erfasst sind). Vorzeichen-Konvention: Rückzahlung erhöht den Saldo
+  // (Überzahlung wird ausgeglichen), Nach-/Abschlagszahlung senkt ihn.
+  const spCount = c.special_payments_count || 0;
+  const spParts = [];
+  if ((c.special_refund_total || 0) > 0)    spParts.push(`+ ${fmt.eur(c.special_refund_total)} Rückzahlung`);
+  if ((c.special_surcharge_total || 0) > 0) spParts.push(`− ${fmt.eur(c.special_surcharge_total)} Nachzahlung`);
+  if ((c.special_advance_total || 0) > 0)   spParts.push(`− ${fmt.eur(c.special_advance_total)} Abschlagszahlung`);
+  const specialHtml = spCount > 0
+    ? `<div class="balance-col__breakdown">${spParts.join(' ')}</div>`
+    : '';
+
   return `
     <div class="card card--${u.key}">
       <div class="card__title">⚖️ Saldo aktueller Vertrag — ${escapeHtml(c.provider || c.tariff_name || '–')}</div>
@@ -338,6 +350,7 @@ function balanceCard(c, u) {
           <div class="balance-col__label">Abschlag bezahlt</div>
           <div class="balance-col__value">${fmt.eur(c.advance_paid)}</div>
           <div class="balance-col__sub">aktuell: ${c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) + '/Monat' : '–'}</div>
+          ${specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${spCount} Sonderzahlung${spCount === 1 ? '' : 'en'}</div>${specialHtml}` : ''}
         </div>
         <div>
           <div class="balance-col__label">Aktueller Saldo</div>

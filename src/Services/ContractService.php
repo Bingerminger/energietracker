@@ -107,6 +107,12 @@ final class ContractService
             $base['working_prices']   = $input['working_prices']   ?? [];
             $base['base_prices']      = $input['base_prices']      ?? [];
             $base['advance_payments'] = $input['advance_payments'] ?? [];
+            // F1003 — Sonderzahlungen (nur Standard-Vertrags-Utilities mit
+            // Abschlags-Saldierung: Gas/Strom/Fernwärme). Bei Heizöl/Pellets
+            // existiert keine Abschlagslogik; das Array bleibt dort leer.
+            $base['special_payments'] = Utilities::hasAdvancePaymentContracts($utility)
+                ? ($input['special_payments'] ?? [])
+                : [];
             $contract = $this->normalize($base);
         }
 
@@ -125,6 +131,7 @@ final class ContractService
 
         $standardFields = ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                            'working_prices', 'base_prices', 'advance_payments', 'bonuses',
+                           'special_payments',
                            'is_shadow', 'shadow_label'];
         $waterFields    = ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                            'trinkwasser', 'schmutzwasser', 'niederschlagswasser',
@@ -175,6 +182,8 @@ final class ContractService
             $c[$group] = $this->normalizePriceList($c[$group] ?? [], $dateKey, $amountKey, $this->groupLabel($group));
         }
         $c['bonuses'] = $this->normalizeBonuses($c['bonuses'] ?? []);
+        // F1003 — Sonderzahlungen
+        $c['special_payments'] = $this->normalizeSpecialPayments($c['special_payments'] ?? []);
         return $c;
     }
 
@@ -325,6 +334,200 @@ final class ContractService
             'advance_payments' => 'Abschlag',
             default            => $group,
         };
+    }
+
+    // ── F1003 — Sonderzahlungen ──────────────────────────────────────────
+
+    /**
+     * Die fünf zulässigen Arten einer Sonderzahlung. Sie bilden exakt die
+     * fachliche Spezifikation ab:
+     *
+     *   rueckzahlung_mit   — Rückzahlung (Provider → Kunde), mit Auswirkung
+     *                        auf die künftigen Abschläge
+     *   rueckzahlung_ohne  — Rückzahlung, ohne Auswirkung auf Abschläge
+     *   nachzahlung_mit    — Nachzahlung (Kunde → Provider), mit Auswirkung
+     *   nachzahlung_ohne   — Nachzahlung, ohne Auswirkung
+     *   abschlagszahlung   — zusätzliche/einmalige Abschlagszahlung des
+     *                        Kunden (keine mit/ohne-Variante)
+     *
+     * Vorzeichen-Wirkung auf den Saldo (current_balance = Kosten −
+     * gezahlte Abschläge; positiv = Nachzahlung/Unterzahlung):
+     *   - Rückzahlung erhalten  → Saldo  += Betrag  (Überzahlung wird
+     *                              ausgeglichen / verringert)
+     *   - Nachzahlung geleistet → Saldo  −= Betrag  (Schuld verringert)
+     *   - Abschlagszahlung      → Saldo  −= Betrag  (wie zusätzlicher
+     *                              Abschlag)
+     *
+     * "mit Auswirkung auf Abschlagszahlungen" bedeutet, dass die Zeile
+     * zusätzlich einen neuen monatlichen Abschlag (`new_advance_eur`) ab
+     * einem Stichtag (`advance_from`) setzt. Diese synthetischen Punkte
+     * werden in {@see effectiveAdvanceSchedule()} in den Abschlagsplan
+     * gemischt — die monatliche Abschlagsberechnung in ConsumptionService
+     * bleibt dadurch unverändert und greift automatisch.
+     */
+    public const SPECIAL_PAYMENT_KINDS = [
+        'rueckzahlung_mit',
+        'rueckzahlung_ohne',
+        'nachzahlung_mit',
+        'nachzahlung_ohne',
+        'abschlagszahlung',
+    ];
+
+    /** Arten, die den künftigen Abschlag verändern dürfen. */
+    private const SPECIAL_KINDS_AFFECTING_ADVANCE = [
+        'rueckzahlung_mit',
+        'nachzahlung_mit',
+    ];
+
+    /**
+     * F4-analoge Validierung/Normalisierung der Sonderzahlungen.
+     *
+     *   - Zeile komplett leer (kein Datum, kein Betrag) → still verworfen
+     *   - Datum oder Betrag halb gefüllt                → Fehler
+     *   - unbekannte `kind`                             → Fehler
+     *   - `*_mit` mit nur einem von new_advance_eur /
+     *     advance_from gefüllt                          → Fehler
+     *   - Beträge werden als positiv erzwungen (das Vorzeichen ergibt
+     *     sich aus `kind`, nicht aus der Eingabe)
+     */
+    private function normalizeSpecialPayments(array $entries): array
+    {
+        $cleaned = [];
+        foreach ($entries as $i => $e) {
+            if (!is_array($e)) continue;
+            $date   = isset($e['date']) ? trim((string)$e['date']) : '';
+            $amount = $e['amount_eur'] ?? null;
+            $amountFilled = $amount !== null && $amount !== '' && $amount !== false;
+            $dateFilled   = $date !== '';
+            if (!$dateFilled && !$amountFilled) continue; // silent drop
+            $n = $i + 1;
+            if ($dateFilled !== $amountFilled) {
+                $missing = $dateFilled ? 'Betrag' : 'Datum';
+                throw new \InvalidArgumentException(
+                    "Sonderzahlung #$n: $missing fehlt"
+                );
+            }
+            $kind = (string)($e['kind'] ?? '');
+            if (!in_array($kind, self::SPECIAL_PAYMENT_KINDS, true)) {
+                throw new \InvalidArgumentException(
+                    "Sonderzahlung #$n: unbekannte Art \"$kind\""
+                );
+            }
+            $amt = abs((float)$amount); // Vorzeichen kommt aus kind
+
+            $row = [
+                'id'         => isset($e['id']) && $e['id'] !== ''
+                                ? (string)$e['id']
+                                : 'sp_' . bin2hex(random_bytes(5)),
+                'date'       => $date,
+                'kind'       => $kind,
+                'amount_eur' => $amt,
+                'note'       => (string)($e['note'] ?? ''),
+            ];
+
+            if (in_array($kind, self::SPECIAL_KINDS_AFFECTING_ADVANCE, true)) {
+                $na  = $e['new_advance_eur'] ?? null;
+                $af  = isset($e['advance_from']) ? trim((string)$e['advance_from']) : '';
+                $naFilled = $na !== null && $na !== '' && $na !== false;
+                $afFilled = $af !== '';
+                if ($naFilled !== $afFilled) {
+                    $missing = $naFilled ? 'Abschlag-Stichtag' : 'neuer Abschlagsbetrag';
+                    throw new \InvalidArgumentException(
+                        "Sonderzahlung #$n (mit Auswirkung): $missing fehlt"
+                    );
+                }
+                $row['new_advance_eur'] = $naFilled ? (float)$na : null;
+                $row['advance_from']    = $afFilled ? $af : null;
+            } else {
+                // ohne-Auswirkung-Arten und abschlagszahlung tragen keine
+                // Abschlagsänderung
+                $row['new_advance_eur'] = null;
+                $row['advance_from']    = null;
+            }
+            $cleaned[] = $row;
+        }
+        usort($cleaned, fn($a, $b) => strcmp($a['date'], $b['date']));
+        return $cleaned;
+    }
+
+    /**
+     * F1003 — der effektive Abschlagsplan eines Standard-Vertrags:
+     * `advance_payments` plus die synthetischen Punkte aus allen
+     * `*_mit`-Sonderzahlungen (new_advance_eur ab advance_from).
+     *
+     * Wird von ConsumptionService anstelle von `$c['advance_payments']`
+     * verwendet, damit "mit Auswirkung" automatisch in jede monatliche
+     * Abschlagsbildung einfließt — ohne Sonderlogik in der Saldo-
+     * Aggregation.
+     *
+     * @return array<int,array{from:string,amount_eur:float}>
+     */
+    public function effectiveAdvanceSchedule(array $contract): array
+    {
+        $schedule = [];
+        foreach ($contract['advance_payments'] ?? [] as $e) {
+            if (isset($e['from'], $e['amount_eur'])) {
+                $schedule[] = [
+                    'from'       => (string)$e['from'],
+                    'amount_eur' => (float)$e['amount_eur'],
+                ];
+            }
+        }
+        foreach ($contract['special_payments'] ?? [] as $sp) {
+            if (!in_array($sp['kind'] ?? '', self::SPECIAL_KINDS_AFFECTING_ADVANCE, true)) {
+                continue;
+            }
+            $from = $sp['advance_from']    ?? null;
+            $amt  = $sp['new_advance_eur'] ?? null;
+            if ($from === null || $from === '' || $amt === null) continue;
+            $schedule[] = [
+                'from'       => (string)$from,
+                'amount_eur' => (float)$amt,
+            ];
+        }
+        usort($schedule, fn($a, $b) => strcmp($a['from'], $b['from']));
+        return $schedule;
+    }
+
+    /**
+     * F1003 — aggregierte Wirkung der Sonderzahlungen eines Vertrags.
+     *
+     * @return array{
+     *   refund_total:float, surcharge_total:float, advance_total:float,
+     *   net:float, count:int
+     * }
+     *   refund_total    = Σ Rückzahlungen (Kunde erhält)
+     *   surcharge_total = Σ Nachzahlungen (Kunde zahlt zur Abrechnung)
+     *   advance_total   = Σ zusätzliche Abschlagszahlungen (Kunde zahlt)
+     *   net             = refund_total − surcharge_total − advance_total
+     *                     (Term, der in current_balance addiert wird)
+     */
+    public function specialPaymentSummary(array $contract): array
+    {
+        $refund = 0.0; $surcharge = 0.0; $advance = 0.0; $count = 0;
+        foreach ($contract['special_payments'] ?? [] as $sp) {
+            $amt  = abs((float)($sp['amount_eur'] ?? 0));
+            $kind = (string)($sp['kind'] ?? '');
+            if ($amt <= 0 && $kind === '') continue;
+            $count++;
+            switch ($kind) {
+                case 'rueckzahlung_mit':
+                case 'rueckzahlung_ohne':
+                    $refund += $amt; break;
+                case 'nachzahlung_mit':
+                case 'nachzahlung_ohne':
+                    $surcharge += $amt; break;
+                case 'abschlagszahlung':
+                    $advance += $amt; break;
+            }
+        }
+        return [
+            'refund_total'    => round($refund, 2),
+            'surcharge_total' => round($surcharge, 2),
+            'advance_total'   => round($advance, 2),
+            'net'             => round($refund - $surcharge - $advance, 2),
+            'count'           => $count,
+        ];
     }
 
     // ── Lookup helpers used by ConsumptionService ────────────────────────

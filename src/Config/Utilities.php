@@ -172,6 +172,18 @@ final class Utilities
         return array_values(array_filter(self::keys(), fn($k) => self::isDelivery($k)));
     }
 
+    /**
+     * F1003 — true wenn die Utility ein Standard-Vertragsmodell mit
+     * monatlichen Abschlägen und Saldo-Abrechnung hat (Gas, Strom,
+     * Fernwärme). Wasser hat ein abweichendes 3-Komponenten-Modell,
+     * Lieferungs-Utilities (Heizöl/Pellets) haben keine Abschlags-
+     * Saldierung. Single source of truth für den F1003-Scope.
+     */
+    public static function hasAdvancePaymentContracts(string $key): bool
+    {
+        return self::isCumulative($key) && $key !== 'wasser';
+    }
+
     public static function dataPath(string $key, string $rootDir): string
     {
         return $rootDir . '/' . $key;

@@ -179,7 +179,12 @@ final class ConsumptionService
                 }
             }
             $monthsActual = count($mList);
-            $currentBalance = round($actualCost - $advancePaid, 2);
+            // F1003 — Sonderzahlungen verschieben den Saldo:
+            //   current_balance = Kosten − gezahlte Abschläge + special_net
+            //   special_net = Σ Rückzahlung − Σ Nachzahlung − Σ Abschlagszahlung
+            // Wasser hat keine special_payments → summary.net = 0 (No-op).
+            $spSummary = $this->contracts->specialPaymentSummary($c);
+            $currentBalance = round($actualCost - $advancePaid + $spSummary['net'], 2);
 
             // Current tariff values (those valid today, for the active contract).
             [$y, $mn] = [(int)date('Y'), (int)date('n')];
@@ -197,7 +202,12 @@ final class ConsumptionService
                 $curBp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
                 $curSwWp = $curNwRate = $curNwArea = null;
             }
-            $curAp = $this->contracts->valueValidOn($c['advance_payments'] ?? [], 'amount_eur', $y, $mn);
+            // F1003 — effektiver Abschlagsplan (Wasser hat keine
+            // special_payments → effectiveAdvanceSchedule ist dort ein
+            // No-op und liefert advance_payments unverändert zurück).
+            $curAp = $this->contracts->valueValidOn(
+                $this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn
+            );
 
             // Project balance to contract end:
             //   project remaining months at the current avg cost / monthly advance.
@@ -264,6 +274,12 @@ final class ConsumptionService
                 'current_balance'             => $currentBalance,
                 'projected_end_balance'       => $projected,
                 'verdict'                     => $verdict,
+                // F1003 — Sonderzahlungen (Aufschlüsselung für die UI)
+                'special_refund_total'        => $spSummary['refund_total'],
+                'special_surcharge_total'     => $spSummary['surcharge_total'],
+                'special_advance_total'       => $spSummary['advance_total'],
+                'special_payment_net'         => $spSummary['net'],
+                'special_payments_count'      => $spSummary['count'],
                 // F-05 — contract-end reminder
                 'days_until_end'              => $daysUntilEnd,
                 'should_remind'               => $shouldRemind,
@@ -620,7 +636,8 @@ final class ConsumptionService
             $y = (int)$m['year']; $mn = (int)$m['month'];
             $wp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn);
             $bp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
-            $ap = $this->contracts->valueValidOn($c['advance_payments'] ?? [], 'amount_eur', $y, $mn);
+            // F1003 — effektiver Abschlagsplan inkl. "mit Auswirkung"-Sonderzahlungen
+            $ap = $this->contracts->valueValidOn($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn);
             $bn = $this->contracts->bonusForMonth($c, $y, $mn);
 
             $value = (float)($m['kwh'] ?? 0);
