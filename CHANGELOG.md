@@ -6,6 +6,47 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.5.1] — 2026-05-18 — CI-Fix: Testserver-Routing (router.php)
+
+### Fixed
+
+- **Browser-Render-Test in der CI scheiterte am Modulgraph-Crawl.**
+  Der Testserver wurde mit `php -S … api.php` gestartet — damit lief
+  **jeder** Request (auch `/public/js/app.js`) durch `api.php`, das nur
+  `/api/*` kennt → HTTP 404 für statische Assets, der Modulgraph-Crawl
+  brach ab. Neu: **`router.php`** als Built-in-Server-Router, der das
+  nginx-Verhalten spiegelt:
+  1. existierende statische Dateien direkt ausliefern,
+  2. `/data/` und `/src/` sowie `*.php`-Quelltext mit 404 sperren
+     (wie `location ~ ^/data/ { deny all; }`),
+  3. `/api.php/…` **und** `/api/…` an `api.php` delegieren
+     (SCRIPT_NAME korrekt gesetzt),
+  4. sonst `index.php` (SPA-Shell, entspricht `try_files`).
+- **CI-Server-Step überlebte den Schritt nicht.** Server-Start (`&`)
+  und Testläufe lagen in getrennten `run:`-Blöcken; in GitHub Actions
+  ist jeder `run:` eine eigene Shell, der Hintergrundprozess war im
+  Folge-Step weg. Server-Start, Readiness-Probe, beide Test-Suites und
+  Teardown (`trap … EXIT`) laufen jetzt in **einem** Step.
+- Doku (`tests/README.md`, `docs/technical/05-testing.md`) auf
+  `router.php` umgestellt, inkl. Begründung warum nicht `api.php`.
+
+### Verifikation
+
+- `frontend-api-shape`: **9/9** mit `router.php`.
+- `browser-render`: Modulgraph lädt **alle 21 Module** via HTTP (200);
+  der ursprünglich fehlschlagende Crawl ist behoben. Voller
+  Suite-Durchlauf lokal mit altem Router bereits **28/28**; die
+  Router-Änderung ist rein additiv/strikter (statische Auslieferung
+  und `/api/`-Routing nachweislich 200, `/data//src` nachweislich 404).
+
+### Hinweis
+
+- **Kein Eingriff in Anwendungscode.** Reine Test-/CI-Infrastruktur.
+  `router.php` wird ausschließlich von `php -S` benutzt; Produktiv­
+  betrieb läuft unverändert über nginx/Apache. Schema unverändert 1.1.0.
+
+---
+
 ## [1.5.0] — 2026-05-17 — F1003: Sonderzahlungen
 
 ### Added

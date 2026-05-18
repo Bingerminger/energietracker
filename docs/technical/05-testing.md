@@ -51,9 +51,13 @@ nicht über den Browser-Graphen). Der HTTP-Crawl fängt es.
 #    kein Migrationslauf nötig)
 cp -r demo-data /tmp/etdata
 
-# 2. Server, der API UND statische JS ausliefert; ET_DATA_DIR lenkt
-#    den Speicher auf das Testverzeichnis (seit v1.4.4)
-ET_DATA_DIR=/tmp/etdata php -S 127.0.0.1:8899 -t . api.php &
+# 2. Server, der API UND statische Assets ausliefert. WICHTIG:
+#    router.php (nicht api.php) als Router — er spiegelt das
+#    nginx-Routing (statische Datei → direkt; /api → api.php; sonst
+#    index.php). Mit api.php als Router liefe /public/js/app.js durch
+#    api.php → 404, und der Modulgraph-Crawl des Browser-Render-Tests
+#    scheitert. (Korrektur seit v1.5.1.)
+ET_DATA_DIR=/tmp/etdata php -S 127.0.0.1:8899 router.php &
 
 # 3. Tests
 node tests/frontend-api-shape.test.js

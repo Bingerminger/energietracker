@@ -36,6 +36,9 @@ Beispiele aus der Historie:
 - v1.5.0 — F1003 Sonderzahlungen (Rück-/Nachzahlung, Abschlagszahlung)
   → MINOR (neues, abwärtskompatibles Feature; additive Datenstruktur,
   kein Migrationsschritt, Schema unverändert 1.1.0)
+- v1.5.1 — CI-Fix: Testserver über `router.php` statt `api.php`
+  (statische Assets + `/api`-Routing), Server+Tests in einem CI-Step
+  → PATCH (reine Test-/CI-Infrastruktur, kein Anwendungscode)
 
 ---
 
@@ -137,6 +140,16 @@ git push origin main --tags
   Scope-Gating gehört in `Utilities` (Single Source of Truth:
   `hasAdvancePaymentContracts()`), nicht in hartkodierte Utility-Listen
   in Service/Frontend.
+- **Dev/CI-Server braucht einen Router (v1.5.1).** `php -S host:port
+  api.php` macht `api.php` zum Router für ALLES — statische Assets
+  (`/public/js/*`) landen dann in `api.php` → 404, der Modulgraph-Crawl
+  des Browser-Render-Tests bricht ab. Lösung: ein `router.php`, das das
+  nginx-Verhalten spiegelt (Datei → direkt, `/api` → api.php, sonst
+  index.php). Zweitens: in GitHub Actions ist jeder `run:` eine eigene
+  Shell — ein in Step A gebackgroundeter `php -S … &` ist in Step B
+  weg. Server-Start, Readiness-Probe, Tests und Teardown müssen in
+  EINEN Step. Lehre: lokale Test-Infrastruktur immer einmal echt gegen
+  den CI-Aufbau spiegeln, nicht nur Backend-Endpoints prüfen.
 
 ---
 

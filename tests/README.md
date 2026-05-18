@@ -18,13 +18,16 @@ gestubbt (`esm-loader.mjs`), die übrige View-Logik läuft echt.
 
 ### Ausführen
 ```sh
-# 1. Backend-Testserver starten (Beispiel)
+# 1. Testserver starten — router.php (NICHT api.php) spiegelt das
+#    nginx-Routing: statische Assets direkt, /api → api.php, sonst
+#    index.php. Mit `api.php` als Router würde /public/js/app.js durch
+#    api.php laufen → 404, und der Modulgraph-Crawl scheitert.
 cp -r demo-data /tmp/etdata
-php -S 127.0.0.1:8899 -t . api.php &
+ET_DATA_DIR=/tmp/etdata php -S 127.0.0.1:8899 router.php &
 
-# 2. Tests
-node tests/frontend-api-shape.test.js
-node --import='data:text/javascript,import{register}from"node:module";import{pathToFileURL}from"node:url";register("./tests/esm-loader.mjs",pathToFileURL("./"));' tests/browser-render.test.mjs
+# 2. Tests (Port 8899 ist im Browser-Render-Test fest verdrahtet)
+ET_TEST_HOST=http://127.0.0.1:8899 node tests/frontend-api-shape.test.js
+ET_TEST_HOST=http://127.0.0.1:8899 node --import='data:text/javascript,import{register}from"node:module";import{pathToFileURL}from"node:url";register("./tests/esm-loader.mjs",pathToFileURL("./"));' tests/browser-render.test.mjs
 ```
 
 Beide Harnesses geben Exit-Code 0 bei Erfolg, ≠0 bei Fehlern.

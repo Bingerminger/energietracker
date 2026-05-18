@@ -53,23 +53,30 @@ jobs:
             if(!$s->exists("reminders.json")){fwrite(STDERR,"reminders.json fehlt nach Migration\n");exit(1);}
             echo "Migrations-Smoke OK: 1.0.0 -> $v\n";'
 
-      - name: Backend-Testserver starten
+      - name: Tests (Server + Frontend-API-Shape + Browser-Render)
         run: |
-          php -S 127.0.0.1:8899 -t . api.php &
-          # Kurz warten bis der Server bereit ist
-          sleep 1
-          curl -sf http://127.0.0.1:8899/api/settings > /dev/null
-        env:
-          ET_DATA_DIR: /tmp/etdata
+          set -euo pipefail
+          # router.php spiegelt das nginx-Routing (statische Assets +
+          # /api → api.php). Ein eigener Server-Step würde nichts nützen:
+          # GitHub Actions startet pro `run:` eine neue Shell, ein dort
+          # gebackgroundeter Prozess überlebt den Step nicht. Daher
+          # Start + Tests + Teardown in EINEM Step.
+          php -S 127.0.0.1:8899 router.php >/tmp/server.log 2>&1 &
+          SRV=$!
+          trap 'kill $SRV 2>/dev/null || true' EXIT
+          # Readiness-Probe (max ~15 s)
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8899/api/settings >/dev/null 2>&1; then break; fi
+            sleep 0.5
+          done
+          curl -sf http://127.0.0.1:8899/api/settings >/dev/null
+          # Statische Auslieferung muss funktionieren (Modulgraph-Crawl)
+          curl -sf http://127.0.0.1:8899/public/js/app.js >/dev/null
 
-      - name: Frontend-API-Shape-Tests
-        run: node tests/frontend-api-shape.test.js
-        env:
-          ET_TEST_HOST: http://127.0.0.1:8899
-          ET_DATA_DIR: /tmp/etdata
+          echo "── Frontend-API-Shape ──"
+          node tests/frontend-api-shape.test.js
 
-      - name: Browser-Render-Tests
-        run: |
+          echo "── Browser-Render ──"
           node \
             --import='data:text/javascript,import{register}from"node:module";import{pathToFileURL}from"node:url";register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
             tests/browser-render.test.mjs
