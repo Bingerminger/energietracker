@@ -48,6 +48,7 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 <link rel="stylesheet" href="public/css/tokens.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/app.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/components.css?v=<?= $cb ?>">
+<link rel="stylesheet" href="public/css/readings-entry.css?v=<?= $cb ?>">
 </head>
 <body data-app-version="<?= htmlspecialchars($version, ENT_QUOTES) ?>">
 <div id="app" class="layout">

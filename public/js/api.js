@@ -56,6 +56,8 @@ export const api = {
   // F-06: zähler-gebundener CSV-Bulk-Import (Body: text/plain CSV).
   importReadingCsv: (u, meterId, csvText) =>
     request('POST', `/api/utility/${u}/meters/${meterId}/readings/import-csv`, csvText, { raw: true }),
+  // F1004 (v1.6.0): Aggregat für die zentrale Zählerstand-Erfassung
+  readingsOverview: ()                  => request('GET', '/api/readings-overview'),
 
   // Contracts
   contracts:     (u, meterId)          => {

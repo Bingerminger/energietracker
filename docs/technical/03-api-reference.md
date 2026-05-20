@@ -38,6 +38,7 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 | PATCH | `/api/utility/{u}/readings/{id}` | ändern |
 | DELETE | `/api/utility/{u}/readings/{id}` | löschen |
 | POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV-Bulk-Import |
+| **GET** | **`/api/readings-overview`** | **alle aktiven kumulativen Zähler + letzte Ablesung (F1004, v1.6.0)** |
 | GET | `/api/utility/{u}/deliveries` | Lieferungen (Heizöl/Pellets) |
 | POST | `/api/utility/{u}/deliveries` | anlegen |
 | PATCH | `/api/utility/{u}/deliveries/{id}` | ändern |
@@ -75,6 +76,49 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 ---
 
 ## 2. Ausgewählte Endpunkte im Detail
+
+### `GET /api/readings-overview` *(F1004, v1.6.0)*
+
+Aggregat-Endpunkt für die zentrale Zählerstand-Erfassung
+(`#/zaehlerstaende`). Liefert in einem Roundtrip alle aktiven Zähler
+der kumulativen Utilities (Gas/Strom/Wasser/Fernwärme) plus jeweils
+die letzte reale (nicht-geplante) Ablesung als Validierungs-Baseline.
+Delivery-Utilities (Heizöl/Pellets) sind ausgeschlossen — dort gibt
+es keine Zählerstände, sondern Lieferungen.
+
+```json
+{
+  "success": true,
+  "data": {
+    "rows": [
+      {
+        "utility": "gas",
+        "utility_label": "Gas",
+        "utility_icon": "🔥",
+        "consumption_unit": "kWh",
+        "color": "#f59e0b",
+        "meter_id": "m_gas_main",
+        "meter_name": "Hauptzähler Gas",
+        "meter_icon": "🔥",
+        "meter_notes": "Keller",
+        "active_device_id": "d_gas_1",
+        "last_reading": {
+          "date": "2026-04-15",
+          "counter": 12345.67,
+          "is_estimated": false
+        },
+        "expected_next_min": 12345.67
+      }
+    ]
+  }
+}
+```
+
+`expected_next_min` ist der Wert, gegen den die Frontend-Validierung
+einen Rückwärts-Zählerstand warnt (nicht hart blockiert — Zählertausch
+ist legitim). Speichern erfolgt **nicht** über diesen Endpunkt,
+sondern pro Zeile über die bestehende Route
+`POST /api/utility/{u}/readings`.
 
 ### `GET /api/utility/{u}/meters/{id}/consumption`
 

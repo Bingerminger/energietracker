@@ -1,0 +1,172 @@
+/* =====================================================================
+   Energietracker — Zählerstand-Erfassung (F1004, v1.6.0)
+   Mobile-First. Optimiert für iPhone-Safari (Hochformat).
+   Desktop bekommt eine breitere, weniger gepolsterte Variante.
+   ===================================================================== */
+
+.view-readings-entry {
+  display: flex; flex-direction: column;
+  gap: var(--sp-4);
+  padding-bottom: 96px; /* Platz für sticky Action-Bar */
+}
+
+.readings-entry {
+  display: flex; flex-direction: column;
+  gap: var(--sp-3);
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Karte pro Zähler ──────────────────────────────────────────────── */
+.reading-card {
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  padding: var(--sp-4);
+  display: flex; flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.reading-card__head {
+  display: flex; align-items: center; gap: var(--sp-3);
+}
+.reading-card__icon {
+  font-size: 1.5rem;
+  width: 2.25rem; height: 2.25rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-2);
+  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+.reading-card__title { flex: 1; min-width: 0; }
+.reading-card__name {
+  font-size: var(--fs-md); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.reading-card__sub {
+  font-size: var(--fs-sm); color: var(--fg-muted, rgba(255,255,255,0.6));
+  margin-top: 2px;
+}
+
+.reading-card__status {
+  font-size: var(--fs-lg);
+  width: 1.5rem; height: 1.5rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.reading-card__status:empty { display: none; }
+.reading-card__status--ok      { color: #10b981; }
+.reading-card__status--err     { color: #ef4444; }
+.reading-card__status--pending { color: var(--c-blue); opacity: .8; }
+
+.reading-card__last {
+  font-size: var(--fs-sm);
+  color: var(--fg-muted, rgba(255,255,255,0.7));
+  background: var(--bg-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  line-height: 1.5;
+}
+.reading-card__tag {
+  display: inline-block; margin-left: 6px;
+  padding: 1px 8px; border-radius: 999px;
+  background: var(--bg-3);
+  font-size: var(--fs-xs);
+}
+
+/* ── Eingabezeile: Zählerstand + Datum ────────────────────────────── */
+.reading-card__inputs {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-3);
+}
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field__label {
+  font-size: var(--fs-xs);
+  color: var(--fg-muted, rgba(255,255,255,0.6));
+  letter-spacing: 0.02em;
+}
+.input--counter {
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: var(--sp-3);
+  min-height: 48px; /* iOS-Touch-Target */
+}
+.field--date .input {
+  font-size: var(--fs-base);
+  padding: var(--sp-3);
+  min-height: 48px;
+  min-width: 140px;
+}
+
+/* ── Extras-Zeile: geschätzt + Notiz-Toggle ───────────────────────── */
+.reading-card__extras {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.toggle {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input[type="checkbox"] {
+  width: 20px; height: 20px;
+  accent-color: var(--c-blue);
+}
+
+.reading-card__note .input { padding: var(--sp-2) var(--sp-3); }
+
+.reading-card__hint {
+  font-size: var(--fs-sm);
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  border-left: 3px solid #f59e0b;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+/* ── Sticky-Action-Bar am unteren Viewport-Rand ───────────────────── */
+.readings-entry__sticky {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  padding: var(--sp-3) var(--sp-4);
+  padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border-1);
+  z-index: 50;
+  display: flex; justify-content: center;
+}
+.readings-entry__sticky .btn {
+  width: 100%; max-width: 600px;
+  min-height: 52px;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+/* ── Mobile-First Tuning ──────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .reading-card { padding: var(--sp-3); }
+  .reading-card__inputs {
+    grid-template-columns: 1fr;
+    gap: var(--sp-2);
+  }
+  .field--date .input { min-width: 0; }
+  .input--counter { font-size: var(--fs-lg); }
+}
+
+/* iPhone-Querformat / Phablet-Größen: Karte zweispaltig nutzbar machen */
+@media (min-width: 480px) and (max-width: 720px) {
+  .reading-card__inputs { grid-template-columns: 1fr 160px; }
+}
+
+/* Light-Theme-Anpassung der Hint-Farbe */
+[data-theme="light"] .reading-card__hint {
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+}

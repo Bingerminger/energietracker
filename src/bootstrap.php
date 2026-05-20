@@ -144,7 +144,7 @@ final class App
                                                                 fn($req) => $meterCtrl->replaceDevice($req));
 
         // ── Readings ──
-        $readingCtrl = new ReadingController($this->readings, $this->readingImport);
+        $readingCtrl = new ReadingController($this->readings, $this->readingImport, $this->settings);
         $r->get('/api/utility/{utility}/readings',     fn($req) => $readingCtrl->index($req));
         $r->post('/api/utility/{utility}/readings',    fn($req) => $readingCtrl->create($req));
         $r->patch('/api/utility/{utility}/readings/{id}', fn($req) => $readingCtrl->update($req));
@@ -152,6 +152,8 @@ final class App
         // F-06: zähler-gebundener CSV-Bulk-Import (Body: text/plain CSV)
         $r->post('/api/utility/{utility}/meters/{id}/readings/import-csv',
                                                        fn($req) => $readingCtrl->importCsv($req));
+        // F1004 (v1.6.0): Aggregat für den zentralen Zählerstand-Erfassungs-View
+        $r->get('/api/readings-overview',              fn($req) => $readingCtrl->overview($req));
 
         // ── Deliveries (v1.3.0 — Heizöl/Pellets) ──
         $deliveryCtrl = new DeliveryController($this->deliveries, $this->consumption, $this->meters);

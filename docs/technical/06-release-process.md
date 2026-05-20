@@ -39,6 +39,10 @@ Beispiele aus der Historie:
 - v1.5.1 — CI-Fix: Testserver über `router.php` statt `api.php`
   (statische Assets + `/api`-Routing), Server+Tests in einem CI-Step
   → PATCH (reine Test-/CI-Infrastruktur, kein Anwendungscode)
+- v1.6.0 — F1004 Zentrale Zählerstand-Erfassung (neuer Menüpunkt
+  `#/zaehlerstaende`, Aggregat-Endpunkt `/api/readings-overview`,
+  mobile-first View) → MINOR (neues abwärtskompatibles Feature;
+  additiver Endpunkt, kein Schemafeld, kein Migrationsschritt)
 
 ---
 
@@ -150,6 +154,19 @@ git push origin main --tags
   weg. Server-Start, Readiness-Probe, Tests und Teardown müssen in
   EINEN Step. Lehre: lokale Test-Infrastruktur immer einmal echt gegen
   den CI-Aufbau spiegeln, nicht nur Backend-Endpoints prüfen.
+- **Aggregat-Endpunkt vor Sammel-POST (v1.6.0, F1004).** Beim Bau der
+  zentralen Zählerstand-Erfassung war die Frage „ein API-Call zum
+  Speichern aller Zähler oder pro Zähler einzeln?" eine echte Weichen-
+  stellung. Entschieden gegen einen neuen Batch-Endpunkt, **für** den
+  bestehenden POST pro Zähler — Begründung: Teilfehler bleiben präzise
+  lokalisierbar, kein neues Datenformat, kein zusätzlicher Validations-
+  pfad. Stattdessen Aggregation **lesend** über
+  `GET /api/readings-overview` (alle Zähler + letzte Ablesung in einem
+  Roundtrip) — das adressiert „API-Aufrufe minimieren" dort, wo es
+  fachlich Sinn ergibt (initialer Daten-Load), und lässt das Schreiben
+  granular. Faustregel: Aggregate sind oft die richtige Antwort für
+  Lese-Performance; sie sind selten die richtige Antwort für Schreib-
+  Robustheit.
 
 ---
 

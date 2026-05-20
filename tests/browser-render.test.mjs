@@ -128,6 +128,33 @@ async function renderView(modPath, params = []) {
     t('recommendations: Filter-Klick ohne Exception', true);
   } catch (e) { t('recommendations: render', false, e.message); }
 
+  // ── F1004 (v1.6.0): zentrale Zählerstand-Erfassung ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/readings-entry.js`);
+    const html = view.innerHTML;
+    t('readings-entry: render ohne Exception',
+      html.includes('Zählerstände') && !html.includes('Lade Zähler'));
+    const cards = view.querySelectorAll('.reading-card');
+    t('readings-entry: Zähler-Karten pro kumulativer Utility',
+      cards.length >= 1, `${cards.length} Karten`);
+    // numerische Tastatur fürs iPhone
+    const counter = view.querySelector('[data-role="counter"]');
+    t('readings-entry: Counter-Input mit inputmode=decimal',
+      counter?.getAttribute('inputmode') === 'decimal');
+    // Datum-Input default heute
+    const date = view.querySelector('[data-role="date"]');
+    t('readings-entry: Datum-Input vorhanden + ISO-Default',
+      date?.type === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(date?.value || ''));
+    // sticky Save sichtbar (rows > 0)
+    const sticky = view.querySelector('[data-role="sticky"]');
+    t('readings-entry: Sticky-Save-Action sichtbar', sticky && !sticky.hidden);
+    // Scope: keine Heizöl/Pellets-Karten
+    const utils = [...cards].map(c => c.dataset.utility);
+    t('readings-entry: keine Delivery-Utilities in Karten',
+      !utils.includes('heizoel') && !utils.includes('pellets'),
+      `utilities=${[...new Set(utils)].join(',')}`);
+  } catch (e) { t('readings-entry: render', false, e.message); }
+
   // ── 2. Termine ──
   try {
     const { view } = await renderView(`${ROOT}/views/reminders.js`);

@@ -116,4 +116,84 @@ final class ReadingService
         if (count($kept) === count($all)) throw new \InvalidArgumentException('Ablesung nicht gefunden');
         $this->store->write("$utility/readings.json", $kept);
     }
+
+    /**
+     * v1.6.0 — Aggregat für den zentralen Zählerstand-Erfassungs-View.
+     *
+     * Liefert ALLE aktiven Zähler der Utilities, die mit kumulativen
+     * Zählerständen arbeiten (Gas/Strom/Wasser/Fernwärme), zusammen mit
+     * jeweils der letzten realen (nicht-geplanten) Ablesung. Delivery-
+     * Utilities (Heizöl/Pellets) sind absichtlich ausgeschlossen — dort
+     * gibt es keine Ablesungen, sondern Lieferungen.
+     *
+     * Designziel: ein einziger Roundtrip, damit die mobile Vor-Ort-
+     * Erfassung mit minimalem API-Verkehr startet. Speichern erfolgt
+     * danach pro Zeile über die bestehende POST-Route.
+     *
+     * @param string[] $activeUtilities Whitelist aktiver Utilities aus
+     *                                   settings.json. Inaktive werden
+     *                                   ohnehin in der UI nicht angezeigt.
+     * @return list<array{
+     *   utility:string, utility_label:string, utility_icon:string,
+     *   consumption_unit:string, color:string,
+     *   meter_id:string, meter_name:string, meter_icon:string,
+     *   meter_notes:string, active_device_id:?string,
+     *   last_reading:?array{date:string, counter:float, is_estimated:bool},
+     *   expected_next_min:?float
+     * }>
+     */
+    public function overview(array $activeUtilities): array
+    {
+        $rows = [];
+        foreach (Utilities::all() as $utility) {
+            $key = (string)($utility['key'] ?? '');
+            if ($key === '') continue;
+            // Nur kumulative Utilities (Zählerstand-Modell)
+            if (!Utilities::isCumulative($key)) continue;
+            // Nur aktivierte Utilities einbeziehen
+            if (!empty($activeUtilities) && !in_array($key, $activeUtilities, true)) continue;
+
+            $meters = $this->meters->list($key);
+            foreach ($meters as $m) {
+                if (!($m['active'] ?? true)) continue;
+
+                // Letzte reale Ablesung (geplante is_future ausschließen)
+                $readings = $this->list($key, (string)$m['id']);
+                $real = array_values(array_filter(
+                    $readings,
+                    fn($r) => empty($r['is_future'])
+                ));
+                $last = !empty($real) ? end($real) : null;
+
+                $rows[] = [
+                    'utility'           => $key,
+                    'utility_label'     => (string)($utility['label'] ?? $key),
+                    'utility_icon'      => (string)($utility['icon']  ?? ''),
+                    'consumption_unit'  => (string)($utility['consumption_unit'] ?? ''),
+                    'color'             => (string)($utility['color'] ?? ''),
+                    'meter_id'          => (string)$m['id'],
+                    'meter_name'        => (string)($m['name'] ?? $m['id']),
+                    'meter_icon'        => (string)($m['icon'] ?? ''),
+                    'meter_notes'       => (string)($m['notes'] ?? ''),
+                    'active_device_id'  => $this->activeDeviceId($m),
+                    'last_reading'      => $last !== null ? [
+                        'date'         => (string)($last['date'] ?? ''),
+                        'counter'      => (float)($last['counter'] ?? 0),
+                        'is_estimated' => (bool)($last['is_estimated'] ?? false),
+                    ] : null,
+                    'expected_next_min' => $last !== null ? (float)$last['counter'] : null,
+                ];
+            }
+        }
+        return $rows;
+    }
+
+    /** Aktives (nicht ausgebautes) Device eines Zählers, oder null. */
+    private function activeDeviceId(array $meter): ?string
+    {
+        foreach ($meter['devices'] ?? [] as $d) {
+            if (empty($d['removed_on'])) return (string)($d['id'] ?? '');
+        }
+        return null;
+    }
 }

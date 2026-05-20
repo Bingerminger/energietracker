@@ -67,6 +67,26 @@ const ROOT = require('path').resolve(__dirname, '..');
     check('Heizöl-Zähler vorhanden (für Delivery-UI-Test)', true, 'kein Zähler — übersprungen');
   }
 
+  // 4c. F1004 (v1.6.0) — Aggregat-Endpunkt für die zentrale
+  //     Zählerstand-Erfassung. Erwartet rows[] mit utility/meter_id/
+  //     consumption_unit/last_reading/expected_next_min, ohne
+  //     Delivery-Utilities (Heizöl/Pellets).
+  const ovw = await j('/api/readings-overview');
+  const okShape = ovw && Array.isArray(ovw.rows);
+  check('readings-overview liefert rows[]', okShape, `${ovw.rows?.length || 0} Zeilen`);
+  if (okShape && ovw.rows.length > 0) {
+    const r = ovw.rows[0];
+    const fields = ['utility','meter_id','meter_name','consumption_unit','last_reading','expected_next_min'];
+    check('overview-Row hat erwartete Felder',
+      fields.every(f => f in r),
+      fields.filter(f => !(f in r)).join(',') || 'alle vorhanden');
+    const utils = [...new Set(ovw.rows.map(x => x.utility))];
+    const noDelivery = !utils.includes('heizoel') && !utils.includes('pellets');
+    check('overview enthält keine Delivery-Utilities',
+      noDelivery,
+      `utilities=${utils.join(',')}`);
+  }
+
   // 5. JSDOM: Sidebar-HTML-Aufbau (reine DOM-Logik, ohne ES-Module-Loader)
   const dom = new JSDOM(`<!DOCTYPE html><body data-app-version="1.3.0">
     <nav id="primary-nav"></nav></body>`, { url: BASE });

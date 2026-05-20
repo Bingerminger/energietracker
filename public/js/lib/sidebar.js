@@ -53,6 +53,13 @@ export async function buildSidebar() {
 
   nav.innerHTML = `
     <div class="sidebar__group">
+      <div class="sidebar__group-label">Erfassung</div>
+      <a class="sidebar__item" href="#/zaehlerstaende" data-route="readings-entry">
+        <span class="sidebar__icon">📋</span><span>Zählerstände</span>
+      </a>
+    </div>
+
+    <div class="sidebar__group">
       <div class="sidebar__group-label">Übersicht</div>
       <a class="sidebar__item" href="#/dashboard" data-route="dashboard">
         <span class="sidebar__icon">🏠</span><span>Dashboard</span>

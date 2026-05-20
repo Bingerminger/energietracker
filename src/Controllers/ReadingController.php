@@ -7,6 +7,7 @@ use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\ReadingService;
 use Energietracker\Services\ReadingImportService;
+use Energietracker\Services\SettingsService;
 
 /**
  * Ablesungs-CRUD. Auto-Zuweisung von device_id zum aktiven Device
@@ -15,12 +16,17 @@ use Energietracker\Services\ReadingImportService;
  * F-06 (v1.1.0): `importCsv` nimmt einen rohen CSV-Text-Body und importiert
  * ihn zähler-gebunden über den ReadingImportService — vorhandene Ablesungen
  * am selben Datum werden überschrieben und im Report gemeldet.
+ *
+ * F1004 (v1.6.0): `overview()` liefert den Aggregat-Endpunkt für den
+ * zentralen Zählerstand-Erfassungs-View (alle aktiven kumulativen Zähler +
+ * jeweils letzte Ablesung in einem Roundtrip).
  */
 final class ReadingController
 {
     public function __construct(
         private ReadingService $readings,
         private ReadingImportService $import,
+        private SettingsService $settings,
     ) {}
 
     public function index(Request $req): never
@@ -59,5 +65,16 @@ final class ReadingController
             $req->rawBody
         );
         Response::json($report);
+    }
+
+    /**
+     * GET /api/readings-overview
+     * F1004 (v1.6.0) — Aggregat für die zentrale Zählerstand-Erfassung.
+     */
+    public function overview(Request $req): never
+    {
+        $active = $this->settings->get('active_utilities', []);
+        if (!is_array($active)) $active = [];
+        Response::json(['rows' => $this->readings->overview($active)]);
     }
 }

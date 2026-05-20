@@ -4,6 +4,7 @@
 // =====================================================================
 
 import * as Dashboard    from './views/dashboard.js';
+import * as ReadingsEntry from './views/readings-entry.js';
 import * as Utility      from './views/utility.js';
 import * as Meters       from './views/meters.js';
 import * as Contracts    from './views/contracts.js';
@@ -17,6 +18,7 @@ import * as Reminders    from './views/reminders.js';
 
 const ROUTES = [
   { pattern: /^#?\/?$/,                             handler: 'dashboard' },
+  { pattern: /^#\/zaehlerstaende$/,                 handler: 'readings-entry' },
   { pattern: /^#\/dashboard$/,                      handler: 'dashboard' },
   { pattern: /^#\/utility\/([^/]+)\/meters$/,       handler: 'meters'    },
   { pattern: /^#\/utility\/([^/]+)\/contracts$/,    handler: 'contracts' },
@@ -31,6 +33,7 @@ const ROUTES = [
 ];
 
 const HANDLERS = {
+  'readings-entry': ReadingsEntry,
   dashboard:    Dashboard,
   utility:      Utility,
   meters:       Meters,

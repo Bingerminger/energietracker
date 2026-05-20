@@ -6,6 +6,85 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.6.0] — 2026-05-18 — F1004: Zentrale Zählerstand-Erfassung
+
+### Added
+
+- **F1004 — Zentraler Zählerstand-View** (`#/zaehlerstaende`).
+  Neuer Menüpunkt an erster Position (eigene Gruppe „Erfassung"),
+  mobile-first für die schnelle Vor-Ort-Erfassung auf dem iPhone.
+  Bündelt alle kumulativen Zähler (**Gas, Strom, Wasser, Fernwärme**)
+  in einer Karten-Liste mit jeweils:
+  - Bezeichnung + Standort + Verbrauchsart-Icon
+  - letzter bekannter Stand (Wert, Datum, ggf. „geschätzt"-Tag)
+  - Eingabefeld für den neuen Stand (`inputmode="decimal"` →
+    Zahlentastatur)
+  - Datumsfeld (Default heute, pro Zeile überschreibbar)
+  - „Geschätzt"-Toggle (mappt auf das bestehende `is_estimated`-Flag)
+  - aufklappbare Notiz
+  Ein Sticky-Save-Button am unteren Rand speichert alle ausgefüllten
+  Karten sequenziell.
+
+- **Neuer Aggregat-Endpunkt** `GET /api/readings-overview`. Liefert
+  alle aktiven kumulativen Zähler plus jeweils letzte reale Ablesung
+  in einem Roundtrip — beim Öffnen der Ansicht **ein** API-Call.
+  Speichern erfolgt danach pro Zeile über die bestehende Route
+  `POST /api/utility/{u}/readings`.
+
+- **Mobile-First-Optimierung.** Touch-Targets ≥ 48 px,
+  `env(safe-area-inset-bottom)` für den iPhone-Home-Indicator-Bereich,
+  einspaltiges Layout unter 600 px, Karten-Maxbreite 720 px für
+  Desktop/Tablet.
+
+- **Inline-Validierung.** Rückwärts-Zählerstand wird mit einem
+  orangefarbenen Hinweis markiert (nicht hart blockiert — Zählertausch
+  ist ein realer Fall). Leere Karten werden beim Speichern still
+  übersprungen.
+
+- **Robust gegen Teilfehler.** Eine fehlerhafte Karte blockiert die
+  anderen nicht; pro Karte erscheint ✓ oder ✗, am Ende fasst ein
+  Toast zusammen. Nach erfolgreichem Speichern wird der „letzter
+  Stand" in der Karte aktualisiert.
+
+- **Doku.** Neue Seite [`docs/functional/11-zaehlerstaende.md`](docs/functional/11-zaehlerstaende.md)
+  mit Aufbau, Validierungsregeln, Mobile-First-Designentscheidungen
+  und expliziter Liste der bewusst nicht in v1.6.0 enthaltenen
+  Features (Foto, Offline-Cache, OCR, Batch-Endpoint).
+
+- **Tests.** `frontend-api-shape.test.js` deckt den neuen Endpunkt
+  (Shape, Scope-Whitelist) ab; `browser-render.test.mjs` deckt die
+  neue View (Render, Karten-Anzahl, `inputmode="decimal"`,
+  ISO-Datum, Sticky-Save, Delivery-Ausschluss) ab. Stand v1.6.0:
+  **12/12 Frontend-API-Shape**, **34/34 Browser-Render**.
+
+### Internal
+
+- `ReadingService::overview(array $activeUtilities)` als
+  Aggregations-Helfer. Filtert auf `Utilities::isCumulative()` und
+  ignoriert inaktive Zähler.
+- `ReadingController::overview()` bindet den Endpunkt an;
+  Settings-Injection im Konstruktor.
+- Frontend: neues Modul `public/js/views/readings-entry.js`,
+  Sidebar-Eintrag in eigener Gruppe „Erfassung" oberhalb des
+  Dashboards, Router-Eintrag `#/zaehlerstaende`, API-Client-Methode
+  `api.readingsOverview()`, neues Stylesheet
+  `public/css/readings-entry.css`.
+
+### Migration
+
+- **Kein Migrationsschritt nötig.** Reine additive Erweiterung
+  (neuer Endpunkt, neue View, kein Schemafeld). Bestehende
+  Readings/Meters/Contracts unverändert. Schema bleibt **1.1.0**.
+
+### Bewusst nicht enthalten
+
+- Foto-Aufnahme, Offline-Modus, OCR/Ziffernerkennung,
+  Batch-Speicher-Endpunkt. Begründet und dokumentiert in der
+  funktionalen Doku (`11-zaehlerstaende.md`, Abschnitt „Was bewusst
+  nicht in v1.6.0 ist").
+
+---
+
 ## [1.5.1] — 2026-05-18 — CI-Fix: Testserver-Routing (router.php)
 
 ### Fixed
