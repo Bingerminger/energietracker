@@ -29,6 +29,12 @@ final class AnomalyService
 
         $valid = array_values(array_filter($monthly, fn($m) =>
             ($m['days'] ?? 0) >= $minDays
+            // v1.6.1 — Issue #13: Wechsel-Monate aus z-Score-Erkennung
+            // ausschließen. Ein Zählertausch ist ein erklärlicher Sonder-
+            // effekt (Bridging-Übergang) und sollte nicht als statistische
+            // Anomalie markiert werden, sonst poppt jedes Wechsel-Datum
+            // als „⚠️ Anomalie" im Dashboard auf.
+            && empty($m['device_swap'])
         ));
         if (count($valid) < 5) return [];
 

@@ -108,6 +108,24 @@ const ROOT = require('path').resolve(__dirname, '..');
     activeUtils.every(u => routes.includes('utility:' + u.key)),
     routes.filter(r => r && r.startsWith('utility:')).join(','));
 
+  // 6. v1.6.1 — Regression Issue #14: Wasser-Monthly hat m3 ≠ 0
+  //    (vor v1.6.1 las utility.js fälschlich m.kwh, was bei Wasser 0
+  //    ist → KPI „Verbrauch" zeigte 0).
+  const wMeters = await j('/api/utility/wasser/meters');
+  if (wMeters.length) {
+    const cons = await j(`/api/utility/wasser/meters/${wMeters[0].id}/consumption`);
+    const monthly = cons.monthly || [];
+    const totM3   = monthly.reduce((s, m) => s + (m.m3 || 0), 0);
+    const totKwh  = monthly.reduce((s, m) => s + (m.kwh || 0), 0);
+    check('Wasser-Monthly hat m3 ≠ 0 (Issue #14)',
+      totM3 > 0 && totKwh === 0,
+      `m3=${totM3.toFixed(1)} kwh=${totKwh.toFixed(1)}`);
+    // 7. v1.6.1 — Regression Issue #13: device_swap-Flag pro Monat
+    //    vorhanden (auch wenn in Demo-Daten überall false).
+    const hasFlag = monthly.length > 0 && 'device_swap' in monthly[0];
+    check('Monatszeilen tragen device_swap-Flag (Issue #13)', hasFlag);
+  }
+
   const failed = results.filter(r => !r.ok);
   console.log(`\n  ${results.length - failed.length}/${results.length} Checks bestanden`);
   process.exit(failed.length ? 1 : 0);

@@ -91,6 +91,11 @@ async function rerender(container) {
   const monthly   = consumptionData.monthly   || [];
   const contracts = contractStatusData.contracts || [];
   const isDelivery = u.reading_kind === 'delivery';
+  // v1.6.1 — Fix #14: Verbrauchs-Feldname utility-abhängig.
+  // Wasser/m³-native Utilities tragen den Verbrauch im Feld `m3`,
+  // kWh-Utilities im Feld `kwh`. Vorher las das KPI immer `m.kwh`
+  // → Wasser-Dashboard zeigte 0.
+  const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
   let readings = [], deliveries = [], stockHist = null;
   if (isDelivery) {
     deliveries = await api.deliveries(u.key, meter.id).catch(() => []);
@@ -114,7 +119,6 @@ async function rerender(container) {
     else if (days > 30) { cls = 'warn';  icon = '⚡'; }
     // Trend: compare last 3 months to previous 3 months
     let trendStr = '';
-    const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
     if (monthly.length >= 6) {
       const recent = monthly.slice(-3).reduce((s, m) => s + (m[consKey] || 0), 0);
       const prev   = monthly.slice(-6, -3).reduce((s, m) => s + (m[consKey] || 0), 0);
@@ -143,7 +147,9 @@ async function rerender(container) {
   const monthlyYear = monthly.filter(m => m.year === yr);
 
   // ── Compute year totals for KPIs ────────────────────────────────
-  const totKwh  = monthlyYear.reduce((s, m) => s + (m.kwh || 0), 0);
+  // v1.6.1 — Fix #14: nutze utility-spezifischen Feldnamen (consKey)
+  // statt hartkodiertem `m.kwh`, sonst zeigt das Wasser-Dashboard 0.
+  const totUnit = monthlyYear.reduce((s, m) => s + (m[consKey] || 0), 0);
   const totCost = monthlyYear.reduce((s, m) => s + (m.cost || 0), 0);
   const totDays = monthlyYear.reduce((s, m) => s + (m.days || 0), 0);
   const totCO2  = monthlyYear.reduce((s, m) => s + (m.co2_kg || 0), 0);
@@ -164,7 +170,7 @@ async function rerender(container) {
     <div class="kpi-grid">
       <div class="kpi c-${u.key}">
         <div class="kpi__label">${u.icon} Verbrauch ${yr}</div>
-        <div class="kpi__value">${fmt.unit(totKwh, u.consumption_unit, 0)}</div>
+        <div class="kpi__value">${fmt.unit(totUnit, u.consumption_unit, 0)}</div>
         ${u.key === 'gas' ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
       </div>
       <div class="kpi c-${u.key}">
@@ -183,7 +189,7 @@ async function rerender(container) {
       ` : ''}
       <div class="kpi c-blue">
         <div class="kpi__label">📅 Tagesschnitt</div>
-        <div class="kpi__value">${totDays ? fmt.unit(totKwh / totDays, u.consumption_unit, 1).replace(u.consumption_unit, '') : '–'}
+        <div class="kpi__value">${totDays ? fmt.unit(totUnit / totDays, u.consumption_unit, 1).replace(u.consumption_unit, '') : '–'}
           <span style="font-size:14px;color:var(--text-2)">${u.consumption_unit}</span></div>
         <div class="kpi__sub">${totDays} Tage</div>
       </div>
@@ -469,6 +475,11 @@ function contractsTable(contracts, u) {
 function monthlyTable(monthly, u, hasContracts) {
   if (!monthly.length) return '<p class="muted" style="padding:16px">Keine Daten für dieses Jahr.</p>';
   const isGas = u.key === 'gas';
+  // v1.6.1 — Fix #14: Verbrauchs-Feldname je nach Utility. Wasser/
+  // m³-native Utilities tragen den Wert im Feld `m3`; das `kwh`-
+  // Feld ist nach applyUtilityFields leer. Vorher las die m³-Spalte
+  // fälschlich `m.kwh` → komplette Wasser-Monatstabelle zeigte 0.
+  const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
   const sign = v => v > 0 ? '+' : '';
 
   const tot = monthly.reduce((s, m) => ({
@@ -506,7 +517,7 @@ function monthlyTable(monthly, u, hasContracts) {
         <td><strong>${fmt.month(m.ym)}</strong></td>
         <td class="num">${m.days || 0}</td>
         ${isGas ? `<td class="num">${fmt.int(m.m3)}</td>` : ''}
-        <td class="num"><strong>${fmt.int(m.kwh)}</strong></td>
+        <td class="num"><strong>${fmt.int(m[consKey])}</strong></td>
         <td class="num">${fmt.num(m.kwh_per_day, 1)}</td>
         <td class="num">${m.avg_temp != null ? fmt.num(m.avg_temp, 1) : '–'}</td>
         <td class="num">${m.hdd != null ? fmt.int(m.hdd) : '–'}</td>
@@ -524,7 +535,7 @@ function monthlyTable(monthly, u, hasContracts) {
       <td>Gesamt</td>
       <td class="num">${tot.days}</td>
       ${isGas ? `<td class="num">${fmt.int(tot.m3)}</td>` : ''}
-      <td class="num">${fmt.int(tot.kwh)}</td>
+      <td class="num">${fmt.int(tot[consKey])}</td>
       <td></td><td></td><td></td><td></td>
       <td class="num">${fmt.num(tot.cost, 2)}</td>
       ${hasContracts ? `<td class="num col-yellow">${fmt.num(tot.adv, 2)}</td>` : ''}

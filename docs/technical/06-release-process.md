@@ -43,6 +43,15 @@ Beispiele aus der Historie:
   `#/zaehlerstaende`, Aggregat-Endpunkt `/api/readings-overview`,
   mobile-first View) → MINOR (neues abwärtskompatibles Feature;
   additiver Endpunkt, kein Schemafeld, kein Migrationsschritt)
+- v1.6.1 — Bugfix Issue #14 (Wasser-Sub-Dashboard zeigte 0 m³;
+  utility.js summierte `m.kwh` statt utility-spezifischem
+  `consKey`) + Issue #13 (Riesiger Ausschlag bei Zählertausch;
+  vierschichtig: (a) `replaceDevice` verlangt `old_final_counter`
+  explizit, (b) Off-by-one in `deviceOnDate` am Tausch-Tag
+  behoben, (c) Plausibilitäts-Check auf Wertebereich des alten
+  Geräts in `consumptionBetween`, (d) `device_swap`-Flag für
+  Wechsel-Monate, AnomalyService respektiert es) → PATCH
+  (reine Bugfixes, keine API- oder Schema-Änderungen)
 
 ---
 
@@ -167,6 +176,48 @@ git push origin main --tags
   granular. Faustregel: Aggregate sind oft die richtige Antwort für
   Lese-Performance; sie sind selten die richtige Antwort für Schreib-
   Robustheit.
+- **Default-Werte sind versteckte Datenkorruption (v1.6.1, Issue #13).**
+  `(float)($input['old_final_counter'] ?? 0)` in `replaceDevice` ließ
+  einen unvollständig konfigurierten Zählertausch aussehen wie einen
+  sauber geschlossenen — die Bridging-Logik fand danach einen plausibel
+  aussehenden `final_counter=0` vor, rechnete `partA = 0 −
+  prev.counter`, das verworf zwar als negativ einen Teilfall, ein
+  anderer Fall (Tausch-Tags-Reading mit `device_id=alt`) produzierte
+  aber einen Riesensprung. Lehre: eine fehlende Pflichtangabe muss
+  ein expliziter 400-Fehler sein, kein stiller Numerik-Default —
+  insbesondere wenn das Feld später in Plausibilitäts-Checks
+  einfließt.
+- **Off-by-one am Stichtag muss überall identisch sein (v1.6.1, Issue
+  #13).** `deviceOnDate` (Anlegen einer Ablesung) und
+  `deviceIdOnDate` (Auswertung) verwendeten beide `$date > removed_on`,
+  d. h. am Tausch-Tag selbst gehörte das Reading noch zum ALTEN Gerät.
+  Im Bridging-Pfad führt das zu einem fatalen Sprung. Konvention
+  geklärt: ein Intervall am `removed_on` endet vor diesem Tag, der
+  Tausch-Tag selbst gehört zum NEUEN Gerät (`$date >= removed_on`
+  überall). Lehre: bei Datums-Inklusivitäten an Stichtagen vor dem
+  ersten Commit konventionell entscheiden und mit einem Kommentar
+  am Tag-1-Check festnageln — nicht „so wirkt es richtig" pro Stelle.
+- **Inhaltliche Plausibilitätsprüfung statt magic numbers (v1.6.1,
+  Issue #13).** Erste Verteidigungslinie war ein Cap `total > 100 ×
+  finalOld`. Das hat die echten Daten von Viktor NICHT gefangen,
+  weil 17572 < 100 × 17549. Erst der **inhaltliche** Check „liegt
+  `prev.counter` überhaupt im Wertebereich `[initial_counter_alt,
+  final_counter_alt]` des angeblich alten Geräts?" griff sauber, weil
+  er die URSACHE prüft (device_id-Zuordnung) statt das Symptom
+  (großer Wert). Lehre: bevor man Schwellwerte tunt, prüfen, ob die
+  zugrunde liegende Annahme der Daten überhaupt stimmt — meistens
+  ist genau dort der Hebel.
+- **Frontend-Backend-Feldnamen über mehrere Stages (v1.6.1, Issue
+  #14).** `kwh_per_day` wurde in `enrichWithWeather` aus dem rohen
+  `kwh`-Feld berechnet, BEVOR `applyUtilityFields` für Wasser
+  `kwh → m3` umlegte und `kwh` nullte. Resultat: in derselben
+  Monatszeile stand `kwh = 0` (was die m³-Spalte zeigte) und
+  `kwh_per_day = 0,3` (was die m³/Tag-Spalte zeigte) — ein
+  selbstwidersprüchlicher Datensatz. Lehre: utility-spezifische
+  Umlagen entweder ganz am Ende oder konsistent über alle
+  abgeleiteten Felder. Zweitens: Frontend muss Feldnamen
+  Utility-aware auflösen (`consKey = consumption_unit==='kWh' ?
+  'kwh' : 'm3'`), nicht hartkodiert auf ein Feld setzen.
 
 ---
 

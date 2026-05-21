@@ -452,17 +452,44 @@ final class ConsumptionService
         $monthly = $this->applyContracts($monthly, $utility, $meter['id']);
         ksort($monthly);
         $monthly = array_values($monthly);
+        // v1.6.1 — Issue #13: Wechsel-Monate flaggen
+        $monthly = $this->markSwapMonths($monthly, $meter);
         $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
         $monthly = $this->applyWeatherAdjustment($monthly, $utility, $valueField);
         return $this->addMovingAverages($monthly, $valueField);
     }
 
     /**
-     * F2 core: compute raw counter consumption between two readings,
-     * correctly bridging device replacements.
-     *
-     * Returns null if readings sit on devices the meter doesn't know about.
+     * v1.6.1 — Issue #13: Markiert alle Monate, in denen ein Geräte-
+     * tausch stattfand, mit `device_swap = true`. Das erste Gerät
+     * eines Zählers zählt nicht als Tausch (initiale Inbetriebnahme).
+     * Genutzt vom AnomalyService, um solche Monate aus der z-Score-
+     * Erkennung auszuschließen — ein Tausch ist ein erklärlicher
+     * Sondereffekt, keine fachliche Anomalie.
      */
+    private function markSwapMonths(array $monthly, array $meter): array
+    {
+        $swap = [];
+        $devices = $meter['devices'] ?? [];
+        foreach ($devices as $i => $d) {
+            // installed_on des ERSTEN Geräts = initiale Inbetriebnahme,
+            // KEIN Tausch. installed_on aller späteren Geräte = Tausch.
+            if ($i > 0 && !empty($d['installed_on'])
+                && preg_match('/^(\d{4}-\d{2})/', (string)$d['installed_on'], $m)) {
+                $swap[$m[1]] = true;
+            }
+            // removed_on jedes Geräts (sofern gesetzt) = Tausch.
+            if (!empty($d['removed_on'])
+                && preg_match('/^(\d{4}-\d{2})/', (string)$d['removed_on'], $m)) {
+                $swap[$m[1]] = true;
+            }
+        }
+        foreach ($monthly as &$row) {
+            $row['device_swap'] = isset($swap[$row['ym'] ?? '']);
+        }
+        unset($row);
+        return $monthly;
+    }
     private function consumptionBetween(array $prev, array $curr, array $devicesById, array $meter): ?float
     {
         $prevDev = $prev['device_id'] ?? null;
@@ -483,18 +510,60 @@ final class ConsumptionService
 
         $finalOld = $oldDev['final_counter'];
         $initNew  = $newDev['initial_counter'];
-        if ($finalOld === null) return null; // can't bridge — old device not closed
 
-        $partA = (float)$finalOld - (float)$prev['counter'];
+        // v1.6.1 — Issue #13: das alte Gerät muss SAUBER geschlossen
+        // sein (final_counter gesetzt UND ≥ letzter Ablesung am alten
+        // Gerät). Sonst kann kein konsistenter Übergang berechnet
+        // werden — Ausschläge im Monat des Wechsels waren genau die
+        // Folge davon (final_counter=0 als Default bei nicht-
+        // gepflegtem Tausch). Lieber Intervall verwerfen als falschen
+        // Riesensprung zeigen.
+        if ($finalOld === null || $finalOld === '') return null;
+        $finalOldF = (float)$finalOld;
+        $prevCtr   = (float)$prev['counter'];
+
+        // v1.6.1 — Issue #13 (Hauptbefund aus viktor-sc's Daten):
+        // Wenn die Ablesung am Tausch-Tag fälschlich device_id=alt
+        // bekommen hat (Off-by-one in deviceOnDate zur Anlegezeit),
+        // ist `prev.counter` der frische Stand des NEUEN Zählers
+        // (z.B. 0.1 m³), nicht ein Stand des alten. Folge: partA =
+        // finalOld − prev wird gigantisch (z.B. 17549.38 − 0.1).
+        //
+        // Plausibilitätsregel: ein Reading auf dem alten Gerät muss
+        // im Bereich [initial_counter_alt, final_counter_alt] liegen.
+        // Wenn nicht → device_id ist falsch zugewiesen → Intervall
+        // verwerfen (statt einen 200-fach übertriebenen Verbrauch
+        // anzuzeigen).
+        $initOld = $oldDev['initial_counter'] ?? null;
+        if ($initOld !== null && $initOld !== '' && $prevCtr < (float)$initOld) {
+            return null;
+        }
+        if ($finalOldF < $prevCtr) {
+            return null;
+        }
+
+        if ($initNew === null || $initNew === '') $initNew = 0.0;
+
+        $partA = $finalOldF - $prevCtr;
         $partB = (float)$curr['counter'] - (float)$initNew;
-        return $partA + $partB;
+        $total = $partA + $partB;
+
+        if ($total < 0) return null;
+
+        return $total;
     }
 
     private function deviceIdOnDate(array $meter, string $date): ?string
     {
         foreach ($meter['devices'] ?? [] as $d) {
             if ($date < ($d['installed_on'] ?? '9999')) continue;
-            if (!empty($d['removed_on']) && $date > $d['removed_on']) continue;
+            // v1.6.1 — Issue #13: am Tausch-Tag (removed_on) ist das
+            // alte Gerät schon ausgebaut; eine Ablesung an diesem Tag
+            // gehört zum neuen. Vorher: `$date > removed_on` ließ den
+            // Tausch-Tag noch auf dem alten Gerät → die erste Ablesung
+            // des neuen Zählers wurde fälschlich als Same-Device-Diff
+            // gegen den alten Stand gerechnet.
+            if (!empty($d['removed_on']) && $date >= $d['removed_on']) continue;
             return $d['id'];
         }
         return null;
@@ -1084,6 +1153,8 @@ final class ConsumptionService
         $monthly = $this->applyContracts($monthly, $utility, $meter['id']);
         ksort($monthly);
         $monthly = array_values($monthly);
+        // v1.6.1 — Issue #13: Wechsel-Monate auch im Wasser-Pfad flaggen
+        $monthly = $this->markSwapMonths($monthly, $meter);
         $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
         $monthly = $this->applyWeatherAdjustment($monthly, $utility, $valueField);
         return $this->addMovingAverages($monthly, $valueField);

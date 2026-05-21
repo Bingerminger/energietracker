@@ -6,6 +6,112 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.6.1] — 2026-05-21 — Bugfix: Wasser-KPI & Zählerwechsel-Ausschlag
+
+### Fixed
+
+- **Issue [#14] — Wasser-Sub-Dashboard zeigte 0 m³ Verbrauch.**
+  `public/js/views/utility.js` summierte das KPI „Verbrauch" und die
+  Spalte „m³" der Monatstabelle stur aus `m.kwh`. Wasser ist im
+  Backend m³-nativ — `applyUtilityFields` legt den Wert nach
+  Aggregation in `m.m3` um und nullt `m.kwh`. Folge: Wasser-View
+  zeigte 0, obwohl Haupt-Dashboard und `m³/Tag`-Spalte (gespeist aus
+  einem vor der Umlage gesetzten Feld) korrekt waren. Fix: `consKey`
+  (`'kwh'` für kWh-Utilities, `'m3'` für m³-Utilities) wird in beiden
+  Render-Funktionen (`render` und `monthlyTable`) auf Funktions-Scope
+  gehoben und konsistent verwendet — KPI-Wert, Monatstabellen-Zelle
+  und Footer-Total.
+
+- **Issue [#13] — Riesiger Ausschlag im Monat des Zählertauschs.**
+  Bei einem Tausch sah das Dashboard einen Spike von ~200 000 kWh
+  (Gas) bzw. ~1 100 m³ (Wasser) im Wechsel-Monat. Vier Ursachen
+  wurden gefunden und gefixt:
+
+  1. **`MeterService::replaceDevice`** setzte still
+     `final_counter = 0`, wenn das Frontend das Feld leer ließ. Das
+     ist eine versteckte Datenkorruption: nach `replaceDevice`
+     scheint das alte Gerät „sauber geschlossen", obwohl der echte
+     Endstand fehlt. Jetzt wirft die API einen 400-Fehler, wenn
+     `old_final_counter` fehlt.
+
+  2. **Off-by-one in `MeterService::deviceOnDate`** und
+     `ConsumptionService::deviceIdOnDate`: am Tausch-Tag
+     (`removed_on`) wurde noch das ALTE Gerät zurückgegeben, weil
+     `$date > $d['removed_on']` am exakten Wechsel-Tag false ist.
+     Ablesungen am Tausch-Tag bekamen dadurch zur Anlegezeit
+     fälschlich `device_id=alt`. Geändert auf `$date >=
+     $d['removed_on']` → am Wechsel-Tag greift das neue Gerät.
+
+  3. **Plausibilitäts-Check in `ConsumptionService::consumptionBetween`**:
+     wenn der Vor-Stand (`prev.counter`) eines Bridging-Intervalls
+     außerhalb des Wertebereichs `[initial_counter_alt,
+     final_counter_alt]` des angeblich alten Geräts liegt, ist die
+     `device_id` der Ablesung offensichtlich falsch zugewiesen
+     (typischer Fall: Tausch-Tags-Ablesung mit dem frischen Stand des
+     neuen Zählers — z. B. 0,1 m³ — wurde fälschlich `device=alt`
+     gespeichert). Das Intervall wird verworfen statt einen
+     200-fachen Ausschlag zu rechnen. Schützt auch bei
+     Bestandsdaten, die noch mit dem Off-by-one (#2) angelegt wurden.
+
+  4. **`AnomalyService::detect`** ignoriert Wechsel-Monate. Über ein
+     neues `device_swap`-Flag pro Monatszeile (gesetzt von
+     `ConsumptionService::markSwapMonths` für alle Monate, in denen
+     `installed_on` oder `removed_on` eines nicht-initialen Geräts
+     liegt) werden Tausch-Monate aus der z-Score-Erkennung
+     ausgeschlossen — ein Tausch ist ein erklärlicher Sondereffekt,
+     keine fachliche Anomalie.
+
+### Tests
+
+- `tests/frontend-api-shape.test.js` ergänzt um zwei Regressions-
+  Checks: (a) Wasser-Monthly hat `m3 ≠ 0`, `kwh = 0`; (b)
+  Monatszeilen tragen `device_swap`-Flag. **14/14 Checks bestanden.**
+- `tests/browser-render.test.mjs` unverändert. **34/34 bestanden.**
+
+### Migration
+
+Keine Datenmodell-Änderungen. Schema bleibt **1.1.0**.
+
+Hinweis: bestehende Ablesungen, deren `device_id` am Tausch-Tag durch
+den alten Off-by-one falsch gesetzt wurde, bleiben in der JSON
+gespeichert wie sie sind — der Plausibilitäts-Check (#3 oben)
+verhindert lediglich den falschen Ausschlag im Chart. Wer die
+Zuordnung sauber korrigieren möchte: Ablesung am Tausch-Tag im UI
+löschen und neu anlegen (sie bekommt dann mit v1.6.1 die korrekte
+`device_id=neu`).
+
+### Lessons Learned
+
+- **Default-Werte sind eine versteckte Datenkorruption.**
+  `(float)($input['old_final_counter'] ?? 0)` ließ einen unvollständig
+  konfigurierten Tausch aussehen wie einen sauber geschlossenen. Eine
+  fehlende Pflichtangabe muss eine explizite 400-Antwort sein, kein
+  stiller Default.
+- **Off-by-one am Stichtag.** `>` und `>=` am Wechsel-Tag waren
+  semantisch nicht durchgehend gleich definiert. Wenn ein Intervall
+  am Tag X endet und das nächste am Tag X beginnt, gehört X
+  konventionsmäßig zum NEUEN Intervall. Diese Konvention muss
+  überall identisch sein (Anlage UND Auswertung).
+- **Frontend-Backend-Feldnamen über mehrere Stages.** `kwh_per_day`
+  wurde VOR `applyUtilityFields` gesetzt (also auf dem rohen `kwh`-
+  Feld), dann legte `applyUtilityFields` `kwh` nach `m3` um. Beide
+  Felder konnten danach widersprüchliche Aussagen tragen
+  (M³-Spalte 0, M³/Tag 0,3). Lehre: utility-spezifische Umlagen
+  müssen entweder ganz am Ende stattfinden ODER alle abgeleiteten
+  Felder konsistent mitführen.
+- **Defensive Plausibilitäts-Checks > kosmetische Ausschlag-
+  Filter.** Erste Idee war ein „verwerfen wenn `total > 100×
+  finalOld`". Das hat den Bug NICHT gefangen, weil Viktors Werte
+  knapp darunter lagen. Erst der **inhaltliche** Check „liegt
+  `prev.counter` überhaupt im Wertebereich des angeblich alten
+  Geräts" greift, weil er die Ursache (falsche device_id) prüft,
+  nicht das Symptom (großer Wert).
+
+[#13]: https://github.com/Bingerminger/energietracker/issues/13
+[#14]: https://github.com/Bingerminger/energietracker/issues/14
+
+---
+
 ## [1.6.0] — 2026-05-18 — F1004: Zentrale Zählerstand-Erfassung
 
 ### Added

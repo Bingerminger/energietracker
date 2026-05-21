@@ -236,15 +236,31 @@ final class MeterService
                 throw new \InvalidArgumentException('Kein offener Zähler vorhanden — bitte zuerst Zähler initial anlegen');
             }
             $date = $input['date'] ?? date('Y-m-d');
+
+            // v1.6.1 — Issue #13: alter Endstand muss explizit
+            // angegeben werden. Vorher wurde stillschweigend 0 gesetzt,
+            // wenn das Feld fehlte — das führte zu unrealistischen
+            // Bridging-Ausschlägen im Monat des Tauschs.
+            if (!isset($input['old_final_counter']) || $input['old_final_counter'] === '') {
+                throw new \InvalidArgumentException(
+                    'Beim Zählertausch muss der Endstand des alten Geräts '
+                    . '(„old_final_counter") angegeben werden.'
+                );
+            }
+            $oldFinal = (float)$input['old_final_counter'];
+            $newInit  = isset($input['new_initial_counter']) && $input['new_initial_counter'] !== ''
+                        ? (float)$input['new_initial_counter']
+                        : 0.0;
+
             $devices[$openIdx]['removed_on']    = $date;
-            $devices[$openIdx]['final_counter'] = (float)($input['old_final_counter'] ?? 0);
+            $devices[$openIdx]['final_counter'] = $oldFinal;
             $devices[$openIdx]['reason']        = $input['reason'] ?? null;
 
             $devices[] = [
                 'id'              => 'd_' . bin2hex(random_bytes(4)),
                 'serial'          => $input['serial'] ?? null,
                 'installed_on'    => $date,
-                'initial_counter' => (float)($input['new_initial_counter'] ?? 0),
+                'initial_counter' => $newInit,
                 'removed_on'      => null,
                 'final_counter'   => null,
                 'reason'          => null,
@@ -265,7 +281,10 @@ final class MeterService
     {
         foreach ($meter['devices'] ?? [] as $d) {
             if ($date < ($d['installed_on'] ?? '9999-99-99')) continue;
-            if (!empty($d['removed_on']) && $date > $d['removed_on']) continue;
+            // v1.6.1 — Issue #13: am Tausch-Tag (removed_on) ist das
+            // alte Gerät bereits ausgebaut; eine Ablesung an diesem
+            // Tag gehört zum neuen Gerät.
+            if (!empty($d['removed_on']) && $date >= $d['removed_on']) continue;
             return $d;
         }
         return null;
