@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-05-22 (synchron mit v1.6.2, N1001 ausgeliefert)
-**Aktuelle Baseline:** v1.6.2
+**Stand:** 2026-05-22 (synchron mit v1.6.3, N1002 ausgeliefert)
+**Aktuelle Baseline:** v1.6.3
 **Schema:** 1.1.0
 
 ---
@@ -35,6 +35,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | F1003 | Sonderzahlungen (5 Arten) für Gas/Strom/Fernwärme | v1.5.0 | 2026-05-17 |
 | F1004 | Zentrale Zählerstand-Erfassung (`#/zaehlerstaende`) | v1.6.0 | 2026-05-18 |
 | N1001 | PHPUnit-Foundation + Unit-Tests `ConsumptionService` / `MeterService` / `AnomalyService` | v1.6.2 | 2026-05-22 |
+| N1002 | Edge-Case-Test-Suite (10 Fälle: Überlauf, lange Lücke, doppelte Daten, negativ, Schaltjahr, DST, leer, Vertragswechsel, Wasser ohne SW/NW, Import vor installed_on) | v1.6.3 | 2026-05-22 |
 
 ---
 
@@ -48,50 +49,12 @@ ein UI-seitiges Backup/Restore davor erspart Datenverluste.
 
 | Code | Thema | Release | Größe | Status |
 |------|-------|---------|-------|--------|
-| **N1002** | Edge-Case-Test-Suite (Zählerüberlauf, lange Lücken, Tausch-Varianten, Schaltjahr, doppelte Daten) | v1.6.3 | M | Konzept-Skizze unten |
 | **F1005** | PV-Einspeisezähler | v1.7.0 | S | Detail-Konzept offen |
 | **N1003** | Health-Check-Endpoint `GET /health` | v1.7.0 (mitgeliefert) | XS | inline |
 | **N1004** | Backup/Restore im UI (Snapshot-Download + Upload-Restore) | v1.7.1 | M | inline |
 | **N1005** | Docker-Image + `docker-compose.yml` | v1.7.2 | M | inline |
 | **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | Detail-Konzept offen |
 | TBD | offen für weitere Issues / Bedarfe | v1.9.0+ | — | offen |
-
----
-
-## v1.6.3 — N1002 Edge-Case-Test-Suite
-
-**Auslöser:** Reviews v1.4.4 / v1.6.1 haben mehrere unbedeckte
-Konstellationen sichtbar gemacht. Bevor F1006 (Schema 1.2.0 + Topologie)
-gebaut wird, muss die Regression-Sicherheit für diese Fälle stehen.
-
-### Ziel
-Test-Suite, die unrealistische Werte und seltene Konstellationen abdeckt.
-Aufbauend auf der PHPUnit-Foundation aus N1001.
-
-### Abzudeckende Edge Cases (vorläufige Liste)
-1. **Zählerüberlauf** — 5-stellig → 6-stellig, oder Reset auf 0 ohne
-   Device-Tausch.
-2. **Sehr lange Intervalle** — User vergisst Ablesungen monatelang (>90
-   Tage), `alert_days_since_reading`-Schwelle, Forecast-Verhalten.
-3. **Doppelte Ablesungen am gleichen Datum** auf verschiedenen Devices.
-4. **Negative Verbräuche** ohne Device-Tausch (sollte verworfen werden).
-5. **Schaltjahr** (Feb 29) — Monatslängen-Berechnung.
-6. **Zeitumstellung (DST)** — `DateTime`-Arithmetik in
-   `distributeToMonths`.
-7. **Leerer Zähler** — gar keine Ablesung, soll nicht crashen.
-8. **Vertragswechsel mitten im Monat** — partielle Preise.
-9. **Wasser ohne Schmutzwasser oder Niederschlagswasser** — eine oder
-   zwei Komponenten leer.
-10. **Bulk-Import von Ablesungen** vor Zähler-Beginn (`installed_on`
-    liegt nach der ersten Ablesung).
-
-### Erfolgsmaß
-- Jeder Edge Case ist als PHPUnit-Test fixiert.
-- Im Frontend wird mindestens ein User-sichtbarer Fall (Zählerüberlauf,
-  lange Lücke) im `browser-render`-Test als Smoke geprüft.
-
-### Schema-Migration
-Keine. Schema bleibt **1.1.0**.
 
 ---
 
@@ -292,6 +255,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-05-21 | Erstanlage (mit v1.6.1) | Roadmap als lebendiges Dokument eingeführt. F1005 (PV) / F1006 (Meter-Topologie) konkretisiert. EN-Lokalisierung und Smart-Meter ins Backlog. F1006 + F1007 zu einem gemeinsamen v1.8.0 gebündelt (Henne-Entscheidung). |
 | 2026-05-21 | NFR-Erweiterung | N-Code-Reihe eingeführt. N1001 (PHPUnit), N1002 (Edge-Cases), N1003 (Health), N1004 (Backup/Restore), N1005 (Docker) als geplante Slots vor F1006. N1006–N1011 ins Backlog. Reihenfolge erklärt: NFRs vor riskanten Refactors, Backup vor Schema-Migration. |
 | 2026-05-22 | v1.6.2 ausgeliefert | N1001 (PHPUnit-Foundation, 12 Tests / 41 Assertions über `ConsumptionService` + `MeterService` + `AnomalyService`) ausgeliefert. Composer dev-only, Runtime bleibt Composer-frei. Detail-Skizze aus „Geplant" entfernt. |
+| 2026-05-22 | v1.6.3 ausgeliefert | N1002 (Edge-Case-Suite, 13 zusätzliche Tests in vier neuen Klassen) ausgeliefert. Alle 10 Roadmap-Fälle abgedeckt, kein Bug aufgedeckt, kein Code-Change. Frontend-Smoke bewusst weggelassen (PHPUnit ist der richtige Ort). Detail-Skizze aus „Geplant" entfernt. |
 
 ---
 

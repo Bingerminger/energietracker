@@ -1,6 +1,6 @@
 # Energietracker — Kompendium
 
-> Vollständige Dokumentation zu Energietracker **v1.6.2**.
+> Vollständige Dokumentation zu Energietracker **v1.6.3**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit Mockups aller Ansichten.
 
@@ -81,6 +81,6 @@ auf dem eigenen Rechner.
   Gedächtnis notiert.
 - Pfadangaben sind relativ zum Projektwurzelverzeichnis.
 
-Versionsstand dieses Kompendiums: **v1.6.2** (2026-05-22). Die Doku wird
+Versionsstand dieses Kompendiums: **v1.6.3** (2026-05-22). Die Doku wird
 ab v1.4.2 bei **jedem** Release synchron mitgeführt — siehe
 [Release-Prozess](technical/06-release-process.md).

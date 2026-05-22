@@ -6,6 +6,58 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.6.3] — 2026-05-22 — N1002: Edge-Case-Test-Suite
+
+### Added
+
+- **N1002** — Edge-Case-Suite aufbauend auf der PHPUnit-Foundation aus
+  N1001. Alle 10 Konstellationen aus dem Roadmap-Slot abgedeckt, in vier
+  neuen Test-Klassen unter `tests/unit/Services/`:
+  - `ConsumptionEdgeCasesTest` — Zählerüberlauf, lange Lücke,
+    doppeltes Datum, negativer Verbrauch, Schaltjahr, DST-Übergang,
+    leerer/einzelner Zähler.
+  - `ContractEdgeCasesTest` — Vertragswechsel mitten im Monat
+    (Stichtag-Konvention: am 1. des Monats aktiver Vertrag bekommt den
+    ganzen Monat) und Wechsel exakt zum 1.
+  - `WaterContractEdgeCasesTest` — Wasser-Vertrag ohne Schmutz- und
+    ohne Niederschlagswasser-Komponente.
+  - `ReadingEdgeCasesTest` — Schreibpfad: Ablesung vor `installed_on`
+    wird abgewiesen, Bulk-Import meldet sie als `skipped`+`errors` und
+    importiert die übrigen Zeilen sauber; doppelte Daten im Import
+    überschreiben statt zu duplizieren.
+
+### Changed
+
+- Keine. Diese Suite dokumentiert ausschließlich vorhandenes Verhalten;
+  kein Test deckt einen Bug auf, kein Service-Code wurde geändert.
+
+### Migration
+
+Keine. Schema bleibt **1.1.0**.
+
+### Tests
+
+- `vendor/bin/phpunit` → **25 Tests / 80 Assertions, alle grün**
+  (12 Tests aus v1.6.2 + 13 neue Edge-Case-Tests).
+- Regression-Safety-Net für F1006 (Meter-Topologie) steht damit
+  vollständig — `ConsumptionService::forMeter()` darf in v1.8.0 ohne
+  Angst angefasst werden.
+
+### Lessons Learned
+
+- **Vorrechnen lohnt sich:** der erste DST-Test rechnete „15.→31.März =
+  16 Tage", korrekt ist 17 (`DateTime::diff` liefert die Differenz, nicht
+  die Kalendertage). Lieber den Test-Code laufen lassen und das
+  beobachtete Verhalten dokumentieren, als das erwartete Verhalten
+  vorzuformulieren.
+- **PHPUnit-Risky-Test bei leerem Iterator:** ein `foreach`-Loop, der
+  über `[]` läuft, führt zu null Assertions und wird als „risky" gemeldet
+  (`failOnRisky=true` lässt den Test rot werden). Lösung: vor dem Loop
+  eine Gesamt-Assertion (`array_sum`/`assertEmpty`), die den
+  Verwerfungs-Pfad explizit prüft.
+
+---
+
 ## [1.6.2] — 2026-05-22 — N1001: PHPUnit-Foundation für die Service-Schicht
 
 ### Added
