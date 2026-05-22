@@ -27,3 +27,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+## PHPUnit
+.phpunit.cache/
+.phpunit.result.cache

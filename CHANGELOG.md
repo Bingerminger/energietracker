@@ -6,6 +6,67 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.6.2] — 2026-05-22 — N1001: PHPUnit-Foundation für die Service-Schicht
+
+### Added
+
+- **N1001** — PHPUnit-Foundation. Erstmalige Composer-Nutzung im Repo,
+  konsequent **dev-only**: `composer.json` führt `phpunit/phpunit ^11.5`
+  als `require-dev`, der Runtime-Autoloader in `src/bootstrap.php` bleibt
+  unverändert hand-rolled, der Auslieferungs-ZIP enthält weiterhin kein
+  `vendor/`.
+- Test-Verzeichnis `tests/unit/` mit Support-Basisklasse
+  `ServiceTestCase`. Jeder Test bekommt ein frisches temporäres
+  `data/`-Verzeichnis (via `Migrator::initFresh()`), die Services werden
+  identisch zum App-Container zusammengesteckt — **keine Mocks der
+  Storage-Schicht** (Lesson „Mocks nicht über echte Disk-I/O", v1.4.x).
+- Drei Test-Klassen mit zusammen 12 Tests, fokussiert auf die in
+  Issue [#13] gefixten Pfade:
+  - `ConsumptionServiceBridgingTest` — 5 Bridging-Pfade
+    (sauber, Off-by-one am Tausch-Tag, fehlender `final_counter`,
+    Plausibilitäts-Cap, `device_swap`-Flagging).
+  - `MeterServiceReplaceDeviceTest` — `old_final_counter` als Pflicht,
+    `deviceOnDate`-Stichtag-Konvention (`>= removed_on` → neues Gerät).
+  - `AnomalyServiceTest` — Wechsel-Monat aus z-Score-Erkennung
+    ausgeschlossen, Feldnamen-Vertrag stabil.
+
+### Changed
+
+- `.github/workflows/ci.yml`: neuer Job `phpunit` (läuft nach
+  `lint-php`), inkl. Composer-Cache. `lint-php` ignoriert jetzt
+  zusätzlich `vendor/`.
+- `.gitignore`: `.phpunit.cache/` und `.phpunit.result.cache` ergänzt.
+
+### Migration
+
+Keine. Schema bleibt **1.1.0**. Composer ist optional und wird
+ausschließlich für die Test-Suite gebraucht — eine bestehende
+Installation muss nichts tun.
+
+### Tests
+
+- `vendor/bin/phpunit` → **12 Tests, 41 Assertions, alle grün**.
+- Bestehende Frontend-API-Shape- und Browser-Render-Tests unverändert,
+  bleiben grün.
+
+### Lessons Learned
+
+- macOS-Spezial: `sys_get_temp_dir()` liefert `/var/folders/...` (Symlink
+  auf `/private/var/folders/...`). `JsonStore::path()` prüft per
+  `realpath()` und würde sonst „Ungültiger Speicherpfad" werfen — im
+  Test-Harness das `dataDir` einmal mit `realpath()` auflösen.
+- PHP 8.5-Deprecation „Implicit nullable parameter" ist hier schon
+  aktiv. `?string $x = null` statt `string $x = null` schreiben, auch
+  wenn die Production noch auf 8.4 läuft.
+- Gas-Tests sind ungeeignet als Default-Fixture: der Conversion-Faktor
+  `gas_kwh_per_m3` (Default 11.5) verzerrt erwartete Verbrauchssummen.
+  Für Bridging-Unit-Tests `strom` wählen (`unit_to_kwh = false`,
+  Conversion-Faktor = 1.0).
+
+[#13]: https://github.com/Bingerminger/energietracker/issues/13
+
+---
+
 ## [1.6.1] — 2026-05-21 — Bugfix: Wasser-KPI & Zählerwechsel-Ausschlag
 
 ### Fixed

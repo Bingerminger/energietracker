@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-05-21 (synchron mit v1.6.1, NFR-Sektion ergänzt)
-**Aktuelle Baseline:** v1.6.1
+**Stand:** 2026-05-22 (synchron mit v1.6.2, N1001 ausgeliefert)
+**Aktuelle Baseline:** v1.6.2
 **Schema:** 1.1.0
 
 ---
@@ -34,6 +34,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 |------|-------|---------|-------|
 | F1003 | Sonderzahlungen (5 Arten) für Gas/Strom/Fernwärme | v1.5.0 | 2026-05-17 |
 | F1004 | Zentrale Zählerstand-Erfassung (`#/zaehlerstaende`) | v1.6.0 | 2026-05-18 |
+| N1001 | PHPUnit-Foundation + Unit-Tests `ConsumptionService` / `MeterService` / `AnomalyService` | v1.6.2 | 2026-05-22 |
 
 ---
 
@@ -47,7 +48,6 @@ ein UI-seitiges Backup/Restore davor erspart Datenverluste.
 
 | Code | Thema | Release | Größe | Status |
 |------|-------|---------|-------|--------|
-| **N1001** | PHPUnit-Foundation + Unit-Tests `ConsumptionService` | v1.6.2 | M | Konzept-Skizze unten |
 | **N1002** | Edge-Case-Test-Suite (Zählerüberlauf, lange Lücken, Tausch-Varianten, Schaltjahr, doppelte Daten) | v1.6.3 | M | Konzept-Skizze unten |
 | **F1005** | PV-Einspeisezähler | v1.7.0 | S | Detail-Konzept offen |
 | **N1003** | Health-Check-Endpoint `GET /health` | v1.7.0 (mitgeliefert) | XS | inline |
@@ -55,39 +55,6 @@ ein UI-seitiges Backup/Restore davor erspart Datenverluste.
 | **N1005** | Docker-Image + `docker-compose.yml` | v1.7.2 | M | inline |
 | **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | Detail-Konzept offen |
 | TBD | offen für weitere Issues / Bedarfe | v1.9.0+ | — | offen |
-
----
-
-## v1.6.2 — N1001 PHPUnit-Foundation
-
-**Auslöser:** Issue #13 hat gezeigt, dass die Bridging-Logik im
-`ConsumptionService` ohne Unit-Tests fragil ist. Der Bugfix v1.6.1 wurde
-mit einem ad-hoc-Smoke-Skript verifiziert — eine wiederholbare Suite
-existiert nur API-Shape-seitig.
-
-### Ziel
-Eine echte PHPUnit-Suite für die Service-Schicht, mit Initialfokus auf
-`ConsumptionService` (Bridging-Pfade) und `MeterService` (`replaceDevice`,
-`deviceOnDate`-Stichtag-Konvention).
-
-### Skizze
-- `composer.json` anlegen (bisher gibt es keine).
-- PHPUnit als dev-Dependency.
-- Verzeichnis `tests/unit/` mit Test-Klassen pro Service.
-- Fixtures: realer Tausch-Datensatz aus Issue #13 als
-  `tests/fixtures/issue13-tausch.json`, Wasser-3-Komponenten als
-  `tests/fixtures/wasser-vertrag.json`.
-- Erste Test-Klassen:
-  - `ConsumptionServiceBridgingTest` — die fünf Bridging-Fälle aus
-    Issue #13 (sauber, Off-by-one, fehlender `final_counter`,
-    Plausibilitäts-Cap, `device_swap`-Flag-Setzung).
-  - `MeterServiceReplaceDeviceTest` — 400-Validierung,
-    `deviceOnDate`-Konvention.
-  - `AnomalyServiceTest` — Wechsel-Monat wird übersprungen.
-- CI-Job `phpunit` erweitert `.github/workflows/ci.yml`.
-
-### Schema-Migration
-Keine. Schema bleibt **1.1.0**.
 
 ---
 
@@ -324,6 +291,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 |-------|--------|----------|
 | 2026-05-21 | Erstanlage (mit v1.6.1) | Roadmap als lebendiges Dokument eingeführt. F1005 (PV) / F1006 (Meter-Topologie) konkretisiert. EN-Lokalisierung und Smart-Meter ins Backlog. F1006 + F1007 zu einem gemeinsamen v1.8.0 gebündelt (Henne-Entscheidung). |
 | 2026-05-21 | NFR-Erweiterung | N-Code-Reihe eingeführt. N1001 (PHPUnit), N1002 (Edge-Cases), N1003 (Health), N1004 (Backup/Restore), N1005 (Docker) als geplante Slots vor F1006. N1006–N1011 ins Backlog. Reihenfolge erklärt: NFRs vor riskanten Refactors, Backup vor Schema-Migration. |
+| 2026-05-22 | v1.6.2 ausgeliefert | N1001 (PHPUnit-Foundation, 12 Tests / 41 Assertions über `ConsumptionService` + `MeterService` + `AnomalyService`) ausgeliefert. Composer dev-only, Runtime bleibt Composer-frei. Detail-Skizze aus „Geplant" entfernt. |
 
 ---
 

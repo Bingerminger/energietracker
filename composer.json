@@ -1,0 +1,26 @@
+{
+    "name": "bingerminger/energietracker",
+    "description": "Self-hosted household consumption tracker. Composer is dev-only — runtime stays Composer-free via the hand-rolled autoloader in src/bootstrap.php.",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Energietracker\\Tests\\": "tests/unit/"
+        },
+        "files": [
+            "src/bootstrap.php"
+        ]
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "scripts": {
+        "test": "phpunit"
+    }
+}
