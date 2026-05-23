@@ -6,6 +6,80 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.7.1] — 2026-05-23 — N1004 (Backup/Restore-UI) + Demo-Daten und Doku für PV nachgereicht
+
+### Added
+
+- **N1004** — Backup-Restore-Sicherungen:
+  - Vor jedem `BackupService::import()` legt die App automatisch einen
+    Snapshot der aktuellen Daten unter `data/backups/pre-restore-<ts>.json`
+    ab. Wer mit dem Import-Ergebnis unzufrieden ist, kann diesen
+    Snapshot wieder einspielen.
+  - Schema-Version-Check: Backups mit `meta.schema_version >`
+    `Migrator::SCHEMA_VERSION` werden hart abgelehnt
+    (`InvalidArgumentException`). Vermeidet das stille Einspielen eines
+    1.2.0-Backups in eine 1.1.0-App.
+  - Restore-Report trägt jetzt `auto_snapshot_before_restore` (Dateiname
+    oder Fehlerobjekt). Frontend zeigt den Namen im Erfolgs-Toast.
+- **Demo-Daten v1.7.0 nachgereicht** (`demo-data/pv_einspeisung/` und
+  `demo-data/pv_erzeugung/`):
+  - Realistisches 10-kWp-Eigenheim-Szenario, Inbetriebnahme 2023-04-01,
+    Standort Leipzig (analog Strom-Demo).
+  - 36 monatliche Ablesungen je Zähler bis 2026-03-15.
+  - Jahresertrag ~9.500 kWh, Eigenverbrauchsquote 30 %, Autarkiequote
+    ~46 %, EEG-Einspeisevergütung 8,2 ct/kWh (IB 04/2023 nach § 48 EEG
+    2023). `demo-data/settings.json` aktiviert beide PV-Utilities.
+- **Szenario-Doku für PV**:
+  - [`docs/functional/08-szenario-eigenheim.md`](docs/functional/08-szenario-eigenheim.md)
+    um Sektion 6 „Photovoltaik — Einrichtung und Lesart" erweitert
+    (welche Zähler bei welcher Anlage, EEG-Sätze, Strom-Saldo-Lesart,
+    Autarkie- und EV-Quote, CO₂-als-vermieden, Erfassungs-Disziplin).
+  - [`docs/functional/07-szenario-wohnung.md`](docs/functional/07-szenario-wohnung.md)
+    um Sektion 7 „Sonderfall Balkonkraftwerk" ergänzt (warum
+    `pv_einspeisung` dort nichts bringt, `pv_erzeugung` optional als
+    Performance-Kontrolle).
+
+### Changed
+
+- UI: der Restore-Confirm-Dialog erklärt jetzt den automatischen
+  Pre-Restore-Snapshot — verringert die Reibung beim Klick, weil der
+  User weiß, dass ein Rollback-Pfad existiert.
+- `BackupService::saveSnapshot()` akzeptiert optional einen
+  `$prefix`-Parameter (Default `backup_`). Bestehende Aufrufer
+  unverändert; intern genutzt für `pre-restore-` Sicherungen.
+
+### Migration
+
+Keine. Schema bleibt **1.1.0**. Bestehende User-Daten werden nicht
+angefasst; Demo-Daten-Erweiterung ist nur für frische Installationen
+relevant.
+
+### Tests
+
+- `vendor/bin/phpunit` → **41 Tests / 146 Assertions, alle grün**
+  (38 aus v1.7.0 + 3 neue):
+  - `BackupServiceRestoreGuardTest` (3) — Schema-Guard wirft bei
+    neuerem Backup-Schema, akzeptiert gleiches Schema, legt Auto-
+    Snapshot im `backups/`-Verzeichnis ab.
+
+### Lessons Learned
+
+- **Demo + Doku gehören zum Feature.** v1.7.0 lieferte Code, Tests und
+  Detail-Konzept, aber keine Demo-Daten und keine ausführliche
+  Szenario-Doku. Effekt: ein User, der die Demo lädt, sah keinen
+  Mehrwert von F1005, ein User, der die Eigenheim-Doku las, fand kein
+  Wort zu PV. Lesson: bei Feature-Releases die Demo-Daten- und
+  Szenario-Doku-Erweiterung als verpflichtende Sub-Tasks im
+  Release-Plan führen.
+- **Bestehender Code zuerst lesen, dann skizzieren.** Die Roadmap-Skizze
+  für N1004 forderte „ZIP-Stream" — der bestehende BackupService liefert
+  JSON, was menschenlesbar, leicht diff-bar und ohne `ext-zip`-Abhängig-
+  keit ist. Die JSON-Lösung beizubehalten und nur die fehlenden
+  Sicherungen (Schema-Guard, Auto-Snapshot vor Restore) zu ergänzen,
+  war der richtige Code-First-Move.
+
+---
+
 ## [1.7.0] — 2026-05-23 — F1005: PV-Einspeisung + Erzeugung + Autarkiequote, N1003: Health-Check
 
 Erstes funktionales Release seit v1.6.0 — F1004. Die NFR-Slots N1001/N1002

@@ -1,0 +1,23 @@
+[
+    {
+        "id": "c_pv_eeg_2023",
+        "meter_id": "m_pv_einspeisung_main",
+        "provider": "MITNETZ Strom",
+        "tariff_name": "EEG-Einspeisevergütung (IB 04/2023)",
+        "start": "2023-04-01",
+        "end": "2043-03-31",
+        "notes": "Feste Einspeisevergütung über 20 Jahre nach EEG 2023, §48 (Anlagen ≤ 10 kWp). Nach Ablauf typischerweise Vermarktung über sonstige Direktvermarktung.",
+        "working_prices": [
+            {
+                "from": "2023-04-01",
+                "ct_per_kwh": 8.2
+            }
+        ],
+        "base_prices": [],
+        "advance_payments": [],
+        "special_payments": [],
+        "bonuses": [],
+        "is_shadow": false,
+        "shadow_label": null
+    }
+]

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
+use Energietracker\Storage\Migrator;
 use Energietracker\Config\Utilities;
 
 /**
@@ -54,7 +55,31 @@ final class BackupService
                 'Bitte zuerst über die Migration in v1.0.0 einspielen oder ein neueres Backup verwenden.'
             );
         }
-        $report = ['utilities' => []];
+        // N1004 — Schema-Version aus dem Backup darf nicht NEUER sein als
+        // die App. Ein 1.2.0-Backup in eine 1.1.0-App einzuspielen würde
+        // Schreibvorgänge mit unbekannten Feldern bedeuten und beim
+        // nächsten Lesen Inkonsistenzen produzieren.
+        $backupSchema = (string)($payload['meta']['schema_version'] ?? '');
+        if ($backupSchema !== '' && version_compare($backupSchema, Migrator::SCHEMA_VERSION, '>')) {
+            throw new \InvalidArgumentException(
+                "Backup-Schema $backupSchema ist neuer als die App-Schema "
+                . Migrator::SCHEMA_VERSION
+                . '. Bitte erst die App aktualisieren, dann das Backup einspielen.'
+            );
+        }
+        // N1004 — Automatischer Sicherungs-Snapshot vor dem Restore. Falls
+        // der User mit dem Restore unzufrieden ist, kann er den Snapshot aus
+        // data/backups/ wieder einspielen.
+        $autoSnapshot = null;
+        try {
+            $autoSnapshot = $this->saveSnapshot('pre-restore-');
+        } catch (\Throwable $e) {
+            // Snapshot ist Defense-in-Depth — wenn er scheitert (z.B.
+            // backups/ nicht beschreibbar), darf das den Restore nicht
+            // blockieren; der User wird aber informiert.
+            $autoSnapshot = ['error' => $e->getMessage()];
+        }
+        $report = ['utilities' => [], 'auto_snapshot_before_restore' => $autoSnapshot];
         if (isset($payload['temperatures']) && is_array($payload['temperatures'])) {
             $this->store->write('temperatures.json', $payload['temperatures']);
             $report['temperatures'] = count($payload['temperatures']);
@@ -82,11 +107,11 @@ final class BackupService
         return $report;
     }
 
-    public function saveSnapshot(): string
+    public function saveSnapshot(string $prefix = 'backup_'): string
     {
         $dir = $this->store->path('backups');
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
-        $name = 'backup_' . date('Y-m-d_His') . '.json';
+        $name = $prefix . date('Y-m-d_His') . '.json';
         $path = "$dir/$name";
         file_put_contents($path,
             json_encode($this->export(),

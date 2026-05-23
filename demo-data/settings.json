@@ -25,6 +25,8 @@
     "wasser",
     "fernwaerme",
     "heizoel",
-    "pellets"
+    "pellets",
+    "pv_einspeisung",
+    "pv_erzeugung"
   ]
 }

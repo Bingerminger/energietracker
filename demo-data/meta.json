@@ -5,6 +5,12 @@
     {
       "step": "demo-data-seed",
       "utilities": 6
+    },
+    {
+      "step": "demo-data-pv-extension",
+      "version": "1.7.0",
+      "date": "2026-05-23",
+      "utilities_added": ["pv_einspeisung", "pv_erzeugung"]
     }
   ]
 }

@@ -1,0 +1,21 @@
+[
+    {
+        "id": "m_pv_einspeisung_main",
+        "name": "Einspeisezähler",
+        "icon": "☀️",
+        "created_at": "2023-04-01",
+        "active": true,
+        "notes": "Zwei-Richtungs-Zähler des Netzbetreibers, Plombiert",
+        "devices": [
+            {
+                "id": "d_pv_eins_001",
+                "serial": "NB-2023-0042",
+                "installed_on": "2023-04-01",
+                "initial_counter": 0,
+                "removed_on": null,
+                "final_counter": null,
+                "reason": null
+            }
+        ]
+    }
+]

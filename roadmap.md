@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-05-23 (synchron mit v1.7.0, F1005 + N1003 ausgeliefert)
-**Aktuelle Baseline:** v1.7.0
+**Stand:** 2026-05-23 (synchron mit v1.7.1, N1004 ausgeliefert)
+**Aktuelle Baseline:** v1.7.1
 **Schema:** 1.1.0
 
 ---
@@ -38,6 +38,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | N1002 | Edge-Case-Test-Suite (10 Fälle: Überlauf, lange Lücke, doppelte Daten, negativ, Schaltjahr, DST, leer, Vertragswechsel, Wasser ohne SW/NW, Import vor installed_on) | v1.6.3 | 2026-05-22 |
 | F1005 | PV-Einspeisung + PV-Erzeugung, Strom-Saldo, Autarkiequote (8 Utilities statt 6, CO₂ als „vermieden") | v1.7.0 | 2026-05-23 |
 | N1003 | Health-Check-Endpoint `GET /api/health` (Version, Schema, Schreibrechte, Migrationen) | v1.7.0 | 2026-05-23 |
+| N1004 | Backup/Restore-Sicherungen: Schema-Guard + Auto-Snapshot vor Restore + UI-Toast mit Snapshot-Name. Demo-Daten und Szenario-Doku für PV nachgereicht. | v1.7.1 | 2026-05-23 |
 
 ---
 
@@ -51,7 +52,6 @@ ein UI-seitiges Backup/Restore davor erspart Datenverluste.
 
 | Code | Thema | Release | Größe | Status |
 |------|-------|---------|-------|--------|
-| **N1004** | Backup/Restore im UI (Snapshot-Download + Upload-Restore) | v1.7.1 | M | inline |
 | **N1005** | Docker-Image + `docker-compose.yml` | v1.7.2 | M | inline |
 | **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | Detail-Konzept offen |
 | TBD | offen für weitere Issues / Bedarfe | v1.9.0+ | — | offen |
@@ -117,7 +117,19 @@ Bruch).
 
 ---
 
-## v1.7.1 — N1004 Backup / Restore im UI
+## (ausgeliefert) v1.7.1 — N1004 Backup/Restore-Sicherungen + Demo/Doku-Nachreichung
+
+→ Details in [CHANGELOG.md](CHANGELOG.md#171--2026-05-23). Auslieferung
+fiel kleiner aus als die ursprüngliche Skizze, weil der bestehende
+`BackupService` bereits einen vollständigen JSON-Export/-Import hatte
+— N1004 hat nur die fehlenden Sicherungen ergänzt (Schema-Guard,
+Auto-Snapshot vor Restore) und die UI-Erfahrung präzisiert. Der
+gewonnene Headroom wurde genutzt, um die Demo-Daten und Szenario-Doku
+für PV nachzureichen (Versäumnis aus v1.7.0).
+
+---
+
+## v1.7.1 (Original-Skizze, vor Implementierung) — N1004 Backup / Restore im UI
 
 **Auslöser:** Vor der Schema-Migration in F1006 sollte der User ein
 Snapshot-Backup ziehen können, ohne ins Dateisystem zu müssen.
@@ -266,6 +278,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-05-22 | v1.6.2 ausgeliefert | N1001 (PHPUnit-Foundation, 12 Tests / 41 Assertions über `ConsumptionService` + `MeterService` + `AnomalyService`) ausgeliefert. Composer dev-only, Runtime bleibt Composer-frei. Detail-Skizze aus „Geplant" entfernt. |
 | 2026-05-22 | v1.6.3 ausgeliefert | N1002 (Edge-Case-Suite, 13 zusätzliche Tests in vier neuen Klassen) ausgeliefert. Alle 10 Roadmap-Fälle abgedeckt, kein Bug aufgedeckt, kein Code-Change. Frontend-Smoke bewusst weggelassen (PHPUnit ist der richtige Ort). Detail-Skizze aus „Geplant" entfernt. |
 | 2026-05-23 | v1.7.0 ausgeliefert | F1005 (PV) + N1003 (Health-Check) gebündelt ausgeliefert. F1005-Scope auf User-Wunsch von „S — nur Einspeisung" auf „M–L — Einspeisung + Erzeugung + Autarkiequote" hochgezogen (Multiple-Choice-Klärung, Kundennutzen-Priorisierung Eigenheimbesitzer). 13 neue PHPUnit-Tests, 2 zusätzliche Browser-Render-Smokes. Schema bleibt 1.1.0. Pre-existing JsonStore/macOS-realpath-Bug nebenbei gefixt. Original-Skizze als historischer Kontext im Roadmap-File behalten. |
+| 2026-05-23 | v1.7.1 ausgeliefert | N1004 (Backup/Restore-UI) kleiner als Skizze (bestehender JSON-Backup ausreichend, nur Schema-Guard + Auto-Snapshot ergänzt). Headroom genutzt, um Demo-Daten und Szenario-Doku für PV nachzureichen (Versäumnis aus v1.7.0). 3 neue PHPUnit-Tests. |
 
 ---
 

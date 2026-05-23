@@ -85,4 +85,27 @@ Lesarten:
 
 ---
 
+## 7. Sonderfall Balkonkraftwerk
+
+Steckerfertige Mini-PV-Anlagen („Balkonkraftwerk", bis 800 W) speisen
+seit dem Solarpaket I über die normale Steckdose ein. Es gibt **keinen
+Einspeisezähler** (rückwärts laufender Bezugszähler ist mit modernen
+Zweirichtungs-Zählern automatisch ausgeschlossen, der Bezugszähler
+zeigt nur den Netto-Bezug). Folgen für die App:
+
+- **`pv_einspeisung` aktivieren bringt nichts** — du hast keinen Zähler
+  dafür. Die App rechnet ohne Daten leer.
+- **`pv_erzeugung` ist optional sinnvoll**, wenn dein Wechselrichter
+  einen kWh-Zähler hat. Du erfasst dann monatlich seinen Stand und
+  siehst die Erzeugung als reine Statistik. Strom-Saldo bleibt
+  unverändert (kein Einspeisungs-Anteil), aber du hast eine
+  Performance-Kontrolle deines Balkonkraftwerks.
+- Der eigentliche Effekt zeigt sich am normalen `strom`-Zähler:
+  *weniger* Bezug. Die Wirtschaftlichkeit eines Balkonkraftwerks misst
+  du daher am Bezugs-kWh-Vergleich Vorher/Nachher (am besten
+  wetterbereinigt, aber Strom ist meist nicht stark HGT-getrieben —
+  Jahres-Mittelwert reicht).
+
+---
+
 [← Holzpellets](06-pellets.md) · [Szenario Eigenheim →](08-szenario-eigenheim.md)

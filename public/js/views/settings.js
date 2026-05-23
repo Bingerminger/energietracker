@@ -336,15 +336,25 @@ export async function render(container) {
     const f = e.target.files[0]; if (!f) return;
     const ok = await confirmModal({
       title: 'Backup importieren?',
-      message: 'Achtung: bestehende Daten werden überschrieben. Vorher Backup erstellen!',
+      message: 'Achtung: bestehende Daten werden überschrieben.\n\n'
+             + 'Vor dem Import legt die App automatisch einen Sicherheits-'
+             + 'Snapshot deiner aktuellen Daten unter '
+             + '<code>data/backups/pre-restore-…</code> ab — falls der '
+             + 'Import nicht so aussieht wie erwartet, kannst du diesen '
+             + 'Snapshot wieder einspielen.',
       confirmLabel: 'Importieren', danger: true,
     });
     if (!ok) { e.target.value = ''; return; }
     try {
       const text = await f.text();
       const data = JSON.parse(text);
-      await api.importBackup(data);
-      toastOk('Backup importiert');
+      const report = await api.importBackup(data);
+      const snap = report?.auto_snapshot_before_restore;
+      if (typeof snap === 'string') {
+        toastOk(`Backup importiert. Sicherheits-Snapshot: ${snap}`);
+      } else {
+        toastOk('Backup importiert');
+      }
       invalidateSettings();
       render(container);
     } catch (e2) { toastErr(e2.message); }
