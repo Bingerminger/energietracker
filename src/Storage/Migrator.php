@@ -352,11 +352,14 @@ final class Migrator
         foreach (Utilities::keys() as $key) {
             $u = Utilities::get($key);
             $isDelivery = ($u['reading_kind'] ?? 'cumulative') === 'delivery';
+            // v1.7.0 — F1005: PV-Utilities (Einspeisung/Erzeugung) bekommen
+            // wie Delivery-Utilities KEINEN Default-Meter. PV ist optional;
+            // wer keine Anlage hat, soll keine „Phantom-Zähler" angeboten
+            // bekommen.
+            $isOptional = $isDelivery || Utilities::accountingKind($key) !== 'consumption';
 
             if (!$this->store->exists($key . '/meters.json')) {
-                if ($isDelivery) {
-                    // Delivery-Utilities (Heizöl/Pellets): kein Default-Tank.
-                    // Der User soll seinen tatsächlichen Tank aktiv anlegen.
+                if ($isOptional) {
                     $this->store->write($key . '/meters.json', []);
                 } else {
                     $meterId = 'm_' . $key . '_default';
@@ -390,6 +393,8 @@ final class Migrator
                     $this->store->write($key . '/readings.json', []);
                 }
             }
+            // pv_erzeugung hat keine Verträge — contracts.json wird trotzdem
+            // angelegt (leer), damit Lese-Code nicht null-prüfen muss.
             if (!$this->store->exists($key . '/contracts.json')) {
                 $this->store->write($key . '/contracts.json', []);
             }

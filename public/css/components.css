@@ -784,3 +784,12 @@ textarea.input { min-height: 80px; resize: vertical; }
 .dash-eff-row:last-child { border-bottom: none; }
 .dash-eff-row__src { font-size: var(--fs-sm); }
 .dash-eff-row__val { font-size: var(--fs-sm); color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* F1005 (v1.7.0) — Strom-Saldo-Insight: KPIs (Bezug, PV-Erlös, Netto, Autarkie, EV-Quote) als auto-fit Grid */
+.dash-strom-saldo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+.dash-strom-saldo .kpi--accent { border: 1px solid var(--accent, #10b981); border-radius: var(--radius-2); padding: var(--sp-2); }

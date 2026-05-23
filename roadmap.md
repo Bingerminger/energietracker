@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-05-22 (synchron mit v1.6.3, N1002 ausgeliefert)
-**Aktuelle Baseline:** v1.6.3
+**Stand:** 2026-05-23 (synchron mit v1.7.0, F1005 + N1003 ausgeliefert)
+**Aktuelle Baseline:** v1.7.0
 **Schema:** 1.1.0
 
 ---
@@ -36,6 +36,8 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | F1004 | Zentrale Zählerstand-Erfassung (`#/zaehlerstaende`) | v1.6.0 | 2026-05-18 |
 | N1001 | PHPUnit-Foundation + Unit-Tests `ConsumptionService` / `MeterService` / `AnomalyService` | v1.6.2 | 2026-05-22 |
 | N1002 | Edge-Case-Test-Suite (10 Fälle: Überlauf, lange Lücke, doppelte Daten, negativ, Schaltjahr, DST, leer, Vertragswechsel, Wasser ohne SW/NW, Import vor installed_on) | v1.6.3 | 2026-05-22 |
+| F1005 | PV-Einspeisung + PV-Erzeugung, Strom-Saldo, Autarkiequote (8 Utilities statt 6, CO₂ als „vermieden") | v1.7.0 | 2026-05-23 |
+| N1003 | Health-Check-Endpoint `GET /api/health` (Version, Schema, Schreibrechte, Migrationen) | v1.7.0 | 2026-05-23 |
 
 ---
 
@@ -49,8 +51,6 @@ ein UI-seitiges Backup/Restore davor erspart Datenverluste.
 
 | Code | Thema | Release | Größe | Status |
 |------|-------|---------|-------|--------|
-| **F1005** | PV-Einspeisezähler | v1.7.0 | S | Detail-Konzept offen |
-| **N1003** | Health-Check-Endpoint `GET /health` | v1.7.0 (mitgeliefert) | XS | inline |
 | **N1004** | Backup/Restore im UI (Snapshot-Download + Upload-Restore) | v1.7.1 | M | inline |
 | **N1005** | Docker-Image + `docker-compose.yml` | v1.7.2 | M | inline |
 | **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | Detail-Konzept offen |
@@ -58,7 +58,16 @@ ein UI-seitiges Backup/Restore davor erspart Datenverluste.
 
 ---
 
-## v1.7.0 — F1005 PV-Einspeisezähler + N1003 Health-Check
+## (ausgeliefert) v1.7.0 — F1005 PV + N1003 Health-Check
+
+→ Details in [CHANGELOG.md](CHANGELOG.md#170--2026-05-23) und
+[`docs/functional/12-pv.md`](docs/functional/12-pv.md). Der ursprüngliche
+Roadmap-Eintrag (Skizze) bleibt unten als historischer Kontext stehen,
+damit die Konzept-Wegstrecke nachvollziehbar bleibt.
+
+---
+
+## v1.7.0 (Original-Skizze, vor Implementierung) — F1005 PV-Einspeisezähler + N1003 Health-Check
 
 **Issue:** [#12](https://github.com/Bingerminger/energietracker/issues/12)
 (Teil 3)
@@ -256,6 +265,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-05-21 | NFR-Erweiterung | N-Code-Reihe eingeführt. N1001 (PHPUnit), N1002 (Edge-Cases), N1003 (Health), N1004 (Backup/Restore), N1005 (Docker) als geplante Slots vor F1006. N1006–N1011 ins Backlog. Reihenfolge erklärt: NFRs vor riskanten Refactors, Backup vor Schema-Migration. |
 | 2026-05-22 | v1.6.2 ausgeliefert | N1001 (PHPUnit-Foundation, 12 Tests / 41 Assertions über `ConsumptionService` + `MeterService` + `AnomalyService`) ausgeliefert. Composer dev-only, Runtime bleibt Composer-frei. Detail-Skizze aus „Geplant" entfernt. |
 | 2026-05-22 | v1.6.3 ausgeliefert | N1002 (Edge-Case-Suite, 13 zusätzliche Tests in vier neuen Klassen) ausgeliefert. Alle 10 Roadmap-Fälle abgedeckt, kein Bug aufgedeckt, kein Code-Change. Frontend-Smoke bewusst weggelassen (PHPUnit ist der richtige Ort). Detail-Skizze aus „Geplant" entfernt. |
+| 2026-05-23 | v1.7.0 ausgeliefert | F1005 (PV) + N1003 (Health-Check) gebündelt ausgeliefert. F1005-Scope auf User-Wunsch von „S — nur Einspeisung" auf „M–L — Einspeisung + Erzeugung + Autarkiequote" hochgezogen (Multiple-Choice-Klärung, Kundennutzen-Priorisierung Eigenheimbesitzer). 13 neue PHPUnit-Tests, 2 zusätzliche Browser-Render-Smokes. Schema bleibt 1.1.0. Pre-existing JsonStore/macOS-realpath-Bug nebenbei gefixt. Original-Skizze als historischer Kontext im Roadmap-File behalten. |
 
 ---
 

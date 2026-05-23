@@ -94,6 +94,13 @@ export const api = {
   importTempCsv: (csvText)             => request('POST', '/api/temperatures/import-csv', csvText, { raw: true }),
   syncOpenMeteo: (data)                => request('POST', '/api/temperatures/sync-open-meteo', data),
 
+  // F1005 (v1.7.0) — Strom-Saldo (Bezug − PV-Einspeisung) + PV-Summary (Eigenverbrauch + Autarkie)
+  stromSaldo:    ()                    => request('GET',  '/api/strom-saldo'),
+  pvSummary:     ()                    => request('GET',  '/api/pv-summary'),
+
+  // N1003 (v1.7.0) — Health-Check
+  health:        ()                    => request('GET',  '/api/health'),
+
   // Settings, Backup, Diagnostics
   settings:      ()                    => request('GET',  '/api/settings'),
   updateSettings:(data)                => request('PATCH','/api/settings', data),

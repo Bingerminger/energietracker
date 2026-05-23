@@ -15,7 +15,8 @@ use Energietracker\Services\{
     WeatherService, BackupService, SettingsService, DiagnosticsService,
     MigrationService, ReadingImportService, CsvExportService,
     DeliveryService, DeliveryConsumptionService, BenchmarkService,
-    TariffComparisonService, RecommendationService, ReminderService, PdfReportService
+    TariffComparisonService, RecommendationService, ReminderService, PdfReportService,
+    StromSaldoService, PvSummaryService, HealthCheckService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -23,7 +24,8 @@ use Energietracker\Controllers\{
     SettingsController, BackupController, DiagnosticsController, UtilitiesController,
     MigrationController, ExportController,
     DeliveryController, BenchmarkController, TariffComparisonController,
-    RecommendationController, ReminderController, ReportController
+    RecommendationController, ReminderController, ReportController,
+    StromSaldoController, PvSummaryController, HealthController
 };
 
 /**
@@ -64,6 +66,9 @@ final class App
     public RecommendationService $recommendations;
     public ReminderService $reminders;
     public PdfReportService $reports;
+    public StromSaldoService $stromSaldo;
+    public PvSummaryService $pvSummary;
+    public HealthCheckService $health;
 
     public function __construct(string $dataDir)
     {
@@ -100,6 +105,10 @@ final class App
         $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries);
         $this->reminders    = new ReminderService($this->store, $this->settings);
         $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark, $this->recommendations);
+        // F1005 + N1003 (v1.7.0)
+        $this->stromSaldo   = new StromSaldoService($this->consumption);
+        $this->pvSummary    = new PvSummaryService($this->consumption);
+        $this->health       = new HealthCheckService($this->store);
 
         // Auto-migrate or initialize on first run
         $migrator = new Migrator($this->store);
@@ -240,5 +249,15 @@ final class App
         // ── PDF-Jahresbericht (v1.3.0) ──
         $repCtrl = new ReportController($this->reports);
         $r->get('/api/reports/yearly.pdf', fn($req) => $repCtrl->yearly($req));
+
+        // ── F1005 (v1.7.0) — Strom-Saldo + PV-Summary ──
+        $saldoCtrl = new StromSaldoController($this->stromSaldo);
+        $r->get('/api/strom-saldo', fn($req) => $saldoCtrl->index($req));
+        $pvCtrl = new PvSummaryController($this->pvSummary);
+        $r->get('/api/pv-summary',  fn($req) => $pvCtrl->index($req));
+
+        // ── N1003 (v1.7.0) — Health-Check ──
+        $hCtrl = new HealthController($this->health);
+        $r->get('/api/health', fn($req) => $hCtrl->index($req));
     }
 }

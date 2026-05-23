@@ -19,7 +19,7 @@ export async function render(container) {
   const utilities = allUtilities.filter(u => active.includes(u.key));
 
   // Fetch consumption for each active utility + Insights in parallel
-  const [datasets, eff, recs, reminders] = await Promise.all([
+  const [datasets, eff, recs, reminders, stromSaldo, pvSummary] = await Promise.all([
     Promise.all(utilities.map(async u => {
       try {
         const c = await api.consumption(u.key);
@@ -32,7 +32,24 @@ export async function render(container) {
     api.efficiency().catch(() => null),
     api.recommendations().catch(() => []),
     api.reminders().catch(() => []),
+    // F1005 (v1.7.0) — Strom-Saldo (Bezug−Einspeisung) + PV-Eigenverbrauch/Autarkie
+    api.stromSaldo().catch(() => null),
+    api.pvSummary().catch(() => null),
   ]);
+
+  // F1005 — Insight-Karte „Strom-Saldo" nur, wenn der User tatsächlich
+  // PV-Einspeisung erfasst. Sonst leere/nullenlange Anzeige bei Nicht-PV-
+  // Haushalten.
+  const pvActive = !!(stromSaldo && Array.isArray(stromSaldo.monthly)
+    && stromSaldo.monthly.some(m => (m.einspeisung_kwh ?? 0) > 0));
+  const pickYearRow = (yearly) => {
+    const cy = new Date().getFullYear();
+    return (yearly || []).find(y => y.year === cy)
+        ?? (yearly || []).slice(-1)[0]
+        ?? null;
+  };
+  const saldoYear = pvActive ? pickYearRow(stromSaldo.yearly) : null;
+  const pvYear    = pvActive && pvSummary ? pickYearRow(pvSummary.yearly) : null;
 
   // Tank-Bestände für Delivery-Utilities sammeln
   const deliveryUtils = utilities.filter(u => u.reading_kind === 'delivery');
@@ -101,6 +118,40 @@ export async function render(container) {
             <div class="tank-bar"><div class="tank-bar__fill tank-bar__fill--${cls}" style="width:${pct.toFixed(0)}%"></div></div>
           </div>`;
         }).join('')}
+      </div>` : ''}
+
+      ${saldoYear ? `
+      <div class="card dash-insight">
+        <h3 class="card__title">⚡ Strom-Saldo ${saldoYear.year}</h3>
+        <div class="dash-strom-saldo">
+          <div class="kpi">
+            <div class="kpi__label">Bezug</div>
+            <div class="kpi__value">${fmt.eur(saldoYear.bezug_cost)}</div>
+            <div class="kpi__sub">${fmt.num(saldoYear.bezug_kwh, 0)} kWh aus dem Netz</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi__label">PV-Erlös</div>
+            <div class="kpi__value">${fmt.eur(saldoYear.einspeisung_revenue)}</div>
+            <div class="kpi__sub">${fmt.num(saldoYear.einspeisung_kwh, 0)} kWh eingespeist</div>
+          </div>
+          <div class="kpi kpi--accent">
+            <div class="kpi__label">Netto-Saldo</div>
+            <div class="kpi__value">${fmt.eur(saldoYear.saldo_netto)}</div>
+            <div class="kpi__sub">${saldoYear.saldo_netto < 0 ? 'du verdienst netto' : 'Netto-Kosten'}</div>
+          </div>
+          ${pvYear && pvYear.autarkiequote != null ? `
+          <div class="kpi">
+            <div class="kpi__label">Autarkiequote</div>
+            <div class="kpi__value">${(pvYear.autarkiequote * 100).toFixed(0)} %</div>
+            <div class="kpi__sub">Anteil eigener Strom</div>
+          </div>` : ''}
+          ${pvYear && pvYear.eigenverbrauchsquote != null ? `
+          <div class="kpi">
+            <div class="kpi__label">Eigenverbrauchsquote</div>
+            <div class="kpi__value">${(pvYear.eigenverbrauchsquote * 100).toFixed(0)} %</div>
+            <div class="kpi__sub">${fmt.num(pvYear.eigenverbrauch_kwh, 0)} kWh selbst genutzt</div>
+          </div>` : ''}
+        </div>
       </div>` : ''}
 
       ${topRecs.length ? `

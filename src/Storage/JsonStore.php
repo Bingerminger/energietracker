@@ -16,6 +16,14 @@ final class JsonStore
         if (!is_dir($this->rootDir)) {
             @mkdir($this->rootDir, 0755, true);
         }
+        // macOS: /tmp ist ein Symlink auf /private/tmp; path() prüft den
+        // realpath()-Prefix und würde sonst jeden Lese-/Schreibzugriff
+        // mit „Ungültiger Speicherpfad" ablehnen. rootDir einmal beim
+        // Konstruktor auflösen, dann sind alle Path-Prüfungen konsistent.
+        $resolved = realpath($this->rootDir);
+        if ($resolved !== false) {
+            $this->rootDir = $resolved;
+        }
     }
 
     public function rootDir(): string

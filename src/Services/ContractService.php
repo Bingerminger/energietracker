@@ -78,6 +78,15 @@ final class ContractService
 
     public function create(string $utility, array $input): array
     {
+        // F1005 — pv_erzeugung ist rein statistisch (Wechselrichter-Stand);
+        // ein Vertrag dort wäre semantisch unsinnig. Hart ablehnen, bevor
+        // ein Datensatz angelegt wird.
+        if (!Utilities::hasContracts($utility)) {
+            throw new \InvalidArgumentException(
+                'Für ' . Utilities::get($utility)['label']
+                . ' können keine Verträge angelegt werden (reine Statistik-Utility).'
+            );
+        }
         $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
         if (!$this->meters->get($utility, $meterId)) {
             throw new \InvalidArgumentException('Zähler nicht gefunden: ' . $meterId);
@@ -105,11 +114,18 @@ final class ContractService
             $contract = $this->normalizeWater($base);
         } else {
             $base['working_prices']   = $input['working_prices']   ?? [];
-            $base['base_prices']      = $input['base_prices']      ?? [];
-            $base['advance_payments'] = $input['advance_payments'] ?? [];
+            // F1005 — PV-Einspeisung: vereinfachtes Schema (nur ct/kWh-
+            // Einspeisevergütung). Kein Grundpreis, kein Abschlagsplan
+            // (Verteilnetzbetreiber zahlt nach Erzeugung, nicht nach Plan),
+            // keine Sonderzahlungen. Eingaben in diesen Feldern werden
+            // ignoriert, damit das Frontend keine versteckten Felder
+            // hinterhertragen muss.
+            $isFeedIn = Utilities::isFeedIn($utility);
+            $base['base_prices']      = $isFeedIn ? [] : ($input['base_prices']      ?? []);
+            $base['advance_payments'] = $isFeedIn ? [] : ($input['advance_payments'] ?? []);
             // F1003 — Sonderzahlungen (nur Standard-Vertrags-Utilities mit
             // Abschlags-Saldierung: Gas/Strom/Fernwärme). Bei Heizöl/Pellets
-            // existiert keine Abschlagslogik; das Array bleibt dort leer.
+            // und PV-Einspeisung existiert keine Abschlagslogik.
             $base['special_payments'] = Utilities::hasAdvancePaymentContracts($utility)
                 ? ($input['special_payments'] ?? [])
                 : [];
@@ -129,10 +145,19 @@ final class ContractService
         if (!is_array($all)) $all = [];
         $found = null;
 
-        $standardFields = ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
-                           'working_prices', 'base_prices', 'advance_payments', 'bonuses',
-                           'special_payments',
-                           'is_shadow', 'shadow_label'];
+        // F1005 — PV-Einspeisung: nur working_prices updaten; die anderen
+        // Preis-Felder gibt es semantisch nicht (kein Grundpreis, kein
+        // Abschlagsplan, keine Sonderzahlungen). Anbieter/Tarif-Stammdaten
+        // ja, Felder die das Frontend ohnehin nicht anzeigt nein.
+        $isFeedIn = Utilities::isFeedIn($utility);
+        $standardFields = $isFeedIn
+            ? ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
+               'working_prices', 'bonuses',
+               'is_shadow', 'shadow_label']
+            : ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
+               'working_prices', 'base_prices', 'advance_payments', 'bonuses',
+               'special_payments',
+               'is_shadow', 'shadow_label'];
         $waterFields    = ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                            'trinkwasser', 'schmutzwasser', 'niederschlagswasser',
                            'advance_payments', 'bonuses',

@@ -222,6 +222,17 @@ async function renderView(modPath, params = []) {
     t('utility(gas): render ohne Exception', html.length > 50 && (html.includes('Gas') || html.includes('Zähler')));
   } catch (e) { t('utility(gas): render', false, e.message); }
 
+  // ── 7b. F1005 (v1.7.0) — PV-Einspeisung & PV-Erzeugung rendern leer-Smoke ──
+  for (const pvKey of ['pv_einspeisung', 'pv_erzeugung']) {
+    try {
+      const { view } = await renderView(`${ROOT}/views/utility.js`, [pvKey]);
+      await new Promise(r => setTimeout(r, 400));
+      const html = view.innerHTML;
+      t(`utility(${pvKey}): render ohne Exception`,
+        html.length > 50 && !html.includes('Lade '));
+    } catch (e) { t(`utility(${pvKey}): render`, false, e.message); }
+  }
+
   // ── 8. Forecast-View: alle 5 Modelle wählbar (Bug-Fix v1.4.1) ──
   try {
     const { view } = await renderView(`${ROOT}/views/forecast.js`);

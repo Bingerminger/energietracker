@@ -1,12 +1,13 @@
 # Energietracker — Kompendium
 
-> Vollständige Dokumentation zu Energietracker **v1.6.3**.
+> Vollständige Dokumentation zu Energietracker **v1.7.0**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit Mockups aller Ansichten.
 
 Energietracker ist eine lokal betriebene, abhängigkeitsfreie Web-App zur
-Erfassung und Analyse des häuslichen Energieverbrauchs über bis zu sechs
-Verbrauchsarten — **Gas, Strom, Wasser, Fernwärme, Heizöl, Holzpellets**.
+Erfassung und Analyse des häuslichen Energieverbrauchs über bis zu acht
+Verbrauchsarten — **Gas, Strom, Wasser, Fernwärme, Heizöl, Holzpellets,
+PV-Einspeisung, PV-Erzeugung**.
 Kein externer Dienst, keine Datenbank: alles liegt als flache JSON-Datei
 auf dem eigenen Rechner.
 
@@ -41,6 +42,7 @@ auf dem eigenen Rechner.
 | [Glossar & Formelsammlung](functional/09-glossar.md) | Alle Begriffe und Formeln kompakt |
 | [Sonderzahlungen (F1003)](functional/10-sonderzahlungen.md) | Rück-/Nachzahlung, Abschlagszahlung, Saldo-Wirkung |
 | [Zählerstand-Erfassung (F1004)](functional/11-zaehlerstaende.md) | Zentrale mobile Ablesungs-Ansicht (Gas/Strom/Wasser/Fernwärme) |
+| [PV-Einspeisung & Erzeugung (F1005)](functional/12-pv.md) | Einspeisezähler, Erzeugungszähler, Strom-Saldo, Autarkiequote |
 
 ### 🖥️ UI-Referenz
 
@@ -81,6 +83,6 @@ auf dem eigenen Rechner.
   Gedächtnis notiert.
 - Pfadangaben sind relativ zum Projektwurzelverzeichnis.
 
-Versionsstand dieses Kompendiums: **v1.6.3** (2026-05-22). Die Doku wird
+Versionsstand dieses Kompendiums: **v1.7.0** (2026-05-23). Die Doku wird
 ab v1.4.2 bei **jedem** Release synchron mitgeführt — siehe
 [Release-Prozess](technical/06-release-process.md).

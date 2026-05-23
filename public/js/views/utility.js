@@ -193,11 +193,18 @@ async function rerender(container) {
           <span style="font-size:14px;color:var(--text-2)">${u.consumption_unit}</span></div>
         <div class="kpi__sub">${totDays} Tage</div>
       </div>
+      ${u.accounting_kind === 'feed_in' ? `
+      <div class="kpi c-violet" title="Vereinfachte Modellrechnung: eingespeiste kWh × Strommix-CO₂-Faktor. PV-Lebenszyklus nicht berücksichtigt.">
+        <div class="kpi__label">🌿 CO₂ vermieden ${yr}</div>
+        <div class="kpi__value">−${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
+        <div class="kpi__sub">${fmt.num(totCO2 / 1000, 2)} t weniger als ohne PV</div>
+      </div>
+      ` : `
       <div class="kpi c-violet">
         <div class="kpi__label">🌍 CO₂ ${yr}</div>
         <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${fmt.num(totCO2 / 1000, 2)} t</div>
-      </div>
+      </div>`}
     </div>
 
     ${!isDelivery && currentContract ? balanceCard(currentContract, u) : ''}

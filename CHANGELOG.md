@@ -6,6 +6,122 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.7.0] — 2026-05-23 — F1005: PV-Einspeisung + Erzeugung + Autarkiequote, N1003: Health-Check
+
+Erstes funktionales Release seit v1.6.0 — F1004. Die NFR-Slots N1001/N1002
+in v1.6.2/v1.6.3 haben das Regression-Safety-Net geschaffen, das die
+substanziellere Erweiterung um Photovoltaik erst risikoarm möglich gemacht
+hat.
+
+### Added
+
+- **F1005** — Photovoltaik. Zwei neue Utilities erweitern das
+  6-Utility-Modell auf 8:
+  - `pv_einspeisung` — Einspeisezähler des Verteilnetzbetreibers, mit
+    vereinfachtem Vertragsmodell (nur ct/kWh-Einspeisevergütung; kein
+    Grundpreis, kein Abschlagsplan, keine Sonderzahlungen — der
+    Verteilnetzbetreiber zahlt nach Erzeugung, nicht nach Plan).
+  - `pv_erzeugung` — Wechselrichter-Gesamtertrag, rein statistisch
+    (keine Verträge — Vertrag-Create wird hart abgelehnt).
+  Beide ohne Default-Meter (PV ist optional; wer keine Anlage hat,
+  bekommt keine „Phantom-Zähler" angeboten). Beide cumulative,
+  kWh-nativ, `accounting_kind`-Property neu in der `Utilities`-SSOT.
+- **F1005 — Strom-Saldo** (`StromSaldoService` + `GET /api/strom-saldo`).
+  Kombinierte KPI `bezug_cost − einspeisung_revenue` mit
+  Vorzeichen-Konvention `positiv = Netto-Kosten`, `negativ = Netto-Erlös`.
+  Liefert monatliche und jährliche Aggregate; Hauptdashboard zeigt das
+  laufende Jahr als neue Insight-Karte.
+- **F1005 — PV-Eigenverbrauch + Autarkiequote** (`PvSummaryService` +
+  `GET /api/pv-summary`).
+  `eigenverbrauch = erzeugung − einspeisung` (auf ≥ 0 geklammt),
+  `eigenverbrauchsquote = eigenverbrauch / erzeugung`,
+  `autarkiequote = eigenverbrauch / (eigenverbrauch + bezug)`.
+  Quoten sind null, wenn der Nenner < 0,1 kWh ist; Feld
+  `has_generation_meter` zeigt an, ob die App den Eigenverbrauch
+  überhaupt berechnen kann.
+- **CO₂-Anzeige als „vermieden"** für `pv_einspeisung`. Eingespeiste
+  kWh × `co2_strom`-Faktor wird als negativer Wert mit Tooltip
+  „Vereinfachte Modellrechnung; PV-Lebenszyklus nicht berücksichtigt"
+  ausgewiesen.
+- **N1003** — Health-Check. `GET /api/health` liefert `version`,
+  `schema_version`, `data_dir_writable`, `migrations_pending`,
+  `data_initialized_at`, `php_version`, `timezone`. Eignet sich für
+  Synology-Healthcheck und „bei mir geht nichts"-Triage.
+- Neue Frontend-API-Wrapper `api.stromSaldo()`, `api.pvSummary()`,
+  `api.health()`.
+- Neues Konzept-Dokument
+  [`docs/functional/12-pv.md`](docs/functional/12-pv.md).
+
+### Changed
+
+- `Utilities` SSOT um die Helper `hasContracts()`, `accountingKind()`,
+  `isFeedIn()`, `isGenerationOnly()` erweitert. `hasAdvancePaymentContracts()`
+  schließt PV nun explizit aus (kein Abschlagsmodell).
+- `Migrator::initFresh()` legt für PV-Utilities (wie für Heizöl/Pellets)
+  keinen Default-Meter an.
+- `ContractService::create()` weist Vertrag-Anlage auf Statistik-Utilities
+  (`pv_erzeugung`) hart mit `InvalidArgumentException` zurück und
+  ignoriert für `pv_einspeisung` die Felder `base_prices`,
+  `advance_payments`, `special_payments`.
+- `JsonStore::__construct()` löst das `rootDir` einmal per `realpath()`
+  auf. Pre-existing macOS-Bug: `/tmp` ist ein Symlink auf `/private/tmp`;
+  die Path-Prüfung mit dem unaufgelösten Pfad warf bisher bei jedem
+  lokalen Test-Setup „Ungültiger Speicherpfad". CI auf Linux war nicht
+  betroffen.
+- Browser-Render-Test um Render-Smokes für `pv_einspeisung` und
+  `pv_erzeugung` erweitert.
+
+### Migration
+
+Keine. Schema bleibt **1.1.0**. Bestehende Installationen erhalten beim
+nächsten Lese-/Schreibzugriff transparent leere PV-Verzeichnisse über
+die defensive `JsonStore::read()`-Default-Logik. PV-Utilities sind im
+SettingsService-Default `active_utilities = ['gas', 'strom', 'wasser']`
+NICHT enthalten — wer PV erfassen möchte, aktiviert sie in den
+Einstellungen.
+
+### Tests
+
+- `vendor/bin/phpunit` → **38 Tests / 139 Assertions, alle grün**
+  (25 aus v1.6.3 + 13 neue für F1005/N1003):
+  - `PvUtilityReadingPathSmokeTest` (3) — Standard-Pfade greifen für PV
+    ohne Anpassung; Helper-Klassifikation korrekt.
+  - `ContractServiceFeedInTariffTest` (2) — Feed-in-Schema vereinfacht;
+    Generation-only-Utility lehnt Vertrag-Create ab.
+  - `StromSaldoServiceTest` (3) — leer, Bezug-ohne-PV, PV-flippt-Saldo-
+    negativ.
+  - `PvSummaryServiceTest` (3) — ohne Erzeugungsmeter null-Quoten,
+    Standard-Rechnung, Klammern bei inkonsistenten Daten.
+  - `HealthCheckServiceTest` (2) — Shape stabil, Version stimmt mit
+    VERSION-Datei.
+- Frontend-API-Shape: **14/14 grün**.
+- Browser-Render: **36/36 grün** (vorher 34; zwei neue PV-Render-Smokes).
+
+### Lessons Learned
+
+- **Macht der SSOT.** Zwei neue Utilities durch einen einzigen
+  Eintrag in `Utilities.php` plus minimalem Migrator-Patch reichten,
+  damit die kompletten Service-Pfade (Bridging, Anomaly, Forecast,
+  ContractStatus, CSV-Export) ohne weitere Änderung greifen.
+  Mit weniger SSOT-Disziplin wäre F1005 ein 10-Datei-Eingriff geworden.
+- **Pre-existing JsonStore-Bug erst bei lokalem Endpunkt-Smoke sichtbar.**
+  PHPUnit umging ihn mit `realpath()`-Workaround im Harness; der lokale
+  PHP-Server stolperte sofort beim ersten `/api/health`-Aufruf.
+  Lesson: lokaler Endpunkt-Smoke ist nicht ersetzbar durch grüne
+  PHPUnit-Suite — der Workaround im Test-Harness hat den Bug *im
+  Produktionscode* maskiert. Fix gehört in den Production-Code
+  (`JsonStore::__construct`), nicht ins Test-Setup.
+- **„Klein anfangen" vs. „Kundenwert".** Die Roadmap hatte F1005 als „S"
+  geplant (nur Einspeisezähler). Die Multiple-Choice-Klärung mit dem
+  User hat ergeben, dass Erzeugungszähler + Autarkiequote essenziell für
+  den PV-Eigentümer-Use-Case sind — Slot wurde bewusst auf M–L
+  hochgestuft, dafür ist v1.7.0 das erste Release in einer Weile, das
+  sichtbaren Mehrwert für eine neue User-Gruppe liefert.
+
+[#13]: https://github.com/Bingerminger/energietracker/issues/13
+
+---
+
 ## [1.6.3] — 2026-05-22 — N1002: Edge-Case-Test-Suite
 
 ### Added

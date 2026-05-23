@@ -2,7 +2,7 @@
 
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.6.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -11,9 +11,11 @@ Energie- und Wasserverbrauchs. Single-File PHP-Backend, Vanilla-JS SPA-Frontend,
 flat-file JSON-Persistenz — keine Datenbank, kein Server-Setup, keine externen
 Abhängigkeiten zur Laufzeit (außer Chart.js per CDN).
 
-Bis zu sechs Verbrauchsarten parallel: **Gas**, **Strom**, **Wasser**,
+Bis zu acht Verbrauchsarten parallel: **Gas**, **Strom**, **Wasser**,
 **Fernwärme**, **Heizöl** und **Pellets** (Heizöl/Pellets lieferbasiert
-statt zählerbasiert). Pro Verbrauchsart: mehrere Zähler mit voll
+statt zählerbasiert), plus seit v1.7.0 **PV-Einspeisung** und
+**PV-Erzeugung** für Photovoltaik-Eigentümer (kombinierter Strom-Saldo,
+Autarkiequote). Pro Verbrauchsart: mehrere Zähler mit voll
 modelliertem Zählertausch, beliebige Vertragshistorie mit
 Tarifänderungen, Grundpreis-Verlauf, Abschlägen und Boni. Daraus
 berechnet die App Monatsverbräuche (linear interpoliert bzw. energetisch
@@ -25,7 +27,7 @@ End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v1.6.3 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.7.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -384,7 +386,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.6.3"
+├── VERSION                  ← „1.7.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE

@@ -115,6 +115,53 @@ final class Utilities
             'default_meter_name' => 'Pelletlager',
             'allow_multiple_meters' => true,
         ],
+
+        // ── v1.7.0 — F1005 PV-Einspeisung: kumulativer kWh-Zähler beim
+        //     Verteilnetzbetreiber (was die Anlage tatsächlich ins Netz abgibt).
+        //     accounting_kind 'feed_in' → der berechnete „Verbrauch" ist
+        //     in Wirklichkeit ein Ertrag; Saldo = Vergütung (positiv = Erlös).
+        //     CO2-Faktor = co2_strom (vermiedener Strommix); das Frontend
+        //     rendert ihn als „vermieden" (negativ). KEIN Default-Meter
+        //     (PV ist optional, User legt selbst an).
+        'pv_einspeisung' => [
+            'key'             => 'pv_einspeisung',
+            'label'           => 'PV-Einspeisung',
+            'icon'            => '☀️',
+            'unit'            => 'kWh',
+            'consumption_unit'=> 'kWh',
+            'unit_to_kwh'     => false,
+            'reading_kind'    => 'cumulative',
+            'conversion_setting' => null,
+            'hgt_relevant'    => false,
+            'color'           => '#10b981',          // emerald
+            'co2_setting'     => 'co2_strom',
+            'default_meter_name' => 'Einspeisezähler',
+            'allow_multiple_meters' => true,
+            'accounting_kind' => 'feed_in',
+        ],
+
+        // ── v1.7.0 — F1005 PV-Erzeugung: kumulativer kWh-Zähler am
+        //     Wechselrichter (Gesamtproduktion, Eigenverbrauch+Einspeisung).
+        //     accounting_kind 'generation' → rein statistisch, KEINE Verträge,
+        //     keine Kosten/Erlöse. Wird für Autarkiequote (Eigenverbrauch =
+        //     erzeugung − einspeisung) und PvSummaryService gebraucht.
+        'pv_erzeugung' => [
+            'key'             => 'pv_erzeugung',
+            'label'           => 'PV-Erzeugung',
+            'icon'            => '🔆',
+            'unit'            => 'kWh',
+            'consumption_unit'=> 'kWh',
+            'unit_to_kwh'     => false,
+            'reading_kind'    => 'cumulative',
+            'conversion_setting' => null,
+            'hgt_relevant'    => false,
+            'color'           => '#fbbf24',          // amber
+            'co2_setting'     => 'co2_strom',
+            'default_meter_name' => 'Erzeugungszähler',
+            'allow_multiple_meters' => true,
+            'accounting_kind' => 'generation',
+            'has_contracts'   => false,
+        ],
     ];
 
     /** @return string[] */
@@ -177,11 +224,52 @@ final class Utilities
      * monatlichen Abschlägen und Saldo-Abrechnung hat (Gas, Strom,
      * Fernwärme). Wasser hat ein abweichendes 3-Komponenten-Modell,
      * Lieferungs-Utilities (Heizöl/Pellets) haben keine Abschlags-
-     * Saldierung. Single source of truth für den F1003-Scope.
+     * Saldierung. PV-Einspeisung hat zwar Verträge, aber kein
+     * Abschlagsmodell (Verteilnetzbetreiber überweist nach Erzeugung,
+     * nicht nach Plan). PV-Erzeugung hat gar keine Verträge.
+     * Single source of truth für den F1003-Scope.
      */
     public static function hasAdvancePaymentContracts(string $key): bool
     {
-        return self::isCumulative($key) && $key !== 'wasser';
+        return self::isCumulative($key)
+            && $key !== 'wasser'
+            && self::hasContracts($key)
+            && self::accountingKind($key) === 'consumption';
+    }
+
+    /**
+     * F1005 — true wenn die Utility überhaupt Verträge führen kann.
+     * Default true; pv_erzeugung setzt es auf false (rein statistischer
+     * Zähler, keine Tarife).
+     */
+    public static function hasContracts(string $key): bool
+    {
+        return (bool)(self::get($key)['has_contracts'] ?? true);
+    }
+
+    /**
+     * F1005 — Abrechnungs-Charakter der Utility:
+     *   'consumption' (Default) → Verbrauch, Kosten, klassischer Saldo
+     *   'feed_in'               → PV-Einspeisung: positiver Cost-Wert ist
+     *                              Erlös; Frontend rendert CO2 als „vermieden"
+     *   'generation'            → reine Statistik (PV-Erzeugung am WR);
+     *                              keine Verträge, keine Kosten/Erlöse
+     */
+    public static function accountingKind(string $key): string
+    {
+        return (string)(self::get($key)['accounting_kind'] ?? 'consumption');
+    }
+
+    /** F1005 — true für pv_einspeisung (PV-Einspeisung mit Vergütung). */
+    public static function isFeedIn(string $key): bool
+    {
+        return self::accountingKind($key) === 'feed_in';
+    }
+
+    /** F1005 — true für pv_erzeugung (reine Statistik, keine Verträge). */
+    public static function isGenerationOnly(string $key): bool
+    {
+        return self::accountingKind($key) === 'generation';
     }
 
     public static function dataPath(string $key, string $rootDir): string
