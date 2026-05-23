@@ -247,7 +247,57 @@ sind vorläufig und werden bei Übernahme in „Geplant" fortlaufend vergeben.
 Kleine Verbesserungen ohne F- oder N-Code. Werden in PATCH-Releases
 gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 
-*— derzeit leer; offene GitHub-Issues und beobachtete Polituren landen hier —*
+### P-PV-01 — PV-Einspeisung: Verbrauchs-Semantik statt Erlös-Semantik in der Detail-View
+
+**Beobachtet:** 2026-05-23 (v1.7.1), PV-Einspeisungs-Detail-View.
+**Schwere:** hoch (fachlich falsch, schädigt Kundennutzen / Vertrauen).
+**Ursache:** Die Detail-View (`public/js/views/utility.js`) und die
+Saldo-Berechnung (`ConsumptionService::contractStatus`) behandeln
+`pv_einspeisung` mit der generischen **Verbrauchs**-Semantik. Bei einer
+Utility mit `accounting_kind = 'feed_in'` ist die wirtschaftliche
+Bedeutung jedoch **invertiert**: der „Saldo" ist ein Vergütungs-Erlös
+(Gutschrift), keine Kosten.
+
+**Sichtbare Artefakte im Screenshot:**
+
+| Element | Aktuell (falsch) | Korrekt (feed_in) |
+|---|---|---|
+| KPI „💶 Kosten 2026: 36,00 €" | „Kosten", neutral | „Erlös / Einspeisevergütung", grün |
+| KPI „💰 Abschläge 2026: 0 € · Saldo Jahr +36 €" (rot) | Abschlags-/Saldo-Logik | bei Einspeisung gibt es **keine Abschläge** → Karte ausblenden oder zu „Vergütung Jahr" umlabeln (grün) |
+| „Aktueller Saldo +1.588,56 € · **Unterzahlt**" (rot) | „Unterzahlt" | „Vergütungsanspruch / Guthaben", **grün** |
+| „Erwartet bei Abrechnung +10.756,82 € · **Nachzahlung**" (rot) | „Nachzahlung" | „Erwartete Auszahlung", **grün** |
+| KPI „☀️ Verbrauch 2026: 439 kWh" | „Verbrauch" | „Einspeisung / Ertrag" |
+
+**Zweiter, eigenständiger Bug (Projektions-Horizont):** „Erwartet bei
+Abrechnung" projiziert bis **Vertragsende 31.03.2043** → 10.756,82 €.
+Bei einem 20-Jahres-EEG-Vertrag ist das absurd: die Größe soll die
+**nächste Jahresabrechnung** schätzen, nicht die Gesamt-Restlaufzeit.
+`contractStatus` projiziert linear bis `effective_end`; bei sehr langen
+Verträgen (EEG) muss der Horizont auf die nächste Abrechnungsperiode
+(billing_cycle_anchor) begrenzt werden — genau wie es für offene
+Bezugsverträge schon geschieht.
+
+**Verdict-Logik (Backend):** `ConsumptionService::contractStatus` setzt
+`verdict = projected > 5 ? 'Nachzahlung' : …`. Für `feed_in` muss die
+Achse umgedreht werden: positiver Saldo = Gutschrift/Auszahlung (gut,
+grün), nicht Nachzahlung.
+
+**Saisonaler Reading-Trend:** Die Banner-Warnung „3-Monats-Trend
+−48,7 %" ist bei PV im Winterhalbjahr **normal** (weniger Sonne) und
+sollte für `feed_in`/`generation` nicht als auffälliger negativer Trend
+rot markiert werden. (Der „letzte Ablesung vor 83 Tagen"-Hinweis bleibt
+berechtigt.)
+
+**Vorschlag Scope:** eigener kleiner Patch (v1.7.2 oder gebündelt vor
+F1006). Single source: ein `accounting_kind`-Switch in `balanceCard()`
++ KPI-Block + im Backend `contractStatus` (Verdict-Achse + Projektions-
+Horizont). Tests: ein `ContractStatusFeedInTest`, der positiven Saldo
+als Gutschrift (nicht Nachzahlung) erwartet und den Projektions-Horizont
+auf die nächste Abrechnung begrenzt prüft.
+
+---
+
+*— weitere offene GitHub-Issues und beobachtete Polituren landen hier —*
 
 ---
 
