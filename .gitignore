@@ -8,6 +8,7 @@
 /data/backups/
 /data/input.xlsx
 /data/Temperatur_*.csv
+.claude/
 
 ## Allow demo & default seed
 !/data/.gitkeep
