@@ -124,6 +124,10 @@ final class ConsumptionService
         ));
         $monthly   = $this->forMeter($utility, $meter);
         $today     = date('Y-m-d');
+        // F1005 / P-PV-01 — PV-Einspeisung: der „Saldo" ist ein Vergütungs-
+        // Erlös (Gutschrift), keine Kosten. Verdict-Achse und Projektions-
+        // Horizont werden weiter unten entsprechend gedreht/begrenzt.
+        $isFeedIn  = Utilities::isFeedIn($utility);
 
         // Index monthly by (contract_id, ym)
         $byContract = [];
@@ -145,9 +149,19 @@ final class ConsumptionService
             // contract (end = null) is projected to the next billing-cycle
             // anchor of its utility (Settings: billing_cycle_anchor_<utility>),
             // not the arbitrary "today + 12 months" of v1.0.x.
-            $effEnd  = !empty($c['end'])
-                ? $c['end']
-                : $this->nextBillingAnchor($utility, $today);
+            // P-PV-01 — feed_in: immer bis zur nächsten Jahresabrechnung
+            // projizieren, nie bis Vertragsende. Ein EEG-Vertrag läuft 20
+            // Jahre (z.B. bis 2043); die alte Logik hätte die Vergütung über
+            // die gesamte Restlaufzeit hochgerechnet (z.B. „+10.756 €
+            // erwartet"), was als „nächste Abrechnung" grob irreführend ist.
+            $effEnd  = $isFeedIn
+                ? min(
+                    !empty($c['end']) ? $c['end'] : '9999-12-31',
+                    $this->nextBillingAnchor($utility, $today)
+                  )
+                : (!empty($c['end'])
+                    ? $c['end']
+                    : $this->nextBillingAnchor($utility, $today));
 
             // Aggregate over the months we actually have for this contract
             $actualKwh   = 0.0; $actualCost = 0.0; $actualKwhCost = 0.0;
@@ -221,8 +235,15 @@ final class ConsumptionService
                 $projected = round($currentBalance + $delta, 2);
             }
 
-            $verdict = $projected > 5 ? 'Nachzahlung'
-                     : ($projected < -5 ? 'Erstattung' : 'Ausgeglichen');
+            // P-PV-01 — Verdict-Achse für feed_in umgedreht: positiver Saldo
+            // ist eine Auszahlung des Netzbetreibers (gut), keine Nachzahlung.
+            if ($isFeedIn) {
+                $verdict = $projected > 5 ? 'Auszahlung'
+                         : ($projected < -5 ? 'Rückforderung' : 'Ausgeglichen');
+            } else {
+                $verdict = $projected > 5 ? 'Nachzahlung'
+                         : ($projected < -5 ? 'Erstattung' : 'Ausgeglichen');
+            }
 
             // F-05: contract-end reminder. Only meaningful for contracts with a
             // pflegtem Ende that is still in the future — an open contract has

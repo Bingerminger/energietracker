@@ -96,6 +96,10 @@ async function rerender(container) {
   // kWh-Utilities im Feld `kwh`. Vorher las das KPI immer `m.kwh`
   // → Wasser-Dashboard zeigte 0.
   const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
+  // P-PV-01 — PV-Einspeisung: der „Verbrauch" ist ein Ertrag, die
+  // „Kosten" sind ein Vergütungs-Erlös. Labels, Farben und Vorzeichen-
+  // Deutung kippen für accounting_kind = feed_in.
+  const isFeedIn = u.accounting_kind === 'feed_in';
   let readings = [], deliveries = [], stockHist = null;
   if (isDelivery) {
     deliveries = await api.deliveries(u.key, meter.id).catch(() => []);
@@ -117,9 +121,12 @@ async function rerender(container) {
     let cls = 'ok', icon = '✓';
     if (days > 60)      { cls = 'alert'; icon = '⚠️'; }
     else if (days > 30) { cls = 'warn';  icon = '⚡'; }
-    // Trend: compare last 3 months to previous 3 months
+    // Trend: compare last 3 months to previous 3 months.
+    // P-PV-01 — Bei PV (feed_in/generation) ist dieser Vergleich reine
+    // Saisonalität (Frühling vs. Winter, Sonne ≠ konstant), kein echter
+    // Verbrauchstrend → irreführend, daher unterdrückt.
     let trendStr = '';
-    if (monthly.length >= 6) {
+    if (monthly.length >= 6 && u.accounting_kind !== 'feed_in' && u.accounting_kind !== 'generation') {
       const recent = monthly.slice(-3).reduce((s, m) => s + (m[consKey] || 0), 0);
       const prev   = monthly.slice(-6, -3).reduce((s, m) => s + (m[consKey] || 0), 0);
       if (prev > 0) {
@@ -169,16 +176,16 @@ async function rerender(container) {
 
     <div class="kpi-grid">
       <div class="kpi c-${u.key}">
-        <div class="kpi__label">${u.icon} Verbrauch ${yr}</div>
+        <div class="kpi__label">${u.icon} ${isFeedIn ? 'Einspeisung' : 'Verbrauch'} ${yr}</div>
         <div class="kpi__value">${fmt.unit(totUnit, u.consumption_unit, 0)}</div>
         ${u.key === 'gas' ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
       </div>
       <div class="kpi c-${u.key}">
-        <div class="kpi__label">💶 Kosten ${yr}</div>
-        <div class="kpi__value">${fmt.eur(totCost)}</div>
+        <div class="kpi__label">${isFeedIn ? '💶 Erlös' : '💶 Kosten'} ${yr}</div>
+        <div class="kpi__value ${isFeedIn ? 'positive' : ''}">${fmt.eur(totCost)}</div>
         <div class="kpi__sub">ø ${fmt.eur(monthlyYear.length ? totCost / monthlyYear.length : 0)}/Monat</div>
       </div>
-      ${hasContract ? `
+      ${hasContract && !isFeedIn ? `
         <div class="kpi c-yellow">
           <div class="kpi__label">💰 Abschläge ${yr}</div>
           <div class="kpi__value">${fmt.eur(totAdv)}</div>
@@ -302,16 +309,25 @@ function yearPills(years, current, utilityKey) {
 
 // ── Saldo-Karte aktueller Vertrag ───────────────────────────────────
 function balanceCard(c, u) {
+  // P-PV-01 — feed_in (PV-Einspeisung): „Saldo" ist ein Vergütungs-Erlös.
+  // Verdict-Farben und Saldo-Vorzeichen-Deutung kippen: positiver Saldo
+  // ist gut (grün), nicht warnend (rot).
+  const isFeedIn = u.accounting_kind === 'feed_in';
   const cur = c.current_balance;
   const proj = c.projected_end_balance;
   const verdict = c.verdict;
-  const verdictCls = verdict === 'Erstattung' ? 'refund'
-                   : verdict === 'Nachzahlung' ? 'surcharge' : 'balanced';
-  const arrow = verdict === 'Nachzahlung' ? '↑' : verdict === 'Erstattung' ? '↓' : '→';
+  const verdictCls = isFeedIn
+    ? (verdict === 'Auszahlung' ? 'refund' : verdict === 'Rückforderung' ? 'surcharge' : 'balanced')
+    : (verdict === 'Erstattung' ? 'refund' : verdict === 'Nachzahlung' ? 'surcharge' : 'balanced');
+  const arrow = isFeedIn
+    ? (verdict === 'Auszahlung' ? '↓' : verdict === 'Rückforderung' ? '↑' : '→')
+    : (verdict === 'Nachzahlung' ? '↑' : verdict === 'Erstattung' ? '↓' : '→');
   const sign = v => v > 0 ? '+' : '';
-  const dateLabel = c.is_open_ended
-    ? `geschätztes Ende: ${fmt.date(c.effective_end)} (offener Vertrag, +12 M)`
-    : `Vertragsende: ${fmt.date(c.effective_end)}`;
+  const dateLabel = isFeedIn
+    ? `nächste Abrechnung: ${fmt.date(c.effective_end)}`
+    : (c.is_open_ended
+        ? `geschätztes Ende: ${fmt.date(c.effective_end)} (offener Vertrag, +12 M)`
+        : `Vertragsende: ${fmt.date(c.effective_end)}`);
 
   const tariffParts = [];
   const isWater = u.key === 'wasser';
@@ -354,21 +370,21 @@ function balanceCard(c, u) {
       <div class="muted num" style="font-size:11px;margin-bottom:14px">${escapeHtml(tariffText)}</div>
       <div class="balance-grid">
         <div>
-          <div class="balance-col__label">Verbraucht (Stand heute)</div>
+          <div class="balance-col__label">${isFeedIn ? 'Vergütung (Stand heute)' : 'Verbraucht (Stand heute)'}</div>
           <div class="balance-col__value">${fmt.eur(c.actual_cost)}</div>
           <div class="balance-col__sub">${consumedSub}</div>
           ${breakdownHtml}
         </div>
         <div>
-          <div class="balance-col__label">Abschlag bezahlt</div>
-          <div class="balance-col__value">${fmt.eur(c.advance_paid)}</div>
-          <div class="balance-col__sub">aktuell: ${c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) + '/Monat' : '–'}</div>
-          ${specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${spCount} Sonderzahlung${spCount === 1 ? '' : 'en'}</div>${specialHtml}` : ''}
+          <div class="balance-col__label">${isFeedIn ? 'Bereits ausgezahlt' : 'Abschlag bezahlt'}</div>
+          <div class="balance-col__value">${isFeedIn ? '–' : fmt.eur(c.advance_paid)}</div>
+          <div class="balance-col__sub">${isFeedIn ? 'Auszahlung über Netzbetreiber' : 'aktuell: ' + (c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) + '/Monat' : '–')}</div>
+          ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${spCount} Sonderzahlung${spCount === 1 ? '' : 'en'}</div>${specialHtml}` : ''}
         </div>
         <div>
-          <div class="balance-col__label">Aktueller Saldo</div>
-          <div class="balance-col__value ${cur > 0 ? 'positive' : cur < 0 ? 'negative' : ''}">${sign(cur)}${fmt.eur(cur)}</div>
-          <div class="balance-col__sub">${cur > 0 ? 'Unterzahlt' : cur < 0 ? 'Überzahlt' : 'ausgeglichen'}</div>
+          <div class="balance-col__label">${isFeedIn ? 'Vergütungsanspruch' : 'Aktueller Saldo'}</div>
+          <div class="balance-col__value ${isFeedIn ? (cur > 0 ? 'negative' : cur < 0 ? 'positive' : '') : (cur > 0 ? 'positive' : cur < 0 ? 'negative' : '')}">${sign(cur)}${fmt.eur(cur)}</div>
+          <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? 'Guthaben beim Netzbetreiber' : cur < 0 ? 'Rückforderung' : 'ausgeglichen') : (cur > 0 ? 'Unterzahlt' : cur < 0 ? 'Überzahlt' : 'ausgeglichen')}</div>
         </div>
         <div class="balance-verdict ${verdictCls}">
           <div class="balance-verdict__label">${arrow} Erwartet bei Abrechnung</div>

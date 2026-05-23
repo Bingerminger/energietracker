@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-05-23 (synchron mit v1.7.1, N1004 ausgeliefert)
-**Aktuelle Baseline:** v1.7.1
+**Stand:** 2026-05-23 (synchron mit v1.7.2, P-PV-01 ausgeliefert)
+**Aktuelle Baseline:** v1.7.2
 **Schema:** 1.1.0
 
 ---
@@ -39,6 +39,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | F1005 | PV-Einspeisung + PV-Erzeugung, Strom-Saldo, Autarkiequote (8 Utilities statt 6, CO₂ als „vermieden") | v1.7.0 | 2026-05-23 |
 | N1003 | Health-Check-Endpoint `GET /api/health` (Version, Schema, Schreibrechte, Migrationen) | v1.7.0 | 2026-05-23 |
 | N1004 | Backup/Restore-Sicherungen: Schema-Guard + Auto-Snapshot vor Restore + UI-Toast mit Snapshot-Name. Demo-Daten und Szenario-Doku für PV nachgereicht. | v1.7.1 | 2026-05-23 |
+| P-PV-01 | PV-Einspeisung als Erlös statt Kosten (Verdict-Achse, Projektionshorizont, feed_in-Labels/Farben) + realistische Forecast-Demodaten | v1.7.2 | 2026-05-23 |
 
 ---
 
@@ -52,7 +53,7 @@ ein UI-seitiges Backup/Restore davor erspart Datenverluste.
 
 | Code | Thema | Release | Größe | Status |
 |------|-------|---------|-------|--------|
-| **N1005** | Docker-Image + `docker-compose.yml` | v1.7.2 | M | inline |
+| **N1005** | Docker-Image + `docker-compose.yml` | v1.7.3 | M | inline |
 | **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | Detail-Konzept offen |
 | TBD | offen für weitere Issues / Bedarfe | v1.9.0+ | — | offen |
 
@@ -154,7 +155,7 @@ Keine.
 
 ---
 
-## v1.7.2 — N1005 Docker-Image
+## v1.7.3 — N1005 Docker-Image
 
 **Auslöser:** Self-hosted ja, aber bisher ausschließlich auf Synology
 mit individueller nginx-Konfiguration. Ein Docker-Image macht das Tool
@@ -165,7 +166,7 @@ für andere Hosts und für Tests reproduzierbar.
 - `docker-compose.yml` mit Volume-Mount für `./data`.
 - README-Sektion „Docker-Quickstart".
 - CI-Job: Image bauen und smoke-testen (gegen Demo-Daten).
-- Image-Publikation auf GHCR (`ghcr.io/bingerminger/energietracker:1.7.2`).
+- Image-Publikation auf GHCR (`ghcr.io/bingerminger/energietracker:1.7.3`).
 
 ### Schema-Migration
 Keine.
@@ -247,56 +248,6 @@ sind vorläufig und werden bei Übernahme in „Geplant" fortlaufend vergeben.
 Kleine Verbesserungen ohne F- oder N-Code. Werden in PATCH-Releases
 gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 
-### P-PV-01 — PV-Einspeisung: Verbrauchs-Semantik statt Erlös-Semantik in der Detail-View
-
-**Beobachtet:** 2026-05-23 (v1.7.1), PV-Einspeisungs-Detail-View.
-**Schwere:** hoch (fachlich falsch, schädigt Kundennutzen / Vertrauen).
-**Ursache:** Die Detail-View (`public/js/views/utility.js`) und die
-Saldo-Berechnung (`ConsumptionService::contractStatus`) behandeln
-`pv_einspeisung` mit der generischen **Verbrauchs**-Semantik. Bei einer
-Utility mit `accounting_kind = 'feed_in'` ist die wirtschaftliche
-Bedeutung jedoch **invertiert**: der „Saldo" ist ein Vergütungs-Erlös
-(Gutschrift), keine Kosten.
-
-**Sichtbare Artefakte im Screenshot:**
-
-| Element | Aktuell (falsch) | Korrekt (feed_in) |
-|---|---|---|
-| KPI „💶 Kosten 2026: 36,00 €" | „Kosten", neutral | „Erlös / Einspeisevergütung", grün |
-| KPI „💰 Abschläge 2026: 0 € · Saldo Jahr +36 €" (rot) | Abschlags-/Saldo-Logik | bei Einspeisung gibt es **keine Abschläge** → Karte ausblenden oder zu „Vergütung Jahr" umlabeln (grün) |
-| „Aktueller Saldo +1.588,56 € · **Unterzahlt**" (rot) | „Unterzahlt" | „Vergütungsanspruch / Guthaben", **grün** |
-| „Erwartet bei Abrechnung +10.756,82 € · **Nachzahlung**" (rot) | „Nachzahlung" | „Erwartete Auszahlung", **grün** |
-| KPI „☀️ Verbrauch 2026: 439 kWh" | „Verbrauch" | „Einspeisung / Ertrag" |
-
-**Zweiter, eigenständiger Bug (Projektions-Horizont):** „Erwartet bei
-Abrechnung" projiziert bis **Vertragsende 31.03.2043** → 10.756,82 €.
-Bei einem 20-Jahres-EEG-Vertrag ist das absurd: die Größe soll die
-**nächste Jahresabrechnung** schätzen, nicht die Gesamt-Restlaufzeit.
-`contractStatus` projiziert linear bis `effective_end`; bei sehr langen
-Verträgen (EEG) muss der Horizont auf die nächste Abrechnungsperiode
-(billing_cycle_anchor) begrenzt werden — genau wie es für offene
-Bezugsverträge schon geschieht.
-
-**Verdict-Logik (Backend):** `ConsumptionService::contractStatus` setzt
-`verdict = projected > 5 ? 'Nachzahlung' : …`. Für `feed_in` muss die
-Achse umgedreht werden: positiver Saldo = Gutschrift/Auszahlung (gut,
-grün), nicht Nachzahlung.
-
-**Saisonaler Reading-Trend:** Die Banner-Warnung „3-Monats-Trend
-−48,7 %" ist bei PV im Winterhalbjahr **normal** (weniger Sonne) und
-sollte für `feed_in`/`generation` nicht als auffälliger negativer Trend
-rot markiert werden. (Der „letzte Ablesung vor 83 Tagen"-Hinweis bleibt
-berechtigt.)
-
-**Vorschlag Scope:** eigener kleiner Patch (v1.7.2 oder gebündelt vor
-F1006). Single source: ein `accounting_kind`-Switch in `balanceCard()`
-+ KPI-Block + im Backend `contractStatus` (Verdict-Achse + Projektions-
-Horizont). Tests: ein `ContractStatusFeedInTest`, der positiven Saldo
-als Gutschrift (nicht Nachzahlung) erwartet und den Projektions-Horizont
-auf die nächste Abrechnung begrenzt prüft.
-
----
-
 *— weitere offene GitHub-Issues und beobachtete Polituren landen hier —*
 
 ---
@@ -329,6 +280,7 @@ auf die nächste Abrechnung begrenzt prüft.
 | 2026-05-22 | v1.6.3 ausgeliefert | N1002 (Edge-Case-Suite, 13 zusätzliche Tests in vier neuen Klassen) ausgeliefert. Alle 10 Roadmap-Fälle abgedeckt, kein Bug aufgedeckt, kein Code-Change. Frontend-Smoke bewusst weggelassen (PHPUnit ist der richtige Ort). Detail-Skizze aus „Geplant" entfernt. |
 | 2026-05-23 | v1.7.0 ausgeliefert | F1005 (PV) + N1003 (Health-Check) gebündelt ausgeliefert. F1005-Scope auf User-Wunsch von „S — nur Einspeisung" auf „M–L — Einspeisung + Erzeugung + Autarkiequote" hochgezogen (Multiple-Choice-Klärung, Kundennutzen-Priorisierung Eigenheimbesitzer). 13 neue PHPUnit-Tests, 2 zusätzliche Browser-Render-Smokes. Schema bleibt 1.1.0. Pre-existing JsonStore/macOS-realpath-Bug nebenbei gefixt. Original-Skizze als historischer Kontext im Roadmap-File behalten. |
 | 2026-05-23 | v1.7.1 ausgeliefert | N1004 (Backup/Restore-UI) kleiner als Skizze (bestehender JSON-Backup ausreichend, nur Schema-Guard + Auto-Snapshot ergänzt). Headroom genutzt, um Demo-Daten und Szenario-Doku für PV nachzureichen (Versäumnis aus v1.7.0). 3 neue PHPUnit-Tests. |
+| 2026-05-23 | v1.7.2 ausgeliefert | P-PV-01 (PV-Einspeisung als Erlös statt Kosten) aus dem Patch-Pool vorgezogen, nachdem ein realer Screenshot „+10.756 € Nachzahlung" auf der PV-Einspeise-View zeigte. Verdict-Achse + Projektionshorizont (Backend), feed_in-Labels/Farben (Frontend), 3-Monats-Trend bei PV unterdrückt. PV-Demodaten mit realistischer Jahres-Streuung neu generiert. N1005 (Docker) von v1.7.2 auf v1.7.3 verschoben. 2 neue PHPUnit-Tests. |
 
 ---
 

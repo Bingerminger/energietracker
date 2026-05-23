@@ -6,6 +6,77 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.7.2] — 2026-05-23 — P-PV-01: PV-Einspeisung als Erlös statt Kosten + realistische Forecast-Demodaten
+
+PATCH-Release. Behebt das in v1.7.1 beobachtete Artefakt P-PV-01: die
+PV-Einspeisungs-Detail-View rechnete und färbte den Vergütungs-Erlös mit
+der generischen Verbrauchs-Semantik („Nachzahlung", „Unterzahlt", rot).
+
+### Fixed
+
+- **P-PV-01 (Backend)** — `ConsumptionService::contractStatus()` für
+  `accounting_kind = feed_in`:
+  - **Verdict-Achse umgedreht**: positiver Saldo ist eine `Auszahlung`
+    des Netzbetreibers (gut), keine `Nachzahlung`. Negativer Saldo →
+    `Rückforderung` statt `Erstattung`.
+  - **Projektionshorizont begrenzt**: feed_in-Verträge werden bis zur
+    nächsten Jahresabrechnung (`billing_cycle_anchor`) projiziert, nicht
+    bis zum Vertragsende. Ein 20-Jahres-EEG-Vertrag (Ende z.B. 2043)
+    erzeugte vorher ein absurdes „erwartet +10.756 €"; jetzt ~+2.000 €
+    bis zur nächsten Abrechnung.
+- **P-PV-01 (Frontend)** — `public/js/views/utility.js` für feed_in:
+  - KPI „Verbrauch" → „Einspeisung", „Kosten" → „Erlös" (grün).
+  - „Abschläge"-KPI ausgeblendet (Einspeisung hat keine Abschläge).
+  - Saldo-Karte: „Verbraucht" → „Vergütung", „Abschlag bezahlt" →
+    „Bereits ausgezahlt (über Netzbetreiber)", „Aktueller Saldo" →
+    „Vergütungsanspruch / Guthaben beim Netzbetreiber". Positiver Saldo
+    jetzt **grün** (Vergütung), nicht rot.
+  - 3-Monats-Trend-Banner für `feed_in`/`generation` unterdrückt — der
+    Vergleich ist bei sonnengetriebenen Reihen reine Saisonalität
+    (Frühling vs. Winter), kein echter Verbrauchstrend.
+
+### Changed
+
+- **Demo-Daten** `demo-data/pv_einspeisung/` und `demo-data/pv_erzeugung/`
+  neu generiert mit realistischer Jahres-Streuung (gutes/schlechtes
+  Sonnenjahr ±8–12 %: 2024 ~10.260 kWh, 2025 ~9.370 kWh) plus
+  Monatsrauschen, Reihe bis 2026-05. Damit liefert das Forecast-
+  Saisonprofil für PV eine aussagekräftige, nicht-triviale Demo
+  (Sommer-Peak ~910 kWh/Monat, Herbst fallend).
+
+### Migration
+
+Keine. Schema bleibt **1.1.0**. Reine Anzeige-/Berechnungs-Korrektur und
+Demo-Daten — bestehende User-Daten unberührt.
+
+### Tests
+
+- `vendor/bin/phpunit` → **43 Tests / 152 Assertions, alle grün**
+  (41 aus v1.7.1 + 2 neue):
+  - `ContractStatusFeedInTest` (2) — feed_in-Verdict ist „Auszahlung"
+    (nicht „Nachzahlung"); Projektion bleibt innerhalb der nächsten
+    Abrechnungsperiode statt bis EEG-Vertragsende 2043.
+- Frontend-API-Shape 14/14, Browser-Render 36/36 grün.
+
+### Lessons Learned
+
+- **Generische Views brauchen explizite Sonderfall-Schalter.** F1005
+  (v1.7.0) hat PV als eigene Utility sauber modelliert, aber die
+  Detail-View blind die Verbrauchs-Semantik wiederverwendet — Code lief
+  grün durch alle Tests, war fachlich aber invertiert. Erst der Blick
+  auf den realen Screenshot („+10.756 € Nachzahlung") deckte es auf.
+  Lesson: bei einem neuen `accounting_kind` ist die Annahme „die
+  bestehende View passt schon" zu prüfen, nicht vorauszusetzen.
+- **Demo-Daten ohne Streuung verstecken Forecast-Bugs.** Die erste
+  PV-Demo (v1.7.1) hatte jährlich identische Werte → perfekte Regression,
+  die Forecast-Qualität war nicht beurteilbar. Realistische Jahres-/
+  Monats-Streuung macht die Demo erst als Test- und Verkaufsartefakt
+  brauchbar.
+
+[#13]: https://github.com/Bingerminger/energietracker/issues/13
+
+---
+
 ## [1.7.1] — 2026-05-23 — N1004 (Backup/Restore-UI) + Demo-Daten und Doku für PV nachgereicht
 
 ### Added
