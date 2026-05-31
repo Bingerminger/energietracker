@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-05-31 (synchron mit v1.7.3; N1005 + N1010 ausgeliefert)
-**Aktuelle Baseline:** v1.7.3
+**Stand:** 2026-05-31 (synchron mit v1.7.4; F1007 ausgeliefert)
+**Aktuelle Baseline:** v1.7.4
 **Schema:** 1.1.0
 
 ---
@@ -42,6 +42,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | P-PV-01 | PV-Einspeisung als Erlös statt Kosten (Verdict-Achse, Projektionshorizont, feed_in-Labels/Farben) + realistische Forecast-Demodaten | v1.7.2 | 2026-05-23 |
 | N1005 | Docker-Image (Single-Container nginx+php-fpm) + `docker-compose.yml` + GHCR-Publikation + CI-Smoke-Job | v1.7.3 | 2026-05-31 |
 | N1010 | Strukturiertes Logging (abhängigkeitsfreier JSON-Lines-Logger, ENV-gesteuert; ErrorHandler + Lebenszyklus geloggt) | v1.7.3 | 2026-05-31 |
+| F1007 | Demo-Daten-Import über die Einstellungen (Ein-Klick, Warnung bei vorhandenen Daten, Auto-Snapshot; serverseitiger Endpoint) | v1.7.4 | 2026-05-31 |
 
 ---
 
@@ -66,8 +67,7 @@ Leitlogik dieser Sequenz:
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
 | **N1012** | CI-Action-Versionen Node-24-fähig machen (`docker/*`-Actions in `docker-publish.yml`/`ci.yml`; GitHub erzwingt Node 24 ab 16.06.2026) | — (reine CI-Wartung, kein Versions-Bump nötig) | S | — | **fristgebunden: vor 2026-06-16** |
-| **F1007** | Demo-Daten-Import über die Einstellungen (Ein-Klick, Warnung wenn bereits Daten vorhanden) | v1.7.4 | S | — | **nächster Slot** — Detail-Konzept unten |
-| **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | 1.1.0 → 1.2.0 | Detail-Konzept offen |
+| **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | 1.1.0 → 1.2.0 | **nächster Slot** — Detail-Konzept offen |
 | **N1008** | PWA-Manifest + Service-Worker (mobile „App", komplettiert F1004) | v1.9.0 | M | — | geplant |
 | **N1009** | Accessibility-Audit + Fixes (ARIA, Tastatur, Kontrast) | v1.10.0 | M | — | geplant |
 | **N1007** | i18n-Foundation (`t('key')`-Wrapper, String-Extraktion) | v1.11.0 | M | — | geplant |
@@ -331,6 +331,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-05-31 | v1.7.3 ausgeliefert | N1005 (Docker-Single-Container nginx+php-fpm, docker-compose, GHCR-Publikation per Tag, CI-Smoke-Job) + N1010 (abhängigkeitsfreier JSON-Lines-Logger, ENV-gesteuert; ErrorHandler loggt jetzt Exceptions/Fatals, Lebenszyklus + Access-Log) gebündelt ausgeliefert. nginx-Config spiegelt router.php; `clear_env=no` reicht ET_*-ENV durch. Keine Schema-Migration. 4 neue PHPUnit-Tests (47/166 gesamt). Nächster Slot: F1006. |
 | 2026-05-31 | N1012 aufgenommen | Nach v1.7.3-Release meldete GitHub eine Node-20-Deprecation für die `docker/*`-Actions (Zwangsumstellung auf Node 24 ab 16.06.2026). Als fristgebundene CI-Wartung N1012 in die geplante Reihenfolge aufgenommen — kein Versions-Bump nötig, reine Action-Versionspflege. |
 | 2026-05-31 | F1007 aufgenommen | Auf User-Wunsch: Demo-Daten-Komfort-Import über die Einstellungen (Ein-Klick, Warnung bei vorhandenen Daten) als nächstes Feature-Release v1.7.4 (vor F1006) eingeplant. Demo-Backup-JSON `demo-data/energietracker-demo-backup.json` bereits beigelegt und in der Doku verlinkt. |
+| 2026-05-31 | v1.7.4 ausgeliefert | F1007 umgesetzt (Variante B serverseitig): `DemoService` + Controller, `GET /api/demo/status` + `POST /api/demo/import`, Button „Demo-Daten laden" im Einstellungs-View mit Warnung+Auto-Snapshot. Demo-Backup via `.dockerignore`-Ausnahme im Image. 4 neue PHPUnit-Tests. Keine Schema-Migration. Nächster Slot: F1006. |
 
 ---
 

@@ -272,7 +272,14 @@ export async function render(container) {
         <button class="btn" id="btn-snapshot">Snapshot speichern</button>
         <button class="btn btn--ghost" id="btn-import">Backup importieren…</button>
         <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+        <button class="btn btn--ghost" id="btn-demo">Demo-Daten laden</button>
       </div>
+      <p class="settings-card__hint" style="margin-top:.5rem">
+        „Demo-Daten laden" spielt einen vollständigen Beispieldatensatz ein —
+        ideal zum Ausprobieren in einem leeren Energietracker. Sind bereits
+        Daten vorhanden, wird vorher gewarnt und automatisch ein Snapshot
+        angelegt.
+      </p>
 
       <hr class="settings-rule">
 
@@ -328,6 +335,33 @@ export async function render(container) {
   container.querySelector('#btn-snapshot').addEventListener('click', async () => {
     try { const r = await api.snapshotBackup(); toastOk(`Snapshot: ${r.file || r.path || 'ok'}`); }
     catch (e) { toastErr(e.message); }
+  });
+
+  // F1007 — Demo-Daten-Komfort-Import
+  container.querySelector('#btn-demo').addEventListener('click', async () => {
+    try {
+      const status = await api.demoStatus();
+      if (!status.available) {
+        toastErr('Demo-Daten sind in dieser Installation nicht verfügbar.');
+        return;
+      }
+      if (!status.is_empty) {
+        const ok = await confirmModal({
+          title: 'Demo-Daten laden?',
+          message: 'Es sind bereits Daten vorhanden. Der Import überschreibt sie. '
+                 + 'Vorher wird automatisch ein Sicherheits-Snapshot deiner aktuellen '
+                 + 'Daten angelegt, den du jederzeit wieder einspielen kannst.',
+          confirmLabel: 'Demo-Daten laden', danger: true,
+        });
+        if (!ok) return;
+      }
+      const report = await api.importDemo(!status.is_empty);
+      const snap = report?.auto_snapshot_before_restore;
+      invalidateSettings();
+      if (typeof snap === 'string') toastOk(`Demo-Daten geladen. Sicherheits-Snapshot: ${snap}`);
+      else toastOk('Demo-Daten geladen.');
+      render(container);
+    } catch (e) { toastErr(e.message); }
   });
 
   container.querySelector('#btn-import').addEventListener('click',

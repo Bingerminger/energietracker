@@ -7,6 +7,9 @@
 .phpunit.cache
 data
 demo-data
+# F1007: das eine Demo-Backup muss ins Image (für den UI-Demo-Import),
+# der Rest von demo-data/ bleibt außen vor.
+!demo-data/energietracker-demo-backup.json
 tests
 vendor
 node_modules

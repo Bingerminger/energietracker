@@ -108,6 +108,10 @@ export const api = {
   importBackup:  (data)                => request('POST', '/api/backup/import', data),
   snapshotBackup:()                    => request('POST', '/api/backup/snapshot'),
 
+  // Demo-Daten-Import (F1007)
+  demoStatus:    ()                    => request('GET',  '/api/demo/status'),
+  importDemo:    (force = false)       => request('POST', '/api/demo/import', { force }),
+
   // ── CSV-Export (F-07) ──
   // These return a file download, not JSON — so they are plain URLs the
   // browser navigates to / anchors to, not request() calls.

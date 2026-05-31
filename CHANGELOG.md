@@ -6,6 +6,37 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.7.4] — 2026-05-31 — F1007 Demo-Daten-Import über die Einstellungen
+
+MINOR-Release. Macht den Demo-Datensatz per Knopfdruck in der UI ladbar —
+ideal für einen frisch installierten oder containerisierten, leeren
+Energietracker.
+
+### Added
+
+- **F1007 — Demo-Daten-Komfort-Import.** Im Einstellungs-View unter
+  „Backup & Wiederherstellung" ein neuer Button **„Demo-Daten laden"**.
+  - Lädt das mitgelieferte Demo-JSON-Backup über den bestehenden
+    Restore-Pfad (`BackupService::import()`) — inklusive Schema-Guard und
+    automatischem Pre-Restore-Snapshot (N1004), also verlustfrei rückholbar.
+  - **Warnung vorab**, wenn bereits Daten vorhanden sind (Bestätigungsdialog);
+    bei leerem Tracker direkter Import ohne Nachfrage.
+  - Neuer Service `DemoService` + Controller, Endpoints
+    `GET /api/demo/status` (`{available, is_empty}`) und
+    `POST /api/demo/import` (Body `{force}`). „Leer" = kein Zähler über alle
+    Verbrauchsarten.
+  - Architektur: **Variante B (serverseitig)** — das Demo-Backup wird vom
+    Server gelesen; im Docker-Image ist genau diese eine Datei enthalten
+    (`.dockerignore`-Ausnahme), nicht das ganze `demo-data/`-Verzeichnis.
+
+### Tests
+
+- Neue PHPUnit-Klasse `DemoServiceTest` (4 Tests): leer-Erkennung +
+  Verfügbarkeit, Import füllt Zähler, Abbruch ohne `force` bei vorhandenen
+  Daten, erzwungener Re-Import.
+
+---
+
 ## [1.7.3] — 2026-05-31 — N1005 Docker-Image + N1010 strukturiertes Logging
 
 MINOR-Release (zwei nicht-funktionale Anforderungen, kein Schemawechsel).

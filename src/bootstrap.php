@@ -17,7 +17,7 @@ use Energietracker\Services\{
     MigrationService, ReadingImportService, CsvExportService,
     DeliveryService, DeliveryConsumptionService, BenchmarkService,
     TariffComparisonService, RecommendationService, ReminderService, PdfReportService,
-    StromSaldoService, PvSummaryService, HealthCheckService
+    StromSaldoService, PvSummaryService, HealthCheckService, DemoService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -26,7 +26,7 @@ use Energietracker\Controllers\{
     MigrationController, ExportController,
     DeliveryController, BenchmarkController, TariffComparisonController,
     RecommendationController, ReminderController, ReportController,
-    StromSaldoController, PvSummaryController, HealthController
+    StromSaldoController, PvSummaryController, HealthController, DemoController
 };
 
 /**
@@ -71,6 +71,7 @@ final class App
     public StromSaldoService $stromSaldo;
     public PvSummaryService $pvSummary;
     public HealthCheckService $health;
+    public DemoService $demo;
 
     public function __construct(string $dataDir)
     {
@@ -115,6 +116,8 @@ final class App
         $this->stromSaldo   = new StromSaldoService($this->consumption);
         $this->pvSummary    = new PvSummaryService($this->consumption);
         $this->health       = new HealthCheckService($this->store);
+        // F1007 (v1.7.4)
+        $this->demo         = new DemoService($this->store, $this->backups);
 
         // Auto-migrate or initialize on first run
         $migrator = new Migrator($this->store);
@@ -274,5 +277,10 @@ final class App
         // ── N1003 (v1.7.0) — Health-Check ──
         $hCtrl = new HealthController($this->health);
         $r->get('/api/health', fn($req) => $hCtrl->index($req));
+
+        // ── F1007 (v1.7.4) — Demo-Daten-Komfort-Import ──
+        $demoCtrl = new DemoController($this->demo);
+        $r->get('/api/demo/status',  fn($req) => $demoCtrl->status($req));
+        $r->post('/api/demo/import', fn($req) => $demoCtrl->import($req));
     }
 }
