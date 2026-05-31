@@ -19,7 +19,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 1.7.2
+├── VERSION                ← 1.7.3
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein
@@ -113,6 +113,47 @@ server {
   }
 }
 ```
+
+## Produktiv: Docker (seit v1.7.3)
+
+Single-Container-Image (nginx + php-fpm). Persistente Daten liegen im
+gemounteten Volume unter `/data`.
+
+**Schnellster Weg — docker compose:**
+
+```bash
+docker compose up -d        # → http://localhost:8080
+```
+
+**Oder direkt mit dem GHCR-Image:**
+
+```bash
+docker run -d --name energietracker \
+  -p 8080:80 \
+  -v "$PWD/data:/data" \
+  ghcr.io/bingerminger/energietracker:1.7.3
+```
+
+**Oder lokal bauen:**
+
+```bash
+docker build -t energietracker .
+docker run -d -p 8080:80 -v "$PWD/data:/data" energietracker
+```
+
+Konfiguration über Umgebungsvariablen (`docker run -e …` bzw. `environment:`
+im Compose-File):
+
+| Variable | Default | Wirkung |
+|----------|---------|---------|
+| `ET_DATA_DIR` | `/data` | Speicherpfad im Container |
+| `ET_LOG_DEST` | `stderr` | `stderr` \| `file` \| `null` |
+| `ET_LOG_LEVEL` | `info` | `debug` \| `info` \| `warning` \| `error` |
+| `ET_LOG_FILE` | `<dataDir>/logs/app.log` | Pfad bei `ET_LOG_DEST=file` |
+
+Die Logs (JSON Lines) erscheinen bei `ET_LOG_DEST=stderr` direkt in
+`docker logs energietracker`. Der Container hat einen `HEALTHCHECK` gegen
+`GET /api/health`.
 
 ## Demo-Daten laden (optional)
 

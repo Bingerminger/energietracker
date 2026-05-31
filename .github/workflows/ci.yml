@@ -128,3 +128,45 @@ jobs:
 
       - name: PHPUnit ausführen
         run: vendor/bin/phpunit --no-coverage
+
+  docker:
+    name: Docker-Image bauen & smoke-testen
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Image bauen
+        run: docker build -t energietracker:ci .
+
+      - name: Container starten
+        run: |
+          docker run -d --name et -p 8080:80 energietracker:ci
+          # Readiness-Probe gegen den N1003-Health-Endpoint (max ~30 s)
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/api/health >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+
+      - name: End-to-End-Smoke (Routing + statische Assets)
+        run: |
+          set -euo pipefail
+          # Health-Endpoint liefert JSON mit success:true
+          curl -sf http://127.0.0.1:8080/api/health   | grep -q '"success":true'
+          # /api/… und /api.php/api/… müssen beide auf dieselbe Route zeigen
+          curl -sf http://127.0.0.1:8080/api/settings          >/dev/null
+          curl -sf http://127.0.0.1:8080/api.php/api/settings  >/dev/null
+          # Statische Auslieferung (Modulgraph)
+          curl -sf http://127.0.0.1:8080/public/js/app.js >/dev/null
+          # SPA-Shell-Fallback
+          curl -sf http://127.0.0.1:8080/ | grep -qi 'energietracker'
+          # /data darf NICHT ausgeliefert werden
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/data/meta.json)" = "404"
+
+      - name: Container-Logs (Diagnose)
+        if: always()
+        run: docker logs et || true
+
+      - name: Aufräumen
+        if: always()
+        run: docker rm -f et || true

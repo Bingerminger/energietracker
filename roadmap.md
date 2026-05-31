@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-05-23 (synchron mit v1.7.2, P-PV-01 ausgeliefert)
-**Aktuelle Baseline:** v1.7.2
+**Stand:** 2026-05-31 (synchron mit v1.7.3; N1005 + N1010 ausgeliefert)
+**Aktuelle Baseline:** v1.7.3
 **Schema:** 1.1.0
 
 ---
@@ -40,22 +40,44 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | N1003 | Health-Check-Endpoint `GET /api/health` (Version, Schema, Schreibrechte, Migrationen) | v1.7.0 | 2026-05-23 |
 | N1004 | Backup/Restore-Sicherungen: Schema-Guard + Auto-Snapshot vor Restore + UI-Toast mit Snapshot-Name. Demo-Daten und Szenario-Doku für PV nachgereicht. | v1.7.1 | 2026-05-23 |
 | P-PV-01 | PV-Einspeisung als Erlös statt Kosten (Verdict-Achse, Projektionshorizont, feed_in-Labels/Farben) + realistische Forecast-Demodaten | v1.7.2 | 2026-05-23 |
+| N1005 | Docker-Image (Single-Container nginx+php-fpm) + `docker-compose.yml` + GHCR-Publikation + CI-Smoke-Job | v1.7.3 | 2026-05-31 |
+| N1010 | Strukturiertes Logging (abhängigkeitsfreier JSON-Lines-Logger, ENV-gesteuert; ErrorHandler + Lebenszyklus geloggt) | v1.7.3 | 2026-05-31 |
 
 ---
 
 ## Geplante Reihenfolge (logisch sortiert)
 
-Logik: **NFRs vor riskanten Refactors**. `F1006` (Meter-Topologie) berührt
-`ConsumptionService` substanziell — vorher muss eine echte Unit-Test-Suite
-existieren, sonst lassen sich Regressionen nicht zuverlässig vermeiden.
-Außerdem: **Backup vor Schema-Migration**. F1006 hebt Schema 1.1.0 → 1.2.0;
-ein UI-seitiges Backup/Restore davor erspart Datenverluste.
+Leitlogik dieser Sequenz:
 
-| Code | Thema | Release | Größe | Status |
-|------|-------|---------|-------|--------|
-| **N1005** | Docker-Image + `docker-compose.yml` | v1.7.3 | M | inline |
-| **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | Detail-Konzept offen |
-| TBD | offen für weitere Issues / Bedarfe | v1.9.0+ | — | offen |
+1. **NFRs vor riskanten Refactors.** `F1006` (Meter-Topologie) berührt
+   `ConsumptionService` substanziell — vorher müssen Test-Suite (N1001/02),
+   Backup (N1004), Container-Testumgebung (N1005) und strukturiertes Logging
+   (N1010) stehen, sonst lassen sich Regressionen nicht zuverlässig vermeiden.
+2. **Backup vor Schema-Migration.** F1006 hebt Schema 1.1.0 → 1.2.0; das
+   UI-seitige Backup/Restore (N1004) davor erspart Datenverluste.
+3. **Kundennutzen vor Infrastruktur.** Die spürbare UX-Welle (PWA, A11y)
+   kommt vor dem trockenen i18n-Unterbau.
+4. **Thematisch bündeln.** Ops-Themen (Docker + Logging) und UX-Themen
+   (PWA + A11y) reisen paarweise, statt jeden N-Code einzeln zu releasen.
+5. **Majors klar trennen.** EN-Lokalisierung (v2.0.0, kleiner Major) und
+   Smart-Meter (v3.0.0, großer Datenpipeline-Major) werden nicht in ein
+   Release gequetscht.
+
+| Code | Thema | Release | Größe | Schema | Status |
+|------|-------|---------|-------|--------|--------|
+| **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | 1.1.0 → 1.2.0 | **nächster Slot** — Detail-Konzept offen |
+| **N1008** | PWA-Manifest + Service-Worker (mobile „App", komplettiert F1004) | v1.9.0 | M | — | geplant |
+| **N1009** | Accessibility-Audit + Fixes (ARIA, Tastatur, Kontrast) | v1.10.0 | M | — | geplant |
+| **N1007** | i18n-Foundation (`t('key')`-Wrapper, String-Extraktion) | v1.11.0 | M | — | geplant |
+| **EN-L10n** | EN-Lokalisierung (Aktivierung, erste zweite Sprache) | v2.0.0 | L | — | Major, setzt N1007 voraus |
+| **N1011** | API-Versionierung (`/api/v1/…`) | v2.1.0 | M | — | Vorbereitung Smart-Meter |
+| **Smart-Meter** | Smart-Meter-Anbindung (SML / IEC 62056), Lastgang-Pipeline | v3.0.0 | XL | neuer Strang | Major, langfristig |
+
+**Bedarfsgetrieben (kein fester Slot):**
+
+| Code | Thema | Größe | Auslöser |
+|------|-------|-------|----------|
+| **N1006** | Performance-Caching (`computeForMeter`-Memoization, ETag / `If-Modified-Since`) | M | Wird vorgezogen, sobald eine echte Messung (>10 J × 6 Zähler) spürbare Latenz zeigt. Vorab-Optimierung verstößt gegen die „erst bei echtem Problem"-Regel. |
 
 ---
 
@@ -219,27 +241,13 @@ Aggregations-Semantik in der Migrator-Validierung verankert wird.
 
 ## Backlog (ungeplant, ohne Slot)
 
-Themen ohne festen Release-Slot. Werden in die nächsten freien Slots
-verschoben, sobald Aufwand und Bedarf konkretisiert sind. F-/N-Codes hier
-sind vorläufig und werden bei Übernahme in „Geplant" fortlaufend vergeben.
+Mit der Einsortierung vom 2026-05-31 wurde der gesamte bisherige Backlog in
+die „Geplante Reihenfolge" überführt (siehe oben). Aktuell steht hier nichts
+Offenes mehr. Neue Themen ohne festen Slot landen wieder hier; F-/N-Codes
+sind dann vorläufig und werden bei Übernahme in „Geplant" fortlaufend
+vergeben.
 
-### Funktional (F-Codes vorläufig)
-
-| Code (vorl.) | Thema | Größe | Notiz |
-|--------------|-------|-------|-------|
-| — | EN-Lokalisierung (Aktivierung) | L | Setzt N1007 voraus. Wahrscheinlich v2.0.0 Major. Aktuell nicht fest eingeplant. |
-| — | Smart-Meter-Anbindung (SML / IEC 62056) | XL | Neue Datenpipeline für Lastgang-Daten, eigener Datenmodell-Strang. Längerfristig. |
-
-### Nicht-funktional (N-Codes vorläufig)
-
-| Code (vorl.) | Thema | Größe | Notiz |
-|--------------|-------|-------|-------|
-| N1006 | Performance-Caching (`computeForMeter`-Memoization, ETag / `If-Modified-Since` auf Read-Endpunkten) | M | Erst aktivieren, wenn echte Performance-Probleme auftreten (>10 Jahre × 6 Zähler). |
-| N1007 | i18n-Foundation (Wrapper `t('key')` einführen, Strings extrahieren) | M | Voraussetzung für EN-Lokalisierung im funktionalen Backlog. Selbst keine neue Sprache. |
-| N1008 | PWA-Manifest + Service-Worker | M | Mobile-App-Installation aufs iPhone (F1004 ist mobile-first; PWA komplettiert das). |
-| N1009 | Accessibility-Audit + Fixes | M | ARIA-Labels, Tastatur-Navigation, Kontrast-Prüfung. |
-| N1010 | Strukturiertes Logging (PSR-3 + JSON-Lines) | S | Aktuell `error_log` ohne Kontext. Für Diagnose bei User-Issues nützlich. |
-| N1011 | API-Versionierung (`/api/v1/…`) | M | Vorbereitung für Smart-Meter-Anbindung mit potenziell anderer Schreiblogik. |
+*— derzeit leer —*
 
 ---
 
@@ -281,6 +289,8 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-05-23 | v1.7.0 ausgeliefert | F1005 (PV) + N1003 (Health-Check) gebündelt ausgeliefert. F1005-Scope auf User-Wunsch von „S — nur Einspeisung" auf „M–L — Einspeisung + Erzeugung + Autarkiequote" hochgezogen (Multiple-Choice-Klärung, Kundennutzen-Priorisierung Eigenheimbesitzer). 13 neue PHPUnit-Tests, 2 zusätzliche Browser-Render-Smokes. Schema bleibt 1.1.0. Pre-existing JsonStore/macOS-realpath-Bug nebenbei gefixt. Original-Skizze als historischer Kontext im Roadmap-File behalten. |
 | 2026-05-23 | v1.7.1 ausgeliefert | N1004 (Backup/Restore-UI) kleiner als Skizze (bestehender JSON-Backup ausreichend, nur Schema-Guard + Auto-Snapshot ergänzt). Headroom genutzt, um Demo-Daten und Szenario-Doku für PV nachzureichen (Versäumnis aus v1.7.0). 3 neue PHPUnit-Tests. |
 | 2026-05-23 | v1.7.2 ausgeliefert | P-PV-01 (PV-Einspeisung als Erlös statt Kosten) aus dem Patch-Pool vorgezogen, nachdem ein realer Screenshot „+10.756 € Nachzahlung" auf der PV-Einspeise-View zeigte. Verdict-Achse + Projektionshorizont (Backend), feed_in-Labels/Farben (Frontend), 3-Monats-Trend bei PV unterdrückt. PV-Demodaten mit realistischer Jahres-Streuung neu generiert. N1005 (Docker) von v1.7.2 auf v1.7.3 verschoben. 2 neue PHPUnit-Tests. |
+| 2026-05-31 | Backlog vollständig einsortiert | Gesamter Backlog in die „Geplante Reihenfolge" überführt und auf Releases verteilt: v1.7.3 N1005+N1010 (Ops-Bündel Docker+Logging), v1.8.0 F1006, v1.9.0 N1008 (PWA), v1.10.0 N1009 (A11y), v1.11.0 N1007 (i18n-Foundation), v2.0.0 EN-Lokalisierung (Major), v2.1.0 N1011 (API-Versionierung), v3.0.0 Smart-Meter (Major). N1006 (Performance) bleibt bewusst bedarfsgetrieben ohne festen Slot. Leitlogik: NFRs vor Refactors, Backup vor Migration, Kundennutzen vor Infrastruktur, thematisch bündeln, Majors trennen. |
+| 2026-05-31 | v1.7.3 ausgeliefert | N1005 (Docker-Single-Container nginx+php-fpm, docker-compose, GHCR-Publikation per Tag, CI-Smoke-Job) + N1010 (abhängigkeitsfreier JSON-Lines-Logger, ENV-gesteuert; ErrorHandler loggt jetzt Exceptions/Fatals, Lebenszyklus + Access-Log) gebündelt ausgeliefert. nginx-Config spiegelt router.php; `clear_env=no` reicht ET_*-ENV durch. Keine Schema-Migration. 4 neue PHPUnit-Tests (47/166 gesamt). Nächster Slot: F1006. |
 
 ---
 

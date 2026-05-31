@@ -3,10 +3,21 @@ declare(strict_types=1);
 
 namespace Energietracker\Http;
 
+use Energietracker\Logging\Logger;
+
 final class ErrorHandler
 {
-    public static function install(): void
+    private static ?Logger $logger = null;
+
+    /**
+     * @param Logger|null $logger Optionaler strukturierter Logger (N1010).
+     *        Ist er gesetzt, werden Exceptions und fatale Fehler als
+     *        Log-Eintrag (Level error) geschrieben, bevor die JSON-Antwort
+     *        rausgeht.
+     */
+    public static function install(?Logger $logger = null): void
     {
+        self::$logger = $logger;
         ob_start();
         error_reporting(E_ALL);
         ini_set('display_errors', '0');
@@ -23,6 +34,12 @@ final class ErrorHandler
         set_exception_handler(function (\Throwable $e): void {
             while (ob_get_level() > 0) ob_end_clean();
             $status = self::statusFor($e);
+            self::$logger?->error($e->getMessage(), [
+                'type'   => $e::class,
+                'file'   => basename($e->getFile()),
+                'line'   => $e->getLine(),
+                'status' => $status,
+            ]);
             if (!headers_sent()) {
                 http_response_code($status);
                 header('Content-Type: application/json; charset=utf-8');
@@ -44,6 +61,11 @@ final class ErrorHandler
             if (!$e) return;
             if (!in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) return;
             while (ob_get_level() > 0) ob_end_clean();
+            self::$logger?->error('Fataler Serverfehler: ' . $e['message'], [
+                'file' => $e['file'],
+                'line' => $e['line'],
+                'type' => $e['type'],
+            ]);
             if (!headers_sent()) {
                 http_response_code(500);
                 header('Content-Type: application/json; charset=utf-8');

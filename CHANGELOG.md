@@ -6,6 +6,55 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.7.3] — 2026-05-31 — N1005 Docker-Image + N1010 strukturiertes Logging
+
+MINOR-Release (zwei nicht-funktionale Anforderungen, kein Schemawechsel).
+Macht Energietracker als Container reproduzierbar betreibbar und gibt ihm
+zum ersten Mal echtes strukturiertes Logging — beide Themen gehören
+zusammen, weil ein Container ohne maschinenlesbare Logs nur halb betreibbar
+ist.
+
+### Added
+
+- **N1005 — Docker-Image (Single-Container).** `Dockerfile` auf Basis
+  `php:8.4-fpm-alpine` mit nginx + php-fpm, von `supervisord`
+  zusammengehalten. Ein `docker run -p 8080:80 -v ./data:/data …` genügt.
+  - `docker-compose.yml` mit Volume-Mount für `./data` und Log-ENV.
+  - `docker/nginx.conf` spiegelt 1:1 das Routing aus `router.php`
+    (statische Assets, `/data` + `/src` gesperrt, `/api(.php)/…` → api.php,
+    SPA-Fallback auf index.php).
+  - `docker/php-fpm-app.conf`: `clear_env = no` (reicht `ET_*`-ENV an PHP
+    durch) und `catch_workers_output = yes` (Worker-stderr → `docker logs`).
+  - Container-`HEALTHCHECK` nutzt den N1003-Endpoint `GET /api/health`.
+  - **GHCR-Publikation**: neuer Workflow `.github/workflows/docker-publish.yml`
+    baut bei jedem `v*`-Tag und pusht nach
+    `ghcr.io/bingerminger/energietracker` (Tags `{version}`, `{major}.{minor}`,
+    `latest`).
+  - **CI**: neuer Job `docker` baut das Image und smoke-testet es end-to-end
+    (Health, `/api/…` und `/api.php/api/…`, statisches Asset, SPA-Fallback,
+    `/data`-Sperre).
+- **N1010 — strukturiertes Logging.** Neuer, abhängigkeitsfreier
+  `Energietracker\Logging\Logger` (PSR-3-*orientiert*, ohne `psr/log`-
+  Dependency — die Laufzeit bleibt Composer-frei). Ein JSON-Objekt pro
+  Zeile („JSON Lines"), Default-Ziel stderr.
+  - Steuerung per ENV: `ET_LOG_LEVEL` (debug|info|warning|error, Default
+    info), `ET_LOG_DEST` (stderr|file|null, Default stderr), `ET_LOG_FILE`
+    (Default `<dataDir>/logs/app.log`).
+  - `ErrorHandler` loggt ab jetzt jede Exception und jeden fatalen Fehler
+    (Level error, mit Typ/Datei/Zeile/HTTP-Status), bevor die JSON-Antwort
+    rausgeht — vorher gingen Fehler ungeloggt verloren.
+  - App-Lebenszyklus wird geloggt: Migration ausgeführt / frische
+    Initialisierung (info), ein Access-Log-Eintrag pro Request (debug, im
+    Default-Level also stumm).
+
+### Tests
+
+- Neue PHPUnit-Klasse `LoggerTest` (4 Tests): JSON-Lines-Format,
+  Level-Schwellwert, Null-Ziel (aus), Fallback bei unbekanntem Level.
+  Suite jetzt **47 Tests / 166 Assertions**, alle grün.
+
+---
+
 ## [1.7.2] — 2026-05-23 — P-PV-01: PV-Einspeisung als Erlös statt Kosten + realistische Forecast-Demodaten
 
 PATCH-Release. Behebt das in v1.7.1 beobachtete Artefakt P-PV-01: die

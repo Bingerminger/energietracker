@@ -7,6 +7,7 @@ use Energietracker\Http\ErrorHandler;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Http\Router;
+use Energietracker\Logging\Logger;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Storage\Migrator;
 use Energietracker\Services\{
@@ -43,6 +44,7 @@ spl_autoload_register(static function (string $class): void {
 final class App
 {
     public Router $router;
+    public Logger $logger;
     public JsonStore $store;
     public SettingsService $settings;
     public MeterService $meters;
@@ -72,7 +74,11 @@ final class App
 
     public function __construct(string $dataDir)
     {
-        ErrorHandler::install();
+        // N1010: strukturierter Logger. Default-Datei-Ziel liegt unter dem
+        // Datenverzeichnis, greift aber nur bei ET_LOG_DEST=file; Default
+        // ist stderr (Docker-idiomatisch).
+        $this->logger = new Logger(file: rtrim($dataDir, '/') . '/logs/app.log');
+        ErrorHandler::install($this->logger);
         date_default_timezone_set('Europe/Berlin');
 
         $this->store        = new JsonStore($dataDir);
@@ -114,8 +120,12 @@ final class App
         $migrator = new Migrator($this->store);
         if ($migrator->needsMigration()) {
             $migrator->migrate();
+            $this->logger->info('Datenmigration ausgeführt', [
+                'schema_version' => $this->store->read('meta.json', [])['schema_version'] ?? null,
+            ]);
         } elseif (!$migrator->isAlreadyMigrated()) {
             $migrator->initFresh();
+            $this->logger->info('Datenverzeichnis frisch initialisiert', ['data_dir' => $dataDir]);
         }
 
         $this->router = new Router();
@@ -124,6 +134,11 @@ final class App
 
     public function handle(Request $req): void
     {
+        // N1010: ein Access-Log-Eintrag pro Request auf debug-Ebene
+        // (im Default-Level info also stumm; ET_LOG_LEVEL=debug aktiviert ihn).
+        // Methode + URI ergänzt der Logger selbst aus $_SERVER.
+        $this->logger->debug('request');
+
         // Common headers
         if (!headers_sent()) {
             header('Content-Type: application/json; charset=utf-8');

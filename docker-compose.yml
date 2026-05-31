@@ -1,0 +1,22 @@
+# Energietracker — Docker-Quickstart (N1005, v1.7.3).
+#
+#   docker compose up -d        → http://localhost:8080
+#
+# Standardmäßig wird das veröffentlichte GHCR-Image gezogen. Zum lokalen
+# Bauen die `image:`-Zeile auskommentieren und `build: .` aktivieren.
+services:
+  energietracker:
+    image: ghcr.io/bingerminger/energietracker:1.7.3
+    # build: .
+    container_name: energietracker
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      # Persistente JSON-Daten auf dem Host. Erstmaliger Start legt hier
+      # ein frisches Datenverzeichnis an.
+      - ./data:/data
+    environment:
+      # debug aktiviert zusätzlich einen Access-Log-Eintrag pro Request.
+      ET_LOG_LEVEL: info
+      ET_LOG_DEST: stderr

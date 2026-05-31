@@ -1,0 +1,19 @@
+# Hält Dev-/VCS-Ballast aus dem Build-Context (kleineres, sauberes Image).
+.git
+.github
+.gitignore
+.claude
+.DS_Store
+.phpunit.cache
+data
+demo-data
+tests
+vendor
+node_modules
+composer.lock
+phpunit.xml.dist
+roadmap.md
+CHANGELOG.md
+docs
+scripts
+*.log

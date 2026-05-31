@@ -2,7 +2,7 @@
 
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.7.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.7.3-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -27,7 +27,7 @@ End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v1.7.2 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.7.3 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -227,6 +227,26 @@ Die App initialisiert beim ersten Start automatisch `data/meta.json`,
 `readings.json`, `contracts.json`. Das Verzeichnis `data/` muss durch
 den Webserver schreibbar sein.
 
+### 🐳 Docker (seit v1.7.3)
+
+Reproduzierbarer Betrieb als Single-Container (nginx + php-fpm). Daten
+liegen im gemounteten Volume `./data`.
+
+```bash
+docker compose up -d        # → http://localhost:8080
+```
+
+Oder ohne Compose, direkt mit dem veröffentlichten Image:
+
+```bash
+docker run -d -p 8080:80 -v "$PWD/data:/data" \
+  ghcr.io/bingerminger/energietracker:1.7.3
+```
+
+Logs (JSON Lines) landen via `docker logs`; Konfiguration über
+`ET_LOG_LEVEL` / `ET_LOG_DEST` / `ET_DATA_DIR`. Details:
+[INSTALL.md → Produktiv: Docker](INSTALL.md#produktiv-docker-seit-v173).
+
 ### Erstinbetriebnahme
 
 1. **Einstellungen → System-Konstanten** prüfen: Gas-Umrechnungsfaktor
@@ -386,7 +406,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.7.2"
+├── VERSION                  ← „1.7.3"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE
