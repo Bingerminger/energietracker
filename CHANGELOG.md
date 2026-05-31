@@ -53,6 +53,15 @@ ist.
   Level-Schwellwert, Null-Ziel (aus), Fallback bei unbekanntem Level.
   Suite jetzt **47 Tests / 166 Assertions**, alle grün.
 
+### Fixed
+
+- **Multi-Arch-Image** (Nachzügler am selben Tag): der erste GHCR-Publish
+  baute nur `linux/amd64`, sodass `docker pull` auf Apple Silicon /
+  arm64 mit „no matching manifest for linux/arm64/v8" scheiterte. Der
+  Publish-Workflow baut jetzt via QEMU/Buildx eine Manifest-Liste für
+  **`linux/amd64` + `linux/arm64`**; das `v1.7.3`-Image wurde neu
+  veröffentlicht.
+
 ---
 
 ## [1.7.2] — 2026-05-23 — P-PV-01: PV-Einspeisung als Erlös statt Kosten + realistische Forecast-Demodaten

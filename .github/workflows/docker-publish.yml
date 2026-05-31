@@ -17,6 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: QEMU einrichten (für arm64-Emulation beim Multi-Arch-Build)
+        uses: docker/setup-qemu-action@v3
+
       - name: Buildx einrichten
         uses: docker/setup-buildx-action@v3
 
@@ -41,6 +44,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
