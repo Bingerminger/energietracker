@@ -14,6 +14,12 @@ jobs:
     name: Image bauen & nach GHCR pushen
     runs-on: ubuntu-latest
 
+    # N1012: GitHub erzwingt Node 24 für JS-Actions ab 2026-06-16. Wir opten
+    # bereits jetzt darauf ein, damit die docker/*-Actions Node-24-erprobt sind
+    # und keine Deprecation-Warnung mehr ausgeben.
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
     steps:
       - uses: actions/checkout@v5
 

@@ -25,6 +25,7 @@ auf dem eigenen Rechner.
 | [Datenmodell](technical/04-data-model.md) | JSON-Schemata, Speicherung, Schema-Migration |
 | [Tests](technical/05-testing.md) | Backend-Shape- und Browser-Render-Harness |
 | [Release-Prozess](technical/06-release-process.md) | Versionierung, CHANGELOG, Doku-Pflege |
+| [Docker-Betrieb](technical/07-docker.md) | Container-Quickstart für Einsteiger, `docker compose`, Updates, Daten-Volume, Logs |
 
 ### 📚 Fachlicher Teil — *für Verständnis & Anwendung*
 

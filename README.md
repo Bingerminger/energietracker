@@ -239,9 +239,14 @@ docker compose up -d        # → http://localhost:8080
 Oder ohne Compose, direkt mit dem veröffentlichten Image:
 
 ```bash
-docker run -d -p 8080:80 -v "$PWD/data:/data" \
+docker run -d --name energietracker -p 8080:80 \
+  -v "$PWD/data:/data" \
   ghcr.io/bingerminger/energietracker:1.7.3
 ```
+
+> Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
+> (z. B. `thirsty_archimedes`). Mit `--name` heißt der Container immer
+> `energietracker` — genau wie beim Start über `docker compose`.
 
 Logs (JSON Lines) landen via `docker logs`; Konfiguration über
 `ET_LOG_LEVEL` / `ET_LOG_DEST` / `ET_DATA_DIR`. Details:
@@ -264,6 +269,13 @@ Logs (JSON Lines) landen via `docker logs`; Konfiguration über
    (oder eine CSV-Datei hochladen).
 
 ### Demo-Daten
+
+> 💡 **Schnellster Weg (kein Dateisystem nötig):** die Demo-Daten liegen auch
+> als JSON-Backup unter
+> [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
+> In einem leeren Energietracker über *Einstellungen → Backup & Restore →
+> Backup importieren* hochladen (ab v1.7.4 zusätzlich per „Demo-Daten laden"-
+> Button). Es wird vorab automatisch ein Snapshot angelegt.
 
 Im Repository liegen Demo-Daten unter `demo-data/` (Leipziger EFH-Szenario
 2023–2026, drei Utilities, mehrere Verträge mit Tarifwechseln). Zum

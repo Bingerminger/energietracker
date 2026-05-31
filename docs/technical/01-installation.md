@@ -193,3 +193,19 @@ vollständig über die UI pflegen.
 
 [← Kompendium-Index](../README.md) ·
 [Architektur →](02-architecture.md)
+
+---
+
+## Docker-Betrieb
+
+Ab **v1.7.3** gibt es ein offizielles Multi-Arch-Image
+(`ghcr.io/bingerminger/energietracker`, `linux/amd64` + `linux/arm64`).
+Der schnellste Start:
+
+```bash
+docker compose up -d        # → http://localhost:8080
+```
+
+Ausführliche, einsteigerfreundliche Anleitung (Volumes, Updates, Logs,
+Umgebungsvariablen, Fehlersuche) im eigenen Kapitel:
+**[Docker-Betrieb (für Einsteiger)](07-docker.md)**.

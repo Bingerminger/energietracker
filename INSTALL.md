@@ -138,7 +138,7 @@ docker run -d --name energietracker \
 
 ```bash
 docker build -t energietracker .
-docker run -d -p 8080:80 -v "$PWD/data:/data" energietracker
+docker run -d --name energietracker -p 8080:80 -v "$PWD/data:/data" energietracker
 ```
 
 Konfiguration über Umgebungsvariablen (`docker run -e …` bzw. `environment:`
@@ -156,6 +156,16 @@ Die Logs (JSON Lines) erscheinen bei `ET_LOG_DEST=stderr` direkt in
 `GET /api/health`.
 
 ## Demo-Daten laden (optional)
+
+> **Am einfachsten ohne Dateisystem:** Das Repo enthält die Demo-Daten auch als
+> fertiges JSON-Backup unter
+> [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
+> In einem leeren Energietracker kannst du es direkt über
+> *Einstellungen → Backup & Restore → Backup importieren* einspielen (ab
+> v1.7.4 gibt es dafür zusätzlich einen „Demo-Daten laden"-Button). Vor dem
+> Import wird automatisch ein Snapshot deiner aktuellen Daten angelegt.
+
+Klassisch per Dateikopie:
 
 ```bash
 find data/ -mindepth 1 -not -name '.gitkeep' -delete

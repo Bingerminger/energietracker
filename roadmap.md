@@ -65,7 +65,9 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | 1.1.0 → 1.2.0 | **nächster Slot** — Detail-Konzept offen |
+| **N1012** | CI-Action-Versionen Node-24-fähig machen (`docker/*`-Actions in `docker-publish.yml`/`ci.yml`; GitHub erzwingt Node 24 ab 16.06.2026) | — (reine CI-Wartung, kein Versions-Bump nötig) | S | — | **fristgebunden: vor 2026-06-16** |
+| **F1007** | Demo-Daten-Import über die Einstellungen (Ein-Klick, Warnung wenn bereits Daten vorhanden) | v1.7.4 | S | — | **nächster Slot** — Detail-Konzept unten |
+| **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | 1.1.0 → 1.2.0 | Detail-Konzept offen |
 | **N1008** | PWA-Manifest + Service-Worker (mobile „App", komplettiert F1004) | v1.9.0 | M | — | geplant |
 | **N1009** | Accessibility-Audit + Fixes (ARIA, Tastatur, Kontrast) | v1.10.0 | M | — | geplant |
 | **N1007** | i18n-Foundation (`t('key')`-Wrapper, String-Extraktion) | v1.11.0 | M | — | geplant |
@@ -195,6 +197,42 @@ Keine.
 
 ---
 
+## v1.7.4 — F1007 Demo-Daten-Import über die Einstellungen
+
+**Auslöser:** Ein frisch installierter (oder containerisierter) Energietracker
+ist leer. Demo-Daten lassen sich bisher nur per Dateisystem-Kopie einspielen
+(`cp -r demo-data data`) — für Nicht-Techniker zu hürdenreich. F1007 macht den
+Demo-Import zu einem Ein-Klick-Schritt direkt in der UI.
+
+### Ziel
+- Im Einstellungs-View unter „Backup & Restore" ein Button
+  **„Demo-Daten laden"**.
+- Klick importiert ein mitgeliefertes Demo-JSON-Backup über den bereits
+  bestehenden Restore-Pfad (`BackupService::import()` inkl. Schema-Guard und
+  Auto-Snapshot vor Restore aus N1004).
+- **Warnung vorab**, wenn bereits Daten vorhanden sind („Dies überschreibt
+  deine aktuellen Daten. Vorher wird automatisch ein Snapshot angelegt.") —
+  Abbruch möglich. Bei komplett leerem Tracker direkter Import ohne Warnung.
+
+### Skizze
+- Das Demo-Backup liegt bereits import-fertig als JSON im Repo:
+  `demo-data/energietracker-demo-backup.json` (über den echten Export-Endpoint
+  erzeugt → garantiert kompatibel). Wird in der Doku verlinkt und kann auch
+  jetzt schon manuell über „Backup importieren" eingespielt werden.
+- Damit es **im Container** verfügbar ist (dort ist `demo-data/` per
+  `.dockerignore` ausgeschlossen), wird für F1007 eine ausgelieferte Kopie
+  nötig — Variante A: Datei unter `public/demo/…` als statisches Asset, das
+  das Frontend lädt und an `POST /api/backup/import` schickt; Variante B:
+  serverseitiger Endpoint `POST /api/demo/import`, der die mitgelieferte Datei
+  liest und importiert (Guard „leer? sonst Warnung" serverseitig).
+  → **Detail-Entscheidung A vs. B beim Implementieren** (Multiple-Choice).
+- „Ist leer?"-Erkennung: keine Meter über alle Utilities hinweg.
+
+### Schema-Migration
+Keine.
+
+---
+
 ## v1.8.0 — F1006 Meter-Topologie
 
 **Issue:** [#12](https://github.com/Bingerminger/energietracker/issues/12)
@@ -291,6 +329,8 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-05-23 | v1.7.2 ausgeliefert | P-PV-01 (PV-Einspeisung als Erlös statt Kosten) aus dem Patch-Pool vorgezogen, nachdem ein realer Screenshot „+10.756 € Nachzahlung" auf der PV-Einspeise-View zeigte. Verdict-Achse + Projektionshorizont (Backend), feed_in-Labels/Farben (Frontend), 3-Monats-Trend bei PV unterdrückt. PV-Demodaten mit realistischer Jahres-Streuung neu generiert. N1005 (Docker) von v1.7.2 auf v1.7.3 verschoben. 2 neue PHPUnit-Tests. |
 | 2026-05-31 | Backlog vollständig einsortiert | Gesamter Backlog in die „Geplante Reihenfolge" überführt und auf Releases verteilt: v1.7.3 N1005+N1010 (Ops-Bündel Docker+Logging), v1.8.0 F1006, v1.9.0 N1008 (PWA), v1.10.0 N1009 (A11y), v1.11.0 N1007 (i18n-Foundation), v2.0.0 EN-Lokalisierung (Major), v2.1.0 N1011 (API-Versionierung), v3.0.0 Smart-Meter (Major). N1006 (Performance) bleibt bewusst bedarfsgetrieben ohne festen Slot. Leitlogik: NFRs vor Refactors, Backup vor Migration, Kundennutzen vor Infrastruktur, thematisch bündeln, Majors trennen. |
 | 2026-05-31 | v1.7.3 ausgeliefert | N1005 (Docker-Single-Container nginx+php-fpm, docker-compose, GHCR-Publikation per Tag, CI-Smoke-Job) + N1010 (abhängigkeitsfreier JSON-Lines-Logger, ENV-gesteuert; ErrorHandler loggt jetzt Exceptions/Fatals, Lebenszyklus + Access-Log) gebündelt ausgeliefert. nginx-Config spiegelt router.php; `clear_env=no` reicht ET_*-ENV durch. Keine Schema-Migration. 4 neue PHPUnit-Tests (47/166 gesamt). Nächster Slot: F1006. |
+| 2026-05-31 | N1012 aufgenommen | Nach v1.7.3-Release meldete GitHub eine Node-20-Deprecation für die `docker/*`-Actions (Zwangsumstellung auf Node 24 ab 16.06.2026). Als fristgebundene CI-Wartung N1012 in die geplante Reihenfolge aufgenommen — kein Versions-Bump nötig, reine Action-Versionspflege. |
+| 2026-05-31 | F1007 aufgenommen | Auf User-Wunsch: Demo-Daten-Komfort-Import über die Einstellungen (Ein-Klick, Warnung bei vorhandenen Daten) als nächstes Feature-Release v1.7.4 (vor F1006) eingeplant. Demo-Backup-JSON `demo-data/energietracker-demo-backup.json` bereits beigelegt und in der Doku verlinkt. |
 
 ---
 
