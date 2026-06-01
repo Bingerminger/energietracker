@@ -6,6 +6,34 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.9.1] — 2026-06-01 — Frisch-Install-Fix + CI-Wartung
+
+PATCH-Release. Keine Schema-Änderung, keine neuen Features.
+
+### Fixed
+
+- **Frischer Docker-Container startet jetzt mit Standard-Zählern.** Bei einem
+  komplett leeren Datenverzeichnis (echter Erststart) lief bisher `migrate()`
+  statt `initFresh()` — dadurch hatte ein frischer Container 0 Zähler für
+  Gas/Strom/Wasser. Neu erkennt `Migrator::isPristine()` das leere Verzeichnis,
+  sodass beim Erststart `initFresh()` läuft und die Standard-Zähler anlegt.
+  Bestehende Installationen und Migrationspfade (v0.9.0-Altdaten, Demo-Daten
+  mit vorhandener `meta.json`) sind nicht betroffen.
+
+### Changed
+
+- **CI: Node-24-Opt-in.** `.github/workflows/ci.yml` setzt nun
+  `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` (analog `docker-publish.yml`, N1012),
+  damit `actions/cache@v4` & Co. auf Node 24 laufen — die Node-20-Deprecations-
+  Annotation entfällt.
+
+### Tests
+
+- 5 neue PHPUnit-Tests (`PristineInitTest`) für die Frisch-Install-Erkennung.
+  Gesamt: 86 Tests / 274 Assertions.
+
+---
+
 ## [1.9.0] — 2026-06-01 — F1009 Home-Assistant-Anbindung
 
 MINOR-Release. Offizielle Integration für **Home Assistant**: HA liest Smart

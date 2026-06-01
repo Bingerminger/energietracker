@@ -6,6 +6,12 @@ on:
   pull_request:
     branches: ["main"]
 
+# Node-20-Deprecation der GitHub-Actions (u. a. actions/cache@v4) neutralisieren:
+# Actions werden auf Node 24 gezwungen, bis native Node-24-Builds verfügbar sind.
+# Analog zu docker-publish.yml (N1012). Workflow-weit für alle Jobs.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   test:
     name: Backend-Shape & Browser-Render Tests

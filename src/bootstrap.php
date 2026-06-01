@@ -126,9 +126,16 @@ final class App
         $this->auth         = new AuthService($this->store);
         $this->ingest       = new IngestService($this->meters, $this->readings);
 
-        // Auto-migrate or initialize on first run
+        // Auto-migrate or initialize on first run.
+        // Reihenfolge wichtig: ein komplett leeres Verzeichnis (echter
+        // Erststart, z. B. frischer Docker-Container) wird per initFresh()
+        // mit Standard-Zählern bestückt — NICHT per migrate(), das ohne
+        // Altdaten einen leeren Tracker hinterließe.
         $migrator = new Migrator($this->store);
-        if ($migrator->needsMigration()) {
+        if ($migrator->isPristine()) {
+            $migrator->initFresh();
+            $this->logger->info('Datenverzeichnis frisch initialisiert', ['data_dir' => $dataDir]);
+        } elseif ($migrator->needsMigration()) {
             $migrator->migrate();
             $this->logger->info('Datenmigration ausgeführt', [
                 'schema_version' => $this->store->read('meta.json', [])['schema_version'] ?? null,

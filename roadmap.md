@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-06-01 (synchron mit v1.9.0; F1009 ausgeliefert)
-**Aktuelle Baseline:** v1.9.0
+**Stand:** 2026-06-01 (synchron mit v1.9.1; F1009 + Patch ausgeliefert)
+**Aktuelle Baseline:** v1.9.1
 **Schema:** 1.1.0
 
 ---
@@ -507,6 +507,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-06-01 | v1.8.0 ausgeliefert | F1006 umgesetzt: Subzähler (`parent_meter_id`, Reihenschaltung — vom Eltern abgezogen, keine Doppelzählung in der Gesamtsumme) + Gruppen (`meter_group_id` + `meter_groups.json` je Utility, Dashboard-Zusammenfassung) + Merge-Wizard. Schema 1.1.0→1.2.0 (additiv/idempotent, Auto-Migration). Verträge bleiben pro Zähler („Gruppen nur fürs Dashboard"). Neue Gruppen-API-Endpoints; Validierung (keine mehrstufigen Ketten/Zyklen) + delete-Guards. 15 neue PHPUnit-Tests (66/219). Nächster Slot: F1008. |
 | 2026-06-01 | F1009 aufgenommen + vorgezogen | Home-Assistant-Anbindung als vorrangiges Feature (v1.9.0) eingeplant — vom User aus einem Community-Bedarf vorgezogen, VOR F1008. Eine kursierende KI-generierte Forenanleitung beschreibt die API falsch (`POST /api.php` + `action`/`value`/`timestamp` + Bearer aus `settings.json` — existiert alles nicht); F1009 liefert die offizielle Lösung: opt-in Token-Auth (Hash in separater `data/auth.json`), dedizierter idempotenter `POST /api/ingest` (upsert-by-date), Zähler-Alias `external_id`. Schema 1.2.0→1.3.0 additiv. F1008/N1008/N1009/N1007 je einen Slot nach hinten. |
 | 2026-06-01 | v1.9.0 ausgeliefert | F1009 umgesetzt: offizielle Home-Assistant-Anbindung. Opt-in Token-Auth (`/api/auth/token`, SHA-256-Hash in separater `data/auth.json`, `hash_equals`), idempotenter Push-Endpoint `POST /api/ingest` (upsert pro Zähler+Datum, akzeptiert Alias oder interne ID, `date` optional/ISO-tolerant), Zähler-Alias `external_id` (eindeutig je Utility). Einstellungs-Sektion mit Token-Verwaltung, Alias-Pflege und Copy-YAML. Neue `docs/HOME-ASSISTANT.md` mit 2 Use-Cases; `docs/API.md` erweitert. Schema 1.2.0→1.3.0 additiv. 15 neue PHPUnit-Tests (81/261). Nächster Slot: F1008. |
+| 2026-06-01 | v1.9.1 ausgeliefert (PATCH) | Bugfix + CI-Wartung, kein Schema/Feature. (1) `Migrator::isPristine()` erkennt ein komplett leeres Datenverzeichnis → beim Erststart läuft `initFresh()` statt `migrate()`, sodass ein frischer Docker-Container Standard-Zähler (Gas/Strom/Wasser) bekommt statt 0. (2) `ci.yml` setzt `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` (Node-20-Deprecation der Actions neutralisiert). 5 neue PHPUnit-Tests (86/274). Nächster Slot: F1008. |
 
 ---
 

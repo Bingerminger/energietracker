@@ -47,6 +47,30 @@ final class Migrator
         return ($meta['schema_version'] ?? '') === self::SCHEMA_VERSION;
     }
 
+    /**
+     * Ist das Datenverzeichnis komplett **leer/unberührt** (echter Erststart)?
+     *
+     * Wahr, wenn weder ein `meta.json`, noch eine v0.9.0-Altdatei
+     * (`gas/strom/contracts.json`), noch irgendeine `<utility>/meters.json`
+     * existiert. In diesem Fall soll `initFresh()` laufen (legt die
+     * Standard-Zähler für Gas/Strom/Wasser an) — NICHT `migrate()`, das ohne
+     * Altdaten keine Default-Zähler erzeugt und so einen leeren Tracker
+     * hinterließe (z. B. im frisch gestarteten Docker-Container).
+     */
+    public function isPristine(): bool
+    {
+        if ($this->store->exists('meta.json')) return false;
+        if ($this->store->exists('gas.json')
+            || $this->store->exists('strom.json')
+            || $this->store->exists('contracts.json')) {
+            return false;
+        }
+        foreach (Utilities::keys() as $key) {
+            if ($this->store->exists($key . '/meters.json')) return false;
+        }
+        return true;
+    }
+
     public function needsMigration(): bool
     {
         if ($this->isAlreadyMigrated()) return false;
