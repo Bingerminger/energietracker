@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-06-01 (synchron mit v1.8.0; F1006 ausgeliefert)
-**Aktuelle Baseline:** v1.8.0
+**Stand:** 2026-06-01 (synchron mit v1.9.0; F1009 ausgeliefert)
+**Aktuelle Baseline:** v1.9.0
 **Schema:** 1.1.0
 
 ---
@@ -45,6 +45,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | F1007 | Demo-Daten-Import über die Einstellungen (Ein-Klick, Warnung bei vorhandenen Daten, Auto-Snapshot; serverseitiger Endpoint) | v1.7.4 | 2026-05-31 |
 | N1012 | CI-Actions Node-24-fähig (`docker/*` per `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`; Zwangsumstellung 2026-06-16 neutralisiert) | — (CI-Wartung, kein Bump) | 2026-05-31 |
 | F1006 | Meter-Topologie: Subzähler (Reihenschaltung, vom Eltern abgezogen) + Gruppen (Dashboard-Summe) + Merge-Wizard; Schema 1.2.0 | v1.8.0 | 2026-06-01 |
+| F1009 | Home-Assistant-Anbindung: opt-in Token-Auth (Hash in `data/auth.json`) + idempotenter `POST /api/ingest` (upsert-by-date) + Zähler-Alias `external_id`; Schema 1.3.0 | v1.9.0 | 2026-06-01 |
 
 ---
 
@@ -68,10 +69,10 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | offen | L | 1.2.0 → 1.3.0 | **nächster Slot** — baut auf F1006 (ausgeliefert) auf, Detail-Konzept unten |
-| **N1008** | PWA-Manifest + Service-Worker (mobile „App", komplettiert F1004) | v1.9.0 | M | — | geplant |
-| **N1009** | Accessibility-Audit + Fixes (ARIA, Tastatur, Kontrast) | v1.10.0 | M | — | geplant |
-| **N1007** | i18n-Foundation (`t('key')`-Wrapper, String-Extraktion) | v1.11.0 | M | — | geplant |
+| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | offen | L | 1.3.0 → 1.4.0 | **nächster Slot** — baut auf F1006 auf, Detail-Konzept unten |
+| **N1008** | PWA-Manifest + Service-Worker (mobile „App", komplettiert F1004) | v1.10.0 | M | — | geplant |
+| **N1009** | Accessibility-Audit + Fixes (ARIA, Tastatur, Kontrast) | v1.11.0 | M | — | geplant |
+| **N1007** | i18n-Foundation (`t('key')`-Wrapper, String-Extraktion) | v1.12.0 | M | — | geplant |
 | **EN-L10n** | EN-Lokalisierung (Aktivierung, erste zweite Sprache) | v2.0.0 | L | — | Major, setzt N1007 voraus |
 | **N1011** | API-Versionierung (`/api/v1/…`) | v2.1.0 | M | — | Vorbereitung Smart-Meter |
 | **Smart-Meter** | Smart-Meter-Anbindung (SML / IEC 62056), Lastgang-Pipeline | v3.0.0 | XL | neuer Strang | Major, langfristig |
@@ -358,6 +359,61 @@ Eltern-Netto + Gruppen-Summe ohne Doppelzählung, `delete`-Guards.
 
 ---
 
+## F1009 — Home-Assistant-Anbindung (Push-Ingest)
+
+**Auslöser:** Community-Nutzer betreiben Energietracker zunehmend zusammen mit
+Home Assistant (HA): HA liest Smart Meter aus, Energietracker macht Verträge,
+Kosten und Prognosen. Es kursiert eine (KI-generierte, **technisch falsche**)
+Forenanleitung, die einen `POST /api.php` mit `{action:"add_reading"}` und
+einen Bearer-Token aus `settings.json` beschreibt — beides existiert **nicht**.
+F1009 liefert die **offizielle, korrekte** Lösung.
+
+**Architektur-Entscheidungen (2026-06-01, Multiple-Choice):**
+1. **Auth = optionaler Token.** Die API hat heute keine Authentifizierung
+   (LAN-Annahme). F1009 führt einen **opt-in**-Token ein: Solange keiner
+   gesetzt ist, ändert sich nichts (abwärtskompatibel). Der Token wird einmalig
+   im Klartext angezeigt und nur als **Hash** in einer separaten `data/auth.json`
+   gespeichert (NICHT in `settings.json`, da `GET /api/settings` alles
+   ausliefert und `SettingsService::set()` nur bekannte Keys whitelistet).
+2. **Dedizierter `/api/ingest`-Endpoint** statt der bestehenden readings-Route.
+   Token-geschützt, **upsert-by-date** (idempotent): der tägliche HA-Push um
+   23:55 überschreibt den Wert desselben Tages, statt Duplikate anzulegen.
+   Bestehende UI-Routen bleiben unverändert offen → das Web-UI (das den
+   Klartext-Token nicht kennt) wird nicht ausgesperrt; der einzige extern
+   token-pflichtige Schreibpfad ist `/api/ingest`.
+3. **Zähler-Alias `external_id`.** HA-Nutzer kennen interne IDs wie
+   `m_strom_main` nicht. Jeder Zähler bekommt optional eine frei vergebbare,
+   pro Utility eindeutige `external_id` (z. B. `stromzaehler_haus`), die in HA
+   eingetragen wird. Additiv; `/api/ingest` akzeptiert Alias **oder** interne ID.
+
+**Echter Endpoint-Vertrag (Korrektur der Forum-Fehlinfo):**
+- Real ist `POST /api/utility/{utility}/readings` mit Feldern **`counter`**
+  (Zahl) + **`date`** (`YYYY-MM-DD`) — NICHT `value`/`timestamp`/`action`.
+- `POST /api/ingest` (neu) nimmt:
+  `{ utility, meter (= external_id ODER interne id), value, date? }`,
+  Header `Authorization: Bearer <token>` (falls Token gesetzt). `date`
+  optional → Default heute. Antwort meldet `created` vs. `updated`.
+
+**Schema:** **1.2.0 → 1.3.0** (additiv): neues optionales Meter-Feld
+`external_id` (Default null). `data/auth.json` ist KEINE Schema-Datei, sondern
+ein separater Credential-Store (wird vom Backup ausgenommen).
+
+**Offene Detailpunkte:**
+- Rate-Limit / Brute-Force-Schutz am Token-Check? (vorerst nein — LAN-fokus,
+  konstanter Zeitvergleich via `hash_equals` reicht für v1.9.0.)
+- Mehrere Tokens / pro-Gerät? (vorerst genau einer, widerrufbar.)
+
+**Tests:** Token erzeugen/verifizieren (Hash, `hash_equals`), `/api/ingest`
+ohne Token bei gesetztem Token → 401, mit Token → 200, upsert-by-date
+idempotent (zweiter Push am selben Tag aktualisiert statt dupliziert),
+Alias-Auflösung + Eindeutigkeits-Validierung, Migration `external_id`.
+
+**Doku:** echte `docs/API.md`-Sektion + eigene HA-Anleitung mit korrektem
+REST-Command/Automation-YAML und zwei Use-Cases (Eigenheim mit PV/Fernwärme,
+Mietwohnung Strom/Gas/Wasser).
+
+---
+
 ## F1008 — NKA für Mieter (GitHub #15)
 
 **Quelle:** GitHub-Issue #15, offen seit 2026-05-22 (vom User selbst).
@@ -449,6 +505,8 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-06-01 | F1006 Detail-Konzept entschieden | Drei offene Architektur-Punkte per Multiple-Choice geklärt: (1) Subzähler dürfen Gruppenmitglied sein, aber keine mehrstufigen Subzähler-Ketten (max. 1 Ebene); (2) Vertrag-+-Gruppen-Mischfall auf späteres Release vertagt — v1.8.0 erlaubt entweder Einzelvertrag oder Gruppenvertrag; (3) Merge-Wizard für Bestandszähler kommt in v1.8.0 mit. Aufwand dadurch M→M–L. Status: bereit zur Umsetzung. |
 | 2026-06-01 | F1006 Schema-Migrations-Skizze | Konkrete 1.1.0→1.2.0-Skizze nachgezogen: neue Meter-Felder `parent_meter_id`/`meter_group_id` (Default null), neue `meter_groups.json` je Utility (Mitgliedschaft bleibt single-source am Meter), idempotenter `upgradeToV120()` nach bestehendem Migrator-Muster, Validierungsregeln (keine 2-Ebenen-Ketten, keine Zyklen, Mischfall-Block, delete-Guards), Aggregations-Eingriff in `forUtility()` gegen Doppelzählung, Backup additiv, Testliste. |
 | 2026-06-01 | v1.8.0 ausgeliefert | F1006 umgesetzt: Subzähler (`parent_meter_id`, Reihenschaltung — vom Eltern abgezogen, keine Doppelzählung in der Gesamtsumme) + Gruppen (`meter_group_id` + `meter_groups.json` je Utility, Dashboard-Zusammenfassung) + Merge-Wizard. Schema 1.1.0→1.2.0 (additiv/idempotent, Auto-Migration). Verträge bleiben pro Zähler („Gruppen nur fürs Dashboard"). Neue Gruppen-API-Endpoints; Validierung (keine mehrstufigen Ketten/Zyklen) + delete-Guards. 15 neue PHPUnit-Tests (66/219). Nächster Slot: F1008. |
+| 2026-06-01 | F1009 aufgenommen + vorgezogen | Home-Assistant-Anbindung als vorrangiges Feature (v1.9.0) eingeplant — vom User aus einem Community-Bedarf vorgezogen, VOR F1008. Eine kursierende KI-generierte Forenanleitung beschreibt die API falsch (`POST /api.php` + `action`/`value`/`timestamp` + Bearer aus `settings.json` — existiert alles nicht); F1009 liefert die offizielle Lösung: opt-in Token-Auth (Hash in separater `data/auth.json`), dedizierter idempotenter `POST /api/ingest` (upsert-by-date), Zähler-Alias `external_id`. Schema 1.2.0→1.3.0 additiv. F1008/N1008/N1009/N1007 je einen Slot nach hinten. |
+| 2026-06-01 | v1.9.0 ausgeliefert | F1009 umgesetzt: offizielle Home-Assistant-Anbindung. Opt-in Token-Auth (`/api/auth/token`, SHA-256-Hash in separater `data/auth.json`, `hash_equals`), idempotenter Push-Endpoint `POST /api/ingest` (upsert pro Zähler+Datum, akzeptiert Alias oder interne ID, `date` optional/ISO-tolerant), Zähler-Alias `external_id` (eindeutig je Utility). Einstellungs-Sektion mit Token-Verwaltung, Alias-Pflege und Copy-YAML. Neue `docs/HOME-ASSISTANT.md` mit 2 Use-Cases; `docs/API.md` erweitert. Schema 1.2.0→1.3.0 additiv. 15 neue PHPUnit-Tests (81/261). Nächster Slot: F1008. |
 
 ---
 

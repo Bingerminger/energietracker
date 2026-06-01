@@ -2,7 +2,7 @@
 
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.8.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.0-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -27,7 +27,7 @@ End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v1.8.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.9.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -186,6 +186,9 @@ fachlichen Teil plus eine UI-Referenz mit schematischen Mockups
   [Datenmodell](docs/technical/04-data-model.md) ·
   [Tests](docs/technical/05-testing.md) ·
   [Release-Prozess](docs/technical/06-release-process.md)
+- 🏠 **[Home-Assistant-Anbindung](docs/HOME-ASSISTANT.md)** — Zählerstände
+  automatisch aus Home Assistant pushen (Token, Zähler-Alias, REST-Command,
+  Use-Cases Eigenheim & Wohnung).
 - 📚 **Fachlich:** [Grundlagen & Formeln](docs/functional/00-overview.md) ·
   je Energieart ([Gas](docs/functional/01-gas.md) …
   [Pellets](docs/functional/06-pellets.md)) ·
@@ -241,7 +244,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:1.8.0
+  ghcr.io/bingerminger/energietracker:1.9.0
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -418,7 +421,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.8.0"
+├── VERSION                  ← „1.9.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE

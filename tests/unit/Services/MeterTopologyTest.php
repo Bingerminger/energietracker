@@ -27,7 +27,7 @@ final class MeterTopologyTest extends ServiceTestCase
         $migrator = new Migrator($this->store);
         self::assertFalse($migrator->needsV120Upgrade(), 'initFresh muss bereits 1.2.0-konform sein');
 
-        self::assertSame('1.2.0', Migrator::SCHEMA_VERSION);
+        self::assertSame('1.3.0', Migrator::SCHEMA_VERSION);
         self::assertTrue($this->store->exists('strom/meter_groups.json'));
 
         $meterId = $this->meters->defaultId('strom');

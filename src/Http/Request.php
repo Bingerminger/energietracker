@@ -68,4 +68,32 @@ final class Request
         if (!is_array($this->body)) return $default;
         return $this->body[$key] ?? $default;
     }
+
+    /**
+     * Bearer-Token aus dem Authorization-Header (F1009 — HA-Ingest).
+     *
+     * Der Header landet je nach Server an unterschiedlichen Stellen:
+     *   - `$_SERVER['HTTP_AUTHORIZATION']` (häufigster Fall),
+     *   - `$_SERVER['REDIRECT_HTTP_AUTHORIZATION']` (bei .htaccess-Rewrites,
+     *     z. B. Apache + mod_rewrite, wo der Header sonst verschluckt wird),
+     *   - via `getallheaders()` (Apache/CGI) als letzte Rückfallebene.
+     *
+     * Liefert den reinen Token (ohne „Bearer "-Präfix) oder null.
+     */
+    public function bearerToken(): ?string
+    {
+        $header = $_SERVER['HTTP_AUTHORIZATION']
+            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
+            ?? '';
+        if ($header === '' && function_exists('getallheaders')) {
+            foreach (getallheaders() ?: [] as $k => $v) {
+                if (strcasecmp($k, 'Authorization') === 0) { $header = (string)$v; break; }
+            }
+        }
+        if ($header === '') return null;
+        if (preg_match('/^\s*Bearer\s+(.+?)\s*$/i', $header, $m)) {
+            return $m[1];
+        }
+        return null;
+    }
 }

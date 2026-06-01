@@ -37,7 +37,7 @@ use Energietracker\Config\Utilities;
  */
 final class Migrator
 {
-    public const SCHEMA_VERSION = '1.2.0';
+    public const SCHEMA_VERSION = '1.3.0';
 
     public function __construct(private JsonStore $store) {}
 
@@ -61,7 +61,9 @@ final class Migrator
         // v1.0.3 → v1.1.0 — neue Utilities + reminders.json fehlen?
         if ($this->needsV110Upgrade()) return true;
         // v1.1.0 → v1.2.0 — Topologie-Felder + meter_groups.json fehlen?
-        return $this->needsV120Upgrade();
+        if ($this->needsV120Upgrade()) return true;
+        // v1.2.0 → v1.3.0 — Zähler-Alias `external_id` (F1009) fehlt?
+        return $this->needsV130Upgrade();
     }
 
     /**
@@ -122,6 +124,23 @@ final class Migrator
         return false;
     }
 
+    /**
+     * v1.2.0 → v1.3.0 — Zähler-Alias `external_id` (F1009 — HA-Ingest).
+     * Trägt ein Zähler das Feld `external_id` noch nicht? Idempotent.
+     */
+    public function needsV130Upgrade(): bool
+    {
+        foreach (Utilities::keys() as $key) {
+            $meters = $this->store->read($key . '/meters.json', []);
+            if (!is_array($meters)) continue;
+            foreach ($meters as $m) {
+                if (!is_array($m)) continue;
+                if (!array_key_exists('external_id', $m)) return true;
+            }
+        }
+        return false;
+    }
+
     public function migrate(): array
     {
         $log = [];
@@ -146,6 +165,11 @@ final class Migrator
         // ── v1.1.0 → v1.2.0 — Meter-Topologie (F1006) ─────────────────────
         if ($this->needsV120Upgrade()) {
             $log = array_merge($log, $this->upgradeToV120());
+        }
+
+        // ── v1.2.0 → v1.3.0 — Zähler-Alias external_id (F1009) ────────────
+        if ($this->needsV130Upgrade()) {
+            $log = array_merge($log, $this->upgradeToV130());
         }
 
         // ── write meta marker ─────────────────────────────────────────────
@@ -328,6 +352,40 @@ final class Migrator
         return $log;
     }
 
+    /**
+     * v1.2.0 → v1.3.0 — Zähler-Alias `external_id` (F1009 — HA-Ingest).
+     *
+     * Rein additiv und idempotent: ergänzt an jedem Zähler das Feld
+     * `external_id` mit Default `null`, falls es fehlt. Bestehende Werte
+     * bleiben unangetastet.
+     */
+    public function upgradeToV130(): array
+    {
+        $log = [];
+        $patched = 0;
+
+        foreach (Utilities::keys() as $key) {
+            $meters = $this->store->read($key . '/meters.json', []);
+            if (!is_array($meters)) continue;
+            $changed = false;
+            foreach ($meters as &$m) {
+                if (!is_array($m)) continue;
+                if (!array_key_exists('external_id', $m)) {
+                    $m['external_id'] = null;
+                    $changed = true;
+                    $patched++;
+                }
+            }
+            unset($m);
+            if ($changed) {
+                $this->store->write($key . '/meters.json', $meters);
+            }
+        }
+
+        $log[] = sprintf('v1.3.0: %d Zähler um external_id (HA-Alias) ergänzt', $patched);
+        return $log;
+    }
+
     /** Hilfsmethode: legt eine Datei nur an, wenn sie noch nicht existiert. */
     private function ensureFile(string $relative, mixed $default): void
     {
@@ -459,6 +517,8 @@ final class Migrator
                         // v1.2.0 — F1006 Meter-Topologie (Default: keine Beziehung)
                         'parent_meter_id' => null,
                         'meter_group_id'  => null,
+                        // v1.3.0 — F1009 HA-Alias (Default: keiner)
+                        'external_id'     => null,
                         'devices' => [[
                             'id' => 'd_' . $key . '_1',
                             'serial' => null,

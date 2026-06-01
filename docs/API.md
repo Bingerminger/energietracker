@@ -286,7 +286,13 @@ angegeben ist.
 
 ### `PATCH /api/utility/{utility}/meters/{id}`
 
-**Body:** beliebige Teilmenge `{ name, icon, active, notes }`.
+**Body:** beliebige Teilmenge
+`{ name, icon, active, notes, parent_meter_id, meter_group_id, external_id }`.
+
+- `parent_meter_id` / `meter_group_id` — Meter-Topologie (F1006, ab Schema 1.2.0).
+- `external_id` — frei vergebbarer Alias für die Home-Assistant-Anbindung
+  (F1009, ab Schema 1.3.0). Pro Utility eindeutig; erlaubt sind 1–64 Zeichen aus
+  `[A-Za-z0-9_.-]`. Leerer Wert/`null` entfernt den Alias.
 
 ### `DELETE /api/utility/{utility}/meters/{id}`
 
@@ -865,3 +871,88 @@ mit Modus-Auswahl. Detaillierte Anleitung siehe
 
 Im `merge`-Modus enthält jedes Utility zusätzlich ein
 `skipped`-Feld mit den Anzahlen wegen ID-Kollision übersprungener Einträge.
+
+---
+
+## Home-Assistant-Anbindung (F1009, ab v1.9.0)
+
+> **Hinweis für Home-Assistant-Nutzer:** In Foren kursiert eine fehlerhafte
+> Anleitung mit `POST /api.php` und Feldern `action`/`value`/`timestamp`. Das
+> ist **falsch**. Die korrekte, offizielle Schnittstelle ist unten beschrieben;
+> die ausführliche Schritt-für-Schritt-Anleitung steht in
+> [`docs/HOME-ASSISTANT.md`](HOME-ASSISTANT.md).
+
+### Authentifizierungs-Modell (opt-in)
+
+Standardmäßig ist die API **ohne Token** erreichbar (lokales Netz). Sobald ein
+Token erzeugt wurde, verlangt der Ingest-Endpoint einen
+`Authorization: Bearer <token>`-Header. Alle anderen Routen bleiben unverändert.
+
+### `GET /api/auth/token`
+
+Status (nie der Token selbst):
+
+```json
+{ "success": true, "data": { "enabled": true, "created_at": "2026-06-01T12:00:00+02:00" } }
+```
+
+### `POST /api/auth/token`
+
+Erzeugt einen neuen Token (ersetzt einen vorhandenen). Der Klartext-Token wird
+**nur in dieser Antwort** zurückgegeben — danach ist nur noch sein SHA-256-Hash
+gespeichert (in `data/auth.json`, nicht in `settings.json`; vom Backup
+ausgenommen).
+
+```json
+{ "success": true, "data": { "token": "et_…48hex…", "created_at": "…", "hint": "…" } }
+```
+
+### `DELETE /api/auth/token`
+
+Widerruft den Token → API wieder im offenen Modus.
+
+### `POST /api/ingest`
+
+Idempotenter Push-Endpoint für externe Datenlieferanten (Home Assistant).
+**Upsert-by-date:** existiert für den Zähler bereits eine Ablesung am selben
+Datum, wird sie aktualisiert; sonst neu angelegt. Ein wiederholter Push am
+selben Tag erzeugt also **keine** Duplikate.
+
+**Header:** `Authorization: Bearer <token>` (nur falls ein Token gesetzt ist).
+
+**Body:**
+
+```json
+{
+  "utility": "strom",
+  "meter": "stromzaehler_haus",
+  "value": 12345.6,
+  "date": "2026-06-01"
+}
+```
+
+- `utility` — Verbrauchsart (`gas|strom|wasser|fernwaerme`; Delivery-Utilities
+  Heizöl/Pellets werden abgelehnt — sie nutzen Lieferungen statt Ablesungen).
+- `meter` — **Alias** (`external_id`) **oder** interne Meter-ID. Alias zuerst.
+- `value` — Zählerstand (Zahl). Alias `counter` wird ebenfalls akzeptiert.
+- `date` — optional, Default heute. Akzeptiert `YYYY-MM-DD`; ein voller
+  ISO-Zeitstempel (z. B. HA `now().isoformat()`) wird auf das Datum gekürzt.
+
+**Response** (`201` bei neu, `200` bei Aktualisierung):
+
+```json
+{
+  "success": true,
+  "data": {
+    "status": "created",
+    "utility": "strom",
+    "meter_id": "m_strom_main",
+    "date": "2026-06-01",
+    "counter": 12345.6,
+    "reading_id": "20260601-ab12cd34"
+  }
+}
+```
+
+**Fehler:** `401` (Token nötig/falsch), `400` (unbekannte Utility, Zähler nicht
+gefunden, kein/ungültiger Wert, Delivery-Utility).

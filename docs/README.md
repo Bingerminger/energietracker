@@ -1,6 +1,6 @@
 # Energietracker — Kompendium
 
-> Vollständige Dokumentation zu Energietracker **v1.8.0**.
+> Vollständige Dokumentation zu Energietracker **v1.9.0**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit Mockups aller Ansichten.
 
@@ -26,6 +26,7 @@ auf dem eigenen Rechner.
 | [Tests](technical/05-testing.md) | Backend-Shape- und Browser-Render-Harness |
 | [Release-Prozess](technical/06-release-process.md) | Versionierung, CHANGELOG, Doku-Pflege |
 | [Docker-Betrieb](technical/07-docker.md) | Container-Quickstart für Einsteiger, `docker compose`, Updates, Daten-Volume, Logs |
+| [Home-Assistant-Anbindung (F1009)](HOME-ASSISTANT.md) | Zählerstände automatisch aus HA pushen: Token, Zähler-Alias, REST-Command, Use-Cases Eigenheim & Wohnung |
 
 ### 📚 Fachlicher Teil — *für Verständnis & Anwendung*
 
@@ -84,6 +85,6 @@ auf dem eigenen Rechner.
   Gedächtnis notiert.
 - Pfadangaben sind relativ zum Projektwurzelverzeichnis.
 
-Versionsstand dieses Kompendiums: **v1.8.0** (2026-06-01). Die Doku wird
+Versionsstand dieses Kompendiums: **v1.9.0** (2026-06-01). Die Doku wird
 ab v1.4.2 bei **jedem** Release synchron mitgeführt — siehe
 [Release-Prozess](technical/06-release-process.md).

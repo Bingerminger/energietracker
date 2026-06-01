@@ -17,7 +17,8 @@ use Energietracker\Services\{
     MigrationService, ReadingImportService, CsvExportService,
     DeliveryService, DeliveryConsumptionService, BenchmarkService,
     TariffComparisonService, RecommendationService, ReminderService, PdfReportService,
-    StromSaldoService, PvSummaryService, HealthCheckService, DemoService
+    StromSaldoService, PvSummaryService, HealthCheckService, DemoService,
+    AuthService, IngestService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -26,7 +27,8 @@ use Energietracker\Controllers\{
     MigrationController, ExportController,
     DeliveryController, BenchmarkController, TariffComparisonController,
     RecommendationController, ReminderController, ReportController,
-    StromSaldoController, PvSummaryController, HealthController, DemoController
+    StromSaldoController, PvSummaryController, HealthController, DemoController,
+    AuthController, IngestController
 };
 
 /**
@@ -72,6 +74,8 @@ final class App
     public PvSummaryService $pvSummary;
     public HealthCheckService $health;
     public DemoService $demo;
+    public AuthService $auth;
+    public IngestService $ingest;
 
     public function __construct(string $dataDir)
     {
@@ -118,6 +122,9 @@ final class App
         $this->health       = new HealthCheckService($this->store);
         // F1007 (v1.7.4)
         $this->demo         = new DemoService($this->store, $this->backups);
+        // F1009 — HA-Anbindung: Token-Auth + idempotenter Push-Ingest.
+        $this->auth         = new AuthService($this->store);
+        $this->ingest       = new IngestService($this->meters, $this->readings);
 
         // Auto-migrate or initialize on first run
         $migrator = new Migrator($this->store);
@@ -290,5 +297,13 @@ final class App
         $demoCtrl = new DemoController($this->demo);
         $r->get('/api/demo/status',  fn($req) => $demoCtrl->status($req));
         $r->post('/api/demo/import', fn($req) => $demoCtrl->import($req));
+
+        // ── F1009 — Home-Assistant-Anbindung ──
+        $authCtrl = new AuthController($this->auth);
+        $r->get('/api/auth/token',    fn($req) => $authCtrl->status($req));
+        $r->post('/api/auth/token',   fn($req) => $authCtrl->generate($req));
+        $r->delete('/api/auth/token', fn($req) => $authCtrl->revoke($req));
+        $ingestCtrl = new IngestController($this->ingest, $this->auth);
+        $r->post('/api/ingest',       fn($req) => $ingestCtrl->store($req));
     }
 }

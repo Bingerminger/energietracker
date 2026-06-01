@@ -6,6 +6,71 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.9.0] — 2026-06-01 — F1009 Home-Assistant-Anbindung
+
+MINOR-Release. Offizielle Integration für **Home Assistant**: HA liest Smart
+Meter aus und pusht Zählerstände an den Energietracker, der weiterhin Verträge,
+Kosten und Prognosen übernimmt. Ersetzt eine kursierende, technisch falsche
+Forenanleitung durch eine saubere, abwärtskompatible Lösung. Schema-Migration
+**1.2.0 → 1.3.0** (rein additiv).
+
+### Added
+
+- **F1009 — Push-Ingest-Endpoint `POST /api/ingest`.** Nimmt
+  `{ utility, meter, value, date? }` und macht ein **Upsert pro
+  (Zähler, Datum)**: ein erneuter Push am selben Tag aktualisiert den Wert,
+  statt Duplikate anzulegen (idempotent — robust gegen mehrfaches Senden).
+  `date` ist optional (Default heute) und akzeptiert auch volle ISO-Zeitstempel
+  (wird auf das Datum gekürzt).
+- **Opt-in Token-Authentifizierung.** Neue Endpoints
+  `GET/POST/DELETE /api/auth/token`. Solange **kein** Token gesetzt ist, bleibt
+  die API unverändert offen (keine Breaking Change für bestehende
+  LAN-Installationen). Sobald ein Token existiert, verlangt `/api/ingest` einen
+  `Authorization: Bearer <token>`-Header. Der Token wird **einmalig** im
+  Klartext angezeigt und nur als SHA-256-**Hash** in einer separaten
+  `data/auth.json` gespeichert (nicht in `settings.json`; vom Backup
+  ausgenommen). Verifikation per `hash_equals` (konstante Zeit).
+- **Zähler-Alias `external_id`.** Jeder Zähler kann optional eine pro
+  Verbrauchsart eindeutige, frei vergebbare ID erhalten (z. B.
+  `stromzaehler_haus`), die in HA statt der internen ID verwendet wird. Der
+  Ingest akzeptiert Alias **oder** interne ID.
+- **Einstellungs-Sektion „🏠 Home-Assistant-Anbindung".** Token
+  erzeugen/anzeigen (einmalig)/widerrufen, Zähler-Aliase pflegen und ein
+  fertiges, kopierbares HA-`rest_command`-YAML-Snippet.
+- **Doku:** neue [`docs/HOME-ASSISTANT.md`](docs/HOME-ASSISTANT.md) mit
+  Schritt-für-Schritt-Anleitung, Fehlersuche und zwei Use-Cases (Eigenheim mit
+  PV/Fernwärme, Mietwohnung Strom/Gas/Wasser); `docs/API.md` um Auth- und
+  Ingest-Endpoints erweitert.
+
+### Changed
+
+- **Schema 1.2.0 → 1.3.0.** Jeder Zähler trägt nun `external_id` (Default
+  `null`). Migration additiv und idempotent; Auto-Migration beim ersten Start.
+
+### Validation
+
+- `external_id`: 1–64 Zeichen aus `[A-Za-z0-9_.-]`, eindeutig je Utility.
+- `/api/ingest` lehnt Delivery-Utilities (Heizöl/Pellets — nutzen Lieferungen
+  statt Ablesungen), unbekannte Zähler und nicht-numerische Werte mit `400` ab;
+  fehlender/falscher Token bei aktiver Auth → `401`.
+
+### Security-Hinweis
+
+- Die kursierende Forenanleitung (`POST /api.php` mit
+  `action`/`value`/`timestamp` und Token aus `settings.json`) ist **falsch** —
+  keiner dieser Bestandteile existierte je. Die offizielle Schnittstelle ist
+  oben beschrieben und in der Doku klar als korrekt gekennzeichnet.
+
+### Tests
+
+- 15 neue PHPUnit-Tests (`HomeAssistantIngestTest`): Token-Hash/`hash_equals`,
+  Auth-401/200, Ingest-Upsert-by-date (idempotent), Alias-Auflösung +
+  Eindeutigkeit, Migration `external_id`. Gesamt: 81 Tests / 261 Assertions.
+- Frontend-API-Shape um Auth-Status, `external_id` und einen Ingest-Roundtrip
+  erweitert; CI-Migrations-Smoke prüft jetzt 1.3.0 inkl. `external_id`.
+
+---
+
 ## [1.8.0] — 2026-06-01 — F1006 Meter-Topologie (Subzähler + Gruppen)
 
 MINOR-Release. Zähler können jetzt in Beziehung zueinander stehen:

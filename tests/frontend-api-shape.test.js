@@ -103,6 +103,25 @@ const ROOT = require('path').resolve(__dirname, '..');
   check('Consumption-Antwort trägt meter_groups[] (F1006)',
     Array.isArray(sCons.meter_groups));
 
+  // 4e. F1009 (v1.3.0) — Home-Assistant: Auth-Status-Shape + Meter trägt
+  //     external_id; Ingest legt per Alias eine Ablesung an (idempotent).
+  const authSt = await j('/api/auth/token');
+  check('GET /api/auth/token → {enabled}', typeof authSt.enabled === 'boolean',
+    `enabled=${authSt.enabled}`);
+  const sMeters2 = await j('/api/utility/strom/meters');
+  if (sMeters2.length) {
+    check('Strom-Meter trägt external_id-Feld (F1009)', 'external_id' in sMeters2[0]);
+    // Ingest gegen die interne ID (offener Modus in der CI, kein Token gesetzt).
+    const ingRes = await fetch(BASE + '/api/ingest', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ utility: 'strom', meter: sMeters2[0].id, value: 99123.4 }),
+    });
+    const ingJson = await ingRes.json();
+    check('POST /api/ingest legt Ablesung an/aktualisiert', ingRes.ok && ingJson.data
+      && ['created', 'updated'].includes(ingJson.data.status),
+      `status=${ingJson.data?.status}`);
+  }
+
   // 5. JSDOM: Sidebar-HTML-Aufbau (reine DOM-Logik, ohne ES-Module-Loader)
   const dom = new JSDOM(`<!DOCTYPE html><body data-app-version="1.3.0">
     <nav id="primary-nav"></nav></body>`, { url: BASE });

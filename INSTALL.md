@@ -19,7 +19,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 1.8.0
+├── VERSION                ← 1.9.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein
@@ -131,7 +131,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:1.8.0
+  ghcr.io/bingerminger/energietracker:1.9.0
 ```
 
 **Oder lokal bauen:**
@@ -191,3 +191,13 @@ UI öffnen unter **Einstellungen → Backup & Restore → 📦 Migration aus
 v0.9.0** und die JSON-Datei hochladen.
 
 Detaillierte Anleitung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md).
+
+## Home Assistant anbinden (optional)
+
+Du betreibst Home Assistant und möchtest Zählerstände automatisch übergeben
+lassen? Der Energietracker hat dafür einen offiziellen Push-Endpoint
+(`POST /api/ingest`) mit optionalem API-Token. Einrichtung direkt in der UI
+unter **Einstellungen → 🏠 Home-Assistant-Anbindung**.
+
+Schritt-für-Schritt inkl. REST-Command, Automatisierung und Use-Cases
+(Eigenheim, Mietwohnung) in [`docs/HOME-ASSISTANT.md`](docs/HOME-ASSISTANT.md).

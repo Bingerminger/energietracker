@@ -158,11 +158,19 @@ const GROUPS = [
 
 export async function render(container) {
   container.innerHTML = '<div class="loading">Lade…</div>';
-  const [settings, diag, utilities] = await Promise.all([
+  const [settings, diag, utilities, authStatus] = await Promise.all([
     api.settings(),
     api.diagnostics().catch(() => null),
     api.listUtilities().catch(() => []),
+    api.authStatus().catch(() => ({ enabled: false, created_at: null })),
   ]);
+
+  // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
+  const haUtilities = (utilities || []).filter(u => u.reading_kind !== 'delivery');
+  const metersByUtility = {};
+  await Promise.all(haUtilities.map(async u => {
+    metersByUtility[u.key] = await api.meters(u.key).catch(() => []);
+  }));
 
   container.innerHTML = `
     <div class="view-header">
@@ -298,6 +306,8 @@ export async function render(container) {
       </div>
     </div>
 
+    ${renderHomeAssistantCard(authStatus, haUtilities, metersByUtility)}
+
     ${diag ? renderDiagnostics(diag) : ''}
   `;
 
@@ -412,6 +422,165 @@ export async function render(container) {
       e.target.value = '';
     }
   });
+
+  // ── F1009 — Home-Assistant-Handler ──
+  container.querySelector('#btn-ha-generate')?.addEventListener('click', async () => {
+    const ok = await confirmModal({
+      title: 'API-Token erzeugen?',
+      message: 'Ein neuer Token wird erzeugt und nur EINMAL angezeigt. Ein eventuell vorhandener Token wird dabei ungültig.',
+      confirmLabel: 'Token erzeugen',
+    });
+    if (!ok) return;
+    try {
+      const res = await api.generateToken();
+      const reveal = container.querySelector('#ha-token-reveal');
+      reveal.innerHTML = `
+        <div class="banner banner--success" style="margin-top:.5rem">
+          <strong>Token (jetzt kopieren — wird nicht erneut angezeigt):</strong>
+          <code class="mono" style="display:block;word-break:break-all;margin:6px 0">${escapeHtml(res.token)}</code>
+          <button class="btn btn--sm" id="btn-ha-copy-token">Token kopieren</button>
+        </div>`;
+      container.querySelector('#btn-ha-copy-token')?.addEventListener('click', () => copyText(res.token, 'Token kopiert'));
+      container.querySelector('#ha-token-state').className = 'tag tag--success';
+      container.querySelector('#ha-token-state').textContent = '🔒 Token aktiv';
+      toastOk('Token erzeugt');
+    } catch (e) { toastErr(e.message); }
+  });
+
+  container.querySelector('#btn-ha-revoke')?.addEventListener('click', async () => {
+    const ok = await confirmModal({
+      title: 'Token widerrufen?',
+      message: 'Nach dem Widerruf ist der Push-Endpoint wieder ohne Token erreichbar (offener Modus). Home-Assistant-Automationen mit altem Token schlagen fehl.',
+      confirmLabel: 'Widerrufen', danger: true,
+    });
+    if (!ok) return;
+    try { await api.revokeToken(); toastOk('Token widerrufen'); render(container); }
+    catch (e) { toastErr(e.message); }
+  });
+
+  container.querySelector('#btn-ha-save-aliases')?.addEventListener('click', async () => {
+    const inputs = [...container.querySelectorAll('.ha-alias-input')];
+    let saved = 0, failed = 0;
+    for (const inp of inputs) {
+      const utility = inp.getAttribute('data-utility');
+      const meterId = inp.getAttribute('data-meter');
+      const value = inp.value.trim();
+      try { await api.updateMeter(utility, meterId, { external_id: value || null }); saved++; }
+      catch (e) { failed++; toastErr(`${utility}/${meterId}: ${e.message}`); }
+    }
+    if (failed === 0) toastOk(`${saved} Alias(e) gespeichert`);
+  });
+
+  container.querySelector('#btn-ha-copy-yaml')?.addEventListener('click', () => {
+    copyText(container.querySelector('#ha-yaml')?.innerText || '', 'YAML kopiert');
+  });
+}
+
+function copyText(text, okMsg) {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(() => toastOk(okMsg)).catch(() => toastErr('Kopieren fehlgeschlagen'));
+  } else {
+    toastErr('Zwischenablage nicht verfügbar — bitte manuell markieren');
+  }
+}
+
+// ── F1009 — Home-Assistant-Anbindung ─────────────────────────────────────
+function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
+  const enabled = !!authStatus?.enabled;
+
+  // Zeilen: pro Zähler ein Alias-Feld. Wir zeigen utility + Zählername.
+  const meterRows = haUtilities.flatMap(u =>
+    (metersByUtility[u.key] || []).map(m => `
+      <tr>
+        <td>${escapeHtml(u.icon || '')} ${escapeHtml(u.label)}</td>
+        <td>${escapeHtml(m.name)}</td>
+        <td>
+          <input class="input input--sm ha-alias-input" data-utility="${u.key}" data-meter="${m.id}"
+                 value="${escapeHtml(m.external_id || '')}" placeholder="z. B. ${u.key}_haus"
+                 style="min-width:180px">
+        </td>
+      </tr>
+    `)
+  ).join('');
+
+  return `
+    <div class="card" id="ha-card">
+      <h3 class="card__title">🏠 Home-Assistant-Anbindung</h3>
+      <p class="muted" style="margin-bottom: var(--sp-3)">
+        Lass Home Assistant deine Zählerstände automatisch an den Energietracker
+        senden — du pflegst sie dann nicht mehr von Hand. Home Assistant liefert
+        die Werte, der Energietracker übernimmt Verträge, Kosten und Prognosen.
+        Anleitung: <code>docs/HOME-ASSISTANT.md</code>.
+      </p>
+
+      <h4 class="settings-subhead">1. API-Token</h4>
+      <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
+        Schützt den Push-Endpoint <code>/api/ingest</code>. <strong>Solange kein
+        Token gesetzt ist, bleibt die API offen (nur fürs lokale Netz gedacht).</strong>
+        Sobald ein Token existiert, muss Home Assistant ihn mitsenden.
+      </p>
+      <div class="section-actions" style="align-items:center">
+        <span class="tag ${enabled ? 'tag--success' : 'tag--warning'}" id="ha-token-state">
+          ${enabled ? '🔒 Token aktiv' : '🔓 kein Token (offen)'}
+        </span>
+        <button class="btn" id="btn-ha-generate">${enabled ? 'Neuen Token erzeugen' : 'Token erzeugen'}</button>
+        ${enabled ? '<button class="btn btn--ghost" id="btn-ha-revoke">Token widerrufen</button>' : ''}
+      </div>
+      <div id="ha-token-reveal"></div>
+
+      <hr class="settings-rule">
+
+      <h4 class="settings-subhead">2. Zähler-Aliase für Home Assistant</h4>
+      <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
+        Vergib je Zähler einen leicht merkbaren Alias (z. B. <code>stromzaehler_haus</code>),
+        den du in Home Assistant einträgst — bequemer als die interne ID.
+        Erlaubt: Buchstaben, Ziffern, <code>_ . -</code>. Leer lassen = kein Alias.
+      </p>
+      ${meterRows ? `
+        <table class="data-table">
+          <thead><tr><th>Verbrauchsart</th><th>Zähler</th><th>Alias (external_id)</th></tr></thead>
+          <tbody>${meterRows}</tbody>
+        </table>
+        <div class="section-actions" style="margin-top:var(--sp-2)">
+          <button class="btn" id="btn-ha-save-aliases">Aliase speichern</button>
+        </div>
+      ` : '<p class="muted">Keine kumulativen Zähler vorhanden.</p>'}
+
+      <hr class="settings-rule">
+
+      <h4 class="settings-subhead">3. Home-Assistant-Konfiguration (zum Kopieren)</h4>
+      <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
+        Füge das in deine <code>configuration.yaml</code> ein und passe URL/Token an.
+        Eine vollständige Automatisierung samt Beispielen findest du in
+        <code>docs/HOME-ASSISTANT.md</code>.
+      </p>
+      <pre class="code-block" id="ha-yaml"><code>${escapeHtml(haRestCommandYaml())}</code></pre>
+      <div class="section-actions">
+        <button class="btn btn--sm" id="btn-ha-copy-yaml">YAML kopieren</button>
+      </div>
+    </div>
+  `;
+}
+
+// Statisches REST-Command-Snippet (korrekt für /api/ingest).
+function haRestCommandYaml() {
+  const base = `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`.replace(/\/$/, '');
+  return [
+    'rest_command:',
+    '  energietracker_push:',
+    `    url: "${base}/api.php/api/ingest"`,
+    '    method: POST',
+    '    headers:',
+    '      Authorization: "Bearer DEIN_API_TOKEN"   # Token aus Schritt 1',
+    '      Content-Type: "application/json"',
+    '    payload: >',
+    '      {',
+    '        "utility": "{{ utility }}",',
+    '        "meter": "{{ meter }}",',
+    '        "value": {{ states(sensor_entity) | float(0) }},',
+    `        "date": "{{ now().strftime('%Y-%m-%d') }}"`,
+    '      }',
+  ].join('\n');
 }
 
 function renderGroup(g, settings) {

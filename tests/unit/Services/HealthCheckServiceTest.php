@@ -28,7 +28,7 @@ final class HealthCheckServiceTest extends ServiceTestCase
             'Test-data-dir muss schreibbar sein');
         self::assertSame(0, $health['migrations_pending'],
             'Frisch initialisiertes Verzeichnis darf keine ausstehende Migration melden');
-        self::assertSame('1.2.0', $health['schema_version']);
+        self::assertSame('1.3.0', $health['schema_version']);
         self::assertNotNull($health['data_initialized_at'],
             'Migrator hat created_at oder migrated_at in meta.json geschrieben');
     }

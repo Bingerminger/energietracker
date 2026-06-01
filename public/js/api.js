@@ -119,6 +119,11 @@ export const api = {
   demoStatus:    ()                    => request('GET',  '/api/demo/status'),
   importDemo:    (force = false)       => request('POST', '/api/demo/import', { force }),
 
+  // ── v1.3.0 (F1009) — Home-Assistant-Anbindung: API-Token ──
+  authStatus:    ()                    => request('GET',    '/api/auth/token'),
+  generateToken: ()                    => request('POST',   '/api/auth/token'),
+  revokeToken:   ()                    => request('DELETE', '/api/auth/token'),
+
   // ── CSV-Export (F-07) ──
   // These return a file download, not JSON — so they are plain URLs the
   // browser navigates to / anchors to, not request() calls.

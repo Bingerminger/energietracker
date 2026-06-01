@@ -123,6 +123,8 @@ final class MeterService
             // v1.2.0 — F1006 Meter-Topologie (Default: keine Beziehung)
             'parent_meter_id' => null,
             'meter_group_id'  => null,
+            // v1.3.0 — F1009 HA-Alias (Default: keiner)
+            'external_id'     => null,
             'devices'    => $devices,
         ];
 
@@ -136,6 +138,10 @@ final class MeterService
         }
         if (array_key_exists('meter_group_id', $input)) {
             $meter['meter_group_id'] = $this->normalizeRef($input['meter_group_id']);
+        }
+        // v1.3.0 — F1009: external_id (HA-Alias) optional schon beim Anlegen.
+        if (array_key_exists('external_id', $input)) {
+            $meter['external_id'] = $this->normalizeExternalId($input['external_id'], $utility, $meter['id']);
         }
         $this->assertTopologyValid($utility, $meter, $candidatePool);
 
@@ -188,6 +194,12 @@ final class MeterService
             }
             if (array_key_exists('meter_group_id', $input)) {
                 $m['meter_group_id'] = $this->normalizeRef($input['meter_group_id']);
+            }
+            // v1.3.0 — F1009: external_id (HA-Alias) änderbar; Eindeutigkeit
+            // pro Utility wird in normalizeExternalId geprüft (eigene id wird
+            // dabei ausgenommen).
+            if (array_key_exists('external_id', $input)) {
+                $m['external_id'] = $this->normalizeExternalId($input['external_id'], $utility, $meterId);
             }
             // v1.3.0 — Tank-Felder updatebar (nur bei Delivery-Utilities)
             if ($isDelivery) {
@@ -345,6 +357,49 @@ final class MeterService
     {
         if ($value === null || $value === '' || $value === false) return null;
         return (string)$value;
+    }
+
+    // ── v1.3.0 — F1009 HA-Alias (external_id) ─────────────────────────────
+
+    /**
+     * Findet einen Zähler einer Utility über seine `external_id` (HA-Alias).
+     * Leerer/null Alias matcht nie.
+     */
+    public function getByExternalId(string $utility, string $externalId): ?array
+    {
+        if ($externalId === '') return null;
+        foreach ($this->list($utility) as $m) {
+            if (($m['external_id'] ?? null) === $externalId) return $m;
+        }
+        return null;
+    }
+
+    /**
+     * Normalisiert und validiert eine `external_id`:
+     *  - leer/null → null (Alias entfernt),
+     *  - erlaubt sind Buchstaben/Ziffern/`_`/`-`/`.` (HA-/URL-freundlich),
+     *  - muss innerhalb der Utility eindeutig sein (eigene id ausgenommen).
+     */
+    private function normalizeExternalId(mixed $value, string $utility, string $selfId): ?string
+    {
+        if ($value === null || $value === '' || $value === false) return null;
+        $alias = trim((string)$value);
+        if ($alias === '') return null;
+        if (!preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $alias)) {
+            throw new \InvalidArgumentException(
+                'Ungültiger Alias „' . $alias . '" — erlaubt sind 1–64 Zeichen aus '
+                . 'Buchstaben, Ziffern, _ . -'
+            );
+        }
+        foreach ($this->list($utility) as $m) {
+            if (($m['id'] ?? null) === $selfId) continue;
+            if (($m['external_id'] ?? null) === $alias) {
+                throw new \InvalidArgumentException(
+                    'Alias „' . $alias . '" ist für ' . $utility . ' bereits vergeben'
+                );
+            }
+        }
+        return $alias;
     }
 
     /**
