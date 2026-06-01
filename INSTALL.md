@@ -131,7 +131,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:1.7.3
+  ghcr.io/bingerminger/energietracker:1.8.0
 ```
 
 **Oder lokal bauen:**

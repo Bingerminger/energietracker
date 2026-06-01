@@ -241,7 +241,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:1.7.3
+  ghcr.io/bingerminger/energietracker:1.8.0
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
