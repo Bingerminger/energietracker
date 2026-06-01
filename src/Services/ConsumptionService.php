@@ -66,9 +66,17 @@ final class ConsumptionService
             $perMeter[] = ['meter' => $meter, 'monthly' => $monthly];
         }
 
-        // Aggregate across meters by YM
+        // v1.2.0 — F1006 Meter-Topologie: Bei Reihenschaltung misst der
+        // Elternzähler den Brutto-Verbrauch INKLUSIVE seiner Subzähler. Der
+        // Subzähler ist nur eine Aufschlüsselung eines Teils davon — er darf
+        // deshalb NICHT zusätzlich in die Utility-Gesamtsumme einfließen,
+        // sonst wird der Subzähler-Anteil doppelt gezählt. In `monthly_total`
+        // fließen also nur Zähler OHNE `parent_meter_id` ein.
         $totals = [];
         foreach ($perMeter as $entry) {
+            if (($entry['meter']['parent_meter_id'] ?? null) !== null) {
+                continue; // Subzähler: bereits im Elternzähler enthalten
+            }
             foreach ($entry['monthly'] as $m) {
                 $ym = $m['ym'];
                 if (!isset($totals[$ym])) {
@@ -95,6 +103,9 @@ final class ConsumptionService
             'utility'      => $u,
             'meters'       => $perMeter,
             'monthly_total'=> $totalsList,
+            // v1.2.0 — F1006: Gruppen-Stammdaten für die aufklappbare
+            // Darstellung im Frontend (Mitgliedschaft steckt an den Metern).
+            'meter_groups' => $this->meters->listGroups($utility),
         ];
     }
 

@@ -15,6 +15,11 @@ use Energietracker\Config\Utilities;
  *   v1.1.0  — drei neue Verbrauchsarten: Fernwärme (kumulativ) sowie Heizöl
  *             und Pellets (lieferungs-basiert mit `deliveries.json` statt
  *             `readings.json`); zentrale `data/reminders.json` für Termine.
+ *   v1.2.0  — Meter-Topologie (F1006): jeder Zähler bekommt `parent_meter_id`
+ *             (Subzähler/Reihenschaltung) und `meter_group_id`
+ *             (Gruppen-Mitgliedschaft), beide Default null. Pro Utility eine
+ *             neue `meter_groups.json` mit den Gruppen-Stammdaten; die
+ *             Mitgliedschaft selbst bleibt single-source am Zähler.
  *
  * Die Migration ist additiv und idempotent: das wiederholte Aufrufen ist
  * unschädlich, bestehende Dateien werden nicht überschrieben.
@@ -32,7 +37,7 @@ use Energietracker\Config\Utilities;
  */
 final class Migrator
 {
-    public const SCHEMA_VERSION = '1.1.0';
+    public const SCHEMA_VERSION = '1.2.0';
 
     public function __construct(private JsonStore $store) {}
 
@@ -54,7 +59,9 @@ final class Migrator
         // Otherwise we may need a 1.0.x → 1.0.3 schema bump (water contracts).
         if ($this->needsWaterContractsUpgrade()) return true;
         // v1.0.3 → v1.1.0 — neue Utilities + reminders.json fehlen?
-        return $this->needsV110Upgrade();
+        if ($this->needsV110Upgrade()) return true;
+        // v1.1.0 → v1.2.0 — Topologie-Felder + meter_groups.json fehlen?
+        return $this->needsV120Upgrade();
     }
 
     /**
@@ -94,6 +101,27 @@ final class Migrator
         return false;
     }
 
+    /**
+     * v1.1.0 → v1.2.0 — Meter-Topologie (F1006). Fehlt für eine Utility die
+     * `meter_groups.json` oder trägt ein Zähler noch nicht die beiden neuen
+     * Felder `parent_meter_id` / `meter_group_id`? Idempotent: ist alles da,
+     * gibt das false zurück und `upgradeToV120()` ist ein No-Op.
+     */
+    public function needsV120Upgrade(): bool
+    {
+        foreach (Utilities::keys() as $key) {
+            if (!$this->store->exists($key . '/meter_groups.json')) return true;
+            $meters = $this->store->read($key . '/meters.json', []);
+            if (!is_array($meters)) continue;
+            foreach ($meters as $m) {
+                if (!is_array($m)) continue;
+                if (!array_key_exists('parent_meter_id', $m)) return true;
+                if (!array_key_exists('meter_group_id', $m)) return true;
+            }
+        }
+        return false;
+    }
+
     public function migrate(): array
     {
         $log = [];
@@ -113,6 +141,11 @@ final class Migrator
         // ── v1.0.3 → v1.1.0 — neue Utilities + reminders.json ─────────────
         if ($this->needsV110Upgrade()) {
             $log = array_merge($log, $this->upgradeToV110());
+        }
+
+        // ── v1.1.0 → v1.2.0 — Meter-Topologie (F1006) ─────────────────────
+        if ($this->needsV120Upgrade()) {
+            $log = array_merge($log, $this->upgradeToV120());
         }
 
         // ── write meta marker ─────────────────────────────────────────────
@@ -239,6 +272,59 @@ final class Migrator
 
         $log[] = 'v1.1.0: Verzeichnisstruktur für Fernwärme/Heizöl/Pellets angelegt';
         $log[] = 'v1.1.0: data/reminders.json initialisiert';
+        return $log;
+    }
+
+    /**
+     * v1.1.0 → v1.2.0 — Meter-Topologie (F1006).
+     *
+     * Rein additiv und idempotent:
+     *   - legt je Utility eine leere `meter_groups.json` an (Gruppen-Stammdaten),
+     *   - ergänzt an jedem Zähler die beiden neuen Felder `parent_meter_id`
+     *     und `meter_group_id` mit Default `null`, falls sie fehlen.
+     *
+     * Bestehende Werte werden nicht angetastet; die Mitgliedschaft bleibt
+     * single-source am Zähler (in `meter_groups.json` stehen nur die
+     * Gruppen-Stammdaten, keine Mitgliederlisten).
+     */
+    public function upgradeToV120(): array
+    {
+        $log = [];
+        $patchedMeters = 0;
+        $createdGroupFiles = 0;
+
+        foreach (Utilities::keys() as $key) {
+            if (!$this->store->exists($key . '/meter_groups.json')) {
+                $this->store->write($key . '/meter_groups.json', []);
+                $createdGroupFiles++;
+            }
+
+            $meters = $this->store->read($key . '/meters.json', []);
+            if (!is_array($meters)) continue;
+            $changed = false;
+            foreach ($meters as &$m) {
+                if (!is_array($m)) continue;
+                if (!array_key_exists('parent_meter_id', $m)) {
+                    $m['parent_meter_id'] = null;
+                    $changed = true;
+                    $patchedMeters++;
+                }
+                if (!array_key_exists('meter_group_id', $m)) {
+                    $m['meter_group_id'] = null;
+                    $changed = true;
+                }
+            }
+            unset($m);
+            if ($changed) {
+                $this->store->write($key . '/meters.json', $meters);
+            }
+        }
+
+        $log[] = sprintf(
+            'v1.2.0: Meter-Topologie initialisiert (%d meter_groups.json angelegt, %d Zähler um parent_meter_id/meter_group_id ergänzt)',
+            $createdGroupFiles,
+            $patchedMeters
+        );
         return $log;
     }
 
@@ -370,6 +456,9 @@ final class Migrator
                         'created_at' => date('Y-m-d'),
                         'active' => true,
                         'notes' => '',
+                        // v1.2.0 — F1006 Meter-Topologie (Default: keine Beziehung)
+                        'parent_meter_id' => null,
+                        'meter_group_id'  => null,
                         'devices' => [[
                             'id' => 'd_' . $key . '_1',
                             'serial' => null,
@@ -397,6 +486,10 @@ final class Migrator
             // angelegt (leer), damit Lese-Code nicht null-prüfen muss.
             if (!$this->store->exists($key . '/contracts.json')) {
                 $this->store->write($key . '/contracts.json', []);
+            }
+            // v1.2.0 — F1006: Gruppen-Stammdaten je Utility (leer).
+            if (!$this->store->exists($key . '/meter_groups.json')) {
+                $this->store->write($key . '/meter_groups.json', []);
             }
         }
         if (!$this->store->exists('temperatures.json')) {

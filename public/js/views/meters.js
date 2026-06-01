@@ -25,7 +25,10 @@ export async function render(container, params) {
 
 async function refresh(container, u) {
   container.innerHTML = '<div class="loading">Lade…</div>';
-  const meters = await api.meters(u.key);
+  const [meters, groups] = await Promise.all([
+    api.meters(u.key),
+    api.meterGroups(u.key),
+  ]);
 
   container.innerHTML = `
     <div data-utility="${u.key}">
@@ -33,6 +36,7 @@ async function refresh(container, u) {
         <h1>${u.icon} ${escapeHtml(u.label)} · Zähler</h1>
         <div class="section-actions">
           <a class="btn btn--ghost" href="#/utility/${u.key}">Zur Übersicht</a>
+          ${meters.length >= 2 ? '<button type="button" class="btn btn--ghost" data-action="merge-meters">Zähler zusammenführen</button>' : ''}
           <button type="button" class="btn btn--util" data-action="new-meter">+ Neuer Zähler</button>
         </div>
       </div>
@@ -40,24 +44,46 @@ async function refresh(container, u) {
       <div class="banner banner--info">
         <strong>Mehrere Zähler pro Verbrauchsart</strong> — z. B. Warmwasser & Heizung (Gas) oder HT/NT & Wallbox (Strom).
         Jeder Zähler hat eine eigene Gerätehistorie (Zählertausch wird verlustfrei berechnet) und kann eigene Verträge tragen.
+        <br><strong>Topologie (v1.2.0):</strong> Subzähler werden vom Elternzähler abgezogen; Gruppen fassen mehrere Zähler im Dashboard zusammen.
       </div>
+
+      ${renderGroupsBar(groups)}
 
       <div id="meters-list">
         ${meters.length === 0 ? '<p class="muted">Noch keine Zähler.</p>' : ''}
-        ${meters.map(m => renderMeterCard(m, u)).join('')}
+        ${renderMeterTree(meters, groups, u)}
       </div>
     </div>
   `;
 
   container.querySelector('[data-action="new-meter"]').addEventListener('click', () => {
-    openMeterModal(u, null).then(changed => { if (changed) refresh(container, u); });
+    openMeterModal(u, null, meters, groups).then(changed => { if (changed) refresh(container, u); });
+  });
+
+  container.querySelector('[data-action="merge-meters"]')?.addEventListener('click', () => {
+    openMergeModal(u, meters, groups).then(changed => { if (changed) refresh(container, u); });
+  });
+
+  container.querySelectorAll('[data-delete-group]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const gid = b.getAttribute('data-delete-group');
+      const g = groups.find(x => x.id === gid);
+      const ok = await confirmModal({
+        title: 'Gruppe auflösen?',
+        message: `Gruppe „${g?.name ?? gid}“ auflösen? Die zugeordneten Zähler bleiben erhalten und werden nur aus der Gruppe gelöst.`,
+        confirmLabel: 'Auflösen', danger: true
+      });
+      if (!ok) return;
+      try { await api.deleteMeterGroup(u.key, gid); toastOk('Gruppe aufgelöst'); refresh(container, u); }
+      catch (e) { toastErr(e.message); }
+    });
   });
 
   container.querySelectorAll('[data-edit-meter]').forEach(b => {
     b.addEventListener('click', async () => {
       const id = b.getAttribute('data-edit-meter');
       const m = meters.find(x => x.id === id);
-      const changed = await openMeterModal(u, m);
+      const changed = await openMeterModal(u, m, meters, groups);
       if (changed) refresh(container, u);
     });
   });
@@ -96,15 +122,62 @@ async function refresh(container, u) {
   });
 }
 
-function renderMeterCard(meter, u) {
-  const devices = meter.devices || [];
+// ───── Gruppen-Übersicht + Topologie-Baum ───────────────────────────
+
+function renderGroupsBar(groups) {
+  if (!groups || groups.length === 0) return '';
   return `
-    <div class="meter-card" data-utility="${u.key}">
-      <div class="meter-card__icon">${escapeHtml(meter.icon || u.icon)}</div>
+    <div class="banner" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px">
+      <strong>Zählergruppen:</strong>
+      ${groups.map(g => `
+        <span class="tag tag--util" style="display:inline-flex;align-items:center;gap:6px">
+          ${escapeHtml(g.name)}
+          <button type="button" class="btn btn--sm btn--ghost" style="padding:0 6px" title="Gruppe auflösen" data-delete-group="${g.id}">✕</button>
+        </span>
+      `).join('')}
+    </div>
+  `;
+}
+
+// Sortiert: Elternzähler/Top-Level zuerst, ihre Subzähler direkt darunter
+// (eingerückt). Subzähler ohne auffindbaren Elternzähler werden als
+// Top-Level behandelt (defensiv).
+function renderMeterTree(meters, groups, u) {
+  if (!meters || meters.length === 0) return '';
+  const byParent = {};
+  const tops = [];
+  const ids = new Set(meters.map(m => m.id));
+  for (const m of meters) {
+    const p = m.parent_meter_id;
+    if (p && ids.has(p)) {
+      (byParent[p] ||= []).push(m);
+    } else {
+      tops.push(m);
+    }
+  }
+  return tops.map(m => {
+    const children = byParent[m.id] || [];
+    return renderMeterCard(m, u, groups, false)
+      + children.map(c => renderMeterCard(c, u, groups, true)).join('');
+  }).join('');
+}
+
+function groupName(groups, id) {
+  return (groups || []).find(g => g.id === id)?.name ?? null;
+}
+
+function renderMeterCard(meter, u, groups, isSub) {
+  const devices = meter.devices || [];
+  const gName = meter.meter_group_id ? groupName(groups, meter.meter_group_id) : null;
+  return `
+    <div class="meter-card${isSub ? ' meter-card--sub' : ''}" data-utility="${u.key}"${isSub ? ' style="margin-left:32px;border-left:3px solid var(--util,#888)"' : ''}>
+      <div class="meter-card__icon">${isSub ? '↳ ' : ''}${escapeHtml(meter.icon || u.icon)}</div>
       <div class="meter-card__main">
         <div class="meter-card__name">
           ${escapeHtml(meter.name)}
           ${meter.active ? '' : '<span class="tag tag--warning">inaktiv</span>'}
+          ${isSub ? '<span class="tag">Subzähler</span>' : ''}
+          ${gName ? `<span class="tag tag--util">Gruppe: ${escapeHtml(gName)}</span>` : ''}
         </div>
         <div class="meter-card__meta">
           ${devices.length} Gerät${devices.length === 1 ? '' : 'e'}
@@ -133,7 +206,14 @@ function renderMeterCard(meter, u) {
 }
 
 // ───── New / Edit meter ─────────────────────────────────────────────
-async function openMeterModal(u, existing) {
+async function openMeterModal(u, existing, allMeters = [], groups = []) {
+  // Mögliche Elternzähler: alle anderen Zähler, die selbst KEIN Subzähler
+  // sind (max. 1 Ebene) und nicht der bearbeitete Zähler selbst.
+  const parentOptions = (allMeters || []).filter(m =>
+    m.id !== existing?.id && !m.parent_meter_id
+  );
+  const curParent = existing?.parent_meter_id || '';
+  const curGroup  = existing?.meter_group_id || '';
   return new Promise(resolve => {
     const body = `
       <form id="meter-form">
@@ -145,6 +225,23 @@ async function openMeterModal(u, existing) {
           <div class="field">
             <label>Icon</label>
             <input class="input input--text" name="icon" value="${escapeHtml(existing?.icon || u.icon)}">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Elternzähler (Subzähler-Reihenschaltung)</label>
+            <select class="input" name="parent_meter_id">
+              <option value="">— keiner (eigenständig) —</option>
+              ${parentOptions.map(m => `<option value="${m.id}" ${m.id === curParent ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
+            </select>
+            <small class="muted">Der Verbrauch dieses Zählers wird vom Elternzähler abgezogen.</small>
+          </div>
+          <div class="field">
+            <label>Gruppe (Dashboard-Zusammenfassung)</label>
+            <select class="input" name="meter_group_id">
+              <option value="">— keine —</option>
+              ${(groups || []).map(g => `<option value="${g.id}" ${g.id === curGroup ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+            </select>
           </div>
         </div>
         ${existing ? '' : `
@@ -192,6 +289,8 @@ async function openMeterModal(u, existing) {
                 icon:   f.icon.value,
                 notes:  f.notes.value,
                 active: f.active.checked,
+                parent_meter_id: f.parent_meter_id.value || null,
+                meter_group_id:  f.meter_group_id.value || null,
               });
             } else {
               await api.createMeter(u.key, {
@@ -201,6 +300,8 @@ async function openMeterModal(u, existing) {
                 device_serial:   f.device_serial.value || null,
                 installed_on:    f.installed_on.value,
                 initial_counter: Number(f.initial_counter.value),
+                parent_meter_id: f.parent_meter_id.value || null,
+                meter_group_id:  f.meter_group_id.value || null,
               });
             }
             toastOk('Zähler gespeichert');
@@ -353,6 +454,73 @@ async function openImportReadingsModal(u, meter) {
 
         modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => {
           close(didImport); resolve(didImport);
+        });
+      }
+    });
+  });
+}
+
+// ───── Merge-Wizard (F1006) ─────────────────────────────────────────
+// Führt mehrere bestehende Zähler zu einer Gruppe zusammen (z. B. NT + HT
+// Strom). Entweder neue Gruppe (Name) oder bestehende Gruppe wählen.
+async function openMergeModal(u, meters, groups) {
+  return new Promise(resolve => {
+    const body = `
+      <p>Mehrere Zähler zu einer <strong>Gruppe</strong> zusammenführen — z. B.
+         <em>NT + HT Strom</em> oder mehrere Wallboxen. Die Gruppe fasst die
+         Verbräuche im Dashboard zusammen; die einzelnen Zähler bleiben
+         erhalten.</p>
+      <form id="merge-form">
+        <div class="field">
+          <label>Zähler auswählen (mindestens zwei) *</label>
+          <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto;border:1px solid var(--border,#ccc);border-radius:var(--r-md);padding:8px">
+            ${meters.map(m => `
+              <label style="display:flex;align-items:center;gap:8px;font-weight:normal">
+                <input type="checkbox" name="meter_ids" value="${m.id}">
+                ${escapeHtml(m.name)}
+                ${m.meter_group_id ? '<span class="tag tag--util">bereits in Gruppe</span>' : ''}
+              </label>
+            `).join('')}
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Bestehende Gruppe</label>
+            <select class="input" name="group_id">
+              <option value="">— neue Gruppe anlegen —</option>
+              ${(groups || []).map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Name der neuen Gruppe</label>
+            <input class="input input--text" name="name" placeholder="z. B. Strom NT+HT">
+          </div>
+        </div>
+      </form>
+    `;
+    openModal({
+      title: 'Zähler zusammenführen',
+      body,
+      footer: `
+        <button type="button" class="btn btn--ghost" data-act="cancel">Abbrechen</button>
+        <button type="button" class="btn btn--util" data-act="save">Zusammenführen</button>
+      `,
+      onMount({ modalEl, close }) {
+        modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(false); resolve(false); });
+        modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+          const f = modalEl.querySelector('#merge-form');
+          const ids = Array.from(f.querySelectorAll('input[name="meter_ids"]:checked')).map(c => c.value);
+          if (ids.length < 2) { toastErr('Bitte mindestens zwei Zähler auswählen'); return; }
+          const groupId = f.group_id.value;
+          if (!groupId && !f.name.value.trim()) { toastErr('Bitte einen Gruppennamen angeben oder eine bestehende Gruppe wählen'); return; }
+          try {
+            const payload = { meter_ids: ids };
+            if (groupId) payload.group_id = groupId;
+            else payload.name = f.name.value.trim();
+            const res = await api.mergeMeterGroup(u.key, payload);
+            toastOk(`${res.members} Zähler in Gruppe „${res.group.name}“ zusammengeführt`);
+            close(true); resolve(true);
+          } catch (e) { toastErr(e.message); }
         });
       }
     });

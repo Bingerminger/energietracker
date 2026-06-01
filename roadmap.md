@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-05-31 (synchron mit v1.7.4; F1007 ausgeliefert)
-**Aktuelle Baseline:** v1.7.4
+**Stand:** 2026-06-01 (synchron mit v1.8.0; F1006 ausgeliefert)
+**Aktuelle Baseline:** v1.8.0
 **Schema:** 1.1.0
 
 ---
@@ -43,6 +43,8 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | N1005 | Docker-Image (Single-Container nginx+php-fpm) + `docker-compose.yml` + GHCR-Publikation + CI-Smoke-Job | v1.7.3 | 2026-05-31 |
 | N1010 | Strukturiertes Logging (abhängigkeitsfreier JSON-Lines-Logger, ENV-gesteuert; ErrorHandler + Lebenszyklus geloggt) | v1.7.3 | 2026-05-31 |
 | F1007 | Demo-Daten-Import über die Einstellungen (Ein-Klick, Warnung bei vorhandenen Daten, Auto-Snapshot; serverseitiger Endpoint) | v1.7.4 | 2026-05-31 |
+| N1012 | CI-Actions Node-24-fähig (`docker/*` per `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`; Zwangsumstellung 2026-06-16 neutralisiert) | — (CI-Wartung, kein Bump) | 2026-05-31 |
+| F1006 | Meter-Topologie: Subzähler (Reihenschaltung, vom Eltern abgezogen) + Gruppen (Dashboard-Summe) + Merge-Wizard; Schema 1.2.0 | v1.8.0 | 2026-06-01 |
 
 ---
 
@@ -66,8 +68,7 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **N1012** | CI-Action-Versionen Node-24-fähig machen (`docker/*`-Actions in `docker-publish.yml`/`ci.yml`; GitHub erzwingt Node 24 ab 16.06.2026) | — (reine CI-Wartung, kein Versions-Bump nötig) | S | — | **fristgebunden: vor 2026-06-16** |
-| **F1006** | Meter-Topologie (Subzähler + Gruppe) | v1.8.0 | M | 1.1.0 → 1.2.0 | **nächster Slot** — Detail-Konzept offen |
+| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | offen | L | 1.2.0 → 1.3.0 | **nächster Slot** — baut auf F1006 (ausgeliefert) auf, Detail-Konzept unten |
 | **N1008** | PWA-Manifest + Service-Worker (mobile „App", komplettiert F1004) | v1.9.0 | M | — | geplant |
 | **N1009** | Accessibility-Audit + Fixes (ARIA, Tastatur, Kontrast) | v1.10.0 | M | — | geplant |
 | **N1007** | i18n-Foundation (`t('key')`-Wrapper, String-Extraktion) | v1.11.0 | M | — | geplant |
@@ -262,18 +263,129 @@ Zähler können in zwei neuen Beziehungen zueinander stehen:
 - Dashboard: Gruppen erscheinen als ein Eintrag mit aufklappbarer
   Aufschlüsselung; Subzähler werden unter dem Elternzähler eingerückt
   dargestellt.
+- **Migrations-Wizard:** geführter Dialog „mehrere Zähler zu einer Gruppe
+  zusammenführen" (Mehrfachauswahl bestehender Zähler → neue/bestehende
+  `meter_group_id`), inkl. Validierung gegen den oben verbotenen Mischfall.
 
-### Offene Detail-Entscheidungen
-- Können Subzähler selbst Gruppen-Mitglieder sein? (Verschachtelung)
-- Verträge auf Gruppen-Ebene: was passiert, wenn ein Mitglied seinen
-  eigenen Vertrag hat?
-- Migrations-Hilfe: UI-Wizard für „bestehende NT/HT-Zähler zu einer
-  Gruppe zusammenführen"?
+### Getroffene Detail-Entscheidungen (2026-06-01)
+- **Verschachtelung — „Subzähler in Gruppe erlaubt" (begrenzt).** Ein Zähler
+  darf `parent_meter_id` UND `meter_group_id` tragen (ein Subzähler kann also
+  Gruppenmitglied sein). **Keine** mehrstufigen Subzähler-Ketten: ein Zähler
+  mit `parent_meter_id` darf selbst nicht Elternzähler eines weiteren
+  Subzählers sein (max. 1 Subzähler-Ebene). Validierung im Migrator/Service
+  muss das erzwingen (kein Großeltern→Eltern→Kind, keine Zyklen).
+- **Vertrag + Gruppe — „Gruppen nur fürs Dashboard" (Entscheidung 2026-06-01).**
+  Gruppen fassen in v1.8.0 ausschließlich den *Verbrauch* fürs Dashboard
+  zusammen. Verträge bleiben **unverändert pro Zähler**; es gibt keinen
+  Gruppen-Vertrag und keine neue Vertrags-Validierung. Der Gruppen-Vertrags-
+  Saldo (Vertrag gegen Gruppensumme, Mitglieder ohne eigenen Vertrag) ist
+  bewusst auf ein späteres Release vertagt — hält v1.8.0 klein und vermeidet
+  Doppelzählungs-Bugs in der Saldo-Auswertung.
+- **Migrations-Wizard — ja, in v1.8.0 enthalten.** Geführter Dialog
+  „mehrere bestehende Zähler zu einer Gruppe zusammenführen" (typischer Fall:
+  NT + HT Strom). Eigener UI-Flow + Tests. Erhöht den Aufwand auf M–L.
 
-### Schema-Migration
-Schema **1.1.0 → 1.2.0**. Felder additiv mit Defaults — keine destruktive
-Änderung an bestehenden Daten, aber Schemaversion springt, weil neue
-Aggregations-Semantik in der Migrator-Validierung verankert wird.
+### Schema-Migration (Skizze, 2026-06-01)
+
+Schema **1.1.0 → 1.2.0**. Rein **additiv**, keine destruktive Änderung an
+bestehenden Daten; die Schemaversion springt, weil neue Aggregations- und
+Validierungs-Semantik im Migrator verankert wird. Folgt dem bestehenden
+Migrator-Muster (`needsV120Upgrade()` + `upgradeToV120()`, idempotent).
+
+**Datenmodell-Änderungen:**
+- Jeder Meter in `data/<utility>/meters.json` erhält zwei neue Felder mit
+  Default `null`:
+  - `parent_meter_id: ?string` — verweist auf den Elternzähler (Subzähler).
+  - `meter_group_id: ?string` — Gruppen-Mitgliedschaft.
+- Neue Datei je Utility: `data/<utility>/meter_groups.json` — Liste von
+  Gruppen-Stammdaten `[{ id: "g_<utility>_<hex>", name: string,
+  created_at: "Y-m-d" }]`. **Mitgliedschaft wird NICHT hier dupliziert**,
+  sondern bleibt single-source-of-truth über `meter_group_id` am Meter
+  (vermeidet Drift zwischen zwei Listen).
+- `meta.json.schema_version` → `1.2.0`.
+
+**`upgradeToV120()` (idempotent, additiv):**
+1. Für jede Utility `meter_groups.json` via `ensureFile(…, [])` anlegen, falls
+   nicht vorhanden.
+2. Über alle Meter jeder Utility iterieren; wo `parent_meter_id` bzw.
+   `meter_group_id` als Key fehlt → mit `null` ergänzen. Bestehende Werte
+   bleiben unangetastet (Idempotenz).
+3. `needsV120Upgrade()` ist `true`, solange eine `meter_groups.json` fehlt
+   ODER ein Meter eines der beiden Keys nicht besitzt.
+
+**Validierungsregeln (im Migrator/`MeterService` verankert, neue 1.2.0-Semantik):**
+- **Keine mehrstufigen Subzähler-Ketten:** ein Meter mit gesetztem
+  `parent_meter_id` darf selbst nicht als `parent_meter_id` eines anderen
+  Meters auftreten (max. 1 Ebene). Schreibpfad lehnt Verstoß ab.
+- **Keine Zyklen / Selbstreferenz:** `parent_meter_id` ≠ eigene `id`; der
+  Elternzähler muss in derselben Utility existieren und aktiv referenzierbar
+  sein.
+- **Subzähler darf Gruppenmitglied sein** (beide Felder gleichzeitig erlaubt).
+  Die Aggregation zieht Subzähler beim Elternzähler ab (Eltern misst brutto
+  inkl. Subzähler) — in der Utility-Gesamtsumme zählen nur Zähler OHNE
+  `parent_meter_id`, sodass kein Subzähler-Anteil doppelt einfließt.
+- **Verträge bleiben in v1.8.0 unverändert pro Zähler** (Entscheidung
+  2026-06-01, „Gruppen nur fürs Dashboard"): Gruppen fassen ausschließlich den
+  *Verbrauch* fürs Dashboard zusammen. Es gibt **keinen Gruppen-Vertrag** und
+  folglich **keine** neue Vertrags-Validierung. Jedes Mitglied behält seine
+  eigenen Verträge; Saldo/`contractStatus` laufen weiterhin pro Zähler. Der
+  Gruppen-Vertrags-Saldo (Vertrag gegen Gruppensumme) ist auf ein späteres
+  Release vertagt.
+- **`delete`-Guards erweitern:** ein Elternzähler mit noch zugeordneten
+  Subzählern (`parent_meter_id`-Ziel) kann nicht gelöscht werden, ohne die
+  Subzähler-Zuordnung vorher aufzulösen (analog zu den bestehenden
+  Readings-/Contracts-Guards in `MeterService::delete()`). Das Löschen einer
+  Gruppe löst die Mitglieder (`meter_group_id` → null), statt sie zu blocken.
+
+**Aggregations-Eingriff (`ConsumptionService::forUtility()`):**
+- Heute summiert `forUtility()` stumpf über alle Meter zu `monthly_total` —
+  das würde Eltern- *und* Subzähler doppelt zählen. Neu: vor der YM-Summe
+  Subzähler-Verbräuche vom Elternzähler abziehen (Eltern-Netto) und Subzähler
+  nicht zusätzlich in die Gesamtsumme aufnehmen; Gruppen als ein logischer
+  Eintrag mit aufklappbarer Aufschlüsselung ausweisen.
+- Recursion-Guard analog zum bestehenden `meterComputeStack` (Schmutzwasser-
+  `separater_zaehler`-Lookup) wiederverwenden/erweitern.
+
+**Backup/Restore:** `BackupService` zieht ohnehin alle JSON-Dateien je Utility
+ein; `meter_groups.json` wird additiv mitgesichert. Schema-Guard
+(`version_compare` gegen `Migrator::SCHEMA_VERSION`) greift automatisch, sobald
+`SCHEMA_VERSION = '1.2.0'`.
+
+**Tests (mind.):** Migration idempotent (zweifacher Aufruf = No-Op),
+Felder-Default-Ergänzung, Verschachtelungs-Validierung (2-Ebenen-Kette wird
+abgelehnt), Zyklus-Ablehnung, Mischfall-Vertrag-Block, Aggregation
+Eltern-Netto + Gruppen-Summe ohne Doppelzählung, `delete`-Guards.
+
+---
+
+## F1008 — NKA für Mieter (GitHub #15)
+
+**Quelle:** GitHub-Issue #15, offen seit 2026-05-22 (vom User selbst).
+
+**Problem:** Eine vollständige Nebenkostenabrechnung ist für Mieter zu komplex
+(Verwaltungsverträge fehlen, Umlage nach m² liegt bei der Hausverwaltung). Das
+Datenmodell soll **modular** umgebaut und die NKA in drei getrennte Bereiche
+geteilt werden. Überschneidet sich konzeptionell mit F1006 (Meter-Topologie)
+und baut darauf auf — daher der Slot **nach F1006** (Schema 1.2.0 → 1.3.0).
+
+**Lösungsskizze (3 Module):**
+1. **Relevante Zählerstände** — Unterscheidung *abrechnungsrelevant* vs. reine
+   *Verbrauchsüberwachung*. Beispiel: Warmwasser (m³) ist abrechnungsrelevant,
+   Heizung (kWh) nur Monitoring ohne Finanzumrechnung. Umsetzbar als
+   Zähler-Flag o. Ä.
+2. **Pauschale Umlagen** — Posten ohne aktiven Zähler (z. B. Kaltwasser nach
+   m²), als fixer Prognose-Posten hinterlegbar.
+3. **Jährliche Endabrechnung** — PDF-Upload der Hausverwaltung + Felder für
+   Nach-/Rückzahlung zur Budgetkontrolle.
+
+**Offene Fragen:**
+- Datei-Upload/-Storage für PDFs (Flat-File-Persistenz: Pfad-/Größenlimit,
+  Backup-Einbindung)?
+- „abrechnungsrelevant" als Zähler-Flag oder eigener Entitätstyp?
+- Mehrjahres-Abgleich der Endabrechnungen (Verknüpfung mit F1005)?
+
+(Detail-Konzept wird ausgearbeitet, sobald F1006 ausgeliefert ist und das
+Datenmodell der Meter-Topologie steht.)
 
 ---
 
@@ -332,6 +444,11 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-05-31 | N1012 aufgenommen | Nach v1.7.3-Release meldete GitHub eine Node-20-Deprecation für die `docker/*`-Actions (Zwangsumstellung auf Node 24 ab 16.06.2026). Als fristgebundene CI-Wartung N1012 in die geplante Reihenfolge aufgenommen — kein Versions-Bump nötig, reine Action-Versionspflege. |
 | 2026-05-31 | F1007 aufgenommen | Auf User-Wunsch: Demo-Daten-Komfort-Import über die Einstellungen (Ein-Klick, Warnung bei vorhandenen Daten) als nächstes Feature-Release v1.7.4 (vor F1006) eingeplant. Demo-Backup-JSON `demo-data/energietracker-demo-backup.json` bereits beigelegt und in der Doku verlinkt. |
 | 2026-05-31 | v1.7.4 ausgeliefert | F1007 umgesetzt (Variante B serverseitig): `DemoService` + Controller, `GET /api/demo/status` + `POST /api/demo/import`, Button „Demo-Daten laden" im Einstellungs-View mit Warnung+Auto-Snapshot. Demo-Backup via `.dockerignore`-Ausnahme im Image. 4 neue PHPUnit-Tests. Keine Schema-Migration. Nächster Slot: F1006. |
+| 2026-06-01 | N1012 erledigt | `docker/*`-Actions per `env: FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"` in `docker-publish.yml` auf Node 24 erzwungen, CI grün — die GitHub-Zwangsumstellung am 2026-06-16 ist damit neutralisiert. Aus „Geplante Reihenfolge" entfernt, nach „Bereits ausgeliefert" verschoben (reine CI-Wartung, kein Versions-Bump). |
+| 2026-06-01 | F1008 aufgenommen | GitHub #15 „NKA für Mieter" als eigenes Feature triagiert: modulares Datenmodell (relevante Zählerstände / pauschale Umlagen / jährliche Endabrechnung mit PDF-Upload). Eingeplant nach F1006 (Schema 1.2.0 → 1.3.0, Slot noch offen), Detail-Konzept-Abschnitt ergänzt. |
+| 2026-06-01 | F1006 Detail-Konzept entschieden | Drei offene Architektur-Punkte per Multiple-Choice geklärt: (1) Subzähler dürfen Gruppenmitglied sein, aber keine mehrstufigen Subzähler-Ketten (max. 1 Ebene); (2) Vertrag-+-Gruppen-Mischfall auf späteres Release vertagt — v1.8.0 erlaubt entweder Einzelvertrag oder Gruppenvertrag; (3) Merge-Wizard für Bestandszähler kommt in v1.8.0 mit. Aufwand dadurch M→M–L. Status: bereit zur Umsetzung. |
+| 2026-06-01 | F1006 Schema-Migrations-Skizze | Konkrete 1.1.0→1.2.0-Skizze nachgezogen: neue Meter-Felder `parent_meter_id`/`meter_group_id` (Default null), neue `meter_groups.json` je Utility (Mitgliedschaft bleibt single-source am Meter), idempotenter `upgradeToV120()` nach bestehendem Migrator-Muster, Validierungsregeln (keine 2-Ebenen-Ketten, keine Zyklen, Mischfall-Block, delete-Guards), Aggregations-Eingriff in `forUtility()` gegen Doppelzählung, Backup additiv, Testliste. |
+| 2026-06-01 | v1.8.0 ausgeliefert | F1006 umgesetzt: Subzähler (`parent_meter_id`, Reihenschaltung — vom Eltern abgezogen, keine Doppelzählung in der Gesamtsumme) + Gruppen (`meter_group_id` + `meter_groups.json` je Utility, Dashboard-Zusammenfassung) + Merge-Wizard. Schema 1.1.0→1.2.0 (additiv/idempotent, Auto-Migration). Verträge bleiben pro Zähler („Gruppen nur fürs Dashboard"). Neue Gruppen-API-Endpoints; Validierung (keine mehrstufigen Ketten/Zyklen) + delete-Guards. 15 neue PHPUnit-Tests (66/219). Nächster Slot: F1008. |
 
 ---
 

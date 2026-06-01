@@ -49,8 +49,9 @@ jobs:
             if(!$mig->needsMigration()){fwrite(STDERR,"erwartete Migration nicht erkannt\n");exit(1);}
             $mig->migrate();
             $v=$s->read("meta.json",[])["schema_version"]??"?";
-            if($v!=="1.1.0"){fwrite(STDERR,"Schema nach Migration: $v (erwartet 1.1.0)\n");exit(1);}
+            if($v!=="1.2.0"){fwrite(STDERR,"Schema nach Migration: $v (erwartet 1.2.0)\n");exit(1);}
             if(!$s->exists("reminders.json")){fwrite(STDERR,"reminders.json fehlt nach Migration\n");exit(1);}
+            if(!$s->exists("strom/meter_groups.json")){fwrite(STDERR,"meter_groups.json fehlt nach Migration (F1006)\n");exit(1);}
             echo "Migrations-Smoke OK: 1.0.0 -> $v\n";'
 
       - name: Tests (Server + Frontend-API-Shape + Browser-Render)

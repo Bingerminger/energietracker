@@ -170,6 +170,14 @@ final class App
         $r->post('/api/utility/{utility}/meters/{id}/replace-device',
                                                                 fn($req) => $meterCtrl->replaceDevice($req));
 
+        // ── Zählergruppen (v1.2.0 — F1006 Meter-Topologie) ──
+        $r->get('/api/utility/{utility}/meter-groups',          fn($req) => $meterCtrl->listGroups($req));
+        $r->post('/api/utility/{utility}/meter-groups',         fn($req) => $meterCtrl->createGroup($req));
+        // Merge-Wizard: vor der {groupId}-Route, damit „merge" nicht als id gilt.
+        $r->post('/api/utility/{utility}/meter-groups/merge',   fn($req) => $meterCtrl->mergeGroup($req));
+        $r->patch('/api/utility/{utility}/meter-groups/{groupId}',  fn($req) => $meterCtrl->updateGroup($req));
+        $r->delete('/api/utility/{utility}/meter-groups/{groupId}', fn($req) => $meterCtrl->destroyGroup($req));
+
         // ── Readings ──
         $readingCtrl = new ReadingController($this->readings, $this->readingImport, $this->settings);
         $r->get('/api/utility/{utility}/readings',     fn($req) => $readingCtrl->index($req));

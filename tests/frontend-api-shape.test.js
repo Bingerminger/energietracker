@@ -87,6 +87,22 @@ const ROOT = require('path').resolve(__dirname, '..');
       `utilities=${utils.join(',')}`);
   }
 
+  // 4d. F1006 (v1.2.0) — Zählergruppen-Endpoint liefert ein Array, und der
+  //     Consumption-Endpoint trägt meter_groups[] für die Dashboard-
+  //     Aufschlüsselung. Meter tragen die Topologie-Felder.
+  const sGroups = await j('/api/utility/strom/meter-groups');
+  check('GET /api/utility/strom/meter-groups → Array', Array.isArray(sGroups),
+    `${sGroups.length} Gruppen`);
+  const sMeters = await j('/api/utility/strom/meters');
+  if (sMeters.length) {
+    const m = sMeters[0];
+    check('Strom-Meter trägt parent_meter_id + meter_group_id (F1006)',
+      ('parent_meter_id' in m) && ('meter_group_id' in m));
+  }
+  const sCons = await j('/api/utility/strom/consumption');
+  check('Consumption-Antwort trägt meter_groups[] (F1006)',
+    Array.isArray(sCons.meter_groups));
+
   // 5. JSDOM: Sidebar-HTML-Aufbau (reine DOM-Logik, ohne ES-Module-Loader)
   const dom = new JSDOM(`<!DOCTYPE html><body data-app-version="1.3.0">
     <nav id="primary-nav"></nav></body>`, { url: BASE });

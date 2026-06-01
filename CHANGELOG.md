@@ -6,6 +6,66 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.8.0] — 2026-06-01 — F1006 Meter-Topologie (Subzähler + Gruppen)
+
+MINOR-Release. Zähler können jetzt in Beziehung zueinander stehen:
+**Subzähler** (Reihenschaltung) werden vom Elternzähler abgezogen,
+**Gruppen** fassen mehrere Zähler im Dashboard zusammen. Schema-Migration
+**1.1.0 → 1.2.0** (rein additiv, verlustfrei).
+
+### Added
+
+- **F1006 — Meter-Topologie.** Zwei neue, optionale Zähler-Beziehungen:
+  - **Subzähler / Reihenschaltung** (`parent_meter_id`): z. B. eine
+    Wärmepumpe hinter dem Haushaltsstrom. Der Elternzähler misst brutto
+    inklusive seiner Subzähler; in der Verbrauchsart-Gesamtsumme zählt daher
+    nur der Elternzähler, der Subzähler wird **nicht doppelt** addiert,
+    sondern als Aufschlüsselung eingerückt dargestellt.
+  - **Gruppen** (`meter_group_id`): mehrere Zähler (z. B. NT + HT Strom oder
+    mehrere Wallboxen) werden im Dashboard zu einem Eintrag zusammengefasst.
+    Neue Gruppen-Stammdaten je Verbrauchsart in `meter_groups.json`.
+- **Merge-Wizard.** Geführter Dialog „Zähler zusammenführen" im Zähler-View:
+  mehrere bestehende Zähler per Mehrfachauswahl zu einer (neuen oder
+  bestehenden) Gruppe zusammenfassen.
+- **Neue API-Endpoints** (Zählergruppen):
+  `GET/POST /api/utility/{utility}/meter-groups`,
+  `PATCH/DELETE /api/utility/{utility}/meter-groups/{groupId}`,
+  `POST /api/utility/{utility}/meter-groups/merge`. Der Consumption-Endpoint
+  liefert zusätzlich `meter_groups[]` für die Dashboard-Aufschlüsselung.
+
+### Changed
+
+- **Schema 1.1.0 → 1.2.0.** Jeder Zähler trägt nun `parent_meter_id` und
+  `meter_group_id` (Default `null`). Die Migration ist additiv und idempotent
+  (folgt dem bestehenden Migrator-Muster); bestehende Daten bleiben
+  unangetastet. Auto-Migration beim ersten Start hebt vorhandene
+  Installationen automatisch an.
+- Verträge bleiben in dieser Version **unverändert pro Zähler** — Gruppen
+  fassen ausschließlich den Verbrauch fürs Dashboard zusammen. Ein
+  Gruppen-Vertrags-Saldo (Vertrag gegen Gruppensumme) ist bewusst auf ein
+  späteres Release vertagt.
+
+### Validation
+
+- **Keine mehrstufigen Subzähler-Ketten** (max. 1 Ebene): der gewählte
+  Elternzähler darf selbst kein Subzähler sein und umgekehrt.
+- **Keine Selbstreferenz / unbekannte Referenzen:** `parent_meter_id` und
+  `meter_group_id` müssen auf existierende, gültige Ziele zeigen.
+- **delete-Guards erweitert:** ein Elternzähler mit zugeordneten Subzählern
+  kann nicht gelöscht werden, ohne die Zuordnung vorher aufzulösen; das
+  Löschen einer Gruppe löst ihre Mitglieder (statt zu blockieren).
+
+### Tests
+
+- 15 neue PHPUnit-Tests (`MeterTopologyTest`): Migration (idempotent +
+  Feld-Defaults), Validierung (Ketten/Zyklen/Existenz), Gruppen-CRUD,
+  Merge-Wizard, delete-Guards und Aggregation ohne Doppelzählung.
+  Gesamt: 66 Tests / 219 Assertions.
+- Frontend-API-Shape um Gruppen-Endpoint + Topologie-Felder erweitert;
+  CI-Migrations-Smoke prüft jetzt 1.2.0 inkl. `meter_groups.json`.
+
+---
+
 ## [1.7.4] — 2026-05-31 — F1007 Demo-Daten-Import über die Einstellungen
 
 MINOR-Release. Macht den Demo-Datensatz per Knopfdruck in der UI ladbar —

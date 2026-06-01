@@ -45,6 +45,13 @@ export const api = {
   deleteMeter:   (u, id)               => request('DELETE',`/api/utility/${u}/meters/${id}`),
   replaceDevice: (u, id, data)         => request('POST', `/api/utility/${u}/meters/${id}/replace-device`, data),
 
+  // ── v1.2.0 (F1006) — Zählergruppen / Meter-Topologie ──
+  meterGroups:      (u)                => request('GET',   `/api/utility/${u}/meter-groups`),
+  createMeterGroup: (u, data)          => request('POST',  `/api/utility/${u}/meter-groups`, data),
+  updateMeterGroup: (u, gid, data)     => request('PATCH', `/api/utility/${u}/meter-groups/${gid}`, data),
+  deleteMeterGroup: (u, gid)           => request('DELETE',`/api/utility/${u}/meter-groups/${gid}`),
+  mergeMeterGroup:  (u, data)          => request('POST',  `/api/utility/${u}/meter-groups/merge`, data),
+
   // Readings
   readings:      (u, meterId)          => {
     const q = meterId ? `?meter_id=${encodeURIComponent(meterId)}` : '';

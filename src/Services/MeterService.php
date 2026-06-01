@@ -120,8 +120,24 @@ final class MeterService
             'created_at' => date('Y-m-d'),
             'active'     => true,
             'notes'      => (string)($input['notes'] ?? ''),
+            // v1.2.0 — F1006 Meter-Topologie (Default: keine Beziehung)
+            'parent_meter_id' => null,
+            'meter_group_id'  => null,
             'devices'    => $devices,
         ];
+
+        // v1.2.0 — F1006: Topologie-Beziehungen optional schon beim Anlegen
+        // setzen. Validierung über den gemeinsamen Pfad (Zyklen, Ketten,
+        // Existenz). Bezieht den noch nicht gespeicherten Meter mit ein.
+        $existing = $this->list($utility);
+        $candidatePool = array_merge($existing, [$meter]);
+        if (array_key_exists('parent_meter_id', $input)) {
+            $meter['parent_meter_id'] = $this->normalizeRef($input['parent_meter_id']);
+        }
+        if (array_key_exists('meter_group_id', $input)) {
+            $meter['meter_group_id'] = $this->normalizeRef($input['meter_group_id']);
+        }
+        $this->assertTopologyValid($utility, $meter, $candidatePool);
 
         // v1.3.0 — Tank-/Lager-Felder bei Delivery-Utilities (Heizöl/Pellets).
         // Pflicht: capacity > 0 und initial_stock ≥ 0 — ohne diese werden
@@ -166,6 +182,13 @@ final class MeterService
                     $m[$f] = $f === 'active' ? (bool)$input[$f] : (string)$input[$f];
                 }
             }
+            // v1.2.0 — F1006: Topologie-Beziehungen änderbar
+            if (array_key_exists('parent_meter_id', $input)) {
+                $m['parent_meter_id'] = $this->normalizeRef($input['parent_meter_id']);
+            }
+            if (array_key_exists('meter_group_id', $input)) {
+                $m['meter_group_id'] = $this->normalizeRef($input['meter_group_id']);
+            }
             // v1.3.0 — Tank-Felder updatebar (nur bei Delivery-Utilities)
             if ($isDelivery) {
                 if (array_key_exists('capacity', $input)) {
@@ -181,6 +204,17 @@ final class MeterService
         }
         unset($m);
         if (!$found) throw new \InvalidArgumentException('Zähler nicht gefunden');
+        // v1.2.0 — F1006: Topologie nach der Änderung validieren (Zyklen,
+        // mehrstufige Ketten, Existenz von Eltern/Gruppe).
+        if (array_key_exists('parent_meter_id', $input) || array_key_exists('meter_group_id', $input)) {
+            $updated = null;
+            foreach ($all as $m) {
+                if (($m['id'] ?? null) === $meterId) { $updated = $m; break; }
+            }
+            if ($updated !== null) {
+                $this->assertTopologyValid($utility, $updated, $all);
+            }
+        }
         $this->store->write("$utility/meters.json", $all);
         return $this->get($utility, $meterId);
     }
@@ -204,6 +238,13 @@ final class MeterService
         foreach ($contracts as $c) {
             if (($c['meter_id'] ?? null) === $meterId) {
                 throw new \InvalidArgumentException('Zähler hat noch Verträge — bitte zuerst Verträge löschen oder umhängen');
+            }
+        }
+        // v1.2.0 — F1006: ein Elternzähler mit Subzählern kann nicht gelöscht
+        // werden, ohne die Kinder zu verwaisen. Erst Subzähler auflösen.
+        foreach ($this->list($utility) as $m) {
+            if (($m['parent_meter_id'] ?? null) === $meterId) {
+                throw new \InvalidArgumentException('Zähler ist Elternzähler von Subzählern — bitte zuerst die Subzähler-Zuordnung auflösen');
             }
         }
         $all = array_values(array_filter($this->list($utility), fn($m) => ($m['id'] ?? null) !== $meterId));
@@ -295,5 +336,208 @@ final class MeterService
         if (!Utilities::exists($utility)) {
             throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
         }
+    }
+
+    // ── v1.2.0 — F1006 Meter-Topologie ────────────────────────────────────
+
+    /** Leerstring/leere Werte zu null normalisieren, sonst als string. */
+    private function normalizeRef(mixed $value): ?string
+    {
+        if ($value === null || $value === '' || $value === false) return null;
+        return (string)$value;
+    }
+
+    /**
+     * Validiert die Topologie-Beziehungen eines (ggf. noch nicht persistierten)
+     * Zählers gegen den übergebenen Pool aller Zähler derselben Utility.
+     *
+     * Regeln (Detail-Konzept F1006, 2026-06-01):
+     *   - parent_meter_id ≠ eigene id (keine Selbstreferenz),
+     *   - Elternzähler muss im Pool existieren,
+     *   - keine mehrstufigen Subzähler-Ketten (max. 1 Ebene): der Elternzähler
+     *     darf selbst keinen parent_meter_id tragen, und dieser Zähler darf
+     *     nicht selbst Elternzähler eines anderen sein,
+     *   - meter_group_id muss auf eine existierende Gruppe verweisen.
+     *
+     * @param array<int,array<string,mixed>> $pool alle Zähler der Utility
+     *        (inkl. des zu prüfenden Zählers, in seinem neuen Zustand)
+     */
+    private function assertTopologyValid(string $utility, array $meter, array $pool): void
+    {
+        $id     = (string)($meter['id'] ?? '');
+        $parent = $meter['parent_meter_id'] ?? null;
+        $group  = $meter['meter_group_id'] ?? null;
+
+        if ($parent !== null) {
+            if ($parent === $id) {
+                throw new \InvalidArgumentException('Ein Zähler kann nicht sein eigener Elternzähler sein');
+            }
+            $parentMeter = null;
+            foreach ($pool as $m) {
+                if (($m['id'] ?? null) === $parent) { $parentMeter = $m; break; }
+            }
+            if ($parentMeter === null) {
+                throw new \InvalidArgumentException('Elternzähler nicht gefunden: ' . $parent);
+            }
+            // Keine mehrstufige Kette: der Elternzähler darf selbst kein Subzähler sein.
+            if (($parentMeter['parent_meter_id'] ?? null) !== null) {
+                throw new \InvalidArgumentException(
+                    'Mehrstufige Subzähler-Ketten sind nicht erlaubt — der gewählte '
+                    . 'Elternzähler ist selbst bereits ein Subzähler (max. 1 Ebene).'
+                );
+            }
+            // ... und dieser Zähler darf selbst kein Elternzähler sein.
+            foreach ($pool as $m) {
+                if (($m['parent_meter_id'] ?? null) === $id) {
+                    throw new \InvalidArgumentException(
+                        'Mehrstufige Subzähler-Ketten sind nicht erlaubt — dieser Zähler '
+                        . 'ist selbst bereits Elternzähler eines Subzählers (max. 1 Ebene).'
+                    );
+                }
+            }
+        }
+
+        if ($group !== null) {
+            if ($this->getGroup($utility, $group) === null) {
+                throw new \InvalidArgumentException('Zählergruppe nicht gefunden: ' . $group);
+            }
+        }
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function listGroups(string $utility): array
+    {
+        $this->assertUtility($utility);
+        $groups = $this->store->read("$utility/meter_groups.json", []);
+        return is_array($groups) ? array_values($groups) : [];
+    }
+
+    public function getGroup(string $utility, string $groupId): ?array
+    {
+        foreach ($this->listGroups($utility) as $g) {
+            if (($g['id'] ?? null) === $groupId) return $g;
+        }
+        return null;
+    }
+
+    public function createGroup(string $utility, array $input): array
+    {
+        $this->assertUtility($utility);
+        $name = trim((string)($input['name'] ?? ''));
+        if ($name === '') {
+            throw new \InvalidArgumentException('Gruppenname darf nicht leer sein');
+        }
+        $group = [
+            'id'         => 'g_' . $utility . '_' . bin2hex(random_bytes(4)),
+            'name'       => $name,
+            'created_at' => date('Y-m-d'),
+        ];
+        $all = $this->listGroups($utility);
+        $all[] = $group;
+        $this->store->write("$utility/meter_groups.json", $all);
+        return $group;
+    }
+
+    public function updateGroup(string $utility, string $groupId, array $input): array
+    {
+        $all = $this->listGroups($utility);
+        $found = false;
+        foreach ($all as &$g) {
+            if (($g['id'] ?? null) !== $groupId) continue;
+            $found = true;
+            if (array_key_exists('name', $input)) {
+                $name = trim((string)$input['name']);
+                if ($name === '') {
+                    throw new \InvalidArgumentException('Gruppenname darf nicht leer sein');
+                }
+                $g['name'] = $name;
+            }
+        }
+        unset($g);
+        if (!$found) throw new \InvalidArgumentException('Zählergruppe nicht gefunden');
+        $this->store->write("$utility/meter_groups.json", $all);
+        return $this->getGroup($utility, $groupId);
+    }
+
+    /**
+     * Löscht eine Gruppe. Mitglieder werden NICHT gelöscht, sondern aus der
+     * Gruppe gelöst (meter_group_id → null), damit keine verwaisten Verweise
+     * zurückbleiben.
+     */
+    public function deleteGroup(string $utility, string $groupId): void
+    {
+        if ($this->getGroup($utility, $groupId) === null) {
+            throw new \InvalidArgumentException('Zählergruppe nicht gefunden');
+        }
+        // Mitglieder lösen
+        $meters = $this->list($utility);
+        $changed = false;
+        foreach ($meters as &$m) {
+            if (($m['meter_group_id'] ?? null) === $groupId) {
+                $m['meter_group_id'] = null;
+                $changed = true;
+            }
+        }
+        unset($m);
+        if ($changed) {
+            $this->store->write("$utility/meters.json", $meters);
+        }
+        $all = array_values(array_filter(
+            $this->listGroups($utility),
+            fn($g) => ($g['id'] ?? null) !== $groupId
+        ));
+        $this->store->write("$utility/meter_groups.json", $all);
+    }
+
+    /**
+     * Merge-Wizard (F1006): mehrere bestehende Zähler zu einer Gruppe
+     * zusammenführen. Legt entweder eine neue Gruppe an (wenn `name` gesetzt)
+     * oder nutzt eine bestehende (`group_id`), und setzt bei allen `meter_ids`
+     * die `meter_group_id`.
+     *
+     * @param array{group_id?:string, name?:string, meter_ids:array<int,string>} $input
+     * @return array{group:array<string,mixed>, members:int}
+     */
+    public function mergeIntoGroup(string $utility, array $input): array
+    {
+        $this->assertUtility($utility);
+        $meterIds = $input['meter_ids'] ?? [];
+        if (!is_array($meterIds) || count($meterIds) < 2) {
+            throw new \InvalidArgumentException('Zum Zusammenführen werden mindestens zwei Zähler benötigt');
+        }
+
+        // Zielgruppe bestimmen oder anlegen.
+        if (!empty($input['group_id'])) {
+            $group = $this->getGroup($utility, (string)$input['group_id']);
+            if ($group === null) {
+                throw new \InvalidArgumentException('Zählergruppe nicht gefunden: ' . $input['group_id']);
+            }
+        } else {
+            $group = $this->createGroup($utility, ['name' => $input['name'] ?? '']);
+        }
+
+        $meters = $this->list($utility);
+        $known = [];
+        foreach ($meters as $m) {
+            if (isset($m['id'])) $known[(string)$m['id']] = true;
+        }
+        foreach ($meterIds as $mid) {
+            if (!isset($known[(string)$mid])) {
+                throw new \InvalidArgumentException('Zähler nicht gefunden: ' . $mid);
+            }
+        }
+
+        $want = array_fill_keys(array_map('strval', $meterIds), true);
+        $members = 0;
+        foreach ($meters as &$m) {
+            if (isset($want[(string)($m['id'] ?? '')])) {
+                $m['meter_group_id'] = $group['id'];
+                $members++;
+            }
+        }
+        unset($m);
+        $this->store->write("$utility/meters.json", $meters);
+
+        return ['group' => $group, 'members' => $members];
     }
 }

@@ -51,4 +51,40 @@ final class MeterController
         $m = $this->meters->replaceDevice($req->param('utility'), $req->param('id'), (array)$req->body);
         Response::json($m);
     }
+
+    // ── v1.2.0 — F1006 Zählergruppen ──────────────────────────────────────
+
+    /** GET /api/utility/{utility}/meter-groups */
+    public function listGroups(Request $req): never
+    {
+        Response::json($this->meters->listGroups($req->param('utility')));
+    }
+
+    /** POST /api/utility/{utility}/meter-groups */
+    public function createGroup(Request $req): never
+    {
+        $g = $this->meters->createGroup($req->param('utility'), (array)$req->body);
+        Response::json($g, 201);
+    }
+
+    /** PATCH /api/utility/{utility}/meter-groups/{groupId} */
+    public function updateGroup(Request $req): never
+    {
+        $g = $this->meters->updateGroup($req->param('utility'), $req->param('groupId'), (array)$req->body);
+        Response::json($g);
+    }
+
+    /** DELETE /api/utility/{utility}/meter-groups/{groupId} */
+    public function destroyGroup(Request $req): never
+    {
+        $this->meters->deleteGroup($req->param('utility'), $req->param('groupId'));
+        Response::json(['deleted' => true]);
+    }
+
+    /** POST /api/utility/{utility}/meter-groups/merge — Merge-Wizard */
+    public function mergeGroup(Request $req): never
+    {
+        $result = $this->meters->mergeIntoGroup($req->param('utility'), (array)$req->body);
+        Response::json($result, 201);
+    }
 }
