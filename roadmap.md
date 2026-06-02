@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-06-01 (synchron mit v1.9.1; F1009 + Patch ausgeliefert)
-**Aktuelle Baseline:** v1.9.1
+**Stand:** 2026-06-02 (synchron mit v1.9.2; Doku-Review + Roadmap-Neusortierung)
+**Aktuelle Baseline:** v1.9.2
 **Schema:** 1.1.0
 
 ---
@@ -63,9 +63,15 @@ Leitlogik dieser Sequenz:
    kommt vor dem trockenen i18n-Unterbau.
 4. **Thematisch bündeln.** Ops-Themen (Docker + Logging) und UX-Themen
    (PWA + A11y) reisen paarweise, statt jeden N-Code einzeln zu releasen.
-5. **Majors klar trennen.** EN-Lokalisierung (v2.0.0, kleiner Major) und
-   Smart-Meter (v3.0.0, großer Datenpipeline-Major) werden nicht in ein
-   Release gequetscht.
+5. **Majors klar trennen.** EN-Lokalisierung (v2.0.0, kleiner Major) bleibt das
+   einzige geplante Major-Release und wird nicht mit anderen Themen vermischt.
+   Die früher geplante Smart-Meter-Anbindung (v3.0.0, eigener Datenpipeline-
+   Major) ist **gestrichen** — echtes Metering (Smart-Meter-Auslesung) wird
+   bewusst an **Home Assistant** delegiert, das die Werte per F1009-Ingest an
+   den Energietracker pusht. Der Energietracker bleibt damit die schlanke
+   Vertrags-, Kosten- und Prognose-Oberfläche; die Hardware-/Protokollwelt
+   (SML, IEC 62056, Lastgang) lebt in HA. Die strategische Ausbaurichtung ist
+   deshalb der **Ausbau der HA-Integration** (siehe Bedarfsgetrieben).
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
@@ -74,14 +80,14 @@ Leitlogik dieser Sequenz:
 | **N1009** | Accessibility-Audit + Fixes (ARIA, Tastatur, Kontrast) | v1.11.0 | M | — | geplant |
 | **N1007** | i18n-Foundation (`t('key')`-Wrapper, String-Extraktion) | v1.12.0 | M | — | geplant |
 | **EN-L10n** | EN-Lokalisierung (Aktivierung, erste zweite Sprache) | v2.0.0 | L | — | Major, setzt N1007 voraus |
-| **N1011** | API-Versionierung (`/api/v1/…`) | v2.1.0 | M | — | Vorbereitung Smart-Meter |
-| **Smart-Meter** | Smart-Meter-Anbindung (SML / IEC 62056), Lastgang-Pipeline | v3.0.0 | XL | neuer Strang | Major, langfristig |
 
 **Bedarfsgetrieben (kein fester Slot):**
 
 | Code | Thema | Größe | Auslöser |
 |------|-------|-------|----------|
 | **N1006** | Performance-Caching (`computeForMeter`-Memoization, ETag / `If-Modified-Since`) | M | Wird vorgezogen, sobald eine echte Messung (>10 J × 6 Zähler) spürbare Latenz zeigt. Vorab-Optimierung verstößt gegen die „erst bei echtem Problem"-Regel. |
+| **N1011** | API-Versionierung (`/api/v1/…`) | M | Ursprünglich als Smart-Meter-Vorbereitung geplant; mit dessen Streichung kein fester Slot mehr. Wird nur umgesetzt, wenn ein echter Bruch der API-Kompatibilität ansteht. |
+| **F1010+** | Ausbau der Home-Assistant-Integration (Ideen) | M–L | Strategische Leitlinie statt Smart-Meter. Mögliche Bausteine, sobald Nutzerbedarf entsteht: Rückkanal/Status-Endpoint für HA (z. B. Saldo/Prognose als Sensor), Mehrfach-Tokens bzw. pro-Gerät-Token, Bulk-Ingest mehrerer Zähler in einem Request, optionales HA-Auto-Discovery. Noch nicht spezifiziert. |
 
 ---
 
@@ -508,6 +514,8 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-06-01 | F1009 aufgenommen + vorgezogen | Home-Assistant-Anbindung als vorrangiges Feature (v1.9.0) eingeplant — vom User aus einem Community-Bedarf vorgezogen, VOR F1008. Eine kursierende KI-generierte Forenanleitung beschreibt die API falsch (`POST /api.php` + `action`/`value`/`timestamp` + Bearer aus `settings.json` — existiert alles nicht); F1009 liefert die offizielle Lösung: opt-in Token-Auth (Hash in separater `data/auth.json`), dedizierter idempotenter `POST /api/ingest` (upsert-by-date), Zähler-Alias `external_id`. Schema 1.2.0→1.3.0 additiv. F1008/N1008/N1009/N1007 je einen Slot nach hinten. |
 | 2026-06-01 | v1.9.0 ausgeliefert | F1009 umgesetzt: offizielle Home-Assistant-Anbindung. Opt-in Token-Auth (`/api/auth/token`, SHA-256-Hash in separater `data/auth.json`, `hash_equals`), idempotenter Push-Endpoint `POST /api/ingest` (upsert pro Zähler+Datum, akzeptiert Alias oder interne ID, `date` optional/ISO-tolerant), Zähler-Alias `external_id` (eindeutig je Utility). Einstellungs-Sektion mit Token-Verwaltung, Alias-Pflege und Copy-YAML. Neue `docs/HOME-ASSISTANT.md` mit 2 Use-Cases; `docs/API.md` erweitert. Schema 1.2.0→1.3.0 additiv. 15 neue PHPUnit-Tests (81/261). Nächster Slot: F1008. |
 | 2026-06-01 | v1.9.1 ausgeliefert (PATCH) | Bugfix + CI-Wartung, kein Schema/Feature. (1) `Migrator::isPristine()` erkennt ein komplett leeres Datenverzeichnis → beim Erststart läuft `initFresh()` statt `migrate()`, sodass ein frischer Docker-Container Standard-Zähler (Gas/Strom/Wasser) bekommt statt 0. (2) `ci.yml` setzt `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` (Node-20-Deprecation der Actions neutralisiert). 5 neue PHPUnit-Tests (86/274). Nächster Slot: F1008. |
+| 2026-06-02 | Smart-Meter gestrichen, Roadmap neu sortiert | Auf User-Entscheidung: echtes Metering (Smart-Meter-Auslesung) wird vollständig an Home Assistant delegiert (F1009-Ingest), daher den geplanten v3.0.0-Major **Smart-Meter** (SML/IEC 62056/Lastgang) komplett entfernt. N1011 (API-Versionierung) war nur „Vorbereitung Smart-Meter" → aus der festen Reihenfolge in den Bedarfsgetrieben-Block verschoben. Neue strategische Leitlinie statt Smart-Meter: Ausbau der HA-Integration (als bedarfsgetriebenes F1010+ skizziert). Geplante Reihenfolge endet damit bei EN-L10n (v2.0.0). Nächster Slot unverändert: F1008. |
+| 2026-06-02 | v1.9.2 ausgeliefert (Doku-PATCH) | Vollständiger Dokumentations-Review (kein Code): Faktenabgleich aller Docs auf Code-Stand (Schema 1.3.0, 68 Routen, 24 Services/20 Controller, 12 Views, 40 Settings, Testzahlen), F1006/F1009 durchgängig dokumentiert, Smart-Meter-Verweise bereinigt. Drei neue nutzerorientierte Dokumente: `ERSTE-SCHRITTE.md`, `USE-CASES.md` (4 Praxisfälle), `functional/13-meter-topologie.md`. Index/Struktur/Verlinkung ausgebaut, alle internen Links geprüft. Nächster Slot: F1008. |
 
 ---
 

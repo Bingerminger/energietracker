@@ -47,8 +47,8 @@ nicht über den Browser-Graphen). Der HTTP-Crawl fängt es.
 ## 3. Ausführen
 
 ```bash
-# 1. Testdaten (Demo-Datensatz trägt seit v1.4.4 schema_version 1.1.0 —
-#    kein Migrationslauf nötig)
+# 1. Testdaten (Demo-Datensatz trägt schema_version 1.1.0 und wird beim
+#    Start additiv aufs aktuelle Schema migriert)
 cp -r demo-data /tmp/etdata
 
 # 2. Server, der API UND statische Assets ausliefert. WICHTIG:
@@ -67,14 +67,25 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v1.4.4:
-**Frontend-API-Shape 9/9**, **Browser-Render 28/28** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v1.9.2:
+**Frontend-API-Shape 20/20**, **Browser-Render 36/36** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle).
 
-Seit v1.4.4 läuft genau diese Sequenz automatisiert in der
-**CI-Pipeline** (`.github/workflows/ci.yml`) bei jedem Push und Pull
-Request gegen `main` — zusätzlich zu einem PHP-Syntax-Lint aller
-`*.php`-Dateien (`php -l`).
+Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
+(`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
+JSON-Dateien, ohne Mocks. Stand v1.9.2: **86 Tests / 274 Assertions**.
+Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
+**Pflicht-Gate vor jedem Commit** (siehe
+[Release-Prozess](06-release-process.md)).
+
+Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
+(`.github/workflows/ci.yml`) bei jedem Push und Pull Request gegen
+`main`. Vier Jobs: **lint-php** (Syntax-Check aller `*.php`),
+**phpunit** (Service-Suite), **test** (Migrations-Smoke +
+Frontend-API-Shape + Browser-Render über `router.php`) und **docker**
+(Image bauen + Container-Smoke gegen `/api/health`). Ein separater
+Workflow `docker-publish.yml` veröffentlicht bei jedem Versions-Tag das
+Multi-Arch-Image (amd64 + arm64) nach GHCR.
 
 ---
 

@@ -213,4 +213,15 @@ der nächste Termin gemäß Recurrence fortgeschrieben.
 
 ---
 
+## Weiterführend
+
+- **Wärmepumpe oder Wallbox getrennt erfassen?** Lege sie als **Subzähler**
+  hinter dem Hausanschluss an: [Meter-Topologie](13-meter-topologie.md).
+- **Zähler automatisch aus Home Assistant füttern:**
+  [Home-Assistant-Anbindung](../HOME-ASSISTANT.md).
+- **Komplett durchgerechnete Beispiele** (PV + Wärmepumpe, Vermieter mit
+  mehreren Einheiten): [Anwendungsbeispiele & Use-Cases](../USE-CASES.md).
+
+---
+
 [← Szenario Wohnung](07-szenario-wohnung.md) · [Glossar →](09-glossar.md)

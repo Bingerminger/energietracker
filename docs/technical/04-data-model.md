@@ -3,8 +3,14 @@
 [← API-Referenz](03-api-reference.md) · [Kompendium-Index](../README.md)
 
 Alle Daten liegen als flache JSON-Dateien unter `data/`. Keine Datenbank.
-Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.1.0**
+Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.3.0**
 (in `data/meta.json` und in jedem Backup).
+
+> **Schema-Historie (Kurzfassung):** 1.0.0 utility-orientiertes Layout ·
+> 1.0.3 Wasser-3-Komponenten-Verträge · 1.1.0 Fernwärme/Heizöl/Pellets +
+> `reminders.json` · **1.2.0** Meter-Topologie (`parent_meter_id`,
+> `meter_group_id`, `meter_groups.json` je Utility — F1006) · **1.3.0**
+> Zähler-Alias `external_id` für die Home-Assistant-Anbindung (F1009).
 
 ---
 
@@ -13,24 +19,35 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.1.0**
 ```text
 data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
-├── settings.json             # 50 Schlüssel (s. u.)
+├── settings.json             # 40 Schlüssel (s. u.)
+├── auth.json                 # API-Token-HASH für HA-Ingest (F1009) — nie im Klartext
 ├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max }, … }
 ├── reminders.json            # Termine/Wartung
 ├── recommendations_dismissed.json
-├── gas/        { meters.json, readings.json, contracts.json }
-├── strom/      { meters.json, readings.json, contracts.json }
-├── wasser/     { meters.json, readings.json, contracts.json }
-├── fernwaerme/ { meters.json, readings.json, contracts.json }
-├── heizoel/    { meters.json, deliveries.json, contracts.json }
-├── pellets/    { meters.json, deliveries.json, contracts.json }
+├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json }
+├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json }
+├── wasser/     { meters.json, readings.json, contracts.json, meter_groups.json }
+├── fernwaerme/ { meters.json, readings.json, contracts.json, meter_groups.json }
+├── heizoel/    { meters.json, deliveries.json, contracts.json, meter_groups.json }
+├── pellets/    { meters.json, deliveries.json, contracts.json, meter_groups.json }
+├── pv_einspeisung/ { meters.json, readings.json, contracts.json, meter_groups.json }
+├── pv_erzeugung/   { meters.json, readings.json, contracts.json, meter_groups.json }
+├── logs/       # JSON-Lines-Log (N1010)
 └── backups/    # Snapshots
 ```
 
-Kumulative Arten (Gas, Strom, Wasser, Fernwärme) haben `readings.json`;
+Kumulative Arten (Gas, Strom, Wasser, Fernwärme, PV) haben `readings.json`;
 lieferbasierte Arten (Heizöl, Pellets) haben stattdessen
 `deliveries.json`. `contracts.json` existiert bei allen, ist für
 Heizöl/Pellets aber typischerweise leer — dort ist die **Tankrechnung
 selbst** die Kostenbasis (siehe [Heizöl](../functional/05-heizoel.md)).
+`meter_groups.json` (seit 1.2.0) hält die Gruppen-Stammdaten je Utility;
+die Gruppen-*Mitgliedschaft* steht dagegen am Zähler (`meter_group_id`).
+
+> **`auth.json`** (F1009) enthält ausschließlich den **SHA-256-Hash** des
+> API-Tokens, niemals den Klartext, und wird vom Backup **ausgenommen**.
+> Solange die Datei fehlt/leer ist, ist die API im offenen Modus (kein Token
+> erforderlich). Details: [API-Referenz → Auth](03-api-reference.md).
 
 ---
 
@@ -46,6 +63,14 @@ selbst** die Kostenbasis (siehe [Heizöl](../functional/05-heizoel.md)).
   "created_at": "2023-01-01",
   "active": true,
   "notes": "Keller, links",
+
+  // Meter-Topologie (F1006, seit Schema 1.2.0) — Default null:
+  "parent_meter_id": null,   // gesetzt = Subzähler dieses Elternzählers
+  "meter_group_id": null,    // gesetzt = Mitglied dieser Zählergruppe
+
+  // HA-Anbindung (F1009, seit Schema 1.3.0) — Default null:
+  "external_id": "gaszaehler_haus",  // Alias für POST /api/ingest
+
   "devices": [ Device, … ],
 
   // nur bei lieferbasierten Arten (Heizöl/Pellets):
@@ -54,6 +79,26 @@ selbst** die Kostenbasis (siehe [Heizöl](../functional/05-heizoel.md)).
   "initial_stock": 2400.0
 }
 ```
+
+**Meter-Topologie (F1006).** Ein Zähler kann **Subzähler** eines anderen sein
+(`parent_meter_id`, Reihenschaltung — sein Verbrauch wird beim Elternzähler
+abgezogen) und/oder **Mitglied einer Gruppe** (`meter_group_id`, fasst mehrere
+Zähler fürs Dashboard zusammen). Regeln: max. eine Subzähler-Ebene (keine
+Ketten/Zyklen); ein Elternzähler mit Subzählern lässt sich nicht löschen, ohne
+die Zuordnung zu lösen. Siehe [Meter-Topologie](../functional/13-meter-topologie.md).
+
+**`external_id` (F1009).** Frei vergebbarer, pro Utility eindeutiger Alias
+(`[A-Za-z0-9_.-]{1,64}`) für die Home-Assistant-Anbindung. `POST /api/ingest`
+akzeptiert ihn anstelle der internen ID. Default `null` = kein Alias.
+
+### Meter-Gruppe (`meter_groups.json`, F1006)
+
+```json
+{ "id": "g_strom_ab12cd34", "name": "NT + HT Strom", "created_at": "2026-06-01" }
+```
+
+Reine Stammdaten (ID + Name). Welche Zähler dazugehören, steht **nicht** hier,
+sondern als `meter_group_id` am jeweiligen Zähler (Single-Source-of-Truth).
 
 ### Device (Gerät innerhalb eines Zählers — Zählertausch)
 
@@ -136,12 +181,11 @@ das Vorzeichen im Saldo ergibt sich aus `kind` (Rückzahlung erhöht den
 Saldo, Nach-/Abschlagszahlung senkt ihn). Nur `*_mit`-Arten tragen
 `new_advance_eur` + `advance_from`; diese Punkte werden in den
 effektiven Abschlagsplan gemischt. Additiv & abwärtskompatibel — fehlt
-das Feld, wird es beim Normalisieren zu `[]` (kein Migrationsschritt,
-Schema bleibt 1.1.0).
+das Feld, wird es beim Normalisieren zu `[]` (kein Migrationsschritt).
 
 ---
 
-## 3. Einstellungen (`settings.json`, 50 Schlüssel)
+## 3. Einstellungen (`settings.json`, 40 Schlüssel)
 
 Gruppen (Auswahl der Default-Werte):
 
@@ -178,19 +222,23 @@ Gruppen (Auswahl der Default-Werte):
 `Storage/Migrator` läuft beim ersten App-Start und ist **idempotent**:
 
 - erkennt die `schema_version` in `meta.json`,
-- ergänzt fehlende Verzeichnisse/Dateien (z. B. neue Verbrauchsarten,
-  `reminders.json`),
-- legt **vor** dem ersten Schreiben einen Sicherheits-Snapshot an,
-- hebt die Version schrittweise auf den aktuellen Stand (**1.1.0**).
+- erkennt ein komplett leeres Verzeichnis (`isPristine()`, seit v1.9.1) und
+  legt dann frische Standard-Zähler an (`initFresh()`) statt blind zu migrieren,
+- ergänzt fehlende Verzeichnisse/Dateien (neue Verbrauchsarten,
+  `reminders.json`, `meter_groups.json`) und neue Zähler-Felder additiv
+  (`parent_meter_id`/`meter_group_id` in 1.2.0, `external_id` in 1.3.0),
+- hebt die Version schrittweise auf den aktuellen Stand (**1.3.0**).
 
-Die Demo-Daten tragen seit **v1.4.4** `schema_version: 1.1.0` und
-enthalten alle in 1.1.0 erwarteten Dateien (inkl. `reminders.json`
-sowie der Verzeichnisse für Fernwärme/Heizöl/Pellets). Dadurch startet
-eine Demo-Instanz **ohne** Migrationslauf und ist konsistent mit dem
-realen Datenstand. *(Bis v1.4.3 trugen die Demo-Daten bewusst
-`1.0.0`, um den Migrationspfad bei jedem Start mitzutesten — dieser
-Pfad wird seit v1.4.4 stattdessen in der CI über einen separaten
-Migrations-Smoke geprüft.)* Ein Downgrade wird nicht unterstützt.
+Jede Stufe hat ein eigenes `needsVXXXUpgrade()` + `upgradeToVXXX()`-Paar und
+ist für sich idempotent (wiederholtes Ausführen ist ein No-Op).
+
+Die mitgelieferten Demo-Daten tragen `schema_version: 1.1.0` und werden
+beim ersten Start additiv auf den aktuellen Stand (1.3.0) migriert —
+dabei kommen `meter_groups.json` je Utility (1.2.0) und das Zähler-Feld
+`external_id` (1.3.0) hinzu, ohne bestehende Werte anzutasten. Der
+Migrationspfad (1.0.0 → aktuelles Schema) wird zusätzlich in der CI über
+einen separaten Migrations-Smoke geprüft. Ein Downgrade wird nicht
+unterstützt.
 
 ---
 

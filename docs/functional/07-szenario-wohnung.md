@@ -108,4 +108,13 @@ zeigt nur den Netto-Bezug). Folgen für die App:
 
 ---
 
+## Weiterführend
+
+- **Werte automatisch erfassen** statt monatlich abtippen? Wenn du Home
+  Assistant nutzt: [Home-Assistant-Anbindung](../HOME-ASSISTANT.md).
+- **Mehr Praxisfälle** (u. a. WG mit geteilten Zählern):
+  [Anwendungsbeispiele & Use-Cases](../USE-CASES.md).
+
+---
+
 [← Holzpellets](06-pellets.md) · [Szenario Eigenheim →](08-szenario-eigenheim.md)

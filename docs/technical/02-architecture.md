@@ -18,7 +18,7 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
                           |
                           v
   +-----------------------------------------------------------+
-  |  Controllers (18)        |  Services (22)                  |
+  |  Controllers (20)        |  Services (24)                  |
   |  HTTP rein / raus        |  Fachlogik, kein HTTP           |
   +-----------------------------------------------------------+
                           |
@@ -31,7 +31,7 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
 
 Es gibt **keine** Datenbank. Persistenz ist eine Menge von JSON-Dateien
 unter `data/`, geschrieben mit `LOCK_EX` (exklusiver Lock), damit
-parallele Requests sich nicht zerstören. Schema-Stand: **1.1.0**.
+parallele Requests sich nicht zerstören. Schema-Stand: **1.3.0**.
 
 ---
 
@@ -52,16 +52,16 @@ energietracker/
 │       ├── state.js        # Utilities-/Settings-Cache
 │       ├── lib/            # sidebar, theme, format
 │       ├── components/     # chart, modal, toast
-│       └── views/          # 11 Ansichten (s. UI-Referenz)
+│       └── views/          # 12 Ansichten (s. UI-Referenz)
 ├── src/
 │   ├── bootstrap.php       # DI-Container + Routen-Tabelle
 │   ├── Config/Utilities.php# Verbrauchsarten — single source of truth
 │   ├── Http/               # Router, Request, Response, ErrorHandler
 │   ├── Storage/            # JsonStore, Migrator
-│   ├── Services/ (22)      # Fachlogik (+ Pdf/PdfWriter)
-│   └── Controllers/ (18)   # je Klasse eine Datei (PSR-1)
+│   ├── Services/ (24)      # Fachlogik (+ Pdf/PdfWriter)
+│   └── Controllers/ (20)   # je Klasse eine Datei (PSR-1)
 ├── data/                   # Laufzeitdaten (nicht im VCS)
-├── demo-data/              # vollständiger Beispieldatensatz (6 Arten)
+├── demo-data/              # vollständiger Beispieldatensatz (8 Arten)
 ├── docs/                   # dieses Kompendium
 ├── tests/                  # Test-Harnesses
 └── scripts/init_data.py    # optionaler Excel-Import
@@ -97,15 +97,15 @@ Daraus ergeben sich zwei Berechnungspfade (siehe
 
 ---
 
-## 4. Services (`src/Services/`, 22 + `Pdf\PdfWriter`)
+## 4. Services (`src/Services/`, 24 + `Pdf\PdfWriter`)
 
 Jeder Service ist `final`, hat einen dependency-injizierten Konstruktor
 und kennt **kein HTTP**.
 
 | Service | Verantwortung |
 |---|---|
-| `SettingsService` | Settings lesen/mergen, Typ-Casts; 50 Schlüssel |
-| `MeterService` | CRUD Zähler/Tanks, Gerätetausch (Devices) |
+| `SettingsService` | Settings lesen/mergen, Typ-Casts; 40 Schlüssel |
+| `MeterService` | CRUD Zähler/Tanks, Gerätetausch, Topologie (Subzähler/Gruppen, F1006) + `external_id`-Alias (F1009) |
 | `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device |
 | `ContractService` | CRUD Verträge, strikte Validierung, Stichtag-Lookup |
 | `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo, Wetterbereinigung; delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService` |
@@ -126,10 +126,15 @@ und kennt **kein HTTP**.
 | `ReadingImportService` | CSV-Bulk-Import von Ablesungen |
 | `CsvExportService` | tabellarischer Export (inkl. Lieferungen) |
 | `DiagnosticsService` | Systemstatus, Schreibrechte, Datenzählung |
+| `HealthCheckService` | `/api/health` (Version, Schema, Schreibrechte, Migrationen) — N1003 |
+| `DemoService` | Ein-Klick-Demo-Import über den Restore-Pfad — F1007 |
+| `PvSummaryService` / `StromSaldoService` | PV-Eigenverbrauch/Autarkie bzw. Strom-Saldo — F1005 |
+| `AuthService` | opt-in API-Token (Hash in `data/auth.json`, `hash_equals`) — F1009 |
+| `IngestService` | idempotenter Push-Eingang (`/api/ingest`, upsert-by-date) — F1009 |
 
 ---
 
-## 5. Controllers (`src/Controllers/`, 18)
+## 5. Controllers (`src/Controllers/`, 20)
 
 Jeder Controller ist `final`, eine Klasse pro Datei. Methoden geben
 `never` zurück und antworten direkt über `Response::json()` /
@@ -141,7 +146,12 @@ Jeder Controller ist `final`, eine Klasse pro Datei. Methoden geben
 `BenchmarkController`, `TariffComparisonController`,
 `RecommendationController`, `ReminderController`, `ReportController`,
 `ExportController`, `BackupController`, `MigrationController`,
-`DiagnosticsController`.
+`DiagnosticsController`, `HealthController`, `DemoController`,
+`PvSummaryController`, `StromSaldoController`, `AuthController`,
+`IngestController`.
+
+*(Hinweis: Gruppen-Endpoints aus F1006 liegen im `MeterController`,
+Auth/Ingest aus F1009 in `AuthController`/`IngestController`.)*
 
 Die vollständige Routen-Liste steht in der
 [API-Referenz](03-api-reference.md).

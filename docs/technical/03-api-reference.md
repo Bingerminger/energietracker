@@ -10,7 +10,12 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 ```
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
-`heizoel`, `pellets`. Stand: **53 Routen**, v1.4.2.
+`heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`. Stand: **68 Routen**,
+v1.9.2.
+
+> Eine ausführliche Variante dieser Referenz (mit Request-/Response-Beispielen
+> für **alle** Endpunkte) liegt zusätzlich unter [`docs/API.md`](../API.md).
+> Dieses Dokument ist die kompakte Übersicht im Kompendium.
 
 ---
 
@@ -18,6 +23,7 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 | Methode | Pfad | Zweck |
 |---|---|---|
+| GET | `/api/health` | Health-Check (Version, Schema, Schreibrechte, Migrationen) |
 | GET | `/api/diagnostics` | Systemstatus, Schreibrechte, Schema |
 | GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration |
 | GET | `/api/settings` | Einstellungen |
@@ -33,6 +39,11 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 | PATCH | `/api/utility/{u}/meters/{id}` | ändern |
 | DELETE | `/api/utility/{u}/meters/{id}` | löschen |
 | POST | `/api/utility/{u}/meters/{id}/replace-device` | Zählertausch |
+| GET | `/api/utility/{u}/meter-groups` | Zählergruppen (F1006) |
+| POST | `/api/utility/{u}/meter-groups` | Gruppe anlegen |
+| POST | `/api/utility/{u}/meter-groups/merge` | Merge-Wizard: mehrere Zähler bündeln |
+| PATCH | `/api/utility/{u}/meter-groups/{groupId}` | Gruppe umbenennen |
+| DELETE | `/api/utility/{u}/meter-groups/{groupId}` | Gruppe auflösen (Mitglieder bleiben) |
 | GET | `/api/utility/{u}/readings` | Ablesungen |
 | POST | `/api/utility/{u}/readings` | anlegen |
 | PATCH | `/api/utility/{u}/readings/{id}` | ändern |
@@ -72,6 +83,14 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 | POST | `/api/backup/snapshot` | Snapshot ablegen |
 | POST | `/api/migration/v09/preview` | v0.9.0-Backup analysieren |
 | POST | `/api/migration/v09/import` | v0.9.0-Backup übernehmen |
+| GET | `/api/strom-saldo` | Strom-Saldo (Bezug − PV-Einspeisung), F1005 |
+| GET | `/api/pv-summary` | PV-Eigenverbrauch + Autarkiequote, F1005 |
+| GET | `/api/demo/status` | Demo-Daten verfügbar/Store leer? (F1007) |
+| POST | `/api/demo/import` | Demo-Datensatz laden (F1007) |
+| GET | `/api/auth/token` | API-Token-Status (nie der Token selbst), F1009 |
+| POST | `/api/auth/token` | Token erzeugen (einmalig Klartext), F1009 |
+| DELETE | `/api/auth/token` | Token widerrufen → API wieder offen, F1009 |
+| **POST** | **`/api/ingest`** | **idempotenter Zählerstand-Push für Home Assistant (F1009)** |
 
 ---
 
@@ -198,6 +217,47 @@ achsenlose Mini-Diagramm — stattdessen eine Kennzahlen-Leiste
 (Jahresverbrauch, Ø/Monat, Gesamtkosten, stärkster/schwächster Monat)
 plus die Monatstabelle. Erzeugt vom eingebauten, abhängigkeitsfreien
 PDF-Writer.
+
+### `POST /api/ingest` *(F1009, v1.9.0 — Home Assistant)*
+
+Idempotenter Push-Eingang für externe Datenlieferanten. **Upsert pro
+(Zähler, Datum):** ein erneuter Push am selben Tag aktualisiert den Wert,
+statt eine zweite Ablesung anzulegen.
+
+```jsonc
+// Header (nur falls ein Token gesetzt ist): Authorization: Bearer <token>
+{
+  "utility": "strom",
+  "meter":   "stromzaehler_haus",  // external_id-Alias ODER interne Meter-ID
+  "value":   12345.6,              // alias: "counter"
+  "date":    "2026-06-02"          // optional, Default heute; ISO-Stempel wird gekürzt
+}
+```
+
+Antwort `201` (neu) bzw. `200` (aktualisiert) mit
+`{ status: "created"|"updated", utility, meter_id, date, counter, reading_id }`.
+Fehler: `401` (Token nötig/falsch), `400` (unbekannte Utility/Zähler, kein
+Zahlenwert, Delivery-Utility Heizöl/Pellets).
+
+### `GET|POST|DELETE /api/auth/token` *(F1009)*
+
+Verwaltung des **opt-in**-API-Tokens. Ohne Token ist die API offen (LAN-Modus);
+sobald ein Token existiert, verlangt `/api/ingest` einen Bearer-Header. Der
+Token wird nur als SHA-256-Hash in `data/auth.json` gespeichert und beim
+Erzeugen **einmalig** im Klartext zurückgegeben.
+
+> Vollständige Beispiele zu Auth + Ingest und die Schritt-für-Schritt-Einrichtung
+> in Home Assistant: [`docs/HOME-ASSISTANT.md`](../HOME-ASSISTANT.md) und
+> [`docs/API.md`](../API.md).
+
+### Zählergruppen *(F1006, v1.8.0)*
+
+`GET/POST /api/utility/{u}/meter-groups`, `PATCH/DELETE …/{groupId}` sowie
+`POST …/meter-groups/merge` (Merge-Wizard). Mitgliedschaft wird über
+`meter_group_id` am Zähler gesetzt, nicht in der Gruppe. Subzähler werden über
+`parent_meter_id` am Zähler verknüpft (siehe
+[Datenmodell](04-data-model.md) und
+[Meter-Topologie](../functional/13-meter-topologie.md)).
 
 ---
 

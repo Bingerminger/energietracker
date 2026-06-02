@@ -105,10 +105,11 @@ Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung.
 
 ## 10. Einstellungen
 
-Alle 50 Schlüssel gruppiert: Umrechnung & HGT, **Abrechnungszyklus
+Alle 40 Schlüssel gruppiert: Umrechnung & HGT, **Abrechnungszyklus
 (TT-MM, Fix v1.4.2)**, Gebäude & Effizienz, Heizwerte, Prognosemodell,
-aktive Verbrauchsarten, **CSV-Export aller Arten (Fix v1.4.2)**,
-Backup & Migration.
+aktive Verbrauchsarten, CSV-Export aller Arten, Backup & Migration,
+Demo-Daten-Import (F1007) und die **🏠 Home-Assistant-Anbindung (F1009)**
+— API-Token verwalten, Zähler-Aliase pflegen, fertiges HA-YAML kopieren.
 
 ![Einstellungen](mockups/einstellungen.svg)
 
@@ -120,7 +121,26 @@ Zähler-/Geräteverwaltung inkl. Zählertausch (Device-Kette) und
 Vertragspflege (Arbeits-/Grundpreis-Historie, Abschläge, Boni). Bei
 Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant.
 
+**Meter-Topologie (F1006):** Subzähler werden unter ihrem Elternzähler
+eingerückt dargestellt, Gruppen als aufklappbarer Sammeleintrag; ein
+**Merge-Wizard** führt mehrere bestehende Zähler zu einer Gruppe
+zusammen. Pro Zähler lässt sich hier auch der HA-Alias (`external_id`)
+setzen.
+
 ![Zähler & Verträge](mockups/zaehler-vertraege.svg)
+
+---
+
+## 12. PV — Einspeisung & Erzeugung
+
+Eigene Ansicht für Photovoltaik (F1005): Einspeisezähler (Vergütung als
+Erlös), Erzeugungszähler, **Strom-Saldo** (Netzbezug − Einspeisung) und
+**Autarkiequote/Eigenverbrauch**. PV-Verbrauchsarten haben keinen
+Default-Zähler — wer keine Anlage hat, sieht keine Phantom-Zähler.
+
+*(Für diese Ansicht liegt noch kein schematisches Mockup vor — der Aufbau
+entspricht der kumulativen Verbrauchsansicht, ergänzt um Strom-Saldo- und
+Autarkie-Kennzahlen. Fachliche Details: [PV](../functional/12-pv.md).)*
 
 ---
 

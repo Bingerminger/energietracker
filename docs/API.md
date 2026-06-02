@@ -3,8 +3,8 @@
 > **Hinweis:** Die kanonische, bei jedem Release gepflegte
 > API-Referenz ist das Kompendium unter
 > [`docs/technical/03-api-reference.md`](technical/03-api-reference.md).
-> Dieses ältere Top-Level-Dokument wird nur noch faktisch
-> nachgeführt (Stand: v1.4.4).
+> Dieses Top-Level-Dokument enthält die ausführlichen Request-/Response-
+> Beispiele und wird faktisch nachgeführt (Stand: v1.9.2).
 
 REST-API über einen einzigen Entry-Point: `api.php`. Pfade haben das
 Präfix `/api/`, das nach dem Script-Name folgt:
@@ -391,8 +391,9 @@ datum;zaehlerstand;notiz;geschaetzt
 
 `errors` enthält pro nicht verarbeitbarer Zeile eine deutschsprachige
 Meldung mit Zeilennummer. Die Importlogik steckt im quell-agnostischen
-`ReadingImportService` — eine künftige Smart-Meter-Anbindung kann
-denselben Kern (`importRows()`) ohne CSV-Parsing wiederverwenden.
+`ReadingImportService` — externe Datenquellen wie die
+[Home-Assistant-Anbindung](HOME-ASSISTANT.md) (`POST /api/ingest`) nutzen
+denselben Kern ohne CSV-Parsing wieder.
 
 ---
 

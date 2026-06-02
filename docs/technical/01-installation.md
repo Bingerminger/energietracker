@@ -46,15 +46,19 @@ php -S 127.0.0.1:8080
 ```
 
 Beim ersten Aufruf legt der **Migrator** automatisch die Datenstruktur
-unter `data/` an und hebt sie auf das aktuelle Schema (**1.1.0**). Es ist
-kein manueller Schritt nötig.
+unter `data/` an und hebt sie auf das aktuelle Schema (**1.3.0**). Es ist
+kein manueller Schritt nötig. Ein komplett leeres Verzeichnis wird seit
+v1.9.1 als Erststart erkannt und mit Standard-Zählern (Gas/Strom/Wasser)
+initialisiert.
 
 ### Demo-Daten laden
 
 Das Repository enthält unter `demo-data/` einen vollständigen
-Beispieldatensatz für **alle sechs** Verbrauchsarten (Gas, Strom,
-Wasser, Fernwärme, Heizöl, Pellets), inklusive realistischer
-Tankgrößen und Lieferkadenz. Zum Ausprobieren:
+Beispieldatensatz für **alle acht** Verbrauchsarten (Gas, Strom,
+Wasser, Fernwärme, Heizöl, Pellets, PV-Einspeisung, PV-Erzeugung),
+inklusive realistischer Tankgrößen und Lieferkadenz. Am bequemsten lädst
+du ihn direkt in der App über **Einstellungen → Demo-Daten laden**
+(F1007). Alternativ per Dateisystem:
 
 ```bash
 # Datenverzeichnis durch die Demo-Daten ersetzen (Vorsicht: überschreibt!)
@@ -62,9 +66,9 @@ rm -rf data && cp -r demo-data data
 php -S 127.0.0.1:8080
 ```
 
-Die Demo-Daten tragen seit v1.4.4 bereits `schema_version: 1.1.0` und
-enthalten alle erwarteten Dateien — eine Demo-Instanz startet daher
-**ohne** Migrationslauf. Der Migrationspfad (1.0.0 → 1.1.0) wird
+Die Demo-Daten tragen `schema_version: 1.1.0` und werden beim ersten Start
+automatisch auf den aktuellen Stand migriert (additiv, verlustfrei). Der
+Migrationspfad (1.0.0 → aktuelles Schema) wird
 weiterhin abgesichert, jetzt über einen separaten Migrations-Smoke in
 der CI statt über den Demo-Start.
 

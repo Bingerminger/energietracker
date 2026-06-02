@@ -1,8 +1,11 @@
 # Energietracker — Kompendium
 
-> Vollständige Dokumentation zu Energietracker **v1.9.1**.
+> Vollständige Dokumentation zu Energietracker **v1.9.2**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit Mockups aller Ansichten.
+>
+> **Neu hier?** → Direkt zu den [Ersten Schritten](ERSTE-SCHRITTE.md) —
+> ein durchgehendes Beispiel von der Installation bis zur ersten Prognose.
 
 Energietracker ist eine lokal betriebene, abhängigkeitsfreie Web-App zur
 Erfassung und Analyse des häuslichen Energieverbrauchs über bis zu acht
@@ -21,7 +24,7 @@ auf dem eigenen Rechner.
 |---|---|
 | [Installation & Betrieb](technical/01-installation.md) | Voraussetzungen, Einrichtung, Webserver, Update, Backup |
 | [Architektur](technical/02-architecture.md) | Schichtenmodell, Services, Controller, Datenfluss |
-| [API-Referenz](technical/03-api-reference.md) | Alle 53 Endpunkte mit Beispielen |
+| [API-Referenz](technical/03-api-reference.md) | Alle 68 Endpunkte mit Beispielen |
 | [Datenmodell](technical/04-data-model.md) | JSON-Schemata, Speicherung, Schema-Migration |
 | [Tests](technical/05-testing.md) | Backend-Shape- und Browser-Render-Harness |
 | [Release-Prozess](technical/06-release-process.md) | Versionierung, CHANGELOG, Doku-Pflege |
@@ -45,21 +48,42 @@ auf dem eigenen Rechner.
 | [Sonderzahlungen (F1003)](functional/10-sonderzahlungen.md) | Rück-/Nachzahlung, Abschlagszahlung, Saldo-Wirkung |
 | [Zählerstand-Erfassung (F1004)](functional/11-zaehlerstaende.md) | Zentrale mobile Ablesungs-Ansicht (Gas/Strom/Wasser/Fernwärme) |
 | [PV-Einspeisung & Erzeugung (F1005)](functional/12-pv.md) | Einspeisezähler, Erzeugungszähler, Strom-Saldo, Autarkiequote |
+| [Meter-Topologie (F1006)](functional/13-meter-topologie.md) | Subzähler (Reihenschaltung) & Zählergruppen — Differenzverbrauch und Dashboard-Bündelung |
+
+### 🚀 Einstieg & Praxis — *für neue Nutzer*
+
+| Dokument | Inhalt |
+|---|---|
+| [Erste Schritte](ERSTE-SCHRITTE.md) | Durchgehendes Beispiel: Installation → erster Zähler → erste Ablesung → erster Vertrag → erste Prognose |
+| [Home-Assistant-Anbindung (F1009)](HOME-ASSISTANT.md) | Zählerstände automatisch aus HA pushen: Token, Zähler-Alias, REST-Command, Use-Cases |
+| [Anwendungsbeispiele & Use-Cases](USE-CASES.md) | Vier durchgerechnete Praxisfälle: WG mit geteilten Zählern, Smart-Home-Vollausbau, PV-Haushalt, Vermieter mit mehreren Einheiten |
 
 ### 🖥️ UI-Referenz
 
 | Dokument | Inhalt |
 |---|---|
-| [Alle Ansichten](ui/01-views.md) | Jede der 11 Views erklärt, mit Mockup |
+| [Alle Ansichten](ui/01-views.md) | Jede der 12 Views erklärt, mit Mockup |
 
 ---
 
 ## Schnelleinstieg nach Rolle
 
+- **„Ich bin neu und will einfach loslegen."**
+  → [Erste Schritte](ERSTE-SCHRITTE.md) (geführtes Beispiel von A bis Z)
+
 - **„Ich will es nur installieren und benutzen."**
   → [Installation](technical/01-installation.md) →
   [Szenario Wohnung](functional/07-szenario-wohnung.md) *oder*
   [Szenario Eigenheim](functional/08-szenario-eigenheim.md)
+
+- **„Mein konkreter Fall ist speziell (WG, PV, Vermieter, Smart Home)."**
+  → [Anwendungsbeispiele & Use-Cases](USE-CASES.md)
+
+- **„Ich nutze Home Assistant und will die Zähler automatisch füttern."**
+  → [Home-Assistant-Anbindung](HOME-ASSISTANT.md)
+
+- **„Ich habe Haupt- und Unterzähler oder will Zähler bündeln."**
+  → [Meter-Topologie](functional/13-meter-topologie.md)
 
 - **„Ich will verstehen, wie die Prognose rechnet."**
   → [Grundlagen & Methodik](functional/00-overview.md)
@@ -85,6 +109,6 @@ auf dem eigenen Rechner.
   Gedächtnis notiert.
 - Pfadangaben sind relativ zum Projektwurzelverzeichnis.
 
-Versionsstand dieses Kompendiums: **v1.9.1** (2026-06-01). Die Doku wird
+Versionsstand dieses Kompendiums: **v1.9.2** (2026-06-02). Die Doku wird
 ab v1.4.2 bei **jedem** Release synchron mitgeführt — siehe
 [Release-Prozess](technical/06-release-process.md).

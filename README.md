@@ -2,7 +2,7 @@
 
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.9.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.2-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -27,7 +27,7 @@ End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v1.9.1 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.9.2 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -98,7 +98,7 @@ PDF-Jahresbericht.
 
 - **Heizgradtage** (HGT) je Monat gegen die hinterlegte Basistemperatur
   (Default 15 °C, in Einstellungen anpassbar).
-- **Vier Regressionsmodelle** auf HGT vs. Verbrauch:
+- **Fünf Regressionsmodelle** auf HGT vs. Verbrauch:
   - *Linear*: klassische OLS-Anpassung, schnell und robust für gleichmäßig
     geheizte Haushalte
   - *Polynomial Grad 2*: erfasst nicht-lineare Effekte (z.B. Sommer-Grundlast
@@ -106,6 +106,7 @@ PDF-Jahresbericht.
   - *Robust (Huber)*: iterativ neu-gewichtete OLS, ignoriert Ausreißer
   - *Segmentiert*: zwei separate lineare Anpassungen oberhalb/unterhalb eines
     Schwellwerts (typisch HGT = 50), unterscheidet Heizperiode von Sommerlast
+  - *Sigmoid*: S-Kurve für Haushalte mit ausgeprägter Sättigung bei hohen HGT
 - **Anomalien**: Monate, in denen der Verbrauch mehr als 2σ (anpassbar) vom
   Modell-Erwartungswert abweicht.
 - **Forecast** über 12 Monate als R²-gewichtete Mischung aus
@@ -152,6 +153,20 @@ PDF-Jahresbericht.
 - **Aktivierbare Verbrauchsarten**: nicht genutzte Arten ausblenden,
   ohne Daten zu verlieren.
 
+### Zähler-Topologie & Automatisierung (v1.8.0 / v1.9.0)
+
+- **Subzähler / Reihenschaltung (F1006):** Ein Zähler kann hinter einem
+  anderen hängen (z. B. Wärmepumpe hinter Haushaltsstrom). Sein Verbrauch
+  wird vom Elternzähler abgezogen — keine Doppelzählung in der Summe.
+- **Zählergruppen (F1006):** Mehrere Zähler (NT + HT Strom, mehrere
+  Wallboxen) lassen sich fürs Dashboard zu einer Gruppe bündeln; ein
+  **Merge-Wizard** führt bestehende Zähler zusammen. Siehe
+  [Meter-Topologie](docs/functional/13-meter-topologie.md).
+- **Home-Assistant-Anbindung (F1009):** Home Assistant pusht Zählerstände
+  automatisch per `POST /api/ingest` (idempotent, Upsert pro Tag).
+  Optionaler API-Token (opt-in) und frei vergebbare Zähler-Aliase. Komplette
+  Anleitung mit Use-Cases: [Home Assistant](docs/HOME-ASSISTANT.md).
+
 ### Operativ
 
 - **Backup & Restore** über die UI: vollständiges JSON-Backup im neuen
@@ -167,9 +182,10 @@ PDF-Jahresbericht.
   in `localStorage`.
 - **System-Diagnose** unter Einstellungen: PHP-Version, Datenverzeichnis,
   Schreibrechte, Schema-Version, Anzahl Zähler/Ablesungen pro Utility.
-- **CI-Pipeline** (GitHub Actions, seit v1.4.4): PHP-Syntax-Lint aller
-  Dateien plus Frontend-API-Shape- und Browser-Render-Tests gegen einen
-  echten Backend-Server bei jedem Push/PR auf `main`.
+- **CI-Pipeline** (GitHub Actions): vier Jobs bei jedem Push/PR auf `main` —
+  PHP-Syntax-Lint, PHPUnit-Service-Suite, Frontend-API-Shape + Browser-Render
+  gegen einen echten Backend-Server sowie ein Docker-Image-Smoke. Versions-Tags
+  veröffentlichen automatisch das Multi-Arch-Image (amd64 + arm64) nach GHCR.
 
 ---
 
@@ -178,8 +194,12 @@ PDF-Jahresbericht.
 Die vollständige Doku liegt als **Kompendium** unter
 [`docs/`](docs/README.md) — getrennt in einen technischen und einen
 fachlichen Teil plus eine UI-Referenz mit schematischen Mockups
-**aller 11 Ansichten**:
+**aller 12 Ansichten**:
 
+- 🚀 **Neu hier?** → [Erste Schritte](docs/ERSTE-SCHRITTE.md) (geführtes
+  Beispiel von der Installation bis zur ersten Prognose) ·
+  [Anwendungsbeispiele & Use-Cases](docs/USE-CASES.md) (WG, Smart Home, PV,
+  Vermieter)
 - 🔧 **Technisch:** [Installation](docs/technical/01-installation.md) ·
   [Architektur](docs/technical/02-architecture.md) ·
   [API](docs/technical/03-api-reference.md) ·
@@ -244,7 +264,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:1.9.1
+  ghcr.io/bingerminger/energietracker:1.9.2
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -421,7 +441,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.9.1"
+├── VERSION                  ← „1.9.2"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE
@@ -438,8 +458,8 @@ energietracker/
 │   ├── Storage/
 │   │   ├── JsonStore.php    ← LOCK_EX writes, atomic reads
 │   │   └── Migrator.php     ← Bootstrap-Logik für leeres `data/`
-│   ├── Services/            ← 22 Services (Consumption, DeliveryConsumption, Forecast, …)
-│   └── Controllers/         ← 18 Controllers, 1 Klasse pro Datei
+│   ├── Services/            ← 24 Services (Consumption, DeliveryConsumption, Forecast, Auth, Ingest, …)
+│   └── Controllers/         ← 20 Controllers, 1 Klasse pro Datei
 ├── public/
 │   ├── css/                 ← tokens.css + app.css + components.css
 │   └── js/                  ← Vanilla-JS SPA

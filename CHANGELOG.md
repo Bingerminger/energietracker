@@ -6,6 +6,45 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.9.2] — 2026-06-02 — Dokumentations-Review + Roadmap-Neusortierung
+
+PATCH-Release. **Nur Dokumentation und Roadmap** — kein Anwendungscode, keine
+Schema- oder Verhaltensänderung.
+
+### Roadmap
+
+- **Smart-Meter-Major (v3.0.0) gestrichen.** Echtes Metering (Smart-Meter-
+  Auslesung) wird bewusst an Home Assistant delegiert (F1009-Ingest); der
+  Energietracker bleibt die schlanke Vertrags-/Kosten-/Prognose-Oberfläche.
+- **N1011** (API-Versionierung) aus der festen Reihenfolge in den
+  „Bedarfsgetrieben"-Block verschoben (war nur Smart-Meter-Vorbereitung).
+- **Neue strategische Leitlinie:** Ausbau der Home-Assistant-Integration
+  (als bedarfsgetriebenes F1010+ skizziert). Geplante Reihenfolge endet bei
+  EN-Lokalisierung (v2.0.0); nächster Slot unverändert F1008.
+
+### Dokumentation
+
+- **Vollständiger Faktenabgleich** aller Docs auf den Code-Stand: Schema 1.3.0,
+  68 API-Routen, 24 Services / 20 Controller, 12 Views, 40 Settings-Schlüssel,
+  Testzahlen (86/274 PHPUnit, 20/20 + 36/36 Frontend). Veraltete Smart-Meter-
+  Verweise bereinigt; Schema-Historie ergänzt.
+- **Neue Features dokumentiert:** Meter-Topologie (F1006) und
+  Home-Assistant-Anbindung (F1009) durchgängig in Datenmodell, API-Referenz,
+  Architektur, UI-Referenz und README.
+- **Neue, nutzerorientierte Dokumente:**
+  - `docs/ERSTE-SCHRITTE.md` — geführtes Beispiel von der Installation bis zur
+    ersten Prognose.
+  - `docs/USE-CASES.md` — vier durchgerechnete Praxisfälle: WG mit geteilten
+    Zählern, Smart-Home-Vollausbau, PV-Haushalt mit Wärmepumpe, Vermieter mit
+    mehreren Einheiten.
+  - `docs/functional/13-meter-topologie.md` — Subzähler & Zählergruppen
+    fachlich erklärt.
+- **Verbesserte Struktur & Verlinkung:** Kompendium-Index um Einstiegs- und
+  Praxis-Sektion erweitert, Rollen-Wegweiser ausgebaut, Szenario-Docs mit
+  „Weiterführend"-Verweisen. Alle internen Doku-Links geprüft.
+
+---
+
 ## [1.9.1] — 2026-06-01 — Frisch-Install-Fix + CI-Wartung
 
 PATCH-Release. Keine Schema-Änderung, keine neuen Features.
