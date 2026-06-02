@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-06-02 (synchron mit v1.9.2; Doku-Review + Roadmap-Neusortierung)
-**Aktuelle Baseline:** v1.9.2
+**Stand:** 2026-06-02 (synchron mit v1.9.3; echte UI-Screenshots)
+**Aktuelle Baseline:** v1.9.3
 **Schema:** 1.1.0
 
 ---
@@ -516,6 +516,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-06-01 | v1.9.1 ausgeliefert (PATCH) | Bugfix + CI-Wartung, kein Schema/Feature. (1) `Migrator::isPristine()` erkennt ein komplett leeres Datenverzeichnis → beim Erststart läuft `initFresh()` statt `migrate()`, sodass ein frischer Docker-Container Standard-Zähler (Gas/Strom/Wasser) bekommt statt 0. (2) `ci.yml` setzt `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24` (Node-20-Deprecation der Actions neutralisiert). 5 neue PHPUnit-Tests (86/274). Nächster Slot: F1008. |
 | 2026-06-02 | Smart-Meter gestrichen, Roadmap neu sortiert | Auf User-Entscheidung: echtes Metering (Smart-Meter-Auslesung) wird vollständig an Home Assistant delegiert (F1009-Ingest), daher den geplanten v3.0.0-Major **Smart-Meter** (SML/IEC 62056/Lastgang) komplett entfernt. N1011 (API-Versionierung) war nur „Vorbereitung Smart-Meter" → aus der festen Reihenfolge in den Bedarfsgetrieben-Block verschoben. Neue strategische Leitlinie statt Smart-Meter: Ausbau der HA-Integration (als bedarfsgetriebenes F1010+ skizziert). Geplante Reihenfolge endet damit bei EN-L10n (v2.0.0). Nächster Slot unverändert: F1008. |
 | 2026-06-02 | v1.9.2 ausgeliefert (Doku-PATCH) | Vollständiger Dokumentations-Review (kein Code): Faktenabgleich aller Docs auf Code-Stand (Schema 1.3.0, 68 Routen, 24 Services/20 Controller, 12 Views, 40 Settings, Testzahlen), F1006/F1009 durchgängig dokumentiert, Smart-Meter-Verweise bereinigt. Drei neue nutzerorientierte Dokumente: `ERSTE-SCHRITTE.md`, `USE-CASES.md` (4 Praxisfälle), `functional/13-meter-topologie.md`. Index/Struktur/Verlinkung ausgebaut, alle internen Links geprüft. Nächster Slot: F1008. |
+| 2026-06-02 | v1.9.3 ausgeliefert (Doku-PATCH) | UI-Referenz auf **echte Screenshots** umgestellt (Playwright-Aufnahmen der laufenden App mit Demo-Daten): 11 handgezeichnete SVG-Mockups durch 13 echte PNGs in `docs/ui/screenshots/` ersetzt, `ui/01-views.md` überarbeitet (alle 12 Views inkl. PV + Topologie-Hinweis), Mockup-Disclaimer projektweit entfernt. Nächster Slot: F1008. |
 
 ---
 

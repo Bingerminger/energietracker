@@ -32,3 +32,6 @@ venv/
 ## PHPUnit
 .phpunit.cache/
 .phpunit.result.cache
+
+## Playwright-MCP — temporäre Snapshot-/Screenshot-Artefakte
+.playwright-mcp/

@@ -2,7 +2,7 @@
 
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-1.9.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.9.3-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
@@ -27,7 +27,7 @@ End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v1.9.2 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v1.9.3 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -193,8 +193,8 @@ PDF-Jahresbericht.
 
 Die vollständige Doku liegt als **Kompendium** unter
 [`docs/`](docs/README.md) — getrennt in einen technischen und einen
-fachlichen Teil plus eine UI-Referenz mit schematischen Mockups
-**aller 12 Ansichten**:
+fachlichen Teil plus eine UI-Referenz mit **echten Screenshots aller 12
+Ansichten**:
 
 - 🚀 **Neu hier?** → [Erste Schritte](docs/ERSTE-SCHRITTE.md) (geführtes
   Beispiel von der Installation bis zur ersten Prognose) ·
@@ -217,10 +217,9 @@ fachlichen Teil plus eine UI-Referenz mit schematischen Mockups
   [Glossar](docs/functional/09-glossar.md)
 - 🖥️ **UI-Referenz:** [Alle Ansichten](docs/ui/01-views.md)
 
-> Die Bilder im Kompendium sind **schematische SVG-Mockups**, keine
-> echten Pixel-Screenshots — sie bilden Layout und Farblogik korrekt
-> ab. Echte Screenshots lassen sich lokal nach Anleitung in der
-> [Installation](docs/technical/01-installation.md) erstellen.
+> Die Bilder in der [UI-Referenz](docs/ui/01-views.md) sind **echte
+> Screenshots** der laufenden App mit dem mitgelieferten Demo-Datensatz
+> (Stand v1.9.2).
 
 ---
 
@@ -264,7 +263,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:1.9.2
+  ghcr.io/bingerminger/energietracker:1.9.3
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -441,7 +440,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „1.9.2"
+├── VERSION                  ← „1.9.3"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE
@@ -449,7 +448,7 @@ energietracker/
 │   ├── API.md               ← REST-Endpoint-Referenz mit Beispielen
 │   ├── ARCHITECTURE.md      ← Service-Map, Datenmodell-Details, Berechnungen
 │   ├── MIGRATION-FROM-V090.md
-│   └── screenshots/         ← SVG-Mockups (durch echte Screenshots zu ersetzen)
+│   └── screenshots/         ← echte PNG-Screenshots aller Views
 ├── src/                     ← PHP backend
 │   ├── bootstrap.php        ← App-Container, Routing
 │   ├── Config/

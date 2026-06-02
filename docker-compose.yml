@@ -1,4 +1,4 @@
-# Energietracker — Docker-Quickstart (N1005, v1.9.2).
+# Energietracker — Docker-Quickstart (N1005, v1.9.3).
 #
 #   docker compose up -d        → http://localhost:8080
 #
@@ -6,7 +6,7 @@
 # Bauen die `image:`-Zeile auskommentieren und `build: .` aktivieren.
 services:
   energietracker:
-    image: ghcr.io/bingerminger/energietracker:1.9.2
+    image: ghcr.io/bingerminger/energietracker:1.9.3
     # build: .
     container_name: energietracker
     restart: unless-stopped

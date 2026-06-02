@@ -6,6 +6,28 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [1.9.3] — 2026-06-02 — Echte UI-Screenshots statt SVG-Mockups
+
+PATCH-Release. **Nur Dokumentation** — kein Anwendungscode.
+
+### Changed
+
+- **UI-Referenz mit echten Screenshots.** Die handgezeichneten SVG-Mockups
+  unter `docs/ui/mockups/` wurden durch **echte Bildschirmaufnahmen** der
+  laufenden App (mit Demo-Datensatz, Light-Theme) ersetzt — eine PNG je View
+  unter `docs/ui/screenshots/`. `docs/ui/01-views.md` umfassend überarbeitet:
+  jetzt **alle 12 Ansichten** inkl. der neuen **PV-View** (F1005) und der
+  **Topologie-Hinweise** in der Zähler-View (F1006).
+- Disclaimer „schematische SVG-Mockups" in README und Kompendium-Index durch
+  „echte Screenshots" ersetzt; `docs/screenshots/README.md` zu einer schlanken
+  Anleitung zum Neu-Erzeugen der Screenshots umgeschrieben.
+
+### Removed
+
+- Die 11 SVG-Mockup-Dateien unter `docs/ui/mockups/` (durch echte PNGs ersetzt).
+
+---
+
 ## [1.9.2] — 2026-06-02 — Dokumentations-Review + Roadmap-Neusortierung
 
 PATCH-Release. **Nur Dokumentation und Roadmap** — kein Anwendungscode, keine

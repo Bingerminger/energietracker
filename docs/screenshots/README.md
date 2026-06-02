@@ -1,50 +1,45 @@
 # Screenshots
 
-> **Diese Bilder sind aktuell SVG-Mockups, keine echten Screenshots.**
+Die UI-Referenz ([`docs/ui/01-views.md`](../ui/01-views.md)) zeigt **echte
+Screenshots** der laufenden App. Die Bilddateien liegen unter
+[`docs/ui/screenshots/`](../ui/screenshots/) (eine PNG je View).
 
-Sie zeigen das Layout und die Anordnung der UI-Elemente, sind aber von
-Hand als SVG gezeichnet — sie spiegeln nicht die exakte Pixel-Darstellung
-der laufenden App wider. Wer die App lokal betreibt, sollte sie durch
-echte Screenshots ersetzen.
+> Hinweis: Dieses Verzeichnis (`docs/screenshots/`) enthält nur noch diese
+> Anleitung. Die eigentlichen Bilder liegen bei der UI-Referenz unter
+> `docs/ui/screenshots/`.
 
-## Echte Screenshots erstellen
+## Screenshots neu erzeugen
 
-1. App lokal starten:
+Bei UI-Änderungen die betroffene(n) View(s) neu aufnehmen:
+
+1. **Server mit Demo-Daten starten** (frisches Verzeichnis, damit die Bilder
+   reproduzierbar sind):
    ```bash
-   php -S 127.0.0.1:8080
+   rm -rf /tmp/etshots && cp -r demo-data /tmp/etshots
+   ET_DATA_DIR=/tmp/etshots php -S 127.0.0.1:8910 router.php
    ```
-2. Browser auf <http://127.0.0.1:8080> öffnen, Demo-Daten ggf. laden
-   (siehe README → *Demo-Daten*).
-3. Pro Hauptansicht einen Screenshot anfertigen:
-   - Dashboard → `dashboard.png`
-   - Gas-Ansicht (mit aktivem Vertrag und Saldo-Karte) → `gas-view.png`
-   - Korrelationsanalyse → `analyse.png`
-   - Prognose → `prognose.png`
-   - Migrationsdialog → `migration.png`
-4. PNG-Dateien neben die SVG-Mockups legen. Im README oben die
-   `.svg`-Endung in den Bildreferenzen durch `.png` ersetzen (oder
-   die SVG-Dateien einfach löschen).
+2. **Im Browser** auf <http://127.0.0.1:8910> öffnen. Theme: hell
+   (Topbar-Toggle), Viewport ~1440×900.
+3. **Pro View** den Hash ansteuern und eine **Vollseiten**-Aufnahme machen.
+   Dateinamen exakt wie in `ui/01-views.md` referenziert:
 
-## Aktuelle Mockups
+   | View | Hash | Datei |
+   |---|---|---|
+   | Dashboard | `#/dashboard` | `dashboard.png` |
+   | Zählerstand-Erfassung | `#/zaehlerstaende` | `zaehlerstaende.png` |
+   | Verbrauch kumulativ (Gas) | `#/utility/gas` | `gas-view.png` |
+   | Verbrauch lieferbasiert (Heizöl) | `#/utility/heizoel` | `heizoel-view.png` |
+   | Analyse | `#/analysis` | `analyse.png` |
+   | Prognose | `#/forecast` | `prognose.png` |
+   | Tarifvergleich | `#/tariffs` | `tarifvergleich.png` |
+   | Empfehlungen | `#/recommendations` | `empfehlungen.png` |
+   | Termine | `#/reminders` | `termine.png` |
+   | Temperaturen | `#/temperatures` | `temperaturen.png` |
+   | Einstellungen | `#/settings` | `einstellungen.png` |
+   | Zähler & Verträge | `#/utility/strom/meters` | `zaehler-vertraege.png` |
+   | PV | `#/utility/pv_einspeisung` | `pv.png` |
 
-| Datei | Zeigt |
-|---|---|
-| `dashboard.svg` | 12-Monats-KPIs, Gas- und Strom-Verlaufscharts, letzte Ablesungen |
-| `gas-view.svg` | Gas-Detailseite mit Status-Banner, Jahres-Pills, KPI-Grid, Saldo-Karte aktueller Vertrag und Vertragstabelle |
-| `analyse.svg` | HGT-Korrelation mit allen vier Regressionsmodellen, R²-Vergleichstabelle, Anomalien |
-| `prognose.svg` | 12-Monats-Forecast, Saldo der aktiven Verträge |
-| `migration.svg` | Migrationsdialog für v0.9.0-Backup-Import |
+4. PNGs nach `docs/ui/screenshots/` legen (bestehende ersetzen).
 
-## Anmerkungen zu den Mockups
-
-- Die Werte (Verbrauch, Kosten, Saldo) in den Mockups sind illustrativ.
-  Sie matchen NICHT die Demo-Daten unter `demo-data/`.
-- Der Layout-Aufbau ist akkurat: 220 px linke Sidebar, 48 px Topbar,
-  4-Spalten-KPI-Grid, 4-Spalten-Saldo-Grid (mit Verdict-Box rechts),
-  Vertragstabelle mit den Spalten *Anbieter/Tarif*, *Zeitraum*, *Status*,
-  *Tarif*, *Abschlag*, *Verbraucht*, *Bezahlt*, *Bonus*, *Saldo heute*,
-  *Erw. Saldo*.
-- Die Farbpalette in den SVGs entspricht den CSS-Tokens in
-  `public/css/tokens.css` (orange Gas `#ff7b2e`, mint-grün Strom
-  `#2de8a4`, blau Wasser `#3b82f6`, Akzent-Blau `#4a90e2`, gelb
-  `#f5c842` für Abschlag/Warning, violett `#8b5cf6` für CO₂).
+> Die aktuellen Bilder wurden mit dem mitgelieferten Demo-Datensatz aufgenommen
+> (Stand v1.9.2). Die gezeigten Werte entsprechen also exakt `demo-data/`.

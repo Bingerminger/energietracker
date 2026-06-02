@@ -1,8 +1,8 @@
 # Energietracker — Kompendium
 
-> Vollständige Dokumentation zu Energietracker **v1.9.2**.
+> Vollständige Dokumentation zu Energietracker **v1.9.3**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
-> eine **UI-Referenz** mit Mockups aller Ansichten.
+> eine **UI-Referenz** mit echten Screenshots aller Ansichten.
 >
 > **Neu hier?** → Direkt zu den [Ersten Schritten](ERSTE-SCHRITTE.md) —
 > ein durchgehendes Beispiel von der Installation bis zur ersten Prognose.
@@ -62,7 +62,7 @@ auf dem eigenen Rechner.
 
 | Dokument | Inhalt |
 |---|---|
-| [Alle Ansichten](ui/01-views.md) | Jede der 12 Views erklärt, mit Mockup |
+| [Alle Ansichten](ui/01-views.md) | Jede der 12 Views erklärt, mit echtem Screenshot |
 
 ---
 
@@ -109,6 +109,6 @@ auf dem eigenen Rechner.
   Gedächtnis notiert.
 - Pfadangaben sind relativ zum Projektwurzelverzeichnis.
 
-Versionsstand dieses Kompendiums: **v1.9.2** (2026-06-02). Die Doku wird
+Versionsstand dieses Kompendiums: **v1.9.3** (2026-06-02). Die Doku wird
 ab v1.4.2 bei **jedem** Release synchron mitgeführt — siehe
 [Release-Prozess](technical/06-release-process.md).

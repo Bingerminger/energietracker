@@ -71,8 +71,9 @@ Beispiele aus der Historie:
 5. **Kompendium pflegen** — *ab v1.4.2 verpflichtend bei jedem Release*:
    geänderte Endpunkte → `technical/03-api-reference.md`; geändertes
    Verhalten/Modell → betroffenes `functional/*`; neue/­geänderte View
-   → `ui/01-views.md` + Mockup; Migrationshinweise bei
-   Datenmodell-Änderung in `technical/04-data-model.md`.
+   → `ui/01-views.md` + neuer Screenshot in `ui/screenshots/`;
+   Migrationshinweise bei Datenmodell-Änderung in
+   `technical/04-data-model.md`.
 6. **Tests** grün: `frontend-api-shape` + `browser-render` (inkl.
    Modulgraph-Vorprüfung). Seit v1.4.4 laufen beide plus ein
    PHP-Syntax-Lint automatisch in der CI (`.github/workflows/ci.yml`)
@@ -95,7 +96,7 @@ Extra. Faustregel je Änderungstyp:
 | neuer/geänderter Endpunkt | `technical/03-api-reference.md` |
 | geändertes Berechnungs-/Datenmodell | passendes `functional/0X-*.md` + ggf. `technical/04-data-model.md` |
 | neue Verbrauchsart | neues `functional/0X-*.md`, Index, Architektur |
-| neue/­geänderte View | `ui/01-views.md` + Mockup unter `ui/mockups/` |
+| neue/­geänderte View | `ui/01-views.md` + Screenshot unter `ui/screenshots/` (echte Aufnahme mit Demo-Daten) |
 | neue Lesson Learned | hier in diesem Dokument |
 
 Inhalte des Produkts (Code/Doku) werden nur geändert, wenn der Nutzer
