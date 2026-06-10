@@ -6,6 +6,26 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.0.1] — 2026-06-10 — Bugfix: Zählergruppen im Dashboard
+
+PATCH-Release. Behebt einen seit F1006 (v1.8.0) bestehenden Fehler.
+
+### Fixed
+
+- **Zählergruppen wurden nicht im Dashboard angezeigt ([#16](https://github.com/Bingerminger/energietracker/issues/16)).**
+  Mit der Meter-Topologie (F1006) angelegte Zähler-Gruppen tauchten in der
+  Übersicht nicht auf, obwohl die Roadmap „Gruppen (Dashboard-Summe)" zusagte.
+  Die Backend-Daten (`meter_groups` samt `meter_group_id` je Zähler) wurden
+  zwar geliefert, im Dashboard aber nie gerendert. Jede Verbrauchsart-Karte mit
+  gruppierten Zählern zeigt nun eine **aufklappbare Gruppen-Übersicht** mit dem
+  12-Monats-Verbrauch (und, falls vorhanden, den Kosten) je Gruppe. Karten ohne
+  Gruppen bleiben unverändert.
+
+*(Der ebenfalls in #16 geäußerte Wunsch nach Verträgen pro Gruppe ist ein
+Feature und für ein späteres Release vorgemerkt.)*
+
+---
+
 ## [2.0.0] — 2026-06-10 — Internationalisierung, Englisch, Barrierefreiheit, PWA
 
 MAJOR-Release. Großes Bündel: Full-Stack-Internationalisierung, englische

@@ -254,8 +254,46 @@ function renderUtilityCard({ utility, consumption }) {
           <div class="kpi__sub">${t('dashboard.kpi.totalMeters', { count: meters.length })}</div>
         </div>
       </div>
+      ${groupBreakdown(consumption, sumKey, utility)}
     </div>
   `;
+}
+
+// F1006 — Zähler-Gruppen als Dashboard-Summe. Pro Gruppe mit Mitgliedern wird
+// der 12-Monats-Verbrauch (und, falls vorhanden, die Kosten) der zugeordneten
+// Zähler aufsummiert und als aufklappbare Übersicht in der Utility-Karte
+// gezeigt. Liefert leeren String, wenn es keine Gruppe mit Mitgliedern gibt
+// (dann bleibt die Karte unverändert wie zuvor).
+function groupBreakdown(consumption, sumKey, utility) {
+  const groups = consumption?.meter_groups || [];
+  const meters = consumption?.meters || [];
+  if (!groups.length) return '';
+
+  const rows = groups.map(g => {
+    const members = meters.filter(e => (e.meter?.meter_group_id ?? null) === g.id);
+    if (!members.length) return null;
+    let cons = 0, cost = 0;
+    for (const e of members) {
+      const last12 = (e.monthly || []).slice(-12);
+      cons += last12.reduce((s, m) => s + (m[sumKey] || 0), 0);
+      cost += last12.reduce((s, m) => s + (m.cost   || 0), 0);
+    }
+    return { name: g.name, cons, cost };
+  }).filter(Boolean);
+
+  if (!rows.length) return '';
+
+  return `
+    <details class="dash-groups">
+      <summary class="dash-groups__summary">${t('dashboard.groups.summary', { count: rows.length })}</summary>
+      <ul class="dash-groups__list">
+        ${rows.map(g => `
+          <li class="dash-groups__item">
+            <span class="dash-groups__name">${escapeHtml(g.name)}</span>
+            <span class="dash-groups__val">${fmt.num(g.cons, 0)} ${escapeHtml(utility.consumption_unit)}${g.cost > 0 ? ` · ${fmt.eur(g.cost)}` : ''}</span>
+          </li>`).join('')}
+      </ul>
+    </details>`;
 }
 
 // B — kleiner Trend-Indikator: aktuelle 12 Monate vs. vorherige 12 Monate.

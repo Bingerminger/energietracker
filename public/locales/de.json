@@ -93,6 +93,7 @@
     "allLink": "alle",
     "chart": { "title": "12-Monats-Verbrauch (alle Verbrauchsarten)", "alt": "Liniendiagramm: Verbrauch der letzten 12 Monate je Verbrauchsart" },
     "card": { "meters": "Zähler", "details": "Details" },
+    "groups": { "summary": "Gruppen ({count})" },
     "kpi": {
       "consumption": "Verbrauch (letzte 12 Monate)",
       "cost": "Kosten (letzte 12 Monate)",

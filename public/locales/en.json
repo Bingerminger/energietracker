@@ -93,6 +93,7 @@
     "allLink": "all",
     "chart": { "title": "12-month consumption (all utilities)", "alt": "Line chart: consumption of the last 12 months per utility" },
     "card": { "meters": "Meters", "details": "Details" },
+    "groups": { "summary": "Groups ({count})" },
     "kpi": {
       "consumption": "Consumption (last 12 months)",
       "cost": "Cost (last 12 months)",

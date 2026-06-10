@@ -820,6 +820,51 @@ textarea.input { min-height: 80px; resize: vertical; }
    Gedankenstrich statt „€0.00", damit „kein Tarif" nicht wie echte 0 € wirkt. */
 .kpi__empty { color: var(--text-3); font-weight: 500; }
 
+/* v2.0.1 — F1006-Bugfix (#16): Zähler-Gruppen als aufklappbare Dashboard-Summe
+   in der Utility-Karte. */
+.dash-groups {
+  margin-top: var(--sp-3);
+  border-top: 1px solid var(--border-1);
+  padding-top: var(--sp-2);
+}
+.dash-groups__summary {
+  cursor: pointer;
+  list-style: none;
+  padding: var(--sp-1) 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.dash-groups__summary::-webkit-details-marker { display: none; }
+.dash-groups__summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 6px;
+  transition: transform .15s ease;
+}
+.dash-groups[open] .dash-groups__summary::before { transform: rotate(90deg); }
+.dash-groups__list {
+  list-style: none;
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.dash-groups__item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+.dash-groups__name { color: var(--text-1); }
+.dash-groups__count { color: var(--text-3); font-weight: 400; }
+.dash-groups__val {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* v2.0.0 (UX) — Leerzustand des Dashboards für neue Nutzer ohne Ablesungen */
 .dash-empty {
   text-align: center;

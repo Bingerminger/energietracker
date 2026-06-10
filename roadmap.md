@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-06-10 (synchron mit v2.0.0; i18n + EN + A11y + UX + PWA)
-**Aktuelle Baseline:** v2.0.0
+**Stand:** 2026-06-10 (synchron mit v2.0.1; Bugfix Zählergruppen im Dashboard)
+**Aktuelle Baseline:** v2.0.1
 **Schema:** 1.1.0
 
 ---
@@ -538,6 +538,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-06-02 | F1008 (NKA) zurückgestellt | Auf User-Entscheidung rückt die NKA für Mieter vom „nächsten Slot" ans Ende. Leitlogik-Punkt 6 ergänzt, Detail-Konzept bleibt gültig. |
 | 2026-06-02 | v2.0.0 als gebündelter Major beschlossen | Auf User-Entscheidung werden **N1007 (i18n-Foundation), EN-L10n, N1008 (PWA), N1009 (A11y) und eine UX-Überarbeitung gemeinsam als v2.0.0** entwickelt und erst dann ausgeliefert (frühere „Majors nicht mischen"-Leitlinie bewusst aufgehoben — Leitlogik 5 neu gefasst). Architektur-Festlegungen: i18n **Full-Stack** (Frontend-`t()` + Backend-Katalog via Accept-Language), **JSON-Kataloge je Sprache** + `t('key')`-Wrapper, Sprachwahl als additives **`language`-Setting** (kein Schema-Bump, Schema bleibt 1.3.0), UX **View-für-View mit Vorschlägen** ohne Info-Verlust. Phasen: 1 i18n-Foundation → 2 EN-L10n → 3 A11y → 4 UX → 5 PWA → Release. F1008 (NKA) rückt auf v2.1.0. |
 | 2026-06-10 | v2.0.0 ausgeliefert | Das gebündelte v2.0.0 (N1007 + EN-L10n + N1009 + UX + N1008) fertiggestellt und nach „Bereits ausgeliefert" verschoben. Full-Stack-i18n (DE/EN-Parität, `language`-Setting, Schema unverändert 1.3.0), Barrierefreiheit über alle 13 Views + Shell, UX-Politur, PWA (installierbar + offline). Zwei Bugs nebenbei behoben: PDF-/Backend-Texte folgen jetzt dem `language`-Setting statt `Accept-Language`; unsichtbarer Hellmodus-Text in der Zählerstands-Erfassung (`--fg-muted`-Fallback). Nächster Slot: F1008 (NKA, v2.1.0). |
+| 2026-06-10 | v2.0.1 ausgeliefert (Patch) | Bugfix zu GitHub #16: Mit F1006 angelegte Zähler-Gruppen wurden nie im Dashboard angezeigt, obwohl „Gruppen (Dashboard-Summe)" zugesagt war (Backend lieferte `meter_groups`, Frontend renderte sie nie). Jede Utility-Karte mit gruppierten Zählern zeigt nun eine aufklappbare Gruppen-Summe (12-Monats-Verbrauch + ggf. Kosten je Gruppe). Reiner Frontend-Fix, kein F/N-Code, kein Schema-Bump. Der ebenfalls in #16 gewünschte „Vertrag pro Gruppe" bleibt als Feature offen. |
 
 ---
 
