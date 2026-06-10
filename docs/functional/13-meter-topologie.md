@@ -1,5 +1,7 @@
 # Meter-Topologie — Subzähler & Zählergruppen (F1006)
 
+**Deutsch** · [English](../en/functional/13-meter-topologie.md)
+
 [← PV](12-pv.md) · [Kompendium-Index](../README.md)
 
 Seit **v1.8.0** (Schema 1.2.0) können Zähler in Beziehung zueinander stehen.

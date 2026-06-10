@@ -594,8 +594,6 @@
       "title": "🌐 Language / Sprache",
       "hint": "Interface language. The change takes effect immediately.",
       "label": "Language",
-      "de": "Deutsch",
-      "en": "English",
       "saved": "Language changed"
     },
     "unit": {

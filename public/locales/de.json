@@ -594,8 +594,6 @@
       "title": "🌐 Sprache / Language",
       "hint": "Sprache der Oberfläche. Die Änderung wird sofort wirksam.",
       "label": "Sprache",
-      "de": "Deutsch",
-      "en": "English",
       "saved": "Sprache geändert"
     },
     "unit": {

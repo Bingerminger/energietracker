@@ -1,5 +1,7 @@
 # Architektur
 
+**Deutsch** · [English](../en/technical/02-architecture.md)
+
 [← Installation](01-installation.md) · [Kompendium-Index](../README.md)
 
 Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:

@@ -1,5 +1,7 @@
 # Holzpellets
 
+**Deutsch** · [English](../en/functional/06-pellets.md)
+
 [← Heizöl](05-heizoel.md) · [Kompendium-Index](../README.md)
 
 | Eigenschaft | Wert |

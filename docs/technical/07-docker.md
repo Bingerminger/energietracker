@@ -1,5 +1,7 @@
 # Docker-Betrieb (für Einsteiger)
 
+**Deutsch** · [English](../en/technical/07-docker.md)
+
 > Gilt ab **v1.7.3**. Dieses Kapitel erklärt Schritt für Schritt, wie du
 > Energietracker als Docker-Container betreibst — auch ohne Docker-Vorwissen.
 > Wenn du lieber „klassisch" mit PHP/nginx installierst, siehe

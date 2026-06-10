@@ -1,5 +1,7 @@
 # Wasser
 
+**Deutsch** · [English](../en/functional/03-wasser.md)
+
 [← Strom](02-strom.md) · [Kompendium-Index](../README.md)
 
 | Eigenschaft | Wert |

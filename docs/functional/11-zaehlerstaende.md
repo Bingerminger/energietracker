@@ -1,5 +1,7 @@
 # Zählerstand-Erfassung (F1004)
 
+**Deutsch** · [English](../en/functional/11-zaehlerstaende.md)
+
 > Gilt für **Gas, Strom, Wasser, Fernwärme** — die Energieträger mit
 > kumulativem Zählerstand-Modell. **Heizöl** und **Pellets** sind
 > ausgenommen: sie erfassen den Verbrauch über Lieferungen, nicht über

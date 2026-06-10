@@ -1,5 +1,7 @@
 # Datenmodell
 
+**Deutsch** · [English](../en/technical/04-data-model.md)
+
 [← API-Referenz](03-api-reference.md) · [Kompendium-Index](../README.md)
 
 Alle Daten liegen als flache JSON-Dateien unter `data/`. Keine Datenbank.

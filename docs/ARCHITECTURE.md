@@ -1,5 +1,7 @@
 # Architektur (Kurzfassung)
 
+**Deutsch** · [English](en/ARCHITECTURE.md)
+
 > **Hinweis:** Die kanonische, bei jedem Release gepflegte
 > Architektur-Dokumentation ist das Kompendium unter
 > [`docs/technical/02-architecture.md`](technical/02-architecture.md).

@@ -1,5 +1,7 @@
 # API-Referenz (Kurzfassung)
 
+**Deutsch** · [English](en/API.md)
+
 > **Hinweis:** Die kanonische, bei jedem Release gepflegte
 > API-Referenz ist das Kompendium unter
 > [`docs/technical/03-api-reference.md`](technical/03-api-reference.md).

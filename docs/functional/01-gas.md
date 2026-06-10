@@ -1,5 +1,7 @@
 # Gas
 
+**Deutsch** · [English](../en/functional/01-gas.md)
+
 [← Grundlagen](00-overview.md) · [Kompendium-Index](../README.md)
 
 | Eigenschaft | Wert |

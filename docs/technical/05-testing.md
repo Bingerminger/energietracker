@@ -1,5 +1,7 @@
 # Tests
 
+**Deutsch** · [English](../en/technical/05-testing.md)
+
 [← Datenmodell](04-data-model.md) · [Kompendium-Index](../README.md)
 
 Bewusst **kein** Test-Framework — konsistent mit der dependency-freien

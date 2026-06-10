@@ -86,10 +86,13 @@ final class I18nServiceTest extends TestCase
     {
         self::assertSame('en', $this->i18n->negotiate('en-GB,en;q=0.9,de;q=0.5'));
         self::assertSame('de', $this->i18n->negotiate('de-DE,de;q=0.9'));
-        // Höchster q gewinnt, auch wenn später gelistet.
-        self::assertSame('en', $this->i18n->negotiate('fr-FR,de;q=0.3,en;q=0.8'));
+        // Höchster q gewinnt, auch wenn später gelistet — unsupported (ja) wird
+        // übersprungen, en (0.8) schlägt de (0.3).
+        self::assertSame('en', $this->i18n->negotiate('ja-JP,de;q=0.3,en;q=0.8'));
+        // Eine in languages.json registrierte Sprache (fr) mit höchstem q gewinnt.
+        self::assertSame('fr', $this->i18n->negotiate('fr-FR,en;q=0.8'));
         // Keine unterstützte Sprache → null (Aufrufer behält Setting/Default).
-        self::assertNull($this->i18n->negotiate('fr-FR,es;q=0.8'));
+        self::assertNull($this->i18n->negotiate('ja-JP,zh;q=0.8'));
         self::assertNull($this->i18n->negotiate(null));
         self::assertNull($this->i18n->negotiate(''));
     }

@@ -1,5 +1,7 @@
 # Szenario: Wohnungsnutzer (Mietwohnung)
 
+**Deutsch** · [English](../en/functional/07-szenario-wohnung.md)
+
 [← Holzpellets](06-pellets.md) · [Kompendium-Index](../README.md)
 
 Typische Ausgangslage: Mietwohnung, **Strom** über eigenen Vertrag,

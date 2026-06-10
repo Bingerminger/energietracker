@@ -1,5 +1,7 @@
 # Fernwärme
 
+**Deutsch** · [English](../en/functional/04-fernwaerme.md)
+
 [← Wasser](03-wasser.md) · [Kompendium-Index](../README.md)
 
 | Eigenschaft | Wert |

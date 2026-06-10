@@ -15,10 +15,21 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 // <html lang> und die serverseitig gerenderten Shell-Strings schon beim
 // ersten Paint korrekt sind (vor dem JS-i18n-Init). Fallback: 'de'.
 $lang = 'de';
-$settingsFile = __DIR__ . '/data/settings.json';
+// Unterstützte Sprachen datengetrieben aus der Registry (gleiche Quelle wie
+// Frontend i18n.js und Backend I18nService).
+$supportedLangs = ['de', 'en'];
+$langsFile = __DIR__ . '/public/locales/languages.json';
+if (is_file($langsFile)) {
+    $reg = json_decode((string)@file_get_contents($langsFile), true);
+    if (is_array($reg) && $reg !== []) {
+        $supportedLangs = array_keys($reg);
+    }
+}
+$dataDir = getenv('ET_DATA_DIR') ?: (__DIR__ . '/data');
+$settingsFile = rtrim($dataDir, '/') . '/settings.json';
 if (is_file($settingsFile)) {
     $s = json_decode((string)@file_get_contents($settingsFile), true);
-    if (is_array($s) && in_array($s['language'] ?? '', ['de', 'en'], true)) {
+    if (is_array($s) && in_array($s['language'] ?? '', $supportedLangs, true)) {
         $lang = $s['language'];
     }
 }

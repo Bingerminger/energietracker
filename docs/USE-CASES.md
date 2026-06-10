@@ -1,5 +1,7 @@
 # Anwendungsbeispiele & Use-Cases
 
+**Deutsch** · [English](en/USE-CASES.md)
+
 [← Kompendium-Index](README.md)
 
 Vier durchgerechnete Praxisfälle, die zeigen, wie Energietracker in konkreten

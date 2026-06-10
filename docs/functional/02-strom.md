@@ -1,5 +1,7 @@
 # Strom
 
+**Deutsch** · [English](../en/functional/02-strom.md)
+
 [← Gas](01-gas.md) · [Kompendium-Index](../README.md)
 
 | Eigenschaft | Wert |

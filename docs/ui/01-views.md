@@ -1,5 +1,7 @@
 # UI-Referenz — Alle Ansichten
 
+**Deutsch** · [English](../en/ui/01-views.md)
+
 [← Kompendium-Index](../README.md)
 
 > **Echte Screenshots.** Die folgenden Bilder sind **tatsächliche

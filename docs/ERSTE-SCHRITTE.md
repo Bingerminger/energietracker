@@ -1,5 +1,7 @@
 # Erste Schritte
 
+[English](en/getting-started.md) · **Deutsch**
+
 [← Kompendium-Index](README.md)
 
 Diese Anleitung führt dich **an einem durchgehenden Beispiel** von der

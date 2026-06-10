@@ -1,5 +1,7 @@
 # Grundlagen & Methodik
 
+**Deutsch** · [English](../en/functional/00-overview.md)
+
 [← Kompendium-Index](../README.md)
 
 Dieses Kapitel erklärt die Rechenkerne, die für *alle* Verbrauchsarten

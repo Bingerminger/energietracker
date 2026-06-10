@@ -1,5 +1,7 @@
 # Release-Prozess
 
+**Deutsch** · [English](../en/technical/06-release-process.md)
+
 [← Tests](05-testing.md) · [Kompendium-Index](../README.md)
 
 Jede fachliche Änderung erzeugt ein vollständiges, in sich konsistentes

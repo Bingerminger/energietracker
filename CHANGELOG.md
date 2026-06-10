@@ -6,6 +6,63 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.1.0] — 2026-06-10 — Weitere UI-Sprachen + vollständige englische Doku
+
+MINOR-Release. Erste Lokalisierungs-Welle nach dem v2.0.0-i18n-Fundament:
+fünf zusätzliche Oberflächen-Sprachen, eine datengetriebene Sprach-Registry
+sowie die **vollständige englische Spiegelung des Dokumentations-Kompendiums**.
+Dazu ein überarbeiteter App-Logo-/Icon-Satz und ein Datenpfad-Fix in `index.php`.
+**Keine Schema-Änderung** (bleibt 1.3.0); alle Neuerungen sind additiv.
+
+### Added
+
+- **Fünf neue Oberflächen-Sprachen.** Vollständige Kataloge unter
+  `public/locales/{fr,it,es,pt,nl}.json` — **Französisch, Italienisch, Spanisch,
+  Portugiesisch und Niederländisch** — jeweils mit demselben Schlüsselsatz wie
+  `de.json`/`en.json` (1073 Schlüssel, geprüft auf vollständige Schlüssel- und
+  Platzhalter-Deckung). Umschaltbar unter *Einstellungen → Sprache*; die
+  HTML-`lang`- und `dir`-Attribute folgen der Auswahl.
+- **Datengetriebene Sprach-Registry.** Neue Datei `public/locales/languages.json`
+  (Code → Eigenbezeichnung) ist jetzt die einzige Wahrheitsquelle der
+  verfügbaren Sprachen. Frontend (`i18n.js` lädt sie via `loadLanguages()`) und
+  Backend (`I18nService::supported()` liest die Schlüssel, mit
+  `FALLBACK_SUPPORTED=['de','en']`) leiten ihre Sprachliste daraus ab — eine
+  weitere Sprache erfordert nur noch Katalog + Registry-Eintrag, keinen
+  Code-Eingriff mehr. Der Sprach-Dropdown zeigt die Sprachen in ihrer jeweiligen
+  Eigenbezeichnung (Endonym).
+- **Vollständige englische Dokumentation.** Das gesamte Kompendium ist nun
+  zweisprachig: unter `docs/en/` liegt die englische Spiegelung aller Kapitel
+  (functional 00–13, technical 01–07, UI-Referenz, `API.md`, `ARCHITECTURE.md`,
+  Erste Schritte, Home Assistant, Use-Cases, Migration). Jede deutsche und
+  englische Seite trägt eine Sprachleiste zum jeweiligen Gegenstück. **Deutsch
+  bleibt kanonisch** und wird bei jedem Release synchron gehalten; beide Sprachen
+  werden ab sofort weitergepflegt.
+
+### Changed
+
+- **Überarbeiteter App-Logo-/Icon-Satz.** Neue, verbesserte Logos in den
+  kompletten Icon-Satz übernommen (`public/img/icon-{light,dark}-*.png`,
+  `icon-{light,dark}.png`, `public/favicon.ico`), inkl. PWA-Icons in allen
+  Größen; verlustarm komprimiert.
+- **Dropdown-Sprachliste statt Hardcodierung.** `settings.js` baut die Auswahl
+  aus `getLanguages()` (Endonyme) statt aus festen `settings.lang.*`-Schlüsseln.
+
+### Fixed
+
+- **Sprach-Einstellung bei eigenem Datenverzeichnis (`ET_DATA_DIR`).** `index.php`
+  liest die `language`-Einstellung jetzt aus dem konfigurierten Datenpfad
+  (`ET_DATA_DIR`) statt fest aus `./data`, sodass der initiale Server-Render bei
+  ausgelagertem Datenverzeichnis die korrekte Sprache liefert.
+
+### Notes
+
+- Die weiteren geplanten Sprach-Wellen (u. a. cs, uk, pl, el, tr, hr, sr, sl, fi,
+  no, da, lv, et, hu, bg, ro) sind in der [Roadmap](roadmap.md) vermerkt und
+  werden bedarfsgetrieben nachgezogen.
+- F1008 (NKA/Mieter-Datenmodell) bleibt für ein späteres Release vorgemerkt.
+
+---
+
 ## [2.0.1] — 2026-06-10 — Bugfix: Zählergruppen im Dashboard
 
 PATCH-Release. Behebt einen seit F1006 (v1.8.0) bestehenden Fehler.

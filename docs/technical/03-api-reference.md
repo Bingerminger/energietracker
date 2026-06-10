@@ -1,5 +1,7 @@
 # API-Referenz
 
+**Deutsch** · [English](../en/technical/03-api-reference.md)
+
 [← Architektur](02-architecture.md) · [Kompendium-Index](../README.md)
 
 Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:

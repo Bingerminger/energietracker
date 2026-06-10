@@ -1,5 +1,7 @@
 # Sonderzahlungen (F1003)
 
+**Deutsch** · [English](../en/functional/10-sonderzahlungen.md)
+
 > Gilt für **Gas, Strom, Fernwärme** — die Energieträger mit
 > klassischem Abschlags-/Saldo-Modell. Wasser (Drei-Komponenten-Tarif)
 > und die lieferbasierten Träger Heizöl/Pellets haben keine

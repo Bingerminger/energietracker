@@ -1,5 +1,7 @@
 # Migration aus v0.9.0
 
+**Deutsch** · [English](en/MIGRATION-FROM-V090.md)
+
 v0.9.0 ist eine private Vorgängerversion des Energietrackers. Sie
 liegt nicht in der öffentlichen Codebase, ihr Backup-Format wird aber
 von v1.0.2 unterstützt, damit private Bestandsdaten ohne Datenverlust

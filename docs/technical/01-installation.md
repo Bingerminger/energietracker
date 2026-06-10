@@ -1,5 +1,7 @@
 # Installation & Betrieb
 
+**Deutsch** · [English](../en/technical/01-installation.md)
+
 [← Kompendium-Index](../README.md)
 
 Energietracker ist bewusst **abhängigkeitsfrei**: kein Composer, kein

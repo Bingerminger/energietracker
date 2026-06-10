@@ -1,5 +1,7 @@
 # Heizöl
 
+**Deutsch** · [English](../en/functional/05-heizoel.md)
+
 [← Fernwärme](04-fernwaerme.md) · [Kompendium-Index](../README.md)
 
 | Eigenschaft | Wert |

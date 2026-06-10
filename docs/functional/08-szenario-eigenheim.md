@@ -1,5 +1,7 @@
 # Szenario: Eigenheimbesitzer
 
+**Deutsch** · [English](../en/functional/08-szenario-eigenheim.md)
+
 [← Szenario Wohnung](07-szenario-wohnung.md) · [Kompendium-Index](../README.md)
 
 Typische Ausgangslage: Einfamilienhaus, **eine** Heizquelle

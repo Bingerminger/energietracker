@@ -1,235 +1,226 @@
 <p align="center"><img src="public/img/icon-light-180.png" alt="Energietracker" width="96"></p>
+<p align="center"><b>English</b> · <a href="README.de.md">Deutsch</a></p>
 
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](CHANGELOG.md)
 [![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Selbst-gehostete Web-Anwendung zum Erfassen und Analysieren des eigenen
-Energie- und Wasserverbrauchs. Single-File PHP-Backend, Vanilla-JS SPA-Frontend,
-flat-file JSON-Persistenz — keine Datenbank, kein Server-Setup, keine externen
-Abhängigkeiten zur Laufzeit (außer Chart.js per CDN).
+Self-hosted web application for recording and analysing your own energy and
+water consumption. Single-file PHP backend, vanilla-JS SPA frontend, flat-file
+JSON persistence — no database, no server setup, no external runtime
+dependencies (other than Chart.js via CDN).
 
-Bis zu acht Verbrauchsarten parallel: **Gas**, **Strom**, **Wasser**,
-**Fernwärme**, **Heizöl** und **Pellets** (Heizöl/Pellets lieferbasiert
-statt zählerbasiert), plus seit v1.7.0 **PV-Einspeisung** und
-**PV-Erzeugung** für Photovoltaik-Eigentümer (kombinierter Strom-Saldo,
-Autarkiequote). Pro Verbrauchsart: mehrere Zähler mit voll
-modelliertem Zählertausch, beliebige Vertragshistorie mit
-Tarifänderungen, Grundpreis-Verlauf, Abschlägen und Boni. Daraus
-berechnet die App Monatsverbräuche (linear interpoliert bzw. energetisch
-bilanziert), Heizgradtage gegen das lokale Klima, fünf Regressionsmodelle
-(linear, polynomial, robust, segmentiert mit datenbasiertem Knickpunkt,
-Sigmoid), Wetterbereinigung, eine Effizienzklasse (kWh/m²·a) und einen
-Saldo pro Vertrag — sowohl aktueller Stand als auch erwartete
-End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
-Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
-PDF-Jahresbericht.
+Up to eight utilities in parallel: **gas**, **electricity**, **water**,
+**district heating**, **heating oil** and **wood pellets** (heating oil/pellets
+are delivery-based rather than meter-based), plus, since v1.7.0, **PV feed-in**
+and **PV generation** for photovoltaic owners (combined electricity balance,
+self-sufficiency rate). Per utility: multiple meters with fully modelled meter
+swaps, an arbitrary contract history with tariff changes, base-price history,
+advance payments and bonuses. From this the app computes monthly consumption
+(linearly interpolated resp. energetically balanced), heating degree days
+against the local climate, five regression models (linear, polynomial, robust,
+segmented with a data-driven breakpoint, sigmoid), weather adjustment, an
+efficiency class (kWh/m²·a) and a balance per contract — both the current state
+and the expected year-end settlement. On top of that: a statistical
+recommendation engine, reminder/maintenance management, a tariff comparison with
+shadow contracts and a PDF annual report.
 
-> **Status:** v2.0.1 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
-> betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
-> [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
-> v0.9.0 wird vom Migrator unterstützt.
+> **Status:** v2.1.0 is the current public version (initial release was v1.0.2).
+> If you want to migrate from a privately run v0.9.0 backup, see
+> [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
+> format is supported by the migrator.
 
-> 📚 **Vollständige Dokumentation:** Das getrennte technische und
-> fachliche Kompendium (Installation, API, Datenmodell, je Energieart
-> mit Formeln, Anwender-Szenarien, UI-Referenz) liegt unter
-> **[`docs/`](docs/README.md)**.
+> 📚 **Full documentation:** the separate technical and functional compendium
+> (installation, API, data model, each utility with formulas, user scenarios, UI
+> reference) lives under **[`docs/en/`](docs/en/README.md)**.
 
----
-
-## Inhalt
-
-- [Funktionen](#funktionen)
-- [Dokumentation](#dokumentation)
-- [Schnellstart](#schnellstart)
-- [Datenmodell](#datenmodell)
-- [Verzeichnisstruktur](#verzeichnisstruktur)
-- [Migration aus v0.9.0](#migration-aus-v090)
-- [Weiterführende Dokumentation](#weiterführende-dokumentation)
-- [Mitwirken & Lizenz](#mitwirken--lizenz)
+> 🌐 **Languages:** the app interface ships in **German, English, French,
+> Italian, Spanish, Portuguese and Dutch**, switchable under *Settings →
+> Language*. The documentation is maintained bilingually (English + German); the
+> compendium is fully available in English as well — German remains
+> canonical and is kept in sync at every release.
 
 ---
 
-## Funktionen
+## Contents
 
-### Dateneingabe
+- [Features](#features)
+- [Documentation](#documentation)
+- [Quick start](#quick-start)
+- [Data model](#data-model)
+- [Directory layout](#directory-layout)
+- [Migration from v0.9.0](#migration-from-v090)
+- [Further documentation](#further-documentation)
+- [Contributing & licence](#contributing--licence)
 
-- **Zählerstand-Tabelle** pro Utility mit Inline-Edit, Löschen, optionalen
-  Anmerkungen pro Ablesung und einem „geschätzt"-Flag für Korrekturen.
-- **Zukunfts-Readings** zum Vormerken geplanter Abrechnungstermine
-  (werden bei der Verbrauchsberechnung ignoriert, bleiben aber sichtbar).
-- **Zählertausch** als erstklassiges Datenmodell: ein Zähler bündelt
-  einen oder mehrere Geräte (Devices), inkl. Seriennummer, Einbaudatum,
-  Anfangs-/Endzähler und Begründung. Verbrauch wird über Tausch-Grenzen
-  hinweg korrekt berechnet (`(altes_final − vorheriges_reading) +
-  (aktuelles_reading − neues_initial)`).
-- **Mehrere Zähler pro Utility** mit unabhängigen Verträgen
-  (z.B. Hauptzähler + Gartenwasser-Zwischenzähler).
-- **Temperatur-Import** als CSV (Format
-  `DD.MM.YYYY"avg"min"max`, double-quote-getrennt) oder per Open-Meteo-Sync
-  über Standort-Koordinaten in den Einstellungen.
-- **CSV-Import von Ablesungen** je Zähler: eine Datei mit
-  `datum;zählerstand;notiz;geschätzt` einlesen — vorhandene Ablesungen am
-  selben Datum werden überschrieben und im Ergebnis gemeldet.
+---
 
-### Verträge und Saldo
+## Features
 
-- **Vertragshistorie** pro Zähler: Anbieter, Tarifname, Start/Ende,
-  freier Notiztext.
-- **Stichtag-genaue Preishistorie** für Arbeitspreis (ct/Verbrauchseinheit),
-  Grundpreis (€/Monat) und monatlichen Abschlag (€). Mehrere Stichtage
-  pro Vertrag werden als forward-fill auf die Monate angewandt.
-- **Boni** mit Gutschriftdatum, Betrag und Label
-  (Neukunden-, Treuebonus, etc.).
-- **Saldo-Berechnung** pro Vertrag:
-  - *Aktueller Saldo* = bereits angefallene Kosten − bisher bezahlte Abschläge
-  - *Erwarteter End-Saldo* = aktueller Saldo + (verbleibende Monate × ø
-    Monatskosten − Monatsabschlag). Offene Verträge werden bis zum
-    nächsten Abrechnungsstichtag projiziert (je Utility konfigurierbar,
-    Default 1. Januar).
-  - *Verdict*: Erstattung / Nachzahlung / Ausgeglichen mit Schwellwert ±5 €
-- **Erinnerung an Vertragsende**: Verträge, deren Ende innerhalb einer
-  konfigurierbaren Frist liegt (drei Stufen, Default 90 / 30 / 1 Tage),
-  werden in der Korrelations-Ansicht als gestufter Hinweis angezeigt.
+### Data entry
 
-### Analyse
+- **Meter-reading table** per utility with inline edit, delete, optional
+  per-reading notes and an "estimated" flag for corrections.
+- **Future readings** to pre-record planned billing dates (ignored in the
+  consumption calculation but kept visible).
+- **Meter swap** as a first-class data model: a meter bundles one or more
+  devices, including serial number, installation date, initial/final counter and
+  reason. Consumption is computed correctly across swap boundaries
+  (`(old_final − previous_reading) + (current_reading − new_initial)`).
+- **Multiple meters per utility** with independent contracts (e.g. main meter +
+  garden-water sub-meter).
+- **Temperature import** as CSV (format `DD.MM.YYYY"avg"min"max`,
+  double-quote-separated) or via Open-Meteo sync using the location coordinates
+  in the settings.
+- **CSV import of readings** per meter: read a file of
+  `date;reading;note;estimated` — existing readings on the same date are
+  overwritten and reported in the result.
 
-- **Heizgradtage** (HGT) je Monat gegen die hinterlegte Basistemperatur
-  (Default 15 °C, in Einstellungen anpassbar).
-- **Fünf Regressionsmodelle** auf HGT vs. Verbrauch:
-  - *Linear*: klassische OLS-Anpassung, schnell und robust für gleichmäßig
-    geheizte Haushalte
-  - *Polynomial Grad 2*: erfasst nicht-lineare Effekte (z.B. Sommer-Grundlast
-    durch Warmwasser)
-  - *Robust (Huber)*: iterativ neu-gewichtete OLS, ignoriert Ausreißer
-  - *Segmentiert*: zwei separate lineare Anpassungen oberhalb/unterhalb eines
-    Schwellwerts (typisch HGT = 50), unterscheidet Heizperiode von Sommerlast
-  - *Sigmoid*: S-Kurve für Haushalte mit ausgeprägter Sättigung bei hohen HGT
-- **Anomalien**: Monate, in denen der Verbrauch mehr als 2σ (anpassbar) vom
-  Modell-Erwartungswert abweicht.
-- **Forecast** über 12 Monate als R²-gewichtete Mischung aus
-  Regressionsmodell und Saisonprofil. Die Kostenprognose ist
-  vertragsbasiert: pro Monat wird der dann gültige Arbeits- und
-  Grundpreis aus der Vertragshistorie verwendet, plus projizierter
-  Abschlag und laufender Saldo.
-- **Jahresvergleich mit Monatsdeltas**: Monat-für-Monat-Differenz der
-  beiden jüngsten Jahre, absolut und prozentual.
-- **Wasser-Spar-Index** `(Liter/Person/Tag) / Referenz × 100` mit
-  konfigurierbaren Bandgrenzen.
+### Contracts and balance
 
-### Lieferbasierte Energieträger (v1.3.0)
+- **Contract history** per meter: provider, tariff name, start/end, free-text
+  note.
+- **Date-accurate price history** for working price (ct/consumption unit), base
+  price (€/month) and the monthly advance (€). Several effective dates per
+  contract are applied to the months as a forward fill.
+- **Bonuses** with credit date, amount and label (new-customer, loyalty bonus,
+  etc.).
+- **Balance calculation** per contract:
+  - *Current balance* = costs incurred so far − advances paid so far
+  - *Expected year-end balance* = current balance + (remaining months × avg
+    monthly cost − monthly advance). Open contracts are projected to the next
+    settlement date (configurable per utility, default 1 January).
+  - *Verdict*: refund / surcharge / balanced with a ±5 € threshold
+- **Contract-end reminder**: contracts whose end falls within a configurable
+  window (three levels, default 90 / 30 / 1 days) are shown as a staged hint in
+  the correlation view.
 
-- **Heizöl & Pellets** werden über **Lieferungen** statt Zählerständen
-  erfasst (Datum, Menge, Preis/Einheit oder Gesamtbetrag, Lieferant,
-  Notiz, „geplant"-Flag). Der Monatsverbrauch wird energetisch
-  bilanziert und über einen Sockelanteil plus HGT-Gewichtung verteilt.
-- **Tank-Bestandskurve**: modellierter Restbestand
-  (Anfangsbestand + Lieferungen − HGT-gewichteter Verbrauch) mit
-  Warnschwelle. Eine Schätzung, keine Tankpeilung.
-- **Fernwärme** als zusätzliche kumulative, HGT-relevante Verbrauchsart.
+### Analysis
 
-### Auswertung & Insights (v1.3.0)
+- **Heating degree days** (HDD) per month against the configured base
+  temperature (default 15 °C, adjustable in the settings).
+- **Five regression models** on HDD vs. consumption:
+  - *Linear*: classic OLS fit, fast and robust for evenly heated households
+  - *Polynomial degree 2*: captures non-linear effects (e.g. summer base load
+    from hot water)
+  - *Robust (Huber)*: iteratively reweighted OLS, ignores outliers
+  - *Segmented*: two separate linear fits above/below a threshold (typically
+    HDD = 50), distinguishing the heating season from summer load
+  - *Sigmoid*: S-curve for households with pronounced saturation at high HDD
+- **Anomalies**: months in which consumption deviates more than 2σ (adjustable)
+  from the model's expected value.
+- **Forecast** over 12 months as an R²-weighted blend of the regression model
+  and the seasonal profile. The cost forecast is contract-based: per month the
+  then-valid working and base price from the contract history is used, plus the
+  projected advance and running balance.
+- **Year-on-year comparison with monthly deltas**: month-by-month difference of
+  the two most recent years, absolute and as a percentage.
+- **Water saving index** `(litres/person/day) / reference × 100` with
+  configurable band limits.
 
-- **Wetterbereinigung**: „mehr verbraucht oder nur kälter?" — Verbrauch
-  normiert auf das langjährige Kalendermonats-HGT, plus
-  Regressionserwartung und Abweichung in Prozent.
-- **Effizienzklasse** A+…H aus dem Heizenergiebedarf in kWh/m²·a,
-  konfigurierbare Bandgrenzen, Wohnfläche/Baujahr/Gebäudetyp pflegbar.
-- **Empfehlungs-Engine**: sieben statistische Regelfamilien aus den
-  Eigendaten, mit Schweregrad und einzeln ausblendbar.
-- **Sigmoid- und auto-segmentiertes Regressionsmodell** zusätzlich zu
+### Delivery-based fuels (v1.3.0)
+
+- **Heating oil & pellets** are recorded via **deliveries** instead of meter
+  readings (date, quantity, price/unit or total amount, supplier, note,
+  "planned" flag). The monthly consumption is energetically balanced and
+  distributed via a base-load share plus HDD weighting.
+- **Tank stock curve**: modelled remaining stock (initial stock + deliveries −
+  HDD-weighted consumption) with a warning threshold. An estimate, not a tank
+  gauge.
+- **District heating** as an additional cumulative, HDD-relevant utility.
+
+### Evaluation & insights (v1.3.0)
+
+- **Weather adjustment**: "consumed more, or just colder?" — consumption
+  normalised to the long-term calendar-month HDD, plus the regression
+  expectation and the deviation in per cent.
+- **Efficiency class** A+…H from the heating energy demand in kWh/m²·a,
+  configurable band limits, living area/year built/building type maintainable.
+- **Recommendation engine**: seven statistical rule families from your own data,
+  with severity and individually dismissible.
+- **Sigmoid and auto-segmented regression model** in addition to
   linear/polynomial/robust.
 
-### Verwaltung (v1.3.0)
+### Management (v1.3.0)
 
-- **Termine & Wartung**: wiederkehrende Erinnerungen (Heizungswartung,
-  Schornsteinfeger, Zähler-Eichfristen …) mit Fälligkeitsstatus.
-- **Tarifvergleich** mit **Schattenverträgen**: hypothetische Tarife auf
-  die echten Verbräuche rechnen, ohne Saldo/Prognose zu beeinflussen.
-- **PDF-Jahresbericht** als Datei-Download (abhängigkeitsfreier
-  PDF-Writer, kein composer/mPDF nötig).
-- **Aktivierbare Verbrauchsarten**: nicht genutzte Arten ausblenden,
-  ohne Daten zu verlieren.
+- **Reminders & maintenance**: recurring reminders (heating service, chimney
+  sweep, meter calibration deadlines …) with a due status.
+- **Tariff comparison** with **shadow contracts**: compute hypothetical tariffs
+  on your real consumption without affecting the balance/forecast.
+- **PDF annual report** as a file download (dependency-free PDF writer, no
+  composer/mPDF needed).
+- **Toggleable utilities**: hide unused utilities without losing data.
 
-### Zähler-Topologie & Automatisierung (v1.8.0 / v1.9.0)
+### Meter topology & automation (v1.8.0 / v1.9.0)
 
-- **Subzähler / Reihenschaltung (F1006):** Ein Zähler kann hinter einem
-  anderen hängen (z. B. Wärmepumpe hinter Haushaltsstrom). Sein Verbrauch
-  wird vom Elternzähler abgezogen — keine Doppelzählung in der Summe.
-- **Zählergruppen (F1006):** Mehrere Zähler (NT + HT Strom, mehrere
-  Wallboxen) lassen sich fürs Dashboard zu einer Gruppe bündeln; ein
-  **Merge-Wizard** führt bestehende Zähler zusammen. Siehe
-  [Meter-Topologie](docs/functional/13-meter-topologie.md).
-- **Home-Assistant-Anbindung (F1009):** Home Assistant pusht Zählerstände
-  automatisch per `POST /api/ingest` (idempotent, Upsert pro Tag).
-  Optionaler API-Token (opt-in) und frei vergebbare Zähler-Aliase. Komplette
-  Anleitung mit Use-Cases: [Home Assistant](docs/HOME-ASSISTANT.md).
+- **Sub-meters / series connection (F1006):** a meter can sit behind another
+  (e.g. a heat pump behind household electricity). Its consumption is subtracted
+  from the parent meter — no double counting in the total.
+- **Meter groups (F1006):** several meters (off-peak + peak electricity, several
+  wallboxes) can be bundled into a group for the dashboard; a **merge wizard**
+  combines existing meters. See
+  [Meter topology](docs/en/README.md).
+- **Home Assistant integration (F1009):** Home Assistant pushes meter readings
+  automatically via `POST /api/ingest` (idempotent, upsert per day). Optional
+  API token (opt-in) and freely assignable meter aliases. Full guide with use
+  cases: [Home Assistant](docs/en/README.md).
 
-### Operativ
+### Operations
 
-- **Backup & Restore** über die UI: vollständiges JSON-Backup im neuen
-  Format (`backup_version: "3.0"`), zur Wiederherstellung oder zum Umzug.
-- **Migration aus v0.9.0**: ein altes Backup-Format (`version: "2.1"`) kann
-  direkt importiert werden, entweder ersetzend oder zusammenführend mit
-  bestehenden Daten. Siehe [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md).
-- **CSV-Export** für Monatsübersicht, Zählerstände und Temperaturreihe —
-  semikolon-getrennt, UTF-8 mit BOM, direkt in Excel/LibreOffice nutzbar.
-  Ergänzt das vollständige JSON-Backup.
-- **Tag/Nacht-Umschaltung** rechts in der Topbar. Respektiert beim
-  ersten Besuch `prefers-color-scheme`, persistiert die Wahl danach
-  in `localStorage`.
-- **System-Diagnose** unter Einstellungen: PHP-Version, Datenverzeichnis,
-  Schreibrechte, Schema-Version, Anzahl Zähler/Ablesungen pro Utility.
-- **CI-Pipeline** (GitHub Actions): vier Jobs bei jedem Push/PR auf `main` —
-  PHP-Syntax-Lint, PHPUnit-Service-Suite, Frontend-API-Shape + Browser-Render
-  gegen einen echten Backend-Server sowie ein Docker-Image-Smoke. Versions-Tags
-  veröffentlichen automatisch das Multi-Arch-Image (amd64 + arm64) nach GHCR.
-
----
-
-## Dokumentation
-
-Die vollständige Doku liegt als **Kompendium** unter
-[`docs/`](docs/README.md) — getrennt in einen technischen und einen
-fachlichen Teil plus eine UI-Referenz mit **echten Screenshots aller 12
-Ansichten**:
-
-- 🚀 **Neu hier?** → [Erste Schritte](docs/ERSTE-SCHRITTE.md) (geführtes
-  Beispiel von der Installation bis zur ersten Prognose) ·
-  [Anwendungsbeispiele & Use-Cases](docs/USE-CASES.md) (WG, Smart Home, PV,
-  Vermieter)
-- 🔧 **Technisch:** [Installation](docs/technical/01-installation.md) ·
-  [Architektur](docs/technical/02-architecture.md) ·
-  [API](docs/technical/03-api-reference.md) ·
-  [Datenmodell](docs/technical/04-data-model.md) ·
-  [Tests](docs/technical/05-testing.md) ·
-  [Release-Prozess](docs/technical/06-release-process.md)
-- 🏠 **[Home-Assistant-Anbindung](docs/HOME-ASSISTANT.md)** — Zählerstände
-  automatisch aus Home Assistant pushen (Token, Zähler-Alias, REST-Command,
-  Use-Cases Eigenheim & Wohnung).
-- 📚 **Fachlich:** [Grundlagen & Formeln](docs/functional/00-overview.md) ·
-  je Energieart ([Gas](docs/functional/01-gas.md) …
-  [Pellets](docs/functional/06-pellets.md)) ·
-  [Szenario Wohnung](docs/functional/07-szenario-wohnung.md) ·
-  [Szenario Eigenheim](docs/functional/08-szenario-eigenheim.md) ·
-  [Glossar](docs/functional/09-glossar.md)
-- 🖥️ **UI-Referenz:** [Alle Ansichten](docs/ui/01-views.md)
-
-> Die Bilder in der [UI-Referenz](docs/ui/01-views.md) sind **echte
-> Screenshots** der laufenden App mit dem mitgelieferten Demo-Datensatz
-> (Stand v1.9.2).
+- **Backup & restore** via the UI: a full JSON backup in the new format
+  (`backup_version: "3.0"`), for restoring or moving.
+- **Migration from v0.9.0**: an old backup format (`version: "2.1"`) can be
+  imported directly, either replacing or merging with existing data. See
+  [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md).
+- **CSV export** for the monthly overview, readings and the temperature series —
+  semicolon-separated, UTF-8 with BOM, directly usable in Excel/LibreOffice.
+  Complements the full JSON backup.
+- **Light/dark toggle** on the right in the top bar. Respects
+  `prefers-color-scheme` on the first visit, then persists the choice in
+  `localStorage`.
+- **System diagnostics** under Settings: PHP version, data directory, write
+  permissions, schema version, number of meters/readings per utility.
+- **CI pipeline** (GitHub Actions): four jobs on every push/PR to `main` — PHP
+  syntax lint, the PHPUnit service suite, frontend-API-shape + browser-render
+  against a real backend server, and a Docker image smoke test. Version tags
+  automatically publish the multi-arch image (amd64 + arm64) to GHCR.
 
 ---
 
-## Schnellstart
+## Documentation
 
-### Voraussetzungen
+The full documentation lives as a **compendium** under
+[`docs/en/`](docs/en/README.md) — split into a technical and a functional part
+plus a UI reference with **real screenshots of all 12 views**:
 
-- **PHP ≥ 8.4** (CLI und ein beliebiger Webserver: Apache, nginx, Caddy,
-  oder der eingebaute PHP-Server für lokales Arbeiten)
-- Web-Browser mit ES Modules (alles ab 2020)
+- 🚀 **New here?** → [Getting started](docs/en/README.md) (a guided example from
+  installation to the first forecast) ·
+  [Use cases](docs/en/README.md) (shared flat, smart home, PV, landlord)
+- 🔧 **Technical:** installation · architecture · API · data model · tests ·
+  release process → see the [compendium index](docs/en/README.md)
+- 🏠 **Home Assistant integration** — push meter readings automatically from Home
+  Assistant (token, meter alias, REST command, scenarios) → see the
+  [compendium index](docs/en/README.md)
+- 📚 **Functional:** fundamentals & formulas · each utility (gas … pellets) ·
+  flat scenario · house scenario · glossary → see the
+  [compendium index](docs/en/README.md)
+- 🖥️ **UI reference:** all views → see the [compendium index](docs/en/README.md)
+
+> The English compendium is complete — see
+> [`docs/en/README.md`](docs/en/README.md). The German documentation under
+> [`docs/`](docs/README.md) remains canonical and is kept in sync at every release.
+
+---
+
+## Quick start
+
+### Requirements
+
+- **PHP ≥ 8.4** (the CLI plus any web server: Apache, nginx, Caddy, or the
+  built-in PHP server for local work)
+- A web browser with ES modules (anything from 2020 onwards)
 
 ### Installation
 
@@ -237,71 +228,72 @@ Ansichten**:
 git clone https://github.com/Bingerminger/energietracker.git
 cd energietracker
 
-# Lokaler Test-Server (Document Root = Projektwurzel)
+# Local test server (document root = project root)
 php -S 127.0.0.1:8080
 ```
 
-Browser auf <http://127.0.0.1:8080> → Dashboard erscheint mit leerem Zustand.
+Open <http://127.0.0.1:8080> in the browser → the dashboard appears with an
+empty state.
 
-Die App initialisiert beim ersten Start automatisch `data/meta.json`,
-`data/settings.json`, leere `temperatures.json` und die Utility-Unterordner
-(`data/gas/`, `data/strom/`, `data/wasser/`) inkl. `meters.json`,
-`readings.json`, `contracts.json`. Das Verzeichnis `data/` muss durch
-den Webserver schreibbar sein.
+On first start the app automatically initialises `data/meta.json`,
+`data/settings.json`, an empty `temperatures.json` and the utility subfolders
+(`data/gas/`, `data/strom/`, `data/wasser/`) including `meters.json`,
+`readings.json`, `contracts.json`. The `data/` directory must be writable by the
+web server.
 
-### 🐳 Docker (seit v1.7.3)
+### 🐳 Docker (since v1.7.3)
 
-Reproduzierbarer Betrieb als Single-Container (nginx + php-fpm). Daten
-liegen im gemounteten Volume `./data`.
+Reproducible operation as a single container (nginx + php-fpm). Data lives in
+the mounted volume `./data`.
 
 ```bash
 docker compose up -d        # → http://localhost:8080
 ```
 
-Oder ohne Compose, direkt mit dem veröffentlichten Image:
+Or without Compose, directly with the published image:
 
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.0.1
+  ghcr.io/bingerminger/energietracker:2.1.0
 ```
 
-> Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
-> (z. B. `thirsty_archimedes`). Mit `--name` heißt der Container immer
-> `energietracker` — genau wie beim Start über `docker compose`.
+> Without `--name energietracker` Docker assigns a random name (e.g.
+> `thirsty_archimedes`). With `--name` the container is always called
+> `energietracker` — exactly as when starting via `docker compose`.
 
-Logs (JSON Lines) landen via `docker logs`; Konfiguration über
-`ET_LOG_LEVEL` / `ET_LOG_DEST` / `ET_DATA_DIR`. Details:
-[INSTALL.md → Produktiv: Docker](INSTALL.md#produktiv-docker-seit-v173).
+Logs (JSON Lines) appear via `docker logs`; configuration via `ET_LOG_LEVEL` /
+`ET_LOG_DEST` / `ET_DATA_DIR`. Details:
+[INSTALL.md → Production: Docker](INSTALL.md#production-docker-since-v173).
 
-### Erstinbetriebnahme
+### First-time setup
 
-1. **Einstellungen → System-Konstanten** prüfen: Gas-Umrechnungsfaktor
-   (Default 11.5 kWh/m³), HGT-Basistemperatur (Default 15 °C),
-   CO₂-Faktoren, eigener Standort (Lat/Lon, Default Leipzig).
-2. **Verbrauch → Gas/Strom/Wasser → ⚙️ Zähler** öffnen und den ersten
-   Zähler anlegen (ein Default-Gerät wird automatisch erzeugt). Für
-   bestehende Zähler eine Seriennummer + ungefähres Einbaudatum eintragen.
-3. **Verbrauch → Gas → 📑 Verträge** → ersten Vertrag mit
-   Anbieter/Tarif/Start/Ende anlegen, Arbeits- und Grundpreis sowie
-   monatlichen Abschlag eintragen.
-4. **Erste Ablesung** über den `+ Ablesung`-Button. Sobald mindestens zwei
-   Ablesungen vorliegen, beginnt die Monatsverbrauchsberechnung.
-5. **Temperaturen → Open-Meteo synchronisieren** für lokale Klimadaten
-   (oder eine CSV-Datei hochladen).
+1. Check **Settings → System constants**: gas conversion factor (default 11.5
+   kWh/m³), HDD base temperature (default 15 °C), CO₂ factors, your own location
+   (lat/lon, default Leipzig).
+2. Open **Consumption → Gas/Electricity/Water → ⚙️ Meters** and create the first
+   meter (a default device is created automatically). For existing meters, enter
+   a serial number + approximate installation date.
+3. **Consumption → Gas → 📑 Contracts** → create the first contract with
+   provider/tariff/start/end, and enter the working price, base price and monthly
+   advance.
+4. **First reading** via the `+ Reading` button. As soon as at least two readings
+   exist, the monthly consumption calculation begins.
+5. **Temperatures → sync Open-Meteo** for local climate data (or upload a CSV
+   file).
 
-### Demo-Daten
+### Demo data
 
-> 💡 **Schnellster Weg (kein Dateisystem nötig):** die Demo-Daten liegen auch
-> als JSON-Backup unter
+> 💡 **Fastest way (no file system needed):** the demo data is also available as
+> a JSON backup under
 > [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
-> In einem leeren Energietracker über *Einstellungen → Backup & Restore →
-> Backup importieren* hochladen (ab v1.7.4 zusätzlich per „Demo-Daten laden"-
-> Button). Es wird vorab automatisch ein Snapshot angelegt.
+> In an empty Energietracker, upload it via *Settings → Backup & restore →
+> Import backup* (since v1.7.4 also via the "Load demo data" button). A snapshot
+> is created automatically beforehand.
 
-Im Repository liegen Demo-Daten unter `demo-data/` (Leipziger EFH-Szenario
-2023–2026, drei Utilities, mehrere Verträge mit Tarifwechseln). Zum
-Ausprobieren in `data/` kopieren:
+The repository ships demo data under `demo-data/` (Leipzig detached-house
+scenario 2023–2026, three utilities, several contracts with tariff changes). To
+try it out, copy it into `data/`:
 
 ```bash
 rm -rf data/gas data/strom data/wasser data/meta.json data/settings.json data/temperatures.json
@@ -309,17 +301,17 @@ cp -r demo-data/gas demo-data/strom demo-data/wasser data/
 cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
 ```
 
-> Vor dem Kopieren ggf. eigene Daten sichern (Einstellungen → Backup &
-> Restore → *JSON-Backup herunterladen*).
+> Before copying, back up your own data if needed (Settings → Backup & restore →
+> *Download JSON backup*).
 
 ---
 
-## Datenmodell
+## Data model
 
-Alles liegt als JSON unter `data/`. Schema-Version (`1.1.0` — seit
-v1.3.0; v1.0.3 führte das Wasser-Vertragsmodell ein, v1.1.0 ergänzte die
-lieferbasierten Verbrauchsarten und `reminders.json`) steht in `data/meta.json` und in jedem exportierten Backup unter
-`backup_version`.
+Everything is stored as JSON under `data/`. The schema version (`1.1.0` — since
+v1.3.0; v1.0.3 introduced the water contract model, v1.1.0 added the
+delivery-based utilities and `reminders.json`) is in `data/meta.json` and in
+every exported backup under `backup_version`.
 
 ```
 data/
@@ -338,7 +330,7 @@ data/
 │   ├── meters.json
 │   ├── readings.json
 │   └── contracts.json
-└── backups/                 ← [optionale Snapshots der UI]
+└── backups/                 ← [optional UI snapshots]
 ```
 
 ### Reading
@@ -351,23 +343,22 @@ data/
   "date": "2025-04-15",
   "counter": 23545.0,
   "price_cents": null,
-  "note": "Nach Heizungswartung",
+  "note": "After heating service",
   "is_estimated": false,
   "is_future": false
 }
 ```
 
-`price_cents` ist optional und wird (wenn gesetzt) als forward-fill auf
-spätere Readings angewandt — als Fallback wenn kein passender Vertrag
-existiert. In der Praxis lässt man `price_cents` leer und pflegt
-stattdessen Verträge.
+`price_cents` is optional and (when set) applied as a forward fill to later
+readings — as a fallback when no matching contract exists. In practice you leave
+`price_cents` empty and maintain contracts instead.
 
-### Meter und Device (Zählertausch)
+### Meter and device (meter swap)
 
 ```json
 {
   "id": "m_gas_main",
-  "name": "Hauptzähler",
+  "name": "Main meter",
   "icon": "🔥",
   "created_at": "2023-01-01T00:00:00+01:00",
   "active": true,
@@ -380,7 +371,7 @@ stattdessen Verträge.
       "initial_counter": 0.0,
       "removed_on": "2024-08-22",
       "final_counter": 18432.5,
-      "reason": "Eichfrist abgelaufen"
+      "reason": "Calibration period expired"
     },
     {
       "id": "d_gas_002",
@@ -395,10 +386,10 @@ stattdessen Verträge.
 }
 ```
 
-Die Devices-Liste ist chronologisch. Der aktive (= zuletzt installierte
-und nicht ausgebaute) ist derjenige mit `removed_on === null`. Verbrauch
-zwischen zwei Readings auf unterschiedlichen Devices wird über die
-Funktion `ConsumptionService::consumptionBetween()` korrekt überbrückt.
+The devices list is chronological. The active one (= most recently installed and
+not removed) is the one with `removed_on === null`. Consumption between two
+readings on different devices is bridged correctly via
+`ConsumptionService::consumptionBetween()`.
 
 ### Contract
 
@@ -410,109 +401,113 @@ Funktion `ConsumptionService::consumptionBetween()` korrekt überbrückt.
   "tariff_name": "Easy Gas 12 — 2026",
   "start": "2026-01-01",
   "end": "2026-12-31",
-  "notes": "Preisanpassung Anfang 2026",
+  "notes": "Price adjustment at the start of 2026",
   "working_prices":   [{"from": "2026-01-01", "ct_per_kwh": 8.2}],
   "base_prices":      [{"from": "2026-01-01", "eur_per_month": 10.50}],
   "advance_payments": [{"from": "2026-01-01", "amount_eur": 130.00}],
-  "bonuses":          [{"credit_date": "2026-06-30", "amount_eur": 75, "type": "neukunde", "label": "Neukundenbonus"}]
+  "bonuses":          [{"credit_date": "2026-06-30", "amount_eur": 75, "type": "neukunde", "label": "New-customer bonus"}]
 }
 ```
 
-Bei Wasser bedeutet das Feld `ct_per_kwh` semantisch *ct/m³* —
-die Einheit wird aus dem Utility-Config (`consumption_unit`) abgeleitet,
-nicht aus dem Feldnamen.
+For water the field `ct_per_kwh` semantically means *ct/m³* — the unit is derived
+from the utility config (`consumption_unit`), not from the field name.
 
-`end: null` entspricht einem offenen Vertrag. Für die Saldo-Projektion
-wird das effektive Ende dann auf den nächsten Abrechnungsstichtag der
-jeweiligen Utility gesetzt (Settings `billing_cycle_anchor_*`, Default
-1. Januar).
+`end: null` corresponds to an open contract. For the balance projection the
+effective end is then set to the next settlement date of the respective utility
+(settings `billing_cycle_anchor_*`, default 1 January).
 
-### Settings (28 Schlüssel)
+### Settings (28 keys)
 
-Vollständige Liste der konfigurierbaren Werte siehe
-[`docs/technical/04-data-model.md`](docs/technical/04-data-model.md) → *Einstellungen*.
+For the full list of configurable values see
+[`docs/technical/04-data-model.md`](docs/technical/04-data-model.md) →
+*Settings* (English mirror: [`docs/en/technical/04-data-model.md`](docs/en/technical/04-data-model.md)).
 
 ---
 
-## Verzeichnisstruktur
+## Directory layout
 
 ```
 energietracker/
-├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
-├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „2.0.1"
-├── README.md                ← diese Datei
+├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
+├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
+├── VERSION                  ← "2.1.0"
+├── README.md                ← this file (English)
+├── README.de.md             ← German version
 ├── CHANGELOG.md
 ├── LICENSE
-├── docs/
-│   ├── API.md               ← REST-Endpoint-Referenz mit Beispielen
-│   ├── ARCHITECTURE.md      ← Service-Map, Datenmodell-Details, Berechnungen
+├── docs/                    ← German compendium (canonical)
+│   ├── en/                  ← English mirror (complete)
+│   ├── API.md               ← REST endpoint reference with examples
+│   ├── ARCHITECTURE.md      ← service map, data-model details, calculations
 │   ├── MIGRATION-FROM-V090.md
-│   └── screenshots/         ← echte PNG-Screenshots aller Views
+│   └── screenshots/         ← real PNG screenshots of all views
 ├── src/                     ← PHP backend
-│   ├── bootstrap.php        ← App-Container, Routing
+│   ├── bootstrap.php        ← app container, routing
 │   ├── Config/
-│   │   └── Utilities.php    ← Single source of truth für alle 6 Energiearten
+│   │   └── Utilities.php    ← single source of truth for all 6 utilities
 │   ├── Http/                ← Router, Request, Response, ErrorHandler
 │   ├── Storage/
 │   │   ├── JsonStore.php    ← LOCK_EX writes, atomic reads
-│   │   └── Migrator.php     ← Bootstrap-Logik für leeres `data/`
-│   ├── Services/            ← 24 Services (Consumption, DeliveryConsumption, Forecast, Auth, Ingest, …)
-│   └── Controllers/         ← 20 Controllers, 1 Klasse pro Datei
+│   │   └── Migrator.php     ← bootstrap logic for an empty `data/`
+│   ├── Services/            ← 24 services (Consumption, DeliveryConsumption, Forecast, Auth, Ingest, …)
+│   └── Controllers/         ← 20 controllers, 1 class per file
 ├── public/
 │   ├── css/                 ← tokens.css + app.css + components.css
-│   └── js/                  ← Vanilla-JS SPA
-│       ├── app.js           ← Entry
-│       ├── api.js           ← Fetch-Wrapper
-│       ├── router.js        ← Hash-Router
-│       ├── state.js         ← Lightweight Cache
+│   └── js/                  ← vanilla-JS SPA
+│       ├── app.js           ← entry
+│       ├── api.js           ← fetch wrapper
+│       ├── router.js        ← hash router
+│       ├── state.js         ← lightweight cache
 │       ├── views/           ← dashboard, utility, meters, contracts, …
 │       ├── components/      ← chart, modal, toast
-│       └── lib/             ← format (de-DE)
-├── data/                    ← Laufzeitdaten (gitignored, .gitkeep-Stubs)
-├── demo-data/               ← Optional kopierbarer Demo-Datensatz
+│       └── lib/             ← format, i18n
+├── public/locales/          ← language catalogs (de, en, fr, it, es, pt, nl)
+├── data/                    ← runtime data (gitignored, .gitkeep stubs)
+├── demo-data/               ← optional copyable demo dataset
 └── scripts/
-    └── init_data.py         ← Python-Helper für Bulk-Import aus Excel
+    └── init_data.py         ← Python helper for bulk import from Excel
 ```
 
 ---
 
-## Migration aus v0.9.0
+## Migration from v0.9.0
 
-Wer aus einem v0.9.0-Backup migrieren möchte:
+If you want to migrate from a v0.9.0 backup:
 
-1. In v0.9.0 ein vollständiges JSON-Backup exportieren (Format-Version
-   `2.1` mit Top-Level-Schlüssel `gas`, `strom`, `temperatures`, `settings`,
-   `contracts`).
-2. v1.2.0 frisch installieren (siehe [Schnellstart](#schnellstart)) oder
-   die Demo-Daten löschen.
-3. **Einstellungen → Backup & Restore → 📦 Migration aus v0.9.0** öffnen
-   und die JSON-Datei hochladen.
-4. Der Migrations-Dialog zeigt was importiert würde (Ablesungen pro
-   Utility, Verträge, Temperaturen, Settings, Warnungen, erkannte
-   Zählerwechsel-Kandidaten).
-5. **Ersetzen** oder **Zusammenführen** wählen → Import. Vor dem
-   Schreiben wird automatisch ein Sicherungs-Snapshot der aktuellen
-   aktuellen Daten unter `data/backups/` angelegt.
+1. In v0.9.0, export a full JSON backup (format version `2.1` with the top-level
+   keys `gas`, `strom`, `temperatures`, `settings`, `contracts`).
+2. Install v1.2.0 fresh (see [Quick start](#quick-start)) or delete the demo
+   data.
+3. Open **Settings → Backup & restore → 📦 Migration from v0.9.0** and upload the
+   JSON file.
+4. The migration dialog shows what would be imported (readings per utility,
+   contracts, temperatures, settings, warnings, detected meter-swap candidates).
+5. Choose **Replace** or **Merge** → import. Before writing, a safety snapshot of
+   the current data is created automatically under `data/backups/`.
 
-Vollständige Schritt-für-Schritt-Anleitung inkl. Schema-Mapping und
-Fehlerbehandlung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md).
+A complete step-by-step guide including schema mapping and error handling is in
+[`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md) (English:
+[`docs/en/MIGRATION-FROM-V090.md`](docs/en/MIGRATION-FROM-V090.md)).
 
 ---
 
-## Weiterführende Dokumentation
+## Further documentation
 
-- [`docs/README.md`](docs/README.md) — **Kompendium-Index** (technisch · fachlich · UI)
-- [`docs/technical/03-api-reference.md`](docs/technical/03-api-reference.md) — vollständige API-Referenz
-- [`docs/technical/04-data-model.md`](docs/technical/04-data-model.md) — Datenmodell & Schemata
-- [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md) — Migration aus v0.9.0
-- [`CHANGELOG.md`](CHANGELOG.md) — Versionshistorie
+- [`docs/en/README.md`](docs/en/README.md) — **compendium index** (technical ·
+  functional · UI), with English/German availability
+- [`docs/technical/03-api-reference.md`](docs/technical/03-api-reference.md) —
+  full API reference (German)
+- [`docs/technical/04-data-model.md`](docs/technical/04-data-model.md) — data
+  model & schemas (German)
+- [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md) — migration from
+  v0.9.0 (German)
+- [`CHANGELOG.md`](CHANGELOG.md) — version history
 
 ---
 
-## Mitwirken & Lizenz
+## Contributing & licence
 
-Pull Requests willkommen. Vor größeren Änderungen am Datenmodell bitte
-ein Issue öffnen, damit eine Migration sauber durchplanbar bleibt.
+Pull requests welcome. Before larger changes to the data model, please open an
+issue so that a migration can be planned cleanly.
 
-MIT License — siehe [`LICENSE`](LICENSE).
+MIT License — see [`LICENSE`](LICENSE).

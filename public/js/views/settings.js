@@ -10,7 +10,7 @@ import { invalidateSettings, invalidateUtilities } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
-import { t, getLocale, initI18n, SUPPORTED } from '../lib/i18n.js';
+import { t, getLocale, initI18n, getLanguages } from '../lib/i18n.js';
 import { buildSidebar } from '../lib/sidebar.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
@@ -125,7 +125,7 @@ export async function render(container) {
         <div class="field settings-field">
           <label for="lang-select">${t('settings.lang.label')}</label>
           <select class="select" id="lang-select">
-            ${SUPPORTED.map(l => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${t('settings.lang.' + l)}</option>`).join('')}
+            ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === getLocale() ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
           </select>
         </div>
       </div>

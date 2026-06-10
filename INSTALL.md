@@ -1,19 +1,21 @@
 # Installation
 
-## Voraussetzungen
+**English** · [Deutsch](INSTALL.de.md)
 
-- PHP ≥ 8.4 (CLI ist für die Entwicklung ausreichend)
-- Web-Browser mit ES Modules (alles ab Mitte 2020)
-- Optional: Apache, nginx, Caddy für Produktivbetrieb
+## Requirements
 
-## Schritte
+- PHP ≥ 8.4 (the CLI is sufficient for development)
+- A web browser with ES modules (anything from mid-2020)
+- Optional: Apache, nginx, Caddy for production
+
+## Steps
 
 ```bash
 git clone https://github.com/Bingerminger/energietracker.git
 cd energietracker
 ```
 
-**Verzeichnisstruktur prüfen:**
+**Check the directory structure:**
 
 ```
 energietracker/
@@ -21,51 +23,50 @@ energietracker/
 ├── index.php
 ├── VERSION                ← 2.0.1
 ├── public/                ← CSS + JS
-├── src/                   ← PHP-Backend
-├── data/                  ← muss schreibbar sein
-├── demo-data/             ← optionaler Datensatz
+├── src/                   ← PHP backend
+├── data/                  ← must be writable
+├── demo-data/             ← optional dataset
 └── ...
 ```
 
-**`data/`-Schreibrechte sicherstellen:**
+**Ensure `data/` is writable:**
 
 ```bash
 chmod -R u+w data/
 ```
 
-Bei Apache/nginx ggf. den Owner auf den Webserver-Benutzer setzen
-(typisch `www-data` oder `nginx`):
+For Apache/nginx, set the owner to the web-server user if needed (typically
+`www-data` or `nginx`):
 
 ```bash
 sudo chown -R www-data:www-data data/
 ```
 
-## Lokal testen
+## Test locally
 
 ```bash
 php -S 127.0.0.1:8080
 ```
 
-Im Browser <http://127.0.0.1:8080> aufrufen. Beim ersten Request
-initialisiert die App das `data/`-Verzeichnis automatisch.
+Open <http://127.0.0.1:8080> in the browser. On the first request the app
+initialises the `data/` directory automatically.
 
-### Datenverzeichnis verschieben (optional)
+### Relocate the data directory (optional)
 
-Standardmäßig liegt der JSON-Speicher unter `./data` relativ zu
-`api.php`. Mit der Umgebungsvariable `ET_DATA_DIR` lässt sich ein
-beliebiger absoluter Pfad erzwingen (seit v1.4.4) — nützlich für
-getrennte Daten-/Code-Mounts oder mehrere Instanzen:
+By default the JSON storage lives under `./data` relative to `api.php`. With the
+environment variable `ET_DATA_DIR` you can force any absolute path (since v1.4.4)
+— useful for separate data/code mounts or several instances:
 
 ```bash
 ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080
 ```
 
-Bei Apache/nginx wird die Variable über `SetEnv` bzw.
-`fastcgi_param ET_DATA_DIR …` gesetzt.
+For Apache/nginx the variable is set via `SetEnv` resp. `fastcgi_param
+ET_DATA_DIR …`.
 
-## Produktiv: Apache
+## Production: Apache
 
-Beispiel-Config (Document Root = Projektwurzel):
+Example config (document root = project root):
 
 ```apache
 <VirtualHost *:80>
@@ -78,14 +79,14 @@ Beispiel-Config (Document Root = Projektwurzel):
     Require all granted
   </Directory>
 
-  # Schutz des Datenverzeichnisses
+  # Protect the data directory
   <Directory /var/www/energietracker/data>
     Require all denied
   </Directory>
 </VirtualHost>
 ```
 
-## Produktiv: nginx
+## Production: nginx
 
 ```nginx
 server {
@@ -114,18 +115,18 @@ server {
 }
 ```
 
-## Produktiv: Docker (seit v1.7.3)
+## Production: Docker (since v1.7.3)
 
-Single-Container-Image (nginx + php-fpm). Persistente Daten liegen im
-gemounteten Volume unter `/data`.
+Single-container image (nginx + php-fpm). Persistent data lives in the mounted
+volume under `/data`.
 
-**Schnellster Weg — docker compose:**
+**Fastest way — docker compose:**
 
 ```bash
 docker compose up -d        # → http://localhost:8080
 ```
 
-**Oder direkt mit dem GHCR-Image:**
+**Or directly with the GHCR image:**
 
 ```bash
 docker run -d --name energietracker \
@@ -134,38 +135,38 @@ docker run -d --name energietracker \
   ghcr.io/bingerminger/energietracker:2.0.1
 ```
 
-**Oder lokal bauen:**
+**Or build locally:**
 
 ```bash
 docker build -t energietracker .
 docker run -d --name energietracker -p 8080:80 -v "$PWD/data:/data" energietracker
 ```
 
-Konfiguration über Umgebungsvariablen (`docker run -e …` bzw. `environment:`
-im Compose-File):
+Configuration via environment variables (`docker run -e …` resp. `environment:`
+in the Compose file):
 
-| Variable | Default | Wirkung |
-|----------|---------|---------|
-| `ET_DATA_DIR` | `/data` | Speicherpfad im Container |
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `ET_DATA_DIR` | `/data` | Storage path inside the container |
 | `ET_LOG_DEST` | `stderr` | `stderr` \| `file` \| `null` |
 | `ET_LOG_LEVEL` | `info` | `debug` \| `info` \| `warning` \| `error` |
-| `ET_LOG_FILE` | `<dataDir>/logs/app.log` | Pfad bei `ET_LOG_DEST=file` |
+| `ET_LOG_FILE` | `<dataDir>/logs/app.log` | Path when `ET_LOG_DEST=file` |
 
-Die Logs (JSON Lines) erscheinen bei `ET_LOG_DEST=stderr` direkt in
-`docker logs energietracker`. Der Container hat einen `HEALTHCHECK` gegen
+With `ET_LOG_DEST=stderr` the logs (JSON Lines) appear directly in
+`docker logs energietracker`. The container has a `HEALTHCHECK` against
 `GET /api/health`.
 
-## Demo-Daten laden (optional)
+## Load demo data (optional)
 
-> **Am einfachsten ohne Dateisystem:** Das Repo enthält die Demo-Daten auch als
-> fertiges JSON-Backup unter
+> **Easiest, without the file system:** the repo also ships the demo data as a
+> ready-made JSON backup under
 > [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
-> In einem leeren Energietracker kannst du es direkt über
-> *Einstellungen → Backup & Restore → Backup importieren* einspielen (ab
-> v1.7.4 gibt es dafür zusätzlich einen „Demo-Daten laden"-Button). Vor dem
-> Import wird automatisch ein Snapshot deiner aktuellen Daten angelegt.
+> In an empty Energietracker you can import it directly via
+> *Settings → Backup & restore → Import backup* (since v1.7.4 there is also a
+> "Load demo data" button). Before the import, a snapshot of your current data is
+> created automatically.
 
-Klassisch per Dateikopie:
+Classic, via file copy:
 
 ```bash
 find data/ -mindepth 1 -not -name '.gitkeep' -delete
@@ -176,28 +177,31 @@ cp demo-data/meta.json demo-data/settings.json \
    demo-data/temperatures.json demo-data/reminders.json data/
 ```
 
-> Alternativ einfach das gesamte Verzeichnis kopieren — der Migrator
-> ist idempotent und der Demo-Datensatz trägt bereits `schema_version
-> 1.1.0` (seit v1.4.4), sodass kein Migrationslauf nötig ist:
+> Alternatively, just copy the whole directory — the migrator is idempotent and
+> the demo dataset already carries `schema_version 1.1.0` (since v1.4.4), so no
+> migration run is needed:
 >
 > ```bash
 > rm -rf data && cp -r demo-data data
 > ```
 
-## Migration aus v0.9.0
+## Migration from v0.9.0
 
-Wer ein altes v0.9.0-Backup hat: nach der Installation einfach in der
-UI öffnen unter **Einstellungen → Backup & Restore → 📦 Migration aus
-v0.9.0** und die JSON-Datei hochladen.
+If you have an old v0.9.0 backup: after installation, simply open it in the UI
+under **Settings → Backup & restore → 📦 Migration from v0.9.0** and upload the
+JSON file.
 
-Detaillierte Anleitung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md).
+A detailed guide is in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md)
+(German; English translation in progress).
 
-## Home Assistant anbinden (optional)
+## Connect Home Assistant (optional)
 
-Du betreibst Home Assistant und möchtest Zählerstände automatisch übergeben
-lassen? Der Energietracker hat dafür einen offiziellen Push-Endpoint
-(`POST /api/ingest`) mit optionalem API-Token. Einrichtung direkt in der UI
-unter **Einstellungen → 🏠 Home-Assistant-Anbindung**.
+Do you run Home Assistant and want to have meter readings handed over
+automatically? Energietracker has an official push endpoint for this
+(`POST /api/ingest`) with an optional API token. Setup directly in the UI under
+**Settings → 🏠 Home Assistant integration**.
 
-Schritt-für-Schritt inkl. REST-Command, Automatisierung und Use-Cases
-(Eigenheim, Mietwohnung) in [`docs/HOME-ASSISTANT.md`](docs/HOME-ASSISTANT.md).
+Step-by-step instructions including REST command, automation and use cases
+(detached house, rented flat) are in
+[`docs/HOME-ASSISTANT.md`](docs/HOME-ASSISTANT.md) (German; English translation
+in progress).

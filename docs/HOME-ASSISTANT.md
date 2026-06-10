@@ -1,5 +1,7 @@
 # Energietracker mit Home Assistant verbinden
 
+**Deutsch** · [English](en/HOME-ASSISTANT.md)
+
 > **Ziel:** Home Assistant (HA) liest deine Smart Meter automatisch aus und
 > schickt die Zählerstände an den Energietracker. Du pflegst keine Werte mehr
 > von Hand — der Energietracker übernimmt Verträge, Kostenberechnung und

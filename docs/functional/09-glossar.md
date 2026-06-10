@@ -1,5 +1,7 @@
 # Glossar & Formelsammlung
 
+**Deutsch** · [English](../en/functional/09-glossar.md)
+
 [← Szenario Eigenheim](08-szenario-eigenheim.md) · [Kompendium-Index](../README.md)
 
 Kompakte Referenz aller Begriffe und Formeln. Ausführliche Herleitung

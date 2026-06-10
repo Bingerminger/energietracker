@@ -89,7 +89,19 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | v2.1.0 | L | 1.3.0 → 1.4.0 | nächster Slot, Detail-Konzept unten |
+| **L10n-Welle-1 + Doku-i18n + Logos** | 5 neue UI-Sprachen (fr, it, es, pt, nl) auf datengetriebener Sprach-Infra (languages.json-Registry); zweisprachige Doku DE+EN (GitHub-Best-Practice); neues App-Logo/Icon-Set | v2.1.0 | L | — | **in Arbeit** (Sprachen fertig+verifiziert; Doku-Übersetzung läuft wellenweise) |
+| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | v2.2.0 | L | 1.3.0 → 1.4.0 | nach dem i18n/Doku-Release, Detail-Konzept unten |
+
+> **Sprach-Wellen 2+** (cs, uk, pl, el, tr, hr, sr, sl, fi, no, da, lv, et, hu, bg, ro …)
+> sind bewusst zurückgestellt (User-Entscheidung 2026-06-10) und werden
+> bedarfsgetrieben in weiteren MINOR-Releases nachgereicht — je ~2–4 Sprachen,
+> gleiche Methode (Katalog aus en.json, Parität-/Platzhalter-Check, in
+> languages.json registrieren). Eine neue Sprache braucht keinen Code mehr.
+>
+> **Zweisprachige Doku (DE+EN)** ist ab v2.1.0 die Norm: README/INSTALL als
+> `*.md` (EN) + `*.de.md` (DE), `docs/` als `docs/en/` + `docs/de/`. DE bleibt
+> kanonisch; das große Kompendium (API, funktional, technisch) wird wellenweise
+> ins EN gespiegelt, ohne Info-Verlust.
 
 > Das **v2.0.0-Bündel** (N1007 + EN-L10n + N1009 + UX + N1008) ist am
 > 2026-06-10 ausgeliefert → siehe „Bereits ausgeliefert".

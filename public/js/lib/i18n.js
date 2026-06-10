@@ -6,14 +6,38 @@
 // (src/Services/I18nService.php).
 // =====================================================================
 
-export const SUPPORTED = ['de', 'en'];
 export const DEFAULT_LOCALE = 'de';
+
+// Datengetriebene Sprachliste: die unterstützten Sprachen + ihre Anzeigenamen
+// (Endonyme) stehen in public/locales/languages.json. Bis die Registry geladen
+// ist, gilt der Minimal-Fallback. Eine neue Sprache = JSON-Katalog ablegen +
+// eine Zeile in languages.json — keine Code-Änderung nötig.
+let LANGUAGES = { de: 'Deutsch', en: 'English' };
+export let SUPPORTED = Object.keys(LANGUAGES);
 
 let locale = DEFAULT_LOCALE;
 let catalog = {};          // aktive Sprache
 let fallback = {};         // Default-Sprache (de) für fehlende Keys
 
 export function getLocale() { return locale; }
+
+/** Registry { code: Anzeigename } der unterstützten Sprachen. */
+export function getLanguages() { return LANGUAGES; }
+
+async function loadLanguages() {
+  try {
+    const res = await fetch('public/locales/languages.json', { cache: 'no-cache' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === 'object' && Object.keys(data).length) {
+        LANGUAGES = data;
+        SUPPORTED = Object.keys(data);
+      }
+    }
+  } catch (e) {
+    console.error('i18n: languages.json konnte nicht geladen werden', e);
+  }
+}
 
 function normalize(lang) {
   const loc = String(lang || '').slice(0, 2).toLowerCase();
@@ -36,6 +60,7 @@ async function loadCatalog(loc) {
  * Default-Katalog als Fallback) und setzt <html lang>.
  */
 export async function initI18n(lang) {
+  await loadLanguages();     // unterstützte Sprachen kennen, bevor normalisiert wird
   locale = normalize(lang);
   catalog = await loadCatalog(locale);
   fallback = locale === DEFAULT_LOCALE ? catalog : await loadCatalog(DEFAULT_LOCALE);

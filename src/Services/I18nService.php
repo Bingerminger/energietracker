@@ -23,10 +23,13 @@ namespace Energietracker\Services;
 final class I18nService
 {
     public const DEFAULT_LOCALE = 'de';
-    public const SUPPORTED = ['de', 'en'];
+    /** Minimal-Fallback, falls languages.json fehlt. */
+    private const FALLBACK_SUPPORTED = ['de', 'en'];
 
     private string $localeDir;
     private ?string $locale = null;
+    /** @var string[]|null lazy-geladene Liste unterstützter Sprachen */
+    private ?array $supportedCache = null;
 
     /** @var array<string,array<string,mixed>> catalog cache per locale */
     private array $catalogs = [];
@@ -36,10 +39,25 @@ final class I18nService
         $this->localeDir = rtrim($localeDir, '/');
     }
 
-    /** @return string[] */
+    /**
+     * Unterstützte Sprachen — datengetrieben aus public/locales/languages.json
+     * (Schlüssel der Registry). Fällt auf de/en zurück, wenn die Datei fehlt.
+     * @return string[]
+     */
     public function supported(): array
     {
-        return self::SUPPORTED;
+        if ($this->supportedCache !== null) {
+            return $this->supportedCache;
+        }
+        $codes = self::FALLBACK_SUPPORTED;
+        $file = $this->localeDir . '/languages.json';
+        if (is_file($file)) {
+            $data = json_decode((string)@file_get_contents($file), true);
+            if (is_array($data) && $data !== []) {
+                $codes = array_keys($data);
+            }
+        }
+        return $this->supportedCache = $codes;
     }
 
     /** Setzt die aktive Sprache; unbekannte Werte werden ignoriert. */
@@ -147,6 +165,6 @@ final class I18nService
             return null;
         }
         $loc = strtolower(substr($locale, 0, 2));
-        return in_array($loc, self::SUPPORTED, true) ? $loc : null;
+        return in_array($loc, $this->supported(), true) ? $loc : null;
     }
 }
