@@ -31,6 +31,7 @@ final class DeliveryService
     public function __construct(
         private JsonStore $store,
         private MeterService $meters,
+        private I18nService $i18n,
     ) {}
 
     /** @return array<int,array<string,mixed>> */
@@ -83,7 +84,7 @@ final class DeliveryService
         }
         unset($d);
         if ($found === null) {
-            throw new \RuntimeException('Lieferung nicht gefunden: ' . $id);
+            throw new \RuntimeException($this->i18n->t('errors.delivery.notFound', ['id' => $id]));
         }
         $this->store->write("$utility/deliveries.json", $all);
         return $found;
@@ -95,7 +96,7 @@ final class DeliveryService
         $all = $this->list($utility);
         $kept = array_values(array_filter($all, fn($d) => ($d['id'] ?? null) !== $id));
         if (count($kept) === count($all)) {
-            throw new \RuntimeException('Lieferung nicht gefunden: ' . $id);
+            throw new \RuntimeException($this->i18n->t('errors.delivery.notFound', ['id' => $id]));
         }
         $this->store->write("$utility/deliveries.json", $kept);
     }
@@ -129,7 +130,7 @@ final class DeliveryService
         $this->assertDeliveryUtility($utility);
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) {
-            throw new \RuntimeException('Tank/Lager nicht gefunden: ' . $meterId);
+            throw new \RuntimeException($this->i18n->t('errors.delivery.tankNotFound', ['id' => $meterId]));
         }
 
         $initialStock = (float)($meter['initial_stock'] ?? 0.0);
@@ -188,11 +189,11 @@ final class DeliveryService
     private function assertDeliveryUtility(string $utility): void
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         if (!Utilities::isDelivery($utility)) {
             throw new \InvalidArgumentException(
-                'Verbrauchsart „' . $utility . '" ist nicht lieferungs-basiert; nutze ReadingService.'
+                $this->i18n->t('errors.delivery.notDeliveryBased', ['utility' => $utility])
             );
         }
     }
@@ -213,27 +214,27 @@ final class DeliveryService
     private function validate(string $utility, array $d, bool $isUpdate): void
     {
         if (empty($d['date']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d['date'])) {
-            throw new \InvalidArgumentException('Lieferdatum (date) fehlt oder ist nicht im Format YYYY-MM-DD');
+            throw new \InvalidArgumentException($this->i18n->t('errors.delivery.dateMissing'));
         }
         if (!isset($d['quantity']) || !is_numeric($d['quantity']) || (float)$d['quantity'] <= 0) {
-            throw new \InvalidArgumentException('Liefermenge (quantity) muss > 0 sein');
+            throw new \InvalidArgumentException($this->i18n->t('errors.delivery.quantityPositive'));
         }
         if (isset($d['unit_price_cents']) && (float)$d['unit_price_cents'] < 0) {
-            throw new \InvalidArgumentException('Stückpreis darf nicht negativ sein');
+            throw new \InvalidArgumentException($this->i18n->t('errors.delivery.priceNegative'));
         }
         if (empty($d['meter_id'])) {
-            throw new \InvalidArgumentException('meter_id (Tank/Lager) fehlt');
+            throw new \InvalidArgumentException($this->i18n->t('errors.delivery.meterIdMissing'));
         }
         // Future delivery only allowed when explicitly marked as planned
         if (!($d['is_planned'] ?? false) && (string)$d['date'] > date('Y-m-d')) {
             throw new \InvalidArgumentException(
-                'Lieferdatum liegt in der Zukunft — für geplante Lieferungen is_planned=true setzen'
+                $this->i18n->t('errors.delivery.dateFuture')
             );
         }
         // Meter exists?
         $meter = $this->meters->get($utility, (string)$d['meter_id']);
         if (!$meter) {
-            throw new \InvalidArgumentException('Tank/Lager (meter_id) existiert nicht: ' . $d['meter_id']);
+            throw new \InvalidArgumentException($this->i18n->t('errors.delivery.tankNotExist', ['id' => $d['meter_id']]));
         }
     }
 

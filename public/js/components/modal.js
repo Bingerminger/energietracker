@@ -2,20 +2,27 @@
 // Modal component. Opens an overlay with given title/body/buttons.
 // =====================================================================
 import { escapeHtml } from '../lib/format.js';
+import { t } from '../lib/i18n.js';
 
 /**
  * Open a modal with arbitrary body (string HTML or DOM node).
  * Returns a controller object with .close() and a promise via onClose().
  */
+// Eindeutige IDs für aria-labelledby (mehrere Modals nacheinander möglich).
+let modalSeq = 0;
+
 export function openModal({ title, body, footer = '', onMount = null, size = 'md' }) {
   const root = document.getElementById('modal-root');
+  // A11y (N1009): Fokus merken, damit er beim Schließen zurückkehrt.
+  const prevFocus = document.activeElement;
+  const titleId = `modal-title-${++modalSeq}`;
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.innerHTML = `
-    <div class="modal modal--${size}" role="dialog" aria-modal="true">
+    <div class="modal modal--${size}" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
       <div class="modal__head">
-        <div class="modal__title">${escapeHtml(title)}</div>
-        <button type="button" class="modal__close" aria-label="Schließen">×</button>
+        <div class="modal__title" id="${titleId}">${escapeHtml(title)}</div>
+        <button type="button" class="modal__close" aria-label="${t('common.close')}">×</button>
       </div>
       <div class="modal__body"></div>
       ${footer ? `<div class="modal__foot">${footer}</div>` : ''}
@@ -34,9 +41,34 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
     backdrop.remove();
     document.removeEventListener('keydown', onKey);
     resolveClose(value);
+    // Fokus auf das auslösende Element zurückgeben (sofern noch im DOM).
+    if (prevFocus && typeof prevFocus.focus === 'function' && document.contains(prevFocus)) {
+      prevFocus.focus();
+    }
   }
 
-  function onKey(e) { if (e.key === 'Escape') close(null); }
+  // Sichtbar fokussierbare Elemente innerhalb des Modals.
+  const focusableSel = 'a[href], button:not([disabled]), input:not([disabled]), ' +
+    'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const focusable = () => [...modalEl.querySelectorAll(focusableSel)]
+    .filter(el => el.offsetParent !== null || el === document.activeElement);
+
+  function onKey(e) {
+    if (e.key === 'Escape') { close(null); return; }
+    // Focus-Trap: Tab/Shift+Tab zykeln innerhalb des Modals.
+    if (e.key === 'Tab') {
+      const items = focusable();
+      if (items.length === 0) { e.preventDefault(); return; }
+      const first = items[0];
+      const last  = items[items.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || !modalEl.contains(active))) {
+        e.preventDefault(); last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault(); first.focus();
+      }
+    }
+  }
   document.addEventListener('keydown', onKey);
 
   backdrop.querySelector('.modal__close').addEventListener('click', () => close(null));
@@ -44,19 +76,24 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
 
   if (typeof onMount === 'function') onMount({ modalEl, bodyEl, close });
 
+  // Initial-Fokus in das Modal verschieben (erstes Feld, sonst der Dialog selbst).
+  const initial = focusable()[0];
+  if (initial) initial.focus();
+  else { modalEl.setAttribute('tabindex', '-1'); modalEl.focus(); }
+
   return { close, closedPromise, modalEl, bodyEl };
 }
 
 /**
  * Confirm dialog — returns a Promise<boolean>.
  */
-export function confirmModal({ title = 'Bestätigen', message, confirmLabel = 'OK', danger = false }) {
+export function confirmModal({ title, message, confirmLabel = 'OK', danger = false }) {
   return new Promise(resolve => {
     const ctrl = openModal({
-      title,
+      title: title ?? t('common.confirm'),
       body: `<p>${escapeHtml(message)}</p>`,
       footer: `
-        <button type="button" class="btn btn--ghost" data-act="cancel">Abbrechen</button>
+        <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
         <button type="button" class="btn ${danger ? 'btn--danger' : 'btn--primary'}" data-act="ok">${escapeHtml(confirmLabel)}</button>
       `,
       onMount({ modalEl, close }) {

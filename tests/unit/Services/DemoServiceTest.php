@@ -7,6 +7,8 @@ use PHPUnit\Framework\TestCase;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Services\DemoService;
 use Energietracker\Services\BackupService;
+use Energietracker\Services\I18nService;
+use Energietracker\Services\SettingsService;
 
 /**
  * F1007 (v1.7.4) — Demo-Daten-Komfort-Import.
@@ -19,6 +21,7 @@ final class DemoServiceTest extends TestCase
 {
     private string $dir;
     private JsonStore $store;
+    private I18nService $i18n;
 
     protected function setUp(): void
     {
@@ -26,6 +29,7 @@ final class DemoServiceTest extends TestCase
         $this->dir = $base . '/et_demo_' . uniqid();
         mkdir($this->dir, 0777, true);
         $this->store = new JsonStore($this->dir);
+        $this->i18n  = new I18nService(dirname(__DIR__, 3) . '/public/locales', new SettingsService($this->store));
     }
 
     protected function tearDown(): void
@@ -45,7 +49,7 @@ final class DemoServiceTest extends TestCase
 
     private function service(): DemoService
     {
-        return new DemoService($this->store, new BackupService($this->store));
+        return new DemoService($this->store, new BackupService($this->store, $this->i18n), $this->i18n);
     }
 
     public function testFreshStoreIsEmptyAndBackupAvailable(): void

@@ -23,7 +23,7 @@ use Energietracker\Config\Utilities;
  */
 final class MeterService
 {
-    public function __construct(private JsonStore $store) {}
+    public function __construct(private JsonStore $store, private I18nService $i18n) {}
 
     /** @return array<int,array<string,mixed>> */
     public function list(string $utility): array
@@ -85,7 +85,7 @@ final class MeterService
         $this->assertUtility($utility);
         $u = Utilities::get($utility);
         if (empty($u['allow_multiple_meters']) && !empty($this->list($utility))) {
-            throw new \InvalidArgumentException('Mehrere Zähler für ' . $utility . ' nicht erlaubt');
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.multipleMeters', ['utility' => $utility]));
         }
         $isDelivery = Utilities::isDelivery($utility);
 
@@ -152,12 +152,12 @@ final class MeterService
         if ($isDelivery) {
             if (!isset($input['capacity']) || (float)$input['capacity'] <= 0) {
                 throw new \InvalidArgumentException(
-                    'Tank-Kapazität (capacity) > 0 ist für ' . $u['label'] . ' Pflicht'
+                    $this->i18n->t('errors.meter.capacityRequired', ['label' => $u['label']])
                 );
             }
             if (!isset($input['initial_stock']) || (float)$input['initial_stock'] < 0) {
                 throw new \InvalidArgumentException(
-                    'Anfangsbestand (initial_stock) ≥ 0 ist für ' . $u['label'] . ' Pflicht'
+                    $this->i18n->t('errors.meter.initialStockRequired', ['label' => $u['label']])
                 );
             }
             $meter['capacity']      = (float)$input['capacity'];
@@ -166,7 +166,7 @@ final class MeterService
         }
 
         if ($meter['name'] === '') {
-            throw new \InvalidArgumentException('Zählername darf nicht leer sein');
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.nameEmpty'));
         }
 
         $all = $this->list($utility);
@@ -215,7 +215,7 @@ final class MeterService
             }
         }
         unset($m);
-        if (!$found) throw new \InvalidArgumentException('Zähler nicht gefunden');
+        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.meter.notFound'));
         // v1.2.0 — F1006: Topologie nach der Änderung validieren (Zyklen,
         // mehrstufige Ketten, Existenz von Eltern/Gruppe).
         if (array_key_exists('parent_meter_id', $input) || array_key_exists('meter_group_id', $input)) {
@@ -236,27 +236,27 @@ final class MeterService
         $readings = $this->store->read("$utility/readings.json", []);
         foreach ($readings as $r) {
             if (($r['meter_id'] ?? null) === $meterId) {
-                throw new \InvalidArgumentException('Zähler hat noch Ablesungen — bitte zuerst Ablesungen löschen oder umhängen');
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.hasReadings'));
             }
         }
         // v1.3.0 — auch Lieferungen blocken die Tank-Löschung
         $deliveries = $this->store->read("$utility/deliveries.json", []);
         foreach ($deliveries as $d) {
             if (($d['meter_id'] ?? null) === $meterId) {
-                throw new \InvalidArgumentException('Tank/Lager hat noch Lieferungen — bitte zuerst Lieferungen löschen oder umhängen');
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.hasDeliveries'));
             }
         }
         $contracts = $this->store->read("$utility/contracts.json", []);
         foreach ($contracts as $c) {
             if (($c['meter_id'] ?? null) === $meterId) {
-                throw new \InvalidArgumentException('Zähler hat noch Verträge — bitte zuerst Verträge löschen oder umhängen');
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.hasContracts'));
             }
         }
         // v1.2.0 — F1006: ein Elternzähler mit Subzählern kann nicht gelöscht
         // werden, ohne die Kinder zu verwaisen. Erst Subzähler auflösen.
         foreach ($this->list($utility) as $m) {
             if (($m['parent_meter_id'] ?? null) === $meterId) {
-                throw new \InvalidArgumentException('Zähler ist Elternzähler von Subzählern — bitte zuerst die Subzähler-Zuordnung auflösen');
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.isParent'));
             }
         }
         $all = array_values(array_filter($this->list($utility), fn($m) => ($m['id'] ?? null) !== $meterId));
@@ -286,7 +286,7 @@ final class MeterService
                 if (empty($d['removed_on'])) { $openIdx = $i; break; }
             }
             if ($openIdx === null) {
-                throw new \InvalidArgumentException('Kein offener Zähler vorhanden — bitte zuerst Zähler initial anlegen');
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.noOpenDevice'));
             }
             $date = $input['date'] ?? date('Y-m-d');
 
@@ -296,8 +296,7 @@ final class MeterService
             // Bridging-Ausschlägen im Monat des Tauschs.
             if (!isset($input['old_final_counter']) || $input['old_final_counter'] === '') {
                 throw new \InvalidArgumentException(
-                    'Beim Zählertausch muss der Endstand des alten Geräts '
-                    . '(„old_final_counter") angegeben werden.'
+                    $this->i18n->t('errors.meter.oldFinalRequired')
                 );
             }
             $oldFinal = (float)$input['old_final_counter'];
@@ -321,7 +320,7 @@ final class MeterService
             $m['devices'] = $devices;
         }
         unset($m);
-        if (!$found) throw new \InvalidArgumentException('Zähler nicht gefunden');
+        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.meter.notFound'));
         $this->store->write("$utility/meters.json", $all);
         return $this->get($utility, $meterId);
     }
@@ -346,7 +345,7 @@ final class MeterService
     private function assertUtility(string $utility): void
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.unknownUtility', ['utility' => $utility]));
         }
     }
 
@@ -387,15 +386,14 @@ final class MeterService
         if ($alias === '') return null;
         if (!preg_match('/^[A-Za-z0-9_.-]{1,64}$/', $alias)) {
             throw new \InvalidArgumentException(
-                'Ungültiger Alias „' . $alias . '" — erlaubt sind 1–64 Zeichen aus '
-                . 'Buchstaben, Ziffern, _ . -'
+                $this->i18n->t('errors.meter.invalidAlias', ['alias' => $alias])
             );
         }
         foreach ($this->list($utility) as $m) {
             if (($m['id'] ?? null) === $selfId) continue;
             if (($m['external_id'] ?? null) === $alias) {
                 throw new \InvalidArgumentException(
-                    'Alias „' . $alias . '" ist für ' . $utility . ' bereits vergeben'
+                    $this->i18n->t('errors.meter.aliasTaken', ['alias' => $alias, 'utility' => $utility])
                 );
             }
         }
@@ -425,28 +423,26 @@ final class MeterService
 
         if ($parent !== null) {
             if ($parent === $id) {
-                throw new \InvalidArgumentException('Ein Zähler kann nicht sein eigener Elternzähler sein');
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.selfParent'));
             }
             $parentMeter = null;
             foreach ($pool as $m) {
                 if (($m['id'] ?? null) === $parent) { $parentMeter = $m; break; }
             }
             if ($parentMeter === null) {
-                throw new \InvalidArgumentException('Elternzähler nicht gefunden: ' . $parent);
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.parentNotFound', ['parent' => $parent]));
             }
             // Keine mehrstufige Kette: der Elternzähler darf selbst kein Subzähler sein.
             if (($parentMeter['parent_meter_id'] ?? null) !== null) {
                 throw new \InvalidArgumentException(
-                    'Mehrstufige Subzähler-Ketten sind nicht erlaubt — der gewählte '
-                    . 'Elternzähler ist selbst bereits ein Subzähler (max. 1 Ebene).'
+                    $this->i18n->t('errors.meter.chainParentIsSub')
                 );
             }
             // ... und dieser Zähler darf selbst kein Elternzähler sein.
             foreach ($pool as $m) {
                 if (($m['parent_meter_id'] ?? null) === $id) {
                     throw new \InvalidArgumentException(
-                        'Mehrstufige Subzähler-Ketten sind nicht erlaubt — dieser Zähler '
-                        . 'ist selbst bereits Elternzähler eines Subzählers (max. 1 Ebene).'
+                        $this->i18n->t('errors.meter.chainSelfIsParent')
                     );
                 }
             }
@@ -454,7 +450,7 @@ final class MeterService
 
         if ($group !== null) {
             if ($this->getGroup($utility, $group) === null) {
-                throw new \InvalidArgumentException('Zählergruppe nicht gefunden: ' . $group);
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNotFoundId', ['group' => $group]));
             }
         }
     }
@@ -480,7 +476,7 @@ final class MeterService
         $this->assertUtility($utility);
         $name = trim((string)($input['name'] ?? ''));
         if ($name === '') {
-            throw new \InvalidArgumentException('Gruppenname darf nicht leer sein');
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNameEmpty'));
         }
         $group = [
             'id'         => 'g_' . $utility . '_' . bin2hex(random_bytes(4)),
@@ -503,13 +499,13 @@ final class MeterService
             if (array_key_exists('name', $input)) {
                 $name = trim((string)$input['name']);
                 if ($name === '') {
-                    throw new \InvalidArgumentException('Gruppenname darf nicht leer sein');
+                    throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNameEmpty'));
                 }
                 $g['name'] = $name;
             }
         }
         unset($g);
-        if (!$found) throw new \InvalidArgumentException('Zählergruppe nicht gefunden');
+        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNotFound'));
         $this->store->write("$utility/meter_groups.json", $all);
         return $this->getGroup($utility, $groupId);
     }
@@ -522,7 +518,7 @@ final class MeterService
     public function deleteGroup(string $utility, string $groupId): void
     {
         if ($this->getGroup($utility, $groupId) === null) {
-            throw new \InvalidArgumentException('Zählergruppe nicht gefunden');
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNotFound'));
         }
         // Mitglieder lösen
         $meters = $this->list($utility);
@@ -558,14 +554,14 @@ final class MeterService
         $this->assertUtility($utility);
         $meterIds = $input['meter_ids'] ?? [];
         if (!is_array($meterIds) || count($meterIds) < 2) {
-            throw new \InvalidArgumentException('Zum Zusammenführen werden mindestens zwei Zähler benötigt');
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.mergeNeedTwo'));
         }
 
         // Zielgruppe bestimmen oder anlegen.
         if (!empty($input['group_id'])) {
             $group = $this->getGroup($utility, (string)$input['group_id']);
             if ($group === null) {
-                throw new \InvalidArgumentException('Zählergruppe nicht gefunden: ' . $input['group_id']);
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNotFoundId', ['group' => $input['group_id']]));
             }
         } else {
             $group = $this->createGroup($utility, ['name' => $input['name'] ?? '']);
@@ -578,7 +574,7 @@ final class MeterService
         }
         foreach ($meterIds as $mid) {
             if (!isset($known[(string)$mid])) {
-                throw new \InvalidArgumentException('Zähler nicht gefunden: ' . $mid);
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.notFoundId', ['id' => $mid]));
             }
         }
 

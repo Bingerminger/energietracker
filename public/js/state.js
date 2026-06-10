@@ -31,3 +31,7 @@ export async function getSettings() {
 }
 
 export function invalidateSettings() { state.settings = null; }
+
+// Bei Sprachwechsel: die Utility-Labels kommen lokalisiert vom Backend,
+// daher den Cache verwerfen, damit getUtilities() neu lädt.
+export function invalidateUtilities() { state.utilities = null; }

@@ -7,6 +7,7 @@ use Energietracker\Services\AnomalyService;
 use Energietracker\Services\ConsumptionService;
 use Energietracker\Services\ContractService;
 use Energietracker\Services\DeliveryConsumptionService;
+use Energietracker\Services\I18nService;
 use Energietracker\Services\MeterService;
 use Energietracker\Services\ReadingService;
 use Energietracker\Services\RegressionService;
@@ -30,6 +31,7 @@ abstract class ServiceTestCase extends TestCase
     protected string $dataDir;
     protected JsonStore $store;
     protected SettingsService $settings;
+    protected I18nService $i18n;
     protected MeterService $meters;
     protected ReadingService $readings;
     protected ContractService $contracts;
@@ -51,14 +53,15 @@ abstract class ServiceTestCase extends TestCase
         (new Migrator($this->store))->initFresh();
 
         $this->settings    = new SettingsService($this->store);
-        $this->meters      = new MeterService($this->store);
-        $this->readings    = new ReadingService($this->store, $this->meters);
-        $this->contracts   = new ContractService($this->store, $this->meters);
+        $this->i18n        = new I18nService(dirname(__DIR__, 3) . '/public/locales', $this->settings);
+        $this->meters      = new MeterService($this->store, $this->i18n);
+        $this->readings    = new ReadingService($this->store, $this->meters, $this->i18n);
+        $this->contracts   = new ContractService($this->store, $this->meters, $this->i18n);
         $this->regression  = new RegressionService();
         $this->deliveryConsumption = new DeliveryConsumptionService($this->store, $this->settings);
         $this->consumption = new ConsumptionService(
             $this->store, $this->meters, $this->readings, $this->contracts, $this->settings,
-            $this->regression, $this->deliveryConsumption
+            $this->i18n, $this->regression, $this->deliveryConsumption
         );
         $this->anomalies   = new AnomalyService($this->regression, $this->settings);
     }

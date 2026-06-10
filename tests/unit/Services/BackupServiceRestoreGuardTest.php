@@ -19,7 +19,7 @@ final class BackupServiceRestoreGuardTest extends ServiceTestCase
 {
     public function testRestoreRejectsBackupWithNewerSchema(): void
     {
-        $svc = new BackupService($this->store);
+        $svc = new BackupService($this->store, $this->i18n);
         $payload = $svc->export();
         // Backup-Schema künstlich hochsetzen — simuliert ein Backup aus
         // einer noch nicht ausgerollten App-Version.
@@ -32,7 +32,7 @@ final class BackupServiceRestoreGuardTest extends ServiceTestCase
 
     public function testRestoreAcceptsBackupWithSameSchema(): void
     {
-        $svc = new BackupService($this->store);
+        $svc = new BackupService($this->store, $this->i18n);
         $payload = $svc->export();
         // Schema-Version ist die aktuelle der App.
         self::assertSame(Migrator::SCHEMA_VERSION, $payload['meta']['schema_version']);
@@ -52,7 +52,7 @@ final class BackupServiceRestoreGuardTest extends ServiceTestCase
             'installed_on' => '2024-01-01', 'initial_counter' => 0.0,
         ]);
 
-        $svc = new BackupService($this->store);
+        $svc = new BackupService($this->store, $this->i18n);
         $payload = $svc->export();
         $svc->import($payload);
 

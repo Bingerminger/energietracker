@@ -22,7 +22,8 @@ final class DemoService
 {
     public function __construct(
         private JsonStore $store,
-        private BackupService $backups
+        private BackupService $backups,
+        private I18nService $i18n
     ) {}
 
     /** Pfad zum mitgelieferten Demo-Backup (relativ zur App-Wurzel). */
@@ -65,18 +66,17 @@ final class DemoService
     public function import(bool $force = false): array
     {
         if (!$this->isAvailable()) {
-            throw new \RuntimeException('Demo-Backup nicht gefunden.');
+            throw new \RuntimeException($this->i18n->t('errors.demo.backupNotFound'));
         }
         if (!$force && !$this->isEmpty()) {
             throw new \InvalidArgumentException(
-                'Es sind bereits Daten vorhanden. Der Import überschreibt sie '
-                . '(vorher wird automatisch ein Snapshot angelegt). Zum Fortfahren bestätigen.'
+                $this->i18n->t('errors.demo.dataExists')
             );
         }
         $raw = @file_get_contents($this->demoBackupPath());
         $payload = json_decode((string)$raw, true);
         if (!is_array($payload)) {
-            throw new \RuntimeException('Demo-Backup ist ungültig (kein JSON).');
+            throw new \RuntimeException($this->i18n->t('errors.demo.backupInvalid'));
         }
         $report = $this->backups->import($payload);
         $report['demo_import'] = true;

@@ -4,10 +4,14 @@
 // src/bootstrap.php. Every method returns parsed JSON `data` or throws.
 // =====================================================================
 
+import { getLocale } from './lib/i18n.js';
+
 const BASE = 'api.php';
 
 async function request(method, path, body = null, { raw = false } = {}) {
-  const opts = { method, headers: {} };
+  // N1007 — aktive Sprache mitschicken, damit das Backend (Full-Stack-i18n)
+  // Fehlermeldungen/Labels in derselben Sprache liefern kann.
+  const opts = { method, headers: { 'Accept-Language': getLocale() } };
   if (body !== null && body !== undefined) {
     if (raw) {
       opts.headers['Content-Type'] = 'text/plain; charset=utf-8';

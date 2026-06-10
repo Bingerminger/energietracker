@@ -116,6 +116,18 @@ async function renderView(modPath, params = []) {
       bad.length ? bad.join('; ') : seen.size + ' Module');
   } catch (e) { t('Modulgraph-Vorprüfung', false, e.message); }
 
+  // ── 0b. i18n initialisieren (wie app.js). Ohne das liefert t() nur
+  //    Übersetzungs-Keys statt echter Strings, und alle Text-Assertions
+  //    unten würden fehlschlagen. Sprache: de (Default). freshDom() setzt
+  //    vorher die document/fetch-Globals, die initI18n braucht.
+  try {
+    freshDom();
+    const i18n = await import(`${ROOT}/lib/i18n.js`);
+    await i18n.initI18n('de');
+    t('i18n: de-Katalog geladen', i18n.t('nav.dashboard') === 'Dashboard',
+      't(nav.dashboard)=' + i18n.t('nav.dashboard'));
+  } catch (e) { t('i18n-Init', false, e.message); }
+
   // ── 1. Empfehlungen ──
   try {
     const { view } = await renderView(`${ROOT}/views/recommendations.js`);

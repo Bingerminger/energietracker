@@ -52,12 +52,13 @@ final class ContractService
     public function __construct(
         private JsonStore $store,
         private MeterService $meters,
+        private I18nService $i18n,
     ) {}
 
     public function list(string $utility, ?string $meterId = null): array
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         $all = $this->store->read("$utility/contracts.json", []);
         if (!is_array($all)) $all = [];
@@ -83,13 +84,12 @@ final class ContractService
         // ein Datensatz angelegt wird.
         if (!Utilities::hasContracts($utility)) {
             throw new \InvalidArgumentException(
-                'Für ' . Utilities::get($utility)['label']
-                . ' können keine Verträge angelegt werden (reine Statistik-Utility).'
+                $this->i18n->t('errors.contract.noContracts', ['label' => Utilities::get($utility)['label']])
             );
         }
         $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
         if (!$this->meters->get($utility, $meterId)) {
-            throw new \InvalidArgumentException('Zähler nicht gefunden: ' . $meterId);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
         $base = [
             'id'           => 'c_' . bin2hex(random_bytes(6)),
@@ -174,7 +174,7 @@ final class ContractService
             break;
         }
         unset($c);
-        if (!$found) throw new \InvalidArgumentException('Vertrag nicht gefunden');
+        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $all);
         return $found;
     }
@@ -184,7 +184,7 @@ final class ContractService
         $all = $this->store->read("$utility/contracts.json", []);
         if (!is_array($all)) $all = [];
         $kept = array_values(array_filter($all, fn($c) => ($c['id'] ?? null) !== $id));
-        if (count($kept) === count($all)) throw new \InvalidArgumentException('Vertrag nicht gefunden');
+        if (count($kept) === count($all)) throw new \InvalidArgumentException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $kept);
     }
 
@@ -235,7 +235,7 @@ final class ContractService
         $basis = (string)($sw['basis'] ?? 'trinkwasser');
         if (!in_array($basis, ['trinkwasser', 'separater_zaehler'], true)) {
             throw new \InvalidArgumentException(
-                'Schmutzwasser-Basis muss "trinkwasser" oder "separater_zaehler" sein, war: ' . $basis
+                $this->i18n->t('errors.contract.swBasisInvalid', ['basis' => $basis])
             );
         }
         $sw['basis'] = $basis;
@@ -244,7 +244,7 @@ final class ContractService
             : null;
         if ($basis === 'separater_zaehler' && $sw['separater_zaehler_meter_id'] === '') {
             throw new \InvalidArgumentException(
-                'Bei Schmutzwasser-Basis "separater_zaehler" muss separater_zaehler_meter_id gesetzt sein'
+                $this->i18n->t('errors.contract.swSeparateMeterRequired')
             );
         }
         $sw['working_prices'] = $this->normalizePriceList(
@@ -266,11 +266,11 @@ final class ContractService
             if (!$any) continue;
             if (!$all) {
                 $missing = [];
-                if ($from === '')    $missing[] = 'Datum';
-                if (!$filled($rate)) $missing[] = '€/m²/Jahr';
-                if (!$filled($area)) $missing[] = 'versiegelte Fläche';
+                if ($from === '')    $missing[] = $this->i18n->t('errors.contract.fields.date');
+                if (!$filled($rate)) $missing[] = $this->i18n->t('errors.contract.fields.ratePerM2');
+                if (!$filled($area)) $missing[] = $this->i18n->t('errors.contract.fields.sealedArea');
                 throw new \InvalidArgumentException(
-                    'Niederschlagswasser-Eintrag #' . ($i + 1) . ': ' . implode(', ', $missing) . ' fehlt'
+                    $this->i18n->t('errors.contract.swEntryMissing', ['n' => $i + 1, 'fields' => implode(', ', $missing)])
                 );
             }
             $cleanedRates[] = [
@@ -293,10 +293,10 @@ final class ContractService
     private function validateMeta(array $c): void
     {
         if (empty($c['start'])) {
-            throw new \InvalidArgumentException('Vertragsbeginn (start) ist erforderlich');
+            throw new \InvalidArgumentException($this->i18n->t('errors.contract.startRequired'));
         }
         if (!empty($c['end']) && $c['end'] < $c['start']) {
-            throw new \InvalidArgumentException('Vertragsende liegt vor Vertragsbeginn');
+            throw new \InvalidArgumentException($this->i18n->t('errors.contract.endBeforeStart'));
         }
     }
 
@@ -311,9 +311,9 @@ final class ContractService
             $dateFilled   = $date !== '';
             if (!$dateFilled && !$amountFilled) continue; // silent drop
             if ($dateFilled !== $amountFilled) {
-                $missing = $dateFilled ? 'Betrag' : 'Datum';
+                $missing = $this->i18n->t($dateFilled ? 'errors.contract.fields.amount' : 'errors.contract.fields.date');
                 throw new \InvalidArgumentException(
-                    "$label-Eintrag #" . ($i + 1) . ": $missing fehlt"
+                    $this->i18n->t('errors.contract.entryMissing', ['label' => $label, 'n' => $i + 1, 'field' => $missing])
                 );
             }
             $cleaned[] = [
@@ -336,9 +336,9 @@ final class ContractService
             $cdFilled = $cd !== '';
             if (!$cdFilled && !$amFilled) continue;
             if ($cdFilled !== $amFilled) {
-                $missing = $cdFilled ? 'Betrag' : 'Gutschriftsdatum';
+                $missing = $this->i18n->t($cdFilled ? 'errors.contract.fields.amount' : 'errors.contract.fields.creditDate');
                 throw new \InvalidArgumentException(
-                    "Bonus-Eintrag #" . ($i + 1) . ": $missing fehlt"
+                    $this->i18n->t('errors.contract.bonusEntryMissing', ['n' => $i + 1, 'field' => $missing])
                 );
             }
             $cleaned[] = [
@@ -427,15 +427,15 @@ final class ContractService
             if (!$dateFilled && !$amountFilled) continue; // silent drop
             $n = $i + 1;
             if ($dateFilled !== $amountFilled) {
-                $missing = $dateFilled ? 'Betrag' : 'Datum';
+                $missing = $this->i18n->t($dateFilled ? 'errors.contract.fields.amount' : 'errors.contract.fields.date');
                 throw new \InvalidArgumentException(
-                    "Sonderzahlung #$n: $missing fehlt"
+                    $this->i18n->t('errors.contract.specialPaymentMissing', ['n' => $n, 'field' => $missing])
                 );
             }
             $kind = (string)($e['kind'] ?? '');
             if (!in_array($kind, self::SPECIAL_PAYMENT_KINDS, true)) {
                 throw new \InvalidArgumentException(
-                    "Sonderzahlung #$n: unbekannte Art \"$kind\""
+                    $this->i18n->t('errors.contract.specialPaymentUnknownKind', ['n' => $n, 'kind' => $kind])
                 );
             }
             $amt = abs((float)$amount); // Vorzeichen kommt aus kind
@@ -456,9 +456,9 @@ final class ContractService
                 $naFilled = $na !== null && $na !== '' && $na !== false;
                 $afFilled = $af !== '';
                 if ($naFilled !== $afFilled) {
-                    $missing = $naFilled ? 'Abschlag-Stichtag' : 'neuer Abschlagsbetrag';
+                    $missing = $this->i18n->t($naFilled ? 'errors.contract.fields.advanceDate' : 'errors.contract.fields.newAdvanceAmount');
                     throw new \InvalidArgumentException(
-                        "Sonderzahlung #$n (mit Auswirkung): $missing fehlt"
+                        $this->i18n->t('errors.contract.specialPaymentImpactMissing', ['n' => $n, 'field' => $missing])
                     );
                 }
                 $row['new_advance_eur'] = $naFilled ? (float)$na : null;

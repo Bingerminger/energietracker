@@ -29,13 +29,14 @@ final class CsvExportService
         private MeterService $meters,
         private TemperatureService $temperatures,
         private DeliveryService $deliveries,
+        private I18nService $i18n,
     ) {}
 
     /** Per-utility monthly aggregates across all meters. */
     public function monthly(string $utility): string
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         $u = Utilities::get($utility);
         $unit = $u['consumption_unit'];
@@ -68,7 +69,7 @@ final class CsvExportService
     public function readings(string $utility): string
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         $meterNames = [];
         foreach ($this->meters->list($utility) as $meter) {
@@ -102,11 +103,11 @@ final class CsvExportService
     public function deliveries(string $utility): string
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         if (!Utilities::isDelivery($utility)) {
             throw new \InvalidArgumentException(
-                'Verbrauchsart „' . $utility . '" ist nicht lieferungs-basiert; nutze den Ablesungs-Export.'
+                $this->i18n->t('errors.csv.notDeliveryBased', ['utility' => $utility])
             );
         }
         $u = Utilities::get($utility);

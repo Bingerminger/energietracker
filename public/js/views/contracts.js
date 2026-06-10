@@ -11,21 +11,25 @@ import { getUtility } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal } from '../components/modal.js';
+import { t } from '../lib/i18n.js';
+import { associateFieldLabels } from '../lib/a11y.js';
 
+// Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
+// Laden, da der Sprachkatalog dann ggf. noch nicht steht).
 const GROUPS = [
-  { key: 'working_prices',   title: 'Arbeitspreis',    dateKey: 'from', amountKey: 'ct_per_kwh',  amountLabel: 'ct/kWh',  step: '0.001' },
-  { key: 'base_prices',      title: 'Grundpreis',      dateKey: 'from', amountKey: 'eur_per_month', amountLabel: '€/Monat', step: '0.01' },
-  { key: 'advance_payments', title: 'Abschlag',        dateKey: 'from', amountKey: 'amount_eur',  amountLabel: '€/Monat', step: '0.01' },
+  { key: 'working_prices',   titleKey: 'contracts.group.working', dateKey: 'from', amountKey: 'ct_per_kwh',  amountLabel: 'ct/kWh',  step: '0.001' },
+  { key: 'base_prices',      titleKey: 'contracts.group.base',    dateKey: 'from', amountKey: 'eur_per_month', amountLabel: '€/Monat', step: '0.01' },
+  { key: 'advance_payments', titleKey: 'contracts.group.advance', dateKey: 'from', amountKey: 'amount_eur',  amountLabel: '€/Monat', step: '0.01' },
 ];
 
-// F1003 — Sonderzahlungs-Arten (1:1 zur fachlichen Spezifikation).
-// Die *_mit-Arten verändern zusätzlich den künftigen Abschlag.
+// F1003 — Sonderzahlungs-Arten. Die *_mit-Arten verändern zusätzlich den
+// künftigen Abschlag. Labels über t('contracts.kinds.<value>').
 const SPECIAL_PAYMENT_KINDS = [
-  { value: 'rueckzahlung_mit',  label: 'Rückzahlung (mit Auswirkung auf Abschläge)',  affectsAdvance: true  },
-  { value: 'rueckzahlung_ohne', label: 'Rückzahlung (ohne Auswirkung auf Abschläge)', affectsAdvance: false },
-  { value: 'nachzahlung_mit',   label: 'Nachzahlung (mit Auswirkung auf Abschläge)',  affectsAdvance: true  },
-  { value: 'nachzahlung_ohne',  label: 'Nachzahlung (ohne Auswirkung auf Abschläge)', affectsAdvance: false },
-  { value: 'abschlagszahlung',  label: 'Abschlagszahlung',                            affectsAdvance: false },
+  { value: 'rueckzahlung_mit',  affectsAdvance: true  },
+  { value: 'rueckzahlung_ohne', affectsAdvance: false },
+  { value: 'nachzahlung_mit',   affectsAdvance: true  },
+  { value: 'nachzahlung_ohne',  affectsAdvance: false },
+  { value: 'abschlagszahlung',  affectsAdvance: false },
 ];
 const SPECIAL_KIND_AFFECTS_ADVANCE = new Set(
   SPECIAL_PAYMENT_KINDS.filter(k => k.affectsAdvance).map(k => k.value)
@@ -42,7 +46,7 @@ export async function render(container, params) {
   const utilityKey = params[0];
   const u = await getUtility(utilityKey);
   if (!u) {
-    container.innerHTML = `<div class="banner banner--error">Unbekannte Verbrauchsart: ${escapeHtml(utilityKey)}</div>`;
+    container.innerHTML = `<div class="banner banner--error">${t('contracts.unknown', { key: escapeHtml(utilityKey) })}</div>`;
     return;
   }
   container.setAttribute('data-utility', u.key);
@@ -55,22 +59,16 @@ export async function render(container, params) {
     container.innerHTML = `
       <div data-utility="${u.key}">
         <div class="section-head">
-          <h1>${u.icon} ${escapeHtml(u.label)} · Verträge</h1>
+          <h1>${u.icon} ${t('contracts.title', { label: escapeHtml(u.label) })}</h1>
           <div class="section-actions">
-            <a class="btn btn--ghost" href="#/utility/${u.key}">Zur Übersicht</a>
+            <a class="btn btn--ghost" href="#/utility/${u.key}">${t('contracts.toOverview')}</a>
           </div>
         </div>
         <div class="banner banner--info">
-          <strong>${escapeHtml(u.label)} hat keine Verträge.</strong>
-          Anders als bei Gas, Strom, Wasser oder Fernwärme gibt es hier
-          keinen Liefervertrag mit Arbeits- und Grundpreis. Die Kosten
-          ergeben sich direkt aus jeder <em>Lieferung/Tankrechnung</em>
-          (Menge × Preis je ${escapeHtml(u.volume_unit || 'Einheit')},
-          bzw. dem erfassten Gesamtbetrag). Auch ein Tarifvergleich mit
-          Schattenverträgen ist für ${escapeHtml(u.label)} nicht
-          anwendbar.
+          <strong>${t('contracts.delivery.bannerTitle', { label: escapeHtml(u.label) })}</strong>
+          ${t('contracts.delivery.bannerText', { unit: escapeHtml(u.volume_unit || ''), label: escapeHtml(u.label) })}
           <div style="margin-top: var(--sp-3)">
-            <a class="btn btn--util" href="#/utility/${u.key}">→ Zu den Lieferungen</a>
+            <a class="btn btn--util" href="#/utility/${u.key}">${t('contracts.delivery.toDeliveries')}</a>
           </div>
         </div>
       </div>
@@ -82,35 +80,40 @@ export async function render(container, params) {
 }
 
 async function refresh(container, u) {
-  container.innerHTML = '<div class="loading">Lade…</div>';
+  container.innerHTML = `<div class="loading">${t('contracts.loading')}</div>`;
   const [meters, contracts] = await Promise.all([
     api.meters(u.key),
     api.contracts(u.key),
   ]);
 
+  // C — neueste Verträge zuerst (nach Startdatum absteigend).
+  const sorted = [...contracts].sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')));
+
   container.innerHTML = `
     <div data-utility="${u.key}">
       <div class="section-head">
-        <h1>${u.icon} ${escapeHtml(u.label)} · Verträge</h1>
+        <h1>${u.icon} ${t('contracts.title', { label: escapeHtml(u.label) })}</h1>
         <div class="section-actions">
-          <a class="btn btn--ghost" href="#/utility/${u.key}">Zur Übersicht</a>
-          <button type="button" class="btn btn--util" data-action="new-contract" ${meters.length ? '' : 'disabled'}>+ Neuer Vertrag</button>
+          <a class="btn btn--ghost" href="#/utility/${u.key}">${t('contracts.toOverview')}</a>
+          <button type="button" class="btn btn--util" data-action="new-contract" ${meters.length ? '' : 'disabled'}>${t('contracts.newContract')}</button>
         </div>
       </div>
 
       ${meters.length === 0 ? `
-        <div class="banner banner--warning">Erst Zähler anlegen, bevor Verträge erstellt werden. <a href="#/utility/${u.key}/meters">→ Zähler verwalten</a></div>
+        <div class="banner banner--warning">${t('contracts.metersWarning')} <a href="#/utility/${u.key}/meters">${t('contracts.manageMeters')}</a></div>
       ` : ''}
 
       <div id="contracts-list">
-        ${contracts.length === 0 ? '<p class="muted">Noch keine Verträge.</p>' : ''}
-        ${contracts.map(c => renderContractCard(c, meters, u)).join('')}
+        ${sorted.length === 0 ? `<p class="muted">${t('contracts.empty')}</p>${meters.length ? `<button type="button" class="btn btn--util" data-action="new-contract">${t('contracts.emptyCta')}</button>` : ''}` : ''}
+        ${sorted.map(c => renderContractCard(c, meters, u)).join('')}
       </div>
     </div>
   `;
 
-  container.querySelector('[data-action="new-contract"]')?.addEventListener('click', () => {
-    dispatchContractModal(u, meters, null).then(changed => { if (changed) refresh(container, u); });
+  container.querySelectorAll('[data-action="new-contract"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      dispatchContractModal(u, meters, null).then(changed => { if (changed) refresh(container, u); });
+    });
   });
 
   container.querySelectorAll('[data-edit-contract]').forEach(b => {
@@ -125,9 +128,9 @@ async function refresh(container, u) {
   container.querySelectorAll('[data-delete-contract]').forEach(b => {
     b.addEventListener('click', async () => {
       const id = b.getAttribute('data-delete-contract');
-      const ok = await confirmModal({ title: 'Vertrag löschen?', message: 'Vertrag dauerhaft löschen?', confirmLabel: 'Löschen', danger: true });
+      const ok = await confirmModal({ title: t('contracts.delete.title'), message: t('contracts.delete.message'), confirmLabel: t('contracts.delete.confirm'), danger: true });
       if (!ok) return;
-      try { await api.deleteContract(u.key, id); toastOk('Vertrag gelöscht'); refresh(container, u); }
+      try { await api.deleteContract(u.key, id); toastOk(t('contracts.delete.deleted')); refresh(container, u); }
       catch (e) { toastErr(e.message); }
     });
   });
@@ -139,6 +142,16 @@ function dispatchContractModal(u, meters, existing) {
     : openContractModal(u, meters, existing);
 }
 
+// A — Vertragsstatus aus Start/Ende ableiten (heute liegt im Intervall?).
+function contractStatus(c) {
+  const today = todayIso();
+  const start = c.start || '';
+  const end = c.end || '';
+  if (start && start > today) return { cls: 'future', label: t('contracts.status.future') };
+  if (end && end < today)     return { cls: 'past',   label: t('contracts.status.past') };
+  return { cls: 'active', label: t('contracts.status.active') };
+}
+
 function renderContractCard(c, meters, u) {
   const meter = meters.find(m => m.id === c.meter_id);
   let summary;
@@ -147,35 +160,37 @@ function renderContractCard(c, meters, u) {
     const sw = c.schmutzwasser || {};
     const nw = c.niederschlagswasser || {};
     summary = [
-      `${tw.working_prices?.length || 0} Trinkw.-Preise`,
-      `${sw.working_prices?.length || 0} Schmutzw.-Preise`,
-      `${nw.rates?.length || 0} Niederschlag-Stichtage`,
-      `${(c.advance_payments?.length || 0)} Abschläge`,
-      `${(c.bonuses?.length || 0)} Boni`,
+      t('contracts.summary.twPrices', { count: tw.working_prices?.length || 0 }),
+      t('contracts.summary.swPrices', { count: sw.working_prices?.length || 0 }),
+      t('contracts.summary.nwDates',  { count: nw.rates?.length || 0 }),
+      t('contracts.summary.advances', { count: c.advance_payments?.length || 0 }),
+      t('contracts.summary.bonuses',  { count: c.bonuses?.length || 0 }),
     ].join(' · ');
   } else {
     summary = [
-      `${(c.working_prices?.length || 0)} Arbeitspreise`,
-      `${(c.base_prices?.length || 0)} Grundpreise`,
-      `${(c.advance_payments?.length || 0)} Abschläge`,
-      `${(c.bonuses?.length || 0)} Boni`,
+      t('contracts.summary.workingPrices', { count: c.working_prices?.length || 0 }),
+      t('contracts.summary.basePrices',    { count: c.base_prices?.length || 0 }),
+      t('contracts.summary.advances',      { count: c.advance_payments?.length || 0 }),
+      t('contracts.summary.bonuses',       { count: c.bonuses?.length || 0 }),
       ...(hasAdvancePaymentContracts(u)
-          ? [`${(c.special_payments?.length || 0)} Sonderzahlungen`]
+          ? [t('contracts.summary.specialPayments', { count: c.special_payments?.length || 0 })]
           : []),
     ].join(' · ');
   }
+  const st = contractStatus(c);
   return `
     <div class="card" style="margin-top: var(--sp-3)" data-utility="${u.key}">
       <div class="section-head">
-        <h3 style="margin:0">${escapeHtml(c.provider || 'Vertrag')}${c.tariff_name ? ' · ' + escapeHtml(c.tariff_name) : ''}</h3>
+        <h2 style="margin:0;font-size:var(--fs-lg)">${escapeHtml(c.provider || t('contracts.card.fallbackProvider'))}${c.tariff_name ? ' · ' + escapeHtml(c.tariff_name) : ''}
+          <span class="status-pill ${st.cls}">${st.label}</span></h2>
         <div class="section-actions">
-          <button class="btn btn--sm btn--ghost" data-edit-contract="${c.id}">Bearbeiten</button>
-          <button class="btn btn--sm btn--danger" data-delete-contract="${c.id}">×</button>
+          <button class="btn btn--sm btn--ghost" data-edit-contract="${c.id}">${t('contracts.card.edit')}</button>
+          <button class="btn btn--sm btn--danger" data-delete-contract="${c.id}" title="${t('contracts.deleteContract')}" aria-label="${t('contracts.deleteContract')}"><span aria-hidden="true">×</span></button>
         </div>
       </div>
       <div class="muted" style="font-size: var(--fs-sm)">
-        ${fmt.date(c.start)} – ${c.end ? fmt.date(c.end) : 'offen'}
-        · Zähler: <strong>${escapeHtml(meter?.name || '—')}</strong>
+        ${fmt.date(c.start)} – ${c.end ? fmt.date(c.end) : t('contracts.card.open')}
+        · ${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>
         · ${summary}
       </div>
       ${c.notes ? `<p style="margin-top:var(--sp-2)">${escapeHtml(c.notes)}</p>` : ''}
@@ -203,15 +218,15 @@ async function openContractModal(u, meters, existing) {
       <form id="contract-form">
         <div class="form-row">
           <div class="field">
-            <label>Anbieter</label>
+            <label>${t('contracts.modal.provider')}</label>
             <input class="input input--text" name="provider" value="${escapeHtml(initial.provider || '')}">
           </div>
           <div class="field">
-            <label>Tarif</label>
+            <label>${t('contracts.modal.tariff')}</label>
             <input class="input input--text" name="tariff_name" value="${escapeHtml(initial.tariff_name || '')}">
           </div>
           <div class="field">
-            <label>Zähler</label>
+            <label>${t('contracts.modal.meter')}</label>
             <select class="select" name="meter_id">
               ${meters.map(m => `<option value="${m.id}" ${m.id === initial.meter_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
             </select>
@@ -219,16 +234,16 @@ async function openContractModal(u, meters, existing) {
         </div>
         <div class="form-row">
           <div class="field">
-            <label>Vertragsbeginn *</label>
+            <label>${t('contracts.modal.start')}</label>
             <input class="input" type="date" name="start" required value="${initial.start || ''}">
           </div>
           <div class="field">
-            <label>Vertragsende (optional)</label>
+            <label>${t('contracts.modal.end')}</label>
             <input class="input" type="date" name="end" value="${initial.end || ''}">
           </div>
         </div>
         <div class="field">
-          <label>Notizen</label>
+          <label>${t('contracts.modal.notes')}</label>
           <textarea class="input input--text" name="notes">${escapeHtml(initial.notes || '')}</textarea>
         </div>
 
@@ -241,12 +256,12 @@ async function openContractModal(u, meters, existing) {
     `;
 
     openModal({
-      title: isEdit ? 'Vertrag bearbeiten' : 'Neuer Vertrag',
+      title: isEdit ? t('contracts.modal.titleEdit') : t('contracts.modal.titleNew'),
       body,
       size: 'lg',
       footer: `
-        <button type="button" class="btn btn--ghost" data-act="cancel">Abbrechen</button>
-        <button type="button" class="btn btn--util" data-act="save">Speichern</button>
+        <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn btn--util" data-act="save">${t('contracts.modal.save')}</button>
       `,
       onMount({ modalEl, close }) {
         // Cancel/Save ZUERST binden — selbst wenn die Sub-Handler unten
@@ -256,14 +271,14 @@ async function openContractModal(u, meters, existing) {
         modalEl.querySelector('[data-act="save"]')?.addEventListener('click', async () => {
           const f = modalEl.querySelector('#contract-form');
           if (!validateAllGroups(modalEl)) {
-            toastErr('Bitte halb-leere Zeilen vervollständigen oder leeren');
+            toastErr(t('contracts.modal.validationHalfRows'));
             return;
           }
           const payload = collectPayload(f);
           try {
             if (isEdit) await api.updateContract(u.key, existing.id, payload);
             else        await api.createContract(u.key, payload);
-            toastOk('Vertrag gespeichert');
+            toastOk(t('contracts.modal.saved'));
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
         });
@@ -274,6 +289,8 @@ async function openContractModal(u, meters, existing) {
         catch (e) { console.warn('contract modal: bonus binding failed:', e); }
         try { bindSpecialPaymentHandlers(modalEl); }
         catch (e) { console.warn('contract modal: special-payment binding failed:', e); }
+        // A11y: alle Formularfelder mit ihren Labels verknüpfen.
+        associateFieldLabels(modalEl);
       }
     });
   });
@@ -285,8 +302,8 @@ function renderGroupSection(g, entries) {
   return `
     <div class="entry-group" data-group="${g.key}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}">
       <div class="entry-group__head">
-        <div class="entry-group__title">${g.title}</div>
-        <button type="button" class="btn btn--sm btn--ghost" data-action="add-row">+ Zeile</button>
+        <div class="entry-group__title">${t(g.titleKey)}</div>
+        <button type="button" class="btn btn--sm btn--ghost" data-action="add-row">${t('contracts.group.addRow')}</button>
       </div>
       <div class="entries">
         ${entries.map(e => renderEntryRow(g, e)).join('')}
@@ -299,15 +316,15 @@ function renderEntryRow(g, e) {
   return `
     <div class="entry-row">
       <div class="field">
-        <label>Gültig ab</label>
+        <label>${t('contracts.row.validFrom')}</label>
         <input class="input" type="date" data-role="date" value="${e[g.dateKey] || ''}">
       </div>
       <div class="field">
         <label>${escapeHtml(g.amountLabel)}</label>
         <input class="input" type="number" step="${g.step}" data-role="amount" value="${e[g.amountKey] ?? ''}">
       </div>
-      <button type="button" class="btn btn--sm btn--ghost" data-action="copy-start" title="Vertragsbeginn übernehmen">⇧ Start</button>
-      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-row" title="Zeile entfernen">×</button>
+      <button type="button" class="btn btn--sm btn--ghost" data-action="copy-start" title="${t('contracts.row.copyStartTitle')}">${t('contracts.row.copyStart')}</button>
+      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
     </div>
   `;
 }
@@ -324,6 +341,7 @@ function bindEntryGroupHandlers(modalEl) {
       const row = wrap.firstElementChild;
       group.querySelector('.entries').appendChild(row);
       bindRowHandlers(modalEl, row);
+      associateFieldLabels(row);
     });
   });
 
@@ -339,7 +357,7 @@ function bindRowHandlers(modalEl, row) {
 
   copyBtn?.addEventListener('click', () => {
     const start = modalEl.querySelector('input[name="start"]')?.value;
-    if (!start) { toastErr('Bitte zuerst Vertragsbeginn setzen'); return; }
+    if (!start) { toastErr(t('contracts.row.setStartFirst')); return; }
     if (dateInput) dateInput.value = start;
     validateRow(row);
   });
@@ -357,6 +375,7 @@ function bindRowHandlers(modalEl, row) {
       const newRow = wrap.firstElementChild;
       group.querySelector('.entries')?.appendChild(newRow);
       bindRowHandlers(modalEl, newRow);
+      associateFieldLabels(newRow);
     }
   });
 
@@ -391,8 +410,8 @@ function renderBonusSection(bonuses) {
   return `
     <div class="entry-group" data-section="bonus">
       <div class="entry-group__head">
-        <div class="entry-group__title">Boni / Gutschriften</div>
-        <button type="button" class="btn btn--sm btn--ghost" data-action="add-bonus">+ Bonus</button>
+        <div class="entry-group__title">${t('contracts.bonus.title')}</div>
+        <button type="button" class="btn btn--sm btn--ghost" data-action="add-bonus">${t('contracts.bonus.add')}</button>
       </div>
       <div class="entries">
         ${bonuses.map(b => renderBonusRow(b)).join('')}
@@ -405,22 +424,22 @@ function renderBonusRow(b = {}) {
   return `
     <div class="entry-row bonus-row">
       <div class="field">
-        <label>Gutschriftsdatum</label>
+        <label>${t('contracts.bonus.creditDate')}</label>
         <input class="input" type="date" data-role="date" value="${b.credit_date || ''}">
       </div>
       <div class="field">
-        <label>Betrag €</label>
+        <label>${t('contracts.bonus.amount')}</label>
         <input class="input" type="number" step="0.01" data-role="amount" value="${b.amount_eur ?? ''}">
       </div>
       <div class="field">
-        <label>Typ</label>
+        <label>${t('contracts.bonus.type')}</label>
         <select class="select" data-role="type">
-          <option value="sofort"     ${b.type === 'sofort'     ? 'selected' : ''}>Sofort</option>
-          <option value="wechsel"    ${b.type === 'wechsel'    ? 'selected' : ''}>Wechsel</option>
-          <option value="neukunde"   ${b.type === 'neukunde'   ? 'selected' : ''}>Neukunde</option>
+          <option value="sofort"     ${b.type === 'sofort'     ? 'selected' : ''}>${t('contracts.bonusTypes.sofort')}</option>
+          <option value="wechsel"    ${b.type === 'wechsel'    ? 'selected' : ''}>${t('contracts.bonusTypes.wechsel')}</option>
+          <option value="neukunde"   ${b.type === 'neukunde'   ? 'selected' : ''}>${t('contracts.bonusTypes.neukunde')}</option>
         </select>
       </div>
-      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-bonus" title="Entfernen">×</button>
+      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-bonus" title="${t('contracts.bonus.remove')}" aria-label="${t('contracts.bonus.remove')}"><span aria-hidden="true">×</span></button>
     </div>
   `;
 }
@@ -434,6 +453,7 @@ function bindBonusHandlers(modalEl) {
     const row = wrap.firstElementChild;
     sec.querySelector('.entries')?.appendChild(row);
     bindBonusRow(row);
+    associateFieldLabels(row);
   });
   sec.querySelectorAll('.bonus-row').forEach(bindBonusRow);
 }
@@ -459,12 +479,11 @@ function renderSpecialPaymentSection(items) {
   return `
     <div class="entry-group" data-section="special">
       <div class="entry-group__head">
-        <div class="entry-group__title">Sonderzahlungen</div>
-        <button type="button" class="btn btn--sm btn--ghost" data-action="add-special">+ Sonderzahlung</button>
+        <div class="entry-group__title">${t('contracts.special.title')}</div>
+        <button type="button" class="btn btn--sm btn--ghost" data-action="add-special">${t('contracts.special.add')}</button>
       </div>
       <div class="muted" style="font-size:var(--fs-sm);margin:-4px 0 8px">
-        Rückzahlung, Nachzahlung oder zusätzliche Abschlagszahlung.
-        „mit Auswirkung" passt zusätzlich den künftigen Monatsabschlag an.
+        ${t('contracts.special.hint')}
       </div>
       <div class="entries">
         ${items.map(s => renderSpecialPaymentRow(s)).join('')}
@@ -479,34 +498,34 @@ function renderSpecialPaymentRow(s = {}) {
   return `
     <div class="entry-row special-row" data-kind="${kind}">
       <div class="field">
-        <label>Datum</label>
+        <label>${t('contracts.special.date')}</label>
         <input class="input" type="date" data-role="date" value="${s.date || ''}">
       </div>
       <div class="field">
-        <label>Betrag €</label>
+        <label>${t('contracts.special.amount')}</label>
         <input class="input" type="number" step="0.01" min="0" data-role="amount" value="${s.amount_eur ?? ''}">
       </div>
       <div class="field">
-        <label>Art</label>
+        <label>${t('contracts.special.kind')}</label>
         <select class="select" data-role="kind">
           ${SPECIAL_PAYMENT_KINDS.map(k =>
-            `<option value="${k.value}" ${k.value === kind ? 'selected' : ''}>${k.label}</option>`
+            `<option value="${k.value}" ${k.value === kind ? 'selected' : ''}>${t('contracts.kinds.' + k.value)}</option>`
           ).join('')}
         </select>
       </div>
       <div class="field">
-        <label>Notiz</label>
+        <label>${t('contracts.special.note')}</label>
         <input class="input input--text" data-role="note" value="${escapeHtml(s.note || '')}">
       </div>
-      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-special" title="Entfernen">×</button>
+      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-special" title="${t('contracts.special.remove')}" aria-label="${t('contracts.special.remove')}"><span aria-hidden="true">×</span></button>
       <div class="special-advance" data-role="advance-block"
            style="${showAdvance ? '' : 'display:none'};flex-basis:100%;display:${showAdvance ? 'flex' : 'none'};gap:var(--sp-3);margin-top:var(--sp-2)">
         <div class="field">
-          <label>Neuer Abschlag €/Monat</label>
+          <label>${t('contracts.special.newAdvance')}</label>
           <input class="input" type="number" step="0.01" min="0" data-role="new-advance" value="${s.new_advance_eur ?? ''}">
         </div>
         <div class="field">
-          <label>Abschlag gültig ab</label>
+          <label>${t('contracts.special.advanceFrom')}</label>
           <input class="input" type="date" data-role="advance-from" value="${s.advance_from || ''}">
         </div>
       </div>
@@ -523,6 +542,7 @@ function bindSpecialPaymentHandlers(modalEl) {
     const row = wrap.firstElementChild;
     sec.querySelector('.entries')?.appendChild(row);
     bindSpecialPaymentRow(row);
+    associateFieldLabels(row);
   });
   sec.querySelectorAll('.special-row').forEach(bindSpecialPaymentRow);
 }
@@ -663,16 +683,17 @@ async function openWaterContractModal(u, meters, existing) {
 
     const footer = document.createElement('div');
     footer.innerHTML = `
-      <button type="button" class="btn btn--ghost" data-act="cancel">Abbrechen</button>
-      <button type="button" class="btn btn--primary" data-act="save">${isEdit ? 'Speichern' : 'Anlegen'}</button>
+      <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+      <button type="button" class="btn btn--primary" data-act="save">${isEdit ? t('contracts.modal.save') : t('contracts.modal.create')}</button>
     `;
 
     openModal({
-      title: isEdit ? `Wasservertrag bearbeiten` : `Neuer Wasservertrag`,
+      title: isEdit ? t('contracts.water.titleEdit') : t('contracts.water.titleNew'),
       body: body.innerHTML,
       footer: footer.innerHTML,
       onMount({ modalEl, close }) {
         bindWaterEntryHandlers(modalEl);
+        associateFieldLabels(modalEl);
 
         // Toggle separater Zähler input
         const basisRadios = modalEl.querySelectorAll('input[name="schmutz-basis"]');
@@ -689,7 +710,7 @@ async function openWaterContractModal(u, meters, existing) {
           try {
             if (isEdit) await api.updateContract(u.key, existing.id, payload);
             else        await api.createContract(u.key, payload);
-            toastOk(isEdit ? 'Wasservertrag aktualisiert' : 'Wasservertrag angelegt');
+            toastOk(isEdit ? t('contracts.water.savedEdit') : t('contracts.water.savedNew'));
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
         });
@@ -708,72 +729,72 @@ function waterFormHtml(c, meters, u) {
   return `
     <form id="water-contract-form">
       <div class="form-row">
-        <div class="field"><label>Anbieter</label>
+        <div class="field"><label>${t('contracts.water.provider')}</label>
           <input class="input input--text" name="provider" value="${escapeHtml(c.provider || '')}"></div>
-        <div class="field"><label>Tarifname</label>
+        <div class="field"><label>${t('contracts.water.tariff')}</label>
           <input class="input input--text" name="tariff_name" value="${escapeHtml(c.tariff_name || '')}"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>Beginn</label><input class="input" type="date" name="start" value="${escapeHtml(c.start || '')}" required></div>
-        <div class="field"><label>Ende (leer = offen)</label><input class="input" type="date" name="end" value="${escapeHtml(c.end || '')}"></div>
-        <div class="field"><label>Zähler</label><select class="select" name="meter_id" required>${meterOpts}</select></div>
+        <div class="field"><label>${t('contracts.water.start')}</label><input class="input" type="date" name="start" value="${escapeHtml(c.start || '')}" required></div>
+        <div class="field"><label>${t('contracts.water.end')}</label><input class="input" type="date" name="end" value="${escapeHtml(c.end || '')}"></div>
+        <div class="field"><label>${t('contracts.water.meter')}</label><select class="select" name="meter_id" required>${meterOpts}</select></div>
       </div>
       <div class="field">
-        <label>Notizen</label>
+        <label>${t('contracts.water.notes')}</label>
         <input class="input input--text" name="notes" value="${escapeHtml(c.notes || '')}">
       </div>
 
       <!-- Trinkwasser -->
       <details open style="margin-top:var(--sp-4);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">💧 Trinkwasser</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.tw')}</summary>
         <div style="margin-top:12px">
-          ${renderWaterEntryGroup('tw-working', 'Arbeitspreis (ct/m³)', c.trinkwasser?.working_prices || [], ['from', 'ct_per_m3'], ['Datum', 'ct/m³'])}
-          ${renderWaterEntryGroup('tw-base', 'Grundpreis (€/Monat)', c.trinkwasser?.base_prices || [], ['from', 'eur_per_month'], ['Datum', '€/Monat'])}
+          ${renderWaterEntryGroup('tw-working', t('contracts.water.twWorking'), c.trinkwasser?.working_prices || [], ['from', 'ct_per_m3'], [t('contracts.water.colDate'), t('contracts.water.colCtM3')])}
+          ${renderWaterEntryGroup('tw-base', t('contracts.water.twBase'), c.trinkwasser?.base_prices || [], ['from', 'eur_per_month'], [t('contracts.water.colDate'), t('contracts.water.colEurMonth')])}
         </div>
       </details>
 
       <!-- Schmutzwasser -->
       <details open style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">🚰 Schmutzwasser</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.sw')}</summary>
         <div style="margin-top:12px">
           <div class="field">
-            <label>Berechnungsgrundlage</label>
+            <label>${t('contracts.water.basis')}</label>
             <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:normal">
               <input type="radio" name="schmutz-basis" value="trinkwasser" ${basis === 'trinkwasser' ? 'checked' : ''}>
-              <span>aus Trinkwasser-Verbrauch (Standard)</span>
+              <span>${t('contracts.water.basisTw')}</span>
             </label>
             <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:normal">
               <input type="radio" name="schmutz-basis" value="separater_zaehler" ${basis === 'separater_zaehler' ? 'checked' : ''}>
-              <span>eigener Schmutzwasserzähler</span>
+              <span>${t('contracts.water.basisSep')}</span>
             </label>
           </div>
           <div class="field" id="schmutz-separater-row" style="${basis === 'separater_zaehler' ? '' : 'display:none'}">
-            <label>Schmutzwasser-Zähler</label>
-            <select class="select" name="schmutz_separater_zaehler_meter_id">${sepMeterOpts || '<option value="">(noch keine weiteren Zähler vorhanden)</option>'}</select>
+            <label>${t('contracts.water.sepMeter')}</label>
+            <select class="select" name="schmutz_separater_zaehler_meter_id">${sepMeterOpts || `<option value="">${t('contracts.water.noMoreMeters')}</option>`}</select>
           </div>
-          ${renderWaterEntryGroup('sw-working', 'Arbeitspreis Schmutzwasser (ct/m³)', sw.working_prices || [], ['from', 'ct_per_m3'], ['Datum', 'ct/m³'])}
+          ${renderWaterEntryGroup('sw-working', t('contracts.water.swWorking'), sw.working_prices || [], ['from', 'ct_per_m3'], [t('contracts.water.colDate'), t('contracts.water.colCtM3')])}
         </div>
       </details>
 
       <!-- Niederschlagswasser -->
       <details open style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">☔ Niederschlagswasser</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.nw')}</summary>
         <div style="margin-top:12px">
-          ${renderWaterEntryGroup('nw-rates', 'Stichtag', c.niederschlagswasser?.rates || [], ['from', 'eur_per_m2_year', 'versiegelte_flaeche_m2'], ['Datum', '€/m²/Jahr', 'm² versiegelt'])}
+          ${renderWaterEntryGroup('nw-rates', t('contracts.water.nwRates'), c.niederschlagswasser?.rates || [], ['from', 'eur_per_m2_year', 'versiegelte_flaeche_m2'], [t('contracts.water.colDate'), t('contracts.water.colEurM2Year'), t('contracts.water.colSealedM2')])}
         </div>
       </details>
 
       <!-- Abschläge -->
       <details open style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">💰 Abschläge</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.advances')}</summary>
         <div style="margin-top:12px">
-          ${renderWaterEntryGroup('ap', 'Monatsabschlag (€)', c.advance_payments || [], ['from', 'amount_eur'], ['Datum', '€/Monat'])}
+          ${renderWaterEntryGroup('ap', t('contracts.water.apMonthly'), c.advance_payments || [], ['from', 'amount_eur'], [t('contracts.water.colDate'), t('contracts.water.colEurMonth')])}
         </div>
       </details>
 
       <!-- Bonuses -->
       <details style="margin-top:var(--sp-3);border:1px solid var(--border-1);border-radius:var(--r-md);padding:12px 14px">
-        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">🎁 Boni</summary>
+        <summary style="cursor:pointer;font-weight:600;color:var(--text-1)">${t('contracts.water.bonuses')}</summary>
         <div style="margin-top:12px">
           ${renderWaterBonusGroup(c.bonuses || [])}
         </div>
@@ -784,7 +805,7 @@ function waterFormHtml(c, meters, u) {
 
 function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
   if (!entries.length) entries = [Object.fromEntries(fields.map(f => [f, '']))];
-  const inputs = fields.map((f, i) => `<th>${escapeHtml(labels[i])}</th>`).join('');
+  const inputs = fields.map((f, i) => `<th scope="col">${escapeHtml(labels[i])}</th>`).join('');
   const rows = entries.map((e, idx) => `
     <tr data-row="${idx}">
       ${fields.map((f, i) => `
@@ -794,17 +815,17 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
             : `<input class="input num" type="number" step="0.001" data-field="${escapeHtml(f)}" value="${escapeHtml(String(e[f] ?? ''))}">`}
         </td>
       `).join('')}
-      <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row">×</button></td>
+      <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>
     </tr>
   `).join('');
   return `
     <div class="field" data-group="${escapeHtml(groupKey)}" data-fields='${escapeHtml(JSON.stringify(fields))}'>
       <label>${escapeHtml(title)}</label>
       <table class="table table--compact" style="width:100%">
-        <thead><tr>${inputs}<th></th></tr></thead>
+        <thead><tr>${inputs}<th scope="col"><span class="sr-only">${t('common.actions')}</span></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <button type="button" class="btn btn--sm btn--ghost" data-act="add-row" style="margin-top:6px">+ Zeile</button>
+      <button type="button" class="btn btn--sm btn--ghost" data-act="add-row" style="margin-top:6px">${t('contracts.water.addRow')}</button>
     </div>
   `;
 }
@@ -816,16 +837,16 @@ function renderWaterBonusGroup(bonuses) {
       <td><input class="input" type="date" data-field="credit_date" value="${escapeHtml(b.credit_date || '')}"></td>
       <td><input class="input num" type="number" step="0.01" data-field="amount_eur" value="${escapeHtml(String(b.amount_eur || ''))}"></td>
       <td><input class="input input--text" data-field="label" value="${escapeHtml(b.label || '')}"></td>
-      <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row">×</button></td>
+      <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>
     </tr>
   `).join('');
   return `
     <div class="field" data-group="bonuses" data-fields='["credit_date","amount_eur","label"]'>
       <table class="table table--compact" style="width:100%">
-        <thead><tr><th>Gutschrift</th><th>Betrag €</th><th>Bezeichnung</th><th></th></tr></thead>
+        <thead><tr><th scope="col">${t('contracts.water.bonusCredit')}</th><th scope="col">${t('contracts.water.bonusAmount')}</th><th scope="col">${t('contracts.water.bonusLabel')}</th><th scope="col"><span class="sr-only">${t('common.actions')}</span></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <button type="button" class="btn btn--sm btn--ghost" data-act="add-row" style="margin-top:6px">+ Zeile</button>
+      <button type="button" class="btn btn--sm btn--ghost" data-act="add-row" style="margin-top:6px">${t('contracts.water.addRow')}</button>
     </div>
   `;
 }
@@ -854,7 +875,7 @@ function bindWaterEntryHandlers(modalEl) {
         }
         return `<td><input class="input num" type="number" step="0.001" data-field="${f}"></td>`;
       }).join('');
-      tr.innerHTML = `${cells}<td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row">×</button></td>`;
+      tr.innerHTML = `${cells}<td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>`;
       tbody.appendChild(tr);
     }
   });
@@ -914,6 +935,6 @@ function collectWaterForm(modalEl) {
     })),
   };
 
-  if (!payload.start) throw new Error('Vertragsbeginn ist Pflicht.');
+  if (!payload.start) throw new Error(t('contracts.water.startRequired'));
   return payload;
 }

@@ -57,7 +57,21 @@ function applyDefaults() {
 // sofort korrekt eingefärbt sind.
 document.addEventListener('et:themechange', applyDefaults);
 
-export function makeChart(canvas, config) {
+// A11y (N1009): Ein <canvas> ist für Screenreader leer. Über `opts.label`
+// wird es als `role="img"` mit beschreibendem `aria-label` ausgezeichnet, sodass
+// das Diagramm wenigstens eine textuelle Zusammenfassung erhält. Ohne Label
+// bleibt das Canvas aus dem Accessibility-Tree (aria-hidden), statt als
+// bedeutungsloses Element zu erscheinen.
+export function makeChart(canvas, config, opts = {}) {
   applyDefaults();
+  if (canvas) {
+    if (opts.label) {
+      canvas.setAttribute('role', 'img');
+      canvas.setAttribute('aria-label', opts.label);
+      canvas.removeAttribute('aria-hidden');
+    } else {
+      canvas.setAttribute('aria-hidden', 'true');
+    }
+  }
   return new Chart(canvas, config);
 }

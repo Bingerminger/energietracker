@@ -18,13 +18,14 @@ final class ReadingService
     public function __construct(
         private JsonStore $store,
         private MeterService $meters,
+        private I18nService $i18n,
     ) {}
 
     /** @return array<int,array<string,mixed>> */
     public function list(string $utility, ?string $meterId = null): array
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         $all = $this->store->read("$utility/readings.json", []);
         if (!is_array($all)) $all = [];
@@ -41,18 +42,18 @@ final class ReadingService
      */
     public function create(string $utility, array $input): array
     {
-        if (empty($input['date'])) throw new \InvalidArgumentException('Datum fehlt');
-        if (!array_key_exists('counter', $input)) throw new \InvalidArgumentException('Zählerstand fehlt');
+        if (empty($input['date'])) throw new \InvalidArgumentException($this->i18n->t('errors.reading.dateMissing'));
+        if (!array_key_exists('counter', $input)) throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterMissing'));
 
         $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
         $meter = $this->meters->get($utility, $meterId);
-        if (!$meter) throw new \InvalidArgumentException('Zähler nicht gefunden: ' . $meterId);
+        if (!$meter) throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
 
         $date = (string)$input['date'];
         $device = $this->meters->deviceOnDate($meter, $date);
         if (!$device) {
             throw new \InvalidArgumentException(
-                'Für das Datum ' . $date . ' ist kein Gerät dieses Zählers aktiv'
+                $this->i18n->t('errors.reading.noDevice', ['date' => $date])
             );
         }
 
@@ -102,7 +103,7 @@ final class ReadingService
             break;
         }
         unset($r);
-        if (!$found) throw new \InvalidArgumentException('Ablesung nicht gefunden');
+        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.reading.notFound'));
         usort($all, fn($a, $b) => strcmp($a['date'], $b['date']));
         $this->store->write("$utility/readings.json", $all);
         return $found;
@@ -113,7 +114,7 @@ final class ReadingService
         $all = $this->store->read("$utility/readings.json", []);
         if (!is_array($all)) $all = [];
         $kept = array_values(array_filter($all, fn($r) => ($r['id'] ?? null) !== $id));
-        if (count($kept) === count($all)) throw new \InvalidArgumentException('Ablesung nicht gefunden');
+        if (count($kept) === count($all)) throw new \InvalidArgumentException($this->i18n->t('errors.reading.notFound'));
         $this->store->write("$utility/readings.json", $kept);
     }
 

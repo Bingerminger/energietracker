@@ -27,7 +27,7 @@ final class HomeAssistantIngestTest extends ServiceTestCase
     {
         parent::setUp();
         $this->auth   = new AuthService($this->store);
-        $this->ingest = new IngestService($this->meters, $this->readings);
+        $this->ingest = new IngestService($this->meters, $this->readings, $this->i18n);
     }
 
     /**

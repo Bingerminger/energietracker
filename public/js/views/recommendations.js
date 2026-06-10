@@ -4,26 +4,21 @@
 
 import { api } from '../api.js';
 import { toastOk, toastErr } from '../components/toast.js';
+import { t } from '../lib/i18n.js';
 
-const SEV = {
-  urgent:  { label: 'Dringend', cls: 'danger'  },
-  warning: { label: 'Achtung',  cls: 'warning' },
-  info:    { label: 'Hinweis',  cls: 'info'    },
-};
-const CAT = {
-  effizienz: 'Effizienz', vertrag: 'Vertrag', bestand: 'Bestand',
-  anomalie: 'Anomalie',  trend: 'Trend',
-};
+const SEV_CLS = { urgent: 'danger', warning: 'warning', info: 'info' };
+const sevLabel = (k) => t('recommendations.sev.' + k);
+const catLabel = (k) => { const v = t('recommendations.cat.' + k); return v === 'recommendations.cat.' + k ? k : v; };
 
 let filterSev = 'all';
 
 export async function render(container) {
-  container.innerHTML = '<div class="loading">Lade Empfehlungen…</div>';
+  container.innerHTML = `<div class="loading">${t('recommendations.loading')}</div>`;
   let recs;
   try {
     recs = await api.recommendations();
   } catch (e) {
-    container.innerHTML = `<div class="banner banner--error">Konnte Empfehlungen nicht laden: ${esc(e.message || e)}</div>`;
+    container.innerHTML = `<div class="banner banner--error">${t('recommendations.loadError', { msg: esc(e.message || e) })}</div>`;
     return;
   }
 
@@ -33,19 +28,19 @@ export async function render(container) {
 
     container.innerHTML = `
       <div class="view-head">
-        <h2>Empfehlungen</h2>
-        <p class="muted">Statistische Hinweise aus deinen eigenen Daten — keine externen Quellen.</p>
+        <h1>${t('recommendations.title')}</h1>
+        <p class="muted">${t('recommendations.subtitle')}</p>
       </div>
 
-      <div class="seg" role="tablist" style="margin-bottom:var(--sp-4)">
-        ${segBtn('all', `Alle (${recs.length})`)}
-        ${segBtn('urgent', `Dringend (${counts.urgent || 0})`)}
-        ${segBtn('warning', `Achtung (${counts.warning || 0})`)}
-        ${segBtn('info', `Hinweis (${counts.info || 0})`)}
+      <div class="seg" role="group" aria-label="${t('recommendations.filterGroupLabel')}" style="margin-bottom:var(--sp-4)">
+        ${segBtn('all', t('recommendations.filterAll', { count: recs.length }))}
+        ${segBtn('urgent', `${sevLabel('urgent')} (${counts.urgent || 0})`)}
+        ${segBtn('warning', `${sevLabel('warning')} (${counts.warning || 0})`)}
+        ${segBtn('info', `${sevLabel('info')} (${counts.info || 0})`)}
       </div>
 
       ${list.length === 0
-        ? `<div class="banner banner--info">Keine ${filterSev === 'all' ? '' : SEV[filterSev]?.label + '-'}Empfehlungen — alles im grünen Bereich.</div>`
+        ? `<div class="banner banner--info">${filterSev === 'all' ? t('recommendations.emptyAll') : t('recommendations.emptyFiltered', { sev: sevLabel(filterSev) })}</div>`
         : `<div class="rec-list">${list.map(card).join('')}</div>`}
     `;
 
@@ -58,9 +53,9 @@ export async function render(container) {
         try {
           await api.dismissRecommendation(id);
           recs = recs.filter(r => r.id !== id);
-          toastOk('Empfehlung ausgeblendet (30 Tage)');
+          toastOk(t('recommendations.dismissed'));
           draw();
-        } catch (e) { toastErr('Fehler: ' + (e.message || e)); }
+        } catch (e) { toastErr(t('recommendations.error', { msg: e.message || e })); }
       }));
   };
 
@@ -68,17 +63,19 @@ export async function render(container) {
 }
 
 function segBtn(sev, label) {
-  return `<button class="seg__btn ${filterSev === sev ? 'active' : ''}" data-sev="${sev}">${label}</button>`;
+  const active = filterSev === sev;
+  return `<button class="seg__btn ${active ? 'active' : ''}" data-sev="${sev}" aria-pressed="${active}">${label}</button>`;
 }
 
 function card(r) {
-  const s = SEV[r.severity] || SEV.info;
+  const sevKey = SEV_CLS[r.severity] ? r.severity : 'info';
+  const cls = SEV_CLS[sevKey];
   return `
-    <div class="rec-card rec-card--${s.cls}">
+    <div class="rec-card rec-card--${cls}">
       <div class="rec-card__head">
-        <span class="badge badge--${s.cls}">${s.label}</span>
-        <span class="rec-card__cat">${CAT[r.category] || r.category}</span>
-        <button class="rec-card__x" data-dismiss="${r.id}" title="30 Tage ausblenden">✕</button>
+        <span class="badge badge--${cls}">${sevLabel(sevKey)}</span>
+        <span class="rec-card__cat">${esc(catLabel(r.category))}</span>
+        <button class="rec-card__x" data-dismiss="${r.id}" title="${t('recommendations.dismiss')}" aria-label="${t('recommendations.dismiss')}"><span aria-hidden="true">✕</span></button>
       </div>
       <div class="rec-card__title">${esc(r.title)}</div>
       <div class="rec-card__detail">${esc(r.detail)}</div>

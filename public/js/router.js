@@ -15,6 +15,7 @@ import * as Settings     from './views/settings.js';
 import * as Tariffs      from './views/tariff.js';
 import * as Recommendations from './views/recommendations.js';
 import * as Reminders    from './views/reminders.js';
+import { t } from './lib/i18n.js';
 
 const ROUTES = [
   { pattern: /^#?\/?$/,                             handler: 'dashboard' },
@@ -50,7 +51,7 @@ const HANDLERS = {
 let currentCleanup = null;
 
 export function startRouter(container) {
-  const handle = async () => {
+  const handle = async (isInitialLoad = false) => {
     const hash = window.location.hash || '#/dashboard';
     for (const { pattern, handler } of ROUTES) {
       const m = hash.match(pattern);
@@ -58,7 +59,7 @@ export function startRouter(container) {
       const params = m.slice(1);
       // Cleanup previous view
       if (currentCleanup) { try { currentCleanup(); } catch {} }
-      container.innerHTML = '<div class="loading">Lade…</div>';
+      container.innerHTML = `<div class="loading" role="status">${escapeHtml(t('common.loading'))}</div>`;
       // Highlight active nav
       document.querySelectorAll('#primary-nav a').forEach(a => {
         const route = a.getAttribute('data-route') || '';
@@ -76,11 +77,18 @@ export function startRouter(container) {
           (handler === 'reminders' && route === 'reminders') ||
           (handler === 'settings' && route === 'settings');
         a.classList.toggle('active', isActive);
+        // A11y (N1009): aktive Route auch für Screenreader auszeichnen.
+        if (isActive) a.setAttribute('aria-current', 'page');
+        else a.removeAttribute('aria-current');
       });
       try {
         const mod = HANDLERS[handler];
         const cleanup = await mod.render(container, params);
         currentCleanup = typeof cleanup === 'function' ? cleanup : null;
+        // A11y: bei echter Navigation (nicht beim Erst-Laden) den Fokus in den
+        // Hauptbereich verschieben, damit Tastatur/Screenreader im neuen Inhalt
+        // landen statt am Seitenanfang. #view trägt tabindex="-1".
+        if (!isInitialLoad) container.focus({ preventScroll: false });
       } catch (e) {
         console.error(e);
         container.innerHTML = `<div class="banner banner--error">Fehler beim Laden: ${escapeHtml(e.message || e)}</div>`;
@@ -89,8 +97,8 @@ export function startRouter(container) {
     }
     container.innerHTML = `<div class="banner banner--warning">Unbekannte Route: ${escapeHtml(hash)}</div>`;
   };
-  window.addEventListener('hashchange', handle);
-  handle();
+  window.addEventListener('hashchange', () => handle(false));
+  handle(true);
 }
 
 function escapeHtml(s) {

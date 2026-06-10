@@ -7,6 +7,7 @@
 
 import { getUtilities, getSettings } from '../state.js';
 import { api } from '../api.js';
+import { t } from './i18n.js';
 
 const STATIC_ICON = {
   gas: '🔥', strom: '⚡', wasser: '💧',
@@ -53,56 +54,56 @@ export async function buildSidebar() {
 
   nav.innerHTML = `
     <div class="sidebar__group">
-      <div class="sidebar__group-label">Erfassung</div>
+      <div class="sidebar__group-label">${esc(t('nav.group.capture'))}</div>
       <a class="sidebar__item" href="#/zaehlerstaende" data-route="readings-entry">
-        <span class="sidebar__icon">📋</span><span>Zählerstände</span>
+        <span class="sidebar__icon">📋</span><span>${esc(t('nav.readings'))}</span>
       </a>
     </div>
 
     <div class="sidebar__group">
-      <div class="sidebar__group-label">Übersicht</div>
+      <div class="sidebar__group-label">${esc(t('nav.group.overview'))}</div>
       <a class="sidebar__item" href="#/dashboard" data-route="dashboard">
-        <span class="sidebar__icon">🏠</span><span>Dashboard</span>
+        <span class="sidebar__icon">🏠</span><span>${esc(t('nav.dashboard'))}</span>
       </a>
     </div>
 
     <div class="sidebar__group">
-      <div class="sidebar__group-label">Verbrauch</div>
+      <div class="sidebar__group-label">${esc(t('nav.group.consumption'))}</div>
       ${utilLinks}
       <a class="sidebar__item" href="#/temperatures" data-route="temperatures">
-        <span class="sidebar__icon">🌡️</span><span>Temperaturen</span>
+        <span class="sidebar__icon">🌡️</span><span>${esc(t('nav.temperatures'))}</span>
       </a>
     </div>
 
     <div class="sidebar__group">
-      <div class="sidebar__group-label">Analyse</div>
+      <div class="sidebar__group-label">${esc(t('nav.group.analysis'))}</div>
       <a class="sidebar__item" href="#/analysis" data-route="analysis">
-        <span class="sidebar__icon">📊</span><span>Korrelation</span>
+        <span class="sidebar__icon">📊</span><span>${esc(t('nav.correlation'))}</span>
       </a>
       <a class="sidebar__item" href="#/forecast" data-route="forecast">
-        <span class="sidebar__icon">🎯</span><span>Prognose</span>
+        <span class="sidebar__icon">🎯</span><span>${esc(t('nav.forecast'))}</span>
       </a>
       <a class="sidebar__item" href="#/tariffs" data-route="tariffs">
-        <span class="sidebar__icon">💰</span><span>Tarifvergleich</span>
+        <span class="sidebar__icon">💰</span><span>${esc(t('nav.tariffs'))}</span>
       </a>
     </div>
 
     <div class="sidebar__group">
-      <div class="sidebar__group-label">Insights</div>
+      <div class="sidebar__group-label">${esc(t('nav.group.insights'))}</div>
       <a class="sidebar__item" href="#/recommendations" data-route="recommendations">
-        <span class="sidebar__icon">💡</span><span>Empfehlungen</span>
+        <span class="sidebar__icon">💡</span><span>${esc(t('nav.recommendations'))}</span>
         ${recCount > 0 ? `<span class="sidebar__badge">${recCount}</span>` : ''}
       </a>
       <a class="sidebar__item" href="#/reminders" data-route="reminders">
-        <span class="sidebar__icon">📌</span><span>Termine</span>
+        <span class="sidebar__icon">📌</span><span>${esc(t('nav.reminders'))}</span>
         ${dueCount > 0 ? `<span class="sidebar__badge sidebar__badge--alert">${dueCount}</span>` : ''}
       </a>
     </div>
 
     <div class="sidebar__group">
-      <div class="sidebar__group-label">System</div>
+      <div class="sidebar__group-label">${esc(t('nav.group.system'))}</div>
       <a class="sidebar__item" href="#/settings" data-route="settings">
-        <span class="sidebar__icon">⚙️</span><span>Einstellungen</span>
+        <span class="sidebar__icon">⚙️</span><span>${esc(t('nav.settings'))}</span>
       </a>
     </div>
   `;

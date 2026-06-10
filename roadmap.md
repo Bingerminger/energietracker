@@ -4,8 +4,8 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-06-02 (synchron mit v1.9.3; echte UI-Screenshots)
-**Aktuelle Baseline:** v1.9.3
+**Stand:** 2026-06-10 (synchron mit v2.0.0; i18n + EN + A11y + UX + PWA)
+**Aktuelle Baseline:** v2.0.0
 **Schema:** 1.1.0
 
 ---
@@ -46,6 +46,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | N1012 | CI-Actions Node-24-fähig (`docker/*` per `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24`; Zwangsumstellung 2026-06-16 neutralisiert) | — (CI-Wartung, kein Bump) | 2026-05-31 |
 | F1006 | Meter-Topologie: Subzähler (Reihenschaltung, vom Eltern abgezogen) + Gruppen (Dashboard-Summe) + Merge-Wizard; Schema 1.2.0 | v1.8.0 | 2026-06-01 |
 | F1009 | Home-Assistant-Anbindung: opt-in Token-Auth (Hash in `data/auth.json`) + idempotenter `POST /api/ingest` (upsert-by-date) + Zähler-Alias `external_id`; Schema 1.3.0 | v1.9.0 | 2026-06-01 |
+| **v2.0.0-Bündel** (N1007 + EN-L10n + N1009 + UX + N1008) | Full-Stack-i18n (JSON-Kataloge + `t()` + `I18nService`, `language`-Setting) · vollständige EN-Lokalisierung (DE/EN-Parität) · Barrierefreiheit (Skip-Link, Fokus-Management, Label↔Feld, `scope`, ARIA-Labels, Chart-Alt, Live-Regions) · UX-Politur · PWA (Manifest + Service-Worker, installierbar + offline). Schema unverändert 1.3.0 (additiv). | v2.0.0 | 2026-06-10 |
 
 ---
 
@@ -63,8 +64,15 @@ Leitlogik dieser Sequenz:
    kommt vor dem trockenen i18n-Unterbau.
 4. **Thematisch bündeln.** Ops-Themen (Docker + Logging) und UX-Themen
    (PWA + A11y) reisen paarweise, statt jeden N-Code einzeln zu releasen.
-5. **Majors klar trennen.** EN-Lokalisierung (v2.0.0, kleiner Major) bleibt das
-   einzige geplante Major-Release und wird nicht mit anderen Themen vermischt.
+5. **v2.0.0 als bewusst gebündelter Major (User-Entscheidung 2026-06-02).**
+   Die frühere Leitlinie „Major nicht mit anderen Themen vermischen" ist hier
+   bewusst aufgehoben: N1007 (i18n-Foundation), EN-L10n, N1008 (PWA), N1009
+   (A11y) und eine UX-Überarbeitung werden **gemeinsam** als v2.0.0 entwickelt
+   und erst dann ausgeliefert. Grund: i18n, A11y und UX fassen ohnehin dieselben
+   12 View-Dateien an — ein einziger großer Durchgang statt fünf einzelner
+   Releases. Die i18n-Reichweite ist **Full-Stack** (Frontend-`t()` + Backend-
+   Katalog via Accept-Language), Kataloge als JSON je Sprache, Sprachwahl als
+   additives `language`-Setting (kein Schema-Bump). Schema bleibt 1.3.0.
    Die früher geplante Smart-Meter-Anbindung (v3.0.0, eigener Datenpipeline-
    Major) ist **gestrichen** — echtes Metering (Smart-Meter-Auslesung) wird
    bewusst an **Home Assistant** delegiert, das die Werte per F1009-Ingest an
@@ -72,14 +80,19 @@ Leitlogik dieser Sequenz:
    Vertrags-, Kosten- und Prognose-Oberfläche; die Hardware-/Protokollwelt
    (SML, IEC 62056, Lastgang) lebt in HA. Die strategische Ausbaurichtung ist
    deshalb der **Ausbau der HA-Integration** (siehe Bedarfsgetrieben).
+6. **F1008 (NKA) nach v2.0.0.** Auf User-Entscheidung (2026-06-02) rückt die NKA
+   für Mieter hinter das v2.0.0-Bündel (Ziel **v2.1.0**, Schema 1.3.0 → 1.4.0).
+   Begründung: i18n/A11y/UX/PWA bringen der breiten Nutzerbasis schneller Wert;
+   die NKA ist ein größeres, modulares Datenmodell-Vorhaben ohne akuten
+   Zeitdruck. Das Detail-Konzept unten bleibt gültig und wird vor v2.1.0
+   finalisiert.
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | offen | L | 1.3.0 → 1.4.0 | **nächster Slot** — baut auf F1006 auf, Detail-Konzept unten |
-| **N1008** | PWA-Manifest + Service-Worker (mobile „App", komplettiert F1004) | v1.10.0 | M | — | geplant |
-| **N1009** | Accessibility-Audit + Fixes (ARIA, Tastatur, Kontrast) | v1.11.0 | M | — | geplant |
-| **N1007** | i18n-Foundation (`t('key')`-Wrapper, String-Extraktion) | v1.12.0 | M | — | geplant |
-| **EN-L10n** | EN-Lokalisierung (Aktivierung, erste zweite Sprache) | v2.0.0 | L | — | Major, setzt N1007 voraus |
+| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | v2.1.0 | L | 1.3.0 → 1.4.0 | nächster Slot, Detail-Konzept unten |
+
+> Das **v2.0.0-Bündel** (N1007 + EN-L10n + N1009 + UX + N1008) ist am
+> 2026-06-10 ausgeliefert → siehe „Bereits ausgeliefert".
 
 **Bedarfsgetrieben (kein fester Slot):**
 
@@ -428,7 +441,10 @@ Mietwohnung Strom/Gas/Wasser).
 (Verwaltungsverträge fehlen, Umlage nach m² liegt bei der Hausverwaltung). Das
 Datenmodell soll **modular** umgebaut und die NKA in drei getrennte Bereiche
 geteilt werden. Überschneidet sich konzeptionell mit F1006 (Meter-Topologie)
-und baut darauf auf — daher der Slot **nach F1006** (Schema 1.2.0 → 1.3.0).
+und baut darauf auf. F1006 ist ausgeliefert (v1.8.0); das Topologie-Datenmodell
+steht also. **Slot zurückgestellt** ans Ende der MINOR-Sequenz (v1.13.0, Schema
+1.3.0 → 1.4.0), hinter N1008/N1009/N1007 (User-Entscheidung 2026-06-02,
+s. Leitlogik 6).
 
 **Lösungsskizze (3 Module):**
 1. **Relevante Zählerstände** — Unterscheidung *abrechnungsrelevant* vs. reine
@@ -446,8 +462,10 @@ und baut darauf auf — daher der Slot **nach F1006** (Schema 1.2.0 → 1.3.0).
 - „abrechnungsrelevant" als Zähler-Flag oder eigener Entitätstyp?
 - Mehrjahres-Abgleich der Endabrechnungen (Verknüpfung mit F1005)?
 
-(Detail-Konzept wird ausgearbeitet, sobald F1006 ausgeliefert ist und das
-Datenmodell der Meter-Topologie steht.)
+(Detail-Konzept und die vier offenen Architektur-Weichenstellungen — Release-
+Schnitt, abrechnungsrelevant-Modellierung, pauschale Umlagen, PDF-Storage —
+werden per Multiple-Choice geklärt, sobald F1008 an die Reihe kommt, d. h.
+nach N1007/v1.12.0.)
 
 ---
 
@@ -517,6 +535,9 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-06-02 | Smart-Meter gestrichen, Roadmap neu sortiert | Auf User-Entscheidung: echtes Metering (Smart-Meter-Auslesung) wird vollständig an Home Assistant delegiert (F1009-Ingest), daher den geplanten v3.0.0-Major **Smart-Meter** (SML/IEC 62056/Lastgang) komplett entfernt. N1011 (API-Versionierung) war nur „Vorbereitung Smart-Meter" → aus der festen Reihenfolge in den Bedarfsgetrieben-Block verschoben. Neue strategische Leitlinie statt Smart-Meter: Ausbau der HA-Integration (als bedarfsgetriebenes F1010+ skizziert). Geplante Reihenfolge endet damit bei EN-L10n (v2.0.0). Nächster Slot unverändert: F1008. |
 | 2026-06-02 | v1.9.2 ausgeliefert (Doku-PATCH) | Vollständiger Dokumentations-Review (kein Code): Faktenabgleich aller Docs auf Code-Stand (Schema 1.3.0, 68 Routen, 24 Services/20 Controller, 12 Views, 40 Settings, Testzahlen), F1006/F1009 durchgängig dokumentiert, Smart-Meter-Verweise bereinigt. Drei neue nutzerorientierte Dokumente: `ERSTE-SCHRITTE.md`, `USE-CASES.md` (4 Praxisfälle), `functional/13-meter-topologie.md`. Index/Struktur/Verlinkung ausgebaut, alle internen Links geprüft. Nächster Slot: F1008. |
 | 2026-06-02 | v1.9.3 ausgeliefert (Doku-PATCH) | UI-Referenz auf **echte Screenshots** umgestellt (Playwright-Aufnahmen der laufenden App mit Demo-Daten): 11 handgezeichnete SVG-Mockups durch 13 echte PNGs in `docs/ui/screenshots/` ersetzt, `ui/01-views.md` überarbeitet (alle 12 Views inkl. PV + Topologie-Hinweis), Mockup-Disclaimer projektweit entfernt. Nächster Slot: F1008. |
+| 2026-06-02 | F1008 (NKA) zurückgestellt | Auf User-Entscheidung rückt die NKA für Mieter vom „nächsten Slot" ans Ende. Leitlogik-Punkt 6 ergänzt, Detail-Konzept bleibt gültig. |
+| 2026-06-02 | v2.0.0 als gebündelter Major beschlossen | Auf User-Entscheidung werden **N1007 (i18n-Foundation), EN-L10n, N1008 (PWA), N1009 (A11y) und eine UX-Überarbeitung gemeinsam als v2.0.0** entwickelt und erst dann ausgeliefert (frühere „Majors nicht mischen"-Leitlinie bewusst aufgehoben — Leitlogik 5 neu gefasst). Architektur-Festlegungen: i18n **Full-Stack** (Frontend-`t()` + Backend-Katalog via Accept-Language), **JSON-Kataloge je Sprache** + `t('key')`-Wrapper, Sprachwahl als additives **`language`-Setting** (kein Schema-Bump, Schema bleibt 1.3.0), UX **View-für-View mit Vorschlägen** ohne Info-Verlust. Phasen: 1 i18n-Foundation → 2 EN-L10n → 3 A11y → 4 UX → 5 PWA → Release. F1008 (NKA) rückt auf v2.1.0. |
+| 2026-06-10 | v2.0.0 ausgeliefert | Das gebündelte v2.0.0 (N1007 + EN-L10n + N1009 + UX + N1008) fertiggestellt und nach „Bereits ausgeliefert" verschoben. Full-Stack-i18n (DE/EN-Parität, `language`-Setting, Schema unverändert 1.3.0), Barrierefreiheit über alle 13 Views + Shell, UX-Politur, PWA (installierbar + offline). Zwei Bugs nebenbei behoben: PDF-/Backend-Texte folgen jetzt dem `language`-Setting statt `Accept-Language`; unsichtbarer Hellmodus-Text in der Zählerstands-Erfassung (`--fg-muted`-Fallback). Nächster Slot: F1008 (NKA, v2.1.0). |
 
 ---
 

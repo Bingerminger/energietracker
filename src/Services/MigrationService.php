@@ -45,6 +45,7 @@ final class MigrationService
     public function __construct(
         private JsonStore $store,
         private BackupService $backup,
+        private I18nService $i18n,
     ) {}
 
     /**
@@ -71,15 +72,15 @@ final class MigrationService
         $legacyVer = (string)($backup['version'] ?? '');
         if ($legacyVer === '') {
             throw new \InvalidArgumentException(
-                'Kein "version"-Feld im Backup — vermutlich kein v0.9.0-Backup. ' .
-                'Erwartet werden v0.9.0-Backups mit version "2.1" oder älter.'
+                $this->i18n->t('errors.migration.noVersionField')
             );
         }
         if (!in_array($legacyVer, self::SUPPORTED_LEGACY_VERSIONS, true)) {
             throw new \InvalidArgumentException(
-                "Backup-Version \"$legacyVer\" wird nicht erkannt. " .
-                'Unterstützt werden v0.9.0-Backup-Formate: ' . implode(', ', self::SUPPORTED_LEGACY_VERSIONS) . '. ' .
-                'Für native v1.0.3-Backups (backup_version 3.0+) bitte den Standard-Import in Einstellungen → Backup & Restore nutzen.'
+                $this->i18n->t('errors.migration.versionUnrecognized', [
+                    'ver'       => $legacyVer,
+                    'supported' => implode(', ', self::SUPPORTED_LEGACY_VERSIONS),
+                ])
             );
         }
 
@@ -150,7 +151,7 @@ final class MigrationService
     public function apply(array $translated, string $mode): array
     {
         if (!in_array($mode, ['replace', 'merge'], true)) {
-            throw new \InvalidArgumentException('Ungültiger Modus: ' . $mode . ' (erlaubt: replace, merge)');
+            throw new \InvalidArgumentException($this->i18n->t('errors.migration.invalidMode', ['mode' => $mode]));
         }
 
         // Always snapshot the current state first, regardless of mode, so

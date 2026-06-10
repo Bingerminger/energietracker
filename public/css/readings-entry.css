@@ -45,7 +45,7 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .reading-card__sub {
-  font-size: var(--fs-sm); color: var(--fg-muted, rgba(255,255,255,0.6));
+  font-size: var(--fs-sm); color: var(--text-2);
   margin-top: 2px;
 }
 
@@ -62,7 +62,7 @@
 
 .reading-card__last {
   font-size: var(--fs-sm);
-  color: var(--fg-muted, rgba(255,255,255,0.7));
+  color: var(--text-2);
   background: var(--bg-2);
   padding: var(--sp-2) var(--sp-3);
   border-radius: var(--r-sm);
@@ -84,7 +84,7 @@
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .field__label {
   font-size: var(--fs-xs);
-  color: var(--fg-muted, rgba(255,255,255,0.6));
+  color: var(--text-2);
   letter-spacing: 0.02em;
 }
 .input--counter {
@@ -169,4 +169,20 @@
 [data-theme="light"] .reading-card__hint {
   background: rgba(245, 158, 11, 0.12);
   color: #92400e;
+}
+
+/* v2.0.0 (UX) — B: globales Ablesedatum oben über der Kartenliste */
+.readings-entry__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--sp-3);
+}
+.readings-entry__toolbar .field--date { min-width: 200px; }
+
+/* v2.0.0 (UX) — A: Verbrauchs-Vorschau (Delta zum letzten Stand) bei Eingabe */
+.reading-card__preview {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
 }

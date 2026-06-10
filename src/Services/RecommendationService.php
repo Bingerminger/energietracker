@@ -29,7 +29,16 @@ final class RecommendationService
         private SettingsService $settings,
         private BenchmarkService $benchmark,
         private DeliveryService $deliveries,
+        private I18nService $i18n,
     ) {}
+
+    /** Lokalisiertes Verbrauchsart-Label (Fallback: deutsches Default-Label). */
+    private function utilLabel(string $utility): string
+    {
+        $key = 'utilityNames.' . $utility;
+        $tr  = $this->i18n->t($key);
+        return $tr === $key ? (Utilities::get($utility)['label'] ?? $utility) : $tr;
+    }
 
     /** @return array<int,array<string,mixed>> */
     public function all(bool $includeDismissed = false): array
@@ -107,8 +116,8 @@ final class RecommendationService
                 $out[] = $this->mk(
                     'r1', [$utility, $meter['id'], $m['ym']],
                     'warning', 'anomalie',
-                    sprintf('%s %s: wetterbereinigt %+d %% über Mittel', Utilities::get($utility)['label'], $m['ym'], $pct),
-                    sprintf('Im Monat %s lag der wetterbereinigte Verbrauch %+d %% über deinem Durchschnitt — und es war nicht kälter. Ein Geräte- oder Heizungs-Check kann sich lohnen.', $m['ym'], $pct),
+                    $this->i18n->t('recommendations.engine.r1.title', ['label' => $this->utilLabel($utility), 'ym' => $m['ym'], 'pct' => sprintf('%+d', $pct)]),
+                    $this->i18n->t('recommendations.engine.r1.detail', ['ym' => $m['ym'], 'pct' => sprintf('%+d', $pct)]),
                     ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $m['ym']]
                 );
             }
@@ -145,8 +154,8 @@ final class RecommendationService
             return [$this->mk(
                 'r2', [$utility, $meter['id']],
                 'warning', 'trend',
-                sprintf('%s: steigender Trend %+.1f %%/Jahr', Utilities::get($utility)['label'], $pctPerYear),
-                sprintf('Der wetterbereinigte Verbrauch steigt um etwa %+.1f %% pro Jahr — eine schleichende Verschlechterung. Prüfe, ob Geräte altern oder sich Nutzungsgewohnheiten geändert haben.', $pctPerYear),
+                $this->i18n->t('recommendations.engine.r2.title', ['label' => $this->utilLabel($utility), 'pct' => sprintf('%+.1f', $pctPerYear)]),
+                $this->i18n->t('recommendations.engine.r2.detail', ['pct' => sprintf('%+.1f', $pctPerYear)]),
                 ['utility' => $utility, 'meter_id' => $meter['id']]
             )];
         }
@@ -172,8 +181,8 @@ final class RecommendationService
                 $out[] = $this->mk(
                     'r3', [$utility, $meter['id'], (string)$y],
                     'info', 'effizienz',
-                    sprintf('%s %d: hoher Sommerverbrauch', Utilities::get($utility)['label'], $y),
-                    sprintf('Im Juli %d lag der Verbrauch bei %d %% des Januarwerts. Bei reiner Raumheizung sollte das deutlich niedriger sein — vermutlich ineffiziente Warmwasserbereitung.', $y, round($ratio * 100)),
+                    $this->i18n->t('recommendations.engine.r3.title', ['label' => $this->utilLabel($utility), 'year' => $y]),
+                    $this->i18n->t('recommendations.engine.r3.detail', ['year' => $y, 'pct' => (int)round($ratio * 100)]),
                     ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => sprintf('%d-07', $y)]
                 );
             }
@@ -205,8 +214,8 @@ final class RecommendationService
                 $out[] = $this->mk(
                     'r4', [$utility, $meter['id'], $m['ym']],
                     'info', 'anomalie',
-                    sprintf('%s %s: statistische Anomalie', Utilities::get($utility)['label'], $m['ym']),
-                    sprintf('Der Verbrauch in %s weicht ungewöhnlich stark ab (%.1fσ) und ist nicht durch das Wetter erklärbar. Lohnt einen prüfenden Blick.', $m['ym'], $z),
+                    $this->i18n->t('recommendations.engine.r4.title', ['label' => $this->utilLabel($utility), 'ym' => $m['ym']]),
+                    $this->i18n->t('recommendations.engine.r4.detail', ['ym' => $m['ym'], 'sigma' => sprintf('%.1f', $z)]),
                     ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $m['ym']]
                 );
             }
@@ -233,9 +242,13 @@ final class RecommendationService
             return [$this->mk(
                 'r5', [$utility, $meter['id']],
                 $pct <= ($warnPct / 2) ? 'urgent' : 'warning', 'bestand',
-                sprintf('%s: Tank bei %d %%', Utilities::get($utility)['label'], round($pct)),
-                sprintf('Der modellierte Bestand von „%s" liegt bei rund %s %s (%d %% der Kapazität). Eine Lieferung sollte eingeplant werden.',
-                    (string)($meter['name'] ?? $meter['id']), round($stock), $hist['capacity_unit'] ?? '', round($pct)),
+                $this->i18n->t('recommendations.engine.r5.title', ['label' => $this->utilLabel($utility), 'pct' => (int)round($pct)]),
+                $this->i18n->t('recommendations.engine.r5.detail', [
+                    'name'  => (string)($meter['name'] ?? $meter['id']),
+                    'stock' => (int)round($stock),
+                    'unit'  => $hist['capacity_unit'] ?? '',
+                    'pct'   => (int)round($pct),
+                ]),
                 ['utility' => $utility, 'meter_id' => $meter['id']]
             )];
         }
@@ -258,9 +271,11 @@ final class RecommendationService
             $out[] = $this->mk(
                 'r6', [$utility, $meter['id'], (string)($c['contract_id'] ?? $c['id'] ?? '')],
                 $days <= 14 ? 'urgent' : 'warning', 'vertrag',
-                sprintf('%s: Vertrag endet in %d Tagen', Utilities::get($utility)['label'], $days),
-                sprintf('Der Vertrag „%s" endet in %d Tagen. Jetzt Tarifvergleich starten und ggf. wechseln.',
-                    (string)($c['provider'] ?? $c['tariff_name'] ?? '—'), $days),
+                $this->i18n->t('recommendations.engine.r6.title', ['label' => $this->utilLabel($utility), 'days' => $days]),
+                $this->i18n->t('recommendations.engine.r6.detail', [
+                    'provider' => (string)($c['provider'] ?? $c['tariff_name'] ?? '—'),
+                    'days'     => $days,
+                ]),
                 ['utility' => $utility, 'meter_id' => $meter['id']]
             );
         }
@@ -284,9 +299,13 @@ final class RecommendationService
             $out[] = $this->mk(
                 'r7', ['efficiency', (string)$s['utility'], (string)$eff['year']],
                 ($class === 'H' || $class === 'G') ? 'warning' : 'info', 'effizienz',
-                sprintf('%s: Effizienzklasse %s (%.0f kWh/m²·a)', $s['label'], $class, $kwhM2),
-                sprintf('Der Heizenergiebedarf %d über %s entspricht Effizienzklasse %s (%.0f kWh/m²·a). Dämmung, Heizungsoptimierung oder ein hydraulischer Abgleich können die Klasse spürbar verbessern.',
-                    $eff['year'], $s['label'], $class, $kwhM2),
+                $this->i18n->t('recommendations.engine.r7.title', ['label' => $this->utilLabel((string)$s['utility']), 'class' => $class, 'kwh' => sprintf('%.0f', $kwhM2)]),
+                $this->i18n->t('recommendations.engine.r7.detail', [
+                    'year'  => $eff['year'],
+                    'label' => $this->utilLabel((string)$s['utility']),
+                    'class' => $class,
+                    'kwh'   => sprintf('%.0f', $kwhM2),
+                ]),
                 ['utility' => (string)$s['utility'], 'meter_id' => null]
             );
         }

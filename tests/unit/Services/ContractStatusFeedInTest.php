@@ -58,10 +58,10 @@ final class ContractStatusFeedInTest extends ServiceTestCase
 
         self::assertGreaterThan(0, $c['current_balance'],
             'feed_in-Saldo ist ein Vergütungsanspruch (positiv)');
-        self::assertNotSame('Nachzahlung', $c['verdict'],
-            'feed_in darf NIE als Nachzahlung klassifiziert werden');
-        self::assertSame('Auszahlung', $c['verdict'],
-            'positiver feed_in-Saldo → Auszahlung des Netzbetreibers');
+        self::assertNotSame('surcharge', $c['verdict'],
+            'feed_in darf NIE als Nachzahlung (surcharge) klassifiziert werden');
+        self::assertSame('payout', $c['verdict'],
+            'positiver feed_in-Saldo → Auszahlung des Netzbetreibers (verdict-Key payout)');
     }
 
     public function testFeedInProjectionStaysWithinNextBillingCycleNotContractEnd(): void

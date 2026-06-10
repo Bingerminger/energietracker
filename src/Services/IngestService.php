@@ -25,6 +25,7 @@ final class IngestService
     public function __construct(
         private MeterService $meters,
         private ReadingService $readings,
+        private I18nService $i18n,
     ) {}
 
     /**
@@ -37,18 +38,18 @@ final class IngestService
     {
         $utility = (string)($input['utility'] ?? '');
         if ($utility === '' || !Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte oder fehlende Verbrauchsart (utility): ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.ingest.unknownUtility', ['utility' => $utility]));
         }
         if (Utilities::isDelivery($utility)) {
             throw new \InvalidArgumentException(
-                $utility . ' arbeitet mit Lieferungen statt Ablesungen — Ingest hier nicht unterstützt'
+                $this->i18n->t('errors.ingest.deliveryNotSupported', ['utility' => $utility])
             );
         }
 
         // Zählerwert: `value` (HA-freundlich) oder `counter` (interne Bezeichnung).
         $rawValue = $input['value'] ?? $input['counter'] ?? null;
         if ($rawValue === null || $rawValue === '' || !is_numeric($rawValue)) {
-            throw new \InvalidArgumentException('Zählerstand (value) fehlt oder ist keine Zahl');
+            throw new \InvalidArgumentException($this->i18n->t('errors.ingest.valueMissing'));
         }
         $value = (float)$rawValue;
 
@@ -60,21 +61,20 @@ final class IngestService
         } else {
             if (strlen($date) > 10) $date = substr($date, 0, 10);
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                throw new \InvalidArgumentException('Datum muss im Format YYYY-MM-DD vorliegen: ' . $date);
+                throw new \InvalidArgumentException($this->i18n->t('errors.ingest.dateFormat', ['date' => $date]));
             }
         }
 
         // Zähler auflösen: erst Alias (external_id), dann interne ID.
         $meterRef = trim((string)($input['meter'] ?? $input['meter_id'] ?? ''));
         if ($meterRef === '') {
-            throw new \InvalidArgumentException('Zähler (meter) fehlt — Alias oder interne ID angeben');
+            throw new \InvalidArgumentException($this->i18n->t('errors.ingest.meterMissing'));
         }
         $meter = $this->meters->getByExternalId($utility, $meterRef)
             ?? $this->meters->get($utility, $meterRef);
         if (!$meter) {
             throw new \InvalidArgumentException(
-                'Kein Zähler für „' . $meterRef . '" in ' . $utility
-                . ' gefunden (weder als Alias noch als ID)'
+                $this->i18n->t('errors.ingest.meterNotFound', ['meter' => $meterRef, 'utility' => $utility])
             );
         }
         $meterId = (string)$meter['id'];

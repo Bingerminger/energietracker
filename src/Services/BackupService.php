@@ -20,7 +20,7 @@ final class BackupService
 {
     public const BACKUP_VERSION = '3.0';
 
-    public function __construct(private JsonStore $store) {}
+    public function __construct(private JsonStore $store, private I18nService $i18n) {}
 
     public function export(): array
     {
@@ -47,12 +47,11 @@ final class BackupService
     {
         $ver = (string)($payload['backup_version'] ?? '');
         if ($ver === '') {
-            throw new \InvalidArgumentException('Kein backup_version-Feld — kein gültiges Backup');
+            throw new \InvalidArgumentException($this->i18n->t('errors.backup.noVersionField'));
         }
         if (version_compare($ver, '3.0', '<')) {
             throw new \InvalidArgumentException(
-                "Backup-Version $ver wird nicht direkt unterstützt. " .
-                'Bitte zuerst über die Migration in v1.0.0 einspielen oder ein neueres Backup verwenden.'
+                $this->i18n->t('errors.backup.versionUnsupported', ['ver' => $ver])
             );
         }
         // N1004 — Schema-Version aus dem Backup darf nicht NEUER sein als
@@ -62,9 +61,10 @@ final class BackupService
         $backupSchema = (string)($payload['meta']['schema_version'] ?? '');
         if ($backupSchema !== '' && version_compare($backupSchema, Migrator::SCHEMA_VERSION, '>')) {
             throw new \InvalidArgumentException(
-                "Backup-Schema $backupSchema ist neuer als die App-Schema "
-                . Migrator::SCHEMA_VERSION
-                . '. Bitte erst die App aktualisieren, dann das Backup einspielen.'
+                $this->i18n->t('errors.backup.schemaNewer', [
+                    'schema'    => $backupSchema,
+                    'appSchema' => Migrator::SCHEMA_VERSION,
+                ])
             );
         }
         // N1004 — Automatischer Sicherungs-Snapshot vor dem Restore. Falls

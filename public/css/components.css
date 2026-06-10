@@ -116,6 +116,9 @@ textarea.input { min-height: 80px; resize: vertical; }
   position: sticky; top: 0;
 }
 .table tbody tr:hover { background: var(--bg-2); }
+/* v2.0.0 (UX) — Zeilen-Hover auch für .data-table (Erinnerungen, Tarif,
+   Settings-Export), damit alle Tabellen gleich auf Mausführung reagieren. */
+.data-table tbody tr:hover { background: var(--bg-2); }
 .table td.num, .table th.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .table .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
 .table-wrap {
@@ -793,3 +796,34 @@ textarea.input { min-height: 80px; resize: vertical; }
   margin-top: var(--sp-2);
 }
 .dash-strom-saldo .kpi--accent { border: 1px solid var(--accent, #10b981); border-radius: var(--radius-2); padding: var(--sp-2); }
+
+/* v2.0.0 (UX) — Trend-Indikator auf Dashboard-KPIs (letzte 12 vs. vorherige 12
+   Monate). Als dezent getönter Chip, damit Richtung/Wert auf einen Blick
+   erfassbar sind statt nur als farbiger Text. */
+.kpi__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: var(--sp-1, 4px);
+  padding: 1px 7px;
+  border-radius: 100px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.kpi__trend--danger  { color: var(--danger);  background: var(--danger-soft); }
+.kpi__trend--success { color: var(--success); background: var(--success-soft); }
+
+/* v2.0.0 (UX) — Leerwert (z.B. Kosten ohne hinterlegten Tarif): gedämpfter
+   Gedankenstrich statt „€0.00", damit „kein Tarif" nicht wie echte 0 € wirkt. */
+.kpi__empty { color: var(--text-3); font-weight: 500; }
+
+/* v2.0.0 (UX) — Leerzustand des Dashboards für neue Nutzer ohne Ablesungen */
+.dash-empty {
+  text-align: center;
+  padding: var(--sp-6, 32px) var(--sp-4, 16px);
+}
+.dash-empty__icon { font-size: 2.5rem; line-height: 1; margin-bottom: var(--sp-3); }
+.dash-empty__text { max-width: 46ch; margin: var(--sp-2) auto var(--sp-4); }

@@ -2,9 +2,13 @@
 /data/*/readings.json
 /data/*/contracts.json
 /data/*/meters.json
+/data/*/deliveries.json
+/data/*/meter_groups.json
 /data/temperatures.json
 /data/settings.json
 /data/meta.json
+/data/reminders.json
+/data/auth.json
 /data/backups/
 /data/input.xlsx
 /data/Temperatur_*.csv
@@ -35,3 +39,6 @@ venv/
 
 ## Playwright-MCP — temporäre Snapshot-/Screenshot-Artefakte
 .playwright-mcp/
+
+## graphify — generierter Knowledge-Graph (lokal, regenerierbar)
+graphify-out/

@@ -7,9 +7,10 @@ import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { makeChart } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
+import { t } from '../lib/i18n.js';
 
 export async function render(container) {
-  container.innerHTML = '<div class="loading">Lade Übersicht…</div>';
+  container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
   const [allUtilities, settings] = await Promise.all([getUtilities(), getSettings()]);
 
   // v1.3.0 / P10 — nur aktive Verbrauchsarten anzeigen
@@ -74,25 +75,21 @@ export async function render(container) {
     .filter(r => ['due', 'overdue', 'due_soon'].includes(r.status))
     .slice(0, 2);
 
-  container.innerHTML = `
-    <div class="section-head">
-      <h1>Übersicht</h1>
-      <div class="section-actions">
-        <a class="btn btn--ghost" href="#/temperatures">Temperaturen</a>
-        <a class="btn btn--primary" href="#/forecast">Prognose</a>
-      </div>
-    </div>
+  // A — Leerzustand: keinerlei Verbrauchsdaten in irgendeiner aktiven Art.
+  const hasAnyData = datasets.some(d => ((d.consumption?.monthly_total) || []).length > 0);
 
+  // Insight-Karten (Effizienz, Tanks, Strom-Saldo, Empfehlungen, Termine).
+  const insightsHtml = `
     <div class="grid grid-2">
       ${eff && Array.isArray(eff.per_source) && eff.per_source.length ? `
       <div class="card dash-insight">
-        <h3 class="card__title">🏅 Effizienz ${eff.year}</h3>
+        <h2 class="card__title"><span aria-hidden="true">🏅</span> ${t('dashboard.efficiency.title')} ${eff.year}</h2>
         ${eff.per_source.length === 1 ? `
           <div class="dash-eff">
             <span class="dash-eff__class">${eff.per_source[0].class ?? '–'}</span>
             <span class="dash-eff__val">${fmt.num(eff.per_source[0].kwh_per_m2, 0)} kWh/m²·a</span>
           </div>
-          <div class="kpi__sub">${escapeHtml(eff.per_source[0].label)} · Wohnfläche ${eff.wohnflaeche_m2} m²</div>
+          <div class="kpi__sub">${escapeHtml(eff.per_source[0].label)} · ${t('dashboard.efficiency.livingArea', { area: eff.wohnflaeche_m2 })}</div>
         ` : `
           <div class="dash-eff-list">
             ${eff.per_source.map(s => `
@@ -102,19 +99,19 @@ export async function render(container) {
                 <span class="dash-eff-row__val">${fmt.num(s.kwh_per_m2, 0)} kWh/m²·a</span>
               </div>`).join('')}
           </div>
-          <div class="kpi__sub">je Heizquelle · Wohnfläche ${eff.wohnflaeche_m2} m²</div>
+          <div class="kpi__sub">${t('dashboard.efficiency.perSource', { area: eff.wohnflaeche_m2 })}</div>
         `}
       </div>` : ''}
 
       ${tanks.length ? `
       <div class="card dash-insight">
-        <h3 class="card__title">🛢️ Tank-Bestände</h3>
-        ${tanks.map(t => {
-          const pct = t.cap > 0 ? Math.max(0, Math.min(100, t.stock / t.cap * 100)) : 0;
+        <h2 class="card__title"><span aria-hidden="true">🛢️</span> ${t('dashboard.tanks.title')}</h2>
+        ${tanks.map(tk => {
+          const pct = tk.cap > 0 ? Math.max(0, Math.min(100, tk.stock / tk.cap * 100)) : 0;
           const cls = pct <= 8 ? 'alert' : (pct <= 15 ? 'warn' : 'ok');
           return `<div class="dash-tank">
-            <div class="dash-tank__label">${t.utility.icon} ${escapeHtml(t.meter.name || t.utility.label)}
-              <span class="muted">${fmt.num(t.stock,0)} / ${fmt.num(t.cap,0)} ${t.unit}</span></div>
+            <div class="dash-tank__label">${tk.utility.icon} ${escapeHtml(tk.meter.name || tk.utility.label)}
+              <span class="muted">${fmt.num(tk.stock,0)} / ${fmt.num(tk.cap,0)} ${tk.unit}</span></div>
             <div class="tank-bar"><div class="tank-bar__fill tank-bar__fill--${cls}" style="width:${pct.toFixed(0)}%"></div></div>
           </div>`;
         }).join('')}
@@ -122,43 +119,43 @@ export async function render(container) {
 
       ${saldoYear ? `
       <div class="card dash-insight">
-        <h3 class="card__title">⚡ Strom-Saldo ${saldoYear.year}</h3>
+        <h2 class="card__title"><span aria-hidden="true">⚡</span> ${t('dashboard.stromSaldo.title')} ${saldoYear.year}</h2>
         <div class="dash-strom-saldo">
           <div class="kpi">
-            <div class="kpi__label">Bezug</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.bezug')}</div>
             <div class="kpi__value">${fmt.eur(saldoYear.bezug_cost)}</div>
-            <div class="kpi__sub">${fmt.num(saldoYear.bezug_kwh, 0)} kWh aus dem Netz</div>
+            <div class="kpi__sub">${t('dashboard.stromSaldo.bezugSub', { kwh: fmt.num(saldoYear.bezug_kwh, 0) })}</div>
           </div>
           <div class="kpi">
-            <div class="kpi__label">PV-Erlös</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.pvRevenue')}</div>
             <div class="kpi__value">${fmt.eur(saldoYear.einspeisung_revenue)}</div>
-            <div class="kpi__sub">${fmt.num(saldoYear.einspeisung_kwh, 0)} kWh eingespeist</div>
+            <div class="kpi__sub">${t('dashboard.stromSaldo.pvRevenueSub', { kwh: fmt.num(saldoYear.einspeisung_kwh, 0) })}</div>
           </div>
           <div class="kpi kpi--accent">
-            <div class="kpi__label">Netto-Saldo</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.netto')}</div>
             <div class="kpi__value">${fmt.eur(saldoYear.saldo_netto)}</div>
-            <div class="kpi__sub">${saldoYear.saldo_netto < 0 ? 'du verdienst netto' : 'Netto-Kosten'}</div>
+            <div class="kpi__sub">${saldoYear.saldo_netto < 0 ? t('dashboard.stromSaldo.nettoEarn') : t('dashboard.stromSaldo.nettoCost')}</div>
           </div>
           ${pvYear && pvYear.autarkiequote != null ? `
           <div class="kpi">
-            <div class="kpi__label">Autarkiequote</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.autarky')}</div>
             <div class="kpi__value">${(pvYear.autarkiequote * 100).toFixed(0)} %</div>
-            <div class="kpi__sub">Anteil eigener Strom</div>
+            <div class="kpi__sub">${t('dashboard.stromSaldo.autarkySub')}</div>
           </div>` : ''}
           ${pvYear && pvYear.eigenverbrauchsquote != null ? `
           <div class="kpi">
-            <div class="kpi__label">Eigenverbrauchsquote</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.selfUse')}</div>
             <div class="kpi__value">${(pvYear.eigenverbrauchsquote * 100).toFixed(0)} %</div>
-            <div class="kpi__sub">${fmt.num(pvYear.eigenverbrauch_kwh, 0)} kWh selbst genutzt</div>
+            <div class="kpi__sub">${t('dashboard.stromSaldo.selfUseSub', { kwh: fmt.num(pvYear.eigenverbrauch_kwh, 0) })}</div>
           </div>` : ''}
         </div>
       </div>` : ''}
 
       ${topRecs.length ? `
       <div class="card dash-insight">
-        <h3 class="card__title">💡 Top-Empfehlungen
-          <span class="card__title-action"><a class="btn btn--ghost btn--sm" href="#/recommendations">alle</a></span>
-        </h3>
+        <h2 class="card__title"><span aria-hidden="true">💡</span> ${t('dashboard.recommendations.title')}
+          <span class="card__title-action"><a class="btn btn--ghost btn--sm" href="#/recommendations">${t('dashboard.allLink')}</a></span>
+        </h2>
         ${topRecs.map(r => `<div class="dash-rec dash-rec--${r.severity}">
           <strong>${escapeHtml(r.title)}</strong>
           <span class="muted">${escapeHtml(r.detail.slice(0, 110))}${r.detail.length > 110 ? '…' : ''}</span>
@@ -167,24 +164,44 @@ export async function render(container) {
 
       ${dueRem.length ? `
       <div class="card dash-insight">
-        <h3 class="card__title">📌 Anstehende Termine
-          <span class="card__title-action"><a class="btn btn--ghost btn--sm" href="#/reminders">alle</a></span>
-        </h3>
+        <h2 class="card__title"><span aria-hidden="true">📌</span> ${t('dashboard.reminders.title')}
+          <span class="card__title-action"><a class="btn btn--ghost btn--sm" href="#/reminders">${t('dashboard.allLink')}</a></span>
+        </h2>
         ${dueRem.map(r => `<div class="dash-rec">
           <strong>${escapeHtml(r.title)}</strong>
-          <span class="muted">fällig ${r.next_due}${r.days_until != null ? ` (${r.days_until <= 0 ? 'jetzt' : 'in ' + r.days_until + ' T'})` : ''}</span>
+          <span class="muted">${t('dashboard.reminders.due', { date: r.next_due })}${r.days_until != null ? ` (${r.days_until <= 0 ? t('dashboard.reminders.now') : t('dashboard.reminders.inDays', { days: r.days_until })})` : ''}</span>
         </div>`).join('')}
       </div>` : ''}
+    </div>`;
+
+  container.innerHTML = `
+    <div class="section-head">
+      <h1>${t('dashboard.title')}</h1>
+      <div class="section-actions">
+        <a class="btn btn--ghost" href="#/temperatures">${t('nav.temperatures')}</a>
+        <a class="btn btn--primary" href="#/forecast">${t('nav.forecast')}</a>
+      </div>
     </div>
+
+    ${!hasAnyData ? `
+    <div class="card dash-empty">
+      <div class="dash-empty__icon" aria-hidden="true">📋</div>
+      <h2 class="card__title">${t('dashboard.empty.title')}</h2>
+      <p class="muted dash-empty__text">${t('dashboard.empty.text')}</p>
+      <a class="btn btn--primary" href="#/zaehlerstaende">${t('dashboard.empty.cta')}</a>
+    </div>
+    ` : `
+    ${insightsHtml}
 
     <div class="grid grid-2" style="margin-top: var(--sp-5)">
       ${datasets.map(d => renderUtilityCard(d)).join('')}
     </div>
 
     <div class="card" style="margin-top: var(--sp-5)">
-      <h3 class="card__title">12-Monats-Verbrauch (alle Verbrauchsarten)</h3>
+      <h2 class="card__title">${t('dashboard.chart.title')}</h2>
       <div class="chart-wrap"><canvas id="dash-chart"></canvas></div>
     </div>
+    `}
   `;
 
   // Render combined chart
@@ -198,41 +215,66 @@ export async function render(container) {
 }
 
 function renderUtilityCard({ utility, consumption }) {
-  const last12 = (consumption?.monthly_total || []).slice(-12);
+  const monthly = consumption?.monthly_total || [];
   const sumKey = utility.consumption_unit === 'kWh' ? 'kwh' : 'm3';
+  const last12 = monthly.slice(-12);
+  const prev12 = monthly.slice(-24, -12);                 // B — Vergleichszeitraum
   const totalCons = last12.reduce((s, m) => s + (m[sumKey] || 0), 0);
   const totalCost = last12.reduce((s, m) => s + (m.cost  || 0), 0);
+  const prevCons  = prev12.reduce((s, m) => s + (m[sumKey] || 0), 0);
+  const prevCost  = prev12.reduce((s, m) => s + (m.cost  || 0), 0);
+  const hasPrev   = prev12.length >= 6;                   // genug Vergleichsdaten
   const meters = consumption?.meters || [];
   const activeMeters = meters.filter(m => m.meter.active);
+  const noContract = totalCost === 0;                     // D — kein Vertrag/keine Kosten
 
   return `
     <div class="card" data-utility="${utility.key}">
       <div class="section-head" style="margin-bottom: var(--sp-3)">
-        <h2><span style="color: ${utility.color}">${utility.icon}</span> ${escapeHtml(utility.label)}</h2>
+        <h2><span style="color: ${utility.color}" aria-hidden="true">${utility.icon}</span> ${escapeHtml(utility.label)}</h2>
         <div class="section-actions">
-          <a class="btn btn--sm btn--ghost" href="#/utility/${utility.key}/meters">Zähler</a>
-          <a class="btn btn--sm btn--util" href="#/utility/${utility.key}">Details</a>
+          <a class="btn btn--sm btn--ghost" href="#/utility/${utility.key}/meters">${t('dashboard.card.meters')}</a>
+          <a class="btn btn--sm btn--util" href="#/utility/${utility.key}">${t('dashboard.card.details')}</a>
         </div>
       </div>
       <div class="grid grid-3">
         <div class="kpi">
-          <div class="kpi__label">Verbrauch 12 M</div>
-          <div class="kpi__value">${fmt.num(totalCons, 0)}</div>
+          <div class="kpi__label">${t('dashboard.kpi.consumption')}</div>
+          <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(totalCons, prevCons, hasPrev)}</div>
           <div class="kpi__sub">${utility.consumption_unit}</div>
         </div>
         <div class="kpi">
-          <div class="kpi__label">Kosten 12 M</div>
-          <div class="kpi__value">${fmt.eur(totalCost)}</div>
-          <div class="kpi__sub">inkl. Boni</div>
+          <div class="kpi__label">${t('dashboard.kpi.cost')}</div>
+          <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(totalCost, prevCost, hasPrev)}`}</div>
+          <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : t('dashboard.kpi.costSub')}</div>
         </div>
         <div class="kpi">
-          <div class="kpi__label">Aktive Zähler</div>
+          <div class="kpi__label">${t('dashboard.kpi.activeMeters')}</div>
           <div class="kpi__value">${activeMeters.length}</div>
-          <div class="kpi__sub">${meters.length} insgesamt</div>
+          <div class="kpi__sub">${t('dashboard.kpi.totalMeters', { count: meters.length })}</div>
         </div>
       </div>
     </div>
   `;
+}
+
+// B — kleiner Trend-Indikator: aktuelle 12 Monate vs. vorherige 12 Monate.
+// Mehr Verbrauch/Kosten = ungünstig (danger ▲), weniger = gut (success ▼).
+// Liefert leeren String, wenn kein belastbarer Vergleich möglich ist.
+function trendBadge(curr, prev, hasPrev) {
+  if (!hasPrev || prev == null || prev <= 0) return '';
+  const pct = (curr - prev) / prev * 100;
+  if (!isFinite(pct) || Math.abs(pct) < 0.5) return '';
+  const up = pct > 0;
+  const tone = up ? 'danger' : 'success';
+  const arrow = up ? '▲' : '▼';
+  const title = escapeHtml(t('dashboard.trend.vsPrev'));
+  const pctStr = fmt.num(Math.abs(pct), 0);
+  // A11y: Pfeil + Farbe sind rein visuell — der aria-label nennt Richtung
+  // und Bezug im Klartext; der Pfeil-Glyph bleibt aus dem Accessibility-Tree.
+  const label = escapeHtml(t(up ? 'dashboard.trend.moreThanPrev' : 'dashboard.trend.lessThanPrev', { pct: pctStr }));
+  return `<span class="kpi__trend kpi__trend--${tone}" title="${title}" aria-label="${label}">` +
+    `<span aria-hidden="true">${arrow} ${pctStr} %</span></span>`;
 }
 
 function renderCombinedChart(datasets) {
@@ -270,7 +312,7 @@ function renderCombinedChart(datasets) {
       },
     }
   };
-  window._dashChart = makeChart(canvas, cfg);
+  window._dashChart = makeChart(canvas, cfg, { label: t('dashboard.chart.alt') });
 }
 
 // Effizienzklasse → Badge-Tönung (gut=success … schlecht=danger)

@@ -39,6 +39,7 @@ final class ReadingImportService
     public function __construct(
         private ReadingService $readings,
         private MeterService $meters,
+        private I18nService $i18n,
     ) {}
 
     /**
@@ -49,10 +50,10 @@ final class ReadingImportService
     public function importCsv(string $utility, string $meterId, string $csv): array
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         if (trim($csv) === '') {
-            throw new \InvalidArgumentException('Leere CSV-Daten');
+            throw new \InvalidArgumentException($this->i18n->t('errors.import.emptyCsv'));
         }
 
         $lines = preg_split('/\r\n|\r|\n/', $csv) ?: [];
@@ -118,7 +119,7 @@ final class ReadingImportService
     {
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) {
-            throw new \InvalidArgumentException('Zähler nicht gefunden: ' . $meterId);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
 
         // Existing readings of this meter, indexed by date → id, so we can

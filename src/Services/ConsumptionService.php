@@ -41,6 +41,7 @@ final class ConsumptionService
         private ReadingService $readings,
         private ContractService $contracts,
         private SettingsService $settings,
+        private I18nService $i18n,
         private ?RegressionService $regression = null,
         private ?DeliveryConsumptionService $deliveryConsumption = null,
     ) {}
@@ -56,7 +57,7 @@ final class ConsumptionService
     public function forUtility(string $utility, ?float $hddBaseOverride = null): array
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         $u = Utilities::get($utility);
         $perMeter = [];
@@ -248,12 +249,15 @@ final class ConsumptionService
 
             // P-PV-01 — Verdict-Achse für feed_in umgedreht: positiver Saldo
             // ist eine Auszahlung des Netzbetreibers (gut), keine Nachzahlung.
+            // N1007 (v2.0.0): verdict als stabiler Sprach-Key statt deutschem
+            // String. Das Frontend nutzt den Key für Logik (Farbe/Pfeil) und
+            // zeigt das lokalisierte Label via t('utility.verdict.<key>').
             if ($isFeedIn) {
-                $verdict = $projected > 5 ? 'Auszahlung'
-                         : ($projected < -5 ? 'Rückforderung' : 'Ausgeglichen');
+                $verdict = $projected > 5 ? 'payout'
+                         : ($projected < -5 ? 'reclaim' : 'balanced');
             } else {
-                $verdict = $projected > 5 ? 'Nachzahlung'
-                         : ($projected < -5 ? 'Erstattung' : 'Ausgeglichen');
+                $verdict = $projected > 5 ? 'surcharge'
+                         : ($projected < -5 ? 'refund' : 'balanced');
             }
 
             // F-05: contract-end reminder. Only meaningful for contracts with a

@@ -6,158 +6,93 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { invalidateSettings } from '../state.js';
+import { invalidateSettings, invalidateUtilities } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
+import { t, getLocale, initI18n, SUPPORTED } from '../lib/i18n.js';
+import { buildSidebar } from '../lib/sidebar.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
 // line under the card title; each field may carry its own `hint` too.
+// Gruppen-/Feld-Titel, -Hints und -Labels werden zur Render-Zeit über t()
+// aufgelöst: settings.group.<gkey>.{title,hint} und settings.field.<key>.{label,hint}.
+// Einheiten mit deutschen Wörtern liegen als unitKey vor; Symbol-Einheiten
+// (kWh/m³, °C, σ …) bleiben literal.
 const GROUPS = [
-  {
-    title: 'Physikalische Konstanten',
-    icon: '🔬',
-    hint: 'Umrechnung und Heizgradtag-Basis — wirken auf alle Auswertungen.',
-    fields: [
-      { key: 'gas_conversion_factor', label: 'Gas-Umrechnungsfaktor', unit: 'kWh/m³', step: '0.1',
-        hint: 'Brennwert × Zustandszahl laut Gasabrechnung.' },
-      { key: 'hdd_base_temp', label: 'HGT-Basistemperatur', unit: '°C', step: '0.5',
-        hint: 'Heizgrenze — Tage darunter zählen als Heiztage.' },
-    ],
-  },
-  {
-    title: 'CO₂-Emissionsfaktoren',
-    icon: '🌍',
-    hint: 'Gramm CO₂ je Verbrauchseinheit, für die Emissionsabschätzung.',
-    fields: [
-      { key: 'co2_gas',    label: 'CO₂ Gas',    unit: 'g/kWh', step: '1' },
-      { key: 'co2_strom',  label: 'CO₂ Strom',  unit: 'g/kWh', step: '1' },
-      { key: 'co2_wasser', label: 'CO₂ Wasser', unit: 'g/m³',  step: '1' },
-      { key: 'co2_fernwaerme', label: 'CO₂ Fernwärme', unit: 'g/kWh', step: '1' },
-      { key: 'co2_heizoel',    label: 'CO₂ Heizöl',    unit: 'g/L',   step: '1' },
-      { key: 'co2_pellets',    label: 'CO₂ Pellets',   unit: 'g/kg',  step: '1' },
-    ],
-  },
-  {
-    title: 'Abrechnungszyklus',
-    icon: '📅',
-    hint: 'Stichtag der Jahresabrechnung je Verbrauchsart (Format TT-MM, '
-        + 'z. B. 01-01 für 1. Januar, 15-04 für 15. April). '
-        + 'Bestimmt, bis wann der Saldo offener Verträge projiziert wird; '
-        + 'Verträge mit gepflegtem Ende nutzen weiterhin dieses Ende.',
-    fields: [
-      { key: 'billing_cycle_anchor_gas',    label: 'Stichtag Gas', type: 'datemd', placeholder: 'TT-MM (01-01)' },
-      { key: 'billing_cycle_anchor_strom',  label: 'Stichtag Strom', type: 'datemd', placeholder: 'TT-MM (01-01)' },
-      { key: 'billing_cycle_anchor_wasser', label: 'Stichtag Wasser', type: 'datemd', placeholder: 'TT-MM (01-01)' },
-    ],
-  },
-  {
-    title: 'Vertragserinnerungen',
-    icon: '🔔',
-    hint: 'Tage vor Vertragsende, ab denen die Vertragsübersicht warnt. '
-        + 'Drei Stufen — frühe Vorwarnung bis letzter Tag.',
-    fields: [
-      { key: 'contract_remind_days_1', label: 'Stufe 1 — Vorwarnung',  unit: 'Tage', step: '1' },
-      { key: 'contract_remind_days_2', label: 'Stufe 2 — Erinnerung',  unit: 'Tage', step: '1' },
-      { key: 'contract_remind_days_3', label: 'Stufe 3 — dringend',    unit: 'Tage', step: '1' },
-    ],
-  },
-  {
-    title: 'Wasser-Referenzwerte',
-    icon: '💧',
-    hint: 'Haushaltsgröße, Pro-Kopf-Referenz und die Bänder des Spar-Index.',
-    fields: [
-      { key: 'wasser_personen_anzahl',   label: 'Personen im Haushalt',     step: '1' },
-      { key: 'wasser_personen_referenz', label: 'Referenz',  unit: 'L/Person/Tag', step: '1' },
-      { key: 'wasser_sparindex_gut',     label: 'Spar-Index — gut bis',     step: '1',
-        hint: 'Index ≤ diesem Wert gilt als unauffällig.' },
-      { key: 'wasser_sparindex_warnung', label: 'Spar-Index — Warnung ab',  step: '1',
-        hint: 'Index ≥ diesem Wert zeigt Sparpotenzial an.' },
-    ],
-  },
-  {
-    title: 'Regression & Prognose',
-    icon: '📈',
-    hint: 'Filter für die Regressionsbasis und Parameter des Prognosemodells.',
-    fields: [
-      { key: 'min_days_period',        label: 'Min. Tage pro Periode',    step: '1' },
-      { key: 'min_hdd_regression',     label: 'Min. HGT für Regression',  step: '0.5' },
-      { key: 'blend_max',              label: 'Max. Blend-Gewicht',       step: '0.05' },
-      { key: 'forecast_months',        label: 'Prognose-Horizont', unit: 'Monate', step: '1' },
-      { key: 'min_temp_days_forecast', label: 'Min. Temp-Tage Prognose',  step: '1' },
-      { key: 'forecast_model',         label: 'Standardmodell', type: 'select',
-        options: ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] },
-      { key: 'segmented_split_mode',   label: 'Segment-Knickpunkt', type: 'select',
-        options: ['auto', 'fixed'],
-        hint: 'auto = datenbasiert gefittet, fixed = fester HGT-Wert unten.' },
-      { key: 'segmented_fixed_split',  label: 'Fester Knickpunkt', unit: 'HGT', step: '1',
-        hint: 'Nur wirksam bei Modus „fixed".' },
-      { key: 'anomaly_threshold',      label: 'Anomalie-Schwelle', unit: 'σ', step: '0.1' },
-    ],
-  },
-  {
-    title: 'Dashboard',
-    icon: '🏠',
-    hint: 'Darstellungsumfang und Schwellen der Übersicht.',
-    fields: [
-      { key: 'dashboard_months',         label: 'Monate auf Dashboard', step: '1' },
-      { key: 'alert_days_since_reading', label: 'Warnung nach', unit: 'Tagen ohne Ablesung', step: '1' },
-    ],
-  },
-  {
-    title: 'Gebäude & Effizienz',
-    icon: '🏢',
-    hint: 'Bezugsgrößen für die Effizienzklasse (kWh/m²·a) und den Heizenergie-Benchmark.',
-    fields: [
-      { key: 'wohnflaeche_m2', label: 'Wohnfläche', unit: 'm²', step: '1',
-        hint: 'Beheizte Fläche — Nenner der Effizienzkennzahl.' },
-      { key: 'baujahr',        label: 'Baujahr', type: 'text', placeholder: 'z. B. 1998' },
-      { key: 'gebaeudetyp',    label: 'Gebäudetyp', type: 'select',
-        options: ['efh', 'rh', 'mfh', 'whg'],
-        hint: 'efh = Einfam., rh = Reihenhaus, mfh = Mehrfam., whg = Wohnung.' },
-    ],
-  },
-  {
-    title: 'Energieträger (Lieferung)',
-    icon: '🛢️',
-    hint: 'Energiegehalt der lieferbasierten Brennstoffe und Tank-Warnschwelle.',
-    fields: [
-      { key: 'heizoel_kwh_per_l', label: 'Heizöl Energiegehalt', unit: 'kWh/L', step: '0.1' },
-      { key: 'pellets_kwh_per_kg', label: 'Pellets Energiegehalt', unit: 'kWh/kg', step: '0.1' },
-      { key: 'delivery_baseload_share', label: 'Sockel-Anteil Verteilung', step: '0.05',
-        hint: 'Anteil des Verbrauchs als wetterunabhängige Grundlast (Rest HGT-gewichtet).' },
-      { key: 'tank_warn_pct', label: 'Tank-Warnung ab', unit: '% Restbestand', step: '1' },
-    ],
-  },
-  {
-    title: 'Termine & Empfehlungen',
-    icon: '📌',
-    hint: 'Schwellen für Fälligkeits-Status und die Empfehlungs-Engine.',
-    fields: [
-      { key: 'reminder_warn_days_before', label: 'Termin „bald fällig" ab', unit: 'Tage vorher', step: '1' },
-      { key: 'reminder_overdue_days',     label: 'Kulanz bis „überfällig"', unit: 'Tage', step: '1' },
-      { key: 'recommendation_anomaly_sigma', label: 'Empfehlung Anomalie-Schwelle', unit: 'σ', step: '0.1' },
-      { key: 'recommendation_trend_pct_year', label: 'Empfehlung Trend-Schwelle', unit: '%/Jahr', step: '0.5' },
-      { key: 'billing_cycle_anchor_fernwaerme', label: 'Stichtag Fernwärme', type: 'datemd', placeholder: 'TT-MM (01-01)' },
-      { key: 'billing_cycle_anchor_heizoel',    label: 'Stichtag Heizöl', type: 'datemd', placeholder: 'TT-MM (01-01)' },
-      { key: 'billing_cycle_anchor_pellets',    label: 'Stichtag Pellets', type: 'datemd', placeholder: 'TT-MM (01-01)' },
-    ],
-  },
-  {
-    title: 'Standort (Open-Meteo)',
-    icon: '📍',
-    hint: 'Koordinaten für den Wetter-Sync der Temperaturreihe.',
-    fields: [
-      { key: 'location_name',     label: 'Ortsname',     type: 'text' },
-      { key: 'latitude',          label: 'Breitengrad',  step: '0.0001' },
-      { key: 'longitude',         label: 'Längengrad',   step: '0.0001' },
-      { key: 'weather_auto_fill', label: 'Wetter automatisch füllen', type: 'bool' },
-    ],
-  },
+  { gkey: 'physical', icon: '🔬', fields: [
+    { key: 'gas_conversion_factor', unit: 'kWh/m³', step: '0.1' },
+    { key: 'hdd_base_temp', unit: '°C', step: '0.5' },
+  ]},
+  { gkey: 'co2', icon: '🌍', fields: [
+    { key: 'co2_gas',    unit: 'g/kWh', step: '1' },
+    { key: 'co2_strom',  unit: 'g/kWh', step: '1' },
+    { key: 'co2_wasser', unit: 'g/m³',  step: '1' },
+    { key: 'co2_fernwaerme', unit: 'g/kWh', step: '1' },
+    { key: 'co2_heizoel',    unit: 'g/L',   step: '1' },
+    { key: 'co2_pellets',    unit: 'g/kg',  step: '1' },
+  ]},
+  { gkey: 'billing', icon: '📅', fields: [
+    { key: 'billing_cycle_anchor_gas',    type: 'datemd', placeholder: 'TT-MM (01-01)' },
+    { key: 'billing_cycle_anchor_strom',  type: 'datemd', placeholder: 'TT-MM (01-01)' },
+    { key: 'billing_cycle_anchor_wasser', type: 'datemd', placeholder: 'TT-MM (01-01)' },
+  ]},
+  { gkey: 'contractReminders', icon: '🔔', fields: [
+    { key: 'contract_remind_days_1', unitKey: 'settings.unit.days', step: '1' },
+    { key: 'contract_remind_days_2', unitKey: 'settings.unit.days', step: '1' },
+    { key: 'contract_remind_days_3', unitKey: 'settings.unit.days', step: '1' },
+  ]},
+  { gkey: 'water', icon: '💧', fields: [
+    { key: 'wasser_personen_anzahl',   step: '1' },
+    { key: 'wasser_personen_referenz', unitKey: 'settings.unit.lPerPersonDay', step: '1' },
+    { key: 'wasser_sparindex_gut',     step: '1' },
+    { key: 'wasser_sparindex_warnung', step: '1' },
+  ]},
+  { gkey: 'regression', icon: '📈', fields: [
+    { key: 'min_days_period',        step: '1' },
+    { key: 'min_hdd_regression',     step: '0.5' },
+    { key: 'blend_max',              step: '0.05' },
+    { key: 'forecast_months',        unitKey: 'settings.unit.months', step: '1' },
+    { key: 'min_temp_days_forecast', step: '1' },
+    { key: 'forecast_model',         type: 'select', options: ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] },
+    { key: 'segmented_split_mode',   type: 'select', options: ['auto', 'fixed'] },
+    { key: 'segmented_fixed_split',  unit: 'HGT', step: '1' },
+    { key: 'anomaly_threshold',      unit: 'σ', step: '0.1' },
+  ]},
+  { gkey: 'dashboard', icon: '🏠', fields: [
+    { key: 'dashboard_months',         step: '1' },
+    { key: 'alert_days_since_reading', unitKey: 'settings.unit.daysNoReading', step: '1' },
+  ]},
+  { gkey: 'building', icon: '🏢', fields: [
+    { key: 'wohnflaeche_m2', unit: 'm²', step: '1' },
+    { key: 'baujahr',        type: 'text', placeholder: 'z. B. 1998' },
+    { key: 'gebaeudetyp',    type: 'select', options: ['efh', 'rh', 'mfh', 'whg'] },
+  ]},
+  { gkey: 'delivery', icon: '🛢️', fields: [
+    { key: 'heizoel_kwh_per_l', unit: 'kWh/L', step: '0.1' },
+    { key: 'pellets_kwh_per_kg', unit: 'kWh/kg', step: '0.1' },
+    { key: 'delivery_baseload_share', step: '0.05' },
+    { key: 'tank_warn_pct', unitKey: 'settings.unit.pctRemaining', step: '1' },
+  ]},
+  { gkey: 'remindersRec', icon: '📌', fields: [
+    { key: 'reminder_warn_days_before', unitKey: 'settings.unit.daysBefore', step: '1' },
+    { key: 'reminder_overdue_days',     unitKey: 'settings.unit.days', step: '1' },
+    { key: 'recommendation_anomaly_sigma', unit: 'σ', step: '0.1' },
+    { key: 'recommendation_trend_pct_year', unitKey: 'settings.unit.pctYear', step: '0.5' },
+    { key: 'billing_cycle_anchor_fernwaerme', type: 'datemd', placeholder: 'TT-MM (01-01)' },
+    { key: 'billing_cycle_anchor_heizoel',    type: 'datemd', placeholder: 'TT-MM (01-01)' },
+    { key: 'billing_cycle_anchor_pellets',    type: 'datemd', placeholder: 'TT-MM (01-01)' },
+  ]},
+  { gkey: 'location', icon: '📍', fields: [
+    { key: 'location_name',     type: 'text' },
+    { key: 'latitude',          step: '0.0001' },
+    { key: 'longitude',         step: '0.0001' },
+    { key: 'weather_auto_fill', type: 'bool' },
+  ]},
 ];
 
 export async function render(container) {
-  container.innerHTML = '<div class="loading">Lade…</div>';
+  container.innerHTML = `<div class="loading">${t('settings.loading')}</div>`;
   const [settings, diag, utilities, authStatus] = await Promise.all([
     api.settings(),
     api.diagnostics().catch(() => null),
@@ -175,11 +110,24 @@ export async function render(container) {
   container.innerHTML = `
     <div class="view-header">
       <div>
-        <h1 class="view-header__title">⚙️ Einstellungen</h1>
-        <div class="view-header__subtitle">Konfiguration · Datenexport · Backup &amp; Wiederherstellung</div>
+        <h1 class="view-header__title">${t('settings.title')}</h1>
+        <div class="view-header__subtitle">${t('settings.subtitle')}</div>
       </div>
       <div class="view-header__actions">
-        <button type="button" class="btn btn--primary" id="btn-save">Einstellungen speichern</button>
+        <button type="button" class="btn btn--primary" id="btn-save">${t('settings.save')}</button>
+      </div>
+    </div>
+
+    <div class="card settings-card">
+      <h3 class="card__title">${t('settings.lang.title')}</h3>
+      <p class="settings-card__hint">${t('settings.lang.hint')}</p>
+      <div class="settings-fields">
+        <div class="field settings-field">
+          <label for="lang-select">${t('settings.lang.label')}</label>
+          <select class="select" id="lang-select">
+            ${SUPPORTED.map(l => `<option value="${l}" ${l === getLocale() ? 'selected' : ''}>${t('settings.lang.' + l)}</option>`).join('')}
+          </select>
+        </div>
       </div>
     </div>
 
@@ -188,9 +136,8 @@ export async function render(container) {
     </div>
 
     <div class="card settings-card">
-      <h3 class="card__title">🧩 Aktive Verbrauchsarten</h3>
-      <p class="settings-card__hint">Nur angehakte Verbrauchsarten erscheinen in Sidebar,
-        Dashboard und Jahresbericht. Daten inaktiver Arten bleiben erhalten.</p>
+      <h3 class="card__title">${t('settings.activeUtils.title')}</h3>
+      <p class="settings-card__hint">${t('settings.activeUtils.hint')}</p>
       <div class="settings-fields" id="active-utils">
         ${(utilities || []).map(u => {
           const act = Array.isArray(settings.active_utilities) && settings.active_utilities.length
@@ -205,103 +152,91 @@ export async function render(container) {
     </div>
 
     <div class="card">
-      <h3 class="card__title">📄 PDF-Jahresbericht</h3>
+      <h3 class="card__title">${t('settings.pdf.title')}</h3>
       <p class="muted" style="margin-bottom: var(--sp-3)">
-        Mehrseitiger Bericht mit Übersicht, Effizienzklasse, Verbrauchstabellen
-        je Verbrauchsart und offenen Empfehlungen.
+        ${t('settings.pdf.hint')}
       </p>
       <div class="section-actions">
-        <label>Jahr
+        <label>${t('settings.pdf.year')}
           <select class="select" id="pdf-year" style="margin-left: var(--sp-2)">
             ${pdfYearOpts()}
           </select>
         </label>
         <a class="btn btn--primary" id="pdf-dl" href="${api.yearlyReportUrl(new Date().getFullYear() - 1)}">
-          Jahresbericht herunterladen
+          ${t('settings.pdf.download')}
         </a>
       </div>
     </div>
 
     <div class="form-actions" style="margin-top: var(--sp-4)">
-      <button type="button" class="btn btn--primary" id="btn-save-2">Einstellungen speichern</button>
+      <button type="button" class="btn btn--primary" id="btn-save-2">${t('settings.save')}</button>
     </div>
 
     <div class="card">
-      <h3 class="card__title">📤 Datenexport (CSV)</h3>
+      <h3 class="card__title">${t('settings.export.title')}</h3>
       <p class="muted" style="margin-bottom: var(--sp-4)">
-        Tabellarischer Export für Excel, LibreOffice oder Google Sheets —
-        Semikolon-getrennt, UTF-8 mit BOM, deutsches Dezimalkomma. Ergänzt das
-        vollständige JSON-Backup weiter unten.
+        ${t('settings.export.hint')}
       </p>
       <div class="export-grid">
         <div class="export-tile">
-          <div class="export-tile__label">Monatsübersicht</div>
-          <div class="export-tile__hint">Verbrauch, Kosten, Abschlag und Saldo je Monat.</div>
+          <div class="export-tile__label">${t('settings.export.monthly')}</div>
+          <div class="export-tile__hint">${t('settings.export.monthlyHint')}</div>
           <div class="export-tile__actions">
             ${(utilities || [])
               .filter(u => exportActive(settings, u.key))
               .map(u => `<a class="btn btn--sm btn-${u.key}" href="${api.exportMonthlyCsvUrl(u.key)}" download>${escapeHtml(u.label)}</a>`)
-              .join('') || '<span class="muted" style="font-size:12px">Keine aktive Verbrauchsart.</span>'}
+              .join('') || `<span class="muted" style="font-size:12px">${t('settings.export.noActive')}</span>`}
           </div>
         </div>
         <div class="export-tile">
-          <div class="export-tile__label">Zählerstände / Lieferungen</div>
-          <div class="export-tile__hint">Kumulative Arten: Rohablesungen. Heizöl/Pellets: Brennstofflieferungen (eine Zeile je Lieferung).</div>
+          <div class="export-tile__label">${t('settings.export.readings')}</div>
+          <div class="export-tile__hint">${t('settings.export.readingsHint')}</div>
           <div class="export-tile__actions">
             ${(utilities || [])
               .filter(u => exportActive(settings, u.key))
               .map(u => {
                 const isDelivery = u.reading_kind === 'delivery';
                 const url = isDelivery ? api.exportDeliveriesCsvUrl(u.key) : api.exportReadingsCsvUrl(u.key);
-                const tag = isDelivery ? ' (Lieferungen)' : '';
+                const tag = isDelivery ? t('settings.export.deliveriesTag') : '';
                 return `<a class="btn btn--sm btn-${u.key}" href="${url}" download>${escapeHtml(u.label)}${tag}</a>`;
               })
-              .join('') || '<span class="muted" style="font-size:12px">Keine aktive Verbrauchsart.</span>'}
+              .join('') || `<span class="muted" style="font-size:12px">${t('settings.export.noActive')}</span>`}
           </div>
         </div>
         <div class="export-tile">
-          <div class="export-tile__label">Temperaturreihe</div>
-          <div class="export-tile__hint">Tageswerte min / ø / max der gesamten Reihe.</div>
+          <div class="export-tile__label">${t('settings.export.temperatures')}</div>
+          <div class="export-tile__hint">${t('settings.export.temperaturesHint')}</div>
           <div class="export-tile__actions">
-            <a class="btn btn--sm" href="${api.exportTemperaturesCsvUrl()}" download>Temperaturen exportieren</a>
+            <a class="btn btn--sm" href="${api.exportTemperaturesCsvUrl()}" download>${t('settings.export.exportTemperatures')}</a>
           </div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <h3 class="card__title">💾 Backup &amp; Wiederherstellung</h3>
+      <h3 class="card__title">${t('settings.backup.title')}</h3>
       <p class="muted" style="margin-bottom: var(--sp-3)">
-        Vollständiges JSON-Backup (Format v3.0) — enthält alle Verbrauchsarten,
-        Zähler, Verträge, Temperaturen und Einstellungen, wieder importierbar.
+        ${t('settings.backup.hint')}
       </p>
       <div class="section-actions">
-        <button class="btn" id="btn-export">JSON-Backup herunterladen</button>
-        <button class="btn" id="btn-snapshot">Snapshot speichern</button>
-        <button class="btn btn--ghost" id="btn-import">Backup importieren…</button>
+        <button class="btn" id="btn-export">${t('settings.backup.download')}</button>
+        <button class="btn" id="btn-snapshot">${t('settings.backup.snapshot')}</button>
+        <button class="btn btn--ghost" id="btn-import">${t('settings.backup.import')}</button>
         <input type="file" id="import-file" accept=".json,application/json" style="display:none">
-        <button class="btn btn--ghost" id="btn-demo">Demo-Daten laden</button>
+        <button class="btn btn--ghost" id="btn-demo">${t('settings.backup.demo')}</button>
       </div>
       <p class="settings-card__hint" style="margin-top:.5rem">
-        „Demo-Daten laden" spielt einen vollständigen Beispieldatensatz ein —
-        ideal zum Ausprobieren in einem leeren Energietracker. Sind bereits
-        Daten vorhanden, wird vorher gewarnt und automatisch ein Snapshot
-        angelegt.
+        ${t('settings.backup.demoHint')}
       </p>
 
       <hr class="settings-rule">
 
-      <h4 class="settings-subhead">📦 Migration aus v0.9.0</h4>
+      <h4 class="settings-subhead">${t('settings.backup.migrateSubhead')}</h4>
       <p class="muted" style="font-size:12px;margin: 0 0 var(--sp-3)">
-        Lade ein altes v0.9.0-Backup (JSON mit <code>version: "2.1"</code>) hoch.
-        Das Backup wird vor dem Schreiben analysiert; danach entscheidest du
-        zwischen <strong>Ersetzen</strong> (alles überschreiben) oder
-        <strong>Zusammenführen</strong> (nur neue IDs hinzufügen).
-        In beiden Fällen wird vorher automatisch ein Sicherheits-Snapshot
-        der aktuellen Daten angelegt.
+        ${t('settings.backup.migrateHint')}
       </p>
       <div class="section-actions">
-        <button class="btn btn--ghost" id="btn-migrate-v09">v0.9.0-Backup analysieren…</button>
+        <button class="btn btn--ghost" id="btn-migrate-v09">${t('settings.backup.migrateBtn')}</button>
         <input type="file" id="migrate-file" accept=".json,application/json" style="display:none">
       </div>
     </div>
@@ -316,11 +251,25 @@ export async function render(container) {
     try {
       await api.updateSettings(payload);
       invalidateSettings();
-      toastOk('Einstellungen gespeichert');
+      toastOk(t('settings.saved'));
     } catch (e) { toastErr(e.message); }
   };
   container.querySelector('#btn-save').addEventListener('click', save);
   container.querySelector('#btn-save-2').addEventListener('click', save);
+
+  // Sprachumschalter: Sprache speichern, i18n neu laden, Sidebar + View neu rendern.
+  container.querySelector('#lang-select')?.addEventListener('change', async (e) => {
+    const lang = e.target.value;
+    try {
+      await api.updateSettings({ language: lang });
+      invalidateSettings();
+      await initI18n(lang);
+      invalidateUtilities();   // Labels kommen lokalisiert vom Backend → neu laden
+      await buildSidebar();
+      toastOk(t('settings.lang.saved'));
+      render(container);
+    } catch (err) { toastErr(err.message); }
+  });
 
   // v1.3.0 — PDF-Jahr-Auswahl aktualisiert den Download-Link
   const pdfYear = container.querySelector('#pdf-year');
@@ -343,7 +292,7 @@ export async function render(container) {
   });
 
   container.querySelector('#btn-snapshot').addEventListener('click', async () => {
-    try { const r = await api.snapshotBackup(); toastOk(`Snapshot: ${r.file || r.path || 'ok'}`); }
+    try { const r = await api.snapshotBackup(); toastOk(t('settings.backup.snapshotToast', { file: r.file || r.path || 'ok' })); }
     catch (e) { toastErr(e.message); }
   });
 
@@ -352,24 +301,22 @@ export async function render(container) {
     try {
       const status = await api.demoStatus();
       if (!status.available) {
-        toastErr('Demo-Daten sind in dieser Installation nicht verfügbar.');
+        toastErr(t('settings.backup.demoUnavailable'));
         return;
       }
       if (!status.is_empty) {
         const ok = await confirmModal({
-          title: 'Demo-Daten laden?',
-          message: 'Es sind bereits Daten vorhanden. Der Import überschreibt sie. '
-                 + 'Vorher wird automatisch ein Sicherheits-Snapshot deiner aktuellen '
-                 + 'Daten angelegt, den du jederzeit wieder einspielen kannst.',
-          confirmLabel: 'Demo-Daten laden', danger: true,
+          title: t('settings.backup.demoConfirmTitle'),
+          message: t('settings.backup.demoConfirmMsg'),
+          confirmLabel: t('settings.backup.demoConfirmBtn'), danger: true,
         });
         if (!ok) return;
       }
       const report = await api.importDemo(!status.is_empty);
       const snap = report?.auto_snapshot_before_restore;
       invalidateSettings();
-      if (typeof snap === 'string') toastOk(`Demo-Daten geladen. Sicherheits-Snapshot: ${snap}`);
-      else toastOk('Demo-Daten geladen.');
+      if (typeof snap === 'string') toastOk(t('settings.backup.demoLoadedSnap', { snap }));
+      else toastOk(t('settings.backup.demoLoaded'));
       render(container);
     } catch (e) { toastErr(e.message); }
   });
@@ -379,14 +326,9 @@ export async function render(container) {
   container.querySelector('#import-file').addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
     const ok = await confirmModal({
-      title: 'Backup importieren?',
-      message: 'Achtung: bestehende Daten werden überschrieben.\n\n'
-             + 'Vor dem Import legt die App automatisch einen Sicherheits-'
-             + 'Snapshot deiner aktuellen Daten unter '
-             + '<code>data/backups/pre-restore-…</code> ab — falls der '
-             + 'Import nicht so aussieht wie erwartet, kannst du diesen '
-             + 'Snapshot wieder einspielen.',
-      confirmLabel: 'Importieren', danger: true,
+      title: t('settings.backup.importConfirmTitle'),
+      message: t('settings.backup.importConfirmMsg'),
+      confirmLabel: t('settings.backup.importConfirmBtn'), danger: true,
     });
     if (!ok) { e.target.value = ''; return; }
     try {
@@ -395,9 +337,9 @@ export async function render(container) {
       const report = await api.importBackup(data);
       const snap = report?.auto_snapshot_before_restore;
       if (typeof snap === 'string') {
-        toastOk(`Backup importiert. Sicherheits-Snapshot: ${snap}`);
+        toastOk(t('settings.backup.importedSnap', { snap }));
       } else {
-        toastOk('Backup importiert');
+        toastOk(t('settings.backup.imported'));
       }
       invalidateSettings();
       render(container);
@@ -417,7 +359,7 @@ export async function render(container) {
       const previewResult = await api.migrationV09Preview(backup);
       openMigrationDialog(previewResult, () => render(container));
     } catch (err) {
-      toastErr('Fehler beim Lesen: ' + err.message);
+      toastErr(t('settings.backup.migrateReadError', { msg: err.message }));
     } finally {
       e.target.value = '';
     }
@@ -426,9 +368,9 @@ export async function render(container) {
   // ── F1009 — Home-Assistant-Handler ──
   container.querySelector('#btn-ha-generate')?.addEventListener('click', async () => {
     const ok = await confirmModal({
-      title: 'API-Token erzeugen?',
-      message: 'Ein neuer Token wird erzeugt und nur EINMAL angezeigt. Ein eventuell vorhandener Token wird dabei ungültig.',
-      confirmLabel: 'Token erzeugen',
+      title: t('settings.ha.genConfirmTitle'),
+      message: t('settings.ha.genConfirmMsg'),
+      confirmLabel: t('settings.ha.genConfirmBtn'),
     });
     if (!ok) return;
     try {
@@ -436,25 +378,25 @@ export async function render(container) {
       const reveal = container.querySelector('#ha-token-reveal');
       reveal.innerHTML = `
         <div class="banner banner--success" style="margin-top:.5rem">
-          <strong>Token (jetzt kopieren — wird nicht erneut angezeigt):</strong>
+          <strong>${t('settings.ha.revealLabel')}</strong>
           <code class="mono" style="display:block;word-break:break-all;margin:6px 0">${escapeHtml(res.token)}</code>
-          <button class="btn btn--sm" id="btn-ha-copy-token">Token kopieren</button>
+          <button class="btn btn--sm" id="btn-ha-copy-token">${t('settings.ha.copyToken')}</button>
         </div>`;
-      container.querySelector('#btn-ha-copy-token')?.addEventListener('click', () => copyText(res.token, 'Token kopiert'));
+      container.querySelector('#btn-ha-copy-token')?.addEventListener('click', () => copyText(res.token, t('settings.ha.tokenCopied')));
       container.querySelector('#ha-token-state').className = 'tag tag--success';
-      container.querySelector('#ha-token-state').textContent = '🔒 Token aktiv';
-      toastOk('Token erzeugt');
+      container.querySelector('#ha-token-state').textContent = t('settings.ha.tokenActive');
+      toastOk(t('settings.ha.generated'));
     } catch (e) { toastErr(e.message); }
   });
 
   container.querySelector('#btn-ha-revoke')?.addEventListener('click', async () => {
     const ok = await confirmModal({
-      title: 'Token widerrufen?',
-      message: 'Nach dem Widerruf ist der Push-Endpoint wieder ohne Token erreichbar (offener Modus). Home-Assistant-Automationen mit altem Token schlagen fehl.',
-      confirmLabel: 'Widerrufen', danger: true,
+      title: t('settings.ha.revokeConfirmTitle'),
+      message: t('settings.ha.revokeConfirmMsg'),
+      confirmLabel: t('settings.ha.revokeConfirmBtn'), danger: true,
     });
     if (!ok) return;
-    try { await api.revokeToken(); toastOk('Token widerrufen'); render(container); }
+    try { await api.revokeToken(); toastOk(t('settings.ha.revoked')); render(container); }
     catch (e) { toastErr(e.message); }
   });
 
@@ -468,19 +410,19 @@ export async function render(container) {
       try { await api.updateMeter(utility, meterId, { external_id: value || null }); saved++; }
       catch (e) { failed++; toastErr(`${utility}/${meterId}: ${e.message}`); }
     }
-    if (failed === 0) toastOk(`${saved} Alias(e) gespeichert`);
+    if (failed === 0) toastOk(t('settings.ha.aliasesSaved', { count: saved }));
   });
 
   container.querySelector('#btn-ha-copy-yaml')?.addEventListener('click', () => {
-    copyText(container.querySelector('#ha-yaml')?.innerText || '', 'YAML kopiert');
+    copyText(container.querySelector('#ha-yaml')?.innerText || '', t('settings.ha.yamlCopied'));
   });
 }
 
 function copyText(text, okMsg) {
   if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).then(() => toastOk(okMsg)).catch(() => toastErr('Kopieren fehlgeschlagen'));
+    navigator.clipboard.writeText(text).then(() => toastOk(okMsg)).catch(() => toastErr(t('settings.ha.clipboardFail')));
   } else {
-    toastErr('Zwischenablage nicht verfügbar — bitte manuell markieren');
+    toastErr(t('settings.ha.clipboardUnavailable'));
   }
 }
 
@@ -496,7 +438,7 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
         <td>${escapeHtml(m.name)}</td>
         <td>
           <input class="input input--sm ha-alias-input" data-utility="${u.key}" data-meter="${m.id}"
-                 value="${escapeHtml(m.external_id || '')}" placeholder="z. B. ${u.key}_haus"
+                 value="${escapeHtml(m.external_id || '')}" placeholder="${escapeHtml(t('settings.ha.aliasPlaceholder', { key: u.key }))}"
                  style="min-width:180px">
         </td>
       </tr>
@@ -505,58 +447,49 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
 
   return `
     <div class="card" id="ha-card">
-      <h3 class="card__title">🏠 Home-Assistant-Anbindung</h3>
+      <h3 class="card__title">${t('settings.ha.title')}</h3>
       <p class="muted" style="margin-bottom: var(--sp-3)">
-        Lass Home Assistant deine Zählerstände automatisch an den Energietracker
-        senden — du pflegst sie dann nicht mehr von Hand. Home Assistant liefert
-        die Werte, der Energietracker übernimmt Verträge, Kosten und Prognosen.
-        Anleitung: <code>docs/HOME-ASSISTANT.md</code>.
+        ${t('settings.ha.intro')}
       </p>
 
-      <h4 class="settings-subhead">1. API-Token</h4>
+      <h4 class="settings-subhead">${t('settings.ha.step1')}</h4>
       <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
-        Schützt den Push-Endpoint <code>/api/ingest</code>. <strong>Solange kein
-        Token gesetzt ist, bleibt die API offen (nur fürs lokale Netz gedacht).</strong>
-        Sobald ein Token existiert, muss Home Assistant ihn mitsenden.
+        ${t('settings.ha.tokenHint')}
       </p>
       <div class="section-actions" style="align-items:center">
         <span class="tag ${enabled ? 'tag--success' : 'tag--warning'}" id="ha-token-state">
-          ${enabled ? '🔒 Token aktiv' : '🔓 kein Token (offen)'}
+          ${enabled ? t('settings.ha.tokenActive') : t('settings.ha.tokenOpen')}
         </span>
-        <button class="btn" id="btn-ha-generate">${enabled ? 'Neuen Token erzeugen' : 'Token erzeugen'}</button>
-        ${enabled ? '<button class="btn btn--ghost" id="btn-ha-revoke">Token widerrufen</button>' : ''}
+        <button class="btn" id="btn-ha-generate">${enabled ? t('settings.ha.generateNew') : t('settings.ha.generate')}</button>
+        ${enabled ? `<button class="btn btn--ghost" id="btn-ha-revoke">${t('settings.ha.revoke')}</button>` : ''}
       </div>
       <div id="ha-token-reveal"></div>
 
       <hr class="settings-rule">
 
-      <h4 class="settings-subhead">2. Zähler-Aliase für Home Assistant</h4>
+      <h4 class="settings-subhead">${t('settings.ha.step2')}</h4>
       <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
-        Vergib je Zähler einen leicht merkbaren Alias (z. B. <code>stromzaehler_haus</code>),
-        den du in Home Assistant einträgst — bequemer als die interne ID.
-        Erlaubt: Buchstaben, Ziffern, <code>_ . -</code>. Leer lassen = kein Alias.
+        ${t('settings.ha.aliasHint')}
       </p>
       ${meterRows ? `
         <table class="data-table">
-          <thead><tr><th>Verbrauchsart</th><th>Zähler</th><th>Alias (external_id)</th></tr></thead>
+          <thead><tr><th>${t('settings.ha.colUtility')}</th><th>${t('settings.ha.colMeter')}</th><th>${t('settings.ha.colAlias')}</th></tr></thead>
           <tbody>${meterRows}</tbody>
         </table>
         <div class="section-actions" style="margin-top:var(--sp-2)">
-          <button class="btn" id="btn-ha-save-aliases">Aliase speichern</button>
+          <button class="btn" id="btn-ha-save-aliases">${t('settings.ha.saveAliases')}</button>
         </div>
-      ` : '<p class="muted">Keine kumulativen Zähler vorhanden.</p>'}
+      ` : `<p class="muted">${t('settings.ha.noMeters')}</p>`}
 
       <hr class="settings-rule">
 
-      <h4 class="settings-subhead">3. Home-Assistant-Konfiguration (zum Kopieren)</h4>
+      <h4 class="settings-subhead">${t('settings.ha.step3')}</h4>
       <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
-        Füge das in deine <code>configuration.yaml</code> ein und passe URL/Token an.
-        Eine vollständige Automatisierung samt Beispielen findest du in
-        <code>docs/HOME-ASSISTANT.md</code>.
+        ${t('settings.ha.configHint')}
       </p>
       <pre class="code-block" id="ha-yaml"><code>${escapeHtml(haRestCommandYaml())}</code></pre>
       <div class="section-actions">
-        <button class="btn btn--sm" id="btn-ha-copy-yaml">YAML kopieren</button>
+        <button class="btn btn--sm" id="btn-ha-copy-yaml">${t('settings.ha.copyYaml')}</button>
       </div>
     </div>
   `;
@@ -586,8 +519,8 @@ function haRestCommandYaml() {
 function renderGroup(g, settings) {
   return `
     <div class="card settings-card">
-      <h3 class="card__title">${g.icon ? g.icon + ' ' : ''}${escapeHtml(g.title)}</h3>
-      ${g.hint ? `<p class="settings-card__hint">${escapeHtml(g.hint)}</p>` : ''}
+      <h3 class="card__title">${g.icon ? g.icon + ' ' : ''}${t('settings.group.' + g.gkey + '.title')}</h3>
+      <p class="settings-card__hint">${t('settings.group.' + g.gkey + '.hint')}</p>
       <div class="settings-fields">
         ${g.fields.map(f => renderField(f, settings[f.key])).join('')}
       </div>
@@ -596,13 +529,22 @@ function renderGroup(g, settings) {
 }
 
 function renderField(f, value) {
-  const hint = f.hint ? `<span class="settings-field__hint">${escapeHtml(f.hint)}</span>` : '';
-  const labelHtml = `<label>${escapeHtml(f.label)}${f.unit ? ` <span class="settings-field__unit">${escapeHtml(f.unit)}</span>` : ''}</label>`;
+  // A11y (N1009): stabile id pro Feld, damit Label (for) und Control (id)
+  // verknüpft sind und der Hinweis per aria-describedby zugeordnet werden kann.
+  const fieldId = 'set-' + f.key;
+  const hintKey = 'settings.field.' + f.key + '.hint';
+  const hintVal = t(hintKey);
+  const hasHint = hintVal !== hintKey;
+  const hintId  = fieldId + '-hint';
+  const hint = hasHint ? `<span class="settings-field__hint" id="${hintId}">${hintVal}</span>` : '';
+  const describedBy = hasHint ? ` aria-describedby="${hintId}"` : '';
+  const unit = f.unitKey ? t(f.unitKey) : f.unit;
+  const labelHtml = `<label for="${fieldId}">${t('settings.field.' + f.key + '.label')}${unit ? ` <span class="settings-field__unit">${escapeHtml(unit)}</span>` : ''}</label>`;
 
   if (f.type === 'select') {
     return `<div class="field settings-field">
       ${labelHtml}
-      <select class="select" data-key="${f.key}">
+      <select class="select" id="${fieldId}" data-key="${f.key}"${describedBy}>
         ${f.options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join('')}
       </select>
       ${hint}
@@ -612,7 +554,7 @@ function renderField(f, value) {
     return `<div class="field settings-field">
       ${labelHtml}
       <label class="settings-field__check">
-        <input type="checkbox" data-key="${f.key}" data-type="bool" ${value ? 'checked' : ''}> aktiv
+        <input type="checkbox" id="${fieldId}" data-key="${f.key}" data-type="bool" ${value ? 'checked' : ''}${describedBy}> ${t('settings.boolActive')}
       </label>
       ${hint}
     </div>`;
@@ -623,22 +565,22 @@ function renderField(f, value) {
     const disp = mmddToDdmm(value);
     return `<div class="field settings-field">
       ${labelHtml}
-      <input class="input input--text" type="text" data-key="${f.key}" data-type="datemd"
-             value="${escapeHtml(disp)}" ${f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : ''}>
+      <input class="input input--text" type="text" id="${fieldId}" data-key="${f.key}" data-type="datemd"
+             value="${escapeHtml(disp)}" ${f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : ''}${describedBy}>
       ${hint}
     </div>`;
   }
   if (f.type === 'text') {
     return `<div class="field settings-field">
       ${labelHtml}
-      <input class="input input--text" type="text" data-key="${f.key}"
-             value="${escapeHtml(value ?? '')}" ${f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : ''}>
+      <input class="input input--text" type="text" id="${fieldId}" data-key="${f.key}"
+             value="${escapeHtml(value ?? '')}" ${f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : ''}${describedBy}>
       ${hint}
     </div>`;
   }
   return `<div class="field settings-field">
     ${labelHtml}
-    <input class="input" type="number" step="${f.step || '1'}" data-key="${f.key}" value="${value ?? ''}">
+    <input class="input" type="number" id="${fieldId}" step="${f.step || '1'}" data-key="${f.key}" value="${value ?? ''}"${describedBy}>
     ${hint}
   </div>`;
 }
@@ -680,27 +622,27 @@ function pdfYearOpts() {
 function renderDiagnostics(d) {
   return `
     <div class="card">
-      <h3 class="card__title">🩺 System-Diagnose</h3>
+      <h3 class="card__title">${t('settings.diag.title')}</h3>
       <dl class="diag-grid">
-        ${renderDiagRow('App-Version',       d.app_version,    'mono')}
-        ${renderDiagRow('Schema-Version',    d.schema_version, 'mono')}
-        ${renderDiagRow('PHP-Version',       d.php_version,    'mono')}
-        ${renderDiagRow('Datenverzeichnis',  d.data_dir,       'mono path')}
-        ${renderDiagRow('Verzeichnis schreibbar', renderBool(d.data_dir_writable))}
-        ${renderDiagRow('cURL verfügbar',    renderBool(d.curl_available))}
-        ${renderDiagRow('Zeitzone',          d.time_zone,      'mono')}
-        ${renderDiagRow('Server-Zeit',       fmt.date(String(d.now).slice(0,10)) + ' ' + String(d.now).slice(11,19), 'mono')}
-        ${renderDiagRow('Migration nötig',   renderBool(d.migration_needed, /*inverted*/ true))}
+        ${renderDiagRow(t('settings.diag.appVersion'),    d.app_version,    'mono')}
+        ${renderDiagRow(t('settings.diag.schemaVersion'), d.schema_version, 'mono')}
+        ${renderDiagRow(t('settings.diag.phpVersion'),    d.php_version,    'mono')}
+        ${renderDiagRow(t('settings.diag.dataDir'),       d.data_dir,       'mono path')}
+        ${renderDiagRow(t('settings.diag.writable'), renderBool(d.data_dir_writable))}
+        ${renderDiagRow(t('settings.diag.curl'),     renderBool(d.curl_available))}
+        ${renderDiagRow(t('settings.diag.timezone'),      d.time_zone,      'mono')}
+        ${renderDiagRow(t('settings.diag.serverTime'),    fmt.date(String(d.now).slice(0,10)) + ' ' + String(d.now).slice(11,19), 'mono')}
+        ${renderDiagRow(t('settings.diag.migrationNeeded'), renderBool(d.migration_needed, /*inverted*/ true))}
       </dl>
 
-      <h4 class="diag-subhead">Verbrauchsarten</h4>
+      <h4 class="diag-subhead">${t('settings.diag.utilities')}</h4>
       <div class="table-wrap"><table class="table table--compact">
         <thead><tr>
-          <th>Verbrauchsart</th>
-          <th class="num">Zähler</th>
-          <th class="num">Ablesungen</th>
-          <th class="num">Verträge</th>
-          <th>Letzte Ablesung</th>
+          <th>${t('settings.diag.colUtility')}</th>
+          <th class="num">${t('settings.diag.colMeters')}</th>
+          <th class="num">${t('settings.diag.colReadings')}</th>
+          <th class="num">${t('settings.diag.colContracts')}</th>
+          <th>${t('settings.diag.colLastReading')}</th>
         </tr></thead>
         <tbody>
           ${Object.entries(d.utilities || {}).map(([key, u]) => `
@@ -714,10 +656,10 @@ function renderDiagnostics(d) {
         </tbody>
       </table></div>
 
-      <h4 class="diag-subhead">Temperaturreihe</h4>
-      <p class="diag-line"><strong>${fmt.int(d.temperatures?.rows ?? 0)}</strong> Tageswerte gespeichert.</p>
+      <h4 class="diag-subhead">${t('settings.diag.tempSeries')}</h4>
+      <p class="diag-line">${t('settings.diag.tempStored', { count: fmt.int(d.temperatures?.rows ?? 0) })}</p>
 
-      <h4 class="diag-subhead">Bekannte Settings-Schlüssel
+      <h4 class="diag-subhead">${t('settings.diag.knownKeys')}
         <span class="muted" style="font-weight:400">(${(d.settings_known_keys || []).length})</span>
       </h4>
       <div class="diag-chips">
@@ -739,7 +681,7 @@ function renderDiagRow(label, value, valueClass = '') {
 function renderBool(v, inverted = false) {
   const truthy = !!v;
   const good = inverted ? !truthy : truthy;
-  return `<span class="badge badge--${good ? 'success' : 'warning'}">${truthy ? 'ja' : 'nein'}</span>`;
+  return `<span class="badge badge--${good ? 'success' : 'warning'}">${truthy ? t('settings.diag.yes') : t('settings.diag.no')}</span>`;
 }
 
 // ── Migrations-Dialog v0.9.0 ───────────────────────────────────────
@@ -751,21 +693,20 @@ function openMigrationDialog(previewResult, onDone) {
   const body = `
     <div style="font-size:13px">
       <p>
-        Erkanntes <strong>v0.9.0-Backup-Format ${escapeHtml(d.legacy_version)}</strong>.
-        Daten wurden auf das aktuelle Schema übersetzt (noch nicht geschrieben).
+        ${t('settings.migrationDialog.detected', { version: escapeHtml(d.legacy_version) })}
       </p>
 
       <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:14px 0">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);margin-bottom:8px">Was importiert würde</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);margin-bottom:8px">${t('settings.migrationDialog.whatImported')}</div>
         <table class="table table--compact" style="margin:0">
           <thead><tr><th></th><th class="num">Gas</th><th class="num">Strom</th><th class="num">Wasser</th></tr></thead>
           <tbody>
-            <tr><td>Ablesungen</td><td class="num">${r.readings.gas}</td><td class="num">${r.readings.strom}</td><td class="num">${r.readings.wasser}</td></tr>
-            <tr><td>Verträge</td><td class="num">${r.contracts.gas}</td><td class="num">${r.contracts.strom}</td><td class="num">${r.contracts.wasser}</td></tr>
+            <tr><td>${t('settings.migrationDialog.readings')}</td><td class="num">${r.readings.gas}</td><td class="num">${r.readings.strom}</td><td class="num">${r.readings.wasser}</td></tr>
+            <tr><td>${t('settings.migrationDialog.contracts')}</td><td class="num">${r.contracts.gas}</td><td class="num">${r.contracts.strom}</td><td class="num">${r.contracts.wasser}</td></tr>
           </tbody>
         </table>
         <div style="margin-top:8px;font-size:12px;color:var(--text-2)">
-          ${r.temperatures} Temperaturtage · ${r.settings} Settings-Keys
+          ${t('settings.migrationDialog.tempSettings', { temps: r.temperatures, settings: r.settings })}
         </div>
       </div>
 
@@ -778,11 +719,11 @@ function openMigrationDialog(previewResult, onDone) {
       ${candidates.length ? `
         <details style="margin:12px 0">
           <summary style="cursor:pointer;color:var(--text-2);font-size:12px">
-            <strong>${candidates.length} mögliche Zählerwechsel erkannt</strong>
-            — nach dem Import als Device-Tausch nachpflegen?
+            <strong>${t('settings.migrationDialog.candidates', { count: candidates.length })}</strong>
+            ${t('settings.migrationDialog.candidatesHint')}
           </summary>
           <table class="table table--compact" style="margin-top:8px">
-            <thead><tr><th>Utility</th><th>Datum</th><th class="num">Stand</th><th>Kommentar</th></tr></thead>
+            <thead><tr><th>${t('settings.migrationDialog.colUtility')}</th><th>${t('settings.migrationDialog.colDate')}</th><th class="num">${t('settings.migrationDialog.colCounter')}</th><th>${t('settings.migrationDialog.colComment')}</th></tr></thead>
             <tbody>
               ${candidates.map(c => `
                 <tr>
@@ -795,26 +736,23 @@ function openMigrationDialog(previewResult, onDone) {
             </tbody>
           </table>
           <p class="muted" style="font-size:11px;margin-top:8px">
-            Nach dem Import unter <em>Zähler &amp; Geräte → Zählertausch</em> (oder API:
-            <code>POST /api/utility/{u}/meters/{id}/replace-device</code>) nachmodellieren.
+            ${t('settings.migrationDialog.candidatesNote')}
           </p>
         </details>
       ` : ''}
 
       <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:14px 0">
-        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);margin-bottom:8px">Wie schreiben?</div>
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);margin-bottom:8px">${t('settings.migrationDialog.howWrite')}</div>
         <label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;cursor:pointer;text-transform:none;letter-spacing:0">
           <input type="radio" name="migrate-mode" value="replace" checked>
           <span>
-            <strong>Ersetzen</strong> — vorhandene Daten werden gelöscht und durch das Backup ersetzt.
-            <em>Vorher wird automatisch ein Sicherheits-Snapshot der aktuellen Daten unter <code>data/backups/</code> abgelegt.</em>
+            <strong>${t('settings.migrationDialog.replaceLabel')}</strong> ${t('settings.migrationDialog.replaceDesc')}
           </span>
         </label>
         <label style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;cursor:pointer;text-transform:none;letter-spacing:0">
           <input type="radio" name="migrate-mode" value="merge">
           <span>
-            <strong>Zusammenführen</strong> — nur Ablesungen/Verträge mit neuer ID werden ergänzt.
-            Bestehende Daten bleiben. Temperaturtage werden nur ergänzt, wenn das Datum noch nicht existiert.
+            <strong>${t('settings.migrationDialog.mergeLabel')}</strong> ${t('settings.migrationDialog.mergeDesc')}
           </span>
         </label>
       </div>
@@ -822,12 +760,12 @@ function openMigrationDialog(previewResult, onDone) {
   `;
 
   const footer = `
-    <button type="button" class="btn btn--ghost" data-act="cancel">Abbrechen</button>
-    <button type="button" class="btn btn--primary" data-act="apply">Importieren</button>
+    <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+    <button type="button" class="btn btn--primary" data-act="apply">${t('settings.migrationDialog.import')}</button>
   `;
 
   openModal({
-    title: 'Migration aus v0.9.0',
+    title: t('settings.migrationDialog.title'),
     body, footer,
     onMount({ modalEl, close }) {
       modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => close(null));
@@ -838,11 +776,11 @@ function openMigrationDialog(previewResult, onDone) {
           const w = result.written;
           const total =
             (w.gas?.readings || 0) + (w.strom?.readings || 0) + (w.wasser?.readings || 0);
-          toastOk(`Migration OK · ${total} Ablesungen geschrieben · Snapshot ${result.snapshot}`);
+          toastOk(t('settings.migrationDialog.done', { total, snapshot: result.snapshot }));
           close(true);
           if (onDone) onDone();
         } catch (err) {
-          toastErr('Import fehlgeschlagen: ' + err.message);
+          toastErr(t('settings.migrationDialog.failed', { msg: err.message }));
         }
       });
     },

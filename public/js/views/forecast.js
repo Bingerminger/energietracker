@@ -11,61 +11,62 @@ import { getUtilities } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
+import { t } from '../lib/i18n.js';
 
 let chart = null;
 
 export async function render(container) {
-  container.innerHTML = '<div class="loading">Lade…</div>';
+  container.innerHTML = `<div class="loading">${t('forecast.loading')}</div>`;
   const utilities = await getUtilities();
 
   container.innerHTML = `
     <div class="section-head">
-      <h1>🔮 Prognose</h1>
+      <h1>${t('forecast.title')}</h1>
       <div class="section-actions">
-        <select class="select" id="util-select">
+        <select class="select" id="util-select" aria-label="${t('forecast.selectUtility')}">
           ${utilities.map(u => `<option value="${u.key}">${u.icon} ${escapeHtml(u.label)}</option>`).join('')}
         </select>
-        <select class="select" id="meter-select"></select>
+        <select class="select" id="meter-select" aria-label="${t('forecast.selectMeter')}"></select>
       </div>
     </div>
 
     <div class="card">
-      <h3 class="card__title">What-if-Simulator</h3>
+      <h3 class="card__title">${t('forecast.whatIf')}</h3>
       <div class="form-row">
         <div class="field">
-          <label>Temperatur-Offset (°C)</label>
+          <label for="temp-offset">${t('forecast.tempOffset')}</label>
           <input class="input" id="temp-offset" type="number" step="0.5" value="0">
         </div>
         <div class="field">
-          <label>Preis-Faktor</label>
+          <label for="price-factor">${t('forecast.priceFactor')}</label>
           <input class="input" id="price-factor" type="number" step="0.05" value="1.0">
         </div>
         <div class="field">
-          <label>Modell</label>
+          <label for="model">${t('forecast.model')}</label>
           <select class="select" id="model">
-            <option value="linear">Linear</option>
-            <option value="polynomial">Polynomial (Grad 2)</option>
-            <option value="robust">Robust (Huber)</option>
-            <option value="segmented">Segmentiert (Heizen/Sommer)</option>
-            <option value="sigmoid">Sigmoid (Heizsignatur)</option>
+            <option value="linear">${t('forecast.models.linear')}</option>
+            <option value="polynomial">${t('forecast.models.polynomial')}</option>
+            <option value="robust">${t('forecast.models.robust')}</option>
+            <option value="segmented">${t('forecast.models.segmented')}</option>
+            <option value="sigmoid">${t('forecast.models.sigmoid')}</option>
           </select>
         </div>
         <div class="field">
-          <label>Horizont (Monate)</label>
+          <label for="months">${t('forecast.horizon')}</label>
           <input class="input" id="months" type="number" min="1" max="24" value="12">
         </div>
       </div>
-      <div class="form-actions"><button class="btn btn--util" id="btn-go">Aktualisieren</button></div>
+      <div class="form-actions"><button class="btn btn--util" id="btn-go">${t('forecast.update')}</button></div>
     </div>
 
     <div class="card" style="margin-top: var(--sp-5)">
-      <h3 class="card__title">Verlauf + Prognose</h3>
+      <h3 class="card__title">${t('forecast.history')}</h3>
       <div class="chart-wrap"><canvas id="fc-chart"></canvas></div>
       <div id="fc-info" class="muted" style="margin-top: var(--sp-3)"></div>
     </div>
 
     <div class="card" style="margin-top: var(--sp-5)">
-      <h3 class="card__title">Monatsdetail</h3>
+      <h3 class="card__title">${t('forecast.monthlyDetail')}</h3>
       <div id="fc-table"></div>
     </div>
   `;
@@ -84,7 +85,7 @@ export async function render(container) {
     if (chart) { chart.destroy(); chart = null; }
     const utility = utilities.find(u => u.key === utilSel.value);
     if (!currentMeters.length) {
-      container.querySelector('#fc-info').textContent = 'Keine Zähler.';
+      container.querySelector('#fc-info').textContent = t('forecast.noMeters');
       container.querySelector('#fc-table').innerHTML = '';
       return;
     }
@@ -115,7 +116,7 @@ function renderResult(u, result, container) {
   const tbl  = container.querySelector('#fc-table');
 
   if (!result.valid) {
-    info.innerHTML = `<span class="danger-text">${escapeHtml(result.reason || 'Keine Prognose möglich')}</span>`;
+    info.innerHTML = `<span class="danger-text">${escapeHtml(result.reason || t('forecast.noForecast'))}</span>`;
     tbl.innerHTML = '';
     return;
   }
@@ -135,19 +136,21 @@ function renderResult(u, result, container) {
     data: {
       labels,
       datasets: [
-        { label: 'Historie',  data: histData, borderColor: u.color, backgroundColor: u.color + '22', tension: 0.25, spanGaps: false },
-        { label: 'Prognose',  data: fcData,   borderColor: themeColors.text1, borderDash: [6,4], backgroundColor: 'rgba(231,236,243,0.06)', tension: 0.25, spanGaps: false },
+        { label: t('forecast.chartHist'),     data: histData, borderColor: u.color, backgroundColor: u.color + '22', tension: 0.25, spanGaps: false },
+        { label: t('forecast.chartForecast'), data: fcData,   borderColor: themeColors.text1, borderDash: [6,4], backgroundColor: 'rgba(231,236,243,0.06)', tension: 0.25, spanGaps: false },
       ],
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: u.consumption_unit } } } }
-  });
+  }, { label: t('forecast.chartAlt') });
 
   const reg = result.regression;
-  info.innerHTML = `
-    Modell: <strong>${u.hgt_relevant ? (reg?.model || 'linear') : 'seasonal_only'}</strong> ·
-    Blend-Gewicht: <strong>${fmt.num(result.blend_weight * 100, 1)}%</strong>${reg ? ` (R² ${fmt.num(reg.r2, 3)})` : ''} ·
-    Letzter Arbeitspreis: <strong>${fmt.num(result.last_price_ct, 3)} ct/${u.consumption_unit}</strong>
-  `;
+  info.innerHTML = t('forecast.info', {
+    model: u.hgt_relevant ? (reg?.model || 'linear') : 'seasonal_only',
+    blend: fmt.num(result.blend_weight * 100, 1),
+    r2: reg ? ` (R² ${fmt.num(reg.r2, 3)})` : '',
+    price: fmt.num(result.last_price_ct, 3),
+    unit: u.consumption_unit,
+  });
 
   // F-02: the forecast now carries a full contract-aware finance projection.
   // `cost_estimated` uses the per-month working/base price of the active
@@ -162,20 +165,20 @@ function renderResult(u, result, container) {
     ${hasFinance && lastBalance != null ? `
       <div class="banner ${lastBalance > 5 ? 'banner--warning' : lastBalance < -5 ? 'banner--success' : 'banner--info'}"
            style="margin-bottom: var(--sp-3)">
-        Projizierter Saldo am Ende des Horizonts:
+        ${t('forecast.balanceLabel')}
         <strong>${fmt.eur(Math.abs(lastBalance))}</strong>
-        ${lastBalance > 5 ? 'Nachzahlung' : lastBalance < -5 ? 'Guthaben' : '(ausgeglichen)'}
-        <span class="muted"> · kumuliert aus geschätzten Kosten minus projizierten Abschlägen</span>
+        ${lastBalance > 5 ? t('forecast.balanceSurcharge') : lastBalance < -5 ? t('forecast.balanceCredit') : t('forecast.balanceBalanced')}
+        <span class="muted"> ${t('forecast.balanceNote')}</span>
       </div>
     ` : ''}
     <div class="table-wrap"><table class="table">
       <thead><tr>
-        <th>Monat</th><th class="num">Verbrauch (${u.consumption_unit})</th>
-        ${u.hgt_relevant ? '<th class="num">HGT geschätzt</th>' : ''}
-        <th class="num">Kosten geschätzt</th>
-        <th class="num">Abschlag projiziert</th>
-        <th class="num">Saldo laufend</th>
-        <th>Methode</th>
+        <th scope="col">${t('forecast.col.month')}</th><th scope="col" class="num">${t('forecast.col.consumption', { unit: u.consumption_unit })}</th>
+        ${u.hgt_relevant ? `<th scope="col" class="num">${t('forecast.col.hgt')}</th>` : ''}
+        <th scope="col" class="num">${t('forecast.col.cost')}</th>
+        <th scope="col" class="num">${t('forecast.col.advance')}</th>
+        <th scope="col" class="num">${t('forecast.col.balance')}</th>
+        <th scope="col">${t('forecast.col.method')}</th>
       </tr></thead>
       <tbody>
         ${fc.map(r => {
@@ -196,8 +199,7 @@ function renderResult(u, result, container) {
     </table></div>
     ${hasFinance ? `
       <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">
-        Künftige Boni werden nicht fortgeschrieben — nur im Vertrag gepflegte Boni
-        mit Gutschriftdatum im Prognosezeitraum fließen in die Kosten ein.
+        ${t('forecast.bonusNote')}
       </p>
     ` : ''}
   `;

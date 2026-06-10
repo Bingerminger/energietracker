@@ -18,6 +18,7 @@ import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { openModal } from '../components/modal.js';
 import { toastOk, toastErr } from '../components/toast.js';
+import { t } from '../lib/i18n.js';
 
 let _chart = null;
 const state = {
@@ -33,13 +34,13 @@ export async function render(container, params) {
   const utility = utilities.find(u => u.key === utilityKey);
   if (!utility) {
     container.innerHTML = `<div class="status-banner alert"><div class="status-banner__icon">⚠️</div>
-      <div class="status-banner__text">Unbekannte Verbrauchsart: ${escapeHtml(utilityKey)}</div></div>`;
+      <div class="status-banner__text">${t('utility.unknown', { key: escapeHtml(utilityKey) })}</div></div>`;
     return;
   }
   state.utility = utility;
   container.setAttribute('data-utility', utility.key);
 
-  container.innerHTML = `<div class="loading">Lade…</div>`;
+  container.innerHTML = `<div class="loading">${t('utility.loading')}</div>`;
 
   try {
     const meters = await api.meters(utility.key);
@@ -64,9 +65,9 @@ async function rerender(container) {
       ${header(u)}
       <div class="empty">
         <div class="empty-icon">📊</div>
-        <h3>Noch keine Zähler</h3>
-        <p>Lege einen ${escapeHtml(u.label)}-Zähler über die Zählerverwaltung an.</p>
-        <button class="btn btn--primary" id="goto-meters">Zur Zählerverwaltung</button>
+        <h2>${t('utility.noMeters.title')}</h2>
+        <p>${t('utility.noMeters.text', { label: escapeHtml(u.label) })}</p>
+        <button class="btn btn--primary" id="goto-meters">${t('utility.noMeters.cta')}</button>
       </div>`;
     container.querySelector('#goto-meters')?.addEventListener('click', () => {
       location.hash = `#/utility/${u.key}/meters`;
@@ -125,23 +126,26 @@ async function rerender(container) {
     // P-PV-01 — Bei PV (feed_in/generation) ist dieser Vergleich reine
     // Saisonalität (Frühling vs. Winter, Sonne ≠ konstant), kein echter
     // Verbrauchstrend → irreführend, daher unterdrückt.
+    // C — 3-Monats-Trend als farbiger Pfeil (mehr Verbrauch = rot ▲).
     let trendStr = '';
     if (monthly.length >= 6 && u.accounting_kind !== 'feed_in' && u.accounting_kind !== 'generation') {
       const recent = monthly.slice(-3).reduce((s, m) => s + (m[consKey] || 0), 0);
       const prev   = monthly.slice(-6, -3).reduce((s, m) => s + (m[consKey] || 0), 0);
       if (prev > 0) {
         const pct = ((recent - prev) / prev * 100);
-        const sign = pct > 0 ? '+' : '';
-        trendStr = ` · 3-Monats-Trend ${sign}${pct.toFixed(1)} %`;
+        const up = pct > 0;
+        const tone = up ? 'danger' : 'success';
+        const arrow = up ? '▲' : '▼';
+        trendStr = ` · ${t('utility.banner.trend')} <span class="kpi__trend kpi__trend--${tone}">${arrow} ${fmt.num(Math.abs(pct), 1)} %</span>`;
       }
     }
     statusBannerHtml = `
       <div class="status-banner ${cls}">
         <div class="status-banner__icon">${icon}</div>
         <div class="status-banner__text">
-          <strong>Letzte Ablesung vor ${days} Tagen</strong> · ${fmt.date(lastReading.date)}${trendStr}
+          <strong>${t('utility.banner.lastReading', { days })}</strong> · ${fmt.date(lastReading.date)}${trendStr}
         </div>
-        <button class="btn btn-${u.key} btn--sm" id="banner-new-reading">+ Neue Ablesung</button>
+        <button class="btn btn-${u.key} btn--sm" id="banner-new-reading">${t('utility.action.newReadingBanner')}</button>
       </div>`;
   }
 
@@ -176,41 +180,41 @@ async function rerender(container) {
 
     <div class="kpi-grid">
       <div class="kpi c-${u.key}">
-        <div class="kpi__label">${u.icon} ${isFeedIn ? 'Einspeisung' : 'Verbrauch'} ${yr}</div>
+        <div class="kpi__label">${u.icon} ${isFeedIn ? t('utility.kpi.feedIn') : t('utility.kpi.consumption')} ${yr}</div>
         <div class="kpi__value">${fmt.unit(totUnit, u.consumption_unit, 0)}</div>
         ${u.key === 'gas' ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
       </div>
       <div class="kpi c-${u.key}">
-        <div class="kpi__label">${isFeedIn ? '💶 Erlös' : '💶 Kosten'} ${yr}</div>
+        <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${yr}</div>
         <div class="kpi__value ${isFeedIn ? 'positive' : ''}">${fmt.eur(totCost)}</div>
-        <div class="kpi__sub">ø ${fmt.eur(monthlyYear.length ? totCost / monthlyYear.length : 0)}/Monat</div>
+        <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? totCost / monthlyYear.length : 0) })}</div>
       </div>
       ${hasContract && !isFeedIn ? `
         <div class="kpi c-yellow">
-          <div class="kpi__label">💰 Abschläge ${yr}</div>
+          <div class="kpi__label">${t('utility.kpi.advances', { year: yr })}</div>
           <div class="kpi__value">${fmt.eur(totAdv)}</div>
           <div class="kpi__sub ${yearBalance < 0 ? 'positive' : (yearBalance > 0 ? 'negative' : '')}">
-            Saldo Jahr ${yearBalance > 0 ? '+' : ''}${fmt.eur(yearBalance)}
+            ${t('utility.kpi.yearBalance', { value: (yearBalance > 0 ? '+' : '') + fmt.eur(yearBalance) })}
           </div>
         </div>
       ` : ''}
       <div class="kpi c-blue">
-        <div class="kpi__label">📅 Tagesschnitt</div>
+        <div class="kpi__label">${t('utility.kpi.dailyAvg')}</div>
         <div class="kpi__value">${totDays ? fmt.unit(totUnit / totDays, u.consumption_unit, 1).replace(u.consumption_unit, '') : '–'}
           <span style="font-size:14px;color:var(--text-2)">${u.consumption_unit}</span></div>
-        <div class="kpi__sub">${totDays} Tage</div>
+        <div class="kpi__sub">${t('utility.kpi.daysCount', { days: totDays })}</div>
       </div>
       ${u.accounting_kind === 'feed_in' ? `
-      <div class="kpi c-violet" title="Vereinfachte Modellrechnung: eingespeiste kWh × Strommix-CO₂-Faktor. PV-Lebenszyklus nicht berücksichtigt.">
-        <div class="kpi__label">🌿 CO₂ vermieden ${yr}</div>
+      <div class="kpi c-violet" title="${t('utility.kpi.co2AvoidedTitle')}">
+        <div class="kpi__label">${t('utility.kpi.co2Avoided', { year: yr })}</div>
         <div class="kpi__value">−${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
-        <div class="kpi__sub">${fmt.num(totCO2 / 1000, 2)} t weniger als ohne PV</div>
+        <div class="kpi__sub">${t('utility.kpi.co2AvoidedSub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>
       ` : `
       <div class="kpi c-violet">
-        <div class="kpi__label">🌍 CO₂ ${yr}</div>
+        <div class="kpi__label">${t('utility.kpi.co2', { year: yr })}</div>
         <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
-        <div class="kpi__sub">${fmt.num(totCO2 / 1000, 2)} t</div>
+        <div class="kpi__sub">${t('utility.kpi.co2Sub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>`}
     </div>
 
@@ -218,9 +222,9 @@ async function rerender(container) {
 
     ${!isDelivery ? `
     <div class="card">
-      <div class="card__title">📑 Verträge & Abschläge
+      <div class="card__title">${t('utility.cards.contracts')}
         <span class="card__title-action">
-          <button class="btn btn--ghost btn--sm" id="btn-new-contract" title="Zur Vertragsverwaltung">⚙️ Verträge verwalten</button>
+          <button class="btn btn--ghost btn--sm" id="btn-new-contract" title="${t('utility.cards.manageContractsTitle')}">${t('utility.cards.manageContracts')}</button>
         </span>
       </div>
       ${contractsTable(contracts, u)}
@@ -228,18 +232,18 @@ async function rerender(container) {
     ` : ''}
 
     <div class="card">
-      <div class="card__title">${u.icon} Monatsverbrauch ${yr}</div>
+      <div class="card__title">${u.icon} ${t('utility.cards.monthlyChart', { year: yr })}</div>
       <div class="chart-wrap h300"><canvas id="month-chart"></canvas></div>
     </div>
 
     <div class="card">
-      <div class="card__title">📋 Monatstabelle ${yr}</div>
+      <div class="card__title">${t('utility.cards.monthlyTable', { year: yr })}</div>
       ${monthlyTable(monthlyYear, u, hasContract)}
     </div>
 
     ${isDelivery ? `
     <div class="card">
-      <div class="card__title">🛢️ Bestand &amp; Tank
+      <div class="card__title">${t('utility.cards.stockTank')}
         ${stockHist && stockHist.capacity ? `<span class="card__title-action">
           <span class="muted" style="font-size:12px">${stockTankSummary(stockHist, u)}</span>
         </span>` : ''}
@@ -248,20 +252,20 @@ async function rerender(container) {
     </div>
 
     <div class="card">
-      <div class="card__title">🚚 Lieferungen
+      <div class="card__title">${t('utility.cards.deliveries')}
         <span class="card__title-action">
-          <span class="muted" style="font-size:12px;margin-right:8px">${deliveries.length} Lieferungen gesamt</span>
-          <button class="btn btn-${u.key} btn--sm" id="btn-new-delivery">+ Lieferung</button>
+          <span class="muted" style="font-size:12px;margin-right:8px">${t('utility.cards.deliveriesCount', { count: deliveries.length })}</span>
+          <button class="btn btn-${u.key} btn--sm" id="btn-new-delivery">${t('utility.action.newDelivery')}</button>
         </span>
       </div>
       ${deliveriesTable(deliveries, u)}
     </div>
     ` : `
     <div class="card">
-      <div class="card__title">🔢 Zählerstände
+      <div class="card__title">${t('utility.cards.readings')}
         <span class="card__title-action">
-          <span class="muted" style="font-size:12px;margin-right:8px">${readings.length} Ablesungen gesamt</span>
-          <button class="btn btn-${u.key} btn--sm" id="btn-new-reading">+ Ablesung</button>
+          <span class="muted" style="font-size:12px;margin-right:8px">${t('utility.cards.readingsCount', { count: readings.length })}</span>
+          <button class="btn btn-${u.key} btn--sm" id="btn-new-reading">${t('utility.action.newReading')}</button>
         </span>
       </div>
       ${readingsTable(readings, u)}
@@ -279,20 +283,20 @@ async function rerender(container) {
 function header(u, meter = null) {
   const icon = u.icon;
   const meterSelectorHtml = state.meters.length > 1 ? `
-    <select class="select" id="meter-select" style="width:auto">
+    <select class="select" id="meter-select" style="width:auto" aria-label="${t('utility.header.selectMeter')}">
       ${state.meters.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === state.selectedMeterId ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
     </select>` : (meter ? `<span class="muted" style="font-size:12px;align-self:center">${escapeHtml(meter.name)}</span>` : '');
 
   return `
     <div class="view-header">
       <div>
-        <h1 class="view-header__title" style="color:var(--util-${u.key})">${icon} ${escapeHtml(u.label)}</h1>
-        <div class="view-header__subtitle">Zählerstände · Monatsverbrauch · Verträge & Saldo</div>
+        <h1 class="view-header__title" style="color:var(--util-${u.key})"><span aria-hidden="true">${icon}</span> ${escapeHtml(u.label)}</h1>
+        <div class="view-header__subtitle">${t('utility.subtitle')}</div>
       </div>
       <div class="view-header__actions">
         ${meterSelectorHtml}
-        <a class="btn btn--ghost btn--sm" href="#/utility/${u.key}/meters" title="Zählerverwaltung">⚙️ Zähler</a>
-        <button class="btn btn-${u.key} btn--sm" id="header-new-reading">+ Ablesung</button>
+        <a class="btn btn--ghost btn--sm" href="#/utility/${u.key}/meters" title="${t('utility.header.metersTitle')}"><span aria-hidden="true">⚙️</span> ${t('utility.header.meters')}</a>
+        <button class="btn btn-${u.key} btn--sm" id="header-new-reading">${t('utility.action.newReading')}</button>
       </div>
     </div>
   `;
@@ -315,30 +319,30 @@ function balanceCard(c, u) {
   const isFeedIn = u.accounting_kind === 'feed_in';
   const cur = c.current_balance;
   const proj = c.projected_end_balance;
+  // N1007 — verdict ist jetzt ein stabiler Key (surcharge|refund|payout|reclaim|balanced).
+  // Logik (Farbe/Pfeil) auf dem Key, Anzeige lokalisiert über t('utility.verdict.<key>').
   const verdict = c.verdict;
-  const verdictCls = isFeedIn
-    ? (verdict === 'Auszahlung' ? 'refund' : verdict === 'Rückforderung' ? 'surcharge' : 'balanced')
-    : (verdict === 'Erstattung' ? 'refund' : verdict === 'Nachzahlung' ? 'surcharge' : 'balanced');
-  const arrow = isFeedIn
-    ? (verdict === 'Auszahlung' ? '↓' : verdict === 'Rückforderung' ? '↑' : '→')
-    : (verdict === 'Nachzahlung' ? '↑' : verdict === 'Erstattung' ? '↓' : '→');
+  const verdictCls = { refund: 'refund', payout: 'refund', surcharge: 'surcharge', reclaim: 'surcharge', balanced: 'balanced' }[verdict] || 'balanced';
+  const arrow = { refund: '↓', payout: '↓', surcharge: '↑', reclaim: '↑', balanced: '→' }[verdict] || '→';
   const sign = v => v > 0 ? '+' : '';
   const dateLabel = isFeedIn
-    ? `nächste Abrechnung: ${fmt.date(c.effective_end)}`
+    ? t('utility.balance.dateNext', { date: fmt.date(c.effective_end) })
     : (c.is_open_ended
-        ? `geschätztes Ende: ${fmt.date(c.effective_end)} (offener Vertrag, +12 M)`
-        : `Vertragsende: ${fmt.date(c.effective_end)}`);
+        ? t('utility.balance.dateEstOpen', { date: fmt.date(c.effective_end) })
+        : t('utility.balance.dateEnd', { date: fmt.date(c.effective_end) }));
 
   const tariffParts = [];
   const isWater = u.key === 'wasser';
-  if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + (isWater ? ' ct/m³ Trinkwasser' : ' ct/kWh'));
-  if (c.current_base_price_eur   != null) tariffParts.push(fmt.num(c.current_base_price_eur, 2) + ' €/Monat');
-  if (c.current_advance_amount   != null) tariffParts.push('Abschlag ' + fmt.eur(c.current_advance_amount));
-  const tariffText = tariffParts.length ? tariffParts.join(' · ') : 'keine Tarifdaten';
+  if (c.current_working_price_ct != null) tariffParts.push(isWater
+    ? t('utility.balance.unitWorkingWater', { value: fmt.num(c.current_working_price_ct, 4) })
+    : t('utility.balance.unitWorking', { value: fmt.num(c.current_working_price_ct, 4) }));
+  if (c.current_base_price_eur   != null) tariffParts.push(t('utility.balance.unitBase', { value: fmt.num(c.current_base_price_eur, 2) }));
+  if (c.current_advance_amount   != null) tariffParts.push(t('utility.balance.unitAdvance', { value: fmt.eur(c.current_advance_amount) }));
+  const tariffText = tariffParts.length ? tariffParts.join(' · ') : t('utility.balance.noTariff');
 
   const consumedSub = isWater
-    ? `${c.months_actual} Monate · ${fmt.num(c.actual_m3 || 0, 1)} m³`
-    : `${c.months_actual} Monate · ${fmt.int(c.actual_kwh)} kWh`;
+    ? t('utility.balance.consumedMonthsWater', { months: c.months_actual, m3: fmt.num(c.actual_m3 || 0, 1) })
+    : t('utility.balance.consumedMonths', { months: c.months_actual, kwh: fmt.int(c.actual_kwh) });
 
   // Breakdown row: for water we want three component pills, for gas/strom the
   // simple verbrauch+grundpreis+bonus line.
@@ -346,9 +350,9 @@ function balanceCard(c, u) {
     ? renderWaterBreakdown(c.components, c.actual_bonus_total)
     : (() => {
         const parts = [];
-        if (c.actual_kwh_cost != null)    parts.push(`${fmt.eur(c.actual_kwh_cost)} Verbrauch`);
-        if (c.actual_base_total > 0)      parts.push(`+ ${fmt.eur(c.actual_base_total)} Grundpreis`);
-        if (c.actual_bonus_total > 0)     parts.push(`− ${fmt.eur(c.actual_bonus_total)} Bonus`);
+        if (c.actual_kwh_cost != null)    parts.push(t('utility.balance.breakdownConsumption', { value: fmt.eur(c.actual_kwh_cost) }));
+        if (c.actual_base_total > 0)      parts.push(t('utility.balance.breakdownBase', { value: fmt.eur(c.actual_base_total) }));
+        if (c.actual_bonus_total > 0)     parts.push(t('utility.balance.breakdownBonus', { value: fmt.eur(c.actual_bonus_total) }));
         return parts.length > 1 ? `<div class="balance-col__breakdown">${parts.join(' ')}</div>` : '';
       })();
 
@@ -357,39 +361,39 @@ function balanceCard(c, u) {
   // (Überzahlung wird ausgeglichen), Nach-/Abschlagszahlung senkt ihn.
   const spCount = c.special_payments_count || 0;
   const spParts = [];
-  if ((c.special_refund_total || 0) > 0)    spParts.push(`+ ${fmt.eur(c.special_refund_total)} Rückzahlung`);
-  if ((c.special_surcharge_total || 0) > 0) spParts.push(`− ${fmt.eur(c.special_surcharge_total)} Nachzahlung`);
-  if ((c.special_advance_total || 0) > 0)   spParts.push(`− ${fmt.eur(c.special_advance_total)} Abschlagszahlung`);
+  if ((c.special_refund_total || 0) > 0)    spParts.push(t('utility.balance.specialRefund', { value: fmt.eur(c.special_refund_total) }));
+  if ((c.special_surcharge_total || 0) > 0) spParts.push(t('utility.balance.specialSurcharge', { value: fmt.eur(c.special_surcharge_total) }));
+  if ((c.special_advance_total || 0) > 0)   spParts.push(t('utility.balance.specialAdvance', { value: fmt.eur(c.special_advance_total) }));
   const specialHtml = spCount > 0
     ? `<div class="balance-col__breakdown">${spParts.join(' ')}</div>`
     : '';
 
   return `
     <div class="card card--${u.key}">
-      <div class="card__title">⚖️ Saldo aktueller Vertrag — ${escapeHtml(c.provider || c.tariff_name || '–')}</div>
+      <div class="card__title">${t('utility.balance.title', { name: escapeHtml(c.provider || c.tariff_name || '–') })}</div>
       <div class="muted num" style="font-size:11px;margin-bottom:14px">${escapeHtml(tariffText)}</div>
       <div class="balance-grid">
         <div>
-          <div class="balance-col__label">${isFeedIn ? 'Vergütung (Stand heute)' : 'Verbraucht (Stand heute)'}</div>
+          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colConsumedFeedIn') : t('utility.balance.colConsumed')}</div>
           <div class="balance-col__value">${fmt.eur(c.actual_cost)}</div>
           <div class="balance-col__sub">${consumedSub}</div>
           ${breakdownHtml}
         </div>
         <div>
-          <div class="balance-col__label">${isFeedIn ? 'Bereits ausgezahlt' : 'Abschlag bezahlt'}</div>
+          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colPaidFeedIn') : t('utility.balance.colPaid')}</div>
           <div class="balance-col__value">${isFeedIn ? '–' : fmt.eur(c.advance_paid)}</div>
-          <div class="balance-col__sub">${isFeedIn ? 'Auszahlung über Netzbetreiber' : 'aktuell: ' + (c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) + '/Monat' : '–')}</div>
-          ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${spCount} Sonderzahlung${spCount === 1 ? '' : 'en'}</div>${specialHtml}` : ''}
+          <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) }) : t('utility.balance.paidCurrentNone'))}</div>
+          ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${spCount === 1 ? t('utility.balance.specialCountOne') : t('utility.balance.specialCount', { count: spCount })}</div>${specialHtml}` : ''}
         </div>
         <div>
-          <div class="balance-col__label">${isFeedIn ? 'Vergütungsanspruch' : 'Aktueller Saldo'}</div>
+          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colClaimFeedIn') : t('utility.balance.colBalance')}</div>
           <div class="balance-col__value ${isFeedIn ? (cur > 0 ? 'negative' : cur < 0 ? 'positive' : '') : (cur > 0 ? 'positive' : cur < 0 ? 'negative' : '')}">${sign(cur)}${fmt.eur(cur)}</div>
-          <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? 'Guthaben beim Netzbetreiber' : cur < 0 ? 'Rückforderung' : 'ausgeglichen') : (cur > 0 ? 'Unterzahlt' : cur < 0 ? 'Überzahlt' : 'ausgeglichen')}</div>
+          <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? t('utility.balance.subCredit') : cur < 0 ? t('utility.balance.subReclaim') : t('utility.balance.subBalanced')) : (cur > 0 ? t('utility.balance.subUnderpaid') : cur < 0 ? t('utility.balance.subOverpaid') : t('utility.balance.subBalanced'))}</div>
         </div>
         <div class="balance-verdict ${verdictCls}">
-          <div class="balance-verdict__label">${arrow} Erwartet bei Abrechnung</div>
+          <div class="balance-verdict__label">${arrow} ${t('utility.balance.verdictLabel')}</div>
           <div class="balance-verdict__value">${sign(proj)}${fmt.eur(proj)}</div>
-          <div class="balance-verdict__verdict">${verdict}</div>
+          <div class="balance-verdict__verdict">${t('utility.verdict.' + verdict)}</div>
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
         </div>
       </div>
@@ -403,10 +407,10 @@ function renderWaterBreakdown(components, bonusTotal) {
   const sw = components.schmutzwasser || {};
   const nw = components.niederschlagswasser || {};
   const parts = [];
-  if (tw.total > 0) parts.push(`${fmt.eur(tw.total)} Trinkw.`);
-  if (sw.total > 0) parts.push(`+ ${fmt.eur(sw.total)} Schmutzw.`);
-  if (nw.total > 0) parts.push(`+ ${fmt.eur(nw.total)} Niederschlag`);
-  if (bonusTotal > 0) parts.push(`− ${fmt.eur(bonusTotal)} Bonus`);
+  if (tw.total > 0) parts.push(t('utility.balance.waterTw', { value: fmt.eur(tw.total) }));
+  if (sw.total > 0) parts.push(t('utility.balance.waterSw', { value: fmt.eur(sw.total) }));
+  if (nw.total > 0) parts.push(t('utility.balance.waterNw', { value: fmt.eur(nw.total) }));
+  if (bonusTotal > 0) parts.push(t('utility.balance.breakdownBonus', { value: fmt.eur(bonusTotal) }));
   return parts.length > 1 ? `<div class="balance-col__breakdown">${parts.join(' ')}</div>` : '';
 }
 
@@ -416,24 +420,24 @@ function renderWaterComponentRow(components) {
   const nw = components.niederschlagswasser || {};
   return `
     <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border-1)">
-      <div class="balance-col__label" style="margin-bottom:10px">💧 Komponenten</div>
+      <div class="balance-col__label" style="margin-bottom:10px">${t('utility.balance.components')}</div>
       <div class="grid grid-3">
         <div>
-          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">Trinkwasser</div>
-          <div class="balance-col__sub" style="margin-top:2px">${tw.current_ct_per_m3 != null ? fmt.num(tw.current_ct_per_m3, 2) + ' ct/m³' : '–'}${tw.current_eur_per_month != null ? ' · ' + fmt.num(tw.current_eur_per_month, 2) + ' €/M GP' : ''}</div>
+          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.tw')}</div>
+          <div class="balance-col__sub" style="margin-top:2px">${tw.current_ct_per_m3 != null ? t('utility.balance.ctPerM3', { value: fmt.num(tw.current_ct_per_m3, 2) }) : '–'}${tw.current_eur_per_month != null ? ' · ' + t('utility.balance.gpMonth', { value: fmt.num(tw.current_eur_per_month, 2) }) : ''}</div>
           <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(tw.total)}</div>
-          <div class="balance-col__breakdown">${fmt.eur(tw.working_cost)} Verbr.${tw.base_cost > 0 ? ' + ' + fmt.eur(tw.base_cost) + ' GP' : ''}</div>
+          <div class="balance-col__breakdown">${t('utility.balance.consShort', { value: fmt.eur(tw.working_cost) })}${tw.base_cost > 0 ? t('utility.balance.gpPlus', { value: fmt.eur(tw.base_cost) }) : ''}</div>
         </div>
         <div>
-          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">Schmutzwasser</div>
-          <div class="balance-col__sub" style="margin-top:2px">${sw.current_ct_per_m3 != null ? fmt.num(sw.current_ct_per_m3, 2) + ' ct/m³' : '–'} · Basis: ${sw.basis === 'separater_zaehler' ? 'sep. Zähler' : 'Trinkwasser-Verbr.'}</div>
+          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.sw')}</div>
+          <div class="balance-col__sub" style="margin-top:2px">${sw.current_ct_per_m3 != null ? t('utility.balance.ctPerM3', { value: fmt.num(sw.current_ct_per_m3, 2) }) : '–'} · ${t('utility.balance.basisLabel')} ${sw.basis === 'separater_zaehler' ? t('utility.balance.basisSep') : t('utility.balance.basisTw')}</div>
           <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(sw.total)}</div>
         </div>
         <div>
-          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">Niederschlagswasser</div>
-          <div class="balance-col__sub" style="margin-top:2px">${nw.current_eur_per_m2_year != null ? fmt.num(nw.current_eur_per_m2_year, 2) + ' €/m²/J · ' + fmt.int(nw.current_versiegelte_m2) + ' m²' : '–'}</div>
+          <div class="num text-1" style="font-size:13px;font-weight:600;color:var(--text-1)">${t('utility.balance.nw')}</div>
+          <div class="balance-col__sub" style="margin-top:2px">${nw.current_eur_per_m2_year != null ? t('utility.balance.eurPerM2Year', { value: fmt.num(nw.current_eur_per_m2_year, 2), m2: fmt.int(nw.current_versiegelte_m2) }) : '–'}</div>
           <div class="num" style="margin-top:6px;font-size:14px;color:var(--text-1)">${fmt.eur(nw.total)}</div>
-          ${nw.current_monthly != null ? `<div class="balance-col__breakdown">${fmt.eur(nw.current_monthly)}/Monat</div>` : ''}
+          ${nw.current_monthly != null ? `<div class="balance-col__breakdown">${t('utility.balance.perMonthShort', { value: fmt.eur(nw.current_monthly) })}</div>` : ''}
         </div>
       </div>
     </div>
@@ -445,36 +449,37 @@ function contractsTable(contracts, u) {
   if (!contracts || !contracts.length) {
     return `<div class="empty" style="padding:32px 20px">
       <div class="empty-icon">📑</div>
-      <h3>Keine Verträge erfasst</h3>
-      <p>Lege einen Vertrag an, um Abschläge, Tarifpreise, Boni und Saldo zu verfolgen.</p>
+      <h2>${t('utility.contractsTable.emptyTitle')}</h2>
+      <p>${t('utility.contractsTable.emptyText')}</p>
+      <a class="btn btn--primary" href="#/utility/${u.key}/contracts">${t('utility.contractsTable.emptyCta')}</a>
     </div>`;
   }
   const sign = v => v > 0 ? '+' : '';
   const balCls = v => v > 0 ? 'danger-text' : v < 0 ? 'success-text' : 'muted';
   return `<div class="table-wrap"><table class="table contracts-table">
     <thead><tr>
-      <th>Anbieter / Tarif</th>
-      <th>Zeitraum</th>
-      <th>Status</th>
-      <th class="num">Tarif</th>
-      <th class="num">Abschlag</th>
-      <th class="num">Verbraucht</th>
-      <th class="num">Bezahlt</th>
-      <th class="num">Bonus</th>
-      <th class="num">Saldo heute</th>
-      <th class="num">Erw. Saldo</th>
+      <th scope="col">${t('utility.contractsTable.colProvider')}</th>
+      <th scope="col">${t('utility.contractsTable.colPeriod')}</th>
+      <th scope="col">${t('utility.contractsTable.colStatus')}</th>
+      <th scope="col" class="num">${t('utility.contractsTable.colTariff')}</th>
+      <th scope="col" class="num">${t('utility.contractsTable.colAdvance')}</th>
+      <th scope="col" class="num">${t('utility.contractsTable.colConsumed')}</th>
+      <th scope="col" class="num">${t('utility.contractsTable.colPaid')}</th>
+      <th scope="col" class="num">${t('utility.contractsTable.colBonus')}</th>
+      <th scope="col" class="num">${t('utility.contractsTable.colBalanceToday')}</th>
+      <th scope="col" class="num">${t('utility.contractsTable.colBalanceExpected')}</th>
     </tr></thead>
     <tbody>
     ${contracts.map(c => {
       const stateCls = c.is_current ? 'active' : c.is_past ? 'past' : 'future';
-      const stateLabel = c.is_current ? 'AKTIV' : c.is_past ? 'VERGANGEN' : 'ZUKÜNFTIG';
+      const stateLabel = c.is_current ? t('utility.contractsTable.stateActive') : c.is_past ? t('utility.contractsTable.statePast') : t('utility.contractsTable.stateFuture');
       const cur = c.current_balance, proj = c.projected_end_balance;
       const period = c.is_open_ended
-        ? `${fmt.date(c.start)} → laufend`
+        ? t('utility.contractsTable.periodOpen', { start: fmt.date(c.start) })
         : `${fmt.date(c.start)} → ${fmt.date(c.end)}`;
       const tariffParts = [];
       if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + ' ct');
-      if (c.current_base_price_eur   != null) tariffParts.push(fmt.int(c.current_base_price_eur) + ' € GP');
+      if (c.current_base_price_eur   != null) tariffParts.push(t('utility.contractsTable.gpSuffix', { value: fmt.int(c.current_base_price_eur) }));
       const tariffStr = tariffParts.length ? tariffParts.join(' · ') : '–';
       const bonusStr = c.actual_bonus_total > 0 ? fmt.eur(c.actual_bonus_total) : '–';
       return `<tr>
@@ -496,7 +501,7 @@ function contractsTable(contracts, u) {
 
 // ── Monatstabelle ───────────────────────────────────────────────────
 function monthlyTable(monthly, u, hasContracts) {
-  if (!monthly.length) return '<p class="muted" style="padding:16px">Keine Daten für dieses Jahr.</p>';
+  if (!monthly.length) return `<p class="muted" style="padding:16px">${t('utility.monthlyTable.noData')}</p>`;
   const isGas = u.key === 'gas';
   // v1.6.1 — Fix #14: Verbrauchs-Feldname je nach Utility. Wasser/
   // m³-native Utilities tragen den Wert im Feld `m3`; das `kwh`-
@@ -517,20 +522,20 @@ function monthlyTable(monthly, u, hasContracts) {
 
   return `<div class="table-wrap"><table class="table">
     <thead><tr>
-      <th>Monat</th>
-      <th class="num">Tage</th>
-      ${isGas ? '<th class="num">m³</th>' : ''}
-      <th class="num">${u.consumption_unit}</th>
-      <th class="num">${u.consumption_unit}/Tag</th>
-      <th class="num">ø Temp</th>
-      <th class="num">HGT</th>
-      <th class="num">ct/${u.consumption_unit === 'kWh' ? 'kWh' : 'm³'}</th>
-      <th class="num">Kosten €</th>
-      ${hasContracts ? '<th class="num col-yellow">Abschlag €</th>' : ''}
-      ${hasContracts ? '<th class="num">Saldo (kum.)</th>' : ''}
-      <th class="num col-violet">CO₂ kg</th>
-      <th class="num col-blue">MA·3</th>
-      <th class="num col-yellow">MA·6</th>
+      <th scope="col">${t('utility.monthlyTable.colMonth')}</th>
+      <th scope="col" class="num">${t('utility.monthlyTable.colDays')}</th>
+      ${isGas ? '<th scope="col" class="num">m³</th>' : ''}
+      <th scope="col" class="num">${u.consumption_unit}</th>
+      <th scope="col" class="num">${t('utility.monthlyTable.colPerDay', { unit: u.consumption_unit })}</th>
+      <th scope="col" class="num" title="${t('utility.monthlyTable.colTempTitle')}">${t('utility.monthlyTable.colTemp')}</th>
+      <th scope="col" class="num" title="${t('utility.monthlyTable.colHddTitle')}">${t('utility.monthlyTable.colHdd')}</th>
+      <th scope="col" class="num">ct/${u.consumption_unit === 'kWh' ? 'kWh' : 'm³'}</th>
+      <th scope="col" class="num">${t('utility.monthlyTable.colCost')}</th>
+      ${hasContracts ? `<th scope="col" class="num col-yellow">${t('utility.monthlyTable.colAdvance')}</th>` : ''}
+      ${hasContracts ? `<th scope="col" class="num" title="${t('utility.monthlyTable.colCumBalanceTitle')}">${t('utility.monthlyTable.colCumBalance')}</th>` : ''}
+      <th scope="col" class="num col-violet">${t('utility.monthlyTable.colCo2')}</th>
+      <th scope="col" class="num col-blue" title="${t('utility.monthlyTable.colMa3Title')}">${t('utility.monthlyTable.colMa3')}</th>
+      <th scope="col" class="num col-yellow" title="${t('utility.monthlyTable.colMa6Title')}">${t('utility.monthlyTable.colMa6')}</th>
     </tr></thead>
     <tbody>
     ${monthly.map(m => {
@@ -555,7 +560,7 @@ function monthlyTable(monthly, u, hasContracts) {
     }).join('')}
     </tbody>
     <tfoot><tr>
-      <td>Gesamt</td>
+      <td>${t('utility.monthlyTable.total')}</td>
       <td class="num">${tot.days}</td>
       ${isGas ? `<td class="num">${fmt.int(tot.m3)}</td>` : ''}
       <td class="num">${fmt.int(tot[consKey])}</td>
@@ -571,23 +576,23 @@ function monthlyTable(monthly, u, hasContracts) {
 
 // ── Readings-Tabelle ────────────────────────────────────────────────
 function readingsTable(readings, u) {
-  if (!readings.length) return '<div class="empty" style="padding:32px"><div class="empty-icon">📋</div><h3>Keine Ablesungen</h3></div>';
+  if (!readings.length) return `<div class="empty" style="padding:32px"><div class="empty-icon">📋</div><h2>${t('utility.readingsTable.emptyTitle')}</h2></div>`;
   const sorted = [...readings].sort((a, b) => b.date.localeCompare(a.date));
   return `<div class="table-wrap"><table class="table">
     <thead><tr>
-      <th>Datum</th>
-      <th class="num">Zählerstand</th>
-      <th>Notiz</th>
-      <th></th>
+      <th scope="col">${t('utility.readingsTable.colDate')}</th>
+      <th scope="col" class="num">${t('utility.readingsTable.colCounter')}</th>
+      <th scope="col">${t('utility.readingsTable.colNote')}</th>
+      <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
     </tr></thead>
     <tbody>
     ${sorted.map(r => `<tr data-reading-id="${escapeHtml(r.id)}">
-      <td><strong>${fmt.date(r.date)}</strong> ${r.is_future ? '<span class="status-pill future">ZUKUNFT</span>' : ''} ${r.is_estimated ? '<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">SCHÄTZUNG</span>' : ''}</td>
+      <td><strong>${fmt.date(r.date)}</strong> ${r.is_future ? `<span class="status-pill future">${t('utility.readingsTable.future')}</span>` : ''} ${r.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''}</td>
       <td class="num">${fmt.num(r.counter, 1)} ${u.unit}</td>
       <td class="muted" style="font-size:12px">${escapeHtml(r.note || '')}</td>
       <td style="text-align:right;white-space:nowrap">
-        <button class="icon-btn" data-action="edit-reading" data-id="${escapeHtml(r.id)}" title="Bearbeiten">✏️</button>
-        <button class="icon-btn" data-action="delete-reading" data-id="${escapeHtml(r.id)}" title="Löschen">🗑️</button>
+        <button class="icon-btn" data-action="edit-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
+        <button class="icon-btn" data-action="delete-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
       </td>
     </tr>`).join('')}
     </tbody>
@@ -597,19 +602,19 @@ function readingsTable(readings, u) {
 // ── Lieferungen (Heizöl/Pellets) ────────────────────────────────────
 function deliveriesTable(deliveries, u) {
   if (!deliveries.length) {
-    return '<div class="empty" style="padding:32px"><div class="empty-icon">🚚</div><h3>Keine Lieferungen</h3><p>Lege die erste Brennstofflieferung an.</p></div>';
+    return `<div class="empty" style="padding:32px"><div class="empty-icon">🚚</div><h2>${t('utility.deliveriesTable.emptyTitle')}</h2><p>${t('utility.deliveriesTable.emptyText')}</p></div>`;
   }
   const unit = u.volume_unit || u.unit || 'L';
   const sorted = [...deliveries].sort((a, b) => b.date.localeCompare(a.date));
   return `<div class="table-wrap"><table class="table">
     <thead><tr>
-      <th>Datum</th>
-      <th class="num">Menge</th>
-      <th class="num">Preis/Einheit</th>
-      <th class="num">Gesamt</th>
-      <th>Lieferant</th>
-      <th>Notiz</th>
-      <th></th>
+      <th scope="col">${t('utility.deliveriesTable.colDate')}</th>
+      <th scope="col" class="num">${t('utility.deliveriesTable.colQuantity')}</th>
+      <th scope="col" class="num">${t('utility.deliveriesTable.colUnitPrice')}</th>
+      <th scope="col" class="num">${t('utility.deliveriesTable.colTotal')}</th>
+      <th scope="col">${t('utility.deliveriesTable.colSupplier')}</th>
+      <th scope="col">${t('utility.deliveriesTable.colNote')}</th>
+      <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
     </tr></thead>
     <tbody>
     ${sorted.map(d => {
@@ -618,15 +623,15 @@ function deliveriesTable(deliveries, u) {
       const tot = d.total_eur != null ? Number(d.total_eur)
                   : (upC != null ? qty * upC / 100 : null);
       return `<tr data-delivery-id="${escapeHtml(d.id)}">
-        <td><strong>${fmt.date(d.date)}</strong> ${d.is_planned ? '<span class="status-pill future">GEPLANT</span>' : ''}</td>
+        <td><strong>${fmt.date(d.date)}</strong> ${d.is_planned ? `<span class="status-pill future">${t('utility.deliveriesTable.planned')}</span>` : ''}</td>
         <td class="num">${fmt.num(qty, 0)} ${unit}</td>
         <td class="num">${upC != null ? fmt.num(upC, 2) + ' ct' : '–'}</td>
         <td class="num">${tot != null ? fmt.eur(tot) : '–'}</td>
         <td>${escapeHtml(d.supplier || '')}</td>
         <td class="muted" style="font-size:12px">${escapeHtml(d.note || '')}</td>
         <td style="text-align:right;white-space:nowrap">
-          <button class="icon-btn" data-action="edit-delivery" data-id="${escapeHtml(d.id)}" title="Bearbeiten">✏️</button>
-          <button class="icon-btn" data-action="delete-delivery" data-id="${escapeHtml(d.id)}" title="Löschen">🗑️</button>
+          <button class="icon-btn" data-action="edit-delivery" data-id="${escapeHtml(d.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
+          <button class="icon-btn" data-action="delete-delivery" data-id="${escapeHtml(d.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
         </td>
       </tr>`;
     }).join('')}
@@ -641,12 +646,12 @@ function stockTankSummary(stockHist, u) {
   const last = days.length ? days[days.length - 1] : null;
   const stock = last ? Number(last.stock || 0) : 0;
   const pct = stockHist.capacity > 0 ? (stock / stockHist.capacity * 100) : 0;
-  return `aktuell ~${fmt.num(stock, 0)} ${unit} / ${fmt.num(stockHist.capacity, 0)} ${unit} (${pct.toFixed(0)} %)`;
+  return t('utility.tank.summary', { stock: fmt.num(stock, 0), unit, cap: fmt.num(stockHist.capacity, 0), pct: pct.toFixed(0) });
 }
 
 function stockTankBar(stockHist, u) {
   if (!stockHist || !stockHist.capacity) {
-    return '<div class="empty" style="padding:24px"><p class="muted">Keine Tankkapazität hinterlegt — beim Zähler eintragen, um die Bestandskurve zu sehen.</p></div>';
+    return `<div class="empty" style="padding:24px"><p class="muted">${t('utility.tank.noCapacity')}</p></div>`;
   }
   const unit = stockHist.capacity_unit || u.volume_unit || 'L';
   const days = stockHist.days || [];
@@ -659,16 +664,15 @@ function stockTankBar(stockHist, u) {
   else if (pct <= 15) barCls = 'warn';
   return `
     <div class="tank-bar-wrap">
-      <div class="tank-bar">
+      <div class="tank-bar" aria-hidden="true">
         <div class="tank-bar__fill tank-bar__fill--${barCls}" style="width:${pct.toFixed(1)}%"></div>
       </div>
       <div class="tank-bar__legend">
-        <span><strong>${fmt.num(stock, 0)} ${unit}</strong> Restbestand (modelliert)</span>
-        <span class="muted">${pct.toFixed(0)} % von ${fmt.num(cap, 0)} ${unit}</span>
+        <span>${t('utility.tank.remaining', { stock: `<strong>${fmt.num(stock, 0)}</strong>`, unit })}</span>
+        <span class="muted">${t('utility.tank.ofCap', { pct: pct.toFixed(0), cap: fmt.num(cap, 0), unit })}</span>
       </div>
       <p class="muted" style="font-size:12px;margin-top:8px">
-        Der Bestand wird aus Anfangsbestand + Lieferungen − HGT-gewichtetem Verbrauch
-        modelliert; er ist eine Schätzung, keine Tankpeilung.
+        ${t('utility.tank.modelNote')}
       </p>
     </div>`;
 }
@@ -699,7 +703,7 @@ function drawMonthChart(canvasId, monthly, u) {
         },
         {
           type: 'line',
-          label: 'ø Temperatur',
+          label: t('utility.chart.temp'),
           data: temp,
           borderColor: themeColors.accent,
           backgroundColor: 'transparent',
@@ -718,7 +722,7 @@ function drawMonthChart(canvasId, monthly, u) {
         y1: { position: 'right', title: { display: true, text: '°C' }, grid: { drawOnChartArea: false } },
       },
     }
-  });
+  }, { label: t('utility.chart.alt') });
 }
 
 function utilityColor(key) {
@@ -748,9 +752,10 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
   });
 
   // Reading actions
+  const lastRd = [...readings].filter(r => !r.is_future).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
   const newReadingHandlers = ['#header-new-reading', '#banner-new-reading', '#btn-new-reading'];
   newReadingHandlers.forEach(sel => {
-    container.querySelector(sel)?.addEventListener('click', () => openReadingModal(container, u, meter, null));
+    container.querySelector(sel)?.addEventListener('click', () => openReadingModal(container, u, meter, null, lastRd));
   });
 
   container.querySelectorAll('[data-action="edit-reading"]').forEach(btn => {
@@ -764,8 +769,8 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
       const reading = readings.find(r => r.id === id);
-      if (!confirm(`Ablesung vom ${fmt.date(reading?.date)} wirklich löschen?`)) return;
-      try { await api.deleteReading(u.key, id); toastOk('Ablesung gelöscht'); rerender(container); }
+      if (!confirm(t('utility.confirm.deleteReading', { date: fmt.date(reading?.date) }))) return;
+      try { await api.deleteReading(u.key, id); toastOk(t('utility.toast.readingDeleted')); rerender(container); }
       catch (e) { toastErr(e.message); }
     });
   });
@@ -784,8 +789,8 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
       const d = deliveries.find(x => x.id === id);
-      if (!confirm(`Lieferung vom ${fmt.date(d?.date)} wirklich löschen?`)) return;
-      try { await api.deleteDelivery(u.key, id); toastOk('Lieferung gelöscht'); rerender(container); }
+      if (!confirm(t('utility.confirm.deleteDelivery', { date: fmt.date(d?.date) }))) return;
+      try { await api.deleteDelivery(u.key, id); toastOk(t('utility.toast.deliveryDeleted')); rerender(container); }
       catch (e) { toastErr(e.message); }
     });
   });
@@ -797,39 +802,64 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
 }
 
 // ── Reading modal (add / edit) ──────────────────────────────────────
-function openReadingModal(container, u, meter, reading) {
+function openReadingModal(container, u, meter, reading, lastReading = null) {
   const isEdit = !!reading;
   const today = todayIso();
   const body = `
     <form id="reading-form">
       <div class="field">
-        <label>Datum</label>
-        <input class="input" type="date" name="date" value="${reading?.date || today}" required>
+        <label for="rf-date">${t('utility.readingModal.date')}</label>
+        <input class="input" id="rf-date" type="date" name="date" value="${reading?.date || today}" required>
       </div>
       <div class="field">
-        <label>Zählerstand (${u.unit})</label>
-        <input class="input" type="number" step="0.01" name="counter" value="${reading?.counter ?? ''}" required>
+        <label for="rf-counter">${t('utility.readingModal.counter', { unit: u.unit })}</label>
+        <input class="input" id="rf-counter" type="number" step="0.01" name="counter" value="${reading?.counter ?? ''}" required>
+        <div class="reading-card__preview" data-role="preview" hidden></div>
       </div>
       <div class="field">
-        <label>Notiz (optional)</label>
-        <input class="input input--text" type="text" name="note" value="${escapeHtml(reading?.note || '')}">
+        <label for="rf-note">${t('utility.readingModal.note')}</label>
+        <input class="input input--text" id="rf-note" type="text" name="note" value="${escapeHtml(reading?.note || '')}">
       </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
           <input type="checkbox" name="is_estimated" ${reading?.is_estimated ? 'checked' : ''}>
-          <span>Geschätzt / korrigierter Wert</span>
+          <span>${t('utility.readingModal.estimated')}</span>
         </label>
       </div>
     </form>
   `;
   const footer = `
-    <button type="button" class="btn btn--ghost" data-act="cancel">Abbrechen</button>
-    <button type="button" class="btn btn--primary" data-act="save">${isEdit ? 'Speichern' : 'Anlegen'}</button>
+    <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+    <button type="button" class="btn btn--primary" data-act="save">${isEdit ? t('utility.readingModal.save') : t('utility.readingModal.create')}</button>
   `;
   openModal({
-    title: isEdit ? `Ablesung bearbeiten · ${u.label}` : `Neue Ablesung · ${u.label}`,
+    title: isEdit ? t('utility.readingModal.titleEdit', { label: u.label }) : t('utility.readingModal.titleNew', { label: u.label }),
     body, footer,
     onMount({ modalEl, close }) {
+      // B — Verbrauchs-Vorschau beim Eingeben (nur im Anlegen-Modus mit
+      // bekanntem letztem Stand).
+      const counterEl = modalEl.querySelector('input[name="counter"]');
+      const dateEl    = modalEl.querySelector('input[name="date"]');
+      const previewEl = modalEl.querySelector('[data-role="preview"]');
+      const updatePreview = () => {
+        if (!previewEl || isEdit || !lastReading || lastReading.counter == null) return;
+        const v = parseFloat(String(counterEl.value).replace(',', '.'));
+        if (Number.isNaN(v)) { previewEl.hidden = true; return; }
+        const diff = v - Number(lastReading.counter);
+        const delta = (diff < 0 ? '−' : '+') + fmt.num(Math.abs(diff), 2);
+        let days = null;
+        if (lastReading.date && dateEl.value) {
+          const d = Math.round((new Date(dateEl.value) - new Date(lastReading.date)) / 86400000);
+          if (Number.isFinite(d) && d > 0) days = d;
+        }
+        previewEl.hidden = false;
+        previewEl.textContent = days != null
+          ? t('utility.preview.sinceLastDays', { delta, unit: u.unit, days })
+          : t('utility.preview.sinceLast', { delta, unit: u.unit });
+      };
+      counterEl?.addEventListener('input', updatePreview);
+      dateEl?.addEventListener('change', updatePreview);
+
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
       modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
         const form = modalEl.querySelector('#reading-form');
@@ -840,11 +870,11 @@ function openReadingModal(container, u, meter, reading) {
           note: form.note.value,
           is_estimated: form.is_estimated.checked,
         };
-        if (!data.date || isNaN(data.counter)) { toastErr('Datum und Zählerstand sind Pflicht.'); return; }
+        if (!data.date || isNaN(data.counter)) { toastErr(t('utility.readingModal.validation')); return; }
         try {
           if (isEdit) await api.updateReading(u.key, reading.id, data);
           else        await api.createReading(u.key, data);
-          toastOk(isEdit ? 'Ablesung aktualisiert' : 'Ablesung gespeichert');
+          toastOk(isEdit ? t('utility.readingModal.savedEdit') : t('utility.readingModal.savedNew'));
           close(true);
           rerender(container);
         } catch (e) { toastErr(e.message); }
@@ -861,43 +891,43 @@ function openDeliveryModal(container, u, meter, delivery) {
   const body = `
     <form id="delivery-form">
       <div class="field">
-        <label>Lieferdatum</label>
-        <input class="input" type="date" name="date" value="${delivery?.date || today}" required>
+        <label for="df-date">${t('utility.deliveryModal.date')}</label>
+        <input class="input" id="df-date" type="date" name="date" value="${delivery?.date || today}" required>
       </div>
       <div class="field">
-        <label>Menge (${unit})</label>
-        <input class="input" type="number" step="0.01" name="quantity" value="${delivery?.quantity ?? ''}" required>
+        <label for="df-quantity">${t('utility.deliveryModal.quantity', { unit })}</label>
+        <input class="input" id="df-quantity" type="number" step="0.01" name="quantity" value="${delivery?.quantity ?? ''}" required>
       </div>
       <div class="field">
-        <label>Preis pro ${unit} (ct, optional)</label>
-        <input class="input" type="number" step="0.01" name="unit_price_cents" value="${delivery?.unit_price_cents ?? ''}">
+        <label for="df-unit-price">${t('utility.deliveryModal.unitPrice', { unit })}</label>
+        <input class="input" id="df-unit-price" type="number" step="0.01" name="unit_price_cents" value="${delivery?.unit_price_cents ?? ''}">
       </div>
       <div class="field">
-        <label>Gesamtbetrag (€, optional — überschreibt Preis×Menge)</label>
-        <input class="input" type="number" step="0.01" name="total_eur" value="${delivery?.total_eur ?? ''}">
+        <label for="df-total">${t('utility.deliveryModal.total')}</label>
+        <input class="input" id="df-total" type="number" step="0.01" name="total_eur" value="${delivery?.total_eur ?? ''}">
       </div>
       <div class="field">
-        <label>Lieferant (optional)</label>
-        <input class="input input--text" type="text" name="supplier" value="${escapeHtml(delivery?.supplier || '')}">
+        <label for="df-supplier">${t('utility.deliveryModal.supplier')}</label>
+        <input class="input input--text" id="df-supplier" type="text" name="supplier" value="${escapeHtml(delivery?.supplier || '')}">
       </div>
       <div class="field">
-        <label>Notiz (optional)</label>
-        <input class="input input--text" type="text" name="note" value="${escapeHtml(delivery?.note || '')}">
+        <label for="df-note">${t('utility.deliveryModal.note')}</label>
+        <input class="input input--text" id="df-note" type="text" name="note" value="${escapeHtml(delivery?.note || '')}">
       </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
           <input type="checkbox" name="is_planned" ${delivery?.is_planned ? 'checked' : ''}>
-          <span>Geplante (noch nicht erfolgte) Lieferung</span>
+          <span>${t('utility.deliveryModal.planned')}</span>
         </label>
       </div>
     </form>
   `;
   const footer = `
-    <button type="button" class="btn btn--ghost" data-act="cancel">Abbrechen</button>
-    <button type="button" class="btn btn--primary" data-act="save">${isEdit ? 'Speichern' : 'Anlegen'}</button>
+    <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+    <button type="button" class="btn btn--primary" data-act="save">${isEdit ? t('utility.readingModal.save') : t('utility.readingModal.create')}</button>
   `;
   openModal({
-    title: isEdit ? `Lieferung bearbeiten · ${u.label}` : `Neue Lieferung · ${u.label}`,
+    title: isEdit ? t('utility.deliveryModal.titleEdit', { label: u.label }) : t('utility.deliveryModal.titleNew', { label: u.label }),
     body, footer,
     onMount({ modalEl, close }) {
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
@@ -905,7 +935,7 @@ function openDeliveryModal(container, u, meter, delivery) {
         const form = modalEl.querySelector('#delivery-form');
         const qty = Number(form.quantity.value);
         if (!form.date.value || isNaN(qty) || qty <= 0) {
-          toastErr('Datum und positive Menge sind Pflicht.'); return;
+          toastErr(t('utility.deliveryModal.validation')); return;
         }
         const data = {
           meter_id: meter.id,
@@ -922,7 +952,7 @@ function openDeliveryModal(container, u, meter, delivery) {
         try {
           if (isEdit) await api.updateDelivery(u.key, delivery.id, data);
           else        await api.createDelivery(u.key, data);
-          toastOk(isEdit ? 'Lieferung aktualisiert' : 'Lieferung gespeichert');
+          toastOk(isEdit ? t('utility.deliveryModal.savedEdit') : t('utility.deliveryModal.savedNew'));
           close(true);
           rerender(container);
         } catch (e) { toastErr(e.message); }

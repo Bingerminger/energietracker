@@ -10,13 +10,44 @@ declare(strict_types=1);
 
 $version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.3.0';
 $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
+
+// N1009 — Sprache der Shell aus dem `language`-Setting ableiten, damit
+// <html lang> und die serverseitig gerenderten Shell-Strings schon beim
+// ersten Paint korrekt sind (vor dem JS-i18n-Init). Fallback: 'de'.
+$lang = 'de';
+$settingsFile = __DIR__ . '/data/settings.json';
+if (is_file($settingsFile)) {
+    $s = json_decode((string)@file_get_contents($settingsFile), true);
+    if (is_array($s) && in_array($s['language'] ?? '', ['de', 'en'], true)) {
+        $lang = $s['language'];
+    }
+}
+$catalog = json_decode((string)@file_get_contents(__DIR__ . "/public/locales/$lang.json"), true) ?: [];
+// Minimaler Katalog-Lookup für die wenigen Shell-Strings (Skip-Link, Nav-Label,
+// Theme-Toggle, Lade-Text). Das volle t() läuft im Frontend.
+$tShell = function (string $path, string $fallback) use ($catalog): string {
+    $ref = $catalog;
+    foreach (explode('.', $path) as $k) {
+        if (!is_array($ref) || !array_key_exists($k, $ref)) return $fallback;
+        $ref = $ref[$k];
+    }
+    return is_string($ref) ? $ref : $fallback;
+};
+$h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 ?>
 <!doctype html>
-<html lang="de">
+<html lang="<?= $h($lang) ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111827">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Energietracker">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Energietracker <?= htmlspecialchars($version, ENT_QUOTES) ?></title>
 <link rel="icon" type="image/png" sizes="32x32" href="public/img/icon-light-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="public/img/icon-light-16.png">
@@ -50,7 +81,8 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 <link rel="stylesheet" href="public/css/components.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/readings-entry.css?v=<?= $cb ?>">
 </head>
-<body data-app-version="<?= htmlspecialchars($version, ENT_QUOTES) ?>">
+<body data-app-version="<?= $h($version) ?>">
+<a class="skip-link" href="#view"><?= $h($tShell('app.skipToContent', 'Zum Hauptinhalt springen')) ?></a>
 <div id="app" class="layout">
 
   <!-- Thin top bar -->
@@ -61,17 +93,17 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
       <span class="topbar__version">v<?= htmlspecialchars($version, ENT_QUOTES) ?></span>
     </div>
     <div class="topbar__actions">
-      <button type="button" id="theme-toggle" class="topbar__btn" aria-label="Theme wechseln" title="Theme wechseln">
+      <button type="button" id="theme-toggle" class="topbar__btn" aria-label="<?= $h($tShell('app.themeToggle', 'Theme wechseln')) ?>" title="<?= $h($tShell('app.themeToggle', 'Theme wechseln')) ?>">
         <span class="topbar__btn-icon" aria-hidden="true"></span>
       </button>
-      <div class="topbar__status" id="topbar-status"></div>
+      <div class="topbar__status" id="topbar-status" role="status" aria-live="polite"></div>
     </div>
   </header>
 
   <!-- Left sidebar -->
   <aside class="sidebar" id="sidebar">
-    <nav class="sidebar__nav" id="primary-nav">
-      <div class="loading">…</div>
+    <nav class="sidebar__nav" id="primary-nav" aria-label="<?= $h($tShell('app.primaryNav', 'Hauptnavigation')) ?>">
+      <div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt…')) ?></div>
     </nav>
     <div class="sidebar__footer">
       <a href="https://github.com/Bingerminger/energietracker" target="_blank" rel="noopener">GitHub</a>
@@ -81,7 +113,7 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
   </aside>
 
   <!-- Main content -->
-  <main id="view" class="view"><div class="loading">Lade…</div></main>
+  <main id="view" class="view" tabindex="-1"><div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt…')) ?></div></main>
 
   <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
   <div id="modal-root"></div>
@@ -89,5 +121,15 @@ $cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script type="module" src="public/js/app.js?v=<?= $cb ?>"></script>
+<!-- N1008 (PWA) — Service Worker registrieren. Inline (kein Modul), damit der
+     relative Pfad 'sw.js' gegen die Dokument-URL (Web-Wurzel) auflöst und der
+     Worker Root-Scope erhält. -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
 </body>
 </html>

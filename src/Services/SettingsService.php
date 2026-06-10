@@ -81,6 +81,10 @@ final class SettingsService
         // bleiben aufrufbar, nur UI blendet sie aus.
         'active_utilities'         => ['gas', 'strom', 'wasser'],
 
+        // ── Lokalisierung (N1007 / v2.0.0) ──
+        // additiv, kein Schema-Bump; vom I18nService + Frontend genutzt.
+        'language'                 => 'de',     // 'de' | 'en'
+
         // ── v1.3.0 — Gebäude-Stammdaten für kWh/m²-Benchmark ──
         'wohnflaeche_m2'           => 100,
         'baujahr'                  => null,

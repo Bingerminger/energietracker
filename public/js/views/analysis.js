@@ -12,21 +12,29 @@ import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
+import { t, getLocale } from '../lib/i18n.js';
+
+// Locale-bewusste Kurz-Monatsnamen für die Chart-Achsen.
+const MONTHS = {
+  de: ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
+  en: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+};
+const monthNames = () => MONTHS[getLocale()] || MONTHS.de;
 
 let charts = [];
 
 export async function render(container) {
-  container.innerHTML = '<div class="loading">Lade…</div>';
+  container.innerHTML = `<div class="loading">${t('analysis.loading')}</div>`;
   const utilities = await getUtilities();
 
   container.innerHTML = `
     <div class="section-head">
-      <h1>📊 Analyse</h1>
+      <h1>${t('analysis.title')}</h1>
       <div class="section-actions">
-        <select class="select" id="util-select">
+        <select class="select" id="util-select" aria-label="${t('analysis.selectUtility')}">
           ${utilities.map(u => `<option value="${u.key}">${u.icon} ${escapeHtml(u.label)}</option>`).join('')}
         </select>
-        <select class="select" id="meter-select"></select>
+        <select class="select" id="meter-select" aria-label="${t('analysis.selectMeter')}"></select>
       </div>
     </div>
     <div id="analysis-body"><div class="loading">…</div></div>
@@ -39,10 +47,10 @@ export async function render(container) {
   async function reload() {
     destroyCharts();
     const utility = utilities.find(u => u.key === utilSel.value);
-    body.innerHTML = '<div class="loading">Lade…</div>';
+    body.innerHTML = `<div class="loading">${t('analysis.loading')}</div>`;
     const meters = await api.meters(utility.key);
     meterSel.innerHTML = meters.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
-    if (!meters.length) { body.innerHTML = '<p class="muted">Keine Zähler.</p>'; return; }
+    if (!meters.length) { body.innerHTML = `<p class="muted">${t('analysis.noMeters')}</p>`; return; }
     await renderForMeter(utility, meterSel.value || meters[0].id, body);
   }
 
@@ -50,7 +58,7 @@ export async function render(container) {
   meterSel.addEventListener('change', async () => {
     const utility = utilities.find(u => u.key === utilSel.value);
     destroyCharts();
-    body.innerHTML = '<div class="loading">Lade…</div>';
+    body.innerHTML = `<div class="loading">${t('analysis.loading')}</div>`;
     await renderForMeter(utility, meterSel.value, body);
   });
 
@@ -85,20 +93,20 @@ async function renderForMeter(u, meterId, body) {
     <div class="grid grid-2">
       ${u.hgt_relevant ? `
         <div class="card">
-          <h3 class="card__title">HGT-Korrelation · vier Regressionsmodelle</h3>
+          <h3 class="card__title">${t('analysis.hgtTitle')}</h3>
           <div class="chart-wrap"><canvas id="ch-hdd"></canvas></div>
           <div class="regression-summary" id="reg-summary"></div>
         </div>
       ` : `
         <div class="card">
-          <h3 class="card__title">Saisonprofil</h3>
+          <h3 class="card__title">${t('analysis.seasonalTitle')}</h3>
           <div class="chart-wrap"><canvas id="ch-seasonal"></canvas></div>
-          <p class="muted">${escapeHtml(u.label)} ist nicht temperaturabhängig — Saisonprofil statt HGT.</p>
+          <p class="muted">${t('analysis.notTempDependent', { label: escapeHtml(u.label) })}</p>
         </div>
       `}
 
       <div class="card">
-        <h3 class="card__title">Jahresvergleich</h3>
+        <h3 class="card__title">${t('analysis.yearComparison')}</h3>
         <div class="chart-wrap"><canvas id="ch-years"></canvas></div>
       </div>
     </div>
@@ -106,22 +114,20 @@ async function renderForMeter(u, meterId, body) {
     ${renderYoyWidget(monthly, u, consKey)}
 
     <div class="card" style="margin-top: var(--sp-5)">
-      <h3 class="card__title">Anomalien (${anomalies.length})</h3>
-      ${anomalies.length === 0 ? '<p class="muted">Keine Anomalien erkannt — alle Monate liegen innerhalb des Erwartungsbereichs (σ-Schwelle aus Einstellungen).</p>' : `
+      <h3 class="card__title">${t('analysis.anomalies', { count: anomalies.length })}</h3>
+      ${anomalies.length === 0 ? `<p class="muted">${t('analysis.noAnomalies')}</p>` : `
         <p class="muted" style="margin-bottom:12px">
-          ${u.hgt_relevant
-            ? 'Monate, deren Verbrauch mehr als die σ-Schwelle vom HGT-Regressionsmodell abweicht.'
-            : 'Monate, deren Verbrauch mehr als die σ-Schwelle vom Saisonprofil abweicht.'}
+          ${u.hgt_relevant ? t('analysis.anomalyExplainHgt') : t('analysis.anomalyExplainSeasonal')}
         </p>
         <div class="table-wrap"><table class="table">
           <thead><tr>
-            <th>Monat</th>
-            <th class="num">Verbrauch</th>
-            <th class="num">Erwartet</th>
-            <th class="num">Δ absolut</th>
-            <th class="num">Δ %</th>
-            <th class="num">σ-Wert</th>
-            ${u.hgt_relevant ? '<th class="num">HGT</th><th class="num">ø Temp</th>' : ''}
+            <th scope="col">${t('analysis.anomalyCol.month')}</th>
+            <th scope="col" class="num">${t('analysis.anomalyCol.consumption')}</th>
+            <th scope="col" class="num">${t('analysis.anomalyCol.expected')}</th>
+            <th scope="col" class="num">${t('analysis.anomalyCol.deltaAbs')}</th>
+            <th scope="col" class="num">${t('analysis.anomalyCol.deltaPct')}</th>
+            <th scope="col" class="num">${t('analysis.anomalyCol.sigma')}</th>
+            ${u.hgt_relevant ? `<th scope="col" class="num">${t('analysis.anomalyCol.hgt')}</th><th scope="col" class="num">${t('analysis.anomalyCol.temp')}</th>` : ''}
           </tr></thead>
           <tbody>
             ${anomalies.map(a => {
@@ -180,12 +186,13 @@ function predictFor(model, reg, x) {
 }
 
 const MODEL_STYLE = {
-  linear:     { label: 'Linear',         color: '#60a5fa', dash: []      },
-  polynomial: { label: 'Polynomial (2)', color: '#a78bfa', dash: [6, 4]  },
-  robust:     { label: 'Robust (Huber)', color: '#10b981', dash: [2, 3]  },
-  segmented:  { label: 'Segmentiert',    color: '#f59e0b', dash: [10, 4] },
-  sigmoid:    { label: 'Sigmoid',        color: '#ec4899', dash: [4, 2]  },
+  linear:     { color: '#60a5fa', dash: []      },
+  polynomial: { color: '#a78bfa', dash: [6, 4]  },
+  robust:     { color: '#10b981', dash: [2, 3]  },
+  segmented:  { color: '#f59e0b', dash: [10, 4] },
+  sigmoid:    { color: '#ec4899', dash: [4, 2]  },
 };
+const modelLabel = (m) => t('analysis.model.' + m);
 
 function renderHgtScatter(monthly, u, consKey, regressions) {
   const canvas = document.getElementById('ch-hdd');
@@ -214,7 +221,7 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
       if (y !== null) linePoints.push({ x, y });
     }
     lineDatasets.push({
-      label: style.label,
+      label: modelLabel(model),
       data: linePoints,
       type: 'line',
       borderColor: style.color,
@@ -231,7 +238,7 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
     type: 'scatter',
     data: {
       datasets: [
-        { label: 'Monate', data: points, backgroundColor: u.color, pointRadius: 4 },
+        { label: t('analysis.scatterPoints'), data: points, backgroundColor: u.color, pointRadius: 4 },
         ...lineDatasets,
       ],
     },
@@ -243,7 +250,7 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
         y: { title: { display: true, text: u.consumption_unit } },
       },
     }
-  }));
+  }, { label: t('analysis.chartAlt.hdd') }));
 
   // R² summary table — sortiert nach R² absteigend
   const ranked = summaryRows
@@ -255,14 +262,14 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
   if (note) {
     note.innerHTML = `
       <table class="table table--compact">
-        <thead><tr><th>Modell</th><th class="num">R²</th><th class="num">n</th><th>Koeffizienten</th></tr></thead>
+        <thead><tr><th scope="col">${t('analysis.reg.model')}</th><th scope="col" class="num">R²</th><th scope="col" class="num">${t('analysis.reg.n')}</th><th scope="col">${t('analysis.reg.coeffs')}</th></tr></thead>
         <tbody>
           ${ranked.map(r => `
             <tr class="${bestModel && r.model === bestModel.model ? 'is-best' : ''}">
               <td>
                 <span class="legend-swatch" style="background:${r.style.color}; ${r.style.dash.length ? `outline:1px dashed ${r.style.color}; outline-offset:1px;` : ''}"></span>
-                ${r.style.label}
-                ${bestModel && r.model === bestModel.model ? '<span class="badge badge--success">bestes Fit</span>' : ''}
+                ${modelLabel(r.model)}
+                ${bestModel && r.model === bestModel.model ? `<span class="badge badge--success">${t('analysis.reg.bestFit')}</span>` : ''}
               </td>
               <td class="num">${r.reg?.valid ? r.reg.r2.toFixed(3) : '–'}</td>
               <td class="num">${r.reg?.n ?? '–'}</td>
@@ -276,12 +283,12 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
 }
 
 function formatCoefficients(model, reg, u) {
-  if (!reg?.valid) return 'zu wenige Datenpunkte';
+  if (!reg?.valid) return t('analysis.reg.tooFew');
   const unit = u.consumption_unit;
   switch (model) {
     case 'linear':
     case 'robust':
-      return `${unit}/HGT = ${(reg.a ?? 0).toFixed(2)}, Achsenabschnitt = ${(reg.b ?? 0).toFixed(1)}`;
+      return `${unit}/HGT = ${(reg.a ?? 0).toFixed(2)}, ${t('analysis.reg.intercept')} = ${(reg.b ?? 0).toFixed(1)}`;
     case 'polynomial':
       return `a = ${(reg.a ?? 0).toExponential(2)}, b = ${(reg.b ?? 0).toFixed(2)}, c = ${(reg.c ?? 0).toFixed(1)}`;
     case 'segmented': {
@@ -302,12 +309,12 @@ function renderSeasonalProfile(monthly, u, consKey) {
   const buckets = Array.from({length:12}, () => []);
   monthly.forEach(m => { if (m[consKey] > 0) buckets[m.month-1].push(m[consKey]); });
   const avgs = buckets.map(arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0);
-  const labels = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const labels = monthNames();
   charts.push(makeChart(canvas, {
     type: 'bar',
-    data: { labels, datasets: [{ label: u.label + ' ø', data: avgs, backgroundColor: u.color + '88', borderColor: u.color }] },
+    data: { labels, datasets: [{ label: t('analysis.seasonalAvg', { label: u.label }), data: avgs, backgroundColor: u.color + '88', borderColor: u.color }] },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: u.consumption_unit } } } }
-  }));
+  }, { label: t('analysis.chartAlt.seasonal') }));
 }
 
 function renderYearComparison(monthly, u, consKey) {
@@ -323,7 +330,7 @@ function renderYearComparison(monthly, u, consKey) {
   charts.push(makeChart(canvas, {
     type: 'line',
     data: {
-      labels: ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
+      labels: monthNames(),
       datasets: years.map((y, i) => ({
         label: y, data: byYear[y],
         borderColor: colors[i % colors.length],
@@ -332,7 +339,7 @@ function renderYearComparison(monthly, u, consKey) {
       })),
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: u.consumption_unit } } } }
-  }));
+  }, { label: t('analysis.chartAlt.years') }));
 }
 
 // ── F-05: contract-end reminders ───────────────────────────────────
@@ -345,19 +352,21 @@ function renderContractReminders(contractStatus) {
   if (!due.length) return '';
 
   const stageClass = { 1: 'banner--info', 2: 'banner--warning', 3: 'banner--error' };
-  const stageLabel = { 1: 'Vorwarnung', 2: 'Erinnerung', 3: 'Dringend' };
 
   return due.map(c => {
     const stage = c.remind_stage || 1;
     const days = c.days_until_end;
-    const provider = c.provider || c.tariff_name || 'Vertrag';
+    const provider = c.provider || c.tariff_name || t('analysis.contractEnd.fallbackProvider');
+    const stageLabel = t('analysis.contractEnd.stage' + stage);
+    const when = days === 0 ? t('analysis.contractEnd.endsToday')
+      : days === 1 ? t('analysis.contractEnd.endsTomorrow')
+      : t('analysis.contractEnd.endsInDays', { days });
     return `
       <div class="banner ${stageClass[stage] || 'banner--info'}" style="margin-bottom: var(--sp-3)">
-        <strong>Vertragsende ${stageLabel[stage] || ''}:</strong>
-        ${escapeHtml(provider)} endet
-        ${days === 0 ? 'heute' : days === 1 ? 'morgen' : `in ${days} Tagen`}
+        <strong>${t('analysis.contractEnd.title', { stage: stageLabel })}</strong>
+        ${t('analysis.contractEnd.ends', { provider: escapeHtml(provider), when })}
         ${c.end ? `(${fmt.date(c.end)})` : ''}.
-        <span class="muted"> Kündigungsfrist und Anschlussvertrag prüfen.</span>
+        <span class="muted"> ${t('analysis.contractEnd.checkNote')}</span>
       </div>
     `;
   }).join('');
@@ -377,18 +386,18 @@ function renderYoyWidget(monthly, u, consKey) {
   if (years.length < 2) {
     return `
       <div class="card" style="margin-top: var(--sp-5)">
-        <h3 class="card__title">Jahresvergleich · Monatsdeltas</h3>
-        <p class="muted">Mindestens zwei Jahre mit Daten nötig — aktuell ${years.length}.</p>
+        <h3 class="card__title">${t('analysis.yoy.title')}</h3>
+        <p class="muted">${t('analysis.yoy.needTwo', { count: years.length })}</p>
       </div>
     `;
   }
   const prev = years[years.length - 2];
   const curr = years[years.length - 1];
-  const monthNames = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const names = monthNames();
   const unit = u.consumption_unit;
 
   let sumPrev = 0, sumCurr = 0, nBoth = 0;
-  const rows = monthNames.map((name, i) => {
+  const rows = names.map((name, i) => {
     const a = byYear[prev][i];
     const b = byYear[curr][i];
     let delta = null, pct = null;
@@ -415,14 +424,14 @@ function renderYoyWidget(monthly, u, consKey) {
 
   return `
     <div class="card" style="margin-top: var(--sp-5)">
-      <h3 class="card__title">Jahresvergleich · Monatsdeltas (${prev} → ${curr})</h3>
+      <h3 class="card__title">${t('analysis.yoy.titleYears', { prev, curr })}</h3>
       <div class="table-wrap"><table class="table">
         <thead><tr>
-          <th>Monat</th>
-          <th class="num">${prev} (${unit})</th>
-          <th class="num">${curr} (${unit})</th>
-          <th class="num">Δ absolut</th>
-          <th class="num">Δ %</th>
+          <th scope="col">${t('analysis.yoy.colMonth')}</th>
+          <th scope="col" class="num">${t('analysis.yoy.colYear', { year: prev, unit })}</th>
+          <th scope="col" class="num">${t('analysis.yoy.colYear', { year: curr, unit })}</th>
+          <th scope="col" class="num">${t('analysis.yoy.colDeltaAbs')}</th>
+          <th scope="col" class="num">${t('analysis.yoy.colDeltaPct')}</th>
         </tr></thead>
         <tbody>
           ${rows.map(r => `
@@ -435,15 +444,14 @@ function renderYoyWidget(monthly, u, consKey) {
           `).join('')}
         </tbody>
         <tfoot><tr>
-          <td><strong>Summe (gemeinsame Monate)</strong></td>
+          <td><strong>${t('analysis.yoy.sumRow')}</strong></td>
           <td class="num">${cell(nBoth ? sumPrev : null)}</td>
           <td class="num">${cell(nBoth ? sumCurr : null)}</td>
           ${deltaCell(totalDelta, totalPct)}
         </tr></tfoot>
       </table></div>
       <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">
-        Vergleich nur über Monate, die in beiden Jahren Daten haben.
-        Positive Werte = Mehrverbrauch gegenüber dem Vorjahr.
+        ${t('analysis.yoy.note')}
       </p>
     </div>
   `;
@@ -465,8 +473,8 @@ async function renderWaterSparindex(monthly) {
   if (!recent.length) {
     return `
       <div class="card">
-        <h3 class="card__title">💧 Wasser-Spar-Index</h3>
-        <p class="muted">Noch keine ausreichenden Verbrauchsdaten.</p>
+        <h3 class="card__title">${t('analysis.spar.title')}</h3>
+        <p class="muted">${t('analysis.spar.noData')}</p>
       </div>
     `;
   }
@@ -481,9 +489,9 @@ async function renderWaterSparindex(monthly) {
              : index >= bandWarn ? 'warnung'
              : 'mittel';
   const bandMeta = {
-    gut:     { cls: 'success', label: 'Unauffällig', note: 'Verbrauch im oder unter dem Referenzbereich.' },
-    mittel:  { cls: 'warning', label: 'Beobachten',  note: 'Verbrauch über dem guten Band, aber noch unter der Warnschwelle.' },
-    warnung: { cls: 'danger',  label: 'Sparpotenzial', note: 'Verbrauch deutlich über der Referenz — Einsparpotenzial prüfen.' },
+    gut:     { cls: 'success', label: t('analysis.spar.bandGutLabel'),    note: t('analysis.spar.bandGutNote') },
+    mittel:  { cls: 'warning', label: t('analysis.spar.bandMittelLabel'), note: t('analysis.spar.bandMittelNote') },
+    warnung: { cls: 'danger',  label: t('analysis.spar.bandWarnLabel'),   note: t('analysis.spar.bandWarnNote') },
   }[band];
 
   // Position of the index on a 0..(bandWarn × 1.5) scale for the bar.
@@ -494,23 +502,26 @@ async function renderWaterSparindex(monthly) {
 
   return `
     <div class="card">
-      <h3 class="card__title">💧 Wasser-Spar-Index</h3>
+      <h3 class="card__title">${t('analysis.spar.title')}</h3>
       <div class="sparindex">
         <div class="sparindex__main">
           <div class="sparindex__value ${bandMeta.cls}-text">${fmt.num(index, 0)}</div>
           <div class="sparindex__badge badge badge--${bandMeta.cls}">${bandMeta.label}</div>
         </div>
         <div class="sparindex__detail">
-          <div>${fmt.num(litersPerPersonDay, 0)} L / Person / Tag
-               <span class="muted">· Referenz ${fmt.num(referenz, 0)} L</span></div>
+          <div>${t('analysis.spar.perPersonDay', { liters: fmt.num(litersPerPersonDay, 0) })}
+               <span class="muted">${t('analysis.spar.reference', { ref: fmt.num(referenz, 0) })}</span></div>
           <div class="muted" style="font-size: var(--fs-xs)">
-            Basis: ${recent.length} Monat${recent.length === 1 ? '' : 'e'} ·
-            ${fmt.num(totalM3, 1)} m³ · ${personen} Person${personen === 1 ? '' : 'en'}
+            ${t('analysis.spar.basis', {
+              months: recent.length === 1 ? t('analysis.spar.monthsOne', { count: recent.length }) : t('analysis.spar.monthsMany', { count: recent.length }),
+              m3: fmt.num(totalM3, 1),
+              persons: personen === 1 ? t('analysis.spar.personsOne', { count: personen }) : t('analysis.spar.personsMany', { count: personen }),
+            })}
           </div>
         </div>
       </div>
       <div class="sparindex__bar">
-        <div class="sparindex__bar-track">
+        <div class="sparindex__bar-track" aria-hidden="true">
           <div class="sparindex__bar-zone sparindex__bar-zone--gut" style="width:${gutPos}%"></div>
           <div class="sparindex__bar-zone sparindex__bar-zone--mittel" style="left:${gutPos}%;width:${warnPos - gutPos}%"></div>
           <div class="sparindex__bar-zone sparindex__bar-zone--warnung" style="left:${warnPos}%;right:0"></div>
@@ -518,13 +529,12 @@ async function renderWaterSparindex(monthly) {
         </div>
         <div class="sparindex__bar-labels">
           <span>0</span>
-          <span>gut ≤ ${bandGut}</span>
-          <span>Warnung ≥ ${bandWarn}</span>
+          <span>${t('analysis.spar.barGut', { value: bandGut })}</span>
+          <span>${t('analysis.spar.barWarn', { value: bandWarn })}</span>
         </div>
       </div>
       <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-3)">
-        ${bandMeta.note} Index 100 = exakt der in den Einstellungen hinterlegte
-        Referenzverbrauch pro Person.
+        ${t('analysis.spar.indexNote', { bandNote: bandMeta.note })}
       </p>
     </div>
   `;

@@ -28,6 +28,7 @@ final class TariffComparisonService
         private ConsumptionService $consumption,
         private ContractService $contracts,
         private MeterService $meters,
+        private I18nService $i18n,
     ) {}
 
     /**
@@ -48,11 +49,11 @@ final class TariffComparisonService
     public function compare(string $utility, string $meterId, ?int $year = null): array
     {
         if (!Utilities::exists($utility)) {
-            throw new \InvalidArgumentException('Unbekannte Verbrauchsart: ' . $utility);
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) {
-            throw new \RuntimeException('Zähler nicht gefunden: ' . $meterId);
+            throw new \RuntimeException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
 
         if ($utility === 'wasser') {

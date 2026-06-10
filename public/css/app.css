@@ -20,6 +20,56 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { color: var(--accent-hover); text-decoration: underline; }
 h1, h2, h3, h4 { margin: 0; }
 
+/* ── Accessibility (N1009) ──────────────────────────────────────── */
+/* Sichtbarer Fokus-Ring als Baseline für die Tastatur-Navigation.
+   Komponenten mit eigenem :focus-visible (z.B. .topbar__btn) überschreiben das. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Programmatisch fokussierte Container (z.B. <main> bei View-Wechsel) sollen
+   keinen Ring zeigen — nur echte Tastatur-Navigation. */
+#view:focus { outline: none; }
+
+/* Nur für Screenreader sichtbar: visuell entfernt, aber im Accessibility-Tree. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip-Link: aus dem Viewport geschoben, bis er Tastatur-Fokus bekommt. */
+.skip-link {
+  position: fixed;
+  top: 8px; left: 8px;
+  z-index: 1000;
+  padding: 10px 16px;
+  background: var(--bg-1);
+  color: var(--text-1);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-sm);
+  transform: translateY(-150%);
+  transition: transform .15s ease;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  text-decoration: none;
+}
+
+/* Nutzer mit „prefers-reduced-motion" bekommen keine Bewegungs-Animationen. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ── Top-level layout grid ──────────────────────────────────────── */
 .layout {
   display: grid;
@@ -290,6 +340,9 @@ h1, h2, h3, h4 { margin: 0; }
 
 /* ── Generic grid helpers ───────────────────────────────────────── */
 .grid { display: grid; gap: var(--sp-4); }
+/* v2.0.0 (UX) — im Grid übernimmt der gap den Abstand; der zusätzliche
+   margin-bottom der Karte entfällt, damit Karten-Reihen gleichmäßig sitzen. */
+.grid > .card { margin-bottom: 0; }
 .grid-2 { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
 .grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }

@@ -51,7 +51,7 @@ final class ReadingEdgeCasesTest extends ServiceTestCase
             'removed_on' => null, 'final_counter' => null, 'reason' => null,
         ]]);
 
-        $import = new ReadingImportService($this->readings, $this->meters);
+        $import = new ReadingImportService($this->readings, $this->meters, $this->i18n);
         $result = $import->importRows('strom', $meterId, [
             ['date' => '2023-11-01', 'counter' => 0.0],     // ⚠ vor installed_on
             ['date' => '2024-02-01', 'counter' => 100.0],
@@ -86,7 +86,7 @@ final class ReadingEdgeCasesTest extends ServiceTestCase
             'removed_on' => null, 'final_counter' => null, 'reason' => null,
         ]]);
 
-        $import = new ReadingImportService($this->readings, $this->meters);
+        $import = new ReadingImportService($this->readings, $this->meters, $this->i18n);
         $result = $import->importRows('strom', $meterId, [
             ['date' => '2024-02-01', 'counter' => 100.0],
             ['date' => '2024-02-01', 'counter' => 105.0],   // ⚠ identisches Datum

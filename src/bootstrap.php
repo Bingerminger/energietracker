@@ -18,7 +18,7 @@ use Energietracker\Services\{
     DeliveryService, DeliveryConsumptionService, BenchmarkService,
     TariffComparisonService, RecommendationService, ReminderService, PdfReportService,
     StromSaldoService, PvSummaryService, HealthCheckService, DemoService,
-    AuthService, IngestService
+    AuthService, IngestService, I18nService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -76,6 +76,7 @@ final class App
     public DemoService $demo;
     public AuthService $auth;
     public IngestService $ingest;
+    public I18nService $i18n;
 
     public function __construct(string $dataDir)
     {
@@ -88,14 +89,17 @@ final class App
 
         $this->store        = new JsonStore($dataDir);
         $this->settings     = new SettingsService($this->store);
-        $this->meters       = new MeterService($this->store);
-        $this->readings     = new ReadingService($this->store, $this->meters);
-        $this->contracts    = new ContractService($this->store, $this->meters);
+        // N1007 (v2.0.0) — Lokalisierung: liest die JSON-Kataloge aus
+        // public/locales/ (Single source mit dem Frontend).
+        $this->i18n         = new I18nService(dirname(__DIR__) . '/public/locales', $this->settings);
+        $this->meters       = new MeterService($this->store, $this->i18n);
+        $this->readings     = new ReadingService($this->store, $this->meters, $this->i18n);
+        $this->contracts    = new ContractService($this->store, $this->meters, $this->i18n);
         $this->regression   = new RegressionService();
         $this->deliveryConsumption = new DeliveryConsumptionService($this->store, $this->settings);
         $this->consumption  = new ConsumptionService(
             $this->store, $this->meters, $this->readings, $this->contracts, $this->settings,
-            $this->regression, $this->deliveryConsumption
+            $this->i18n, $this->regression, $this->deliveryConsumption
         );
         $this->weather      = new WeatherService();
         $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather);
@@ -103,28 +107,28 @@ final class App
             $this->consumption, $this->regression, $this->settings, $this->contracts
         );
         $this->anomalies    = new AnomalyService($this->regression, $this->settings);
-        $this->backups      = new BackupService($this->store);
+        $this->backups      = new BackupService($this->store, $this->i18n);
         $this->diagnostics  = new DiagnosticsService($this->store, $this->settings);
-        $this->migrationLegacy = new MigrationService($this->store, $this->backups);
-        $this->readingImport = new ReadingImportService($this->readings, $this->meters);
-        $this->deliveries   = new DeliveryService($this->store, $this->meters);
+        $this->migrationLegacy = new MigrationService($this->store, $this->backups, $this->i18n);
+        $this->readingImport = new ReadingImportService($this->readings, $this->meters, $this->i18n);
+        $this->deliveries   = new DeliveryService($this->store, $this->meters, $this->i18n);
         $this->csvExport    = new CsvExportService(
-            $this->consumption, $this->readings, $this->meters, $this->temperatures, $this->deliveries
+            $this->consumption, $this->readings, $this->meters, $this->temperatures, $this->deliveries, $this->i18n
         );
         $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings);
-        $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters);
-        $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries);
+        $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n);
+        $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries, $this->i18n);
         $this->reminders    = new ReminderService($this->store, $this->settings);
-        $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark, $this->recommendations);
+        $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark, $this->recommendations, $this->i18n);
         // F1005 + N1003 (v1.7.0)
         $this->stromSaldo   = new StromSaldoService($this->consumption);
         $this->pvSummary    = new PvSummaryService($this->consumption);
         $this->health       = new HealthCheckService($this->store);
         // F1007 (v1.7.4)
-        $this->demo         = new DemoService($this->store, $this->backups);
+        $this->demo         = new DemoService($this->store, $this->backups, $this->i18n);
         // F1009 — HA-Anbindung: Token-Auth + idempotenter Push-Ingest.
         $this->auth         = new AuthService($this->store);
-        $this->ingest       = new IngestService($this->meters, $this->readings);
+        $this->ingest       = new IngestService($this->meters, $this->readings, $this->i18n);
 
         // Auto-migrate or initialize on first run.
         // Reihenfolge wichtig: ein komplett leeres Verzeichnis (echter
@@ -156,6 +160,21 @@ final class App
         // Methode + URI ergänzt der Logger selbst aus $_SERVER.
         $this->logger->debug('request');
 
+        // N1007 — das `language`-Setting ist die Quelle der Wahrheit (das
+        // Frontend nutzt es exklusiv). Es gilt für ALLE serverseitigen Texte,
+        // auch für Downloads wie den PDF-Report, die als Browser-Navigation
+        // laufen und sonst über den Accept-Language-Header verfälscht würden.
+        // Accept-Language greift nur, wenn kein gültiges Setting vorliegt.
+        $langSetting = (string)$this->settings->get('language', '');
+        if (in_array($langSetting, $this->i18n->supported(), true)) {
+            $this->i18n->setLocale($langSetting);
+        } else {
+            $negotiated = $this->i18n->negotiate($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null);
+            if ($negotiated !== null) {
+                $this->i18n->setLocale($negotiated);
+            }
+        }
+
         // Common headers
         if (!headers_sent()) {
             header('Content-Type: application/json; charset=utf-8');
@@ -171,7 +190,7 @@ final class App
         $r = $this->router;
 
         // ── Utilities listing ──
-        $utilCtrl = new UtilitiesController();
+        $utilCtrl = new UtilitiesController($this->i18n);
         $r->get('/api/utilities', fn($req) => $utilCtrl->index($req));
 
         // ── Meters per utility ──

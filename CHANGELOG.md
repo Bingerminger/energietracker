@@ -6,6 +6,58 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.0.0] — 2026-06-10 — Internationalisierung, Englisch, Barrierefreiheit, PWA
+
+MAJOR-Release. Großes Bündel: Full-Stack-Internationalisierung, englische
+Lokalisierung, durchgängige Barrierefreiheit, UX-Politur und PWA-/Offline-
+Fähigkeit. **Keine Schema-Änderung** (bleibt 1.3.0) — die Sprache ist additiv
+als `language`-Setting hinterlegt.
+
+### Added
+
+- **Full-Stack-Internationalisierung (N1007).** Gemeinsame JSON-Sprachkataloge
+  unter `public/locales/{de,en}.json`, im Frontend über `t()`
+  (`public/js/lib/i18n.js`) und im Backend über `I18nService` genutzt. Die
+  Sprache ist ein additives `language`-Setting (de|en), umschaltbar in den
+  Einstellungen.
+- **Englische Lokalisierung (EN-L10n).** Vollständige englische Übersetzung
+  aller Ansichten, Komponenten, Fehlermeldungen und des PDF-Jahresberichts
+  (DE/EN paritätsgleich).
+- **Progressive Web App (N1008).** `manifest.webmanifest` + Service-Worker
+  (`sw.js`, Root-Scope) + 192/512-Icons. Installierbar (standalone) und
+  offline-fähig: App-Shell, alle View-Module, Schriften/CDN sowie zuletzt
+  geladene API-Daten werden gecacht; die App startet und rendert ohne Netz.
+- **Barrierefreiheit (N1009).** Skip-Link, sichtbarer Fokus-Ring
+  (`:focus-visible`), `prefers-reduced-motion`, dynamisches `<html lang>`,
+  ARIA-Landmarks, Fokus-Management bei SPA-Navigation, Modal-Focus-Trap mit
+  Fokus-Rückgabe, Label↔Feld-Verknüpfung in allen Formularen, `scope="col"`
+  in allen Tabellen, zugängliche Namen für Icon-Buttons, Text-Alternativen
+  für alle Diagramme, tastaturbedienbare CSV-Drop-Zonen und Status-/Hinweis-
+  Ansagen über Live-Regions.
+
+### Changed
+
+- **UX-Politur.** Dashboard-Trend-Indikatoren als dezent getönte Chips,
+  gleichmäßigere Karten-Abstände im Raster, Null-Kosten als gedämpftes „—"
+  statt „0 €". Einheitlicher Zeilen-Hover für alle Tabellen.
+- **Sprach-Priorität.** Das `language`-Setting ist nun die maßgebliche Quelle
+  für ALLE serverseitigen Texte (auch PDF-Report und Fehlermeldungen); der
+  Browser-`Accept-Language`-Header dient nur noch als Fallback ohne gesetzte
+  Sprache.
+
+### Fixed
+
+- **PDF-Report in falscher Sprache.** Der PDF-Jahresbericht (und die Backend-
+  Fehlermeldungen) folgten dem Browser-`Accept-Language` statt der App-Sprache
+  — bei englischer App auf deutschem Browser kam ein deutsches PDF. Jetzt
+  maßgeblich: das `language`-Setting.
+- **Unsichtbarer Text im Hellmodus.** In der Zählerstands-Erfassung nutzten
+  Feld-Labels, die „Letzter Stand"-Zeile und Karten-Untertitel ein nicht
+  definiertes CSS-Token (`--fg-muted`) mit weißem Fallback — im Light-Theme
+  praktisch unsichtbar. Auf ein theme-bewusstes Token umgestellt.
+
+---
+
 ## [1.9.3] — 2026-06-02 — Echte UI-Screenshots statt SVG-Mockups
 
 PATCH-Release. **Nur Dokumentation** — kein Anwendungscode.
