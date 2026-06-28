@@ -240,6 +240,15 @@ git push origin main --tags
   Lehre: Ein Backup/Export braucht einen export→import-Roundtrip-Test, der
   bei jedem neuen Datentopf zwingend erweitert wird; Vollständigkeits-
   Annahmen über den Serializer gehören getestet, nicht dokumentiert.
+- **Bereichsregel muss in JEDEN Aggregator propagiert werden (v2.1.3).** Die
+  F1006-Regel „Subzähler zählen nicht in Utility-Summen" lebte nur in
+  `ConsumptionService::forUtility`. Drei andere Stellen, die selbst über Zähler
+  summieren — `PdfReportService::yearAggregate`, `BenchmarkService` und das
+  Dashboard-`groupBreakdown` — bekamen sie bei v1.8.0 nie → Subzähler-Doppel-
+  zählung im PDF-Jahresbericht und in der Effizienzklasse. Lehre: Eine
+  Ausschluss-/Filterregel, die für eine Aggregation gilt, gilt für ALLE; sie
+  gehört in eine gemeinsame Quelle (z. B. „Root-Meter"-Helper), nicht
+  pro Konsument kopiert/vergessen.
 
 ---
 

@@ -6,6 +6,52 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.1.3] — 2026-06-28 — Bugfix: Subzähler-Doppelzählung in PDF-Bericht & Effizienzklasse
+
+PATCH-Release. Behebt eine **F1006-Subzähler-Doppelzählung** in mehreren
+Aggregationen. Reine Anzeige-/Report-Korrektheit, kein Datenverlust, keine
+Schema- oder API-Änderung (Schema bleibt 1.3.0).
+
+### Fixed
+
+- **Subzähler wurden doppelt gezählt** in drei Aggregationen, die selbst über
+  Zähler summieren und die F1006-Ausschlussregel aus
+  `ConsumptionService::forUtility` nicht spiegelten (ein Subzähler steckt
+  bereits im Brutto-Verbrauch seines Elternzählers):
+  - **`PdfReportService::yearAggregate`** — Zusammenfassungstabelle im
+    Jahresbericht-PDF (Verbrauch/Kosten/CO₂ je Art); betraf **alle**
+    Verbrauchsarten.
+  - **`BenchmarkService::yearKwhForUtility`** — Effizienzklasse (kWh/m²·a) der
+    Heizquellen.
+  - **`groupBreakdown` (Dashboard)** — Gruppen-Summe, falls eine Gruppe einen
+    Eltern- *und* seinen Subzähler enthält.
+  Alle drei schließen Subzähler jetzt analog zur Utility-Gesamtsumme aus.
+
+### Migration
+
+Keine. Schema bleibt 1.3.0; nur Anzeige-/Berechnungslogik betroffen, keine
+gespeicherten Daten geändert.
+
+### Tests
+
+- **Regression** (`MeterTopologyTest::testSubmeterDoesNotInflateEfficiency`):
+  Gas-Heizquelle mit Eltern + Subzähler — `BenchmarkService::efficiency()`
+  zählt nur den Elternzähler. Wäre vor dem Fix rot. PHPUnit 95 → **96**.
+- Vollständige Konsumenten-Prüfung: `CsvExportService`, `PvSummaryService`,
+  `StromSaldoService` (nutzen `forUtility`) sowie die pro-Zähler-Pfade
+  (`Forecast`/`Recommendation`/`TariffComparison`/PDF-Detailseiten) sind
+  korrekt — nur die drei obigen rollten eigene Summen.
+
+### Lessons Learned
+
+- Eine bereichs-spezifische Ausschlussregel (F1006: Subzähler nicht in
+  Utility-Summen) muss in **jeden** Aggregator propagiert werden, der selbst
+  über Zähler summiert — nicht nur in `forUtility`. Drei Stellen (PDF,
+  Benchmark, Dashboard-Gruppen) hatten sie seit v1.8.0 nie bekommen. Eine
+  gemeinsame „Root-Meter"-Quelle wäre robuster (als Folgeoption notiert).
+
+---
+
 ## [2.1.2] — 2026-06-28 — Bugfix: Backup/Restore verlor Lieferungen, Gruppen & Reminders
 
 PATCH-Release. Behebt einen **stillen Datenverlust** im Backup/Restore und

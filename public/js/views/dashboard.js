@@ -272,8 +272,14 @@ function groupBreakdown(consumption, sumKey, utility) {
   const rows = groups.map(g => {
     const members = meters.filter(e => (e.meter?.meter_group_id ?? null) === g.id);
     if (!members.length) return null;
+    // v2.1.3 — F1006: Enthält die Gruppe einen Eltern- UND seinen Subzähler,
+    // darf der Subzähler nicht zusätzlich gezählt werden — der Eltern-Brutto
+    // enthält ihn bereits (analog der Utility-Gesamtsumme in ConsumptionService).
+    const memberIds = new Set(members.map(e => e.meter?.id));
     let cons = 0, cost = 0;
     for (const e of members) {
+      const parent = e.meter?.parent_meter_id ?? null;
+      if (parent !== null && memberIds.has(parent)) continue;
       const last12 = (e.monthly || []).slice(-12);
       cons += last12.reduce((s, m) => s + (m[sumKey] || 0), 0);
       cost += last12.reduce((s, m) => s + (m.cost   || 0), 0);

@@ -251,6 +251,10 @@ final class PdfReportService
         $kwh = $m3 = $cost = $co2 = 0.0;
         foreach ($this->meters->list($utility) as $meter) {
             if (($meter['active'] ?? true) === false) continue;
+            // v2.1.3 — F1006: Subzähler nicht mitzählen; der Elternzähler trägt
+            // den Brutto-Verbrauch bereits inklusive (sonst Doppelzählung,
+            // analog ConsumptionService::forUtility-Gesamtsumme).
+            if (($meter['parent_meter_id'] ?? null) !== null) continue;
             foreach ($this->consumption->forMeter($utility, $meter) as $m) {
                 if ((int)($m['year'] ?? 0) !== $year) continue;
                 $kwh  += (float)($m['kwh'] ?? 0);

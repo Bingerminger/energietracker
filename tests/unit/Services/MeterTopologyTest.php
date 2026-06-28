@@ -5,6 +5,7 @@ namespace Energietracker\Tests\Services;
 
 use Energietracker\Tests\Support\ServiceTestCase;
 use Energietracker\Services\MeterService;
+use Energietracker\Services\BenchmarkService;
 use Energietracker\Storage\Migrator;
 use PHPUnit\Framework\Attributes\CoversClass;
 
@@ -18,6 +19,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
  */
 #[CoversClass(MeterService::class)]
 #[CoversClass(Migrator::class)]
+#[CoversClass(BenchmarkService::class)]
 final class MeterTopologyTest extends ServiceTestCase
 {
     // ── Migration ─────────────────────────────────────────────────────────
@@ -254,6 +256,65 @@ final class MeterTopologyTest extends ServiceTestCase
         self::assertGreaterThan(0.0, $elternKwh);
         self::assertEqualsWithDelta($elternKwh, $totalKwh, 0.001,
             'Subzähler darf nicht zusätzlich in die Utility-Gesamtsumme einfließen');
+    }
+
+    /**
+     * v2.1.3 — Regression: dieselbe Subzähler-Ausschlussregel muss auch in der
+     * Effizienzklasse (BenchmarkService) gelten. Vorher summierte
+     * yearKwhForUtility über ALLE Zähler → der Subzähler blähte kWh/m²·a auf.
+     * (Der Jahresbericht-PDF nutzt dasselbe Muster — yearAggregate.)
+     */
+    public function testSubmeterDoesNotInflateEfficiency(): void
+    {
+        // Heizquelle (Gas) mit Eltern (brutto inkl. Sub) + Subzähler.
+        $this->store->write('gas/meters.json', [
+            [
+                'id' => 'm_gas_eltern', 'name' => 'Hausanschluss', 'icon' => '🔥',
+                'created_at' => '2024-01-01', 'active' => true, 'notes' => '',
+                'parent_meter_id' => null, 'meter_group_id' => null,
+                'devices' => [[
+                    'id' => 'd_ge', 'serial' => null, 'installed_on' => '2024-01-01',
+                    'initial_counter' => 1000.0, 'removed_on' => null,
+                    'final_counter' => null, 'reason' => null,
+                ]],
+            ],
+            [
+                'id' => 'm_gas_sub', 'name' => 'Einliegerwohnung', 'icon' => '🔥',
+                'created_at' => '2024-01-01', 'active' => true, 'notes' => '',
+                'parent_meter_id' => 'm_gas_eltern', 'meter_group_id' => null,
+                'devices' => [[
+                    'id' => 'd_gs', 'serial' => null, 'installed_on' => '2024-01-01',
+                    'initial_counter' => 0.0, 'removed_on' => null,
+                    'final_counter' => null, 'reason' => null,
+                ]],
+            ],
+        ]);
+        $this->store->write('gas/readings.json', [
+            ['id' => 'r1', 'meter_id' => 'm_gas_eltern', 'device_id' => 'd_ge', 'date' => '2024-06-30', 'counter' => 4000.0, 'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false],
+            ['id' => 'r2', 'meter_id' => 'm_gas_eltern', 'device_id' => 'd_ge', 'date' => '2024-12-31', 'counter' => 7000.0, 'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false],
+            ['id' => 'r3', 'meter_id' => 'm_gas_sub',    'device_id' => 'd_gs', 'date' => '2024-06-30', 'counter' => 800.0,  'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false],
+            ['id' => 'r4', 'meter_id' => 'm_gas_sub',    'device_id' => 'd_gs', 'date' => '2024-12-31', 'counter' => 1600.0, 'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false],
+        ]);
+
+        $bench = new BenchmarkService($this->consumption, $this->meters, $this->settings);
+        $eff = $bench->efficiency(2024);
+
+        $gas = null;
+        foreach ($eff['per_source'] as $s) {
+            if ($s['utility'] === 'gas') { $gas = $s; break; }
+        }
+        self::assertNotNull($gas, 'Gas muss als Heizquelle in der Effizienz erscheinen');
+
+        // Erwartung = NUR der Elternzähler; der Subzähler steckt bereits im
+        // Eltern-Brutto und darf nicht zusätzlich gezählt werden.
+        $parent = $this->meters->get('gas', 'm_gas_eltern');
+        $parentKwh = 0.0;
+        foreach ($this->consumption->forMeter('gas', $parent) as $m) {
+            if ((int)($m['year'] ?? 0) === 2024) $parentKwh += (float)($m['kwh'] ?? 0);
+        }
+        self::assertGreaterThan(0.0, $parentKwh);
+        self::assertEqualsWithDelta(round($parentKwh, 1), $gas['kwh'], 0.1,
+            'Subzähler darf die Effizienz-kWh nicht aufblähen (F1006-Doppelzählung)');
     }
 
     public function testUtilityResultExposesMeterGroups(): void
