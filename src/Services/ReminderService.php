@@ -72,9 +72,13 @@ final class ReminderService
 
         $out = [];
         foreach ($this->list() as $r) {
-            $due = isset($r['next_due']) && $r['next_due']
-                ? new \DateTime((string)$r['next_due'])
-                : null;
+            // v2.1.5 — ein kaputtes next_due (Import/Legacy) darf die Liste nicht
+            // mit einer DateTime-Exception sprengen → defensiv auf null.
+            $due = null;
+            if (isset($r['next_due']) && $r['next_due']) {
+                try { $due = new \DateTime((string)$r['next_due']); }
+                catch (\Exception) { $due = null; }
+            }
             $status = 'ok';
             $daysUntil = null;
             if ($due !== null) {
@@ -179,9 +183,9 @@ final class ReminderService
             if ($months === null) {
                 $r['active'] = false;            // einmaliger Termin erledigt
             } else {
-                $base = new \DateTime($done);
-                $base->modify("+{$months} months");
-                $r['next_due'] = $base->format('Y-m-d');
+                // v2.1.5 — Tag auf die Ziel-Monatslänge clampen, sonst überläuft
+                // PHP `+N months` am Monatsende (31.08. + 6 Mon. → „31.02." = 03.03.).
+                $r['next_due'] = $this->addMonths($done, $months);
             }
             $found = $r;
             break;
@@ -190,6 +194,21 @@ final class ReminderService
         if ($found === null) throw new \RuntimeException('Erinnerung nicht gefunden: ' . $id);
         $this->store->write('reminders.json', $all);
         return $found;
+    }
+
+    /**
+     * v2.1.5 — N Monate addieren und den Tag auf die Ziel-Monatslänge clampen.
+     * Verhindert den PHP-`+N months`-Überlauf am Monatsende (z. B.
+     * 31.08. + 6 Mon. = „31.02." → 03.03.); next_due bleibt auf dem 28./30.
+     */
+    private function addMonths(string $date, int $months): string
+    {
+        $d   = new \DateTime($date);
+        $day = (int)$d->format('d');
+        $d->modify('first day of this month')->modify("+{$months} months");
+        $daysInTarget = (int)$d->format('t');
+        $d->modify('+' . (min($day, $daysInTarget) - 1) . ' days');
+        return $d->format('Y-m-d');
     }
 
     /**
@@ -210,8 +229,8 @@ final class ReminderService
         }
         sort($dates);
         if (count($dates) < 2) {
-            // Kein Intervall ableitbar → konservativ 12 Monate
-            $next = (new \DateTime(end($dates) ?: date('Y-m-d')))->modify('+12 months');
+            // Kein Intervall ableitbar → konservativ 12 Monate (Monatsende-sicher)
+            $next = new \DateTime($this->addMonths(end($dates) ?: date('Y-m-d'), 12));
         } else {
             $gaps = [];
             for ($i = 1; $i < count($dates); $i++) {

@@ -129,6 +129,9 @@ function renderResult(u, result, container) {
   const labels  = [...hist.map(h => fmt.month(h.ym)), ...fc.map(f => fmt.month(f.ym))];
   const histData = [...hist.map(h => h[consKey]), ...fc.map(() => null)];
   const fcData   = [...hist.map(() => null), ...fc.map(f => f[consKey])];
+  // v2.1.5 — die gestrichelte Prognoselinie am letzten Historie-Punkt andocken,
+  // damit zwischen Historie und Prognose keine sichtbare Lücke entsteht.
+  if (hist.length > 0 && fc.length > 0) fcData[hist.length - 1] = hist[hist.length - 1][consKey];
 
   const canvas = container.querySelector('#fc-chart');
   chart = makeChart(canvas, {

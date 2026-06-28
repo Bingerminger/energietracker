@@ -230,6 +230,14 @@ git push origin main --tags
   Lesson: the compute layer must be defensively correct (follow its documented
   behaviour), not rely on write-path validation — especially since restore writes
   data straight into the store.
+- **No second colour/value source beside the SSOT (v2.1.5).** The monthly chart
+  had its own hardcoded 2-colour palette (`utilityColor`: only gas/strom, the rest
+  blue) instead of the utility `color` from the SSOT — 6 of 8 utilities got the
+  wrong chart colour, while the rest of the UI used `u.color`. Plus: PHP
+  `modify('+N months')` overflows at month-end (31 Aug + 6 months → 3 Mar instead
+  of 28 Feb) — clamp the day to the target month's length. Lesson: pull any display
+  property that already lives in the SSOT (Utilities) from there; and guard date
+  arithmetic against month-end overflow.
 
 ---
 

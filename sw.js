@@ -18,7 +18,7 @@
 // werden (siehe `activate`).
 // =====================================================================
 
-const VERSION = 'v2.1.4';
+const VERSION = 'v2.1.5';
 const STATIC_CACHE  = `et-static-${VERSION}`;
 const RUNTIME_CACHE = `et-runtime-${VERSION}`;
 

@@ -695,8 +695,8 @@ function drawMonthChart(canvasId, monthly, u) {
           type: 'bar',
           label: u.label + ' (' + u.consumption_unit + ')',
           data: consumption,
-          backgroundColor: hexToRgba(utilityColor(u.key), 0.3),
-          borderColor: utilityColor(u.key),
+          backgroundColor: hexToRgba(u.color, 0.3),
+          borderColor: u.color,
           borderWidth: 1,
           yAxisID: 'y',
           order: 2,
@@ -725,9 +725,6 @@ function drawMonthChart(canvasId, monthly, u) {
   }, { label: t('utility.chart.alt') });
 }
 
-function utilityColor(key) {
-  return key === 'gas' ? '#ff7b2e' : key === 'strom' ? '#2de8a4' : '#3b82f6';
-}
 function hexToRgba(hex, alpha) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);

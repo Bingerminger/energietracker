@@ -258,6 +258,14 @@ git push origin main --tags
   (ihrem dokumentierten Verhalten folgen), nicht auf die Validierung des
   Schreibpfads vertrauen — besonders, da Restore Daten direkt in den Store
   schreibt.
+- **Keine zweite Farb-/Wert-Quelle neben der SSOT (v2.1.5).** Der Monatschart
+  hatte eine eigene hartkodierte 2-Farben-Palette (`utilityColor`: nur gas/strom,
+  Rest blau) statt der Utility-`color` aus der SSOT — 6 von 8 Verbrauchsarten
+  bekamen die falsche Chart-Farbe, während der Rest der UI `u.color` nutzte. Plus:
+  PHP `modify('+N months')` überläuft am Monatsende (31.08. + 6 Mon. → 03.03.
+  statt 28.02.) — Tag auf die Ziel-Monatslänge clampen. Lehre: jede Anzeige-
+  Eigenschaft, die schon in der SSOT (Utilities) steht, von dort ziehen; und
+  Datums-Arithmetik gegen Monatsende-Überlauf absichern.
 
 ---
 

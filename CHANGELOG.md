@@ -6,6 +6,52 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.1.5] — 2026-06-28 — Polish: Chart-Farben, Prognose-Linie, Reminder-Datumslogik
+
+PATCH-Release. Vier risikoarme Politur-/Robustheits-Korrekturen; keine Schema-
+oder API-Änderung (Schema bleibt 1.3.0).
+
+### Fixed
+
+- **Monatschart-Farben (A).** `drawMonthChart` nutzte eine hartkodierte
+  2-Farben-Palette (nur Gas/Strom, Rest Blau) statt der Utility-Farbe aus der
+  SSOT → Wasser/Fernwärme/Heizöl/Pellets/PV erschienen blau. Jetzt zieht der Chart
+  `u.color` (wie der Rest der UI und die Prognose-View).
+- **Reminder-Datumsfortschreibung (C).** `markDone`/`suggestNextDelivery` nutzten
+  `modify('+N months')`, das am Monatsende überläuft (31.08. + 6 Mon. → 03.03.
+  statt 28.02.). Der Tag wird jetzt auf die Ziel-Monatslänge geclamped.
+- **Reminder-Robustheit (D).** Ein kaputtes `next_due` (Import/Legacy) sprengte
+  `listWithStatus` mit einer DateTime-Exception (500). Jetzt defensiv abgefangen.
+
+### Changed (UX)
+
+- **Prognose-Chart (B).** Historie und Prognose sind jetzt durchgehend verbunden
+  (die gestrichelte Prognoselinie dockt am letzten Historie-Punkt an) statt mit
+  einer Lücke an der Grenze.
+
+### Docs
+
+- Lessons in DE **und** EN (`docs/technical/06-release-process.md` + `docs/en/…`)
+  synchron ergänzt.
+
+### Migration
+
+Keine. Schema bleibt 1.3.0.
+
+### Tests
+
+- Neuer `ReminderServiceTest` (Monatsende-Clamp 31.08.+6 → 28.02.; jährlich behält
+  den Tag; kaputtes `next_due` → kein Crash). PHPUnit 97 → **100**. Chart-Farben
+  gegen die API-SSOT verifiziert; Browser-Render grün.
+
+### Lessons Learned
+
+- Keine zweite Farb-/Wert-Quelle neben der SSOT (Utilities) — Anzeige-
+  Eigenschaften von dort ziehen; Datums-Arithmetik gegen Monatsende-Überlauf
+  absichern.
+
+---
+
 ## [2.1.4] — 2026-06-28 — Wasser-Schmutzwasser-Fix + UX-Politur (Lösch-Dialog, Liefer-Modal, Tank-Validierung)
 
 PATCH-Release. Vier risikoarme Korrekturen aus einem Code-Sweep; keine Schema-
