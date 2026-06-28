@@ -249,6 +249,15 @@ git push origin main --tags
   Ausschluss-/Filterregel, die für eine Aggregation gilt, gilt für ALLE; sie
   gehört in eine gemeinsame Quelle (z. B. „Root-Meter"-Helper), nicht
   pro Konsument kopiert/vergessen.
+- **Save-Pfad-Validierung schützt den Berechnungs-Pfad nicht (v2.1.4).**
+  `applyWaterContracts` rechnete Schmutzwasser bei `basis='separater_zaehler'`
+  ohne Meter-Referenz still aufs Trinkwasser-Volumen — entgegen dem eigenen
+  Code-Kommentar (sollte 0 sein). `ContractService` verhindert diesen Zustand zwar
+  beim Speichern, aber unvalidierte Daten (Backup-Import, Legacy) erreichen die
+  Berechnung trotzdem. Lehre: Die Compute-Schicht muss defensiv korrekt sein
+  (ihrem dokumentierten Verhalten folgen), nicht auf die Validierung des
+  Schreibpfads vertrauen — besonders, da Restore Daten direkt in den Store
+  schreibt.
 
 ---
 

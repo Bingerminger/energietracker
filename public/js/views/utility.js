@@ -16,7 +16,7 @@ import { api } from '../api.js';
 import { getUtilities } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
-import { openModal } from '../components/modal.js';
+import { openModal, confirmModal } from '../components/modal.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
 
@@ -769,7 +769,11 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
       const reading = readings.find(r => r.id === id);
-      if (!confirm(t('utility.confirm.deleteReading', { date: fmt.date(reading?.date) }))) return;
+      const ok = await confirmModal({
+        message: t('utility.confirm.deleteReading', { date: fmt.date(reading?.date) }),
+        confirmLabel: t('utility.readingsTable.delete'), danger: true,
+      });
+      if (!ok) return;
       try { await api.deleteReading(u.key, id); toastOk(t('utility.toast.readingDeleted')); rerender(container); }
       catch (e) { toastErr(e.message); }
     });
@@ -789,7 +793,11 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-id');
       const d = deliveries.find(x => x.id === id);
-      if (!confirm(t('utility.confirm.deleteDelivery', { date: fmt.date(d?.date) }))) return;
+      const ok = await confirmModal({
+        message: t('utility.confirm.deleteDelivery', { date: fmt.date(d?.date) }),
+        confirmLabel: t('utility.readingsTable.delete'), danger: true,
+      });
+      if (!ok) return;
       try { await api.deleteDelivery(u.key, id); toastOk(t('utility.toast.deliveryDeleted')); rerender(container); }
       catch (e) { toastErr(e.message); }
     });
@@ -930,6 +938,19 @@ function openDeliveryModal(container, u, meter, delivery) {
     title: isEdit ? t('utility.deliveryModal.titleEdit', { label: u.label }) : t('utility.deliveryModal.titleNew', { label: u.label }),
     body, footer,
     onMount({ modalEl, close }) {
+      // C (v2.1.4) — Gesamtbetrag ↔ Menge × Stückpreis live verknüpfen, damit
+      // sich die drei Felder nicht widersprechen. Programmatisches .value setzen
+      // feuert kein 'input'-Event → keine Endlosschleife.
+      const qEl = modalEl.querySelector('input[name="quantity"]');
+      const uEl = modalEl.querySelector('input[name="unit_price_cents"]');
+      const tEl = modalEl.querySelector('input[name="total_eur"]');
+      const numOf = (el) => { const v = parseFloat(String(el?.value ?? '').replace(',', '.')); return Number.isFinite(v) ? v : null; };
+      const recalcTotal = () => { const q = numOf(qEl), u = numOf(uEl); if (q != null && u != null) tEl.value = (q * u / 100).toFixed(2); };
+      const recalcUnit  = () => { const q = numOf(qEl), tot = numOf(tEl); if (q != null && q !== 0 && tot != null) uEl.value = (tot / q * 100).toFixed(2); };
+      qEl?.addEventListener('input', () => { if (numOf(uEl) != null) recalcTotal(); else recalcUnit(); });
+      uEl?.addEventListener('input', recalcTotal);
+      tEl?.addEventListener('input', recalcUnit);
+
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
       modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
         const form = modalEl.querySelector('#delivery-form');

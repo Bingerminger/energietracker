@@ -6,6 +6,56 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.1.4] — 2026-06-28 — Wasser-Schmutzwasser-Fix + UX-Politur (Lösch-Dialog, Liefer-Modal, Tank-Validierung)
+
+PATCH-Release. Vier risikoarme Korrekturen aus einem Code-Sweep; keine Schema-
+oder API-Änderung (Schema bleibt 1.3.0).
+
+### Fixed
+
+- **Wasser: Schmutzwasser ohne Zähler-Referenz (A).** `applyWaterContracts`
+  rechnete bei `schmutzwasser.basis = 'separater_zaehler'` **ohne** hinterlegten
+  Zähler still auf dem **Trinkwasser-Volumen** ab statt auf 0 — entgegen dem
+  eigenen Code-Kommentar. Der Speicherpfad (`ContractService`) erzwingt zwar eine
+  Referenz; un­validierte Daten (Backup-Import/Legacy) können sie aber missen.
+  Jetzt: ohne Referenz `swM3 = 0` (keine still falschen Kosten).
+
+### Changed (UX)
+
+- **Lösch-Dialoge vereinheitlicht (B).** Das Löschen von Ablesungen/Lieferungen
+  in der Verbrauchsansicht nutzt jetzt das gestylte, lokalisierte `confirmModal`
+  (wie die Zählerverwaltung) statt des nativen `confirm()`.
+- **Liefer-Modal rechnet mit (C).** Gesamtbetrag und Menge × Stückpreis sind live
+  verknüpft: zwei Felder gesetzt → das dritte füllt sich automatisch (beidseitig).
+- **Tank-Kapazität: Sofort-Validierung (D).** Beim Anlegen/Bearbeiten eines
+  Heizöl-/Pellets-Tanks meldet die UI eine fehlende Kapazität sofort, statt erst
+  den Backend-Fehler abzuwarten.
+
+### Docs
+
+- **EN-Kompendium nachgezogen.** `docs/en/technical/06-release-process.md`
+  (Lessons v2.1.1–v2.1.4) und `docs/en/ui/01-views.md` (Tank-Felder) hingen hinter
+  dem DE-Stand — jetzt synchron. DE bleibt kanonisch.
+
+### Migration
+
+Keine. Schema bleibt 1.3.0.
+
+### Tests
+
+- Regression `WaterContractEdgeCasesTest::testSeparaterZaehlerWithoutMeterReferenceBillsZeroNotTrinkwasserVolume`;
+  PHPUnit 96 → **97**. B/C/D zusätzlich im echten Browser verifiziert (Liefer-
+  Auto-Rechnung bidirektional, gestyltes Lösch-Modal, Kapazitäts-Block), 0
+  Konsolenfehler.
+
+### Lessons Learned
+
+- Save-Pfad-Validierung schützt den Berechnungs-Pfad nicht: unvalidierte Daten
+  (Restore/Legacy) erreichen die Compute-Schicht, die deshalb ihrem dokumentierten
+  Verhalten folgen muss — nicht der Validierung des Schreibpfads vertrauen.
+
+---
+
 ## [2.1.3] — 2026-06-28 — Bugfix: Subzähler-Doppelzählung in PDF-Bericht & Effizienzklasse
 
 PATCH-Release. Behebt eine **F1006-Subzähler-Doppelzählung** in mehreren

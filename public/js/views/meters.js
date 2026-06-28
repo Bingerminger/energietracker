@@ -318,6 +318,12 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
         modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(false); resolve(false); });
         modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
           const f = modalEl.querySelector('#meter-form');
+          // D (v2.1.4) — Tank-Kapazität sofort clientseitig prüfen statt erst den
+          // Backend-Fehler abzuwarten (gleiche lokalisierte Meldung).
+          if (isDelivery && !(Number(f.capacity.value) > 0)) {
+            toastErr(t('errors.meter.capacityRequired', { label: u.label }));
+            return;
+          }
           try {
             if (existing) {
               const payload = {

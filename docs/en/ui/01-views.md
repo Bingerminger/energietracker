@@ -129,7 +129,7 @@ ready-made HA YAML.
 
 Meter/device management incl. meter swap (the device chain) and contract maintenance
 (working/base price history, advances, bonuses). For oil/pellets only the tank/store
-management is relevant here.
+management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading).
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as
 an expandable collective entry; a **merge wizard** combines several existing meters

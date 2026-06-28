@@ -197,6 +197,39 @@ git push origin main --tags
   across all derived fields. Secondly: the frontend must resolve field names
   utility-aware (`consKey = consumption_unit==='kWh' ? 'kwh' : 'm3'`), not hardcode
   onto one field.
+- **A backend mandatory field without a frontend input = a guaranteed failure
+  path (v2.1.1, Issue #18).** `MeterService::create()` requires `capacity > 0` +
+  `initial_stock` for delivery-based utilities, yet the "New meter" form never
+  rendered or sent these fields → every oil/pellet tank failed on creation with no
+  field to fill in. Lesson: treat `reading_kind`-dependent mandatory fields as a
+  pair — validation in `Utilities`/`MeterService` AND the matching input field in
+  the same change; a mandatory field the UI cannot capture is a 400 generator by
+  construction.
+- **A serializer with a hardcoded field list goes silently incomplete (v2.1.2).**
+  `BackupService::export()` saved only `meters/readings/contracts`; `deliveries`
+  (v1.3.0) and `meter_groups` (v1.8.0) were added as new per-utility data stores,
+  but the list was never updated → backup/restore lost the data silently, as did
+  the top-level `reminders`. Aggravatingly, the roadmap assumed "BackupService
+  pulls all JSON files per utility anyway", and no test checked a round-trip.
+  Lesson: a backup/export needs an export→import round-trip test that is
+  mandatorily extended for every new data store; completeness assumptions about
+  the serializer belong in tests, not in documentation.
+- **A domain rule must be propagated to EVERY aggregator (v2.1.3).** The F1006
+  rule "submeters do not count in utility totals" lived only in
+  `ConsumptionService::forUtility`. Three other places that sum over meters
+  themselves — `PdfReportService::yearAggregate`, `BenchmarkService` and the
+  dashboard `groupBreakdown` — never got it at v1.8.0 → submeter double-counting in
+  the annual PDF report and the efficiency class. Lesson: an exclusion/filter rule
+  that applies to one aggregation applies to ALL; it belongs in a shared source
+  (e.g. a "root meter" helper), not copied/forgotten per consumer.
+- **Save-path validation does not protect the compute path (v2.1.4).**
+  `applyWaterContracts` silently billed waste water on the drinking-water volume
+  when `basis='separater_zaehler'` had no meter reference — contrary to its own
+  code comment (which says 0). `ContractService` does prevent that state on save,
+  but un-validated data (backup import, legacy) still reaches the computation.
+  Lesson: the compute layer must be defensively correct (follow its documented
+  behaviour), not rely on write-path validation — especially since restore writes
+  data straight into the store.
 
 ---
 

@@ -832,11 +832,22 @@ final class ConsumptionService
             $swWp    = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $y, $mn);
             $swBasis = (string)($sw['basis'] ?? 'trinkwasser');
             $swMeterId = $sw['separater_zaehler_meter_id'] ?? null;
-            if ($swBasis === 'separater_zaehler' && $swMeterId) {
-                if (!array_key_exists($swMeterId, $sepMeterM3Cache)) {
-                    $sepMeterM3Cache[$swMeterId] = $this->monthlyM3ForMeterId($utility, (string)$swMeterId);
+            if ($swBasis === 'separater_zaehler') {
+                // v2.1.4 — basis 'separater_zaehler' MIT Referenz: Volumen aus dem
+                // referenzierten Zähler (0, wenn für den Monat keine Daten). OHNE
+                // Referenz bewusst swM3 = 0 statt Trinkwasser-Volumen — sonst kippt
+                // die Schmutzwasser-Menge still aufs Trinkwasser-Volumen (genau der
+                // „silently wrong" Fall, den der Kommentar oben verhindern will).
+                // Der Speicherpfad (ContractService) erzwingt zwar eine Referenz;
+                // unvalidierte Daten (Backup-Import/Legacy) können sie aber missen.
+                if ($swMeterId) {
+                    if (!array_key_exists($swMeterId, $sepMeterM3Cache)) {
+                        $sepMeterM3Cache[$swMeterId] = $this->monthlyM3ForMeterId($utility, (string)$swMeterId);
+                    }
+                    $swM3 = (float)($sepMeterM3Cache[$swMeterId][$m['ym']] ?? 0.0);
+                } else {
+                    $swM3 = 0.0;
                 }
-                $swM3 = (float)($sepMeterM3Cache[$swMeterId][$m['ym']] ?? 0.0);
             } else {
                 $swM3 = $m3;
             }
