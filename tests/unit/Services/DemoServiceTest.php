@@ -91,4 +91,20 @@ final class DemoServiceTest extends TestCase
         $this->assertTrue($report['demo_import']);
         $this->assertFalse($svc->isEmpty());
     }
+
+    /**
+     * v2.1.2 — Das Demo-Backup enthält Heizöl-/Pellets-Lieferungen, und der
+     * Restore-Pfad muss sie wiederherstellen. Vorher fielen deliveries still
+     * aus Export+Import → leere Demo-Tanks ohne Verbrauch/Kosten.
+     */
+    public function testImportRestoresDeliveriesForDeliveryUtilities(): void
+    {
+        $svc = $this->service();
+        $svc->import();
+
+        $oil = $this->store->read('heizoel/deliveries.json', []);
+        $pellets = $this->store->read('pellets/deliveries.json', []);
+        $this->assertCount(3, $oil, 'Heizöl-Lieferungen müssen aus dem Demo-Backup kommen');
+        $this->assertCount(3, $pellets, 'Pellets-Lieferungen müssen aus dem Demo-Backup kommen');
+    }
 }

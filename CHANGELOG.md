@@ -6,6 +6,59 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.1.2] — 2026-06-28 — Bugfix: Backup/Restore verlor Lieferungen, Gruppen & Reminders
+
+PATCH-Release. Behebt einen **stillen Datenverlust** im Backup/Restore und
+vervollständigt die mitgelieferten Demo-Daten. Keine Schema- oder
+API-Änderung (Schema bleibt 1.3.0).
+
+### Fixed
+
+- **Backup/Restore sicherte nicht alle Daten.** `BackupService::export()`
+  und `import()` verarbeiteten pro Verbrauchsart nur `meters`/`readings`/
+  `contracts`. Damit fielen bei **jedem** Backup lautlos unter den Tisch:
+  **`deliveries`** (Heizöl-/Pellets-Lieferungen, seit v1.3.0),
+  **`meter_groups`** (F1006-Zählergruppen, seit v1.8.0) und die top-level
+  **`reminders`**. Ein Export/Restore verlor damit die komplette Liefer- und
+  Verbrauchshistorie der Liefer-Utilities sowie Gruppen und Wartungstermine.
+  Export und Import sichern/restaurieren diese Töpfe jetzt; `import()` bleibt
+  über `isset`-Guards **abwärtskompatibel** zu älteren Backups ohne die
+  Schlüssel (fehlende Töpfe werden übersprungen, nichts gelöscht).
+
+### Changed
+
+- **Demo-Daten vervollständigt.** Das mitgelieferte Demo-Backup
+  (`demo-data/energietracker-demo-backup.json`, auch im Docker-Image) enthielt
+  für den Heizöltank und das Pelletlager keine Lieferungen — der „Demo-Daten
+  laden"-Button zeigte leere Tanks. Es trägt jetzt je drei realistische
+  Jahres-Lieferungen (2023–2025), passend zum Datei-Baum unter `demo-data/`.
+
+### Migration
+
+Keine. Schema bleibt 1.3.0; bestehende Backups ohne die neuen Schlüssel
+importieren unverändert weiter.
+
+### Tests
+
+- **Roundtrip-Regression** (`BackupServiceRestoreGuardTest`): export → leeren
+  → import bewahrt `deliveries`, `meter_groups` und `reminders`.
+- **Demo-Restore** (`DemoServiceTest`): Import des echten Demo-Backups stellt
+  je drei Heizöl-/Pellets-Lieferungen wieder her. Beide Tests wären vor dem
+  Fix rot.
+- PHPUnit 93 → **95 Tests / 299 Assertions**. Zusätzlich HTTP-End-to-End
+  verifiziert (`POST /api/backup/import` → `GET …/deliveries` = 3 + 3).
+
+### Lessons Learned
+
+- Ein Serializer mit **hartkodierter Feldliste** wird bei jedem neuen
+  Datentopf still unvollständig: `deliveries` (v1.3.0) und `meter_groups`
+  (v1.8.0) kamen dazu, die Backup-Liste nie. Ungeprüfte Vollständigkeits-
+  Annahmen (die Roadmap nahm „BackupService zieht ohnehin alle JSON-Dateien"
+  an) + fehlender Roundtrip-Test verzögerten den Fund. Neue Datentöpfe
+  gehören in `export()` **und** einen export→import-Roundtrip-Test.
+
+---
+
 ## [2.1.1] — 2026-06-28 — Bugfix: Tank für Heizöl/Pellets im UI anlegbar
 
 PATCH-Release. Reiner Frontend-Fix, keine Schema- oder API-Änderung

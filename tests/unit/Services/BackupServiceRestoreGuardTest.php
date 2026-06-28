@@ -65,4 +65,47 @@ final class BackupServiceRestoreGuardTest extends ServiceTestCase
         self::assertNotEmpty($snapshots,
             'Vor jedem Restore muss ein pre-restore-Snapshot abgelegt werden');
     }
+
+    /**
+     * v2.1.2 — Regression: export()/import() müssen ALLE persistenten
+     * Datentöpfe sichern. Vorher fielen deliveries (Heizöl/Pellets),
+     * meter_groups (F1006) und reminders still aus dem Backup → Datenverlust.
+     */
+    public function testRoundtripPreservesDeliveriesGroupsAndReminders(): void
+    {
+        // In die bisher ignorierten Töpfe schreiben.
+        $this->store->write('heizoel/deliveries.json', [
+            ['id' => 'd_t1', 'meter_id' => 'm_heizoel_tank', 'date' => '2024-09-01', 'quantity' => 1000.0],
+        ]);
+        $this->store->write('strom/meter_groups.json', [
+            ['id' => 'g_t1', 'name' => 'Testgruppe', 'created_at' => '2024-01-01'],
+        ]);
+        $this->store->write('reminders.json', [
+            ['id' => 'r_t1', 'title' => 'Heizungswartung'],
+        ]);
+
+        $svc = new BackupService($this->store, $this->i18n);
+        $payload = $svc->export();
+
+        // Export trägt die neuen Töpfe.
+        self::assertCount(1, $payload['utilities']['heizoel']['deliveries'] ?? [],
+            'export() muss deliveries enthalten');
+        self::assertCount(1, $payload['utilities']['strom']['meter_groups'] ?? [],
+            'export() muss meter_groups enthalten');
+        self::assertCount(1, $payload['reminders'] ?? [],
+            'export() muss reminders enthalten');
+
+        // Töpfe leeren und aus dem Backup wiederherstellen.
+        $this->store->write('heizoel/deliveries.json', []);
+        $this->store->write('strom/meter_groups.json', []);
+        $this->store->write('reminders.json', []);
+        $svc->import($payload);
+
+        self::assertCount(1, $this->store->read('heizoel/deliveries.json', []),
+            'Lieferungen müssen den Backup-Roundtrip überleben');
+        self::assertCount(1, $this->store->read('strom/meter_groups.json', []),
+            'Zählergruppen müssen den Backup-Roundtrip überleben');
+        self::assertCount(1, $this->store->read('reminders.json', []),
+            'Reminders müssen den Backup-Roundtrip überleben');
+    }
 }

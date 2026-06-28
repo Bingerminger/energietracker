@@ -230,6 +230,16 @@ git push origin main --tags
   denken — Validierung in `Utilities`/`MeterService` UND das passende
   Eingabefeld im selben Change; ein Pflichtfeld, das die UI nicht erfassen
   kann, ist per Konstruktion ein 400-Generator.
+- **Serializer mit hartkodierter Feldliste wird still unvollständig
+  (v2.1.2).** `BackupService::export()` sicherte nur `meters/readings/
+  contracts`; `deliveries` (v1.3.0) und `meter_groups` (v1.8.0) kamen als
+  neue Utility-Datentöpfe dazu, die Export-Liste wurde nie nachgezogen →
+  Backup/Restore verlor die Daten lautlos, ebenso top-level `reminders`.
+  Verschärfend: die Roadmap nahm „BackupService zieht ohnehin alle
+  JSON-Dateien je Utility ein" an, und kein Test prüfte einen Roundtrip.
+  Lehre: Ein Backup/Export braucht einen export→import-Roundtrip-Test, der
+  bei jedem neuen Datentopf zwingend erweitert wird; Vollständigkeits-
+  Annahmen über den Serializer gehören getestet, nicht dokumentiert.
 
 ---
 
