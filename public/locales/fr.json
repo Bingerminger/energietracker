@@ -538,6 +538,8 @@
       "deviceSerial": "Numéro de série de l’appareil (facultatif)",
       "installedOn": "Date d’installation",
       "initialCounter": "Relevé initial ({unit})",
+      "capacity": "Capacité du réservoir ({unit})",
+      "initialStock": "Stock initial ({unit})",
       "notes": "Notes",
       "active": "Actif",
       "save": "Enregistrer",

@@ -221,6 +221,15 @@ git push origin main --tags
   abgeleiteten Felder. Zweitens: Frontend muss Feldnamen
   Utility-aware auflösen (`consKey = consumption_unit==='kWh' ?
   'kwh' : 'm3'`), nicht hartkodiert auf ein Feld setzen.
+- **Backend-Pflichtfeld ohne Frontend-Eingabe = garantierter Fehlerpfad
+  (v2.1.1, Issue #18).** `MeterService::create()` verlangt für
+  lieferbasierte Verbrauchsarten `capacity > 0` + `initial_stock`, doch das
+  „Neuer Zähler"-Formular rendert diese Felder nie und sendet sie nie →
+  jeder Heizöl-/Pellets-Tank schlug beim Anlegen fehl, ohne dass es ein Feld
+  zum Ausfüllen gab. Lehre: `reading_kind`-abhängige Pflichtfelder als Paar
+  denken — Validierung in `Utilities`/`MeterService` UND das passende
+  Eingabefeld im selben Change; ein Pflichtfeld, das die UI nicht erfassen
+  kann, ist per Konstruktion ein 400-Generator.
 
 ---
 

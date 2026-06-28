@@ -131,7 +131,9 @@ Demo-Daten-Import (F1007) und die **🏠 Home-Assistant-Anbindung (F1009)**
 
 Zähler-/Geräteverwaltung inkl. Zählertausch (Device-Kette) und
 Vertragspflege (Arbeits-/Grundpreis-Historie, Abschläge, Boni). Bei
-Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant.
+Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant — beim Anlegen
+und Bearbeiten eines Tanks werden **Tank-Kapazität** und **Anfangsbestand**
+erfasst (statt eines kumulativen Zählerstands).
 
 **Meter-Topologie:** Subzähler werden unter ihrem Elternzähler eingerückt
 dargestellt, Gruppen als aufklappbarer Sammeleintrag; ein **Merge-Wizard**

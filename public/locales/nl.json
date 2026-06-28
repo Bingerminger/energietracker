@@ -538,6 +538,8 @@
       "deviceSerial": "Serienummer apparaat (optioneel)",
       "installedOn": "Installatiedatum",
       "initialCounter": "Beginstand ({unit})",
+      "capacity": "Tankcapaciteit ({unit})",
+      "initialStock": "Beginvoorraad ({unit})",
       "notes": "Notities",
       "active": "Actief",
       "save": "Opslaan",

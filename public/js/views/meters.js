@@ -229,6 +229,12 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
   );
   const curParent = existing?.parent_meter_id || '';
   const curGroup  = existing?.meter_group_id || '';
+  // v2.1.1 — Fix #18: Delivery-Utilities (Heizöl/Pellets) verlangen beim
+  // Anlegen eine Tank-Kapazität (> 0) und einen Anfangsbestand — sonst wirft
+  // MeterService::create() errors.meter.capacityRequired. Diese Felder fehlten
+  // bisher im Formular, daher ließ sich gar kein Tank anlegen (#18).
+  const isDelivery = u.reading_kind === 'delivery';
+  const volUnit = u.volume_unit || u.unit || '';
   return new Promise(resolve => {
     const body = `
       <form id="meter-form">
@@ -269,12 +275,26 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               <label>${t('meters.modal.installedOn')}</label>
               <input class="input" name="installed_on" type="date" value="${todayIso()}">
             </div>
+            ${isDelivery ? '' : `
             <div class="field">
               <label>${t('meters.modal.initialCounter', { unit: u.unit })}</label>
               <input class="input" name="initial_counter" type="number" step="0.01" value="0">
             </div>
+            `}
           </div>
         `}
+        ${isDelivery ? `
+          <div class="form-row">
+            <div class="field">
+              <label>${t('meters.modal.capacity', { unit: volUnit })}</label>
+              <input class="input" name="capacity" type="number" step="0.01" min="0.01" required value="${existing?.capacity ?? ''}">
+            </div>
+            <div class="field">
+              <label>${t('meters.modal.initialStock', { unit: volUnit })}</label>
+              <input class="input" name="initial_stock" type="number" step="0.01" min="0" required value="${existing?.initial_stock ?? ''}">
+            </div>
+          </div>
+        ` : ''}
         <div class="field">
           <label>${t('meters.modal.notes')}</label>
           <textarea class="input input--text" name="notes">${escapeHtml(existing?.notes || '')}</textarea>
@@ -300,25 +320,39 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           const f = modalEl.querySelector('#meter-form');
           try {
             if (existing) {
-              await api.updateMeter(u.key, existing.id, {
+              const payload = {
                 name:   f.name.value,
                 icon:   f.icon.value,
                 notes:  f.notes.value,
                 active: f.active.checked,
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
-              });
+              };
+              // v2.1.1 — Fix #18: Tank-Felder mitsenden (nur Heizöl/Pellets).
+              if (isDelivery) {
+                payload.capacity      = Number(f.capacity.value);
+                payload.initial_stock = Number(f.initial_stock.value);
+              }
+              await api.updateMeter(u.key, existing.id, payload);
             } else {
-              await api.createMeter(u.key, {
+              const payload = {
                 name:            f.name.value,
                 icon:            f.icon.value,
                 notes:           f.notes.value,
                 device_serial:   f.device_serial.value || null,
                 installed_on:    f.installed_on.value,
-                initial_counter: Number(f.initial_counter.value),
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
-              });
+              };
+              // v2.1.1 — Fix #18: Delivery-Utilities bekommen Tank-Kapazität +
+              // Anfangsbestand statt eines kumulativen Anfangsstands.
+              if (isDelivery) {
+                payload.capacity      = Number(f.capacity.value);
+                payload.initial_stock = Number(f.initial_stock.value);
+              } else {
+                payload.initial_counter = Number(f.initial_counter.value);
+              }
+              await api.createMeter(u.key, payload);
             }
             toastOk(t('meters.modal.saved'));
             close(true); resolve(true);

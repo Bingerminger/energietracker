@@ -538,6 +538,8 @@
       "deviceSerial": "Device serial number (optional)",
       "installedOn": "Installation date",
       "initialCounter": "Initial reading ({unit})",
+      "capacity": "Tank capacity ({unit})",
+      "initialStock": "Initial stock ({unit})",
       "notes": "Notes",
       "active": "Active",
       "save": "Save",

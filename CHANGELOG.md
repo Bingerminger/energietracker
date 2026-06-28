@@ -6,6 +6,58 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.1.1] — 2026-06-28 — Bugfix: Tank für Heizöl/Pellets im UI anlegbar
+
+PATCH-Release. Reiner Frontend-Fix, keine Schema- oder API-Änderung
+(Schema bleibt 1.3.0). Behebt, dass sich für lieferbasierte Verbrauchsarten
+(Heizöl, Pellets) über die Oberfläche kein Tank anlegen ließ.
+
+### Added
+
+- Zwei neue Oberflächen-Schlüssel `meters.modal.capacity` und
+  `meters.modal.initialStock` in allen sieben Katalogen
+  (`de/en/fr/it/es/pt/nl`).
+
+### Changed
+
+- **Versionsstempel synchronisiert.** `INSTALL.md` und `INSTALL.de.md`
+  (Docker-Pull-Beispiel + VERSION-Verweis) standen noch auf 2.0.1 und
+  ziehen jetzt auf 2.1.1 mit.
+
+### Fixed
+
+- **Tank für Heizöl/Pellets ließ sich nicht anlegen ([#18]).** Das „Neuer
+  Zähler"-Formular (`public/js/views/meters.js`) rendert für lieferbasierte
+  Verbrauchsarten jetzt die Pflichtfelder **Tank-Kapazität** und
+  **Anfangsbestand** und sendet sie an `POST /api/utility/<key>/meters`.
+  Bisher fehlten beide Felder, sodass `MeterService::create()` mit
+  „Tank-Kapazität (capacity) > 0 ist Pflicht" abbrach — eine Fehlermeldung
+  ohne zugehöriges Eingabefeld. Die Felder erscheinen auch im
+  Bearbeiten-Dialog (vorbefüllt); der kumulative „Anfangsstand" entfällt
+  für Tanks.
+
+### Migration
+
+Keine. Schema bleibt 1.3.0; Bestandsdaten und bereits angelegte Tanks
+(auch die per `ensureDefault` erzeugten) laufen unverändert weiter.
+
+### Tests
+
+- Browser-verifiziert (Playwright gegen Demo-Daten): Tank anlegen — Felder
+  sichtbar, Speichern ohne Fehler, `capacity`/`initial_stock` korrekt
+  persistiert — und bearbeiten (Werte vorbefüllt), 0 Konsolenfehler. Die
+  PHPUnit-Suite bleibt unverändert grün; `MeterService` war bereits korrekt.
+
+### Lessons Learned
+
+- Ein Backend-Pflichtfeld ohne passendes Eingabefeld im Frontend ist per
+  Konstruktion ein Fehlerpfad. Bei `reading_kind`-abhängigen Pflichtfeldern
+  Formular und `MeterService::create()` zusammen denken.
+
+[#18]: https://github.com/Bingerminger/energietracker/issues/18
+
+---
+
 ## [2.1.0] — 2026-06-10 — Weitere UI-Sprachen + vollständige englische Doku
 
 MINOR-Release. Erste Lokalisierungs-Welle nach dem v2.0.0-i18n-Fundament:

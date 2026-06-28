@@ -538,6 +538,8 @@
       "deviceSerial": "Numero di serie del dispositivo (facoltativo)",
       "installedOn": "Data di installazione",
       "initialCounter": "Lettura iniziale ({unit})",
+      "capacity": "Capacità del serbatoio ({unit})",
+      "initialStock": "Giacenza iniziale ({unit})",
       "notes": "Note",
       "active": "Attivo",
       "save": "Salva",

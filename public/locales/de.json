@@ -538,6 +538,8 @@
       "deviceSerial": "Geräte-Seriennummer (optional)",
       "installedOn": "Einbaudatum",
       "initialCounter": "Anfangsstand ({unit})",
+      "capacity": "Tank-Kapazität ({unit})",
+      "initialStock": "Anfangsbestand ({unit})",
       "notes": "Notizen",
       "active": "Aktiv",
       "save": "Speichern",
