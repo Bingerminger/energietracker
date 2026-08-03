@@ -17,24 +17,38 @@
   --border-2:    rgba(255, 255, 255, 0.12);
   --border-strong: rgba(255, 255, 255, 0.20);
 
-  /* ── Text ─────────────────────────────────────────────────────── */
+  /* ── Text ─────────────────────────────────────────────────────────
+     v2.2.0 — `--text-2` und `--text-3` waren mit #6b7f99 / #6b7385 auf
+     Kartenhintergrund (--bg-1) bei 4,38:1 bzw. darunter und verfehlten damit
+     WCAG AA (4,5:1) für normalen Text. Sie tragen als `.muted` fast alle
+     Sekundärtexte der App, oft bei 11–13 px. Jetzt aufgehellt auf 5,5:1 bzw.
+     5,0:1 gegen --bg-1. Das helle Theme war mit 7,6:1 nie betroffen. */
   --text-1:      #dce8f5;      /* primary */
-  --text-2:      #6b7f99;      /* secondary / muted */
-  --text-3:      #6b7385;      /* tertiary */
-  --text-disabled:#3d5070;
+  --text-2:      #8ba0ba;      /* secondary / muted */
+  --text-3:      #8590a6;      /* tertiary */
+  --text-disabled:#4a5f80;
 
   /* ── Brand / accents ──────────────────────────────────────────── */
   --accent:      #4a90e2;
   --accent-hover:#74acea;
 
-  /* ── Utility colors (v0.9.0 palette) ──────────────────────────── */
-  --util-gas:    #ff7b2e;       /* orange */
-  --util-strom:  #2de8a4;       /* mint-green */
-  --util-wasser: #3b82f6;       /* blue (new in v1.0.0) */
+  /* ── Utility colors ───────────────────────────────────────────────
+     Seit v2.2.0 kommen `--util-<key>` und `--util-<key>-soft` zur Laufzeit
+     aus der Utilities-SSOT (public/js/lib/utility-theme.js erzeugt sie aus
+     /api/utilities). Hier stehen sie NICHT mehr: Die handgepflegte Liste
+     kannte nur gas/strom/wasser, sodass die fünf später ergänzten
+     Verbrauchsarten ungefärbt blieben — und bei Gas und Strom wich sie von
+     der SSOT ab, weshalb Diagramm und Bedienelement verschiedene Farben
+     zeigten. Eine neue Verbrauchsart braucht jetzt nur noch einen Eintrag in
+     src/Config/Utilities.php.
 
-  --util-gas-soft:    rgba(255, 123, 46, 0.12);
-  --util-strom-soft:  rgba(45, 232, 164, 0.12);
-  --util-wasser-soft: rgba(59, 130, 246, 0.14);
+     `--util` / `--util-soft` (ohne Key) werden pro [data-utility]-Container
+     ebenfalls dort gesetzt. Der neutrale Vorbelegungswert hier greift nur,
+     solange die Utilities noch nicht geladen sind. */
+  --util:      var(--accent);
+  --util-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* Schriftfarbe auf gefüllter Utility-Fläche (Buttons, aktive Pillen). */
+  --btn-util-fg: #fff;
 
   /* Semantic accent colors used in v0.9.0 KPI ribbons */
   --c-blue:      #4a90e2;
@@ -98,10 +112,8 @@
   --transition:  150ms ease-out;
 }
 
-/* Per-utility CSS variable binding — set on body via JS or on per-view containers */
-[data-utility="gas"]    { --util: var(--util-gas);    --util-soft: var(--util-gas-soft); }
-[data-utility="strom"]  { --util: var(--util-strom);  --util-soft: var(--util-strom-soft); }
-[data-utility="wasser"] { --util: var(--util-wasser); --util-soft: var(--util-wasser-soft); }
+/* Die [data-utility="…"]-Bindungen erzeugt utility-theme.js zur Laufzeit für
+   ALLE Verbrauchsarten der SSOT — siehe Kommentar oben. */
 
 /* =================================================================
    Light theme — v1.2.0
@@ -126,20 +138,18 @@
   /* ── Text ─────────────────────────────────────────────────────── */
   --text-1:      #0f172a;
   --text-2:      #475569;
-  --text-3:      #64748b;
-  --text-disabled: #94a3b8;
+  /* v2.2.0 — #64748b erreichte auf --bg-2 (#eef2f7, Tabellenkopf und
+     verschachtelte Flächen) nur 4,23:1. Leicht abgedunkelt auf 5,0:1. */
+  --text-3:      #566276;
+  --text-disabled: #8595ab;
 
   /* ── Brand / accents — dunklere Schattierungen für Weiß-Bg-Kontrast */
   --accent:      #2563eb;
   --accent-hover:#1d4ed8;
 
-  --util-gas:    #ea580c;
-  --util-strom:  #059669;
-  --util-wasser: #2563eb;
-
-  --util-gas-soft:    rgba(234,  88,  12, 0.10);
-  --util-strom-soft:  rgba(  5, 150, 105, 0.10);
-  --util-wasser-soft: rgba( 37,  99, 235, 0.10);
+  /* Die Utility-Farben leitet utility-theme.js für das helle Theme selbst aus
+     der SSOT ab (color-mix mit Schwarz), damit sie auf weißem Grund den
+     Kontrastanforderungen genügen. */
 
   --c-blue:      #2563eb;
   --c-violet:    #7c3aed;

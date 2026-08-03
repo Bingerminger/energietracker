@@ -135,6 +135,49 @@ final class I18nService
         return $value;
     }
 
+    /**
+     * v2.2.0 — Lokalisierter Name einer Verbrauchsart, Fallback auf das
+     * deutsche Label aus der Utilities-SSOT.
+     *
+     * Der Übersetzungsschritt lag bisher als Ad-hoc-Zeile in
+     * UtilitiesController, PdfReportService und RecommendationService — und
+     * fehlte in BenchmarkService und ReadingService, weshalb dort deutsche
+     * Namen in eine ansonsten übersetzte Oberfläche durchschlugen. Eine
+     * gemeinsame Methode kann nicht an einer Stelle vergessen werden.
+     */
+    public function utilityLabel(string $utility): string
+    {
+        $key = 'utilityNames.' . $utility;
+        $name = $this->t($key);
+        if ($name !== $key) {
+            return $name;
+        }
+        $def = \Energietracker\Config\Utilities::exists($utility)
+            ? \Energietracker\Config\Utilities::get($utility)
+            : [];
+        return (string)($def['label'] ?? $utility);
+    }
+
+    /**
+     * v2.2.0 — Lokalisierter Default-Zählername („Hauptzähler", „Heizöltank" …).
+     *
+     * Wird beim Anlegen einmal in die Daten geschrieben und danach nicht mehr
+     * nachgeführt — der Name gehört ab dann dem Nutzer. Entscheidend ist also
+     * nur, dass eine Frischinstallation in der eingestellten Sprache startet.
+     */
+    public function defaultMeterName(string $utility): string
+    {
+        $key = 'meterNames.' . $utility;
+        $name = $this->t($key);
+        if ($name !== $key) {
+            return $name;
+        }
+        $def = \Energietracker\Config\Utilities::exists($utility)
+            ? \Energietracker\Config\Utilities::get($utility)
+            : [];
+        return (string)($def['default_meter_name'] ?? $utility);
+    }
+
     private function lookup(string $locale, string $key): ?string
     {
         $node = $this->catalog($locale);

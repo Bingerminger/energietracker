@@ -34,12 +34,29 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
   else bodyEl.innerHTML = body;
   root.appendChild(backdrop);
 
+  // A11y (v2.2.0): Der Rest der Seite wird inert. Der Fokus-Trap unten fängt
+  // nur die Tab-Taste — der virtuelle Cursor eines Screenreaders wanderte
+  // weiterhin frei durch die Inhalte hinter dem Dialog. `inert` nimmt den
+  // Bereich aus dem Accessibility-Tree UND aus der Tab-Reihenfolge.
+  const appEl = document.getElementById('app');
+  const hadInert = appEl?.hasAttribute('inert');
+  if (appEl && !hadInert) appEl.setAttribute('inert', '');
+  // Hintergrund-Scroll sperren, damit das Rad nicht die Seite unter dem
+  // Dialog bewegt.
+  const prevOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+
   let resolveClose;
   const closedPromise = new Promise(r => { resolveClose = r; });
+  let closed = false;
 
   function close(value) {
+    if (closed) return;
+    closed = true;
     backdrop.remove();
     document.removeEventListener('keydown', onKey);
+    if (appEl && !hadInert) appEl.removeAttribute('inert');
+    document.body.style.overflow = prevOverflow;
     resolveClose(value);
     // Fokus auf das auslösende Element zurückgeben (sofern noch im DOM).
     if (prevFocus && typeof prevFocus.focus === 'function' && document.contains(prevFocus)) {

@@ -26,6 +26,16 @@
     "primaryNav": "Navigation principale",
     "brandHome": "Energietracker — aller à l’aperçu"
   },
+  "meterNames": {
+    "gas": "Compteur principal",
+    "strom": "Compteur principal",
+    "wasser": "Compteur principal",
+    "fernwaerme": "Compteur de chaleur",
+    "heizoel": "Cuve à fioul",
+    "pellets": "Silo à granulés",
+    "pv_einspeisung": "Compteur d'injection",
+    "pv_erzeugung": "Compteur de production"
+  },
   "utilityNames": {
     "gas": "Gaz",
     "strom": "Électricité",
@@ -186,6 +196,7 @@
       "deliveries": "🚚 Livraisons",
       "deliveriesCount": "{count} livraisons au total",
       "readings": "🔢 Relevés",
+      "readingsYear": "📋 Relevés {year}",
       "readingsCount": "{count} relevés au total"
     },
     "balance": {
@@ -283,6 +294,8 @@
     },
     "readingsTable": {
       "emptyTitle": "Aucun relevé",
+      "emptyYear": "Aucun relevé en {year}",
+      "emptyYearHint": "{count} relevés sont enregistrés au total — accessibles via le sélecteur d'année ci-dessus.",
       "colDate": "Date",
       "colCounter": "Relevé de compteur",
       "colNote": "Note",
@@ -352,6 +365,10 @@
     "verdict": { "surcharge": "Complément", "refund": "Remboursement", "payout": "Versement", "reclaim": "À récupérer", "balanced": "Équilibré" }
   },
   "contracts": {
+    "unit": {
+      "ctPerKwh": "ct/kWh",
+      "eurPerMonth": "€/mois"
+    },
     "loading": "Chargement…",
     "unknown": "Énergie inconnue : {key}",
     "title": "{label} · Contrats",
@@ -371,7 +388,8 @@
       "edit": "Modifier",
       "meterLabel": "Compteur :",
       "open": "ouvert",
-      "noMeter": "—"
+      "noMeter": "—",
+      "shadowHint": "Contrat fictif — simple scénario pour la comparaison des tarifs. N'entre ni dans les coûts, ni dans le solde, ni dans la prévision."
     },
     "status": { "active": "ACTIF", "past": "PASSÉ", "future": "FUTUR" },
     "summary": {
@@ -587,10 +605,15 @@
     }
   },
   "settings": {
+    "placeholder": {
+      "dayMonth": "JJ-MM (01-01)",
+      "yearExample": "p. ex. 1998"
+    },
     "loading": "Chargement…",
     "title": "⚙️ Paramètres",
     "subtitle": "Configuration · export des données · sauvegarde et restauration",
     "save": "Enregistrer les paramètres",
+    "saveUnsaved": "Enregistrer •",
     "saved": "Paramètres enregistrés",
     "lang": {
       "title": "🌐 Langue / Language",
@@ -803,6 +826,10 @@
     }
   },
   "reminders": {
+    "suggest": {
+      "deliveryTitle": "Planifier la prochaine livraison de {label}",
+      "deliveryNote": "Proposé automatiquement d'après vos livraisons précédentes."
+    },
     "loading": "Chargement des rappels…",
     "loadError": "Impossible de charger les rappels : {msg}",
     "title": "Rappels et entretien",
@@ -923,10 +950,21 @@
     "notSupported": "Non pris en charge.",
     "noContracts": "Aucun contrat à comparer.",
     "shadowBadge": "Fictif",
-    "col": { "tariff": "Tarif", "consumption": "Consommation", "cost": "Coût", "vsReal": "vs. réellement payé" },
+    "shadowFallbackLabel": "Hypothèse",
+    "months": "{count} mois",
+    "monthsOne": "1 mois",
+    "partialHint": "Les contrats ne couvrant qu'une partie de la période portent leur durée. La consommation et le coût se rapportent toujours exactement à ces mois.",
+    "projectedFull": "extrapolé sur {months} mois : {value}",
+    "realTotal": "Réellement facturé sur la période : {value}",
+    "noRows": "Aucun contrat avec prix unitaire sur la période choisie.",
+    "chartTitle": "Comparaison du prix unitaire",
+    "chartAlt": "Diagramme en barres du coût complet par unité ({unit}) de chaque tarif",
+    "unitCostTitle": "Coût complet par unité — prix unitaire, abonnement et bonus réunis. La seule valeur qui compare équitablement des durées différentes.",
+    "legend": "Négatif (vert) = moins cher que le contrat réellement facturé sur les mêmes mois. Seuls les coûts tarifaires sont comparés ; les acomptes et régularisations sont des flux de trésorerie et restent en dehors.",
+    "action": { "edit": "Modifier", "delete": "Supprimer" },
+    "col": { "tariff": "Tarif", "period": "Période", "consumption": "Consommation", "cost": "Coût", "unitCost": "ct/{unit}", "vsReal": "vs. réel", "savings": "Écart" },
     "period": "Période : {label}",
     "periodRange": "Période : {label} ({from} – {to})",
-    "legend": "Différence négative (vert) = moins cher que le contrat réellement facturé.",
     "shadow": {
       "title": "Créer un contrat fictif",
       "intro": "Un tarif hypothétique — n’affecte PAS le solde/la prévision, seulement ce comparatif.",
@@ -935,17 +973,27 @@
       "provider": "Fournisseur",
       "providerPlaceholder": "facultatif",
       "start": "Valable à partir du",
-      "workingPrice": "Prix de l’énergie (ct/kWh)",
+      "workingPrice": "Prix unitaire (ct/{unit})",
       "workingPlaceholder": "p. ex. 8,50",
       "basePrice": "Prix d’abonnement (€/mois)",
       "basePlaceholder": "p. ex. 12,00",
       "create": "Créer",
       "validation": "Le libellé, la date et le prix de l’énergie sont obligatoires",
       "created": "Contrat fictif créé",
-      "error": "Erreur : {msg}"
+      "error": "Erreur : {msg}",
+      "titleEdit": "Modifier le contrat fictif",
+      "end": "Valable jusqu'au (facultatif)",
+      "endHint": "Laisser vide pour « toujours en cours ».",
+      "save": "Enregistrer",
+      "updated": "Contrat fictif enregistré",
+      "deleted": "Contrat fictif supprimé",
+      "deleteTitle": "Supprimer le contrat fictif ?",
+      "deleteMessage": "L'hypothèse sera supprimée. Les contrats réels et les relevés restent intacts.",
+      "deleteConfirm": "Supprimer"
     }
   },
   "analysis": {
+    "noUtilities": "Aucun type d'énergie actif. Les réglages permettent de choisir ceux qui s'affichent.",
     "loading": "Chargement…",
     "title": "📊 Analyse",
     "noMeters": "Aucun compteur.",
@@ -1014,6 +1062,7 @@
     }
   },
   "forecast": {
+    "noUtilities": "Aucun type d'énergie actif. Les réglages permettent de choisir ceux qui s'affichent.",
     "loading": "Chargement…",
     "title": "🔮 Prévision",
     "selectUtility": "Choisir une énergie",
@@ -1072,7 +1121,37 @@
     "continued": "(suite)",
     "meterPageTitle": "{label} {year} — {meter}"
   },
+  "migration": {
+    "meterNote": "Créé par la migration v0.9.0",
+    "meterNoteWater": "Créé par la migration v0.9.0 (v0.9.0 n'avait pas d'eau)."
+  },
   "errors": {
+    "view": {
+      "loadFailed": "Échec du chargement : {msg}",
+      "unknownRoute": "Route inconnue : {hash}",
+      "utilitiesFailed": "Impossible de charger les types d'énergie : {msg}"
+    },
+    "benchmark": {
+      "noLivingArea": "Surface habitable non renseignée — saisis-la dans les réglages pour obtenir la classe d'efficacité.",
+      "noHeatData": "Aucune donnée de chauffage trouvée pour {year}.",
+      "multipleSources": "Plusieurs sources de chaleur actives — la classe par source est plus parlante que le total combiné. La vue combinée n'a de sens qu'en chauffage volontairement combiné (p. ex. base et pointe)."
+    },
+    "forecast": {
+      "tooFewMonths": "Historique insuffisant (moins de 6 mois)."
+    },
+    "reminder": {
+      "titleRequired": "Un titre est requis.",
+      "dueRequired": "Une date d'échéance (AAAA-MM-JJ) est requise.",
+      "recurrenceMonths": "« Tous les N mois » nécessite un intervalle supérieur à 0.",
+      "notFound": "Rappel introuvable : {id}"
+    },
+    "tariff": {
+      "waterUnsupported": "La comparaison de tarifs pour l'eau (tarif à trois composantes) n'est pas incluse dans cette version.",
+      "deliveryUnsupported": "{label} est facturé à la livraison et n'a pas de contrat tarifaire — la facture de livraison y sert de base de coût.",
+      "noConsumption": "Pas encore de données de consommation pour ce compteur.",
+      "noConsumptionInPeriod": "Aucune donnée de consommation sur la période choisie.",
+      "noContracts": "Aucun contrat à comparer."
+    },
     "meter": {
       "multipleMeters": "Plusieurs compteurs pour {utility} ne sont pas autorisés",
       "capacityRequired": "Une capacité de cuve (capacity) > 0 est requise pour {label}",

@@ -8,24 +8,27 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getUtilities, getSettings } from '../state.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { activeUtilities, getSettings } from '../state.js';
+import { fmt, escapeHtml, monthShortNames } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
-import { t, getLocale } from '../lib/i18n.js';
+import { t } from '../lib/i18n.js';
 
-// Locale-bewusste Kurz-Monatsnamen für die Chart-Achsen.
-const MONTHS = {
-  de: ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'],
-  en: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-};
-const monthNames = () => MONTHS[getLocale()] || MONTHS.de;
+// Locale-bewusste Kurz-Monatsnamen für die Chart-Achsen. v2.2.0: aus der
+// gemeinsamen Intl-Quelle in lib/format.js statt einer zweiten, nur auf de/en
+// gepflegten Tabelle.
+const monthNames = () => monthShortNames();
 
 let charts = [];
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('analysis.loading')}</div>`;
-  const utilities = await getUtilities();
+  // v2.2.0 — wie Dashboard und Seitenleiste nur die aktiven Verbrauchsarten.
+  const utilities = await activeUtilities();
+  if (!utilities.length) {
+    container.innerHTML = `<div class="banner banner--info">${escapeHtml(t('analysis.noUtilities'))}</div>`;
+    return;
+  }
 
   container.innerHTML = `
     <div class="section-head">

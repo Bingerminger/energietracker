@@ -46,6 +46,7 @@ final class ReminderService
     public function __construct(
         private JsonStore $store,
         private SettingsService $settings,
+        private I18nService $i18n,
     ) {}
 
     /** @return array<int,array<string,mixed>> */
@@ -100,13 +101,13 @@ final class ReminderService
         $rec = (string)($input['recurrence'] ?? 'none');
         $recMonths = $input['recurrence_months'] ?? null;
         if ($rec === 'custom-months' && ($recMonths === null || (int)$recMonths <= 0)) {
-            throw new \InvalidArgumentException('recurrence_months > 0 erforderlich bei recurrence=custom-months');
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.recurrenceMonths'));
         }
         if (empty($input['title'])) {
-            throw new \InvalidArgumentException('Titel (title) ist erforderlich');
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.titleRequired'));
         }
         if (empty($input['next_due']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$input['next_due'])) {
-            throw new \InvalidArgumentException('next_due (YYYY-MM-DD) ist erforderlich');
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.dueRequired'));
         }
 
         $reminder = [
@@ -146,7 +147,7 @@ final class ReminderService
             break;
         }
         unset($r);
-        if ($found === null) throw new \RuntimeException('Erinnerung nicht gefunden: ' . $id);
+        if ($found === null) throw new \RuntimeException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
         $this->store->write('reminders.json', $all);
         return $found;
     }
@@ -156,7 +157,7 @@ final class ReminderService
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $kept = array_values(array_filter($all, fn($r) => ($r['id'] ?? null) !== $id));
-        if (count($kept) === count($all)) throw new \RuntimeException('Erinnerung nicht gefunden: ' . $id);
+        if (count($kept) === count($all)) throw new \RuntimeException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
         $this->store->write('reminders.json', $kept);
     }
 
@@ -191,7 +192,7 @@ final class ReminderService
             break;
         }
         unset($r);
-        if ($found === null) throw new \RuntimeException('Erinnerung nicht gefunden: ' . $id);
+        if ($found === null) throw new \RuntimeException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
         $this->store->write('reminders.json', $all);
         return $found;
     }
@@ -240,11 +241,11 @@ final class ReminderService
             $next = (new \DateTime(end($dates)))->modify('+' . max(30, (int)round($avg)) . ' days');
         }
         return [
-            'title'      => sprintf('Nächste %s-Lieferung planen', $utilityLabel),
+            'title'      => $this->i18n->t('reminders.suggest.deliveryTitle', ['label' => $utilityLabel]),
             'category'   => 'lieferung_planen',
             'next_due'   => $next->format('Y-m-d'),
             'recurrence' => 'none',
-            'notes'      => 'Automatisch vorgeschlagen anhand der bisherigen Lieferfrequenz.',
+            'notes'      => $this->i18n->t('reminders.suggest.deliveryNote'),
         ];
     }
 }

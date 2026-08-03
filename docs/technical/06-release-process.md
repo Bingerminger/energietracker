@@ -266,6 +266,53 @@ git push origin main --tags
   statt 28.02.) — Tag auf die Ziel-Monatslänge clampen. Lehre: jede Anzeige-
   Eigenschaft, die schon in der SSOT (Utilities) steht, von dort ziehen; und
   Datums-Arithmetik gegen Monatsende-Überlauf absichern.
+- **Ein Ausschlussfilter gilt für jeden Konsumenten (v2.2.0).** `is_shadow` wurde
+  im `ConsumptionService` an beiden Stellen gefiltert, im `ForecastService` aber
+  nicht — obwohl `ContractService::create()` im Kommentar zusicherte,
+  Schattenverträge flössen nicht in die Prognose ein. Sobald der letzte echte
+  Vertrag vor dem Prognosehorizont endete, rechnete die Prognose mit der
+  Hypothese. Dieselbe Klasse wie die Subzähler-Doppelzählung aus v2.1.3: Ein
+  Ausschluss, der nur an manchen Aufrufstellen sitzt, ist kein Ausschluss. Lehre:
+  Roh-Getter (`contracts->list()`) verpflichten den Aufrufer — besser ist ein
+  Getter, der den Filter erzwingt; und eine Zusicherung im Kommentar ist kein
+  Mechanismus, ein Test schon.
+- **Nachgezogene Sprachen brauchen einen Vollständigkeits-Check (v2.2.0).**
+  `lib/format.js` bildete Zahl-, Datums- und Monatsformat auf einer
+  handgepflegten `{de, en}`-Tabelle ab; die 2026 ergänzten Sprachen fielen still
+  auf `de-DE` zurück, fünf von sieben Oberflächen zeigten deutsche Zahlen und
+  „Mär/Mai/Dez". Lehre: Eine neue Sprache (oder Verbrauchsart) ist erst fertig,
+  wenn jede Stelle mit einer Aufzählung mitgezogen wurde — Katalog, Formatierung,
+  CSS-Token, Default-Namen. Wo die Plattform es kann (`Intl`), gehört keine
+  eigene Tabelle in den Code.
+- **Ein Default statt eines Fehlers ist Datenverlust (v2.2.0).**
+  `collectWaterForm()` machte via `parseFloat(x || 0)` aus einem vergessenen
+  Preis einen gültigen Tarif von 0 ct/m³. Der Backend-Guard konnte nicht greifen,
+  weil beide Felder gefüllt ankamen. Lehre: `|| 0` auf Benutzereingaben zerstört
+  genau die Information, die der Validierungspfad braucht („nicht ausgefüllt") —
+  leer weiterreichen und den Guard entscheiden lassen.
+- **Eine Kennzahl braucht einen Bezugsraum, sonst lügt sie (v2.2.0).** Der
+  Tarifvergleich meldete je Zeile den Gesamtverbrauch des Zeitraums, rechnete
+  die Kosten aber nur über die Monate des jeweiligen Vertrags. Beide Zahlen
+  waren für sich richtig — nebeneinander ergaben sie eine erfundene Ersparnis
+  (49 % statt real 15 %). Lehre: Wenn eine Tabelle Werte vergleichbar
+  nebeneinanderstellt, muss jede Spalte denselben Bezugsraum haben; wo Laufzeiten
+  verschieden sind, braucht es eine normierte Größe (hier Vollkosten je Einheit).
+  Und: Kosten und Zahlungsströme (Abschläge, Sonderzahlungen) nicht vermengen —
+  sie beantworten verschiedene Fragen.
+- **`vendor` in .gitignore trifft jedes Verzeichnis (v2.2.0).** Beim
+  Selbst-Hosten von Schriften und Chart.js unter `public/vendor/` hätte das
+  ungeankerte Muster `vendor/` die Dateien aus Repository UND Docker-Image
+  gehalten — die Anwendung wäre ohne Schrift und ohne Diagramme ausgeliefert
+  worden, ohne dass ein Test es merkt. Lehre: gitignore-Muster ohne führenden
+  Schrägstrich greifen auf jeder Ebene; neu hinzugefügte Asset-Verzeichnisse
+  gegen `git check-ignore` prüfen und die Auslieferung im Docker-Smoke-Test
+  festnageln.
+- **Was am Releasetag von Hand nachgezogen wird, wird irgendwann vergessen
+  (v2.2.0).** `docker-compose.yml` pinnte über sieben Releases hinweg noch
+  `1.9.3`; wer aus dem Repository startete, bekam eine Version vor dem gesamten
+  v2.x-Bündel. Lehre: Jede Versionsangabe außerhalb der Datei `VERSION` gehört
+  in einen Test (siehe `ReleaseConsistencyTest`) — Service-Worker-Cache,
+  Compose-Pin, CHANGELOG-Abschnitt, README- und INSTALL-Stempel.
 
 ---
 

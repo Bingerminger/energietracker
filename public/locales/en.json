@@ -26,6 +26,16 @@
     "primaryNav": "Main navigation",
     "brandHome": "Energietracker — go to overview"
   },
+  "meterNames": {
+    "gas": "Main meter",
+    "strom": "Main meter",
+    "wasser": "Main meter",
+    "fernwaerme": "Heat meter",
+    "heizoel": "Oil tank",
+    "pellets": "Pellet store",
+    "pv_einspeisung": "Feed-in meter",
+    "pv_erzeugung": "Generation meter"
+  },
   "utilityNames": {
     "gas": "Gas",
     "strom": "Electricity",
@@ -186,6 +196,7 @@
       "deliveries": "🚚 Deliveries",
       "deliveriesCount": "{count} deliveries total",
       "readings": "🔢 Readings",
+      "readingsYear": "📋 Readings {year}",
       "readingsCount": "{count} readings total"
     },
     "balance": {
@@ -283,6 +294,8 @@
     },
     "readingsTable": {
       "emptyTitle": "No readings",
+      "emptyYear": "No readings in {year}",
+      "emptyYearHint": "{count} readings are recorded in total — reachable via the year selector above.",
       "colDate": "Date",
       "colCounter": "Meter reading",
       "colNote": "Note",
@@ -352,6 +365,10 @@
     "verdict": { "surcharge": "Surcharge", "refund": "Refund", "payout": "Payout", "reclaim": "Reclaim", "balanced": "Balanced" }
   },
   "contracts": {
+    "unit": {
+      "ctPerKwh": "ct/kWh",
+      "eurPerMonth": "€/month"
+    },
     "loading": "Loading…",
     "unknown": "Unknown utility: {key}",
     "title": "{label} · Contracts",
@@ -371,7 +388,8 @@
       "edit": "Edit",
       "meterLabel": "Meter:",
       "open": "open",
-      "noMeter": "—"
+      "noMeter": "—",
+      "shadowHint": "Shadow contract — a what-if scenario for the tariff comparison only. Not counted in costs, balance or forecast."
     },
     "status": { "active": "ACTIVE", "past": "PAST", "future": "FUTURE" },
     "summary": {
@@ -587,10 +605,15 @@
     }
   },
   "settings": {
+    "placeholder": {
+      "dayMonth": "DD-MM (01-01)",
+      "yearExample": "e.g. 1998"
+    },
     "loading": "Loading…",
     "title": "⚙️ Settings",
     "subtitle": "Configuration · data export · backup & restore",
     "save": "Save settings",
+    "saveUnsaved": "Save •",
     "saved": "Settings saved",
     "lang": {
       "title": "🌐 Language / Sprache",
@@ -803,6 +826,10 @@
     }
   },
   "reminders": {
+    "suggest": {
+      "deliveryTitle": "Plan next {label} delivery",
+      "deliveryNote": "Suggested automatically from your previous delivery intervals."
+    },
     "loading": "Loading reminders…",
     "loadError": "Could not load reminders: {msg}",
     "title": "Reminders & maintenance",
@@ -923,10 +950,21 @@
     "notSupported": "Not supported.",
     "noContracts": "No contracts to compare.",
     "shadowBadge": "Shadow",
-    "col": { "tariff": "Tariff", "consumption": "Consumption", "cost": "Cost", "vsReal": "vs. actually paid" },
+    "shadowFallbackLabel": "Hypothesis",
+    "months": "{count} mo.",
+    "monthsOne": "1 month",
+    "partialHint": "Contracts covering only part of the period are marked with their duration. Consumption and cost always refer to exactly those months.",
+    "projectedFull": "extrapolated to {months} mo.: {value}",
+    "realTotal": "Actually billed in this period: {value}",
+    "noRows": "No contracts with a unit price in the selected period.",
+    "chartTitle": "Price comparison per unit",
+    "chartAlt": "Bar chart of total cost per unit ({unit}) for each tariff",
+    "unitCostTitle": "Total cost per unit — unit price, standing charge and bonuses combined. The only figure that fairly compares terms of different lengths.",
+    "legend": "Negative (green) = cheaper than the contract actually billed for the same months. Only pure tariff costs are compared; advance payments and one-off settlements are cash flows and stay out of it.",
+    "action": { "edit": "Edit", "delete": "Delete" },
+    "col": { "tariff": "Tariff", "period": "Period", "consumption": "Consumption", "cost": "Cost", "unitCost": "ct/{unit}", "vsReal": "vs. actual", "savings": "Difference" },
     "period": "Period: {label}",
     "periodRange": "Period: {label} ({from} – {to})",
-    "legend": "Negative difference (green) = cheaper than the contract actually billed.",
     "shadow": {
       "title": "Create shadow contract",
       "intro": "A hypothetical tariff — does NOT affect balance/forecast, only this comparison.",
@@ -935,17 +973,27 @@
       "provider": "Provider",
       "providerPlaceholder": "optional",
       "start": "Valid from",
-      "workingPrice": "Working price (ct/kWh)",
+      "workingPrice": "Unit price (ct/{unit})",
       "workingPlaceholder": "e.g. 8.50",
       "basePrice": "Base price (€/month)",
       "basePlaceholder": "e.g. 12.00",
       "create": "Create",
       "validation": "Label, date and working price are required",
       "created": "Shadow contract created",
-      "error": "Error: {msg}"
+      "error": "Error: {msg}",
+      "titleEdit": "Edit shadow contract",
+      "end": "Valid until (optional)",
+      "endHint": "Leave empty for “ongoing”.",
+      "save": "Save",
+      "updated": "Shadow contract saved",
+      "deleted": "Shadow contract deleted",
+      "deleteTitle": "Delete shadow contract?",
+      "deleteMessage": "The hypothesis will be removed. Real contracts and readings stay untouched.",
+      "deleteConfirm": "Delete"
     }
   },
   "analysis": {
+    "noUtilities": "No utility is active. You can choose which ones appear in the settings.",
     "loading": "Loading…",
     "title": "📊 Analysis",
     "noMeters": "No meters.",
@@ -1014,6 +1062,7 @@
     }
   },
   "forecast": {
+    "noUtilities": "No utility is active. You can choose which ones appear in the settings.",
     "loading": "Loading…",
     "title": "🔮 Forecast",
     "selectUtility": "Select utility",
@@ -1072,7 +1121,37 @@
     "continued": "(cont.)",
     "meterPageTitle": "{label} {year} — {meter}"
   },
+  "migration": {
+    "meterNote": "Created by the v0.9.0 migration",
+    "meterNoteWater": "Created by the v0.9.0 migration (v0.9.0 had no water)."
+  },
   "errors": {
+    "view": {
+      "loadFailed": "Failed to load: {msg}",
+      "unknownRoute": "Unknown route: {hash}",
+      "utilitiesFailed": "Could not load the utilities: {msg}"
+    },
+    "benchmark": {
+      "noLivingArea": "Living area not set — please enter it in the settings to get an efficiency class.",
+      "noHeatData": "No heating energy data found for {year}.",
+      "multipleSources": "Several heat sources active — the class per source is more meaningful than the combined total. The combined view only makes sense for deliberately combined heating (e.g. base and peak load)."
+    },
+    "forecast": {
+      "tooFewMonths": "Not enough history (less than 6 months)."
+    },
+    "reminder": {
+      "titleRequired": "A title is required.",
+      "dueRequired": "A due date (YYYY-MM-DD) is required.",
+      "recurrenceMonths": "“Every N months” needs an interval greater than 0.",
+      "notFound": "Reminder not found: {id}"
+    },
+    "tariff": {
+      "waterUnsupported": "Tariff comparison for water (three-component tariff) is not part of this version.",
+      "deliveryUnsupported": "{label} is billed per delivery and has no tariff contracts — the delivery invoice is the cost basis there.",
+      "noConsumption": "No consumption data for this meter yet.",
+      "noConsumptionInPeriod": "No consumption data in the selected period.",
+      "noContracts": "No contracts to compare."
+    },
     "meter": {
       "multipleMeters": "Multiple meters for {utility} are not allowed",
       "capacityRequired": "Tank capacity (capacity) > 0 is required for {label}",

@@ -24,31 +24,21 @@
 import { api } from '../api.js';
 import { getUtilities } from '../state.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { t, getLocale } from '../lib/i18n.js';
+import { t } from '../lib/i18n.js';
+import { fmt as baseFmt, escapeHtml as esc } from '../lib/format.js';
 
+// v2.2.0 — vorher ein eigener Formatierer mit fest verdrahtetem de-DE/en-GB.
+// Jetzt die gemeinsame Intl-Quelle; `num` bleibt „bis zu N Stellen" (Zählerstände
+// sollen keine aufgefüllten Nullen zeigen), dafür fmt.dec statt fmt.num.
 const fmt = {
-  num(n, max = 2) {
-    if (n === null || n === undefined || Number.isNaN(n)) return '–';
-    return Number(n).toLocaleString(getLocale() === 'en' ? 'en-GB' : 'de-DE', { maximumFractionDigits: max });
-  },
-  date(s) {
-    if (!s || typeof s !== 'string') return '–';
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!m) return s;
-    return getLocale() === 'en' ? `${m[3]}/${m[2]}/${m[1]}` : `${m[3]}.${m[2]}.${m[1]}`;
-  },
+  num: (n, max = 2) => baseFmt.dec(n, max),
+  date: (s) => baseFmt.date(s),
 };
 
 function todayISO() {
   const d = new Date();
   const z = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-}
-
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  }[c]));
 }
 
 export async function render(container) {

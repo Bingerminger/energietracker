@@ -12,18 +12,38 @@
 //   • Navigationen          → network-first, Fallback auf gecachte Shell
 //   • /api/ (GET)           → network-first, Fallback auf Cache
 //   • gleiche Origin statisch→ stale-while-revalidate
-//   • fremde Origin (CDN/Fonts) → stale-while-revalidate (opaque ok)
+//   • fremde Origin         → stale-while-revalidate (seit v2.2.0 gibt es
+//                             keine mehr; Schriften und Chart.js liegen unter
+//                             public/vendor/. Der Zweig bleibt als Auffangnetz)
 //
 // Cache-Version: bei jedem Release bumpen, damit alte Caches verworfen
-// werden (siehe `activate`).
+// werden (siehe `activate`). Ein CI-Schritt vergleicht sie mit der Datei
+// VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v2.1.5';
+const VERSION = 'v2.2.0';
 const STATIC_CACHE  = `et-static-${VERSION}`;
 const RUNTIME_CACHE = `et-runtime-${VERSION}`;
 
-// Minimal-Shell: die SPA-Wurzel (liefert index.php) als Navigations-Fallback.
-const SHELL_URLS = ['.', './manifest.webmanifest'];
+// v2.2.0 — Precache der App-Shell samt Schriften und Chart.js. Vorher standen
+// hier nur die SPA-Wurzel und das Manifest: Wer die Anwendung installierte und
+// erst danach offline ging, hatte zwar die Shell, aber weder Stile noch
+// Diagramme. Jetzt ist der erste Start ohne Netz vollständig.
+const SHELL_URLS = [
+  '.',
+  './manifest.webmanifest',
+  './public/css/tokens.css',
+  './public/css/app.css',
+  './public/css/components.css',
+  './public/css/readings-entry.css',
+  './public/vendor/fonts.css',
+  './public/vendor/fonts/dm-sans.woff2',
+  './public/vendor/fonts/dm-mono-400.woff2',
+  './public/vendor/fonts/dm-mono-500.woff2',
+  './public/vendor/chart.umd.min.js',
+  './public/js/app.js',
+  './public/locales/languages.json',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -53,11 +73,17 @@ function isStaticAsset(url) {
   return /\.(?:css|js|mjs|json|webmanifest|png|jpg|jpeg|svg|gif|ico|woff2?|ttf)$/i.test(url.pathname);
 }
 
+// v2.2.0 — `ignoreSearch`, damit der Cache-Buster (?v=<version>-<mtime>) einen
+// Treffer nicht verhindert. Die Cache-Namen tragen ohnehin die Release-Version:
+// Bei einem Update wird der gesamte alte Cache verworfen, es kann also nichts
+// Veraltetes überleben.
+const MATCH_OPTS = { ignoreSearch: true };
+
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
+  const cached = await cache.match(request, MATCH_OPTS);
   const network = fetch(request).then(resp => {
-    // Nur erfolgreiche oder opaque (CDN) Antworten cachen.
+    // Nur erfolgreiche oder opaque Antworten cachen.
     if (resp && (resp.ok || resp.type === 'opaque')) cache.put(request, resp.clone());
     return resp;
   }).catch(() => null);
@@ -71,10 +97,10 @@ async function networkFirst(request, cacheName, fallback) {
     if (resp && resp.ok) cache.put(request, resp.clone());
     return resp;
   } catch (e) {
-    const cached = await cache.match(request);
+    const cached = await cache.match(request, MATCH_OPTS);
     if (cached) return cached;
     if (fallback) {
-      const fb = await caches.match(fallback);
+      const fb = await caches.match(fallback, MATCH_OPTS);
       if (fb) return fb;
     }
     throw e;

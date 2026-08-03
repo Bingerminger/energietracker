@@ -125,4 +125,102 @@ final class WaterContractEdgeCasesTest extends ServiceTestCase
         self::assertSame(0.0, (float)$row['schmutzwasser']['total'],
             'Schmutzwasser-Kosten müssen 0 sein (keine gültige Mengenbasis)');
     }
+
+    /**
+     * v2.2.0 — Regression zum Frontend-Fix im Wasser-Vertragsformular.
+     *
+     * `collectWaterForm()` wandelte leere Zahlenfelder mit `parseFloat(x || 0)`
+     * in eine echte 0 um. Wer ein Stichtagsdatum eintrug und den Preis vergaß,
+     * speicherte damit still einen Tarif von 0 ct/m³ — die Wasserkosten fielen
+     * ab diesem Datum auf den Grundpreis, ohne Fehlermeldung.
+     *
+     * Das Frontend schickt jetzt einen leeren Wert. Dieser Test hält fest, dass
+     * der Backend-Guard genau dann greift und die Zeile ablehnt, statt sie zu
+     * speichern.
+     */
+    public function testWaterPriceRowWithDateButEmptyAmountIsRejected(): void
+    {
+        $meterId = $this->setMeterDevices('wasser', [[
+            'id' => 'd_wasser_1', 'serial' => null,
+            'installed_on' => '2024-01-01', 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null,
+        ]]);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->contracts->create('wasser', [
+            'meter_id'    => $meterId,
+            'provider'    => 'Stadtwerke',
+            'start'       => '2024-01-01',
+            'trinkwasser' => [
+                'working_prices' => [['from' => '2024-06-01', 'ct_per_m3' => '']], // Preis vergessen
+                'base_prices'    => [],
+            ],
+        ]);
+    }
+
+    /**
+     * v2.2.0 — Gegenprobe: Eine komplett leere Vorlagezeile bleibt zulässig und
+     * wird still verworfen. Sonst könnte der Nutzer einen Vertrag ohne
+     * Niederschlagswasser gar nicht mehr anlegen.
+     */
+    public function testCompletelyEmptyWaterRowIsDroppedSilently(): void
+    {
+        $meterId = $this->setMeterDevices('wasser', [[
+            'id' => 'd_wasser_1', 'serial' => null,
+            'installed_on' => '2024-01-01', 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null,
+        ]]);
+
+        $c = $this->contracts->create('wasser', [
+            'meter_id'    => $meterId,
+            'provider'    => 'Stadtwerke',
+            'start'       => '2024-01-01',
+            'trinkwasser' => [
+                'working_prices' => [['from' => '2024-01-01', 'ct_per_m3' => 200.0]],
+                'base_prices'    => [['from' => '', 'eur_per_month' => '']],
+            ],
+            'niederschlagswasser' => [
+                'rates' => [['from' => '', 'eur_per_m2_year' => '', 'versiegelte_flaeche_m2' => '']],
+            ],
+        ]);
+
+        self::assertSame([], $c['trinkwasser']['base_prices'],
+            'Leere Vorlagezeile beim Grundpreis muss still verworfen werden');
+        self::assertSame([], $c['niederschlagswasser']['rates'],
+            'Leere Vorlagezeile beim Niederschlagswasser muss still verworfen werden');
+        self::assertCount(1, $c['trinkwasser']['working_prices'],
+            'Die gefüllte Zeile bleibt erhalten');
+    }
+
+    /**
+     * v2.2.0 — Invariante, auf der der Frontend-Fix des Monatscharts beruht:
+     * Bei m³-nativen Verbrauchsarten trägt `m3` den Verbrauch und `kwh` ist 0.
+     * `drawMonthChart()` las bis v2.1.5 hart `m.kwh` und zeichnete für Wasser
+     * deshalb eine durchgehende Nullreihe.
+     */
+    public function testWaterMonthlyCarriesConsumptionInM3AndZeroInKwh(): void
+    {
+        $meterId = $this->setMeterDevices('wasser', [[
+            'id' => 'd_wasser_1', 'serial' => null,
+            'installed_on' => '2024-01-01', 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null,
+        ]]);
+        $this->setReadings('wasser', $meterId, [
+            ['date' => '2024-02-01', 'counter' => 0.0,  'device_id' => 'd_wasser_1'],
+            ['date' => '2024-03-01', 'counter' => 10.0, 'device_id' => 'd_wasser_1'],
+        ]);
+
+        $meter   = $this->meters->get('wasser', $meterId);
+        $monthly = $this->consumption->forMeter('wasser', $meter);
+        self::assertNotEmpty($monthly);
+
+        foreach ($monthly as $row) {
+            self::assertSame(0.0, (float)$row['kwh'],
+                "kwh muss bei Wasser 0 sein (ym {$row['ym']}) — Charts müssen m3 lesen");
+            self::assertArrayHasKey('m3', $row);
+        }
+        self::assertGreaterThan(0.0, array_sum(array_column($monthly, 'm3')),
+            'Der Verbrauch muss im m3-Feld ankommen');
+    }
 }

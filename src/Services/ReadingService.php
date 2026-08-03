@@ -168,7 +168,10 @@ final class ReadingService
 
                 $rows[] = [
                     'utility'           => $key,
-                    'utility_label'     => (string)($utility['label'] ?? $key),
+                    // v2.2.0 — lokalisiert; vorher stand hier das deutsche
+                    // SSOT-Label und erschien so in der Zählerstand-Erfassung,
+                    // der Haupteingabemaske, auch bei anderer Sprache.
+                    'utility_label'     => $this->i18n->utilityLabel($key),
                     'utility_icon'      => (string)($utility['icon']  ?? ''),
                     'consumption_unit'  => (string)($utility['consumption_unit'] ?? ''),
                     'color'             => (string)($utility['color'] ?? ''),

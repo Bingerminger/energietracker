@@ -33,9 +33,9 @@ const GROUPS = [
     { key: 'co2_pellets',    unit: 'g/kg',  step: '1' },
   ]},
   { gkey: 'billing', icon: '📅', fields: [
-    { key: 'billing_cycle_anchor_gas',    type: 'datemd', placeholder: 'TT-MM (01-01)' },
-    { key: 'billing_cycle_anchor_strom',  type: 'datemd', placeholder: 'TT-MM (01-01)' },
-    { key: 'billing_cycle_anchor_wasser', type: 'datemd', placeholder: 'TT-MM (01-01)' },
+    { key: 'billing_cycle_anchor_gas',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_strom',  type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_wasser', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
   ]},
   { gkey: 'contractReminders', icon: '🔔', fields: [
     { key: 'contract_remind_days_1', unitKey: 'settings.unit.days', step: '1' },
@@ -65,7 +65,7 @@ const GROUPS = [
   ]},
   { gkey: 'building', icon: '🏢', fields: [
     { key: 'wohnflaeche_m2', unit: 'm²', step: '1' },
-    { key: 'baujahr',        type: 'text', placeholder: 'z. B. 1998' },
+    { key: 'baujahr',        type: 'text', placeholderKey: 'settings.placeholder.yearExample' },
     { key: 'gebaeudetyp',    type: 'select', options: ['efh', 'rh', 'mfh', 'whg'] },
   ]},
   { gkey: 'delivery', icon: '🛢️', fields: [
@@ -79,9 +79,9 @@ const GROUPS = [
     { key: 'reminder_overdue_days',     unitKey: 'settings.unit.days', step: '1' },
     { key: 'recommendation_anomaly_sigma', unit: 'σ', step: '0.1' },
     { key: 'recommendation_trend_pct_year', unitKey: 'settings.unit.pctYear', step: '0.5' },
-    { key: 'billing_cycle_anchor_fernwaerme', type: 'datemd', placeholder: 'TT-MM (01-01)' },
-    { key: 'billing_cycle_anchor_heizoel',    type: 'datemd', placeholder: 'TT-MM (01-01)' },
-    { key: 'billing_cycle_anchor_pellets',    type: 'datemd', placeholder: 'TT-MM (01-01)' },
+    { key: 'billing_cycle_anchor_fernwaerme', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_heizoel',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_pellets',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
   ]},
   { gkey: 'location', icon: '📍', fields: [
     { key: 'location_name',     type: 'text' },
@@ -246,11 +246,40 @@ export async function render(container) {
     ${diag ? renderDiagnostics(diag) : ''}
   `;
 
+  // v2.2.0 — Schutz vor unbemerktem Verlust: Bis v2.1.5 gingen geänderte
+  // Einstellungen beim Wegnavigieren oder Schließen des Tabs kommentarlos
+  // verloren. Zwei Stufen, beide ohne die Navigation zu kapern:
+  //   1. `beforeunload` warnt beim Schließen/Neuladen (echter Verlust).
+  //   2. Ein Marker an der Speichern-Schaltfläche macht offene Änderungen
+  //      sichtbar, solange man in der Ansicht ist.
+  let baseline = JSON.stringify(collectSettings(container));
+  const saveButtons = [...container.querySelectorAll('#btn-save, #btn-save-2')];
+  const isDirty = () => JSON.stringify(collectSettings(container)) !== baseline;
+
+  const markDirty = () => {
+    const dirty = isDirty();
+    saveButtons.forEach(b => {
+      b.classList.toggle('btn--dirty', dirty);
+      b.textContent = dirty ? t('settings.saveUnsaved') : t('settings.save');
+    });
+  };
+  container.addEventListener('input', markDirty);
+  container.addEventListener('change', markDirty);
+
+  const beforeUnload = (e) => {
+    if (!isDirty()) return;
+    e.preventDefault();
+    e.returnValue = '';   // Browser verlangen das; der Text ist nicht steuerbar
+  };
+  window.addEventListener('beforeunload', beforeUnload);
+
   const save = async () => {
     const payload = collectSettings(container);
     try {
       await api.updateSettings(payload);
       invalidateSettings();
+      baseline = JSON.stringify(payload);   // Stand ist gesichert
+      markDirty();
       toastOk(t('settings.saved'));
     } catch (e) { toastErr(e.message); }
   };
@@ -416,6 +445,9 @@ export async function render(container) {
   container.querySelector('#btn-ha-copy-yaml')?.addEventListener('click', () => {
     copyText(container.querySelector('#ha-yaml')?.innerText || '', t('settings.ha.yamlCopied'));
   });
+
+  // Der Router ruft diese Funktion beim Verlassen der Ansicht auf.
+  return () => window.removeEventListener('beforeunload', beforeUnload);
 }
 
 function copyText(text, okMsg) {
@@ -539,6 +571,9 @@ function renderField(f, value) {
   const hint = hasHint ? `<span class="settings-field__hint" id="${hintId}">${hintVal}</span>` : '';
   const describedBy = hasHint ? ` aria-describedby="${hintId}"` : '';
   const unit = f.unitKey ? t(f.unitKey) : f.unit;
+  // v2.2.0 — Platzhalter mit deutschem Text („TT-MM", „z. B. 1998") laufen
+  // jetzt über den Katalog.
+  const placeholder = f.placeholderKey ? t(f.placeholderKey) : f.placeholder;
   const labelHtml = `<label for="${fieldId}">${t('settings.field.' + f.key + '.label')}${unit ? ` <span class="settings-field__unit">${escapeHtml(unit)}</span>` : ''}</label>`;
 
   if (f.type === 'select') {
@@ -566,7 +601,7 @@ function renderField(f, value) {
     return `<div class="field settings-field">
       ${labelHtml}
       <input class="input input--text" type="text" id="${fieldId}" data-key="${f.key}" data-type="datemd"
-             value="${escapeHtml(disp)}" ${f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : ''}${describedBy}>
+             value="${escapeHtml(disp)}" ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${describedBy}>
       ${hint}
     </div>`;
   }
@@ -574,7 +609,7 @@ function renderField(f, value) {
     return `<div class="field settings-field">
       ${labelHtml}
       <input class="input input--text" type="text" id="${fieldId}" data-key="${f.key}"
-             value="${escapeHtml(value ?? '')}" ${f.placeholder ? `placeholder="${escapeHtml(f.placeholder)}"` : ''}${describedBy}>
+             value="${escapeHtml(value ?? '')}" ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${describedBy}>
       ${hint}
     </div>`;
   }

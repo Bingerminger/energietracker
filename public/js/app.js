@@ -6,8 +6,9 @@ import { startRouter } from './router.js';
 import { getUtilities, getSettings } from './state.js';
 import { toastErr } from './components/toast.js';
 import { mountThemeToggle } from './lib/theme.js';
-import { buildSidebar } from './lib/sidebar.js';
+import { buildSidebar, refreshSidebarBadges } from './lib/sidebar.js';
 import { initI18n, t, getLocale } from './lib/i18n.js';
+import { applyUtilityTheme } from './lib/utility-theme.js';
 
 const container = document.getElementById('view');
 
@@ -36,18 +37,32 @@ function applyShellStrings() {
 
 // N1007 — zuerst die Sprache aus dem `language`-Setting laden und den
 // passenden Katalog initialisieren, BEVOR irgendeine View oder die Sidebar
-// rendert (die nutzen t()). Dann Sidebar bauen, Utilities-Cache wärmen,
-// Router starten.
+// rendert (die nutzen t()).
+//
+// v2.2.0 — Reihenfolge gestrafft: Die Utilities werden jetzt VOR der Sidebar
+// geladen (sie liefern die Farbpalette, siehe applyUtilityTheme), und die
+// Zähler-Badges der Seitenleiste kommen nachgelagert. Vorher wartete der erste
+// Bildschirminhalt auf vier serielle Roundtrips, darunter zwei nur für die
+// Zahlen an „Empfehlungen" und „Termine".
 getSettings()
   .then(s => initI18n(s?.language))
   .catch(() => initI18n('de'))
-  .finally(() => {
+  .finally(async () => {
     applyShellStrings();
-    buildSidebar()
-      .catch(e => { console.error('Sidebar-Aufbau fehlgeschlagen', e); })
-      .finally(() => {
-        getUtilities()
-          .catch(e => { console.error(e); toastErr('Konnte Utilities nicht laden: ' + (e?.message || e)); })
-          .finally(() => startRouter(container));
-      });
+    try {
+      const utilities = await getUtilities();
+      applyUtilityTheme(utilities);
+    } catch (e) {
+      console.error(e);
+      toastErr(t('errors.view.utilitiesFailed', { msg: e?.message || e }));
+    }
+    try {
+      await buildSidebar();
+    } catch (e) {
+      console.error('Sidebar-Aufbau fehlgeschlagen', e);
+    }
+    startRouter(container);
+    // Badges nachreichen — sie sind Beiwerk und dürfen den ersten Inhalt
+    // nicht aufhalten.
+    refreshSidebarBadges().catch(() => {});
   });

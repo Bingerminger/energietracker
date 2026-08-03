@@ -262,13 +262,13 @@ async function rerender(container) {
     </div>
     ` : `
     <div class="card">
-      <div class="card__title">${t('utility.cards.readings')}
+      <div class="card__title">${t('utility.cards.readingsYear', { year: yr })}
         <span class="card__title-action">
           <span class="muted" style="font-size:12px;margin-right:8px">${t('utility.cards.readingsCount', { count: readings.length })}</span>
           <button class="btn btn-${u.key} btn--sm" id="btn-new-reading">${t('utility.action.newReading')}</button>
         </span>
       </div>
-      ${readingsTable(readings, u)}
+      ${readingsTable(readings, u, yr)}
     </div>
     `}
   `;
@@ -575,9 +575,26 @@ function monthlyTable(monthly, u, hasContracts) {
 }
 
 // ── Readings-Tabelle ────────────────────────────────────────────────
-function readingsTable(readings, u) {
+// v2.2.0 — auf das gewählte Jahr begrenzt (die Jahres-Pillen steuerten bis
+// v2.2.0 nur Chart und Monatstabelle). Mit dem Home-Assistant-Ingest (F1009)
+// entstehen tägliche Ablesungen; die ungefilterte Tabelle wuchs auf tausende
+// Zeilen und machte die Ansicht unbrauchbar.
+function readingsTable(readings, u, year = null) {
   if (!readings.length) return `<div class="empty" style="padding:32px"><div class="empty-icon">📋</div><h2>${t('utility.readingsTable.emptyTitle')}</h2></div>`;
-  const sorted = [...readings].sort((a, b) => b.date.localeCompare(a.date));
+
+  const inYear = year == null
+    ? readings
+    : readings.filter(r => String(r.date || '').slice(0, 4) === String(year));
+
+  if (!inYear.length) {
+    return `<div class="empty" style="padding:32px">
+      <div class="empty-icon">📋</div>
+      <h2>${t('utility.readingsTable.emptyYear', { year })}</h2>
+      <p class="muted">${t('utility.readingsTable.emptyYearHint', { count: readings.length })}</p>
+    </div>`;
+  }
+
+  const sorted = [...inYear].sort((a, b) => b.date.localeCompare(a.date));
   return `<div class="table-wrap"><table class="table">
     <thead><tr>
       <th scope="col">${t('utility.readingsTable.colDate')}</th>
@@ -682,8 +699,13 @@ function drawMonthChart(canvasId, monthly, u) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   if (_chart) _chart.destroy();
+  // v2.2.0 — Verbrauchs-Feldname utility-abhängig (wie in KPI und Monatstabelle,
+  // Fix #14): m³-native Verbrauchsarten tragen den Wert in `m3`, das `kwh`-Feld
+  // ist nach applyUtilityFields 0. Vorher las der Chart hart `m.kwh` → das
+  // Wasser-Monatschart war eine durchgehende Nullreihe.
+  const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
   const labels = monthly.map(m => fmt.month(m.ym));
-  const consumption = monthly.map(m => m.kwh);
+  const consumption = monthly.map(m => m[consKey]);
   const temp = monthly.map(m => m.avg_temp);
 
   _chart = makeChart(canvas, {

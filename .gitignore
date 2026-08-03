@@ -27,7 +27,11 @@ Thumbs.db
 *~
 
 ## PHP / Python
-vendor/
+# Nur das Composer-Verzeichnis im Wurzelpfad. Ohne den führenden Schrägstrich
+# griff das Muster in JEDEM Verzeichnis und hätte seit v2.2.0 auch
+# public/vendor/ verschluckt — dort liegen die selbst gehosteten Schriften und
+# Chart.js, ohne die die Anwendung ohne Diagramme und ohne Schrift läuft.
+/vendor/
 __pycache__/
 *.pyc
 .venv/

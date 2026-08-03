@@ -26,6 +26,16 @@
     "primaryNav": "Hoofdnavigatie",
     "brandHome": "Energietracker — naar het overzicht"
   },
+  "meterNames": {
+    "gas": "Hoofdmeter",
+    "strom": "Hoofdmeter",
+    "wasser": "Hoofdmeter",
+    "fernwaerme": "Warmtemeter",
+    "heizoel": "Olietank",
+    "pellets": "Pelletopslag",
+    "pv_einspeisung": "Teruglevermeter",
+    "pv_erzeugung": "Opwekmeter"
+  },
   "utilityNames": {
     "gas": "Gas",
     "strom": "Elektriciteit",
@@ -186,6 +196,7 @@
       "deliveries": "🚚 Leveringen",
       "deliveriesCount": "{count} leveringen in totaal",
       "readings": "🔢 Meterstanden",
+      "readingsYear": "📋 Meterstanden {year}",
       "readingsCount": "{count} meterstanden in totaal"
     },
     "balance": {
@@ -283,6 +294,8 @@
     },
     "readingsTable": {
       "emptyTitle": "Geen meterstanden",
+      "emptyYear": "Geen meterstanden in {year}",
+      "emptyYearHint": "Er zijn in totaal {count} meterstanden vastgelegd — bereikbaar via de jaarkeuze hierboven.",
       "colDate": "Datum",
       "colCounter": "Meterstand",
       "colNote": "Notitie",
@@ -352,6 +365,10 @@
     "verdict": { "surcharge": "Bijbetaling", "refund": "Teruggave", "payout": "Uitbetaling", "reclaim": "Terugvorderen", "balanced": "In evenwicht" }
   },
   "contracts": {
+    "unit": {
+      "ctPerKwh": "ct/kWh",
+      "eurPerMonth": "€/maand"
+    },
     "loading": "Laden…",
     "unknown": "Onbekende energie: {key}",
     "title": "{label} · Contracten",
@@ -371,7 +388,8 @@
       "edit": "Bewerken",
       "meterLabel": "Meter:",
       "open": "open",
-      "noMeter": "—"
+      "noMeter": "—",
+      "shadowHint": "Schaduwcontract — alleen een wat-als-scenario voor de tariefvergelijking. Telt niet mee in kosten, saldo of prognose."
     },
     "status": { "active": "ACTIEF", "past": "VERLEDEN", "future": "TOEKOMST" },
     "summary": {
@@ -587,10 +605,15 @@
     }
   },
   "settings": {
+    "placeholder": {
+      "dayMonth": "DD-MM (01-01)",
+      "yearExample": "bijv. 1998"
+    },
     "loading": "Laden…",
     "title": "⚙️ Instellingen",
     "subtitle": "Configuratie · gegevensexport · back-up en herstel",
     "save": "Instellingen opslaan",
+    "saveUnsaved": "Opslaan •",
     "saved": "Instellingen opgeslagen",
     "lang": {
       "title": "🌐 Taal / Language",
@@ -803,6 +826,10 @@
     }
   },
   "reminders": {
+    "suggest": {
+      "deliveryTitle": "Volgende {label}-levering plannen",
+      "deliveryNote": "Automatisch voorgesteld op basis van je eerdere leveringen."
+    },
     "loading": "Herinneringen laden…",
     "loadError": "Kon de herinneringen niet laden: {msg}",
     "title": "Herinneringen en onderhoud",
@@ -923,10 +950,21 @@
     "notSupported": "Niet ondersteund.",
     "noContracts": "Geen contracten om te vergelijken.",
     "shadowBadge": "Schaduw",
-    "col": { "tariff": "Tarief", "consumption": "Verbruik", "cost": "Kosten", "vsReal": "t.o.v. werkelijk betaald" },
+    "shadowFallbackLabel": "Hypothese",
+    "months": "{count} mnd",
+    "monthsOne": "1 maand",
+    "partialHint": "Contracten die maar een deel van de periode dekken, zijn met hun looptijd gemarkeerd. Verbruik en kosten gelden altijd precies voor die maanden.",
+    "projectedFull": "geëxtrapoleerd naar {months} mnd: {value}",
+    "realTotal": "Werkelijk gefactureerd in de periode: {value}",
+    "noRows": "Geen contracten met een eenheidsprijs in de gekozen periode.",
+    "chartTitle": "Prijsvergelijking per eenheid",
+    "chartAlt": "Staafdiagram van de totale kosten per eenheid ({unit}) per tarief",
+    "unitCostTitle": "Totale kosten per eenheid — eenheidsprijs, vastrecht en bonussen samen. De enige waarde die looptijden van verschillende lengte eerlijk vergelijkt.",
+    "legend": "Negatief (groen) = goedkoper dan het contract dat voor dezelfde maanden werkelijk is gefactureerd. Alleen zuivere tariefkosten worden vergeleken; voorschotten en verrekeningen zijn geldstromen en blijven erbuiten.",
+    "action": { "edit": "Bewerken", "delete": "Verwijderen" },
+    "col": { "tariff": "Tarief", "period": "Periode", "consumption": "Verbruik", "cost": "Kosten", "unitCost": "ct/{unit}", "vsReal": "vs. werkelijk", "savings": "Verschil" },
     "period": "Periode: {label}",
     "periodRange": "Periode: {label} ({from} – {to})",
-    "legend": "Negatief verschil (groen) = goedkoper dan het werkelijk gefactureerde contract.",
     "shadow": {
       "title": "Schaduwcontract aanmaken",
       "intro": "Een hypothetisch tarief — beïnvloedt saldo/prognose NIET, alleen deze vergelijking.",
@@ -935,17 +973,27 @@
       "provider": "Leverancier",
       "providerPlaceholder": "optioneel",
       "start": "Geldig vanaf",
-      "workingPrice": "Energieprijs (ct/kWh)",
+      "workingPrice": "Eenheidsprijs (ct/{unit})",
       "workingPlaceholder": "bijv. 8,50",
       "basePrice": "Vastrecht (€/maand)",
       "basePlaceholder": "bijv. 12,00",
       "create": "Aanmaken",
       "validation": "Label, datum en energieprijs zijn verplicht",
       "created": "Schaduwcontract aangemaakt",
-      "error": "Fout: {msg}"
+      "error": "Fout: {msg}",
+      "titleEdit": "Schaduwcontract bewerken",
+      "end": "Geldig tot (optioneel)",
+      "endHint": "Leeg laten voor „loopt door”.",
+      "save": "Opslaan",
+      "updated": "Schaduwcontract opgeslagen",
+      "deleted": "Schaduwcontract verwijderd",
+      "deleteTitle": "Schaduwcontract verwijderen?",
+      "deleteMessage": "De hypothese wordt verwijderd. Echte contracten en meterstanden blijven ongemoeid.",
+      "deleteConfirm": "Verwijderen"
     }
   },
   "analysis": {
+    "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
     "loading": "Laden…",
     "title": "📊 Analyse",
     "noMeters": "Geen meters.",
@@ -1014,6 +1062,7 @@
     }
   },
   "forecast": {
+    "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
     "loading": "Laden…",
     "title": "🔮 Prognose",
     "selectUtility": "Energie kiezen",
@@ -1072,7 +1121,37 @@
     "continued": "(vervolg)",
     "meterPageTitle": "{label} {year} — {meter}"
   },
+  "migration": {
+    "meterNote": "Aangemaakt door de v0.9.0-migratie",
+    "meterNoteWater": "Aangemaakt door de v0.9.0-migratie (v0.9.0 kende geen water)."
+  },
   "errors": {
+    "view": {
+      "loadFailed": "Laden mislukt: {msg}",
+      "unknownRoute": "Onbekende route: {hash}",
+      "utilitiesFailed": "Kon de verbruikssoorten niet laden: {msg}"
+    },
+    "benchmark": {
+      "noLivingArea": "Woonoppervlak niet ingesteld — vul het in bij de instellingen voor de efficiëntieklasse.",
+      "noHeatData": "Geen verwarmingsgegevens gevonden voor {year}.",
+      "multipleSources": "Meerdere warmtebronnen actief — de klasse per bron zegt meer dan de gecombineerde som. De gecombineerde weergave is alleen zinvol bij bewust gecombineerd stoken (bijv. basis- en pieklast)."
+    },
+    "forecast": {
+      "tooFewMonths": "Te weinig historie (minder dan 6 maanden)."
+    },
+    "reminder": {
+      "titleRequired": "Een titel is verplicht.",
+      "dueRequired": "Een vervaldatum (JJJJ-MM-DD) is verplicht.",
+      "recurrenceMonths": "„Elke N maanden” vereist een interval groter dan 0.",
+      "notFound": "Herinnering niet gevonden: {id}"
+    },
+    "tariff": {
+      "waterUnsupported": "De tariefvergelijking voor water (drie-componententarief) zit niet in deze versie.",
+      "deliveryUnsupported": "{label} wordt per levering afgerekend en heeft geen tariefcontracten — daar is de leveringsfactuur de kostenbasis.",
+      "noConsumption": "Nog geen verbruiksgegevens voor deze meter.",
+      "noConsumptionInPeriod": "Geen verbruiksgegevens in de gekozen periode.",
+      "noContracts": "Geen contracten om te vergelijken."
+    },
     "meter": {
       "multipleMeters": "Meerdere meters voor {utility} zijn niet toegestaan",
       "capacityRequired": "Voor {label} is een tankcapaciteit (capacity) > 0 vereist",

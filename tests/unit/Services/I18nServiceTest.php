@@ -105,4 +105,50 @@ final class I18nServiceTest extends TestCase
         self::assertSame('en', $fresh->locale());
         self::assertSame('Settings', $fresh->t('nav.settings'));
     }
+
+    /**
+     * v2.2.0 — Die beiden Helfer lösen Verbrauchsart-Namen und Default-
+     * Zählernamen zentral auf. Vorher trug jeder Konsument seine eigene Kopie
+     * (BenchmarkService und ReadingService hatten gar keine, weshalb dort
+     * deutsche Namen in die übersetzte Oberfläche durchschlugen).
+     */
+    public function testUtilityLabelAndMeterNameFollowTheLocale(): void
+    {
+        $this->i18n->setLocale('en');
+        self::assertSame('District heating', $this->i18n->utilityLabel('fernwaerme'));
+        self::assertSame('Main meter', $this->i18n->defaultMeterName('strom'));
+        self::assertSame('Oil tank', $this->i18n->defaultMeterName('heizoel'));
+
+        $this->i18n->setLocale('de');
+        self::assertSame('Fernwärme', $this->i18n->utilityLabel('fernwaerme'));
+        self::assertSame('Hauptzähler', $this->i18n->defaultMeterName('strom'));
+    }
+
+    /** Unbekannte Schlüssel fallen sauber auf die SSOT zurück, statt zu werfen. */
+    public function testHelpersFallBackForUnknownUtility(): void
+    {
+        self::assertSame('nichtvorhanden', $this->i18n->utilityLabel('nichtvorhanden'));
+        self::assertSame('nichtvorhanden', $this->i18n->defaultMeterName('nichtvorhanden'));
+    }
+
+    /**
+     * Jede Verbrauchsart der SSOT braucht in JEDER Sprache einen Namen und
+     * einen Default-Zählernamen — genau die Vollständigkeitsprüfung, deren
+     * Fehlen die deutschen Reste in fünf Sprachen überleben ließ.
+     */
+    public function testEveryUtilityHasNamesInEveryLanguage(): void
+    {
+        foreach ($this->i18n->supported() as $lang) {
+            foreach (\Energietracker\Config\Utilities::keys() as $key) {
+                self::assertNotSame(
+                    "utilityNames.$key", $this->i18n->t("utilityNames.$key", [], $lang),
+                    "utilityNames.$key fehlt in $lang"
+                );
+                self::assertNotSame(
+                    "meterNames.$key", $this->i18n->t("meterNames.$key", [], $lang),
+                    "meterNames.$key fehlt in $lang"
+                );
+            }
+        }
+    }
 }

@@ -6,6 +6,161 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.2.0] — 2026-08-03 — Tarifvergleich neu, Farben aus der SSOT, eigene Assets
+
+MINOR-Release aus einem vollständigen Review von Code, Oberfläche, Sprachen,
+Tests und Dokumentation. Vier stille Rechenfehler behoben, der Tarifvergleich
+neu aufgesetzt, die Verbrauchsart-Farben ändern sich sichtbar, Schriften und
+Chart.js kommen nicht mehr von fremden Servern. Keine Schema- oder
+Datenänderung (Schema bleibt 1.3.0); die API des Tarifvergleichs liefert
+zusätzliche Felder, die bestehenden behalten ihre Bedeutung.
+
+### Changed — Tarifvergleich
+
+- **Jede Kennzahl bezieht sich jetzt auf die Monate, die der Vertrag wirklich
+  abdeckt.** Bisher meldete jede Zeile den Gesamtverbrauch des Zeitraums,
+  rechnete die Kosten aber nur über die eigenen Monate. Ein Schattenvertrag ab
+  Juli zeigte damit den vollen Jahresverbrauch neben einem halben Jahr Kosten —
+  und wirkte etwa doppelt so günstig, wie er ist. Im Reproduktionsfall wurden
+  49 % Ersparnis ausgewiesen, wo es real rund 15 % waren.
+- **Neue Spalte „ct/Einheit"** — Vollkosten je kWh bzw. m³ aus Arbeitspreis,
+  Grundpreis und Boni. Sie ist die einzige zeitraumunabhängige Größe und macht
+  unterschiedlich lange Laufzeiten überhaupt erst vergleichbar; die Rangfolge
+  richtet sich nach ihr.
+- **Hochrechnung auf die volle Periode** bei Teilabdeckung, damit „was hätte
+  das ganze Jahr gekostet?" beantwortbar bleibt, ohne die Ist-Zahlen zu
+  verfälschen. Das Balkendiagramm vergleicht auf dieser Basis.
+- **Die Differenz geht gegen die real abgerechneten Kosten derselben Monate**,
+  nicht mehr gegen die Summe aller echten Verträge des Zeitraums. Bei einem
+  Anbieterwechsel im Jahr wies vorher jeder echte Vertrag eine Differenz gegen
+  sich selbst aus. Zusätzlich als Prozentwert.
+- **Schattenverträge lassen sich im Modul bearbeiten und löschen**, mit
+  Ende-Datum. Bisher konnte man sie nur anlegen — und wurde sie in der
+  Vertragsansicht nicht wieder los, weil sie dort nicht als Hypothese
+  erkennbar waren.
+- Verträge ohne einen einzigen Monat im Zeitraum erzeugen keine Leerzeile mehr;
+  die Einheit kommt aus der Utilities-SSOT statt aus einem festen „kWh"; die
+  Hinweistexte sind übersetzt.
+- Abschläge und Sonderzahlungen bleiben bewusst außen vor: Sie sind
+  Zahlungsströme gegen den Saldo, keine Tarifkosten. Der Legendentext sagt das
+  jetzt auch.
+
+### Changed — Darstellung
+
+- **Verbrauchsart-Farben kommen zur Laufzeit aus der SSOT.** Die
+  handgepflegten `--util-*`-Token kannten nur Gas, Strom und Wasser — die fünf
+  später ergänzten Arten (Fernwärme, Heizöl, Pellets, PV-Einspeisung,
+  PV-Erzeugung) hatten weder Überschriften- noch Button- noch KPI-Farbe, keinen
+  Aktiv-Marker in der Seitenleiste und keine hervorgehobene Jahres-Pille. Ein
+  Heizöl-Haushalt sah eine entfärbte Anwendung. **Sichtbare Folge:** Gas und
+  Strom wechseln auf ihre SSOT-Farbe (Amber statt Orange, Cyan statt Mint) —
+  bisher zeigte das Diagramm eine andere Farbe als das Bedienelement daneben.
+- **Textkontrast auf WCAG AA gehoben.** `--text-2` erreichte auf Kartengrund
+  4,38:1 und auf verschachtelten Flächen 3,71:1; die Werte tragen als `.muted`
+  fast alle Sekundärtexte. Jetzt 6,6:1 bzw. 5,7:1. Auch das helle Theme hatte
+  einen Ausreißer.
+- **Meldungen lassen sich schließen** und pausieren beim Zeigen; Fehler melden
+  sich assertiv statt höflich (sie standen bisher hinter laufenden Ausgaben an
+  und verschwanden nach Sekunden unwiderruflich).
+- **Dialoge machen den Rest der Seite inert** und sperren das
+  Hintergrund-Scrollen. Der Fokus-Trap fing nur die Tabulatortaste — der
+  virtuelle Cursor eines Screenreaders wanderte weiterhin frei dahinter.
+- **Die Ablesungstabelle folgt der Jahresauswahl.** Sie zeigte alle Ablesungen
+  aller Jahre; mit dem Home-Assistant-Ingest entstehen tägliche Werte, was die
+  Ansicht nach kurzer Zeit unbrauchbar machte.
+- **Prognose und Analyse zeigen nur aktive Verbrauchsarten**, wie Dashboard und
+  Seitenleiste.
+- **Ungespeicherte Einstellungen** werden am Speichern-Knopf markiert, und das
+  Schließen des Tabs fragt nach.
+- Die Seitenleiste wartet nicht mehr auf ihre Zähler-Badges: Der erste
+  Bildschirminhalt brauchte vier serielle Roundtrips, zwei davon nur für zwei
+  Zahlen.
+
+### Changed — Auslieferung
+
+- **Schriften und Chart.js liegen im Repository** (`public/vendor/`, 260 KB).
+  Bisher kamen sie von `fonts.googleapis.com` und `cdn.jsdelivr.net` — bei einer
+  selbst gehosteten Anwendung wanderte damit die IP jedes Aufrufs zu Dritten,
+  und der erste Start ohne Internet hatte weder Schrift noch Diagramme.
+  Lizenzen liegen bei (SIL OFL 1.1 bzw. MIT).
+- **Der Service Worker legt die App-Shell vollständig ab** (Stile, Schriften,
+  Chart.js, Einstiegsmodul) statt nur der SPA-Wurzel.
+- **Der Cache-Buster hängt an der VERSION** statt an der Änderungszeit von
+  `app.js`. Die änderte sich nicht, wenn ein Release nur Views oder CSS anfasste
+  — Browser behielten dann die alten Dateien.
+
+### Added
+
+- **i18n der nutzersichtbaren Backend-Texte**: Effizienz-Hinweise, Abbruchgrund
+  der Prognose, automatisch erzeugte Termintitel, Notizen der v0.9.0-Migration
+  sowie die Default-Zählernamen. Eine englische Frischinstallation begrüßte
+  bisher mit „Hauptzähler". Verbrauchsart-Namen und Zählernamen lösen jetzt
+  zentral über `I18nService::utilityLabel()` / `defaultMeterName()` auf —
+  vorher trug jeder Konsument seine eigene Kopie, und zwei hatten gar keine.
+- `ReleaseConsistencyTest`: prüft, dass Service-Worker-Cache,
+  `docker-compose.yml`, CHANGELOG sowie README und INSTALL zur VERSION passen —
+  und dass im Frontend kein Verweis auf einen fremden Server steht.
+
+### Tests
+
+- `TariffComparisonServiceTest` (8 Fälle) für das neu aufgesetzte Modul,
+  darunter der Halbjahres-Fall, der die alte Rechnung entlarvt.
+- `I18nServiceTest` prüft für **jede** Verbrauchsart in **jeder** Sprache, dass
+  Name und Default-Zählername vorhanden sind.
+- PHPUnit 105 → 130 Tests.
+
+### Fixed — stille Rechenfehler
+
+- **Prognose rechnete mit Schattenverträgen.** `ForecastService` holte die
+  Verträge ohne `is_shadow`-Filter — anders als `ConsumptionService`, das ihn an
+  beiden Stellen setzt. Sobald der letzte echte Vertrag vor dem Prognosehorizont
+  endete, übernahm ein Schattenvertrag Arbeitspreis, Grundpreis und
+  Abschlagsplan; die Prognose zeigte dann Kosten für einen Tarif, den es nie gab.
+  Genau der Normalfall — man legt Schattenverträge an, *weil* der laufende
+  Vertrag ausläuft. Im Reproduktionsfall beruhten 7 von 12 Prognosemonaten auf
+  der Hypothese (797 € statt ~85 € pro Monat).
+- **Wasser-Monatschart war eine Nullreihe.** `drawMonthChart()` las hart
+  `m.kwh`, während `applyUtilityFields()` bei m³-nativen Verbrauchsarten den
+  Verbrauch nach `m3` schiebt und `kwh` auf 0 setzt. Der Chart nutzt jetzt
+  denselben `consKey` wie KPI und Monatstabelle. Letzter Rest von Fix #14
+  (v1.6.1), der Tabelle und Kennzahl repariert hatte.
+- **Wasser-Vertragsformular speicherte stillschweigend 0.** `collectWaterForm()`
+  wandelte leere Zahlenfelder mit `parseFloat(x || 0)` in eine echte 0 um: Wer
+  ein Stichtagsdatum eintrug und den Preis vergaß, legte damit einen Tarif von
+  0 ct/m³ an — die Wasserkosten fielen ab diesem Datum auf den Grundpreis, ohne
+  Fehlermeldung. Leere Felder erreichen jetzt den Backend-Guard, der die halb
+  gefüllte Zeile ablehnt. Zusätzlich markiert das Formular solche Zeilen schon
+  vor dem Absenden (wie das Standard-Vertragsformular).
+- **Zahlen, Datumsangaben und Monatsnamen in fünf Sprachen deutsch.**
+  `lib/format.js` bildete nur `de` und `en` ab; die 2026 ergänzten Sprachen
+  (es/fr/it/nl/pt) fielen still auf `de-DE` zurück und zeigten deutsche
+  Tausendertrennung, deutsche Datumstrennung und deutsche Monatskürzel („Mär",
+  „Mai", „Dez") in einer ansonsten übersetzten Oberfläche. Formatierung kommt
+  jetzt aus `Intl`; die handgepflegten Monatstabellen in `analysis.js` und der
+  zweite Formatierer in `readings-entry.js` entfallen.
+
+### Changed — Nebenbefunde
+
+- **Schattenverträge sind in der Vertragsliste als solche erkennbar.** Sie
+  erschienen dort mit dem Status „AKTIV", obwohl Saldo, Vertragsstatus und
+  Prognose sie herausfiltern. Jetzt tragen sie ein eigenes Kennzeichen und einen
+  Hinweis, dass sie in keiner Kostenrechnung mitzählen.
+- **`docker-compose.yml` pinnte noch `1.9.3`** — sieben Releases alt. Wer aus dem
+  Repository heraus startete, bekam eine Version vor dem gesamten v2.x-Bündel
+  (Mehrsprachigkeit, PWA, Barrierefreiheit, Subzähler, Home-Assistant-Ingest).
+
+### Tests — Regressionen
+
+- Neuer `ForecastShadowContractTest`: Prognose darf nie auf einem
+  Schattenvertrag beruhen, und das Ergebnis muss mit und ohne Schattenvertrag
+  identisch sein. Gegen den v2.1.5-Stand schlagen beide Fälle fehl.
+- `WaterContractEdgeCasesTest` um drei Fälle erweitert: halb gefüllte Preiszeile
+  wird abgelehnt, komplett leere Vorlagezeile weiterhin still verworfen, und die
+  Invariante `kwh = 0 / m3 > 0`, auf der der Chart-Fix beruht.
+- PHPUnit 100 → 105 Tests (347 Assertions), Frontend-Render 37/37.
+
+---
+
 ## [2.1.5] — 2026-06-28 — Polish: Chart-Farben, Prognose-Linie, Reminder-Datumslogik
 
 PATCH-Release. Vier risikoarme Politur-/Robustheits-Korrekturen; keine Schema-

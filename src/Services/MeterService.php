@@ -63,7 +63,11 @@ final class MeterService
         $meterId = 'm_' . $utility . '_default';
         $this->store->write("$utility/meters.json", [[
             'id'         => $meterId,
-            'name'       => $u['default_meter_name'],
+            // v2.2.0 — Default-Zählername in der eingestellten Sprache; eine
+            // englische Frischinstallation begrüßte den Nutzer sonst mit
+            // „Hauptzähler". Der Name wird einmal geschrieben und gehört ab
+            // dann dem Nutzer.
+            'name'       => $this->i18n->defaultMeterName($utility),
             'icon'       => $u['icon'],
             'created_at' => date('Y-m-d'),
             'active'     => true,

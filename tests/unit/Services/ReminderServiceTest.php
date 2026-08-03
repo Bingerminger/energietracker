@@ -16,7 +16,7 @@ final class ReminderServiceTest extends ServiceTestCase
 {
     private function svc(): ReminderService
     {
-        return new ReminderService($this->store, $this->settings);
+        return new ReminderService($this->store, $this->settings, $this->i18n);
     }
 
     public function testMarkDoneClampsMonthEndOverflow(): void

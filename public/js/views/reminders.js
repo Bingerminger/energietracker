@@ -6,6 +6,7 @@ import { api } from '../api.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal } from '../components/modal.js';
 import { t } from '../lib/i18n.js';
+import { escapeHtml as esc } from '../lib/format.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
@@ -158,7 +159,4 @@ function openForm(container, existing) {
 }
 
 function today() { return new Date().toISOString().slice(0, 10); }
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}
+

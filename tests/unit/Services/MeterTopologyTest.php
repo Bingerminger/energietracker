@@ -296,7 +296,7 @@ final class MeterTopologyTest extends ServiceTestCase
             ['id' => 'r4', 'meter_id' => 'm_gas_sub',    'device_id' => 'd_gs', 'date' => '2024-12-31', 'counter' => 1600.0, 'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false],
         ]);
 
-        $bench = new BenchmarkService($this->consumption, $this->meters, $this->settings);
+        $bench = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n);
         $eff = $bench->efficiency(2024);
 
         $gas = null;

@@ -1,0 +1,45 @@
+/* =================================================================
+   Energietracker v2.2.0 — selbst gehostete Schriften
+
+   DM Sans und DM Mono, SIL Open Font License 1.1 (siehe fonts/OFL.txt).
+   Bis v2.1.5 kamen sie über fonts.googleapis.com — damit floss die IP jedes
+   Seitenaufrufs an einen Dritten, und ohne Internet fehlte die Schrift.
+
+   Übernommen ist nur das latin-Subset; es deckt alle sieben
+   Oberflächensprachen (de/en/es/fr/it/nl/pt) ab. DM Sans liefert Google als
+   Variable Font aus — eine Datei trägt alle Strichstärken, deshalb hier eine
+   Gewichtsspanne statt vier identischer Schnitte.
+   ================================================================= */
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url(fonts/dm-sans.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(fonts/dm-mono-400.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'DM Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(fonts/dm-mono-500.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}

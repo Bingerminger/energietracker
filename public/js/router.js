@@ -16,6 +16,7 @@ import * as Tariffs      from './views/tariff.js';
 import * as Recommendations from './views/recommendations.js';
 import * as Reminders    from './views/reminders.js';
 import { t } from './lib/i18n.js';
+import { escapeHtml } from './lib/format.js';
 
 const ROUTES = [
   { pattern: /^#?\/?$/,                             handler: 'dashboard' },
@@ -91,19 +92,14 @@ export function startRouter(container) {
         if (!isInitialLoad) container.focus({ preventScroll: false });
       } catch (e) {
         console.error(e);
-        container.innerHTML = `<div class="banner banner--error">Fehler beim Laden: ${escapeHtml(e.message || e)}</div>`;
+        container.innerHTML = `<div class="banner banner--error">${escapeHtml(t('errors.view.loadFailed', { msg: e.message || e }))}</div>`;
       }
       return;
     }
-    container.innerHTML = `<div class="banner banner--warning">Unbekannte Route: ${escapeHtml(hash)}</div>`;
+    container.innerHTML = `<div class="banner banner--warning">${escapeHtml(t('errors.view.unknownRoute', { hash }))}</div>`;
   };
   window.addEventListener('hashchange', () => handle(false));
   handle(true);
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
 export function navigate(route) {

@@ -104,7 +104,7 @@ final class App
         $this->weather      = new WeatherService();
         $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather);
         $this->forecasts    = new ForecastService(
-            $this->consumption, $this->regression, $this->settings, $this->contracts
+            $this->consumption, $this->regression, $this->settings, $this->contracts, $this->i18n
         );
         $this->anomalies    = new AnomalyService($this->regression, $this->settings);
         $this->backups      = new BackupService($this->store, $this->i18n);
@@ -115,10 +115,10 @@ final class App
         $this->csvExport    = new CsvExportService(
             $this->consumption, $this->readings, $this->meters, $this->temperatures, $this->deliveries, $this->i18n
         );
-        $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings);
+        $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n);
         $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n);
         $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries, $this->i18n);
-        $this->reminders    = new ReminderService($this->store, $this->settings);
+        $this->reminders    = new ReminderService($this->store, $this->settings, $this->i18n);
         $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark, $this->recommendations, $this->i18n);
         // F1005 + N1003 (v1.7.0)
         $this->stromSaldo   = new StromSaldoService($this->consumption);
@@ -135,7 +135,7 @@ final class App
         // Erststart, z. B. frischer Docker-Container) wird per initFresh()
         // mit Standard-Zählern bestückt — NICHT per migrate(), das ohne
         // Altdaten einen leeren Tracker hinterließe.
-        $migrator = new Migrator($this->store);
+        $migrator = new Migrator($this->store, $this->i18n);
         if ($migrator->isPristine()) {
             $migrator->initFresh();
             $this->logger->info('Datenverzeichnis frisch initialisiert', ['data_dir' => $dataDir]);

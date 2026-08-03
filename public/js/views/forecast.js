@@ -7,7 +7,7 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getUtilities } from '../state.js';
+import { activeUtilities } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
@@ -17,7 +17,14 @@ let chart = null;
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('forecast.loading')}</div>`;
-  const utilities = await getUtilities();
+  // v2.2.0 — nur aktive Verbrauchsarten anbieten, wie Dashboard und
+  // Seitenleiste. Vorher listete die Auswahl auch abgeschaltete Arten und
+  // führte auf leere Prognosen.
+  const utilities = await activeUtilities();
+  if (!utilities.length) {
+    container.innerHTML = `<div class="banner banner--info">${escapeHtml(t('forecast.noUtilities'))}</div>`;
+    return;
+  }
 
   container.innerHTML = `
     <div class="section-head">

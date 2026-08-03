@@ -26,6 +26,16 @@
     "primaryNav": "Hauptnavigation",
     "brandHome": "Energietracker — zur Übersicht"
   },
+  "meterNames": {
+    "gas": "Hauptzähler",
+    "strom": "Hauptzähler",
+    "wasser": "Hauptzähler",
+    "fernwaerme": "Wärmemengenzähler",
+    "heizoel": "Heizöltank",
+    "pellets": "Pelletlager",
+    "pv_einspeisung": "Einspeisezähler",
+    "pv_erzeugung": "Erzeugungszähler"
+  },
   "utilityNames": {
     "gas": "Gas",
     "strom": "Strom",
@@ -186,6 +196,7 @@
       "deliveries": "🚚 Lieferungen",
       "deliveriesCount": "{count} Lieferungen gesamt",
       "readings": "🔢 Zählerstände",
+      "readingsYear": "📋 Ablesungen {year}",
       "readingsCount": "{count} Ablesungen gesamt"
     },
     "balance": {
@@ -283,6 +294,8 @@
     },
     "readingsTable": {
       "emptyTitle": "Keine Ablesungen",
+      "emptyYear": "Keine Ablesungen in {year}",
+      "emptyYearHint": "Insgesamt sind {count} Ablesungen erfasst — über die Jahresauswahl oben erreichbar.",
       "colDate": "Datum",
       "colCounter": "Zählerstand",
       "colNote": "Notiz",
@@ -352,6 +365,10 @@
     "verdict": { "surcharge": "Nachzahlung", "refund": "Erstattung", "payout": "Auszahlung", "reclaim": "Rückforderung", "balanced": "Ausgeglichen" }
   },
   "contracts": {
+    "unit": {
+      "ctPerKwh": "ct/kWh",
+      "eurPerMonth": "€/Monat"
+    },
     "loading": "Lade…",
     "unknown": "Unbekannte Verbrauchsart: {key}",
     "title": "{label} · Verträge",
@@ -371,7 +388,8 @@
       "edit": "Bearbeiten",
       "meterLabel": "Zähler:",
       "open": "offen",
-      "noMeter": "—"
+      "noMeter": "—",
+      "shadowHint": "Schattenvertrag — reine Was-wäre-wenn-Hypothese für den Tarifvergleich. Zählt nicht in Kosten, Saldo oder Prognose."
     },
     "status": { "active": "AKTIV", "past": "VERGANGEN", "future": "ZUKÜNFTIG" },
     "summary": {
@@ -587,10 +605,15 @@
     }
   },
   "settings": {
+    "placeholder": {
+      "dayMonth": "TT-MM (01-01)",
+      "yearExample": "z. B. 1998"
+    },
     "loading": "Lade…",
     "title": "⚙️ Einstellungen",
     "subtitle": "Konfiguration · Datenexport · Backup & Wiederherstellung",
     "save": "Einstellungen speichern",
+    "saveUnsaved": "Speichern •",
     "saved": "Einstellungen gespeichert",
     "lang": {
       "title": "🌐 Sprache / Language",
@@ -803,6 +826,10 @@
     }
   },
   "reminders": {
+    "suggest": {
+      "deliveryTitle": "Nächste {label}-Lieferung planen",
+      "deliveryNote": "Automatisch vorgeschlagen anhand der bisherigen Lieferfrequenz."
+    },
     "loading": "Lade Termine…",
     "loadError": "Konnte Termine nicht laden: {msg}",
     "title": "Termine & Wartung",
@@ -923,10 +950,21 @@
     "notSupported": "Nicht unterstützt.",
     "noContracts": "Keine Verträge zum Vergleich.",
     "shadowBadge": "Schatten",
-    "col": { "tariff": "Tarif", "consumption": "Verbrauch", "cost": "Kosten", "vsReal": "vs. real bezahlt" },
+    "shadowFallbackLabel": "Hypothese",
+    "months": "{count} Mon.",
+    "monthsOne": "1 Monat",
+    "partialHint": "Verträge, die nur einen Teil des Zeitraums abdecken, sind mit ihrer Laufzeit markiert. Verbrauch und Kosten beziehen sich immer auf genau diese Monate.",
+    "projectedFull": "hochgerechnet auf {months} Mon.: {value}",
+    "realTotal": "Tatsächlich abgerechnet im Zeitraum: {value}",
+    "noRows": "Keine Verträge mit Arbeitspreis im gewählten Zeitraum.",
+    "chartTitle": "Preisvergleich je Einheit",
+    "chartAlt": "Balkendiagramm der Vollkosten je Einheit ({unit}) pro Tarif",
+    "unitCostTitle": "Vollkosten je Einheit — Arbeitspreis, Grundpreis und Boni zusammen. Der einzige Wert, der Laufzeiten unterschiedlicher Länge fair vergleicht.",
+    "legend": "Negativ (grün) = günstiger als der tatsächlich abgerechnete Vertrag derselben Monate. Verglichen werden reine Tarifkosten; Abschläge und Sonderzahlungen sind Zahlungsströme und bleiben außen vor.",
+    "action": { "edit": "Bearbeiten", "delete": "Löschen" },
+    "col": { "tariff": "Tarif", "period": "Zeitraum", "consumption": "Verbrauch", "cost": "Kosten", "unitCost": "ct/{unit}", "vsReal": "vs. real", "savings": "Differenz" },
     "period": "Zeitraum: {label}",
     "periodRange": "Zeitraum: {label} ({from} – {to})",
-    "legend": "Negative Differenz (grün) = günstiger als der tatsächlich abgerechnete Vertrag.",
     "shadow": {
       "title": "Schattenvertrag anlegen",
       "intro": "Ein hypothetischer Tarif — fließt NICHT in Saldo/Prognose ein, nur in diesen Vergleich.",
@@ -935,17 +973,27 @@
       "provider": "Anbieter",
       "providerPlaceholder": "optional",
       "start": "Gültig ab",
-      "workingPrice": "Arbeitspreis (ct/kWh)",
+      "workingPrice": "Arbeitspreis (ct/{unit})",
       "workingPlaceholder": "z. B. 8.50",
       "basePrice": "Grundpreis (€/Monat)",
       "basePlaceholder": "z. B. 12.00",
       "create": "Anlegen",
       "validation": "Bezeichnung, Datum und Arbeitspreis sind Pflicht",
       "created": "Schattenvertrag angelegt",
-      "error": "Fehler: {msg}"
+      "error": "Fehler: {msg}",
+      "titleEdit": "Schattenvertrag bearbeiten",
+      "end": "Gültig bis (optional)",
+      "endHint": "Leer lassen für „läuft weiter“.",
+      "save": "Speichern",
+      "updated": "Schattenvertrag gespeichert",
+      "deleted": "Schattenvertrag gelöscht",
+      "deleteTitle": "Schattenvertrag löschen?",
+      "deleteMessage": "Die Hypothese wird entfernt. Echte Verträge und Ablesungen bleiben unberührt.",
+      "deleteConfirm": "Löschen"
     }
   },
   "analysis": {
+    "noUtilities": "Keine Verbrauchsart aktiv. In den Einstellungen lässt sich auswählen, welche angezeigt werden.",
     "loading": "Lade…",
     "title": "📊 Analyse",
     "noMeters": "Keine Zähler.",
@@ -1014,6 +1062,7 @@
     }
   },
   "forecast": {
+    "noUtilities": "Keine Verbrauchsart aktiv. In den Einstellungen lässt sich auswählen, welche angezeigt werden.",
     "loading": "Lade…",
     "title": "🔮 Prognose",
     "selectUtility": "Verbrauchsart auswählen",
@@ -1072,7 +1121,37 @@
     "continued": "(Forts.)",
     "meterPageTitle": "{label} {year} — {meter}"
   },
+  "migration": {
+    "meterNote": "Aus v0.9.0-Migration angelegt",
+    "meterNoteWater": "Aus v0.9.0-Migration angelegt (v0.9.0 kannte kein Wasser)."
+  },
   "errors": {
+    "view": {
+      "loadFailed": "Fehler beim Laden: {msg}",
+      "unknownRoute": "Unbekannte Route: {hash}",
+      "utilitiesFailed": "Verbrauchsarten konnten nicht geladen werden: {msg}"
+    },
+    "benchmark": {
+      "noLivingArea": "Wohnfläche nicht gesetzt — für die Effizienzklasse bitte in den Einstellungen eintragen.",
+      "noHeatData": "Keine Heizenergiedaten für {year} gefunden.",
+      "multipleSources": "Mehrere Heizquellen aktiv — die Klasse je Quelle ist aussagekräftiger als die kombinierte Summe. Die kombinierte Sicht ist nur bei bewusst kombiniertem Heizbetrieb (z. B. Grund- und Spitzenlast) sinnvoll."
+    },
+    "forecast": {
+      "tooFewMonths": "Zu wenig historische Daten (weniger als 6 Monate)."
+    },
+    "reminder": {
+      "titleRequired": "Ein Titel ist erforderlich.",
+      "dueRequired": "Ein Fälligkeitsdatum (JJJJ-MM-TT) ist erforderlich.",
+      "recurrenceMonths": "Bei „alle N Monate“ muss ein Intervall größer 0 angegeben werden.",
+      "notFound": "Termin nicht gefunden: {id}"
+    },
+    "tariff": {
+      "waterUnsupported": "Der Tarifvergleich für Wasser (Drei-Komponenten-Tarif) ist in dieser Version nicht enthalten.",
+      "deliveryUnsupported": "{label} wird über Lieferungen abgerechnet und hat keine Tarifverträge — die Lieferrechnung ist dort die Kostenbasis.",
+      "noConsumption": "Noch keine Verbrauchsdaten für diesen Zähler.",
+      "noConsumptionInPeriod": "Keine Verbrauchsdaten im gewählten Zeitraum.",
+      "noContracts": "Keine Verträge zum Vergleich."
+    },
     "meter": {
       "multipleMeters": "Mehrere Zähler für {utility} nicht erlaubt",
       "capacityRequired": "Tank-Kapazität (capacity) > 0 ist für {label} Pflicht",

@@ -11,7 +11,9 @@ demo-data
 # der Rest von demo-data/ bleibt außen vor.
 !demo-data/energietracker-demo-backup.json
 tests
-vendor
+# Nur das Composer-Verzeichnis im Wurzelpfad — public/vendor/ (Schriften und
+# Chart.js, seit v2.2.0 selbst gehostet) muss ins Image.
+/vendor
 node_modules
 composer.lock
 phpunit.xml.dist

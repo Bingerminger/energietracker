@@ -5,6 +5,7 @@
 import { api } from '../api.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
+import { escapeHtml as esc } from '../lib/format.js';
 
 const SEV_CLS = { urgent: 'danger', warning: 'warning', info: 'info' };
 const sevLabel = (k) => t('recommendations.sev.' + k);
@@ -82,7 +83,3 @@ function card(r) {
     </div>`;
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}

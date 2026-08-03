@@ -26,6 +26,16 @@
     "primaryNav": "Navegación principal",
     "brandHome": "Energietracker — ir al resumen"
   },
+  "meterNames": {
+    "gas": "Contador principal",
+    "strom": "Contador principal",
+    "wasser": "Contador principal",
+    "fernwaerme": "Contador de calor",
+    "heizoel": "Depósito de gasóleo",
+    "pellets": "Silo de pellets",
+    "pv_einspeisung": "Contador de inyección",
+    "pv_erzeugung": "Contador de generación"
+  },
   "utilityNames": {
     "gas": "Gas",
     "strom": "Electricidad",
@@ -186,6 +196,7 @@
       "deliveries": "🚚 Entregas",
       "deliveriesCount": "{count} entregas en total",
       "readings": "🔢 Lecturas",
+      "readingsYear": "📋 Lecturas {year}",
       "readingsCount": "{count} lecturas en total"
     },
     "balance": {
@@ -283,6 +294,8 @@
     },
     "readingsTable": {
       "emptyTitle": "Sin lecturas",
+      "emptyYear": "Sin lecturas en {year}",
+      "emptyYearHint": "Hay {count} lecturas registradas en total — accesibles con el selector de año de arriba.",
       "colDate": "Fecha",
       "colCounter": "Lectura de contador",
       "colNote": "Nota",
@@ -352,6 +365,10 @@
     "verdict": { "surcharge": "Pago adicional", "refund": "Devolución", "payout": "Pago", "reclaim": "A reclamar", "balanced": "Equilibrado" }
   },
   "contracts": {
+    "unit": {
+      "ctPerKwh": "ct/kWh",
+      "eurPerMonth": "€/mes"
+    },
     "loading": "Cargando…",
     "unknown": "Suministro desconocido: {key}",
     "title": "{label} · Contratos",
@@ -371,7 +388,8 @@
       "edit": "Editar",
       "meterLabel": "Contador:",
       "open": "abierto",
-      "noMeter": "—"
+      "noMeter": "—",
+      "shadowHint": "Contrato hipotético — solo un escenario para la comparación de tarifas. No cuenta en costes, saldo ni previsión."
     },
     "status": { "active": "ACTIVO", "past": "PASADO", "future": "FUTURO" },
     "summary": {
@@ -587,10 +605,15 @@
     }
   },
   "settings": {
+    "placeholder": {
+      "dayMonth": "DD-MM (01-01)",
+      "yearExample": "p. ej. 1998"
+    },
     "loading": "Cargando…",
     "title": "⚙️ Ajustes",
     "subtitle": "Configuración · exportación de datos · copia de seguridad y restauración",
     "save": "Guardar ajustes",
+    "saveUnsaved": "Guardar •",
     "saved": "Ajustes guardados",
     "lang": {
       "title": "🌐 Idioma / Language",
@@ -803,6 +826,10 @@
     }
   },
   "reminders": {
+    "suggest": {
+      "deliveryTitle": "Planificar la próxima entrega de {label}",
+      "deliveryNote": "Sugerido automáticamente a partir de tus entregas anteriores."
+    },
     "loading": "Cargando los recordatorios…",
     "loadError": "No se pudieron cargar los recordatorios: {msg}",
     "title": "Recordatorios y mantenimiento",
@@ -923,10 +950,21 @@
     "notSupported": "No compatible.",
     "noContracts": "No hay contratos que comparar.",
     "shadowBadge": "Hipotético",
-    "col": { "tariff": "Tarifa", "consumption": "Consumo", "cost": "Coste", "vsReal": "vs. realmente pagado" },
+    "shadowFallbackLabel": "Hipótesis",
+    "months": "{count} mes.",
+    "monthsOne": "1 mes",
+    "partialHint": "Los contratos que cubren solo parte del periodo están marcados con su duración. El consumo y el coste siempre se refieren exactamente a esos meses.",
+    "projectedFull": "extrapolado a {months} mes.: {value}",
+    "realTotal": "Facturado realmente en el periodo: {value}",
+    "noRows": "Ningún contrato con precio unitario en el periodo seleccionado.",
+    "chartTitle": "Comparación de precio por unidad",
+    "chartAlt": "Gráfico de barras del coste total por unidad ({unit}) de cada tarifa",
+    "unitCostTitle": "Coste total por unidad — precio unitario, término fijo y bonificaciones juntos. La única cifra que compara con justicia periodos de distinta duración.",
+    "legend": "Negativo (verde) = más barato que el contrato realmente facturado en los mismos meses. Se comparan solo costes de tarifa; los pagos a cuenta y las liquidaciones son flujos de caja y quedan fuera.",
+    "action": { "edit": "Editar", "delete": "Eliminar" },
+    "col": { "tariff": "Tarifa", "period": "Periodo", "consumption": "Consumo", "cost": "Coste", "unitCost": "ct/{unit}", "vsReal": "vs. real", "savings": "Diferencia" },
     "period": "Periodo: {label}",
     "periodRange": "Periodo: {label} ({from} – {to})",
-    "legend": "Diferencia negativa (verde) = más barato que el contrato realmente facturado.",
     "shadow": {
       "title": "Crear contrato hipotético",
       "intro": "Una tarifa hipotética — NO afecta al saldo/previsión, solo a esta comparativa.",
@@ -935,17 +973,27 @@
       "provider": "Proveedor",
       "providerPlaceholder": "opcional",
       "start": "Válido desde",
-      "workingPrice": "Precio de la energía (ct/kWh)",
+      "workingPrice": "Precio unitario (ct/{unit})",
       "workingPlaceholder": "p. ej. 8,50",
       "basePrice": "Término fijo (€/mes)",
       "basePlaceholder": "p. ej. 12,00",
       "create": "Crear",
       "validation": "La etiqueta, la fecha y el precio de la energía son obligatorios",
       "created": "Contrato hipotético creado",
-      "error": "Error: {msg}"
+      "error": "Error: {msg}",
+      "titleEdit": "Editar contrato hipotético",
+      "end": "Válido hasta (opcional)",
+      "endHint": "Déjalo vacío para «sigue vigente».",
+      "save": "Guardar",
+      "updated": "Contrato hipotético guardado",
+      "deleted": "Contrato hipotético eliminado",
+      "deleteTitle": "¿Eliminar el contrato hipotético?",
+      "deleteMessage": "Se eliminará la hipótesis. Los contratos reales y las lecturas no se tocan.",
+      "deleteConfirm": "Eliminar"
     }
   },
   "analysis": {
+    "noUtilities": "Ningún suministro activo. En los ajustes puedes elegir cuáles se muestran.",
     "loading": "Cargando…",
     "title": "📊 Análisis",
     "noMeters": "Sin contadores.",
@@ -1014,6 +1062,7 @@
     }
   },
   "forecast": {
+    "noUtilities": "Ningún suministro activo. En los ajustes puedes elegir cuáles se muestran.",
     "loading": "Cargando…",
     "title": "🔮 Previsión",
     "selectUtility": "Elegir suministro",
@@ -1072,7 +1121,37 @@
     "continued": "(cont.)",
     "meterPageTitle": "{label} {year} — {meter}"
   },
+  "migration": {
+    "meterNote": "Creado por la migración de v0.9.0",
+    "meterNoteWater": "Creado por la migración de v0.9.0 (v0.9.0 no tenía agua)."
+  },
   "errors": {
+    "view": {
+      "loadFailed": "Error al cargar: {msg}",
+      "unknownRoute": "Ruta desconocida: {hash}",
+      "utilitiesFailed": "No se han podido cargar los suministros: {msg}"
+    },
+    "benchmark": {
+      "noLivingArea": "Superficie habitable sin definir — introdúcela en los ajustes para obtener la clase de eficiencia.",
+      "noHeatData": "No se han encontrado datos de energía de calefacción para {year}.",
+      "multipleSources": "Varias fuentes de calor activas — la clase por fuente es más significativa que la suma combinada. La vista combinada solo tiene sentido con calefacción deliberadamente combinada (p. ej. carga base y de punta)."
+    },
+    "forecast": {
+      "tooFewMonths": "Histórico insuficiente (menos de 6 meses)."
+    },
+    "reminder": {
+      "titleRequired": "Se requiere un título.",
+      "dueRequired": "Se requiere una fecha de vencimiento (AAAA-MM-DD).",
+      "recurrenceMonths": "«Cada N meses» necesita un intervalo mayor que 0.",
+      "notFound": "Recordatorio no encontrado: {id}"
+    },
+    "tariff": {
+      "waterUnsupported": "La comparación de tarifas para el agua (tarifa de tres componentes) no está incluida en esta versión.",
+      "deliveryUnsupported": "{label} se factura por entregas y no tiene contratos de tarifa — allí la factura de entrega es la base de costes.",
+      "noConsumption": "Todavía no hay datos de consumo para este contador.",
+      "noConsumptionInPeriod": "No hay datos de consumo en el periodo seleccionado.",
+      "noContracts": "No hay contratos que comparar."
+    },
     "meter": {
       "multipleMeters": "No se permiten varios contadores para {utility}",
       "capacityRequired": "Para {label} se requiere una capacidad de depósito (capacity) > 0",

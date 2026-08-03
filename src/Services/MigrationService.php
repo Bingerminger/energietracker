@@ -210,11 +210,11 @@ final class MigrationService
 
         $meters = [[
             'id'         => $meterId,
-            'name'       => Utilities::get($u)['default_meter_name'] ?? ucfirst($u) . '-Hauptzähler',
+            'name'       => $this->i18n->defaultMeterName($u),
             'icon'       => Utilities::get($u)['icon'] ?? '🔢',
             'created_at' => date('c'),
             'active'     => true,
-            'notes'      => 'Aus v0.9.0-Migration angelegt',
+            'notes'      => $this->i18n->t('migration.meterNote'),
             'devices'    => [[
                 'id'              => $deviceId,
                 'serial'          => '',
@@ -309,11 +309,11 @@ final class MigrationService
         return [
             'meters'    => [[
                 'id'         => $meterId,
-                'name'       => Utilities::get($u)['default_meter_name'] ?? ucfirst($u) . '-Hauptzähler',
+                'name'       => $this->i18n->defaultMeterName($u),
                 'icon'       => Utilities::get($u)['icon'] ?? '🔢',
                 'created_at' => date('c'),
                 'active'     => true,
-                'notes'      => 'Aus v0.9.0-Migration angelegt (kein Wasser in v0.9.0).',
+                'notes'      => $this->i18n->t('migration.meterNoteWater'),
                 'devices'    => [[
                     'id'              => $deviceId,
                     'serial'          => '',

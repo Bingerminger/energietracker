@@ -31,11 +31,14 @@ final class PdfReportService
         private I18nService $i18n,
     ) {}
 
-    /** Lokalisierter Verbrauchsart-Name (utilityNames.{key}), Fallback: Config-Label. */
+    /**
+     * Lokalisierter Verbrauchsart-Name. v2.2.0: der Fallback liegt jetzt
+     * zentral in I18nService::utilityLabel() — vorher trug jeder Konsument
+     * seine eigene Kopie, und zwei hatten sie schlicht nicht.
+     */
     private function utilLabel(string $utility): string
     {
-        $name = $this->i18n->t('utilityNames.' . $utility);
-        return $name === 'utilityNames.' . $utility ? (string)(Utilities::get($utility)['label'] ?? $utility) : $name;
+        return $this->i18n->utilityLabel($utility);
     }
 
     public function build(int $year): string

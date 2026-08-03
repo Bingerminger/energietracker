@@ -42,6 +42,7 @@ final class ForecastService
         private RegressionService $regression,
         private SettingsService $settings,
         private ContractService $contracts,
+        private I18nService $i18n,
     ) {}
 
     public function forMeter(string $utility, array $meter, array $opts = []): array
@@ -49,7 +50,7 @@ final class ForecastService
         $u = Utilities::get($utility);
         $monthly = $this->consumption->forMeter($utility, $meter);
         if (count($monthly) < 6) {
-            return ['valid' => false, 'reason' => 'Zu wenig historische Daten (< 6 Monate)'];
+            return ['valid' => false, 'reason' => $this->i18n->t('errors.forecast.tooFewMonths')];
         }
 
         $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
@@ -117,7 +118,16 @@ final class ForecastService
         $fallbackPrice = ($fallbackPrice ?? 0.0) * $priceFactor;
 
         // Contracts of this meter — for the per-month price/advance lookup.
-        $contracts = $this->contracts->list($utility, (string)($meter['id'] ?? ''));
+        // v2.2.0 — Schattenverträge sind reine Was-wäre-wenn-Hypothesen und
+        // gehören ausschließlich in den Tarifvergleich (gleiche Filterung wie
+        // ConsumptionService::applyContracts/contractStatus). Ohne diesen Filter
+        // übernahm ein Schattenvertrag die Preis-/Abschlagsprojektion, sobald der
+        // letzte echte Vertrag vor dem Prognosehorizont endete — die Prognose
+        // rechnete dann still mit einem Tarif, den es nicht gibt.
+        $contracts = array_values(array_filter(
+            $this->contracts->list($utility, (string)($meter['id'] ?? '')),
+            fn($c) => empty($c['is_shadow'])
+        ));
 
         // Build forecast months
         $start = new \DateTime((end($monthly)['ym'] ?? date('Y-m')) . '-01');

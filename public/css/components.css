@@ -24,7 +24,7 @@
 .btn--danger:hover { filter: brightness(1.15); }
 .btn--ghost   { background: transparent; border-color: var(--border-2); }
 .btn--ghost:hover { background: var(--bg-2); }
-.btn--util    { background: var(--util, var(--accent)); border-color: var(--util, var(--accent)); color: #0a0d12; font-weight: 600; }
+.btn--util    { background: var(--util, var(--accent)); border-color: var(--util, var(--accent)); color: var(--util-fg, #0a0d12); font-weight: 600; }
 .btn--util:hover { filter: brightness(1.1); }
 .btn--sm { padding: 4px 10px; font-size: var(--fs-xs); }
 .btn--icon { padding: 6px 8px; }
@@ -39,7 +39,7 @@
   color: var(--text-2); cursor: pointer; transition: var(--transition);
 }
 .pill:hover  { color: var(--text-1); border-color: var(--border-strong); }
-.pill.active { background: var(--util, var(--accent)); border-color: var(--util, var(--accent)); color: #0a0d12; font-weight: 600; }
+.pill.active { background: var(--util, var(--accent)); border-color: var(--util, var(--accent)); color: var(--util-fg, #0a0d12); font-weight: 600; }
 
 /* ── Forms ──────────────────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-3); }
@@ -184,6 +184,16 @@ textarea.input { min-height: 80px; resize: vertical; }
 .toast--success { border-left-color: var(--success); }
 .toast--warning { border-left-color: var(--warning); }
 .toast--error   { border-left-color: var(--danger); }
+/* v2.2.0 — Schließen-Knopf: eine Meldung verschwand nach wenigen Sekunden
+   unwiderruflich (WCAG 2.2.1). */
+.toast { display: flex; align-items: flex-start; gap: var(--sp-3); }
+.toast__msg { flex: 1; min-width: 0; }
+.toast__close {
+  flex: none; background: transparent; border: none;
+  color: var(--text-3); font-size: 18px; line-height: 1;
+  padding: 0 2px; cursor: pointer; border-radius: var(--r-sm);
+}
+.toast__close:hover { color: var(--text-1); }
 @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* ── Chart container ────────────────────────────────────────────── */
@@ -269,6 +279,10 @@ textarea.input { min-height: 80px; resize: vertical; }
 .badge--warning { background: var(--warning-soft); color: var(--warning); }
 .badge--danger  { background: var(--danger-soft);  color: var(--danger); }
 .badge--info    { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
+/* v2.2.0 — Schattenvertrag: hypothetisch, zählt in keiner Kostenrechnung mit.
+   Gleiche Tönung wie .status-pill.shadow, damit Tarifvergleich und
+   Vertragsliste dieselbe Sprache sprechen. */
+.badge--shadow  { background: var(--c-violet-soft); color: var(--c-violet); }
 
 /* ── Regression summary block (analysis view) ─────────────────── */
 .regression-summary {
@@ -318,9 +332,9 @@ textarea.input { min-height: 80px; resize: vertical; }
   margin-bottom: var(--sp-4);
 }
 .year-pills .pill { padding: 5px 14px; }
-.year-pills .pill.active.gas    { background: var(--util-gas);    border-color: var(--util-gas);    color: #fff; }
-.year-pills .pill.active.strom  { background: var(--util-strom);  border-color: var(--util-strom);  color: #0a0d12; }
-.year-pills .pill.active.wasser { background: var(--util-wasser); border-color: var(--util-wasser); color: #fff; }
+/* Die aktive Jahres-Pille je Verbrauchsart kommt seit v2.2.0 aus der SSOT
+   (utility-theme.js) — vorher blieb sie bei Fernwärme, Heizöl, Pellets und PV
+   unmarkiert, weil es die Klassen schlicht nicht gab. */
 
 /* ── Balance grid (Saldo-Karte: 4 Spalten) ──────────────────────── */
 .balance-grid {
@@ -406,6 +420,10 @@ textarea.input { min-height: 80px; resize: vertical; }
 .status-pill.active { background: var(--success-soft); color: var(--success); }
 .status-pill.past   { background: var(--bg-3);        color: var(--text-2); }
 .status-pill.future { background: var(--c-blue-soft); color: var(--c-blue); }
+/* v2.2.0 — Schattenvertrag: hypothetisch, zählt in keiner Kostenrechnung mit.
+   Bewusst violett statt grün, damit er nicht mit einem aktiven Vertrag
+   verwechselt wird. */
+.status-pill.shadow { background: var(--c-violet-soft); color: var(--c-violet); }
 
 /* ── Monthly table with full v0.9.0 column set ──────────────────── */
 .table .col-violet { color: var(--c-violet); }
@@ -425,12 +443,7 @@ textarea.input { min-height: 80px; resize: vertical; }
 .icon-btn:hover { background: var(--bg-3); color: var(--text-1); }
 
 /* ── Refined buttons for utility-tinted CTAs ────────────────────── */
-.btn-gas    { background: var(--util-gas-soft);    border-color: color-mix(in srgb, var(--util-gas) 30%, transparent); color: var(--util-gas); }
-.btn-strom  { background: var(--util-strom-soft);  border-color: color-mix(in srgb, var(--util-strom) 30%, transparent); color: var(--util-strom); }
-.btn-wasser { background: var(--util-wasser-soft); border-color: color-mix(in srgb, var(--util-wasser) 35%, transparent); color: var(--util-wasser); }
-.btn-gas:hover    { background: var(--util-gas);    color: #fff; }
-.btn-strom:hover  { background: var(--util-strom);  color: #0a0d12; }
-.btn-wasser:hover { background: var(--util-wasser); color: #fff; }
+/* .btn-<key> wird seit v2.2.0 aus der SSOT erzeugt (utility-theme.js). */
 
 /* Toolbar inside cards */
 .toolbar {
@@ -713,7 +726,9 @@ textarea.input { min-height: 80px; resize: vertical; }
   border-bottom: 1px solid var(--border-1);
 }
 .data-table tr:last-child td { border-bottom: none; }
-.data-table .row-shadow { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+/* v2.2.0 — violett statt Akzentblau, damit die Schattenzeile dieselbe Farbe
+   trägt wie ihr Badge und der Vertragsstatus. */
+.data-table .row-shadow { background: color-mix(in srgb, var(--c-violet) 6%, transparent); }
 .data-table .delta.pos { color: var(--success, #22c55e); }
 .data-table .delta.neg { color: var(--danger); }
 .cell-actions { white-space: nowrap; text-align: right; }

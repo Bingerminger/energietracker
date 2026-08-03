@@ -9,7 +9,13 @@
 declare(strict_types=1);
 
 $version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.3.0';
-$cb = filemtime(__DIR__ . '/public/js/app.js') ?: time();
+// Cache-Buster. v2.2.0: an die VERSION gekoppelt statt an die mtime von
+// app.js. Die mtime änderte sich nicht, wenn ein Release nur Views oder CSS
+// anfasste — Browser behielten dann die alten Module. Der mtime-Anteil bleibt
+// als Zusatz erhalten, damit lokale Entwicklung ohne Versionssprung weiterhin
+// frische Dateien bekommt.
+$cb = preg_replace('/[^A-Za-z0-9._-]/', '', $version)
+    . '-' . (filemtime(__DIR__ . '/public/js/app.js') ?: time());
 
 // N1009 — Sprache der Shell aus dem `language`-Setting ableiten, damit
 // <html lang> und die serverseitig gerenderten Shell-Strings schon beim
@@ -84,9 +90,15 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
   }
 })();
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  v2.2.0 — Schriften und Chart.js liegen im Repo (public/vendor/). Vorher kamen
+  sie von fonts.googleapis.com und cdn.jsdelivr.net: Bei einer selbst
+  gehosteten Anwendung wanderte damit die IP jedes Aufrufs zu Dritten, und der
+  erste Start ohne Internet hatte weder Schrift noch Diagramme. Lizenzen liegen
+  daneben (OFL 1.1 bzw. MIT).
+-->
+<link rel="preload" href="public/vendor/fonts/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="public/vendor/fonts.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/tokens.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/app.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/components.css?v=<?= $cb ?>">
@@ -125,12 +137,18 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 
   <!-- Main content -->
   <main id="view" class="view" tabindex="-1"><div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt…')) ?></div></main>
-
-  <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
-  <div id="modal-root"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!--
+  Overlays liegen bewusst AUSSERHALB von #app: Ein offener Dialog setzt #app
+  auf `inert` (v2.2.0), damit Screenreader nicht hinter den Dialog wandern
+  können. Lägen Toasts und Modal-Wurzel darin, wären sie mit inert gelegt.
+  Die Toast-Rollen setzt components/toast.js pro Meldung.
+-->
+<div id="toast-stack" class="toast-stack"></div>
+<div id="modal-root"></div>
+
+<script src="public/vendor/chart.umd.min.js?v=<?= $cb ?>"></script>
 <script type="module" src="public/js/app.js?v=<?= $cb ?>"></script>
 <!-- N1008 (PWA) — Service Worker registrieren. Inline (kein Modul), damit der
      relative Pfad 'sw.js' gegen die Dokument-URL (Web-Wurzel) auflöst und der

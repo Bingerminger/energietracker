@@ -16,10 +16,12 @@ import { associateFieldLabels } from '../lib/a11y.js';
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
+// v2.2.0 — die Betragslabels sind Übersetzungs-Keys statt fester Strings:
+// „€/Monat" stand vorher auch in der englischen Oberfläche.
 const GROUPS = [
-  { key: 'working_prices',   titleKey: 'contracts.group.working', dateKey: 'from', amountKey: 'ct_per_kwh',  amountLabel: 'ct/kWh',  step: '0.001' },
-  { key: 'base_prices',      titleKey: 'contracts.group.base',    dateKey: 'from', amountKey: 'eur_per_month', amountLabel: '€/Monat', step: '0.01' },
-  { key: 'advance_payments', titleKey: 'contracts.group.advance', dateKey: 'from', amountKey: 'amount_eur',  amountLabel: '€/Monat', step: '0.01' },
+  { key: 'working_prices',   titleKey: 'contracts.group.working', dateKey: 'from', amountKey: 'ct_per_kwh',    amountKey_: 'contracts.unit.ctPerKwh',  step: '0.001' },
+  { key: 'base_prices',      titleKey: 'contracts.group.base',    dateKey: 'from', amountKey: 'eur_per_month', amountKey_: 'contracts.unit.eurPerMonth', step: '0.01' },
+  { key: 'advance_payments', titleKey: 'contracts.group.advance', dateKey: 'from', amountKey: 'amount_eur',    amountKey_: 'contracts.unit.eurPerMonth', step: '0.01' },
 ];
 
 // F1003 — Sonderzahlungs-Arten. Die *_mit-Arten verändern zusätzlich den
@@ -143,7 +145,12 @@ function dispatchContractModal(u, meters, existing) {
 }
 
 // A — Vertragsstatus aus Start/Ende ableiten (heute liegt im Intervall?).
+// v2.2.0 — Schattenverträge zuerst: sie sind reine Hypothesen für den
+// Tarifvergleich und werden von Saldo, Vertragsstatus und Prognose
+// herausgefiltert. Als „aktiv" ausgezeichnet suggerierten sie einen laufenden
+// Vertrag, der nirgends in den Kosten auftaucht.
 function contractStatus(c) {
+  if (c.is_shadow) return { cls: 'shadow', label: t('tariff.shadowBadge') };
   const today = todayIso();
   const start = c.start || '';
   const end = c.end || '';
@@ -193,6 +200,7 @@ function renderContractCard(c, meters, u) {
         · ${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>
         · ${summary}
       </div>
+      ${c.is_shadow ? `<p class="muted" style="margin-top:var(--sp-2);font-size:var(--fs-xs)">${t('contracts.card.shadowHint')}</p>` : ''}
       ${c.notes ? `<p style="margin-top:var(--sp-2)">${escapeHtml(c.notes)}</p>` : ''}
     </div>
   `;
@@ -320,7 +328,7 @@ function renderEntryRow(g, e) {
         <input class="input" type="date" data-role="date" value="${e[g.dateKey] || ''}">
       </div>
       <div class="field">
-        <label>${escapeHtml(g.amountLabel)}</label>
+        <label>${escapeHtml(t(g.amountKey_))}</label>
         <input class="input" type="number" step="${g.step}" data-role="amount" value="${e[g.amountKey] ?? ''}">
       </div>
       <button type="button" class="btn btn--sm btn--ghost" data-action="copy-start" title="${t('contracts.row.copyStartTitle')}">${t('contracts.row.copyStart')}</button>
@@ -704,6 +712,13 @@ async function openWaterContractModal(u, meters, existing) {
 
         modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(null); resolve(false); });
         modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+          // v2.2.0 — halb gefüllte Zeilen vor dem Absenden markieren (analog
+          // validateAllGroups im Standard-Formular). Vorher rutschten sie als
+          // stille 0 durch, siehe collectWaterForm().
+          if (!validateWaterRows(modalEl)) {
+            toastErr(t('contracts.modal.validationHalfRows'));
+            return;
+          }
           let payload;
           try { payload = collectWaterForm(modalEl); }
           catch (err) { toastErr(err.message); return; }
@@ -881,9 +896,54 @@ function bindWaterEntryHandlers(modalEl) {
   });
 }
 
+// v2.2.0 — Pflichtfelder je Wasser-Gruppe. Beim Bonus ist `label` optional,
+// überall sonst müssen alle Spalten einer Zeile gefüllt sein (oder keine).
+function requiredWaterFields(groupKey, fields) {
+  return groupKey === 'bonuses'
+    ? fields.filter(f => f !== 'label')
+    : fields;
+}
+
+/**
+ * Markiert halb gefüllte Zeilen in den Wasser-Tabellen und meldet, ob das
+ * Formular abgeschickt werden darf. Gegenstück zu validateAllGroups() im
+ * Standard-Vertragsformular.
+ */
+function validateWaterRows(modalEl) {
+  let ok = true;
+  modalEl.querySelectorAll('[data-group]').forEach(group => {
+    const key = group.getAttribute('data-group');
+    let fields;
+    try { fields = JSON.parse(group.getAttribute('data-fields') || '[]'); }
+    catch { return; }
+    const required = requiredWaterFields(key, fields);
+    group.querySelectorAll('tbody tr').forEach(tr => {
+      const inputs = required
+        .map(f => tr.querySelector(`[data-field="${f}"]`))
+        .filter(Boolean);
+      const filled = inputs.filter(i => i.value.trim() !== '').length;
+      const halfFilled = filled > 0 && filled < inputs.length;
+      inputs.forEach(i => i.classList.toggle('invalid', halfFilled && i.value.trim() === ''));
+      if (halfFilled) ok = false;
+    });
+  });
+  return ok;
+}
+
 function collectWaterForm(modalEl) {
   const form = modalEl.querySelector('#water-contract-form');
   const fd = new FormData(form);
+  // v2.2.0 — Leere Zahlenfelder NICHT auf 0 zwingen. `parseFloat(x || 0)` machte
+  // aus einem vergessenen Preis einen echten Tarif von 0 ct/m³ ab Stichtag; die
+  // Kosten fielen ab da still auf den Grundpreis. Ein leerer String erreicht
+  // stattdessen den Backend-Guard (normalizePriceList), der die halb gefüllte
+  // Zeile ablehnt, statt sie zu speichern.
+  const num = (v) => {
+    const s = String(v ?? '').trim();
+    if (s === '') return '';
+    const n = parseFloat(s.replace(',', '.'));
+    return Number.isFinite(n) ? n : '';
+  };
   const collect = (groupKey) => {
     const group = modalEl.querySelector(`[data-group="${groupKey}"]`);
     if (!group) return [];
@@ -909,27 +969,27 @@ function collectWaterForm(modalEl) {
     notes:       fd.get('notes') || '',
     meter_id:    fd.get('meter_id') || '',
     trinkwasser: {
-      working_prices: collect('tw-working').map(r => ({ from: r.from, ct_per_m3: parseFloat(r.ct_per_m3 || 0) })),
-      base_prices:    collect('tw-base').map(r => ({ from: r.from, eur_per_month: parseFloat(r.eur_per_month || 0) })),
+      working_prices: collect('tw-working').map(r => ({ from: r.from, ct_per_m3: num(r.ct_per_m3) })),
+      base_prices:    collect('tw-base').map(r => ({ from: r.from, eur_per_month: num(r.eur_per_month) })),
     },
     schmutzwasser: {
       basis: fd.get('schmutz-basis') || 'trinkwasser',
       separater_zaehler_meter_id: (fd.get('schmutz-basis') === 'separater_zaehler')
         ? (fd.get('schmutz_separater_zaehler_meter_id') || null)
         : null,
-      working_prices: collect('sw-working').map(r => ({ from: r.from, ct_per_m3: parseFloat(r.ct_per_m3 || 0) })),
+      working_prices: collect('sw-working').map(r => ({ from: r.from, ct_per_m3: num(r.ct_per_m3) })),
     },
     niederschlagswasser: {
       rates: collect('nw-rates').map(r => ({
         from: r.from,
-        eur_per_m2_year: parseFloat(r.eur_per_m2_year || 0),
-        versiegelte_flaeche_m2: parseFloat(r.versiegelte_flaeche_m2 || 0),
+        eur_per_m2_year: num(r.eur_per_m2_year),
+        versiegelte_flaeche_m2: num(r.versiegelte_flaeche_m2),
       })),
     },
-    advance_payments: collect('ap').map(r => ({ from: r.from, amount_eur: parseFloat(r.amount_eur || 0) })),
+    advance_payments: collect('ap').map(r => ({ from: r.from, amount_eur: num(r.amount_eur) })),
     bonuses: collect('bonuses').map(r => ({
       credit_date: r.credit_date,
-      amount_eur: parseFloat(r.amount_eur || 0),
+      amount_eur: num(r.amount_eur),
       label: r.label || '',
       type: 'neukunde',
     })),

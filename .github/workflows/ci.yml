@@ -88,6 +88,23 @@ jobs:
           node \
             --import='data:text/javascript,import{register}from"node:module";import{pathToFileURL}from"node:url";register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
             tests/browser-render.test.mjs
+
+          echo "── Ausgelieferte Assets ──"
+          # v2.2.0: Schriften und Chart.js liegen im Repo. Wären sie nicht
+          # erreichbar, liefe die Anwendung ohne Diagramme und ohne Schrift —
+          # ein Fehler, den die Render-Tests nicht sehen, weil JSDOM beides
+          # nicht braucht.
+          for asset in \
+            /public/vendor/chart.umd.min.js \
+            /public/vendor/fonts.css \
+            /public/vendor/fonts/dm-sans.woff2 \
+            /public/vendor/fonts/dm-mono-400.woff2 \
+            /public/vendor/fonts/dm-mono-500.woff2
+          do
+            curl -sf "http://127.0.0.1:8899${asset}" > /dev/null \
+              || { echo "FEHLT: ${asset}"; exit 1; }
+          done
+          echo "  alle Vendor-Assets ausgeliefert"
         env:
           ET_TEST_HOST: http://127.0.0.1:8899
           ET_DATA_DIR: /tmp/etdata
@@ -166,6 +183,16 @@ jobs:
           curl -sf http://127.0.0.1:8080/api.php/api/settings  >/dev/null
           # Statische Auslieferung (Modulgraph)
           curl -sf http://127.0.0.1:8080/public/js/app.js >/dev/null
+          # v2.2.0 — Schriften und Chart.js liegen im Image. `vendor` steht in
+          # .gitignore und .dockerignore; ohne Pfad-Anker hätten die Muster auch
+          # public/vendor/ verschluckt und die Anwendung liefe ohne Diagramme
+          # und ohne Schrift. Das fällt sonst erst beim Nutzer auf.
+          curl -sf http://127.0.0.1:8080/public/vendor/chart.umd.min.js       >/dev/null
+          curl -sf http://127.0.0.1:8080/public/vendor/fonts.css              >/dev/null
+          curl -sf http://127.0.0.1:8080/public/vendor/fonts/dm-sans.woff2    >/dev/null
+          curl -sf http://127.0.0.1:8080/public/vendor/fonts/dm-mono-400.woff2 >/dev/null
+          # Und nichts darf zur Laufzeit an einen fremden Server gehen.
+          ! curl -s http://127.0.0.1:8080/ | grep -qE 'src="https?://|href="https?://fonts'
           # SPA-Shell-Fallback
           curl -sf http://127.0.0.1:8080/ | grep -qi 'energietracker'
           # /data darf NICHT ausgeliefert werden

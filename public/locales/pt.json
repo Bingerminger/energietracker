@@ -26,6 +26,16 @@
     "primaryNav": "Navegação principal",
     "brandHome": "Energietracker — ir para a visão geral"
   },
+  "meterNames": {
+    "gas": "Contador principal",
+    "strom": "Contador principal",
+    "wasser": "Contador principal",
+    "fernwaerme": "Contador de calor",
+    "heizoel": "Depósito de gasóleo",
+    "pellets": "Silo de pellets",
+    "pv_einspeisung": "Contador de injeção",
+    "pv_erzeugung": "Contador de produção"
+  },
   "utilityNames": {
     "gas": "Gás",
     "strom": "Eletricidade",
@@ -186,6 +196,7 @@
       "deliveries": "🚚 Entregas",
       "deliveriesCount": "{count} entregas no total",
       "readings": "🔢 Leituras",
+      "readingsYear": "📋 Leituras {year}",
       "readingsCount": "{count} leituras no total"
     },
     "balance": {
@@ -283,6 +294,8 @@
     },
     "readingsTable": {
       "emptyTitle": "Sem leituras",
+      "emptyYear": "Sem leituras em {year}",
+      "emptyYearHint": "Estão registadas {count} leituras no total — acessíveis pelo seletor de ano acima.",
       "colDate": "Data",
       "colCounter": "Leitura do contador",
       "colNote": "Nota",
@@ -352,6 +365,10 @@
     "verdict": { "surcharge": "Acerto a pagar", "refund": "Reembolso", "payout": "Pagamento", "reclaim": "A recuperar", "balanced": "Equilibrado" }
   },
   "contracts": {
+    "unit": {
+      "ctPerKwh": "ct/kWh",
+      "eurPerMonth": "€/mês"
+    },
     "loading": "A carregar…",
     "unknown": "Serviço desconhecido: {key}",
     "title": "{label} · Contratos",
@@ -371,7 +388,8 @@
       "edit": "Editar",
       "meterLabel": "Contador:",
       "open": "aberto",
-      "noMeter": "—"
+      "noMeter": "—",
+      "shadowHint": "Contrato hipotético — apenas um cenário para a comparação de tarifas. Não conta em custos, saldo nem previsão."
     },
     "status": { "active": "ATIVO", "past": "PASSADO", "future": "FUTURO" },
     "summary": {
@@ -587,10 +605,15 @@
     }
   },
   "settings": {
+    "placeholder": {
+      "dayMonth": "DD-MM (01-01)",
+      "yearExample": "p. ex. 1998"
+    },
     "loading": "A carregar…",
     "title": "⚙️ Definições",
     "subtitle": "Configuração · exportação de dados · cópia de segurança e restauro",
     "save": "Guardar definições",
+    "saveUnsaved": "Guardar •",
     "saved": "Definições guardadas",
     "lang": {
       "title": "🌐 Idioma / Language",
@@ -803,6 +826,10 @@
     }
   },
   "reminders": {
+    "suggest": {
+      "deliveryTitle": "Planear a próxima entrega de {label}",
+      "deliveryNote": "Sugerido automaticamente a partir das entregas anteriores."
+    },
     "loading": "A carregar os lembretes…",
     "loadError": "Não foi possível carregar os lembretes: {msg}",
     "title": "Lembretes e manutenção",
@@ -923,10 +950,21 @@
     "notSupported": "Não suportado.",
     "noContracts": "Não há contratos para comparar.",
     "shadowBadge": "Hipotético",
-    "col": { "tariff": "Tarifa", "consumption": "Consumo", "cost": "Custo", "vsReal": "vs. realmente pago" },
+    "shadowFallbackLabel": "Hipótese",
+    "months": "{count} mes.",
+    "monthsOne": "1 mês",
+    "partialHint": "Os contratos que cobrem apenas parte do período estão marcados com a sua duração. O consumo e o custo referem-se sempre exactamente a esses meses.",
+    "projectedFull": "extrapolado para {months} mes.: {value}",
+    "realTotal": "Realmente facturado no período: {value}",
+    "noRows": "Nenhum contrato com preço unitário no período seleccionado.",
+    "chartTitle": "Comparação de preço por unidade",
+    "chartAlt": "Gráfico de barras do custo total por unidade ({unit}) de cada tarifa",
+    "unitCostTitle": "Custo total por unidade — preço unitário, termo fixo e bónus em conjunto. O único valor que compara com justiça durações diferentes.",
+    "legend": "Negativo (verde) = mais barato do que o contrato realmente facturado nos mesmos meses. Comparam-se apenas custos de tarifa; adiantamentos e acertos são fluxos de caixa e ficam de fora.",
+    "action": { "edit": "Editar", "delete": "Eliminar" },
+    "col": { "tariff": "Tarifa", "period": "Período", "consumption": "Consumo", "cost": "Custo", "unitCost": "ct/{unit}", "vsReal": "vs. real", "savings": "Diferença" },
     "period": "Período: {label}",
     "periodRange": "Período: {label} ({from} – {to})",
-    "legend": "Diferença negativa (verde) = mais barato do que o contrato realmente faturado.",
     "shadow": {
       "title": "Criar contrato hipotético",
       "intro": "Uma tarifa hipotética — NÃO afeta o saldo/previsão, apenas esta comparação.",
@@ -935,17 +973,27 @@
       "provider": "Fornecedor",
       "providerPlaceholder": "opcional",
       "start": "Válido a partir de",
-      "workingPrice": "Preço da energia (ct/kWh)",
+      "workingPrice": "Preço unitário (ct/{unit})",
       "workingPlaceholder": "p. ex. 8,50",
       "basePrice": "Tarifa fixa (€/mês)",
       "basePlaceholder": "p. ex. 12,00",
       "create": "Criar",
       "validation": "A etiqueta, a data e o preço da energia são obrigatórios",
       "created": "Contrato hipotético criado",
-      "error": "Erro: {msg}"
+      "error": "Erro: {msg}",
+      "titleEdit": "Editar contrato hipotético",
+      "end": "Válido até (opcional)",
+      "endHint": "Deixar vazio para «continua em vigor».",
+      "save": "Guardar",
+      "updated": "Contrato hipotético guardado",
+      "deleted": "Contrato hipotético eliminado",
+      "deleteTitle": "Eliminar o contrato hipotético?",
+      "deleteMessage": "A hipótese será removida. Contratos reais e leituras ficam intactos.",
+      "deleteConfirm": "Eliminar"
     }
   },
   "analysis": {
+    "noUtilities": "Nenhum tipo de consumo activo. Nas definições pode escolher quais aparecem.",
     "loading": "A carregar…",
     "title": "📊 Análise",
     "noMeters": "Sem contadores.",
@@ -1014,6 +1062,7 @@
     }
   },
   "forecast": {
+    "noUtilities": "Nenhum tipo de consumo activo. Nas definições pode escolher quais aparecem.",
     "loading": "A carregar…",
     "title": "🔮 Previsão",
     "selectUtility": "Escolher serviço",
@@ -1072,7 +1121,37 @@
     "continued": "(cont.)",
     "meterPageTitle": "{label} {year} — {meter}"
   },
+  "migration": {
+    "meterNote": "Criado pela migração da v0.9.0",
+    "meterNoteWater": "Criado pela migração da v0.9.0 (a v0.9.0 não tinha água)."
+  },
   "errors": {
+    "view": {
+      "loadFailed": "Falha ao carregar: {msg}",
+      "unknownRoute": "Rota desconhecida: {hash}",
+      "utilitiesFailed": "Não foi possível carregar os tipos de consumo: {msg}"
+    },
+    "benchmark": {
+      "noLivingArea": "Área habitável não definida — introduza-a nas definições para obter a classe de eficiência.",
+      "noHeatData": "Não foram encontrados dados de energia de aquecimento para {year}.",
+      "multipleSources": "Várias fontes de calor activas — a classe por fonte é mais expressiva do que a soma combinada. A vista combinada só faz sentido com aquecimento deliberadamente combinado (p. ex. carga de base e de ponta)."
+    },
+    "forecast": {
+      "tooFewMonths": "Histórico insuficiente (menos de 6 meses)."
+    },
+    "reminder": {
+      "titleRequired": "É necessário um título.",
+      "dueRequired": "É necessária uma data de vencimento (AAAA-MM-DD).",
+      "recurrenceMonths": "«A cada N meses» precisa de um intervalo maior que 0.",
+      "notFound": "Lembrete não encontrado: {id}"
+    },
+    "tariff": {
+      "waterUnsupported": "A comparação de tarifas para a água (tarifa de três componentes) não está incluída nesta versão.",
+      "deliveryUnsupported": "{label} é facturado por entregas e não tem contratos de tarifa — aí a factura de entrega é a base de custos.",
+      "noConsumption": "Ainda não há dados de consumo para este contador.",
+      "noConsumptionInPeriod": "Não há dados de consumo no período seleccionado.",
+      "noContracts": "Nenhum contrato para comparar."
+    },
     "meter": {
       "multipleMeters": "Não são permitidos vários contadores para {utility}",
       "capacityRequired": "Para {label} é necessária uma capacidade de depósito (capacity) > 0",

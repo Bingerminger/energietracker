@@ -238,6 +238,51 @@ git push origin main --tags
   of 28 Feb) — clamp the day to the target month's length. Lesson: pull any display
   property that already lives in the SSOT (Utilities) from there; and guard date
   arithmetic against month-end overflow.
+- **An exclusion filter applies to every consumer (v2.2.0).** `is_shadow` was
+  filtered in `ConsumptionService` at both call sites, but not in
+  `ForecastService` — even though `ContractService::create()` promised in a
+  comment that shadow contracts never feed into the forecast. As soon as the last
+  real contract ended before the forecast horizon, the forecast projected prices
+  and advance payments from the hypothesis. Same class as the sub-meter double
+  counting in v2.1.3: an exclusion that only sits at some call sites is not an
+  exclusion. Lesson: raw getters (`contracts->list()`) put the burden on the
+  caller — a getter that enforces the filter is better; and a promise in a comment
+  is not a mechanism, a test is.
+- **Retro-fitted languages need a completeness check (v2.2.0).**
+  `lib/format.js` mapped number, date and month formatting via a hand-maintained
+  `{de, en}` table; the languages added in 2026 silently fell back to `de-DE`, so
+  five of seven locales showed German number grouping and "Mär/Mai/Dez". Lesson: a
+  new language (or utility) is only done once every place holding an enumeration
+  has been carried along — catalogue, formatting, CSS tokens, default names. Where
+  the platform can do it (`Intl`), no hand-written table belongs in the code.
+- **A default instead of an error is data loss (v2.2.0).** `collectWaterForm()`
+  turned a forgotten price into a valid tariff of 0 ct/m³ via
+  `parseFloat(x || 0)`. The backend guard could not catch it because both fields
+  arrived filled. Lesson: `|| 0` on user input destroys exactly the information
+  the validation path needs — "not filled in". Pass empty through and let the
+  guard decide.
+- **A figure without a frame of reference lies (v2.2.0).** The tariff comparison
+  reported the total consumption of the period on every row, but computed cost
+  only over the months the respective contract covered. Both numbers were
+  correct on their own — side by side they produced an invented saving (49 %
+  instead of the real 15 %). Lesson: when a table puts values next to each other
+  for comparison, every column must share the same frame of reference; where
+  terms differ in length, a normalised figure is needed (here: total cost per
+  unit). And: don't mix costs with cash flows (advance payments, one-off
+  settlements) — they answer different questions.
+- **`vendor` in .gitignore matches at every level (v2.2.0).** When self-hosting
+  the fonts and Chart.js under `public/vendor/`, the unanchored `vendor/`
+  pattern would have kept those files out of both the repository and the Docker
+  image — the app would have shipped without fonts and without charts, and no
+  test would have noticed. Lesson: gitignore patterns without a leading slash
+  apply at every level; check newly added asset directories with
+  `git check-ignore` and pin their delivery in the Docker smoke test.
+- **Whatever is updated by hand on release day eventually gets forgotten
+  (v2.2.0).** `docker-compose.yml` still pinned `1.9.3` across seven releases;
+  anyone starting from the repository got a version predating the entire v2.x
+  bundle. Lesson: every version stated outside the `VERSION` file belongs in a
+  test (see `ReleaseConsistencyTest`) — service worker cache, compose pin,
+  changelog section, README and INSTALL stamps.
 
 ---
 

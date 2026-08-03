@@ -32,12 +32,10 @@ final class RecommendationService
         private I18nService $i18n,
     ) {}
 
-    /** Lokalisiertes Verbrauchsart-Label (Fallback: deutsches Default-Label). */
+    /** Lokalisiertes Verbrauchsart-Label (zentraler Fallback seit v2.2.0). */
     private function utilLabel(string $utility): string
     {
-        $key = 'utilityNames.' . $utility;
-        $tr  = $this->i18n->t($key);
-        return $tr === $key ? (Utilities::get($utility)['label'] ?? $utility) : $tr;
+        return $this->i18n->utilityLabel($utility);
     }
 
     /** @return array<int,array<string,mixed>> */

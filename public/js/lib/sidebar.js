@@ -8,6 +8,7 @@
 import { getUtilities, getSettings } from '../state.js';
 import { api } from '../api.js';
 import { t } from './i18n.js';
+import { escapeHtml as esc } from './format.js';
 
 const STATIC_ICON = {
   gas: '🔥', strom: '⚡', wasser: '💧',
@@ -30,18 +31,6 @@ export async function buildSidebar() {
   const active = Array.isArray(settings.active_utilities) && settings.active_utilities.length
     ? settings.active_utilities
     : utilities.map(u => u.key);
-
-  // Badges: offene Empfehlungen / fällige Termine
-  let recCount = 0, dueCount = 0;
-  try {
-    const recs = await api.recommendations();
-    recCount = Array.isArray(recs) ? recs.length : 0;
-  } catch {}
-  try {
-    const rem = await api.reminders();
-    dueCount = Array.isArray(rem)
-      ? rem.filter(r => ['due', 'overdue'].includes(r.status)).length : 0;
-  } catch {}
 
   const activeUtils = utilities.filter(u => active.includes(u.key));
 
@@ -92,11 +81,11 @@ export async function buildSidebar() {
       <div class="sidebar__group-label">${esc(t('nav.group.insights'))}</div>
       <a class="sidebar__item" href="#/recommendations" data-route="recommendations">
         <span class="sidebar__icon">💡</span><span>${esc(t('nav.recommendations'))}</span>
-        ${recCount > 0 ? `<span class="sidebar__badge">${recCount}</span>` : ''}
+        <span data-badge="recommendations"></span>
       </a>
       <a class="sidebar__item" href="#/reminders" data-route="reminders">
         <span class="sidebar__icon">📌</span><span>${esc(t('nav.reminders'))}</span>
-        ${dueCount > 0 ? `<span class="sidebar__badge sidebar__badge--alert">${dueCount}</span>` : ''}
+        <span data-badge="reminders"></span>
       </a>
     </div>
 
@@ -109,7 +98,34 @@ export async function buildSidebar() {
   `;
 }
 
-function esc(s) {
-  return String(s).replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+/**
+ * v2.2.0 — Zähler an „Empfehlungen" und „Termine" nachreichen.
+ *
+ * Diese beiden Zahlen kosteten je einen API-Aufruf und hingen bis v2.1.5 im
+ * kritischen Pfad: `app.js` startete den Router erst, nachdem die Seitenleiste
+ * fertig war, und die wartete auf beide Antworten. Der erste Bildschirminhalt
+ * kam damit erst nach vier seriellen Roundtrips. Jetzt rendert die Navigation
+ * sofort, die Badges erscheinen, sobald sie da sind.
+ */
+export async function refreshSidebarBadges() {
+  const nav = document.getElementById('primary-nav');
+  if (!nav) return;
+
+  const [recs, rem] = await Promise.all([
+    api.recommendations().catch(() => null),
+    api.reminders().catch(() => null),
+  ]);
+
+  const set = (name, count, alert = false) => {
+    const slot = nav.querySelector(`[data-badge="${name}"]`);
+    if (!slot) return;
+    slot.innerHTML = count > 0
+      ? `<span class="sidebar__badge${alert ? ' sidebar__badge--alert' : ''}">${count}</span>`
+      : '';
+  };
+
+  set('recommendations', Array.isArray(recs) ? recs.length : 0);
+  set('reminders', Array.isArray(rem)
+    ? rem.filter(r => ['due', 'overdue'].includes(r.status)).length : 0, true);
 }
+

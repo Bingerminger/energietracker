@@ -6,21 +6,46 @@ namespace Energietracker\Services;
 use Energietracker\Config\Utilities;
 
 /**
- * v1.3.0 — Tarif-Was-wäre-wenn (Schattenverträge).
+ * Tarif-Was-wäre-wenn (Schattenverträge) — v2.2.0 neu aufgesetzt.
  *
  * Wendet jeden Vertrag eines Zählers (echt + Schatten) auf die TATSÄCHLICH
- * gemessenen historischen Monatsverbräuche an und stellt die fiktiven
- * Gesamtkosten gegenüber. So lässt sich beantworten: „Was hätte ich bei
- * Tarif X im Jahr Y bezahlt?"
+ * gemessenen historischen Monatsverbräuche an und stellt die fiktiven Kosten
+ * gegenüber. Beantwortet: „Was hätte ich bei Tarif X bezahlt?"
  *
- * Bewusst NICHT für Wasser (Drei-Komponenten-Tarifmodell — ein
- * Tarifvergleich dort wäre ein eigenes Feature mit eigener UI; out of
- * scope für v1.3.0). Für Wasser liefert der Service eine leere Liste mit
- * Hinweis.
+ * ── Was sich gegenüber v1.3.0 geändert hat ──────────────────────────────
  *
- * Die Verbrauchsdaten kommen aus ConsumptionService::forMeter() OHNE
- * Vertragsanwendung-Verfälschung — wir nutzen das rohe `kwh`/`m3` und
- * rechnen die Verträge hier frisch drauf.
+ * Die alte Fassung meldete für JEDE Zeile den Gesamtverbrauch des Zeitraums,
+ * berechnete die Kosten aber nur über die Monate, in denen der Vertrag lief.
+ * Ein Schattenvertrag ab Juli zeigte damit den vollen Jahresverbrauch neben
+ * einem halben Jahr Kosten — und wirkte doppelt so günstig, wie er ist. Ebenso
+ * verglich `vs_real_eur` die Teilzeitraum-Kosten gegen die Jahressumme aller
+ * echten Verträge.
+ *
+ * Jetzt gilt durchgängig: **Jede Kennzahl einer Zeile bezieht sich auf genau
+ * die Monate, die dieser Vertrag abdeckt.** Zusätzlich:
+ *
+ *   - `unit_cost_ct` — Vollkosten je Verbrauchseinheit (Arbeitspreis, Grundpreis
+ *     und Boni zusammen, geteilt durch die Menge). Das ist die einzige
+ *     zeitraum-unabhängige Größe und damit der faire Vergleichsmaßstab
+ *     zwischen unterschiedlich langen Laufzeiten.
+ *   - `projected_full_eur` — die Teilzeitraum-Kosten auf die volle gewählte
+ *     Periode hochgerechnet, damit „was hätte das ganze Jahr gekostet?"
+ *     beantwortbar bleibt, ohne die Ist-Zahlen zu verfälschen.
+ *   - `vs_real_eur` / `vs_real_pct` — Differenz gegen die real abgerechneten
+ *     Kosten **derselben Monate**.
+ *
+ * ── Bewusst NICHT enthalten ─────────────────────────────────────────────
+ *
+ * Sonderzahlungen (F1003) und Abschläge sind Zahlungsströme gegen den Saldo,
+ * keine Tarifkosten: Eine Rückzahlung entsteht, weil die Abschläge zu hoch
+ * waren, nicht weil der Tarif günstiger ist. Sie in die Vergleichskosten zu
+ * mischen würde zwei verschiedene Fragen vermengen. Der Vergleich zeigt reine
+ * Tarifkosten (Arbeitspreis × Menge + Grundpreis − Bonus); der Saldo lebt
+ * unverändert in `ConsumptionService::contractStatus()`.
+ *
+ * Wasser bleibt ausgenommen (Drei-Komponenten-Tarifmodell, eigene UI nötig);
+ * Heizöl/Pellets sind lieferbasiert und haben keine Verträge — dort ist die
+ * Lieferrechnung die Kostenbasis.
  */
 final class TariffComparisonService
 {
@@ -35,14 +60,18 @@ final class TariffComparisonService
      * @return array{
      *   utility: string,
      *   meter_id: string,
-     *   period: array{from: ?string, to: ?string, label: string},
+     *   unit: string,
+     *   period: array{from: ?string, to: ?string, label: string, months: int},
      *   supported: bool,
      *   note: ?string,
+     *   real_total_eur: ?float,
      *   rows: array<int, array{
      *     contract_id: string, label: string, is_shadow: bool,
      *     provider: string, tariff_name: string,
-     *     consumption: float, total_eur: ?float,
-     *     vs_real_eur: ?float
+     *     months_covered: int, covers_full_period: bool,
+     *     consumption: float, total_eur: ?float, unit_cost_ct: ?float,
+     *     projected_full_eur: ?float,
+     *     vs_real_eur: ?float, vs_real_pct: ?float
      *   }>
      * }
      */
@@ -56,142 +85,180 @@ final class TariffComparisonService
             throw new \RuntimeException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
 
+        $u    = Utilities::get($utility);
+        $unit = (string)($u['consumption_unit'] ?? 'kWh');
+
         if ($utility === 'wasser') {
-            return [
-                'utility'  => $utility, 'meter_id' => $meterId,
-                'period'   => ['from' => null, 'to' => null, 'label' => '—'],
-                'supported'=> false,
-                'note'     => 'Tarifvergleich für Wasser (Drei-Komponenten-Tarif) ist in dieser Version nicht enthalten.',
-                'rows'     => [],
-            ];
+            return $this->emptyResult($utility, $meterId, $unit, '—', false,
+                $this->i18n->t('errors.tariff.waterUnsupported'));
+        }
+        if (Utilities::isDelivery($utility)) {
+            return $this->emptyResult($utility, $meterId, $unit, '—', false,
+                $this->i18n->t('errors.tariff.deliveryUnsupported', ['label' => $u['label']]));
         }
 
-        // Rohe Monatsverbräuche (Vertragsanwendung interessiert uns hier
-        // nicht — wir rechnen jeden Vertrag selbst frisch drauf).
+        // Rohe Monatsreihe. `cost` trägt hier bereits die real abgerechneten
+        // Kosten (ConsumptionService wendet die echten Verträge an) — daraus
+        // bauen wir die Referenzlinie.
         $monthly = $this->consumption->forMeter($utility, $meter);
         if (empty($monthly)) {
-            return [
-                'utility'  => $utility, 'meter_id' => $meterId,
-                'period'   => ['from' => null, 'to' => null, 'label' => '—'],
-                'supported'=> true,
-                'note'     => 'Keine Verbrauchsdaten vorhanden.',
-                'rows'     => [],
-            ];
+            return $this->emptyResult($utility, $meterId, $unit, '—', true,
+                $this->i18n->t('errors.tariff.noConsumption'));
         }
 
-        // Zeitraum filtern
         if ($year !== null) {
-            $monthly = array_values(array_filter(
-                $monthly, fn($m) => (int)($m['year'] ?? 0) === $year
-            ));
-            $label = (string)$year;
+            $monthly = array_values(array_filter($monthly, fn($m) => (int)($m['year'] ?? 0) === $year));
+            $label   = (string)$year;
         } else {
-            $label = 'Gesamter Zeitraum';
+            $label = $this->i18n->t('tariff.wholePeriod');
         }
         if (empty($monthly)) {
-            return [
-                'utility'  => $utility, 'meter_id' => $meterId,
-                'period'   => ['from' => null, 'to' => null, 'label' => $label],
-                'supported'=> true,
-                'note'     => 'Keine Verbrauchsdaten im gewählten Zeitraum.',
-                'rows'     => [],
-            ];
+            return $this->emptyResult($utility, $meterId, $unit, $label, true,
+                $this->i18n->t('errors.tariff.noConsumptionInPeriod'));
         }
 
+        $totalMonths = count($monthly);
         $from = $monthly[0]['ym'] ?? null;
-        $to   = $monthly[count($monthly) - 1]['ym'] ?? null;
+        $to   = $monthly[$totalMonths - 1]['ym'] ?? null;
 
-        $allContracts = $this->contracts->list($utility, $meterId);
-
-        // Den/die echten Vertrag/Verträge im Zeitraum als Referenz: deren
-        // Summe der tatsächlichen kwh_cost ist die „real bezahlt"-Linie.
-        $realTotal = 0.0;
-        $realSeen  = false;
+        // Real abgerechnete Kosten je Monat — Referenz für den Soll-Ist-Vergleich.
+        $realByYm = [];
         foreach ($monthly as $m) {
-            // forMeter() hat bereits die echten (Nicht-Schatten) Verträge
-            // angewandt → m['cost'] ist die reale Vertragsrechnung.
-            if (isset($m['cost'])) {
-                $realTotal += (float)$m['cost'];
-                $realSeen = true;
-            }
+            if (isset($m['cost'])) $realByYm[(string)$m['ym']] = (float)$m['cost'];
         }
+        $realTotal = $realByYm ? array_sum($realByYm) : null;
 
         $rows = [];
-        foreach ($allContracts as $c) {
+        foreach ($this->contracts->list($utility, $meterId) as $c) {
+            $calc = $this->calculateForContract($c, $monthly);
+            if ($calc['months'] === 0) {
+                // Vertrag liegt komplett außerhalb des gewählten Zeitraums —
+                // eine Zeile mit lauter „–" ist nur Rauschen.
+                continue;
+            }
+
             $isShadow = !empty($c['is_shadow']);
-            $total = $this->totalForContract($c, $monthly);
-            $label2 = $isShadow
-                ? ((string)($c['shadow_label'] ?: $c['tariff_name'] ?: 'Hypothese'))
+            $rowLabel = $isShadow
+                ? (string)($c['shadow_label'] ?: $c['tariff_name'] ?: $this->i18n->t('tariff.shadowFallbackLabel'))
                 : trim(((string)($c['provider'] ?? '')) . ' ' . ((string)($c['tariff_name'] ?? '')));
-            if ($label2 === '') $label2 = $c['id'];
+            if ($rowLabel === '') $rowLabel = (string)$c['id'];
+
+            // Referenz über GENAU die Monate dieses Vertrags — nicht über die
+            // gesamte Periode. Sonst vergleicht ein Halbjahresvertrag seine
+            // sechs Monate gegen zwölf reale.
+            $realSame = null;
+            foreach ($calc['yms'] as $ym) {
+                if (isset($realByYm[$ym])) $realSame = ($realSame ?? 0.0) + $realByYm[$ym];
+            }
+
+            $total   = $calc['total'];
+            $consump = $calc['consumption'];
 
             $rows[] = [
-                'contract_id' => (string)$c['id'],
-                'label'       => $label2,
-                'is_shadow'   => $isShadow,
-                'provider'    => (string)($c['provider'] ?? ''),
-                'tariff_name' => (string)($c['tariff_name'] ?? ''),
-                'consumption' => round($this->sumConsumption($monthly), 1),
-                'total_eur'   => $total !== null ? round($total, 2) : null,
-                'vs_real_eur' => ($total !== null && $realSeen)
-                    ? round($total - $realTotal, 2)
-                    : null,
+                'contract_id'        => (string)$c['id'],
+                'label'              => $rowLabel,
+                'is_shadow'          => $isShadow,
+                'provider'           => (string)($c['provider'] ?? ''),
+                'tariff_name'        => (string)($c['tariff_name'] ?? ''),
+                'months_covered'     => $calc['months'],
+                'covers_full_period' => $calc['months'] >= $totalMonths,
+                'consumption'        => round($consump, 1),
+                'total_eur'          => $total !== null ? round($total, 2) : null,
+                // Vollkosten je Einheit in ct — zeitraumunabhängig, damit
+                // unterschiedlich lange Laufzeiten vergleichbar bleiben.
+                'unit_cost_ct'       => ($total !== null && $consump > 0)
+                                        ? round($total * 100.0 / $consump, 3) : null,
+                // Hochrechnung auf die volle Periode; bei Vollabdeckung ist sie
+                // identisch mit total_eur und wird vom Frontend ausgeblendet.
+                'projected_full_eur' => ($total !== null && $calc['months'] > 0)
+                                        ? round($total / $calc['months'] * $totalMonths, 2) : null,
+                'vs_real_eur'        => ($total !== null && $realSame !== null)
+                                        ? round($total - $realSame, 2) : null,
+                'vs_real_pct'        => ($total !== null && $realSame !== null && $realSame != 0.0)
+                                        ? round(($total - $realSame) / $realSame * 100.0, 1) : null,
             ];
         }
 
-        // Sortierung: echte zuerst, dann Schatten nach Kosten aufsteigend
+        // Sortierung: echte Verträge zuerst (die Ist-Linie), dann die
+        // Hypothesen nach effektivem Einheitspreis — die faire Rangfolge.
+        // Zeilen ohne rechenbaren Preis ans Ende.
         usort($rows, function ($a, $b) {
-            if ($a['is_shadow'] !== $b['is_shadow']) {
-                return $a['is_shadow'] <=> $b['is_shadow'];
-            }
+            if ($a['is_shadow'] !== $b['is_shadow']) return $a['is_shadow'] <=> $b['is_shadow'];
+            $au = $a['unit_cost_ct'] ?? PHP_FLOAT_MAX;
+            $bu = $b['unit_cost_ct'] ?? PHP_FLOAT_MAX;
+            if ($au !== $bu) return $au <=> $bu;
             return ($a['total_eur'] ?? PHP_FLOAT_MAX) <=> ($b['total_eur'] ?? PHP_FLOAT_MAX);
         });
 
         return [
-            'utility'  => $utility,
-            'meter_id' => $meterId,
-            'period'   => ['from' => $from, 'to' => $to, 'label' => $label],
-            'supported'=> true,
-            'note'     => null,
-            'rows'     => $rows,
+            'utility'        => $utility,
+            'meter_id'       => $meterId,
+            'unit'           => $unit,
+            'period'         => ['from' => $from, 'to' => $to, 'label' => $label, 'months' => $totalMonths],
+            'supported'      => true,
+            'note'           => $rows ? null : $this->i18n->t('errors.tariff.noContracts'),
+            'real_total_eur' => $realTotal !== null ? round($realTotal, 2) : null,
+            'rows'           => $rows,
         ];
     }
 
     /**
-     * Gesamtkosten eines Vertrags über die Monatsreihe:
-     *   Σ (kwh × Arbeitspreis/100 + Grundpreis − Bonus)
-     * Monate außerhalb der Vertragslaufzeit zählen nicht mit.
-     * Gibt null zurück, wenn kein einziger Monat im Vertrag liegt.
+     * Kosten, Menge und Laufzeit eines Vertrags über die Monatsreihe.
+     *
+     * Nur Monate, in denen der Vertrag aktiv war, zählen — für Kosten UND
+     * Menge. Monate ohne gepflegten Arbeitspreis bleiben außen vor, weil sie
+     * die Kosten nicht rechenbar machen; sie dürfen dann auch nicht in die
+     * Menge einfließen, sonst sinkt der Einheitspreis künstlich.
+     *
+     * @return array{total: ?float, consumption: float, months: int, yms: array<int,string>}
      */
-    private function totalForContract(array $c, array $monthly): ?float
+    private function calculateForContract(array $c, array $monthly): array
     {
         $total = 0.0;
-        $any = false;
-        foreach ($monthly as $m) {
-            $first = ($m['ym'] ?? '') . '-01';
-            // findActiveForDate berücksichtigt start/end des Vertrags
-            $active = $this->contracts->findActiveForDate([$c], $first);
-            if (!$active) continue;
+        $consumption = 0.0;
+        $yms = [];
 
-            $y = (int)($m['year'] ?? 0);
+        foreach ($monthly as $m) {
+            $ym = (string)($m['ym'] ?? '');
+            if ($ym === '') continue;
+            if (!$this->contracts->findActiveForDate([$c], $ym . '-01')) continue;
+
+            $y  = (int)($m['year'] ?? 0);
             $mn = (int)($m['month'] ?? 0);
             $wp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn);
-            $bp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
+            if ($wp === null) continue; // ohne Arbeitspreis nicht rechenbar
+
+            $bp = $this->contracts->valueValidOn($c['base_prices'] ?? [], 'eur_per_month', $y, $mn);
             $bn = $this->contracts->bonusForMonth($c, $y, $mn);
 
             $value = (float)($m['kwh'] ?? 0);
-            if ($wp === null) continue; // ohne Arbeitspreis nicht rechenbar
-            $monthCost = $value * $wp / 100.0 + (float)($bp ?? 0) - $bn;
-            $total += $monthCost;
-            $any = true;
+            $total += $value * $wp / 100.0 + (float)($bp ?? 0) - $bn;
+            $consumption += $value;
+            $yms[] = $ym;
         }
-        return $any ? $total : null;
+
+        return [
+            'total'       => $yms ? $total : null,
+            'consumption' => $consumption,
+            'months'      => count($yms),
+            'yms'         => $yms,
+        ];
     }
 
-    private function sumConsumption(array $monthly): float
-    {
-        $s = 0.0;
-        foreach ($monthly as $m) $s += (float)($m['kwh'] ?? 0);
-        return $s;
+    /** @return array<string,mixed> */
+    private function emptyResult(
+        string $utility, string $meterId, string $unit,
+        string $label, bool $supported, string $note
+    ): array {
+        return [
+            'utility'        => $utility,
+            'meter_id'       => $meterId,
+            'unit'           => $unit,
+            'period'         => ['from' => null, 'to' => null, 'label' => $label, 'months' => 0],
+            'supported'      => $supported,
+            'note'           => $note,
+            'real_total_eur' => null,
+            'rows'           => [],
+        ];
     }
 }

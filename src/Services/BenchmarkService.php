@@ -36,6 +36,7 @@ final class BenchmarkService
         private ConsumptionService $consumption,
         private MeterService $meters,
         private SettingsService $settings,
+        private I18nService $i18n,
     ) {}
 
     /**
@@ -79,7 +80,10 @@ final class BenchmarkService
             $combinedKwh += $sum;
             $entry = [
                 'utility' => $utility,
-                'label'   => Utilities::get($utility)['label'] ?? $utility,
+                // v2.2.0 — lokalisiert; vorher stand hier das deutsche
+                // SSOT-Label und schlug in die Effizienzkarte des Dashboards
+                // durch, auch bei englischer Oberfläche.
+                'label'   => $this->i18n->utilityLabel($utility),
                 'kwh'     => round($sum, 1),
             ];
             if ($wohnflaeche > 0) {
@@ -102,17 +106,14 @@ final class BenchmarkService
         $combinedPerM2 = null;
         $combinedClass = null;
         if ($wohnflaeche <= 0) {
-            $note = 'Wohnfläche nicht gesetzt — in den Einstellungen eintragen für die Effizienzklasse.';
+            $note = $this->i18n->t('errors.benchmark.noLivingArea');
         } elseif ($combinedKwh <= 0) {
-            $note = sprintf('Keine Heizenergiedaten für %d gefunden.', $year);
+            $note = $this->i18n->t('errors.benchmark.noHeatData', ['year' => $year]);
         } else {
             $combinedPerM2 = round($combinedKwh / $wohnflaeche, 1);
             $combinedClass = $this->classify($combinedPerM2, $thresholds);
             if (count($perSource) > 1) {
-                $note = 'Mehrere Heizquellen aktiv — die Klasse je Quelle ist '
-                      . 'aussagekräftiger als die kombinierte Summe. Die '
-                      . 'kombinierte Sicht ist nur bei bewusst kombiniertem '
-                      . 'Heizbetrieb (z. B. Grund- + Spitzenlast) sinnvoll.';
+                $note = $this->i18n->t('errors.benchmark.multipleSources');
             }
         }
 

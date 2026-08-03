@@ -39,7 +39,13 @@ final class Migrator
 {
     public const SCHEMA_VERSION = '1.3.0';
 
-    public function __construct(private JsonStore $store) {}
+    // v2.2.0 — der I18nService ist optional: der Migrator wird im Bootstrap
+    // sehr früh und in Tests ohne Container konstruiert. Fehlt er, greifen
+    // die deutschen Default-Namen aus der Utilities-SSOT.
+    public function __construct(
+        private JsonStore $store,
+        private ?\Energietracker\Services\I18nService $i18n = null,
+    ) {}
 
     public function isAlreadyMigrated(): bool
     {
@@ -533,7 +539,7 @@ final class Migrator
                     $meterId = 'm_' . $key . '_default';
                     $this->store->write($key . '/meters.json', [[
                         'id' => $meterId,
-                        'name' => $u['default_meter_name'],
+                        'name' => $this->i18n?->defaultMeterName($key) ?? $u['default_meter_name'],
                         'icon' => $u['icon'],
                         'created_at' => date('Y-m-d'),
                         'active' => true,

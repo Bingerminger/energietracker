@@ -82,6 +82,21 @@ Verträge.
 Echte **und** Schattenverträge auf den Ist-Verbrauch gerechnet —
 „Was hätte Tarif X gekostet?", ohne Saldo/Prognose zu verändern.
 
+Jede Zeile bezieht sich auf **genau die Monate, die dieser Vertrag abdeckt**:
+Verbrauch, Kosten und Differenz meinen denselben Zeitraum. Verträge mit
+kürzerer Laufzeit tragen ihre Monatszahl als Marke und zusätzlich eine
+Hochrechnung auf die volle Periode.
+
+Die Spalte **ct/Einheit** trägt die Vollkosten je kWh bzw. m³ — Arbeitspreis,
+Grundpreis und Boni zusammen. Sie ist die einzige Größe, die von der Laufzeit
+unabhängig ist, und damit der Maßstab für die Rangfolge. Verglichen werden
+reine Tarifkosten; Abschläge und Sonderzahlungen sind Zahlungsströme gegen den
+Saldo und bleiben außen vor (sie stehen in der Verbrauchsansicht).
+
+Schattenverträge lassen sich hier anlegen, bearbeiten und löschen. In der
+Vertragsliste tragen sie ein eigenes Kennzeichen, damit sie nicht mit einem
+laufenden Vertrag verwechselt werden.
+
 ![Tarifvergleich](screenshots/tarifvergleich.png)
 
 ---

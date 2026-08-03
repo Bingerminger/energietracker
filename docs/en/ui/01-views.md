@@ -80,6 +80,19 @@ regression and seasonal profile, a cost forecast with the balance of open contra
 Real **and** shadow contracts computed on the actual consumption — "what would tariff
 X have cost?", without changing the balance/forecast.
 
+Every row refers to **exactly the months that contract covers**: consumption,
+cost and difference all mean the same period. Contracts with a shorter term
+carry their month count as a marker, plus an extrapolation to the full period.
+
+The **ct/unit** column holds the total cost per kWh or m³ — unit price,
+standing charge and bonuses combined. It is the only figure independent of the
+term length, and therefore the basis for the ranking. Only pure tariff costs
+are compared; advance payments and one-off settlements are cash flows against
+the balance and stay out of it (they live in the consumption view).
+
+Shadow contracts can be created, edited and deleted here. In the contract list
+they carry their own marker so they are not mistaken for a running contract.
+
 ![Tariff comparison](../../ui/screenshots/tarifvergleich.png)
 
 ---

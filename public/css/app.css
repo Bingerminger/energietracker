@@ -123,7 +123,7 @@ h1, h2, h3, h4 { margin: 0; }
 }
 .topbar__status .dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: var(--util-strom);
+  background: var(--accent);
   display: inline-block;
 }
 .topbar__actions {
@@ -206,9 +206,8 @@ h1, h2, h3, h4 { margin: 0; }
   width: 2px; border-radius: 1px;
   background: var(--accent);
 }
-.sidebar__item[data-utility="gas"].active::before    { background: var(--util-gas); }
-.sidebar__item[data-utility="strom"].active::before  { background: var(--util-strom); }
-.sidebar__item[data-utility="wasser"].active::before { background: var(--util-wasser); }
+/* Der farbige Aktiv-Marker je Verbrauchsart kommt seit v2.2.0 aus
+   utility-theme.js (SSOT) — vorher hatten ihn nur gas/strom/wasser. */
 .sidebar__footer {
   border-top: 1px solid var(--border-1);
   padding: var(--sp-3) var(--sp-4);
@@ -268,9 +267,7 @@ h1, h2, h3, h4 { margin: 0; }
   top: 0; left: 0; right: 0; height: 2px;
   background: linear-gradient(90deg, var(--kpi-c, var(--accent)), transparent);
 }
-.kpi.c-gas    { --kpi-c: var(--util-gas); }
-.kpi.c-strom  { --kpi-c: var(--util-strom); }
-.kpi.c-wasser { --kpi-c: var(--util-wasser); }
+/* .kpi.c-<key> wird seit v2.2.0 aus der SSOT erzeugt (utility-theme.js). */
 .kpi.c-blue   { --kpi-c: var(--c-blue); }
 .kpi.c-violet { --kpi-c: var(--c-violet); }
 .kpi.c-yellow { --kpi-c: var(--c-yellow); }
@@ -299,7 +296,7 @@ h1, h2, h3, h4 { margin: 0; }
   border-radius: 100px;
 }
 .kpi__trend.up { background: var(--danger-soft); color: var(--c-red); }
-.kpi__trend.down { background: var(--util-strom-soft); color: var(--util-strom); }
+.kpi__trend.down { background: var(--success-soft); color: var(--success); }
 .kpi__trend.flat { background: var(--bg-3); color: var(--text-2); }
 
 /* ── Status banner (overdue alert / OK banner) ──────────────────── */
@@ -326,9 +323,7 @@ h1, h2, h3, h4 { margin: 0; }
   padding: var(--sp-5);
   margin-bottom: var(--sp-5);
 }
-.card--gas    { border-left: 3px solid var(--util-gas); }
-.card--strom  { border-left: 3px solid var(--util-strom); }
-.card--wasser { border-left: 3px solid var(--util-wasser); }
+/* .card--<key> wird seit v2.2.0 aus der SSOT erzeugt (utility-theme.js). */
 .card__title {
   font-size: 11px; font-weight: 500;
   color: var(--text-2);
