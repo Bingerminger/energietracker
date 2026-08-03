@@ -256,6 +256,17 @@ function timingCardHtml(d) {
     cancelLine = `<p class="muted small">${esc(t('tariff.switch.noNotice'))}</p>`;
   }
 
+  // Ist der Folgevertrag schon abgeschlossen, ist der Wechsel für die nächste
+  // Periode bereits vollzogen — das muss dastehen, sonst wirkt der weit
+  // entfernte Termin wie ein Fehler.
+  const followUp = c?.follow_up
+    ? `<p class="muted small">${esc(t('tariff.switch.followUp', {
+        label: c.follow_up.label,
+        from: f.date(c.follow_up.start),
+        to: c.follow_up.end ? f.date(c.follow_up.end) : '—',
+      }))}</p>`
+    : '';
+
   return `
     <div class="card switch-card">
       <div class="card__title">${esc(t('tariff.switch.switchDate'))}</div>
@@ -267,6 +278,7 @@ function timingCardHtml(d) {
       </div>
       ${c ? `<p class="muted small">${esc(t('tariff.switch.currentContract', { label: c.label }))}
              ${c.end ? esc(t('tariff.switch.runsUntil', { date: f.date(c.end) })) : ''}</p>` : ''}
+      ${followUp}
       ${cancelLine}
       <p class="muted small">${esc(t('tariff.switch.window', {
         from: d.window.from, to: d.window.to, months: d.window.months }))}</p>

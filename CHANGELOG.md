@@ -6,6 +6,70 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.3.1] — 2026-08-03 — Hotfix: Tarifvergleich startete nicht, Folgeverträge wurden übergangen
+
+PATCH-Release. Behebt zwei Fehler aus v2.3.0, beide auf Produktivdaten
+aufgefallen, plus eine Lücke in der Vertragspflege.
+
+### Fixed
+
+- **Der Tarifvergleich startete nicht: „api.tariffSwitch is not a function".**
+  Der Server lieferte die richtige `api.js` aus, der Browser nutzte eine
+  gecachte Vorversion ohne die neue Funktion.
+
+  Die Wurzel lag tiefer als der v2.2.3-Fix reichte: Der Cache-Buster hing nur
+  am Einstiegspunkt `app.js`. Die Module importieren einander ohne Query
+  (`./api.js`, nicht `./api.js?v=…`), also durfte jeder Cache eine beliebig
+  alte Kopie liefern. Die Selbstheilung aus v2.2.3 räumt zwar die Cache-API
+  auf, nicht aber den **HTTP-Cache des Browsers** — und Produktion sendete für
+  Module überhaupt kein `Cache-Control`, nur ETag und Last-Modified. Safari
+  cachte entsprechend heuristisch.
+
+  Zwei Maßnahmen:
+
+  1. **Import-Map.** Die Shell erzeugt aus dem Dateibestand eine Map, die jeden
+     Modulpfad auf `?v=<version>-<mtime>` abbildet. Weil der Browser
+     Import-Specifier vor dem Laden auflöst, bekommt damit auch ein Import tief
+     im Graphen seine Version — ohne dass eine einzige `import`-Zeile angefasst
+     werden muss.
+  2. **Cache-Header.** Eine `.htaccess` (Apache/Synology) und die
+     Docker-nginx-Konfiguration lassen `/public/js/` und `/public/locales/`
+     immer revalidieren. Mit ETag kostet das ein 304, keine erneute
+     Übertragung. Schriften bleiben langlebig gecacht.
+
+- **Bereits abgeschlossene Folgeverträge wurden übergangen.** Lief ein
+  Anschlussvertrag schon, meldete das Modul dessen Beginn als „Wechseltermin" —
+  obwohl der Wechsel damit längst vollzogen war. Schlimmer: Die Vergleichsbasis
+  rechnete das ganze Folgejahr mit den Preisen des **auslaufenden** Vertrags
+  weiter, obwohl der neue galt. Auf Produktivdaten wich die Referenz dadurch um
+  über 300 € ab.
+
+  Der Vergleich folgt jetzt der **Bindungskette**: dem laufenden Vertrag plus
+  allem, was lückenlos anschließt. Deren Ende bestimmt Kündigungstermin und
+  Wechseldatum, und jeder Monat des Vergleichsfensters rechnet mit dem Tarif,
+  der dann gilt. Eine Lücke von mehr als einem Tag beendet die Kette. Die
+  Oberfläche weist einen abgeschlossenen Anschlussvertrag aus.
+
+### Added
+
+- **Kündigungsfrist, Mindestlaufzeit und Preisgarantie im Vertragsformular.**
+  Bisher ließen sich diese Felder nur beim Anlegen eines Angebots im
+  Tarifvergleich setzen — an bestehenden Verträgen waren sie unerreichbar, und
+  ohne sie kann der Vergleich weder einen Termin errechnen noch vor einer
+  ablaufenden Frist warnen.
+
+### Tests
+
+- `ModuleCacheSafetyTest` prüft die Import-Map (vorhanden, vor dem ersten
+  Modul-Script, genau eine, aus dem Dateibestand erzeugt) und dass beide
+  Server-Konfigurationen Anwendungscode revalidieren lassen.
+- `TariffSwitchServiceTest` um vier Fälle erweitert: Folgevertrag verschiebt
+  den Termin, Referenz nutzt dessen Preise, eine Lücke beendet die Kette, und
+  ein Fenster über zwei Verträge rechnet jeden Monat mit dem richtigen Tarif.
+- 183 → 189 Tests.
+
+---
+
 ## [2.3.0] — 2026-08-03 — Tarifvergleich wird zur Wechselentscheidung
 
 MINOR-Release. Das Modul beantwortete bisher „Was hätte Tarif X gekostet?" —

@@ -438,7 +438,14 @@
       "save": "Enregistrer",
       "create": "Créer",
       "validationHalfRows": "Veuillez compléter ou vider les lignes à moitié remplies",
-      "saved": "Contrat enregistré"
+      "saved": "Contrat enregistré",
+      "noticePeriod": "Préavis (mois)",
+      "noticePeriodPlaceholder": "p. ex. 1",
+      "noticePeriodHint": "Le comparateur en déduit la date de résiliation et alerte avant l'échéance.",
+      "priceGuarantee": "Prix garanti jusqu'au",
+      "priceGuaranteeHint": "Ensuite le prix est une hypothèse.",
+      "minTermEnd": "Fin de la durée minimale",
+      "minTermEndHint": "Utile uniquement pour les contrats à durée indéterminée — aucune résiliation n'est possible avant cette date."
     },
     "delete": { "title": "Supprimer le contrat ?", "message": "Supprimer définitivement le contrat ?", "confirm": "Supprimer", "deleted": "Contrat supprimé" },
     "deleteContract": "Supprimer le contrat",
@@ -1050,7 +1057,9 @@
       "chartTitle": "Évolution du coût sur la période de comparaison",
       "chartAlt": "Coût mensuel par tarif sur la période de comparaison",
       "noOffers": "Aucune offre enregistrée. Cherchez avec {value} {unit} sur un comparateur et saisissez le résultat ici.",
-      "addOffer": "Saisir une offre"
+      "addOffer": "Saisir une offre",
+      "contractChain": "{first} + {count} contrats successifs",
+      "followUp": "Contrat suivant déjà signé : {label} ({from} – {to})"
     },
     "retro": {
       "heading": "Rétrospective sur les mois réels",

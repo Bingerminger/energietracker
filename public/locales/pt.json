@@ -438,7 +438,14 @@
       "save": "Guardar",
       "create": "Criar",
       "validationHalfRows": "Complete ou esvazie as linhas meio preenchidas",
-      "saved": "Contrato guardado"
+      "saved": "Contrato guardado",
+      "noticePeriod": "Pré-aviso (meses)",
+      "noticePeriodPlaceholder": "p. ex. 1",
+      "noticePeriodHint": "A comparação de tarifas calcula a partir daqui a data de rescisão e avisa antes de o prazo terminar.",
+      "priceGuarantee": "Preço garantido até",
+      "priceGuaranteeHint": "A partir daí o preço é uma suposição.",
+      "minTermEnd": "A permanência mínima termina",
+      "minTermEndHint": "Só necessário em contratos sem prazo — antes desta data não é possível rescindir."
     },
     "delete": { "title": "Eliminar o contrato?", "message": "Eliminar o contrato de forma permanente?", "confirm": "Eliminar", "deleted": "Contrato eliminado" },
     "deleteContract": "Eliminar contrato",
@@ -1050,7 +1057,9 @@
       "chartTitle": "Evolução do custo no período de comparação",
       "chartAlt": "Custo mensal por tarifa ao longo do período de comparação",
       "noOffers": "Ainda não há nenhuma oferta guardada. Procure com {value} {unit} num comparador e introduza aqui o resultado.",
-      "addOffer": "Introduzir oferta"
+      "addOffer": "Introduzir oferta",
+      "contractChain": "{first} + {count} contratos seguidos",
+      "followUp": "Contrato seguinte já celebrado: {label} ({from} – {to})"
     },
     "retro": {
       "heading": "Retrospetiva de meses reais",

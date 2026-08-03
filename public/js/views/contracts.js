@@ -250,6 +250,30 @@ async function openContractModal(u, meters, existing) {
             <input class="input" type="date" name="end" value="${initial.end || ''}">
           </div>
         </div>
+        <!-- v2.3.1 — Wechselplanung. Diese drei speisen den Tarifvergleich:
+             Ohne Kündigungsfrist kann er keinen Wechseltermin errechnen und
+             nicht vor ablaufenden Fristen warnen. Alle optional. -->
+        <div class="form-row">
+          <div class="field">
+            <label>${t('contracts.modal.noticePeriod')}</label>
+            <input class="input" type="number" min="0" max="24" step="1" name="notice_period_months"
+                   value="${initial.notice_period_months ?? ''}"
+                   placeholder="${t('contracts.modal.noticePeriodPlaceholder')}">
+            <span class="settings-field__hint">${t('contracts.modal.noticePeriodHint')}</span>
+          </div>
+          <div class="field">
+            <label>${t('contracts.modal.priceGuarantee')}</label>
+            <input class="input" type="date" name="price_guarantee_until"
+                   value="${initial.price_guarantee_until || ''}">
+            <span class="settings-field__hint">${t('contracts.modal.priceGuaranteeHint')}</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>${t('contracts.modal.minTermEnd')}</label>
+          <input class="input" type="date" name="min_term_end"
+                 value="${initial.min_term_end || ''}">
+          <span class="settings-field__hint">${t('contracts.modal.minTermEndHint')}</span>
+        </div>
         <div class="field">
           <label>${t('contracts.modal.notes')}</label>
           <textarea class="input input--text" name="notes">${escapeHtml(initial.notes || '')}</textarea>
@@ -599,6 +623,10 @@ function bindSpecialPaymentRow(row) {
 
 // ───── Payload extraction ───────────────────────────────────────────
 function collectPayload(form) {
+  // Leeres Feld → null, nicht 0 oder "": Eine Kündigungsfrist von null heißt
+  // „nicht gepflegt" und schaltet die Terminrechnung ab; eine von 0 hieße
+  // „jederzeit kündbar" und ist eine Aussage.
+  const notice = form.notice_period_months?.value.trim();
   const payload = {
     provider:    form.provider.value,
     tariff_name: form.tariff_name.value,
@@ -606,6 +634,9 @@ function collectPayload(form) {
     start:       form.start.value,
     end:         form.end.value || null,
     notes:       form.notes.value,
+    notice_period_months:  notice === '' || notice === undefined ? null : Number(notice),
+    min_term_end:          form.min_term_end?.value || null,
+    price_guarantee_until: form.price_guarantee_until?.value || null,
   };
 
   for (const g of GROUPS) {

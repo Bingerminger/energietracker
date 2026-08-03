@@ -17,6 +17,42 @@ $version = trim((string)@file_get_contents(__DIR__ . '/VERSION')) ?: '1.3.0';
 $cb = preg_replace('/[^A-Za-z0-9._-]/', '', $version)
     . '-' . (filemtime(__DIR__ . '/public/js/app.js') ?: time());
 
+/**
+ * v2.3.1 — Import-Map: JEDES Modul bekommt eine Version, nicht nur der
+ * Einstiegspunkt.
+ *
+ * Bis v2.3.0 hing der Cache-Buster allein an `app.js`. Die Module importieren
+ * einander aber ohne Query (`./api.js`, nicht `./api.js?v=…`), also durfte
+ * jeder Cache — Service Worker, HTTP-Cache des Browsers, PWA-Container — eine
+ * beliebig alte Kopie liefern. Ergebnis nach dem v2.3.0-Update: eine frische
+ * `app.js` traf auf eine gecachte `api.js` ohne `tariffSwitch`, und der
+ * Tarifvergleich starb mit „api.tariffSwitch is not a function".
+ *
+ * Der v2.2.3-Fix (Selbstheilung + network-first) griff dagegen nicht
+ * zuverlässig: Er räumt die Cache-API auf, nicht den HTTP-Cache — und Safari
+ * cacht ohne `Cache-Control` besonders lange.
+ *
+ * Die Map bildet jeden Modulpfad auf sich selbst mit `?v=<version>-<mtime>`
+ * ab. Weil der Browser Import-Specifier VOR dem Laden auflöst, bekommt damit
+ * auch ein Import tief im Graphen die Version — ohne dass eine einzige
+ * `import`-Zeile angefasst werden muss. Die mtime pro Datei sorgt zusätzlich
+ * dafür, dass lokale Änderungen ohne Versionssprung frisch geladen werden.
+ */
+$moduleMap = [];
+$jsRoot = __DIR__ . '/public/js';
+if (is_dir($jsRoot)) {
+    $it = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($jsRoot, FilesystemIterator::SKIP_DOTS)
+    );
+    foreach ($it as $file) {
+        if (!$file->isFile() || strtolower($file->getExtension()) !== 'js') continue;
+        $rel = str_replace('\\', '/', substr($file->getPathname(), strlen(__DIR__) + 1));
+        $moduleMap['./' . $rel] = './' . $rel . '?v='
+            . preg_replace('/[^A-Za-z0-9._-]/', '', $version) . '-' . $file->getMTime();
+    }
+    ksort($moduleMap);
+}
+
 // N1009 — Sprache der Shell aus dem `language`-Setting ableiten, damit
 // <html lang> und die serverseitig gerenderten Shell-Strings schon beim
 // ersten Paint korrekt sind (vor dem JS-i18n-Init). Fallback: 'de'.
@@ -185,6 +221,13 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 })();
 </script>
 <script src="public/vendor/chart.umd.min.js?v=<?= $cb ?>"></script>
+<!-- v2.3.1 — Versionierte Modulpfade. MUSS vor dem ersten Modul-Script stehen
+     und es darf nur eine Import-Map im Dokument geben. Siehe die Begründung
+     oben bei $moduleMap. -->
+<script type="importmap">
+<?= json_encode(['imports' => $moduleMap], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
+
+</script>
 <script type="module" src="public/js/app.js?v=<?= $cb ?>"></script>
 <!-- N1008 (PWA) — Service Worker registrieren. Inline (kein Modul), damit der
      relative Pfad 'sw.js' gegen die Dokument-URL (Web-Wurzel) auflöst und der

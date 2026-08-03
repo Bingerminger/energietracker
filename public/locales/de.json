@@ -438,7 +438,14 @@
       "save": "Speichern",
       "create": "Anlegen",
       "validationHalfRows": "Bitte halb-leere Zeilen vervollständigen oder leeren",
-      "saved": "Vertrag gespeichert"
+      "saved": "Vertrag gespeichert",
+      "noticePeriod": "Kündigungsfrist (Monate)",
+      "noticePeriodPlaceholder": "z. B. 1",
+      "noticePeriodHint": "Der Tarifvergleich errechnet daraus den Kündigungstermin und warnt, bevor die Frist abläuft.",
+      "priceGuarantee": "Preisgarantie bis",
+      "priceGuaranteeHint": "Danach ist der Preis eine Annahme.",
+      "minTermEnd": "Mindestlaufzeit endet",
+      "minTermEndHint": "Nur bei unbefristeten Verträgen nötig — vorher ist keine Kündigung möglich."
     },
     "delete": { "title": "Vertrag löschen?", "message": "Vertrag dauerhaft löschen?", "confirm": "Löschen", "deleted": "Vertrag gelöscht" },
     "deleteContract": "Vertrag löschen",
@@ -1050,7 +1057,9 @@
       "chartTitle": "Kostenverlauf im Vergleichszeitraum",
       "chartAlt": "Monatliche Kosten je Tarif über den Vergleichszeitraum",
       "noOffers": "Noch kein Angebot hinterlegt. Suchen Sie mit {value} {unit} bei einem Vergleichsportal und tragen Sie das Ergebnis hier ein.",
-      "addOffer": "Angebot eintragen"
+      "addOffer": "Angebot eintragen",
+      "contractChain": "{first} + {count} Verträge in Folge",
+      "followUp": "Anschluss bereits abgeschlossen: {label} ({from} – {to})"
     },
     "retro": {
       "heading": "Rückblick auf echte Monate",

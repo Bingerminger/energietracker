@@ -104,8 +104,16 @@ final class TariffSwitchService
         $shadow = array_values(array_filter($all, fn($c) => !empty($c['is_shadow'])));
 
         // ── Wechseltermin ───────────────────────────────────────────────
-        $current = $this->contracts->findActiveForDate($real, $today);
-        $timing  = $current ? $this->contracts->switchTiming($current, $today) : null;
+        // Nicht der heute laufende Vertrag entscheidet, sondern das Ende der
+        // gesamten Bindung: Wer den Folgevertrag bereits abgeschlossen hat,
+        // kann nicht zu dessen Beginn wechseln — der Wechsel ist dann schon
+        // vollzogen. Ohne diese Kette meldete das Modul den Beginn des
+        // Folgevertrags als „Wechseltermin" und rechnete die Referenz mit den
+        // Preisen des auslaufenden Vertrags weiter.
+        $chain   = $this->bindingChain($real, $today);
+        $current = $chain ? $chain[0] : null;
+        $last    = $chain ? $chain[count($chain) - 1] : null;
+        $timing  = $last ? $this->contracts->switchTiming($last, $today) : null;
 
         $override = trim((string)($opts['switch_date'] ?? ''));
         if ($override !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $override)) {
@@ -132,9 +140,12 @@ final class TariffSwitchService
         $expectedConsumption = array_sum(array_column($window, 'consumption'));
 
         // ── Kandidaten ──────────────────────────────────────────────────
+        // Die Referenz ist die Vertragskette, nicht ein einzelner Vertrag:
+        // Fällt das Fenster über eine Vertragsgrenze, muss jeder Monat mit
+        // dem Tarif rechnen, der dann gilt.
         $candidates = [];
-        if ($current) {
-            $candidates[] = $this->evaluate($current, $window, $unit, true);
+        if ($chain) {
+            $candidates[] = $this->evaluateChain($chain, $window, true);
         }
         foreach ($shadow as $s) {
             $candidates[] = $this->evaluate($s, $window, $unit, false);
@@ -165,6 +176,9 @@ final class TariffSwitchService
             'supported' => true,
             'note'      => $candidates ? null : $this->i18n->t('errors.tariff.noContracts'),
             'today'     => $today,
+            // `current` beschreibt den heute laufenden Vertrag, die Termine
+            // stammen aber vom ENDE der Bindung: Ist ein Folgevertrag
+            // abgeschlossen, zählt dessen Laufzeit für Kündigung und Wechsel.
             'current'   => $current ? [
                 'contract_id'          => (string)$current['id'],
                 'label'                => $this->labelFor($current),
@@ -176,6 +190,14 @@ final class TariffSwitchService
                 'cancel_by'            => $timing['cancel_by'] ?? null,
                 'days_to_cancel'       => $timing['days_to_cancel'] ?? null,
                 'basis'                => $timing['basis'] ?? 'unknown',
+                // Folgevertrag bereits abgeschlossen?
+                'bound_until'          => count($chain) > 1 ? ($last['end'] ?? null) : null,
+                'follow_up'            => count($chain) > 1 ? [
+                    'label' => $this->labelFor($last),
+                    'start' => $last['start'] ?? null,
+                    'end'   => $last['end'] ?? null,
+                ] : null,
+                'chain_length'         => count($chain),
             ] : null,
             'switch_date'        => $switchDate,
             'switch_date_source' => $source,
@@ -266,6 +288,155 @@ final class TariffSwitchService
             $cursor = $cursor->add(new \DateInterval('P1M'));
         }
         return $window;
+    }
+
+    /**
+     * Die Bindungskette: der heute laufende Vertrag plus alles, was lückenlos
+     * anschließt.
+     *
+     * Wer den Nachfolger schon abgeschlossen hat, ist bis zu dessen Ende
+     * gebunden. Ein Wechsel ist dann erst danach möglich — und bis dahin gilt
+     * nicht mehr der alte Tarif, sondern der neue. Ohne diese Unterscheidung
+     * meldete das Modul auf Produktivdaten einen Wechseltermin, der längst
+     * durch einen abgeschlossenen Folgevertrag belegt war, und rechnete die
+     * Vergleichsbasis mit den Preisen des auslaufenden Vertrags.
+     *
+     * Eine Lücke von mehr als einem Tag beendet die Kette: Danach ist der
+     * Nutzer frei, auch wenn später wieder ein Vertrag gepflegt ist.
+     *
+     * @param array<int,array<string,mixed>> $real
+     * @return array<int,array<string,mixed>> chronologisch, leer wenn nichts greift
+     */
+    private function bindingChain(array $real, string $today): array
+    {
+        $sorted = $real;
+        usort($sorted, fn($a, $b) => strcmp((string)($a['start'] ?? ''), (string)($b['start'] ?? '')));
+
+        $chain = [];
+        foreach ($sorted as $c) {
+            $start = (string)($c['start'] ?? '');
+            $end   = $c['end'] ?? null;
+
+            if ($chain === []) {
+                // Einstieg: der heute laufende Vertrag. Läuft heute keiner,
+                // greift der nächste bereits abgeschlossene.
+                $active = $start <= $today && (empty($end) || $end >= $today);
+                if ($active || $start > $today) {
+                    $chain[] = $c;
+                    if (empty($end)) break;   // unbefristet — Kette endet hier
+                }
+                continue;
+            }
+
+            $prevEnd = $chain[count($chain) - 1]['end'] ?? null;
+            if (empty($prevEnd)) break;       // unbefristet, kein Anschluss möglich
+
+            $dayAfter = date('Y-m-d', strtotime($prevEnd . ' +1 day'));
+            if ($start !== $dayAfter && $start !== $prevEnd) {
+                break;                        // Lücke — die Bindung endet
+            }
+            $chain[] = $c;
+            if (empty($end)) break;
+        }
+
+        return $chain;
+    }
+
+    /**
+     * Kosten der Bindungskette über das Fenster.
+     *
+     * Für jeden Monat gilt der Vertrag, der dann läuft. Reicht die Kette nicht
+     * bis ans Fensterende — der Normalfall, denn das Fenster beginnt ja nach
+     * ihrem Ablauf —, wird der letzte Vertrag fortgeschrieben. Das ist die
+     * konservative Annahme „nichts tun": bestehende Preise laufen weiter.
+     *
+     * @param array<int,array<string,mixed>> $chain
+     * @param array<int,array<string,mixed>> $window
+     * @return array<string,mixed>
+     */
+    private function evaluateChain(array $chain, array $window, bool $isReference): array
+    {
+        $last = $chain[count($chain) - 1];
+
+        $monthly     = [];
+        $total       = 0.0;
+        $consumption = 0.0;
+        $beyondAny   = false;
+        $usedIds     = [];
+
+        foreach ($window as $m) {
+            $first = sprintf('%04d-%02d-01', $m['year'], $m['month']);
+            // Der in diesem Monat gültige Vertrag der Kette, sonst der letzte.
+            $c = $this->contracts->findActiveForDate($chain, $first) ?? $last;
+            $usedIds[(string)$c['id']] = true;
+
+            $wp = $this->priceForWindow($c, 'working_prices', 'ct_per_kwh', $m['year'], $m['month']);
+            if ($wp === null) {
+                return [
+                    'contract_id'      => (string)$last['id'],
+                    'label'            => $this->labelFor($last),
+                    'is_shadow'        => false,
+                    'is_reference'     => $isReference,
+                    'computable'       => false,
+                    'note'             => $this->i18n->t('errors.tariff.noWorkingPrice'),
+                    'year1_eur'        => null,
+                    'year2_eur'        => null,
+                    'signup_bonus_eur' => null,
+                    'monthly'          => [],
+                ];
+            }
+            $bp = $this->priceForWindow($c, 'base_prices', 'eur_per_month', $m['year'], $m['month']) ?? 0.0;
+
+            $cost   = $m['consumption'] * $wp / 100.0 + $bp;
+            $total += $cost;
+            $consumption += $m['consumption'];
+
+            $guarantee = $c['price_guarantee_until'] ?? null;
+            $beyond    = $guarantee !== null && ($m['ym'] . '-01') > $guarantee;
+            if ($beyond) $beyondAny = true;
+
+            $monthly[] = [
+                'ym'               => $m['ym'],
+                'consumption'      => round($m['consumption'], 1),
+                'cost'             => round($cost, 2),
+                'working_price_ct' => round($wp, 4),
+                'beyond_guarantee' => $beyond,
+            ];
+        }
+
+        // Deckt das Fenster mehrere Verträge ab, muss das Label das sagen —
+        // sonst steht dort ein Tarif, der nur einen Teil der Zahlen erklärt.
+        $label = count($usedIds) > 1
+            ? $this->i18n->t('tariff.switch.contractChain', [
+                'first' => $this->labelFor($chain[0]),
+                'count' => count($usedIds),
+              ])
+            : $this->labelFor($last);
+
+        return [
+            'contract_id'  => (string)$last['id'],
+            'label'        => $label,
+            'provider'     => (string)($last['provider'] ?? ''),
+            'tariff_name'  => (string)($last['tariff_name'] ?? ''),
+            'is_shadow'    => false,
+            'is_reference' => $isReference,
+            'computable'   => true,
+            'note'         => null,
+
+            'year1_eur'        => round($total, 2),
+            'year2_eur'        => round($total, 2),
+            'signup_bonus_eur' => null,
+
+            'consumption'        => round($consumption, 1),
+            'unit_cost_ct_year1' => $consumption > 0 ? round($total * 100.0 / $consumption, 3) : null,
+            'unit_cost_ct_year2' => $consumption > 0 ? round($total * 100.0 / $consumption, 3) : null,
+
+            'guarantee_until'          => $last['price_guarantee_until'] ?? null,
+            'guarantee_ends_in_window' => $beyondAny,
+
+            'chain_length' => count($usedIds),
+            'monthly'      => $monthly,
+        ];
     }
 
     /**

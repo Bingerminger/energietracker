@@ -85,6 +85,68 @@ final class ModuleCacheSafetyTest extends TestCase
     }
 
     /**
+     * v2.3.1 — Die Shell muss JEDES Modul versionieren, nicht nur den
+     * Einstiegspunkt.
+     *
+     * Bis v2.3.0 hing der Cache-Buster allein an `app.js`. Die Module
+     * importieren einander ohne Query, also durfte jeder Cache eine alte Kopie
+     * liefern. Nach dem v2.3.0-Update traf eine frische `app.js` auf eine
+     * gecachte `api.js` ohne `tariffSwitch` — der Tarifvergleich starb mit
+     * „api.tariffSwitch is not a function". Die Import-Map schließt das, indem
+     * sie jeden Modulpfad auf eine versionierte URL abbildet.
+     */
+    public function testEveryModuleIsVersionedThroughTheImportMap(): void
+    {
+        $index = self::read('index.php');
+
+        self::assertStringContainsString('type="importmap"', $index,
+            'Die Shell braucht eine Import-Map, sonst laden Module ohne Version');
+
+        // Sie muss VOR dem Einstiegspunkt stehen — danach ignoriert der
+        // Browser sie, und zwar stillschweigend.
+        $posMap    = strpos($index, 'type="importmap"');
+        $posModule = strpos($index, 'type="module"');
+        self::assertNotFalse($posMap);
+        self::assertNotFalse($posModule);
+        self::assertLessThan($posModule, $posMap,
+            'Die Import-Map muss vor dem ersten Modul-Script stehen');
+
+        // Es darf nur eine geben.
+        self::assertSame(1, substr_count($index, 'type="importmap"'),
+            'Mehrere Import-Maps im Dokument: der Browser nimmt nur die erste');
+
+        // Die Map wird aus dem Dateibestand erzeugt — jede Moduldatei muss
+        // erfasst sein, sonst reißt genau dort die Versionierung.
+        self::assertStringContainsString('RecursiveDirectoryIterator', $index,
+            'Die Map soll aus dem Dateibestand kommen, nicht handgepflegt sein');
+        self::assertStringContainsString("'?v='", $index,
+            'Jeder Eintrag der Map braucht eine Version');
+    }
+
+    /**
+     * Der ausgelieferte Server muss Anwendungscode revalidieren lassen.
+     *
+     * Prod sendete für Module weder `Cache-Control` noch `Expires` — nur ETag
+     * und Last-Modified. Damit darf ein Browser heuristisch cachen, und Safari
+     * tat das: Es lieferte nach dem Update eine alte `api.js` aus, obwohl der
+     * Server längst die neue hatte.
+     */
+    public function testServerConfigsRevalidateApplicationCode(): void
+    {
+        $htaccess = self::read('.htaccess');
+        self::assertStringContainsString('no-cache', $htaccess,
+            '.htaccess muss Anwendungscode revalidieren lassen (Apache/Synology)');
+        self::assertMatchesRegularExpression('/FilesMatch\s+"\\\\\.\(js/', $htaccess,
+            'Die Regel muss auf JavaScript greifen');
+
+        $nginx = self::read('docker/nginx.conf');
+        self::assertStringContainsString('no-cache', $nginx,
+            'Die Docker-Konfiguration braucht dieselbe Zusage wie Apache');
+        self::assertStringContainsString('public/(js|locales)', $nginx,
+            'Module und Kataloge müssen erfasst sein');
+    }
+
+    /**
      * Jeder Import zwischen Modulen muss auf eine Datei zeigen, die es gibt und
      * die den Namen auch exportiert. Genau diese Zusage war gebrochen —
      * allerdings über Versionsgrenzen hinweg, was ein Test im selben Stand

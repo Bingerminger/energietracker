@@ -97,6 +97,18 @@ Kündigungsfrist; die Frist wird mit Restlaufzeit angezeigt und farblich
 hervorgehoben, sobald es eng wird — sie ist das, was im Alltag verpasst wird.
 Wer ein anderes Szenario durchrechnen will, setzt das Datum von Hand.
 
+Maßgeblich ist dabei nicht der heute laufende Vertrag allein, sondern die
+**Bindungskette**: Ist der Anschlussvertrag bereits abgeschlossen, ist der
+Wechsel für die nächste Periode vollzogen, und der Termin richtet sich nach
+dessen Ende. Die Ansicht weist einen solchen Anschluss ausdrücklich aus. Auch
+die Vergleichsbasis folgt der Kette — jeder Monat rechnet mit dem Tarif, der
+dann gilt, nicht mit dem des auslaufenden Vertrags. Eine Lücke von mehr als
+einem Tag beendet die Kette; danach ist man frei.
+
+Kündigungsfrist, Mindestlaufzeit und Preisgarantie werden **am Vertrag**
+gepflegt (Vertragsverwaltung der jeweiligen Verbrauchsart). Ohne sie kann der
+Vergleich keinen Termin errechnen und nicht vor einer ablaufenden Frist warnen.
+
 Die Rangliste zeigt je Angebot:
 
 | Spalte | Bedeutung |

@@ -438,7 +438,14 @@
       "save": "Salva",
       "create": "Crea",
       "validationHalfRows": "Completa o svuota le righe parzialmente compilate",
-      "saved": "Contratto salvato"
+      "saved": "Contratto salvato",
+      "noticePeriod": "Preavviso (mesi)",
+      "noticePeriodPlaceholder": "es. 1",
+      "noticePeriodHint": "Il confronto tariffe ne ricava la data di disdetta e avvisa prima della scadenza.",
+      "priceGuarantee": "Prezzo garantito fino al",
+      "priceGuaranteeHint": "Dopo di che il prezzo è un'ipotesi.",
+      "minTermEnd": "Fine della durata minima",
+      "minTermEndHint": "Serve solo per i contratti a tempo indeterminato: prima di questa data non si può disdire."
     },
     "delete": { "title": "Eliminare il contratto?", "message": "Eliminare definitivamente il contratto?", "confirm": "Elimina", "deleted": "Contratto eliminato" },
     "deleteContract": "Elimina contratto",
@@ -1050,7 +1057,9 @@
       "chartTitle": "Andamento dei costi nel periodo di confronto",
       "chartAlt": "Costo mensile per tariffa nel periodo di confronto",
       "noOffers": "Nessuna offerta salvata. Cerca con {value} {unit} su un comparatore e inserisci qui il risultato.",
-      "addOffer": "Inserisci offerta"
+      "addOffer": "Inserisci offerta",
+      "contractChain": "{first} + {count} contratti consecutivi",
+      "followUp": "Contratto successivo già stipulato: {label} ({from} – {to})"
     },
     "retro": {
       "heading": "Sguardo ai mesi reali",

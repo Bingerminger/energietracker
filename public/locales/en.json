@@ -438,7 +438,14 @@
       "save": "Save",
       "create": "Create",
       "validationHalfRows": "Please complete or clear half-empty rows",
-      "saved": "Contract saved"
+      "saved": "Contract saved",
+      "noticePeriod": "Notice period (months)",
+      "noticePeriodPlaceholder": "e.g. 1",
+      "noticePeriodHint": "The tariff comparison derives the cancellation date from this and warns before the deadline passes.",
+      "priceGuarantee": "Price guaranteed until",
+      "priceGuaranteeHint": "Beyond that the price is an assumption.",
+      "minTermEnd": "Minimum term ends",
+      "minTermEndHint": "Only needed for open-ended contracts — no cancellation is possible before this date."
     },
     "delete": { "title": "Delete contract?", "message": "Delete contract permanently?", "confirm": "Delete", "deleted": "Contract deleted" },
     "deleteContract": "Delete contract",
@@ -1050,7 +1057,9 @@
       "chartTitle": "Cost over the comparison period",
       "chartAlt": "Monthly cost per tariff across the comparison period",
       "noOffers": "No offer saved yet. Search a comparison site with {value} {unit} and enter the result here.",
-      "addOffer": "Add offer"
+      "addOffer": "Add offer",
+      "contractChain": "{first} + {count} contracts in sequence",
+      "followUp": "Follow-on already signed: {label} ({from} – {to})"
     },
     "retro": {
       "heading": "Looking back at real months",

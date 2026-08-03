@@ -166,6 +166,131 @@ final class TariffSwitchServiceTest extends ServiceTestCase
         self::assertSame('2027-01-01', $r['switch_date'], 'das Vertragsende steht trotzdem fest');
     }
 
+    // ── Vertragskette (v2.3.1) ───────────────────────────────────────
+
+    /**
+     * Wer den Folgevertrag schon abgeschlossen hat, kann nicht zu dessen
+     * Beginn wechseln — der Wechsel ist dann bereits vollzogen.
+     *
+     * Auf Produktivdaten meldete das Modul genau das: Der laufende Vertrag
+     * endete am 30.08., ein Nachfolger lief bereits ab dem 31.08., und als
+     * „Wechseltermin" erschien der 31.08. Schlimmer noch: Die Vergleichsbasis
+     * rechnete das ganze Folgejahr mit den Preisen des auslaufenden Vertrags,
+     * obwohl längst der neue galt.
+     */
+    public function testAlreadySignedFollowUpContractPushesTheSwitchDate(): void
+    {
+        $meterId = $this->seedMeter();
+        $this->addCurrentContract($meterId, ['start' => '2025-09-01', 'end' => '2026-08-30']);
+        $this->contracts->create('strom', [
+            'meter_id'       => $meterId,
+            'provider'       => 'Nachfolger',
+            'tariff_name'    => 'Anschluss',
+            'start'          => '2026-08-31',
+            'end'            => '2027-08-30',
+            'working_prices' => [['from' => '2026-08-31', 'ct_per_kwh' => 24.0]],
+            'base_prices'    => [['from' => '2026-08-31', 'eur_per_month' => 15.0]],
+        ]);
+
+        $r = $this->switch->analyze('strom', $meterId, ['today' => '2026-08-03']);
+
+        self::assertSame('2027-08-31', $r['switch_date'],
+            'der Wechsel ist erst nach dem Folgevertrag möglich');
+        self::assertSame('2027-08', $r['window']['from']);
+        self::assertSame('2026-08-30', $r['current']['end'], 'laufend bleibt der laufende');
+        self::assertSame('2027-08-30', $r['current']['bound_until']);
+        self::assertSame(2, $r['current']['chain_length']);
+        self::assertNotNull($r['current']['follow_up']);
+        self::assertSame('Nachfolger Anschluss', $r['current']['follow_up']['label']);
+    }
+
+    /**
+     * Und die Vergleichsbasis muss mit den Preisen rechnen, die im Fenster
+     * gelten — also denen des Folgevertrags, nicht denen des auslaufenden.
+     */
+    public function testReferenceUsesTheFollowUpPricesNotTheExpiringOnes(): void
+    {
+        $meterId = $this->seedMeter();
+        $this->addCurrentContract($meterId, ['start' => '2025-09-01', 'end' => '2026-08-30']); // 30 ct / 12 €
+        $this->contracts->create('strom', [
+            'meter_id'       => $meterId,
+            'provider'       => 'Nachfolger',
+            'tariff_name'    => 'Anschluss',
+            'start'          => '2026-08-31',
+            'end'            => '2027-08-30',
+            'working_prices' => [['from' => '2026-08-31', 'ct_per_kwh' => 24.0]],
+            'base_prices'    => [['from' => '2026-08-31', 'eur_per_month' => 15.0]],
+        ]);
+
+        $r   = $this->switch->analyze('strom', $meterId, ['today' => '2026-08-03']);
+        $ref = $r['candidates'][0];
+        $v   = $r['expected_consumption'];
+
+        self::assertTrue($ref['is_reference']);
+        self::assertEqualsWithDelta($v * 0.24 + 15.0 * 12, $ref['year2_eur'], 0.05,
+            'die Referenz muss den Folgetarif ansetzen');
+        self::assertNotEqualsWithDelta($v * 0.30 + 12.0 * 12, $ref['year2_eur'], 1.0,
+            'nicht den auslaufenden Tarif fortschreiben');
+    }
+
+    /**
+     * Eine Lücke zwischen zwei Verträgen beendet die Bindung. Was danach
+     * gepflegt ist, ist kein Anschluss, sondern ein neuer Abschnitt — sonst
+     * würde ein Vertrag aus ferner Zukunft den Wechseltermin verschieben.
+     */
+    public function testAGapEndsTheBindingChain(): void
+    {
+        $meterId = $this->seedMeter();
+        $this->addCurrentContract($meterId, ['start' => '2025-09-01', 'end' => '2026-08-30']);
+        $this->contracts->create('strom', [
+            'meter_id'       => $meterId,
+            'provider'       => 'Später',
+            'tariff_name'    => 'Nach einer Lücke',
+            'start'          => '2026-12-01',   // zwei Monate Abstand
+            'end'            => '2027-11-30',
+            'working_prices' => [['from' => '2026-12-01', 'ct_per_kwh' => 24.0]],
+        ]);
+
+        $r = $this->switch->analyze('strom', $meterId, ['today' => '2026-08-03']);
+
+        self::assertSame('2026-08-31', $r['switch_date'], 'die Lücke macht frei');
+        self::assertSame(1, $r['current']['chain_length']);
+        self::assertNull($r['current']['follow_up']);
+    }
+
+    /**
+     * Deckt das Fenster mehrere Verträge ab — etwa wenn der Nutzer den Termin
+     * vorzieht —, muss jeder Monat mit dem dann gültigen Tarif rechnen.
+     */
+    public function testWindowSpanningTwoContractsBillsEachMonthCorrectly(): void
+    {
+        $meterId = $this->seedMeter();
+        $this->addCurrentContract($meterId, ['start' => '2025-09-01', 'end' => '2026-12-31']); // 30 ct
+        $this->contracts->create('strom', [
+            'meter_id'       => $meterId,
+            'provider'       => 'Nachfolger',
+            'tariff_name'    => 'Anschluss',
+            'start'          => '2027-01-01',
+            'end'            => '2027-12-31',
+            'working_prices' => [['from' => '2027-01-01', 'ct_per_kwh' => 20.0]],
+            'base_prices'    => [['from' => '2027-01-01', 'eur_per_month' => 12.0]],
+        ]);
+
+        // Fenster bewusst über die Vertragsgrenze legen.
+        $r = $this->switch->analyze('strom', $meterId,
+            ['today' => '2026-08-03', 'switch_date' => '2026-11-01']);
+        $ref = $r['candidates'][0];
+
+        self::assertSame(2, $ref['chain_length'], 'zwei Verträge im Fenster');
+        $byYm = array_column($ref['monthly'], 'working_price_ct', 'ym');
+        self::assertEqualsWithDelta(30.0, $byYm['2026-11'], 0.01, 'November noch alter Tarif');
+        self::assertEqualsWithDelta(30.0, $byYm['2026-12'], 0.01);
+        self::assertEqualsWithDelta(20.0, $byYm['2027-01'], 0.01, 'ab Januar der neue');
+        self::assertEqualsWithDelta(20.0, $byYm['2027-10'], 0.01);
+        // Das Label muss verraten, dass mehr als ein Vertrag dahintersteckt.
+        self::assertStringContainsString('2', $ref['label']);
+    }
+
     // ── Verbrauch und Fenster ────────────────────────────────────────
 
     public function testWindowSpansTwelveMonthsFromSwitchDate(): void

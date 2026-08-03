@@ -438,7 +438,14 @@
       "save": "Opslaan",
       "create": "Aanmaken",
       "validationHalfRows": "Vul de half ingevulde rijen aan of maak ze leeg",
-      "saved": "Contract opgeslagen"
+      "saved": "Contract opgeslagen",
+      "noticePeriod": "Opzegtermijn (maanden)",
+      "noticePeriodPlaceholder": "bijv. 1",
+      "noticePeriodHint": "De tariefvergelijking leidt hieruit de opzegdatum af en waarschuwt voordat de termijn verstrijkt.",
+      "priceGuarantee": "Prijs gegarandeerd tot",
+      "priceGuaranteeHint": "Daarna is de prijs een aanname.",
+      "minTermEnd": "Minimale looptijd eindigt",
+      "minTermEndHint": "Alleen nodig bij contracten voor onbepaalde tijd — eerder opzeggen kan niet."
     },
     "delete": { "title": "Contract verwijderen?", "message": "Contract definitief verwijderen?", "confirm": "Verwijderen", "deleted": "Contract verwijderd" },
     "deleteContract": "Contract verwijderen",
@@ -1050,7 +1057,9 @@
       "chartTitle": "Kostenverloop in de vergelijkingsperiode",
       "chartAlt": "Maandelijkse kosten per tarief over de vergelijkingsperiode",
       "noOffers": "Nog geen aanbod opgeslagen. Zoek met {value} {unit} op een vergelijkingssite en vul het resultaat hier in.",
-      "addOffer": "Aanbod invoeren"
+      "addOffer": "Aanbod invoeren",
+      "contractChain": "{first} + {count} contracten achtereen",
+      "followUp": "Vervolgcontract al afgesloten: {label} ({from} – {to})"
     },
     "retro": {
       "heading": "Terugblik op echte maanden",

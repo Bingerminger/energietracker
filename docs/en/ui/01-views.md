@@ -95,6 +95,17 @@ notice period. The deadline is shown with the days remaining and highlighted
 once it gets tight — it is the thing people miss in everyday life. To model a
 different scenario, set the date by hand.
 
+What counts here is not the currently running contract alone but the **binding
+chain**: if the follow-on contract has already been signed, the switch for the
+next period is done, and the date follows that contract's end. The view states
+such a follow-on explicitly. The baseline follows the chain too — each month is
+billed with the tariff that applies then, not with the expiring one. A gap of
+more than a day ends the chain; after that you are free.
+
+Notice period, minimum term and price guarantee are maintained **on the
+contract** (contract management of the respective utility). Without them the
+comparison cannot derive a date or warn before a deadline passes.
+
 The ranking shows, per offer:
 
 | Column | Meaning |
