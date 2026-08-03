@@ -946,13 +946,13 @@
   "tariff": {
     "loading": "Lade…",
     "title": "Tarifvergleich",
-    "subtitle": "Was hättest du mit einem anderen Tarif bezahlt? Echte Verträge + hypothetische Schattenverträge auf den tatsächlichen Verbrauch gerechnet.",
+    "subtitle": "Lohnt ein Wechsel? Der prognostizierte Verbrauch gegen konkrete Angebote gerechnet — mit dem Rückblick auf echte Monate als Beleg.",
     "noUsable": "Keine vergleichbaren Verbrauchsarten aktiv. Tarifvergleich gilt für vertragsbasierte Arten (Gas, Strom, Fernwärme).",
     "utility": "Verbrauchsart",
     "meter": "Zähler",
     "year": "Jahr",
     "wholePeriod": "Gesamter Zeitraum",
-    "addShadow": "+ Schattenvertrag",
+    "addShadow": "+ Angebot",
     "loadingComparison": "Lade Vergleich…",
     "noMeter": "Kein Zähler vorhanden.",
     "notSupported": "Nicht unterstützt.",
@@ -997,7 +997,64 @@
       "deleted": "Schattenvertrag gelöscht",
       "deleteTitle": "Schattenvertrag löschen?",
       "deleteMessage": "Die Hypothese wird entfernt. Echte Verträge und Ablesungen bleiben unberührt.",
-      "deleteConfirm": "Löschen"
+      "deleteConfirm": "Löschen",
+      "signupBonus": "Neukundenbonus (€)",
+      "signupBonusPlaceholder": "z. B. 130",
+      "signupBonusHint": "Einmalig, zählt nur im ersten Jahr.",
+      "priceGuarantee": "Preisgarantie bis",
+      "priceGuaranteeHint": "Danach ist der Preis eine Annahme — im Diagramm gestrichelt.",
+      "noticePeriod": "Kündigungsfrist (Monate)",
+      "noticePeriodPlaceholder": "z. B. 1",
+      "noticePeriodHint": "Für die Terminrechnung, falls dieser Tarif später der laufende ist."
+    },
+    "switch": {
+      "heading": "Wechselentscheidung",
+      "expectedConsumption": "Erwarteter Jahresverbrauch",
+      "expectedHint": "Diese Zahl geben Sie beim Vergleichsportal ein.",
+      "copy": "Zahl kopieren",
+      "copied": "{value} {unit} kopiert",
+      "copyFail": "Kopieren nicht möglich",
+      "basis": "Grundlage: {months} Monate Verbrauchsverlauf",
+      "switchDate": "Wechsel möglich zum",
+      "source": {
+        "contract": "aus Vertrag",
+        "override": "selbst gesetzt",
+        "default": "geschätzt"
+      },
+      "reset": "Zurücksetzen",
+      "currentContract": "Aktuell: {label}",
+      "runsUntil": "läuft bis {date}",
+      "cancelBy": "Kündigen bis {date}",
+      "cancelIn": "noch {days} Tage",
+      "cancelPassed": "Frist verstrichen",
+      "noNotice": "Kündigungsfrist am Vertrag pflegen, dann wird der Termin berechnet.",
+      "window": "Vergleichszeitraum {from} bis {to} ({months} Monate)",
+      "current": "Aktuell",
+      "reference": "Vergleichsbasis",
+      "col": {
+        "tariff": "Tarif",
+        "year1": "1. Jahr",
+        "year2": "ab 2. Jahr",
+        "diff": "Differenz",
+        "breakEven": "Lohnt ab"
+      },
+      "year1Title": "Kosten im ersten Jahr, Neukundenbonus bereits abgezogen",
+      "year2Title": "Dauerhafte Jahreskosten ohne einmalige Boni",
+      "breakEvenTitle": "Ab diesem Jahresverbrauch ist der Tarif günstiger als der aktuelle",
+      "breakEvenDelta": "{pct} % zum erwarteten Verbrauch",
+      "breakEvenNone": "Kein Schnittpunkt — der Tarif ist bei jeder Menge günstiger oder teurer",
+      "bonusIncluded": "inkl. {value} Bonus",
+      "guaranteeEnds": "Preisgarantie endet {date}",
+      "sensitivity": "{low} … {high} bei ±10 % Verbrauch",
+      "rankingHint": "Sortiert nach den dauerhaften Kosten ab dem zweiten Jahr — ein Neukundenbonus fällt nach zwölf Monaten weg.",
+      "chartTitle": "Kostenverlauf im Vergleichszeitraum",
+      "chartAlt": "Monatliche Kosten je Tarif über den Vergleichszeitraum",
+      "noOffers": "Noch kein Angebot hinterlegt. Suchen Sie mit {value} {unit} bei einem Vergleichsportal und tragen Sie das Ergebnis hier ein.",
+      "addOffer": "Angebot eintragen"
+    },
+    "retro": {
+      "heading": "Rückblick auf echte Monate",
+      "intro": "Dieselben Tarife auf den tatsächlich gemessenen Verbrauch gelegt — der Beleg, dass die Rechnung aufgeht."
     }
   },
   "analysis": {
@@ -1180,7 +1237,8 @@
       "deliveryUnsupported": "{label} wird über Lieferungen abgerechnet und hat keine Tarifverträge — die Lieferrechnung ist dort die Kostenbasis.",
       "noConsumption": "Noch keine Verbrauchsdaten für diesen Zähler.",
       "noConsumptionInPeriod": "Keine Verbrauchsdaten im gewählten Zeitraum.",
-      "noContracts": "Keine Verträge zum Vergleich."
+      "noContracts": "Keine Verträge zum Vergleich.",
+      "noWorkingPrice": "Kein Arbeitspreis hinterlegt — der Tarif lässt sich nicht berechnen."
     },
     "meter": {
       "multipleMeters": "Mehrere Zähler für {utility} nicht erlaubt",
@@ -1238,7 +1296,13 @@
         "creditDate": "Gutschriftsdatum",
         "advanceDate": "Abschlag-Stichtag",
         "newAdvanceAmount": "neuer Abschlagsbetrag"
-      }
+      },
+      "noticeNotNumeric": "Die Kündigungsfrist muss eine Zahl sein.",
+      "noticeOutOfRange": "Die Kündigungsfrist muss zwischen 0 und 24 Monaten liegen.",
+      "dateInvalid": "Ungültiges Datum in {field}: {value}",
+      "dateBeforeStart": "{field} darf nicht vor dem Vertragsbeginn liegen.",
+      "bonusNotNumeric": "Der Neukundenbonus muss eine Zahl sein.",
+      "bonusNegative": "Der Neukundenbonus darf nicht negativ sein."
     },
     "delivery": {
       "notFound": "Lieferung nicht gefunden: {id}",

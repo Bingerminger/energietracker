@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Vollständige Dokumentation zu Energietracker **v2.2.3**.
+> Vollständige Dokumentation zu Energietracker **v2.3.0**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit echten Screenshots aller Ansichten.
 >
@@ -111,6 +111,6 @@ auf dem eigenen Rechner.
   Gedächtnis notiert.
 - Pfadangaben sind relativ zum Projektwurzelverzeichnis.
 
-Versionsstand dieses Kompendiums: **v2.2.3** (2026-06-28). Die Doku wird
+Versionsstand dieses Kompendiums: **v2.3.0** (2026-08-03). Die Doku wird
 ab v1.4.2 bei **jedem** Release synchron mitgeführt — siehe
 [Release-Prozess](technical/06-release-process.md).

@@ -16,7 +16,8 @@ use Energietracker\Services\{
     WeatherService, BackupService, SettingsService, DiagnosticsService,
     MigrationService, ReadingImportService, CsvExportService,
     DeliveryService, DeliveryConsumptionService, BenchmarkService,
-    TariffComparisonService, RecommendationService, ReminderService, PdfReportService,
+    TariffComparisonService, TariffSwitchService,
+    RecommendationService, ReminderService, PdfReportService,
     StromSaldoService, PvSummaryService, HealthCheckService, DemoService,
     AuthService, IngestService, I18nService
 };
@@ -26,6 +27,7 @@ use Energietracker\Controllers\{
     SettingsController, BackupController, DiagnosticsController, UtilitiesController,
     MigrationController, ExportController,
     DeliveryController, BenchmarkController, TariffComparisonController,
+    TariffSwitchController,
     RecommendationController, ReminderController, ReportController,
     StromSaldoController, PvSummaryController, HealthController, DemoController,
     AuthController, IngestController
@@ -67,6 +69,7 @@ final class App
     public DeliveryConsumptionService $deliveryConsumption;
     public BenchmarkService $benchmark;
     public TariffComparisonService $tariffs;
+    public TariffSwitchService $tariffSwitch;
     public RecommendationService $recommendations;
     public ReminderService $reminders;
     public PdfReportService $reports;
@@ -117,6 +120,7 @@ final class App
         );
         $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n);
         $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n);
+        $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n);
         $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries, $this->i18n);
         $this->reminders    = new ReminderService($this->store, $this->settings, $this->i18n);
         $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark, $this->recommendations, $this->i18n);
@@ -291,6 +295,11 @@ final class App
         $tcCtrl = new TariffComparisonController($this->tariffs);
         $r->get('/api/utility/{utility}/meters/{id}/tariff-comparison',
                                               fn($req) => $tcCtrl->compare($req));
+
+        // ── Wechselentscheidung (v2.3.0 — Prognose gegen Angebot) ──
+        $tsCtrl = new TariffSwitchController($this->tariffSwitch);
+        $r->get('/api/utility/{utility}/meters/{id}/tariff-switch',
+                                              fn($req) => $tsCtrl->analyze($req));
 
         // ── Empfehlungen (v1.3.0 — statistische Insights) ──
         $recCtrl = new RecommendationController($this->recommendations);

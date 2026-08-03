@@ -66,7 +66,8 @@ v1.9.2.
 | GET | `/api/utility/{u}/meters/{id}/consumption` | Verbrauch + Anomalien + Regressionen |
 | GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | 12-Monats-Prognose |
-| GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten |
+| GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick) |
+| GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/benchmarks/efficiency` | Effizienzklasse pro Heizquelle |
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden |

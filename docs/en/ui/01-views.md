@@ -77,8 +77,58 @@ regression and seasonal profile, a cost forecast with the balance of open contra
 
 ## 7. Tariff comparison
 
-Real **and** shadow contracts computed on the actual consumption — "what would tariff
-X have cost?", without changing the balance/forecast.
+Answers the question the Energietracker exists for: **should I switch?** The
+view is split into two blocks, and the order is deliberate.
+
+### Switching decision
+
+At the top sits the **expected annual consumption** from the forecast — exactly
+the figure comparison sites ask for as input. One click copies it. The workflow
+is therefore: take the number, search elsewhere, enter the offer you found as a
+shadow contract.
+
+There is deliberately no integration with comparison sites. The application
+fetches no tariffs from outside; the user enters what they found.
+
+Next to it sits the **switch date**, derived from the contract end and the
+notice period. The deadline is shown with the days remaining and highlighted
+once it gets tight — it is the thing people miss in everyday life. To model a
+different scenario, set the date by hand.
+
+The ranking shows, per offer:
+
+| Column | Meaning |
+|---|---|
+| **Year 1** | cost of the first twelve months, sign-up bonus already deducted |
+| **Year 2 on** | the ongoing cost, without one-off bonuses |
+| **Difference** | against the current contract carried forward |
+| **Pays off from** | the annual consumption above which the offer beats the current contract |
+
+**Ranking follows "Year 2 on".** An offer that is only cheap in the first year
+does not win the ranking — the year-1 figure still sits beside it so it can be
+checked against what the portal displayed.
+
+The **Pays off from** column is the honest answer to an uncertain forecast.
+Instead of claiming a saving to the euro, it names the volume at which the
+ranking flips: if that is far from the expected consumption, the decision holds
+even when the forecast is off. A ±10 % consumption range sits below the annual
+figures.
+
+The chart overlays the offers **on top of** the current contract as a cost
+curve. Monthly rather than as an annual total, because only then can you see
+where the difference comes from — with gas it arises almost entirely in winter.
+Months beyond the **price guarantee** are drawn dashed: there the price is an
+assumption, not a commitment.
+
+The calculation covers twelve months from the switch date, seasonally weighted.
+A switch on 1 July therefore still covers a full winter; a one-twelfth
+calculation would get this wrong.
+
+### Looking back at real months
+
+Below, collapsed: the same tariffs applied to **actually measured** consumption
+— "what would tariff X have cost?". This is the proof. Anyone who sees the
+maths hold up on real data will also trust the forecast.
 
 Every row refers to **exactly the months that contract covers**: consumption,
 cost and difference all mean the same period. Contracts with a shorter term
@@ -90,8 +140,21 @@ term length, and therefore the basis for the ranking. Only pure tariff costs
 are compared; advance payments and one-off settlements are cash flows against
 the balance and stay out of it (they live in the consumption view).
 
-Shadow contracts can be created, edited and deleted here. In the contract list
-they carry their own marker so they are not mistaken for a running contract.
+### Maintaining offers
+
+An offer is captured with the fields a portal result actually carries: unit
+price, standing charge, **sign-up bonus as an amount** (not as a credit date —
+nobody knows that when entering it), price guarantee and notice period. The
+calculated switch date is pre-filled as the start.
+
+Offers can be created, edited and deleted. In the contract list they carry
+their own marker so they are not mistaken for a running contract. They affect
+**neither the balance nor the forecast nor the contract status** — they exist
+for this comparison only.
+
+> **Water** stays out: the three-component model (drinking, waste and rainwater)
+> needs a calculation of its own. Heating oil and pellets are delivery-based —
+> there the delivery invoice is the cost basis.
 
 ![Tariff comparison](../../ui/screenshots/tarifvergleich.png)
 

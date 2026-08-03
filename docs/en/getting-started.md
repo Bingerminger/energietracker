@@ -117,7 +117,12 @@ Now the input pays off:
   a regression line and R² comparison of five models.
 - **Forecast:** 12-month preview (consumption **and** costs) as an R²-weighted
   blend of regression and seasonal profile.
-- **Tariff comparison:** "what would tariff X have cost?" via shadow contracts.
+- **Tariff comparison:** "should I switch?" The forecast annual consumption sits
+  ready to copy — that is the figure comparison sites ask for. The offer you
+  find is entered as a shadow contract and measured against the running contract
+  over twelve months from the switch date, split into the first year (including
+  any sign-up bonus) and the ongoing cost. Below it, the retrospective: the same
+  tariffs applied to the months actually measured.
 
 ---
 

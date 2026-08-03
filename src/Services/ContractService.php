@@ -104,6 +104,19 @@ final class ContractService
             // Saldo/Forecast/contractStatus ein, nur in den Tarifvergleich.
             'is_shadow'    => (bool)($input['is_shadow'] ?? false),
             'shadow_label' => isset($input['shadow_label']) ? (string)$input['shadow_label'] : null,
+            // v2.3.0 — Wechselplanung. Diese drei entscheiden, ab wann ein
+            // neuer Tarif überhaupt greifen kann; ohne sie lässt sich ein
+            // Wechsel nicht terminieren, nur hypothetisch durchrechnen.
+            // Alle optional — wer sie nicht pflegt, verliert genau den
+            // errechneten Termin und die Fristwarnung, sonst nichts.
+            'notice_period_months'  => $input['notice_period_months']  ?? null,
+            'min_term_end'          => $input['min_term_end']          ?? null,
+            'price_guarantee_until' => $input['price_guarantee_until'] ?? null,
+            // Neukundenbonus als Betrag, nicht als Gutschriftstermin. Auf dem
+            // Vergleichsportal steht „Bonus 130 €" — wann er gutgeschrieben
+            // wird, weiß beim Anlegen niemand. `bonuses[]` bleibt für echte,
+            // bereits terminierte Gutschriften.
+            'signup_bonus_eur'      => $input['signup_bonus_eur']      ?? null,
         ];
 
         if ($utility === 'wasser') {
@@ -150,18 +163,22 @@ final class ContractService
         // Abschlagsplan, keine Sonderzahlungen). Anbieter/Tarif-Stammdaten
         // ja, Felder die das Frontend ohnehin nicht anzeigt nein.
         $isFeedIn = Utilities::isFeedIn($utility);
-        $standardFields = $isFeedIn
+        // v2.3.0 — die Wechselfelder gelten für jede Vertragsart, auch für
+        // Wasser und Einspeisung: eine Kündigungsfrist hat jeder Vertrag.
+        $switchFields = ['notice_period_months', 'min_term_end', 'price_guarantee_until',
+                         'signup_bonus_eur'];
+        $standardFields = array_merge($isFeedIn
             ? ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                'working_prices', 'bonuses',
                'is_shadow', 'shadow_label']
             : ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                'working_prices', 'base_prices', 'advance_payments', 'bonuses',
                'special_payments',
-               'is_shadow', 'shadow_label'];
-        $waterFields    = ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
+               'is_shadow', 'shadow_label'], $switchFields);
+        $waterFields    = array_merge(['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                            'trinkwasser', 'schmutzwasser', 'niederschlagswasser',
                            'advance_payments', 'bonuses',
-                           'is_shadow', 'shadow_label'];
+                           'is_shadow', 'shadow_label'], $switchFields);
 
         foreach ($all as &$c) {
             if (($c['id'] ?? null) !== $id) continue;
@@ -209,7 +226,7 @@ final class ContractService
         $c['bonuses'] = $this->normalizeBonuses($c['bonuses'] ?? []);
         // F1003 — Sonderzahlungen
         $c['special_payments'] = $this->normalizeSpecialPayments($c['special_payments'] ?? []);
-        return $c;
+        return $this->normalizeSwitchFields($c);
     }
 
     /**
@@ -287,7 +304,7 @@ final class ContractService
             $c['advance_payments'] ?? [], 'from', 'amount_eur', $this->i18n->t('contracts.priceGroup.advance')
         );
         $c['bonuses'] = $this->normalizeBonuses($c['bonuses'] ?? []);
-        return $c;
+        return $this->normalizeSwitchFields($c);
     }
 
     private function validateMeta(array $c): void
@@ -298,6 +315,149 @@ final class ContractService
         if (!empty($c['end']) && $c['end'] < $c['start']) {
             throw new \InvalidArgumentException($this->i18n->t('errors.contract.endBeforeStart'));
         }
+    }
+
+    /**
+     * v2.3.0 — Wechselfelder säubern.
+     *
+     * Leere Eingaben werden zu null, nicht zu 0 bzw. "": Eine Kündigungsfrist
+     * von null heißt „nicht gepflegt" und schaltet die Terminrechnung ab; eine
+     * von 0 hieße „jederzeit kündbar" und ist eine Aussage. Der Unterschied
+     * entscheidet, ob die Oberfläche einen Wechseltermin verspricht oder nach
+     * der Angabe fragt.
+     */
+    private function normalizeSwitchFields(array $c): array
+    {
+        $notice = $c['notice_period_months'] ?? null;
+        if ($notice === null || $notice === '' || $notice === false) {
+            $c['notice_period_months'] = null;
+        } else {
+            if (!is_numeric($notice)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeNotNumeric'));
+            }
+            $n = (int)$notice;
+            if ($n < 0 || $n > 24) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeOutOfRange'));
+            }
+            $c['notice_period_months'] = $n;
+        }
+
+        foreach (['min_term_end', 'price_guarantee_until'] as $field) {
+            $v = $c[$field] ?? null;
+            $v = ($v === null || $v === false) ? '' : trim((string)$v);
+            if ($v === '') { $c[$field] = null; continue; }
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) {
+                throw new \InvalidArgumentException(
+                    $this->i18n->t('errors.contract.dateInvalid', ['field' => $field, 'value' => $v])
+                );
+            }
+            if (!empty($c['start']) && $v < $c['start']) {
+                throw new \InvalidArgumentException(
+                    $this->i18n->t('errors.contract.dateBeforeStart', ['field' => $field])
+                );
+            }
+            $c[$field] = $v;
+        }
+
+        $bonus = $c['signup_bonus_eur'] ?? null;
+        if ($bonus === null || $bonus === '' || $bonus === false) {
+            $c['signup_bonus_eur'] = null;
+        } else {
+            if (!is_numeric($bonus)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.bonusNotNumeric'));
+            }
+            if ((float)$bonus < 0) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.bonusNegative'));
+            }
+            $c['signup_bonus_eur'] = (float)$bonus;
+        }
+
+        return $c;
+    }
+
+    /**
+     * v2.3.0 — Wann ist ein Wechsel frühestens möglich, und bis wann muss dafür
+     * gekündigt werden?
+     *
+     * Zwei verschiedene Daten, die gern verwechselt werden:
+     *   cancel_by   — letzter Tag, an dem die Kündigung raus muss
+     *   switch_date — erster Tag, an dem ein neuer Tarif liefert
+     *
+     * Befristeter Vertrag (`end` gesetzt): Er endet ohnehin, der Wechsel greift
+     * am Folgetag. Die Frist bestimmt nur, wann gekündigt werden muss, damit er
+     * sich nicht verlängert.
+     *
+     * Unbefristeter Vertrag: Gekündigt wird zum Monatsende nach Ablauf der
+     * Frist, frühestens jedoch zum Ende der Mindestlaufzeit.
+     *
+     * Ohne gepflegte Frist gibt es keinen belastbaren Termin — dann liefert die
+     * Methode `null` und die Oberfläche fragt danach, statt etwas zu erfinden.
+     *
+     * @return array{switch_date: ?string, cancel_by: ?string, days_to_cancel: ?int, basis: string}
+     */
+    public function switchTiming(array $contract, ?string $today = null): array
+    {
+        $today  = $today ?: date('Y-m-d');
+        $notice = $contract['notice_period_months'] ?? null;
+        $end    = $contract['end'] ?? null;
+
+        if (!empty($end)) {
+            $switch   = date('Y-m-d', strtotime($end . ' +1 day'));
+            $cancelBy = $notice !== null ? self::subMonthsClamped($end, (int)$notice) : null;
+            return [
+                'switch_date'    => $switch,
+                'cancel_by'      => $cancelBy,
+                'days_to_cancel' => $cancelBy !== null ? self::daysBetween($today, $cancelBy) : null,
+                'basis'          => 'fixed_end',
+            ];
+        }
+
+        if ($notice === null) {
+            return ['switch_date' => null, 'cancel_by' => null, 'days_to_cancel' => null, 'basis' => 'unknown'];
+        }
+
+        // Kündigung heute → wirksam zum Monatsende nach Ablauf der Frist.
+        // Über den Monatsersten gerechnet, weil den es in jedem Monat gibt.
+        $effective = (new \DateTimeImmutable($today))
+            ->modify('first day of this month')
+            ->add(new \DateInterval('P' . (int)$notice . 'M'))
+            ->modify('last day of this month')
+            ->format('Y-m-d');
+        $minTerm = $contract['min_term_end'] ?? null;
+        $boundByMinTerm = !empty($minTerm) && $minTerm > $effective;
+        if ($boundByMinTerm) {
+            $effective = $minTerm;
+        }
+        return [
+            'switch_date'    => date('Y-m-d', strtotime($effective . ' +1 day')),
+            'cancel_by'      => $today,
+            'days_to_cancel' => 0,
+            'basis'          => $boundByMinTerm ? 'min_term' : 'open_ended',
+        ];
+    }
+
+    /**
+     * Monate abziehen, ohne in den Folgemonat zu rutschen.
+     *
+     * PHPs `strtotime('2026-03-31 -1 month')` liefert **2026-03-03**: Es zieht
+     * den Monat ab, landet auf dem nicht existierenden 31. Februar und lässt
+     * den Überlauf stehen. Für eine Kündigungsfrist ist das Ergebnis nicht nur
+     * ungenau, sondern gefährlich — es nennt einen Stichtag vier Wochen nach
+     * dem echten. Deshalb wird der Tag auf den letzten des Zielmonats geklemmt.
+     */
+    private static function subMonthsClamped(string $date, int $months): string
+    {
+        $d      = new \DateTimeImmutable($date);
+        $target = $d->modify('first day of this month')->sub(new \DateInterval("P{$months}M"));
+        $day    = min((int)$d->format('j'), (int)$target->format('t'));
+        return $target->setDate((int)$target->format('Y'), (int)$target->format('n'), $day)->format('Y-m-d');
+    }
+
+    private static function daysBetween(string $from, string $to): int
+    {
+        $a = new \DateTimeImmutable($from);
+        $b = new \DateTimeImmutable($to);
+        return (int)$a->diff($b)->format('%r%a');
     }
 
     private function normalizePriceList(array $entries, string $dateKey, string $amountKey, string $label): array

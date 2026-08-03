@@ -946,13 +946,13 @@
   "tariff": {
     "loading": "Caricamento…",
     "title": "Confronto tariffe",
-    "subtitle": "Quanto avresti pagato con un’altra tariffa? Contratti reali + contratti ipotetici calcolati sul tuo consumo effettivo.",
+    "subtitle": "Conviene cambiare? Il consumo previsto messo a confronto con offerte concrete, con lo sguardo ai mesi reali come prova.",
     "noUsable": "Nessuna utenza comparabile attiva. Il confronto tariffe si applica ai tipi con contratto (gas, elettricità, teleriscaldamento).",
     "utility": "Utenza",
     "meter": "Contatore",
     "year": "Anno",
     "wholePeriod": "Intero periodo",
-    "addShadow": "+ Contratto ipotetico",
+    "addShadow": "+ Offerta",
     "loadingComparison": "Caricamento del confronto…",
     "noMeter": "Nessun contatore disponibile.",
     "notSupported": "Non supportato.",
@@ -997,7 +997,64 @@
       "deleted": "Contratto ipotetico eliminato",
       "deleteTitle": "Eliminare il contratto ipotetico?",
       "deleteMessage": "L'ipotesi verrà rimossa. Contratti reali e letture restano invariati.",
-      "deleteConfirm": "Elimina"
+      "deleteConfirm": "Elimina",
+      "signupBonus": "Bonus di benvenuto (€)",
+      "signupBonusPlaceholder": "es. 130",
+      "signupBonusHint": "Una tantum, conta solo il primo anno.",
+      "priceGuarantee": "Prezzo garantito fino al",
+      "priceGuaranteeHint": "Dopo di che il prezzo è un'ipotesi — tratteggiato nel grafico.",
+      "noticePeriod": "Preavviso (mesi)",
+      "noticePeriodPlaceholder": "es. 1",
+      "noticePeriodHint": "Serve a calcolare le date se questa tariffa diventa quella in corso."
+    },
+    "switch": {
+      "heading": "Decisione di cambio",
+      "expectedConsumption": "Consumo annuo previsto",
+      "expectedHint": "È il valore da inserire sul comparatore.",
+      "copy": "Copia il valore",
+      "copied": "{value} {unit} copiato",
+      "copyFail": "Copia non riuscita",
+      "basis": "Basato su {months} mesi di storico dei consumi",
+      "switchDate": "Cambio possibile dal",
+      "source": {
+        "contract": "dal contratto",
+        "override": "impostato manualmente",
+        "default": "stimato"
+      },
+      "reset": "Reimposta",
+      "currentContract": "Attuale: {label}",
+      "runsUntil": "in vigore fino al {date}",
+      "cancelBy": "Disdire entro il {date}",
+      "cancelIn": "ancora {days} giorni",
+      "cancelPassed": "Termine scaduto",
+      "noNotice": "Indica il preavviso nel contratto e la data verrà calcolata.",
+      "window": "Periodo di confronto dal {from} al {to} ({months} mesi)",
+      "current": "Attuale",
+      "reference": "Riferimento",
+      "col": {
+        "tariff": "Tariffa",
+        "year1": "1° anno",
+        "year2": "Dal 2° anno",
+        "diff": "Differenza",
+        "breakEven": "Conviene da"
+      },
+      "year1Title": "Costo del primo anno, bonus di benvenuto già detratto",
+      "year2Title": "Costo annuo stabile senza bonus una tantum",
+      "breakEvenTitle": "Oltre questo consumo annuo la tariffa batte quella attuale",
+      "breakEvenDelta": "{pct} % del consumo previsto",
+      "breakEvenNone": "Nessun punto di pareggio: la tariffa è più conveniente o più cara a qualsiasi volume",
+      "bonusIncluded": "incl. {value} di bonus",
+      "guaranteeEnds": "La garanzia di prezzo termina il {date}",
+      "sensitivity": "{low} … {high} con ±10 % di consumo",
+      "rankingHint": "Ordinato per il costo stabile dal secondo anno: il bonus di benvenuto sparisce dopo dodici mesi.",
+      "chartTitle": "Andamento dei costi nel periodo di confronto",
+      "chartAlt": "Costo mensile per tariffa nel periodo di confronto",
+      "noOffers": "Nessuna offerta salvata. Cerca con {value} {unit} su un comparatore e inserisci qui il risultato.",
+      "addOffer": "Inserisci offerta"
+    },
+    "retro": {
+      "heading": "Sguardo ai mesi reali",
+      "intro": "Le stesse tariffe applicate ai consumi realmente misurati: la prova che il calcolo regge."
     }
   },
   "analysis": {
@@ -1180,7 +1237,8 @@
       "deliveryUnsupported": "{label} viene fatturato per consegne e non ha contratti tariffari — lì la fattura di consegna è la base dei costi.",
       "noConsumption": "Ancora nessun dato di consumo per questo contatore.",
       "noConsumptionInPeriod": "Nessun dato di consumo nel periodo selezionato.",
-      "noContracts": "Nessun contratto da confrontare."
+      "noContracts": "Nessun contratto da confrontare.",
+      "noWorkingPrice": "Nessun prezzo unitario registrato: la tariffa non può essere calcolata."
     },
     "meter": {
       "multipleMeters": "Più contatori per {utility} non sono consentiti",
@@ -1238,7 +1296,13 @@
         "creditDate": "Data accredito",
         "advanceDate": "Data di decorrenza acconto",
         "newAdvanceAmount": "nuovo importo acconto"
-      }
+      },
+      "noticeNotNumeric": "Il preavviso deve essere un numero.",
+      "noticeOutOfRange": "Il preavviso deve essere compreso tra 0 e 24 mesi.",
+      "dateInvalid": "Data non valida in {field}: {value}",
+      "dateBeforeStart": "{field} non può precedere l'inizio del contratto.",
+      "bonusNotNumeric": "Il bonus di benvenuto deve essere un numero.",
+      "bonusNegative": "Il bonus di benvenuto non può essere negativo."
     },
     "delivery": {
       "notFound": "Consegna non trovata: {id}",

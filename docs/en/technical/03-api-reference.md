@@ -65,7 +65,8 @@ All endpoints under `/api/…`. A uniform response envelope:
 | GET | `/api/utility/{u}/meters/{id}/consumption` | consumption + anomalies + regressions |
 | GET | `/api/utility/{u}/meters/{id}/contract-status` | balance per contract |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | 12-month forecast |
-| GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow |
+| GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow (retrospective) |
+| GET | `/api/utility/{u}/meters/{id}/tariff-switch` | switching decision from the switch date; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/benchmarks/efficiency` | efficiency class per heat source |
 | GET | `/api/recommendations` | statistical recommendations |
 | POST | `/api/recommendations/{id}/dismiss` | hide a recommendation |

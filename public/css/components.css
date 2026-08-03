@@ -729,6 +729,15 @@ textarea.input { min-height: 80px; resize: vertical; }
 /* v2.2.0 — violett statt Akzentblau, damit die Schattenzeile dieselbe Farbe
    trägt wie ihr Badge und der Vertragsstatus. */
 .data-table .row-shadow { background: color-mix(in srgb, var(--c-violet) 6%, transparent); }
+/* v2.3.0 — die Referenzzeile (laufender Vertrag) trägt die Utility-Farbe und
+   einen Balken links: Sie ist der Maßstab, gegen den alles andere gelesen
+   wird, und darf in der Rangliste nicht wie ein weiteres Angebot wirken. */
+.data-table .row-reference {
+  background: color-mix(in srgb, var(--util, var(--c-blue)) 7%, transparent);
+}
+.data-table .row-reference td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--util, var(--c-blue));
+}
 .data-table .delta.pos { color: var(--success, #22c55e); }
 .data-table .delta.neg { color: var(--danger); }
 .cell-actions { white-space: nowrap; text-align: right; }
@@ -887,3 +896,81 @@ textarea.input { min-height: 80px; resize: vertical; }
 }
 .dash-empty__icon { font-size: 2.5rem; line-height: 1; margin-bottom: var(--sp-3); }
 .dash-empty__text { max-width: 46ch; margin: var(--sp-2) auto var(--sp-4); }
+
+/* ─────────────────────────────────────────────────────────────────────
+   v2.3.0 — Tarifvergleich: Wechselentscheidung
+   ───────────────────────────────────────────────────────────────────── */
+
+.section-title {
+  font-size: var(--fs-md, 1.05rem);
+  margin: 0 0 var(--sp-3);
+}
+
+/* Zwei Karten nebeneinander: der erwartete Verbrauch (die Zahl, die zum
+   Vergleichsportal mitgenommen wird) und der Wechseltermin. Auf schmalen
+   Schirmen untereinander — die Verbrauchszahl zuerst, sie trägt die
+   Handlung. */
+.switch-head {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.switch-card { padding: var(--sp-4); }
+.switch-card--consumption { border-left: 3px solid var(--util, var(--c-blue)); }
+
+.switch-bignum {
+  margin: var(--sp-2) 0 var(--sp-1);
+  line-height: 1.1;
+}
+.switch-bignum strong {
+  font-size: clamp(1.7rem, 5vw, 2.3rem);
+  font-variant-numeric: tabular-nums;
+  color: var(--util, var(--text-1));
+}
+.switch-bignum .unit { font-size: var(--fs-sm); color: var(--text-2); }
+
+.switch-date-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-2);
+}
+.switch-date-row input[type="date"] { min-width: 9.5rem; }
+
+.switch-empty { display: grid; gap: var(--sp-3); justify-items: start; }
+
+/* Der Rückblick ist eingeklappt: Er belegt, dass die Rechnung auf echten
+   Daten aufgeht, ist aber nicht der Grund, warum jemand die Ansicht
+   öffnet. */
+.retro-block > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.retro-block > summary::-webkit-details-marker { display: none; }
+.retro-block > summary::before {
+  content: "▸";
+  color: var(--text-2);
+  transition: transform 120ms ease;
+}
+.retro-block[open] > summary::before { transform: rotate(90deg); }
+.retro-block > summary .section-title { margin: 0; }
+.retro-block > summary:focus-visible {
+  outline: 2px solid var(--util, var(--c-blue));
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.toolbar--sub {
+  margin: var(--sp-3) 0;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .retro-block > summary::before { transition: none; }
+}

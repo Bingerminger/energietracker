@@ -117,7 +117,12 @@ Jetzt zahlt sich die Eingabe aus:
   und R²-Vergleich von fünf Modellen.
 - **Prognose:** 12-Monats-Vorschau (Verbrauch **und** Kosten) als
   R²-gewichteter Blend aus Regression und Saisonprofil.
-- **Tarifvergleich:** „Was hätte Tarif X gekostet?" über Schattenverträge.
+- **Tarifvergleich:** „Soll ich wechseln?" Der prognostizierte Jahresverbrauch
+  steht kopierbar bereit — das ist die Zahl, die Vergleichsportale abfragen.
+  Das gefundene Angebot wird als Schattenvertrag eingetragen und über zwölf
+  Monate ab dem Wechseltermin gegen den laufenden Vertrag gerechnet, getrennt
+  nach erstem Jahr (mit Neukundenbonus) und dauerhaften Kosten. Darunter der
+  Rückblick: dieselben Tarife auf die tatsächlich gemessenen Monate gelegt.
 
 ---
 

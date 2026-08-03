@@ -25,7 +25,11 @@
         "amount_eur": 165.0
       }
     ],
-    "bonuses": []
+    "bonuses": [],
+    "notice_period_months": null,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   },
   {
     "id": "c_gas_002",
@@ -77,7 +81,11 @@
         "new_advance_eur": null,
         "advance_from": null
       }
-    ]
+    ],
+    "notice_period_months": null,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   },
   {
     "id": "c_gas_003",
@@ -112,7 +120,11 @@
         "type": "wechsel",
         "label": "Wechselbonus"
       }
-    ]
+    ],
+    "notice_period_months": null,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   },
   {
     "id": "c_gas_004",
@@ -140,6 +152,70 @@
         "amount_eur": 130.0
       }
     ],
-    "bonuses": []
+    "bonuses": [],
+    "notice_period_months": 1,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
+  },
+  {
+    "id": "c_gas_shadow_oeko",
+    "meter_id": "m_gas_main",
+    "provider": "Naturenergie Süd",
+    "tariff_name": "Ökogas Fix 12",
+    "start": "2027-01-01",
+    "end": null,
+    "notes": "Angebot vom Vergleichsportal, Stand August 2026.",
+    "working_prices": [
+      {
+        "from": "2027-01-01",
+        "ct_per_kwh": 7.4
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2027-01-01",
+        "eur_per_month": 12.9
+      }
+    ],
+    "advance_payments": [],
+    "special_payments": [],
+    "bonuses": [],
+    "is_shadow": true,
+    "shadow_label": "Ökogas Fix 12",
+    "notice_period_months": 1,
+    "min_term_end": null,
+    "price_guarantee_until": "2027-12-31",
+    "signup_bonus_eur": 120.0
+  },
+  {
+    "id": "c_gas_shadow_flex",
+    "meter_id": "m_gas_main",
+    "provider": "Stadtwerke Leipzig",
+    "tariff_name": "Gas Basis Flex",
+    "start": "2027-01-01",
+    "end": null,
+    "notes": "Ohne Bonus, dafür niedriger Grundpreis.",
+    "working_prices": [
+      {
+        "from": "2027-01-01",
+        "ct_per_kwh": 7.9
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2027-01-01",
+        "eur_per_month": 9.5
+      }
+    ],
+    "advance_payments": [],
+    "special_payments": [],
+    "bonuses": [],
+    "is_shadow": true,
+    "shadow_label": "Gas Basis Flex",
+    "notice_period_months": 1,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   }
 ]

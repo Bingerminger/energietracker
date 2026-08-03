@@ -154,9 +154,14 @@ export const api = {
   // ── v1.3.0 — Benchmark / Effizienz ──
   efficiency:    (year) => request('GET', `/api/benchmarks/efficiency${year ? `?year=${year}` : ''}`),
 
-  // ── v1.3.0 — Tarifvergleich ──
+  // ── v1.3.0 — Tarifvergleich (Rückblick auf echte Monate) ──
   tariffComparison: (u, meterId, year) =>
     request('GET', `/api/utility/${u}/meters/${meterId}/tariff-comparison${year ? `?year=${year}` : ''}`),
+
+  // ── v2.3.0 — Wechselentscheidung (Prognose ab Wechseltermin) ──
+  tariffSwitch: (u, meterId, switchDate) =>
+    request('GET', `/api/utility/${u}/meters/${meterId}/tariff-switch${
+      switchDate ? `?switch_date=${encodeURIComponent(switchDate)}` : ''}`),
 
   // ── v1.3.0 — Empfehlungen ──
   recommendations:      (inclDismissed=false) =>

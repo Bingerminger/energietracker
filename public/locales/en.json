@@ -946,13 +946,13 @@
   "tariff": {
     "loading": "Loading…",
     "title": "Tariff comparison",
-    "subtitle": "What would you have paid with a different tariff? Real contracts + hypothetical shadow contracts calculated on your actual consumption.",
+    "subtitle": "Is switching worth it? Forecast consumption measured against real offers — with the look back at actual months as proof.",
     "noUsable": "No comparable utilities active. Tariff comparison applies to contract-based types (gas, electricity, district heating).",
     "utility": "Utility",
     "meter": "Meter",
     "year": "Year",
     "wholePeriod": "Whole period",
-    "addShadow": "+ Shadow contract",
+    "addShadow": "+ Offer",
     "loadingComparison": "Loading comparison…",
     "noMeter": "No meter available.",
     "notSupported": "Not supported.",
@@ -997,7 +997,64 @@
       "deleted": "Shadow contract deleted",
       "deleteTitle": "Delete shadow contract?",
       "deleteMessage": "The hypothesis will be removed. Real contracts and readings stay untouched.",
-      "deleteConfirm": "Delete"
+      "deleteConfirm": "Delete",
+      "signupBonus": "Sign-up bonus (€)",
+      "signupBonusPlaceholder": "e.g. 130",
+      "signupBonusHint": "One-off, counts in the first year only.",
+      "priceGuarantee": "Price guaranteed until",
+      "priceGuaranteeHint": "Beyond that the price is an assumption — dashed in the chart.",
+      "noticePeriod": "Notice period (months)",
+      "noticePeriodPlaceholder": "e.g. 1",
+      "noticePeriodHint": "Used to work out dates should this tariff become the active one."
+    },
+    "switch": {
+      "heading": "Switching decision",
+      "expectedConsumption": "Expected annual consumption",
+      "expectedHint": "This is the figure to enter on a comparison site.",
+      "copy": "Copy figure",
+      "copied": "{value} {unit} copied",
+      "copyFail": "Could not copy",
+      "basis": "Based on {months} months of consumption history",
+      "switchDate": "Earliest switch date",
+      "source": {
+        "contract": "from contract",
+        "override": "set manually",
+        "default": "estimated"
+      },
+      "reset": "Reset",
+      "currentContract": "Current: {label}",
+      "runsUntil": "runs until {date}",
+      "cancelBy": "Cancel by {date}",
+      "cancelIn": "{days} days left",
+      "cancelPassed": "Deadline passed",
+      "noNotice": "Add the notice period to the contract and the date will be calculated.",
+      "window": "Comparison period {from} to {to} ({months} months)",
+      "current": "Current",
+      "reference": "Baseline",
+      "col": {
+        "tariff": "Tariff",
+        "year1": "Year 1",
+        "year2": "Year 2 on",
+        "diff": "Difference",
+        "breakEven": "Pays off from"
+      },
+      "year1Title": "First-year cost, sign-up bonus already deducted",
+      "year2Title": "Ongoing annual cost without one-off bonuses",
+      "breakEvenTitle": "Above this annual consumption the tariff beats your current one",
+      "breakEvenDelta": "{pct} % of expected consumption",
+      "breakEvenNone": "No crossover — the tariff is cheaper or dearer at any volume",
+      "bonusIncluded": "incl. {value} bonus",
+      "guaranteeEnds": "Price guarantee ends {date}",
+      "sensitivity": "{low} … {high} at ±10 % consumption",
+      "rankingHint": "Ranked by the ongoing cost from year two — a sign-up bonus disappears after twelve months.",
+      "chartTitle": "Cost over the comparison period",
+      "chartAlt": "Monthly cost per tariff across the comparison period",
+      "noOffers": "No offer saved yet. Search a comparison site with {value} {unit} and enter the result here.",
+      "addOffer": "Add offer"
+    },
+    "retro": {
+      "heading": "Looking back at real months",
+      "intro": "The same tariffs applied to consumption actually measured — the proof that the maths holds up."
     }
   },
   "analysis": {
@@ -1180,7 +1237,8 @@
       "deliveryUnsupported": "{label} is billed per delivery and has no tariff contracts — the delivery invoice is the cost basis there.",
       "noConsumption": "No consumption data for this meter yet.",
       "noConsumptionInPeriod": "No consumption data in the selected period.",
-      "noContracts": "No contracts to compare."
+      "noContracts": "No contracts to compare.",
+      "noWorkingPrice": "No unit price on file — this tariff cannot be calculated."
     },
     "meter": {
       "multipleMeters": "Multiple meters for {utility} are not allowed",
@@ -1238,7 +1296,13 @@
         "creditDate": "Credit date",
         "advanceDate": "Advance payment date",
         "newAdvanceAmount": "new advance amount"
-      }
+      },
+      "noticeNotNumeric": "The notice period must be a number.",
+      "noticeOutOfRange": "The notice period must be between 0 and 24 months.",
+      "dateInvalid": "Invalid date in {field}: {value}",
+      "dateBeforeStart": "{field} must not be before the contract start.",
+      "bonusNotNumeric": "The sign-up bonus must be a number.",
+      "bonusNegative": "The sign-up bonus must not be negative."
     },
     "delivery": {
       "notFound": "Delivery not found: {id}",

@@ -25,7 +25,11 @@
         "amount_eur": 130.0
       }
     ],
-    "bonuses": []
+    "bonuses": [],
+    "notice_period_months": null,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   },
   {
     "id": "c_strom_002",
@@ -60,7 +64,11 @@
         "type": "neukunde",
         "label": "Neukundenbonus"
       }
-    ]
+    ],
+    "notice_period_months": null,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   },
   {
     "id": "c_strom_003",
@@ -88,7 +96,11 @@
         "amount_eur": 100.0
       }
     ],
-    "bonuses": []
+    "bonuses": [],
+    "notice_period_months": null,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   },
   {
     "id": "c_strom_004",
@@ -116,6 +128,70 @@
         "amount_eur": 105.0
       }
     ],
-    "bonuses": []
+    "bonuses": [],
+    "notice_period_months": 1,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
+  },
+  {
+    "id": "c_strom_shadow_natur",
+    "meter_id": "m_strom_main",
+    "provider": "Naturenergie Süd",
+    "tariff_name": "Naturstrom 12",
+    "start": "2027-01-01",
+    "end": null,
+    "notes": "Angebot vom Vergleichsportal, Stand August 2026.",
+    "working_prices": [
+      {
+        "from": "2027-01-01",
+        "ct_per_kwh": 28.9
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2027-01-01",
+        "eur_per_month": 13.9
+      }
+    ],
+    "advance_payments": [],
+    "special_payments": [],
+    "bonuses": [],
+    "is_shadow": true,
+    "shadow_label": "Naturstrom 12",
+    "notice_period_months": 1,
+    "min_term_end": null,
+    "price_guarantee_until": "2027-12-31",
+    "signup_bonus_eur": 150.0
+  },
+  {
+    "id": "c_strom_shadow_klassik",
+    "meter_id": "m_strom_main",
+    "provider": "Stadtwerke Leipzig",
+    "tariff_name": "Strom Klassik",
+    "start": "2027-01-01",
+    "end": null,
+    "notes": "Ohne Bonus, dafür niedriger Grundpreis.",
+    "working_prices": [
+      {
+        "from": "2027-01-01",
+        "ct_per_kwh": 30.2
+      }
+    ],
+    "base_prices": [
+      {
+        "from": "2027-01-01",
+        "eur_per_month": 10.9
+      }
+    ],
+    "advance_payments": [],
+    "special_payments": [],
+    "bonuses": [],
+    "is_shadow": true,
+    "shadow_label": "Strom Klassik",
+    "notice_period_months": 1,
+    "min_term_end": null,
+    "price_guarantee_until": null,
+    "signup_bonus_eur": null
   }
 ]

@@ -946,13 +946,13 @@
   "tariff": {
     "loading": "Chargement…",
     "title": "Comparatif tarifaire",
-    "subtitle": "Combien auriez-vous payé avec un autre tarif ? Contrats réels + contrats fictifs hypothétiques calculés sur votre consommation réelle.",
+    "subtitle": "Changer, est-ce rentable ? La consommation prévue confrontée à des offres concrètes — avec la rétrospective sur les mois réels comme preuve.",
     "noUsable": "Aucune énergie comparable active. Le comparatif tarifaire s’applique aux types sous contrat (gaz, électricité, chauffage urbain).",
     "utility": "Énergie",
     "meter": "Compteur",
     "year": "Année",
     "wholePeriod": "Toute la période",
-    "addShadow": "+ Contrat fictif",
+    "addShadow": "+ Offre",
     "loadingComparison": "Chargement du comparatif…",
     "noMeter": "Aucun compteur disponible.",
     "notSupported": "Non pris en charge.",
@@ -997,7 +997,64 @@
       "deleted": "Contrat fictif supprimé",
       "deleteTitle": "Supprimer le contrat fictif ?",
       "deleteMessage": "L'hypothèse sera supprimée. Les contrats réels et les relevés restent intacts.",
-      "deleteConfirm": "Supprimer"
+      "deleteConfirm": "Supprimer",
+      "signupBonus": "Prime de bienvenue (€)",
+      "signupBonusPlaceholder": "p. ex. 130",
+      "signupBonusHint": "Versée une fois, comptée uniquement la première année.",
+      "priceGuarantee": "Prix garanti jusqu'au",
+      "priceGuaranteeHint": "Ensuite le prix est une hypothèse — tracé en pointillés.",
+      "noticePeriod": "Préavis (mois)",
+      "noticePeriodPlaceholder": "p. ex. 1",
+      "noticePeriodHint": "Sert au calcul des dates si ce tarif devient le contrat en cours."
+    },
+    "switch": {
+      "heading": "Décision de changement",
+      "expectedConsumption": "Consommation annuelle prévue",
+      "expectedHint": "C'est le chiffre à saisir sur un comparateur.",
+      "copy": "Copier le chiffre",
+      "copied": "{value} {unit} copié",
+      "copyFail": "Copie impossible",
+      "basis": "Sur la base de {months} mois d'historique de consommation",
+      "switchDate": "Changement possible au",
+      "source": {
+        "contract": "d'après le contrat",
+        "override": "défini manuellement",
+        "default": "estimé"
+      },
+      "reset": "Réinitialiser",
+      "currentContract": "Actuel : {label}",
+      "runsUntil": "court jusqu'au {date}",
+      "cancelBy": "Résilier avant le {date}",
+      "cancelIn": "encore {days} jours",
+      "cancelPassed": "Délai dépassé",
+      "noNotice": "Renseignez le préavis sur le contrat et la date sera calculée.",
+      "window": "Période de comparaison du {from} au {to} ({months} mois)",
+      "current": "Actuel",
+      "reference": "Référence",
+      "col": {
+        "tariff": "Tarif",
+        "year1": "1re année",
+        "year2": "À partir de la 2e",
+        "diff": "Écart",
+        "breakEven": "Rentable à partir de"
+      },
+      "year1Title": "Coût de la première année, prime de bienvenue déjà déduite",
+      "year2Title": "Coût annuel durable, hors primes ponctuelles",
+      "breakEvenTitle": "Au-delà de cette consommation annuelle, le tarif bat l'actuel",
+      "breakEvenDelta": "{pct} % de la consommation prévue",
+      "breakEvenNone": "Pas de point de croisement — le tarif est moins ou plus cher quelle que soit la quantité",
+      "bonusIncluded": "dont {value} de prime",
+      "guaranteeEnds": "Garantie de prix jusqu'au {date}",
+      "sensitivity": "{low} … {high} avec ±10 % de consommation",
+      "rankingHint": "Classé sur le coût durable à partir de la deuxième année — une prime de bienvenue disparaît au bout de douze mois.",
+      "chartTitle": "Évolution du coût sur la période de comparaison",
+      "chartAlt": "Coût mensuel par tarif sur la période de comparaison",
+      "noOffers": "Aucune offre enregistrée. Cherchez avec {value} {unit} sur un comparateur et saisissez le résultat ici.",
+      "addOffer": "Saisir une offre"
+    },
+    "retro": {
+      "heading": "Rétrospective sur les mois réels",
+      "intro": "Les mêmes tarifs appliqués à la consommation réellement mesurée — la preuve que le calcul tient."
     }
   },
   "analysis": {
@@ -1180,7 +1237,8 @@
       "deliveryUnsupported": "{label} est facturé à la livraison et n'a pas de contrat tarifaire — la facture de livraison y sert de base de coût.",
       "noConsumption": "Pas encore de données de consommation pour ce compteur.",
       "noConsumptionInPeriod": "Aucune donnée de consommation sur la période choisie.",
-      "noContracts": "Aucun contrat à comparer."
+      "noContracts": "Aucun contrat à comparer.",
+      "noWorkingPrice": "Aucun prix unitaire renseigné — le tarif ne peut pas être calculé."
     },
     "meter": {
       "multipleMeters": "Plusieurs compteurs pour {utility} ne sont pas autorisés",
@@ -1238,7 +1296,13 @@
         "creditDate": "Date d’avoir",
         "advanceDate": "Date d’effet de l’acompte",
         "newAdvanceAmount": "nouveau montant d’acompte"
-      }
+      },
+      "noticeNotNumeric": "Le préavis doit être un nombre.",
+      "noticeOutOfRange": "Le préavis doit être compris entre 0 et 24 mois.",
+      "dateInvalid": "Date non valide dans {field} : {value}",
+      "dateBeforeStart": "{field} ne peut pas précéder le début du contrat.",
+      "bonusNotNumeric": "La prime de bienvenue doit être un nombre.",
+      "bonusNegative": "La prime de bienvenue ne peut pas être négative."
     },
     "delivery": {
       "notFound": "Livraison introuvable : {id}",

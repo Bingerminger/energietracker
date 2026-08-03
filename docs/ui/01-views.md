@@ -79,8 +79,58 @@ Verträge.
 
 ## 7. Tarifvergleich
 
-Echte **und** Schattenverträge auf den Ist-Verbrauch gerechnet —
-„Was hätte Tarif X gekostet?", ohne Saldo/Prognose zu verändern.
+Beantwortet die Frage, um die es im Energietracker geht: **Soll ich wechseln?**
+Die Ansicht ist in zwei Blöcke geteilt, und die Reihenfolge ist Absicht.
+
+### Wechselentscheidung
+
+Oben steht der **erwartete Jahresverbrauch** aus der Prognose — genau die Zahl,
+die CHECK24, Verivox und andere Vergleichsportale als Eingabe verlangen. Sie
+lässt sich mit einem Klick kopieren. Der Ablauf ist damit: Zahl mitnehmen,
+draußen suchen, das gefundene Angebot als Schattenvertrag eintragen.
+
+Eine Anbindung an Vergleichsportale gibt es bewusst nicht. Die Anwendung holt
+keine Tarife von außen; der Nutzer trägt ein, was er gefunden hat.
+
+Daneben steht der **Wechseltermin**. Er ergibt sich aus Vertragsende und
+Kündigungsfrist; die Frist wird mit Restlaufzeit angezeigt und farblich
+hervorgehoben, sobald es eng wird — sie ist das, was im Alltag verpasst wird.
+Wer ein anderes Szenario durchrechnen will, setzt das Datum von Hand.
+
+Die Rangliste zeigt je Angebot:
+
+| Spalte | Bedeutung |
+|---|---|
+| **1. Jahr** | Kosten der ersten zwölf Monate, Neukundenbonus bereits abgezogen |
+| **ab 2. Jahr** | die dauerhaften Kosten, ohne einmalige Boni |
+| **Differenz** | gegen den fortgeschriebenen Bestandsvertrag |
+| **Lohnt ab** | der Jahresverbrauch, ab dem das Angebot den Bestandsvertrag schlägt |
+
+**Sortiert wird nach „ab 2. Jahr".** Ein Lockangebot, das nur im ersten Jahr
+billig ist, gewinnt die Rangfolge damit nicht — die Jahr-1-Zahl steht trotzdem
+daneben, um sie mit der Portalanzeige abzugleichen.
+
+Die Spalte **Lohnt ab** ist die ehrlichste Antwort auf eine unsichere Prognose.
+Statt eine Ersparnis auf den Euro genau zu behaupten, nennt sie die Menge, ab
+der die Rangfolge kippt: Liegt sie weit vom erwarteten Verbrauch weg, trägt die
+Entscheidung auch dann, wenn die Prognose danebenliegt. Ergänzend steht unter
+den Jahreskosten eine Spanne für ±10 % Verbrauch.
+
+Das Diagramm legt die Angebote als Kostenverlauf **über** den Bestandsvertrag.
+Monatlich statt als Jahressumme, weil man erst daran sieht, wo die Differenz
+herkommt — bei Gas entsteht sie fast vollständig im Winter. Monate jenseits der
+**Preisgarantie** werden gestrichelt gezeichnet: Dort ist der Preis eine
+Annahme, keine Zusage.
+
+Gerechnet wird über zwölf Monate ab Wechseltermin, saisonal gewichtet. Ein
+Wechsel zum 1. Juli deckt damit trotzdem einen vollen Winter ab; eine
+Zwölftelrechnung würde hier danebenliegen.
+
+### Rückblick auf echte Monate
+
+Darunter, eingeklappt: dieselben Tarife auf den **tatsächlich gemessenen**
+Verbrauch gelegt — „Was hätte Tarif X gekostet?". Das ist der Beleg. Wer sieht,
+dass die Rechnung auf echten Daten aufgeht, glaubt auch der Prognose.
 
 Jede Zeile bezieht sich auf **genau die Monate, die dieser Vertrag abdeckt**:
 Verbrauch, Kosten und Differenz meinen denselben Zeitraum. Verträge mit
@@ -93,9 +143,22 @@ unabhängig ist, und damit der Maßstab für die Rangfolge. Verglichen werden
 reine Tarifkosten; Abschläge und Sonderzahlungen sind Zahlungsströme gegen den
 Saldo und bleiben außen vor (sie stehen in der Verbrauchsansicht).
 
-Schattenverträge lassen sich hier anlegen, bearbeiten und löschen. In der
-Vertragsliste tragen sie ein eigenes Kennzeichen, damit sie nicht mit einem
-laufenden Vertrag verwechselt werden.
+### Angebote pflegen
+
+Ein Angebot wird mit den Feldern erfasst, die auf einem Portalergebnis
+tatsächlich stehen: Arbeitspreis, Grundpreis, **Neukundenbonus als Betrag**
+(nicht als Gutschriftsdatum — das kennt beim Anlegen niemand), Preisgarantie
+und Kündigungsfrist. Als Startdatum ist der errechnete Wechseltermin
+vorbelegt.
+
+Angebote lassen sich anlegen, bearbeiten und löschen. In der Vertragsliste
+tragen sie ein eigenes Kennzeichen, damit sie nicht mit einem laufenden
+Vertrag verwechselt werden. Sie beeinflussen **weder Saldo noch Prognose noch
+Vertragsstatus** — sie existieren nur für diesen Vergleich.
+
+> **Wasser** bleibt ausgenommen: Das Drei-Komponenten-Modell (Trink-, Schmutz-
+> und Niederschlagswasser) braucht eine eigene Rechnung. Heizöl und Pellets
+> sind lieferbasiert — dort ist die Lieferrechnung die Kostenbasis.
 
 ![Tarifvergleich](screenshots/tarifvergleich.png)
 

@@ -26,7 +26,10 @@ A compact reference of all terms and formulas. The detailed derivation is in
 | **Seasonal profile** | The monthly mean of consumption over the history. |
 | **Blend** | The R²-weighted mix of regression × seasonal profile in the forecast. |
 | **Balance** | Advances paid − actual costs. |
-| **Shadow contract** | A hypothetical tariff for "what would that have cost?" — without affecting the balance/forecast. |
+| **Shadow contract** | A tariff you do not hold: either an offer from a comparison site (for the switching decision) or a hypothesis about the past ("what would that have cost?"). Takes effect **only** in the tariff comparison — never on the balance, forecast or contract status. |
+| **Switch date** | v2.3.0: the first day a new tariff could start supplying. Derived from the contract end and the notice period; distinct from the **cancellation deadline**, by which notice must be given. |
+| **Break-even consumption** | v2.3.0: the annual volume above which an offer beats the running contract (column "Pays off from"). If it sits far from the expected consumption, the switching decision holds even with an imprecise forecast. |
+| **Sign-up bonus** | v2.3.0: a one-off amount on the offer (`signup_bonus_eur`) that counts in the first year only. The ranking deliberately follows the cost **from** year two. |
 | **Special payment** | F1003: a refund/back-payment or an additional advance payment. Balance = costs - advances + (Σ refund - Σ back-payment - Σ advance payment). "with effect" additionally sets the future advance. Gas/electricity/district heating only. |
 | **Meter-reading capture** | F1004 (v1.6.0): the central view `#/zaehlerstaende` for quickly recording all cumulative meters on site in one pass. Gas/electricity/water/district heating only — heating oil/pellets use deliveries. |
 | **Efficiency class** | The kWh/m²·a classification of heating energy (A+…H), per source since v1.4.0. |

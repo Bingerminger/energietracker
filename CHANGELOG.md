@@ -6,6 +6,91 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.3.0] — 2026-08-03 — Tarifvergleich wird zur Wechselentscheidung
+
+MINOR-Release. Das Modul beantwortete bisher „Was hätte Tarif X gekostet?" —
+eine Frage über die Vergangenheit. Jetzt beantwortet es „Soll ich wechseln?".
+
+Kein Schema-Bump: Die neuen Vertragsfelder sind additiv und optional,
+Bestandsdaten bleiben unverändert gültig (Schema bleibt 1.3.0).
+
+### Added
+
+- **Wechselentscheidung als neuer Block im Tarifvergleich.** Die Ansicht führt
+  jetzt den Ablauf, um den es geht: Der **erwartete Jahresverbrauch** aus der
+  Prognose steht groß und kopierbar oben — genau die Zahl, die CHECK24 und
+  Verivox als Eingabe verlangen. Der Nutzer geht damit raus, sucht selbst und
+  trägt das gefundene Angebot als Schattenvertrag ein. Eine Anbindung an
+  Vergleichsportale gibt es bewusst nicht.
+
+- **Wechseltermin und Kündigungsfrist.** Verträge tragen optional
+  `notice_period_months`, `min_term_end` und `price_guarantee_until`. Daraus
+  errechnet die Anwendung den frühestmöglichen Wechseltermin und den Stichtag,
+  bis zu dem gekündigt werden muss — mit Restlaufzeit und Hervorhebung, sobald
+  es eng wird. Ohne gepflegte Frist wird kein Termin behauptet, sondern nach
+  der Angabe gefragt. Im Vergleich lässt sich das Datum frei überschreiben.
+
+- **Jahr 1 und ab Jahr 2 getrennt.** Angebote tragen den Neukundenbonus als
+  Betrag (`signup_bonus_eur`) statt als Gutschriftsdatum — auf dem Portal steht
+  „Bonus 130 €", wann er gutgeschrieben wird, weiß beim Anlegen niemand.
+  **Sortiert wird nach dem dauerhaften Preis**, sonst gewinnt jedes
+  Lockangebot die Rangfolge.
+
+- **Break-even-Verbrauch** statt einer Ersparnis auf den Euro genau: „günstiger,
+  solange über 3.600 kWh". Das ist die belastbare Antwort auf eine unsichere
+  Prognose — liegt der Schnittpunkt weit vom erwarteten Verbrauch weg, trägt
+  die Entscheidung auch dann, wenn die Prognose danebenliegt. Ergänzend eine
+  Spanne für ±10 % Verbrauch.
+
+- **Kostenverlauf als Overlay.** Die Angebote werden als Linie über den
+  Bestandsvertrag gelegt, monatlich statt als Jahressumme — erst daran sieht
+  man, wo die Differenz herkommt (bei Gas fast vollständig im Winter). Monate
+  jenseits der Preisgarantie sind gestrichelt: Dort ist der Preis eine Annahme.
+
+- **Neuer Endpunkt** `GET /api/utility/{u}/meters/{id}/tariff-switch`,
+  optional mit `?switch_date=YYYY-MM-DD`.
+
+- **Demo-Daten** enthalten ein vollständiges Wechselszenario: Kündigungsfrist
+  am laufenden Vertrag und je zwei gegenläufig gebaute Angebote für Gas und
+  Strom (niedriger Arbeitspreis bei hohem Grundpreis und umgekehrt), damit der
+  Break-even in der Demo sichtbar wird statt theoretisch zu bleiben.
+
+### Fixed
+
+- **Kündigungsfristen verfehlten den Stichtag um bis zu vier Wochen.** PHPs
+  `strtotime('2026-03-31 -1 month')` liefert **2026-03-03**: Der 31. Februar
+  existiert nicht, der Überlauf bleibt stehen. Die Monatsarithmetik klemmt den
+  Tag jetzt auf das Monatsende. Der Fehler entstand mit diesem Release und
+  wurde vor der Auslieferung gefunden — für einen Nutzer, der sich auf den
+  Stichtag verlässt, hätte er ein weiteres Vertragsjahr bedeutet.
+
+### Changed
+
+- **Der Rückblick bleibt, rückt aber nach unten** und ist eingeklappt.
+  Dieselben Tarife auf die tatsächlich gemessenen Monate gelegt — er ist der
+  Beleg, dass die Rechnung auf echten Daten aufgeht, aber nicht der Grund,
+  warum jemand die Ansicht öffnet.
+
+- **Vergleichsfenster sind zwölf Monate ab Wechseltermin**, saisonal gewichtet
+  statt in Zwölfteln. Ein Wechsel zum 1. Juli deckt damit trotzdem einen vollen
+  Winter ab.
+
+### Tests
+
+- `TariffSwitchServiceTest` (17 Fälle): Wechseltermin aus der Kündigungsfrist
+  inklusive Monatsüberlauf, saisonale Verteilung, Bonus nur im ersten Jahr,
+  Rangfolge nach dem dauerhaften Preis, Break-even gegen die analytische
+  Lösung, Preisgarantie-Markierung — und als Regression, dass Schattenverträge
+  weiterhin **nicht** in die Prognose selbst einfließen (v2.2.0-Fix).
+- `SwitchFieldsBackupTest` (2 Fälle): Die neuen Vertragsfelder überstehen einen
+  Backup-Roundtrip, und Backups von vor v2.3.0 lassen sich weiterhin
+  importieren. Anlass ist v2.1.2, wo eine hartkodierte Feldliste im
+  `BackupService` drei Datentöpfe lautlos verschluckt hat — ein verlorener
+  Kündigungstermin fällt erst auf, wenn die Frist verstrichen ist.
+- 164 → 183 Tests.
+
+---
+
 ## [2.2.3] — 2026-08-03 — Hotfix: Oberfläche blieb nach dem Update bei „Lädt…"
 
 PATCH-Release. Behebt einen Fehler, der bestehende Installationen nach dem

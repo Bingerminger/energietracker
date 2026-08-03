@@ -946,13 +946,13 @@
   "tariff": {
     "loading": "A carregar…",
     "title": "Comparação de tarifas",
-    "subtitle": "Quanto teria pago com outra tarifa? Contratos reais + contratos hipotéticos calculados sobre o seu consumo real.",
+    "subtitle": "Vale a pena mudar? O consumo previsto confrontado com ofertas concretas, com a retrospetiva de meses reais como prova.",
     "noUsable": "Nenhum serviço comparável ativo. A comparação de tarifas aplica-se aos tipos com contrato (gás, eletricidade, aquecimento urbano).",
     "utility": "Serviço",
     "meter": "Contador",
     "year": "Ano",
     "wholePeriod": "Todo o período",
-    "addShadow": "+ Contrato hipotético",
+    "addShadow": "+ Oferta",
     "loadingComparison": "A carregar a comparação…",
     "noMeter": "Não há contador disponível.",
     "notSupported": "Não suportado.",
@@ -997,7 +997,64 @@
       "deleted": "Contrato hipotético eliminado",
       "deleteTitle": "Eliminar o contrato hipotético?",
       "deleteMessage": "A hipótese será removida. Contratos reais e leituras ficam intactos.",
-      "deleteConfirm": "Eliminar"
+      "deleteConfirm": "Eliminar",
+      "signupBonus": "Bónus de adesão (€)",
+      "signupBonusPlaceholder": "p. ex. 130",
+      "signupBonusHint": "Pagamento único, conta apenas no primeiro ano.",
+      "priceGuarantee": "Preço garantido até",
+      "priceGuaranteeHint": "A partir daí o preço é uma suposição — tracejado no gráfico.",
+      "noticePeriod": "Pré-aviso (meses)",
+      "noticePeriodPlaceholder": "p. ex. 1",
+      "noticePeriodHint": "Serve para calcular datas caso esta tarifa venha a ser a vigente."
+    },
+    "switch": {
+      "heading": "Decisão de mudança",
+      "expectedConsumption": "Consumo anual previsto",
+      "expectedHint": "É este o valor a introduzir num comparador.",
+      "copy": "Copiar valor",
+      "copied": "{value} {unit} copiado",
+      "copyFail": "Não foi possível copiar",
+      "basis": "Com base em {months} meses de histórico de consumo",
+      "switchDate": "Mudança possível a partir de",
+      "source": {
+        "contract": "do contrato",
+        "override": "definido manualmente",
+        "default": "estimado"
+      },
+      "reset": "Repor",
+      "currentContract": "Atual: {label}",
+      "runsUntil": "vigora até {date}",
+      "cancelBy": "Rescindir até {date}",
+      "cancelIn": "faltam {days} dias",
+      "cancelPassed": "Prazo ultrapassado",
+      "noNotice": "Indique o pré-aviso no contrato e a data será calculada.",
+      "window": "Período de comparação {from} a {to} ({months} meses)",
+      "current": "Atual",
+      "reference": "Referência",
+      "col": {
+        "tariff": "Tarifa",
+        "year1": "1.º ano",
+        "year2": "A partir do 2.º",
+        "diff": "Diferença",
+        "breakEven": "Compensa a partir de"
+      },
+      "year1Title": "Custo do primeiro ano, com o bónus de adesão já descontado",
+      "year2Title": "Custo anual permanente sem bónus pontuais",
+      "breakEvenTitle": "Acima deste consumo anual a tarifa supera a atual",
+      "breakEvenDelta": "{pct} % do consumo previsto",
+      "breakEvenNone": "Sem ponto de cruzamento — a tarifa é mais barata ou mais cara com qualquer consumo",
+      "bonusIncluded": "incl. {value} de bónus",
+      "guaranteeEnds": "A garantia de preço termina a {date}",
+      "sensitivity": "{low} … {high} com ±10 % de consumo",
+      "rankingHint": "Ordenado pelo custo permanente a partir do segundo ano — um bónus de adesão desaparece ao fim de doze meses.",
+      "chartTitle": "Evolução do custo no período de comparação",
+      "chartAlt": "Custo mensal por tarifa ao longo do período de comparação",
+      "noOffers": "Ainda não há nenhuma oferta guardada. Procure com {value} {unit} num comparador e introduza aqui o resultado.",
+      "addOffer": "Introduzir oferta"
+    },
+    "retro": {
+      "heading": "Retrospetiva de meses reais",
+      "intro": "As mesmas tarifas aplicadas ao consumo realmente medido — a prova de que as contas batem certo."
     }
   },
   "analysis": {
@@ -1180,7 +1237,8 @@
       "deliveryUnsupported": "{label} é facturado por entregas e não tem contratos de tarifa — aí a factura de entrega é a base de custos.",
       "noConsumption": "Ainda não há dados de consumo para este contador.",
       "noConsumptionInPeriod": "Não há dados de consumo no período seleccionado.",
-      "noContracts": "Nenhum contrato para comparar."
+      "noContracts": "Nenhum contrato para comparar.",
+      "noWorkingPrice": "Sem preço unitário registado — a tarifa não pode ser calculada."
     },
     "meter": {
       "multipleMeters": "Não são permitidos vários contadores para {utility}",
@@ -1238,7 +1296,13 @@
         "creditDate": "Data do crédito",
         "advanceDate": "Data de efeito do adiantamento",
         "newAdvanceAmount": "novo montante de adiantamento"
-      }
+      },
+      "noticeNotNumeric": "O pré-aviso tem de ser um número.",
+      "noticeOutOfRange": "O pré-aviso tem de estar entre 0 e 24 meses.",
+      "dateInvalid": "Data inválida em {field}: {value}",
+      "dateBeforeStart": "{field} não pode ser anterior ao início do contrato.",
+      "bonusNotNumeric": "O bónus de adesão tem de ser um número.",
+      "bonusNegative": "O bónus de adesão não pode ser negativo."
     },
     "delivery": {
       "notFound": "Entrega não encontrada: {id}",

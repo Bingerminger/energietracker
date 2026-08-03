@@ -946,13 +946,13 @@
   "tariff": {
     "loading": "Laden…",
     "title": "Tariefvergelijking",
-    "subtitle": "Wat had je betaald met een ander tarief? Echte contracten + hypothetische schaduwcontracten berekend op je werkelijke verbruik.",
+    "subtitle": "Loont overstappen? Het verwachte verbruik afgezet tegen concrete aanbiedingen — met de terugblik op echte maanden als bewijs.",
     "noUsable": "Geen vergelijkbare energieën actief. De tariefvergelijking geldt voor contractgebaseerde typen (gas, elektriciteit, stadsverwarming).",
     "utility": "Energie",
     "meter": "Meter",
     "year": "Jaar",
     "wholePeriod": "Hele periode",
-    "addShadow": "+ Schaduwcontract",
+    "addShadow": "+ Aanbod",
     "loadingComparison": "Vergelijking laden…",
     "noMeter": "Geen meter beschikbaar.",
     "notSupported": "Niet ondersteund.",
@@ -997,7 +997,64 @@
       "deleted": "Schaduwcontract verwijderd",
       "deleteTitle": "Schaduwcontract verwijderen?",
       "deleteMessage": "De hypothese wordt verwijderd. Echte contracten en meterstanden blijven ongemoeid.",
-      "deleteConfirm": "Verwijderen"
+      "deleteConfirm": "Verwijderen",
+      "signupBonus": "Welkomstbonus (€)",
+      "signupBonusPlaceholder": "bijv. 130",
+      "signupBonusHint": "Eenmalig, telt alleen in het eerste jaar.",
+      "priceGuarantee": "Prijs gegarandeerd tot",
+      "priceGuaranteeHint": "Daarna is de prijs een aanname — gestippeld in de grafiek.",
+      "noticePeriod": "Opzegtermijn (maanden)",
+      "noticePeriodPlaceholder": "bijv. 1",
+      "noticePeriodHint": "Voor de datumberekening als dit tarief later het lopende wordt."
+    },
+    "switch": {
+      "heading": "Overstapbeslissing",
+      "expectedConsumption": "Verwacht jaarverbruik",
+      "expectedHint": "Dit is het getal dat u op een vergelijkingssite invult.",
+      "copy": "Getal kopiëren",
+      "copied": "{value} {unit} gekopieerd",
+      "copyFail": "Kopiëren niet gelukt",
+      "basis": "Op basis van {months} maanden verbruiksgeschiedenis",
+      "switchDate": "Overstap mogelijk per",
+      "source": {
+        "contract": "uit contract",
+        "override": "zelf ingesteld",
+        "default": "geschat"
+      },
+      "reset": "Herstellen",
+      "currentContract": "Huidig: {label}",
+      "runsUntil": "loopt tot {date}",
+      "cancelBy": "Opzeggen vóór {date}",
+      "cancelIn": "nog {days} dagen",
+      "cancelPassed": "Termijn verstreken",
+      "noNotice": "Vul de opzegtermijn bij het contract in, dan wordt de datum berekend.",
+      "window": "Vergelijkingsperiode {from} tot {to} ({months} maanden)",
+      "current": "Huidig",
+      "reference": "Referentie",
+      "col": {
+        "tariff": "Tarief",
+        "year1": "1e jaar",
+        "year2": "Vanaf 2e jaar",
+        "diff": "Verschil",
+        "breakEven": "Loont vanaf"
+      },
+      "year1Title": "Kosten in het eerste jaar, welkomstbonus al afgetrokken",
+      "year2Title": "Blijvende jaarkosten zonder eenmalige bonussen",
+      "breakEvenTitle": "Boven dit jaarverbruik is het tarief goedkoper dan het huidige",
+      "breakEvenDelta": "{pct} % van het verwachte verbruik",
+      "breakEvenNone": "Geen omslagpunt — het tarief is bij elke hoeveelheid goedkoper of duurder",
+      "bonusIncluded": "incl. {value} bonus",
+      "guaranteeEnds": "Prijsgarantie loopt af op {date}",
+      "sensitivity": "{low} … {high} bij ±10 % verbruik",
+      "rankingHint": "Gerangschikt op de blijvende kosten vanaf het tweede jaar — een welkomstbonus vervalt na twaalf maanden.",
+      "chartTitle": "Kostenverloop in de vergelijkingsperiode",
+      "chartAlt": "Maandelijkse kosten per tarief over de vergelijkingsperiode",
+      "noOffers": "Nog geen aanbod opgeslagen. Zoek met {value} {unit} op een vergelijkingssite en vul het resultaat hier in.",
+      "addOffer": "Aanbod invoeren"
+    },
+    "retro": {
+      "heading": "Terugblik op echte maanden",
+      "intro": "Dezelfde tarieven toegepast op het werkelijk gemeten verbruik — het bewijs dat de rekensom klopt."
     }
   },
   "analysis": {
@@ -1180,7 +1237,8 @@
       "deliveryUnsupported": "{label} wordt per levering afgerekend en heeft geen tariefcontracten — daar is de leveringsfactuur de kostenbasis.",
       "noConsumption": "Nog geen verbruiksgegevens voor deze meter.",
       "noConsumptionInPeriod": "Geen verbruiksgegevens in de gekozen periode.",
-      "noContracts": "Geen contracten om te vergelijken."
+      "noContracts": "Geen contracten om te vergelijken.",
+      "noWorkingPrice": "Geen kale prijs vastgelegd — het tarief kan niet worden berekend."
     },
     "meter": {
       "multipleMeters": "Meerdere meters voor {utility} zijn niet toegestaan",
@@ -1238,7 +1296,13 @@
         "creditDate": "Creditdatum",
         "advanceDate": "Ingangsdatum voorschot",
         "newAdvanceAmount": "nieuw voorschotbedrag"
-      }
+      },
+      "noticeNotNumeric": "De opzegtermijn moet een getal zijn.",
+      "noticeOutOfRange": "De opzegtermijn moet tussen 0 en 24 maanden liggen.",
+      "dateInvalid": "Ongeldige datum in {field}: {value}",
+      "dateBeforeStart": "{field} mag niet vóór het begin van het contract liggen.",
+      "bonusNotNumeric": "De welkomstbonus moet een getal zijn.",
+      "bonusNegative": "De welkomstbonus mag niet negatief zijn."
     },
     "delivery": {
       "notFound": "Levering niet gevonden: {id}",

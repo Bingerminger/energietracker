@@ -26,7 +26,10 @@ in [Grundlagen & Methodik](00-overview.md).
 | **Saisonprofil** | Monatsmittel des Verbrauchs über die Historie. |
 | **Blend** | R²-gewichtete Mischung Regression × Saisonprofil in der Prognose. |
 | **Saldo** | Geleistete Abschläge − tatsächliche Kosten. |
-| **Schattenvertrag** | Hypothetischer Tarif für „Was hätte das gekostet?" — ohne Saldo/Prognose-Wirkung. |
+| **Schattenvertrag** | Ein Tarif, den man nicht hat: entweder ein Angebot vom Vergleichsportal (für die Wechselentscheidung) oder eine Hypothese über die Vergangenheit („Was hätte das gekostet?"). Wirkt **nur** im Tarifvergleich — nie auf Saldo, Prognose oder Vertragsstatus. |
+| **Wechseltermin** | v2.3.0: Der erste Tag, an dem ein neuer Tarif liefern könnte. Ergibt sich aus Vertragsende und Kündigungsfrist; davon zu unterscheiden ist der **Kündigungsstichtag**, bis zu dem die Kündigung raus muss. |
+| **Break-even-Verbrauch** | v2.3.0: Die Jahresmenge, ab der ein Angebot den laufenden Vertrag schlägt (Spalte „Lohnt ab"). Liegt sie weit vom erwarteten Verbrauch weg, trägt die Wechselentscheidung auch bei ungenauer Prognose. |
+| **Neukundenbonus** | v2.3.0: Einmalbetrag am Angebot (`signup_bonus_eur`), der nur im ersten Jahr zählt. Die Rangfolge richtet sich bewusst nach den Kosten **ab** dem zweiten Jahr. |
 | **Sonderzahlung** | F1003: Rück-/Nachzahlung oder zusätzliche Abschlagszahlung. Saldo = Kosten - Abschläge + (Σ Rückzahlung - Σ Nachzahlung - Σ Abschlagszahlung). "mit Auswirkung" setzt zusätzlich den künftigen Abschlag. Nur Gas/Strom/Fernwärme. |
 | **Zählerstand-Erfassung** | F1004 (v1.6.0): Zentraler View `#/zaehlerstaende` zur schnellen Vor-Ort-Erfassung aller kumulativen Zähler in einem Durchgang. Nur Gas/Strom/Wasser/Fernwärme — Heizöl/Pellets nutzen Lieferungen. |
 | **Effizienzklasse** | kWh/m²·a-Einordnung der Heizenergie (A+…H), seit v1.4.0 pro Quelle. |
