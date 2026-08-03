@@ -87,7 +87,11 @@ Bestandsdaten bleiben unverändert gültig (Schema bleibt 1.3.0).
   importieren. Anlass ist v2.1.2, wo eine hartkodierte Feldliste im
   `BackupService` drei Datentöpfe lautlos verschluckt hat — ein verlorener
   Kündigungstermin fällt erst auf, wenn die Frist verstrichen ist.
-- 164 → 183 Tests.
+- Der Browser-Render-Test der CI prüft die Ansicht jetzt mit sechs Zusicherungen
+  statt einer: Wechselblock gefüllt, Jahresverbrauch sichtbar und kopierbar,
+  Wechseltermin wählbar, Rückblick vorhanden und mit Zeilen. Er hing zuvor an
+  einem Element (`#t-result`), das es nach dem Umbau nicht mehr gibt.
+- 164 → 183 Tests (PHPUnit) plus 42 Browser-Render-Zusicherungen.
 
 ---
 

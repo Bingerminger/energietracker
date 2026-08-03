@@ -180,16 +180,31 @@ async function renderView(modPath, params = []) {
     t('reminders: Modal hat Speichern-Button', !!global.document.querySelector('#modal-root [data-act="save"]'));
   } catch (e) { t('reminders: render', false, e.message); }
 
-  // ── 3. Tarifvergleich ──
+  // ── 3. Tarifvergleich (v2.3.0: Wechselentscheidung + Rückblick) ──
   try {
     const { view } = await renderView(`${ROOT}/views/tariff.js`);
     const html = view.innerHTML;
     t('tariff: render ohne Exception', html.includes('Tarifvergleich'));
     t('tariff: Verbrauchsart-Selektor', !!view.querySelector('#t-util'));
-    // kurz warten, bis loadResult() das Ergebnis nachzieht
-    await new Promise(r => setTimeout(r, 400));
-    const res = view.querySelector('#t-result');
-    t('tariff: Ergebnisbereich gefüllt', res && res.innerHTML.length > 30 && !res.innerHTML.includes('Lade Vergleich'));
+    // kurz warten, bis loadAll() beide Blöcke nachzieht
+    await new Promise(r => setTimeout(r, 500));
+
+    const sw = view.querySelector('#t-switch');
+    t('tariff: Wechselblock gefüllt',
+      sw && sw.innerHTML.length > 30 && !sw.innerHTML.includes('Lade Vergleich'));
+
+    // Der erwartete Jahresverbrauch ist die Zahl, mit der der Nutzer zum
+    // Vergleichsportal geht — fehlt sie, ist der ganze Ablauf tot.
+    t('tariff: erwarteter Jahresverbrauch sichtbar',
+      !!view.querySelector('.switch-bignum strong'));
+    t('tariff: Verbrauch kopierbar', !!view.querySelector('#t-copy-consumption'));
+    t('tariff: Wechseltermin wählbar', !!view.querySelector('#t-switch-date'));
+
+    // Der Rückblick ist eingeklappt, muss aber existieren und Zeilen tragen.
+    const retro = view.querySelector('.retro-block');
+    t('tariff: Rückblick vorhanden', !!retro);
+    t('tariff: Rückblick trägt Zeilen',
+      !retro || retro.querySelectorAll('tbody tr').length > 0);
   } catch (e) { t('tariff: render', false, e.message); }
 
   // ── 4. Dashboard (Chart-Stub, Insight-Karten) ──
