@@ -6,6 +6,32 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.3.4] — 2026-08-03 — Release-Prozess entrümpelt
+
+PATCH-Release. Nur Dokumentation, kein Codeänderung.
+
+### Changed
+
+- **Der ZIP-Bau ist aus dem Release-Prozess entfallen** (DE und EN). Seit
+  v2.0.0 trägt kein Release mehr Anhänge; die Installation läuft über das
+  Container-Image von GHCR, `git clone` oder `git checkout` eines Tags. Die
+  Beschreibung stand seit v1.4.2 unverändert da und beschrieb einen Ablauf,
+  den es nicht mehr gab.
+
+- **Das CI-Gate steht jetzt ausdrücklich zwischen Push und Tag.** Bisher
+  zeigte die Anleitung `git push origin main --tags` — beides in einem
+  Schritt. Damit entsteht der Tag, bevor die Pipeline ihn bestätigt hat, und
+  er ist die Grundlage für Container-Image und GitHub-Release. Der Ablauf ist
+  jetzt in drei Schritte getrennt, mit dem Gate dazwischen.
+
+- **Der Smoke-Test läuft gegen eine Kopie der Demo-Daten** statt gegen ein
+  entpacktes Archiv — über `ET_DATA_DIR`, nie gegen das lokale `data/`, in dem
+  echte Nutzdaten liegen.
+
+Keine Auswirkung auf Anwendung, Daten oder Schema. 194 Tests unverändert.
+
+---
+
 ## [2.3.3] — 2026-08-03 — Beispieldaten in der Dokumentation
 
 PATCH-Release. Kein Codeänderung, keine Funktionsänderung.

@@ -81,10 +81,10 @@ Beispiele aus der Historie:
    PHP-Syntax-Lint automatisch in der CI (`.github/workflows/ci.yml`)
    — der grüne CI-Lauf ist Voraussetzung fürs Taggen. Bei
    Datenmodell-Änderung Demo-Daten und Schemata mitziehen.
-7. **Frischer Smoke aus der gepackten ZIP**: entpacken, Migration,
-   Server, Kern-Endpunkte + die geänderten Pfade prüfen.
-8. **ZIP bauen** (Ausschluss: `.git`, `*.pyc`, `__pycache__`,
-   `.DS_Store`, Laufzeit-`data/*.json`, `data/backups/*`).
+7. **Frischer Smoke gegen einen sauberen Datenstand**: Server mit
+   `ET_DATA_DIR` auf eine Kopie von `demo-data/` starten, Migration prüfen,
+   Kern-Endpunkte und die geänderten Pfade abfragen. Nie gegen das lokale
+   `data/` — dort liegen echte Nutzdaten.
 
 ---
 
@@ -108,14 +108,34 @@ es explizit anstößt — keine ungefragten „Best-Practice-Refactorings".
 
 ## 4. Git-Veröffentlichung
 
-Der Nutzer übernimmt den ZIP-Inhalt ins lokale Repo und veröffentlicht:
+**Zwischen Push und Tag liegt das CI-Gate** — nicht beides in einem Schritt:
 
 ```bash
+# 1. Commit und Push, noch OHNE Tag
 git add -A
 git commit -m "vX.Y.Z — <Kurzbeschreibung>"
-git tag -a vX.Y.Z -m "vX.Y.Z"
-git push origin main --tags
+git push origin main
+
+# 2. Auf die CI warten. Erst bei grün weiter.
+#    (Jobs: test, lint-php, phpunit, docker)
+
+# 3. Tag setzen und pushen → löst den GHCR-Publish aus
+git tag -a vX.Y.Z -m "vX.Y.Z — …"
+git push origin vX.Y.Z
 ```
+
+Ein Tag ist die Grundlage für Container-Image und GitHub-Release. Er darf erst
+entstehen, wenn die Pipeline grün ist. `git push origin main --tags` schiebt
+ihn hinaus, bevor die CI ihn bestätigt hat.
+
+Danach das **GitHub-Release** erstellen (`gh release create vX.Y.Z
+--verify-tag --latest`). Es ist die Freigabemarke: Veröffentlicht wird, was
+abgenommen ist.
+
+> Bis v2.3.3 stand hier ein ZIP-basierter Ablauf. Seit v2.0.0 trägt kein
+> Release mehr Anhänge — die Installation läuft über das Container-Image von
+> GHCR, `git clone` oder `git checkout` eines Tags. Der Abschnitt ist mit
+> v2.3.4 entfallen.
 
 ---
 

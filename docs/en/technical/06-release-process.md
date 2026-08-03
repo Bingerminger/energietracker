@@ -73,10 +73,10 @@ Examples from the history:
    pre-check). Since v1.4.4 both plus a PHP syntax lint run automatically in the CI
    (`.github/workflows/ci.yml`) — the green CI run is a prerequisite for tagging. On
    a data-model change, pull the demo data and schemas along.
-7. **A fresh smoke from the packed ZIP**: unpack, migration, server, check the core
-   endpoints + the changed paths.
-8. **Build the ZIP** (exclude: `.git`, `*.pyc`, `__pycache__`, `.DS_Store`, runtime
-   `data/*.json`, `data/backups/*`).
+7. **A fresh smoke against a clean data set**: start the server with
+   `ET_DATA_DIR` pointing at a copy of `demo-data/`, check the migration, then
+   query the core endpoints and the changed paths. Never against the local
+   `data/` — that holds real user data.
 
 ---
 
@@ -100,14 +100,34 @@ prompts it — no unsolicited "best-practice refactorings".
 
 ## 4. Git publication
 
-The user takes the ZIP contents into the local repo and publishes:
+**The CI gate sits between push and tag** — not both in one step:
 
 ```bash
+# 1. Commit and push, still WITHOUT the tag
 git add -A
 git commit -m "vX.Y.Z — <short description>"
-git tag -a vX.Y.Z -m "vX.Y.Z"
-git push origin main --tags
+git push origin main
+
+# 2. Wait for CI. Only proceed on green.
+#    (jobs: test, lint-php, phpunit, docker)
+
+# 3. Set and push the tag → triggers the GHCR publish
+git tag -a vX.Y.Z -m "vX.Y.Z — …"
+git push origin vX.Y.Z
 ```
+
+A tag is the basis for the container image and the GitHub release. It must not
+exist before the pipeline is green. `git push origin main --tags` pushes it out
+before CI has confirmed it.
+
+Then create the **GitHub release** (`gh release create vX.Y.Z --verify-tag
+--latest`). It is the approval marker: what gets published is what has been
+accepted.
+
+> Up to v2.3.3 a ZIP-based procedure was described here. Since v2.0.0 no
+> release carries attachments — installation runs via the container image from
+> GHCR, `git clone`, or `git checkout` of a tag. The section was dropped in
+> v2.3.4.
 
 ---
 
