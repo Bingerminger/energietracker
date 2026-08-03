@@ -292,6 +292,22 @@ git push origin main --tags
   Meaning belongs in the type (here `Http\NotFoundException`), text only in the
   display. When introducing i18n, deliberately search for `str_contains`,
   `match` and `switch` over message texts.
+- **Demo data is part of the feature (v2.2.2).** Neither
+  `demo-data/reminders.json` nor the demo backup carried any appointments —
+  anyone loading the demo saw an empty module and might well have thought it
+  broken. Exactly the same class as the missing heating oil and pellet
+  deliveries in v2.1.2: the backup carries a fixed field list, and a new data
+  bucket has to be carried along there. Lesson: a new data module is only done
+  once the demo data shows it — via **both** routes (copying the directory and
+  "load demo") with the same content. The test
+  `DemoServiceTest::testDemoDirectoryAndBackupCarryTheSameReminders` keeps the
+  two in step from now on.
+- **A PDF is testable (v2.2.2).** `PdfReportService` stayed untested for a long
+  time because "you can't really check a PDF". But `PdfWriter` writes
+  uncompressed: `preg_match_all('/\((.*?)\) Tj/s', $pdf)` yields the printed
+  text fragments, so the figures can be compared directly. Comparing file size,
+  by contrast, is useless — an extra meter adds its own page and shifts the
+  length without any total being wrong.
 - **Screenshots go stale silently (v2.2.1).** The UI reference still showed
   images from v1.9.2 — including the tariff comparison with exactly the
   miscalculation v2.2.0 fixed. No test fires when a picture is old. Lesson: a

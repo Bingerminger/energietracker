@@ -6,7 +6,42 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
-## [2.2.1] — 2026-08-03 — Mehrsprachigkeit vollständig, aktuelle Screenshots
+## [2.2.2] — 2026-08-03 — Demo-Termine, vollständige Testabdeckung
+
+PATCH-Release. Die Demo-Daten zeigen jetzt auch das Termin-Modul, und die
+letzten beiden Dienste ohne Test haben einen bekommen. Keine Schema- oder
+API-Änderung.
+
+### Fixed
+
+- **Die Demo-Daten brachten keine Termine mit.** Weder
+  `demo-data/reminders.json` noch das Demo-Backup führten Einträge, sodass die
+  Termin-Ansicht nach „Demo laden" leer blieb — obwohl die Anwendung das Modul
+  mitbringt. Dieselbe Klasse wie die fehlenden Heizöl- und Pellets-Lieferungen
+  in v2.1.2: Das Backup trägt eine feste Feldliste, und ein neuer Datentopf
+  muss dort mitgezogen werden. Jetzt sechs Termine über fünf Kategorien, mit
+  überfälligem, fälligem und ruhendem Eintrag, damit die Statusfarben sichtbar
+  werden.
+
+### Added
+
+- **`MigrationServiceTest`** (10 Fälle) — der v0.9.0-Migrationspfad war der
+  einzige Weg, über den fremde Bestandsdaten hereinkommen, und hatte keinen
+  Test. Geprüft: Formaterkennung samt Ablehnung unbekannter Versionen,
+  Übersetzung ins aktuelle Schema, die Zählerwechsel-Heuristik (nur explizite
+  Hinweise werden Kandidat, `is_notable` allein nicht), beide Schreibmodi und
+  die Sicherheitskopie vor jedem Schreiben.
+- **`PdfReportServiceTest`** (5 Fälle) — inklusive der Subzähler-Regel aus
+  v2.1.3, die im Bericht bisher nur „analog" abgedeckt war. Die Prüfung liest
+  die gedruckten Zahlen direkt aus dem Dokument: Ohne den Ausschluss stehen dort
+  1.680 statt 1.200 kWh. Dazu: gültiges Dokument, leerer Jahrgang ohne Fehler,
+  Aufbau in allen sieben Sprachen ohne unaufgelöste Katalogschlüssel und das
+  Weglassen abgeschalteter Verbrauchsarten.
+- **`DemoServiceTest`** um drei Fälle erweitert: Termine kommen aus dem Backup,
+  decken mehrere Kategorien und Zustände ab, und Verzeichnis- wie Backup-Pfad
+  führen dieselben Einträge — die beiden Wege liefen bisher auseinander.
+
+**Damit haben alle 29 Dienste einen Test.** PHPUnit 143 → 161 (721 Assertions).
 
 PATCH-Release. Der Rest der Backend-Texte ist katalogisiert, ein sprachabhängiger
 Fehler im HTTP-Status behoben, und die UI-Referenz zeigt wieder den echten Stand.

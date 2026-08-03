@@ -107,4 +107,73 @@ final class DemoServiceTest extends TestCase
         $this->assertCount(3, $oil, 'Heizöl-Lieferungen müssen aus dem Demo-Backup kommen');
         $this->assertCount(3, $pellets, 'Pellets-Lieferungen müssen aus dem Demo-Backup kommen');
     }
+
+    /**
+     * v2.2.2 — Dieselbe Klasse wie die Lieferungen ein Release zuvor: Das
+     * Demo-Backup trägt eine feste Feldliste, und `reminders` fehlte darin.
+     * Wer die Demo-Daten über den Knopf in den Einstellungen lud, bekam eine
+     * leere Termin-Ansicht, obwohl die Anwendung das Modul mitbringt.
+     */
+    public function testImportRestoresReminders(): void
+    {
+        $svc = $this->service();
+        $svc->import();
+
+        $reminders = $this->store->read('reminders.json', []);
+        $this->assertNotEmpty($reminders,
+            'Das Demo-Backup muss Termine mitbringen — sonst ist die Ansicht nach dem Demo-Import leer');
+
+        foreach ($reminders as $r) {
+            foreach (['id', 'title', 'category', 'next_due', 'recurrence'] as $field) {
+                $this->assertArrayHasKey($field, $r, "Terminfeld $field fehlt");
+            }
+            $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2}$/', (string)$r['next_due'],
+                'next_due muss ein ISO-Datum sein');
+            $this->assertContains($r['recurrence'],
+                ['none', 'yearly', 'semi-yearly', 'custom-months'],
+                'Unbekannte Wiederholung: ' . $r['recurrence']);
+        }
+    }
+
+    /**
+     * Die Demo soll die Bandbreite zeigen, nicht nur einen Fall: mehrere
+     * Kategorien und mindestens ein Termin, der bereits fällig ist.
+     */
+    public function testDemoRemindersCoverSeveralCategoriesAndStates(): void
+    {
+        $svc = $this->service();
+        $svc->import();
+        $reminders = $this->store->read('reminders.json', []);
+
+        $categories = array_unique(array_column($reminders, 'category'));
+        $this->assertGreaterThanOrEqual(3, count($categories),
+            'Die Demo sollte mehrere Terminarten zeigen');
+
+        $due = array_filter($reminders, fn($r) => (string)$r['next_due'] <= date('Y-m-d'));
+        $this->assertNotEmpty($due,
+            'Mindestens ein Demo-Termin sollte fällig sein, damit die Statusfarben sichtbar werden');
+    }
+
+    /**
+     * Datei-Pfad und Backup-Pfad müssen dieselben Termine liefern. Beide Wege
+     * existieren (Verzeichnis kopieren bzw. „Demo laden") und liefen bisher
+     * auseinander.
+     */
+    public function testDemoDirectoryAndBackupCarryTheSameReminders(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $fromFile = json_decode(
+            (string)file_get_contents("$root/demo-data/reminders.json"), true);
+        $backup = json_decode(
+            (string)file_get_contents("$root/demo-data/energietracker-demo-backup.json"), true);
+
+        $this->assertIsArray($fromFile);
+        $this->assertArrayHasKey('reminders', $backup,
+            'Das Demo-Backup braucht ein reminders-Feld');
+        $this->assertSame(
+            array_column($fromFile, 'id'),
+            array_column($backup['reminders'], 'id'),
+            'demo-data/reminders.json und das Demo-Backup müssen dieselben Termine führen'
+        );
+    }
 }

@@ -1,1 +1,68 @@
-[]
+[
+    {
+        "id": "rem_demo0001",
+        "title": "Heizungswartung",
+        "category": "heizung_wartung",
+        "next_due": "2026-07-22",
+        "recurrence": "yearly",
+        "recurrence_months": null,
+        "last_done": "2025-07-22",
+        "notes": "Jahreswartung durch den Installateur",
+        "active": true
+    },
+    {
+        "id": "rem_demo0002",
+        "title": "Nächste Heizöl-Lieferung planen",
+        "category": "lieferung_planen",
+        "next_due": "2026-08-10",
+        "recurrence": "none",
+        "recurrence_months": null,
+        "last_done": null,
+        "notes": "Tank unter 50 % — Angebote einholen",
+        "active": true
+    },
+    {
+        "id": "rem_demo0003",
+        "title": "Schornsteinfeger",
+        "category": "schornsteinfeger",
+        "next_due": "2026-09-15",
+        "recurrence": "semi-yearly",
+        "recurrence_months": null,
+        "last_done": "2026-03-15",
+        "notes": "Kehrung und Abgasmessung",
+        "active": true
+    },
+    {
+        "id": "rem_demo0004",
+        "title": "Dichtheitsprüfung Heizöltank",
+        "category": "dichtheitspruefung",
+        "next_due": "2027-04-30",
+        "recurrence": "custom-months",
+        "recurrence_months": 48,
+        "last_done": "2023-04-30",
+        "notes": "Sachkundiger Prüfer, Nachweis aufbewahren",
+        "active": true
+    },
+    {
+        "id": "rem_demo0005",
+        "title": "Eichung Wasserzähler",
+        "category": "wasserzaehler_eichung",
+        "next_due": "2029-12-31",
+        "recurrence": "custom-months",
+        "recurrence_months": 72,
+        "last_done": "2023-12-31",
+        "notes": "Eichfrist nach MessEV — Austausch durch den Versorger",
+        "active": true
+    },
+    {
+        "id": "rem_demo0006",
+        "title": "Eichung Gaszähler",
+        "category": "gaszaehler_eichung",
+        "next_due": "2031-05-31",
+        "recurrence": "custom-months",
+        "recurrence_months": 96,
+        "last_done": "2023-05-31",
+        "notes": "Eichfrist nach MessEV",
+        "active": true
+    }
+]

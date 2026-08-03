@@ -322,6 +322,22 @@ git push origin main --tags
   Bedeutung gehört in den Typ (hier `Http\NotFoundException`), Text nur in die
   Anzeige. Beim Einführen von i18n gezielt nach `str_contains`, `match` und
   `switch` über Meldungstexte suchen.
+- **Demo-Daten sind Teil des Features (v2.2.2).** Weder `demo-data/reminders.json`
+  noch das Demo-Backup führten Termine — wer die Demo lud, sah ein leeres Modul
+  und hielt es womöglich für kaputt. Exakt dieselbe Klasse wie die fehlenden
+  Heizöl-/Pellets-Lieferungen in v2.1.2: Das Backup trägt eine feste Feldliste,
+  und ein neuer Datentopf muss dort mitgezogen werden. Lehre: Ein neues
+  Datenmodul ist erst fertig, wenn die Demo-Daten es zeigen — **beide** Wege
+  (Verzeichnis kopieren und „Demo laden") mit demselben Inhalt. Der Test
+  `DemoServiceTest::testDemoDirectoryAndBackupCarryTheSameReminders` hält die
+  beiden Wege künftig zusammen.
+- **Ein PDF ist prüfbar (v2.2.2).** `PdfReportService` blieb lange ungetestet,
+  weil „ein PDF kann man schlecht prüfen". Der `PdfWriter` schreibt jedoch
+  unkomprimiert: `preg_match_all('/\((.*?)\) Tj/s', $pdf)` liefert die
+  gedruckten Textfragmente, und damit lassen sich die Kennzahlen direkt
+  vergleichen. Ein Vergleich der Dateigröße taugt dagegen nicht — ein zusätzlicher
+  Zähler fügt eine eigene Seite hinzu und verschiebt die Länge, ohne dass eine
+  Summe falsch wäre.
 - **Screenshots veralten lautlos (v2.2.1).** Die UI-Referenz zeigte Bilder aus
   v1.9.2 — darunter den Tarifvergleich mit genau dem Rechenfehler, den v2.2.0
   behoben hat. Kein Test schlägt an, wenn ein Bild alt ist. Lehre: Bei einer
