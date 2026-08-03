@@ -365,6 +365,14 @@
     "verdict": { "surcharge": "Surcharge", "refund": "Refund", "payout": "Payout", "reclaim": "Reclaim", "balanced": "Balanced" }
   },
   "contracts": {
+    "priceGroup": {
+      "working": "Unit price",
+      "base": "Standing charge",
+      "advance": "Advance payment",
+      "twWorking": "Fresh water unit price",
+      "twBase": "Fresh water standing charge",
+      "swWorking": "Waste water unit price"
+    },
     "unit": {
       "ctPerKwh": "ct/kWh",
       "eurPerMonth": "€/month"
@@ -1122,10 +1130,32 @@
     "meterPageTitle": "{label} {year} — {meter}"
   },
   "migration": {
+    "warnNoSettings": "No settings found in the backup — the defaults apply.",
+    "warnNoWater": "Version 0.9.0 had no water — the water section is created empty.",
+    "swapKeywordFound": "Keyword found in the comment",
     "meterNote": "Created by the v0.9.0 migration",
     "meterNoteWater": "Created by the v0.9.0 migration (v0.9.0 had no water)."
   },
+  "csv": {
+    "month": "Month",
+    "days": "Days",
+    "consumption": "Consumption ({unit})",
+    "cost": "Cost (EUR)",
+    "advance": "Advance payment (EUR)",
+    "monthBalance": "Monthly balance (EUR)",
+    "balanceCumulative": "Cumulative balance (EUR)",
+    "avgTemp": "Avg temp (°C)",
+    "hdd": "HDD",
+    "co2": "CO2 (kg)"
+  },
+  "auth": {
+    "tokenOnce": "Copy this token now — it will not be shown again."
+  },
   "errors": {
+    "temperature": {
+      "emptyCsv": "The CSV data is empty.",
+      "dateMissing": "The date is missing."
+    },
     "view": {
       "loadFailed": "Failed to load: {msg}",
       "unknownRoute": "Unknown route: {hash}",
@@ -1227,7 +1257,8 @@
       "valueMissing": "Reading (value) is missing or not a number",
       "dateFormat": "Date must be in format YYYY-MM-DD: {date}",
       "meterMissing": "Meter (meter) is missing — provide alias or internal ID",
-      "meterNotFound": "No meter found for „{meter}“ in {utility} (neither as alias nor as ID)"
+      "meterNotFound": "No meter found for „{meter}“ in {utility} (neither as alias nor as ID)",
+      "unauthorized": "Unauthorised — send a valid API token as “Authorization: Bearer <token>”."
     },
     "backup": {
       "noVersionField": "No backup_version field — not a valid backup",
@@ -1235,7 +1266,10 @@
       "schemaNewer": "Backup schema {schema} is newer than the app schema {appSchema}. Please update the app first, then import the backup."
     },
     "import": {
-      "emptyCsv": "Empty CSV data"
+      "emptyCsv": "Empty CSV data",
+      "dateUnrecognized": "Line {line}: date not recognised ({value})",
+      "rowIncomplete": "Line {line}: date or reading missing",
+      "counterNotNumeric": "Line {line}: reading is not a number ({value})"
     },
     "demo": {
       "backupNotFound": "Demo backup not found.",
@@ -1245,7 +1279,9 @@
     "migration": {
       "noVersionField": "No \"version\" field in the backup — probably not a v0.9.0 backup. Expected are v0.9.0 backups with version \"2.1\" or older.",
       "versionUnrecognized": "Backup version \"{ver}\" is not recognised. Supported are v0.9.0 backup formats: {supported}. For native v1.0.3 backups (backup_version 3.0+) please use the standard import in Settings → Backup & Restore.",
-      "invalidMode": "Invalid mode: {mode} (allowed: replace, merge)"
+      "invalidMode": "Invalid mode: {mode} (allowed: replace, merge)",
+      "backupMissing": "The “backup” field is missing or not an object.",
+      "translatedMissing": "The “translated” field is missing or not an object."
     },
     "csv": {
       "notDeliveryBased": "Utility „{utility}“ is not delivery-based; use the readings export."

@@ -80,14 +80,16 @@ final class ReadingImportService
             $iso = $this->parseDate(trim((string)($parts[0] ?? '')));
             if ($iso === null) {
                 $skipped++;
-                $errors[] = 'Zeile ' . ($lineNo + 1) . ': Datum nicht erkannt (' . trim((string)$parts[0]) . ')';
+                $errors[] = $this->i18n->t('errors.import.dateUnrecognized',
+                    ['line' => $lineNo + 1, 'value' => trim((string)$parts[0])]);
                 continue;
             }
 
             $counter = $this->parseNum(trim((string)($parts[1] ?? '')));
             if ($counter === null) {
                 $skipped++;
-                $errors[] = 'Zeile ' . ($lineNo + 1) . ': Zählerstand nicht numerisch (' . trim((string)$parts[1]) . ')';
+                $errors[] = $this->i18n->t('errors.import.counterNotNumeric',
+                    ['line' => $lineNo + 1, 'value' => trim((string)$parts[1])]);
                 continue;
             }
 
@@ -140,7 +142,7 @@ final class ReadingImportService
             $date = (string)($row['date'] ?? '');
             if ($date === '' || !array_key_exists('counter', $row)) {
                 $skipped++;
-                $errors[] = 'Zeile ' . ($i + 1) . ': Datum oder Zählerstand fehlt';
+                $errors[] = $this->i18n->t('errors.import.rowIncomplete', ['line' => $i + 1]);
                 continue;
             }
             $payload = [

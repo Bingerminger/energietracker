@@ -365,6 +365,14 @@
     "verdict": { "surcharge": "Nachzahlung", "refund": "Erstattung", "payout": "Auszahlung", "reclaim": "Rückforderung", "balanced": "Ausgeglichen" }
   },
   "contracts": {
+    "priceGroup": {
+      "working": "Arbeitspreis",
+      "base": "Grundpreis",
+      "advance": "Abschlag",
+      "twWorking": "Trinkwasser-Arbeitspreis",
+      "twBase": "Trinkwasser-Grundpreis",
+      "swWorking": "Schmutzwasser-Arbeitspreis"
+    },
     "unit": {
       "ctPerKwh": "ct/kWh",
       "eurPerMonth": "€/Monat"
@@ -1122,10 +1130,32 @@
     "meterPageTitle": "{label} {year} — {meter}"
   },
   "migration": {
+    "warnNoSettings": "Keine Einstellungen im Backup gefunden — es gelten die Standardwerte.",
+    "warnNoWater": "Version 0.9.0 kannte kein Wasser — der Wasserbereich wird leer angelegt.",
+    "swapKeywordFound": "Schlüsselwort im Kommentar erkannt",
     "meterNote": "Aus v0.9.0-Migration angelegt",
     "meterNoteWater": "Aus v0.9.0-Migration angelegt (v0.9.0 kannte kein Wasser)."
   },
+  "csv": {
+    "month": "Monat",
+    "days": "Tage",
+    "consumption": "Verbrauch ({unit})",
+    "cost": "Kosten (EUR)",
+    "advance": "Abschlag (EUR)",
+    "monthBalance": "Monatssaldo (EUR)",
+    "balanceCumulative": "Saldo kumuliert (EUR)",
+    "avgTemp": "Ø Temp (°C)",
+    "hdd": "HGT",
+    "co2": "CO2 (kg)"
+  },
+  "auth": {
+    "tokenOnce": "Diesen Token jetzt kopieren — er wird nicht erneut angezeigt."
+  },
   "errors": {
+    "temperature": {
+      "emptyCsv": "Die CSV-Daten sind leer.",
+      "dateMissing": "Das Datum fehlt."
+    },
     "view": {
       "loadFailed": "Fehler beim Laden: {msg}",
       "unknownRoute": "Unbekannte Route: {hash}",
@@ -1227,7 +1257,8 @@
       "valueMissing": "Zählerstand (value) fehlt oder ist keine Zahl",
       "dateFormat": "Datum muss im Format YYYY-MM-DD vorliegen: {date}",
       "meterMissing": "Zähler (meter) fehlt — Alias oder interne ID angeben",
-      "meterNotFound": "Kein Zähler für „{meter}“ in {utility} gefunden (weder als Alias noch als ID)"
+      "meterNotFound": "Kein Zähler für „{meter}“ in {utility} gefunden (weder als Alias noch als ID)",
+      "unauthorized": "Nicht autorisiert — einen gültigen API-Token als „Authorization: Bearer <token>“ senden."
     },
     "backup": {
       "noVersionField": "Kein backup_version-Feld — kein gültiges Backup",
@@ -1235,7 +1266,10 @@
       "schemaNewer": "Backup-Schema {schema} ist neuer als die App-Schema {appSchema}. Bitte erst die App aktualisieren, dann das Backup einspielen."
     },
     "import": {
-      "emptyCsv": "Leere CSV-Daten"
+      "emptyCsv": "Leere CSV-Daten",
+      "dateUnrecognized": "Zeile {line}: Datum nicht erkannt ({value})",
+      "rowIncomplete": "Zeile {line}: Datum oder Zählerstand fehlt",
+      "counterNotNumeric": "Zeile {line}: Zählerstand ist keine Zahl ({value})"
     },
     "demo": {
       "backupNotFound": "Demo-Backup nicht gefunden.",
@@ -1245,7 +1279,9 @@
     "migration": {
       "noVersionField": "Kein \"version\"-Feld im Backup — vermutlich kein v0.9.0-Backup. Erwartet werden v0.9.0-Backups mit version \"2.1\" oder älter.",
       "versionUnrecognized": "Backup-Version \"{ver}\" wird nicht erkannt. Unterstützt werden v0.9.0-Backup-Formate: {supported}. Für native v1.0.3-Backups (backup_version 3.0+) bitte den Standard-Import in Einstellungen → Backup & Restore nutzen.",
-      "invalidMode": "Ungültiger Modus: {mode} (erlaubt: replace, merge)"
+      "invalidMode": "Ungültiger Modus: {mode} (erlaubt: replace, merge)",
+      "backupMissing": "Das Feld „backup“ fehlt oder ist kein Objekt.",
+      "translatedMissing": "Das Feld „translated“ fehlt oder ist kein Objekt."
     },
     "csv": {
       "notDeliveryBased": "Verbrauchsart „{utility}“ ist nicht lieferungs-basiert; nutze den Ablesungs-Export."

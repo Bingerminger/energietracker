@@ -6,6 +6,59 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.2.1] — 2026-08-03 — Mehrsprachigkeit vollständig, aktuelle Screenshots
+
+PATCH-Release. Der Rest der Backend-Texte ist katalogisiert, ein sprachabhängiger
+Fehler im HTTP-Status behoben, und die UI-Referenz zeigt wieder den echten Stand.
+Keine Schema- oder API-Änderung.
+
+### Fixed
+
+- **Der HTTP-Status hing an der Anzeigesprache.** `ErrorHandler::statusFor()`
+  leitete „nicht gefunden" aus dem Wortlaut der Ausnahme ab
+  (`str_contains($msg, 'nicht gefunden')` bzw. `'not found'`). Seit v2.0.0
+  werfen die Dienste lokalisiert — eine spanische Oberfläche meldet „Contador no
+  encontrado", eine französische „Compteur introuvable". Beide Muster griffen
+  nicht, und der Client bekam **500 statt 404**: ein fehlender Datensatz sah aus
+  wie ein Serverfehler. Jetzt entscheidet der Typ (`Http\NotFoundException`);
+  die Textprüfung bleibt als Rückfall.
+
+### Added
+
+- **Die restlichen nutzersichtbaren Backend-Texte sind katalogisiert.** Alle acht
+  Controller haben jetzt Zugriff auf den Übersetzungsdienst: Zähler- und
+  Vertragsmeldungen, der Hinweis nach dem Erzeugen eines API-Tokens, die
+  Rückmeldungen der v0.9.0-Migration, die Temperatur- und CSV-Importfehler sowie
+  die Kopfzeilen des Monatsexports folgen der eingestellten Sprache. Auch die
+  Bezeichner in den Vertragsprüfungen („Arbeitspreis", „Trinkwasser-Grundpreis" …)
+  erschienen bisher deutsch in einer sonst übersetzten Fehlermeldung.
+- `NotFoundStatusTest` hält fest, dass der Typ auch in einer Sprache greift,
+  deren Wortlaut weder dem deutschen noch dem englischen Muster entspricht.
+
+### Changed
+
+- **Alle 13 Screenshots der UI-Referenz neu aufgenommen.** Die bisherigen
+  stammten aus v1.9.2 und zeigten unter anderem den Tarifvergleich mit dem
+  Rechenfehler, den v2.2.0 behoben hat (viermal derselbe Verbrauch bei völlig
+  verschiedenen Kosten). Die neuen zeigen den aktuellen Stand samt der
+  Verbrauchsart-Farben für alle acht Arten. Trotz größerem Bildausschnitt sind
+  sie mit 824 KB kleiner als die alten 3,4 MB.
+
+### Bewusst nicht übersetzt
+
+Vier Bereiche bleiben deutsch, jeweils aus einem Grund:
+
+- `JsonStore` (Speicherfehler) — eine Übersetzung erzeugte eine
+  Zirkelabhängigkeit: JsonStore → I18n → Settings → JsonStore.
+- `Storage\Migrator` (Migrationsprotokoll in `meta.json`) — Betriebsdokumentation,
+  die einmal geschrieben und nie neu übersetzt wird.
+- `Router` (unbekannte Route) — läuft vor der Anwendungsschicht und richtet sich
+  an Entwickler; jetzt englisch statt deutsch.
+- Ausnahmen, die Programmierfehler melden (`DeliveryConsumptionService`,
+  `Utilities::get()`) — sie erreichen nie eine Oberfläche.
+
+---
+
 ## [2.2.0] — 2026-08-03 — Tarifvergleich neu, Farben aus der SSOT, eigene Assets
 
 MINOR-Release aus einem vollständigen Review von Code, Oberfläche, Sprachen,

@@ -11,6 +11,7 @@ use Energietracker\Services\MeterService;
 use Energietracker\Services\RegressionService;
 use Energietracker\Services\SettingsService;
 use Energietracker\Config\Utilities;
+use Energietracker\Services\I18nService;
 
 /**
  * Verbrauchs-Endpoints. Drei Granularitäten:
@@ -26,6 +27,7 @@ final class ConsumptionController
         private MeterService $meters,
         private RegressionService $regression,
         private SettingsService $settings,
+        private I18nService $i18n,
     ) {}
 
     /** GET /api/utility/{utility}/consumption — all meters + totals */
@@ -45,7 +47,7 @@ final class ConsumptionController
         $utility = $req->param('utility');
         $hddBase = $req->queryParam('hdd_base');
         $meter = $this->meters->get($utility, $meterId);
-        if (!$meter) Response::error('Zähler nicht gefunden', 404);
+        if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
         $monthly = $this->consumption->forMeter($utility, $meter, $hddBase !== null ? (float)$hddBase : null);
 
         // For HGT-relevant utilities, fit all four regression models so the
@@ -78,7 +80,7 @@ final class ConsumptionController
         $meterId = $req->param('id');
         $utility = $req->param('utility');
         $meter = $this->meters->get($utility, $meterId);
-        if (!$meter) Response::error('Zähler nicht gefunden', 404);
+        if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
         Response::json($this->consumption->contractStatus($utility, $meter));
     }
 }

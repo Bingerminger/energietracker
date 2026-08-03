@@ -57,6 +57,9 @@ final class Router
         }
         // OPTIONS preflight
         if ($req->method === 'OPTIONS') exit;
-        Response::error('Route nicht gefunden: ' . $req->method . ' ' . $req->path, 404);
+        // Kein I18nService: Der Router läuft vor der Anwendungsschicht und
+        // soll auch dann antworten können, wenn der Container nicht steht.
+        // Diese Meldung richtet sich an Entwickler, nicht an Nutzer.
+        Response::error('Route not found: ' . $req->method . ' ' . $req->path, 404);
     }
 }

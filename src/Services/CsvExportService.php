@@ -43,10 +43,19 @@ final class CsvExportService
         $valueField = $unit === 'kWh' ? 'kwh' : 'm3';
 
         $data = $this->consumption->forUtility($utility);
+        // v2.2.1 — Kopfzeilen lokalisiert; der Export folgt jetzt der
+        // eingestellten Sprache statt immer deutsch zu sein.
         $rows = [[
-            'Monat', 'Tage', 'Verbrauch (' . $unit . ')', 'Kosten (EUR)',
-            'Abschlag (EUR)', 'Monatssaldo (EUR)', 'Saldo kumuliert (EUR)',
-            'oe Temp (C)', 'HGT', 'CO2 (kg)',
+            $this->i18n->t('csv.month'),
+            $this->i18n->t('csv.days'),
+            $this->i18n->t('csv.consumption', ['unit' => $unit]),
+            $this->i18n->t('csv.cost'),
+            $this->i18n->t('csv.advance'),
+            $this->i18n->t('csv.monthBalance'),
+            $this->i18n->t('csv.balanceCumulative'),
+            $this->i18n->t('csv.avgTemp'),
+            $this->i18n->t('csv.hdd'),
+            $this->i18n->t('csv.co2'),
         ]];
         foreach ($data['monthly_total'] ?? [] as $m) {
             $rows[] = [

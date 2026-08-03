@@ -6,6 +6,7 @@ namespace Energietracker\Controllers;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\TemperatureService;
+use Energietracker\Services\I18nService;
 
 /**
  * Tagestemperaturen: Read (als Map), Upsert pro Tag, CSV-Bulk-Import,
@@ -14,7 +15,10 @@ use Energietracker\Services\TemperatureService;
  */
 final class TemperatureController
 {
-    public function __construct(private TemperatureService $temps) {}
+    public function __construct(
+        private TemperatureService $temps,
+        private I18nService $i18n,
+    ) {}
 
     public function index(Request $req): never
     {
@@ -24,7 +28,7 @@ final class TemperatureController
     public function upsert(Request $req): never
     {
         $body = (array)$req->body;
-        if (empty($body['date'])) Response::error('Datum fehlt');
+        if (empty($body['date'])) Response::error($this->i18n->t('errors.temperature.dateMissing'));
         $this->temps->upsert(
             (string)$body['date'],
             (float)($body['avg'] ?? 0),
@@ -37,7 +41,7 @@ final class TemperatureController
     public function importCsv(Request $req): never
     {
         $csv = $req->rawBody;
-        if ($csv === '') Response::error('Leere CSV-Daten');
+        if ($csv === '') Response::error($this->i18n->t('errors.temperature.emptyCsv'));
         Response::json($this->temps->importCsv($csv));
     }
 

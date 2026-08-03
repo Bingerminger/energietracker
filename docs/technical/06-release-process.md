@@ -313,6 +313,22 @@ git push origin main --tags
   v2.x-Bündel. Lehre: Jede Versionsangabe außerhalb der Datei `VERSION` gehört
   in einen Test (siehe `ReleaseConsistencyTest`) — Service-Worker-Cache,
   Compose-Pin, CHANGELOG-Abschnitt, README- und INSTALL-Stempel.
+- **Verhalten darf nicht am Wortlaut einer Meldung hängen (v2.2.1).**
+  `ErrorHandler::statusFor()` erkannte „nicht gefunden" per `str_contains` und
+  leitete daraus 404 ab. Solange alle Meldungen deutsch waren, funktionierte
+  das; mit der Lokalisierung ab v2.0.0 traf es nur noch Deutsch und Englisch —
+  eine spanische Oberfläche („no encontrado") bekam **500 statt 404**. Lehre:
+  Sobald Texte übersetzt werden, wird jede Textprüfung im Code zur Zeitbombe.
+  Bedeutung gehört in den Typ (hier `Http\NotFoundException`), Text nur in die
+  Anzeige. Beim Einführen von i18n gezielt nach `str_contains`, `match` und
+  `switch` über Meldungstexte suchen.
+- **Screenshots veralten lautlos (v2.2.1).** Die UI-Referenz zeigte Bilder aus
+  v1.9.2 — darunter den Tarifvergleich mit genau dem Rechenfehler, den v2.2.0
+  behoben hat. Kein Test schlägt an, wenn ein Bild alt ist. Lehre: Bei einer
+  sichtbaren Änderung an einer Ansicht gehört der Screenshot in dasselbe
+  Release. Aufnahme mit Demo-Daten, hellem Theme und einem hohen Ansichtsfenster
+  (1440 × 1500) statt `fullPage` — bei ganzseitigen Aufnahmen bricht die
+  fixierte Seitenleiste ab. Danach durch `pngquant`.
 
 ---
 

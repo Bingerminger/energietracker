@@ -93,7 +93,7 @@ final class WeatherService
 
         if (!ini_get('allow_url_fopen')) {
             return ['ok' => false, 'body' => null, 'http_code' => null,
-                    'error' => 'Weder cURL noch allow_url_fopen verfügbar'];
+                    'error' => 'Neither cURL nor allow_url_fopen available'];
         }
         $ctx = stream_context_create(['http' => [
             'timeout' => $timeout, 'ignore_errors' => true,

@@ -223,10 +223,10 @@ final class ContractService
         // ── Trinkwasser ─────────────────────────────────────────────
         $tw = is_array($c['trinkwasser'] ?? null) ? $c['trinkwasser'] : [];
         $tw['working_prices'] = $this->normalizePriceList(
-            $tw['working_prices'] ?? [], 'from', 'ct_per_m3', 'Trinkwasser-Arbeitspreis'
+            $tw['working_prices'] ?? [], 'from', 'ct_per_m3', $this->i18n->t('contracts.priceGroup.twWorking')
         );
         $tw['base_prices']    = $this->normalizePriceList(
-            $tw['base_prices']    ?? [], 'from', 'eur_per_month', 'Trinkwasser-Grundpreis'
+            $tw['base_prices']    ?? [], 'from', 'eur_per_month', $this->i18n->t('contracts.priceGroup.twBase')
         );
         $c['trinkwasser'] = $tw;
 
@@ -248,7 +248,7 @@ final class ContractService
             );
         }
         $sw['working_prices'] = $this->normalizePriceList(
-            $sw['working_prices'] ?? [], 'from', 'ct_per_m3', 'Schmutzwasser-Arbeitspreis'
+            $sw['working_prices'] ?? [], 'from', 'ct_per_m3', $this->i18n->t('contracts.priceGroup.swWorking')
         );
         $c['schmutzwasser'] = $sw;
 
@@ -284,7 +284,7 @@ final class ContractService
 
         // ── Advance payments + bonuses (gleiche Logik wie Standard) ─
         $c['advance_payments'] = $this->normalizePriceList(
-            $c['advance_payments'] ?? [], 'from', 'amount_eur', 'Abschlag'
+            $c['advance_payments'] ?? [], 'from', 'amount_eur', $this->i18n->t('contracts.priceGroup.advance')
         );
         $c['bonuses'] = $this->normalizeBonuses($c['bonuses'] ?? []);
         return $c;
@@ -354,9 +354,9 @@ final class ContractService
     private function groupLabel(string $group): string
     {
         return match($group) {
-            'working_prices'   => 'Arbeitspreis',
-            'base_prices'      => 'Grundpreis',
-            'advance_payments' => 'Abschlag',
+            'working_prices'   => $this->i18n->t('contracts.priceGroup.working'),
+            'base_prices'      => $this->i18n->t('contracts.priceGroup.base'),
+            'advance_payments' => $this->i18n->t('contracts.priceGroup.advance'),
             default            => $group,
         };
     }

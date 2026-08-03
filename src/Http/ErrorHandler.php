@@ -79,13 +79,22 @@ final class ErrorHandler
     }
 
     /**
-     * Map common exception types to HTTP status codes:
-     *   InvalidArgumentException → 400 (Bad Request — validation)
-     *   RuntimeException with "nicht gefunden"/"not found" → 404
-     *   everything else → 500
+     * Ordnet Ausnahmen einem HTTP-Status zu:
+     *   NotFoundException          → 404
+     *   InvalidArgumentException   → 400 (Validierung)
+     *   alles andere               → 500
+     *
+     * v2.2.1 — Der 404-Fall hing zuvor am Wortlaut der Meldung
+     * (`str_contains($msg, 'nicht gefunden')` bzw. `'not found'`). Seit die
+     * Dienste lokalisiert werfen, traf das nur noch auf Deutsch und Englisch
+     * zu: Eine spanische Oberfläche meldet „Contador no encontrado", eine
+     * französische „Compteur introuvable" — beide ergaben 500 statt 404.
+     * Jetzt entscheidet der Typ. Die Textprüfung bleibt als Rückfall für
+     * Stellen, die noch eine nackte RuntimeException werfen.
      */
     private static function statusFor(\Throwable $e): int
     {
+        if ($e instanceof NotFoundException) return 404;
         if ($e instanceof \InvalidArgumentException) return 400;
         if ($e instanceof \RuntimeException) {
             $msg = strtolower($e->getMessage());

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Config\Utilities;
+use Energietracker\Http\NotFoundException;
 
 /**
  * Tarif-Was-wäre-wenn (Schattenverträge) — v2.2.0 neu aufgesetzt.
@@ -82,7 +83,7 @@ final class TariffComparisonService
         }
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) {
-            throw new \RuntimeException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
+            throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
 
         $u    = Utilities::get($utility);

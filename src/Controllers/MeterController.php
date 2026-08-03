@@ -6,6 +6,7 @@ namespace Energietracker\Controllers;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\MeterService;
+use Energietracker\Services\I18nService;
 
 /**
  * Zähler-CRUD inkl. F2-Zählertausch (`replace-device`). Beim
@@ -13,7 +14,10 @@ use Energietracker\Services\MeterService;
  */
 final class MeterController
 {
-    public function __construct(private MeterService $meters) {}
+    public function __construct(
+        private MeterService $meters,
+        private I18nService $i18n,
+    ) {}
 
     public function index(Request $req): never
     {
@@ -23,7 +27,7 @@ final class MeterController
     public function show(Request $req): never
     {
         $m = $this->meters->get($req->param('utility'), $req->param('id'));
-        if (!$m) Response::error('Zähler nicht gefunden', 404);
+        if (!$m) Response::error($this->i18n->t('errors.meter.notFound'), 404);
         Response::json($m);
     }
 

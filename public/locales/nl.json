@@ -365,6 +365,14 @@
     "verdict": { "surcharge": "Bijbetaling", "refund": "Teruggave", "payout": "Uitbetaling", "reclaim": "Terugvorderen", "balanced": "In evenwicht" }
   },
   "contracts": {
+    "priceGroup": {
+      "working": "Eenheidsprijs",
+      "base": "Vastrecht",
+      "advance": "Voorschot",
+      "twWorking": "Eenheidsprijs drinkwater",
+      "twBase": "Vastrecht drinkwater",
+      "swWorking": "Eenheidsprijs afvalwater"
+    },
     "unit": {
       "ctPerKwh": "ct/kWh",
       "eurPerMonth": "€/maand"
@@ -1122,10 +1130,32 @@
     "meterPageTitle": "{label} {year} — {meter}"
   },
   "migration": {
+    "warnNoSettings": "Geen instellingen in de back-up gevonden — de standaardwaarden gelden.",
+    "warnNoWater": "Versie 0.9.0 kende geen water — het watergedeelte wordt leeg aangemaakt.",
+    "swapKeywordFound": "Trefwoord in de opmerking gevonden",
     "meterNote": "Aangemaakt door de v0.9.0-migratie",
     "meterNoteWater": "Aangemaakt door de v0.9.0-migratie (v0.9.0 kende geen water)."
   },
+  "csv": {
+    "month": "Maand",
+    "days": "Dagen",
+    "consumption": "Verbruik ({unit})",
+    "cost": "Kosten (EUR)",
+    "advance": "Voorschot (EUR)",
+    "monthBalance": "Maandsaldo (EUR)",
+    "balanceCumulative": "Saldo cumulatief (EUR)",
+    "avgTemp": "Gem temp (°C)",
+    "hdd": "GD",
+    "co2": "CO2 (kg)"
+  },
+  "auth": {
+    "tokenOnce": "Kopieer dit token nu — het wordt niet opnieuw getoond."
+  },
   "errors": {
+    "temperature": {
+      "emptyCsv": "De CSV-gegevens zijn leeg.",
+      "dateMissing": "De datum ontbreekt."
+    },
     "view": {
       "loadFailed": "Laden mislukt: {msg}",
       "unknownRoute": "Onbekende route: {hash}",
@@ -1227,7 +1257,8 @@
       "valueMissing": "De meterstand (value) ontbreekt of is geen getal",
       "dateFormat": "De datum moet het formaat JJJJ-MM-DD hebben: {date}",
       "meterMissing": "De meter (meter) ontbreekt — geef alias of intern ID op",
-      "meterNotFound": "Geen meter gevonden voor « {meter} » in {utility} (noch als alias noch als ID)"
+      "meterNotFound": "Geen meter gevonden voor « {meter} » in {utility} (noch als alias noch als ID)",
+      "unauthorized": "Niet geautoriseerd — stuur een geldig API-token als „Authorization: Bearer <token>”."
     },
     "backup": {
       "noVersionField": "Geen backup_version-veld — geen geldige back-up",
@@ -1235,7 +1266,10 @@
       "schemaNewer": "Back-upschema {schema} is nieuwer dan het app-schema {appSchema}. Werk eerst de app bij, importeer daarna de back-up."
     },
     "import": {
-      "emptyCsv": "Lege CSV-gegevens"
+      "emptyCsv": "Lege CSV-gegevens",
+      "dateUnrecognized": "Regel {line}: datum niet herkend ({value})",
+      "rowIncomplete": "Regel {line}: datum of meterstand ontbreekt",
+      "counterNotNumeric": "Regel {line}: meterstand is geen getal ({value})"
     },
     "demo": {
       "backupNotFound": "Demo-back-up niet gevonden.",
@@ -1245,7 +1279,9 @@
     "migration": {
       "noVersionField": "Geen « version »-veld in de back-up — waarschijnlijk geen v0.9.0-back-up. Verwacht worden v0.9.0-back-ups met versie « 2.1 » of ouder.",
       "versionUnrecognized": "Back-upversie « {ver} » wordt niet herkend. Ondersteund worden v0.9.0-back-upformaten: {supported}. Voor native v1.0.3-back-ups (backup_version 3.0+) gebruik de standaardimport onder Instellingen → Back-up en herstel.",
-      "invalidMode": "Ongeldige modus: {mode} (toegestaan: replace, merge)"
+      "invalidMode": "Ongeldige modus: {mode} (toegestaan: replace, merge)",
+      "backupMissing": "Het veld „backup” ontbreekt of is geen object.",
+      "translatedMissing": "Het veld „translated” ontbreekt of is geen object."
     },
     "csv": {
       "notDeliveryBased": "De energie « {utility} » is niet leveringsgebaseerd; gebruik de meterstandenexport."

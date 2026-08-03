@@ -6,6 +6,7 @@ namespace Energietracker\Controllers;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\ContractService;
+use Energietracker\Services\I18nService;
 
 /**
  * Vertrags-CRUD (Provider, Tarif, Stichtag-Preise, Boni). Strikte
@@ -15,7 +16,10 @@ use Energietracker\Services\ContractService;
  */
 final class ContractController
 {
-    public function __construct(private ContractService $contracts) {}
+    public function __construct(
+        private ContractService $contracts,
+        private I18nService $i18n,
+    ) {}
 
     public function index(Request $req): never
     {
@@ -26,7 +30,7 @@ final class ContractController
     public function show(Request $req): never
     {
         $c = $this->contracts->get($req->param('utility'), $req->param('id'));
-        if (!$c) Response::error('Vertrag nicht gefunden', 404);
+        if (!$c) Response::error($this->i18n->t('errors.contract.notFound'), 404);
         Response::json($c);
     }
 

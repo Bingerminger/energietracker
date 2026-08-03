@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
+use Energietracker\Http\NotFoundException;
 
 /**
  * v1.3.0 — Termin- und Wartungserinnerungen.
@@ -147,7 +148,7 @@ final class ReminderService
             break;
         }
         unset($r);
-        if ($found === null) throw new \RuntimeException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
+        if ($found === null) throw new NotFoundException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
         $this->store->write('reminders.json', $all);
         return $found;
     }
@@ -157,7 +158,7 @@ final class ReminderService
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $kept = array_values(array_filter($all, fn($r) => ($r['id'] ?? null) !== $id));
-        if (count($kept) === count($all)) throw new \RuntimeException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
+        if (count($kept) === count($all)) throw new NotFoundException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
         $this->store->write('reminders.json', $kept);
     }
 
@@ -192,7 +193,7 @@ final class ReminderService
             break;
         }
         unset($r);
-        if ($found === null) throw new \RuntimeException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
+        if ($found === null) throw new NotFoundException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
         $this->store->write('reminders.json', $all);
         return $found;
     }

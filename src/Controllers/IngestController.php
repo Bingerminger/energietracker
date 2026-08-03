@@ -7,6 +7,7 @@ use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\AuthService;
 use Energietracker\Services\IngestService;
+use Energietracker\Services\I18nService;
 
 /**
  * F1009 — Push-Ingest-Endpoint für Home Assistant.
@@ -25,12 +26,13 @@ final class IngestController
     public function __construct(
         private IngestService $ingest,
         private AuthService $auth,
+        private I18nService $i18n,
     ) {}
 
     public function store(Request $req): never
     {
         if ($this->auth->requiresAuth() && !$this->auth->verify($req->bearerToken())) {
-            Response::error('Nicht autorisiert — gültigen API-Token als „Authorization: Bearer …" senden', 401);
+            Response::error($this->i18n->t('errors.ingest.unauthorized'), 401);
         }
         $result = $this->ingest->ingest((array)$req->body);
         // 201 bei neu angelegt, 200 bei Aktualisierung (upsert-by-date).

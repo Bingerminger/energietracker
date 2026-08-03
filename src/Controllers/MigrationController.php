@@ -6,6 +6,7 @@ namespace Energietracker\Controllers;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\MigrationService;
+use Energietracker\Services\I18nService;
 
 /**
  * Migration endpoints. Two-step flow:
@@ -32,14 +33,17 @@ use Energietracker\Services\MigrationService;
  */
 final class MigrationController
 {
-    public function __construct(private MigrationService $migration) {}
+    public function __construct(
+        private MigrationService $migration,
+        private I18nService $i18n,
+    ) {}
 
     /** POST /api/migration/v09/preview */
     public function preview(Request $req): never
     {
         $backup = $req->input('backup');
         if (!is_array($backup)) {
-            Response::error('Feld "backup" fehlt oder ist kein Objekt', 400);
+            Response::error($this->i18n->t('errors.migration.backupMissing'), 400);
         }
         try {
             Response::json($this->migration->preview($backup));
@@ -54,7 +58,7 @@ final class MigrationController
         $translated = $req->input('translated');
         $mode       = (string)$req->input('mode', '');
         if (!is_array($translated)) {
-            Response::error('Feld "translated" fehlt oder ist kein Objekt', 400);
+            Response::error($this->i18n->t('errors.migration.translatedMissing'), 400);
         }
         try {
             Response::json($this->migration->apply($translated, $mode));

@@ -283,6 +283,22 @@ git push origin main --tags
   bundle. Lesson: every version stated outside the `VERSION` file belongs in a
   test (see `ReleaseConsistencyTest`) — service worker cache, compose pin,
   changelog section, README and INSTALL stamps.
+- **Behaviour must not depend on the wording of a message (v2.2.1).**
+  `ErrorHandler::statusFor()` detected "nicht gefunden" via `str_contains` and
+  derived 404 from it. That worked while every message was German; once
+  localisation landed in v2.0.0 it only covered German and English — a Spanish
+  interface ("no encontrado") got **500 instead of 404**. Lesson: the moment
+  texts get translated, every string check in the code becomes a time bomb.
+  Meaning belongs in the type (here `Http\NotFoundException`), text only in the
+  display. When introducing i18n, deliberately search for `str_contains`,
+  `match` and `switch` over message texts.
+- **Screenshots go stale silently (v2.2.1).** The UI reference still showed
+  images from v1.9.2 — including the tariff comparison with exactly the
+  miscalculation v2.2.0 fixed. No test fires when a picture is old. Lesson: a
+  visible change to a view means its screenshot belongs in the same release.
+  Capture with demo data, light theme and a tall viewport (1440 × 1500) rather
+  than `fullPage` — full-page captures cut off the fixed sidebar. Then run
+  `pngquant`.
 
 ---
 

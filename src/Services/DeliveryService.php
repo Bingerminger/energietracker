@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
+use Energietracker\Http\NotFoundException;
 
 /**
  * Lieferungs-CRUD für die Lieferungs-basierten Verbrauchsarten
@@ -84,7 +85,7 @@ final class DeliveryService
         }
         unset($d);
         if ($found === null) {
-            throw new \RuntimeException($this->i18n->t('errors.delivery.notFound', ['id' => $id]));
+            throw new NotFoundException($this->i18n->t('errors.delivery.notFound', ['id' => $id]));
         }
         $this->store->write("$utility/deliveries.json", $all);
         return $found;
@@ -96,7 +97,7 @@ final class DeliveryService
         $all = $this->list($utility);
         $kept = array_values(array_filter($all, fn($d) => ($d['id'] ?? null) !== $id));
         if (count($kept) === count($all)) {
-            throw new \RuntimeException($this->i18n->t('errors.delivery.notFound', ['id' => $id]));
+            throw new NotFoundException($this->i18n->t('errors.delivery.notFound', ['id' => $id]));
         }
         $this->store->write("$utility/deliveries.json", $kept);
     }
@@ -130,7 +131,7 @@ final class DeliveryService
         $this->assertDeliveryUtility($utility);
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) {
-            throw new \RuntimeException($this->i18n->t('errors.delivery.tankNotFound', ['id' => $meterId]));
+            throw new NotFoundException($this->i18n->t('errors.delivery.tankNotFound', ['id' => $meterId]));
         }
 
         $initialStock = (float)($meter['initial_stock'] ?? 0.0);

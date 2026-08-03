@@ -194,7 +194,7 @@ final class App
         $r->get('/api/utilities', fn($req) => $utilCtrl->index($req));
 
         // ── Meters per utility ──
-        $meterCtrl = new MeterController($this->meters);
+        $meterCtrl = new MeterController($this->meters, $this->i18n);
         $r->get('/api/utility/{utility}/meters',                fn($req) => $meterCtrl->index($req));
         $r->post('/api/utility/{utility}/meters',               fn($req) => $meterCtrl->create($req));
         $r->get('/api/utility/{utility}/meters/{id}',           fn($req) => $meterCtrl->show($req));
@@ -233,7 +233,7 @@ final class App
                                                              fn($req) => $deliveryCtrl->stockHistory($req));
 
         // ── Contracts ──
-        $contractCtrl = new ContractController($this->contracts);
+        $contractCtrl = new ContractController($this->contracts, $this->i18n);
         $r->get('/api/utility/{utility}/contracts',         fn($req) => $contractCtrl->index($req));
         $r->post('/api/utility/{utility}/contracts',        fn($req) => $contractCtrl->create($req));
         $r->get('/api/utility/{utility}/contracts/{id}',    fn($req) => $contractCtrl->show($req));
@@ -241,17 +241,17 @@ final class App
         $r->delete('/api/utility/{utility}/contracts/{id}', fn($req) => $contractCtrl->destroy($req));
 
         // ── Consumption (monthly aggregates) ──
-        $cCtrl = new ConsumptionController($this->consumption, $this->anomalies, $this->meters, $this->regression, $this->settings);
+        $cCtrl = new ConsumptionController($this->consumption, $this->anomalies, $this->meters, $this->regression, $this->settings, $this->i18n);
         $r->get('/api/utility/{utility}/consumption',              fn($req) => $cCtrl->utility($req));
         $r->get('/api/utility/{utility}/meters/{id}/consumption',  fn($req) => $cCtrl->meter($req));
         $r->get('/api/utility/{utility}/meters/{id}/contract-status', fn($req) => $cCtrl->contractStatus($req));
 
         // ── Forecast ──
-        $fCtrl = new ForecastController($this->forecasts, $this->meters);
+        $fCtrl = new ForecastController($this->forecasts, $this->meters, $this->i18n);
         $r->get('/api/utility/{utility}/meters/{id}/forecast', fn($req) => $fCtrl->forMeter($req));
 
         // ── Temperatures ──
-        $tCtrl = new TemperatureController($this->temperatures);
+        $tCtrl = new TemperatureController($this->temperatures, $this->i18n);
         $r->get('/api/temperatures',                  fn($req) => $tCtrl->index($req));
         $r->post('/api/temperatures',                 fn($req) => $tCtrl->upsert($req));
         $r->post('/api/temperatures/import-csv',      fn($req) => $tCtrl->importCsv($req));
@@ -276,7 +276,7 @@ final class App
         $r->get('/api/export/{utility}/deliveries.csv',  fn($req) => $exCtrl->deliveries($req));
 
         // ── Migration aus v0.9.0 ──
-        $mgCtrl = new MigrationController($this->migrationLegacy);
+        $mgCtrl = new MigrationController($this->migrationLegacy, $this->i18n);
         $r->post('/api/migration/v09/preview', fn($req) => $mgCtrl->preview($req));
         $r->post('/api/migration/v09/import',  fn($req) => $mgCtrl->import($req));
 
@@ -325,11 +325,11 @@ final class App
         $r->post('/api/demo/import', fn($req) => $demoCtrl->import($req));
 
         // ── F1009 — Home-Assistant-Anbindung ──
-        $authCtrl = new AuthController($this->auth);
+        $authCtrl = new AuthController($this->auth, $this->i18n);
         $r->get('/api/auth/token',    fn($req) => $authCtrl->status($req));
         $r->post('/api/auth/token',   fn($req) => $authCtrl->generate($req));
         $r->delete('/api/auth/token', fn($req) => $authCtrl->revoke($req));
-        $ingestCtrl = new IngestController($this->ingest, $this->auth);
+        $ingestCtrl = new IngestController($this->ingest, $this->auth, $this->i18n);
         $r->post('/api/ingest',       fn($req) => $ingestCtrl->store($req));
     }
 }

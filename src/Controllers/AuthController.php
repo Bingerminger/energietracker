@@ -6,6 +6,7 @@ namespace Energietracker\Controllers;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\AuthService;
+use Energietracker\Services\I18nService;
 
 /**
  * F1009 — Verwaltung des API-Tokens für externe Schreibzugriffe (HA-Ingest).
@@ -17,7 +18,10 @@ use Energietracker\Services\AuthService;
  */
 final class AuthController
 {
-    public function __construct(private AuthService $auth) {}
+    public function __construct(
+        private AuthService $auth,
+        private I18nService $i18n,
+    ) {}
 
     public function status(Request $req): never
     {
@@ -31,7 +35,7 @@ final class AuthController
         Response::json([
             'token'      => $token,
             'created_at' => date('c'),
-            'hint'       => 'Diesen Token jetzt kopieren — er wird nicht erneut angezeigt.',
+            'hint'       => $this->i18n->t('auth.tokenOnce'),
         ], 201);
     }
 

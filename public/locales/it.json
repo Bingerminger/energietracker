@@ -365,6 +365,14 @@
     "verdict": { "surcharge": "Conguaglio", "refund": "Rimborso", "payout": "Pagamento", "reclaim": "Da recuperare", "balanced": "In pareggio" }
   },
   "contracts": {
+    "priceGroup": {
+      "working": "Prezzo unitario",
+      "base": "Quota fissa",
+      "advance": "Acconto",
+      "twWorking": "Prezzo unitario acqua potabile",
+      "twBase": "Quota fissa acqua potabile",
+      "swWorking": "Prezzo unitario acque reflue"
+    },
     "unit": {
       "ctPerKwh": "ct/kWh",
       "eurPerMonth": "€/mese"
@@ -1122,10 +1130,32 @@
     "meterPageTitle": "{label} {year} — {meter}"
   },
   "migration": {
+    "warnNoSettings": "Nessuna impostazione trovata nel backup — valgono i valori predefiniti.",
+    "warnNoWater": "La versione 0.9.0 non aveva l'acqua — la sezione acqua viene creata vuota.",
+    "swapKeywordFound": "Parola chiave trovata nel commento",
     "meterNote": "Creato dalla migrazione v0.9.0",
     "meterNoteWater": "Creato dalla migrazione v0.9.0 (v0.9.0 non aveva l'acqua)."
   },
+  "csv": {
+    "month": "Mese",
+    "days": "Giorni",
+    "consumption": "Consumo ({unit})",
+    "cost": "Costo (EUR)",
+    "advance": "Acconto (EUR)",
+    "monthBalance": "Saldo mensile (EUR)",
+    "balanceCumulative": "Saldo cumulato (EUR)",
+    "avgTemp": "Temp media (°C)",
+    "hdd": "GG",
+    "co2": "CO2 (kg)"
+  },
+  "auth": {
+    "tokenOnce": "Copia subito questo token — non verrà più mostrato."
+  },
   "errors": {
+    "temperature": {
+      "emptyCsv": "I dati CSV sono vuoti.",
+      "dateMissing": "Manca la data."
+    },
     "view": {
       "loadFailed": "Caricamento non riuscito: {msg}",
       "unknownRoute": "Percorso sconosciuto: {hash}",
@@ -1227,7 +1257,8 @@
       "valueMissing": "La lettura (value) è mancante o non è un numero",
       "dateFormat": "La data deve essere nel formato AAAA-MM-GG: {date}",
       "meterMissing": "Il contatore (meter) è mancante — fornisci alias o ID interno",
-      "meterNotFound": "Nessun contatore trovato per « {meter} » in {utility} (né come alias né come ID)"
+      "meterNotFound": "Nessun contatore trovato per « {meter} » in {utility} (né come alias né come ID)",
+      "unauthorized": "Non autorizzato — invia un token API valido come «Authorization: Bearer <token>»."
     },
     "backup": {
       "noVersionField": "Nessun campo backup_version — non è un backup valido",
@@ -1235,7 +1266,10 @@
       "schemaNewer": "Lo schema di backup {schema} è più recente dello schema dell’app {appSchema}. Aggiorna prima l’app, poi importa il backup."
     },
     "import": {
-      "emptyCsv": "Dati CSV vuoti"
+      "emptyCsv": "Dati CSV vuoti",
+      "dateUnrecognized": "Riga {line}: data non riconosciuta ({value})",
+      "rowIncomplete": "Riga {line}: manca la data o la lettura",
+      "counterNotNumeric": "Riga {line}: la lettura non è un numero ({value})"
     },
     "demo": {
       "backupNotFound": "Backup demo non trovato.",
@@ -1245,7 +1279,9 @@
     "migration": {
       "noVersionField": "Nessun campo « version » nel backup — probabilmente non è un backup v0.9.0. Sono attesi backup v0.9.0 con versione « 2.1 » o precedente.",
       "versionUnrecognized": "La versione di backup « {ver} » non è riconosciuta. Sono supportati i formati di backup v0.9.0: {supported}. Per i backup nativi v1.0.3 (backup_version 3.0+) usa l’import standard in Impostazioni → Backup e ripristino.",
-      "invalidMode": "Modalità non valida: {mode} (consentite: replace, merge)"
+      "invalidMode": "Modalità non valida: {mode} (consentite: replace, merge)",
+      "backupMissing": "Il campo «backup» manca o non è un oggetto.",
+      "translatedMissing": "Il campo «translated» manca o non è un oggetto."
     },
     "csv": {
       "notDeliveryBased": "L’utenza « {utility} » non è basata su consegne; usa l’esportazione delle letture."

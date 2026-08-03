@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
+use Energietracker\Http\NotFoundException;
 
 /**
  * F1007 (v1.7.4) — Demo-Daten-Komfort-Import.
@@ -66,7 +67,7 @@ final class DemoService
     public function import(bool $force = false): array
     {
         if (!$this->isAvailable()) {
-            throw new \RuntimeException($this->i18n->t('errors.demo.backupNotFound'));
+            throw new NotFoundException($this->i18n->t('errors.demo.backupNotFound'));
         }
         if (!$force && !$this->isEmpty()) {
             throw new \InvalidArgumentException(

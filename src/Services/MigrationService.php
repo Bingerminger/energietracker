@@ -99,7 +99,7 @@ final class MigrationService
         unset($legacySettings['version']); // legacy meta field
         $settings = $this->mergeSettings($legacySettings);
         if (count($legacySettings) === 0) {
-            $warnings[] = 'Keine Settings im Backup gefunden — v1.0.3-Standardwerte werden verwendet.';
+            $warnings[] = $this->i18n->t('migration.warnNoSettings');
         }
 
         // ── 3. Temperatures ────────────────────────────────────────
@@ -111,7 +111,7 @@ final class MigrationService
             'strom'  => $this->translateUtility('strom',  $backup, $warnings, $candidates),
             'wasser' => $this->emptyUtility('wasser'),
         ];
-        $warnings[] = 'v0.9.0 kennt kein Wasser — der Wasser-Utility-Bereich wird leer angelegt.';
+        $warnings[] = $this->i18n->t('migration.warnNoWater');
 
         return [
             'ok'             => true,
@@ -269,7 +269,7 @@ final class MigrationService
                     'date'       => $reading['date'],
                     'counter'    => $reading['counter'],
                     'comment'    => $note,
-                    'reason'     => 'Schlüsselwort im Kommentar erkannt',
+                    'reason'     => $this->i18n->t('migration.swapKeywordFound'),
                 ];
             }
         }
