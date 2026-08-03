@@ -16,9 +16,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * der Speicherung, welcher Tarif für einen Monat angesetzt wurde. Dieselbe
  * Datenlage konnte damit unterschiedliche Kosten ergeben.
  *
- * Der Fall ist nicht konstruiert: Auf Produktivdaten lag ein Stromvertrag
- * (2022-12-23 bis 2023-12-22) vollständig innerhalb eines anderen
- * (2021-09-25 bis 2025-11-30).
+ * Der Fall ist praxisrelevant und nicht konstruiert: Ein Vertrag, der
+ * vollständig innerhalb der Laufzeit eines anderen liegt, entsteht leicht
+ * beim Nachtragen älterer Verträge.
  *
  * Vier Services hängen an dieser Methode — ConsumptionService,
  * ForecastService, TariffComparisonService und TariffSwitchService —, die
@@ -32,8 +32,8 @@ final class OverlappingContractsTest extends ServiceTestCase
     private function pair(): array
     {
         return [
-            ['id' => 'aeltererLangerVertrag', 'start' => '2021-09-25', 'end' => '2025-11-30'],
-            ['id' => 'neuererKurzerVertrag',  'start' => '2022-12-23', 'end' => '2023-12-22'],
+            ['id' => 'aeltererLangerVertrag', 'start' => '2020-01-01', 'end' => '2024-12-31'],
+            ['id' => 'neuererKurzerVertrag',  'start' => '2021-06-01', 'end' => '2022-05-31'],
         ];
     }
 
@@ -43,7 +43,7 @@ final class OverlappingContractsTest extends ServiceTestCase
         $b = array_reverse($a);
 
         // Ein Datum, an dem beide laufen.
-        $datum = '2023-06-15';
+        $datum = '2021-12-15';
 
         self::assertSame('neuererKurzerVertrag',
             $this->contracts->findActiveForDate($a, $datum)['id'],
@@ -59,10 +59,10 @@ final class OverlappingContractsTest extends ServiceTestCase
 
         // Vor dem kurzen Vertrag läuft nur der lange.
         self::assertSame('aeltererLangerVertrag',
-            $this->contracts->findActiveForDate($cs, '2022-01-10')['id']);
+            $this->contracts->findActiveForDate($cs, '2020-07-10')['id']);
         // Nach seinem Ende ebenfalls.
         self::assertSame('aeltererLangerVertrag',
-            $this->contracts->findActiveForDate($cs, '2024-06-01')['id']);
+            $this->contracts->findActiveForDate($cs, '2023-06-01')['id']);
     }
 
     public function testWithoutOverlapNothingChanges(): void

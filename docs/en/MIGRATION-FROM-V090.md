@@ -37,7 +37,7 @@ A typical v0.9.0 backup looks like this:
 {
   "created_at": "2026-05-11T11:43:27+02:00",
   "version": "2.1",
-  "gas":   [ { "id": "...", "date": "2020-12-24", "counter": 37308, "is_notable": false, "comment": null, "is_future": false }, ... ],
+  "gas":   [ { "id": "...", "date": "2024-01-15", "counter": 12345, "is_notable": false, "comment": null, "is_future": false }, ... ],
   "strom": [ ... ],
   "temperatures": { "YYYY-MM-DD": {"avg": ..., "min": ..., "max": ...}, ... },
   "settings":  { "gas_conversion_factor": 11.46, "hdd_base_temp": 15, ... },
@@ -73,9 +73,9 @@ v0.9.0 format:
 
 ```json
 {
-  "id": "20260507-fba154af",
-  "date": "2020-12-24",
-  "counter": 37308,
+  "id": "20240115-e5f6a7b8",
+  "date": "2024-01-15",
+  "counter": 12345,
   "price_cents": null,
   "is_notable": false,
   "comment": null,
@@ -87,11 +87,11 @@ v1.0.2 format after migration:
 
 ```json
 {
-  "id": "20260507-fba154af",
+  "id": "20240115-e5f6a7b8",
   "meter_id": "m_gas_main",
   "device_id": "d_gas_001",
-  "date": "2020-12-24",
-  "counter": 37308.0,
+  "date": "2024-01-15",
+  "counter": 12345.0,
   "price_cents": null,
   "note": "",
   "is_estimated": false,
@@ -147,15 +147,15 @@ v0.9.0 format:
 
 ```json
 {
-  "id": "20260507-c41bed0e",
-  "provider": "Grünwelt",
-  "tariff_name": "grüngas classic",
-  "start": "2020-09-25",
-  "end":   "2021-09-24",
-  "notes": "140015461407-01-2",
-  "advance_payments": [ {"from": "2020-09-25", "amount_eur": 250} ],
-  "working_prices":   [ {"from": "2020-09-25", "ct_per_kwh": 4.22} ],
-  "base_prices":      [ {"from": "2020-09-25", "eur_per_month": 7.86} ],
+  "id": "20240115-a1b2c3d4",
+  "provider": "Beispiel-Energie",
+  "tariff_name": "Erdgas Basis",
+  "start": "2024-01-01",
+  "end":   "2024-12-31",
+  "notes": "DE0001234567890123",
+  "advance_payments": [ {"from": "2024-01-01", "amount_eur": 90} ],
+  "working_prices":   [ {"from": "2024-01-01", "ct_per_kwh": 4.22} ],
+  "base_prices":      [ {"from": "2024-01-01", "eur_per_month": 7.86} ],
   "bonuses": []
 }
 ```
@@ -277,7 +277,7 @@ Response:
       "settings": 20,
       "warnings": [ "v0.9.0 has no water — the water utility section is created empty." ],
       "device_replacement_candidates": [
-        { "utility": "strom", "reading_id": "...", "date": "2020-07-22", "counter": 6, "comment": "Zählerwechsel", "reason": "Keyword detected in the comment" }
+        { "utility": "strom", "reading_id": "...", "date": "2024-01-10", "counter": 6, "comment": "Zählerwechsel", "reason": "Keyword detected in the comment" }
       ]
     }
   }

@@ -6,10 +6,38 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.3.3] — 2026-08-03 — Beispieldaten in der Dokumentation
+
+PATCH-Release. Kein Codeänderung, keine Funktionsänderung.
+
+### Changed
+
+- **Die Migrationsdoku (`MIGRATION-FROM-V090.md`, DE und EN) zeigte Datensätze
+  aus einer realen Installation** statt erfundener Beispiele — mit Vertrags-
+  und Ablese-IDs, Anbieter- und Tarifnamen, einem Zählerstand, einem
+  Abschlagsbetrag und einer Nummer im `notes`-Feld, die wie ein Zählpunkt
+  aussieht. Die Struktur der Beispiele ist unverändert; nur die Werte sind
+  jetzt eindeutig fiktiv.
+
+- **CHANGELOG und Roadmap** beschrieben Befunde aus einer konkreten
+  Installation mit Vertragslaufzeiten und Beträgen. Die Sachverhalte bleiben
+  vollständig erhalten, die Daten sind entfernt.
+
+Zur Klarstellung: Nutzdaten waren zu keinem Zeitpunkt versioniert. Unter
+`data/` liegen ausschließlich vier leere `.gitkeep`-Dateien; `.gitignore`
+schließt Ablesungen, Verträge, Zähler, Lieferungen, Temperaturen,
+Einstellungen und Backups aus, und die Historie enthält nie etwas anderes.
+Betroffen waren allein die oben genannten Beispiele und Beschreibungen.
+
+**Regel für künftige Releases:** Befunde aus einer konkreten Installation
+gehören nicht mit Laufzeiten, Anbietern, Nummern oder Beträgen in Repository,
+Commit-Message oder Release-Notes. Sachverhalt beschreiben, Daten weglassen.
+
+---
+
 ## [2.3.2] — 2026-08-03 — Überlappende Verträge werden deterministisch aufgelöst
 
-PATCH-Release. Ergebnis eines Qualitätsdurchlaufs über Code, Kataloge, Doku und
-die Produktivdaten.
+PATCH-Release aus einem Qualitätsdurchlauf über Code, Kataloge und Doku.
 
 ### Fixed
 
@@ -23,11 +51,11 @@ die Produktivdaten.
   Jetzt gewinnt der **späteste Beginn**: Ein neu abgeschlossener Vertrag löst
   den älteren ab. Ohne Überlappung ändert sich nichts.
 
-  Der Fall ist nicht konstruiert — er fand sich in den Produktivdaten: ein
-  Stromvertrag von 2022-12-23 bis 2023-12-22 lag vollständig innerhalb eines
-  anderen (2021-09-25 bis 2025-11-30). Die Methode wird von vier Services
-  genutzt (Verbrauch, Prognose, Tarifvergleich, Wechselentscheidung), die
-  Auflösung wirkt also auf Kosten, Prognose und Wechselempfehlung gleichermaßen.
+  Der Fall ist praxisrelevant und nicht konstruiert: Ein Vertrag, der
+  vollständig innerhalb der Laufzeit eines anderen liegt, entsteht leicht
+  beim Nachtragen älterer Verträge. Die Methode wird von vier Services genutzt
+  (Verbrauch, Prognose, Tarifvergleich, Wechselentscheidung), die Auflösung
+  wirkt also auf Kosten, Prognose und Wechselempfehlung gleichermaßen.
 
 ### Tests
 
@@ -44,7 +72,7 @@ die Produktivdaten.
 
 ## [2.3.1] — 2026-08-03 — Hotfix: Tarifvergleich startete nicht, Folgeverträge wurden übergangen
 
-PATCH-Release. Behebt zwei Fehler aus v2.3.0, beide auf Produktivdaten
+PATCH-Release. Behebt zwei Fehler aus v2.3.0, beide erst im laufenden Betrieb
 aufgefallen, plus eine Lücke in der Vertragspflege.
 
 ### Fixed
@@ -77,8 +105,8 @@ aufgefallen, plus eine Lücke in der Vertragspflege.
   Anschlussvertrag schon, meldete das Modul dessen Beginn als „Wechseltermin" —
   obwohl der Wechsel damit längst vollzogen war. Schlimmer: Die Vergleichsbasis
   rechnete das ganze Folgejahr mit den Preisen des **auslaufenden** Vertrags
-  weiter, obwohl der neue galt. Auf Produktivdaten wich die Referenz dadurch um
-  über 300 € ab.
+  weiter, obwohl der neue galt. Je nach Preisunterschied weicht die Referenz
+  dadurch um einen dreistelligen Betrag pro Jahr ab.
 
   Der Vergleich folgt jetzt der **Bindungskette**: dem laufenden Vertrag plus
   allem, was lückenlos anschließt. Deren Ende bestimmt Kündigungstermin und
