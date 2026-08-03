@@ -292,6 +292,23 @@ git push origin main --tags
   Meaning belongs in the type (here `Http\NotFoundException`), text only in the
   display. When introducing i18n, deliberately search for `str_contains`,
   `match` and `switch` over message texts.
+- **A cache buster that only versions the entry point versions nothing
+  (v2.2.3).** `index.php` appends `?v=<version>` to `app.js` — but the modules
+  import each other with bare paths (`./lib/sidebar.js`). Under
+  `stale-while-revalidate` the service worker kept serving them from the old
+  cache after an update: a fresh `app.js` met a stale `sidebar.js` without the
+  expected export, the module graph aborted with a SyntaxError, and the UI got
+  stuck on "Loading…". Every running installation was affected. **Lesson:** with
+  ES modules it is not the entry point that decides freshness, but the weakest
+  building block. Application code therefore belongs in the network-first branch
+  of the service worker — the speed gain of stale-while-revalidate does not
+  outweigh a total outage. And: adding an export changes the contract between two
+  files; across version boundaries that is a breaking change no same-revision
+  test can see. A self-healing step in the shell (cache version ≠ shell version →
+  purge and reload once) catches exactly this case.
+  A second, unrelated lesson: this hole **had been named in the review** and was
+  left open because it was filed under "C12, cache buster" as polish. A known
+  defect in the delivery path is not polish.
 - **Demo data is part of the feature (v2.2.2).** Neither
   `demo-data/reminders.json` nor the demo backup carried any appointments —
   anyone loading the demo saw an empty module and might well have thought it

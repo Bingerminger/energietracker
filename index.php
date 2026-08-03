@@ -148,6 +148,42 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 <div id="toast-stack" class="toast-stack"></div>
 <div id="modal-root"></div>
 
+<!--
+  v2.2.3 — Selbstheilung nach einem Update.
+
+  Die ES-Module importieren einander ohne Cache-Buster (`./lib/sidebar.js`,
+  nicht `…?v=…`). Der Service Worker cachte sie, sodass nach einem Update die
+  frische Shell auf alte Module traf: `app.js` v2.2.2 importierte
+  `refreshSidebarBadges`, das die gecachte `sidebar.js` v2.1.5 nicht kennt —
+  ein SyntaxError, der den gesamten Start abbricht. Sichtbar blieb nur „Lädt…".
+
+  Dieses Skript läuft VOR den Modulen. Trägt ein Cache eine andere Version als
+  die ausgelieferte Shell, räumt es Caches und Worker ab und lädt genau einmal
+  neu (die Sperre in sessionStorage verhindert eine Schleife).
+-->
+<script>
+(function () {
+  var VERSION = <?= json_encode($version) ?>;
+  if (!('caches' in window)) return;
+  var GUARD = 'et-cache-healed';
+  caches.keys().then(function (keys) {
+    var stale = keys.filter(function (k) {
+      return k.indexOf('et-') === 0 && k.indexOf(VERSION) === -1;
+    });
+    if (!stale.length) { try { sessionStorage.removeItem(GUARD); } catch (e) {} return; }
+    if (sessionStorage.getItem(GUARD) === VERSION) return;   // schon versucht
+    try { sessionStorage.setItem(GUARD, VERSION); } catch (e) {}
+    Promise.all([
+      Promise.all(keys.map(function (k) { return caches.delete(k); })),
+      navigator.serviceWorker && navigator.serviceWorker.getRegistrations
+        ? navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          })
+        : Promise.resolve()
+    ]).then(function () { location.reload(); });
+  }).catch(function () {});
+})();
+</script>
 <script src="public/vendor/chart.umd.min.js?v=<?= $cb ?>"></script>
 <script type="module" src="public/js/app.js?v=<?= $cb ?>"></script>
 <!-- N1008 (PWA) — Service Worker registrieren. Inline (kein Modul), damit der

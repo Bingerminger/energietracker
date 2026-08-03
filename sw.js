@@ -21,7 +21,7 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v2.2.2';
+const VERSION = 'v2.2.3';
 const STATIC_CACHE  = `et-static-${VERSION}`;
 const RUNTIME_CACHE = `et-runtime-${VERSION}`;
 
@@ -126,7 +126,25 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Statische Assets (eigene Origin) und CDN/Fonts: stale-while-revalidate.
+  // v2.2.3 — Anwendungscode und Sprachkataloge: network-first statt
+  // stale-while-revalidate.
+  //
+  // Die ES-Module importieren einander OHNE Cache-Buster (`./lib/sidebar.js`).
+  // Unter stale-while-revalidate lieferte der Worker sie nach einem Update aus
+  // dem alten Cache aus, während die Shell schon neu war — eine frische
+  // `app.js` traf auf ein altes `sidebar.js` ohne den erwarteten Export, der
+  // Modulgraph brach mit einem SyntaxError ab, und die Oberfläche blieb bei
+  // „Lädt…" stehen. Ein einziger veralteter Baustein legt die ganze Anwendung
+  // lahm; das ist den Geschwindigkeitsvorteil nicht wert. Offline greift
+  // weiterhin der Cache.
+  if (sameOrigin && (url.pathname.includes('/public/js/')
+                     || url.pathname.includes('/public/locales/'))) {
+    event.respondWith(networkFirst(request, STATIC_CACHE));
+    return;
+  }
+
+  // Übrige statische Assets (Stile, Schriften, Bilder, Chart.js):
+  // stale-while-revalidate — sie stehen für sich und reißen nichts mit.
   if ((sameOrigin && isStaticAsset(url)) || !sameOrigin) {
     event.respondWith(staleWhileRevalidate(request, sameOrigin ? STATIC_CACHE : RUNTIME_CACHE));
     return;

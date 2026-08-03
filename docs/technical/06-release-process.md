@@ -322,6 +322,24 @@ git push origin main --tags
   Bedeutung gehört in den Typ (hier `Http\NotFoundException`), Text nur in die
   Anzeige. Beim Einführen von i18n gezielt nach `str_contains`, `match` und
   `switch` über Meldungstexte suchen.
+- **Ein Cache-Buster, der nur den Einstiegspunkt versioniert, versioniert nichts
+  (v2.2.3).** `index.php` hängt `?v=<version>` an `app.js` — die Module
+  importieren einander aber mit nackten Pfaden (`./lib/sidebar.js`). Unter
+  `stale-while-revalidate` lieferte der Service Worker sie nach einem Update aus
+  dem alten Cache aus: Eine frische `app.js` traf auf ein altes `sidebar.js`
+  ohne den erwarteten Export, der Modulgraph brach mit einem SyntaxError ab, und
+  die Oberfläche blieb bei „Lädt…" stehen. Jede laufende Installation war betroffen.
+  **Lehre:** Bei ES-Modulen entscheidet nicht der Einstiegspunkt über die
+  Frische, sondern der schwächste Baustein. Anwendungscode gehört daher
+  network-first in den Service Worker — der Geschwindigkeitsgewinn von
+  stale-while-revalidate wiegt einen Totalausfall nicht auf. Und: Wer einen
+  Export hinzufügt, ändert damit den Vertrag zwischen zwei Dateien; über
+  Versionsgrenzen hinweg ist das ein Breaking Change, den kein Test im selben
+  Stand sieht. Eine Selbstheilung in der Shell (Cache-Version ≠ Shell-Version →
+  abräumen und einmal neu laden) fängt genau diesen Fall ab.
+  Zweite Lehre, unabhängig davon: Dieses Loch **war im Review benannt** und
+  blieb offen, weil es als „C12, Cache-Buster" unter Politur einsortiert wurde.
+  Ein erkannter Defekt am Auslieferungsweg ist keine Politur.
 - **Demo-Daten sind Teil des Features (v2.2.2).** Weder `demo-data/reminders.json`
   noch das Demo-Backup führten Termine — wer die Demo lud, sah ein leeres Modul
   und hielt es womöglich für kaputt. Exakt dieselbe Klasse wie die fehlenden

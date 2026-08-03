@@ -6,6 +6,44 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.2.3] — 2026-08-03 — Hotfix: Oberfläche blieb nach dem Update bei „Lädt…"
+
+PATCH-Release. Behebt einen Fehler, der bestehende Installationen nach dem
+Update auf v2.2.0 oder neuer unbrauchbar machte.
+
+### Fixed
+
+- **Nach dem Update blieb die Oberfläche bei „Lädt…" stehen.** Die ES-Module
+  importieren einander ohne Cache-Buster (`./lib/sidebar.js`, nicht
+  `…?v=2.2.2`). Der Service Worker lieferte sie unter
+  `stale-while-revalidate` aus dem alten Cache aus, während die Shell bereits
+  neu war. Ergebnis: Ein frisches `app.js` importierte `refreshSidebarBadges`
+  aus einem gecachten `sidebar.js` der Vorversion, das diesen Export nicht
+  kennt — `SyntaxError`, der Modulgraph brach vollständig ab, und es blieb bei
+  der Ladeanzeige. Betroffen war jede Installation mit installiertem Service
+  Worker, also praktisch jede laufende Instanz.
+
+  Zwei Maßnahmen:
+
+  1. **Selbstheilung.** Ein kleines Skript in der Shell läuft vor den Modulen.
+     Trägt ein Cache eine andere Version als die ausgelieferte Seite, räumt es
+     Caches und Worker ab und lädt genau einmal neu (Sperre in `sessionStorage`
+     gegen Schleifen). Bestehende kaputte Installationen reparieren sich damit
+     beim nächsten Aufruf von selbst — ohne Zutun der Nutzer.
+  2. **Ursache beseitigt.** Anwendungscode und Sprachkataloge (`/public/js/`,
+     `/public/locales/`) laufen im Service Worker jetzt **network-first** statt
+     stale-while-revalidate. Ein einzelner veralteter Baustein legt die ganze
+     Anwendung lahm; das ist den Geschwindigkeitsvorteil nicht wert. Stile,
+     Schriften und Chart.js bleiben stale-while-revalidate — sie stehen für
+     sich und reißen nichts mit. Offline funktioniert unverändert über den
+     Cache-Rückfall.
+
+  Nachgestellt und geprüft: Installation auf v2.1.5 mit aktivem Worker, Wechsel
+  auf v2.2.2 → `SyntaxError`, Ladeanzeige. Mit dem Fix heilt derselbe Browser
+  beim ersten Aufruf, ohne Konsolenfehler, alte Caches abgeräumt.
+
+---
+
 ## [2.2.2] — 2026-08-03 — Demo-Termine, vollständige Testabdeckung
 
 PATCH-Release. Die Demo-Daten zeigen jetzt auch das Termin-Modul, und die
