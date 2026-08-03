@@ -3,14 +3,25 @@
 
 # Energietracker
 
-[![Version](https://img.shields.io/badge/version-2.3.4-blue.svg)](CHANGELOG.md)
-[![PHP](https://img.shields.io/badge/php-%E2%89%A58.4-777BB4.svg)](#requirements)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
+[![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
+[![Version](https://img.shields.io/badge/version-2.3.5-blue.svg)](CHANGELOG.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
+
+[![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
+[![dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
+[![Tests](https://img.shields.io/badge/Tests-196-success.svg)](tests/)
+[![PWA](https://img.shields.io/badge/PWA-installable-3d8bff.svg)](manifest.webmanifest)
+[![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
+[![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
+[![Utilities](https://img.shields.io/badge/utilities-8-f59e0b.svg)](#features)
+[![Self-hosted](https://img.shields.io/badge/100%25-self--hosted-16a34a.svg)](#quick-start)
 
 Self-hosted web application for recording and analysing your own energy and
 water consumption. Single-file PHP backend, vanilla-JS SPA frontend, flat-file
-JSON persistence — no database, no server setup, no external runtime
-dependencies (other than Chart.js via CDN).
+JSON persistence — no database, no server setup, **no runtime dependencies at
+all**. Chart.js and the web fonts ship with the repository; the application
+makes no external requests.
 
 Up to eight utilities in parallel: **gas**, **electricity**, **water**,
 **district heating**, **heating oil** and **wood pellets** (heating oil/pellets
@@ -27,7 +38,7 @@ and the expected year-end settlement. On top of that: a statistical
 recommendation engine, reminder/maintenance management, a tariff comparison with
 shadow contracts and a PDF annual report.
 
-> **Status:** v2.3.4 is the current public version (initial release was v1.0.2).
+> **Status:** v2.3.5 is the current public version (initial release was v1.0.2).
 > If you want to migrate from a privately run v0.9.0 backup, see
 > [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
 > format is supported by the migrator.
@@ -255,7 +266,7 @@ Or without Compose, directly with the published image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.3.4
+  ghcr.io/bingerminger/energietracker:2.3.5
 ```
 
 > Without `--name energietracker` Docker assigns a random name (e.g.
@@ -430,7 +441,7 @@ For the full list of configurable values see
 energietracker/
 ├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
 ├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
-├── VERSION                  ← "2.3.4"
+├── VERSION                  ← "2.3.5"
 ├── README.md                ← this file (English)
 ├── README.de.md             ← German version
 ├── CHANGELOG.md

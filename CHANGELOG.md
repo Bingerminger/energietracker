@@ -6,6 +6,43 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.3.5] — 2026-08-03 — README zeigt, was das Projekt kann
+
+PATCH-Release. Nur Dokumentation und Tests.
+
+### Added
+
+- **Statusabzeichen im README** (DE und EN): CI und Docker-Publish als
+  Live-Badges aus GitHub Actions, dazu Version, Lizenz, PHP-Anforderung,
+  Testzahl, PWA, Docker-Architekturen, Sprachen, Verbrauchsarten und
+  Abhängigkeiten. Bisher standen dort drei Abzeichen; die Eigenschaften, die
+  das Projekt ausmachen — installierbar als PWA, multi-arch-Container, sieben
+  Sprachen, acht Verbrauchsarten, **null Laufzeit-Abhängigkeiten** — waren nur
+  im Fließtext zu finden.
+
+- **Zwei Tests, die die Abzeichen ehrlich halten**
+  (`ReleaseConsistencyTest`):
+  - Die Zahlen für Tests, Sprachen und Verbrauchsarten werden gegen die
+    Wirklichkeit geprüft (Testmethoden unter `tests/unit/`, Kataloge unter
+    `public/locales/`, Einträge in der Utilities-SSOT). Ein Abzeichen, das
+    „196 Tests" behauptet, während es 210 sind, sieht nach geprüfter
+    Information aus und ist deshalb schlimmer als keines.
+  - Die CI-Abzeichen müssen auf Workflows zeigen, die es gibt — sonst meldet
+    GitHub dauerhaft „no status".
+
+### Fixed
+
+- **„Chart.js via CDN" stimmte seit v2.2.0 nicht mehr.** Beide READMEs
+  schränkten die Aussage „keine externen Abhängigkeiten" mit einem Verweis auf
+  ein CDN ein. Chart.js und die Schriften liegen seit v2.2.0 unter
+  `public/vendor/` im Repository; die Anwendung stellt keine externen Anfragen
+  — geprüft durch `testFrontendHasNoExternalResourceReferences`. Der Text sagt
+  das jetzt auch.
+
+194 → 196 Tests. **Kein Schema-Bump** — Schema bleibt 1.3.0.
+
+---
+
 ## [2.3.4] — 2026-08-03 — Release-Prozess entrümpelt
 
 PATCH-Release. Nur Dokumentation, kein Codeänderung.

@@ -6,7 +6,7 @@
 # Bauen die `image:`-Zeile auskommentieren und `build: .` aktivieren.
 services:
   energietracker:
-    image: ghcr.io/bingerminger/energietracker:2.3.4
+    image: ghcr.io/bingerminger/energietracker:2.3.5
     # build: .
     container_name: energietracker
     restart: unless-stopped

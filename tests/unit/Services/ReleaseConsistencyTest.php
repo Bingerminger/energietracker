@@ -90,6 +90,86 @@ final class ReleaseConsistencyTest extends TestCase
     }
 
     /**
+     * v2.3.5 — Die Zahlen-Badges im README müssen stimmen.
+     *
+     * Ein Badge, der „Tests 194" behauptet, während es 210 sind, ist schlimmer
+     * als keiner: Er sieht nach geprüfter Information aus. Dasselbe gilt für
+     * die Zahl der Sprachen und der Verbrauchsarten — beides wächst, beides
+     * steht an mehreren Stellen.
+     *
+     * Gezählt wird aus der Wahrheit: Testmethoden aus tests/unit/, Kataloge
+     * aus public/locales/, Verbrauchsarten aus der Utilities-SSOT.
+     */
+    public function testReadmeBadgeNumbersMatchReality(): void
+    {
+        $root = self::root();
+
+        // Testmethoden: alle `public function testXxx()` unter tests/unit/
+        $tests = 0;
+        $it = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root . '/tests/unit', \FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($it as $f) {
+            if (!$f->isFile() || $f->getExtension() !== 'php') continue;
+            $tests += preg_match_all(
+                '/^\s*public function test\w+\s*\(/m',
+                (string)file_get_contents($f->getPathname())
+            );
+        }
+
+        $locales = count(array_filter(
+            glob($root . '/public/locales/*.json') ?: [],
+            fn($p) => basename($p) !== 'languages.json'
+        ));
+
+        $utilities = count(\Energietracker\Config\Utilities::all());
+
+        $erwartet = [
+            'Tests'          => $tests,
+            'Sprachen/langs' => $locales,
+            'Verbrauchsarten'=> $utilities,
+        ];
+        self::assertGreaterThan(0, $tests, 'keine Testmethoden gefunden — Zählung kaputt');
+
+        foreach (['README.md', 'README.de.md'] as $file) {
+            $txt = (string)file_get_contents($root . '/' . $file);
+
+            self::assertMatchesRegularExpression(
+                '/badge\/Tests-' . $tests . '-/', $txt,
+                "$file: Tests-Badge weicht ab (tatsächlich {$tests})"
+            );
+            self::assertMatchesRegularExpression(
+                '/badge\/(languages|Sprachen)-' . $locales . '-/', $txt,
+                "$file: Sprachen-Badge weicht ab (tatsächlich {$locales})"
+            );
+            self::assertMatchesRegularExpression(
+                '/badge\/(utilities|Verbrauchsarten)-' . $utilities . '-/', $txt,
+                "$file: Verbrauchsarten-Badge weicht ab (tatsächlich {$utilities})"
+            );
+        }
+    }
+
+    /**
+     * Die CI-Badges müssen auf Workflows zeigen, die es gibt — sonst zeigt
+     * GitHub dauerhaft „no status".
+     */
+    public function testCiBadgesPointAtExistingWorkflows(): void
+    {
+        $root = self::root();
+        foreach (['README.md', 'README.de.md'] as $file) {
+            $txt = (string)file_get_contents($root . '/' . $file);
+            preg_match_all('#actions/workflows/([\w.-]+)/badge\.svg#', $txt, $m);
+            self::assertNotEmpty($m[1], "$file: kein CI-Badge gefunden");
+            foreach (array_unique($m[1]) as $wf) {
+                self::assertFileExists(
+                    $root . '/.github/workflows/' . $wf,
+                    "$file verweist auf einen Workflow, den es nicht gibt: $wf"
+                );
+            }
+        }
+    }
+
+    /**
      * Kein Aufruf an fremde Server im ausgelieferten Frontend. Schriften und
      * Chart.js liegen seit v2.2.0 unter public/vendor/; ein versehentlich
      * wieder eingefügter CDN-Verweis würde die Anwendung offline zerlegen und
