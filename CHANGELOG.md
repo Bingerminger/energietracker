@@ -6,6 +6,42 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.3.2] — 2026-08-03 — Überlappende Verträge werden deterministisch aufgelöst
+
+PATCH-Release. Ergebnis eines Qualitätsdurchlaufs über Code, Kataloge, Doku und
+die Produktivdaten.
+
+### Fixed
+
+- **Bei überlappenden Verträgen entschied die Speicherreihenfolge, welcher
+  Tarif gilt.** `ContractService::findActiveForDate()` nahm den ersten
+  passenden Eintrag des Arrays — und dessen Position ergibt sich aus der
+  Anlage-Reihenfolge in der JSON-Datei, nicht aus der Fachlichkeit. Dieselbe
+  Datenlage konnte damit unterschiedliche Kosten ergeben, je nachdem, in
+  welcher Reihenfolge die Verträge irgendwann gespeichert wurden.
+
+  Jetzt gewinnt der **späteste Beginn**: Ein neu abgeschlossener Vertrag löst
+  den älteren ab. Ohne Überlappung ändert sich nichts.
+
+  Der Fall ist nicht konstruiert — er fand sich in den Produktivdaten: ein
+  Stromvertrag von 2022-12-23 bis 2023-12-22 lag vollständig innerhalb eines
+  anderen (2021-09-25 bis 2025-11-30). Die Methode wird von vier Services
+  genutzt (Verbrauch, Prognose, Tarifvergleich, Wechselentscheidung), die
+  Auflösung wirkt also auf Kosten, Prognose und Wechselempfehlung gleichermaßen.
+
+### Tests
+
+- `OverlappingContractsTest` (5 Fälle): späterer Beginn gewinnt unabhängig von
+  der Array-Reihenfolge, außerhalb der Überlappung gilt weiter der verbleibende
+  Vertrag, ohne Überlappung bleibt alles wie zuvor, unbefristete Verträge
+  greifen weiterhin, und die Kostenrechnung setzt je Monat genau einen Vertrag
+  an — nie beide zugleich.
+- 189 → 194 Tests.
+
+**Kein Schema-Bump** — Schema bleibt 1.3.0.
+
+---
+
 ## [2.3.1] — 2026-08-03 — Hotfix: Tarifvergleich startete nicht, Folgeverträge wurden übergangen
 
 PATCH-Release. Behebt zwei Fehler aus v2.3.0, beide auf Produktivdaten

@@ -717,14 +717,36 @@ final class ContractService
 
     // ── Lookup helpers used by ConsumptionService ────────────────────────
 
+    /**
+     * Der an einem Datum gültige Vertrag.
+     *
+     * v2.3.2 — Bei Überlappungen entscheidet jetzt der **späteste Beginn**,
+     * nicht mehr die Reihenfolge in der Datei.
+     *
+     * Vorher gewann der erste passende Eintrag des Arrays, und dessen Position
+     * ergibt sich aus der Anlage-Reihenfolge — nicht aus der Fachlichkeit. Auf
+     * Produktivdaten fand sich genau dieser Fall: ein Vertrag, der komplett
+     * innerhalb eines anderen liegt. Welcher von beiden für einen Monat
+     * angesetzt wurde, hing damit davon ab, in welcher Reihenfolge sie
+     * irgendwann gespeichert wurden — dieselbe Datenlage konnte
+     * unterschiedliche Kosten ergeben.
+     *
+     * Der spätere Beginn gewinnt, weil ein neu abgeschlossener Vertrag den
+     * älteren ablöst. Ohne Überlappung ändert sich nichts.
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     */
     public function findActiveForDate(array $contracts, string $date): ?array
     {
+        $best = null;
         foreach ($contracts as $c) {
             if ($date < ($c['start'] ?? '9999')) continue;
             if (!empty($c['end']) && $date > $c['end']) continue;
-            return $c;
+            if ($best === null || ($c['start'] ?? '') > ($best['start'] ?? '')) {
+                $best = $c;
+            }
         }
-        return null;
+        return $best;
     }
 
     public function valueValidOn(array $entries, string $field, int $year, int $month): ?float
