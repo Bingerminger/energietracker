@@ -77,6 +77,36 @@ final class Migrator
         return true;
     }
 
+    /**
+     * Die Migrationsstufen als **eine** Liste: Prüfmethode → Ausführmethode.
+     *
+     * `needsMigration()` und `migrate()` lesen beide von hier. Vorher standen
+     * die Stufen in beiden Methoden getrennt, und bei v1.4.0 (F1011) wurde nur
+     * `migrate()` erweitert — `needsMigration()` endete weiter bei v1.3.0.
+     * Folge auf einer Bestandsinstallation: `needsMigration()` meldete false,
+     * `migrate()` lief nie, und der Bootstrap fiel in den Zweig
+     * `!isAlreadyMigrated() → initFresh()`, der `meta.json` mit der neuen
+     * Version überschrieb, ohne die Zähler anzufassen. Danach galt die
+     * Installation als migriert, obwohl sie es nicht war.
+     *
+     * Neue Stufe = ein Eintrag hier, sonst nichts.
+     *
+     * @return array<int,array{0:string,1:string}>
+     */
+    private const UPGRADE_STEPS = [
+        ['needsWaterContractsUpgrade', 'upgradeWaterContracts'],
+        ['needsV110Upgrade',           'upgradeToV110'],
+        ['needsV120Upgrade',           'upgradeToV120'],
+        ['needsV130Upgrade',           'upgradeToV130'],
+        ['needsV140Upgrade',           'upgradeToV140'],
+    ];
+
+    /** Nur zum Prüfen von außen (Test hält die Liste vollständig). */
+    public static function upgradeSteps(): array
+    {
+        return self::UPGRADE_STEPS;
+    }
+
     public function needsMigration(): bool
     {
         if ($this->isAlreadyMigrated()) return false;
@@ -86,14 +116,10 @@ final class Migrator
             || $this->store->exists('contracts.json')) {
             return true;
         }
-        // Otherwise we may need a 1.0.x → 1.0.3 schema bump (water contracts).
-        if ($this->needsWaterContractsUpgrade()) return true;
-        // v1.0.3 → v1.1.0 — neue Utilities + reminders.json fehlen?
-        if ($this->needsV110Upgrade()) return true;
-        // v1.1.0 → v1.2.0 — Topologie-Felder + meter_groups.json fehlen?
-        if ($this->needsV120Upgrade()) return true;
-        // v1.2.0 → v1.3.0 — Zähler-Alias `external_id` (F1009) fehlt?
-        return $this->needsV130Upgrade();
+        foreach (self::UPGRADE_STEPS as [$check, $_]) {
+            if ($this->{$check}()) return true;
+        }
+        return false;
     }
 
     /**
@@ -199,29 +225,14 @@ final class Migrator
             $log = array_merge($log, $this->migrateFromV09());
         }
 
-        // ── v1.0.x → v1.0.3 water-contract upgrade ────────────────────────
-        if ($this->needsWaterContractsUpgrade()) {
-            $log = array_merge($log, $this->upgradeWaterContracts());
-        }
-
-        // ── v1.0.3 → v1.1.0 — neue Utilities + reminders.json ─────────────
-        if ($this->needsV110Upgrade()) {
-            $log = array_merge($log, $this->upgradeToV110());
-        }
-
-        // ── v1.1.0 → v1.2.0 — Meter-Topologie (F1006) ─────────────────────
-        if ($this->needsV120Upgrade()) {
-            $log = array_merge($log, $this->upgradeToV120());
-        }
-
-        // ── v1.2.0 → v1.3.0 — Zähler-Alias external_id (F1009) ────────────
-        if ($this->needsV130Upgrade()) {
-            $log = array_merge($log, $this->upgradeToV130());
-        }
-
-        // ── v1.3.0 → v1.4.0 — Baseline-Zäsuren (F1011) ────────────────────
-        if ($this->needsV140Upgrade()) {
-            $log = array_merge($log, $this->upgradeToV140());
+        // ── Stufen der Reihe nach, aus der gemeinsamen Liste ──────────────
+        //    1.0.x → 1.0.3 Wasserverträge · → 1.1.0 neue Utilities +
+        //    reminders.json · → 1.2.0 Meter-Topologie (F1006) · → 1.3.0
+        //    Zähler-Alias (F1009) · → 1.4.0 Analyse-Zäsuren (F1011)
+        foreach (self::UPGRADE_STEPS as [$check, $apply]) {
+            if ($this->{$check}()) {
+                $log = array_merge($log, $this->{$apply}());
+            }
         }
 
         // ── write meta marker ─────────────────────────────────────────────

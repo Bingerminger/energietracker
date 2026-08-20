@@ -6,6 +6,59 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.4.1] — 2026-08-20 — Hotfix: die v1.4.0-Migration lief auf Bestandsdaten nicht
+
+PATCH-Release. Kein Schema-Bump, keine Datenänderung am Inhalt.
+
+**Der Fehler.** In v2.4.0 wurde die neue Migrationsstufe `upgradeToV140()` in
+`migrate()` eingehängt — aber nicht in `needsMigration()`, die Bedingung, die
+`migrate()` überhaupt auslöst. Sie endete weiter bei v1.3.0.
+
+Auf einer **Bestandsinstallation** (Schema 1.3.0, `external_id` vorhanden) lief
+damit Folgendes:
+
+1. `needsMigration()` meldete **false** — es gab aus ihrer Sicht nichts zu tun.
+2. Der Bootstrap fiel in seinen dritten Zweig `!isAlreadyMigrated() →
+   initFresh()`. Dieser Zweig ist als Netz für ein unvollständig angelegtes
+   Verzeichnis gedacht und geht davon aus: „nicht migriert und keine Migration
+   nötig" heiße „frisches Verzeichnis".
+3. `initFresh()` schrieb `meta.json` mit der neuen Schemaversion, ohne die
+   Zähler anzufassen.
+
+Danach galt die Installation als migriert, obwohl kein Zähler das Feld
+`baseline_events` trug — und die Migration konnte es **nie mehr nachholen**.
+Die Anwendung lief weiter, weil alle Lesestellen über `?? []` abgesichert sind;
+F1011 war dort schlicht nicht scharf.
+
+**Nutzdaten waren nie in Gefahr.** `initFresh()` legt Dateien nur an, wenn sie
+fehlen. Nachgemessen auf der betroffenen Installation: 48 von 49 Dateien
+byte-identisch zum Stand davor, alle Zählungen (Ablesungen, Verträge, Zähler,
+Lieferungen, Temperaturen, Einstellungen) unverändert. Verändert war
+ausschließlich `meta.json` — erkennbar am `created_at` statt `migrated_at`.
+
+**Der Fix.** Die Migrationsstufen stehen jetzt in **einer** Liste
+(`Migrator::UPGRADE_STEPS`), aus der `needsMigration()` und `migrate()` beide
+lesen. Eine neue Stufe ist ab jetzt ein Listeneintrag, sonst nichts.
+
+**Warum kein Test das gefangen hat:** Alle bestehenden Migrationstests riefen
+`needsVXXXUpgrade()` und `upgradeToVXXX()` **direkt** auf — also genau an
+`needsMigration()` vorbei. Neu ist `MigrationCompletenessTest` (5 Fälle):
+
+- Ein Reflection-Wächter hält die Liste vollständig: Jede
+  `needsVXXXUpgrade()`-Methode **muss** eingetragen sein.
+- Zu jeder Prüfmethode muss die Ausführmethode existieren.
+- Eine Installation auf dem Vorgängerschema muss migrieren **wollen**.
+- Nach der Migration trägt jeder Zähler das Feld, und `meta.json` hat
+  `migrated_at` **und** kein `created_at` — Letzteres wäre das Zeichen, dass
+  wieder der falsche Zweig lief.
+- Ein zweiter Lauf ändert nichts.
+
+222 → 227 Tests. Zwei Toggle-Beweise: Fehlt die v1.4.0-Stufe in der Liste, wird
+der Wächter rot; wird `needsMigration()` auf die alte, doppelt gepflegte Form
+zurückgedreht, wird der Bestandsdaten-Test rot.
+
+---
+
 ## [2.4.0] — 2026-08-20 — Analyse-Zäsur: Auswertungen ab der Sanierung
 
 MINOR-Release. **F1011** (GitHub #20), Schema 1.3.0 → 1.4.0 (additiv).
