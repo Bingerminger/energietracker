@@ -33,7 +33,7 @@ Energietracker follows a clear separation of layers. The core principle:
 
 There is **no** database. Persistence is a set of JSON files under `data/`,
 written with `LOCK_EX` (an exclusive lock) so that parallel requests do not
-destroy one another. Schema level: **1.3.0**.
+destroy one another. Schema level: **1.4.0**.
 
 ---
 

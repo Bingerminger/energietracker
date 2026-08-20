@@ -176,4 +176,43 @@ final class DemoServiceTest extends TestCase
             'demo-data/reminders.json und das Demo-Backup müssen dieselben Termine führen'
         );
     }
+
+    /**
+     * v2.4.0 — F1011: Die Demo führt eine Analyse-Zäsur vor, damit der
+     * Vorher/Nachher-Vergleich nach „Demo laden" tatsächlich zu sehen ist.
+     *
+     * Dieselbe Doppelpflege wie bei den Terminen: Verzeichnisform UND Backup.
+     * In v2.1.2 und v2.2.2 landete ein neuer Datentopf jeweils nur an einer
+     * der beiden Stellen — deshalb prüft der Test beide.
+     */
+    public function testDemoDataDemonstratesTheBaselineCutoff(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $fromFile = json_decode(
+            (string)file_get_contents("$root/demo-data/gas/meters.json"), true);
+        $backup = json_decode(
+            (string)file_get_contents("$root/demo-data/energietracker-demo-backup.json"), true);
+
+        $pick = static function (array $meters): ?array {
+            foreach ($meters as $m) {
+                if (($m['id'] ?? null) === 'm_gas_main') return $m;
+            }
+            return null;
+        };
+
+        $dir = $pick($fromFile ?? []);
+        $bak = $pick($backup['utilities']['gas']['meters'] ?? $backup['gas']['meters'] ?? []);
+
+        $this->assertNotNull($dir, 'Demo-Verzeichnis führt den Gas-Hauptzähler');
+        $this->assertNotNull($bak, 'Demo-Backup führt den Gas-Hauptzähler');
+        $this->assertNotEmpty(
+            $dir['baseline_events'] ?? [],
+            'demo-data/gas/meters.json soll eine Zäsur vorführen'
+        );
+        $this->assertSame(
+            $dir['baseline_events'],
+            $bak['baseline_events'] ?? [],
+            'Verzeichnisform und Backup müssen dieselbe Zäsur führen'
+        );
+    }
 }

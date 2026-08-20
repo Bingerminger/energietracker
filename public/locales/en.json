@@ -617,6 +617,19 @@
       "needTwo": "Please select at least two meters",
       "needName": "Please provide a group name or choose an existing group",
       "done": "{count} meters merged into group “{name}”"
+    },
+    "baseline": {
+      "title": "Baseline cut-offs",
+      "hint": "After building work the house consumes differently for good. Enter the date here — the analyses then start from that point, while older months stay visible but no longer feed the model. A future date may be recorded in advance; it only takes effect once reached.",
+      "date": "Date",
+      "label": "Description",
+      "labelPlaceholder": "e.g. loft insulation",
+      "add": "Add cut-off",
+      "remove": "Remove",
+      "none": "No cut-off recorded — every analysis uses the full history.",
+      "active": "in effect",
+      "future": "future",
+      "dateRequired": "Please give a date for the cut-off"
     }
   },
   "settings": {
@@ -1133,6 +1146,26 @@
       "barGut": "good ≤ {value}",
       "barWarn": "warning ≥ {value}",
       "indexNote": "{bandNote} Index 100 = exactly the per-person reference consumption stored in the settings."
+    },
+    "baseline": {
+      "chartPre": "before the cut-off",
+      "activeSince": "Analysis starts at {date} — {label}",
+      "activeSinceNoLabel": "Analysis starts at {date}",
+      "excluded": "{count} earlier months stay visible but do not feed the model.",
+      "limitsTitle": "What cannot be computed right now",
+      "limit": {
+        "weather_adjustment": "Weather correction needs at least {need} months of history — {have} available.",
+        "regression": "The regression needs at least {need} data points after the cut-off — {have} available.",
+        "anomalies": "Anomaly detection needs at least {need} usable months — {have} available."
+      },
+      "comparisonTitle": "Effect of the measure",
+      "comparisonHint": "Consumption per degree day before and after the cut-off. This figure is already weather-corrected: it says how much the building needs per degree of cold, regardless of how cold the winter was.",
+      "before": "before",
+      "after": "after",
+      "effect": "Change",
+      "perDegreeDay": "{unit} per degree day",
+      "points": "{n} data points",
+      "weatherCorrected": "weather-corrected"
     }
   },
   "forecast": {
@@ -1272,7 +1305,10 @@
       "groupNotFound": "Meter group not found",
       "groupNotFoundId": "Meter group not found: {group}",
       "groupNameEmpty": "Group name must not be empty",
-      "mergeNeedTwo": "Merging requires at least two meters"
+      "mergeNeedTwo": "Merging requires at least two meters",
+      "invalidBaselineList": "Baseline cut-offs must be a list of entries carrying a date",
+      "invalidBaselineDate": "Invalid baseline date: “{date}” — expected YYYY-MM-DD",
+      "duplicateBaselineDate": "A baseline cut-off already exists for {date}"
     },
     "common": {
       "unknownUtility": "Unknown utility: {utility}",

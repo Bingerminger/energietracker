@@ -129,6 +129,9 @@ final class MeterService
             'meter_group_id'  => null,
             // v1.3.0 — F1009 HA-Alias (Default: keiner)
             'external_id'     => null,
+            // v1.4.0 — F1011 Analyse-Zäsur (Default: keine; leeres Array
+            // bedeutet „rechne über die volle Historie", also wie vor v2.4.0)
+            'baseline_events' => [],
             'devices'    => $devices,
         ];
 
@@ -146,6 +149,10 @@ final class MeterService
         // v1.3.0 — F1009: external_id (HA-Alias) optional schon beim Anlegen.
         if (array_key_exists('external_id', $input)) {
             $meter['external_id'] = $this->normalizeExternalId($input['external_id'], $utility, $meter['id']);
+        }
+        // v1.4.0 — F1011: Zäsuren optional schon beim Anlegen.
+        if (array_key_exists('baseline_events', $input)) {
+            $meter['baseline_events'] = $this->normalizeBaselineEvents($input['baseline_events']);
         }
         $this->assertTopologyValid($utility, $meter, $candidatePool);
 
@@ -204,6 +211,11 @@ final class MeterService
             // dabei ausgenommen).
             if (array_key_exists('external_id', $input)) {
                 $m['external_id'] = $this->normalizeExternalId($input['external_id'], $utility, $meterId);
+            }
+            // v1.4.0 — F1011: Zäsuren änderbar (anlegen, bearbeiten, löschen —
+            // die Liste wird immer als Ganzes geschrieben).
+            if (array_key_exists('baseline_events', $input)) {
+                $m['baseline_events'] = $this->normalizeBaselineEvents($input['baseline_events']);
             }
             // v1.3.0 — Tank-Felder updatebar (nur bei Delivery-Utilities)
             if ($isDelivery) {
@@ -402,6 +414,104 @@ final class MeterService
             }
         }
         return $alias;
+    }
+
+    // ── v1.4.0 — F1011 Analyse-Zäsur (baseline_events) ────────────────────
+
+    /** Höchstlänge der Bezeichnung einer Zäsur. */
+    private const BASELINE_LABEL_MAX = 80;
+
+    /**
+     * Normalisiert und validiert die Zäsur-Liste eines Zählers:
+     *  - null/leer → `[]` (keine Zäsur, Verhalten wie vor v2.4.0),
+     *  - `date` muss ein gültiges ISO-Datum sein (`YYYY-MM-DD`),
+     *  - je Zähler darf ein Datum nur einmal vorkommen,
+     *  - `label` ist optional, wird getrimmt und gekappt,
+     *  - die Liste wird aufsteigend nach Datum sortiert gespeichert.
+     *
+     * Künftig datierte Ereignisse sind ausdrücklich erlaubt: Wer den
+     * Heizungstausch plant, darf ihn vormerken — {@see activeBaselineEvent()}
+     * lässt ihn erst wirken, wenn sein Datum erreicht ist.
+     */
+    private function normalizeBaselineEvents(mixed $value): array
+    {
+        if ($value === null || $value === '' || $value === false) return [];
+        if (!is_array($value)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.invalidBaselineList'));
+        }
+
+        $out  = [];
+        $seen = [];
+        foreach ($value as $raw) {
+            if (!is_array($raw)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.invalidBaselineList'));
+            }
+            $date = trim((string)($raw['date'] ?? ''));
+            if (!self::isIsoDate($date)) {
+                throw new \InvalidArgumentException(
+                    $this->i18n->t('errors.meter.invalidBaselineDate', ['date' => $date])
+                );
+            }
+            if (isset($seen[$date])) {
+                throw new \InvalidArgumentException(
+                    $this->i18n->t('errors.meter.duplicateBaselineDate', ['date' => $date])
+                );
+            }
+            $seen[$date] = true;
+
+            $label = trim((string)($raw['label'] ?? ''));
+            if (mb_strlen($label) > self::BASELINE_LABEL_MAX) {
+                $label = mb_substr($label, 0, self::BASELINE_LABEL_MAX);
+            }
+            $out[] = ['date' => $date, 'label' => $label];
+        }
+
+        usort($out, fn(array $a, array $b) => strcmp($a['date'], $b['date']));
+        return $out;
+    }
+
+    /** Echtes Kalenderdatum im Format YYYY-MM-DD? */
+    private static function isIsoDate(string $d): bool
+    {
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $d, $m)) return false;
+        return checkdate((int)$m[2], (int)$m[3], (int)$m[1]);
+    }
+
+    /**
+     * Die **wirksame** Zäsur eines Zählers: das späteste Ereignis, dessen
+     * Datum nicht in der Zukunft liegt. Künftig datierte Ereignisse sind
+     * gespeichert, wirken aber noch nicht.
+     *
+     * Bewusst `static` und ohne Speicherzugriff — reine Logik auf dem
+     * übergebenen Zähler-Array. So können ConsumptionService, ForecastService
+     * und die Controller sie nutzen, ohne eine Abhängigkeit auf den
+     * MeterService aufzubauen.
+     *
+     * @return array{date:string,label:string}|null
+     */
+    public static function activeBaselineEvent(array $meter, ?string $today = null): ?array
+    {
+        $today  = $today ?? date('Y-m-d');
+        $events = $meter['baseline_events'] ?? [];
+        if (!is_array($events)) return null;
+
+        $best = null;
+        foreach ($events as $e) {
+            if (!is_array($e)) continue;
+            $d = (string)($e['date'] ?? '');
+            if ($d === '' || $d > $today) continue;
+            if ($best === null || $d > (string)$best['date']) {
+                $best = ['date' => $d, 'label' => (string)($e['label'] ?? '')];
+            }
+        }
+        return $best;
+    }
+
+    /** Datum der wirksamen Zäsur, oder `null` wenn keine greift. */
+    public static function activeBaselineDate(array $meter, ?string $today = null): ?string
+    {
+        $e = self::activeBaselineEvent($meter, $today);
+        return $e === null ? null : $e['date'];
     }
 
     /**

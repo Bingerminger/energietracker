@@ -617,6 +617,19 @@
       "needTwo": "Bitte mindestens zwei Zähler auswählen",
       "needName": "Bitte einen Gruppennamen angeben oder eine bestehende Gruppe wählen",
       "done": "{count} Zähler in Gruppe „{name}“ zusammengeführt"
+    },
+    "baseline": {
+      "title": "Analyse-Zäsuren",
+      "hint": "Nach einer baulichen Maßnahme verbraucht das Gebäude dauerhaft anders. Trage hier das Datum ein — die Auswertungen rechnen dann ab diesem Zeitpunkt, ältere Monate bleiben sichtbar, gehen aber nicht mehr ins Modell ein. Ein künftiges Datum darfst du vormerken; es wirkt erst, wenn es erreicht ist.",
+      "date": "Datum",
+      "label": "Bezeichnung",
+      "labelPlaceholder": "z. B. Dachdämmung",
+      "add": "Zäsur hinzufügen",
+      "remove": "Entfernen",
+      "none": "Keine Zäsur eingetragen — alle Auswertungen rechnen über die volle Historie.",
+      "active": "wirksam",
+      "future": "künftig",
+      "dateRequired": "Bitte ein Datum für die Zäsur angeben"
     }
   },
   "settings": {
@@ -1133,6 +1146,26 @@
       "barGut": "gut ≤ {value}",
       "barWarn": "Warnung ≥ {value}",
       "indexNote": "{bandNote} Index 100 = exakt der in den Einstellungen hinterlegte Referenzverbrauch pro Person."
+    },
+    "baseline": {
+      "chartPre": "vor der Zäsur",
+      "activeSince": "Auswertung rechnet ab {date} — {label}",
+      "activeSinceNoLabel": "Auswertung rechnet ab {date}",
+      "excluded": "{count} frühere Monate bleiben sichtbar, gehen aber nicht ins Modell ein.",
+      "limitsTitle": "Was gerade nicht gerechnet werden kann",
+      "limit": {
+        "weather_adjustment": "Die Wetterbereinigung braucht mindestens {need} Monate Historie — vorhanden sind {have}.",
+        "regression": "Die Regression braucht mindestens {need} Messpunkte ab der Zäsur — vorhanden sind {have}.",
+        "anomalies": "Die Anomalie-Erkennung braucht mindestens {need} verwertbare Monate — vorhanden sind {have}."
+      },
+      "comparisonTitle": "Wirkung der Maßnahme",
+      "comparisonHint": "Verbrauch je Gradtag vor und nach der Zäsur. Diese Zahl ist bereits witterungsbereinigt: Sie sagt, wie viel das Gebäude pro Kältegrad braucht — unabhängig davon, wie kalt der Winter war.",
+      "before": "vorher",
+      "after": "nachher",
+      "effect": "Veränderung",
+      "perDegreeDay": "{unit} je Gradtag",
+      "points": "{n} Messpunkte",
+      "weatherCorrected": "witterungsbereinigt"
     }
   },
   "forecast": {
@@ -1272,7 +1305,10 @@
       "groupNotFound": "Zählergruppe nicht gefunden",
       "groupNotFoundId": "Zählergruppe nicht gefunden: {group}",
       "groupNameEmpty": "Gruppenname darf nicht leer sein",
-      "mergeNeedTwo": "Zum Zusammenführen werden mindestens zwei Zähler benötigt"
+      "mergeNeedTwo": "Zum Zusammenführen werden mindestens zwei Zähler benötigt",
+      "invalidBaselineList": "Zäsuren müssen als Liste von Einträgen mit Datum übergeben werden",
+      "invalidBaselineDate": "Ungültiges Datum für die Zäsur: „{date}“ — erwartet wird JJJJ-MM-TT",
+      "duplicateBaselineDate": "Für den {date} ist bereits eine Zäsur eingetragen"
     },
     "common": {
       "unknownUtility": "Unbekannte Verbrauchsart: {utility}",

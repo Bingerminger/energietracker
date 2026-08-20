@@ -5,14 +5,15 @@
 [← API-Referenz](03-api-reference.md) · [Kompendium-Index](../README.md)
 
 Alle Daten liegen als flache JSON-Dateien unter `data/`. Keine Datenbank.
-Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.3.0**
+Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.4.0**
 (in `data/meta.json` und in jedem Backup).
 
 > **Schema-Historie (Kurzfassung):** 1.0.0 utility-orientiertes Layout ·
 > 1.0.3 Wasser-3-Komponenten-Verträge · 1.1.0 Fernwärme/Heizöl/Pellets +
 > `reminders.json` · **1.2.0** Meter-Topologie (`parent_meter_id`,
 > `meter_group_id`, `meter_groups.json` je Utility — F1006) · **1.3.0**
-> Zähler-Alias `external_id` für die Home-Assistant-Anbindung (F1009).
+> Zähler-Alias `external_id` für die Home-Assistant-Anbindung (F1009) ·
+> **1.4.0** Analyse-Zäsuren `baseline_events` am Zähler (F1011).
 
 ---
 
@@ -72,6 +73,11 @@ die Gruppen-*Mitgliedschaft* steht dagegen am Zähler (`meter_group_id`).
 
   // HA-Anbindung (F1009, seit Schema 1.3.0) — Default null:
   "external_id": "gaszaehler_haus",  // Alias für POST /api/ingest
+
+  // Analyse-Zäsuren (F1011, seit Schema 1.4.0) — Default []:
+  "baseline_events": [
+    { "date": "2021-09-01", "label": "Dachdämmung" }
+  ],
 
   "devices": [ Device, … ],
 
@@ -228,16 +234,18 @@ Gruppen (Auswahl der Default-Werte):
   legt dann frische Standard-Zähler an (`initFresh()`) statt blind zu migrieren,
 - ergänzt fehlende Verzeichnisse/Dateien (neue Verbrauchsarten,
   `reminders.json`, `meter_groups.json`) und neue Zähler-Felder additiv
-  (`parent_meter_id`/`meter_group_id` in 1.2.0, `external_id` in 1.3.0),
-- hebt die Version schrittweise auf den aktuellen Stand (**1.3.0**).
+  (`parent_meter_id`/`meter_group_id` in 1.2.0, `external_id` in 1.3.0,
+  `baseline_events` in 1.4.0),
+- hebt die Version schrittweise auf den aktuellen Stand (**1.4.0**).
 
 Jede Stufe hat ein eigenes `needsVXXXUpgrade()` + `upgradeToVXXX()`-Paar und
 ist für sich idempotent (wiederholtes Ausführen ist ein No-Op).
 
 Die mitgelieferten Demo-Daten tragen `schema_version: 1.1.0` und werden
-beim ersten Start additiv auf den aktuellen Stand (1.3.0) migriert —
-dabei kommen `meter_groups.json` je Utility (1.2.0) und das Zähler-Feld
-`external_id` (1.3.0) hinzu, ohne bestehende Werte anzutasten. Der
+beim ersten Start additiv auf den aktuellen Stand (1.4.0) migriert —
+dabei kommen `meter_groups.json` je Utility (1.2.0) und die Zähler-Felder
+`external_id` (1.3.0) und `baseline_events` (1.4.0) hinzu, ohne bestehende
+Werte anzutasten. Der
 Migrationspfad (1.0.0 → aktuelles Schema) wird zusätzlich in der CI über
 einen separaten Migrations-Smoke geprüft. Ein Downgrade wird nicht
 unterstützt.

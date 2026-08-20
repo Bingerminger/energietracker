@@ -64,6 +64,11 @@ final class ForecastService
         $seasonal = array_fill(1, 12, []);
         $seasonalHdd = array_fill(1, 12, []);
         foreach ($monthly as $m) {
+            // v1.4.0 — F1011: Monate vor der Zäsur beschreiben ein anderes
+            // Gebäude. Sie dürfen weder das Saisonmittel noch die Regression
+            // prägen, sonst prognostiziert der Tracker den Zustand vor der
+            // Maßnahme weiter.
+            if (!empty($m['pre_baseline'])) continue;
             if (($m['days'] ?? 0) < $minDays) continue;
             $seasonal[(int)$m['month']][] = (float)($m[$valueField] ?? 0);
             if (!empty($u['hgt_relevant']) && ($m['hdd'] ?? 0) > 0) {
@@ -84,6 +89,7 @@ final class ForecastService
         if (!empty($u['hgt_relevant'])) {
             $rx = []; $ry = [];
             foreach ($monthly as $m) {
+                if (!empty($m['pre_baseline'])) continue;   // F1011
                 if (($m['days'] ?? 0) >= $minDays && ($m['hdd'] ?? 0) > $this->settings->get('min_hdd_regression', 5.0)) {
                     $rx[] = (float)$m['hdd'];
                     $ry[] = (float)($m[$valueField] ?? 0);

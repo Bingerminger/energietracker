@@ -89,20 +89,54 @@ Details und Formeln: [Heizöl](05-heizoel.md) / [Pellets](06-pellets.md).
 
 ## 5. Vor/Nach einer Sanierung messen
 
-Die wertvollste Anwendung. Vorgehen:
+Die wertvollste Anwendung — und seit **v2.4.0 (F1011)** rechnet der
+Energietracker sie selbst aus, statt sie nur zu beschreiben.
 
-1. Mindestens **eine volle Heizperiode vor** der Maßnahme sauber
-   erfassen (für eine belastbare Regression).
-2. Maßnahme (Dämmung, Fenster, Heizungstausch, hydraulischer Abgleich).
-3. Danach die **Wetterbereinigung** vergleichen — nur sie trennt den
-   Effekt der Maßnahme vom Effekt des Wetters. Eine reine
-   kWh-Differenz Jahr/Jahr ist irreführend, wenn die Winter
-   unterschiedlich kalt waren.
+**Das Problem.** Nach einer Dämmung ist das Haus thermisch ein anderes
+Gebäude: Es braucht dauerhaft weniger je Kältegrad. Eine Regression über
+beide Zustände beschreibt keinen von beiden — sie liefert einen gewichteten
+Mittelwert, und zwar so lange, bis die neuen Monate die alten zahlenmäßig
+überwiegen. Bei zwölf Jahren Historie dauert das Jahre.
+
+**Vorgehen:**
+
+1. Mindestens **eine volle Heizperiode vor** der Maßnahme sauber erfassen
+   (für eine belastbare Heizkurve).
+2. Maßnahme durchführen (Dämmung, Fenster, Heizungstausch, hydraulischer
+   Abgleich).
+3. Im Zähler unter *Analyse-Zäsuren* das Datum eintragen, mit einer
+   Bezeichnung wie „Dachdämmung". Ein künftiges Datum darf vorgemerkt
+   werden — es wirkt erst, wenn es erreicht ist.
+
+Danach rechnen **alle** Auswertungen ab diesem Zeitpunkt: die Regressionen
+im Analyse-Chart, der Erwartungswert je Monat, die Prognose (Heizkurve und
+Saisonmittel), die Anomalie-Erkennung, die Empfehlungen — und über die
+Prognose auch der Tarifvergleich. Die Monate davor bleiben im Chart
+sichtbar, nur ausgegraut: Ausgeschlossen wird aus dem **Modell**, nicht aus
+der Anzeige.
+
+**Was dabei herauskommt.** Der Analyse-Bereich weist die Heizkurve beider
+Epochen aus:
 
 ```text
-Einsparung_echt ≈ Verbrauch_vorher_wetterbereinigt
-                 - Verbrauch_nachher_wetterbereinigt
+vorher    0,42 m³ je Gradtag   (63 Messpunkte)
+nachher   0,28 m³ je Gradtag   (41 Messpunkte)
+Veränderung  −33 %             witterungsbereinigt
 ```
+
+Der Verbrauch **je Gradtag** ist bereits die Wetterbereinigung: Er sagt, wie
+viel das Gebäude pro Kältegrad braucht — unabhängig davon, wie kalt der
+Winter war. Eine reine kWh-Differenz Jahr/Jahr wäre irreführend, sobald sich
+die Winter unterscheiden.
+
+> **Wenn nach der Zäsur noch zu wenig Historie vorliegt**, sagt die
+> Oberfläche das im Klartext („Die Regression braucht mindestens 8
+> Messpunkte ab der Zäsur — vorhanden sind 5"), statt eine Auswertung
+> wortlos ausfallen zu lassen. Der Vergleich erscheint erst, wenn **beide**
+> Epochen dick genug besetzt sind.
+
+Mehrere Maßnahmen über die Zeit sind möglich: Es wirkt jeweils die späteste
+Zäsur, deren Datum erreicht ist.
 
 ---
 

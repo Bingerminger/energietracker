@@ -37,7 +37,7 @@ use Energietracker\Config\Utilities;
  */
 final class Migrator
 {
-    public const SCHEMA_VERSION = '1.3.0';
+    public const SCHEMA_VERSION = '1.4.0';
 
     // v2.2.0 — der I18nService ist optional: der Migrator wird im Bootstrap
     // sehr früh und in Tests ohne Container konstruiert. Fehlt er, greifen
@@ -171,6 +171,23 @@ final class Migrator
         return false;
     }
 
+    /**
+     * v1.3.0 → v1.4.0 — Baseline-Zäsuren `baseline_events` (F1011).
+     * Trägt ein Zähler das Feld noch nicht? Idempotent.
+     */
+    public function needsV140Upgrade(): bool
+    {
+        foreach (Utilities::keys() as $key) {
+            $meters = $this->store->read($key . '/meters.json', []);
+            if (!is_array($meters)) continue;
+            foreach ($meters as $m) {
+                if (!is_array($m)) continue;
+                if (!array_key_exists('baseline_events', $m)) return true;
+            }
+        }
+        return false;
+    }
+
     public function migrate(): array
     {
         $log = [];
@@ -200,6 +217,11 @@ final class Migrator
         // ── v1.2.0 → v1.3.0 — Zähler-Alias external_id (F1009) ────────────
         if ($this->needsV130Upgrade()) {
             $log = array_merge($log, $this->upgradeToV130());
+        }
+
+        // ── v1.3.0 → v1.4.0 — Baseline-Zäsuren (F1011) ────────────────────
+        if ($this->needsV140Upgrade()) {
+            $log = array_merge($log, $this->upgradeToV140());
         }
 
         // ── write meta marker ─────────────────────────────────────────────
@@ -416,6 +438,41 @@ final class Migrator
         return $log;
     }
 
+    /**
+     * v1.3.0 → v1.4.0 — Baseline-Zäsuren `baseline_events` (F1011).
+     *
+     * Rein additiv und idempotent: ergänzt an jedem Zähler das Feld
+     * `baseline_events` mit Default `[]`, falls es fehlt. Ein leeres Array
+     * bedeutet „keine Zäsur" — alle Auswertungen rechnen dann exakt wie vor
+     * v2.4.0. Bestehende Werte bleiben unangetastet.
+     */
+    public function upgradeToV140(): array
+    {
+        $log = [];
+        $patched = 0;
+
+        foreach (Utilities::keys() as $key) {
+            $meters = $this->store->read($key . '/meters.json', []);
+            if (!is_array($meters)) continue;
+            $changed = false;
+            foreach ($meters as &$m) {
+                if (!is_array($m)) continue;
+                if (!array_key_exists('baseline_events', $m)) {
+                    $m['baseline_events'] = [];
+                    $changed = true;
+                    $patched++;
+                }
+            }
+            unset($m);
+            if ($changed) {
+                $this->store->write($key . '/meters.json', $meters);
+            }
+        }
+
+        $log[] = sprintf('v1.4.0: %d Zähler um baseline_events (Analyse-Zäsur) ergänzt', $patched);
+        return $log;
+    }
+
     /** Hilfsmethode: legt eine Datei nur an, wenn sie noch nicht existiert. */
     private function ensureFile(string $relative, mixed $default): void
     {
@@ -549,6 +606,8 @@ final class Migrator
                         'meter_group_id'  => null,
                         // v1.3.0 — F1009 HA-Alias (Default: keiner)
                         'external_id'     => null,
+                        // v1.4.0 — F1011 Analyse-Zäsur (Default: keine)
+                        'baseline_events' => [],
                         'devices' => [[
                             'id' => 'd_' . $key . '_1',
                             'serial' => null,

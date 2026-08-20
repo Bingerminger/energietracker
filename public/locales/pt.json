@@ -617,6 +617,19 @@
       "needTwo": "Selecione pelo menos dois contadores",
       "needName": "Indique um nome de grupo ou escolha um grupo existente",
       "done": "{count} contadores combinados no grupo « {name} »"
+    },
+    "baseline": {
+      "title": "Cortes de referência",
+      "hint": "Depois de uma obra, o edifício passa a consumir de outra forma de modo permanente. Indique aqui a data: as análises passam a contar a partir desse momento e os meses anteriores continuam visíveis, mas deixam de alimentar o modelo. Pode registar uma data futura; só produz efeito quando for atingida.",
+      "date": "Data",
+      "label": "Descrição",
+      "labelPlaceholder": "p. ex. isolamento do telhado",
+      "add": "Adicionar corte",
+      "remove": "Remover",
+      "none": "Nenhum corte registado — todas as análises usam o histórico completo.",
+      "active": "em vigor",
+      "future": "futuro",
+      "dateRequired": "Indique uma data para o corte"
     }
   },
   "settings": {
@@ -1133,6 +1146,26 @@
       "barGut": "bom ≤ {value}",
       "barWarn": "aviso ≥ {value}",
       "indexNote": "{bandNote} Índice 100 = exatamente o consumo de referência por pessoa definido nas definições."
+    },
+    "baseline": {
+      "chartPre": "antes do corte",
+      "activeSince": "A análise começa em {date} — {label}",
+      "activeSinceNoLabel": "A análise começa em {date}",
+      "excluded": "{count} meses anteriores continuam visíveis, mas não alimentam o modelo.",
+      "limitsTitle": "O que não pode ser calculado neste momento",
+      "limit": {
+        "weather_adjustment": "A correção climática precisa de pelo menos {need} meses de histórico — existem {have}.",
+        "regression": "A regressão precisa de pelo menos {need} pontos de medição após o corte — existem {have}.",
+        "anomalies": "A deteção de anomalias precisa de pelo menos {need} meses aproveitáveis — existem {have}."
+      },
+      "comparisonTitle": "Efeito da intervenção",
+      "comparisonHint": "Consumo por grau-dia antes e depois do corte. Este valor já está corrigido pelo clima: diz quanto o edifício precisa por grau de frio, independentemente de quão frio tenha sido o inverno.",
+      "before": "antes",
+      "after": "depois",
+      "effect": "Variação",
+      "perDegreeDay": "{unit} por grau-dia",
+      "points": "{n} pontos de medição",
+      "weatherCorrected": "corrigido pelo clima"
     }
   },
   "forecast": {
@@ -1272,7 +1305,10 @@
       "groupNotFound": "Grupo de contadores não encontrado",
       "groupNotFoundId": "Grupo de contadores não encontrado: {group}",
       "groupNameEmpty": "O nome do grupo não pode estar vazio",
-      "mergeNeedTwo": "A combinação requer pelo menos dois contadores"
+      "mergeNeedTwo": "A combinação requer pelo menos dois contadores",
+      "invalidBaselineList": "Os cortes de referência têm de ser fornecidos como uma lista de entradas com data",
+      "invalidBaselineDate": "Data de corte inválida: «{date}» — esperado AAAA-MM-DD",
+      "duplicateBaselineDate": "Já existe um corte de referência para {date}"
     },
     "common": {
       "unknownUtility": "Serviço desconhecido: {utility}",

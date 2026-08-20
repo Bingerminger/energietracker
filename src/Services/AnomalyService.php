@@ -20,6 +20,13 @@ final class AnomalyService
         private SettingsService $settings,
     ) {}
 
+    /**
+     * Untergrenze: unter so vielen verwertbaren Monaten wird gar nicht erst
+     * gerechnet. Öffentlich, damit der F1011-Hinweis dieselbe Zahl nennt, die
+     * hier wirklich greift — statt sie ein zweites Mal hinzuschreiben.
+     */
+    public const MIN_MONTHS = 5;
+
     public function detect(string $utility, array $monthly): array
     {
         $u = Utilities::get($utility);
@@ -35,8 +42,13 @@ final class AnomalyService
             // Anomalie markiert werden, sonst poppt jedes Wechsel-Datum
             // als „⚠️ Anomalie" im Dashboard auf.
             && empty($m['device_swap'])
+            // v1.4.0 — F1011: Monate vor einer Zäsur gehören zu einem anderen
+            // Gebäude. Bleiben sie drin, ist der Erwartungswert ein Mittel aus
+            // zwei Zuständen — und jeder Monat danach meldet dauerhaft
+            // „unter dem Mittel", während echte Ausreißer untergehen.
+            && empty($m['pre_baseline'])
         ));
-        if (count($valid) < 5) return [];
+        if (count($valid) < self::MIN_MONTHS) return [];
 
         // Compute expected values
         $expected = [];

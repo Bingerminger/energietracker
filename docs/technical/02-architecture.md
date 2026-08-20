@@ -33,7 +33,7 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
 
 Es gibt **keine** Datenbank. Persistenz ist eine Menge von JSON-Dateien
 unter `data/`, geschrieben mit `LOCK_EX` (exklusiver Lock), damit
-parallele Requests sich nicht zerstören. Schema-Stand: **1.3.0**.
+parallele Requests sich nicht zerstören. Schema-Stand: **1.4.0**.
 
 ---
 

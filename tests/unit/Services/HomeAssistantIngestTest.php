@@ -52,7 +52,7 @@ final class HomeAssistantIngestTest extends ServiceTestCase
 
     public function testFreshInstallHasExternalIdField(): void
     {
-        self::assertSame('1.3.0', Migrator::SCHEMA_VERSION);
+        self::assertSame('1.4.0', Migrator::SCHEMA_VERSION);
         $migrator = new Migrator($this->store);
         self::assertFalse($migrator->needsV130Upgrade());
 

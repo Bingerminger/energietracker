@@ -147,6 +147,40 @@ include: `ym`, `days`, `kwh` *or* `m3`, `cost`, `avg_temp`, `hdd`, `co2_kg`,
 additionally `expected_hgt`, `weather_adjusted`, `delta_pct` as well as smoothings
 (MA-3/MA-6). `regressions` contains all five models with `r2`/`valid`.
 
+**Since v2.4.0 (F1011)** every month additionally carries `pre_baseline`
+(`true` = the month lies before the meter's analysis baseline cut-off). Such
+months stay in the response but feed **no** evaluation: `expected_hgt` and
+`delta_pct` are `null` for them and the regressions leave them out.
+`weather_adjusted` is still computed for them — the value is independent of the
+building and carries the before/after comparison.
+
+Two new top-level fields go with it:
+
+```json
+"baseline": {
+  "active_from": "2021-09-01",     // null = no cut-off in effect
+  "active_label": "Loft insulation",
+  "first_month": "2021-10",        // first full month after it
+  "events": [ { "date": "2021-09-01", "label": "Loft insulation" } ],
+  "months_total": 144, "months_after": 58, "points_after": 41,
+  "limits": [                       // what cannot be computed right now
+    { "key": "weather_adjustment", "need": 12, "have": 144, "ok": true },
+    { "key": "regression",         "need": 8,  "have": 41,  "ok": true },
+    { "key": "anomalies",          "need": 5,  "have": 58,  "ok": true }
+  ]
+},
+"baseline_comparison": {            // null when one epoch is too thin
+  "before": { "slope": 0.42, "base": 11.8, "r2": 0.97, "points": 63 },
+  "after":  { "slope": 0.28, "base": 12.1, "r2": 0.98, "points": 41 },
+  "delta_pct": -33.3, "unit": "kWh"
+}
+```
+
+`slope` is consumption **per degree day** and therefore already
+weather-corrected; `delta_pct` is the effect of the measure. `limits` is filled
+in **without** a cut-off too — a history that is simply too short gets explained
+instead of an evaluation silently disappearing.
+
 ### `GET /api/utility/{u}/meters/{id}/stock-history` *(heating oil/pellets only)*
 
 ```json

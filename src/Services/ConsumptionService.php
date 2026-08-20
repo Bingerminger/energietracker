@@ -26,6 +26,14 @@ use Energietracker\Config\Utilities;
 final class ConsumptionService
 {
     /**
+     * Untergrenzen der Wetterbereinigung. Öffentlich, damit der F1011-Hinweis
+     * dieselben Zahlen nennt, die hier wirklich greifen — bis v2.3.5 standen
+     * beide als nackte Literale im Rechenweg und schlugen wortlos zu.
+     */
+    public const MIN_MONTHS_WEATHER     = 12;
+    public const MIN_POINTS_REGRESSION  = 8;
+
+    /**
      * Meter ids currently being computed — recursion guard for the
      * Schmutzwasser `separater_zaehler` lookup (a meter referencing another
      * meter as its waste-water measurement basis). Prevents infinite
@@ -490,6 +498,9 @@ final class ConsumptionService
         $monthly = array_values($monthly);
         // v1.6.1 — Issue #13: Wechsel-Monate flaggen
         $monthly = $this->markSwapMonths($monthly, $meter);
+        // v1.4.0 — F1011: Monate vor der Zäsur flaggen. Muss VOR der
+        // Wetterbereinigung laufen — die liest die Markierung.
+        $monthly = $this->markBaselineMonths($monthly, $meter);
         $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
         $monthly = $this->applyWeatherAdjustment($monthly, $utility, $valueField);
         return $this->addMovingAverages($monthly, $valueField);
@@ -503,6 +514,204 @@ final class ConsumptionService
      * Erkennung auszuschließen — ein Tausch ist ein erklärlicher
      * Sondereffekt, keine fachliche Anomalie.
      */
+    /**
+     * v1.4.0 — F1011: Markiert jeden Monat vor der wirksamen Zäsur mit
+     * `pre_baseline = true`.
+     *
+     * **Diese eine Markierung ist der ganze Durchreichmechanismus.** Jeder
+     * Verbraucher — Wetterbereinigung, Regressionen im Analyse-Chart,
+     * Prognose, Anomalie-Erkennung, Empfehlungen — überspringt markierte
+     * Zeilen. Damit ist die Bereichsregel per `grep pre_baseline` prüfbar,
+     * statt in fünf Aggregatoren einzeln nachgebaut zu werden. Genau das
+     * fehlte bei der Subzähler-Regel aus F1006, die in `forUtility()` stand
+     * und in drei weiteren Auswertungen nicht (behoben in v2.1.3).
+     *
+     * **Der Übergangsmonat zählt als „davor".** Fällt die Zäsur nicht auf
+     * den Monatsersten, mischt dieser Monat altes und neues Gebäude — er
+     * bleibt sichtbar, geht aber nicht ins Modell ein. Liegt die Zäsur auf
+     * dem Ersten, ist der Monat vollständig „danach".
+     *
+     * Ohne Zäsur wird jede Zeile mit `false` markiert; alle Auswertungen
+     * verhalten sich dann exakt wie vor v2.4.0.
+     */
+    private function markBaselineMonths(array $monthly, array $meter): array
+    {
+        $baseline = MeterService::activeBaselineDate($meter);
+        $firstPostYm = null;
+
+        if ($baseline !== null) {
+            $ym  = substr($baseline, 0, 7);
+            $day = (int)substr($baseline, 8, 2);
+            if ($day > 1) {
+                // Übergangsmonat überspringen: erster voller Monat danach.
+                $ts = strtotime($ym . '-01 +1 month');
+                $ym = $ts === false ? $ym : date('Y-m', $ts);
+            }
+            $firstPostYm = $ym;
+        }
+
+        foreach ($monthly as &$row) {
+            $row['pre_baseline'] = $firstPostYm !== null
+                && (string)($row['ym'] ?? '') < $firstPostYm;
+        }
+        unset($row);
+        return $monthly;
+    }
+
+    /**
+     * v1.4.0 — F1011: Die Punkte, die in eine Heizkurven-Regression gehören.
+     *
+     * Eine Stelle entscheidet, was ein Regressionspunkt ist — der Chart im
+     * ConsumptionController, `baselineInfo()` und der Vorher/Nachher-Vergleich
+     * fragen alle hier. Bis v2.3.5 stand dieselbe Bedingung an drei Orten
+     * leicht verschieden im Code; genau so entstand die Subzähler-Lücke aus
+     * v2.1.3.
+     *
+     * `$minHdd` bleibt bewusst einstellbar: Der Analyse-Chart nimmt seit jeher
+     * jeden Monat mit HGT > 0, die Wetterbereinigung erst ab
+     * `min_hdd_regression`. Diese beiden Schwellen zu vereinheitlichen wäre
+     * eine Verhaltensänderung, die nichts mit F1011 zu tun hat — hier wird nur
+     * die Zäsur-Regel zusammengeführt.
+     *
+     * @return array{x:array<int,float>,y:array<int,float>,n:int}
+     */
+    public function regressionPoints(
+        array $monthly,
+        string $utility,
+        bool $preBaseline = false,
+        float $minHdd = 0.0,
+    ): array {
+        $u          = Utilities::get($utility);
+        $valueField = ($u['consumption_unit'] ?? '') === 'kWh' ? 'kwh' : 'm3';
+        $x = $y = [];
+        foreach ($monthly as $m) {
+            if (!empty($m['pre_baseline']) !== $preBaseline) continue;
+            if (($m['hdd'] ?? 0) <= $minHdd || ($m[$valueField] ?? 0) <= 0) continue;
+            $x[] = (float)$m['hdd'];
+            $y[] = (float)$m[$valueField];
+        }
+        return ['x' => $x, 'y' => $y, 'n' => count($x)];
+    }
+
+    /**
+     * v1.4.0 — F1011: Zustandsbericht zur Zäsur eines Zählers.
+     *
+     * Liefert die wirksame Zäsur, alle gespeicherten Ereignisse (auch künftig
+     * datierte) und für jede der drei Untergrenzen, ob sie erfüllt ist. Die
+     * Oberfläche macht daraus einen Klartext-Hinweis, statt eine Auswertung
+     * wortlos verschwinden zu lassen.
+     *
+     * Bewusst **auch ohne Zäsur** befüllt: Wer schlicht erst sieben Monate
+     * Daten hat, bekommt dieselbe Erklärung. Die drei Grenzen greifen heute
+     * schon, nur eben stumm.
+     */
+    public function baselineInfo(string $utility, array $meter, array $monthly): array
+    {
+        $u       = Utilities::get($utility);
+        $minHdd  = (float)$this->settings->get('min_hdd_regression', 5.0);
+        $minDays = (int)$this->settings->get('min_days_period', 20);
+
+        $event      = MeterService::activeBaselineEvent($meter);
+        $firstMonth = null;
+        $monthsAfter = $anomalyMonths = 0;
+
+        foreach ($monthly as $m) {
+            if (!empty($m['pre_baseline'])) continue;
+            $monthsAfter++;
+            if ($firstMonth === null) $firstMonth = (string)($m['ym'] ?? '');
+            if (($m['days'] ?? 0) >= $minDays && empty($m['device_swap'])) $anomalyMonths++;
+        }
+        // Dieselbe Punktauswahl, die die Wetterbereinigung wirklich verwendet.
+        $pointsAfter = $this->regressionPoints($monthly, $utility, false, $minHdd)['n'];
+
+        $hgt = !empty($u['hgt_relevant']);
+
+        // Die Zahlen stammen aus den Konstanten, die tatsächlich greifen —
+        // nicht aus einer zweiten, freihändig gepflegten Liste.
+        $limits = [];
+        if ($hgt) {
+            $limits[] = [
+                'key'  => 'weather_adjustment',
+                'need' => self::MIN_MONTHS_WEATHER,
+                'have' => count($monthly),
+                'ok'   => count($monthly) >= self::MIN_MONTHS_WEATHER,
+            ];
+            $limits[] = [
+                'key'  => 'regression',
+                'need' => self::MIN_POINTS_REGRESSION,
+                'have' => $pointsAfter,
+                'ok'   => $pointsAfter >= self::MIN_POINTS_REGRESSION,
+            ];
+        }
+        $limits[] = [
+            'key'  => 'anomalies',
+            'need' => AnomalyService::MIN_MONTHS,
+            'have' => $anomalyMonths,
+            'ok'   => $anomalyMonths >= AnomalyService::MIN_MONTHS,
+        ];
+
+        return [
+            'active_from'  => $event['date']  ?? null,
+            'active_label' => $event['label'] ?? null,
+            'first_month'  => $firstMonth,
+            'events'       => array_values($meter['baseline_events'] ?? []),
+            'months_total' => count($monthly),
+            'months_after' => $monthsAfter,
+            'points_after' => $pointsAfter,
+            'limits'       => $limits,
+        ];
+    }
+
+    /**
+     * v1.4.0 — F1011: Vorher/Nachher einer baulichen Maßnahme.
+     *
+     * Fittet beide Epochen getrennt und gibt die Steigung je Epoche zurück —
+     * Verbrauch je Gradtag. Die Steigung **ist** die Witterungsbereinigung:
+     * Sie sagt, wie viel das Gebäude pro Kältegrad braucht, unabhängig davon,
+     * wie kalt der Winter war. Ihre Differenz ist damit die Wirkung der
+     * Maßnahme, nicht die des Wetters.
+     *
+     * Bewusst immer `linear` — nicht das eingestellte Prognosemodell. Der
+     * Vergleich lebt von einer Zahl, die beide Seiten gleich beschreibt; ein
+     * Polynom oder eine Sigmoide haben keine vergleichbare Steigung.
+     *
+     * `null`, wenn keine Zäsur greift, die Verbrauchsart nicht HGT-relevant
+     * ist oder eine der beiden Epochen zu dünn besetzt ist.
+     */
+    public function baselineComparison(string $utility, array $meter, array $monthly): ?array
+    {
+        if ($this->regression === null) return null;
+        if (!Utilities::isHgtRelevant($utility)) return null;
+        if (MeterService::activeBaselineDate($meter) === null) return null;
+
+        $minHdd = (float)$this->settings->get('min_hdd_regression', 5.0);
+        $seg = [
+            'before' => $this->regressionPoints($monthly, $utility, true,  $minHdd),
+            'after'  => $this->regressionPoints($monthly, $utility, false, $minHdd),
+        ];
+
+        $out = [];
+        foreach ($seg as $k => $d) {
+            if ($d['n'] < self::MIN_POINTS_REGRESSION) return null;
+            $reg = $this->regression->linear($d['x'], $d['y']);
+            if (!($reg['valid'] ?? false)) return null;
+            $slope = (float)($reg['a'] ?? 0.0);   // `a` = Verbrauch je Gradtag
+            if ($slope <= 0) return null;         // ohne Heizkurve kein Vergleich
+            $out[$k] = [
+                'slope'  => round($slope, 4),
+                'base'   => round((float)($reg['b'] ?? 0.0), 1),
+                'r2'     => (float)($reg['r2'] ?? 0.0),
+                'points' => count($d['x']),
+            ];
+        }
+
+        $before = $out['before']['slope'];
+        $after  = $out['after']['slope'];
+        $out['delta_pct'] = round(($after - $before) / $before * 100.0, 1);
+        $out['unit']      = (string)(Utilities::get($utility)['consumption_unit'] ?? '');
+        return $out;
+    }
+
     private function markSwapMonths(array $monthly, array $meter): array
     {
         $swap = [];
@@ -968,6 +1177,11 @@ final class ConsumptionService
      *                     Mittel aller wetterbereinigten Monate, in %
      *
      * Sommer-/Schwachlastmonate (hdd ≤ min_hdd_regression) bekommen
+     * v1.4.0 — F1011: Monate mit `pre_baseline` gehen weder in die Regression
+     * noch in den Vergleichsmittelwert ein; `expected_hgt` und `delta_pct`
+     * bleiben für sie `null`. `weather_adjusted` wird für sie weiter berechnet
+     * — der Wert ist gebäudeunabhängig und trägt den Vorher/Nachher-Vergleich.
+     *
      * weather_adjusted = null und delta_pct = null — die Normierung ist
      * dort sinnlos (Division durch ~0, reiner Warmwasser-/Grundlastbedarf).
      *
@@ -978,7 +1192,7 @@ final class ConsumptionService
     {
         if (!Utilities::isHgtRelevant($utility)) return $monthly;
         $n = count($monthly);
-        if ($n < 12) return $monthly;
+        if ($n < self::MIN_MONTHS_WEATHER) return $monthly;
 
         $minHdd = (float)$this->settings->get('min_hdd_regression', 5.0);
 
@@ -995,17 +1209,25 @@ final class ConsumptionService
             $hddRef[$cm] = count($vals) > 0 ? array_sum($vals) / count($vals) : 0.0;
         }
 
+        // v1.4.0 — F1011: Das Witterungsmittel `hddRef` bleibt bewusst über
+        // ALLE Jahre stehen, auch über die vor einer Zäsur. Es beschreibt das
+        // Klima am Standort, nicht das Gebäude — eine Dämmung ändert daran
+        // nichts, und je mehr Jahre einfließen, desto stabiler ist es.
+        // Ausgeschlossen wird nur, was das GEBÄUDE beschreibt: die Regression
+        // und der Vergleichsmittelwert.
+
         // Regression über (hdd, value) der heizrelevanten Monate
         $reg = null;
         if ($this->regression !== null) {
             $rx = []; $ry = [];
             foreach ($monthly as $m) {
+                if (!empty($m['pre_baseline'])) continue;   // F1011
                 if (($m['hdd'] ?? 0) > $minHdd && ($m[$valueField] ?? 0) > 0) {
                     $rx[] = (float)$m['hdd'];
                     $ry[] = (float)$m[$valueField];
                 }
             }
-            if (count($rx) >= 8) {
+            if (count($rx) >= self::MIN_POINTS_REGRESSION) {
                 $model = (string)$this->settings->get('forecast_model', 'linear');
                 $reg = $this->regression->fit($model, $rx, $ry, $this->settings);
                 if (!($reg['valid'] ?? false)) {
@@ -1020,25 +1242,34 @@ final class ConsumptionService
             $cm  = (int)($m['month'] ?? 0);
             $hdd = (float)($m['hdd'] ?? 0);
             $val = (float)($m[$valueField] ?? 0);
+            $pre = !empty($m['pre_baseline']);
 
-            $m['expected_hgt'] = ($reg && ($reg['valid'] ?? false))
+            // F1011: Vor der Zäsur gibt es keinen Erwartungswert — das Modell
+            // beschreibt das Gebäude von danach und sagt über vorher nichts.
+            $m['expected_hgt'] = (!$pre && $reg && ($reg['valid'] ?? false))
                 ? round($this->regression->predict($reg, $hdd), 1)
                 : null;
 
+            // `weather_adjusted` wird auch VOR der Zäsur berechnet: Die
+            // Normierung auf das Witterungsmittel ist gebäudeunabhängig, und
+            // genau diese Werte braucht der Vorher/Nachher-Vergleich.
             if ($hdd > $minHdd && isset($hddRef[$cm]) && $hddRef[$cm] > 0) {
                 $adj = $val * ($hddRef[$cm] / $hdd);
                 $m['weather_adjusted'] = round($adj, 1);
-                $adjVals[] = $adj;
+                if (!$pre) $adjVals[] = $adj;   // F1011: Mittel nur über danach
             } else {
                 $m['weather_adjusted'] = null;
             }
         }
         unset($m);
 
-        // Pass 2: delta_pct gegen das Mittel aller wetterbereinigten Werte
+        // Pass 2: delta_pct gegen das Mittel der wetterbereinigten Werte —
+        // F1011: nur über die Monate ab der Zäsur, und nur für sie ausgewiesen.
+        // Ein Monat von vor der Sanierung gegen den Schnitt von danach zu
+        // messen ergäbe eine Abweichung, die nur den Umbau abbildet.
         $adjMean = count($adjVals) > 0 ? array_sum($adjVals) / count($adjVals) : 0.0;
         foreach ($monthly as &$m) {
-            if ($m['weather_adjusted'] !== null && $adjMean > 0) {
+            if (empty($m['pre_baseline']) && $m['weather_adjusted'] !== null && $adjMean > 0) {
                 $m['delta_pct'] = round(
                     ($m['weather_adjusted'] - $adjMean) / $adjMean * 100.0, 1
                 );
@@ -1202,6 +1433,9 @@ final class ConsumptionService
         $monthly = array_values($monthly);
         // v1.6.1 — Issue #13: Wechsel-Monate auch im Wasser-Pfad flaggen
         $monthly = $this->markSwapMonths($monthly, $meter);
+        // v1.4.0 — F1011: Monate vor der Zäsur flaggen. Muss VOR der
+        // Wetterbereinigung laufen — die liest die Markierung.
+        $monthly = $this->markBaselineMonths($monthly, $meter);
         $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
         $monthly = $this->applyWeatherAdjustment($monthly, $utility, $valueField);
         return $this->addMovingAverages($monthly, $valueField);

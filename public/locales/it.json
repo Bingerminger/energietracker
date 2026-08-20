@@ -617,6 +617,19 @@
       "needTwo": "Seleziona almeno due contatori",
       "needName": "Indica un nome di gruppo o scegli un gruppo esistente",
       "done": "{count} contatori uniti nel gruppo « {name} »"
+    },
+    "baseline": {
+      "title": "Cesure per l’analisi",
+      "hint": "Dopo un intervento edilizio l’edificio consuma stabilmente in modo diverso. Inserisci qui la data: le analisi partiranno da quel momento, i mesi precedenti restano visibili ma non alimentano più il modello. Una data futura può essere annotata in anticipo; ha effetto solo quando viene raggiunta.",
+      "date": "Data",
+      "label": "Descrizione",
+      "labelPlaceholder": "es. isolamento del tetto",
+      "add": "Aggiungi cesura",
+      "remove": "Rimuovi",
+      "none": "Nessuna cesura registrata — tutte le analisi usano l’intero storico.",
+      "active": "in vigore",
+      "future": "futura",
+      "dateRequired": "Indica una data per la cesura"
     }
   },
   "settings": {
@@ -1133,6 +1146,26 @@
       "barGut": "buono ≤ {value}",
       "barWarn": "avviso ≥ {value}",
       "indexNote": "{bandNote} Indice 100 = esattamente il consumo di riferimento pro capite impostato nelle impostazioni."
+    },
+    "baseline": {
+      "chartPre": "prima della cesura",
+      "activeSince": "L’analisi parte dal {date} — {label}",
+      "activeSinceNoLabel": "L’analisi parte dal {date}",
+      "excluded": "{count} mesi precedenti restano visibili ma non alimentano il modello.",
+      "limitsTitle": "Cosa non è calcolabile al momento",
+      "limit": {
+        "weather_adjustment": "La correzione climatica richiede almeno {need} mesi di storico — disponibili {have}.",
+        "regression": "La regressione richiede almeno {need} punti di misura dopo la cesura — disponibili {have}.",
+        "anomalies": "Il rilevamento delle anomalie richiede almeno {need} mesi utilizzabili — disponibili {have}."
+      },
+      "comparisonTitle": "Effetto dell’intervento",
+      "comparisonHint": "Consumo per grado giorno prima e dopo la cesura. Questo valore è già corretto per il clima: indica quanto serve all’edificio per grado di freddo, indipendentemente da quanto sia stato rigido l’inverno.",
+      "before": "prima",
+      "after": "dopo",
+      "effect": "Variazione",
+      "perDegreeDay": "{unit} per grado giorno",
+      "points": "{n} punti di misura",
+      "weatherCorrected": "corretto per il clima"
     }
   },
   "forecast": {
@@ -1272,7 +1305,10 @@
       "groupNotFound": "Gruppo di contatori non trovato",
       "groupNotFoundId": "Gruppo di contatori non trovato: {group}",
       "groupNameEmpty": "Il nome del gruppo non può essere vuoto",
-      "mergeNeedTwo": "L’unione richiede almeno due contatori"
+      "mergeNeedTwo": "L’unione richiede almeno due contatori",
+      "invalidBaselineList": "Le cesure devono essere fornite come elenco di voci con una data",
+      "invalidBaselineDate": "Data della cesura non valida: «{date}» — è previsto AAAA-MM-GG",
+      "duplicateBaselineDate": "Per il {date} esiste già una cesura"
     },
     "common": {
       "unknownUtility": "Utenza sconosciuta: {utility}",

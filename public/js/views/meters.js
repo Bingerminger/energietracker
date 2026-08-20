@@ -299,6 +299,25 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           <label>${t('meters.modal.notes')}</label>
           <textarea class="input input--text" name="notes">${escapeHtml(existing?.notes || '')}</textarea>
         </div>
+        <div class="field">
+          <label>${t('meters.baseline.title')}</label>
+          <small class="muted">${t('meters.baseline.hint')}</small>
+          <div id="bl-list" style="margin:8px 0"></div>
+          <div class="form-row">
+            <div class="field">
+              <label for="bl-date">${t('meters.baseline.date')}</label>
+              <input class="input" id="bl-date" type="date">
+            </div>
+            <div class="field">
+              <label for="bl-label">${t('meters.baseline.label')}</label>
+              <input class="input input--text" id="bl-label" type="text"
+                     maxlength="80" placeholder="${t('meters.baseline.labelPlaceholder')}">
+            </div>
+            <div class="field" style="display:flex; align-items:flex-end">
+              <button type="button" class="btn btn--ghost" id="bl-add">${t('meters.baseline.add')}</button>
+            </div>
+          </div>
+        </div>
         ${existing ? `
           <div class="field">
             <label><input type="checkbox" name="active" ${existing.active ? 'checked' : ''}> ${t('meters.modal.active')}</label>
@@ -316,6 +335,62 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
       onMount({ modalEl, close }) {
         associateFieldLabels(modalEl);
         modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(false); resolve(false); });
+        // ── F1011: Zäsuren verwalten ────────────────────────────────────
+        // Die Liste wird lokal gehalten und beim Speichern als Ganzes
+        // mitgeschickt — Anlegen, Bearbeiten und Löschen laufen damit über
+        // denselben Pfad, und der MeterService validiert einmal zentral.
+        let baselineEvents = (existing?.baseline_events || []).map(e => ({
+          date: String(e.date || ''), label: String(e.label || ''),
+        }));
+        const blListEl = modalEl.querySelector('#bl-list');
+
+        function drawBaseline() {
+          if (!blListEl) return;
+          if (!baselineEvents.length) {
+            blListEl.innerHTML = `<p class="muted">${t('meters.baseline.none')}</p>`;
+            return;
+          }
+          const today = todayIso();
+          const sorted = [...baselineEvents].sort((a, b) => a.date.localeCompare(b.date));
+          // Wirksam ist das späteste Ereignis, das nicht in der Zukunft liegt —
+          // dieselbe Regel wie MeterService::activeBaselineEvent().
+          const activeDate = sorted.filter(e => e.date <= today).at(-1)?.date;
+          blListEl.innerHTML = `<ul style="list-style:none; padding:0; margin:0">${sorted.map(e => `
+            <li style="padding:4px 0">
+              <strong>${escapeHtml(e.date)}</strong>
+              ${e.label ? ' · ' + escapeHtml(e.label) : ''}
+              ${e.date === activeDate
+                ? ` <span class="badge badge--success">${t('meters.baseline.active')}</span>`
+                : (e.date > today ? ` <span class="badge">${t('meters.baseline.future')}</span>` : '')}
+              <button type="button" class="btn btn--ghost btn--sm" data-bl-del="${escapeHtml(e.date)}">
+                ${t('meters.baseline.remove')}
+              </button>
+            </li>`).join('')}</ul>`;
+        }
+
+        blListEl?.addEventListener('click', ev => {
+          const d = ev.target.closest('[data-bl-del]')?.getAttribute('data-bl-del');
+          if (!d) return;
+          baselineEvents = baselineEvents.filter(e => e.date !== d);
+          drawBaseline();
+        });
+
+        modalEl.querySelector('#bl-add')?.addEventListener('click', () => {
+          const d = modalEl.querySelector('#bl-date')?.value || '';
+          const l = modalEl.querySelector('#bl-label')?.value || '';
+          if (!d) { toastErr(t('meters.baseline.dateRequired')); return; }
+          if (baselineEvents.some(e => e.date === d)) {
+            toastErr(t('errors.meter.duplicateBaselineDate', { date: d }));
+            return;
+          }
+          baselineEvents.push({ date: d, label: l.trim() });
+          modalEl.querySelector('#bl-date').value = '';
+          modalEl.querySelector('#bl-label').value = '';
+          drawBaseline();
+        });
+
+        drawBaseline();
+
         modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
           const f = modalEl.querySelector('#meter-form');
           // D (v2.1.4) — Tank-Kapazität sofort clientseitig prüfen statt erst den
@@ -333,6 +408,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 active: f.active.checked,
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
+                baseline_events: baselineEvents,   // F1011
               };
               // v2.1.1 — Fix #18: Tank-Felder mitsenden (nur Heizöl/Pellets).
               if (isDelivery) {
@@ -349,6 +425,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 installed_on:    f.installed_on.value,
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
+                baseline_events: baselineEvents,   // F1011
               };
               // v2.1.1 — Fix #18: Delivery-Utilities bekommen Tank-Kapazität +
               // Anfangsbestand statt eines kumulativen Anfangsstands.

@@ -95,8 +95,13 @@ final class RecommendationService
     {
         if (!Utilities::isHgtRelevant($utility)) return [];
         $sigma = (float)$this->settings->get('recommendation_anomaly_sigma', 2.0);
+        // v1.4.0 — F1011: Der Vergleichsmaßstab darf nur aus der aktuellen
+        // Epoche kommen. Sonst liegt der Mittelwert bei einem sanierten Haus
+        // dauerhaft zu hoch, R1 löst nie mehr aus — und ein echter
+        // Mehrverbrauch nach der Maßnahme bleibt unbemerkt.
         $adj = [];
         foreach ($monthly as $m) {
+            if (!empty($m['pre_baseline'])) continue;
             if (($m['weather_adjusted'] ?? null) !== null) $adj[] = (float)$m['weather_adjusted'];
         }
         if (count($adj) < 6) return [];
@@ -106,6 +111,7 @@ final class RecommendationService
 
         $out = [];
         foreach ($monthly as $m) {
+            if (!empty($m['pre_baseline'])) continue;
             $wa = $m['weather_adjusted'] ?? null;
             if ($wa === null) continue;
             $z = ((float)$wa - $mean) / $sd;
@@ -127,10 +133,14 @@ final class RecommendationService
     private function ruleTrend(string $utility, array $meter, array $monthly): array
     {
         if (!Utilities::isHgtRelevant($utility)) return [];
+        // v1.4.0 — F1011: Ein Trend über die Zäsur hinweg misst den Umbau,
+        // nicht das Verbrauchsverhalten — und meldet auf Jahre hinaus einen
+        // starken Rückgang. `$i` läuft trotzdem über alle Monate weiter, damit
+        // die Abstände auf der Zeitachse stimmen.
         $pts = [];
         $i = 0;
         foreach ($monthly as $m) {
-            if (($m['weather_adjusted'] ?? null) !== null) {
+            if (empty($m['pre_baseline']) && ($m['weather_adjusted'] ?? null) !== null) {
                 $pts[] = [$i, (float)$m['weather_adjusted']];
             }
             $i++;
@@ -194,8 +204,13 @@ final class RecommendationService
         // grobe Anomalie auf dem Rohverbrauch, aber nur melden wenn der
         // wetterbereinigte Wert ebenfalls auffällig ist (sonst durch
         // Wetter erklärt → R1 greift bereits)
-        $vals = array_map(fn($m) => (float)($m['kwh'] ?? 0), $monthly);
-        $vals = array_values(array_filter($vals, fn($v) => $v > 0));
+        // v1.4.0 — F1011: auch der Rohmittelwert nur aus der aktuellen Epoche.
+        $vals = [];
+        foreach ($monthly as $m) {
+            if (!empty($m['pre_baseline'])) continue;
+            $v = (float)($m['kwh'] ?? 0);
+            if ($v > 0) $vals[] = $v;
+        }
         if (count($vals) < 8) return [];
         $mean = array_sum($vals) / count($vals);
         $sd = $this->stddev($vals, $mean);
@@ -204,6 +219,7 @@ final class RecommendationService
 
         $out = [];
         foreach ($monthly as $m) {
+            if (!empty($m['pre_baseline'])) continue;
             $v = (float)($m['kwh'] ?? 0);
             if ($v <= 0) continue;
             $z = abs($v - $mean) / $sd;

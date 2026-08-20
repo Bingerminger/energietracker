@@ -55,14 +55,14 @@ final class ConsumptionController
         // empty and the frontend falls back to a seasonal profile.
         $regressions = [];
         if (Utilities::isHgtRelevant($utility)) {
-            $consKey = Utilities::get($utility)['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
-            $points = array_values(array_filter($monthly, fn($m) =>
-                ($m['hdd'] ?? 0) > 0 && ($m[$consKey] ?? 0) > 0
-            ));
-            $x = array_map(fn($m) => (float)$m['hdd'],     $points);
-            $y = array_map(fn($m) => (float)$m[$consKey],  $points);
+            // v1.4.0 — F1011: Monate vor der Zäsur beschreiben ein anderes
+            // Gebäude und gehören nicht in den Fit. Sie bleiben im `monthly`
+            // und werden im Chart ausgegraut dargestellt — ausgeschlossen wird
+            // aus dem Modell, nicht aus der Anzeige. Welche Monate das sind,
+            // entscheidet der ConsumptionService an einer Stelle für alle.
+            $pts = $this->consumption->regressionPoints($monthly, $utility);
             foreach (['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] as $model) {
-                $regressions[$model] = $this->regression->fit($model, $x, $y, $this->settings);
+                $regressions[$model] = $this->regression->fit($model, $pts['x'], $pts['y'], $this->settings);
             }
         }
 
@@ -71,6 +71,10 @@ final class ConsumptionController
             'monthly'     => $monthly,
             'anomalies'   => $this->anomalies->detect($utility, $monthly),
             'regressions' => $regressions,
+            // v1.4.0 — F1011: Zustand der Zäsur + warum ggf. etwas fehlt,
+            // und der Vorher/Nachher-Vergleich der Heizkurve.
+            'baseline'    => $this->consumption->baselineInfo($utility, $meter, $monthly),
+            'baseline_comparison' => $this->consumption->baselineComparison($utility, $meter, $monthly),
         ]);
     }
 

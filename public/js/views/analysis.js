@@ -88,10 +88,13 @@ async function renderForMeter(u, meterId, body) {
   const monthly     = meterData.monthly || [];
   const anomalies   = meterData.anomalies || [];
   const regressions = meterData.regressions || {};
+  const baseline    = meterData.baseline || null;              // F1011
+  const comparison  = meterData.baseline_comparison || null;   // F1011
   const consKey     = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
 
   body.innerHTML = `
     ${renderContractReminders(contractStatus)}
+    ${renderBaselineBlock(baseline, comparison, u)}
     ${u.key === 'wasser' ? await renderWaterSparindex(monthly) : ''}
     <div class="grid grid-2">
       ${u.hgt_relevant ? `
@@ -162,6 +165,79 @@ async function renderForMeter(u, meterId, body) {
   renderYearComparison(monthly, u, consKey);
 }
 
+// ── F1011: Zäsur — Hinweisband, Grenzen, Vorher/Nachher ─────────────
+//
+// Drei Bausteine, alle optional:
+//  1. Ist eine Zäsur wirksam, sagt ein Band, ab wann gerechnet wird.
+//  2. Reißt eine der drei Untergrenzen, steht im Klartext da, welche und
+//     wie viel fehlt — statt dass eine Auswertung wortlos verschwindet.
+//     Das gilt auch OHNE Zäsur: Wer erst sieben Monate Daten hat, bekommt
+//     dieselbe Erklärung.
+//  3. Liegen beide Epochen dick genug vor, steht die Wirkung der Maßnahme
+//     als Zahl da — Verbrauch je Gradtag vorher gegen nachher.
+function renderBaselineBlock(baseline, comparison, u) {
+  if (!baseline) return '';
+
+  const parts = [];
+
+  if (baseline.active_from) {
+    const since = baseline.active_label
+      ? t('analysis.baseline.activeSince', {
+          date: fmt.date(baseline.active_from),
+          label: escapeHtml(baseline.active_label),
+        })
+      : t('analysis.baseline.activeSinceNoLabel', { date: fmt.date(baseline.active_from) });
+    const excluded = baseline.months_total - baseline.months_after;
+    parts.push(`
+      <div class="banner banner--info">
+        <strong>${since}</strong>
+        ${excluded > 0 ? `<br><span class="muted">${t('analysis.baseline.excluded', { count: excluded })}</span>` : ''}
+      </div>`);
+  }
+
+  const missing = (baseline.limits || []).filter(l => !l.ok);
+  if (missing.length) {
+    parts.push(`
+      <div class="banner banner--warning">
+        <strong>${t('analysis.baseline.limitsTitle')}</strong>
+        <ul style="margin:6px 0 0 18px">
+          ${missing.map(l => `<li>${t('analysis.baseline.limit.' + l.key, { need: l.need, have: l.have })}</li>`).join('')}
+        </ul>
+      </div>`);
+  }
+
+  if (comparison) {
+    const perDay = t('analysis.baseline.perDegreeDay', { unit: escapeHtml(comparison.unit) });
+    const better = comparison.delta_pct < 0;
+    parts.push(`
+      <div class="card" style="margin-top: var(--sp-5)">
+        <h3 class="card__title">${t('analysis.baseline.comparisonTitle')}</h3>
+        <p class="muted" style="margin-bottom:12px">${t('analysis.baseline.comparisonHint')}</p>
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi__label">${t('analysis.baseline.before')}</div>
+            <div class="kpi__value">${fmt.num(comparison.before.slope, 3)}</div>
+            <div class="kpi__sub">${perDay} · ${t('analysis.baseline.points', { n: comparison.before.points })}</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi__label">${t('analysis.baseline.after')}</div>
+            <div class="kpi__value">${fmt.num(comparison.after.slope, 3)}</div>
+            <div class="kpi__sub">${perDay} · ${t('analysis.baseline.points', { n: comparison.after.points })}</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi__label">${t('analysis.baseline.effect')}</div>
+            <div class="kpi__value ${better ? 'success-text' : 'danger-text'}">
+              ${comparison.delta_pct > 0 ? '+' : ''}${fmt.num(comparison.delta_pct, 1)} %
+            </div>
+            <div class="kpi__sub">${t('analysis.baseline.weatherCorrected')}</div>
+          </div>
+        </div>
+      </div>`);
+  }
+
+  return parts.join('\n');
+}
+
 // Predict y for each model given x. Mirrors RegressionService::predict on the backend.
 function predictFor(model, reg, x) {
   if (!reg?.valid) return null;
@@ -197,14 +273,30 @@ const MODEL_STYLE = {
 };
 const modelLabel = (m) => t('analysis.model.' + m);
 
+// F1011: Neutralton für die Punkte vor einer Zäsur. Bewusst als Literal und
+// nicht aus einem --util-*-Token abgeleitet: Die Utility-Token sind im
+// Hellmodus `color-mix()`, was auf dem Canvas still zu Schwarz zusammenfällt
+// (Fehler aus v2.3.0). Zwei feste Werte, einer je Theme.
+function preBaselineColor() {
+  return document.documentElement.getAttribute('data-theme') === 'light'
+    ? 'rgba(15, 23, 42, 0.22)'
+    : 'rgba(255, 255, 255, 0.22)';
+}
+
 function renderHgtScatter(monthly, u, consKey, regressions) {
   const canvas = document.getElementById('ch-hdd');
   if (!canvas) return;
-  const points = monthly
-    .filter(m => m.hdd > 0 && m[consKey] > 0)
+  const usable = monthly.filter(m => m.hdd > 0 && m[consKey] > 0);
+  // F1011: Die Punkte vor der Zäsur verschwinden nicht — sie werden nur
+  // ausgegraut und aus dem Fit genommen. Die Daten bleiben sichtbar.
+  const points = usable
+    .filter(m => !m.pre_baseline)
+    .map(m => ({ x: m.hdd, y: m[consKey], ym: m.ym }));
+  const prePoints = usable
+    .filter(m => m.pre_baseline)
     .map(m => ({ x: m.hdd, y: m[consKey], ym: m.ym }));
 
-  const xMax = points.reduce((m, p) => Math.max(m, p.x), 0) || 1;
+  const xMax = usable.reduce((m, p) => Math.max(m, p.hdd), 0) || 1;
 
   // Build one polyline per model. For non-linear models, sample evenly.
   const lineDatasets = [];
@@ -241,6 +333,12 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
     type: 'scatter',
     data: {
       datasets: [
+        ...(prePoints.length ? [{
+          label: t('analysis.baseline.chartPre'),
+          data: prePoints,
+          backgroundColor: preBaselineColor(),
+          pointRadius: 3,
+        }] : []),
         { label: t('analysis.scatterPoints'), data: points, backgroundColor: u.color, pointRadius: 4 },
         ...lineDatasets,
       ],

@@ -617,6 +617,19 @@
       "needTwo": "Veuillez sélectionner au moins deux compteurs",
       "needName": "Veuillez indiquer un nom de groupe ou choisir un groupe existant",
       "done": "{count} compteurs fusionnés dans le groupe « {name} »"
+    },
+    "baseline": {
+      "title": "Ruptures de référence",
+      "hint": "Après des travaux, le bâtiment consomme durablement autrement. Indiquez ici la date : les analyses partent alors de ce moment, les mois antérieurs restent visibles mais n’alimentent plus le modèle. Une date future peut être saisie à l’avance ; elle ne prend effet qu’une fois atteinte.",
+      "date": "Date",
+      "label": "Intitulé",
+      "labelPlaceholder": "p. ex. isolation des combles",
+      "add": "Ajouter une rupture",
+      "remove": "Supprimer",
+      "none": "Aucune rupture enregistrée — toutes les analyses utilisent l’historique complet.",
+      "active": "en vigueur",
+      "future": "à venir",
+      "dateRequired": "Veuillez indiquer une date pour la rupture"
     }
   },
   "settings": {
@@ -1133,6 +1146,26 @@
       "barGut": "bon ≤ {value}",
       "barWarn": "alerte ≥ {value}",
       "indexNote": "{bandNote} Indice 100 = exactement la consommation de référence par personne enregistrée dans les paramètres."
+    },
+    "baseline": {
+      "chartPre": "avant la rupture",
+      "activeSince": "L’analyse part du {date} — {label}",
+      "activeSinceNoLabel": "L’analyse part du {date}",
+      "excluded": "{count} mois antérieurs restent visibles mais n’alimentent pas le modèle.",
+      "limitsTitle": "Ce qui ne peut pas être calculé actuellement",
+      "limit": {
+        "weather_adjustment": "La correction climatique demande au moins {need} mois d’historique — {have} disponibles.",
+        "regression": "La régression demande au moins {need} points de mesure après la rupture — {have} disponibles.",
+        "anomalies": "La détection d’anomalies demande au moins {need} mois exploitables — {have} disponibles."
+      },
+      "comparisonTitle": "Effet des travaux",
+      "comparisonHint": "Consommation par degré-jour avant et après la rupture. Ce chiffre est déjà corrigé du climat : il indique ce que le bâtiment consomme par degré de froid, indépendamment de la rigueur de l’hiver.",
+      "before": "avant",
+      "after": "après",
+      "effect": "Évolution",
+      "perDegreeDay": "{unit} par degré-jour",
+      "points": "{n} points de mesure",
+      "weatherCorrected": "corrigé du climat"
     }
   },
   "forecast": {
@@ -1272,7 +1305,10 @@
       "groupNotFound": "Groupe de compteurs introuvable",
       "groupNotFoundId": "Groupe de compteurs introuvable : {group}",
       "groupNameEmpty": "Le nom du groupe ne doit pas être vide",
-      "mergeNeedTwo": "La fusion nécessite au moins deux compteurs"
+      "mergeNeedTwo": "La fusion nécessite au moins deux compteurs",
+      "invalidBaselineList": "Les ruptures de référence doivent être fournies sous forme de liste d’entrées comportant une date",
+      "invalidBaselineDate": "Date de rupture invalide : « {date} » — format attendu AAAA-MM-JJ",
+      "duplicateBaselineDate": "Une rupture est déjà enregistrée pour le {date}"
     },
     "common": {
       "unknownUtility": "Énergie inconnue : {utility}",

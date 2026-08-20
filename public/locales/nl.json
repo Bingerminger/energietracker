@@ -617,6 +617,19 @@
       "needTwo": "Selecteer minstens twee meters",
       "needName": "Geef een groepsnaam op of kies een bestaande groep",
       "done": "{count} meters samengevoegd in groep « {name} »"
+    },
+    "baseline": {
+      "title": "Peilmomenten voor de analyse",
+      "hint": "Na een bouwkundige maatregel verbruikt het gebouw blijvend anders. Vul hier de datum in — de analyses rekenen dan vanaf dat moment, oudere maanden blijven zichtbaar maar tellen niet meer mee in het model. Een datum in de toekomst mag je alvast vastleggen; die werkt pas zodra hij bereikt is.",
+      "date": "Datum",
+      "label": "Omschrijving",
+      "labelPlaceholder": "bijv. dakisolatie",
+      "add": "Peilmoment toevoegen",
+      "remove": "Verwijderen",
+      "none": "Geen peilmoment vastgelegd — alle analyses gebruiken de volledige historie.",
+      "active": "actief",
+      "future": "toekomstig",
+      "dateRequired": "Geef een datum op voor het peilmoment"
     }
   },
   "settings": {
@@ -1133,6 +1146,26 @@
       "barGut": "goed ≤ {value}",
       "barWarn": "waarschuwing ≥ {value}",
       "indexNote": "{bandNote} Index 100 = exact het referentieverbruik per persoon dat in de instellingen is opgeslagen."
+    },
+    "baseline": {
+      "chartPre": "vóór het peilmoment",
+      "activeSince": "Analyse rekent vanaf {date} — {label}",
+      "activeSinceNoLabel": "Analyse rekent vanaf {date}",
+      "excluded": "{count} eerdere maanden blijven zichtbaar, maar tellen niet mee in het model.",
+      "limitsTitle": "Wat op dit moment niet berekend kan worden",
+      "limit": {
+        "weather_adjustment": "De weercorrectie heeft minstens {need} maanden historie nodig — beschikbaar zijn er {have}.",
+        "regression": "De regressie heeft minstens {need} meetpunten na het peilmoment nodig — beschikbaar zijn er {have}.",
+        "anomalies": "De anomaliedetectie heeft minstens {need} bruikbare maanden nodig — beschikbaar zijn er {have}."
+      },
+      "comparisonTitle": "Effect van de maatregel",
+      "comparisonHint": "Verbruik per graaddag vóór en na het peilmoment. Dit getal is al gecorrigeerd voor het weer: het zegt hoeveel het gebouw per graad kou nodig heeft, ongeacht hoe koud de winter was.",
+      "before": "ervoor",
+      "after": "erna",
+      "effect": "Verandering",
+      "perDegreeDay": "{unit} per graaddag",
+      "points": "{n} meetpunten",
+      "weatherCorrected": "gecorrigeerd voor het weer"
     }
   },
   "forecast": {
@@ -1272,7 +1305,10 @@
       "groupNotFound": "Metergroep niet gevonden",
       "groupNotFoundId": "Metergroep niet gevonden: {group}",
       "groupNameEmpty": "De groepsnaam mag niet leeg zijn",
-      "mergeNeedTwo": "Samenvoegen vereist minstens twee meters"
+      "mergeNeedTwo": "Samenvoegen vereist minstens twee meters",
+      "invalidBaselineList": "Peilmomenten moeten worden aangeleverd als lijst met items die een datum bevatten",
+      "invalidBaselineDate": "Ongeldige datum voor het peilmoment: „{date}” — verwacht wordt JJJJ-MM-DD",
+      "duplicateBaselineDate": "Er bestaat al een peilmoment voor {date}"
     },
     "common": {
       "unknownUtility": "Onbekende energie: {utility}",

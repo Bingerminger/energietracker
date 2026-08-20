@@ -4,9 +4,9 @@
 > Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
 > (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
 
-**Stand:** 2026-06-10 (synchron mit v2.0.1; Bugfix Zählergruppen im Dashboard)
-**Aktuelle Baseline:** v2.0.1
-**Schema:** 1.1.0
+**Stand:** 2026-08-20 (synchron mit v2.4.0; F1011 ausgeliefert)
+**Aktuelle Baseline:** v2.4.0
+**Schema:** 1.4.0
 
 ---
 
@@ -47,6 +47,14 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | F1006 | Meter-Topologie: Subzähler (Reihenschaltung, vom Eltern abgezogen) + Gruppen (Dashboard-Summe) + Merge-Wizard; Schema 1.2.0 | v1.8.0 | 2026-06-01 |
 | F1009 | Home-Assistant-Anbindung: opt-in Token-Auth (Hash in `data/auth.json`) + idempotenter `POST /api/ingest` (upsert-by-date) + Zähler-Alias `external_id`; Schema 1.3.0 | v1.9.0 | 2026-06-01 |
 | **v2.0.0-Bündel** (N1007 + EN-L10n + N1009 + UX + N1008) | Full-Stack-i18n (JSON-Kataloge + `t()` + `I18nService`, `language`-Setting) · vollständige EN-Lokalisierung (DE/EN-Parität) · Barrierefreiheit (Skip-Link, Fokus-Management, Label↔Feld, `scope`, ARIA-Labels, Chart-Alt, Live-Regions) · UX-Politur · PWA (Manifest + Service-Worker, installierbar + offline). Schema unverändert 1.3.0 (additiv). | v2.0.0 | 2026-06-10 |
+| L10n-Welle-1 + Doku-i18n + Logos | 5 neue UI-Sprachen (fr, it, es, pt, nl) auf datengetriebener Registry (`languages.json`); zweisprachige Doku DE+EN; neues Logo-/Icon-Set | v2.1.0 | 2026-06-10 |
+| F1011 | Analyse-Zäsur: `baseline_events` am Zähler; Auswertungen rechnen ab der baulichen Maßnahme (acht Verbraucher), Punkte davor ausgegraut statt entfernt, Vorher/Nachher-Kennzahl je Gradtag, Klartext-Hinweis für drei bis dahin stumme Untergrenzen; Schema 1.4.0 (GitHub #20) | v2.4.0 | 2026-08-20 |
+
+> **Lücke in dieser Tabelle:** v2.2.0 (Vollreview, Tarifvergleich neu, Assets
+> selbst gehostet) und v2.3.0 (Tarifvergleich wird zur Wechselentscheidung)
+> sind hier nicht geführt — beide sind ohne F-/N-Code entstanden, obwohl v2.3.0
+> ein MINOR mit erheblichem Funktionsumfang war. Vollständig dokumentiert sind
+> sie in [CHANGELOG.md](CHANGELOG.md) und in der Änderungs-Historie unten.
 
 ---
 
@@ -89,8 +97,8 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **L10n-Welle-1 + Doku-i18n + Logos** | 5 neue UI-Sprachen (fr, it, es, pt, nl) auf datengetriebener Sprach-Infra (languages.json-Registry); zweisprachige Doku DE+EN (GitHub-Best-Practice); neues App-Logo/Icon-Set | v2.1.0 | L | — | **in Arbeit** (Sprachen fertig+verifiziert; Doku-Übersetzung läuft wellenweise) |
-| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | v2.2.0 | L | 1.3.0 → 1.4.0 | nach dem i18n/Doku-Release, Detail-Konzept unten |
+| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | offen | L | 1.4.0 → 1.5.0 | **nächster Slot**, Detail-Konzept unten |
+| *(Code offen)* | Verträge pro Zählergruppe (GitHub #17) | offen | M | additiv | aus F1006 offen geblieben („Vertrag pro Gruppe", s. v2.0.1); F-Code wird bei Übernahme vergeben |
 
 > **Sprach-Wellen 2+** (cs, uk, pl, el, tr, hr, sr, sl, fi, no, da, lv, et, hu, bg, ro …)
 > sind bewusst zurückgestellt (User-Entscheidung 2026-06-10) und werden
@@ -481,6 +489,176 @@ nach N1007/v1.12.0.)
 
 ---
 
+## F1011 — Baseline-Zäsur: Analyse-Epochen (GitHub #20)
+
+**Quelle:** GitHub-Issue #20, offen seit 2026-08-15, gestellt von einem Nutzer
+außerhalb des Projekts — der erste Feature-Wunsch von außen. Er hat sein Haus
+gedämmt und möchte die Gradtag-Korrelation erst ab der Sanierung rechnen
+lassen; die Jahre davor sollen nicht mehr ins Modell eingehen.
+
+**Problem — Strukturbruch.** Nach einer baulichen Maßnahme ist das Gebäude
+thermisch ein anderes. Die Steigung der Heizkurve (Verbrauch je Gradtag) fällt,
+der Sockel (Warmwasser, Kochen) bleibt. Eine Regression über beide Epochen
+beschreibt keine von beiden: Sie liefert einen gewichteten Mittelwert aus
+Vorher und Nachher — und zwar so lange, bis die neuen Punkte die alten
+zahlenmäßig überwiegen. Bei einer zwölfjährigen Historie dauert das Jahre.
+
+### Befund der Code-Durchsicht (2026-08-20)
+
+Ein Zeitfenster existiert **nirgends**. `ConsumptionController::meter()`
+filtert ausschließlich auf `hdd > 0` und Verbrauch `> 0`; die Analyse-Ansicht
+hat keinen Zeitraumwähler. Betroffen ist aber weit mehr als der Chart:
+
+| Wert / Auswertung | Ort | Zustand |
+|---|---|---|
+| `weather_adjusted` je Monat | `ConsumptionService::applyWeatherAdjustment` | **sauber** — reine HGT-Verhältnisnormierung `Wert × hdd_ref / hdd`, ohne Regressionsbezug |
+| `delta_pct` | dieselbe Methode, Pass 2 | verzerrt — gegen `adjMean` = Mittel **aller** Monate |
+| `expected_hgt` | dieselbe Methode, Pass 1 | verzerrt — Regression über die volle Historie |
+| 5 Regressionsmodelle im Analyse-Chart | `ConsumptionController::meter()` | verzerrt — der Chart aus dem Issue |
+| Prognose | `ForecastService` | verzerrt — Regression **und** saisonale Monatsmittel |
+| Anomalie-Erkennung | `AnomalyService::detect` | verzerrt — die lineare Regression ist der Erwartungswert |
+| Empfehlungen R1 + Trend | `RecommendationService` | verzerrt — Mehrverbrauch gegen das Gesamtmittel, Trend über die volle Reihe |
+| Tarifvergleich / Wechselentscheidung | `TariffSwitchService` | verzerrt — setzt auf der Prognose auf |
+
+Für den Nutzer heißt das konkret: Die App meldet seit der Sanierung **jeden
+Monat** „unter dem Mittel", weil das Mittel die ungedämmten Jahre enthält. Die
+Mehrverbrauchs-Empfehlung kann faktisch nicht mehr auslösen, auch wenn im
+sanierten Haus wirklich etwas aus dem Ruder läuft. Und der erwartete
+Jahresverbrauch — die Eingabe für jeden Tarifvergleich — fällt systematisch zu
+hoch aus.
+
+**Das ist dieselbe Klasse wie die F1006-Subzähler-Doppelzählung (v2.1.3):**
+eine Bereichsregel, die in einem Aggregator steht und in den anderen nicht.
+Eine Zäsur nur im Chart würde die Grafik richtig machen und Prognose,
+Anomalien und Wechselentscheidung still falsch lassen.
+
+### Was die Doku bereits verspricht
+
+`docs/functional/08-szenario-eigenheim.md` §5 nennt „Vor/Nach einer Sanierung
+messen" **die wertvollste Anwendung** und schreibt die Formel hin
+(`Einsparung_echt ≈ Verbrauch_vorher_wetterbereinigt − Verbrauch_nachher_…`).
+Ausgerechnet wird sie von nichts. Derselbe Befundtyp wie „Chart.js per CDN"
+in v2.3.5: eine Doku-Behauptung ohne Deckung im Code.
+
+### Lösungsskizze
+
+Kein nacktes Startdatum, sondern eine **Zäsur** — ein Ereignis mit Datum und
+Bezeichnung („Dachdämmung", „Wärmepumpe", „neue Fenster"). Drei Gründe:
+
+1. **Daten bleiben sichtbar.** Punkte vor der Zäsur werden im Chart ausgegraut
+   statt entfernt — ausgeschlossen wird aus dem *Modell*, nicht aus der Anzeige.
+2. **Beide Segmente werden gefittet.** Die Differenz der Steigungen ist die
+   wetterbereinigte Wirkung der Maßnahme: *„0,42 → 0,28 m³ je Gradtag, −33 %."*
+   Damit wird aus einer Filterbitte genau das Feature, das die Doku als
+   wertvollstes bewirbt — der Beleg, dass die Investition etwas gebracht hat.
+3. **Verallgemeinerbar.** Heizungstausch, Fenster, Anbau — und beim Wasser die
+   Personenzahl, für die es heute nur einen Gegenwartswert
+   (`wasser_personen_anzahl`) ohne Historie gibt.
+
+**Durchreichen ist Pflichtbestandteil**, nicht Ausbaustufe: Alle acht Zeilen
+der Befundtabelle müssen die Zäsur kennen, sonst wiederholt sich v2.1.3.
+
+### Getroffene Detail-Entscheidungen (2026-08-20)
+
+**(1) Datenhaltung — Ereignisliste am Zähler.** Neues Feld `baseline_events`,
+Default `[]`, nach dem Muster, das `devices` am selben Objekt schon vorlebt:
+
+```json
+"baseline_events": [
+  { "date": "2021-09-01", "label": "Dachdämmung" },
+  { "date": "2027-04-15", "label": "Wärmepumpe" }
+]
+```
+
+- **Aktive Zäsur = spätestes Ereignis mit `date <= heute`.** Ein künftig
+  datiertes Ereignis darf eingetragen werden und wirkt schlicht noch nicht —
+  wer den Heizungstausch plant, kann ihn vormerken.
+- **Leeres Array = heutiges Verhalten, exakt.** Das ist die Rückfalllinie für
+  jede Regressionsprüfung.
+- Mehrere Maßnahmen über die Zeit bleiben erhalten; ein Feld hätte die
+  Dämmung überschrieben, sobald die Wärmepumpe kommt.
+- **Backup braucht keine Änderung:** Das Feld reist in `meters.json` mit, und
+  `BackupService` schreibt den Zähler-Topf als Ganzes. Ein eigener Datentopf
+  hätte in die hartkodierte Feldliste gemusst — die Falle aus v2.1.2. Ein
+  Roundtrip-Test hält es trotzdem fest.
+
+**(2) Reichweite — überall, der Chart zeigt zusätzlich beide Segmente.**
+Ein einziger Wahrheitsstand: Alle acht Zeilen der Befundtabelle rechnen ab der
+Zäsur. Der Analyse-Chart stellt den Vorher-Fit zusätzlich ausgegraut dar; das
+ist Darstellung, keine Ausnahme, und liefert nebenbei den Vorher/Nachher-
+Vergleich aus (4). Je-Auswertung-Schalter wurden verworfen — sie erlauben
+genau den Widerspruch, den F1011 beseitigen soll (Chart rechnet saniert, die
+Wechselentscheidung nicht).
+
+*Umsetzungsweg:* Die Monatszeilen bekommen **einmal** eine Markierung
+`pre_baseline`, dort wo `ConsumptionService::markSwapMonths()` bereits
+`device_swap` setzt. Jeder Verbraucher überspringt markierte Zeilen. Damit ist
+die Propagation greifbar prüfbar — ein `grep pre_baseline` zeigt, wer die Regel
+kennt und wer nicht. Genau das fehlte bei der F1006-Subzählerregel, die in
+`forUtility` stand und in drei weiteren Aggregatoren nicht (v2.1.3).
+
+**(3) Zu wenige Daten — Zäsur greift, die Oberfläche warnt.** Kein stiller
+Rückfall auf die volle Historie: Der Nutzer sähe seine eingetragene Zäsur und
+bekäme trotzdem den vermischten Mittelwert. Stattdessen meldet die API je
+Auswertung, was fehlt, und die Oberfläche schreibt es aus — „Seit der Zäsur
+liegen 7 Monate vor; Wetterbereinigung und Prognose brauchen mindestens 12."
+
+Die drei Untergrenzen, die dabei sichtbar werden:
+
+| Grenze | Ort | Folge heute |
+|---|---|---|
+| `< 12` Monate | `ConsumptionService:981` | Wetterbereinigung entfällt **komplett** — `weather_adjusted`, `delta_pct` und `expected_hgt` fehlen ersatzlos |
+| `< 8` Regressionspunkte | `ConsumptionService:1008` | keine Regression, `expected_hgt` bleibt `null` |
+| `< 5` gültige Monate | `AnomalyService:39` | keine Anomalie-Erkennung |
+
+Alle drei greifen heute **wortlos**. Der Hinweis-Mechanismus wird deshalb
+unabhängig von der Zäsur gebaut: Auch wer ohne Zäsur erst sieben Monate Daten
+hat, bekommt künftig die Erklärung statt einer leeren Spalte. Dasselbe
+Bauteil, kein Mehraufwand.
+
+**(4) Umfang — Schnitt und Vergleich zusammen in v2.4.0.** Der Schnitt macht
+die Zahlen richtig; der Vergleich ist das, wofür der Nutzer die Zäsur einträgt.
+Beide Segmente werden gefittet und die Differenz der Steigungen ausgewiesen:
+*„0,42 → 0,28 m³ je Gradtag, −33 %."* Die Steigung ist die Wetterbereinigung —
+Verbrauch je Gradtag ist bereits witterungsnormiert. Damit deckt der Code, was
+`docs/functional/08-szenario-eigenheim.md` §5 seit jeher verspricht; §5 wird im
+selben Zug auf das Feature umgeschrieben, statt eine Handrechnung zu
+beschreiben.
+
+### Schema-Migration
+
+Additiv, **1.3.0 → 1.4.0**, nach dem Muster von `needsV130Upgrade()`:
+idempotente Prüfung per `array_key_exists('baseline_events', $m)`, fehlendes
+Feld wird zu `[]` ergänzt. Ohne Zäsur ändert sich kein einziger Rechenweg.
+
+**Validierung** (nach dem Vorbild von `normalizeExternalId`): ISO-Datum,
+Duplikate je Zähler abgelehnt, Liste beim Schreiben nach Datum sortiert,
+`label` optional mit Längenbegrenzung. Ereignisse sind einzeln editier- und
+löschbar.
+
+### Testliste
+
+- **Je ein Test für jede der acht Zeilen der Befundtabelle**, dass die Zäsur
+  greift — Chart-Regressionen, `expected_hgt`, `delta_pct`, Prognose
+  (Regression **und** Saisonmittel getrennt), Anomalien, Empfehlung R1,
+  Trend, Wechselentscheidung. Das ist die Versicherung gegen v2.1.3.
+- `baseline_events: []` → Ergebnisse identisch zum heutigen Verhalten.
+- Künftig datiertes Ereignis wirkt nicht; sobald sein Datum erreicht ist, doch.
+- Mehrere Ereignisse: das späteste vergangene gewinnt.
+- Jede der drei Untergrenzen einzeln: Hinweis kommt, kein stiller Rückfall.
+- Hinweis erscheint auch **ohne** Zäsur bei zu kurzer Historie.
+- Backup-Roundtrip trägt `baseline_events`.
+- Vorher/Nachher-Kennzahl gegen eine handgerechnete Referenz.
+- Migration ist idempotent (zweimal laufen lassen ändert nichts).
+
+### Abgrenzung
+
+Nicht Teil von F1011: automatische Erkennung des Bruchs aus den Daten
+(Chow-Test o. Ä.). Der Nutzer weiß, wann er gedämmt hat — Raten wäre
+schlechter als Eintragen.
+
+---
+
 ## Backlog (ungeplant, ohne Slot)
 
 Mit der Einsortierung vom 2026-05-31 wurde der gesamte bisherige Backlog in
@@ -556,6 +734,10 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-06-28 | v2.1.3 ausgeliefert (Patch) | Systemische F1006-Subzähler-Doppelzählung behoben: `PdfReportService::yearAggregate` (PDF-Jahresbericht Verbrauch/Kosten/CO₂), `BenchmarkService` (Effizienzklasse kWh/m²·a) und Dashboard-`groupBreakdown` summierten über alle Zähler ohne den Subzähler-Ausschluss, den nur `forUtility::monthly_total` hatte → Eltern-Brutto + Sub doppelt. Alle drei gespiegelt. 1 Regressionstest (95→96). Reine Anzeige-/Report-Korrektheit, kein Datenverlust, kein Schema-Bump. Wurzel: Bereichsregel bei v1.8.0 nicht propagiert. |
 | 2026-06-28 | v2.1.4 ausgeliefert (Patch) | Code-Sweep-Bündel: (A) Wasser-Schmutzwasser bei `basis='separater_zaehler'` ohne Zähler-Referenz rechnete still aufs Trinkwasser-Volumen statt 0 (nur via unvalidierte Daten/Backup-Import erreichbar, da der Speicherpfad eine Referenz erzwingt); (B) Lösch-Dialoge der Verbrauchsansicht auf gestyltes `confirmModal` statt native `confirm()`; (C) Liefer-Modal verknüpft Gesamt ↔ Menge×Preis live; (D) Sofort-Validierung der Tank-Kapazität. 1 Regressionstest (96→97) + Browser-Verifikation (B/C/D). Außerdem EN-Kompendium (06-release-process Lessons v2.1.1–2.1.4, 01-views Tank-Satz) auf DE-Stand nachgezogen — DE↔EN-Sync war seit v2.1.1 verrutscht. Kein Schema-Bump. |
 | 2026-06-28 | v2.1.5 ausgeliefert (Patch) | Politur-/Robustheits-Bündel: (A) Monatschart nutzt `u.color` aus der SSOT statt hartkodierter 2-Farben-Palette (6/8 Verbrauchsarten waren blau); (B) Prognose-Chart verbindet Historie↔Prognose ohne Lücke; (C) Reminder-`markDone`/`suggestNextDelivery` clampen den Tag (PHP-`+N months`-Monatsende-Überlauf, 31.08.+6→28.02.); (D) `listWithStatus` fängt kaputtes `next_due` ab (kein 500). 3 Regressionstests (97→100) + Frontend-Verifikation. DE+EN-Lessons synchron. Kein Schema-Bump. |
+| 2026-08-20 | v2.4.0 ausgeliefert (Minor) | **F1011 umgesetzt — Analyse-Zäsur.** Am Zähler lassen sich `baseline_events` eintragen (Datum + Bezeichnung); wirksam ist die späteste erreichte, künftig datierte dürfen vorgemerkt werden, ein leeres Array verhält sich exakt wie vor v2.4.0. Die Zäsur greift in **allen acht** Auswertungen der Befundtabelle — über eine einmalige Zeilenmarkierung `pre_baseline` dort, wo schon `device_swap` gesetzt wird, statt über fünf einzeln nachgebaute Bedingungen. Punkte davor bleiben im Chart, nur ausgegraut. **Vorher/Nachher-Kennzahl** weist beide Heizkurven aus (Verbrauch je Gradtag, damit bereits witterungsbereinigt) — die Rechnung, die §5 des Szenario-Kapitels seit jeher als wertvollste Anwendung beschrieb, ohne dass sie jemand ausführte; §5 ist in DE und EN neu gefasst. **Drei bis dahin wortlose Untergrenzen** (12 Monate Wetterbereinigung, 8 Punkte Regression, 5 Monate Anomalien) melden sich jetzt im Klartext, auch ohne Zäsur bei schlicht zu kurzer Historie; ein stiller Rückfall auf die volle Historie wurde ausdrücklich verworfen. Nebenbei zusammengeführt: `ConsumptionService::regressionPoints()` entscheidet an **einer** Stelle, was ein Regressionspunkt ist — Chart, Wetterbereinigung und Vergleich fragten das vorher an drei Orten leicht verschieden. Schema 1.3.0 → 1.4.0 additiv; das Feld reist in `meters.json` im Backup mit, ein eigener Datentopf hätte in die hartkodierte `BackupService`-Liste gemusst (v2.1.2). 26 Katalogschlüssel × 7 Sprachen, chirurgisch gesetzt statt neu formatiert — die Kataloge sind handgepflegt, kein Dumper reproduziert sie byte-gleich. Demo-Daten führen die Zäsur vor (Verzeichnis **und** Backup, mit Gleichstands-Test). 196→222 Tests, **17 Kernannahmen per Toggle als greifend nachgewiesen**, dazu 28 Prüfungen über echtes HTTP und ein Browser-Durchlauf. Nächster Slot: F1008. |
+| 2026-08-20 | F1011 Detail-Entscheidungen getroffen | Vier Weichen per Multiple-Choice geklärt. **(1) Datenhaltung:** Ereignisliste `baseline_events` am Zähler (Muster `devices`), aktive Zäsur ist das späteste Ereignis mit Datum ≤ heute — künftig datierte Maßnahmen dürfen vorgemerkt werden und wirken noch nicht; leeres Array = heutiges Verhalten. Am Zähler statt in eigener Datei, weil das Feld dann in `meters.json` automatisch im Backup mitreist; ein eigener Datentopf hätte in die hartkodierte `BackupService`-Feldliste gemusst (Falle aus v2.1.2). **(2) Reichweite:** gilt für alle acht Auswertungen, der Chart zeigt den Vorher-Fit zusätzlich ausgegraut. Je-Auswertung-Schalter verworfen — sie erlauben genau den Widerspruch, den F1011 beseitigen soll. Umsetzungsweg: eine einmalige Zeilenmarkierung `pre_baseline` dort, wo `markSwapMonths()` schon `device_swap` setzt, damit die Propagation per `grep` prüfbar ist. **(3) Zu wenige Daten:** Zäsur greift immer, die Oberfläche warnt im Klartext; stiller Rückfall auf die volle Historie ausdrücklich verworfen (der Nutzer sähe seine Zäsur und bekäme trotzdem den vermischten Mittelwert). Dabei werden drei heute **wortlose** Untergrenzen erstmals sichtbar — unter 12 Monaten entfällt die Wetterbereinigung komplett, unter 8 Punkten die Regression, unter 5 Monaten die Anomalie-Erkennung. Der Hinweis wird zäsur-unabhängig gebaut, damit auch eine schlicht zu kurze Historie erklärt wird. **(4) Umfang:** Schnitt und Vorher/Nachher-Kennzahl gemeinsam in v2.4.0; `docs/functional/08-szenario-eigenheim.md` §5 wird im selben Zug vom Handrechen-Rezept auf das Feature umgeschrieben. Status: bereit zur Umsetzung. |
+| 2026-08-20 | F1011 aufgenommen (GitHub #20) | Ein Nutzer außerhalb des Projekts fragte nach einem Startdatum für die Gradtag-Korrelation — er hat sein Haus gedämmt und will die Jahre davor nicht mehr im Modell haben. Die Code-Durchsicht ergab: Ein Zeitfenster existiert **nirgends**, und der Schaden reicht weit über den Chart hinaus. Acht Auswertungen hängen an einer gemeinsamen Basislinie über die volle Historie — Regressionen im Analyse-Chart, `expected_hgt`, `delta_pct`, Prognose (Regression *und* Saisonmittel), Anomalie-Erkennung, Empfehlungen R1 samt Trend, und darüber die Wechselentscheidung. Einzig `weather_adjusted` je Monat ist sauber, weil es die Regression nie berührt. Praktische Folge für den Betroffenen: dauerhaft „unter dem Mittel", Mehrverbrauchs-Empfehlung faktisch stumm, Jahresverbrauch für den Tarifvergleich systematisch zu hoch. **Dieselbe Klasse wie die F1006-Subzähler-Doppelzählung (v2.1.3)** — eine Bereichsregel, die nicht in alle Aggregatoren propagiert wurde. Als F1011 mit Detail-Konzept aufgenommen (Zäsur mit Datum und Bezeichnung statt nacktem Filter, alte Punkte ausgegraut statt entfernt, beide Segmente gefittet → wetterbereinigte Wirkung der Maßnahme). Vier Detail-Entscheidungen offen. Nebenbefund: `docs/functional/08-szenario-eigenheim.md` §5 nennt „Vor/Nach einer Sanierung messen" seit jeher **die wertvollste Anwendung** und schreibt die Formel hin — ausgerechnet wird sie von nichts (Klasse „Doku-Behauptung ohne Deckung", vgl. v2.3.5). Slot: v2.4.0, Schema 1.3.0 → 1.4.0. F1008 rückt dahinter. |
+| 2026-08-20 | Roadmap-Kopf und Planungstabelle nachgezogen | Der Kopf stand seit dem 2026-06-10 auf **Baseline v2.0.1 / Schema 1.1.0**, während ausgeliefert v2.3.5 mit Schema 1.3.0 läuft — 18 Releases Rückstand, und die Schema-Angabe lag zwei Bumps daneben (F1006 → 1.2.0, F1009 → 1.3.0). In der Planungstabelle stand die L10n-Welle-1 noch als „in Arbeit", obwohl sie am 2026-06-10 mit v2.1.0 ausgeliefert wurde, und F1008 trug den Slot v2.2.0, der längst mit anderem Inhalt vergeben ist. Kopf auf v2.3.5/1.3.0 gesetzt, L10n-Zeile nach „Bereits ausgeliefert" verschoben, F1008 auf „offen" gestellt, GitHub #17 (Verträge pro Zählergruppe) als sichtbare Zeile ohne Code ergänzt. In „Bereits ausgeliefert" bleibt eine benannte Lücke: v2.2.0 und v2.3.0 sind ohne F-/N-Code entstanden, obwohl v2.3.0 ein MINOR mit erheblichem Funktionsumfang war. |
 | 2026-08-03 | v2.3.5 ausgeliefert (Patch) | **README zeigt, was das Projekt kann.** Statusabzeichen in DE und EN: CI und Docker-Publish als Live-Badges aus GitHub Actions, dazu Version, Lizenz, PHP, Testzahl, PWA, Docker-Architekturen, Sprachen, Verbrauchsarten und Abhängigkeiten. Vorher drei Abzeichen; die Eigenschaften, die das Projekt ausmachen (PWA, multi-arch, 7 Sprachen, 8 Verbrauchsarten, **0 Laufzeit-Abhängigkeiten**), standen nur im Fließtext. **Nebenbefund und behoben:** Beide READMEs schränkten „keine externen Abhängigkeiten" mit „außer Chart.js per CDN" ein — seit v2.2.0 falsch, Chart.js und Schriften liegen unter `public/vendor/`. Zwei neue Tests halten die Abzeichen ehrlich: Die Zahlen für Tests/Sprachen/Verbrauchsarten werden gegen die Wirklichkeit gezählt (der Test schlug beim ersten Lauf sofort an — er zählte 196, das Abzeichen sagte 194, weil er sich selbst mitzählte), und die CI-Abzeichen müssen auf existierende Workflows zeigen. 194→196 Tests. |
 | 2026-08-03 | v2.3.4 ausgeliefert (Patch) | **Release-Prozess entrümpelt**, DE+EN. (A) Der **ZIP-Bau** ist entfallen: Seit v2.0.0 trägt kein Release mehr Anhänge, die Installation läuft über GHCR, `git clone` oder `git checkout` eines Tags — die Beschreibung stand seit v1.4.2 unverändert da und beschrieb einen Ablauf, den es nicht mehr gab. (B) Das **CI-Gate steht jetzt ausdrücklich zwischen Push und Tag**; bisher zeigte die Anleitung `git push origin main --tags`, wodurch der Tag entsteht, bevor die Pipeline ihn bestätigt hat — und er ist die Grundlage für Image und Release. (C) Der Smoke-Test läuft gegen eine Kopie der Demo-Daten über `ET_DATA_DIR`, nie gegen das lokale `data/`. Zeitgleich intern harmonisiert: Der Release-Zug steht an **einem** Ort (Skill `workflow` §0) und nennt für jede Station ihr Makro (`/git-commit-acc`, `/git-commit-prod`); der lokale Testlauf existierte doppelt (Codeblock **und** Skript, bereits auseinandergelaufen) und ist jetzt nur noch das Skript. Kein Code betroffen, 194 Tests unverändert. |
 | 2026-08-03 | v2.3.3 ausgeliefert (Patch) | **Beispieldaten in der Dokumentation.** `MIGRATION-FROM-V090.md` (DE+EN) enthielt seit dem Initial Public Release Datensätze aus einer realen Installation statt erfundener Beispiele — Vertrags-/Ablese-IDs, Anbieter- und Tarifname, ein Zählerstand, ein Abschlagsbetrag und eine Nummer im `notes`-Feld, die wie ein Zählpunkt aussieht. Ebenso beschrieben CHANGELOG und Roadmap Befunde mit Vertragslaufzeiten und Beträgen. Alles durch fiktive Werte ersetzt bzw. entfernt, Struktur und Sachverhalt unverändert. Die Release-Notes von v2.3.1 und v2.3.2 wurden auf GitHub nachträglich ersetzt. **Nutzdaten waren nie versioniert** — unter `data/` liegen nur vier leere `.gitkeep`, `.gitignore` deckt alle Datentöpfe ab, die Historie enthält nie etwas anderes. **Regel:** Befunde aus einer konkreten Installation gehören nicht mit Laufzeiten, Anbietern, Nummern oder Beträgen in Repository, Commit-Message oder Release-Notes — Sachverhalt beschreiben, Daten weglassen. Kein Code betroffen, 194 Tests unverändert. |
@@ -565,7 +747,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-08-03 | v2.2.3 ausgeliefert (Patch, Hotfix) | **Oberfläche blieb nach dem Update bei „Lädt…".** Die ES-Module importieren einander ohne Cache-Buster (`./lib/sidebar.js`); der Service Worker lieferte sie unter `stale-while-revalidate` aus dem alten Cache, während die Shell schon neu war → eine frische `app.js` importierte `refreshSidebarBadges` aus einem gecachten `sidebar.js` der Vorversion, das diesen Export nicht kennt → `SyntaxError`, Modulgraph komplett abgebrochen. Betraf jede Installation mit aktivem Worker, also ACC und Prod nach dem v2.2.2-Rollout. **Zwei Maßnahmen:** (1) Selbstheilung in der Shell — trägt ein Cache eine andere Version, werden Caches und Worker abgeräumt und genau einmal neu geladen (Sperre in `sessionStorage`); bestehende Installationen reparieren sich beim nächsten Aufruf selbst. (2) `/public/js/` und `/public/locales/` laufen jetzt **network-first**; Stile, Schriften und Chart.js bleiben stale-while-revalidate. Nachgestellt (v2.1.5 mit Worker → v2.2.2 = Fehler reproduziert; mit Fix heilt derselbe Browser beim ersten Aufruf, keine Konsolenfehler). Neuer `ModuleCacheSafetyTest` (3 Fälle) hält beide Maßnahmen und die Auflösbarkeit aller Modul-Importe fest. 161→164 Tests. **Wurzel:** Das Loch war im Review vom selben Tag benannt („Module werden ohne ?v= importiert") und blieb ungeschlossen — der Cache-Buster hing nur an `app.js`. |
 | 2026-08-03 | v2.2.2 ausgeliefert (Patch) | (A) **Demo-Daten um Termine ergänzt**: weder `demo-data/reminders.json` noch das Demo-Backup führten Einträge → die Termin-Ansicht blieb nach „Demo laden" leer. Dieselbe Klasse wie die fehlenden Heizöl-/Pellets-Lieferungen in v2.1.2 (feste Feldliste im Backup, neuer Datentopf nicht mitgezogen). Jetzt 6 Termine über 5 Kategorien mit überfälligem/fälligem/ruhendem Eintrag. (B) **Die letzten beiden Dienste ohne Test haben einen**: `MigrationServiceTest` (10 Fälle — Formaterkennung, Übersetzung, Zählerwechsel-Heuristik, beide Schreibmodi, Sicherheitskopie) und `PdfReportServiceTest` (5 Fälle — inkl. der v2.1.3-Subzähler-Regel, die im Bericht bisher nur „analog" abgedeckt war; die Prüfung liest die gedruckten Zahlen direkt und meldet ohne Ausschluss 1.680 statt 1.200 kWh). `DemoServiceTest` um 3 Fälle erweitert. **Alle 29 Dienste sind jetzt getestet**; 143→161 Tests (721 Assertions). Kein Schema-Bump. |
 | 2026-08-03 | v2.2.1 ausgeliefert (Patch) | Nachzug zum Vollreview. (A) **HTTP-Status hing an der Anzeigesprache**: `ErrorHandler::statusFor()` erkannte „nicht gefunden" am Wortlaut — seit v2.0.0 werfen die Dienste lokalisiert, sodass Spanisch („no encontrado") und Französisch („introuvable") **500 statt 404** ergaben. Jetzt typisiert über `Http\NotFoundException`, Textprüfung bleibt als Rückfall. (B) **Restliche Backend-i18n**: alle acht Controller bekommen den I18nService; Zähler-/Vertragsmeldungen, Token-Hinweis, v0.9.0-Migrationsrückmeldungen, Temperatur- und CSV-Importfehler sowie die Kopfzeilen des Monatsexports folgen jetzt der Sprache — ebenso die Bezeichner in den Vertragsprüfungen. Bewusst deutsch bleiben JsonStore (Zirkelabhängigkeit I18n→Settings→JsonStore), das Migrationsprotokoll in `meta.json` (Betriebsdoku) und Ausnahmen für Programmierfehler; der Router antwortet jetzt englisch. (C) **Alle 13 Screenshots neu aufgenommen** — die alten stammten aus v1.9.2 und zeigten u. a. den Tarifvergleich mit dem in v2.2.0 behobenen Rechenfehler; trotz größerem Ausschnitt 824 KB statt 3,4 MB. 139→143 Tests. Kein Schema-Bump. |
-| 2026-08-03 | v2.2.0 ausgeliefert (Minor) | Vollständiges Review von Code, Oberfläche, Sprachen, Tests und Doku. **Vier stille Rechenfehler**: (0a) `ForecastService` filterte `is_shadow` nicht — sobald der letzte echte Vertrag vor dem Prognosehorizont endete, übernahm ein Schattenvertrag die Preis-/Abschlagsprojektion (7 von 12 Monaten, 797 € statt ~85 €/Monat); (0b) `drawMonthChart` las hart `m.kwh` → Wasser-Monatschart war eine Nullreihe (Rest von Fix #14); (0c) `collectWaterForm` machte aus einem leeren Preisfeld via `parseFloat(x || 0)` einen Tarif von 0 ct/m³; (0d) `lib/format.js` bildete nur de/en ab, die 2026 ergänzten Sprachen bekamen deutsche Zahlen, Datumstrennung und Monatskürzel. Dazu: (1) **Tarifvergleich neu aufgesetzt**: jede Kennzahl bezieht sich auf die Monate, die der Vertrag wirklich abdeckt (vorher Gesamtverbrauch neben Teilzeitraum-Kosten → ein Halbjahrestarif wies 49 % Ersparnis aus, wo real ~15 % waren); neue Spalte „ct/Einheit" als zeitraumunabhängiger Maßstab; Hochrechnung auf die volle Periode; Differenz gegen dieselben Monate statt gegen die Summe aller echten Verträge; Schattenverträge im Modul bearbeit- und löschbar samt Ende-Datum; Balkendiagramm; Einheit aus der SSOT. Abschläge und Sonderzahlungen bleiben bewusst draußen (Zahlungsströme, keine Tarifkosten). (2) **Utility-Farben aus der SSOT zur Laufzeit** — die handgepflegten CSS-Token kannten nur gas/strom/wasser, die fünf später ergänzten Arten hatten weder Überschriften-, Button-, KPI- noch Sidebar-Farbe; Gas und Strom wechseln sichtbar auf ihre SSOT-Farbe. (3) **A11y**: Textkontrast auf WCAG AA (war 3,7–4,4:1), Toasts schließbar und assertiv, Dialoge setzen den Hintergrund inert und sperren das Scrollen. (4) **Ablesungstabelle folgt der Jahresauswahl** (mit HA-Ingest sonst tausende Zeilen), Prognose/Analyse nur aktive Arten, Ungespeichert-Marker in den Einstellungen, Sidebar-Badges nachgelagert (erster Inhalt brauchte vier serielle Roundtrips). (5) **Schriften und Chart.js selbst gehostet** (260 KB, OFL/MIT) — keine IP mehr an Dritte, erster Offline-Start vollständig; SW precacht die Shell; Cache-Buster an VERSION. Dabei entdeckt und behoben: `vendor/` in .gitignore hätte `public/vendor/` verschluckt. (6) **i18n** der sichtbaren Backend-Texte + zentrale Helfer `utilityLabel()`/`defaultMeterName()`. 130→134 Tests inkl. `ReleaseConsistencyTest`, der Versionsstempel und externe Verweise maschinell prüft. Kein Schema-Bump. |
+| 2026-08-03 | v2.2.0 ausgeliefert (Minor) | Vollständiges Review von Code, Oberfläche, Sprachen, Tests und Doku. **Vier stille Rechenfehler**: (0a) `ForecastService` filterte `is_shadow` nicht — sobald der letzte echte Vertrag vor dem Prognosehorizont endete, übernahm ein Schattenvertrag die Preis-/Abschlagsprojektion (7 von 12 Monaten, 797 € statt ~85 €/Monat); (0b) `drawMonthChart` las hart `m.kwh` → Wasser-Monatschart war eine Nullreihe (Rest von Fix #14); (0c) `collectWaterForm` machte aus einem leeren Preisfeld via `parseFloat(x \|\| 0)` einen Tarif von 0 ct/m³; (0d) `lib/format.js` bildete nur de/en ab, die 2026 ergänzten Sprachen bekamen deutsche Zahlen, Datumstrennung und Monatskürzel. Dazu: (1) **Tarifvergleich neu aufgesetzt**: jede Kennzahl bezieht sich auf die Monate, die der Vertrag wirklich abdeckt (vorher Gesamtverbrauch neben Teilzeitraum-Kosten → ein Halbjahrestarif wies 49 % Ersparnis aus, wo real ~15 % waren); neue Spalte „ct/Einheit" als zeitraumunabhängiger Maßstab; Hochrechnung auf die volle Periode; Differenz gegen dieselben Monate statt gegen die Summe aller echten Verträge; Schattenverträge im Modul bearbeit- und löschbar samt Ende-Datum; Balkendiagramm; Einheit aus der SSOT. Abschläge und Sonderzahlungen bleiben bewusst draußen (Zahlungsströme, keine Tarifkosten). (2) **Utility-Farben aus der SSOT zur Laufzeit** — die handgepflegten CSS-Token kannten nur gas/strom/wasser, die fünf später ergänzten Arten hatten weder Überschriften-, Button-, KPI- noch Sidebar-Farbe; Gas und Strom wechseln sichtbar auf ihre SSOT-Farbe. (3) **A11y**: Textkontrast auf WCAG AA (war 3,7–4,4:1), Toasts schließbar und assertiv, Dialoge setzen den Hintergrund inert und sperren das Scrollen. (4) **Ablesungstabelle folgt der Jahresauswahl** (mit HA-Ingest sonst tausende Zeilen), Prognose/Analyse nur aktive Arten, Ungespeichert-Marker in den Einstellungen, Sidebar-Badges nachgelagert (erster Inhalt brauchte vier serielle Roundtrips). (5) **Schriften und Chart.js selbst gehostet** (260 KB, OFL/MIT) — keine IP mehr an Dritte, erster Offline-Start vollständig; SW precacht die Shell; Cache-Buster an VERSION. Dabei entdeckt und behoben: `vendor/` in .gitignore hätte `public/vendor/` verschluckt. (6) **i18n** der sichtbaren Backend-Texte + zentrale Helfer `utilityLabel()`/`defaultMeterName()`. 130→134 Tests inkl. `ReleaseConsistencyTest`, der Versionsstempel und externe Verweise maschinell prüft. Kein Schema-Bump. |
 
 ---
 

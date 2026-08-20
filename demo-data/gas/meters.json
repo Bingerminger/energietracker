@@ -25,6 +25,12 @@
         "final_counter": null,
         "reason": null
       }
+    ],
+    "baseline_events": [
+      {
+        "date": "2024-08-01",
+        "label": "Dachdämmung"
+      }
     ]
   }
 ]

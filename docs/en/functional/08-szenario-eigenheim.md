@@ -86,19 +86,51 @@ Details and formulas: [Heating oil](05-heizoel.md) / [Pellets](06-pellets.md).
 
 ## 5. Measuring before/after a renovation
 
-The most valuable application. Approach:
+The most valuable application — and since **v2.4.0 (F1011)** the Energietracker
+works it out itself instead of merely describing it.
+
+**The problem.** After insulating, the house is thermally a different building: it
+permanently needs less per degree of cold. A regression across both states
+describes neither of them — it returns a weighted average, and keeps doing so
+until the new months outnumber the old ones. With twelve years of history that
+takes years.
+
+**Approach:**
 
 1. Cleanly record at least **one full heating period before** the measure (for a
-   sound regression).
-2. The measure (insulation, windows, heating replacement, hydraulic balancing).
-3. Afterwards compare the **weather adjustment** — only it separates the effect of
-   the measure from the effect of the weather. A plain kWh difference year/year is
-   misleading if the winters were differently cold.
+   sound heating curve).
+2. Carry out the measure (insulation, windows, heating replacement, hydraulic
+   balancing).
+3. Enter the date under *Baseline cut-offs* on the meter, with a description such
+   as "loft insulation". A future date may be recorded in advance — it only takes
+   effect once reached.
+
+From then on **every** evaluation starts at that point: the regressions in the
+analysis chart, the expected value per month, the forecast (heating curve and
+seasonal averages), anomaly detection, the recommendations — and through the
+forecast, the tariff comparison as well. The earlier months stay visible in the
+chart, just greyed out: they are excluded from the **model**, not from the display.
+
+**What comes out of it.** The analysis area reports the heating curve of both
+epochs:
 
 ```text
-real_saving ≈ consumption_before_weather_adjusted
-            - consumption_after_weather_adjusted
+before    0.42 m³ per degree day   (63 data points)
+after     0.28 m³ per degree day   (41 data points)
+change     −33 %                   weather-corrected
 ```
+
+Consumption **per degree day** *is* the weather correction: it says how much the
+building needs per degree of cold, regardless of how cold the winter was. A plain
+kWh difference year/year would be misleading as soon as the winters differ.
+
+> **If too little history has accumulated since the cut-off**, the interface says
+> so in plain words ("The regression needs at least 8 data points after the
+> cut-off — 5 available") instead of letting an evaluation disappear silently. The
+> comparison only appears once **both** epochs are sufficiently populated.
+
+Several measures over time are possible: whichever cut-off is the latest one
+already reached takes effect.
 
 ---
 

@@ -6,6 +6,84 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.4.0] — 2026-08-20 — Analyse-Zäsur: Auswertungen ab der Sanierung
+
+MINOR-Release. **F1011** (GitHub #20), Schema 1.3.0 → 1.4.0 (additiv).
+
+**Das Problem.** Nach einer baulichen Maßnahme ist ein Gebäude thermisch ein
+anderes: Es braucht dauerhaft weniger je Kältegrad. Der Energietracker rechnete
+bisher **immer über die volle Historie** — ein Zeitfenster gab es nirgends.
+Damit beschreibt die Heizkurve keinen der beiden Zustände, sondern einen
+gewichteten Mittelwert aus beiden, und zwar so lange, bis die neuen Monate die
+alten überwiegen. Bei zwölf Jahren Historie dauert das Jahre.
+
+Betroffen war weit mehr als das Diagramm. Acht Auswertungen hingen an derselben
+Basislinie: die fünf Regressionsmodelle im Analyse-Chart, der Erwartungswert
+`expected_hgt`, die Abweichung `delta_pct`, die Prognose (Heizkurve **und**
+Saisonmittel), die Anomalie-Erkennung, die Empfehlungen R1/R2/R4 — und über die
+Prognose auch der Tarifvergleich. Praktische Folge für Betroffene: Die App
+meldete **jeden Monat** „unter dem Mittel", die Mehrverbrauchs-Empfehlung konnte
+faktisch nicht mehr auslösen, und der erwartete Jahresverbrauch — die Eingabe
+für jeden Tarifvergleich — fiel systematisch zu hoch aus.
+
+**Die Lösung.** Am Zähler lassen sich **Analyse-Zäsuren** eintragen: ein Datum
+mit einer Bezeichnung („Dachdämmung", „Wärmepumpe", „neue Fenster"). Wirksam ist
+die späteste Zäsur, deren Datum erreicht ist; ein künftiges Datum darf
+vorgemerkt werden und wirkt noch nicht. Ohne Zäsur verhält sich alles exakt wie
+bisher.
+
+- **Eine Markierung, alle Verbraucher.** Die Monatszeilen bekommen einmal ein
+  `pre_baseline` — dort, wo bereits `device_swap` gesetzt wird. Jede Auswertung
+  überspringt markierte Zeilen. Damit ist die Bereichsregel per `grep` prüfbar,
+  statt in fünf Aggregatoren einzeln nachgebaut zu werden. Genau daran scheiterte
+  die Subzähler-Regel aus F1006, die in `forUtility` stand und in drei weiteren
+  Auswertungen nicht (behoben in v2.1.3).
+- **Daten bleiben sichtbar.** Punkte vor der Zäsur werden im Chart ausgegraut
+  statt entfernt — ausgeschlossen wird aus dem *Modell*, nicht aus der Anzeige.
+  `weather_adjusted` wird für sie weiter berechnet: Der Wert ist
+  gebäudeunabhängig und trägt den Vergleich.
+- **Der Übergangsmonat zählt als „davor".** Fällt die Zäsur nicht auf den
+  Monatsersten, mischt dieser Monat beide Zustände und bleibt aus dem Modell.
+- **Wirkung der Maßnahme.** Beide Epochen werden getrennt gefittet und die
+  Steigungen ausgewiesen — Verbrauch je Gradtag, also bereits
+  witterungsbereinigt: *„0,42 → 0,28 m³ je Gradtag, −33 %."* Damit deckt der Code,
+  was `docs/functional/08-szenario-eigenheim.md` §5 seit jeher als **wertvollste
+  Anwendung** beschrieb und was bisher nichts ausrechnete. §5 ist entsprechend
+  neu gefasst.
+- **Drei stumme Untergrenzen sprechen jetzt.** Unter 12 Monaten entfällt die
+  Wetterbereinigung komplett, unter 8 Punkten die Regression, unter 5 Monaten die
+  Anomalie-Erkennung — bislang jeweils **wortlos**. Die Oberfläche schreibt nun
+  aus, was fehlt und wie viel („Die Regression braucht mindestens 8 Messpunkte ab
+  der Zäsur — vorhanden sind 5"). Der Hinweis greift **auch ohne Zäsur**: Wer
+  schlicht erst sieben Monate Daten hat, bekommt dieselbe Erklärung. Kein stiller
+  Rückfall auf die volle Historie — der wäre die gefährlichste Variante gewesen.
+
+**Schema-Migration** 1.3.0 → 1.4.0: neues Zählerfeld `baseline_events` mit
+Default `[]`, idempotent nach dem Muster von `external_id`. Das Feld reist in
+`meters.json` automatisch im Backup mit; ein eigener Datentopf hätte in die
+hartkodierte `BackupService`-Feldliste gemusst (Falle aus v2.1.2). Ein
+Roundtrip-Test hält es trotzdem fest.
+
+**Tests:** neue `BaselineCutoffTest` mit 25 Fällen, dazu ein Demo-Daten-Test.
+196 → 222. **17 Kernannahmen per Toggle als greifend nachgewiesen** — jede
+Manipulation ging rot, die Syntax jeder manipulierten Datei wurde geprüft, damit
+kein Rotlauf durch einen Syntaxfehler als Beweis durchgeht. Zusätzlich 28
+Prüfungen über echtes HTTP gegen einen laufenden Server und ein Browser-Durchlauf
+der Analyse- und Zählersicht.
+
+**Demo-Daten** führen die Zäsur vor (Gas-Hauptzähler, 2024-08-01), damit der
+Vorher/Nachher-Vergleich nach „Demo laden" tatsächlich zu sehen ist — in
+Verzeichnisform **und** im Demo-Backup, mit Test auf Gleichstand.
+
+**Sprachen:** 26 neue Katalogschlüssel × 7 Sprachen, chirurgisch in die Kataloge
+gesetzt statt sie neu zu formatieren — die Kataloge sind handgepflegt, kein
+Dumper reproduziert sie byte-gleich (nachgemessen).
+
+**Doku** DE und EN nachgezogen: Datenmodell, API-Referenz, Architektur,
+Szenario-Kapitel.
+
+---
+
 ## [2.3.5] — 2026-08-03 — README zeigt, was das Projekt kann
 
 PATCH-Release. Nur Dokumentation und Tests.

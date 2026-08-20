@@ -151,6 +151,40 @@ Monat u. a.: `ym`, `days`, `kwh` *oder* `m3`, `cost`, `avg_temp`,
 `expected_hgt`, `weather_adjusted`, `delta_pct` sowie Glättungen
 (MA-3/MA-6). `regressions` enthält alle fünf Modelle mit `r2`/`valid`.
 
+**Seit v2.4.0 (F1011)** trägt jeder Monat zusätzlich `pre_baseline`
+(`true` = liegt vor der Analyse-Zäsur des Zählers). Solche Monate bleiben
+in der Antwort, gehen aber in **keine** Auswertung ein: `expected_hgt` und
+`delta_pct` sind für sie `null`, die Regressionen lassen sie aus.
+`weather_adjusted` wird für sie weiter berechnet — der Wert ist
+gebäudeunabhängig und trägt den Vorher/Nachher-Vergleich.
+
+Dazu zwei neue Felder auf oberster Ebene:
+
+```json
+"baseline": {
+  "active_from": "2021-09-01",     // null = keine Zäsur wirksam
+  "active_label": "Dachdämmung",
+  "first_month": "2021-10",        // erster voller Monat danach
+  "events": [ { "date": "2021-09-01", "label": "Dachdämmung" } ],
+  "months_total": 144, "months_after": 58, "points_after": 41,
+  "limits": [                       // was gerade nicht gerechnet werden kann
+    { "key": "weather_adjustment", "need": 12, "have": 144, "ok": true },
+    { "key": "regression",         "need": 8,  "have": 41,  "ok": true },
+    { "key": "anomalies",          "need": 5,  "have": 58,  "ok": true }
+  ]
+},
+"baseline_comparison": {            // null, wenn eine Epoche zu dünn ist
+  "before": { "slope": 0.42, "base": 11.8, "r2": 0.97, "points": 63 },
+  "after":  { "slope": 0.28, "base": 12.1, "r2": 0.98, "points": 41 },
+  "delta_pct": -33.3, "unit": "kWh"
+}
+```
+
+`slope` ist der Verbrauch **je Gradtag** und damit bereits
+witterungsbereinigt; `delta_pct` ist die Wirkung der Maßnahme.
+`limits` wird auch **ohne** Zäsur befüllt — eine zu kurze Historie wird
+damit erklärt, statt eine Auswertung wortlos ausfallen zu lassen.
+
 ### `GET /api/utility/{u}/meters/{id}/stock-history` *(nur Heizöl/Pellets)*
 
 ```json
