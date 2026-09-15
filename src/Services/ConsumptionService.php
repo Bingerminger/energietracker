@@ -643,8 +643,42 @@ final class ConsumptionService
                 'end'   => (string)$curr['date'],
                 'rate'  => $raw / $days,
                 'estimated_end' => !empty($curr['is_estimated']),
+                // v2.5.2 — für den Ersatzwert an einer Grenze innerhalb des
+                // Intervalls: nur auf demselben Gerät ist ein Stand
+                // interpolierbar; über einen Zählertausch hinweg gibt es
+                // keinen fortlaufenden Zählerstand.
+                'start_counter' => (float)($prev['counter'] ?? 0),
+                'same_device'   => ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null),
             ];
         }
+
+        // v2.5.2 — Zählerstand an einer Grenze samt Ableseart, wie die
+        // Rechnung ihn ausweist: eine echte Ablesung (`reading`), eine als
+        // geschätzt markierte (`reading_estimated`) oder ein Ersatzwert
+        // (`interpolated`): kein Zählerstand an diesem Tag, tagesgenau
+        // zwischen den umschließenden Ablesungen interpoliert — dort, wo der
+        // Versorger an Brennwert- und Zeitraumgrenzen schätzt.
+        $readingByDate = [];
+        foreach ($actual as $r) {
+            $readingByDate[(string)$r['date']] = $r;
+        }
+        $counterAt = function (string $date) use ($readingByDate, $intervals): array {
+            if (isset($readingByDate[$date])) {
+                $r = $readingByDate[$date];
+                return [
+                    'value' => round((float)($r['counter'] ?? 0), 1),
+                    'kind'  => !empty($r['is_estimated']) ? 'reading_estimated' : 'reading',
+                ];
+            }
+            foreach ($intervals as $iv) {
+                if ($iv['start'] < $date && $date < $iv['end']) {
+                    if (!$iv['same_device']) return ['value' => null, 'kind' => 'interpolated'];
+                    $days = (int)(new \DateTime($iv['start']))->diff(new \DateTime($date))->days;
+                    return ['value' => round($iv['start_counter'] + $iv['rate'] * $days, 1), 'kind' => 'interpolated'];
+                }
+            }
+            return ['value' => null, 'kind' => null];
+        };
 
         // Grenzen: Anfang, Ende, Ablesungen und Faktorwechsel dazwischen
         $bounds = [$from => 'start', $to => 'end'];
@@ -678,6 +712,8 @@ final class ConsumptionService
             $kwh   = $m3 !== null ? $m3 * $entry['kwh_per_m3'] : null;
             if ($m3 === null) $gaps++;
 
+            $cFrom = $counterAt($a);
+            $cTo   = $counterAt($b);
             $rows[] = [
                 'from'         => $a,
                 'to'           => $b,
@@ -689,6 +725,11 @@ final class ConsumptionService
                 'brennwert'    => $entry['brennwert'],
                 'kwh_per_m3'   => $entry['kwh_per_m3'],
                 'kwh'          => $kwh !== null ? round($kwh, 1) : null,
+                // v2.5.2 — Stand alt/neu je Abschnitt mit Ableseart
+                'counter_from'      => $cFrom['value'],
+                'counter_from_kind' => $cFrom['kind'],
+                'counter_to'        => $cTo['value'],
+                'counter_to_kind'   => $cTo['kind'],
             ];
             $totM3   += $m3  ?? 0.0;
             $totKwh  += $kwh ?? 0.0;

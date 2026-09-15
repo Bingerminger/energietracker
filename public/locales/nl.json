@@ -383,7 +383,9 @@
         "days": "Dagen",
         "reason": "Grens",
         "z": "Vol.herl.",
-        "hs": "Cal. waarde"
+        "hs": "Cal. waarde",
+        "counterFrom": "Stand oud",
+        "counterTo": "Stand nieuw"
       },
       "reason": {
         "start": "Begin",
@@ -391,7 +393,17 @@
         "reading": "Meterstand",
         "readingEstimated": "Meterstand (geschat)",
         "factor": "Wijziging calorische waarde"
-      }
+      },
+      "kind": {
+        "reading": "afgelezen stand",
+        "readingEstimated": "als geschat vastgelegde meting",
+        "interpolated": "vervangende waarde — geen meterstand op deze dag, per dag geïnterpoleerd tussen de omsluitende metingen"
+      },
+      "mark": {
+        "estimated": "S",
+        "interpolated": "E"
+      },
+      "legend": "Afleestype: zonder toevoeging = afgelezen stand · S = als geschat vastgelegde meting · E = vervangende waarde: op deze dag is er geen meterstand, hij is per dag geïnterpoleerd tussen de omsluitende metingen — precies waar ook de leverancier schat (grenzen van calorische waarde en periode). Hoe minder rijen met E, hoe minder schatting."
     }
   },
   "contracts": {

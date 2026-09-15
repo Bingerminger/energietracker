@@ -246,7 +246,13 @@ otherwise 400.
 ```
 
 `reason` ∈ `start`, `end`, `reading`, `reading_estimated`, `factor` —
-combinations joined with `+` (`reading+factor`). `m3`/`kwh` are `null` when
+combinations joined with `+` (`reading+factor`). **Since v2.5.2** every row
+carries `counter_from`/`counter_to` (meter reading at the start/end of the
+section) with `counter_from_kind`/`counter_to_kind` ∈ `reading` (real
+reading), `reading_estimated` (recorded as estimated), `interpolated`
+(substitute value: no reading on that day, interpolated day-exact) or
+`null` (no enclosing interval). Across a meter swap the substitute value is
+`null` with `kind = interpolated`. `m3`/`kwh` are `null` when
 no reading interval encloses the section (before the first, after the last
 reading); `totals.gaps` counts those sections, they are missing from the
 sums. `m3` per section is the linear interpolation of the enclosing

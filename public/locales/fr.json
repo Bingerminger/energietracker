@@ -383,7 +383,9 @@
         "days": "Jours",
         "reason": "Limite",
         "z": "Coeff. corr.",
-        "hs": "PCS"
+        "hs": "PCS",
+        "counterFrom": "Index début",
+        "counterTo": "Index fin"
       },
       "reason": {
         "start": "Début",
@@ -391,7 +393,17 @@
         "reading": "Relevé",
         "readingEstimated": "Relevé (estimé)",
         "factor": "Changement de PCS"
-      }
+      },
+      "kind": {
+        "reading": "index relevé",
+        "readingEstimated": "relevé saisi comme estimé",
+        "interpolated": "valeur de substitution — pas d’index ce jour-là, interpolé au jour près entre les relevés encadrants"
+      },
+      "mark": {
+        "estimated": "S",
+        "interpolated": "E"
+      },
+      "legend": "Type de relevé : sans mention = index relevé · S = relevé saisi comme estimé · E = valeur de substitution : aucun index ce jour-là, il est interpolé au jour près entre les relevés encadrants — exactement là où le fournisseur estime aussi (limites de PCS et de période). Moins il y a de lignes avec E, moins il y a d’estimation."
     }
   },
   "contracts": {

@@ -278,6 +278,23 @@ async function renderView(modPath, params = []) {
       !!filled && /[+−-]?\d/.test(filled.textContent) && (filled.getAttribute('title') || '').includes('·'),
       filled ? `${filled.textContent.trim()} | ${(filled.getAttribute('title') || '').split('\n')[0]}` : `${spCells.length} Zellen, keine mit Tooltip`);
     t('utility(gas): Hinweistext unter der Tabelle', view.innerHTML.includes('Sonderzahlungen =') || view.innerHTML.includes('Special payments ='));
+
+    // v2.5.2 — Rechnungsprüfung ausführen: Stand alt/neu je Abschnitt mit
+    // Ableseart; Ersatzwerte (E) tragen einen Tooltip, die Fußnote erklärt.
+    view.querySelector('#bc-from').value = '2025-01-01';
+    view.querySelector('#bc-to').value   = '2026-01-01';
+    view.querySelector('#bc-run').click();
+    for (let i = 0; i < 40 && !view.querySelector('#bc-result table'); i++) await new Promise(r => setTimeout(r, 100));
+    const bcHead = [...view.querySelectorAll('#bc-result thead th')].map(th => th.textContent.trim());
+    t('billCheck: Spalten Stand alt / Stand neu', bcHead.includes('Stand alt') && bcHead.includes('Stand neu'), bcHead.join('|'));
+    const counters = [...view.querySelectorAll('#bc-result td.counter-cell')];
+    const interpolated = counters.filter(td => td.dataset.kind === 'interpolated');
+    t('billCheck: Ersatzwert-Zellen mit Kürzel E und Tooltip',
+      interpolated.length > 0 && interpolated.every(td => /\bE\b/.test(td.textContent) && (td.getAttribute('title') || '').length > 10),
+      `${interpolated.length} Ersatzwerte von ${counters.length} Ständen`);
+    t('billCheck: abgelesene Stände ohne Kürzel',
+      counters.some(td => td.dataset.kind === 'reading') && counters.filter(td => td.dataset.kind === 'reading').every(td => !td.querySelector('sup')));
+    t('billCheck: Fußnote zur Ableseart', !!view.querySelector('#bc-result .bill-check-legend') && view.querySelector('#bc-result .bill-check-legend').textContent.includes('E ='));
   } catch (e) { t('utility(gas): render', false, e.message); }
 
   // ── 7a. Utility-View Wasser: KEINE Spalte Sonderzahlungen (kennt keine) ──

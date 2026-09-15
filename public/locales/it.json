@@ -383,7 +383,9 @@
         "days": "Giorni",
         "reason": "Confine",
         "z": "Coeff. corr.",
-        "hs": "PCS"
+        "hs": "PCS",
+        "counterFrom": "Lettura iniziale",
+        "counterTo": "Lettura finale"
       },
       "reason": {
         "start": "Inizio",
@@ -391,7 +393,17 @@
         "reading": "Lettura",
         "readingEstimated": "Lettura (stimata)",
         "factor": "Cambio PCS"
-      }
+      },
+      "kind": {
+        "reading": "lettura rilevata",
+        "readingEstimated": "lettura registrata come stimata",
+        "interpolated": "valore sostitutivo — nessuna lettura in questo giorno, interpolato giorno per giorno tra le letture che lo racchiudono"
+      },
+      "mark": {
+        "estimated": "S",
+        "interpolated": "E"
+      },
+      "legend": "Tipo di lettura: senza suffisso = lettura rilevata · S = lettura registrata come stimata · E = valore sostitutivo: in questo giorno non c’è una lettura, è interpolato giorno per giorno tra le letture che lo racchiudono — esattamente dove stima anche il fornitore (limiti di potere calorifico e di periodo). Meno righe con E, meno stima."
     }
   },
   "contracts": {

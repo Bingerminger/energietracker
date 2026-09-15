@@ -170,9 +170,17 @@ const ROOT = require('path').resolve(__dirname, '..');
       JSON.stringify(Object.keys(bill)));
     if (bill.rows?.length) {
       const r = bill.rows[0];
-      const fields = ['from', 'to', 'to_inclusive', 'days', 'reason', 'm3', 'zustandszahl', 'brennwert', 'kwh_per_m3', 'kwh'];
+      const fields = ['from', 'to', 'to_inclusive', 'days', 'reason', 'm3', 'zustandszahl', 'brennwert', 'kwh_per_m3', 'kwh',
+        'counter_from', 'counter_from_kind', 'counter_to', 'counter_to_kind'];
       check('bill-check-Zeile hat erwartete Felder', fields.every(f => f in r),
         fields.filter(f => !(f in r)).join(',') || 'alle vorhanden');
+      // v2.5.2 — Ableseart je Grenze: Ablesung, geschätzt oder Ersatzwert (interpoliert)
+      const kinds = new Set(bill.rows.flatMap(x => [x.counter_from_kind, x.counter_to_kind]).filter(Boolean));
+      check('bill-check: Ablesearten aus {reading, reading_estimated, interpolated}',
+        [...kinds].every(k => ['reading', 'reading_estimated', 'interpolated'].includes(k)) && kinds.has('reading') && kinds.has('interpolated'),
+        [...kinds].join(','));
+      const chained = bill.rows.slice(1).every((x, i) => x.counter_from === bill.rows[i].counter_to);
+      check('bill-check: Stand neu einer Zeile = Stand alt der nächsten', chained);
     }
     const bad = await fetch(`${BASE}/api/utility/strom/meters/x/bill-check?from=2025-01-01&to=2026-01-01`);
     check('bill-check für Strom → 400', bad.status === 400, `Status ${bad.status}`);

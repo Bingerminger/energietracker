@@ -294,6 +294,74 @@ final class ConversionFactorServiceTest extends ServiceTestCase
         self::assertSame(0, $bill['totals']['gaps']);
     }
 
+    /**
+     * v2.5.2 — Stand alt/neu je Abschnitt mit Ableseart. An einer Ablesung
+     * steht der abgelesene Wert; an einem Faktorwechsel mitten im Intervall
+     * ein Ersatzwert (tagesgenau interpoliert, `interpolated`); eine als
+     * geschätzt erfasste Ablesung heißt `reading_estimated`.
+     */
+    public function testBillBreakdownCarriesCounterValuesWithReadingKind(): void
+    {
+        $meterId = $this->setMeterDevices('gas', [[
+            'id' => 'd_gas_1', 'serial' => null,
+            'installed_on' => '2025-10-01', 'initial_counter' => 0.0,
+            'removed_on' => null, 'final_counter' => null, 'reason' => null,
+        ]]);
+        $this->setReadings('gas', $meterId, [
+            ['date' => '2025-10-01', 'counter' => 1000.0, 'device_id' => 'd_gas_1'],
+            ['date' => '2025-12-01', 'counter' => 1061.0, 'device_id' => 'd_gas_1', 'is_estimated' => true],
+            ['date' => '2026-03-01', 'counter' => 1241.0, 'device_id' => 'd_gas_1'],
+        ]);
+        $meter = $this->meters->get('gas', $meterId);
+        $rows  = $this->consumption->gasBillBreakdown($meter, '2025-10-01', '2026-03-01')['rows'];
+
+        // Zeile 1: 01.10. (Ablesung 1000) → 01.11. (Faktorwechsel, Ersatzwert 1031 = 1000 + 31 × 1)
+        self::assertSame(1000.0,         $rows[0]['counter_from']);
+        self::assertSame('reading',      $rows[0]['counter_from_kind']);
+        self::assertSame(1031.0,         $rows[0]['counter_to']);
+        self::assertSame('interpolated', $rows[0]['counter_to_kind']);
+        // Zeile 2 endet an der geschätzten Ablesung
+        self::assertSame(1061.0,             $rows[1]['counter_to']);
+        self::assertSame('reading_estimated', $rows[1]['counter_to_kind']);
+        // Zeile 3: 01.12. → 01.02. (Faktorwechsel): 1061 + 62 × 2 = 1185
+        self::assertSame(1185.0,         $rows[2]['counter_to']);
+        self::assertSame('interpolated', $rows[2]['counter_to_kind']);
+        // Zeile 4 endet an der letzten Ablesung
+        self::assertSame(1241.0,    $rows[3]['counter_to']);
+        self::assertSame('reading', $rows[3]['counter_to_kind']);
+        // Stand neu einer Zeile = Stand alt der nächsten
+        for ($i = 1; $i < count($rows); $i++) {
+            self::assertSame($rows[$i - 1]['counter_to'], $rows[$i]['counter_from']);
+        }
+    }
+
+    public function testBillBreakdownHasNoCounterAcrossADeviceSwapOrOutsideReadings(): void
+    {
+        // Zählertausch am 01.02.: alt endet bei 1100, neu beginnt bei 0.
+        $meterId = $this->setMeterDevices('gas', [
+            ['id' => 'd_old', 'serial' => null, 'installed_on' => '2026-01-01', 'initial_counter' => 0.0,
+             'removed_on' => '2026-02-01', 'final_counter' => 1100.0, 'reason' => 'defekt'],
+            ['id' => 'd_new', 'serial' => null, 'installed_on' => '2026-02-01', 'initial_counter' => 0.0,
+             'removed_on' => null, 'final_counter' => null, 'reason' => null],
+        ]);
+        $this->setReadings('gas', $meterId, [
+            ['date' => '2026-01-01', 'counter' => 1000.0, 'device_id' => 'd_old'],
+            ['date' => '2026-03-01', 'counter' => 100.0,  'device_id' => 'd_new'],
+        ]);
+        $rows = $this->consumption->gasBillBreakdown(
+            $this->meters->get('gas', $meterId), '2025-12-01', '2026-02-01'
+        )['rows'];
+        // Vor der ersten Ablesung: kein Stand, keine Art
+        self::assertNull($rows[0]['counter_from']);
+        self::assertNull($rows[0]['counter_from_kind']);
+        // Am Faktorwechsel 01.02. liegt die Grenze im Tausch-Intervall: Ersatzwert
+        // ohne Zahl — über zwei Geräte hinweg gibt es keinen fortlaufenden Stand.
+        $last = end($rows);
+        self::assertSame('2026-02-01', $last['to']);
+        self::assertNull($last['counter_to']);
+        self::assertSame('interpolated', $last['counter_to_kind']);
+    }
+
     public function testBillBreakdownMarksDaysWithoutReadingsAsGap(): void
     {
         $meterId = $this->setMeterDevices('gas', [[

@@ -70,12 +70,21 @@ Versorgerrechnung nach: Für den gewählten Zeitraum entstehen Abschnitte an
 jeder Ablesung und an jedem Brennwertwechsel, je Abschnitt
 
 ```text
-Zeitraum | Tage | Grenze | m³ | Zustandszahl | Brennwert | kWh/m³ | kWh
+Zeitraum | Stand alt | Stand neu | Tage | Grenze | m³ | Zustandszahl | Brennwert | kWh/m³ | kWh
 ```
 
-— genau die Zeilen, die die Rechnung zeigt. Weicht eine Zeile ab, ist
-entweder ein Faktor falsch eingetragen oder der Versorger hat einen
-Zwischenstand anders geschätzt. Abschnitte ohne umschließende Ablesung
+— genau die Zeilen, die die Rechnung zeigt, samt Zählerstand am Anfang
+und Ende jedes Abschnitts. Jeder Stand trägt seine **Ableseart** wie die
+Fußnoten der Rechnung (seit v2.5.2): ohne Zusatz ein abgelesener Stand,
+`S` eine als geschätzt erfasste Ablesung, `E` ein **Ersatzwert** — an
+diesem Tag gibt es keinen Zählerstand, er ist tagesgenau zwischen den
+umschließenden Ablesungen interpoliert. Das sind genau die Stellen, an
+denen auch der Versorger schätzt (Brennwert- und Zeitraumgrenzen); je
+weniger `E` in der Tabelle, desto weniger Schätzung steckt im Vergleich.
+Über einen Zählertausch hinweg gibt es keinen fortlaufenden Stand, der
+Ersatzwert bleibt dann ohne Zahl. Weicht eine Zeile ab, ist entweder ein
+Faktor falsch eingetragen oder der Versorger hat einen Zwischenstand
+anders geschätzt. Abschnitte ohne umschließende Ablesung
 (vor der ersten, nach der letzten) erscheinen ohne Verbrauch, damit die
 Lücke sichtbar ist.
 

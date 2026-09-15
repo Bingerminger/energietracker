@@ -383,7 +383,9 @@
         "days": "Dias",
         "reason": "Limite",
         "z": "Coef. corr.",
-        "hs": "PCS"
+        "hs": "PCS",
+        "counterFrom": "Leitura inicial",
+        "counterTo": "Leitura final"
       },
       "reason": {
         "start": "Início",
@@ -391,7 +393,17 @@
         "reading": "Leitura",
         "readingEstimated": "Leitura (estimada)",
         "factor": "Mudança de PCS"
-      }
+      },
+      "kind": {
+        "reading": "leitura efetuada",
+        "readingEstimated": "leitura registada como estimada",
+        "interpolated": "valor substitutivo — sem leitura nesse dia, interpolado dia a dia entre as leituras que o delimitam"
+      },
+      "mark": {
+        "estimated": "S",
+        "interpolated": "E"
+      },
+      "legend": "Tipo de leitura: sem sufixo = leitura efetuada · S = leitura registada como estimada · E = valor substitutivo: nesse dia não há leitura, é interpolado dia a dia entre as leituras que o delimitam — exatamente onde o fornecedor também estima (limites de poder calorífico e de período). Quanto menos linhas com E, menos estimativa."
     }
   },
   "contracts": {

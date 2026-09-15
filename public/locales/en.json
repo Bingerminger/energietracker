@@ -383,7 +383,9 @@
         "days": "Days",
         "reason": "Boundary",
         "z": "Vol. corr.",
-        "hs": "Calorific value"
+        "hs": "Calorific value",
+        "counterFrom": "Reading (from)",
+        "counterTo": "Reading (to)"
       },
       "reason": {
         "start": "Start",
@@ -391,7 +393,17 @@
         "reading": "Reading",
         "readingEstimated": "Reading (estimated)",
         "factor": "Calorific value change"
-      }
+      },
+      "kind": {
+        "reading": "meter reading",
+        "readingEstimated": "reading recorded as estimated",
+        "interpolated": "substitute value — no meter reading on this day, interpolated day-exact between the enclosing readings"
+      },
+      "mark": {
+        "estimated": "S",
+        "interpolated": "E"
+      },
+      "legend": "Reading type: no suffix = meter reading · S = reading recorded as estimated · E = substitute value: there is no meter reading on this day, it is interpolated day-exact between the enclosing readings — exactly where the supplier estimates too (calorific-value and period boundaries). The fewer rows with E, the less is estimation."
     }
   },
   "contracts": {

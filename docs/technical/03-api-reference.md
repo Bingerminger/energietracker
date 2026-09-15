@@ -249,7 +249,13 @@ Anfang, Ende, jede Ablesung, jeder Brennwertwechsel. `to` ist exklusiv,
 ```
 
 `reason` ∈ `start`, `end`, `reading`, `reading_estimated`, `factor` —
-Kombinationen mit `+` (`reading+factor`). `m3`/`kwh` sind `null`, wenn
+Kombinationen mit `+` (`reading+factor`). **Seit v2.5.2** trägt jede Zeile
+`counter_from`/`counter_to` (Zählerstand am Anfang/Ende des Abschnitts)
+mit `counter_from_kind`/`counter_to_kind` ∈ `reading` (abgelesen),
+`reading_estimated` (als geschätzt erfasst), `interpolated` (Ersatzwert:
+kein Stand an diesem Tag, tagesgenau interpoliert) oder `null` (kein
+umschließendes Intervall). Über einen Zählertausch hinweg ist der
+Ersatzwert `null` bei `kind = interpolated`. `m3`/`kwh` sind `null`, wenn
 kein Ableseintervall den Abschnitt umschließt (vor der ersten, nach der
 letzten Ablesung); `totals.gaps` zählt diese Abschnitte, sie fehlen in
 den Summen. `m3` je Abschnitt ist die lineare Interpolation des

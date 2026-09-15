@@ -323,6 +323,20 @@ function reasonLabel(reason) {
   return reason.split('+').map(r => t('utility.billCheck.reason.' + (map[r] || r))).join(' · ');
 }
 
+// v2.5.2 — Zählerstand an einer Abschnittsgrenze mit Ableseart, wie die
+// Rechnung ihn ausweist: abgelesen (ohne Zusatz), als geschätzt erfasst (S)
+// oder Ersatzwert (E) — kein Stand an diesem Tag, tagesgenau interpoliert.
+// Die Fußnote unter der Tabelle erklärt die Kürzel.
+function counterCell(value, kind) {
+  if (kind == null) return `<td class="num muted counter-cell">–</td>`;
+  const mark = kind === 'reading_estimated' ? t('utility.billCheck.mark.estimated')
+             : kind === 'interpolated'      ? t('utility.billCheck.mark.interpolated') : '';
+  const kindKey = kind === 'reading_estimated' ? 'readingEstimated' : kind;
+  const title = escapeHtml(t('utility.billCheck.kind.' + kindKey));
+  const val = value != null ? fmt.num(value, Number.isInteger(value) ? 0 : 1) : '–';
+  return `<td class="num counter-cell" data-kind="${kind}" title="${title}">${val}${mark ? `<sup class="muted"> ${mark}</sup>` : ''}</td>`;
+}
+
 function renderBillCheck(bill, u) {
   const rows = bill.rows || [];
   if (!rows.length) return `<p class="muted">${t('utility.billCheck.empty')}</p>`;
@@ -331,6 +345,8 @@ function renderBillCheck(bill, u) {
     <div class="table-wrap"><table class="table table--compact">
       <thead><tr>
         <th scope="col">${t('utility.billCheck.col.period')}</th>
+        <th scope="col" class="num">${t('utility.billCheck.col.counterFrom')}</th>
+        <th scope="col" class="num">${t('utility.billCheck.col.counterTo')}</th>
         <th scope="col" class="num">${t('utility.billCheck.col.days')}</th>
         <th scope="col">${t('utility.billCheck.col.reason')}</th>
         <th scope="col" class="num">m³</th>
@@ -343,6 +359,8 @@ function renderBillCheck(bill, u) {
         ${rows.map(r => `
           <tr class="${r.m3 == null ? 'muted' : ''}">
             <td>${fmt.date(r.from)} – ${fmt.date(r.to_inclusive)}</td>
+            ${counterCell(r.counter_from, r.counter_from_kind)}
+            ${counterCell(r.counter_to, r.counter_to_kind)}
             <td class="num">${r.days}</td>
             <td>${reasonLabel(r.reason)}</td>
             <td class="num">${r.m3 != null ? fmt.num(r.m3, 1) : `<em>${t('utility.billCheck.noReading')}</em>`}</td>
@@ -354,6 +372,7 @@ function renderBillCheck(bill, u) {
       </tbody>
       <tfoot><tr>
         <td><strong>${t('utility.billCheck.total')}</strong></td>
+        <td></td><td></td>
         <td class="num">${tot.days ?? ''}</td>
         <td></td>
         <td class="num"><strong>${fmt.num(tot.m3, 1)}</strong></td>
@@ -361,6 +380,7 @@ function renderBillCheck(bill, u) {
         <td class="num"><strong>${fmt.num(tot.kwh, 0)}</strong></td>
       </tr></tfoot>
     </table></div>
+    <p class="muted bill-check-legend" style="margin-top:8px">${t('utility.billCheck.legend')}</p>
     ${tot.gaps ? `<p class="muted" style="margin-top:8px">${t('utility.billCheck.gaps', { count: tot.gaps })}</p>` : ''}
     <p class="muted" style="margin-top:8px">${t('utility.billCheck.formula')}</p>`;
 }

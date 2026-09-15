@@ -383,7 +383,9 @@
         "days": "Tage",
         "reason": "Grenze",
         "z": "Zustandszahl",
-        "hs": "Brennwert"
+        "hs": "Brennwert",
+        "counterFrom": "Stand alt",
+        "counterTo": "Stand neu"
       },
       "reason": {
         "start": "Beginn",
@@ -391,7 +393,17 @@
         "reading": "Ablesung",
         "readingEstimated": "Ablesung (geschätzt)",
         "factor": "Brennwertwechsel"
-      }
+      },
+      "kind": {
+        "reading": "abgelesener Stand",
+        "readingEstimated": "als geschätzt erfasste Ablesung",
+        "interpolated": "Ersatzwert — kein Zählerstand an diesem Tag, tagesgenau zwischen den umschließenden Ablesungen interpoliert"
+      },
+      "mark": {
+        "estimated": "S",
+        "interpolated": "E"
+      },
+      "legend": "Ableseart: ohne Zusatz = abgelesener Stand · S = als geschätzt erfasste Ablesung · E = Ersatzwert: an diesem Tag gibt es keinen Zählerstand, er ist tagesgenau zwischen den umschließenden Ablesungen interpoliert — genau dort, wo auch der Versorger schätzt (Brennwert- und Zeitraumgrenzen). Je mehr Zeilen ohne E, desto weniger ist Schätzung."
     }
   },
   "contracts": {

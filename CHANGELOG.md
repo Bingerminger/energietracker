@@ -6,6 +6,46 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.5.2] — 2026-09-15 — Rechnungsprüfung: Zählerstände mit Ableseart
+
+PATCH-Release (UX-Politur). Kein Schema-Bump, keine Datenänderung.
+
+**Der Anlass.** Beim Abgleich zweier echter Jahresrechnungen mit der
+Rechnungsprüfung (v2.5.0) fiel auf, woran der Vergleich hakt: Die Rechnung
+schneidet ihre Zeilen an Brennwert- und Preisgrenzen mit **geschätzten**
+Zwischenständen und markiert das per Fußnote — „vom Marktpartner
+übermittelt (geschätzt)", „programmseitig hochgerechnet". Die App zeigte je
+Abschnitt nur m³ und kWh; ob ein Abschnitt an einer echten Ablesung oder an
+einem interpolierten Zwischenstand endet, war nicht zu sehen, und zum
+Zählerstand der Rechnung gab es keine Zahl zum Danebenlegen.
+
+**Neu.** Die Tabelle führt je Abschnitt **Stand alt** und **Stand neu**,
+jeder Stand mit seiner **Ableseart** wie die Fußnoten der Rechnung: ohne
+Zusatz ein abgelesener Stand, `S` eine als geschätzt erfasste Ablesung, `E`
+ein **Ersatzwert** — an diesem Tag gibt es keinen Zählerstand, er ist
+tagesgenau zwischen den umschließenden Ablesungen interpoliert. Das sind
+genau die Stellen, an denen auch der Versorger schätzt; je weniger `E`,
+desto weniger Schätzung steckt im Vergleich. Tooltip je Stand, Fußnote
+unter der Tabelle. Über einen Zählertausch hinweg gibt es keinen
+fortlaufenden Stand: der Ersatzwert bleibt dann ohne Zahl statt eine
+falsche zu zeigen.
+
+**API.** `bill-check`-Zeilen tragen `counter_from`/`counter_to` mit
+`counter_from_kind`/`counter_to_kind` ∈ `reading`, `reading_estimated`,
+`interpolated`, `null`.
+
+**Tests.** 254 → 256: zwei PHPUnit-Fälle (Interpolation, geschätzte
+Ablesung, Verkettung Stand neu = Stand alt; Zählertausch und Tage ohne
+Intervall ohne Zahl), API-Shape (Felder, Ablesearten, Verkettung),
+Browser-Render führt die Rechnungsprüfung jetzt wirklich aus (Spalten,
+`E`-Kürzel mit Tooltip, abgelesene Stände ohne Kürzel, Fußnote). **Sieben
+Kernannahmen per Toggle als greifend nachgewiesen.**
+
+**Doku** DE + EN: Gas-Kapitel (Rechnungsprüfung), API-Referenz.
+8 Katalogschlüssel × 7 Sprachen.
+
+---
+
 ## [2.5.1] — 2026-09-15 — Sonderzahlungen in der Tabelle „Verträge & Abschläge"
 
 PATCH-Release (UX-Politur). Kein Schema-Bump, keine Datenänderung.
