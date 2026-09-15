@@ -165,6 +165,17 @@ async function renderView(modPath, params = []) {
     t('readings-entry: keine Delivery-Utilities in Karten',
       !utils.includes('heizoel') && !utils.includes('pellets'),
       `utilities=${[...new Set(utils)].join(',')}`);
+    // v2.4.2 — GitHub #21: Das Zählerstand-Feld für Gas trägt m³, nicht kWh.
+    // Der Zähler zählt Kubikmeter; kWh ist die Einheit des VERBRAUCHS und
+    // entsteht erst über den Umrechnungsfaktor. Bis v2.4.1 stand hier kWh —
+    // wer dem Etikett folgte und selbst umrechnete, trug falsche Stände ein.
+    const gasCard = [...cards].find(c => c.dataset.utility === 'gas');
+    if (gasCard) {
+      const label = gasCard.querySelector('.field--counter .field__label')?.textContent || '';
+      t('readings-entry: Gas-Zählerstand ist in m³ beschriftet',
+        label.includes('m³') && !label.includes('kWh'),
+        `label="${label.trim()}"`);
+    }
   } catch (e) { t('readings-entry: render', false, e.message); }
 
   // ── 2. Termine ──

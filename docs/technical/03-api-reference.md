@@ -117,7 +117,8 @@ es keine Zählerstände, sondern Lieferungen.
         "utility": "gas",
         "utility_label": "Gas",
         "utility_icon": "🔥",
-        "consumption_unit": "kWh",
+        "unit": "m³",              // Einheit des ZÄHLERSTANDS (seit v2.4.2)
+        "consumption_unit": "kWh", // Einheit des VERBRAUCHS
         "color": "#f59e0b",
         "meter_id": "m_gas_main",
         "meter_name": "Hauptzähler Gas",
@@ -135,6 +136,16 @@ es keine Zählerstände, sondern Lieferungen.
   }
 }
 ```
+
+**`unit` gegen `consumption_unit` (seit v2.4.2, GitHub #21).** Ein Gaszähler
+zählt Kubikmeter; kWh entsteht erst über den Umrechnungsfaktor. `unit` ist die
+Einheit von `counter` und `expected_next_min`, `consumption_unit` die des
+daraus berechneten Verbrauchs. Bis v2.4.1 fehlte `unit` in der Antwort, und
+die Erfassungsmaske beschriftete den Gas-Zählerstand mit „kWh" — gespeichert
+und gerechnet wurde immer in m³. Unter den kumulativen Verbrauchsarten ist Gas
+die **einzige**, bei der die beiden Einheiten auseinanderfallen — Strom,
+Fernwärme und PV zählen in kWh, Wasser in m³, jeweils identisch mit dem
+Verbrauch. Deshalb fiel der Fehler nur bei Gas auf.
 
 `expected_next_min` ist der Wert, gegen den die Frontend-Validierung
 einen Rückwärts-Zählerstand warnt (nicht hart blockiert — Zählertausch

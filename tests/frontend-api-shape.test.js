@@ -76,7 +76,7 @@ const ROOT = require('path').resolve(__dirname, '..');
   check('readings-overview liefert rows[]', okShape, `${ovw.rows?.length || 0} Zeilen`);
   if (okShape && ovw.rows.length > 0) {
     const r = ovw.rows[0];
-    const fields = ['utility','meter_id','meter_name','consumption_unit','last_reading','expected_next_min'];
+    const fields = ['utility','meter_id','meter_name','unit','consumption_unit','last_reading','expected_next_min'];
     check('overview-Row hat erwartete Felder',
       fields.every(f => f in r),
       fields.filter(f => !(f in r)).join(',') || 'alle vorhanden');
@@ -85,6 +85,22 @@ const ROOT = require('path').resolve(__dirname, '..');
     check('overview enthält keine Delivery-Utilities',
       noDelivery,
       `utilities=${utils.join(',')}`);
+    // v2.4.2 — GitHub #21: Zwei Einheiten, zwei Bedeutungen. `unit` ist die
+    // des ZÄHLERSTANDS (Gas: m³), `consumption_unit` die des VERBRAUCHS
+    // (Gas: kWh). Bis v2.4.1 fehlte `unit` in der Antwort, und die
+    // Erfassungsmaske beschriftete den Gas-Zählerstand mit kWh.
+    const gas = ovw.rows.find(x => x.utility === 'gas');
+    if (gas) {
+      check('overview: Gas-Zählerstand in m³, Verbrauch in kWh',
+        gas.unit === 'm³' && gas.consumption_unit === 'kWh',
+        `unit=${gas.unit} consumption_unit=${gas.consumption_unit}`);
+    }
+    const strom = ovw.rows.find(x => x.utility === 'strom');
+    if (strom) {
+      check('overview: Strom-Zählerstand und -Verbrauch beide kWh',
+        strom.unit === 'kWh' && strom.consumption_unit === 'kWh',
+        `unit=${strom.unit} consumption_unit=${strom.consumption_unit}`);
+    }
   }
 
   // 4d. F1006 (v1.2.0) — Zählergruppen-Endpoint liefert ein Array, und der

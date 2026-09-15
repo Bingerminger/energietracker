@@ -6,6 +6,46 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.4.2] — 2026-09-15 — Bugfix: Gas-Zählerstand war in der Erfassung mit kWh beschriftet
+
+PATCH-Release. Kein Schema-Bump, keine Datenänderung. GitHub **#21**.
+
+**Der Fehler.** Die zentrale Zählerstand-Erfassung (`#/zaehlerstaende`)
+beschriftete das Eingabefeld für Gas mit „kWh". Ein Gaszähler zählt aber
+Kubikmeter; kWh entsteht erst über den Umrechnungsfaktor aus den
+Einstellungen. Gespeichert und gerechnet wurde **immer in m³** — nur das
+Etikett war falsch. Die Zählerliste der Verbrauchsansicht zeigte korrekt m³.
+
+**Die Ursache.** In der Utilities-SSOT gibt es zwei Einheiten je
+Verbrauchsart: `unit` für den Zählerstand (Gas: m³) und `consumption_unit`
+für den Verbrauch (Gas: kWh). Der Aggregat-Endpunkt `GET /api/readings-overview`
+lieferte seit seiner Einführung (F1004, v1.6.0) **nur** `consumption_unit`. Die
+Maske hatte damit keine andere Einheit zur Wahl und beschriftete den Stand mit
+der des Verbrauchs. Unter den kumulativen Verbrauchsarten ist Gas die
+**einzige**, bei der die beiden auseinanderfallen — Strom, Fernwärme und PV
+zählen in kWh, Wasser in m³, jeweils identisch mit dem Verbrauch. Deshalb fiel
+der Fehler nur bei Gas auf, und dort seit fünfzehn Releases nicht.
+
+**Der Fix.** Der Endpunkt liefert jetzt beide Einheiten; die Maske beschriftet
+Zählerstand, letzten Stand und Differenz-Vorschau mit `unit`. Keine Änderung
+an Katalogen nötig — alle Texte tragen die Einheit als Platzhalter.
+
+**Für Betroffene.** Wer dem Etikett gefolgt ist und Gasstände vor der Eingabe
+selbst in kWh umgerechnet hat, hat Stände eingetragen, die um den
+Umrechnungsfaktor zu hoch sind. Diese Ablesungen in der Verbrauchsansicht auf
+den abgelesenen m³-Wert korrigieren; der Verbrauch berechnet sich danach
+richtig.
+
+**Tests.** Drei Schichten, jede per Toggle als greifend nachgewiesen:
+`ReadingOverviewUnitsTest` (3 Fälle — beide Einheiten je Verbrauchsart gegen
+die SSOT, und dass der Gasstand roh gespeichert und erst beim Verbrauch
+umgerechnet wird), der API-Shape-Test verlangt `unit` und prüft für Gas
+m³/kWh, der Browser-Render-Test verlangt m³ am Gas-Eingabefeld. Wird `unit`
+aus der Antwort entfernt, werden alle drei rot; wird nur die Maske
+zurückgedreht, der Render-Test. 227 → 230 Tests.
+
+---
+
 ## [2.4.1] — 2026-08-20 — Hotfix: die v1.4.0-Migration lief auf Bestandsdaten nicht
 
 PATCH-Release. Kein Schema-Bump, keine Datenänderung am Inhalt.

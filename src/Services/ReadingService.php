@@ -173,6 +173,13 @@ final class ReadingService
                     // der Haupteingabemaske, auch bei anderer Sprache.
                     'utility_label'     => $this->i18n->utilityLabel($key),
                     'utility_icon'      => (string)($utility['icon']  ?? ''),
+                    // v2.4.2 — GitHub #21: Der ZÄHLERSTAND steht in `unit`
+                    // (Gas: m³), der VERBRAUCH in `consumption_unit` (Gas:
+                    // kWh). Die Erfassungsmaske bekam bisher nur Letzteres
+                    // und beschriftete damit das Zählerstand-Feld — Gas
+                    // stand als „kWh" da, gespeichert und gerechnet wurde
+                    // aber immer in m³.
+                    'unit'              => (string)($utility['unit'] ?? ''),
                     'consumption_unit'  => (string)($utility['consumption_unit'] ?? ''),
                     'color'             => (string)($utility['color'] ?? ''),
                     'meter_id'          => (string)$m['id'],

@@ -162,7 +162,7 @@ export async function render(container) {
 function renderRow(r, today) {
   const last     = r.last_reading;
   const lastStr  = last
-    ? `${fmt.num(last.counter, 3)} ${esc(r.consumption_unit)} · ${fmt.date(last.date)}`
+    ? `${fmt.num(last.counter, 3)} ${esc(r.unit)} · ${fmt.date(last.date)}`
     : t('readingsEntry.row.lastNone');
   const lastTag  = last?.is_estimated
     ? ` <span class="reading-card__tag">${t('readingsEntry.row.estimated')}</span>` : '';
@@ -183,7 +183,7 @@ function renderRow(r, today) {
 
       <div class="reading-card__inputs">
         <label class="field field--counter">
-          <span class="field__label">${t('readingsEntry.row.newLabel', { unit: esc(r.consumption_unit) })}</span>
+          <span class="field__label">${t('readingsEntry.row.newLabel', { unit: esc(r.unit) })}</span>
           <input
             class="input input--counter"
             data-role="counter"
@@ -248,8 +248,8 @@ function previewText(r, value, dateVal) {
     if (Number.isFinite(d) && d > 0) days = d;
   }
   return days != null
-    ? t('readingsEntry.preview.sinceLastDays', { delta, unit: r.consumption_unit, days })
-    : t('readingsEntry.preview.sinceLast', { delta, unit: r.consumption_unit });
+    ? t('readingsEntry.preview.sinceLastDays', { delta, unit: r.unit, days })
+    : t('readingsEntry.preview.sinceLast', { delta, unit: r.unit });
 }
 
 function bindRow(card, r) {
@@ -371,7 +371,7 @@ async function refreshLastReadings(listEl, rows, today) {
       if (!card) return;
       const lastEl = card.querySelector('.reading-card__last');
       if (lastEl && next.last_reading) {
-        lastEl.innerHTML = `${t('readingsEntry.row.lastLabel')} <strong>${fmt.num(next.last_reading.counter, 3)} ${esc(r.consumption_unit)} · ${fmt.date(next.last_reading.date)}</strong>`;
+        lastEl.innerHTML = `${t('readingsEntry.row.lastLabel')} <strong>${fmt.num(next.last_reading.counter, 3)} ${esc(r.unit)} · ${fmt.date(next.last_reading.date)}</strong>`;
       }
     });
   } catch { /* still */ }

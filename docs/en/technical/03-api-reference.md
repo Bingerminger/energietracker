@@ -115,7 +115,8 @@ oil/pellets) are excluded — there are no meter readings there, but deliveries.
         "utility": "gas",
         "utility_label": "Gas",
         "utility_icon": "🔥",
-        "consumption_unit": "kWh",
+        "unit": "m³",              // unit of the METER READING (since v2.4.2)
+        "consumption_unit": "kWh", // unit of the CONSUMPTION
         "color": "#f59e0b",
         "meter_id": "m_gas_main",
         "meter_name": "Main meter gas",
@@ -133,6 +134,16 @@ oil/pellets) are excluded — there are no meter readings there, but deliveries.
   }
 }
 ```
+
+**`unit` versus `consumption_unit` (since v2.4.2, GitHub #21).** A gas meter
+counts cubic metres; kWh only comes into being through the conversion factor.
+`unit` is the unit of `counter` and `expected_next_min`, `consumption_unit` that
+of the consumption derived from them. Up to v2.4.1 `unit` was missing from the
+response, and the reading-capture view labelled the gas meter reading "kWh" —
+while it was always stored and calculated in m³. Among the cumulative utilities
+gas is the **only** one where the two units differ — electricity, district
+heating and PV count in kWh, water in m³, each identical to its consumption
+unit. That is why the defect only ever showed for gas.
 
 `expected_next_min` is the value against which the frontend validation warns about
 a backward meter reading (not hard-blocked — a meter swap is legitimate). Saving is
