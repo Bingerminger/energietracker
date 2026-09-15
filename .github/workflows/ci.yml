@@ -189,7 +189,11 @@ jobs:
         run: |
           set -euo pipefail
           # Health-Endpoint liefert JSON mit success:true
-          curl -sf http://127.0.0.1:8080/api/health   | grep -q '"success":true'
+          # Antworten erst in eine Datei, dann greppen: `grep -q` schließt die
+          # Pipe beim ersten Treffer, curl bekommt SIGPIPE (Exit 23) und
+          # pipefail macht den Step rot — je nach Antwortgröße mal ja, mal nein.
+          curl -sf http://127.0.0.1:8080/api/health -o /tmp/health.json
+          grep -q '"success":true' /tmp/health.json
           # /api/… und /api.php/api/… müssen beide auf dieselbe Route zeigen
           curl -sf http://127.0.0.1:8080/api/settings          >/dev/null
           curl -sf http://127.0.0.1:8080/api.php/api/settings  >/dev/null
@@ -204,9 +208,10 @@ jobs:
           curl -sf http://127.0.0.1:8080/public/vendor/fonts/dm-sans.woff2    >/dev/null
           curl -sf http://127.0.0.1:8080/public/vendor/fonts/dm-mono-400.woff2 >/dev/null
           # Und nichts darf zur Laufzeit an einen fremden Server gehen.
-          ! curl -s http://127.0.0.1:8080/ | grep -qE 'src="https?://|href="https?://fonts'
+          curl -s http://127.0.0.1:8080/ -o /tmp/shell.html
+          ! grep -qE 'src="https?://|href="https?://fonts' /tmp/shell.html
           # SPA-Shell-Fallback
-          curl -sf http://127.0.0.1:8080/ | grep -qi 'energietracker'
+          grep -qi 'energietracker' /tmp/shell.html
           # /data darf NICHT ausgeliefert werden
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/data/meta.json)" = "404"
 
