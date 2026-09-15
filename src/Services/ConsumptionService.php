@@ -52,7 +52,17 @@ final class ConsumptionService
         private I18nService $i18n,
         private ?RegressionService $regression = null,
         private ?DeliveryConsumptionService $deliveryConsumption = null,
+        private ?ConversionFactorService $factors = null,
     ) {}
+
+    /**
+     * v2.5.0 — F1012: Lazy-Getter für die datierten Umrechnungsfaktoren.
+     * Optional injiziert, damit die Test-Basisklasse unverändert bleibt.
+     */
+    private function factors(): ConversionFactorService
+    {
+        return $this->factors ??= new ConversionFactorService($this->settings, $this->i18n);
+    }
 
     /**
      * Compute monthly aggregates for all meters of a utility.
@@ -435,9 +445,18 @@ final class ConsumptionService
         if (!is_array($temps)) $temps = [];
         $today    = date('Y-m-d');
         $hddBase  = $hddBaseOverride ?? (float)$this->settings->get('hdd_base_temp', 15.0);
-        $conv     = !empty($u['unit_to_kwh'])
-                    ? (float)$this->settings->get($u['conversion_setting'], 1.0)
-                    : 1.0;
+        // v2.5.0 — F1012: Der Faktor ist nicht mehr eine Zahl je Zähler,
+        // sondern eine Funktion des Tages. Für Gas kommt er aus der datierten
+        // Liste (Zustandszahl × Brennwert je Stichtag), für alle anderen Arten
+        // bleibt es der Skalar von früher — oder 1,0, wenn die Art gar nicht
+        // umrechnet. Die Verteilung unten teilt jedes Ableseintervall an den
+        // Stichtagen, sodass jeder Tag mit seinem Faktor rechnet.
+        $factorOn = !empty($u['unit_to_kwh'])
+            ? fn(string $date): float => $this->factors()->factorOn($utility, $date)
+            : static fn(string $date): float => 1.0;
+        $factorBoundaries = $utility === 'gas'
+            ? fn(string $a, string $b): array => $this->factors()->boundariesBetween($a, $b)
+            : static fn(string $a, string $b): array => [];
 
         // Filter actual (non-future, non-flagged) readings
         $actual = array_values(array_filter(
@@ -475,17 +494,20 @@ final class ConsumptionService
             );
             if ($consumptionRaw === null || $consumptionRaw < 0) continue;
 
-            $consumptionKwh = $consumptionRaw * $conv;
-            $unitsPerDay = $consumptionKwh / $days;
+            // Verteilt wird die ROHE Größe je Tag (m³ bei Gas); die Umrechnung
+            // in kWh passiert je Segment mit dem dort gültigen Faktor.
+            $rawPerDay    = $consumptionRaw / $days;
             $pricePerUnit = (float)($prices[$prev['date']] ?? $prices[$curr['date']] ?? 0);
 
             foreach ($this->distributeToMonths(
-                $prev['date'], $curr['date'], $unitsPerDay, $pricePerUnit
+                $prev['date'], $curr['date'], $rawPerDay, $pricePerUnit,
+                $factorOn, $factorBoundaries($prev['date'], $curr['date'])
             ) as $ym => $v) {
                 if (!isset($monthly[$ym])) {
-                    $monthly[$ym] = ['kwh' => 0.0, 'days' => 0, 'cost' => 0.0];
+                    $monthly[$ym] = ['kwh' => 0.0, 'raw' => 0.0, 'days' => 0, 'cost' => 0.0];
                 }
                 $monthly[$ym]['kwh']  += $v['kwh'];
+                $monthly[$ym]['raw']  += $v['raw'];
                 $monthly[$ym]['days'] += $v['days'];
                 $monthly[$ym]['cost'] += $v['cost'];
             }
@@ -556,6 +578,121 @@ final class ConsumptionService
         }
         unset($row);
         return $monthly;
+    }
+
+    /**
+     * v2.5.0 — F1012: Rechnungsprüfung — die Gasrechnung Zeile für Zeile.
+     *
+     * Baut aus den eigenen Ablesungen und den datierten Faktoren genau die
+     * Tabelle, die eine Versorgerrechnung zeigt: Zeitraum, m³, Zustandszahl,
+     * Brennwert, kWh. Ein neuer Abschnitt beginnt an jeder Ablesung und an
+     * jedem Faktorwechsel innerhalb des gewählten Zeitraums — dieselben
+     * Grenzen, an denen der Versorger seine Zeilen schneidet (dort mit
+     * geschätzten Zwischenständen, hier tagesgenau aus dem Intervall).
+     *
+     * Zeiträume sind intern halboffen [von, bis); für die Anzeige wird das
+     * inklusive Ende (`to_inclusive` = bis − 1 Tag) mitgeliefert, damit die
+     * Zeilen wie auf der Rechnung lauten: „31.08.–25.09.", „26.09.–14.10.".
+     *
+     * Für Tage ohne umschließendes Ableseintervall (vor der ersten, nach der
+     * letzten Ablesung) bleibt `m3` null — die Zeile erscheint, damit die
+     * Lücke sichtbar ist, statt still zu fehlen.
+     *
+     * @return array{from:string,to:string,rows:array<int,array<string,mixed>>,totals:array<string,mixed>}
+     */
+    public function gasBillBreakdown(array $meter, string $from, string $to): array
+    {
+        $utility = 'gas';
+        $readings = $this->readings->list($utility, (string)($meter['id'] ?? ''));
+        $today    = date('Y-m-d');
+        $actual   = array_values(array_filter(
+            $readings,
+            fn($r) => ($r['date'] ?? '') <= $today && empty($r['is_future'])
+        ));
+        usort($actual, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
+
+        $devicesById = [];
+        foreach ($meter['devices'] ?? [] as $d) {
+            $devicesById[$d['id']] = $d;
+        }
+
+        // Intervalle mit Tagesrate (roh) vorbereiten
+        $intervals = [];
+        for ($i = 1; $i < count($actual); $i++) {
+            $prev = $actual[$i - 1];
+            $curr = $actual[$i];
+            $days = (int)(new \DateTime($prev['date']))->diff(new \DateTime($curr['date']))->days;
+            if ($days <= 0) continue;
+            $raw = $this->consumptionBetween($prev, $curr, $devicesById, $meter);
+            if ($raw === null || $raw < 0) continue;
+            $intervals[] = [
+                'start' => (string)$prev['date'],
+                'end'   => (string)$curr['date'],
+                'rate'  => $raw / $days,
+                'estimated_end' => !empty($curr['is_estimated']),
+            ];
+        }
+
+        // Grenzen: Anfang, Ende, Ablesungen und Faktorwechsel dazwischen
+        $bounds = [$from => 'start', $to => 'end'];
+        foreach ($actual as $r) {
+            $d = (string)$r['date'];
+            if ($d > $from && $d < $to) {
+                $bounds[$d] = !empty($r['is_estimated']) ? 'reading_estimated' : 'reading';
+            }
+        }
+        foreach ($this->factors()->boundariesBetween($from, $to) as $d) {
+            $bounds[$d] = isset($bounds[$d]) ? $bounds[$d] . '+factor' : 'factor';
+        }
+        ksort($bounds);
+        $dates = array_keys($bounds);
+
+        $rows = [];
+        $totM3 = 0.0; $totKwh = 0.0; $totDays = 0; $gaps = 0;
+        for ($i = 0; $i < count($dates) - 1; $i++) {
+            $a = $dates[$i];
+            $b = $dates[$i + 1];
+            $days = (int)(new \DateTime($a))->diff(new \DateTime($b))->days;
+            if ($days <= 0) continue;
+
+            // Ableseintervall, das $a umschließt (halboffen)
+            $rate = null;
+            foreach ($intervals as $iv) {
+                if ($iv['start'] <= $a && $a < $iv['end']) { $rate = $iv['rate']; break; }
+            }
+            $entry = $this->factors()->entryOn($a);
+            $m3    = $rate !== null ? $rate * $days : null;
+            $kwh   = $m3 !== null ? $m3 * $entry['kwh_per_m3'] : null;
+            if ($m3 === null) $gaps++;
+
+            $rows[] = [
+                'from'         => $a,
+                'to'           => $b,
+                'to_inclusive' => (new \DateTime($b))->modify('-1 day')->format('Y-m-d'),
+                'days'         => $days,
+                'reason'       => $bounds[$a],
+                'm3'           => $m3 !== null ? round($m3, 1) : null,
+                'zustandszahl' => $entry['zustandszahl'],
+                'brennwert'    => $entry['brennwert'],
+                'kwh_per_m3'   => $entry['kwh_per_m3'],
+                'kwh'          => $kwh !== null ? round($kwh, 1) : null,
+            ];
+            $totM3   += $m3  ?? 0.0;
+            $totKwh  += $kwh ?? 0.0;
+            $totDays += $days;
+        }
+
+        return [
+            'from'   => $from,
+            'to'     => $to,
+            'rows'   => $rows,
+            'totals' => [
+                'days' => $totDays,
+                'm3'   => round($totM3, 1),
+                'kwh'  => round($totKwh, 1),
+                'gaps' => $gaps,
+            ],
+        ];
     }
 
     /**
@@ -815,24 +952,61 @@ final class ConsumptionService
     }
 
     /** Linear distribution of total kWh/day across month boundaries. */
-    private function distributeToMonths(string $start, string $end, float $kwhPerDay, float $priceCents): array
-    {
+    /**
+     * Verteilt ein Ableseintervall tagesgenau auf Monate.
+     *
+     * v2.5.0 — F1012: Verteilt wird die ROHE Tagesgröße (`$rawPerDay`, bei Gas
+     * m³/Tag); die Umrechnung in kWh passiert je Segment über `$factorOn`.
+     * Ein Segment endet am nächsten Monatsersten ODER am nächsten Stichtag
+     * aus `$boundaries` — je nachdem, was zuerst kommt. So bekommt jeder Tag
+     * exakt den an ihm gültigen Faktor, ohne dass ein Zwischenstand geschätzt
+     * werden muss (der Versorger tut genau das, Ableseart „S").
+     *
+     * Für Verbrauchsarten ohne Umrechnung ist `$factorOn` konstant 1,0 und
+     * `$boundaries` leer — dann ist das Ergebnis bit-identisch zu v2.4.x.
+     *
+     * @param  callable(string):float $factorOn     Faktor für einen ISO-Tag
+     * @param  string[]               $boundaries   Stichtage echt innerhalb (start, end)
+     * @return array<string,array{kwh:float,raw:float,days:int,cost:float}>
+     */
+    private function distributeToMonths(
+        string $start,
+        string $end,
+        float $rawPerDay,
+        float $priceCents,
+        callable $factorOn,
+        array $boundaries = [],
+    ): array {
         $cur = new \DateTime($start);
         $fin = new \DateTime($end);
+        $cuts = [];
+        foreach ($boundaries as $b) {
+            $cuts[] = new \DateTime($b);
+        }
+        usort($cuts, static fn(\DateTime $a, \DateTime $b) => $a <=> $b);
+
         $out = [];
         while ($cur < $fin) {
             $ym = $cur->format('Y-m');
             $nextMonth = (clone $cur)->modify('first day of next month');
             $seg = $fin < $nextMonth ? $fin : $nextMonth;
+            // Nächster Stichtag nach $cur, der vor dem Segmentende liegt?
+            foreach ($cuts as $c) {
+                if ($c > $cur && $c < $seg) { $seg = $c; break; }
+            }
             $d = (int)$cur->diff($seg)->days;
             if ($d > 0) {
-                if (!isset($out[$ym])) $out[$ym] = ['kwh' => 0.0, 'days' => 0, 'cost' => 0.0];
-                $kwh = $kwhPerDay * $d;
+                if (!isset($out[$ym])) {
+                    $out[$ym] = ['kwh' => 0.0, 'raw' => 0.0, 'days' => 0, 'cost' => 0.0];
+                }
+                $raw = $rawPerDay * $d;
+                $kwh = $raw * $factorOn($cur->format('Y-m-d'));
                 $out[$ym]['kwh']  += $kwh;
+                $out[$ym]['raw']  += $raw;
                 $out[$ym]['days'] += $d;
                 $out[$ym]['cost'] += $kwh * $priceCents / 100.0;
             }
-            $cur = $nextMonth;
+            $cur = $seg;
         }
         return $out;
     }
@@ -873,9 +1047,6 @@ final class ConsumptionService
     {
         $u = Utilities::get($utility);
         $co2Factor = (float)$this->settings->get($u['co2_setting'], 0.0);
-        $conv = !empty($u['unit_to_kwh'])
-                ? (float)$this->settings->get($u['conversion_setting'], 1.0)
-                : 1.0;
 
         foreach ($monthly as &$m) {
             if ($u['consumption_unit'] === 'kWh') {
@@ -886,10 +1057,13 @@ final class ConsumptionService
                 $m['kwh']    = 0.0;
                 $m['co2_kg'] = round($m['m3'] * $co2Factor / 1000.0, 1);
             }
-            // For gas: also report m³
-            if ($utility === 'gas' && $conv > 0) {
-                $m['m3'] = round($m['kwh'] / $conv, 1);
+            // v2.5.0 — F1012: Bei Gas kommen die m³ aus der Verteilung selbst
+            // (`raw`), nicht mehr aus `kwh / Faktor` — mit einem je Tag
+            // wechselnden Faktor gäbe es keinen einzelnen Divisor mehr.
+            if ($utility === 'gas') {
+                $m['m3'] = round((float)($m['raw'] ?? 0.0), 1);
             }
+            unset($m['raw']);
         }
         unset($m);
         return $monthly;

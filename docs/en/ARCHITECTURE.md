@@ -89,7 +89,7 @@ per key (`gas`, `strom`, `wasser`):
 | `unit` | meter-reading unit (m³ for gas/water, kWh for electricity) |
 | `consumption_unit` | consumption unit for the calculation (kWh for gas/electricity, m³ for water) |
 | `unit_to_kwh` | bool — the meter reading must be converted to the consumption unit |
-| `conversion_setting` | settings key for the conversion factor (`gas_conversion_factor`) |
+| `conversion_setting` | settings key for the scalar conversion factor (heating oil/pellets); gas: `null`, since v2.5.0 the dated list `gas_conversion_factors` |
 | `hgt_relevant` | bool — consumption reacts to heating degree days |
 | `color` | hex colour for the UI |
 | `co2_setting` | settings key for the CO₂ factor |
@@ -306,7 +306,7 @@ advance). Future bonuses are not carried forward. If an active contract is missi
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
-| `gas_conversion_factor` | float | 11.5 | kWh per m³ gas |
+| `gas_conversion_factors` | list | `[{from:null, kwh_per_m3:11.5}]` | kWh per m³ gas, dated per cut-off date (since v2.5.0; previously the scalar `gas_conversion_factor`) |
 | `hdd_base_temp` | float | 15 | HDD base temperature in °C |
 | `co2_gas` | int | 201 | g CO₂ per kWh gas |
 | `co2_strom` | int | 380 | g CO₂ per kWh electricity |

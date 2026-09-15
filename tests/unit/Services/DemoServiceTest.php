@@ -215,4 +215,37 @@ final class DemoServiceTest extends TestCase
             'Verzeichnisform und Backup müssen dieselbe Zäsur führen'
         );
     }
+
+    /**
+     * v2.5.0 — F1012: Die Demo führt datierte Gas-Faktoren vor (Zustandszahl ×
+     * Brennwert je Stichtag), damit Verbrauchsrechnung und Rechnungsprüfung
+     * nach „Demo laden" etwas zu zeigen haben. Verzeichnisform UND Backup —
+     * und kein Rest des alten Skalars mehr.
+     */
+    public function testDemoDataCarriesDatedGasConversionFactors(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $dir = json_decode((string)file_get_contents("$root/demo-data/settings.json"), true);
+        $bak = json_decode((string)file_get_contents("$root/demo-data/energietracker-demo-backup.json"), true);
+        $bakSettings = $bak['settings'] ?? [];
+
+        foreach (['Verzeichnis' => $dir, 'Backup' => $bakSettings] as $name => $s) {
+            $this->assertArrayNotHasKey('gas_conversion_factor', $s, "$name: alter Skalar entfernt");
+            $this->assertArrayHasKey('gas_conversion_factors', $s, "$name: Liste vorhanden");
+            $list = $s['gas_conversion_factors'];
+            $this->assertGreaterThanOrEqual(3, count($list), "$name: mehrere Perioden");
+            $this->assertNull($list[0]['from'], "$name: undatierter Altwert zuerst");
+            $dated = array_filter($list, fn($e) => $e['from'] !== null);
+            $this->assertNotEmpty($dated, "$name: mindestens ein Stichtag");
+            foreach ($dated as $e) {
+                $this->assertNotNull($e['zustandszahl'], "$name: Beleg Zustandszahl");
+                $this->assertNotNull($e['brennwert'],    "$name: Beleg Brennwert");
+            }
+        }
+        $this->assertSame(
+            $dir['gas_conversion_factors'],
+            $bakSettings['gas_conversion_factors'],
+            'Verzeichnisform und Backup müssen dieselben Faktoren führen'
+        );
+    }
 }

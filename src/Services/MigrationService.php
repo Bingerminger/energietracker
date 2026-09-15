@@ -336,6 +336,10 @@ final class MigrationService
         // already on disk). This preserves new v1.0.3-only keys.
         $current = $this->store->read('settings.json', []);
         $defaults = [
+            // Bewusst noch der v1.0.x-Skalar: Die Stufe 1.4.0 → 1.5.0 im
+            // Migrator (F1012) macht daraus im selben migrate()-Lauf den
+            // undatierten Eintrag der Liste `gas_conversion_factors`. So
+            // bleibt ein Altwert aus v0.9.0 erhalten statt überschrieben.
             'gas_conversion_factor' => 11.5,
             'hdd_base_temp'         => 15,
             'co2_gas'               => 201,

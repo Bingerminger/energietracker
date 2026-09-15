@@ -6,6 +6,85 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.5.0] — 2026-09-15 — F1012: Gas-Umrechnung mit Stichtagen und Rechnungsprüfung
+
+MINOR-Release. **Schema 1.4.0 → 1.5.0** (additiv, Auto-Migration). Folge von
+GitHub **#21** — der Melder wollte Gas in m³ erfassen; das ging immer
+(v2.4.2 korrigierte nur das Etikett). Beim Nachsehen fiel auf, was wirklich
+fehlte: ein Umrechnungsfaktor, der sich mit der Rechnung ändern darf.
+
+**Das Problem.** Der Energietracker kannte **einen** Faktor
+`gas_conversion_factor` für die ganze Historie. Eine Gasrechnung rechnet aber
+mit zwei Größen — der **Zustandszahl** (an der Entnahmestelle, praktisch
+konstant) und dem **Brennwert** (Periodenmittel des Netzbetreibers, wechselt
+mehrmals im Jahr). Eine Jahresrechnung führt typischerweise drei bis vier
+Brennwerte mit eigenen Zeiträumen. Wer den Faktor nachzog, veränderte damit
+rückwirkend jeden Monat der Vergangenheit; wer ihn stehen ließ, hatte einen
+kWh-Verbrauch, der zur Rechnung nicht mehr passte — Kosten je kWh, CO₂ und
+Tarifvergleich inklusive.
+
+**Die Lösung — F1012.**
+
+- **Datierte Liste** `gas_conversion_factors` in den Einstellungen: je Eintrag
+  Stichtag, Zustandszahl, Brennwert; der Faktor kWh/m³ wird daraus berechnet
+  (fünf Nachkommastellen) — wer keine Aufschlüsselung hat, trägt ihn direkt
+  ein. Die Zustandszahl wird aus dem letzten Eintrag vorbelegt.
+- **Wirksam ist der letzte Eintrag, dessen Stichtag nicht nach dem Tag
+  liegt.** Der undatierte Eintrag ist der migrierte Altwert und gilt für alles
+  davor — die Historie rechnet exakt wie vor v2.5.0, nichts springt
+  rückwirkend.
+- **Tagesgenau.** Ein Stichtag mitten im Ableseintervall teilt das Intervall;
+  jeder Tag rechnet mit seinem Faktor. Der Versorger tut dasselbe mit
+  *geschätzten* Zwischenständen (Ableseart „S"); hier braucht es keine
+  Schätzung, weil der Verbrauch ohnehin linear über das Intervall verteilt
+  wird.
+- **Plausibilitätsprüfung beim Speichern** (Zustandszahl 0,8–1,1, Brennwert
+  8–13, Faktor 5–15 kWh/m³, höchstens ein undatierter Eintrag, keine
+  doppelten Stichtage, Dezimalkomma erlaubt). Ein Tippfehler wie 115 statt
+  11,5 hätte sonst jeden Verbrauch still verzehnfacht. Beim **Lesen** ist die
+  Prüfung tolerant — ein Altbestand außerhalb der Bänder wird nicht wortlos
+  durch den Default ersetzt.
+- **Rechnungsprüfung** in der Gas-Verbrauchsansicht: für einen Zeitraum
+  entstehen Abschnitte an jeder Ablesung und jedem Brennwertwechsel, je
+  Abschnitt Tage · m³ · Zustandszahl · Brennwert · kWh/m³ · kWh — genau die
+  Zeilen der Versorgerrechnung. Abschnitte ohne umschließende Ablesung
+  erscheinen ohne Verbrauch, damit die Lücke sichtbar bleibt. Neuer Endpunkt
+  `GET /api/utility/gas/meters/{id}/bill-check?from=&to=` (nur Gas).
+- Heizöl und Pellets behalten ihren skalaren Faktor.
+
+**Migration 1.4.0 → 1.5.0.** Der Skalar in `settings.json` wird zum
+undatierten Listeneintrag; eine bereits vorhandene Liste bleibt unangetastet,
+der Schritt ist idempotent. Als Lehre aus v2.4.1 hängt er in
+`Migrator::UPGRADE_STEPS` — `needsMigration()` und `migrate()` lesen
+dieselbe Liste, `MigrationCompletenessTest` wacht darüber. Der
+v0.9.0-Legacy-Import liefert weiter den Skalar und wird im selben Lauf
+umgewandelt.
+
+**Oberfläche.** Einstellungen → Gas-Umrechnungsfaktoren als Tabelle mit
+Vorschau des berechneten Faktors; Rechnungsprüfung als Karte in der
+Gas-Verbrauchsansicht (Zeitraum vorbelegt mit dem gewählten Jahr). 48 neue
+Katalogschlüssel × 7 Sprachen (2 entfallen), chirurgisch gesetzt.
+
+**Demo-Daten** führen vier Perioden vor (undatiert 11,5 · 2024 · 2025 ·
+Oktober 2025) — Verzeichnis und Backup, mit Gleichstands-Test.
+
+**Tests.** 230 → 250. `ConversionFactorServiceTest` (19 Fälle: Ableitung,
+Tagesauflösung, Grenzen, tagesgenaue Teilung am Monats- und mitten im Monat,
+abgeleiteter Faktor schlägt mitgeschickten, Rechnungsaufschlüsselung mit
+Lücken, Migration idempotent, Liste gewinnt über Skalar); API-Shape
+(Settings-Form, `bill-check`-Zeilen, Strom → 400); Browser-Render (Tabelle,
+JSON-Feld, Karte nur bei Gas). **12 Kernannahmen per Toggle als greifend
+nachgewiesen** — zwei Tests wurden erst dadurch scharf (Stichtag auf
+Monatsgrenze hatte die Teilung nie geprüft; die Ableitung war nie gegen
+einen mitgeschickten Faktor getestet).
+
+**Doku** DE + EN: `functional/01-gas.md` neu gefasst (Hintergrund, Stichtage,
+Rechnungsprüfung), API-Referenz (Settings-Form, neuer Endpunkt),
+Datenmodell/Glossar/Übersicht auf Schema 1.5.0, README-Funktionsliste
+(F1011 dort nachgetragen).
+
+---
+
 ## [2.4.2] — 2026-09-15 — Bugfix: Gas-Zählerstand war in der Erfassung mit kWh beschriftet
 
 PATCH-Release. Kein Schema-Bump, keine Datenänderung. GitHub **#21**.

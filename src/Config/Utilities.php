@@ -25,7 +25,12 @@ final class Utilities
             'consumption_unit'=> 'kWh',
             'unit_to_kwh'     => true,
             'reading_kind'    => 'cumulative',
-            'conversion_setting' => 'gas_conversion_factor',
+            // v2.5.0 — F1012: Gas rechnet NICHT über einen Skalar, sondern über
+            // die datierte Liste `gas_conversion_factors` (Zustandszahl ×
+            // Brennwert je Stichtag) im ConversionFactorService. Der frühere
+            // Schlüssel `gas_conversion_factor` existiert nicht mehr; ein
+            // Leser bekäme still 1,0 und rechnete m³ = kWh.
+            'conversion_setting' => null,
             'hgt_relevant'    => true,
             'color'           => '#f59e0b',
             'co2_setting'     => 'co2_gas',

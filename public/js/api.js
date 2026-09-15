@@ -90,6 +90,8 @@ export const api = {
     return request('GET', `/api/utility/${u}/meters/${id}/consumption${q}`);
   },
   contractStatus:     (u, id)           => request('GET', `/api/utility/${u}/meters/${id}/contract-status`),
+  // v2.5.0 — F1012: Rechnungsprüfung (nur Gas)
+  billCheck:          (u, id, from, to) => request('GET', `/api/utility/${u}/meters/${id}/bill-check?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
 
   // Forecast
   forecast:      (u, meterId, opts={})=> {

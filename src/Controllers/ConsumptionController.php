@@ -87,4 +87,28 @@ final class ConsumptionController
         if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
         Response::json($this->consumption->contractStatus($utility, $meter));
     }
+
+    /**
+     * v2.5.0 — F1012: GET /api/utility/gas/meters/{id}/bill-check?from=&to=
+     * Die Gasrechnung nachgerechnet: Abschnitte an jeder Ablesung und jedem
+     * Faktorwechsel, je Abschnitt m³ · Zustandszahl · Brennwert = kWh.
+     */
+    public function billCheck(Request $req): never
+    {
+        $meterId = $req->param('id');
+        $utility = $req->param('utility');
+        if ($utility !== 'gas') {
+            Response::error($this->i18n->t('errors.billCheck.gasOnly'), 400);
+        }
+        $meter = $this->meters->get($utility, $meterId);
+        if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
+
+        $from = (string)($req->queryParam('from') ?? '');
+        $to   = (string)($req->queryParam('to') ?? '');
+        $iso  = '/^\d{4}-\d{2}-\d{2}$/';
+        if (!preg_match($iso, $from) || !preg_match($iso, $to) || $from >= $to) {
+            Response::error($this->i18n->t('errors.billCheck.invalidRange'), 400);
+        }
+        Response::json($this->consumption->gasBillBreakdown($meter, $from, $to));
+    }
 }

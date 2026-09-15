@@ -5,7 +5,7 @@
 [← API-Referenz](03-api-reference.md) · [Kompendium-Index](../README.md)
 
 Alle Daten liegen als flache JSON-Dateien unter `data/`. Keine Datenbank.
-Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.4.0**
+Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.5.0**
 (in `data/meta.json` und in jedem Backup).
 
 > **Schema-Historie (Kurzfassung):** 1.0.0 utility-orientiertes Layout ·
@@ -13,7 +13,9 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.4.0**
 > `reminders.json` · **1.2.0** Meter-Topologie (`parent_meter_id`,
 > `meter_group_id`, `meter_groups.json` je Utility — F1006) · **1.3.0**
 > Zähler-Alias `external_id` für die Home-Assistant-Anbindung (F1009) ·
-> **1.4.0** Analyse-Zäsuren `baseline_events` am Zähler (F1011).
+> **1.4.0** Analyse-Zäsuren `baseline_events` am Zähler (F1011) ·
+> **1.5.0** datierte Gas-Umrechnungsfaktoren `gas_conversion_factors` in
+> `settings.json` statt des Skalars `gas_conversion_factor` (F1012).
 
 ---
 
@@ -199,7 +201,7 @@ Gruppen (Auswahl der Default-Werte):
 
 | Schlüssel | Default | Bedeutung |
 |---|---|---|
-| `gas_conversion_factor` | 11.5 | kWh je m³ Gas (Brennwert × Zustandszahl) |
+| `gas_conversion_factors` | `[{from:null, kwh_per_m3:11.5}]` | **Datierte Liste** (F1012): je Eintrag `from` (ISO-Datum oder `null` für „davor"), `zustandszahl`, `brennwert`, `kwh_per_m3` (abgeleitet = z × Hs, 5 Nachkommastellen). Wirksam ist der letzte Eintrag mit `from ≤ Tag`. |
 | `heizoel_kwh_per_l` | 10.0 | Heizwert Heizöl EL |
 | `pellets_kwh_per_kg` | 4.8 | Heizwert Holzpellets (DIN EN ISO 17225-2 A1) |
 | `hdd_base_temp` | 15.0 | Heizgrenztemperatur (°C) für HGT |
@@ -235,14 +237,15 @@ Gruppen (Auswahl der Default-Werte):
 - ergänzt fehlende Verzeichnisse/Dateien (neue Verbrauchsarten,
   `reminders.json`, `meter_groups.json`) und neue Zähler-Felder additiv
   (`parent_meter_id`/`meter_group_id` in 1.2.0, `external_id` in 1.3.0,
-  `baseline_events` in 1.4.0),
-- hebt die Version schrittweise auf den aktuellen Stand (**1.4.0**).
+  `baseline_events` in 1.4.0) und wandelt in 1.5.0 den Skalar
+  `gas_conversion_factor` in die Liste `gas_conversion_factors` um,
+- hebt die Version schrittweise auf den aktuellen Stand (**1.5.0**).
 
 Jede Stufe hat ein eigenes `needsVXXXUpgrade()` + `upgradeToVXXX()`-Paar und
 ist für sich idempotent (wiederholtes Ausführen ist ein No-Op).
 
 Die mitgelieferten Demo-Daten tragen `schema_version: 1.1.0` und werden
-beim ersten Start additiv auf den aktuellen Stand (1.4.0) migriert —
+beim ersten Start additiv auf den aktuellen Stand (1.5.0) migriert —
 dabei kommen `meter_groups.json` je Utility (1.2.0) und die Zähler-Felder
 `external_id` (1.3.0) und `baseline_events` (1.4.0) hinzu, ohne bestehende
 Werte anzutasten. Der

@@ -22,7 +22,14 @@ final class SettingsService
     /** @var array<string,mixed> */
     private const DEFAULTS = [
         // ── Physical constants ──
-        'gas_conversion_factor'    => 11.5,    // kWh per m³
+        // v2.5.0 — F1012: Der Gas-Faktor ist eine DATIERTE LISTE
+        // (Zustandszahl × Brennwert je Stichtag), kein Skalar mehr. Der
+        // undatierte Eintrag gilt vor dem ersten Stichtag; die Migration
+        // 1.4.0 → 1.5.0 macht aus dem alten `gas_conversion_factor` genau
+        // diesen Eintrag. Details: ConversionFactorService.
+        'gas_conversion_factors'   => [
+            ['from' => null, 'zustandszahl' => null, 'brennwert' => null, 'kwh_per_m3' => 11.5],
+        ],
         'hdd_base_temp'            => 15.0,    // °C
 
         // ── CO2 emission factors (g per consumption unit) ──
@@ -158,12 +165,44 @@ final class SettingsService
         $current = $this->store->read('settings.json', []);
         if (!is_array($current)) $current = [];
         foreach ($patch as $k => $v) {
-            if (array_key_exists($k, self::DEFAULTS)) {
-                $current[$k] = $v;
+            if (!array_key_exists($k, self::DEFAULTS)) continue;
+            // v2.5.0 — F1012: Die Faktorliste wird beim Speichern normalisiert
+            // und validiert (Ableitung z × Hs, Sortierung, Grenzen). Ein
+            // Tippfehler wie 115 statt 11,5 würde sonst jeden Gasverbrauch
+            // verzehnfachen — still, ohne Fehlermeldung.
+            if ($k === 'gas_conversion_factors') {
+                $v = ConversionFactorService::normalizeList($v, $this->translator());
+                if ($v === []) $v = self::defaultGasConversionFactors();
             }
+            $current[$k] = $v;
         }
         $this->store->write('settings.json', $current);
         return $this->all();
+    }
+
+    /** Der ausgelieferte Default der Faktorliste — auch für die Migration. */
+    public static function defaultGasConversionFactors(): array
+    {
+        return self::DEFAULTS['gas_conversion_factors'];
+    }
+
+    /**
+     * Übersetzer für Validierungsmeldungen. SettingsService kann den
+     * I18nService nicht injizieren (Zirkel: I18n → Settings → JsonStore),
+     * deshalb wird er nachträglich gesetzt; ohne ihn bleibt der Schlüssel.
+     */
+    private ?I18nService $i18n = null;
+
+    public function attachI18n(I18nService $i18n): void
+    {
+        $this->i18n = $i18n;
+    }
+
+    private function translator(): callable
+    {
+        $i18n = $this->i18n;
+        return static fn(string $key, array $p = []): string
+            => $i18n !== null ? $i18n->t($key, $p) : $key;
     }
 
     /** @return string[] */

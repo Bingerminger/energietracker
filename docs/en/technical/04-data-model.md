@@ -5,7 +5,7 @@
 [← API reference](03-api-reference.md) · [Compendium index](../README.md)
 
 All data is stored as flat JSON files under `data/`. No database. Writes are
-serialised by `LOCK_EX`. Schema level: **1.4.0** (in `data/meta.json` and in every
+serialised by `LOCK_EX`. Schema level: **1.5.0** (in `data/meta.json` and in every
 backup).
 
 > **Schema history (short form):** 1.0.0 utility-oriented layout · 1.0.3 water
@@ -13,7 +13,9 @@ backup).
 > `reminders.json` · **1.2.0** meter topology (`parent_meter_id`, `meter_group_id`,
 > `meter_groups.json` per utility — F1006) · **1.3.0** meter alias `external_id`
 > for the Home Assistant integration (F1009) · **1.4.0** analysis baseline
-> cut-offs `baseline_events` on the meter (F1011).
+> cut-offs `baseline_events` on the meter (F1011) · **1.5.0** dated gas
+> conversion factors `gas_conversion_factors` in `settings.json` instead of the
+> scalar `gas_conversion_factor` (F1012).
 
 ---
 
@@ -198,7 +200,7 @@ Groups (a selection of the default values):
 
 | Key | Default | Meaning |
 |---|---|---|
-| `gas_conversion_factor` | 11.5 | kWh per m³ gas (calorific value × state number) |
+| `gas_conversion_factors` | `[{from:null, kwh_per_m3:11.5}]` | **Dated list** (F1012): per entry `from` (ISO date or `null` for "before"), `zustandszahl` (volume correction factor), `brennwert` (calorific value), `kwh_per_m3` (derived = z × Hs, 5 decimals). The latest entry with `from ≤ day` takes effect. |
 | `heizoel_kwh_per_l` | 10.0 | calorific value of heating oil EL |
 | `pellets_kwh_per_kg` | 4.8 | calorific value of wood pellets (DIN EN ISO 17225-2 A1) |
 | `hdd_base_temp` | 15.0 | heating limit temperature (°C) for HDD |
@@ -232,14 +234,16 @@ Groups (a selection of the default values):
   creates fresh default meters (`initFresh()`) instead of migrating blindly,
 - adds missing directories/files (new utilities, `reminders.json`,
   `meter_groups.json`) and new meter fields additively (`parent_meter_id`/
-  `meter_group_id` in 1.2.0, `external_id` in 1.3.0, `baseline_events` in 1.4.0),
-- raises the version step by step to the current state (**1.4.0**).
+  `meter_group_id` in 1.2.0, `external_id` in 1.3.0, `baseline_events` in 1.4.0)
+  and in 1.5.0 turns the scalar `gas_conversion_factor` into the list
+  `gas_conversion_factors`,
+- raises the version step by step to the current state (**1.5.0**).
 
 Each step has its own `needsVXXXUpgrade()` + `upgradeToVXXX()` pair and is
 idempotent in itself (a repeated run is a no-op).
 
 The bundled demo data carries `schema_version: 1.1.0` and is migrated additively to
-the current state (1.4.0) on first start — adding `meter_groups.json` per utility
+the current state (1.5.0) on first start — adding `meter_groups.json` per utility
 (1.2.0) and the meter fields `external_id` (1.3.0) and `baseline_events` (1.4.0)
 without touching existing values.
 The migration path (1.0.0 → current schema) is additionally checked in the CI via a

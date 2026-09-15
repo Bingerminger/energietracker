@@ -362,7 +362,34 @@
       "sinceLast": "{delta} {unit} sinds laatste meterstand",
       "sinceLastDays": "{delta} {unit} sinds laatste meterstand ({days} dagen geleden)"
     },
-    "verdict": { "surcharge": "Bijbetaling", "refund": "Teruggave", "payout": "Uitbetaling", "reclaim": "Terugvorderen", "balanced": "In evenwicht" }
+    "verdict": { "surcharge": "Bijbetaling", "refund": "Teruggave", "payout": "Uitbetaling", "reclaim": "Terugvorderen", "balanced": "In evenwicht" },
+    "billCheck": {
+      "title": "Factuurcontrole",
+      "hint": "Rekent de gasfactuur na: per periode m³ × volumeherleidingsfactor × calorische waarde = kWh, zoals de regels van de leveranciersfactuur. Een nieuwe periode begint bij elke meterstand en elke wijziging van de calorische waarde.",
+      "from": "Van",
+      "to": "Tot (exclusief)",
+      "run": "Narekenen",
+      "empty": "Geen perioden in het gekozen bereik.",
+      "noReading": "geen meterstand",
+      "total": "Totaal",
+      "gaps": "{count} periode(n) zonder omsluitende meterstand — daar ontbreekt het verbruik.",
+      "formula": "kWh = m³ × volumeherleidingsfactor × calorische waarde. De leverancier schat tussenstanden op de grenzen van de calorische waarde; hier wordt het meetinterval dagnauwkeurig gesplitst.",
+      "errRange": "Kies een geldige periode (van vóór tot).",
+      "col": {
+        "period": "Periode",
+        "days": "Dagen",
+        "reason": "Grens",
+        "z": "Vol.herl.",
+        "hs": "Cal. waarde"
+      },
+      "reason": {
+        "start": "Begin",
+        "end": "Einde",
+        "reading": "Meterstand",
+        "readingEstimated": "Meterstand (geschat)",
+        "factor": "Wijziging calorische waarde"
+      }
+    }
   },
   "contracts": {
     "priceGroup": {
@@ -672,7 +699,6 @@
       "location": { "title": "Locatie (Open-Meteo)", "hint": "Coördinaten voor de weersynchronisatie van de temperatuurreeks." }
     },
     "field": {
-      "gas_conversion_factor": { "label": "Gasconversiefactor", "hint": "Verbrandingswaarde × toestandsgetal volgens de gasrekening." },
       "hdd_base_temp": { "label": "Graaddagen-basistemperatuur", "hint": "Stookgrens — dagen eronder tellen als stookdagen." },
       "co2_gas": { "label": "CO₂ gas" },
       "co2_strom": { "label": "CO₂ elektriciteit" },
@@ -718,7 +744,11 @@
       "location_name": { "label": "Plaatsnaam" },
       "latitude": { "label": "Breedtegraad" },
       "longitude": { "label": "Lengtegraad" },
-      "weather_auto_fill": { "label": "Weer automatisch invullen" }
+      "weather_auto_fill": { "label": "Weer automatisch invullen" },
+      "gas_conversion_factors": {
+        "label": "Omrekeningsfactoren gas",
+        "hint": "Eén item per calorische-waardeperiode, precies zoals de gasfactuur ze vermeldt: geldig vanaf, volumeherleidingsfactor en calorische waarde — de factor kWh/m³ wordt daaruit berekend. Zonder uitsplitsing vul je de factor direct in. Het item zonder datum geldt voor alles vóór de eerste ingangsdatum. De verbruiksberekening splitst elk meetinterval dagnauwkeurig op de ingangsdata."
+      }
     },
     "boolActive": "aan",
     "activeUtils": {
@@ -851,6 +881,22 @@
       "import": "Importeren",
       "done": "Migratie OK · {total} meterstanden weggeschreven · momentopname {snapshot}",
       "failed": "Import mislukt: {msg}"
+    },
+    "gasFactors": {
+      "none": "Nog geen item — de standaardfactor geldt.",
+      "undated": "vóór de eerste ingangsdatum",
+      "remove": "Verwijderen",
+      "colFrom": "Geldig vanaf",
+      "colZ": "Volumeherleidingsfactor",
+      "colHs": "Calorische waarde (kWh/m³)",
+      "colFactor": "Factor (kWh/m³)",
+      "colFactorDirect": "of factor direct",
+      "add": "Item toevoegen",
+      "preview": "{z} × {hs} = {f} kWh/m³",
+      "previewDirect": "factor {f} kWh/m³",
+      "errOneUndated": "Er is al een item zonder datum — geef een „geldig vanaf” op",
+      "errDuplicate": "Er is al een item voor deze datum",
+      "errNeedValues": "Geef volumeherleidingsfactor en calorische waarde op — of de factor direct"
     }
   },
   "reminders": {
@@ -1394,6 +1440,21 @@
     },
     "csv": {
       "notDeliveryBased": "De energie « {utility} » is niet leveringsgebaseerd; gebruik de meterstandenexport."
+    },
+    "settings": {
+      "factorsNotList": "De omrekeningsfactoren moeten als lijst van items worden aangeleverd",
+      "factorInvalidDate": "Ongeldige datum „{date}” — verwacht wordt JJJJ-MM-DD",
+      "factorDuplicateDate": "Voor {date} bestaat al een omrekeningsfactor",
+      "factorTwoUndated": "Slechts één item mag zonder datum zijn — het geldt voor alles vóór de eerste ingangsdatum",
+      "factorZOutOfRange": "Volumeherleidingsfactor {value} is onwaarschijnlijk — verwacht wordt 0,8 tot 1,1",
+      "factorHsOutOfRange": "Calorische waarde {value} is onwaarschijnlijk — verwacht wordt 8 tot 13 kWh/m³",
+      "factorHalfPair": "Volumeherleidingsfactor en calorische waarde horen bij elkaar — geef beide op, of de factor direct",
+      "factorMissing": "Een item heeft óf volumeherleidingsfactor en calorische waarde nodig, óf een factor in kWh/m³",
+      "factorOutOfRange": "Omrekeningsfactor {value} is onwaarschijnlijk — verwacht wordt 5 tot 15 kWh/m³"
+    },
+    "billCheck": {
+      "gasOnly": "De factuurcontrole is alleen beschikbaar voor gas",
+      "invalidRange": "Geef een geldige periode op (van < tot, JJJJ-MM-DD)"
     }
   }
 }

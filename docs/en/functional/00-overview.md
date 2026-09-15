@@ -51,7 +51,7 @@ So that utilities become comparable, Energietracker computes internally in
 
 | Utility | Formula | Default |
 |---|---|---|
-| Gas | `kWh = m³ × calorific value × state number` | `gas_conversion_factor` = 11.5 kWh/m³ |
+| Gas | `kWh = m³ × volume correction factor × calorific value` | `gas_conversion_factors` — dated list, z × Hs per cut-off date (since v2.5.0; default 11.5 kWh/m³) |
 | Heating oil | `kWh = litres × Hu` | `heizoel_kwh_per_l` = 10.0 kWh/L |
 | Pellets | `kWh = kg × Hu` | `pellets_kwh_per_kg` = 4.8 kWh/kg |
 | Electricity, district heating | already kWh | — |

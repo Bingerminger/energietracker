@@ -15,7 +15,7 @@ use Energietracker\Services\{
     TemperatureService, RegressionService, ForecastService, AnomalyService,
     WeatherService, BackupService, SettingsService, DiagnosticsService,
     MigrationService, ReadingImportService, CsvExportService,
-    DeliveryService, DeliveryConsumptionService, BenchmarkService,
+    DeliveryService, DeliveryConsumptionService, BenchmarkService, ConversionFactorService,
     TariffComparisonService, TariffSwitchService,
     RecommendationService, ReminderService, PdfReportService,
     StromSaldoService, PvSummaryService, HealthCheckService, DemoService,
@@ -67,6 +67,7 @@ final class App
     public CsvExportService $csvExport;
     public DeliveryService $deliveries;
     public DeliveryConsumptionService $deliveryConsumption;
+    public ConversionFactorService $factors;   // v2.5.0 — F1012
     public BenchmarkService $benchmark;
     public TariffComparisonService $tariffs;
     public TariffSwitchService $tariffSwitch;
@@ -95,14 +96,20 @@ final class App
         // N1007 (v2.0.0) — Lokalisierung: liest die JSON-Kataloge aus
         // public/locales/ (Single source mit dem Frontend).
         $this->i18n         = new I18nService(dirname(__DIR__) . '/public/locales', $this->settings);
+        // v2.5.0 — F1012: Settings validiert die Faktorliste beim Speichern
+        // und braucht dafür lokalisierte Meldungen; der Zirkel I18n → Settings
+        // wird durch nachträgliches Anhängen aufgelöst.
+        $this->settings->attachI18n($this->i18n);
         $this->meters       = new MeterService($this->store, $this->i18n);
         $this->readings     = new ReadingService($this->store, $this->meters, $this->i18n);
         $this->contracts    = new ContractService($this->store, $this->meters, $this->i18n);
         $this->regression   = new RegressionService();
         $this->deliveryConsumption = new DeliveryConsumptionService($this->store, $this->settings);
+        // v2.5.0 — F1012: datierte Gas-Umrechnungsfaktoren (Zustandszahl × Brennwert)
+        $this->factors      = new ConversionFactorService($this->settings, $this->i18n);
         $this->consumption  = new ConsumptionService(
             $this->store, $this->meters, $this->readings, $this->contracts, $this->settings,
-            $this->i18n, $this->regression, $this->deliveryConsumption
+            $this->i18n, $this->regression, $this->deliveryConsumption, $this->factors
         );
         $this->weather      = new WeatherService();
         $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather);
@@ -249,6 +256,8 @@ final class App
         $r->get('/api/utility/{utility}/consumption',              fn($req) => $cCtrl->utility($req));
         $r->get('/api/utility/{utility}/meters/{id}/consumption',  fn($req) => $cCtrl->meter($req));
         $r->get('/api/utility/{utility}/meters/{id}/contract-status', fn($req) => $cCtrl->contractStatus($req));
+        // v2.5.0 — F1012: Rechnungsprüfung (nur Gas)
+        $r->get('/api/utility/{utility}/meters/{id}/bill-check',      fn($req) => $cCtrl->billCheck($req));
 
         // ── Forecast ──
         $fCtrl = new ForecastController($this->forecasts, $this->meters, $this->i18n);

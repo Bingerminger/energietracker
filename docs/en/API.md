@@ -152,7 +152,7 @@ from `src/Config/Utilities.php`).
       "unit": "m³",
       "consumption_unit": "kWh",
       "unit_to_kwh": true,
-      "conversion_setting": "gas_conversion_factor",
+      "conversion_setting": null,
       "hgt_relevant": true,
       "color": "#ff7b2e",
       "co2_setting": "co2_gas",

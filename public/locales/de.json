@@ -362,7 +362,34 @@
       "sinceLast": "{delta} {unit} seit letztem Stand",
       "sinceLastDays": "{delta} {unit} seit letztem Stand (vor {days} Tagen)"
     },
-    "verdict": { "surcharge": "Nachzahlung", "refund": "Erstattung", "payout": "Auszahlung", "reclaim": "Rückforderung", "balanced": "Ausgeglichen" }
+    "verdict": { "surcharge": "Nachzahlung", "refund": "Erstattung", "payout": "Auszahlung", "reclaim": "Rückforderung", "balanced": "Ausgeglichen" },
+    "billCheck": {
+      "title": "Rechnungsprüfung",
+      "hint": "Rechnet die Gasrechnung nach: je Abschnitt m³ × Zustandszahl × Brennwert = kWh, wie die Zeilen der Versorgerrechnung. Ein neuer Abschnitt beginnt an jeder Ablesung und jedem Brennwertwechsel.",
+      "from": "Von",
+      "to": "Bis (ausschließlich)",
+      "run": "Nachrechnen",
+      "empty": "Keine Abschnitte im gewählten Zeitraum.",
+      "noReading": "keine Ablesung",
+      "total": "Summe",
+      "gaps": "{count} Abschnitt(e) ohne umschließende Ablesung — dort fehlt der Verbrauch.",
+      "formula": "kWh = m³ × Zustandszahl × Brennwert. Der Versorger schätzt Zwischenstände an Brennwertgrenzen; hier wird das Ableseintervall tagesgenau geteilt.",
+      "errRange": "Bitte einen gültigen Zeitraum wählen (von vor bis).",
+      "col": {
+        "period": "Zeitraum",
+        "days": "Tage",
+        "reason": "Grenze",
+        "z": "Zustandszahl",
+        "hs": "Brennwert"
+      },
+      "reason": {
+        "start": "Beginn",
+        "end": "Ende",
+        "reading": "Ablesung",
+        "readingEstimated": "Ablesung (geschätzt)",
+        "factor": "Brennwertwechsel"
+      }
+    }
   },
   "contracts": {
     "priceGroup": {
@@ -672,7 +699,6 @@
       "location": { "title": "Standort (Open-Meteo)", "hint": "Koordinaten für den Wetter-Sync der Temperaturreihe." }
     },
     "field": {
-      "gas_conversion_factor": { "label": "Gas-Umrechnungsfaktor", "hint": "Brennwert × Zustandszahl laut Gasabrechnung." },
       "hdd_base_temp": { "label": "HGT-Basistemperatur", "hint": "Heizgrenze — Tage darunter zählen als Heiztage." },
       "co2_gas": { "label": "CO₂ Gas" },
       "co2_strom": { "label": "CO₂ Strom" },
@@ -718,7 +744,11 @@
       "location_name": { "label": "Ortsname" },
       "latitude": { "label": "Breitengrad" },
       "longitude": { "label": "Längengrad" },
-      "weather_auto_fill": { "label": "Wetter automatisch füllen" }
+      "weather_auto_fill": { "label": "Wetter automatisch füllen" },
+      "gas_conversion_factors": {
+        "label": "Gas-Umrechnungsfaktoren",
+        "hint": "Ein Eintrag je Brennwertperiode, so wie die Gasrechnung sie ausweist: Gültig ab, Zustandszahl und Brennwert — der Faktor kWh/m³ wird daraus berechnet. Wer keine Aufschlüsselung hat, trägt den Faktor direkt ein. Der Eintrag ohne Datum gilt für alles vor dem ersten Stichtag. Die Verbrauchsrechnung teilt jedes Ableseintervall tagesgenau an den Stichtagen."
+      }
     },
     "boolActive": "aktiv",
     "activeUtils": {
@@ -851,6 +881,22 @@
       "import": "Importieren",
       "done": "Migration OK · {total} Ablesungen geschrieben · Snapshot {snapshot}",
       "failed": "Import fehlgeschlagen: {msg}"
+    },
+    "gasFactors": {
+      "none": "Noch kein Eintrag — es gilt der Standardfaktor.",
+      "undated": "vor dem ersten Stichtag",
+      "remove": "Entfernen",
+      "colFrom": "Gültig ab",
+      "colZ": "Zustandszahl",
+      "colHs": "Brennwert (kWh/m³)",
+      "colFactor": "Faktor (kWh/m³)",
+      "colFactorDirect": "oder Faktor direkt",
+      "add": "Eintrag hinzufügen",
+      "preview": "{z} × {hs} = {f} kWh/m³",
+      "previewDirect": "Faktor {f} kWh/m³",
+      "errOneUndated": "Es gibt schon einen Eintrag ohne Datum — bitte ein „Gültig ab“ angeben",
+      "errDuplicate": "Für dieses Datum gibt es schon einen Eintrag",
+      "errNeedValues": "Bitte Zustandszahl und Brennwert angeben — oder den Faktor direkt"
     }
   },
   "reminders": {
@@ -1394,6 +1440,21 @@
     },
     "csv": {
       "notDeliveryBased": "Verbrauchsart „{utility}“ ist nicht lieferungs-basiert; nutze den Ablesungs-Export."
+    },
+    "settings": {
+      "factorsNotList": "Die Umrechnungsfaktoren müssen als Liste von Einträgen übergeben werden",
+      "factorInvalidDate": "Ungültiges Datum „{date}“ — erwartet wird JJJJ-MM-TT",
+      "factorDuplicateDate": "Für den {date} gibt es bereits einen Umrechnungsfaktor",
+      "factorTwoUndated": "Nur ein Eintrag darf ohne Datum sein — er gilt für alles vor dem ersten Stichtag",
+      "factorZOutOfRange": "Zustandszahl {value} ist unplausibel — erwartet wird 0,8 bis 1,1",
+      "factorHsOutOfRange": "Brennwert {value} ist unplausibel — erwartet wird 8 bis 13 kWh/m³",
+      "factorHalfPair": "Zustandszahl und Brennwert gehören zusammen — bitte beide angeben oder den Faktor direkt",
+      "factorMissing": "Ein Eintrag braucht entweder Zustandszahl und Brennwert oder einen Faktor in kWh/m³",
+      "factorOutOfRange": "Umrechnungsfaktor {value} ist unplausibel — erwartet wird 5 bis 15 kWh/m³"
+    },
+    "billCheck": {
+      "gasOnly": "Die Rechnungsprüfung gibt es nur für Gas",
+      "invalidRange": "Bitte einen gültigen Zeitraum angeben (von < bis, JJJJ-MM-TT)"
     }
   }
 }

@@ -63,7 +63,7 @@ final class ReadingOverviewUnitsTest extends ServiceTestCase
      */
     public function testGasCounterIsStoredAsEnteredAndConvertedOnlyForConsumption(): void
     {
-        $this->settings->set(['gas_conversion_factor' => 10.0]);
+        $this->settings->set(['gas_conversion_factors' => [['from' => null, 'kwh_per_m3' => 10.0]]]);
         $meterId = $this->setMeterDevices('gas', [[
             'id' => 'd_gas_1', 'serial' => null,
             'installed_on' => '2026-01-01', 'initial_counter' => 0.0,

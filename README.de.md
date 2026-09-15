@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.4.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-230-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-250-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installierbar-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
@@ -39,7 +39,7 @@ End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v2.4.2 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v2.5.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -89,6 +89,10 @@ PDF-Jahresbericht.
 - **Temperatur-Import** als CSV (Format
   `DD.MM.YYYY"avg"min"max`, double-quote-getrennt) oder per Open-Meteo-Sync
   über Standort-Koordinaten in den Einstellungen.
+- **Gas-Umrechnung mit Stichtagen** (v2.5.0): Zustandszahl × Brennwert je
+  Periode, genau wie die Rechnung sie ausweist; tagesgenaue Teilung an
+  jedem Wechsel, dazu eine **Rechnungsprüfung**, die die Versorgerrechnung
+  Abschnitt für Abschnitt nachrechnet.
 - **CSV-Import von Ablesungen** je Zähler: eine Datei mit
   `datum;zählerstand;notiz;geschätzt` einlesen — vorhandene Ablesungen am
   selben Datum werden überschrieben und im Ergebnis gemeldet.
@@ -126,6 +130,9 @@ PDF-Jahresbericht.
   - *Segmentiert*: zwei separate lineare Anpassungen oberhalb/unterhalb eines
     Schwellwerts (typisch HGT = 50), unterscheidet Heizperiode von Sommerlast
   - *Sigmoid*: S-Kurve für Haushalte mit ausgeprägter Sättigung bei hohen HGT
+- **Analyse-Zäsur** (v2.4.0): Sanierung am Zähler datieren, und jede
+  Auswertung rechnet ab dort; eine Vorher/Nachher-Kennzahl je Gradtag zeigt
+  die witterungsbereinigte Wirkung.
 - **Anomalien**: Monate, in denen der Verbrauch mehr als 2σ (anpassbar) vom
   Modell-Erwartungswert abweicht.
 - **Forecast** über 12 Monate als R²-gewichtete Mischung aus
@@ -282,7 +289,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.4.2
+  ghcr.io/bingerminger/energietracker:2.5.0
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -295,9 +302,10 @@ Logs (JSON Lines) landen via `docker logs`; Konfiguration über
 
 ### Erstinbetriebnahme
 
-1. **Einstellungen → System-Konstanten** prüfen: Gas-Umrechnungsfaktor
-   (Default 11.5 kWh/m³), HGT-Basistemperatur (Default 15 °C),
-   CO₂-Faktoren, eigener Standort (Lat/Lon, Default Leipzig).
+1. **Einstellungen → System-Konstanten** prüfen: Gas-Umrechnungsfaktoren
+   (Zustandszahl × Brennwert je Stichtag, wie auf der Rechnung; Default
+   11.5 kWh/m³), HGT-Basistemperatur (Default 15 °C), CO₂-Faktoren,
+   eigener Standort (Lat/Lon, Default Leipzig).
 2. **Verbrauch → Gas/Strom/Wasser → ⚙️ Zähler** öffnen und den ersten
    Zähler anlegen (ein Default-Gerät wird automatisch erzeugt). Für
    bestehende Zähler eine Seriennummer + ungefähres Einbaudatum eintragen.
@@ -343,7 +351,7 @@ lieferbasierten Verbrauchsarten und `reminders.json`) steht in `data/meta.json` 
 ```
 data/
 ├── meta.json                ← {schema_version, created_at, …}
-├── settings.json            ← {gas_conversion_factor, hdd_base_temp, …}
+├── settings.json            ← {gas_conversion_factors, hdd_base_temp, …}
 ├── temperatures.json        ← {"YYYY-MM-DD": {avg, min, max}}
 ├── gas/
 │   ├── meters.json          ← [{id, name, icon, devices: [...], …}]
@@ -459,7 +467,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „2.4.2"
+├── VERSION                  ← „2.5.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE

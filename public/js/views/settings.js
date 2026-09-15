@@ -21,7 +21,9 @@ import { buildSidebar } from '../lib/sidebar.js';
 // (kWh/m³, °C, σ …) bleiben literal.
 const GROUPS = [
   { gkey: 'physical', icon: '🔬', fields: [
-    { key: 'gas_conversion_factor', unit: 'kWh/m³', step: '0.1' },
+    // v2.5.0 — F1012: datierte Liste (Zustandszahl × Brennwert je Stichtag)
+    // statt eines Skalars. Eigener Feldtyp, siehe renderGasFactors().
+    { key: 'gas_conversion_factors', type: 'gasfactors' },
     { key: 'hdd_base_temp', unit: '°C', step: '0.5' },
   ]},
   { gkey: 'co2', icon: '🌍', fields: [
@@ -252,6 +254,11 @@ export async function render(container) {
   //   1. `beforeunload` warnt beim Schließen/Neuladen (echter Verlust).
   //   2. Ein Marker an der Speichern-Schaltfläche macht offene Änderungen
   //      sichtbar, solange man in der Ansicht ist.
+  // v2.5.0 — F1012: Tabelle der datierten Gas-Faktoren verdrahten. Muss vor
+  // der Baseline stehen, damit Hinzufügen/Entfernen den Ungespeichert-Marker
+  // auslöst wie jede andere Änderung.
+  wireGasFactors(container);
+
   let baseline = JSON.stringify(collectSettings(container));
   const saveButtons = [...container.querySelectorAll('#btn-save, #btn-save-2')];
   const isDirty = () => JSON.stringify(collectSettings(container)) !== baseline;
@@ -576,6 +583,9 @@ function renderField(f, value) {
   const placeholder = f.placeholderKey ? t(f.placeholderKey) : f.placeholder;
   const labelHtml = `<label for="${fieldId}">${t('settings.field.' + f.key + '.label')}${unit ? ` <span class="settings-field__unit">${escapeHtml(unit)}</span>` : ''}</label>`;
 
+  if (f.type === 'gasfactors') {
+    return renderGasFactors(f, Array.isArray(value) ? value : [], hint);
+  }
   if (f.type === 'select') {
     return `<div class="field settings-field">
       ${labelHtml}
@@ -620,11 +630,137 @@ function renderField(f, value) {
   </div>`;
 }
 
+// ── F1012: datierte Gas-Umrechnungsfaktoren ───────────────────────────
+//
+// Ein Eintrag je Brennwertperiode, wie die Gasrechnung sie ausweist:
+// „Gültig ab", Zustandszahl, Brennwert → Faktor. Der undatierte Eintrag ist
+// der migrierte Altwert und gilt für alles vor dem ersten Stichtag. Die Liste
+// lebt in einem versteckten JSON-Feld, das collectSettings() wie jedes
+// andere Feld einsammelt — Speichern läuft über denselben PATCH.
+
+function gfFactorOf(e) {
+  const z = Number(e.zustandszahl), hs = Number(e.brennwert);
+  if (Number.isFinite(z) && Number.isFinite(hs) && z > 0 && hs > 0) return z * hs;
+  return Number(e.kwh_per_m3);
+}
+
+function renderGasFactorRows(list) {
+  if (!list.length) return `<tr><td colspan="5" class="muted">${t('settings.gasFactors.none')}</td></tr>`;
+  return list.map((e, i) => `
+    <tr>
+      <td>${e.from ? fmt.date(e.from) : `<span class="muted">${t('settings.gasFactors.undated')}</span>`}</td>
+      <td class="num">${e.zustandszahl != null ? fmt.num(e.zustandszahl, 4) : '–'}</td>
+      <td class="num">${e.brennwert != null ? fmt.num(e.brennwert, 3) : '–'}</td>
+      <td class="num"><strong>${fmt.num(gfFactorOf(e), 3)}</strong></td>
+      <td><button type="button" class="btn btn--ghost btn--sm" data-gf-del="${i}" aria-label="${t('settings.gasFactors.remove')}">${t('settings.gasFactors.remove')}</button></td>
+    </tr>`).join('');
+}
+
+function renderGasFactors(f, list, hint) {
+  const lastZ = [...list].reverse().find(e => e.zustandszahl != null)?.zustandszahl ?? '';
+  return `<div class="field settings-field settings-field--wide" data-gasfactors>
+    <label>${t('settings.field.gas_conversion_factors.label')}</label>
+    ${hint}
+    <input type="hidden" data-key="${f.key}" data-type="json" value="${escapeHtml(JSON.stringify(list))}">
+    <div class="table-wrap" style="margin-top:8px">
+      <table class="table table--compact" data-gf-table>
+        <thead><tr>
+          <th scope="col">${t('settings.gasFactors.colFrom')}</th>
+          <th scope="col" class="num">${t('settings.gasFactors.colZ')}</th>
+          <th scope="col" class="num">${t('settings.gasFactors.colHs')}</th>
+          <th scope="col" class="num">${t('settings.gasFactors.colFactor')}</th>
+          <th scope="col"></th>
+        </tr></thead>
+        <tbody>${renderGasFactorRows(list)}</tbody>
+      </table>
+    </div>
+    <div class="form-row" style="margin-top:10px; align-items:flex-end">
+      <div class="field">
+        <label for="gf-from">${t('settings.gasFactors.colFrom')}</label>
+        <input class="input" id="gf-from" type="date">
+      </div>
+      <div class="field">
+        <label for="gf-z">${t('settings.gasFactors.colZ')}</label>
+        <input class="input" id="gf-z" type="number" step="0.0001" min="0.8" max="1.1" value="${escapeHtml(String(lastZ))}" placeholder="0,96">
+      </div>
+      <div class="field">
+        <label for="gf-hs">${t('settings.gasFactors.colHs')}</label>
+        <input class="input" id="gf-hs" type="number" step="0.001" min="8" max="13" placeholder="11,4">
+      </div>
+      <div class="field">
+        <label for="gf-f">${t('settings.gasFactors.colFactorDirect')}</label>
+        <input class="input" id="gf-f" type="number" step="0.001" min="5" max="15" placeholder="10,80">
+      </div>
+      <div class="field">
+        <button type="button" class="btn btn--ghost" data-gf-add>${t('settings.gasFactors.add')}</button>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:6px" data-gf-preview></p>
+  </div>`;
+}
+
+// Verdrahtet Hinzufügen/Entfernen; hält die Liste im versteckten JSON-Feld.
+function wireGasFactors(container) {
+  const root = container.querySelector('[data-gasfactors]');
+  if (!root) return;
+  const hidden = root.querySelector('[data-key="gas_conversion_factors"]');
+  const tbody  = root.querySelector('[data-gf-table] tbody');
+  const read   = () => { try { return JSON.parse(hidden.value || '[]'); } catch { return []; } };
+  const write  = (list) => {
+    hidden.value = JSON.stringify(list);
+    tbody.innerHTML = renderGasFactorRows(list);
+    hidden.dispatchEvent(new Event('input', { bubbles: true }));   // Ungespeichert-Marker
+  };
+  const num = (id) => {
+    const v = root.querySelector('#' + id)?.value ?? '';
+    return v === '' ? null : Number(String(v).replace(',', '.'));
+  };
+  const preview = () => {
+    const z = num('gf-z'), hs = num('gf-hs'), f = num('gf-f');
+    const el = root.querySelector('[data-gf-preview]');
+    if (z && hs) el.textContent = t('settings.gasFactors.preview', { z: fmt.num(z, 4), hs: fmt.num(hs, 3), f: fmt.num(z * hs, 3) });
+    else if (f) el.textContent = t('settings.gasFactors.previewDirect', { f: fmt.num(f, 3) });
+    else el.textContent = '';
+  };
+  ['gf-z', 'gf-hs', 'gf-f'].forEach(id => root.querySelector('#' + id)?.addEventListener('input', preview));
+
+  root.addEventListener('click', (ev) => {
+    const del = ev.target.closest('[data-gf-del]');
+    if (del) {
+      const list = read();
+      list.splice(Number(del.getAttribute('data-gf-del')), 1);
+      write(list);
+      return;
+    }
+    if (ev.target.closest('[data-gf-add]')) {
+      const from = root.querySelector('#gf-from')?.value || null;
+      const z = num('gf-z'), hs = num('gf-hs'), f = num('gf-f');
+      const list = read();
+      if (!from && list.some(e => !e.from)) { toastErr(t('settings.gasFactors.errOneUndated')); return; }
+      if (from && list.some(e => e.from === from)) { toastErr(t('settings.gasFactors.errDuplicate')); return; }
+      let entry;
+      if (z && hs)   entry = { from, zustandszahl: z, brennwert: hs, kwh_per_m3: Number((z * hs).toFixed(5)) };
+      else if (f)    entry = { from, zustandszahl: null, brennwert: null, kwh_per_m3: f };
+      else { toastErr(t('settings.gasFactors.errNeedValues')); return; }
+      list.push(entry);
+      list.sort((a, b) => (a.from ?? '') < (b.from ?? '') ? -1 : (a.from ?? '') > (b.from ?? '') ? 1 : 0);
+      write(list);
+      root.querySelector('#gf-from').value = '';
+      root.querySelector('#gf-hs').value = '';
+      root.querySelector('#gf-f').value = '';
+      preview();
+    }
+  });
+}
+
 function collectSettings(container) {
   const out = {};
   container.querySelectorAll('[data-key]').forEach(el => {
     const key = el.getAttribute('data-key');
     if (el.tagName === 'SELECT') out[key] = el.value;
+    else if (el.getAttribute('data-type') === 'json') {
+      try { out[key] = JSON.parse(el.value || '[]'); } catch { out[key] = []; }
+    }
     else if (el.getAttribute('data-type') === 'bool') out[key] = el.checked;
     else if (el.getAttribute('data-type') === 'datemd') {
       // Eingabe TT-MM → kanonisch MM-TT; ungültig ⇒ Default 01-01

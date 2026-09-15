@@ -67,6 +67,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 | GET | `/api/utility/{u}/meters/{id}/forecast` | 12-month forecast |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow (retrospective) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | switching decision from the switch date; optional `?switch_date=YYYY-MM-DD` |
+| GET | `/api/utility/gas/meters/{id}/bill-check` | gas bill verification: sections per reading and calorific-value change, `?from=&to=` (F1012, gas only) |
 | GET | `/api/benchmarks/efficiency` | efficiency class per heat source |
 | GET | `/api/recommendations` | statistical recommendations |
 | POST | `/api/recommendations/{id}/dismiss` | hide a recommendation |
@@ -191,6 +192,65 @@ Two new top-level fields go with it:
 weather-corrected; `delta_pct` is the effect of the measure. `limits` is filled
 in **without** a cut-off too — a history that is simply too short gets explained
 instead of an evaluation silently disappearing.
+
+### `GET|PATCH /api/settings` — `gas_conversion_factors` *(F1012, v2.5.0)*
+
+Since schema 1.5.0 the scalar `gas_conversion_factor` is a **dated list**;
+the migration turns the legacy value into the undated entry:
+
+```json
+"gas_conversion_factors": [
+  { "from": null,         "zustandszahl": null, "brennwert": null,  "kwh_per_m3": 11.5 },
+  { "from": "2024-01-01", "zustandszahl": 0.96, "brennwert": 11.4,  "kwh_per_m3": 10.944 },
+  { "from": "2025-01-01", "zustandszahl": 0.96, "brennwert": 11.65, "kwh_per_m3": 11.184 }
+]
+```
+
+- `PATCH` takes the whole list (no single-entry edit); a decimal comma is
+  accepted. When `zustandszahl` (volume correction factor) **and**
+  `brennwert` (calorific value) are set, `kwh_per_m3` is derived from them
+  (5 decimals) and overrides any supplied value. Only one of the two → 400.
+- Plausibility (400 with `errors.settings.*`): volume correction 0.8–1.1,
+  calorific value 8–13, factor 5–15; at most one undated entry; no duplicate
+  dates. The response is sorted by `from`, undated first.
+- Empty list → default (undated 11.5).
+- Effect: `kwh` in every consumption response is calculated **day-exact**
+  with the factor valid on that day; a cut-off date inside a reading
+  interval splits the interval.
+
+### `GET /api/utility/gas/meters/{id}/bill-check?from=YYYY-MM-DD&to=YYYY-MM-DD` *(F1012, v2.5.0)*
+
+Recalculates the supplier bill: one section per boundary within the range
+— start, end, every reading, every calorific-value change. `to` is
+exclusive, `to_inclusive` the last calendar day of the section. Gas only
+(otherwise 400 `errors.billCheck.gasOnly`); `from < to` in ISO form,
+otherwise 400.
+
+```json
+{
+  "from": "2025-01-01", "to": "2026-01-01",
+  "rows": [
+    { "from": "2025-01-01", "to": "2025-03-10", "to_inclusive": "2025-03-09",
+      "days": 68, "reason": "start",
+      "m3": 412.3, "zustandszahl": 0.96, "brennwert": 11.65, "kwh_per_m3": 11.184,
+      "kwh": 4611.2 },
+    { "from": "2025-03-10", "to": "2025-10-01", "to_inclusive": "2025-09-30",
+      "days": 205, "reason": "reading", "m3": 301.0, "…": "…" },
+    { "from": "2025-10-01", "to": "2025-11-04", "to_inclusive": "2025-11-03",
+      "days": 34, "reason": "factor", "…": "…" },
+    { "from": "2025-11-04", "to": "2026-01-01", "to_inclusive": "2025-12-31",
+      "days": 58, "reason": "reading", "m3": null, "kwh": null, "…": "…" }
+  ],
+  "totals": { "days": 365, "m3": 812.4, "kwh": 9034.7, "gaps": 1 }
+}
+```
+
+`reason` ∈ `start`, `end`, `reading`, `reading_estimated`, `factor` —
+combinations joined with `+` (`reading+factor`). `m3`/`kwh` are `null` when
+no reading interval encloses the section (before the first, after the last
+reading); `totals.gaps` counts those sections, they are missing from the
+sums. `m3` per section is the linear interpolation of the enclosing
+interval — the supplier estimates at the very same places.
 
 ### `GET /api/utility/{u}/meters/{id}/stock-history` *(heating oil/pellets only)*
 

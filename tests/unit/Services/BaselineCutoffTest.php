@@ -43,7 +43,7 @@ final class BaselineCutoffTest extends ServiceTestCase
     {
         parent::setUp();
         // kWh == m³: hält die Handrechnung prüfbar.
-        $this->settings->set(['gas_conversion_factor' => 1.0]);
+        $this->store->write('settings.json', ['gas_conversion_factors' => [['from' => null, 'kwh_per_m3' => 1.0]]]);
         $this->seedTemperatures();
         $this->meterId = $this->seedMeter();
     }
@@ -133,7 +133,7 @@ final class BaselineCutoffTest extends ServiceTestCase
 
     public function testFreshInstallCarriesTheBaselineFieldAndSchemaIsBumped(): void
     {
-        self::assertSame('1.4.0', Migrator::SCHEMA_VERSION);
+        self::assertSame('1.5.0', Migrator::SCHEMA_VERSION);
         $meters = $this->store->read('gas/meters.json', []);
         self::assertArrayHasKey('baseline_events', $meters[0], 'Zähler trägt das v1.4.0-Feld');
         self::assertSame([], $meters[0]['baseline_events'], 'Default ist „keine Zäsur"');

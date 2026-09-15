@@ -54,7 +54,7 @@ Einstellungen:
 
 | Art | Formel | Default |
 |---|---|---|
-| Gas | `kWh = m³ × Brennwert × Zustandszahl` | `gas_conversion_factor` = 11,5 kWh/m³ |
+| Gas | `kWh = m³ × Zustandszahl × Brennwert` | `gas_conversion_factors` — datierte Liste, je Stichtag z × Hs (seit v2.5.0; Default 11,5 kWh/m³) |
 | Heizöl | `kWh = Liter × Hu` | `heizoel_kwh_per_l` = 10,0 kWh/L |
 | Pellets | `kWh = kg × Hu` | `pellets_kwh_per_kg` = 4,8 kWh/kg |
 | Strom, Fernwärme | bereits kWh | — |

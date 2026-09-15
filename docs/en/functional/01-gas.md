@@ -8,7 +8,7 @@
 |---|---|
 | Recording | **cumulative** (meter readings in m³) |
 | Billing unit | kWh |
-| Conversion | `gas_conversion_factor` (default 11.5 kWh/m³) |
+| Conversion | `gas_conversion_factors` — dated list (volume correction factor × calorific value per cut-off date), since v2.5.0 |
 | HDD-relevant | **yes** — heating dominates the consumption |
 | Colour | Orange |
 
@@ -18,12 +18,66 @@ The gas meter measures **volume** (m³), but **energy** (kWh) is billed. The
 conversion is printed on every gas bill:
 
 ```text
-kWh = m³ × calorific value × state number
-          (≈ 10–11.5 kWh/m³)  (≈ 0.95–1.0)
+kWh = m³ × volume correction factor × calorific value
+          (≈ 0.95–1.0)              (≈ 10–11.7 kWh/m³)
 ```
 
-Enter the product (often 11.4–11.6) as `gas_conversion_factor` — otherwise the
-costs will deviate from the bill.
+The **volume correction factor** (German *Zustandszahl*) belongs to the
+delivery point (altitude, pressure) and practically never changes. The
+**calorific value** (*Brennwert*) is a period average published by the grid
+operator and changes several times a year — a yearly bill typically lists
+three or four different values, each with its own period, because the
+supplier's gas sources vary.
+
+## Conversion factors with cut-off dates (F1012, since v2.5.0)
+
+Up to v2.4.2 the Energietracker knew a single factor. Since v2.5.0 it is a
+**dated list** under *Settings → Gas conversion factors* — one entry per
+calorific-value period, exactly as the bill states them:
+
+| Valid from | Vol. corr. | Calorific value | → Factor |
+|---|---|---|---|
+| *(undated)* | — | — | 11.5000 |
+| 2024-01-01 | 0.9600 | 11.400 | 10.9440 |
+| 2025-01-01 | 0.9600 | 11.650 | 11.1840 |
+| 2025-10-01 | 0.9600 | 11.520 | 11.0592 |
+
+(These are the demo-data values — *Settings → Load demo data* shows the
+list together with the bill verification right away.)
+
+Worth knowing:
+
+- **The latest entry whose date is not after the day takes effect.** The
+  undated entry applies to everything before — it is the migrated legacy
+  value, so the history calculates exactly as before v2.5.0. Nothing changes
+  retroactively.
+- **The factor is derived from volume correction factor × calorific value**
+  and stored with five decimals. Without a breakdown, enter the factor
+  directly. The volume correction factor is prefilled from the last entry.
+- **Day-exact.** If a cut-off date falls inside a reading interval, the
+  interval is split there — every day calculates with its own factor. The
+  supplier does the same, but with *estimated* intermediate readings (reading
+  type "S" on the bill); here no estimate is needed.
+- **Plausibility check on save:** volume correction 0.8–1.1, calorific value
+  8–13, factor 5–15 kWh/m³. A typo like 115 instead of 11.5 would otherwise
+  multiply every consumption by ten — silently.
+- Heating oil and pellets keep their scalar; nobody publishes a new calorific
+  value for them every month.
+
+## Bill verification
+
+In the gas consumption view the **Bill verification** block recalculates the
+supplier bill: for the chosen range, sections arise at every reading and every
+calorific-value change, each with
+
+```text
+Period | Days | Boundary | m³ | Vol. corr. | Calorific value | kWh/m³ | kWh
+```
+
+— exactly the lines the bill shows. If a line differs, either a factor is
+entered wrongly or the supplier estimated an intermediate reading differently.
+Sections without an enclosing reading (before the first, after the last) show
+without consumption so the gap is visible.
 
 ## What Energietracker does with it
 

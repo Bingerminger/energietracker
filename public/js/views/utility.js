@@ -271,6 +271,7 @@ async function rerender(container) {
       ${readingsTable(readings, u, yr)}
     </div>
     `}
+    ${u.key === 'gas' ? billCheckCard(yr) : ''}
   `;
 
   // Chart
@@ -278,6 +279,109 @@ async function rerender(container) {
 
   // Wire up events
   wireEvents(container, u, meter, readings, contracts, deliveries);
+  if (u.key === 'gas') wireBillCheck(container, u, meter);
+}
+
+// ── F1012 (v2.5.0): Rechnungsprüfung ───────────────────────────────────
+//
+// Rechnet die Gasrechnung nach: Für den gewählten Zeitraum liefert das
+// Backend Abschnitte an jeder Ablesung und jedem Brennwertwechsel — je
+// Abschnitt m³ × Zustandszahl × Brennwert = kWh, genau wie die Zeilen einer
+// Versorgerrechnung. Damit lässt sich jede Rechnungszeile gegen die eigenen
+// Zählerstände prüfen, statt sie zu glauben.
+
+function billCheckCard(year) {
+  const from = `${year}-01-01`;
+  const to   = `${year + 1}-01-01`;
+  return `
+    <div class="card" id="bill-check">
+      <div class="card__title">${t('utility.billCheck.title')}</div>
+      <p class="muted" style="margin-bottom:10px">${t('utility.billCheck.hint')}</p>
+      <div class="form-row" style="align-items:flex-end; margin-bottom:10px">
+        <div class="field">
+          <label for="bc-from">${t('utility.billCheck.from')}</label>
+          <input class="input" id="bc-from" type="date" value="${from}">
+        </div>
+        <div class="field">
+          <label for="bc-to">${t('utility.billCheck.to')}</label>
+          <input class="input" id="bc-to" type="date" value="${to}">
+        </div>
+        <div class="field">
+          <button type="button" class="btn btn-gas" id="bc-run">${t('utility.billCheck.run')}</button>
+        </div>
+      </div>
+      <div id="bc-result"></div>
+    </div>`;
+}
+
+function reasonLabel(reason) {
+  const map = {
+    start: 'start', end: 'end', reading: 'reading',
+    reading_estimated: 'readingEstimated', factor: 'factor',
+  };
+  // Kombinationen wie „reading+factor": beide Gründe nennen
+  return reason.split('+').map(r => t('utility.billCheck.reason.' + (map[r] || r))).join(' · ');
+}
+
+function renderBillCheck(bill, u) {
+  const rows = bill.rows || [];
+  if (!rows.length) return `<p class="muted">${t('utility.billCheck.empty')}</p>`;
+  const tot = bill.totals || {};
+  return `
+    <div class="table-wrap"><table class="table table--compact">
+      <thead><tr>
+        <th scope="col">${t('utility.billCheck.col.period')}</th>
+        <th scope="col" class="num">${t('utility.billCheck.col.days')}</th>
+        <th scope="col">${t('utility.billCheck.col.reason')}</th>
+        <th scope="col" class="num">m³</th>
+        <th scope="col" class="num">${t('utility.billCheck.col.z')}</th>
+        <th scope="col" class="num">${t('utility.billCheck.col.hs')}</th>
+        <th scope="col" class="num">kWh/m³</th>
+        <th scope="col" class="num">kWh</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr class="${r.m3 == null ? 'muted' : ''}">
+            <td>${fmt.date(r.from)} – ${fmt.date(r.to_inclusive)}</td>
+            <td class="num">${r.days}</td>
+            <td>${reasonLabel(r.reason)}</td>
+            <td class="num">${r.m3 != null ? fmt.num(r.m3, 1) : `<em>${t('utility.billCheck.noReading')}</em>`}</td>
+            <td class="num">${r.zustandszahl != null ? fmt.num(r.zustandszahl, 4) : '–'}</td>
+            <td class="num">${r.brennwert != null ? fmt.num(r.brennwert, 3) : '–'}</td>
+            <td class="num">${fmt.num(r.kwh_per_m3, 3)}</td>
+            <td class="num"><strong>${r.kwh != null ? fmt.num(r.kwh, 0) : '–'}</strong></td>
+          </tr>`).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td><strong>${t('utility.billCheck.total')}</strong></td>
+        <td class="num">${tot.days ?? ''}</td>
+        <td></td>
+        <td class="num"><strong>${fmt.num(tot.m3, 1)}</strong></td>
+        <td></td><td></td><td></td>
+        <td class="num"><strong>${fmt.num(tot.kwh, 0)}</strong></td>
+      </tr></tfoot>
+    </table></div>
+    ${tot.gaps ? `<p class="muted" style="margin-top:8px">${t('utility.billCheck.gaps', { count: tot.gaps })}</p>` : ''}
+    <p class="muted" style="margin-top:8px">${t('utility.billCheck.formula')}</p>`;
+}
+
+function wireBillCheck(container, u, meter) {
+  const btn = container.querySelector('#bc-run');
+  const out = container.querySelector('#bc-result');
+  if (!btn || !out) return;
+  btn.addEventListener('click', async () => {
+    const from = container.querySelector('#bc-from')?.value;
+    const to   = container.querySelector('#bc-to')?.value;
+    if (!from || !to || from >= to) { toastErr(t('utility.billCheck.errRange')); return; }
+    out.innerHTML = `<div class="loading">${t('common.loading')}</div>`;
+    try {
+      const bill = await api.billCheck(u.key, meter.id, from, to);
+      out.innerHTML = renderBillCheck(bill, u);
+    } catch (e) {
+      out.innerHTML = '';
+      toastErr(e.message);
+    }
+  });
 }
 
 function header(u, meter = null) {

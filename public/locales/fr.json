@@ -362,7 +362,34 @@
       "sinceLast": "{delta} {unit} depuis le dernier relevé",
       "sinceLastDays": "{delta} {unit} depuis le dernier relevé (il y a {days} jours)"
     },
-    "verdict": { "surcharge": "Complément", "refund": "Remboursement", "payout": "Versement", "reclaim": "À récupérer", "balanced": "Équilibré" }
+    "verdict": { "surcharge": "Complément", "refund": "Remboursement", "payout": "Versement", "reclaim": "À récupérer", "balanced": "Équilibré" },
+    "billCheck": {
+      "title": "Vérification de facture",
+      "hint": "Recalcule la facture de gaz : par tranche m³ × coefficient de correction × pouvoir calorifique = kWh, comme les lignes de la facture du fournisseur. Une nouvelle tranche commence à chaque relevé et à chaque changement de pouvoir calorifique.",
+      "from": "Du",
+      "to": "Au (exclu)",
+      "run": "Recalculer",
+      "empty": "Aucune tranche dans la période choisie.",
+      "noReading": "aucun relevé",
+      "total": "Total",
+      "gaps": "{count} tranche(s) sans relevé englobant — la consommation y manque.",
+      "formula": "kWh = m³ × coefficient de correction × pouvoir calorifique. Le fournisseur estime des index intermédiaires aux changements de pouvoir calorifique ; ici l’intervalle de relevé est découpé au jour près.",
+      "errRange": "Veuillez choisir une période valide (du avant au).",
+      "col": {
+        "period": "Période",
+        "days": "Jours",
+        "reason": "Limite",
+        "z": "Coeff. corr.",
+        "hs": "PCS"
+      },
+      "reason": {
+        "start": "Début",
+        "end": "Fin",
+        "reading": "Relevé",
+        "readingEstimated": "Relevé (estimé)",
+        "factor": "Changement de PCS"
+      }
+    }
   },
   "contracts": {
     "priceGroup": {
@@ -672,7 +699,6 @@
       "location": { "title": "Localisation (Open-Meteo)", "hint": "Coordonnées pour la synchronisation météo de la série de températures." }
     },
     "field": {
-      "gas_conversion_factor": { "label": "Facteur de conversion du gaz", "hint": "Pouvoir calorifique × coefficient d’état selon la facture de gaz." },
       "hdd_base_temp": { "label": "Température de base DJU", "hint": "Limite de chauffe — les jours en dessous comptent comme jours de chauffe." },
       "co2_gas": { "label": "CO₂ gaz" },
       "co2_strom": { "label": "CO₂ électricité" },
@@ -718,7 +744,11 @@
       "location_name": { "label": "Nom du lieu" },
       "latitude": { "label": "Latitude" },
       "longitude": { "label": "Longitude" },
-      "weather_auto_fill": { "label": "Remplir la météo automatiquement" }
+      "weather_auto_fill": { "label": "Remplir la météo automatiquement" },
+      "gas_conversion_factors": {
+        "label": "Facteurs de conversion gaz",
+        "hint": "Une entrée par période de pouvoir calorifique, telle que la facture de gaz les indique : valable à partir du, coefficient de correction et pouvoir calorifique — le facteur kWh/m³ en est déduit. Sans détail, saisissez le facteur directement. L’entrée sans date s’applique à tout ce qui précède la première date d’effet. Le calcul de consommation découpe chaque intervalle de relevé au jour près aux dates d’effet."
+      }
     },
     "boolActive": "activé",
     "activeUtils": {
@@ -851,6 +881,22 @@
       "import": "Importer",
       "done": "Migration OK · {total} relevés écrits · instantané {snapshot}",
       "failed": "Échec de l’import : {msg}"
+    },
+    "gasFactors": {
+      "none": "Aucune entrée — le facteur par défaut s’applique.",
+      "undated": "avant la première date d’effet",
+      "remove": "Supprimer",
+      "colFrom": "Valable à partir du",
+      "colZ": "Coefficient de correction",
+      "colHs": "Pouvoir calorifique (kWh/m³)",
+      "colFactor": "Facteur (kWh/m³)",
+      "colFactorDirect": "ou facteur directement",
+      "add": "Ajouter une entrée",
+      "preview": "{z} × {hs} = {f} kWh/m³",
+      "previewDirect": "facteur {f} kWh/m³",
+      "errOneUndated": "Il existe déjà une entrée sans date — indiquez une date « valable à partir du »",
+      "errDuplicate": "Il existe déjà une entrée pour cette date",
+      "errNeedValues": "Indiquez coefficient de correction et pouvoir calorifique — ou le facteur directement"
     }
   },
   "reminders": {
@@ -1394,6 +1440,21 @@
     },
     "csv": {
       "notDeliveryBased": "L’énergie « {utility} » n’est pas basée sur des livraisons ; utilisez l’export des relevés."
+    },
+    "settings": {
+      "factorsNotList": "Les facteurs de conversion doivent être fournis sous forme de liste d’entrées",
+      "factorInvalidDate": "Date invalide « {date} » — format attendu AAAA-MM-JJ",
+      "factorDuplicateDate": "Un facteur de conversion existe déjà pour le {date}",
+      "factorTwoUndated": "Une seule entrée peut être sans date — elle s’applique à tout ce qui précède la première date d’effet",
+      "factorZOutOfRange": "Coefficient de correction {value} invraisemblable — attendu entre 0,8 et 1,1",
+      "factorHsOutOfRange": "Pouvoir calorifique {value} invraisemblable — attendu entre 8 et 13 kWh/m³",
+      "factorHalfPair": "Coefficient de correction et pouvoir calorifique vont ensemble — indiquez les deux, ou le facteur directement",
+      "factorMissing": "Une entrée nécessite soit coefficient de correction et pouvoir calorifique, soit un facteur en kWh/m³",
+      "factorOutOfRange": "Facteur de conversion {value} invraisemblable — attendu entre 5 et 15 kWh/m³"
+    },
+    "billCheck": {
+      "gasOnly": "La vérification de facture n’existe que pour le gaz",
+      "invalidRange": "Veuillez indiquer une période valide (du < au, AAAA-MM-JJ)"
     }
   }
 }

@@ -362,7 +362,34 @@
       "sinceLast": "{delta} {unit} since last reading",
       "sinceLastDays": "{delta} {unit} since last reading ({days} days ago)"
     },
-    "verdict": { "surcharge": "Surcharge", "refund": "Refund", "payout": "Payout", "reclaim": "Reclaim", "balanced": "Balanced" }
+    "verdict": { "surcharge": "Surcharge", "refund": "Refund", "payout": "Payout", "reclaim": "Reclaim", "balanced": "Balanced" },
+    "billCheck": {
+      "title": "Bill verification",
+      "hint": "Recalculates the gas bill: per section m³ × volume correction factor × calorific value = kWh, like the lines of a supplier bill. A new section starts at every reading and every calorific-value change.",
+      "from": "From",
+      "to": "To (exclusive)",
+      "run": "Recalculate",
+      "empty": "No sections in the chosen range.",
+      "noReading": "no reading",
+      "total": "Total",
+      "gaps": "{count} section(s) without an enclosing reading — consumption is missing there.",
+      "formula": "kWh = m³ × volume correction factor × calorific value. The supplier estimates intermediate readings at calorific-value boundaries; here the reading interval is split day-exactly.",
+      "errRange": "Please choose a valid range (from before to).",
+      "col": {
+        "period": "Period",
+        "days": "Days",
+        "reason": "Boundary",
+        "z": "Vol. corr.",
+        "hs": "Calorific value"
+      },
+      "reason": {
+        "start": "Start",
+        "end": "End",
+        "reading": "Reading",
+        "readingEstimated": "Reading (estimated)",
+        "factor": "Calorific value change"
+      }
+    }
   },
   "contracts": {
     "priceGroup": {
@@ -672,7 +699,6 @@
       "location": { "title": "Location (Open-Meteo)", "hint": "Coordinates for the weather sync of the temperature series." }
     },
     "field": {
-      "gas_conversion_factor": { "label": "Gas conversion factor", "hint": "Calorific value × state number per gas bill." },
       "hdd_base_temp": { "label": "HDD base temperature", "hint": "Heating limit — days below count as heating days." },
       "co2_gas": { "label": "CO₂ gas" },
       "co2_strom": { "label": "CO₂ electricity" },
@@ -718,7 +744,11 @@
       "location_name": { "label": "Place name" },
       "latitude": { "label": "Latitude" },
       "longitude": { "label": "Longitude" },
-      "weather_auto_fill": { "label": "Fill weather automatically" }
+      "weather_auto_fill": { "label": "Fill weather automatically" },
+      "gas_conversion_factors": {
+        "label": "Gas conversion factors",
+        "hint": "One entry per calorific-value period, exactly as the gas bill states them: valid from, volume correction factor and calorific value — the kWh/m³ factor is derived. Without a breakdown, enter the factor directly. The undated entry applies to everything before the first cut-off date. Consumption splits every reading interval day-exactly at the cut-off dates."
+      }
     },
     "boolActive": "on",
     "activeUtils": {
@@ -851,6 +881,22 @@
       "import": "Import",
       "done": "Migration OK · {total} readings written · snapshot {snapshot}",
       "failed": "Import failed: {msg}"
+    },
+    "gasFactors": {
+      "none": "No entry yet — the default factor applies.",
+      "undated": "before the first cut-off date",
+      "remove": "Remove",
+      "colFrom": "Valid from",
+      "colZ": "Volume correction factor",
+      "colHs": "Calorific value (kWh/m³)",
+      "colFactor": "Factor (kWh/m³)",
+      "colFactorDirect": "or factor directly",
+      "add": "Add entry",
+      "preview": "{z} × {hs} = {f} kWh/m³",
+      "previewDirect": "factor {f} kWh/m³",
+      "errOneUndated": "There is already an undated entry — please give a “valid from” date",
+      "errDuplicate": "There is already an entry for this date",
+      "errNeedValues": "Please give volume correction factor and calorific value — or the factor directly"
     }
   },
   "reminders": {
@@ -1394,6 +1440,21 @@
     },
     "csv": {
       "notDeliveryBased": "Utility „{utility}“ is not delivery-based; use the readings export."
+    },
+    "settings": {
+      "factorsNotList": "Conversion factors must be passed as a list of entries",
+      "factorInvalidDate": "Invalid date “{date}” — expected YYYY-MM-DD",
+      "factorDuplicateDate": "A conversion factor already exists for {date}",
+      "factorTwoUndated": "Only one entry may be undated — it applies to everything before the first cut-off date",
+      "factorZOutOfRange": "Volume correction factor {value} is implausible — expected 0.8 to 1.1",
+      "factorHsOutOfRange": "Calorific value {value} is implausible — expected 8 to 13 kWh/m³",
+      "factorHalfPair": "Volume correction factor and calorific value belong together — give both, or the factor directly",
+      "factorMissing": "An entry needs either volume correction factor and calorific value, or a factor in kWh/m³",
+      "factorOutOfRange": "Conversion factor {value} is implausible — expected 5 to 15 kWh/m³"
+    },
+    "billCheck": {
+      "gasOnly": "Bill verification is only available for gas",
+      "invalidRange": "Please give a valid range (from < to, YYYY-MM-DD)"
     }
   }
 }

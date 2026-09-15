@@ -146,6 +146,38 @@ const ROOT = require('path').resolve(__dirname, '..');
   // die erwarteten data-route-Werte?
   const utilities = await j('/api/utilities');
   const settings = await j('/api/settings');
+
+  // v2.5.0 — F1012: Der Gas-Faktor ist eine datierte Liste, kein Skalar.
+  // Der alte Schlüssel darf nicht mehr auftauchen — ein Rest-Leser bekäme
+  // sonst still 1,0 und rechnete m³ = kWh.
+  check('settings: gas_conversion_factors ist eine Liste',
+    Array.isArray(settings.gas_conversion_factors) && settings.gas_conversion_factors.length >= 1,
+    JSON.stringify(settings.gas_conversion_factors)?.slice(0, 80));
+  check('settings: alter Skalar gas_conversion_factor ist weg',
+    !('gas_conversion_factor' in settings));
+  if (Array.isArray(settings.gas_conversion_factors)) {
+    const e0 = settings.gas_conversion_factors[0];
+    check('settings: erster Eintrag ist undatiert und trägt kwh_per_m3',
+      e0 && e0.from === null && typeof e0.kwh_per_m3 === 'number',
+      JSON.stringify(e0));
+  }
+
+  // Rechnungsprüfung: Vertrag des neuen Endpunkts (nur Gas)
+  const gasMeters = await j('/api/utility/gas/meters');
+  if (Array.isArray(gasMeters) && gasMeters.length) {
+    const bill = await j(`/api/utility/gas/meters/${gasMeters[0].id}/bill-check?from=2025-01-01&to=2026-01-01`);
+    check('bill-check liefert rows[] + totals', Array.isArray(bill.rows) && bill.totals && 'kwh' in bill.totals,
+      JSON.stringify(Object.keys(bill)));
+    if (bill.rows?.length) {
+      const r = bill.rows[0];
+      const fields = ['from', 'to', 'to_inclusive', 'days', 'reason', 'm3', 'zustandszahl', 'brennwert', 'kwh_per_m3', 'kwh'];
+      check('bill-check-Zeile hat erwartete Felder', fields.every(f => f in r),
+        fields.filter(f => !(f in r)).join(',') || 'alle vorhanden');
+    }
+    const bad = await fetch(`${BASE}/api/utility/strom/meters/x/bill-check?from=2025-01-01&to=2026-01-01`);
+    check('bill-check für Strom → 400', bad.status === 400, `Status ${bad.status}`);
+  }
+
   const active = (settings.active_utilities && settings.active_utilities.length)
     ? settings.active_utilities : utilities.map(u => u.key);
   const activeUtils = utilities.filter(u => active.includes(u.key));

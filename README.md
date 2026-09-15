@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.4.2-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.5.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-230-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-250-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installable-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
@@ -38,7 +38,7 @@ and the expected year-end settlement. On top of that: a statistical
 recommendation engine, reminder/maintenance management, a tariff comparison with
 shadow contracts and a PDF annual report.
 
-> **Status:** v2.4.2 is the current public version (initial release was v1.0.2).
+> **Status:** v2.5.0 is the current public version (initial release was v1.0.2).
 > If you want to migrate from a privately run v0.9.0 backup, see
 > [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
 > format is supported by the migrator.
@@ -85,6 +85,10 @@ shadow contracts and a PDF annual report.
 - **Temperature import** as CSV (format `DD.MM.YYYY"avg"min"max`,
   double-quote-separated) or via Open-Meteo sync using the location coordinates
   in the settings.
+- **Gas conversion with cut-off dates** (v2.5.0): volume correction factor ×
+  calorific value per period, exactly as the bill lists them; day-exact
+  split at every change, plus a **bill verification** that recalculates the
+  supplier bill section by section.
 - **CSV import of readings** per meter: read a file of
   `date;reading;note;estimated` — existing readings on the same date are
   overwritten and reported in the result.
@@ -120,6 +124,9 @@ shadow contracts and a PDF annual report.
   - *Segmented*: two separate linear fits above/below a threshold (typically
     HDD = 50), distinguishing the heating season from summer load
   - *Sigmoid*: S-curve for households with pronounced saturation at high HDD
+- **Analysis cut-off** (v2.4.0): date a renovation on the meter and every
+  evaluation calculates from there; a before/after figure per degree day
+  shows the weather-adjusted effect.
 - **Anomalies**: months in which consumption deviates more than 2σ (adjustable)
   from the model's expected value.
 - **Forecast** over 12 months as an R²-weighted blend of the regression model
@@ -266,7 +273,7 @@ Or without Compose, directly with the published image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.4.2
+  ghcr.io/bingerminger/energietracker:2.5.0
 ```
 
 > Without `--name energietracker` Docker assigns a random name (e.g.
@@ -279,9 +286,10 @@ Logs (JSON Lines) appear via `docker logs`; configuration via `ET_LOG_LEVEL` /
 
 ### First-time setup
 
-1. Check **Settings → System constants**: gas conversion factor (default 11.5
-   kWh/m³), HDD base temperature (default 15 °C), CO₂ factors, your own location
-   (lat/lon, default Leipzig).
+1. Check **Settings → System constants**: gas conversion factors (volume
+   correction factor × calorific value per cut-off date, as printed on the
+   bill; default 11.5 kWh/m³), HDD base temperature (default 15 °C), CO₂
+   factors, your own location (lat/lon, default Leipzig).
 2. Open **Consumption → Gas/Electricity/Water → ⚙️ Meters** and create the first
    meter (a default device is created automatically). For existing meters, enter
    a serial number + approximate installation date.
@@ -327,7 +335,7 @@ every exported backup under `backup_version`.
 ```
 data/
 ├── meta.json                ← {schema_version, created_at, …}
-├── settings.json            ← {gas_conversion_factor, hdd_base_temp, …}
+├── settings.json            ← {gas_conversion_factors, hdd_base_temp, …}
 ├── temperatures.json        ← {"YYYY-MM-DD": {avg, min, max}}
 ├── gas/
 │   ├── meters.json          ← [{id, name, icon, devices: [...], …}]
@@ -441,7 +449,7 @@ For the full list of configurable values see
 energietracker/
 ├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
 ├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
-├── VERSION                  ← "2.4.2"
+├── VERSION                  ← "2.5.0"
 ├── README.md                ← this file (English)
 ├── README.de.md             ← German version
 ├── CHANGELOG.md

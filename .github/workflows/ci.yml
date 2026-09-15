@@ -49,6 +49,12 @@ jobs:
             $m["schema_version"]="1.0.0"; unset($m["log"]);
             file_put_contents($f,json_encode($m));'
           rm -f /tmp/etmigrate/reminders.json
+          # F1012: Bestandsdaten tragen den Skalar, keine Liste — genau der Pfad,
+          # den ein Update von ≤ v2.4.2 nimmt.
+          php -r '$f="/tmp/etmigrate/settings.json";
+            $s=json_decode(file_get_contents($f),true);
+            unset($s["gas_conversion_factors"]); $s["gas_conversion_factor"]=10.7;
+            file_put_contents($f,json_encode($s));'
           php -r 'require "src/bootstrap.php";
             $s=new \Energietracker\Storage\JsonStore("/tmp/etmigrate");
             $mig=new \Energietracker\Storage\Migrator($s);
@@ -61,6 +67,10 @@ jobs:
             if(!$s->exists("strom/meter_groups.json")){fwrite(STDERR,"meter_groups.json fehlt nach Migration (F1006)\n");exit(1);}
             $mm=$s->read("strom/meters.json",[]); if($mm && !array_key_exists("external_id",$mm[0])){fwrite(STDERR,"external_id fehlt nach Migration (F1009)\n");exit(1);}
             if($mm && !array_key_exists("baseline_events",$mm[0])){fwrite(STDERR,"baseline_events fehlt nach Migration (F1011)\n");exit(1);}
+            $st=$s->read("settings.json",[]);
+            if(array_key_exists("gas_conversion_factor",$st)){fwrite(STDERR,"Skalar gas_conversion_factor nach Migration noch da (F1012)\n");exit(1);}
+            $gf=$st["gas_conversion_factors"]??null;
+            if(!is_array($gf)||!array_key_exists("from",$gf[0])||$gf[0]["from"]!==null||abs(($gf[0]["kwh_per_m3"]??0)-10.7)>1e-9){fwrite(STDERR,"gas_conversion_factors nach Migration falsch (F1012): ".json_encode($gf)."\n");exit(1);}
             echo "Migrations-Smoke OK: 1.0.0 -> $v\n";'
 
       - name: Tests (Server + Frontend-API-Shape + Browser-Render)

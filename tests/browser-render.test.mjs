@@ -238,6 +238,13 @@ async function renderView(modPath, params = []) {
     t('settings: sigmoid im Modell-Picker',
       !![...view.querySelectorAll('select option')].find(o => o.value === 'sigmoid'));
     t('settings: Gebäude-Feld wohnflaeche', !!view.querySelector('[data-key="wohnflaeche_m2"]'));
+    // v2.5.0 — F1012: datierte Gas-Faktoren als Tabelle mit Erfassungszeile,
+    // kein Zahlenfeld für den alten Skalar mehr.
+    t('settings: Gas-Faktoren-Tabelle vorhanden', !!view.querySelector('[data-gasfactors] [data-gf-table]'));
+    t('settings: Gas-Faktoren als JSON-Feld eingesammelt',
+      view.querySelector('[data-key="gas_conversion_factors"]')?.getAttribute('data-type') === 'json');
+    t('settings: Erfassungszeile mit Zustandszahl + Brennwert', !!view.querySelector('#gf-z') && !!view.querySelector('#gf-hs'));
+    t('settings: kein Feld für den alten Skalar', !view.querySelector('[data-key="gas_conversion_factor"]'));
   } catch (e) { t('settings: render', false, e.message); }
 
   // ── 6. Utility-View: Delivery-Modus (Heizöl) ──
@@ -258,7 +265,16 @@ async function renderView(modPath, params = []) {
     await new Promise(r => setTimeout(r, 500));
     const html = view.innerHTML;
     t('utility(gas): render ohne Exception', html.length > 50 && (html.includes('Gas') || html.includes('Zähler')));
+    // v2.5.0 — F1012: Rechnungsprüfung nur in der Gas-Ansicht
+    t('utility(gas): Rechnungsprüfung vorhanden', !!view.querySelector('#bill-check #bc-run'));
   } catch (e) { t('utility(gas): render', false, e.message); }
+
+  // ── 7b. Utility-View Strom: KEINE Rechnungsprüfung (F1012 ist Gas-only) ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);
+    await new Promise(r => setTimeout(r, 500));
+    t('utility(strom): keine Rechnungsprüfung', !view.querySelector('#bill-check'));
+  } catch (e) { t('utility(strom): render', false, e.message); }
 
   // ── 7b. F1005 (v1.7.0) — PV-Einspeisung & PV-Erzeugung rendern leer-Smoke ──
   for (const pvKey of ['pv_einspeisung', 'pv_erzeugung']) {

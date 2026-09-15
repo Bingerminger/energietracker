@@ -91,7 +91,7 @@ Verbrauchsarten. Liefert pro Key (`gas`, `strom`, `wasser`):
 | `unit` | Zählerstand-Einheit (m³ für Gas/Wasser, kWh für Strom) |
 | `consumption_unit` | Konsumeinheit zur Berechnung (kWh für Gas/Strom, m³ für Wasser) |
 | `unit_to_kwh` | bool — Zählerstand muss zur Konsumeinheit umgerechnet werden |
-| `conversion_setting` | Settings-Key für den Umrechnungsfaktor (`gas_conversion_factor`) |
+| `conversion_setting` | Settings-Key für den skalaren Umrechnungsfaktor (Heizöl/Pellets); Gas: `null`, seit v2.5.0 datierte Liste `gas_conversion_factors` |
 | `hgt_relevant` | bool — Verbrauch reagiert auf Heizgradtage |
 | `color` | Hex-Farbe für die UI |
 | `co2_setting` | Settings-Key für den CO₂-Faktor |
@@ -311,7 +311,7 @@ greift `last_price_ct` als Fallback-Arbeitspreis.
 
 | Schlüssel | Typ | Default | Bedeutung |
 |---|---|---|---|
-| `gas_conversion_factor` | float | 11.5 | kWh pro m³ Gas |
+| `gas_conversion_factors` | list | `[{from:null, kwh_per_m3:11.5}]` | kWh pro m³ Gas, datiert je Stichtag (seit v2.5.0; vorher Skalar `gas_conversion_factor`) |
 | `hdd_base_temp` | float | 15 | HGT-Basistemperatur in °C |
 | `co2_gas` | int | 201 | g CO₂ pro kWh Gas |
 | `co2_strom` | int | 380 | g CO₂ pro kWh Strom |

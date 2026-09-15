@@ -68,6 +68,7 @@ v1.9.2.
 | GET | `/api/utility/{u}/meters/{id}/forecast` | 12-Monats-Prognose |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
+| GET | `/api/utility/gas/meters/{id}/bill-check` | Rechnungsprüfung Gas: Abschnitte je Ablesung und Brennwertwechsel, `?from=&to=` (F1012, nur Gas) |
 | GET | `/api/benchmarks/efficiency` | Effizienzklasse pro Heizquelle |
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden |
@@ -195,6 +196,64 @@ Dazu zwei neue Felder auf oberster Ebene:
 witterungsbereinigt; `delta_pct` ist die Wirkung der Maßnahme.
 `limits` wird auch **ohne** Zäsur befüllt — eine zu kurze Historie wird
 damit erklärt, statt eine Auswertung wortlos ausfallen zu lassen.
+
+### `GET|PATCH /api/settings` — `gas_conversion_factors` *(F1012, v2.5.0)*
+
+Der Skalar `gas_conversion_factor` ist seit Schema 1.5.0 eine **datierte
+Liste**; die Migration wandelt den Altwert in den undatierten Eintrag um:
+
+```json
+"gas_conversion_factors": [
+  { "from": null,         "zustandszahl": null, "brennwert": null,  "kwh_per_m3": 11.5 },
+  { "from": "2024-01-01", "zustandszahl": 0.96, "brennwert": 11.4,  "kwh_per_m3": 10.944 },
+  { "from": "2025-01-01", "zustandszahl": 0.96, "brennwert": 11.65, "kwh_per_m3": 11.184 }
+]
+```
+
+- `PATCH` nimmt die ganze Liste entgegen (kein Einzel-Edit); Dezimalkomma
+  wird akzeptiert. Sind `zustandszahl` **und** `brennwert` gesetzt, wird
+  `kwh_per_m3` daraus berechnet (5 Nachkommastellen) und überschreibt einen
+  mitgeschickten Wert. Nur einer der beiden → 400.
+- Plausibilität (400 mit `errors.settings.*`): Zustandszahl 0,8–1,1,
+  Brennwert 8–13, Faktor 5–15; höchstens ein undatierter Eintrag; keine
+  doppelten Daten. Die Antwort ist nach `from` sortiert, undatiert zuerst.
+- Leere Liste → Default (undatiert 11,5).
+- Wirkung: `kwh` in allen Verbrauchsantworten rechnet **tagesgenau** mit
+  dem am jeweiligen Tag gültigen Faktor; ein Stichtag mitten im
+  Ableseintervall teilt das Intervall.
+
+### `GET /api/utility/gas/meters/{id}/bill-check?from=YYYY-MM-DD&to=YYYY-MM-DD` *(F1012, v2.5.0)*
+
+Rechnet die Versorgerrechnung nach: ein Abschnitt je Grenze im Zeitraum —
+Anfang, Ende, jede Ablesung, jeder Brennwertwechsel. `to` ist exklusiv,
+`to_inclusive` das letzte Tagesdatum des Abschnitts. Nur für Gas (sonst
+400 `errors.billCheck.gasOnly`); `from < to` in ISO-Form, sonst 400.
+
+```json
+{
+  "from": "2025-01-01", "to": "2026-01-01",
+  "rows": [
+    { "from": "2025-01-01", "to": "2025-03-10", "to_inclusive": "2025-03-09",
+      "days": 68, "reason": "start",
+      "m3": 412.3, "zustandszahl": 0.96, "brennwert": 11.65, "kwh_per_m3": 11.184,
+      "kwh": 4611.2 },
+    { "from": "2025-03-10", "to": "2025-10-01", "to_inclusive": "2025-09-30",
+      "days": 205, "reason": "reading", "m3": 301.0, "…": "…" },
+    { "from": "2025-10-01", "to": "2025-11-04", "to_inclusive": "2025-11-03",
+      "days": 34, "reason": "factor", "…": "…" },
+    { "from": "2025-11-04", "to": "2026-01-01", "to_inclusive": "2025-12-31",
+      "days": 58, "reason": "reading", "m3": null, "kwh": null, "…": "…" }
+  ],
+  "totals": { "days": 365, "m3": 812.4, "kwh": 9034.7, "gaps": 1 }
+}
+```
+
+`reason` ∈ `start`, `end`, `reading`, `reading_estimated`, `factor` —
+Kombinationen mit `+` (`reading+factor`). `m3`/`kwh` sind `null`, wenn
+kein Ableseintervall den Abschnitt umschließt (vor der ersten, nach der
+letzten Ablesung); `totals.gaps` zählt diese Abschnitte, sie fehlen in
+den Summen. `m3` je Abschnitt ist die lineare Interpolation des
+umschließenden Intervalls — der Versorger schätzt an denselben Stellen.
 
 ### `GET /api/utility/{u}/meters/{id}/stock-history` *(nur Heizöl/Pellets)*
 

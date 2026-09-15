@@ -1,5 +1,30 @@
 {
-  "gas_conversion_factor": 11.5,
+  "gas_conversion_factors": [
+    {
+      "from": null,
+      "zustandszahl": null,
+      "brennwert": null,
+      "kwh_per_m3": 11.5
+    },
+    {
+      "from": "2024-01-01",
+      "zustandszahl": 0.96,
+      "brennwert": 11.4,
+      "kwh_per_m3": 10.944
+    },
+    {
+      "from": "2025-01-01",
+      "zustandszahl": 0.96,
+      "brennwert": 11.65,
+      "kwh_per_m3": 11.184
+    },
+    {
+      "from": "2025-10-01",
+      "zustandszahl": 0.96,
+      "brennwert": 11.52,
+      "kwh_per_m3": 11.0592
+    }
+  ],
   "hdd_base_temp": 15.0,
   "co2_gas": 201.0,
   "co2_strom": 380.0,

@@ -147,7 +147,7 @@ z = (actual - mean) / standard deviation
 
 | Key | Default | Unit |
 |---|---|---|
-| `gas_conversion_factor` | 11.5 | kWh/m³ |
+| `gas_conversion_factors` | `[{from:null, kwh_per_m3:11.5}]` | dated list (z × Hs per cut-off date) |
 | `heizoel_kwh_per_l` | 10.0 | kWh/L |
 | `pellets_kwh_per_kg` | 4.8 | kWh/kg |
 | `hdd_base_temp` | 15.0 | °C |

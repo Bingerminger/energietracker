@@ -20,6 +20,12 @@ use Energietracker\Config\Utilities;
  *             (Gruppen-Mitgliedschaft), beide Default null. Pro Utility eine
  *             neue `meter_groups.json` mit den Gruppen-Stammdaten; die
  *             Mitgliedschaft selbst bleibt single-source am Zähler.
+ *   v1.3.0  — Zähler-Alias `external_id` (F1009, Home-Assistant-Ingest).
+ *   v1.4.0  — Analyse-Zäsuren `baseline_events` am Zähler (F1011).
+ *   v1.5.0  — Datierte Gas-Umrechnungsfaktoren (F1012): aus dem Skalar
+ *             `gas_conversion_factor` in `settings.json` wird die Liste
+ *             `gas_conversion_factors` (Zustandszahl × Brennwert je Stichtag);
+ *             der Altwert bleibt als undatierter Eintrag erhalten.
  *
  * Die Migration ist additiv und idempotent: das wiederholte Aufrufen ist
  * unschädlich, bestehende Dateien werden nicht überschrieben.
@@ -37,7 +43,7 @@ use Energietracker\Config\Utilities;
  */
 final class Migrator
 {
-    public const SCHEMA_VERSION = '1.4.0';
+    public const SCHEMA_VERSION = '1.5.0';
 
     // v2.2.0 — der I18nService ist optional: der Migrator wird im Bootstrap
     // sehr früh und in Tests ohne Container konstruiert. Fehlt er, greifen
@@ -99,12 +105,26 @@ final class Migrator
         ['needsV120Upgrade',           'upgradeToV120'],
         ['needsV130Upgrade',           'upgradeToV130'],
         ['needsV140Upgrade',           'upgradeToV140'],
+        ['needsV150Upgrade',           'upgradeToV150'],
     ];
 
     /** Nur zum Prüfen von außen (Test hält die Liste vollständig). */
     public static function upgradeSteps(): array
     {
         return self::UPGRADE_STEPS;
+    }
+
+    /**
+     * v1.4.0 → v1.5.0 — Datierte Gas-Umrechnungsfaktoren (F1012).
+     * Trägt `settings.json` noch den alten Skalar `gas_conversion_factor`
+     * oder fehlt die Liste `gas_conversion_factors`? Idempotent.
+     */
+    public function needsV150Upgrade(): bool
+    {
+        $s = $this->store->read('settings.json', []);
+        if (!is_array($s)) return false;
+        return array_key_exists('gas_conversion_factor', $s)
+            || !array_key_exists('gas_conversion_factors', $s);
     }
 
     public function needsMigration(): bool
@@ -481,6 +501,48 @@ final class Migrator
         }
 
         $log[] = sprintf('v1.4.0: %d Zähler um baseline_events (Analyse-Zäsur) ergänzt', $patched);
+        return $log;
+    }
+
+    /**
+     * v1.4.0 → v1.5.0 — Datierte Gas-Umrechnungsfaktoren (F1012).
+     *
+     * Aus dem Skalar `gas_conversion_factor` wird der **undatierte** Eintrag
+     * der neuen Liste `gas_conversion_factors` — er gilt für alles vor dem
+     * ersten Stichtag, sodass die gesamte Historie exakt wie zuvor rechnet.
+     * Nichts springt rückwirkend. Der alte Schlüssel wird entfernt; ein
+     * Rest-Leser bekäme sonst still den Default 1,0 und rechnete m³ = kWh.
+     *
+     * Existiert die Liste bereits (z. B. Backup aus v2.5.0), bleibt sie
+     * unangetastet; ein etwa daneben liegender Altskalar wird nur entfernt.
+     */
+    public function upgradeToV150(): array
+    {
+        $s = $this->store->read('settings.json', []);
+        if (!is_array($s)) $s = [];
+
+        $log = [];
+        if (!array_key_exists('gas_conversion_factors', $s)) {
+            $old = array_key_exists('gas_conversion_factor', $s)
+                ? (float)$s['gas_conversion_factor']
+                : null;
+            $factor = ($old !== null && $old > 0) ? $old : 11.5;
+            $s['gas_conversion_factors'] = [[
+                'from'         => null,
+                'zustandszahl' => null,
+                'brennwert'    => null,
+                'kwh_per_m3'   => round($factor, 5),
+            ]];
+            $log[] = sprintf(
+                'v1.5.0: gas_conversion_factor %s → gas_conversion_factors (undatierter Eintrag)',
+                $old !== null ? rtrim(rtrim(number_format($old, 3, '.', ''), '0'), '.') : 'Default'
+            );
+        } else {
+            $log[] = 'v1.5.0: gas_conversion_factors bereits vorhanden';
+        }
+        unset($s['gas_conversion_factor']);
+
+        $this->store->write('settings.json', $s);
         return $log;
     }
 
