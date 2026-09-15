@@ -269,7 +269,10 @@
       "statePast": "VERGANGEN",
       "stateFuture": "ZUKÜNFTIG",
       "periodOpen": "{start} → laufend",
-      "gpSuffix": "{value} € GP"
+      "gpSuffix": "{value} € GP",
+      "colSpecial": "Sonderzahlungen",
+      "colSpecialTitle": "Netto aus Sonderzahlungen: Rückzahlungen vom Versorger zählen positiv, Nach- und Abschlagszahlungen negativ. Einzelposten im Tooltip der Zelle.",
+      "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Einzelposten erscheinen beim Überfahren der Zelle, gepflegt werden sie in der Vertragsverwaltung."
     },
     "monthlyTable": {
       "noData": "Keine Daten für dieses Jahr.",

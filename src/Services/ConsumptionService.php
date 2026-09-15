@@ -339,6 +339,19 @@ final class ConsumptionService
                 'should_remind'               => $shouldRemind,
                 'remind_stage'                => $remindStage,
             ];
+            // v2.5.1 — die Einzelposten für die Tabelle „Verträge & Abschläge"
+            // (Spalte Sonderzahlungen mit Tooltip). Nur dort, wo es
+            // Sonderzahlungen überhaupt gibt (Gas/Strom/Fernwärme, nicht
+            // Wasser, nicht Einspeisung) — das Fehlen des Felds ist für die
+            // UI das Signal, die Spalte gar nicht erst zu zeigen.
+            if (Utilities::hasAdvancePaymentContracts($utility)) {
+                $row['special_payments'] = array_values(array_map(fn($sp) => [
+                    'date'       => (string)($sp['date'] ?? ''),
+                    'kind'       => (string)($sp['kind'] ?? ''),
+                    'amount_eur' => round((float)($sp['amount_eur'] ?? 0), 2),  // Vorzeichen steckt in kind; positiv seit dem Speichern
+                    'note'       => (string)($sp['note'] ?? ''),
+                ], $c['special_payments'] ?? []));
+            }
             if ($utility === 'wasser') {
                 $row['actual_m3']    = round($actualM3, 1);
                 $row['components']   = [

@@ -63,7 +63,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 | DELETE | `/api/utility/{u}/contracts/{id}` | delete |
 | GET | `/api/utility/{u}/consumption` | monthly consumption (utility-wide) |
 | GET | `/api/utility/{u}/meters/{id}/consumption` | consumption + anomalies + regressions |
-| GET | `/api/utility/{u}/meters/{id}/contract-status` | balance per contract |
+| GET | `/api/utility/{u}/meters/{id}/contract-status` | balance per contract; since v2.5.1 with `special_payments[]` (items, gas/electricity/district heating only) |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | 12-month forecast |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow (retrospective) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | switching decision from the switch date; optional `?switch_date=YYYY-MM-DD` |

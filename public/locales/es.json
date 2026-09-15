@@ -269,7 +269,10 @@
       "statePast": "PASADO",
       "stateFuture": "FUTURO",
       "periodOpen": "{start} → en curso",
-      "gpSuffix": "{value} € término fijo"
+      "gpSuffix": "{value} € término fijo",
+      "colSpecial": "Pagos especiales",
+      "colSpecialTitle": "Neto de pagos especiales: las devoluciones del proveedor cuentan en positivo, los pagos complementarios y anticipos adicionales en negativo. Partidas individuales en la descripción emergente de la celda.",
+      "hint": "Bono = abonos del contrato (bono inmediato, de cambio, de nuevo cliente). Pagos especiales = devoluciones (+), pagos complementarios y anticipos adicionales (−) fuera del plan de anticipos; ambos entran en el saldo. Pasa el cursor por la celda para ver las partidas; se gestionan en la administración de contratos."
     },
     "monthlyTable": {
       "noData": "Sin datos para este año.",

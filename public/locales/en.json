@@ -269,7 +269,10 @@
       "statePast": "PAST",
       "stateFuture": "FUTURE",
       "periodOpen": "{start} → ongoing",
-      "gpSuffix": "{value} € base"
+      "gpSuffix": "{value} € base",
+      "colSpecial": "Special payments",
+      "colSpecialTitle": "Net of special payments: refunds from the supplier count positive, surcharges and extra advance payments negative. Individual items in the cell tooltip.",
+      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), surcharges and extra advance payments (−) outside the advance schedule; both feed into the balance. Hover the cell for the individual items; they are maintained in the contract management."
     },
     "monthlyTable": {
       "noData": "No data for this year.",

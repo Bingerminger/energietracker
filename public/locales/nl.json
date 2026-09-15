@@ -269,7 +269,10 @@
       "statePast": "VERLEDEN",
       "stateFuture": "TOEKOMST",
       "periodOpen": "{start} → lopend",
-      "gpSuffix": "{value} € vastrecht"
+      "gpSuffix": "{value} € vastrecht",
+      "colSpecial": "Bijzondere betalingen",
+      "colSpecialTitle": "Netto van bijzondere betalingen: terugbetalingen van de leverancier tellen positief, naheffingen en extra voorschotten negatief. Afzonderlijke posten in de tooltip van de cel.",
+      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), naheffingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Beweeg over de cel voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden."
     },
     "monthlyTable": {
       "noData": "Geen gegevens voor dit jaar.",

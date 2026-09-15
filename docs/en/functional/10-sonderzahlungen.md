@@ -42,6 +42,25 @@ credit back balances the overpayment — the balance moves up towards zero. A
 additional **advance payment** acts like a further advance and reduces the open
 debt.
 
+## Where special payments appear (since v2.5.1)
+
+- **Balance card** of the current contract: refunds, back-payments and
+  advance payments listed individually below the advance.
+- **"Contracts & advances" table** (consumption view): column **Special
+  payments** next to *Bonus*, for every contract in the history. It shows
+  the **net from the customer's perspective** — refunds received count
+  positive (`+142.50 €`), back-payments and advance payments made count
+  negative; with several items the count follows. Hovering the cell shows a
+  tooltip with every item: date, type, amount and note. A hint below the
+  table explains both columns.
+- The column exists only for utilities with advance-payment contracts (gas,
+  electricity, district heating). Water and PV feed-in have no special
+  payments; there it is omitted.
+- *Bonus* and *Special payments* stay separate: a bonus is part of the
+  contract (instant, switching, new-customer bonus) and reduces the costs; a
+  special payment is money that flowed outside the advance schedule. Both
+  enter the balance, but at different places in the formula.
+
 ## "with effect on advance payments"
 
 After an annual statement the supplier often also adjusts the future monthly

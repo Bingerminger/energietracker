@@ -269,7 +269,10 @@
       "statePast": "PASSADO",
       "stateFuture": "FUTURO",
       "periodOpen": "{start} → em curso",
-      "gpSuffix": "{value} € tarifa fixa"
+      "gpSuffix": "{value} € tarifa fixa",
+      "colSpecial": "Pagamentos especiais",
+      "colSpecialTitle": "Líquido dos pagamentos especiais: reembolsos do fornecedor contam positivamente, acertos e adiantamentos adicionais negativamente. Itens individuais na dica da célula.",
+      "hint": "Bónus = créditos do contrato (bónus imediato, de mudança, de novo cliente). Pagamentos especiais = reembolsos (+), acertos e adiantamentos adicionais (−) fora do plano de adiantamentos; ambos entram no saldo. Passe o cursor sobre a célula para ver os itens; são geridos na gestão de contratos."
     },
     "monthlyTable": {
       "noData": "Sem dados para este ano.",

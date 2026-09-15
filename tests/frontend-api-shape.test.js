@@ -176,6 +176,28 @@ const ROOT = require('path').resolve(__dirname, '..');
     }
     const bad = await fetch(`${BASE}/api/utility/strom/meters/x/bill-check?from=2025-01-01&to=2026-01-01`);
     check('bill-check für Strom → 400', bad.status === 400, `Status ${bad.status}`);
+
+    // v2.5.1 — Sonderzahlungen in der Vertragstabelle: der Status trägt die
+    // Einzelposten (Gas), Wasser hat das Feld nicht.
+    const cs = await j(`/api/utility/gas/meters/${gasMeters[0].id}/contract-status`);
+    const withSp = (cs.contracts || []).find(c => Array.isArray(c.special_payments) && c.special_payments.length);
+    check('contract-status(gas): special_payments[] mit Einzelposten', !!withSp,
+      withSp ? `${withSp.special_payments.length} Posten` : 'kein Vertrag mit Sonderzahlungen in den Demo-Daten');
+    if (withSp) {
+      const sp = withSp.special_payments[0];
+      check('special_payments-Posten hat date/kind/amount_eur/note',
+        ['date', 'kind', 'amount_eur', 'note'].every(f => f in sp) && sp.amount_eur > 0, JSON.stringify(sp));
+      check('special_payment_net ist Netto aus Kundensicht (Rückzahlung − Nach-/Abschlagszahlung)',
+        Math.abs(withSp.special_payment_net - withSp.special_payments.reduce((s, p) =>
+          s + (String(p.kind).startsWith('rueckzahlung') ? p.amount_eur : -p.amount_eur), 0)) < 0.005,
+        String(withSp.special_payment_net));
+    }
+    const wasserMeters = await j('/api/utility/wasser/meters');
+    if (Array.isArray(wasserMeters) && wasserMeters.length) {
+      const wcs = await j(`/api/utility/wasser/meters/${wasserMeters[0].id}/contract-status`);
+      check('contract-status(wasser): kein special_payments-Feld',
+        (wcs.contracts || []).every(c => !('special_payments' in c)));
+    }
   }
 
   const active = (settings.active_utilities && settings.active_utilities.length)

@@ -6,6 +6,53 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.5.1] — 2026-09-15 — Sonderzahlungen in der Tabelle „Verträge & Abschläge"
+
+PATCH-Release (UX-Politur). Kein Schema-Bump, keine Datenänderung.
+
+**Der Anlass.** Die Tabelle *Verträge & Abschläge* in der Verbrauchsansicht
+führte je Vertrag eine Spalte *Bonus*, aber keine Sonderzahlungen — eine
+Rückzahlung aus der Jahresabrechnung stand nur in der Saldo-Karte des
+laufenden Vertrags und verschwand aus dem Blick, sobald der Vertrag
+vergangen war. Beim Nachrechnen einer echten Endabrechnung (v2.5.0,
+Rechnungsprüfung) fiel das auf: Der Saldo eines abgeschlossenen Vertrags
+war ohne die gebuchte Gutschrift nicht zu deuten.
+
+**Neu.** Spalte **Sonderzahlungen** neben *Bonus*, für jeden Vertrag der
+Historie: das **Netto aus Kundensicht** — Rückzahlungen erhalten positiv,
+Nach- und Abschlagszahlungen geleistet negativ (dieselbe Größe, die der
+Saldo als Sonderzahlungs-Netto addiert), bei mehreren Posten mit Anzahl.
+Der Tooltip der Zelle listet jeden Posten mit Datum, Art, Betrag und Notiz;
+ein Hinweistext unter der Tabelle erklärt *Bonus* und *Sonderzahlungen*.
+Die Spalte erscheint nur bei Verbrauchsarten mit Abschlagsverträgen
+(Gas, Strom, Fernwärme) — Wasser und PV-Einspeisung kennen keine
+Sonderzahlungen, dort entfällt sie. Entschieden gegen eine gemeinsame
+Spalte „Boni & Sonder": Bonus ist Vertragsbestandteil und mindert die
+Kosten, eine Sonderzahlung ist Geld außerhalb des Abschlagsplans — zwei
+Dinge, die in einer Zahl nicht mehr unterscheidbar wären. Die Tabelle
+scrollt in schmalen Ansichten ohnehin horizontal; die Breite war kein
+Grund, sie zu verschmelzen.
+
+**API.** `contract-status` trägt je Vertrag `special_payments[]`
+(`date`, `kind`, `amount_eur`, `note`; nach Datum sortiert, Beträge
+positiv — die Richtung steckt in `kind`). Das Feld fehlt bei Wasser und
+Einspeisung; sein Fehlen ist für die Oberfläche das Signal, die Spalte
+nicht zu zeigen.
+
+**Tests.** 250 → 254: `ContractStatusSpecialPaymentsTest` (Einzelposten und
+Feldsatz, Netto-Vorzeichen, leere Liste, kein Feld bei Wasser), API-Shape
+(Posten, Netto = Σ Rückzahlung − Σ gezahlt, Wasser ohne Feld),
+Browser-Render (Spaltenkopf mit Erklärung, Zelle mit Netto und Tooltip,
+Hinweistext, keine Spalte bei Wasser). **Neun Kernannahmen per Toggle als
+greifend nachgewiesen**; ein zehnter Toggle deckte totes `abs()` auf — die
+Beträge sind seit dem Speichern positiv — und wurde entfernt.
+
+**Doku** DE + EN: Sonderzahlungen-Kapitel um „Wo Sonderzahlungen
+erscheinen", UI-Referenz (Spalten der Vertragstabelle), API-Referenz und
+API.md (`special_payments`). 3 Katalogschlüssel × 7 Sprachen.
+
+---
+
 ## [2.5.0] — 2026-09-15 — F1012: Gas-Umrechnung mit Stichtagen und Rechnungsprüfung
 
 MINOR-Release. **Schema 1.4.0 → 1.5.0** (additiv, Auto-Migration). Folge von

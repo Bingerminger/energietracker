@@ -64,7 +64,7 @@ v1.9.2.
 | DELETE | `/api/utility/{u}/contracts/{id}` | löschen |
 | GET | `/api/utility/{u}/consumption` | Monatsverbrauch (utility-weit) |
 | GET | `/api/utility/{u}/meters/{id}/consumption` | Verbrauch + Anomalien + Regressionen |
-| GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag |
+| GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, nur Gas/Strom/Fernwärme) |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | 12-Monats-Prognose |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |

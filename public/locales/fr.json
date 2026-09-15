@@ -269,7 +269,10 @@
       "statePast": "PASSÉ",
       "stateFuture": "FUTUR",
       "periodOpen": "{start} → en cours",
-      "gpSuffix": "{value} € abonnement"
+      "gpSuffix": "{value} € abonnement",
+      "colSpecial": "Paiements spéciaux",
+      "colSpecialTitle": "Net des paiements spéciaux : les remboursements du fournisseur comptent positivement, les rappels et acomptes supplémentaires négativement. Détail des postes dans l’info-bulle de la cellule.",
+      "hint": "Bonus = avoirs issus du contrat (bonus immédiat, de changement, nouveau client). Paiements spéciaux = remboursements (+), rappels et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Survolez la cellule pour le détail ; la saisie se fait dans la gestion des contrats."
     },
     "monthlyTable": {
       "noData": "Aucune donnée pour cette année.",

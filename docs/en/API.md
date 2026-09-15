@@ -589,6 +589,13 @@ card and the *contracts & advances* table in the UI.
 }
 ```
 
+**Since v2.5.1** every contract additionally carries `special_payments`: the
+individual items as `[{date, kind, amount_eur, note}]` (sorted by date,
+amounts positive — the direction is in `kind`), the data source for the
+tooltip of the *Special payments* column. `special_payment_net` is the net
+from the customer's perspective (Σ refund − Σ back-payment − Σ advance
+payment). The field is absent for water and PV feed-in.
+
 `verdict` is `Nachzahlung` (back-payment) when `projected_end_balance > 5`,
 `Erstattung` (refund) when `< -5`, otherwise `Ausgeglichen` (balanced). The values
 are emitted in German.

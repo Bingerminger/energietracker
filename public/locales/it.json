@@ -269,7 +269,10 @@
       "statePast": "PASSATO",
       "stateFuture": "FUTURO",
       "periodOpen": "{start} → in corso",
-      "gpSuffix": "{value} € quota fissa"
+      "gpSuffix": "{value} € quota fissa",
+      "colSpecial": "Pagamenti speciali",
+      "colSpecialTitle": "Netto dei pagamenti speciali: i rimborsi del fornitore contano in positivo, conguagli e acconti aggiuntivi in negativo. Singole voci nel tooltip della cella.",
+      "hint": "Bonus = accrediti dal contratto (bonus immediato, di cambio, nuovo cliente). Pagamenti speciali = rimborsi (+), conguagli e acconti aggiuntivi (−) fuori dal piano acconti; entrambi entrano nel saldo. Passa sulla cella per le singole voci; si gestiscono nella gestione contratti."
     },
     "monthlyTable": {
       "noData": "Nessun dato per quest’anno.",

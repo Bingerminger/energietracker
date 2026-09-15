@@ -45,6 +45,25 @@ ausgeglichen — der Saldo bewegt sich nach oben Richtung Null. Eine
 Null. Eine zusätzliche **Abschlagszahlung** wirkt wie ein weiterer
 Abschlag und senkt die offene Schuld.
 
+## Wo Sonderzahlungen erscheinen (seit v2.5.1)
+
+- **Saldo-Karte** des laufenden Vertrags: Rückzahlungen, Nachzahlungen und
+  Abschlagszahlungen einzeln unter dem Abschlag.
+- **Tabelle „Verträge & Abschläge"** (Verbrauchsansicht): Spalte
+  **Sonderzahlungen** neben *Bonus*, für jeden Vertrag der Historie. Sie
+  zeigt das **Netto aus Kundensicht** — Rückzahlungen erhalten zählen
+  positiv (`+142,50 €`), Nach- und Abschlagszahlungen geleistet negativ;
+  bei mehreren Posten steht die Anzahl dahinter. Beim Überfahren der Zelle
+  listet ein Tooltip jeden Posten mit Datum, Art, Betrag und Notiz. Ein
+  Hinweistext unter der Tabelle erklärt beide Spalten.
+- Die Spalte gibt es nur bei Verbrauchsarten mit Abschlagsverträgen
+  (Gas, Strom, Fernwärme). Wasser und PV-Einspeisung kennen keine
+  Sonderzahlungen; dort entfällt sie.
+- *Bonus* und *Sonderzahlungen* bleiben getrennt: Ein Bonus ist Teil des
+  Vertrags (Sofort-, Wechsel-, Neukundenbonus) und mindert die Kosten; eine
+  Sonderzahlung ist Geld, das außerhalb des Abschlagsplans geflossen ist.
+  Beide gehen in den Saldo ein, aber an verschiedenen Stellen der Formel.
+
 ## „mit Auswirkung auf Abschlagszahlungen"
 
 Nach einer Jahresabrechnung passt der Versorger oft auch den künftigen

@@ -267,7 +267,26 @@ async function renderView(modPath, params = []) {
     t('utility(gas): render ohne Exception', html.length > 50 && (html.includes('Gas') || html.includes('Zähler')));
     // v2.5.0 — F1012: Rechnungsprüfung nur in der Gas-Ansicht
     t('utility(gas): Rechnungsprüfung vorhanden', !!view.querySelector('#bill-check #bc-run'));
+    // v2.5.1 — Spalte „Sonderzahlungen" in „Verträge & Abschläge": Kopf mit
+    // Erklärung, Zelle mit Netto und Tooltip der Einzelposten (Demo-Daten
+    // führen am Gas-Vertrag eine Rückzahlung und eine Abschlagszahlung).
+    const spHead = view.querySelector('.contracts-table th.special-col');
+    t('utility(gas): Spalte Sonderzahlungen mit Erklärung', !!spHead && (spHead.getAttribute('title') || '').length > 20);
+    const spCells = [...view.querySelectorAll('.contracts-table td.special-cell')];
+    const filled = spCells.find(td => td.getAttribute('title'));
+    t('utility(gas): Zelle Sonderzahlungen mit Netto + Tooltip',
+      !!filled && /[+−-]?\d/.test(filled.textContent) && (filled.getAttribute('title') || '').includes('·'),
+      filled ? `${filled.textContent.trim()} | ${(filled.getAttribute('title') || '').split('\n')[0]}` : `${spCells.length} Zellen, keine mit Tooltip`);
+    t('utility(gas): Hinweistext unter der Tabelle', view.innerHTML.includes('Sonderzahlungen =') || view.innerHTML.includes('Special payments ='));
   } catch (e) { t('utility(gas): render', false, e.message); }
+
+  // ── 7a. Utility-View Wasser: KEINE Spalte Sonderzahlungen (kennt keine) ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['wasser']);
+    await new Promise(r => setTimeout(r, 500));
+    t('utility(wasser): render ohne Exception', view.innerHTML.length > 50);
+    t('utility(wasser): keine Spalte Sonderzahlungen', !view.querySelector('.contracts-table th.special-col'));
+  } catch (e) { t('utility(wasser): render', false, e.message); }
 
   // ── 7b. Utility-View Strom: KEINE Rechnungsprüfung (F1012 ist Gas-only) ──
   try {

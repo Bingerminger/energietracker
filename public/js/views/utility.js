@@ -560,6 +560,10 @@ function contractsTable(contracts, u) {
   }
   const sign = v => v > 0 ? '+' : '';
   const balCls = v => v > 0 ? 'danger-text' : v < 0 ? 'success-text' : 'muted';
+  // v2.5.1 — Spalte „Sonderzahlungen": nur dort, wo das Backend Einzelposten
+  // liefert (Gas/Strom/Fernwärme). Wasser und Einspeisung kennen keine
+  // Sonderzahlungen; bei ihnen fehlt das Feld, und die Spalte entfällt.
+  const showSpecial = contracts.some(c => Array.isArray(c.special_payments));
   return `<div class="table-wrap"><table class="table contracts-table">
     <thead><tr>
       <th scope="col">${t('utility.contractsTable.colProvider')}</th>
@@ -570,6 +574,7 @@ function contractsTable(contracts, u) {
       <th scope="col" class="num">${t('utility.contractsTable.colConsumed')}</th>
       <th scope="col" class="num">${t('utility.contractsTable.colPaid')}</th>
       <th scope="col" class="num">${t('utility.contractsTable.colBonus')}</th>
+      ${showSpecial ? `<th scope="col" class="num special-col" title="${escapeHtml(t('utility.contractsTable.colSpecialTitle'))}">${t('utility.contractsTable.colSpecial')}</th>` : ''}
       <th scope="col" class="num">${t('utility.contractsTable.colBalanceToday')}</th>
       <th scope="col" class="num">${t('utility.contractsTable.colBalanceExpected')}</th>
     </tr></thead>
@@ -595,12 +600,34 @@ function contractsTable(contracts, u) {
         <td class="num">${fmt.eur(c.actual_cost)}</td>
         <td class="num">${fmt.eur(c.advance_paid)}</td>
         <td class="num success-text">${bonusStr}</td>
+        ${showSpecial ? specialCell(c) : ''}
         <td class="num ${balCls(cur)}">${sign(cur)}${fmt.eur(cur)}</td>
         <td class="num ${balCls(proj)}" style="font-weight:600">${sign(proj)}${fmt.eur(proj)}</td>
       </tr>`;
     }).join('')}
     </tbody>
-  </table></div>`;
+  </table></div>
+  ${showSpecial ? `<p class="muted" style="font-size:11px;margin:8px 4px 0">${t('utility.contractsTable.hint')}</p>` : ''}`;
+}
+
+// v2.5.1 — Zelle „Sonderzahlungen": Netto aus Kundensicht. Erhalten (Rück-
+// zahlung) zählt positiv, gezahlt (Nach-/Abschlagszahlung) negativ — das ist
+// dieselbe Größe, die der Saldo als `special_payment_net` addiert. Die
+// Einzelposten stehen im Tooltip, damit die Tabelle schmal bleibt.
+function specialCell(c) {
+  const items = Array.isArray(c.special_payments) ? c.special_payments : [];
+  if (!items.length) return `<td class="num muted special-cell">–</td>`;
+  const net = c.special_payment_net || 0;
+  const cls = net > 0 ? 'success-text' : net < 0 ? 'danger-text' : 'muted';
+  const sign = net > 0 ? '+' : '';
+  const lines = items.map(sp => {
+    const received = String(sp.kind).startsWith('rueckzahlung');
+    const kind = t(`contracts.kinds.${sp.kind}`);
+    const line = `${fmt.date(sp.date)} · ${kind} · ${received ? '+' : '−'}${fmt.eur(sp.amount_eur)}`;
+    return sp.note ? `${line} (${sp.note})` : line;
+  });
+  const count = items.length > 1 ? ` <small class="muted">(${items.length})</small>` : '';
+  return `<td class="num ${cls} special-cell" title="${escapeHtml(lines.join('\n'))}">${sign}${fmt.eur(net)}${count}</td>`;
 }
 
 // ── Monatstabelle ───────────────────────────────────────────────────

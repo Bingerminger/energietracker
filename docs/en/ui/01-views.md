@@ -41,7 +41,11 @@ orientation — ideal for the monthly reading on the phone.
 Identical structure per utility: year selection, meter selection, KPI bar
 (consumption, costs, balance today, expected balance), contract/balance card, a
 consumption chart with a temperature overlay, and a monthly table with moving
-averages (MA-3/MA-6) and weather adjustment.
+averages (MA-3/MA-6) and weather adjustment. The **Contracts & advances**
+table lists per contract tariff, advance, consumed, paid, bonus, **special
+payments** (since v2.5.1: net from the customer's perspective, items in the
+tooltip; gas/electricity/district heating only), balance today and expected
+balance.
 
 ![Gas view](../../ui/screenshots/gas-view.png)
 

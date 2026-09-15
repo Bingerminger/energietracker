@@ -591,6 +591,13 @@ Vertrag* Karte und die *Verträge & Abschläge* Tabelle in der UI.
 }
 ```
 
+**Seit v2.5.1** trägt jeder Vertrag zusätzlich `special_payments`: die
+Einzelposten als `[{date, kind, amount_eur, note}]` (nach Datum sortiert,
+Beträge positiv — die Richtung steckt in `kind`), Datenquelle für den
+Tooltip der Spalte *Sonderzahlungen*. `special_payment_net` ist das Netto aus
+Kundensicht (Σ Rückzahlung − Σ Nachzahlung − Σ Abschlagszahlung). Das Feld
+fehlt bei Wasser und PV-Einspeisung.
+
 `verdict` ist `Nachzahlung` bei `projected_end_balance > 5`,
 `Erstattung` bei `< -5`, sonst `Ausgeglichen`.
 

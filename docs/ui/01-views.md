@@ -41,7 +41,11 @@ Orientierung — ideal fürs monatliche Ablesen am Handy.
 Pro Art identischer Aufbau: Jahr-Auswahl, Zähler-Auswahl, KPI-Leiste
 (Verbrauch, Kosten, Saldo heute, erwarteter Saldo), Vertrags-/Saldo-Karte,
 Verbrauchschart mit Temperaturüberlagerung sowie Monatstabelle mit
-gleitenden Mitteln (MA-3/MA-6) und Wetterbereinigung.
+gleitenden Mitteln (MA-3/MA-6) und Wetterbereinigung. Die Tabelle
+**Verträge & Abschläge** führt je Vertrag Tarif, Abschlag, Verbraucht,
+Bezahlt, Bonus, **Sonderzahlungen** (seit v2.5.1: Netto aus Kundensicht,
+Einzelposten im Tooltip; nur bei Gas/Strom/Fernwärme) sowie Saldo heute
+und erwarteten Saldo.
 
 ![Gas-Ansicht](screenshots/gas-view.png)
 
