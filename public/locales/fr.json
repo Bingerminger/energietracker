@@ -25,7 +25,12 @@
     "footerStorage": "JSON à fichiers plats",
     "skipToContent": "Aller au contenu principal",
     "primaryNav": "Navigation principale",
-    "brandHome": "Energietracker — aller à l’aperçu"
+    "brandHome": "Energietracker — aller à l’aperçu",
+    "offline": "Hors ligne – dernières données chargées",
+    "offlineSince": "Hors ligne – données du {when}",
+    "networkError": "Pas de connexion à Energietracker – rien n’a été enregistré.",
+    "networkErrorRead": "Pas de connexion à Energietracker.",
+    "invalidResponse": "Réponse inattendue du serveur (HTTP {status})."
   },
   "meterNames": {
     "gas": "Compteur principal",
@@ -145,7 +150,8 @@
       "saving": "Enregistrement…",
       "saved": "Enregistré",
       "failed": "Échec",
-      "invalid": "Valeur invalide"
+      "invalid": "Valeur invalide",
+      "held": "Non enregistré – à vérifier"
     },
     "preview": {
       "sinceLast": "{delta} {unit} depuis le dernier relevé",
@@ -156,7 +162,8 @@
       "savedFailed": "{ok} enregistrés, {failed} en échec",
       "savedEmpty": "{ok} enregistrés · {skipped} vides",
       "saved": "{ok} enregistrés",
-      "nothing": "Aucune saisie — rien à enregistrer"
+      "nothing": "Aucune saisie — rien à enregistrer",
+      "held": "{count} relevé(s) non enregistré(s) – vérifiez les cartes signalées."
     }
   },
   "utility": {
@@ -306,7 +313,11 @@
       "future": "FUTUR",
       "estimated": "ESTIMÉ",
       "edit": "Modifier",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "suspect": "À VÉRIFIER",
+      "suspectTitle": "Inférieur au relevé précédent (Home Assistant). Compte dans l’analyse seulement après confirmation.",
+      "implausible": "INVRAISEMBLABLE",
+      "confirmReading": "Confirmer le relevé"
     },
     "deliveriesTable": {
       "emptyTitle": "Aucune livraison",
@@ -362,7 +373,8 @@
     },
     "toast": {
       "readingDeleted": "Relevé supprimé",
-      "deliveryDeleted": "Livraison supprimée"
+      "deliveryDeleted": "Livraison supprimée",
+      "readingConfirmed": "Relevé confirmé – il compte désormais dans l’analyse."
     },
     "preview": {
       "sinceLast": "{delta} {unit} depuis le dernier relevé",
@@ -407,6 +419,15 @@
         "interpolated": "E"
       },
       "legend": "Type de relevé : sans mention = index relevé · S = relevé saisi comme estimé · E = valeur de substitution : aucun index ce jour-là, il est interpolé au jour près entre les relevés encadrants — exactement là où le fournisseur estime aussi (limites de PCS et de période). Moins il y a de lignes avec E, moins il y a d’estimation."
+    },
+    "warnings": {
+      "title": "Relevés invraisemblables : {count}",
+      "hint": "Ces relevés ne comptent pas dans l’analyse ou provoquent une baisse. Corrigez-les, confirmez-les ou enregistrez un changement de compteur.",
+      "suspect": "{date} : {counter} {unit} – de Home Assistant, inférieur au relevé précédent ; en attente de confirmation",
+      "spike": "{date} : {counter} {unit} – valeur aberrante vers le haut, ignorée",
+      "dip": "{date} : {counter} {unit} – valeur aberrante vers le bas, ignorée",
+      "decrease": "{date} : {counter} {unit} – inférieur au {prevDate} ({prevCounter} {unit}) ; changement ou remise à zéro du compteur non enregistré ?",
+      "gotoMeters": "Enregistrer un changement de compteur"
     }
   },
   "contracts": {
@@ -605,7 +626,8 @@
       "replace": "Changement de compteur",
       "csvImport": "Import CSV",
       "edit": "Modifier",
-      "delete": "Supprimer"
+      "delete": "Supprimer",
+      "digits": "{n} chiffres"
     },
     "modal": {
       "titleEdit": "Modifier le compteur",
@@ -626,7 +648,9 @@
       "notes": "Notes",
       "active": "Actif",
       "save": "Enregistrer",
-      "saved": "Compteur enregistré"
+      "saved": "Compteur enregistré",
+      "digits": "Chiffres du totalisateur (avant la virgule)",
+      "digitsHint": "Nécessaire seulement si le totalisateur peut repasser de 99999 à 0 : l’analyse reconnaît alors la remise à zéro au lieu de signaler une baisse. Vide = inconnu."
     },
     "replace": {
       "title": "Changement de compteur : {name}",
@@ -688,7 +712,8 @@
   "settings": {
     "placeholder": {
       "dayMonth": "JJ-MM (01-01)",
-      "yearExample": "p. ex. 1998"
+      "yearExample": "p. ex. 1998",
+      "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Chargement…",
     "title": "⚙️ Paramètres",
@@ -722,7 +747,11 @@
       "building": { "title": "Bâtiment et efficacité", "hint": "Valeurs de référence pour la classe d’efficacité (kWh/m²·a) et le benchmark d’énergie de chauffage." },
       "delivery": { "title": "Sources d’énergie (livraison)", "hint": "Contenu énergétique des combustibles livrés et seuil d’alerte de cuve." },
       "remindersRec": { "title": "Rappels et recommandations", "hint": "Seuils pour le statut d’échéance et le moteur de recommandations." },
-      "location": { "title": "Localisation (Open-Meteo)", "hint": "Coordonnées pour la synchronisation météo de la série de températures." }
+      "location": { "title": "Localisation (Open-Meteo)", "hint": "Coordonnées pour la synchronisation météo de la série de températures." },
+      "embedding": {
+        "title": "Intégration dans d’autres pages",
+        "hint": "Les sites tiers ne peuvent pas intégrer Energietracker – cela protège contre les clics détournés. Pour une carte « page web » dans un tableau de bord Home Assistant, indiquez ici son adresse."
+      }
     },
     "field": {
       "hdd_base_temp": { "label": "Température de base DJU", "hint": "Limite de chauffe — les jours en dessous comptent comme jours de chauffe." },
@@ -774,6 +803,10 @@
       "gas_conversion_factors": {
         "label": "Facteurs de conversion gaz",
         "hint": "Une entrée par période de pouvoir calorifique, telle que la facture de gaz les indique : valable à partir du, coefficient de correction et pouvoir calorifique — le facteur kWh/m³ en est déduit. Sans détail, saisissez le facteur directement. L’entrée sans date s’applique à tout ce qui précède la première date d’effet. Le calcul de consommation découpe chaque intervalle de relevé au jour près aux dates d’effet."
+      },
+      "frame_ancestors": {
+        "label": "Adresses autorisées pour l’intégration",
+        "hint": "Adresse avec schéma et port, p. ex. http://homeassistant.local:8123 ; séparez plusieurs adresses par des espaces. Vide = uniquement cette installation."
       }
     },
     "boolActive": "activé",
@@ -816,20 +849,72 @@
       "demoLoadedSnap": "Données de démo chargées. Instantané de sécurité : {snap}",
       "demoLoaded": "Données de démo chargées.",
       "importConfirmTitle": "Importer la sauvegarde ?",
-      "importConfirmMsg": "Attention : les données existantes seront écrasées.\n\nAvant l’import, l’application enregistre automatiquement un instantané de sécurité de vos données actuelles sous <code>data/backups/pre-restore-…</code> — si l’import ne correspond pas à vos attentes, vous pouvez restaurer cet instantané.",
+      "importConfirmMsg": "Les données actuelles seront écrasées. L’application crée d’abord automatiquement un instantané de sécurité – vous pouvez le restaurer sous « Instantanés enregistrés ».",
       "importConfirmBtn": "Importer",
       "importedSnap": "Sauvegarde importée. Instantané de sécurité : {snap}",
       "imported": "Sauvegarde importée",
       "migrateSubhead": "📦 Migration depuis v0.9.0",
       "migrateHint": "Téléversez une ancienne sauvegarde v0.9.0 (JSON avec <code>version: \"2.1\"</code>). La sauvegarde est analysée avant l’écriture ; vous choisissez ensuite entre <strong>Remplacer</strong> (tout écraser) ou <strong>Fusionner</strong> (n’ajouter que les nouveaux ID). Dans les deux cas, un instantané de sécurité des données actuelles est créé automatiquement au préalable.",
       "migrateBtn": "Analyser une sauvegarde v0.9.0…",
-      "migrateReadError": "Erreur lors de la lecture : {msg}"
+      "migrateReadError": "Erreur lors de la lecture : {msg}",
+      "snapshotsTitle": "Instantanés enregistrés",
+      "snapshotsHint": "Les instantanés sont conservés sur le serveur sous data/backups/. Les instantanés automatiques (avant import, migration, données de démo) sont supprimés après 30 jours, au moins trois par occasion sont conservés ; parmi les vôtres, les dix derniers.",
+      "snapshotsNone": "Aucun instantané pour l’instant.",
+      "colDate": "Date",
+      "colReason": "Occasion",
+      "colSize": "Taille",
+      "reason": {
+        "manual": "manuel",
+        "restore": "avant import",
+        "migration": "avant migration",
+        "demo": "avant données de démo",
+        "v09": "avant import v0.9"
+      },
+      "snapDownload": "Télécharger",
+      "snapRestore": "Restaurer…",
+      "snapDelete": "Supprimer",
+      "snapRestoreTitle": "Restaurer l’instantané ?",
+      "snapRestoreMsg": "L’instantané du {date} remplace les données actuelles. L’application enregistre d’abord l’état actuel dans un instantané distinct.",
+      "snapRestored": "Instantané restauré.",
+      "snapDeleteTitle": "Supprimer l’instantané ?",
+      "snapDeleteMsg": "L’instantané du {date} sera définitivement supprimé.",
+      "snapDeleted": "Instantané supprimé.",
+      "noSnapshotTitle": "Continuer sans copie de sécurité ?",
+      "noSnapshotBtn": "Restaurer quand même",
+      "previewTitle": "Importer la sauvegarde ?",
+      "previewIntro": "La sauvegarde est entièrement lisible. Elle contient :",
+      "previewUntouched": "Absent de la sauvegarde – reste inchangé : {list}",
+      "top": {
+        "settings": "Paramètres",
+        "temperatures": "Jours de température",
+        "reminders": "Rappels",
+        "recommendations_dismissed": "Recommandations masquées"
+      },
+      "pot": {
+        "meters": "compteurs",
+        "readings": "relevés",
+        "contracts": "contrats",
+        "deliveries": "livraisons",
+        "meter_groups": "groupes de compteurs"
+      },
+      "problemsTitle": "Sauvegarde non importée",
+      "problemsMore": "… et d’autres (50 au maximum sont signalées)",
+      "problem": {
+        "not_an_object": "pas un objet",
+        "not_a_list": "pas une liste",
+        "unknown_utility": "type d’énergie inconnu",
+        "missing": "champ « {field} » manquant",
+        "date": "date invalide dans « {field} »",
+        "counter": "l’index n’est pas un nombre",
+        "devices": "liste d’appareils invalide",
+        "entry": "entrée invalide {what}"
+      }
     },
     "ha": {
       "title": "🏠 Intégration Home Assistant",
       "intro": "Laissez Home Assistant envoyer automatiquement vos relevés de compteur à l’Energietracker — vous ne les saisissez plus à la main. Home Assistant fournit les valeurs, l’Energietracker gère contrats, coûts et prévisions. Guide : <code>docs/HOME-ASSISTANT.md</code>.",
       "step1": "1. Jeton d’API",
-      "tokenHint": "Protège le point d’entrée push <code>/api/ingest</code>. <strong>Tant qu’aucun jeton n’est défini, l’API reste ouverte (prévue pour le réseau local uniquement).</strong> Dès qu’un jeton existe, Home Assistant doit l’envoyer.",
+      "tokenHint": "Protège le point de terminaison push <code>/api/ingest</code>. <strong>Sans connexion, il accepte aussi des valeurs sans jeton</strong> – prévu pour le réseau domestique. Lorsque la connexion est activée, il exige toujours un jeton.",
       "tokenActive": "🔒 jeton actif",
       "tokenOpen": "🔓 aucun jeton (ouvert)",
       "generateNew": "Générer un nouveau jeton",
@@ -868,7 +953,10 @@
         "floatComment": "float sans valeur par défaut : si le capteur est indisponible, l’envoi échoue au lieu d’enregistrer 0.",
         "automationAlias": "Energietracker : envoyer les index",
         "hasValueComment": "N’envoyer que si le capteur a une valeur – juste après un redémarrage, il est brièvement « unavailable »."
-      }
+      },
+      "lastUsed": "Dernière utilisation : {when}",
+      "neverUsed": "Rien n’est encore arrivé avec ce jeton.",
+      "loginNeedsToken": "La connexion est activée : sans jeton, Energietracker n’accepte aucune valeur de Home Assistant."
     },
     "diag": {
       "title": "🩺 Diagnostic système",
@@ -933,7 +1021,49 @@
       "errNeedValues": "Indiquez coefficient de correction et pouvoir calorifique — ou le facteur directement"
     },
     "invalidFields": "Non enregistré : veuillez corriger les champs signalés en rouge.",
-    "dayMonthInvalid": "Veuillez saisir jour-mois, p. ex. 01-10 pour le 1er octobre."
+    "dayMonthInvalid": "Veuillez saisir jour-mois, p. ex. 01-10 pour le 1er octobre.",
+    "security": {
+      "title": "🔐 Connexion et accès",
+      "hint": "Sans connexion, toute personne qui connaît l’adresse peut accéder à Energietracker – prévu pour votre réseau domestique. S’il est accessible de l’extérieur (redirection de port, reverse proxy) ou si vous partagez le réseau, activez la connexion.",
+      "modeOff": "🔓 Sans connexion",
+      "modePassword": "🔒 Connexion par mot de passe",
+      "modeProxy": "🛡️ Connexion via un proxy en amont",
+      "modeFixed": "Défini par la variable d’environnement ET_AUTH – non modifiable ici.",
+      "passwordFixed": "Le mot de passe est défini par la variable d’environnement ET_ADMIN_PASSWORD_HASH – non modifiable ici.",
+      "proxyHint": "La connexion est gérée par le proxy en amont (p. ex. Authelia ou Authentik). Energietracker n’accepte l’utilisateur que depuis les adresses de ET_TRUSTED_PROXIES.",
+      "newPassword": "Nouveau mot de passe",
+      "repeatPassword": "Répéter le mot de passe",
+      "currentPassword": "Mot de passe actuel",
+      "enable": "Activer la connexion",
+      "enableHint": "Chaque navigateur demande alors une fois le mot de passe et reste connecté 30 jours. Home Assistant a ensuite besoin d’un jeton d’API (carte « Intégration Home Assistant »), les scripts d’une clé d’API.",
+      "change": "Changer le mot de passe",
+      "disable": "Désactiver la connexion…",
+      "mismatch": "Les deux mots de passe ne correspondent pas.",
+      "enabled": "Connexion activée. Ce navigateur reste connecté.",
+      "changed": "Mot de passe modifié. Les autres appareils doivent se reconnecter.",
+      "disableTitle": "Désactiver la connexion ?",
+      "disableMsg": "Energietracker sera de nouveau accessible sans mot de passe. Saisissez le mot de passe actuel pour confirmer.",
+      "disabled": "Connexion désactivée.",
+      "keysTitle": "Clés d’API pour les scripts",
+      "keysHint": "Lorsque la connexion est activée, les scripts et autres programmes ont besoin d’une clé – dans l’en-tête <code>Authorization: Bearer etk_…</code>. « Lecture » ne peut que consulter, « Gestion » peut aussi modifier. Le push Home Assistant continue d’utiliser son propre jeton.",
+      "keysNone": "Aucune clé pour l’instant.",
+      "keyName": "Nom",
+      "keyNamePlaceholder": "p. ex. script de sauvegarde",
+      "keyScope": "Autorisation",
+      "scopeRead": "Lecture",
+      "scopeAdmin": "Gestion",
+      "keyCreatedAt": "Créée",
+      "keyLastUsed": "Dernière utilisation",
+      "keyNever": "jamais",
+      "keyCreate": "Créer une clé",
+      "keyReveal": "Clé « {name} » – copiez-la maintenant, elle ne sera plus affichée :",
+      "keyCopy": "Copier la clé",
+      "keyCopied": "Clé copiée",
+      "keyRevoke": "Révoquer",
+      "keyRevokeTitle": "Révoquer la clé ?",
+      "keyRevokeMsg": "Les programmes qui utilisent la clé « {name} » perdront l’accès.",
+      "keyRevoked": "Clé révoquée."
+    }
   },
   "reminders": {
     "suggest": {
@@ -1338,7 +1468,9 @@
   "errors": {
     "temperature": {
       "emptyCsv": "Les données CSV sont vides.",
-      "dateMissing": "La date est absente."
+      "dateMissing": "La date est absente.",
+      "valuesMissing": "La moyenne, le minimum et le maximum (avg, min, max) sont obligatoires et doivent être des nombres.",
+      "rangeInvalid": "Période non valide : {start} est postérieur à {end}."
     },
     "view": {
       "loadFailed": "Échec du chargement : {msg}",
@@ -1351,7 +1483,8 @@
       "multipleSources": "Plusieurs sources de chaleur actives — la classe par source est plus parlante que le total combiné. La vue combinée n'a de sens qu'en chauffage volontairement combiné (p. ex. base et pointe)."
     },
     "forecast": {
-      "tooFewMonths": "Historique insuffisant (moins de 6 mois)."
+      "tooFewMonths": "Historique insuffisant (moins de 6 mois).",
+      "paramInvalid": "Valeur non valide pour {param} : « {value} » (autorisé : {range})."
     },
     "reminder": {
       "titleRequired": "Un titre est requis.",
@@ -1394,7 +1527,8 @@
       "invalidBaselineList": "Les ruptures de référence doivent être fournies sous forme de liste d’entrées comportant une date",
       "invalidBaselineDate": "Date de rupture invalide : « {date} » — format attendu AAAA-MM-JJ",
       "duplicateBaselineDate": "Une rupture est déjà enregistrée pour le {date}",
-      "swapBeforeInstall": "Le changement du {date} précède l’installation de l’appareil actuel ({installed})."
+      "swapBeforeInstall": "Le changement du {date} précède l’installation de l’appareil actuel ({installed}).",
+      "digitsInvalid": "Chiffres du compteur : « {value} » n’est pas valide — un nombre entier de 3 à 12, ou vide, est autorisé."
     },
     "common": {
       "unknownUtility": "Énergie inconnue : {utility}",
@@ -1459,18 +1593,25 @@
       "dateFormat": "La date doit être au format AAAA-MM-JJ : {date}",
       "meterMissing": "Le compteur (meter) est manquant — fournissez un alias ou un ID interne",
       "meterNotFound": "Aucun compteur trouvé pour « {meter} » dans {utility} (ni comme alias ni comme ID)",
-      "unauthorized": "Non autorisé — envoyez un jeton d'API valide via « Authorization: Bearer <token> »."
+      "unauthorized": "Non autorisé — envoyez un jeton d'API valide via « Authorization: Bearer <token> ».",
+      "tokenRequiredWithLogin": "La connexion est activée – l’envoi nécessite alors un jeton d’API. Veuillez en créer un dans les paramètres."
     },
     "backup": {
       "noVersionField": "Aucun champ backup_version — ce n’est pas une sauvegarde valide",
       "versionUnsupported": "La version de sauvegarde {ver} n’est pas directement prise en charge. Veuillez d’abord l’importer via la migration vers v1.0.0, ou utiliser une sauvegarde plus récente.",
-      "schemaNewer": "Le schéma de sauvegarde {schema} est plus récent que le schéma de l’app {appSchema}. Veuillez d’abord mettre à jour l’app, puis importer la sauvegarde."
+      "schemaNewer": "Le schéma de sauvegarde {schema} est plus récent que le schéma de l’app {appSchema}. Veuillez d’abord mettre à jour l’app, puis importer la sauvegarde.",
+      "invalid": "La sauvegarde est incomplète ou endommagée ({count} problème(s)). Rien n’a été restauré.",
+      "snapshotFailed": "L’instantané de sécurité avant la restauration a échoué. Sans lui, aucun retour en arrière n’est possible. Ne restaurer quand même qu’avec un accord explicite.",
+      "snapshotNotFound": "Instantané « {name} » introuvable.",
+      "snapshotUnreadable": "L’instantané « {name} » est illisible (JSON non valide)."
     },
     "import": {
       "emptyCsv": "Données CSV vides",
       "dateUnrecognized": "Ligne {line} : date non reconnue ({value})",
       "rowIncomplete": "Ligne {line} : date ou relevé manquant",
-      "counterNotNumeric": "Ligne {line} : le relevé n'est pas un nombre ({value})"
+      "counterNotNumeric": "Ligne {line} : le relevé n'est pas un nombre ({value})",
+      "rowError": "Ligne {line} : {message}",
+      "tooFewColumns": "Ligne {line} : trop peu de colonnes"
     },
     "demo": {
       "backupNotFound": "Sauvegarde de démo introuvable.",
@@ -1503,7 +1644,44 @@
       "invalidRange": "Veuillez indiquer une période valide (du < au, AAAA-MM-JJ)"
     },
     "http": {
-      "crossSite": "Refusé : la requête provient d’un autre site web. Les modifications ne sont possibles que depuis Energietracker."
+      "crossSite": "Refusé : la requête provient d’un autre site web. Les modifications ne sont possibles que depuis Energietracker.",
+      "internal": "Erreur interne ({id}). Les détails figurent dans le journal du serveur.",
+      "hostNotAllowed": "Le nom d’hôte « {host} » n’est pas autorisé (ET_ALLOWED_HOSTS)."
+    },
+    "storage": {
+      "dataTooNew": "Les données proviennent d’une version plus récente (schéma {schema}). Cette version ne connaît que le schéma {app} et n’écrit rien pour ne pas les endommager. Veuillez relancer la version plus récente."
+    },
+    "report": {
+      "yearRange": "L’année doit être un nombre entre 2000 et 2100."
+    },
+    "auth": {
+      "required": "Veuillez vous connecter.",
+      "readOnlyKey": "Cette clé d’API est en lecture seule.",
+      "notPasswordMode": "La connexion par mot de passe n’est pas activée.",
+      "wrongPassword": "Mot de passe incorrect.",
+      "locked": "Trop de tentatives échouées – veuillez patienter {minutes} minutes.",
+      "passwordFixed": "Le mot de passe est défini via l’environnement (ET_ADMIN_PASSWORD_HASH) et ne peut pas être modifié ici.",
+      "modeFixed": "La connexion est définie via l’environnement (ET_AUTH) et ne peut pas être désactivée ici.",
+      "passwordTooShort": "Le mot de passe doit comporter au moins {min} caractères.",
+      "scopeInvalid": "Portée inconnue – read et admin sont autorisés.",
+      "keyNotFound": "Clé d’API introuvable."
     }
+  },
+  "login": {
+    "title": "Connexion",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
+    "forgot": "Mot de passe oublié ? Sur le serveur, dans data/auth.json, mettez « mode » sur « off » : la connexion est alors désactivée. Dans le conteneur Docker, la variable d’environnement ET_AUTH=off a le même effet.",
+    "logout": "Se déconnecter"
+  },
+  "readingCheck": {
+    "title": "Veuillez vérifier",
+    "future": "La date {date} est dans le futur.",
+    "sameDay": "Il existe déjà un relevé pour le {date} ({counter} {unit}). La nouvelle valeur le remplace.",
+    "lower": "L’index est inférieur au dernier ({last} {unit}). Si le compteur a été remplacé, enregistrez-le via « Changement de compteur » – sinon l’analyse affiche une baisse.",
+    "jump": "Depuis le dernier relevé, cela ferait {perDay} {unit} par jour – d’habitude environ {typical} {unit}. Faute de frappe ?",
+    "magnitude": "La valeur dépasse dix fois le dernier index ({last} {unit}). Virgule oubliée ?",
+    "confirm": "Enregistrer quand même",
+    "replace": "Remplacer"
   }
 }

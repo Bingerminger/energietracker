@@ -44,13 +44,21 @@ Copy-&-Paste-YAML).
 1. Energietracker öffnen → **Einstellungen** → **🏠 Home-Assistant-Anbindung**.
 2. Auf **„Token erzeugen"** klicken. Der Token wird **nur einmal** angezeigt —
    sofort kopieren und sicher ablegen (z. B. in den HA-Secrets).
-3. Solange kein Token gesetzt ist, ist der Push-Endpoint offen erreichbar (nur
-   fürs lokale Netz gedacht). **Sobald ein Token existiert, muss HA ihn
+3. Der Token schützt **nur** den Push-Endpoint `/api/ingest`, nicht den Rest
+   der App. Solange keiner gesetzt ist, nimmt der Push Werte ohne Token an
+   (nur fürs Heimnetz gedacht). **Sobald ein Token existiert, muss HA ihn
    mitsenden** — andernfalls antwortet der Endpoint mit `401`.
+4. **Mit eingeschalteter Anmeldung** (Einstellungen → „Anmeldung & Zugriff",
+   seit v2.6.0) ist der Token **Pflicht**: Ohne Token lehnt der Push dann
+   jeden Wert ab. Die App selbst schützt die Anmeldung — siehe
+   [Sicherheit & Netzbetrieb](technical/08-security.md).
 
 > Der Token wird serverseitig nur als **Hash** gespeichert (in `data/auth.json`),
 > nie im Klartext und nicht in den normalen Einstellungen. Geht er verloren,
 > erzeugst du einfach einen neuen (der alte wird damit ungültig).
+>
+> Seit v2.6.0 zeigt die Karte, wann zuletzt ein Wert mit dem Token ankam (auf
+> die Stunde genau) — die erste Frage bei der Fehlersuche.
 
 ---
 
@@ -274,7 +282,8 @@ vorzubereiten.
 
 | Symptom (HA-Log) | Ursache & Lösung |
 |------------------|------------------|
-| `401` | Token gesetzt, aber Header fehlt/falsch. `!secret` wirkt nur als **ganzer** Wert: `Authorization: !secret energietracker_auth`, und in der `secrets.yaml` steht `"Bearer et_…"`. Ein `"Bearer !secret …"` schickt den Text wörtlich. Sonst Token ggf. neu erzeugen. |
+| `401` | Token gesetzt, aber Header fehlt/falsch. `!secret` wirkt nur als **ganzer** Wert: `Authorization: !secret energietracker_auth`, und in der `secrets.yaml` steht `"Bearer et_…"`. Ein `"Bearer !secret …"` schickt den Text wörtlich. Sonst Token ggf. neu erzeugen. Seit v2.6.0 auch: Anmeldung eingeschaltet, aber noch kein Token erzeugt. |
+| Wert kommt an, zählt aber nicht | Er ist kleiner als der vorige Stand und deshalb **als Verdacht markiert** (seit v2.6.0; Antwort `"suspect": true`). In der Ansicht der Verbrauchsart steht ein Hinweis, der Stand trägt „PRÜFEN" — bestätigen (✅), korrigieren oder einen Zählertausch erfassen. |
 | `400 Kein Zähler für „…" gefunden` | Alias/ID stimmt nicht mit dem Zähler überein. In den Einstellungen den Alias prüfen. |
 | `400 … arbeitet mit Lieferungen` | Heizöl/Pellets werden nicht per Ingest unterstützt. |
 | `400 Zählerstand … keine Zahl` | Der HA-Sensor liefert `unknown`/`unavailable`. Den Push dann **auslassen**, nie durch 0 ersetzen: Bedingung `has_value(…)` wie in Schritt 4. `| float(0)` tauscht den sichtbaren Fehler gegen eine stille Falschbuchung. |
@@ -292,6 +301,20 @@ curl -X POST "http://DEINE-IP:8080/api.php/api/ingest" \
 
 Eine erfolgreiche Antwort enthält `"status":"created"` (oder `"updated"` beim
 zweiten Aufruf am selben Tag).
+
+### Fallende Werte (seit v2.6.0)
+
+Ein Zählerstand kann nicht sinken — außer beim Zählertausch oder Überlauf.
+Liefert Home Assistant trotzdem einen kleineren Wert als den vorigen desselben
+Geräts (typisch: ein Lesekopf-Aussetzer, der als 0 ankommt), speichert der
+Energietracker ihn, **markiert ihn aber als Verdacht**: Er zählt in keiner
+Auswertung, bis du ihn bestätigst. Die Antwort nennt `"suspect": true` und
+den vorigen Stand. Bis v2.5.3 machte ein einziger solcher Wert aus einem
+normalen Monat einen Verbrauch in Höhe des ganzen Zählerstands.
+
+Pflege beim Zähler die **Stellen des Zählwerks** (Zähler bearbeiten → „Stellen
+des Zählwerks"), wenn er nach 99.999 wieder bei 0 beginnen kann — dann gilt
+ein Überlauf nicht als Verdacht, und die Auswertung rechnet ihn richtig.
 
 ---
 

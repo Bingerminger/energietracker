@@ -20,6 +20,7 @@ import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
+import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 
 let _chart = null;
 const state = {
@@ -150,6 +151,25 @@ async function rerender(container) {
       </div>`;
   }
 
+  // ── v2.6.0 — unplausible Stände (Backend: plausibleReadings) ─────
+  // Bis v2.5.3 fielen sie still aus der Rechnung; jetzt stehen sie hier.
+  const warnings = Array.isArray(consumptionData.warnings) ? consumptionData.warnings : [];
+  const warnByReading = new Map(warnings.filter(w => w.reading_id).map(w => [w.reading_id, w]));
+  const warningsBannerHtml = warnings.length ? `
+      <div class="status-banner warn" id="reading-warnings">
+        <div class="status-banner__icon">⚠️</div>
+        <div class="status-banner__text">
+          <strong>${t('utility.warnings.title', { count: warnings.length })}</strong>
+          <div class="muted" style="font-size:12px">${t('utility.warnings.hint')}</div>
+          <ul class="warning-list">
+            ${warnings.slice(0, 5).map(w => `<li>${escapeHtml(warningText(w, u))}</li>`).join('')}
+            ${warnings.length > 5 ? `<li>… (+${warnings.length - 5})</li>` : ''}
+          </ul>
+        </div>
+        ${warnings.some(w => w.type === 'decrease' || w.type === 'suspect')
+          ? `<a class="btn btn--ghost btn--sm" href="#/utility/${u.key}/meters">${t('utility.warnings.gotoMeters')}</a>` : ''}
+      </div>` : '';
+
   // ── Years available ─────────────────────────────────────────────
   const years = [...new Set(monthly.map(m => m.year))].sort();
   if (!state.selectedYear || !years.includes(state.selectedYear)) {
@@ -176,6 +196,7 @@ async function rerender(container) {
     ${header(u, meter)}
 
     ${statusBannerHtml}
+    ${warningsBannerHtml}
 
     ${yearPills(years, yr, u.key)}
 
@@ -269,7 +290,7 @@ async function rerender(container) {
           <button class="btn btn-${u.key} btn--sm" id="btn-new-reading">${t('utility.action.newReading')}</button>
         </span>
       </div>
-      ${readingsTable(readings, u, yr)}
+      ${readingsTable(readings, u, yr, warnByReading)}
     </div>
     `}
     ${u.key === 'gas' ? billCheckCard(yr) : ''}
@@ -735,7 +756,22 @@ function monthlyTable(monthly, u, hasContracts) {
 // v2.2.0 nur Chart und Monatstabelle). Mit dem Home-Assistant-Ingest (F1009)
 // entstehen tägliche Ablesungen; die ungefilterte Tabelle wuchs auf tausende
 // Zeilen und machte die Ansicht unbrauchbar.
-function readingsTable(readings, u, year = null) {
+// v2.6.0 — Klartext einer Warnung aus ConsumptionService::plausibleReadings()
+function warningText(w, u) {
+  const base = { date: fmt.date(w.date), counter: fmt.num(w.counter, 1), unit: u.unit };
+  if (w.type === 'suspect') return t('utility.warnings.suspect', base);
+  if (w.type === 'outlier') return t(w.kind === 'dip' ? 'utility.warnings.dip' : 'utility.warnings.spike', base);
+  if (w.type === 'decrease') {
+    return t('utility.warnings.decrease', {
+      ...base,
+      prevDate: fmt.date(w.previous?.date),
+      prevCounter: fmt.num(w.previous?.counter, 1),
+    });
+  }
+  return `${base.date}: ${base.counter} ${u.unit}`;
+}
+
+function readingsTable(readings, u, year = null, warnByReading = new Map()) {
   if (!readings.length) return `<div class="empty" style="padding:32px"><div class="empty-icon">📋</div><h2>${t('utility.readingsTable.emptyTitle')}</h2></div>`;
 
   const inYear = year == null
@@ -759,15 +795,23 @@ function readingsTable(readings, u, year = null) {
       <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
     </tr></thead>
     <tbody>
-    ${sorted.map(r => `<tr data-reading-id="${escapeHtml(r.id)}">
-      <td><strong>${fmt.date(r.date)}</strong> ${r.is_future ? `<span class="status-pill future">${t('utility.readingsTable.future')}</span>` : ''} ${r.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''}</td>
+    ${sorted.map(r => {
+      // v2.6.0 — Verdacht (Home Assistant, fallender Stand) und Ausreißer
+      const warn = warnByReading.get(r.id);
+      const flag = r.is_suspect
+        ? `<span class="status-pill suspect" title="${escapeHtml(t('utility.readingsTable.suspectTitle'))}">${t('utility.readingsTable.suspect')}</span>`
+        : warn ? `<span class="status-pill implausible" title="${escapeHtml(warningText(warn, u))}">${t('utility.readingsTable.implausible')}</span>` : '';
+      return `<tr data-reading-id="${escapeHtml(r.id)}"${r.is_suspect || warn ? ' class="row--flagged"' : ''}>
+      <td><strong>${fmt.date(r.date)}</strong> ${r.is_future ? `<span class="status-pill future">${t('utility.readingsTable.future')}</span>` : ''} ${r.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''} ${flag}</td>
       <td class="num">${fmt.num(r.counter, 1)} ${u.unit}</td>
       <td class="muted" style="font-size:12px">${escapeHtml(r.note || '')}</td>
       <td style="text-align:right;white-space:nowrap">
+        ${r.is_suspect ? `<button class="icon-btn" data-action="confirm-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.confirmReading')}" aria-label="${t('utility.readingsTable.confirmReading')}"><span aria-hidden="true">✅</span></button>` : ''}
         <button class="icon-btn" data-action="edit-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
         <button class="icon-btn" data-action="delete-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
       </td>
-    </tr>`).join('')}
+    </tr>`;
+    }).join('')}
     </tbody>
   </table></div>`;
 }
@@ -927,17 +971,26 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
   });
 
   // Reading actions
-  const lastRd = [...readings].filter(r => !r.is_future).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
   const newReadingHandlers = ['#header-new-reading', '#banner-new-reading', '#btn-new-reading'];
   newReadingHandlers.forEach(sel => {
-    container.querySelector(sel)?.addEventListener('click', () => openReadingModal(container, u, meter, null, lastRd));
+    container.querySelector(sel)?.addEventListener('click', () => openReadingModal(container, u, meter, null, readings));
   });
 
   container.querySelectorAll('[data-action="edit-reading"]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-id');
       const reading = readings.find(r => r.id === id);
-      openReadingModal(container, u, meter, reading);
+      openReadingModal(container, u, meter, reading, readings);
+    });
+  });
+  // v2.6.0 — Verdacht aus Home Assistant bestätigen: Der Stand zählt wieder.
+  container.querySelectorAll('[data-action="confirm-reading"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try {
+        await api.updateReading(u.key, btn.getAttribute('data-id'), { is_suspect: false });
+        toastOk(t('utility.toast.readingConfirmed'));
+        rerender(container);
+      } catch (e) { toastErr(e.message); }
     });
   });
   container.querySelectorAll('[data-action="delete-reading"]').forEach(btn => {
@@ -986,9 +1039,18 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
 }
 
 // ── Reading modal (add / edit) ──────────────────────────────────────
-function openReadingModal(container, u, meter, reading, lastReading = null) {
+function openReadingModal(container, u, meter, reading, readings = []) {
   const isEdit = !!reading;
   const today = todayIso();
+  // v2.6.0 — Grundlage der Plausibilitätsprüfung: alle anderen Stände dieses
+  // Zählers (ohne den bearbeiteten und ohne unbestätigten Verdacht).
+  const others = (readings || []).filter(r => r.id !== reading?.id && !r.is_suspect);
+  const typical = typicalPerDay(others);
+  const prevBefore = (date) => others
+    .filter(r => !r.is_future && r.date < date)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .at(-1) || null;
+  const lastReading = isEdit ? null : prevBefore('9999-12-31');
   const body = `
     <form id="reading-form">
       <div class="field">
@@ -1041,11 +1103,21 @@ function openReadingModal(container, u, meter, reading, lastReading = null) {
           if (Number.isFinite(d) && d > 0) days = d;
         }
         previewEl.hidden = false;
-        // v2.5.3 — derselbe Rückwärts-Hinweis wie in der zentralen Erfassung
-        previewEl.textContent = (days != null
-          ? t('utility.preview.sinceLastDays', { delta, unit: u.unit, days })
-          : t('utility.preview.sinceLast', { delta, unit: u.unit }))
-          + (diff < 0 ? ' · ' + t('readingsEntry.hint.lower', { min: fmt.num(lastCounter, 2) }) : '');
+        // v2.6.0 — dieselben Rückfragen wie beim Speichern, schon beim Tippen
+        // (Rückgang, ungewöhnlicher Sprung, Komma vergessen, Zukunft).
+        const date = dateEl.value || today;
+        const prev = prevBefore(date);
+        const issues = checkReading({
+          value: v, date, today, prev, typical,
+          deviceChanged: prev ? deviceChangedBetween(meter, prev.date, date) : false,
+        });
+        previewEl.textContent = [
+          days != null
+            ? t('utility.preview.sinceLastDays', { delta, unit: u.unit, days })
+            : t('utility.preview.sinceLast', { delta, unit: u.unit }),
+          ...issues.map(i => issueText(i, { unit: u.unit, date })),
+        ].join(' · ');
+        previewEl.classList.toggle('reading-card__preview--warn', issues.length > 0);
       };
       counterEl?.addEventListener('input', updatePreview);
       dateEl?.addEventListener('change', updatePreview);
@@ -1062,23 +1134,29 @@ function openReadingModal(container, u, meter, reading, lastReading = null) {
           showFieldError(counterEl, msgEl, t('common.invalidNumber', { example: formatForInput(1234.5) }));
           return;
         }
-        if (lastCounter != null && counter < lastCounter) {
-          const ok = await confirmModal({
-            message: t('utility.readingModal.confirmLower', { last: fmt.num(lastCounter, 2), unit: u.unit }),
-            confirmLabel: t('utility.readingModal.confirmLowerOk'),
-          });
-          if (!ok) return;
-        }
+        // v2.6.0 — Rückfragen vor dem Speichern (lib/plausibility.js). Bis
+        // v2.5.3 gab es nur „kleiner als der letzte"; ein Tippfehler nach oben
+        // und ein zweiter Stand am selben Tag gingen still durch.
+        const date = form.date.value;
+        const prev = prevBefore(date);
+        // auch ein unbestätigter Verdacht am selben Tag: Der neue Wert ersetzt ihn
+        const sameDay = isEdit ? null : ((readings || []).find(r => r.date === date) || null);
+        const issues = checkReading({
+          value: counter, date, today, prev, typical, sameDay,
+          deviceChanged: prev ? deviceChangedBetween(meter, prev.date, date) : false,
+        });
+        if (issues.length && !await confirmIssues(issues, { unit: u.unit, date, utility: u.key })) return;
         const data = {
           meter_id: meter.id,
-          date: form.date.value,
+          date,
           counter,
           note: form.note.value,
           is_estimated: form.is_estimated.checked,
         };
         try {
-          if (isEdit) await api.updateReading(u.key, reading.id, data);
-          else        await api.createReading(u.key, data);
+          if (isEdit)       await api.updateReading(u.key, reading.id, data);
+          else if (sameDay) await api.updateReading(u.key, sameDay.id, data);   // ersetzen statt doppeln
+          else              await api.createReading(u.key, data);
           toastOk(isEdit ? t('utility.readingModal.savedEdit') : t('utility.readingModal.savedNew'));
           close(true);
           rerender(container);

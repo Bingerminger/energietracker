@@ -7,9 +7,10 @@
 
 import { api } from '../api.js';
 import { invalidateSettings, invalidateUtilities } from '../state.js';
-import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso } from '../lib/format.js';
+import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso, intlLocale } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
+import { logout } from '../components/login.js';
 import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../lib/ha-snippet.js';
 import { t, getLocale, initI18n, getLanguages } from '../lib/i18n.js';
 import { buildSidebar } from '../lib/sidebar.js';
@@ -92,15 +93,40 @@ const GROUPS = [
     { key: 'longitude',         step: '0.0001', signed: true },
     { key: 'weather_auto_fill', type: 'bool' },
   ]},
+  // v2.6.0 — frame-ancestors der Content-Security-Policy (index.php): Wer die
+  // App in eine Home-Assistant-Webseitenkarte einbettet, trägt deren Adresse ein.
+  { gkey: 'embedding', icon: '🖼️', fields: [
+    { key: 'frame_ancestors', type: 'text', placeholderKey: 'settings.placeholder.frameAncestors' },
+  ]},
 ];
 
+// v2.6.0 — Die Ansicht rendert sich nach Sprachwechsel, Import oder
+// Anmeldeänderung selbst neu. Bisher blieben dabei die Listener der vorigen
+// Runde am Container und am Fenster hängen: Nach einem Import meldete ein
+// veralteter beforeunload-Handler „ungespeicherte Änderungen", und die
+// input-Listener liefen in anderen Ansichten weiter (derselbe Container).
+let _unlisten = [];
+function unlistenAll() {
+  _unlisten.forEach(off => off());
+  _unlisten = [];
+}
+function listen(target, type, handler) {
+  target.addEventListener(type, handler);
+  _unlisten.push(() => target.removeEventListener(type, handler));
+}
+
 export async function render(container) {
+  unlistenAll();
   container.innerHTML = `<div class="loading">${t('settings.loading')}</div>`;
-  const [settings, diag, utilities, authStatus] = await Promise.all([
+  const [settings, diag, utilities, authStatus, session, apiKeys, snapshots] = await Promise.all([
     api.settings(),
     api.diagnostics().catch(() => null),
     api.listUtilities().catch(() => []),
     api.authStatus().catch(() => ({ enabled: false, created_at: null })),
+    // v2.6.0 — Anmeldung, API-Schlüssel, gespeicherte Snapshots
+    api.session().catch(() => ({ mode: 'off', authenticated: true })),
+    api.apiKeys().catch(() => []),
+    api.snapshots().catch(() => []),
   ]);
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
@@ -234,6 +260,14 @@ export async function render(container) {
 
       <hr class="settings-rule">
 
+      <h4 class="settings-subhead">${t('settings.backup.snapshotsTitle')}</h4>
+      <p class="muted" style="font-size:12px;margin: 0 0 var(--sp-2)">
+        ${t('settings.backup.snapshotsHint')}
+      </p>
+      <div id="snap-list" class="snapshot-list">${renderSnapshots(snapshots)}</div>
+
+      <hr class="settings-rule">
+
       <h4 class="settings-subhead">${t('settings.backup.migrateSubhead')}</h4>
       <p class="muted" style="font-size:12px;margin: 0 0 var(--sp-3)">
         ${t('settings.backup.migrateHint')}
@@ -244,7 +278,9 @@ export async function render(container) {
       </div>
     </div>
 
-    ${renderHomeAssistantCard(authStatus, haUtilities, metersByUtility)}
+    ${renderSecurityCard(session, apiKeys)}
+
+    ${renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, session)}
 
     ${diag ? renderDiagnostics(diag) : ''}
   `;
@@ -271,15 +307,15 @@ export async function render(container) {
       b.textContent = dirty ? t('settings.saveUnsaved') : t('settings.save');
     });
   };
-  container.addEventListener('input', markDirty);
-  container.addEventListener('change', markDirty);
+  listen(container, 'input', markDirty);
+  listen(container, 'change', markDirty);
 
   const beforeUnload = (e) => {
     if (!isDirty()) return;
     e.preventDefault();
     e.returnValue = '';   // Browser verlangen das; der Text ist nicht steuerbar
   };
-  window.addEventListener('beforeunload', beforeUnload);
+  listen(window, 'beforeunload', beforeUnload);
 
   const save = async () => {
     const invalid = firstInvalidSetting(container);
@@ -335,8 +371,52 @@ export async function render(container) {
     } catch (e) { toastErr(e.message); }
   });
 
+  // v2.6.0 — Liste der Snapshots neu laden (nach Anlegen/Löschen)
+  const refreshSnapshots = async () => {
+    const el = container.querySelector('#snap-list');
+    if (!el) return;
+    try { el.innerHTML = renderSnapshots(await api.snapshots()); } catch { /* alte Liste bleibt */ }
+  };
+
   container.querySelector('#btn-snapshot').addEventListener('click', async () => {
-    try { const r = await api.snapshotBackup(); toastOk(t('settings.backup.snapshotToast', { file: r.file || r.path || 'ok' })); }
+    try {
+      const r = await api.snapshotBackup();
+      toastOk(t('settings.backup.snapshotToast', { file: r.file || r.path || 'ok' }));
+      refreshSnapshots();
+    } catch (e) { toastErr(e.message); }
+  });
+
+  container.querySelector('#snap-list')?.addEventListener('click', async (ev) => {
+    const restoreBtn = ev.target.closest('[data-snap-restore]');
+    const deleteBtn  = ev.target.closest('[data-snap-delete]');
+    if (!restoreBtn && !deleteBtn) return;
+    const btn  = restoreBtn || deleteBtn;
+    const name = btn.getAttribute(restoreBtn ? 'data-snap-restore' : 'data-snap-delete');
+    const date = stampText(btn.getAttribute('data-snap-date'));
+    if (restoreBtn) {
+      const ok = await confirmModal({
+        title: t('settings.backup.snapRestoreTitle'),
+        message: t('settings.backup.snapRestoreMsg', { date }),
+        confirmLabel: t('settings.backup.snapRestore').replace(/…$/, ''), danger: true,
+      });
+      if (!ok) return;
+      try {
+        const report = await withSnapshotGuard(
+          () => api.restoreSnapshot(name),
+          () => api.restoreSnapshot(name, { allowWithoutSnapshot: true }));
+        if (!report) return;
+        toastOk(t('settings.backup.snapRestored'));
+        await afterRestore(container);
+      } catch (e) { showBackupError(e); }
+      return;
+    }
+    const ok = await confirmModal({
+      title: t('settings.backup.snapDeleteTitle'),
+      message: t('settings.backup.snapDeleteMsg', { date }),
+      confirmLabel: t('settings.backup.snapDelete'), danger: true,
+    });
+    if (!ok) return;
+    try { await api.deleteSnapshot(name); toastOk(t('settings.backup.snapDeleted')); refreshSnapshots(); }
     catch (e) { toastErr(e.message); }
   });
 
@@ -367,28 +447,30 @@ export async function render(container) {
 
   container.querySelector('#btn-import').addEventListener('click',
     () => container.querySelector('#import-file').click());
+  // v2.6.0 — Import in zwei Schritten: Erst prüft der Server das Backup
+  // (dry_run) und die Vorschau zeigt, was ersetzt wird und was unverändert
+  // bleibt; eingespielt wird erst nach der Bestätigung. Ein fehlerhaftes
+  // Backup ändert nichts und nennt die Fundstellen.
   container.querySelector('#import-file').addEventListener('change', async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    const ok = await confirmModal({
-      title: t('settings.backup.importConfirmTitle'),
-      message: t('settings.backup.importConfirmMsg'),
-      confirmLabel: t('settings.backup.importConfirmBtn'), danger: true,
-    });
-    if (!ok) { e.target.value = ''; return; }
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    let data;
+    try { data = JSON.parse(await f.text()); }
+    catch (err) { toastErr(t('settings.backup.migrateReadError', { msg: err.message })); return; }
     try {
-      const text = await f.text();
-      const data = JSON.parse(text);
-      const report = await api.importBackup(data);
-      const snap = report?.auto_snapshot_before_restore;
-      if (typeof snap === 'string') {
-        toastOk(t('settings.backup.importedSnap', { snap }));
-      } else {
-        toastOk(t('settings.backup.imported'));
-      }
-      invalidateSettings();
-      render(container);
-    } catch (e2) { toastErr(e2.message); }
-    finally { e.target.value = ''; }
+      const preview = await api.importBackup(data, { dryRun: true });
+      if (!await confirmImport(preview, utilities)) return;
+      const report = await withSnapshotGuard(
+        () => api.importBackup(data),
+        () => api.importBackup(data, { allowWithoutSnapshot: true }));
+      if (!report) return;
+      const snap = report.auto_snapshot_before_restore;
+      toastOk(typeof snap === 'string'
+        ? t('settings.backup.importedSnap', { snap })
+        : t('settings.backup.imported'));
+      await afterRestore(container);
+    } catch (err) { showBackupError(err); }
   });
 
   // ── Migration aus v0.9.0 ──
@@ -407,6 +489,114 @@ export async function render(container) {
     } finally {
       e.target.value = '';
     }
+  });
+
+  // ── v2.6.0 — Anmeldung & Zugriff ──
+  const pwValue = (id) => container.querySelector('#' + id)?.value ?? '';
+  const newPassword = () => {
+    const pw = pwValue('sec-new');
+    if (pw.length < 8) { toastErr(t('errors.auth.passwordTooShort', { min: 8 })); return null; }
+    if (pw !== pwValue('sec-repeat')) { toastErr(t('settings.security.mismatch')); return null; }
+    return pw;
+  };
+  const sessionChanged = (mode) => window.dispatchEvent(new CustomEvent('et:session-changed', { detail: { mode } }));
+
+  container.querySelector('#btn-sec-enable')?.addEventListener('click', async () => {
+    const pw = newPassword();
+    if (!pw) return;
+    try {
+      const r = await api.setPassword(pw);
+      sessionChanged(r?.mode || 'password');
+      toastOk(t('settings.security.enabled'));
+      render(container);
+    } catch (e) { toastErr(e.message); }
+  });
+
+  container.querySelector('#btn-sec-change')?.addEventListener('click', async () => {
+    const pw = newPassword();
+    if (!pw) return;
+    try {
+      await api.setPassword(pw, pwValue('sec-current'));
+      toastOk(t('settings.security.changed'));
+      render(container);
+    } catch (e) { toastErr(e.message); }
+  });
+
+  container.querySelector('#btn-sec-logout')?.addEventListener('click', () => logout());
+
+  container.querySelector('#btn-sec-disable')?.addEventListener('click', () => {
+    openModal({
+      title: t('settings.security.disableTitle'),
+      body: `<p>${escapeHtml(t('settings.security.disableMsg'))}</p>
+        <div class="field">
+          <label for="sec-disable-pw">${t('settings.security.currentPassword')}</label>
+          <input class="input input--text" id="sec-disable-pw" type="password" autocomplete="current-password">
+          <div class="field-error" id="sec-disable-msg" role="alert" hidden></div>
+        </div>`,
+      footer: `
+        <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn btn--danger" data-act="ok">${t('settings.security.disable').replace(/…$/, '')}</button>`,
+      onMount({ modalEl, close }) {
+        modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => close(null));
+        const okBtn = modalEl.querySelector('[data-act="ok"]');
+        okBtn?.addEventListener('click', async () => {
+          okBtn.disabled = true;
+          try {
+            await api.disableLogin(modalEl.querySelector('#sec-disable-pw')?.value ?? '');
+            close(true);
+            sessionChanged('off');
+            toastOk(t('settings.security.disabled'));
+            render(container);
+          } catch (e) {
+            const msg = modalEl.querySelector('#sec-disable-msg');
+            if (msg) { msg.textContent = e.message; msg.hidden = false; }
+            okBtn.disabled = false;
+          }
+        });
+      },
+    });
+  });
+
+  const refreshKeys = async () => {
+    const el = container.querySelector('#sec-keys');
+    if (!el) return;
+    try { el.innerHTML = renderKeyTable(await api.apiKeys()); } catch { /* alte Liste bleibt */ }
+  };
+
+  container.querySelector('#btn-key-create')?.addEventListener('click', async () => {
+    const nameEl = container.querySelector('#key-name');
+    const scope = container.querySelector('#key-scope')?.value === 'admin' ? 'admin' : 'read';
+    const name = (nameEl?.value || '').trim();
+    try {
+      const res = await api.createApiKey(name, scope);
+      const shown = name || t(scope === 'admin' ? 'settings.security.scopeAdmin' : 'settings.security.scopeRead');
+      container.querySelector('#key-reveal').innerHTML = `
+        <div class="banner banner--success" style="margin-top:.5rem">
+          <strong>${t('settings.security.keyReveal', { name: escapeHtml(shown) })}</strong>
+          <code class="mono" style="display:block;word-break:break-all;margin:6px 0">${escapeHtml(res.key)}</code>
+          <button type="button" class="btn btn--sm" id="btn-key-copy">${t('settings.security.keyCopy')}</button>
+        </div>`;
+      container.querySelector('#btn-key-copy')?.addEventListener('click', () => copyText(res.key, t('settings.security.keyCopied')));
+      if (nameEl) nameEl.value = '';
+      refreshKeys();
+    } catch (e) { toastErr(e.message); }
+  });
+
+  container.querySelector('#sec-keys')?.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('[data-key-revoke]');
+    if (!btn) return;
+    const ok = await confirmModal({
+      title: t('settings.security.keyRevokeTitle'),
+      message: t('settings.security.keyRevokeMsg', { name: btn.getAttribute('data-key-name') || '' }),
+      confirmLabel: t('settings.security.keyRevoke'), danger: true,
+    });
+    if (!ok) return;
+    try {
+      await api.revokeApiKey(btn.getAttribute('data-key-revoke'));
+      toastOk(t('settings.security.keyRevoked'));
+      container.querySelector('#key-reveal').innerHTML = '';
+      refreshKeys();
+    } catch (e) { toastErr(e.message); }
   });
 
   // ── F1009 — Home-Assistant-Handler ──
@@ -472,7 +662,7 @@ export async function render(container) {
   });
 
   // Der Router ruft diese Funktion beim Verlassen der Ansicht auf.
-  return () => window.removeEventListener('beforeunload', beforeUnload);
+  return unlistenAll;
 }
 
 function copyText(text, okMsg) {
@@ -484,8 +674,18 @@ function copyText(text, okMsg) {
 }
 
 // ── F1009 — Home-Assistant-Anbindung ─────────────────────────────────────
-function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
+function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, session = null) {
   const enabled = !!authStatus?.enabled;
+  // v2.6.0 — Hilfe bei der Fehlersuche („kommt überhaupt etwas an?") und der
+  // Hinweis, dass der Push mit eingeschalteter Anmeldung einen Token braucht.
+  const usage = enabled
+    ? `<p class="settings-field__hint" id="ha-token-usage">${authStatus.last_used_at
+        ? t('settings.ha.lastUsed', { when: stampHtml(authStatus.last_used_at) })
+        : t('settings.ha.neverUsed')}</p>`
+    : '';
+  const loginWarning = !enabled && session && session.mode !== 'off'
+    ? `<div class="banner banner--warning" style="margin-top:.5rem">${t('settings.ha.loginNeedsToken')}</div>`
+    : '';
 
   // Zeilen: pro Zähler ein Alias-Feld. Wir zeigen utility + Zählername.
   const meterRows = haUtilities.flatMap(u =>
@@ -520,6 +720,7 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
         <button class="btn" id="btn-ha-generate">${enabled ? t('settings.ha.generateNew') : t('settings.ha.generate')}</button>
         ${enabled ? `<button class="btn btn--ghost" id="btn-ha-revoke">${t('settings.ha.revoke')}</button>` : ''}
       </div>
+      ${usage}${loginWarning}
       <div id="ha-token-reveal"></div>
 
       <hr class="settings-rule">
@@ -567,6 +768,239 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
       </div>
     </div>
   `;
+}
+
+// ── v2.6.0 — Anmeldung & Zugriff ─────────────────────────────────────────
+//
+// Die Anmeldung ist opt-in (Review 2026-09-24): Ohne sie verhält sich die App
+// wie bisher. Die Karte zeigt den Modus, schaltet die Passwort-Anmeldung ein
+// und aus und verwaltet API-Schlüssel für Skripte. Was über Umgebungsvariablen
+// festgelegt ist (ET_AUTH, ET_ADMIN_PASSWORD_HASH), lässt sich hier nicht ändern.
+function renderSecurityCard(session, keys) {
+  const mode = ['off', 'password', 'proxy'].includes(session?.mode) ? session.mode : 'off';
+  const modeFixed = !!session?.mode_fixed;
+  const pwFixed   = !!session?.password_fixed;
+  const label = { off: 'modeOff', password: 'modePassword', proxy: 'modeProxy' }[mode];
+  const pwField = (id, key, autocomplete) => `
+    <div class="field">
+      <label for="${id}">${t(key)}</label>
+      <input class="input input--text" id="${id}" type="password" autocomplete="${autocomplete}">
+    </div>`;
+
+  let body = '';
+  if (mode === 'off' && !modeFixed) {
+    body = `
+      <div class="form-row" style="align-items:flex-end">
+        ${pwField('sec-new', 'settings.security.newPassword', 'new-password')}
+        ${pwField('sec-repeat', 'settings.security.repeatPassword', 'new-password')}
+        <div class="field">
+          <button type="button" class="btn btn--primary" id="btn-sec-enable">${t('settings.security.enable')}</button>
+        </div>
+      </div>
+      <p class="settings-field__hint">${t('settings.security.enableHint')}</p>`;
+  } else if (mode === 'password') {
+    body = pwFixed
+      ? `<p class="settings-field__hint">${t('settings.security.passwordFixed')}</p>`
+      : `<div class="form-row" style="align-items:flex-end">
+          ${pwField('sec-current', 'settings.security.currentPassword', 'current-password')}
+          ${pwField('sec-new', 'settings.security.newPassword', 'new-password')}
+          ${pwField('sec-repeat', 'settings.security.repeatPassword', 'new-password')}
+          <div class="field">
+            <button type="button" class="btn" id="btn-sec-change">${t('settings.security.change')}</button>
+          </div>
+        </div>`;
+    body += `
+      <div class="section-actions" style="margin-top:var(--sp-2)">
+        <button type="button" class="btn btn--ghost" id="btn-sec-logout">${t('login.logout')}</button>
+        ${modeFixed ? '' : `<button type="button" class="btn btn--ghost" id="btn-sec-disable">${t('settings.security.disable')}</button>`}
+      </div>`;
+  } else if (mode === 'proxy') {
+    body = `<p class="settings-field__hint">${t('settings.security.proxyHint')}</p>`;
+  }
+
+  return `
+    <div class="card" id="security-card">
+      <h3 class="card__title">${t('settings.security.title')}</h3>
+      <p class="muted" style="margin-bottom: var(--sp-3)">${t('settings.security.hint')}</p>
+      <div class="section-actions" style="align-items:center;margin-bottom:var(--sp-3)">
+        <span class="tag ${mode === 'off' ? 'tag--warning' : 'tag--success'}" id="sec-mode">${t('settings.security.' + label)}</span>
+        ${modeFixed ? `<span class="muted" style="font-size:12px">${t('settings.security.modeFixed')}</span>` : ''}
+      </div>
+      ${body}
+
+      <hr class="settings-rule">
+
+      <h4 class="settings-subhead">${t('settings.security.keysTitle')}</h4>
+      <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">${t('settings.security.keysHint')}</p>
+      <div id="sec-keys">${renderKeyTable(keys)}</div>
+      <div class="form-row" style="align-items:flex-end;margin-top:var(--sp-2)">
+        <div class="field">
+          <label for="key-name">${t('settings.security.keyName')}</label>
+          <input class="input input--text" id="key-name" type="text" maxlength="60" autocomplete="off"
+                 placeholder="${escapeHtml(t('settings.security.keyNamePlaceholder'))}">
+        </div>
+        <div class="field">
+          <label for="key-scope">${t('settings.security.keyScope')}</label>
+          <select class="select" id="key-scope">
+            <option value="read">${t('settings.security.scopeRead')}</option>
+            <option value="admin">${t('settings.security.scopeAdmin')}</option>
+          </select>
+        </div>
+        <div class="field">
+          <button type="button" class="btn" id="btn-key-create">${t('settings.security.keyCreate')}</button>
+        </div>
+      </div>
+      <div id="key-reveal"></div>
+    </div>`;
+}
+
+function renderKeyTable(keys) {
+  if (!Array.isArray(keys) || !keys.length) return `<p class="muted">${t('settings.security.keysNone')}</p>`;
+  return `<div class="table-wrap"><table class="table table--compact">
+    <thead><tr>
+      <th scope="col">${t('settings.security.keyName')}</th>
+      <th scope="col">${t('settings.security.keyScope')}</th>
+      <th scope="col">${t('settings.security.keyCreatedAt')}</th>
+      <th scope="col">${t('settings.security.keyLastUsed')}</th>
+      <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
+    </tr></thead>
+    <tbody>${keys.map(k => `<tr>
+      <td>${escapeHtml(k.name)}</td>
+      <td>${t(k.scope === 'admin' ? 'settings.security.scopeAdmin' : 'settings.security.scopeRead')}</td>
+      <td>${stampHtml(k.created_at)}</td>
+      <td>${k.last_used_at ? stampHtml(k.last_used_at) : `<span class="muted">${t('settings.security.keyNever')}</span>`}</td>
+      <td style="text-align:right">
+        <button type="button" class="btn btn--ghost btn--sm" data-key-revoke="${escapeHtml(k.id)}" data-key-name="${escapeHtml(k.name)}">${t('settings.security.keyRevoke')}</button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+// ── v2.6.0 — Snapshots und Import ────────────────────────────────────────
+
+function renderSnapshots(list) {
+  if (!Array.isArray(list) || !list.length) return `<p class="muted">${t('settings.backup.snapshotsNone')}</p>`;
+  return `<div class="table-wrap"><table class="table table--compact">
+    <thead><tr>
+      <th scope="col">${t('settings.backup.colDate')}</th>
+      <th scope="col">${t('settings.backup.colReason')}</th>
+      <th scope="col" class="num snapshot-list__size">${t('settings.backup.colSize')}</th>
+      <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
+    </tr></thead>
+    <tbody>${list.map(s => `<tr>
+      <td title="${escapeHtml(s.name)}">${stampHtml(s.created_at)}</td>
+      <td>${escapeHtml(t('settings.backup.reason.' + (s.reason || 'manual')))}</td>
+      <td class="num snapshot-list__size">${bytesText(s.size)}</td>
+      <td class="snapshot-list__actions">
+        <a class="icon-btn" href="${api.snapshotUrl(s.name)}" download="${escapeHtml(s.name)}" title="${t('settings.backup.snapDownload')}" aria-label="${t('settings.backup.snapDownload')}"><span aria-hidden="true">⬇️</span></a>
+        <button type="button" class="icon-btn" data-snap-restore="${escapeHtml(s.name)}" data-snap-date="${escapeHtml(s.created_at)}" title="${t('settings.backup.snapRestore')}" aria-label="${t('settings.backup.snapRestore')}"><span aria-hidden="true">↩️</span></button>
+        <button type="button" class="icon-btn" data-snap-delete="${escapeHtml(s.name)}" data-snap-date="${escapeHtml(s.created_at)}" title="${t('settings.backup.snapDelete')}" aria-label="${t('settings.backup.snapDelete')}"><span aria-hidden="true">🗑️</span></button>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+/** Zeitstempel (ISO mit Uhrzeit) im Format der Oberflächensprache. */
+function stampText(iso) {
+  const d = iso ? new Date(iso) : null;
+  if (!d || Number.isNaN(d.getTime())) return '–';
+  return d.toLocaleString(intlLocale(), { dateStyle: 'short', timeStyle: 'short' });
+}
+const stampHtml = (iso) => escapeHtml(stampText(iso));
+
+function bytesText(n) {
+  const b = Number(n) || 0;
+  return b >= 1048576 ? `${fmt.num(b / 1048576, 1)} MB` : `${fmt.int(Math.max(1, Math.round(b / 1024)))} KB`;
+}
+
+/**
+ * Einspielen mit Rückweg: Scheitert der Sicherungs-Snapshot vorher (409),
+ * fragt die Oberfläche nach, statt still ohne Rückweg weiterzumachen.
+ * Liefert den Bericht oder null (abgebrochen).
+ */
+async function withSnapshotGuard(run, runWithoutSnapshot) {
+  try {
+    return await run();
+  } catch (e) {
+    if (e.status !== 409 || e.code !== 'errors.backup.snapshotFailed') throw e;
+    const ok = await confirmModal({
+      title: t('settings.backup.noSnapshotTitle'),
+      message: e.message,
+      confirmLabel: t('settings.backup.noSnapshotBtn'), danger: true,
+    });
+    return ok ? runWithoutSnapshot() : null;
+  }
+}
+
+/** Fehler beim Einspielen: Fundstellen im Dialog, sonst als Hinweis. */
+function showBackupError(err) {
+  const problems = err?.detail?.problems;
+  if (!Array.isArray(problems) || !problems.length) { toastErr(err?.message || String(err)); return; }
+  const rows = problems.map(p => {
+    const [kind, arg] = String(p.problem || '').split(/:(.*)/s);
+    const what = kind === 'missing' || kind === 'date' ? t('settings.backup.problem.' + kind, { field: arg ?? '' })
+      : kind === 'entry' ? t('settings.backup.problem.entry', { what: arg ?? '' })
+      : t('settings.backup.problem.' + kind);
+    const where = `${p.pot}${Number.isInteger(p.index) ? ' #' + (p.index + 1) : ''}`;
+    return `<li><code>${escapeHtml(where)}</code> — ${escapeHtml(what)}</li>`;
+  }).join('');
+  openModal({
+    title: t('settings.backup.problemsTitle'),
+    body: `<p>${escapeHtml(err.message)}</p>
+      <ul class="problem-list">${rows}</ul>
+      ${problems.length >= 50 ? `<p class="muted">${t('settings.backup.problemsMore')}</p>` : ''}`,
+    footer: `<button type="button" class="btn btn--primary" data-act="ok">${t('common.close')}</button>`,
+    onMount({ modalEl, close }) {
+      modalEl.querySelector('[data-act="ok"]')?.addEventListener('click', () => close(true));
+    },
+  });
+}
+
+/** Vorschau eines geprüften Backups (dry_run); true = einspielen. */
+function confirmImport(report, utilities) {
+  const label = (key) => (utilities || []).find(u => u.key === key)?.label || key;
+  const items = [];
+  for (const key of ['settings', 'temperatures', 'reminders', 'recommendations_dismissed']) {
+    if (report[key] == null) continue;
+    items.push(key === 'settings'
+      ? escapeHtml(t('settings.backup.top.settings'))
+      : `${escapeHtml(t('settings.backup.top.' + key))}: ${fmt.int(report[key])}`);
+  }
+  for (const [key, counts] of Object.entries(report.utilities || {})) {
+    // „Verträge: 1" statt „1 Verträge" — ohne Pluralformen in allen Sprachen richtig
+    const parts = Object.entries(counts || {})
+      .filter(([, n]) => n > 0)
+      .map(([pot, n]) => `${escapeHtml(t('settings.backup.pot.' + pot))}: ${fmt.int(n)}`);
+    if (parts.length) items.push(`<strong>${escapeHtml(label(key))}</strong> — ${parts.join(', ')}`);
+  }
+  const untouched = (report.untouched || []).map(p => {
+    const [u, pot] = String(p).split('/');
+    return pot ? `${label(u)} – ${t('settings.backup.pot.' + pot)}` : t('settings.backup.top.' + u);
+  });
+  return new Promise(resolve => {
+    openModal({
+      title: t('settings.backup.previewTitle'),
+      body: `<p>${t('settings.backup.previewIntro')}</p>
+        <ul class="import-preview">${items.map(i => `<li>${i}</li>`).join('')}</ul>
+        ${untouched.length ? `<p class="muted">${escapeHtml(t('settings.backup.previewUntouched', { list: untouched.join(', ') }))}</p>` : ''}
+        <div class="banner banner--warning">${escapeHtml(t('settings.backup.importConfirmMsg'))}</div>`,
+      footer: `
+        <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn btn--danger" data-act="ok">${t('settings.backup.importConfirmBtn')}</button>`,
+      onMount({ modalEl, close }) {
+        modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => close(false));
+        modalEl.querySelector('[data-act="ok"]')?.addEventListener('click', () => close(true));
+      },
+    }).closedPromise.then(v => resolve(v === true));
+  });
+}
+
+/** Nach Import/Wiederherstellung: Zwischenspeicher, Seitenleiste, Ansicht neu. */
+async function afterRestore(container) {
+  invalidateSettings();
+  invalidateUtilities();
+  try { await buildSidebar(); } catch { /* Ansicht trotzdem neu */ }
+  render(container);
 }
 
 // Adresse dieser Installation, wie Home Assistant sie aufrufen soll.

@@ -28,20 +28,29 @@ $uri  = '/' . ltrim(rawurldecode($uri), '/');
 
 // ── 2. /data/ und /src/ sowie *.php-Quelltext sind tabu (wie nginx
 //       `location ~ ^/data/ { deny all; return 404; }`) ──────────────
-if (preg_match('#^/(data|src)(/|$)#', $uri)
-    || (str_ends_with($uri, '.php') && $uri !== '/api.php' && !str_starts_with($uri, '/api.php/'))) {
+// v2.6.0 — dazu alles mit Punkt-Präfix (.git, .github, .env …). Bis v2.5.3
+// lieferte der Entwicklungsserver /.git/config und andere Punktdateien aus.
+$notFound = static function (): bool {
     http_response_code(404);
     header('Content-Type: text/plain; charset=utf-8');
     echo "404 Not Found";
     return true;
+};
+if (preg_match('#^/(data|src)(/|$)#', $uri) || preg_match('#(^|/)\.#', $uri)
+    || (str_ends_with($uri, '.php') && $uri !== '/api.php' && !str_starts_with($uri, '/api.php/'))) {
+    return $notFound();
 }
 
 // ── 1. existierende statische Datei direkt ausliefern ───────────────
+// v2.6.0 — nur Auslieferungsgut: public/, sw.js, manifest.webmanifest.
+// README, composer.json, docs/ … sind kein Teil der Anwendung.
 $candidate = realpath($root . $uri);
 $isInsideRoot = $candidate !== false
     && str_starts_with($candidate . DIRECTORY_SEPARATOR, $root . DIRECTORY_SEPARATOR);
 
 if ($isInsideRoot && is_file($candidate)) {
+    $deliverable = str_starts_with($uri, '/public/') || in_array($uri, ['/sw.js', '/manifest.webmanifest'], true);
+    if (!$deliverable) return $notFound();
     return false; // PHP-Built-in-Server liefert die Datei selbst aus
 }
 

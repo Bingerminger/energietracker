@@ -112,26 +112,56 @@ final class JsonStore
         $dir = dirname($path);
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
 
+        // v2.6.0 — JSON_INVALID_UTF8_SUBSTITUTE als letzte Verteidigung: Ein
+        // CSV in Windows-1252 brach bisher mitten im Import mit HTTP 500 ab,
+        // nachdem die ersten Zeilen schon geschrieben waren.
         $json = json_encode(
             $data,
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
         );
         if ($json === false) {
             throw new \RuntimeException('JSON-Kodierung fehlgeschlagen für ' . $relative);
         }
 
-        // Write to tmp file in same dir, then atomic rename
+        // Write to tmp file in same dir, then atomic rename.
+        // v2.6.0 — fflush + fsync vor dem rename: Ohne sie kann die umbenannte
+        // Datei nach einem Stromausfall leer sein (je nach Dateisystem).
         $tmp = $path . '.tmp.' . bin2hex(random_bytes(4));
-        $bytes = file_put_contents($tmp, $json, LOCK_EX);
-        if ($bytes === false) {
-            throw new \RuntimeException('Konnte temporäre Datei nicht schreiben: ' . $tmp);
+        $fp = @fopen($tmp, 'wb');
+        if ($fp === false) {
+            throw new \RuntimeException('Konnte temporäre Datei nicht schreiben: ' . $relative);
+        }
+        $ok = false;
+        try {
+            $ok = fwrite($fp, $json) === strlen($json) && fflush($fp);
+            if ($ok && function_exists('fsync')) @fsync($fp);
+        } finally {
+            fclose($fp);
+        }
+        if (!$ok) {
+            @unlink($tmp);
+            throw new \RuntimeException('Konnte temporäre Datei nicht schreiben: ' . $relative);
         }
         if (!@rename($tmp, $path)) {
             @unlink($tmp);
-            throw new \RuntimeException('Konnte Datei nicht ersetzen: ' . $path);
+            throw new \RuntimeException('Konnte Datei nicht ersetzen: ' . $relative);
         }
         @chmod($path, 0644);
+        $this->generation++;
     }
+
+    /**
+     * v2.6.0 — Zähler der Schreibvorgänge dieser Instanz. Rechenergebnisse,
+     * die innerhalb einer Anfrage zwischengespeichert werden
+     * (ConsumptionService::forMeter), hängen ihn an ihren Schlüssel; jede
+     * Änderung macht sie damit ungültig.
+     */
+    public function generation(): int
+    {
+        return $this->generation;
+    }
+
+    private int $generation = 0;
 
     public function exists(string $relative): bool
     {
@@ -141,6 +171,7 @@ final class JsonStore
     public function delete(string $relative): bool
     {
         $path = $this->path($relative);
+        $this->generation++;
         return is_file($path) ? @unlink($path) : true;
     }
 

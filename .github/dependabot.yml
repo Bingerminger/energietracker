@@ -1,0 +1,13 @@
+# v2.6.0 — Basis-Image und Actions aktuell halten (Review 2026-09-24).
+# Dependabot schlägt Updates als Pull-Request vor; nichts wird automatisch
+# übernommen.
+version: 2
+updates:
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"

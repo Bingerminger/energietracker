@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.5.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.6.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-285-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-324-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installable-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
@@ -38,7 +38,7 @@ and the expected year-end settlement. On top of that: a statistical
 recommendation engine, reminder/maintenance management, a tariff comparison with
 shadow contracts and a PDF annual report.
 
-> **Status:** v2.5.3 is the current public version (initial release was v1.0.2).
+> **Status:** v2.6.0 is the current public version (initial release was v1.0.2).
 > If you want to migrate from a privately run v0.9.0 backup, see
 > [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
 > format is supported by the migrator.
@@ -91,7 +91,15 @@ shadow contracts and a PDF annual report.
   supplier bill section by section.
 - **CSV import of readings** per meter: read a file of
   `date;reading;note;estimated` — existing readings on the same date are
-  overwritten and reported in the result.
+  overwritten and reported in the result. Since v2.6.0 the columns are detected
+  from the header (including the app's own export) and Excel files in
+  Windows-1252 are converted.
+- **Plausibility checks** (v2.6.0): before saving, the app asks about typos
+  (more than three times the usual daily consumption, "decimal separator
+  missing?"), a lower reading without a meter swap, a date in the future and a
+  second reading on the same day (replace instead of duplicate). Outliers and
+  suspect Home Assistant values are shown and left out of the calculation until
+  you confirm them; a register rollover (99,999 → 0) is calculated correctly.
 
 ### Contracts and balance
 
@@ -187,8 +195,14 @@ shadow contracts and a PDF annual report.
 
 ### Operations
 
+- **Optional sign-in** (v2.6.0): password sign-in, or via an upstream proxy
+  (Authelia, Authentik); API keys with read or manage permission for scripts.
+  Off by default — nothing changes for existing installations. See
+  [Security & network operation](docs/en/technical/08-security.md).
 - **Backup & restore** via the UI: a full JSON backup in the new format
-  (`backup_version: "3.0"`), for restoring or moving.
+  (`backup_version: "3.0"`), for restoring or moving. Since v2.6.0 an import is
+  checked completely and previewed before anything is written, and stored
+  snapshots can be listed, downloaded, restored and deleted in the settings.
 - **Migration from v0.9.0**: an old backup format (`version: "2.1"`) can be
   imported directly, either replacing or merging with existing data. See
   [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md).
@@ -200,6 +214,8 @@ shadow contracts and a PDF annual report.
   `localStorage`.
 - **System diagnostics** under Settings: PHP version, data directory, write
   permissions, schema version, number of meters/readings per utility.
+  `GET /api/health` reports `ok`/`degraded`/`error` with HTTP 503 on errors —
+  for Docker's health check and uptime monitors.
 - **CI pipeline** (GitHub Actions): four jobs on every push/PR to `main` — PHP
   syntax lint, the PHPUnit service suite, frontend-API-shape + browser-render
   against a real backend server, and a Docker image smoke test. Version tags
@@ -246,12 +262,18 @@ plus a UI reference with **real screenshots of all 12 views**:
 git clone https://github.com/Bingerminger/energietracker.git
 cd energietracker
 
-# Local test server (document root = project root)
-php -S 127.0.0.1:8080
+# Local test server (document root = project root) — always with router.php:
+# without it PHP serves every file, including data/ with all your data
+php -S 127.0.0.1:8080 router.php
 ```
 
 Open <http://127.0.0.1:8080> in the browser → the dashboard appears with an
 empty state.
+
+> 🔐 **Security:** without sign-in, anyone who can reach the app can read and
+> change all data — fine in your own home network. Before making it reachable
+> from outside, switch on sign-in (Settings → "Sign-in & access") and read
+> [Security & network operation](docs/en/technical/08-security.md).
 
 On first start the app automatically initialises `data/meta.json`,
 `data/settings.json`, an empty `temperatures.json` and the utility subfolders
@@ -273,7 +295,7 @@ Or without Compose, directly with the published image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.5.3
+  ghcr.io/bingerminger/energietracker:2.6.0
 ```
 
 > Without `--name energietracker` Docker assigns a random name (e.g.
@@ -449,7 +471,7 @@ For the full list of configurable values see
 energietracker/
 ├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
 ├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
-├── VERSION                  ← "2.5.3"
+├── VERSION                  ← "2.6.0"
 ├── README.md                ← this file (English)
 ├── README.de.md             ← German version
 ├── CHANGELOG.md

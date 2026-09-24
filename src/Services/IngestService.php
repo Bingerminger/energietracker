@@ -85,37 +85,78 @@ final class IngestService
         // Upsert-by-date: existiert schon eine Ablesung dieses Zählers am
         // selben Tag, wird sie aktualisiert; sonst neu angelegt.
         $existing = null;
-        foreach ($this->readings->list($utility, $meterId) as $r) {
+        $readings = $this->readings->list($utility, $meterId);
+        foreach ($readings as $r) {
             if (($r['date'] ?? null) === $date) { $existing = $r; break; }
         }
 
+        // v2.6.0 — Ein Stand unter dem letzten desselben Geräts wird
+        // angenommen, aber als verdächtig markiert: Die Antwort bleibt 201 bzw.
+        // 200 (keine Home-Assistant-Automation bricht), die Rechnung übergeht
+        // ihn und zeigt eine Warnung, bis er bestätigt oder gelöscht ist.
+        // Typischer Auslöser: ein nicht verfügbarer Sensor, den eine alte
+        // Vorlage mit `float(0)` zur 0 machte.
+        $previous = $this->previousOnSameDevice($readings, $meter, $date);
+        // Ein Überlauf des Zählwerks (99.998 → 12) mit gepflegter Stellenzahl
+        // ist kein Verdacht — die Verbrauchsrechnung zählt ihn richtig.
+        $suspect  = $previous !== null && $value < (float)$previous['counter']
+            && ConsumptionService::rolloverAmount((float)$previous['counter'], $value, $this->meters->deviceOnDate($meter, $date)) === null;
+
         if ($existing !== null) {
             $updated = $this->readings->update($utility, (string)$existing['id'], [
-                'counter' => $value,
+                'counter'    => $value,
+                'is_suspect' => $suspect,
+                'source'     => 'ingest',
             ]);
-            return [
-                'status'     => 'updated',
-                'utility'    => $utility,
-                'meter_id'   => $meterId,
-                'date'       => $date,
-                'counter'    => (float)$updated['counter'],
-                'reading_id' => (string)$updated['id'],
-            ];
+            return $this->result('updated', $utility, $meterId, $date, $updated, $suspect, $previous);
         }
 
         $created = $this->readings->create($utility, [
-            'meter_id' => $meterId,
-            'date'     => $date,
-            'counter'  => $value,
-            'note'     => 'Home Assistant',
+            'meter_id'   => $meterId,
+            'date'       => $date,
+            'counter'    => $value,
+            'note'       => 'Home Assistant',
+            'source'     => 'ingest',
+            'is_suspect' => $suspect,
         ]);
-        return [
-            'status'     => 'created',
+        return $this->result('created', $utility, $meterId, $date, $created, $suspect, $previous);
+    }
+
+    /** @return array<string,mixed> */
+    private function result(string $status, string $utility, string $meterId, string $date, array $reading, bool $suspect, ?array $previous): array
+    {
+        $out = [
+            'status'     => $status,
             'utility'    => $utility,
             'meter_id'   => $meterId,
             'date'       => $date,
-            'counter'    => (float)$created['counter'],
-            'reading_id' => (string)$created['id'],
+            'counter'    => (float)$reading['counter'],
+            'reading_id' => (string)$reading['id'],
+            // v2.6.0 — additiv
+            'suspect'    => $suspect,
         ];
+        if ($suspect && $previous !== null) {
+            $out['previous'] = ['date' => (string)$previous['date'], 'counter' => (float)$previous['counter']];
+        }
+        return $out;
+    }
+
+    /**
+     * Letzte nicht verdächtige Ablesung VOR $date auf dem Gerät, das an
+     * $date eingebaut ist. Über einen Zählertausch hinweg gibt es keinen
+     * Vergleich — der neue Zähler beginnt meist bei null.
+     */
+    private function previousOnSameDevice(array $readings, array $meter, string $date): ?array
+    {
+        $device = $this->meters->deviceOnDate($meter, $date);
+        $deviceId = $device['id'] ?? null;
+        $prev = null;
+        foreach ($readings as $r) {
+            if (($r['date'] ?? '') >= $date) break;   // nach Datum sortiert
+            if (!empty($r['is_suspect']) || !empty($r['is_future'])) continue;
+            if ($deviceId !== null && ($r['device_id'] ?? null) !== $deviceId) continue;
+            $prev = $r;
+        }
+        return $prev;
     }
 }

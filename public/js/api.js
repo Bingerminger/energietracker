@@ -4,7 +4,7 @@
 // src/bootstrap.php. Every method returns parsed JSON `data` or throws.
 // =====================================================================
 
-import { getLocale } from './lib/i18n.js';
+import { getLocale, t } from './lib/i18n.js';
 
 const BASE = 'api.php';
 
@@ -24,17 +24,47 @@ async function request(method, path, body = null, { raw = false } = {}) {
   // path always starts with '/', BASE never ends with '/' — concatenate directly.
   // Belt-and-braces: collapse any accidental doubled slashes inside the path part.
   const url = `${BASE}${path.replace(/\/{2,}/g, '/')}`;
-  const res = await fetch(url, opts);
+  let res;
+  try {
+    res = await fetch(url, opts);
+  } catch {
+    // v2.6.0 — statt „Failed to fetch" / „Load failed" (je nach Browser). Bei
+    // Schreibzugriffen ausdrücklich: Es wurde nichts gespeichert.
+    const err = new Error(t(method === 'GET' ? 'app.networkErrorRead' : 'app.networkError'));
+    err.status = 0;
+    err.code = 'network';
+    throw err;
+  }
+  // v2.6.0 — Antwort aus dem Offline-Cache des Service Workers? Dann trägt sie
+  // den Stand im Header; die Shell zeigt „Offline – Stand vom …".
+  if (res.headers.has('X-ET-Offline')) {
+    window.dispatchEvent(new CustomEvent('et:offline', { detail: res.headers.get('X-ET-Offline') }));
+  } else if (res.ok) {
+    window.dispatchEvent(new CustomEvent('et:online'));
+  }
   let payload;
   try { payload = await res.json(); }
-  catch { throw new Error(`HTTP ${res.status}: ungültige Antwort`); }
+  // Keine JSON-Antwort — etwa die Anmeldeseite eines vorgeschalteten Proxys.
+  catch { throw Object.assign(new Error(t('app.invalidResponse', { status: res.status })), { status: res.status }); }
   if (!res.ok || payload.success === false) {
     const err = new Error(payload?.error || `HTTP ${res.status}`);
     err.status = res.status;
     err.detail = payload?.detail;
+    // v2.6.0 — stabiler Fehlercode (Katalogschlüssel), s. Response::error()
+    err.code = payload?.code;
+    // Anmeldung eingeschaltet und keine Sitzung: die Shell zeigt die Anmeldung.
+    if (res.status === 401 && payload?.code === 'errors.auth.required') {
+      window.dispatchEvent(new CustomEvent('et:auth-required'));
+    }
     throw err;
   }
   return payload.data;
+}
+
+/** v2.6.0 — Query-Zeichenkette aus gesetzten Flags (`?dry_run=1&…`). */
+function flags(obj) {
+  const on = Object.entries(obj).filter(([, v]) => v).map(([k]) => `${k}=1`);
+  return on.length ? `?${on.join('&')}` : '';
 }
 
 export const api = {
@@ -118,8 +148,26 @@ export const api = {
   settings:      ()                    => request('GET',  '/api/settings'),
   updateSettings:(data)                => request('PATCH','/api/settings', data),
   exportBackup:  ()                    => request('GET',  '/api/backup/export'),
-  importBackup:  (data)                => request('POST', '/api/backup/import', data),
+  // v2.6.0 — { dryRun, allowWithoutSnapshot } als Query-Flags
+  importBackup:  (data, { dryRun = false, allowWithoutSnapshot = false } = {}) =>
+    request('POST', `/api/backup/import${flags({ dry_run: dryRun, allow_without_snapshot: allowWithoutSnapshot })}`, data),
   snapshotBackup:()                    => request('POST', '/api/backup/snapshot'),
+  // v2.6.0 — Snapshots verwalten
+  snapshots:       ()                  => request('GET',    '/api/backup/snapshots'),
+  snapshotUrl:     (name)              => `${BASE}/api/backup/snapshots/${encodeURIComponent(name)}`,
+  restoreSnapshot: (name, { allowWithoutSnapshot = false } = {}) =>
+    request('POST', `/api/backup/snapshots/${encodeURIComponent(name)}/restore${flags({ allow_without_snapshot: allowWithoutSnapshot })}`),
+  deleteSnapshot:  (name)              => request('DELETE', `/api/backup/snapshots/${encodeURIComponent(name)}`),
+
+  // v2.6.0 — Anmeldung (opt-in) und API-Schlüssel
+  session:         ()                  => request('GET',    '/api/session'),
+  login:           (password)          => request('POST',   '/api/session', { password }),
+  logout:          ()                  => request('DELETE', '/api/session'),
+  setPassword:     (password, current) => request('POST',   '/api/session/password', { password, current }),
+  disableLogin:    (current)           => request('DELETE', '/api/session/password', { current }),
+  apiKeys:         ()                  => request('GET',    '/api/auth/keys'),
+  createApiKey:    (name, scope)       => request('POST',   '/api/auth/keys', { name, scope }),
+  revokeApiKey:    (id)                => request('DELETE', `/api/auth/keys/${encodeURIComponent(id)}`),
 
   // Demo-Daten-Import (F1007)
   demoStatus:    ()                    => request('GET',  '/api/demo/status'),

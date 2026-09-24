@@ -25,7 +25,12 @@
     "footerStorage": "flat-file JSON",
     "skipToContent": "Zum Hauptinhalt springen",
     "primaryNav": "Hauptnavigation",
-    "brandHome": "Energietracker — zur Übersicht"
+    "brandHome": "Energietracker — zur Übersicht",
+    "offline": "Offline – zuletzt geladener Stand",
+    "offlineSince": "Offline – Stand vom {when}",
+    "networkError": "Keine Verbindung zum Energietracker – nichts gespeichert.",
+    "networkErrorRead": "Keine Verbindung zum Energietracker.",
+    "invalidResponse": "Unerwartete Antwort vom Server (HTTP {status})."
   },
   "meterNames": {
     "gas": "Hauptzähler",
@@ -145,7 +150,8 @@
       "saving": "Speichert…",
       "saved": "Gespeichert",
       "failed": "Fehlgeschlagen",
-      "invalid": "Ungültiger Wert"
+      "invalid": "Ungültiger Wert",
+      "held": "Nicht gespeichert – bitte prüfen"
     },
     "preview": {
       "sinceLast": "{delta} {unit} seit letztem Stand",
@@ -156,7 +162,8 @@
       "savedFailed": "{ok} gespeichert, {failed} fehlgeschlagen",
       "savedEmpty": "{ok} gespeichert · {skipped} leer",
       "saved": "{ok} gespeichert",
-      "nothing": "Keine Eingaben — nichts zu speichern"
+      "nothing": "Keine Eingaben — nichts zu speichern",
+      "held": "{count} Stand/Stände nicht gespeichert – bitte die markierten Karten prüfen."
     }
   },
   "utility": {
@@ -306,7 +313,11 @@
       "future": "ZUKUNFT",
       "estimated": "SCHÄTZUNG",
       "edit": "Bearbeiten",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "suspect": "PRÜFEN",
+      "suspectTitle": "Kleiner als der vorherige Stand (Home Assistant). Zählt erst nach Bestätigung in der Auswertung.",
+      "implausible": "UNPLAUSIBEL",
+      "confirmReading": "Stand bestätigen"
     },
     "deliveriesTable": {
       "emptyTitle": "Keine Lieferungen",
@@ -362,7 +373,8 @@
     },
     "toast": {
       "readingDeleted": "Ablesung gelöscht",
-      "deliveryDeleted": "Lieferung gelöscht"
+      "deliveryDeleted": "Lieferung gelöscht",
+      "readingConfirmed": "Stand bestätigt – er zählt jetzt in der Auswertung."
     },
     "preview": {
       "sinceLast": "{delta} {unit} seit letztem Stand",
@@ -407,6 +419,15 @@
         "interpolated": "E"
       },
       "legend": "Ableseart: ohne Zusatz = abgelesener Stand · S = als geschätzt erfasste Ablesung · E = Ersatzwert: an diesem Tag gibt es keinen Zählerstand, er ist tagesgenau zwischen den umschließenden Ablesungen interpoliert — genau dort, wo auch der Versorger schätzt (Brennwert- und Zeitraumgrenzen). Je mehr Zeilen ohne E, desto weniger ist Schätzung."
+    },
+    "warnings": {
+      "title": "Unplausible Zählerstände: {count}",
+      "hint": "Diese Stände zählen nicht in der Auswertung oder erzeugen einen Rückgang. Korrigieren, bestätigen oder einen Zählertausch erfassen.",
+      "suspect": "{date}: {counter} {unit} – von Home Assistant, kleiner als der vorherige Stand; wartet auf Bestätigung",
+      "spike": "{date}: {counter} {unit} – Ausreißer nach oben, nicht berücksichtigt",
+      "dip": "{date}: {counter} {unit} – Ausreißer nach unten, nicht berücksichtigt",
+      "decrease": "{date}: {counter} {unit} – kleiner als am {prevDate} ({prevCounter} {unit}); Zählertausch oder Überlauf nicht erfasst?",
+      "gotoMeters": "Zählertausch erfassen"
     }
   },
   "contracts": {
@@ -605,7 +626,8 @@
       "replace": "Zählertausch",
       "csvImport": "CSV-Import",
       "edit": "Bearbeiten",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "digits": "{n} Stellen"
     },
     "modal": {
       "titleEdit": "Zähler bearbeiten",
@@ -626,7 +648,9 @@
       "notes": "Notizen",
       "active": "Aktiv",
       "save": "Speichern",
-      "saved": "Zähler gespeichert"
+      "saved": "Zähler gespeichert",
+      "digits": "Stellen des Zählwerks (vor dem Komma)",
+      "digitsHint": "Nur nötig, wenn das Zählwerk nach 99999 wieder bei 0 beginnen kann: Dann erkennt die Auswertung den Überlauf, statt einen Rückgang zu melden. Leer = unbekannt."
     },
     "replace": {
       "title": "Zählertausch: {name}",
@@ -688,7 +712,8 @@
   "settings": {
     "placeholder": {
       "dayMonth": "TT-MM (01-01)",
-      "yearExample": "z. B. 1998"
+      "yearExample": "z. B. 1998",
+      "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Lade…",
     "title": "⚙️ Einstellungen",
@@ -722,7 +747,11 @@
       "building": { "title": "Gebäude & Effizienz", "hint": "Bezugsgrößen für die Effizienzklasse (kWh/m²·a) und den Heizenergie-Benchmark." },
       "delivery": { "title": "Energieträger (Lieferung)", "hint": "Energiegehalt der lieferbasierten Brennstoffe und Tank-Warnschwelle." },
       "remindersRec": { "title": "Termine & Empfehlungen", "hint": "Schwellen für Fälligkeits-Status und die Empfehlungs-Engine." },
-      "location": { "title": "Standort (Open-Meteo)", "hint": "Koordinaten für den Wetter-Sync der Temperaturreihe." }
+      "location": { "title": "Standort (Open-Meteo)", "hint": "Koordinaten für den Wetter-Sync der Temperaturreihe." },
+      "embedding": {
+        "title": "Einbetten",
+        "hint": "Fremde Seiten dürfen den Energietracker nicht einbetten – das schützt vor untergeschobenen Klicks. Für eine Webseiten-Karte im Home-Assistant-Dashboard hier dessen Adresse eintragen."
+      }
     },
     "field": {
       "hdd_base_temp": { "label": "HGT-Basistemperatur", "hint": "Heizgrenze — Tage darunter zählen als Heiztage." },
@@ -774,6 +803,10 @@
       "gas_conversion_factors": {
         "label": "Gas-Umrechnungsfaktoren",
         "hint": "Ein Eintrag je Brennwertperiode, so wie die Gasrechnung sie ausweist: Gültig ab, Zustandszahl und Brennwert — der Faktor kWh/m³ wird daraus berechnet. Wer keine Aufschlüsselung hat, trägt den Faktor direkt ein. Der Eintrag ohne Datum gilt für alles vor dem ersten Stichtag. Die Verbrauchsrechnung teilt jedes Ableseintervall tagesgenau an den Stichtagen."
+      },
+      "frame_ancestors": {
+        "label": "Erlaubte Einbettungs-Adressen",
+        "hint": "Adresse mit Schema und Port, z. B. http://homeassistant.local:8123; mehrere durch Leerzeichen trennen. Leer = nur diese Installation selbst."
       }
     },
     "boolActive": "aktiv",
@@ -816,20 +849,72 @@
       "demoLoadedSnap": "Demo-Daten geladen. Sicherheits-Snapshot: {snap}",
       "demoLoaded": "Demo-Daten geladen.",
       "importConfirmTitle": "Backup importieren?",
-      "importConfirmMsg": "Achtung: bestehende Daten werden überschrieben.\n\nVor dem Import legt die App automatisch einen Sicherheits-Snapshot deiner aktuellen Daten unter <code>data/backups/pre-restore-…</code> ab — falls der Import nicht so aussieht wie erwartet, kannst du diesen Snapshot wieder einspielen.",
+      "importConfirmMsg": "Die aktuellen Daten werden dabei überschrieben. Vorher legt die App automatisch einen Sicherungs-Snapshot an – unter „Gespeicherte Snapshots“ lässt er sich wieder einspielen.",
       "importConfirmBtn": "Importieren",
       "importedSnap": "Backup importiert. Sicherheits-Snapshot: {snap}",
       "imported": "Backup importiert",
       "migrateSubhead": "📦 Migration aus v0.9.0",
       "migrateHint": "Lade ein altes v0.9.0-Backup (JSON mit <code>version: \"2.1\"</code>) hoch. Das Backup wird vor dem Schreiben analysiert; danach entscheidest du zwischen <strong>Ersetzen</strong> (alles überschreiben) oder <strong>Zusammenführen</strong> (nur neue IDs hinzufügen). In beiden Fällen wird vorher automatisch ein Sicherheits-Snapshot der aktuellen Daten angelegt.",
       "migrateBtn": "v0.9.0-Backup analysieren…",
-      "migrateReadError": "Fehler beim Lesen: {msg}"
+      "migrateReadError": "Fehler beim Lesen: {msg}",
+      "snapshotsTitle": "Gespeicherte Snapshots",
+      "snapshotsHint": "Snapshots liegen auf dem Server unter data/backups/. Automatische Snapshots (vor Import, Migration, Demo-Daten) räumt die App nach 30 Tagen auf, mindestens drei je Anlass bleiben; von den eigenen bleiben die letzten zehn.",
+      "snapshotsNone": "Noch keine Snapshots.",
+      "colDate": "Zeitpunkt",
+      "colReason": "Anlass",
+      "colSize": "Größe",
+      "reason": {
+        "manual": "manuell",
+        "restore": "vor Import",
+        "migration": "vor Migration",
+        "demo": "vor Demo-Daten",
+        "v09": "vor v0.9-Import"
+      },
+      "snapDownload": "Herunterladen",
+      "snapRestore": "Einspielen…",
+      "snapDelete": "Löschen",
+      "snapRestoreTitle": "Snapshot einspielen?",
+      "snapRestoreMsg": "Der Snapshot vom {date} ersetzt die aktuellen Daten. Vorher sichert die App den jetzigen Stand als eigenen Snapshot.",
+      "snapRestored": "Snapshot eingespielt.",
+      "snapDeleteTitle": "Snapshot löschen?",
+      "snapDeleteMsg": "Der Snapshot vom {date} wird endgültig gelöscht.",
+      "snapDeleted": "Snapshot gelöscht.",
+      "noSnapshotTitle": "Ohne Sicherung fortfahren?",
+      "noSnapshotBtn": "Trotzdem einspielen",
+      "previewTitle": "Backup einspielen?",
+      "previewIntro": "Das Backup ist vollständig lesbar. Es enthält:",
+      "previewUntouched": "Nicht im Backup – bleibt unverändert: {list}",
+      "top": {
+        "settings": "Einstellungen",
+        "temperatures": "Temperaturtage",
+        "reminders": "Termine",
+        "recommendations_dismissed": "Ausgeblendete Empfehlungen"
+      },
+      "pot": {
+        "meters": "Zähler",
+        "readings": "Ablesungen",
+        "contracts": "Verträge",
+        "deliveries": "Lieferungen",
+        "meter_groups": "Zählergruppen"
+      },
+      "problemsTitle": "Backup nicht eingespielt",
+      "problemsMore": "… und weitere (höchstens 50 werden gemeldet)",
+      "problem": {
+        "not_an_object": "kein Objekt",
+        "not_a_list": "keine Liste",
+        "unknown_utility": "unbekannte Verbrauchsart",
+        "missing": "Feld „{field}“ fehlt",
+        "date": "ungültiges Datum in „{field}“",
+        "counter": "Zählerstand ist keine Zahl",
+        "devices": "Geräteliste ungültig",
+        "entry": "ungültiger Eintrag {what}"
+      }
     },
     "ha": {
       "title": "🏠 Home-Assistant-Anbindung",
       "intro": "Lass Home Assistant deine Zählerstände automatisch an den Energietracker senden — du pflegst sie dann nicht mehr von Hand. Home Assistant liefert die Werte, der Energietracker übernimmt Verträge, Kosten und Prognosen. Anleitung: <code>docs/HOME-ASSISTANT.md</code>.",
       "step1": "1. API-Token",
-      "tokenHint": "Schützt den Push-Endpoint <code>/api/ingest</code>. <strong>Solange kein Token gesetzt ist, bleibt die API offen (nur fürs lokale Netz gedacht).</strong> Sobald ein Token existiert, muss Home Assistant ihn mitsenden.",
+      "tokenHint": "Schützt den Push-Endpoint <code>/api/ingest</code>. <strong>Ohne Anmeldung nimmt er Werte auch ohne Token an</strong> – gedacht fürs Heimnetz. Ist die Anmeldung eingeschaltet, verlangt er immer einen Token.",
       "tokenActive": "🔒 Token aktiv",
       "tokenOpen": "🔓 kein Token (offen)",
       "generateNew": "Neuen Token erzeugen",
@@ -868,7 +953,10 @@
         "floatComment": "float ohne Ersatzwert: Ist der Sensor nicht verfügbar, scheitert der Push, statt eine 0 zu buchen.",
         "automationAlias": "Energietracker: Zählerstände senden",
         "hasValueComment": "Nur senden, wenn der Sensor einen Wert hat – nach einem Neustart steht er kurz auf „unavailable“."
-      }
+      },
+      "lastUsed": "Zuletzt verwendet: {when}",
+      "neverUsed": "Mit diesem Token ist noch nichts angekommen.",
+      "loginNeedsToken": "Die Anmeldung ist eingeschaltet: Ohne Token nimmt der Energietracker keine Werte von Home Assistant an."
     },
     "diag": {
       "title": "🩺 System-Diagnose",
@@ -933,7 +1021,49 @@
       "errNeedValues": "Bitte Zustandszahl und Brennwert angeben — oder den Faktor direkt"
     },
     "invalidFields": "Nicht gespeichert: Bitte die rot markierten Felder korrigieren.",
-    "dayMonthInvalid": "Bitte als Tag-Monat eingeben, z. B. 01-10 für den 1. Oktober."
+    "dayMonthInvalid": "Bitte als Tag-Monat eingeben, z. B. 01-10 für den 1. Oktober.",
+    "security": {
+      "title": "🔐 Anmeldung & Zugriff",
+      "hint": "Ohne Anmeldung ist der Energietracker für jeden erreichbar, der die Adresse kennt – gedacht fürs eigene Heimnetz. Ist er von außen erreichbar (Portfreigabe, Reverse-Proxy) oder teilst du das Netz mit anderen, schalte die Anmeldung ein.",
+      "modeOff": "🔓 Ohne Anmeldung",
+      "modePassword": "🔒 Anmeldung mit Passwort",
+      "modeProxy": "🛡️ Anmeldung über vorgeschalteten Proxy",
+      "modeFixed": "Per Umgebungsvariable ET_AUTH festgelegt – hier nicht änderbar.",
+      "passwordFixed": "Das Passwort ist per Umgebungsvariable ET_ADMIN_PASSWORD_HASH festgelegt – hier nicht änderbar.",
+      "proxyHint": "Die Anmeldung übernimmt der vorgeschaltete Proxy (z. B. Authelia oder Authentik). Den Benutzer übernimmt der Energietracker nur von den Adressen in ET_TRUSTED_PROXIES.",
+      "newPassword": "Neues Passwort",
+      "repeatPassword": "Passwort wiederholen",
+      "currentPassword": "Bisheriges Passwort",
+      "enable": "Anmeldung einschalten",
+      "enableHint": "Danach fragt jeder Browser einmal nach dem Passwort und bleibt 30 Tage angemeldet. Home Assistant braucht dann einen API-Token (Karte „Home-Assistant-Anbindung“), Skripte einen API-Schlüssel.",
+      "change": "Passwort ändern",
+      "disable": "Anmeldung ausschalten…",
+      "mismatch": "Die beiden Passwörter stimmen nicht überein.",
+      "enabled": "Anmeldung eingeschaltet. Dieser Browser bleibt angemeldet.",
+      "changed": "Passwort geändert. Andere Geräte müssen sich neu anmelden.",
+      "disableTitle": "Anmeldung ausschalten?",
+      "disableMsg": "Danach ist der Energietracker wieder ohne Passwort erreichbar. Zum Bestätigen das bisherige Passwort eingeben.",
+      "disabled": "Anmeldung ausgeschaltet.",
+      "keysTitle": "API-Schlüssel für Skripte",
+      "keysHint": "Mit eingeschalteter Anmeldung brauchen Skripte und andere Programme einen Schlüssel – als Kopfzeile <code>Authorization: Bearer etk_…</code>. „Lesen“ darf nur abrufen, „Verwalten“ auch ändern. Der Home-Assistant-Push nutzt weiter seinen eigenen Token.",
+      "keysNone": "Noch keine Schlüssel angelegt.",
+      "keyName": "Bezeichnung",
+      "keyNamePlaceholder": "z. B. Backup-Skript",
+      "keyScope": "Berechtigung",
+      "scopeRead": "Lesen",
+      "scopeAdmin": "Verwalten",
+      "keyCreatedAt": "Angelegt",
+      "keyLastUsed": "Zuletzt benutzt",
+      "keyNever": "noch nie",
+      "keyCreate": "Schlüssel erzeugen",
+      "keyReveal": "Schlüssel „{name}“ – jetzt kopieren, er wird nicht erneut angezeigt:",
+      "keyCopy": "Schlüssel kopieren",
+      "keyCopied": "Schlüssel kopiert",
+      "keyRevoke": "Widerrufen",
+      "keyRevokeTitle": "Schlüssel widerrufen?",
+      "keyRevokeMsg": "Programme, die den Schlüssel „{name}“ verwenden, haben danach keinen Zugriff mehr.",
+      "keyRevoked": "Schlüssel widerrufen."
+    }
   },
   "reminders": {
     "suggest": {
@@ -1338,7 +1468,9 @@
   "errors": {
     "temperature": {
       "emptyCsv": "Die CSV-Daten sind leer.",
-      "dateMissing": "Das Datum fehlt."
+      "dateMissing": "Das Datum fehlt.",
+      "valuesMissing": "Durchschnitt, Minimum und Maximum (avg, min, max) sind Pflicht und müssen Zahlen sein.",
+      "rangeInvalid": "Ungültiger Zeitraum: {start} liegt nach {end}."
     },
     "view": {
       "loadFailed": "Fehler beim Laden: {msg}",
@@ -1351,7 +1483,8 @@
       "multipleSources": "Mehrere Heizquellen aktiv — die Klasse je Quelle ist aussagekräftiger als die kombinierte Summe. Die kombinierte Sicht ist nur bei bewusst kombiniertem Heizbetrieb (z. B. Grund- und Spitzenlast) sinnvoll."
     },
     "forecast": {
-      "tooFewMonths": "Zu wenig historische Daten (weniger als 6 Monate)."
+      "tooFewMonths": "Zu wenig historische Daten (weniger als 6 Monate).",
+      "paramInvalid": "Ungültiger Wert für {param}: „{value}“ (erlaubt: {range})."
     },
     "reminder": {
       "titleRequired": "Ein Titel ist erforderlich.",
@@ -1394,7 +1527,8 @@
       "invalidBaselineList": "Zäsuren müssen als Liste von Einträgen mit Datum übergeben werden",
       "invalidBaselineDate": "Ungültiges Datum für die Zäsur: „{date}“ — erwartet wird JJJJ-MM-TT",
       "duplicateBaselineDate": "Für den {date} ist bereits eine Zäsur eingetragen",
-      "swapBeforeInstall": "Der Tausch am {date} liegt vor dem Einbau des aktuellen Geräts ({installed})."
+      "swapBeforeInstall": "Der Tausch am {date} liegt vor dem Einbau des aktuellen Geräts ({installed}).",
+      "digitsInvalid": "Stellen des Zählwerks: „{value}“ ist ungültig — erlaubt ist eine ganze Zahl von 3 bis 12 oder leer."
     },
     "common": {
       "unknownUtility": "Unbekannte Verbrauchsart: {utility}",
@@ -1459,18 +1593,25 @@
       "dateFormat": "Datum muss im Format YYYY-MM-DD vorliegen: {date}",
       "meterMissing": "Zähler (meter) fehlt — Alias oder interne ID angeben",
       "meterNotFound": "Kein Zähler für „{meter}“ in {utility} gefunden (weder als Alias noch als ID)",
-      "unauthorized": "Nicht autorisiert — einen gültigen API-Token als „Authorization: Bearer <token>“ senden."
+      "unauthorized": "Nicht autorisiert — einen gültigen API-Token als „Authorization: Bearer <token>“ senden.",
+      "tokenRequiredWithLogin": "Die Anmeldung ist eingeschaltet – der Push braucht dann einen API-Token. Bitte in den Einstellungen einen Token erzeugen."
     },
     "backup": {
       "noVersionField": "Kein backup_version-Feld — kein gültiges Backup",
       "versionUnsupported": "Backup-Version {ver} wird nicht direkt unterstützt. Bitte zuerst über die Migration in v1.0.0 einspielen oder ein neueres Backup verwenden.",
-      "schemaNewer": "Backup-Schema {schema} ist neuer als die App-Schema {appSchema}. Bitte erst die App aktualisieren, dann das Backup einspielen."
+      "schemaNewer": "Backup-Schema {schema} ist neuer als die App-Schema {appSchema}. Bitte erst die App aktualisieren, dann das Backup einspielen.",
+      "invalid": "Das Backup ist unvollständig oder beschädigt ({count} Problem(e)). Es wurde nichts eingespielt.",
+      "snapshotFailed": "Der Sicherungs-Snapshot vor dem Einspielen ist fehlgeschlagen. Ohne ihn gibt es keinen Rückweg. Nur mit ausdrücklicher Zustimmung trotzdem einspielen.",
+      "snapshotNotFound": "Snapshot „{name}“ nicht gefunden.",
+      "snapshotUnreadable": "Snapshot „{name}“ ist nicht lesbar (kein gültiges JSON)."
     },
     "import": {
       "emptyCsv": "Leere CSV-Daten",
       "dateUnrecognized": "Zeile {line}: Datum nicht erkannt ({value})",
       "rowIncomplete": "Zeile {line}: Datum oder Zählerstand fehlt",
-      "counterNotNumeric": "Zeile {line}: Zählerstand ist keine Zahl ({value})"
+      "counterNotNumeric": "Zeile {line}: Zählerstand ist keine Zahl ({value})",
+      "rowError": "Zeile {line}: {message}",
+      "tooFewColumns": "Zeile {line}: zu wenige Spalten"
     },
     "demo": {
       "backupNotFound": "Demo-Backup nicht gefunden.",
@@ -1503,7 +1644,44 @@
       "invalidRange": "Bitte einen gültigen Zeitraum angeben (von < bis, JJJJ-MM-TT)"
     },
     "http": {
-      "crossSite": "Abgelehnt: Die Anfrage kam von einer fremden Webseite. Ändern lässt sich nur aus dem Energietracker selbst."
+      "crossSite": "Abgelehnt: Die Anfrage kam von einer fremden Webseite. Ändern lässt sich nur aus dem Energietracker selbst.",
+      "internal": "Interner Fehler ({id}). Die Einzelheiten stehen im Server-Log.",
+      "hostNotAllowed": "Der Hostname „{host}“ ist nicht freigegeben (ET_ALLOWED_HOSTS)."
+    },
+    "storage": {
+      "dataTooNew": "Die Daten stammen von einer neueren Version (Schema {schema}). Diese Version kennt nur Schema {app} und schreibt nichts, um sie nicht zu beschädigen. Bitte die neuere Version wieder starten."
+    },
+    "report": {
+      "yearRange": "Das Jahr muss eine Zahl zwischen 2000 und 2100 sein."
+    },
+    "auth": {
+      "required": "Bitte anmelden.",
+      "readOnlyKey": "Dieser API-Schlüssel darf nur lesen.",
+      "notPasswordMode": "Die Anmeldung per Passwort ist nicht eingeschaltet.",
+      "wrongPassword": "Passwort falsch.",
+      "locked": "Zu viele Fehlversuche – bitte {minutes} Minuten warten.",
+      "passwordFixed": "Das Passwort ist über die Umgebung (ET_ADMIN_PASSWORD_HASH) festgelegt und lässt sich hier nicht ändern.",
+      "modeFixed": "Die Anmeldung ist über die Umgebung (ET_AUTH) festgelegt und lässt sich hier nicht ausschalten.",
+      "passwordTooShort": "Das Passwort braucht mindestens {min} Zeichen.",
+      "scopeInvalid": "Unbekannter Bereich – erlaubt sind read und admin.",
+      "keyNotFound": "API-Schlüssel nicht gefunden."
     }
+  },
+  "login": {
+    "title": "Anmelden",
+    "password": "Passwort",
+    "submit": "Anmelden",
+    "forgot": "Passwort vergessen? Auf dem Server in data/auth.json den Wert von „mode“ auf „off“ setzen – dann ist die Anmeldung aus. Im Docker-Container geht das auch mit der Umgebungsvariablen ET_AUTH=off.",
+    "logout": "Abmelden"
+  },
+  "readingCheck": {
+    "title": "Bitte prüfen",
+    "future": "Das Datum {date} liegt in der Zukunft.",
+    "sameDay": "Für den {date} gibt es schon einen Stand ({counter} {unit}). Der neue Wert ersetzt ihn.",
+    "lower": "Der Stand ist kleiner als der letzte ({last} {unit}). Wurde der Zähler getauscht, bitte den Tausch unter „Zählertausch“ erfassen – sonst zeigt die Auswertung einen Rückgang.",
+    "jump": "Seit der letzten Ablesung wären das {perDay} {unit} pro Tag – sonst sind es etwa {typical} {unit}. Tippfehler?",
+    "magnitude": "Der Wert ist mehr als zehnmal so groß wie der letzte Stand ({last} {unit}). Komma vergessen?",
+    "confirm": "Trotzdem speichern",
+    "replace": "Ersetzen"
   }
 }

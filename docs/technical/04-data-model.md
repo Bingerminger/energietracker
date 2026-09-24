@@ -24,8 +24,8 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.5.0**
 ```text
 data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
-├── settings.json             # 40 Schlüssel (s. u.)
-├── auth.json                 # API-Token-HASH für HA-Ingest (F1009) — nie im Klartext
+├── settings.json             # Einstellungen (Defaults: SettingsService::DEFAULTS)
+├── auth.json                 # Anmeldung, HA-Token, API-Schlüssel — nur Hashes, nie Klartext
 ├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max }, … }
 ├── reminders.json            # Termine/Wartung
 ├── recommendations_dismissed.json
@@ -38,8 +38,15 @@ data/
 ├── pv_einspeisung/ { meters.json, readings.json, contracts.json, meter_groups.json }
 ├── pv_erzeugung/   { meters.json, readings.json, contracts.json, meter_groups.json }
 ├── logs/       # JSON-Lines-Log (N1010)
-└── backups/    # Snapshots
+├── .write.lock # Schreibsperre (v2.5.3)
+└── backups/    # Snapshots: backup_… (eigene), pre-restore-/pre-migration-/pre-demo-/pre-v09-… (automatisch)
 ```
+
+**Snapshots (v2.6.0):** Name `<präfix>YYYY-MM-DD_HHMMSS[-n].json`; der Präfix
+bestimmt den Anlass (`reason` in `GET /api/backup/snapshots`). Aufbewahrung:
+von den eigenen die letzten zehn, automatische 30 Tage, je Anlass mindestens
+die drei neuesten. Ein Snapshot entsteht gestreamt über eine Temp-Datei und
+wird erst am Ende umbenannt.
 
 Kumulative Arten (Gas, Strom, Wasser, Fernwärme, PV) haben `readings.json`;
 lieferbasierte Arten (Heizöl, Pellets) haben stattdessen
@@ -49,10 +56,24 @@ selbst** die Kostenbasis (siehe [Heizöl](../functional/05-heizoel.md)).
 `meter_groups.json` (seit 1.2.0) hält die Gruppen-Stammdaten je Utility;
 die Gruppen-*Mitgliedschaft* steht dagegen am Zähler (`meter_group_id`).
 
-> **`auth.json`** (F1009) enthält ausschließlich den **SHA-256-Hash** des
-> API-Tokens, niemals den Klartext, und wird vom Backup **ausgenommen**.
-> Solange die Datei fehlt/leer ist, ist die API im offenen Modus (kein Token
-> erforderlich). Details: [API-Referenz → Auth](03-api-reference.md).
+> **`auth.json`** (F1009, erweitert in v2.6.0) enthält nur **Hashes**, nie
+> Klartext, und wird vom Backup **ausgenommen**. Fehlt die Datei, ist die
+> Anmeldung aus und der Ingest ohne Token erreichbar. Eine **unlesbare** Datei
+> gilt nicht als leer: Der Zugriff scheitert (503), statt still zu öffnen.
+>
+> ```jsonc
+> {
+>   "token_hash": "…sha256…", "created_at": "…", "token_last_used_at": "…",  // HA-Ingest (F1009)
+>   "mode": "password",                 // off | password | proxy (ET_AUTH hat Vorrang)
+>   "password_hash": "$2y$10$…",        // password_hash(); ET_ADMIN_PASSWORD_HASH hat Vorrang
+>   "session_secret": "…",              // HMAC-Schlüssel der Sitzungs-Cookies; neu bei jedem neuen Passwort
+>   "login_failures": { "count": 1, "first_at": 1758700000, "locked_until": 0 },
+>   "api_keys": [ { "id": "k_…", "name": "Backup-Skript", "scope": "read",
+>                   "hash": "…sha256…", "created_at": "…", "last_used_at": null } ]
+> }
+> ```
+>
+> Details: [Sicherheit](08-security.md), [API-Referenz → Anmeldung](03-api-reference.md).
 
 ---
 
@@ -120,12 +141,18 @@ sondern als `meter_group_id` am jeweiligen Zähler (Single-Source-of-Truth).
   "initial_counter": 0.0,
   "removed_on": "2024-10-01",
   "final_counter": 1562.0,
-  "reason": "Eichtausch"
+  "reason": "Eichtausch",
+  "digits": 5                  // optional (v2.6.0): Stellen des Zählwerks, 3–12
 }
 ```
 
 Verbrauch über eine Tauschgrenze:
 `(altes_final − vorheriges_reading) + (aktuelles_reading − neues_initial)`.
+
+**`digits`** (v2.6.0, additiv, fehlt = unbekannt): Fällt der Stand auf
+demselben Gerät um höchstens ein Zehntel des Zählbereichs „zurück", ist das
+ein Überlauf: Verbrauch = `neu + 10^digits − alt` (99.998 → 12 bei fünf
+Stellen = 14).
 
 ### Reading (Zählerstand — kumulative Arten)
 
@@ -139,6 +166,16 @@ Verbrauch über eine Tauschgrenze:
 
 `is_future: true` markiert vorgemerkte Termine — sie bleiben sichtbar,
 werden aber **nicht** in die Verbrauchsberechnung einbezogen.
+
+Zwei optionale Felder seit v2.6.0 (additiv, nur vorhanden, wenn gesetzt):
+
+- `source`: `ingest` (Home Assistant) oder `csv` (CSV-Import).
+- `is_suspect: true`: fallender Stand aus dem Ingest; zählt nicht, bis er
+  bestätigt (`PATCH` mit `is_suspect: false`) oder korrigiert ist.
+
+Die Verbrauchsrechnung übergeht außerdem **eingeklemmte Ausreißer** desselben
+Geräts und meldet sie als `warnings` (siehe
+[Zählerstände → Plausibilität](../functional/11-zaehlerstaende.md)).
 
 ### Delivery (Brennstofflieferung — Heizöl/Pellets)
 
@@ -195,7 +232,7 @@ das Feld, wird es beim Normalisieren zu `[]` (kein Migrationsschritt).
 
 ---
 
-## 3. Einstellungen (`settings.json`, 40 Schlüssel)
+## 3. Einstellungen (`settings.json`)
 
 Gruppen (Auswahl der Default-Werte):
 
@@ -218,6 +255,12 @@ Gruppen (Auswahl der Default-Werte):
 | `tank_warn_pct` | — | Warnschwelle Tankfüllstand |
 | `active_utilities` | alle | welche Arten in Sidebar/Dashboard sichtbar |
 | `location_name`, `latitude`, `longitude` | Leipzig | für Open-Meteo |
+| `language` | de | Sprache der Oberfläche und der API-Meldungen |
+| `frame_ancestors` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (CSP `frame-ancestors`), z. B. `http://homeassistant.local:8123` |
+
+Die vollständige Liste steht in `SettingsService::DEFAULTS`. Unbekannte
+Schlüssel speichert `PATCH /api/settings` nicht und nennt sie seit v2.6.0 in
+`ignored_keys`.
 
 > Die `billing_cycle_anchor_*`-Werte werden **kanonisch als `MM-TT`**
 > gespeichert (damit das Backend ein valides `YYYY-MM-TT` bauen kann),
@@ -250,8 +293,14 @@ dabei kommen `meter_groups.json` je Utility (1.2.0) und die Zähler-Felder
 `external_id` (1.3.0) und `baseline_events` (1.4.0) hinzu, ohne bestehende
 Werte anzutasten. Der
 Migrationspfad (1.0.0 → aktuelles Schema) wird zusätzlich in der CI über
-einen separaten Migrations-Smoke geprüft. Ein Downgrade wird nicht
-unterstützt.
+einen separaten Migrations-Smoke geprüft. Vor jeder Migration legt der
+Migrator einen Snapshot `pre-migration-…` an (seit v2.5.3).
+
+**Downgrade-Schutz (v2.6.0).** Ein Downgrade wird nicht unterstützt — aber
+jetzt erkannt: Ist `schema_version` der Daten **neuer** als die App, schreibt
+sie nichts, alle Routen außer `/api/health` antworten `503`
+(`errors.storage.dataTooNew`), und `/api/health` meldet `error`. Bis v2.5.3
+stempelte eine ältere Version die neueren Daten still auf ihr Schema zurück.
 
 ---
 

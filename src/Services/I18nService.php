@@ -34,6 +34,19 @@ final class I18nService
     /** @var array<string,array<string,mixed>> catalog cache per locale */
     private array $catalogs = [];
 
+    /**
+     * v2.6.0 — gerenderte Fehlermeldung → Katalogschlüssel dieser Anfrage.
+     *
+     * Fehlerantworten tragen seit v2.6.0 einen stabilen `code`, damit Skripte
+     * und Home-Assistant-Automationen sprachunabhängig reagieren können. Die
+     * rund 115 Wurfstellen übergeben ihre Meldung als fertigen Text; statt jede
+     * umzubauen, merkt sich t() hier, aus welchem `errors.*`-Schlüssel ein Text
+     * entstand, und der Fehlerpfad schlägt ihn nach (errorCodeFor()).
+     *
+     * @var array<string,string>
+     */
+    private array $errorKeys = [];
+
     public function __construct(string $localeDir, private SettingsService $settings)
     {
         $this->localeDir = rtrim($localeDir, '/');
@@ -132,7 +145,28 @@ final class I18nService
         foreach ($params as $k => $v) {
             $value = str_replace('{' . $k . '}', (string)$v, $value);
         }
+        if (str_starts_with($key, 'errors.')) {
+            $this->errorKeys[$value] = $key;
+        }
         return $value;
+    }
+
+    /**
+     * Stabiler Fehlercode (Katalogschlüssel) zu einer Meldung, die in dieser
+     * Anfrage über t() entstand. Wurfstellen hängen manchmal etwas an
+     * („… #3"); dann gilt der längste bekannte Anfang.
+     */
+    public function errorCodeFor(string $message): ?string
+    {
+        if (isset($this->errorKeys[$message])) return $this->errorKeys[$message];
+        $best = null; $bestLen = 0;
+        foreach ($this->errorKeys as $text => $key) {
+            $len = strlen($text);
+            if ($len > $bestLen && $len >= 8 && str_starts_with($message, $text)) {
+                $best = $key; $bestLen = $len;
+            }
+        }
+        return $best;
     }
 
     /**

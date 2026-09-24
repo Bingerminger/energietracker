@@ -20,12 +20,12 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
                           |
                           v
   +-----------------------------------------------------------+
-  |  Controllers (20)        |  Services (24)                  |
+  |  Controllers (26)        |  Services (31)                  |
   |  HTTP rein / raus        |  Fachlogik, kein HTTP           |
   +-----------------------------------------------------------+
                           |
                           v
-  Storage  - JsonStore (LOCK_EX) + Migrator
+  Storage  - JsonStore (atomar, Schreibsperre) + Migrator
                           |
                           v
   data/    - flache JSON-Dateien je Verbrauchsart
@@ -58,10 +58,11 @@ energietracker/
 ├── src/
 │   ├── bootstrap.php       # DI-Container + Routen-Tabelle
 │   ├── Config/Utilities.php# Verbrauchsarten — single source of truth
-│   ├── Http/               # Router, Request, Response, ErrorHandler
-│   ├── Storage/            # JsonStore, Migrator
-│   ├── Services/ (24)      # Fachlogik (+ Pdf/PdfWriter)
-│   └── Controllers/ (20)   # je Klasse eine Datei (PSR-1)
+│   ├── Http/               # Router, Request, Response, ErrorHandler, CrossSiteGuard
+│   ├── Storage/            # JsonStore, Migrator, WriteLock
+│   ├── Support/            # Dates, Encoding
+│   ├── Services/ (31)      # Fachlogik (+ Pdf/PdfWriter)
+│   └── Controllers/ (26)   # je Klasse eine Datei (PSR-1)
 ├── data/                   # Laufzeitdaten (nicht im VCS)
 ├── demo-data/              # vollständiger Beispieldatensatz (8 Arten)
 ├── docs/                   # dieses Kompendium
@@ -99,18 +100,20 @@ Daraus ergeben sich zwei Berechnungspfade (siehe
 
 ---
 
-## 4. Services (`src/Services/`, 24 + `Pdf\PdfWriter`)
+## 4. Services (`src/Services/`, 31 + `Pdf\PdfWriter`)
 
 Jeder Service ist `final`, hat einen dependency-injizierten Konstruktor
 und kennt **kein HTTP**.
 
 | Service | Verantwortung |
 |---|---|
-| `SettingsService` | Settings lesen/mergen, Typ-Casts; 40 Schlüssel |
+| `SettingsService` | Settings lesen/mergen, Typ-Casts; Defaults in `DEFAULTS`; je Datenstand zwischengespeichert (v2.6.0) |
+| `ConversionFactorService` | datierte Gas-Faktoren (F1012), tagesgenau |
+| `I18nService` | Kataloge, `t()`, Sprache aus Einstellung bzw. `Accept-Language`; ordnet Meldungen ihrem Fehlercode zu (v2.6.0) |
 | `MeterService` | CRUD Zähler/Tanks, Gerätetausch, Topologie (Subzähler/Gruppen, F1006) + `external_id`-Alias (F1009) |
-| `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device |
+| `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device; Erfassungsübersicht mit typischem Tagesverbrauch; Sammel-Upsert für den CSV-Import (v2.6.0) |
 | `ContractService` | CRUD Verträge, strikte Validierung, Stichtag-Lookup |
-| `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo, Wetterbereinigung; delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService` |
+| `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo, Wetterbereinigung; delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService`; seit v2.6.0 Plausibilität (Ausreißer, Verdacht, Überlauf) mit `warnings` |
 | `DeliveryConsumptionService` | **(seit v1.4.4)** Tages-Verbrauchsverteilung & Tank-Bestandsabzug für Heizöl/Pellets — aus `ConsumptionService` extrahiert (~350 Zeilen) |
 | `DeliveryService` | CRUD Lieferungen, Tank-Bestandskurve |
 | `TemperatureService` | CSV-Import, Tages-Map |
@@ -120,23 +123,24 @@ und kennt **kein HTTP**.
 | `AnomalyService` | Z-Score-Ausreißer |
 | `BenchmarkService` | Effizienzklasse **pro Heizquelle** + kombiniert |
 | `TariffComparisonService` | echte + Schattenverträge auf Ist-Verbrauch |
+| `TariffSwitchService` | Wechselentscheidung ab Wechseltermin (Bindungskette, Break-even) |
 | `RecommendationService` | 7 statistische Regelfamilien, Dismiss-State |
 | `ReminderService` | Termine/Wartung, Recurrence-Fortschreibung |
 | `PdfReportService` + `Pdf\PdfWriter` | Jahresbericht, eigener PDF-Generator |
-| `BackupService` | Export/Import Format 3.0, Snapshots |
+| `BackupService` | Export/Import Format 3.0 mit Prüfung vor dem Schreiben und Rückweg; Snapshots (Liste, Download, Einspielen, Rotation) |
 | `MigrationService` | v0.9.0-Import (Preview + Apply) |
 | `ReadingImportService` | CSV-Bulk-Import von Ablesungen |
 | `CsvExportService` | tabellarischer Export (inkl. Lieferungen) |
 | `DiagnosticsService` | Systemstatus, Schreibrechte, Datenzählung |
-| `HealthCheckService` | `/api/health` (Version, Schema, Schreibrechte, Migrationen) — N1003 |
+| `HealthCheckService` | `/api/health`: `status` ok/degraded/error, Prüfungen (Schreibrechte, Schema, Dateien, Platz, Temp-Dateien), letzter Ingest — N1003, v2.6.0 |
 | `DemoService` | Ein-Klick-Demo-Import über den Restore-Pfad — F1007 |
 | `PvSummaryService` / `StromSaldoService` | PV-Eigenverbrauch/Autarkie bzw. Strom-Saldo — F1005 |
-| `AuthService` | opt-in API-Token (Hash in `data/auth.json`, `hash_equals`) — F1009 |
+| `AuthService` | Anmeldung (Passwort, Proxy, Sitzungen, Sperre), API-Schlüssel und HA-Token — nur Hashes in `data/auth.json` (F1009, v2.6.0) |
 | `IngestService` | idempotenter Push-Eingang (`/api/ingest`, upsert-by-date) — F1009 |
 
 ---
 
-## 5. Controllers (`src/Controllers/`, 20)
+## 5. Controllers (`src/Controllers/`, 26)
 
 Jeder Controller ist `final`, eine Klasse pro Datei. Methoden geben
 `never` zurück und antworten direkt über `Response::json()` /
@@ -146,14 +150,22 @@ Jeder Controller ist `final`, eine Klasse pro Datei. Methoden geben
 `MeterController`, `ReadingController`, `ContractController`,
 `ConsumptionController`, `ForecastController`, `DeliveryController`,
 `BenchmarkController`, `TariffComparisonController`,
-`RecommendationController`, `ReminderController`, `ReportController`,
+`TariffSwitchController`, `RecommendationController`, `ReminderController`, `ReportController`,
 `ExportController`, `BackupController`, `MigrationController`,
 `DiagnosticsController`, `HealthController`, `DemoController`,
 `PvSummaryController`, `StromSaldoController`, `AuthController`,
-`IngestController`.
+`IngestController`, `SessionController`.
 
 *(Hinweis: Gruppen-Endpoints aus F1006 liegen im `MeterController`,
-Auth/Ingest aus F1009 in `AuthController`/`IngestController`.)*
+Auth/Ingest aus F1009 in `AuthController`/`IngestController`, Anmeldung und
+API-Schlüssel (v2.6.0) im `SessionController`.)*
+
+**Anmelde-Schranke (v2.6.0).** Vor dem Routing prüft `App` in
+`bootstrap.php` Hostnamen (`ET_ALLOWED_HOSTS`), fremde Browser-Anfragen
+(`CrossSiteGuard`) und — bei eingeschalteter Anmeldung — Sitzung,
+API-Schlüssel oder Proxy-Benutzer. Öffentlich bleiben Ingest, Health (in
+Minimalform) und die Anmeldung selbst. Details:
+[Sicherheit](08-security.md).
 
 Die vollständige Routen-Liste steht in der
 [API-Referenz](03-api-reference.md).
@@ -167,12 +179,18 @@ Die vollständige Routen-Liste steht in der
 | Exception | HTTP | Bedeutung |
 |---|---|---|
 | `InvalidArgumentException` | 400 | ungültige Eingabe |
-| `RuntimeException` mit „nicht gefunden" | 404 | Ressource fehlt |
-| sonstige | 500 | unerwarteter Fehler |
+| `Http\NotFoundException` | 404 | Ressource fehlt (seit v2.2.1 als Typ statt Textmuster; seit v2.6.0 auch für Datensätze in der URL) |
+| `Http\ConflictException` | 409 | Konflikt, z. B. Sicherungs-Snapshot gescheitert (v2.6.0) |
+| `Storage\StorageCorruptedException` | 503 | Datendatei beschädigt (v2.5.3) |
+| sonstige | 500 | unerwarteter Fehler — generische Meldung mit `error_id`, Einzelheiten im Log (v2.6.0) |
 
 Antwort-Hülle einheitlich:
 `{ "success": true, "data": … }` oder
-`{ "success": false, "error": "…", "detail": … }`.
+`{ "success": false, "error": "…", "code": "errors.…" }`. `code` ist der
+Katalogschlüssel der Meldung (`I18nService::errorCodeFor()`), sonst
+`errors.http.*` nach Statuscode; `detail` mit Datei/Zeile nur bei
+`ET_DEBUG=1`. Der Router beantwortet `HEAD` wie `GET`, eine falsche Methode
+mit `405` und `Allow`, `OPTIONS` mit `204`.
 
 ### 6.1 Speicher-Pfad-Sicherheit (seit v1.4.4)
 

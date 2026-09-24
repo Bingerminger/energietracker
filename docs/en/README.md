@@ -35,6 +35,7 @@ JSON file on your own machine.
 | [Tests](technical/05-testing.md) | Backend-shape and browser-render harness |
 | [Release process](technical/06-release-process.md) | Versioning, CHANGELOG, doc maintenance |
 | [Docker operation](technical/07-docker.md) | Container quick start, `docker compose`, updates, data volume, logs |
+| [Security & network operation](technical/08-security.md) | Sign-in, API keys, proxy, HTTPS, web server rules, checklist before exposing it |
 | [Home Assistant integration (F1009)](HOME-ASSISTANT.md) | Push meter readings automatically from HA: token, meter alias, REST command, scenarios |
 
 ### 📚 Functional part — *for understanding & use*

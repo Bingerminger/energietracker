@@ -2,10 +2,14 @@
 
 **English** · [Deutsch](../API.md)
 
-> **Note:** the canonical API reference, maintained at every release, is the
-> compendium under [`docs/en/technical/03-api-reference.md`](technical/03-api-reference.md).
-> This top-level document contains the detailed request/response examples and is kept
-> factually up to date (as of: v1.9.2).
+> **Note:** the API reference in the compendium is authoritative for paths,
+> fields, status codes and the stability promise:
+> [`docs/en/technical/03-api-reference.md`](technical/03-api-reference.md) — the
+> complete route list, checked against the code by a test. This document is the
+> **guide with detailed examples** for the most-used endpoints (as of: v2.6.0).
+> Up to v2.5.3 it deviated from the code in several places (review API-18); the
+> bodies for meters and meter swaps formerly described here are accepted as
+> aliases since then.
 
 A REST API over a single entry point: `api.php`. Paths have the prefix `/api/`,
 which follows the script name:
@@ -37,67 +41,27 @@ All responses have the same structure:
 ```json
 {
   "success": false,
-  "error": "Readable error message in German",
-  "detail": { "file": "...", "line": ..., "type": "..." }
+  "error": "Readable message in the language of the request",
+  "code": "errors.reading.dateInvalid"
 }
 ```
 
-`detail` is optional and contains diagnostic information that the ErrorHandler adds
-on exceptions. The HTTP status code reflects the error class:
-
-| Status | Class | When |
-|---|---|---|
-| 200 | OK | success |
-| 400 | Bad Request | `InvalidArgumentException` — validation error, missing mandatory fields |
-| 404 | Not Found | `RuntimeException` with "not found" in the text — route or entity missing |
-| 500 | Internal Server Error | other errors |
-
-> Note: the human-readable `error` messages in API responses are emitted in German
-> (the application's source locale), regardless of the documentation language.
+`code` *(since v2.6.0)* is stable — scripts evaluate it, not the message text.
+The message follows the `Accept-Language` header of the request (seven
+languages). `detail` with file and line is only returned with `ET_DEBUG=1`; a
+`500` carries `error_id` (the server log holds the same ID). All status codes
+(400, 401, 403, 404, 405, 409, 421, 429, 500, 503) and their meaning:
+[API reference → status codes](technical/03-api-reference.md#status-codes-of-all-endpoints).
 
 ---
 
 ## Route overview
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET    | `/api/diagnostics`                                                | system status (PHP version, write permissions, schema, etc.) |
-| GET    | `/api/utilities`                                                  | list of utilities + configuration |
-| GET    | `/api/settings`                                                   | current settings |
-| PATCH  | `/api/settings`                                                   | update settings |
-| GET    | `/api/temperatures`                                               | daily temperatures as a map |
-| POST   | `/api/temperatures`                                               | upsert a single day |
-| POST   | `/api/temperatures/import-csv`                                    | CSV import |
-| POST   | `/api/temperatures/sync-open-meteo`                               | sync via Open-Meteo |
-| DELETE | `/api/temperatures/{date}`                                        | delete a day |
-| GET    | `/api/utility/{utility}/meters`                                   | meter list |
-| POST   | `/api/utility/{utility}/meters`                                   | create a meter |
-| GET    | `/api/utility/{utility}/meters/{id}`                              | single meter |
-| PATCH  | `/api/utility/{utility}/meters/{id}`                              | update a meter |
-| DELETE | `/api/utility/{utility}/meters/{id}`                              | delete a meter |
-| POST   | `/api/utility/{utility}/meters/{id}/replace-device`               | meter swap (F2) |
-| GET    | `/api/utility/{utility}/readings`                                 | readings list |
-| POST   | `/api/utility/{utility}/readings`                                 | create a reading |
-| PATCH  | `/api/utility/{utility}/readings/{id}`                            | update a reading |
-| DELETE | `/api/utility/{utility}/readings/{id}`                            | delete a reading |
-| POST   | `/api/utility/{utility}/meters/{id}/readings/import-csv`          | CSV bulk import of readings (F-06) |
-| GET    | `/api/utility/{utility}/contracts`                                | contracts list |
-| POST   | `/api/utility/{utility}/contracts`                                | create a contract |
-| GET    | `/api/utility/{utility}/contracts/{id}`                           | single contract |
-| PATCH  | `/api/utility/{utility}/contracts/{id}`                           | update a contract |
-| DELETE | `/api/utility/{utility}/contracts/{id}`                           | delete a contract |
-| GET    | `/api/utility/{utility}/consumption`                              | monthly consumption (utility-wide) |
-| GET    | `/api/utility/{utility}/meters/{id}/consumption`                  | monthly consumption of a meter + anomalies + regressions |
-| GET    | `/api/utility/{utility}/meters/{id}/contract-status`              | balance aggregation per contract |
-| GET    | `/api/utility/{utility}/meters/{id}/forecast`                     | 12-month forecast |
-| GET    | `/api/backup/export`                                              | full backup as JSON |
-| POST   | `/api/backup/import`                                              | restore a backup (format 3.0+) |
-| POST   | `/api/backup/snapshot`                                            | place a snapshot in the data directory |
-| GET    | `/api/export/{utility}/monthly.csv`                               | monthly overview as CSV (F-07) |
-| GET    | `/api/export/{utility}/readings.csv`                              | meter readings as CSV (F-07) |
-| GET    | `/api/export/temperatures.csv`                                    | temperature series as CSV (F-07) |
-| POST   | `/api/migration/v09/preview`                                      | analyse a v0.9.0 backup |
-| POST   | `/api/migration/v09/import`                                       | adopt a v0.9.0 backup |
+The complete list of all routes is in the
+[API reference](technical/03-api-reference.md#1-full-route-overview) — a test
+checks it against the code at every release. Up to v2.5.3 this document had its
+own table; in the end it knew 37 of 70 routes. The sections below show examples
+by topic.
 
 ---
 
@@ -113,22 +77,27 @@ Delivers the system state and schema information.
 {
   "success": true,
   "data": {
-    "app_version": "1.1.0",
-    "schema_version": "1.0.0",
-    "php_version": "8.4.0",
+    "app_version": "2.6.0",
+    "schema_version": "1.5.0",
+    "php_version": "8.4.12",
     "data_dir": "/var/www/energietracker/data",
     "data_dir_writable": true,
     "curl_available": true,
     "time_zone": "Europe/Berlin",
-    "totals": {
-      "gas":    { "meters": 1, "readings": 52, "contracts": 4 },
-      "strom":  { "meters": 1, "readings": 22, "contracts": 4 },
-      "wasser": { "meters": 1, "readings": 12, "contracts": 1 },
-      "temperatures": 1131
-    }
+    "now": "2026-09-25T00:13:17+02:00",
+    "migration_needed": false,
+    "utilities": {
+      "gas":     { "kind": "cumulative", "meters": 1, "readings": 41, "contracts": 6, "last_reading_date": "2026-03-15" },
+      "heizoel": { "kind": "delivery",   "meters": 1, "deliveries": 3, "contracts": 0, "last_delivery_date": "2025-09-18" }
+    },
+    "temperatures": { "rows": 1277 },
+    "settings_known_keys": ["gas_conversion_factors", "hdd_base_temp", "…"]
   }
 }
 ```
+
+For monitoring use `GET /api/health` (status, checks, HTTP 503 on error);
+diagnostics is the detailed view for the settings page.
 
 ---
 
@@ -136,8 +105,9 @@ Delivers the system state and schema information.
 
 ### `GET /api/utilities`
 
-Delivers the static configuration of the three utilities (the single source of truth
-from `src/Config/Utilities.php`).
+Delivers the static configuration of the eight utilities (`gas`, `strom`,
+`wasser`, `fernwaerme`, `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`;
+the single source of truth from `src/Config/Utilities.php`).
 
 **Response:**
 
@@ -171,8 +141,8 @@ from `src/Config/Utilities.php`).
 
 ### `GET /api/settings`
 
-**Response:** all 20 settings keys as a flat object (see README → data model →
-settings inventory).
+**Response:** all settings as a flat object; keys and defaults are defined in
+`SettingsService::DEFAULTS`.
 
 ### `PATCH /api/settings`
 
@@ -184,7 +154,10 @@ A partial update — only the passed keys are written, all others stay unchanged
 { "hdd_base_temp": 17, "forecast_model": "robust" }
 ```
 
-**Response:** the complete updated settings object.
+**Response:** the complete updated settings object. Unknown keys are not
+stored; since v2.6.0 the response names them in `ignored_keys` and in the
+`X-Ignored-Keys` header (up to v2.5.3 they were dropped silently — a typo in a
+key went unnoticed).
 
 ---
 
@@ -260,10 +233,11 @@ Deletes a single day (`date` as `YYYY-MM-DD`).
 
 ### `GET /api/utility/{utility}/meters`
 
-`{utility}` ∈ `gas | strom | wasser`.
+`{utility}` ∈ `gas | strom | wasser | fernwaerme | heizoel | pellets |
+pv_einspeisung | pv_erzeugung`.
 
-**Response:** an array of meter objects (schema see README → data model → meter and
-device).
+**Response:** an array of meter objects (schema:
+[data model](technical/04-data-model.md)).
 
 ### `POST /api/utility/{utility}/meters`
 
@@ -274,15 +248,22 @@ device).
   "name": "Garden intermediate meter",
   "icon": "💧",
   "notes": "Optional",
-  "device": {
-    "serial": "WZ-2021-AB123",
-    "installed_on": "2021-04-15",
-    "initial_counter": 0.0
-  }
+  "device_serial": "WZ-2021-AB123",
+  "installed_on": "2021-04-15",
+  "initial_counter": 0.0,
+  "digits": 5
 }
 ```
 
-Is supplied automatically with a default device if none is given.
+All device fields are optional (installed today, initial reading 0). `digits`
+*(v2.6.0)* = register digits before the decimal point (3–12), so that a
+rollover is calculated correctly. Heating oil/pellets require `capacity` (> 0)
+and `initial_stock` instead.
+
+The body described here up to v2.5.3, with an object
+`"device": {"serial", "installed_on", "initial_counter"}`, was never read by the
+code — the values were silently lost. Since v2.6.0 it is accepted as an alias;
+the single fields above take precedence.
 
 ### `PATCH /api/utility/{utility}/meters/{id}`
 
@@ -306,16 +287,19 @@ F2 meter swap: closes the current device and creates a new one.
 
 ```json
 {
-  "removed_on": "2024-08-22",
-  "final_counter": 18432.5,
-  "reason": "Calibration deadline expired",
-  "new_device": {
-    "serial": "GAS-2024-CD8945",
-    "installed_on": "2024-08-22",
-    "initial_counter": 0.0
-  }
+  "date": "2024-08-22",
+  "old_final_counter": 18432.5,
+  "new_initial_counter": 0.0,
+  "serial": "GAS-2024-CD8945",
+  "reason": "Calibration deadline expired"
 }
 ```
+
+`old_final_counter` is mandatory (missing → 400; a silent final reading of 0
+produced a 200-fold spike in issue #13). The swap day belongs to the **new**
+device. The body described here up to v2.5.3 (`removed_on`, `final_counter`,
+`new_device {serial, installed_on, initial_counter}`) ended in
+"old_final_counter missing"; since v2.6.0 it is accepted as an alias.
 
 ---
 
@@ -579,7 +563,7 @@ card and the *contracts & advances* table in the UI.
         "advance_paid":       1740.0,
         "current_balance":    -18.21,
         "projected_end_balance": -18.21,
-        "verdict": "Erstattung",
+        "verdict": "refund",
         "days_until_end": 231,
         "should_remind":  false,
         "remind_stage":   0
@@ -596,9 +580,13 @@ tooltip of the *Special payments* column. `special_payment_net` is the net
 from the customer's perspective (Σ refund − Σ back-payment − Σ advance
 payment). The field is absent for water and PV feed-in.
 
-`verdict` is `Nachzahlung` (back-payment) when `projected_end_balance > 5`,
-`Erstattung` (refund) when `< -5`, otherwise `Ausgeglichen` (balanced). The values
-are emitted in German.
+`verdict` is a key: `surcharge` (back-payment) when
+`projected_end_balance > 5`, `refund` when `< -5`, otherwise `balanced`. For PV
+feed-in the axis is inverted: `payout`, `reclaim`, `balanced`. The interface
+translates the key (`utility.verdict.*`). Up to v1.9.x German words were
+emitted here — v2.0.0 changed that **without notice**; that is exactly why the
+[stability promise](technical/03-api-reference.md#stability-promise-v260) exists
+since v2.6.0.
 
 `effective_end` is, for contracts with a maintained end, identical to `end`; for
 open contracts (`end: null`, `is_open_ended: true`) it is the next billing date of
@@ -624,7 +612,7 @@ contains `actual_m3` and `components` with the breakdown of the three components
   "actual_m3": 187.5,
   "current_balance": +52.28,
   "projected_end_balance": +85.40,
-  "verdict": "Nachzahlung",
+  "verdict": "surcharge",
   "components": {
     "trinkwasser": {
       "working_cost": 482.69,
@@ -752,7 +740,16 @@ Restores a backup. Only formats `backup_version: "3.0"` or higher are accepted �
 older formats the migrator (see below) is responsible.
 
 **Body:** the `data` object from the export, i.e. top-level with `backup_version`,
-`temperatures`, `settings`, `utilities`, …
+`temperatures`, `settings`, `utilities`, … Since v2.6.0 it may also be the whole
+export response (`{success, data}`) — a file saved with
+`curl …/backup/export > backup.json` can be restored directly.
+
+**Flow since v2.6.0:** check first, then write. If a pot is not a list of
+objects, mandatory fields are missing or a date is invalid, the import changes
+nothing and answers `400` with the findings in `detail.problems`. Before writing
+it creates a safety snapshot `pre-restore-…`; if that fails, it answers `409` —
+with `?allow_without_snapshot=1` it proceeds anyway. `?dry_run=1` stops after the
+check.
 
 **Response:**
 
@@ -760,22 +757,35 @@ older formats the migrator (see below) is responsible.
 {
   "success": true,
   "data": {
-    "temperatures": 1131,
-    "settings": 20,
     "utilities": {
-      "gas":    { "meters": 1, "readings": 52, "contracts": 4 },
-      "strom":  { ... },
-      "wasser": { ... }
-    }
+      "gas":   { "meters": 1, "readings": 41, "contracts": 6, "deliveries": 0, "meter_groups": 0 },
+      "strom": { "…": "…" }
+    },
+    "untouched": [],
+    "problems": [],
+    "temperatures": 1277,
+    "settings": 21,
+    "reminders": 6,
+    "recommendations_dismissed": 0,
+    "auto_snapshot_before_restore": "pre-restore-2026-09-25_000438.json"
   }
 }
 ```
+
+`untouched` names pots that are missing from the backup and therefore stay
+unchanged (partial restore). With `dry_run`, `"dry_run": true` appears instead
+of the snapshot.
 
 ### `POST /api/backup/snapshot`
 
 Places a snapshot under `data/backups/backup_YYYY-MM-DD_HHMMSS.json`.
 
-**Response:** `{ "success": true, "data": { "path": "backup_2026-05-11_140000.json" } }`
+**Response:** `{ "success": true, "data": { "file": "backup_2026-09-25_001317.json" } }`
+
+List, download, restore and delete: `GET /api/backup/snapshots`,
+`GET|DELETE /api/backup/snapshots/{name}`,
+`POST /api/backup/snapshots/{name}/restore` *(v2.6.0)* — see the
+[API reference](technical/03-api-reference.md#snapshots-and-import-v260).
 
 ---
 
@@ -886,17 +896,24 @@ of entries skipped due to an ID collision.
 
 ### Authentication model (opt-in)
 
-By default the API is reachable **without a token** (local network). As soon as a
-token has been created, the ingest endpoint requires an `Authorization: Bearer
-<token>` header. All other routes stay unchanged.
+The token protects the ingest endpoint **only**: without a token it accepts
+values without a header; as soon as a token has been created, it requires
+`Authorization: Bearer <token>`. Since v2.6.0 the other routes are protected by
+**sign-in** (opt-in, Settings → "Sign-in & access"); once that is switched on,
+the token is **mandatory** for the ingest. Details:
+[Security](technical/08-security.md).
 
 ### `GET /api/auth/token`
 
 Status (never the token itself):
 
 ```json
-{ "success": true, "data": { "enabled": true, "created_at": "2026-06-01T12:00:00+02:00" } }
+{ "success": true, "data": { "enabled": true, "created_at": "2026-06-01T12:00:00+02:00",
+                             "last_used_at": "2026-09-24T18:00:00+02:00" } }
 ```
+
+`last_used_at` *(v2.6.0)*: the last push with this token, accurate to the hour
+— `null` as long as nothing has arrived.
 
 ### `POST /api/auth/token`
 
@@ -910,7 +927,8 @@ Creates a new token (replaces an existing one). The plaintext token is returned
 
 ### `DELETE /api/auth/token`
 
-Revokes the token → the API is in open mode again.
+Revokes the token → the ingest is reachable without a token again (only without
+sign-in; with sign-in it then rejects every push with `401`).
 
 ### `POST /api/ingest`
 
@@ -932,8 +950,9 @@ duplicates.
 }
 ```
 
-- `utility` — the utility (`gas|strom|wasser|fernwaerme`; delivery utilities heating
-  oil/pellets are rejected — they use deliveries instead of readings).
+- `utility` — a utility with meter readings (`gas|strom|wasser|fernwaerme|
+  pv_einspeisung|pv_erzeugung`; heating oil/pellets are rejected — they use
+  deliveries instead of readings).
 - `meter` — the **alias** (`external_id`) **or** the internal meter ID. Alias first.
 - `value` — the counter (a number). The alias `counter` is also accepted.
 - `date` — optional, default today. Accepts `YYYY-MM-DD`; a full ISO timestamp (e.g.
@@ -950,10 +969,19 @@ duplicates.
     "meter_id": "m_strom_main",
     "date": "2026-06-01",
     "counter": 12345.6,
-    "reading_id": "20260601-ab12cd34"
+    "reading_id": "20260601-ab12cd34",
+    "suspect": false
   }
 }
 ```
 
-**Errors:** `401` (token needed/wrong), `400` (unknown utility, meter not found,
-no/invalid value, delivery utility).
+`suspect` *(v2.6.0)*: if the value is lower than the previous reading of the
+same device, it is stored but marked as suspect (`"suspect": true`, plus
+`"previous": {"date", "counter"}`) and only counts after confirmation in the
+interface (view of the utility). A sensor dropout with 0 can therefore no longer
+create phantom consumption. A register rollover (99,998 → 12) is not suspect when
+the number of digits (`digits`) is maintained on the meter.
+
+**Errors:** `401` (token needed/wrong; with sign-in switched on also without a
+token set), `400` (unknown utility, meter not found, no/invalid value, delivery
+utility).

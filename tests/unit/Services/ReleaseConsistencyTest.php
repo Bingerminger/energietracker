@@ -203,4 +203,32 @@ final class ReleaseConsistencyTest extends TestCase
         self::assertSame([], $offenders,
             "Externe Ressourcen im Frontend:\n" . implode("\n", $offenders));
     }
+
+    /**
+     * v2.6.0 — Jede registrierte Route steht in der API-Referenz (DE und EN),
+     * und die dort genannte Routenzahl stimmt. Review API-18: Die Referenz
+     * behauptete „68 Routen, v1.9.2", während 70 existierten; docs/API.md
+     * kannte 37. Ein neuer Endpunkt ohne Doku fällt jetzt hier auf.
+     */
+    public function testEveryRouteIsDocumentedInTheApiReference(): void
+    {
+        $src = (string)file_get_contents(self::root() . '/src/bootstrap.php');
+        preg_match_all('/\$r->(get|post|put|patch|delete)\(\'([^\']+)\'/', $src, $m, PREG_SET_ORDER);
+        $routes = array_map(fn($x) => strtoupper($x[1]) . ' ' . str_replace('{utility}', '{u}', $x[2]), $m);
+        self::assertGreaterThan(50, count($routes), 'Routen aus bootstrap.php nicht gefunden');
+
+        foreach (['docs/technical/03-api-reference.md', 'docs/en/technical/03-api-reference.md'] as $rel) {
+            $doc = (string)file_get_contents(self::root() . '/' . $rel);
+            $documented = [];
+            foreach (preg_split('/\R/', $doc) ?: [] as $line) {
+                if (preg_match('/^\|\s*\**(GET|POST|PUT|PATCH|DELETE)\**\s*\|\s*\**`([^`]+)`/', $line, $mm)) {
+                    $documented[] = $mm[1] . ' ' . $mm[2];
+                }
+            }
+            self::assertSame([], array_values(array_diff($routes, $documented)), "$rel: nicht dokumentierte Routen");
+            self::assertSame([], array_values(array_diff($documented, $routes)), "$rel: dokumentierte Routen, die es nicht gibt");
+            self::assertMatchesRegularExpression('/\*\*' . count($routes) . ' (Routen|routes)\*\*/', $doc,
+                "$rel: Die genannte Routenzahl muss " . count($routes) . ' lauten');
+        }
+    }
 }

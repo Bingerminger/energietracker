@@ -91,12 +91,12 @@ final class CsvExportService
         foreach ($this->readings->list($utility) as $r) {
             $rows[] = [
                 $r['meter_id'] ?? '',
-                $meterNames[$r['meter_id'] ?? ''] ?? '',
+                $this->text($meterNames[$r['meter_id'] ?? ''] ?? ''),
                 $r['device_id'] ?? '',
                 $r['date'] ?? '',
                 $this->num($r['counter'] ?? null),
                 $this->num($r['price_cents'] ?? null),
-                (string)($r['note'] ?? ''),
+                $this->text((string)($r['note'] ?? '')),
                 !empty($r['is_estimated']) ? 'ja' : 'nein',
                 !empty($r['is_future']) ? 'ja' : 'nein',
             ];
@@ -138,13 +138,13 @@ final class CsvExportService
                 : ($qty !== null && $upc !== null ? $qty * $upc / 100.0 : null);
             $rows[] = [
                 $d['meter_id'] ?? '',
-                $meterNames[$d['meter_id'] ?? ''] ?? '',
+                $this->text($meterNames[$d['meter_id'] ?? ''] ?? ''),
                 $d['date'] ?? '',
                 $this->num($qty),
                 $this->num($upc),
                 $this->num($tot),
-                (string)($d['supplier'] ?? ''),
-                (string)($d['note'] ?? ''),
+                $this->text((string)($d['supplier'] ?? '')),
+                $this->text((string)($d['note'] ?? '')),
                 !empty($d['is_planned']) ? 'ja' : 'nein',
             ];
         }
@@ -191,6 +191,18 @@ final class CsvExportService
             $out .= implode(';', $cells) . "\r\n";
         }
         return $out;
+    }
+
+    /**
+     * v2.6.0 — Freitext (Namen, Notizen, Lieferant) gegen Formel-Injection:
+     * Excel und LibreOffice werten auch gequotete Zellen mit führendem
+     * = + - @ als Formel aus; eine präparierte Notiz wurde so zum Link.
+     * Das vorangestellte Apostroph zeigt die Tabelle nicht an. Zahlen laufen
+     * über num() und bleiben unberührt (auch negative).
+     */
+    private function text(string $s): string
+    {
+        return preg_match('/^[=+\-@\t\r]/', $s) ? "'" . $s : $s;
     }
 
     private function cell(string|int|float|null $value): string

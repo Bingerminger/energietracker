@@ -92,6 +92,12 @@ final class SettingsService
         // additiv, kein Schema-Bump; vom I18nService + Frontend genutzt.
         'language'                 => 'de',     // 'de' | 'en'
 
+        // ── v2.6.0 — Sicherheit ──
+        // Weitere Ursprünge, die die App einbetten dürfen (frame-ancestors),
+        // z. B. eine Home-Assistant-Instanz auf anderer Adresse. Leer = nur
+        // die eigene Seite. Gelesen von index.php.
+        'frame_ancestors'          => '',
+
         // ── v1.3.0 — Gebäude-Stammdaten für kWh/m²-Benchmark ──
         'wohnflaeche_m2'           => 100,
         'baujahr'                  => null,
@@ -150,9 +156,27 @@ final class SettingsService
 
     public function all(): array
     {
+        // v2.6.0 — je Anfrage einmal lesen. Die Gas-Faktoren wurden bisher je
+        // Tag und Segment neu aus settings.json geholt: 44.000 Dateizugriffe
+        // für einen PDF-Bericht über zehn Jahre. Jeder Schreibvorgang über den
+        // Store (auch set()) macht das Memo ungültig.
+        if ($this->memo !== null && $this->memoGen === $this->store->generation()) {
+            return $this->memo;
+        }
         $user = $this->store->read('settings.json', []);
         if (!is_array($user)) $user = [];
-        return array_merge(self::DEFAULTS, $user);
+        $this->memoGen = $this->store->generation();
+        return $this->memo = array_merge(self::DEFAULTS, $user);
+    }
+
+    /** @var array<string,mixed>|null */
+    private ?array $memo = null;
+    private int $memoGen = -1;
+
+    /** v2.6.0 — ändert sich mit jedem Schreibvorgang (für abgeleitete Memos). */
+    public function version(): int
+    {
+        return $this->store->generation();
     }
 
     public function get(string $key, mixed $default = null): mixed

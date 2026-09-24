@@ -43,13 +43,21 @@ All three steps can be prepared directly in Energietracker under
 1. Open Energietracker → **Settings** → **🏠 Home Assistant integration**.
 2. Click **"Generate token"**. The token is shown **only once** — copy it
    immediately and store it safely (e.g. in the HA secrets).
-3. As long as no token is set, the push endpoint is openly reachable (intended
-   for the local network only). **Once a token exists, HA must send it along** —
-   otherwise the endpoint responds with `401`.
+3. The token protects **only** the push endpoint `/api/ingest`, not the rest of
+   the app. As long as none is set, the push accepts values without a token
+   (intended for the home network only). **Once a token exists, HA must send it
+   along** — otherwise the endpoint responds with `401`.
+4. **With sign-in switched on** (Settings → "Sign-in & access", since v2.6.0)
+   the token is **mandatory**: without a token the push then rejects every
+   value. The app itself is protected by sign-in — see
+   [Security & network operation](technical/08-security.md).
 
 > The token is stored server-side only as a **hash** (in `data/auth.json`), never
 > in clear text and not in the normal settings. If you lose it, simply generate a
 > new one (the old one then becomes invalid).
+>
+> Since v2.6.0 the card shows when a value last arrived with the token
+> (accurate to the hour) — the first question when troubleshooting.
 
 ---
 
@@ -271,7 +279,8 @@ Energietracker takes over advance-payment monitoring, the surcharge forecast and
 
 | Symptom (HA log) | Cause & fix |
 |------------------|-------------|
-| `401` | Token set, but the header is missing/wrong. `!secret` only works as the **whole** value: `Authorization: !secret energietracker_auth`, with `"Bearer et_…"` in `secrets.yaml`. A `"Bearer !secret …"` sends the text literally. Otherwise regenerate the token. |
+| `401` | Token set, but the header is missing/wrong. `!secret` only works as the **whole** value: `Authorization: !secret energietracker_auth`, with `"Bearer et_…"` in `secrets.yaml`. A `"Bearer !secret …"` sends the text literally. Otherwise regenerate the token. Since v2.6.0 also: sign-in switched on but no token generated yet. |
+| The value arrives but does not count | It is lower than the previous reading and therefore **marked as suspect** (since v2.6.0; response `"suspect": true`). The view of the utility shows a notice and the reading carries "CHECK" — confirm it (✅), correct it or record a meter swap. |
 | `400 No meter found for "…"` | The alias/ID does not match the meter. Check the alias in the settings. |
 | `400 … works with deliveries` | Heating oil/pellets are not supported via ingest. |
 | `400 Reading … is not a number` | The HA sensor delivers `unknown`/`unavailable`. **Skip** the push then, never replace it with 0: condition `has_value(…)` as in step 4. `| float(0)` trades the visible error for a silent wrong booking. |
@@ -289,6 +298,20 @@ curl -X POST "http://YOUR-IP:8080/api.php/api/ingest" \
 
 A successful response contains `"status":"created"` (or `"updated"` on the second
 call on the same day).
+
+### Falling values (since v2.6.0)
+
+A meter reading cannot go down — except on a meter swap or a rollover. If Home
+Assistant still delivers a value lower than the previous one of the same device
+(typically a reading-head dropout arriving as 0), Energietracker stores it but
+**marks it as suspect**: it counts in no evaluation until you confirm it. The
+response names `"suspect": true` and the previous reading. Up to v2.5.3 a single
+such value turned a normal month into consumption the size of the whole meter
+reading.
+
+Maintain the **register digits** on the meter (edit meter → "Register digits")
+if it can start again at 0 after 99,999 — then a rollover is not flagged and
+the evaluation calculates it correctly.
 
 ---
 

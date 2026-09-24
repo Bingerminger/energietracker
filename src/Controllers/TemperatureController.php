@@ -35,12 +35,14 @@ final class TemperatureController
         if (!Dates::isIsoDate((string)$body['date'])) {
             Response::error($this->i18n->t('errors.common.dateInvalid', ['date' => (string)$body['date']]));
         }
-        $this->temps->upsert(
-            (string)$body['date'],
-            (float)($body['avg'] ?? 0),
-            (float)($body['min'] ?? 0),
-            (float)($body['max'] ?? 0),
-        );
+        // v2.6.0 — fehlende Werte wurden zu 0 °C (Lektion 24) und verfälschten
+        // die Heizgradtage. Wie beim CSV-Import sind alle drei Pflicht.
+        foreach (['avg', 'min', 'max'] as $k) {
+            if (!isset($body[$k]) || is_bool($body[$k]) || !is_numeric($body[$k])) {
+                Response::error($this->i18n->t('errors.temperature.valuesMissing'));
+            }
+        }
+        $this->temps->upsert((string)$body['date'], (float)$body['avg'], (float)$body['min'], (float)$body['max']);
         Response::json(['ok' => true]);
     }
 
@@ -55,6 +57,17 @@ final class TemperatureController
     {
         $start = $req->queryParam('start');
         $end   = $req->queryParam('end');
+        // v2.6.0 — ungeprüft landeten beide in der Open-Meteo-URL.
+        foreach (['start' => $start, 'end' => $end] as $v) {
+            if ($v !== null && $v !== '' && !Dates::isIsoDate($v)) {
+                Response::error($this->i18n->t('errors.common.dateInvalid', ['date' => $v]));
+            }
+        }
+        $start = $start ?: null;
+        $end   = $end ?: null;
+        if ($start !== null && $end !== null && $start > $end) {
+            Response::error($this->i18n->t('errors.temperature.rangeInvalid', ['start' => $start, 'end' => $end]));
+        }
         Response::json($this->temps->syncOpenMeteo($start, $end));
     }
 

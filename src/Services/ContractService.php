@@ -6,6 +6,7 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
+use Energietracker\Http\NotFoundException;
 
 /**
  * Contract management. Each contract belongs to exactly one meter (F3).
@@ -192,7 +193,7 @@ final class ContractService
             break;
         }
         unset($c);
-        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.contract.notFound'));
+        if (!$found) throw new NotFoundException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $all);
         return $found;
     }
@@ -202,7 +203,7 @@ final class ContractService
         $all = $this->store->read("$utility/contracts.json", []);
         if (!is_array($all)) $all = [];
         $kept = array_values(array_filter($all, fn($c) => ($c['id'] ?? null) !== $id));
-        if (count($kept) === count($all)) throw new \InvalidArgumentException($this->i18n->t('errors.contract.notFound'));
+        if (count($kept) === count($all)) throw new NotFoundException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $kept);
     }
 

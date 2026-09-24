@@ -2,11 +2,14 @@
 
 **Deutsch** · [English](en/API.md)
 
-> **Hinweis:** Die kanonische, bei jedem Release gepflegte
-> API-Referenz ist das Kompendium unter
-> [`docs/technical/03-api-reference.md`](technical/03-api-reference.md).
-> Dieses Top-Level-Dokument enthält die ausführlichen Request-/Response-
-> Beispiele und wird faktisch nachgeführt (Stand: v1.9.2).
+> **Hinweis:** Maßgeblich für Pfade, Felder, Statuscodes und die
+> Stabilitätszusage ist die API-Referenz im Kompendium:
+> [`docs/technical/03-api-reference.md`](technical/03-api-reference.md) —
+> vollständige Routenliste, von einem Test gegen den Code geprüft. Dieses
+> Dokument ist der **Leitfaden mit ausführlichen Beispielen** für die
+> meistgenutzten Endpunkte (Stand: v2.6.0). Bis v2.5.3 wich es an mehreren
+> Stellen vom Code ab (Review API-18); die früher hier beschriebenen Körper
+> für Zähler und Zählertausch werden seitdem als Alias angenommen.
 
 REST-API über einen einzigen Entry-Point: `api.php`. Pfade haben das
 Präfix `/api/`, das nach dem Script-Name folgt:
@@ -39,65 +42,26 @@ Alle Antworten haben dieselbe Struktur:
 ```json
 {
   "success": false,
-  "error": "Lesbare Fehlermeldung auf Deutsch",
-  "detail": { "file": "...", "line": ..., "type": "..." }
+  "error": "Lesbare Meldung in der Sprache der Anfrage",
+  "code": "errors.reading.dateInvalid"
 }
 ```
 
-`detail` ist optional und enthält Diagnose-Informationen, die der
-ErrorHandler bei Exceptions hinzufügt. Der HTTP-Status-Code spiegelt
-die Fehlerklasse:
-
-| Status | Klasse | Wann |
-|---|---|---|
-| 200 | OK | Erfolg |
-| 400 | Bad Request | `InvalidArgumentException` — Validierungsfehler, fehlende Pflichtfelder |
-| 404 | Not Found | `RuntimeException` mit „nicht gefunden" im Text — Route oder Entität fehlt |
-| 500 | Internal Server Error | sonstige Fehler |
+`code` *(seit v2.6.0)* ist stabil — Skripte werten ihn aus, nicht den
+Meldungstext. `detail` mit Datei und Zeile gibt es nur noch mit `ET_DEBUG=1`;
+ein `500` trägt `error_id` (dieselbe ID steht im Server-Log). Alle
+Statuscodes (400, 401, 403, 404, 405, 409, 421, 429, 500, 503) und ihre
+Bedeutung: [API-Referenz → Statuscodes](technical/03-api-reference.md#statuscodes-aller-endpunkte).
 
 ---
 
 ## Route-Übersicht
 
-| Methode | Pfad | Zweck |
-|---|---|---|
-| GET    | `/api/diagnostics`                                                | System-Status (PHP-Version, Schreibrechte, Schema, etc.) |
-| GET    | `/api/utilities`                                                  | Liste der Verbrauchsarten + Konfiguration |
-| GET    | `/api/settings`                                                   | Aktuelle Einstellungen |
-| PATCH  | `/api/settings`                                                   | Einstellungen aktualisieren |
-| GET    | `/api/temperatures`                                               | Tagestemperaturen als Map |
-| POST   | `/api/temperatures`                                               | Einzelnes Tagesdatum upsert |
-| POST   | `/api/temperatures/import-csv`                                    | CSV-Import |
-| POST   | `/api/temperatures/sync-open-meteo`                               | Sync via Open-Meteo |
-| DELETE | `/api/temperatures/{date}`                                        | Tagesdatum löschen |
-| GET    | `/api/utility/{utility}/meters`                                   | Zähler-Liste |
-| POST   | `/api/utility/{utility}/meters`                                   | Zähler anlegen |
-| GET    | `/api/utility/{utility}/meters/{id}`                              | Einzelner Zähler |
-| PATCH  | `/api/utility/{utility}/meters/{id}`                              | Zähler aktualisieren |
-| DELETE | `/api/utility/{utility}/meters/{id}`                              | Zähler löschen |
-| POST   | `/api/utility/{utility}/meters/{id}/replace-device`               | Zählertausch (F2) |
-| GET    | `/api/utility/{utility}/readings`                                 | Ablesungen-Liste |
-| POST   | `/api/utility/{utility}/readings`                                 | Ablesung anlegen |
-| PATCH  | `/api/utility/{utility}/readings/{id}`                            | Ablesung aktualisieren |
-| DELETE | `/api/utility/{utility}/readings/{id}`                            | Ablesung löschen |
-| POST   | `/api/utility/{utility}/meters/{id}/readings/import-csv`          | CSV-Bulk-Import von Ablesungen (F-06) |
-| GET    | `/api/utility/{utility}/contracts`                                | Vertrags-Liste |
-| POST   | `/api/utility/{utility}/contracts`                                | Vertrag anlegen |
-| GET    | `/api/utility/{utility}/contracts/{id}`                           | Einzelner Vertrag |
-| PATCH  | `/api/utility/{utility}/contracts/{id}`                           | Vertrag aktualisieren |
-| DELETE | `/api/utility/{utility}/contracts/{id}`                           | Vertrag löschen |
-| GET    | `/api/utility/{utility}/consumption`                              | Monatsverbrauch (utility-weit) |
-| GET    | `/api/utility/{utility}/meters/{id}/consumption`                  | Monatsverbrauch eines Zählers + Anomalien + Regressionen |
-| GET    | `/api/utility/{utility}/meters/{id}/contract-status`              | Saldo-Aggregation pro Vertrag |
-| GET    | `/api/utility/{utility}/meters/{id}/forecast`                     | 12-Monats-Forecast |
-| GET    | `/api/backup/export`                                              | Volles Backup als JSON |
-| POST   | `/api/backup/import`                                              | Backup zurückspielen (Format 3.0+) |
-| POST   | `/api/backup/snapshot`                                            | Snapshot im Datenverzeichnis ablegen |
-| GET    | `/api/export/{utility}/monthly.csv`                               | Monatsübersicht als CSV (F-07) |
-| GET    | `/api/export/{utility}/readings.csv`                              | Zählerstände als CSV (F-07) |
-| GET    | `/api/export/temperatures.csv`                                    | Temperaturreihe als CSV (F-07) |
-| POST   | `/api/migration/v09/preview`                                      | v0.9.0-Backup analysieren |
-| POST   | `/api/migration/v09/import`                                       | v0.9.0-Backup übernehmen |
+Die vollständige Liste aller Routen steht in der
+[API-Referenz](technical/03-api-reference.md#1-vollständige-routen-übersicht) —
+ein Test prüft sie bei jedem Release gegen den Code. Bis v2.5.3 stand hier
+eine eigene Tabelle; sie kannte zuletzt 37 von 70 Routen. Die Abschnitte
+unten zeigen Beispiele nach Themen.
 
 ---
 
@@ -113,22 +77,27 @@ Liefert Systemzustand und Schema-Informationen.
 {
   "success": true,
   "data": {
-    "app_version": "1.1.0",
-    "schema_version": "1.0.0",
-    "php_version": "8.4.0",
+    "app_version": "2.6.0",
+    "schema_version": "1.5.0",
+    "php_version": "8.4.12",
     "data_dir": "/var/www/energietracker/data",
     "data_dir_writable": true,
     "curl_available": true,
     "time_zone": "Europe/Berlin",
-    "totals": {
-      "gas":    { "meters": 1, "readings": 52, "contracts": 4 },
-      "strom":  { "meters": 1, "readings": 22, "contracts": 4 },
-      "wasser": { "meters": 1, "readings": 12, "contracts": 1 },
-      "temperatures": 1131
-    }
+    "now": "2026-09-25T00:13:17+02:00",
+    "migration_needed": false,
+    "utilities": {
+      "gas":     { "kind": "cumulative", "meters": 1, "readings": 41, "contracts": 6, "last_reading_date": "2026-03-15" },
+      "heizoel": { "kind": "delivery",   "meters": 1, "deliveries": 3, "contracts": 0, "last_delivery_date": "2025-09-18" }
+    },
+    "temperatures": { "rows": 1277 },
+    "settings_known_keys": ["gas_conversion_factors", "hdd_base_temp", "…"]
   }
 }
 ```
+
+Für Monitoring ist `GET /api/health` gedacht (Status, Prüfungen, HTTP 503 im
+Fehlerfall); die Diagnose ist die ausführliche Sicht für die Einstellungen.
 
 ---
 
@@ -136,8 +105,9 @@ Liefert Systemzustand und Schema-Informationen.
 
 ### `GET /api/utilities`
 
-Liefert die statische Konfiguration der drei Verbrauchsarten (single
-source of truth aus `src/Config/Utilities.php`).
+Liefert die statische Konfiguration der acht Verbrauchsarten (`gas`,
+`strom`, `wasser`, `fernwaerme`, `heizoel`, `pellets`, `pv_einspeisung`,
+`pv_erzeugung`; single source of truth aus `src/Config/Utilities.php`).
 
 **Response:**
 
@@ -171,8 +141,8 @@ source of truth aus `src/Config/Utilities.php`).
 
 ### `GET /api/settings`
 
-**Response:** sämtliche 20 Settings-Schlüssel als flaches Objekt
-(siehe README → Datenmodell → Settings-Inventar).
+**Response:** sämtliche Einstellungen als flaches Objekt; Schlüssel und
+Defaults stehen in `SettingsService::DEFAULTS`.
 
 ### `PATCH /api/settings`
 
@@ -185,7 +155,10 @@ geschrieben, alle anderen bleiben unverändert.
 { "hdd_base_temp": 17, "forecast_model": "robust" }
 ```
 
-**Response:** das vollständige aktualisierte Settings-Objekt.
+**Response:** das vollständige aktualisierte Settings-Objekt. Unbekannte
+Schlüssel werden nicht gespeichert; seit v2.6.0 nennt die Antwort sie in
+`ignored_keys` und in der Kopfzeile `X-Ignored-Keys` (bis v2.5.3 still
+verworfen — ein Tippfehler im Schlüssel fiel nicht auf).
 
 ---
 
@@ -261,10 +234,11 @@ Löscht einen einzelnen Tag (`date` als `YYYY-MM-DD`).
 
 ### `GET /api/utility/{utility}/meters`
 
-`{utility}` ∈ `gas | strom | wasser`.
+`{utility}` ∈ `gas | strom | wasser | fernwaerme | heizoel | pellets |
+pv_einspeisung | pv_erzeugung`.
 
-**Response:** Array von Meter-Objekten (Schema siehe README →
-Datenmodell → Meter und Device).
+**Response:** Array von Meter-Objekten (Schema:
+[Datenmodell](technical/04-data-model.md)).
 
 ### `POST /api/utility/{utility}/meters`
 
@@ -275,16 +249,22 @@ Datenmodell → Meter und Device).
   "name": "Gartenzwischenzähler",
   "icon": "💧",
   "notes": "Optional",
-  "device": {
-    "serial": "WZ-2021-AB123",
-    "installed_on": "2021-04-15",
-    "initial_counter": 0.0
-  }
+  "device_serial": "WZ-2021-AB123",
+  "installed_on": "2021-04-15",
+  "initial_counter": 0.0,
+  "digits": 5
 }
 ```
 
-Wird automatisch mit einem Default-Device versorgt, falls keines
-angegeben ist.
+Alle Gerätefelder sind optional (Einbau heute, Anfangsstand 0). `digits`
+*(v2.6.0)* = Stellen des Zählwerks vor dem Komma (3–12), damit ein Überlauf
+richtig gerechnet wird. Heizöl/Pellets verlangen stattdessen `capacity`
+(> 0) und `initial_stock`.
+
+Der bis v2.5.3 hier beschriebene Körper mit einem Objekt
+`"device": {"serial", "installed_on", "initial_counter"}` wurde vom Code nie
+gelesen — die Werte gingen still verloren. Seit v2.6.0 wird er als Alias
+angenommen; die Einzelfelder oben haben Vorrang.
 
 ### `PATCH /api/utility/{utility}/meters/{id}`
 
@@ -309,16 +289,20 @@ F2-Zählertausch: schließt das aktuelle Device und legt ein neues an.
 
 ```json
 {
-  "removed_on": "2024-08-22",
-  "final_counter": 18432.5,
-  "reason": "Eichfrist abgelaufen",
-  "new_device": {
-    "serial": "GAS-2024-CD8945",
-    "installed_on": "2024-08-22",
-    "initial_counter": 0.0
-  }
+  "date": "2024-08-22",
+  "old_final_counter": 18432.5,
+  "new_initial_counter": 0.0,
+  "serial": "GAS-2024-CD8945",
+  "reason": "Eichfrist abgelaufen"
 }
 ```
+
+`old_final_counter` ist Pflicht (fehlt er → 400; ein stiller Endstand 0
+erzeugte in Issue #13 einen 200-fachen Ausschlag). Der Tauschtag gehört zum
+**neuen** Gerät. Der bis v2.5.3 hier beschriebene Körper (`removed_on`,
+`final_counter`, `new_device {serial, installed_on, initial_counter}`)
+endete in „old_final_counter fehlt"; seit v2.6.0 wird er als Alias
+angenommen.
 
 ---
 
@@ -581,7 +565,7 @@ Vertrag* Karte und die *Verträge & Abschläge* Tabelle in der UI.
         "advance_paid":       1740.0,
         "current_balance":    -18.21,
         "projected_end_balance": -18.21,
-        "verdict": "Erstattung",
+        "verdict": "refund",
         "days_until_end": 231,
         "should_remind":  false,
         "remind_stage":   0
@@ -598,8 +582,13 @@ Tooltip der Spalte *Sonderzahlungen*. `special_payment_net` ist das Netto aus
 Kundensicht (Σ Rückzahlung − Σ Nachzahlung − Σ Abschlagszahlung). Das Feld
 fehlt bei Wasser und PV-Einspeisung.
 
-`verdict` ist `Nachzahlung` bei `projected_end_balance > 5`,
-`Erstattung` bei `< -5`, sonst `Ausgeglichen`.
+`verdict` ist ein Schlüssel: `surcharge` (Nachzahlung) bei
+`projected_end_balance > 5`, `refund` (Erstattung) bei `< -5`, sonst
+`balanced`. Bei PV-Einspeisung ist die Achse umgedreht: `payout`, `reclaim`,
+`balanced`. Die Oberfläche übersetzt den Schlüssel (`utility.verdict.*`).
+Bis v1.9.x standen hier deutsche Wörter — v2.0.0 hat das **ohne Ankündigung**
+geändert; genau deshalb gibt es seit v2.6.0 die
+[Stabilitätszusage](technical/03-api-reference.md#stabilitätszusage-v260).
 
 `effective_end` ist bei Verträgen mit gepflegtem Ende identisch mit
 `end`; bei offenen Verträgen (`end: null`, `is_open_ended: true`) ist es
@@ -627,7 +616,7 @@ Komponenten:
   "actual_m3": 187.5,
   "current_balance": +52.28,
   "projected_end_balance": +85.40,
-  "verdict": "Nachzahlung",
+  "verdict": "surcharge",
   "components": {
     "trinkwasser": {
       "working_cost": 482.69,
@@ -759,7 +748,17 @@ höher werden akzeptiert — für ältere Formate ist der Migrator (siehe
 unten) zuständig.
 
 **Body:** das `data`-Objekt aus dem Export, also Top-Level mit
-`backup_version`, `temperatures`, `settings`, `utilities`, …
+`backup_version`, `temperatures`, `settings`, `utilities`, … Seit v2.6.0 darf
+es auch die ganze Export-Antwort sein (`{success, data}`) — eine per
+`curl …/backup/export > backup.json` gesicherte Datei lässt sich so direkt
+zurückspielen.
+
+**Ablauf seit v2.6.0:** erst prüfen, dann schreiben. Ist ein Topf keine Liste
+von Objekten, fehlen Pflichtfelder oder ist ein Datum ungültig, ändert der
+Import nichts und antwortet `400` mit den Fundstellen in `detail.problems`.
+Vor dem Schreiben legt er einen Sicherungs-Snapshot `pre-restore-…` an;
+scheitert der, antwortet er `409` — mit `?allow_without_snapshot=1` geht es
+trotzdem. `?dry_run=1` endet nach der Prüfung.
 
 **Response:**
 
@@ -767,22 +766,35 @@ unten) zuständig.
 {
   "success": true,
   "data": {
-    "temperatures": 1131,
-    "settings": 20,
     "utilities": {
-      "gas":    { "meters": 1, "readings": 52, "contracts": 4 },
-      "strom":  { ... },
-      "wasser": { ... }
-    }
+      "gas":   { "meters": 1, "readings": 41, "contracts": 6, "deliveries": 0, "meter_groups": 0 },
+      "strom": { "…": "…" }
+    },
+    "untouched": [],
+    "problems": [],
+    "temperatures": 1277,
+    "settings": 21,
+    "reminders": 6,
+    "recommendations_dismissed": 0,
+    "auto_snapshot_before_restore": "pre-restore-2026-09-25_000438.json"
   }
 }
 ```
+
+`untouched` nennt Töpfe, die im Backup fehlen und deshalb unverändert
+bleiben (Teil-Restore). Bei `dry_run` steht statt des Snapshots
+`"dry_run": true`.
 
 ### `POST /api/backup/snapshot`
 
 Legt einen Snapshot unter `data/backups/backup_YYYY-MM-DD_HHMMSS.json` ab.
 
-**Response:** `{ "success": true, "data": { "path": "backup_2026-05-11_140000.json" } }`
+**Response:** `{ "success": true, "data": { "file": "backup_2026-09-25_001317.json" } }`
+
+Liste, Download, Einspielen und Löschen: `GET /api/backup/snapshots`,
+`GET|DELETE /api/backup/snapshots/{name}`,
+`POST /api/backup/snapshots/{name}/restore` *(v2.6.0)* — siehe
+[API-Referenz](technical/03-api-reference.md#snapshots-und-import-v260).
 
 ---
 
@@ -894,17 +906,24 @@ Im `merge`-Modus enthält jedes Utility zusätzlich ein
 
 ### Authentifizierungs-Modell (opt-in)
 
-Standardmäßig ist die API **ohne Token** erreichbar (lokales Netz). Sobald ein
-Token erzeugt wurde, verlangt der Ingest-Endpoint einen
-`Authorization: Bearer <token>`-Header. Alle anderen Routen bleiben unverändert.
+Der Token schützt **nur** den Ingest-Endpoint: Ohne Token nimmt er Werte ohne
+Kopfzeile an, sobald ein Token erzeugt wurde, verlangt er
+`Authorization: Bearer <token>`. Die übrigen Routen schützt seit v2.6.0 die
+**Anmeldung** (opt-in, Einstellungen → „Anmeldung & Zugriff"); ist sie
+eingeschaltet, ist der Token für den Ingest **Pflicht**. Details:
+[Sicherheit](technical/08-security.md).
 
 ### `GET /api/auth/token`
 
 Status (nie der Token selbst):
 
 ```json
-{ "success": true, "data": { "enabled": true, "created_at": "2026-06-01T12:00:00+02:00" } }
+{ "success": true, "data": { "enabled": true, "created_at": "2026-06-01T12:00:00+02:00",
+                             "last_used_at": "2026-09-24T18:00:00+02:00" } }
 ```
+
+`last_used_at` *(v2.6.0)*: letzter Push mit diesem Token, auf die Stunde
+genau — `null`, solange nichts angekommen ist.
 
 ### `POST /api/auth/token`
 
@@ -919,7 +938,8 @@ ausgenommen).
 
 ### `DELETE /api/auth/token`
 
-Widerruft den Token → API wieder im offenen Modus.
+Widerruft den Token → der Ingest ist wieder ohne Token erreichbar (nur ohne
+Anmeldung; mit Anmeldung lehnt er dann jeden Push mit `401` ab).
 
 ### `POST /api/ingest`
 
@@ -941,8 +961,9 @@ selben Tag erzeugt also **keine** Duplikate.
 }
 ```
 
-- `utility` — Verbrauchsart (`gas|strom|wasser|fernwaerme`; Delivery-Utilities
-  Heizöl/Pellets werden abgelehnt — sie nutzen Lieferungen statt Ablesungen).
+- `utility` — Verbrauchsart mit Zählerständen (`gas|strom|wasser|fernwaerme|
+  pv_einspeisung|pv_erzeugung`; Heizöl/Pellets werden abgelehnt — sie nutzen
+  Lieferungen statt Ablesungen).
 - `meter` — **Alias** (`external_id`) **oder** interne Meter-ID. Alias zuerst.
 - `value` — Zählerstand (Zahl). Alias `counter` wird ebenfalls akzeptiert.
 - `date` — optional, Default heute. Akzeptiert `YYYY-MM-DD`; ein voller
@@ -959,10 +980,20 @@ selben Tag erzeugt also **keine** Duplikate.
     "meter_id": "m_strom_main",
     "date": "2026-06-01",
     "counter": 12345.6,
-    "reading_id": "20260601-ab12cd34"
+    "reading_id": "20260601-ab12cd34",
+    "suspect": false
   }
 }
 ```
 
-**Fehler:** `401` (Token nötig/falsch), `400` (unbekannte Utility, Zähler nicht
-gefunden, kein/ungültiger Wert, Delivery-Utility).
+`suspect` *(v2.6.0)*: Ist der Wert kleiner als der vorige Stand desselben
+Geräts, wird er gespeichert, aber als Verdacht markiert (`"suspect": true`,
+dazu `"previous": {"date", "counter"}`) und zählt erst nach Bestätigung in
+der Oberfläche (Ansicht der Verbrauchsart). Ein Sensor-Aussetzer mit 0 kann
+damit keinen Phantomverbrauch mehr erzeugen. Ein Überlauf des Zählwerks
+(99.998 → 12) ist kein Verdacht, wenn am Zähler die Stellenzahl (`digits`)
+gepflegt ist.
+
+**Fehler:** `401` (Token nötig/falsch; mit eingeschalteter Anmeldung auch ohne
+gesetzten Token), `400` (unbekannte Utility, Zähler nicht gefunden,
+kein/ungültiger Wert, Delivery-Utility).

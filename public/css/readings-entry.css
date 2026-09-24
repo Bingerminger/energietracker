@@ -59,6 +59,8 @@
 .reading-card__status--ok      { color: #10b981; }
 .reading-card__status--err     { color: #ef4444; }
 .reading-card__status--pending { color: var(--c-blue); opacity: .8; }
+/* v2.6.0 — Rückfrage abgelehnt: nicht gespeichert, bitte prüfen */
+.reading-card__status--warn    { color: var(--warning); }
 
 .reading-card__last {
   font-size: var(--fs-sm);
@@ -191,3 +193,5 @@
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
+/* v2.6.0 — Vorschau mit Rückfrage (Sprung, Rückgang, Zukunft) */
+.reading-card__preview--warn { color: var(--warning); }

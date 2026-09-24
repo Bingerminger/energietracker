@@ -8,8 +8,10 @@
 # src/bootstrap.php) — es wird KEIN `composer install` ausgeführt.
 FROM php:8.4-fpm-alpine
 
-# nginx + supervisor für den Single-Container-Betrieb.
-RUN apk add --no-cache nginx supervisor
+# nginx + supervisor für den Single-Container-Betrieb; OPcache ist im Image
+# enthalten und wird nur eingeschaltet (v2.6.0).
+RUN apk add --no-cache nginx supervisor \
+    && docker-php-ext-enable opcache
 
 WORKDIR /app
 
@@ -17,14 +19,20 @@ WORKDIR /app
 COPY docker/nginx.conf       /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/php-fpm-app.conf /usr/local/etc/php-fpm.d/zz-app.conf
+COPY docker/php.ini          /usr/local/etc/php/conf.d/zz-energietracker.ini
 COPY docker/entrypoint.sh    /usr/local/bin/entrypoint.sh
 
 # Anwendungscode (Dev-/VCS-Ballast hält .dockerignore raus).
 COPY . /app
 
+# v2.6.0 — Der Code gehört root und ist für PHP nur lesbar; schreibbar ist
+# allein /data. Bis v2.5.3 gehörte /app www-data — PHP hätte den eigenen Code
+# überschreiben können.
 RUN chmod +x /usr/local/bin/entrypoint.sh \
     && mkdir -p /data /run/nginx \
-    && chown -R www-data:www-data /app /data
+    && chown -R root:root /app \
+    && chmod -R a+rX,go-w /app \
+    && chown -R www-data:www-data /data
 
 # Standardwerte; im docker-compose oder per `docker run -e` überschreibbar.
 ENV ET_DATA_DIR=/data \
@@ -34,7 +42,9 @@ ENV ET_DATA_DIR=/data \
 EXPOSE 80
 VOLUME ["/data"]
 
-# Nutzt den N1003-Health-Endpoint für den Container-Healthcheck.
+# Nutzt den N1003-Health-Endpoint für den Container-Healthcheck. Seit v2.6.0
+# antwortet er bei einer Störung mit 503 — wget scheitert dann, der Container
+# gilt als „unhealthy".
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -qO- http://127.0.0.1/api/health >/dev/null 2>&1 || exit 1
 

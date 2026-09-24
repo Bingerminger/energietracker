@@ -206,6 +206,7 @@ function renderMeterCard(meter, u, groups, isSub) {
               · ${fmt.date(d.installed_on)} ${d.removed_on ? '→ ' + fmt.date(d.removed_on) : t('meters.card.active')}
               · ${t('meters.card.start', { value: fmt.num(d.initial_counter, 2), unit: u.unit })}
               ${d.final_counter != null ? ' · ' + t('meters.card.end', { value: fmt.num(d.final_counter, 2), unit: u.unit }) : ''}
+              ${d.digits ? ' · ' + t('meters.card.digits', { n: Number(d.digits) }) : ''}
               ${d.reason ? ' · ' + escapeHtml(d.reason) : ''}
             </li>
           `).join('')}
@@ -236,6 +237,8 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
   // bisher im Formular, daher ließ sich gar kein Tank anlegen (#18).
   const isDelivery = u.reading_kind === 'delivery';
   const volUnit = u.volume_unit || u.unit || '';
+  // v2.6.0 — Stellen des Zählwerks am eingebauten Gerät (Überlauf-Erkennung)
+  const activeDigits = (existing?.devices || []).find(d => !d.removed_on)?.digits ?? '';
   return new Promise(resolve => {
     const body = `
       <form id="meter-form">
@@ -282,6 +285,14 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               <input class="input" name="initial_counter" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(0))}">
             </div>
             `}
+          </div>
+        `}
+        ${isDelivery ? '' : `
+          <div class="field">
+            <label for="mf-digits">${t('meters.modal.digits')}</label>
+            <input class="input" id="mf-digits" name="digits" type="text" inputmode="numeric" autocomplete="off" maxlength="2"
+                   style="max-width:8rem" value="${escapeHtml(String(activeDigits))}" aria-describedby="mf-digits-hint">
+            <small class="muted" id="mf-digits-hint">${t('meters.modal.digitsHint')}</small>
           </div>
         `}
         ${isDelivery ? `
@@ -414,6 +425,12 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             toastErr(t('common.invalidNumber', { example: formatForInput(1234.5) }));
             return;
           }
+          // v2.6.0 — Stellen des Zählwerks: leer oder 3–12
+          const digitsRaw = !isDelivery ? String(f.digits?.value ?? '').trim() : '';
+          if (digitsRaw !== '' && !(/^\d{1,2}$/.test(digitsRaw) && +digitsRaw >= 3 && +digitsRaw <= 12)) {
+            toastErr(t('errors.meter.digitsInvalid', { value: digitsRaw }));
+            return;
+          }
           try {
             if (existing) {
               const payload = {
@@ -429,6 +446,8 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               if (isDelivery) {
                 payload.capacity      = capacity;
                 payload.initial_stock = initialStock;
+              } else {
+                payload.digits = digitsRaw === '' ? null : Number(digitsRaw);   // leer entfernt
               }
               await api.updateMeter(u.key, existing.id, payload);
             } else {
@@ -449,6 +468,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 payload.initial_stock = initialStock;
               } else {
                 payload.initial_counter = initialCounter;
+                if (digitsRaw !== '') payload.digits = Number(digitsRaw);
               }
               await api.createMeter(u.key, payload);
             }

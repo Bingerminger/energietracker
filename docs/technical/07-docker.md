@@ -172,8 +172,27 @@ docker run -e ET_LOG_LEVEL=debug …   # bzw. in docker-compose.yml unter enviro
 | `ET_LOG_DEST` | `stderr` | `stderr` \| `file` \| `null` |
 | `ET_LOG_LEVEL` | `info` | `debug` \| `info` \| `warning` \| `error` |
 | `ET_LOG_FILE` | `<dataDir>/logs/app.log` | Pfad, wenn `ET_LOG_DEST=file` |
+| `ET_AUTH` | *(leer)* | *(v2.6.0)* `off` \| `password` \| `proxy` — legt den Anmeldemodus fest; leer = in den Einstellungen umschaltbar. `ET_AUTH=off` ist auch der Notausgang bei vergessenem Passwort |
+| `ET_ADMIN_PASSWORD_HASH` | *(leer)* | *(v2.6.0)* Passwort als `password_hash()`-Wert; in Compose jedes `$` verdoppeln |
+| `ET_TRUSTED_PROXIES` | *(leer)* | *(v2.6.0)* Adressen/Netze des vorgeschalteten Proxys (kommagetrennt, CIDR erlaubt) — nur von dort gilt `Remote-User` |
+| `ET_ALLOWED_HOSTS` | *(leer = alle)* | *(v2.6.0)* erlaubte Hostnamen, kommagetrennt, `*.domain` möglich; andere → 421. IP-Adressen und `localhost` immer |
+| `ET_FRAME_ANCESTORS` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (z. B. das Home-Assistant-Dashboard) |
+| `ET_DEBUG` | *(leer)* | *(v2.6.0)* `1` = Datei/Zeile in Fehlerantworten — nur kurz zur Fehlersuche |
 
 Bei `docker run` mit `-e NAME=wert`, bei Compose unter `environment:`.
+Was die Anmeldung bewirkt und wann du sie brauchst:
+[Sicherheit & Netzbetrieb](08-security.md).
+
+**PHP-Einstellungen (seit v2.6.0):** Das Image bringt eine eigene `php.ini`
+mit — `memory_limit` 256 MB, `post_max_size`/`upload_max_filesize` 32 MB,
+`max_execution_time` 120 s, Fehlerausgabe aus, OPcache an. Bis v2.5.3 galten
+die PHP-Vorgaben (128 MB, 8 MB); ein Backup mit vielen Jahren Tagesdaten ließ
+sich damit nicht zurückspielen.
+
+**Healthcheck:** Der Container fragt `GET /api/health` ab. Seit v2.6.0
+antwortet der Endpunkt bei einer echten Störung (Daten nicht schreibbar,
+beschädigte Datei, Daten neuer als die App) mit HTTP 503 — Docker zeigt den
+Container dann als *unhealthy*.
 
 ---
 
@@ -204,7 +223,9 @@ Datenschema, passt Energietracker die Dateien beim ersten Start an und legt
 vorher einen Snapshot in `data/backups/` ab (`pre-migration-…`, seit v2.5.3).
 Den Rückweg ersetzt er nicht: Eine ältere Version kann das neue Schema nicht
 lesen — zurück geht es nur mit der alten Version **und** dem Backup aus
-Schritt 1.
+Schritt 1. Seit v2.6.0 erkennt eine ältere Version neuere Daten und
+**schreibt nichts** (HTTP 503, `/api/health` meldet `error`), statt sie wie
+bis v2.5.3 still auf das alte Schema zurückzustempeln.
 
 ---
 
@@ -212,8 +233,14 @@ Schritt 1.
 
 - **Sichern:** *Einstellungen → Backup & Restore → Backup exportieren* lädt
   eine JSON-Datei mit all deinen Daten herunter.
-- **Wiederherstellen:** dieselbe Stelle → *Backup importieren*. Vor dem
-  Überschreiben legt Energietracker automatisch einen Snapshot an.
+- **Wiederherstellen:** dieselbe Stelle → *Backup importieren*. Seit v2.6.0
+  prüft die App das Backup zuerst vollständig und zeigt eine Vorschau; ein
+  fehlerhaftes Backup ändert nichts. Vor dem Überschreiben legt Energietracker
+  automatisch einen Snapshot an.
+- **Snapshots** (seit v2.6.0): *Einstellungen → Backup & Restore →
+  Gespeicherte Snapshots* listet sie mit Zeitpunkt und Anlass; von dort
+  herunterladen, einspielen oder löschen. Automatische Snapshots räumt die App
+  nach 30 Tagen auf (mindestens drei je Anlass bleiben), eigene nach zehn.
 - Auf Dateiebene liegt alles im gemounteten `data/`-Ordner — den kannst du
   zusätzlich klassisch sichern (kopieren).
 

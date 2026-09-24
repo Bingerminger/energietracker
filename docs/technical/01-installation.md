@@ -40,15 +40,19 @@ nicht erforderlich.
 # 1. Repository auspacken / klonen
 cd energietracker
 
-# 2. Mit dem eingebauten PHP-Server starten
-php -S 127.0.0.1:8080
+# 2. Mit dem eingebauten PHP-Server starten — immer mit router.php
+php -S 127.0.0.1:8080 router.php
 
 # 3. Browser öffnen
 #    http://127.0.0.1:8080
 ```
 
+> Ohne `router.php` liefert der eingebaute Server **jede** Datei aus, auch
+> `data/` mit allen Nutzdaten. Und nur auf `127.0.0.1` starten — er ist für
+> die Entwicklung gedacht, nicht für andere im Netz.
+
 Beim ersten Aufruf legt der **Migrator** automatisch die Datenstruktur
-unter `data/` an und hebt sie auf das aktuelle Schema (**1.3.0**). Es ist
+unter `data/` an und hebt sie auf das aktuelle Schema (**1.5.0**). Es ist
 kein manueller Schritt nötig. Ein komplett leeres Verzeichnis wird seit
 v1.9.1 als Erststart erkannt und mit Standard-Zählern (Gas/Strom/Wasser)
 initialisiert.
@@ -65,7 +69,7 @@ du ihn direkt in der App über **Einstellungen → Demo-Daten laden**
 ```bash
 # Datenverzeichnis durch die Demo-Daten ersetzen (Vorsicht: überschreibt!)
 rm -rf data && cp -r demo-data data
-php -S 127.0.0.1:8080
+php -S 127.0.0.1:8080 router.php
 ```
 
 Die Demo-Daten tragen `schema_version: 1.1.0` und werden beim ersten Start
@@ -81,25 +85,21 @@ der CI statt über den Demo-Start.
 ### 3.1 Apache
 
 `api.php` ist der API-Einstiegspunkt, `index.php` liefert die SPA-Hülle.
-Eine minimale `.htaccess` (Beispiel) im Projektwurzelverzeichnis:
+Das Frontend ruft die API als `api.php/api/…` auf und navigiert per
+Hash-Route (`#/…`) — Umschreiberegeln für API oder SPA sind nicht nötig.
 
-```apache
-DirectoryIndex index.php
-RewriteEngine On
+Die **mitgelieferte `.htaccess`** (seit v2.6.0) sperrt alles, was kein
+Auslieferungsgut ist — `data/` (Nutzdaten, Backups), `src/`, `tests/`,
+`docs/`, `.git/` und alle Punktdateien, Projektdateien wie `composer.json`
+oder `*.md` —, reicht den `Authorization`-Header an PHP-FPM weiter (für den
+Home-Assistant-Token) und setzt die Cache-Header. `data/.htaccess` ist die
+zweite Sicherung. Voraussetzungen:
 
-# API-Aufrufe an api.php leiten
-RewriteRule ^api/ api.php [L,QSA]
+- `AllowOverride` mindestens `FileInfo` für das Projektverzeichnis
+  (in der Synology Web Station Standard),
+- `mod_rewrite`, `mod_headers`, `mod_setenvif`.
 
-# Statische Assets direkt ausliefern; alles andere an die SPA
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [L]
-```
-
-Wichtig: Das Verzeichnis `data/` darf **nicht** öffentlich auslieferbar
-sein. Empfohlen wird, das Projekt so abzulegen, dass nur `index.php`,
-`api.php` und `public/` über den Webserver erreichbar sind, oder `data/`
-per Server-Regel zu sperren:
+Zusätzlich im VirtualHost möglich:
 
 ```apache
 <Directory "/pfad/zu/energietracker/data">
@@ -107,20 +107,27 @@ per Server-Regel zu sperren:
 </Directory>
 ```
 
+Prüfen, ob die Regeln greifen:
+[Sicherheit → Webserver](08-security.md#9-webserver-was-nicht-ausgeliefert-werden-darf).
+
 ### 3.2 nginx (Schema)
 
 ```nginx
-location /api/ { try_files $uri /api.php?$query_string; }
 location /     { try_files $uri /index.php?$query_string; }
-location ~ /data/ { deny all; }
-location ~ \.php$ { fastcgi_pass …; include fastcgi_params; }
+location ~ ^/(data|src|tests|scripts|docker|docs|vendor|demo-data)/ { return 404; }
+location ~ /\. { return 404; }
+location ~ ^/api(\.php)?(/|$) { fastcgi_pass …; include fastcgi_params; }
 ```
+
+Der vollständige, getestete Regelsatz steht in `docker/nginx.conf`.
 
 ### 3.3 Schreibrechte
 
 Der Webserver-Benutzer braucht **Schreibrecht** auf `data/` (inklusive
-`data/backups/`). Alle Schreibvorgänge nutzen `LOCK_EX`, sodass parallele
-Zugriffe sich nicht gegenseitig zerstören. Die System-Diagnose
+`data/backups/`). Schreibende Anfragen laufen nacheinander (Sperre auf
+`data/.write.lock`, seit v2.5.3), jede Datei wird atomar geschrieben
+(temporäre Datei, dann Umbenennen; seit v2.6.0 vorher `fsync`); ein
+Abbruch mitten im Schreiben hinterlässt keine halbe Datei. Die System-Diagnose
 (`Einstellungen → Diagnose`, bzw. `GET /api/diagnostics`) zeigt an, ob
 die Schreibrechte korrekt gesetzt sind.
 
@@ -133,7 +140,7 @@ Daten-/Code-Mounts, mehrere Instanzen oder schreibgeschützte
 Code-Deployments:
 
 ```bash
-ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080
+ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080 router.php
 ```
 
 Bei Apache via `SetEnv ET_DATA_DIR /srv/…` im VirtualHost, bei nginx +

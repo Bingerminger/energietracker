@@ -8,30 +8,81 @@ All endpoints under `/api/…`. A uniform response envelope:
 
 ```json
 { "success": true,  "data": … }
-{ "success": false, "error": "message", "detail": … }
+{ "success": false, "error": "message in the language of the request", "code": "errors.reading.dateInvalid" }
 ```
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
-`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **68 routes**, v1.9.2.
+`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **82 routes**, v2.6.0 —
+`ReleaseConsistencyTest` checks that every registered route appears in the
+table below (German and English).
 
-> A detailed variant of this reference (with request/response examples for **all**
-> endpoints) is additionally available at [`docs/API.md`](../API.md). This document
-> is the compact overview in the compendium.
+> Detailed request/response examples for the most-used endpoints are in
+> [`docs/API.md`](../API.md). **This** document is authoritative for paths and
+> fields.
 
 ### Status codes of all endpoints
 
 | Code | When |
 |------|------|
-| `400` | Invalid input. Since v2.5.3 on every write path: a date that is not a calendar date (`2026-02-30`, text), or an amount/meter reading that is not a number. Up to v2.5.2 both were stored. |
-| `401` | `/api/ingest` with a token set but a missing or wrong bearer header. |
-| `403` | *(v2.5.3)* Writing request (`POST`/`PUT`/`PATCH`/`DELETE`) from the browser of a **foreign** website — checked via `Sec-Fetch-Site`, falling back to `Origin` against `Host`. Requests without these headers (Home Assistant, curl, scripts) are not affected. |
-| `404` | Unknown route or unknown record. |
-| `503` | *(v2.5.3)* A data file is corrupt (not valid JSON). The file stays untouched; a quarantine copy `<file>.corrupt-<checksum>` is placed next to it. Up to v2.5.2 it was read as empty and overwritten on the next write. |
-| `500` | Unexpected error — check the log. |
+| `400` | Invalid input. Since v2.5.3 on every write path: a date that is not a calendar date (`2026-02-30`, text), or an amount/meter reading that is not a number. Up to v2.5.2 both were stored. Since v2.6.0 also query parameters outside their range (forecast, annual report, temperature sync). |
+| `401` | `/api/ingest` with a token set but a missing or wrong bearer header. *(v2.6.0)* With sign-in switched on: any non-public route without a session or API key (`errors.auth.required`); wrong password. |
+| `403` | *(v2.5.3)* Writing request (`POST`/`PUT`/`PATCH`/`DELETE`) from the browser of a **foreign** website — checked via `Sec-Fetch-Site`, falling back to `Origin` against `Host`. Requests without these headers (Home Assistant, curl, scripts) are not affected. *(v2.6.0)* Writing request with a read-only key (`errors.auth.readOnlyKey`). |
+| `404` | Unknown route or unknown record. Since v2.6.0 consistently also for records addressed in the URL (up to v2.5.3 partly 400). |
+| `405` | *(v2.6.0)* Known path, wrong method — with an `Allow` header. `HEAD` is answered like `GET`, `OPTIONS` with `204` and `Allow`. Up to v2.5.3: `404`. |
+| `409` | *(v2.6.0)* The safety snapshot before an import/restore failed (`errors.backup.snapshotFailed`) — possible anyway with `?allow_without_snapshot=1`. Password or sign-in mode are fixed by the environment. |
+| `421` | *(v2.6.0)* Host name not in `ET_ALLOWED_HOSTS` (only when set; IP addresses and `localhost` are always allowed). |
+| `429` | *(v2.6.0)* Sign-in locked for 5 minutes after five failures within 15 minutes (`errors.auth.locked`). |
+| `503` | *(v2.5.3)* A data file is corrupt (not valid JSON). The file stays untouched; a quarantine copy `<file>.corrupt-<checksum>` is placed next to it. Up to v2.5.2 it was read as empty and overwritten on the next write. *(v2.6.0)* The data comes from a **newer** version (e.g. after rolling back the image tag): all routes except `/api/health`, nothing is written (`errors.storage.dataTooNew`). `/api/health` itself answers `503` when `status` = `error`. |
+| `500` | Unexpected error. Since v2.6.0 with `error_id`; the server log holds the details under the same ID. |
 
 Since v2.5.3 writing requests run one after another (lock on
 `data/.write.lock`): a Home Assistant push during an edit no longer loses a
 change.
+
+### Error codes *(v2.6.0)*
+
+Every error response carries `code` — the catalogue key of the message
+(`errors.reading.dateInvalid`, `errors.backup.invalid` …) or, for general HTTP
+errors, `errors.http.*` (`badRequest`, `unauthorized`, `forbidden`,
+`notFound`, `methodNotAllowed`, `unavailable`, `internal`). `error` is
+translated into the language of the request (`Accept-Language`) and may change
+between versions — **scripts evaluate `code`, never the message text.**
+
+`detail` with file, line and exception type is only returned with
+`ET_DEBUG=1` (up to v2.5.3 on every error, including absolute paths). Domain
+details are still always returned, such as the findings of a faulty backup in
+`detail.problems`.
+
+### Sign-in *(v2.6.0, opt-in)*
+
+Without sign-in (the default) the API stays open as before. When it is switched
+on (Settings → "Sign-in & access", or `ET_AUTH`), **one** of these applies to
+every route:
+
+| Way | For | Passed as |
+|---|---|---|
+| Session | the browser | cookie `et_session` (HttpOnly, SameSite=Strict, 30 days) after `POST /api/session` |
+| API key | scripts, other programs | `Authorization: Bearer etk_…`; scope `read` (`GET` only) or `admin` |
+| Proxy | behind Authelia, Authentik or similar | `ET_AUTH=proxy`; user from `Remote-User`/`X-Forwarded-User`, only from addresses in `ET_TRUSTED_PROXIES` |
+
+Reachable without sign-in: `POST /api/ingest` (own token, **mandatory** once
+sign-in is on), `GET|HEAD /api/health` (then only `{status, version}`),
+`GET|POST|DELETE /api/session` and `OPTIONS`. Details:
+[Security](08-security.md).
+
+### Stability promise *(v2.6.0)*
+
+Whoever builds on the API — Home Assistant, scripts, own evaluations — needs a
+promise about what may change. Three classes:
+
+| Class | Scope | Promise |
+|---|---|---|
+| **A — interfaces for other systems** | `POST /api/ingest`, `GET /api/health`, backup format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV exports and imports, master data (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`), error envelope with `code` | Additive changes only. Renaming or removing only with a **major version**, announced at least one minor version earlier in the CHANGELOG under "Deprecated". Old field names stay valid as aliases. |
+| **B — evaluations** | consumption, balance, forecast, tariff comparison/switch, bill check, efficiency, recommendations, PV/balance, `readings-overview` | Documented fields keep their name and meaning; new ones are added. **Values** may change when a calculation is corrected — the CHANGELOG says so. |
+| **C — user interface** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09` | Built for the app's own interface; changes are possible but listed in the CHANGELOG. |
+
+Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
+(`surcharge`/`refund`/`balanced`) — without notice. That must not happen again.
 
 ---
 
@@ -39,7 +90,15 @@ change.
 
 | Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/health` | health check (version, schema, write permissions, migrations) |
+| GET | `/api/health` | health check: `status` ok/degraded/error, checks, last ingest (HTTP 503 on `error`); also `HEAD` |
+| GET | `/api/session` | sign-in mode, signed in?, fixed by the environment? *(v2.6.0)* |
+| POST | `/api/session` | sign in `{password}` → session cookie *(v2.6.0)* |
+| DELETE | `/api/session` | sign out *(v2.6.0)* |
+| POST | `/api/session/password` | set/change the password `{password, current?}` — switches sign-in on *(v2.6.0)* |
+| DELETE | `/api/session/password` | switch sign-in off `{current}` *(v2.6.0)* |
+| GET | `/api/auth/keys` | API keys (without plaintext) *(v2.6.0)* |
+| POST | `/api/auth/keys` | create a key `{name, scope: read\|admin}`; plaintext once *(v2.6.0)* |
+| DELETE | `/api/auth/keys/{id}` | revoke a key *(v2.6.0)* |
 | GET | `/api/diagnostics` | system status, write permissions, schema |
 | GET | `/api/utilities` | list of utilities + configuration |
 | GET | `/api/settings` | settings |
@@ -82,7 +141,7 @@ change.
 | GET | `/api/utility/{u}/meters/{id}/forecast` | 12-month forecast |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow (retrospective) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | switching decision from the switch date; optional `?switch_date=YYYY-MM-DD` |
-| GET | `/api/utility/gas/meters/{id}/bill-check` | gas bill verification: sections per reading and calorific-value change, `?from=&to=` (F1012, gas only) |
+| GET | `/api/utility/{u}/meters/{id}/bill-check` | bill verification: sections per reading and calorific-value change, `?from=&to=` (F1012, **gas only**, otherwise 400) |
 | GET | `/api/benchmarks/efficiency` | efficiency class per heat source |
 | GET | `/api/recommendations` | statistical recommendations |
 | POST | `/api/recommendations/{id}/dismiss` | hide a recommendation |
@@ -97,8 +156,12 @@ change.
 | GET | `/api/export/{u}/deliveries.csv` | **v1.4.2** deliveries as CSV (heating oil/pellets) |
 | GET | `/api/export/temperatures.csv` | temperature series as CSV |
 | GET | `/api/backup/export` | full backup JSON |
-| POST | `/api/backup/import` | restore a backup |
+| POST | `/api/backup/import` | restore a backup; `?dry_run=1` only checks, `?allow_without_snapshot=1` see 409 |
 | POST | `/api/backup/snapshot` | place a snapshot |
+| GET | `/api/backup/snapshots` | snapshots: name, size, time, occasion *(v2.6.0)* |
+| GET | `/api/backup/snapshots/{name}` | download a snapshot (file) *(v2.6.0)* |
+| POST | `/api/backup/snapshots/{name}/restore` | restore a snapshot (saving the current state first) *(v2.6.0)* |
+| DELETE | `/api/backup/snapshots/{name}` | delete a snapshot *(v2.6.0)* |
 | POST | `/api/migration/v09/preview` | analyse a v0.9.0 backup |
 | POST | `/api/migration/v09/import` | adopt a v0.9.0 backup |
 | GET | `/api/strom-saldo` | electricity balance (import − PV feed-in), F1005 |
@@ -142,14 +205,23 @@ oil/pellets) are excluded — there are no meter readings there, but deliveries.
         "last_reading": {
           "date": "2026-04-15",
           "counter": 12345.67,
-          "is_estimated": false
+          "is_estimated": false,
+          "id": "20260415-3f2a9c1b",   // since v2.6.0: "already a reading today → replace"
+          "device_id": "d_gas_1"       // since v2.6.0: other device → no decrease
         },
-        "expected_next_min": 12345.67
+        "expected_next_min": 12345.67,
+        "typical_per_day": 4.2,        // since v2.6.0: median of the last ≤ 10 intervals, null with < 2
+        "suspect_count": 0             // since v2.6.0: unconfirmed suspect readings (Home Assistant)
       }
     ]
   }
 }
 ```
+
+**Since v2.6.0** suspect readings (`is_suspect`) do not count as
+`last_reading` — a Home Assistant push of 0 would otherwise become the baseline
+of the next capture. `typical_per_day` backs the question "That would be
+400 kWh a day, usually it is 8".
 
 **`unit` versus `consumption_unit` (since v2.4.2, GitHub #21).** A gas meter
 counts cubic metres; kWh only comes into being through the conversion factor.
@@ -207,6 +279,54 @@ Two new top-level fields go with it:
 weather-corrected; `delta_pct` is the effect of the measure. `limits` is filled
 in **without** a cut-off too — a history that is simply too short gets explained
 instead of an evaluation silently disappearing.
+
+**Since v2.6.0** additionally `warnings` — readings that do not enter the
+calculation, or only with reservations:
+
+```json
+"warnings": [
+  { "type": "suspect",  "reading_id": "20260920-5c425cf2", "date": "2026-09-20", "counter": 0 },
+  { "type": "outlier",  "reading_id": "20260220-dabada46", "date": "2026-02-20", "counter": 13300, "kind": "spike" },
+  { "type": "decrease", "reading_id": "…", "date": "…", "counter": 5.0,
+    "previous": { "date": "…", "counter": 18432.5 } }
+]
+```
+
+| `type` | Meaning | in the calculation? |
+|---|---|---|
+| `suspect` | Home Assistant delivered a reading lower than the previous one; awaiting confirmation (`PATCH …/readings/{id}` with `is_suspect: false`) | no |
+| `outlier` | sandwiched outlier of the same device: `kind` = `spike` (upwards) or `dip` (downwards) | no |
+| `decrease` | the reading drops without an identifiable outlier — meter swap or rollover not recorded? | the negative interval is not |
+
+Up to v2.5.3 the calculation only discarded the negative interval and counted
+the next one in full from the wrong reading: a single value of 0 turned 190 kWh
+in a month into 50,270 kWh. A **rollover** (99,998 → 12) is calculated
+correctly when `digits` (register digits) is maintained on the device.
+
+### Readings: `is_suspect`, `source` *(v2.6.0, additive)*
+
+Two optional fields on a reading — only present when set:
+
+- `source`: `ingest` (Home Assistant) or `csv` (CSV import). Basis of
+  `last_ingest` in `/api/health`.
+- `is_suspect: true`: the ingest received a falling reading on the same device.
+  The reading is stored anyway (201) but only counts after confirmation.
+  `PATCH` with `is_suspect: false` confirms it; a corrected `counter` resolves
+  the suspicion as well.
+
+### Meters: `digits` *(v2.6.0, additive)*
+
+Register digits before the decimal point (3–12) per device. On creation as the
+single field `digits` or inside the device; `PATCH …/meters/{id}` with `digits`
+sets it on the installed device (`null`/empty removes it); `replace-device`
+carries it over to the new device unless specified otherwise. Invalid → 400
+`errors.meter.digitsInvalid`.
+
+Since v2.6.0 the bodies described in `docs/API.md` up to v2.5.3 are accepted as
+well: on creation an object `device {serial, installed_on, initial_counter}`,
+on a meter swap `removed_on`, `final_counter` and
+`new_device {serial, installed_on, initial_counter}`. The current names take
+precedence.
 
 ### `GET|PATCH /api/settings` — `gas_conversion_factors` *(F1012, v2.5.0)*
 
@@ -355,9 +475,17 @@ second reading.
 ```
 
 Response `201` (new) resp. `200` (updated) with
-`{ status: "created"|"updated", utility, meter_id, date, counter, reading_id }`.
-Errors: `401` (token needed/wrong), `400` (unknown utility/meter, no numeric value,
-no valid calendar date, delivery utility heating oil/pellets).
+`{ status: "created"|"updated", utility, meter_id, date, counter, reading_id,
+suspect }` — `suspect` since v2.6.0: if the value is lower than the previous
+reading of the same device, it is stored but marked as suspect
+(`suspect: true`, plus `previous: {date, counter}`) and only counts after
+confirmation in the interface. A rollover with maintained `digits` is not
+suspect. A push is therefore never rejected where it was
+accepted before.
+Errors: `401` (token needed/wrong; since v2.6.0 with sign-in switched on also
+without a token set: `errors.ingest.tokenRequiredWithLogin`), `400` (unknown
+utility/meter, no numeric value, no valid calendar date, delivery utility
+heating oil/pellets).
 
 If the date lies before the installation of the **first** device, that device is
 backdated since v2.5.3 instead of rejecting the reading (typical when back-filling
@@ -371,10 +499,106 @@ remains a `400`.
 
 ### `GET|POST|DELETE /api/auth/token` *(F1009)*
 
-Management of the **opt-in** API token. Without a token the API is open (LAN mode);
-as soon as a token exists, `/api/ingest` requires a bearer header. The token is
-stored only as a SHA-256 hash in `data/auth.json` and returned in plaintext
-**once** on creation.
+Management of the **opt-in** token for the push endpoint. It protects
+`/api/ingest` **only**: without a token the ingest accepts values without a
+header; as soon as a token exists, it requires `Authorization: Bearer <token>`.
+The rest of the API is protected by sign-in (see above), not by this token. The
+token is stored only as a SHA-256 hash in `data/auth.json` and returned in
+plaintext **once** on creation. Since v2.6.0 `GET` also reports `last_used_at`
+(accurate to the hour) — useful for the question "is anything arriving at all?".
+
+### `/api/session`, `/api/session/password`, `/api/auth/keys` *(v2.6.0)*
+
+```jsonc
+// GET /api/session
+{ "mode": "off", "authenticated": true, "mode_fixed": false,
+  "password_fixed": false, "has_password": false }
+
+// POST /api/session/password   (switch on: password only; change: + current)
+{ "password": "at-least-8-characters", "current": "previous" }
+// → { "mode": "password" } + session cookie; a new password ends all other sessions
+
+// POST /api/auth/keys
+{ "name": "backup script", "scope": "read" }
+// → 201 { "id": "k_…", "key": "etk_…", "hint": "…" }   plaintext only here
+```
+
+- `mode`: `off` · `password` · `proxy`. `mode_fixed`/`password_fixed`: fixed by
+  `ET_AUTH` or `ET_ADMIN_PASSWORD_HASH` — the changing routes then answer `409`.
+- Failed attempts: after five within 15 minutes sign-in is locked for
+  5 minutes (`429`). This also applies to `current` when changing or switching
+  off.
+- `GET /api/auth/keys` returns `id`, `name`, `scope`, `created_at`,
+  `last_used_at` — never the key or its hash.
+
+### Snapshots and import *(v2.6.0)*
+
+`GET /api/backup/snapshots` lists `data/backups/` (newest first):
+
+```json
+[ { "name": "pre-restore-2026-09-25_000438.json", "size": 215512,
+    "created_at": "2026-09-25T00:04:38+02:00", "reason": "restore" } ]
+```
+
+`reason` ∈ `manual` (own snapshot), `restore` (before import/restore),
+`migration`, `demo`, `v09`. **Retention:** of your own the last ten; automatic
+ones 30 days, keeping at least the three newest per occasion.
+
+Since v2.6.0 `POST /api/backup/import` **checks everything first**: every pot
+must be a list of objects with mandatory fields and valid dates. A faulty
+backup changes nothing and answers `400` with `detail.problems` (at most 50):
+
+```json
+{ "success": false, "code": "errors.backup.invalid",
+  "error": "The backup is incomplete or damaged (3 problem(s)). Nothing was restored.",
+  "detail": { "problems": [ { "pot": "gas/meters", "index": 0, "problem": "missing:devices" } ] } }
+```
+
+`problem` ∈ `not_an_object`, `not_a_list`, `unknown_utility`,
+`missing:<field>`, `date:<field>`, `counter`, `devices`, `entry:<date>`. With
+`?dry_run=1` the import stops after the check and returns the report (counts per
+pot, `untouched` = pots not contained in the backup and therefore unchanged).
+Further changes: the envelope of `GET /api/backup/export` (`{success, data}`)
+is unwrapped; if a file fails mid-write, the files already written are rolled
+back; `recommendations_dismissed` is part of the backup since v2.6.0.
+
+### `GET|HEAD /api/health` *(N1003; extended in v2.6.0)*
+
+```json
+{ "status": "ok", "version": "2.6.0", "schema_version": "1.5.0",
+  "data_dir_writable": true, "migrations_pending": 0,
+  "data_initialized_at": "2026-09-24T23:58:03+02:00",
+  "php_version": "8.4.12", "timezone": "Europe/Berlin",
+  "last_ingest": { "m_strom_main": "2026-09-20" },
+  "checks": {
+    "data_dir_writable": { "ok": true, "level": "ok" },
+    "schema":            { "ok": true, "level": "ok" },
+    "files":             { "ok": true, "level": "ok", "corrupt": [] },
+    "disk":              { "ok": true, "level": "ok", "free_mb": 736175 },
+    "temp_files":        { "ok": true, "level": "ok", "removed": 0 } } }
+```
+
+`status` ∈ `ok` · `degraded` (pending migration, less than 50 MB free) ·
+`error` (not writable, corrupt file, data newer than the app, less than 5 MB
+free) — with HTTP `503` on `error`, so Docker HEALTHCHECK and monitors detect
+the fault. Since v2.6.0 `migrations_pending` counts the pending migration steps
+(up to v2.5.3 only `0` or `1`; `0` still means "nothing to do"). With sign-in
+switched on and the caller not signed in, only `{status, version}` is returned.
+
+### Parameter limits *(v2.6.0)*
+
+Previously accepted silently, now `400` with `code` and — for the forecast —
+`detail {param, value, range}`:
+
+| Endpoint | Parameter | allowed |
+|---|---|---|
+| `…/forecast` | `forecast_months` | 1–60 |
+| | `temp_offset` | −30 to +30 °C |
+| | `price_factor` | 0–10 |
+| | `model` | `linear`, `polynomial`, `robust`, `segmented`, `sigmoid` |
+| `/api/reports/yearly.pdf` | `year` | 2000–2100 |
+| `POST /api/temperatures` | `avg`, `min`, `max` | numbers, mandatory |
+| `…/sync-open-meteo` | `start`, `end` | ISO date, `start` ≤ `end` |
 
 > Full examples for auth + ingest and the step-by-step setup in Home Assistant:
 > [`docs/HOME-ASSISTANT.md`](../HOME-ASSISTANT.md) and [`docs/API.md`](../API.md).

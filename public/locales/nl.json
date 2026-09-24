@@ -25,7 +25,12 @@
     "footerStorage": "platte JSON-bestanden",
     "skipToContent": "Naar hoofdinhoud springen",
     "primaryNav": "Hoofdnavigatie",
-    "brandHome": "Energietracker — naar het overzicht"
+    "brandHome": "Energietracker — naar het overzicht",
+    "offline": "Offline – laatst geladen gegevens",
+    "offlineSince": "Offline – stand van {when}",
+    "networkError": "Geen verbinding met de Energietracker – er is niets opgeslagen.",
+    "networkErrorRead": "Geen verbinding met de Energietracker.",
+    "invalidResponse": "Onverwacht antwoord van de server (HTTP {status})."
   },
   "meterNames": {
     "gas": "Hoofdmeter",
@@ -145,7 +150,8 @@
       "saving": "Opslaan…",
       "saved": "Opgeslagen",
       "failed": "Mislukt",
-      "invalid": "Ongeldige waarde"
+      "invalid": "Ongeldige waarde",
+      "held": "Niet opgeslagen – controleren"
     },
     "preview": {
       "sinceLast": "{delta} {unit} sinds laatste meterstand",
@@ -156,7 +162,8 @@
       "savedFailed": "{ok} opgeslagen, {failed} mislukt",
       "savedEmpty": "{ok} opgeslagen · {skipped} leeg",
       "saved": "{ok} opgeslagen",
-      "nothing": "Geen invoer — niets om op te slaan"
+      "nothing": "Geen invoer — niets om op te slaan",
+      "held": "{count} stand(en) niet opgeslagen – controleer de gemarkeerde kaarten."
     }
   },
   "utility": {
@@ -306,7 +313,11 @@
       "future": "TOEKOMST",
       "estimated": "SCHATTING",
       "edit": "Bewerken",
-      "delete": "Verwijderen"
+      "delete": "Verwijderen",
+      "suspect": "CONTROLEREN",
+      "suspectTitle": "Lager dan de vorige stand (Home Assistant). Telt pas mee in de analyse na bevestiging.",
+      "implausible": "ONWAARSCHIJNLIJK",
+      "confirmReading": "Stand bevestigen"
     },
     "deliveriesTable": {
       "emptyTitle": "Geen leveringen",
@@ -362,7 +373,8 @@
     },
     "toast": {
       "readingDeleted": "Meterstand verwijderd",
-      "deliveryDeleted": "Levering verwijderd"
+      "deliveryDeleted": "Levering verwijderd",
+      "readingConfirmed": "Stand bevestigd – telt nu mee in de analyse."
     },
     "preview": {
       "sinceLast": "{delta} {unit} sinds laatste meterstand",
@@ -407,6 +419,15 @@
         "interpolated": "E"
       },
       "legend": "Afleestype: zonder toevoeging = afgelezen stand · S = als geschat vastgelegde meting · E = vervangende waarde: op deze dag is er geen meterstand, hij is per dag geïnterpoleerd tussen de omsluitende metingen — precies waar ook de leverancier schat (grenzen van calorische waarde en periode). Hoe minder rijen met E, hoe minder schatting."
+    },
+    "warnings": {
+      "title": "Onwaarschijnlijke meterstanden: {count}",
+      "hint": "Deze standen tellen niet mee in de analyse of veroorzaken een daling. Corrigeer of bevestig ze, of leg een meterwissel vast.",
+      "suspect": "{date}: {counter} {unit} – van Home Assistant, lager dan de vorige stand; wacht op bevestiging",
+      "spike": "{date}: {counter} {unit} – uitschieter naar boven, genegeerd",
+      "dip": "{date}: {counter} {unit} – uitschieter naar beneden, genegeerd",
+      "decrease": "{date}: {counter} {unit} – lager dan op {prevDate} ({prevCounter} {unit}); meterwissel of overloop niet vastgelegd?",
+      "gotoMeters": "Meterwissel vastleggen"
     }
   },
   "contracts": {
@@ -605,7 +626,8 @@
       "replace": "Meterwissel",
       "csvImport": "CSV-import",
       "edit": "Bewerken",
-      "delete": "Verwijderen"
+      "delete": "Verwijderen",
+      "digits": "{n} cijfers"
     },
     "modal": {
       "titleEdit": "Meter bewerken",
@@ -626,7 +648,9 @@
       "notes": "Notities",
       "active": "Actief",
       "save": "Opslaan",
-      "saved": "Meter opgeslagen"
+      "saved": "Meter opgeslagen",
+      "digits": "Cijfers van het telwerk (vóór de komma)",
+      "digitsHint": "Alleen nodig als het telwerk na 99999 weer bij 0 kan beginnen: de analyse herkent dan de overloop in plaats van een daling te melden. Leeg = onbekend."
     },
     "replace": {
       "title": "Meterwissel: {name}",
@@ -688,7 +712,8 @@
   "settings": {
     "placeholder": {
       "dayMonth": "DD-MM (01-01)",
-      "yearExample": "bijv. 1998"
+      "yearExample": "bijv. 1998",
+      "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Laden…",
     "title": "⚙️ Instellingen",
@@ -722,7 +747,11 @@
       "building": { "title": "Gebouw en efficiëntie", "hint": "Referentiewaarden voor de efficiëntieklasse (kWh/m²·a) en de stookenergie-benchmark." },
       "delivery": { "title": "Energiebronnen (levering)", "hint": "Energie-inhoud van geleverde brandstoffen en de tankwaarschuwingsdrempel." },
       "remindersRec": { "title": "Herinneringen en aanbevelingen", "hint": "Drempels voor de vervalstatus en de aanbevelingsmotor." },
-      "location": { "title": "Locatie (Open-Meteo)", "hint": "Coördinaten voor de weersynchronisatie van de temperatuurreeks." }
+      "location": { "title": "Locatie (Open-Meteo)", "hint": "Coördinaten voor de weersynchronisatie van de temperatuurreeks." },
+      "embedding": {
+        "title": "Insluiten",
+        "hint": "Andere sites mogen de Energietracker niet insluiten – dat beschermt tegen gekaapte klikken. Voor een webpaginakaart in een Home Assistant-dashboard vul je hier het adres daarvan in."
+      }
     },
     "field": {
       "hdd_base_temp": { "label": "Graaddagen-basistemperatuur", "hint": "Stookgrens — dagen eronder tellen als stookdagen." },
@@ -774,6 +803,10 @@
       "gas_conversion_factors": {
         "label": "Omrekeningsfactoren gas",
         "hint": "Eén item per calorische-waardeperiode, precies zoals de gasfactuur ze vermeldt: geldig vanaf, volumeherleidingsfactor en calorische waarde — de factor kWh/m³ wordt daaruit berekend. Zonder uitsplitsing vul je de factor direct in. Het item zonder datum geldt voor alles vóór de eerste ingangsdatum. De verbruiksberekening splitst elk meetinterval dagnauwkeurig op de ingangsdata."
+      },
+      "frame_ancestors": {
+        "label": "Toegestane adressen voor insluiten",
+        "hint": "Adres met schema en poort, bijv. http://homeassistant.local:8123; meerdere scheiden met spaties. Leeg = alleen deze installatie zelf."
       }
     },
     "boolActive": "aan",
@@ -816,20 +849,72 @@
       "demoLoadedSnap": "Demogegevens geladen. Veiligheidsmomentopname: {snap}",
       "demoLoaded": "Demogegevens geladen.",
       "importConfirmTitle": "Back-up importeren?",
-      "importConfirmMsg": "Let op: bestaande gegevens worden overschreven.\n\nVóór de import slaat de app automatisch een veiligheidsmomentopname van je huidige gegevens op onder <code>data/backups/pre-restore-…</code> — als de import er niet uitziet zoals verwacht, kun je deze momentopname herstellen.",
+      "importConfirmMsg": "De huidige gegevens worden overschreven. Eerst maakt de app automatisch een veiligheidsmomentopname – die kun je onder ‘Opgeslagen momentopnamen’ weer herstellen.",
       "importConfirmBtn": "Importeren",
       "importedSnap": "Back-up geïmporteerd. Veiligheidsmomentopname: {snap}",
       "imported": "Back-up geïmporteerd",
       "migrateSubhead": "📦 Migratie vanaf v0.9.0",
       "migrateHint": "Upload een oude v0.9.0-back-up (JSON met <code>version: \"2.1\"</code>). De back-up wordt vóór het schrijven geanalyseerd; daarna kies je tussen <strong>Vervangen</strong> (alles overschrijven) of <strong>Samenvoegen</strong> (alleen nieuwe ID’s toevoegen). In beide gevallen wordt vooraf automatisch een veiligheidsmomentopname van de huidige gegevens gemaakt.",
       "migrateBtn": "v0.9.0-back-up analyseren…",
-      "migrateReadError": "Fout bij het lezen: {msg}"
+      "migrateReadError": "Fout bij het lezen: {msg}",
+      "snapshotsTitle": "Opgeslagen momentopnamen",
+      "snapshotsHint": "Momentopnamen staan op de server onder data/backups/. Automatische (vóór import, migratie of demogegevens) worden na 30 dagen opgeruimd, met minstens drie per aanleiding; van je eigen blijven de laatste tien bewaard.",
+      "snapshotsNone": "Nog geen momentopnamen.",
+      "colDate": "Tijdstip",
+      "colReason": "Aanleiding",
+      "colSize": "Grootte",
+      "reason": {
+        "manual": "handmatig",
+        "restore": "vóór import",
+        "migration": "vóór migratie",
+        "demo": "vóór demogegevens",
+        "v09": "vóór v0.9-import"
+      },
+      "snapDownload": "Downloaden",
+      "snapRestore": "Herstellen…",
+      "snapDelete": "Verwijderen",
+      "snapRestoreTitle": "Momentopname herstellen?",
+      "snapRestoreMsg": "De momentopname van {date} vervangt de huidige gegevens. Eerst slaat de app de huidige stand op als eigen momentopname.",
+      "snapRestored": "Momentopname hersteld.",
+      "snapDeleteTitle": "Momentopname verwijderen?",
+      "snapDeleteMsg": "De momentopname van {date} wordt definitief verwijderd.",
+      "snapDeleted": "Momentopname verwijderd.",
+      "noSnapshotTitle": "Doorgaan zonder veiligheidskopie?",
+      "noSnapshotBtn": "Toch herstellen",
+      "previewTitle": "Back-up importeren?",
+      "previewIntro": "De back-up is volledig leesbaar. Hij bevat:",
+      "previewUntouched": "Niet in de back-up – blijft ongewijzigd: {list}",
+      "top": {
+        "settings": "Instellingen",
+        "temperatures": "Temperatuurdagen",
+        "reminders": "Herinneringen",
+        "recommendations_dismissed": "Verborgen aanbevelingen"
+      },
+      "pot": {
+        "meters": "meters",
+        "readings": "standen",
+        "contracts": "contracten",
+        "deliveries": "leveringen",
+        "meter_groups": "metergroepen"
+      },
+      "problemsTitle": "Back-up niet geïmporteerd",
+      "problemsMore": "… en meer (maximaal 50 worden gemeld)",
+      "problem": {
+        "not_an_object": "geen object",
+        "not_a_list": "geen lijst",
+        "unknown_utility": "onbekende energiesoort",
+        "missing": "veld ‘{field}’ ontbreekt",
+        "date": "ongeldige datum in ‘{field}’",
+        "counter": "meterstand is geen getal",
+        "devices": "ongeldige apparatenlijst",
+        "entry": "ongeldig item {what}"
+      }
     },
     "ha": {
       "title": "🏠 Home Assistant-integratie",
       "intro": "Laat Home Assistant je meterstanden automatisch naar de Energietracker sturen — je houdt ze niet meer met de hand bij. Home Assistant levert de waarden, de Energietracker beheert contracten, kosten en prognoses. Handleiding: <code>docs/HOME-ASSISTANT.md</code>.",
       "step1": "1. API-token",
-      "tokenHint": "Beschermt het push-eindpunt <code>/api/ingest</code>. <strong>Zolang er geen token is ingesteld, blijft de API open (alleen bedoeld voor het lokale netwerk).</strong> Zodra er een token bestaat, moet Home Assistant het meesturen.",
+      "tokenHint": "Beschermt het push-endpoint <code>/api/ingest</code>. <strong>Zonder inloggen accepteert het ook waarden zonder token</strong> – bedoeld voor het thuisnetwerk. Met inloggen aan vereist het altijd een token.",
       "tokenActive": "🔒 token actief",
       "tokenOpen": "🔓 geen token (open)",
       "generateNew": "Nieuw token genereren",
@@ -868,7 +953,10 @@
         "floatComment": "float zonder standaardwaarde: is de sensor niet beschikbaar, dan mislukt de push in plaats van 0 te boeken.",
         "automationAlias": "Energietracker: meterstanden versturen",
         "hasValueComment": "Alleen versturen als de sensor een waarde heeft – vlak na een herstart staat hij even op ‘unavailable’."
-      }
+      },
+      "lastUsed": "Laatst gebruikt: {when}",
+      "neverUsed": "Met dit token is nog niets binnengekomen.",
+      "loginNeedsToken": "Inloggen staat aan: zonder token accepteert de Energietracker geen waarden van Home Assistant."
     },
     "diag": {
       "title": "🩺 Systeemdiagnose",
@@ -933,7 +1021,49 @@
       "errNeedValues": "Geef volumeherleidingsfactor en calorische waarde op — of de factor direct"
     },
     "invalidFields": "Niet opgeslagen: corrigeer de rood gemarkeerde velden.",
-    "dayMonthInvalid": "Voer in als dag-maand, bijv. 01-10 voor 1 oktober."
+    "dayMonthInvalid": "Voer in als dag-maand, bijv. 01-10 voor 1 oktober.",
+    "security": {
+      "title": "🔐 Inloggen en toegang",
+      "hint": "Zonder inloggen kan iedereen die het adres kent de Energietracker bereiken – bedoeld voor je thuisnetwerk. Is hij van buitenaf bereikbaar (port forwarding, reverse proxy) of deel je het netwerk met anderen, zet inloggen dan aan.",
+      "modeOff": "🔓 Zonder inloggen",
+      "modePassword": "🔒 Inloggen met wachtwoord",
+      "modeProxy": "🛡️ Inloggen via voorgeschakelde proxy",
+      "modeFixed": "Vastgelegd via de omgevingsvariabele ET_AUTH – hier niet te wijzigen.",
+      "passwordFixed": "Het wachtwoord is vastgelegd via de omgevingsvariabele ET_ADMIN_PASSWORD_HASH – hier niet te wijzigen.",
+      "proxyHint": "Inloggen verloopt via de voorgeschakelde proxy (bijv. Authelia of Authentik). De Energietracker neemt de gebruiker alleen over van de adressen in ET_TRUSTED_PROXIES.",
+      "newPassword": "Nieuw wachtwoord",
+      "repeatPassword": "Wachtwoord herhalen",
+      "currentPassword": "Huidig wachtwoord",
+      "enable": "Inloggen aanzetten",
+      "enableHint": "Daarna vraagt elke browser één keer om het wachtwoord en blijft 30 dagen ingelogd. Home Assistant heeft dan een API-token nodig (kaart ‘Home Assistant-integratie’), scripts een API-sleutel.",
+      "change": "Wachtwoord wijzigen",
+      "disable": "Inloggen uitzetten…",
+      "mismatch": "De twee wachtwoorden komen niet overeen.",
+      "enabled": "Inloggen aangezet. Deze browser blijft ingelogd.",
+      "changed": "Wachtwoord gewijzigd. Andere apparaten moeten opnieuw inloggen.",
+      "disableTitle": "Inloggen uitzetten?",
+      "disableMsg": "De Energietracker is dan weer zonder wachtwoord bereikbaar. Voer ter bevestiging het huidige wachtwoord in.",
+      "disabled": "Inloggen uitgezet.",
+      "keysTitle": "API-sleutels voor scripts",
+      "keysHint": "Met inloggen aan hebben scripts en andere programma’s een sleutel nodig – als header <code>Authorization: Bearer etk_…</code>. ‘Lezen’ mag alleen opvragen, ‘Beheren’ ook wijzigen. De Home Assistant-push blijft zijn eigen token gebruiken.",
+      "keysNone": "Nog geen sleutels.",
+      "keyName": "Naam",
+      "keyNamePlaceholder": "bijv. back-upscript",
+      "keyScope": "Recht",
+      "scopeRead": "Lezen",
+      "scopeAdmin": "Beheren",
+      "keyCreatedAt": "Aangemaakt",
+      "keyLastUsed": "Laatst gebruikt",
+      "keyNever": "nooit",
+      "keyCreate": "Sleutel aanmaken",
+      "keyReveal": "Sleutel ‘{name}’ – kopieer hem nu, hij wordt niet opnieuw getoond:",
+      "keyCopy": "Sleutel kopiëren",
+      "keyCopied": "Sleutel gekopieerd",
+      "keyRevoke": "Intrekken",
+      "keyRevokeTitle": "Sleutel intrekken?",
+      "keyRevokeMsg": "Programma’s die de sleutel ‘{name}’ gebruiken, verliezen hun toegang.",
+      "keyRevoked": "Sleutel ingetrokken."
+    }
   },
   "reminders": {
     "suggest": {
@@ -1338,7 +1468,9 @@
   "errors": {
     "temperature": {
       "emptyCsv": "De CSV-gegevens zijn leeg.",
-      "dateMissing": "De datum ontbreekt."
+      "dateMissing": "De datum ontbreekt.",
+      "valuesMissing": "Gemiddelde, minimum en maximum (avg, min, max) zijn verplicht en moeten getallen zijn.",
+      "rangeInvalid": "Ongeldige periode: {start} ligt na {end}."
     },
     "view": {
       "loadFailed": "Laden mislukt: {msg}",
@@ -1351,7 +1483,8 @@
       "multipleSources": "Meerdere warmtebronnen actief — de klasse per bron zegt meer dan de gecombineerde som. De gecombineerde weergave is alleen zinvol bij bewust gecombineerd stoken (bijv. basis- en pieklast)."
     },
     "forecast": {
-      "tooFewMonths": "Te weinig historie (minder dan 6 maanden)."
+      "tooFewMonths": "Te weinig historie (minder dan 6 maanden).",
+      "paramInvalid": "Ongeldige waarde voor {param}: ‘{value}’ (toegestaan: {range})."
     },
     "reminder": {
       "titleRequired": "Een titel is verplicht.",
@@ -1394,7 +1527,8 @@
       "invalidBaselineList": "Peilmomenten moeten worden aangeleverd als lijst met items die een datum bevatten",
       "invalidBaselineDate": "Ongeldige datum voor het peilmoment: „{date}” — verwacht wordt JJJJ-MM-DD",
       "duplicateBaselineDate": "Er bestaat al een peilmoment voor {date}",
-      "swapBeforeInstall": "De wissel op {date} ligt vóór de installatie van het huidige apparaat ({installed})."
+      "swapBeforeInstall": "De wissel op {date} ligt vóór de installatie van het huidige apparaat ({installed}).",
+      "digitsInvalid": "Cijfers van het telwerk: ‘{value}’ is ongeldig — toegestaan is een geheel getal van 3 tot 12 of leeg."
     },
     "common": {
       "unknownUtility": "Onbekende energie: {utility}",
@@ -1459,18 +1593,25 @@
       "dateFormat": "De datum moet het formaat JJJJ-MM-DD hebben: {date}",
       "meterMissing": "De meter (meter) ontbreekt — geef alias of intern ID op",
       "meterNotFound": "Geen meter gevonden voor « {meter} » in {utility} (noch als alias noch als ID)",
-      "unauthorized": "Niet geautoriseerd — stuur een geldig API-token als „Authorization: Bearer <token>”."
+      "unauthorized": "Niet geautoriseerd — stuur een geldig API-token als „Authorization: Bearer <token>”.",
+      "tokenRequiredWithLogin": "Aanmelden is ingeschakeld – de push heeft dan een API-token nodig. Maak er een aan in de instellingen."
     },
     "backup": {
       "noVersionField": "Geen backup_version-veld — geen geldige back-up",
       "versionUnsupported": "Back-upversie {ver} wordt niet rechtstreeks ondersteund. Importeer deze eerst via de migratie naar v1.0.0, of gebruik een nieuwere back-up.",
-      "schemaNewer": "Back-upschema {schema} is nieuwer dan het app-schema {appSchema}. Werk eerst de app bij, importeer daarna de back-up."
+      "schemaNewer": "Back-upschema {schema} is nieuwer dan het app-schema {appSchema}. Werk eerst de app bij, importeer daarna de back-up.",
+      "invalid": "De back-up is onvolledig of beschadigd ({count} probleem/problemen). Er is niets teruggezet.",
+      "snapshotFailed": "De veiligheidssnapshot vóór het terugzetten is mislukt. Zonder snapshot is er geen weg terug. Alleen met uitdrukkelijke toestemming toch terugzetten.",
+      "snapshotNotFound": "Snapshot ‘{name}’ niet gevonden.",
+      "snapshotUnreadable": "Snapshot ‘{name}’ is niet leesbaar (geen geldige JSON)."
     },
     "import": {
       "emptyCsv": "Lege CSV-gegevens",
       "dateUnrecognized": "Regel {line}: datum niet herkend ({value})",
       "rowIncomplete": "Regel {line}: datum of meterstand ontbreekt",
-      "counterNotNumeric": "Regel {line}: meterstand is geen getal ({value})"
+      "counterNotNumeric": "Regel {line}: meterstand is geen getal ({value})",
+      "rowError": "Regel {line}: {message}",
+      "tooFewColumns": "Regel {line}: te weinig kolommen"
     },
     "demo": {
       "backupNotFound": "Demo-back-up niet gevonden.",
@@ -1503,7 +1644,44 @@
       "invalidRange": "Geef een geldige periode op (van < tot, JJJJ-MM-DD)"
     },
     "http": {
-      "crossSite": "Geweigerd: het verzoek kwam van een andere website. Wijzigingen kunnen alleen vanuit Energietracker zelf."
+      "crossSite": "Geweigerd: het verzoek kwam van een andere website. Wijzigingen kunnen alleen vanuit Energietracker zelf.",
+      "internal": "Interne fout ({id}). De details staan in het serverlog.",
+      "hostNotAllowed": "De hostnaam ‘{host}’ is niet toegestaan (ET_ALLOWED_HOSTS)."
+    },
+    "storage": {
+      "dataTooNew": "De gegevens komen van een nieuwere versie (schema {schema}). Deze versie kent alleen schema {app} en schrijft niets om ze niet te beschadigen. Start de nieuwere versie opnieuw."
+    },
+    "report": {
+      "yearRange": "Het jaar moet een getal tussen 2000 en 2100 zijn."
+    },
+    "auth": {
+      "required": "Meld je aan.",
+      "readOnlyKey": "Deze API-sleutel mag alleen lezen.",
+      "notPasswordMode": "Aanmelden met wachtwoord is niet ingeschakeld.",
+      "wrongPassword": "Onjuist wachtwoord.",
+      "locked": "Te veel mislukte pogingen – wacht {minutes} minuten.",
+      "passwordFixed": "Het wachtwoord is via de omgeving (ET_ADMIN_PASSWORD_HASH) ingesteld en kan hier niet worden gewijzigd.",
+      "modeFixed": "Aanmelden is via de omgeving (ET_AUTH) ingesteld en kan hier niet worden uitgeschakeld.",
+      "passwordTooShort": "Het wachtwoord moet minstens {min} tekens hebben.",
+      "scopeInvalid": "Onbekend bereik – read en admin zijn toegestaan.",
+      "keyNotFound": "API-sleutel niet gevonden."
     }
+  },
+  "login": {
+    "title": "Inloggen",
+    "password": "Wachtwoord",
+    "submit": "Inloggen",
+    "forgot": "Wachtwoord vergeten? Zet op de server in data/auth.json ‘mode’ op ‘off’ – dan is inloggen uitgeschakeld. In de Docker-container doet de omgevingsvariabele ET_AUTH=off hetzelfde.",
+    "logout": "Uitloggen"
+  },
+  "readingCheck": {
+    "title": "Controleer dit",
+    "future": "De datum {date} ligt in de toekomst.",
+    "sameDay": "Voor {date} is er al een stand ({counter} {unit}). De nieuwe waarde vervangt die.",
+    "lower": "De stand is lager dan de vorige ({last} {unit}). Is de meter vervangen, leg dat dan vast via ‘Meterwissel’ – anders toont de analyse een daling.",
+    "jump": "Sinds de vorige stand zou dat {perDay} {unit} per dag zijn – meestal ongeveer {typical} {unit}. Tikfout?",
+    "magnitude": "De waarde is meer dan tien keer de vorige stand ({last} {unit}). Komma vergeten?",
+    "confirm": "Toch opslaan",
+    "replace": "Vervangen"
   }
 }

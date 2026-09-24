@@ -37,15 +37,19 @@ running the app itself, Python is not required.
 # 1. Unpack / clone the repository
 cd energietracker
 
-# 2. Start with the built-in PHP server
-php -S 127.0.0.1:8080
+# 2. Start with the built-in PHP server — always with router.php
+php -S 127.0.0.1:8080 router.php
 
 # 3. Open the browser
 #    http://127.0.0.1:8080
 ```
 
+> Without `router.php` the built-in server serves **every** file, including
+> `data/` with all user data. And only start it on `127.0.0.1` — it is meant for
+> development, not for others on the network.
+
 On first access the **migrator** automatically creates the data structure under
-`data/` and raises it to the current schema (**1.3.0**). No manual step is
+`data/` and raises it to the current schema (**1.5.0**). No manual step is
 needed. A completely empty directory has been recognised as a first start since
 v1.9.1 and initialised with default meters (gas/electricity/water).
 
@@ -60,7 +64,7 @@ cadence. The most convenient way to load it is directly in the app via
 ```bash
 # Replace the data directory with the demo data (caution: overwrites!)
 rm -rf data && cp -r demo-data data
-php -S 127.0.0.1:8080
+php -S 127.0.0.1:8080 router.php
 ```
 
 The demo data carries `schema_version: 1.1.0` and is automatically migrated to
@@ -74,26 +78,22 @@ test in the CI instead of via the demo start.
 
 ### 3.1 Apache
 
-`api.php` is the API entry point, `index.php` delivers the SPA shell. A minimal
-`.htaccess` (example) in the project root:
+`api.php` is the API entry point, `index.php` delivers the SPA shell. The
+frontend calls the API as `api.php/api/…` and navigates by hash route (`#/…`) —
+no rewrite rules for the API or the SPA are needed.
 
-```apache
-DirectoryIndex index.php
-RewriteEngine On
+The **bundled `.htaccess`** (since v2.6.0) blocks everything that is not meant
+to be served — `data/` (user data, backups), `src/`, `tests/`, `docs/`,
+`.git/` and all dotfiles, project files such as `composer.json` or `*.md` —,
+passes the `Authorization` header on to PHP-FPM (for the Home Assistant token)
+and sets the cache headers. `data/.htaccess` is the second safeguard.
+Prerequisites:
 
-# Route API calls to api.php
-RewriteRule ^api/ api.php [L,QSA]
+- `AllowOverride` at least `FileInfo` for the project directory (the default in
+  Synology Web Station),
+- `mod_rewrite`, `mod_headers`, `mod_setenvif`.
 
-# Serve static assets directly; everything else to the SPA
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [L]
-```
-
-Important: the `data/` directory must **not** be publicly deliverable. It is
-recommended to place the project so that only `index.php`, `api.php` and
-`public/` are reachable via the web server, or to block `data/` via a server
-rule:
+Additionally possible in the VirtualHost:
 
 ```apache
 <Directory "/path/to/energietracker/data">
@@ -101,20 +101,27 @@ rule:
 </Directory>
 ```
 
+Check that the rules apply:
+[Security → web server](08-security.md#9-web-server-what-must-not-be-served).
+
 ### 3.2 nginx (outline)
 
 ```nginx
-location /api/ { try_files $uri /api.php?$query_string; }
 location /     { try_files $uri /index.php?$query_string; }
-location ~ /data/ { deny all; }
-location ~ \.php$ { fastcgi_pass …; include fastcgi_params; }
+location ~ ^/(data|src|tests|scripts|docker|docs|vendor|demo-data)/ { return 404; }
+location ~ /\. { return 404; }
+location ~ ^/api(\.php)?(/|$) { fastcgi_pass …; include fastcgi_params; }
 ```
+
+The complete, tested rule set is in `docker/nginx.conf`.
 
 ### 3.3 Write permissions
 
 The web server user needs **write permission** on `data/` (including
-`data/backups/`). All writes use `LOCK_EX`, so parallel accesses do not destroy
-one another. The system diagnostics (`Settings → Diagnostics`, or
+`data/backups/`). Writing requests run one after another (lock on
+`data/.write.lock`, since v2.5.3), and every file is written atomically
+(temporary file, then rename; since v2.6.0 with `fsync` first) — an abort in
+mid-write leaves no half-written file. The system diagnostics (`Settings → Diagnostics`, or
 `GET /api/diagnostics`) show whether the write permissions are set correctly.
 
 ### 3.4 Moving the data directory (`ET_DATA_DIR`)
@@ -125,7 +132,7 @@ path — useful for separate data/code mounts, several instances or read-only co
 deployments:
 
 ```bash
-ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080
+ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080 router.php
 ```
 
 With Apache via `SetEnv ET_DATA_DIR /srv/…` in the VirtualHost, with nginx +

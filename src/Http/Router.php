@@ -45,9 +45,13 @@ final class Router
 
     public function dispatch(Request $req): void
     {
+        // v2.6.0 — HEAD wie GET (Uptime-Monitore prüfen oft per HEAD; der
+        // Webserver verwirft den Körper). Bis v2.5.3 gab es darauf 404.
+        $method  = $req->method === 'HEAD' ? 'GET' : $req->method;
+        $allowed = [];
         foreach ($this->routes as $route) {
-            if ($route['method'] !== $req->method) continue;
             if (!preg_match($route['regex'], $req->path, $matches)) continue;
+            if ($route['method'] !== $method) { $allowed[] = $route['method']; continue; }
             array_shift($matches);
             foreach ($route['params'] as $i => $name) {
                 $req->params[$name] = $matches[$i] ?? null;
@@ -55,8 +59,16 @@ final class Router
             ($route['handler'])($req);
             return; // handler is expected to exit
         }
-        // OPTIONS preflight
-        if ($req->method === 'OPTIONS') exit;
+        // v2.6.0 — Pfad bekannt, Methode nicht: 405 mit Allow statt 404;
+        // OPTIONS nennt die erlaubten Methoden.
+        if ($allowed !== []) {
+            if (in_array('GET', $allowed, true)) $allowed[] = 'HEAD';
+            $allowed[] = 'OPTIONS';
+            if (!headers_sent()) header('Allow: ' . implode(', ', array_unique($allowed)));
+            if ($req->method === 'OPTIONS') Response::noContent();
+            Response::error('Method not allowed: ' . $req->method . ' ' . $req->path, 405);
+        }
+        if ($req->method === 'OPTIONS') Response::noContent();
         // Kein I18nService: Der Router läuft vor der Anwendungsschicht und
         // soll auch dann antworten können, wenn der Container nicht steht.
         // Diese Meldung richtet sich an Entwickler, nicht an Nutzer.

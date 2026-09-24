@@ -6,6 +6,7 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
+use Energietracker\Http\NotFoundException;
 
 /**
  * Ablesungs-CRUD pro Utility.
@@ -21,6 +22,9 @@ use Energietracker\Support\Dates;
  */
 final class ReadingService
 {
+    /** v2.6.0 — erlaubte Werte für das optionale Feld `source` */
+    private const SOURCES = ['ingest', 'csv'];
+
     public function __construct(
         private JsonStore $store,
         private MeterService $meters,
@@ -85,6 +89,11 @@ final class ReadingService
             'is_estimated' => !empty($input['is_estimated']),
             'is_future'    => $date > date('Y-m-d'),
         ];
+        // v2.6.0 — additiv: Herkunft (für /api/health last_ingest) und
+        // Verdacht (fallender Stand im Home-Assistant-Push, s. IngestService).
+        // Beide nur, wenn gesetzt — bestehende Datensätze bleiben gleich.
+        if (in_array($input['source'] ?? null, self::SOURCES, true)) $reading['source'] = $input['source'];
+        if (!empty($input['is_suspect'])) $reading['is_suspect'] = true;
 
         $all = $this->store->read("$utility/readings.json", []);
         if (!is_array($all)) $all = [];
@@ -104,6 +113,7 @@ final class ReadingService
         $found = null;
         foreach ($all as &$r) {
             if (($r['id'] ?? null) !== $id) continue;
+            $counterChanged = array_key_exists('counter', $input) && (float)$input['counter'] !== (float)($r['counter'] ?? 0);
             foreach (['date', 'counter', 'price_cents', 'note', 'is_estimated', 'meter_id'] as $f) {
                 if (!array_key_exists($f, $input)) continue;
                 if ($f === 'counter') $r['counter'] = (float)$input['counter'];
@@ -111,6 +121,14 @@ final class ReadingService
                 elseif ($f === 'is_estimated') $r['is_estimated'] = (bool)$input['is_estimated'];
                 else $r[$f] = $input[$f];
             }
+            // v2.6.0 — Verdacht: ausdrücklich gesetzt oder bestätigt; wer den
+            // Stand selbst korrigiert, hat ihn damit ebenfalls geklärt.
+            if (array_key_exists('is_suspect', $input)) {
+                if (!empty($input['is_suspect'])) $r['is_suspect'] = true; else unset($r['is_suspect']);
+            } elseif ($counterChanged) {
+                unset($r['is_suspect']);
+            }
+            if (in_array($input['source'] ?? null, self::SOURCES, true)) $r['source'] = $input['source'];
             // Recompute device_id from date
             $meter = $this->meters->get($utility, $r['meter_id']);
             if ($meter) {
@@ -126,10 +144,91 @@ final class ReadingService
             break;
         }
         unset($r);
-        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.reading.notFound'));
+        if (!$found) throw new NotFoundException($this->i18n->t('errors.reading.notFound'));
         usort($all, fn($a, $b) => strcmp($a['date'], $b['date']));
         $this->store->write("$utility/readings.json", $all);
         return $found;
+    }
+
+    /**
+     * v2.6.0 — Viele Ablesungen eines Zählers in EINEM Schreibvorgang
+     * (CSV-Import). Bisher las, sortierte und schrieb jede Zeile die ganze
+     * readings.json: 2.000 Zeilen dauerten 4 s, ein Mehrjahres-Import brach an
+     * max_execution_time mittendrin ab. Gleiche Regeln wie create()/update():
+     * gleiches Datum → überschreiben, Datum und Stand geprüft, Gerät je Datum.
+     *
+     * @param list<array<string,mixed>> $rows je Zeile date, counter, note?,
+     *        is_estimated?, line? (Zeilennummer für die Meldung)
+     * @return array{imported:int,overwritten:int,skipped:int,errors:list<string>}
+     */
+    public function upsertMany(string $utility, string $meterId, array $rows, ?string $source = 'csv'): array
+    {
+        $meter = $this->meters->get($utility, $meterId);
+        if (!$meter) throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
+
+        // Erstes Gerät ggf. einmal vorverlegen (s. create()).
+        $dates = array_filter(array_map(fn($r) => (string)($r['date'] ?? ''), $rows), [Dates::class, 'isIsoDate']);
+        if ($dates !== []) {
+            $earliest = min($dates);
+            if (!$this->meters->deviceOnDate($meter, $earliest)
+                && $this->meters->backdateFirstDevice($utility, $meterId, $earliest) !== null) {
+                $meter = $this->meters->get($utility, $meterId) ?? $meter;
+            }
+        }
+
+        $all = $this->store->read("$utility/readings.json", []);
+        if (!is_array($all)) $all = [];
+        $byDate = [];
+        foreach ($all as $idx => $r) {
+            if (($r['meter_id'] ?? null) === $meterId && isset($r['date'])) $byDate[$r['date']] = $idx;
+        }
+
+        $imported = $overwritten = $skipped = 0;
+        $errors = [];
+        $today = date('Y-m-d');
+        foreach ($rows as $i => $row) {
+            $line = (int)($row['line'] ?? $i + 1);
+            try {
+                $date = (string)($row['date'] ?? '');
+                $this->assertDate($date);
+                $counter = $this->parseCounter($row['counter'] ?? null);
+                $device = $this->meters->deviceOnDate($meter, $date);
+                if (!$device) {
+                    throw new \InvalidArgumentException($this->i18n->t('errors.reading.noDevice', ['date' => $date]));
+                }
+            } catch (\InvalidArgumentException $e) {
+                $skipped++;
+                $errors[] = $this->i18n->t('errors.import.rowError', ['line' => $line, 'message' => $e->getMessage()]);
+                continue;
+            }
+            $fields = [
+                'device_id'    => $device['id'],
+                'counter'      => $counter,
+                'note'         => (string)($row['note'] ?? ''),
+                'is_estimated' => !empty($row['is_estimated']),
+                'is_future'    => $date > $today,
+            ];
+            if (isset($byDate[$date])) {
+                $r = $all[$byDate[$date]];
+                unset($r['is_suspect']);
+                $all[$byDate[$date]] = array_merge($r, $fields);
+                $overwritten++;
+            } else {
+                $new = ['id' => date('Ymd', strtotime($date) ?: time()) . '-' . bin2hex(random_bytes(4)),
+                        'meter_id' => $meterId, 'date' => $date, 'price_cents' => null] + $fields;
+                if (in_array($source, self::SOURCES, true)) $new['source'] = $source;
+                $all[] = $new;
+                $byDate[$date] = array_key_last($all);
+                $imported++;
+            }
+        }
+
+        if ($imported + $overwritten > 0) {
+            $all = array_values($all);
+            usort($all, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
+            $this->store->write("$utility/readings.json", $all);
+        }
+        return ['imported' => $imported, 'overwritten' => $overwritten, 'skipped' => $skipped, 'errors' => $errors];
     }
 
     public function delete(string $utility, string $id): void
@@ -137,7 +236,7 @@ final class ReadingService
         $all = $this->store->read("$utility/readings.json", []);
         if (!is_array($all)) $all = [];
         $kept = array_values(array_filter($all, fn($r) => ($r['id'] ?? null) !== $id));
-        if (count($kept) === count($all)) throw new \InvalidArgumentException($this->i18n->t('errors.reading.notFound'));
+        if (count($kept) === count($all)) throw new NotFoundException($this->i18n->t('errors.reading.notFound'));
         $this->store->write("$utility/readings.json", $kept);
     }
 
@@ -162,8 +261,8 @@ final class ReadingService
      *   consumption_unit:string, color:string,
      *   meter_id:string, meter_name:string, meter_icon:string,
      *   meter_notes:string, active_device_id:?string,
-     *   last_reading:?array{date:string, counter:float, is_estimated:bool},
-     *   expected_next_min:?float
+     *   last_reading:?array{date:string, counter:float, is_estimated:bool, id:string, device_id:?string},
+     *   expected_next_min:?float, typical_per_day:?float, suspect_count:int
      * }>
      */
     public function overview(array $activeUtilities): array
@@ -182,12 +281,15 @@ final class ReadingService
                 if (!($m['active'] ?? true)) continue;
 
                 // Letzte reale Ablesung (geplante is_future ausschließen)
+                // v2.6.0 — verdächtige Stände ebenfalls: Ein Home-Assistant-
+                // Push mit 0 wäre sonst der „letzte Stand" der Erfassung.
                 $readings = $this->list($key, (string)$m['id']);
                 $real = array_values(array_filter(
                     $readings,
-                    fn($r) => empty($r['is_future'])
+                    fn($r) => empty($r['is_future']) && empty($r['is_suspect'])
                 ));
                 $last = !empty($real) ? end($real) : null;
+                $suspects = count(array_filter($readings, fn($r) => !empty($r['is_suspect'])));
 
                 $rows[] = [
                     'utility'           => $key,
@@ -214,12 +316,46 @@ final class ReadingService
                         'date'         => (string)($last['date'] ?? ''),
                         'counter'      => (float)($last['counter'] ?? 0),
                         'is_estimated' => (bool)($last['is_estimated'] ?? false),
+                        // v2.6.0 — additiv: „schon ein Stand heute → ersetzen"
+                        // und „anderes Gerät → kein Rückgang"
+                        'id'           => (string)($last['id'] ?? ''),
+                        'device_id'    => $last['device_id'] ?? null,
                     ] : null,
                     'expected_next_min' => $last !== null ? (float)$last['counter'] : null,
+                    // v2.6.0 — für die Rückfrage bei ungewöhnlichem Sprung
+                    'typical_per_day'   => $this->typicalPerDay($real),
+                    'suspect_count'     => $suspects,
                 ];
             }
         }
         return $rows;
+    }
+
+    /**
+     * v2.6.0 — typischer Tagesverbrauch aus den letzten Intervallen desselben
+     * Geräts: Median, also robust gegen einen einzelnen Ausreißer. Grundlage
+     * der Rückfrage „Das wären 400 kWh/Tag, üblich sind 8" in der Erfassung.
+     * Null, solange weniger als zwei Intervalle vorliegen.
+     *
+     * @param array<int,array<string,mixed>> $readings nach Datum sortiert
+     */
+    public function typicalPerDay(array $readings): ?float
+    {
+        $rates = [];
+        for ($i = count($readings) - 1; $i > 0 && count($rates) < 10; $i--) {
+            $a = $readings[$i - 1];
+            $b = $readings[$i];
+            if (($a['device_id'] ?? null) !== ($b['device_id'] ?? null)) continue;
+            if (!Dates::isIsoDate($a['date'] ?? null) || !Dates::isIsoDate($b['date'] ?? null)) continue;
+            $days = (int)round((strtotime($b['date']) - strtotime($a['date'])) / 86400);
+            $diff = (float)($b['counter'] ?? 0) - (float)($a['counter'] ?? 0);
+            if ($days >= 1 && $diff >= 0) $rates[] = $diff / $days;
+        }
+        if (count($rates) < 2) return null;
+        sort($rates);
+        $n = count($rates);
+        $median = $n % 2 ? $rates[intdiv($n, 2)] : ($rates[$n / 2 - 1] + $rates[$n / 2]) / 2;
+        return round($median, 4);
     }
 
     private function assertDate(string $date): void

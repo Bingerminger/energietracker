@@ -5,8 +5,9 @@
 [← Compendium index](../README.md)
 
 > **Real screenshots.** The following images are **actual screen captures** of the
-> running app with the bundled [demo dataset](../../../demo-data/) (light theme, as
-> of v1.9.2). The app's interface is in German; the captures are shared with the
+> running app with the bundled [demo dataset](../../../demo-data/) (light theme; base
+> set v1.9.2, sign-in, security card and the capture question v2.6.0). The app's
+> interface is in German; the captures are shared with the
 > German compendium. To regenerate them yourself: load the demo data and capture
 > the views one by one — the app needs no build step for this.
 
@@ -32,7 +33,17 @@ The central, mobile-friendly input mask: all active cumulative meters
 (gas/electricity/water/district heating/PV) each with the last reading for
 orientation — ideal for the monthly reading on the phone.
 
+**Since v2.6.0 with plausibility checks:** while typing, a note appears when the
+new reading would mean an unusual daily consumption (more than three times the
+usual one), is lower than the last one, lies in the future or when there is
+already a reading for that day. On save the app asks per conspicuous card (title:
+utility · meter); "Replace" updates the existing reading instead of creating a
+second one. Whoever declines keeps the input; the card shows "Not saved – please
+check". Details: [Meter readings → plausibility](../functional/11-zaehlerstaende.md).
+
 ![Meter readings](../../ui/screenshots/zaehlerstaende.png)
+
+![Question about an unusual jump](../../ui/screenshots/pruefung-zaehlerstand.png)
 
 ---
 
@@ -46,6 +57,13 @@ table lists per contract tariff, advance, consumed, paid, bonus, **special
 payments** (since v2.5.1: net from the customer's perspective, items in the
 tooltip; gas/electricity/district heating only), balance today and expected
 balance.
+
+**Implausible readings (v2.6.0):** if there are outliers, a falling reading
+without a meter swap or an unconfirmed suspect value from Home Assistant, a
+notice above the year selection lists the affected readings with a link to the
+meter swap. In the readings table they carry "CHECK" or "IMPLAUSIBLE" (tooltip
+with the reason); ✅ confirms a suspect reading — only then does it count. The
+reading dialog asks the same questions as the meter-reading capture.
 
 ![Gas view](../../ui/screenshots/gas-view.png)
 
@@ -206,16 +224,34 @@ min/avg/max. The basis of every HDD evaluation.
 
 ## 11. Settings
 
-All 40 keys grouped: conversion & HDD, **billing cycle (DD-MM)**, building &
-efficiency, calorific values, forecast model, active utilities, CSV export of all
-utilities, backup & migration, demo-data import (F1007) and the **🏠 Home Assistant
+All settings grouped: conversion & HDD, **billing cycle (DD-MM)**, building &
+efficiency, calorific values, forecast model, **embedding** (since v2.6.0:
+addresses allowed to embed the app, such as a Home Assistant dashboard), active
+utilities, CSV export of all utilities, backup & migration, demo-data import
+(F1007), **🔐 Sign-in & access** (since v2.6.0) and the **🏠 Home Assistant
 integration (F1009)** — manage the API token, maintain meter aliases and copy three
 ready-made templates: the REST command, the `secrets.yaml` entry and (since v2.5.3)
 an automation built from the aliases that checks `has_value` before every push.
 Number fields and billing anchors are validated before saving; errors appear in
 red at the field.
 
+**Backup & restore (v2.6.0):** an import is first checked completely and shown as
+a preview (what is restored, what stays unchanged for lack of content); a faulty
+backup changes nothing and names the findings. Below, the **stored snapshots**
+with time, occasion and size — download (⬇️), restore (↩️, the app saves the
+current state first) or delete. If the safety snapshot fails, the app asks
+whether to restore anyway.
+
+**Sign-in & access (v2.6.0):** shows the mode (no sign-in, password, proxy),
+switches password sign-in on, changes the password or switches it off again
+(with the current password) and manages **API keys** for scripts (read or
+manage, plaintext once, last used). Whatever is fixed by an environment variable
+is only displayed here. Since v2.6.0 the Home Assistant card shows when a value
+last arrived with the token and warns when sign-in is on but no token exists.
+
 ![Settings](../../ui/screenshots/einstellungen.png)
+
+![Sign-in & access](../../ui/screenshots/einstellungen-sicherheit.png)
 
 ---
 
@@ -227,7 +263,7 @@ Meter/device management incl. meter swap (the device chain) and contract mainten
 summarises the swap before performing it. A **contract** needs a provider or tariff
 and at least one working price; the start is prefilled with the day after the
 current commitment, and the app asks before a new contract supersedes a running one. For oil/pellets only the tank/store
-management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading).
+management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading). For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as
 an expandable collective entry; a **merge wizard** combines several existing meters
@@ -245,6 +281,23 @@ generation meter, the **electricity balance** (grid import − feed-in) and the
 anyone without a system sees no phantom meters.
 
 ![PV](../../ui/screenshots/pv.png)
+
+---
+
+## 14. Sign-in (v2.6.0, opt-in)
+
+Only with sign-in switched on: a plain sign-in screen with a password field and
+the note how to get back in after forgetting the password. After signing in, the
+browser stays signed in for 30 days; the top bar then carries a **Sign out**
+button (it also discards this browser's offline data). When a session expires,
+the screen appears instead of a series of error messages. Setup and background:
+[Security & network operation](../technical/08-security.md).
+
+**Offline notice:** when data comes from the offline storage of the installed
+app, the top bar shows "Offline – data as of …". Changes without a connection
+are reported as "No connection to Energietracker – nothing was saved."
+
+![Sign-in](../../ui/screenshots/anmeldung.png)
 
 ---
 

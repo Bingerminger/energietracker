@@ -1,0 +1,8 @@
+# Energietracker v2.6.0 — zweite Sicherung: Dieses Verzeichnis enthält alle
+# Nutzdaten und Vollbackups und wird nie über HTTP ausgeliefert. Die Regel im
+# Wurzelverzeichnis sperrt es bereits; diese greift auch, wenn jemand nur
+# data/ in den Webroot legt oder die Wurzel-.htaccess ersetzt.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^ - [R=404,L]
+</IfModule>

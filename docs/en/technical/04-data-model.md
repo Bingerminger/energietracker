@@ -24,8 +24,8 @@ backup).
 ```text
 data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
-├── settings.json             # 40 keys (see below)
-├── auth.json                 # API token HASH for HA ingest (F1009) — never plaintext
+├── settings.json             # settings (defaults: SettingsService::DEFAULTS)
+├── auth.json                 # sign-in, HA token, API keys — hashes only, never plaintext
 ├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max }, … }
 ├── reminders.json            # appointments/maintenance
 ├── recommendations_dismissed.json
@@ -38,8 +38,15 @@ data/
 ├── pv_einspeisung/ { meters.json, readings.json, contracts.json, meter_groups.json }
 ├── pv_erzeugung/   { meters.json, readings.json, contracts.json, meter_groups.json }
 ├── logs/       # JSON Lines log (N1010)
-└── backups/    # snapshots
+├── .write.lock # write lock (v2.5.3)
+└── backups/    # snapshots: backup_… (own), pre-restore-/pre-migration-/pre-demo-/pre-v09-… (automatic)
 ```
+
+**Snapshots (v2.6.0):** name `<prefix>YYYY-MM-DD_HHMMSS[-n].json`; the prefix
+determines the occasion (`reason` in `GET /api/backup/snapshots`). Retention: of
+your own the last ten, automatic ones 30 days, at least the three newest per
+occasion. A snapshot is streamed into a temporary file and only renamed at the
+end.
 
 Cumulative utilities (gas, electricity, water, district heating, PV) have
 `readings.json`; delivery-based utilities (heating oil, pellets) have
@@ -49,10 +56,24 @@ cost basis (see [Heating oil](../functional/05-heizoel.md)). `meter_groups.json`
 (since 1.2.0) holds the group master data per utility; the group *membership*, by
 contrast, sits on the meter (`meter_group_id`).
 
-> **`auth.json`** (F1009) contains exclusively the **SHA-256 hash** of the API
-> token, never the plaintext, and is **excluded** from the backup. As long as the
-> file is missing/empty, the API is in open mode (no token required). Details:
-> [API reference → Auth](03-api-reference.md).
+> **`auth.json`** (F1009, extended in v2.6.0) contains **hashes** only, never
+> plaintext, and is **excluded** from the backup. If the file is missing,
+> sign-in is off and the ingest is reachable without a token. An **unreadable**
+> file does not count as empty: access fails (503) instead of silently opening.
+>
+> ```jsonc
+> {
+>   "token_hash": "…sha256…", "created_at": "…", "token_last_used_at": "…",  // HA ingest (F1009)
+>   "mode": "password",                 // off | password | proxy (ET_AUTH takes precedence)
+>   "password_hash": "$2y$10$…",        // password_hash(); ET_ADMIN_PASSWORD_HASH takes precedence
+>   "session_secret": "…",              // HMAC key of the session cookies; new with every new password
+>   "login_failures": { "count": 1, "first_at": 1758700000, "locked_until": 0 },
+>   "api_keys": [ { "id": "k_…", "name": "backup script", "scope": "read",
+>                   "hash": "…sha256…", "created_at": "…", "last_used_at": null } ]
+> }
+> ```
+>
+> Details: [Security](08-security.md), [API reference → sign-in](03-api-reference.md).
 
 ---
 
@@ -120,12 +141,17 @@ as `meter_group_id` on the respective meter (single source of truth).
   "initial_counter": 0.0,
   "removed_on": "2024-10-01",
   "final_counter": 1562.0,
-  "reason": "Calibration swap"
+  "reason": "Calibration swap",
+  "digits": 5                  // optional (v2.6.0): register digits, 3–12
 }
 ```
 
 Consumption across a swap boundary:
 `(old_final − previous_reading) + (current_reading − new_initial)`.
+
+**`digits`** (v2.6.0, additive, missing = unknown): if the reading on the same
+device "falls back" by at most a tenth of the counting range, it is a rollover:
+consumption = `new + 10^digits − old` (99,998 → 12 with five digits = 14).
 
 ### Reading (a meter reading — cumulative utilities)
 
@@ -139,6 +165,16 @@ Consumption across a swap boundary:
 
 `is_future: true` marks pre-noted entries — they stay visible but are **not**
 included in the consumption calculation.
+
+Two optional fields since v2.6.0 (additive, only present when set):
+
+- `source`: `ingest` (Home Assistant) or `csv` (CSV import).
+- `is_suspect: true`: a falling reading from the ingest; it does not count until
+  confirmed (`PATCH` with `is_suspect: false`) or corrected.
+
+The consumption calculation also skips **sandwiched outliers** of the same
+device and reports them as `warnings` (see
+[Meter readings → plausibility](../functional/11-zaehlerstaende.md)).
 
 ### Delivery (a fuel delivery — heating oil/pellets)
 
@@ -194,7 +230,7 @@ migration step).
 
 ---
 
-## 3. Settings (`settings.json`, 40 keys)
+## 3. Settings (`settings.json`)
 
 Groups (a selection of the default values):
 
@@ -217,6 +253,11 @@ Groups (a selection of the default values):
 | `tank_warn_pct` | — | warning threshold for the tank level |
 | `active_utilities` | all | which utilities are visible in the sidebar/dashboard |
 | `location_name`, `latitude`, `longitude` | Leipzig | for Open-Meteo |
+| `language` | de | language of the interface and of API messages |
+| `frame_ancestors` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (CSP `frame-ancestors`), e.g. `http://homeassistant.local:8123` |
+
+The complete list is in `SettingsService::DEFAULTS`. `PATCH /api/settings`
+does not store unknown keys and names them in `ignored_keys` since v2.6.0.
 
 > The `billing_cycle_anchor_*` values are stored **canonically as `MM-DD`** (so the
 > backend can build a valid `YYYY-MM-DD`), but displayed and entered in the UI in
@@ -247,7 +288,14 @@ the current state (1.5.0) on first start — adding `meter_groups.json` per util
 (1.2.0) and the meter fields `external_id` (1.3.0) and `baseline_events` (1.4.0)
 without touching existing values.
 The migration path (1.0.0 → current schema) is additionally checked in the CI via a
-separate migration smoke test. A downgrade is not supported.
+separate migration smoke test. Before every migration the migrator creates a
+snapshot `pre-migration-…` (since v2.5.3).
+
+**Downgrade protection (v2.6.0).** A downgrade is not supported — but it is now
+detected: if the `schema_version` of the data is **newer** than the app, it
+writes nothing, all routes except `/api/health` answer `503`
+(`errors.storage.dataTooNew`), and `/api/health` reports `error`. Up to v2.5.3 an
+older version silently stamped the newer data back to its own schema.
 
 ---
 

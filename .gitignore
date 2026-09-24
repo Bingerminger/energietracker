@@ -5,6 +5,7 @@
 # sind versioniert.
 /data/*
 !/data/.gitkeep
+!/data/.htaccess
 !/data/*/
 /data/*/*
 !/data/*/.gitkeep

@@ -60,6 +60,34 @@ final class Migrator
     }
 
     /**
+     * v2.6.0 — Stammen die Daten von einer NEUEREN App-Version?
+     *
+     * Liefert deren Schemaversion oder null. Bis v2.5.3 fiel so ein
+     * Datenverzeichnis in den Zweig `!isAlreadyMigrated() → initFresh()`:
+     * meta.json wurde überschrieben, die Daten still auf das alte Schema
+     * gestempelt, und alter Code rechnete auf neuen Daten weiter — typisch nach
+     * dem Zurückdrehen eines Image-Tags. Jetzt schreibt die App dann gar nichts.
+     */
+    public function dataSchemaIsNewer(): ?string
+    {
+        $v = (string)($this->store->read('meta.json', [])['schema_version'] ?? '');
+        if ($v === '' || !preg_match('/^\d+(\.\d+){1,3}$/', $v)) return null;
+        return version_compare($v, self::SCHEMA_VERSION, '>') ? $v : null;
+    }
+
+    /** v2.6.0 — Zahl der ausstehenden Migrationsstufen (für /api/health). */
+    public function pendingSteps(): int
+    {
+        if ($this->isAlreadyMigrated() || $this->dataSchemaIsNewer() !== null) return 0;
+        $n = ($this->store->exists('gas.json') || $this->store->exists('strom.json')
+            || $this->store->exists('contracts.json')) ? 1 : 0;
+        foreach (self::UPGRADE_STEPS as [$check, $_]) {
+            if ($this->{$check}()) $n++;
+        }
+        return $n;
+    }
+
+    /**
      * Ist das Datenverzeichnis komplett **leer/unberührt** (echter Erststart)?
      *
      * Wahr, wenn weder ein `meta.json`, noch eine v0.9.0-Altdatei
@@ -130,6 +158,7 @@ final class Migrator
     public function needsMigration(): bool
     {
         if ($this->isAlreadyMigrated()) return false;
+        if ($this->dataSchemaIsNewer() !== null) return false;   // v2.6.0, s. dort
         // v0.9.0 signatures take precedence: they need the full migrate() path.
         if ($this->store->exists('gas.json')
             || $this->store->exists('strom.json')
@@ -259,6 +288,10 @@ final class Migrator
         if ($this->isPristine()) {
             $this->initFresh();
             return ['action' => 'fresh'];
+        }
+        // v2.6.0 — Daten einer neueren Version: nichts anfassen.
+        if (($newer = $this->dataSchemaIsNewer()) !== null) {
+            return ['action' => 'too-new', 'schema' => $newer];
         }
         if ($this->needsMigration()) {
             $from = (string)($this->store->read('meta.json', [])['schema_version'] ?? 'unbekannt');

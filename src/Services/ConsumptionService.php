@@ -44,6 +44,27 @@ final class ConsumptionService
      */
     private array $meterComputeStack = [];
 
+    /**
+     * v2.6.0 — Warnungen der Plausibilitätsprüfung je Zähler dieser Anfrage
+     * („utility|meterId" → Liste), gefüllt von computeForMeter().
+     *
+     * @var array<string, list<array<string,mixed>>>
+     */
+    private array $readingWarnings = [];
+
+    /** @var array<string,int> Schreibgeneration, zu der die Warnungen galten */
+    private array $readingWarningsGen = [];
+
+    /**
+     * v2.6.0 — Ergebnis von forMeter() je Zähler und Anfrage. Empfehlungen,
+     * PDF und Effizienz rechneten denselben Zähler bisher mehrfach; bei zehn
+     * Jahren Tagesdaten waren das Sekunden. Nur innerhalb einer Anfrage —
+     * jede Änderung ist eine eigene Anfrage.
+     *
+     * @var array<string, array<int,array<string,mixed>>>
+     */
+    private array $forMeterMemo = [];
+
     public function __construct(
         private JsonStore $store,
         private MeterService $meters,
@@ -147,7 +168,8 @@ final class ConsumptionService
      *   - advance_paid (monthly advances summed across actual months)
      *   - current_balance  = actual_cost − advance_paid  (positive = Nachzahlung)
      *   - projected_end_balance = balance extrapolated until contract end
-     *   - verdict ∈ { Nachzahlung | Erstattung | Ausgeglichen }
+     *   - verdict ∈ { surcharge | refund | balanced } — Einspeisung: { payout | reclaim | balanced }
+     *     (Sprach-Keys seit v2.0.0, s. unten)
      *   - current_working_price_ct / current_base_price_eur / current_advance_amount
      *     (the values valid today, for the active contract)
      *   - is_current / is_past / is_future / is_open_ended / effective_end
@@ -449,15 +471,138 @@ final class ConsumptionService
         if ($meterId !== '' && in_array($meterId, $this->meterComputeStack, true)) {
             return []; // cycle detected — break it
         }
+        // v2.6.0 — je Anfrage einmal rechnen (s. $forMeterMemo). Der Schlüssel
+        // trägt den ganzen Zähler, damit ein geänderter Datensatz (Tests,
+        // Zäsur-Vorschau) nie ein altes Ergebnis bekommt.
+        $memoKey = $utility . '|' . md5(serialize($meter)) . '|' . ($hddBaseOverride ?? '')
+            . '|' . $this->store->generation();
+        if (isset($this->forMeterMemo[$memoKey])) return $this->forMeterMemo[$memoKey];
         $this->meterComputeStack[] = $meterId;
         try {
             // v1.3.0 — bei Delivery-Utilities (Heizöl, Pellets) Lieferungs-basierten Pfad
-            return Utilities::isDelivery($utility)
+            return $this->forMeterMemo[$memoKey] = Utilities::isDelivery($utility)
                 ? $this->computeForDeliveryMeter($utility, $meter, $hddBaseOverride)
                 : $this->computeForMeter($utility, $meter, $hddBaseOverride);
         } finally {
             array_pop($this->meterComputeStack);
         }
+    }
+
+    /**
+     * v2.6.0 — Welche Ablesungen die Rechnung übergangen hat und warum.
+     *
+     * Typen: `suspect` (als verdächtig markiert, meist Home-Assistant-Push
+     * mit fallendem Stand), `outlier` (eingeklemmter Ausreißer, `kind` dip
+     * oder spike), `decrease` (Stand fällt, ohne dass sich ein Ausreißer
+     * bestimmen lässt — Zählertausch oder Überlauf nicht erfasst?).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function readingWarnings(string $utility, array $meter): array
+    {
+        if (!Utilities::isCumulative($utility)) return [];
+        $key = $utility . '|' . ($meter['id'] ?? '');
+        if (($this->readingWarningsGen[$key] ?? null) !== $this->store->generation()) {
+            unset($this->readingWarnings[$key]);
+            $this->forMeter($utility, $meter);
+        }
+        return $this->readingWarnings[$key] ?? [];
+    }
+
+    /**
+     * v2.6.0 — Ablesungen, die in die Rechnung eingehen, und die Warnungen zu
+     * denen, die nicht eingehen (Lektion 33: keine stumme Untergrenze).
+     *
+     * 1. Ungültiges Datum, Zukunft, geplant: still heraus wie bisher.
+     * 2. `is_suspect`: heraus, mit Warnung — bis der Stand bestätigt ist.
+     * 3. Eingeklemmte Ausreißer desselben Geräts. Fällt der Stand zwischen
+     *    zwei Ablesungen (b > c), ist entweder b eine Spitze (Vorgänger a ≤ c)
+     *    oder c eine Delle (Nachfolger d ≥ b). Passt eine Deutung, fällt dieser
+     *    Stand heraus; passen beide, entscheidet der gleichmäßigere
+     *    Tagesverbrauch. Bis v2.5.3 verwarf die Rechnung nur das negative
+     *    Intervall und zählte das folgende ab dem falschen Stand voll — ein
+     *    einziger Wert 0 aus Home Assistant machte aus 190 kWh im März
+     *    50.270 kWh.
+     *
+     * @return array{0: list<array<string,mixed>>, 1: list<array<string,mixed>>}
+     */
+    private function plausibleReadings(array $readings, array $meter): array
+    {
+        $today = date('Y-m-d');
+        $actual = array_values(array_filter(
+            $readings,
+            fn($r) => Dates::isIsoDate($r['date'] ?? null) && $r['date'] <= $today && empty($r['is_future'])
+        ));
+        usort($actual, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
+
+        $warnings = [];
+        $warn = fn(string $type, array $r, array $extra = []) => [
+            'type'       => $type,
+            'reading_id' => $r['id'] ?? null,
+            'date'       => (string)$r['date'],
+            'counter'    => (float)($r['counter'] ?? 0),
+        ] + $extra;
+
+        $kept = [];
+        foreach ($actual as $r) {
+            if (!empty($r['is_suspect'])) { $warnings[] = $warn('suspect', $r); continue; }
+            $kept[] = $r;
+        }
+
+        $devicesById = [];
+        foreach ($meter['devices'] ?? [] as $d) $devicesById[$d['id'] ?? ''] = $d;
+        $dev = fn(array $r): ?string => $r['device_id'] ?? $this->deviceIdOnDate($meter, (string)$r['date']);
+        $days = fn(array $x, array $y): int => max(1, (int)(new \DateTime($x['date']))->diff(new \DateTime($y['date']))->days);
+        $rate = fn(array $x, array $y): float => max(0.0, (float)$y['counter'] - (float)$x['counter']) / $days($x, $y);
+        $spread = fn(float $r1, float $r2): float => abs(log(($r1 + 1e-6) / ($r2 + 1e-6)));
+
+        for ($guard = 0; $guard < 100; $guard++) {
+            $remove = null;
+            $n = count($kept);
+            for ($i = 0; $i + 1 < $n; $i++) {
+                $b = $kept[$i];
+                $c = $kept[$i + 1];
+                $devB = $dev($b);
+                if ($devB !== $dev($c)) continue;
+                $vb = (float)$b['counter'];
+                $vc = (float)$c['counter'];
+                if ($vc >= $vb || $this->rolloverAmount($vb, $vc, $devicesById[$devB] ?? null) !== null) continue;
+                $a = ($i > 0 && $dev($kept[$i - 1]) === $devB) ? $kept[$i - 1] : null;
+                $d = ($i + 2 < $n && $dev($kept[$i + 2]) === $devB) ? $kept[$i + 2] : null;
+                $bSpike = $a !== null && $vc >= (float)$a['counter'];
+                $cDip   = $d !== null && (float)$d['counter'] >= $vb;
+                if ($bSpike && $cDip) {
+                    $pick = $spread($rate($a, $c), $rate($c, $d)) <= $spread($rate($a, $b), $rate($b, $d)) ? 'b' : 'c';
+                } elseif ($bSpike) {
+                    $pick = 'b';
+                } elseif ($cDip) {
+                    $pick = 'c';
+                } else {
+                    continue;
+                }
+                $remove = $pick === 'b' ? $i : $i + 1;
+                $warnings[] = $warn('outlier', $kept[$remove], ['kind' => $pick === 'b' ? 'spike' : 'dip']);
+                break;
+            }
+            if ($remove === null) break;
+            array_splice($kept, $remove, 1);
+        }
+        return [$kept, $warnings];
+    }
+
+    /**
+     * v2.6.0 — Überlauf des Zählwerks. Kennt das Gerät seine Stellenzahl
+     * (`digits`) und springt der Stand von kurz vor 10^digits auf kurz danach,
+     * ist das kein Fehler, sondern ein Überlauf: Verbrauch = neu + 10^digits −
+     * alt. „Kurz" heißt: höchstens ein Zehntel des Zählbereichs.
+     */
+    public static function rolloverAmount(float $prev, float $curr, ?array $device): ?float
+    {
+        $digits = (int)($device['digits'] ?? 0);
+        if ($digits < 3 || $digits > 12 || $curr >= $prev) return null;
+        $span = 10 ** $digits;
+        $amount = $curr + $span - $prev;
+        return ($amount > 0 && $amount <= $span / 10) ? (float)$amount : null;
     }
 
     /** @internal actual implementation, wrapped by forMeter()'s recursion guard */
@@ -487,10 +632,12 @@ final class ConsumptionService
         // Der Schreibpfad prüft seit diesem Release, ältere Daten und Restores
         // erreichen die Rechnung aber ungeprüft. Vorher brach `new \DateTime()`
         // hier Verbrauch, Prognose, Empfehlungen, CSV und PDF mit HTTP 500 ab.
-        $actual = array_values(array_filter(
-            $readings,
-            fn($r) => Dates::isIsoDate($r['date'] ?? null) && $r['date'] <= $today && empty($r['is_future'])
-        ));
+        // v2.6.0 — dazu verdächtige Stände und eingeklemmte Ausreißer, s.
+        // plausibleReadings(); was übergangen wird, steht in den Warnungen.
+        $warnKey = $utility . '|' . ($meter['id'] ?? '');
+        [$actual, $warnings] = $this->plausibleReadings($readings, $meter);
+        $this->readingWarnings[$warnKey] = $warnings;
+        $this->readingWarningsGen[$warnKey] = $this->store->generation();
         if (count($actual) < 2) return [];
 
         // Forward-fill prices
@@ -520,7 +667,21 @@ final class ConsumptionService
             $consumptionRaw = $this->consumptionBetween(
                 $prev, $curr, $devicesById, $meter
             );
-            if ($consumptionRaw === null || $consumptionRaw < 0) continue;
+            if ($consumptionRaw === null || $consumptionRaw < 0) {
+                // v2.6.0 — nicht mehr still: Ein fallender Stand ohne
+                // bestimmbaren Ausreißer ist fast immer ein nicht erfasster
+                // Zählertausch oder Überlauf.
+                if ($consumptionRaw !== null && ($prev['device_id'] ?? null) === ($curr['device_id'] ?? null)) {
+                    $this->readingWarnings[$warnKey][] = [
+                        'type'       => 'decrease',
+                        'reading_id' => $curr['id'] ?? null,
+                        'date'       => (string)$curr['date'],
+                        'counter'    => (float)($curr['counter'] ?? 0),
+                        'previous'   => ['date' => (string)$prev['date'], 'counter' => (float)($prev['counter'] ?? 0)],
+                    ];
+                }
+                continue;
+            }
 
             // Verteilt wird die ROHE Größe je Tag (m³ bei Gas); die Umrechnung
             // in kWh passiert je Segment mit dem dort gültigen Faktor.
@@ -632,12 +793,8 @@ final class ConsumptionService
     {
         $utility = 'gas';
         $readings = $this->readings->list($utility, (string)($meter['id'] ?? ''));
-        $today    = date('Y-m-d');
-        $actual   = array_values(array_filter(
-            $readings,
-            fn($r) => Dates::isIsoDate($r['date'] ?? null) && $r['date'] <= $today && empty($r['is_future'])
-        ));
-        usort($actual, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
+        // v2.6.0 — dieselbe Plausibilitätsprüfung wie die Verbrauchsrechnung.
+        [$actual, $warnings] = $this->plausibleReadings($readings, $meter);
 
         $devicesById = [];
         foreach ($meter['devices'] ?? [] as $d) {
@@ -761,6 +918,8 @@ final class ConsumptionService
                 'kwh'  => round($totKwh, 1),
                 'gaps' => $gaps,
             ],
+            // v2.6.0 — übergangene Ablesungen, s. plausibleReadings()
+            'warnings' => $warnings,
         ];
     }
 
@@ -951,7 +1110,13 @@ final class ConsumptionService
         if (!$currDev) $currDev = $this->deviceIdOnDate($meter, $curr['date']);
 
         if ($prevDev === $currDev) {
-            return ((float)$curr['counter']) - ((float)$prev['counter']);
+            $diff = ((float)$curr['counter']) - ((float)$prev['counter']);
+            // v2.6.0 — Überlauf des Zählwerks (Gerätefeld `digits`)
+            if ($diff < 0) {
+                $roll = $this->rolloverAmount((float)$prev['counter'], (float)$curr['counter'], $devicesById[$prevDev] ?? null);
+                if ($roll !== null) return $roll;
+            }
+            return $diff;
         }
 
         // Different devices → bridge via final_counter / initial_counter

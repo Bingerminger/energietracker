@@ -75,6 +75,8 @@ final class ConsumptionController
             // und der Vorher/Nachher-Vergleich der Heizkurve.
             'baseline'    => $this->consumption->baselineInfo($utility, $meter, $monthly),
             'baseline_comparison' => $this->consumption->baselineComparison($utility, $meter, $monthly),
+            // v2.6.0 — Ablesungen, die die Rechnung übergangen hat, und warum
+            'warnings'    => $this->consumption->readingWarnings($utility, $meter),
         ]);
     }
 

@@ -6,6 +6,7 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
+use Energietracker\Http\NotFoundException;
 
 /**
  * Manages meters per utility.
@@ -94,6 +95,19 @@ final class MeterService
         }
         $isDelivery = Utilities::isDelivery($utility);
 
+        // v2.6.0 — docs/API.md beschrieb bis v2.5.3 ein Objekt `device`
+        // {serial, installed_on, initial_counter}, das der Code nie las: Wer
+        // danach integrierte, bekam still Seriennummer null, Einbau heute und
+        // Anfangsstand 0 (Review API-18). Jetzt als Alias der Einzelfelder.
+        if (isset($input['device']) && is_array($input['device'])) {
+            $input += array_filter([
+                'device_serial'   => $input['device']['serial'] ?? null,
+                'installed_on'    => $input['device']['installed_on'] ?? null,
+                'initial_counter' => $input['device']['initial_counter'] ?? null,
+                'digits'          => $input['device']['digits'] ?? null,
+            ], fn($v) => $v !== null);
+        }
+
         // Devices: entweder explizit als komplettes Array übergeben,
         // oder aus den convenience-Feldern abgeleitet.
         if (isset($input['devices']) && is_array($input['devices']) && count($input['devices']) > 0) {
@@ -105,7 +119,7 @@ final class MeterService
                 'removed_on'      => $d['removed_on'] ?? null,
                 'final_counter'   => isset($d['final_counter']) ? (float)$d['final_counter'] : null,
                 'reason'          => $d['reason'] ?? null,
-            ], $input['devices']);
+            ] + $this->digitsField($d['digits'] ?? null), $input['devices']);
         } else {
             $installedOn = (string)($input['installed_on'] ?? '');
             if ($installedOn === '') $installedOn = date('Y-m-d');
@@ -120,7 +134,7 @@ final class MeterService
                 'removed_on'      => null,
                 'final_counter'   => null,
                 'reason'          => null,
-            ]];
+            ] + $this->digitsField($input['digits'] ?? null)];
         }
 
         $meter = [
@@ -223,6 +237,16 @@ final class MeterService
             if (array_key_exists('baseline_events', $input)) {
                 $m['baseline_events'] = $this->normalizeBaselineEvents($input['baseline_events']);
             }
+            // v2.6.0 — Stellenzahl des Zählwerks am eingebauten Gerät (für
+            // die Überlauf-Erkennung der Verbrauchsrechnung). Leer entfernt sie.
+            if (array_key_exists('digits', $input) && !$isDelivery) {
+                foreach ($m['devices'] as &$dev) {
+                    if (!empty($dev['removed_on'])) continue;
+                    unset($dev['digits']);
+                    $dev += $this->digitsField($input['digits']);
+                }
+                unset($dev);
+            }
             // v1.3.0 — Tank-Felder updatebar (nur bei Delivery-Utilities)
             if ($isDelivery) {
                 if (array_key_exists('capacity', $input)) {
@@ -237,7 +261,7 @@ final class MeterService
             }
         }
         unset($m);
-        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.meter.notFound'));
+        if (!$found) throw new NotFoundException($this->i18n->t('errors.meter.notFound'));
         // v1.2.0 — F1006: Topologie nach der Änderung validieren (Zyklen,
         // mehrstufige Ketten, Existenz von Eltern/Gruppe).
         if (array_key_exists('parent_meter_id', $input) || array_key_exists('meter_group_id', $input)) {
@@ -296,6 +320,18 @@ final class MeterService
      */
     public function replaceDevice(string $utility, string $meterId, array $input): array
     {
+        // v2.6.0 — die in docs/API.md bis v2.5.3 beschriebenen Namen
+        // (removed_on, final_counter, new_device{…}) als Aliase; bisher
+        // endeten sie in „old_final_counter fehlt" (Review API-18).
+        $new = is_array($input['new_device'] ?? null) ? $input['new_device'] : [];
+        $input += array_filter([
+            'date'                => $input['removed_on'] ?? ($new['installed_on'] ?? null),
+            'old_final_counter'   => $input['final_counter'] ?? null,
+            'new_initial_counter' => $new['initial_counter'] ?? null,
+            'serial'              => $new['serial'] ?? null,
+            'digits'              => $new['digits'] ?? null,
+        ], fn($v) => $v !== null);
+
         $all = $this->list($utility);
         $found = false;
         foreach ($all as &$m) {
@@ -350,6 +386,8 @@ final class MeterService
             $devices[$openIdx]['final_counter'] = $oldFinal;
             $devices[$openIdx]['reason']        = $input['reason'] ?? null;
 
+            // v2.6.0 — Stellenzahl: angegeben, sonst die des alten Geräts
+            $newDigits = array_key_exists('digits', $input) ? $input['digits'] : ($devices[$openIdx]['digits'] ?? null);
             $devices[] = [
                 'id'              => 'd_' . bin2hex(random_bytes(4)),
                 'serial'          => $input['serial'] ?? null,
@@ -358,11 +396,11 @@ final class MeterService
                 'removed_on'      => null,
                 'final_counter'   => null,
                 'reason'          => null,
-            ];
+            ] + $this->digitsField($newDigits);
             $m['devices'] = $devices;
         }
         unset($m);
-        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.meter.notFound'));
+        if (!$found) throw new NotFoundException($this->i18n->t('errors.meter.notFound'));
         $this->store->write("$utility/meters.json", $all);
         return $this->get($utility, $meterId);
     }
@@ -561,6 +599,22 @@ final class MeterService
         }
     }
 
+    /**
+     * v2.6.0 — optionales Gerätefeld `digits` (Stellen des Zählwerks vor dem
+     * Komma, 3–12). Damit erkennt die Verbrauchsrechnung einen Überlauf
+     * (99.998 → 12) statt einen fallenden Stand. Leer → Feld entfällt.
+     *
+     * @return array{digits?: int}
+     */
+    private function digitsField(mixed $raw): array
+    {
+        if ($raw === null || $raw === '') return [];
+        if (is_bool($raw) || !is_numeric($raw) || (int)$raw != $raw || (int)$raw < 3 || (int)$raw > 12) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.digitsInvalid', ['value' => is_scalar($raw) ? (string)$raw : gettype($raw)]));
+        }
+        return ['digits' => (int)$raw];
+    }
+
     /** Zählerstand als Zahl ≥ 0 (gleiche Regel wie ReadingService). */
     private function parseCounter(mixed $raw): float
     {
@@ -713,7 +767,7 @@ final class MeterService
             }
         }
         unset($g);
-        if (!$found) throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNotFound'));
+        if (!$found) throw new NotFoundException($this->i18n->t('errors.meter.groupNotFound'));
         $this->store->write("$utility/meter_groups.json", $all);
         return $this->getGroup($utility, $groupId);
     }
@@ -726,7 +780,7 @@ final class MeterService
     public function deleteGroup(string $utility, string $groupId): void
     {
         if ($this->getGroup($utility, $groupId) === null) {
-            throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupNotFound'));
+            throw new NotFoundException($this->i18n->t('errors.meter.groupNotFound'));
         }
         // Mitglieder lösen
         $meters = $this->list($utility);

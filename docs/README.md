@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Vollständige Dokumentation zu Energietracker **v2.5.3**.
+> Vollständige Dokumentation zu Energietracker **v2.6.0**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit echten Screenshots aller Ansichten.
 >
@@ -31,6 +31,7 @@ auf dem eigenen Rechner.
 | [Tests](technical/05-testing.md) | Backend-Shape- und Browser-Render-Harness |
 | [Release-Prozess](technical/06-release-process.md) | Versionierung, CHANGELOG, Doku-Pflege |
 | [Docker-Betrieb](technical/07-docker.md) | Container-Quickstart für Einsteiger, `docker compose`, Updates, Daten-Volume, Logs |
+| [Sicherheit & Netzbetrieb](technical/08-security.md) | Anmeldung, API-Schlüssel, Proxy, HTTPS, Webserver-Regeln, Checkliste vor der Freigabe |
 | [Home-Assistant-Anbindung (F1009)](HOME-ASSISTANT.md) | Zählerstände automatisch aus HA pushen: Token, Zähler-Alias, REST-Command, Use-Cases Eigenheim & Wohnung |
 
 ### 📚 Fachlicher Teil — *für Verständnis & Anwendung*

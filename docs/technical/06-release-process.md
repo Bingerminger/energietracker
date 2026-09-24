@@ -402,6 +402,33 @@ abgenommen ist.
   `position: relative`. Gemessen wird Überbreite über
   `document.documentElement.scrollWidth`, nicht über die Lage einzelner
   Elemente: Beschnittene Elemente melden ihre volle Breite.
+- **Das negative Intervall zu verwerfen ist kein Schutz (v2.6.0).** Nach
+  einem falschen Stand (eine 0 aus Home Assistant) verwarf die
+  Verbrauchsrechnung nur den Rückgang und zählte das nächste Intervall ab dem
+  falschen Stand voll — ein Monat bekam den ganzen Zählerstand als Verbrauch.
+  Der Fehler sitzt im **Stand**, nicht im Intervall: Eingeklemmte Ausreißer
+  werden jetzt als solche erkannt und fallen heraus (`plausibleReadings`).
+  Lektion 6 in neuem Gewand — die Ursache prüfen, nicht das Symptom.
+- **Ein Schutz, der nur eine Tür bewacht, suggeriert ein Schloss (v2.6.0).**
+  Der Home-Assistant-Token schützte nur den Push; der Text in den
+  Einstellungen las sich, als schließe er die API. Und eine Anmeldung ohne
+  Webserver-Regeln wäre über `data/backups/` zu umgehen gewesen. Reihenfolge
+  deshalb: erst die Auslieferungsregeln (Apache, nginx, Entwicklungsserver),
+  dann die Anmeldung — und jeder Hinweistext sagt, **was** geschützt ist.
+- **Eine Routenliste ohne Test ist eine Behauptung (v2.6.0).** `docs/API.md`
+  kannte 37 von 70 Routen, die Referenz behauptete „68, v1.9.2", dokumentierte
+  Körper funktionierten nicht, und `verdict` wurde in v2.0.0 still gebrochen.
+  `ReleaseConsistencyTest` vergleicht seitdem die Routen aus `bootstrap.php`
+  mit der Referenz in beiden Sprachen; früher dokumentierte Feldnamen gelten
+  als Alias weiter. Eine Stabilitätszusage legt fest, was sich ändern darf.
+- **Listener an einem langlebigen Container gehören abgemeldet (v2.6.0).**
+  Die Einstellungen rendern sich nach Import oder Sprachwechsel selbst neu;
+  jede Runde hängte `input`- und `beforeunload`-Listener an denselben
+  Container und an `window`. Folge: eine falsche „ungespeichert"-Warnung beim
+  Schließen. Listener, die an Objekten außerhalb der eigenen Ansicht hängen,
+  werden in einer Liste gesammelt und beim nächsten Rendern abgemeldet. Und:
+  Eine Meldung darf den Knopf nicht verdecken, auf den sie sich bezieht —
+  bei offenem Dialog erscheinen Toasts oben.
 
 ---
 

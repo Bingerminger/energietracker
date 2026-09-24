@@ -156,7 +156,7 @@ final class MigrationService
 
         // Always snapshot the current state first, regardless of mode, so
         // the user has a rollback even if they pick replace and regret it.
-        $snapshot = $this->backup->saveSnapshot();
+        $snapshot = $this->backup->saveSnapshot('pre-v09-');
         $written = [];
 
         if ($mode === 'replace') {

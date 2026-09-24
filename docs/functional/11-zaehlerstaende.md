@@ -56,13 +56,58 @@ Baseline validiert.
 
 - **Numerische Eingabe** — nur Zahlen, Komma oder Punkt als
   Dezimaltrenner.
-- **Rückwärts-Zählerstand** — wenn der neue Wert kleiner als der
-  letzte bekannte ist, zeigt die Karte einen orangefarbenen Hinweis
-  („bei Zählertausch o. Ä. ist das ok"). Es wird **nicht hart
-  blockiert** — Zählertausch ist ein realer Fall, und das Backend
-  prüft die Geräte-Historie eigenständig.
 - **Leere Eingabe** — die Karte wird beim Speichern still übersprungen,
   nicht als Fehler markiert.
+
+## Plausibilität (v2.6.0)
+
+Ein Tippfehler wandert sonst still in Kosten, Prognose und Effizienzklasse:
+„12345" statt „1234,5" ist ein Monatsverbrauch in Höhe eines Jahres. Deshalb
+fragt die Erfassung — Karte wie Ablese-Dialog der Verbrauchsansicht —
+**vor dem Speichern** nach. Nichts davon blockiert hart; Zählertausch,
+Überlauf und Nachträge sind legitim.
+
+| Rückfrage | Wann | Hinweis |
+|---|---|---|
+| **Sprung** | Tagesverbrauch seit der letzten Ablesung > **3 ×** der typische | „Das wären 400 kWh am Tag, sonst sind es etwa 8. Tippfehler?" |
+| **Komma vergessen?** | noch kein typischer Wert bekannt und neuer Stand > 10 × der letzte | nur ohne Vergleichswert, sonst greift der Sprung |
+| **Rückgang** | kleiner als der letzte Stand — außer dazwischen wurde ein neues Gerät eingebaut | mit Link zum Zählertausch |
+| **Zukunft** | Datum nach heute | Tippfehler im Jahr? |
+| **Gleicher Tag** | für den Tag gibt es schon einen Stand | Knopf „Ersetzen": der vorhandene Stand wird aktualisiert statt ein zweiter angelegt |
+
+Der **typische Tagesverbrauch** ist der Median der letzten bis zu zehn
+Ableseintervalle desselben Geräts (mindestens zwei) — robust gegen einen
+einzelnen Ausreißer. Das Backend liefert ihn in `readings-overview` als
+`typical_per_day`; die Verbrauchsansicht rechnet ihn nach derselben Regel.
+Die Hinweise erscheinen schon beim Tippen; die Rückfrage beim Speichern nennt
+den Zähler im Titel. Wer in der Sammelerfassung ablehnt, behält die Eingabe;
+die Karte zeigt „Nicht gespeichert – bitte prüfen", eine Meldung zählt die
+zurückgestellten Karten.
+
+### Nach dem Speichern: Ausreißer, Verdacht, Überlauf
+
+Die Verbrauchsrechnung prüft unabhängig von der Erfassung (auch CSV-Import
+und Home Assistant):
+
+- **Eingeklemmte Ausreißer** — fällt der Stand zwischen zwei Ablesungen
+  desselben Geräts, ist entweder der frühere eine Spitze oder der spätere eine
+  Delle. Passt eine Deutung, fällt dieser Stand aus der Rechnung; passen
+  beide, entscheidet der gleichmäßigere Tagesverbrauch. Bis v2.5.3 zählte die
+  Rechnung das folgende Intervall ab dem falschen Stand voll: Ein einziger
+  Wert 0 machte aus 190 kWh im Monat 50.270 kWh.
+- **Verdacht** — ein fallender Wert aus Home Assistant wird gespeichert, aber
+  markiert und bis zur Bestätigung übergangen.
+- **Rückgang** — ein fallender Stand ohne bestimmbaren Ausreißer (meist ein
+  nicht erfasster Zählertausch) wird gemeldet; das negative Intervall zählt
+  nicht.
+- **Überlauf** — ist am Gerät die Stellenzahl des Zählwerks gepflegt
+  (Zähler bearbeiten → „Stellen des Zählwerks"), ist 99.998 → 12 ein
+  Verbrauch von 14, kein Rückgang.
+
+Die Verbrauchsansicht zeigt alle Fälle in einem Hinweis oberhalb der
+Jahresauswahl, die Tabelle markiert die Stände („PRÜFEN", „UNPLAUSIBEL");
+ein Verdacht lässt sich mit ✅ bestätigen. Technisch:
+[API-Referenz → `warnings`](../technical/03-api-reference.md).
 
 ## Mobile First
 

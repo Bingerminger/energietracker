@@ -2,6 +2,13 @@
 
 **English** · [Deutsch](INSTALL.de.md)
 
+> 🔐 **Security:** without sign-in, anyone who can reach the app can read and
+> change all data — fine in your own home network. Before making it reachable
+> from outside (port forwarding, reverse proxy, QuickConnect), switch on sign-in
+> (Settings → "Sign-in & access") and read
+> [Security & network operation](docs/en/technical/08-security.md). Better
+> still: reach it on the road via VPN.
+
 ## Requirements
 
 - PHP ≥ 8.4 (the CLI is sufficient for development)
@@ -21,7 +28,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 2.5.3
+├── VERSION                ← 2.6.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP backend
 ├── data/                  ← must be writable
@@ -45,11 +52,15 @@ sudo chown -R www-data:www-data data/
 ## Test locally
 
 ```bash
-php -S 127.0.0.1:8080
+php -S 127.0.0.1:8080 router.php
 ```
 
 Open <http://127.0.0.1:8080> in the browser. On the first request the app
 initialises the `data/` directory automatically.
+
+> Always start the built-in server **with `router.php`**: without it, PHP serves
+> every file of the directory — including `data/` with all your data. And keep
+> it on `127.0.0.1`; the built-in server is not meant for others on the network.
 
 ### Relocate the data directory (optional)
 
@@ -58,7 +69,7 @@ environment variable `ET_DATA_DIR` you can force any absolute path (since v1.4.4
 — useful for separate data/code mounts or several instances:
 
 ```bash
-ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080
+ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080 router.php
 ```
 
 For Apache/nginx the variable is set via `SetEnv` resp. `fastcgi_param
@@ -75,16 +86,23 @@ Example config (document root = project root):
 
   <Directory /var/www/energietracker>
     Options -Indexes +FollowSymLinks
-    AllowOverride None
+    # FileInfo lets the bundled .htaccess work: it blocks data/, src/, .git/
+    # and other non-deliverable files (since v2.6.0) and sets cache headers.
+    AllowOverride FileInfo
     Require all granted
   </Directory>
 
-  # Protect the data directory
+  # Second safeguard for the data directory
   <Directory /var/www/energietracker/data>
     Require all denied
   </Directory>
 </VirtualHost>
 ```
+
+Requires `mod_rewrite` (and `mod_headers`, `mod_setenvif`). Up to v2.5.3 this
+example used `AllowOverride None` — the `.htaccess` rules then did not apply.
+Check with the commands in
+[Security → web server](docs/en/technical/08-security.md#9-web-server-what-must-not-be-served).
 
 ## Production: nginx
 
@@ -99,8 +117,12 @@ server {
     try_files $uri $uri/ /index.php?$query_string;
   }
 
-  location ~ ^/data/ {
-    deny all;
+  # User data, source code, dotfiles (.git, .env): never serve.
+  # The complete rule set is in docker/nginx.conf.
+  location ~ ^/(data|src|tests|scripts|docker|docs|vendor|demo-data)/ {
+    return 404;
+  }
+  location ~ /\. {
     return 404;
   }
 
@@ -132,7 +154,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.5.3
+  ghcr.io/bingerminger/energietracker:2.6.0
 ```
 
 **Or build locally:**

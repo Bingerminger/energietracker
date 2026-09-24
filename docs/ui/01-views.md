@@ -6,7 +6,8 @@
 
 > **Echte Screenshots.** Die folgenden Bilder sind **tatsächliche
 > Bildschirmaufnahmen** der laufenden App mit dem mitgelieferten
-> [Demo-Datensatz](../../demo-data/) (Light-Theme, Stand v1.9.2). Wer sie
+> [Demo-Datensatz](../../demo-data/) (Light-Theme; Grundstock v1.9.2, Anmeldung,
+> Sicherheitskarte und Rückfrage bei der Erfassung v2.6.0). Wer sie
 > selbst neu erzeugen will: Demo-Daten laden und die Views nacheinander
 > aufnehmen — die App braucht dafür keinen Build-Schritt.
 
@@ -32,7 +33,18 @@ Zentrale, mobil-freundliche Eingabemaske: alle aktiven kumulativen Zähler
 (Gas/Strom/Wasser/Fernwärme/PV) mit jeweils dem letzten Stand als
 Orientierung — ideal fürs monatliche Ablesen am Handy.
 
+**Seit v2.6.0 mit Plausibilitätsprüfung:** Schon beim Tippen erscheint ein
+Hinweis, wenn der neue Stand einen ungewöhnlichen Tagesverbrauch ergäbe
+(mehr als das Dreifache des üblichen), kleiner als der letzte ist, in der
+Zukunft liegt oder es für den Tag schon einen Stand gibt. Beim Speichern fragt
+die App je auffälliger Karte nach (Titel: Verbrauchsart · Zähler); „Ersetzen"
+aktualisiert den vorhandenen Stand statt einen zweiten anzulegen. Wer ablehnt,
+behält die Eingabe, die Karte zeigt „Nicht gespeichert – bitte prüfen".
+Details: [Zählerstände → Plausibilität](../functional/11-zaehlerstaende.md).
+
 ![Zählerstände](screenshots/zaehlerstaende.png)
+
+![Rückfrage bei einem ungewöhnlichen Sprung](screenshots/pruefung-zaehlerstand.png)
 
 ---
 
@@ -46,6 +58,14 @@ gleitenden Mitteln (MA-3/MA-6) und Wetterbereinigung. Die Tabelle
 Bezahlt, Bonus, **Sonderzahlungen** (seit v2.5.1: Netto aus Kundensicht,
 Einzelposten im Tooltip; nur bei Gas/Strom/Fernwärme) sowie Saldo heute
 und erwarteten Saldo.
+
+**Unplausible Stände (v2.6.0):** Gibt es Ausreißer, einen fallenden Stand
+ohne Zählertausch oder einen unbestätigten Verdacht aus Home Assistant, steht
+oberhalb der Jahresauswahl ein Hinweis mit den betroffenen Ständen und einem
+Link zum Zählertausch. In der Ablesetabelle tragen sie „PRÜFEN" bzw.
+„UNPLAUSIBEL" (Tooltip mit der Begründung); einen Verdacht bestätigt ✅ —
+erst dann zählt er. Der Ablese-Dialog stellt dieselben Rückfragen wie die
+Zählerstand-Erfassung.
 
 ![Gas-Ansicht](screenshots/gas-view.png)
 
@@ -211,17 +231,37 @@ Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung.
 
 ## 11. Einstellungen
 
-Alle 40 Schlüssel gruppiert: Umrechnung & HGT, **Abrechnungszyklus
-(TT-MM)**, Gebäude & Effizienz, Heizwerte, Prognosemodell, aktive
-Verbrauchsarten, CSV-Export aller Arten, Backup & Migration,
-Demo-Daten-Import (F1007) und die **🏠 Home-Assistant-Anbindung (F1009)**
+Alle Einstellungen gruppiert: Umrechnung & HGT, **Abrechnungszyklus
+(TT-MM)**, Gebäude & Effizienz, Heizwerte, Prognosemodell, **Einbetten**
+(seit v2.6.0: Adressen, die die App einbetten dürfen, etwa ein
+Home-Assistant-Dashboard), aktive Verbrauchsarten, CSV-Export aller Arten,
+Backup & Migration, Demo-Daten-Import (F1007), **🔐 Anmeldung & Zugriff**
+(seit v2.6.0) und die **🏠 Home-Assistant-Anbindung (F1009)**
 — API-Token verwalten, Zähler-Aliase pflegen und drei fertige Vorlagen
 kopieren: REST-Command, Eintrag für die `secrets.yaml` und (seit v2.5.3) eine
 Automatisierung aus den Aliasen, die vor jedem Push `has_value` prüft.
 Zahlenfelder und Abrechnungsstichtage werden vor dem Speichern geprüft;
 Fehler stehen rot am Feld.
 
+**Backup & Restore (v2.6.0):** Ein Import wird erst vollständig geprüft und als
+Vorschau gezeigt (was eingespielt wird, was mangels Inhalt unverändert bleibt);
+ein fehlerhaftes Backup ändert nichts und nennt die Fundstellen. Darunter die
+**gespeicherten Snapshots** mit Zeitpunkt, Anlass und Größe — herunterladen
+(⬇️), einspielen (↩️, vorher sichert die App den jetzigen Stand) oder löschen.
+Scheitert der Sicherungs-Snapshot, fragt die App, ob trotzdem eingespielt
+werden soll.
+
+**Anmeldung & Zugriff (v2.6.0):** zeigt den Modus (ohne Anmeldung, Passwort,
+Proxy), schaltet die Passwort-Anmeldung ein, ändert das Passwort oder schaltet
+sie wieder aus (mit dem bisherigen Passwort) und verwaltet **API-Schlüssel**
+für Skripte (Lesen oder Verwalten, Klartext einmalig, zuletzt benutzt). Was per
+Umgebungsvariable festgelegt ist, ist hier nur zu sehen. Die
+Home-Assistant-Karte zeigt seit v2.6.0, wann zuletzt ein Wert mit dem Token
+ankam, und warnt, wenn die Anmeldung an ist, aber kein Token existiert.
+
 ![Einstellungen](screenshots/einstellungen.png)
+
+![Anmeldung & Zugriff](screenshots/einstellungen-sicherheit.png)
 
 ---
 
@@ -236,7 +276,10 @@ Arbeitspreis; der Beginn ist mit dem Tag nach der laufenden Bindung vorbelegt,
 und bevor ein neuer Vertrag einen laufenden ablöst, fragt die App nach. Bei
 Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant — beim Anlegen
 und Bearbeiten eines Tanks werden **Tank-Kapazität** und **Anfangsbestand**
-erfasst (statt eines kumulativen Zählerstands).
+erfasst (statt eines kumulativen Zählerstands). Bei kumulativen Zählern
+lassen sich seit v2.6.0 die **Stellen des Zählwerks** pflegen — dann rechnet
+die Auswertung einen Überlauf (99.999 → 0) richtig; die Gerätezeile zeigt
+sie an.
 
 **Meter-Topologie:** Subzähler werden unter ihrem Elternzähler eingerückt
 dargestellt, Gruppen als aufklappbarer Sammeleintrag; ein **Merge-Wizard**
@@ -255,6 +298,24 @@ Erzeugungszähler, **Strom-Saldo** (Netzbezug − Einspeisung) und
 Default-Zähler — wer keine Anlage hat, sieht keine Phantom-Zähler.
 
 ![PV](screenshots/pv.png)
+
+---
+
+## 14. Anmeldung (v2.6.0, opt-in)
+
+Nur bei eingeschalteter Anmeldung: ein schlichter Anmeldebildschirm mit
+Passwortfeld und dem Hinweis, wie man bei vergessenem Passwort wieder
+hereinkommt. Nach der Anmeldung bleibt der Browser 30 Tage angemeldet; die
+Kopfleiste trägt dann einen Knopf **Abmelden** (er verwirft auch die
+Offline-Daten dieses Browsers). Läuft eine Sitzung ab, erscheint der
+Bildschirm statt einer Reihe von Fehlermeldungen. Einrichtung und Hintergründe:
+[Sicherheit & Netzbetrieb](../technical/08-security.md).
+
+**Offline-Hinweis:** Kommen Daten aus dem Offline-Speicher der installierten
+App, zeigt die Kopfleiste „Offline – Stand vom …". Änderungen ohne Verbindung
+meldet die App als „Keine Verbindung zum Energietracker – nichts gespeichert."
+
+![Anmeldung](screenshots/anmeldung.png)
 
 ---
 

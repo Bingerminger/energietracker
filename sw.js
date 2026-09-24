@@ -21,7 +21,7 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v2.5.3';
+const VERSION = 'v2.6.0';
 const STATIC_CACHE  = `et-static-${VERSION}`;
 const RUNTIME_CACHE = `et-runtime-${VERSION}`;
 
@@ -107,6 +107,43 @@ async function networkFirst(request, cacheName, fallback) {
   }
 }
 
+// v2.6.0 — API-Lesezugriffe (Review FE-15, API-25).
+//
+// Erkennung relativ zum Scope des Workers: Im Unterverzeichnis
+// (…/energietracker/api.php/api/…) griff die alte, absolute Prüfung nie.
+// Gecacht wird nur eine Freigabeliste von Datenansichten — nie Backup,
+// Tokens, Anmeldung, Diagnose oder Exporte (bisher lag das Vollbackup nach
+// einem Export in der Cache Storage). Treffer genau, samt Query: Mit
+// `ignoreSearch` bekam `?meter_id=garten` offline die Antwort zum Hauptzähler.
+// Eine Antwort aus dem Cache trägt `X-ET-Offline` (Stand laut Date-Header),
+// damit die Oberfläche „Offline – Stand vom …" zeigen kann.
+const SCOPE_PATH = new URL(self.registration.scope).pathname;
+const CACHEABLE_API = /^(utilities|settings|readings-overview|reminders|recommendations|temperatures|pv-summary|strom-saldo|benchmarks\/efficiency|utility\/[^/]+\/(meters|readings|contracts|consumption|deliveries|meter-groups))(\/|$)/;
+
+function apiPath(url) {
+  if (!url.pathname.startsWith(SCOPE_PATH)) return null;
+  const rest = url.pathname.slice(SCOPE_PATH.length).replace(/^api\.php\//, '');
+  return rest.startsWith('api/') ? rest.slice(4) : null;
+}
+
+async function apiNetworkFirst(request, cacheable) {
+  try {
+    const resp = await fetch(request);
+    if (cacheable && resp && resp.ok) {
+      const cache = await caches.open(RUNTIME_CACHE);
+      cache.put(request, resp.clone());
+    }
+    return resp;
+  } catch (e) {
+    if (!cacheable) throw e;
+    const cached = await (await caches.open(RUNTIME_CACHE)).match(request);
+    if (!cached) throw e;
+    const headers = new Headers(cached.headers);
+    headers.set('X-ET-Offline', cached.headers.get('date') || '');
+    return new Response(await cached.blob(), { status: cached.status, statusText: cached.statusText, headers });
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return; // Schreibzugriffe nie abfangen
@@ -114,15 +151,18 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   const sameOrigin = url.origin === self.location.origin;
 
-  // Navigationen: frische Shell bevorzugen, offline auf gecachte Shell zurück.
-  if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(request, STATIC_CACHE, '.'));
+  // API-Lesezugriffe: network-first; offline der letzte Stand der Freigabeliste.
+  // Vor dem Navigationszweig: Ein Download-Link (Snapshot, CSV, PDF) ist eine
+  // Navigation — bis v2.5.3 landete er darüber im Shell-Cache.
+  const api = sameOrigin ? apiPath(url) : null;
+  if (api !== null) {
+    event.respondWith(apiNetworkFirst(request, CACHEABLE_API.test(api)));
     return;
   }
 
-  // API-Lesezugriffe: network-first, damit offline der letzte Stand erscheint.
-  if (sameOrigin && (url.pathname.startsWith('/api/') || url.pathname.startsWith('/api.php'))) {
-    event.respondWith(networkFirst(request, RUNTIME_CACHE));
+  // Navigationen: frische Shell bevorzugen, offline auf gecachte Shell zurück.
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request, STATIC_CACHE, '.'));
     return;
   }
 

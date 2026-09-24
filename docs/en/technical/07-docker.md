@@ -170,8 +170,26 @@ docker run -e ET_LOG_LEVEL=debug …   # or in docker-compose.yml under environm
 | `ET_LOG_DEST` | `stderr` | `stderr` \| `file` \| `null` |
 | `ET_LOG_LEVEL` | `info` | `debug` \| `info` \| `warning` \| `error` |
 | `ET_LOG_FILE` | `<dataDir>/logs/app.log` | path when `ET_LOG_DEST=file` |
+| `ET_AUTH` | *(empty)* | *(v2.6.0)* `off` \| `password` \| `proxy` — fixes the sign-in mode; empty = switchable in the settings. `ET_AUTH=off` is also the emergency exit for a forgotten password |
+| `ET_ADMIN_PASSWORD_HASH` | *(empty)* | *(v2.6.0)* the password as a `password_hash()` value; in Compose double every `$` |
+| `ET_TRUSTED_PROXIES` | *(empty)* | *(v2.6.0)* addresses/networks of the upstream proxy (comma-separated, CIDR allowed) — `Remote-User` only counts from there |
+| `ET_ALLOWED_HOSTS` | *(empty = all)* | *(v2.6.0)* allowed host names, comma-separated, `*.domain` possible; others → 421. IP addresses and `localhost` always |
+| `ET_FRAME_ANCESTORS` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (e.g. the Home Assistant dashboard) |
+| `ET_DEBUG` | *(empty)* | *(v2.6.0)* `1` = file/line in error responses — only briefly for troubleshooting |
 
 With `docker run` via `-e NAME=value`, with Compose under `environment:`.
+What sign-in does and when you need it:
+[Security & network operation](08-security.md).
+
+**PHP settings (since v2.6.0):** the image ships its own `php.ini` —
+`memory_limit` 256 MB, `post_max_size`/`upload_max_filesize` 32 MB,
+`max_execution_time` 120 s, error display off, OPcache on. Up to v2.5.3 the PHP
+defaults applied (128 MB, 8 MB); a backup with many years of daily data could
+not be restored with them.
+
+**Health check:** the container queries `GET /api/health`. Since v2.6.0 the
+endpoint answers a real fault (data not writable, corrupt file, data newer than
+the app) with HTTP 503 — Docker then shows the container as *unhealthy*.
 
 ---
 
@@ -201,7 +219,9 @@ Your data stays in the host volume. If the new version needs a new data schema,
 Energietracker adapts the files on first start and first stores a snapshot in
 `data/backups/` (`pre-migration-…`, since v2.5.3). It does not replace the way
 back: an older version cannot read the new schema — you can only go back with the
-old version **and** the backup from step 1.
+old version **and** the backup from step 1. Since v2.6.0 an older version
+recognises newer data and **writes nothing** (HTTP 503, `/api/health` reports
+`error`) instead of silently stamping it back to the old schema as up to v2.5.3.
 
 ---
 
@@ -209,8 +229,13 @@ old version **and** the backup from step 1.
 
 - **Back up:** *Settings → Backup & Restore → Export backup* downloads a JSON file
   with all your data.
-- **Restore:** the same place → *Import backup*. Before overwriting, Energietracker
-  automatically creates a snapshot.
+- **Restore:** the same place → *Import backup*. Since v2.6.0 the app checks the
+  backup completely first and shows a preview; a faulty backup changes nothing.
+  Before overwriting, Energietracker automatically creates a snapshot.
+- **Snapshots** (since v2.6.0): *Settings → Backup & Restore → Stored snapshots*
+  lists them with time and occasion; download, restore or delete them from
+  there. Automatic snapshots are cleaned up after 30 days (at least three per
+  occasion remain), your own after ten.
 - On the file level everything is in the mounted `data/` folder — you can
   additionally back it up classically (copy it).
 

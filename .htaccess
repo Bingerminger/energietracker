@@ -1,21 +1,38 @@
 # Energietracker — Apache-Konfiguration (Synology Web Station, DSM)
 #
-# v2.3.1: ausschließlich Cache-Steuerung.
+# v2.3.1: Cache-Steuerung. v2.6.0: Zugriffsschutz für alles, was kein
+# Auslieferungsgut ist, und der Authorization-Header für PHP-FPM.
 #
 # Anwendungscode und Sprachkataloge tragen seit v2.3.1 eine Version im Pfad
 # (Import-Map in index.php). Das genügt für jeden Browser, der Import-Maps
-# unterstützt. Diese Regel ist die zweite Absicherung: Sie zwingt auch ohne
-# Import-Map zur Revalidierung — mit ETag kostet das ein 304 und ein paar
+# unterstützt. Die Cache-Regel ist die zweite Absicherung: Sie zwingt auch
+# ohne Import-Map zur Revalidierung — mit ETag kostet das ein 304 und ein paar
 # Byte, kein erneutes Übertragen.
 #
-# Anlass: Nach dem v2.3.0-Update lieferte Safari eine gecachte `api.js` ohne
-# `tariffSwitch` aus, obwohl der Server längst die neue Datei hatte. Prod
-# sendete für Module überhaupt kein `Cache-Control`, nur ETag und
-# Last-Modified — der Browser durfte also heuristisch cachen.
-#
-# ⚠ Diese Datei enthält BEWUSST noch keine Zugriffsregeln für data/, src/,
-#   .git/ und tests/. Der Schutz dieser Pfade ist als eigenes Patch-Release
-#   terminiert und wird hier ergänzt, wenn es soweit ist.
+# Nur Direktiven, die AllowOverride FileInfo braucht (wie die Header-Regeln
+# schon bisher). CGIPassAuth oder Require hätten AuthConfig verlangt und bei
+# engerer Konfiguration jede Anfrage mit 500 beantwortet.
+
+# ── v2.6.0 — Zugriffsschutz ─────────────────────────────────────────────
+# data/ enthält alle Nutzdaten samt Vollbackups (data/backups/), src/ den
+# Quelltext, .git/ die Historie. Bis v2.5.3 lieferte Apache sie aus. Mit der
+# optionalen Anmeldung wäre data/backups/ sonst der Weg an ihr vorbei.
+# Die Muster sind relativ zu diesem Verzeichnis — sie greifen auch in einem
+# Unterverzeichnis wie /energietracker-acc/.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^(data|src|tests|scripts|docker|docs|vendor|demo-data|graphify-out|node_modules)(/|$) - [R=404,L]
+  # Punktdateien und -verzeichnisse: .git, .github, .env, .htaccess …
+  RewriteRule (^|/)\. - [R=404,L]
+  RewriteRule ^(composer\.(json|lock)|phpunit\.xml\.dist|router\.php|Dockerfile|docker-compose\.yml|VERSION|[^/]+\.md)$ - [R=404,L]
+</IfModule>
+
+# ── v2.6.0 — Bearer-Token für den Home-Assistant-Push ───────────────────
+# Apache reicht den Authorization-Header nicht immer an PHP-FPM weiter; dann
+# käme trotz richtigem Token 401. SetEnvIf braucht nur FileInfo.
+<IfModule mod_setenvif.c>
+  SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+</IfModule>
 
 <IfModule mod_headers.c>
   # Anwendungscode und Kataloge: immer revalidieren.
@@ -34,4 +51,6 @@
   <FilesMatch "\.(woff2?|ttf|eot)$">
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
+
+  Header always set X-Content-Type-Options "nosniff"
 </IfModule>

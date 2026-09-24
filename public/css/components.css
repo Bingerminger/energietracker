@@ -215,6 +215,13 @@ textarea.input { min-height: 80px; resize: vertical; }
   display: flex; flex-direction: column; gap: 8px;
   z-index: 200; max-width: 380px;
 }
+/* v2.6.0 — Bei offenem Dialog oben: Unten rechts lag eine Fehlermeldung
+   genau über „Speichern" und fing die Klicks ab, bis sie verschwand. */
+body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
+@media (max-width: 600px) {
+  .toast-stack { left: 12px; right: 12px; bottom: 12px; max-width: none; }
+  body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 12px; }
+}
 .toast {
   background: var(--bg-1); border: 1px solid var(--border-2);
   border-left: 3px solid var(--info);
@@ -469,6 +476,31 @@ textarea.input { min-height: 80px; resize: vertical; }
    Bewusst violett statt grün, damit er nicht mit einem aktiven Vertrag
    verwechselt wird. */
 .status-pill.shadow { background: var(--c-violet-soft); color: var(--c-violet); }
+/* v2.6.0 — Verdacht (Home Assistant, fallender Stand) und unplausible Stände */
+.status-pill.suspect,
+.status-pill.implausible { background: var(--warning-soft); color: var(--warning); cursor: help; }
+.table tr.row--flagged > td { background: color-mix(in srgb, var(--warning-soft) 60%, transparent); }
+
+/* v2.6.0 — Listen in Hinweisen und Dialogen (Warnungen, Rückfragen,
+   Backup-Vorschau und -Fundstellen) */
+.warning-list,
+.check-list,
+.problem-list,
+.import-preview { margin: 6px 0 0; padding-left: 1.2em; }
+.warning-list li,
+.check-list li,
+.problem-list li,
+.import-preview li { margin: 3px 0; overflow-wrap: anywhere; }
+.warning-list { font-size: 12px; }
+.check-list li { margin: 6px 0; }
+.problem-list { max-height: 16rem; overflow-y: auto; font-size: 12px; }
+.import-preview { margin-bottom: var(--sp-3); }
+
+/* v2.6.0 — Snapshot-Liste in den Einstellungen */
+.snapshot-list { max-height: 22rem; overflow-y: auto; }
+.snapshot-list__actions { text-align: right; white-space: nowrap; }
+@media (max-width: 420px) { .snapshot-list__size { display: none; } }
+a.icon-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 
 /* ── Monthly table with full v0.9.0 column set ──────────────────── */
 .table .col-violet { color: var(--c-violet); }

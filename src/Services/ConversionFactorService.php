@@ -66,6 +66,21 @@ final class ConversionFactorService
      */
     public function gasFactors(): array
     {
+        // v2.6.0 — je Einstellungsstand einmal normalisieren (s. SettingsService::all)
+        if ($this->factorsMemo !== null && $this->factorsMemoVersion === $this->settings->version()) {
+            return $this->factorsMemo;
+        }
+        $this->factorsMemoVersion = $this->settings->version();
+        return $this->factorsMemo = $this->computeGasFactors();
+    }
+
+    /** @var array<int,array<string,mixed>>|null */
+    private ?array $factorsMemo = null;
+    private int $factorsMemoVersion = -1;
+
+    /** @return array<int,array<string,mixed>> */
+    private function computeGasFactors(): array
+    {
         $raw = $this->settings->get('gas_conversion_factors', []);
         try {
             // Lesen ist tolerant (strict = false): Was gespeichert wurde, gilt.

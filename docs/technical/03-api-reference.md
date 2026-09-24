@@ -8,31 +8,83 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 ```json
 { "success": true,  "data": … }
-{ "success": false, "error": "Meldung", "detail": … }
+{ "success": false, "error": "Meldung in der Sprache der Anfrage", "code": "errors.reading.dateInvalid" }
 ```
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
-`heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`. Stand: **68 Routen**,
-v1.9.2.
+`heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`. Stand: **82 Routen**,
+v2.6.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+Tabelle unten steht (DE und EN).
 
-> Eine ausführliche Variante dieser Referenz (mit Request-/Response-Beispielen
-> für **alle** Endpunkte) liegt zusätzlich unter [`docs/API.md`](../API.md).
-> Dieses Dokument ist die kompakte Übersicht im Kompendium.
+> Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
+> stehen in [`docs/API.md`](../API.md). Maßgeblich für Pfade und Felder ist
+> **dieses** Dokument.
 
 ### Statuscodes aller Endpunkte
 
 | Code | Wann |
 |------|------|
-| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. |
-| `401` | `/api/ingest` bei gesetztem Token ohne oder mit falschem Bearer-Header. |
-| `403` | *(v2.5.3)* Schreibende Anfrage (`POST`/`PUT`/`PATCH`/`DELETE`) aus dem Browser einer **fremden** Webseite — geprüft über `Sec-Fetch-Site`, ersatzweise `Origin` gegen `Host`. Anfragen ohne diese Kopfzeilen (Home Assistant, curl, Skripte) sind nicht betroffen. |
-| `404` | Unbekannte Route oder unbekannter Datensatz. |
-| `503` | *(v2.5.3)* Eine Datendatei ist beschädigt (kein gültiges JSON). Die Datei bleibt unverändert, daneben liegt eine Quarantäne-Kopie `<datei>.corrupt-<prüfsumme>`. Bis v2.5.2 wurde sie als leer gelesen und beim nächsten Schreiben überschrieben. |
-| `500` | Unerwarteter Fehler — Log prüfen. |
+| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. Seit v2.6.0 auch Abfrageparameter außerhalb ihres Bereichs (Prognose, Jahresbericht, Temperatur-Sync). |
+| `401` | `/api/ingest` bei gesetztem Token ohne oder mit falschem Bearer-Header. *(v2.6.0)* Mit eingeschalteter Anmeldung: jede nicht öffentliche Route ohne Sitzung oder API-Schlüssel (`errors.auth.required`); falsches Passwort. |
+| `403` | *(v2.5.3)* Schreibende Anfrage (`POST`/`PUT`/`PATCH`/`DELETE`) aus dem Browser einer **fremden** Webseite — geprüft über `Sec-Fetch-Site`, ersatzweise `Origin` gegen `Host`. Anfragen ohne diese Kopfzeilen (Home Assistant, curl, Skripte) sind nicht betroffen. *(v2.6.0)* Schreibende Anfrage mit einem Lese-Schlüssel (`errors.auth.readOnlyKey`). |
+| `404` | Unbekannte Route oder unbekannter Datensatz. Seit v2.6.0 einheitlich auch für Datensätze in der URL (bis v2.5.3 teils 400). |
+| `405` | *(v2.6.0)* Pfad bekannt, Methode nicht — mit Kopfzeile `Allow`. `HEAD` wird wie `GET` beantwortet, `OPTIONS` mit `204` und `Allow`. Bis v2.5.3: `404`. |
+| `409` | *(v2.6.0)* Der Sicherungs-Snapshot vor einem Import/Einspielen ist gescheitert (`errors.backup.snapshotFailed`) — mit `?allow_without_snapshot=1` trotzdem möglich. Passwort oder Anmeldemodus sind über die Umgebung festgelegt. |
+| `421` | *(v2.6.0)* Hostname nicht in `ET_ALLOWED_HOSTS` (nur, wenn gesetzt; IP-Adressen und `localhost` sind immer erlaubt). |
+| `429` | *(v2.6.0)* Anmeldung nach fünf Fehlversuchen innerhalb von 15 Minuten für 5 Minuten gesperrt (`errors.auth.locked`). |
+| `503` | *(v2.5.3)* Eine Datendatei ist beschädigt (kein gültiges JSON). Die Datei bleibt unverändert, daneben liegt eine Quarantäne-Kopie `<datei>.corrupt-<prüfsumme>`. Bis v2.5.2 wurde sie als leer gelesen und beim nächsten Schreiben überschrieben. *(v2.6.0)* Die Daten stammen von einer **neueren** Version (etwa nach dem Zurückdrehen des Image-Tags): alle Routen außer `/api/health`, geschrieben wird nichts (`errors.storage.dataTooNew`). `/api/health` selbst antwortet `503`, wenn `status` = `error`. |
+| `500` | Unerwarteter Fehler. Seit v2.6.0 mit `error_id`; dieselbe ID steht mit allen Einzelheiten im Server-Log. |
 
 Schreibende Anfragen laufen seit v2.5.3 nacheinander (Sperre auf
 `data/.write.lock`): Ein Home-Assistant-Push während einer Eingabe verliert
 keine Änderung mehr.
+
+### Fehlercodes *(v2.6.0)*
+
+Jede Fehlerantwort trägt `code` — den Katalogschlüssel der Meldung
+(`errors.reading.dateInvalid`, `errors.backup.invalid` …) oder, für
+allgemeine HTTP-Fehler, `errors.http.*` (`badRequest`, `unauthorized`,
+`forbidden`, `notFound`, `methodNotAllowed`, `unavailable`, `internal`).
+`error` ist in die Sprache der Anfrage übersetzt (`Accept-Language`) und darf
+sich zwischen Versionen ändern — **Skripte werten `code` aus, nie den
+Meldungstext.**
+
+`detail` mit Datei, Zeile und Ausnahmetyp gibt es nur noch mit
+`ET_DEBUG=1` (bis v2.5.3 bei jedem Fehler, samt absoluter Pfade). Fachliche
+Einzelheiten kommen weiterhin immer, etwa die Fundstellen eines fehlerhaften
+Backups in `detail.problems`.
+
+### Anmeldung *(v2.6.0, opt-in)*
+
+Ohne Anmeldung (Standard) bleibt die API offen wie bisher. Ist sie
+eingeschaltet (Einstellungen → „Anmeldung & Zugriff", oder `ET_AUTH`), gilt
+für jede Route **eines** davon:
+
+| Weg | Für | Übergabe |
+|---|---|---|
+| Sitzung | den Browser | Cookie `et_session` (HttpOnly, SameSite=Strict, 30 Tage) nach `POST /api/session` |
+| API-Schlüssel | Skripte, andere Programme | `Authorization: Bearer etk_…`; Bereich `read` (nur `GET`) oder `admin` |
+| Proxy | Betrieb hinter Authelia, Authentik o. Ä. | `ET_AUTH=proxy`; Benutzer aus `Remote-User`/`X-Forwarded-User`, nur von Adressen in `ET_TRUSTED_PROXIES` |
+
+Ohne Anmeldung erreichbar bleiben `POST /api/ingest` (eigener Token, mit
+eingeschalteter Anmeldung **Pflicht**), `GET|HEAD /api/health` (dann nur
+`{status, version}`), `GET|POST|DELETE /api/session` und `OPTIONS`. Details:
+[Sicherheit](08-security.md).
+
+### Stabilitätszusage *(v2.6.0)*
+
+Wer auf der API aufbaut — Home Assistant, Skripte, eigene Auswertungen —,
+braucht eine Zusage, was sich ändern darf. Drei Klassen:
+
+| Klasse | Umfang | Zusage |
+|---|---|---|
+| **A — Schnittstellen für Fremdsysteme** | `POST /api/ingest`, `GET /api/health`, Backup-Format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV-Exporte und -Importe, Stammdaten (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`), Fehlerhülle mit `code` | Nur additive Änderungen. Umbenennen oder Entfernen erst mit einer **Major-Version**, angekündigt mindestens eine Minor-Version vorher im CHANGELOG unter „Deprecated". Alte Feldnamen bleiben als Alias gültig. |
+| **B — Auswertungen** | Verbrauch, Saldo, Prognose, Tarifvergleich/-wechsel, Rechnungsprüfung, Effizienz, Empfehlungen, PV/Saldo, `readings-overview` | Dokumentierte Felder bleiben mit Namen und Bedeutung erhalten; neue kommen hinzu. **Werte** können sich ändern, wenn eine Berechnung korrigiert wird — das steht im CHANGELOG. |
+| **C — Oberfläche** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09` | Für die eigene Oberfläche gebaut; Änderungen möglich, stehen aber im CHANGELOG. |
+
+Anlass: v2.0.0 hat `verdict` von „Nachzahlung/Erstattung" still auf Schlüssel
+(`surcharge`/`refund`/`balanced`) umgestellt — ohne Ankündigung. Das soll
+nicht wieder passieren.
 
 ---
 
@@ -40,7 +92,15 @@ keine Änderung mehr.
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| GET | `/api/health` | Health-Check (Version, Schema, Schreibrechte, Migrationen) |
+| GET | `/api/health` | Health-Check: `status` ok/degraded/error, Prüfungen, letzter Ingest (HTTP 503 bei `error`); auch `HEAD` |
+| GET | `/api/session` | Anmeldemodus, angemeldet?, per Umgebung festgelegt? *(v2.6.0)* |
+| POST | `/api/session` | Anmelden `{password}` → Sitzungs-Cookie *(v2.6.0)* |
+| DELETE | `/api/session` | Abmelden *(v2.6.0)* |
+| POST | `/api/session/password` | Passwort setzen/ändern `{password, current?}` — schaltet die Anmeldung ein *(v2.6.0)* |
+| DELETE | `/api/session/password` | Anmeldung ausschalten `{current}` *(v2.6.0)* |
+| GET | `/api/auth/keys` | API-Schlüssel (ohne Klartext) *(v2.6.0)* |
+| POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin}`; Klartext einmalig *(v2.6.0)* |
+| DELETE | `/api/auth/keys/{id}` | Schlüssel widerrufen *(v2.6.0)* |
 | GET | `/api/diagnostics` | Systemstatus, Schreibrechte, Schema |
 | GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration |
 | GET | `/api/settings` | Einstellungen |
@@ -83,7 +143,7 @@ keine Änderung mehr.
 | GET | `/api/utility/{u}/meters/{id}/forecast` | 12-Monats-Prognose |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
-| GET | `/api/utility/gas/meters/{id}/bill-check` | Rechnungsprüfung Gas: Abschnitte je Ablesung und Brennwertwechsel, `?from=&to=` (F1012, nur Gas) |
+| GET | `/api/utility/{u}/meters/{id}/bill-check` | Rechnungsprüfung: Abschnitte je Ablesung und Brennwertwechsel, `?from=&to=` (F1012, **nur Gas**, sonst 400) |
 | GET | `/api/benchmarks/efficiency` | Effizienzklasse pro Heizquelle |
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden |
@@ -98,8 +158,12 @@ keine Änderung mehr.
 | GET | `/api/export/{u}/deliveries.csv` | **v1.4.2** Lieferungen als CSV (Heizöl/Pellets) |
 | GET | `/api/export/temperatures.csv` | Temperaturreihe als CSV |
 | GET | `/api/backup/export` | Voll-Backup JSON |
-| POST | `/api/backup/import` | Backup zurückspielen |
+| POST | `/api/backup/import` | Backup zurückspielen; `?dry_run=1` prüft nur, `?allow_without_snapshot=1` s. 409 |
 | POST | `/api/backup/snapshot` | Snapshot ablegen |
+| GET | `/api/backup/snapshots` | Snapshots: Name, Größe, Zeitpunkt, Anlass *(v2.6.0)* |
+| GET | `/api/backup/snapshots/{name}` | Snapshot herunterladen (Datei) *(v2.6.0)* |
+| POST | `/api/backup/snapshots/{name}/restore` | Snapshot einspielen (vorher Sicherung des jetzigen Stands) *(v2.6.0)* |
+| DELETE | `/api/backup/snapshots/{name}` | Snapshot löschen *(v2.6.0)* |
 | POST | `/api/migration/v09/preview` | v0.9.0-Backup analysieren |
 | POST | `/api/migration/v09/import` | v0.9.0-Backup übernehmen |
 | GET | `/api/strom-saldo` | Strom-Saldo (Bezug − PV-Einspeisung), F1005 |
@@ -144,14 +208,23 @@ es keine Zählerstände, sondern Lieferungen.
         "last_reading": {
           "date": "2026-04-15",
           "counter": 12345.67,
-          "is_estimated": false
+          "is_estimated": false,
+          "id": "20260415-3f2a9c1b",   // seit v2.6.0: „schon ein Stand heute → ersetzen"
+          "device_id": "d_gas_1"       // seit v2.6.0: anderes Gerät → kein Rückgang
         },
-        "expected_next_min": 12345.67
+        "expected_next_min": 12345.67,
+        "typical_per_day": 4.2,        // seit v2.6.0: Median der letzten ≤ 10 Intervalle, null bei < 2
+        "suspect_count": 0             // seit v2.6.0: unbestätigte Verdachtsfälle (Home Assistant)
       }
     ]
   }
 }
 ```
+
+**Seit v2.6.0** fließen verdächtige Stände (`is_suspect`) nicht in
+`last_reading` ein — ein Home-Assistant-Push mit 0 wäre sonst die Basis der
+nächsten Erfassung. `typical_per_day` trägt die Rückfrage „Das wären 400 kWh
+am Tag, üblich sind 8".
 
 **`unit` gegen `consumption_unit` (seit v2.4.2, GitHub #21).** Ein Gaszähler
 zählt Kubikmeter; kWh entsteht erst über den Umrechnungsfaktor. `unit` ist die
@@ -211,6 +284,54 @@ Dazu zwei neue Felder auf oberster Ebene:
 witterungsbereinigt; `delta_pct` ist die Wirkung der Maßnahme.
 `limits` wird auch **ohne** Zäsur befüllt — eine zu kurze Historie wird
 damit erklärt, statt eine Auswertung wortlos ausfallen zu lassen.
+
+**Seit v2.6.0** zusätzlich `warnings` — Stände, die nicht oder nur mit
+Vorbehalt in die Rechnung eingehen:
+
+```json
+"warnings": [
+  { "type": "suspect",  "reading_id": "20260920-5c425cf2", "date": "2026-09-20", "counter": 0 },
+  { "type": "outlier",  "reading_id": "20260220-dabada46", "date": "2026-02-20", "counter": 13300, "kind": "spike" },
+  { "type": "decrease", "reading_id": "…", "date": "…", "counter": 5.0,
+    "previous": { "date": "…", "counter": 18432.5 } }
+]
+```
+
+| `type` | Bedeutung | in der Rechnung? |
+|---|---|---|
+| `suspect` | Home Assistant hat einen kleineren Stand als den vorigen geliefert; wartet auf Bestätigung (`PATCH …/readings/{id}` mit `is_suspect: false`) | nein |
+| `outlier` | eingeklemmter Ausreißer desselben Geräts: `kind` = `spike` (nach oben) oder `dip` (nach unten) | nein |
+| `decrease` | Stand fällt, ohne dass sich ein Ausreißer bestimmen lässt — Zählertausch oder Überlauf nicht erfasst? | das negative Intervall nicht |
+
+Bis v2.5.3 verwarf die Rechnung nur das negative Intervall und zählte das
+folgende ab dem falschen Stand voll: Ein einziger Wert 0 machte aus 190 kWh
+im Monat 50.270 kWh. Ein **Überlauf** (99.998 → 12) wird richtig gerechnet,
+wenn am Gerät `digits` (Stellen des Zählwerks) gepflegt ist.
+
+### Ablesungen: `is_suspect`, `source` *(v2.6.0, additiv)*
+
+Zwei optionale Felder an einer Ablesung — nur vorhanden, wenn gesetzt:
+
+- `source`: `ingest` (Home Assistant) oder `csv` (CSV-Import). Grundlage von
+  `last_ingest` in `/api/health`.
+- `is_suspect: true`: Der Ingest hat einen fallenden Stand auf demselben Gerät
+  erhalten. Die Ablesung wird trotzdem gespeichert (201), zählt aber erst nach
+  Bestätigung. `PATCH` mit `is_suspect: false` bestätigt, ein korrigierter
+  `counter` klärt den Verdacht ebenfalls.
+
+### Zähler: `digits` *(v2.6.0, additiv)*
+
+Stellen des Zählwerks vor dem Komma (3–12) je Gerät. Beim Anlegen als
+Einzelfeld `digits` oder im Gerät; `PATCH …/meters/{id}` mit `digits` setzt es
+am eingebauten Gerät (`null`/leer entfernt es); `replace-device` übernimmt es
+auf das neue Gerät, sofern nicht anders angegeben. Ungültig → 400
+`errors.meter.digitsInvalid`.
+
+Seit v2.6.0 werden auch die bis v2.5.3 in `docs/API.md` beschriebenen
+Körper angenommen: beim Anlegen ein Objekt `device {serial, installed_on,
+initial_counter}`, beim Zählertausch `removed_on`, `final_counter` und
+`new_device {serial, installed_on, initial_counter}`. Die aktuellen Namen
+haben Vorrang.
 
 ### `GET|PATCH /api/settings` — `gas_conversion_factors` *(F1012, v2.5.0)*
 
@@ -363,9 +484,17 @@ statt eine zweite Ablesung anzulegen.
 ```
 
 Antwort `201` (neu) bzw. `200` (aktualisiert) mit
-`{ status: "created"|"updated", utility, meter_id, date, counter, reading_id }`.
-Fehler: `401` (Token nötig/falsch), `400` (unbekannte Utility/Zähler, kein
-Zahlenwert, kein gültiges Kalenderdatum, Delivery-Utility Heizöl/Pellets).
+`{ status: "created"|"updated", utility, meter_id, date, counter, reading_id,
+suspect }` — `suspect` seit v2.6.0: Ist der Wert kleiner als der vorige Stand
+desselben Geräts, wird er gespeichert, aber als Verdacht markiert
+(`suspect: true`, dazu `previous: {date, counter}`) und zählt erst nach
+Bestätigung in der Oberfläche. Ein Überlauf mit gepflegter Stellenzahl
+(`digits`) ist kein Verdacht. Ein Push lehnt deshalb nichts ab, was vorher
+angenommen wurde.
+Fehler: `401` (Token nötig/falsch; seit v2.6.0 mit eingeschalteter Anmeldung
+auch ohne gesetzten Token: `errors.ingest.tokenRequiredWithLogin`), `400`
+(unbekannte Utility/Zähler, kein Zahlenwert, kein gültiges Kalenderdatum,
+Delivery-Utility Heizöl/Pellets).
 
 Liegt das Datum vor dem Einbau des **ersten** Geräts, wird dieses seit v2.5.3
 zurückdatiert statt die Ablesung abzulehnen (typisch beim Nachtragen älterer
@@ -379,10 +508,110 @@ Geräten bleibt ein `400`.
 
 ### `GET|POST|DELETE /api/auth/token` *(F1009)*
 
-Verwaltung des **opt-in**-API-Tokens. Ohne Token ist die API offen (LAN-Modus);
-sobald ein Token existiert, verlangt `/api/ingest` einen Bearer-Header. Der
-Token wird nur als SHA-256-Hash in `data/auth.json` gespeichert und beim
-Erzeugen **einmalig** im Klartext zurückgegeben.
+Verwaltung des **opt-in**-Tokens für den Push-Endpunkt. Er schützt **nur**
+`/api/ingest`: Ohne Token nimmt der Ingest Werte ohne Kopfzeile an; sobald ein
+Token existiert, verlangt er `Authorization: Bearer <token>`. Den Rest der API
+schützt die Anmeldung (s. o.), nicht dieser Token. Der Token wird nur als
+SHA-256-Hash in `data/auth.json` gespeichert und beim Erzeugen **einmalig** im
+Klartext zurückgegeben. Seit v2.6.0 nennt `GET` zusätzlich `last_used_at`
+(auf die Stunde genau) — hilfreich bei der Frage „kommt überhaupt etwas an?".
+
+### `/api/session`, `/api/session/password`, `/api/auth/keys` *(v2.6.0)*
+
+```jsonc
+// GET /api/session
+{ "mode": "off", "authenticated": true, "mode_fixed": false,
+  "password_fixed": false, "has_password": false }
+
+// POST /api/session/password   (Einschalten: nur password; Ändern: + current)
+{ "password": "mindestens-8-Zeichen", "current": "bisheriges" }
+// → { "mode": "password" } + Sitzungs-Cookie; ein neues Passwort beendet alle anderen Sitzungen
+
+// POST /api/auth/keys
+{ "name": "Backup-Skript", "scope": "read" }
+// → 201 { "id": "k_…", "key": "etk_…", "hint": "…" }   Klartext nur hier
+```
+
+- `mode`: `off` · `password` · `proxy`. `mode_fixed`/`password_fixed`: über
+  `ET_AUTH` bzw. `ET_ADMIN_PASSWORD_HASH` festgelegt — dann antworten die
+  ändernden Routen `409`.
+- Fehlversuche: nach fünf innerhalb von 15 Minuten ist die Anmeldung
+  5 Minuten gesperrt (`429`). Das gilt auch für `current` beim Ändern und
+  Ausschalten.
+- `GET /api/auth/keys` liefert `id`, `name`, `scope`, `created_at`,
+  `last_used_at` — nie den Schlüssel oder seinen Hash.
+
+### Snapshots und Import *(v2.6.0)*
+
+`GET /api/backup/snapshots` listet `data/backups/` (neueste zuerst):
+
+```json
+[ { "name": "pre-restore-2026-09-25_000438.json", "size": 215512,
+    "created_at": "2026-09-25T00:04:38+02:00", "reason": "restore" } ]
+```
+
+`reason` ∈ `manual` (eigener Snapshot), `restore` (vor Import/Einspielen),
+`migration`, `demo`, `v09`. **Aufbewahrung:** von den eigenen die letzten
+zehn; automatische 30 Tage, je Anlass mindestens die drei neuesten.
+
+`POST /api/backup/import` prüft seit v2.6.0 **zuerst alles**: Jeder Topf muss
+eine Liste von Objekten mit Pflichtfeldern und gültigen Daten sein. Ein
+fehlerhaftes Backup ändert nichts und antwortet `400` mit
+`detail.problems` (höchstens 50):
+
+```json
+{ "success": false, "code": "errors.backup.invalid",
+  "error": "Das Backup ist unvollständig oder beschädigt (3 Problem(e)). Es wurde nichts eingespielt.",
+  "detail": { "problems": [ { "pot": "gas/meters", "index": 0, "problem": "missing:devices" } ] } }
+```
+
+`problem` ∈ `not_an_object`, `not_a_list`, `unknown_utility`,
+`missing:<feld>`, `date:<feld>`, `counter`, `devices`, `entry:<datum>`. Mit
+`?dry_run=1` endet der Import nach der Prüfung und liefert den Bericht
+(Anzahlen je Topf, `untouched` = nicht im Backup enthaltene und daher
+unveränderte Töpfe). Weitere Änderungen: Die Hülle von
+`GET /api/backup/export` (`{success, data}`) wird ausgepackt; scheitert eine
+Datei mitten im Schreiben, werden die schon geschriebenen zurückgesetzt;
+`recommendations_dismissed` gehört seit v2.6.0 zum Backup.
+
+### `GET|HEAD /api/health` *(N1003; v2.6.0 erweitert)*
+
+```json
+{ "status": "ok", "version": "2.6.0", "schema_version": "1.5.0",
+  "data_dir_writable": true, "migrations_pending": 0,
+  "data_initialized_at": "2026-09-24T23:58:03+02:00",
+  "php_version": "8.4.12", "timezone": "Europe/Berlin",
+  "last_ingest": { "m_strom_main": "2026-09-20" },
+  "checks": {
+    "data_dir_writable": { "ok": true, "level": "ok" },
+    "schema":            { "ok": true, "level": "ok" },
+    "files":             { "ok": true, "level": "ok", "corrupt": [] },
+    "disk":              { "ok": true, "level": "ok", "free_mb": 736175 },
+    "temp_files":        { "ok": true, "level": "ok", "removed": 0 } } }
+```
+
+`status` ∈ `ok` · `degraded` (ausstehende Migration, unter 50 MB frei) ·
+`error` (nicht schreibbar, beschädigte Datei, Daten neuer als die App, unter
+5 MB frei) — bei `error` mit HTTP `503`, damit Docker-HEALTHCHECK und Monitore
+die Störung erkennen. `migrations_pending` zählt seit v2.6.0 die
+ausstehenden Migrationsschritte (bis v2.5.3 nur `0` oder `1`; `0` heißt
+weiterhin „nichts zu tun"). Ist die Anmeldung eingeschaltet und der Aufrufer
+nicht angemeldet, gibt es nur `{status, version}`.
+
+### Parametergrenzen *(v2.6.0)*
+
+Bisher still übernommen, jetzt `400` mit `code` und — bei der Prognose —
+`detail {param, value, range}`:
+
+| Endpunkt | Parameter | erlaubt |
+|---|---|---|
+| `…/forecast` | `forecast_months` | 1–60 |
+| | `temp_offset` | −30 bis +30 °C |
+| | `price_factor` | 0–10 |
+| | `model` | `linear`, `polynomial`, `robust`, `segmented`, `sigmoid` |
+| `/api/reports/yearly.pdf` | `year` | 2000–2100 |
+| `POST /api/temperatures` | `avg`, `min`, `max` | Zahlen, Pflicht |
+| `…/sync-open-meteo` | `start`, `end` | ISO-Datum, `start` ≤ `end` |
 
 > Vollständige Beispiele zu Auth + Ingest und die Schritt-für-Schritt-Einrichtung
 > in Home Assistant: [`docs/HOME-ASSISTANT.md`](../HOME-ASSISTANT.md) und

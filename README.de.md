@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.5.3-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.6.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-285-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-324-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installierbar-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
@@ -39,7 +39,7 @@ End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v2.5.3 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v2.6.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -95,7 +95,16 @@ PDF-Jahresbericht.
   Abschnitt für Abschnitt nachrechnet.
 - **CSV-Import von Ablesungen** je Zähler: eine Datei mit
   `datum;zählerstand;notiz;geschätzt` einlesen — vorhandene Ablesungen am
-  selben Datum werden überschrieben und im Ergebnis gemeldet.
+  selben Datum werden überschrieben und im Ergebnis gemeldet. Seit v2.6.0
+  erkennt der Import die Spalten an der Kopfzeile (auch das eigene
+  Exportformat) und wandelt Excel-Dateien in Windows-1252 um.
+- **Plausibilitätsprüfung** (v2.6.0): Vor dem Speichern fragt die App bei
+  Tippfehlern nach (mehr als das Dreifache des üblichen Tagesverbrauchs,
+  „Komma vergessen?"), bei einem kleineren Stand ohne Zählertausch, bei einem
+  Datum in der Zukunft und bei einem zweiten Stand am selben Tag (ersetzen
+  statt doppeln). Ausreißer und verdächtige Werte aus Home Assistant werden
+  angezeigt und bleiben bis zur Bestätigung aus der Rechnung; ein Überlauf des
+  Zählwerks (99.999 → 0) wird richtig gerechnet.
 
 ### Verträge und Saldo
 
@@ -112,7 +121,7 @@ PDF-Jahresbericht.
     Monatskosten − Monatsabschlag). Offene Verträge werden bis zum
     nächsten Abrechnungsstichtag projiziert (je Utility konfigurierbar,
     Default 1. Januar).
-  - *Verdict*: Erstattung / Nachzahlung / Ausgeglichen mit Schwellwert ±5 €
+  - *Einschätzung*: Erstattung / Nachzahlung / ausgeglichen mit Schwellwert ±5 €
 - **Erinnerung an Vertragsende**: Verträge, deren Ende innerhalb einer
   konfigurierbaren Frist liegt (drei Stufen, Default 90 / 30 / 1 Tage),
   werden in der Korrelations-Ansicht als gestufter Hinweis angezeigt.
@@ -195,8 +204,16 @@ PDF-Jahresbericht.
 
 ### Operativ
 
+- **Optionale Anmeldung** (v2.6.0): Passwort oder Anmeldung über einen
+  vorgeschalteten Proxy (Authelia, Authentik); API-Schlüssel mit Lese- oder
+  Verwaltungsrecht für Skripte. Standardmäßig aus — für bestehende
+  Installationen ändert sich nichts. Siehe
+  [Sicherheit & Netzbetrieb](docs/technical/08-security.md).
 - **Backup & Restore** über die UI: vollständiges JSON-Backup im neuen
   Format (`backup_version: "3.0"`), zur Wiederherstellung oder zum Umzug.
+  Seit v2.6.0 wird ein Import vollständig geprüft und als Vorschau gezeigt,
+  bevor etwas geschrieben wird; gespeicherte Snapshots lassen sich in den
+  Einstellungen auflisten, herunterladen, einspielen und löschen.
 - **Migration aus v0.9.0**: ein altes Backup-Format (`version: "2.1"`) kann
   direkt importiert werden, entweder ersetzend oder zusammenführend mit
   bestehenden Daten. Siehe [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md).
@@ -208,6 +225,8 @@ PDF-Jahresbericht.
   in `localStorage`.
 - **System-Diagnose** unter Einstellungen: PHP-Version, Datenverzeichnis,
   Schreibrechte, Schema-Version, Anzahl Zähler/Ablesungen pro Utility.
+  `GET /api/health` meldet `ok`/`degraded`/`error`, im Fehlerfall mit
+  HTTP 503 — für den Docker-Healthcheck und Uptime-Monitore.
 - **CI-Pipeline** (GitHub Actions): vier Jobs bei jedem Push/PR auf `main` —
   PHP-Syntax-Lint, PHPUnit-Service-Suite, Frontend-API-Shape + Browser-Render
   gegen einen echten Backend-Server sowie ein Docker-Image-Smoke. Versions-Tags
@@ -263,11 +282,17 @@ Ansichten**:
 git clone https://github.com/Bingerminger/energietracker.git
 cd energietracker
 
-# Lokaler Test-Server (Document Root = Projektwurzel)
-php -S 127.0.0.1:8080
+# Lokaler Test-Server (Document Root = Projektwurzel) — immer mit router.php:
+# ohne liefert PHP jede Datei aus, auch data/ mit allen Daten
+php -S 127.0.0.1:8080 router.php
 ```
 
 Browser auf <http://127.0.0.1:8080> → Dashboard erscheint mit leerem Zustand.
+
+> 🔐 **Sicherheit:** Ohne Anmeldung kann jeder, der die App erreicht, alle Daten
+> lesen und ändern — im eigenen Heimnetz in Ordnung. Bevor du sie von außen
+> erreichbar machst, schalte die Anmeldung ein (Einstellungen → „Anmeldung &
+> Zugriff") und lies [Sicherheit & Netzbetrieb](docs/technical/08-security.md).
 
 Die App initialisiert beim ersten Start automatisch `data/meta.json`,
 `data/settings.json`, leere `temperatures.json` und die Utility-Unterordner
@@ -289,7 +314,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.5.3
+  ghcr.io/bingerminger/energietracker:2.6.0
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -467,7 +492,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „2.5.3"
+├── VERSION                  ← „2.6.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE

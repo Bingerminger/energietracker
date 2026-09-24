@@ -5,6 +5,8 @@ namespace Energietracker\Services;
 
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
+use Energietracker\Http\NotFoundException;
+use Energietracker\Support\Encoding;
 
 /**
  * Bulk import of meter readings (F-06, v1.1.0).
@@ -56,56 +58,111 @@ final class ReadingImportService
         if (trim($csv) === '') {
             throw new \InvalidArgumentException($this->i18n->t('errors.import.emptyCsv'));
         }
+        // v2.6.0 — BOM und Windows-1252 (Excel unter deutschem Windows)
+        [$csv, $convertedFrom] = Encoding::normalizeCsv($csv);
 
         $lines = preg_split('/\r\n|\r|\n/', $csv) ?: [];
         $rows = [];
         $errors = [];
         $skipped = 0;
+        $otherMeter = 0;
+        // Positionen: Datum, Stand, Notiz, geschätzt — oder aus der Kopfzeile.
+        $cols = ['date' => 0, 'counter' => 1, 'note' => 2, 'estimated' => 3, 'meter' => null];
+        $sep = null;
+        $first = true;
 
         foreach ($lines as $lineNo => $raw) {
             $line = trim($raw);
             if ($line === '') continue;
+            $sep ??= str_contains($line, ';') ? ';' : ',';
+            // str_getcsv statt explode: Der eigene Export setzt Zellen mit
+            // Semikolon in Anführungszeichen (Notizen).
+            $parts = str_getcsv($line, $sep, '"', '');
 
-            // Header detection on the first non-empty line.
-            if ($lineNo === 0 && preg_match('/datum|z[äa]hler|counter/i', $line)) {
-                continue;
+            // Kopfzeile auf der ersten nicht leeren Zeile: Spalten per Name.
+            // v2.6.0 — so passt auch der eigene readings.csv-Export
+            // (Zaehler-ID;Zaehler;Geraet-ID;Datum;Zaehlerstand;…), der sich
+            // bisher nicht wieder einlesen ließ.
+            if ($first) {
+                $first = false;
+                if (preg_match('/datum|date|z[äa]hler|counter/i', $line)) {
+                    $cols = $this->columnsFromHeader($parts) ?? $cols;
+                    continue;
+                }
             }
 
-            $parts = str_contains($line, ';') ? explode(';', $line) : explode(',', $line);
             if (count($parts) < 2) {
                 $skipped++;
-                $errors[] = 'Zeile ' . ($lineNo + 1) . ': zu wenige Spalten';
+                $errors[] = $this->i18n->t('errors.import.tooFewColumns', ['line' => $lineNo + 1]);
+                continue;
+            }
+            // Export mehrerer Zähler: nur die Zeilen dieses Zählers übernehmen.
+            if ($cols['meter'] !== null && trim((string)($parts[$cols['meter']] ?? '')) !== $meterId) {
+                $otherMeter++;
                 continue;
             }
 
-            $iso = $this->parseDate(trim((string)($parts[0] ?? '')));
+            $iso = $this->parseDate(trim((string)($parts[$cols['date']] ?? '')));
             if ($iso === null) {
                 $skipped++;
                 $errors[] = $this->i18n->t('errors.import.dateUnrecognized',
-                    ['line' => $lineNo + 1, 'value' => trim((string)$parts[0])]);
+                    ['line' => $lineNo + 1, 'value' => trim((string)($parts[$cols['date']] ?? ''))]);
                 continue;
             }
 
-            $counter = $this->parseNum(trim((string)($parts[1] ?? '')));
+            $counter = $this->parseNum(trim((string)($parts[$cols['counter']] ?? '')));
             if ($counter === null) {
                 $skipped++;
                 $errors[] = $this->i18n->t('errors.import.counterNotNumeric',
-                    ['line' => $lineNo + 1, 'value' => trim((string)$parts[1])]);
+                    ['line' => $lineNo + 1, 'value' => trim((string)($parts[$cols['counter']] ?? ''))]);
                 continue;
             }
 
             $rows[] = [
+                'line'         => $lineNo + 1,
                 'date'         => $iso,
                 'counter'      => $counter,
-                'note'         => isset($parts[2]) ? trim((string)$parts[2]) : '',
-                'is_estimated' => isset($parts[3]) ? $this->parseBool(trim((string)$parts[3])) : false,
+                'note'         => $cols['note'] !== null && isset($parts[$cols['note']]) ? trim((string)$parts[$cols['note']]) : '',
+                'is_estimated' => $cols['estimated'] !== null && isset($parts[$cols['estimated']])
+                    ? $this->parseBool(trim((string)$parts[$cols['estimated']])) : false,
             ];
         }
 
         $report = $this->importRows($utility, $meterId, $rows);
         $report['skipped'] += $skipped;
         $report['errors']   = array_merge($errors, $report['errors']);
+        if ($convertedFrom !== null) $report['encoding_converted_from'] = $convertedFrom;
+        if ($otherMeter > 0) $report['other_meter_rows'] = $otherMeter;
         return $report;
+    }
+
+    /**
+     * Spaltenpositionen aus einer Kopfzeile. Null, wenn Datum oder Stand
+     * fehlen — dann gelten die festen Positionen.
+     *
+     * @param list<string|null> $header
+     * @return array{date:int,counter:int,note:?int,estimated:?int,meter:?int}|null
+     */
+    private function columnsFromHeader(array $header): ?array
+    {
+        $find = function (array $names) use ($header): ?int {
+            foreach ($header as $i => $h) {
+                $h = strtolower(trim((string)$h, " \t\"'"));
+                $h = strtr($h, ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue']);
+                if (in_array($h, $names, true)) return $i;
+            }
+            return null;
+        };
+        $date    = $find(['datum', 'date']);
+        $counter = $find(['zaehlerstand', 'zahlerstand', 'stand', 'counter', 'value', 'wert']);
+        if ($date === null || $counter === null) return null;
+        return [
+            'date'      => $date,
+            'counter'   => $counter,
+            'note'      => $find(['notiz', 'note', 'bemerkung']),
+            'estimated' => $find(['geschaetzt', 'geschatzt', 'estimated']),
+            'meter'     => $find(['zaehler-id', 'meter_id', 'meter-id']),
+        ];
     }
 
     /**
@@ -122,58 +179,26 @@ final class ReadingImportService
     {
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) {
-            throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
+            throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
 
-        // Existing readings of this meter, indexed by date → id, so we can
-        // decide create-vs-overwrite without re-reading per row.
-        $existing = [];
-        foreach ($this->readings->list($utility, $meterId) as $r) {
-            if (isset($r['date'], $r['id'])) {
-                $existing[$r['date']] = $r['id'];
-            }
-        }
-
-        $imported = 0;
-        $overwritten = 0;
+        $valid = [];
         $skipped = 0;
         $errors = [];
-
         foreach ($rows as $i => $row) {
-            $date = (string)($row['date'] ?? '');
-            if ($date === '' || !array_key_exists('counter', $row)) {
+            if ((string)($row['date'] ?? '') === '' || !array_key_exists('counter', $row)) {
                 $skipped++;
-                $errors[] = $this->i18n->t('errors.import.rowIncomplete', ['line' => $i + 1]);
+                $errors[] = $this->i18n->t('errors.import.rowIncomplete', ['line' => (int)($row['line'] ?? $i + 1)]);
                 continue;
             }
-            $payload = [
-                'meter_id'     => $meterId,
-                'date'         => $date,
-                'counter'      => (float)$row['counter'],
-                'note'         => (string)($row['note'] ?? ''),
-                'is_estimated' => !empty($row['is_estimated']),
-            ];
-            try {
-                if (isset($existing[$date])) {
-                    $this->readings->update($utility, $existing[$date], $payload);
-                    $overwritten++;
-                } else {
-                    $created = $this->readings->create($utility, $payload);
-                    $existing[$date] = $created['id'] ?? null;
-                    $imported++;
-                }
-            } catch (\InvalidArgumentException $e) {
-                $skipped++;
-                $errors[] = 'Zeile ' . ($i + 1) . ' (' . $date . '): ' . $e->getMessage();
-            }
+            $valid[] = $row + ['line' => $i + 1];
         }
 
-        return [
-            'imported'    => $imported,
-            'overwritten' => $overwritten,
-            'skipped'     => $skipped,
-            'errors'      => $errors,
-        ];
+        // v2.6.0 — ein Lese- und ein Schreibvorgang statt je Zeile (linear).
+        $report = $this->readings->upsertMany($utility, $meterId, $valid);
+        $report['skipped'] += $skipped;
+        $report['errors']   = array_merge($errors, $report['errors']);
+        return $report;
     }
 
     private function parseDate(string $s): ?string

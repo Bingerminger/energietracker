@@ -371,6 +371,32 @@ accepted.
   `position: relative`. Measure overflow via `document.documentElement.scrollWidth`,
   not via the position of single elements: clipped elements still report their
   full width.
+- **Discarding the negative interval is no protection (v2.6.0).** After a wrong
+  reading (a 0 from Home Assistant) the consumption calculation only discarded
+  the decrease and counted the next interval in full from the wrong reading — a
+  month received the whole meter reading as consumption. The error sits in the
+  **reading**, not in the interval: sandwiched outliers are now recognised as
+  such and left out (`plausibleReadings`). Lesson 6 in new clothes — check the
+  cause, not the symptom.
+- **A protection that guards one door suggests a lock (v2.6.0).** The Home
+  Assistant token protected only the push; the text in the settings read as if
+  it locked the API. And a sign-in without web server rules could have been
+  bypassed via `data/backups/`. Hence the order: first the delivery rules
+  (Apache, nginx, development server), then sign-in — and every hint text says
+  **what** is protected.
+- **A route list without a test is a claim (v2.6.0).** `docs/API.md` knew 37 of
+  70 routes, the reference claimed "68, v1.9.2", documented bodies did not work,
+  and `verdict` was silently broken in v2.0.0. `ReleaseConsistencyTest` now
+  compares the routes from `bootstrap.php` with the reference in both
+  languages; formerly documented field names stay valid as aliases. A stability
+  promise defines what may change.
+- **Listeners on a long-lived container must be removed (v2.6.0).** The settings
+  view re-renders itself after an import or a language switch; every round
+  attached `input` and `beforeunload` listeners to the same container and to
+  `window`. Result: a false "unsaved" warning on close. Listeners attached to
+  objects outside the view are collected in a list and removed on the next
+  render. And: a message must not cover the button it refers to — with a dialog
+  open, toasts appear at the top.
 
 ---
 

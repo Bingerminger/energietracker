@@ -50,11 +50,54 @@ second click validates against the new baseline.
 ## Validation
 
 - **Numeric input** — only numbers, comma or dot as the decimal separator.
-- **Backward meter reading** — if the new value is smaller than the last known
-  one, the card shows an orange note ("with a meter swap etc. this is ok"). It is
-  **not hard-blocked** — a meter swap is a real case, and the backend checks the
-  device history independently.
 - **Empty input** — the card is silently skipped on save, not marked as an error.
+
+## Plausibility (v2.6.0)
+
+Otherwise a typo travels silently into costs, forecast and efficiency class:
+"12345" instead of "1234.5" is a month's consumption the size of a year. So the
+capture — the card as well as the reading dialog of the utility view — asks
+**before saving**. None of it blocks hard; meter swaps, rollovers and
+back-filled readings are legitimate.
+
+| Question | When | Note |
+|---|---|---|
+| **Jump** | daily consumption since the last reading > **3 ×** the typical one | "That would be 400 kWh a day, usually it is about 8. Typo?" |
+| **Decimal separator missing?** | no typical value known yet and the new reading > 10 × the last | only without a comparison value, otherwise the jump check applies |
+| **Decrease** | lower than the last reading — unless a new device was installed in between | with a link to the meter swap |
+| **Future** | date after today | typo in the year? |
+| **Same day** | there is already a reading for that day | button "Replace": the existing reading is updated instead of a second one being created |
+
+The **typical daily consumption** is the median of the last up to ten reading
+intervals of the same device (at least two) — robust against a single outlier.
+The backend delivers it in `readings-overview` as `typical_per_day`; the utility
+view calculates it by the same rule. The notes appear while typing; the question
+on save names the meter in its title. Whoever declines in the batch capture keeps
+the input; the card shows "Not saved – please check", and a message counts the
+held cards.
+
+### After saving: outliers, suspicion, rollover
+
+The consumption calculation checks independently of the capture (CSV import and
+Home Assistant as well):
+
+- **Sandwiched outliers** — if the reading drops between two readings of the
+  same device, either the earlier one is a spike or the later one a dip. If one
+  interpretation fits, that reading is left out of the calculation; if both fit,
+  the smoother daily consumption decides. Up to v2.5.3 the calculation counted
+  the following interval in full from the wrong reading: a single value of 0
+  turned 190 kWh in a month into 50,270 kWh.
+- **Suspicion** — a falling value from Home Assistant is stored but marked and
+  skipped until confirmed.
+- **Decrease** — a falling reading without an identifiable outlier (usually an
+  unrecorded meter swap) is reported; the negative interval does not count.
+- **Rollover** — if the register digits are maintained on the device (edit meter
+  → "Register digits"), 99,998 → 12 is a consumption of 14, not a decrease.
+
+The utility view shows all cases in a notice above the year selection, the table
+marks the readings ("CHECK", "IMPLAUSIBLE"); a suspect reading can be confirmed
+with ✅. Technical details:
+[API reference → `warnings`](../technical/03-api-reference.md).
 
 ## Mobile first
 

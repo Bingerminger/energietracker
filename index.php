@@ -76,6 +76,39 @@ if (is_file($settingsFile)) {
     }
 }
 $catalog = json_decode((string)@file_get_contents(__DIR__ . "/public/locales/$lang.json"), true) ?: [];
+
+/**
+ * v2.6.0 — Sicherheits-Header (Review 2026-09-24).
+ *
+ * Content-Security-Policy mit Nonce für die vier Inline-Skripte (Theme,
+ * Selbstheilung, Import-Map, Service-Worker-Registrierung); alles andere
+ * kommt aus der eigenen Installation. Eine zweite Linie gegen eingeschleustes
+ * HTML: Selbst wenn ein Wert unescaped im DOM landete, liefe kein Skript.
+ *
+ * frame-ancestors 'self': Keine fremde Seite darf die App unsichtbar einbetten
+ * und Klicks auf „Demo-Daten laden" oder „Token erzeugen" unterschieben.
+ * Ausnahmen (z. B. eine Home-Assistant-Webseitenkarte auf anderer Adresse)
+ * über ET_FRAME_ANCESTORS oder die Einstellung `frame_ancestors`.
+ */
+$nonce = base64_encode(random_bytes(16));
+$ancestors = ["'self'"];
+$extra = trim((string)getenv('ET_FRAME_ANCESTORS')) . ' '
+    . (is_array($s ?? null) ? (string)($s['frame_ancestors'] ?? '') : '');
+foreach (preg_split('/[\s,]+/', $extra) ?: [] as $src) {
+    // nur Ursprünge (Schema://Host[:Port], auch *.domain) — nichts, was die
+    // Richtlinie aufbrechen könnte
+    if (preg_match('#^https?://(\*\.)?[A-Za-z0-9.-]+(:\d{1,5})?$#', $src)) $ancestors[] = $src;
+}
+if (!headers_sent()) {
+    header("Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-$nonce'; "
+        . "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; "
+        . "connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; "
+        . "base-uri 'none'; form-action 'self'; frame-ancestors " . implode(' ', array_unique($ancestors)));
+    header('Referrer-Policy: same-origin');
+    header('Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=()');
+    header('X-Content-Type-Options: nosniff');
+    header_remove('X-Powered-By');
+}
 // Minimaler Katalog-Lookup für die wenigen Shell-Strings (Skip-Link, Nav-Label,
 // Theme-Toggle, Lade-Text). Das volle t() läuft im Frontend.
 $tShell = function (string $path, string $fallback) use ($catalog): string {
@@ -113,7 +146,7 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
   Quelle der Wahrheit: localStorage["et-theme"] (vom Toggle gesetzt) →
   Fallback prefers-color-scheme → Fallback "dark".
 -->
-<script>
+<script nonce="<?= $nonce ?>">
 (function() {
   try {
     var saved = localStorage.getItem('et-theme');
@@ -197,7 +230,7 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
   die ausgelieferte Shell, räumt es Caches und Worker ab und lädt genau einmal
   neu (die Sperre in sessionStorage verhindert eine Schleife).
 -->
-<script>
+<script nonce="<?= $nonce ?>">
 (function () {
   var VERSION = <?= json_encode($version) ?>;
   if (!('caches' in window)) return;
@@ -224,7 +257,7 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 <!-- v2.3.1 — Versionierte Modulpfade. MUSS vor dem ersten Modul-Script stehen
      und es darf nur eine Import-Map im Dokument geben. Siehe die Begründung
      oben bei $moduleMap. -->
-<script type="importmap">
+<script type="importmap" nonce="<?= $nonce ?>">
 <?= json_encode(['imports' => $moduleMap], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) ?>
 
 </script>
@@ -232,7 +265,7 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 <!-- N1008 (PWA) — Service Worker registrieren. Inline (kein Modul), damit der
      relative Pfad 'sw.js' gegen die Dokument-URL (Web-Wurzel) auflöst und der
      Worker Root-Scope erhält. -->
-<script>
+<script nonce="<?= $nonce ?>">
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').catch(function () {});

@@ -239,6 +239,36 @@ const ROOT = require('path').resolve(__dirname, '..');
     check('Monatszeilen tragen device_swap-Flag (Issue #13)', hasFlag);
   }
 
+  // 8. v2.6.0 — Formen, auf die sich die neuen Oberflächenteile stützen.
+  const sess = await j('/api/session');
+  check('GET /api/session liefert mode/authenticated/mode_fixed/password_fixed',
+    ['off', 'password', 'proxy'].includes(sess.mode) && typeof sess.authenticated === 'boolean'
+      && typeof sess.mode_fixed === 'boolean' && typeof sess.password_fixed === 'boolean',
+    `mode=${sess.mode}`);
+  const snaps = await j('/api/backup/snapshots');
+  check('GET /api/backup/snapshots → Array mit name/size/created_at/reason',
+    Array.isArray(snaps) && snaps.every(s => s.name && typeof s.size === 'number' && s.created_at && s.reason),
+    `${snaps.length} Snapshots`);
+  const keys = await j('/api/auth/keys');
+  check('GET /api/auth/keys → Array ohne Schlüssel-Klartext',
+    Array.isArray(keys) && keys.every(k => k.id && !('key' in k) && !('hash' in k)));
+  const ovw2 = await j('/api/readings-overview');
+  const row = (ovw2.rows || []).find(x => x.last_reading);
+  check('readings-overview: typical_per_day, suspect_count, last_reading.id/device_id',
+    row && 'typical_per_day' in row && typeof row.suspect_count === 'number'
+      && typeof row.last_reading.id === 'string' && 'device_id' in row.last_reading);
+  if (gMeters.length) {
+    const gc = await j(`/api/utility/gas/meters/${gMeters[0].id}/consumption`);
+    check('Verbrauch je Zähler liefert warnings[]', Array.isArray(gc.warnings), `${gc.warnings?.length} Warnungen`);
+  }
+  const head = await fetch(BASE + '/api/health', { method: 'HEAD' });
+  check('HEAD /api/health → 200', head.status === 200, `HTTP ${head.status}`);
+  const bad = await fetch(BASE + '/api/health', { method: 'DELETE' });
+  const badBody = await bad.json().catch(() => ({}));
+  check('Falsche Methode → 405 mit Allow-Header und Fehlercode',
+    bad.status === 405 && /GET/.test(bad.headers.get('allow') || '') && typeof badBody.code === 'string',
+    `HTTP ${bad.status}, Allow: ${bad.headers.get('allow')}, code: ${badBody.code}`);
+
   const failed = results.filter(r => !r.ok);
   console.log(`\n  ${results.length - failed.length}/${results.length} Checks bestanden`);
   process.exit(failed.length ? 1 : 0);

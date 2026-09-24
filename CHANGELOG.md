@@ -6,6 +6,202 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.6.0] — 2026-09-25 — Anmeldung, Plausibilität, sichere Backups
+
+MINOR-Release (N1013). Kein Schema-Bump, keine Datenmigration. Alles Neue ist
+**opt-in oder additiv**: Wer nichts einschaltet, merkt an bestehenden
+Schnittstellen nichts — außer dass Fehler jetzt früher und deutlicher
+gemeldet werden.
+
+**Der Anlass.** Paket B des Gesamtreviews (Sicherheit und Datensicherheit).
+Drei Befunde wogen am schwersten: Ohne Anmeldung konnte jeder im Netz alles
+lesen und löschen, und auf Apache-Instanzen waren `data/` samt Vollbackups
+sowie `.git/` per HTTP abrufbar. Ein einziger falscher Zählerstand — etwa eine
+0 aus Home Assistant — machte aus einem normalen Monat einen Verbrauch in Höhe
+des ganzen Zählerstands. Und ein Backup-Import schrieb ungeprüft Topf für Topf;
+ein fehlerhaftes Backup legte danach Übersicht und Auswertungen lahm.
+
+### ⚠️ Für bestehende Installationen
+
+- **Nichts einschalten = nichts ändert sich.** Die Anmeldung ist standardmäßig
+  aus; Home Assistant, Skripte und Backups laufen unverändert weiter.
+- **Apache/Synology:** Die `.htaccess` sperrt jetzt `data/`, `src/`, `.git/`
+  und andere Nicht-Auslieferungsdateien (404). Voraussetzung wie bisher für die
+  Cache-Regeln: `AllowOverride FileInfo` und `mod_rewrite`. Prüfen:
+  [Sicherheit → Webserver](docs/technical/08-security.md).
+- **Home Assistant:** Ein Wert, der **kleiner** ist als der vorige desselben
+  Zählers, wird weiter angenommen (201), aber als Verdacht markiert und zählt
+  erst nach Bestätigung. Wer die Anmeldung einschaltet, braucht für den Push
+  einen Token.
+- **Entwicklungsserver:** immer `php -S 127.0.0.1:8080 router.php` — ohne
+  Router liefert PHP jede Datei aus, auch `data/`.
+
+### Added — Anmeldung (opt-in)
+
+- **Passwort-Anmeldung** in *Einstellungen → Anmeldung & Zugriff*: einschalten,
+  ändern, ausschalten (mit dem bisherigen Passwort). Sitzungs-Cookie 30 Tage,
+  HttpOnly, SameSite=Strict, `Secure` hinter HTTPS; nach fünf Fehlversuchen in
+  15 Minuten 5 Minuten Sperre; ein neues Passwort meldet alle anderen Geräte ab.
+  Anmeldebildschirm und **Abmelden** in der Kopfleiste.
+- **Anmeldung über einen vorgeschalteten Proxy** (Authelia, Authentik …):
+  `ET_AUTH=proxy`, Benutzer aus `Remote-User`/`X-Forwarded-User` — nur von
+  Adressen in `ET_TRUSTED_PROXIES`.
+- **API-Schlüssel für Skripte** (`Authorization: Bearer etk_…`), Berechtigung
+  *Lesen* oder *Verwalten*, Klartext einmalig, „zuletzt benutzt".
+- **Umgebungsvariablen** `ET_AUTH`, `ET_ADMIN_PASSWORD_HASH`,
+  `ET_TRUSTED_PROXIES`, `ET_ALLOWED_HOSTS` (DNS-Rebinding → 421),
+  `ET_FRAME_ANCESTORS`, `ET_DEBUG`.
+- Mit eingeschalteter Anmeldung braucht der Home-Assistant-Push einen Token;
+  `/api/health` antwortet ohne Anmeldung nur mit `{status, version}`.
+
+### Added — Plausibilität der Zählerstände
+
+- **Rückfragen vor dem Speichern** (Ablese-Dialog und Zählerstand-Erfassung):
+  Tagesverbrauch über dem Dreifachen des üblichen, „Komma vergessen?",
+  kleiner als der letzte Stand (mit Link zum Zählertausch), Datum in der
+  Zukunft, schon ein Stand am selben Tag (**Ersetzen** statt doppeln).
+  Hinweise schon beim Tippen; wer ablehnt, behält die Eingabe.
+- **Ausreißer fallen aus der Rechnung.** Eingeklemmte Spitzen und Dellen
+  desselben Geräts werden erkannt und übergangen; die Verbrauchsansicht nennt
+  sie in einem Hinweis und markiert sie in der Tabelle. Bis v2.5.3 zählte das
+  Intervall nach einer 0 den ganzen Zählerstand als Verbrauch.
+- **Verdacht aus Home Assistant:** fallende Werte gespeichert, markiert
+  („PRÜFEN"), per ✅ zu bestätigen.
+- **Überlauf des Zählwerks:** Mit gepflegten *Stellen des Zählwerks* (Zähler
+  bearbeiten) ist 99.998 → 12 ein Verbrauch von 14.
+- Ein **fallender Stand ohne Tausch** wird gemeldet statt still verworfen.
+
+### Added — Backups und Snapshots
+
+- **Import mit Prüfung und Vorschau:** Jeder Topf wird vor dem Schreiben
+  geprüft; ein fehlerhaftes Backup ändert nichts und nennt die Fundstellen.
+  Die Vorschau zeigt, was eingespielt wird und was unverändert bleibt.
+  Scheitert eine Datei mitten im Schreiben, werden die schon geschriebenen
+  zurückgesetzt. Die Hülle von `GET /api/backup/export` wird akzeptiert.
+- **Snapshots verwalten:** Liste mit Zeitpunkt, Anlass und Größe;
+  herunterladen, einspielen (vorher Sicherung des jetzigen Stands), löschen.
+  Aufräumen: eigene die letzten zehn, automatische 30 Tage (mindestens drei je
+  Anlass). Scheitert der Sicherungs-Snapshot, wird nicht mehr still ohne
+  Rückweg eingespielt (409, nur mit ausdrücklicher Zustimmung).
+- **Ausgeblendete Empfehlungen** gehören jetzt zum Backup (Lektion 18).
+- Große Backups: Snapshots entstehen gestreamt; das Docker-Image bringt eine
+  `php.ini` mit (256 MB, 32 MB Upload, 120 s).
+
+### Security
+
+- Webserver-Regeln für Apache (`.htaccess`, `data/.htaccess`), nginx und den
+  Entwicklungsserver: Nutzdaten, Quelltext, `.git/` und Punktdateien werden
+  nicht mehr ausgeliefert.
+- **Content-Security-Policy** mit Nonce, `frame-ancestors 'self'` (einbetten
+  nur für freigegebene Adressen, Einstellung *Einbetten*),
+  `Referrer-Policy`, `Permissions-Policy`, kein `X-Powered-By`.
+- **Fehlerantworten ohne Interna:** Datei, Zeile und Pfade nur mit
+  `ET_DEBUG=1`; ein 500 nennt eine Fehler-ID, die Einzelheiten stehen im Log.
+- **Downgrade-Schutz:** Daten einer neueren Version werden erkannt; die App
+  schreibt nichts (503) statt sie still auf das alte Schema zurückzustempeln.
+- **CSV-Export:** Zellen, die mit `= + - @` beginnen, werden neutralisiert
+  (Formel-Einschleusung in Excel).
+- Docker: Anwendungscode gehört `root`, OPcache an, Build mit Provenance und
+  SBOM; Dependabot schlägt Updates für Basis-Image und Actions vor.
+- `.gitignore` als Whitelist für `data/` — Laufzeitdateien mit Nutzdaten
+  können nicht mehr versehentlich ins Repository geraten.
+
+### Changed — Schnittstellen (additiv)
+
+- **Stabile Fehlercodes:** jede Fehlerantwort trägt `code` (Katalogschlüssel);
+  Skripte werten ihn statt des übersetzten Texts aus.
+- **Stabilitätszusage** mit drei Klassen (Fremdsysteme, Auswertungen,
+  Oberfläche) und Regeln für Änderungen — siehe
+  [API-Referenz](docs/technical/03-api-reference.md).
+- `HEAD` wie `GET`, falsche Methode → `405` mit `Allow` (bisher 404);
+  unbekannter Datensatz in der URL einheitlich `404` (bisher teils 400).
+- `/api/health`: `status` (ok/degraded/error), `checks`, `last_ingest`,
+  HTTP 503 bei `error` — der Docker-Healthcheck erkennt Störungen jetzt.
+- Neue Felder: `warnings` (Verbrauch je Zähler), `is_suspect`/`source`
+  (Ablesung), `digits` (Gerät), `typical_per_day`/`suspect_count`/
+  `last_reading.id` (Erfassung), `suspect`/`previous` (Ingest),
+  `last_used_at` (Token), `ignored_keys` (Einstellungen).
+- Parametergrenzen für Prognose, Jahresbericht und Temperatur-Sync (400 statt
+  stiller Übernahme).
+- Die früher in `docs/API.md` beschriebenen Körper für Zähler (`device {…}`)
+  und Zählertausch (`removed_on`, `final_counter`, `new_device {…}`) werden
+  als Alias angenommen — bisher wurden sie still ignoriert bzw. abgelehnt.
+
+### Fixed
+
+- **CSV-Import:** Windows-1252-Dateien aus Excel (Umlaute) brachen mit HTTP 500
+  mitten im Import ab; jetzt werden sie umgewandelt. Spalten werden an der
+  Kopfzeile erkannt — auch das eigene Exportformat lässt sich wieder einlesen.
+  Großimporte schreiben einmal statt je Zeile (2.000 Zeilen: rund 4 s → 15 ms,
+  lokal gemessen).
+- **Leistung:** `settings.json` wurde je Anfrage bis zu 44.000-mal gelesen
+  (Gas mit datierten Brennwerten); Einstellungen und Faktoren werden jetzt
+  zwischengespeichert, Verbrauchsrechnungen je Datenstand.
+- **Service Worker:** API-Antworten wurden im Unterverzeichnis nie für den
+  Offline-Betrieb gespeichert, im Wurzelbetrieb dagegen alle — auch das
+  Vollbackup. Jetzt: nur eine Freigabeliste von Datenansichten, exakt samt
+  Parametern, Downloads nie; offline zeigt die Kopfleiste „Offline – Stand
+  vom …".
+- **Atomares Schreiben mit `fsync`**; verwaiste Temp-Dateien älter als eine
+  Stunde räumt der Health-Check auf.
+- **Einstellungen:** Nach einem Import oder Sprachwechsel meldete ein
+  veralteter Handler beim Schließen „ungespeicherte Änderungen".
+- **Meldungen** lagen bei offenem Dialog über dem Speichern-Knopf und fingen
+  dessen Klicks ab; jetzt erscheinen sie dann oben (auf dem iPhone über die
+  volle Breite). Netzwerkfehler heißen „Keine Verbindung … – nichts
+  gespeichert" statt „Failed to fetch".
+- **Unbekannte Einstellungsschlüssel** wurden still verworfen; die Antwort
+  nennt sie jetzt (`ignored_keys`).
+
+### Migration
+
+Keine. Schema bleibt 1.5.0. Neue Felder erscheinen erst, wenn sie gesetzt
+werden; `data/auth.json` bekommt weitere Einträge erst beim Einschalten der
+Anmeldung.
+
+### Tests
+
+285 → 324 Testmethoden (336 Fälle): `ReadingPlausibilityTest`
+(Ausreißer, Verdacht, Überlauf, Ingest), `BackupSafetyTest` (Prüfung vor dem
+Schreiben, Rückweg, Snapshot-Rotation, Abdeckung aller Schreibstellen),
+`CsvImportRobustnessTest`, `LegacyBodyAliasTest`, `AuthFlowTest` (Anmeldung,
+Sperre, Schlüssel und Ingest über einen echten `php -S`-Server),
+`HealthCheckServiceTest` erweitert; `ReleaseConsistencyTest` prüft jetzt,
+dass **jede Route** in der API-Referenz steht (DE und EN). Frontend ohne
+Server: `tests/plausibility.test.mjs` (24 Prüfungen, in der CI).
+API-Shape 41/41, Browser-Render 58/58. **13 Schutzstellen per Gegenprobe als
+greifend nachgewiesen** (Code gebrochen → zugehöriger Test rot): Ausreißer,
+Verdacht, Überlauf, Ingest-Markierung, Anmeldung, Host-Liste,
+Fehlerdetails, Backup-Prüfung, Downgrade, Zeichensatz, Formel-Neutralisierung,
+Alias, Routen-Doku. Im Browser abgenommen: Anmeldung samt
+Fehlversuch und Sitzung über Neuladen, Schlüssel, Snapshots, Import mit
+Vorschau und Fundstellen, 409-Rückfrage, Rückfragen bei der Erfassung,
+Verdacht bestätigen, Zählwerk-Stellen — bei 1440, 393 und 375 px.
+
+**Doku** DE + EN: neues Kapitel [Sicherheit & Netzbetrieb](docs/technical/08-security.md),
+`SECURITY.md`, API-Referenz (Anmeldung, Fehlercodes, Stabilitätszusage,
+12 neue Routen), `docs/API.md` an den Code angeglichen, Datenmodell,
+Installation, Docker, Home Assistant, Zählerstände, UI-Referenz mit drei neuen
+Screenshots; Warnhinweis und Schnellstart mit `router.php` in README und
+INSTALL. 152 neue Katalogschlüssel × 7 Sprachen.
+
+### Lessons Learned
+
+- **Das negative Intervall zu verwerfen ist kein Schutz.** Die Rechnung warf
+  nach einer 0 nur den Rückgang weg und zählte das nächste Intervall ab dem
+  falschen Stand voll. Der Fehler sitzt im **Stand**, nicht im Intervall —
+  also muss der Stand heraus (Lektion 6, andere Stelle).
+- **Ein Schutz, der eine Tür bewacht, suggeriert ein Schloss.** Der
+  Home-Assistant-Token schützte nur den Push, der Text in den Einstellungen
+  legte nahe, er schließe die API. Und eine Anmeldung ohne Webserver-Regeln
+  wäre über `data/backups/` zu umgehen gewesen — erst die Regeln, dann die
+  Anmeldung.
+- **Eine Routenliste ohne Test ist eine Behauptung.** `docs/API.md` kannte 37
+  von 70 Routen, die Referenz behauptete „68, v1.9.2". Jetzt vergleicht ein Test
+  die Routen des Codes mit der Referenz in beiden Sprachen.
+
+---
+
 ## [2.5.3] — 2026-09-24 — Keine stillen Fehlbuchungen
 
 PATCH-Release. Kein Schema-Bump, keine Datenmigration, keine geänderte

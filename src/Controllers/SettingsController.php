@@ -22,6 +22,20 @@ final class SettingsController
 
     public function update(Request $req): never
     {
-        Response::json($this->settings->set((array)$req->body));
+        $patch = (array)$req->body;
+        $result = $this->settings->set($patch);
+        // v2.6.0 — unbekannte Schlüssel wurden still verworfen; ein Skript mit
+        // dem Altschlüssel `gas_conversion_factor` (bis v2.4) bekam „Erfolg"
+        // ohne Wirkung. Jetzt stehen sie in der Antwort (nur wenn es welche
+        // gibt, sonst bleibt die Antwort wie bisher).
+        $ignored = array_values(array_diff(array_keys($patch), $this->settings->knownKeys()));
+        if ($ignored !== []) {
+            if (!headers_sent()) header('X-Ignored-Keys: ' . implode(', ', $ignored));
+            $result['ignored_keys'] = $ignored;
+            if (in_array('gas_conversion_factor', $ignored, true)) {
+                $result['ignored_hint'] = 'gas_conversion_factor → gas_conversion_factors (v2.5.0)';
+            }
+        }
+        Response::json($result);
     }
 }

@@ -87,9 +87,13 @@ test) overwrites the value instead of creating a duplicate. The complete
 step-by-step guide including troubleshooting is in
 [Home Assistant](HOME-ASSISTANT.md).
 
-> **Security.** As long as no token is set, the ingest is open (intended for the
-> LAN only). Once a token exists, `/api/ingest` requires it as
-> `Authorization: Bearer …`. The token is stored server-side only as a hash.
+> **Security.** The token protects only the push endpoint `/api/ingest`, not
+> the app: without a token the ingest accepts values without a header (intended
+> for the home network only), with a token it requires
+> `Authorization: Bearer …`. The app itself is protected by the optional
+> sign-in (since v2.6.0); once it is switched on, the token is mandatory. See
+> [Security & network operation](technical/08-security.md). The token is stored
+> server-side only as a hash.
 
 ---
 

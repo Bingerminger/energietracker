@@ -9,6 +9,9 @@ import { mountThemeToggle } from './lib/theme.js';
 import { buildSidebar, refreshSidebarBadges } from './lib/sidebar.js';
 import { initI18n, t, getLocale } from './lib/i18n.js';
 import { applyUtilityTheme } from './lib/utility-theme.js';
+import { api } from './api.js';
+import { showLogin, logout } from './components/login.js';
+import { intlLocale } from './lib/format.js';
 
 const container = document.getElementById('view');
 
@@ -33,6 +36,9 @@ function applyShellStrings() {
 
   const nav = document.getElementById('primary-nav');
   if (nav) nav.setAttribute('aria-label', t('app.primaryNav'));
+
+  const out = document.getElementById('logout-btn');
+  if (out) { out.textContent = t('login.logout'); out.setAttribute('aria-label', t('login.logout')); }
 }
 
 // N1007 — zuerst die Sprache aus dem `language`-Setting laden und den
@@ -44,7 +50,63 @@ function applyShellStrings() {
 // Zähler-Badges der Seitenleiste kommen nachgelagert. Vorher wartete der erste
 // Bildschirminhalt auf vier serielle Roundtrips, darunter zwei nur für die
 // Zahlen an „Empfehlungen" und „Termine".
-getSettings()
+// v2.6.0 — Anmeldung (opt-in). /api/session ist ohne Anmeldung erreichbar;
+// ohne Sitzung zeigt die Shell den Anmeldebildschirm statt einer Kaskade von
+// 401-Fehlern. Die Sprache kommt dann aus <html lang> (index.php liest sie
+// serverseitig aus den Einstellungen).
+window.addEventListener('et:auth-required', () => showLogin());
+
+// v2.6.0 — Offline-Hinweis, wenn Daten aus dem Cache des Service Workers kommen.
+window.addEventListener('et:offline', (ev) => {
+  const status = document.getElementById('topbar-status');
+  if (!status) return;
+  const when = ev.detail ? new Date(ev.detail) : null;
+  const stamp = when && !isNaN(when) ? when.toLocaleString(intlLocale(), { dateStyle: 'short', timeStyle: 'short' }) : '';
+  status.textContent = stamp ? t('app.offlineSince', { when: stamp }) : t('app.offline');
+  status.classList.add('topbar__status--offline');
+});
+window.addEventListener('et:online', () => {
+  const status = document.getElementById('topbar-status');
+  if (status?.classList.contains('topbar__status--offline')) {
+    status.textContent = '';
+    status.classList.remove('topbar__status--offline');
+  }
+});
+
+api.session()
+  .catch(() => ({ mode: 'off', authenticated: true }))
+  .then(async (session) => {
+    if (session.mode !== 'off' && !session.authenticated) {
+      await initI18n(document.documentElement.lang || 'de');
+      showLogin();
+      return;
+    }
+    if (session.mode === 'password') mountLogoutButton();
+    await boot();
+  });
+
+/** Abmelden-Knopf in der Kopfleiste (nur bei Passwort-Anmeldung). */
+function mountLogoutButton() {
+  const actions = document.querySelector('.topbar__actions');
+  if (!actions || document.getElementById('logout-btn')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'logout-btn';
+  btn.className = 'topbar__btn topbar__btn--text';
+  // Beim Start steht der Katalog noch nicht; applyShellStrings() beschriftet nach.
+  btn.textContent = t('login.logout');
+  btn.setAttribute('aria-label', btn.textContent);
+  btn.addEventListener('click', () => logout());
+  actions.prepend(btn);
+}
+
+// Anmeldung in den Einstellungen ein- oder ausgeschaltet.
+window.addEventListener('et:session-changed', (ev) => {
+  if (ev.detail?.mode === 'password') mountLogoutButton();
+  else document.getElementById('logout-btn')?.remove();
+});
+
+const boot = () => getSettings()
   .then(s => initI18n(s?.language))
   .catch(() => initI18n('de'))
   .finally(async () => {

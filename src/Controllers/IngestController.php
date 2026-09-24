@@ -31,6 +31,12 @@ final class IngestController
 
     public function store(Request $req): never
     {
+        // v2.6.0 — Mit eingeschalteter Anmeldung braucht auch der Ingest einen
+        // Token; sonst bliebe er die eine offene Tür. Ohne Anmeldung gilt das
+        // bisherige opt-in-Verhalten unverändert.
+        if ($this->auth->loginEnabled() && !$this->auth->requiresAuth()) {
+            Response::error($this->i18n->t('errors.ingest.tokenRequiredWithLogin'), 401);
+        }
         if ($this->auth->requiresAuth() && !$this->auth->verify($req->bearerToken())) {
             Response::error($this->i18n->t('errors.ingest.unauthorized'), 401);
         }

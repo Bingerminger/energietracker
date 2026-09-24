@@ -25,7 +25,12 @@
     "footerStorage": "flat-file JSON",
     "skipToContent": "Skip to main content",
     "primaryNav": "Main navigation",
-    "brandHome": "Energietracker — go to overview"
+    "brandHome": "Energietracker — go to overview",
+    "offline": "Offline – last loaded data",
+    "offlineSince": "Offline – data as of {when}",
+    "networkError": "No connection to Energietracker – nothing was saved.",
+    "networkErrorRead": "No connection to Energietracker.",
+    "invalidResponse": "Unexpected response from the server (HTTP {status})."
   },
   "meterNames": {
     "gas": "Main meter",
@@ -145,7 +150,8 @@
       "saving": "Saving…",
       "saved": "Saved",
       "failed": "Failed",
-      "invalid": "Invalid value"
+      "invalid": "Invalid value",
+      "held": "Not saved – please check"
     },
     "preview": {
       "sinceLast": "{delta} {unit} since last reading",
@@ -156,7 +162,8 @@
       "savedFailed": "{ok} saved, {failed} failed",
       "savedEmpty": "{ok} saved · {skipped} empty",
       "saved": "{ok} saved",
-      "nothing": "No entries — nothing to save"
+      "nothing": "No entries — nothing to save",
+      "held": "{count} reading(s) not saved – please check the marked cards."
     }
   },
   "utility": {
@@ -306,7 +313,11 @@
       "future": "FUTURE",
       "estimated": "ESTIMATE",
       "edit": "Edit",
-      "delete": "Delete"
+      "delete": "Delete",
+      "suspect": "CHECK",
+      "suspectTitle": "Lower than the previous reading (Home Assistant). Counts in the analysis only after confirmation.",
+      "implausible": "IMPLAUSIBLE",
+      "confirmReading": "Confirm reading"
     },
     "deliveriesTable": {
       "emptyTitle": "No deliveries",
@@ -362,7 +373,8 @@
     },
     "toast": {
       "readingDeleted": "Reading deleted",
-      "deliveryDeleted": "Delivery deleted"
+      "deliveryDeleted": "Delivery deleted",
+      "readingConfirmed": "Reading confirmed – it now counts in the analysis."
     },
     "preview": {
       "sinceLast": "{delta} {unit} since last reading",
@@ -407,6 +419,15 @@
         "interpolated": "E"
       },
       "legend": "Reading type: no suffix = meter reading · S = reading recorded as estimated · E = substitute value: there is no meter reading on this day, it is interpolated day-exact between the enclosing readings — exactly where the supplier estimates too (calorific-value and period boundaries). The fewer rows with E, the less is estimation."
+    },
+    "warnings": {
+      "title": "Implausible meter readings: {count}",
+      "hint": "These readings do not count in the analysis or cause a decrease. Correct them, confirm them or record a meter swap.",
+      "suspect": "{date}: {counter} {unit} – from Home Assistant, lower than the previous reading; awaiting confirmation",
+      "spike": "{date}: {counter} {unit} – upward outlier, ignored",
+      "dip": "{date}: {counter} {unit} – downward outlier, ignored",
+      "decrease": "{date}: {counter} {unit} – lower than on {prevDate} ({prevCounter} {unit}); meter swap or rollover not recorded?",
+      "gotoMeters": "Record meter swap"
     }
   },
   "contracts": {
@@ -605,7 +626,8 @@
       "replace": "Meter swap",
       "csvImport": "CSV import",
       "edit": "Edit",
-      "delete": "Delete"
+      "delete": "Delete",
+      "digits": "{n} digits"
     },
     "modal": {
       "titleEdit": "Edit meter",
@@ -626,7 +648,9 @@
       "notes": "Notes",
       "active": "Active",
       "save": "Save",
-      "saved": "Meter saved"
+      "saved": "Meter saved",
+      "digits": "Register digits (before the decimal point)",
+      "digitsHint": "Only needed if the register can roll over from 99999 to 0: the analysis then recognises the rollover instead of reporting a decrease. Empty = unknown."
     },
     "replace": {
       "title": "Meter swap: {name}",
@@ -688,7 +712,8 @@
   "settings": {
     "placeholder": {
       "dayMonth": "DD-MM (01-01)",
-      "yearExample": "e.g. 1998"
+      "yearExample": "e.g. 1998",
+      "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Loading…",
     "title": "⚙️ Settings",
@@ -722,7 +747,11 @@
       "building": { "title": "Building & efficiency", "hint": "Reference values for the efficiency class (kWh/m²·a) and the heating-energy benchmark." },
       "delivery": { "title": "Energy sources (delivery)", "hint": "Energy content of delivery-based fuels and the tank warning threshold." },
       "remindersRec": { "title": "Reminders & recommendations", "hint": "Thresholds for due status and the recommendation engine." },
-      "location": { "title": "Location (Open-Meteo)", "hint": "Coordinates for the weather sync of the temperature series." }
+      "location": { "title": "Location (Open-Meteo)", "hint": "Coordinates for the weather sync of the temperature series." },
+      "embedding": {
+        "title": "Embedding",
+        "hint": "Other sites may not embed Energietracker – this protects against hijacked clicks. For a webpage card on a Home Assistant dashboard, enter its address here."
+      }
     },
     "field": {
       "hdd_base_temp": { "label": "HDD base temperature", "hint": "Heating limit — days below count as heating days." },
@@ -774,6 +803,10 @@
       "gas_conversion_factors": {
         "label": "Gas conversion factors",
         "hint": "One entry per calorific-value period, exactly as the gas bill states them: valid from, volume correction factor and calorific value — the kWh/m³ factor is derived. Without a breakdown, enter the factor directly. The undated entry applies to everything before the first cut-off date. Consumption splits every reading interval day-exactly at the cut-off dates."
+      },
+      "frame_ancestors": {
+        "label": "Allowed embedding addresses",
+        "hint": "Address with scheme and port, e.g. http://homeassistant.local:8123; separate several with spaces. Empty = only this installation itself."
       }
     },
     "boolActive": "on",
@@ -816,20 +849,72 @@
       "demoLoadedSnap": "Demo data loaded. Safety snapshot: {snap}",
       "demoLoaded": "Demo data loaded.",
       "importConfirmTitle": "Import backup?",
-      "importConfirmMsg": "Warning: existing data will be overwritten.\n\nBefore the import, the app automatically stores a safety snapshot of your current data under <code>data/backups/pre-restore-…</code> — if the import doesn't look as expected, you can restore this snapshot.",
+      "importConfirmMsg": "The current data will be overwritten. The app first creates a safety snapshot automatically – you can restore it under “Stored snapshots”.",
       "importConfirmBtn": "Import",
       "importedSnap": "Backup imported. Safety snapshot: {snap}",
       "imported": "Backup imported",
       "migrateSubhead": "📦 Migration from v0.9.0",
       "migrateHint": "Upload an old v0.9.0 backup (JSON with <code>version: \"2.1\"</code>). The backup is analysed before writing; then you choose between <strong>Replace</strong> (overwrite everything) or <strong>Merge</strong> (add new IDs only). In both cases a safety snapshot of the current data is created automatically beforehand.",
       "migrateBtn": "Analyse v0.9.0 backup…",
-      "migrateReadError": "Error while reading: {msg}"
+      "migrateReadError": "Error while reading: {msg}",
+      "snapshotsTitle": "Stored snapshots",
+      "snapshotsHint": "Snapshots are kept on the server under data/backups/. Automatic snapshots (before import, migration, demo data) are cleaned up after 30 days, keeping at least three per occasion; of your own, the last ten are kept.",
+      "snapshotsNone": "No snapshots yet.",
+      "colDate": "Time",
+      "colReason": "Occasion",
+      "colSize": "Size",
+      "reason": {
+        "manual": "manual",
+        "restore": "before import",
+        "migration": "before migration",
+        "demo": "before demo data",
+        "v09": "before v0.9 import"
+      },
+      "snapDownload": "Download",
+      "snapRestore": "Restore…",
+      "snapDelete": "Delete",
+      "snapRestoreTitle": "Restore snapshot?",
+      "snapRestoreMsg": "The snapshot from {date} replaces the current data. The app first saves the current state as a snapshot of its own.",
+      "snapRestored": "Snapshot restored.",
+      "snapDeleteTitle": "Delete snapshot?",
+      "snapDeleteMsg": "The snapshot from {date} will be deleted permanently.",
+      "snapDeleted": "Snapshot deleted.",
+      "noSnapshotTitle": "Continue without a safety copy?",
+      "noSnapshotBtn": "Restore anyway",
+      "previewTitle": "Import backup?",
+      "previewIntro": "The backup is fully readable. It contains:",
+      "previewUntouched": "Not in the backup – stays unchanged: {list}",
+      "top": {
+        "settings": "Settings",
+        "temperatures": "Temperature days",
+        "reminders": "Reminders",
+        "recommendations_dismissed": "Dismissed recommendations"
+      },
+      "pot": {
+        "meters": "meters",
+        "readings": "readings",
+        "contracts": "contracts",
+        "deliveries": "deliveries",
+        "meter_groups": "meter groups"
+      },
+      "problemsTitle": "Backup not imported",
+      "problemsMore": "… and more (at most 50 are reported)",
+      "problem": {
+        "not_an_object": "not an object",
+        "not_a_list": "not a list",
+        "unknown_utility": "unknown energy type",
+        "missing": "field “{field}” missing",
+        "date": "invalid date in “{field}”",
+        "counter": "meter reading is not a number",
+        "devices": "invalid device list",
+        "entry": "invalid entry {what}"
+      }
     },
     "ha": {
       "title": "🏠 Home Assistant integration",
       "intro": "Let Home Assistant send your meter readings to the Energietracker automatically — you no longer maintain them by hand. Home Assistant provides the values, the Energietracker handles contracts, costs and forecasts. Guide: <code>docs/HOME-ASSISTANT.md</code>.",
       "step1": "1. API token",
-      "tokenHint": "Protects the push endpoint <code>/api/ingest</code>. <strong>As long as no token is set, the API stays open (intended for the local network only).</strong> Once a token exists, Home Assistant must send it along.",
+      "tokenHint": "Protects the push endpoint <code>/api/ingest</code>. <strong>Without sign-in it also accepts values without a token</strong> – meant for the home network. With sign-in switched on, it always requires a token.",
       "tokenActive": "🔒 token active",
       "tokenOpen": "🔓 no token (open)",
       "generateNew": "Generate new token",
@@ -868,7 +953,10 @@
         "floatComment": "float without a default: if the sensor is unavailable the push fails instead of recording 0.",
         "automationAlias": "Energietracker: send meter readings",
         "hasValueComment": "Only send when the sensor has a value – right after a restart it is briefly “unavailable”."
-      }
+      },
+      "lastUsed": "Last used: {when}",
+      "neverUsed": "Nothing has arrived with this token yet.",
+      "loginNeedsToken": "Sign-in is switched on: without a token, Energietracker accepts no values from Home Assistant."
     },
     "diag": {
       "title": "🩺 System diagnostics",
@@ -933,7 +1021,49 @@
       "errNeedValues": "Please give volume correction factor and calorific value — or the factor directly"
     },
     "invalidFields": "Not saved: please correct the fields marked in red.",
-    "dayMonthInvalid": "Please enter as day-month, e.g. 01-10 for 1 October."
+    "dayMonthInvalid": "Please enter as day-month, e.g. 01-10 for 1 October.",
+    "security": {
+      "title": "🔐 Sign-in & access",
+      "hint": "Without sign-in, anyone who knows the address can reach Energietracker – meant for your own home network. If it is reachable from outside (port forwarding, reverse proxy) or you share the network with others, switch sign-in on.",
+      "modeOff": "🔓 No sign-in",
+      "modePassword": "🔒 Password sign-in",
+      "modeProxy": "🛡️ Sign-in via upstream proxy",
+      "modeFixed": "Set by the environment variable ET_AUTH – cannot be changed here.",
+      "passwordFixed": "The password is set by the environment variable ET_ADMIN_PASSWORD_HASH – cannot be changed here.",
+      "proxyHint": "Sign-in is handled by the upstream proxy (e.g. Authelia or Authentik). Energietracker accepts the user only from the addresses in ET_TRUSTED_PROXIES.",
+      "newPassword": "New password",
+      "repeatPassword": "Repeat password",
+      "currentPassword": "Current password",
+      "enable": "Switch sign-in on",
+      "enableHint": "Each browser then asks for the password once and stays signed in for 30 days. Home Assistant then needs an API token (card “Home Assistant integration”), scripts need an API key.",
+      "change": "Change password",
+      "disable": "Switch sign-in off…",
+      "mismatch": "The two passwords do not match.",
+      "enabled": "Sign-in switched on. This browser stays signed in.",
+      "changed": "Password changed. Other devices have to sign in again.",
+      "disableTitle": "Switch sign-in off?",
+      "disableMsg": "Energietracker will then be reachable without a password again. Enter the current password to confirm.",
+      "disabled": "Sign-in switched off.",
+      "keysTitle": "API keys for scripts",
+      "keysHint": "With sign-in switched on, scripts and other programs need a key – as the header <code>Authorization: Bearer etk_…</code>. “Read” may only fetch data, “Manage” may also change it. The Home Assistant push keeps using its own token.",
+      "keysNone": "No keys yet.",
+      "keyName": "Name",
+      "keyNamePlaceholder": "e.g. backup script",
+      "keyScope": "Permission",
+      "scopeRead": "Read",
+      "scopeAdmin": "Manage",
+      "keyCreatedAt": "Created",
+      "keyLastUsed": "Last used",
+      "keyNever": "never",
+      "keyCreate": "Create key",
+      "keyReveal": "Key “{name}” – copy it now, it will not be shown again:",
+      "keyCopy": "Copy key",
+      "keyCopied": "Key copied",
+      "keyRevoke": "Revoke",
+      "keyRevokeTitle": "Revoke key?",
+      "keyRevokeMsg": "Programs using the key “{name}” will lose access.",
+      "keyRevoked": "Key revoked."
+    }
   },
   "reminders": {
     "suggest": {
@@ -1338,7 +1468,9 @@
   "errors": {
     "temperature": {
       "emptyCsv": "The CSV data is empty.",
-      "dateMissing": "The date is missing."
+      "dateMissing": "The date is missing.",
+      "valuesMissing": "Average, minimum and maximum (avg, min, max) are required and must be numbers.",
+      "rangeInvalid": "Invalid range: {start} is after {end}."
     },
     "view": {
       "loadFailed": "Failed to load: {msg}",
@@ -1351,7 +1483,8 @@
       "multipleSources": "Several heat sources active — the class per source is more meaningful than the combined total. The combined view only makes sense for deliberately combined heating (e.g. base and peak load)."
     },
     "forecast": {
-      "tooFewMonths": "Not enough history (less than 6 months)."
+      "tooFewMonths": "Not enough history (less than 6 months).",
+      "paramInvalid": "Invalid value for {param}: “{value}” (allowed: {range})."
     },
     "reminder": {
       "titleRequired": "A title is required.",
@@ -1394,7 +1527,8 @@
       "invalidBaselineList": "Baseline cut-offs must be a list of entries carrying a date",
       "invalidBaselineDate": "Invalid baseline date: “{date}” — expected YYYY-MM-DD",
       "duplicateBaselineDate": "A baseline cut-off already exists for {date}",
-      "swapBeforeInstall": "The swap on {date} is before the current device was installed ({installed})."
+      "swapBeforeInstall": "The swap on {date} is before the current device was installed ({installed}).",
+      "digitsInvalid": "Counter digits: “{value}” is invalid — a whole number from 3 to 12, or empty, is allowed."
     },
     "common": {
       "unknownUtility": "Unknown utility: {utility}",
@@ -1459,18 +1593,25 @@
       "dateFormat": "Date must be in format YYYY-MM-DD: {date}",
       "meterMissing": "Meter (meter) is missing — provide alias or internal ID",
       "meterNotFound": "No meter found for „{meter}“ in {utility} (neither as alias nor as ID)",
-      "unauthorized": "Unauthorised — send a valid API token as “Authorization: Bearer <token>”."
+      "unauthorized": "Unauthorised — send a valid API token as “Authorization: Bearer <token>”.",
+      "tokenRequiredWithLogin": "Sign-in is enabled – the push then needs an API token. Please create one in the settings."
     },
     "backup": {
       "noVersionField": "No backup_version field — not a valid backup",
       "versionUnsupported": "Backup version {ver} is not directly supported. Please import it via the migration into v1.0.0 first, or use a newer backup.",
-      "schemaNewer": "Backup schema {schema} is newer than the app schema {appSchema}. Please update the app first, then import the backup."
+      "schemaNewer": "Backup schema {schema} is newer than the app schema {appSchema}. Please update the app first, then import the backup.",
+      "invalid": "The backup is incomplete or damaged ({count} problem(s)). Nothing was restored.",
+      "snapshotFailed": "The safety snapshot before restoring failed. Without it there is no way back. Restore anyway only with explicit consent.",
+      "snapshotNotFound": "Snapshot “{name}” not found.",
+      "snapshotUnreadable": "Snapshot “{name}” is unreadable (not valid JSON)."
     },
     "import": {
       "emptyCsv": "Empty CSV data",
       "dateUnrecognized": "Line {line}: date not recognised ({value})",
       "rowIncomplete": "Line {line}: date or reading missing",
-      "counterNotNumeric": "Line {line}: reading is not a number ({value})"
+      "counterNotNumeric": "Line {line}: reading is not a number ({value})",
+      "rowError": "Line {line}: {message}",
+      "tooFewColumns": "Line {line}: too few columns"
     },
     "demo": {
       "backupNotFound": "Demo backup not found.",
@@ -1503,7 +1644,44 @@
       "invalidRange": "Please give a valid range (from < to, YYYY-MM-DD)"
     },
     "http": {
-      "crossSite": "Rejected: the request came from another website. Changes can only be made from within Energietracker."
+      "crossSite": "Rejected: the request came from another website. Changes can only be made from within Energietracker.",
+      "internal": "Internal error ({id}). The details are in the server log.",
+      "hostNotAllowed": "The host name “{host}” is not allowed (ET_ALLOWED_HOSTS)."
+    },
+    "storage": {
+      "dataTooNew": "The data comes from a newer version (schema {schema}). This version only knows schema {app} and writes nothing so as not to damage it. Please start the newer version again."
+    },
+    "report": {
+      "yearRange": "The year must be a number between 2000 and 2100."
+    },
+    "auth": {
+      "required": "Please sign in.",
+      "readOnlyKey": "This API key is read-only.",
+      "notPasswordMode": "Password sign-in is not enabled.",
+      "wrongPassword": "Wrong password.",
+      "locked": "Too many failed attempts – please wait {minutes} minutes.",
+      "passwordFixed": "The password is set via the environment (ET_ADMIN_PASSWORD_HASH) and cannot be changed here.",
+      "modeFixed": "Sign-in is set via the environment (ET_AUTH) and cannot be turned off here.",
+      "passwordTooShort": "The password needs at least {min} characters.",
+      "scopeInvalid": "Unknown scope – read and admin are allowed.",
+      "keyNotFound": "API key not found."
     }
+  },
+  "login": {
+    "title": "Sign in",
+    "password": "Password",
+    "submit": "Sign in",
+    "forgot": "Forgot the password? On the server, set “mode” to “off” in data/auth.json – that switches sign-in off. In the Docker container, the environment variable ET_AUTH=off does the same.",
+    "logout": "Sign out"
+  },
+  "readingCheck": {
+    "title": "Please check",
+    "future": "The date {date} is in the future.",
+    "sameDay": "There is already a reading for {date} ({counter} {unit}). The new value replaces it.",
+    "lower": "The reading is lower than the last one ({last} {unit}). If the meter was replaced, please record it under “Meter swap” – otherwise the analysis shows a decrease.",
+    "jump": "Since the last reading that would be {perDay} {unit} per day – usually it is about {typical} {unit}. Typo?",
+    "magnitude": "The value is more than ten times the last reading ({last} {unit}). Missing decimal separator?",
+    "confirm": "Save anyway",
+    "replace": "Replace"
   }
 }

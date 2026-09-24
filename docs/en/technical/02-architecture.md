@@ -20,12 +20,12 @@ Energietracker follows a clear separation of layers. The core principle:
                           |
                           v
   +-----------------------------------------------------------+
-  |  Controllers (20)        |  Services (24)                  |
+  |  Controllers (26)        |  Services (31)                  |
   |  HTTP in / out           |  domain logic, no HTTP          |
   +-----------------------------------------------------------+
                           |
                           v
-  Storage  - JsonStore (LOCK_EX) + Migrator
+  Storage  - JsonStore (atomic, write lock) + Migrator
                           |
                           v
   data/    - flat JSON files per utility
@@ -58,10 +58,11 @@ energietracker/
 ├── src/
 │   ├── bootstrap.php       # DI container + route table
 │   ├── Config/Utilities.php# utilities — single source of truth
-│   ├── Http/               # Router, Request, Response, ErrorHandler
-│   ├── Storage/            # JsonStore, Migrator
-│   ├── Services/ (24)      # domain logic (+ Pdf/PdfWriter)
-│   └── Controllers/ (20)   # one file per class (PSR-1)
+│   ├── Http/               # Router, Request, Response, ErrorHandler, CrossSiteGuard
+│   ├── Storage/            # JsonStore, Migrator, WriteLock
+│   ├── Support/            # Dates, Encoding
+│   ├── Services/ (31)      # domain logic (+ Pdf/PdfWriter)
+│   └── Controllers/ (26)   # one file per class (PSR-1)
 ├── data/                   # runtime data (not in VCS)
 ├── demo-data/              # complete example dataset (8 utilities)
 ├── docs/                   # this compendium
@@ -96,18 +97,20 @@ From this follow two calculation paths (see [data model](04-data-model.md) and
 
 ---
 
-## 4. Services (`src/Services/`, 24 + `Pdf\PdfWriter`)
+## 4. Services (`src/Services/`, 31 + `Pdf\PdfWriter`)
 
 Each service is `final`, has a dependency-injected constructor and knows **no
 HTTP**.
 
 | Service | Responsibility |
 |---|---|
-| `SettingsService` | read/merge settings, type casts; 40 keys |
+| `SettingsService` | read/merge settings, type casts; defaults in `DEFAULTS`; cached per data state (v2.6.0) |
+| `ConversionFactorService` | dated gas factors (F1012), day-exact |
+| `I18nService` | catalogues, `t()`, language from the setting or `Accept-Language`; maps messages to their error code (v2.6.0) |
 | `MeterService` | CRUD meters/tanks, device swap, topology (submeters/groups, F1006) + `external_id` alias (F1009) |
-| `ReadingService` | CRUD readings, auto-assignment to the active device |
+| `ReadingService` | CRUD readings, auto-assignment to the active device; capture overview with the typical daily consumption; batch upsert for the CSV import (v2.6.0) |
 | `ContractService` | CRUD contracts, strict validation, effective-date lookup |
-| `ConsumptionService` | monthly aggregation (cumulative **and** delivery-based), balance, weather adjustment; delegates the delivery daily distribution to `DeliveryConsumptionService` |
+| `ConsumptionService` | monthly aggregation (cumulative **and** delivery-based), balance, weather adjustment; delegates the delivery daily distribution to `DeliveryConsumptionService`; since v2.6.0 plausibility (outliers, suspicion, rollover) with `warnings` |
 | `DeliveryConsumptionService` | **(since v1.4.4)** daily consumption distribution & tank stock draw for heating oil/pellets — extracted from `ConsumptionService` (~350 lines) |
 | `DeliveryService` | CRUD deliveries, tank stock curve |
 | `TemperatureService` | CSV import, daily map |
@@ -117,23 +120,24 @@ HTTP**.
 | `AnomalyService` | z-score outliers |
 | `BenchmarkService` | efficiency class **per heat source** + combined |
 | `TariffComparisonService` | real + shadow contracts on actual consumption |
+| `TariffSwitchService` | switching decision from the switch date (commitment chain, break-even) |
 | `RecommendationService` | 7 statistical rule families, dismiss state |
 | `ReminderService` | appointments/maintenance, recurrence roll-forward |
 | `PdfReportService` + `Pdf\PdfWriter` | annual report, custom PDF generator |
-| `BackupService` | export/import format 3.0, snapshots |
+| `BackupService` | export/import format 3.0 with a check before writing and a way back; snapshots (list, download, restore, rotation) |
 | `MigrationService` | v0.9.0 import (preview + apply) |
 | `ReadingImportService` | CSV bulk import of readings |
 | `CsvExportService` | tabular export (incl. deliveries) |
 | `DiagnosticsService` | system status, write permissions, data count |
-| `HealthCheckService` | `/api/health` (version, schema, write permissions, migrations) — N1003 |
+| `HealthCheckService` | `/api/health`: `status` ok/degraded/error, checks (write permissions, schema, files, disk space, temp files), last ingest — N1003, v2.6.0 |
 | `DemoService` | one-click demo import via the restore path — F1007 |
 | `PvSummaryService` / `StromSaldoService` | PV self-consumption/self-sufficiency resp. electricity balance — F1005 |
-| `AuthService` | opt-in API token (hash in `data/auth.json`, `hash_equals`) — F1009 |
+| `AuthService` | sign-in (password, proxy, sessions, lockout), API keys and the HA token — hashes only in `data/auth.json` (F1009, v2.6.0) |
 | `IngestService` | idempotent push intake (`/api/ingest`, upsert-by-date) — F1009 |
 
 ---
 
-## 5. Controllers (`src/Controllers/`, 20)
+## 5. Controllers (`src/Controllers/`, 26)
 
 Each controller is `final`, one class per file. Methods return `never` and respond
 directly via `Response::json()` / `Response::csv()` / `Response::error()`.
@@ -141,14 +145,22 @@ directly via `Response::json()` / `Response::csv()` / `Response::error()`.
 `UtilitiesController`, `SettingsController`, `TemperatureController`,
 `MeterController`, `ReadingController`, `ContractController`,
 `ConsumptionController`, `ForecastController`, `DeliveryController`,
-`BenchmarkController`, `TariffComparisonController`, `RecommendationController`,
+`BenchmarkController`, `TariffComparisonController`, `TariffSwitchController`,
+`RecommendationController`,
 `ReminderController`, `ReportController`, `ExportController`, `BackupController`,
 `MigrationController`, `DiagnosticsController`, `HealthController`,
 `DemoController`, `PvSummaryController`, `StromSaldoController`, `AuthController`,
-`IngestController`.
+`IngestController`, `SessionController`.
 
 *(Note: group endpoints from F1006 live in the `MeterController`, auth/ingest from
-F1009 in `AuthController`/`IngestController`.)*
+F1009 in `AuthController`/`IngestController`, sign-in and API keys (v2.6.0) in
+the `SessionController`.)*
+
+**Sign-in gate (v2.6.0).** Before routing, `App` in `bootstrap.php` checks the
+host name (`ET_ALLOWED_HOSTS`), foreign browser requests (`CrossSiteGuard`)
+and — with sign-in switched on — the session, API key or proxy user. Ingest,
+health (in minimal form) and sign-in itself stay public. Details:
+[Security](08-security.md).
 
 The full route list is in the [API reference](03-api-reference.md).
 
@@ -161,11 +173,17 @@ The full route list is in the [API reference](03-api-reference.md).
 | Exception | HTTP | Meaning |
 |---|---|---|
 | `InvalidArgumentException` | 400 | invalid input |
-| `RuntimeException` with "not found" | 404 | resource missing |
-| other | 500 | unexpected error |
+| `Http\NotFoundException` | 404 | resource missing (a type instead of a text pattern since v2.2.1; since v2.6.0 also for records addressed in the URL) |
+| `Http\ConflictException` | 409 | conflict, e.g. the safety snapshot failed (v2.6.0) |
+| `Storage\StorageCorruptedException` | 503 | data file corrupt (v2.5.3) |
+| other | 500 | unexpected error — generic message with `error_id`, details in the log (v2.6.0) |
 
 A uniform response envelope: `{ "success": true, "data": … }` or
-`{ "success": false, "error": "…", "detail": … }`.
+`{ "success": false, "error": "…", "code": "errors.…" }`. `code` is the
+catalogue key of the message (`I18nService::errorCodeFor()`), otherwise
+`errors.http.*` by status code; `detail` with file/line only with
+`ET_DEBUG=1`. The router answers `HEAD` like `GET`, a wrong method with `405`
+and `Allow`, `OPTIONS` with `204`.
 
 ### 6.1 Storage path safety (since v1.4.4)
 

@@ -37,10 +37,12 @@ jobs:
 
       # v2.5.3 — ohne Server: Zahlen-Parser/Datumsformat (FE-02, FE-04) und die
       # Home-Assistant-Vorlage gegen beide Sprachfassungen der Anleitung.
-      - name: Frontend-Unit-Tests (Zahlenparser, HA-Vorlage)
+      # v2.6.0 — Rückfragen bei der Erfassung (Sprung, Rückgang, gleicher Tag).
+      - name: Frontend-Unit-Tests (Zahlenparser, HA-Vorlage, Plausibilität)
         run: |
           node tests/format.test.mjs
           node tests/ha-snippet.test.mjs
+          node tests/plausibility.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata
@@ -221,6 +223,12 @@ jobs:
           grep -qi 'energietracker' /tmp/shell.html
           # /data darf NICHT ausgeliefert werden
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/data/meta.json)" = "404"
+          # v2.6.0 — auch sonst nur Auslieferungsgut, und die Shell trägt eine CSP
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/.htaccess)" = "404"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/README.md)" = "404"
+          curl -sI http://127.0.0.1:8080/ -o /tmp/shell.headers
+          grep -qi "content-security-policy: default-src 'self'" /tmp/shell.headers
+          grep -q '"status":"ok"' /tmp/health.json
 
       - name: Container-Logs (Diagnose)
         if: always()

@@ -86,9 +86,12 @@ manueller Test) überschreibt den Wert, statt ein Duplikat zu erzeugen. Die
 komplette Schritt-für-Schritt-Anleitung inkl. Fehlersuche steht in
 [Home Assistant](HOME-ASSISTANT.md).
 
-> **Sicherheit.** Solange kein Token gesetzt ist, ist der Ingest offen (nur fürs
-> LAN gedacht). Sobald ein Token existiert, verlangt `/api/ingest` ihn als
-> `Authorization: Bearer …`. Der Token liegt serverseitig nur als Hash vor.
+> **Sicherheit.** Der Token schützt nur den Push-Endpoint `/api/ingest`, nicht
+> die App: Ohne Token nimmt der Ingest Werte ohne Kopfzeile an (nur fürs
+> Heimnetz gedacht), mit Token verlangt er `Authorization: Bearer …`. Die App
+> selbst schützt die optionale Anmeldung (seit v2.6.0); ist sie eingeschaltet,
+> ist der Token Pflicht. Siehe [Sicherheit & Netzbetrieb](technical/08-security.md).
+> Der Token liegt serverseitig nur als Hash vor.
 
 ---
 

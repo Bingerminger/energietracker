@@ -32,7 +32,7 @@ use Energietracker\Controllers\{
     TariffSwitchController,
     RecommendationController, ReminderController, ReportController,
     StromSaldoController, PvSummaryController, HealthController, DemoController,
-    AuthController, IngestController
+    AuthController, IngestController, SessionController
 };
 
 /**
@@ -102,6 +102,9 @@ final class App
         // und braucht dafür lokalisierte Meldungen; der Zirkel I18n → Settings
         // wird durch nachträgliches Anhängen aufgelöst.
         $this->settings->attachI18n($this->i18n);
+        // v2.6.0 — stabile Fehlercodes und übersetzte generische Fehlermeldung
+        Response::setErrorCodeResolver(fn(string $message): ?string => $this->i18n->errorCodeFor($message));
+        ErrorHandler::attachTranslator(fn(string $key, array $params): string => $this->i18n->t($key, $params));
         $this->meters       = new MeterService($this->store, $this->i18n);
         $this->readings     = new ReadingService($this->store, $this->meters, $this->i18n);
         $this->contracts    = new ContractService($this->store, $this->meters, $this->i18n);
@@ -173,10 +176,25 @@ final class App
     /** v2.5.3 — eine Sperre je schreibender Anfrage, s. Storage\WriteLock */
     private WriteLock $writeLock;
 
+    /**
+     * v2.6.0 — Schemaversion der Daten, wenn sie von einer NEUEREN App-Version
+     * stammen. Dann antwortet jede Route außer /api/health mit 503, und nichts
+     * wird geschrieben (s. Migrator::dataSchemaIsNewer()).
+     */
+    private ?string $dataTooNew = null;
+
     /** @param array<string,mixed>|null $result aus Migrator::runOnStartup() */
     private function logStartup(?array $result, string $dataDir): void
     {
         if ($result === null) return;
+        if ($result['action'] === 'too-new') {
+            $this->dataTooNew = (string)$result['schema'];
+            $this->logger->error('Daten stammen von einer neueren Version — Zugriff gesperrt', [
+                'data_schema' => $this->dataTooNew,
+                'app_schema'  => Migrator::SCHEMA_VERSION,
+            ]);
+            return;
+        }
         if ($result['action'] === 'fresh') {
             $this->logger->info('Datenverzeichnis frisch initialisiert', ['data_dir' => $dataDir]);
             return;
@@ -218,8 +236,24 @@ final class App
             header('Content-Type: application/json; charset=utf-8');
             header('Cache-Control: no-cache, no-store, must-revalidate');
             header('X-Content-Type-Options: nosniff');
+            header('Referrer-Policy: same-origin');
+            header_remove('X-Powered-By');   // v2.6.0 — keine PHP-Version nach außen
         }
-        if ($req->method === 'OPTIONS') exit;
+
+        // v2.6.0 — Host-Liste (opt-in, ET_ALLOWED_HOSTS) gegen DNS-Rebinding:
+        // Eine fremde Domain, die auf die LAN-Adresse zeigt, wäre sonst
+        // „same-origin" und läse alles. IP-Adressen und localhost gelten immer.
+        if (!self::hostAllowed((string)($_SERVER['HTTP_HOST'] ?? ''))) {
+            Response::error($this->i18n->t('errors.http.hostNotAllowed', [
+                'host' => (string)($_SERVER['HTTP_HOST'] ?? ''),
+            ]), 421, null, 'errors.http.hostNotAllowed');
+        }
+        // v2.6.0 — Daten einer neueren Version: nur /api/health antwortet.
+        if ($this->dataTooNew !== null && $req->path !== '/api/health') {
+            Response::error($this->i18n->t('errors.storage.dataTooNew', [
+                'schema' => $this->dataTooNew, 'app' => Migrator::SCHEMA_VERSION,
+            ]), 503, null, 'errors.storage.dataTooNew');
+        }
 
         // v2.5.3 — schreibende Anfragen fremder Webseiten abweisen (CSRF), s. CrossSiteGuard
         if (CrossSiteGuard::isForeignWrite($req->method, $_SERVER)) {
@@ -231,10 +265,72 @@ final class App
             ]);
             Response::error($this->i18n->t('errors.http.crossSite'), 403);
         }
+        // v2.6.0 — Anmeldung (opt-in, s. AuthService). Ohne Anmeldung bleibt
+        // alles wie bisher offen.
+        $this->authenticated = $this->authenticate($req);
+        if (!$this->authenticated && !self::isPublic($req)) {
+            Response::error($this->i18n->t('errors.auth.required'), 401, null, 'errors.auth.required');
+        }
+        if ($this->readOnlyKey && !in_array($req->method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+            Response::error($this->i18n->t('errors.auth.readOnlyKey'), 403, null, 'errors.auth.readOnlyKey');
+        }
+
         if (in_array($req->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             $this->writeLock->acquire();   // endet mit dem Prozess der Anfrage
         }
         $this->router->dispatch($req);
+    }
+
+    /** v2.6.0 — Stand der Anmeldung dieser Anfrage (für Health und /api/session). */
+    private bool $authenticated = false;
+    /** v2.6.0 — die Anfrage kam mit einem API-Schlüssel, der nur lesen darf. */
+    private bool $readOnlyKey = false;
+
+    /**
+     * Angemeldet: Anmeldung aus, gültiges Sitzungs-Cookie, API-Schlüssel
+     * (Bearer etk_…) oder — im Proxy-Modus — ein Benutzer vom
+     * vertrauenswürdigen Proxy.
+     */
+    private function authenticate(Request $req): bool
+    {
+        $mode = $this->auth->mode();
+        if ($mode === 'off') return true;
+        if ($this->auth->validSession($_COOKIE[AuthService::COOKIE] ?? null)) return true;
+        $scope = $this->auth->apiKeyScope($req->bearerToken());
+        if ($scope !== null) {
+            $this->readOnlyKey = $scope === 'read';
+            return true;
+        }
+        return $mode === 'proxy' && $this->auth->proxyUser($_SERVER) !== null;
+    }
+
+    /**
+     * Ohne Anmeldung erreichbar: Ingest (eigener Token), Health (Minimalform),
+     * die Anmeldung selbst.
+     */
+    private static function isPublic(Request $req): bool
+    {
+        return ($req->method === 'POST' && $req->path === '/api/ingest')
+            || (in_array($req->method, ['GET', 'HEAD'], true) && $req->path === '/api/health')
+            || ($req->path === '/api/session' && in_array($req->method, ['GET', 'POST', 'DELETE'], true))
+            || $req->method === 'OPTIONS';
+    }
+
+    /** ET_ALLOWED_HOSTS: Kommaliste, `*.example.org` als Platzhalter. Leer = alle. */
+    public static function hostAllowed(string $hostHeader): bool
+    {
+        $list = array_filter(array_map(fn($h) => strtolower(trim($h)), explode(',', (string)getenv('ET_ALLOWED_HOSTS'))));
+        if ($list === []) return true;
+        $host = strtolower($hostHeader);
+        if (preg_match('/^\[(.+)\](:\d+)?$/', $host, $m)) $host = $m[1];              // [IPv6]:port
+        elseif (substr_count($host, ':') === 1) $host = explode(':', $host)[0];         // name:port
+        if ($host === '' ) return false;
+        if ($host === 'localhost' || filter_var($host, FILTER_VALIDATE_IP) !== false) return true;
+        foreach ($list as $allowed) {
+            if ($allowed === $host) return true;
+            if (str_starts_with($allowed, '*.') && str_ends_with($host, substr($allowed, 1))) return true;
+        }
+        return false;
     }
 
     private function registerRoutes(): void
@@ -321,6 +417,11 @@ final class App
         $r->get('/api/backup/export',     fn($req) => $bCtrl->export($req));
         $r->post('/api/backup/import',    fn($req) => $bCtrl->import($req));
         $r->post('/api/backup/snapshot',  fn($req) => $bCtrl->snapshot($req));
+        // v2.6.0 — Snapshots verwalten (bisher nur anlegen)
+        $r->get('/api/backup/snapshots',                  fn($req) => $bCtrl->listSnapshots($req));
+        $r->get('/api/backup/snapshots/{name}',           fn($req) => $bCtrl->downloadSnapshot($req));
+        $r->post('/api/backup/snapshots/{name}/restore',  fn($req) => $bCtrl->restoreSnapshot($req));
+        $r->delete('/api/backup/snapshots/{name}',        fn($req) => $bCtrl->deleteSnapshot($req));
 
         // ── CSV-Export (F-07) ──
         $exCtrl = new ExportController($this->csvExport);
@@ -365,7 +466,7 @@ final class App
         $r->post('/api/reminders/{id}/done', fn($req) => $remCtrl->done($req));
 
         // ── PDF-Jahresbericht (v1.3.0) ──
-        $repCtrl = new ReportController($this->reports);
+        $repCtrl = new ReportController($this->reports, $this->i18n);
         $r->get('/api/reports/yearly.pdf', fn($req) => $repCtrl->yearly($req));
 
         // ── F1005 (v1.7.0) — Strom-Saldo + PV-Summary ──
@@ -375,8 +476,20 @@ final class App
         $r->get('/api/pv-summary',  fn($req) => $pvCtrl->index($req));
 
         // ── N1003 (v1.7.0) — Health-Check ──
-        $hCtrl = new HealthController($this->health);
+        // v2.6.0 — mit Anmeldung sehen Nicht-Angemeldete nur {status, version}
+        $hCtrl = new HealthController($this->health, fn(): bool => $this->authenticated);
         $r->get('/api/health', fn($req) => $hCtrl->index($req));
+
+        // ── v2.6.0 — Anmeldung (opt-in) und API-Schlüssel ──
+        $sessCtrl = new SessionController($this->auth, $this->i18n, fn(): bool => $this->authenticated);
+        $r->get('/api/session',              fn($req) => $sessCtrl->status($req));
+        $r->post('/api/session',             fn($req) => $sessCtrl->login($req));
+        $r->delete('/api/session',           fn($req) => $sessCtrl->logout($req));
+        $r->post('/api/session/password',    fn($req) => $sessCtrl->setPassword($req));
+        $r->delete('/api/session/password',  fn($req) => $sessCtrl->disable($req));
+        $r->get('/api/auth/keys',            fn($req) => $sessCtrl->listKeys($req));
+        $r->post('/api/auth/keys',           fn($req) => $sessCtrl->createKey($req));
+        $r->delete('/api/auth/keys/{id}',    fn($req) => $sessCtrl->revokeKey($req));
 
         // ── F1007 (v1.7.4) — Demo-Daten-Komfort-Import ──
         $demoCtrl = new DemoController($this->demo);

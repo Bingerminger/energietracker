@@ -26,6 +26,7 @@ import { getUtilities } from '../state.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
 import { fmt as baseFmt, escapeHtml as esc, parseDecimal, todayIso } from '../lib/format.js';
+import { checkReading, confirmIssues, issueText } from '../lib/plausibility.js';
 
 // v2.2.0 — vorher ein eigener Formatierer mit fest verdrahtetem de-DE/en-GB.
 // Jetzt die gemeinsame Intl-Quelle; `num` bleibt „bis zu N Stellen" (Zählerstände
@@ -126,17 +127,20 @@ export async function render(container) {
   saveBtn.addEventListener('click', async () => {
     saveBtn.disabled = true;
     saveLbl.textContent = t('readingsEntry.saving');
-    let ok = 0, skipped = 0, failed = 0;
+    let ok = 0, skipped = 0, failed = 0, held = 0;
     const cards = listEl.querySelectorAll('.reading-card');
     for (let i = 0; i < cards.length; i++) {
       const card = cards[i];
       const r    = rows[i];
-      const res  = await trySaveCard(card, r);
+      const res  = await trySaveCard(card, r, today);
       if (res === 'ok')      ok++;
       else if (res === 'skip') skipped++;
+      else if (res === 'held') held++;
       else                   failed++;
     }
     saveBtn.disabled = false;
+    // v2.6.0 — zurückgestellte Karten (Rückfrage abgelehnt) eigens melden
+    if (held > 0) toastErr(t('readingsEntry.toast.held', { count: held }));
     if (failed > 0) {
       toastErr(t('readingsEntry.toast.savedFailed', { ok, failed }));
     } else if (ok > 0) {
@@ -146,7 +150,7 @@ export async function render(container) {
       // Letzten Stand in den „Letzter Stand"-Anzeigen aktualisieren,
       // damit ein zweiter Speicher-Klick die frischen Werte sieht.
       await refreshLastReadings(listEl, rows, today);
-    } else if (skipped > 0) {
+    } else if (skipped > 0 && held === 0) {
       toastOk(t('readingsEntry.toast.nothing'));
     }
     saveLbl.textContent = progressText();
@@ -244,6 +248,21 @@ function previewText(r, value, dateVal) {
     : t('readingsEntry.preview.sinceLast', { delta, unit: r.unit });
 }
 
+// v2.6.0 — Rückfragen zu einer Karte (lib/plausibility.js). Vergleichsbasis
+// ist der letzte Stand aus der Übersicht; stammt er von einem anderen Gerät
+// als dem eingebauten, ist ein kleinerer Wert der Tausch selbst.
+function rowIssues(r, value, date, today) {
+  const last = r.last_reading;
+  const sameDay = last && last.date === date && last.id ? last : null;
+  const deviceChanged = !!(last?.device_id && r.active_device_id && last.device_id !== r.active_device_id);
+  return checkReading({
+    value, date, today,
+    prev: last && last.date < date ? last : null,
+    typical: r.typical_per_day ?? null,
+    sameDay, deviceChanged,
+  });
+}
+
 function bindRow(card, r) {
   if (!card) return;
   const counterEl = card.querySelector('[data-role="counter"]');
@@ -272,18 +291,17 @@ function bindRow(card, r) {
       previewEl.hidden = true;
       return;
     }
-    const min = r.expected_next_min;
-    if (min !== null && min !== undefined && v < min) {
-      hintEl.hidden = false;
-      hintEl.textContent = t('readingsEntry.hint.lower', { min: fmt.num(min, 3) });
-    } else {
-      hintEl.hidden = true;
-    }
+    // v2.6.0 — alle Rückfragen schon beim Tippen (vorher nur „kleiner")
+    const date = dateEl?.value || todayIso();
+    const issues = rowIssues(r, v, date, todayIso());
+    hintEl.hidden = issues.length === 0;
+    hintEl.textContent = issues.map(i => issueText(i, { unit: r.unit, date })).join(' · ');
     const prev = previewText(r, v, dateEl?.value);
     if (prev) { previewEl.hidden = false; previewEl.textContent = prev; }
     else      { previewEl.hidden = true; }
   };
   counterEl?.addEventListener('input', update);
+  dateEl?.addEventListener('change', update);
   card.__update = update;
 }
 
@@ -297,6 +315,7 @@ function setCardStatus(statusEl, kind) {
     saved:   { glyph: '✓', cls: 'ok',      label: t('readingsEntry.status.saved') },
     failed:  { glyph: '✗', cls: 'err',     label: t('readingsEntry.status.failed') },
     invalid: { glyph: '✗', cls: 'err',     label: t('readingsEntry.status.invalid') },
+    held:    { glyph: '!', cls: 'warn',    label: t('readingsEntry.status.held') },
   };
   const s = map[kind];
   if (!s) return;
@@ -304,7 +323,7 @@ function setCardStatus(statusEl, kind) {
   statusEl.innerHTML = `<span aria-hidden="true">${s.glyph}</span><span class="sr-only">${esc(s.label)}</span>`;
 }
 
-async function trySaveCard(card, r) {
+async function trySaveCard(card, r, today = todayIso()) {
   const counterEl   = card.querySelector('[data-role="counter"]');
   const dateEl      = card.querySelector('[data-role="date"]');
   const estimatedEl = card.querySelector('[data-role="estimated"]');
@@ -321,18 +340,32 @@ async function trySaveCard(card, r) {
     setCardStatus(statusEl, 'invalid');
     return 'fail';
   }
-  const date = dateEl?.value || todayIso();
+  const date = dateEl?.value || today;
+
+  // v2.6.0 — Rückfrage je auffälliger Karte, mit Zählername im Titel. Wer
+  // ablehnt, behält die Eingabe; die Karte ist markiert und wird nachgemeldet.
+  const issues = rowIssues(r, counter, date, today);
+  if (issues.length) {
+    const ok = await confirmIssues(issues, {
+      unit: r.unit, date, utility: r.utility,
+      title: `${r.utility_label} · ${r.meter_name}`,
+    });
+    if (!ok) { setCardStatus(statusEl, 'held'); return 'held'; }
+  }
+  const replace = issues.find(i => i.type === 'sameDay')?.reading ?? null;
 
   setCardStatus(statusEl, 'saving');
 
   try {
-    await api.createReading(r.utility, {
+    const data = {
       meter_id:     r.meter_id,
       date,
       counter,
       note:         noteEl?.value || '',
       is_estimated: !!estimatedEl?.checked,
-    });
+    };
+    if (replace) await api.updateReading(r.utility, replace.id, data);   // ersetzen statt doppeln
+    else         await api.createReading(r.utility, data);
     setCardStatus(statusEl, 'saved');
     // Eingabe zurücksetzen, damit Doppel-Save nicht doppelt schreibt.
     if (counterEl) counterEl.value = '';
@@ -361,6 +394,8 @@ async function refreshLastReadings(listEl, rows, today) {
       if (!next) return;
       r.last_reading      = next.last_reading;
       r.expected_next_min = next.expected_next_min;
+      r.typical_per_day   = next.typical_per_day;
+      r.active_device_id  = next.active_device_id;
       const card = listEl.querySelector(`[data-row-index="${r.__seq}"]`);
       if (!card) return;
       const lastEl = card.querySelector('.reading-card__last');

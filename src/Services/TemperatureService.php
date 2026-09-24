@@ -74,6 +74,9 @@ final class TemperatureService
      */
     public function importCsv(string $csv): array
     {
+        // v2.6.0 — BOM und Windows-1252 wie beim Ablesungs-Import; sonst
+        // scheiterte die erste Datenzeile einer Datei ohne Kopfzeile am BOM.
+        [$csv] = \Energietracker\Support\Encoding::normalizeCsv($csv);
         $lines = preg_split('/\r\n|\r|\n/', $csv) ?: [];
         $imported = 0; $skipped = 0; $errors = [];
         $entries = [];
