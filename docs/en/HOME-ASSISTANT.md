@@ -70,8 +70,8 @@ just the more convenient, readable variant.
 
 ## Step 3 — REST command in Home Assistant
 
-In the `configuration.yaml` (adjust URL/token — the ready-made snippet is also in
-the settings, ready to copy):
+In the `configuration.yaml` (adjust the URL — the ready-made snippet with the
+right address is also in the settings, ready to copy):
 
 ```yaml
 rest_command:
@@ -79,13 +79,14 @@ rest_command:
     url: "http://YOUR-ENERGIETRACKER-IP:8080/api.php/api/ingest"
     method: POST
     headers:
-      Authorization: "Bearer !secret energietracker_token"
+      Authorization: !secret energietracker_auth   # whole value from secrets.yaml, including “Bearer”
       Content-Type: "application/json"
+    # float without a default: if the sensor is unavailable the push fails instead of recording 0.
     payload: >
       {
         "utility": "{{ utility }}",
         "meter": "{{ meter }}",
-        "value": {{ states(sensor_entity) | float(0) }},
+        "value": {{ states(sensor_entity) | float }},
         "date": "{{ now().strftime('%Y-%m-%d') }}"
       }
 ```
@@ -93,11 +94,22 @@ rest_command:
 > **Path note:** `…/api.php/api/ingest` always works. If your web server has a
 > rewrite rule (Apache `.htaccess` / nginx), `…/api/ingest` works too.
 
-Token in `secrets.yaml`:
+Token in `secrets.yaml` — the **whole** header value, including `Bearer`:
 
 ```yaml
-energietracker_token: "et_your_copied_token"
+energietracker_auth: "Bearer et_your_copied_token"
 ```
+
+> **Why like this?** In Home Assistant, `!secret` only works as a complete YAML
+> value. Inside `"Bearer !secret energietracker_token"` (as this guide said up to
+> v2.5.2) it is plain text — Energietracker receives the string literally and
+> answers `401`.
+
+> ⚠️ **Did you copy the template before v2.5.3?** Then your config contains
+> `| float(0)`. Please remove it (`| float`) and add the condition from step 4.
+> `float(0)` turns an unavailable sensor into a meter reading of **0**; the next
+> real reading then counts as the consumption of a single day and distorts
+> costs, balance and forecast.
 
 ---
 
@@ -110,18 +122,34 @@ triggers:
   - trigger: time
     at: "23:55:00"
 actions:
-  - action: rest_command.energietracker_push
-    data:
-      utility: "strom"
-      meter: "stromzaehler_haus"
-      sensor_entity: "sensor.stromzaehler_total_kwh"
-  - action: rest_command.energietracker_push
-    data:
-      utility: "gas"
-      meter: "gaszaehler_haus"
-      sensor_entity: "sensor.gaszaehler_total_m3"
+  # Only send when the sensor has a value – right after a restart it is briefly “unavailable”.
+  - if:
+      - condition: template
+        value_template: "{{ has_value('sensor.stromzaehler_total_kwh') }}"
+    then:
+      - action: rest_command.energietracker_push
+        data:
+          utility: "strom"
+          meter: "stromzaehler_haus"
+          sensor_entity: "sensor.stromzaehler_total_kwh"
+  - if:
+      - condition: template
+        value_template: "{{ has_value('sensor.gaszaehler_total_m3') }}"
+    then:
+      - action: rest_command.energietracker_push
+        data:
+          utility: "gas"
+          meter: "gaszaehler_haus"
+          sensor_entity: "sensor.gaszaehler_total_m3"
 mode: single
 ```
+
+> **The condition is part of it.** If a sensor is unavailable right now (HA
+> restart, radio dropout at 23:55), the automation skips that meter for today —
+> the others keep running. A skipped day costs nothing: Energietracker spreads
+> consumption linearly between two readings anyway. A wrong reading, on the other
+> hand, distorts everything until someone finds it. The settings generate this
+> automation ready-made from your aliases.
 
 > **Idempotent:** A repeated push on the same day (e.g. a manual test + the
 > automation) creates **no** duplicate — Energietracker updates the existing daily
@@ -149,6 +177,11 @@ What matters is the **absolute meter reading** (the value on the meter), not the
 daily consumption — Energietracker forms the differences itself and accounts for
 meter swaps without loss.
 
+> **Data quality:** only send real, absolute meter readings — never a substitute
+> value. When a meter is replaced, record it in Energietracker (meter view →
+> **Meter swap**), not in the push: the new meter starts again at a small value,
+> and without a swap entry that would look like the meter running backwards.
+
 ---
 
 ## Use case A — detached house with PV and district heating
@@ -172,12 +205,18 @@ triggers:
   - trigger: time
     at: "23:55:00"
 actions:
-  - action: rest_command.energietracker_push
-    data: { utility: "strom",          meter: "strom_haus",          sensor_entity: "sensor.netz_bezug_total_kwh" }
-  - action: rest_command.energietracker_push
-    data: { utility: "fernwaerme",     meter: "fernwaerme_haus",     sensor_entity: "sensor.waermemenge_total_kwh" }
-  - action: rest_command.energietracker_push
-    data: { utility: "pv_einspeisung", meter: "pv_einspeisung_haus", sensor_entity: "sensor.einspeisung_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.netz_bezug_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "strom",          meter: "strom_haus",          sensor_entity: "sensor.netz_bezug_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.waermemenge_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "fernwaerme",     meter: "fernwaerme_haus",     sensor_entity: "sensor.waermemenge_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.einspeisung_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "pv_einspeisung", meter: "pv_einspeisung_haus", sensor_entity: "sensor.einspeisung_total_kwh" }
 mode: single
 ```
 
@@ -208,12 +247,18 @@ triggers:
   - trigger: time
     at: "23:55:00"
 actions:
-  - action: rest_command.energietracker_push
-    data: { utility: "strom",  meter: "strom_wohnung",  sensor_entity: "sensor.strom_total_kwh" }
-  - action: rest_command.energietracker_push
-    data: { utility: "gas",    meter: "gas_wohnung",    sensor_entity: "sensor.gas_total_m3" }
-  - action: rest_command.energietracker_push
-    data: { utility: "wasser", meter: "wasser_wohnung", sensor_entity: "sensor.wasser_total_m3" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.strom_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "strom",  meter: "strom_wohnung",  sensor_entity: "sensor.strom_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.gas_total_m3') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "gas",    meter: "gas_wohnung",    sensor_entity: "sensor.gas_total_m3" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.wasser_total_m3') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "wasser", meter: "wasser_wohnung", sensor_entity: "sensor.wasser_total_m3" }
 mode: single
 ```
 
@@ -226,10 +271,11 @@ Energietracker takes over advance-payment monitoring, the surcharge forecast and
 
 | Symptom (HA log) | Cause & fix |
 |------------------|-------------|
-| `401` | Token set, but the header is missing/wrong. Check `Authorization: Bearer <token>`; regenerate the token if needed. |
+| `401` | Token set, but the header is missing/wrong. `!secret` only works as the **whole** value: `Authorization: !secret energietracker_auth`, with `"Bearer et_…"` in `secrets.yaml`. A `"Bearer !secret …"` sends the text literally. Otherwise regenerate the token. |
 | `400 No meter found for "…"` | The alias/ID does not match the meter. Check the alias in the settings. |
 | `400 … works with deliveries` | Heating oil/pellets are not supported via ingest. |
-| `400 Reading … is not a number` | The HA sensor delivers `unknown`/`unavailable`. Guard with `| float(0)` or tie the trigger to sensor availability. |
+| `400 Reading … is not a number` | The HA sensor delivers `unknown`/`unavailable`. **Skip** the push then, never replace it with 0: condition `has_value(…)` as in step 4. `| float(0)` trades the visible error for a silent wrong booking. |
+| Template error “float got invalid input” in the HA log | Same cause, reported by `| float` without a default — intended: nothing is booked. Add the `has_value(…)` condition and the log stays quiet. |
 | The value does not appear | Wrong `utility`, or the meter is inactive in Energietracker. |
 
 **Quick test** (from the HA machine, open mode or with a token):

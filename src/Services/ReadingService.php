@@ -5,13 +5,19 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Dates;
 
 /**
  * Ablesungs-CRUD pro Utility.
  *
  * Bei Create/Update wird device_id automatisch aus dem aktiven Device des
  * Meters abgeleitet (das letzte Device ohne `removed_on`). Validiert
- * `date` als ISO-YYYY-MM-DD und `counter` als Zahl ≥ 0.
+ * `date` als kalendergültiges JJJJ-MM-TT und `counter` als Zahl ≥ 0.
+ *
+ * v2.5.3 — Die Zusage stand hier schon länger, geprüft wurde nichts:
+ * `(float)"12,5"` wurde still zu 12, ein Datum `2025-13-01` legte danach jede
+ * Auswertung mit HTTP 500 lahm. Jetzt lehnen beide Pfade (create, update)
+ * ungültige Werte mit 400 ab.
  */
 final class ReadingService
 {
@@ -45,12 +51,22 @@ final class ReadingService
         if (empty($input['date'])) throw new \InvalidArgumentException($this->i18n->t('errors.reading.dateMissing'));
         if (!array_key_exists('counter', $input)) throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterMissing'));
 
+        $date = (string)$input['date'];
+        $this->assertDate($date);
+        $counter = $this->parseCounter($input['counter']);
+
         $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
 
-        $date = (string)$input['date'];
         $device = $this->meters->deviceOnDate($meter, $date);
+        if (!$device && $this->meters->backdateFirstDevice($utility, (string)$meterId, $date) !== null) {
+            // v2.5.3 — Ablesung vor dem Einbau des ersten Geräts: Einbau
+            // vorverlegen (s. MeterService::backdateFirstDevice), sonst kam
+            // niemand mit seiner Historie in eine Neuinstallation.
+            $meter  = $this->meters->get($utility, (string)$meterId) ?? $meter;
+            $device = $this->meters->deviceOnDate($meter, $date);
+        }
         if (!$device) {
             throw new \InvalidArgumentException(
                 $this->i18n->t('errors.reading.noDevice', ['date' => $date])
@@ -62,7 +78,7 @@ final class ReadingService
             'meter_id'     => $meterId,
             'device_id'    => $device['id'],
             'date'         => $date,
-            'counter'      => (float)$input['counter'],
+            'counter'      => $counter,
             'price_cents'  => isset($input['price_cents']) && $input['price_cents'] !== ''
                               ? (float)$input['price_cents'] : null,
             'note'         => isset($input['note']) ? (string)$input['note'] : '',
@@ -80,6 +96,9 @@ final class ReadingService
 
     public function update(string $utility, string $id, array $input): array
     {
+        if (array_key_exists('date', $input)) $this->assertDate((string)$input['date']);
+        if (array_key_exists('counter', $input)) $input['counter'] = $this->parseCounter($input['counter']);
+
         $all = $this->store->read("$utility/readings.json", []);
         if (!is_array($all)) $all = [];
         $found = null;
@@ -96,6 +115,10 @@ final class ReadingService
             $meter = $this->meters->get($utility, $r['meter_id']);
             if ($meter) {
                 $d = $this->meters->deviceOnDate($meter, $r['date']);
+                if (!$d && $this->meters->backdateFirstDevice($utility, (string)$r['meter_id'], (string)$r['date']) !== null) {
+                    $meter = $this->meters->get($utility, $r['meter_id']) ?? $meter;
+                    $d = $this->meters->deviceOnDate($meter, $r['date']);
+                }
                 $r['device_id'] = $d['id'] ?? $r['device_id'];
             }
             $r['is_future'] = ($r['date'] ?? '') > date('Y-m-d');
@@ -197,6 +220,27 @@ final class ReadingService
             }
         }
         return $rows;
+    }
+
+    private function assertDate(string $date): void
+    {
+        if (!Dates::isIsoDate($date)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.reading.dateInvalid', ['date' => $date]));
+        }
+    }
+
+    /**
+     * Zählerstand als Zahl ≥ 0. Zahlen und Zahl-Strings mit Punkt sind gültig;
+     * „12,5" nicht — mehrdeutig (Dezimal- oder Tausenderkomma) und bisher still
+     * zu 12 abgeschnitten. Das Frontend wandelt Kommas vorher selbst um.
+     */
+    private function parseCounter(mixed $raw): float
+    {
+        if (is_bool($raw) || !is_numeric($raw) || !is_finite((float)$raw) || (float)$raw < 0) {
+            $shown = is_scalar($raw) ? (string)$raw : gettype($raw);
+            throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterInvalid', ['value' => $shown]));
+        }
+        return (float)$raw;
     }
 
     /** Aktives (nicht ausgebautes) Device eines Zählers, oder null. */

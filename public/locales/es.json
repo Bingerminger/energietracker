@@ -17,7 +17,8 @@
     "all": "Todos",
     "optional": "opcional",
     "required": "obligatorio",
-    "actions": "Acciones"
+    "actions": "Acciones",
+    "invalidNumber": "Introduce un número válido, p. ej. {example}."
   },
   "app": {
     "themeToggle": "Cambiar tema",
@@ -229,7 +230,7 @@
       "colClaimFeedIn": "Derecho de remuneración",
       "colBalance": "Saldo actual",
       "subCredit": "Crédito con el operador de red",
-      "subReclaim": "A reclamar",
+      "subReclaim": "A devolver",
       "subBalanced": "equilibrado",
       "subUnderpaid": "Pagado de menos",
       "subOverpaid": "Pagado de más",
@@ -337,7 +338,9 @@
       "create": "Crear",
       "validation": "La fecha y la lectura son obligatorias.",
       "savedNew": "Lectura guardada",
-      "savedEdit": "Lectura actualizada"
+      "savedEdit": "Lectura actualizada",
+      "confirmLower": "Esta lectura es inferior a la última ({last} {unit}). La lectura de un contador normalmente solo sube; un contador sustituido se registra en «Cambio de contador». ¿Guardar de todos modos?",
+      "confirmLowerOk": "Guardar de todos modos"
     },
     "deliveryModal": {
       "titleEdit": "Editar entrega · {label}",
@@ -365,7 +368,7 @@
       "sinceLast": "{delta} {unit} desde la última lectura",
       "sinceLastDays": "{delta} {unit} desde la última lectura (hace {days} días)"
     },
-    "verdict": { "surcharge": "Pago adicional", "refund": "Devolución", "payout": "Pago", "reclaim": "A reclamar", "balanced": "Equilibrado" },
+    "verdict": { "surcharge": "Pago adicional", "refund": "Devolución", "payout": "Pago", "reclaim": "A devolver", "balanced": "Equilibrado" },
     "billCheck": {
       "title": "Comprobación de factura",
       "hint": "Recalcula la factura de gas: por tramo m³ × coeficiente de corrección × poder calorífico = kWh, como las líneas de la factura del suministrador. Un nuevo tramo empieza en cada lectura y en cada cambio de poder calorífico.",
@@ -487,7 +490,12 @@
       "priceGuarantee": "Precio garantizado hasta",
       "priceGuaranteeHint": "A partir de ahí el precio es una hipótesis.",
       "minTermEnd": "La permanencia mínima termina",
-      "minTermEndHint": "Solo necesario en contratos indefinidos: antes de esa fecha no se puede rescindir."
+      "minTermEndHint": "Solo necesario en contratos indefinidos: antes de esa fecha no se puede rescindir.",
+      "nameRequired": "Indica un proveedor o una tarifa.",
+      "workingPriceRequired": "Se necesita al menos una fila «{group}» con fecha e importe.",
+      "supersedeTitle": "¿Sustituir el contrato en curso?",
+      "supersedeMessage": "A partir del {date} se aplica este contrato en lugar de «{name}»: si los contratos se solapan, prevalece el inicio más reciente. El saldo y la previsión usan entonces los nuevos precios.",
+      "supersedeOk": "Sí, sustituir"
     },
     "delete": { "title": "¿Eliminar el contrato?", "message": "¿Eliminar el contrato de forma permanente?", "confirm": "Eliminar", "deleted": "Contrato eliminado" },
     "deleteContract": "Eliminar contrato",
@@ -527,14 +535,14 @@
       "nw": "☔ Agua pluvial",
       "advances": "💰 Anticipos",
       "bonuses": "🎁 Bonificaciones",
-      "twWorking": "Precio de la energía (ct/m³)",
+      "twWorking": "Precio por m³ (ct/m³)",
       "twBase": "Término fijo (€/mes)",
       "basis": "Base de cálculo",
       "basisTw": "según el consumo de agua potable (predeterminado)",
       "basisSep": "contador de agua residual separado",
       "sepMeter": "Contador de agua residual",
       "noMoreMeters": "(aún no hay más contadores disponibles)",
-      "swWorking": "Precio de la energía agua residual (ct/m³)",
+      "swWorking": "Precio por m³ aguas residuales (ct/m³)",
       "nwRates": "Fecha de efecto",
       "apMonthly": "Anticipo mensual (€)",
       "colDate": "Fecha",
@@ -630,7 +638,10 @@
       "reason": "Motivo",
       "reasonPlaceholder": "p. ej. calibración, avería",
       "submit": "Realizar el cambio",
-      "done": "Contador cambiado"
+      "done": "Contador cambiado",
+      "lastKnown": "Última lectura: {value} {unit} el {date}",
+      "confirmLower": "La lectura final {oldFinal} {unit} es inferior a la última lectura ({last} {unit} del {lastDate}). La lectura de un contador no baja: compruébalo. ¿Continuar de todos modos?",
+      "confirmSummary": "El {date} se cierra el dispositivo antiguo con {oldFinal} {unit} y el nuevo empieza con {newInitial} {unit}. No se puede deshacer desde la aplicación."
     },
     "import": {
       "title": "Importar lecturas: {name}",
@@ -835,7 +846,7 @@
       "saveAliases": "Guardar alias",
       "noMeters": "No hay contadores acumulativos disponibles.",
       "step3": "3. Configuración de Home Assistant (para copiar)",
-      "configHint": "Añade esto a tu <code>configuration.yaml</code> y ajusta la URL/el token. Una automatización completa con ejemplos está en <code>docs/HOME-ASSISTANT.md</code>.",
+      "configHint": "Añade el comando REST a tu <code>configuration.yaml</code> y comprueba la URL; pon la entrada del token en <code>secrets.yaml</code>. <strong>Las plantillas hasta la v2.5.2 contenían <code>float(0)</code></strong> y registraban una lectura 0 cuando el sensor no estaba disponible: sustitúyelas por esta versión.",
       "copyYaml": "Copiar YAML",
       "genConfirmTitle": "¿Generar un token de API?",
       "genConfirmMsg": "Se genera un nuevo token y se muestra una SOLA vez. Cualquier token existente queda invalidado.",
@@ -849,7 +860,15 @@
       "aliasesSaved": "{count} alias guardado(s)",
       "yamlCopied": "YAML copiado",
       "clipboardFail": "Error al copiar",
-      "clipboardUnavailable": "Portapapeles no disponible — selecciona manualmente"
+      "clipboardUnavailable": "Portapapeles no disponible — selecciona manualmente",
+      "step4": "4. Automatización (para copiar)",
+      "automationHint": "En el editor de automatizaciones elige «Editar en YAML» y pega. Cada contador con alias genera una entrada; en <code>sensor_entity</code> indica la entidad con la lectura absoluta del contador. <code>has_value</code> omite un contador cuyo sensor no está disponible en ese momento.",
+      "yaml": {
+        "secretComment": "valor completo de secrets.yaml, incluido «Bearer»",
+        "floatComment": "float sin valor por defecto: si el sensor no está disponible, el envío falla en lugar de registrar 0.",
+        "automationAlias": "Energietracker: enviar lecturas",
+        "hasValueComment": "Enviar solo si el sensor tiene un valor: justo después de un reinicio está brevemente «unavailable»."
+      }
     },
     "diag": {
       "title": "🩺 Diagnóstico del sistema",
@@ -912,7 +931,9 @@
       "errOneUndated": "Ya existe una entrada sin fecha — indica un «válido desde»",
       "errDuplicate": "Ya existe una entrada para esta fecha",
       "errNeedValues": "Indica coeficiente de corrección y poder calorífico — o el factor directamente"
-    }
+    },
+    "invalidFields": "No guardado: corrige los campos marcados en rojo.",
+    "dayMonthInvalid": "Introduce día-mes, p. ej. 01-10 para el 1 de octubre."
   },
   "reminders": {
     "suggest": {
@@ -954,7 +975,8 @@
       "fInterval": "Intervalo (meses)",
       "fNotes": "Notas",
       "save": "Guardar",
-      "validation": "El título y la fecha son obligatorios"
+      "validation": "El título y la fecha son obligatorios",
+      "intervalInvalid": "El intervalo debe ser un número entero de 1 a 120 meses."
     }
   },
   "temperatures": {
@@ -977,7 +999,8 @@
     "syncToast": "Sincronización OK · {imported} días (archivo: {archive}, previsión: {forecast})",
     "archiveError": "Archivo: {err}",
     "forecastError": "Previsión: {err}",
-    "importToast": "Importación: {imported} días importados, {skipped} omitidos"
+    "importToast": "Importación: {imported} días importados, {skipped} omitidos",
+    "coordInvalid": "Introduce un número entre {min} y {max}."
   },
   "recommendations": {
     "loading": "Cargando las recomendaciones…",
@@ -1256,7 +1279,8 @@
     "balanceBalanced": "(equilibrado)",
     "balanceNote": "· acumulado a partir de los costes estimados menos los anticipos proyectados",
     "col": { "month": "Mes", "consumption": "Consumo ({unit})", "hgt": "GD estimados", "cost": "Coste estimado", "advance": "Anticipo proyectado", "balance": "Saldo corriente", "method": "Método" },
-    "bonusNote": "Las bonificaciones futuras no se extrapolan — en los costes solo entran las bonificaciones registradas en el contrato con fecha de abono dentro del periodo de previsión."
+    "bonusNote": "Las bonificaciones futuras no se extrapolan — en los costes solo entran las bonificaciones registradas en el contrato con fecha de abono dentro del periodo de previsión.",
+    "whatIfInvalid": "Revisa los campos marcados: desfase de temperatura de −20 a 20 °C, factor de precio de 0 a 10, horizonte de 1 a 24 meses."
   },
   "report": {
     "createdOn": "Creado el {date}",
@@ -1369,17 +1393,21 @@
       "mergeNeedTwo": "La combinación requiere al menos dos contadores",
       "invalidBaselineList": "Los cortes de referencia deben facilitarse como una lista de entradas con fecha",
       "invalidBaselineDate": "Fecha de corte no válida: «{date}» — se espera AAAA-MM-DD",
-      "duplicateBaselineDate": "Ya existe un corte de referencia para el {date}"
+      "duplicateBaselineDate": "Ya existe un corte de referencia para el {date}",
+      "swapBeforeInstall": "El cambio del {date} es anterior a la instalación del dispositivo actual ({installed})."
     },
     "common": {
       "unknownUtility": "Suministro desconocido: {utility}",
-      "meterNotFound": "Contador no encontrado: {id}"
+      "meterNotFound": "Contador no encontrado: {id}",
+      "dateInvalid": "Fecha no válida «{date}»: se espera AAAA-MM-DD."
     },
     "reading": {
       "dateMissing": "Falta la fecha",
       "counterMissing": "Falta la lectura del contador",
       "noDevice": "Ningún dispositivo de este contador está activo en la fecha {date}",
-      "notFound": "Lectura no encontrada"
+      "notFound": "Lectura no encontrada",
+      "counterInvalid": "Lectura no válida «{value}»: se espera un número igual o mayor que 0.",
+      "dateInvalid": "Fecha de lectura no válida «{date}»: se espera AAAA-MM-DD."
     },
     "contract": {
       "noContracts": "Para {label} no se pueden crear contratos (suministro solo estadístico).",
@@ -1401,14 +1429,17 @@
         "sealedArea": "superficie impermeabilizada",
         "creditDate": "Fecha de abono",
         "advanceDate": "Fecha de efecto del anticipo",
-        "newAdvanceAmount": "nuevo importe de anticipo"
+        "newAdvanceAmount": "nuevo importe de anticipo",
+        "start": "Inicio del contrato",
+        "end": "Fin del contrato"
       },
       "noticeNotNumeric": "El plazo de preaviso debe ser un número.",
       "noticeOutOfRange": "El plazo de preaviso debe estar entre 0 y 24 meses.",
       "dateInvalid": "Fecha no válida en {field}: {value}",
       "dateBeforeStart": "{field} no puede ser anterior al inicio del contrato.",
       "bonusNotNumeric": "El bono de bienvenida debe ser un número.",
-      "bonusNegative": "El bono de bienvenida no puede ser negativo."
+      "bonusNegative": "El bono de bienvenida no puede ser negativo.",
+      "amountInvalid": "Entrada {label} n.º{n}: el importe «{value}» no es un número"
     },
     "delivery": {
       "notFound": "Entrega no encontrada: {id}",
@@ -1470,6 +1501,9 @@
     "billCheck": {
       "gasOnly": "La comprobación de factura solo está disponible para gas",
       "invalidRange": "Indica un periodo válido (desde < hasta, AAAA-MM-DD)"
+    },
+    "http": {
+      "crossSite": "Rechazado: la solicitud procede de otro sitio web. Solo se pueden hacer cambios desde Energietracker."
     }
   }
 }

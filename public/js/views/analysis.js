@@ -52,7 +52,7 @@ export async function render(container) {
     const utility = utilities.find(u => u.key === utilSel.value);
     body.innerHTML = `<div class="loading">${t('analysis.loading')}</div>`;
     const meters = await api.meters(utility.key);
-    meterSel.innerHTML = meters.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+    meterSel.innerHTML = meters.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`).join('');
     if (!meters.length) { body.innerHTML = `<p class="muted">${t('analysis.noMeters')}</p>`; return; }
     await renderForMeter(utility, meterSel.value || meters[0].id, body);
   }

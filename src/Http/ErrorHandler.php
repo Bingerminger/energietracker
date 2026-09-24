@@ -25,7 +25,9 @@ final class ErrorHandler
 
         set_error_handler(function (int $severity, string $msg, string $file, int $line): bool {
             if (!(error_reporting() & $severity)) return false;
-            if (in_array($severity, [E_DEPRECATED, E_USER_DEPRECATED, E_NOTICE, E_USER_NOTICE, E_STRICT], true)) {
+            // v2.5.3 — E_STRICT entfernt: seit PHP 8.0 nie mehr ausgelöst, seit 8.4
+            // selbst als Konstante veraltet.
+            if (in_array($severity, [E_DEPRECATED, E_USER_DEPRECATED, E_NOTICE, E_USER_NOTICE], true)) {
                 return true;
             }
             throw new \ErrorException($msg, 0, $severity, $file, $line);
@@ -94,6 +96,10 @@ final class ErrorHandler
      */
     private static function statusFor(\Throwable $e): int
     {
+        // v2.5.3 — beschädigte Datendatei: vorübergehend nicht verfügbar,
+        // nicht „Serverfehler" (die Anwendung arbeitet korrekt, sie weigert sich
+        // nur, eine kaputte Datei zu überschreiben).
+        if ($e instanceof \Energietracker\Storage\StorageCorruptedException) return 503;
         if ($e instanceof NotFoundException) return 404;
         if ($e instanceof \InvalidArgumentException) return 400;
         if ($e instanceof \RuntimeException) {

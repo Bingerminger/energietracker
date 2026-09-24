@@ -76,7 +76,7 @@ function card(r) {
       <div class="rec-card__head">
         <span class="badge badge--${cls}">${sevLabel(sevKey)}</span>
         <span class="rec-card__cat">${esc(catLabel(r.category))}</span>
-        <button class="rec-card__x" data-dismiss="${r.id}" title="${t('recommendations.dismiss')}" aria-label="${t('recommendations.dismiss')}"><span aria-hidden="true">✕</span></button>
+        <button class="rec-card__x" data-dismiss="${esc(r.id)}" title="${t('recommendations.dismiss')}" aria-label="${t('recommendations.dismiss')}"><span aria-hidden="true">✕</span></button>
       </div>
       <div class="rec-card__title">${esc(r.title)}</div>
       <div class="rec-card__detail">${esc(r.detail)}</div>

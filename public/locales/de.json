@@ -17,7 +17,8 @@
     "all": "Alle",
     "optional": "optional",
     "required": "Pflichtfeld",
-    "actions": "Aktionen"
+    "actions": "Aktionen",
+    "invalidNumber": "Bitte eine gültige Zahl eingeben, z. B. {example}."
   },
   "app": {
     "themeToggle": "Theme wechseln",
@@ -337,7 +338,9 @@
       "create": "Anlegen",
       "validation": "Datum und Zählerstand sind Pflicht.",
       "savedNew": "Ablesung gespeichert",
-      "savedEdit": "Ablesung aktualisiert"
+      "savedEdit": "Ablesung aktualisiert",
+      "confirmLower": "Der Stand liegt unter der letzten Ablesung ({last} {unit}). Zählerstände steigen normalerweise nur; ein getauschter Zähler gehört in „Zählertausch“. Trotzdem speichern?",
+      "confirmLowerOk": "Trotzdem speichern"
     },
     "deliveryModal": {
       "titleEdit": "Lieferung bearbeiten · {label}",
@@ -487,7 +490,12 @@
       "priceGuarantee": "Preisgarantie bis",
       "priceGuaranteeHint": "Danach ist der Preis eine Annahme.",
       "minTermEnd": "Mindestlaufzeit endet",
-      "minTermEndHint": "Nur bei unbefristeten Verträgen nötig — vorher ist keine Kündigung möglich."
+      "minTermEndHint": "Nur bei unbefristeten Verträgen nötig — vorher ist keine Kündigung möglich.",
+      "nameRequired": "Bitte Anbieter oder Tarif angeben.",
+      "workingPriceRequired": "Mindestens eine Zeile „{group}“ mit Datum und Betrag ist nötig.",
+      "supersedeTitle": "Laufenden Vertrag ablösen?",
+      "supersedeMessage": "Ab {date} gilt dieser Vertrag statt „{name}“ – bei überschneidenden Verträgen zählt der spätere Beginn. Saldo und Prognose rechnen dann mit den neuen Preisen.",
+      "supersedeOk": "Ja, ablösen"
     },
     "delete": { "title": "Vertrag löschen?", "message": "Vertrag dauerhaft löschen?", "confirm": "Löschen", "deleted": "Vertrag gelöscht" },
     "deleteContract": "Vertrag löschen",
@@ -630,7 +638,10 @@
       "reason": "Grund",
       "reasonPlaceholder": "z. B. Eichung, Defekt",
       "submit": "Tausch durchführen",
-      "done": "Zähler getauscht"
+      "done": "Zähler getauscht",
+      "lastKnown": "Letzte Ablesung: {value} {unit} am {date}",
+      "confirmLower": "Der Endstand {oldFinal} {unit} liegt unter der letzten Ablesung ({last} {unit} am {lastDate}). Ein Zählerstand fällt nicht – bitte prüfen. Trotzdem fortfahren?",
+      "confirmSummary": "Am {date} wird das alte Gerät mit {oldFinal} {unit} geschlossen, das neue beginnt mit {newInitial} {unit}. Rückgängig machen lässt sich das in der App nicht."
     },
     "import": {
       "title": "Ablesungen importieren: {name}",
@@ -835,7 +846,7 @@
       "saveAliases": "Aliase speichern",
       "noMeters": "Keine kumulativen Zähler vorhanden.",
       "step3": "3. Home-Assistant-Konfiguration (zum Kopieren)",
-      "configHint": "Füge das in deine <code>configuration.yaml</code> ein und passe URL/Token an. Eine vollständige Automatisierung samt Beispielen findest du in <code>docs/HOME-ASSISTANT.md</code>.",
+      "configHint": "Den REST-Command in die <code>configuration.yaml</code> einfügen und die URL prüfen, den Token-Eintrag in die <code>secrets.yaml</code>. <strong>Vorlagen bis v2.5.2 enthielten <code>float(0)</code></strong> und buchten bei nicht verfügbarem Sensor einen Zählerstand 0 – bitte durch diese Fassung ersetzen.",
       "copyYaml": "YAML kopieren",
       "genConfirmTitle": "API-Token erzeugen?",
       "genConfirmMsg": "Ein neuer Token wird erzeugt und nur EINMAL angezeigt. Ein eventuell vorhandener Token wird dabei ungültig.",
@@ -849,7 +860,15 @@
       "aliasesSaved": "{count} Alias(e) gespeichert",
       "yamlCopied": "YAML kopiert",
       "clipboardFail": "Kopieren fehlgeschlagen",
-      "clipboardUnavailable": "Zwischenablage nicht verfügbar — bitte manuell markieren"
+      "clipboardUnavailable": "Zwischenablage nicht verfügbar — bitte manuell markieren",
+      "step4": "4. Automatisierung (zum Kopieren)",
+      "automationHint": "Im Automations-Editor „In YAML bearbeiten“ wählen und einfügen. Je Zähler mit Alias entsteht ein Eintrag; bei <code>sensor_entity</code> die Entität mit dem absoluten Zählerstand eintragen. <code>has_value</code> lässt einen Zähler aus, dessen Sensor gerade nicht verfügbar ist.",
+      "yaml": {
+        "secretComment": "ganzer Wert aus der secrets.yaml, samt „Bearer“",
+        "floatComment": "float ohne Ersatzwert: Ist der Sensor nicht verfügbar, scheitert der Push, statt eine 0 zu buchen.",
+        "automationAlias": "Energietracker: Zählerstände senden",
+        "hasValueComment": "Nur senden, wenn der Sensor einen Wert hat – nach einem Neustart steht er kurz auf „unavailable“."
+      }
     },
     "diag": {
       "title": "🩺 System-Diagnose",
@@ -912,7 +931,9 @@
       "errOneUndated": "Es gibt schon einen Eintrag ohne Datum — bitte ein „Gültig ab“ angeben",
       "errDuplicate": "Für dieses Datum gibt es schon einen Eintrag",
       "errNeedValues": "Bitte Zustandszahl und Brennwert angeben — oder den Faktor direkt"
-    }
+    },
+    "invalidFields": "Nicht gespeichert: Bitte die rot markierten Felder korrigieren.",
+    "dayMonthInvalid": "Bitte als Tag-Monat eingeben, z. B. 01-10 für den 1. Oktober."
   },
   "reminders": {
     "suggest": {
@@ -954,7 +975,8 @@
       "fInterval": "Intervall (Monate)",
       "fNotes": "Notizen",
       "save": "Speichern",
-      "validation": "Titel und Datum sind Pflicht"
+      "validation": "Titel und Datum sind Pflicht",
+      "intervalInvalid": "Das Intervall muss eine ganze Zahl von 1 bis 120 Monaten sein."
     }
   },
   "temperatures": {
@@ -977,7 +999,8 @@
     "syncToast": "Sync OK · {imported} Tage (Archiv: {archive}, Forecast: {forecast})",
     "archiveError": "Archiv: {err}",
     "forecastError": "Forecast: {err}",
-    "importToast": "Import: {imported} Tage importiert, {skipped} übersprungen"
+    "importToast": "Import: {imported} Tage importiert, {skipped} übersprungen",
+    "coordInvalid": "Bitte eine Zahl zwischen {min} und {max} eingeben."
   },
   "recommendations": {
     "loading": "Lade Empfehlungen…",
@@ -1256,7 +1279,8 @@
     "balanceBalanced": "(ausgeglichen)",
     "balanceNote": "· kumuliert aus geschätzten Kosten minus projizierten Abschlägen",
     "col": { "month": "Monat", "consumption": "Verbrauch ({unit})", "hgt": "HGT geschätzt", "cost": "Kosten geschätzt", "advance": "Abschlag projiziert", "balance": "Saldo laufend", "method": "Methode" },
-    "bonusNote": "Künftige Boni werden nicht fortgeschrieben — nur im Vertrag gepflegte Boni mit Gutschriftdatum im Prognosezeitraum fließen in die Kosten ein."
+    "bonusNote": "Künftige Boni werden nicht fortgeschrieben — nur im Vertrag gepflegte Boni mit Gutschriftdatum im Prognosezeitraum fließen in die Kosten ein.",
+    "whatIfInvalid": "Bitte die markierten Felder prüfen: Temperatur-Offset −20 bis 20 °C, Preis-Faktor 0 bis 10, Horizont 1 bis 24 Monate."
   },
   "report": {
     "createdOn": "Erstellt am {date}",
@@ -1369,17 +1393,21 @@
       "mergeNeedTwo": "Zum Zusammenführen werden mindestens zwei Zähler benötigt",
       "invalidBaselineList": "Zäsuren müssen als Liste von Einträgen mit Datum übergeben werden",
       "invalidBaselineDate": "Ungültiges Datum für die Zäsur: „{date}“ — erwartet wird JJJJ-MM-TT",
-      "duplicateBaselineDate": "Für den {date} ist bereits eine Zäsur eingetragen"
+      "duplicateBaselineDate": "Für den {date} ist bereits eine Zäsur eingetragen",
+      "swapBeforeInstall": "Der Tausch am {date} liegt vor dem Einbau des aktuellen Geräts ({installed})."
     },
     "common": {
       "unknownUtility": "Unbekannte Verbrauchsart: {utility}",
-      "meterNotFound": "Zähler nicht gefunden: {id}"
+      "meterNotFound": "Zähler nicht gefunden: {id}",
+      "dateInvalid": "Ungültiges Datum „{date}“ – erwartet wird JJJJ-MM-TT."
     },
     "reading": {
       "dateMissing": "Datum fehlt",
       "counterMissing": "Zählerstand fehlt",
       "noDevice": "Für das Datum {date} ist kein Gerät dieses Zählers aktiv",
-      "notFound": "Ablesung nicht gefunden"
+      "notFound": "Ablesung nicht gefunden",
+      "counterInvalid": "Ungültiger Zählerstand „{value}“ – erwartet wird eine Zahl ab 0.",
+      "dateInvalid": "Ungültiges Ablesedatum „{date}“ – erwartet wird JJJJ-MM-TT."
     },
     "contract": {
       "noContracts": "Für {label} können keine Verträge angelegt werden (reine Statistik-Utility).",
@@ -1401,14 +1429,17 @@
         "sealedArea": "versiegelte Fläche",
         "creditDate": "Gutschriftsdatum",
         "advanceDate": "Abschlag-Stichtag",
-        "newAdvanceAmount": "neuer Abschlagsbetrag"
+        "newAdvanceAmount": "neuer Abschlagsbetrag",
+        "start": "Vertragsbeginn",
+        "end": "Vertragsende"
       },
       "noticeNotNumeric": "Die Kündigungsfrist muss eine Zahl sein.",
       "noticeOutOfRange": "Die Kündigungsfrist muss zwischen 0 und 24 Monaten liegen.",
       "dateInvalid": "Ungültiges Datum in {field}: {value}",
       "dateBeforeStart": "{field} darf nicht vor dem Vertragsbeginn liegen.",
       "bonusNotNumeric": "Der Neukundenbonus muss eine Zahl sein.",
-      "bonusNegative": "Der Neukundenbonus darf nicht negativ sein."
+      "bonusNegative": "Der Neukundenbonus darf nicht negativ sein.",
+      "amountInvalid": "{label}-Eintrag #{n}: Betrag „{value}“ ist keine Zahl"
     },
     "delivery": {
       "notFound": "Lieferung nicht gefunden: {id}",
@@ -1470,6 +1501,9 @@
     "billCheck": {
       "gasOnly": "Die Rechnungsprüfung gibt es nur für Gas",
       "invalidRange": "Bitte einen gültigen Zeitraum angeben (von < bis, JJJJ-MM-TT)"
+    },
+    "http": {
+      "crossSite": "Abgelehnt: Die Anfrage kam von einer fremden Webseite. Ändern lässt sich nur aus dem Energietracker selbst."
     }
   }
 }

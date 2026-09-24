@@ -8,20 +8,21 @@
 
 import { api } from '../api.js';
 import { getUtility } from '../state.js';
-import { fmt, escapeHtml, todayIso } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { openModal, confirmModal } from '../components/modal.js';
+import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { t } from '../lib/i18n.js';
 import { associateFieldLabels } from '../lib/a11y.js';
+import { showFieldError } from '../lib/form.js';
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
 // v2.2.0 — die Betragslabels sind Übersetzungs-Keys statt fester Strings:
 // „€/Monat" stand vorher auch in der englischen Oberfläche.
 const GROUPS = [
-  { key: 'working_prices',   titleKey: 'contracts.group.working', dateKey: 'from', amountKey: 'ct_per_kwh',    amountKey_: 'contracts.unit.ctPerKwh',  step: '0.001' },
-  { key: 'base_prices',      titleKey: 'contracts.group.base',    dateKey: 'from', amountKey: 'eur_per_month', amountKey_: 'contracts.unit.eurPerMonth', step: '0.01' },
-  { key: 'advance_payments', titleKey: 'contracts.group.advance', dateKey: 'from', amountKey: 'amount_eur',    amountKey_: 'contracts.unit.eurPerMonth', step: '0.01' },
+  { key: 'working_prices',   titleKey: 'contracts.group.working', dateKey: 'from', amountKey: 'ct_per_kwh',    amountKey_: 'contracts.unit.ctPerKwh' },
+  { key: 'base_prices',      titleKey: 'contracts.group.base',    dateKey: 'from', amountKey: 'eur_per_month', amountKey_: 'contracts.unit.eurPerMonth' },
+  { key: 'advance_payments', titleKey: 'contracts.group.advance', dateKey: 'from', amountKey: 'amount_eur',    amountKey_: 'contracts.unit.eurPerMonth' },
 ];
 
 // F1003 — Sonderzahlungs-Arten. Die *_mit-Arten verändern zusätzlich den
@@ -114,7 +115,7 @@ async function refresh(container, u) {
 
   container.querySelectorAll('[data-action="new-contract"]').forEach(btn => {
     btn.addEventListener('click', () => {
-      dispatchContractModal(u, meters, null).then(changed => { if (changed) refresh(container, u); });
+      dispatchContractModal(u, meters, null, contracts).then(changed => { if (changed) refresh(container, u); });
     });
   });
 
@@ -122,7 +123,7 @@ async function refresh(container, u) {
     b.addEventListener('click', async () => {
       const id = b.getAttribute('data-edit-contract');
       const c = contracts.find(x => x.id === id);
-      const changed = await dispatchContractModal(u, meters, c);
+      const changed = await dispatchContractModal(u, meters, c, contracts);
       if (changed) refresh(container, u);
     });
   });
@@ -138,10 +139,97 @@ async function refresh(container, u) {
   });
 }
 
-function dispatchContractModal(u, meters, existing) {
+function dispatchContractModal(u, meters, existing, contracts = []) {
   return u.key === 'wasser'
-    ? openWaterContractModal(u, meters, existing)
-    : openContractModal(u, meters, existing);
+    ? openWaterContractModal(u, meters, existing, contracts)
+    : openContractModal(u, meters, existing, contracts);
+}
+
+// v2.5.3 (UI-04) — Ein neuer Vertrag beginnt am Tag nach dem Ende der
+// laufenden Bindung, sonst heute. Vorher stand immer „heute" im Feld: Ein
+// versehentliches Speichern löste damit ab sofort den laufenden Vertrag ab,
+// denn bei Überlappung gewinnt der spätere Beginn (findActiveForDate).
+function suggestStart(contracts, meterId) {
+  const today = todayIso();
+  const lastEnd = contracts
+    .filter(c => !c.is_shadow && c.meter_id === meterId)
+    .map(c => c.end || '')
+    .filter(end => end >= today)
+    .sort()
+    .pop();
+  if (!lastEnd) return today;
+  const [y, m, d] = lastEnd.split('-').map(Number);
+  const next = new Date(y, m - 1, d + 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+}
+
+// v2.5.3 (UI-04) — Der Vertrag, den `payload` ab seinem Beginn ablöst: gleicher
+// Zähler, früher begonnen, am neuen Beginn noch gültig. Schattenverträge
+// zählen nicht, sie rechnen nirgends mit.
+function supersededContract(contracts, payload, ownId) {
+  return contracts.find(c =>
+    c.id !== ownId && !c.is_shadow && c.meter_id === payload.meter_id
+    && (c.start || '') < payload.start
+    && (!c.end || c.end >= payload.start));
+}
+
+// Fragt nach, bevor ein Vertrag einen laufenden ablöst. Beim Bearbeiten nur,
+// wenn sich Beginn oder Zähler geändert haben — eine bestehende Überlappung
+// ist schon entschieden.
+async function confirmSupersede(contracts, payload, existing) {
+  if (existing && existing.start === payload.start && existing.meter_id === payload.meter_id) return true;
+  const other = supersededContract(contracts, payload, existing?.id);
+  if (!other) return true;
+  const name = [other.provider, other.tariff_name].filter(Boolean).join(' · ')
+    || t('contracts.card.fallbackProvider');
+  return confirmModal({
+    title: t('contracts.modal.supersedeTitle'),
+    message: t('contracts.modal.supersedeMessage', { date: fmt.date(payload.start), name }),
+    confirmLabel: t('contracts.modal.supersedeOk'),
+  });
+}
+
+// v2.5.3 (UI-04) — Pflichtangaben, die das Backend nicht verlangt: Ein Vertrag
+// ohne Namen und ohne Arbeitspreis wurde gespeichert, als „aktiv" geführt und
+// kippte Saldo und Prognose. Liefert das erste fehlerhafte Feld oder null.
+function checkContractBasics(form, { workingRows, workingMsg, workingLabel, dateOf, amountOf }) {
+  const provider = form.querySelector('[name="provider"]');
+  const tariff   = form.querySelector('[name="tariff_name"]');
+  const nameMsg  = form.querySelector('[data-role="name-msg"]');
+  const start    = form.querySelector('[name="start"]');
+  const end      = form.querySelector('[name="end"]');
+  const startMsg = form.querySelector('[data-role="start-msg"]');
+
+  showFieldError(provider, nameMsg, null);
+  tariff?.classList.remove('invalid');
+  showFieldError(start, startMsg, null);
+  end?.classList.remove('invalid');
+  showFieldError(null, workingMsg, null);
+
+  if (!provider?.value.trim() && !tariff?.value.trim()) {
+    tariff?.classList.add('invalid');
+    showFieldError(provider, nameMsg, t('contracts.modal.nameRequired'));
+    return provider;
+  }
+  if (!start?.value) {
+    showFieldError(start, startMsg, t('contracts.water.startRequired'));
+    return start;
+  }
+  if (end?.value && end.value < start.value) {
+    end.classList.add('invalid');
+    showFieldError(null, startMsg, t('errors.contract.endBeforeStart'));
+    end.focus();
+    return end;
+  }
+  const complete = workingRows.some(row => dateOf(row) !== '' && parseDecimal(amountOf(row)) !== null);
+  if (!complete) {
+    const first = workingRows[0];
+    showFieldError(null, workingMsg, t('contracts.modal.workingPriceRequired', { group: workingLabel }));
+    first?.querySelectorAll('input').forEach(i => i.classList.add('invalid'));
+    first?.querySelector('input')?.focus();
+    return first || workingMsg;
+  }
+  return null;
 }
 
 // A — Vertragsstatus aus Start/Ende ableiten (heute liegt im Intervall?).
@@ -191,8 +279,8 @@ function renderContractCard(c, meters, u) {
         <h2 style="margin:0;font-size:var(--fs-lg)">${escapeHtml(c.provider || t('contracts.card.fallbackProvider'))}${c.tariff_name ? ' · ' + escapeHtml(c.tariff_name) : ''}
           <span class="status-pill ${st.cls}">${st.label}</span></h2>
         <div class="section-actions">
-          <button class="btn btn--sm btn--ghost" data-edit-contract="${c.id}">${t('contracts.card.edit')}</button>
-          <button class="btn btn--sm btn--danger" data-delete-contract="${c.id}" title="${t('contracts.deleteContract')}" aria-label="${t('contracts.deleteContract')}"><span aria-hidden="true">×</span></button>
+          <button class="btn btn--sm btn--ghost" data-edit-contract="${escapeHtml(c.id)}">${t('contracts.card.edit')}</button>
+          <button class="btn btn--sm btn--danger" data-delete-contract="${escapeHtml(c.id)}" title="${t('contracts.deleteContract')}" aria-label="${t('contracts.deleteContract')}"><span aria-hidden="true">×</span></button>
         </div>
       </div>
       <div class="muted" style="font-size: var(--fs-sm)">
@@ -207,13 +295,13 @@ function renderContractCard(c, meters, u) {
 }
 
 // ───── Contract modal (F4) ──────────────────────────────────────────
-async function openContractModal(u, meters, existing) {
+async function openContractModal(u, meters, existing, contracts = []) {
   return new Promise(resolve => {
     const isEdit = !!existing;
     const initial = existing || {
       meter_id: meters[0]?.id || '',
       provider: '', tariff_name: '',
-      start: todayIso(), end: '', notes: '',
+      start: suggestStart(contracts, meters[0]?.id || ''), end: '', notes: '',
       working_prices: [{ from: '', ct_per_kwh: '' }],
       base_prices:    [{ from: '', eur_per_month: '' }],
       advance_payments:[{ from: '', amount_eur: '' }],
@@ -228,6 +316,7 @@ async function openContractModal(u, meters, existing) {
           <div class="field">
             <label>${t('contracts.modal.provider')}</label>
             <input class="input input--text" name="provider" value="${escapeHtml(initial.provider || '')}">
+            <div class="field-error" data-role="name-msg" role="alert" hidden></div>
           </div>
           <div class="field">
             <label>${t('contracts.modal.tariff')}</label>
@@ -236,18 +325,19 @@ async function openContractModal(u, meters, existing) {
           <div class="field">
             <label>${t('contracts.modal.meter')}</label>
             <select class="select" name="meter_id">
-              ${meters.map(m => `<option value="${m.id}" ${m.id === initial.meter_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
+              ${meters.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === initial.meter_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
             </select>
           </div>
         </div>
         <div class="form-row">
           <div class="field">
             <label>${t('contracts.modal.start')}</label>
-            <input class="input" type="date" name="start" required value="${initial.start || ''}">
+            <input class="input" type="date" name="start" required value="${escapeHtml(initial.start || '')}">
+            <div class="field-error" data-role="start-msg" role="alert" hidden></div>
           </div>
           <div class="field">
             <label>${t('contracts.modal.end')}</label>
-            <input class="input" type="date" name="end" value="${initial.end || ''}">
+            <input class="input" type="date" name="end" value="${escapeHtml(initial.end || '')}">
           </div>
         </div>
         <!-- v2.3.1 — Wechselplanung. Diese drei speisen den Tarifvergleich:
@@ -256,22 +346,23 @@ async function openContractModal(u, meters, existing) {
         <div class="form-row">
           <div class="field">
             <label>${t('contracts.modal.noticePeriod')}</label>
-            <input class="input" type="number" min="0" max="24" step="1" name="notice_period_months"
-                   value="${initial.notice_period_months ?? ''}"
-                   placeholder="${t('contracts.modal.noticePeriodPlaceholder')}">
+            <input class="input" type="text" inputmode="numeric" name="notice_period_months"
+                   value="${escapeHtml(String(initial.notice_period_months ?? ''))}"
+                   placeholder="${escapeHtml(t('contracts.modal.noticePeriodPlaceholder'))}">
             <span class="settings-field__hint">${t('contracts.modal.noticePeriodHint')}</span>
+            <div class="field-error" data-role="notice-msg" role="alert" hidden></div>
           </div>
           <div class="field">
             <label>${t('contracts.modal.priceGuarantee')}</label>
             <input class="input" type="date" name="price_guarantee_until"
-                   value="${initial.price_guarantee_until || ''}">
+                   value="${escapeHtml(initial.price_guarantee_until || '')}">
             <span class="settings-field__hint">${t('contracts.modal.priceGuaranteeHint')}</span>
           </div>
         </div>
         <div class="field">
           <label>${t('contracts.modal.minTermEnd')}</label>
           <input class="input" type="date" name="min_term_end"
-                 value="${initial.min_term_end || ''}">
+                 value="${escapeHtml(initial.min_term_end || '')}">
           <span class="settings-field__hint">${t('contracts.modal.minTermEndHint')}</span>
         </div>
         <div class="field">
@@ -300,20 +391,48 @@ async function openContractModal(u, meters, existing) {
         // wegen ungewöhnlicher Daten (z.B. migriertes v0.9.0-Format)
         // eine Exception werfen, bleiben die Fußleisten-Buttons funktional.
         modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => { close(false); resolve(false); });
-        modalEl.querySelector('[data-act="save"]')?.addEventListener('click', async () => {
+        const saveBtn = modalEl.querySelector('[data-act="save"]');
+        saveBtn?.addEventListener('click', guardSubmit(saveBtn, async () => {
           const f = modalEl.querySelector('#contract-form');
+          const workingGroup = f.querySelector('[data-group="working_prices"]');
+          const invalid = checkContractBasics(f, {
+            workingRows: [...(workingGroup?.querySelectorAll('.entry-row') || [])],
+            workingMsg:  workingGroup?.querySelector('[data-role="group-msg"]'),
+            workingLabel: t('contracts.group.working'),
+            dateOf:   row => row.querySelector('[data-role="date"]')?.value.trim() || '',
+            amountOf: row => row.querySelector('[data-role="amount"]')?.value || '',
+          });
+          if (invalid) return;
           if (!validateAllGroups(modalEl)) {
             toastErr(t('contracts.modal.validationHalfRows'));
             return;
           }
+          const noticeEl  = f.querySelector('[name="notice_period_months"]');
+          const noticeRaw = noticeEl?.value.trim() || '';
+          const noticeOk  = noticeRaw === '' || (/^\d{1,2}$/.test(noticeRaw) && Number(noticeRaw) <= 24);
+          showFieldError(noticeEl, f.querySelector('[data-role="notice-msg"]'),
+            noticeOk ? null : t('errors.contract.noticeOutOfRange'));
+          if (!noticeOk) return;
+
           const payload = collectPayload(f);
+          if (!await confirmSupersede(contracts, payload, existing)) return;
           try {
             if (isEdit) await api.updateContract(u.key, existing.id, payload);
             else        await api.createContract(u.key, payload);
             toastOk(t('contracts.modal.saved'));
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
-        });
+        }));
+
+        // Vorbelegten Beginn beim Zählerwechsel mitziehen, solange niemand
+        // das Datum selbst angefasst hat.
+        if (!isEdit) {
+          const startEl = modalEl.querySelector('[name="start"]');
+          startEl?.addEventListener('input', () => { startEl.dataset.touched = '1'; }, { once: true });
+          modalEl.querySelector('[name="meter_id"]')?.addEventListener('change', (ev) => {
+            if (startEl && !startEl.dataset.touched) startEl.value = suggestStart(contracts, ev.target.value);
+          });
+        }
 
         try { bindEntryGroupHandlers(modalEl); }
         catch (e) { console.warn('contract modal: entry-group binding failed:', e); }
@@ -337,6 +456,7 @@ function renderGroupSection(g, entries) {
         <div class="entry-group__title">${t(g.titleKey)}</div>
         <button type="button" class="btn btn--sm btn--ghost" data-action="add-row">${t('contracts.group.addRow')}</button>
       </div>
+      <div class="field-error" data-role="group-msg" role="alert" hidden></div>
       <div class="entries">
         ${entries.map(e => renderEntryRow(g, e)).join('')}
       </div>
@@ -344,16 +464,22 @@ function renderGroupSection(g, entries) {
   `;
 }
 
+// v2.5.3 — Beträge als Text mit Dezimaltastatur: `type="number"` verwarf
+// „32,5" je nach Browser still zu "" (FE-02). Gelesen wird mit parseDecimal.
+function amountInput(role, value, digits = 6) {
+  return `<input class="input" type="text" inputmode="decimal" autocomplete="off" data-role="${role}" value="${escapeHtml(formatForInput(value, digits))}">`;
+}
+
 function renderEntryRow(g, e) {
   return `
     <div class="entry-row">
       <div class="field">
         <label>${t('contracts.row.validFrom')}</label>
-        <input class="input" type="date" data-role="date" value="${e[g.dateKey] || ''}">
+        <input class="input" type="date" data-role="date" value="${escapeHtml(e[g.dateKey] || '')}">
       </div>
       <div class="field">
         <label>${escapeHtml(t(g.amountKey_))}</label>
-        <input class="input" type="number" step="${g.step}" data-role="amount" value="${e[g.amountKey] ?? ''}">
+        ${amountInput('amount', e[g.amountKey])}
       </div>
       <button type="button" class="btn btn--sm btn--ghost" data-action="copy-start" title="${t('contracts.row.copyStartTitle')}">${t('contracts.row.copyStart')}</button>
       <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
@@ -418,20 +544,34 @@ function bindRowHandlers(modalEl, row) {
 }
 
 function validateRow(row) {
-  const dateInput   = row.querySelector('[data-role="date"]');
-  const amountInput = row.querySelector('[data-role="amount"]');
+  return validatePair(row.querySelector('[data-role="date"]'), row.querySelector('[data-role="amount"]'));
+}
+
+/**
+ * Datum und Betrag gehören zusammen: beide leer (Zeile wird übergangen) oder
+ * beide gefüllt. v2.5.3 — ein gefüllter, aber unlesbarer Betrag („12,3,4")
+ * zählt als Fehler; vorher ging er als NaN → null an das Backend.
+ */
+function validatePair(dateInput, amountInput) {
+  if (!dateInput || !amountInput) return true;
   const dateFilled   = dateInput.value.trim() !== '';
   const amountFilled = amountInput.value.trim() !== '';
+  const amountBad    = amountFilled && parseDecimal(amountInput.value) === null;
   const halfFilled   = dateFilled !== amountFilled;
   dateInput.classList.toggle('invalid',   halfFilled && !dateFilled);
-  amountInput.classList.toggle('invalid', halfFilled && !amountFilled);
-  return !halfFilled;
+  amountInput.classList.toggle('invalid', (halfFilled && !amountFilled) || amountBad);
+  return !halfFilled && !amountBad;
 }
 
 function validateAllGroups(modalEl) {
   let ok = true;
   modalEl.querySelectorAll('.entry-row').forEach(row => {
     if (!validateRow(row)) ok = false;
+    // Sonderzahlung: die Abschlagsanpassung ist ein zweites Paar derselben Art.
+    if (row.classList.contains('special-row') && !row.querySelector('[data-role="advance-block"]')?.hidden
+        && !validatePair(row.querySelector('[data-role="advance-from"]'), row.querySelector('[data-role="new-advance"]'))) {
+      ok = false;
+    }
   });
   return ok;
 }
@@ -457,11 +597,11 @@ function renderBonusRow(b = {}) {
     <div class="entry-row bonus-row">
       <div class="field">
         <label>${t('contracts.bonus.creditDate')}</label>
-        <input class="input" type="date" data-role="date" value="${b.credit_date || ''}">
+        <input class="input" type="date" data-role="date" value="${escapeHtml(b.credit_date || '')}">
       </div>
       <div class="field">
         <label>${t('contracts.bonus.amount')}</label>
-        <input class="input" type="number" step="0.01" data-role="amount" value="${b.amount_eur ?? ''}">
+        ${amountInput('amount', b.amount_eur, 2)}
       </div>
       <div class="field">
         <label>${t('contracts.bonus.type')}</label>
@@ -495,13 +635,7 @@ function bindBonusRow(row) {
   const dateEl   = row.querySelector('[data-role="date"]');
   const amountEl = row.querySelector('[data-role="amount"]');
   [dateEl, amountEl].filter(Boolean).forEach(i => {
-    i.addEventListener('input', () => {
-      const dateFilled   = (dateEl?.value || '').trim()   !== '';
-      const amountFilled = (amountEl?.value || '').trim() !== '';
-      const halfFilled   = dateFilled !== amountFilled;
-      dateEl?.classList.toggle('invalid',   halfFilled && !dateFilled);
-      amountEl?.classList.toggle('invalid', halfFilled && !amountFilled);
-    });
+    i.addEventListener('input', () => validatePair(dateEl, amountEl));
   });
 }
 
@@ -527,17 +661,20 @@ function renderSpecialPaymentSection(items) {
 function renderSpecialPaymentRow(s = {}) {
   const kind = s.kind || 'abschlagszahlung';
   const showAdvance = SPECIAL_KIND_AFFECTS_ADVANCE.has(kind);
+  // v2.5.3 (UI-11) — Eigenes Raster statt des allgemeinen Zeilenrasters: Mit
+  // sieben Kindern in vier Spalten schrumpfte das Datum auf 25 px, und die
+  // Abschlagsanpassung rutschte neben den Entfernen-Knopf.
   return `
-    <div class="entry-row special-row" data-kind="${kind}">
+    <div class="entry-row special-row" data-kind="${escapeHtml(kind)}">
       <div class="field">
         <label>${t('contracts.special.date')}</label>
-        <input class="input" type="date" data-role="date" value="${s.date || ''}">
+        <input class="input" type="date" data-role="date" value="${escapeHtml(s.date || '')}">
       </div>
       <div class="field">
         <label>${t('contracts.special.amount')}</label>
-        <input class="input" type="number" step="0.01" min="0" data-role="amount" value="${s.amount_eur ?? ''}">
+        ${amountInput('amount', s.amount_eur, 2)}
       </div>
-      <div class="field">
+      <div class="field special-row__kind">
         <label>${t('contracts.special.kind')}</label>
         <select class="select" data-role="kind">
           ${SPECIAL_PAYMENT_KINDS.map(k =>
@@ -545,22 +682,21 @@ function renderSpecialPaymentRow(s = {}) {
           ).join('')}
         </select>
       </div>
-      <div class="field">
+      <div class="field special-row__note">
         <label>${t('contracts.special.note')}</label>
         <input class="input input--text" data-role="note" value="${escapeHtml(s.note || '')}">
       </div>
-      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-special" title="${t('contracts.special.remove')}" aria-label="${t('contracts.special.remove')}"><span aria-hidden="true">×</span></button>
-      <div class="special-advance" data-role="advance-block"
-           style="${showAdvance ? '' : 'display:none'};flex-basis:100%;display:${showAdvance ? 'flex' : 'none'};gap:var(--sp-3);margin-top:var(--sp-2)">
+      <div class="special-advance" data-role="advance-block" ${showAdvance ? '' : 'hidden'}>
         <div class="field">
           <label>${t('contracts.special.newAdvance')}</label>
-          <input class="input" type="number" step="0.01" min="0" data-role="new-advance" value="${s.new_advance_eur ?? ''}">
+          ${amountInput('new-advance', s.new_advance_eur, 2)}
         </div>
         <div class="field">
           <label>${t('contracts.special.advanceFrom')}</label>
-          <input class="input" type="date" data-role="advance-from" value="${s.advance_from || ''}">
+          <input class="input" type="date" data-role="advance-from" value="${escapeHtml(s.advance_from || '')}">
         </div>
       </div>
+      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-special" title="${t('contracts.special.remove')}" aria-label="${t('contracts.special.remove')}"><span aria-hidden="true">×</span></button>
     </div>
   `;
 }
@@ -590,10 +726,10 @@ function bindSpecialPaymentRow(row) {
 
   const syncAdvanceVisibility = () => {
     const affects = SPECIAL_KIND_AFFECTS_ADVANCE.has(kindEl?.value);
-    if (advBlock) advBlock.style.display = affects ? 'flex' : 'none';
+    if (advBlock) advBlock.hidden = !affects;
     if (!affects) { // beim Wechsel auf "ohne" die Abschlagsfelder leeren
-      if (naEl) naEl.value = '';
-      if (afEl) afEl.value = '';
+      if (naEl) { naEl.value = ''; naEl.classList.remove('invalid'); }
+      if (afEl) { afEl.value = ''; afEl.classList.remove('invalid'); }
     }
     row.dataset.kind = kindEl?.value || '';
   };
@@ -601,27 +737,24 @@ function bindSpecialPaymentRow(row) {
 
   // Halb-leer-Markierung Datum/Betrag (analog Bonus)
   [dateEl, amountEl].filter(Boolean).forEach(i => {
-    i.addEventListener('input', () => {
-      const d = (dateEl?.value || '').trim() !== '';
-      const a = (amountEl?.value || '').trim() !== '';
-      const half = d !== a;
-      dateEl?.classList.toggle('invalid',   half && !d);
-      amountEl?.classList.toggle('invalid', half && !a);
-    });
+    i.addEventListener('input', () => validatePair(dateEl, amountEl));
   });
   // Halb-leer-Markierung der Abschlagsfelder (nur bei *_mit relevant)
   [naEl, afEl].filter(Boolean).forEach(i => {
-    i.addEventListener('input', () => {
-      const n = (naEl?.value || '').trim() !== '';
-      const f = (afEl?.value || '').trim() !== '';
-      const half = n !== f;
-      naEl?.classList.toggle('invalid', half && !n);
-      afEl?.classList.toggle('invalid', half && !f);
-    });
+    i.addEventListener('input', () => validatePair(afEl, naEl));
   });
 }
 
 // ───── Payload extraction ───────────────────────────────────────────
+// Leer bleibt '' (das Backend meldet die halbe Zeile), Text wird zur Zahl.
+// Ein unlesbarer Rest geht als Text hinaus — auch den lehnt das Backend mit
+// Zeilennummer ab, statt eine 0 zu speichern (Lektion 24).
+function amountValue(raw) {
+  const s = String(raw ?? '').trim();
+  if (s === '') return '';
+  return parseDecimal(s) ?? s;
+}
+
 function collectPayload(form) {
   // Leeres Feld → null, nicht 0 oder "": Eine Kündigungsfrist von null heißt
   // „nicht gepflegt" und schaltet die Terminrechnung ab; eine von 0 hieße
@@ -649,7 +782,7 @@ function collectPayload(form) {
       // Send all rows including half-filled — backend will reject loudly.
       // But skip fully-empty so blank template rows don't trigger silent drops.
       if (!date && !amount) return;
-      entries.push({ [g.dateKey]: date, [g.amountKey]: amount === '' ? '' : Number(amount) });
+      entries.push({ [g.dateKey]: date, [g.amountKey]: amountValue(amount) });
     });
     payload[g.key] = entries;
   }
@@ -660,7 +793,7 @@ function collectPayload(form) {
     const am  = row.querySelector('[data-role="amount"]').value.trim();
     const tp  = row.querySelector('[data-role="type"]').value;
     if (!cd && !am) return;
-    bonusEntries.push({ credit_date: cd, amount_eur: am === '' ? '' : Number(am), type: tp, label: '' });
+    bonusEntries.push({ credit_date: cd, amount_eur: amountValue(am), type: tp, label: '' });
   });
   payload.bonuses = bonusEntries;
 
@@ -674,14 +807,14 @@ function collectPayload(form) {
     if (!date && !am) return; // leere Vorlagezeile überspringen
     const entry = {
       date,
-      amount_eur: am === '' ? '' : Number(am),
+      amount_eur: amountValue(am),
       kind,
       note,
     };
     if (SPECIAL_KIND_AFFECTS_ADVANCE.has(kind)) {
       const na = row.querySelector('[data-role="new-advance"]')?.value.trim() || '';
       const af = row.querySelector('[data-role="advance-from"]')?.value.trim() || '';
-      entry.new_advance_eur = na === '' ? '' : Number(na);
+      entry.new_advance_eur = amountValue(na);
       entry.advance_from    = af;
     }
     specialEntries.push(entry);
@@ -694,13 +827,13 @@ function collectPayload(form) {
 // ───── Water Contract modal (v1.0.3) ────────────────────────────────
 // Drei separate Komponenten: Trinkwasser, Schmutzwasser, Niederschlagswasser.
 // Eigene Saldo-Logik, eigene Felder.
-async function openWaterContractModal(u, meters, existing) {
+async function openWaterContractModal(u, meters, existing, contracts = []) {
   return new Promise(resolve => {
     const isEdit = !!existing;
     const initial = existing || {
       meter_id: meters[0]?.id || '',
       provider: '', tariff_name: '',
-      start: todayIso(), end: '', notes: '',
+      start: suggestStart(contracts, meters[0]?.id || ''), end: '', notes: '',
       trinkwasser: {
         working_prices: [{ from: '', ct_per_m3: '' }],
         base_prices:    [{ from: '', eur_per_month: '' }],
@@ -742,7 +875,18 @@ async function openWaterContractModal(u, meters, existing) {
         }));
 
         modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(null); resolve(false); });
-        modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const saveBtn = modalEl.querySelector('[data-act="save"]');
+        saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
+          const form = modalEl.querySelector('#water-contract-form');
+          const twGroup = form.querySelector('[data-group="tw-working"]');
+          const invalid = checkContractBasics(form, {
+            workingRows: [...(twGroup?.querySelectorAll('tbody tr') || [])],
+            workingMsg:  twGroup?.querySelector('[data-role="group-msg"]'),
+            workingLabel: t('contracts.water.twWorking'),
+            dateOf:   tr => tr.querySelector('[data-field="from"]')?.value.trim() || '',
+            amountOf: tr => tr.querySelector('[data-field="ct_per_m3"]')?.value || '',
+          });
+          if (invalid) return;
           // v2.2.0 — halb gefüllte Zeilen vor dem Absenden markieren (analog
           // validateAllGroups im Standard-Formular). Vorher rutschten sie als
           // stille 0 durch, siehe collectWaterForm().
@@ -753,13 +897,14 @@ async function openWaterContractModal(u, meters, existing) {
           let payload;
           try { payload = collectWaterForm(modalEl); }
           catch (err) { toastErr(err.message); return; }
+          if (!await confirmSupersede(contracts, payload, existing)) return;
           try {
             if (isEdit) await api.updateContract(u.key, existing.id, payload);
             else        await api.createContract(u.key, payload);
             toastOk(isEdit ? t('contracts.water.savedEdit') : t('contracts.water.savedNew'));
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
-        });
+        }));
       },
     });
   });
@@ -776,12 +921,14 @@ function waterFormHtml(c, meters, u) {
     <form id="water-contract-form">
       <div class="form-row">
         <div class="field"><label>${t('contracts.water.provider')}</label>
-          <input class="input input--text" name="provider" value="${escapeHtml(c.provider || '')}"></div>
+          <input class="input input--text" name="provider" value="${escapeHtml(c.provider || '')}">
+          <div class="field-error" data-role="name-msg" role="alert" hidden></div></div>
         <div class="field"><label>${t('contracts.water.tariff')}</label>
           <input class="input input--text" name="tariff_name" value="${escapeHtml(c.tariff_name || '')}"></div>
       </div>
       <div class="form-row">
-        <div class="field"><label>${t('contracts.water.start')}</label><input class="input" type="date" name="start" value="${escapeHtml(c.start || '')}" required></div>
+        <div class="field"><label>${t('contracts.water.start')}</label><input class="input" type="date" name="start" value="${escapeHtml(c.start || '')}" required>
+          <div class="field-error" data-role="start-msg" role="alert" hidden></div></div>
         <div class="field"><label>${t('contracts.water.end')}</label><input class="input" type="date" name="end" value="${escapeHtml(c.end || '')}"></div>
         <div class="field"><label>${t('contracts.water.meter')}</label><select class="select" name="meter_id" required>${meterOpts}</select></div>
       </div>
@@ -858,7 +1005,7 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
         <td>
           ${i === 0
             ? `<input class="input" type="date" data-field="${escapeHtml(f)}" value="${escapeHtml(e[f] ?? '')}">`
-            : `<input class="input num" type="number" step="0.001" data-field="${escapeHtml(f)}" value="${escapeHtml(String(e[f] ?? ''))}">`}
+            : waterNumberInput(f, e[f])}
         </td>
       `).join('')}
       <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>
@@ -867,6 +1014,7 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
   return `
     <div class="field" data-group="${escapeHtml(groupKey)}" data-fields='${escapeHtml(JSON.stringify(fields))}'>
       <label>${escapeHtml(title)}</label>
+      <div class="field-error" data-role="group-msg" role="alert" hidden></div>
       <table class="table table--compact" style="width:100%">
         <thead><tr>${inputs}<th scope="col"><span class="sr-only">${t('common.actions')}</span></th></tr></thead>
         <tbody>${rows}</tbody>
@@ -876,12 +1024,18 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
   `;
 }
 
+// Zahlenfeld der Wasser-Tabellen — Text mit Dezimaltastatur wie im
+// Standardformular (amountInput), gelesen mit parseDecimal.
+function waterNumberInput(field, value) {
+  return `<input class="input num" type="text" inputmode="decimal" autocomplete="off" data-field="${escapeHtml(field)}" value="${escapeHtml(formatForInput(value))}">`;
+}
+
 function renderWaterBonusGroup(bonuses) {
   if (!bonuses.length) bonuses = [{ credit_date: '', amount_eur: '', type: 'neukunde', label: '' }];
   const rows = bonuses.map((b, idx) => `
     <tr data-row="${idx}">
       <td><input class="input" type="date" data-field="credit_date" value="${escapeHtml(b.credit_date || '')}"></td>
-      <td><input class="input num" type="number" step="0.01" data-field="amount_eur" value="${escapeHtml(String(b.amount_eur || ''))}"></td>
+      <td>${waterNumberInput('amount_eur', b.amount_eur)}</td>
       <td><input class="input input--text" data-field="label" value="${escapeHtml(b.label || '')}"></td>
       <td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>
     </tr>
@@ -919,7 +1073,7 @@ function bindWaterEntryHandlers(modalEl) {
         if (f === 'label') {
           return `<td><input class="input input--text" data-field="${f}"></td>`;
         }
-        return `<td><input class="input num" type="number" step="0.001" data-field="${f}"></td>`;
+        return `<td>${waterNumberInput(f, '')}</td>`;
       }).join('');
       tr.innerHTML = `${cells}<td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>`;
       tbody.appendChild(tr);
@@ -954,8 +1108,10 @@ function validateWaterRows(modalEl) {
         .filter(Boolean);
       const filled = inputs.filter(i => i.value.trim() !== '').length;
       const halfFilled = filled > 0 && filled < inputs.length;
-      inputs.forEach(i => i.classList.toggle('invalid', halfFilled && i.value.trim() === ''));
-      if (halfFilled) ok = false;
+      // v2.5.3 — gefüllt, aber keine Zahl („2,5,0"): ebenfalls markieren.
+      const unreadable = i => i.getAttribute('inputmode') === 'decimal' && i.value.trim() !== '' && parseDecimal(i.value) === null;
+      inputs.forEach(i => i.classList.toggle('invalid', (halfFilled && i.value.trim() === '') || unreadable(i)));
+      if (halfFilled || inputs.some(unreadable)) ok = false;
     });
   });
   return ok;
@@ -969,12 +1125,8 @@ function collectWaterForm(modalEl) {
   // Kosten fielen ab da still auf den Grundpreis. Ein leerer String erreicht
   // stattdessen den Backend-Guard (normalizePriceList), der die halb gefüllte
   // Zeile ablehnt, statt sie zu speichern.
-  const num = (v) => {
-    const s = String(v ?? '').trim();
-    if (s === '') return '';
-    const n = parseFloat(s.replace(',', '.'));
-    return Number.isFinite(n) ? n : '';
-  };
+  // v2.5.3 — parseDecimal statt parseFloat: „1.250,5" wurde zu 1,25.
+  const num = amountValue;
   const collect = (groupKey) => {
     const group = modalEl.querySelector(`[data-group="${groupKey}"]`);
     if (!group) return [];

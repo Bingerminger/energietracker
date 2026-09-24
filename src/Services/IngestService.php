@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Dates;
 
 /**
  * F1009 — Push-Ingest für externe Datenlieferanten (Home Assistant).
@@ -60,7 +61,9 @@ final class IngestService
             $date = date('Y-m-d');
         } else {
             if (strlen($date) > 10) $date = substr($date, 0, 10);
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            // v2.5.3 — kalendergültig statt nur das Muster: `2025-13-01` wurde
+            // bisher angenommen und legte danach jede Auswertung lahm.
+            if (!Dates::isIsoDate($date)) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.ingest.dateFormat', ['date' => $date]));
             }
         }

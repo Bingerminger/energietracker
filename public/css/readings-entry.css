@@ -130,23 +130,28 @@
 }
 
 /* ── Sticky-Action-Bar am unteren Viewport-Rand ───────────────────── */
+/* v2.5.3 (UI-14) — Am Mac lag die Leiste über der Seitenleiste („Einstellungen"
+   war nicht mehr klickbar), und ihr grauer Schleier wirkte wie ein Dialog.
+   Jetzt nur über der Inhaltsspalte, deckender Hintergrund, Beschriftung mittig. */
 .readings-entry__sticky {
   position: fixed;
   left: 0; right: 0; bottom: 0;
   padding: var(--sp-3) var(--sp-4);
   padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
-  background: var(--bg-overlay);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--bg-1);
   border-top: 1px solid var(--border-1);
   z-index: 50;
   display: flex; justify-content: center;
+}
+@media (min-width: 801px) {
+  .readings-entry__sticky { left: var(--sidebar-w); }
 }
 .readings-entry__sticky .btn {
   width: 100%; max-width: 600px;
   min-height: 52px;
   font-size: var(--fs-md);
   font-weight: 600;
+  justify-content: center;
 }
 
 /* ── Mobile-First Tuning ──────────────────────────────────────────── */

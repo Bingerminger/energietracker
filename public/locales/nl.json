@@ -17,7 +17,8 @@
     "all": "Alle",
     "optional": "optioneel",
     "required": "verplicht",
-    "actions": "Acties"
+    "actions": "Acties",
+    "invalidNumber": "Voer een geldig getal in, bijv. {example}."
   },
   "app": {
     "themeToggle": "Thema wisselen",
@@ -229,7 +230,7 @@
       "colClaimFeedIn": "Vergoedingsvordering",
       "colBalance": "Huidig saldo",
       "subCredit": "Tegoed bij netbeheerder",
-      "subReclaim": "Terugvorderen",
+      "subReclaim": "Terug te betalen",
       "subBalanced": "in evenwicht",
       "subUnderpaid": "Te weinig betaald",
       "subOverpaid": "Te veel betaald",
@@ -271,8 +272,8 @@
       "periodOpen": "{start} → lopend",
       "gpSuffix": "{value} € vastrecht",
       "colSpecial": "Bijzondere betalingen",
-      "colSpecialTitle": "Netto van bijzondere betalingen: terugbetalingen van de leverancier tellen positief, naheffingen en extra voorschotten negatief. Afzonderlijke posten in de tooltip van de cel.",
-      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), naheffingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Beweeg over de cel voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden."
+      "colSpecialTitle": "Netto van bijzondere betalingen: terugbetalingen van de leverancier tellen positief, bijbetalingen en extra voorschotten negatief. Afzonderlijke posten in de tooltip van de cel.",
+      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Beweeg over de cel voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden."
     },
     "monthlyTable": {
       "noData": "Geen gegevens voor dit jaar.",
@@ -337,7 +338,9 @@
       "create": "Aanmaken",
       "validation": "Datum en meterstand zijn verplicht.",
       "savedNew": "Meterstand opgeslagen",
-      "savedEdit": "Meterstand bijgewerkt"
+      "savedEdit": "Meterstand bijgewerkt",
+      "confirmLower": "Deze stand ligt onder de laatste ({last} {unit}). Een meterstand stijgt normaal alleen; een vervangen meter hoort bij ‘Meterwissel’. Toch opslaan?",
+      "confirmLowerOk": "Toch opslaan"
     },
     "deliveryModal": {
       "titleEdit": "Levering bewerken · {label}",
@@ -365,7 +368,7 @@
       "sinceLast": "{delta} {unit} sinds laatste meterstand",
       "sinceLastDays": "{delta} {unit} sinds laatste meterstand ({days} dagen geleden)"
     },
-    "verdict": { "surcharge": "Bijbetaling", "refund": "Teruggave", "payout": "Uitbetaling", "reclaim": "Terugvorderen", "balanced": "In evenwicht" },
+    "verdict": { "surcharge": "Bijbetaling", "refund": "Teruggave", "payout": "Uitbetaling", "reclaim": "Terug te betalen", "balanced": "In evenwicht" },
     "billCheck": {
       "title": "Factuurcontrole",
       "hint": "Rekent de gasfactuur na: per periode m³ × volumeherleidingsfactor × calorische waarde = kWh, zoals de regels van de leveranciersfactuur. Een nieuwe periode begint bij elke meterstand en elke wijziging van de calorische waarde.",
@@ -487,7 +490,12 @@
       "priceGuarantee": "Prijs gegarandeerd tot",
       "priceGuaranteeHint": "Daarna is de prijs een aanname.",
       "minTermEnd": "Minimale looptijd eindigt",
-      "minTermEndHint": "Alleen nodig bij contracten voor onbepaalde tijd — eerder opzeggen kan niet."
+      "minTermEndHint": "Alleen nodig bij contracten voor onbepaalde tijd — eerder opzeggen kan niet.",
+      "nameRequired": "Vul een leverancier of tarief in.",
+      "workingPriceRequired": "Er is minstens één rij ‘{group}’ met datum en bedrag nodig.",
+      "supersedeTitle": "Lopend contract vervangen?",
+      "supersedeMessage": "Vanaf {date} geldt dit contract in plaats van ‘{name}’ – bij overlappende contracten wint het latere begin. Saldo en prognose rekenen dan met de nieuwe prijzen.",
+      "supersedeOk": "Ja, vervangen"
     },
     "delete": { "title": "Contract verwijderen?", "message": "Contract definitief verwijderen?", "confirm": "Verwijderen", "deleted": "Contract verwijderd" },
     "deleteContract": "Contract verwijderen",
@@ -527,14 +535,14 @@
       "nw": "☔ Regenwater",
       "advances": "💰 Voorschotten",
       "bonuses": "🎁 Bonussen",
-      "twWorking": "Energieprijs (ct/m³)",
+      "twWorking": "Prijs per m³ (ct/m³)",
       "twBase": "Vastrecht (€/maand)",
       "basis": "Berekeningsbasis",
       "basisTw": "op basis van drinkwaterverbruik (standaard)",
       "basisSep": "aparte afvalwatermeter",
       "sepMeter": "Afvalwatermeter",
       "noMoreMeters": "(nog geen andere meters beschikbaar)",
-      "swWorking": "Energieprijs afvalwater (ct/m³)",
+      "swWorking": "Prijs per m³ afvalwater (ct/m³)",
       "nwRates": "Ingangsdatum",
       "apMonthly": "Maandvoorschot (€)",
       "colDate": "Datum",
@@ -630,7 +638,10 @@
       "reason": "Reden",
       "reasonPlaceholder": "bijv. ijking, defect",
       "submit": "Wissel uitvoeren",
-      "done": "Meter gewisseld"
+      "done": "Meter gewisseld",
+      "lastKnown": "Laatste stand: {value} {unit} op {date}",
+      "confirmLower": "De eindstand {oldFinal} {unit} ligt onder de laatste stand ({last} {unit} op {lastDate}). Een meterstand daalt niet – controleer dit. Toch doorgaan?",
+      "confirmSummary": "Op {date} wordt het oude apparaat afgesloten met {oldFinal} {unit} en begint het nieuwe met {newInitial} {unit}. Dit kan in de app niet ongedaan worden gemaakt."
     },
     "import": {
       "title": "Meterstanden importeren: {name}",
@@ -835,7 +846,7 @@
       "saveAliases": "Aliassen opslaan",
       "noMeters": "Geen cumulatieve meters beschikbaar.",
       "step3": "3. Home Assistant-configuratie (om te kopiëren)",
-      "configHint": "Voeg dit toe aan je <code>configuration.yaml</code> en pas de URL/het token aan. Een volledige automatisering met voorbeelden staat in <code>docs/HOME-ASSISTANT.md</code>.",
+      "configHint": "Voeg het REST-commando toe aan je <code>configuration.yaml</code> en controleer de URL; zet de tokenregel in <code>secrets.yaml</code>. <strong>Sjablonen tot v2.5.2 bevatten <code>float(0)</code></strong> en boekten een meterstand 0 als de sensor niet beschikbaar was – vervang ze door deze versie.",
       "copyYaml": "YAML kopiëren",
       "genConfirmTitle": "Een API-token genereren?",
       "genConfirmMsg": "Er wordt een nieuw token gegenereerd en EENMALIG getoond. Een bestaand token wordt ongeldig.",
@@ -849,7 +860,15 @@
       "aliasesSaved": "{count} alias(sen) opgeslagen",
       "yamlCopied": "YAML gekopieerd",
       "clipboardFail": "Kopiëren mislukt",
-      "clipboardUnavailable": "Klembord niet beschikbaar — selecteer handmatig"
+      "clipboardUnavailable": "Klembord niet beschikbaar — selecteer handmatig",
+      "step4": "4. Automatisering (om te kopiëren)",
+      "automationHint": "Kies in de automatiseringseditor ‘Bewerken in YAML’ en plak. Elke meter met alias krijgt een regel; vul bij <code>sensor_entity</code> de entiteit met de absolute meterstand in. <code>has_value</code> slaat een meter over waarvan de sensor op dat moment niet beschikbaar is.",
+      "yaml": {
+        "secretComment": "volledige waarde uit secrets.yaml, inclusief ‘Bearer’",
+        "floatComment": "float zonder standaardwaarde: is de sensor niet beschikbaar, dan mislukt de push in plaats van 0 te boeken.",
+        "automationAlias": "Energietracker: meterstanden versturen",
+        "hasValueComment": "Alleen versturen als de sensor een waarde heeft – vlak na een herstart staat hij even op ‘unavailable’."
+      }
     },
     "diag": {
       "title": "🩺 Systeemdiagnose",
@@ -912,7 +931,9 @@
       "errOneUndated": "Er is al een item zonder datum — geef een „geldig vanaf” op",
       "errDuplicate": "Er is al een item voor deze datum",
       "errNeedValues": "Geef volumeherleidingsfactor en calorische waarde op — of de factor direct"
-    }
+    },
+    "invalidFields": "Niet opgeslagen: corrigeer de rood gemarkeerde velden.",
+    "dayMonthInvalid": "Voer in als dag-maand, bijv. 01-10 voor 1 oktober."
   },
   "reminders": {
     "suggest": {
@@ -954,7 +975,8 @@
       "fInterval": "Interval (maanden)",
       "fNotes": "Notities",
       "save": "Opslaan",
-      "validation": "Titel en datum zijn verplicht"
+      "validation": "Titel en datum zijn verplicht",
+      "intervalInvalid": "Het interval moet een geheel getal van 1 tot 120 maanden zijn."
     }
   },
   "temperatures": {
@@ -977,7 +999,8 @@
     "syncToast": "Synchronisatie OK · {imported} dagen (archief: {archive}, prognose: {forecast})",
     "archiveError": "Archief: {err}",
     "forecastError": "Prognose: {err}",
-    "importToast": "Import: {imported} dagen geïmporteerd, {skipped} overgeslagen"
+    "importToast": "Import: {imported} dagen geïmporteerd, {skipped} overgeslagen",
+    "coordInvalid": "Voer een getal tussen {min} en {max} in."
   },
   "recommendations": {
     "loading": "Aanbevelingen laden…",
@@ -1256,7 +1279,8 @@
     "balanceBalanced": "(in evenwicht)",
     "balanceNote": "· cumulatief uit geschatte kosten minus geprojecteerde voorschotten",
     "col": { "month": "Maand", "consumption": "Verbruik ({unit})", "hgt": "GD geschat", "cost": "Kosten geschat", "advance": "Voorschot geprojecteerd", "balance": "Saldo lopend", "method": "Methode" },
-    "bonusNote": "Toekomstige bonussen worden niet geëxtrapoleerd — alleen bonussen die in het contract zijn geregistreerd met een creditdatum binnen de prognoseperiode tellen mee in de kosten."
+    "bonusNote": "Toekomstige bonussen worden niet geëxtrapoleerd — alleen bonussen die in het contract zijn geregistreerd met een creditdatum binnen de prognoseperiode tellen mee in de kosten.",
+    "whatIfInvalid": "Controleer de gemarkeerde velden: temperatuurverschuiving −20 tot 20 °C, prijsfactor 0 tot 10, horizon 1 tot 24 maanden."
   },
   "report": {
     "createdOn": "Gemaakt op {date}",
@@ -1369,17 +1393,21 @@
       "mergeNeedTwo": "Samenvoegen vereist minstens twee meters",
       "invalidBaselineList": "Peilmomenten moeten worden aangeleverd als lijst met items die een datum bevatten",
       "invalidBaselineDate": "Ongeldige datum voor het peilmoment: „{date}” — verwacht wordt JJJJ-MM-DD",
-      "duplicateBaselineDate": "Er bestaat al een peilmoment voor {date}"
+      "duplicateBaselineDate": "Er bestaat al een peilmoment voor {date}",
+      "swapBeforeInstall": "De wissel op {date} ligt vóór de installatie van het huidige apparaat ({installed})."
     },
     "common": {
       "unknownUtility": "Onbekende energie: {utility}",
-      "meterNotFound": "Meter niet gevonden: {id}"
+      "meterNotFound": "Meter niet gevonden: {id}",
+      "dateInvalid": "Ongeldige datum ‘{date}’ – verwacht wordt JJJJ-MM-DD."
     },
     "reading": {
       "dateMissing": "Datum ontbreekt",
       "counterMissing": "Meterstand ontbreekt",
       "noDevice": "Geen apparaat van deze meter is actief op de datum {date}",
-      "notFound": "Meterstand niet gevonden"
+      "notFound": "Meterstand niet gevonden",
+      "counterInvalid": "Ongeldige meterstand ‘{value}’ – verwacht wordt een getal vanaf 0.",
+      "dateInvalid": "Ongeldige afleesdatum ‘{date}’ – verwacht wordt JJJJ-MM-DD."
     },
     "contract": {
       "noContracts": "Voor {label} kunnen geen contracten worden aangemaakt (alleen-statistiek-energie).",
@@ -1401,14 +1429,17 @@
         "sealedArea": "verhard oppervlak",
         "creditDate": "Creditdatum",
         "advanceDate": "Ingangsdatum voorschot",
-        "newAdvanceAmount": "nieuw voorschotbedrag"
+        "newAdvanceAmount": "nieuw voorschotbedrag",
+        "start": "Ingangsdatum contract",
+        "end": "Einddatum contract"
       },
       "noticeNotNumeric": "De opzegtermijn moet een getal zijn.",
       "noticeOutOfRange": "De opzegtermijn moet tussen 0 en 24 maanden liggen.",
       "dateInvalid": "Ongeldige datum in {field}: {value}",
       "dateBeforeStart": "{field} mag niet vóór het begin van het contract liggen.",
       "bonusNotNumeric": "De welkomstbonus moet een getal zijn.",
-      "bonusNegative": "De welkomstbonus mag niet negatief zijn."
+      "bonusNegative": "De welkomstbonus mag niet negatief zijn.",
+      "amountInvalid": "{label}-invoer nr. {n}: bedrag ‘{value}’ is geen getal"
     },
     "delivery": {
       "notFound": "Levering niet gevonden: {id}",
@@ -1470,6 +1501,9 @@
     "billCheck": {
       "gasOnly": "De factuurcontrole is alleen beschikbaar voor gas",
       "invalidRange": "Geef een geldige periode op (van < tot, JJJJ-MM-DD)"
+    },
+    "http": {
+      "crossSite": "Geweigerd: het verzoek kwam van een andere website. Wijzigingen kunnen alleen vanuit Energietracker zelf."
     }
   }
 }

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Energietracker;
 
+use Energietracker\Http\CrossSiteGuard;
 use Energietracker\Http\ErrorHandler;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
@@ -10,6 +11,7 @@ use Energietracker\Http\Router;
 use Energietracker\Logging\Logger;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Storage\Migrator;
+use Energietracker\Storage\WriteLock;
 use Energietracker\Services\{
     MeterService, ReadingService, ContractService, ConsumptionService,
     TemperatureService, RegressionService, ForecastService, AnomalyService,
@@ -146,22 +148,47 @@ final class App
         // Erststart, z. B. frischer Docker-Container) wird per initFresh()
         // mit Standard-Zählern bestückt — NICHT per migrate(), das ohne
         // Altdaten einen leeren Tracker hinterließe.
+        // v2.5.3 — Start-Logik im Migrator (runOnStartup), unter der
+        // Schreibsperre und mit Sicherungs-Snapshot vor jeder Migration. Die
+        // Sperre verhindert, dass zwei gleichzeitige erste Anfragen nach
+        // einem Update beide migrieren; runOnStartup prüft danach erneut.
+        $this->writeLock = new WriteLock($this->store->rootDir());
         $migrator = new Migrator($this->store, $this->i18n);
-        if ($migrator->isPristine()) {
-            $migrator->initFresh();
-            $this->logger->info('Datenverzeichnis frisch initialisiert', ['data_dir' => $dataDir]);
-        } elseif ($migrator->needsMigration()) {
-            $migrator->migrate();
-            $this->logger->info('Datenmigration ausgeführt', [
-                'schema_version' => $this->store->read('meta.json', [])['schema_version'] ?? null,
-            ]);
-        } elseif (!$migrator->isAlreadyMigrated()) {
-            $migrator->initFresh();
-            $this->logger->info('Datenverzeichnis frisch initialisiert', ['data_dir' => $dataDir]);
+        if ($migrator->isPristine() || $migrator->needsMigration() || !$migrator->isAlreadyMigrated()) {
+            $this->writeLock->acquire();
+            try {
+                $result = $migrator->runOnStartup(fn(string $from): string => $this->backups->saveSnapshot(
+                    'pre-migration-' . preg_replace('/[^0-9A-Za-z.]/', '', $from) . '_'
+                ));
+                $this->logStartup($result, $dataDir);
+            } finally {
+                $this->writeLock->release();
+            }
         }
 
         $this->router = new Router();
         $this->registerRoutes();
+    }
+
+    /** v2.5.3 — eine Sperre je schreibender Anfrage, s. Storage\WriteLock */
+    private WriteLock $writeLock;
+
+    /** @param array<string,mixed>|null $result aus Migrator::runOnStartup() */
+    private function logStartup(?array $result, string $dataDir): void
+    {
+        if ($result === null) return;
+        if ($result['action'] === 'fresh') {
+            $this->logger->info('Datenverzeichnis frisch initialisiert', ['data_dir' => $dataDir]);
+            return;
+        }
+        if (!empty($result['snapshot_error'])) {
+            $this->logger->error('Snapshot vor der Migration fehlgeschlagen', ['error' => $result['snapshot_error']]);
+        }
+        $this->logger->info('Datenmigration ausgeführt', [
+            'from'           => $result['from'] ?? null,
+            'schema_version' => $this->store->read('meta.json', [])['schema_version'] ?? null,
+            'snapshot'       => $result['snapshot'] ?? null,
+        ]);
     }
 
     public function handle(Request $req): void
@@ -193,6 +220,20 @@ final class App
             header('X-Content-Type-Options: nosniff');
         }
         if ($req->method === 'OPTIONS') exit;
+
+        // v2.5.3 — schreibende Anfragen fremder Webseiten abweisen (CSRF), s. CrossSiteGuard
+        if (CrossSiteGuard::isForeignWrite($req->method, $_SERVER)) {
+            $this->logger->warning('Schreibende Anfrage einer fremden Webseite abgelehnt', [
+                'method' => $req->method,
+                'path'   => $req->path,
+                'origin' => (string)($_SERVER['HTTP_ORIGIN'] ?? ''),
+                'site'   => (string)($_SERVER['HTTP_SEC_FETCH_SITE'] ?? ''),
+            ]);
+            Response::error($this->i18n->t('errors.http.crossSite'), 403);
+        }
+        if (in_array($req->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+            $this->writeLock->acquire();   // endet mit dem Prozess der Anfrage
+        }
         $this->router->dispatch($req);
     }
 

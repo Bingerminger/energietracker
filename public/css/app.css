@@ -71,9 +71,13 @@ h1, h2, h3, h4 { margin: 0; }
 }
 
 /* ── Top-level layout grid ──────────────────────────────────────── */
+/* v2.5.3 (UI-01) — minmax(0, 1fr) statt 1fr: `1fr` heißt minmax(auto, 1fr),
+   und die Mindestbreite breiter Tabellen dehnte die ganze Spalte — obwohl die
+   Tabellen in .table-wrap selbst scrollen. Folge waren seitliches Scrollen auf
+   dem iPhone in 13 von 21 Ansichten und abgeschnittene Knöpfe bei 1280 px. */
 .layout {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   grid-template-rows: var(--topbar-h) 1fr;
   grid-template-areas:
     "topbar topbar"
@@ -222,6 +226,7 @@ h1, h2, h3, h4 { margin: 0; }
   padding: var(--sp-5) var(--sp-6);
   max-width: var(--content-max);
   width: 100%;
+  min-width: 0;
 }
 .loading {
   display: flex; align-items: center; justify-content: center;
@@ -248,7 +253,7 @@ h1, h2, h3, h4 { margin: 0; }
 /* ── KPI grid ───────────────────────────────────────────────────── */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(200px, 100%), 1fr));
   gap: 14px;
   margin-bottom: var(--sp-5);
 }
@@ -338,9 +343,11 @@ h1, h2, h3, h4 { margin: 0; }
 /* v2.0.0 (UX) — im Grid übernimmt der gap den Abstand; der zusätzliche
    margin-bottom der Karte entfällt, damit Karten-Reihen gleichmäßig sitzen. */
 .grid > .card { margin-bottom: 0; }
-.grid-2 { grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); }
-.grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
-.grid-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+/* v2.5.3 (UI-01) — min(…, 100%): Auf dem iPhone SE (375 px) war eine
+   360-px-Spalte samt Rand breiter als der Bildschirm. */
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr)); }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.grid-4 { grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
 
 /* ── Misc helpers ───────────────────────────────────────────────── */
 .muted { color: var(--text-2); }
@@ -360,7 +367,7 @@ h1, h2, h3, h4 { margin: 0; }
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 800px) {
   .layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: var(--topbar-h) auto 1fr;
     grid-template-areas:
       "topbar"

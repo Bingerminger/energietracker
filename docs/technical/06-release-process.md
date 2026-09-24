@@ -383,6 +383,25 @@ abgenommen ist.
   Release. Aufnahme mit Demo-Daten, hellem Theme und einem hohen Ansichtsfenster
   (1440 × 1500) statt `fullPage` — bei ganzseitigen Aufnahmen bricht die
   fixierte Seitenleiste ab. Danach durch `pngquant`.
+- **„Ein Default statt eines Fehlers" lebte im Frontend weiter (v2.5.3).**
+  `type="number"` liefert für „12,5" je nach Browser einen leeren String, und
+  `Number("")` ist 0 — zehn Formulare buchten so still eine 0, darunter der
+  Endstand beim Zählertausch. Zahlen werden seitdem als Text mit
+  Dezimaltastatur erfasst und von **einem** Parser (`parseDecimal`) gelesen, der
+  „leer" von „0" unterscheidet. Wer ein Zahlenfeld anlegt, nimmt diesen Weg.
+- **Eine Vorlage, die Nutzer kopieren, ist Code (v2.5.3).** Das
+  Home-Assistant-Snippet stand in der App und in der Anleitung — zwei
+  Fassungen, beide falsch: `float(0)` buchte bei nicht verfügbarem Sensor einen
+  Zählerstand 0, `"Bearer !secret …"` schickte den Text wörtlich. Die Vorlage
+  lebt jetzt in einem Modul (`public/js/lib/ha-snippet.js`), und
+  `tests/ha-snippet.test.mjs` hält beide Sprachfassungen der Anleitung daneben.
+- **Ein Scroll-Rahmen beschneidet nur, was sich an ihm ausrichtet (v2.5.3).**
+  Das unsichtbare `.sr-only`-Label „Aktionen" im Tabellenkopf ist absolut
+  positioniert; sein Bezugsrahmen lag außerhalb des `overflow-x: auto` — die
+  ganze Seite wurde auf dem iPhone breiter. `.table-wrap` trägt deshalb
+  `position: relative`. Gemessen wird Überbreite über
+  `document.documentElement.scrollWidth`, nicht über die Lage einzelner
+  Elemente: Beschnittene Elemente melden ihre volle Breite.
 
 ---
 

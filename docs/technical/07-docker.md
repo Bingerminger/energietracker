@@ -16,8 +16,10 @@ was Energietracker braucht (PHP 8.4, nginx, der App-Code). Du musst auf deinem
 Rechner/Server **nichts** außer Docker installieren. Vorteile:
 
 - **Ein Befehl, läuft überall** gleich (Mac, Linux, Windows, Synology/NAS).
-- **Saubere Trennung** von App und deinen Daten — Updates ändern nie deine
-  Daten.
+- **Saubere Trennung** von App und deinen Daten — ein neuer Container lässt
+  dein Datenverzeichnis stehen. (Hebt ein Update das Datenschema an, passt
+  Energietracker die Dateien einmalig an, siehe
+  [Updates durchführen](#updates-durchführen).)
 - **Kein PHP/nginx-Setup** von Hand.
 
 Du brauchst dafür **Docker Desktop** (Mac/Windows) bzw. **Docker Engine**
@@ -81,8 +83,8 @@ Nützliche Folgebefehle:
 ```bash
 docker compose logs -f      # Logs live ansehen (JSON-Lines, siehe unten)
 docker compose down         # Container stoppen & entfernen (Daten bleiben!)
-docker compose pull         # neue Image-Version holen
-docker compose up -d        # … und mit neuer Version neu starten
+docker compose pull         # das in docker-compose.yml eingetragene Image holen
+docker compose up -d        # … und damit neu starten
 ```
 
 ---
@@ -115,9 +117,11 @@ Zeile für Zeile:
 
 | Tag | Bedeutung | Empfehlung |
 |-----|-----------|------------|
-| `:1.7.3` | exakt diese Version | **Produktiv** — vorhersehbar |
-| `:1.7` | neueste 1.7.x | Bugfixes automatisch |
+| `:X.Y.Z` (z. B. die aktuelle Version aus dem CHANGELOG) | exakt diese Version | **Produktiv** — vorhersehbar |
+| `:X.Y` | neueste X.Y.z | Bugfixes automatisch |
 | `:latest` | immer die neueste | Zum Ausprobieren |
+
+Die mitgelieferte `docker-compose.yml` pinnt eine feste Version.
 
 Best Practice für einen Server: eine **konkrete Versionsnummer** pinnen und
 Updates bewusst durchführen.
@@ -175,19 +179,32 @@ Bei `docker run` mit `-e NAME=wert`, bei Compose unter `environment:`.
 
 ## Updates durchführen
 
+1. **Backup ziehen:** *Einstellungen → Backup & Restore → Backup exportieren*.
+   Das ist dein Rückweg — eine Schema-Migration lässt sich nicht umkehren.
+2. **CHANGELOG lesen:** Was unter „Migration" steht, betrifft dich.
+3. **Neue Version holen:**
+
 ```bash
-# Compose
+# Compose: zuerst den Tag in docker-compose.yml auf die neue Version setzen
+# (oder im Projektordner `git pull` — dann steht er schon drin)
 docker compose pull && docker compose up -d
 
 # docker run
-docker pull ghcr.io/bingerminger/energietracker:latest
+docker pull ghcr.io/bingerminger/energietracker:X.Y.Z
 docker rm -f energietracker
 docker run -d --name energietracker -p 8080:80 \
-  -v "$PWD/data:/data" ghcr.io/bingerminger/energietracker:latest
+  -v "$PWD/data:/data" ghcr.io/bingerminger/energietracker:X.Y.Z
 ```
 
-Deine Daten liegen im Host-Volume und bleiben dabei unverändert. Trotzdem gilt:
-**vor größeren Updates ein Backup ziehen** (UI → Backup exportieren).
+> `docker compose pull` holt genau das Image, das in der `docker-compose.yml`
+> steht. Ohne geänderten Tag bekommst du dieselbe Version noch einmal.
+
+Deine Daten bleiben im Host-Volume. Braucht die neue Version ein neues
+Datenschema, passt Energietracker die Dateien beim ersten Start an und legt
+vorher einen Snapshot in `data/backups/` ab (`pre-migration-…`, seit v2.5.3).
+Den Rückweg ersetzt er nicht: Eine ältere Version kann das neue Schema nicht
+lesen — zurück geht es nur mit der alten Version **und** dem Backup aus
+Schritt 1.
 
 ---
 

@@ -7,9 +7,10 @@
 
 import { api } from '../api.js';
 import { invalidateSettings, invalidateUtilities } from '../state.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
+import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../lib/ha-snippet.js';
 import { t, getLocale, initI18n, getLanguages } from '../lib/i18n.js';
 import { buildSidebar } from '../lib/sidebar.js';
 
@@ -87,8 +88,8 @@ const GROUPS = [
   ]},
   { gkey: 'location', icon: '📍', fields: [
     { key: 'location_name',     type: 'text' },
-    { key: 'latitude',          step: '0.0001' },
-    { key: 'longitude',         step: '0.0001' },
+    { key: 'latitude',          step: '0.0001', signed: true },
+    { key: 'longitude',         step: '0.0001', signed: true },
     { key: 'weather_auto_fill', type: 'bool' },
   ]},
 ];
@@ -281,6 +282,13 @@ export async function render(container) {
   window.addEventListener('beforeunload', beforeUnload);
 
   const save = async () => {
+    const invalid = firstInvalidSetting(container);
+    if (invalid) {
+      invalid.scrollIntoView?.({ block: 'center' });
+      invalid.focus();
+      toastErr(t('settings.invalidFields'));
+      return;
+    }
     const payload = collectSettings(container);
     try {
       await api.updateSettings(payload);
@@ -322,7 +330,7 @@ export async function render(container) {
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `energietracker-backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.href = url; a.download = `energietracker-backup-${todayIso()}.json`;
       a.click(); URL.revokeObjectURL(url);
     } catch (e) { toastErr(e.message); }
   });
@@ -447,8 +455,18 @@ export async function render(container) {
       catch (e) { failed++; toastErr(`${utility}/${meterId}: ${e.message}`); }
     }
     if (failed === 0) toastOk(t('settings.ha.aliasesSaved', { count: saved }));
+    // Die Automatisierungs-Vorlage folgt den Aliasen.
+    const code = container.querySelector('#ha-automation code');
+    if (code) {
+      code.textContent = haAutomationYaml(inputs.filter(i => i.value.trim()).map(i => ({
+        utility: i.getAttribute('data-utility'), meter: i.value.trim(), sensor: `sensor.${i.value.trim()}`,
+      })));
+    }
   });
 
+  container.querySelectorAll('[data-ha-copy]').forEach(btn => btn.addEventListener('click', () => {
+    copyText(container.querySelector(btn.getAttribute('data-ha-copy'))?.innerText || '', t('settings.ha.yamlCopied'));
+  }));
   container.querySelector('#btn-ha-copy-yaml')?.addEventListener('click', () => {
     copyText(container.querySelector('#ha-yaml')?.innerText || '', t('settings.ha.yamlCopied'));
   });
@@ -476,7 +494,7 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
         <td>${escapeHtml(u.icon || '')} ${escapeHtml(u.label)}</td>
         <td>${escapeHtml(m.name)}</td>
         <td>
-          <input class="input input--sm ha-alias-input" data-utility="${u.key}" data-meter="${m.id}"
+          <input class="input input--sm ha-alias-input" data-utility="${u.key}" data-meter="${escapeHtml(m.id)}"
                  value="${escapeHtml(m.external_id || '')}" placeholder="${escapeHtml(t('settings.ha.aliasPlaceholder', { key: u.key }))}"
                  style="min-width:180px">
         </td>
@@ -511,10 +529,10 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
         ${t('settings.ha.aliasHint')}
       </p>
       ${meterRows ? `
-        <table class="data-table">
+        <div class="table-wrap"><table class="data-table">
           <thead><tr><th>${t('settings.ha.colUtility')}</th><th>${t('settings.ha.colMeter')}</th><th>${t('settings.ha.colAlias')}</th></tr></thead>
           <tbody>${meterRows}</tbody>
-        </table>
+        </table></div>
         <div class="section-actions" style="margin-top:var(--sp-2)">
           <button class="btn" id="btn-ha-save-aliases">${t('settings.ha.saveAliases')}</button>
         </div>
@@ -526,33 +544,42 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility) {
       <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
         ${t('settings.ha.configHint')}
       </p>
-      <pre class="code-block" id="ha-yaml"><code>${escapeHtml(haRestCommandYaml())}</code></pre>
+      <p class="settings-field__hint"><code>configuration.yaml</code></p>
+      <pre class="code-block" id="ha-yaml"><code>${escapeHtml(haRestCommandYaml(haBaseUrl()))}</code></pre>
       <div class="section-actions">
         <button class="btn btn--sm" id="btn-ha-copy-yaml">${t('settings.ha.copyYaml')}</button>
+      </div>
+      <p class="settings-field__hint"><code>secrets.yaml</code></p>
+      <pre class="code-block" id="ha-secrets"><code>${escapeHtml(haSecretsYaml())}</code></pre>
+      <div class="section-actions">
+        <button class="btn btn--sm" data-ha-copy="#ha-secrets">${t('settings.ha.copyYaml')}</button>
+      </div>
+
+      <hr class="settings-rule">
+
+      <h4 class="settings-subhead">${t('settings.ha.step4')}</h4>
+      <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
+        ${t('settings.ha.automationHint')}
+      </p>
+      <pre class="code-block" id="ha-automation"><code>${escapeHtml(haAutomationYaml(haAutomationEntries(haUtilities, metersByUtility)))}</code></pre>
+      <div class="section-actions">
+        <button class="btn btn--sm" data-ha-copy="#ha-automation">${t('settings.ha.copyYaml')}</button>
       </div>
     </div>
   `;
 }
 
-// Statisches REST-Command-Snippet (korrekt für /api/ingest).
-function haRestCommandYaml() {
-  const base = `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`.replace(/\/$/, '');
-  return [
-    'rest_command:',
-    '  energietracker_push:',
-    `    url: "${base}/api.php/api/ingest"`,
-    '    method: POST',
-    '    headers:',
-    '      Authorization: "Bearer DEIN_API_TOKEN"   # Token aus Schritt 1',
-    '      Content-Type: "application/json"',
-    '    payload: >',
-    '      {',
-    '        "utility": "{{ utility }}",',
-    '        "meter": "{{ meter }}",',
-    '        "value": {{ states(sensor_entity) | float(0) }},',
-    `        "date": "{{ now().strftime('%Y-%m-%d') }}"`,
-    '      }',
-  ].join('\n');
+// Adresse dieser Installation, wie Home Assistant sie aufrufen soll.
+function haBaseUrl() {
+  return `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`.replace(/\/$/, '');
+}
+
+// Je Zähler mit Alias ein Eintrag. Die HA-Entität kennt die App nicht; der
+// Alias ist nur ein Vorschlag, den der Hinweistext zu ersetzen bittet.
+function haAutomationEntries(haUtilities, metersByUtility) {
+  return haUtilities.flatMap(u => (metersByUtility[u.key] || [])
+    .filter(m => m.external_id)
+    .map(m => ({ utility: u.key, meter: m.external_id, sensor: `sensor.${m.external_id}` })));
 }
 
 function renderGroup(g, settings) {
@@ -612,6 +639,7 @@ function renderField(f, value) {
       ${labelHtml}
       <input class="input input--text" type="text" id="${fieldId}" data-key="${f.key}" data-type="datemd"
              value="${escapeHtml(disp)}" ${placeholder ? `placeholder="${escapeHtml(placeholder)}"` : ''}${describedBy}>
+      <div class="field-error" id="${fieldId}-err" role="alert" hidden></div>
       ${hint}
     </div>`;
   }
@@ -623,11 +651,38 @@ function renderField(f, value) {
       ${hint}
     </div>`;
   }
+  // v2.5.3 (FE-02, FE-04) — Text mit Dezimaltastatur statt type="number"
+  // („0,5" kam je nach Browser leer an) und escapter Wert (ein als Text
+  // gespeicherter Wert brach bisher aus dem Attribut aus). Vorzeichen-Felder
+  // ohne inputmode: Die iOS-Zahlentastatur hat kein Minus.
   return `<div class="field settings-field">
     ${labelHtml}
-    <input class="input" type="number" id="${fieldId}" step="${f.step || '1'}" data-key="${f.key}" value="${value ?? ''}"${describedBy}>
+    <input class="input" type="text" ${f.signed ? '' : 'inputmode="decimal" '}autocomplete="off" id="${fieldId}" data-key="${f.key}" data-type="number"
+           value="${escapeHtml(formatForInput(value))}"${describedBy}>
+    <div class="field-error" id="${fieldId}-err" role="alert" hidden></div>
     ${hint}
   </div>`;
+}
+
+// v2.5.3 (FE-02) — Zahlen- und Stichtagsfelder vor dem Speichern prüfen.
+// Ein unlesbarer Stichtag wurde bisher still zu 01-01. Liefert das erste
+// ungültige Feld (oder null) und markiert alle ungültigen.
+function firstInvalidSetting(container) {
+  let first = null;
+  container.querySelectorAll('[data-type="number"], [data-type="datemd"]').forEach(el => {
+    const raw = el.value.trim();
+    const isNum = el.getAttribute('data-type') === 'number';
+    const ok = raw === '' || (isNum ? parseDecimal(raw) !== null : ddmmToMmdd(raw) !== null);
+    const msg = ok ? null
+      : isNum ? t('common.invalidNumber', { example: formatForInput(1234.5) })
+      : t('settings.dayMonthInvalid');
+    el.classList.toggle('invalid', !ok);
+    if (ok) el.removeAttribute('aria-invalid'); else el.setAttribute('aria-invalid', 'true');
+    const msgEl = container.querySelector(`#${el.id}-err`);
+    if (msgEl) { msgEl.textContent = msg || ''; msgEl.hidden = ok; }
+    if (!ok && !first) first = el;
+  });
+  return first;
 }
 
 // ── F1012: datierte Gas-Umrechnungsfaktoren ───────────────────────────
@@ -681,15 +736,15 @@ function renderGasFactors(f, list, hint) {
       </div>
       <div class="field">
         <label for="gf-z">${t('settings.gasFactors.colZ')}</label>
-        <input class="input" id="gf-z" type="number" step="0.0001" min="0.8" max="1.1" value="${escapeHtml(String(lastZ))}" placeholder="0,96">
+        <input class="input" id="gf-z" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(lastZ, 4))}" placeholder="${escapeHtml(formatForInput(0.96))}">
       </div>
       <div class="field">
         <label for="gf-hs">${t('settings.gasFactors.colHs')}</label>
-        <input class="input" id="gf-hs" type="number" step="0.001" min="8" max="13" placeholder="11,4">
+        <input class="input" id="gf-hs" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(formatForInput(11.4))}">
       </div>
       <div class="field">
         <label for="gf-f">${t('settings.gasFactors.colFactorDirect')}</label>
-        <input class="input" id="gf-f" type="number" step="0.001" min="5" max="15" placeholder="10,80">
+        <input class="input" id="gf-f" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(formatForInput(10.8))}">
       </div>
       <div class="field">
         <button type="button" class="btn btn--ghost" data-gf-add>${t('settings.gasFactors.add')}</button>
@@ -711,10 +766,8 @@ function wireGasFactors(container) {
     tbody.innerHTML = renderGasFactorRows(list);
     hidden.dispatchEvent(new Event('input', { bubbles: true }));   // Ungespeichert-Marker
   };
-  const num = (id) => {
-    const v = root.querySelector('#' + id)?.value ?? '';
-    return v === '' ? null : Number(String(v).replace(',', '.'));
-  };
+  // v2.5.3 — parseDecimal: `replace(',', '.')` machte aus „1.050,5" 1,05.
+  const num = (id) => parseDecimal(root.querySelector('#' + id)?.value ?? '');
   const preview = () => {
     const z = num('gf-z'), hs = num('gf-hs'), f = num('gf-f');
     const el = root.querySelector('[data-gf-preview]');
@@ -763,12 +816,15 @@ function collectSettings(container) {
     }
     else if (el.getAttribute('data-type') === 'bool') out[key] = el.checked;
     else if (el.getAttribute('data-type') === 'datemd') {
-      // Eingabe TT-MM → kanonisch MM-TT; ungültig ⇒ Default 01-01
-      out[key] = ddmmToMmdd(el.value);
+      // Eingabe TT-MM → kanonisch MM-TT; leer ⇒ Default 01-01. Ungültiges
+      // hält firstInvalidSetting() vor dem Speichern auf; hier bleibt der
+      // Rohtext stehen, damit der Ungespeichert-Marker die Änderung sieht.
+      const v = el.value.trim();
+      out[key] = v === '' ? '01-01' : (ddmmToMmdd(v) ?? v);
     }
-    else if (el.type === 'number') {
-      const v = el.value;
-      out[key] = v === '' ? null : Number(v);
+    else if (el.getAttribute('data-type') === 'number') {
+      const v = el.value.trim();
+      out[key] = v === '' ? null : (parseDecimal(v) ?? v);
     } else out[key] = el.value;
   });
   // v1.3.0 — aktive Verbrauchsarten aus den Checkboxen
@@ -972,11 +1028,14 @@ function mmddToDdmm(v) {
   if (!m) return '01-01';
   return `${m[2]}-${m[1]}`; // MM-TT → TT-MM
 }
+// v2.5.3 — ungültig ⇒ null statt still 01-01 (FE-02); „32-13" wurde
+// vorher zu 31.12. geklemmt.
 function ddmmToMmdd(v) {
-  const m = /^(\d{1,2})[-.\/](\d{1,2})$/.exec(String(v ?? '').trim());
-  if (!m) return '01-01';
-  let d = Math.min(31, Math.max(1, parseInt(m[1], 10)));
-  let mo = Math.min(12, Math.max(1, parseInt(m[2], 10)));
+  const m = /^(\d{1,2})[-.\/](\d{1,2})\.?$/.exec(String(v ?? '').trim());
+  if (!m) return null;
+  let d = parseInt(m[1], 10);
+  const mo = parseInt(m[2], 10);
+  if (d < 1 || d > 31 || mo < 1 || mo > 12) return null;
   // 29.–31. Februar auf 28 begrenzen (Backend klemmt zusätzlich)
   if (mo === 2 && d > 28) d = 28;
   const p = n => String(n).padStart(2, '0');

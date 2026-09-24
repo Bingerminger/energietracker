@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Dates;
 
 /**
  * Manages meters per utility.
@@ -106,11 +107,16 @@ final class MeterService
                 'reason'          => $d['reason'] ?? null,
             ], $input['devices']);
         } else {
+            $installedOn = (string)($input['installed_on'] ?? '');
+            if ($installedOn === '') $installedOn = date('Y-m-d');
+            $this->assertDate($installedOn);
             $devices = [[
                 'id'              => 'd_' . bin2hex(random_bytes(4)),
                 'serial'          => $input['device_serial'] ?? null,
-                'installed_on'    => $input['installed_on'] ?? date('Y-m-d'),
-                'initial_counter' => (float)($input['initial_counter'] ?? 0.0),
+                'installed_on'    => $installedOn,
+                // Leer heißt hier 0: Der Anfangsstand zählt nur für die
+                // Tausch-Überbrückung; den Verbrauch rechnet die erste Ablesung.
+                'initial_counter' => $this->parseCounter(($input['initial_counter'] ?? '') === '' ? 0.0 : $input['initial_counter']),
                 'removed_on'      => null,
                 'final_counter'   => null,
                 'reason'          => null,
@@ -304,7 +310,27 @@ final class MeterService
             if ($openIdx === null) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.noOpenDevice'));
             }
-            $date = $input['date'] ?? date('Y-m-d');
+            $date = (string)($input['date'] ?? '');
+            if ($date === '') $date = date('Y-m-d');
+            // v2.5.3 — kalendergültig und nicht vor dem Einbau des offenen
+            // Geräts. Ein beliebiger String landete bisher als removed_on/
+            // installed_on in der Gerätekette und von dort ungefiltert im DOM.
+            $this->assertDate($date);
+            $openSince = (string)($devices[$openIdx]['installed_on'] ?? '');
+            if ($openSince !== '' && $date < $openSince) {
+                // Beim ERSTEN Gerät ist das Einbaudatum oft nur der Tag, an dem
+                // der Zähler im Energietracker angelegt wurde (Standardzähler
+                // beim Erststart). Dann das Einbaudatum vorverlegen. Ein
+                // späteres Gerät beginnt an einem echten Tauschtag — ein Tausch
+                // davor ist ein Eingabefehler.
+                if ($this->isFirstDevice($devices, $openIdx)) {
+                    $devices[$openIdx]['installed_on'] = $date;
+                } else {
+                    throw new \InvalidArgumentException(
+                        $this->i18n->t('errors.meter.swapBeforeInstall', ['date' => $date, 'installed' => $openSince])
+                    );
+                }
+            }
 
             // v1.6.1 — Issue #13: alter Endstand muss explizit
             // angegeben werden. Vorher wurde stillschweigend 0 gesetzt,
@@ -315,9 +341,9 @@ final class MeterService
                     $this->i18n->t('errors.meter.oldFinalRequired')
                 );
             }
-            $oldFinal = (float)$input['old_final_counter'];
+            $oldFinal = $this->parseCounter($input['old_final_counter']);
             $newInit  = isset($input['new_initial_counter']) && $input['new_initial_counter'] !== ''
-                        ? (float)$input['new_initial_counter']
+                        ? $this->parseCounter($input['new_initial_counter'])
                         : 0.0;
 
             $devices[$openIdx]['removed_on']    = $date;
@@ -345,6 +371,58 @@ final class MeterService
      * Resolve which device was active on a given date for a given meter.
      * Returns null if no device covers the date.
      */
+    /**
+     * v2.5.3 — Verlegt den Einbau des ERSTEN Geräts eines Zählers auf `$date`
+     * vor, wenn `$date` davor liegt.
+     *
+     * Beim Erststart legt der Energietracker Standardzähler an, deren Gerät
+     * „heute" eingebaut ist. Jede ältere Ablesung — auch aus dem CSV-Import —
+     * scheiterte deshalb mit „kein Gerät aktiv": Wer mit seiner Historie
+     * einstieg, kam nicht hinein. Das erste Gerät hat keinen Vorgänger, sein
+     * Einbaudatum ist bestenfalls „spätestens seit"; eine ältere Ablesung
+     * beweist, dass es früher schon da war. Spätere Geräte beginnen an einem
+     * echten Tauschtag und bleiben unberührt.
+     *
+     * @return array|null das angepasste erste Gerät, oder null, wenn nichts zu tun war
+     */
+    public function backdateFirstDevice(string $utility, string $meterId, string $date): ?array
+    {
+        if (!Dates::isIsoDate($date)) return null;
+        $all = $this->list($utility);
+        foreach ($all as &$m) {
+            if (($m['id'] ?? null) !== $meterId) continue;
+            $devices = $m['devices'] ?? [];
+            if ($devices === []) return null;
+            $firstIdx = null;
+            foreach ($devices as $i => $d) {
+                if ($this->isFirstDevice($devices, $i)) { $firstIdx = $i; break; }
+            }
+            if ($firstIdx === null) return null;
+            $since = (string)($devices[$firstIdx]['installed_on'] ?? '');
+            if ($since !== '' && $date >= $since) return null;
+            $devices[$firstIdx]['installed_on'] = $date;
+            $m['devices'] = $devices;
+            unset($m);
+            $this->store->write("$utility/meters.json", $all);
+            return $devices[$firstIdx];
+        }
+        unset($m);
+        return null;
+    }
+
+    /** Hat das Gerät keinen Vorgänger in der Kette (frühester Einbau)? */
+    private function isFirstDevice(array $devices, int $idx): bool
+    {
+        $since = (string)($devices[$idx]['installed_on'] ?? '');
+        foreach ($devices as $i => $d) {
+            if ($i === $idx) continue;
+            if ((string)($d['installed_on'] ?? '') < $since) return false;
+            // gleicher Einbautag: das frühere im Array gilt als erstes
+            if ((string)($d['installed_on'] ?? '') === $since && $i < $idx) return false;
+        }
+        return true;
+    }
+
     public function deviceOnDate(array $meter, string $date): ?array
     {
         foreach ($meter['devices'] ?? [] as $d) {
@@ -470,11 +548,27 @@ final class MeterService
         return $out;
     }
 
-    /** Echtes Kalenderdatum im Format YYYY-MM-DD? */
+    /** Echtes Kalenderdatum im Format YYYY-MM-DD? (seit v2.5.3 eine Stelle: Support\Dates) */
     private static function isIsoDate(string $d): bool
     {
-        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $d, $m)) return false;
-        return checkdate((int)$m[2], (int)$m[3], (int)$m[1]);
+        return Dates::isIsoDate($d);
+    }
+
+    private function assertDate(string $date): void
+    {
+        if (!Dates::isIsoDate($date)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.common.dateInvalid', ['date' => $date]));
+        }
+    }
+
+    /** Zählerstand als Zahl ≥ 0 (gleiche Regel wie ReadingService). */
+    private function parseCounter(mixed $raw): float
+    {
+        if (is_bool($raw) || !is_numeric($raw) || !is_finite((float)$raw) || (float)$raw < 0) {
+            $shown = is_scalar($raw) ? (string)$raw : gettype($raw);
+            throw new \InvalidArgumentException($this->i18n->t('errors.reading.counterInvalid', ['value' => $shown]));
+        }
+        return (float)$raw;
     }
 
     /**

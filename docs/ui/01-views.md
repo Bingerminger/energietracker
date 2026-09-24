@@ -215,7 +215,11 @@ Alle 40 Schlüssel gruppiert: Umrechnung & HGT, **Abrechnungszyklus
 (TT-MM)**, Gebäude & Effizienz, Heizwerte, Prognosemodell, aktive
 Verbrauchsarten, CSV-Export aller Arten, Backup & Migration,
 Demo-Daten-Import (F1007) und die **🏠 Home-Assistant-Anbindung (F1009)**
-— API-Token verwalten, Zähler-Aliase pflegen, fertiges HA-YAML kopieren.
+— API-Token verwalten, Zähler-Aliase pflegen und drei fertige Vorlagen
+kopieren: REST-Command, Eintrag für die `secrets.yaml` und (seit v2.5.3) eine
+Automatisierung aus den Aliasen, die vor jedem Push `has_value` prüft.
+Zahlenfelder und Abrechnungsstichtage werden vor dem Speichern geprüft;
+Fehler stehen rot am Feld.
 
 ![Einstellungen](screenshots/einstellungen.png)
 
@@ -224,7 +228,12 @@ Demo-Daten-Import (F1007) und die **🏠 Home-Assistant-Anbindung (F1009)**
 ## 12. Zähler & Verträge — inkl. Topologie (F1006)
 
 Zähler-/Geräteverwaltung inkl. Zählertausch (Device-Kette) und
-Vertragspflege (Arbeits-/Grundpreis-Historie, Abschläge, Boni). Bei
+Vertragspflege (Arbeits-/Grundpreis-Historie, Abschläge, Boni,
+Sonderzahlungen). Seit v2.5.3 verlangt der **Zählertausch** den Endstand,
+zeigt den letzten bekannten Stand und fasst den Tausch vor dem Ausführen
+zusammen. Ein **Vertrag** braucht Anbieter oder Tarif und mindestens einen
+Arbeitspreis; der Beginn ist mit dem Tag nach der laufenden Bindung vorbelegt,
+und bevor ein neuer Vertrag einen laufenden ablöst, fragt die App nach. Bei
 Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant — beim Anlegen
 und Bearbeiten eines Tanks werden **Tank-Kapazität** und **Anfangsbestand**
 erfasst (statt eines kumulativen Zählerstands).

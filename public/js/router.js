@@ -17,6 +17,7 @@ import * as Recommendations from './views/recommendations.js';
 import * as Reminders    from './views/reminders.js';
 import { t } from './lib/i18n.js';
 import { escapeHtml } from './lib/format.js';
+import { closeAllModals } from './components/modal.js';
 
 const ROUTES = [
   { pattern: /^#?\/?$/,                             handler: 'dashboard' },
@@ -58,6 +59,8 @@ export function startRouter(container) {
       const m = hash.match(pattern);
       if (!m) continue;
       const params = m.slice(1);
+      // v2.5.3 (FE-09) — offene Dialoge gehören zur alten Ansicht.
+      closeAllModals();
       // Cleanup previous view
       if (currentCleanup) { try { currentCleanup(); } catch {} }
       container.innerHTML = `<div class="loading" role="status">${escapeHtml(t('common.loading'))}</div>`;
@@ -89,7 +92,16 @@ export function startRouter(container) {
         // A11y: bei echter Navigation (nicht beim Erst-Laden) den Fokus in den
         // Hauptbereich verschieben, damit Tastatur/Screenreader im neuen Inhalt
         // landen statt am Seitenanfang. #view trägt tabindex="-1".
-        if (!isInitialLoad) container.focus({ preventScroll: false });
+        // v2.5.3 (UI-06) — preventScroll und gezielt scrollen: Der Browser
+        // scrollte den Fokus unter die klebende Kopfleiste, Titel und
+        // Kopf-Aktionen („+ Ablesung") lagen verdeckt. Ziel ist der Anfang
+        // der Ansicht direkt unter der Kopfleiste (am Mac: ganz oben).
+        if (!isInitialLoad) {
+          container.focus({ preventScroll: true });
+          const topbarH = document.querySelector('.topbar')?.offsetHeight || 0;
+          const top = container.getBoundingClientRect().top + window.scrollY - topbarH;
+          window.scrollTo(0, Math.max(0, top));
+        }
       } catch (e) {
         console.error(e);
         container.innerHTML = `<div class="banner banner--error">${escapeHtml(t('errors.view.loadFailed', { msg: e.message || e }))}</div>`;

@@ -234,6 +234,53 @@ final class Migrator
         return false;
     }
 
+    /**
+     * v2.5.3 — Die Start-Logik an einer Stelle (vorher im Bootstrap verteilt):
+     * Erststart, Migration, Reparatur eines fehlenden Stempels.
+     *
+     * Vor einer Migration legt `$snapshot` eine Sicherung an. Die Update-Doku
+     * versprach diesen Snapshot seit Langem, angelegt wurde er nie; eine
+     * Migration ist nicht umkehrbar. Scheitert der Snapshot, läuft die
+     * Migration trotzdem — sonst wäre die App nach dem Update unbenutzbar —,
+     * der Fehler steht im Ergebnis.
+     *
+     * Die Reihenfolge ist Absicht: Ein komplett leeres Verzeichnis (echter
+     * Erststart, z. B. frischer Docker-Container) wird per initFresh() mit
+     * Standard-Zählern bestückt — NICHT per migrate(), das ohne Altdaten einen
+     * leeren Tracker hinterließe (Lektion 14).
+     *
+     * @param (callable(string):string)|null $snapshot bekommt die bisherige
+     *        Schemaversion, liefert den Dateinamen der Sicherung
+     * @return array{action:string, from?:string, snapshot?:?string, snapshot_error?:?string}|null
+     *         null = nichts zu tun
+     */
+    public function runOnStartup(?callable $snapshot = null): ?array
+    {
+        if ($this->isPristine()) {
+            $this->initFresh();
+            return ['action' => 'fresh'];
+        }
+        if ($this->needsMigration()) {
+            $from = (string)($this->store->read('meta.json', [])['schema_version'] ?? 'unbekannt');
+            $name = null;
+            $error = null;
+            if ($snapshot !== null) {
+                try {
+                    $name = $snapshot($from);
+                } catch (\Throwable $e) {
+                    $error = $e->getMessage();
+                }
+            }
+            $this->migrate();
+            return ['action' => 'migrated', 'from' => $from, 'snapshot' => $name, 'snapshot_error' => $error];
+        }
+        if (!$this->isAlreadyMigrated()) {
+            $this->initFresh();
+            return ['action' => 'fresh'];
+        }
+        return null;
+    }
+
     public function migrate(): array
     {
         $log = [];

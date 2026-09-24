@@ -144,7 +144,10 @@ There are three complementary mechanisms:
    that contains *all* utilities, meters, contracts, deliveries, temperatures and
    settings and is re-importable. This is the authoritative backup format.
 2. **Snapshot**: places a copy in the data directory under `data/backups/` —
-   useful before risky actions. Created automatically before every migration.
+   useful before risky actions. One is created automatically before every backup
+   import (`pre-restore-…`) and, since **v2.5.3**, before every schema migration
+   during an update (`pre-migration-<old version>_…`). Up to v2.5.2 this section
+   claimed the migration snapshot although it did not exist.
 3. **CSV export**: tabular per dataset (monthly overview, meter readings or
    deliveries, temperature series) for Excel/LibreOffice — supplementary, **not**
    intended as a full backup (not re-importable).
@@ -155,13 +158,19 @@ Simply copying the entire `data/` directory is also a complete backup.
 
 ## 5. Updating to a new version
 
-1. Back up the `data/` directory (see above).
-2. Replace the program files (everything except `data/`).
-3. Open the app in the browser — the migrator raises the schema automatically and
-   idempotently as needed and first creates a safety snapshot.
+1. **Export a backup** (*Settings → Export backup*) or copy the `data/`
+   directory. This is the only way back: a schema migration cannot be undone.
+2. **Read the CHANGELOG** — whatever is listed under “Migration” applies to you.
+3. Replace the program files (everything except `data/`). Docker:
+   [Performing updates](07-docker.md#performing-updates).
+4. Open the app in the browser — the migrator raises the schema automatically and
+   idempotently as needed. Since v2.5.3 it first stores a snapshot in
+   `data/backups/`. If the snapshot fails (e.g. disk full), the migration still
+   runs and the log reports it — hence step 1.
 
 A downgrade to an older schema version is **not** supported; newer utilities
-would be ignored by old versions.
+would be ignored by old versions. The way back is only the old program version
+**and** the backup from step 1.
 
 Migration from an old private **v0.9.0** backup: see
 [Migration from v0.9.0](../MIGRATION-FROM-V090.md).

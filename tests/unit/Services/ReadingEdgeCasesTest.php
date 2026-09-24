@@ -14,7 +14,9 @@ use PHPUnit\Framework\Attributes\CoversClass;
  *
  * Erwartetes Verhalten:
  *  - {@see ReadingService::create()} wirft `InvalidArgumentException`,
- *    wenn am Lesedatum kein Device aktiv ist (vor `installed_on`).
+ *    wenn am Lesedatum kein Device aktiv ist (Lücke in der Gerätekette).
+ *    Seit v2.5.3 verlegt eine Ablesung vor dem ERSTEN Gerät dessen Einbau
+ *    vor, statt abgelehnt zu werden.
  *  - {@see ReadingImportService::importRows()} fängt die Exception ab,
  *    erhöht `skipped`, sammelt die Fehler in `errors` und importiert die
  *    übrigen Zeilen sauber.
@@ -25,7 +27,13 @@ use PHPUnit\Framework\Attributes\CoversClass;
 #[CoversClass(ReadingImportService::class)]
 final class ReadingEdgeCasesTest extends ServiceTestCase
 {
-    public function testCreatingReadingBeforeInstalledOnRejected(): void
+    /**
+     * v2.5.3 — Eine Ablesung vor dem Einbau des ERSTEN Geräts verlegt dessen
+     * Einbau vor. Bis v2.5.2 wurde sie abgelehnt; weil die Standardzähler beim
+     * Erststart „heute" eingebaut sind, kam dadurch niemand mit seiner Historie
+     * in eine Neuinstallation (Dialog und CSV-Import scheiterten zeilenweise).
+     */
+    public function testReadingBeforeFirstDeviceBackdatesItsInstallation(): void
     {
         $meterId = $this->setMeterDevices('strom', [[
             'id' => 'd_strom_1', 'serial' => null,
@@ -33,17 +41,43 @@ final class ReadingEdgeCasesTest extends ServiceTestCase
             'removed_on' => null, 'final_counter' => null, 'reason' => null,
         ]]);
 
+        $r = $this->readings->create('strom', [
+            'meter_id' => $meterId,
+            'date'     => '2023-12-15',
+            'counter'  => 100.0,
+        ]);
+
+        self::assertSame('d_strom_1', $r['device_id']);
+        $meter = $this->meters->get('strom', $meterId);
+        self::assertSame('2023-12-15', $meter['devices'][0]['installed_on'],
+            'Einbau des ersten Geräts ist auf die ältere Ablesung vorverlegt');
+    }
+
+    /**
+     * Der Schutz aus N1002 bleibt für spätere Geräte: Liegt ein Datum in einer
+     * Lücke der Gerätekette (altes Gerät ausgebaut, neues noch nicht eingebaut),
+     * gibt es kein Gerät — und die Ablesung wird abgelehnt.
+     */
+    public function testReadingInAGapOfTheDeviceChainIsStillRejected(): void
+    {
+        $meterId = $this->setMeterDevices('strom', [
+            ['id' => 'd_alt', 'serial' => null, 'installed_on' => '2024-01-01', 'initial_counter' => 0.0,
+             'removed_on' => '2024-06-15', 'final_counter' => 1500.0, 'reason' => 'Tausch'],
+            ['id' => 'd_neu', 'serial' => null, 'installed_on' => '2024-07-01', 'initial_counter' => 0.0,
+             'removed_on' => null, 'final_counter' => null, 'reason' => null],
+        ]);
+
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessageMatches('/kein Gerät/');
 
         $this->readings->create('strom', [
             'meter_id' => $meterId,
-            'date'     => '2023-12-15',   // ⚠ vor installed_on
-            'counter'  => 100.0,
+            'date'     => '2024-06-20',   // ⚠ nach Ausbau alt, vor Einbau neu
+            'counter'  => 10.0,
         ]);
     }
 
-    public function testBulkImportSkipsRowsBeforeInstalledOnAndKeepsValidOnes(): void
+    public function testBulkImportSkipsInvalidRowsAndKeepsValidOnes(): void
     {
         $meterId = $this->setMeterDevices('strom', [[
             'id' => 'd_strom_1', 'serial' => null,
@@ -53,24 +87,22 @@ final class ReadingEdgeCasesTest extends ServiceTestCase
 
         $import = new ReadingImportService($this->readings, $this->meters, $this->i18n);
         $result = $import->importRows('strom', $meterId, [
-            ['date' => '2023-11-01', 'counter' => 0.0],     // ⚠ vor installed_on
+            ['date' => '2023-11-01', 'counter' => 0.0],     // vor dem Einbau: verlegt ihn vor
+            ['date' => '2024-02-30', 'counter' => 50.0],    // ⚠ kein Kalenderdatum
             ['date' => '2024-02-01', 'counter' => 100.0],
             ['date' => '2024-03-01', 'counter' => 200.0],
         ]);
 
-        self::assertSame(2, $result['imported'],   'gültige Zeilen werden importiert');
-        self::assertSame(1, $result['skipped'],    'Zeile vor installed_on wird übersprungen');
+        self::assertSame(3, $result['imported'],   'gültige Zeilen werden importiert');
+        self::assertSame(1, $result['skipped'],    'die Zeile mit dem 30.02. wird übersprungen');
         self::assertSame(0, $result['overwritten']);
         self::assertNotEmpty($result['errors'],    'Fehlermeldung muss vorhanden sein');
-        self::assertStringContainsString('2023-11-01', $result['errors'][0],
+        self::assertStringContainsString('2024-02-30', implode(' ', $result['errors']),
             'Fehlermeldung muss das problematische Datum nennen');
 
-        // Bestätigen, dass die problematische Zeile NICHT in den Daten landete.
-        $stored = $this->readings->list('strom', $meterId);
-        $dates  = array_column($stored, 'date');
-        self::assertNotContains('2023-11-01', $dates,
-            'Ablesung vor installed_on darf nicht persistiert sein');
-        self::assertSame(['2024-02-01', '2024-03-01'], $dates);
+        $dates = array_column($this->readings->list('strom', $meterId), 'date');
+        self::assertSame(['2023-11-01', '2024-02-01', '2024-03-01'], $dates);
+        self::assertSame('2023-11-01', $this->meters->get('strom', $meterId)['devices'][0]['installed_on']);
     }
 
     /**

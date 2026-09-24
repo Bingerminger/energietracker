@@ -352,6 +352,25 @@ accepted.
   Capture with demo data, light theme and a tall viewport (1440 × 1500) rather
   than `fullPage` — full-page captures cut off the fixed sidebar. Then run
   `pngquant`.
+- **"A default instead of an error" lived on in the frontend (v2.5.3).**
+  `type="number"` returns an empty string for "12,5" in some browsers, and
+  `Number("")` is 0 — ten forms silently booked a 0 this way, including the
+  final reading of a meter swap. Numbers are now entered as text with a decimal
+  keyboard and read by **one** parser (`parseDecimal`) that tells "empty" from
+  "0". Any new number field takes this route.
+- **A template users copy is code (v2.5.3).** The Home Assistant snippet lived
+  in the app and in the guide — two versions, both wrong: `float(0)` recorded a
+  meter reading of 0 when the sensor was unavailable, `"Bearer !secret …"` sent
+  the text literally. The template now lives in one module
+  (`public/js/lib/ha-snippet.js`), and `tests/ha-snippet.test.mjs` holds both
+  language versions of the guide against it.
+- **A scroll container only clips what is positioned against it (v2.5.3).** The
+  invisible `.sr-only` label "Actions" in the table header is absolutely
+  positioned; its containing block lay outside the `overflow-x: auto` — the whole
+  page became wider on the iPhone. `.table-wrap` therefore carries
+  `position: relative`. Measure overflow via `document.documentElement.scrollWidth`,
+  not via the position of single elements: clipped elements still report their
+  full width.
 
 ---
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Dates;
 
 /**
  * Bulk import of meter readings (F-06, v1.1.0).
@@ -178,13 +179,12 @@ final class ReadingImportService
     private function parseDate(string $s): ?string
     {
         $s = trim($s, " \t\"'");
+        // v2.5.3 — kalendergültig: der 31.02. ist kein Datum.
         if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})$/', $s, $m)) {
-            return "$m[3]-$m[2]-$m[1]";
+            $iso = "$m[3]-$m[2]-$m[1]";
+            return Dates::isIsoDate($iso) ? $iso : null;
         }
-        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $s)) {
-            return $s;
-        }
-        return null;
+        return Dates::isIsoDate($s) ? $s : null;
     }
 
     private function parseNum(string $s): ?float

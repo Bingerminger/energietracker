@@ -91,14 +91,43 @@ textarea.input { min-height: 80px; resize: vertical; }
 .entry-group__title { font-size: var(--fs-sm); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; }
 
 .entry-row {
-  display: grid; grid-template-columns: 1fr 1fr auto auto; gap: var(--sp-2);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto; gap: var(--sp-2);
   align-items: end; margin-bottom: var(--sp-2);
 }
 .entry-row .input { font-size: var(--fs-sm); }
 .entry-row .btn--icon { align-self: end; height: 36px; }
+/* v2.5.3 — Die Zeile hat eigene Abstände; der Feld-Außenabstand ließ die
+   Knöpfe (×, ⇧ Start) 12 px unter den Eingaben stehen. */
+.entry-row > .field, .special-advance > .field { margin-bottom: 0; }
+.entry-group > .field-error { margin: -4px 0 var(--sp-2); }
+
+/* v2.5.3 (UI-11) — Sonderzahlung: eigenes Raster. Im allgemeinen Vier-Spalten-
+   Raster schrumpfte das Datum auf rund 25 px, der Betrag war abgeschnitten.
+   Zeile 1: Datum, Betrag, Art, ×. Darunter die Notiz und — nur bei Arten
+   „mit Auswirkung" — die Abschlagsanpassung. Der Entfernen-Knopf steht oben
+   rechts, obwohl er im DOM zuletzt kommt (Tab-Reihenfolge). */
+.entry-row.special-row {
+  grid-template-columns: minmax(140px, 160px) minmax(90px, 120px) minmax(0, 1fr) auto;
+  padding-bottom: var(--sp-3); margin-bottom: var(--sp-3);
+  border-bottom: 1px dashed var(--border-1);
+}
+.special-row > [data-action="remove-special"] { grid-column: 4; grid-row: 1; }
+.special-row > .special-row__note { grid-column: 1 / 4; }
+.special-row > .special-advance {
+  grid-column: 1 / 4;
+  display: grid; gap: var(--sp-2);
+  grid-template-columns: minmax(140px, 200px) minmax(140px, 200px);
+}
+.special-row > .special-advance[hidden] { display: none; }
+
 @media (max-width: 600px) {
-  .entry-row { grid-template-columns: 1fr 1fr; }
+  .entry-row, .entry-row.special-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .entry-row > .btn { grid-column: span 2; }
+  .special-row > .special-row__kind,
+  .special-row > .special-row__note,
+  .special-row > .special-advance { grid-column: 1 / -1; }
+  .special-row > [data-action="remove-special"] { grid-column: 1 / -1; grid-row: auto; }
+  .special-row > .special-advance { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 /* ── Tables ─────────────────────────────────────────────────────── */
@@ -121,9 +150,21 @@ textarea.input { min-height: 80px; resize: vertical; }
 .data-table tbody tr:hover { background: var(--bg-2); }
 .table td.num, .table th.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .table .row-actions { display: flex; gap: 4px; justify-content: flex-end; }
+/* v2.5.3 (UI-01) — position: relative, damit der Rahmen auch absolut
+   positionierte Kinder beschneidet: Das .sr-only-Label „Aktionen" im
+   Tabellenkopf entkam sonst dem Scrollbereich und verbreiterte die Seite. */
 .table-wrap {
+  position: relative;
   overflow-x: auto; border: 1px solid var(--border-1);
   border-radius: var(--r-md); background: var(--bg-1);
+}
+/* Kopierbare Konfiguration (Home Assistant): scrollt in sich, statt die
+   Seite zu verbreitern. */
+.code-block {
+  position: relative; max-width: 100%; overflow-x: auto;
+  margin: 0 0 var(--sp-2); padding: var(--sp-3);
+  background: var(--bg-2); border: 1px solid var(--border-1); border-radius: var(--r-md);
+  font-family: var(--font-mono); font-size: var(--fs-xs); line-height: 1.5;
 }
 
 /* ── Tags / chips ───────────────────────────────────────────────── */
@@ -337,13 +378,17 @@ textarea.input { min-height: 80px; resize: vertical; }
    unmarkiert, weil es die Klassen schlicht nicht gab. */
 
 /* ── Balance grid (Saldo-Karte: 4 Spalten) ──────────────────────── */
+/* v2.5.3 (UI-01) — minmax(0, …): „Vergütungsanspruch" in Großbuchstaben
+   dehnte die Spalte auf dem iPhone SE über den Rand. Beschriftungen brechen
+   jetzt um. */
 .balance-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1.4fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr);
   gap: 18px;
   align-items: stretch;
 }
-@media (max-width: 900px) { .balance-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .balance-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.balance-col__label { overflow-wrap: anywhere; hyphens: auto; }
 .balance-col__label {
   font-size: 11px; font-weight: 500; color: var(--text-2);
   text-transform: uppercase; letter-spacing: 0.07em;
@@ -759,6 +804,7 @@ textarea.input { min-height: 80px; resize: vertical; }
   outline: none; border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
+.form-grid input.invalid { border-color: var(--danger); }
 
 /* v1.3.0 — Tank-Bestandsbalken (Heizöl/Pellets) */
 .tank-bar-wrap { padding: var(--sp-2) 0; }

@@ -10,6 +10,15 @@ import { t } from '../lib/i18n.js';
  */
 // Eindeutige IDs für aria-labelledby (mehrere Modals nacheinander möglich).
 let modalSeq = 0;
+// v2.5.3 (FE-09) — offene Dialoge, damit der Router sie beim Seitenwechsel
+// schließen kann. Sonst blieb ein Dialog nach „Zurück" verwaist offen, #app
+// blieb `inert`, und Speichern rendert in eine fremde Ansicht.
+const openCloses = new Set();
+
+/** Schließt alle offenen Dialoge (obersten zuerst). */
+export function closeAllModals() {
+  [...openCloses].reverse().forEach(close => close(null));
+}
 
 export function openModal({ title, body, footer = '', onMount = null, size = 'md' }) {
   const root = document.getElementById('modal-root');
@@ -53,6 +62,7 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
   function close(value) {
     if (closed) return;
     closed = true;
+    openCloses.delete(close);
     backdrop.remove();
     document.removeEventListener('keydown', onKey);
     if (appEl && !hadInert) appEl.removeAttribute('inert');
@@ -71,6 +81,10 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
     .filter(el => el.offsetParent !== null || el === document.activeElement);
 
   function onKey(e) {
+    // v2.5.3 — Nur der oberste Dialog reagiert. Eine Rückfrage über einem
+    // offenen Formular (z. B. „Stand liegt unter dem letzten") schloss per
+    // Escape sonst auch das Formular darunter.
+    if (root.lastElementChild !== backdrop) return;
     if (e.key === 'Escape') { close(null); return; }
     // Focus-Trap: Tab/Shift+Tab zykeln innerhalb des Modals.
     if (e.key === 'Tab') {
@@ -87,9 +101,19 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
     }
   }
   document.addEventListener('keydown', onKey);
+  openCloses.add(close);
 
   backdrop.querySelector('.modal__close').addEventListener('click', () => close(null));
-  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(null); });
+  // v2.5.3 — Nur schließen, wenn Maus-Druck UND -Freigabe auf dem Hintergrund
+  // liegen. Wer im Feld Text markiert und die Maus dabei über den Rand zieht,
+  // löst ein click-Ereignis am gemeinsamen Vorfahren aus — bisher schloss das
+  // den Dialog, und die Eingaben eines langen Vertragsformulars waren weg.
+  let downOnBackdrop = false;
+  backdrop.addEventListener('mousedown', (e) => { downOnBackdrop = e.target === backdrop; });
+  backdrop.addEventListener('click', (e) => {
+    if (e.target === backdrop && downOnBackdrop) close(null);
+    downOnBackdrop = false;
+  });
 
   if (typeof onMount === 'function') onMount({ modalEl, bodyEl, close });
 
@@ -99,6 +123,31 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
   else { modalEl.setAttribute('tabindex', '-1'); modalEl.focus(); }
 
   return { close, closedPromise, modalEl, bodyEl };
+}
+
+/**
+ * v2.5.3 — Klick-Handler für „Speichern", der den Knopf sperrt, bis die
+ * Aktion fertig ist. Vorher löste ein Doppelklick zwei POSTs aus, und das
+ * Backend legte zwei Ablesungen am selben Tag an.
+ *
+ *   saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => { … }));
+ *
+ * @param {HTMLButtonElement|null} btn
+ * @param {() => Promise<unknown>|unknown} handler
+ */
+export function guardSubmit(btn, handler) {
+  let running = false;
+  return async (event) => {
+    if (running) { event?.preventDefault?.(); return; }
+    running = true;
+    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+    try {
+      await handler(event);
+    } finally {
+      running = false;
+      if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+    }
+  };
 }
 
 /**

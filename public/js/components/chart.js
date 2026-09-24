@@ -7,6 +7,8 @@
 // genügt).
 // =====================================================================
 
+import { intlLocale } from '../lib/format.js';
+
 function cssVar(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
@@ -41,6 +43,10 @@ function gridColor() {
 
 function applyDefaults() {
   if (!window.Chart) return;
+  // v2.5.3 (FE-07) — Achsen und Tooltips in der App-Sprache. Ohne diese Zeile
+  // nahm Chart.js die Browser-Locale: Bei englischem macOS und deutscher App
+  // stand im Chart „1,000" für tausend und in der Tabelle „1,000" für eins.
+  Chart.defaults.locale = intlLocale();
   Chart.defaults.color = themeColors.text2;
   Chart.defaults.borderColor = gridColor();
   Chart.defaults.font.family = 'DM Sans, system-ui, sans-serif';

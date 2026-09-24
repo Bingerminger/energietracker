@@ -153,8 +153,11 @@ Es gibt drei sich ergänzende Mechanismen:
    Verträge, Lieferungen, Temperaturen und Einstellungen enthält und
    wieder importierbar ist. Das ist das maßgebliche Sicherungsformat.
 2. **Snapshot**: legt eine Kopie im Datenverzeichnis unter
-   `data/backups/` ab — nützlich vor riskanten Aktionen. Wird vor jeder
-   Migration automatisch erstellt.
+   `data/backups/` ab — nützlich vor riskanten Aktionen. Automatisch
+   entsteht einer vor jedem Backup-Import (`pre-restore-…`) und seit
+   **v2.5.3** vor jeder Schema-Migration beim Update
+   (`pre-migration-<alte Version>_…`). Bis v2.5.2 behauptete diese Stelle
+   den Migrations-Snapshot, ohne dass es ihn gab.
 3. **CSV-Export**: tabellarisch je Datensatz (Monatsübersicht,
    Zählerstände bzw. Lieferungen, Temperaturreihe) für Excel/LibreOffice
    — ergänzend, **nicht** als Vollbackup gedacht (nicht
@@ -167,14 +170,21 @@ ein vollständiges Backup.
 
 ## 5. Update auf eine neue Version
 
-1. `data/`-Verzeichnis sichern (siehe oben).
-2. Programmdateien ersetzen (alles außer `data/`).
-3. App im Browser aufrufen — der Migrator hebt das Schema bei Bedarf
-   automatisch und idempotent an und legt vorher einen Sicherheits-
-   Snapshot an.
+1. **Backup ziehen** (*Einstellungen → Backup exportieren*) oder das
+   `data/`-Verzeichnis kopieren. Das ist der einzige Rückweg: Eine
+   Schema-Migration lässt sich nicht umkehren.
+2. **CHANGELOG lesen** — was unter „Migration" steht, betrifft dich.
+3. Programmdateien ersetzen (alles außer `data/`). Docker:
+   [Updates durchführen](07-docker.md#updates-durchführen).
+4. App im Browser aufrufen — der Migrator hebt das Schema bei Bedarf
+   automatisch und idempotent an. Seit v2.5.3 legt er vorher einen
+   Snapshot in `data/backups/` an. Scheitert der Snapshot (z. B. Platte
+   voll), läuft die Migration trotzdem, und das Log meldet es —
+   deshalb Schritt 1.
 
 Ein Downgrade auf eine ältere Schema-Version wird **nicht** unterstützt;
-neuere Verbrauchsarten würden von alten Versionen ignoriert.
+neuere Verbrauchsarten würden von alten Versionen ignoriert. Zurück geht
+es nur mit der alten Programmversion **und** dem Backup aus Schritt 1.
 
 Migration aus einem alten privaten **v0.9.0**-Backup:
 siehe [Migration aus v0.9.0](../MIGRATION-FROM-V090.md).

@@ -35,6 +35,13 @@ jobs:
       - name: jsdom installieren
         run: npm install jsdom
 
+      # v2.5.3 — ohne Server: Zahlen-Parser/Datumsformat (FE-02, FE-04) und die
+      # Home-Assistant-Vorlage gegen beide Sprachfassungen der Anleitung.
+      - name: Frontend-Unit-Tests (Zahlenparser, HA-Vorlage)
+        run: |
+          node tests/format.test.mjs
+          node tests/ha-snippet.test.mjs
+
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata
 

@@ -6,6 +6,173 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.5.3] — 2026-09-24 — Keine stillen Fehlbuchungen
+
+PATCH-Release. Kein Schema-Bump, keine Datenmigration, keine geänderte
+Schnittstelle. Neu abgelehnt wird nur, was bisher still falsch gespeichert
+wurde.
+
+**Der Anlass.** Ein Gesamtreview (Berechnungen, Oberfläche auf Mac und
+iPhone, Übersetzungen, Doku, API) fand eine Fehlerklasse quer durch die App:
+Eingaben, die nicht passen, wurden nicht abgelehnt, sondern still in etwas
+Gültiges verwandelt. Ein leeres Zahlenfeld wurde zur 0, „12345,6" je nach
+Browser zu gar nichts, ein nicht verfügbarer Home-Assistant-Sensor zu einem
+Zählerstand 0, ein unlesbarer Abrechnungsstichtag zum 1. Januar. Jede dieser
+Stellen erzeugt eine Buchung, die plausibel aussieht und Kosten, Saldo und
+Prognose verfälscht, bis jemand sie findet. Dieses Release schließt sie.
+
+### ⚠️ Für Home-Assistant-Nutzer
+
+Die Vorlage in den Einstellungen und in `docs/HOME-ASSISTANT.md` enthielt bis
+v2.5.2 `"value": {{ states(sensor_entity) | float(0) }}`. Nach einem
+HA-Neustart oder Funkaussetzer zum Push-Zeitpunkt wurde damit ein Zählerstand
+**0** gebucht; die nächste echte Ablesung zählte als Verbrauch eines einzigen
+Tages. **Bitte die Vorlage ersetzen:** `| float` ohne Ersatzwert und vor jedem
+Push die Bedingung `has_value(…)`. Die Einstellungen erzeugen die
+Automatisierung jetzt fertig aus den Zähler-Aliasen. Außerdem funktionierte
+`Authorization: "Bearer !secret …"` aus der Anleitung nie (Antwort `401`):
+`!secret` wirkt nur als ganzer Wert — `Authorization: !secret
+energietracker_auth`, in der `secrets.yaml` steht `"Bearer et_…"`.
+Bestehende Konfigurationen laufen unverändert weiter; der Endpunkt
+`POST /api/ingest` ist gleich geblieben.
+
+### Fixed — stille Fehlbuchungen
+
+- **Zahlenfelder** (Ablesung, zentrale Erfassung, Lieferung, Zählertausch,
+  Zähler, Vertrag, Wasservertrag, Tarifangebot, Einstellungen, Gasfaktoren,
+  Standort, Prognose, Termine): Text mit Dezimaltastatur statt
+  `type="number"`, gelesen von einem gemeinsamen Parser, der Komma, Punkt und
+  Tausendertrennung versteht. Leer bleibt leer, Unlesbares wird am Feld
+  gemeldet — nie mehr eine stille 0.
+- **Zählertausch:** Der Endstand ist Pflicht; der Dialog zeigt den letzten
+  bekannten Stand, fragt bei einem kleineren Endstand nach und fasst den Tausch
+  vor dem Ausführen zusammen. Ein leerer Endstand schloss das alte Gerät
+  bisher mit 0 ab — nicht rückgängig zu machen.
+- **Leerer Vertrag:** Anbieter oder Tarif sowie mindestens ein Arbeitspreis
+  sind Pflicht. Ein versehentlich gespeicherter leerer Vertrag lief als
+  „aktiv" und löste ab seinem Beginn den laufenden ab. Neu: Der Beginn ist mit
+  dem Tag nach der laufenden Bindung vorbelegt, und bevor ein Vertrag einen
+  laufenden ablöst, fragt die App nach. Standard- und Wasservertrag gleich.
+- **Dialoge:** Ein Doppelklick auf „Speichern" legte zwei Datensätze an.
+  Markieren über den Dialogrand hinaus schloss den Dialog samt Eingaben;
+  Escape auf einer Rückfrage schloss auch das Formular darunter; nach
+  „Zurück" blieb ein Dialog verwaist offen.
+- **Ablesung vor dem Einbau des ersten Geräts** wurde abgelehnt („kein Gerät
+  aktiv"). Das traf jede frische Installation, sobald man ältere Stände
+  nachtrug — der Standardzähler gilt ab dem Installationstag. Jetzt wird das
+  erste Gerät zurückdatiert; Lücken zwischen zwei Geräten bleiben ein Fehler.
+- **Bonus mit Gutschrift nach Vertragsende** fiel aus Saldo und Tarifvergleich
+  heraus. Er zählt jetzt im letzten Vertragsmonat.
+- **CSV-Monatsexport:** Abschlag, Monats-Saldo, Saldo kumuliert und CO₂ waren
+  immer leer.
+- **Heizöl und Pellets:** „+ Ablesung" legte Datensätze an, die nirgends
+  erschienen und nichts bewirkten. Dort steht jetzt „+ Lieferung".
+- **Dashboard:** Monate ohne Daten erschienen im Verlaufschart als
+  Nullverbrauch; jetzt als Lücke.
+- **„Heute"** wurde teils in UTC berechnet — kurz nach Mitternacht war es noch
+  gestern.
+- **Charts** formatierten Zahlen nach der Browser-Sprache statt der
+  App-Sprache („1,000" für tausend neben „1,000" für eins in der Tabelle).
+
+### Security
+
+- **Schreibende Anfragen von fremden Webseiten** werden abgelehnt (`403`,
+  geprüft über `Sec-Fetch-Site`, ersatzweise `Origin`). Home Assistant, curl
+  und Skripte senden diese Kopfzeilen nicht und sind nicht betroffen.
+- **Gespeicherte Werte werden in der Oberfläche escaped**, auch in
+  Formularfeldern. Ein unlesbares Datum erscheint als „–" statt roh im HTML;
+  präparierte Werte aus einer fremden Backup-Datei konnten bisher Skripte
+  ausführen.
+- **Datumsfelder werden auf allen Schreibpfaden kalendergenau geprüft:**
+  Ablesung, Zähler, Tausch, Vertrag samt Preiszeilen, Boni und
+  Sonderzahlungen, Lieferung, Termin, Temperatur, CSV-Import und Ingest. Ein
+  „2026-02-30" legte bisher Auswertungen, CSV und PDF lahm.
+
+### Fixed — Speicher
+
+- **Beschädigte Datendatei:** Sie wurde still als leer gelesen, und der
+  nächste Schreibzugriff vernichtete den Bestand. Jetzt antwortet die App mit
+  `503`, die Datei bleibt unangetastet, und daneben liegt eine
+  Quarantäne-Kopie `<datei>.corrupt-<prüfsumme>`.
+- **Gleichzeitige Schreibzugriffe** (etwa ein Home-Assistant-Push während
+  einer Eingabe) konnten Änderungen verlieren. Eine globale Schreibsperre
+  ordnet sie nacheinander.
+- **Snapshot vor der Schema-Migration:** Beim ersten Start nach einem Update
+  mit neuem Schema entsteht jetzt `data/backups/pre-migration-…`. Die Doku
+  versprach diesen Snapshot seit Langem; es gab ihn nicht.
+
+### Changed — Oberfläche
+
+- **iPhone und kleinere Macs:** Die Seite lief in 13 von 21 Ansichten seitlich
+  über (am Mac mit 1280 px in der Gas-Ansicht). Jetzt in keiner mehr — geprüft
+  über alle 19 Routen bei 375, 393 und 1280 px.
+- Nach einem Menüklick lag der **Seitentitel unter der Kopfleiste**, samt den
+  Kopf-Aktionen.
+- Die **Speichern-Leiste** der Zählerstand-Erfassung überdeckte am Mac die
+  Seitenleiste.
+- **Sonderzahlungen im Vertragsformular:** eigenes Raster statt zerbrochener
+  Zeilen (das Datum war rund 25 px breit, Beträge abgeschnitten).
+- **Home-Assistant-Karte:** REST-Command, Eintrag für die `secrets.yaml` und
+  eine fertige Automatisierung aus den Aliasen, alle drei zum Kopieren.
+
+### Changed — Texte
+
+- **Glossar:** Das Saldo-Vorzeichen war umgekehrt. Richtig ist Kosten −
+  Abschläge: positiv heißt Nachzahlung, negativ Guthaben (DE + EN).
+- **Übersetzungen:** Wasser hatte in fünf Sprachen einen „Energiepreis";
+  „Rückforderung" las sich in fünf Sprachen wie eine Gutschrift statt einer
+  Rückzahlung; EN „Surcharge" (Aufschlag) für Nachzahlung und „Compensation"
+  (Schadenersatz) für die Einspeisevergütung.
+- **Update-Anleitung:** `docker compose pull` holt die in der
+  `docker-compose.yml` eingetragene Version, nicht die neueste; der Rückweg
+  nach einer Schema-Migration führt nur über das Backup.
+
+### Schnittstellen
+
+Unverändert: Endpunkte, Felder, Backup-Format 3.0, CSV-Formate,
+Docker-Variablen. Neu abgelehnt wird nur, was bisher still falsch gespeichert
+wurde: ungültige Kalenderdaten und Beträge, die keine Zahl sind (`400`),
+schreibende Browser-Anfragen mit fremdem Ursprung (`403`), Zugriffe auf eine
+beschädigte Datendatei (`503` statt leerer Liste).
+
+### Migration
+
+Keine. Schema bleibt 1.5.0.
+
+### Tests
+
+256 → 285 Testmethoden (297 Fälle): `CrossSiteGuardTest`,
+`JsonStoreCorruptionTest`, `WriteLockTest` (vier Prozesse schreiben
+gleichzeitig, kein Update geht verloren), `MigrationSnapshotTest`,
+`InputValidationTest`, `BonusAttributionTest`, `CsvMonthlyExportTest`;
+`ReadingEdgeCasesTest` auf die neue Semantik umgestellt. Neu und ohne
+Server, beide in der CI: `tests/format.test.mjs` (Zahlenparser,
+Datumsformat) und `tests/ha-snippet.test.mjs` — vergleicht die
+Home-Assistant-Vorlage der App zeilenweise mit beiden Sprachfassungen der
+Anleitung. Browser-Render 58/58. **Sieben Kernannahmen per Toggle als
+greifend nachgewiesen**, die HA-Vorlage zusätzlich per Gegenprobe.
+
+**Doku** DE + EN: Home Assistant, Glossar, Installation, Docker.
+30 neue Katalogschlüssel × 7 Sprachen; 18 Schlüssel in einzelnen Sprachen
+korrigiert.
+
+### Lessons Learned
+
+- **Lektion 24 lebte im Frontend weiter.** `type="number"` liefert für
+  „12,5" je nach Browser einen leeren String, und `Number("")` ist 0. Zehn
+  Formulare buchten so eine stille 0. Zahlen gehören als Text mit
+  Dezimaltastatur erfasst und von **einem** Parser gelesen, der „leer"
+  kennt.
+- **Eine Vorlage, die Nutzer kopieren, ist Code.** Das HA-Snippet mit
+  `float(0)` stand an zwei Stellen, und beide waren falsch. Es lebt jetzt in
+  einem Modul, und ein Test hält die Anleitung daneben.
+- **Ein Scroll-Rahmen beschneidet nur, was sich an ihm ausrichtet.** Das
+  unsichtbare `.sr-only`-Label im Tabellenkopf ist absolut positioniert und
+  entkam dem `overflow-x: auto` — die ganze Seite wurde breiter. Rahmen mit
+  Überlauf bekommen `position: relative`.
+
+---
+
 ## [2.5.2] — 2026-09-15 — Rechnungsprüfung: Zählerstände mit Ableseart
 
 PATCH-Release (UX-Politur). Kein Schema-Bump, keine Datenänderung.

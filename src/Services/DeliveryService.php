@@ -6,6 +6,7 @@ namespace Energietracker\Services;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Http\NotFoundException;
+use Energietracker\Support\Dates;
 
 /**
  * Lieferungs-CRUD für die Lieferungs-basierten Verbrauchsarten
@@ -214,7 +215,7 @@ final class DeliveryService
 
     private function validate(string $utility, array $d, bool $isUpdate): void
     {
-        if (empty($d['date']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d['date'])) {
+        if (empty($d['date']) || !Dates::isIsoDate((string)$d['date'])) {   // v2.5.3: kalendergültig
             throw new \InvalidArgumentException($this->i18n->t('errors.delivery.dateMissing'));
         }
         if (!isset($d['quantity']) || !is_numeric($d['quantity']) || (float)$d['quantity'] <= 0) {

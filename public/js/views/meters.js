@@ -7,9 +7,10 @@
 
 import { api } from '../api.js';
 import { getUtility } from '../state.js';
-import { fmt, escapeHtml, todayIso } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { openModal, confirmModal } from '../components/modal.js';
+import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
+import { showFieldError } from '../lib/form.js';
 import { t } from '../lib/i18n.js';
 import { associateFieldLabels } from '../lib/a11y.js';
 
@@ -147,7 +148,7 @@ function renderGroupsBar(groups) {
       ${groups.map(g => `
         <span class="tag tag--util" style="display:inline-flex;align-items:center;gap:6px">
           ${escapeHtml(g.name)}
-          <button type="button" class="btn btn--sm btn--ghost" style="padding:0 6px" title="${t('meters.groupsBar.dissolveTitle')}" aria-label="${t('meters.groupsBar.dissolveTitle')}" data-delete-group="${g.id}"><span aria-hidden="true">✕</span></button>
+          <button type="button" class="btn btn--sm btn--ghost" style="padding:0 6px" title="${t('meters.groupsBar.dissolveTitle')}" aria-label="${t('meters.groupsBar.dissolveTitle')}" data-delete-group="${escapeHtml(g.id)}"><span aria-hidden="true">✕</span></button>
         </span>
       `).join('')}
     </div>
@@ -211,10 +212,10 @@ function renderMeterCard(meter, u, groups, isSub) {
         </ul>
       </div>
       <div class="row-actions" style="flex-direction:column; gap: 4px">
-        <button class="btn btn--sm" data-replace-device="${meter.id}">${t('meters.card.replace')}</button>
-        <button class="btn btn--sm" data-import-readings="${meter.id}">${t('meters.card.csvImport')}</button>
-        <button class="btn btn--sm btn--ghost" data-edit-meter="${meter.id}">${t('meters.card.edit')}</button>
-        <button class="btn btn--sm btn--danger" data-delete-meter="${meter.id}">${t('meters.card.delete')}</button>
+        <button class="btn btn--sm" data-replace-device="${escapeHtml(meter.id)}">${t('meters.card.replace')}</button>
+        <button class="btn btn--sm" data-import-readings="${escapeHtml(meter.id)}">${t('meters.card.csvImport')}</button>
+        <button class="btn btn--sm btn--ghost" data-edit-meter="${escapeHtml(meter.id)}">${t('meters.card.edit')}</button>
+        <button class="btn btn--sm btn--danger" data-delete-meter="${escapeHtml(meter.id)}">${t('meters.card.delete')}</button>
       </div>
     </div>
   `;
@@ -253,7 +254,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             <label>${t('meters.modal.parent')}</label>
             <select class="input" name="parent_meter_id">
               <option value="">${t('meters.modal.parentNone')}</option>
-              ${parentOptions.map(m => `<option value="${m.id}" ${m.id === curParent ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
+              ${parentOptions.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === curParent ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
             </select>
             <small class="muted">${t('meters.modal.parentHint')}</small>
           </div>
@@ -261,7 +262,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             <label>${t('meters.modal.group')}</label>
             <select class="input" name="meter_group_id">
               <option value="">${t('meters.modal.groupNone')}</option>
-              ${(groups || []).map(g => `<option value="${g.id}" ${g.id === curGroup ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+              ${(groups || []).map(g => `<option value="${escapeHtml(g.id)}" ${g.id === curGroup ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -278,7 +279,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             ${isDelivery ? '' : `
             <div class="field">
               <label>${t('meters.modal.initialCounter', { unit: u.unit })}</label>
-              <input class="input" name="initial_counter" type="number" step="0.01" value="0">
+              <input class="input" name="initial_counter" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(0))}">
             </div>
             `}
           </div>
@@ -287,11 +288,11 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           <div class="form-row">
             <div class="field">
               <label>${t('meters.modal.capacity', { unit: volUnit })}</label>
-              <input class="input" name="capacity" type="number" step="0.01" min="0.01" required value="${existing?.capacity ?? ''}">
+              <input class="input" name="capacity" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(existing?.capacity))}">
             </div>
             <div class="field">
               <label>${t('meters.modal.initialStock', { unit: volUnit })}</label>
-              <input class="input" name="initial_stock" type="number" step="0.01" min="0" required value="${existing?.initial_stock ?? ''}">
+              <input class="input" name="initial_stock" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(existing?.initial_stock))}">
             </div>
           </div>
         ` : ''}
@@ -391,12 +392,26 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
 
         drawBaseline();
 
-        modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const saveBtn = modalEl.querySelector('[data-act="save"]');
+        saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
           const f = modalEl.querySelector('#meter-form');
           // D (v2.1.4) — Tank-Kapazität sofort clientseitig prüfen statt erst den
           // Backend-Fehler abzuwarten (gleiche lokalisierte Meldung).
-          if (isDelivery && !(Number(f.capacity.value) > 0)) {
+          // v2.5.3 — Zahlen mit Komma oder Punkt; leer ist leer, nicht 0.
+          const capacity     = isDelivery ? parseDecimal(f.capacity.value) : null;
+          const initialStock = isDelivery ? parseDecimal(f.initial_stock.value) : null;
+          if (isDelivery && !(capacity > 0)) {
             toastErr(t('errors.meter.capacityRequired', { label: u.label }));
+            return;
+          }
+          if (isDelivery && (initialStock == null || initialStock < 0)) {
+            toastErr(t('common.invalidNumber', { example: formatForInput(1234.5) }));
+            return;
+          }
+          const initialCounterRaw = !isDelivery && f.initial_counter ? String(f.initial_counter.value).trim() : '';
+          const initialCounter = initialCounterRaw === '' ? 0 : parseDecimal(initialCounterRaw);
+          if (!isDelivery && f.initial_counter && (initialCounter == null || initialCounter < 0)) {
+            toastErr(t('common.invalidNumber', { example: formatForInput(1234.5) }));
             return;
           }
           try {
@@ -412,8 +427,8 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               };
               // v2.1.1 — Fix #18: Tank-Felder mitsenden (nur Heizöl/Pellets).
               if (isDelivery) {
-                payload.capacity      = Number(f.capacity.value);
-                payload.initial_stock = Number(f.initial_stock.value);
+                payload.capacity      = capacity;
+                payload.initial_stock = initialStock;
               }
               await api.updateMeter(u.key, existing.id, payload);
             } else {
@@ -430,17 +445,17 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               // v2.1.1 — Fix #18: Delivery-Utilities bekommen Tank-Kapazität +
               // Anfangsbestand statt eines kumulativen Anfangsstands.
               if (isDelivery) {
-                payload.capacity      = Number(f.capacity.value);
-                payload.initial_stock = Number(f.initial_stock.value);
+                payload.capacity      = capacity;
+                payload.initial_stock = initialStock;
               } else {
-                payload.initial_counter = Number(f.initial_counter.value);
+                payload.initial_counter = initialCounter;
               }
               await api.createMeter(u.key, payload);
             }
             toastOk(t('meters.modal.saved'));
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
-        });
+        }));
       }
     });
   });
@@ -448,6 +463,13 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
 
 // ───── Device replacement (F2) ──────────────────────────────────────
 async function openReplaceDeviceModal(u, meter) {
+  // v2.5.3 — Letzter erfasster Stand als Orientierung und Plausibilitätsgrenze
+  // für den Endstand des alten Geräts (UI-03 im Review 2026-09-24).
+  let last = null;
+  try {
+    const rs = await api.readings(u.key, meter.id);
+    last = (rs || []).filter(r => !r.is_future).sort((a, b) => String(b.date).localeCompare(String(a.date)))[0] || null;
+  } catch { /* ohne Hinweis weiter */ }
   return new Promise(resolve => {
     const body = `
       <p>${t('meters.replace.intro')}</p>
@@ -459,11 +481,14 @@ async function openReplaceDeviceModal(u, meter) {
           </div>
           <div class="field">
             <label>${t('meters.replace.oldFinal', { unit: u.unit })}</label>
-            <input class="input" name="old_final_counter" type="number" step="0.01" required>
+            <input class="input" name="old_final_counter" type="text" inputmode="decimal" autocomplete="off" required aria-describedby="rp-old-msg rp-old-hint">
+            ${last ? `<small class="muted" id="rp-old-hint">${t('meters.replace.lastKnown', { value: fmt.num(last.counter, 2), unit: u.unit, date: fmt.date(last.date) })}</small>` : ''}
+            <div class="field-error" id="rp-old-msg" role="alert" hidden></div>
           </div>
           <div class="field">
             <label>${t('meters.replace.newInitial', { unit: u.unit })}</label>
-            <input class="input" name="new_initial_counter" type="number" step="0.01" required value="0">
+            <input class="input" name="new_initial_counter" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(0))}" aria-describedby="rp-new-msg">
+            <div class="field-error" id="rp-new-msg" role="alert" hidden></div>
           </div>
         </div>
         <div class="form-row">
@@ -488,20 +513,47 @@ async function openReplaceDeviceModal(u, meter) {
       onMount({ modalEl, close }) {
         associateFieldLabels(modalEl);
         modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(false); resolve(false); });
-        modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+        const saveBtn = modalEl.querySelector('[data-act="save"]');
+        saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
           const f = modalEl.querySelector('#replace-form');
+          // v2.5.3 — Leere Felder sind Fehler, keine 0. Ein Tausch mit
+          // Endstand 0 schloss das alte Gerät scheinbar sauber ab und ließ
+          // sich in der Oberfläche nicht rückgängig machen (UI-03, Issue #13).
+          const oldFinal = parseDecimal(f.old_final_counter.value);
+          const newInit  = parseDecimal(f.new_initial_counter.value);
+          const invalid  = t('common.invalidNumber', { example: formatForInput(1234.5) });
+          if (!f.date.value) { toastErr(t('utility.readingModal.validation')); return; }
+          if (oldFinal == null || oldFinal < 0) { showFieldError(f.old_final_counter, modalEl.querySelector('#rp-old-msg'), invalid); return; }
+          if (newInit == null || newInit < 0)   { showFieldError(f.new_initial_counter, modalEl.querySelector('#rp-new-msg'), invalid); return; }
+          if (last && oldFinal < Number(last.counter)) {
+            const okLower = await confirmModal({
+              message: t('meters.replace.confirmLower', {
+                oldFinal: fmt.num(oldFinal, 2), last: fmt.num(last.counter, 2), unit: u.unit, lastDate: fmt.date(last.date),
+              }),
+              confirmLabel: t('utility.readingModal.confirmLowerOk'),
+            });
+            if (!okLower) return;
+          }
+          const ok = await confirmModal({
+            title: t('meters.replace.title', { name: meter.name }),
+            message: t('meters.replace.confirmSummary', {
+              date: fmt.date(f.date.value), oldFinal: fmt.num(oldFinal, 2), newInitial: fmt.num(newInit, 2), unit: u.unit,
+            }),
+            confirmLabel: t('meters.replace.submit'),
+          });
+          if (!ok) return;
           try {
             await api.replaceDevice(u.key, meter.id, {
               date: f.date.value,
-              old_final_counter:   Number(f.old_final_counter.value),
-              new_initial_counter: Number(f.new_initial_counter.value),
+              old_final_counter:   oldFinal,
+              new_initial_counter: newInit,
               serial: f.serial.value || null,
               reason: f.reason.value || null,
             });
             toastOk(t('meters.replace.done'));
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
-        });
+        }));
       }
     });
   });
@@ -612,7 +664,7 @@ async function openMergeModal(u, meters, groups) {
           <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto;border:1px solid var(--border,#ccc);border-radius:var(--r-md);padding:8px">
             ${meters.map(m => `
               <label style="display:flex;align-items:center;gap:8px;font-weight:normal">
-                <input type="checkbox" name="meter_ids" value="${m.id}">
+                <input type="checkbox" name="meter_ids" value="${escapeHtml(m.id)}">
                 ${escapeHtml(m.name)}
                 ${m.meter_group_id ? `<span class="tag tag--util">${t('meters.mergeModal.alreadyInGroup')}</span>` : ''}
               </label>
@@ -624,7 +676,7 @@ async function openMergeModal(u, meters, groups) {
             <label>${t('meters.mergeModal.existingGroup')}</label>
             <select class="input" name="group_id">
               <option value="">${t('meters.mergeModal.newGroupOption')}</option>
-              ${(groups || []).map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('')}
+              ${(groups || []).map(g => `<option value="${escapeHtml(g.id)}">${escapeHtml(g.name)}</option>`).join('')}
             </select>
           </div>
           <div class="field">

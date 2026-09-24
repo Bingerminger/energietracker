@@ -72,8 +72,8 @@ Alias ist nur die bequemere, lesbare Variante.
 
 ## Schritt 3 — REST-Command in Home Assistant
 
-In die `configuration.yaml` (URL/Token anpassen — das fertige Snippet steht
-auch in den Einstellungen zum Kopieren):
+In die `configuration.yaml` (URL anpassen — das fertige Snippet mit der
+richtigen Adresse steht auch in den Einstellungen zum Kopieren):
 
 ```yaml
 rest_command:
@@ -81,13 +81,14 @@ rest_command:
     url: "http://DEINE-ENERGIETRACKER-IP:8080/api.php/api/ingest"
     method: POST
     headers:
-      Authorization: "Bearer !secret energietracker_token"
+      Authorization: !secret energietracker_auth   # ganzer Wert aus der secrets.yaml, samt „Bearer“
       Content-Type: "application/json"
+    # float ohne Ersatzwert: Ist der Sensor nicht verfügbar, scheitert der Push, statt eine 0 zu buchen.
     payload: >
       {
         "utility": "{{ utility }}",
         "meter": "{{ meter }}",
-        "value": {{ states(sensor_entity) | float(0) }},
+        "value": {{ states(sensor_entity) | float }},
         "date": "{{ now().strftime('%Y-%m-%d') }}"
       }
 ```
@@ -95,11 +96,22 @@ rest_command:
 > **Pfad-Hinweis:** `…/api.php/api/ingest` funktioniert immer. Wenn dein Webserver
 > eine Rewrite-Regel hat (Apache `.htaccess` / nginx), geht auch `…/api/ingest`.
 
-Token in `secrets.yaml`:
+Token in `secrets.yaml` — der **ganze** Header-Wert samt `Bearer`:
 
 ```yaml
-energietracker_token: "et_dein_kopierter_token"
+energietracker_auth: "Bearer et_dein_kopierter_token"
 ```
+
+> **Warum so?** `!secret` wirkt in Home Assistant nur als vollständiger YAML-Wert.
+> In `"Bearer !secret energietracker_token"` (so stand es bis v2.5.2 in dieser
+> Anleitung) ist es gewöhnlicher Text — der Energietracker bekommt die Zeichenkette
+> wörtlich und antwortet `401`.
+
+> ⚠️ **Hast du die Vorlage vor v2.5.3 übernommen?** Dann steht bei dir
+> `| float(0)`. Bitte entfernen (`| float`) und die Bedingung aus Schritt 4
+> ergänzen. `float(0)` macht aus einem nicht verfügbaren Sensor einen
+> Zählerstand **0**; die nächste echte Ablesung zählt dann als Verbrauch eines
+> einzigen Tages und verfälscht Kosten, Saldo und Prognose.
 
 ---
 
@@ -112,18 +124,34 @@ triggers:
   - trigger: time
     at: "23:55:00"
 actions:
-  - action: rest_command.energietracker_push
-    data:
-      utility: "strom"
-      meter: "stromzaehler_haus"
-      sensor_entity: "sensor.stromzaehler_total_kwh"
-  - action: rest_command.energietracker_push
-    data:
-      utility: "gas"
-      meter: "gaszaehler_haus"
-      sensor_entity: "sensor.gaszaehler_total_m3"
+  # Nur senden, wenn der Sensor einen Wert hat – nach einem Neustart steht er kurz auf „unavailable“.
+  - if:
+      - condition: template
+        value_template: "{{ has_value('sensor.stromzaehler_total_kwh') }}"
+    then:
+      - action: rest_command.energietracker_push
+        data:
+          utility: "strom"
+          meter: "stromzaehler_haus"
+          sensor_entity: "sensor.stromzaehler_total_kwh"
+  - if:
+      - condition: template
+        value_template: "{{ has_value('sensor.gaszaehler_total_m3') }}"
+    then:
+      - action: rest_command.energietracker_push
+        data:
+          utility: "gas"
+          meter: "gaszaehler_haus"
+          sensor_entity: "sensor.gaszaehler_total_m3"
 mode: single
 ```
+
+> **Die Bedingung gehört dazu.** Ist ein Sensor gerade nicht verfügbar
+> (HA-Neustart, Funkaussetzer um 23:55), lässt die Automatisierung diesen Zähler
+> für heute aus — die übrigen laufen weiter. Ein ausgelassener Tag kostet nichts:
+> Der Energietracker verteilt den Verbrauch zwischen zwei Ablesungen ohnehin
+> linear. Eine falsche Ablesung dagegen verfälscht alles, bis jemand sie findet.
+> Die Einstellungen erzeugen diese Automatisierung fertig aus deinen Aliasen.
 
 > **Idempotent:** Ein erneuter Push am selben Tag (z. B. manueller Test +
 > Automatik) erzeugt **kein** Duplikat — der Energietracker aktualisiert den
@@ -151,6 +179,11 @@ Wichtig ist der **absolute Zählerstand** (der Wert auf dem Zähler), nicht der
 Tagesverbrauch — der Energietracker bildet Differenzen selbst und rechnet
 Zählertausch verlustfrei heraus.
 
+> **Datenqualität:** Nur echte, absolute Zählerstände senden — nie einen
+> Ersatzwert. Wird ein Zähler getauscht, gehört das in den Energietracker
+> (Zähleransicht → **Zählertausch**), nicht in den Push: Der neue Zähler beginnt wieder bei
+> einem kleinen Wert, und ohne Tausch-Eintrag sähe das wie ein Rückwärtslauf aus.
+
 ---
 
 ## Use-Case A — Eigenheim mit PV und Fernwärme
@@ -174,12 +207,18 @@ triggers:
   - trigger: time
     at: "23:55:00"
 actions:
-  - action: rest_command.energietracker_push
-    data: { utility: "strom",          meter: "strom_haus",          sensor_entity: "sensor.netz_bezug_total_kwh" }
-  - action: rest_command.energietracker_push
-    data: { utility: "fernwaerme",     meter: "fernwaerme_haus",     sensor_entity: "sensor.waermemenge_total_kwh" }
-  - action: rest_command.energietracker_push
-    data: { utility: "pv_einspeisung", meter: "pv_einspeisung_haus", sensor_entity: "sensor.einspeisung_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.netz_bezug_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "strom",          meter: "strom_haus",          sensor_entity: "sensor.netz_bezug_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.waermemenge_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "fernwaerme",     meter: "fernwaerme_haus",     sensor_entity: "sensor.waermemenge_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.einspeisung_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "pv_einspeisung", meter: "pv_einspeisung_haus", sensor_entity: "sensor.einspeisung_total_kwh" }
 mode: single
 ```
 
@@ -210,12 +249,18 @@ triggers:
   - trigger: time
     at: "23:55:00"
 actions:
-  - action: rest_command.energietracker_push
-    data: { utility: "strom",  meter: "strom_wohnung",  sensor_entity: "sensor.strom_total_kwh" }
-  - action: rest_command.energietracker_push
-    data: { utility: "gas",    meter: "gas_wohnung",    sensor_entity: "sensor.gas_total_m3" }
-  - action: rest_command.energietracker_push
-    data: { utility: "wasser", meter: "wasser_wohnung", sensor_entity: "sensor.wasser_total_m3" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.strom_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "strom",  meter: "strom_wohnung",  sensor_entity: "sensor.strom_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.gas_total_m3') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "gas",    meter: "gas_wohnung",    sensor_entity: "sensor.gas_total_m3" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.wasser_total_m3') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "wasser", meter: "wasser_wohnung", sensor_entity: "sensor.wasser_total_m3" }
 mode: single
 ```
 
@@ -229,10 +274,11 @@ vorzubereiten.
 
 | Symptom (HA-Log) | Ursache & Lösung |
 |------------------|------------------|
-| `401` | Token gesetzt, aber Header fehlt/falsch. `Authorization: Bearer <token>` prüfen; Token ggf. neu erzeugen. |
+| `401` | Token gesetzt, aber Header fehlt/falsch. `!secret` wirkt nur als **ganzer** Wert: `Authorization: !secret energietracker_auth`, und in der `secrets.yaml` steht `"Bearer et_…"`. Ein `"Bearer !secret …"` schickt den Text wörtlich. Sonst Token ggf. neu erzeugen. |
 | `400 Kein Zähler für „…" gefunden` | Alias/ID stimmt nicht mit dem Zähler überein. In den Einstellungen den Alias prüfen. |
 | `400 … arbeitet mit Lieferungen` | Heizöl/Pellets werden nicht per Ingest unterstützt. |
-| `400 Zählerstand … keine Zahl` | Der HA-Sensor liefert `unknown`/`unavailable`. Mit `| float(0)` absichern oder Trigger an Sensor-Verfügbarkeit koppeln. |
+| `400 Zählerstand … keine Zahl` | Der HA-Sensor liefert `unknown`/`unavailable`. Den Push dann **auslassen**, nie durch 0 ersetzen: Bedingung `has_value(…)` wie in Schritt 4. `| float(0)` tauscht den sichtbaren Fehler gegen eine stille Falschbuchung. |
+| Template-Fehler „float got invalid input“ im HA-Log | Dieselbe Ursache, von `| float` ohne Ersatzwert gemeldet — gewollt: Es wird nichts gebucht. Bedingung `has_value(…)` ergänzen, dann bleibt das Log ruhig. |
 | Wert taucht nicht auf | Falsche `utility`, oder der Zähler ist im Energietracker inaktiv. |
 
 **Schnelltest** (von der HA-Maschine aus, offener Modus oder mit Token):

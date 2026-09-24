@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Http\NotFoundException;
+use Energietracker\Support\Dates;
 
 /**
  * v1.3.0 — Termin- und Wartungserinnerungen.
@@ -107,7 +108,7 @@ final class ReminderService
         if (empty($input['title'])) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.titleRequired'));
         }
-        if (empty($input['next_due']) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$input['next_due'])) {
+        if (empty($input['next_due']) || !Dates::isIsoDate((string)$input['next_due'])) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.dueRequired'));
         }
 
@@ -131,6 +132,11 @@ final class ReminderService
 
     public function update(string $id, array $patch): array
     {
+        // v2.5.3 — dieselbe Datumsregel wie beim Anlegen; vorher nahm das
+        // Ändern jeden String als Fälligkeit an.
+        if (array_key_exists('next_due', $patch) && !Dates::isIsoDate((string)$patch['next_due'])) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.dueRequired'));
+        }
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $found = null;

@@ -44,25 +44,66 @@ final class JsonStore
         return $path;
     }
 
-    /** @return mixed default if file missing */
+    /**
+     * @return mixed default if file missing (or empty)
+     * @throws StorageCorruptedException if the file exists but cannot be read or parsed
+     *
+     * v2.5.3 — „fehlt" und „kaputt" sind zwei verschiedene Fälle. Bis v2.5.2
+     * gab eine unlesbare oder abgeschnittene Datei still den Default zurück,
+     * und der nächste Schreibzugriff machte den Verlust endgültig. Jetzt:
+     *   - Datei fehlt oder ist leer → Default (es gibt nichts zu verlieren)
+     *   - Datei unlesbar oder kein gültiges JSON → Kopie `<datei>.corrupt-<hash>`
+     *     daneben, dann StorageCorruptedException (HTTP 503)
+     */
     public function read(string $relative, mixed $default = []): mixed
     {
         $path = $this->path($relative);
         if (!is_file($path)) return $default;
 
         $fp = @fopen($path, 'rb');
-        if (!$fp) return $default;
+        if (!$fp) {
+            throw new StorageCorruptedException('Datei ist nicht lesbar: ' . $relative
+                . ' — bitte Dateirechte des Datenverzeichnisses prüfen.');
+        }
         try {
-            if (!flock($fp, LOCK_SH)) return $default;
+            if (!flock($fp, LOCK_SH)) {
+                throw new StorageCorruptedException('Datei lässt sich nicht sperren: ' . $relative);
+            }
             $contents = stream_get_contents($fp);
             flock($fp, LOCK_UN);
         } finally {
             fclose($fp);
         }
 
-        if (!is_string($contents) || $contents === '') return $default;
+        if (!is_string($contents)) {
+            throw new StorageCorruptedException('Datei ist nicht lesbar: ' . $relative);
+        }
+        if (trim($contents) === '') return $default;
+
         $decoded = json_decode($contents, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $copy = $this->quarantine($relative, $contents);
+            throw new StorageCorruptedException(
+                'Datei ist beschädigt (kein gültiges JSON): ' . $relative
+                . ($copy !== null ? ' — eine Kopie liegt unter ' . $copy : '')
+                . '. Bitte aus einem Backup wiederherstellen oder die Datei reparieren;'
+                . ' bis dahin wird sie nicht überschrieben.'
+            );
+        }
         return is_array($decoded) ? $decoded : $default;
+    }
+
+    /**
+     * Kopie einer beschädigten Datei neben dem Original. Der Name hängt am
+     * Inhalt, damit wiederholte Lesezugriffe nicht jedes Mal eine neue Kopie
+     * anlegen. Liefert den relativen Pfad der Kopie oder null.
+     */
+    private function quarantine(string $relative, string $contents): ?string
+    {
+        $copyRel = $relative . '.corrupt-' . substr(hash('sha256', $contents), 0, 8);
+        $copyAbs = $this->rootDir . '/' . ltrim($copyRel, '/');
+        if (is_file($copyAbs)) return $copyRel;
+        return @file_put_contents($copyAbs, $contents, LOCK_EX) !== false ? $copyRel : null;
     }
 
     public function write(string $relative, mixed $data): void

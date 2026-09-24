@@ -25,9 +25,9 @@
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { openModal, confirmModal } from '../components/modal.js';
+import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { makeChart } from '../components/chart.js';
-import { fmt as f, escapeHtml as esc, monthShortNames } from '../lib/format.js';
+import { fmt as f, escapeHtml as esc, monthShortNames, parseDecimal, formatForInput } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 
 let sel = { utility: null, meterId: null, year: null, switchDate: null };
@@ -625,12 +625,12 @@ function openShadowForm(container, existing) {
         <label>${esc(t('tariff.shadow.provider'))}<input type="text" id="s-prov"
           value="${esc(existing?.provider || '')}"
           placeholder="${esc(t('tariff.shadow.providerPlaceholder'))}"></label>
-        <label>${esc(t('tariff.shadow.workingPrice', { unit }))}<input type="number" step="0.01" id="s-wp"
-          value="${wp0.ct_per_kwh ?? ''}" placeholder="${esc(t('tariff.shadow.workingPlaceholder'))}"></label>
-        <label>${esc(t('tariff.shadow.basePrice'))}<input type="number" step="0.01" id="s-bp"
-          value="${bp0.eur_per_month ?? ''}" placeholder="${esc(t('tariff.shadow.basePlaceholder'))}"></label>
-        <label>${esc(t('tariff.shadow.signupBonus'))}<input type="number" step="1" min="0" id="s-bonus"
-          value="${existing?.signup_bonus_eur ?? ''}" placeholder="${esc(t('tariff.shadow.signupBonusPlaceholder'))}">
+        <label>${esc(t('tariff.shadow.workingPrice', { unit }))}<input type="text" inputmode="decimal" autocomplete="off" id="s-wp"
+          value="${esc(formatForInput(wp0.ct_per_kwh))}" placeholder="${esc(t('tariff.shadow.workingPlaceholder'))}"></label>
+        <label>${esc(t('tariff.shadow.basePrice'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-bp"
+          value="${esc(formatForInput(bp0.eur_per_month))}" placeholder="${esc(t('tariff.shadow.basePlaceholder'))}"></label>
+        <label>${esc(t('tariff.shadow.signupBonus'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-bonus"
+          value="${esc(formatForInput(existing?.signup_bonus_eur, 2))}" placeholder="${esc(t('tariff.shadow.signupBonusPlaceholder'))}">
           <span class="settings-field__hint">${esc(t('tariff.shadow.signupBonusHint'))}</span></label>
         <label>${esc(t('tariff.shadow.priceGuarantee'))}<input type="date" id="s-guarantee"
           value="${esc(existing?.price_guarantee_until || '')}">
@@ -638,8 +638,8 @@ function openShadowForm(container, existing) {
         <label>${esc(t('tariff.shadow.start'))}<input type="date" id="s-start" value="${esc(start)}"></label>
         <label>${esc(t('tariff.shadow.end'))}<input type="date" id="s-end" value="${esc(existing?.end || '')}">
           <span class="settings-field__hint">${esc(t('tariff.shadow.endHint'))}</span></label>
-        <label>${esc(t('tariff.shadow.noticePeriod'))}<input type="number" step="1" min="0" max="24" id="s-notice"
-          value="${existing?.notice_period_months ?? ''}"
+        <label>${esc(t('tariff.shadow.noticePeriod'))}<input type="text" inputmode="numeric" autocomplete="off" id="s-notice"
+          value="${esc(String(existing?.notice_period_months ?? ''))}"
           placeholder="${esc(t('tariff.shadow.noticePeriodPlaceholder'))}">
           <span class="settings-field__hint">${esc(t('tariff.shadow.noticePeriodHint'))}</span></label>
       </div>`,
@@ -648,29 +648,50 @@ function openShadowForm(container, existing) {
       <button type="button" class="btn btn--primary" data-act="save">${esc(isEdit ? t('tariff.shadow.save') : t('tariff.shadow.create'))}</button>`,
     onMount: ({ bodyEl, modalEl, close }) => {
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
-      modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
-        const val = id => bodyEl.querySelector(id).value;
+      const saveBtn = modalEl.querySelector('[data-act="save"]');
+      saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
+        const val = id => bodyEl.querySelector(id).value.trim();
+        // v2.5.3 — parseDecimal statt parseFloat (FE-02): „12,5" und „1.250"
+        // kamen je nach Browser als leer oder als 1,25 an. Leere optionale
+        // Felder bleiben null; was gefüllt, aber keine Zahl ist, wird gemeldet
+        // statt still verworfen (vorher fiel ein unlesbarer Grundpreis weg).
+        const optional = (id) => {
+          const raw = val(id);
+          const el = bodyEl.querySelector(id);
+          const n = raw === '' ? null : parseDecimal(raw);
+          const bad = raw !== '' && n === null;
+          el.classList.toggle('invalid', bad);
+          return bad ? undefined : n;
+        };
         const startVal = val('#s-start');
-        const wp = parseFloat(val('#s-wp'));
-        const bp = parseFloat(val('#s-bp'));
-        const bonus = parseFloat(val('#s-bonus'));
-        const notice = parseInt(val('#s-notice'), 10);
-        const label = val('#s-label').trim();
-        if (!label || !startVal || isNaN(wp)) { toastErr(t('tariff.shadow.validation')); return; }
+        const wp = parseDecimal(val('#s-wp'));
+        const bp = optional('#s-bp');
+        const bonus = optional('#s-bonus');
+        const noticeRaw = val('#s-notice');
+        const noticeOk = noticeRaw === '' || (/^\d{1,2}$/.test(noticeRaw) && Number(noticeRaw) <= 24);
+        bodyEl.querySelector('#s-notice').classList.toggle('invalid', !noticeOk);
+        bodyEl.querySelector('#s-wp').classList.toggle('invalid', wp === null);
+        const label = val('#s-label');
+        if (!label || !startVal || wp === null) { toastErr(t('tariff.shadow.validation')); return; }
+        if (bp === undefined || bonus === undefined) {
+          toastErr(t('common.invalidNumber', { example: formatForInput(1234.5) }));
+          return;
+        }
+        if (!noticeOk) { toastErr(t('errors.contract.noticeOutOfRange')); return; }
 
         const payload = {
           meter_id: sel.meterId,
-          provider: val('#s-prov').trim(),
+          provider: val('#s-prov'),
           tariff_name: label,
           start: startVal,
           end: val('#s-end') || null,
           is_shadow: true,
           shadow_label: label,
           working_prices: [{ from: startVal, ct_per_kwh: wp }],
-          base_prices: isNaN(bp) ? [] : [{ from: startVal, eur_per_month: bp }],
-          signup_bonus_eur: isNaN(bonus) ? null : bonus,
+          base_prices: bp === null ? [] : [{ from: startVal, eur_per_month: bp }],
+          signup_bonus_eur: bonus,
           price_guarantee_until: val('#s-guarantee') || null,
-          notice_period_months: isNaN(notice) ? null : notice,
+          notice_period_months: noticeRaw === '' ? null : Number(noticeRaw),
         };
         try {
           if (isEdit) await api.updateContract(sel.utility, existing.id, payload);
@@ -679,7 +700,7 @@ function openShadowForm(container, existing) {
           close(null);
           await loadAll(container);
         } catch (e) { toastErr(t('tariff.shadow.error', { msg: e.message || e })); }
-      });
+      }));
     },
   });
 }

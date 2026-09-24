@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
+use Energietracker\Support\Dates;
 
 /**
  * Tagestemperaturen (`data/temperatures.json` als Map
@@ -96,6 +97,8 @@ final class TemperatureService
             } elseif (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date)) {
                 $iso = $date;
             } else { $skipped++; continue; }
+            // v2.5.3 — kalendergültig, sonst bricht der Schlüssel die HGT-Rechnung
+            if (!Dates::isIsoDate($iso)) { $skipped++; continue; }
             $avg = $this->parseNum((string)$parts[1]);
             $min = $this->parseNum((string)$parts[2]);
             $max = $this->parseNum((string)$parts[3]);

@@ -14,9 +14,10 @@
 
 import { api } from '../api.js';
 import { getUtilities } from '../state.js';
-import { fmt, escapeHtml, todayIso } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
-import { openModal, confirmModal } from '../components/modal.js';
+import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
+import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
 
@@ -334,7 +335,7 @@ function counterCell(value, kind) {
   const kindKey = kind === 'reading_estimated' ? 'readingEstimated' : kind;
   const title = escapeHtml(t('utility.billCheck.kind.' + kindKey));
   const val = value != null ? fmt.num(value, Number.isInteger(value) ? 0 : 1) : '–';
-  return `<td class="num counter-cell" data-kind="${kind}" title="${title}">${val}${mark ? `<sup class="muted"> ${mark}</sup>` : ''}</td>`;
+  return `<td class="num counter-cell" data-kind="${escapeHtml(kind)}" title="${title}">${val}${mark ? `<sup class="muted"> ${mark}</sup>` : ''}</td>`;
 }
 
 function renderBillCheck(bill, u) {
@@ -420,7 +421,11 @@ function header(u, meter = null) {
       <div class="view-header__actions">
         ${meterSelectorHtml}
         <a class="btn btn--ghost btn--sm" href="#/utility/${u.key}/meters" title="${t('utility.header.metersTitle')}"><span aria-hidden="true">⚙️</span> ${t('utility.header.meters')}</a>
-        <button class="btn btn-${u.key} btn--sm" id="header-new-reading">${t('utility.action.newReading')}</button>
+        ${u.reading_kind === 'delivery'
+          // v2.5.3 — Heizöl/Pellets werden über Lieferungen erfasst. Der Knopf
+          // „+ Ablesung" legte hier unsichtbare, wirkungslose Datensätze an.
+          ? `<button class="btn btn-${u.key} btn--sm" id="header-new-delivery">${t('utility.action.newDelivery')}</button>`
+          : `<button class="btn btn-${u.key} btn--sm" id="header-new-reading">${t('utility.action.newReading')}</button>`}
       </div>
     </div>
   `;
@@ -950,8 +955,9 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
   });
 
   // Delivery actions (Heizöl/Pellets)
-  container.querySelector('#btn-new-delivery')?.addEventListener('click',
-    () => openDeliveryModal(container, u, meter, null));
+  ['#btn-new-delivery', '#header-new-delivery'].forEach(sel => {
+    container.querySelector(sel)?.addEventListener('click', () => openDeliveryModal(container, u, meter, null));
+  });
   container.querySelectorAll('[data-action="edit-delivery"]').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.getAttribute('data-id');
@@ -987,12 +993,13 @@ function openReadingModal(container, u, meter, reading, lastReading = null) {
     <form id="reading-form">
       <div class="field">
         <label for="rf-date">${t('utility.readingModal.date')}</label>
-        <input class="input" id="rf-date" type="date" name="date" value="${reading?.date || today}" required>
+        <input class="input" id="rf-date" type="date" name="date" value="${escapeHtml(reading?.date || today)}" required>
       </div>
       <div class="field">
         <label for="rf-counter">${t('utility.readingModal.counter', { unit: u.unit })}</label>
-        <input class="input" id="rf-counter" type="number" step="0.01" name="counter" value="${reading?.counter ?? ''}" required>
+        <input class="input" id="rf-counter" type="text" inputmode="decimal" autocomplete="off" name="counter" value="${escapeHtml(formatForInput(reading?.counter))}" required aria-describedby="rf-counter-msg">
         <div class="reading-card__preview" data-role="preview" hidden></div>
+        <div class="field-error" id="rf-counter-msg" data-role="msg" role="alert" hidden></div>
       </div>
       <div class="field">
         <label for="rf-note">${t('utility.readingModal.note')}</label>
@@ -1019,11 +1026,14 @@ function openReadingModal(container, u, meter, reading, lastReading = null) {
       const counterEl = modalEl.querySelector('input[name="counter"]');
       const dateEl    = modalEl.querySelector('input[name="date"]');
       const previewEl = modalEl.querySelector('[data-role="preview"]');
+      const msgEl     = modalEl.querySelector('[data-role="msg"]');
+      const lastCounter = !isEdit && lastReading?.counter != null ? Number(lastReading.counter) : null;
       const updatePreview = () => {
-        if (!previewEl || isEdit || !lastReading || lastReading.counter == null) return;
-        const v = parseFloat(String(counterEl.value).replace(',', '.'));
-        if (Number.isNaN(v)) { previewEl.hidden = true; return; }
-        const diff = v - Number(lastReading.counter);
+        showFieldError(counterEl, msgEl, null);
+        if (!previewEl || lastCounter == null) return;
+        const v = parseDecimal(counterEl.value);
+        if (v == null) { previewEl.hidden = true; return; }
+        const diff = v - lastCounter;
         const delta = (diff < 0 ? '−' : '+') + fmt.num(Math.abs(diff), 2);
         let days = null;
         if (lastReading.date && dateEl.value) {
@@ -1031,24 +1041,41 @@ function openReadingModal(container, u, meter, reading, lastReading = null) {
           if (Number.isFinite(d) && d > 0) days = d;
         }
         previewEl.hidden = false;
-        previewEl.textContent = days != null
+        // v2.5.3 — derselbe Rückwärts-Hinweis wie in der zentralen Erfassung
+        previewEl.textContent = (days != null
           ? t('utility.preview.sinceLastDays', { delta, unit: u.unit, days })
-          : t('utility.preview.sinceLast', { delta, unit: u.unit });
+          : t('utility.preview.sinceLast', { delta, unit: u.unit }))
+          + (diff < 0 ? ' · ' + t('readingsEntry.hint.lower', { min: fmt.num(lastCounter, 2) }) : '');
       };
       counterEl?.addEventListener('input', updatePreview);
       dateEl?.addEventListener('change', updatePreview);
 
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
-      modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+      const saveBtn = modalEl.querySelector('[data-act="save"]');
+      saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
         const form = modalEl.querySelector('#reading-form');
+        // v2.5.3 — Ein leeres oder unlesbares Feld ist ein Fehler, keine 0
+        // (Lektion 24). Vorher machte Number('') daraus einen Zählerstand 0.
+        const counter = parseDecimal(form.counter.value);
+        if (!form.date.value) { toastErr(t('utility.readingModal.validation')); return; }
+        if (counter == null || counter < 0) {
+          showFieldError(counterEl, msgEl, t('common.invalidNumber', { example: formatForInput(1234.5) }));
+          return;
+        }
+        if (lastCounter != null && counter < lastCounter) {
+          const ok = await confirmModal({
+            message: t('utility.readingModal.confirmLower', { last: fmt.num(lastCounter, 2), unit: u.unit }),
+            confirmLabel: t('utility.readingModal.confirmLowerOk'),
+          });
+          if (!ok) return;
+        }
         const data = {
           meter_id: meter.id,
           date: form.date.value,
-          counter: Number(form.counter.value),
+          counter,
           note: form.note.value,
           is_estimated: form.is_estimated.checked,
         };
-        if (!data.date || isNaN(data.counter)) { toastErr(t('utility.readingModal.validation')); return; }
         try {
           if (isEdit) await api.updateReading(u.key, reading.id, data);
           else        await api.createReading(u.key, data);
@@ -1056,7 +1083,7 @@ function openReadingModal(container, u, meter, reading, lastReading = null) {
           close(true);
           rerender(container);
         } catch (e) { toastErr(e.message); }
-      });
+      }));
     },
   });
 }
@@ -1070,19 +1097,22 @@ function openDeliveryModal(container, u, meter, delivery) {
     <form id="delivery-form">
       <div class="field">
         <label for="df-date">${t('utility.deliveryModal.date')}</label>
-        <input class="input" id="df-date" type="date" name="date" value="${delivery?.date || today}" required>
+        <input class="input" id="df-date" type="date" name="date" value="${escapeHtml(delivery?.date || today)}" required>
       </div>
       <div class="field">
         <label for="df-quantity">${t('utility.deliveryModal.quantity', { unit })}</label>
-        <input class="input" id="df-quantity" type="number" step="0.01" name="quantity" value="${delivery?.quantity ?? ''}" required>
+        <input class="input" id="df-quantity" type="text" inputmode="decimal" autocomplete="off" name="quantity" value="${escapeHtml(formatForInput(delivery?.quantity))}" required aria-describedby="df-quantity-msg">
+        <div class="field-error" id="df-quantity-msg" role="alert" hidden></div>
       </div>
       <div class="field">
         <label for="df-unit-price">${t('utility.deliveryModal.unitPrice', { unit })}</label>
-        <input class="input" id="df-unit-price" type="number" step="0.01" name="unit_price_cents" value="${delivery?.unit_price_cents ?? ''}">
+        <input class="input" id="df-unit-price" type="text" inputmode="decimal" autocomplete="off" name="unit_price_cents" value="${escapeHtml(formatForInput(delivery?.unit_price_cents))}" aria-describedby="df-unit-price-msg">
+        <div class="field-error" id="df-unit-price-msg" role="alert" hidden></div>
       </div>
       <div class="field">
         <label for="df-total">${t('utility.deliveryModal.total')}</label>
-        <input class="input" id="df-total" type="number" step="0.01" name="total_eur" value="${delivery?.total_eur ?? ''}">
+        <input class="input" id="df-total" type="text" inputmode="decimal" autocomplete="off" name="total_eur" value="${escapeHtml(formatForInput(delivery?.total_eur))}" aria-describedby="df-total-msg">
+        <div class="field-error" id="df-total-msg" role="alert" hidden></div>
       </div>
       <div class="field">
         <label for="df-supplier">${t('utility.deliveryModal.supplier')}</label>
@@ -1114,19 +1144,22 @@ function openDeliveryModal(container, u, meter, delivery) {
       const qEl = modalEl.querySelector('input[name="quantity"]');
       const uEl = modalEl.querySelector('input[name="unit_price_cents"]');
       const tEl = modalEl.querySelector('input[name="total_eur"]');
-      const numOf = (el) => { const v = parseFloat(String(el?.value ?? '').replace(',', '.')); return Number.isFinite(v) ? v : null; };
-      const recalcTotal = () => { const q = numOf(qEl), u = numOf(uEl); if (q != null && u != null) tEl.value = (q * u / 100).toFixed(2); };
-      const recalcUnit  = () => { const q = numOf(qEl), tot = numOf(tEl); if (q != null && q !== 0 && tot != null) uEl.value = (tot / q * 100).toFixed(2); };
+      const numOf = (el) => parseDecimal(el?.value);
+      const recalcTotal = () => { const q = numOf(qEl), u = numOf(uEl); if (q != null && u != null) tEl.value = formatForInput(Math.round(q * u) / 100, 2); };
+      const recalcUnit  = () => { const q = numOf(qEl), tot = numOf(tEl); if (q != null && q !== 0 && tot != null) uEl.value = formatForInput(Math.round(tot / q * 10000) / 100, 2); };
       qEl?.addEventListener('input', () => { if (numOf(uEl) != null) recalcTotal(); else recalcUnit(); });
       uEl?.addEventListener('input', recalcTotal);
       tEl?.addEventListener('input', recalcUnit);
 
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
-      modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+      const saveBtn = modalEl.querySelector('[data-act="save"]');
+      saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
         const form = modalEl.querySelector('#delivery-form');
-        const qty = Number(form.quantity.value);
-        if (!form.date.value || isNaN(qty) || qty <= 0) {
-          toastErr(t('utility.deliveryModal.validation')); return;
+        const qty = parseDecimal(form.quantity.value);
+        if (!form.date.value) { toastErr(t('utility.deliveryModal.validation')); return; }
+        if (qty == null || qty <= 0) {
+          showFieldError(qEl, modalEl.querySelector('#df-quantity-msg'), t('utility.deliveryModal.validation'));
+          return;
         }
         const data = {
           meter_id: meter.id,
@@ -1136,10 +1169,16 @@ function openDeliveryModal(container, u, meter, delivery) {
           note: form.note.value.trim(),
           is_planned: form.is_planned.checked,
         };
-        const upc = form.unit_price_cents.value;
-        const tot = form.total_eur.value;
-        if (upc !== '') data.unit_price_cents = Number(upc);
-        if (tot !== '') data.total_eur = Number(tot);
+        // Optionale Felder: leer bleibt leer; Text, der keine Zahl ist, ist ein Fehler.
+        for (const [el, key, msgId] of [[uEl, 'unit_price_cents', '#df-unit-price-msg'], [tEl, 'total_eur', '#df-total-msg']]) {
+          if (String(el.value).trim() === '') continue;
+          const v = parseDecimal(el.value);
+          if (v == null || v < 0) {
+            showFieldError(el, modalEl.querySelector(msgId), t('common.invalidNumber', { example: formatForInput(1234.5) }));
+            return;
+          }
+          data[key] = v;
+        }
         try {
           if (isEdit) await api.updateDelivery(u.key, delivery.id, data);
           else        await api.createDelivery(u.key, data);
@@ -1147,7 +1186,7 @@ function openDeliveryModal(container, u, meter, delivery) {
           close(true);
           rerender(container);
         } catch (e) { toastErr(e.message); }
-      });
+      }));
     },
   });
 }

@@ -334,9 +334,14 @@ function renderCombinedChart(datasets) {
     const u = d.utility;
     const key = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
     const byYm = Object.fromEntries((d.consumption?.monthly_total || []).map(m => [m.ym, m[key]]));
+    // v2.5.3 (FE-03) — Monat ohne Daten ist eine Lücke, kein Nullverbrauch.
+    // Die Achse vereint die Monate aller Arten; wer Strom täglich per Home
+    // Assistant schickt und Gas monatlich abliest, sah die jüngsten Gasmonate
+    // als 0 — die zentrale Grafik behauptete „kein Verbrauch".
     return {
       label: `${u.label} (${u.consumption_unit})`,
-      data:  months.map(m => byYm[m] ?? 0),
+      data:  months.map(m => byYm[m] ?? null),
+      spanGaps: false,
       borderColor: u.color,
       backgroundColor: u.color + '33',
       tension: 0.25,

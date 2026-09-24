@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Dates;
 
 /**
  * Contract management. Each contract belongs to exactly one meter (F3).
@@ -290,10 +291,11 @@ final class ContractService
                     $this->i18n->t('errors.contract.swEntryMissing', ['n' => $i + 1, 'fields' => implode(', ', $missing)])
                 );
             }
+            $this->assertDate($from, $this->i18n->t('errors.contract.fields.date') . ' #' . ($i + 1));
             $cleanedRates[] = [
                 'from'                   => $from,
-                'eur_per_m2_year'        => (float)$rate,
-                'versiegelte_flaeche_m2' => (float)$area,
+                'eur_per_m2_year'        => $this->parseAmount($rate, $this->i18n->t('errors.contract.fields.ratePerM2'), $i + 1),
+                'versiegelte_flaeche_m2' => $this->parseAmount($area, $this->i18n->t('errors.contract.fields.sealedArea'), $i + 1),
             ];
         }
         usort($cleanedRates, fn($a, $b) => strcmp($a['from'], $b['from']));
@@ -311,6 +313,12 @@ final class ContractService
     {
         if (empty($c['start'])) {
             throw new \InvalidArgumentException($this->i18n->t('errors.contract.startRequired'));
+        }
+        // v2.5.3 — Vertragsdaten kalendergültig. Ein beliebiger String landete
+        // bisher unverändert in der Datei und von dort ungefiltert im DOM.
+        $this->assertDate($c['start'], $this->i18n->t('errors.contract.fields.start'));
+        if (!empty($c['end'])) {
+            $this->assertDate($c['end'], $this->i18n->t('errors.contract.fields.end'));
         }
         if (!empty($c['end']) && $c['end'] < $c['start']) {
             throw new \InvalidArgumentException($this->i18n->t('errors.contract.endBeforeStart'));
@@ -346,11 +354,7 @@ final class ContractService
             $v = $c[$field] ?? null;
             $v = ($v === null || $v === false) ? '' : trim((string)$v);
             if ($v === '') { $c[$field] = null; continue; }
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) {
-                throw new \InvalidArgumentException(
-                    $this->i18n->t('errors.contract.dateInvalid', ['field' => $field, 'value' => $v])
-                );
-            }
+            $this->assertDate($v, $field);
             if (!empty($c['start']) && $v < $c['start']) {
                 throw new \InvalidArgumentException(
                     $this->i18n->t('errors.contract.dateBeforeStart', ['field' => $field])
@@ -460,6 +464,30 @@ final class ContractService
         return (int)$a->diff($b)->format('%r%a');
     }
 
+    /** v2.5.3 — kalendergültiges Datum oder 400 mit Feldangabe. */
+    private function assertDate(mixed $value, string $field): void
+    {
+        if (!Dates::isIsoDate($value)) {
+            throw new \InvalidArgumentException(
+                $this->i18n->t('errors.contract.dateInvalid', ['field' => $field, 'value' => is_scalar($value) ? (string)$value : gettype($value)])
+            );
+        }
+    }
+
+    /**
+     * v2.5.3 — Beträge müssen Zahlen sein. `(float)"12,5"` ergab bisher still
+     * 12, `(float)"abc"` still 0 — ein Tarif „0 ct ab Stichtag" (Lektion 24).
+     */
+    private function parseAmount(mixed $value, string $label, int $n): float
+    {
+        if (is_bool($value) || !is_numeric($value) || !is_finite((float)$value)) {
+            throw new \InvalidArgumentException(
+                $this->i18n->t('errors.contract.amountInvalid', ['label' => $label, 'n' => $n, 'value' => is_scalar($value) ? (string)$value : gettype($value)])
+            );
+        }
+        return (float)$value;
+    }
+
     private function normalizePriceList(array $entries, string $dateKey, string $amountKey, string $label): array
     {
         $cleaned = [];
@@ -476,9 +504,10 @@ final class ContractService
                     $this->i18n->t('errors.contract.entryMissing', ['label' => $label, 'n' => $i + 1, 'field' => $missing])
                 );
             }
+            $this->assertDate($date, $label . ' #' . ($i + 1));
             $cleaned[] = [
                 $dateKey   => $date,
-                $amountKey => (float)$amount,
+                $amountKey => $this->parseAmount($amount, $label, $i + 1),
             ];
         }
         usort($cleaned, fn($a, $b) => strcmp($a[$dateKey], $b[$dateKey]));
@@ -501,9 +530,10 @@ final class ContractService
                     $this->i18n->t('errors.contract.bonusEntryMissing', ['n' => $i + 1, 'field' => $missing])
                 );
             }
+            $this->assertDate($cd, $this->i18n->t('errors.contract.fields.creditDate') . ' #' . ($i + 1));
             $cleaned[] = [
                 'credit_date' => $cd,
-                'amount_eur'  => (float)$am,
+                'amount_eur'  => $this->parseAmount($am, $this->i18n->t('contracts.bonus.title'), $i + 1),
                 'type'        => (string)($b['type']  ?? 'sofort'),
                 'label'       => (string)($b['label'] ?? ''),
             ];
@@ -598,7 +628,9 @@ final class ContractService
                     $this->i18n->t('errors.contract.specialPaymentUnknownKind', ['n' => $n, 'kind' => $kind])
                 );
             }
-            $amt = abs((float)$amount); // Vorzeichen kommt aus kind
+            $spLabel = $this->i18n->t('contracts.special.title');
+            $this->assertDate($date, $spLabel . ' #' . $n);
+            $amt = abs($this->parseAmount($amount, $spLabel, $n)); // Vorzeichen kommt aus kind
 
             $row = [
                 'id'         => isset($e['id']) && $e['id'] !== ''
@@ -621,7 +653,10 @@ final class ContractService
                         $this->i18n->t('errors.contract.specialPaymentImpactMissing', ['n' => $n, 'field' => $missing])
                     );
                 }
-                $row['new_advance_eur'] = $naFilled ? (float)$na : null;
+                if ($afFilled) {
+                    $this->assertDate($af, $this->i18n->t('errors.contract.fields.advanceDate') . ' #' . $n);
+                }
+                $row['new_advance_eur'] = $naFilled ? $this->parseAmount($na, $spLabel, $n) : null;
                 $row['advance_from']    = $afFilled ? $af : null;
             } else {
                 // ohne-Auswirkung-Arten und abschlagszahlung tragen keine
@@ -763,13 +798,28 @@ final class ContractService
         return $val;
     }
 
+    /**
+     * Summe der Boni, die in einem Monat der Vertragslaufzeit wirken.
+     *
+     * v2.5.3 — Ein Bonus gehört zu seinem Vertrag, nicht zu seinem
+     * Gutschriftsmonat. Die Wechsel- und Neukundenboni kommen typisch mit der
+     * Schlussrechnung, also NACH dem Vertragsende; in jenem Monat gilt schon
+     * der Folgevertrag, und bis v2.5.2 fiel der Bonus deshalb aus Saldo und
+     * Tarifvergleich heraus (im Test 120 €). Jetzt zählt eine Gutschrift nach
+     * dem Ende im letzten Vertragsmonat, eine vor dem Beginn im ersten.
+     */
     public function bonusForMonth(array $contract, int $year, int $month): float
     {
-        $ym = sprintf('%04d-%02d', $year, $month);
+        $ym      = sprintf('%04d-%02d', $year, $month);
+        $startYm = substr((string)($contract['start'] ?? ''), 0, 7);
+        $endYm   = !empty($contract['end']) ? substr((string)$contract['end'], 0, 7) : null;
         $sum = 0.0;
         foreach ($contract['bonuses'] ?? [] as $b) {
-            if (!isset($b['credit_date'])) continue;
-            if (substr($b['credit_date'], 0, 7) === $ym) {
+            if (empty($b['credit_date'])) continue;
+            $bYm = substr((string)$b['credit_date'], 0, 7);
+            if ($endYm !== null && $bYm > $endYm) $bYm = $endYm;
+            if ($startYm !== '' && $bYm < $startYm) $bYm = $startYm;
+            if ($bYm === $ym) {
                 $sum += (float)($b['amount_eur'] ?? 0);
             }
         }

@@ -17,7 +17,8 @@
     "all": "All",
     "optional": "optional",
     "required": "required",
-    "actions": "Actions"
+    "actions": "Actions",
+    "invalidNumber": "Please enter a valid number, e.g. {example}."
   },
   "app": {
     "themeToggle": "Switch theme",
@@ -215,21 +216,21 @@
       "waterSw": "+ {value} waste",
       "waterNw": "+ {value} rainwater",
       "specialRefund": "+ {value} refund",
-      "specialSurcharge": "− {value} surcharge",
+      "specialSurcharge": "− {value} back-payment",
       "specialAdvance": "− {value} advance payment",
       "specialCount": "{count} special payments",
       "specialCountOne": "1 special payment",
-      "colConsumedFeedIn": "Compensation (as of today)",
+      "colConsumedFeedIn": "Feed-in payment (as of today)",
       "colConsumed": "Consumed (as of today)",
       "colPaidFeedIn": "Already paid out",
       "colPaid": "Advance paid",
       "paidViaGrid": "Paid out via grid operator",
       "paidCurrent": "current: {value}/month",
       "paidCurrentNone": "current: –",
-      "colClaimFeedIn": "Compensation claim",
+      "colClaimFeedIn": "Feed-in payment due",
       "colBalance": "Current balance",
       "subCredit": "Credit with grid operator",
-      "subReclaim": "Reclaim",
+      "subReclaim": "Repayment due",
       "subBalanced": "balanced",
       "subUnderpaid": "Underpaid",
       "subOverpaid": "Overpaid",
@@ -271,8 +272,8 @@
       "periodOpen": "{start} → ongoing",
       "gpSuffix": "{value} € base",
       "colSpecial": "Special payments",
-      "colSpecialTitle": "Net of special payments: refunds from the supplier count positive, surcharges and extra advance payments negative. Individual items in the cell tooltip.",
-      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), surcharges and extra advance payments (−) outside the advance schedule; both feed into the balance. Hover the cell for the individual items; they are maintained in the contract management."
+      "colSpecialTitle": "Net of special payments: refunds from the supplier count positive, back-payments and extra advance payments negative. Individual items in the cell tooltip.",
+      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Hover the cell for the individual items; they are maintained in the contract management."
     },
     "monthlyTable": {
       "noData": "No data for this year.",
@@ -337,7 +338,9 @@
       "create": "Create",
       "validation": "Date and reading are required.",
       "savedNew": "Reading saved",
-      "savedEdit": "Reading updated"
+      "savedEdit": "Reading updated",
+      "confirmLower": "This reading is below the last one ({last} {unit}). Meter readings normally only go up; a replaced meter belongs under “Meter swap”. Save anyway?",
+      "confirmLowerOk": "Save anyway"
     },
     "deliveryModal": {
       "titleEdit": "Edit delivery · {label}",
@@ -365,7 +368,7 @@
       "sinceLast": "{delta} {unit} since last reading",
       "sinceLastDays": "{delta} {unit} since last reading ({days} days ago)"
     },
-    "verdict": { "surcharge": "Surcharge", "refund": "Refund", "payout": "Payout", "reclaim": "Reclaim", "balanced": "Balanced" },
+    "verdict": { "surcharge": "Back-payment", "refund": "Refund", "payout": "Payout", "reclaim": "Repayment due", "balanced": "Balanced" },
     "billCheck": {
       "title": "Bill verification",
       "hint": "Recalculates the gas bill: per section m³ × volume correction factor × calorific value = kWh, like the lines of a supplier bill. A new section starts at every reading and every calorific-value change.",
@@ -463,8 +466,8 @@
     "kinds": {
       "rueckzahlung_mit": "Refund (affecting advances)",
       "rueckzahlung_ohne": "Refund (not affecting advances)",
-      "nachzahlung_mit": "Surcharge (affecting advances)",
-      "nachzahlung_ohne": "Surcharge (not affecting advances)",
+      "nachzahlung_mit": "Back-payment (affecting advances)",
+      "nachzahlung_ohne": "Back-payment (not affecting advances)",
       "abschlagszahlung": "Advance payment"
     },
     "bonusTypes": { "sofort": "Immediate", "wechsel": "Switch", "neukunde": "New customer" },
@@ -487,7 +490,12 @@
       "priceGuarantee": "Price guaranteed until",
       "priceGuaranteeHint": "Beyond that the price is an assumption.",
       "minTermEnd": "Minimum term ends",
-      "minTermEndHint": "Only needed for open-ended contracts — no cancellation is possible before this date."
+      "minTermEndHint": "Only needed for open-ended contracts — no cancellation is possible before this date.",
+      "nameRequired": "Please enter a provider or tariff.",
+      "workingPriceRequired": "At least one “{group}” row with date and amount is required.",
+      "supersedeTitle": "Replace the running contract?",
+      "supersedeMessage": "From {date} this contract applies instead of “{name}” – where contracts overlap, the later start wins. Balance and forecast then use the new prices.",
+      "supersedeOk": "Yes, replace"
     },
     "delete": { "title": "Delete contract?", "message": "Delete contract permanently?", "confirm": "Delete", "deleted": "Contract deleted" },
     "deleteContract": "Delete contract",
@@ -502,7 +510,7 @@
     "special": {
       "title": "Special payments",
       "add": "+ Special payment",
-      "hint": "Refund, surcharge or additional advance payment. “Affecting” also adjusts the future monthly advance.",
+      "hint": "Refund, back-payment or additional advance payment. “Affecting” also adjusts the future monthly advance.",
       "date": "Date",
       "amount": "Amount €",
       "kind": "Kind",
@@ -527,14 +535,14 @@
       "nw": "☔ Rainwater",
       "advances": "💰 Advances",
       "bonuses": "🎁 Bonuses",
-      "twWorking": "Working price (ct/m³)",
+      "twWorking": "Price per m³ (ct/m³)",
       "twBase": "Base price (€/month)",
       "basis": "Calculation basis",
       "basisTw": "from drinking-water usage (default)",
       "basisSep": "separate waste-water meter",
       "sepMeter": "Waste-water meter",
       "noMoreMeters": "(no further meters available yet)",
-      "swWorking": "Working price waste water (ct/m³)",
+      "swWorking": "Price per m³ waste water (ct/m³)",
       "nwRates": "Effective date",
       "apMonthly": "Monthly advance (€)",
       "colDate": "Date",
@@ -630,7 +638,10 @@
       "reason": "Reason",
       "reasonPlaceholder": "e.g. calibration, defect",
       "submit": "Perform swap",
-      "done": "Meter swapped"
+      "done": "Meter swapped",
+      "lastKnown": "Last reading: {value} {unit} on {date}",
+      "confirmLower": "The final reading {oldFinal} {unit} is below the last reading ({last} {unit} on {lastDate}). A meter reading does not go down – please check. Continue anyway?",
+      "confirmSummary": "On {date} the old device is closed at {oldFinal} {unit} and the new one starts at {newInitial} {unit}. This cannot be undone in the app."
     },
     "import": {
       "title": "Import readings: {name}",
@@ -835,7 +846,7 @@
       "saveAliases": "Save aliases",
       "noMeters": "No cumulative meters available.",
       "step3": "3. Home Assistant configuration (to copy)",
-      "configHint": "Add this to your <code>configuration.yaml</code> and adjust URL/token. A complete automation with examples is in <code>docs/HOME-ASSISTANT.md</code>.",
+      "configHint": "Add the REST command to your <code>configuration.yaml</code> and check the URL; put the token entry into <code>secrets.yaml</code>. <strong>Templates up to v2.5.2 contained <code>float(0)</code></strong> and recorded a meter reading of 0 whenever the sensor was unavailable – please replace them with this version.",
       "copyYaml": "Copy YAML",
       "genConfirmTitle": "Generate API token?",
       "genConfirmMsg": "A new token is generated and shown only ONCE. Any existing token becomes invalid.",
@@ -849,7 +860,15 @@
       "aliasesSaved": "{count} alias(es) saved",
       "yamlCopied": "YAML copied",
       "clipboardFail": "Copy failed",
-      "clipboardUnavailable": "Clipboard not available — please select manually"
+      "clipboardUnavailable": "Clipboard not available — please select manually",
+      "step4": "4. Automation (to copy)",
+      "automationHint": "In the automation editor choose “Edit in YAML” and paste. There is one entry per meter with an alias; set <code>sensor_entity</code> to the entity holding the absolute meter reading. <code>has_value</code> skips a meter whose sensor is currently unavailable.",
+      "yaml": {
+        "secretComment": "whole value from secrets.yaml, including “Bearer”",
+        "floatComment": "float without a default: if the sensor is unavailable the push fails instead of recording 0.",
+        "automationAlias": "Energietracker: send meter readings",
+        "hasValueComment": "Only send when the sensor has a value – right after a restart it is briefly “unavailable”."
+      }
     },
     "diag": {
       "title": "🩺 System diagnostics",
@@ -912,7 +931,9 @@
       "errOneUndated": "There is already an undated entry — please give a “valid from” date",
       "errDuplicate": "There is already an entry for this date",
       "errNeedValues": "Please give volume correction factor and calorific value — or the factor directly"
-    }
+    },
+    "invalidFields": "Not saved: please correct the fields marked in red.",
+    "dayMonthInvalid": "Please enter as day-month, e.g. 01-10 for 1 October."
   },
   "reminders": {
     "suggest": {
@@ -954,7 +975,8 @@
       "fInterval": "Interval (months)",
       "fNotes": "Notes",
       "save": "Save",
-      "validation": "Title and date are required"
+      "validation": "Title and date are required",
+      "intervalInvalid": "The interval must be a whole number from 1 to 120 months."
     }
   },
   "temperatures": {
@@ -977,7 +999,8 @@
     "syncToast": "Sync OK · {imported} days (archive: {archive}, forecast: {forecast})",
     "archiveError": "Archive: {err}",
     "forecastError": "Forecast: {err}",
-    "importToast": "Import: {imported} days imported, {skipped} skipped"
+    "importToast": "Import: {imported} days imported, {skipped} skipped",
+    "coordInvalid": "Please enter a number between {min} and {max}."
   },
   "recommendations": {
     "loading": "Loading recommendations…",
@@ -1251,12 +1274,13 @@
     "chartForecast": "Forecast",
     "info": "Model: <strong>{model}</strong> · blend weight: <strong>{blend}%</strong>{r2} · last working price: <strong>{price} ct/{unit}</strong>",
     "balanceLabel": "Projected balance at the end of the horizon:",
-    "balanceSurcharge": "surcharge",
+    "balanceSurcharge": "back-payment",
     "balanceCredit": "credit",
     "balanceBalanced": "(balanced)",
     "balanceNote": "· cumulative from estimated costs minus projected advances",
     "col": { "month": "Month", "consumption": "Consumption ({unit})", "hgt": "HDD estimated", "cost": "Cost estimated", "advance": "Advance projected", "balance": "Balance running", "method": "Method" },
-    "bonusNote": "Future bonuses are not extrapolated — only bonuses recorded in the contract with a credit date within the forecast period are included in the costs."
+    "bonusNote": "Future bonuses are not extrapolated — only bonuses recorded in the contract with a credit date within the forecast period are included in the costs.",
+    "whatIfInvalid": "Please check the highlighted fields: temperature offset −20 to 20 °C, price factor 0 to 10, horizon 1 to 24 months."
   },
   "report": {
     "createdOn": "Created on {date}",
@@ -1369,17 +1393,21 @@
       "mergeNeedTwo": "Merging requires at least two meters",
       "invalidBaselineList": "Baseline cut-offs must be a list of entries carrying a date",
       "invalidBaselineDate": "Invalid baseline date: “{date}” — expected YYYY-MM-DD",
-      "duplicateBaselineDate": "A baseline cut-off already exists for {date}"
+      "duplicateBaselineDate": "A baseline cut-off already exists for {date}",
+      "swapBeforeInstall": "The swap on {date} is before the current device was installed ({installed})."
     },
     "common": {
       "unknownUtility": "Unknown utility: {utility}",
-      "meterNotFound": "Meter not found: {id}"
+      "meterNotFound": "Meter not found: {id}",
+      "dateInvalid": "Invalid date “{date}” – expected YYYY-MM-DD."
     },
     "reading": {
       "dateMissing": "Date missing",
       "counterMissing": "Meter reading missing",
       "noDevice": "No device of this meter is active for the date {date}",
-      "notFound": "Reading not found"
+      "notFound": "Reading not found",
+      "counterInvalid": "Invalid meter reading “{value}” – expected a number of 0 or more.",
+      "dateInvalid": "Invalid reading date “{date}” – expected YYYY-MM-DD."
     },
     "contract": {
       "noContracts": "No contracts can be created for {label} (statistics-only utility).",
@@ -1401,14 +1429,17 @@
         "sealedArea": "sealed area",
         "creditDate": "Credit date",
         "advanceDate": "Advance payment date",
-        "newAdvanceAmount": "new advance amount"
+        "newAdvanceAmount": "new advance amount",
+        "start": "Contract start",
+        "end": "Contract end"
       },
       "noticeNotNumeric": "The notice period must be a number.",
       "noticeOutOfRange": "The notice period must be between 0 and 24 months.",
       "dateInvalid": "Invalid date in {field}: {value}",
       "dateBeforeStart": "{field} must not be before the contract start.",
       "bonusNotNumeric": "The sign-up bonus must be a number.",
-      "bonusNegative": "The sign-up bonus must not be negative."
+      "bonusNegative": "The sign-up bonus must not be negative.",
+      "amountInvalid": "{label} entry #{n}: amount “{value}” is not a number"
     },
     "delivery": {
       "notFound": "Delivery not found: {id}",
@@ -1470,6 +1501,9 @@
     "billCheck": {
       "gasOnly": "Bill verification is only available for gas",
       "invalidRange": "Please give a valid range (from < to, YYYY-MM-DD)"
+    },
+    "http": {
+      "crossSite": "Rejected: the request came from another website. Changes can only be made from within Energietracker."
     }
   }
 }

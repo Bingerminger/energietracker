@@ -25,7 +25,7 @@ A compact reference of all terms and formulas. The detailed derivation is in
 | **R²** | Coefficient of determination: the share of explained scatter (0…1). |
 | **Seasonal profile** | The monthly mean of consumption over the history. |
 | **Blend** | The R²-weighted mix of regression × seasonal profile in the forecast. |
-| **Balance** | Advances paid − actual costs. |
+| **Balance** | Actual costs − advances paid (plus the net of special payments). **Positive = back-payment looming, negative = credit.** |
 | **Shadow contract** | A tariff you do not hold: either an offer from a comparison site (for the switching decision) or a hypothesis about the past ("what would that have cost?"). Takes effect **only** in the tariff comparison — never on the balance, forecast or contract status. |
 | **Switch date** | v2.3.0: the first day a new tariff could start supplying. Derived from the contract end and the notice period; distinct from the **cancellation deadline**, by which notice must be given. |
 | **Break-even consumption** | v2.3.0: the annual volume above which an offer beats the running contract (column "Pays off from"). If it sits far from the expected consumption, the switching decision holds even with an imprecise forecast. |
@@ -120,7 +120,10 @@ cost = quantity × unit_price_cents / 100  otherwise
 **Balance:**
 
 ```text
-balance = Σ advances - Σ costs
+balance = Σ costs - Σ advances + (Σ refund - Σ back-payment - Σ advance payment)
+
+balance > 0  → back-payment looming
+balance < 0  → credit
 ```
 
 **Water saving index:**

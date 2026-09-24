@@ -19,6 +19,21 @@ v1.9.2.
 > für **alle** Endpunkte) liegt zusätzlich unter [`docs/API.md`](../API.md).
 > Dieses Dokument ist die kompakte Übersicht im Kompendium.
 
+### Statuscodes aller Endpunkte
+
+| Code | Wann |
+|------|------|
+| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. |
+| `401` | `/api/ingest` bei gesetztem Token ohne oder mit falschem Bearer-Header. |
+| `403` | *(v2.5.3)* Schreibende Anfrage (`POST`/`PUT`/`PATCH`/`DELETE`) aus dem Browser einer **fremden** Webseite — geprüft über `Sec-Fetch-Site`, ersatzweise `Origin` gegen `Host`. Anfragen ohne diese Kopfzeilen (Home Assistant, curl, Skripte) sind nicht betroffen. |
+| `404` | Unbekannte Route oder unbekannter Datensatz. |
+| `503` | *(v2.5.3)* Eine Datendatei ist beschädigt (kein gültiges JSON). Die Datei bleibt unverändert, daneben liegt eine Quarantäne-Kopie `<datei>.corrupt-<prüfsumme>`. Bis v2.5.2 wurde sie als leer gelesen und beim nächsten Schreiben überschrieben. |
+| `500` | Unerwarteter Fehler — Log prüfen. |
+
+Schreibende Anfragen laufen seit v2.5.3 nacheinander (Sperre auf
+`data/.write.lock`): Ein Home-Assistant-Push während einer Eingabe verliert
+keine Änderung mehr.
+
 ---
 
 ## 1. Vollständige Routen-Übersicht
@@ -350,7 +365,17 @@ statt eine zweite Ablesung anzulegen.
 Antwort `201` (neu) bzw. `200` (aktualisiert) mit
 `{ status: "created"|"updated", utility, meter_id, date, counter, reading_id }`.
 Fehler: `401` (Token nötig/falsch), `400` (unbekannte Utility/Zähler, kein
-Zahlenwert, Delivery-Utility Heizöl/Pellets).
+Zahlenwert, kein gültiges Kalenderdatum, Delivery-Utility Heizöl/Pellets).
+
+Liegt das Datum vor dem Einbau des **ersten** Geräts, wird dieses seit v2.5.3
+zurückdatiert statt die Ablesung abzulehnen (typisch beim Nachtragen älterer
+Stände nach einer Neuinstallation). Ein Datum in einer Lücke zwischen zwei
+Geräten bleibt ein `400`.
+
+> **Vorlage für Home Assistant:** `| float` **ohne** Ersatzwert und vor dem
+> Push `has_value(…)` prüfen — siehe [`docs/HOME-ASSISTANT.md`](../HOME-ASSISTANT.md).
+> `float(0)` aus Vorlagen bis v2.5.2 buchte bei nicht verfügbarem Sensor einen
+> Zählerstand 0.
 
 ### `GET|POST|DELETE /api/auth/token` *(F1009)*
 

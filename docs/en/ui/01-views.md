@@ -209,8 +209,11 @@ min/avg/max. The basis of every HDD evaluation.
 All 40 keys grouped: conversion & HDD, **billing cycle (DD-MM)**, building &
 efficiency, calorific values, forecast model, active utilities, CSV export of all
 utilities, backup & migration, demo-data import (F1007) and the **🏠 Home Assistant
-integration (F1009)** — manage the API token, maintain meter aliases, copy the
-ready-made HA YAML.
+integration (F1009)** — manage the API token, maintain meter aliases and copy three
+ready-made templates: the REST command, the `secrets.yaml` entry and (since v2.5.3)
+an automation built from the aliases that checks `has_value` before every push.
+Number fields and billing anchors are validated before saving; errors appear in
+red at the field.
 
 ![Settings](../../ui/screenshots/einstellungen.png)
 
@@ -219,7 +222,11 @@ ready-made HA YAML.
 ## 12. Meters & contracts — incl. topology (F1006)
 
 Meter/device management incl. meter swap (the device chain) and contract maintenance
-(working/base price history, advances, bonuses). For oil/pellets only the tank/store
+(working/base price history, advances, bonuses, special payments). Since v2.5.3 the
+**meter swap** requires the final reading, shows the last known reading and
+summarises the swap before performing it. A **contract** needs a provider or tariff
+and at least one working price; the start is prefilled with the day after the
+current commitment, and the app asks before a new contract supersedes a running one. For oil/pellets only the tank/store
 management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading).
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as

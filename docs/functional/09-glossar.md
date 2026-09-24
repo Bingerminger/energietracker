@@ -25,7 +25,7 @@ in [Grundlagen & Methodik](00-overview.md).
 | **R²** | Bestimmtheitsmaß: Anteil erklärter Streuung (0…1). |
 | **Saisonprofil** | Monatsmittel des Verbrauchs über die Historie. |
 | **Blend** | R²-gewichtete Mischung Regression × Saisonprofil in der Prognose. |
-| **Saldo** | Geleistete Abschläge − tatsächliche Kosten. |
+| **Saldo** | Tatsächliche Kosten − geleistete Abschläge (dazu das Netto der Sonderzahlungen). **Positiv = Nachzahlung droht, negativ = Guthaben.** |
 | **Schattenvertrag** | Ein Tarif, den man nicht hat: entweder ein Angebot vom Vergleichsportal (für die Wechselentscheidung) oder eine Hypothese über die Vergangenheit („Was hätte das gekostet?"). Wirkt **nur** im Tarifvergleich — nie auf Saldo, Prognose oder Vertragsstatus. |
 | **Wechseltermin** | v2.3.0: Der erste Tag, an dem ein neuer Tarif liefern könnte. Ergibt sich aus Vertragsende und Kündigungsfrist; davon zu unterscheiden ist der **Kündigungsstichtag**, bis zu dem die Kündigung raus muss. |
 | **Break-even-Verbrauch** | v2.3.0: Die Jahresmenge, ab der ein Angebot den laufenden Vertrag schlägt (Spalte „Lohnt ab"). Liegt sie weit vom erwarteten Verbrauch weg, trägt die Wechselentscheidung auch bei ungenauer Prognose. |
@@ -120,7 +120,10 @@ Kosten = Menge × unit_price_cents / 100     sonst
 **Saldo:**
 
 ```text
-Saldo = Σ Abschläge - Σ Kosten
+Saldo = Σ Kosten - Σ Abschläge + (Σ Rückzahlung - Σ Nachzahlung - Σ Abschlagszahlung)
+
+Saldo > 0  → Nachzahlung droht
+Saldo < 0  → Guthaben
 ```
 
 **Wasser-Spar-Index:**

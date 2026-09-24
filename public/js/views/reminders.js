@@ -4,9 +4,9 @@
 
 import { api } from '../api.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { openModal, confirmModal } from '../components/modal.js';
+import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { t } from '../lib/i18n.js';
-import { escapeHtml as esc } from '../lib/format.js';
+import { escapeHtml as esc, todayIso } from '../lib/format.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
@@ -50,7 +50,7 @@ async function draw(container) {
     ${sorted.length === 0
       ? `<div class="banner banner--info">${t('reminders.empty')}</div>
          <div style="margin-top:var(--sp-3)"><button class="btn btn--primary" data-rem-add>${t('reminders.emptyCta')}</button></div>`
-      : `<table class="data-table">
+      : `<div class="table-wrap"><table class="data-table">
           <thead><tr>
             <th scope="col">${t('reminders.col.title')}</th><th scope="col">${t('reminders.col.category')}</th><th scope="col">${t('reminders.col.due')}</th>
             <th scope="col">${t('reminders.col.recurrence')}</th><th scope="col">${t('reminders.col.status')}</th><th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
@@ -58,7 +58,7 @@ async function draw(container) {
           <tbody>
             ${sorted.map(rowHtml).join('')}
           </tbody>
-        </table>`}
+        </table></div>`}
   `;
 
   container.querySelectorAll('[data-rem-add]').forEach(b => b.addEventListener('click', () => openForm(container, null)));
@@ -99,15 +99,15 @@ function rowHtml(r) {
     <td>${esc(recLabel(r.recurrence))}${r.recurrence === 'custom-months' && r.recurrence_months ? ` (${r.recurrence_months})` : ''}</td>
     <td><span class="badge badge--${STATUS_CLS[statusKey]}">${t('reminders.status.' + statusKey)}</span></td>
     <td class="cell-actions">
-      <button class="btn btn--xs btn--ghost" data-done="${r.id}" title="${t('reminders.action.done')}" aria-label="${t('reminders.action.done')}"><span aria-hidden="true">✓</span></button>
-      <button class="btn btn--xs btn--ghost" data-edit="${r.id}" title="${t('reminders.action.edit')}" aria-label="${t('reminders.action.edit')}"><span aria-hidden="true">✎</span></button>
-      <button class="btn btn--xs btn--ghost" data-del="${r.id}" title="${t('reminders.action.delete')}" aria-label="${t('reminders.action.delete')}"><span aria-hidden="true">🗑</span></button>
+      <button class="btn btn--xs btn--ghost" data-done="${esc(r.id)}" title="${t('reminders.action.done')}" aria-label="${t('reminders.action.done')}"><span aria-hidden="true">✓</span></button>
+      <button class="btn btn--xs btn--ghost" data-edit="${esc(r.id)}" title="${t('reminders.action.edit')}" aria-label="${t('reminders.action.edit')}"><span aria-hidden="true">✎</span></button>
+      <button class="btn btn--xs btn--ghost" data-del="${esc(r.id)}" title="${t('reminders.action.delete')}" aria-label="${t('reminders.action.delete')}"><span aria-hidden="true">🗑</span></button>
     </td>
   </tr>`;
 }
 
 function openForm(container, existing) {
-  const r = existing || { title: '', category: 'heizung_wartung', next_due: today(), recurrence: 'yearly', recurrence_months: 12, notes: '' };
+  const r = existing || { title: '', category: 'heizung_wartung', next_due: todayIso(), recurrence: 'yearly', recurrence_months: 12, notes: '' };
   const catOpts = CATEGORY_KEYS.map(k =>
     `<option value="${k}" ${r.category === k ? 'selected' : ''}>${esc(catLabel(k))}</option>`).join('');
   const recOpts = RECURRENCE_KEYS.map(k =>
@@ -122,7 +122,7 @@ function openForm(container, existing) {
         <label>${t('reminders.form.fDue')}<input type="date" id="f-due" value="${esc(r.next_due)}"></label>
         <label>${t('reminders.form.fRecurrence')}<select id="f-rec">${recOpts}</select></label>
         <label id="f-rm-wrap" style="${r.recurrence === 'custom-months' ? '' : 'display:none'}">
-          ${t('reminders.form.fInterval')}<input type="number" id="f-rm" min="1" value="${r.recurrence_months || 12}">
+          ${t('reminders.form.fInterval')}<input type="text" inputmode="numeric" autocomplete="off" id="f-rm" value="${esc(String(r.recurrence_months || 12))}">
         </label>
         <label>${t('reminders.form.fNotes')}<input type="text" id="f-notes" value="${esc(r.notes || '')}"></label>
       </div>`,
@@ -134,17 +134,25 @@ function openForm(container, existing) {
         bodyEl.querySelector('#f-rm-wrap').style.display = e.target.value === 'custom-months' ? '' : 'none';
       });
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
-      modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
+      const saveBtn = modalEl.querySelector('[data-act="save"]');
+      saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
+        const custom = bodyEl.querySelector('#f-rec').value === 'custom-months';
+        // v2.5.3 — Intervall als geprüfte Ganzzahl: parseInt('') ergab NaN,
+        // das als null beim Backend ankam.
+        const rmEl = bodyEl.querySelector('#f-rm');
+        const rm = /^\d{1,3}$/.test(rmEl.value.trim()) ? Number(rmEl.value.trim()) : null;
+        const rmOk = !custom || (rm !== null && rm >= 1 && rm <= 120);
+        rmEl.classList.toggle('invalid', !rmOk);
         const payload = {
           title: bodyEl.querySelector('#f-title').value.trim(),
           category: bodyEl.querySelector('#f-cat').value,
           next_due: bodyEl.querySelector('#f-due').value,
           recurrence: bodyEl.querySelector('#f-rec').value,
-          recurrence_months: bodyEl.querySelector('#f-rec').value === 'custom-months'
-            ? parseInt(bodyEl.querySelector('#f-rm').value, 10) : null,
+          recurrence_months: custom ? rm : null,
           notes: bodyEl.querySelector('#f-notes').value.trim(),
         };
         if (!payload.title || !payload.next_due) { toastErr(t('reminders.form.validation')); return; }
+        if (!rmOk) { toastErr(t('reminders.form.intervalInvalid')); return; }
         try {
           if (existing) await api.updateReminder(existing.id, payload);
           else await api.createReminder(payload);
@@ -152,11 +160,10 @@ function openForm(container, existing) {
           close(null);
           await draw(container);
         } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
-      });
+      }));
     },
   });
   return ctrl;
 }
 
-function today() { return new Date().toISOString().slice(0, 10); }
 

@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
+use Energietracker\Support\Dates;
 
 /**
  * Monthly consumption aggregation.
@@ -104,12 +105,22 @@ final class ConsumptionService
                         'kwh' => 0.0, 'm3' => 0.0, 'cost' => 0.0, 'days' => 0,
                         'avg_temp' => $m['avg_temp'], 'min_temp' => $m['min_temp'],
                         'max_temp' => $m['max_temp'], 'hdd' => $m['hdd'],
+                        // v2.5.3 — CALC-16: Der CSV-Monatsexport las diese
+                        // Felder aus der Summe, sie fehlten dort aber — die
+                        // Spalten Abschlag, Saldo und CO₂ blieben immer leer.
+                        'advance_eur' => null, 'monthly_balance' => null,
+                        'cumulative_balance' => null, 'co2_kg' => null,
                     ];
                 }
                 $totals[$ym]['kwh']  += (float)($m['kwh']  ?? 0);
                 $totals[$ym]['m3']   += (float)($m['m3']   ?? 0);
                 $totals[$ym]['cost'] += (float)($m['cost'] ?? 0);
                 $totals[$ym]['days'] = max($totals[$ym]['days'], (int)($m['days'] ?? 0));
+                foreach (['advance_eur', 'monthly_balance', 'cumulative_balance', 'co2_kg'] as $f) {
+                    if (($m[$f] ?? null) !== null) {
+                        $totals[$ym][$f] = round((float)($totals[$ym][$f] ?? 0.0) + (float)$m[$f], 2);
+                    }
+                }
             }
         }
         ksort($totals);
@@ -471,10 +482,14 @@ final class ConsumptionService
             ? fn(string $a, string $b): array => $this->factors()->boundariesBetween($a, $b)
             : static fn(string $a, string $b): array => [];
 
-        // Filter actual (non-future, non-flagged) readings
+        // Filter actual (non-future, non-flagged) readings.
+        // v2.5.3 — Ablesungen mit ungültigem Datum überspringen (Lektion 20):
+        // Der Schreibpfad prüft seit diesem Release, ältere Daten und Restores
+        // erreichen die Rechnung aber ungeprüft. Vorher brach `new \DateTime()`
+        // hier Verbrauch, Prognose, Empfehlungen, CSV und PDF mit HTTP 500 ab.
         $actual = array_values(array_filter(
             $readings,
-            fn($r) => ($r['date'] ?? '') <= $today && empty($r['is_future'])
+            fn($r) => Dates::isIsoDate($r['date'] ?? null) && $r['date'] <= $today && empty($r['is_future'])
         ));
         if (count($actual) < 2) return [];
 
@@ -620,7 +635,7 @@ final class ConsumptionService
         $today    = date('Y-m-d');
         $actual   = array_values(array_filter(
             $readings,
-            fn($r) => ($r['date'] ?? '') <= $today && empty($r['is_future'])
+            fn($r) => Dates::isIsoDate($r['date'] ?? null) && $r['date'] <= $today && empty($r['is_future'])
         ));
         usort($actual, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
 

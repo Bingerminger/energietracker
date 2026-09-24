@@ -8,7 +8,7 @@
 
 import { api } from '../api.js';
 import { activeUtilities } from '../state.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
@@ -42,11 +42,11 @@ export async function render(container) {
       <div class="form-row">
         <div class="field">
           <label for="temp-offset">${t('forecast.tempOffset')}</label>
-          <input class="input" id="temp-offset" type="number" step="0.5" value="0">
+          <input class="input" id="temp-offset" type="text" autocomplete="off" value="${formatForInput(0)}">
         </div>
         <div class="field">
           <label for="price-factor">${t('forecast.priceFactor')}</label>
-          <input class="input" id="price-factor" type="number" step="0.05" value="1.0">
+          <input class="input" id="price-factor" type="text" inputmode="decimal" autocomplete="off" value="${formatForInput(1)}">
         </div>
         <div class="field">
           <label for="model">${t('forecast.model')}</label>
@@ -60,7 +60,7 @@ export async function render(container) {
         </div>
         <div class="field">
           <label for="months">${t('forecast.horizon')}</label>
-          <input class="input" id="months" type="number" min="1" max="24" value="12">
+          <input class="input" id="months" type="text" inputmode="numeric" autocomplete="off" value="12">
         </div>
       </div>
       <div class="form-actions"><button class="btn btn--util" id="btn-go">${t('forecast.update')}</button></div>
@@ -85,7 +85,7 @@ export async function render(container) {
   async function loadMeters() {
     const utility = utilities.find(u => u.key === utilSel.value);
     currentMeters = await api.meters(utility.key);
-    meterSel.innerHTML = currentMeters.map(m => `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
+    meterSel.innerHTML = currentMeters.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`).join('');
   }
 
   async function run() {
@@ -96,11 +96,30 @@ export async function render(container) {
       container.querySelector('#fc-table').innerHTML = '';
       return;
     }
+    // v2.5.3 (FE-02) — Leer heißt „keine Änderung" (Versatz 0, Faktor 1,
+    // 12 Monate), nicht 0: Ein leerer Preisfaktor rechnete die Kosten auf 0 €.
+    // Der Temperaturversatz hat bewusst kein inputmode="decimal" — die
+    // iOS-Zahlentastatur kennt kein Minus.
+    const whatIf = (id, fallback, ok) => {
+      const el = container.querySelector(`#${id}`);
+      const raw = el.value.trim();
+      const n = raw === '' ? fallback : parseDecimal(raw);
+      const valid = n !== null && ok(n);
+      el.classList.toggle('invalid', !valid);
+      return valid ? n : null;
+    };
+    const tempOffset  = whatIf('temp-offset', 0, n => Math.abs(n) <= 20);
+    const priceFactor = whatIf('price-factor', 1, n => n >= 0 && n <= 10);
+    const months      = whatIf('months', 12, n => Number.isInteger(n) && n >= 1 && n <= 24);
+    if (tempOffset === null || priceFactor === null || months === null) {
+      toastErr(t('forecast.whatIfInvalid'));
+      return;
+    }
     const opts = {
-      temp_offset:  Number(container.querySelector('#temp-offset').value),
-      price_factor: Number(container.querySelector('#price-factor').value),
+      temp_offset:  tempOffset,
+      price_factor: priceFactor,
       model:        container.querySelector('#model').value,
-      forecast_months: Number(container.querySelector('#months').value),
+      forecast_months: months,
     };
     try {
       const result = await api.forecast(utility.key, meterSel.value, opts);

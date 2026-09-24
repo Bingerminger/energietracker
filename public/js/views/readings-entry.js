@@ -25,7 +25,7 @@ import { api } from '../api.js';
 import { getUtilities } from '../state.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
-import { fmt as baseFmt, escapeHtml as esc } from '../lib/format.js';
+import { fmt as baseFmt, escapeHtml as esc, parseDecimal, todayIso } from '../lib/format.js';
 
 // v2.2.0 — vorher ein eigener Formatierer mit fest verdrahtetem de-DE/en-GB.
 // Jetzt die gemeinsame Intl-Quelle; `num` bleibt „bis zu N Stellen" (Zählerstände
@@ -35,14 +35,8 @@ const fmt = {
   date: (s) => baseFmt.date(s),
 };
 
-function todayISO() {
-  const d = new Date();
-  const z = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-}
-
 export async function render(container) {
-  const today = todayISO();
+  const today = todayIso();
 
   container.innerHTML = `
     <section class="view-readings-entry">
@@ -187,10 +181,8 @@ function renderRow(r, today) {
           <input
             class="input input--counter"
             data-role="counter"
-            type="number"
+            type="text"
             inputmode="decimal"
-            step="0.001"
-            min="0"
             placeholder="${esc(t('readingsEntry.row.placeholderExample', { value: last ? fmt.num(last.counter + 10, 0) : '0' }))}"
             autocomplete="off"
           />
@@ -274,8 +266,8 @@ function bindRow(card, r) {
   // damit auch ein geändertes globales Datum die Vorschau neu rechnet.
   const update = () => {
     const raw = (counterEl?.value || '').trim();
-    const v = parseFloat(raw.replace(',', '.'));
-    if (raw === '' || Number.isNaN(v)) {
+    const v = parseDecimal(raw);
+    if (v == null) {
       hintEl.hidden = true;
       previewEl.hidden = true;
       return;
@@ -322,12 +314,14 @@ async function trySaveCard(card, r) {
   const raw = (counterEl?.value || '').trim();
   if (raw === '') return 'skip'; // Leer = nichts speichern
 
-  const counter = parseFloat(raw.replace(',', '.'));
-  if (Number.isNaN(counter)) {
+  // v2.5.3 — Textfeld + eigener Parser statt type="number": Dort kam „12345,6"
+  // je nach Browser als leerer Wert an, und die Karte galt still als „leer".
+  const counter = parseDecimal(raw);
+  if (counter == null || counter < 0) {
     setCardStatus(statusEl, 'invalid');
     return 'fail';
   }
-  const date = dateEl?.value || todayISO();
+  const date = dateEl?.value || todayIso();
 
   setCardStatus(statusEl, 'saving');
 

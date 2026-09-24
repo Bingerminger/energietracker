@@ -7,6 +7,7 @@ use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\TemperatureService;
 use Energietracker\Services\I18nService;
+use Energietracker\Support\Dates;
 
 /**
  * Tagestemperaturen: Read (als Map), Upsert pro Tag, CSV-Bulk-Import,
@@ -29,6 +30,11 @@ final class TemperatureController
     {
         $body = (array)$req->body;
         if (empty($body['date'])) Response::error($this->i18n->t('errors.temperature.dateMissing'));
+        // v2.5.3 — kalendergültig; ein ungültiger Schlüssel in
+        // temperatures.json bräche sonst die Heizgradtag-Rechnung.
+        if (!Dates::isIsoDate((string)$body['date'])) {
+            Response::error($this->i18n->t('errors.common.dateInvalid', ['date' => (string)$body['date']]));
+        }
         $this->temps->upsert(
             (string)$body['date'],
             (float)($body['avg'] ?? 0),

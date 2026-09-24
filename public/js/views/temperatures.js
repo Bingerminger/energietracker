@@ -4,8 +4,10 @@
 
 import { api } from '../api.js';
 import { getSettings } from '../state.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
+import { guardSubmit } from '../components/modal.js';
+import { showFieldError } from '../lib/form.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { t } from '../lib/i18n.js';
 
@@ -45,8 +47,13 @@ export async function render(container) {
       <div class="card">
         <h3 class="card__title">${t('temperatures.location')}</h3>
         <div class="form-row">
-          <div class="field"><label for="lat">${t('temperatures.lat')}</label><input class="input" id="lat" type="number" step="0.0001" value="${settings.latitude ?? 51.3397}"></div>
-          <div class="field"><label for="lng">${t('temperatures.lng')}</label><input class="input" id="lng" type="number" step="0.0001" value="${settings.longitude ?? 12.3731}"></div>
+          <!-- v2.5.3 — Text statt type="number": leer ergab 0/0 (Golf von Guinea),
+               „51,34" je nach Browser ebenfalls. Kein inputmode="decimal", weil
+               die iOS-Zahlentastatur kein Minus hat (westliche Längengrade). -->
+          <div class="field"><label for="lat">${t('temperatures.lat')}</label><input class="input" id="lat" type="text" autocomplete="off" spellcheck="false" value="${escapeHtml(formatForInput(settings.latitude ?? 51.3397, 4))}">
+            <div class="field-error" id="lat-msg" role="alert" hidden></div></div>
+          <div class="field"><label for="lng">${t('temperatures.lng')}</label><input class="input" id="lng" type="text" autocomplete="off" spellcheck="false" value="${escapeHtml(formatForInput(settings.longitude ?? 12.3731, 4))}">
+            <div class="field-error" id="lng-msg" role="alert" hidden></div></div>
           <div class="field"><label for="loc-name">${t('temperatures.locName')}</label><input class="input input--text" id="loc-name" value="${escapeHtml(settings.location_name || 'Leipzig')}"></div>
         </div>
         <p class="muted">${t('temperatures.locHint')}</p>
@@ -92,12 +99,24 @@ export async function render(container) {
   });
 
   // Open-Meteo sync
-  container.querySelector('#btn-sync').addEventListener('click', async () => {
+  const syncBtn = container.querySelector('#btn-sync');
+  syncBtn.addEventListener('click', guardSubmit(syncBtn, async () => {
+    const coord = (id, limit) => {
+      const el = container.querySelector(`#${id}`);
+      const n = parseDecimal(el.value);
+      const ok = n !== null && Math.abs(n) <= limit;
+      showFieldError(el, container.querySelector(`#${id}-msg`),
+        ok ? null : t('temperatures.coordInvalid', { min: -limit, max: limit }));
+      return ok ? n : null;
+    };
+    const latitude  = coord('lat', 90);
+    const longitude = latitude === null ? null : coord('lng', 180);
+    if (latitude === null || longitude === null) return;
     try {
       // Persist location to settings first (so backend uses it for the sync)
       await api.updateSettings({
-        latitude:      Number(container.querySelector('#lat').value),
-        longitude:     Number(container.querySelector('#lng').value),
+        latitude,
+        longitude,
         location_name: container.querySelector('#loc-name').value,
       });
       const result = await api.syncOpenMeteo({});
@@ -106,7 +125,7 @@ export async function render(container) {
       if (result.forecast_error) toastErr(t('temperatures.forecastError', { err: result.forecast_error }));
       render(container);
     } catch (e) { toastErr(e.message); }
-  });
+  }));
 
   renderMonthlyChart(days);
 

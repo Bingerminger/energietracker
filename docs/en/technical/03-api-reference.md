@@ -18,6 +18,21 @@ All endpoints under `/api/…`. A uniform response envelope:
 > endpoints) is additionally available at [`docs/API.md`](../API.md). This document
 > is the compact overview in the compendium.
 
+### Status codes of all endpoints
+
+| Code | When |
+|------|------|
+| `400` | Invalid input. Since v2.5.3 on every write path: a date that is not a calendar date (`2026-02-30`, text), or an amount/meter reading that is not a number. Up to v2.5.2 both were stored. |
+| `401` | `/api/ingest` with a token set but a missing or wrong bearer header. |
+| `403` | *(v2.5.3)* Writing request (`POST`/`PUT`/`PATCH`/`DELETE`) from the browser of a **foreign** website — checked via `Sec-Fetch-Site`, falling back to `Origin` against `Host`. Requests without these headers (Home Assistant, curl, scripts) are not affected. |
+| `404` | Unknown route or unknown record. |
+| `503` | *(v2.5.3)* A data file is corrupt (not valid JSON). The file stays untouched; a quarantine copy `<file>.corrupt-<checksum>` is placed next to it. Up to v2.5.2 it was read as empty and overwritten on the next write. |
+| `500` | Unexpected error — check the log. |
+
+Since v2.5.3 writing requests run one after another (lock on
+`data/.write.lock`): a Home Assistant push during an edit no longer loses a
+change.
+
 ---
 
 ## 1. Full route overview
@@ -342,7 +357,17 @@ second reading.
 Response `201` (new) resp. `200` (updated) with
 `{ status: "created"|"updated", utility, meter_id, date, counter, reading_id }`.
 Errors: `401` (token needed/wrong), `400` (unknown utility/meter, no numeric value,
-delivery utility heating oil/pellets).
+no valid calendar date, delivery utility heating oil/pellets).
+
+If the date lies before the installation of the **first** device, that device is
+backdated since v2.5.3 instead of rejecting the reading (typical when back-filling
+older readings after a new installation). A date in a gap between two devices
+remains a `400`.
+
+> **Template for Home Assistant:** `| float` **without** a default and check
+> `has_value(…)` before the push — see [`docs/HOME-ASSISTANT.md`](../HOME-ASSISTANT.md).
+> `float(0)` from templates up to v2.5.2 recorded a meter reading of 0 when the
+> sensor was unavailable.
 
 ### `GET|POST|DELETE /api/auth/token` *(F1009)*
 
