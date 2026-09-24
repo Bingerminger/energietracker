@@ -21,7 +21,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: QEMU einrichten (für arm64-Emulation beim Multi-Arch-Build)
         uses: docker/setup-qemu-action@v3
