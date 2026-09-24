@@ -210,9 +210,9 @@
     "balance": {
       "title": "⚖️ Saldo aktueller Vertrag — {name}",
       "noTariff": "keine Tarifdaten",
-      "unitWorkingWater": "{value} ct/m³ Trinkwasser",
-      "unitWorking": "{value} ct/kWh",
-      "unitBase": "{value} €/Monat",
+      "unitWorkingWater": "{value} {minor}/m³ Trinkwasser",
+      "unitWorking": "{value} {minor}/kWh",
+      "unitBase": "{value} {cur}/Monat",
       "unitAdvance": "Abschlag {value}",
       "consumedMonthsWater": "{months} Monate · {m3} m³",
       "consumedMonths": "{months} Monate · {kwh} kWh",
@@ -253,9 +253,9 @@
       "basisSep": "sep. Zähler",
       "basisTw": "Trinkwasser-Verbr.",
       "perMonthShort": "{value}/Monat",
-      "gpMonth": "{value} €/M GP",
-      "ctPerM3": "{value} ct/m³",
-      "eurPerM2Year": "{value} €/m²/J · {m2} m²",
+      "gpMonth": "{value} {cur}/M GP",
+      "ctPerM3": "{value} {minor}/m³",
+      "eurPerM2Year": "{value} {cur}/m²/J · {m2} m²",
       "consShort": "{value} Verbr.",
       "gpPlus": " + {value} GP"
     },
@@ -277,7 +277,7 @@
       "statePast": "VERGANGEN",
       "stateFuture": "ZUKÜNFTIG",
       "periodOpen": "{start} → laufend",
-      "gpSuffix": "{value} € GP",
+      "gpSuffix": "{value} {cur} GP",
       "colSpecial": "Sonderzahlungen",
       "colSpecialTitle": "Netto aus Sonderzahlungen: Rückzahlungen vom Versorger zählen positiv, Nach- und Abschlagszahlungen negativ. Einzelposten im Tooltip der Zelle.",
       "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Einzelposten erscheinen beim Überfahren der Zelle, gepflegt werden sie in der Vertragsverwaltung."
@@ -291,9 +291,9 @@
       "colTempTitle": "Durchschnittstemperatur im Monat",
       "colHdd": "HGT",
       "colHddTitle": "Heizgradtage — Summe der täglichen Differenz zwischen Heizgrenze und Außentemperatur",
-      "colPrice": "ct/{unit}",
-      "colCost": "Kosten €",
-      "colAdvance": "Abschlag €",
+      "colPrice": "{minor}/{unit}",
+      "colCost": "Kosten {cur}",
+      "colAdvance": "Abschlag {cur}",
       "colCumBalance": "Saldo (kum.)",
       "colCumBalanceTitle": "Kumulierter Saldo seit Vertragsbeginn",
       "colCo2": "CO₂ kg",
@@ -358,8 +358,8 @@
       "titleNew": "Neue Lieferung · {label}",
       "date": "Lieferdatum",
       "quantity": "Menge ({unit})",
-      "unitPrice": "Preis pro {unit} (ct, optional)",
-      "total": "Gesamtbetrag (€, optional — überschreibt Preis×Menge)",
+      "unitPrice": "Preis pro {unit} ({minor}, optional)",
+      "total": "Gesamtbetrag ({cur}, optional — überschreibt Preis×Menge)",
       "supplier": "Lieferant (optional)",
       "note": "Notiz (optional)",
       "planned": "Geplante (noch nicht erfolgte) Lieferung",
@@ -440,8 +440,8 @@
       "swWorking": "Schmutzwasser-Arbeitspreis"
     },
     "unit": {
-      "ctPerKwh": "ct/kWh",
-      "eurPerMonth": "€/Monat"
+      "ctPerKwh": "{minor}/kWh",
+      "eurPerMonth": "{cur}/Monat"
     },
     "loading": "Lade…",
     "unknown": "Unbekannte Verbrauchsart: {key}",
@@ -524,7 +524,7 @@
       "title": "Boni / Gutschriften",
       "add": "+ Bonus",
       "creditDate": "Gutschriftsdatum",
-      "amount": "Betrag €",
+      "amount": "Betrag {cur}",
       "type": "Typ",
       "remove": "Entfernen"
     },
@@ -533,11 +533,11 @@
       "add": "+ Sonderzahlung",
       "hint": "Rückzahlung, Nachzahlung oder zusätzliche Abschlagszahlung. „mit Auswirkung\" passt zusätzlich den künftigen Monatsabschlag an.",
       "date": "Datum",
-      "amount": "Betrag €",
+      "amount": "Betrag {cur}",
       "kind": "Art",
       "note": "Notiz",
       "remove": "Entfernen",
-      "newAdvance": "Neuer Abschlag €/Monat",
+      "newAdvance": "Neuer Abschlag {cur}/Monat",
       "advanceFrom": "Abschlag gültig ab"
     },
     "water": {
@@ -556,26 +556,33 @@
       "nw": "☔ Niederschlagswasser",
       "advances": "💰 Abschläge",
       "bonuses": "🎁 Boni",
-      "twWorking": "Arbeitspreis (ct/m³)",
-      "twBase": "Grundpreis (€/Monat)",
+      "twWorking": "Arbeitspreis ({minor}/m³)",
+      "twBase": "Grundpreis ({cur}/Monat)",
       "basis": "Berechnungsgrundlage",
       "basisTw": "aus Trinkwasser-Verbrauch (Standard)",
       "basisSep": "eigener Schmutzwasserzähler",
       "sepMeter": "Schmutzwasser-Zähler",
       "noMoreMeters": "(noch keine weiteren Zähler vorhanden)",
-      "swWorking": "Arbeitspreis Schmutzwasser (ct/m³)",
+      "swWorking": "Arbeitspreis Schmutzwasser ({minor}/m³)",
       "nwRates": "Stichtag",
-      "apMonthly": "Monatsabschlag (€)",
+      "apMonthly": "Monatsabschlag ({cur})",
       "colDate": "Datum",
-      "colCtM3": "ct/m³",
-      "colEurMonth": "€/Monat",
-      "colEurM2Year": "€/m²/Jahr",
+      "colCtM3": "{minor}/m³",
+      "colEurMonth": "{cur}/Monat",
+      "colEurM2Year": "{cur}/m²/Jahr",
       "colSealedM2": "m² versiegelt",
       "bonusCredit": "Gutschrift",
-      "bonusAmount": "Betrag €",
+      "bonusAmount": "Betrag {cur}",
       "bonusLabel": "Bezeichnung",
       "addRow": "+ Zeile",
       "startRequired": "Vertragsbeginn ist Pflicht."
+    },
+    "perM3": {
+      "toggleTitle": "Preis je m³ in {minor}/kWh umrechnen",
+      "label": "Preis je m³ ({cur})",
+      "result": "= {ct} {minor}/kWh (÷ {hs} kWh/m³ Brennwert am {date})",
+      "resultFactor": "= {ct} {minor}/kWh (÷ Umrechnungsfaktor {hs} kWh/m³ am {date})",
+      "apply": "Übernehmen"
     }
   },
   "meters": {
@@ -722,8 +729,8 @@
     "saveUnsaved": "Speichern •",
     "saved": "Einstellungen gespeichert",
     "lang": {
-      "title": "🌐 Sprache / Language",
-      "hint": "Sprache der Oberfläche. Die Änderung wird sofort wirksam.",
+      "title": "🌐 Sprache & Land / Language",
+      "hint": "Sprache und Land wirken sofort. Das Land bestimmt Zahlen- und Datumsformat, Währung und Zeitzone; beim Wechsel schlägt die App passende Voreinstellungen vor.",
       "label": "Sprache",
       "saved": "Sprache geändert"
     },
@@ -1018,7 +1025,16 @@
       "previewDirect": "Faktor {f} kWh/m³",
       "errOneUndated": "Es gibt schon einen Eintrag ohne Datum — bitte ein „Gültig ab“ angeben",
       "errDuplicate": "Für dieses Datum gibt es schon einen Eintrag",
-      "errNeedValues": "Bitte Zustandszahl und Brennwert angeben — oder den Faktor direkt"
+      "errNeedValues": "Bitte Zustandszahl und Brennwert angeben — oder den Faktor direkt",
+      "cvUnit": "Brennwert angeben in",
+      "colHsMj": "Brennwert (MJ/m³)",
+      "mjHint": "Brennwerte in MJ/m³ oder GJ/Smc werden in kWh/m³ umgerechnet gespeichert (1 kWh = 3,6 MJ).",
+      "colHsGj": "Brennwert (GJ/Smc)",
+      "countryHint": {
+        "GB": "Britische Gasrechnung: Volumenkorrekturfaktor 1,02264 als Zustandszahl, Brennwert (Calorific Value) in MJ/m³. Zähler in Kubikfuß (ft³) werden nicht unterstützt.",
+        "IT": "Italienische Gasrechnung: „Coefficiente C“ als Zustandszahl, PCS (Potere Calorifico Superiore) meist in GJ/Smc. Preise je Smc rechnet die Vertragsmaske in {minor}/kWh um.",
+        "NL": "Niederländische Gasrechnung: Brennwert (calorische waarde) in MJ/m³ eintragen. Preise je m³ rechnet die Vertragsmaske in {minor}/kWh um."
+      }
     },
     "invalidFields": "Nicht gespeichert: Bitte die rot markierten Felder korrigieren.",
     "dayMonthInvalid": "Bitte als Tag-Monat eingeben, z. B. 01-10 für den 1. Oktober.",
@@ -1063,6 +1079,25 @@
       "keyRevokeTitle": "Schlüssel widerrufen?",
       "keyRevokeMsg": "Programme, die den Schlüssel „{name}“ verwenden, haben danach keinen Zugriff mehr.",
       "keyRevoked": "Schlüssel widerrufen."
+    },
+    "region": {
+      "country": "Land",
+      "currency": "Währung",
+      "timezone": "Zeitzone",
+      "saved": "Einstellung gespeichert",
+      "currencyNote": "Beträge werden nicht umgerechnet — die Währung ändert nur Symbol und Beschriftung.",
+      "applyTitle": "Voreinstellungen für {country} übernehmen?",
+      "applyIntro": "Das Länderprofil schlägt diese Werte vor:",
+      "applyKeep": "Zähler, Verträge und Ablesungen bleiben unverändert; Beträge werden nicht umgerechnet.",
+      "applyAll": "Alle übernehmen",
+      "applyCountryOnly": "Nur Land ändern",
+      "colSetting": "Einstellung",
+      "colNow": "Bisher",
+      "colProfile": "Profil",
+      "source": {
+        "ember2024": "CO₂ Strom: Ember 2024, Stromerzeugungsmix (über Our World in Data)",
+        "default": "CO₂ Strom: bisheriger Standardwert der App"
+      }
     }
   },
   "reminders": {
@@ -1130,7 +1165,8 @@
     "archiveError": "Archiv: {err}",
     "forecastError": "Forecast: {err}",
     "importToast": "Import: {imported} Tage importiert, {skipped} übersprungen",
-    "coordInvalid": "Bitte eine Zahl zwischen {min} und {max} eingeben."
+    "coordInvalid": "Bitte eine Zahl zwischen {min} und {max} eingeben.",
+    "locationDefault": "Der Standort ist noch die Voreinstellung für {country} ({name}). Für genaue Gradtagzahlen bitte den eigenen Ort eintragen."
   },
   "recommendations": {
     "loading": "Lade Empfehlungen…",
@@ -1204,7 +1240,7 @@
     "unitCostTitle": "Vollkosten je Einheit — Arbeitspreis, Grundpreis und Boni zusammen. Der einzige Wert, der Laufzeiten unterschiedlicher Länge fair vergleicht.",
     "legend": "Negativ (grün) = günstiger als der tatsächlich abgerechnete Vertrag derselben Monate. Verglichen werden reine Tarifkosten; Abschläge und Sonderzahlungen sind Zahlungsströme und bleiben außen vor.",
     "action": { "edit": "Bearbeiten", "delete": "Löschen" },
-    "col": { "tariff": "Tarif", "period": "Zeitraum", "consumption": "Verbrauch", "cost": "Kosten", "unitCost": "ct/{unit}", "vsReal": "vs. real", "savings": "Differenz" },
+    "col": { "tariff": "Tarif", "period": "Zeitraum", "consumption": "Verbrauch", "cost": "Kosten", "unitCost": "{minor}/{unit}", "vsReal": "vs. real", "savings": "Differenz" },
     "period": "Zeitraum: {label}",
     "periodRange": "Zeitraum: {label} ({from} – {to})",
     "shadow": {
@@ -1215,9 +1251,9 @@
       "provider": "Anbieter",
       "providerPlaceholder": "optional",
       "start": "Gültig ab",
-      "workingPrice": "Arbeitspreis (ct/{unit})",
+      "workingPrice": "Arbeitspreis ({minor}/{unit})",
       "workingPlaceholder": "z. B. 8.50",
-      "basePrice": "Grundpreis (€/Monat)",
+      "basePrice": "Grundpreis ({cur}/Monat)",
       "basePlaceholder": "z. B. 12.00",
       "create": "Anlegen",
       "validation": "Bezeichnung, Datum und Arbeitspreis sind Pflicht",
@@ -1232,7 +1268,7 @@
       "deleteTitle": "Schattenvertrag löschen?",
       "deleteMessage": "Die Hypothese wird entfernt. Echte Verträge und Ablesungen bleiben unberührt.",
       "deleteConfirm": "Löschen",
-      "signupBonus": "Neukundenbonus (€)",
+      "signupBonus": "Neukundenbonus ({cur})",
       "signupBonusPlaceholder": "z. B. 130",
       "signupBonusHint": "Einmalig, zählt nur im ersten Jahr.",
       "priceGuarantee": "Preisgarantie bis",
@@ -1402,7 +1438,7 @@
     "models": { "linear": "Linear", "polynomial": "Polynomial (Grad 2)", "robust": "Robust (Huber)", "segmented": "Segmentiert (Heizen/Sommer)", "sigmoid": "Sigmoid (Heizsignatur)" },
     "chartHist": "Historie",
     "chartForecast": "Prognose",
-    "info": "Modell: <strong>{model}</strong> · Blend-Gewicht: <strong>{blend}%</strong>{r2} · Letzter Arbeitspreis: <strong>{price} ct/{unit}</strong>",
+    "info": "Modell: <strong>{model}</strong> · Blend-Gewicht: <strong>{blend}%</strong>{r2} · Letzter Arbeitspreis: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Projizierter Saldo am Ende des Horizonts:",
     "balanceSurcharge": "Nachzahlung",
     "balanceCredit": "Guthaben",
@@ -1435,13 +1471,14 @@
     "kpiPeakMonth": "Stärkster Monat",
     "kpiLowMonth": "Schwächster Monat",
     "tableMonth": "Monat",
-    "tableCost": "Kosten €",
+    "tableCost": "Kosten {cur}",
     "tableTemp": "ø Temp",
     "tableHdd": "HGT",
     "tableWeatherAdj": "wetterber.",
     "tableDelta": "Δ%",
     "continued": "(Forts.)",
-    "meterPageTitle": "{label} {year} — {meter}"
+    "meterPageTitle": "{label} {year} — {meter}",
+    "heatDemand": "Heizenergie · {label}"
   },
   "migration": {
     "warnNoSettings": "Keine Einstellungen im Backup gefunden — es gelten die Standardwerte.",
@@ -1454,10 +1491,10 @@
     "month": "Monat",
     "days": "Tage",
     "consumption": "Verbrauch ({unit})",
-    "cost": "Kosten (EUR)",
-    "advance": "Abschlag (EUR)",
-    "monthBalance": "Monatssaldo (EUR)",
-    "balanceCumulative": "Saldo kumuliert (EUR)",
+    "cost": "Kosten ({code})",
+    "advance": "Abschlag ({code})",
+    "monthBalance": "Monatssaldo ({code})",
+    "balanceCumulative": "Saldo kumuliert ({code})",
     "avgTemp": "Ø Temp (°C)",
     "hdd": "HGT",
     "co2": "CO2 (kg)"
@@ -1480,7 +1517,8 @@
     "benchmark": {
       "noLivingArea": "Wohnfläche nicht gesetzt — für die Effizienzklasse bitte in den Einstellungen eintragen.",
       "noHeatData": "Keine Heizenergiedaten für {year} gefunden.",
-      "multipleSources": "Mehrere Heizquellen aktiv — die Klasse je Quelle ist aussagekräftiger als die kombinierte Summe. Die kombinierte Sicht ist nur bei bewusst kombiniertem Heizbetrieb (z. B. Grund- und Spitzenlast) sinnvoll."
+      "multipleSources": "Mehrere Heizquellen aktiv — die Klasse je Quelle ist aussagekräftiger als die kombinierte Summe. Die kombinierte Sicht ist nur bei bewusst kombiniertem Heizbetrieb (z. B. Grund- und Spitzenlast) sinnvoll.",
+      "noScale": "Für {country} ist keine Effizienzskala hinterlegt. Die Klassen A+ bis H folgen dem deutschen Gebäudeenergiegesetz und werden deshalb nicht angezeigt."
     },
     "forecast": {
       "tooFewMonths": "Zu wenig historische Daten (weniger als 6 Monate).",
@@ -1559,7 +1597,7 @@
       "fields": {
         "date": "Datum",
         "amount": "Betrag",
-        "ratePerM2": "€/m²/Jahr",
+        "ratePerM2": "{cur}/m²/Jahr",
         "sealedArea": "versiegelte Fläche",
         "creditDate": "Gutschriftsdatum",
         "advanceDate": "Abschlag-Stichtag",
@@ -1637,7 +1675,8 @@
       "factorHsOutOfRange": "Brennwert {value} ist unplausibel — erwartet wird 8 bis 13 kWh/m³",
       "factorHalfPair": "Zustandszahl und Brennwert gehören zusammen — bitte beide angeben oder den Faktor direkt",
       "factorMissing": "Ein Eintrag braucht entweder Zustandszahl und Brennwert oder einen Faktor in kWh/m³",
-      "factorOutOfRange": "Umrechnungsfaktor {value} ist unplausibel — erwartet wird 5 bis 15 kWh/m³"
+      "factorOutOfRange": "Umrechnungsfaktor {value} ist unplausibel — erwartet wird 5 bis 15 kWh/m³",
+      "valueInvalid": "Ungültiger Wert „{value}“ für {key}"
     },
     "billCheck": {
       "gasOnly": "Die Rechnungsprüfung gibt es nur für Gas",
@@ -1683,5 +1722,23 @@
     "magnitude": "Der Wert ist mehr als zehnmal so groß wie der letzte Stand ({last} {unit}). Komma vergessen?",
     "confirm": "Trotzdem speichern",
     "replace": "Ersetzen"
+  },
+  "format": {
+    "decimal": ",",
+    "group": ".",
+    "date": "d.m.Y",
+    "monthsShort": "Jan.,Feb.,März,Apr.,Mai,Juni,Juli,Aug.,Sept.,Okt.,Nov.,Dez.",
+    "money": "{amount} {cur}"
+  },
+  "countries": {
+    "DE": "Deutschland",
+    "AT": "Österreich",
+    "CH": "Schweiz",
+    "FR": "Frankreich",
+    "IT": "Italien",
+    "ES": "Spanien",
+    "PT": "Portugal",
+    "NL": "Niederlande",
+    "GB": "Vereinigtes Königreich"
   }
 }

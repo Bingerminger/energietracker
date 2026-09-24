@@ -3,15 +3,15 @@
 // =====================================================================
 
 import { startRouter } from './router.js';
-import { getUtilities, getSettings } from './state.js';
+import { getUtilities, getSettings, getCountries } from './state.js';
 import { toastErr } from './components/toast.js';
 import { mountThemeToggle } from './lib/theme.js';
 import { buildSidebar, refreshSidebarBadges } from './lib/sidebar.js';
-import { initI18n, t, getLocale } from './lib/i18n.js';
+import { initI18n, t, getLocale, setCurrencyParams } from './lib/i18n.js';
 import { applyUtilityTheme } from './lib/utility-theme.js';
 import { api } from './api.js';
 import { showLogin, logout } from './components/login.js';
-import { intlLocale } from './lib/format.js';
+import { intlLocale, setCountry } from './lib/format.js';
 
 const container = document.getElementById('view');
 
@@ -106,8 +106,13 @@ window.addEventListener('et:session-changed', (ev) => {
   else document.getElementById('logout-btn')?.remove();
 });
 
-const boot = () => getSettings()
-  .then(s => initI18n(s?.language))
+const boot = () => Promise.all([getSettings(), getCountries()])
+  .then(([s, countries]) => {
+    // v2.7.0 — Länderprofil: Währung und Region vor dem ersten Rendern
+    setCurrencyParams(s?.currency);
+    setCountry(s?.country, countries.find(c => c.code === s?.country)?.languages);
+    return initI18n(s?.language);
+  })
   .catch(() => initI18n('de'))
   .finally(async () => {
     applyShellStrings();

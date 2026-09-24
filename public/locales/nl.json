@@ -210,9 +210,9 @@
     "balance": {
       "title": "⚖️ Saldo lopend contract — {name}",
       "noTariff": "geen tariefgegevens",
-      "unitWorkingWater": "{value} ct/m³ drinkwater",
-      "unitWorking": "{value} ct/kWh",
-      "unitBase": "{value} €/maand",
+      "unitWorkingWater": "{value} {minor}/m³ drinkwater",
+      "unitWorking": "{value} {minor}/kWh",
+      "unitBase": "{value} {cur}/maand",
       "unitAdvance": "Voorschot {value}",
       "consumedMonthsWater": "{months} maanden · {m3} m³",
       "consumedMonths": "{months} maanden · {kwh} kWh",
@@ -253,9 +253,9 @@
       "basisSep": "aparte meter",
       "basisTw": "drinkwaterverbruik",
       "perMonthShort": "{value}/maand",
-      "gpMonth": "{value} €/m vastrecht",
-      "ctPerM3": "{value} ct/m³",
-      "eurPerM2Year": "{value} €/m²/jaar · {m2} m²",
+      "gpMonth": "{value} {cur}/m vastrecht",
+      "ctPerM3": "{value} {minor}/m³",
+      "eurPerM2Year": "{value} {cur}/m²/jaar · {m2} m²",
       "consShort": "{value} verbruik",
       "gpPlus": " + {value} vastrecht"
     },
@@ -277,7 +277,7 @@
       "statePast": "VERLEDEN",
       "stateFuture": "TOEKOMST",
       "periodOpen": "{start} → lopend",
-      "gpSuffix": "{value} € vastrecht",
+      "gpSuffix": "{value} {cur} vastrecht",
       "colSpecial": "Bijzondere betalingen",
       "colSpecialTitle": "Netto van bijzondere betalingen: terugbetalingen van de leverancier tellen positief, bijbetalingen en extra voorschotten negatief. Afzonderlijke posten in de tooltip van de cel.",
       "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Beweeg over de cel voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden."
@@ -291,9 +291,9 @@
       "colTempTitle": "Gemiddelde temperatuur van de maand",
       "colHdd": "GD",
       "colHddTitle": "Graaddagen — som van de dagelijkse verschillen tussen de stookgrens en de buitentemperatuur",
-      "colPrice": "ct/{unit}",
-      "colCost": "Kosten €",
-      "colAdvance": "Voorschot €",
+      "colPrice": "{minor}/{unit}",
+      "colCost": "Kosten {cur}",
+      "colAdvance": "Voorschot {cur}",
       "colCumBalance": "Saldo (cum.)",
       "colCumBalanceTitle": "Cumulatief saldo sinds begin van het contract",
       "colCo2": "CO₂ kg",
@@ -358,8 +358,8 @@
       "titleNew": "Nieuwe levering · {label}",
       "date": "Leverdatum",
       "quantity": "Hoeveelheid ({unit})",
-      "unitPrice": "Prijs per {unit} (ct, optioneel)",
-      "total": "Totaalbedrag (€, optioneel — vervangt prijs×hoeveelheid)",
+      "unitPrice": "Prijs per {unit} ({minor}, optioneel)",
+      "total": "Totaalbedrag ({cur}, optioneel — vervangt prijs×hoeveelheid)",
       "supplier": "Leverancier (optioneel)",
       "note": "Notitie (optioneel)",
       "planned": "Gepland (nog niet geleverd)",
@@ -440,8 +440,8 @@
       "swWorking": "Eenheidsprijs afvalwater"
     },
     "unit": {
-      "ctPerKwh": "ct/kWh",
-      "eurPerMonth": "€/maand"
+      "ctPerKwh": "{minor}/kWh",
+      "eurPerMonth": "{cur}/maand"
     },
     "loading": "Laden…",
     "unknown": "Onbekende energie: {key}",
@@ -524,7 +524,7 @@
       "title": "Bonussen / crediteringen",
       "add": "+ Bonus",
       "creditDate": "Creditdatum",
-      "amount": "Bedrag €",
+      "amount": "Bedrag {cur}",
       "type": "Type",
       "remove": "Verwijderen"
     },
@@ -533,11 +533,11 @@
       "add": "+ Bijzondere betaling",
       "hint": "Teruggave, bijbetaling of extra voorschot. « Met effect » past ook het toekomstige maandvoorschot aan.",
       "date": "Datum",
-      "amount": "Bedrag €",
+      "amount": "Bedrag {cur}",
       "kind": "Soort",
       "note": "Notitie",
       "remove": "Verwijderen",
-      "newAdvance": "Nieuw voorschot €/maand",
+      "newAdvance": "Nieuw voorschot {cur}/maand",
       "advanceFrom": "Voorschot geldig vanaf"
     },
     "water": {
@@ -556,26 +556,33 @@
       "nw": "☔ Regenwater",
       "advances": "💰 Voorschotten",
       "bonuses": "🎁 Bonussen",
-      "twWorking": "Prijs per m³ (ct/m³)",
-      "twBase": "Vastrecht (€/maand)",
+      "twWorking": "Prijs per m³ ({minor}/m³)",
+      "twBase": "Vastrecht ({cur}/maand)",
       "basis": "Berekeningsbasis",
       "basisTw": "op basis van drinkwaterverbruik (standaard)",
       "basisSep": "aparte afvalwatermeter",
       "sepMeter": "Afvalwatermeter",
       "noMoreMeters": "(nog geen andere meters beschikbaar)",
-      "swWorking": "Prijs per m³ afvalwater (ct/m³)",
+      "swWorking": "Prijs per m³ afvalwater ({minor}/m³)",
       "nwRates": "Ingangsdatum",
-      "apMonthly": "Maandvoorschot (€)",
+      "apMonthly": "Maandvoorschot ({cur})",
       "colDate": "Datum",
-      "colCtM3": "ct/m³",
-      "colEurMonth": "€/maand",
-      "colEurM2Year": "€/m²/jaar",
+      "colCtM3": "{minor}/m³",
+      "colEurMonth": "{cur}/maand",
+      "colEurM2Year": "{cur}/m²/jaar",
       "colSealedM2": "m² verhard",
       "bonusCredit": "Creditering",
-      "bonusAmount": "Bedrag €",
+      "bonusAmount": "Bedrag {cur}",
       "bonusLabel": "Label",
       "addRow": "+ Rij",
       "startRequired": "Het begin van het contract is verplicht."
+    },
+    "perM3": {
+      "toggleTitle": "Prijs per m³ omrekenen naar {minor}/kWh",
+      "label": "Prijs per m³ ({cur})",
+      "result": "= {ct} {minor}/kWh (÷ {hs} kWh/m³ calorische waarde op {date})",
+      "resultFactor": "= {ct} {minor}/kWh (÷ omrekenfactor {hs} kWh/m³ op {date})",
+      "apply": "Overnemen"
     }
   },
   "meters": {
@@ -722,8 +729,8 @@
     "saveUnsaved": "Opslaan •",
     "saved": "Instellingen opgeslagen",
     "lang": {
-      "title": "🌐 Taal / Language",
-      "hint": "Taal van de interface. De wijziging is direct van kracht.",
+      "title": "🌐 Taal en land / Language",
+      "hint": "Taal en land zijn direct van kracht. Het land bepaalt de notatie van getallen en datums, de valuta en de tijdzone; bij een wijziging stelt de app passende standaardwaarden voor.",
       "label": "Taal",
       "saved": "Taal gewijzigd"
     },
@@ -1018,7 +1025,16 @@
       "previewDirect": "factor {f} kWh/m³",
       "errOneUndated": "Er is al een item zonder datum — geef een „geldig vanaf” op",
       "errDuplicate": "Er is al een item voor deze datum",
-      "errNeedValues": "Geef volumeherleidingsfactor en calorische waarde op — of de factor direct"
+      "errNeedValues": "Geef volumeherleidingsfactor en calorische waarde op — of de factor direct",
+      "cvUnit": "Calorische waarde invoeren in",
+      "colHsMj": "Calorische waarde (MJ/m³)",
+      "mjHint": "Calorische waarden in MJ/m³ of GJ/Smc worden omgerekend en als kWh/m³ opgeslagen (1 kWh = 3,6 MJ).",
+      "colHsGj": "Calorische waarde (GJ/Smc)",
+      "countryHint": {
+        "GB": "Britse gasrekening: volumeherleidingsfactor 1,02264 en calorische waarde in MJ/m³. Meters in kubieke voet (ft³) worden niet ondersteund.",
+        "IT": "Italiaanse gasrekening: ‘coefficiente C’ als volumeherleidingsfactor, PCS (bovenste verbrandingswaarde) meestal in GJ/Smc. Het contractformulier rekent prijzen per Smc om naar {minor}/kWh.",
+        "NL": "Nederlandse gasrekening: vul de calorische waarde in MJ/m³ in. Het contractformulier rekent prijzen per m³ om naar {minor}/kWh."
+      }
     },
     "invalidFields": "Niet opgeslagen: corrigeer de rood gemarkeerde velden.",
     "dayMonthInvalid": "Voer in als dag-maand, bijv. 01-10 voor 1 oktober.",
@@ -1063,6 +1079,25 @@
       "keyRevokeTitle": "Sleutel intrekken?",
       "keyRevokeMsg": "Programma’s die de sleutel ‘{name}’ gebruiken, verliezen hun toegang.",
       "keyRevoked": "Sleutel ingetrokken."
+    },
+    "region": {
+      "country": "Land",
+      "currency": "Valuta",
+      "timezone": "Tijdzone",
+      "saved": "Instelling opgeslagen",
+      "currencyNote": "Bedragen worden niet omgerekend — de valuta verandert alleen het symbool en de labels.",
+      "applyTitle": "Standaardwaarden voor {country} overnemen?",
+      "applyIntro": "Het landprofiel stelt deze waarden voor:",
+      "applyKeep": "Meters, contracten en meterstanden blijven ongewijzigd; bedragen worden niet omgerekend.",
+      "applyAll": "Alles overnemen",
+      "applyCountryOnly": "Alleen land wijzigen",
+      "colSetting": "Instelling",
+      "colNow": "Huidig",
+      "colProfile": "Profiel",
+      "source": {
+        "ember2024": "CO₂ elektriciteit: Ember 2024, productiemix (via Our World in Data)",
+        "default": "CO₂ elektriciteit: eerdere standaardwaarde van de app"
+      }
     }
   },
   "reminders": {
@@ -1130,7 +1165,8 @@
     "archiveError": "Archief: {err}",
     "forecastError": "Prognose: {err}",
     "importToast": "Import: {imported} dagen geïmporteerd, {skipped} overgeslagen",
-    "coordInvalid": "Voer een getal tussen {min} en {max} in."
+    "coordInvalid": "Voer een getal tussen {min} en {max} in.",
+    "locationDefault": "De locatie is nog de standaardwaarde voor {country} ({name}). Vul de eigen locatie in voor nauwkeurige graaddagen."
   },
   "recommendations": {
     "loading": "Aanbevelingen laden…",
@@ -1204,7 +1240,7 @@
     "unitCostTitle": "Totale kosten per eenheid — eenheidsprijs, vastrecht en bonussen samen. De enige waarde die looptijden van verschillende lengte eerlijk vergelijkt.",
     "legend": "Negatief (groen) = goedkoper dan het contract dat voor dezelfde maanden werkelijk is gefactureerd. Alleen zuivere tariefkosten worden vergeleken; voorschotten en verrekeningen zijn geldstromen en blijven erbuiten.",
     "action": { "edit": "Bewerken", "delete": "Verwijderen" },
-    "col": { "tariff": "Tarief", "period": "Periode", "consumption": "Verbruik", "cost": "Kosten", "unitCost": "ct/{unit}", "vsReal": "vs. werkelijk", "savings": "Verschil" },
+    "col": { "tariff": "Tarief", "period": "Periode", "consumption": "Verbruik", "cost": "Kosten", "unitCost": "{minor}/{unit}", "vsReal": "vs. werkelijk", "savings": "Verschil" },
     "period": "Periode: {label}",
     "periodRange": "Periode: {label} ({from} – {to})",
     "shadow": {
@@ -1215,9 +1251,9 @@
       "provider": "Leverancier",
       "providerPlaceholder": "optioneel",
       "start": "Geldig vanaf",
-      "workingPrice": "Eenheidsprijs (ct/{unit})",
+      "workingPrice": "Eenheidsprijs ({minor}/{unit})",
       "workingPlaceholder": "bijv. 8,50",
-      "basePrice": "Vastrecht (€/maand)",
+      "basePrice": "Vastrecht ({cur}/maand)",
       "basePlaceholder": "bijv. 12,00",
       "create": "Aanmaken",
       "validation": "Label, datum en energieprijs zijn verplicht",
@@ -1232,7 +1268,7 @@
       "deleteTitle": "Schaduwcontract verwijderen?",
       "deleteMessage": "De hypothese wordt verwijderd. Echte contracten en meterstanden blijven ongemoeid.",
       "deleteConfirm": "Verwijderen",
-      "signupBonus": "Welkomstbonus (€)",
+      "signupBonus": "Welkomstbonus ({cur})",
       "signupBonusPlaceholder": "bijv. 130",
       "signupBonusHint": "Eenmalig, telt alleen in het eerste jaar.",
       "priceGuarantee": "Prijs gegarandeerd tot",
@@ -1402,7 +1438,7 @@
     "models": { "linear": "Lineair", "polynomial": "Polynomiaal (graad 2)", "robust": "Robuust (Huber)", "segmented": "Gesegmenteerd (verwarming/zomer)", "sigmoid": "Sigmoïde (stookhandtekening)" },
     "chartHist": "Geschiedenis",
     "chartForecast": "Prognose",
-    "info": "Model: <strong>{model}</strong> · mengingsgewicht: <strong>{blend} %</strong>{r2} · laatste energieprijs: <strong>{price} ct/{unit}</strong>",
+    "info": "Model: <strong>{model}</strong> · mengingsgewicht: <strong>{blend} %</strong>{r2} · laatste energieprijs: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Geprojecteerd saldo aan het einde van de horizon:",
     "balanceSurcharge": "bijbetaling",
     "balanceCredit": "tegoed",
@@ -1435,13 +1471,14 @@
     "kpiPeakMonth": "Hoogste maand",
     "kpiLowMonth": "Laagste maand",
     "tableMonth": "Maand",
-    "tableCost": "Kosten €",
+    "tableCost": "Kosten {cur}",
     "tableTemp": "gem. temp.",
     "tableHdd": "GD",
     "tableWeatherAdj": "weergecorr.",
     "tableDelta": "Δ%",
     "continued": "(vervolg)",
-    "meterPageTitle": "{label} {year} — {meter}"
+    "meterPageTitle": "{label} {year} — {meter}",
+    "heatDemand": "Verwarmingsenergie · {label}"
   },
   "migration": {
     "warnNoSettings": "Geen instellingen in de back-up gevonden — de standaardwaarden gelden.",
@@ -1454,10 +1491,10 @@
     "month": "Maand",
     "days": "Dagen",
     "consumption": "Verbruik ({unit})",
-    "cost": "Kosten (EUR)",
-    "advance": "Voorschot (EUR)",
-    "monthBalance": "Maandsaldo (EUR)",
-    "balanceCumulative": "Saldo cumulatief (EUR)",
+    "cost": "Kosten ({code})",
+    "advance": "Voorschot ({code})",
+    "monthBalance": "Maandsaldo ({code})",
+    "balanceCumulative": "Saldo cumulatief ({code})",
     "avgTemp": "Gem temp (°C)",
     "hdd": "GD",
     "co2": "CO2 (kg)"
@@ -1480,7 +1517,8 @@
     "benchmark": {
       "noLivingArea": "Woonoppervlak niet ingesteld — vul het in bij de instellingen voor de efficiëntieklasse.",
       "noHeatData": "Geen verwarmingsgegevens gevonden voor {year}.",
-      "multipleSources": "Meerdere warmtebronnen actief — de klasse per bron zegt meer dan de gecombineerde som. De gecombineerde weergave is alleen zinvol bij bewust gecombineerd stoken (bijv. basis- en pieklast)."
+      "multipleSources": "Meerdere warmtebronnen actief — de klasse per bron zegt meer dan de gecombineerde som. De gecombineerde weergave is alleen zinvol bij bewust gecombineerd stoken (bijv. basis- en pieklast).",
+      "noScale": "Voor {country} is geen efficiëntieschaal beschikbaar. De klassen A+ t/m H volgen de Duitse gebouwenenergiewet (GEG) en worden daarom niet getoond."
     },
     "forecast": {
       "tooFewMonths": "Te weinig historie (minder dan 6 maanden).",
@@ -1559,7 +1597,7 @@
       "fields": {
         "date": "Datum",
         "amount": "Bedrag",
-        "ratePerM2": "€/m²/jaar",
+        "ratePerM2": "{cur}/m²/jaar",
         "sealedArea": "verhard oppervlak",
         "creditDate": "Creditdatum",
         "advanceDate": "Ingangsdatum voorschot",
@@ -1637,7 +1675,8 @@
       "factorHsOutOfRange": "Calorische waarde {value} is onwaarschijnlijk — verwacht wordt 8 tot 13 kWh/m³",
       "factorHalfPair": "Volumeherleidingsfactor en calorische waarde horen bij elkaar — geef beide op, of de factor direct",
       "factorMissing": "Een item heeft óf volumeherleidingsfactor en calorische waarde nodig, óf een factor in kWh/m³",
-      "factorOutOfRange": "Omrekeningsfactor {value} is onwaarschijnlijk — verwacht wordt 5 tot 15 kWh/m³"
+      "factorOutOfRange": "Omrekeningsfactor {value} is onwaarschijnlijk — verwacht wordt 5 tot 15 kWh/m³",
+      "valueInvalid": "Ongeldige waarde ‘{value}’ voor {key}"
     },
     "billCheck": {
       "gasOnly": "De factuurcontrole is alleen beschikbaar voor gas",
@@ -1683,5 +1722,23 @@
     "magnitude": "De waarde is meer dan tien keer de vorige stand ({last} {unit}). Komma vergeten?",
     "confirm": "Toch opslaan",
     "replace": "Vervangen"
+  },
+  "format": {
+    "decimal": ",",
+    "group": ".",
+    "date": "d-m-Y",
+    "monthsShort": "jan,feb,mrt,apr,mei,jun,jul,aug,sep,okt,nov,dec",
+    "money": "{cur} {amount}"
+  },
+  "countries": {
+    "DE": "Duitsland",
+    "AT": "Oostenrijk",
+    "CH": "Zwitserland",
+    "FR": "Frankrijk",
+    "IT": "Italië",
+    "ES": "Spanje",
+    "PT": "Portugal",
+    "NL": "Nederland",
+    "GB": "Verenigd Koninkrijk"
   }
 }

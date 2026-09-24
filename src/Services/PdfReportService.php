@@ -13,6 +13,11 @@ use Energietracker\Config\Utilities;
  * je Verbrauchsart eine Seite mit Tabelle + Mini-Liniendiagramm,
  * Empfehlungen) mit dem dependency-freien PdfWriter. Keine externe
  * Library, kein gd/mbstring nötig.
+ *
+ * v2.7.0 — Zahlen, Beträge, Daten und Monate in der Schreibweise von Sprache
+ * und Land (I18nService::number/money/date/month). Vorher stand hier fest
+ * number_format(…, ',', '.') und „€" — ein englischer Bericht zeigte
+ * „10.359 kWh", ein Schweizer „€" statt CHF.
  */
 final class PdfReportService
 {
@@ -53,7 +58,7 @@ final class PdfReportService
         $pdf->text(self::M, 80, 'ENERGIETRACKER', 14, true, [255, 255, 255]);
         $pdf->text(self::M, 120, $this->i18n->t('report.title', ['year' => $year]), 30, true, [255, 255, 255]);
         $pdf->text(self::M, 150, $loc, 12, false, [255, 255, 255]);
-        $pdf->text(self::M, 240, $this->i18n->t('report.createdOn', ['date' => date('d.m.Y')]), 10, false, self::MUTE);
+        $pdf->text(self::M, 240, $this->i18n->t('report.createdOn', ['date' => $this->i18n->date(date('Y-m-d'))]), 10, false, self::MUTE);
         $pdf->text(self::M, 760, 'Energietracker v' . trim((string)@file_get_contents(dirname(__DIR__, 2) . '/VERSION')), 8, false, self::MUTE);
 
         // ── Seite 2 — Übersicht & Effizienz ──
@@ -63,13 +68,21 @@ final class PdfReportService
 
         $y += 10;
         $perSource = $eff['per_source'] ?? [];
+        // v2.7.0 — ohne Effizienzskala des Landes keine Klasse (BenchmarkService)
+        $hasScale = ($eff['scale'] ?? null) !== null;
+        $perM2 = fn(array $s) => $this->i18n->number((float)($s['kwh_per_m2'] ?? 0), 0) . ' kWh/m²·a';
         if (!empty($perSource)) {
             if (count($perSource) === 1) {
                 $s = $perSource[0];
                 $pdf->rect(self::M, $y, $W - 2 * self::M, 70, [241, 245, 249]);
-                $pdf->text(self::M + 16, $y + 24, $this->i18n->t('report.efficiencyClass', ['label' => (string)$s['label']]), 11, false, self::MUTE);
-                $pdf->text(self::M + 16, $y + 54, (string)($s['class'] ?? '–'), 26, true, self::ACCENT);
-                $pdf->textRight($W - self::M - 16, $y + 30, sprintf('%.0f kWh/m²·a', (float)($s['kwh_per_m2'] ?? 0)), 13, true, self::INK);
+                if ($hasScale) {
+                    $pdf->text(self::M + 16, $y + 24, $this->i18n->t('report.efficiencyClass', ['label' => (string)$s['label']]), 11, false, self::MUTE);
+                    $pdf->text(self::M + 16, $y + 54, (string)($s['class'] ?? '–'), 26, true, self::ACCENT);
+                    $pdf->textRight($W - self::M - 16, $y + 30, $perM2($s), 13, true, self::INK);
+                } else {
+                    $pdf->text(self::M + 16, $y + 24, $this->i18n->t('report.heatDemand', ['label' => (string)$s['label']]), 11, false, self::MUTE);
+                    $pdf->text(self::M + 16, $y + 54, $perM2($s), 22, true, self::ACCENT);
+                }
                 $pdf->textRight($W - self::M - 16, $y + 52, $this->i18n->t('report.livingArea', ['area' => (int)$eff['wohnflaeche_m2']]), 9, false, self::MUTE);
                 $y += 90;
             } else {
@@ -77,9 +90,18 @@ final class PdfReportService
                 $y += 28;
                 foreach ($perSource as $s) {
                     $pdf->text(self::M + 8, $y, (string)$s['label'], 10, false, self::INK);
-                    $pdf->text(self::M + 180, $y, $this->i18n->t('report.class', ['class' => (string)($s['class'] ?? '–')]), 10, true, self::ACCENT);
-                    $pdf->textRight($W - self::M - 8, $y, sprintf('%.0f kWh/m²·a', (float)($s['kwh_per_m2'] ?? 0)), 10, false, self::INK);
+                    if ($hasScale) {
+                        $pdf->text(self::M + 180, $y, $this->i18n->t('report.class', ['class' => (string)($s['class'] ?? '–')]), 10, true, self::ACCENT);
+                    }
+                    $pdf->textRight($W - self::M - 8, $y, $perM2($s), 10, false, self::INK);
                     $y += 18;
+                }
+                $y += 12;
+            }
+            if (!$hasScale && !empty($eff['scale_note'])) {
+                foreach ($this->wrap((string)$eff['scale_note'], 100) as $ln) {
+                    $pdf->text(self::M, $y, $ln, 8, false, self::MUTE);
+                    $y += 12;
                 }
                 $y += 12;
             }
@@ -105,12 +127,12 @@ final class PdfReportService
             if ($agg['kwh'] <= 0 && $agg['m3'] <= 0) continue;
             $u = Utilities::get($utility);
             $valStr = $u['consumption_unit'] === 'kWh'
-                ? number_format($agg['kwh'], 0, ',', '.') . ' kWh'
-                : number_format($agg['m3'], 1, ',', '.') . ' m³';
+                ? $this->i18n->number($agg['kwh'], 0) . ' kWh'
+                : $this->i18n->number($agg['m3'], 1) . ' m³';
             $pdf->text($cols[0], $y, $this->utilLabel($utility), 10, false, self::INK);
             $pdf->text($cols[1], $y, $valStr, 10, false, self::INK);
-            $pdf->text($cols[2], $y, number_format($agg['cost'], 2, ',', '.') . ' €', 10, false, self::INK);
-            $pdf->text($cols[3], $y, number_format($agg['co2'], 0, ',', '.') . ' kg', 10, false, self::INK);
+            $pdf->text($cols[2], $y, $this->i18n->money($agg['cost']), 10, false, self::INK);
+            $pdf->text($cols[3], $y, $this->i18n->number($agg['co2'], 0) . ' kg', 10, false, self::INK);
             $y += 20;
         }
 
@@ -136,7 +158,8 @@ final class PdfReportService
             $y += 14;
             foreach (array_slice($recs, 0, 12) as $r) {
                 if ($y > 780) { $pdf->addPage(); $y = $this->header($pdf, $this->i18n->t('report.recommendationsCont'), $W) + 14; }
-                $sev = strtoupper((string)$r['severity']);
+                // v2.7.0 — Stufe aus dem Katalog statt des englischen Schlüssels
+                $sev = $this->i18n->t('recommendations.sev.' . (string)$r['severity']);
                 $col = $r['severity'] === 'urgent' ? [220,38,38] : ($r['severity'] === 'warning' ? [217,119,6] : self::MUTE);
                 $pdf->text(self::M, $y, '[' . $sev . ']', 8, true, $col);
                 $pdf->text(self::M + 70, $y, (string)$r['title'], 10, true, self::INK);
@@ -178,13 +201,13 @@ final class PdfReportService
             if ($maxM === null || $v > (float)($maxM[$vf] ?? 0)) $maxM = $m;
             if ($minM === null || $v < (float)($minM[$vf] ?? 0)) $minM = $m;
         }
-        $nf = fn($v, $d = 0) => number_format((float)$v, $d, ',', '.');
+        $nf = fn($v, $d = 0) => $this->i18n->number((float)$v, $d);
         $kpis = [
             [$this->i18n->t('report.kpiAnnual'),    $nf($sum, $isKwh ? 0 : 1) . ' ' . $unit],
             [$this->i18n->t('report.kpiAvgMonth'),  $nf($avg, $isKwh ? 0 : 1) . ' ' . $unit],
-            [$this->i18n->t('report.kpiTotalCost'), $nf($cost, 2) . ' €'],
-            [$this->i18n->t('report.kpiPeakMonth'), $maxM ? ((string)$maxM['ym'] . ' · ' . $nf($maxM[$vf], $isKwh ? 0 : 1)) : '–'],
-            [$this->i18n->t('report.kpiLowMonth'),  $minM ? ((string)$minM['ym'] . ' · ' . $nf($minM[$vf], $isKwh ? 0 : 1)) : '–'],
+            [$this->i18n->t('report.kpiTotalCost'), $this->i18n->money($cost)],
+            [$this->i18n->t('report.kpiPeakMonth'), $maxM ? ($this->i18n->month((string)$maxM['ym']) . ' · ' . $nf($maxM[$vf], $isKwh ? 0 : 1)) : '–'],
+            [$this->i18n->t('report.kpiLowMonth'),  $minM ? ($this->i18n->month((string)$minM['ym']) . ' · ' . $nf($minM[$vf], $isKwh ? 0 : 1)) : '–'],
         ];
         $ky = $y + 6;
         $kw = ($W - 2 * self::M) / count($kpis);
@@ -220,15 +243,17 @@ final class PdfReportService
         foreach ($monthly as $m) {
             if ($y > 790) { $pdf->addPage(); $y = $this->header($pdf, $label . ' ' . $this->i18n->t('report.continued'), $W) + 14; }
             $row = [
-                (string)($m['ym'] ?? ''),
-                number_format((float)($m[$vf] ?? 0), $isKwh ? 0 : 1, ',', '.'),
-                number_format((float)($m['cost'] ?? 0), 2, ',', '.'),
-                $m['avg_temp'] !== null ? number_format((float)$m['avg_temp'], 1, ',', '.') : '–',
-                number_format((float)($m['hdd'] ?? 0), 0, ',', '.'),
+                $this->i18n->month((string)($m['ym'] ?? '')),
+                $nf($m[$vf] ?? 0, $isKwh ? 0 : 1),
+                $nf($m['cost'] ?? 0, 2),
+                $m['avg_temp'] !== null ? $nf($m['avg_temp'], 1) : '–',
+                $nf($m['hdd'] ?? 0, 0),
             ];
             if ($hasWa) {
-                $row[] = $m['weather_adjusted'] !== null ? number_format((float)$m['weather_adjusted'], 0, ',', '.') : '–';
-                $row[] = $m['delta_pct'] !== null ? sprintf('%+.0f', (float)$m['delta_pct']) : '–';
+                $row[] = $m['weather_adjusted'] !== null ? $nf($m['weather_adjusted'], 0) : '–';
+                $row[] = $m['delta_pct'] !== null
+                    ? ((float)$m['delta_pct'] < 0 ? '-' : '+') . $nf(abs((float)$m['delta_pct']), 0)
+                    : '–';
             }
             foreach ($row as $i => $v) $pdf->text($colX[$i], $y, $v, 9, false, self::INK);
             $y += 16;

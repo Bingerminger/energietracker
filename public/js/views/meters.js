@@ -369,7 +369,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           const activeDate = sorted.filter(e => e.date <= today).at(-1)?.date;
           blListEl.innerHTML = `<ul style="list-style:none; padding:0; margin:0">${sorted.map(e => `
             <li style="padding:4px 0">
-              <strong>${escapeHtml(e.date)}</strong>
+              <strong>${fmt.date(e.date)}</strong>
               ${e.label ? ' · ' + escapeHtml(e.label) : ''}
               ${e.date === activeDate
                 ? ` <span class="badge badge--success">${t('meters.baseline.active')}</span>`

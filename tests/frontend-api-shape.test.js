@@ -50,6 +50,19 @@ const ROOT = require('path').resolve(__dirname, '..');
   check('Effizienz liefert class+kwh_per_m2',
     eff.class !== undefined && eff.kwh_per_m2 !== undefined,
     `${eff.class} / ${eff.kwh_per_m2} kWh/m²`);
+  // v2.7.0 — Klasse nur mit Skala des Landes; dashboard.js liest `scale`
+  check('Effizienz nennt die Skala (Demo: DE → geg)', eff.scale === 'geg' && eff.scale_note === null,
+    `scale=${eff.scale}`);
+
+  // 4a. v2.7.0 — Länderprofile: settings.js, temperatures.js und app.js lesen
+  //     code/languages/currency/timezone/location_name/latitude/longitude
+  const countries = await j('/api/countries');
+  const c0 = Array.isArray(countries) ? countries[0] : null;
+  check('Länderprofile → Liste mit Pflichtfeldern',
+    Array.isArray(countries) && countries.length >= 9 && c0 && Array.isArray(c0.languages)
+      && ['code', 'currency', 'timezone', 'location_name', 'latitude', 'longitude', 'gas_cv_unit', 'co2_strom_source']
+        .every(k => k in c0),
+    c0 ? Object.keys(c0).join(',') : String(countries));
 
   // 4b. delivery utility shape (heizoel) — utility.js erwartet
   //     deliveries[] mit id/date/quantity + stock-history capacity/days
@@ -155,6 +168,9 @@ const ROOT = require('path').resolve(__dirname, '..');
     JSON.stringify(settings.gas_conversion_factors)?.slice(0, 80));
   check('settings: alter Skalar gas_conversion_factor ist weg',
     !('gas_conversion_factor' in settings));
+  check('settings: Länderprofil-Schlüssel vorhanden (v2.7.0)',
+    ['country', 'currency', 'timezone', 'gas_cv_unit'].every(k => typeof settings[k] === 'string'),
+    `${settings.country}/${settings.currency}/${settings.timezone}/${settings.gas_cv_unit}`);
   if (Array.isArray(settings.gas_conversion_factors)) {
     const e0 = settings.gas_conversion_factors[0];
     check('settings: erster Eintrag ist undatiert und trägt kwh_per_m3',

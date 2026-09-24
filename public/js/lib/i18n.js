@@ -77,6 +77,32 @@ function lookup(cat, key) {
   return typeof node === 'string' ? node : null;
 }
 
+// v2.7.0 — Länderprofil: Die Kataloge schreiben Währungen als Platzhalter
+// ({cur} Symbol, {minor} Untereinheit, {code} ISO-Code). t() setzt sie aus
+// der Einstellung `currency` ein (app.js ruft setCurrencyParams() nach dem
+// Laden der Einstellungen); explizite Parameter haben Vorrang.
+const CURRENCIES = {
+  EUR: { cur: '€',   minor: 'ct' },
+  CHF: { cur: 'CHF', minor: 'Rp.' },
+  GBP: { cur: '£',   minor: 'p' },
+};
+let currencyParams = { ...CURRENCIES.EUR, code: 'EUR' };
+
+/** @param {string} code ISO 4217 (EUR, CHF, GBP) */
+export function setCurrencyParams(code) {
+  const c = CURRENCIES[code] ? code : 'EUR';
+  currencyParams = { ...CURRENCIES[c], code: c };
+}
+
+/** Aktuelle Währung als ISO-Code. */
+export function getCurrency() { return currencyParams.code; }
+
+/** Währungssymbol für Achsen und Spaltenköpfe (€, CHF, £). */
+export function getCurrencySymbol() { return currencyParams.cur; }
+
+/** Untereinheit der Währung (ct, Rp., p) — für Preise je kWh oder Liter. */
+export function getCurrencyMinor() { return currencyParams.minor; }
+
 /**
  * Übersetzt einen Punkt-Key. Platzhalter `{name}` werden aus `params` ersetzt.
  * Reihenfolge: aktive Sprache → Default-Sprache → Key selbst.
@@ -85,8 +111,8 @@ export function t(key, params) {
   let str = lookup(catalog, key);
   if (str == null) str = lookup(fallback, key);
   if (str == null) return key;
-  if (params) {
-    for (const [k, v] of Object.entries(params)) {
+  if (str.includes('{')) {
+    for (const [k, v] of Object.entries({ ...currencyParams, ...(params || {}) })) {
       str = str.replaceAll(`{${k}}`, String(v));
     }
   }

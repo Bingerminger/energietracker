@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Energietracker\Services;
 
+use Energietracker\Config\Countries;
+
 /**
  * N1007 / v2.0.0 — Lokalisierung (Full-Stack-Anteil Backend).
  *
@@ -13,12 +15,20 @@ namespace Energietracker\Services;
  *
  * Locale-Auflösung (Vorrang absteigend):
  *   1. explizit per `setLocale()` / `t($key, …, $locale)`,
- *   2. `Accept-Language`-Header des Requests (per `negotiate()`),
- *   3. `language`-Setting aus `settings.json`,
+ *   2. `language`-Setting aus `settings.json` (App::handle() setzt es je Anfrage),
+ *   3. `Accept-Language`-Header — nur ohne gültiges Setting und beim Erststart,
  *   4. Default `de`.
+ * (Bis v2.6.0 stand hier die umgekehrte Reihenfolge von 2 und 3.)
  *
  * Fehlt ein Key in der Ziel-Sprache, greift der Default-Katalog (de); fehlt er
  * auch dort, wird der Key selbst zurückgegeben (im Dev sofort sichtbar).
+ *
+ * v2.7.0 — Länderprofil: Die Kataloge schreiben Währungen als Platzhalter
+ * ({cur} Symbol, {minor} Untereinheit, {code} ISO-Code); t() setzt sie aus
+ * der Einstellung `currency` ein. Dazu Zahl, Betrag, Datum und Monat in der
+ * Schreibweise von Sprache und Land (number(), money(), date(), month()) —
+ * bis v2.6.0 formatierte das Backend fest deutsch, und im englischen
+ * PDF-Bericht las man „10.359 kWh" als rund zehn Kilowattstunden.
  */
 final class I18nService
 {
@@ -142,8 +152,11 @@ final class I18nService
         if ($value === null) {
             return $key;
         }
-        foreach ($params as $k => $v) {
-            $value = str_replace('{' . $k . '}', (string)$v, $value);
+        if (str_contains($value, '{')) {
+            // explizite Parameter haben Vorrang vor den Währungs-Platzhaltern
+            foreach ($params + $this->currencyParams() as $k => $v) {
+                $value = str_replace('{' . $k . '}', (string)$v, $value);
+            }
         }
         if (str_starts_with($key, 'errors.')) {
             $this->errorKeys[$value] = $key;
@@ -210,6 +223,76 @@ final class I18nService
             ? \Energietracker\Config\Utilities::get($utility)
             : [];
         return (string)($def['default_meter_name'] ?? $utility);
+    }
+
+    // ── v2.7.0 — Schreibweise nach Sprache und Land (I18N-02) ─────────────
+
+    /**
+     * Währungs-Platzhalter aus der Einstellung `currency`.
+     *
+     * @return array{cur:string, minor:string, code:string}
+     */
+    public function currencyParams(): array
+    {
+        $code = (string)$this->settings->get('currency', 'EUR');
+        if (!isset(Countries::CURRENCIES[$code])) $code = 'EUR';
+        $c = Countries::currency($code);
+        return ['cur' => $c['symbol'], 'minor' => $c['minor'], 'code' => $code];
+    }
+
+    /** Zahl mit landesüblichen Trennzeichen (Katalog `format.*`, Länder-Ausnahmen in Countries). */
+    public function number(float $value, int $decimals = 0): string
+    {
+        [$decimal, $group] = $this->separators();
+        return number_format($value, $decimals, $decimal, $group);
+    }
+
+    /** Betrag in der Währung der Einstellung („1.234,56 €", „£1,234.56", „CHF 1’234.56"). */
+    public function money(float $value, int $decimals = 2): string
+    {
+        // Beträge trennen in manchen Ländern anders als Zahlen (Intl: de-AT
+        // „€ 1.234,56" neben „1 234,5"; fr-CH „1'234.56 CHF" neben „1'234,5").
+        $o = $this->formatOverride();
+        [$decimal, $group] = $this->separators();
+        $amount = number_format(abs($value), $decimals, $o['money_decimal'] ?? $decimal, $o['money_group'] ?? $group);
+        $pattern = $o['money'] ?? $this->t('format.money');
+        if (!str_contains($pattern, '{amount}')) $pattern = '{amount} {cur}';
+        $out = str_replace(['{amount}', '{cur}'], [$amount, $this->currencyParams()['cur']], $pattern);
+        return $value < 0 ? '-' . $out : $out;
+    }
+
+    /** Datum (ISO oder beliebig von strtotime lesbar) im Muster des Katalogs `format.date`. */
+    public function date(string $value): string
+    {
+        $ts = strtotime($value);
+        if ($ts === false) return $value;
+        $pattern = $this->formatOverride()['date'] ?? $this->t('format.date');
+        return date($pattern === 'format.date' ? 'd.m.Y' : $pattern, $ts);
+    }
+
+    /** Monat „2025-01" als „Jan. 2025" (Kurznamen aus `format.monthsShort`). */
+    public function month(string $ym): string
+    {
+        if (!preg_match('/^(\d{4})-(\d{2})$/', $ym, $m)) return $ym;
+        $names = array_map('trim', explode(',', $this->t('format.monthsShort')));
+        $i = (int)$m[2] - 1;
+        return count($names) === 12 && isset($names[$i]) ? $names[$i] . ' ' . $m[1] : $ym;
+    }
+
+    /** @return array{0:string,1:string} Dezimal- und Tausendertrenner */
+    private function separators(): array
+    {
+        $o = $this->formatOverride();
+        $decimal = $o['decimal'] ?? $this->t('format.decimal');
+        $group   = $o['group']   ?? $this->t('format.group');
+        // fehlender Katalogschlüssel → deutsche Schreibweise statt des Schlüsselnamens
+        return [$decimal === 'format.decimal' ? ',' : $decimal, $group === 'format.group' ? '.' : $group];
+    }
+
+    /** @return array<string,string> */
+    private function formatOverride(): array
+    {
+        return Countries::formatOverride((string)$this->settings->get('country', Countries::DEFAULT), $this->locale());
     }
 
     private function lookup(string $locale, string $key): ?string

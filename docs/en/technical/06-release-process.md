@@ -397,6 +397,23 @@ accepted.
   objects outside the view are collected in a list and removed on the next
   render. And: a message must not cover the button it refers to — with a dialog
   open, toasts appear at the top.
+- **"Language-country" is not always a region anyone wants (v2.7.0).** The
+  first draft of the country profiles built the `Intl` region as
+  `${language}-${country}` — for English with the default country DE that is
+  "en-DE", and `Intl` writes German numbers there. Every existing English
+  installation would have got them overnight. An older test
+  (`format.test.mjs`) that expected English numbers caught it. The rule since:
+  the country refines only languages spoken there; the backend follows the
+  same rule. And `Intl` sometimes separates amounts differently from numbers
+  (de-AT "€ 1.234,56" next to "1 234,5") — the backend mirrors that so PDF
+  and interface write the same.
+- **A default profile is a promise to every existing installation (v2.7.0).**
+  `CountriesTest` checks that the German profile equals the previous defaults
+  exactly — otherwise a small deviation (location name, CO₂ value) would
+  silently change every installation that picks "Apply all". On first start
+  the app writes only values that differ from the defaults; writing every
+  profile value would freeze the defaults, and a later correction would no
+  longer reach new installations.
 
 ---
 

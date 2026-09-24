@@ -21,7 +21,9 @@ Verbrauchsarten gebaut wird (Einstellungen → Aktive Verbrauchsarten).
 
 Einstieg. 12-Monats-Kennzahlen je Art, Effizienzklasse **pro
 Heizquelle**, Tank-Bestände (Öl/Pellets), **Strom-Saldo & Autarkie** bei
-PV, kombinierter Verbrauchsverlauf und fällige Termine.
+PV, kombinierter Verbrauchsverlauf und fällige Termine. Seit v2.7.0 steht
+die Effizienzklasse nur in Ländern mit Skala (Deutschland); sonst zeigt die
+Karte kWh/m²·a und nennt den Grund ([Länderprofile](../functional/14-laenderprofile.md)).
 
 ![Dashboard](screenshots/dashboard.png)
 
@@ -223,13 +225,24 @@ Erledigen wird der nächste Termin gemäß Recurrence fortgeschrieben.
 ## 10. Temperaturen
 
 CSV-Import (Drag & Drop), Open-Meteo-Sync für den hinterlegten
-Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung.
+Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung. Steht der
+Standort noch auf der Voreinstellung des Landes, sagt ein Hinweis das
+(v2.7.0) — die Gradtagzahlen rechnen dann mit dem Wetter eines anderen Orts.
 
 ![Temperaturen](screenshots/temperaturen.png)
 
 ---
 
 ## 11. Einstellungen
+
+Oben die Karte **Sprache & Land** (v2.7.0): Sprache, Land, Währung und
+Zeitzone, alle mit sofortiger Wirkung. Beim Wechsel des Landes zeigt ein
+Dialog die Werte, die das Länderprofil ändern würde — bisher und neu
+nebeneinander, mit der Quelle des CO₂-Faktors —, und bietet „Alle
+übernehmen“, „Nur Land ändern“ oder „Abbrechen“. Bei den
+Gas-Umrechnungsfaktoren lässt sich der Brennwert seit v2.7.0 in kWh/m³,
+MJ/m³ oder GJ/Smc eingeben; für britische, italienische und niederländische
+Rechnungen steht ein Hinweis dabei.
 
 Alle Einstellungen gruppiert: Umrechnung & HGT, **Abrechnungszyklus
 (TT-MM)**, Gebäude & Effizienz, Heizwerte, Prognosemodell, **Einbetten**
@@ -261,6 +274,8 @@ ankam, und warnt, wenn die Anmeldung an ist, aber kein Token existiert.
 
 ![Einstellungen](screenshots/einstellungen.png)
 
+![Länderprofil übernehmen](screenshots/laenderprofil.png)
+
 ![Anmeldung & Zugriff](screenshots/einstellungen-sicherheit.png)
 
 ---
@@ -273,7 +288,9 @@ Sonderzahlungen). Seit v2.5.3 verlangt der **Zählertausch** den Endstand,
 zeigt den letzten bekannten Stand und fasst den Tausch vor dem Ausführen
 zusammen. Ein **Vertrag** braucht Anbieter oder Tarif und mindestens einen
 Arbeitspreis; der Beginn ist mit dem Tag nach der laufenden Bindung vorbelegt,
-und bevor ein neuer Vertrag einen laufenden ablöst, fragt die App nach. Bei
+und bevor ein neuer Vertrag einen laufenden ablöst, fragt die App nach. Unter
+den Arbeitspreisen eines Gasvertrags rechnet **„Preis je m³ umrechnen“**
+(v2.7.0) einen Preis je m³ oder Smc in ct/kWh um und trägt ihn ein. Bei
 Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant — beim Anlegen
 und Bearbeiten eines Tanks werden **Tank-Kapazität** und **Anfangsbestand**
 erfasst (statt eines kumulativen Zählerstands). Bei kumulativen Zählern

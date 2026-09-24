@@ -52,12 +52,13 @@ energietracker/
 │       ├── router.js       # hash router
 │       ├── api.js          # fetch wrapper (BASE = 'api.php')
 │       ├── state.js        # utilities/settings cache
-│       ├── lib/            # sidebar, theme, format
+│       ├── lib/            # sidebar, theme, format, gas-factor
 │       ├── components/     # chart, modal, toast
 │       └── views/          # 12 views (see UI reference)
 ├── src/
 │   ├── bootstrap.php       # DI container + route table
 │   ├── Config/Utilities.php# utilities — single source of truth
+│   ├── Config/Countries.php# country profiles (v2.7.0) — single source of truth
 │   ├── Http/               # Router, Request, Response, ErrorHandler, CrossSiteGuard
 │   ├── Storage/            # JsonStore, Migrator, WriteLock
 │   ├── Support/            # Dates, Encoding

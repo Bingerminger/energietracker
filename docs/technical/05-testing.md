@@ -69,13 +69,14 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v1.9.2:
-**Frontend-API-Shape 20/20**, **Browser-Render 36/36** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.7.0:
+**Frontend-API-Shape 44/44**, **Browser-Render 64/64** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle).
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
-JSON-Dateien, ohne Mocks. Stand v1.9.2: **86 Tests / 274 Assertions**.
+JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.7.0: 346).
 Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
 **Pflicht-Gate vor jedem Commit** (siehe
 [Release-Prozess](06-release-process.md)).

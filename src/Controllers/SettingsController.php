@@ -5,6 +5,7 @@ namespace Energietracker\Controllers;
 
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
+use Energietracker\Config\Countries;
 use Energietracker\Services\SettingsService;
 
 /**
@@ -37,5 +38,15 @@ final class SettingsController
             }
         }
         Response::json($result);
+    }
+
+    /**
+     * v2.7.0 — Länderprofile (GET /api/countries): Voreinstellungen je Land,
+     * damit die Einstellungen vor dem Übernehmen zeigen können, was sich
+     * ändert. Quelle der Wahrheit: Config\Countries.
+     */
+    public function countries(Request $req): never
+    {
+        Response::json(Countries::all());
     }
 }

@@ -3,7 +3,7 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getSettings } from '../state.js';
+import { getSettings, getCountries } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { guardSubmit } from '../components/modal.js';
@@ -13,7 +13,16 @@ import { t } from '../lib/i18n.js';
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('temperatures.loading')}</div>`;
-  const [rawTemps, settings] = await Promise.all([api.temperatures(), getSettings()]);
+  const [rawTemps, settings, countries] = await Promise.all([
+    api.temperatures(), getSettings(), getCountries(),
+  ]);
+  // v2.7.0 — Steht der Standort noch auf der Voreinstellung des Landes
+  // (Hauptstadt bzw. Leipzig), rechnen Gradtagzahlen und Prognosen mit dem
+  // Wetter eines anderen Orts. Ein Hinweis unter den Koordinaten sagt das.
+  const profile = (countries || []).find(c => c.code === settings.country);
+  const defaultLocation = profile
+    && Number(settings.latitude) === Number(profile.latitude)
+    && Number(settings.longitude) === Number(profile.longitude);
 
   // Backend liefert eine Map { "YYYY-MM-DD": {min, avg, max} } — wir
   // brauchen hier eine sortierte Liste {date, min, avg, max} für die UI.
@@ -57,6 +66,7 @@ export async function render(container) {
           <div class="field"><label for="loc-name">${t('temperatures.locName')}</label><input class="input input--text" id="loc-name" value="${escapeHtml(settings.location_name || 'Leipzig')}"></div>
         </div>
         <p class="muted">${t('temperatures.locHint')}</p>
+        ${defaultLocation ? `<p class="banner banner--info" style="margin:var(--sp-3) 0 0">${escapeHtml(t('temperatures.locationDefault', { country: t('countries.' + profile.code), name: profile.location_name }))}</p>` : ''}
       </div>
     </div>
 

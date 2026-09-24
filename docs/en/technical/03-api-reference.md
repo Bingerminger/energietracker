@@ -12,7 +12,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 ```
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
-`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **82 routes**, v2.6.0 —
+`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **83 routes**, v2.7.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -79,7 +79,7 @@ promise about what may change. Three classes:
 |---|---|---|
 | **A — interfaces for other systems** | `POST /api/ingest`, `GET /api/health`, backup format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV exports and imports, master data (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`), error envelope with `code` | Additive changes only. Renaming or removing only with a **major version**, announced at least one minor version earlier in the CHANGELOG under "Deprecated". Old field names stay valid as aliases. |
 | **B — evaluations** | consumption, balance, forecast, tariff comparison/switch, bill check, efficiency, recommendations, PV/balance, `readings-overview` | Documented fields keep their name and meaning; new ones are added. **Values** may change when a calculation is corrected — the CHANGELOG says so. |
-| **C — user interface** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09` | Built for the app's own interface; changes are possible but listed in the CHANGELOG. |
+| **C — user interface** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09`, `countries` | Built for the app's own interface; changes are possible but listed in the CHANGELOG. |
 
 Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 (`surcharge`/`refund`/`balanced`) — without notice. That must not happen again.
@@ -103,6 +103,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/utilities` | list of utilities + configuration |
 | GET | `/api/settings` | settings |
 | PATCH | `/api/settings` | change settings |
+| GET | `/api/countries` | country profiles: defaults per country *(v2.7.0)* |
 | GET | `/api/temperatures` | daily temperatures (map) |
 | POST | `/api/temperatures` | upsert a day |
 | POST | `/api/temperatures/import-csv` | CSV import |
@@ -353,6 +354,34 @@ the migration turns the legacy value into the undated entry:
   with the factor valid on that day; a cut-off date inside a reading
   interval splits the interval.
 
+### Country profile: `country`, `currency`, `timezone`, `gas_cv_unit` *(v2.7.0, additive)*
+
+Four new settings; the defaults keep the previous behaviour (`DE`, `EUR`,
+`Europe/Berlin`, `kwh`). `PATCH` rejects unknown values with 400
+(`errors.settings.valueInvalid`):
+
+| Key | Allowed | Effect |
+|---|---|---|
+| `country` | `DE AT CH FR IT ES PT NL GB` | how numbers and dates are written (together with the language), efficiency scale |
+| `currency` | `EUR CHF GBP` | symbol and minor unit in every text. Amounts are **not** converted; `*_eur`/`ct_per_kwh` mean the major/minor unit of the chosen currency |
+| `timezone` | IANA name (`Europe/Vienna`) | PHP time zone (today, due dates) and day boundaries of the weather data |
+| `gas_cv_unit` | `kwh mj gj` | unit in which the interface takes the calorific value; storage is always kWh/m³ |
+
+`GET /api/countries` returns the profiles the interface proposes values from
+when the country changes (class C):
+
+```json
+{ "code": "AT", "languages": ["de"], "currency": "EUR", "timezone": "Europe/Vienna",
+  "hdd_base_temp": 15.0, "co2_strom": 103.0, "co2_strom_source": "ember-2024",
+  "efficiency_scale": null, "gas_cv_unit": "kwh",
+  "location_name": "Wien", "latitude": 48.2082, "longitude": 16.3738 }
+```
+
+On **first start** (empty data directory) the app picks language and country
+from `Accept-Language` and writes only the values that differ from the
+defaults. After that the header changes nothing. Details:
+[country profiles](../functional/14-laenderprofile.md).
+
 ### `GET /api/utility/gas/meters/{id}/bill-check?from=YYYY-MM-DD&to=YYYY-MM-DD` *(F1012, v2.5.0)*
 
 Recalculates the supplier bill: one section per boundary within the range
@@ -423,6 +452,7 @@ Since **v1.4.0** per heat source:
                 "kwh_per_m2": 106.9, "class": "D" },
   "combined": { "kwh": 10685.8, "kwh_per_m2": 106.9, "class": "D" },
   "thresholds": { "A+": 30, "A": 50, "…": 0 },
+  "scale": "geg", "scale_note": null,
   "note": null,
   "total_kwh": 10685.8, "kwh_per_m2": 106.9, "class": "D",
   "breakdown": { "gas": 10685.8 }
@@ -435,6 +465,12 @@ several would yield a nonsensical class. `primary` = the highest-consuming sourc
 `combined` = the sum (only meaningful with deliberately combined heating operation,
 `note` points to it). The top-level fields are backward-compatible aliases and have
 reflected the **primary** source since v1.4.0.
+
+*(v2.7.0)* `scale` names the efficiency scale of the configured country —
+today only `geg` (Germany). For other countries `scale` is `null`, every
+`class` field is `null`, and `scale_note` explains why; the figure
+`kwh_per_m2` stays. A class under German law would mislead in France (DPE)
+or Austria (HWB).
 
 ### `GET /api/export/{u}/deliveries.csv` *(v1.4.2, heating oil/pellets)*
 

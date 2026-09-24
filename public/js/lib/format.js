@@ -1,7 +1,7 @@
 // =====================================================================
 // Formatting helpers — locale-aware (N1007 / v2.0.0).
 // Zahlen, Währung, Datum und Monatsnamen richten sich nach der aktiven
-// Sprache (getLocale()). EUR bleibt die Währung.
+// Sprache (getLocale()); seit v2.7.0 Region und Währung aus dem Länderprofil.
 //
 // v2.2.0 — Datums- und Monatsformat kommen jetzt aus `Intl` statt aus
 // handgepflegten Tabellen. Vorher waren nur 'de' und 'en' abgebildet; die
@@ -10,7 +10,7 @@
 // („Mär", „Mai", „Dez") in einer ansonsten übersetzten Oberfläche.
 // =====================================================================
 
-import { getLocale } from './i18n.js';
+import { getLocale, getCurrency } from './i18n.js';
 
 // Regionalisierung der Sprachcodes. Ohne Region würde 'en' zu en-US werden
 // (MM/DD/YYYY, 1,234.56) — das Projekt zeigt britische Konventionen. Für eine
@@ -19,7 +19,38 @@ const REGION = {
   de: 'de-DE', en: 'en-GB', es: 'es-ES',
   fr: 'fr-FR', it: 'it-IT', nl: 'nl-NL', pt: 'pt-PT',
 };
-export const intlLocale = () => REGION[getLocale()] || getLocale() || 'de-DE';
+
+// v2.7.0 — Länderprofil (I18N-17): Wird die Sprache im Land gesprochen,
+// kommt die Region aus beiden — Deutsch in der Schweiz trennt Tausender mit
+// Apostroph und schreibt einen Dezimalpunkt (1'234.50), Deutsch in
+// Österreich stellt das €-Zeichen voran. Sonst gilt die Tabelle oben:
+// Englisch in Deutschland bleibt en-GB (Intl schriebe für en-DE deutsche
+// Zahlen — jede bestehende englische Installation hätte sie über Nacht
+// bekommen, denn das Land ist dort DE). Das Backend (PDF, Empfehlungstexte)
+// folgt derselben Regel über Config\Countries::FORMAT_OVERRIDES.
+let country = 'DE';
+let countryLanguages = [];
+/**
+ * @param {string} code       Land (ISO 3166, z. B. 'CH')
+ * @param {string[]} languages Sprachen des Landes laut Länderprofil
+ */
+export function setCountry(code, languages = []) {
+  country = /^[A-Z]{2}$/.test(String(code || '')) ? code : 'DE';
+  countryLanguages = Array.isArray(languages) ? languages : [];
+  numCache.clear(); eurCache.clear(); decCache.clear(); dateCache.clear(); monthCache.clear();
+}
+const regionCache = new Map();
+export const intlLocale = () => {
+  const lang = getLocale();
+  const key = `${lang}|${country}|${countryLanguages.join(',')}`;
+  if (!regionCache.has(key)) {
+    const tag = `${lang}-${country}`;
+    let ok = countryLanguages.includes(lang);
+    try { ok = ok && Intl.NumberFormat.supportedLocalesOf([tag]).length > 0; } catch { ok = false; }
+    regionCache.set(key, ok ? tag : (REGION[lang] || lang || 'de-DE'));
+  }
+  return regionCache.get(key);
+};
 
 // Formatter sind pro (locale, digits) gecached, damit nicht bei jedem Aufruf
 // ein neues Intl-Objekt entsteht.
@@ -34,13 +65,17 @@ function numFmt(d) {
   return f;
 }
 
+// v2.7.0 — Währung aus der Einstellung (EUR, CHF, GBP). Der Name `eur`
+// bleibt für die bestehenden Aufrufer; fmt.money ist derselbe Formatierer.
 const eurCache = new Map();
 function eurFmt() {
   const loc = intlLocale();
-  let f = eurCache.get(loc);
+  const cur = getCurrency();
+  const key = `${loc}|${cur}`;
+  let f = eurCache.get(key);
   if (!f) {
-    f = new Intl.NumberFormat(loc, { style: 'currency', currency: 'EUR' });
-    eurCache.set(loc, f);
+    f = new Intl.NumberFormat(loc, { style: 'currency', currency: cur });
+    eurCache.set(key, f);
   }
   return f;
 }
@@ -86,6 +121,7 @@ export const fmt = {
   dec:   (v, max=2) => v == null || isNaN(v) ? '–' : decFmt(max).format(Number(v)),
   int:   (v)      => v == null || isNaN(v) ? '–' : numFmt(0).format(Number(v)),
   eur:   (v)      => v == null || isNaN(v) ? '–' : eurFmt().format(Number(v)),
+  money: (v)      => v == null || isNaN(v) ? '–' : eurFmt().format(Number(v)),
   pct:   (v, d=1) => v == null || isNaN(v) ? '–' : numFmt(d).format(Number(v) * 100) + ' %',
   // v2.5.3 — Unlesbare Werte kommen ESCAPED zurück. Vorher gab `date()` jeden
   // String roh zurück, der kein Datum war, und die Aufrufer setzten das

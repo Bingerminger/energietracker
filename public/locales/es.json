@@ -210,9 +210,9 @@
     "balance": {
       "title": "⚖️ Saldo del contrato en curso — {name}",
       "noTariff": "sin datos de tarifa",
-      "unitWorkingWater": "{value} ct/m³ agua potable",
-      "unitWorking": "{value} ct/kWh",
-      "unitBase": "{value} €/mes",
+      "unitWorkingWater": "{value} {minor}/m³ agua potable",
+      "unitWorking": "{value} {minor}/kWh",
+      "unitBase": "{value} {cur}/mes",
       "unitAdvance": "Anticipo {value}",
       "consumedMonthsWater": "{months} meses · {m3} m³",
       "consumedMonths": "{months} meses · {kwh} kWh",
@@ -253,9 +253,9 @@
       "basisSep": "contador sep.",
       "basisTw": "consumo de agua potable",
       "perMonthShort": "{value}/mes",
-      "gpMonth": "{value} €/m término fijo",
-      "ctPerM3": "{value} ct/m³",
-      "eurPerM2Year": "{value} €/m²/año · {m2} m²",
+      "gpMonth": "{value} {cur}/m término fijo",
+      "ctPerM3": "{value} {minor}/m³",
+      "eurPerM2Year": "{value} {cur}/m²/año · {m2} m²",
       "consShort": "{value} consumo",
       "gpPlus": " + {value} término fijo"
     },
@@ -277,7 +277,7 @@
       "statePast": "PASADO",
       "stateFuture": "FUTURO",
       "periodOpen": "{start} → en curso",
-      "gpSuffix": "{value} € término fijo",
+      "gpSuffix": "{value} {cur} término fijo",
       "colSpecial": "Pagos especiales",
       "colSpecialTitle": "Neto de pagos especiales: las devoluciones del proveedor cuentan en positivo, los pagos complementarios y anticipos adicionales en negativo. Partidas individuales en la descripción emergente de la celda.",
       "hint": "Bono = abonos del contrato (bono inmediato, de cambio, de nuevo cliente). Pagos especiales = devoluciones (+), pagos complementarios y anticipos adicionales (−) fuera del plan de anticipos; ambos entran en el saldo. Pasa el cursor por la celda para ver las partidas; se gestionan en la administración de contratos."
@@ -291,9 +291,9 @@
       "colTempTitle": "Temperatura media del mes",
       "colHdd": "GD",
       "colHddTitle": "Grados-día de calefacción — suma de las diferencias diarias entre el límite de calefacción y la temperatura exterior",
-      "colPrice": "ct/{unit}",
-      "colCost": "Coste €",
-      "colAdvance": "Anticipo €",
+      "colPrice": "{minor}/{unit}",
+      "colCost": "Coste {cur}",
+      "colAdvance": "Anticipo {cur}",
       "colCumBalance": "Saldo (acum.)",
       "colCumBalanceTitle": "Saldo acumulado desde el inicio del contrato",
       "colCo2": "CO₂ kg",
@@ -358,8 +358,8 @@
       "titleNew": "Nueva entrega · {label}",
       "date": "Fecha de entrega",
       "quantity": "Cantidad ({unit})",
-      "unitPrice": "Precio por {unit} (ct, opcional)",
-      "total": "Importe total (€, opcional — sustituye precio×cantidad)",
+      "unitPrice": "Precio por {unit} ({minor}, opcional)",
+      "total": "Importe total ({cur}, opcional — sustituye precio×cantidad)",
       "supplier": "Proveedor (opcional)",
       "note": "Nota (opcional)",
       "planned": "Planificada (aún no entregada)",
@@ -440,8 +440,8 @@
       "swWorking": "Precio unitario de saneamiento"
     },
     "unit": {
-      "ctPerKwh": "ct/kWh",
-      "eurPerMonth": "€/mes"
+      "ctPerKwh": "{minor}/kWh",
+      "eurPerMonth": "{cur}/mes"
     },
     "loading": "Cargando…",
     "unknown": "Suministro desconocido: {key}",
@@ -524,7 +524,7 @@
       "title": "Bonificaciones / abonos",
       "add": "+ Bonificación",
       "creditDate": "Fecha de abono",
-      "amount": "Importe €",
+      "amount": "Importe {cur}",
       "type": "Tipo",
       "remove": "Quitar"
     },
@@ -533,11 +533,11 @@
       "add": "+ Pago extraordinario",
       "hint": "Devolución, pago adicional o anticipo extra. « Con efecto » también ajusta el anticipo mensual futuro.",
       "date": "Fecha",
-      "amount": "Importe €",
+      "amount": "Importe {cur}",
       "kind": "Tipo",
       "note": "Nota",
       "remove": "Quitar",
-      "newAdvance": "Nuevo anticipo €/mes",
+      "newAdvance": "Nuevo anticipo {cur}/mes",
       "advanceFrom": "Anticipo válido desde"
     },
     "water": {
@@ -556,26 +556,33 @@
       "nw": "☔ Agua pluvial",
       "advances": "💰 Anticipos",
       "bonuses": "🎁 Bonificaciones",
-      "twWorking": "Precio por m³ (ct/m³)",
-      "twBase": "Término fijo (€/mes)",
+      "twWorking": "Precio por m³ ({minor}/m³)",
+      "twBase": "Término fijo ({cur}/mes)",
       "basis": "Base de cálculo",
       "basisTw": "según el consumo de agua potable (predeterminado)",
       "basisSep": "contador de agua residual separado",
       "sepMeter": "Contador de agua residual",
       "noMoreMeters": "(aún no hay más contadores disponibles)",
-      "swWorking": "Precio por m³ aguas residuales (ct/m³)",
+      "swWorking": "Precio por m³ aguas residuales ({minor}/m³)",
       "nwRates": "Fecha de efecto",
-      "apMonthly": "Anticipo mensual (€)",
+      "apMonthly": "Anticipo mensual ({cur})",
       "colDate": "Fecha",
-      "colCtM3": "ct/m³",
-      "colEurMonth": "€/mes",
-      "colEurM2Year": "€/m²/año",
+      "colCtM3": "{minor}/m³",
+      "colEurMonth": "{cur}/mes",
+      "colEurM2Year": "{cur}/m²/año",
       "colSealedM2": "m² impermeabilizados",
       "bonusCredit": "Abono",
-      "bonusAmount": "Importe €",
+      "bonusAmount": "Importe {cur}",
       "bonusLabel": "Etiqueta",
       "addRow": "+ Fila",
       "startRequired": "El inicio del contrato es obligatorio."
+    },
+    "perM3": {
+      "toggleTitle": "Convertir un precio por m³ a {minor}/kWh",
+      "label": "Precio por m³ ({cur})",
+      "result": "= {ct} {minor}/kWh (÷ {hs} kWh/m³ de poder calorífico el {date})",
+      "resultFactor": "= {ct} {minor}/kWh (÷ factor de conversión {hs} kWh/m³ el {date})",
+      "apply": "Aplicar"
     }
   },
   "meters": {
@@ -722,8 +729,8 @@
     "saveUnsaved": "Guardar •",
     "saved": "Ajustes guardados",
     "lang": {
-      "title": "🌐 Idioma / Language",
-      "hint": "Idioma de la interfaz. El cambio tiene efecto inmediato.",
+      "title": "🌐 Idioma y país / Language",
+      "hint": "El idioma y el país tienen efecto inmediato. El país define el formato de números y fechas, la moneda y la zona horaria; al cambiarlo, la aplicación propone valores adecuados.",
       "label": "Idioma",
       "saved": "Idioma cambiado"
     },
@@ -1018,7 +1025,16 @@
       "previewDirect": "factor {f} kWh/m³",
       "errOneUndated": "Ya existe una entrada sin fecha — indica un «válido desde»",
       "errDuplicate": "Ya existe una entrada para esta fecha",
-      "errNeedValues": "Indica coeficiente de corrección y poder calorífico — o el factor directamente"
+      "errNeedValues": "Indica coeficiente de corrección y poder calorífico — o el factor directamente",
+      "cvUnit": "Introducir el poder calorífico en",
+      "colHsMj": "Poder calorífico (MJ/m³)",
+      "mjHint": "Los poderes caloríficos en MJ/m³ o GJ/Smc se convierten y se guardan en kWh/m³ (1 kWh = 3,6 MJ).",
+      "colHsGj": "Poder calorífico (GJ/Smc)",
+      "countryHint": {
+        "GB": "Facturas de gas británicas: coeficiente de corrección 1,02264 y poder calorífico en MJ/m³. Los contadores en pies cúbicos (ft³) no son compatibles.",
+        "IT": "Facturas de gas italianas: el «coefficiente C» como coeficiente de corrección y el PCS (poder calorífico superior), normalmente en GJ/Smc. El formulario del contrato convierte los precios por Smc a {minor}/kWh.",
+        "NL": "Facturas de gas neerlandesas: introduce el poder calorífico (calorische waarde) en MJ/m³. El formulario del contrato convierte los precios por m³ a {minor}/kWh."
+      }
     },
     "invalidFields": "No guardado: corrige los campos marcados en rojo.",
     "dayMonthInvalid": "Introduce día-mes, p. ej. 01-10 para el 1 de octubre.",
@@ -1063,6 +1079,25 @@
       "keyRevokeTitle": "¿Revocar la clave?",
       "keyRevokeMsg": "Los programas que usan la clave «{name}» perderán el acceso.",
       "keyRevoked": "Clave revocada."
+    },
+    "region": {
+      "country": "País",
+      "currency": "Moneda",
+      "timezone": "Zona horaria",
+      "saved": "Ajuste guardado",
+      "currencyNote": "Los importes no se convierten: la moneda solo cambia el símbolo y las etiquetas.",
+      "applyTitle": "¿Aplicar los valores predeterminados de {country}?",
+      "applyIntro": "El perfil del país propone estos valores:",
+      "applyKeep": "Los contadores, contratos y lecturas no cambian; los importes no se convierten.",
+      "applyAll": "Aplicar todo",
+      "applyCountryOnly": "Cambiar solo el país",
+      "colSetting": "Ajuste",
+      "colNow": "Actual",
+      "colProfile": "Perfil",
+      "source": {
+        "ember2024": "CO₂ electricidad: Ember 2024, mix de generación (vía Our World in Data)",
+        "default": "CO₂ electricidad: valor predeterminado anterior de la aplicación"
+      }
     }
   },
   "reminders": {
@@ -1130,7 +1165,8 @@
     "archiveError": "Archivo: {err}",
     "forecastError": "Previsión: {err}",
     "importToast": "Importación: {imported} días importados, {skipped} omitidos",
-    "coordInvalid": "Introduce un número entre {min} y {max}."
+    "coordInvalid": "Introduce un número entre {min} y {max}.",
+    "locationDefault": "La ubicación sigue siendo la predeterminada de {country} ({name}). Introduce tu ubicación para obtener grados-día precisos."
   },
   "recommendations": {
     "loading": "Cargando las recomendaciones…",
@@ -1204,7 +1240,7 @@
     "unitCostTitle": "Coste total por unidad — precio unitario, término fijo y bonificaciones juntos. La única cifra que compara con justicia periodos de distinta duración.",
     "legend": "Negativo (verde) = más barato que el contrato realmente facturado en los mismos meses. Se comparan solo costes de tarifa; los pagos a cuenta y las liquidaciones son flujos de caja y quedan fuera.",
     "action": { "edit": "Editar", "delete": "Eliminar" },
-    "col": { "tariff": "Tarifa", "period": "Periodo", "consumption": "Consumo", "cost": "Coste", "unitCost": "ct/{unit}", "vsReal": "vs. real", "savings": "Diferencia" },
+    "col": { "tariff": "Tarifa", "period": "Periodo", "consumption": "Consumo", "cost": "Coste", "unitCost": "{minor}/{unit}", "vsReal": "vs. real", "savings": "Diferencia" },
     "period": "Periodo: {label}",
     "periodRange": "Periodo: {label} ({from} – {to})",
     "shadow": {
@@ -1215,9 +1251,9 @@
       "provider": "Proveedor",
       "providerPlaceholder": "opcional",
       "start": "Válido desde",
-      "workingPrice": "Precio unitario (ct/{unit})",
+      "workingPrice": "Precio unitario ({minor}/{unit})",
       "workingPlaceholder": "p. ej. 8,50",
-      "basePrice": "Término fijo (€/mes)",
+      "basePrice": "Término fijo ({cur}/mes)",
       "basePlaceholder": "p. ej. 12,00",
       "create": "Crear",
       "validation": "La etiqueta, la fecha y el precio de la energía son obligatorios",
@@ -1232,7 +1268,7 @@
       "deleteTitle": "¿Eliminar el contrato hipotético?",
       "deleteMessage": "Se eliminará la hipótesis. Los contratos reales y las lecturas no se tocan.",
       "deleteConfirm": "Eliminar",
-      "signupBonus": "Bono de bienvenida (€)",
+      "signupBonus": "Bono de bienvenida ({cur})",
       "signupBonusPlaceholder": "p. ej. 130",
       "signupBonusHint": "Pago único, solo cuenta el primer año.",
       "priceGuarantee": "Precio garantizado hasta",
@@ -1402,7 +1438,7 @@
     "models": { "linear": "Lineal", "polynomial": "Polinómico (grado 2)", "robust": "Robusto (Huber)", "segmented": "Segmentado (calefacción/verano)", "sigmoid": "Sigmoide (firma de calefacción)" },
     "chartHist": "Histórico",
     "chartForecast": "Previsión",
-    "info": "Modelo: <strong>{model}</strong> · peso de mezcla: <strong>{blend} %</strong>{r2} · último precio de la energía: <strong>{price} ct/{unit}</strong>",
+    "info": "Modelo: <strong>{model}</strong> · peso de mezcla: <strong>{blend} %</strong>{r2} · último precio de la energía: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Saldo proyectado al final del horizonte:",
     "balanceSurcharge": "pago adicional",
     "balanceCredit": "crédito",
@@ -1435,13 +1471,14 @@
     "kpiPeakMonth": "Mes más alto",
     "kpiLowMonth": "Mes más bajo",
     "tableMonth": "Mes",
-    "tableCost": "Coste €",
+    "tableCost": "Coste {cur}",
     "tableTemp": "temp. media",
     "tableHdd": "GD",
     "tableWeatherAdj": "corr. clima",
     "tableDelta": "Δ%",
     "continued": "(cont.)",
-    "meterPageTitle": "{label} {year} — {meter}"
+    "meterPageTitle": "{label} {year} — {meter}",
+    "heatDemand": "Energía de calefacción · {label}"
   },
   "migration": {
     "warnNoSettings": "No se han encontrado ajustes en la copia — se aplican los valores por defecto.",
@@ -1454,10 +1491,10 @@
     "month": "Mes",
     "days": "Días",
     "consumption": "Consumo ({unit})",
-    "cost": "Coste (EUR)",
-    "advance": "Pago a cuenta (EUR)",
-    "monthBalance": "Saldo mensual (EUR)",
-    "balanceCumulative": "Saldo acumulado (EUR)",
+    "cost": "Coste ({code})",
+    "advance": "Pago a cuenta ({code})",
+    "monthBalance": "Saldo mensual ({code})",
+    "balanceCumulative": "Saldo acumulado ({code})",
     "avgTemp": "Temp media (°C)",
     "hdd": "GD",
     "co2": "CO2 (kg)"
@@ -1480,7 +1517,8 @@
     "benchmark": {
       "noLivingArea": "Superficie habitable sin definir — introdúcela en los ajustes para obtener la clase de eficiencia.",
       "noHeatData": "No se han encontrado datos de energía de calefacción para {year}.",
-      "multipleSources": "Varias fuentes de calor activas — la clase por fuente es más significativa que la suma combinada. La vista combinada solo tiene sentido con calefacción deliberadamente combinada (p. ej. carga base y de punta)."
+      "multipleSources": "Varias fuentes de calor activas — la clase por fuente es más significativa que la suma combinada. La vista combinada solo tiene sentido con calefacción deliberadamente combinada (p. ej. carga base y de punta).",
+      "noScale": "No hay escala de eficiencia para {country}. Las clases A+ a H siguen la ley alemana de energía en edificios (GEG) y por eso no se muestran."
     },
     "forecast": {
       "tooFewMonths": "Histórico insuficiente (menos de 6 meses).",
@@ -1559,7 +1597,7 @@
       "fields": {
         "date": "Fecha",
         "amount": "Importe",
-        "ratePerM2": "€/m²/año",
+        "ratePerM2": "{cur}/m²/año",
         "sealedArea": "superficie impermeabilizada",
         "creditDate": "Fecha de abono",
         "advanceDate": "Fecha de efecto del anticipo",
@@ -1637,7 +1675,8 @@
       "factorHsOutOfRange": "Poder calorífico {value} inverosímil — se espera entre 8 y 13 kWh/m³",
       "factorHalfPair": "Coeficiente de corrección y poder calorífico van juntos — indica ambos, o el factor directamente",
       "factorMissing": "Una entrada necesita coeficiente de corrección y poder calorífico, o bien un factor en kWh/m³",
-      "factorOutOfRange": "Factor de conversión {value} inverosímil — se espera entre 5 y 15 kWh/m³"
+      "factorOutOfRange": "Factor de conversión {value} inverosímil — se espera entre 5 y 15 kWh/m³",
+      "valueInvalid": "Valor «{value}» no válido para {key}"
     },
     "billCheck": {
       "gasOnly": "La comprobación de factura solo está disponible para gas",
@@ -1683,5 +1722,23 @@
     "magnitude": "El valor es más de diez veces la última lectura ({last} {unit}). ¿Falta la coma decimal?",
     "confirm": "Guardar de todos modos",
     "replace": "Sustituir"
+  },
+  "format": {
+    "decimal": ",",
+    "group": ".",
+    "date": "d/m/Y",
+    "monthsShort": "ene,feb,mar,abr,may,jun,jul,ago,sept,oct,nov,dic",
+    "money": "{amount} {cur}"
+  },
+  "countries": {
+    "DE": "Alemania",
+    "AT": "Austria",
+    "CH": "Suiza",
+    "FR": "Francia",
+    "IT": "Italia",
+    "ES": "España",
+    "PT": "Portugal",
+    "NL": "Países Bajos",
+    "GB": "Reino Unido"
   }
 }

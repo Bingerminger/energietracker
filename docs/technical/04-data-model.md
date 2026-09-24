@@ -256,6 +256,10 @@ Gruppen (Auswahl der Default-Werte):
 | `active_utilities` | alle | welche Arten in Sidebar/Dashboard sichtbar |
 | `location_name`, `latitude`, `longitude` | Leipzig | für Open-Meteo |
 | `language` | de | Sprache der Oberfläche und der API-Meldungen |
+| `country` | DE | *(v2.7.0)* Land: Schreibweise (mit der Sprache), Effizienzskala — [Länderprofile](../functional/14-laenderprofile.md) |
+| `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — Symbol und Untereinheit; Beträge werden nicht umgerechnet, `*_eur`/`ct_*` meinen Haupt-/Untereinheit |
+| `timezone` | Europe/Berlin | *(v2.7.0)* IANA-Zeitzone: „heute“, Fälligkeiten, Tagesgrenzen der Wetterdaten |
+| `gas_cv_unit` | kwh | *(v2.7.0)* Eingabeeinheit des Brennwerts (`kwh`, `mj`, `gj`); gespeichert wird immer kWh/m³ |
 | `frame_ancestors` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (CSP `frame-ancestors`), z. B. `http://homeassistant.local:8123` |
 
 Die vollständige Liste steht in `SettingsService::DEFAULTS`. Unbekannte

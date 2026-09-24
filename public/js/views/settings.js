@@ -6,13 +6,15 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { invalidateSettings, invalidateUtilities } from '../state.js';
+import { invalidateSettings, invalidateUtilities, getCountries } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso, intlLocale } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
 import { logout } from '../components/login.js';
 import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../lib/ha-snippet.js';
-import { t, getLocale, initI18n, getLanguages } from '../lib/i18n.js';
+import { t, getLocale, initI18n, getLanguages, setCurrencyParams } from '../lib/i18n.js';
+import { setCountry } from '../lib/format.js';
+import { CV_UNITS, cvUnit, gasFactorOf } from '../lib/gas-factor.js';
 import { buildSidebar } from '../lib/sidebar.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
@@ -118,7 +120,7 @@ function listen(target, type, handler) {
 export async function render(container) {
   unlistenAll();
   container.innerHTML = `<div class="loading">${t('settings.loading')}</div>`;
-  const [settings, diag, utilities, authStatus, session, apiKeys, snapshots] = await Promise.all([
+  const [settings, diag, utilities, authStatus, session, apiKeys, snapshots, countries] = await Promise.all([
     api.settings(),
     api.diagnostics().catch(() => null),
     api.listUtilities().catch(() => []),
@@ -127,6 +129,8 @@ export async function render(container) {
     api.session().catch(() => ({ mode: 'off', authenticated: true })),
     api.apiKeys().catch(() => []),
     api.snapshots().catch(() => []),
+    // v2.7.0 — Länderprofile für die Karte „Sprache & Land"
+    getCountries(),
   ]);
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
@@ -157,6 +161,7 @@ export async function render(container) {
             ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === getLocale() ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
           </select>
         </div>
+        ${renderRegionFields(settings, countries || [])}
       </div>
     </div>
 
@@ -350,6 +355,23 @@ export async function render(container) {
       render(container);
     } catch (err) { toastErr(err.message); }
   });
+
+  // v2.7.0 — Land, Währung und Zeitzone wirken wie die Sprache sofort. Beim
+  // Land schlägt ein Dialog die abweichenden Werte des Länderprofils vor.
+  container.querySelector('#country-select')?.addEventListener('change', async (e) => {
+    const code = e.target.value;
+    const profile = (countries || []).find(c => c.code === code);
+    const diff = profile ? profileDiff(settings, profile) : [];
+    const patch = { country: code };
+    if (diff.length) {
+      const choice = await chooseProfile(code, diff, profile);
+      if (choice === null) { e.target.value = settings.country; return; }
+      if (choice === 'all') diff.forEach(d => Object.assign(patch, d.patch));
+    }
+    applyRegion(container, patch, countries);
+  });
+  container.querySelector('#currency-select')?.addEventListener('change', (e) => applyRegion(container, { currency: e.target.value }, countries));
+  container.querySelector('#tz-select')?.addEventListener('change', (e) => applyRegion(container, { timezone: e.target.value }, countries));
 
   // v1.3.0 — PDF-Jahr-Auswahl aktualisiert den Download-Link
   const pdfYear = container.querySelector('#pdf-year');
@@ -663,6 +685,103 @@ export async function render(container) {
 
   // Der Router ruft diese Funktion beim Verlassen der Ansicht auf.
   return unlistenAll;
+}
+
+// ── v2.7.0 — Länderprofil (N1014) ────────────────────────────────────
+
+function renderRegionFields(settings, countries) {
+  const codes = countries.length ? countries.map(c => c.code) : [settings.country || 'DE'];
+  // Währungen aus den Profilen (SSOT Config\Countries), nicht aus einer Liste hier
+  const currencies = [...new Set([...countries.map(c => c.currency), settings.currency || 'EUR'])];
+  return `
+    <div class="field settings-field">
+      <label for="country-select">${t('settings.region.country')}</label>
+      <select class="select" id="country-select">
+        ${codes.map(c => `<option value="${c}" ${c === settings.country ? 'selected' : ''}>${escapeHtml(t('countries.' + c))}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field settings-field">
+      <label for="currency-select">${t('settings.region.currency')}</label>
+      <select class="select" id="currency-select" aria-describedby="currency-hint">
+        ${currencies.map(c => `<option value="${c}" ${c === settings.currency ? 'selected' : ''}>${c}</option>`).join('')}
+      </select>
+      <span class="settings-field__hint" id="currency-hint">${t('settings.region.currencyNote')}</span>
+    </div>
+    <div class="field settings-field">
+      <label for="tz-select">${t('settings.region.timezone')}</label>
+      <select class="select" id="tz-select">
+        ${timeZones(settings.timezone, countries).map(z => `<option value="${escapeHtml(z)}" ${z === settings.timezone ? 'selected' : ''}>${escapeHtml(z)}</option>`).join('')}
+      </select>
+    </div>`;
+}
+
+/** Zeitzonen aus Intl (falls vorhanden), ergänzt um die der Profile und die aktuelle. */
+function timeZones(current, countries) {
+  let all = [];
+  try { all = Intl.supportedValuesOf('timeZone'); } catch { all = []; }
+  return [...new Set([...all, ...countries.map(c => c.timezone), current || 'Europe/Berlin'])].sort();
+}
+
+/** Zeilen „bisher → Profil" für die Werte, in denen das Profil abweicht. */
+function profileDiff(settings, p) {
+  const rows = [];
+  const add = (key, label, now, next, patch) => {
+    if (now !== next) rows.push({ key, label, now, next, patch });
+  };
+  add('currency', t('settings.region.currency'), settings.currency, p.currency, { currency: p.currency });
+  add('timezone', t('settings.region.timezone'), settings.timezone, p.timezone, { timezone: p.timezone });
+  add('hdd_base_temp', t('settings.field.hdd_base_temp.label'),
+    fmt.num(settings.hdd_base_temp, 1) + ' °C', fmt.num(p.hdd_base_temp, 1) + ' °C', { hdd_base_temp: p.hdd_base_temp });
+  add('co2_strom', t('settings.field.co2_strom.label'),
+    fmt.num(settings.co2_strom, 0) + ' g/kWh', fmt.num(p.co2_strom, 0) + ' g/kWh', { co2_strom: p.co2_strom });
+  const loc = (name, lat, lon) => `${name} (${fmt.num(lat, 4)}, ${fmt.num(lon, 4)})`;
+  add('location', t('settings.group.location.title'),
+    loc(settings.location_name, settings.latitude, settings.longitude), loc(p.location_name, p.latitude, p.longitude),
+    { location_name: p.location_name, latitude: p.latitude, longitude: p.longitude });
+  const cv = (u) => cvUnit(u).label;
+  add('gas_cv_unit', t('settings.gasFactors.cvUnit'), cv(settings.gas_cv_unit), cv(p.gas_cv_unit), { gas_cv_unit: p.gas_cv_unit });
+  return rows;
+}
+
+/** Dialog: alle Profilwerte übernehmen, nur das Land ändern oder abbrechen. */
+function chooseProfile(code, diff, profile) {
+  const source = profile.co2_strom_source === 'ember-2024' ? 'ember2024' : 'default';
+  const ctrl = openModal({
+    title: t('settings.region.applyTitle', { country: t('countries.' + code) }),
+    body: `
+      <p>${t('settings.region.applyIntro')}</p>
+      <div class="table-wrap"><table class="table table--compact">
+        <thead><tr>
+          <th scope="col">${t('settings.region.colSetting')}</th>
+          <th scope="col">${t('settings.region.colNow')}</th>
+          <th scope="col">${t('settings.region.colProfile')}</th>
+        </tr></thead>
+        <tbody>${diff.map(d => `<tr><td>${escapeHtml(d.label)}</td><td>${escapeHtml(d.now)}</td><td><strong>${escapeHtml(d.next)}</strong></td></tr>`).join('')}</tbody>
+      </table></div>
+      ${diff.some(d => d.key === 'co2_strom') ? `<p class="muted">${escapeHtml(t('settings.region.source.' + source))}</p>` : ''}
+      <p class="muted">${t('settings.region.applyKeep')}</p>`,
+    footer: `
+      <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+      <button type="button" class="btn btn--ghost" data-act="country">${t('settings.region.applyCountryOnly')}</button>
+      <button type="button" class="btn btn--primary" data-act="all">${t('settings.region.applyAll')}</button>`,
+    onMount({ modalEl, close }) {
+      modalEl.querySelector('[data-act="cancel"]')?.addEventListener('click', () => close(null));
+      modalEl.querySelector('[data-act="country"]')?.addEventListener('click', () => close('country'));
+      modalEl.querySelector('[data-act="all"]')?.addEventListener('click', () => close('all'));
+    },
+  });
+  return ctrl.closedPromise.then(v => (v === 'all' || v === 'country') ? v : null);
+}
+
+async function applyRegion(container, patch, countries = []) {
+  try {
+    await api.updateSettings(patch);
+    invalidateSettings();
+    if (patch.currency) setCurrencyParams(patch.currency);
+    if (patch.country) setCountry(patch.country, countries.find(c => c.code === patch.country)?.languages);
+    toastOk(t('settings.region.saved'));
+    render(container);
+  } catch (err) { toastErr(err.message); }
 }
 
 function copyText(text, okMsg) {
@@ -1022,13 +1141,13 @@ function renderGroup(g, settings) {
       <h3 class="card__title">${g.icon ? g.icon + ' ' : ''}${t('settings.group.' + g.gkey + '.title')}</h3>
       <p class="settings-card__hint">${t('settings.group.' + g.gkey + '.hint')}</p>
       <div class="settings-fields">
-        ${g.fields.map(f => renderField(f, settings[f.key])).join('')}
+        ${g.fields.map(f => renderField(f, settings[f.key], settings)).join('')}
       </div>
     </div>
   `;
 }
 
-function renderField(f, value) {
+function renderField(f, value, settings = {}) {
   // A11y (N1009): stabile id pro Feld, damit Label (for) und Control (id)
   // verknüpft sind und der Hinweis per aria-describedby zugeordnet werden kann.
   const fieldId = 'set-' + f.key;
@@ -1045,7 +1164,7 @@ function renderField(f, value) {
   const labelHtml = `<label for="${fieldId}">${t('settings.field.' + f.key + '.label')}${unit ? ` <span class="settings-field__unit">${escapeHtml(unit)}</span>` : ''}</label>`;
 
   if (f.type === 'gasfactors') {
-    return renderGasFactors(f, Array.isArray(value) ? value : [], hint);
+    return renderGasFactors(f, Array.isArray(value) ? value : [], hint, settings);
   }
   if (f.type === 'select') {
     return `<div class="field settings-field">
@@ -1127,40 +1246,48 @@ function firstInvalidSetting(container) {
 // lebt in einem versteckten JSON-Feld, das collectSettings() wie jedes
 // andere Feld einsammelt — Speichern läuft über denselben PATCH.
 
-function gfFactorOf(e) {
-  const z = Number(e.zustandszahl), hs = Number(e.brennwert);
-  if (Number.isFinite(z) && Number.isFinite(hs) && z > 0 && hs > 0) return z * hs;
-  return Number(e.kwh_per_m3);
-}
-
-function renderGasFactorRows(list) {
+// v2.7.0 — Brennwert wahlweise in MJ/m³ (Vereinigtes Königreich, Niederlande)
+// oder GJ/Smc (Italien). Gespeichert wird immer kWh/m³ (lib/gas-factor.js).
+function renderGasFactorRows(list, unit = CV_UNITS.kwh) {
   if (!list.length) return `<tr><td colspan="5" class="muted">${t('settings.gasFactors.none')}</td></tr>`;
   return list.map((e, i) => `
     <tr>
       <td>${e.from ? fmt.date(e.from) : `<span class="muted">${t('settings.gasFactors.undated')}</span>`}</td>
       <td class="num">${e.zustandszahl != null ? fmt.num(e.zustandszahl, 4) : '–'}</td>
-      <td class="num">${e.brennwert != null ? fmt.num(e.brennwert, 3) : '–'}</td>
-      <td class="num"><strong>${fmt.num(gfFactorOf(e), 3)}</strong></td>
+      <td class="num">${e.brennwert != null ? fmt.num(e.brennwert * unit.perKwh, unit.digits) : '–'}</td>
+      <td class="num"><strong>${fmt.num(gasFactorOf(e), 3)}</strong></td>
       <td><button type="button" class="btn btn--ghost btn--sm" data-gf-del="${i}" aria-label="${t('settings.gasFactors.remove')}">${t('settings.gasFactors.remove')}</button></td>
     </tr>`).join('');
 }
 
-function renderGasFactors(f, list, hint) {
+function renderGasFactors(f, list, hint, settings = {}) {
   const lastZ = [...list].reverse().find(e => e.zustandszahl != null)?.zustandszahl ?? '';
+  const unit = cvUnit(settings.gas_cv_unit);
+  const countryHint = t('settings.gasFactors.countryHint.' + settings.country);
   return `<div class="field settings-field settings-field--wide" data-gasfactors>
     <label>${t('settings.field.gas_conversion_factors.label')}</label>
     ${hint}
     <input type="hidden" data-key="${f.key}" data-type="json" value="${escapeHtml(JSON.stringify(list))}">
+    <div class="form-row" style="margin-top:8px; align-items:flex-end">
+      <div class="field">
+        <label for="set-gas_cv_unit">${t('settings.gasFactors.cvUnit')}</label>
+        <select class="select" id="set-gas_cv_unit" data-key="gas_cv_unit">
+          ${Object.entries(CV_UNITS).map(([k, u]) => `<option value="${k}" ${u === unit ? 'selected' : ''}>${u.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <p class="muted" data-gf-mjhint ${unit === CV_UNITS.kwh ? 'hidden' : ''}>${t('settings.gasFactors.mjHint')}</p>
+    ${countryHint.startsWith('settings.') ? '' : `<p class="muted">${countryHint}</p>`}
     <div class="table-wrap" style="margin-top:8px">
       <table class="table table--compact" data-gf-table>
         <thead><tr>
           <th scope="col">${t('settings.gasFactors.colFrom')}</th>
           <th scope="col" class="num">${t('settings.gasFactors.colZ')}</th>
-          <th scope="col" class="num">${t('settings.gasFactors.colHs')}</th>
+          <th scope="col" class="num" data-gf-hs-head>${t(unit.colKey)}</th>
           <th scope="col" class="num">${t('settings.gasFactors.colFactor')}</th>
           <th scope="col"></th>
         </tr></thead>
-        <tbody>${renderGasFactorRows(list)}</tbody>
+        <tbody>${renderGasFactorRows(list, unit)}</tbody>
       </table>
     </div>
     <div class="form-row" style="margin-top:10px; align-items:flex-end">
@@ -1173,8 +1300,8 @@ function renderGasFactors(f, list, hint) {
         <input class="input" id="gf-z" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(lastZ, 4))}" placeholder="${escapeHtml(formatForInput(0.96))}">
       </div>
       <div class="field">
-        <label for="gf-hs">${t('settings.gasFactors.colHs')}</label>
-        <input class="input" id="gf-hs" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(formatForInput(11.4))}">
+        <label for="gf-hs" data-gf-hs-label>${t(unit.colKey)}</label>
+        <input class="input" id="gf-hs" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(formatForInput(unit.sample, unit.digits))}">
       </div>
       <div class="field">
         <label for="gf-f">${t('settings.gasFactors.colFactorDirect')}</label>
@@ -1195,15 +1322,31 @@ function wireGasFactors(container) {
   const hidden = root.querySelector('[data-key="gas_conversion_factors"]');
   const tbody  = root.querySelector('[data-gf-table] tbody');
   const read   = () => { try { return JSON.parse(hidden.value || '[]'); } catch { return []; } };
+  const unitSel = root.querySelector('[data-key="gas_cv_unit"]');
+  const unit   = () => cvUnit(unitSel?.value);
   const write  = (list) => {
     hidden.value = JSON.stringify(list);
-    tbody.innerHTML = renderGasFactorRows(list);
+    tbody.innerHTML = renderGasFactorRows(list, unit());
     hidden.dispatchEvent(new Event('input', { bubbles: true }));   // Ungespeichert-Marker
   };
   // v2.5.3 — parseDecimal: `replace(',', '.')` machte aus „1.050,5" 1,05.
   const num = (id) => parseDecimal(root.querySelector('#' + id)?.value ?? '');
+  // v2.7.0 — Brennwert immer als kWh/m³ weiterrechnen, auch bei MJ-Eingabe
+  const hsKwh = () => {
+    const v = num('gf-hs');
+    return v && unit() !== CV_UNITS.kwh ? Number((v / unit().perKwh).toFixed(6)) : v;
+  };
+  unitSel?.addEventListener('change', () => {
+    const u = unit();
+    root.querySelector('[data-gf-hs-head]').textContent = t(u.colKey);
+    root.querySelector('[data-gf-hs-label]').textContent = t(u.colKey);
+    root.querySelector('#gf-hs')?.setAttribute('placeholder', formatForInput(u.sample, u.digits));
+    root.querySelector('[data-gf-mjhint]').hidden = u === CV_UNITS.kwh;
+    tbody.innerHTML = renderGasFactorRows(read(), u);
+    preview();
+  });
   const preview = () => {
-    const z = num('gf-z'), hs = num('gf-hs'), f = num('gf-f');
+    const z = num('gf-z'), hs = hsKwh(), f = num('gf-f');
     const el = root.querySelector('[data-gf-preview]');
     if (z && hs) el.textContent = t('settings.gasFactors.preview', { z: fmt.num(z, 4), hs: fmt.num(hs, 3), f: fmt.num(z * hs, 3) });
     else if (f) el.textContent = t('settings.gasFactors.previewDirect', { f: fmt.num(f, 3) });
@@ -1221,7 +1364,7 @@ function wireGasFactors(container) {
     }
     if (ev.target.closest('[data-gf-add]')) {
       const from = root.querySelector('#gf-from')?.value || null;
-      const z = num('gf-z'), hs = num('gf-hs'), f = num('gf-f');
+      const z = num('gf-z'), hs = hsKwh(), f = num('gf-f');
       const list = read();
       if (!from && list.some(e => !e.from)) { toastErr(t('settings.gasFactors.errOneUndated')); return; }
       if (from && list.some(e => e.from === from)) { toastErr(t('settings.gasFactors.errDuplicate')); return; }
@@ -1389,8 +1532,8 @@ function openMigrationDialog(previewResult, onDone) {
               ${candidates.map(c => `
                 <tr>
                   <td>${escapeHtml(c.utility)}</td>
-                  <td class="num">${escapeHtml(c.date)}</td>
-                  <td class="num">${escapeHtml(String(c.counter))}</td>
+                  <td class="num">${fmt.date(c.date)}</td>
+                  <td class="num">${fmt.dec(c.counter, 3)}</td>
                   <td style="font-size:11px;color:var(--text-2)">${escapeHtml(c.comment || '–')}</td>
                 </tr>
               `).join('')}

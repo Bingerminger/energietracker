@@ -160,6 +160,21 @@ Schlüssel werden nicht gespeichert; seit v2.6.0 nennt die Antwort sie in
 `ignored_keys` und in der Kopfzeile `X-Ignored-Keys` (bis v2.5.3 still
 verworfen — ein Tippfehler im Schlüssel fiel nicht auf).
 
+Seit v2.7.0 prüft der Endpunkt die Länderprofil-Schlüssel `country`,
+`currency`, `timezone` und `gas_cv_unit` gegen die erlaubten Werte (400
+`errors.settings.valueInvalid`):
+
+```json
+{ "country": "AT", "timezone": "Europe/Vienna" }
+```
+
+### `GET /api/countries` *(v2.7.0)*
+
+Die Länderprofile (Währung, Zeitzone, Heizgrenze, CO₂-Faktor Strom,
+Standort, Effizienzskala, Brennwert-Einheit). Schreibt nichts — was davon
+übernommen wird, entscheidet der Aufrufer per `PATCH /api/settings`.
+Feldliste: [API-Referenz](technical/03-api-reference.md#länderprofil-country-currency-timezone-gas_cv_unit-v270-additiv).
+
 ---
 
 ## Temperaturen

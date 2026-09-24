@@ -8,6 +8,7 @@ import { api } from './api.js';
 const state = {
   utilities: null,
   settings: null,
+  countries: null,
   version: document.body.getAttribute('data-app-version') || '1.2.0',
 };
 
@@ -43,6 +44,17 @@ export async function activeUtilities() {
     ? settings.active_utilities
     : utilities.map(u => u.key);
   return utilities.filter(u => active.includes(u.key));
+}
+
+/**
+ * v2.7.0 — Länderprofile (GET /api/countries). Statische Daten, einmal je
+ * Sitzung geladen; ohne Netz eine leere Liste — dann gilt die Region der
+ * Sprache wie vor v2.7.0.
+ */
+export async function getCountries() {
+  if (state.countries) return state.countries;
+  try { state.countries = await api.countries(); } catch { return []; }
+  return state.countries;
 }
 
 export function invalidateSettings() { state.settings = null; }

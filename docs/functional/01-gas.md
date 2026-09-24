@@ -62,6 +62,10 @@ Wichtig zu wissen:
   jeden Verbrauch verzehnfachen — still.
 - Heizöl und Pellets behalten ihren Skalar; dort veröffentlicht niemand
   monatlich einen neuen Brennwert.
+- *(v2.7.0)* Den Brennwert nimmt die Eingabe auch in **MJ/m³** (Vereinigtes
+  Königreich, Niederlande) oder **GJ/Smc** (Italien) entgegen und rechnet ihn
+  in kWh/m³ um — gespeichert und geprüft wird weiter in kWh/m³. Siehe
+  [Länderprofile](14-laenderprofile.md#7-gas-brennwert-einheit-und-preis-je-kubikmeter).
 
 ## Rechnungsprüfung
 
@@ -111,6 +115,10 @@ erwartete Endsaldierung bis zum Abrechnungsstichtag.
 Rück-/Nachzahlungen und zusätzliche Abschlagszahlungen werden als
 **[Sonderzahlungen](10-sonderzahlungen.md)** (F1003) erfasst und gehen in
 den Saldo ein.
+
+Steht der Arbeitspreis auf der Rechnung **je m³** (Italien, Niederlande),
+rechnet die Hilfe „Preis je m³ umrechnen“ unter den Arbeitspreisen ihn in
+ct/kWh um — geteilt durch den Brennwert, der am gewählten Tag gilt *(v2.7.0)*.
 
 ## Typische Stolpersteine
 

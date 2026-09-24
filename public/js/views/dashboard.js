@@ -86,7 +86,7 @@ export async function render(container) {
         <h2 class="card__title"><span aria-hidden="true">🏅</span> ${t('dashboard.efficiency.title')} ${eff.year}</h2>
         ${eff.per_source.length === 1 ? `
           <div class="dash-eff">
-            <span class="dash-eff__class">${eff.per_source[0].class ?? '–'}</span>
+            ${eff.scale === null ? '' : `<span class="dash-eff__class">${eff.per_source[0].class ?? '–'}</span>`}
             <span class="dash-eff__val">${fmt.num(eff.per_source[0].kwh_per_m2, 0)} kWh/m²·a</span>
           </div>
           <div class="kpi__sub">${escapeHtml(eff.per_source[0].label)} · ${t('dashboard.efficiency.livingArea', { area: eff.wohnflaeche_m2 })}</div>
@@ -95,12 +95,13 @@ export async function render(container) {
             ${eff.per_source.map(s => `
               <div class="dash-eff-row">
                 <span class="dash-eff-row__src">${escapeHtml(s.label)}</span>
-                <span class="dash-eff-row__cls badge badge--${effClsTone(s.class)}">${s.class ?? '–'}</span>
+                ${eff.scale === null ? '' : `<span class="dash-eff-row__cls badge badge--${effClsTone(s.class)}">${s.class ?? '–'}</span>`}
                 <span class="dash-eff-row__val">${fmt.num(s.kwh_per_m2, 0)} kWh/m²·a</span>
               </div>`).join('')}
           </div>
           <div class="kpi__sub">${t('dashboard.efficiency.perSource', { area: eff.wohnflaeche_m2 })}</div>
         `}
+        ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
       </div>` : ''}
 
       ${tanks.length ? `
@@ -169,7 +170,7 @@ export async function render(container) {
         </h2>
         ${dueRem.map(r => `<div class="dash-rec">
           <strong>${escapeHtml(r.title)}</strong>
-          <span class="muted">${t('dashboard.reminders.due', { date: r.next_due })}${r.days_until != null ? ` (${r.days_until <= 0 ? t('dashboard.reminders.now') : t('dashboard.reminders.inDays', { days: r.days_until })})` : ''}</span>
+          <span class="muted">${t('dashboard.reminders.due', { date: fmt.date(r.next_due) })}${r.days_until != null ? ` (${r.days_until <= 0 ? t('dashboard.reminders.now') : t('dashboard.reminders.inDays', { days: r.days_until })})` : ''}</span>
         </div>`).join('')}
       </div>` : ''}
     </div>`;

@@ -56,6 +56,7 @@ JSON file on your own machine.
 | [Meter-reading entry (F1004)](functional/11-zaehlerstaende.md) | Central mobile reading view (gas/electricity/water/district heating) |
 | [PV feed-in & generation (F1005)](functional/12-pv.md) | Feed-in meter, generation meter, electricity balance, self-sufficiency rate |
 | [Meter topology (F1006)](functional/13-meter-topologie.md) | Sub-meters (series) & meter groups — difference consumption and dashboard bundling |
+| [Country profiles (N1014)](functional/14-laenderprofile.md) | Country, currency, time zone, formats; efficiency scale, CO₂ factors, heating threshold and gas units per country |
 
 ### 🚀 Getting started & practice — *for new users*
 
@@ -91,6 +92,9 @@ JSON file on your own machine.
 
 - **"I have main and sub-meters, or want to bundle meters."**
   → [Meter topology](functional/13-meter-topologie.md)
+
+- **"I don't live in Germany."**
+  → [Country profiles](functional/14-laenderprofile.md)
 
 - **"I want to understand how the forecast is computed."**
   → [Fundamentals & methodology](functional/00-overview.md)

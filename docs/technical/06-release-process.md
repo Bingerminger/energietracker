@@ -429,6 +429,23 @@ abgenommen ist.
   werden in einer Liste gesammelt und beim nächsten Rendern abgemeldet. Und:
   Eine Meldung darf den Knopf nicht verdecken, auf den sie sich bezieht —
   bei offenem Dialog erscheinen Toasts oben.
+- **„Sprache-Land" ist nicht immer eine Region, die jemand will (v2.7.0).**
+  Der erste Entwurf der Länderprofile bildete die `Intl`-Region als
+  `${sprache}-${land}` — für Englisch mit dem Default-Land DE also „en-DE",
+  und `Intl` schreibt dort deutsche Zahlen. Jede bestehende englische
+  Installation hätte sie über Nacht bekommen. Aufgefallen ist es an einem
+  älteren Test (`format.test.mjs`), der englische Zahlen erwartete. Regel
+  seitdem: Das Land verfeinert nur Sprachen, die dort gesprochen werden;
+  das Backend folgt derselben Regel. Und `Intl` trennt Beträge teils anders
+  als Zahlen (de-AT „€ 1.234,56" neben „1 234,5") — das Backend bildet es
+  nach, damit PDF und Oberfläche gleich schreiben.
+- **Ein Default-Profil ist ein Versprechen an alle Bestandsinstallationen
+  (v2.7.0).** Dass das deutsche Profil genau den bisherigen Defaults
+  entspricht, prüft `CountriesTest` — sonst würde eine kleine Abweichung
+  (Standortname, CO₂-Wert) still jede Installation verändern, die „Alle
+  übernehmen" wählt. Beim Erststart schreibt die App nur Abweichungen vom
+  Default fest; wer alle Profilwerte schreibt, friert die Defaults ein, und
+  eine spätere Korrektur erreicht neue Installationen nicht mehr.
 
 ---
 

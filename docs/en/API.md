@@ -159,6 +159,21 @@ stored; since v2.6.0 the response names them in `ignored_keys` and in the
 `X-Ignored-Keys` header (up to v2.5.3 they were dropped silently — a typo in a
 key went unnoticed).
 
+Since v2.7.0 the endpoint checks the country-profile keys `country`, `currency`,
+`timezone` and `gas_cv_unit` against their allowed values (400
+`errors.settings.valueInvalid`):
+
+```json
+{ "country": "AT", "timezone": "Europe/Vienna" }
+```
+
+### `GET /api/countries` *(v2.7.0)*
+
+The country profiles (currency, time zone, heating threshold, CO₂ factor for
+electricity, location, efficiency scale, calorific-value unit). Writes nothing —
+the caller decides what to adopt via `PATCH /api/settings`. Field list:
+[API reference](technical/03-api-reference.md#country-profile-country-currency-timezone-gas_cv_unit-v270-additive).
+
 ---
 
 ## Temperatures

@@ -19,7 +19,7 @@ import { makeChart, themeColors } from '../components/chart.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { t } from '../lib/i18n.js';
+import { t, getCurrencyMinor } from '../lib/i18n.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 
 let _chart = null;
@@ -633,7 +633,7 @@ function contractsTable(contracts, u) {
         ? t('utility.contractsTable.periodOpen', { start: fmt.date(c.start) })
         : `${fmt.date(c.start)} → ${fmt.date(c.end)}`;
       const tariffParts = [];
-      if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + ' ct');
+      if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + ' ' + getCurrencyMinor());
       if (c.current_base_price_eur   != null) tariffParts.push(t('utility.contractsTable.gpSuffix', { value: fmt.int(c.current_base_price_eur) }));
       const tariffStr = tariffParts.length ? tariffParts.join(' · ') : '–';
       const bonusStr = c.actual_bonus_total > 0 ? fmt.eur(c.actual_bonus_total) : '–';
@@ -842,7 +842,7 @@ function deliveriesTable(deliveries, u) {
       return `<tr data-delivery-id="${escapeHtml(d.id)}">
         <td><strong>${fmt.date(d.date)}</strong> ${d.is_planned ? `<span class="status-pill future">${t('utility.deliveriesTable.planned')}</span>` : ''}</td>
         <td class="num">${fmt.num(qty, 0)} ${unit}</td>
-        <td class="num">${upC != null ? fmt.num(upC, 2) + ' ct' : '–'}</td>
+        <td class="num">${upC != null ? fmt.num(upC, 2) + ' ' + getCurrencyMinor() : '–'}</td>
         <td class="num">${tot != null ? fmt.eur(tot) : '–'}</td>
         <td>${escapeHtml(d.supplier || '')}</td>
         <td class="muted" style="font-size:12px">${escapeHtml(d.note || '')}</td>

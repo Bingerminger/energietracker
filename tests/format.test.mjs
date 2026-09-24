@@ -10,8 +10,10 @@
 //     Aufrufer setzen das Ergebnis in innerHTML (gespeichertes XSS).
 // =====================================================================
 
-import { parseDecimal, fmt, todayIso, formatForInput } from '../public/js/lib/format.js';
-import { initI18n } from '../public/js/lib/i18n.js';
+import { readFileSync } from 'node:fs';
+import { parseDecimal, fmt, todayIso, formatForInput, setCountry, intlLocale } from '../public/js/lib/format.js';
+import { initI18n, t, setCurrencyParams, getCurrency } from '../public/js/lib/i18n.js';
+import { gasEntryOn, gasFactorOf, cvUnit, CV_UNITS } from '../public/js/lib/gas-factor.js';
 
 // i18n lädt Kataloge per fetch; ohne Server scheitert das still — die Sprache
 // wird trotzdem gesetzt. Die Konsolenmeldung dazu ist hier erwartet. Das
@@ -57,6 +59,60 @@ eq(fmt.date(''), '–', 'leer');
 eq(fmt.month('2026-03').includes('2026'), true, 'Monat');
 eq(fmt.month('<b>'), '&lt;b&gt;', 'Monat: HTML wird escaped');
 eq(fmt.month('2026-13'), '2026-13', 'Monat 13 rollt nicht über');
+
+// ── v2.7.0 — Länderprofil: Region aus Sprache + Land, Währung ─────────
+await initI18n('de');
+setCountry('CH', ['de', 'fr', 'it']); setCurrencyParams('CHF');
+eq(intlLocale(), 'de-CH', 'Region aus Sprache und Land');
+eq(fmt.money(1234.5).startsWith('CHF'), true, 'de-CH: Franken vor dem Betrag');
+eq(/^1.234\.5$/.test(fmt.num(1234.5, 1)), true, 'de-CH: Dezimalpunkt');
+setCountry('DE', ['de']); setCurrencyParams('EUR');
+eq(intlLocale(), 'de-DE', 'zurück auf Deutschland');
+eq(fmt.money(1234.5), '1.234,50\u00a0€', 'de-DE: Euro');
+await initI18n('en');
+// Bestandsinstallationen tragen das Land DE — Englisch muss dort englisch
+// schreiben bleiben (Intl schriebe für en-DE „1.234,5").
+setCountry('DE', ['de']);
+eq(intlLocale(), 'en-GB', 'Englisch in Deutschland bleibt en-GB');
+eq(fmt.num(1234.5, 1), '1,234.5', 'Englisch in Deutschland: englische Zahlen');
+setCountry('GB', ['en']); setCurrencyParams('GBP');
+eq(fmt.money(1234.5), '£1,234.50', 'en-GB: Pfund');
+setCountry(null);
+eq(intlLocale(), 'en-GB', 'ungültiges Land: Region der Sprache');
+setCountry('DE', ['de']);
+setCurrencyParams('ZZZ');
+eq(getCurrency(), 'EUR', 'unbekannte Währung fällt auf EUR');
+
+// Katalog-Platzhalter {cur}/{minor}/{code}: dafür die echten Kataloge laden.
+const realFetch = globalThis.fetch;
+globalThis.fetch = async (url) => ({
+  ok: true, json: async () => JSON.parse(readFileSync(new URL('../' + url, import.meta.url), 'utf8')),
+});
+await initI18n('de');
+setCurrencyParams('CHF');
+eq(t('contracts.unit.ctPerKwh'), 'Rp./kWh', 'Untereinheit aus der Währung');
+eq(t('contracts.unit.ctPerKwh', { minor: 'x' }), 'x/kWh', 'ausdrückliche Parameter haben Vorrang');
+setCurrencyParams('EUR');
+eq(t('contracts.unit.ctPerKwh'), 'ct/kWh', 'Euro: ct');
+globalThis.fetch = realFetch;
+await initI18n('de');
+
+// ── v2.7.0 — Gas-Umrechnung: gültiger Eintrag, Einheiten ──────────────
+const gf = [
+  { from: '2025-01-01', zustandszahl: null, brennwert: null, kwh_per_m3: 10.5 },
+  { from: null, zustandszahl: null, brennwert: null, kwh_per_m3: 11 },
+  { from: '2024-07-01', zustandszahl: 0.95, brennwert: 11.2, kwh_per_m3: 10.64 },
+];
+eq(gasEntryOn(gf, '2024-01-01')?.kwh_per_m3, 11, 'vor dem ersten Stichtag gilt der undatierte Eintrag');
+eq(gasEntryOn(gf, '2024-07-01')?.brennwert, 11.2, 'Stichtag selbst gehört zum neuen Eintrag');
+eq(gasEntryOn(gf, '2026-03-01')?.kwh_per_m3, 10.5, 'spätester erreichter Stichtag');
+eq(gasEntryOn([{ from: '2030-01-01', kwh_per_m3: 10 }], '2024-01-01')?.kwh_per_m3, 10, 'nur künftige Stichtage: der früheste');
+eq(gasEntryOn([], '2024-01-01'), null, 'leere Liste');
+eq(Math.abs(gasFactorOf(gf[2]) - 10.64) < 1e-9, true, 'Faktor = Zustandszahl × Brennwert');
+eq(gasFactorOf(gf[0]), 10.5, 'Faktor direkt');
+eq(cvUnit('gj').perKwh, 0.0036, 'GJ/Smc');
+eq(cvUnit('mj').perKwh, 3.6, 'MJ/m³');
+eq(cvUnit('btu'), CV_UNITS.kwh, 'Unbekannte Einheit gilt als kWh/m³');
 
 // ── todayIso in Ortszeit ─────────────────────────────────────────────
 const d = new Date();

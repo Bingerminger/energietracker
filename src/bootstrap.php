@@ -12,6 +12,7 @@ use Energietracker\Logging\Logger;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Storage\Migrator;
 use Energietracker\Storage\WriteLock;
+use Energietracker\Config\Countries;
 use Energietracker\Services\{
     MeterService, ReadingService, ContractService, ConsumptionService,
     TemperatureService, RegressionService, ForecastService, AnomalyService,
@@ -95,6 +96,12 @@ final class App
 
         $this->store        = new JsonStore($dataDir);
         $this->settings     = new SettingsService($this->store);
+        // v2.7.0 — Zeitzone aus dem Länderprofil („heute" für Ablesungen,
+        // Fälligkeiten, Open-Meteo). Ein unlesbarer Wert lässt Berlin stehen.
+        $tz = (string)$this->settings->get('timezone', 'Europe/Berlin');
+        if ($tz !== 'Europe/Berlin' && in_array($tz, \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC), true)) {
+            date_default_timezone_set($tz);
+        }
         // N1007 (v2.0.0) — Lokalisierung: liest die JSON-Kataloge aus
         // public/locales/ (Single source mit dem Frontend).
         $this->i18n         = new I18nService(dirname(__DIR__) . '/public/locales', $this->settings);
@@ -160,9 +167,18 @@ final class App
         if ($migrator->isPristine() || $migrator->needsMigration() || !$migrator->isAlreadyMigrated()) {
             $this->writeLock->acquire();
             try {
+                // v2.7.0 — Erststart (I18N-01): Sprache und Land aus dem Browser,
+                // BEVOR die Standard-Zähler ihren Namen bekommen. Bis v2.6.0
+                // begrüßte jede Neuinstallation auf Deutsch und schrieb
+                // „Hauptzähler" dauerhaft in die Daten.
+                $firstStart = $migrator->isPristine() ? $this->firstStartSettings($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null) : null;
+                if ($firstStart !== null) $this->i18n->setLocale($firstStart['language'] ?? null);
                 $result = $migrator->runOnStartup(fn(string $from): string => $this->backups->saveSnapshot(
                     'pre-migration-' . preg_replace('/[^0-9A-Za-z.]/', '', $from) . '_'
                 ));
+                if ($firstStart !== null && ($result['action'] ?? null) === 'fresh' && $firstStart !== []) {
+                    $this->settings->set($firstStart);
+                }
                 $this->logStartup($result, $dataDir);
             } finally {
                 $this->writeLock->release();
@@ -175,6 +191,24 @@ final class App
 
     /** v2.5.3 — eine Sperre je schreibender Anfrage, s. Storage\WriteLock */
     private WriteLock $writeLock;
+
+    /**
+     * v2.7.0 — Einstellungen einer Neuinstallation aus Accept-Language:
+     * Sprache (wie negotiate()), Land (Region im Header, sonst aus der
+     * Sprache) und die Werte des Länderprofils — nur, was vom Default
+     * abweicht. So greifen spätere Korrekturen der Defaults auch bei neuen
+     * deutschen Installationen. Ohne Header (CLI, Tests) bleibt alles deutsch.
+     *
+     * @return array<string,mixed>
+     */
+    private function firstStartSettings(?string $acceptLanguage): array
+    {
+        $language = $this->i18n->negotiate($acceptLanguage) ?? I18nService::DEFAULT_LOCALE;
+        $country  = Countries::fromAcceptLanguage($acceptLanguage) ?? Countries::forLanguage($language);
+        $wanted   = ['language' => $language] + Countries::settingsFor($country);
+        $defaults = $this->settings->all();
+        return array_filter($wanted, fn($v, $k) => ($defaults[$k] ?? null) !== $v, ARRAY_FILTER_USE_BOTH);
+    }
 
     /**
      * v2.6.0 — Schemaversion der Daten, wenn sie von einer NEUEREN App-Version
@@ -412,6 +446,7 @@ final class App
         $sCtrl = new SettingsController($this->settings);
         $r->get('/api/settings',   fn($req) => $sCtrl->index($req));
         $r->patch('/api/settings', fn($req) => $sCtrl->update($req));
+        $r->get('/api/countries',  fn($req) => $sCtrl->countries($req));   // v2.7.0 — Länderprofile
 
         $bCtrl = new BackupController($this->backups);
         $r->get('/api/backup/export',     fn($req) => $bCtrl->export($req));

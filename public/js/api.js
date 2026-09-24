@@ -147,6 +147,8 @@ export const api = {
   // Settings, Backup, Diagnostics
   settings:      ()                    => request('GET',  '/api/settings'),
   updateSettings:(data)                => request('PATCH','/api/settings', data),
+  // v2.7.0 — Länderprofile (Voreinstellungen je Land)
+  countries:     ()                    => request('GET',  '/api/countries'),
   exportBackup:  ()                    => request('GET',  '/api/backup/export'),
   // v2.6.0 — { dryRun, allowWithoutSnapshot } als Query-Flags
   importBackup:  (data, { dryRun = false, allowWithoutSnapshot = false } = {}) =>

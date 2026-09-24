@@ -11,6 +11,11 @@ namespace Energietracker\Services;
  *      Zukunft, gleiche Aggregation.
  *
  * Benötigt `curl` als PHP-Extension (siehe DiagnosticsService).
+ *
+ * v2.7.0 — Tagesgrenzen in der Zeitzone der Installation (Einstellung
+ * `timezone`, vom Bootstrap als PHP-Standardzeitzone gesetzt). Vorher stand
+ * hier fest Europe/Berlin; in Lissabon oder London verschob das die
+ * Tagesmittel um eine Stunde.
  */
 final class WeatherService
 {
@@ -19,21 +24,35 @@ final class WeatherService
 
     public function fetchArchive(float $lat, float $lon, string $start, string $end): array
     {
-        $url = sprintf(
-            '%s?latitude=%.4f&longitude=%.4f&start_date=%s&end_date=%s&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=Europe%%2FBerlin',
-            self::ARCHIVE_API, $lat, $lon, $start, $end
-        );
-        return $this->fetchAndParse($url, 60);
+        return $this->fetchAndParse($this->archiveUrl($lat, $lon, $start, $end), 60);
     }
 
     public function fetchForecast(float $lat, float $lon, int $forecastDays = 14, int $pastDays = 0): array
     {
-        $url = sprintf(
-            '%s?latitude=%.4f&longitude=%.4f&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&forecast_days=%d&past_days=%d&timezone=Europe%%2FBerlin',
-            self::FORECAST_API, $lat, $lon,
-            max(0, min(16, $forecastDays)), max(0, min(92, $pastDays))
+        return $this->fetchAndParse($this->forecastUrl($lat, $lon, $forecastDays, $pastDays), 30);
+    }
+
+    public function archiveUrl(float $lat, float $lon, string $start, string $end): string
+    {
+        return sprintf(
+            '%s?latitude=%.4f&longitude=%.4f&start_date=%s&end_date=%s&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=%s',
+            self::ARCHIVE_API, $lat, $lon, $start, $end, self::timezone()
         );
-        return $this->fetchAndParse($url, 30);
+    }
+
+    public function forecastUrl(float $lat, float $lon, int $forecastDays = 14, int $pastDays = 0): string
+    {
+        return sprintf(
+            '%s?latitude=%.4f&longitude=%.4f&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&forecast_days=%d&past_days=%d&timezone=%s',
+            self::FORECAST_API, $lat, $lon,
+            max(0, min(16, $forecastDays)), max(0, min(92, $pastDays)), self::timezone()
+        );
+    }
+
+    /** Zeitzone für die Tagesgrenzen, URL-kodiert (Europe%2FBerlin). */
+    private static function timezone(): string
+    {
+        return rawurlencode(date_default_timezone_get());
     }
 
     private function fetchAndParse(string $url, int $timeout): array

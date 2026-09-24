@@ -6,6 +6,143 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.7.0] — 2026-09-25 — Länderprofile
+
+MINOR-Release (N1014). Kein Schema-Bump, keine Datenmigration. Vier neue
+Einstellungen mit Defaults, die dem bisherigen Verhalten entsprechen — wer
+nichts umstellt, merkt an bestehenden Schnittstellen nichts.
+
+**Der Anlass.** Die Oberfläche spricht seit v2.0.0 sieben Sprachen, alles
+andere war deutsch geblieben: Euro und Cent, Effizienzklassen nach dem
+Gebäudeenergiegesetz, der deutsche Strommix als CO₂-Faktor, 15 °C Heizgrenze,
+Leipzig als Wetterstandort, Europe/Berlin — und das Backend schrieb Zahlen
+fest deutsch: Im englischen PDF stand „10.359 kWh". Ein Länderprofil bündelt
+diese Voreinstellungen jetzt für Deutschland, Österreich, die Schweiz,
+Frankreich, Italien, Spanien, Portugal, die Niederlande und das Vereinigte
+Königreich (Review I18N-01 bis -05, I18N-17 teilweise, MKT-21).
+
+### ⚠️ Für bestehende Installationen
+
+- **Nichts umstellen = nichts ändert sich.** Die Defaults sind das deutsche
+  Profil, und das deutsche Profil ist das bisherige Verhalten — ein Test hält
+  beides gleich. Englische Oberflächen schreiben weiter englische Zahlen.
+- **PDF-Jahresbericht und Empfehlungstexte** schreiben Zahlen, Beträge, Daten
+  und Monate jetzt in der Sprache der Oberfläche: In einer englischen
+  Installation wird aus „10.359 kWh" „10,359 kWh", aus „2025-01" „Jan 2025".
+- **Wer das Land wechselt**, sieht die Effizienzklasse nur noch in
+  Deutschland; andere Länder zeigen die Kennzahl kWh/m²·a ohne Klasse.
+
+### Added — Länderprofile
+
+- **Einstellungen → Sprache & Land:** Land, Währung und Zeitzone neben der
+  Sprache; alle vier wirken sofort. Beim Wechsel des Landes zeigt ein Dialog,
+  welche Werte das Profil ändern würde (bisher → neu, mit Quelle des
+  CO₂-Faktors): **Alle übernehmen**, **Nur Land ändern** oder **Abbrechen**.
+  Zähler, Verträge und Ablesungen bleiben unberührt.
+- **Erststart nach Browsersprache (I18N-01):** Ein leeres Datenverzeichnis
+  übernimmt Sprache und Land aus `Accept-Language` („fr-CH" → Französisch,
+  Schweiz); die Standardzähler heißen gleich richtig („Compteur principal").
+  Geschrieben werden nur Werte, die vom Default abweichen — ein deutscher
+  Erststart schreibt nichts fest, spätere Default-Korrekturen greifen weiter.
+- **Profile (SSOT `src/Config/Countries.php`):** Währung, Zeitzone,
+  Heizgrenze nach nationaler Gradtag-Konvention (FR 18 °C, IT 20 °C, NL 18 °C,
+  UK 15,5 °C), CO₂-Faktor Strom (Ember 2024 über Our World in Data; DE behält
+  380 g/kWh), Wetterstandort (Hauptstadt), Effizienzskala, Brennwert-Einheit.
+- **Währung (I18N-03):** EUR, CHF, GBP. Symbol und Untereinheit in allen
+  Texten („Rp./kWh", „p/kWh", Achsen in CHF oder £). Beträge werden **nicht**
+  umgerechnet; die Datenfelder (`ct_per_kwh`, `*_eur`) bedeuten Haupt- und
+  Untereinheit der gewählten Währung.
+- **Gas (I18N-05):** Brennwert-Eingabe in kWh/m³, MJ/m³ oder GJ/Smc,
+  gespeichert immer in kWh/m³; Hinweise für britische, italienische und
+  niederländische Rechnungen. Im Gasvertrag rechnet **„Preis je m³
+  umrechnen"** einen Arbeitspreis je m³ oder Smc in ct/kWh um — geteilt durch
+  den Brennwert am gewählten Tag — und trägt ihn auf Wunsch ein.
+- **Temperaturen:** Hinweis, wenn der Standort noch die Voreinstellung des
+  Landes ist (die Gradtagzahlen rechnen dann mit dem Wetter eines anderen Orts).
+- **`GET /api/countries`** — die Profile (Klasse C).
+- Neues Kapitel [Länderprofile](docs/functional/14-laenderprofile.md) (DE/EN).
+
+### Changed
+
+- **Schreibweise aus Sprache und Land (I18N-17, teilweise):** Wird die Sprache
+  im Land gesprochen, verfeinert das Land die Region (de-AT „€ 1.234,56",
+  de-CH „1'234.50", fr-CH). Sonst gilt die Region der Sprache — Englisch in
+  Deutschland bleibt en-GB. Das Backend folgt derselben Regel.
+- **Effizienzklasse nur mit Skala (I18N-04):** Heute hat nur Deutschland eine
+  (GEG). Andernorts sind die Klassenfelder `null`, `scale` ist `null`, und
+  `scale_note` nennt den Grund; die Empfehlung „schwache Effizienzklasse"
+  entfällt dort. Dashboard und PDF zeigen die Kennzahl ohne Klasse.
+- **Empfehlungstexte:** Monate als „Jan. 2025" statt „2025-01", Zahlen mit
+  landesüblichem Dezimalzeichen.
+- **PDF:** Stufe der Empfehlung aus dem Katalog („[Dringend]" statt
+  „[URGENT]").
+
+### Changed — Schnittstellen (additiv)
+
+- `GET|PATCH /api/settings`: neue Schlüssel `country` (Default `DE`),
+  `currency` (`EUR`), `timezone` (`Europe/Berlin`), `gas_cv_unit` (`kwh`).
+  Unbekannte Werte → 400 `errors.settings.valueInvalid`.
+- `GET /api/benchmarks/efficiency`: neue Felder `scale`, `scale_note`.
+- CSV-Spaltenköpfe mit Währung nennen die gewählte Währung („Kosten (CHF)");
+  für Euro unverändert.
+
+### Fixed
+
+- **PDF-Jahresbericht (I18N-02):** Zahlen, Beträge, das Erstellungsdatum und
+  die Monate standen in jeder Sprache deutsch formatiert, Beträge immer in €.
+- **Termine:** Fälligkeiten standen im Dashboard und in der Terminliste als
+  „2026-07-22"; ebenso die Zäsuren am Zähler und die Vorschau der
+  v0.9.0-Migration.
+- **Wetterdaten:** Die Tagesmittel von Open-Meteo wurden immer in
+  Europe/Berlin gebildet — außerhalb dieser Zeitzone lag jede Tagesgrenze
+  daneben. Jetzt gilt die Zeitzone der Installation.
+
+### Migration
+
+Keine. Schema bleibt 1.5.0. Die neuen Schlüssel erscheinen in
+`settings.json` erst, wenn sie vom Default abweichen.
+
+### Tests
+
+324 → 346 Testmethoden (380 Fälle): `CountriesTest` (Profile vollständig,
+DE-Profil = ausgelieferte Defaults, Namen in allen Katalogen,
+Accept-Language, Einheiten Frontend = Backend), `CountryProfileTest`
+(Schreibweise für acht Sprach-Land-Kombinationen, Währung in Katalogtexten,
+kein fest eingeschriebenes Währungszeichen, Validierung, Effizienz ohne
+Skala, PDF in Englisch und für Österreich, Zeitzone der Wetterabfrage),
+`FirstStartProfileTest` (Erststart über einen echten `php -S`-Server mit
+fr-FR, en-GB und de-DE). Frontend ohne Server: `format.test.mjs` erweitert
+(Region, Währung, Katalog-Platzhalter, Gas-Einträge; 62 Prüfungen). API-Shape
+44/44 und Browser-Render 64/64 — neu: Länderprofile, Effizienzskala,
+Länderauswahl, Brennwert-Einheit und die Umrechnungshilfe. **14 Schutzstellen per
+Gegenprobe als greifend nachgewiesen.** Im Browser abgenommen:
+Länderwechsel mit Dialog, Österreich (Formate, Effizienz ohne Klasse),
+Vereinigtes Königreich (£, MJ/m³), Umrechnungshilfe — bei 1280 und 375 px.
+
+**Doku** DE + EN: Kapitel Länderprofile, API-Referenz (Route, Einstellungen,
+`scale`), Datenmodell, Gas, UI-Referenz mit neuen Screenshots, README.
+45 neue Katalogschlüssel × 7 Sprachen; 36 Texte tragen die Währung jetzt als
+Platzhalter (`{cur}`, `{minor}`, `{code}`).
+
+### Lessons Learned
+
+- **„Sprache-Land" ist nicht immer eine Region, die jemand will.** Der erste
+  Entwurf bildete `${sprache}-${land}` — für Englisch mit dem Default-Land DE
+  also „en-DE", und `Intl` schreibt dort deutsche Zahlen. Jede bestehende
+  englische Installation hätte sie über Nacht bekommen. Ein älterer Test fiel
+  darüber; die Regel lautet jetzt: Das Land verfeinert nur Sprachen, die dort
+  gesprochen werden.
+- **Ein Default-Profil ist ein Versprechen an alle Bestandsinstallationen.**
+  Dass das deutsche Profil genau den bisherigen Defaults entspricht, prüft
+  ein Test — sonst würde eine kleine Abweichung (Standortname, CO₂-Wert) still
+  jede bestehende Installation verändern, sobald jemand „Alle übernehmen"
+  anbietet.
+- **Beim Erststart nur Abweichungen schreiben.** Wer alle Profilwerte
+  festschreibt, friert die Defaults ein: Eine spätere Korrektur (etwa der
+  CO₂-Faktoren) erreichte neue Installationen nicht mehr.
+
+---
+
 ## [2.6.0] — 2026-09-25 — Anmeldung, Plausibilität, sichere Backups
 
 MINOR-Release (N1013). Kein Schema-Bump, keine Datenmigration. Alles Neue ist

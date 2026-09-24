@@ -7,7 +7,8 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getUtility } from '../state.js';
+import { getUtility, getSettings } from '../state.js';
+import { gasEntryOn } from '../lib/gas-factor.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
@@ -295,7 +296,17 @@ function renderContractCard(c, meters, u) {
 }
 
 // ───── Contract modal (F4) ──────────────────────────────────────────
+// v2.7.0 — Gaspreise je m³ (Italien €/Smc, Niederlande €/m³) in den
+// Arbeitspreis je kWh umrechnen. Gesetzt, solange ein Vertrag einer Art
+// bearbeitet wird, die in m³ misst und in kWh abrechnet (Gas).
+let perM3Ctx = null;
+
 async function openContractModal(u, meters, existing, contracts = []) {
+  perM3Ctx = null;
+  if (u?.unit === 'm³' && u?.consumption_unit === 'kWh') {
+    const s = await getSettings().catch(() => null);
+    perM3Ctx = { factors: s?.gas_conversion_factors || [] };
+  }
   return new Promise(resolve => {
     const isEdit = !!existing;
     const initial = existing || {
@@ -436,6 +447,8 @@ async function openContractModal(u, meters, existing, contracts = []) {
 
         try { bindEntryGroupHandlers(modalEl); }
         catch (e) { console.warn('contract modal: entry-group binding failed:', e); }
+        try { bindPerM3(modalEl); }
+        catch (e) { console.warn('contract modal: per-m³ helper failed:', e); }
         try { bindBonusHandlers(modalEl); }
         catch (e) { console.warn('contract modal: bonus binding failed:', e); }
         try { bindSpecialPaymentHandlers(modalEl); }
@@ -460,8 +473,80 @@ function renderGroupSection(g, entries) {
       <div class="entries">
         ${entries.map(e => renderEntryRow(g, e)).join('')}
       </div>
+      ${g.key === 'working_prices' && perM3Ctx ? renderPerM3() : ''}
     </div>
   `;
+}
+
+function renderPerM3() {
+  return `
+    <details class="perm3" data-perm3>
+      <summary>${t('contracts.perM3.toggleTitle')}</summary>
+      <div class="form-row perm3__row">
+        <div class="field">
+          <label for="perm3-price">${t('contracts.perM3.label')}</label>
+          <input class="input" id="perm3-price" type="text" inputmode="decimal" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="perm3-date">${t('contracts.row.validFrom')}</label>
+          <input class="input" id="perm3-date" type="date">
+        </div>
+        <div class="field">
+          <button type="button" class="btn btn--sm btn--ghost" data-action="perm3-apply" disabled>${t('contracts.perM3.apply')}</button>
+        </div>
+      </div>
+      <p class="muted perm3__result" data-perm3-result aria-live="polite"></p>
+    </details>`;
+}
+
+/**
+ * Geteilt wird durch den Brennwert, der am gewählten Tag gilt: Ein Preis je
+ * Normkubikmeter (Smc) bezieht sich auf das bereits korrigierte Volumen, die
+ * Zustandszahl gehört nicht in den Nenner. Ist nur ein direkter Faktor
+ * hinterlegt, teilt die Hilfe durch ihn und sagt das dazu.
+ */
+function bindPerM3(modalEl) {
+  const box = modalEl.querySelector('[data-perm3]');
+  if (!box || !perM3Ctx) return;
+  const priceEl  = box.querySelector('#perm3-price');
+  const dateEl   = box.querySelector('#perm3-date');
+  const applyBtn = box.querySelector('[data-action="perm3-apply"]');
+  const out      = box.querySelector('[data-perm3-result]');
+  let ct = null;
+  const update = () => {
+    const price = parseDecimal(priceEl.value);
+    const date  = dateEl.value || modalEl.querySelector('input[name="start"]')?.value || todayIso();
+    const e     = gasEntryOn(perM3Ctx.factors, date);
+    const byHs  = Number(e?.brennwert) > 0;
+    const div   = byHs ? Number(e.brennwert) : Number(e?.kwh_per_m3);
+    ct = price != null && price > 0 && div > 0 ? price * 100 / div : null;
+    applyBtn.disabled = ct === null;
+    out.textContent = ct === null ? '' : t(byHs ? 'contracts.perM3.result' : 'contracts.perM3.resultFactor', {
+      ct: fmt.num(ct, 4), hs: fmt.num(div, 3), date: fmt.date(date),
+    });
+  };
+  priceEl?.addEventListener('input', update);
+  dateEl?.addEventListener('input', update);
+  applyBtn?.addEventListener('click', () => {
+    if (ct === null) return;
+    // Ziel: die Zeile mit demselben Datum, sonst die erste ohne Betrag, sonst eine neue
+    const group = modalEl.querySelector('[data-group="working_prices"]');
+    const rowsOf = () => [...(group?.querySelectorAll('.entry-row') || [])];
+    const date = dateEl.value;
+    let row = (date && rowsOf().find(r => r.querySelector('[data-role="date"]')?.value === date))
+      || rowsOf().find(r => !r.querySelector('[data-role="amount"]')?.value.trim());
+    if (!row) {
+      group?.querySelector('[data-action="add-row"]')?.click();
+      row = rowsOf().at(-1);
+    }
+    if (!row) return;
+    const dIn = row.querySelector('[data-role="date"]');
+    const aIn = row.querySelector('[data-role="amount"]');
+    if (date && dIn && !dIn.value) dIn.value = date;
+    if (aIn) aIn.value = formatForInput(Number(ct.toFixed(4)), 4);
+    validateRow(row);
+    aIn?.focus();
+  });
 }
 
 // v2.5.3 — Beträge als Text mit Dezimaltastatur: `type="number"` verwarf

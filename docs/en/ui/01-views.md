@@ -21,7 +21,9 @@ and a **sidebar** that is built dynamically from the *active* utilities
 
 The entry point. 12-month figures per utility, efficiency class **per heat
 source**, tank levels (oil/pellets), **electricity balance & self-sufficiency** for
-PV, the combined consumption history and due appointments.
+PV, the combined consumption history and due appointments. Since v2.7.0 the
+efficiency class appears only in countries with a scale (Germany); elsewhere the
+card shows kWh/m²·yr and gives the reason ([country profiles](../functional/14-laenderprofile.md)).
 
 ![Dashboard](../../ui/screenshots/dashboard.png)
 
@@ -216,13 +218,23 @@ rolled forward according to the recurrence.
 ## 10. Temperatures
 
 CSV import (drag & drop), Open-Meteo sync for the stored location, a monthly chart
-min/avg/max. The basis of every HDD evaluation.
+min/avg/max. The basis of every HDD evaluation. If the location is still the
+country default, a note says so (v2.7.0) — the degree days then use the weather
+of another place.
 
 ![Temperatures](../../ui/screenshots/temperaturen.png)
 
 ---
 
 ## 11. Settings
+
+At the top the card **Language & country** (v2.7.0): language, country, currency
+and time zone, all taking effect immediately. When the country changes, a dialog
+shows the values the country profile would change — current and new side by
+side, with the source of the CO₂ factor — and offers "Apply all", "Change
+country only" or "Cancel". Since v2.7.0 the gas conversion factors accept the
+calorific value in kWh/m³, MJ/m³ or GJ/Smc, with a hint for British, Italian
+and Dutch bills.
 
 All settings grouped: conversion & HDD, **billing cycle (DD-MM)**, building &
 efficiency, calorific values, forecast model, **embedding** (since v2.6.0:
@@ -251,6 +263,8 @@ last arrived with the token and warns when sign-in is on but no token exists.
 
 ![Settings](../../ui/screenshots/einstellungen.png)
 
+![Apply a country profile](../../ui/screenshots/laenderprofil.png)
+
 ![Sign-in & access](../../ui/screenshots/einstellungen-sicherheit.png)
 
 ---
@@ -262,7 +276,7 @@ Meter/device management incl. meter swap (the device chain) and contract mainten
 **meter swap** requires the final reading, shows the last known reading and
 summarises the swap before performing it. A **contract** needs a provider or tariff
 and at least one working price; the start is prefilled with the day after the
-current commitment, and the app asks before a new contract supersedes a running one. For oil/pellets only the tank/store
+current commitment, and the app asks before a new contract supersedes a running one. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
 management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading). For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as

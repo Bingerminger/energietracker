@@ -21,7 +21,7 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v2.6.0';
+const VERSION = 'v2.7.0';
 const STATIC_CACHE  = `et-static-${VERSION}`;
 const RUNTIME_CACHE = `et-runtime-${VERSION}`;
 
@@ -118,7 +118,7 @@ async function networkFirst(request, cacheName, fallback) {
 // Eine Antwort aus dem Cache trägt `X-ET-Offline` (Stand laut Date-Header),
 // damit die Oberfläche „Offline – Stand vom …" zeigen kann.
 const SCOPE_PATH = new URL(self.registration.scope).pathname;
-const CACHEABLE_API = /^(utilities|settings|readings-overview|reminders|recommendations|temperatures|pv-summary|strom-saldo|benchmarks\/efficiency|utility\/[^/]+\/(meters|readings|contracts|consumption|deliveries|meter-groups))(\/|$)/;
+const CACHEABLE_API = /^(utilities|settings|countries|readings-overview|reminders|recommendations|temperatures|pv-summary|strom-saldo|benchmarks\/efficiency|utility\/[^/]+\/(meters|readings|contracts|consumption|deliveries|meter-groups))(\/|$)/;
 
 function apiPath(url) {
   if (!url.pathname.startsWith(SCOPE_PATH)) return null;

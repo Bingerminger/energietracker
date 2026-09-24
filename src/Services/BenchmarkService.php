@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace Energietracker\Services;
 
-use Energietracker\Storage\JsonStore;
+use Energietracker\Config\Countries;
 use Energietracker\Config\Utilities;
 
 /**
@@ -26,6 +26,11 @@ use Energietracker\Config\Utilities;
  * [Unverifiziert] Die Default-Bandgrenzen sind branchenüblich; die exakten
  * GEG-2024-Grenzwerte sollten bei Bedarf in den Settings überschrieben
  * werden — der Service liest sie dort, kein Hardcoding.
+ *
+ * v2.7.0 — Die Klassen gibt es nur, wo das Land eine Skala hat (Feld
+ * `scale`, heute nur `geg` für Deutschland). Eine österreichische oder
+ * französische Wohnung bekam vorher eine Klasse nach deutschem Recht; jetzt
+ * steht die Kennzahl kWh/m²·a ohne Klasse, und `scale` ist null.
  */
 final class BenchmarkService
 {
@@ -46,10 +51,12 @@ final class BenchmarkService
      * @return array{
      *   year: int,
      *   wohnflaeche_m2: float,
-     *   per_source: array<int, array{utility:string, label:string, kwh:float, kwh_per_m2:float, class:string}>,
+     *   per_source: array<int, array{utility:string, label:string, kwh:float, kwh_per_m2:float, class:string|null}>,
      *   combined: array{kwh:float, kwh_per_m2:float|null, class:string|null},
-     *   primary: array{utility:string, label:string, kwh:float, kwh_per_m2:float, class:string}|null,
+     *   primary: array{utility:string, label:string, kwh:float, kwh_per_m2:float, class:string|null}|null,
      *   thresholds: array<string,int>,
+     *   scale: string|null,
+     *   scale_note: string|null,
      *   note: string|null,
      *   // Rückwärtskompatible Aliase (≤ v1.3.0-Konsumenten):
      *   total_kwh: float, kwh_per_m2: float|null, class: string|null,
@@ -67,6 +74,9 @@ final class BenchmarkService
         if ($year === null) {
             $year = (int)date('Y') - 1; // letztes abgeschlossenes Jahr
         }
+
+        $country = (string)$this->settings->get('country', Countries::DEFAULT);
+        $scale   = Countries::efficiencyScale($country);
 
         // Pro Heizquelle einzeln
         $perSource = [];
@@ -88,7 +98,7 @@ final class BenchmarkService
             ];
             if ($wohnflaeche > 0) {
                 $entry['kwh_per_m2'] = round($sum / $wohnflaeche, 1);
-                $entry['class']      = $this->classify($entry['kwh_per_m2'], $thresholds);
+                $entry['class']      = $scale !== null ? $this->classify($entry['kwh_per_m2'], $thresholds) : null;
             } else {
                 $entry['kwh_per_m2'] = null;
                 $entry['class']      = null;
@@ -111,7 +121,7 @@ final class BenchmarkService
             $note = $this->i18n->t('errors.benchmark.noHeatData', ['year' => $year]);
         } else {
             $combinedPerM2 = round($combinedKwh / $wohnflaeche, 1);
-            $combinedClass = $this->classify($combinedPerM2, $thresholds);
+            $combinedClass = $scale !== null ? $this->classify($combinedPerM2, $thresholds) : null;
             if (count($perSource) > 1) {
                 $note = $this->i18n->t('errors.benchmark.multipleSources');
             }
@@ -128,6 +138,10 @@ final class BenchmarkService
                 'class'      => $combinedClass,
             ],
             'thresholds'     => $thresholds,
+            'scale'          => $scale,
+            'scale_note'     => $scale === null
+                ? $this->i18n->t('errors.benchmark.noScale', ['country' => $this->i18n->t('countries.' . $country)])
+                : null,
             'note'           => $note,
             // ── Rückwärtskompatible Aliase: ≤ v1.3.0-Konsumenten lasen
             //    class/kwh_per_m2/total_kwh als Top-Level. Wir mappen sie

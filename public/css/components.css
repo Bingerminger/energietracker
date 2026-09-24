@@ -99,6 +99,11 @@ textarea.input { min-height: 80px; resize: vertical; }
 /* v2.5.3 — Die Zeile hat eigene Abstände; der Feld-Außenabstand ließ die
    Knöpfe (×, ⇧ Start) 12 px unter den Eingaben stehen. */
 .entry-row > .field, .special-advance > .field { margin-bottom: 0; }
+/* v2.7.0 — Umrechnungshilfe „Preis je m³" unter den Gas-Arbeitspreisen */
+.perm3 { margin-top: var(--sp-2); font-size: var(--fs-sm); }
+.perm3 > summary { cursor: pointer; color: var(--text-2); }
+.perm3__row { margin-top: var(--sp-2); align-items: flex-end; }
+.perm3__result { margin: var(--sp-1) 0 0; font-variant-numeric: tabular-nums; }
 .entry-group > .field-error { margin: -4px 0 var(--sp-2); }
 
 /* v2.5.3 (UI-11) — Sonderzahlung: eigenes Raster. Im allgemeinen Vier-Spalten-
@@ -889,6 +894,8 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .dash-eff-row:last-child { border-bottom: none; }
 .dash-eff-row__src { font-size: var(--fs-sm); }
 .dash-eff-row__val { font-size: var(--fs-sm); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* v2.7.0 — Länder ohne Effizienzskala: Kennzahl ohne Klasse, Hinweis darunter */
+.dash-eff__note { font-size: var(--fs-xs); margin: var(--sp-2) 0 0; }
 
 /* F1005 (v1.7.0) — Strom-Saldo-Insight: KPIs (Bezug, PV-Erlös, Netto, Autarkie, EV-Quote) als auto-fit Grid */
 .dash-strom-saldo {

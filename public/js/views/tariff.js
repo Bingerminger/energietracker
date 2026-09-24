@@ -28,7 +28,7 @@ import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { makeChart } from '../components/chart.js';
 import { fmt as f, escapeHtml as esc, monthShortNames, parseDecimal, formatForInput } from '../lib/format.js';
-import { t } from '../lib/i18n.js';
+import { t, getCurrencySymbol } from '../lib/i18n.js';
 
 let sel = { utility: null, meterId: null, year: null, switchDate: null };
 let charts = { switch: null, retro: null };
@@ -416,7 +416,7 @@ function drawSwitchChart(box, d, unit) {
         legend: { display: true, position: 'bottom' },
         tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${f.eur(ctx.parsed.y)}` } },
       },
-      scales: { y: { beginAtZero: true, title: { display: true, text: '€' } } },
+      scales: { y: { beginAtZero: true, title: { display: true, text: getCurrencySymbol() } } },
     },
   }, { label: t('tariff.switch.chartAlt', { unit }) });
 }

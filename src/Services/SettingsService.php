@@ -3,10 +3,11 @@ declare(strict_types=1);
 
 namespace Energietracker\Services;
 
+use Energietracker\Config\Countries;
 use Energietracker\Storage\JsonStore;
 
 /**
- * Settings (`data/settings.json`). Liest und mergt 50 Schlüssel über
+ * Settings (`data/settings.json`). Liest und mergt die Schlüssel aus DEFAULTS über
  * die Defaults der Anwendung. `get($key, $default)` bringt einen
  * type-cast für numerische Settings (float/int). `update($payload)` ist
  * eine partielle PATCH-Semantik: nur übergebene Schlüssel werden überschrieben.
@@ -19,6 +20,13 @@ use Energietracker\Storage\JsonStore;
  */
 final class SettingsService
 {
+    /**
+     * v2.7.0 — Einheiten, in denen der Gas-Brennwert eingegeben wird
+     * (Einstellung `gas_cv_unit`). Gespiegelt in public/js/lib/gas-factor.js
+     * (CV_UNITS); CountriesTest hält beide Listen gleich.
+     */
+    public const GAS_CV_UNITS = ['kwh', 'mj', 'gj'];
+
     /** @var array<string,mixed> */
     private const DEFAULTS = [
         // ── Physical constants ──
@@ -90,7 +98,16 @@ final class SettingsService
 
         // ── Lokalisierung (N1007 / v2.0.0) ──
         // additiv, kein Schema-Bump; vom I18nService + Frontend genutzt.
-        'language'                 => 'de',     // 'de' | 'en'
+        'language'                 => 'de',     // Oberflächensprache (public/locales/languages.json)
+
+        // ── v2.7.0 — Länderprofil (N1014, src/Config/Countries.php) ──
+        // Voreinstellungen je Land werden nur beim Erststart oder auf Wunsch
+        // übernommen; die Defaults hier bleiben die deutschen, damit sich an
+        // Bestandsinstallationen nichts ändert.
+        'country'                  => 'DE',     // DE AT CH FR IT ES PT NL GB
+        'currency'                 => 'EUR',    // EUR | CHF | GBP — Felder *_eur/ct_* = Haupt-/Untereinheit
+        'timezone'                 => 'Europe/Berlin',
+        'gas_cv_unit'              => 'kwh',    // Eingabe des Brennwerts: kwh (kWh/m³) | mj (MJ/m³) | gj (GJ/Smc)
 
         // ── v2.6.0 — Sicherheit ──
         // Weitere Ursprünge, die die App einbetten dürfen (frame-ancestors),
@@ -197,6 +214,22 @@ final class SettingsService
             if ($k === 'gas_conversion_factors') {
                 $v = ConversionFactorService::normalizeList($v, $this->translator());
                 if ($v === []) $v = self::defaultGasConversionFactors();
+            }
+            // v2.7.0 — Länderprofil: nur bekannte Werte. Eine unbekannte
+            // Zeitzone würde date_default_timezone_set() beim nächsten Start
+            // mit einer Warnung quittieren und still UTC rechnen.
+            $allowed = match ($k) {
+                'country'     => Countries::codes(),
+                'currency'    => array_keys(Countries::CURRENCIES),
+                // ALL_WITH_BC: Browser bieten teils noch ältere Namen an (Europe/Kiev)
+                'timezone'    => \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC),
+                'gas_cv_unit' => self::GAS_CV_UNITS,
+                default       => null,
+            };
+            if ($allowed !== null && !in_array($v, $allowed, true)) {
+                throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
+                    'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
+                ]));
             }
             $current[$k] = $v;
         }

@@ -245,6 +245,13 @@ async function renderView(modPath, params = []) {
       view.querySelector('[data-key="gas_conversion_factors"]')?.getAttribute('data-type') === 'json');
     t('settings: Erfassungszeile mit Zustandszahl + Brennwert', !!view.querySelector('#gf-z') && !!view.querySelector('#gf-hs'));
     t('settings: kein Feld für den alten Skalar', !view.querySelector('[data-key="gas_conversion_factor"]'));
+    // v2.7.0 — Länderprofil: Land, Währung, Zeitzone, Brennwert-Einheit
+    const countryOpts = view.querySelectorAll('#country-select option').length;
+    t('settings: Länderauswahl mit allen Profilen', countryOpts === 9, `${countryOpts} Länder`);
+    t('settings: Währung und Zeitzone wählbar',
+      !!view.querySelector('#currency-select') && view.querySelectorAll('#tz-select option').length > 10);
+    t('settings: Brennwert-Einheit kWh, MJ, GJ',
+      [...view.querySelectorAll('[data-key="gas_cv_unit"] option')].map(o => o.value).join() === 'kwh,mj,gj');
   } catch (e) { t('settings: render', false, e.message); }
 
   // ── 6. Utility-View: Delivery-Modus (Heizöl) ──
@@ -362,6 +369,23 @@ async function renderView(modPath, params = []) {
     t('contracts(gas): Vertragsverwaltung vorhanden',
       !!view.querySelector('[data-action="new-contract"]'),
       'Gas sollte "+ Neuer Vertrag" anbieten');
+    // v2.7.0 — Umrechnungshilfe „Preis je m³" im Gasvertrag
+    view.querySelector('[data-action="new-contract"]')?.click();
+    await new Promise(r => setTimeout(r, 400));
+    const box = global.document.querySelector('#modal-root [data-perm3]');
+    t('contracts(gas): Umrechnungshilfe je m³ im Formular', !!box);
+    if (box) {
+      box.querySelector('#perm3-date').value = '2024-06-01';
+      box.querySelector('#perm3-price').value = '1,10';
+      box.querySelector('#perm3-price').dispatchEvent(new global.window.Event('input'));
+      const out = box.querySelector('[data-perm3-result]').textContent;
+      t('contracts(gas): je m³ ergibt ct/kWh', /ct\/kWh/.test(out) && !box.querySelector('[data-action="perm3-apply"]').disabled, out);
+      box.querySelector('[data-action="perm3-apply"]').click();
+      const row = [...global.document.querySelectorAll('#modal-root [data-group="working_prices"] .entry-row')]
+        .find(r => r.querySelector('[data-role="date"]').value === '2024-06-01');
+      t('contracts(gas): Übernehmen füllt die Arbeitspreis-Zeile', !!row && row.querySelector('[data-role="amount"]').value !== '',
+        row ? row.querySelector('[data-role="amount"]').value : 'keine Zeile');
+    }
   } catch (e) { t('contracts(gas): render', false, e.message); }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);

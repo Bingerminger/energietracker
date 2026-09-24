@@ -254,6 +254,10 @@ Groups (a selection of the default values):
 | `active_utilities` | all | which utilities are visible in the sidebar/dashboard |
 | `location_name`, `latitude`, `longitude` | Leipzig | for Open-Meteo |
 | `language` | de | language of the interface and of API messages |
+| `country` | DE | *(v2.7.0)* country: formats (together with the language), efficiency scale — [country profiles](../functional/14-laenderprofile.md) |
+| `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — symbol and minor unit; amounts are not converted, `*_eur`/`ct_*` mean major/minor unit |
+| `timezone` | Europe/Berlin | *(v2.7.0)* IANA time zone: "today", due dates, day boundaries of the weather data |
+| `gas_cv_unit` | kwh | *(v2.7.0)* input unit of the calorific value (`kwh`, `mj`, `gj`); storage is always kWh/m³ |
 | `frame_ancestors` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (CSP `frame-ancestors`), e.g. `http://homeassistant.local:8123` |
 
 The complete list is in `SettingsService::DEFAULTS`. `PATCH /api/settings`

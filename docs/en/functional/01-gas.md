@@ -63,6 +63,10 @@ Worth knowing:
   multiply every consumption by ten — silently.
 - Heating oil and pellets keep their scalar; nobody publishes a new calorific
   value for them every month.
+- *(v2.7.0)* The input also takes the calorific value in **MJ/m³** (United
+  Kingdom, Netherlands) or **GJ/Smc** (Italy) and converts it to kWh/m³ —
+  storage and the plausibility check stay in kWh/m³. See
+  [country profiles](14-laenderprofile.md#7-gas-calorific-value-unit-and-price-per-cubic-metre).
 
 ## Bill verification
 
@@ -110,6 +114,10 @@ settlement up to the billing date.
 
 Refunds/surcharges and additional advance payments are recorded as
 **[special payments](10-sonderzahlungen.md)** (F1003) and feed into the balance.
+
+If the bill states the unit price **per m³** (Italy, Netherlands), the helper
+"Convert a price per m³" below the unit prices converts it to ct/kWh — divided
+by the calorific value valid on the chosen day *(v2.7.0)*.
 
 ## Typical pitfalls
 

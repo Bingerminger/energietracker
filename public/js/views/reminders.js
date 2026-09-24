@@ -6,7 +6,7 @@ import { api } from '../api.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { t } from '../lib/i18n.js';
-import { escapeHtml as esc, todayIso } from '../lib/format.js';
+import { escapeHtml as esc, todayIso, fmt } from '../lib/format.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
@@ -91,7 +91,8 @@ function rowHtml(r) {
     : days === 0 ? t('reminders.due.today')
     : days > 0 ? t('reminders.due.inDays', { days })
     : t('reminders.due.agoDays', { days: -days });
-  const dueStr = esc(r.next_due) + (dueLabel ? ` <span class="muted">(${dueLabel})</span>` : '');
+  // v2.7.0 — Datum in der Schreibweise von Sprache und Land (fmt.date escapt Unlesbares)
+  const dueStr = fmt.date(r.next_due) + (dueLabel ? ` <span class="muted">(${dueLabel})</span>` : '');
   return `<tr>
     <td><strong>${esc(r.title)}</strong>${r.notes ? `<br><span class="muted small">${esc(r.notes)}</span>` : ''}</td>
     <td>${esc(catLabel(r.category))}</td>

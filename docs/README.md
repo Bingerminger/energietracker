@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Vollständige Dokumentation zu Energietracker **v2.6.0**.
+> Vollständige Dokumentation zu Energietracker **v2.7.0**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit echten Screenshots aller Ansichten.
 >
@@ -52,6 +52,7 @@ auf dem eigenen Rechner.
 | [Zählerstand-Erfassung (F1004)](functional/11-zaehlerstaende.md) | Zentrale mobile Ablesungs-Ansicht (Gas/Strom/Wasser/Fernwärme) |
 | [PV-Einspeisung & Erzeugung (F1005)](functional/12-pv.md) | Einspeisezähler, Erzeugungszähler, Strom-Saldo, Autarkiequote |
 | [Meter-Topologie (F1006)](functional/13-meter-topologie.md) | Subzähler (Reihenschaltung) & Zählergruppen — Differenzverbrauch und Dashboard-Bündelung |
+| [Länderprofile (N1014)](functional/14-laenderprofile.md) | Land, Währung, Zeitzone, Schreibweise; Effizienzskala, CO₂-Faktoren, Heizgrenze und Gaseinheiten je Land |
 
 ### 🚀 Einstieg & Praxis — *für neue Nutzer*
 
@@ -87,6 +88,9 @@ auf dem eigenen Rechner.
 
 - **„Ich habe Haupt- und Unterzähler oder will Zähler bündeln."**
   → [Meter-Topologie](functional/13-meter-topologie.md)
+
+- **„Ich wohne nicht in Deutschland."**
+  → [Länderprofile](functional/14-laenderprofile.md)
 
 - **„Ich will verstehen, wie die Prognose rechnet."**
   → [Grundlagen & Methodik](functional/00-overview.md)

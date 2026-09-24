@@ -120,8 +120,8 @@ final class RecommendationService
                 $out[] = $this->mk(
                     'r1', [$utility, $meter['id'], $m['ym']],
                     'warning', 'anomalie',
-                    $this->i18n->t('recommendations.engine.r1.title', ['label' => $this->utilLabel($utility), 'ym' => $m['ym'], 'pct' => sprintf('%+d', $pct)]),
-                    $this->i18n->t('recommendations.engine.r1.detail', ['ym' => $m['ym'], 'pct' => sprintf('%+d', $pct)]),
+                    $this->i18n->t('recommendations.engine.r1.title', ['label' => $this->utilLabel($utility), 'ym' => $this->i18n->month($m['ym']), 'pct' => $this->signed($pct, 0)]),
+                    $this->i18n->t('recommendations.engine.r1.detail', ['ym' => $this->i18n->month($m['ym']), 'pct' => $this->signed($pct, 0)]),
                     ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $m['ym']]
                 );
             }
@@ -162,8 +162,8 @@ final class RecommendationService
             return [$this->mk(
                 'r2', [$utility, $meter['id']],
                 'warning', 'trend',
-                $this->i18n->t('recommendations.engine.r2.title', ['label' => $this->utilLabel($utility), 'pct' => sprintf('%+.1f', $pctPerYear)]),
-                $this->i18n->t('recommendations.engine.r2.detail', ['pct' => sprintf('%+.1f', $pctPerYear)]),
+                $this->i18n->t('recommendations.engine.r2.title', ['label' => $this->utilLabel($utility), 'pct' => $this->signed($pctPerYear, 1)]),
+                $this->i18n->t('recommendations.engine.r2.detail', ['pct' => $this->signed($pctPerYear, 1)]),
                 ['utility' => $utility, 'meter_id' => $meter['id']]
             )];
         }
@@ -228,8 +228,8 @@ final class RecommendationService
                 $out[] = $this->mk(
                     'r4', [$utility, $meter['id'], $m['ym']],
                     'info', 'anomalie',
-                    $this->i18n->t('recommendations.engine.r4.title', ['label' => $this->utilLabel($utility), 'ym' => $m['ym']]),
-                    $this->i18n->t('recommendations.engine.r4.detail', ['ym' => $m['ym'], 'sigma' => sprintf('%.1f', $z)]),
+                    $this->i18n->t('recommendations.engine.r4.title', ['label' => $this->utilLabel($utility), 'ym' => $this->i18n->month($m['ym'])]),
+                    $this->i18n->t('recommendations.engine.r4.detail', ['ym' => $this->i18n->month($m['ym']), 'sigma' => $this->i18n->number($z, 1)]),
                     ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $m['ym']]
                 );
             }
@@ -259,7 +259,7 @@ final class RecommendationService
                 $this->i18n->t('recommendations.engine.r5.title', ['label' => $this->utilLabel($utility), 'pct' => (int)round($pct)]),
                 $this->i18n->t('recommendations.engine.r5.detail', [
                     'name'  => (string)($meter['name'] ?? $meter['id']),
-                    'stock' => (int)round($stock),
+                    'stock' => $this->i18n->number($stock, 0),
                     'unit'  => $hist['capacity_unit'] ?? '',
                     'pct'   => (int)round($pct),
                 ]),
@@ -313,12 +313,12 @@ final class RecommendationService
             $out[] = $this->mk(
                 'r7', ['efficiency', (string)$s['utility'], (string)$eff['year']],
                 ($class === 'H' || $class === 'G') ? 'warning' : 'info', 'effizienz',
-                $this->i18n->t('recommendations.engine.r7.title', ['label' => $this->utilLabel((string)$s['utility']), 'class' => $class, 'kwh' => sprintf('%.0f', $kwhM2)]),
+                $this->i18n->t('recommendations.engine.r7.title', ['label' => $this->utilLabel((string)$s['utility']), 'class' => $class, 'kwh' => $this->i18n->number((float)$kwhM2, 0)]),
                 $this->i18n->t('recommendations.engine.r7.detail', [
                     'year'  => $eff['year'],
                     'label' => $this->utilLabel((string)$s['utility']),
                     'class' => $class,
-                    'kwh'   => sprintf('%.0f', $kwhM2),
+                    'kwh'   => $this->i18n->number((float)$kwhM2, 0),
                 ]),
                 ['utility' => (string)$s['utility'], 'meter_id' => null]
             );
@@ -327,6 +327,15 @@ final class RecommendationService
     }
 
     // ─── Helfer ──────────────────────────────────────────────────────────
+
+    /**
+     * v2.7.0 — Vorzeichenbehaftete Zahl in der Schreibweise von Sprache und
+     * Land („+3,5" / „+3.5"). Vorher sprintf('%+.1f') — immer mit Punkt.
+     */
+    private function signed(float $v, int $decimals): string
+    {
+        return ($v < 0 ? '-' : '+') . $this->i18n->number(abs($v), $decimals);
+    }
 
     private function mk(string $rule, array $ctx, string $severity, string $category, string $title, string $detail, array $evidence): array
     {
