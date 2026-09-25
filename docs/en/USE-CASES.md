@@ -28,7 +28,7 @@ to keep their share cleanly separate.
 
 1. Create a `strom` main meter: *"shared-flat house connection"*.
 2. Create a second `strom` meter: *"study (server)"*.
-3. On the second meter, under **Meters / contracts**, set the **parent meter** to
+3. On the second meter, under **⚙️ Meters → Edit**, set the **parent meter** to
    *"shared-flat house connection"* → it becomes a **sub-meter**.
 
 **What happens.** The server sub-meter is subtracted from the house connection.
@@ -59,8 +59,8 @@ meter). Nobody wants to type values anymore.
 
 **Setup.**
 
-1. In **Settings → 🏠 Home Assistant integration**, generate an **API token**
-   (copy it once).
+1. In **Settings → Integrations → 🏠 Home Assistant integration**, generate an
+   **API token** (copy it once).
 2. Give each meter an **alias**: `strom_haus`, `gas_haus`, `wasser_haus`.
 3. In HA, insert the ready-made `rest_command` YAML (copyable from the settings)
    and build an automation that pushes all meters at 23:55 in the evening.
@@ -105,8 +105,8 @@ consumption of the heat pump.
 
 **Setup.**
 
-1. In **Settings → Active utilities**, activate `pv_einspeisung` and
-   `pv_erzeugung`.
+1. In **Settings → Utilities & billing → Active utilities**, activate
+   `pv_einspeisung` and `pv_erzeugung`.
 2. Create meters:
    - `strom` *"house connection"* (grid draw),
    - `strom` *"heat pump"* → **sub-meter** of *"house connection"*,

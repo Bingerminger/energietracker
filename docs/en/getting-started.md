@@ -37,16 +37,16 @@ electricity and water. You can keep, rename or delete them.
 
 ## 1. Choose utilities
 
-Open **System → Settings** (gear icon in the sidebar) → **Active utilities** and
-tick what you use. For our example, **gas** and **electricity** are enough.
-Utilities that are not active disappear from the sidebar and dashboard (the data
-is kept in case you switch them back on later).
+Open **Settings** (gear icon in the sidebar) → **Utilities & billing → Active
+utilities** and tick what you use. For our example, **gas** and **electricity**
+are enough. Utilities that are not active disappear from the sidebar and
+dashboard (the data is kept in case you switch them back on later).
 
 ---
 
 ## 2. Set up the first meter
 
-In the sidebar go to **Gas** and then to **Meters / contracts**.
+In the sidebar go to **Gas** and then, top right, to **⚙️ Meters**.
 
 1. Click the existing *"main meter"* and rename it if you like (e.g. *"gas boiler
    basement"*).
@@ -63,7 +63,8 @@ In the sidebar go to **Gas** and then to **Meters / contracts**.
 
 Two ways:
 
-- **Quick, for all meters:** sidebar → **Entry → Meter readings**. This view
+- **Quick, for all meters:** sidebar → **Meter readings** (on the iPhone:
+  **＋ Add** in the tab bar). This view
   lists all active meters with their respective last reading for orientation —
   ideal for the monthly reading on your phone.
 - **Per meter:** directly in the meter-reading table in the gas view.
@@ -79,7 +80,8 @@ today) — consumption only arises from the **difference**.
 
 ## 4. Add a contract (for the cost calculation)
 
-In the gas view → **Meters / contracts → New contract**:
+Under **Costs & contracts → Contracts & payments**, at Gas choose **Manage
+contracts → + New contract**:
 
 - **Provider** and **tariff name**, **start/end**,
 - **working price** (ct/kWh) and **base price** (€/month) — both with a date, so
@@ -94,11 +96,11 @@ From now on the app computes not only consumption but also **costs** and the
 ## 5. Fetch temperatures (for heating analysis & forecast)
 
 So that "consumed more, or just colder?" can be answered, gas (and district
-heating) need outdoor temperatures. Sidebar → **Consumption → Temperatures**:
+heating) need outdoor temperatures. Sidebar → **Settings → Weather data**:
 
 - **Open-Meteo** for the location stored in the settings (default: Leipzig —
   change it to your location!). Since v2.8.0 the app fetches the temperatures
-  itself once a day when it is opened (*Settings → Fill weather
+  itself once a day when it is opened (*Settings → Weather data → Fill weather
   automatically*); only the location, rounded to about 1 km, is transmitted. The
   **Sync Open-Meteo** button triggers the sync immediately. **Or**
 - import a temperature CSV — the sync never overwrites your own values.
@@ -131,9 +133,9 @@ Now the input pays off:
 
 ## 7. Back up
 
-Sidebar → **Settings → Backup & restore → Download JSON backup**. That is a
-complete, portable snapshot (format 3.0) for moving or backing up. In Docker
-operation your data is in the mounted `data/` volume anyway.
+Sidebar → **Settings → Data → Backup & restore → Download JSON backup**. That
+is a complete, portable snapshot (format 3.0) for moving or backing up. In
+Docker operation your data is in the mounted `data/` volume anyway.
 
 ---
 
@@ -153,7 +155,7 @@ operation your data is in the mounted `data/` volume anyway.
 
 ## Shortcut: demo data
 
-To just try it out you don't have to type anything: **Settings → Backup &
+To just try it out you don't have to type anything: **Settings → Data → Backup &
 restore → Load demo data** imports a complete example dataset across all eight
 utilities (with a warning + auto-snapshot if data already exists). After that you
 can continue right at [step 6](#6-evaluate).

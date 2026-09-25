@@ -7,7 +7,8 @@
 > **Echte Screenshots.** Die folgenden Bilder sind **tatsächliche
 > Bildschirmaufnahmen** der laufenden App mit dem mitgelieferten
 > [Demo-Datensatz](../../demo-data/) (Light-Theme; Grundstock v1.9.2, Anmeldung,
-> Sicherheitskarte und Rückfrage bei der Erfassung v2.6.0, Navigation v2.11.0). Wer sie
+> Sicherheitskarte und Rückfrage bei der Erfassung v2.6.0, Navigation v2.11.0,
+> Übersicht, Erfassung, Wetterdaten, Einstellungen und Import-Vorschau v2.12.0). Wer sie
 > selbst neu erzeugen will: Demo-Daten laden und die Views nacheinander
 > aufnehmen — die App braucht dafür keinen Build-Schritt.
 
@@ -16,19 +17,19 @@ Navigation den Fragen der Nutzer: sieben Bereiche statt 17 Einträgen.
 
 | Bereich | Seiten |
 |---|---|
-| Übersicht | Kennzahlen, Tanks, Termine und Empfehlungen im Überblick |
+| Übersicht | „Zu tun", Kennzahlen, Tanks und Empfehlungen im Überblick |
 | Zählerstände | alle Zähler in einem Durchgang |
 | Verbrauch | eine Seite je aktive Verbrauchsart |
 | Kosten & Verträge | Verträge & Abschläge · Wechsel prüfen · Rechnung prüfen |
 | Auswertungen | Analyse · Prognose · Jahresbericht |
 | Hinweise | Termine & Wartung · Empfehlungen (eine Zahl an der Seitenleiste) |
-| Einstellungen | Allgemein · Wetterdaten |
+| Einstellungen | Allgemein · Haushalt & Gebäude · Verbrauchsarten & Abrechnung · Wetterdaten · Daten · Integrationen · Zugriff · Experte · System |
 
 Die Seiten eines Bereichs stehen als **Tabs** über der Ansicht. Menüname und
 Seitentitel sind gleich, und der Tab des Browsers nennt die Ansicht. Frühere
 Adressen (`#/tariffs`, `#/temperatures` …) bleiben gültig. Die Seitenleiste
-zeigt nur die *aktiven* Verbrauchsarten (Einstellungen → Aktive
-Verbrauchsarten) und folgt einer Änderung sofort.
+zeigt nur die *aktiven* Verbrauchsarten (Einstellungen → Verbrauchsarten &
+Abrechnung → Aktive Verbrauchsarten) und folgt einer Änderung sofort.
 
 **Mac:** Seitenleiste links. In der Kopfleiste steht **＋ Erfassen**:
 Zählerstände, Lieferung und Peilstand bei Heizöl und Pellets, Termin.
@@ -69,6 +70,17 @@ Seit v2.11.0 heißt ein fälliger Termin „seit 65 Tagen überfällig" statt
 „jetzt". Die Kopf-Aktion „Temperaturen" entfällt; „Erfassen" steht global in
 der Kopfleiste bzw. der Tab-Leiste.
 
+**„Zu tun" (v2.12.0)** steht oben: überfällige und fällige Termine, Zähler,
+deren letzte Ablesung länger zurückliegt als unter Einstellungen → Allgemein →
+*Warnung nach* eingestellt, Kündigungsfristen und Tanks — jeweils mit einem
+Knopf dorthin. Bei bis zu zwei
+fälligen Zählern springt der Eintrag direkt zur Karte des Zählers in der
+Erfassung; mehr fasst eine Zeile zusammen („7 Zähler warten auf eine
+Ablesung"). Jede Zeile ist als Ganzes antippbar, am iPhone mit „›" statt Knopf. Die Terminkarte
+weiter unten und die Kachel „Aktive Zähler" je Verbrauchsart entfallen;
+Kennzahl-Kacheln heben sich nicht mehr beim Überfahren, weil sie nicht
+klickbar sind.
+
 ![Dashboard](screenshots/dashboard.png)
 
 ---
@@ -87,6 +99,25 @@ die App je auffälliger Karte nach (Titel: Verbrauchsart · Zähler); „Ersetze
 aktualisiert den vorhandenen Stand statt einen zweiten anzulegen. Wer ablehnt,
 behält die Eingabe, die Karte zeigt „Nicht gespeichert – bitte prüfen".
 Details: [Zählerstände → Plausibilität](../functional/11-zaehlerstaende.md).
+
+**Seit v2.12.0:**
+
+- Das Datum gilt oben für alle Karten; je Karte ist es eingeklappt
+  („Anderes Datum"). Eine Karte mit eigenem Datum behält es, wenn sich das
+  Datum oben ändert.
+- Kein Beispielwert mehr im Feld — „z. B. 1.395" sah aus wie ein vorbelegter
+  Stand. Der letzte Stand steht darüber.
+- Die Tastatur zeigt „Weiter": Enter springt ins nächste Zählerfeld, beim
+  letzten auf „Alle speichern". Am iPhone lässt sich der Stand auch mit der
+  Kamera übernehmen: Feld antippen → „Text scannen" (Live Text; das Feld ist
+  dafür ein Textfeld mit Dezimaltastatur).
+- Ein Fehler steht unter dem Feld statt nur im Titel des ✗.
+- Nach dem Speichern nennt die Meldung, was sich geändert hat („Gas +5,4 m³"),
+  und bietet zehn Sekunden **„Rückgängig"** — das löscht die eben angelegten
+  Stände.
+- **Direktsprung je Zähler:** `#/zaehlerstaende?meter=<id>` öffnet die
+  Erfassung mit der Karte dieses Zählers im Fokus — für ein Lesezeichen auf dem
+  Home-Bildschirm, einen Kurzbefehl oder „Zu tun".
 
 ![Zählerstände](screenshots/zaehlerstaende.png)
 
@@ -238,7 +269,8 @@ Die Ansicht ist in zwei Blöcke geteilt, und die Reihenfolge ist Absicht.
 Oben steht der **erwartete Jahresverbrauch** aus der Prognose — genau die Zahl,
 die CHECK24, Verivox und andere Vergleichsportale als Eingabe verlangen. Sie
 lässt sich mit einem Klick kopieren. Der Ablauf ist damit: Zahl mitnehmen,
-draußen suchen, das gefundene Angebot als Schattenvertrag eintragen.
+draußen suchen, das gefundene Angebot mit **„+ Angebot erfassen"** eintragen
+(technisch ein Schattenvertrag).
 
 Eine Anbindung an Vergleichsportale gibt es bewusst nicht. Die Anwendung holt
 keine Tarife von außen; der Nutzer trägt ein, was er gefunden hat.
@@ -309,6 +341,11 @@ unabhängig ist, und damit der Maßstab für die Rangfolge. Verglichen werden
 reine Tarifkosten; Abschläge und Sonderzahlungen sind Zahlungsströme gegen den
 Saldo und bleiben außen vor (sie stehen in der Verbrauchsansicht).
 
+Die Jahresauswahl bietet seit v2.12.0 nur Jahre mit Verbrauchsdaten an (bis
+v2.11 fest die letzten sieben Jahre); Monate stehen in der Schreibweise der
+Sprache („Jan. 2027"). Ein Jahr ohne Tarifzeilen zeigt einen Hinweis, statt
+den Rückblick samt Auswahl auszublenden.
+
 #### Angebote pflegen
 
 Ein Angebot wird mit den Feldern erfasst, die auf einem Portalergebnis
@@ -317,7 +354,8 @@ tatsächlich stehen: Arbeitspreis, Grundpreis, **Neukundenbonus als Betrag**
 und Kündigungsfrist. Als Startdatum ist der errechnete Wechseltermin
 vorbelegt.
 
-Angebote lassen sich anlegen, bearbeiten und löschen. In der Vertragsliste
+Angebote lassen sich anlegen, bearbeiten und löschen; die Löschen-Rückfrage
+nennt das Angebot (v2.12.0). In der Vertragsliste
 tragen sie ein eigenes Kennzeichen, damit sie nicht mit einem laufenden
 Vertrag verwechselt werden. Sie beeinflussen **weder Saldo noch Prognose noch
 Vertragsstatus** — sie existieren nur für diesen Vergleich.
@@ -336,6 +374,8 @@ Sieben statistische Regelfamilien (Mehrverbrauch-Trend, Sommer-Sockel,
 Anomalie, Tank-Niveau, Vertragsende, Effizienz, …), nach Dringlichkeit
 sortiert, einzeln ausblendbar. Rein datengetrieben, keine Werbung. Seit
 v2.11.0 unter **Hinweise**; der Knopf heißt „30 Tage ausblenden" statt „✕".
+Seit v2.12.0 nennt die Meldung die Empfehlung und bietet zehn Sekunden
+**„Rückgängig"**.
 
 ![Empfehlungen](screenshots/empfehlungen.png)
 
@@ -349,6 +389,12 @@ Erledigen wird der nächste Termin gemäß Recurrence fortgeschrieben. Seit
 v2.11.0 der erste Tab unter **Hinweise**; die Zahl an der Seitenleiste zählt
 fällige Termine und offene Empfehlungen zusammen.
 
+Seit v2.12.0 meldet **„Erledigt"** den Termin mit dem nächsten Fälligkeitsdatum
+und bietet zehn Sekunden **„Rückgängig"** (Datum und Status wie vorher). Ein
+fehlender Titel oder ein fehlendes Datum steht am Feld statt in einer Meldung
+unten rechts; die Löschen-Rückfrage nennt den Termin. Ein Intervall in Monaten
+steht als „Alle 48 Monate" statt „Alle N Monate (48)".
+
 ![Termine](screenshots/termine.png)
 
 ---
@@ -357,11 +403,25 @@ fällige Termine und offene Empfehlungen zusammen.
 
 Seit v2.11.0 unter Einstellungen → Wetterdaten; die Adresse `#/temperatures`
 bleibt. CSV-Import (Drag & Drop), Open-Meteo-Sync für den hinterlegten
-Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung. Seit v2.8.0
+Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung.
+
+**Seit v2.12.0** ist hier der einzige Ort für Standort und Wetter:
+
+- **Ortssuche:** Name oder Postleitzahl eingeben, einen Treffer wählen —
+  Koordinaten und Ortsname werden übernommen und gespeichert. An Open-Meteo
+  geht dabei nur der Suchtext.
+- Breite, Länge und Ortsname speichern beim Ändern; *Wetter automatisch
+  füllen* ist ein Schalter auf dieser Seite.
+- Der Abgleich speichert einen geänderten Standort vorher.
+- CSV im üblichen Format `TT.MM.JJJJ;Mittel;Min;Max` mit Dezimalkomma;
+  Tabulator und das alte Format mit Anführungszeichen werden ebenfalls
+  gelesen. Bis v2.11 trennte der Import auch am Dezimalkomma.
+
+Seit v2.8.0
 steht über dem Chart, bis wann Messwerte und ab wann Vorhersagen vorliegen;
 die Option „Auch vorhandene ältere Werte durch Archivwerte ersetzen" räumt
 Vorhersagen auf, die frühere Versionen wie Messwerte gespeichert haben. Mit
-*Wetter automatisch füllen* (Einstellungen, Standard an) gleicht die App beim
+*Wetter automatisch füllen* (Standard an) gleicht die App beim
 Öffnen einmal am Tag selbst ab und lädt beim ersten Mal das Klimanormal. Steht der
 Standort noch auf der Voreinstellung des Landes, sagt ein Hinweis das
 (v2.7.0) — die Gradtagzahlen rechnen dann mit dem Wetter eines anderen Orts.
@@ -372,11 +432,26 @@ Standort noch auf der Voreinstellung des Landes, sagt ein Hinweis das
 
 ## 11. Einstellungen
 
-Zwei Tabs seit v2.11.0: **Allgemein** und **Wetterdaten** (§10). Der
-PDF-Jahresbericht ist nach Auswertungen gezogen; an seiner alten Stelle steht
-ein Verweis. Nach Demo-Daten, Backup-Import oder Wiederherstellung startet die
-App neu, damit Seitenleiste, Sprache und Zwischenspeicher zum neuen Stand
-passen.
+Seit v2.12.0 **neun Unterseiten** statt einer langen Seite:
+
+| Seite | Inhalt |
+|---|---|
+| Allgemein | Sprache & Land, Übersicht (Monate, Prognosehorizont, Warnung nach Tagen ohne Ablesung), Vertragserinnerungen |
+| Haushalt & Gebäude | Wohnfläche, Gebäudetyp, beheizter Keller, Warmwasser; Personen im Haushalt |
+| Verbrauchsarten & Abrechnung | aktive Verbrauchsarten, alle Abrechnungsstichtage in einer Karte, Physikalische Konstanten (Gasfaktoren, Heizgrenze), Heizwerte und Tankwarnung, CO₂-Faktoren |
+| Wetterdaten | §10 |
+| Daten | CSV-Export, Backup & Wiederherstellung mit Snapshots, Demo-Daten, Migration aus v0.9.0; Verweis zum Jahresbericht |
+| Integrationen | Home-Assistant-Anbindung |
+| Zugriff | Anmeldung & Zugriff, Einbetten |
+| Experte | eingeklappt und mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen |
+| System | Version, Lizenz, System-Diagnose |
+
+Gespeichert wird je Seite über eine Leiste unten („Verwerfen" · „Speichern"),
+die erst bei einer Änderung erscheint. Wer die Seite mit ungespeicherten
+Änderungen verlässt, wird gefragt. Der PDF-Jahresbericht steht seit v2.11.0
+unter Auswertungen. Nach Demo-Daten, Backup-Import oder Wiederherstellung
+startet die App neu, damit Seitenleiste, Sprache und Zwischenspeicher zum
+neuen Stand passen.
 
 Oben die Karte **Sprache & Land** (v2.7.0): Sprache, Land, Währung und
 Zeitzone, alle mit sofortiger Wirkung. Beim Wechsel des Landes zeigt ein
@@ -396,12 +471,9 @@ Standardwerte, steht oben **„Neuere Standardwerte verfügbar"** mit bisher und
 neu und dem Knopf „Neue Werte übernehmen". Ist nur der Standard-Gasfaktor
 11,5 aktiv, weist die Gasfaktor-Tabelle darauf hin.
 
-Alle Einstellungen gruppiert: Umrechnung & HGT, **Abrechnungszyklus
-(TT-MM)**, Gebäude & Effizienz, Heizwerte, Prognosemodell, **Einbetten**
-(seit v2.6.0: Adressen, die die App einbetten dürfen, etwa ein
-Home-Assistant-Dashboard), aktive Verbrauchsarten, CSV-Export aller Arten,
-Backup & Migration, Demo-Daten-Import (F1007), **🔐 Anmeldung & Zugriff**
-(seit v2.6.0) und die **🏠 Home-Assistant-Anbindung (F1009)**
+**Einbetten** (seit v2.6.0, Seite Zugriff): Adressen, die die App einbetten
+dürfen, etwa ein Home-Assistant-Dashboard. Die **🏠 Home-Assistant-Anbindung
+(F1009)** auf der Seite Integrationen
 — API-Token verwalten, Zähler-Aliase pflegen und drei fertige Vorlagen
 kopieren: REST-Command, Eintrag für die `secrets.yaml` und (seit v2.5.3) eine
 Automatisierung aus den Aliasen, die vor jedem Push `has_value` prüft.
@@ -441,6 +513,11 @@ zeigt den letzten bekannten Stand und fasst den Tausch vor dem Ausführen
 zusammen. Ein **Vertrag** braucht Anbieter oder Tarif und mindestens einen
 Arbeitspreis; der Beginn ist mit dem Tag nach der laufenden Bindung vorbelegt,
 und bevor ein neuer Vertrag einen laufenden ablöst, fragt die App nach. Seit
+v2.12.0 gelten die ersten Preiszeilen ab Vertragsbeginn und folgen ihm, bis
+jemand ihr Datum ändert; eine vorbelegte Zeile ohne Betrag bleibt leer.
+„Ab Beginn" (bis v2.11 „⇧ Start") setzt eine Zeile auf den Vertragsbeginn. Die
+Vertragskarte zählt in der richtigen Pluralform („1 Arbeitspreis"), Löschen
+steht als umrandeter Knopf da, und die Rückfrage nennt den Vertrag. Seit
 v2.9.0 nimmt die **Kündigungsfrist** Monate, Wochen oder Tage, dazu die
 **Kündigungsweise** (automatisch, zum Vertragsende, jederzeit zum Monatsende,
 jederzeit zu jedem Tag) und den Haken **„Verlängert sich ohne Kündigung"** —
@@ -460,9 +537,20 @@ die Auswertung einen Überlauf (99.999 → 0) richtig; die Gerätezeile zeigt
 sie an.
 
 **Meter-Topologie:** Subzähler werden unter ihrem Elternzähler eingerückt
-dargestellt, Gruppen als aufklappbarer Sammeleintrag; ein **Merge-Wizard**
-führt mehrere bestehende Zähler zu einer Gruppe zusammen. Pro Zähler lässt
-sich hier auch der HA-Alias (`external_id`) setzen.
+dargestellt, Gruppen als aufklappbarer Sammeleintrag; **„Zu Gruppe
+zusammenfassen"** (bis v2.11 „Zähler zusammenführen") fasst mehrere bestehende
+Zähler zu einer Gruppe zusammen — die Zähler bleiben getrennt, die Gruppe
+zeigt die Summe. Fehlt die Auswahl oder der Name, steht das am Feld. Pro Zähler
+lässt sich hier auch der HA-Alias (`external_id`) setzen.
+
+**CSV-Import mit Vorschau (v2.12.0):** Die Dateiauswahl liest nur. Die
+Vorschau zeigt jede Zeile mit ihrer Wirkung — neu, ersetzt den vorhandenen
+Stand (mit altem Wert) oder unverändert — und den Rückfragen der Erfassung:
+Rückgang, Sprung, Größenordnung, Zukunft, doppeltes Datum. Auffällige Zeilen
+stehen immer in der Liste, unauffällige bis 50. Erst „N Zeilen importieren"
+schreibt; „Andere Datei wählen" beginnt von vorn.
+
+![Vorschau des CSV-Imports](screenshots/import-vorschau.png)
 
 ![Zähler & Verträge](screenshots/zaehler-vertraege.png)
 

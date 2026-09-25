@@ -37,16 +37,17 @@ Wasser an. Du kannst sie behalten, umbenennen oder löschen.
 
 ## 1. Verbrauchsarten wählen
 
-Öffne **System → Einstellungen** (Zahnrad in der Sidebar) → **Aktive
-Verbrauchsarten** und hake an, was du nutzt. Für unser Beispiel genügen **Gas**
-und **Strom**. Nicht aktivierte Arten verschwinden aus Sidebar und Dashboard
-(die Daten bleiben erhalten, falls du sie später wieder einschaltest).
+Öffne **Einstellungen** (Zahnrad in der Sidebar) → **Verbrauchsarten &
+Abrechnung → Aktive Verbrauchsarten** und hake an, was du nutzt. Für unser
+Beispiel genügen **Gas** und **Strom**. Nicht aktivierte Arten verschwinden aus
+Sidebar und Dashboard (die Daten bleiben erhalten, falls du sie später wieder
+einschaltest).
 
 ---
 
 ## 2. Ersten Zähler einrichten
 
-Gehe in der Sidebar auf **Gas** und dann auf **Zähler / Verträge**.
+Gehe in der Sidebar auf **Gas** und dann oben rechts auf **⚙️ Zähler**.
 
 1. Den vorhandenen *„Hauptzähler"* anklicken und ggf. umbenennen (z. B.
    *„Gas-Therme Keller"*).
@@ -63,7 +64,8 @@ Gehe in der Sidebar auf **Gas** und dann auf **Zähler / Verträge**.
 
 Zwei Wege:
 
-- **Schnell für alle Zähler:** Sidebar → **Erfassung → Zählerstände**. Diese
+- **Schnell für alle Zähler:** Sidebar → **Zählerstände** (am iPhone:
+  **＋ Erfassen** in der Tab-Leiste). Diese
   Ansicht listet alle aktiven Zähler mit dem jeweils letzten Stand als
   Orientierung — ideal fürs monatliche Ablesen am Handy.
 - **Pro Zähler:** in der Gas-Ansicht direkt in die Zählerstand-Tabelle.
@@ -79,7 +81,8 @@ und heute) — erst aus der **Differenz** entsteht ein Verbrauch.
 
 ## 4. Vertrag hinterlegen (für die Kostenrechnung)
 
-In der Gas-Ansicht → **Zähler / Verträge → Neuer Vertrag**:
+Unter **Kosten & Verträge → Verträge & Abschläge** bei Gas auf **Verträge
+verwalten → + Neuer Vertrag**:
 
 - **Anbieter** und **Tarifname**, **Start/Ende**,
 - **Arbeitspreis** (ct/kWh) und **Grundpreis** (€/Monat) — beide mit Datum,
@@ -94,12 +97,12 @@ Ab jetzt rechnet die App nicht nur Verbrauch, sondern auch **Kosten** und den
 ## 5. Temperaturen holen (für Heizanalyse & Prognose)
 
 Damit „mehr verbraucht oder nur kälter?" beantwortet werden kann, braucht Gas
-(und Fernwärme) Außentemperaturen. Sidebar → **Verbrauch → Temperaturen**:
+(und Fernwärme) Außentemperaturen. Sidebar → **Einstellungen → Wetterdaten**:
 
 - **Open-Meteo** für den in den Einstellungen hinterlegten Standort
   (Default: Leipzig — auf deinen Ort ändern!). Seit v2.8.0 holt die App die
-  Temperaturen beim Öffnen einmal am Tag selbst (*Einstellungen → Wetter
-  automatisch füllen*); übermittelt wird nur der auf rund 1 km gerundete
+  Temperaturen beim Öffnen einmal am Tag selbst (*Einstellungen → Wetterdaten →
+  Wetter automatisch füllen*); übermittelt wird nur der auf rund 1 km gerundete
   Standort. Der Knopf **Open-Meteo synchronisieren** stößt den Abgleich
   sofort an. **Oder**
 - eine Temperatur-CSV importieren — eigene Werte überschreibt der Abgleich nie.
@@ -132,10 +135,10 @@ Jetzt zahlt sich die Eingabe aus:
 
 ## 7. Sichern
 
-Sidebar → **Einstellungen → Backup & Wiederherstellung → JSON-Backup
-herunterladen**. Das ist ein vollständiger, portabler Snapshot (Format 3.0) für
-Umzug oder Sicherung. Im Docker-Betrieb liegen deine Daten ohnehin im
-gemounteten `data/`-Volume.
+Sidebar → **Einstellungen → Daten → Backup & Wiederherstellung →
+JSON-Backup herunterladen**. Das ist ein vollständiger, portabler Snapshot
+(Format 3.0) für Umzug oder Sicherung. Im Docker-Betrieb liegen deine Daten
+ohnehin im gemounteten `data/`-Volume.
 
 ---
 
@@ -155,8 +158,8 @@ gemounteten `data/`-Volume.
 
 ## Abkürzung: Demo-Daten
 
-Zum reinen Ausprobieren musst du nichts eintippen: **Einstellungen → Backup &
-Wiederherstellung → Demo-Daten laden** spielt einen vollständigen
+Zum reinen Ausprobieren musst du nichts eintippen: **Einstellungen → Daten →
+Backup & Wiederherstellung → Demo-Daten laden** spielt einen vollständigen
 Beispieldatensatz über alle acht Verbrauchsarten ein (mit Warnung + Auto-Snapshot,
 falls schon Daten vorhanden sind). Danach kannst du sofort bei
 [Schritt 6](#6-auswerten) weitermachen.

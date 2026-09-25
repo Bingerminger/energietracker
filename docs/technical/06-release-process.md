@@ -592,6 +592,25 @@ abgenommen ist.
   Release wechselt der Cache mit der Version; zwischen zwei Ständen derselben
   Version zeigt der Browser aber alte CSS. Für Sichtprüfungen den Worker vorher
   abmelden.
+- **Ein Trenner je Zeile (v2.12.0).** Der Temperatur-Import trennte mit
+  `[;,]` — in Ländern mit Dezimalkomma trifft das die Zahl selbst: Aus
+  `01.01.2024;4,2;-1,0;7,1` wurden Mittel 4, Min 2, Max −1. Aufgefallen ist es
+  erst, als ein Test das übliche Excel-Format einlas. Den Trenner an der Zeile
+  erkennen (Semikolon, sonst Tabulator, sonst Komma), nicht als Zeichenklasse
+  raten; der Ablesungs-Import machte es schon so.
+- **Vorbelegt ist nicht eingegeben (v2.12.0).** Die erste Preiszeile eines
+  neuen Vertrags trägt jetzt den Vertragsbeginn. Ohne weitere Vorkehrung wäre
+  eine Zeile mit Datum und ohne Betrag „halb ausgefüllt" gewesen und hätte das
+  Speichern blockiert — etwa bei einem Vertrag ohne Abschläge. Die Vorbelegung
+  trägt deshalb eine Markierung (`data-auto`), bis jemand das Datum ändert;
+  eine markierte Zeile ohne Betrag gilt als leer. Die m³-Umrechnungshilfe
+  suchte „die erste Zeile ohne Datum" und fand keine mehr — ein bestehender
+  Render-Test fiel, bevor es jemand bemerkte.
+- **Rückgängig braucht einen Rückweg in der API (v2.12.0).** „Erledigt" und
+  „Ausblenden" ließen sich nicht zurücknehmen: `last_done` war nicht änderbar,
+  und für das Ausblenden gab es kein Gegenstück. Ein Toast mit „Rückgängig"
+  ist schnell gebaut, der Rückweg im Datenmodell nicht; beides gehört in
+  denselben Change, sonst verspricht die Oberfläche etwas, das sie nicht kann.
 
 ---
 

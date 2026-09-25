@@ -298,7 +298,8 @@ h1, h2, h3, h4 { margin: 0; }
   transition: var(--transition);
   overflow: hidden;
 }
-.kpi:hover { border-color: var(--border-2); transform: translateY(-1px); }
+/* v2.12.0 (Review UI-21) — kein Anheben beim Überfahren: die Kacheln sind
+   nicht klickbar und versprachen mit der Bewegung etwas, das nicht kam */
 .kpi::after {
   content: ''; position: absolute;
   top: 0; left: 0; right: 0; height: 2px;

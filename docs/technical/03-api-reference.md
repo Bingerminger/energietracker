@@ -12,8 +12,8 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 ```
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
-`heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`. Stand: **84 Routen**,
-v2.10.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+`heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`. Stand: **86 Routen**,
+v2.12.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -57,7 +57,7 @@ Backups in `detail.problems`.
 ### Anmeldung *(v2.6.0, opt-in)*
 
 Ohne Anmeldung (Standard) bleibt die API offen wie bisher. Ist sie
-eingeschaltet (Einstellungen → „Anmeldung & Zugriff", oder `ET_AUTH`), gilt
+eingeschaltet (Einstellungen → Zugriff → „Anmeldung & Zugriff", oder `ET_AUTH`), gilt
 für jede Route **eines** davon:
 
 | Weg | Für | Übergabe |
@@ -109,7 +109,8 @@ nicht wieder passieren.
 | GET | `/api/settings/default-updates` | Korrigierte Standardwerte, die diese Installation noch nicht nutzt (CO₂, Wasser-Referenz) *(v2.10.0)* — s. u. |
 | GET | `/api/temperatures` | Tagestemperaturen (Map) |
 | POST | `/api/temperatures` | Tagesdatum upsert |
-| POST | `/api/temperatures/import-csv` | CSV-Import |
+| POST | `/api/temperatures/import-csv` | CSV-Import; `TT.MM.JJJJ;Mittel;Min;Max`, auch Tabulator und das alte Format mit Anführungszeichen — ein Trenner je Zeile (v2.12.0) |
+| GET | `/api/geocode` | Ortssuche für den Standort; `?q=` (2–80 Zeichen) — v2.12.0, s. u. |
 | POST | `/api/temperatures/sync-open-meteo` | Open-Meteo-Abgleich; `?start=&end=&reload=1&auto=1` (v2.8.0) — s. u. |
 | DELETE | `/api/temperatures/{date}` | Tagesdatum löschen |
 | GET | `/api/utility/{u}/meters` | Zähler/Tanks |
@@ -127,7 +128,7 @@ nicht wieder passieren.
 | POST | `/api/utility/{u}/readings` | anlegen |
 | PATCH | `/api/utility/{u}/readings/{id}` | ändern |
 | DELETE | `/api/utility/{u}/readings/{id}` | löschen |
-| POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV-Bulk-Import |
+| POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV-Bulk-Import; `?dry_run=1` liest nur (Vorschau, v2.12.0) — s. u. |
 | **GET** | **`/api/readings-overview`** | **alle aktiven kumulativen Zähler + letzte Ablesung (F1004, v1.6.0)** |
 | GET | `/api/utility/{u}/deliveries` | Lieferungen (Heizöl/Pellets) |
 | POST | `/api/utility/{u}/deliveries` | anlegen |
@@ -149,9 +150,10 @@ nicht wieder passieren.
 | GET | `/api/benchmarks/efficiency` | Effizienzklasse pro Heizquelle; seit v2.10.0 mit Abdeckung und energieausweis-naher Kennzahl — s. u. |
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden |
+| DELETE | `/api/recommendations/{id}/dismiss` | Ausblenden zurücknehmen (v2.12.0); eine nicht ausgeblendete ID ist kein Fehler |
 | GET | `/api/reminders` | Termine + Fälligkeitsstatus |
 | POST | `/api/reminders` | anlegen |
-| PATCH | `/api/reminders/{id}` | ändern |
+| PATCH | `/api/reminders/{id}` | ändern; seit v2.12.0 auch `last_done` (Datum oder `null`) — für „Rückgängig" nach „Erledigt" |
 | DELETE | `/api/reminders/{id}` | löschen |
 | POST | `/api/reminders/{id}/done` | erledigt, Recurrence fortschreiben |
 | GET | `/api/reports/yearly.pdf` | PDF-Jahresbericht (Datei-Download; `?inline=1` zeigt ihn im Browser, v2.11.0) |
@@ -421,7 +423,9 @@ Vertrag bildet die Bindungskette, statt „kein laufender Vertrag" zu melden.
 gebucht hat (bei zwei Verträgen im Monat nur ihren Teil). Schattenverträge
 gelten als Preisblatt für **alle** Monate des Zeitraums, vor ihrem ersten
 Preiseintrag mit dessen Preis — bis v2.8 nur für ihre Laufzeit, womit ein
-Sommerangebot ohne Winter billiger aussah.
+Sommerangebot ohne Winter billiger aussah. Seit v2.12.0 trägt die Antwort
+`years`: die Jahre mit Verbrauchsdaten, neueste zuerst — auch dann, wenn das
+gewählte Jahr leer ist, damit die Jahresauswahl bedienbar bleibt.
 
 **`PATCH /api/settings`:** `billing_cycle_anchor_*` muss ein Kalendertag
 `MM-TT` sein, sonst 400 `errors.settings.valueInvalid`.
@@ -477,6 +481,39 @@ Jeder Eintrag in `GET /api/temperatures` trägt seit v2.8.0 `source`:
 `archive`, `forecast`, `csv` oder `manual`. Vorhersagen werden durch
 Archivwerte ersetzt, sobald diese vorliegen; eigene Werte nie. An Open-Meteo
 geht nur der Standort, auf zwei Nachkommastellen gerundet.
+
+### `GET /api/geocode?q=…` *(v2.12.0)*
+
+Ortssuche für die Wetterdaten-Seite über das Open-Meteo-Geocoding. `q` muss
+2–80 Zeichen lang sein, sonst 400 `errors.temperature.geocodeQuery`; ist
+Open-Meteo nicht erreichbar, 502 `errors.temperature.geocodeFailed`. Die
+Sprache der Namen folgt der Oberfläche. Übermittelt wird nur der Suchtext,
+und nur, wenn jemand sucht.
+
+```json
+[ { "name": "Leipzig", "latitude": 51.3396, "longitude": 12.3713,
+    "country": "Deutschland", "admin1": "Sachsen", "postcode": "04303" } ]
+```
+
+Höchstens fünf Treffer; `country`, `admin1` und `postcode` können `null` sein.
+
+### `POST /api/utility/{u}/meters/{id}/readings/import-csv?dry_run=1` *(v2.12.0)*
+
+Liest die CSV wie der Import, schreibt aber nichts. Die Antwort hat dieselben
+Felder (`imported` und `overwritten` sind 0, `skipped`, `errors`, ggf.
+`encoding_converted_from` und `other_meter_rows`) und dazu:
+
+```json
+{ "dry_run": true,
+  "rows": [ { "line": 2, "date": "2024-02-01", "counter": 1395.2,
+              "note": "", "is_estimated": false } ] }
+```
+
+Die Oberfläche vergleicht `rows` mit den vorhandenen Ständen und zeigt je Zeile
+die Wirkung (neu, ersetzt, unverändert) und die Rückfragen der Erfassung.
+Zahlen dürfen Punkt, Komma, Leerzeichen oder Apostroph als Tausendertrenner
+tragen (`1.395,2`, `1 395,2`, `1'395.2`). Ohne `dry_run` bleibt der Import,
+wie er war.
 
 ### `GET /api/utility/{u}/meters/{id}/tariff-switch` — Prognosegüte *(v2.8.0 erweitert)*
 

@@ -27,6 +27,16 @@ const ROOT = require('path').resolve(__dirname, '..');
   // 1. recommendations endpoint shape
   const recs = await j('/api/recommendations');
   check('GET /api/recommendations → Array', Array.isArray(recs), `${recs.length} Einträge`);
+  // v2.12.0 — Ausblenden rückgängig machen
+  if (recs.length) {
+    const id = encodeURIComponent(recs[0].id);
+    await fetch(`${BASE}/api/recommendations/${id}/dismiss`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const hidden = !(await j('/api/recommendations')).some(r => r.id === recs[0].id);
+    const back = await fetch(`${BASE}/api/recommendations/${id}/dismiss`, { method: 'DELETE' }).then(r => r.json()).then(d => d.data);
+    const shown = (await j('/api/recommendations')).some(r => r.id === recs[0].id);
+    check('DELETE /api/recommendations/{id}/dismiss blendet wieder ein',
+      hidden && back?.dismissed === false && shown);
+  }
   if (recs.length) {
     const r = recs[0];
     check('Empfehlung hat id/severity/category/title/detail',
@@ -43,6 +53,20 @@ const ROOT = require('path').resolve(__dirname, '..');
     const tc = await j(`/api/utility/gas/meters/${gMeters[0].id}/tariff-comparison?year=2024`);
     check('Tarifvergleich liefert supported+rows',
       tc.supported === true && Array.isArray(tc.rows), `${tc.rows.length} Tarife`);
+    // v2.12.0 — Jahre mit Daten für die Jahresauswahl
+    check('Tarifvergleich liefert years[] (Zahlen, neueste zuerst)',
+      Array.isArray(tc.years) && tc.years.length > 0 && tc.years.every(Number.isInteger)
+        && tc.years.every((y, i, a) => i === 0 || a[i - 1] > y), (tc.years || []).join(','));
+
+    // v2.12.0 — CSV-Import mit Trockenlauf: liest, schreibt nichts
+    const before = (await j(`/api/utility/gas/readings?meter_id=${encodeURIComponent(gMeters[0].id)}`)).length;
+    const dry = await fetch(`${BASE}/api/utility/gas/meters/${gMeters[0].id}/readings/import-csv?dry_run=1`, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'datum;zählerstand\n01.01.2000;1,5\n',
+    }).then(r => r.json()).then(d => d.data);
+    const after = (await j(`/api/utility/gas/readings?meter_id=${encodeURIComponent(gMeters[0].id)}`)).length;
+    check('Import-Trockenlauf → dry_run, rows[{date,counter}], nichts geschrieben',
+      dry?.dry_run === true && dry.rows?.[0]?.date === '2000-01-01' && dry.rows[0].counter === 1.5
+        && dry.imported === 0 && before === after, `${before} → ${after} Stände`);
   }
 
   // 4. efficiency shape

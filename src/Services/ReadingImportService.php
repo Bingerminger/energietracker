@@ -48,9 +48,14 @@ final class ReadingImportService
     /**
      * Parse a CSV body and import it into the given meter.
      *
+     * v2.12.0 (Review UI-23) — `$dryRun`: nur lesen, nichts schreiben. Die
+     * Antwort trägt dann zusätzlich `rows` (die gelesenen Zeilen) und
+     * `dry_run: true`; die Oberfläche zeigt daraus eine Vorschau mit
+     * Rückgang, Sprung, Zukunft und Überschreiben, bevor importiert wird.
+     *
      * @return array{imported:int,overwritten:int,skipped:int,errors:string[]}
      */
-    public function importCsv(string $utility, string $meterId, string $csv): array
+    public function importCsv(string $utility, string $meterId, string $csv, bool $dryRun = false): array
     {
         if (!Utilities::exists($utility)) {
             throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
@@ -126,6 +131,23 @@ final class ReadingImportService
                 'is_estimated' => $cols['estimated'] !== null && isset($parts[$cols['estimated']])
                     ? $this->parseBool(trim((string)$parts[$cols['estimated']])) : false,
             ];
+        }
+
+        if ($dryRun) {
+            if (!$this->meters->get($utility, $meterId)) {
+                throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
+            }
+            $report = [
+                'imported'    => 0,
+                'overwritten' => 0,
+                'skipped'     => $skipped,
+                'errors'      => $errors,
+                'dry_run'     => true,
+                'rows'        => $rows,
+            ];
+            if ($convertedFrom !== null) $report['encoding_converted_from'] = $convertedFrom;
+            if ($otherMeter > 0) $report['other_meter_rows'] = $otherMeter;
+            return $report;
         }
 
         $report = $this->importRows($utility, $meterId, $rows);
@@ -216,6 +238,9 @@ final class ReadingImportService
     {
         // Accept "12345.6", "12345,6", "12.345,6", "12,345.6", quoted or spaced.
         $raw = trim($s, " \t\"'");
+        // v2.12.0 — Leerzeichen und Apostroph als Tausendertrenner
+        // („1 395,2" in Frankreich, „1'395.2" in der Schweiz)
+        $raw = str_replace([' ', "\u{00A0}", "\u{202F}", "'", '’'], '', $raw);
         if ($raw === '') return null;
         if (str_contains($raw, ',') && str_contains($raw, '.')) {
             // The rightmost separator is the decimal separator.

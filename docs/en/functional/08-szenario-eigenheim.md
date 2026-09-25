@@ -145,7 +145,7 @@ Since v1.7.0, two PV utilities belong to the standard home setup:
 `pv_einspeisung` (the distribution grid operator's meter) and `pv_erzeugung` (the
 inverter's total yield). They are NOT active in the default settings — anyone
 without a system sees nothing of them. Anyone with a system activates both in
-*Settings → Active utilities*.
+*Settings → Utilities & billing → Active utilities*.
 
 ### 6.1 Which meters do I need?
 

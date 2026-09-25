@@ -31,7 +31,9 @@ Pro Zähler enthält die Karte:
 - **Letzter bekannter Stand** (Wert + Datum + ggf. Tag „geschätzt")
 - **Neuer Stand** — numerisches Eingabefeld, `inputmode="decimal"`
   öffnet auf iPhone/Android direkt die Zahlentastatur
-- **Datum** — Default heute, pro Zeile überschreibbar
+- **Datum** — oben ein Datum für alle Karten (Default heute); je Karte seit
+  v2.12.0 eingeklappt hinter „Anderes Datum". Eine Karte mit eigenem Datum
+  behält es, wenn sich das Datum oben ändert.
 - **Geschätzt** — Toggle, der die Ablesung als Schätzung markiert
   (mappt auf das bestehende `is_estimated`-Flag des Reading-Schemas)
 - **Notiz** — auf Klick aufklappbar, optional, max. 200 Zeichen
@@ -45,7 +47,10 @@ Ein einziger Sticky-Button am unteren Rand. Beim Klick:
 3. POSTet pro Karte gegen `/api/utility/{u}/readings`,
 4. zeigt pro Karte ✓ (gespeichert) oder ✗ (Fehler) als Statusindikator,
 5. fasst am Ende per Toast zusammen („3 gespeichert · 1 leer" oder
-   „2 gespeichert, 1 fehlgeschlagen").
+   „2 gespeichert, 1 fehlgeschlagen"); seit v2.12.0 mit der Änderung je
+   Verbrauchsart („Gas +5,4 m³") und zehn Sekunden **„Rückgängig"**, das die
+   eben angelegten Stände wieder löscht. Ersetzte Stände (Rückfrage „Ersetzen")
+   nimmt „Rückgängig" nicht zurück.
 
 Eine fehlerhafte Karte blockiert die anderen **nicht** — robust gegen
 Teilfehler. Nach erfolgreichem Speichern wird der „letzter Stand" in
@@ -58,6 +63,17 @@ Baseline validiert.
   Dezimaltrenner.
 - **Leere Eingabe** — die Karte wird beim Speichern still übersprungen,
   nicht als Fehler markiert.
+- **Fehler am Feld** (v2.12.0) — ein unlesbarer Wert oder eine Ablehnung des
+  Servers steht unter dem Feld (`aria-invalid`, `aria-describedby`), nicht
+  nur im Titel des ✗.
+
+## Direktsprung je Zähler (v2.12.0)
+
+`#/zaehlerstaende?meter=<id>` öffnet die Erfassung mit der Karte dieses
+Zählers markiert und im Fokus. Gedacht für ein Lesezeichen auf dem
+Home-Bildschirm („Gaszähler ablesen"), einen Kurzbefehl und „Zu tun" auf der
+Übersicht. Die Zähler-ID steht in der Adresszeile der Zähleransicht und in
+`GET /api/utility/{u}/meters`.
 
 ## Plausibilität (v2.6.0)
 
@@ -115,14 +131,16 @@ Die Ansicht ist von Grund auf für iPhone-Hochformat gebaut:
 
 - Karten füllen die volle Breite, eine pro Bildschirmzeile
 - Eingabefelder mit min. 48 px Touch-Target-Höhe (Apple-HIG-konform)
-- Datum + Zähler einspaltig untereinander unter 600 px Breite
+- Enter bzw. „Weiter" springt ins nächste Zählerfeld, beim letzten auf
+  „Alle speichern" (`enterkeyhint`, v2.12.0)
 - Sticky-Save-Bar mit `env(safe-area-inset-bottom)` für den Home-
   Indicator-Bereich neuerer iPhones
 - `inputmode="decimal"` öffnet die Zahlentastatur ohne Buchstaben
 
-Auf Desktop und Tablet wird das Layout in zwei Spalten (Zähler links,
-Datum rechts) erweitert und auf max. 720 px Breite zentriert — hohe
-Lesbarkeit, kein endloses Scannen über die volle Bildschirmbreite.
+Auf Desktop und Tablet bleibt die Karte einspaltig und wird auf max. 720 px
+Breite zentriert — hohe Lesbarkeit, kein endloses Scannen über die volle
+Bildschirmbreite. (Bis v2.11 stand das Datum je Karte rechts neben dem
+Zählerfeld.)
 
 ## Architektur
 

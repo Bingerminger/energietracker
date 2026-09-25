@@ -107,6 +107,11 @@ final class TariffComparisonService
                 $this->i18n->t('errors.tariff.noConsumption'));
         }
 
+        // v2.12.0 (Review UI-31) — Jahre mit Daten, für die Jahresauswahl.
+        // Vorher bot die Oberfläche fest die letzten sieben Jahre an, auch leere.
+        $years = array_values(array_unique(array_filter(array_map(fn($m) => (int)($m['year'] ?? 0), $monthly))));
+        rsort($years);
+
         if ($year !== null) {
             $monthly = array_values(array_filter($monthly, fn($m) => (int)($m['year'] ?? 0) === $year));
             $label   = (string)$year;
@@ -115,7 +120,7 @@ final class TariffComparisonService
         }
         if (empty($monthly)) {
             return $this->emptyResult($utility, $meterId, $unit, $label, true,
-                $this->i18n->t('errors.tariff.noConsumptionInPeriod'));
+                $this->i18n->t('errors.tariff.noConsumptionInPeriod'), $years);
         }
 
         $totalMonths = count($monthly);
@@ -209,6 +214,7 @@ final class TariffComparisonService
             'meter_id'       => $meterId,
             'unit'           => $unit,
             'period'         => ['from' => $from, 'to' => $to, 'label' => $label, 'months' => $totalMonths],
+            'years'          => $years,   // v2.12.0
             'supported'      => true,
             'higher_is_better' => $higherIsBetter,   // v2.10.0
             'note'           => $rows ? null : $this->i18n->t('errors.tariff.noContracts'),
@@ -307,13 +313,14 @@ final class TariffComparisonService
     /** @return array<string,mixed> */
     private function emptyResult(
         string $utility, string $meterId, string $unit,
-        string $label, bool $supported, string $note
+        string $label, bool $supported, string $note, array $years = []
     ): array {
         return [
             'utility'        => $utility,
             'meter_id'       => $meterId,
             'unit'           => $unit,
             'period'         => ['from' => null, 'to' => null, 'label' => $label, 'months' => 0],
+            'years'          => $years,
             'supported'      => $supported,
             'note'           => $note,
             // gleiche Form wie die volle Antwort (Prüfung vor dem v2.10.0-Release)

@@ -87,17 +87,19 @@ export async function render(container) {
   }
 
   container.innerHTML = `
-    <div class="view-head">
-      <h1>${esc(t('tariff.title'))}</h1>
-      <p class="muted">${esc(t('tariff.subtitle'))}</p>
+    <div class="view-header">
+      <div>
+        <h1 class="view-header__title">${esc(t('tariff.title'))}</h1>
+        <p class="view-header__subtitle">${esc(t('tariff.subtitle'))}</p>
+      </div>
     </div>
     <div class="toolbar">
       <label>${esc(t('tariff.utility'))}
-        <select id="t-util">${usable.map(u =>
+        <select class="select" id="t-util">${usable.map(u =>
           `<option value="${esc(u.key)}" ${u.key === sel.utility ? 'selected' : ''}>${esc(u.label)}</option>`).join('')}</select>
       </label>
       <label>${esc(t('tariff.meter'))}
-        <select id="t-meter">${meters.map(m =>
+        <select class="select" id="t-meter">${meters.map(m =>
           `<option value="${esc(m.id)}" ${m.id === sel.meterId ? 'selected' : ''}>${esc(m.name || m.id)}</option>`).join('')}</select>
       </label>
       <button class="btn btn--util" id="t-addshadow">${esc(t('tariff.addShadow'))}</button>
@@ -272,7 +274,7 @@ function timingCardHtml(d) {
     <div class="card switch-card">
       <div class="card__title">${esc(t('tariff.switch.switchDate'))}</div>
       <div class="switch-date-row">
-        <input type="date" id="t-switch-date" value="${esc(d.switch_date || '')}"
+        <input class="input" type="date" id="t-switch-date" value="${esc(d.switch_date || '')}"
                aria-label="${esc(t('tariff.switch.switchDate'))}">
         ${src ? `<span class="badge badge--info">${esc(src)}</span>` : ''}
         ${sel.switchDate ? `<button class="btn btn--xs btn--ghost" id="t-switch-reset">${esc(t('tariff.switch.reset'))}</button>` : ''}
@@ -282,7 +284,7 @@ function timingCardHtml(d) {
       ${followUp}
       ${cancelLine}
       <p class="muted small">${esc(t('tariff.switch.window', {
-        from: d.window.from, to: d.window.to, months: d.window.months }))}</p>
+        from: f.month(d.window.from), to: f.month(d.window.to), months: d.window.months }))}</p>
     </div>`;
 }
 
@@ -351,9 +353,9 @@ function rowActionsHtml(c) {
   if (!c.is_shadow) return '';
   return `
     <button class="btn btn--xs btn--ghost" data-edit-shadow="${esc(c.contract_id)}"
-            title="${esc(t('tariff.action.edit'))}" aria-label="${esc(t('tariff.action.edit'))}"><span aria-hidden="true">✎</span></button>
-    <button class="btn btn--xs btn--ghost" data-delete-shadow="${esc(c.contract_id)}"
-            title="${esc(t('tariff.action.delete'))}" aria-label="${esc(t('tariff.action.delete'))}"><span aria-hidden="true">🗑</span></button>`;
+            title="${esc(t('tariff.action.edit'))}" aria-label="${esc(t('tariff.action.editNamed', { name: c.label || '' }))}"><span aria-hidden="true">✎</span></button>
+    <button class="btn btn--xs btn--ghost" data-delete-shadow="${esc(c.contract_id)}" data-name="${esc(c.label || '')}"
+            title="${esc(t('tariff.action.delete'))}" aria-label="${esc(t('tariff.action.deleteNamed', { name: c.label || '' }))}"><span aria-hidden="true">🗑</span></button>`;
 }
 
 /**
@@ -470,13 +472,16 @@ async function loadRetro(container) {
   }
   lastRetro = data;
 
-  if (!data.supported || !data.rows || data.rows.length === 0) {
+  // v2.12.0 — ein gewähltes Jahr ohne Zeilen blendete den ganzen Rückblick
+  // samt Jahresauswahl aus; jetzt bleibt die Auswahl mit einem Hinweis stehen
+  const noRows = !data.rows || data.rows.length === 0;
+  if (!data.supported || (noRows && !sel.year)) {
     box.innerHTML = '';
     return;
   }
 
   const unit = data.unit || 'kWh';
-  const anyPartial = data.rows.some(r => !r.covers_full_period);
+  const anyPartial = (data.rows || []).some(r => !r.covers_full_period);
 
   box.innerHTML = `
     <details class="retro-block">
@@ -487,11 +492,11 @@ async function loadRetro(container) {
 
       <div class="toolbar toolbar--sub">
         <label>${esc(t('tariff.year'))}
-          <select id="t-year"><option value="">${esc(t('tariff.wholePeriod'))}</option>${yearOpts()}</select>
+          <select class="select" id="t-year"><option value="">${esc(t('tariff.wholePeriod'))}</option>${yearOpts(data.years)}</select>
         </label>
         <span class="muted small">
           ${data.period.from
-            ? esc(t('tariff.periodRange', { label: data.period.label, from: data.period.from, to: data.period.to }))
+            ? esc(t('tariff.periodRange', { label: data.period.label, from: f.month(data.period.from), to: f.month(data.period.to) }))
             : esc(t('tariff.period', { label: data.period.label }))}
           ${data.real_total_eur != null
             ? ` · ${esc(t('tariff.realTotal', { value: f.eur(data.real_total_eur) }))}` : ''}
@@ -508,7 +513,9 @@ async function loadRetro(container) {
             <th scope="col" class="num" title="${esc(t('tariff.unitCostTitle'))}">${esc(t('tariff.col.unitCost', { unit }))}</th>
             <th scope="col" class="num">${esc(t('tariff.col.savings'))}</th>
           </tr></thead>
-          <tbody>${data.rows.map(r => retroRowHtml(r, unit, !!data.higher_is_better)).join('')}</tbody>
+          <tbody>${noRows
+            ? `<tr><td colspan="6" class="muted">${esc(data.note || '')}</td></tr>`
+            : data.rows.map(r => retroRowHtml(r, unit, !!data.higher_is_better)).join('')}</tbody>
         </table>
       </div>
 
@@ -585,7 +592,7 @@ function wireRowActions(box, container) {
     b.addEventListener('click', async () => {
       const ok = await confirmModal({
         title: t('tariff.shadow.deleteTitle'),
-        message: t('tariff.shadow.deleteMessage'),
+        message: t('tariff.shadow.deleteMessageNamed', { name: b.dataset.name || '' }),   // v2.12.0 (Review UI-22)
         confirmLabel: t('tariff.shadow.deleteConfirm'),
         danger: true,
       });
@@ -708,11 +715,10 @@ function openShadowForm(container, existing) {
   });
 }
 
-function yearOpts() {
+// v2.12.0 (Review UI-31) — nur Jahre mit Daten (`years` aus der Antwort);
+// ältere Server ohne das Feld: wie bisher die letzten sieben Jahre
+function yearOpts(years) {
   const now = new Date().getFullYear();
-  let o = '';
-  for (let y = now; y >= now - 6; y--) {
-    o += `<option value="${y}" ${String(y) === String(sel.year) ? 'selected' : ''}>${y}</option>`;
-  }
-  return o;
+  const list = Array.isArray(years) && years.length ? years : Array.from({ length: 7 }, (_, i) => now - i);
+  return list.map(y => `<option value="${esc(y)}" ${String(y) === String(sel.year) ? 'selected' : ''}>${esc(y)}</option>`).join('');
 }

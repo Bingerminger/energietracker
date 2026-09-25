@@ -28,7 +28,7 @@ ihren Anteil sauber heraushalten.
 
 1. Hauptzähler `strom` anlegen: *„Hausanschluss WG"*.
 2. Zweiten Zähler `strom` anlegen: *„Arbeitszimmer (Server)"*.
-3. Beim zweiten Zähler unter **Zähler / Verträge** den **Elternzähler** auf
+3. Beim zweiten Zähler unter **⚙️ Zähler → Bearbeiten** den **Elternzähler** auf
    *„Hausanschluss WG"* setzen → er wird zum **Subzähler**.
 
 **Was passiert.** Der Server-Subzähler wird vom Hausanschluss abgezogen. Im
@@ -57,8 +57,8 @@ Niemand will mehr Werte abtippen.
 
 **Einrichtung.**
 
-1. In **Einstellungen → 🏠 Home-Assistant-Anbindung** einen **API-Token**
-   erzeugen (einmalig kopieren).
+1. In **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung** einen
+   **API-Token** erzeugen (einmalig kopieren).
 2. Jedem Zähler einen **Alias** geben: `strom_haus`, `gas_haus`, `wasser_haus`.
 3. In HA das fertige `rest_command`-YAML (aus den Einstellungen kopierbar)
    einfügen und eine Automatisierung bauen, die abends um 23:55 alle Zähler
@@ -102,8 +102,8 @@ Einspeisevergütung **und** der separate Stromverbrauch der Wärmepumpe.
 
 **Einrichtung.**
 
-1. In **Einstellungen → Aktive Verbrauchsarten** `pv_einspeisung` und
-   `pv_erzeugung` aktivieren.
+1. In **Einstellungen → Verbrauchsarten & Abrechnung → Aktive
+   Verbrauchsarten** `pv_einspeisung` und `pv_erzeugung` aktivieren.
 2. Zähler anlegen:
    - `strom` *„Hausanschluss"* (Netzbezug),
    - `strom` *„Wärmepumpe"* → **Subzähler** von *„Hausanschluss"*,

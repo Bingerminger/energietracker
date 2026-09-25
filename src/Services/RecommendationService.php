@@ -89,6 +89,18 @@ final class RecommendationService
         $this->store->write('recommendations_dismissed.json', $map);
     }
 
+    /**
+     * v2.12.0 (Review UI-22) — Ausblenden zurücknehmen („Rückgängig").
+     * Eine nicht ausgeblendete ID ist kein Fehler: Das Ergebnis ist dasselbe.
+     */
+    public function restore(string $id): void
+    {
+        $map = $this->dismissedMap();
+        if (!array_key_exists($id, $map)) return;
+        unset($map[$id]);
+        $this->store->write('recommendations_dismissed.json', $map);
+    }
+
     // ─── Regelfamilien ───────────────────────────────────────────────────
 
     /**

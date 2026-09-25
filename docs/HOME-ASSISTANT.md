@@ -34,23 +34,24 @@ Feature F1009).
    die Zählerstände sendet.
 
 Alle drei Schritte lassen sich direkt im Energietracker unter
-**Einstellungen → 🏠 Home-Assistant-Anbindung** vorbereiten (inkl.
-Copy-&-Paste-YAML).
+**Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung** vorbereiten
+(inkl. Copy-&-Paste-YAML).
 
 ---
 
 ## Schritt 1 — API-Token erzeugen
 
-1. Energietracker öffnen → **Einstellungen** → **🏠 Home-Assistant-Anbindung**.
+1. Energietracker öffnen → **Einstellungen** → **Integrationen** →
+   **🏠 Home-Assistant-Anbindung**.
 2. Auf **„Token erzeugen"** klicken. Der Token wird **nur einmal** angezeigt —
    sofort kopieren und sicher ablegen (z. B. in den HA-Secrets).
 3. Der Token schützt **nur** den Push-Endpoint `/api/ingest`, nicht den Rest
    der App. Solange keiner gesetzt ist, nimmt der Push Werte ohne Token an
    (nur fürs Heimnetz gedacht). **Sobald ein Token existiert, muss HA ihn
    mitsenden** — andernfalls antwortet der Endpoint mit `401`.
-4. **Mit eingeschalteter Anmeldung** (Einstellungen → „Anmeldung & Zugriff",
-   seit v2.6.0) ist der Token **Pflicht**: Ohne Token lehnt der Push dann
-   jeden Wert ab. Die App selbst schützt die Anmeldung — siehe
+4. **Mit eingeschalteter Anmeldung** (Einstellungen → Zugriff → „Anmeldung &
+   Zugriff", seit v2.6.0) ist der Token **Pflicht**: Ohne Token lehnt der Push
+   dann jeden Wert ab. Die App selbst schützt die Anmeldung — siehe
    [Sicherheit & Netzbetrieb](technical/08-security.md).
 
 > Der Token wird serverseitig nur als **Hash** gespeichert (in `data/auth.json`),
@@ -67,9 +68,9 @@ Copy-&-Paste-YAML).
 HA soll die Zähler nicht über kryptische interne IDs (`m_strom_main`)
 ansprechen. Vergib stattdessen pro Zähler einen **Alias**:
 
-- In **Einstellungen → 🏠 Home-Assistant-Anbindung → Zähler-Aliase** je Zähler
-  einen Alias eintragen (z. B. `stromzaehler_haus`, `gaszaehler_wohnung`) und
-  **speichern**.
+- In **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung →
+  Zähler-Aliase** je Zähler einen Alias eintragen (z. B. `stromzaehler_haus`,
+  `gaszaehler_wohnung`) und **speichern**.
 - Erlaubt sind 1–64 Zeichen aus Buchstaben, Ziffern, `_`, `.`, `-`.
 - Der Alias muss innerhalb einer Verbrauchsart eindeutig sein.
 

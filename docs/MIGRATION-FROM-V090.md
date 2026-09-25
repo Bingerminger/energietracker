@@ -14,7 +14,8 @@ Diese Anleitung beschreibt den vollständigen Migrationspfad.
 ## TL;DR
 
 1. In v0.9.0: JSON-Backup exportieren.
-2. In v1.0.2: **Einstellungen → Backup & Restore → 📦 Migration aus v0.9.0**.
+2. Im aktuellen Energietracker: **Einstellungen → Daten → Backup &
+   Wiederherstellung → 📦 Migration aus v0.9.0**.
 3. Modus wählen (*Ersetzen* oder *Zusammenführen*).
 4. Importieren.
 
@@ -344,8 +345,8 @@ Im `merge`-Modus enthält jedes Utility zusätzlich `skipped`
 
 Im Datenverzeichnis liegt unter `data/backups/` der automatisch vor
 dem Import erzeugte Snapshot. Er hat exakt das `backup_version: "3.0"`-
-Format und kann jederzeit über *Einstellungen → Backup importieren*
-zurückgespielt werden.
+Format und kann jederzeit über *Einstellungen → Daten → Backup &
+Wiederherstellung → Backup importieren* zurückgespielt werden.
 
 Im Dateisystem (z.B. via SSH) lässt sich der Snapshot manuell
 entpacken, indem man den Inhalt unter `data/<utility>/*.json`

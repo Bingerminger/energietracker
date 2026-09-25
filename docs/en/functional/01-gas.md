@@ -32,8 +32,9 @@ supplier's gas sources vary.
 ## Conversion factors with cut-off dates (F1012, since v2.5.0)
 
 Up to v2.4.2 the Energietracker knew a single factor. Since v2.5.0 it is a
-**dated list** under *Settings → Gas conversion factors* — one entry per
-calorific-value period, exactly as the bill states them:
+**dated list** under *Settings → Utilities & billing → Physical constants → Gas
+conversion factors* — one entry per calorific-value period, exactly as the bill
+states them:
 
 | Valid from | Vol. corr. | Calorific value | → Factor |
 |---|---|---|---|
@@ -42,8 +43,8 @@ calorific-value period, exactly as the bill states them:
 | 2025-01-01 | 0.9600 | 11.650 | 11.1840 |
 | 2025-10-01 | 0.9600 | 11.520 | 11.0592 |
 
-(These are the demo-data values — *Settings → Load demo data* shows the
-list together with the bill verification right away.)
+(These are the demo-data values — *Settings → Data → Backup & restore → Load
+demo data* shows the list together with the bill verification right away.)
 
 Worth knowing:
 

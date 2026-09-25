@@ -70,8 +70,8 @@ Einzelzähler weiterhin sichtbar bleiben.
 
 ### Merge-Wizard
 
-Am schnellsten geht das Bündeln über **Einstellungen → Zähler / Verträge →
-„Zähler zusammenführen"**: mehrere bestehende Zähler auswählen, Gruppenname
+Am schnellsten geht das Bündeln über **Verbrauch → *Verbrauchsart* → ⚙️ Zähler →
+„Zu Gruppe zusammenfassen"**: mehrere bestehende Zähler auswählen, Gruppenname
 vergeben, fertig. Im Hintergrund setzt der Wizard `meter_group_id` bei allen
 gewählten Zählern.
 

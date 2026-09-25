@@ -5,7 +5,7 @@
 > 🔐 **Sicherheit:** Ohne Anmeldung kann jeder, der die App erreicht, alle Daten
 > lesen und ändern — im eigenen Heimnetz in Ordnung. Bevor du sie von außen
 > erreichbar machst (Portfreigabe, Reverse-Proxy, QuickConnect), schalte die
-> Anmeldung ein (Einstellungen → „Anmeldung & Zugriff") und lies
+> Anmeldung ein (Einstellungen → Zugriff → „Anmeldung & Zugriff") und lies
 > [Sicherheit & Netzbetrieb](docs/technical/08-security.md). Besser noch:
 > unterwegs per VPN zugreifen.
 
@@ -28,7 +28,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 2.11.0
+├── VERSION                ← 2.12.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein
@@ -157,7 +157,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.11.0
+  ghcr.io/bingerminger/energietracker:2.12.0
 ```
 
 **Oder lokal bauen:**
@@ -187,9 +187,9 @@ Die Logs (JSON Lines) erscheinen bei `ET_LOG_DEST=stderr` direkt in
 > fertiges JSON-Backup unter
 > [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
 > In einem leeren Energietracker kannst du es direkt über
-> *Einstellungen → Backup & Restore → Backup importieren* einspielen (ab
-> v1.7.4 gibt es dafür zusätzlich einen „Demo-Daten laden"-Button). Vor dem
-> Import wird automatisch ein Snapshot deiner aktuellen Daten angelegt.
+> *Einstellungen → Daten → Backup & Wiederherstellung → Backup importieren*
+> einspielen (ab v1.7.4 gibt es dafür zusätzlich einen „Demo-Daten laden"-Button).
+> Vor dem Import wird automatisch ein Snapshot deiner aktuellen Daten angelegt.
 
 Klassisch per Dateikopie:
 
@@ -213,8 +213,8 @@ cp demo-data/meta.json demo-data/settings.json \
 ## Migration aus v0.9.0
 
 Wer ein altes v0.9.0-Backup hat: nach der Installation einfach in der
-UI öffnen unter **Einstellungen → Backup & Restore → 📦 Migration aus
-v0.9.0** und die JSON-Datei hochladen.
+UI öffnen unter **Einstellungen → Daten → Backup & Wiederherstellung →
+📦 Migration aus v0.9.0** und die JSON-Datei hochladen.
 
 Detaillierte Anleitung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md).
 
@@ -223,7 +223,7 @@ Detaillierte Anleitung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V0
 Du betreibst Home Assistant und möchtest Zählerstände automatisch übergeben
 lassen? Der Energietracker hat dafür einen offiziellen Push-Endpoint
 (`POST /api/ingest`) mit optionalem API-Token. Einrichtung direkt in der UI
-unter **Einstellungen → 🏠 Home-Assistant-Anbindung**.
+unter **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung**.
 
 Schritt-für-Schritt inkl. REST-Command, Automatisierung und Use-Cases
 (Eigenheim, Mietwohnung) in [`docs/HOME-ASSISTANT.md`](docs/HOME-ASSISTANT.md).

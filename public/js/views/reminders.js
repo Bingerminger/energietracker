@@ -3,9 +3,10 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { toastOk, toastErr } from '../components/toast.js';
+import { toastOk, toastErr, toastUndo } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
-import { t } from '../lib/i18n.js';
+import { showFieldError } from '../lib/form.js';
+import { t, tp } from '../lib/i18n.js';
 import { escapeHtml as esc, todayIso, fmt } from '../lib/format.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
@@ -47,18 +48,21 @@ async function draw(container) {
   });
 
   container.innerHTML = `
-    <div class="view-head view-head--row">
+    <div class="view-header">
       <div>
-        <h1>${t('reminders.title')}</h1>
-        <p class="muted">${t('reminders.subtitle')}</p>
+        <h1 class="view-header__title">${t('reminders.title')}</h1>
+        <p class="view-header__subtitle">${t('reminders.subtitle')}</p>
       </div>
-      <button class="btn btn--primary" id="rem-add" data-rem-add>${t('reminders.add')}</button>
+      <div class="view-header__actions">
+        <button class="btn btn--primary" id="rem-add" data-rem-add>${t('reminders.add')}</button>
+      </div>
     </div>
 
     ${sorted.length === 0
       ? `<div class="banner banner--info">${t('reminders.empty')}</div>
          <div style="margin-top:var(--sp-3)"><button class="btn btn--primary" data-rem-add>${t('reminders.emptyCta')}</button></div>`
-      : `<div class="table-wrap"><table class="data-table">
+      // v2.12.0 (Review UI-20) — die Tabelle in einer Karte wie auf den anderen Seiten
+      : `<div class="card"><div class="table-wrap"><table class="data-table">
           <thead><tr>
             <th scope="col">${t('reminders.col.title')}</th><th scope="col">${t('reminders.col.category')}</th><th scope="col">${t('reminders.col.due')}</th>
             <th scope="col">${t('reminders.col.recurrence')}</th><th scope="col">${t('reminders.col.status')}</th><th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
@@ -66,7 +70,7 @@ async function draw(container) {
           <tbody>
             ${sorted.map(rowHtml).join('')}
           </tbody>
-        </table></div>`}
+        </table></div></div>`}
   `;
 
   container.querySelectorAll('[data-rem-add]').forEach(b => b.addEventListener('click', () => openForm(container, null)));
@@ -74,16 +78,32 @@ async function draw(container) {
     b.addEventListener('click', () => openForm(container, list.find(r => r.id === b.dataset.edit))));
   container.querySelectorAll('[data-done]').forEach(b =>
     b.addEventListener('click', async () => {
+      const prev = list.find(r => r.id === b.dataset.done);
       try {
-        await api.reminderDone(b.dataset.done);
-        toastOk(t('reminders.toast.markedDone'));
+        const res = await api.reminderDone(b.dataset.done);
+        // v2.12.0 (Review UI-22) — mit Namen, nächstem Termin und „Rückgängig"
+        const title = prev?.title || '';
+        const msg = res?.active === false
+          ? t('reminders.toast.doneOnce', { title })
+          : t('reminders.toast.doneNext', { title, date: fmt.date(res?.next_due) });
+        toastUndo(msg, async () => {
+          try {
+            await api.updateReminder(prev.id, {
+              next_due: prev.next_due, active: prev.active !== false, last_done: prev.last_done ?? null,
+            });
+            toastOk(t('reminders.toast.undone', { title }));
+            badgesChanged();
+            if (container.isConnected) await draw(container);
+          } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
+        });
         badgesChanged();
         await draw(container);
       } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
     }));
   container.querySelectorAll('[data-del]').forEach(b =>
     b.addEventListener('click', async () => {
-      const ok = await confirmModal({ title: t('reminders.deleteConfirm.title'), message: t('reminders.deleteConfirm.message'), confirmLabel: t('reminders.deleteConfirm.confirm'), danger: true });
+      const title = list.find(r => r.id === b.dataset.del)?.title || '';
+      const ok = await confirmModal({ title: t('reminders.deleteConfirm.title'), message: t('reminders.deleteConfirm.messageNamed', { title }), confirmLabel: t('reminders.deleteConfirm.confirm'), danger: true });
       if (!ok) return;
       try {
         await api.deleteReminder(b.dataset.del);
@@ -107,12 +127,15 @@ function rowHtml(r) {
     <td><strong>${esc(r.title)}</strong>${r.notes ? `<br><span class="muted small">${esc(r.notes)}</span>` : ''}</td>
     <td>${esc(catLabel(r.category))}</td>
     <td>${dueStr}</td>
-    <td>${esc(recLabel(r.recurrence))}${r.recurrence === 'custom-months' && r.recurrence_months ? ` (${r.recurrence_months})` : ''}</td>
+    <td>${esc(r.recurrence === 'custom-months' && r.recurrence_months
+      // v2.12.0 (Review UI-20) — „Alle 48 Monate" statt „Alle N Monate (48)"
+      ? tp('reminders.everyMonths', r.recurrence_months) : recLabel(r.recurrence))}</td>
     <td><span class="badge badge--${STATUS_CLS[statusKey]}">${t('reminders.status.' + statusKey)}</span></td>
     <td class="cell-actions">
-      <button class="btn btn--xs btn--ghost" data-done="${esc(r.id)}" title="${t('reminders.action.done')}" aria-label="${t('reminders.action.done')}"><span aria-hidden="true">✓</span></button>
-      <button class="btn btn--xs btn--ghost" data-edit="${esc(r.id)}" title="${t('reminders.action.edit')}" aria-label="${t('reminders.action.edit')}"><span aria-hidden="true">✎</span></button>
-      <button class="btn btn--xs btn--ghost" data-del="${esc(r.id)}" title="${t('reminders.action.delete')}" aria-label="${t('reminders.action.delete')}"><span aria-hidden="true">🗑</span></button>
+      <!-- v2.12.0 (Review UI-22) — Vorlesetext mit dem Namen des Termins -->
+      <button class="btn btn--xs btn--ghost" data-done="${esc(r.id)}" title="${t('reminders.action.done')}" aria-label="${esc(t('reminders.action.doneNamed', { title: r.title }))}"><span aria-hidden="true">✓</span></button>
+      <button class="btn btn--xs btn--ghost" data-edit="${esc(r.id)}" title="${t('reminders.action.edit')}" aria-label="${esc(t('reminders.action.editNamed', { title: r.title }))}"><span aria-hidden="true">✎</span></button>
+      <button class="btn btn--xs btn--ghost" data-del="${esc(r.id)}" title="${t('reminders.action.delete')}" aria-label="${esc(t('reminders.action.deleteNamed', { title: r.title }))}"><span aria-hidden="true">🗑</span></button>
     </td>
   </tr>`;
 }
@@ -128,13 +151,17 @@ function openForm(container, existing) {
     title: existing ? t('reminders.form.titleEdit') : t('reminders.form.titleNew'),
     body: `
       <div class="form-grid">
-        <label>${t('reminders.form.fTitle')}<input type="text" id="f-title" value="${esc(r.title)}" placeholder="${t('reminders.form.fTitlePlaceholder')}"></label>
+        <!-- v2.12.0 (Review UI-22) — Fehler am Feld statt im Toast -->
+        <label>${t('reminders.form.fTitle')}<input type="text" id="f-title" value="${esc(r.title)}" placeholder="${t('reminders.form.fTitlePlaceholder')}" aria-describedby="f-title-msg"></label>
+        <div class="field-error" id="f-title-msg" role="alert" hidden></div>
         <label>${t('reminders.form.fCategory')}<select id="f-cat">${catOpts}</select></label>
-        <label>${t('reminders.form.fDue')}<input type="date" id="f-due" value="${esc(r.next_due)}"></label>
+        <label>${t('reminders.form.fDue')}<input type="date" id="f-due" value="${esc(r.next_due)}" aria-describedby="f-due-msg"></label>
+        <div class="field-error" id="f-due-msg" role="alert" hidden></div>
         <label>${t('reminders.form.fRecurrence')}<select id="f-rec">${recOpts}</select></label>
         <label id="f-rm-wrap" style="${r.recurrence === 'custom-months' ? '' : 'display:none'}">
-          ${t('reminders.form.fInterval')}<input type="text" inputmode="numeric" autocomplete="off" id="f-rm" value="${esc(String(r.recurrence_months || 12))}">
+          ${t('reminders.form.fInterval')}<input type="text" inputmode="numeric" autocomplete="off" id="f-rm" value="${esc(String(r.recurrence_months || 12))}" aria-describedby="f-rm-msg">
         </label>
+        <div class="field-error" id="f-rm-msg" role="alert" hidden></div>
         <label>${t('reminders.form.fNotes')}<input type="text" id="f-notes" value="${esc(r.notes || '')}"></label>
       </div>`,
     footer: `
@@ -153,7 +180,6 @@ function openForm(container, existing) {
         const rmEl = bodyEl.querySelector('#f-rm');
         const rm = /^\d{1,3}$/.test(rmEl.value.trim()) ? Number(rmEl.value.trim()) : null;
         const rmOk = !custom || (rm !== null && rm >= 1 && rm <= 120);
-        rmEl.classList.toggle('invalid', !rmOk);
         const payload = {
           title: bodyEl.querySelector('#f-title').value.trim(),
           category: bodyEl.querySelector('#f-cat').value,
@@ -162,8 +188,13 @@ function openForm(container, existing) {
           recurrence_months: custom ? rm : null,
           notes: bodyEl.querySelector('#f-notes').value.trim(),
         };
-        if (!payload.title || !payload.next_due) { toastErr(t('reminders.form.validation')); return; }
-        if (!rmOk) { toastErr(t('reminders.form.intervalInvalid')); return; }
+        const titleEl = bodyEl.querySelector('#f-title'), dueEl = bodyEl.querySelector('#f-due');
+        showFieldError(titleEl, bodyEl.querySelector('#f-title-msg'), null);
+        showFieldError(dueEl, bodyEl.querySelector('#f-due-msg'), null);
+        showFieldError(rmEl, bodyEl.querySelector('#f-rm-msg'), null);
+        if (!payload.title) { showFieldError(titleEl, bodyEl.querySelector('#f-title-msg'), t('reminders.form.titleRequired')); return; }
+        if (!payload.next_due) { showFieldError(dueEl, bodyEl.querySelector('#f-due-msg'), t('reminders.form.dueRequired')); return; }
+        if (!rmOk) { showFieldError(rmEl, bodyEl.querySelector('#f-rm-msg'), t('reminders.form.intervalInvalid')); return; }
         try {
           if (existing) await api.updateReminder(existing.id, payload);
           else await api.createReminder(payload);

@@ -11,7 +11,8 @@ import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
-import { t } from '../lib/i18n.js';
+import { t, tp } from '../lib/i18n.js';
+import { checkReading, issueText, typicalPerDay, deviceChangedBetween } from '../lib/plausibility.js';
 import { associateFieldLabels } from '../lib/a11y.js';
 import { renderError } from '../components/error.js';
 
@@ -224,7 +225,7 @@ function renderMeterCard(meter, u, groups, isSub) {
         <button class="btn btn--sm" data-replace-device="${escapeHtml(meter.id)}">${t('meters.card.replace')}</button>
         <button class="btn btn--sm" data-import-readings="${escapeHtml(meter.id)}">${t('meters.card.csvImport')}</button>
         <button class="btn btn--sm btn--ghost" data-edit-meter="${escapeHtml(meter.id)}">${t('meters.card.edit')}</button>
-        <button class="btn btn--sm btn--danger" data-delete-meter="${escapeHtml(meter.id)}">${t('meters.card.delete')}</button>
+        <button class="btn btn--sm btn--danger btn--quiet" data-delete-meter="${escapeHtml(meter.id)}">${t('meters.card.delete')}</button>
       </div>
     </div>
   `;
@@ -646,11 +647,32 @@ async function openImportReadingsModal(u, meter) {
         const input  = modalEl.querySelector('#import-csv-input');
         const result = modalEl.querySelector('#import-result');
 
+        // v2.12.0 (Review UI-23) — zweistufig: erst lesen und zeigen, was
+        // sich ändert (Trockenlauf), dann auf Knopfdruck importieren. Bis v2.11
+        // schrieb schon die Dateiauswahl; Tippfehler landeten ungeprüft.
         const handleFile = async (file) => {
           if (!file) return;
-          result.innerHTML = `<p class="muted">${t('meters.import.importing')}</p>`;
+          result.innerHTML = `<p class="muted">${t('meters.import.reading')}</p>`;
           try {
             const text = await file.text();
+            const [preview, existing] = await Promise.all([
+              api.importReadingCsv(u.key, meter.id, text, { dryRun: true }),
+              api.readings(u.key, meter.id).catch(() => []),
+            ]);
+            drop.hidden = true;
+            result.innerHTML = previewHtml(u, meter, preview, Array.isArray(existing) ? existing : []);
+            result.querySelector('[data-act="other-file"]')?.addEventListener('click', () => {
+              result.innerHTML = ''; drop.hidden = false; input.value = ''; drop.focus();
+            });
+            result.querySelector('[data-act="import"]')?.addEventListener('click', () => runImport(text));
+          } catch (e) {
+            result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`;
+          }
+        };
+
+        const runImport = async (text) => {
+          result.innerHTML = `<p class="muted">${t('meters.import.importing')}</p>`;
+          try {
             const res = await api.importReadingCsv(u.key, meter.id, text);
             didImport = didImport || (res.imported > 0 || res.overwritten > 0);
             const errs = res.errors || [];
@@ -664,8 +686,9 @@ async function openImportReadingsModal(u, meter) {
               </div>
             `;
             if (res.imported > 0 || res.overwritten > 0) {
-              toastOk(t('meters.import.toast', { count: res.imported + res.overwritten }));
+              toastOk(tp('meters.import.imported', res.imported + res.overwritten));
             }
+            drop.hidden = false; input.value = '';
           } catch (e) {
             result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`;
           }
@@ -703,6 +726,80 @@ async function openImportReadingsModal(u, meter) {
   });
 }
 
+/**
+ * v2.12.0 (Review UI-23) — Vorschau eines CSV-Imports. Jede gelesene Zeile
+ * mit ihrer Wirkung (neu, ersetzt, unverändert) und den Rückfragen der
+ * Erfassung (lib/plausibility.js): Rückgang, Sprung, Größenordnung, Zukunft.
+ * Verglichen wird mit dem jeweils vorigen Stand aus Bestand und Datei.
+ */
+function previewHtml(u, meter, preview, existing) {
+  const rows = [...(preview.rows || [])].map((r, i) => ({ ...r, i })).sort((a, b) => a.date.localeCompare(b.date) || a.i - b.i);
+  const unit = u.unit || '';
+  const today = todayIso();
+  const byDate = new Map(existing.map(e => [e.date, e]));
+  const typical = typicalPerDay(existing.filter(e => (e.meter_id ?? meter.id) === meter.id));
+  const dates = rows.map(r => r.date);
+  let counts = { new: 0, overwrite: 0, same: 0, flagged: 0 };
+  const items = rows.map((r, idx) => {
+    const old = byDate.get(r.date) || null;
+    const effect = !old ? 'new' : Number(old.counter) === Number(r.counter) ? 'same' : 'overwrite';
+    // voriger Stand: der jüngste aus Bestand und Datei vor diesem Datum
+    const prevExisting = existing.filter(e => e.date < r.date && !e.is_future).sort((a, b) => a.date.localeCompare(b.date)).pop() || null;
+    const prevFile = rows.slice(0, idx).filter(p => p.date < r.date).pop() || null;
+    const prev = [prevExisting, prevFile].filter(Boolean).sort((a, b) => a.date.localeCompare(b.date)).pop() || null;
+    const issues = checkReading({
+      value: Number(r.counter), date: r.date, today, prev, typical,
+      deviceChanged: prev ? deviceChangedBetween(meter, prev.date, r.date) : false,
+    });
+    const notes = issues.map(i => issueText(i, { unit, date: r.date }));
+    if (dates.indexOf(r.date) !== dates.lastIndexOf(r.date)) notes.push(t('meters.import.duplicate'));
+    counts[effect]++;
+    if (notes.length) counts.flagged++;
+    return { r, effect, old, notes };
+  });
+  const LIMIT = 50;
+  const flagged = items.filter(x => x.notes.length);
+  const plain = items.filter(x => !x.notes.length);
+  const shown = [...flagged, ...plain.slice(0, Math.max(0, LIMIT - flagged.length))]
+    .sort((a, b) => a.r.date.localeCompare(b.r.date) || a.r.i - b.r.i);
+  const hidden = items.length - shown.length;
+  const errs = preview.errors || [];
+  const importable = counts.new + counts.overwrite + counts.same;
+  const effectText = (x) => x.effect === 'overwrite'
+    ? t('meters.import.effect.overwrite', { counter: `${fmt.dec(x.old.counter, 3)} ${unit}` })
+    : t('meters.import.effect.' + x.effect);
+  return `
+    <div class="import-preview">
+      <p class="import-preview__summary">${escapeHtml(t('meters.import.previewSummary', { rows: items.length, ...counts }))}</p>
+      ${preview.skipped ? `<p class="muted small">${escapeHtml(tp('meters.import.unreadable', preview.skipped))}</p>` : ''}
+      ${preview.other_meter_rows ? `<p class="muted small">${escapeHtml(tp('meters.import.otherMeterRows', preview.other_meter_rows))}</p>` : ''}
+      ${errs.length ? `<ul class="import-preview__errors">${errs.slice(0, 8).map(e => `<li>${escapeHtml(e)}</li>`).join('')}${errs.length > 8 ? `<li>${t('meters.import.moreErrors', { count: errs.length - 8 })}</li>` : ''}</ul>` : ''}
+      ${items.length ? `
+      <div class="table-wrap"><table class="data-table import-preview__table">
+        <thead><tr>
+          <th scope="col">${t('meters.import.col.date')}</th>
+          <th scope="col" class="num">${t('meters.import.col.counter')}</th>
+          <th scope="col">${t('meters.import.col.effect')}</th>
+          <th scope="col">${t('meters.import.col.notes')}</th>
+        </tr></thead>
+        <tbody>${shown.map(x => `
+          <tr class="${x.notes.length ? 'import-preview__row--warn' : ''}">
+            <td>${fmt.date(x.r.date)}</td>
+            <td class="num">${fmt.dec(x.r.counter, 3)} ${escapeHtml(unit)}</td>
+            <td>${escapeHtml(effectText(x))}</td>
+            <td>${x.notes.map(n => escapeHtml(n)).join('<br>')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+      ${hidden > 0 ? `<p class="muted small">${escapeHtml(tp('meters.import.moreRows', hidden))}</p>` : ''}`
+      : `<div class="banner banner--warning" style="font-size:12px">${t('meters.import.nothing')}</div>`}
+      <div class="import-preview__actions">
+        <button type="button" class="btn btn--ghost" data-act="other-file">${t('meters.import.otherFile')}</button>
+        ${importable ? `<button type="button" class="btn btn--primary" data-act="import">${escapeHtml(tp('meters.import.confirm', importable))}</button>` : ''}
+      </div>
+    </div>`;
+}
+
 // ───── Merge-Wizard (F1006) ─────────────────────────────────────────
 // Führt mehrere bestehende Zähler zu einer Gruppe zusammen (z. B. NT + HT
 // Strom). Entweder neue Gruppe (Name) oder bestehende Gruppe wählen.
@@ -722,6 +819,8 @@ async function openMergeModal(u, meters, groups) {
               </label>
             `).join('')}
           </div>
+          <!-- v2.12.0 (Review UI-22) — Fehler am Feld statt im Toast -->
+          <div class="field-error" data-role="select-msg" role="alert" hidden></div>
         </div>
         <div class="form-row">
           <div class="field">
@@ -734,6 +833,7 @@ async function openMergeModal(u, meters, groups) {
           <div class="field">
             <label>${t('meters.mergeModal.newGroupName')}</label>
             <input class="input input--text" name="name" placeholder="${t('meters.mergeModal.newGroupPlaceholder')}">
+            <div class="field-error" data-role="name-msg" role="alert" hidden></div>
           </div>
         </div>
       </form>
@@ -751,9 +851,17 @@ async function openMergeModal(u, meters, groups) {
         modalEl.querySelector('[data-act="save"]').addEventListener('click', async () => {
           const f = modalEl.querySelector('#merge-form');
           const ids = Array.from(f.querySelectorAll('input[name="meter_ids"]:checked')).map(c => c.value);
-          if (ids.length < 2) { toastErr(t('meters.mergeModal.needTwo')); return; }
+          const selMsg = f.querySelector('[data-role="select-msg"]');
+          const nameMsg = f.querySelector('[data-role="name-msg"]');
+          showFieldError(null, selMsg, null);
+          showFieldError(f.name, nameMsg, null);
+          if (ids.length < 2) {
+            showFieldError(null, selMsg, t('meters.mergeModal.needTwo'));
+            f.querySelector('input[name="meter_ids"]')?.focus();
+            return;
+          }
           const groupId = f.group_id.value;
-          if (!groupId && !f.name.value.trim()) { toastErr(t('meters.mergeModal.needName')); return; }
+          if (!groupId && !f.name.value.trim()) { showFieldError(f.name, nameMsg, t('meters.mergeModal.needName')); return; }
           try {
             const payload = { meter_ids: ids };
             if (groupId) payload.group_id = groupId;

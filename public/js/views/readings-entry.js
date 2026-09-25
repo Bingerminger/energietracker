@@ -23,10 +23,11 @@
 // =====================================================================
 import { api } from '../api.js';
 import { getUtilities } from '../state.js';
-import { toastOk, toastErr } from '../components/toast.js';
-import { t } from '../lib/i18n.js';
+import { toastOk, toastErr, toastUndo } from '../components/toast.js';
+import { t, tp } from '../lib/i18n.js';
 import { fmt as baseFmt, escapeHtml as esc, parseDecimal, todayIso } from '../lib/format.js';
 import { checkReading, confirmIssues, issueText } from '../lib/plausibility.js';
+import { showFieldError } from '../lib/form.js';
 
 // v2.2.0 — vorher ein eigener Formatierer mit fest verdrahtetem de-DE/en-GB.
 // Jetzt die gemeinsame Intl-Quelle; `num` bleibt „bis zu N Stellen" (Zählerstände
@@ -36,7 +37,7 @@ const fmt = {
   date: (s) => baseFmt.date(s),
 };
 
-export async function render(container) {
+export async function render(container, _params = [], ctx = {}) {
   const today = todayIso();
 
   container.innerHTML = `
@@ -103,12 +104,40 @@ export async function render(container) {
   rows.forEach((r) => bindRow(listEl.querySelector(`[data-row-index="${r.__seq}"]`), r));
 
   // B — globales Datum auf alle Karten anwenden + Vorschau neu berechnen.
+  // v2.12.0 — Karten mit eigenem Datum („Anderes Datum" geöffnet) behalten es.
   const globalDateEl = listEl.querySelector('[data-role="global-date"]');
   globalDateEl?.addEventListener('change', () => {
     const v = globalDateEl.value || today;
-    listEl.querySelectorAll('[data-role="date"]').forEach(d => { d.value = v; });
-    listEl.querySelectorAll('.reading-card').forEach(card => card.__update?.());
+    listEl.querySelectorAll('.reading-card').forEach(card => {
+      if (card.querySelector('[data-role="date-wrap"]')?.hidden !== false) {
+        const d = card.querySelector('[data-role="date"]');
+        if (d) d.value = v;
+      }
+      card.__update?.();
+    });
   });
+
+  // v2.12.0 (Review UI-15, UI-33) — Weiter-Taste: Enter springt ins nächste
+  // Zählerfeld, beim letzten auf „Alle speichern".
+  const counters = [...listEl.querySelectorAll('[data-role="counter"]')];
+  counters.forEach((el, i) => {
+    el.setAttribute('enterkeyhint', i < counters.length - 1 ? 'next' : 'done');
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      (counters[i + 1] || saveBtn).focus();
+    });
+  });
+
+  // v2.12.0 — Direktsprung je Zähler (#/zaehlerstaende?meter=…): für Kurzbefehle,
+  // Lesezeichen auf dem Home-Bildschirm und „Zu tun" in der Übersicht.
+  const wanted = ctx.query?.get('meter');
+  const target = wanted ? [...listEl.querySelectorAll('.reading-card')].find(c => c.dataset.meterId === wanted) : null;
+  if (target) {
+    target.classList.add('reading-card--focus');
+    target.scrollIntoView?.({ block: 'center' });
+    target.querySelector('[data-role="counter"]')?.focus({ preventScroll: true });
+  }
 
   // C — Fortschrittsanzeige am Speichern-Button.
   const progressText = () => {
@@ -128,14 +157,20 @@ export async function render(container) {
     saveBtn.disabled = true;
     saveLbl.textContent = t('readingsEntry.saving');
     let ok = 0, skipped = 0, failed = 0, held = 0;
+    const created = [];   // neu angelegt → lässt sich rückgängig machen
+    const summary = [];
     const cards = listEl.querySelectorAll('.reading-card');
     for (let i = 0; i < cards.length; i++) {
       const card = cards[i];
       const r    = rows[i];
       const res  = await trySaveCard(card, r, today);
-      if (res === 'ok')      ok++;
-      else if (res === 'skip') skipped++;
-      else if (res === 'held') held++;
+      if (res.status === 'ok') {
+        ok++;
+        if (res.createdId) created.push({ utility: r.utility, id: res.createdId });
+        if (res.delta) summary.push(res.delta);
+      }
+      else if (res.status === 'skip') skipped++;
+      else if (res.status === 'held') held++;
       else                   failed++;
     }
     saveBtn.disabled = false;
@@ -144,9 +179,23 @@ export async function render(container) {
     if (failed > 0) {
       toastErr(t('readingsEntry.toast.savedFailed', { ok, failed }));
     } else if (ok > 0) {
-      toastOk(skipped > 0
+      // v2.12.0 (Review UI-15) — was gespeichert wurde, mit „Rückgängig" für
+      // die neu angelegten Stände (10 Sekunden)
+      const msg = (skipped > 0
         ? t('readingsEntry.toast.savedEmpty', { ok, skipped })
-        : t('readingsEntry.toast.saved', { ok }));
+        : t('readingsEntry.toast.saved', { ok })) + (summary.length ? ` · ${summary.join(', ')}` : '');
+      if (created.length) {
+        toastUndo(msg, async () => {
+          let undone = 0;
+          for (const c of created) {
+            try { await api.deleteReading(c.utility, c.id); undone++; } catch (e) { toastErr(e.message); }
+          }
+          if (undone) toastOk(tp('readingsEntry.toast.undone', undone));
+          await refreshLastReadings(listEl, rows, today);
+        });
+      } else {
+        toastOk(msg);
+      }
       // Letzten Stand in den „Letzter Stand"-Anzeigen aktualisieren,
       // damit ein zweiter Speicher-Klick die frischen Werte sieht.
       await refreshLastReadings(listEl, rows, today);
@@ -165,7 +214,7 @@ function renderRow(r, today) {
   const lastTag  = last?.is_estimated
     ? ` <span class="reading-card__tag">${t('readingsEntry.row.estimated')}</span>` : '';
   return `
-    <article class="reading-card" data-row-index="${escIdx(r)}" data-utility="${esc(r.utility)}" aria-labelledby="rc-name-${escIdx(r)}">
+    <article class="reading-card" data-row-index="${escIdx(r)}" data-utility="${esc(r.utility)}" data-meter-id="${esc(r.meter_id)}" aria-labelledby="rc-name-${escIdx(r)}">
       <div class="reading-card__head">
         <span class="reading-card__icon" aria-hidden="true">${esc(r.utility_icon || r.meter_icon || '•')}</span>
         <div class="reading-card__title">
@@ -182,15 +231,24 @@ function renderRow(r, today) {
       <div class="reading-card__inputs">
         <label class="field field--counter">
           <span class="field__label">${t('readingsEntry.row.newLabel', { unit: esc(r.unit) })}</span>
+          <!-- v2.12.0 (Review UI-15) — kein Beispielwert als Platzhalter mehr:
+               „z. B. 1.395" sah aus wie ein vorbelegter Stand. Der letzte Stand
+               steht darüber. Textfeld mit inputmode=decimal: Auf dem iPhone
+               bietet die Tastatur damit auch „Text scannen" (UI-33). -->
           <input
             class="input input--counter"
             data-role="counter"
             type="text"
             inputmode="decimal"
-            placeholder="${esc(t('readingsEntry.row.placeholderExample', { value: last ? fmt.num(last.counter + 10, 0) : '0' }))}"
             autocomplete="off"
+            aria-describedby="rc-err-${escIdx(r)}"
           />
         </label>
+      </div>
+      <div class="field-error" data-role="error" id="rc-err-${escIdx(r)}" role="alert" hidden></div>
+
+      <!-- v2.12.0 — Datum je Karte eingeklappt: fast immer gilt das Datum oben -->
+      <div class="reading-card__date" data-role="date-wrap" id="rc-date-${escIdx(r)}" hidden>
         <label class="field field--date">
           <span class="field__label">${t('readingsEntry.row.dateLabel')}</span>
           <input class="input" data-role="date" type="date" value="${esc(today)}" />
@@ -204,6 +262,10 @@ function renderRow(r, today) {
           <input type="checkbox" data-role="estimated" />
           <span>${t('readingsEntry.row.estimated')}</span>
         </label>
+        <button type="button" class="btn btn--ghost btn--sm" data-action="toggle-date"
+          aria-expanded="false" aria-controls="rc-date-${escIdx(r)}">
+          ${t('readingsEntry.row.otherDate')}
+        </button>
         <button type="button" class="btn btn--ghost btn--sm" data-action="toggle-note"
           aria-expanded="false" aria-controls="rc-note-${escIdx(r)}">
           ${t('readingsEntry.row.addNote')}
@@ -271,6 +333,17 @@ function bindRow(card, r) {
   const previewEl = card.querySelector('[data-role="preview"]');
   const noteWrap  = card.querySelector('[data-role="note-wrap"]');
 
+  const dateWrap = card.querySelector('[data-role="date-wrap"]');
+  const dateBtn = card.querySelector('[data-action="toggle-date"]');
+  dateBtn?.addEventListener('click', () => {
+    const open = dateWrap.hidden;
+    dateWrap.hidden = !open;
+    dateBtn.setAttribute('aria-expanded', String(open));
+    if (open) dateEl?.focus();
+  });
+  const errorEl = card.querySelector('[data-role="error"]');
+  counterEl?.addEventListener('input', () => { if (errorEl && !errorEl.hidden) showFieldError(counterEl, errorEl, null); });
+
   const noteBtn = card.querySelector('[data-action="toggle-note"]');
   noteBtn?.addEventListener('click', () => {
     const open = noteWrap.hidden; // wird gerade geöffnet
@@ -330,15 +403,21 @@ async function trySaveCard(card, r, today = todayIso()) {
   const noteEl      = card.querySelector('[data-role="note"]');
   const statusEl    = card.querySelector('[data-role="status"]');
 
+  const errorEl     = card.querySelector('[data-role="error"]');
+
   const raw = (counterEl?.value || '').trim();
-  if (raw === '') return 'skip'; // Leer = nichts speichern
+  if (raw === '') return { status: 'skip' }; // Leer = nichts speichern
 
   // v2.5.3 — Textfeld + eigener Parser statt type="number": Dort kam „12345,6"
   // je nach Browser als leerer Wert an, und die Karte galt still als „leer".
   const counter = parseDecimal(raw);
   if (counter == null || counter < 0) {
     setCardStatus(statusEl, 'invalid');
-    return 'fail';
+    // v2.12.0 (Review UI-15) — der Grund steht am Feld; bis v2.11 nur im
+    // title des ✗, auf dem iPhone unsichtbar
+    showFieldError(null, errorEl, t('readingsEntry.error.invalidNumber'));
+    counterEl?.setAttribute('aria-invalid', 'true');
+    return { status: 'fail' };
   }
   const date = dateEl?.value || today;
 
@@ -350,8 +429,12 @@ async function trySaveCard(card, r, today = todayIso()) {
       unit: r.unit, date, utility: r.utility,
       title: `${r.utility_label} · ${r.meter_name}`,
     });
-    if (!ok) { setCardStatus(statusEl, 'held'); return 'held'; }
+    if (!ok) { setCardStatus(statusEl, 'held'); return { status: 'held' }; }
   }
+  const last = r.last_reading;
+  const delta = last && last.counter != null && (!last.date || last.date < date)
+    ? `${r.utility_label} ${counter - Number(last.counter) < 0 ? '−' : '+'}${fmt.num(Math.abs(counter - Number(last.counter)), 3)} ${r.unit}`
+    : null;
   const replace = issues.find(i => i.type === 'sameDay')?.reading ?? null;
 
   setCardStatus(statusEl, 'saving');
@@ -364,20 +447,23 @@ async function trySaveCard(card, r, today = todayIso()) {
       note:         noteEl?.value || '',
       is_estimated: !!estimatedEl?.checked,
     };
+    let createdId = null;
     if (replace) await api.updateReading(r.utility, replace.id, data);   // ersetzen statt doppeln
-    else         await api.createReading(r.utility, data);
+    else         createdId = (await api.createReading(r.utility, data))?.id ?? null;
     setCardStatus(statusEl, 'saved');
+    showFieldError(null, errorEl, null);
+    counterEl?.removeAttribute('aria-invalid');
     // Eingabe zurücksetzen, damit Doppel-Save nicht doppelt schreibt.
     if (counterEl) counterEl.value = '';
     if (noteEl)    noteEl.value = '';
     if (estimatedEl) estimatedEl.checked = false;
     // Vorschau/Hinweis dieser Karte zurücksetzen.
     card.__update?.();
-    return 'ok';
+    return { status: 'ok', createdId, delta };
   } catch (e) {
     setCardStatus(statusEl, 'failed');
-    statusEl.title = e.message || t('readingsEntry.error.unknown');
-    return 'fail';
+    showFieldError(null, errorEl, e.message || t('readingsEntry.error.unknown'));
+    return { status: 'fail' };
   }
 }
 
@@ -399,9 +485,13 @@ async function refreshLastReadings(listEl, rows, today) {
       const card = listEl.querySelector(`[data-row-index="${r.__seq}"]`);
       if (!card) return;
       const lastEl = card.querySelector('.reading-card__last');
-      if (lastEl && next.last_reading) {
-        lastEl.innerHTML = `${t('readingsEntry.row.lastLabel')} <strong>${fmt.num(next.last_reading.counter, 3)} ${esc(r.unit)} · ${fmt.date(next.last_reading.date)}</strong>`;
+      // v2.12.0 — nach „Rückgängig" kann der Stand wieder leer sein
+      if (lastEl) {
+        lastEl.innerHTML = `${t('readingsEntry.row.lastLabel')} <strong>${next.last_reading
+          ? `${fmt.num(next.last_reading.counter, 3)} ${esc(r.unit)} · ${fmt.date(next.last_reading.date)}`
+          : t('readingsEntry.row.lastNone')}</strong>`;
       }
+      card.__update?.();
     });
   } catch { /* still */ }
 }

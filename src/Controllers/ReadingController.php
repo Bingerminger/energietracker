@@ -59,10 +59,12 @@ final class ReadingController
      */
     public function importCsv(Request $req): never
     {
+        // v2.12.0 — ?dry_run=1: nur lesen, Vorschau statt Import
         $report = $this->import->importCsv(
             $req->param('utility'),
             $req->param('id'),
-            $req->rawBody
+            $req->rawBody,
+            $req->queryParam('dry_run') === '1'
         );
         Response::json($report);
     }

@@ -34,22 +34,24 @@ feature F1009).
    readings in the evening.
 
 All three steps can be prepared directly in Energietracker under
-**Settings → 🏠 Home Assistant integration** (including copy-and-paste YAML).
+**Settings → Integrations → 🏠 Home Assistant integration** (including
+copy-and-paste YAML).
 
 ---
 
 ## Step 1 — Generate an API token
 
-1. Open Energietracker → **Settings** → **🏠 Home Assistant integration**.
+1. Open Energietracker → **Settings** → **Integrations** →
+   **🏠 Home Assistant integration**.
 2. Click **"Generate token"**. The token is shown **only once** — copy it
    immediately and store it safely (e.g. in the HA secrets).
 3. The token protects **only** the push endpoint `/api/ingest`, not the rest of
    the app. As long as none is set, the push accepts values without a token
    (intended for the home network only). **Once a token exists, HA must send it
    along** — otherwise the endpoint responds with `401`.
-4. **With sign-in switched on** (Settings → "Sign-in & access", since v2.6.0)
-   the token is **mandatory**: without a token the push then rejects every
-   value. The app itself is protected by sign-in — see
+4. **With sign-in switched on** (Settings → Access → "Sign-in & access", since
+   v2.6.0) the token is **mandatory**: without a token the push then rejects
+   every value. The app itself is protected by sign-in — see
    [Security & network operation](technical/08-security.md).
 
 > The token is stored server-side only as a **hash** (in `data/auth.json`), never
@@ -66,8 +68,9 @@ All three steps can be prepared directly in Energietracker under
 HA should not address the meters via cryptic internal IDs (`m_strom_main`).
 Instead, give each meter an **alias**:
 
-- In **Settings → 🏠 Home Assistant integration → Meter aliases**, enter an alias
-  per meter (e.g. `stromzaehler_haus`, `gaszaehler_wohnung`) and **save**.
+- In **Settings → Integrations → 🏠 Home Assistant integration → Meter
+  aliases**, enter an alias per meter (e.g. `stromzaehler_haus`,
+  `gaszaehler_wohnung`) and **save**.
 - Allowed are 1–64 characters from letters, digits, `_`, `.`, `-`.
 - The alias must be unique within a utility.
 

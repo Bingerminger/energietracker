@@ -138,12 +138,18 @@ final class ReminderService
         if (array_key_exists('next_due', $patch) && !Dates::isIsoDate((string)$patch['next_due'])) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.dueRequired'));
         }
+        // v2.12.0 (Review UI-22) — `last_done` änderbar, damit „Erledigt"
+        // rückgängig gemacht werden kann: null oder ein Datum
+        if (array_key_exists('last_done', $patch) && $patch['last_done'] !== null
+            && !Dates::isIsoDate((string)$patch['last_done'])) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.lastDoneInvalid'));
+        }
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $found = null;
         foreach ($all as &$r) {
             if (($r['id'] ?? null) !== $id) continue;
-            foreach (['title','category','next_due','recurrence','recurrence_months','notes','active'] as $f) {
+            foreach (['title','category','next_due','recurrence','recurrence_months','notes','active','last_done'] as $f) {
                 if (array_key_exists($f, $patch)) {
                     $r[$f] = $f === 'active' ? (bool)$patch[$f]
                         : ($f === 'recurrence_months'

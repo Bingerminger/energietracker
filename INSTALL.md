@@ -5,7 +5,7 @@
 > 🔐 **Security:** without sign-in, anyone who can reach the app can read and
 > change all data — fine in your own home network. Before making it reachable
 > from outside (port forwarding, reverse proxy, QuickConnect), switch on sign-in
-> (Settings → "Sign-in & access") and read
+> (Settings → Access → "Sign-in & access") and read
 > [Security & network operation](docs/en/technical/08-security.md). Better
 > still: reach it on the road via VPN.
 
@@ -28,7 +28,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 2.11.0
+├── VERSION                ← 2.12.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP backend
 ├── data/                  ← must be writable
@@ -154,7 +154,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.11.0
+  ghcr.io/bingerminger/energietracker:2.12.0
 ```
 
 **Or build locally:**
@@ -184,9 +184,9 @@ With `ET_LOG_DEST=stderr` the logs (JSON Lines) appear directly in
 > ready-made JSON backup under
 > [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
 > In an empty Energietracker you can import it directly via
-> *Settings → Backup & restore → Import backup* (since v1.7.4 there is also a
-> "Load demo data" button). Before the import, a snapshot of your current data is
-> created automatically.
+> *Settings → Data → Backup & restore → Import backup* (since v1.7.4 there is
+> also a "Load demo data" button). Before the import, a snapshot of your current
+> data is created automatically.
 
 Classic, via file copy:
 
@@ -210,18 +210,18 @@ cp demo-data/meta.json demo-data/settings.json \
 ## Migration from v0.9.0
 
 If you have an old v0.9.0 backup: after installation, simply open it in the UI
-under **Settings → Backup & restore → 📦 Migration from v0.9.0** and upload the
-JSON file.
+under **Settings → Data → Backup & restore → 📦 Migration from v0.9.0** and
+upload the JSON file.
 
-A detailed guide is in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md)
-(German; English translation in progress).
+A detailed guide is in
+[`docs/en/MIGRATION-FROM-V090.md`](docs/en/MIGRATION-FROM-V090.md).
 
 ## Connect Home Assistant (optional)
 
 Do you run Home Assistant and want to have meter readings handed over
 automatically? Energietracker has an official push endpoint for this
 (`POST /api/ingest`) with an optional API token. Setup directly in the UI under
-**Settings → 🏠 Home Assistant integration**.
+**Settings → Integrations → 🏠 Home Assistant integration**.
 
 Step-by-step instructions including REST command, automation and use cases
 (detached house, rented flat) are in

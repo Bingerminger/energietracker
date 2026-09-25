@@ -6,6 +6,134 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.12.0] — 2026-09-25 — Aufgeräumt
+
+MINOR-Release, zweiter Teil von Paket D des Gesamtreviews („Mobil und
+aufgeräumt"). **Kein Schema-Wechsel** (bleibt 1.6.0). Die API wächst additiv —
+zwei Routen, ein Feld, eine Option —, nichts entfällt.
+
+### ⚠️ Für bestehende Installationen
+
+- **Die Einstellungen sind Unterseiten:** Allgemein · Haushalt & Gebäude ·
+  Verbrauchsarten & Abrechnung · Wetterdaten · Daten · Integrationen ·
+  Zugriff · Experte · System.
+  - Gespeichert wird je Seite über die Leiste unten; sie erscheint erst bei
+    einer Änderung. Wer mit ungespeicherten Änderungen die Seite verlässt,
+    wird gefragt.
+  - Die Stellschrauben der Modelle (Regression, Prognosemodell, Schwellen der
+    Empfehlungen) stehen eingeklappt unter **Experte**.
+  - Standort und Wetter stehen nur noch unter **Wetterdaten**.
+- **Zählerstand-Erfassung:** Das Datum je Karte ist eingeklappt
+  („Anderes Datum"); sonst gilt das Datum oben.
+- **CSV-Import von Ablesungen:** erst die Vorschau, dann „Importieren". Die
+  Dateiauswahl allein schreibt nichts mehr.
+
+### Added
+
+- **Einstellungen als Unterseiten (Review UI-13)** mit Speicherleiste,
+  „Verwerfen" und Rückfrage beim Verlassen. Alle sechs Abrechnungsstichtage
+  stehen in einer Karte.
+- **Wetterdaten (Review UI-30):**
+  - Ortssuche über das Open-Meteo-Geocoding: `GET /api/geocode?q=…`.
+  - Der Standort speichert beim Ändern; der tägliche Abgleich ist ein
+    Schalter.
+  - Das CSV-Beispiel nutzt das übliche Format `TT.MM.JJJJ;Mittel;Min;Max`;
+    Tabulator und das alte Format mit Anführungszeichen bleiben lesbar.
+- **„Zu tun" auf der Übersicht (Review UI-21):** fällige und überfällige
+  Termine, Zähler ohne Ablesung seit `alert_days_since_reading` Tagen,
+  Kündigungsfristen und Tanks — jeweils mit Sprung dorthin. Ab drei fälligen
+  Zählern steht eine Sammelzeile da; jede Zeile ist als Ganzes antippbar. Die
+  Terminkarte darunter entfällt.
+- **Zählerstand-Erfassung (Review UI-15, UI-33):**
+  - Direktsprung je Zähler `#/zaehlerstaende?meter=<id>` — für Lesezeichen
+    auf dem Home-Bildschirm, Kurzbefehle und „Zu tun".
+  - Weiter-Taste: Enter springt ins nächste Zählerfeld, beim letzten auf
+    „Alle speichern".
+  - Nach dem Speichern steht da, was sich geändert hat („Gas +5,4 m³"), mit
+    „Rückgängig" für 10 Sekunden.
+  - Fehler stehen am Feld statt nur im Titel des ✗.
+- **„Rückgängig" (Review UI-22)** für „Termin erledigt" und „Empfehlung
+  ausblenden", jeweils 10 Sekunden:
+  - `DELETE /api/recommendations/{id}/dismiss` blendet wieder ein.
+  - `PATCH /api/reminders/{id}` nimmt `last_done` an (Datum oder `null`).
+- **CSV-Import mit Vorschau (Review UI-23):** `POST
+  /api/utility/{u}/meters/{id}/readings/import-csv?dry_run=1` liest, ohne zu
+  schreiben. Die Vorschau zeigt jede Zeile mit ihrer Wirkung (neu, ersetzt,
+  unverändert) und den Rückfragen der Erfassung: Rückgang, Sprung,
+  Größenordnung, Zukunft, doppeltes Datum.
+- **Tarifvergleich:** Die Antwort trägt `years`, die Jahre mit Daten.
+
+### Changed
+
+- **Einheitliche Seiten (Review UI-20):**
+  - Termine, Empfehlungen und Tarifvergleich hatten eine 32-px-Überschrift,
+    jetzt 20 px wie alle anderen Seiten.
+  - Die Auswahlfelder im Tarifvergleich sind gestaltet; die Termine stehen in
+    einer Karte.
+  - Pluralformen: „1 Arbeitspreis" und „Alle 48 Monate" statt
+    „1 Arbeitspreise" und „Alle N Monate (48)". Die „(en)"-Hilfsformen
+    entfallen.
+  - Monate im Tarifvergleich in der Schreibweise der Sprache („Jan. 2027"
+    statt „2027-01").
+  - Löschen-Knöpfe auf Karten haben eine Umrandung statt einer roten
+    Vollfläche.
+- **Rückfragen nennen das Objekt (Review UI-22):** Vertrag, Angebot und Termin
+  beim Löschen; die Vorlesetexte der Tabellenknöpfe nennen den Termin. Fehler
+  im Termin- und im Gruppen-Dialog stehen am Feld statt im Toast.
+- **Benennung (Review UI-31):**
+  - „Zu Gruppe zusammenfassen" statt „Zähler zusammenführen" — die Zähler
+    bleiben getrennt, die Gruppe zeigt die Summe.
+  - „Angebot erfassen" statt „Schattenvertrag anlegen".
+  - Der Rückblick bietet nur Jahre mit Daten an.
+- **Vertragsformular (Review UI-16):** Die ersten Preiszeilen gelten ab
+  Vertragsbeginn und folgen ihm, bis jemand ihr Datum ändert. Eine Zeile mit
+  vorbelegtem Datum und ohne Betrag bleibt leer und blockiert das Speichern
+  nicht. „⇧ Start" heißt „Ab Beginn" und erklärt sich im Tooltip.
+- **Übersicht:** Die Kachel „Aktive Zähler" je Verbrauchsart entfällt;
+  Kennzahl-Kacheln heben sich nicht mehr beim Überfahren (sie sind nicht
+  klickbar).
+- **Ablesungs-Import:** versteht Leerzeichen und Apostroph als
+  Tausendertrenner („1 395,2", „1'395.2").
+
+### Fixed
+
+- **Temperatur-CSV mit Dezimalkomma:** `01.01.2024;4,2;-1,0;7,1` (Excel
+  deutsch) wurde auch am Komma getrennt — Mittel 4, Min 2, Max −1. Jetzt gilt
+  ein Trenner je Zeile.
+- **Tarifvergleich:** Ein Jahr ohne Zeilen blendete den ganzen Rückblick samt
+  Jahresauswahl aus; man kam nicht mehr zurück.
+
+### Migration
+
+Keine. Schema bleibt 1.6.0.
+
+### Tests
+
+- `UndoAndPreviewTest` (8): Rückgängig für Termine und Empfehlungen,
+  Trockenlauf ohne Schreibzugriff, Tausendertrenner, Jahre im Rückblick.
+- `TemperatureSyncTest` (+2): Ortssuche; CSV mit Semikolon, Tabulator und dem
+  alten Format.
+- Browser-Render (124): Einstellungsseiten, „Zu tun" mit Sammelzeile, Erfassung (Datum,
+  Weiter-Taste, Feldfehler, Direktsprung), Feldfehler im Termin-Dialog,
+  Seitenköpfe, Pluralformen, Vertragsbeginn in der ersten Preiszeile.
+- Frontend-API-Shape 59/59: Trockenlauf, Wieder-Einblenden, `years`.
+- 444 Testmethoden. 27 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Ein Trenner je Zeile:** `[;,]` als Trenner trifft in Ländern mit
+  Dezimalkomma die Zahl selbst. Den Trenner an der Zeile erkennen, nicht als
+  Zeichenklasse raten.
+- **Vorbelegt ist nicht eingegeben:** Ein Datum, das die App vorschlägt, darf
+  eine leere Zeile nicht zur halb ausgefüllten machen — sonst blockiert der
+  Vorschlag das Speichern. Die Vorbelegung trägt eine Markierung, bis jemand
+  sie ändert.
+- **Rückgängig braucht einen Rückweg in der API:** Der Toast ist schnell
+  gebaut; ohne `last_done` im PATCH und ein DELETE für das Ausblenden hätte er
+  nichts zurückzunehmen.
+
+---
+
 ## [2.11.0] — 2026-09-25 — Mobil
 
 MINOR-Release, erster Teil von Paket D des Gesamtreviews („Mobil und

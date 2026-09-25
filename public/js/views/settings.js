@@ -12,7 +12,7 @@ import { toastOk, toastErr, toastAfterReload } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
 import { logout } from '../components/login.js';
 import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../lib/ha-snippet.js';
-import { t, getLocale, initI18n, getLanguages, setCurrencyParams } from '../lib/i18n.js';
+import { t, tp, getLocale, initI18n, getLanguages, setCurrencyParams } from '../lib/i18n.js';
 import { setCountry } from '../lib/format.js';
 import { CV_UNITS, cvUnit, gasFactorOf } from '../lib/gas-factor.js';
 import { buildSidebar } from '../lib/sidebar.js';
@@ -25,13 +25,57 @@ import { copyText as copyToClipboard } from '../lib/clipboard.js';
 // Einheiten mit deutschen Wörtern liegen als unitKey vor; Symbol-Einheiten
 // (kWh/m³, °C, σ …) bleiben literal.
 const GROUPS = [
-  { gkey: 'physical', icon: '🔬', fields: [
+  // ── Allgemein ──
+  { gkey: 'dashboard', page: 'general', icon: '🏠', fields: [
+    { key: 'dashboard_months',         step: '1' },
+    { key: 'forecast_months',          unitKey: 'settings.unit.months', step: '1' },
+    { key: 'alert_days_since_reading', unitKey: 'settings.unit.daysNoReading', step: '1' },
+  ]},
+  { gkey: 'contractReminders', page: 'general', icon: '🔔', fields: [
+    { key: 'contract_remind_days_1', unitKey: 'settings.unit.days', step: '1' },
+    { key: 'contract_remind_days_2', unitKey: 'settings.unit.days', step: '1' },
+    { key: 'contract_remind_days_3', unitKey: 'settings.unit.days', step: '1' },
+    { key: 'reminder_warn_days_before', unitKey: 'settings.unit.daysBefore', step: '1' },
+    { key: 'reminder_overdue_days',     unitKey: 'settings.unit.days', step: '1' },
+  ]},
+  // ── Haushalt & Gebäude ──
+  { gkey: 'building', page: 'household', icon: '🏢', fields: [
+    { key: 'wohnflaeche_m2', unit: 'm²', step: '1' },
+    // v2.10.0 — Klartext statt Kürzel: efh zählt als Ein-/Zweifamilienhaus (GEG § 82)
+    { key: 'gebaeudetyp',    type: 'select', options: ['efh', 'rh', 'mfh', 'whg'], optionLabels: 'settings.buildingTypes' },
+    // v2.10.0 (CALC-07) — für die energieausweis-nahe Kennzahl
+    { key: 'beheizter_keller',     type: 'bool' },
+    { key: 'warmwasser_dezentral', type: 'bool' },
+  ]},
+  { gkey: 'water', page: 'household', icon: '💧', fields: [
+    { key: 'wasser_personen_anzahl',   step: '1' },
+    { key: 'wasser_personen_referenz', unitKey: 'settings.unit.lPerPersonDay', step: '1' },
+    { key: 'wasser_sparindex_gut',     step: '1' },
+    { key: 'wasser_sparindex_warnung', step: '1' },
+  ]},
+  // ── Verbrauchsarten & Abrechnung ──
+  // v2.12.0 (Review UI-13) — alle Abrechnungsstichtage an einer Stelle; bis
+  // v2.11 standen Fernwärme, Heizöl und Pellets unter „Termine & Empfehlungen".
+  { gkey: 'billing', page: 'utilities', icon: '📅', fields: [
+    { key: 'billing_cycle_anchor_gas',        type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_strom',      type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_wasser',     type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_fernwaerme', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_heizoel',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'billing_cycle_anchor_pellets',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+  ]},
+  { gkey: 'physical', page: 'utilities', icon: '🔬', wide: true, fields: [
     // v2.5.0 — F1012: datierte Liste (Zustandszahl × Brennwert je Stichtag)
     // statt eines Skalars. Eigener Feldtyp, siehe renderGasFactors().
     { key: 'gas_conversion_factors', type: 'gasfactors' },
     { key: 'hdd_base_temp', unit: '°C', step: '0.5' },
   ]},
-  { gkey: 'co2', icon: '🌍', fields: [
+  { gkey: 'delivery', page: 'utilities', icon: '🛢️', fields: [
+    { key: 'heizoel_kwh_per_l', unit: 'kWh/L', step: '0.1' },
+    { key: 'pellets_kwh_per_kg', unit: 'kWh/kg', step: '0.1' },
+    { key: 'tank_warn_pct', unitKey: 'settings.unit.pctRemaining', step: '1' },
+  ]},
+  { gkey: 'co2', page: 'utilities', icon: '🌍', fields: [
     { key: 'co2_gas',    unit: 'g/kWh', step: '1' },
     { key: 'co2_strom',  unit: 'g/kWh', step: '1' },
     // v2.10.0 (CALC-19) — Strom je Jahr (Umweltbundesamt), eigener Feldtyp
@@ -42,70 +86,28 @@ const GROUPS = [
     { key: 'co2_heizoel',    unit: 'g/kWh', step: '1' },
     { key: 'co2_pellets',    unit: 'g/kWh', step: '1' },
   ]},
-  { gkey: 'billing', icon: '📅', fields: [
-    { key: 'billing_cycle_anchor_gas',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
-    { key: 'billing_cycle_anchor_strom',  type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
-    { key: 'billing_cycle_anchor_wasser', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+  // ── Zugriff ──
+  // v2.6.0 — frame-ancestors der Content-Security-Policy (index.php): Wer die
+  // App in eine Home-Assistant-Webseitenkarte einbettet, trägt deren Adresse ein.
+  { gkey: 'embedding', page: 'access', icon: '🖼️', fields: [
+    { key: 'frame_ancestors', type: 'text', placeholderKey: 'settings.placeholder.frameAncestors' },
   ]},
-  { gkey: 'contractReminders', icon: '🔔', fields: [
-    { key: 'contract_remind_days_1', unitKey: 'settings.unit.days', step: '1' },
-    { key: 'contract_remind_days_2', unitKey: 'settings.unit.days', step: '1' },
-    { key: 'contract_remind_days_3', unitKey: 'settings.unit.days', step: '1' },
-  ]},
-  { gkey: 'water', icon: '💧', fields: [
-    { key: 'wasser_personen_anzahl',   step: '1' },
-    { key: 'wasser_personen_referenz', unitKey: 'settings.unit.lPerPersonDay', step: '1' },
-    { key: 'wasser_sparindex_gut',     step: '1' },
-    { key: 'wasser_sparindex_warnung', step: '1' },
-  ]},
-  { gkey: 'regression', icon: '📈', fields: [
+  // ── Experte (eingeklappt) ──
+  { gkey: 'regression', page: 'expert', icon: '📈', fields: [
     { key: 'min_days_period',        step: '1' },
     { key: 'min_hdd_regression',     step: '0.5' },
     { key: 'blend_max',              step: '0.05' },
-    { key: 'forecast_months',        unitKey: 'settings.unit.months', step: '1' },
     { key: 'forecast_model',         type: 'select', options: ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] },
     { key: 'segmented_split_mode',   type: 'select', options: ['auto', 'fixed'] },
     { key: 'segmented_fixed_split',  unit: 'HGT', step: '1' },
     { key: 'anomaly_threshold',      unit: 'σ', step: '0.1' },
   ]},
-  { gkey: 'dashboard', icon: '🏠', fields: [
-    { key: 'dashboard_months',         step: '1' },
-    { key: 'alert_days_since_reading', unitKey: 'settings.unit.daysNoReading', step: '1' },
-  ]},
-  { gkey: 'building', icon: '🏢', fields: [
-    { key: 'wohnflaeche_m2', unit: 'm²', step: '1' },
-    // v2.10.0 — Klartext statt Kürzel: efh zählt als Ein-/Zweifamilienhaus (GEG § 82)
-    { key: 'gebaeudetyp',    type: 'select', options: ['efh', 'rh', 'mfh', 'whg'], optionLabels: 'settings.buildingTypes' },
-    // v2.10.0 (CALC-07) — für die energieausweis-nahe Kennzahl
-    { key: 'beheizter_keller',     type: 'bool' },
-    { key: 'warmwasser_dezentral', type: 'bool' },
-  ]},
-  { gkey: 'delivery', icon: '🛢️', fields: [
-    { key: 'heizoel_kwh_per_l', unit: 'kWh/L', step: '0.1' },
-    { key: 'pellets_kwh_per_kg', unit: 'kWh/kg', step: '0.1' },
-    { key: 'delivery_baseload_share', step: '0.05' },
-    { key: 'tank_warn_pct', unitKey: 'settings.unit.pctRemaining', step: '1' },
-  ]},
-  { gkey: 'remindersRec', icon: '📌', fields: [
-    { key: 'reminder_warn_days_before', unitKey: 'settings.unit.daysBefore', step: '1' },
-    { key: 'reminder_overdue_days',     unitKey: 'settings.unit.days', step: '1' },
+  { gkey: 'remindersRec', page: 'expert', icon: '🧪', fields: [
     { key: 'recommendation_anomaly_sigma', unit: 'σ', step: '0.1' },
     { key: 'recommendation_trend_pct_year', unitKey: 'settings.unit.pctYear', step: '0.5' },
-    { key: 'billing_cycle_anchor_fernwaerme', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
-    { key: 'billing_cycle_anchor_heizoel',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
-    { key: 'billing_cycle_anchor_pellets',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    { key: 'delivery_baseload_share', step: '0.05' },
   ]},
-  { gkey: 'location', icon: '📍', fields: [
-    { key: 'location_name',     type: 'text' },
-    { key: 'latitude',          step: '0.0001', signed: true },
-    { key: 'longitude',         step: '0.0001', signed: true },
-    { key: 'weather_auto_fill', type: 'bool' },
-  ]},
-  // v2.6.0 — frame-ancestors der Content-Security-Policy (index.php): Wer die
-  // App in eine Home-Assistant-Webseitenkarte einbettet, trägt deren Adresse ein.
-  { gkey: 'embedding', icon: '🖼️', fields: [
-    { key: 'frame_ancestors', type: 'text', placeholderKey: 'settings.placeholder.frameAncestors' },
-  ]},
+  // Der Standort steht seit v2.12.0 nur noch bei den Wetterdaten (temperatures.js).
 ];
 
 // v2.6.0 — Die Ansicht rendert sich nach Sprachwechsel, Import oder
@@ -123,88 +125,231 @@ function listen(target, type, handler) {
   _unlisten.push(() => target.removeEventListener(type, handler));
 }
 
-export async function render(container) {
+// v2.12.0 (Review UI-13) — Unterseiten statt eines 6.600-px-Monolithen mit
+// 21 Abschnitten und vier Speichern-Knöpfen. Jede Seite lädt nur, was sie
+// zeigt; Seiten mit Feldern haben eine Speicherleiste, die erscheint, sobald
+// etwas geändert ist. Die Wetterdaten (Standort, Abgleich, CSV) sind die
+// Ansicht temperatures.js — ein Tab derselben Leiste.
+export const PAGES = ['general', 'household', 'utilities', 'data', 'integrations', 'access', 'expert', 'system'];
+const FIELD_PAGES = new Set(['general', 'household', 'utilities', 'access', 'expert']);
+
+export async function render(container, params = [], ctx = {}) {
   unlistenAll();
+  const page = PAGES.includes(params?.[0]) ? params[0] : 'general';
   container.innerHTML = `<div class="loading">${t('settings.loading')}</div>`;
+
+  const needs = (...pages) => pages.includes(page);
   const [settings, diag, utilities, authStatus, session, apiKeys, snapshots, countries, defaultUpdates] = await Promise.all([
     api.settings(),
-    api.diagnostics().catch(() => null),
-    api.listUtilities().catch(() => []),
-    api.authStatus().catch(() => ({ enabled: false, created_at: null })),
+    needs('system') ? api.diagnostics().catch(() => null) : null,
+    needs('utilities', 'data', 'integrations') ? api.listUtilities().catch(() => []) : [],
+    needs('integrations') ? api.authStatus().catch(() => ({ enabled: false, created_at: null })) : null,
     // v2.6.0 — Anmeldung, API-Schlüssel, gespeicherte Snapshots
-    api.session().catch(() => ({ mode: 'off', authenticated: true })),
-    api.apiKeys().catch(() => []),
-    api.snapshots().catch(() => []),
+    needs('access', 'integrations') ? api.session().catch(() => ({ mode: 'off', authenticated: true })) : null,
+    needs('access') ? api.apiKeys().catch(() => []) : [],
+    needs('data') ? api.snapshots().catch(() => []) : [],
     // v2.7.0 — Länderprofile für die Karte „Sprache & Land"
-    getCountries(),
+    needs('general') ? getCountries() : [],
     // v2.10.0 — korrigierte Standardwerte, die diese Installation noch nicht nutzt
-    api.settingsDefaultUpdates().catch(() => []),
+    needs('general') ? api.settingsDefaultUpdates().catch(() => []) : [],
   ]);
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
   const haUtilities = (utilities || []).filter(u => u.reading_kind !== 'delivery');
   const metersByUtility = {};
-  await Promise.all(haUtilities.map(async u => {
-    metersByUtility[u.key] = await api.meters(u.key).catch(() => []);
-  }));
+  if (page === 'integrations') {
+    await Promise.all(haUtilities.map(async u => {
+      metersByUtility[u.key] = await api.meters(u.key).catch(() => []);
+    }));
+  }
+
+  const groups = GROUPS.filter(g => g.page === page);
+  const groupsHtml = groups.length
+    ? `<div class="settings-grid">${groups.map(g => renderGroup(g, settings)).join('')}</div>` : '';
+  const bodies = {
+    general: `
+      <div class="card settings-card">
+        <h2 class="card__title">${t('settings.lang.title')}</h2>
+        <p class="settings-card__hint">${t('settings.lang.hint')}</p>
+        <div class="settings-fields">
+          <div class="field settings-field">
+            <label for="lang-select">${t('settings.lang.label')}</label>
+            <select class="select" id="lang-select">
+              ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === getLocale() ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
+            </select>
+          </div>
+          ${renderRegionFields(settings, countries || [])}
+        </div>
+      </div>
+      ${renderDefaultUpdates(defaultUpdates)}
+      ${groupsHtml}`,
+    household: groupsHtml,
+    utilities: `
+      <div class="card settings-card">
+        <h2 class="card__title">${t('settings.activeUtils.title')}</h2>
+        <p class="settings-card__hint">${t('settings.activeUtils.hint')}</p>
+        <div class="settings-fields" id="active-utils">
+          ${(utilities || []).map(u => {
+            const act = Array.isArray(settings.active_utilities) && settings.active_utilities.length
+              ? settings.active_utilities.includes(u.key)
+              : true;
+            return `<label class="settings-field__check">
+              <input type="checkbox" data-active-util="${u.key}" ${act ? 'checked' : ''}>
+              ${u.icon ? `<span aria-hidden="true">${u.icon}</span> ` : ''}${escapeHtml(u.label)}
+            </label>`;
+          }).join('')}
+        </div>
+      </div>
+      ${groupsHtml}`,
+    data: `
+      ${renderExportCard(settings, utilities)}
+      ${renderBackupCard(snapshots)}
+      <div class="card card--link">
+        <h2 class="card__title">${t('settings.pdf.title')}</h2>
+        <p class="muted">${escapeHtml(t('settings.pdf.moved'))}</p>
+        <a class="btn btn--ghost btn--sm" href="#/report">${escapeHtml(t('nav.report'))}</a>
+      </div>`,
+    integrations: renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, session),
+    access: `${renderSecurityCard(session, apiKeys)}${groupsHtml}`,
+    expert: `
+      <details class="settings-expert">
+        <summary>${escapeHtml(t('settings.expert.summary'))}</summary>
+        <p class="banner banner--warning">${escapeHtml(t('settings.expert.warning'))}</p>
+        ${groupsHtml}
+      </details>`,
+    system: `${renderAbout(diag)}${diag ? renderDiagnostics(diag) : ''}`,
+  };
 
   container.innerHTML = `
     <div class="view-header">
       <div>
-        <h1 class="view-header__title">${t('settings.title')}</h1>
-        <div class="view-header__subtitle">${t('settings.subtitle')}</div>
-      </div>
-      <div class="view-header__actions">
-        <button type="button" class="btn btn--primary" id="btn-save">${t('settings.save')}</button>
+        <h1 class="view-header__title">${escapeHtml(t(`settings.page.${page}.title`))}</h1>
+        <div class="view-header__subtitle">${escapeHtml(t(`settings.page.${page}.subtitle`))}</div>
       </div>
     </div>
+    ${bodies[page]}
+    ${FIELD_PAGES.has(page) ? `
+    <div class="settings-savebar" data-role="savebar" hidden>
+      <span class="settings-savebar__text">${escapeHtml(t('settings.savebar.unsaved'))}</span>
+      <button type="button" class="btn btn--ghost" id="btn-discard">${escapeHtml(t('settings.savebar.discard'))}</button>
+      <button type="button" class="btn btn--primary" id="btn-save">${escapeHtml(t('common.save'))}</button>
+    </div>` : ''}
+  `;
 
-    <div class="card settings-card">
-      <h2 class="card__title">${t('settings.lang.title')}</h2>
-      <p class="settings-card__hint">${t('settings.lang.hint')}</p>
-      <div class="settings-fields">
-        <div class="field settings-field">
-          <label for="lang-select">${t('settings.lang.label')}</label>
-          <select class="select" id="lang-select">
-            ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === getLocale() ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
-          </select>
-        </div>
-        ${renderRegionFields(settings, countries || [])}
-      </div>
-    </div>
+  // v2.5.0 — F1012: Tabelle der datierten Gas-Faktoren verdrahten. Muss vor
+  // der Baseline stehen, damit Hinzufügen/Entfernen die Speicherleiste
+  // auslöst wie jede andere Änderung.
+  wireGasFactors(container);
+  wireCo2Years(container);   // v2.10.0
+  // v2.10.0 — korrigierte Standardwerte übernehmen (Lektion 36)
+  container.querySelector('#btn-take-defaults')?.addEventListener('click', async () => {
+    const patch = Object.fromEntries((defaultUpdates || []).map(u => [u.key, u.recommended]));
+    try {
+      await saveSettings(patch);
+      toastOk(t('settings.defaultUpdates.applied'));
+      render(container, params, ctx);
+    } catch (err) { toastErr(err.message); }
+  });
 
-    ${renderDefaultUpdates(defaultUpdates)}
+  // v2.2.0 — Schutz vor unbemerktem Verlust. v2.12.0: statt eines Markers an
+  // zwei Knöpfen eine Speicherleiste, die nur bei offenen Änderungen steht,
+  // dazu eine Rückfrage, wenn man die Seite über einen Link verlässt.
+  let baseline = JSON.stringify(collectSettings(container));
+  const savebar = container.querySelector('[data-role="savebar"]');
+  const isDirty = () => !!savebar && JSON.stringify(collectSettings(container)) !== baseline;
+  const markDirty = () => { if (savebar) savebar.hidden = !isDirty(); };
+  listen(container, 'input', markDirty);
+  listen(container, 'change', markDirty);
 
-    <div class="settings-grid">
-      ${GROUPS.map(g => renderGroup(g, settings)).join('')}
-    </div>
+  const beforeUnload = (e) => {
+    if (!isDirty()) return;
+    e.preventDefault();
+    e.returnValue = '';   // Browser verlangen das; der Text ist nicht steuerbar
+  };
+  listen(window, 'beforeunload', beforeUnload);
 
-    <div class="card settings-card">
-      <h2 class="card__title">${t('settings.activeUtils.title')}</h2>
-      <p class="settings-card__hint">${t('settings.activeUtils.hint')}</p>
-      <div class="settings-fields" id="active-utils">
-        ${(utilities || []).map(u => {
-          const act = Array.isArray(settings.active_utilities) && settings.active_utilities.length
-            ? settings.active_utilities.includes(u.key)
-            : true;
-          return `<label class="settings-field__check">
-            <input type="checkbox" data-active-util="${u.key}" ${act ? 'checked' : ''}>
-            ${u.icon ? u.icon + ' ' : ''}${escapeHtml(u.label)}
-          </label>`;
-        }).join('')}
-      </div>
-    </div>
+  // Links innerhalb der App (Tabs, Seitenleiste): bei offenen Änderungen fragen
+  const leaveGuard = async (e) => {
+    const a = e.target.closest?.('a[href^="#/"]');
+    if (!a || !isDirty() || e.defaultPrevented) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const ok = await confirmModal({
+      title: t('settings.leave.title'),
+      message: t('settings.leave.message'),
+      confirmLabel: t('settings.leave.confirm'), danger: true,
+    });
+    if (!ok) return;
+    baseline = JSON.stringify(collectSettings(container));   // nicht erneut fragen
+    location.hash = a.getAttribute('href');
+  };
+  listen(document, 'click', leaveGuard);
 
-    <div class="card card--link">
-      <h2 class="card__title">${t('settings.pdf.title')}</h2>
-      <p class="muted">${escapeHtml(t('settings.pdf.moved'))}</p>
-      <a class="btn btn--ghost btn--sm" href="#/report">${escapeHtml(t('nav.report'))}</a>
-    </div>
+  const save = async () => {
+    const invalid = firstInvalidSetting(container);
+    if (invalid) {
+      invalid.scrollIntoView?.({ block: 'center' });
+      invalid.focus();
+      toastErr(t('settings.invalidFields'));
+      return;
+    }
+    const payload = collectSettings(container);
+    try {
+      // v2.11.0 (FE-12) — saveSettings meldet die Änderung; die Seitenleiste
+      // folgt einer geänderten Auswahl der Verbrauchsarten sofort.
+      await saveSettings(payload);
+      baseline = JSON.stringify(payload);   // Stand ist gesichert
+      markDirty();
+      toastOk(t('settings.saved'));
+    } catch (e) { toastErr(e.message); }
+  };
+  container.querySelector('#btn-save')?.addEventListener('click', save);
+  container.querySelector('#btn-discard')?.addEventListener('click', () => {
+    baseline = '';   // die Rückfrage nicht auslösen
+    render(container, params, ctx);
+  });
 
-    <div class="form-actions" style="margin-top: var(--sp-4)">
-      <button type="button" class="btn btn--primary" id="btn-save-2">${t('settings.save')}</button>
-    </div>
+  // Sprachumschalter: Sprache speichern, i18n neu laden, Sidebar + View neu rendern.
+  container.querySelector('#lang-select')?.addEventListener('change', async (e) => {
+    const lang = e.target.value;
+    try {
+      await saveSettings({ language: lang });
+      await initI18n(lang);
+      invalidateUtilities();   // Labels kommen lokalisiert vom Backend → neu laden
+      await buildSidebar();
+      toastOk(t('settings.lang.saved'));
+      render(container, params, ctx);
+    } catch (err) { toastErr(err.message); }
+  });
 
+  // v2.7.0 — Land, Währung und Zeitzone wirken wie die Sprache sofort. Beim
+  // Land schlägt ein Dialog die abweichenden Werte des Länderprofils vor.
+  container.querySelector('#country-select')?.addEventListener('change', async (e) => {
+    const code = e.target.value;
+    const profile = (countries || []).find(c => c.code === code);
+    const diff = profile ? profileDiff(settings, profile) : [];
+    const patch = { country: code };
+    if (diff.length) {
+      const choice = await chooseProfile(code, diff, profile);
+      if (choice === null) { e.target.value = settings.country; return; }
+      if (choice === 'all') diff.forEach(d => Object.assign(patch, d.patch));
+    }
+    applyRegion(container, patch, countries, () => render(container, params, ctx));
+  });
+  container.querySelector('#currency-select')?.addEventListener('change', (e) => applyRegion(container, { currency: e.target.value }, countries, () => render(container, params, ctx)));
+  container.querySelector('#tz-select')?.addEventListener('change', (e) => applyRegion(container, { timezone: e.target.value }, countries, () => render(container, params, ctx)));
+
+  if (page === 'data') wireDataPage(container, utilities, () => render(container, params, ctx));
+  if (page === 'access') wireAccessPage(container, () => render(container, params, ctx));
+  if (page === 'integrations') wireIntegrationsPage(container, () => render(container, params, ctx));
+
+  // Der Router ruft diese Funktion beim Verlassen der Ansicht auf.
+  return unlistenAll;
+}
+
+// ── Seite „Daten": Export, Sicherung, Demo-Daten, Migration ──────────────
+function renderExportCard(settings, utilities) {
+  return `
     <div class="card">
       <h2 class="card__title">${t('settings.export.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-4)">
@@ -244,8 +389,11 @@ export async function render(container) {
           </div>
         </div>
       </div>
-    </div>
+    </div>`;
+}
 
+function renderBackupCard(snapshots) {
+  return `
     <div class="card">
       <h2 class="card__title">${t('settings.backup.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-3)">
@@ -264,7 +412,7 @@ export async function render(container) {
 
       <hr class="settings-rule">
 
-      <h4 class="settings-subhead">${t('settings.backup.snapshotsTitle')}</h4>
+      <h3 class="settings-subhead">${t('settings.backup.snapshotsTitle')}</h3>
       <p class="muted" style="font-size:12px;margin: 0 0 var(--sp-2)">
         ${t('settings.backup.snapshotsHint')}
       </p>
@@ -272,7 +420,7 @@ export async function render(container) {
 
       <hr class="settings-rule">
 
-      <h4 class="settings-subhead">${t('settings.backup.migrateSubhead')}</h4>
+      <h3 class="settings-subhead">${t('settings.backup.migrateSubhead')}</h3>
       <p class="muted" style="font-size:12px;margin: 0 0 var(--sp-3)">
         ${t('settings.backup.migrateHint')}
       </p>
@@ -280,109 +428,11 @@ export async function render(container) {
         <button class="btn btn--ghost" id="btn-migrate-v09">${t('settings.backup.migrateBtn')}</button>
         <input type="file" id="migrate-file" accept=".json,application/json" style="display:none">
       </div>
-    </div>
+    </div>`;
+}
 
-    ${renderSecurityCard(session, apiKeys)}
-
-    ${renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, session)}
-
-    ${diag ? renderDiagnostics(diag) : ''}
-  `;
-
-  // v2.2.0 — Schutz vor unbemerktem Verlust: Bis v2.1.5 gingen geänderte
-  // Einstellungen beim Wegnavigieren oder Schließen des Tabs kommentarlos
-  // verloren. Zwei Stufen, beide ohne die Navigation zu kapern:
-  //   1. `beforeunload` warnt beim Schließen/Neuladen (echter Verlust).
-  //   2. Ein Marker an der Speichern-Schaltfläche macht offene Änderungen
-  //      sichtbar, solange man in der Ansicht ist.
-  // v2.5.0 — F1012: Tabelle der datierten Gas-Faktoren verdrahten. Muss vor
-  // der Baseline stehen, damit Hinzufügen/Entfernen den Ungespeichert-Marker
-  // auslöst wie jede andere Änderung.
-  wireGasFactors(container);
-  wireCo2Years(container);   // v2.10.0
-  // v2.10.0 — korrigierte Standardwerte übernehmen (Lektion 36)
-  container.querySelector('#btn-take-defaults')?.addEventListener('click', async () => {
-    const patch = Object.fromEntries((defaultUpdates || []).map(u => [u.key, u.recommended]));
-    try {
-      await saveSettings(patch);
-      toastOk(t('settings.defaultUpdates.applied'));
-      render(container);
-    } catch (err) { toastErr(err.message); }
-  });
-
-  let baseline = JSON.stringify(collectSettings(container));
-  const saveButtons = [...container.querySelectorAll('#btn-save, #btn-save-2')];
-  const isDirty = () => JSON.stringify(collectSettings(container)) !== baseline;
-
-  const markDirty = () => {
-    const dirty = isDirty();
-    saveButtons.forEach(b => {
-      b.classList.toggle('btn--dirty', dirty);
-      b.textContent = dirty ? t('settings.saveUnsaved') : t('settings.save');
-    });
-  };
-  listen(container, 'input', markDirty);
-  listen(container, 'change', markDirty);
-
-  const beforeUnload = (e) => {
-    if (!isDirty()) return;
-    e.preventDefault();
-    e.returnValue = '';   // Browser verlangen das; der Text ist nicht steuerbar
-  };
-  listen(window, 'beforeunload', beforeUnload);
-
-  const save = async () => {
-    const invalid = firstInvalidSetting(container);
-    if (invalid) {
-      invalid.scrollIntoView?.({ block: 'center' });
-      invalid.focus();
-      toastErr(t('settings.invalidFields'));
-      return;
-    }
-    const payload = collectSettings(container);
-    try {
-      // v2.11.0 (FE-12) — saveSettings meldet die Änderung; die Seitenleiste
-      // folgt einer geänderten Auswahl der Verbrauchsarten sofort.
-      await saveSettings(payload);
-      baseline = JSON.stringify(payload);   // Stand ist gesichert
-      markDirty();
-      toastOk(t('settings.saved'));
-    } catch (e) { toastErr(e.message); }
-  };
-  container.querySelector('#btn-save').addEventListener('click', save);
-  container.querySelector('#btn-save-2').addEventListener('click', save);
-
-  // Sprachumschalter: Sprache speichern, i18n neu laden, Sidebar + View neu rendern.
-  container.querySelector('#lang-select')?.addEventListener('change', async (e) => {
-    const lang = e.target.value;
-    try {
-      await saveSettings({ language: lang });
-      await initI18n(lang);
-      invalidateUtilities();   // Labels kommen lokalisiert vom Backend → neu laden
-      await buildSidebar();
-      toastOk(t('settings.lang.saved'));
-      render(container);
-    } catch (err) { toastErr(err.message); }
-  });
-
-  // v2.7.0 — Land, Währung und Zeitzone wirken wie die Sprache sofort. Beim
-  // Land schlägt ein Dialog die abweichenden Werte des Länderprofils vor.
-  container.querySelector('#country-select')?.addEventListener('change', async (e) => {
-    const code = e.target.value;
-    const profile = (countries || []).find(c => c.code === code);
-    const diff = profile ? profileDiff(settings, profile) : [];
-    const patch = { country: code };
-    if (diff.length) {
-      const choice = await chooseProfile(code, diff, profile);
-      if (choice === null) { e.target.value = settings.country; return; }
-      if (choice === 'all') diff.forEach(d => Object.assign(patch, d.patch));
-    }
-    applyRegion(container, patch, countries);
-  });
-  container.querySelector('#currency-select')?.addEventListener('change', (e) => applyRegion(container, { currency: e.target.value }, countries));
-  container.querySelector('#tz-select')?.addEventListener('change', (e) => applyRegion(container, { timezone: e.target.value }, countries));
-
-  container.querySelector('#btn-export').addEventListener('click', async () => {
+function wireDataPage(container, utilities, rerender) {
+  container.querySelector('#btn-export')?.addEventListener('click', async () => {
     try {
       const data = await api.exportBackup();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -400,7 +450,7 @@ export async function render(container) {
     try { el.innerHTML = renderSnapshots(await api.snapshots()); } catch { /* alte Liste bleibt */ }
   };
 
-  container.querySelector('#btn-snapshot').addEventListener('click', async () => {
+  container.querySelector('#btn-snapshot')?.addEventListener('click', async () => {
     try {
       const r = await api.snapshotBackup();
       toastOk(t('settings.backup.snapshotToast', { file: r.file || r.path || 'ok' }));
@@ -442,7 +492,7 @@ export async function render(container) {
   });
 
   // F1007 — Demo-Daten-Komfort-Import
-  container.querySelector('#btn-demo').addEventListener('click', async () => {
+  container.querySelector('#btn-demo')?.addEventListener('click', async () => {
     try {
       const status = await api.demoStatus();
       if (!status.available) {
@@ -465,13 +515,13 @@ export async function render(container) {
     } catch (e) { toastErr(e.message); }
   });
 
-  container.querySelector('#btn-import').addEventListener('click',
-    () => container.querySelector('#import-file').click());
+  container.querySelector('#btn-import')?.addEventListener('click',
+    () => container.querySelector('#import-file')?.click());
   // v2.6.0 — Import in zwei Schritten: Erst prüft der Server das Backup
   // (dry_run) und die Vorschau zeigt, was ersetzt wird und was unverändert
   // bleibt; eingespielt wird erst nach der Bestätigung. Ein fehlerhaftes
   // Backup ändert nichts und nennt die Fundstellen.
-  container.querySelector('#import-file').addEventListener('change', async (e) => {
+  container.querySelector('#import-file')?.addEventListener('change', async (e) => {
     const f = e.target.files[0];
     e.target.value = '';
     if (!f) return;
@@ -493,24 +543,26 @@ export async function render(container) {
   });
 
   // ── Migration aus v0.9.0 ──
-  container.querySelector('#btn-migrate-v09').addEventListener('click', () => {
-    container.querySelector('#migrate-file').click();
+  container.querySelector('#btn-migrate-v09')?.addEventListener('click', () => {
+    container.querySelector('#migrate-file')?.click();
   });
-  container.querySelector('#migrate-file').addEventListener('change', async (e) => {
+  container.querySelector('#migrate-file')?.addEventListener('change', async (e) => {
     const f = e.target.files[0]; if (!f) return;
     try {
       const text = await f.text();
       const backup = JSON.parse(text);
       const previewResult = await api.migrationV09Preview(backup);
-      openMigrationDialog(previewResult, () => render(container));
+      openMigrationDialog(previewResult, rerender);
     } catch (err) {
       toastErr(t('settings.backup.migrateReadError', { msg: err.message }));
     } finally {
       e.target.value = '';
     }
   });
+}
 
-  // ── v2.6.0 — Anmeldung & Zugriff ──
+// ── Seite „Zugriff": Anmeldung und API-Schlüssel (v2.6.0) ─────────────────
+function wireAccessPage(container, rerender) {
   const pwValue = (id) => container.querySelector('#' + id)?.value ?? '';
   const newPassword = () => {
     const pw = pwValue('sec-new');
@@ -527,7 +579,7 @@ export async function render(container) {
       const r = await api.setPassword(pw);
       sessionChanged(r?.mode || 'password');
       toastOk(t('settings.security.enabled'));
-      render(container);
+      rerender();
     } catch (e) { toastErr(e.message); }
   });
 
@@ -537,7 +589,7 @@ export async function render(container) {
     try {
       await api.setPassword(pw, pwValue('sec-current'));
       toastOk(t('settings.security.changed'));
-      render(container);
+      rerender();
     } catch (e) { toastErr(e.message); }
   });
 
@@ -565,7 +617,7 @@ export async function render(container) {
             close(true);
             sessionChanged('off');
             toastOk(t('settings.security.disabled'));
-            render(container);
+            rerender();
           } catch (e) {
             const msg = modalEl.querySelector('#sec-disable-msg');
             if (msg) { msg.textContent = e.message; msg.hidden = false; }
@@ -617,8 +669,10 @@ export async function render(container) {
       refreshKeys();
     } catch (e) { toastErr(e.message); }
   });
+}
 
-  // ── F1009 — Home-Assistant-Handler ──
+// ── Seite „Integrationen": Home Assistant (F1009) ─────────────────────────
+function wireIntegrationsPage(container, rerender) {
   container.querySelector('#btn-ha-generate')?.addEventListener('click', async () => {
     const ok = await confirmModal({
       title: t('settings.ha.genConfirmTitle'),
@@ -649,7 +703,7 @@ export async function render(container) {
       confirmLabel: t('settings.ha.revokeConfirmBtn'), danger: true,
     });
     if (!ok) return;
-    try { await api.revokeToken(); toastOk(t('settings.ha.revoked')); render(container); }
+    try { await api.revokeToken(); toastOk(t('settings.ha.revoked')); rerender(); }
     catch (e) { toastErr(e.message); }
   });
 
@@ -663,7 +717,7 @@ export async function render(container) {
       try { await api.updateMeter(utility, meterId, { external_id: value || null }); saved++; }
       catch (e) { failed++; toastErr(`${utility}/${meterId}: ${e.message}`); }
     }
-    if (failed === 0) toastOk(t('settings.ha.aliasesSaved', { count: saved }));
+    if (failed === 0) toastOk(tp('settings.ha.aliasesSavedN', saved));
     // Die Automatisierungs-Vorlage folgt den Aliasen.
     const code = container.querySelector('#ha-automation code');
     if (code) {
@@ -679,9 +733,18 @@ export async function render(container) {
   container.querySelector('#btn-ha-copy-yaml')?.addEventListener('click', () => {
     copyText(container.querySelector('#ha-yaml')?.innerText || '', t('settings.ha.yamlCopied'));
   });
+}
 
-  // Der Router ruft diese Funktion beim Verlassen der Ansicht auf.
-  return unlistenAll;
+// ── Seite „System": Version und Verweise (v2.12.0, Review UI-29) ──────────
+function renderAbout(diag) {
+  const version = diag?.app_version || document.body.getAttribute('data-app-version') || '';
+  return `
+    <div class="card">
+      <h2 class="card__title">${escapeHtml(t('settings.system.aboutTitle'))}</h2>
+      <p>${escapeHtml(t('settings.system.about', { version }))}</p>
+      <p class="muted">${escapeHtml(t('settings.system.license'))}
+        · <a href="https://github.com/Bingerminger/energietracker" target="_blank" rel="noopener">GitHub</a></p>
+    </div>`;
 }
 
 // ── v2.7.0 — Länderprofil (N1014) ────────────────────────────────────
@@ -775,13 +838,13 @@ function chooseProfile(code, diff, profile) {
   return ctrl.closedPromise.then(v => (v === 'all' || v === 'country') ? v : null);
 }
 
-async function applyRegion(container, patch, countries = []) {
+async function applyRegion(container, patch, countries = [], rerender = () => {}) {
   try {
     await saveSettings(patch);
     if (patch.currency) setCurrencyParams(patch.currency);
     if (patch.country) setCountry(patch.country, countries.find(c => c.code === patch.country)?.languages);
     toastOk(t('settings.region.saved'));
-    render(container);
+    rerender();
   } catch (err) { toastErr(err.message); }
 }
 
@@ -1144,7 +1207,7 @@ function haAutomationEntries(haUtilities, metersByUtility) {
 
 function renderGroup(g, settings) {
   return `
-    <div class="card settings-card">
+    <div class="card settings-card${g.wide ? ' settings-card--wide' : ''}">
       <h2 class="card__title">${g.icon ? `<span aria-hidden="true">${g.icon}</span> ` : ''}${t('settings.group.' + g.gkey + '.title')}</h2>
       <p class="settings-card__hint">${t('settings.group.' + g.gkey + '.hint')}</p>
       <div class="settings-fields">

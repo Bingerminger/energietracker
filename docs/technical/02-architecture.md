@@ -120,7 +120,7 @@ und kennt **kein HTTP**.
 | `DeliveryConsumptionService` | **(seit v1.4.4)** Heizöl/Pellets — aus `ConsumptionService` extrahiert; seit v2.10.0 Tankbuch (`tankModel()`): Stützstellen, eine Rechnung für Verbrauch, Kosten und Bestand, Klimanormal für fehlende Tage |
 | `DeliveryService` | CRUD Lieferungen, Tank-Bestandskurve |
 | `TemperatureService` | CSV-Import, Open-Meteo-Abgleich mit Quelle je Tag, täglicher Auto-Sync (v2.8.0) |
-| `WeatherService` | Open-Meteo-Wrapper (Archiv, Vorhersage, 30-Jahres-Tagesmittel) hinter dem Interface `WeatherSource` |
+| `WeatherService` | Open-Meteo-Wrapper (Archiv, Vorhersage, 30-Jahres-Tagesmittel, seit v2.12.0 Ortssuche) hinter dem Interface `WeatherSource` |
 | `ClimateNormalService` | **(v2.8.0)** Klimanormal am Standort: HGT-Mittel und -Streuung je Kalendermonat aus 30 Jahren |
 | `RegressionService` | 5 Modelle: linear, polynomial, robust, segmented (auto/fix), sigmoid |
 | `ForecastService` | R²-gewichtete Mischung Regression × Saisonprofil, HGT aus dem Klimanormal, Unsicherheitsband; vertragsbasierte Kostenprognose |

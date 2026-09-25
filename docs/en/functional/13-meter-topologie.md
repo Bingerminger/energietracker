@@ -71,7 +71,7 @@ meters remain visible.
 
 ### Merge wizard
 
-The fastest way to bundle is via **Settings → Meters / Contracts → "Merge
+The fastest way to bundle is via **Consumption → *utility* → ⚙️ Meters → "Group
 meters"**: select several existing meters, give a group name, done. In the
 background the wizard sets `meter_group_id` on all selected meters.
 

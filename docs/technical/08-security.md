@@ -45,10 +45,11 @@ Geräten im Netz** — dafür ist die Anmeldung da.
 
 ## 3. Anmeldung einschalten
 
-**In der App:** Einstellungen → „Anmeldung & Zugriff" → Passwort (mindestens
-8 Zeichen) zweimal eingeben → „Anmeldung einschalten". Dieser Browser bleibt
-angemeldet; jeder andere fragt einmal nach dem Passwort und bleibt dann
-**30 Tage** angemeldet. Abmelden geht über den Knopf in der Kopfleiste.
+**In der App:** Einstellungen → Zugriff → „Anmeldung & Zugriff" → Passwort
+(mindestens 8 Zeichen) zweimal eingeben → „Anmeldung einschalten". Dieser
+Browser bleibt angemeldet; jeder andere fragt einmal nach dem Passwort und
+bleibt dann **30 Tage** angemeldet. Abmelden geht über den Knopf in der
+Kopfleiste.
 
 Was sich damit ändert:
 
@@ -91,9 +92,9 @@ Der **Token** schützt ausschließlich den Push-Endpunkt `/api/ingest` — nicht
 den Rest der API. Ohne Anmeldung ist er freiwillig; mit Anmeldung ist er
 Pflicht. Einrichtung: [Home Assistant](../HOME-ASSISTANT.md).
 
-- Einstellungen → „Home-Assistant-Anbindung" zeigt, wann zuletzt ein Wert mit
-  dem Token ankam (auf die Stunde genau) — die erste Frage bei der
-  Fehlersuche.
+- Einstellungen → Integrationen → „Home-Assistant-Anbindung" zeigt, wann
+  zuletzt ein Wert mit dem Token ankam (auf die Stunde genau) — die erste
+  Frage bei der Fehlersuche.
 - Ein neuer Token macht den alten sofort ungültig — den neuen dann in Home
   Assistant (`secrets.yaml`) eintragen und Home Assistant neu starten.
 - Fällt ein Zählerstand gegenüber dem vorigen (Sensor-Aussetzer, Tausch),
@@ -104,9 +105,9 @@ Pflicht. Einrichtung: [Home Assistant](../HOME-ASSISTANT.md).
 ## 5. API-Schlüssel für Skripte
 
 Mit eingeschalteter Anmeldung brauchen Skripte und andere Programme einen
-Schlüssel: Einstellungen → „Anmeldung & Zugriff" → „API-Schlüssel für
-Skripte". Der Schlüssel (`etk_…`) wird **einmal** angezeigt; gespeichert ist
-nur sein Hash.
+Schlüssel: Einstellungen → Zugriff → „Anmeldung & Zugriff" → „API-Schlüssel
+für Skripte". Der Schlüssel (`etk_…`) wird **einmal** angezeigt; gespeichert
+ist nur sein Hash.
 
 | Berechtigung | darf |
 |---|---|
@@ -174,7 +175,7 @@ fremden Domain); die Liste ist die zweite Linie für den offenen Betrieb.
 **Einbetten:** Fremde Seiten dürfen die App nicht in einem Rahmen anzeigen —
 sonst ließen sich Klicks auf „Demo-Daten laden" oder „Token erzeugen"
 unterschieben. Für eine Webseiten-Karte im Home-Assistant-Dashboard dessen
-Adresse eintragen: Einstellungen → „Einbetten", oder
+Adresse eintragen: Einstellungen → Zugriff → „Einbetten", oder
 `ET_FRAME_ANCESTORS=http://homeassistant.local:8123`. Erlaubt sind Ursprünge
 (Schema, Host, optional Port, auch `*.domain`), mehrere durch Leerzeichen
 getrennt.

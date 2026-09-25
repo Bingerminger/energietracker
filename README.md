@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.11.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.12.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-434-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-444-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installable-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
@@ -21,10 +21,11 @@ Self-hosted web application for recording and analysing your own energy and
 water consumption. Single-file PHP backend, vanilla-JS SPA frontend, flat-file
 JSON persistence — no database, no server setup, **no runtime dependencies at
 all**. Chart.js and the web fonts ship with the repository. The only outbound
-connection is the temperature sync with Open-Meteo: at most once a day, sending
-nothing but the location rounded to about 1 km, and it can be switched off under
-*Settings → Fill weather automatically* (since v2.8.0; before that only on
-demand).
+connections go to Open-Meteo: the temperature sync — at most once a day, sending
+nothing but the location rounded to about 1 km, switchable off under
+*Settings → Weather data → Fill weather automatically* (since v2.8.0; before
+that only on demand) — and, only when you search for your place there, the
+search text (since v2.12.0).
 
 Up to eight utilities in parallel: **gas**, **electricity**, **water**,
 **district heating**, **heating oil** and **wood pellets** (heating oil/pellets
@@ -43,7 +44,7 @@ year-end settlement, with a suggested advance payment. On top of that: a statist
 recommendation engine, reminder/maintenance management, a tariff comparison with
 shadow contracts and a PDF annual report.
 
-> **Status:** v2.11.0 is the current public version (initial release was v1.0.2).
+> **Status:** v2.12.0 is the current public version (initial release was v1.0.2).
 > If you want to migrate from a privately run v0.9.0 backup, see
 > [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
 > format is supported by the migrator.
@@ -54,7 +55,7 @@ shadow contracts and a PDF annual report.
 
 > 🌐 **Languages:** the app interface ships in **German, English, French,
 > Italian, Spanish, Portuguese and Dutch**, switchable under *Settings →
-> Language & country*. Since v2.7.0 **country profiles** for Germany, Austria,
+> General → Language & country*. Since v2.7.0 **country profiles** for Germany, Austria,
 > Switzerland, France, Italy, Spain, Portugal, the Netherlands and the United
 > Kingdom set currency (EUR, CHF, GBP), number and date formats, time zone,
 > weather location, heating threshold, CO₂ factor and gas units — see
@@ -92,10 +93,11 @@ shadow contracts and a PDF annual report.
   (`(old_final − previous_reading) + (current_reading − new_initial)`).
 - **Multiple meters per utility** with independent contracts (e.g. main meter +
   garden-water sub-meter).
-- **Temperatures** via CSV import (format `DD.MM.YYYY"avg"min"max`,
-  double-quote-separated) or from Open-Meteo using the location coordinates in
-  the settings — since v2.8.0 automatically once a day, measurements kept apart
-  from forecasts, your own values are never overwritten.
+- **Temperatures** via CSV import (format `DD.MM.YYYY;avg;min;max`; tab and
+  the old double-quote format are read as well) or from Open-Meteo for your
+  location — find it by name under *Settings → Weather data* (v2.12.0). Since
+  v2.8.0 automatically once a day, measurements kept apart from forecasts, your
+  own values are never overwritten.
 - **Gas conversion with cut-off dates** (v2.5.0): volume correction factor ×
   calorific value per period, exactly as the bill lists them; day-exact
   split at every change, plus a **bill verification** that recalculates the
@@ -208,6 +210,9 @@ shadow contracts and a PDF annual report.
   touch targets and contrast per WCAG AA; the back gesture closes dialogs. New
   page **Contracts & payments**: all deadlines, advance payments and expected
   bills at a glance.
+- **Tidied up** (v2.12.0): "To do" at the top of the overview; settings as
+  sub-pages with a save bar; place search for the weather data; readings with
+  "Next" key, "Undo" and a direct link per meter; CSV import with a preview.
 - **Toggleable utilities**: hide unused utilities without losing data.
 
 ### Meter topology & automation (v1.8.0 / v1.9.0)
@@ -302,7 +307,7 @@ empty state.
 
 > 🔐 **Security:** without sign-in, anyone who can reach the app can read and
 > change all data — fine in your own home network. Before making it reachable
-> from outside, switch on sign-in (Settings → "Sign-in & access") and read
+> from outside, switch on sign-in (Settings → Access → "Sign-in & access") and read
 > [Security & network operation](docs/en/technical/08-security.md).
 
 On first start the app automatically initialises `data/meta.json`,
@@ -325,7 +330,7 @@ Or without Compose, directly with the published image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.11.0
+  ghcr.io/bingerminger/energietracker:2.12.0
 ```
 
 > Without `--name energietracker` Docker assigns a random name (e.g.
@@ -338,10 +343,10 @@ Logs (JSON Lines) appear via `docker logs`; configuration via `ET_LOG_LEVEL` /
 
 ### First-time setup
 
-1. Check **Settings → System constants**: gas conversion factors (volume
+1. Check **Settings → Utilities & billing**: gas conversion factors (volume
    correction factor × calorific value per cut-off date, as printed on the
    bill; default 11.5 kWh/m³), HDD base temperature (default 15 °C), CO₂
-   factors, your own location (lat/lon, default Leipzig).
+   factors. You set your own location (lat/lon, default Leipzig) in step 5.
 2. Open **Consumption → Gas/Electricity/Water → ⚙️ Meters** and create the first
    meter (a default device is created automatically). For existing meters, enter
    a serial number + approximate installation date.
@@ -350,15 +355,15 @@ Logs (JSON Lines) appear via `docker logs`; configuration via `ET_LOG_LEVEL` /
    advance.
 4. **First reading** via the `+ Reading` button. As soon as at least two readings
    exist, the monthly consumption calculation begins.
-5. **Temperatures → sync Open-Meteo** for local climate data (or upload a CSV
-   file).
+5. **Settings → Weather data:** search your place, then **Sync Open-Meteo**
+   for local climate data (or upload a CSV file).
 
 ### Demo data
 
 > 💡 **Fastest way (no file system needed):** the demo data is also available as
 > a JSON backup under
 > [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
-> In an empty Energietracker, upload it via *Settings → Backup & restore →
+> In an empty Energietracker, upload it via *Settings → Data → Backup & restore →
 > Import backup* (since v1.7.4 also via the "Load demo data" button). A snapshot
 > is created automatically beforehand.
 
@@ -372,8 +377,8 @@ cp -r demo-data/gas demo-data/strom demo-data/wasser data/
 cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
 ```
 
-> Before copying, back up your own data if needed (Settings → Backup & restore →
-> *Download JSON backup*).
+> Before copying, back up your own data if needed (Settings → Data → Backup &
+> restore → *Download JSON backup*).
 
 ---
 
@@ -501,7 +506,7 @@ For the full list of configurable values see
 energietracker/
 ├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
 ├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
-├── VERSION                  ← "2.11.0"
+├── VERSION                  ← "2.12.0"
 ├── README.md                ← this file (English)
 ├── README.de.md             ← German version
 ├── CHANGELOG.md
@@ -549,8 +554,8 @@ If you want to migrate from a v0.9.0 backup:
    keys `gas`, `strom`, `temperatures`, `settings`, `contracts`).
 2. Install v1.2.0 fresh (see [Quick start](#quick-start)) or delete the demo
    data.
-3. Open **Settings → Backup & restore → 📦 Migration from v0.9.0** and upload the
-   JSON file.
+3. Open **Settings → Data → Backup & restore → 📦 Migration from v0.9.0** and
+   upload the JSON file.
 4. The migration dialog shows what would be imported (readings per utility,
    contracts, temperatures, settings, warnings, detected meter-swap candidates).
 5. Choose **Replace** or **Merge** → import. Before writing, a safety snapshot of

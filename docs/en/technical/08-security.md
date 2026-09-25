@@ -45,10 +45,10 @@ devices on the network** — that is what sign-in is for.
 
 ## 3. Switching sign-in on
 
-**In the app:** Settings → "Sign-in & access" → enter a password (at least 8
-characters) twice → "Switch sign-in on". This browser stays signed in; every
-other one asks for the password once and then stays signed in for **30 days**.
-Sign out with the button in the top bar.
+**In the app:** Settings → Access → "Sign-in & access" → enter a password (at
+least 8 characters) twice → "Switch sign-in on". This browser stays signed in;
+every other one asks for the password once and then stays signed in for
+**30 days**. Sign out with the button in the top bar.
 
 What changes:
 
@@ -91,8 +91,9 @@ The **token** protects only the push endpoint `/api/ingest` — not the rest of
 the API. Without sign-in it is optional; with sign-in it is mandatory. Setup:
 [Home Assistant](../HOME-ASSISTANT.md).
 
-- Settings → "Home Assistant integration" shows when a value last arrived with
-  the token (accurate to the hour) — the first question when troubleshooting.
+- Settings → Integrations → "Home Assistant integration" shows when a value last
+  arrived with the token (accurate to the hour) — the first question when
+  troubleshooting.
 - A new token invalidates the old one immediately — then enter the new one in
   Home Assistant (`secrets.yaml`) and restart Home Assistant.
 - If a meter reading drops compared with the previous one (sensor dropout,
@@ -102,7 +103,7 @@ the API. Without sign-in it is optional; with sign-in it is mandatory. Setup:
 ## 5. API keys for scripts
 
 With sign-in switched on, scripts and other programs need a key: Settings →
-"Sign-in & access" → "API keys for scripts". The key (`etk_…`) is shown
+Access → "Sign-in & access" → "API keys for scripts". The key (`etk_…`) is shown
 **once**; only its hash is stored.
 
 | Permission | may |
@@ -169,7 +170,8 @@ domain); the list is the second line of defence for open operation.
 
 **Embedding:** foreign pages may not show the app in a frame — otherwise clicks
 on "Load demo data" or "Generate token" could be slipped in. For a webpage card
-on a Home Assistant dashboard, enter its address: Settings → "Embedding", or
+on a Home Assistant dashboard, enter its address: Settings → Access →
+"Embedding", or
 `ET_FRAME_ANCESTORS=http://homeassistant.local:8123`. Origins are allowed
 (scheme, host, optional port, also `*.domain`), several separated by spaces.
 

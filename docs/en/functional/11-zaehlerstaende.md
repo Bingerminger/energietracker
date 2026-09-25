@@ -28,7 +28,9 @@ Per meter, the card contains:
 - **Last known reading** (value + date + possibly the tag "estimated")
 - **New reading** — a numeric input field; `inputmode="decimal"` opens the number
   keypad directly on iPhone/Android
-- **Date** — default today, overridable per row
+- **Date** — one date at the top for all cards (default today); per card,
+  since v2.12.0, collapsed behind "Other date". A card with a date of its own
+  keeps it when the top date changes.
 - **Estimated** — a toggle that marks the reading as an estimate (maps to the
   existing `is_estimated` flag of the reading schema)
 - **Note** — expandable on click, optional, max. 200 characters
@@ -41,7 +43,10 @@ A single sticky button at the bottom. On click:
 2. skips empty ones ("New reading" not filled),
 3. POSTs per card against `/api/utility/{u}/readings`,
 4. shows per card ✓ (saved) or ✗ (error) as a status indicator,
-5. summarises at the end via a toast ("3 saved · 1 empty" or "2 saved, 1 failed").
+5. summarises at the end via a toast ("3 saved · 1 empty" or "2 saved, 1 failed");
+   since v2.12.0 with the change per utility ("Gas +5.4 m³") and ten seconds of
+   **"Undo"**, which deletes the readings just created. Replaced readings
+   (question "Replace") are not reverted by "Undo".
 
 A faulty card does **not** block the others — robust against partial failures.
 After a successful save, the "last reading" in the card is updated so that a
@@ -51,6 +56,16 @@ second click validates against the new baseline.
 
 - **Numeric input** — only numbers, comma or dot as the decimal separator.
 - **Empty input** — the card is silently skipped on save, not marked as an error.
+- **Error at the field** (v2.12.0) — an unreadable value or a rejection by the
+  server appears below the field (`aria-invalid`, `aria-describedby`), not only
+  in the title of the ✗.
+
+## Direct link per meter (v2.12.0)
+
+`#/zaehlerstaende?meter=<id>` opens the capture view with that meter's card
+marked and in focus. Meant for a home-screen bookmark ("Read the gas meter"), a
+shortcut and "To do" on the overview. The meter ID appears in the address bar
+of the meters view and in `GET /api/utility/{u}/meters`.
 
 ## Plausibility (v2.6.0)
 
@@ -105,14 +120,15 @@ The view is built from the ground up for iPhone portrait:
 
 - cards fill the full width, one per screen row
 - input fields with a min. 48 px touch-target height (Apple-HIG-compliant)
-- date + meter single-column under one another below 600 px width
+- Enter or "Next" jumps to the next meter field, from the last one to "Save
+  all" (`enterkeyhint`, v2.12.0)
 - a sticky save bar with `env(safe-area-inset-bottom)` for the home-indicator area
   of newer iPhones
 - `inputmode="decimal"` opens the number keypad without letters
 
-On desktop and tablet, the layout is expanded into two columns (meter left, date
-right) and centred at a max. 720 px width — high readability, no endless scanning
-across the full screen width.
+On desktop and tablet the card stays single-column and is centred at a max.
+720 px width — high readability, no endless scanning across the full screen
+width. (Up to v2.11 the per-card date sat to the right of the meter field.)
 
 ## Architecture
 

@@ -12,7 +12,7 @@ import { gasEntryOn } from '../lib/gas-factor.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
-import { t } from '../lib/i18n.js';
+import { t, tp } from '../lib/i18n.js';
 import { associateFieldLabels } from '../lib/a11y.js';
 import { showFieldError } from '../lib/form.js';
 import { renderError } from '../components/error.js';
@@ -140,7 +140,10 @@ async function refresh(container, u) {
   container.querySelectorAll('[data-delete-contract]').forEach(b => {
     b.addEventListener('click', async () => {
       const id = b.getAttribute('data-delete-contract');
-      const ok = await confirmModal({ title: t('contracts.delete.title'), message: t('contracts.delete.message'), confirmLabel: t('contracts.delete.confirm'), danger: true });
+      // v2.12.0 (Review UI-22) — die Rückfrage nennt den Vertrag
+      const c = contracts.find(x => x.id === id);
+      const name = [c?.provider, c?.tariff_name].filter(Boolean).join(' · ') || t('contracts.card.fallbackProvider');
+      const ok = await confirmModal({ title: t('contracts.delete.title'), message: t('contracts.delete.messageNamed', { name }), confirmLabel: t('contracts.delete.confirm'), danger: true });
       if (!ok) return;
       try { await api.deleteContract(u.key, id); toastOk(t('contracts.delete.deleted')); refresh(container, u); }
       catch (e) { toastErr(e.message); }
@@ -263,21 +266,22 @@ function renderContractCard(c, meters, u) {
     const tw = c.trinkwasser || {};
     const sw = c.schmutzwasser || {};
     const nw = c.niederschlagswasser || {};
+    // v2.12.0 (Review UI-20) — Pluralformen: vorher „1 Arbeitspreise"
     summary = [
-      t('contracts.summary.twPrices', { count: tw.working_prices?.length || 0 }),
-      t('contracts.summary.swPrices', { count: sw.working_prices?.length || 0 }),
-      t('contracts.summary.nwDates',  { count: nw.rates?.length || 0 }),
-      t('contracts.summary.advances', { count: c.advance_payments?.length || 0 }),
-      t('contracts.summary.bonuses',  { count: c.bonuses?.length || 0 }),
+      tp('contracts.summary.twPrices', tw.working_prices?.length || 0),
+      tp('contracts.summary.swPrices', sw.working_prices?.length || 0),
+      tp('contracts.summary.nwDates',  nw.rates?.length || 0),
+      tp('contracts.summary.advances', c.advance_payments?.length || 0),
+      tp('contracts.summary.bonuses',  c.bonuses?.length || 0),
     ].join(' · ');
   } else {
     summary = [
-      t('contracts.summary.workingPrices', { count: c.working_prices?.length || 0 }),
-      t('contracts.summary.basePrices',    { count: c.base_prices?.length || 0 }),
-      t('contracts.summary.advances',      { count: c.advance_payments?.length || 0 }),
-      t('contracts.summary.bonuses',       { count: c.bonuses?.length || 0 }),
+      tp('contracts.summary.workingPrices', c.working_prices?.length || 0),
+      tp('contracts.summary.basePrices',    c.base_prices?.length || 0),
+      tp('contracts.summary.advances',      c.advance_payments?.length || 0),
+      tp('contracts.summary.bonuses',       c.bonuses?.length || 0),
       ...(hasAdvancePaymentContracts(u)
-          ? [t('contracts.summary.specialPayments', { count: c.special_payments?.length || 0 })]
+          ? [tp('contracts.summary.specialPayments', c.special_payments?.length || 0)]
           : []),
     ].join(' · ');
   }
@@ -289,7 +293,7 @@ function renderContractCard(c, meters, u) {
           <span class="status-pill ${st.cls}">${st.label}</span></h2>
         <div class="section-actions">
           <button class="btn btn--sm btn--ghost" data-edit-contract="${escapeHtml(c.id)}">${t('contracts.card.edit')}</button>
-          <button class="btn btn--sm btn--danger" data-delete-contract="${escapeHtml(c.id)}" title="${t('contracts.deleteContract')}" aria-label="${t('contracts.deleteContract')}"><span aria-hidden="true">×</span></button>
+          <button class="btn btn--sm btn--danger btn--quiet" data-delete-contract="${escapeHtml(c.id)}" title="${t('contracts.deleteContract')}" aria-label="${t('contracts.deleteContract')}"><span aria-hidden="true">×</span></button>
         </div>
       </div>
       <div class="muted" style="font-size: var(--fs-sm)">
@@ -317,13 +321,16 @@ async function openContractModal(u, meters, existing, contracts = []) {
   }
   return new Promise(resolve => {
     const isEdit = !!existing;
+    // v2.12.0 (Review UI-16) — die ersten Preiszeilen gelten ab Vertragsbeginn;
+    // vorher war ihr Datum leer und musste je Zeile nachgetragen werden
+    const start0 = existing ? '' : suggestStart(contracts, meters[0]?.id || '');
     const initial = existing || {
       meter_id: meters[0]?.id || '',
       provider: '', tariff_name: '',
-      start: suggestStart(contracts, meters[0]?.id || ''), end: '', notes: '',
-      working_prices: [{ from: '', ct_per_kwh: '' }],
-      base_prices:    [{ from: '', eur_per_month: '' }],
-      advance_payments:[{ from: '', amount_eur: '' }],
+      start: start0, end: '', notes: '',
+      working_prices: [{ from: start0, ct_per_kwh: '', __auto: true }],
+      base_prices:    [{ from: start0, eur_per_month: '', __auto: true }],
+      advance_payments:[{ from: start0, amount_eur: '', __auto: true }],
       bonuses:        [],
       special_payments: [],
     };
@@ -472,9 +479,17 @@ async function openContractModal(u, meters, existing, contracts = []) {
         // das Datum selbst angefasst hat.
         if (!isEdit) {
           const startEl = modalEl.querySelector('[name="start"]');
+          // v2.12.0 — vorbelegte Preiszeilen (data-auto) folgen dem Beginn;
+          // eine selbst geänderte Zeile bleibt, wie sie ist
+          const followStart = () => {
+            modalEl.querySelectorAll('.entry-row [data-role="date"][data-auto="1"]').forEach(d => {
+              d.value = startEl?.value || '';
+            });
+          };
           startEl?.addEventListener('input', () => { startEl.dataset.touched = '1'; }, { once: true });
+          startEl?.addEventListener('change', followStart);
           modalEl.querySelector('[name="meter_id"]')?.addEventListener('change', (ev) => {
-            if (startEl && !startEl.dataset.touched) startEl.value = suggestStart(contracts, ev.target.value);
+            if (startEl && !startEl.dataset.touched) { startEl.value = suggestStart(contracts, ev.target.value); followStart(); }
           });
         }
 
@@ -575,7 +590,8 @@ function bindPerM3(modalEl) {
     if (!row) return;
     const dIn = row.querySelector('[data-role="date"]');
     const aIn = row.querySelector('[data-role="amount"]');
-    if (date && dIn && !dIn.value) dIn.value = date;
+    // v2.12.0 — ein nur vorbelegtes Datum (Vertragsbeginn) weicht dem gewählten
+    if (date && dIn && (!dIn.value || dIn.dataset.auto === '1')) { dIn.value = date; delete dIn.dataset.auto; }
     if (aIn) aIn.value = formatForInput(Number(ct.toFixed(4)), 4);
     validateRow(row);
     aIn?.focus();
@@ -593,7 +609,7 @@ function renderEntryRow(g, e) {
     <div class="entry-row">
       <div class="field">
         <label>${t('contracts.row.validFrom')}</label>
-        <input class="input" type="date" data-role="date" value="${escapeHtml(e[g.dateKey] || '')}">
+        <input class="input" type="date" data-role="date" value="${escapeHtml(e[g.dateKey] || '')}"${e.__auto ? ' data-auto="1"' : ''}>
       </div>
       <div class="field">
         <label>${escapeHtml(t(g.amountKey_))}</label>
@@ -631,6 +647,8 @@ function bindRowHandlers(modalEl, row) {
   const copyBtn     = row.querySelector('[data-action="copy-start"]');
   const removeBtn   = row.querySelector('[data-action="remove-row"]');
 
+  // Selbst gesetztes Datum: folgt nicht mehr dem Vertragsbeginn und zählt als Eingabe
+  dateInput?.addEventListener('input', () => { delete dateInput.dataset.auto; });
   copyBtn?.addEventListener('click', () => {
     const start = modalEl.querySelector('input[name="start"]')?.value;
     if (!start) { toastErr(t('contracts.row.setStartFirst')); return; }
@@ -672,8 +690,9 @@ function validateRow(row) {
  */
 function validatePair(dateInput, amountInput) {
   if (!dateInput || !amountInput) return true;
-  const dateFilled   = dateInput.value.trim() !== '';
   const amountFilled = amountInput.value.trim() !== '';
+  // v2.12.0 — ein nur vorbelegtes Datum ohne Betrag ist eine leere Zeile
+  const dateFilled   = dateInput.value.trim() !== '' && !(dateInput.dataset.auto === '1' && !amountFilled);
   const amountBad    = amountFilled && parseDecimal(amountInput.value) === null;
   const halfFilled   = dateFilled !== amountFilled;
   dateInput.classList.toggle('invalid',   halfFilled && !dateFilled);
@@ -913,11 +932,13 @@ function collectPayload(form) {
     const rows = group.querySelectorAll('.entry-row');
     const entries = [];
     rows.forEach(row => {
-      const date   = row.querySelector('[data-role="date"]').value.trim();
+      const dateEl = row.querySelector('[data-role="date"]');
+      const date   = dateEl.value.trim();
       const amount = row.querySelector('[data-role="amount"]').value.trim();
       // Send all rows including half-filled — backend will reject loudly.
       // But skip fully-empty so blank template rows don't trigger silent drops.
-      if (!date && !amount) return;
+      // v2.12.0 — ein vorbelegtes Datum ohne Betrag gilt als leer
+      if (!amount && (!date || dateEl.dataset.auto === '1')) return;
       entries.push({ [g.dateKey]: date, [g.amountKey]: amountValue(amount) });
     });
     payload[g.key] = entries;

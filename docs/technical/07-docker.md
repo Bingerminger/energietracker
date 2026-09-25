@@ -134,13 +134,13 @@ Beim allerersten Start mit leerem `data`-Volume legt Energietracker ein
 frisches, leeres Datenverzeichnis an. Möchtest du zum Ausprobieren die
 **Demo-Daten** sehen, gibt es zwei Wege:
 
-1. **Komfortabel (ab v1.7.4) in der UI:** *Einstellungen → Backup & Restore →
-   „Demo-Daten laden"*.
+1. **Komfortabel (ab v1.7.4) in der UI:** *Einstellungen → Daten → Backup &
+   Wiederherstellung → „Demo-Daten laden"*.
 2. **Manuell jetzt schon:** das mitgelieferte
    [`demo-data/energietracker-demo-backup.json`](../../demo-data/energietracker-demo-backup.json)
-   über *Einstellungen → Backup & Restore → Backup importieren* hochladen.
-   Vorher wird automatisch ein Sicherungs-Snapshot deiner aktuellen Daten
-   angelegt (N1004).
+   über *Einstellungen → Daten → Backup & Wiederherstellung → Backup importieren*
+   hochladen. Vorher wird automatisch ein Sicherungs-Snapshot deiner aktuellen
+   Daten angelegt (N1004).
 
 ---
 
@@ -198,8 +198,9 @@ Container dann als *unhealthy*.
 
 ## Updates durchführen
 
-1. **Backup ziehen:** *Einstellungen → Backup & Restore → Backup exportieren*.
-   Das ist dein Rückweg — eine Schema-Migration lässt sich nicht umkehren.
+1. **Backup ziehen:** *Einstellungen → Daten → Backup & Wiederherstellung →
+   JSON-Backup herunterladen*. Das ist dein Rückweg — eine Schema-Migration
+   lässt sich nicht umkehren.
 2. **CHANGELOG lesen:** Was unter „Migration" steht, betrifft dich.
 3. **Neue Version holen:**
 
@@ -231,16 +232,17 @@ bis v2.5.3 still auf das alte Schema zurückzustempeln.
 
 ## Daten sichern & wiederherstellen
 
-- **Sichern:** *Einstellungen → Backup & Restore → Backup exportieren* lädt
-  eine JSON-Datei mit all deinen Daten herunter.
+- **Sichern:** *Einstellungen → Daten → Backup & Wiederherstellung → JSON-Backup
+  herunterladen* lädt eine JSON-Datei mit all deinen Daten herunter.
 - **Wiederherstellen:** dieselbe Stelle → *Backup importieren*. Seit v2.6.0
   prüft die App das Backup zuerst vollständig und zeigt eine Vorschau; ein
   fehlerhaftes Backup ändert nichts. Vor dem Überschreiben legt Energietracker
   automatisch einen Snapshot an.
-- **Snapshots** (seit v2.6.0): *Einstellungen → Backup & Restore →
-  Gespeicherte Snapshots* listet sie mit Zeitpunkt und Anlass; von dort
-  herunterladen, einspielen oder löschen. Automatische Snapshots räumt die App
-  nach 30 Tagen auf (mindestens drei je Anlass bleiben), eigene nach zehn.
+- **Snapshots** (seit v2.6.0): *Einstellungen → Daten → Backup &
+  Wiederherstellung → Gespeicherte Snapshots* listet sie mit Zeitpunkt und
+  Anlass; von dort herunterladen, einspielen oder löschen. Automatische
+  Snapshots räumt die App nach 30 Tagen auf (mindestens drei je Anlass
+  bleiben), eigene nach zehn.
 - Auf Dateiebene liegt alles im gemounteten `data/`-Ordner — den kannst du
   zusätzlich klassisch sichern (kopieren).
 

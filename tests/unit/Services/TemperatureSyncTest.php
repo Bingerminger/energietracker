@@ -49,6 +49,27 @@ final class TemperatureSyncTest extends ServiceTestCase
         ]);
     }
 
+    public function testGeocodeHandsTheTrimmedQueryAndLanguageToTheSource(): void
+    {
+        // v2.12.0 (Review UI-30) — Ortssuche statt Koordinaten von Hand
+        $res = $this->service()->geocode('  Musterstadt ', 'fr');
+        self::assertSame([['Musterstadt', 'fr']], $this->weather->geocodeCalls);
+        self::assertNull($res['error']);
+        self::assertSame(50.1, $res['data'][0]['latitude']);
+    }
+
+    public function testCsvAcceptsSemicolonTabAndTheOldQuoteFormat(): void
+    {
+        // v2.12.0 — übliche Trenner zusätzlich zum alten Format mit Anführungszeichen
+        $csv = "Datum;Mittel;Min;Max\n01.01.2024;4,2;-1,0;7,1\n02.01.2024\t3.5\t-2\t6\n03.01.2024\"2.0\"-3.0\"5.0\n";
+        $res = $this->service()->importCsv($csv);
+        self::assertSame(3, $res['imported'], json_encode($res));
+        $all = $this->service()->all();
+        self::assertEqualsWithDelta(4.2, $all['2024-01-01']['avg'], 1e-9);
+        self::assertEqualsWithDelta(3.5, $all['2024-01-02']['avg'], 1e-9);
+        self::assertEqualsWithDelta(2.0, $all['2024-01-03']['avg'], 1e-9);
+    }
+
     public function testFirstSyncStartsAtTheFirstReading(): void
     {
         $this->seedReadingFrom('2024-03-01');
@@ -224,6 +245,18 @@ final class FakeWeather implements WeatherSource
             $out[date('Y-m-d', strtotime("$i days"))] = ['avg' => 3.0, 'min' => 0.0, 'max' => 6.0];
         }
         return ['data' => $out, 'error' => null];
+    }
+
+    /** @var list<array{0:string,1:string}> */
+    public array $geocodeCalls = [];
+
+    public function geocode(string $query, string $language = 'de', int $count = 5): array
+    {
+        $this->geocodeCalls[] = [$query, $language];
+        return ['data' => [[
+            'name' => 'Musterstadt', 'latitude' => 50.1, 'longitude' => 8.6,
+            'country' => 'Deutschland', 'admin1' => 'Hessen', 'postcode' => '60311',
+        ]], 'error' => null];
     }
 
     public function fetchArchiveMeans(float $lat, float $lon, string $start, string $end): array

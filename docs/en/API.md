@@ -967,7 +967,7 @@ of entries skipped due to an ID collision.
 The token protects the ingest endpoint **only**: without a token it accepts
 values without a header; as soon as a token has been created, it requires
 `Authorization: Bearer <token>`. Since v2.6.0 the other routes are protected by
-**sign-in** (opt-in, Settings → "Sign-in & access"); once that is switched on,
+**sign-in** (opt-in, Settings → Access → "Sign-in & access"); once that is switched on,
 the token is **mandatory** for the ingest. Details:
 [Security](technical/08-security.md).
 

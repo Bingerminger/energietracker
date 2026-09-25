@@ -150,7 +150,8 @@ Seit v1.7.0 gehören zwei PV-Verbrauchsarten zum Standard-Eigenheim-Setup:
 `pv_einspeisung` (Zähler des Verteilnetzbetreibers) und `pv_erzeugung`
 (Wechselrichter-Gesamtertrag). Sie sind in den Default-Einstellungen
 NICHT aktiv — wer keine Anlage hat, sieht nichts davon. Wer eine
-Anlage hat, aktiviert beide in *Einstellungen → Aktive Verbrauchsarten*.
+Anlage hat, aktiviert beide in *Einstellungen → Verbrauchsarten &
+Abrechnung → Aktive Verbrauchsarten*.
 
 ### 6.1 Welche Zähler brauche ich?
 

@@ -77,11 +77,22 @@
   font-size: var(--fs-xs);
 }
 
-/* ── Eingabezeile: Zählerstand + Datum ────────────────────────────── */
+/* ── Eingabezeile: Zählerstand ─────────────────────────────────────── */
+/* v2.12.0 — das Datum je Karte ist eingeklappt („Anderes Datum"), die
+   Zeile trägt nur noch den Zählerstand */
 .reading-card__inputs {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr;
   gap: var(--sp-3);
+}
+.reading-card__inputs > .field { margin-bottom: 0; }
+.reading-card > .field-error { margin-top: calc(-1 * var(--sp-2)); font-size: var(--fs-sm); }
+.input--counter[aria-invalid="true"] { border-color: var(--danger); }
+.reading-card__date .field--date { max-width: 240px; }
+/* v2.12.0 — Direktsprung (#/zaehlerstaende?meter=…): die gemeinte Karte */
+.reading-card--focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--c-blue-soft);
 }
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .field__label {
@@ -121,6 +132,8 @@
   accent-color: var(--c-blue);
 }
 
+/* v2.12.0 — „Anderes Datum" und „+ Notiz" zusammen rechts, „geschätzt" links */
+.reading-card__extras [data-action="toggle-date"] { margin-left: auto; }
 .reading-card__note .input { padding: var(--sp-2) var(--sp-3); }
 
 .reading-card__hint {
@@ -168,17 +181,9 @@
 /* ── Mobile-First Tuning ──────────────────────────────────────────── */
 @media (max-width: 600px) {
   .reading-card { padding: var(--sp-3); }
-  .reading-card__inputs {
-    grid-template-columns: 1fr;
-    gap: var(--sp-2);
-  }
+  .reading-card__inputs { gap: var(--sp-2); }
   .field--date .input { min-width: 0; }
   .input--counter { font-size: var(--fs-lg); }
-}
-
-/* iPhone-Querformat / Phablet-Größen: Karte zweispaltig nutzbar machen */
-@media (min-width: 480px) and (max-width: 720px) {
-  .reading-card__inputs { grid-template-columns: 1fr 160px; }
 }
 
 /* Light-Theme-Anpassung der Hint-Farbe */
@@ -197,7 +202,7 @@
 
 /* v2.0.0 (UX) — A: Verbrauchs-Vorschau (Delta zum letzten Stand) bei Eingabe */
 .reading-card__preview {
-  margin-top: var(--sp-2);
+  margin-top: calc(-1 * var(--sp-1));
   font-size: var(--fs-sm);
   color: var(--text-2);
   font-variant-numeric: tabular-nums;

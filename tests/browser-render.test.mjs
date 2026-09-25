@@ -139,6 +139,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     const warnBtn = [...view.querySelectorAll('.seg__btn')].find(b => b.dataset.sev === 'warning');
     if (warnBtn) { warnBtn.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true })); }
     t('recommendations: Filter-Klick ohne Exception', true);
+    t('recommendations: einheitlicher Seitenkopf', !!view.querySelector('.view-header .view-header__title'));
   } catch (e) { t('recommendations: render', false, e.message); }
 
   // ── F1004 (v1.6.0): zentrale Zählerstand-Erfassung ──
@@ -177,6 +178,25 @@ async function renderView(modPath, params = [], ctx = {}) {
         label.includes('m³') && !label.includes('kWh'),
         `label="${label.trim()}"`);
     }
+    // v2.12.0 (Review UI-15, UI-33)
+    const first = cards[0];
+    t('readings-entry: Datum je Karte eingeklappt hinter „Anderes Datum"',
+      first?.querySelector('[data-role="date-wrap"]')?.hidden === true && !!first?.querySelector('[data-action="toggle-date"]'));
+    t('readings-entry: kein Beispielwert als Platzhalter', !counter?.hasAttribute('placeholder'));
+    const counters = [...view.querySelectorAll('[data-role="counter"]')];
+    t('readings-entry: Weiter-Taste bis zum letzten Feld',
+      counters.length < 2 || (counters[0].getAttribute('enterkeyhint') === 'next' && counters.at(-1).getAttribute('enterkeyhint') === 'done'));
+    counter.value = 'abc';
+    view.querySelector('[data-action="save-all"]').dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 150));
+    const err = first.querySelector('[data-role="error"]');
+    t('readings-entry: Fehler sichtbar am Feld', err && !err.hidden && err.textContent.length > 5 && counter.getAttribute('aria-invalid') === 'true');
+
+    // Direktsprung je Zähler (#/zaehlerstaende?meter=…)
+    const wanted = cards[cards.length - 1]?.dataset.meterId;
+    const { view: v2 } = await renderView(`${ROOT}/views/readings-entry.js`, [], { query: new URLSearchParams('meter=' + wanted) });
+    t('readings-entry: Direktsprung markiert den Zähler',
+      v2.querySelector('.reading-card--focus')?.dataset.meterId === wanted, `meter=${wanted}`);
   } catch (e) { t('readings-entry: render', false, e.message); }
 
   // ── 2. Termine ──
@@ -190,6 +210,16 @@ async function renderView(modPath, params = [], ctx = {}) {
     const modal = global.document.querySelector('#modal-root .modal');
     t('reminders: Termin-Modal öffnet', !!modal);
     t('reminders: Modal hat Speichern-Button', !!global.document.querySelector('#modal-root [data-act="save"]'));
+    // v2.12.0 (Review UI-22) — Fehler am Feld, nicht im Toast
+    global.document.querySelector('#modal-root #f-title').value = '';
+    global.document.querySelector('#modal-root [data-act="save"]').dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 50));
+    const msg = global.document.querySelector('#modal-root #f-title-msg');
+    t('reminders: Pflichtfeld-Fehler steht am Feld', msg && !msg.hidden && msg.textContent.length > 3);
+    // v2.12.0 (Review UI-20, UI-22) — Seitenkopf wie überall, Namen in den Vorlesetexten
+    t('reminders: einheitlicher Seitenkopf', !!view.querySelector('.view-header .view-header__title'));
+    const doneBtn = view.querySelector('[data-done]');
+    t('reminders: „Erledigt" nennt den Termin', !doneBtn || /: .+/.test(doneBtn.getAttribute('aria-label') || ''));
   } catch (e) { t('reminders: render', false, e.message); }
 
   // ── 3. Tarifvergleich (v2.3.0: Wechselentscheidung + Rückblick) ──
@@ -198,6 +228,9 @@ async function renderView(modPath, params = [], ctx = {}) {
     const html = view.innerHTML;
     t('tariff: render ohne Exception', html.includes('Wechsel prüfen'));
     t('tariff: Verbrauchsart-Selektor', !!view.querySelector('#t-util'));
+    // v2.12.0 (Review UI-20) — gestaltete Auswahlfelder, Seitenkopf wie überall
+    t('tariff: Auswahlfelder gestaltet', view.querySelector('#t-util')?.classList.contains('select'));
+    t('tariff: einheitlicher Seitenkopf', !!view.querySelector('.view-header .view-header__title'));
     // kurz warten, bis loadAll() beide Blöcke nachzieht
     await new Promise(r => setTimeout(r, 500));
 
@@ -217,6 +250,10 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('tariff: Rückblick vorhanden', !!retro);
     t('tariff: Rückblick trägt Zeilen',
       !retro || retro.querySelectorAll('tbody tr').length > 0);
+    // v2.12.0 (Review UI-31) — nur Jahre mit Daten, kein rohes „2024-01"
+    const years = [...view.querySelectorAll('#t-year option')].map(o => o.value).filter(Boolean);
+    t('tariff: Rückblick bietet nur Jahre mit Daten', years.length >= 1 && years.length < 7, years.join(','));
+    t('tariff: Zeitraum ohne ISO-Monat', !/\d{4}-\d{2}\b/.test(retro?.querySelector('.toolbar--sub .muted')?.textContent || ''));
   } catch (e) { t('tariff: render', false, e.message); }
 
   // ── 4. Dashboard (Chart-Stub, Insight-Karten) ──
@@ -229,41 +266,94 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('dashboard: Chart-Canvas eingebunden', !!canvas);
     // v2.10.0 — Effizienzkarte mit der zweiten Zahl (energieausweis-nah)
     t('dashboard: Effizienz mit energieausweis-naher Kennzahl', !!view.querySelector('.dash-eff__cert'));
+    // v2.12.0 (Review UI-21) — „Zu tun" oben: fällige Ablesungen und Termine mit Sprung
+    const todo = view.querySelector('.dash-todo');
+    t('dashboard: „Zu tun" vorhanden', !!todo);
+    // Demo-Daten: sieben fällige Zähler → eine Sammelzeile zur Erfassung
+    t('dashboard: fällige Ablesungen führen zur Erfassung', !!todo?.querySelector('a[href^="#/zaehlerstaende"]'));
+    t('dashboard: viele fällige Zähler als eine Zeile',
+      todo?.querySelectorAll('a[href^="#/zaehlerstaende"]').length === 1, `${todo?.querySelectorAll('li').length} Einträge`);
+    t('dashboard: überfälliger Termin führt zu den Terminen', !!todo?.querySelector('a[href="#/reminders"]'));
+    t('dashboard: keine Kachel „Aktive Zähler" mehr', !/Aktive Zähler/.test(html));
   } catch (e) { t('dashboard: render', false, e.message); }
 
-  // ── 5. Settings (größte View, alle neuen Felder) ──
+  // ── 5. Einstellungen — seit v2.12.0 Unterseiten (Review UI-13) ──
+  const settingsPage = async (page) => (await renderView(`${ROOT}/views/settings.js`, page ? [page] : [])).view;
   try {
-    const { view } = await renderView(`${ROOT}/views/settings.js`);
-    const html = view.innerHTML;
-    t('settings: render ohne Exception', html.includes('Einstellungen'));
-    t('settings: active_utilities-Checkboxen', view.querySelectorAll('[data-active-util]').length >= 3);
-    // v2.11.0 — der Jahresbericht hat eine eigene Seite; hier nur der Verweis
-    t('settings: Verweis auf den Jahresbericht', !!view.querySelector('a[href="#/report"]'));
-    t('settings: sigmoid im Modell-Picker',
-      !![...view.querySelectorAll('select option')].find(o => o.value === 'sigmoid'));
-    t('settings: Gebäude-Feld wohnflaeche', !!view.querySelector('[data-key="wohnflaeche_m2"]'));
-    // v2.5.0 — F1012: datierte Gas-Faktoren als Tabelle mit Erfassungszeile,
-    // kein Zahlenfeld für den alten Skalar mehr.
-    t('settings: Gas-Faktoren-Tabelle vorhanden', !!view.querySelector('[data-gasfactors] [data-gf-table]'));
-    t('settings: Gas-Faktoren als JSON-Feld eingesammelt',
-      view.querySelector('[data-key="gas_conversion_factors"]')?.getAttribute('data-type') === 'json');
-    t('settings: Erfassungszeile mit Zustandszahl + Brennwert', !!view.querySelector('#gf-z') && !!view.querySelector('#gf-hs'));
-    t('settings: kein Feld für den alten Skalar', !view.querySelector('[data-key="gas_conversion_factor"]'));
-    // v2.7.0 — Länderprofil: Land, Währung, Zeitzone, Brennwert-Einheit
+    const view = await settingsPage();
+    t('settings/allgemein: Seite „Allgemein"', !!view.querySelector('h1')?.textContent.includes('Allgemein'));
+    // v2.7.0 — Länderprofil: Land, Währung, Zeitzone
     const countryOpts = view.querySelectorAll('#country-select option').length;
-    t('settings: Länderauswahl mit allen Profilen', countryOpts === 9, `${countryOpts} Länder`);
-    t('settings: Währung und Zeitzone wählbar',
+    t('settings/allgemein: Länderauswahl mit allen Profilen', countryOpts === 9, `${countryOpts} Länder`);
+    t('settings/allgemein: Währung und Zeitzone wählbar',
       !!view.querySelector('#currency-select') && view.querySelectorAll('#tz-select option').length > 10);
-    t('settings: Brennwert-Einheit kWh, MJ, GJ',
+    const bar = view.querySelector('[data-role="savebar"]');
+    t('settings/allgemein: Speicherleiste erst bei einer Änderung', bar?.hidden === true);
+    const dm = view.querySelector('[data-key="dashboard_months"]');
+    dm.value = '7';
+    dm.dispatchEvent(new global.window.Event('input', { bubbles: true }));
+    t('settings/allgemein: Speicherleiste nach einer Änderung', bar?.hidden === false);
+    t('settings/allgemein: keine Expertenwerte', !view.querySelector('[data-key="blend_max"]'));
+  } catch (e) { t('settings/allgemein: render', false, e.message); }
+
+  try {
+    const view = await settingsPage('utilities');
+    t('settings/verbrauchsarten: active_utilities-Checkboxen', view.querySelectorAll('[data-active-util]').length >= 3);
+    // v2.12.0 — alle sechs Abrechnungsstichtage an einer Stelle
+    t('settings/verbrauchsarten: sechs Abrechnungsstichtage in einer Karte',
+      view.querySelectorAll('[data-key^="billing_cycle_anchor_"]').length === 6
+        && new Set([...view.querySelectorAll('[data-key^="billing_cycle_anchor_"]')].map(el => el.closest('.settings-card'))).size === 1);
+    // v2.5.0 — F1012: datierte Gas-Faktoren als Tabelle mit Erfassungszeile
+    t('settings/verbrauchsarten: Gas-Faktoren-Tabelle über die ganze Breite',
+      !!view.querySelector('.settings-card--wide [data-gasfactors] [data-gf-table]'));
+    t('settings/verbrauchsarten: Gas-Faktoren als JSON-Feld eingesammelt',
+      view.querySelector('[data-key="gas_conversion_factors"]')?.getAttribute('data-type') === 'json');
+    t('settings/verbrauchsarten: Erfassungszeile mit Zustandszahl + Brennwert', !!view.querySelector('#gf-z') && !!view.querySelector('#gf-hs'));
+    t('settings/verbrauchsarten: kein Feld für den alten Skalar', !view.querySelector('[data-key="gas_conversion_factor"]'));
+    t('settings/verbrauchsarten: Brennwert-Einheit kWh, MJ, GJ',
       [...view.querySelectorAll('[data-key="gas_cv_unit"] option')].map(o => o.value).join() === 'kwh,mj,gj');
-    // v2.10.0 — CO₂ Strom je Jahr, Einheiten je kWh, Gebäude für die zweite Kennzahl
-    t('settings: CO₂-Jahreswerte als Tabelle (v2.10.0)',
+    // v2.10.0 — CO₂ Strom je Jahr, Einheiten je kWh
+    t('settings/verbrauchsarten: CO₂-Jahreswerte als Tabelle',
       view.querySelectorAll('[data-co2years] [data-cy-table] tbody tr').length >= 3
         && view.querySelector('[data-key="co2_strom_years"]')?.getAttribute('data-type') === 'json');
-    t('settings: CO₂ Heizöl/Pellets je kWh', /CO₂ Heizöl[^<]*<span class="settings-field__unit">g\/kWh/.test(html));
-    t('settings: beheizter Keller und dezentrales Warmwasser',
+    t('settings/verbrauchsarten: CO₂ Heizöl/Pellets je kWh', /CO₂ Heizöl[^<]*<span class="settings-field__unit">g\/kWh/.test(view.innerHTML));
+    t('settings/verbrauchsarten: kein Standort mehr (steht bei den Wetterdaten)', !view.querySelector('[data-key="latitude"]'));
+  } catch (e) { t('settings/verbrauchsarten: render', false, e.message); }
+
+  try {
+    const view = await settingsPage('household');
+    t('settings/haushalt: Wohnfläche', !!view.querySelector('[data-key="wohnflaeche_m2"]'));
+    t('settings/haushalt: beheizter Keller und dezentrales Warmwasser',
       !!view.querySelector('[data-key="beheizter_keller"]') && !!view.querySelector('[data-key="warmwasser_dezentral"]'));
-  } catch (e) { t('settings: render', false, e.message); }
+    t('settings/haushalt: Personen im Haushalt', !!view.querySelector('[data-key="wasser_personen_anzahl"]'));
+  } catch (e) { t('settings/haushalt: render', false, e.message); }
+
+  try {
+    const view = await settingsPage('data');
+    // v2.11.0 — der Jahresbericht hat eine eigene Seite; hier nur der Verweis
+    t('settings/daten: Verweis auf den Jahresbericht', !!view.querySelector('a[href="#/report"]'));
+    t('settings/daten: Sicherung, Import und Demo-Daten',
+      !!view.querySelector('#btn-export') && !!view.querySelector('#btn-import') && !!view.querySelector('#btn-demo'));
+    t('settings/daten: keine Speicherleiste (keine Felder)', !view.querySelector('[data-role="savebar"]'));
+  } catch (e) { t('settings/daten: render', false, e.message); }
+
+  try {
+    const view = await settingsPage('expert');
+    const details = view.querySelector('details.settings-expert');
+    t('settings/experte: eingeklappt mit Warnung', !!details && !details.open && !!details.querySelector('.banner--warning'));
+    t('settings/experte: sigmoid im Modell-Picker',
+      !![...view.querySelectorAll('select option')].find(o => o.value === 'sigmoid'));
+  } catch (e) { t('settings/experte: render', false, e.message); }
+
+  try {
+    const view = await settingsPage('system');
+    t('settings/system: Version und Diagnose', /Energietracker \d+\.\d+/.test(view.textContent) && !!view.querySelector('.diag-grid'));
+  } catch (e) { t('settings/system: render', false, e.message); }
+
+  try {
+    const view = await settingsPage('integrations');
+    t('settings/integrationen: Home Assistant', !!view.querySelector('#btn-ha-generate, #btn-ha-revoke'));
+  } catch (e) { t('settings/integrationen: render', false, e.message); }
 
   // ── 6. Utility-View: Delivery-Modus (Heizöl) ──
   try {
@@ -436,11 +526,19 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('contracts(gas): Vertragsverwaltung vorhanden',
       !!view.querySelector('[data-action="new-contract"]'),
       'Gas sollte "+ Neuer Vertrag" anbieten');
+    // v2.12.0 (Review UI-20) — Pluralformen statt „1 Arbeitspreise"
+    t('contracts(gas): Zusammenfassung in der richtigen Pluralform',
+      !/(^|[^\d.,])1 (Arbeitspreise|Grundpreise|Abschläge|Boni|Sonderzahlungen)\b/.test(view.textContent));
     // v2.7.0 — Umrechnungshilfe „Preis je m³" im Gasvertrag
     view.querySelector('[data-action="new-contract"]')?.click();
     await new Promise(r => setTimeout(r, 400));
     const box = global.document.querySelector('#modal-root [data-perm3]');
     t('contracts(gas): Umrechnungshilfe je m³ im Formular', !!box);
+    // v2.12.0 (Review UI-16) — die erste Preiszeile gilt ab Vertragsbeginn
+    const startIn = global.document.querySelector('#modal-root input[name="start"]');
+    const firstDate = global.document.querySelector('#modal-root [data-group="working_prices"] .entry-row [data-role="date"]');
+    t('contracts(gas): erste Preiszeile ab Vertragsbeginn', !!startIn?.value && firstDate?.value === startIn.value,
+      `${startIn?.value} / ${firstDate?.value}`);
     if (box) {
       box.querySelector('#perm3-date').value = '2024-06-01';
       box.querySelector('#perm3-price').value = '1,10';

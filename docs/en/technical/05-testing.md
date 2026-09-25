@@ -64,11 +64,15 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Both harnesses return exit code 0 on success. As of v2.11.0:
-**frontend API shape 56/56**, **browser render 93/93** (incl. module-graph
+Both harnesses return exit code 0 on success. As of v2.12.0:
+**frontend API shape 59/59**, **browser render 124/124** (incl. module-graph
 pre-check and the forecast-model check for all five models). Since v2.11.0 the
 module-graph crawl also follows dynamic imports — the router loads views on
-demand.
+demand. Since v2.12.0 the test renders every settings sub-page on its own,
+passes a query to views (the capture view's direct link) and triggers saving
+and field errors in dialogs. The shape test calls the import dry run and
+re-showing a recommendation — against the demo copy, which the script
+discards afterwards.
 
 Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 `tests/plausibility.test.mjs` and, since v2.11.0:
@@ -85,7 +89,7 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.11.0: 434). Run it with `vendor/bin/phpunit --no-coverage`. It
+recounts it (v2.12.0: 444). Run it with `vendor/bin/phpunit --no-coverage`. It
 is the **mandatory gate before every commit** (see
 [Release process](06-release-process.md)).
 

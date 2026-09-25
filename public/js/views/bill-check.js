@@ -17,7 +17,7 @@ import { api } from '../api.js';
 import { getUtility } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { toastErr } from '../components/toast.js';
-import { t } from '../lib/i18n.js';
+import { t, tp } from '../lib/i18n.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -154,7 +154,7 @@ export function renderBillCheck(bill) {
       </tr></tfoot>
     </table></div>
     <p class="muted bill-check-legend" style="margin-top:8px">${t('utility.billCheck.legend')}</p>
-    ${tot.gaps ? `<p class="muted" style="margin-top:8px">${t('utility.billCheck.gaps', { count: tot.gaps })}</p>` : ''}
+    ${tot.gaps ? `<p class="muted" style="margin-top:8px">${tp('utility.billCheck.gapsN', tot.gaps)}</p>` : ''}
     <p class="muted" style="margin-top:8px">${t('utility.billCheck.formula')}</p>`;
 }
 

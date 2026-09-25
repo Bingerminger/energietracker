@@ -4,7 +4,7 @@
 
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
@@ -34,7 +34,7 @@ export async function render(container) {
   }));
 
   // Fetch consumption for each active utility + Insights in parallel
-  const [datasets, eff, recs, reminders, stromSaldo, pvSummary, tankLists] = await Promise.all([
+  const [datasets, eff, recs, reminders, stromSaldo, pvSummary, tankLists, overview] = await Promise.all([
     Promise.all(utilities.map(async u => {
       try {
         const c = await api.consumption(u.key);
@@ -51,6 +51,8 @@ export async function render(container) {
     api.stromSaldo().catch(() => null),
     api.pvSummary().catch(() => null),
     tankListsP,
+    // v2.12.0 — letzte Ablesung je Zähler für „Zu tun" (ein Aufruf)
+    api.readingsOverview().catch(() => null),
   ]);
 
   // F1005 — Insight-Karte „Strom-Saldo" nur, wenn der User tatsächlich
@@ -73,10 +75,12 @@ export async function render(container) {
     return { utility: u, meter: m, stock, cap: Number(sh.capacity), unit: sh.capacity_unit || u.volume_unit || 'L' };
   });
 
-  const topRecs = (recs || []).slice(0, 2);
-  const dueRem = (reminders || [])
-    .filter(r => ['due', 'overdue', 'due_soon'].includes(r.status))
-    .slice(0, 2);
+  // v2.12.0 (Review UI-21) — „Zu tun" zuerst: fällige Termine, fällige
+  // Ablesungen, Kündigungsfristen und Tanks an einer Stelle. Bis v2.11 lag das
+  // auf drei Karten verteilt unter Effizienz und Strom-Saldo.
+  const todo = buildTodo({ reminders, recs, overview, settings, utilities });
+  const todoRecIds = new Set(todo.filter(x => x.recId).map(x => x.recId));
+  const topRecs = (recs || []).filter(r => !todoRecIds.has(r.id)).slice(0, 2);
 
   // A — Leerzustand: keinerlei Verbrauchsdaten in irgendeiner aktiven Art.
   const hasAnyData = datasets.some(d => ((d.consumption?.monthly_total) || []).length > 0);
@@ -186,20 +190,6 @@ export async function render(container) {
         </div>`).join('')}
       </div>` : ''}
 
-      ${dueRem.length ? `
-      <div class="card dash-insight">
-        <div class="card__head">
-          <h2 class="card__title"><span aria-hidden="true">📌</span> ${t('dashboard.reminders.title')}</h2>
-          <a class="btn btn--ghost btn--sm" href="#/reminders" aria-label="${escapeHtml(t('dashboard.allReminders'))}">${t('dashboard.allLink')}</a>
-        </div>
-        ${dueRem.map(r => `<div class="dash-rec">
-          <strong>${escapeHtml(r.title)}</strong>
-          <span class="muted">${t('dashboard.reminders.due', { date: fmt.date(r.next_due) })}${r.days_until != null ? ` (${r.days_until < 0
-            // v2.11.0 — „überfällig seit 64 Tagen" statt „jetzt" (Review UI-21)
-            ? tp('dashboard.reminders.overdueDays', -r.days_until)
-            : r.days_until === 0 ? t('dashboard.reminders.now') : tp('dashboard.reminders.inDaysN', r.days_until)})` : ''}</span>
-        </div>`).join('')}
-      </div>` : ''}
     </div>`;
 
   container.innerHTML = `
@@ -220,6 +210,7 @@ export async function render(container) {
       <a class="btn btn--primary" href="#/zaehlerstaende">${t('dashboard.empty.cta')}</a>
     </div>
     ` : `
+    ${todoHtml(todo)}
     ${insightsHtml}
 
     <div class="grid grid-2" style="margin-top: var(--sp-5)">
@@ -243,6 +234,79 @@ export async function render(container) {
   };
 }
 
+/**
+ * v2.12.0 (Review UI-21) — Was jetzt zu tun ist, mit Sprung dorthin.
+ * Termine (fällig/überfällig), Ablesungen älter als
+ * `alert_days_since_reading`, Kündigungsfristen und Tanks aus den
+ * Empfehlungen (Kategorien „vertrag" und „bestand").
+ */
+function buildTodo({ reminders, recs, overview, settings, utilities }) {
+  const items = [];
+  for (const r of reminders || []) {
+    if (!['due', 'overdue'].includes(r.status)) continue;
+    const when = r.days_until == null ? fmt.date(r.next_due)
+      : r.days_until < 0 ? tp('dashboard.reminders.overdueDays', -r.days_until)
+      : r.days_until === 0 ? t('dashboard.reminders.now') : tp('dashboard.reminders.inDaysN', r.days_until);
+    items.push({ icon: '📌', tone: r.status === 'overdue' ? 'alert' : 'warn', text: r.title, sub: when,
+      href: '#/reminders', action: t('dashboard.todo.reminderAction') });
+  }
+  const alertDays = Math.max(1, Number(settings?.alert_days_since_reading) || 45);
+  const active = new Set((utilities || []).map(u => u.key));
+  const today = new Date(todayIso() + 'T00:00:00');
+  const due = [];
+  for (const row of overview?.rows || []) {
+    if (!active.has(row.utility)) continue;
+    const last = row.last_reading?.date;
+    const days = last ? Math.round((today - new Date(last + 'T00:00:00')) / 86400000) : null;
+    if (days !== null && days <= alertDays) continue;
+    due.push({ row, days });
+  }
+  // Bis zu zwei Zähler einzeln (mit Sprung zur Karte), mehr als eine Zeile —
+  // sonst schiebt ein monatlicher Ablesetag die ganze Übersicht nach unten
+  if (due.length > 2) {
+    const names = due.map(d => d.row.meter_name);
+    items.push({ icon: '📋', tone: 'warn', text: tp('dashboard.todo.readingsDue', due.length),
+      sub: names.slice(0, 3).join(', ') + (names.length > 3 ? ' …' : ''),
+      href: '#/zaehlerstaende', action: t('dashboard.todo.readingAction') });
+  } else {
+    for (const { row, days } of due) {
+      items.push({ icon: row.utility_icon || '📋', tone: 'warn', text: `${row.utility_label} · ${row.meter_name}`,
+        sub: days === null ? t('dashboard.todo.readingNever') : tp('dashboard.todo.readingDue', days),
+        href: `#/zaehlerstaende?meter=${encodeURIComponent(row.meter_id)}`, action: t('dashboard.todo.readingAction') });
+    }
+  }
+  for (const r of recs || []) {
+    if (r.category !== 'vertrag' && r.category !== 'bestand') continue;
+    const u = r.evidence?.utility;
+    const isTank = r.category === 'bestand';
+    items.push({ icon: isTank ? '🛢️' : '📄', tone: r.severity === 'urgent' ? 'alert' : 'warn', text: r.title, recId: r.id,
+      href: isTank ? `#/utility/${encodeURIComponent(u || '')}?add=delivery` : (u ? `#/utility/${encodeURIComponent(u)}/contracts` : '#/contracts'),
+      action: t(isTank ? 'dashboard.todo.tankAction' : 'dashboard.todo.contractAction') });
+  }
+  // Überfälliges zuerst
+  return items.sort((a, b) => (a.tone === 'alert' ? 0 : 1) - (b.tone === 'alert' ? 0 : 1));
+}
+
+function todoHtml(items) {
+  if (!items.length) return '';
+  return `
+    <section class="card dash-todo" aria-labelledby="dash-todo-title">
+      <h2 class="card__title" id="dash-todo-title"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.todo.title'))}</h2>
+      <ul class="dash-todo__list">
+        ${items.map(x => `<li class="dash-todo__item dash-todo__item--${x.tone}">
+          <!-- die ganze Zeile ist der Link: am iPhone ein Tippziel statt eines
+               umbrechenden Knopfs unter dem Text -->
+          <a class="dash-todo__link" href="${x.href}">
+            <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
+            <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}</span>
+            <span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>
+            <span class="dash-todo__chev" aria-hidden="true">›</span>
+          </a>
+        </li>`).join('')}
+      </ul>
+    </section>`;
+}
+
 function renderUtilityCard({ utility, consumption }) {
   const monthly = consumption?.monthly_total || [];
   const sumKey = utility.consumption_unit === 'kWh' ? 'kwh' : 'm3';
@@ -253,8 +317,8 @@ function renderUtilityCard({ utility, consumption }) {
   const prevCons  = prev12.reduce((s, m) => s + (m[sumKey] || 0), 0);
   const prevCost  = prev12.reduce((s, m) => s + (m.cost  || 0), 0);
   const hasPrev   = prev12.length >= 6;                   // genug Vergleichsdaten
-  const meters = consumption?.meters || [];
-  const activeMeters = meters.filter(m => m.meter.active);
+  // v2.12.0 (Review UI-21) — die Kachel „Aktive Zähler 1 · 1 insgesamt" stand
+  // achtmal auf der Übersicht; die Zähler sind einen Klick entfernt
   const noContract = totalCost === 0;                     // D — kein Vertrag/keine Kosten
 
   return `
@@ -266,7 +330,7 @@ function renderUtilityCard({ utility, consumption }) {
           <a class="btn btn--sm btn--util" href="#/utility/${utility.key}">${t('dashboard.card.details')}</a>
         </div>
       </div>
-      <div class="grid grid-3">
+      <div class="grid grid-2 dash-util-kpis">
         <div class="kpi">
           <div class="kpi__label">${t('dashboard.kpi.consumption')}</div>
           <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(totalCons, prevCons, hasPrev)}</div>
@@ -276,11 +340,6 @@ function renderUtilityCard({ utility, consumption }) {
           <div class="kpi__label">${t('dashboard.kpi.cost')}</div>
           <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(totalCost, prevCost, hasPrev)}`}</div>
           <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : t('dashboard.kpi.costSub')}</div>
-        </div>
-        <div class="kpi">
-          <div class="kpi__label">${t('dashboard.kpi.activeMeters')}</div>
-          <div class="kpi__value">${activeMeters.length}</div>
-          <div class="kpi__sub">${t('dashboard.kpi.totalMeters', { count: meters.length })}</div>
         </div>
       </div>
       ${groupBreakdown(consumption, sumKey, utility)}

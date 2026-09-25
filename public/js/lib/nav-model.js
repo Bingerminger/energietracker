@@ -51,9 +51,18 @@ export function sectionPages(section, { utilities = [] } = {}) {
         { view: 'recommendations', href: '#/recommendations', label: t('nav.recommendations'), badge: 'recommendations' },
       ];
     case 'settings':
+      // v2.12.0 (Review UI-13) — Unterseiten statt einer langen Seite; die
+      // Wetterdaten sind die Ansicht temperatures.js
       return [
-        { view: 'settings', href: '#/settings', label: t('nav.general') },
+        { view: 'settings:general', href: '#/settings', label: t('settings.page.general.title') },
+        { view: 'settings:household', href: '#/settings/household', label: t('settings.page.household.title') },
+        { view: 'settings:utilities', href: '#/settings/utilities', label: t('settings.page.utilities.title') },
         { view: 'temperatures', href: '#/temperatures', label: t('nav.weather') },
+        { view: 'settings:data', href: '#/settings/data', label: t('settings.page.data.title') },
+        { view: 'settings:integrations', href: '#/settings/integrations', label: t('settings.page.integrations.title') },
+        { view: 'settings:access', href: '#/settings/access', label: t('settings.page.access.title') },
+        { view: 'settings:expert', href: '#/settings/expert', label: t('settings.page.expert.title') },
+        { view: 'settings:system', href: '#/settings/system', label: t('settings.page.system.title') },
       ];
     default:
       return [];

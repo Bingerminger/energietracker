@@ -31,8 +31,9 @@ Zeitraum, weil der Lieferant wechselnde Bezugsquellen hat.
 ## Umrechnungsfaktoren mit Stichtagen (F1012, seit v2.5.0)
 
 Bis v2.4.2 kannte der Energietracker einen einzigen Faktor. Seit v2.5.0 ist
-es eine **datierte Liste** unter *Einstellungen → Gas-Umrechnungsfaktoren* —
-ein Eintrag je Brennwertperiode, so wie die Rechnung sie ausweist:
+es eine **datierte Liste** unter *Einstellungen → Verbrauchsarten & Abrechnung →
+Physikalische Konstanten → Gas-Umrechnungsfaktoren* — ein Eintrag je
+Brennwertperiode, so wie die Rechnung sie ausweist:
 
 | Gültig ab | Zustandszahl | Brennwert | → Faktor |
 |---|---|---|---|
@@ -41,8 +42,9 @@ ein Eintrag je Brennwertperiode, so wie die Rechnung sie ausweist:
 | 01.01.2025 | 0,9600 | 11,650 | 11,1840 |
 | 01.10.2025 | 0,9600 | 11,520 | 11,0592 |
 
-(Das sind die Werte der Demo-Daten — *Einstellungen → Demo-Daten laden*
-zeigt die Liste samt Rechnungsprüfung sofort.)
+(Das sind die Werte der Demo-Daten — *Einstellungen → Daten → Backup &
+Wiederherstellung → Demo-Daten laden* zeigt die Liste samt Rechnungsprüfung
+sofort.)
 
 Wichtig zu wissen:
 

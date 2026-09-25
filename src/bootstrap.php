@@ -445,6 +445,7 @@ final class App
         $r->post('/api/temperatures/import-csv',      fn($req) => $tCtrl->importCsv($req));
         $r->post('/api/temperatures/sync-open-meteo', fn($req) => $tCtrl->syncOpenMeteo($req));
         $r->delete('/api/temperatures/{date}',        fn($req) => $tCtrl->delete($req));
+        $r->get('/api/geocode',                       fn($req) => $tCtrl->geocode($req));   // v2.12.0
 
         // ── Settings / Backup / Diagnostics ──
         $sCtrl = new SettingsController($this->settings);
@@ -496,6 +497,7 @@ final class App
         $recCtrl = new RecommendationController($this->recommendations);
         $r->get('/api/recommendations', fn($req) => $recCtrl->index($req));
         $r->post('/api/recommendations/{id}/dismiss', fn($req) => $recCtrl->dismiss($req));
+        $r->delete('/api/recommendations/{id}/dismiss', fn($req) => $recCtrl->restore($req));
 
         // ── Termine/Erinnerungen (v1.3.0) ──
         $remCtrl = new ReminderController($this->reminders);

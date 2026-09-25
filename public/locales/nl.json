@@ -18,7 +18,8 @@
     "optional": "optioneel",
     "required": "verplicht",
     "actions": "Acties",
-    "invalidNumber": "Voer een geldig getal in, bijv. {example}."
+    "invalidNumber": "Voer een geldig getal in, bijv. {example}.",
+    "undo": "Ongedaan maken"
   },
   "app": {
     "themeToggle": "Thema wisselen",
@@ -78,7 +79,6 @@
     "contracts": "Contracten en voorschotten",
     "billCheck": "Rekening controleren",
     "report": "Jaarverslag",
-    "general": "Algemeen",
     "weather": "Weergegevens",
     "tab": {
       "overview": "Overzicht",
@@ -136,8 +136,6 @@
     },
     "recommendations": { "title": "Belangrijkste aanbevelingen" },
     "reminders": {
-      "title": "Aankomende herinneringen",
-      "due": "vervalt {date}",
       "now": "nu",
       "overdueDays": {
         "one": "1 dag te laat",
@@ -156,13 +154,26 @@
       "consumption": "Verbruik (laatste 12 maanden)",
       "cost": "Kosten (laatste 12 maanden)",
       "costSub": "incl. bonussen",
-      "noContract": "geen contract geregistreerd",
-      "activeMeters": "Actieve meters",
-      "totalMeters": "{count} in totaal"
+      "noContract": "geen contract geregistreerd"
     },
     "trend": { "vsPrev": "t.o.v. vorige 12 maanden", "moreThanPrev": "{pct} % meer dan de vorige periode van 12 maanden", "lessThanPrev": "{pct} % minder dan de vorige periode van 12 maanden" },
     "allRecommendations": "Alle aanbevelingen",
-    "allReminders": "Alle herinneringen"
+    "todo": {
+      "title": "Te doen",
+      "readingDue": {
+        "one": "laatste meterstand 1 dag geleden",
+        "other": "laatste meterstand {count} dagen geleden"
+      },
+      "readingNever": "nog geen meterstand",
+      "readingAction": "Meterstand invoeren",
+      "reminderAction": "Naar herinneringen",
+      "contractAction": "Contracten bekijken",
+      "tankAction": "Levering invoeren",
+      "readingsDue": {
+        "one": "{count} meter wacht op een meterstand",
+        "other": "{count} meters wachten op een meterstand"
+      }
+    }
   },
   "readingsEntry": {
     "title": "Meterstanden",
@@ -172,7 +183,7 @@
     "saveAll": "Alles opslaan",
     "saveAllProgress": "Alles opslaan ({done} van {total} ingevoerd)",
     "saving": "Opslaan…",
-    "error": { "title": "Laden mislukt", "unknown": "Onbekende fout" },
+    "error": { "title": "Laden mislukt", "unknown": "Onbekende fout", "invalidNumber": "Voer een getal in, bijvoorbeeld 12345,6." },
     "empty": {
       "title": "Geen meters",
       "text": "Centrale invoer is alleen beschikbaar voor cumulatieve meters (gas, elektriciteit, water, stadsverwarming). Stookolie/pellets registreren het verbruik via leveringen, niet via meterstanden.",
@@ -188,7 +199,7 @@
       "notePlaceholder": "optioneel",
       "addNote": "+ Notitie",
       "hideNote": "− Notitie verbergen",
-      "placeholderExample": "bijv. {value}"
+      "otherDate": "Andere datum"
     },
     "status": {
       "saving": "Opslaan…",
@@ -207,7 +218,11 @@
       "savedEmpty": "{ok} opgeslagen · {skipped} leeg",
       "saved": "{ok} opgeslagen",
       "nothing": "Geen invoer — niets om op te slaan",
-      "held": "{count} stand(en) niet opgeslagen – controleer de gemarkeerde kaarten."
+      "held": "{count} stand(en) niet opgeslagen – controleer de gemarkeerde kaarten.",
+      "undone": {
+        "one": "1 meterstand ongedaan gemaakt",
+        "other": "{count} meterstanden ongedaan gemaakt"
+      }
     }
   },
   "utility": {
@@ -471,7 +486,6 @@
       "empty": "Geen perioden in het gekozen bereik.",
       "noReading": "geen meterstand",
       "total": "Totaal",
-      "gaps": "{count} periode(n) zonder omsluitende meterstand — daar ontbreekt het verbruik.",
       "formula": "kWh = m³ × volumeherleidingsfactor × calorische waarde. De leverancier schat tussenstanden op de grenzen van de calorische waarde; hier wordt het meetinterval dagnauwkeurig gesplitst.",
       "errRange": "Kies een geldige periode (van vóór tot).",
       "col": {
@@ -500,7 +514,11 @@
         "interpolated": "E"
       },
       "legend": "Afleestype: zonder toevoeging = afgelezen stand · S = als geschat vastgelegde meting · E = vervangende waarde: op deze dag is er geen meterstand, hij is per dag geïnterpoleerd tussen de omsluitende metingen — precies waar ook de leverancier schat (grenzen van calorische waarde en periode). Hoe minder rijen met E, hoe minder schatting.",
-      "open": "Rekening {year} controleren"
+      "open": "Rekening {year} controleren",
+      "gapsN": {
+        "one": "{count} periode zonder omsluitende meterstand — daar ontbreekt het verbruik.",
+        "other": "{count} periodes zonder omsluitende meterstand — daar ontbreekt het verbruik."
+      }
     },
     "warnings": {
       "title": "Onwaarschijnlijke meterstanden: {count}",
@@ -549,20 +567,44 @@
     },
     "status": { "active": "ACTIEF", "past": "VERLEDEN", "future": "TOEKOMST" },
     "summary": {
-      "twPrices": "{count} prijzen drinkwater",
-      "swPrices": "{count} prijzen afvalwater",
-      "nwDates": "{count} data regenwater",
-      "advances": "{count} voorschotten",
-      "bonuses": "{count} bonussen",
-      "workingPrices": "{count} energieprijzen",
-      "basePrices": "{count} vastrechtprijzen",
-      "specialPayments": "{count} bijzondere betalingen"
+      "twPrices": {
+        "one": "{count} prijs drinkwater",
+        "other": "{count} prijzen drinkwater"
+      },
+      "swPrices": {
+        "one": "{count} prijs afvalwater",
+        "other": "{count} prijzen afvalwater"
+      },
+      "nwDates": {
+        "one": "{count} datum regenwater",
+        "other": "{count} data regenwater"
+      },
+      "advances": {
+        "one": "{count} voorschot",
+        "other": "{count} voorschotten"
+      },
+      "bonuses": {
+        "one": "{count} bonus",
+        "other": "{count} bonussen"
+      },
+      "workingPrices": {
+        "one": "{count} energieprijs",
+        "other": "{count} energieprijzen"
+      },
+      "basePrices": {
+        "one": "{count} vastrechtprijs",
+        "other": "{count} vastrechtprijzen"
+      },
+      "specialPayments": {
+        "one": "{count} bijzondere betaling",
+        "other": "{count} bijzondere betalingen"
+      }
     },
     "group": { "working": "Energieprijs", "base": "Vastrecht", "advance": "Voorschot", "addRow": "+ Rij" },
     "row": {
       "validFrom": "Geldig vanaf",
-      "copyStart": "⇧ Begin",
-      "copyStartTitle": "Begindatum van het contract kopiëren",
+      "copyStart": "Vanaf begin",
+      "copyStartTitle": "Datum van deze regel op de begindatum van het contract zetten",
       "removeRow": "Rij verwijderen",
       "setStartFirst": "Stel eerst de begindatum van het contract in"
     },
@@ -616,7 +658,7 @@
       "autoRenews": "Loopt door zonder opzegging",
       "autoRenewsHint": "Na het einde loopt het contract tegen de laatste prijzen door tot het wordt opgezegd — dan met hoogstens één maand opzegtermijn. Uitvinken als het is opgezegd."
     },
-    "delete": { "title": "Contract verwijderen?", "message": "Contract definitief verwijderen?", "confirm": "Verwijderen", "deleted": "Contract verwijderd" },
+    "delete": { "title": "Contract verwijderen?", "confirm": "Verwijderen", "deleted": "Contract verwijderd", "messageNamed": "Contract ‘{name}’ definitief verwijderen? De prijzen, voorschotten en bonussen ervan gaan verloren." },
     "deleteContract": "Contract verwijderen",
     "bonus": {
       "title": "Bonussen / crediteringen",
@@ -688,7 +730,7 @@
     "unknown": "Onbekende energie: {key}",
     "title": "{label} · Meters",
     "toOverview": "Naar het overzicht",
-    "merge": "Meters samenvoegen",
+    "merge": "Meters groeperen",
     "newMeter": "+ Nieuwe meter",
     "info": {
       "title": "Meerdere meters per energie",
@@ -779,31 +821,66 @@
     },
     "import": {
       "title": "Meterstanden importeren: {name}",
-      "intro": "Importeert meterstanden uit een CSV-bestand rechtstreeks in de meter <strong>{name}</strong>. Een bestaande meterstand op dezelfde datum wordt <strong>overschreven</strong> en gemeld in het resultaat.",
+      "intro": "Leest meterstanden uit een CSV-bestand voor de meter <strong>{name}</strong>. Voor het importeren toont een voorbeeld elke regel en het effect ervan — een bestaande stand op dezelfde dag wordt <strong>vervangen</strong>.",
       "formatLabel": "Verwacht formaat",
       "formatHint": "Scheidingsteken <code>;</code> of <code>,</code> · datum <code>DD.MM.JJJJ</code> of <code>JJJJ-MM-DD</code> · decimale komma toegestaan · kolommen <em>notitie</em> en <em>geschat</em> optioneel · een koprij wordt automatisch herkend.",
       "downloadExample": "Voorbeeld-CSV downloaden",
       "dropZone": "Zet hier een CSV-bestand neer of klik om te selecteren",
       "dropZoneAria": "Selecteer een CSV-bestand of zet het hier neer",
-      "importing": "Importeren…",
       "result": "<strong>{imported}</strong> nieuw geïmporteerd · <strong>{overwritten}</strong> overschreven · <strong>{skipped}</strong> overgeslagen",
       "moreErrors": "… en {count} meer",
-      "toast": "{count} meterstand(en) toegepast",
-      "close": "Sluiten"
+      "close": "Sluiten",
+      "reading": "Bestand lezen…",
+      "previewSummary": "Gelezen: {rows} · nieuw: {new} · vervangen bestaande: {overwrite} · ongewijzigd: {same} · met opmerking: {flagged}",
+      "unreadable": {
+        "one": "{count} regel onleesbaar",
+        "other": "{count} regels onleesbaar"
+      },
+      "otherMeterRows": {
+        "one": "{count} regel hoort bij een andere meter en wordt overgeslagen.",
+        "other": "{count} regels horen bij andere meters en worden overgeslagen."
+      },
+      "col": {
+        "date": "Datum",
+        "counter": "Stand",
+        "effect": "Effect",
+        "notes": "Opmerking"
+      },
+      "effect": {
+        "new": "nieuw",
+        "overwrite": "vervangt {counter}",
+        "same": "ongewijzigd"
+      },
+      "duplicate": "Datum komt meerdere keren voor in het bestand — de laatste regel telt",
+      "moreRows": {
+        "one": "… en nog {count} regel zonder opmerking",
+        "other": "… en nog {count} regels zonder opmerking"
+      },
+      "confirm": {
+        "one": "{count} regel importeren",
+        "other": "{count} regels importeren"
+      },
+      "otherFile": "Ander bestand kiezen",
+      "nothing": "Het bestand bevat geen leesbare regel.",
+      "imported": {
+        "one": "{count} meterstand geïmporteerd",
+        "other": "{count} meterstanden geïmporteerd"
+      },
+      "importing": "Importeren…"
     },
     "mergeModal": {
-      "title": "Meters samenvoegen",
-      "intro": "Voeg meerdere meters samen tot een <strong>groep</strong> — bijv. <em>dal + piek elektriciteit</em> of meerdere laadpunten. De groep combineert het verbruik in het dashboard; de afzonderlijke meters blijven behouden.",
+      "title": "Meters groeperen",
+      "intro": "Voeg meerdere meters samen in een <strong>groep</strong> — bijv. <em>dal + piek elektriciteit</em> of meerdere laadpunten. De groep toont het totaal in het overzicht; de meters zelf blijven apart en ongewijzigd.",
       "select": "Selecteer meters (minstens twee) *",
       "alreadyInGroup": "al in een groep",
       "existingGroup": "Bestaande groep",
       "newGroupOption": "— nieuwe groep aanmaken —",
       "newGroupName": "Naam nieuwe groep",
       "newGroupPlaceholder": "bijv. elektriciteit piek+dal",
-      "submit": "Samenvoegen",
+      "submit": "Groep opslaan",
       "needTwo": "Selecteer minstens twee meters",
       "needName": "Geef een groepsnaam op of kies een bestaande groep",
-      "done": "{count} meters samengevoegd in groep « {name} »"
+      "done": "{count} meters gegroepeerd in ‘{name}’"
     },
     "baseline": {
       "title": "Peilmomenten voor de analyse",
@@ -826,9 +903,6 @@
     },
     "loading": "Laden…",
     "title": "Instellingen",
-    "subtitle": "Configuratie · gegevensexport · back-up en herstel",
-    "save": "Instellingen opslaan",
-    "saveUnsaved": "Opslaan •",
     "saved": "Instellingen opgeslagen",
     "lang": {
       "title": "🌐 Taal en land / Language",
@@ -849,13 +923,13 @@
       "physical": { "title": "Fysische constanten", "hint": "Conversie en graaddagenbasis — beïnvloeden alle analyses." },
       "co2": { "title": "CO₂-emissiefactoren", "hint": "Gram CO₂ per verbruikseenheid, voor de emissieschatting." },
       "billing": { "title": "Factureringscyclus", "hint": "Jaarlijkse afrekendatum per energie (formaat DD-MM, bijv. 01-01 voor 1 januari, 15-04 voor 15 april). Bepaalt hoe ver het saldo van open contracten wordt geprojecteerd; contracten met een ingevulde einddatum gebruiken die einddatum." },
-      "contractReminders": { "title": "Contractherinneringen", "hint": "Dagen vóór het einde van het contract vanaf wanneer het overzicht waarschuwt. Drie niveaus — van vroege waarschuwing tot laatste dag." },
+      "contractReminders": { "title": "Herinneringen", "hint": "Drie niveaus vóór het contracteinde of de opzegdatum; bij herinneringen de voorwaarschuwing en de coulance tot „te laat”." },
       "water": { "title": "Referentiewaarden water", "hint": "Huishoudgrootte, referentie per persoon en de banden van de besparingsindex." },
       "regression": { "title": "Regressie en prognose", "hint": "Filters voor de regressiebasis en parameters van het prognosemodel." },
-      "dashboard": { "title": "Dashboard", "hint": "Weergavebereik en drempels van het overzicht." },
+      "dashboard": { "title": "Weergave", "hint": "Periode van het overzicht en de prognose; vanaf wanneer een ontbrekende meterstand opvalt." },
       "building": { "title": "Gebouw en efficiëntie", "hint": "Referentiewaarden voor de efficiëntieklasse (kWh/m²·a) en de stookenergie-benchmark." },
       "delivery": { "title": "Energiebronnen (levering)", "hint": "Energie-inhoud van geleverde brandstoffen en de tankwaarschuwingsdrempel." },
-      "remindersRec": { "title": "Herinneringen en aanbevelingen", "hint": "Drempels voor de vervalstatus en de aanbevelingsmotor." },
+      "remindersRec": { "title": "Aanbevelingen en verdeling", "hint": "Drempels van de aanbevelingen en het basislastaandeel waarmee stookolie en pellets over de dagen worden verdeeld." },
       "location": { "title": "Locatie (Open-Meteo)", "hint": "Coördinaten voor de weersynchronisatie van de temperatuurreeks." },
       "embedding": {
         "title": "Insluiten",
@@ -1062,7 +1136,6 @@
       "revokeConfirmMsg": "Na het intrekken is het push-eindpunt weer bereikbaar zonder token (open modus). Home Assistant-automatiseringen met het oude token zullen mislukken.",
       "revokeConfirmBtn": "Intrekken",
       "revoked": "Token ingetrokken",
-      "aliasesSaved": "{count} alias(sen) opgeslagen",
       "yamlCopied": "YAML gekopieerd",
       "clipboardFail": "Kopiëren mislukt",
       "step4": "4. Automatisering (om te kopiëren)",
@@ -1075,7 +1148,11 @@
       },
       "lastUsed": "Laatst gebruikt: {when}",
       "neverUsed": "Met dit token is nog niets binnengekomen.",
-      "loginNeedsToken": "Inloggen staat aan: zonder token accepteert de Energietracker geen waarden van Home Assistant."
+      "loginNeedsToken": "Inloggen staat aan: zonder token accepteert de Energietracker geen waarden van Home Assistant.",
+      "aliasesSavedN": {
+        "one": "{count} alias opgeslagen",
+        "other": "{count} aliassen opgeslagen"
+      }
     },
     "diag": {
       "title": "🩺 Systeemdiagnose",
@@ -1233,6 +1310,58 @@
       "rh": "Rijwoning",
       "mfh": "Meergezinswoning",
       "whg": "Appartement"
+    },
+    "page": {
+      "general": {
+        "title": "Algemeen",
+        "subtitle": "Taal, land, weergave en herinneringen"
+      },
+      "household": {
+        "title": "Huishouden en gebouw",
+        "subtitle": "Woonoppervlakte, gebouw en personen in het huishouden"
+      },
+      "utilities": {
+        "title": "Nutsvoorzieningen en afrekening",
+        "subtitle": "Actieve nutsvoorzieningen, afrekendata, omrekening en CO₂-factoren"
+      },
+      "data": {
+        "title": "Gegevens",
+        "subtitle": "Export, back-up, herstel en demogegevens"
+      },
+      "integrations": {
+        "title": "Integraties",
+        "subtitle": "Home Assistant en meterstanden van buitenaf"
+      },
+      "access": {
+        "title": "Toegang",
+        "subtitle": "Aanmelden, API-sleutels en insluiten"
+      },
+      "expert": {
+        "title": "Expert",
+        "subtitle": "Rekenparameters voor regressie, prognose en aanbevelingen"
+      },
+      "system": {
+        "title": "Systeem",
+        "subtitle": "Versie, diagnose en gegevensmap"
+      }
+    },
+    "savebar": {
+      "unsaved": "Niet-opgeslagen wijzigingen",
+      "discard": "Verwerpen"
+    },
+    "leave": {
+      "title": "Wijzigingen verwerpen?",
+      "message": "Deze pagina heeft niet-opgeslagen wijzigingen. Wie verder gaat, verliest ze.",
+      "confirm": "Verwerpen"
+    },
+    "expert": {
+      "summary": "Rekenparameters tonen",
+      "warning": "Deze waarden sturen de rekenmodellen. De standaardwaarden passen bij de meeste huishoudens – verander ze alleen als je weet wat ze doen."
+    },
+    "system": {
+      "aboutTitle": "Over Energietracker",
+      "about": "Energietracker {version} – verbruik, kosten en contracten, lokaal en zonder cloud.",
+      "license": "Vrije software onder de MIT-licentie"
     }
   },
   "reminders": {
@@ -1262,9 +1391,9 @@
     },
     "recurrence": { "none": "Eenmalig", "yearly": "Jaarlijks", "semi-yearly": "Halfjaarlijks", "custom-months": "Elke N maanden" },
     "due": { "today": "vandaag", "inDays": "over {days} d", "agoDays": "{days} d geleden" },
-    "action": { "done": "Klaar", "edit": "Bewerken", "delete": "Verwijderen" },
-    "toast": { "markedDone": "Gemarkeerd als klaar", "deleted": "Verwijderd", "saved": "Opgeslagen", "error": "Fout: {msg}" },
-    "deleteConfirm": { "title": "Herinnering verwijderen", "message": "Deze herinnering echt verwijderen?", "confirm": "Verwijderen" },
+    "action": { "done": "Klaar", "edit": "Bewerken", "delete": "Verwijderen", "doneNamed": "Afgerond: {title}", "editNamed": "Bewerken: {title}", "deleteNamed": "Verwijderen: {title}" },
+    "toast": { "deleted": "Verwijderd", "saved": "Opgeslagen", "error": "Fout: {msg}", "doneNext": "‘{title}’ afgerond · volgende keer {date}", "doneOnce": "‘{title}’ afgerond", "undone": "‘{title}’ staat weer open" },
+    "deleteConfirm": { "title": "Herinnering verwijderen", "confirm": "Verwijderen", "messageNamed": "‘{title}’ echt verwijderen? Dit kan niet ongedaan worden gemaakt." },
     "form": {
       "titleEdit": "Herinnering bewerken",
       "titleNew": "Nieuwe herinnering",
@@ -1276,8 +1405,13 @@
       "fInterval": "Interval (maanden)",
       "fNotes": "Notities",
       "save": "Opslaan",
-      "validation": "Titel en datum zijn verplicht",
-      "intervalInvalid": "Het interval moet een geheel getal van 1 tot 120 maanden zijn."
+      "intervalInvalid": "Het interval moet een geheel getal van 1 tot 120 maanden zijn.",
+      "titleRequired": "Voer een titel in.",
+      "dueRequired": "Kies een vervaldatum."
+    },
+    "everyMonths": {
+      "one": "Elke maand",
+      "other": "Elke {count} maanden"
     }
   },
   "temperatures": {
@@ -1285,7 +1419,7 @@
     "title": "Weergegevens",
     "sync": "Open-Meteo synchroniseren",
     "csvImport": "CSV-import",
-    "formatHint": "Formaat: <code>DD.MM.JJJJ\"gem\"min\"max</code> (bijv. <code>15.01.2024\"4.2\"-1.0\"7.1</code>). Waarden in °C, dubbele aanhalingstekens als scheidingsteken.",
+    "formatHint": "Formaat: <code>DD.MM.JJJJ;gemiddelde;min;max</code> (bijv. <code>15.01.2024;4,2;-1,0;7,1</code>), waarden in °C. Puntkomma, tab of komma als scheidingsteken; het oude formaat met aanhalingstekens werkt nog.",
     "downloadExample": "Voorbeeld-CSV downloaden",
     "dropZone": "Zet hier een bestand neer of klik om te selecteren",
     "dropZoneAria": "Selecteer een CSV-bestand of zet het hier neer",
@@ -1307,7 +1441,13 @@
     "statusWithForecast": "Meetwaarden tot {measured}, voorspelling tot {forecast}.",
     "reload": "Ook bestaande oudere waarden door archiefwaarden vervangen (herstelt als meting opgeslagen voorspellingen)",
     "climateFetched": "Klimaatnormaal {from}–{to} geladen — prognose en weercorrectie rekenen nu met 30 jaar klimaat.",
-    "climateFailed": "Het klimaatnormaal kon niet worden geladen — de prognose gebruikt de eigen temperatuurhistorie."
+    "climateFailed": "Het klimaatnormaal kon niet worden geladen — de prognose gebruikt de eigen temperatuurhistorie.",
+    "subtitle": "Dagtemperaturen voor graaddagen, correctie en prognose",
+    "geoLabel": "Plaats of postcode zoeken",
+    "geoPlaceholder": "bijv. Utrecht of 3511",
+    "geoSearch": "Zoeken",
+    "geoNone": "Geen plaats gevonden.",
+    "locationSaved": "Locatie opgeslagen"
   },
   "recommendations": {
     "loading": "Aanbevelingen laden…",
@@ -1321,7 +1461,6 @@
     "emptyAll": "Geen aanbevelingen — alles in orde.",
     "emptyFiltered": "Geen {sev}-aanbevelingen — alles in orde.",
     "dismiss": "30 dagen verbergen",
-    "dismissed": "Aanbeveling verborgen (30 dagen)",
     "error": "Fout: {msg}",
     "engine": {
       "r1": {
@@ -1354,7 +1493,10 @@
         "title": "{label}: efficiëntieklasse {class} ({kwh} kWh/m²·a)",
         "detail": "De stookenergiebehoefte {year} voor {label} komt overeen met efficiëntieklasse {class} ({kwh} kWh/m²·a). Isolatie, verwarmingsoptimalisatie of een waterzijdige inregeling kunnen de klasse merkbaar verbeteren."
       }
-    }
+    },
+    "dismissedNamed": "‘{title}’ 30 dagen verborgen",
+    "restored": "Aanbeveling weer zichtbaar",
+    "dismissNamed": "30 dagen verbergen: {title}"
   },
   "tariff": {
     "loading": "Laden…",
@@ -1365,7 +1507,7 @@
     "meter": "Meter",
     "year": "Jaar",
     "wholePeriod": "Hele periode",
-    "addShadow": "+ Aanbod",
+    "addShadow": "+ Aanbod invoeren",
     "loadingComparison": "Vergelijking laden…",
     "noMeter": "Geen meter beschikbaar.",
     "notSupported": "Niet ondersteund.",
@@ -1382,12 +1524,12 @@
     "chartAlt": "Staafdiagram van de totale kosten per eenheid ({unit}) per tarief",
     "unitCostTitle": "Totale kosten per eenheid — eenheidsprijs, vastrecht en bonussen samen. De enige waarde die looptijden van verschillende lengte eerlijk vergelijkt.",
     "legend": "Negatief (groen) = goedkoper dan het contract dat voor dezelfde maanden werkelijk is gefactureerd. Alleen zuivere tariefkosten worden vergeleken; voorschotten en verrekeningen zijn geldstromen en blijven erbuiten.",
-    "action": { "edit": "Bewerken", "delete": "Verwijderen" },
+    "action": { "edit": "Bewerken", "delete": "Verwijderen", "editNamed": "Bewerken: {name}", "deleteNamed": "Verwijderen: {name}" },
     "col": { "tariff": "Tarief", "period": "Periode", "consumption": "Verbruik", "cost": "Kosten", "unitCost": "{minor}/{unit}", "vsReal": "vs. werkelijk", "savings": "Verschil" },
     "period": "Periode: {label}",
     "periodRange": "Periode: {label} ({from} – {to})",
     "shadow": {
-      "title": "Schaduwcontract aanmaken",
+      "title": "Aanbod invoeren",
       "intro": "Een hypothetisch tarief — beïnvloedt saldo/prognose NIET, alleen deze vergelijking.",
       "label": "Label",
       "labelPlaceholder": "bijv. discountaanbod",
@@ -1402,14 +1544,13 @@
       "validation": "Label, datum en energieprijs zijn verplicht",
       "created": "Schaduwcontract aangemaakt",
       "error": "Fout: {msg}",
-      "titleEdit": "Schaduwcontract bewerken",
+      "titleEdit": "Aanbod bewerken",
       "end": "Geldig tot (optioneel)",
       "endHint": "Leeg laten voor „loopt door”.",
       "save": "Opslaan",
       "updated": "Schaduwcontract opgeslagen",
       "deleted": "Schaduwcontract verwijderd",
       "deleteTitle": "Schaduwcontract verwijderen?",
-      "deleteMessage": "De hypothese wordt verwijderd. Echte contracten en meterstanden blijven ongemoeid.",
       "deleteConfirm": "Verwijderen",
       "signupBonus": "Welkomstbonus ({cur})",
       "signupBonusPlaceholder": "bijv. 130",
@@ -1418,7 +1559,8 @@
       "priceGuaranteeHint": "Daarna is de prijs een aanname — gestippeld in de grafiek.",
       "noticePeriod": "Opzegtermijn (maanden)",
       "noticePeriodPlaceholder": "bijv. 1",
-      "noticePeriodHint": "Voor de datumberekening als dit tarief later het lopende wordt."
+      "noticePeriodHint": "Voor de datumberekening als dit tarief later het lopende wordt.",
+      "deleteMessageNamed": "Aanbod ‘{name}’ verwijderen? Echte contracten en meterstanden blijven ongemoeid."
     },
     "switch": {
       "heading": "Overstapbeslissing",
@@ -1685,7 +1827,9 @@
       "emptyCsv": "De CSV-gegevens zijn leeg.",
       "dateMissing": "De datum ontbreekt.",
       "valuesMissing": "Gemiddelde, minimum en maximum (avg, min, max) zijn verplicht en moeten getallen zijn.",
-      "rangeInvalid": "Ongeldige periode: {start} ligt na {end}."
+      "rangeInvalid": "Ongeldige periode: {start} ligt na {end}.",
+      "geocodeQuery": "Voer minstens twee tekens in (hoogstens 80).",
+      "geocodeFailed": "Het zoeken naar plaatsen is nu niet bereikbaar. De coördinaten kun je ook met de hand invoeren."
     },
     "view": {
       "loadFailed": "Laden mislukt: {msg}",
@@ -1707,7 +1851,8 @@
       "titleRequired": "Een titel is verplicht.",
       "dueRequired": "Een vervaldatum (JJJJ-MM-DD) is verplicht.",
       "recurrenceMonths": "„Elke N maanden” vereist een interval groter dan 0.",
-      "notFound": "Herinnering niet gevonden: {id}"
+      "notFound": "Herinnering niet gevonden: {id}",
+      "lastDoneInvalid": "‘Laatst afgerond’ moet leeg zijn of een datum (JJJJ-MM-DD)."
     },
     "tariff": {
       "waterUnsupported": "De tariefvergelijking voor water (drie-componententarief) zit niet in deze versie.",

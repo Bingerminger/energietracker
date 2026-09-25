@@ -12,7 +12,13 @@
 import { escapeHtml } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 
-export function toast(message, variant = 'info', timeoutMs = 4000) {
+/**
+ * @param {string} message
+ * @param {'info'|'success'|'warning'|'error'} [variant]
+ * @param {number} [timeoutMs]
+ * @param {{label: string, onClick: () => unknown}|null} [action]  v2.12.0 — z. B. „Rückgängig"
+ */
+export function toast(message, variant = 'info', timeoutMs = 4000, action = null) {
   const stack = document.getElementById('toast-stack');
   if (!stack) return;
 
@@ -23,6 +29,7 @@ export function toast(message, variant = 'info', timeoutMs = 4000) {
   el.setAttribute('aria-live', variant === 'error' ? 'assertive' : 'polite');
   el.innerHTML = `
     <span class="toast__msg">${escapeHtml(message)}</span>
+    ${action ? `<button type="button" class="btn btn--sm toast__action">${escapeHtml(action.label)}</button>` : ''}
     <button type="button" class="toast__close" aria-label="${escapeHtml(t('common.close'))}">
       <span aria-hidden="true">×</span>
     </button>`;
@@ -38,6 +45,10 @@ export function toast(message, variant = 'info', timeoutMs = 4000) {
   const arm = (ms) => { timer = setTimeout(dismiss, ms); };
 
   el.querySelector('.toast__close').addEventListener('click', dismiss);
+  el.querySelector('.toast__action')?.addEventListener('click', () => {
+    dismiss();
+    try { action.onClick(); } catch (e) { console.error(e); }
+  }, { once: true });
   // Solange der Zeiger auf der Meldung liegt, läuft die Zeit nicht weiter.
   el.addEventListener('mouseenter', () => { if (timer) { clearTimeout(timer); timer = null; } });
   el.addEventListener('mouseleave', () => { if (!timer) arm(timeoutMs); });
@@ -52,6 +63,9 @@ export function toast(message, variant = 'info', timeoutMs = 4000) {
 export const toastOk    = (m) => toast(m, 'success');
 export const toastErr   = (m) => toast(m, 'error', 6000);
 export const toastWarn  = (m) => toast(m, 'warning');
+
+/** v2.12.0 (Review UI-15, UI-22) — Erfolg mit „Rückgängig", 10 Sekunden lang. */
+export const toastUndo  = (m, onUndo) => toast(m, 'success', 10000, { label: t('common.undo'), onClick: onUndo });
 
 // v2.11.0 (Review UI-24) — Meldung über einen Neustart der App hinweg. Nach
 // Demo-Daten, Backup-Import oder Wiederherstellung lädt die App komplett neu

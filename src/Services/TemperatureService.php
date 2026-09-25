@@ -102,6 +102,16 @@ final class TemperatureService
      * Parse the legacy CSV format: DD.MM.YYYY"avg"min"max (double-quote-delimited).
      * Returns count of imported rows.
      */
+    /**
+     * v2.12.0 — Ortssuche für den Wetterstandort (Review UI-30).
+     *
+     * @return array{data:list<array<string,mixed>>,error:?string}
+     */
+    public function geocode(string $query, string $language = 'de'): array
+    {
+        return $this->weather->geocode(trim($query), $language);
+    }
+
     public function importCsv(string $csv): array
     {
         // v2.6.0 — BOM und Windows-1252 wie beim Ablesungs-Import; sonst
@@ -117,10 +127,17 @@ final class TemperatureService
             if ($lineNo === 0 && (stripos($line, 'datum') !== false || stripos($line, 'temperatur') !== false)) {
                 continue;
             }
-            // Split on double-quote (allow ; or , as fallback)
+            // Split on double-quote (allow ; , or tab as fallback).
+            // v2.12.0 (Review UI-30) — das übliche Format ist jetzt
+            // `TT.MM.JJJJ;Mittel;Min;Max`; das alte mit Anführungszeichen als
+            // Trenner bleibt lesbar, Tabulator kommt dazu.
+            // Ein Trenner je Zeile: Bis v2.11 trennte `[;,]` auch am
+            // Dezimalkomma — aus „01.01.2024;4,2;-1,0;7,1" (Excel deutsch)
+            // wurden Mittel 4, Min 2, Max −1.
             $parts = preg_split('/"+/', $line);
             if (count($parts) < 4) {
-                $parts = preg_split('/[;,]/', $line);
+                $sep = str_contains($line, ';') ? ';' : (str_contains($line, "\t") ? "\t" : ',');
+                $parts = explode($sep, $line);
             }
             if (count($parts) < 4) { $skipped++; continue; }
             $date = trim((string)$parts[0]);

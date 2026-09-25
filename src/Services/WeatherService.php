@@ -25,6 +25,7 @@ final class WeatherService implements WeatherSource
 {
     private const ARCHIVE_API  = 'https://archive-api.open-meteo.com/v1/archive';
     private const FORECAST_API = 'https://api.open-meteo.com/v1/forecast';
+    private const GEOCODE_API  = 'https://geocoding-api.open-meteo.com/v1/search';
 
     public function fetchArchive(float $lat, float $lon, string $start, string $end): array
     {
@@ -80,6 +81,35 @@ final class WeatherService implements WeatherSource
     }
 
     /** Zeitzone für die Tagesgrenzen, URL-kodiert (Europe%2FBerlin). */
+    /**
+     * v2.12.0 — Ortssuche über die Geocoding-API von Open-Meteo (Review UI-30).
+     * Bis v2.11 musste man die Koordinaten selbst herausfinden. Übertragen wird
+     * nur der Suchbegriff, an denselben Anbieter wie beim Wetterabgleich.
+     */
+    public function geocode(string $query, string $language = 'de', int $count = 5): array
+    {
+        $url = self::GEOCODE_API . '?name=' . rawurlencode($query)
+            . '&count=' . max(1, min(10, $count))
+            . '&language=' . rawurlencode($language) . '&format=json';
+        $resp = $this->httpGet($url, 10);
+        if (!$resp['ok']) return ['data' => [], 'error' => $resp['error']];
+        $json = json_decode((string)$resp['body'], true);
+        if (!is_array($json)) return ['data' => [], 'error' => 'Unerwartetes Antwortformat von Open-Meteo'];
+        $out = [];
+        foreach (($json['results'] ?? []) as $r) {
+            if (!is_array($r) || !isset($r['name'], $r['latitude'], $r['longitude'])) continue;
+            $out[] = [
+                'name'      => (string)$r['name'],
+                'latitude'  => round((float)$r['latitude'], 4),
+                'longitude' => round((float)$r['longitude'], 4),
+                'country'   => isset($r['country']) ? (string)$r['country'] : null,
+                'admin1'    => isset($r['admin1']) ? (string)$r['admin1'] : null,
+                'postcode'  => isset($r['postcodes'][0]) ? (string)$r['postcodes'][0] : null,
+            ];
+        }
+        return ['data' => $out, 'error' => null];
+    }
+
     private static function timezone(): string
     {
         return rawurlencode(date_default_timezone_get());

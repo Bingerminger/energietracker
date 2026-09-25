@@ -45,6 +45,7 @@ const ROUTES = [
   [/^\/reminders$/,                  'reminders'],
   [/^\/recommendations$/,            'recommendations'],
   [/^\/settings$/,                   'settings'],
+  [/^\/settings\/([a-z]+)$/,         'settings'],   // v2.12.0 — Unterseiten
   [/^\/temperatures$/,               'temperatures'],
 ];
 
@@ -162,7 +163,9 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
     }
     const { view, params } = match;
     const def = views[view];
-    const activeKey = view === 'utility' || view === 'meters' ? 'utility:' + params[0] : (def.tab || view);
+    const activeKey = view === 'utility' || view === 'meters' ? 'utility:' + params[0]
+      : view === 'settings' ? 'settings:' + (params[0] || 'general')
+      : (def.tab || view);
     window.dispatchEvent(new CustomEvent('et:route', {
       detail: { view, section: def.section, key: activeKey, utility: view === 'utility' || view === 'meters' ? params[0] : null },
     }));

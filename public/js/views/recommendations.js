@@ -3,7 +3,7 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { toastOk, toastErr } from '../components/toast.js';
+import { toastOk, toastErr, toastUndo } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
 import { escapeHtml as esc } from '../lib/format.js';
 
@@ -28,9 +28,11 @@ export async function render(container) {
     const counts = recs.reduce((a, r) => (a[r.severity] = (a[r.severity] || 0) + 1, a), {});
 
     container.innerHTML = `
-      <div class="view-head">
-        <h1>${t('recommendations.title')}</h1>
-        <p class="muted">${t('recommendations.subtitle')}</p>
+      <div class="view-header">
+        <div>
+          <h1 class="view-header__title">${t('recommendations.title')}</h1>
+          <p class="view-header__subtitle">${t('recommendations.subtitle')}</p>
+        </div>
       </div>
 
       <div class="seg" role="group" aria-label="${t('recommendations.filterGroupLabel')}" style="margin-bottom:var(--sp-4)">
@@ -51,10 +53,20 @@ export async function render(container) {
     container.querySelectorAll('[data-dismiss]').forEach(b =>
       b.addEventListener('click', async () => {
         const id = b.dataset.dismiss;
+        const rec = recs.find(r => r.id === id);
         try {
           await api.dismissRecommendation(id);
           recs = recs.filter(r => r.id !== id);
-          toastOk(t('recommendations.dismissed'));
+          // v2.12.0 (Review UI-22) — mit Namen und „Rückgängig"
+          toastUndo(t('recommendations.dismissedNamed', { title: rec?.title || '' }), async () => {
+            try {
+              await api.restoreRecommendation(id);
+              if (rec && !recs.some(r => r.id === id)) recs = [rec, ...recs];
+              toastOk(t('recommendations.restored'));
+              window.dispatchEvent(new CustomEvent('et:badges-refresh'));
+              if (container.isConnected) draw();
+            } catch (e) { toastErr(t('recommendations.error', { msg: e.message || e })); }
+          });
           window.dispatchEvent(new CustomEvent('et:badges-refresh'));
           draw();
         } catch (e) { toastErr(t('recommendations.error', { msg: e.message || e })); }
@@ -79,7 +91,8 @@ function card(r) {
         <span class="rec-card__cat">${esc(catLabel(r.category))}</span>
         <!-- v2.11.0 (Review UI-26) — sichtbarer Text statt „✕": Das Kreuz sah
              nach „löschen" aus und blendete doch nur 30 Tage aus -->
-        <button type="button" class="btn btn--ghost btn--sm rec-card__dismiss" data-dismiss="${esc(r.id)}">${esc(t('recommendations.dismiss'))}</button>
+        <button type="button" class="btn btn--ghost btn--sm rec-card__dismiss" data-dismiss="${esc(r.id)}"
+          aria-label="${esc(t('recommendations.dismissNamed', { title: r.title }))}">${esc(t('recommendations.dismiss'))}</button>
       </div>
       <div class="rec-card__title">${esc(r.title)}</div>
       <div class="rec-card__detail">${esc(r.detail)}</div>

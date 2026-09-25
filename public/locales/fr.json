@@ -18,7 +18,8 @@
     "optional": "facultatif",
     "required": "obligatoire",
     "actions": "Actions",
-    "invalidNumber": "Veuillez saisir un nombre valide, p. ex. {example}."
+    "invalidNumber": "Veuillez saisir un nombre valide, p. ex. {example}.",
+    "undo": "Annuler"
   },
   "app": {
     "themeToggle": "Changer de thème",
@@ -78,7 +79,6 @@
     "contracts": "Contrats et acomptes",
     "billCheck": "Vérifier une facture",
     "report": "Rapport annuel",
-    "general": "Général",
     "weather": "Données météo",
     "tab": {
       "overview": "Aperçu",
@@ -136,8 +136,6 @@
     },
     "recommendations": { "title": "Recommandations principales" },
     "reminders": {
-      "title": "Rappels à venir",
-      "due": "échéance {date}",
       "now": "maintenant",
       "overdueDays": {
         "one": "en retard de 1 jour",
@@ -156,13 +154,26 @@
       "consumption": "Consommation (12 derniers mois)",
       "cost": "Coût (12 derniers mois)",
       "costSub": "primes incluses",
-      "noContract": "aucun contrat enregistré",
-      "activeMeters": "Compteurs actifs",
-      "totalMeters": "{count} au total"
+      "noContract": "aucun contrat enregistré"
     },
     "trend": { "vsPrev": "vs. 12 mois précédents", "moreThanPrev": "{pct} % de plus que la période de 12 mois précédente", "lessThanPrev": "{pct} % de moins que la période de 12 mois précédente" },
     "allRecommendations": "Toutes les recommandations",
-    "allReminders": "Tous les rappels"
+    "todo": {
+      "title": "À faire",
+      "readingDue": {
+        "one": "dernier relevé il y a 1 jour",
+        "other": "dernier relevé il y a {count} jours"
+      },
+      "readingNever": "aucun relevé pour l’instant",
+      "readingAction": "Saisir le relevé",
+      "reminderAction": "Voir les rappels",
+      "contractAction": "Voir les contrats",
+      "tankAction": "Saisir une livraison",
+      "readingsDue": {
+        "one": "{count} compteur attend un relevé",
+        "other": "{count} compteurs attendent un relevé"
+      }
+    }
   },
   "readingsEntry": {
     "title": "Relevés de compteur",
@@ -172,7 +183,7 @@
     "saveAll": "Tout enregistrer",
     "saveAllProgress": "Tout enregistrer ({done} sur {total} saisis)",
     "saving": "Enregistrement…",
-    "error": { "title": "Échec du chargement", "unknown": "Erreur inconnue" },
+    "error": { "title": "Échec du chargement", "unknown": "Erreur inconnue", "invalidNumber": "Veuillez saisir un nombre, par exemple 12345,6." },
     "empty": {
       "title": "Aucun compteur",
       "text": "La saisie centralisée n’est disponible que pour les compteurs cumulatifs (gaz, électricité, eau, chauffage urbain). Le fioul et les granulés suivent la consommation via les livraisons, pas via des relevés.",
@@ -188,7 +199,7 @@
       "notePlaceholder": "facultatif",
       "addNote": "+ Note",
       "hideNote": "− Masquer la note",
-      "placeholderExample": "p. ex. {value}"
+      "otherDate": "Autre date"
     },
     "status": {
       "saving": "Enregistrement…",
@@ -207,7 +218,11 @@
       "savedEmpty": "{ok} enregistrés · {skipped} vides",
       "saved": "{ok} enregistrés",
       "nothing": "Aucune saisie — rien à enregistrer",
-      "held": "{count} relevé(s) non enregistré(s) – vérifiez les cartes signalées."
+      "held": "{count} relevé(s) non enregistré(s) – vérifiez les cartes signalées.",
+      "undone": {
+        "one": "1 relevé annulé",
+        "other": "{count} relevés annulés"
+      }
     }
   },
   "utility": {
@@ -471,7 +486,6 @@
       "empty": "Aucune tranche dans la période choisie.",
       "noReading": "aucun relevé",
       "total": "Total",
-      "gaps": "{count} tranche(s) sans relevé englobant — la consommation y manque.",
       "formula": "kWh = m³ × coefficient de correction × pouvoir calorifique. Le fournisseur estime des index intermédiaires aux changements de pouvoir calorifique ; ici l’intervalle de relevé est découpé au jour près.",
       "errRange": "Veuillez choisir une période valide (du avant au).",
       "col": {
@@ -500,7 +514,11 @@
         "interpolated": "E"
       },
       "legend": "Type de relevé : sans mention = index relevé · S = relevé saisi comme estimé · E = valeur de substitution : aucun index ce jour-là, il est interpolé au jour près entre les relevés encadrants — exactement là où le fournisseur estime aussi (limites de PCS et de période). Moins il y a de lignes avec E, moins il y a d’estimation.",
-      "open": "Vérifier la facture {year}"
+      "open": "Vérifier la facture {year}",
+      "gapsN": {
+        "one": "{count} tranche sans relevé englobant — la consommation y manque.",
+        "other": "{count} tranches sans relevé englobant — la consommation y manque."
+      }
     },
     "warnings": {
       "title": "Relevés invraisemblables : {count}",
@@ -549,20 +567,44 @@
     },
     "status": { "active": "ACTIF", "past": "PASSÉ", "future": "FUTUR" },
     "summary": {
-      "twPrices": "{count} prix eau potable",
-      "swPrices": "{count} prix eau usée",
-      "nwDates": "{count} dates eau pluviale",
-      "advances": "{count} acomptes",
-      "bonuses": "{count} primes",
-      "workingPrices": "{count} prix de l’énergie",
-      "basePrices": "{count} prix d’abonnement",
-      "specialPayments": "{count} paiements exceptionnels"
+      "twPrices": {
+        "one": "{count} prix eau potable",
+        "other": "{count} prix eau potable"
+      },
+      "swPrices": {
+        "one": "{count} prix eau usée",
+        "other": "{count} prix eau usée"
+      },
+      "nwDates": {
+        "one": "{count} date eau pluviale",
+        "other": "{count} dates eau pluviale"
+      },
+      "advances": {
+        "one": "{count} acompte",
+        "other": "{count} acomptes"
+      },
+      "bonuses": {
+        "one": "{count} prime",
+        "other": "{count} primes"
+      },
+      "workingPrices": {
+        "one": "{count} prix de l’énergie",
+        "other": "{count} prix de l’énergie"
+      },
+      "basePrices": {
+        "one": "{count} prix d’abonnement",
+        "other": "{count} prix d’abonnement"
+      },
+      "specialPayments": {
+        "one": "{count} paiement exceptionnel",
+        "other": "{count} paiements exceptionnels"
+      }
     },
     "group": { "working": "Prix de l’énergie", "base": "Prix d’abonnement", "advance": "Acompte", "addRow": "+ Ligne" },
     "row": {
       "validFrom": "Valable à partir du",
-      "copyStart": "⇧ Début",
-      "copyStartTitle": "Copier la date de début du contrat",
+      "copyStart": "Dès le début",
+      "copyStartTitle": "Mettre la date de cette ligne sur le début du contrat",
       "removeRow": "Supprimer la ligne",
       "setStartFirst": "Veuillez d’abord définir la date de début du contrat"
     },
@@ -616,7 +658,7 @@
       "autoRenews": "Se prolonge sans résiliation",
       "autoRenewsHint": "Après la fin, le contrat continue aux derniers prix jusqu’à sa résiliation — alors avec un préavis d’un mois au plus. Décocher une fois résilié."
     },
-    "delete": { "title": "Supprimer le contrat ?", "message": "Supprimer définitivement le contrat ?", "confirm": "Supprimer", "deleted": "Contrat supprimé" },
+    "delete": { "title": "Supprimer le contrat ?", "confirm": "Supprimer", "deleted": "Contrat supprimé", "messageNamed": "Supprimer définitivement le contrat « {name} » ? Ses prix, acomptes et primes seront perdus." },
     "deleteContract": "Supprimer le contrat",
     "bonus": {
       "title": "Primes / avoirs",
@@ -688,7 +730,7 @@
     "unknown": "Énergie inconnue : {key}",
     "title": "{label} · Compteurs",
     "toOverview": "Vers l’aperçu",
-    "merge": "Fusionner des compteurs",
+    "merge": "Regrouper des compteurs",
     "newMeter": "+ Nouveau compteur",
     "info": {
       "title": "Plusieurs compteurs par énergie",
@@ -779,31 +821,66 @@
     },
     "import": {
       "title": "Importer des relevés : {name}",
-      "intro": "Importe les relevés d’un fichier CSV directement dans le compteur <strong>{name}</strong>. Un relevé existant à la même date est <strong>écrasé</strong> et signalé dans le résultat.",
+      "intro": "Lit les relevés d’un fichier CSV pour le compteur <strong>{name}</strong>. Avant l’import, un aperçu montre chaque ligne et son effet — un relevé existant le même jour est <strong>remplacé</strong>.",
       "formatLabel": "Format attendu",
       "formatHint": "Séparateur <code>;</code> ou <code>,</code> · date <code>JJ.MM.AAAA</code> ou <code>AAAA-MM-JJ</code> · virgule décimale autorisée · colonnes <em>note</em> et <em>estimé</em> facultatives · une ligne d’en-tête est détectée automatiquement.",
       "downloadExample": "Télécharger un exemple CSV",
       "dropZone": "Déposez un fichier CSV ici ou cliquez pour le sélectionner",
       "dropZoneAria": "Sélectionner un fichier CSV ou le déposer ici",
-      "importing": "Import en cours…",
       "result": "<strong>{imported}</strong> nouvellement importés · <strong>{overwritten}</strong> écrasés · <strong>{skipped}</strong> ignorés",
       "moreErrors": "… et {count} de plus",
-      "toast": "{count} relevé(s) appliqué(s)",
-      "close": "Fermer"
+      "close": "Fermer",
+      "reading": "Lecture du fichier…",
+      "previewSummary": "Lues : {rows} · nouvelles : {new} · remplacent un relevé : {overwrite} · inchangées : {same} · avec remarque : {flagged}",
+      "unreadable": {
+        "one": "{count} ligne illisible",
+        "other": "{count} lignes illisibles"
+      },
+      "otherMeterRows": {
+        "one": "{count} ligne appartient à un autre compteur et est ignorée.",
+        "other": "{count} lignes appartiennent à d’autres compteurs et sont ignorées."
+      },
+      "col": {
+        "date": "Date",
+        "counter": "Relevé",
+        "effect": "Effet",
+        "notes": "Remarque"
+      },
+      "effect": {
+        "new": "nouveau",
+        "overwrite": "remplace {counter}",
+        "same": "inchangé"
+      },
+      "duplicate": "Date présente plusieurs fois dans le fichier — la dernière ligne l’emporte",
+      "moreRows": {
+        "one": "… et {count} autre ligne sans remarque",
+        "other": "… et {count} autres lignes sans remarque"
+      },
+      "confirm": {
+        "one": "Importer {count} ligne",
+        "other": "Importer {count} lignes"
+      },
+      "otherFile": "Choisir un autre fichier",
+      "nothing": "Le fichier ne contient aucune ligne lisible.",
+      "imported": {
+        "one": "{count} relevé importé",
+        "other": "{count} relevés importés"
+      },
+      "importing": "Import en cours…"
     },
     "mergeModal": {
-      "title": "Fusionner des compteurs",
-      "intro": "Fusionnez plusieurs compteurs en un <strong>groupe</strong> — p. ex. <em>heures creuses + heures pleines</em> ou plusieurs bornes de recharge. Le groupe combine la consommation dans le tableau de bord ; les compteurs individuels sont conservés.",
+      "title": "Regrouper des compteurs",
+      "intro": "Regroupez plusieurs compteurs en un <strong>groupe</strong> — p. ex. <em>heures creuses + heures pleines</em> ou plusieurs bornes de recharge. Le groupe affiche le total dans la vue d’ensemble ; les compteurs eux-mêmes restent séparés et inchangés.",
       "select": "Sélectionner des compteurs (au moins deux) *",
       "alreadyInGroup": "déjà dans un groupe",
       "existingGroup": "Groupe existant",
       "newGroupOption": "— créer un nouveau groupe —",
       "newGroupName": "Nom du nouveau groupe",
       "newGroupPlaceholder": "p. ex. électricité HP+HC",
-      "submit": "Fusionner",
+      "submit": "Enregistrer le groupe",
       "needTwo": "Veuillez sélectionner au moins deux compteurs",
       "needName": "Veuillez indiquer un nom de groupe ou choisir un groupe existant",
-      "done": "{count} compteurs fusionnés dans le groupe « {name} »"
+      "done": "{count} compteurs regroupés dans « {name} »"
     },
     "baseline": {
       "title": "Ruptures de référence",
@@ -826,9 +903,6 @@
     },
     "loading": "Chargement…",
     "title": "Paramètres",
-    "subtitle": "Configuration · export des données · sauvegarde et restauration",
-    "save": "Enregistrer les paramètres",
-    "saveUnsaved": "Enregistrer •",
     "saved": "Paramètres enregistrés",
     "lang": {
       "title": "🌐 Langue et pays / Language",
@@ -849,13 +923,13 @@
       "physical": { "title": "Constantes physiques", "hint": "Conversion et base des degrés-jours de chauffe — affectent toutes les analyses." },
       "co2": { "title": "Facteurs d’émission CO₂", "hint": "Grammes de CO₂ par unité de consommation, pour l’estimation des émissions." },
       "billing": { "title": "Cycle de facturation", "hint": "Date de régularisation annuelle par énergie (format JJ-MM, p. ex. 01-01 pour le 1er janvier, 15-04 pour le 15 avril). Détermine jusqu’où le solde des contrats ouverts est projeté ; les contrats avec une date de fin renseignée utilisent toujours cette fin." },
-      "contractReminders": { "title": "Rappels de contrat", "hint": "Nombre de jours avant la fin du contrat à partir duquel l’aperçu des contrats alerte. Trois niveaux — du préavis précoce au dernier jour." },
+      "contractReminders": { "title": "Rappels", "hint": "Trois niveaux avant la fin du contrat ou la date limite de résiliation ; pour les rappels, le préavis et le délai de grâce avant « en retard »." },
       "water": { "title": "Valeurs de référence eau", "hint": "Taille du foyer, référence par personne et bandes de l’indice d’économie." },
       "regression": { "title": "Régression et prévision", "hint": "Filtres pour la base de régression et paramètres du modèle de prévision." },
-      "dashboard": { "title": "Tableau de bord", "hint": "Étendue d’affichage et seuils de l’aperçu." },
+      "dashboard": { "title": "Affichage", "hint": "Période de l’aperçu et de la prévision ; à partir de quand un relevé manquant est signalé." },
       "building": { "title": "Bâtiment et efficacité", "hint": "Valeurs de référence pour la classe d’efficacité (kWh/m²·a) et le benchmark d’énergie de chauffage." },
       "delivery": { "title": "Sources d’énergie (livraison)", "hint": "Contenu énergétique des combustibles livrés et seuil d’alerte de cuve." },
-      "remindersRec": { "title": "Rappels et recommandations", "hint": "Seuils pour le statut d’échéance et le moteur de recommandations." },
+      "remindersRec": { "title": "Recommandations et répartition", "hint": "Seuils des recommandations et part de charge de base pour répartir fioul et granulés sur les jours." },
       "location": { "title": "Localisation (Open-Meteo)", "hint": "Coordonnées pour la synchronisation météo de la série de températures." },
       "embedding": {
         "title": "Intégration dans d’autres pages",
@@ -1062,7 +1136,6 @@
       "revokeConfirmMsg": "Après révocation, le point d’entrée push est de nouveau accessible sans jeton (mode ouvert). Les automatisations Home Assistant avec l’ancien jeton échoueront.",
       "revokeConfirmBtn": "Révoquer",
       "revoked": "Jeton révoqué",
-      "aliasesSaved": "{count} alias enregistré(s)",
       "yamlCopied": "YAML copié",
       "clipboardFail": "Échec de la copie",
       "step4": "4. Automatisation (à copier)",
@@ -1075,7 +1148,11 @@
       },
       "lastUsed": "Dernière utilisation : {when}",
       "neverUsed": "Rien n’est encore arrivé avec ce jeton.",
-      "loginNeedsToken": "La connexion est activée : sans jeton, Energietracker n’accepte aucune valeur de Home Assistant."
+      "loginNeedsToken": "La connexion est activée : sans jeton, Energietracker n’accepte aucune valeur de Home Assistant.",
+      "aliasesSavedN": {
+        "one": "{count} alias enregistré",
+        "other": "{count} alias enregistrés"
+      }
     },
     "diag": {
       "title": "🩺 Diagnostic système",
@@ -1233,6 +1310,58 @@
       "rh": "Maison mitoyenne",
       "mfh": "Immeuble collectif",
       "whg": "Appartement"
+    },
+    "page": {
+      "general": {
+        "title": "Général",
+        "subtitle": "Langue, pays, affichage et rappels"
+      },
+      "household": {
+        "title": "Foyer et bâtiment",
+        "subtitle": "Surface habitable, bâtiment et personnes du foyer"
+      },
+      "utilities": {
+        "title": "Énergies et facturation",
+        "subtitle": "Énergies actives, dates de facturation, conversion et facteurs CO₂"
+      },
+      "data": {
+        "title": "Données",
+        "subtitle": "Export, sauvegarde, restauration et données de démo"
+      },
+      "integrations": {
+        "title": "Intégrations",
+        "subtitle": "Home Assistant et relevés venant de l’extérieur"
+      },
+      "access": {
+        "title": "Accès",
+        "subtitle": "Connexion, clés d’API et intégration"
+      },
+      "expert": {
+        "title": "Expert",
+        "subtitle": "Paramètres de calcul pour régression, prévision et recommandations"
+      },
+      "system": {
+        "title": "Système",
+        "subtitle": "Version, diagnostic et répertoire de données"
+      }
+    },
+    "savebar": {
+      "unsaved": "Modifications non enregistrées",
+      "discard": "Abandonner"
+    },
+    "leave": {
+      "title": "Abandonner les modifications ?",
+      "message": "Cette page contient des modifications non enregistrées. En continuant, elles seront perdues.",
+      "confirm": "Abandonner"
+    },
+    "expert": {
+      "summary": "Afficher les paramètres de calcul",
+      "warning": "Ces valeurs pilotent les modèles de calcul. Les valeurs par défaut conviennent à la plupart des foyers – ne les modifiez que si vous savez ce qu’elles font."
+    },
+    "system": {
+      "aboutTitle": "À propos d’Energietracker",
+      "about": "Energietracker {version} – consommation, coûts et contrats, en local et sans cloud.",
+      "license": "Logiciel libre sous licence MIT"
     }
   },
   "reminders": {
@@ -1262,9 +1391,9 @@
     },
     "recurrence": { "none": "Ponctuel", "yearly": "Annuel", "semi-yearly": "Semestriel", "custom-months": "Tous les N mois" },
     "due": { "today": "aujourd’hui", "inDays": "dans {days} j", "agoDays": "il y a {days} j" },
-    "action": { "done": "Fait", "edit": "Modifier", "delete": "Supprimer" },
-    "toast": { "markedDone": "Marqué comme fait", "deleted": "Supprimé", "saved": "Enregistré", "error": "Erreur : {msg}" },
-    "deleteConfirm": { "title": "Supprimer le rappel", "message": "Vraiment supprimer ce rappel ?", "confirm": "Supprimer" },
+    "action": { "done": "Fait", "edit": "Modifier", "delete": "Supprimer", "doneNamed": "Terminé : {title}", "editNamed": "Modifier : {title}", "deleteNamed": "Supprimer : {title}" },
+    "toast": { "deleted": "Supprimé", "saved": "Enregistré", "error": "Erreur : {msg}", "doneNext": "« {title} » terminé · prochaine échéance {date}", "doneOnce": "« {title} » terminé", "undone": "« {title} » est de nouveau ouvert" },
+    "deleteConfirm": { "title": "Supprimer le rappel", "confirm": "Supprimer", "messageNamed": "Vraiment supprimer « {title} » ? Cette action est irréversible." },
     "form": {
       "titleEdit": "Modifier le rappel",
       "titleNew": "Nouveau rappel",
@@ -1276,8 +1405,13 @@
       "fInterval": "Intervalle (mois)",
       "fNotes": "Notes",
       "save": "Enregistrer",
-      "validation": "Le titre et la date sont obligatoires",
-      "intervalInvalid": "L’intervalle doit être un nombre entier de 1 à 120 mois."
+      "intervalInvalid": "L’intervalle doit être un nombre entier de 1 à 120 mois.",
+      "titleRequired": "Veuillez saisir un titre.",
+      "dueRequired": "Veuillez choisir une date d’échéance."
+    },
+    "everyMonths": {
+      "one": "Tous les mois",
+      "other": "Tous les {count} mois"
     }
   },
   "temperatures": {
@@ -1285,7 +1419,7 @@
     "title": "Données météo",
     "sync": "Synchroniser Open-Meteo",
     "csvImport": "Import CSV",
-    "formatHint": "Format : <code>JJ.MM.AAAA\"moy\"min\"max</code> (p. ex. <code>15.01.2024\"4.2\"-1.0\"7.1</code>). Valeurs en °C, guillemets doubles comme séparateur.",
+    "formatHint": "Format : <code>JJ.MM.AAAA;moyenne;min;max</code> (p. ex. <code>15.01.2024;4,2;-1,0;7,1</code>), valeurs en °C. Point-virgule, tabulation ou virgule comme séparateur ; l’ancien format avec guillemets fonctionne toujours.",
     "downloadExample": "Télécharger un exemple CSV",
     "dropZone": "Déposez un fichier ici ou cliquez pour le sélectionner",
     "dropZoneAria": "Sélectionner un fichier CSV ou le déposer ici",
@@ -1307,7 +1441,13 @@
     "statusWithForecast": "Valeurs mesurées jusqu’au {measured}, prévision jusqu’au {forecast}.",
     "reload": "Remplacer aussi les anciennes valeurs par les valeurs d’archive (corrige les prévisions enregistrées comme mesures)",
     "climateFetched": "Normale climatique {from}–{to} chargée — la prévision et la correction climatique utilisent maintenant 30 ans de climat.",
-    "climateFailed": "La normale climatique n’a pas pu être chargée — la prévision utilise ton propre historique de températures."
+    "climateFailed": "La normale climatique n’a pas pu être chargée — la prévision utilise ton propre historique de températures.",
+    "subtitle": "Températures journalières pour les degrés-jours, la correction et la prévision",
+    "geoLabel": "Rechercher une ville ou un code postal",
+    "geoPlaceholder": "p. ex. Lyon ou 69001",
+    "geoSearch": "Rechercher",
+    "geoNone": "Aucun lieu trouvé.",
+    "locationSaved": "Emplacement enregistré"
   },
   "recommendations": {
     "loading": "Chargement des recommandations…",
@@ -1321,7 +1461,6 @@
     "emptyAll": "Aucune recommandation — tout va bien.",
     "emptyFiltered": "Aucune recommandation {sev} — tout va bien.",
     "dismiss": "Masquer pendant 30 jours",
-    "dismissed": "Recommandation masquée (30 jours)",
     "error": "Erreur : {msg}",
     "engine": {
       "r1": {
@@ -1354,7 +1493,10 @@
         "title": "{label} : classe d’efficacité {class} ({kwh} kWh/m²·a)",
         "detail": "Le besoin d’énergie de chauffage {year} pour {label} correspond à la classe d’efficacité {class} ({kwh} kWh/m²·a). Une isolation, une optimisation du chauffage ou un équilibrage hydraulique peuvent améliorer nettement la classe."
       }
-    }
+    },
+    "dismissedNamed": "« {title} » masqué pendant 30 jours",
+    "restored": "Recommandation de nouveau affichée",
+    "dismissNamed": "Masquer pendant 30 jours : {title}"
   },
   "tariff": {
     "loading": "Chargement…",
@@ -1365,7 +1507,7 @@
     "meter": "Compteur",
     "year": "Année",
     "wholePeriod": "Toute la période",
-    "addShadow": "+ Offre",
+    "addShadow": "+ Saisir une offre",
     "loadingComparison": "Chargement du comparatif…",
     "noMeter": "Aucun compteur disponible.",
     "notSupported": "Non pris en charge.",
@@ -1382,12 +1524,12 @@
     "chartAlt": "Diagramme en barres du coût complet par unité ({unit}) de chaque tarif",
     "unitCostTitle": "Coût complet par unité — prix unitaire, abonnement et bonus réunis. La seule valeur qui compare équitablement des durées différentes.",
     "legend": "Négatif (vert) = moins cher que le contrat réellement facturé sur les mêmes mois. Seuls les coûts tarifaires sont comparés ; les acomptes et régularisations sont des flux de trésorerie et restent en dehors.",
-    "action": { "edit": "Modifier", "delete": "Supprimer" },
+    "action": { "edit": "Modifier", "delete": "Supprimer", "editNamed": "Modifier : {name}", "deleteNamed": "Supprimer : {name}" },
     "col": { "tariff": "Tarif", "period": "Période", "consumption": "Consommation", "cost": "Coût", "unitCost": "{minor}/{unit}", "vsReal": "vs. réel", "savings": "Écart" },
     "period": "Période : {label}",
     "periodRange": "Période : {label} ({from} – {to})",
     "shadow": {
-      "title": "Créer un contrat fictif",
+      "title": "Saisir une offre",
       "intro": "Un tarif hypothétique — n’affecte PAS le solde/la prévision, seulement ce comparatif.",
       "label": "Libellé",
       "labelPlaceholder": "p. ex. offre discount",
@@ -1402,14 +1544,13 @@
       "validation": "Le libellé, la date et le prix de l’énergie sont obligatoires",
       "created": "Contrat fictif créé",
       "error": "Erreur : {msg}",
-      "titleEdit": "Modifier le contrat fictif",
+      "titleEdit": "Modifier l’offre",
       "end": "Valable jusqu'au (facultatif)",
       "endHint": "Laisser vide pour « toujours en cours ».",
       "save": "Enregistrer",
       "updated": "Contrat fictif enregistré",
       "deleted": "Contrat fictif supprimé",
       "deleteTitle": "Supprimer le contrat fictif ?",
-      "deleteMessage": "L'hypothèse sera supprimée. Les contrats réels et les relevés restent intacts.",
       "deleteConfirm": "Supprimer",
       "signupBonus": "Prime de bienvenue ({cur})",
       "signupBonusPlaceholder": "p. ex. 130",
@@ -1418,7 +1559,8 @@
       "priceGuaranteeHint": "Ensuite le prix est une hypothèse — tracé en pointillés.",
       "noticePeriod": "Préavis (mois)",
       "noticePeriodPlaceholder": "p. ex. 1",
-      "noticePeriodHint": "Sert au calcul des dates si ce tarif devient le contrat en cours."
+      "noticePeriodHint": "Sert au calcul des dates si ce tarif devient le contrat en cours.",
+      "deleteMessageNamed": "Supprimer l’offre « {name} » ? Les contrats réels et les relevés restent intacts."
     },
     "switch": {
       "heading": "Décision de changement",
@@ -1685,7 +1827,9 @@
       "emptyCsv": "Les données CSV sont vides.",
       "dateMissing": "La date est absente.",
       "valuesMissing": "La moyenne, le minimum et le maximum (avg, min, max) sont obligatoires et doivent être des nombres.",
-      "rangeInvalid": "Période non valide : {start} est postérieur à {end}."
+      "rangeInvalid": "Période non valide : {start} est postérieur à {end}.",
+      "geocodeQuery": "Saisissez au moins deux caractères (80 au plus).",
+      "geocodeFailed": "La recherche de lieu est indisponible pour le moment. Les coordonnées peuvent aussi être saisies à la main."
     },
     "view": {
       "loadFailed": "Échec du chargement : {msg}",
@@ -1707,7 +1851,8 @@
       "titleRequired": "Un titre est requis.",
       "dueRequired": "Une date d'échéance (AAAA-MM-JJ) est requise.",
       "recurrenceMonths": "« Tous les N mois » nécessite un intervalle supérieur à 0.",
-      "notFound": "Rappel introuvable : {id}"
+      "notFound": "Rappel introuvable : {id}",
+      "lastDoneInvalid": "« Dernière exécution » doit être vide ou une date (AAAA-MM-JJ)."
     },
     "tariff": {
       "waterUnsupported": "La comparaison de tarifs pour l'eau (tarif à trois composantes) n'est pas incluse dans cette version.",

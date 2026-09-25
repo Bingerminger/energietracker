@@ -13,7 +13,8 @@ This guide describes the complete migration path.
 ## TL;DR
 
 1. In v0.9.0: export a JSON backup.
-2. In v1.0.2: **Settings → Backup & restore → 📦 Migration from v0.9.0**.
+2. In the current Energietracker: **Settings → Data → Backup & restore →
+   📦 Migration from v0.9.0**.
 3. Choose a mode (*Replace* or *Merge*).
 4. Import.
 
@@ -331,7 +332,8 @@ skipped due to an ID collision).
 
 In the data directory, under `data/backups/`, lies the snapshot created
 automatically before the import. It has exactly the `backup_version: "3.0"`
-format and can be restored at any time via *Settings → Import backup*.
+format and can be restored at any time via *Settings → Data → Backup & restore →
+Import backup*.
 
 In the file system (e.g. via SSH) the snapshot can be unpacked manually by
 writing the content back under `data/<utility>/*.json` — the snapshot is

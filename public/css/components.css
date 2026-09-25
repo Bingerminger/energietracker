@@ -26,8 +26,9 @@
 .btn--danger  { background: var(--danger-strong); border-color: var(--danger-strong); color: #fff; }
 /* Entfernen-Kreuz einer Zeile: Umriss statt roter Vollfläche (Review UI-20) —
    neben „Speichern" wirkte es wie die Hauptaktion */
-.btn--danger.btn--icon { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
-.btn--danger.btn--icon:hover { background: var(--danger-strong); border-color: var(--danger-strong); color: #fff; filter: none; }
+/* v2.12.0 — dasselbe für Löschen-Knöpfe auf Karten (`.btn--quiet`) */
+.btn--danger.btn--icon, .btn--danger.btn--quiet { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.btn--danger.btn--icon:hover, .btn--danger.btn--quiet:hover { background: var(--danger-strong); border-color: var(--danger-strong); color: #fff; filter: none; }
 .btn--danger:hover { filter: brightness(1.15); }
 .btn--ghost   { background: transparent; border-color: var(--border-2); }
 .btn--ghost:hover { background: var(--bg-2); }
@@ -785,14 +786,9 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   color: var(--danger);
 }
 
-/* View-Header (Titel + optionale Aktion rechts) */
-.view-head { margin-bottom: var(--sp-5); }
-.view-head h2 { margin: 0 0 4px; font-size: var(--fs-xl); }
-.view-head p { margin: 0; }
-.view-head--row {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: var(--sp-4); flex-wrap: wrap;
-}
+/* v2.12.0 (Review UI-20) — `.view-head` entfernt: Termine, Empfehlungen und
+   Tarifvergleich nutzen jetzt `.view-header` wie alle anderen Seiten. Ihr
+   <h1> hatte keine eigene Größe und erschien mit 32 px statt 20 px. */
 
 /* Segmentierter Filter-Umschalter */
 .seg { display: inline-flex; gap: 4px; flex-wrap: wrap; }
@@ -1164,3 +1160,90 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   /* Ohne Fußleiste trägt der Inhalt den Abstand zum Home-Balken */
   .modal__body:last-child { padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px)); }
 }
+
+/* =====================================================================
+   v2.12.0 — Einstellungen als Unterseiten (Review UI-13)
+   ===================================================================== */
+/* Karten mit breiter Tabelle (Gas-Faktoren) über die ganze Zeile — die
+   „Entfernen"-Knöpfe lagen bisher hinter einem unsichtbaren Querscroll */
+.settings-grid > .settings-card--wide { grid-column: 1 / -1; }
+
+/* Speicherleiste: steht nur, solange es ungespeicherte Änderungen gibt */
+.settings-savebar {
+  position: sticky; bottom: 0; z-index: 20;
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  margin-top: var(--sp-4); padding: var(--sp-3) var(--sp-4);
+  background: var(--bg-1); border: 1px solid var(--border-2);
+  border-radius: var(--r-md); box-shadow: var(--shadow-2);
+}
+.settings-savebar[hidden] { display: none; }
+.settings-savebar__text { flex: 1; font-weight: 600; color: var(--warning); }
+@media (max-width: 800px) {
+  /* über der Tab-Leiste */
+  .settings-savebar { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--sp-2)); }
+}
+@media (max-width: 600px) {
+  /* eine Zeile: kurzer Hinweis, zwei Knöpfe — die Leiste verdeckt sonst ein
+     Drittel des Formulars */
+  .settings-savebar { flex-wrap: nowrap; padding: var(--sp-2) var(--sp-3); }
+  .settings-savebar__text { font-size: var(--fs-sm); line-height: 1.2; min-width: 0; }
+  .settings-savebar .btn { white-space: nowrap; }
+}
+
+/* Experte: eingeklappt, mit Warnung */
+.settings-expert > summary {
+  cursor: pointer; font-weight: 600; padding: var(--sp-3) 0;
+  list-style: revert;
+}
+.settings-expert[open] > summary { margin-bottom: var(--sp-3); }
+
+/* v2.12.0 — Ortssuche auf der Wetterdaten-Seite (Review UI-30) */
+.geo-search { display: flex; gap: var(--sp-2); }
+.geo-search .input { flex: 1; min-width: 0; }
+.geo-results { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.geo-results__item { width: 100%; justify-content: space-between; text-align: left; white-space: normal; }
+
+/* v2.12.0 — „Zu tun" oben auf der Übersicht (Review UI-21) */
+.dash-todo { margin-bottom: var(--sp-5); border-left: 3px solid var(--warning); }
+.dash-todo__list { list-style: none; margin: 0; padding: 0; }
+.dash-todo__item { border-top: 1px solid var(--border-1); }
+.dash-todo__item:first-child { border-top: none; }
+.dash-todo__link {
+  display: flex; align-items: center; gap: var(--sp-3); min-height: 44px;
+  padding: var(--sp-2) 0; color: inherit; text-decoration: none;
+}
+.dash-todo__item:first-child .dash-todo__link { padding-top: 0; }
+.dash-todo__link:hover .dash-todo__go { background: var(--bg-2); }
+.dash-todo__link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--r-sm); }
+.dash-todo__icon { font-size: 18px; width: 24px; text-align: center; flex: none; }
+.dash-todo__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.dash-todo__go { flex: none; white-space: nowrap; }
+.dash-todo__chev { display: none; flex: none; font-size: 22px; line-height: 1; color: var(--text-2); }
+.dash-todo__item--alert .dash-todo__text strong { color: var(--danger); }
+@media (max-width: 600px) {
+  .dash-todo__go { display: none; }
+  .dash-todo__chev { display: block; }
+}
+
+/* v2.12.0 (Review UI-20) — Werkzeugleisten: beschriftete Auswahlfelder in
+   Inhaltsbreite statt 100 %, Umbruch auf schmalen Bildschirmen */
+.toolbar { flex-wrap: wrap; }
+.toolbar label { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-2); }
+.toolbar .select, .toolbar .input, .switch-date-row .input { width: auto; min-width: 10rem; }
+/* Formulare in Dialogen: 16 px, sonst zoomt Safari beim Antippen */
+@media (pointer: coarse), (max-width: 800px) {
+  .form-grid input, .form-grid select { font-size: 16px; min-height: 44px; }
+}
+
+/* v2.12.0 — Vorschau des CSV-Imports (Review UI-23) */
+.import-preview { display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); }
+.import-preview__summary { font-weight: 600; margin: 0; }
+.import-preview__errors { margin: 0; padding-left: 1.2em; color: var(--text-2); font-size: var(--fs-xs); }
+.import-preview__table td { vertical-align: top; }
+.import-preview__table td.num, .import-preview__table td:first-child { white-space: nowrap; }
+.import-preview__row--warn td { background: var(--warning-soft); }
+.import-preview__row--warn td:last-child { color: var(--text-1); }
+.import-preview__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }
+
+/* v2.12.0 — Feldfehler in Dialog-Formularen dicht am Feld */
+.form-grid > .field-error { margin-top: calc(-1 * var(--sp-2)); }

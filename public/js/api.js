@@ -170,8 +170,9 @@ export const api = {
   updateReading: (u, id, data)         => request('PATCH',`/api/utility/${u}/readings/${id}`, data),
   deleteReading: (u, id)               => request('DELETE',`/api/utility/${u}/readings/${id}`),
   // F-06: zähler-gebundener CSV-Bulk-Import (Body: text/plain CSV).
-  importReadingCsv: (u, meterId, csvText) =>
-    request('POST', `/api/utility/${u}/meters/${meterId}/readings/import-csv`, csvText, { raw: true }),
+  // v2.12.0 — dryRun: nur lesen (Vorschau), nichts schreiben
+  importReadingCsv: (u, meterId, csvText, { dryRun = false } = {}) =>
+    request('POST', `/api/utility/${u}/meters/${meterId}/readings/import-csv${dryRun ? '?dry_run=1' : ''}`, csvText, { raw: true }),
   // F1004 (v1.6.0): Aggregat für die zentrale Zählerstand-Erfassung
   readingsOverview: ()                  => request('GET', '/api/readings-overview'),
 
@@ -207,6 +208,8 @@ export const api = {
 
   // Temperatures
   temperatures:  ()                    => request('GET',  '/api/temperatures'),
+  // v2.12.0 — Ortssuche für den Wetterstandort (Open-Meteo Geocoding)
+  geocode:       (q)                   => request('GET',  `/api/geocode?q=${encodeURIComponent(q)}`),
   upsertTemp:    (data)                => request('POST', '/api/temperatures', data),
   deleteTemp:    (date)                => request('DELETE',`/api/temperatures/${date}`),
   importTempCsv: (csvText)             => request('POST', '/api/temperatures/import-csv', csvText, { raw: true }),
@@ -300,6 +303,8 @@ export const api = {
     request('GET', `/api/recommendations${inclDismissed ? '?include_dismissed=1' : ''}`),
   dismissRecommendation:(id, until=null) =>
     request('POST', `/api/recommendations/${id}/dismiss`, until ? { until } : {}),
+  // v2.12.0 — Ausblenden zurücknehmen („Rückgängig")
+  restoreRecommendation:(id) => request('DELETE', `/api/recommendations/${id}/dismiss`),
 
   // ── v1.3.0 — Termine/Erinnerungen ──
   reminders:     ()           => request('GET',   '/api/reminders'),

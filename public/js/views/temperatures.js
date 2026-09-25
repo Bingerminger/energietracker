@@ -45,16 +45,19 @@ export async function render(container) {
   }
 
   container.innerHTML = `
-    <div class="section-head">
-      <h1>${t('temperatures.title')}</h1>
-      <div class="section-actions">
+    <div class="view-header">
+      <div>
+        <h1 class="view-header__title">${t('temperatures.title')}</h1>
+        <div class="view-header__subtitle">${escapeHtml(t('temperatures.subtitle'))}</div>
+      </div>
+      <div class="view-header__actions">
         <button type="button" class="btn btn--primary" id="btn-sync">${t('temperatures.sync')}</button>
       </div>
     </div>
 
     <div class="grid grid-2">
       <div class="card">
-        <h3 class="card__title">${t('temperatures.csvImport')}</h3>
+        <h2 class="card__title">${t('temperatures.csvImport')}</h2>
         <p class="muted">${t('temperatures.formatHint')}</p>
         <div class="drop-zone" id="drop" role="button" tabindex="0" aria-label="${t('temperatures.dropZoneAria')}">
           <p>${t('temperatures.dropZone')}</p>
@@ -63,7 +66,19 @@ export async function render(container) {
         <button type="button" class="btn btn--sm btn--ghost" id="dl-example" style="margin-top:10px"><span aria-hidden="true">⬇</span> ${t('temperatures.downloadExample')}</button>
       </div>
       <div class="card">
-        <h3 class="card__title">${t('temperatures.location')}</h3>
+        <h2 class="card__title">${t('temperatures.location')}</h2>
+        <!-- v2.12.0 (Review UI-30) — Ortssuche statt Koordinaten von Hand; der
+             Standort steht nur noch hier (bis v2.11 auch in den Einstellungen)
+             und wird beim Verlassen eines Feldes gespeichert, nicht erst beim
+             Abgleich. -->
+        <div class="field">
+          <label for="geo-q">${t('temperatures.geoLabel')}</label>
+          <div class="geo-search">
+            <input class="input input--text" id="geo-q" type="search" autocomplete="off" enterkeyhint="search" placeholder="${escapeHtml(t('temperatures.geoPlaceholder'))}">
+            <button type="button" class="btn" id="geo-go">${t('temperatures.geoSearch')}</button>
+          </div>
+          <ul class="geo-results" id="geo-results" aria-live="polite"></ul>
+        </div>
         <div class="form-row">
           <!-- v2.5.3 — Text statt type="number": leer ergab 0/0 (Golf von Guinea),
                „51,34" je nach Browser ebenfalls. Kein inputmode="decimal", weil
@@ -76,6 +91,10 @@ export async function render(container) {
         </div>
         <p class="muted">${t('temperatures.locHint')}</p>
         <label class="settings-field__check" style="margin-top:var(--sp-2)">
+          <input type="checkbox" id="auto-fill" ${settings.weather_auto_fill !== false ? 'checked' : ''}> ${t('settings.field.weather_auto_fill.label')}
+        </label>
+        <p class="settings-field__hint">${t('settings.field.weather_auto_fill.hint')}</p>
+        <label class="settings-field__check" style="margin-top:var(--sp-2)">
           <input type="checkbox" id="sync-reload"> ${t('temperatures.reload')}
         </label>
         ${defaultLocation ? `<p class="banner banner--info" style="margin:var(--sp-3) 0 0">${escapeHtml(t('temperatures.locationDefault', { country: t('countries.' + profile.code), name: profile.location_name }))}</p>` : ''}
@@ -84,7 +103,7 @@ export async function render(container) {
 
     <div class="card" style="margin-top: var(--sp-5)">
       <div class="section-head">
-        <h2 style="margin:0;font-size:var(--fs-lg)">${t('temperatures.monthly')}</h2>
+        <h2 class="card__title">${t('temperatures.monthly')}</h2>
         <div class="muted">${t('temperatures.daysLoaded', { count: days.length })}</div>
       </div>
       ${measuredUntil ? `<p class="muted" style="margin-top:0">${t(forecastUntil ? 'temperatures.statusWithForecast' : 'temperatures.status', {
@@ -114,7 +133,9 @@ export async function render(container) {
 
   // Beispiel-CSV als Datei erzeugen und herunterladen.
   container.querySelector('#dl-example')?.addEventListener('click', () => {
-    const csv = '15.01.2024"4.2"-1.0"7.1\n16.01.2024"3.8"-2.0"6.5\n';
+    // v2.12.0 — übliches CSV mit Semikolon (das alte Format mit
+    // Anführungszeichen liest der Import weiter)
+    const csv = 'Datum;Mittel;Min;Max\n15.01.2024;4,2;-1,0;7,1\n16.01.2024;3,8;-2,0;6,5\n';
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -123,30 +144,77 @@ export async function render(container) {
     URL.revokeObjectURL(a.href);
   });
 
+  // v2.12.0 (Review UI-30) — Standort prüfen und speichern; beim Verlassen
+  // eines Feldes, nach der Ortssuche und vor dem Abgleich
+  const coord = (id, limit) => {
+    const el = container.querySelector(`#${id}`);
+    const n = parseDecimal(el.value);
+    const ok = n !== null && Math.abs(n) <= limit;
+    showFieldError(el, container.querySelector(`#${id}-msg`),
+      ok ? null : t('temperatures.coordInvalid', { min: -limit, max: limit }));
+    return ok ? n : null;
+  };
+  const saveLocation = async ({ quiet = false } = {}) => {
+    const latitude  = coord('lat', 90);
+    const longitude = latitude === null ? null : coord('lng', 180);
+    if (latitude === null || longitude === null) return false;
+    const location_name = container.querySelector('#loc-name').value.trim();
+    const current = await getSettings();
+    if (current.latitude === latitude && current.longitude === longitude && (current.location_name || '') === location_name) return true;
+    // v2.11.0 (FE-12) — über saveSettings: Das Neuzeichnen las bis v2.10 den
+    // alten Standort aus dem Cache und schrieb ihn beim nächsten Klick zurück.
+    await saveSettings({ latitude, longitude, location_name });
+    if (!quiet) toastOk(t('temperatures.locationSaved'));
+    return true;
+  };
+  ['#lat', '#lng', '#loc-name'].forEach(sel => container.querySelector(sel)?.addEventListener('change', () => {
+    saveLocation().catch(e => toastErr(e.message));
+  }));
+
+  // Ortssuche (Open-Meteo Geocoding über das eigene Backend)
+  const geoInput = container.querySelector('#geo-q');
+  const geoList = container.querySelector('#geo-results');
+  let geoSeq = 0;
+  const searchPlaces = async () => {
+    const q = geoInput.value.trim();
+    if (q.length < 2) { geoInput.focus(); return; }
+    const my = ++geoSeq;
+    geoList.innerHTML = `<li class="muted">${escapeHtml(t('common.loading'))}</li>`;
+    try {
+      const places = await api.geocode(q);
+      if (my !== geoSeq) return;
+      geoList.innerHTML = places.length
+        ? places.map((p, i) => `<li><button type="button" class="btn btn--ghost btn--sm geo-results__item" data-geo="${i}">
+            ${escapeHtml([p.name, p.postcode, p.admin1, p.country].filter(Boolean).join(', '))}
+            <span class="muted">${escapeHtml(fmt.num(p.latitude, 2))}, ${escapeHtml(fmt.num(p.longitude, 2))}</span></button></li>`).join('')
+        : `<li class="muted">${escapeHtml(t('temperatures.geoNone'))}</li>`;
+      geoList.querySelectorAll('[data-geo]').forEach(btn => btn.addEventListener('click', async () => {
+        const p = places[Number(btn.dataset.geo)];
+        container.querySelector('#lat').value = formatForInput(p.latitude, 4);
+        container.querySelector('#lng').value = formatForInput(p.longitude, 4);
+        container.querySelector('#loc-name').value = p.name;
+        geoList.innerHTML = '';
+        try { await saveLocation(); } catch (e) { toastErr(e.message); }
+      }));
+    } catch (e) {
+      if (my === geoSeq) geoList.innerHTML = `<li class="danger-text">${escapeHtml(e.message)}</li>`;
+    }
+  };
+  container.querySelector('#geo-go')?.addEventListener('click', searchPlaces);
+  geoInput?.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); searchPlaces(); } });
+
+  // „Wetter automatisch füllen" wirkt sofort
+  container.querySelector('#auto-fill')?.addEventListener('change', async (e) => {
+    try { await saveSettings({ weather_auto_fill: e.target.checked }); toastOk(t('settings.saved')); }
+    catch (err) { toastErr(err.message); }
+  });
+
   // Open-Meteo sync
   const syncBtn = container.querySelector('#btn-sync');
   syncBtn.addEventListener('click', guardSubmit(syncBtn, async () => {
-    const coord = (id, limit) => {
-      const el = container.querySelector(`#${id}`);
-      const n = parseDecimal(el.value);
-      const ok = n !== null && Math.abs(n) <= limit;
-      showFieldError(el, container.querySelector(`#${id}-msg`),
-        ok ? null : t('temperatures.coordInvalid', { min: -limit, max: limit }));
-      return ok ? n : null;
-    };
-    const latitude  = coord('lat', 90);
-    const longitude = latitude === null ? null : coord('lng', 180);
-    if (latitude === null || longitude === null) return;
     try {
-      // Persist location to settings first (so backend uses it for the sync).
-      // v2.11.0 (FE-12) — über saveSettings: Das Neuzeichnen danach las bis
-      // v2.10 den alten Standort aus dem Cache und schrieb ihn beim nächsten
-      // Klick zurück.
-      await saveSettings({
-        latitude,
-        longitude,
-        location_name: container.querySelector('#loc-name').value,
-      });
+      // Standort zuerst speichern — der Server gleicht für ihn ab
+      if (!await saveLocation({ quiet: true })) return;
       // v2.8.0 — ohne Zeitraum ab der ersten Ablesung; „reload" ersetzt auch
       // Werte von vor v2.8.0 durch Archivwerte
       const reload = container.querySelector('#sync-reload')?.checked;

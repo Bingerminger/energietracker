@@ -118,7 +118,7 @@ HTTP**.
 | `DeliveryConsumptionService` | **(since v1.4.4)** heating oil/pellets — extracted from `ConsumptionService`; since v2.10.0 the tank log (`tankModel()`): anchors, one calculation for consumption, costs and stock, climate normal for missing days |
 | `DeliveryService` | CRUD deliveries, tank stock curve |
 | `TemperatureService` | CSV import, Open-Meteo sync with a source per day, daily auto-sync (v2.8.0) |
-| `WeatherService` | Open-Meteo wrapper (archive, forecast, 30-year daily means) behind the `WeatherSource` interface |
+| `WeatherService` | Open-Meteo wrapper (archive, forecast, 30-year daily means, place search since v2.12.0) behind the `WeatherSource` interface |
 | `ClimateNormalService` | **(v2.8.0)** climate normal at the location: HDD mean and spread per calendar month from 30 years |
 | `RegressionService` | 5 models: linear, polynomial, robust, segmented (auto/fixed), sigmoid |
 | `ForecastService` | R²-weighted mix of regression × seasonal profile, HDD from the climate normal, uncertainty band; contract-based cost forecast |

@@ -18,7 +18,8 @@
     "optional": "optional",
     "required": "required",
     "actions": "Actions",
-    "invalidNumber": "Please enter a valid number, e.g. {example}."
+    "invalidNumber": "Please enter a valid number, e.g. {example}.",
+    "undo": "Undo"
   },
   "app": {
     "themeToggle": "Switch theme",
@@ -78,7 +79,6 @@
     "contracts": "Contracts & payments",
     "billCheck": "Check a bill",
     "report": "Annual report",
-    "general": "General",
     "weather": "Weather data",
     "tab": {
       "overview": "Overview",
@@ -136,8 +136,6 @@
     },
     "recommendations": { "title": "Top recommendations" },
     "reminders": {
-      "title": "Upcoming reminders",
-      "due": "due {date}",
       "now": "now",
       "overdueDays": {
         "one": "overdue by 1 day",
@@ -156,13 +154,26 @@
       "consumption": "Consumption (last 12 months)",
       "cost": "Cost (last 12 months)",
       "costSub": "incl. bonuses",
-      "noContract": "no contract on file",
-      "activeMeters": "Active meters",
-      "totalMeters": "{count} total"
+      "noContract": "no contract on file"
     },
     "trend": { "vsPrev": "vs. previous 12 months", "moreThanPrev": "{pct}% more than the previous 12-month period", "lessThanPrev": "{pct}% less than the previous 12-month period" },
     "allRecommendations": "All recommendations",
-    "allReminders": "All reminders"
+    "todo": {
+      "title": "To do",
+      "readingDue": {
+        "one": "last reading 1 day ago",
+        "other": "last reading {count} days ago"
+      },
+      "readingNever": "no reading yet",
+      "readingAction": "Enter reading",
+      "reminderAction": "Open reminders",
+      "contractAction": "View contracts",
+      "tankAction": "Record delivery",
+      "readingsDue": {
+        "one": "{count} meter is waiting for a reading",
+        "other": "{count} meters are waiting for a reading"
+      }
+    }
   },
   "readingsEntry": {
     "title": "Meter readings",
@@ -172,7 +183,7 @@
     "saveAll": "Save all",
     "saveAllProgress": "Save all ({done} of {total} entered)",
     "saving": "Saving …",
-    "error": { "title": "Loading failed", "unknown": "Unknown error" },
+    "error": { "title": "Loading failed", "unknown": "Unknown error", "invalidNumber": "Please enter a number, for example 12345.6." },
     "empty": {
       "title": "No meters",
       "text": "Central entry is only available for cumulative meters (gas, electricity, water, district heating). Heating oil/pellets track consumption via deliveries, not meter readings.",
@@ -188,7 +199,7 @@
       "notePlaceholder": "optional",
       "addNote": "+ Note",
       "hideNote": "− Hide note",
-      "placeholderExample": "e.g. {value}"
+      "otherDate": "Other date"
     },
     "status": {
       "saving": "Saving…",
@@ -207,7 +218,11 @@
       "savedEmpty": "{ok} saved · {skipped} empty",
       "saved": "{ok} saved",
       "nothing": "No entries — nothing to save",
-      "held": "{count} reading(s) not saved – please check the marked cards."
+      "held": "{count} reading(s) not saved – please check the marked cards.",
+      "undone": {
+        "one": "1 reading undone",
+        "other": "{count} readings undone"
+      }
     }
   },
   "utility": {
@@ -471,7 +486,6 @@
       "empty": "No sections in the chosen range.",
       "noReading": "no reading",
       "total": "Total",
-      "gaps": "{count} section(s) without an enclosing reading — consumption is missing there.",
       "formula": "kWh = m³ × volume correction factor × calorific value. The supplier estimates intermediate readings at calorific-value boundaries; here the reading interval is split day-exactly.",
       "errRange": "Please choose a valid range (from before to).",
       "col": {
@@ -500,7 +514,11 @@
         "interpolated": "E"
       },
       "legend": "Reading type: no suffix = meter reading · S = reading recorded as estimated · E = substitute value: there is no meter reading on this day, it is interpolated day-exact between the enclosing readings — exactly where the supplier estimates too (calorific-value and period boundaries). The fewer rows with E, the less is estimation.",
-      "open": "Check the {year} bill"
+      "open": "Check the {year} bill",
+      "gapsN": {
+        "one": "{count} section without an enclosing reading — consumption is missing there.",
+        "other": "{count} sections without an enclosing reading — consumption is missing there."
+      }
     },
     "warnings": {
       "title": "Implausible meter readings: {count}",
@@ -549,20 +567,44 @@
     },
     "status": { "active": "ACTIVE", "past": "PAST", "future": "FUTURE" },
     "summary": {
-      "twPrices": "{count} drink.-water prices",
-      "swPrices": "{count} waste-water prices",
-      "nwDates": "{count} rainwater dates",
-      "advances": "{count} advances",
-      "bonuses": "{count} bonuses",
-      "workingPrices": "{count} working prices",
-      "basePrices": "{count} base prices",
-      "specialPayments": "{count} special payments"
+      "twPrices": {
+        "one": "{count} drinking-water price",
+        "other": "{count} drinking-water prices"
+      },
+      "swPrices": {
+        "one": "{count} wastewater price",
+        "other": "{count} wastewater prices"
+      },
+      "nwDates": {
+        "one": "{count} rainwater date",
+        "other": "{count} rainwater dates"
+      },
+      "advances": {
+        "one": "{count} advance payment",
+        "other": "{count} advance payments"
+      },
+      "bonuses": {
+        "one": "{count} bonus",
+        "other": "{count} bonuses"
+      },
+      "workingPrices": {
+        "one": "{count} working price",
+        "other": "{count} working prices"
+      },
+      "basePrices": {
+        "one": "{count} base price",
+        "other": "{count} base prices"
+      },
+      "specialPayments": {
+        "one": "{count} special payment",
+        "other": "{count} special payments"
+      }
     },
     "group": { "working": "Working price", "base": "Base price", "advance": "Advance", "addRow": "+ Row" },
     "row": {
       "validFrom": "Valid from",
-      "copyStart": "⇧ Start",
-      "copyStartTitle": "Copy contract start date",
+      "copyStart": "From start",
+      "copyStartTitle": "Set this row’s date to the contract start",
       "removeRow": "Remove row",
       "setStartFirst": "Please set the contract start date first"
     },
@@ -616,7 +658,7 @@
       "autoRenews": "Renews unless cancelled",
       "autoRenewsHint": "After the end the contract runs on at its last prices until it is cancelled — then with at most one month’s notice. Clear this once you have cancelled."
     },
-    "delete": { "title": "Delete contract?", "message": "Delete contract permanently?", "confirm": "Delete", "deleted": "Contract deleted" },
+    "delete": { "title": "Delete contract?", "confirm": "Delete", "deleted": "Contract deleted", "messageNamed": "Delete the contract “{name}” permanently? Its prices, advance payments and bonuses are lost." },
     "deleteContract": "Delete contract",
     "bonus": {
       "title": "Bonuses / credits",
@@ -688,7 +730,7 @@
     "unknown": "Unknown utility: {key}",
     "title": "{label} · Meters",
     "toOverview": "To overview",
-    "merge": "Merge meters",
+    "merge": "Group meters",
     "newMeter": "+ New meter",
     "info": {
       "title": "Multiple meters per utility",
@@ -779,31 +821,66 @@
     },
     "import": {
       "title": "Import readings: {name}",
-      "intro": "Imports readings from a CSV file directly into the meter <strong>{name}</strong>. An existing reading on the same date is <strong>overwritten</strong> and reported in the result.",
+      "intro": "Reads readings from a CSV file for the meter <strong>{name}</strong>. Before importing, a preview shows every row and what it will do — an existing reading on the same day is <strong>replaced</strong>.",
       "formatLabel": "Expected format",
       "formatHint": "Separator <code>;</code> or <code>,</code> · date <code>DD.MM.YYYY</code> or <code>YYYY-MM-DD</code> · decimal comma allowed · columns <em>note</em> and <em>estimated</em> optional · a header row is detected automatically.",
       "downloadExample": "Download example CSV",
       "dropZone": "Drop a CSV file here or click to select",
       "dropZoneAria": "Select a CSV file or drop it here",
-      "importing": "Importing…",
       "result": "<strong>{imported}</strong> newly imported · <strong>{overwritten}</strong> overwritten · <strong>{skipped}</strong> skipped",
       "moreErrors": "… and {count} more",
-      "toast": "{count} reading(s) applied",
-      "close": "Close"
+      "close": "Close",
+      "reading": "Reading file…",
+      "previewSummary": "Read: {rows} · new: {new} · replaces existing: {overwrite} · unchanged: {same} · with notes: {flagged}",
+      "unreadable": {
+        "one": "{count} row unreadable",
+        "other": "{count} rows unreadable"
+      },
+      "otherMeterRows": {
+        "one": "{count} row belongs to another meter and is skipped.",
+        "other": "{count} rows belong to other meters and are skipped."
+      },
+      "col": {
+        "date": "Date",
+        "counter": "Reading",
+        "effect": "Effect",
+        "notes": "Note"
+      },
+      "effect": {
+        "new": "new",
+        "overwrite": "replaces {counter}",
+        "same": "unchanged"
+      },
+      "duplicate": "Date appears more than once in the file — the last row wins",
+      "moreRows": {
+        "one": "… and {count} more row without notes",
+        "other": "… and {count} more rows without notes"
+      },
+      "confirm": {
+        "one": "Import {count} row",
+        "other": "Import {count} rows"
+      },
+      "otherFile": "Choose another file",
+      "nothing": "The file contains no readable row.",
+      "imported": {
+        "one": "{count} reading imported",
+        "other": "{count} readings imported"
+      },
+      "importing": "Importing…"
     },
     "mergeModal": {
-      "title": "Merge meters",
-      "intro": "Merge several meters into one <strong>group</strong> — e.g. <em>off-peak + peak electricity</em> or several wallboxes. The group combines consumption in the dashboard; the individual meters are kept.",
+      "title": "Group meters",
+      "intro": "Combine several meters into a <strong>group</strong> — e.g. <em>off-peak + peak electricity</em> or several wallboxes. The group shows the total on the overview; the meters themselves stay separate and unchanged.",
       "select": "Select meters (at least two) *",
       "alreadyInGroup": "already in a group",
       "existingGroup": "Existing group",
       "newGroupOption": "— create new group —",
       "newGroupName": "New group name",
       "newGroupPlaceholder": "e.g. electricity peak+off-peak",
-      "submit": "Merge",
+      "submit": "Save group",
       "needTwo": "Please select at least two meters",
       "needName": "Please provide a group name or choose an existing group",
-      "done": "{count} meters merged into group “{name}”"
+      "done": "{count} meters grouped in “{name}”"
     },
     "baseline": {
       "title": "Baseline cut-offs",
@@ -826,9 +903,6 @@
     },
     "loading": "Loading…",
     "title": "Settings",
-    "subtitle": "Configuration · data export · backup & restore",
-    "save": "Save settings",
-    "saveUnsaved": "Save •",
     "saved": "Settings saved",
     "lang": {
       "title": "🌐 Language & country / Sprache",
@@ -849,13 +923,13 @@
       "physical": { "title": "Physical constants", "hint": "Conversion and heating-degree-day base — affect all analyses." },
       "co2": { "title": "CO₂ emission factors", "hint": "Grams of CO₂ per consumption unit, for the emission estimate." },
       "billing": { "title": "Billing cycle", "hint": "Annual settlement date per utility (format DD-MM, e.g. 01-01 for 1 January, 15-04 for 15 April). Determines how far the balance of open contracts is projected; contracts with a maintained end date still use that end." },
-      "contractReminders": { "title": "Contract reminders", "hint": "Days before contract end from which the contract overview warns. Three levels — early warning to last day." },
+      "contractReminders": { "title": "Reminders", "hint": "Three levels before a contract ends or its notice deadline; for reminders the advance warning and the grace period until “overdue”." },
       "water": { "title": "Water reference values", "hint": "Household size, per-capita reference and the bands of the saving index." },
       "regression": { "title": "Regression & forecast", "hint": "Filters for the regression basis and parameters of the forecast model." },
-      "dashboard": { "title": "Dashboard", "hint": "Display scope and thresholds of the overview." },
+      "dashboard": { "title": "Display", "hint": "Time span of the overview and the forecast; when a missing reading is flagged." },
       "building": { "title": "Building & efficiency", "hint": "Reference values for the efficiency class (kWh/m²·a) and the heating-energy benchmark." },
       "delivery": { "title": "Energy sources (delivery)", "hint": "Energy content of delivery-based fuels and the tank warning threshold." },
-      "remindersRec": { "title": "Reminders & recommendations", "hint": "Thresholds for due status and the recommendation engine." },
+      "remindersRec": { "title": "Recommendations & distribution", "hint": "Thresholds of the recommendations and the base-load share used to spread heating oil and pellets over the days." },
       "location": { "title": "Location (Open-Meteo)", "hint": "Coordinates for the weather sync of the temperature series." },
       "embedding": {
         "title": "Embedding",
@@ -1062,7 +1136,6 @@
       "revokeConfirmMsg": "After revoking, the push endpoint is reachable without a token again (open mode). Home Assistant automations with the old token will fail.",
       "revokeConfirmBtn": "Revoke",
       "revoked": "Token revoked",
-      "aliasesSaved": "{count} alias(es) saved",
       "yamlCopied": "YAML copied",
       "clipboardFail": "Copy failed",
       "step4": "4. Automation (to copy)",
@@ -1075,7 +1148,11 @@
       },
       "lastUsed": "Last used: {when}",
       "neverUsed": "Nothing has arrived with this token yet.",
-      "loginNeedsToken": "Sign-in is switched on: without a token, Energietracker accepts no values from Home Assistant."
+      "loginNeedsToken": "Sign-in is switched on: without a token, Energietracker accepts no values from Home Assistant.",
+      "aliasesSavedN": {
+        "one": "{count} alias saved",
+        "other": "{count} aliases saved"
+      }
     },
     "diag": {
       "title": "🩺 System diagnostics",
@@ -1233,6 +1310,58 @@
       "rh": "Terraced house",
       "mfh": "Multi-family building",
       "whg": "Flat"
+    },
+    "page": {
+      "general": {
+        "title": "General",
+        "subtitle": "Language, country, display and reminders"
+      },
+      "household": {
+        "title": "Household & building",
+        "subtitle": "Living area, building and people in the household"
+      },
+      "utilities": {
+        "title": "Utilities & billing",
+        "subtitle": "Active utilities, billing dates, conversion and CO₂ factors"
+      },
+      "data": {
+        "title": "Data",
+        "subtitle": "Export, backup, restore and demo data"
+      },
+      "integrations": {
+        "title": "Integrations",
+        "subtitle": "Home Assistant and meter readings from outside"
+      },
+      "access": {
+        "title": "Access",
+        "subtitle": "Sign-in, API keys and embedding"
+      },
+      "expert": {
+        "title": "Expert",
+        "subtitle": "Calculation parameters for regression, forecast and recommendations"
+      },
+      "system": {
+        "title": "System",
+        "subtitle": "Version, diagnostics and data directory"
+      }
+    },
+    "savebar": {
+      "unsaved": "Unsaved changes",
+      "discard": "Discard"
+    },
+    "leave": {
+      "title": "Discard changes?",
+      "message": "This page has unsaved changes. Moving on loses them.",
+      "confirm": "Discard"
+    },
+    "expert": {
+      "summary": "Show calculation parameters",
+      "warning": "These values control the calculation models. The defaults suit most households – change them only if you know what they do."
+    },
+    "system": {
+      "aboutTitle": "About Energietracker",
+      "about": "Energietracker {version} – consumption, costs and contracts, local and without a cloud.",
+      "license": "Free software under the MIT licence"
     }
   },
   "reminders": {
@@ -1262,9 +1391,9 @@
     },
     "recurrence": { "none": "One-time", "yearly": "Yearly", "semi-yearly": "Half-yearly", "custom-months": "Every N months" },
     "due": { "today": "today", "inDays": "in {days} d", "agoDays": "{days} d ago" },
-    "action": { "done": "Done", "edit": "Edit", "delete": "Delete" },
-    "toast": { "markedDone": "Marked as done", "deleted": "Deleted", "saved": "Saved", "error": "Error: {msg}" },
-    "deleteConfirm": { "title": "Delete reminder", "message": "Really delete this reminder?", "confirm": "Delete" },
+    "action": { "done": "Done", "edit": "Edit", "delete": "Delete", "doneNamed": "Done: {title}", "editNamed": "Edit: {title}", "deleteNamed": "Delete: {title}" },
+    "toast": { "deleted": "Deleted", "saved": "Saved", "error": "Error: {msg}", "doneNext": "“{title}” done · next due {date}", "doneOnce": "“{title}” done", "undone": "“{title}” is open again" },
+    "deleteConfirm": { "title": "Delete reminder", "confirm": "Delete", "messageNamed": "Really delete “{title}”? This cannot be undone." },
     "form": {
       "titleEdit": "Edit reminder",
       "titleNew": "New reminder",
@@ -1276,8 +1405,13 @@
       "fInterval": "Interval (months)",
       "fNotes": "Notes",
       "save": "Save",
-      "validation": "Title and date are required",
-      "intervalInvalid": "The interval must be a whole number from 1 to 120 months."
+      "intervalInvalid": "The interval must be a whole number from 1 to 120 months.",
+      "titleRequired": "Please enter a title.",
+      "dueRequired": "Please choose a due date."
+    },
+    "everyMonths": {
+      "one": "Every month",
+      "other": "Every {count} months"
     }
   },
   "temperatures": {
@@ -1285,7 +1419,7 @@
     "title": "Weather data",
     "sync": "Sync Open-Meteo",
     "csvImport": "CSV import",
-    "formatHint": "Format: <code>DD.MM.YYYY\"avg\"min\"max</code> (e.g. <code>15.01.2024\"4.2\"-1.0\"7.1</code>). Values in °C, double quotes as separator.",
+    "formatHint": "Format: <code>DD.MM.YYYY;mean;min;max</code> (e.g. <code>15.01.2024;4.2;-1.0;7.1</code>), values in °C. Semicolon, tab or comma as separator; the old format with double quotes still works.",
     "downloadExample": "Download example CSV",
     "dropZone": "Drop a file here or click to select",
     "dropZoneAria": "Select a CSV file or drop it here",
@@ -1307,7 +1441,13 @@
     "statusWithForecast": "Measured values up to {measured}, forecast up to {forecast}.",
     "reload": "Also replace existing older values with archive values (fixes forecasts stored as measurements)",
     "climateFetched": "Climate normal {from}–{to} loaded — forecast and weather adjustment now use 30 years of climate.",
-    "climateFailed": "The climate normal could not be loaded — the forecast uses your own temperature history."
+    "climateFailed": "The climate normal could not be loaded — the forecast uses your own temperature history.",
+    "subtitle": "Daily temperatures for degree days, adjustment and forecast",
+    "geoLabel": "Search place or postcode",
+    "geoPlaceholder": "e.g. Leeds or LS1",
+    "geoSearch": "Search",
+    "geoNone": "No place found.",
+    "locationSaved": "Location saved"
   },
   "recommendations": {
     "loading": "Loading recommendations…",
@@ -1321,7 +1461,6 @@
     "emptyAll": "No recommendations — all clear.",
     "emptyFiltered": "No {sev} recommendations — all clear.",
     "dismiss": "Hide for 30 days",
-    "dismissed": "Recommendation hidden (30 days)",
     "error": "Error: {msg}",
     "engine": {
       "r1": {
@@ -1354,7 +1493,10 @@
         "title": "{label}: efficiency class {class} ({kwh} kWh/m²·a)",
         "detail": "The heating energy demand {year} for {label} corresponds to efficiency class {class} ({kwh} kWh/m²·a). Insulation, heating optimisation or a hydraulic balance can improve the class noticeably."
       }
-    }
+    },
+    "dismissedNamed": "“{title}” hidden for 30 days",
+    "restored": "Recommendation shown again",
+    "dismissNamed": "Hide for 30 days: {title}"
   },
   "tariff": {
     "loading": "Loading…",
@@ -1365,7 +1507,7 @@
     "meter": "Meter",
     "year": "Year",
     "wholePeriod": "Whole period",
-    "addShadow": "+ Offer",
+    "addShadow": "+ Add offer",
     "loadingComparison": "Loading comparison…",
     "noMeter": "No meter available.",
     "notSupported": "Not supported.",
@@ -1382,12 +1524,12 @@
     "chartAlt": "Bar chart of total cost per unit ({unit}) for each tariff",
     "unitCostTitle": "Total cost per unit — unit price, standing charge and bonuses combined. The only figure that fairly compares terms of different lengths.",
     "legend": "Negative (green) = cheaper than the contract actually billed for the same months. Only pure tariff costs are compared; advance payments and one-off settlements are cash flows and stay out of it.",
-    "action": { "edit": "Edit", "delete": "Delete" },
+    "action": { "edit": "Edit", "delete": "Delete", "editNamed": "Edit: {name}", "deleteNamed": "Remove: {name}" },
     "col": { "tariff": "Tariff", "period": "Period", "consumption": "Consumption", "cost": "Cost", "unitCost": "{minor}/{unit}", "vsReal": "vs. actual", "savings": "Difference" },
     "period": "Period: {label}",
     "periodRange": "Period: {label} ({from} – {to})",
     "shadow": {
-      "title": "Create shadow contract",
+      "title": "Add offer",
       "intro": "A hypothetical tariff — does NOT affect balance/forecast, only this comparison.",
       "label": "Label",
       "labelPlaceholder": "e.g. discounter offer",
@@ -1402,14 +1544,13 @@
       "validation": "Label, date and working price are required",
       "created": "Shadow contract created",
       "error": "Error: {msg}",
-      "titleEdit": "Edit shadow contract",
+      "titleEdit": "Edit offer",
       "end": "Valid until (optional)",
       "endHint": "Leave empty for “ongoing”.",
       "save": "Save",
       "updated": "Shadow contract saved",
       "deleted": "Shadow contract deleted",
       "deleteTitle": "Delete shadow contract?",
-      "deleteMessage": "The hypothesis will be removed. Real contracts and readings stay untouched.",
       "deleteConfirm": "Delete",
       "signupBonus": "Sign-up bonus ({cur})",
       "signupBonusPlaceholder": "e.g. 130",
@@ -1418,7 +1559,8 @@
       "priceGuaranteeHint": "Beyond that the price is an assumption — dashed in the chart.",
       "noticePeriod": "Notice period (months)",
       "noticePeriodPlaceholder": "e.g. 1",
-      "noticePeriodHint": "Used to work out dates should this tariff become the active one."
+      "noticePeriodHint": "Used to work out dates should this tariff become the active one.",
+      "deleteMessageNamed": "Remove the offer “{name}”? Real contracts and readings stay untouched."
     },
     "switch": {
       "heading": "Switching decision",
@@ -1685,7 +1827,9 @@
       "emptyCsv": "The CSV data is empty.",
       "dateMissing": "The date is missing.",
       "valuesMissing": "Average, minimum and maximum (avg, min, max) are required and must be numbers.",
-      "rangeInvalid": "Invalid range: {start} is after {end}."
+      "rangeInvalid": "Invalid range: {start} is after {end}.",
+      "geocodeQuery": "Please enter at least two characters (at most 80).",
+      "geocodeFailed": "The place search is not reachable right now. The coordinates can also be entered by hand."
     },
     "view": {
       "loadFailed": "Failed to load: {msg}",
@@ -1707,7 +1851,8 @@
       "titleRequired": "A title is required.",
       "dueRequired": "A due date (YYYY-MM-DD) is required.",
       "recurrenceMonths": "“Every N months” needs an interval greater than 0.",
-      "notFound": "Reminder not found: {id}"
+      "notFound": "Reminder not found: {id}",
+      "lastDoneInvalid": "“Last done” must be empty or a date (YYYY-MM-DD)."
     },
     "tariff": {
       "waterUnsupported": "Tariff comparison for water (three-component tariff) is not part of this version.",

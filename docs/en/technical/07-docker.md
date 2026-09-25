@@ -133,12 +133,12 @@ On the very first start with an empty `data` volume, Energietracker creates a fr
 empty data directory. If you want to see the **demo data** for trying out, there are
 two ways:
 
-1. **Convenient (from v1.7.4) in the UI:** *Settings → Backup & Restore → "Load demo
-   data"*.
+1. **Convenient (from v1.7.4) in the UI:** *Settings → Data → Backup & restore →
+   "Load demo data"*.
 2. **Manually even now:** upload the bundled
    [`demo-data/energietracker-demo-backup.json`](../../../demo-data/energietracker-demo-backup.json)
-   via *Settings → Backup & Restore → Import backup*. Beforehand a safety snapshot of
-   your current data is created automatically (N1004).
+   via *Settings → Data → Backup & restore → Import backup*. Beforehand a safety
+   snapshot of your current data is created automatically (N1004).
 
 ---
 
@@ -195,8 +195,8 @@ the app) with HTTP 503 — Docker then shows the container as *unhealthy*.
 
 ## Performing updates
 
-1. **Export a backup:** *Settings → Backup & Restore → Export backup*. This is
-   your way back — a schema migration cannot be undone.
+1. **Export a backup:** *Settings → Data → Backup & restore → Download JSON
+   backup*. This is your way back — a schema migration cannot be undone.
 2. **Read the CHANGELOG:** whatever is listed under “Migration” applies to you.
 3. **Fetch the new version:**
 
@@ -227,15 +227,15 @@ recognises newer data and **writes nothing** (HTTP 503, `/api/health` reports
 
 ## Backing up & restoring data
 
-- **Back up:** *Settings → Backup & Restore → Export backup* downloads a JSON file
-  with all your data.
+- **Back up:** *Settings → Data → Backup & restore → Download JSON backup*
+  downloads a JSON file with all your data.
 - **Restore:** the same place → *Import backup*. Since v2.6.0 the app checks the
   backup completely first and shows a preview; a faulty backup changes nothing.
   Before overwriting, Energietracker automatically creates a snapshot.
-- **Snapshots** (since v2.6.0): *Settings → Backup & Restore → Stored snapshots*
-  lists them with time and occasion; download, restore or delete them from
-  there. Automatic snapshots are cleaned up after 30 days (at least three per
-  occasion remain), your own after ten.
+- **Snapshots** (since v2.6.0): *Settings → Data → Backup & restore → Stored
+  snapshots* lists them with time and occasion; download, restore or delete
+  them from there. Automatic snapshots are cleaned up after 30 days (at least
+  three per occasion remain), your own after ten.
 - On the file level everything is in the mounted `data/` folder — you can
   additionally back it up classically (copy it).
 

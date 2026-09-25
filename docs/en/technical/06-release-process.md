@@ -552,6 +552,25 @@ accepted.
   files come from its cache, and it matches without the query. In a release the
   cache changes with the version; between two states of the same version the
   browser shows old CSS, though. Unregister the worker before visual checks.
+- **One separator per line (v2.12.0).** The temperature import split with
+  `[;,]` — in countries with a decimal comma that hits the number itself:
+  `01.01.2024;4,2;-1,0;7,1` became mean 4, min 2, max −1. It surfaced only when
+  a test read the usual Excel format. Detect the separator from the line
+  (semicolon, else tab, else comma) instead of guessing with a character class;
+  the readings import already did.
+- **Pre-filled is not entered (v2.12.0).** The first price row of a new
+  contract now carries the contract start. Without further care, a row with a
+  date and no amount would have been "half filled" and blocked saving — for
+  instance for a contract without advance payments. The pre-filled date
+  therefore carries a marker (`data-auto`) until someone changes it; a marked
+  row without an amount counts as empty. The per-m³ conversion helper looked for
+  "the first row without a date" and found none any more — an existing render
+  test failed before anyone noticed.
+- **Undo needs a way back in the API (v2.12.0).** "Done" and "Hide" could not
+  be taken back: `last_done` was not changeable, and hiding had no counterpart.
+  A toast with "Undo" is quick to build, the way back in the data model is not;
+  both belong in the same change, or the interface promises something it cannot
+  do.
 
 ---
 

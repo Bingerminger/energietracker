@@ -977,7 +977,7 @@ Im `merge`-Modus enthält jedes Utility zusätzlich ein
 Der Token schützt **nur** den Ingest-Endpoint: Ohne Token nimmt er Werte ohne
 Kopfzeile an, sobald ein Token erzeugt wurde, verlangt er
 `Authorization: Bearer <token>`. Die übrigen Routen schützt seit v2.6.0 die
-**Anmeldung** (opt-in, Einstellungen → „Anmeldung & Zugriff"); ist sie
+**Anmeldung** (opt-in, Einstellungen → Zugriff → „Anmeldung & Zugriff"); ist sie
 eingeschaltet, ist der Token für den Ingest **Pflicht**. Details:
 [Sicherheit](technical/08-security.md).
 

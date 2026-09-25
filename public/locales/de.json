@@ -18,7 +18,8 @@
     "optional": "optional",
     "required": "Pflichtfeld",
     "actions": "Aktionen",
-    "invalidNumber": "Bitte eine gültige Zahl eingeben, z. B. {example}."
+    "invalidNumber": "Bitte eine gültige Zahl eingeben, z. B. {example}.",
+    "undo": "Rückgängig"
   },
   "app": {
     "themeToggle": "Theme wechseln",
@@ -78,7 +79,6 @@
     "contracts": "Verträge & Abschläge",
     "billCheck": "Rechnung prüfen",
     "report": "Jahresbericht",
-    "general": "Allgemein",
     "weather": "Wetterdaten",
     "tab": {
       "overview": "Übersicht",
@@ -136,8 +136,6 @@
     },
     "recommendations": { "title": "Top-Empfehlungen" },
     "reminders": {
-      "title": "Anstehende Termine",
-      "due": "fällig {date}",
       "now": "jetzt",
       "overdueDays": {
         "one": "seit 1 Tag überfällig",
@@ -156,13 +154,26 @@
       "consumption": "Verbrauch (letzte 12 Monate)",
       "cost": "Kosten (letzte 12 Monate)",
       "costSub": "inkl. Boni",
-      "noContract": "kein Vertrag hinterlegt",
-      "activeMeters": "Aktive Zähler",
-      "totalMeters": "{count} insgesamt"
+      "noContract": "kein Vertrag hinterlegt"
     },
     "trend": { "vsPrev": "vs. vorherige 12 Monate", "moreThanPrev": "{pct} % mehr als im vorherigen 12-Monats-Zeitraum", "lessThanPrev": "{pct} % weniger als im vorherigen 12-Monats-Zeitraum" },
     "allRecommendations": "Alle Empfehlungen",
-    "allReminders": "Alle Termine"
+    "todo": {
+      "title": "Zu tun",
+      "readingDue": {
+        "one": "letzte Ablesung vor 1 Tag",
+        "other": "letzte Ablesung vor {count} Tagen"
+      },
+      "readingNever": "noch keine Ablesung",
+      "readingAction": "Zählerstand erfassen",
+      "reminderAction": "Zu den Terminen",
+      "contractAction": "Verträge ansehen",
+      "tankAction": "Lieferung erfassen",
+      "readingsDue": {
+        "one": "{count} Zähler wartet auf eine Ablesung",
+        "other": "{count} Zähler warten auf eine Ablesung"
+      }
+    }
   },
   "readingsEntry": {
     "title": "Zählerstände",
@@ -172,7 +183,7 @@
     "saveAll": "Alle speichern",
     "saveAllProgress": "Alle speichern ({done} von {total} erfasst)",
     "saving": "Speichere …",
-    "error": { "title": "Fehler beim Laden", "unknown": "Unbekannter Fehler" },
+    "error": { "title": "Fehler beim Laden", "unknown": "Unbekannter Fehler", "invalidNumber": "Bitte eine Zahl eingeben, zum Beispiel 12345,6." },
     "empty": {
       "title": "Keine Zähler",
       "text": "Für die zentrale Erfassung sind nur kumulative Zähler (Gas, Strom, Wasser, Fernwärme) eingeplant. Heizöl/Pellets erfassen den Verbrauch über Lieferungen, nicht über Zählerstände.",
@@ -188,7 +199,7 @@
       "notePlaceholder": "optional",
       "addNote": "+ Notiz",
       "hideNote": "− Notiz ausblenden",
-      "placeholderExample": "z. B. {value}"
+      "otherDate": "Anderes Datum"
     },
     "status": {
       "saving": "Speichert…",
@@ -207,7 +218,11 @@
       "savedEmpty": "{ok} gespeichert · {skipped} leer",
       "saved": "{ok} gespeichert",
       "nothing": "Keine Eingaben — nichts zu speichern",
-      "held": "{count} Stand/Stände nicht gespeichert – bitte die markierten Karten prüfen."
+      "held": "{count} Stand/Stände nicht gespeichert – bitte die markierten Karten prüfen.",
+      "undone": {
+        "one": "1 Zählerstand zurückgenommen",
+        "other": "{count} Zählerstände zurückgenommen"
+      }
     }
   },
   "utility": {
@@ -471,7 +486,6 @@
       "empty": "Keine Abschnitte im gewählten Zeitraum.",
       "noReading": "keine Ablesung",
       "total": "Summe",
-      "gaps": "{count} Abschnitt(e) ohne umschließende Ablesung — dort fehlt der Verbrauch.",
       "formula": "kWh = m³ × Zustandszahl × Brennwert. Der Versorger schätzt Zwischenstände an Brennwertgrenzen; hier wird das Ableseintervall tagesgenau geteilt.",
       "errRange": "Bitte einen gültigen Zeitraum wählen (von vor bis).",
       "col": {
@@ -500,7 +514,11 @@
         "interpolated": "E"
       },
       "legend": "Ableseart: ohne Zusatz = abgelesener Stand · S = als geschätzt erfasste Ablesung · E = Ersatzwert: an diesem Tag gibt es keinen Zählerstand, er ist tagesgenau zwischen den umschließenden Ablesungen interpoliert — genau dort, wo auch der Versorger schätzt (Brennwert- und Zeitraumgrenzen). Je mehr Zeilen ohne E, desto weniger ist Schätzung.",
-      "open": "Rechnung {year} prüfen"
+      "open": "Rechnung {year} prüfen",
+      "gapsN": {
+        "one": "{count} Abschnitt ohne umschließende Ablesung — dort fehlt der Verbrauch.",
+        "other": "{count} Abschnitte ohne umschließende Ablesung — dort fehlt der Verbrauch."
+      }
     },
     "warnings": {
       "title": "Unplausible Zählerstände: {count}",
@@ -549,20 +567,44 @@
     },
     "status": { "active": "AKTIV", "past": "VERGANGEN", "future": "ZUKÜNFTIG" },
     "summary": {
-      "twPrices": "{count} Trinkw.-Preise",
-      "swPrices": "{count} Schmutzw.-Preise",
-      "nwDates": "{count} Niederschlag-Stichtage",
-      "advances": "{count} Abschläge",
-      "bonuses": "{count} Boni",
-      "workingPrices": "{count} Arbeitspreise",
-      "basePrices": "{count} Grundpreise",
-      "specialPayments": "{count} Sonderzahlungen"
+      "twPrices": {
+        "one": "{count} Trinkwasserpreis",
+        "other": "{count} Trinkwasserpreise"
+      },
+      "swPrices": {
+        "one": "{count} Schmutzwasserpreis",
+        "other": "{count} Schmutzwasserpreise"
+      },
+      "nwDates": {
+        "one": "{count} Niederschlagswasser-Stichtag",
+        "other": "{count} Niederschlagswasser-Stichtage"
+      },
+      "advances": {
+        "one": "{count} Abschlag",
+        "other": "{count} Abschläge"
+      },
+      "bonuses": {
+        "one": "{count} Bonus",
+        "other": "{count} Boni"
+      },
+      "workingPrices": {
+        "one": "{count} Arbeitspreis",
+        "other": "{count} Arbeitspreise"
+      },
+      "basePrices": {
+        "one": "{count} Grundpreis",
+        "other": "{count} Grundpreise"
+      },
+      "specialPayments": {
+        "one": "{count} Sonderzahlung",
+        "other": "{count} Sonderzahlungen"
+      }
     },
     "group": { "working": "Arbeitspreis", "base": "Grundpreis", "advance": "Abschlag", "addRow": "+ Zeile" },
     "row": {
       "validFrom": "Gültig ab",
-      "copyStart": "⇧ Start",
-      "copyStartTitle": "Vertragsbeginn übernehmen",
+      "copyStart": "Ab Beginn",
+      "copyStartTitle": "Datum dieser Zeile auf den Vertragsbeginn setzen",
       "removeRow": "Zeile entfernen",
       "setStartFirst": "Bitte zuerst Vertragsbeginn setzen"
     },
@@ -616,7 +658,7 @@
       "autoRenews": "Verlängert sich ohne Kündigung",
       "autoRenewsHint": "Nach dem Ende läuft der Vertrag zu den letzten Preisen weiter, bis er gekündigt wird — dann mit höchstens einem Monat Frist. Abwählen, wenn gekündigt ist."
     },
-    "delete": { "title": "Vertrag löschen?", "message": "Vertrag dauerhaft löschen?", "confirm": "Löschen", "deleted": "Vertrag gelöscht" },
+    "delete": { "title": "Vertrag löschen?", "confirm": "Löschen", "deleted": "Vertrag gelöscht", "messageNamed": "Vertrag „{name}“ dauerhaft löschen? Seine Preise, Abschläge und Boni gehen verloren." },
     "deleteContract": "Vertrag löschen",
     "bonus": {
       "title": "Boni / Gutschriften",
@@ -688,7 +730,7 @@
     "unknown": "Unbekannte Verbrauchsart: {key}",
     "title": "{label} · Zähler",
     "toOverview": "Zur Übersicht",
-    "merge": "Zähler zusammenführen",
+    "merge": "Zu Gruppe zusammenfassen",
     "newMeter": "+ Neuer Zähler",
     "info": {
       "title": "Mehrere Zähler pro Verbrauchsart",
@@ -779,31 +821,66 @@
     },
     "import": {
       "title": "Ablesungen importieren: {name}",
-      "intro": "Importiert Ablesungen aus einer CSV-Datei direkt in den Zähler <strong>{name}</strong>. Eine bereits vorhandene Ablesung am selben Datum wird <strong>überschrieben</strong> und im Ergebnis gemeldet.",
+      "intro": "Liest Ablesungen aus einer CSV-Datei für den Zähler <strong>{name}</strong>. Vor dem Import zeigt eine Vorschau jede Zeile und ihre Wirkung — ein vorhandener Stand am selben Tag wird <strong>ersetzt</strong>.",
       "formatLabel": "Erwartetes Format",
       "formatHint": "Trenner <code>;</code> oder <code>,</code> · Datum <code>TT.MM.JJJJ</code> oder <code>JJJJ-MM-TT</code> · Dezimalkomma erlaubt · Spalten <em>Notiz</em> und <em>geschätzt</em> optional · eine Kopfzeile wird automatisch erkannt.",
       "downloadExample": "Beispiel-CSV herunterladen",
       "dropZone": "CSV-Datei hier ablegen oder klicken zum Auswählen",
       "dropZoneAria": "CSV-Datei auswählen oder hier ablegen",
-      "importing": "Importiere…",
       "result": "<strong>{imported}</strong> neu importiert · <strong>{overwritten}</strong> überschrieben · <strong>{skipped}</strong> übersprungen",
       "moreErrors": "… und {count} weitere",
-      "toast": "{count} Ablesung(en) übernommen",
-      "close": "Schließen"
+      "close": "Schließen",
+      "reading": "Lese Datei…",
+      "previewSummary": "Gelesen: {rows} · neu: {new} · ersetzt vorhandene: {overwrite} · unverändert: {same} · mit Hinweis: {flagged}",
+      "unreadable": {
+        "one": "{count} Zeile nicht lesbar",
+        "other": "{count} Zeilen nicht lesbar"
+      },
+      "otherMeterRows": {
+        "one": "{count} Zeile gehört zu einem anderen Zähler und wird übergangen.",
+        "other": "{count} Zeilen gehören zu anderen Zählern und werden übergangen."
+      },
+      "col": {
+        "date": "Datum",
+        "counter": "Stand",
+        "effect": "Wirkung",
+        "notes": "Hinweis"
+      },
+      "effect": {
+        "new": "neu",
+        "overwrite": "ersetzt {counter}",
+        "same": "unverändert"
+      },
+      "duplicate": "Datum mehrfach in der Datei — die letzte Zeile gilt",
+      "moreRows": {
+        "one": "… und {count} weitere Zeile ohne Hinweis",
+        "other": "… und {count} weitere Zeilen ohne Hinweis"
+      },
+      "confirm": {
+        "one": "{count} Zeile importieren",
+        "other": "{count} Zeilen importieren"
+      },
+      "otherFile": "Andere Datei wählen",
+      "nothing": "Die Datei enthält keine lesbare Zeile.",
+      "imported": {
+        "one": "{count} Ablesung übernommen",
+        "other": "{count} Ablesungen übernommen"
+      },
+      "importing": "Importiere…"
     },
     "mergeModal": {
-      "title": "Zähler zusammenführen",
-      "intro": "Mehrere Zähler zu einer <strong>Gruppe</strong> zusammenführen — z. B. <em>NT + HT Strom</em> oder mehrere Wallboxen. Die Gruppe fasst die Verbräuche im Dashboard zusammen; die einzelnen Zähler bleiben erhalten.",
+      "title": "Zähler zu einer Gruppe zusammenfassen",
+      "intro": "Mehrere Zähler zu einer <strong>Gruppe</strong> zusammenfassen — z. B. <em>NT + HT Strom</em> oder mehrere Wallboxen. Die Gruppe zeigt die Summe in der Übersicht; die Zähler selbst bleiben getrennt und unverändert.",
       "select": "Zähler auswählen (mindestens zwei) *",
       "alreadyInGroup": "bereits in Gruppe",
       "existingGroup": "Bestehende Gruppe",
       "newGroupOption": "— neue Gruppe anlegen —",
       "newGroupName": "Name der neuen Gruppe",
       "newGroupPlaceholder": "z. B. Strom NT+HT",
-      "submit": "Zusammenführen",
+      "submit": "Gruppe speichern",
       "needTwo": "Bitte mindestens zwei Zähler auswählen",
       "needName": "Bitte einen Gruppennamen angeben oder eine bestehende Gruppe wählen",
-      "done": "{count} Zähler in Gruppe „{name}“ zusammengeführt"
+      "done": "{count} Zähler in der Gruppe „{name}“ zusammengefasst"
     },
     "baseline": {
       "title": "Analyse-Zäsuren",
@@ -826,9 +903,6 @@
     },
     "loading": "Lade…",
     "title": "Einstellungen",
-    "subtitle": "Konfiguration · Datenexport · Backup & Wiederherstellung",
-    "save": "Einstellungen speichern",
-    "saveUnsaved": "Speichern •",
     "saved": "Einstellungen gespeichert",
     "lang": {
       "title": "🌐 Sprache & Land / Language",
@@ -849,13 +923,13 @@
       "physical": { "title": "Physikalische Konstanten", "hint": "Umrechnung und Heizgradtag-Basis — wirken auf alle Auswertungen." },
       "co2": { "title": "CO₂-Emissionsfaktoren", "hint": "Gramm CO₂ je Verbrauchseinheit, für die Emissionsabschätzung." },
       "billing": { "title": "Abrechnungszyklus", "hint": "Stichtag der Jahresabrechnung je Verbrauchsart (Format TT-MM, z. B. 01-01 für 1. Januar, 15-04 für 15. April). Bestimmt, bis wann der Saldo offener Verträge projiziert wird; Verträge mit gepflegtem Ende nutzen weiterhin dieses Ende." },
-      "contractReminders": { "title": "Vertragserinnerungen", "hint": "Tage vor Vertragsende, ab denen die Vertragsübersicht warnt. Drei Stufen — frühe Vorwarnung bis letzter Tag." },
+      "contractReminders": { "title": "Erinnerungen", "hint": "Drei Stufen vor Vertragsende bzw. Kündigungsstichtag; bei Terminen die Vorwarnung und die Kulanz bis „überfällig“." },
       "water": { "title": "Wasser-Referenzwerte", "hint": "Haushaltsgröße, Pro-Kopf-Referenz und die Bänder des Spar-Index." },
       "regression": { "title": "Regression & Prognose", "hint": "Filter für die Regressionsbasis und Parameter des Prognosemodells." },
-      "dashboard": { "title": "Dashboard", "hint": "Darstellungsumfang und Schwellen der Übersicht." },
+      "dashboard": { "title": "Anzeige", "hint": "Zeitraum der Übersicht und der Prognose; ab wann eine fehlende Ablesung auffällt." },
       "building": { "title": "Gebäude & Effizienz", "hint": "Bezugsgrößen für die Effizienzklasse (kWh/m²·a) und den Heizenergie-Benchmark." },
       "delivery": { "title": "Energieträger (Lieferung)", "hint": "Energiegehalt der lieferbasierten Brennstoffe und Tank-Warnschwelle." },
-      "remindersRec": { "title": "Termine & Empfehlungen", "hint": "Schwellen für Fälligkeits-Status und die Empfehlungs-Engine." },
+      "remindersRec": { "title": "Empfehlungen & Verteilung", "hint": "Schwellen der Empfehlungen und der Grundlast-Anteil, mit dem Heizöl und Pellets auf die Tage verteilt werden." },
       "location": { "title": "Standort (Open-Meteo)", "hint": "Koordinaten für den Wetter-Sync der Temperaturreihe." },
       "embedding": {
         "title": "Einbetten",
@@ -1062,7 +1136,6 @@
       "revokeConfirmMsg": "Nach dem Widerruf ist der Push-Endpoint wieder ohne Token erreichbar (offener Modus). Home-Assistant-Automationen mit altem Token schlagen fehl.",
       "revokeConfirmBtn": "Widerrufen",
       "revoked": "Token widerrufen",
-      "aliasesSaved": "{count} Alias(e) gespeichert",
       "yamlCopied": "YAML kopiert",
       "clipboardFail": "Kopieren fehlgeschlagen",
       "step4": "4. Automatisierung (zum Kopieren)",
@@ -1075,7 +1148,11 @@
       },
       "lastUsed": "Zuletzt verwendet: {when}",
       "neverUsed": "Mit diesem Token ist noch nichts angekommen.",
-      "loginNeedsToken": "Die Anmeldung ist eingeschaltet: Ohne Token nimmt der Energietracker keine Werte von Home Assistant an."
+      "loginNeedsToken": "Die Anmeldung ist eingeschaltet: Ohne Token nimmt der Energietracker keine Werte von Home Assistant an.",
+      "aliasesSavedN": {
+        "one": "{count} Alias gespeichert",
+        "other": "{count} Aliasse gespeichert"
+      }
     },
     "diag": {
       "title": "🩺 System-Diagnose",
@@ -1233,6 +1310,58 @@
       "rh": "Reihenhaus",
       "mfh": "Mehrfamilienhaus",
       "whg": "Wohnung"
+    },
+    "page": {
+      "general": {
+        "title": "Allgemein",
+        "subtitle": "Sprache, Land, Anzeige und Erinnerungen"
+      },
+      "household": {
+        "title": "Haushalt & Gebäude",
+        "subtitle": "Wohnfläche, Gebäude und Personen im Haushalt"
+      },
+      "utilities": {
+        "title": "Verbrauchsarten & Abrechnung",
+        "subtitle": "Aktive Verbrauchsarten, Abrechnungsstichtage, Umrechnung und CO₂-Faktoren"
+      },
+      "data": {
+        "title": "Daten",
+        "subtitle": "Export, Sicherung, Wiederherstellung und Demo-Daten"
+      },
+      "integrations": {
+        "title": "Integrationen",
+        "subtitle": "Home Assistant und Zählerstände von außen"
+      },
+      "access": {
+        "title": "Zugriff",
+        "subtitle": "Anmeldung, API-Schlüssel und Einbetten"
+      },
+      "expert": {
+        "title": "Experte",
+        "subtitle": "Rechenparameter für Regression, Prognose und Empfehlungen"
+      },
+      "system": {
+        "title": "System",
+        "subtitle": "Version, Diagnose und Datenverzeichnis"
+      }
+    },
+    "savebar": {
+      "unsaved": "Ungespeicherte Änderungen",
+      "discard": "Verwerfen"
+    },
+    "leave": {
+      "title": "Änderungen verwerfen?",
+      "message": "Auf dieser Seite gibt es ungespeicherte Änderungen. Wer weitergeht, verliert sie.",
+      "confirm": "Verwerfen"
+    },
+    "expert": {
+      "summary": "Rechenparameter anzeigen",
+      "warning": "Diese Werte steuern die Rechenmodelle. Die Voreinstellungen passen für die meisten Haushalte – ändere sie nur, wenn du weißt, was sie bewirken."
+    },
+    "system": {
+      "aboutTitle": "Über den Energietracker",
+      "about": "Energietracker {version} – Verbrauch, Kosten und Verträge, lokal und ohne Cloud.",
+      "license": "Freie Software unter der MIT-Lizenz"
     }
   },
   "reminders": {
@@ -1262,9 +1391,9 @@
     },
     "recurrence": { "none": "Einmalig", "yearly": "Jährlich", "semi-yearly": "Halbjährlich", "custom-months": "Alle N Monate" },
     "due": { "today": "heute", "inDays": "in {days} T", "agoDays": "vor {days} T" },
-    "action": { "done": "Erledigt", "edit": "Bearbeiten", "delete": "Löschen" },
-    "toast": { "markedDone": "Als erledigt markiert", "deleted": "Gelöscht", "saved": "Gespeichert", "error": "Fehler: {msg}" },
-    "deleteConfirm": { "title": "Termin löschen", "message": "Diesen Termin wirklich löschen?", "confirm": "Löschen" },
+    "action": { "done": "Erledigt", "edit": "Bearbeiten", "delete": "Löschen", "doneNamed": "Erledigt: {title}", "editNamed": "Bearbeiten: {title}", "deleteNamed": "Löschen: {title}" },
+    "toast": { "deleted": "Gelöscht", "saved": "Gespeichert", "error": "Fehler: {msg}", "doneNext": "„{title}“ erledigt · nächster Termin {date}", "doneOnce": "„{title}“ erledigt", "undone": "„{title}“ ist wieder offen" },
+    "deleteConfirm": { "title": "Termin löschen", "confirm": "Löschen", "messageNamed": "„{title}“ wirklich löschen? Das lässt sich nicht rückgängig machen." },
     "form": {
       "titleEdit": "Termin bearbeiten",
       "titleNew": "Neuer Termin",
@@ -1276,8 +1405,13 @@
       "fInterval": "Intervall (Monate)",
       "fNotes": "Notizen",
       "save": "Speichern",
-      "validation": "Titel und Datum sind Pflicht",
-      "intervalInvalid": "Das Intervall muss eine ganze Zahl von 1 bis 120 Monaten sein."
+      "intervalInvalid": "Das Intervall muss eine ganze Zahl von 1 bis 120 Monaten sein.",
+      "titleRequired": "Bitte einen Titel eingeben.",
+      "dueRequired": "Bitte ein Fälligkeitsdatum wählen."
+    },
+    "everyMonths": {
+      "one": "Jeden Monat",
+      "other": "Alle {count} Monate"
     }
   },
   "temperatures": {
@@ -1285,7 +1419,7 @@
     "title": "Wetterdaten",
     "sync": "Open-Meteo synchronisieren",
     "csvImport": "CSV Import",
-    "formatHint": "Format: <code>DD.MM.YYYY\"avg\"min\"max</code> (z. B. <code>15.01.2024\"4.2\"-1.0\"7.1</code>). Werte in °C, doppelte Anführungszeichen als Trenner.",
+    "formatHint": "Format: <code>TT.MM.JJJJ;Mittel;Min;Max</code> (z. B. <code>15.01.2024;4,2;-1,0;7,1</code>), Werte in °C. Semikolon, Tabulator oder Komma als Trenner; das alte Format mit Anführungszeichen geht weiter.",
     "downloadExample": "Beispiel-CSV herunterladen",
     "dropZone": "Datei hier ablegen oder klicken zum Auswählen",
     "dropZoneAria": "CSV-Datei auswählen oder hier ablegen",
@@ -1307,7 +1441,13 @@
     "statusWithForecast": "Messwerte bis {measured}, Vorhersage bis {forecast}.",
     "reload": "Auch vorhandene ältere Werte durch Archivwerte ersetzen (behebt als Messwert gespeicherte Vorhersagen)",
     "climateFetched": "Klimanormal {from}–{to} geladen — Prognose und Wetterbereinigung rechnen jetzt mit 30 Jahren Klima.",
-    "climateFailed": "Das Klimanormal konnte nicht geladen werden — die Prognose nutzt die eigene Temperaturhistorie."
+    "climateFailed": "Das Klimanormal konnte nicht geladen werden — die Prognose nutzt die eigene Temperaturhistorie.",
+    "subtitle": "Tagestemperaturen für Heizgradtage, Bereinigung und Prognose",
+    "geoLabel": "Ort oder Postleitzahl suchen",
+    "geoPlaceholder": "z. B. Leipzig oder 04109",
+    "geoSearch": "Suchen",
+    "geoNone": "Kein Ort gefunden.",
+    "locationSaved": "Standort gespeichert"
   },
   "recommendations": {
     "loading": "Lade Empfehlungen…",
@@ -1321,7 +1461,6 @@
     "emptyAll": "Keine Empfehlungen — alles im grünen Bereich.",
     "emptyFiltered": "Keine {sev}-Empfehlungen — alles im grünen Bereich.",
     "dismiss": "30 Tage ausblenden",
-    "dismissed": "Empfehlung ausgeblendet (30 Tage)",
     "error": "Fehler: {msg}",
     "engine": {
       "r1": {
@@ -1354,7 +1493,10 @@
         "title": "{label}: Effizienzklasse {class} ({kwh} kWh/m²·a)",
         "detail": "Der Heizenergiebedarf {year} über {label} entspricht Effizienzklasse {class} ({kwh} kWh/m²·a). Dämmung, Heizungsoptimierung oder ein hydraulischer Abgleich können die Klasse spürbar verbessern."
       }
-    }
+    },
+    "dismissedNamed": "„{title}“ für 30 Tage ausgeblendet",
+    "restored": "Empfehlung wieder eingeblendet",
+    "dismissNamed": "30 Tage ausblenden: {title}"
   },
   "tariff": {
     "loading": "Lade…",
@@ -1365,7 +1507,7 @@
     "meter": "Zähler",
     "year": "Jahr",
     "wholePeriod": "Gesamter Zeitraum",
-    "addShadow": "+ Angebot",
+    "addShadow": "+ Angebot erfassen",
     "loadingComparison": "Lade Vergleich…",
     "noMeter": "Kein Zähler vorhanden.",
     "notSupported": "Nicht unterstützt.",
@@ -1382,12 +1524,12 @@
     "chartAlt": "Balkendiagramm der Vollkosten je Einheit ({unit}) pro Tarif",
     "unitCostTitle": "Vollkosten je Einheit — Arbeitspreis, Grundpreis und Boni zusammen. Der einzige Wert, der Laufzeiten unterschiedlicher Länge fair vergleicht.",
     "legend": "Negativ (grün) = günstiger als der tatsächlich abgerechnete Vertrag derselben Monate. Verglichen werden reine Tarifkosten; Abschläge und Sonderzahlungen sind Zahlungsströme und bleiben außen vor.",
-    "action": { "edit": "Bearbeiten", "delete": "Löschen" },
+    "action": { "edit": "Bearbeiten", "delete": "Löschen", "editNamed": "Bearbeiten: {name}", "deleteNamed": "Entfernen: {name}" },
     "col": { "tariff": "Tarif", "period": "Zeitraum", "consumption": "Verbrauch", "cost": "Kosten", "unitCost": "{minor}/{unit}", "vsReal": "vs. real", "savings": "Differenz" },
     "period": "Zeitraum: {label}",
     "periodRange": "Zeitraum: {label} ({from} – {to})",
     "shadow": {
-      "title": "Schattenvertrag anlegen",
+      "title": "Angebot erfassen",
       "intro": "Ein hypothetischer Tarif — fließt NICHT in Saldo/Prognose ein, nur in diesen Vergleich.",
       "label": "Bezeichnung",
       "labelPlaceholder": "z. B. Discounter-Angebot",
@@ -1402,14 +1544,13 @@
       "validation": "Bezeichnung, Datum und Arbeitspreis sind Pflicht",
       "created": "Schattenvertrag angelegt",
       "error": "Fehler: {msg}",
-      "titleEdit": "Schattenvertrag bearbeiten",
+      "titleEdit": "Angebot bearbeiten",
       "end": "Gültig bis (optional)",
       "endHint": "Leer lassen für „läuft weiter“.",
       "save": "Speichern",
       "updated": "Schattenvertrag gespeichert",
       "deleted": "Schattenvertrag gelöscht",
       "deleteTitle": "Schattenvertrag löschen?",
-      "deleteMessage": "Die Hypothese wird entfernt. Echte Verträge und Ablesungen bleiben unberührt.",
       "deleteConfirm": "Löschen",
       "signupBonus": "Neukundenbonus ({cur})",
       "signupBonusPlaceholder": "z. B. 130",
@@ -1418,7 +1559,8 @@
       "priceGuaranteeHint": "Danach ist der Preis eine Annahme — im Diagramm gestrichelt.",
       "noticePeriod": "Kündigungsfrist (Monate)",
       "noticePeriodPlaceholder": "z. B. 1",
-      "noticePeriodHint": "Für die Terminrechnung, falls dieser Tarif später der laufende ist."
+      "noticePeriodHint": "Für die Terminrechnung, falls dieser Tarif später der laufende ist.",
+      "deleteMessageNamed": "Angebot „{name}“ entfernen? Echte Verträge und Ablesungen bleiben unberührt."
     },
     "switch": {
       "heading": "Wechselentscheidung",
@@ -1685,7 +1827,9 @@
       "emptyCsv": "Die CSV-Daten sind leer.",
       "dateMissing": "Das Datum fehlt.",
       "valuesMissing": "Durchschnitt, Minimum und Maximum (avg, min, max) sind Pflicht und müssen Zahlen sein.",
-      "rangeInvalid": "Ungültiger Zeitraum: {start} liegt nach {end}."
+      "rangeInvalid": "Ungültiger Zeitraum: {start} liegt nach {end}.",
+      "geocodeQuery": "Bitte mindestens zwei Zeichen eingeben (höchstens 80).",
+      "geocodeFailed": "Die Ortssuche ist gerade nicht erreichbar. Die Koordinaten lassen sich auch von Hand eintragen."
     },
     "view": {
       "loadFailed": "Fehler beim Laden: {msg}",
@@ -1707,7 +1851,8 @@
       "titleRequired": "Ein Titel ist erforderlich.",
       "dueRequired": "Ein Fälligkeitsdatum (JJJJ-MM-TT) ist erforderlich.",
       "recurrenceMonths": "Bei „alle N Monate“ muss ein Intervall größer 0 angegeben werden.",
-      "notFound": "Termin nicht gefunden: {id}"
+      "notFound": "Termin nicht gefunden: {id}",
+      "lastDoneInvalid": "„Zuletzt erledigt“ muss leer oder ein Datum (JJJJ-MM-TT) sein."
     },
     "tariff": {
       "waterUnsupported": "Der Tarifvergleich für Wasser (Drei-Komponenten-Tarif) ist in dieser Version nicht enthalten.",

@@ -7,7 +7,7 @@
 > **Real screenshots.** The following images are **actual screen captures** of the
 > running app with the bundled [demo dataset](../../../demo-data/) (light theme; base
 > set v1.9.2, sign-in, security card and the capture question v2.6.0, navigation
-v2.11.0). The app's
+> v2.11.0, overview, capture, weather data, settings and import preview v2.12.0). The app's
 > interface is in German; the captures are shared with the
 > German compendium. To regenerate them yourself: load the demo data and capture
 > the views one by one — the app needs no build step for this.
@@ -17,18 +17,19 @@ the users' questions: seven areas instead of 17 entries.
 
 | Area | Pages |
 |---|---|
-| Overview | key figures, tanks, reminders and recommendations at a glance |
+| Overview | "To do", key figures, tanks and recommendations at a glance |
 | Meter readings | all meters in one go |
 | Consumption | one page per active utility |
 | Costs & contracts | Contracts & payments · Tariff switch · Check a bill |
 | Insights | Analysis · Forecast · Annual report |
 | Reminders & tips | Reminders & maintenance · Recommendations (one count in the sidebar) |
-| Settings | General · Weather data |
+| Settings | General · Household & building · Utilities & billing · Weather data · Data · Integrations · Access · Expert · System |
 
 The pages of an area appear as **tabs** above the view. Menu name and page title
 match, and the browser tab names the view. Earlier addresses (`#/tariffs`,
 `#/temperatures` …) keep working. The sidebar shows only the *active* utilities
-(Settings → Active utilities) and follows a change immediately.
+(Settings → Utilities & billing → Active utilities) and follows a change
+immediately.
 
 **Mac:** sidebar on the left. The top bar holds **＋ Add**: meter readings,
 delivery and tank reading for heating oil and pellets, reminder. Next to it the
@@ -69,6 +70,15 @@ Since v2.11.0 a due reminder reads "overdue by 65 days" instead of "now". The
 header action "Temperatures" is gone; "Add" sits globally in the top bar or
 the tab bar.
 
+**"To do" (v2.12.0)** sits at the top: overdue and due reminders, meters whose
+last reading is older than set under Settings → General → *Warn after*, notice
+deadlines and tanks — each with a button that goes there. With up to two due
+meters the entry jumps straight to that meter's card in the capture view; more
+are combined into one line ("7 meters are waiting for a reading"). Each line
+is tappable as a whole, on the iPhone with "›" instead of a button. The reminder card further
+down and the "Active meters" tile per utility are gone; key-figure tiles no
+longer lift on hover, because they are not clickable.
+
 ![Dashboard](../../ui/screenshots/dashboard.png)
 
 ---
@@ -86,6 +96,23 @@ already a reading for that day. On save the app asks per conspicuous card (title
 utility · meter); "Replace" updates the existing reading instead of creating a
 second one. Whoever declines keeps the input; the card shows "Not saved – please
 check". Details: [Meter readings → plausibility](../functional/11-zaehlerstaende.md).
+
+**Since v2.12.0:**
+
+- The date at the top applies to all cards; per card it is collapsed ("Other
+  date"). A card with a date of its own keeps it when the top date changes.
+- No example value in the field any more — "e.g. 1,395" looked like a
+  pre-filled reading. The last reading sits above it.
+- The keyboard shows "Next": Enter jumps to the next meter field, from the last
+  one to "Save all". On the iPhone the reading can also come from the camera:
+  tap the field → "Scan Text" (Live Text; the field is a text field with a
+  decimal keyboard for this).
+- An error appears below the field instead of only in the title of the ✗.
+- After saving, the message names what changed ("Gas +5.4 m³") and offers
+  **"Undo"** for ten seconds — it deletes the readings just created.
+- **Direct link per meter:** `#/zaehlerstaende?meter=<id>` opens the capture
+  view with that meter's card in focus — for a home-screen bookmark, a shortcut
+  or "To do".
 
 ![Meter readings](../../ui/screenshots/zaehlerstaende.png)
 
@@ -233,8 +260,8 @@ view is split into two blocks, and the order is deliberate.
 
 At the top sits the **expected annual consumption** from the forecast — exactly
 the figure comparison sites ask for as input. One click copies it. The workflow
-is therefore: take the number, search elsewhere, enter the offer you found as a
-shadow contract.
+is therefore: take the number, search elsewhere, enter the offer you found with
+**"+ Add offer"** (technically a shadow contract).
 
 There is deliberately no integration with comparison sites. The application
 fetches no tariffs from outside; the user enters what they found.
@@ -303,6 +330,11 @@ term length, and therefore the basis for the ranking. Only pure tariff costs
 are compared; advance payments and one-off settlements are cash flows against
 the balance and stay out of it (they live in the consumption view).
 
+Since v2.12.0 the year picker offers only years with consumption data (up to
+v2.11 always the last seven years); months follow the language's notation
+("Jan 2027"). A year without tariff rows shows a note instead of hiding the
+whole retrospective including the picker.
+
 #### Maintaining offers
 
 An offer is captured with the fields a portal result actually carries: unit
@@ -310,7 +342,8 @@ price, standing charge, **sign-up bonus as an amount** (not as a credit date —
 nobody knows that when entering it), price guarantee and notice period. The
 calculated switch date is pre-filled as the start.
 
-Offers can be created, edited and deleted. In the contract list they carry
+Offers can be created, edited and deleted; the delete question names the offer
+(v2.12.0). In the contract list they carry
 their own marker so they are not mistaken for a running contract. They affect
 **neither the balance nor the forecast nor the contract status** — they exist
 for this comparison only.
@@ -328,7 +361,8 @@ for this comparison only.
 Seven statistical rule families (over-consumption trend, summer base, anomaly, tank
 level, contract end, efficiency, …), sorted by urgency, individually hideable.
 Purely data-driven, no advertising. Since v2.11.0 under **Reminders & tips**;
-the button reads "Hide for 30 days" instead of "✕".
+the button reads "Hide for 30 days" instead of "✕". Since v2.12.0 the message
+names the recommendation and offers **"Undo"** for ten seconds.
 
 ![Recommendations](../../ui/screenshots/empfehlungen.png)
 
@@ -343,6 +377,12 @@ rolled forward according to the recurrence. Since v2.11.0 the first tab under
 **Reminders & tips**; the count in the sidebar adds due reminders and open
 recommendations.
 
+Since v2.12.0 **"Done"** reports the reminder with its next due date and offers
+**"Undo"** for ten seconds (date and status as before). A missing title or date
+appears at the field instead of in a message at the bottom right; the delete
+question names the reminder. An interval in months reads "Every 48 months"
+instead of "Every N months (48)".
+
 ![Appointments](../../ui/screenshots/termine.png)
 
 ---
@@ -351,11 +391,24 @@ recommendations.
 
 Since v2.11.0 under Settings → Weather data; the address `#/temperatures`
 remains. CSV import (drag & drop), Open-Meteo sync for the stored location, a monthly chart
-min/avg/max. The basis of every HDD evaluation. Since v2.8.0 a line above the
+min/avg/max. The basis of every HDD evaluation.
+
+**Since v2.12.0** this is the only place for location and weather:
+
+- **Place search:** enter a name or postcode and pick a hit — coordinates and
+  place name are taken over and saved. Only the search text goes to Open-Meteo.
+- Latitude, longitude and place name save on change; *Fill weather
+  automatically* is a switch on this page.
+- The sync saves a changed location first.
+- CSV in the usual format `DD.MM.YYYY;avg;min;max` with a decimal comma; tab and
+  the old double-quote format are read as well. Up to v2.11 the import also
+  split at the decimal comma.
+
+Since v2.8.0 a line above the
 chart states up to when measured values and from when forecasts are available;
 the option "Also replace existing older values with archive values" cleans up
 forecasts that earlier versions stored like measured values. With *Fill weather
-automatically* (settings, on by default) the app syncs by itself once a day when
+automatically* (on by default) the app syncs by itself once a day when
 it is opened and loads the climate normal the first time. If the location is
 still the country default, a note says so (v2.7.0) — the degree days then use the
 weather of another place.
@@ -366,10 +419,25 @@ weather of another place.
 
 ## 11. Settings
 
-Two tabs since v2.11.0: **General** and **Weather data** (§10). The PDF annual
-report moved to Insights; a link remains in its old place. After demo data,
-backup import or a restore the app restarts, so that sidebar, language and
-cache match the new state.
+Since v2.12.0 **nine sub-pages** instead of one long page:
+
+| Page | Contents |
+|---|---|
+| General | Language & country, overview (months, forecast horizon, warn after days without a reading), contract reminders |
+| Household & building | living area, building type, heated basement, hot water; persons in the household |
+| Utilities & billing | active utilities, all billing cut-off dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors |
+| Weather data | §10 |
+| Data | CSV export, backup & restore with snapshots, demo data, migration from v0.9.0; link to the annual report |
+| Integrations | Home Assistant integration |
+| Access | Sign-in & access, embedding |
+| Expert | collapsed and with a warning: regression, forecast model, anomaly and recommendation thresholds |
+| System | version, licence, system diagnostics |
+
+Each page saves through a bar at the bottom ("Discard" · "Save") that appears
+only after a change. Leaving the page with unsaved changes asks first. The PDF
+annual report sits under Insights since v2.11.0. After demo data, backup import
+or a restore the app restarts, so that sidebar, language and cache match the
+new state.
 
 At the top the card **Language & country** (v2.7.0): language, country, currency
 and time zone, all taking effect immediately. When the country changes, a dialog
@@ -387,12 +455,9 @@ default values, **"Newer default values available"** appears at the top with the
 old and the new value and the button "Use the new values". If only the default
 gas factor 11.5 is active, the gas factor table points this out.
 
-All settings grouped: conversion & HDD, **billing cycle (DD-MM)**, building &
-efficiency, calorific values, forecast model, **embedding** (since v2.6.0:
-addresses allowed to embed the app, such as a Home Assistant dashboard), active
-utilities, CSV export of all utilities, backup & migration, demo-data import
-(F1007), **🔐 Sign-in & access** (since v2.6.0) and the **🏠 Home Assistant
-integration (F1009)** — manage the API token, maintain meter aliases and copy three
+**Embedding** (since v2.6.0, Access page): addresses allowed to embed the app,
+such as a Home Assistant dashboard. The **🏠 Home Assistant integration
+(F1009)** on the Integrations page — manage the API token, maintain meter aliases and copy three
 ready-made templates: the REST command, the `secrets.yaml` entry and (since v2.5.3)
 an automation built from the aliases that checks `has_value` before every push.
 Number fields and billing anchors are validated before saving; errors appear in
@@ -427,12 +492,23 @@ Meter/device management incl. meter swap (the device chain) and contract mainten
 **meter swap** requires the final reading, shows the last known reading and
 summarises the swap before performing it. A **contract** needs a provider or tariff
 and at least one working price; the start is prefilled with the day after the
-current commitment, and the app asks before a new contract supersedes a running one. Since v2.9.0 the **Notice period** takes months, weeks or days, plus **Cancellation takes effect** ("automatic", "at the end of the term", "any time, at month end", "any time, to any day") and the **"Renews unless cancelled"** checkbox — clear it once you have cancelled. A meter with *Active* cleared still counts in every total, but no longer appears in the reading entry and raises no warnings. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
+current commitment, and the app asks before a new contract supersedes a running one. Since v2.12.0 the first price rows apply from the contract start and follow it until someone changes their date; a pre-filled row without an amount stays empty. "From start" (up to v2.11 "⇧ Start") sets a row to the contract start. The contract card counts in the right plural ("1 working price"), delete is an outlined button, and the question names the contract. Since v2.9.0 the **Notice period** takes months, weeks or days, plus **Cancellation takes effect** ("automatic", "at the end of the term", "any time, at month end", "any time, to any day") and the **"Renews unless cancelled"** checkbox — clear it once you have cancelled. A meter with *Active* cleared still counts in every total, but no longer appears in the reading entry and raises no warnings. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
 management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading), since v2.10.0 optionally the **price of the initial stock** (empty = price of the first delivery). An electricity meter can be flagged as **Heating electricity (heat pump)** — it then counts in the efficiency figure. For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as
-an expandable collective entry; a **merge wizard** combines several existing meters
-into a group. Per meter, the HA alias (`external_id`) can also be set here.
+an expandable collective entry; **"Group meters"** (up to v2.11 "Merge meters")
+combines several existing meters into a group — the meters stay separate, the
+group shows the total. A missing selection or name appears at the field. Per
+meter, the HA alias (`external_id`) can also be set here.
+
+**CSV import with preview (v2.12.0):** choosing a file only reads it. The
+preview shows each row with its effect — new, replaces the existing reading
+(with the old value) or unchanged — and the checks of manual entry: decrease,
+jump, order of magnitude, future, duplicate date. Conspicuous rows are always
+listed, others up to 50. Only "Import N rows" writes; "Choose another file"
+starts over.
+
+![CSV import preview](../../ui/screenshots/import-vorschau.png)
 
 ![Meters & contracts](../../ui/screenshots/zaehler-vertraege.png)
 

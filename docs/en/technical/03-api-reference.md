@@ -12,7 +12,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 ```
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
-`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **84 routes**, v2.10.0 —
+`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **86 routes**, v2.12.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -56,7 +56,7 @@ details are still always returned, such as the findings of a faulty backup in
 ### Sign-in *(v2.6.0, opt-in)*
 
 Without sign-in (the default) the API stays open as before. When it is switched
-on (Settings → "Sign-in & access", or `ET_AUTH`), **one** of these applies to
+on (Settings → Access → "Sign-in & access", or `ET_AUTH`), **one** of these applies to
 every route:
 
 | Way | For | Passed as |
@@ -107,7 +107,8 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/settings/default-updates` | corrected defaults this installation does not use yet (CO₂, water reference) *(v2.10.0)* — see below |
 | GET | `/api/temperatures` | daily temperatures (map) |
 | POST | `/api/temperatures` | upsert a day |
-| POST | `/api/temperatures/import-csv` | CSV import |
+| POST | `/api/temperatures/import-csv` | CSV import; `DD.MM.YYYY;avg;min;max`, also tab and the old double-quote format — one separator per line (v2.12.0) |
+| GET | `/api/geocode` | place search for the location; `?q=` (2–80 characters) — v2.12.0, see below |
 | POST | `/api/temperatures/sync-open-meteo` | Open-Meteo sync; `?start=&end=&reload=1&auto=1` (v2.8.0) — see below |
 | DELETE | `/api/temperatures/{date}` | delete a day |
 | GET | `/api/utility/{u}/meters` | meters/tanks |
@@ -125,7 +126,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | POST | `/api/utility/{u}/readings` | create |
 | PATCH | `/api/utility/{u}/readings/{id}` | change |
 | DELETE | `/api/utility/{u}/readings/{id}` | delete |
-| POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV bulk import |
+| POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV bulk import; `?dry_run=1` only reads (preview, v2.12.0) — see below |
 | **GET** | **`/api/readings-overview`** | **all active cumulative meters + last reading (F1004, v1.6.0)** |
 | GET | `/api/utility/{u}/deliveries` | deliveries (heating oil/pellets) |
 | POST | `/api/utility/{u}/deliveries` | create |
@@ -147,9 +148,10 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/benchmarks/efficiency` | efficiency class per heat source; since v2.10.0 with coverage and the certificate-style figure — see below |
 | GET | `/api/recommendations` | statistical recommendations |
 | POST | `/api/recommendations/{id}/dismiss` | hide a recommendation |
+| DELETE | `/api/recommendations/{id}/dismiss` | undo hiding (v2.12.0); an ID that is not hidden is not an error |
 | GET | `/api/reminders` | appointments + due status |
 | POST | `/api/reminders` | create |
-| PATCH | `/api/reminders/{id}` | change |
+| PATCH | `/api/reminders/{id}` | change; since v2.12.0 also `last_done` (date or `null`) — for "Undo" after "Done" |
 | DELETE | `/api/reminders/{id}` | delete |
 | POST | `/api/reminders/{id}/done` | done, roll the recurrence forward |
 | GET | `/api/reports/yearly.pdf` | PDF annual report (file download; `?inline=1` shows it in the browser, v2.11.0) |
@@ -414,7 +416,9 @@ commitment chain instead of reporting "no running contract".
 booked (with two contracts in a month, only their part). Shadow contracts count
 as a price sheet for **all** months of the period, before their first price
 entry with its price — up to v2.8 only for their own term, which made a summer
-offer without a winter look cheaper.
+offer without a winter look cheaper. Since v2.12.0 the response carries
+`years`: the years with consumption data, newest first — even when the chosen
+year is empty, so the year picker stays usable.
 
 **`PATCH /api/settings`:** `billing_cycle_anchor_*` must be a calendar day
 `MM-DD`, otherwise 400 `errors.settings.valueInvalid`.
@@ -470,6 +474,38 @@ Since v2.8.0 every entry in `GET /api/temperatures` carries `source`:
 `archive`, `forecast`, `csv` or `manual`. Forecasts are replaced by archive values
 as soon as these are available; your own values never are. Only the location,
 rounded to two decimal places, is sent to Open-Meteo.
+
+### `GET /api/geocode?q=…` *(v2.12.0)*
+
+Place search for the weather data page via Open-Meteo geocoding. `q` must be
+2–80 characters long, otherwise 400 `errors.temperature.geocodeQuery`; if
+Open-Meteo cannot be reached, 502 `errors.temperature.geocodeFailed`. Names
+follow the interface language. Only the search text is sent, and only when
+someone searches.
+
+```json
+[ { "name": "Leipzig", "latitude": 51.3396, "longitude": 12.3713,
+    "country": "Germany", "admin1": "Saxony", "postcode": "04303" } ]
+```
+
+At most five hits; `country`, `admin1` and `postcode` may be `null`.
+
+### `POST /api/utility/{u}/meters/{id}/readings/import-csv?dry_run=1` *(v2.12.0)*
+
+Reads the CSV like the import but writes nothing. The response has the same
+fields (`imported` and `overwritten` are 0, `skipped`, `errors`, possibly
+`encoding_converted_from` and `other_meter_rows`) plus:
+
+```json
+{ "dry_run": true,
+  "rows": [ { "line": 2, "date": "2024-02-01", "counter": 1395.2,
+              "note": "", "is_estimated": false } ] }
+```
+
+The interface compares `rows` with the existing readings and shows each row's
+effect (new, replaces, unchanged) and the checks of manual entry. Numbers may
+use point, comma, space or apostrophe as thousands separator (`1.395,2`,
+`1 395,2`, `1'395.2`). Without `dry_run` the import stays as it was.
 
 ### `GET /api/utility/{u}/meters/{id}/tariff-switch` — forecast quality *(extended in v2.8.0)*
 

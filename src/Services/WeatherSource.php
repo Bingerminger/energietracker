@@ -17,4 +17,11 @@ interface WeatherSource
 
     /** @return array{data:array<string,float>,error:?string} */
     public function fetchArchiveMeans(float $lat, float $lon, string $start, string $end): array;
+
+    /**
+     * v2.12.0 — Orte zu einem Namen oder einer Postleitzahl (Review UI-30).
+     *
+     * @return array{data:list<array{name:string,latitude:float,longitude:float,country:?string,admin1:?string,postcode:?string}>,error:?string}
+     */
+    public function geocode(string $query, string $language = 'de', int $count = 5): array;
 }

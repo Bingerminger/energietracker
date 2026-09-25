@@ -81,6 +81,24 @@ final class TemperatureController
         Response::json($this->temps->syncOpenMeteo($start, $end, $reload, $auto));
     }
 
+    /**
+     * v2.12.0 — GET /api/geocode?q=… : Orte zu Name oder Postleitzahl
+     * (Open-Meteo Geocoding). Klasse C (für die eigene Oberfläche).
+     */
+    public function geocode(Request $req): never
+    {
+        $q = trim((string)($req->queryParam('q') ?? ''));
+        $len = mb_strlen($q);
+        if ($len < 2 || $len > 80) {
+            Response::error($this->i18n->t('errors.temperature.geocodeQuery'), 400, null, 'errors.temperature.geocodeQuery');
+        }
+        $res = $this->temps->geocode($q, $this->i18n->locale());
+        if ($res['error'] !== null) {
+            Response::error($this->i18n->t('errors.temperature.geocodeFailed'), 502, null, 'errors.temperature.geocodeFailed');
+        }
+        Response::json($res['data']);
+    }
+
     public function delete(Request $req): never
     {
         $this->temps->delete($req->param('date'));

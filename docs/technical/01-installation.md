@@ -5,10 +5,11 @@
 [← Kompendium-Index](../README.md)
 
 Energietracker ist bewusst **abhängigkeitsfrei**: kein Composer, kein
-npm-Build, keine Datenbank, kein externer Dienst zur Laufzeit — außer dem
-Temperaturabgleich mit Open-Meteo (seit v2.8.0 einmal am Tag automatisch,
-abschaltbar unter *Einstellungen → Wetter automatisch füllen*). Es genügt ein PHP-fähiger
-Webserver und ein Browser.
+npm-Build, keine Datenbank, kein externer Dienst zur Laufzeit — außer
+Open-Meteo für den Temperaturabgleich (seit v2.8.0 einmal am Tag automatisch,
+abschaltbar unter *Einstellungen → Wetterdaten → Wetter automatisch füllen*)
+und, nur auf Knopfdruck, die Ortssuche (seit v2.12.0). Es genügt ein
+PHP-fähiger Webserver und ein Browser.
 
 ---
 
@@ -64,8 +65,8 @@ Das Repository enthält unter `demo-data/` einen vollständigen
 Beispieldatensatz für **alle acht** Verbrauchsarten (Gas, Strom,
 Wasser, Fernwärme, Heizöl, Pellets, PV-Einspeisung, PV-Erzeugung),
 inklusive realistischer Tankgrößen und Lieferkadenz. Am bequemsten lädst
-du ihn direkt in der App über **Einstellungen → Demo-Daten laden**
-(F1007). Alternativ per Dateisystem:
+du ihn direkt in der App über **Einstellungen → Daten → Backup &
+Wiederherstellung → Demo-Daten laden** (F1007). Alternativ per Dateisystem:
 
 ```bash
 # Datenverzeichnis durch die Demo-Daten ersetzen (Vorsicht: überschreibt!)
@@ -129,8 +130,8 @@ Der Webserver-Benutzer braucht **Schreibrecht** auf `data/` (inklusive
 `data/.write.lock`, seit v2.5.3), jede Datei wird atomar geschrieben
 (temporäre Datei, dann Umbenennen; seit v2.6.0 vorher `fsync`); ein
 Abbruch mitten im Schreiben hinterlässt keine halbe Datei. Die System-Diagnose
-(`Einstellungen → Diagnose`, bzw. `GET /api/diagnostics`) zeigt an, ob
-die Schreibrechte korrekt gesetzt sind.
+(`Einstellungen → System → System-Diagnose`, bzw. `GET /api/diagnostics`)
+zeigt an, ob die Schreibrechte korrekt gesetzt sind.
 
 ### 3.4 Datenverzeichnis verschieben (`ET_DATA_DIR`)
 
@@ -156,9 +157,9 @@ greift unabhängig vom gewählten Verzeichnis.
 
 Es gibt drei sich ergänzende Mechanismen:
 
-1. **JSON-Vollbackup** (`Einstellungen → Backup`): eine einzelne
-   JSON-Datei im Format `3.0`, die *alle* Verbrauchsarten, Zähler,
-   Verträge, Lieferungen, Temperaturen und Einstellungen enthält und
+1. **JSON-Vollbackup** (`Einstellungen → Daten → Backup & Wiederherstellung`):
+   eine einzelne JSON-Datei im Format `3.0`, die *alle* Verbrauchsarten,
+   Zähler, Verträge, Lieferungen, Temperaturen und Einstellungen enthält und
    wieder importierbar ist. Das ist das maßgebliche Sicherungsformat.
 2. **Snapshot**: legt eine Kopie im Datenverzeichnis unter
    `data/backups/` ab — nützlich vor riskanten Aktionen. Automatisch
@@ -178,9 +179,9 @@ ein vollständiges Backup.
 
 ## 5. Update auf eine neue Version
 
-1. **Backup ziehen** (*Einstellungen → Backup exportieren*) oder das
-   `data/`-Verzeichnis kopieren. Das ist der einzige Rückweg: Eine
-   Schema-Migration lässt sich nicht umkehren.
+1. **Backup ziehen** (*Einstellungen → Daten → Backup & Wiederherstellung →
+   JSON-Backup herunterladen*) oder das `data/`-Verzeichnis kopieren. Das ist
+   der einzige Rückweg: Eine Schema-Migration lässt sich nicht umkehren.
 2. **CHANGELOG lesen** — was unter „Migration" steht, betrifft dich.
 3. Programmdateien ersetzen (alles außer `data/`). Docker:
    [Updates durchführen](07-docker.md#updates-durchführen).
