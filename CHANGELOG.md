@@ -6,6 +6,175 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.8.0] — 2026-09-25 — Rechnen wie die Abrechnung
+
+MINOR-Release (F1013). Kein Schema-Bump, keine Datenmigration. Neue Felder
+sind additiv; drei alte Felder sind als veraltet markiert und werden weiter
+geliefert.
+
+**Der Anlass.** Das Gesamtreview hat die Rechenkerne gegen synthetische Daten
+mit bekannter Wahrheit geprüft. Auf sauberen Daten meldete die App jeden
+Sommer der Heizarten als Anomalie, die Wetterbereinigung verglich Januar mit
+Oktober („+58 %"), eine Prognose ohne eigenen Januar setzte für ihn weniger als
+ein Zehntel an, und der Saldo zählte Abschläge nur für abgelesene Monate
+(Review CALC-02, -03, -05, -06, -08, -12, -13, -14, -22, -30, FE-18, DOC-08, API-24, UI-36).
+
+### ⚠️ Für bestehende Installationen
+
+- **Werte ändern sich** — Klasse B der Stabilitätszusage: Die dokumentierten
+  Felder bleiben, ihre Berechnung wird korrigiert.
+  - **Saldo** (`contract-status`, Saldo-Karte): `advance_paid` zählt die
+    Abschläge nach Kalender bis einschließlich des laufenden Monats, die Kosten
+    reichen bis heute — ab der letzten Ablesung geschätzt und so ausgewiesen.
+    Wer länger nicht abgelesen hat, sieht einen anderen, richtigen Saldo.
+  - **Anomalien und Empfehlungen:** neue Erwartung je Monat und robuste
+    Streuung. Auf den Demo-Daten sinken die Empfehlungen von 7 auf 2 und die
+    Anomalien von 22 auf 7. Entfallen sind Trend- und Sommermeldungen für
+    Heizöl und Pellets (Artefakte der Gradtagverteilung), ein halber
+    Strom-März und Fernwärme-Sommer mit der Erwartung 0; die verbliebenen
+    Meldungen sind echte Abweichungen in den Daten.
+  - **Prognose:** Heizgradtage aus dem Klimanormal; Kalendermonate ohne eigene
+    Historie kommen aus dem Modell. Bei kurzer Historie ändert sich der
+    Jahreswert deutlich.
+  - `hdd` zählt nur noch die Tage mit Verbrauch (Teilmonate); das
+    Knickmodell ist stetig, seine Parameter und sein R² ändern sich.
+- **Neu: täglicher Abruf bei Open-Meteo.** `weather_auto_fill` (Default an)
+  war bisher ohne Wirkung. Jetzt holt die App beim Öffnen höchstens einmal am
+  Tag die fehlenden Temperaturen und beim ersten Mal das Klimanormal
+  (30 Jahre). Übermittelt wird nur der Standort, auf zwei Nachkommastellen
+  gerundet (rund 1 km). Wer das nicht will: *Einstellungen → Wetter
+  automatisch füllen* aus. Der README-Satz „stellt keine externen Anfragen"
+  ist entsprechend geändert.
+- **`confidence_band_sigma`** (Default 1,28) wirkt jetzt: Es bestimmt die
+  Breite des Prognosebands (1,28 σ ≈ 80 % der Jahre).
+
+### Deprecated
+
+- `expected_hgt`, `weather_adjusted` und `delta_pct` in den Monatszeilen von
+  `GET …/consumption`. Nachfolger: `expected_heat`, `heat_adjusted`,
+  `weather_delta_pct`. Die alten Felder werden unverändert weiter geliefert
+  und entfallen frühestens mit v3.0.0. `weather_adjusted` skalierte auch das
+  Warmwasser mit dem HGT-Verhältnis (ein September wurde um 54 % „bereinigt"),
+  `delta_pct` maß die Jahreszeit statt des Mehrverbrauchs.
+
+### Added
+
+- **Klimanormal (CALC-30):** Tagesmittel der letzten 30 vollen Kalenderjahre
+  am Standort, einmal geholt und nur als Kennzahlen gespeichert
+  (`data/climate_normal.json`): Heizgradtage je Kalendermonat mit Streuung
+  für Heizgrenzen von 10 bis 22 °C. Neu geladen bei Umzug (> 0,05°) oder
+  neuem Jahr. Ohne Klimanormal rechnet die App mit der eigenen
+  Temperaturhistorie und sagt das dazu.
+- **Heizmodell je Zähler (CALC-05):** `Verbrauch = a × HGT + c × Tage` —
+  Verbrauch je Gradtag und Grundlast je Tag, gefittet ohne Achsenabschnitt
+  über alle Monate ab der Zäsur (Sommer eingeschlossen), mit einem
+  Robustheitsschritt. Daraus je Monat `expected_heat`, `weather_delta_pct`,
+  `hdd_normal` und `heat_adjusted` (umgerechnet wird nur der Wettereinfluss
+  laut Modell, die eigene Abweichung des Monats bleibt; unter der Grundlast
+  bleibt ein Monat, wie er ist).
+- **Unsicherheitsband der Prognose (CALC-13):** je Monat `band_low`/
+  `band_high` und fürs Jahr `annual` (`value`, `low`, `high`, `sigma`,
+  `level_pct`) aus der Streuung der Winter und dem Rauschen des Modells;
+  dazu `hdd_source`, `climate_normal` und `warnings` (`history_short`,
+  `no_climate_normal`). Die Prognoseansicht zeigt das Band als Fläche und
+  eine Zeile „Jahr: …, in 80 % der Jahre zwischen … und …".
+- **Saldo nach Kalender (CALC-02):** neue Felder `balance_as_of`,
+  `projection_method`, `measured_until`, `cost_to_date`,
+  `energy_cost_to_date`, `base_to_date`, `bonus_to_date`,
+  `estimated_cost_to_date`, `estimated_cost_remaining`, `advance_remaining`,
+  `suggested_advance`, `projection_factor`. Die Schätzung seit der letzten
+  Ablesung läuft je Tag über das Heizmodell (bzw. die Tagesrate des
+  Kalendermonats) und folgt dem jüngsten gemessenen Niveau (Faktor 0,5–1,5).
+  Die Saldo-Karte schlüsselt die Kosten in Arbeitspreis und Grundpreis auf,
+  nennt Mess- und Schätzzeitraum und schlägt bei spürbarer Abweichung einen
+  Abschlag vor.
+- **Temperaturen mit Quelle (DOC-08):** Jeder Tag trägt `source`
+  (`archive`, `forecast`, `csv`, `manual`). Vorhersagen werden durch
+  Archivwerte ersetzt, sobald diese vorliegen; eigene Werte nie.
+  `POST /api/temperatures/sync-open-meteo` kennt `reload=1` (auch ältere
+  Werte durch Archivwerte ersetzen) und `auto=1` (höchstens einmal am Tag)
+  und liefert `measured_until`, `forecast_until` und den Status des
+  Klimanormals. Die Temperaturansicht nennt, bis wann gemessen und bis wann
+  vorhergesagt ist.
+- **Wirkung einer Maßnahme mit Beleg (CALC-13):** `baseline_comparison`
+  trägt `se` je Steigung, `significant` (Test der Steigungsdifferenz) und
+  `delta_pct_ci95`; die Analyse sagt, ob der Unterschied belegt ist.
+- **Regressionen:** `curve` (Kurvenpunkte vom Backend), `se_a` beim linearen
+  Modell, `regression_point` je Monat; für Heizöl und Pellets
+  `regressions_note: "delivery_modelled"` statt Kurven.
+- Tarifwechsel: Der Block `forecast` trägt `warnings`, `hdd_source` und
+  `annual_band`.
+
+### Changed
+
+- **Eine Regel für die Punkte der Heizkurve (CALC-14, FE-18):** Analyse,
+  Bereinigung, Prognose und Anomalien wählen ihre Monate über
+  `isRegressionCandidate()` — genug Tage, Temperaturen für ≥ 90 % der Tage,
+  genug Heizgradtage. Derselbe Zähler zeigte bisher R² 0,42 in der Analyse
+  und 0,56 in der Prognose. Das Streudiagramm zeichnet Monate außerhalb des
+  Fits hohl und die Kurven aus dem Backend.
+- **Heizgradtage eines Monats** zählen nur die Tage mit Verbrauch
+  (`temp_days` sagt, für wie viele Temperaturen vorliegen).
+- **Anomalien (CALC-06):** Erwartung je Monat aus dem Heizmodell bzw. aus
+  demselben Kalendermonat anderer Jahre (im ersten Jahr den Nachbarmonaten),
+  nie aus dem geprüften Monat selbst; Median und MAD statt Mittel und
+  Standardabweichung, mit einer Untergrenze von 10 % eines typischen Monats.
+  Heizöl und Pellets liefern keine Anomalien mehr.
+- **Empfehlungen:** R1 misst am Heizmodell, R2 vergleicht die bereinigten
+  Werte mit denselben Monaten des Vorjahrs (ab neun Paaren), R3 nur volle
+  Monate und ohne Lieferarten, R4 aus der Anomalie-Erkennung (bisher lief R4
+  für Wasser nie, weil es `kwh` las) und ohne PV.
+- **Prognose (CALC-03, CALC-12):** Saisonprofil als Tagesrate; der
+  Temperaturversatz verschiebt die Heizgrenze statt linear über alle
+  Monatstage; Abschläge aus dem effektiven Zahlungsplan; nach dem Ende des
+  letzten Vertrags läuft er als Annahme weiter (`contract_assumed`, in der
+  Tabelle mit Sternchen). Die Spalte „Methode" ist übersetzt.
+- **Knickmodell (CALC-22):** stetig — Sockel und Heizast treffen sich im
+  Knick.
+- **Analyse:** Hinweis unter der Modelltabelle: R² misst die Anpassung an
+  die gezeigten Monate, keine Vorhersagegüte.
+- **Verbrauchsansicht:** Liegt die letzte Ablesung im laufenden Jahr zurück,
+  heißt die Abschlagskachel „Abschläge bis ‹Datum›" — sie summiert
+  abgelesene Monate, die Saldo-Karte rechnet nach Kalender.
+- PDF-Jahresbericht: bereinigte Werte aus dem Heizmodell, mit Legende.
+
+### Fixed
+
+- Analyse: Die Überschrift sprach von vier Regressionsmodellen (es sind
+  fünf), die Sigmoid-Formel zeigte bei negativem θ₀ „HGT−-10.0", Koeffizienten
+  und R² standen mit Dezimalpunkt statt im Zahlenformat der Sprache. Die
+  Prognosetabelle zeigte die Methode als Rohwert `blend(reg=…)`.
+- Doku: Die Saldo-Formel im Wohnungs-Szenario hatte das umgekehrte
+  Vorzeichen; veraltete Service- und Controller-Zahlen in Architektur-Doku
+  und README entfernt statt nachgezählt.
+
+### Tests
+
+- Neu: `WeatherModelTest` (20 Tests, synthetische Daten nach
+  `a × HGT + c × Tage`), `TemperatureSyncTest` (11, Open-Meteo als Attrappe
+  über das neue Interface `WeatherSource`); `BaselineCutoffTest` an die neue
+  Erwartung angepasst; Roundtrip von `source` im Backup.
+- 378 Testmethoden (vorher 346), Frontend-API-Shape 49/49, Browser-Render
+  73/73. Jede neue Rechenregel hat eine Gegenprobe (25, alle rot).
+
+### Lessons Learned
+
+- Eine Erwartung, die den geprüften Wert enthält, prüft nichts — Erwartungen
+  gehören zum Monat, der geprüfte Wert nie in die eigene Erwartung.
+- Synthetische Testdaten müssen die alte Rechnung widerlegen können: Mehrere
+  Regeln waren auf glatten Daten auch ohne sich selbst grün.
+- Ein Saldo folgt dem Kalender, nicht den Ablesungen — und eine
+  Aufschlüsselung muss ihre Summe ergeben.
+- Wer eine wirkungslose Einstellung zum Leben erweckt, prüft, welche
+  Doku-Aussagen an ihrem Nichtstun hingen („stellt keine externen Anfragen").
+- Eine Formel für Jahreswerte taugt nicht ungeprüft für Monate: Die
+  Heizanteil-Skalierung nach VDI 3807 machte im PDF der Demo aus einem warmen
+  September +32 %. Aufgefallen ist es erst im fertigen Bericht, nicht im Test.
+
+Ausführlich: [Release-Prozess §5](docs/technical/06-release-process.md).
+
+---
+
 ## [2.7.0] — 2026-09-25 — Länderprofile
 
 MINOR-Release (N1014). Kein Schema-Bump, keine Datenmigration. Vier neue

@@ -43,13 +43,20 @@ Heizung nur tracken, wenn die Wohnung eigene Zähler hat.
 Der laufende Saldo ist für Mieter besonders wertvoll:
 
 ```text
-Saldo = Σ geleistete Abschläge - Σ tatsächliche Kosten
+Saldo = Σ tatsächliche Kosten - Σ geleistete Abschläge
 ```
 
-Ein stark negativer Saldo Monate vor der Jahresabrechnung warnt früh
-vor einer Nachzahlung — du kannst den Abschlag aktiv anpassen lassen,
-statt überrascht zu werden. Ein hoher positiver Saldo bedeutet, dass du
-dem Versorger zinslos Geld leihst → Abschlag senken.
+Ein positiver Saldo Monate vor der Jahresabrechnung warnt früh vor einer
+Nachzahlung — du kannst den Abschlag aktiv anpassen lassen, statt
+überrascht zu werden; die Saldo-Karte schlägt dafür einen Betrag vor.
+Ein stark negativer Saldo bedeutet, dass du dem Versorger zinslos Geld
+leihst → Abschlag senken.
+
+Seit v2.8.0 rechnet der Saldo nach Kalender bis heute, auch wenn die
+letzte Ablesung Monate zurückliegt: Die Abschläge zählen, wie sie
+abgebucht wurden, der Verbrauch seit der letzten Ablesung wird
+geschätzt und als Schätzung ausgewiesen
+([Grundlagen §10](00-overview.md#10-saldo-bis-heute)).
 
 ---
 

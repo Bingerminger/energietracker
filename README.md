@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.7.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.8.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-346-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-378-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installable-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
@@ -20,8 +20,11 @@
 Self-hosted web application for recording and analysing your own energy and
 water consumption. Single-file PHP backend, vanilla-JS SPA frontend, flat-file
 JSON persistence — no database, no server setup, **no runtime dependencies at
-all**. Chart.js and the web fonts ship with the repository; the application
-makes no external requests.
+all**. Chart.js and the web fonts ship with the repository. The only outbound
+connection is the temperature sync with Open-Meteo: at most once a day, sending
+nothing but the location rounded to about 1 km, and it can be switched off under
+*Settings → Fill weather automatically* (since v2.8.0; before that only on
+demand).
 
 Up to eight utilities in parallel: **gas**, **electricity**, **water**,
 **district heating**, **heating oil** and **wood pellets** (heating oil/pellets
@@ -31,14 +34,16 @@ self-sufficiency rate). Per utility: multiple meters with fully modelled meter
 swaps, an arbitrary contract history with tariff changes, base-price history,
 advance payments and bonuses. From this the app computes monthly consumption
 (linearly interpolated resp. energetically balanced), heating degree days
-against the local climate, five regression models (linear, polynomial, robust,
-segmented with a data-driven breakpoint, sigmoid), weather adjustment, an
-efficiency class (kWh/m²·a) and a balance per contract — both the current state
-and the expected year-end settlement. On top of that: a statistical
+against the local climate (30-year climate normal at the location), a heating
+model with base load, five regression models (linear, polynomial, robust,
+segmented with a data-driven breakpoint, sigmoid), model-based weather
+adjustment, a forecast with an uncertainty band, an efficiency class (kWh/m²·a)
+and a balance per contract — by calendar up to today and as the expected
+year-end settlement, with a suggested advance payment. On top of that: a statistical
 recommendation engine, reminder/maintenance management, a tariff comparison with
 shadow contracts and a PDF annual report.
 
-> **Status:** v2.7.0 is the current public version (initial release was v1.0.2).
+> **Status:** v2.8.0 is the current public version (initial release was v1.0.2).
 > If you want to migrate from a privately run v0.9.0 backup, see
 > [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
 > format is supported by the migrator.
@@ -87,9 +92,10 @@ shadow contracts and a PDF annual report.
   (`(old_final − previous_reading) + (current_reading − new_initial)`).
 - **Multiple meters per utility** with independent contracts (e.g. main meter +
   garden-water sub-meter).
-- **Temperature import** as CSV (format `DD.MM.YYYY"avg"min"max`,
-  double-quote-separated) or via Open-Meteo sync using the location coordinates
-  in the settings.
+- **Temperatures** via CSV import (format `DD.MM.YYYY"avg"min"max`,
+  double-quote-separated) or from Open-Meteo using the location coordinates in
+  the settings — since v2.8.0 automatically once a day, measurements kept apart
+  from forecasts, your own values are never overwritten.
 - **Gas conversion with cut-off dates** (v2.5.0): volume correction factor ×
   calorific value per period, exactly as the bill lists them; day-exact
   split at every change, plus a **bill verification** that recalculates the
@@ -300,7 +306,7 @@ Or without Compose, directly with the published image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.7.0
+  ghcr.io/bingerminger/energietracker:2.8.0
 ```
 
 > Without `--name energietracker` Docker assigns a random name (e.g.
@@ -476,7 +482,7 @@ For the full list of configurable values see
 energietracker/
 ├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
 ├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
-├── VERSION                  ← "2.7.0"
+├── VERSION                  ← "2.8.0"
 ├── README.md                ← this file (English)
 ├── README.de.md             ← German version
 ├── CHANGELOG.md
@@ -495,8 +501,8 @@ energietracker/
 │   ├── Storage/
 │   │   ├── JsonStore.php    ← LOCK_EX writes, atomic reads
 │   │   └── Migrator.php     ← bootstrap logic for an empty `data/`
-│   ├── Services/            ← 24 services (Consumption, DeliveryConsumption, Forecast, Auth, Ingest, …)
-│   └── Controllers/         ← 20 controllers, 1 class per file
+│   ├── Services/            ← domain logic (Consumption, DeliveryConsumption, Forecast, ClimateNormal, Auth, Ingest, …)
+│   └── Controllers/         ← 1 class per file
 ├── public/
 │   ├── css/                 ← tokens.css + app.css + components.css
 │   └── js/                  ← vanilla-JS SPA

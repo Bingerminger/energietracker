@@ -96,9 +96,12 @@ From now on the app computes not only consumption but also **costs** and the
 So that "consumed more, or just colder?" can be answered, gas (and district
 heating) need outdoor temperatures. Sidebar → **Consumption → Temperatures**:
 
-- **Open-Meteo sync** for the location stored in the settings (default: Leipzig —
-  change it to your location!), **or**
-- import a temperature CSV.
+- **Open-Meteo** for the location stored in the settings (default: Leipzig —
+  change it to your location!). Since v2.8.0 the app fetches the temperatures
+  itself once a day when it is opened (*Settings → Fill weather
+  automatically*); only the location, rounded to about 1 km, is transmitted. The
+  **Sync Open-Meteo** button triggers the sync immediately. **Or**
+- import a temperature CSV — the sync never overwrites your own values.
 
 Without temperatures, consumption, costs and balance still work — only the
 weather-adjusted analysis and the HDD forecast need them.

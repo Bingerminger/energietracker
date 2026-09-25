@@ -192,7 +192,9 @@
       "co2Avoided": "🌿 CO₂ vermeden {year}",
       "co2AvoidedSub": "{tons} t minder dan zonder PV",
       "co2": "🌍 CO₂ {year}",
-      "co2Sub": "{tons} t"
+      "co2Sub": "{tons} t",
+      "advancesUntil": "💰 Voorschotten t/m {date}",
+      "balanceShort": "Saldo {value}"
     },
     "cards": {
       "contracts": "📑 Contracten en voorschotten",
@@ -257,7 +259,9 @@
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/jaar · {m2} m²",
       "consShort": "{value} verbruik",
-      "gpPlus": " + {value} vastrecht"
+      "gpPlus": " + {value} vastrecht",
+      "suggestAdvance": "Met een voorschot van {suggested} in plaats van {current} zou de afrekening op ongeveer ±0 uitkomen.",
+      "measuredThenEstimated": "gemeten tot {date} ({kwh} kWh), daarna geschat: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -806,7 +810,7 @@
       "location_name": { "label": "Plaatsnaam" },
       "latitude": { "label": "Breedtegraad" },
       "longitude": { "label": "Lengtegraad" },
-      "weather_auto_fill": { "label": "Weer automatisch invullen" },
+      "weather_auto_fill": { "label": "Weer automatisch invullen", "hint": "Haalt bij het openen van de app hoogstens eenmaal per dag temperaturen op bij Open-Meteo (locatie afgerond op ongeveer 1 km)." },
       "gas_conversion_factors": {
         "label": "Omrekeningsfactoren gas",
         "hint": "Eén item per calorische-waardeperiode, precies zoals de gasfactuur ze vermeldt: geldig vanaf, volumeherleidingsfactor en calorische waarde — de factor kWh/m³ wordt daaruit berekend. Zonder uitsplitsing vul je de factor direct in. Het item zonder datum geldt voor alles vóór de eerste ingangsdatum. De verbruiksberekening splitst elk meetinterval dagnauwkeurig op de ingangsdata."
@@ -1158,7 +1162,7 @@
     "lat": "Breedtegraad",
     "lng": "Lengtegraad",
     "locName": "Plaatsnaam",
-    "locHint": "Standaard: Leipzig. Wordt gebruikt voor de Open-Meteo-synchronisatie.",
+    "locHint": "Wordt gebruikt voor de Open-Meteo-synchronisatie en afgerond op ongeveer 1 km verstuurd.",
     "monthly": "Maandwaarden (min / gem / max)",
     "daysLoaded": "{count} dagen geladen",
     "syncToast": "Synchronisatie OK · {imported} dagen (archief: {archive}, prognose: {forecast})",
@@ -1166,7 +1170,12 @@
     "forecastError": "Prognose: {err}",
     "importToast": "Import: {imported} dagen geïmporteerd, {skipped} overgeslagen",
     "coordInvalid": "Voer een getal tussen {min} en {max} in.",
-    "locationDefault": "De locatie is nog de standaardwaarde voor {country} ({name}). Vul de eigen locatie in voor nauwkeurige graaddagen."
+    "locationDefault": "De locatie is nog de standaardwaarde voor {country} ({name}). Vul de eigen locatie in voor nauwkeurige graaddagen.",
+    "status": "Meetwaarden tot {measured}.",
+    "statusWithForecast": "Meetwaarden tot {measured}, voorspelling tot {forecast}.",
+    "reload": "Ook bestaande oudere waarden door archiefwaarden vervangen (herstelt als meting opgeslagen voorspellingen)",
+    "climateFetched": "Klimaatnormaal {from}–{to} geladen — prognose en weercorrectie rekenen nu met 30 jaar klimaat.",
+    "climateFailed": "Het klimaatnormaal kon niet worden geladen — de prognose gebruikt de eigen temperatuurhistorie."
   },
   "recommendations": {
     "loading": "Aanbevelingen laden…",
@@ -1184,12 +1193,12 @@
     "error": "Fout: {msg}",
     "engine": {
       "r1": {
-        "title": "{label} {ym}: {pct} % boven gemiddeld (weergecorrigeerd)",
-        "detail": "In {ym} lag het weergecorrigeerde verbruik {pct} % boven je gemiddelde — en het was niet kouder. Een controle van een apparaat of de verwarming kan de moeite waard zijn."
+        "title": "{label} {ym}: {pct} % boven verwachting",
+        "detail": "In {ym} lag het verbruik {pct} % boven wat bij dit weer te verwachten was. Een controle van apparaten of verwarming kan de moeite waard zijn."
       },
       "r2": {
-        "title": "{label}: stijgende trend van {pct} %/jaar",
-        "detail": "Het weergecorrigeerde verbruik stijgt met ongeveer {pct} % per jaar — een geleidelijke toename. Controleer of apparaten verouderen of of gebruiksgewoonten zijn veranderd."
+        "title": "{label}: {pct} % meer dan vorig jaar",
+        "detail": "De laatste twaalf maanden lagen weergecorrigeerd {pct} % boven dezelfde maanden van vorig jaar. Controleer of apparaten verouderen of gewoonten veranderd zijn."
       },
       "r3": {
         "title": "{label} {year}: hoog zomerverbruik",
@@ -1197,7 +1206,7 @@
       },
       "r4": {
         "title": "{label} {ym}: statistische afwijking",
-        "detail": "Het verbruik in {ym} wijkt ongewoon sterk af ({sigma}σ) en wordt niet verklaard door het weer. De moeite waard om beter te bekijken."
+        "detail": "Het verbruik in {ym} ligt duidelijk boven wat voor deze maand gebruikelijk is ({sigma}σ). Het bekijken waard."
       },
       "r5": {
         "title": "{label}: tank op {pct} %",
@@ -1341,14 +1350,14 @@
       "seasonal": "Lijndiagram: gemiddeld maandprofiel",
       "years": "Staafdiagram: verbruik per jaarvergelijking"
     },
-    "hgtTitle": "Graaddagencorrelatie · vier regressiemodellen",
+    "hgtTitle": "Graaddagencorrelatie · regressiemodellen vergeleken",
     "seasonalTitle": "Seizoensprofiel",
     "notTempDependent": "{label} is niet temperatuurafhankelijk — seizoensprofiel in plaats van graaddagen.",
     "yearComparison": "Jaarvergelijking",
     "anomalies": "Afwijkingen ({count})",
     "noAnomalies": "Geen afwijkingen gevonden — alle maanden liggen binnen het verwachte bereik (σ-drempel uit de instellingen).",
-    "anomalyExplainHgt": "Maanden waarvan het verbruik meer dan de σ-drempel afwijkt van het graaddagen-regressiemodel.",
-    "anomalyExplainSeasonal": "Maanden waarvan het verbruik meer dan de σ-drempel afwijkt van het seizoensprofiel.",
+    "anomalyExplainHgt": "Maanden waarvan het verbruik meer dan de σ-drempel afwijkt van de verwachting — stooklijn plus basislast bij de graaddagen van die maand. De spreiding wordt robuust geschat (mediaan, MAD).",
+    "anomalyExplainSeasonal": "Maanden waarvan het verbruik meer dan de σ-drempel afwijkt van dezelfde kalendermaand in andere jaren — per dag berekend en zonder de maand zelf.",
     "anomalyCol": { "month": "Maand", "consumption": "Verbruik", "expected": "Verwacht", "deltaAbs": "Δ absoluut", "deltaPct": "Δ %", "sigma": "σ-waarde", "hgt": "GD", "temp": "gem. temp." },
     "model": { "linear": "Lineair", "polynomial": "Polynomiaal (2)", "robust": "Robuust (Huber)", "segmented": "Gesegmenteerd", "sigmoid": "Sigmoïde" },
     "reg": { "model": "Model", "n": "n", "coeffs": "Coëfficiënten", "bestFit": "beste fit", "tooFew": "te weinig gegevens", "intercept": "snijpunt" },
@@ -1415,8 +1424,13 @@
       "effect": "Verandering",
       "perDegreeDay": "{unit} per graaddag",
       "points": "{n} meetpunten",
-      "weatherCorrected": "gecorrigeerd voor het weer"
-    }
+      "weatherCorrected": "gecorrigeerd voor het weer",
+      "significant": "Het verschil is statistisch onderbouwd (95%-bereik {lo} % tot {hi} %).",
+      "notSignificant": "Het verschil is statistisch nog niet onderbouwd (95%-bereik {lo} % tot {hi} %) — wacht meer maanden na de maatregel af."
+    },
+    "deliveryModelled": "Voor stookolie en pellets zijn er geen gemeten maandwaarden: de maanden worden vanuit de leveringen naar graaddagen verdeeld. Een stooklijn daarover zou een cirkelredenering zijn — elk model zou perfect passen — en wordt daarom niet getoond.",
+    "scatterNotInFit": "niet in het model (deelmaand of weinig graaddagen)",
+    "regR2Note": "R² beschrijft hoe goed de curve de getoonde maanden treft (fit) — niet hoe goed hij volgend jaar voorspelt."
   },
   "forecast": {
     "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
@@ -1438,7 +1452,7 @@
     "models": { "linear": "Lineair", "polynomial": "Polynomiaal (graad 2)", "robust": "Robuust (Huber)", "segmented": "Gesegmenteerd (verwarming/zomer)", "sigmoid": "Sigmoïde (stookhandtekening)" },
     "chartHist": "Geschiedenis",
     "chartForecast": "Prognose",
-    "info": "Model: <strong>{model}</strong> · mengingsgewicht: <strong>{blend} %</strong>{r2} · laatste energieprijs: <strong>{price} {minor}/{unit}</strong>",
+    "info": "Model: <strong>{model}</strong> · aandeel stooklijn: <strong>{blend} %</strong>{r2} · laatste energieprijs: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Geprojecteerd saldo aan het einde van de horizon:",
     "balanceSurcharge": "bijbetaling",
     "balanceCredit": "tegoed",
@@ -1446,7 +1460,24 @@
     "balanceNote": "· cumulatief uit geschatte kosten minus geprojecteerde voorschotten",
     "col": { "month": "Maand", "consumption": "Verbruik ({unit})", "hgt": "GD geschat", "cost": "Kosten geschat", "advance": "Voorschot geprojecteerd", "balance": "Saldo lopend", "method": "Methode" },
     "bonusNote": "Toekomstige bonussen worden niet geëxtrapoleerd — alleen bonussen die in het contract zijn geregistreerd met een creditdatum binnen de prognoseperiode tellen mee in de kosten.",
-    "whatIfInvalid": "Controleer de gemarkeerde velden: temperatuurverschuiving −20 tot 20 °C, prijsfactor 0 tot 10, horizon 1 tot 24 maanden."
+    "whatIfInvalid": "Controleer de gemarkeerde velden: temperatuurverschuiving −20 tot 20 °C, prijsfactor 0 tot 10, horizon 1 tot 24 maanden.",
+    "chartBand": "Bandbreedte ({level} % van de jaren)",
+    "r2Label": "modelfit R²",
+    "annualBand": "Jaar: {value} {unit}, in {level} % van de jaren tussen {low} en {high} {unit} — afhankelijk van de winter.",
+    "hddSourceClimate": "Graaddagen: klimaatnormaal {from}–{to} op de locatie.",
+    "hddSourceHistory": "Graaddagen: gemiddelde van de eigen temperatuurhistorie.",
+    "warn": {
+      "historyShort": "Korte historie: verbruik voor {months} van de 12 kalendermaanden. De ontbrekende ({missing}) komen uit het model — de prognose is daardoor onzekerder.",
+      "noClimateNormal": "Zonder klimaatnormaal: de graaddagen komen uit de eigen historie. Een temperatuursynchronisatie haalt eenmalig 30 jaar klimaatgegevens op."
+    },
+    "assumedNote": "Geen contract voor deze maand — het laatste contract loopt tegen zijn prijzen door (aanname; contracten verlengen zich).",
+    "method": {
+      "seasonal_only": "seizoensprofiel",
+      "regression_only": "stooklijn (geen eigen waarde voor de maand)",
+      "heat_model": "verwarmingsmodel",
+      "filled": "daggemiddelde (geen eigen waarde)",
+      "blend": "mix: {reg} stooklijn, {seasonal} seizoensprofiel"
+    }
   },
   "report": {
     "createdOn": "Gemaakt op {date}",
@@ -1478,7 +1509,8 @@
     "tableDelta": "Δ%",
     "continued": "(vervolg)",
     "meterPageTitle": "{label} {year} — {meter}",
-    "heatDemand": "Verwarmingsenergie · {label}"
+    "heatDemand": "Verwarmingsenergie · {label}",
+    "weatherNote": "Weergecorrigeerd: weersinvloed volgens het verwarmingsmodel omgerekend naar een normaal jaar; eigen afwijkingen van de maand blijven. Δ %: verbruik ten opzichte van de verwachting bij dit weer."
   },
   "migration": {
     "warnNoSettings": "Geen instellingen in de back-up gevonden — de standaardwaarden gelden.",

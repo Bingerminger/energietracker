@@ -6,9 +6,13 @@ namespace Energietracker\Services;
 /**
  * Open-Meteo-API-Client. Holt zwei Datenquellen für eine Koordinate:
  *   1. Archive (`archive-api.open-meteo.com`): historische Tageswerte
- *      ab 2023, mit avg/min/max pro Tag.
- *   2. Forecast (`api.open-meteo.com/v1/forecast`): bis 14 Tage in die
- *      Zukunft, gleiche Aggregation.
+ *      (zurück bis 1940), mit avg/min/max pro Tag.
+ *   2. Forecast (`api.open-meteo.com/v1/forecast`): bis 16 Tage in die
+ *      Zukunft und einige zurück, gleiche Aggregation.
+ *
+ * v2.8.0 — Der Standort geht auf zwei Nachkommastellen gerundet hinaus
+ * (rund 1 km; Review API-24). Vier Stellen waren praktisch die Hausadresse,
+ * das Wettergitter ist ohnehin kilometergrob.
  *
  * Benötigt `curl` als PHP-Extension (siehe DiagnosticsService).
  *
@@ -17,7 +21,7 @@ namespace Energietracker\Services;
  * hier fest Europe/Berlin; in Lissabon oder London verschob das die
  * Tagesmittel um eine Stunde.
  */
-final class WeatherService
+final class WeatherService implements WeatherSource
 {
     private const ARCHIVE_API  = 'https://archive-api.open-meteo.com/v1/archive';
     private const FORECAST_API = 'https://api.open-meteo.com/v1/forecast';
@@ -32,10 +36,36 @@ final class WeatherService
         return $this->fetchAndParse($this->forecastUrl($lat, $lon, $forecastDays, $pastDays), 30);
     }
 
+    /**
+     * v2.8.0 — nur Tagesmittel, für das Klimanormal (30 Jahre; ein Drittel der
+     * Antwortgröße gegenüber avg/min/max).
+     *
+     * @return array{data:array<string,float>,error:?string}
+     */
+    public function fetchArchiveMeans(float $lat, float $lon, string $start, string $end): array
+    {
+        $url = sprintf(
+            '%s?latitude=%.2f&longitude=%.2f&start_date=%s&end_date=%s&daily=temperature_2m_mean&timezone=%s',
+            self::ARCHIVE_API, $lat, $lon, $start, $end, self::timezone()
+        );
+        $resp = $this->httpGet($url, 120);
+        if (!$resp['ok']) return ['data' => [], 'error' => $resp['error']];
+        $data = json_decode((string)$resp['body'], true);
+        if (!is_array($data) || !isset($data['daily']['time'])) {
+            return ['data' => [], 'error' => 'Unerwartetes Antwortformat von Open-Meteo'];
+        }
+        $out = [];
+        foreach ($data['daily']['time'] as $i => $date) {
+            $v = $data['daily']['temperature_2m_mean'][$i] ?? null;
+            if ($v !== null) $out[(string)$date] = (float)$v;
+        }
+        return ['data' => $out, 'error' => $out ? null : 'Antwort 200 OK, aber 0 verwendbare Tage'];
+    }
+
     public function archiveUrl(float $lat, float $lon, string $start, string $end): string
     {
         return sprintf(
-            '%s?latitude=%.4f&longitude=%.4f&start_date=%s&end_date=%s&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=%s',
+            '%s?latitude=%.2f&longitude=%.2f&start_date=%s&end_date=%s&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=%s',
             self::ARCHIVE_API, $lat, $lon, $start, $end, self::timezone()
         );
     }
@@ -43,7 +73,7 @@ final class WeatherService
     public function forecastUrl(float $lat, float $lon, int $forecastDays = 14, int $pastDays = 0): string
     {
         return sprintf(
-            '%s?latitude=%.4f&longitude=%.4f&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&forecast_days=%d&past_days=%d&timezone=%s',
+            '%s?latitude=%.2f&longitude=%.2f&daily=temperature_2m_mean,temperature_2m_min,temperature_2m_max&forecast_days=%d&past_days=%d&timezone=%s',
             self::FORECAST_API, $lat, $lon,
             max(0, min(16, $forecastDays)), max(0, min(92, $pastDays)), self::timezone()
         );

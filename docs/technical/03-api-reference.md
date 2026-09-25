@@ -109,7 +109,7 @@ nicht wieder passieren.
 | GET | `/api/temperatures` | Tagestemperaturen (Map) |
 | POST | `/api/temperatures` | Tagesdatum upsert |
 | POST | `/api/temperatures/import-csv` | CSV-Import |
-| POST | `/api/temperatures/sync-open-meteo` | Open-Meteo-Sync |
+| POST | `/api/temperatures/sync-open-meteo` | Open-Meteo-Abgleich; `?start=&end=&reload=1&auto=1` (v2.8.0) — s. u. |
 | DELETE | `/api/temperatures/{date}` | Tagesdatum löschen |
 | GET | `/api/utility/{u}/meters` | Zähler/Tanks |
 | POST | `/api/utility/{u}/meters` | anlegen |
@@ -140,8 +140,8 @@ nicht wieder passieren.
 | DELETE | `/api/utility/{u}/contracts/{id}` | löschen |
 | GET | `/api/utility/{u}/consumption` | Monatsverbrauch (utility-weit) |
 | GET | `/api/utility/{u}/meters/{id}/consumption` | Verbrauch + Anomalien + Regressionen |
-| GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, nur Gas/Strom/Fernwärme) |
-| GET | `/api/utility/{u}/meters/{id}/forecast` | 12-Monats-Prognose |
+| GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, nur Gas/Strom/Fernwärme); seit v2.8.0 nach Kalender bis heute — s. u. |
+| GET | `/api/utility/{u}/meters/{id}/forecast` | Prognose mit Unsicherheitsband, Klimanormal und Hinweisen (v2.8.0) — s. u. |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | Rechnungsprüfung: Abschnitte je Ablesung und Brennwertwechsel, `?from=&to=` (F1012, **nur Gas**, sonst 400) |
@@ -247,17 +247,43 @@ sondern pro Zeile über die bestehende Route
 
 Monatsaggregate eines Zählers samt Regressionen und Anomalien. Felder je
 Monat u. a.: `ym`, `days`, `kwh` *oder* `m3`, `cost`, `avg_temp`,
-`hdd`, `co2_kg`, `advance_eur`, `monthly_balance`,
-`cumulative_balance`; bei HGT-relevanten Arten zusätzlich
-`expected_hgt`, `weather_adjusted`, `delta_pct` sowie Glättungen
-(MA-3/MA-6). `regressions` enthält alle fünf Modelle mit `r2`/`valid`.
+`hdd`, `temp_days`, `co2_kg`, `advance_eur`, `monthly_balance`,
+`cumulative_balance` sowie Glättungen (`ma3`/`ma6`/`ma12`).
+
+**Seit v2.8.0** zählen `hdd` nur die Tage mit Verbrauch; `temp_days` sagt,
+für wie viele davon Temperaturen vorliegen. Bei HGT-relevanten Arten mit
+Zählerständen (Gas, Fernwärme) kommen die Felder des Heizmodells dazu
+(Formeln in [Grundlagen §5](../functional/00-overview.md#5-wetterbereinigung--mehr-verbraucht-oder-nur-kälter)):
+
+| Feld | Bedeutung |
+|---|---|
+| `regression_point` | `true`, wenn der Monat in die Heizkurve eingeht (eine Regel für Analyse, Bereinigung und Prognose) |
+| `expected_heat` | Erwartung aus `a × HGT + c × Tage` für genau diesen Monat |
+| `weather_delta_pct` | Mehr- oder Minderverbrauch in % bei gegebenem Wetter; `null` bei Teilmonaten |
+| `hdd_normal` | Heizgradtage eines Normaljahrs für dieselben Tage (Klimanormal, sonst eigene Historie) |
+| `heat_adjusted` | witterungsbereinigter Verbrauch: `Ist + a × (hdd_normal − hdd)`, mindestens die Grundlast — umgerechnet wird nur der Wettereinfluss laut Modell |
+
+**Veraltet (Deprecated seit v2.8.0, entfallen mit v3.0.0):** `expected_hgt`,
+`weather_adjusted`, `delta_pct`. Sie werden unverändert weiter geliefert.
+`weather_adjusted` skalierte auch die Grundlast mit dem HGT-Verhältnis,
+`delta_pct` verglich mit dem Mittel aller Monate und maß damit die
+Jahreszeit — Nachfolger sind `heat_adjusted` und `weather_delta_pct`.
+
+`regressions` enthält alle fünf Modelle mit `r2`/`n`/`valid`, seit
+v2.8.0 dazu `curve` (Punkte `{x, y}` der Kurve bis zum größten HGT-Wert, vom
+Backend gerechnet) und beim linearen Modell `se_a` (Standardfehler der
+Steigung). Das Knickmodell ist stetig: `split` ist der Knick,
+`base.b` der Sockel, `heat.a` die Steigung darüber. Für Heizöl und Pellets
+bleibt `regressions` leer und `regressions_note` ist `"delivery_modelled"`:
+Ihre Monatswerte sind nach Gradtagen verteilt, eine Kurve darüber wäre ein
+Zirkelschluss.
 
 **Seit v2.4.0 (F1011)** trägt jeder Monat zusätzlich `pre_baseline`
 (`true` = liegt vor der Analyse-Zäsur des Zählers). Solche Monate bleiben
-in der Antwort, gehen aber in **keine** Auswertung ein: `expected_hgt` und
-`delta_pct` sind für sie `null`, die Regressionen lassen sie aus.
-`weather_adjusted` wird für sie weiter berechnet — der Wert ist
-gebäudeunabhängig und trägt den Vorher/Nachher-Vergleich.
+in der Antwort, gehen aber in **keine** Auswertung ein: `expected_heat`,
+`weather_delta_pct` und `heat_adjusted` sind für sie `null` (das Heizmodell
+beschreibt das Gebäude nach der Maßnahme), die Regressionen lassen sie aus.
+Den Vorher/Nachher-Vergleich trägt `baseline_comparison`.
 
 Dazu zwei neue Felder auf oberster Ebene:
 
@@ -275,14 +301,19 @@ Dazu zwei neue Felder auf oberster Ebene:
   ]
 },
 "baseline_comparison": {            // null, wenn eine Epoche zu dünn ist
-  "before": { "slope": 0.42, "base": 11.8, "r2": 0.97, "points": 63 },
-  "after":  { "slope": 0.28, "base": 12.1, "r2": 0.98, "points": 41 },
-  "delta_pct": -33.3, "unit": "kWh"
+  "before": { "slope": 0.42, "base": 11.8, "r2": 0.97, "points": 63, "se": 0.011 },
+  "after":  { "slope": 0.28, "base": 12.1, "r2": 0.98, "points": 41, "se": 0.009 },
+  "delta_pct": -33.3, "unit": "kWh",
+  "significant": true,               // seit v2.8.0
+  "delta_pct_ci95": [-38.5, -28.1]   // seit v2.8.0
 }
 ```
 
 `slope` ist der Verbrauch **je Gradtag** und damit bereits
-witterungsbereinigt; `delta_pct` ist die Wirkung der Maßnahme.
+witterungsbereinigt; `delta_pct` ist die Wirkung der Maßnahme. Seit v2.8.0
+sagt `significant`, ob der Unterschied belegt ist (Test der
+Steigungsdifferenz, |z| ≥ 1,96), und `delta_pct_ci95` gibt den 95-%-Bereich
+der Änderung; `se` ist der Standardfehler der jeweiligen Steigung.
 `limits` wird auch **ohne** Zäsur befüllt — eine zu kurze Historie wird
 damit erklärt, statt eine Auswertung wortlos ausfallen zu lassen.
 
@@ -308,6 +339,93 @@ Bis v2.5.3 verwarf die Rechnung nur das negative Intervall und zählte das
 folgende ab dem falschen Stand voll: Ein einziger Wert 0 machte aus 190 kWh
 im Monat 50.270 kWh. Ein **Überlauf** (99.998 → 12) wird richtig gerechnet,
 wenn am Gerät `digits` (Stellen des Zählwerks) gepflegt ist.
+
+### `GET /api/utility/{u}/meters/{id}/contract-status` — Saldo nach Kalender *(v2.8.0)*
+
+Für Verträge mit Abschlägen (Gas, Strom, Fernwärme) rechnet der Saldo bis
+**heute**, wie die Jahresabrechnung: Abschläge nach Zahlungsplan, Grundpreis
+tagesgenau, der Verbrauch seit der letzten Ablesung geschätzt. Neue Felder je
+Vertrag (additiv):
+
+| Feld | Bedeutung |
+|---|---|
+| `balance_as_of` | Stichtag der Rechnung (heute, begrenzt auf die Vertragslaufzeit) |
+| `projection_method` | `forecast` (Heizmodell bzw. Saisonprofil) oder `flat_average` |
+| `measured_until` | Datum der letzten gültigen Ablesung |
+| `cost_to_date` | Kosten bis zum Stichtag = `energy_cost_to_date + base_to_date - bonus_to_date` |
+| `energy_cost_to_date` | Arbeitspreis × Verbrauch, gemessen plus geschätzt |
+| `base_to_date` | Grundpreis tagesgenau bis zum Stichtag |
+| `bonus_to_date` | Boni mit Gutschrift bis einschließlich des laufenden Monats |
+| `estimated_cost_to_date` | davon geschätzt: Arbeitspreis für die Zeit seit `measured_until` |
+| `estimated_cost_remaining` | geschätzte Kosten vom Stichtag bis Vertragsende |
+| `advance_remaining` | noch fällige Abschläge bis Vertragsende |
+| `suggested_advance` | Abschlag, der den erwarteten Saldo bis Vertragsende ausgleicht (≥ 0), sonst `null` |
+| `projection_factor` | Kalibrierung der Schätzung am jüngsten Niveau (0,5–1,5) |
+
+**Geänderte Werte:** `advance_paid` zählt seit v2.8.0 die Abschläge nach
+Kalender bis einschließlich des laufenden Monats (vorher nur Monate mit
+Ablesung); `current_balance = cost_to_date − advance_paid +
+special_payment_net`, `projected_end_balance = current_balance +
+estimated_cost_remaining − advance_remaining`. `actual_cost`,
+`actual_kwh_cost` und `actual_base_total` beschreiben weiterhin nur die
+gemessenen Monate.
+
+### `GET /api/utility/{u}/meters/{id}/forecast` *(v2.8.0 erweitert)*
+
+Je Prognosemonat zusätzlich:
+
+| Feld | Bedeutung |
+|---|---|
+| `band_low`, `band_high` | Unsicherheitsband (Breite `confidence_band_sigma`, Default 1,28 σ ≈ 80 %) |
+| `hdd_estimated` | normale Heizgradtage des Monats (Klimanormal, sonst eigene Historie) |
+| `contract_assumed` | `true`, wenn nach Vertragsende der letzte Vertrag als Annahme weiterläuft |
+| `method` | `blend(reg=…, seasonal=…)`, `seasonal_only`, `regression_only` (Kalendermonat ohne eigene Historie), `heat_model`, `filled` |
+
+Auf oberster Ebene:
+
+```json
+"hdd_source": "climate_normal",       // oder "temperature_history", "consumption_months", null
+"annual": { "value": 9387.3, "low": 8619.3, "high": 10155.4, "sigma": 1.28, "level_pct": 80 },
+"warnings": [
+  { "code": "history_short", "months": 8, "missing": [1, 2, 3, 4] },
+  { "code": "no_climate_normal", "hdd_source": "temperature_history" }
+],
+"climate_normal": { "period": { "from": "1996-01-01", "to": "2025-12-31" },
+                    "latitude": 51.34, "longitude": 12.37, "fetched_at": "…" }
+```
+
+`annual` fehlt (`null`), wenn keine zwölf Monate mit Band vorliegen. Die
+Abschläge der Prognose kommen aus dem effektiven Zahlungsplan
+(Sonderzahlungen „mit Auswirkung" ändern ihn).
+
+### `POST /api/temperatures/sync-open-meteo` *(v2.8.0)*
+
+Holt Tagestemperaturen für den Standort aus den Einstellungen — Messwerte aus
+dem Archiv, für die letzten Tage und die kommende Woche die Vorhersage — und
+beim ersten Mal das Klimanormal (30 Jahre).
+
+| Parameter | Bedeutung |
+|---|---|
+| `start`, `end` | Zeitraum (ISO-Datum). Ohne `start`: ab der ersten Ablesung bzw. Lieferung, sonst die letzten 30 Tage |
+| `reload=1` | vorhandene Werte durch Archivwerte ersetzen — außer eigenen (`csv`, `manual`) |
+| `auto=1` | automatischer Abruf der Oberfläche: höchstens einmal am Tag; bei `weather_auto_fill = false` `{"skipped": true, "reason": "auto_fill_off"}`, sonst ggf. `{"skipped": true, "reason": "already_today"}` |
+
+Antwort: `imported`, `archive_rows`, `forecast_rows`, `archive_range`,
+`archive_error`, `forecast_error`, `measured_until`, `forecast_until` und
+`climate_normal` (`status`: `present` | `fetched` | `failed`, dazu Periode
+und Koordinaten).
+
+Jeder Eintrag in `GET /api/temperatures` trägt seit v2.8.0 `source`:
+`archive`, `forecast`, `csv` oder `manual`. Vorhersagen werden durch
+Archivwerte ersetzt, sobald diese vorliegen; eigene Werte nie. An Open-Meteo
+geht nur der Standort, auf zwei Nachkommastellen gerundet.
+
+### `GET /api/utility/{u}/meters/{id}/tariff-switch` — Prognosegüte *(v2.8.0 erweitert)*
+
+Der Block `forecast` (Güte der Verbrauchsannahme) trägt zusätzlich
+`warnings` und `hdd_source` wie die Prognose und `annual_band` (= `annual`
+der Prognose): Die Wechselentscheidung zeigt, wie weit der Jahresverbrauch je
+nach Winter schwanken kann.
 
 ### Ablesungen: `is_suspect`, `source` *(v2.6.0, additiv)*
 

@@ -5,8 +5,10 @@
 [← Compendium index](../README.md)
 
 Energietracker is deliberately **dependency-free**: no Composer, no npm build, no
-database, no external service at runtime (apart from the optional Open-Meteo
-fetch for temperatures). A PHP-capable web server and a browser are enough.
+database, no external service at runtime — apart from the temperature sync with
+Open-Meteo (since v2.8.0 automatically once a day, can be switched off under
+*Settings → Fill weather automatically*). A PHP-capable web server and a browser
+are enough.
 
 ---
 

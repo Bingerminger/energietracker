@@ -25,7 +25,7 @@ The structure, data flow and core algorithms of Energietracker.
                           └──┬───────────────┬──────────────┘
                              │               │
               ┌──────────────▼──────┐  ┌─────▼──────────────────┐
-              │  Controllers (18)   │  │   Services (22)        │
+              │  Controllers        │  │   Services             │
               │  - 1 class / file   │  │   - pure domain        │
               │  - thin adapter     │  │     logic              │
               │  - no logic         │  │   - no HTTP knowledge  │
@@ -109,11 +109,12 @@ external call view goes through the controllers.
 | `ContractService` | CRUD of contracts, F4-strict validation, `valueValidOn(...)` for the effective-date lookup, `bonusForMonth(...)` |
 | `ConsumptionService` | monthly aggregation, F2 device bridging, F3 multi-meter aggregation, **`contractStatus()`** for the balance card; F-03 billing-cycle projection of open contracts, F-05 contract-end reminder, waste-water `separater_zaehler` resolution with a recursion lock |
 | `DeliveryConsumptionService` | **(v1.4.4)** daily consumption distribution & tank stock draw for heating oil/pellets — extracted from `ConsumptionService` |
-| `TemperatureService` | CSV import, day-map update |
-| `WeatherService` | Open-Meteo API wrapper (archive + forecast) |
+| `TemperatureService` | CSV import, Open-Meteo sync with a source per day (`archive`/`forecast`/`csv`/`manual`), daily auto-sync (v2.8.0) |
+| `WeatherService` | Open-Meteo API wrapper (archive, forecast, 30-year daily means) behind the `WeatherSource` interface |
+| `ClimateNormalService` | **(v2.8.0)** climate normal at the location: HDD mean and spread per calendar month from 30 years, stored in `climate_normal.json` |
 | `RegressionService` | five models (linear, polynomial, robust, segmented, sigmoid) + `fit()` dispatcher + `predict()` |
-| `ForecastService` | R²-weighted mix of regression and seasonal profile over 12 months; F-02 contract-based cost forecast (`projectMonthFinances()`) with a projected advance and running balance |
-| `AnomalyService` | z-score-based outlier detection |
+| `ForecastService` | R²-weighted mix of regression and seasonal profile over 12 months, HDD from the climate normal, uncertainty band (v2.8.0); F-02 contract-based cost forecast (`projectMonthFinances()`) with a projected advance and running balance |
+| `AnomalyService` | outliers against the expectation per month (heating model or the same calendar month in other years), robust spread with a floor (v2.8.0) |
 | `BackupService` | export/import in the 3.0 format, snapshot creation |
 | `MigrationService` | v0.9.0 → current schema, preview + apply with replace/merge mode |
 | `ReadingImportService` | CSV bulk import of readings (F-06); source-agnostic core `importRows()`, overwrites existing readings on the same date |
@@ -316,14 +317,15 @@ advance). Future bonuses are not carried forward. If an active contract is missi
 | `blend_max` | float | 0.8 | maximum weight of the regression component in the forecast |
 | `forecast_months` | int | 12 | forecast horizon in months |
 | `min_temp_days_forecast` | int | 20 | minimum days of temperature data per month for use |
-| `forecast_model` | string | `linear` | default model for the forecast (`linear`/`polynomial`/`robust`/`segmented`) |
+| `forecast_model` | string | `linear` | default model for the forecast (`linear`/`polynomial`/`robust`/`segmented`/`sigmoid`) |
+| `confidence_band_sigma` | float | 1.28 | width of the forecast band in standard deviations (1.28 ≈ 80 % of years; without effect up to v2.7) |
 | `dashboard_months` | int | 12 | how many months to show on the dashboard |
 | `alert_days_since_reading` | int | 45 | status-banner threshold "reading overdue" |
-| `anomaly_threshold` | float | 2 | z-score threshold for anomaly detection |
+| `anomaly_threshold` | float | 2 | threshold (robust z-value) for anomaly detection |
 | `location_name` | string | "Leipzig Zentrum" | display name of the location |
 | `latitude` | float | 51.3397 | geo-lat for Open-Meteo |
 | `longitude` | float | 12.3731 | geo-lon for Open-Meteo |
-| `weather_auto_fill` | bool | true | run the sync automatically on start |
+| `weather_auto_fill` | bool | true | fetch temperatures from Open-Meteo once a day when the app is opened (effective since v2.8.0; transmits the rounded location) |
 | `wasser_personen_anzahl` | int | 2 | persons in the household for the water reference |
 | `wasser_personen_referenz` | int | 127 | reference litres per person per day |
 | `billing_cycle_anchor_gas` | string | `01-01` | billing date gas (`MM-DD`); the balance of open contracts is projected up to there (F-03) |

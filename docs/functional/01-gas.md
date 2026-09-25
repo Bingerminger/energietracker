@@ -110,7 +110,9 @@ Lücke sichtbar ist.
 Gas hat klassische Lieferverträge: Arbeitspreis (ct/kWh), Grundpreis
 (€/Monat), Abschläge, Boni. Mehrere Verträge mit Wechsel werden über
 ihre Laufzeiten korrekt verkettet; der Saldo zeigt Stand heute und
-erwartete Endsaldierung bis zum Abrechnungsstichtag.
+erwartete Endsaldierung bis zum Abrechnungsstichtag — seit v2.8.0 nach
+Kalender, mit geschätztem Verbrauch seit der letzten Ablesung
+([Grundlagen §10](00-overview.md#10-saldo-bis-heute)).
 
 Rück-/Nachzahlungen und zusätzliche Abschlagszahlungen werden als
 **[Sonderzahlungen](10-sonderzahlungen.md)** (F1003) erfasst und gehen in

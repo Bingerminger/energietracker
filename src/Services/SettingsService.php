@@ -151,7 +151,7 @@ final class SettingsService
         // ── v1.3.0 — Empfehlungs-Engine (statistische Insights) ──
         'recommendation_anomaly_sigma'   => 2.0,  // Mehrverbrauch ohne Wetterkontext
         'recommendation_trend_pct_year'  => 3.0,  // Trend-Detektion
-        'confidence_band_sigma'          => 1.0,  // Unsicherheitsband der Prognose
+        'confidence_band_sigma'          => 1.28, // Breite des Prognosebands in σ (1,28 ≈ 80 %); bis v2.7 ohne Wirkung
 
         // ── v1.3.0 — Effizienzklassen kWh/m²·a (Heizenergie kombiniert) ──
         // Bandgrenzen orientiert an GEG/DENA-Klassifikation [Unverifiziert —

@@ -414,6 +414,12 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
   font-size: 11px; color: var(--text-2);
   margin-top: 4px;
 }
+/* v2.8.0 — Abschlagsvorschlag unter der Saldo-Karte (UI-36) */
+.balance-suggest {
+  margin: var(--sp-3) 0 0; padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md); font-size: var(--fs-sm);
+  background: color-mix(in srgb, var(--info) 8%, transparent); color: var(--text-1);
+}
 .balance-col__breakdown {
   font-family: var(--font-mono); font-size: 10px;
   color: var(--text-disabled);

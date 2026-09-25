@@ -7,6 +7,7 @@ use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\TemperatureService;
 use Energietracker\Services\I18nService;
+use Energietracker\Services\SettingsService;
 use Energietracker\Support\Dates;
 
 /**
@@ -19,6 +20,7 @@ final class TemperatureController
     public function __construct(
         private TemperatureService $temps,
         private I18nService $i18n,
+        private SettingsService $settings,
     ) {}
 
     public function index(Request $req): never
@@ -68,7 +70,15 @@ final class TemperatureController
         if ($start !== null && $end !== null && $start > $end) {
             Response::error($this->i18n->t('errors.temperature.rangeInvalid', ['start' => $start, 'end' => $end]));
         }
-        Response::json($this->temps->syncOpenMeteo($start, $end));
+        // v2.8.0 — `reload=1`: auch Einträge von vor v2.8.0 (ohne Quelle) durch
+        // Archivwerte ersetzen. `auto=1`: Aufruf beim App-Start — nur mit
+        // eingeschaltetem `weather_auto_fill` und höchstens einmal am Tag.
+        $reload = in_array($req->queryParam('reload'), ['1', 'true'], true);
+        $auto   = in_array($req->queryParam('auto'), ['1', 'true'], true);
+        if ($auto && !$this->settings->get('weather_auto_fill', true)) {
+            Response::json(['skipped' => true, 'reason' => 'auto_fill_off']);
+        }
+        Response::json($this->temps->syncOpenMeteo($start, $end, $reload, $auto));
     }
 
     public function delete(Request $req): never

@@ -53,9 +53,17 @@ Details: [Zählerstände → Plausibilität](../functional/11-zaehlerstaende.md)
 ## 3. Verbrauchsansicht — kumulative Arten (Gas/Strom/Wasser/Fernwärme)
 
 Pro Art identischer Aufbau: Jahr-Auswahl, Zähler-Auswahl, KPI-Leiste
-(Verbrauch, Kosten, Saldo heute, erwarteter Saldo), Vertrags-/Saldo-Karte,
-Verbrauchschart mit Temperaturüberlagerung sowie Monatstabelle mit
-gleitenden Mitteln (MA-3/MA-6) und Wetterbereinigung. Die Tabelle
+(Verbrauch, Kosten, Abschläge mit Saldo der abgelesenen Monate, Tagesschnitt,
+CO₂), Vertrags-/Saldo-Karte, Verbrauchschart mit Temperaturüberlagerung sowie
+Monatstabelle mit gleitenden Mitteln (MA-3/MA-6) und Wetterbereinigung.
+
+**Saldo-Karte (v2.8.0):** rechnet nach Kalender bis heute — „Verbraucht
+(Stand heute)" zerlegt sich in Arbeitspreis und Grundpreis (abzüglich Boni),
+darunter steht, bis wann gemessen und ab wann geschätzt ist. „Abschlag
+bezahlt" zählt die Abschläge, wie sie abgebucht wurden. Weicht der erwartete
+Saldo spürbar ab, schlägt die Karte einen Abschlag vor. Die KPI-Kacheln
+summieren dagegen die abgelesenen Monate; liegt die letzte Ablesung im
+laufenden Jahr zurück, heißt die Kachel „Abschläge bis ‹Datum›". Die Tabelle
 **Verträge & Abschläge** führt je Vertrag Tarif, Abschlag, Verbraucht,
 Bezahlt, Bonus, **Sonderzahlungen** (seit v2.5.1: Netto aus Kundensicht,
 Einzelposten im Tooltip; nur bei Gas/Strom/Fernwärme) sowie Saldo heute
@@ -85,9 +93,18 @@ Vertrags-Bereich — die Tankrechnung ist die Kostenbasis.
 
 ## 5. Analyse (Heizsignatur)
 
-HGT-Korrelations-Streudiagramm mit Regressionsgerade, R²-Vergleich
-**aller fünf** Modelle (linear, polynomial, robust, segmentiert,
-sigmoid), Anomalien.
+HGT-Korrelations-Streudiagramm mit den Kurven **aller fünf** Modelle
+(linear, polynomial, robust, segmentiert, sigmoid) und ihrem R²-Vergleich,
+Jahresvergleich und Anomalien.
+
+Seit v2.8.0: Volle Punkte gehen in die Kurven ein, **hohle** sind eigene
+Monate außerhalb des Fits (Teilmonat, zu wenig Heizgradtage oder Temperaturen),
+**graue** liegen vor der Zäsur. Unter der Tabelle steht, dass R² die Anpassung
+an die gezeigten Monate misst, keine Vorhersagegüte. Die Karte „Wirkung der
+Maßnahme" sagt, ob der Unterschied vor/nach der Zäsur statistisch belegt ist,
+mit 95-%-Bereich. Anomalien messen jeden Monat an seiner eigenen Erwartung
+(Heizmodell bzw. derselbe Monat anderer Jahre). Bei Heizöl und Pellets steht
+statt der Kurven ein Hinweis: Ihre Monatswerte sind nach Gradtagen verteilt.
 
 ![Analyse](screenshots/analyse.png)
 
@@ -98,6 +115,13 @@ sigmoid), Anomalien.
 Modellauswahl (alle fünf), 12-Monats-Prognose als R²-gewichteter Blend
 aus Regression und Saisonprofil, Kostenprognose mit Saldo offener
 Verträge.
+
+Seit v2.8.0 mit **Unsicherheitsband** (Bereich, in dem der Verbrauch in 80 %
+der Jahre liegt) und einer Zeile zum Jahr („in 80 % der Jahre zwischen … und
+…"). Darunter die Quelle der Heizgradtage (Klimanormal am Standort oder eigene
+Historie) und Hinweise bei kurzer Historie. Die Spalte „Methode" sagt je
+Monat, wie gerechnet wurde; Monate nach Vertragsende, in denen der letzte
+Vertrag als Annahme weiterläuft, tragen ein Sternchen.
 
 ![Prognose](screenshots/prognose.png)
 
@@ -225,7 +249,12 @@ Erledigen wird der nächste Termin gemäß Recurrence fortgeschrieben.
 ## 10. Temperaturen
 
 CSV-Import (Drag & Drop), Open-Meteo-Sync für den hinterlegten
-Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung. Steht der
+Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung. Seit v2.8.0
+steht über dem Chart, bis wann Messwerte und ab wann Vorhersagen vorliegen;
+die Option „Auch vorhandene ältere Werte durch Archivwerte ersetzen" räumt
+Vorhersagen auf, die frühere Versionen wie Messwerte gespeichert haben. Mit
+*Wetter automatisch füllen* (Einstellungen, Standard an) gleicht die App beim
+Öffnen einmal am Tag selbst ab und lädt beim ersten Mal das Klimanormal. Steht der
 Standort noch auf der Voreinstellung des Landes, sagt ein Hinweis das
 (v2.7.0) — die Gradtagzahlen rechnen dann mit dem Wetter eines anderen Orts.
 

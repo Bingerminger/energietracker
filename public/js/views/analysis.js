@@ -97,7 +97,12 @@ async function renderForMeter(u, meterId, body) {
     ${renderBaselineBlock(baseline, comparison, u)}
     ${u.key === 'wasser' ? await renderWaterSparindex(monthly) : ''}
     <div class="grid grid-2">
-      ${u.hgt_relevant ? `
+      ${u.hgt_relevant && meterData.regressions_note === 'delivery_modelled' ? `
+        <div class="card">
+          <h3 class="card__title">${t('analysis.hgtTitle')}</h3>
+          <p class="muted">${t('analysis.deliveryModelled')}</p>
+        </div>
+      ` : u.hgt_relevant ? `
         <div class="card">
           <h3 class="card__title">${t('analysis.hgtTitle')}</h3>
           <div class="chart-wrap"><canvas id="ch-hdd"></canvas></div>
@@ -160,8 +165,8 @@ async function renderForMeter(u, meterId, body) {
   `;
 
   // Render charts
-  if (u.hgt_relevant) renderHgtScatter(monthly, u, consKey, regressions);
-  else                renderSeasonalProfile(monthly, u, consKey);
+  if (u.hgt_relevant && meterData.regressions_note !== 'delivery_modelled') renderHgtScatter(monthly, u, consKey, regressions);
+  else if (!u.hgt_relevant) renderSeasonalProfile(monthly, u, consKey);
   renderYearComparison(monthly, u, consKey);
 }
 
@@ -226,12 +231,16 @@ function renderBaselineBlock(baseline, comparison, u) {
           </div>
           <div class="kpi">
             <div class="kpi__label">${t('analysis.baseline.effect')}</div>
-            <div class="kpi__value ${better ? 'success-text' : 'danger-text'}">
+            <div class="kpi__value ${comparison.significant === false ? '' : (better ? 'success-text' : 'danger-text')}">
               ${comparison.delta_pct > 0 ? '+' : ''}${fmt.num(comparison.delta_pct, 1)} %
             </div>
             <div class="kpi__sub">${t('analysis.baseline.weatherCorrected')}</div>
           </div>
         </div>
+        ${Array.isArray(comparison.delta_pct_ci95) ? `
+          <p class="muted" style="margin-top:10px">${t(comparison.significant ? 'analysis.baseline.significant' : 'analysis.baseline.notSignificant', {
+            lo: fmt.num(comparison.delta_pct_ci95[0], 0), hi: fmt.num(comparison.delta_pct_ci95[1], 0),
+          })}</p>` : ''}
       </div>`);
   }
 
@@ -289,8 +298,15 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
   const usable = monthly.filter(m => m.hdd > 0 && m[consKey] > 0);
   // F1011: Die Punkte vor der Zäsur verschwinden nicht — sie werden nur
   // ausgegraut und aus dem Fit genommen. Die Daten bleiben sichtbar.
+  // v2.8.0 (FE-18) — welche Monate im Fit stecken, sagt das Backend
+  // (`regression_point`); Teilmonate und Monate unter der HGT-Schwelle
+  // erscheinen blass. Bisher zeichnete das Chart Punkte, die nicht im Fit waren.
+  const inFit = (m) => (m.regression_point ?? !m.pre_baseline) === true;
   const points = usable
-    .filter(m => !m.pre_baseline)
+    .filter(m => inFit(m))
+    .map(m => ({ x: m.hdd, y: m[consKey], ym: m.ym }));
+  const outPoints = usable
+    .filter(m => !inFit(m) && !m.pre_baseline)
     .map(m => ({ x: m.hdd, y: m[consKey], ym: m.ym }));
   const prePoints = usable
     .filter(m => m.pre_baseline)
@@ -308,12 +324,16 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
       summaryRows.push({ model, style, reg, line: null });
       return;
     }
-    const steps = (model === 'linear' || model === 'robust') ? 2 : 50;
-    const linePoints = [];
-    for (let i = 0; i <= steps; i++) {
-      const x = (xMax * i) / steps;
-      const y = predictFor(model, reg, x);
-      if (y !== null) linePoints.push({ x, y });
+    // v2.8.0 — Kurvenpunkte vom Backend (RegressionService::predict);
+    // predictFor bleibt nur für ältere Server-Antworten.
+    const linePoints = Array.isArray(reg.curve) ? reg.curve.map(p => ({ x: p.x, y: p.y })) : [];
+    if (!linePoints.length) {
+      const steps = (model === 'linear' || model === 'robust') ? 2 : 50;
+      for (let i = 0; i <= steps; i++) {
+        const x = (xMax * i) / steps;
+        const y = predictFor(model, reg, x);
+        if (y !== null) linePoints.push({ x, y });
+      }
     }
     lineDatasets.push({
       label: modelLabel(model),
@@ -338,6 +358,16 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
           data: prePoints,
           backgroundColor: preBaselineColor(),
           pointRadius: 3,
+        }] : []),
+        // Hohl in der Farbe der Verbrauchsart: eigene Monate, nur nicht im
+        // Modell — grau bleibt der Zeit vor der Zäsur vorbehalten
+        ...(outPoints.length ? [{
+          label: t('analysis.scatterNotInFit'),
+          data: outPoints,
+          backgroundColor: 'transparent',
+          borderColor: u.color,
+          borderWidth: 1.5,
+          pointRadius: 4,
         }] : []),
         { label: t('analysis.scatterPoints'), data: points, backgroundColor: u.color, pointRadius: 4 },
         ...lineDatasets,
@@ -372,13 +402,14 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
                 ${modelLabel(r.model)}
                 ${bestModel && r.model === bestModel.model ? `<span class="badge badge--success">${t('analysis.reg.bestFit')}</span>` : ''}
               </td>
-              <td class="num">${r.reg?.valid ? r.reg.r2.toFixed(3) : '–'}</td>
+              <td class="num">${r.reg?.valid ? fmt.num(r.reg.r2, 3) : '–'}</td>
               <td class="num">${r.reg?.n ?? '–'}</td>
               <td class="muted">${formatCoefficients(r.model, r.reg, u)}</td>
             </tr>
           `).join('')}
         </tbody>
       </table>
+      <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">${t('analysis.regR2Note')}</p>
     `;
   }
 }
@@ -389,17 +420,20 @@ function formatCoefficients(model, reg, u) {
   switch (model) {
     case 'linear':
     case 'robust':
-      return `${unit}/HGT = ${(reg.a ?? 0).toFixed(2)}, ${t('analysis.reg.intercept')} = ${(reg.b ?? 0).toFixed(1)}`;
+      return `${unit}/HGT = ${fmt.num(reg.a ?? 0, 2)}, ${t('analysis.reg.intercept')} = ${fmt.num(reg.b ?? 0, 1)}`;
     case 'polynomial':
-      return `a = ${(reg.a ?? 0).toExponential(2)}, b = ${(reg.b ?? 0).toFixed(2)}, c = ${(reg.c ?? 0).toFixed(1)}`;
+      return `a = ${(reg.a ?? 0).toExponential(2)}, b = ${fmt.num(reg.b ?? 0, 2)}, c = ${fmt.num(reg.c ?? 0, 1)}`;
     case 'segmented': {
+      // v2.8.0 — stetiges Knickmodell: Sockel + Steigung × max(0, HGT − Knick)
       const heat = reg.heat || {}; const base = reg.base || {};
-      return `HGT≥${reg.split}: ${heat.a?.toFixed(2) ?? '–'}×HGT+${heat.b?.toFixed(1) ?? '–'} | HGT<${reg.split}: ${base.a?.toFixed(2) ?? '–'}×HGT+${base.b?.toFixed(1) ?? '–'}`;
+      return `${fmt.num(base.b ?? 0, 0)} + ${fmt.num(heat.a ?? 0, 2)} × max(0, HGT − ${fmt.num(reg.split ?? 0, 0)})`;
     }
-    case 'sigmoid':
-      return reg.predict
-        ? reg.predict
-        : `A=${(reg.A ?? 0).toFixed(1)}, B=${(reg.B ?? 0).toFixed(1)}, C=${reg.C ?? '–'}, θ₀=${(reg.theta0 ?? 0).toFixed(1)}, D=${(reg.D ?? 0).toFixed(0)}`;
+    case 'sigmoid': {
+      // v2.8.0 — aus den Parametern statt aus `predict`: Zahlen im Format der
+      // Sprache, Vorzeichen von θ₀ ausgeschrieben
+      const t0 = reg.theta0 ?? 0;
+      return `${unit} = ${fmt.num(reg.A ?? 0, 1)} / (1 + (${fmt.num(reg.B ?? 0, 1)} / (HGT ${t0 < 0 ? '+' : '−'} ${fmt.num(Math.abs(t0), 1)}))^${reg.C ?? '–'}) + ${fmt.num(reg.D ?? 0, 0)}`;
+    }
     default: return '';
   }
 }

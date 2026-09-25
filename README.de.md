@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.7.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.8.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-346-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-378-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installierbar-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
@@ -21,7 +21,10 @@ Selbst-gehostete Web-Anwendung zum Erfassen und Analysieren des eigenen
 Energie- und Wasserverbrauchs. Single-File PHP-Backend, Vanilla-JS SPA-Frontend,
 flat-file JSON-Persistenz — keine Datenbank, kein Server-Setup, **überhaupt
 keine Abhängigkeiten zur Laufzeit**. Chart.js und die Schriften liegen im
-Repository; die Anwendung stellt keine externen Anfragen.
+Repository. Die einzige Verbindung nach außen ist der Temperaturabgleich mit
+Open-Meteo: höchstens einmal am Tag, übermittelt wird nur der auf rund 1 km
+gerundete Standort, abschaltbar unter *Einstellungen → Wetter automatisch
+füllen* (seit v2.8.0; vorher nur auf Knopfdruck).
 
 Bis zu acht Verbrauchsarten parallel: **Gas**, **Strom**, **Wasser**,
 **Fernwärme**, **Heizöl** und **Pellets** (Heizöl/Pellets lieferbasiert
@@ -31,15 +34,16 @@ Autarkiequote). Pro Verbrauchsart: mehrere Zähler mit voll
 modelliertem Zählertausch, beliebige Vertragshistorie mit
 Tarifänderungen, Grundpreis-Verlauf, Abschlägen und Boni. Daraus
 berechnet die App Monatsverbräuche (linear interpoliert bzw. energetisch
-bilanziert), Heizgradtage gegen das lokale Klima, fünf Regressionsmodelle
-(linear, polynomial, robust, segmentiert mit datenbasiertem Knickpunkt,
-Sigmoid), Wetterbereinigung, eine Effizienzklasse (kWh/m²·a) und einen
-Saldo pro Vertrag — sowohl aktueller Stand als auch erwartete
-End-Saldierung. Dazu eine statistische Empfehlungs-Engine,
+bilanziert), Heizgradtage gegen das lokale Klima (30-jähriges Klimanormal am
+Standort), ein Heizmodell mit Grundlast, fünf Regressionsmodelle (linear,
+polynomial, robust, segmentiert mit datenbasiertem Knickpunkt, Sigmoid),
+modellbasierte Wetterbereinigung, eine Prognose mit Unsicherheitsband, eine
+Effizienzklasse (kWh/m²·a) und einen Saldo pro Vertrag — nach Kalender bis
+heute und als erwartete End-Saldierung, mit Abschlagsvorschlag. Dazu eine statistische Empfehlungs-Engine,
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v2.7.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v2.8.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -91,9 +95,10 @@ PDF-Jahresbericht.
   (aktuelles_reading − neues_initial)`).
 - **Mehrere Zähler pro Utility** mit unabhängigen Verträgen
   (z.B. Hauptzähler + Gartenwasser-Zwischenzähler).
-- **Temperatur-Import** als CSV (Format
-  `DD.MM.YYYY"avg"min"max`, double-quote-getrennt) oder per Open-Meteo-Sync
-  über Standort-Koordinaten in den Einstellungen.
+- **Temperaturen** als CSV-Import (Format `DD.MM.YYYY"avg"min"max`,
+  double-quote-getrennt) oder per Open-Meteo über die Standort-Koordinaten in
+  den Einstellungen — seit v2.8.0 täglich automatisch, Messwerte getrennt von
+  Vorhersagen, eigene Werte werden nie überschrieben.
 - **Gas-Umrechnung mit Stichtagen** (v2.5.0): Zustandszahl × Brennwert je
   Periode, genau wie die Rechnung sie ausweist; tagesgenaue Teilung an
   jedem Wechsel, dazu eine **Rechnungsprüfung**, die die Versorgerrechnung
@@ -319,7 +324,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.7.0
+  ghcr.io/bingerminger/energietracker:2.8.0
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -497,7 +502,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „2.7.0"
+├── VERSION                  ← „2.8.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE
@@ -514,8 +519,8 @@ energietracker/
 │   ├── Storage/
 │   │   ├── JsonStore.php    ← LOCK_EX writes, atomic reads
 │   │   └── Migrator.php     ← Bootstrap-Logik für leeres `data/`
-│   ├── Services/            ← 24 Services (Consumption, DeliveryConsumption, Forecast, Auth, Ingest, …)
-│   └── Controllers/         ← 20 Controllers, 1 Klasse pro Datei
+│   ├── Services/            ← Fachlogik (Consumption, DeliveryConsumption, Forecast, ClimateNormal, Auth, Ingest, …)
+│   └── Controllers/         ← 1 Klasse pro Datei
 ├── public/
 │   ├── css/                 ← tokens.css + app.css + components.css
 │   └── js/                  ← Vanilla-JS SPA

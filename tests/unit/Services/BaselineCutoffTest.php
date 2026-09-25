@@ -349,13 +349,14 @@ final class BaselineCutoffTest extends ServiceTestCase
 
     public function testAnomalyBaselineIsTheCurrentEpoch(): void
     {
-        $withCut = $this->monthlyFor($this->withCut());
-        foreach ($this->anomalies->detect('gas', $withCut) as $a) {
-            self::assertGreaterThanOrEqual(
-                substr(self::CUT, 0, 7),
-                $a['ym'],
-                'Kein Monat vor der Zäsur darf als Anomalie auftauchen'
-            );
+        // v2.8.0 — saubere Daten liefern keine Anomalie mehr (auch keinen
+        // Sommer); je ein Ausreißer vor und nach der Zäsur macht den Test scharf.
+        $this->spikeMonth('2021-02', 300.0);
+        $this->spikeMonth('2024-02', 60.0);
+        $found = array_column($this->anomalies->detect('gas', $this->monthlyFor($this->withCut())), 'ym');
+        self::assertContains('2024-02', $found, 'Ausreißer nach der Zäsur wird gefunden');
+        foreach ($found as $ym) {
+            self::assertGreaterThanOrEqual(substr(self::CUT, 0, 7), $ym, 'Kein Monat vor der Zäsur darf als Anomalie auftauchen');
         }
     }
 
@@ -387,22 +388,24 @@ final class BaselineCutoffTest extends ServiceTestCase
     }
 
     /**
-     * Der eigentliche Schaden aus GitHub #20: Nach der Sanierung liegt der
-     * Vergleichsmaßstab dauerhaft zu hoch, weil er die ungedämmten Jahre
-     * enthält — ein echter Mehrverbrauch danach fällt dann durch.
+     * Der eigentliche Schaden aus GitHub #20: Nach der Sanierung beschreibt
+     * ein Modell über beide Epochen keine von beiden — ein echter
+     * Mehrverbrauch danach geht in der Mischung unter.
      *
-     * Gemessen: Ein Aufschlag von 100 kWh auf 2024-03 wird **mit** Zäsur
-     * gemeldet und **ohne** Zäsur übersehen. Genau diese Lücke schließt F1011.
+     * v2.8.0 — R1 misst am Heizmodell desselben Monats (`expected_heat`).
+     * Gemessen: Ein Aufschlag von 30 kWh auf 2024-03 wird **mit** Zäsur
+     * gemeldet; **ohne** Zäsur liegt das Mischmodell für die gedämmten Jahre
+     * ohnehin rund 27 kWh zu hoch, und der Aufschlag verschwindet darin.
      */
     public function testModerateExcessAfterTheWorkIsDetectedOnlyWithTheCut(): void
     {
-        $this->spikeMonth('2024-03', 100.0);
+        $this->spikeMonth('2024-03', 30.0);
 
         $this->setCut([]);
         self::assertNotContains(
             '2024-03',
             $this->gasMonthsFlaggedByRecommendations(),
-            'Kontrolle: ohne Zäsur geht der Mehrverbrauch im Mittel der Altjahre unter'
+            'Kontrolle: ohne Zäsur geht der Mehrverbrauch im Mischmodell unter'
         );
 
         $this->withCut();
@@ -414,52 +417,51 @@ final class BaselineCutoffTest extends ServiceTestCase
     }
 
     /**
-     * Trend (R2) und Rohausreißer (R4) tragen dieselbe Regel.
+     * Trend (R2) und Ausreißer (R1) tragen dieselbe Regel.
      *
-     * Bei einer frischen Zäsur bleiben zu wenige Punkte übrig — dann müssen
+     * Bei einer frischen Zäsur bleiben zu wenige Monate übrig — dann müssen
      * beide **schweigen**, statt einen „Trend" zu melden, der in Wahrheit der
      * Umbau ist, oder einen Ausreißer, der noch zum alten Gebäude gehört.
      * Ohne Zäsur feuern beide; das ist die Kontrolle.
+     *
+     * v2.8.0 — R2 ist ein Vorjahresvergleich derselben Monate; der Aufbau
+     * legt deshalb auf das letzte Jahr 10 % drauf. R4 gilt seit v2.8.0 nur noch
+     * für Arten ohne Wetterbezug — den Sommer-Ausreißer bei Gas meldet R1,
+     * weil das Heizmodell auch für Sommermonate eine Erwartung hat.
      */
-    public function testTrendAndRawOutlierRulesAlsoRespectTheCut(): void
+    public function testTrendAndOutlierRulesAlsoRespectTheCut(): void
     {
-        $this->spikeMonth('2025-07', 300.0);   // Sommer: weather_adjusted ist null → R4-Fall
+        for ($ts = strtotime('2025-07-01'); $ts < strtotime(self::LAST_YM . '-01'); $ts = strtotime('+1 month', $ts)) {
+            $ym = date('Y-m', $ts);
+            $this->spikeMonth($ym, 0.10 * $this->consumptionOf($ym));
+        }
+        $this->spikeMonth('2025-08', 300.0);   // Sommer: HGT 0, Erwartung = Grundlast
 
         $this->setCut([]);
         $ohne = $this->gasRuleIds();
-        self::assertContains('r2', $ohne, 'Kontrolle: ohne Zäsur meldet R2 einen Trend');
-        self::assertContains('r4', $ohne, 'Kontrolle: ohne Zäsur meldet R4 den Ausreißer');
+        self::assertContains('r2', $ohne, 'Kontrolle: ohne Zäsur meldet R2 den Anstieg gegenüber dem Vorjahr');
+        self::assertContains('2025-08', $this->gasMonthsFlaggedByRecommendations(), 'Kontrolle: ohne Zäsur meldet R1 den Sommer-Ausreißer');
 
         // Zäsur nach dem Ausreißer: zu wenig neue Historie für beide Regeln.
         $this->setCut([['date' => '2025-10-01', 'label' => 'Wärmepumpe']]);
-        $mit = $this->gasRuleIds();
-        self::assertNotContains('r2', $mit, 'R2 darf keinen Trend über die Zäsur hinweg melden');
-        self::assertNotContains('r4', $mit, 'R4 darf keinen Monat von vor der Zäsur melden');
+        self::assertNotContains('r2', $this->gasRuleIds(), 'R2 darf keinen Trend über die Zäsur hinweg melden');
+        self::assertNotContains('2025-08', $this->gasMonthsFlaggedByRecommendations(), 'R1 darf keinen Monat von vor der Zäsur melden');
     }
 
     /**
-     * Gegenstück zum vorigen Test: Der **Rohmittelwert** von R4 muss ebenfalls
-     * aus der neuen Epoche kommen. Ein Sommer-Ausreißer nach der Sanierung
-     * (weather_adjusted ist dort `null`, deshalb greift R4 statt R1) wird bei
-     * +160 kWh nur erkannt, wenn die ungedämmten Jahre nicht mitzählen.
+     * v2.8.0 — Ein Sommer-Ausreißer nach der Sanierung fällt auf, weil das
+     * Heizmodell für jeden Monat eine Erwartung liefert: im Sommer die
+     * Grundlast. Bis v2.7 bekam ein Monat mit HGT ≤ 5 die Erwartung 0, und
+     * der ganze Warmwasserverbrauch galt als Abweichung (Review CALC-06).
      */
-    public function testRawOutlierAfterTheWorkNeedsTheNewMean(): void
+    public function testSummerOutlierAfterTheWorkIsMeasuredAgainstTheBaseLoad(): void
     {
         $this->spikeMonth('2024-07', 160.0);
-
-        $this->setCut([]);
-        self::assertNotContains(
-            'r4',
-            $this->gasRuleIds(),
-            'Kontrolle: gegen das Mittel der Altjahre bleibt der Ausreißer unauffällig'
-        );
-
         $this->withCut();
-        self::assertContains(
-            'r4',
-            $this->gasRuleIds(),
-            'Gegen das Mittel der neuen Epoche fällt er auf'
-        );
+        self::assertContains('2024-07', $this->gasMonthsFlaggedByRecommendations(), 'R1 meldet den Sommer-Ausreißer');
+        $row = array_values(array_filter($this->monthlyFor($this->meters->get('gas', $this->meterId)), fn($m) => $m['ym'] === '2024-07'))[0];
+        self::assertEqualsWithDelta(12.0, (float)$row['expected_heat'], 1.0, 'Erwartung im Sommer = Grundlast, nicht 0');
+        self::assertGreaterThan(1000.0, (float)$row['weather_delta_pct'], 'Mehrverbrauch gegen die Grundlast gemessen');
     }
 
     /** @return array<int,string> Regel-Präfixe der Gas-Empfehlungen (r1, r2, …) */
@@ -599,6 +601,14 @@ final class BaselineCutoffTest extends ServiceTestCase
         self::assertEqualsWithDelta($expected, $cmp['delta_pct'], 1.5);
         self::assertLessThan(0, $cmp['delta_pct'], 'Dämmung senkt den Verbrauch je Gradtag');
         self::assertSame('kWh', $cmp['unit']);
+
+        // v2.8.0 (CALC-13) — Aussagekraft: Bei exakten Daten ist der Unterschied
+        // klar belegt, und das 95-%-Intervall umschließt den Wert.
+        self::assertTrue($cmp['significant'], 'der Effekt ist statistisch belegt');
+        [$lo, $hi] = $cmp['delta_pct_ci95'];
+        self::assertLessThanOrEqual($cmp['delta_pct'], $lo, 'Untergrenze ≤ Wert');
+        self::assertGreaterThanOrEqual($cmp['delta_pct'], $hi, 'Obergrenze ≥ Wert');
+        self::assertLessThan(0, $hi, 'auch die Obergrenze liegt unter null');
     }
 
     public function testComparisonStaysNullWhenOneEpochIsTooThin(): void

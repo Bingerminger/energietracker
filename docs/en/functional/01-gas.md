@@ -110,7 +110,9 @@ without consumption so the gap is visible.
 Gas has classic supply contracts: working price (ct/kWh), base price (€/month),
 advances, bonuses. Several contracts with a change are correctly chained across
 their terms; the balance shows the state today and the expected year-end
-settlement up to the billing date.
+settlement up to the billing date — since v2.8.0 by calendar, with estimated
+consumption since the last reading
+([Fundamentals §10](00-overview.md#10-balance-to-date)).
 
 Refunds/surcharges and additional advance payments are recorded as
 **[special payments](10-sonderzahlungen.md)** (F1003) and feed into the balance.

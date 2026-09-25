@@ -192,7 +192,9 @@
       "co2Avoided": "🌿 CO₂ evitado {year}",
       "co2AvoidedSub": "{tons} t menos que sin FV",
       "co2": "🌍 CO₂ {year}",
-      "co2Sub": "{tons} t"
+      "co2Sub": "{tons} t",
+      "advancesUntil": "💰 Anticipos hasta el {date}",
+      "balanceShort": "Saldo {value}"
     },
     "cards": {
       "contracts": "📑 Contratos y anticipos",
@@ -257,7 +259,9 @@
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/año · {m2} m²",
       "consShort": "{value} consumo",
-      "gpPlus": " + {value} término fijo"
+      "gpPlus": " + {value} término fijo",
+      "suggestAdvance": "Con un pago a cuenta de {suggested} en lugar de {current}, la liquidación quedaría en torno a ±0.",
+      "measuredThenEstimated": "medido hasta el {date} ({kwh} kWh), estimado desde entonces: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -806,7 +810,7 @@
       "location_name": { "label": "Nombre del lugar" },
       "latitude": { "label": "Latitud" },
       "longitude": { "label": "Longitud" },
-      "weather_auto_fill": { "label": "Rellenar el clima automáticamente" },
+      "weather_auto_fill": { "label": "Rellenar el clima automáticamente", "hint": "Descarga temperaturas de Open-Meteo como mucho una vez al día al abrir la aplicación (ubicación redondeada a aproximadamente 1 km)." },
       "gas_conversion_factors": {
         "label": "Factores de conversión del gas",
         "hint": "Una entrada por periodo de poder calorífico, tal como la factura de gas los indica: válido desde, coeficiente de corrección y poder calorífico — el factor kWh/m³ se calcula a partir de ellos. Sin desglose, introduce el factor directamente. La entrada sin fecha se aplica a todo lo anterior a la primera fecha de vigencia. El cálculo de consumo divide cada intervalo de lectura día a día en las fechas de vigencia."
@@ -1158,7 +1162,7 @@
     "lat": "Latitud",
     "lng": "Longitud",
     "locName": "Nombre del lugar",
-    "locHint": "Predeterminado: Leipzig. Se usa para la sincronización con Open-Meteo.",
+    "locHint": "Se usa para la sincronización con Open-Meteo y se envía redondeada a aproximadamente 1 km.",
     "monthly": "Valores mensuales (mín / media / máx)",
     "daysLoaded": "{count} días cargados",
     "syncToast": "Sincronización OK · {imported} días (archivo: {archive}, previsión: {forecast})",
@@ -1166,7 +1170,12 @@
     "forecastError": "Previsión: {err}",
     "importToast": "Importación: {imported} días importados, {skipped} omitidos",
     "coordInvalid": "Introduce un número entre {min} y {max}.",
-    "locationDefault": "La ubicación sigue siendo la predeterminada de {country} ({name}). Introduce tu ubicación para obtener grados-día precisos."
+    "locationDefault": "La ubicación sigue siendo la predeterminada de {country} ({name}). Introduce tu ubicación para obtener grados-día precisos.",
+    "status": "Valores medidos hasta el {measured}.",
+    "statusWithForecast": "Valores medidos hasta el {measured}, previsión hasta el {forecast}.",
+    "reload": "Sustituir también los valores antiguos por valores de archivo (corrige previsiones guardadas como mediciones)",
+    "climateFetched": "Normal climática {from}–{to} cargada: la previsión y la corrección climática usan ahora 30 años de clima.",
+    "climateFailed": "No se pudo cargar la normal climática: la previsión usa tu propio historial de temperaturas."
   },
   "recommendations": {
     "loading": "Cargando las recomendaciones…",
@@ -1184,12 +1193,12 @@
     "error": "Error: {msg}",
     "engine": {
       "r1": {
-        "title": "{label} {ym}: {pct} % por encima de la media (corregido por clima)",
-        "detail": "En {ym}, el consumo corregido por clima estuvo un {pct} % por encima de tu media — y no hacía más frío. Puede valer la pena revisar un aparato o la calefacción."
+        "title": "{label} {ym}: {pct} % por encima de lo esperado",
+        "detail": "En {ym} el consumo fue un {pct} % superior a lo esperado con ese tiempo. Puede merecer la pena revisar aparatos o la calefacción."
       },
       "r2": {
-        "title": "{label}: tendencia al alza del {pct} %/año",
-        "detail": "El consumo corregido por clima aumenta alrededor de un {pct} % al año — una deriva gradual. Comprueba si los aparatos envejecen o si los hábitos de uso han cambiado."
+        "title": "{label}: {pct} % más que el año anterior",
+        "detail": "Los últimos doce meses, corregidos por clima, quedaron un {pct} % por encima de los mismos meses del año anterior. Comprueba si los aparatos envejecen o si han cambiado los hábitos."
       },
       "r3": {
         "title": "{label} {year}: consumo estival elevado",
@@ -1197,7 +1206,7 @@
       },
       "r4": {
         "title": "{label} {ym}: anomalía estadística",
-        "detail": "El consumo en {ym} se desvía de forma inusualmente marcada ({sigma}σ) y no se explica por el clima. Merece una revisión más detenida."
+        "detail": "El consumo en {ym} está claramente por encima de lo habitual para este mes ({sigma}σ). Merece un vistazo."
       },
       "r5": {
         "title": "{label}: depósito al {pct} %",
@@ -1341,14 +1350,14 @@
       "seasonal": "Gráfico de líneas: perfil mensual medio",
       "years": "Gráfico de barras: consumo por comparación anual"
     },
-    "hgtTitle": "Correlación GD · cuatro modelos de regresión",
+    "hgtTitle": "Correlación GD · modelos de regresión comparados",
     "seasonalTitle": "Perfil estacional",
     "notTempDependent": "{label} no depende de la temperatura — perfil estacional en lugar de GD.",
     "yearComparison": "Comparación anual",
     "anomalies": "Anomalías ({count})",
     "noAnomalies": "No se han detectado anomalías — todos los meses están dentro del rango esperado (umbral σ de los ajustes).",
-    "anomalyExplainHgt": "Meses cuyo consumo se desvía del modelo de regresión GD en más del umbral σ.",
-    "anomalyExplainSeasonal": "Meses cuyo consumo se desvía del perfil estacional en más del umbral σ.",
+    "anomalyExplainHgt": "Meses cuyo consumo se desvía de lo esperado más que el umbral σ: curva de calefacción más carga base con los grados-día de ese mes. La dispersión se estima de forma robusta (mediana, MAD).",
+    "anomalyExplainSeasonal": "Meses cuyo consumo se desvía más que el umbral σ del mismo mes de otros años, calculado por día y sin el propio mes.",
     "anomalyCol": { "month": "Mes", "consumption": "Consumo", "expected": "Esperado", "deltaAbs": "Δ absoluto", "deltaPct": "Δ %", "sigma": "valor σ", "hgt": "GD", "temp": "temp. media" },
     "model": { "linear": "Lineal", "polynomial": "Polinómico (2)", "robust": "Robusto (Huber)", "segmented": "Segmentado", "sigmoid": "Sigmoide" },
     "reg": { "model": "Modelo", "n": "n", "coeffs": "Coeficientes", "bestFit": "mejor ajuste", "tooFew": "muy pocos datos", "intercept": "ordenada en el origen" },
@@ -1415,8 +1424,13 @@
       "effect": "Variación",
       "perDegreeDay": "{unit} por grado-día",
       "points": "{n} puntos de medición",
-      "weatherCorrected": "corregido por el clima"
-    }
+      "weatherCorrected": "corregido por el clima",
+      "significant": "La diferencia está respaldada estadísticamente (intervalo del 95 % de {lo} % a {hi} %).",
+      "notSignificant": "La diferencia aún no está respaldada estadísticamente (intervalo del 95 % de {lo} % a {hi} %): espera más meses tras la medida."
+    },
+    "deliveryModelled": "El gasóleo y los pellets no tienen valores mensuales medidos: los meses se reparten a partir de las entregas según los grados-día. Una curva de calefacción sería circular —cualquier modelo encajaría a la perfección— y por eso no se muestra.",
+    "scatterNotInFit": "fuera del modelo (mes parcial o pocos grados-día)",
+    "regR2Note": "El R² describe lo bien que la curva se ajusta a los meses mostrados (ajuste), no lo bien que predice el año que viene."
   },
   "forecast": {
     "noUtilities": "Ningún suministro activo. En los ajustes puedes elegir cuáles se muestran.",
@@ -1438,7 +1452,7 @@
     "models": { "linear": "Lineal", "polynomial": "Polinómico (grado 2)", "robust": "Robusto (Huber)", "segmented": "Segmentado (calefacción/verano)", "sigmoid": "Sigmoide (firma de calefacción)" },
     "chartHist": "Histórico",
     "chartForecast": "Previsión",
-    "info": "Modelo: <strong>{model}</strong> · peso de mezcla: <strong>{blend} %</strong>{r2} · último precio de la energía: <strong>{price} {minor}/{unit}</strong>",
+    "info": "Modelo: <strong>{model}</strong> · peso de la curva de calefacción: <strong>{blend} %</strong>{r2} · último precio de la energía: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Saldo proyectado al final del horizonte:",
     "balanceSurcharge": "pago adicional",
     "balanceCredit": "crédito",
@@ -1446,7 +1460,24 @@
     "balanceNote": "· acumulado a partir de los costes estimados menos los anticipos proyectados",
     "col": { "month": "Mes", "consumption": "Consumo ({unit})", "hgt": "GD estimados", "cost": "Coste estimado", "advance": "Anticipo proyectado", "balance": "Saldo corriente", "method": "Método" },
     "bonusNote": "Las bonificaciones futuras no se extrapolan — en los costes solo entran las bonificaciones registradas en el contrato con fecha de abono dentro del periodo de previsión.",
-    "whatIfInvalid": "Revisa los campos marcados: desfase de temperatura de −20 a 20 °C, factor de precio de 0 a 10, horizonte de 1 a 24 meses."
+    "whatIfInvalid": "Revisa los campos marcados: desfase de temperatura de −20 a 20 °C, factor de precio de 0 a 10, horizonte de 1 a 24 meses.",
+    "chartBand": "Rango ({level} % de los años)",
+    "r2Label": "bondad de ajuste R²",
+    "annualBand": "Año: {value} {unit}; en el {level} % de los años entre {low} y {high} {unit}, según el invierno.",
+    "hddSourceClimate": "Grados-día: normal climática {from}–{to} en la ubicación.",
+    "hddSourceHistory": "Grados-día: media de tu propio historial de temperaturas.",
+    "warn": {
+      "historyShort": "Historial corto: consumo de {months} de 12 meses naturales. Los que faltan ({missing}) salen del modelo, así que la previsión es más incierta.",
+      "noClimateNormal": "Sin normal climática: los grados-día salen de tu propio historial. Una sincronización de temperaturas descarga una vez 30 años de datos climáticos."
+    },
+    "assumedNote": "No hay contrato para este mes: el último continúa con sus precios (supuesto; los contratos se prorrogan).",
+    "method": {
+      "seasonal_only": "perfil estacional",
+      "regression_only": "curva de calefacción (sin valor propio para el mes)",
+      "heat_model": "modelo de calefacción",
+      "filled": "media diaria (sin valor propio)",
+      "blend": "mezcla: {reg} curva de calefacción, {seasonal} perfil estacional"
+    }
   },
   "report": {
     "createdOn": "Creado el {date}",
@@ -1478,7 +1509,8 @@
     "tableDelta": "Δ%",
     "continued": "(cont.)",
     "meterPageTitle": "{label} {year} — {meter}",
-    "heatDemand": "Energía de calefacción · {label}"
+    "heatDemand": "Energía de calefacción · {label}",
+    "weatherNote": "Corregido por clima: efecto del tiempo según el modelo de calefacción llevado a un año normal; las desviaciones propias del mes se mantienen. Δ %: consumo frente a lo esperado con este tiempo."
   },
   "migration": {
     "warnNoSettings": "No se han encontrado ajustes en la copia — se aplican los valores por defecto.",

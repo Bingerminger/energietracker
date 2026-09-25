@@ -19,8 +19,9 @@ Energietracker den vollen Funktionsumfang.
 2. **Eine** Heizquelle als aktiv führen (siehe §3). Strom + Wasser
    zusätzlich.
 3. **Temperaturen** aktivieren: Standortkoordinaten setzen
-   (Default Leipzig) und Open-Meteo-Sync nutzen oder CSVs importieren —
-   ohne Temperaturreihe keine HGT-Analyse/Wetterbereinigung.
+   (Default Leipzig) — den Abgleich mit Open-Meteo macht die App dann
+   selbst, einmal am Tag — oder CSVs importieren. Ohne Temperaturreihe
+   keine HGT-Analyse/Wetterbereinigung.
 4. **Regelmäßig erfassen**: kumulative Zähler monatlich ablesen;
    Öl/Pellet-Lieferungen direkt nach Erhalt eintragen (Menge +
    Rechnungsbetrag).

@@ -201,9 +201,37 @@ const ROOT = require('path').resolve(__dirname, '..');
     const bad = await fetch(`${BASE}/api/utility/strom/meters/x/bill-check?from=2025-01-01&to=2026-01-01`);
     check('bill-check für Strom → 400', bad.status === 400, `Status ${bad.status}`);
 
+    // v2.8.0 — C1: Monatszeilen mit den neuen Feldern, Kurven der Regression,
+    // Prognose mit Hinweisen und Band, Saldo nach Kalender
+    const gm = await j(`/api/utility/gas/meters/${gasMeters[0].id}/consumption`);
+    const gRow = (gm.monthly || []).find(m => m.regression_point);
+    check('consumption(gas): regression_point, heat_adjusted, weather_delta_pct, hdd_normal',
+      !!gRow && ['heat_adjusted', 'weather_delta_pct', 'hdd_normal', 'expected_heat'].every(f => f in gRow),
+      gRow ? Object.keys(gRow).filter(k => /heat|weather|normal|regression/.test(k)).join(',') : 'kein Regressionspunkt');
+    check('consumption(gas): Regression mit Kurvenpunkten',
+      Array.isArray(gm.regressions?.linear?.curve) && gm.regressions.linear.curve.length >= 2);
+    const hMeters2 = await j('/api/utility/heizoel/meters');
+    if (hMeters2.length) {
+      const hm = await j(`/api/utility/heizoel/meters/${hMeters2[0].id}/consumption`);
+      check('consumption(heizoel): keine Heizkurve, Hinweis statt Zirkelschluss',
+        Object.keys(hm.regressions || {}).length === 0 && hm.regressions_note === 'delivery_modelled'
+        && (hm.monthly || []).length > 0 && hm.monthly.every(m => m.regression_point === false));
+    }
+    const gfc = await j(`/api/utility/gas/meters/${gasMeters[0].id}/forecast`);
+    check('forecast(gas): warnings[], hdd_source, annual, band je Monat',
+      Array.isArray(gfc.warnings) && 'hdd_source' in gfc && 'annual' in gfc
+        && (gfc.forecast || []).every(f => 'band_low' in f && 'band_high' in f && 'contract_assumed' in f),
+      `hdd_source=${gfc.hdd_source} warnings=${(gfc.warnings || []).map(w => w.code).join(',')}`);
+
     // v2.5.1 — Sonderzahlungen in der Vertragstabelle: der Status trägt die
     // Einzelposten (Gas), Wasser hat das Feld nicht.
     const cs = await j(`/api/utility/gas/meters/${gasMeters[0].id}/contract-status`);
+    const curC = (cs.contracts || []).find(c => c.is_current);
+    check('contract-status(gas): Saldo nach Kalender (balance_as_of, projection_method, cost_to_date)',
+      !!curC && curC.projection_method === 'forecast' && typeof curC.balance_as_of === 'string'
+        && 'cost_to_date' in curC && 'suggested_advance' in curC && 'measured_until' in curC
+        && Math.abs(curC.energy_cost_to_date + curC.base_to_date - curC.bonus_to_date - curC.cost_to_date) < 0.02,
+      curC ? `${curC.projection_method} · bezahlt ${curC.advance_paid}` : 'kein laufender Vertrag');
     const withSp = (cs.contracts || []).find(c => Array.isArray(c.special_payments) && c.special_payments.length);
     check('contract-status(gas): special_payments[] mit Einzelposten', !!withSp,
       withSp ? `${withSp.special_payments.length} Posten` : 'kein Vertrag mit Sonderzahlungen in den Demo-Daten');

@@ -285,6 +285,18 @@ async function renderView(modPath, params = []) {
       !!filled && /[+−-]?\d/.test(filled.textContent) && (filled.getAttribute('title') || '').includes('·'),
       filled ? `${filled.textContent.trim()} | ${(filled.getAttribute('title') || '').split('\n')[0]}` : `${spCells.length} Zellen, keine mit Tooltip`);
     t('utility(gas): Hinweistext unter der Tabelle', view.innerHTML.includes('Sonderzahlungen =') || view.innerHTML.includes('Special payments ='));
+    // v2.8.0 — Kachel und Saldo-Karte widersprechen sich nicht: Liegt die
+    // letzte Ablesung im laufenden Jahr zurück, nennt die Abschlagskachel
+    // ihren Stand (die Karte rechnet nach Kalender bis heute)
+    const advLabel = [...view.querySelectorAll('.kpi__label')].map(e => e.textContent).find(s => /Abschläge/.test(s)) || '';
+    const measured = view.textContent.match(/gemessen bis (\d{2}\.\d{2}\.(\d{4}))/);
+    const expectPartial = !!measured && measured[2] === String(new Date().getFullYear());
+    t('utility(gas): Abschlagskachel nennt ihren Stand',
+      expectPartial ? advLabel.includes('bis ' + measured[1]) : /Abschläge \d{4}/.test(advLabel), advLabel.trim());
+    // Die Aufschlüsselung der Saldo-Karte ergibt die Summe
+    const consumedCol = view.querySelector('.balance-grid > div');
+    t('utility(gas): Saldo-Karte schlüsselt die Summe auf',
+      !!consumedCol && /Verbrauch/.test(consumedCol.textContent) && /Grundpreis/.test(consumedCol.textContent));
 
     // v2.5.2 — Rechnungsprüfung ausführen: Stand alt/neu je Abschnitt mit
     // Ableseart; Ersatzwerte (E) tragen einen Tooltip, die Fußnote erklärt.
@@ -340,6 +352,13 @@ async function renderView(modPath, params = []) {
     t('forecast: alle 5 Regressionsmodelle wählbar',
       ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'].every(m => opts.includes(m)),
       opts.join(','));
+    // v2.8.0 — Jahresband und Hinweis ohne Klimanormal (Demo-Daten haben keins)
+    const info = view.querySelector('#fc-info')?.textContent || '';
+    t('forecast: Jahresband genannt', /der Jahre zwischen/.test(info), info.slice(0, 120));
+    t('forecast: Hinweis ohne Klimanormal', /Ohne Klimanormal/.test(info));
+    // Methode übersetzt statt des API-Rohwerts blend(reg=…, seasonal=…)
+    const tableText = view.textContent || '';
+    t('forecast: Methode lesbar', /Mischung: \d+ % Heizkurve/.test(tableText) && !/blend\(reg=/.test(tableText));
   } catch (e) { t('forecast: render', false, e.message); }
 
   // ── 9. Analyse-View: Sigmoid im Korrelations-Chart (Fix v1.4.3 #1) ──
@@ -350,7 +369,33 @@ async function renderView(modPath, params = []) {
     t('analyse(gas): render ohne Exception', html.length > 50 && !html.includes('Lade '));
     t('analyse(gas): Sigmoid in R²-Tabelle',
       /Sigmoid/i.test(html), 'kein Sigmoid-Eintrag in der Regressionsübersicht');
+    t('analyse(gas): R² als Anpassung erklärt', /nicht, wie gut sie das nächste Jahr vorhersagt/.test(html));
   } catch (e) { t('analyse(gas): render', false, e.message); }
+
+  // v2.8.0 — Heizöl: keine Heizkurve über nach Gradtagen verteilte Monate
+  try {
+    const { view } = await renderView(`${ROOT}/views/analysis.js`);
+    await new Promise(r => setTimeout(r, 600));
+    const sel = view.querySelector('#util-select');
+    if (sel && [...sel.options].some(o => o.value === 'heizoel')) {
+      sel.value = 'heizoel';
+      sel.dispatchEvent(new global.window.Event('change'));
+      await new Promise(r => setTimeout(r, 800));
+      const html = view.innerHTML;
+      t('analyse(heizoel): Hinweis statt Heizkurve', /Zirkelschluss/.test(html) && !view.querySelector('#ch-hdd'));
+    } else {
+      t('analyse(heizoel): Hinweis statt Heizkurve', false, 'Heizöl nicht aktiv in den Demo-Daten');
+    }
+  } catch (e) { t('analyse(heizoel): render', false, e.message); }
+
+  // v2.8.0 — Temperaturen: Stand der Messwerte und Neu-laden-Option
+  try {
+    const { view } = await renderView(`${ROOT}/views/temperatures.js`);
+    await new Promise(r => setTimeout(r, 400));
+    const html = view.innerHTML;
+    t('temperaturen: Stand der Messwerte', /Messwerte bis/.test(html));
+    t('temperaturen: Archiv neu laden wählbar', !!view.querySelector('#sync-reload'));
+  } catch (e) { t('temperaturen: render', false, e.message); }
 
   // ── 10. Contracts-View: Liefer-Arten ohne Verträge (Fix v1.4.3 #2) ──
   try {

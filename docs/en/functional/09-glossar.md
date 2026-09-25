@@ -21,7 +21,10 @@ A compact reference of all terms and formulas. The detailed derivation is in
 | **HDD (heating degree days)** | A measure of "heating demand due to cold" per day/month. |
 | **Heating limit temperature** | The outdoor temperature above which heating starts (`hdd_base_temp`, default 15 °C). |
 | **Heating signature** | The regression relationship HDD → consumption. |
-| **Weather adjustment** | Consumption normalised to the long-term monthly HDD (VDI 3807 logic). |
+| **Weather adjustment** | Consumption converted to a normal year: since v2.8.0 only the weather influence according to the heating model is converted; the base load and the month's own deviation stay (`heat_adjusted`). |
+| **Heating model** | v2.8.0: `consumption = a × HDD + c × days` per meter — `a` consumption per degree day, `c` base load per day. Provides the expectation for every month (`expected_heat`), summer included. |
+| **Climate normal** | v2.8.0: mean and spread of the heating degree days per calendar month from 30 years of daily means at the location (Open-Meteo archive). Basis for the forecast, the adjustment and the uncertainty band. |
+| **Uncertainty band** | v2.8.0: the range within which consumption lies in 80 % of years (`confidence_band_sigma`) — derived from the spread of the winters and the noise of the model. |
 | **R²** | Coefficient of determination: the share of explained scatter (0…1). |
 | **Seasonal profile** | The monthly mean of consumption over the history. |
 | **Blend** | The R²-weighted mix of regression × seasonal profile in the forecast. |
@@ -34,7 +37,7 @@ A compact reference of all terms and formulas. The detailed derivation is in
 | **Meter-reading capture** | F1004 (v1.6.0): the central view `#/zaehlerstaende` for quickly recording all cumulative meters on site in one pass. Gas/electricity/water/district heating only — heating oil/pellets use deliveries. |
 | **Efficiency class** | The kWh/m²·a classification of heating energy (A+…H), per source since v1.4.0. |
 | **Base load** | The weather-independent base (hot water, standby). |
-| **Anomaly** | A month with a z-score deviation above the threshold. |
+| **Anomaly** | A month that deviates from the expectation for exactly this month by more than the threshold (heating model or the same calendar month in other years); robust spread with a floor, since v2.8.0. |
 | **Tank stock curve** | The modelled (not measured) remaining stock for oil/pellets. |
 | **Recurrence** | The repeat rule of an appointment (annual, …). |
 
@@ -138,10 +141,18 @@ saving index = (litres per person per day) / reference × 100
 CO2 = consumption × CO2 factor
 ```
 
-**Z-score (anomaly):**
+**Z-score (anomaly, since v2.8.0):**
 
 ```text
-z = (actual - mean) / standard deviation
+r = actual - expected
+z = (r - median(r)) / max( 1.4826 × MAD(r), 0.10 × max(expected, typical month) )
+```
+
+**Heating model and adjustment (since v2.8.0):**
+
+```text
+expected_heat = a × HDD + c × days
+heat_adjusted = actual + a × (HDD_normal - HDD_actual)      (at least c × days)
 ```
 
 ---

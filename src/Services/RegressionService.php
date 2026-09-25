@@ -35,9 +35,14 @@ final class RegressionService
         $b = ($sy - $a * $sx) / $n;
         for ($i = 0; $i < $n; $i++) $ssR += ($y[$i] - ($a * $x[$i] + $b)) ** 2;
         $r2 = $ssT > 0 ? max(0.0, 1.0 - $ssR / $ssT) : 0.0;
+        // v2.8.0 — Standardfehler der Steigung: se(a) = √(SSR/(n−2) / Σ(x−x̄)²).
+        // Braucht der Vorher/Nachher-Vergleich, um „nicht belegt" sagen zu können.
+        $sxxc = $sxx - $sx * $sx / $n;
+        $seA = ($n > 2 && $sxxc > 0) ? sqrt($ssR / ($n - 2) / $sxxc) : null;
         return [
             'model' => 'linear', 'a' => round($a, 4), 'b' => round($b, 2),
             'r2' => round($r2, 4), 'n' => $n, 'valid' => true,
+            'se_a' => $seA !== null ? round($seA, 4) : null,
             'predict' => sprintf('kWh = %.2f × HGT + %.0f', $a, $b),
         ];
     }
@@ -141,33 +146,59 @@ final class RegressionService
             }
         }
 
-        $xH = $yH = $xB = $yB = [];
-        foreach ($x as $i => $xi) {
-            if ($xi >= $split) { $xH[] = $xi; $yH[] = $y[$i]; }
-            else { $xB[] = $xi; $yB[] = $y[$i]; }
-        }
-        if (count($xH) < 4 || count($xB) < 4) {
+        // v2.8.0 — stetiges Knickmodell (ASHRAE 3P, Review CALC-22):
+        //   y = b + a · max(0, x − Knick)
+        // Bis v2.7 zwei unabhängige Geraden links und rechts vom Knick — mit
+        // einem Sprung von 30 % an der Knickstelle und teils verkehrter
+        // Steigung (Heizast flacher als der Sockel). Die Felder `heat`/`base`
+        // bleiben in der alten Form, damit bestehende Leser rechnen können:
+        // base = {a: 0, b}, heat = {a, b − a·Knick}.
+        $fit = $this->changePoint($x, $y, (float)$split);
+        if ($fit === null) {
             return ['model' => 'segmented', 'valid' => false, 'r2' => 0.0, 'n' => $n];
         }
-        $heat = $this->linear($xH, $yH);
-        $base = $this->linear($xB, $yB);
-        $ym = array_sum($y) / $n; $ssT = $ssR = 0.0;
-        foreach ($x as $i => $xi) {
-            $pred = $xi >= $split
-                ? $heat['a'] * $xi + $heat['b']
-                : $base['a'] * $xi + $base['b'];
-            $ssT += ($y[$i] - $ym) ** 2;
-            $ssR += ($y[$i] - $pred) ** 2;
-        }
+        [$a, $b, $ssR] = $fit;
+        $ym = array_sum($y) / $n; $ssT = 0.0;
+        foreach ($y as $yi) $ssT += ($yi - $ym) ** 2;
         $r2 = $ssT > 0 ? max(0.0, 1.0 - $ssR / $ssT) : 0.0;
+        $heat = ['model' => 'linear', 'a' => round($a, 4), 'b' => round($b - $a * $split, 2), 'valid' => true];
+        $base = ['model' => 'linear', 'a' => 0.0, 'b' => round($b, 2), 'valid' => true];
         return [
             'model' => 'segmented', 'split' => round($split, 2),
             'split_mode' => $splitMode,
             'heat' => $heat, 'base' => $base,
             'r2' => round($r2, 4), 'n' => $n, 'valid' => true,
-            'predict' => sprintf('HGT≥%.0f: %.2f×HGT+%.0f · HGT<%.0f: %.2f×HGT+%.0f',
-                $split, $heat['a'], $heat['b'], $split, $base['a'], $base['b']),
+            'predict' => sprintf('%.0f + %.2f × max(0, HGT − %.0f)', $b, $a, $split),
         ];
+    }
+
+    /**
+     * v2.8.0 — Kleinste Quadrate für y = b + a · max(0, x − k) bei festem k.
+     * Mindestens vier Punkte je Seite, Steigung a ≥ 0.
+     *
+     * @return array{0:float,1:float,2:float}|null [a, b, SSR]
+     */
+    private function changePoint(array $x, array $y, float $k): ?array
+    {
+        $n = count($x);
+        $above = 0; $below = 0;
+        $z = [];
+        foreach ($x as $i => $xi) {
+            $z[$i] = max(0.0, $xi - $k);
+            if ($xi > $k) $above++; else $below++;
+        }
+        if ($above < 4 || $below < 4) return null;
+        $sz = array_sum($z); $sy = array_sum($y);
+        $szz = $szy = 0.0;
+        foreach ($z as $i => $zi) { $szz += $zi * $zi; $szy += $zi * $y[$i]; }
+        $den = $n * $szz - $sz * $sz;
+        if (abs($den) < 1e-10) return null;
+        $a = ($n * $szy - $sz * $sy) / $den;
+        if ($a < 0) return null;
+        $b = ($sy - $a * $sz) / $n;
+        $ssR = 0.0;
+        foreach ($z as $i => $zi) $ssR += ($y[$i] - ($b + $a * $zi)) ** 2;
+        return [$a, $b, $ssR];
     }
 
     /**
@@ -193,24 +224,10 @@ final class RegressionService
         $bestSsr = INF;
         for ($s = 0; $s <= $steps; $s++) {
             $cand = $q1 + ($q3 - $q1) * $s / $steps;
-            $xH = $yH = $xB = $yB = [];
-            foreach ($x as $i => $xi) {
-                if ($xi >= $cand) { $xH[] = $xi; $yH[] = $y[$i]; }
-                else { $xB[] = $xi; $yB[] = $y[$i]; }
-            }
-            if (count($xH) < 4 || count($xB) < 4) continue;
-            $h = $this->linear($xH, $yH);
-            $b = $this->linear($xB, $yB);
-            if (!($h['valid'] ?? false) || !($b['valid'] ?? false)) continue;
-            $ssr = 0.0;
-            foreach ($x as $i => $xi) {
-                $pred = $xi >= $cand
-                    ? $h['a'] * $xi + $h['b']
-                    : $b['a'] * $xi + $b['b'];
-                $ssr += ($y[$i] - $pred) ** 2;
-            }
-            if ($ssr < $bestSsr) {
-                $bestSsr = $ssr;
+            $fit = $this->changePoint($x, $y, $cand);
+            if ($fit === null) continue;
+            if ($fit[2] < $bestSsr) {
+                $bestSsr = $fit[2];
                 $bestSplit = $cand;
             }
         }
@@ -302,8 +319,9 @@ final class RegressionService
             'A' => round($A, 3), 'B' => round($B, 3),
             'C' => $C, 'theta0' => round($t0, 3), 'D' => round($D, 3),
             'r2' => round($r2, 4), 'n' => $n, 'valid' => $valid,
-            'predict' => sprintf('kWh = %.1f / (1 + (%.1f/(HGT−%.1f))^%.0f) + %.0f',
-                $A, $B, $t0, $C, $D),
+            // v2.8.0 — Vorzeichen ausschreiben: θ₀ < 0 ergab „HGT−-10.0"
+            'predict' => sprintf('kWh = %.1f / (1 + (%.1f/(HGT%s%.1f))^%.0f) + %.0f',
+                $A, $B, $t0 < 0 ? '+' : '−', abs($t0), $C, $D),
         ];
     }
 

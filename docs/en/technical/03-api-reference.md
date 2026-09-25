@@ -107,7 +107,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/temperatures` | daily temperatures (map) |
 | POST | `/api/temperatures` | upsert a day |
 | POST | `/api/temperatures/import-csv` | CSV import |
-| POST | `/api/temperatures/sync-open-meteo` | Open-Meteo sync |
+| POST | `/api/temperatures/sync-open-meteo` | Open-Meteo sync; `?start=&end=&reload=1&auto=1` (v2.8.0) — see below |
 | DELETE | `/api/temperatures/{date}` | delete a day |
 | GET | `/api/utility/{u}/meters` | meters/tanks |
 | POST | `/api/utility/{u}/meters` | create |
@@ -138,8 +138,8 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | DELETE | `/api/utility/{u}/contracts/{id}` | delete |
 | GET | `/api/utility/{u}/consumption` | monthly consumption (utility-wide) |
 | GET | `/api/utility/{u}/meters/{id}/consumption` | consumption + anomalies + regressions |
-| GET | `/api/utility/{u}/meters/{id}/contract-status` | balance per contract; since v2.5.1 with `special_payments[]` (items, gas/electricity/district heating only) |
-| GET | `/api/utility/{u}/meters/{id}/forecast` | 12-month forecast |
+| GET | `/api/utility/{u}/meters/{id}/contract-status` | balance per contract; since v2.5.1 with `special_payments[]` (items, gas/electricity/district heating only); since v2.8.0 by calendar up to today — see below |
+| GET | `/api/utility/{u}/meters/{id}/forecast` | forecast with uncertainty band, climate normal and warnings (v2.8.0) — see below |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow (retrospective) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | switching decision from the switch date; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | bill verification: sections per reading and calorific-value change, `?from=&to=` (F1012, **gas only**, otherwise 400) |
@@ -242,17 +242,43 @@ a backward meter reading (not hard-blocked — a meter swap is legitimate). Savi
 ### `GET /api/utility/{u}/meters/{id}/consumption`
 
 Monthly aggregates of a meter including regressions and anomalies. Fields per month
-include: `ym`, `days`, `kwh` *or* `m3`, `cost`, `avg_temp`, `hdd`, `co2_kg`,
-`advance_eur`, `monthly_balance`, `cumulative_balance`; for HDD-relevant utilities
-additionally `expected_hgt`, `weather_adjusted`, `delta_pct` as well as smoothings
-(MA-3/MA-6). `regressions` contains all five models with `r2`/`valid`.
+include: `ym`, `days`, `kwh` *or* `m3`, `cost`, `avg_temp`, `hdd`, `temp_days`,
+`co2_kg`, `advance_eur`, `monthly_balance`, `cumulative_balance` as well as
+smoothings (`ma3`/`ma6`/`ma12`).
+
+**Since v2.8.0** `hdd` only counts the days with consumption; `temp_days` says for
+how many of them temperatures are available. For HDD-relevant utilities with meter
+readings (gas, district heating), the fields of the heating model are added
+(formulas in [Fundamentals §5](../functional/00-overview.md#5-weather-adjustment--consumed-more-or-just-colder)):
+
+| Field | Meaning |
+|---|---|
+| `regression_point` | `true` if the month feeds the heating curve (one rule for analysis, adjustment and forecast) |
+| `expected_heat` | expectation from `a × HDD + c × days` for exactly this month |
+| `weather_delta_pct` | over- or under-consumption in % for the given weather; `null` for partial months |
+| `hdd_normal` | heating degree days of a normal year for the same days (climate normal, otherwise your own history) |
+| `heat_adjusted` | weather-adjusted consumption: `actual + a × (hdd_normal − hdd)`, at least the base load — only the weather influence according to the model is converted |
+
+**Deprecated (since v2.8.0, removed with v3.0.0):** `expected_hgt`,
+`weather_adjusted`, `delta_pct`. They continue to be delivered unchanged.
+`weather_adjusted` also scaled the base load with the HDD ratio, `delta_pct`
+compared with the mean of all months and thus measured the season — the
+successors are `heat_adjusted` and `weather_delta_pct`.
+
+`regressions` contains all five models with `r2`/`n`/`valid`, since v2.8.0 also
+`curve` (points `{x, y}` of the curve up to the largest HDD value, computed by the
+backend) and, for the linear model, `se_a` (standard error of the slope). The
+breakpoint model is continuous: `split` is the breakpoint, `base.b` the base,
+`heat.a` the slope above it. For heating oil and pellets `regressions` stays empty
+and `regressions_note` is `"delivery_modelled"`: their monthly values are
+distributed by degree days, so a curve on top would be circular reasoning.
 
 **Since v2.4.0 (F1011)** every month additionally carries `pre_baseline`
 (`true` = the month lies before the meter's analysis baseline cut-off). Such
-months stay in the response but feed **no** evaluation: `expected_hgt` and
-`delta_pct` are `null` for them and the regressions leave them out.
-`weather_adjusted` is still computed for them — the value is independent of the
-building and carries the before/after comparison.
+months stay in the response but feed **no** evaluation: `expected_heat`,
+`weather_delta_pct` and `heat_adjusted` are `null` for them (the heating model
+describes the building after the measure), and the regressions leave them out.
+The before/after comparison is carried by `baseline_comparison`.
 
 Two new top-level fields go with it:
 
@@ -270,14 +296,19 @@ Two new top-level fields go with it:
   ]
 },
 "baseline_comparison": {            // null when one epoch is too thin
-  "before": { "slope": 0.42, "base": 11.8, "r2": 0.97, "points": 63 },
-  "after":  { "slope": 0.28, "base": 12.1, "r2": 0.98, "points": 41 },
-  "delta_pct": -33.3, "unit": "kWh"
+  "before": { "slope": 0.42, "base": 11.8, "r2": 0.97, "points": 63, "se": 0.011 },
+  "after":  { "slope": 0.28, "base": 12.1, "r2": 0.98, "points": 41, "se": 0.009 },
+  "delta_pct": -33.3, "unit": "kWh",
+  "significant": true,               // since v2.8.0
+  "delta_pct_ci95": [-38.5, -28.1]   // since v2.8.0
 }
 ```
 
 `slope` is consumption **per degree day** and therefore already
-weather-corrected; `delta_pct` is the effect of the measure. `limits` is filled
+weather-corrected; `delta_pct` is the effect of the measure. Since v2.8.0
+`significant` says whether the difference is supported (test of the slope
+difference, |z| ≥ 1.96), and `delta_pct_ci95` gives the 95 % range of the change;
+`se` is the standard error of the respective slope. `limits` is filled
 in **without** a cut-off too — a history that is simply too short gets explained
 instead of an evaluation silently disappearing.
 
@@ -303,6 +334,92 @@ Up to v2.5.3 the calculation only discarded the negative interval and counted
 the next one in full from the wrong reading: a single value of 0 turned 190 kWh
 in a month into 50,270 kWh. A **rollover** (99,998 → 12) is calculated
 correctly when `digits` (register digits) is maintained on the device.
+
+### `GET /api/utility/{u}/meters/{id}/contract-status` — balance by calendar *(v2.8.0)*
+
+For contracts with advances (gas, electricity, district heating), the balance is
+computed up to **today**, like the annual statement: advances according to the
+payment plan, the base price day-exact, the consumption since the last reading
+estimated. New fields per contract (additive):
+
+| Field | Meaning |
+|---|---|
+| `balance_as_of` | reference date of the calculation (today, limited to the contract term) |
+| `projection_method` | `forecast` (heating model or seasonal profile) or `flat_average` |
+| `measured_until` | date of the last valid reading |
+| `cost_to_date` | cost up to the reference date = `energy_cost_to_date + base_to_date - bonus_to_date` |
+| `energy_cost_to_date` | working price × consumption, measured plus estimated |
+| `base_to_date` | base price, day-exact, up to the reference date |
+| `bonus_to_date` | bonuses credited up to and including the current month |
+| `estimated_cost_to_date` | the estimated part of it: working price for the period since `measured_until` |
+| `estimated_cost_remaining` | estimated cost from the reference date to the end of the contract |
+| `advance_remaining` | advances still due until the end of the contract |
+| `suggested_advance` | advance that evens out the expected balance by the end of the contract (≥ 0), otherwise `null` |
+| `projection_factor` | calibration of the estimate to the most recent level (0.5–1.5) |
+
+**Changed values:** since v2.8.0 `advance_paid` counts the advances by calendar up
+to and including the current month (previously only months with a reading);
+`current_balance = cost_to_date − advance_paid + special_payment_net`,
+`projected_end_balance = current_balance + estimated_cost_remaining −
+advance_remaining`. `actual_cost`, `actual_kwh_cost` and `actual_base_total` still
+describe only the measured months.
+
+### `GET /api/utility/{u}/meters/{id}/forecast` *(extended in v2.8.0)*
+
+Additionally per forecast month:
+
+| Field | Meaning |
+|---|---|
+| `band_low`, `band_high` | uncertainty band (width `confidence_band_sigma`, default 1.28 σ ≈ 80 %) |
+| `hdd_estimated` | normal heating degree days of the month (climate normal, otherwise your own history) |
+| `contract_assumed` | `true` if the last contract continues as an assumption after the end of the contract |
+| `method` | `blend(reg=…, seasonal=…)`, `seasonal_only`, `regression_only` (calendar month without own history), `heat_model`, `filled` |
+
+At the top level:
+
+```json
+"hdd_source": "climate_normal",       // or "temperature_history", "consumption_months", null
+"annual": { "value": 9387.3, "low": 8619.3, "high": 10155.4, "sigma": 1.28, "level_pct": 80 },
+"warnings": [
+  { "code": "history_short", "months": 8, "missing": [1, 2, 3, 4] },
+  { "code": "no_climate_normal", "hdd_source": "temperature_history" }
+],
+"climate_normal": { "period": { "from": "1996-01-01", "to": "2025-12-31" },
+                    "latitude": 51.34, "longitude": 12.37, "fetched_at": "…" }
+```
+
+`annual` is absent (`null`) when there are no twelve months with a band. The
+forecast's advances come from the effective payment plan (special payments "with
+effect" change it).
+
+### `POST /api/temperatures/sync-open-meteo` *(v2.8.0)*
+
+Fetches daily temperatures for the location from the settings — measured values
+from the archive, the forecast for the last few days and the coming week — and,
+the first time, the climate normal (30 years).
+
+| Parameter | Meaning |
+|---|---|
+| `start`, `end` | period (ISO date). Without `start`: from the first reading or delivery, otherwise the last 30 days |
+| `reload=1` | replace existing values with archive values — except your own (`csv`, `manual`) |
+| `auto=1` | automatic fetch by the interface: at most once a day; with `weather_auto_fill = false` `{"skipped": true, "reason": "auto_fill_off"}`, otherwise possibly `{"skipped": true, "reason": "already_today"}` |
+
+Response: `imported`, `archive_rows`, `forecast_rows`, `archive_range`,
+`archive_error`, `forecast_error`, `measured_until`, `forecast_until` and
+`climate_normal` (`status`: `present` | `fetched` | `failed`, plus period and
+coordinates).
+
+Since v2.8.0 every entry in `GET /api/temperatures` carries `source`:
+`archive`, `forecast`, `csv` or `manual`. Forecasts are replaced by archive values
+as soon as these are available; your own values never are. Only the location,
+rounded to two decimal places, is sent to Open-Meteo.
+
+### `GET /api/utility/{u}/meters/{id}/tariff-switch` — forecast quality *(extended in v2.8.0)*
+
+The `forecast` block (quality of the consumption assumption) additionally carries
+`warnings` and `hdd_source` like the forecast, and `annual_band` (= `annual` of
+the forecast): the switching decision shows how far the annual consumption can
+vary depending on the winter.
 
 ### Readings: `is_suspect`, `source` *(v2.6.0, additive)*
 

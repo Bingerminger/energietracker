@@ -219,10 +219,16 @@ für O(1)-Lookup, NICHT als Array).
 
 ### `POST /api/temperatures/sync-open-meteo`
 
-Lädt Temperaturen für die in den Settings hinterlegten Koordinaten
-(2023–heute aus Archiv, plus 14 Tage Forecast).
+Lädt Temperaturen für die in den Settings hinterlegten Koordinaten:
+Messwerte aus dem Open-Meteo-Archiv, für die letzten Tage und die kommende
+Woche die Vorhersage, beim ersten Mal zusätzlich das Klimanormal (30 Jahre).
+Übermittelt wird nur der Standort, auf zwei Nachkommastellen gerundet.
 
-**Body:** optional `{}`. Standortdaten werden aus Settings genommen.
+**Query (alle optional, seit v2.8.0):** `start`, `end` (ISO-Datum; ohne
+`start` ab der ersten Ablesung bzw. Lieferung), `reload=1` (vorhandene Werte
+durch Archivwerte ersetzen — außer eigenen aus CSV oder Handeingabe),
+`auto=1` (höchstens einmal am Tag; so ruft die Oberfläche beim Öffnen auf).
+**Body:** optional `{}`.
 
 **Response:**
 
@@ -233,11 +239,21 @@ Lädt Temperaturen für die in den Settings hinterlegten Koordinaten
     "imported": 1145,
     "archive_rows": 1131,
     "forecast_rows": 14,
+    "archive_range": "2023-01-01..2026-09-19",
     "archive_error": null,
-    "forecast_error": null
+    "forecast_error": null,
+    "measured_until": "2026-09-19",
+    "forecast_until": "2026-10-08",
+    "climate_normal": { "status": "fetched", "period": { "from": "1996-01-01", "to": "2025-12-31" },
+                        "latitude": 51.34, "longitude": 12.37, "fetched_at": "…" }
   }
 }
 ```
+
+Jeder Tag in `GET /api/temperatures` trägt seit v2.8.0 `source`
+(`archive`, `forecast`, `csv`, `manual`); Vorhersagen werden durch
+Archivwerte ersetzt, sobald diese vorliegen. Details:
+[API-Referenz](technical/03-api-reference.md).
 
 ### `DELETE /api/temperatures/{date}`
 
@@ -597,6 +613,17 @@ Tooltip der Spalte *Sonderzahlungen*. `special_payment_net` ist das Netto aus
 Kundensicht (Σ Rückzahlung − Σ Nachzahlung − Σ Abschlagszahlung). Das Feld
 fehlt bei Wasser und PV-Einspeisung.
 
+**Seit v2.8.0** rechnet der Saldo bei Gas, Strom und Fernwärme **nach
+Kalender bis heute**: `advance_paid` zählt die Abschläge laut Zahlungsplan
+bis einschließlich des laufenden Monats (vorher nur Monate mit Ablesung),
+`cost_to_date` den Verbrauch bis heute — gemessen bis `measured_until`,
+danach geschätzt (`estimated_cost_to_date`). Dazu `energy_cost_to_date`,
+`base_to_date`, `bonus_to_date` (die Teile der Summe),
+`estimated_cost_remaining`, `advance_remaining`, `suggested_advance`,
+`balance_as_of`, `projection_method` und `projection_factor` — Tabelle in der
+[API-Referenz](technical/03-api-reference.md). `actual_*` beschreibt weiterhin
+nur die gemessenen Monate.
+
 `verdict` ist ein Schlüssel: `surcharge` (Nachzahlung) bei
 `projected_end_balance > 5`, `refund` (Erstattung) bei `< -5`, sonst
 `balanced`. Bei PV-Einspeisung ist die Achse umgedreht: `payout`, `reclaim`,
@@ -699,9 +726,16 @@ Monat gültige Arbeits- und Grundpreis aus der Preishistorie verwendet.
         "balance_running": -216.71,
         "working_price_ct": 8.2,
         "contract_id": "c_gas_004",
+        "contract_assumed": false,
+        "band_low": 470.2,
+        "band_high": 609.8,
         "method": "blend(reg=0.75, seasonal=0.25)"
       }
     ],
+    "hdd_source": "climate_normal",
+    "annual": { "value": 9387.3, "low": 8619.3, "high": 10155.4, "sigma": 1.28, "level_pct": 80 },
+    "warnings": [],
+    "climate_normal": { "period": { "from": "1996-01-01", "to": "2025-12-31" }, "latitude": 51.34, "longitude": 12.37, "fetched_at": "…" },
     "options": { "temp_offset": 0, "price_factor": 1, "forecast_months": 12 }
   }
 }
@@ -719,7 +753,18 @@ Pro Prognosemonat:
 - `working_price_ct` — der angesetzte Arbeitspreis (Headline-Tarif).
 - `contract_id` — der aktive Vertrag, oder `null` (dann Fallback auf
   `last_price_ct`).
-- `method` — `seasonal_only` oder `blend(reg=…, seasonal=…)`.
+- `method` — `blend(reg=…, seasonal=…)`, `seasonal_only`, seit v2.8.0 auch
+  `regression_only` (Kalendermonat ohne eigene Historie), `heat_model` und
+  `filled`.
+- `band_low`/`band_high` *(v2.8.0)* — Unsicherheitsband, Breite
+  `confidence_band_sigma` (Default 1,28 σ ≈ 80 % der Jahre).
+- `hdd_estimated` — seit v2.8.0 die normalen Heizgradtage aus dem
+  Klimanormal (`hdd_source`), sonst aus der eigenen Historie.
+- `contract_assumed` *(v2.8.0)* — `true`, wenn nach Vertragsende der letzte
+  Vertrag als Annahme weiterläuft.
+
+Auf oberster Ebene seit v2.8.0 `annual` (Jahressumme mit Band), `warnings`
+(`history_short`, `no_climate_normal`), `hdd_source` und `climate_normal`.
 
 Künftige Boni werden **nicht** fortgeschrieben — nur im Vertrag mit
 Gutschriftdatum im Prognosezeitraum gepflegte Boni fließen ein. Bei zu

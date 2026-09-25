@@ -90,33 +90,38 @@ final class RecommendationService
 
     // ─── Regelfamilien ───────────────────────────────────────────────────
 
-    /** R1 — wetterbereinigter Mehrverbrauch (> Mittel + Nσ). */
+    /**
+     * R1 — Mehrverbrauch, den das Wetter nicht erklärt.
+     *
+     * v2.8.0 (Review CALC-05) — gemessen am Heizmodell desselben Monats
+     * (`expected_heat`: so viel wäre bei diesem Wetter zu erwarten), nicht
+     * mehr am Mittel aller wetterbereinigten Monate. Das alte Maß verglich
+     * Januar mit Oktober und übersah einen echten +35-%-Februar. Streuung robust
+     * (Median/MAD der Residuen), nur Monate mit genug Tagen.
+     */
     private function ruleWeatherIndependent(string $utility, array $meter, array $monthly): array
     {
-        if (!Utilities::isHgtRelevant($utility)) return [];
+        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return [];
         $sigma = (float)$this->settings->get('recommendation_anomaly_sigma', 2.0);
-        // v1.4.0 — F1011: Der Vergleichsmaßstab darf nur aus der aktuellen
-        // Epoche kommen. Sonst liegt der Mittelwert bei einem sanierten Haus
-        // dauerhaft zu hoch, R1 löst nie mehr aus — und ein echter
-        // Mehrverbrauch nach der Maßnahme bleibt unbemerkt.
-        $adj = [];
-        foreach ($monthly as $m) {
-            if (!empty($m['pre_baseline'])) continue;
-            if (($m['weather_adjusted'] ?? null) !== null) $adj[] = (float)$m['weather_adjusted'];
+        $valueField = $this->valueField($utility);
+        // v1.4.0 — F1011: nur die aktuelle Epoche (`expected_heat` ist davor null)
+        $res = [];
+        foreach ($monthly as $i => $m) {
+            if (($m['weather_delta_pct'] ?? null) === null) continue;
+            $res[$i] = (float)($m[$valueField] ?? 0) - (float)$m['expected_heat'];
         }
-        if (count($adj) < 6) return [];
-        $mean = array_sum($adj) / count($adj);
-        $sd = $this->stddev($adj, $mean);
-        if ($sd <= 0) return [];
+        if (count($res) < 6) return [];
+        [$center, $scale] = AnomalyService::robustScale(array_values($res));
+        $typical = AnomalyService::typical(array_map(fn($i) => (float)$monthly[$i]['expected_heat'], array_keys($res)));
+        if (max($scale, AnomalyService::noiseFloor(0.0, $typical)) <= 0) return [];
 
         $out = [];
-        foreach ($monthly as $m) {
-            if (!empty($m['pre_baseline'])) continue;
-            $wa = $m['weather_adjusted'] ?? null;
-            if ($wa === null) continue;
-            $z = ((float)$wa - $mean) / $sd;
+        foreach ($res as $i => $r) {
+            $m = $monthly[$i];
+            // gleiche Untergrenze wie die Anomalie-Erkennung: kleine Schwankungen sind Alltag
+            $z = ($r - $center) / max($scale, AnomalyService::noiseFloor((float)$m['expected_heat'], $typical));
             if ($z >= $sigma) {
-                $pct = round(((float)$wa - $mean) / $mean * 100);
+                $pct = round((float)$m['weather_delta_pct']);
                 $out[] = $this->mk(
                     'r1', [$utility, $meter['id'], $m['ym']],
                     'warning', 'anomalie',
@@ -129,34 +134,39 @@ final class RecommendationService
         return $out;
     }
 
-    /** R2 — kontinuierlicher Trend der wetterbereinigten Reihe. */
+    /**
+     * R2 — Verbrauch steigt von Jahr zu Jahr.
+     *
+     * v2.8.0 (Review CALC-05) — Vorjahresvergleich derselben Kalendermonate
+     * auf der witterungsbereinigten Reihe (`heat_adjusted`). Die alte
+     * Regression über die letzten zwölf Punkte maß vor allem, in welchem Monat
+     * die Daten enden: Auf trendfreien Daten meldete sie je nach Endmonat
+     * +7,1 % oder +36 % „pro Jahr".
+     */
     private function ruleTrend(string $utility, array $meter, array $monthly): array
     {
-        if (!Utilities::isHgtRelevant($utility)) return [];
-        // v1.4.0 — F1011: Ein Trend über die Zäsur hinweg misst den Umbau,
-        // nicht das Verbrauchsverhalten — und meldet auf Jahre hinaus einen
-        // starken Rückgang. `$i` läuft trotzdem über alle Monate weiter, damit
-        // die Abstände auf der Zeitachse stimmen.
-        $pts = [];
-        $i = 0;
+        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return [];
+        $minDays = (int)$this->settings->get('min_days_period', 20);
+        $byYm = [];
         foreach ($monthly as $m) {
-            if (empty($m['pre_baseline']) && ($m['weather_adjusted'] ?? null) !== null) {
-                $pts[] = [$i, (float)$m['weather_adjusted']];
-            }
-            $i++;
+            // F1011: nur die aktuelle Epoche; Teilmonate verzerren den Vergleich
+            if (!empty($m['pre_baseline']) || (int)($m['days'] ?? 0) < $minDays) continue;
+            if (($m['heat_adjusted'] ?? null) === null) continue;
+            $byYm[(string)$m['ym']] = (float)$m['heat_adjusted'];
         }
-        if (count($pts) < 12) return [];
-        // einfache lineare Regression der letzten 12 Punkte
-        $last = array_slice($pts, -12);
-        $n = count($last);
-        $sx = $sy = $sxy = $sxx = 0.0;
-        foreach ($last as [$x, $y]) { $sx += $x; $sy += $y; $sxy += $x * $y; $sxx += $x * $x; }
-        $den = $n * $sxx - $sx * $sx;
-        if (abs($den) < 1e-9) return [];
-        $slope = ($n * $sxy - $sx * $sy) / $den;
-        $meanY = $sy / $n;
-        if ($meanY <= 0) return [];
-        $pctPerYear = ($slope * 12) / $meanY * 100;
+        if (!$byYm) return [];
+        $yms = array_keys($byYm);
+        sort($yms);
+        $lastYm = end($yms);
+        $cur = $prev = 0.0; $pairs = 0;
+        for ($k = 0; $k < 12; $k++) {
+            $ym  = date('Y-m', strtotime($lastYm . '-01 -' . $k . ' months'));
+            $pym = date('Y-m', strtotime($lastYm . '-01 -' . ($k + 12) . ' months'));
+            if (!isset($byYm[$ym], $byYm[$pym])) continue;
+            $cur += $byYm[$ym]; $prev += $byYm[$pym]; $pairs++;
+        }
+        if ($pairs < 9 || $prev <= 0) return [];
+        $pctPerYear = ($cur / $prev - 1) * 100;
         $threshold = (float)$this->settings->get('recommendation_trend_pct_year', 3.0);
         if ($pctPerYear >= $threshold) {
             return [$this->mk(
@@ -170,16 +180,22 @@ final class RecommendationService
         return [];
     }
 
-    /** R3 — Sommer-Heizverbrauch unplausibel hoch (Gas/Heizöl/Pellets). */
+    /** R3 — Sommer-Heizverbrauch unplausibel hoch (Gas/Fernwärme). */
     private function ruleSummerHeating(string $utility, array $meter, array $monthly): array
     {
-        if (!Utilities::isHgtRelevant($utility)) return [];
+        // v2.8.0 — Lieferarten ausgenommen: Ihr Sommeranteil ist ein Produkt der
+        // Verteilung nach Gradtagen, keine Messung. Und nur volle Monate — ein
+        // 14-Tage-Juli halbiert den Anteil.
+        if (!Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return [];
+        $minDays = (int)$this->settings->get('min_days_period', 20);
+        $valueField = $this->valueField($utility);
         // pro Jahr: Juli vs. Januar
         $byYear = [];
         foreach ($monthly as $m) {
+            if ((int)($m['days'] ?? 0) < $minDays) continue;
             $y = (int)($m['year'] ?? 0); $mn = (int)($m['month'] ?? 0);
-            if ($mn === 1)  $byYear[$y]['jan'] = (float)($m['kwh'] ?? 0);
-            if ($mn === 7)  $byYear[$y]['jul'] = (float)($m['kwh'] ?? 0);
+            if ($mn === 1)  $byYear[$y]['jan'] = (float)($m[$valueField] ?? 0);
+            if ($mn === 7)  $byYear[$y]['jul'] = (float)($m[$valueField] ?? 0);
         }
         $out = [];
         foreach ($byYear as $y => $v) {
@@ -198,43 +214,43 @@ final class RecommendationService
         return $out;
     }
 
-    /** R4 — Anomalie ohne erklärenden Wetterkontext. */
+    /**
+     * R4 — ungewöhnlich hoher Monat bei Arten ohne Wetterbezug.
+     *
+     * v2.8.0 (Review CALC-06) — aus der Anomalie-Erkennung statt eines eigenen,
+     * rohen z-Scores: Der alte Weg kannte keine Jahreszeit und keinen
+     * Teilmonat (ein 14-Tage-März galt als „3,9σ") und lief für Wasser nie,
+     * weil er `kwh` las, wo Wasser `m3` führt. Heizarten deckt R1 ab.
+     */
     private function ruleAnomaly(string $utility, array $meter, array $monthly): array
     {
-        // grobe Anomalie auf dem Rohverbrauch, aber nur melden wenn der
-        // wetterbereinigte Wert ebenfalls auffällig ist (sonst durch
-        // Wetter erklärt → R1 greift bereits)
-        // v1.4.0 — F1011: auch der Rohmittelwert nur aus der aktuellen Epoche.
-        $vals = [];
-        foreach ($monthly as $m) {
-            if (!empty($m['pre_baseline'])) continue;
-            $v = (float)($m['kwh'] ?? 0);
-            if ($v > 0) $vals[] = $v;
-        }
-        if (count($vals) < 8) return [];
-        $mean = array_sum($vals) / count($vals);
-        $sd = $this->stddev($vals, $mean);
-        if ($sd <= 0) return [];
-        $sigma = (float)$this->settings->get('anomaly_threshold', 2.0);
-
+        if (Utilities::isHgtRelevant($utility) || Utilities::isDelivery($utility)) return [];
+        // PV: ein ertragreicher Monat ist kein Warnsignal
+        if (Utilities::isFeedIn($utility) || Utilities::isGenerationOnly($utility)) return [];
         $out = [];
-        foreach ($monthly as $m) {
-            if (!empty($m['pre_baseline'])) continue;
-            $v = (float)($m['kwh'] ?? 0);
-            if ($v <= 0) continue;
-            $z = abs($v - $mean) / $sd;
-            $waNull = ($m['weather_adjusted'] ?? null) === null;
-            if ($z >= $sigma && $waNull) {
-                $out[] = $this->mk(
-                    'r4', [$utility, $meter['id'], $m['ym']],
-                    'info', 'anomalie',
-                    $this->i18n->t('recommendations.engine.r4.title', ['label' => $this->utilLabel($utility), 'ym' => $this->i18n->month($m['ym'])]),
-                    $this->i18n->t('recommendations.engine.r4.detail', ['ym' => $this->i18n->month($m['ym']), 'sigma' => $this->i18n->number($z, 1)]),
-                    ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $m['ym']]
-                );
-            }
+        foreach ($this->anomalies()->detect($utility, $monthly) as $a) {
+            if (($a['kind'] ?? '') !== 'high') continue;
+            $out[] = $this->mk(
+                'r4', [$utility, $meter['id'], $a['ym']],
+                'info', 'anomalie',
+                $this->i18n->t('recommendations.engine.r4.title', ['label' => $this->utilLabel($utility), 'ym' => $this->i18n->month($a['ym'])]),
+                $this->i18n->t('recommendations.engine.r4.detail', ['ym' => $this->i18n->month($a['ym']), 'sigma' => $this->i18n->number(abs((float)$a['z_score']), 1)]),
+                ['utility' => $utility, 'meter_id' => $meter['id'], 'ym' => $a['ym']]
+            );
         }
         return $out;
+    }
+
+    private function anomalies(): AnomalyService
+    {
+        return $this->anomalyService ??= new AnomalyService(new RegressionService(), $this->settings);
+    }
+
+    private ?AnomalyService $anomalyService = null;
+
+    private function valueField(string $utility): string
+    {
+        return (Utilities::get($utility)['consumption_unit'] ?? '') === 'kWh' ? 'kwh' : 'm3';
     }
 
     /** R5 — Tank-/Lagerbestand kritisch (Heizöl/Pellets). */
@@ -348,15 +364,6 @@ final class RecommendationService
             'detail'   => $detail,
             'evidence' => $evidence,
         ];
-    }
-
-    private function stddev(array $vals, float $mean): float
-    {
-        $n = count($vals);
-        if ($n < 2) return 0.0;
-        $s = 0.0;
-        foreach ($vals as $v) $s += ($v - $mean) ** 2;
-        return sqrt($s / ($n - 1));
     }
 
     private function dismissedMap(): array

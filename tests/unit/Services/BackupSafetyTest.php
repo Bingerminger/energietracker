@@ -66,6 +66,20 @@ final class BackupSafetyTest extends ServiceTestCase
         self::assertSame(['trend_gas' => '2026-09-01'], $this->store->read('recommendations_dismissed.json', []));
     }
 
+    /** v2.8.0 — die Quelle je Tag entscheidet, was ein Abgleich überschreiben darf. */
+    public function testTemperatureSourcesSurviveARoundtrip(): void
+    {
+        $temps = [
+            '2026-01-01' => ['avg' => 1.5, 'min' => -2.5, 'max' => 3.5, 'source' => 'csv'],
+            '2026-01-02' => ['avg' => 2.5, 'min' => -1.5, 'max' => 4.5, 'source' => 'forecast'],
+        ];
+        $this->store->write('temperatures.json', $temps);
+        $backup = $this->backups->export();
+        $this->store->write('temperatures.json', []);
+        $this->backups->import($backup);
+        self::assertSame($temps, $this->store->read('temperatures.json', []));
+    }
+
     public function testAMissingPotIsLeftUntouchedAndReported(): void
     {
         $backup = $this->backups->export();

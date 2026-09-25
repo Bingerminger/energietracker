@@ -192,7 +192,9 @@
       "co2Avoided": "🌿 CO₂ vermieden {year}",
       "co2AvoidedSub": "{tons} t weniger als ohne PV",
       "co2": "🌍 CO₂ {year}",
-      "co2Sub": "{tons} t"
+      "co2Sub": "{tons} t",
+      "advancesUntil": "💰 Abschläge bis {date}",
+      "balanceShort": "Saldo {value}"
     },
     "cards": {
       "contracts": "📑 Verträge & Abschläge",
@@ -257,7 +259,9 @@
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/J · {m2} m²",
       "consShort": "{value} Verbr.",
-      "gpPlus": " + {value} GP"
+      "gpPlus": " + {value} GP",
+      "suggestAdvance": "Mit {suggested} statt {current} Abschlag läge die Abrechnung bei etwa ±0.",
+      "measuredThenEstimated": "gemessen bis {date} ({kwh} kWh), danach geschätzt: {value}"
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -806,7 +810,7 @@
       "location_name": { "label": "Ortsname" },
       "latitude": { "label": "Breitengrad" },
       "longitude": { "label": "Längengrad" },
-      "weather_auto_fill": { "label": "Wetter automatisch füllen" },
+      "weather_auto_fill": { "label": "Wetter automatisch füllen", "hint": "Holt beim Öffnen der App höchstens einmal täglich Temperaturen von Open-Meteo (Standort auf rund 1 km gerundet)." },
       "gas_conversion_factors": {
         "label": "Gas-Umrechnungsfaktoren",
         "hint": "Ein Eintrag je Brennwertperiode, so wie die Gasrechnung sie ausweist: Gültig ab, Zustandszahl und Brennwert — der Faktor kWh/m³ wird daraus berechnet. Wer keine Aufschlüsselung hat, trägt den Faktor direkt ein. Der Eintrag ohne Datum gilt für alles vor dem ersten Stichtag. Die Verbrauchsrechnung teilt jedes Ableseintervall tagesgenau an den Stichtagen."
@@ -1158,7 +1162,7 @@
     "lat": "Breitengrad",
     "lng": "Längengrad",
     "locName": "Ortsname",
-    "locHint": "Standard: Leipzig. Wird beim Open-Meteo-Sync verwendet.",
+    "locHint": "Wird für den Open-Meteo-Sync verwendet und dabei auf rund 1 km gerundet übermittelt.",
     "monthly": "Monatswerte (min / ø / max)",
     "daysLoaded": "{count} Tage geladen",
     "syncToast": "Sync OK · {imported} Tage (Archiv: {archive}, Forecast: {forecast})",
@@ -1166,7 +1170,12 @@
     "forecastError": "Forecast: {err}",
     "importToast": "Import: {imported} Tage importiert, {skipped} übersprungen",
     "coordInvalid": "Bitte eine Zahl zwischen {min} und {max} eingeben.",
-    "locationDefault": "Der Standort ist noch die Voreinstellung für {country} ({name}). Für genaue Gradtagzahlen bitte den eigenen Ort eintragen."
+    "locationDefault": "Der Standort ist noch die Voreinstellung für {country} ({name}). Für genaue Gradtagzahlen bitte den eigenen Ort eintragen.",
+    "status": "Messwerte bis {measured}.",
+    "statusWithForecast": "Messwerte bis {measured}, Vorhersage bis {forecast}.",
+    "reload": "Auch vorhandene ältere Werte durch Archivwerte ersetzen (behebt als Messwert gespeicherte Vorhersagen)",
+    "climateFetched": "Klimanormal {from}–{to} geladen — Prognose und Wetterbereinigung rechnen jetzt mit 30 Jahren Klima.",
+    "climateFailed": "Das Klimanormal konnte nicht geladen werden — die Prognose nutzt die eigene Temperaturhistorie."
   },
   "recommendations": {
     "loading": "Lade Empfehlungen…",
@@ -1184,12 +1193,12 @@
     "error": "Fehler: {msg}",
     "engine": {
       "r1": {
-        "title": "{label} {ym}: wetterbereinigt {pct} % über Mittel",
-        "detail": "Im Monat {ym} lag der wetterbereinigte Verbrauch {pct} % über deinem Durchschnitt — und es war nicht kälter. Ein Geräte- oder Heizungs-Check kann sich lohnen."
+        "title": "{label} {ym}: {pct} % über der Erwartung",
+        "detail": "Im {ym} lag der Verbrauch {pct} % über dem, was bei diesem Wetter zu erwarten war. Ein Geräte- oder Heizungs-Check kann sich lohnen."
       },
       "r2": {
-        "title": "{label}: steigender Trend {pct} %/Jahr",
-        "detail": "Der wetterbereinigte Verbrauch steigt um etwa {pct} % pro Jahr — eine schleichende Verschlechterung. Prüfe, ob Geräte altern oder sich Nutzungsgewohnheiten geändert haben."
+        "title": "{label}: {pct} % mehr als im Vorjahr",
+        "detail": "Die letzten zwölf Monate lagen witterungsbereinigt {pct} % über denselben Monaten des Vorjahrs. Prüfe, ob Geräte altern oder sich Gewohnheiten geändert haben."
       },
       "r3": {
         "title": "{label} {year}: hoher Sommerverbrauch",
@@ -1197,7 +1206,7 @@
       },
       "r4": {
         "title": "{label} {ym}: statistische Anomalie",
-        "detail": "Der Verbrauch in {ym} weicht ungewöhnlich stark ab ({sigma}σ) und ist nicht durch das Wetter erklärbar. Lohnt einen prüfenden Blick."
+        "detail": "Der Verbrauch im {ym} liegt deutlich über dem, was für diesen Monat üblich ist ({sigma}σ). Lohnt einen prüfenden Blick."
       },
       "r5": {
         "title": "{label}: Tank bei {pct} %",
@@ -1341,14 +1350,14 @@
       "seasonal": "Liniendiagramm: durchschnittliches Monatsprofil",
       "years": "Balkendiagramm: Verbrauch im Jahresvergleich"
     },
-    "hgtTitle": "HGT-Korrelation · vier Regressionsmodelle",
+    "hgtTitle": "HGT-Korrelation · Regressionsmodelle im Vergleich",
     "seasonalTitle": "Saisonprofil",
     "notTempDependent": "{label} ist nicht temperaturabhängig — Saisonprofil statt HGT.",
     "yearComparison": "Jahresvergleich",
     "anomalies": "Anomalien ({count})",
     "noAnomalies": "Keine Anomalien erkannt — alle Monate liegen innerhalb des Erwartungsbereichs (σ-Schwelle aus Einstellungen).",
-    "anomalyExplainHgt": "Monate, deren Verbrauch mehr als die σ-Schwelle vom HGT-Regressionsmodell abweicht.",
-    "anomalyExplainSeasonal": "Monate, deren Verbrauch mehr als die σ-Schwelle vom Saisonprofil abweicht.",
+    "anomalyExplainHgt": "Monate, deren Verbrauch mehr als die σ-Schwelle von der Erwartung abweicht — Heizkurve plus Grundlast bei den Heizgradtagen dieses Monats. Die Streuung wird robust geschätzt (Median, MAD).",
+    "anomalyExplainSeasonal": "Monate, deren Verbrauch mehr als die σ-Schwelle vom selben Kalendermonat anderer Jahre abweicht — je Tag gerechnet und ohne den Monat selbst.",
     "anomalyCol": { "month": "Monat", "consumption": "Verbrauch", "expected": "Erwartet", "deltaAbs": "Δ absolut", "deltaPct": "Δ %", "sigma": "σ-Wert", "hgt": "HGT", "temp": "ø Temp" },
     "model": { "linear": "Linear", "polynomial": "Polynomial (2)", "robust": "Robust (Huber)", "segmented": "Segmentiert", "sigmoid": "Sigmoid" },
     "reg": { "model": "Modell", "n": "n", "coeffs": "Koeffizienten", "bestFit": "bestes Fit", "tooFew": "zu wenige Datenpunkte", "intercept": "Achsenabschnitt" },
@@ -1415,8 +1424,13 @@
       "effect": "Veränderung",
       "perDegreeDay": "{unit} je Gradtag",
       "points": "{n} Messpunkte",
-      "weatherCorrected": "witterungsbereinigt"
-    }
+      "weatherCorrected": "witterungsbereinigt",
+      "significant": "Der Unterschied ist statistisch belegt (95 %-Bereich {lo} % bis {hi} %).",
+      "notSignificant": "Der Unterschied ist statistisch noch nicht belegt (95 %-Bereich {lo} % bis {hi} %) — mehr Monate nach der Maßnahme abwarten."
+    },
+    "deliveryModelled": "Für Heizöl und Pellets gibt es keine gemessenen Monatswerte: Die Monate werden aus den Lieferungen nach Gradtagen verteilt. Eine Heizkurve darüber wäre ein Zirkelschluss — jedes Modell träfe perfekt — und wird deshalb nicht gezeigt.",
+    "scatterNotInFit": "nicht im Modell (Teilmonat oder wenig Heizgradtage)",
+    "regR2Note": "R² beschreibt, wie gut die Kurve die gezeigten Monate trifft (Anpassung) — nicht, wie gut sie das nächste Jahr vorhersagt."
   },
   "forecast": {
     "noUtilities": "Keine Verbrauchsart aktiv. In den Einstellungen lässt sich auswählen, welche angezeigt werden.",
@@ -1438,7 +1452,7 @@
     "models": { "linear": "Linear", "polynomial": "Polynomial (Grad 2)", "robust": "Robust (Huber)", "segmented": "Segmentiert (Heizen/Sommer)", "sigmoid": "Sigmoid (Heizsignatur)" },
     "chartHist": "Historie",
     "chartForecast": "Prognose",
-    "info": "Modell: <strong>{model}</strong> · Blend-Gewicht: <strong>{blend}%</strong>{r2} · Letzter Arbeitspreis: <strong>{price} {minor}/{unit}</strong>",
+    "info": "Modell: <strong>{model}</strong> · Anteil Heizkurve: <strong>{blend} %</strong>{r2} · Letzter Arbeitspreis: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Projizierter Saldo am Ende des Horizonts:",
     "balanceSurcharge": "Nachzahlung",
     "balanceCredit": "Guthaben",
@@ -1446,7 +1460,24 @@
     "balanceNote": "· kumuliert aus geschätzten Kosten minus projizierten Abschlägen",
     "col": { "month": "Monat", "consumption": "Verbrauch ({unit})", "hgt": "HGT geschätzt", "cost": "Kosten geschätzt", "advance": "Abschlag projiziert", "balance": "Saldo laufend", "method": "Methode" },
     "bonusNote": "Künftige Boni werden nicht fortgeschrieben — nur im Vertrag gepflegte Boni mit Gutschriftdatum im Prognosezeitraum fließen in die Kosten ein.",
-    "whatIfInvalid": "Bitte die markierten Felder prüfen: Temperatur-Offset −20 bis 20 °C, Preis-Faktor 0 bis 10, Horizont 1 bis 24 Monate."
+    "whatIfInvalid": "Bitte die markierten Felder prüfen: Temperatur-Offset −20 bis 20 °C, Preis-Faktor 0 bis 10, Horizont 1 bis 24 Monate.",
+    "chartBand": "Bandbreite ({level} % der Jahre)",
+    "r2Label": "Modellgüte R²",
+    "annualBand": "Jahr: {value} {unit}, in {level} % der Jahre zwischen {low} und {high} {unit} — je nach Winter.",
+    "hddSourceClimate": "Heizgradtage: Klimanormal {from}–{to} am Standort.",
+    "hddSourceHistory": "Heizgradtage: Mittel der eigenen Temperaturhistorie.",
+    "warn": {
+      "historyShort": "Kurze Historie: Verbrauch für {months} von 12 Kalendermonaten. Die fehlenden ({missing}) kommen aus dem Modell — die Prognose ist entsprechend unsicherer.",
+      "noClimateNormal": "Ohne Klimanormal: Die Heizgradtage stammen aus der eigenen Historie. Ein Temperatur-Sync holt einmalig 30 Jahre Klimadaten."
+    },
+    "assumedNote": "Kein Vertrag für diesen Monat — der letzte Vertrag läuft zu seinen Preisen weiter (Annahme; Verträge verlängern sich).",
+    "method": {
+      "seasonal_only": "Saisonprofil",
+      "regression_only": "Heizkurve (kein eigener Wert für den Monat)",
+      "heat_model": "Heizmodell",
+      "filled": "Tagesmittel (kein eigener Wert)",
+      "blend": "Mischung: {reg} Heizkurve, {seasonal} Saisonprofil"
+    }
   },
   "report": {
     "createdOn": "Erstellt am {date}",
@@ -1478,7 +1509,8 @@
     "tableDelta": "Δ%",
     "continued": "(Forts.)",
     "meterPageTitle": "{label} {year} — {meter}",
-    "heatDemand": "Heizenergie · {label}"
+    "heatDemand": "Heizenergie · {label}",
+    "weatherNote": "Witterungsbereinigt: Wettereinfluss laut Heizmodell auf ein Normaljahr umgerechnet, eigene Abweichungen des Monats bleiben. Δ %: Verbrauch gegen die Erwartung bei diesem Wetter."
   },
   "migration": {
     "warnNoSettings": "Keine Einstellungen im Backup gefunden — es gelten die Standardwerte.",

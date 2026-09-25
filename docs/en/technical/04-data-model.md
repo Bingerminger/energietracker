@@ -26,7 +26,9 @@ data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
 ├── settings.json             # settings (defaults: SettingsService::DEFAULTS)
 ├── auth.json                 # sign-in, HA token, API keys — hashes only, never plaintext
-├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max }, … }
+├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max, source }, … } — source since v2.8.0
+├── climate_normal.json       # climate normal at the location (v2.8.0) — key figures only, no raw data
+├── weather_sync.json         # state of the last Open-Meteo sync (v2.8.0)
 ├── reminders.json            # appointments/maintenance
 ├── recommendations_dismissed.json
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json }
@@ -55,6 +57,24 @@ typically empty for heating oil/pellets — there the **tank invoice itself** is
 cost basis (see [Heating oil](../functional/05-heizoel.md)). `meter_groups.json`
 (since 1.2.0) holds the group master data per utility; the group *membership*, by
 contrast, sits on the meter (`meter_group_id`).
+
+**Temperatures and weather (v2.8.0, additive — no schema bump):**
+
+- `temperatures.json`: every day carries `source` — `archive` (measured value from
+  the Open-Meteo archive), `forecast` (forecast, replaced by the archive value),
+  `csv` or `manual` (your own values, never overwritten). Entries without `source`
+  come from older versions; if they are older than the archive delay (six days),
+  they count as measured.
+- `climate_normal.json`: `version`, `latitude`/`longitude` (rounded), `period`
+  `{from, to}` (the last 30 full calendar years), `fetched_at`, `days`, `doy_avg`
+  (366 mean daily means, day 60 = 29 February) and `hdd` — per heating limit from
+  `"10.0"` to `"22.0"` in half-degree steps `{mean[12], sd[12], year_sd, years}`.
+  Fetched again when the location moves by more than 0.05° or the period no longer
+  reaches up to the previous year. Not part of the backup: the file can be
+  regenerated at any time.
+- `weather_sync.json`: `last_sync_at`, `last_sync_date` (for "once a day"),
+  `measured_until`, `forecast_until`, `archive_error`, `forecast_error`,
+  `climate_normal` (status of the last sync).
 
 > **`auth.json`** (F1009, extended in v2.6.0) contains **hashes** only, never
 > plaintext, and is **excluded** from the backup. If the file is missing,
@@ -243,6 +263,9 @@ Groups (a selection of the default values):
 | `co2_gas / _strom / _wasser` | 201 / 380 / 350 | g CO₂ per kWh or m³ — *[Unverified]* adjustable |
 | `co2_heizoel / _pellets / _fernwaerme` | 266 / … | ditto |
 | `blend_max` | 0.80 | upper bound of the regression weight in the forecast |
+| `confidence_band_sigma` | 1.28 | width of the forecast band in σ (1.28 ≈ 80 % of years); without effect up to v2.7 |
+| `anomaly_threshold` | 2.0 | threshold of the anomaly detection (robust z-value) |
+| `min_days_period`, `min_hdd_regression` | 20, 5 | minimum days and minimum degree days, respectively, from which a month feeds the models |
 | `forecast_months` | 12 | forecast horizon |
 | `forecast_model` | linear | default regression model |
 | `segmented_split_mode` | auto | breakpoint of the segmented regression |
@@ -252,7 +275,8 @@ Groups (a selection of the default values):
 | `delivery_baseload_share` | 0.15 | weather-independent base-load share for delivery utilities |
 | `tank_warn_pct` | — | warning threshold for the tank level |
 | `active_utilities` | all | which utilities are visible in the sidebar/dashboard |
-| `location_name`, `latitude`, `longitude` | Leipzig | for Open-Meteo |
+| `location_name`, `latitude`, `longitude` | Leipzig | for Open-Meteo (transmitted rounded to two decimal places) |
+| `weather_auto_fill` | true | *(effective since v2.8.0)* sync the temperatures once a day when the app is opened |
 | `language` | de | language of the interface and of API messages |
 | `country` | DE | *(v2.7.0)* country: formats (together with the language), efficiency scale — [country profiles](../functional/14-laenderprofile.md) |
 | `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — symbol and minor unit; amounts are not converted, `*_eur`/`ct_*` mean major/minor unit |

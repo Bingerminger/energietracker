@@ -43,13 +43,18 @@ track heating if the flat has its own meters.
 The running balance is especially valuable for tenants:
 
 ```text
-balance = Σ advances paid - Σ actual costs
+balance = Σ actual costs - Σ advances paid
 ```
 
-A strongly negative balance months before the annual statement warns early of a
+A positive balance months before the annual statement warns early of a
 back-payment — you can have the advance actively adjusted instead of being caught
-out. A high positive balance means you are lending the supplier money
-interest-free → lower the advance.
+out; the balance card suggests an amount for this. A strongly negative balance
+means you are lending the supplier money interest-free → lower the advance.
+
+Since v2.8.0 the balance is computed by calendar up to today, even if the last
+reading was months ago: the advances count as they were debited, and the
+consumption since the last reading is estimated and shown as an estimate
+([Fundamentals §10](00-overview.md#10-balance-to-date)).
 
 ---
 

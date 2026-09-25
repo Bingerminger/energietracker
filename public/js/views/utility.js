@@ -190,6 +190,13 @@ async function rerender(container) {
   const yearBalance = totCost - totAdv;
   const hasContract = monthlyYear.some(m => m.contract_id);
   const currentContract = contracts.find(c => c.is_current);
+  // v2.8.0 — Die Kacheln summieren die Monatszeilen, also nur abgelesene
+  // Monate. Liegt die letzte Ablesung im laufenden Jahr zurück, nennt die
+  // Abschlagskachel ihren Stand — sonst stünde „Abschläge 2026: 390 €" neben
+  // den 1.170 €, die die Saldo-Karte nach Kalender bis heute zählt.
+  const measuredUntil = currentContract?.measured_until || null;
+  const partialYear = !!measuredUntil && String(yr) === todayIso().slice(0, 4)
+    && measuredUntil < todayIso() && measuredUntil.startsWith(String(yr));
 
   // ── Render whole page ───────────────────────────────────────────
   container.innerHTML = `
@@ -213,10 +220,10 @@ async function rerender(container) {
       </div>
       ${hasContract && !isFeedIn ? `
         <div class="kpi c-yellow">
-          <div class="kpi__label">${t('utility.kpi.advances', { year: yr })}</div>
+          <div class="kpi__label">${partialYear ? t('utility.kpi.advancesUntil', { date: fmt.date(measuredUntil) }) : t('utility.kpi.advances', { year: yr })}</div>
           <div class="kpi__value">${fmt.eur(totAdv)}</div>
           <div class="kpi__sub ${yearBalance < 0 ? 'positive' : (yearBalance > 0 ? 'negative' : '')}">
-            ${t('utility.kpi.yearBalance', { value: (yearBalance > 0 ? '+' : '') + fmt.eur(yearBalance) })}
+            ${t(partialYear ? 'utility.kpi.balanceShort' : 'utility.kpi.yearBalance', { value: (yearBalance > 0 ? '+' : '') + fmt.eur(yearBalance) })}
           </div>
         </div>
       ` : ''}
@@ -493,6 +500,22 @@ function balanceCard(c, u) {
   const consumedSub = isWater
     ? t('utility.balance.consumedMonthsWater', { months: c.months_actual, m3: fmt.num(c.actual_m3 || 0, 1) })
     : t('utility.balance.consumedMonths', { months: c.months_actual, kwh: fmt.int(c.actual_kwh) });
+  // v2.8.0 (CALC-02) — Kosten bis heute: gemessen bis zur letzten Ablesung,
+  // danach geschätzt (Wetter, Saison). Ältere Server liefern nur actual_cost.
+  const costToDate = c.cost_to_date ?? c.actual_cost;
+  const estimated = (c.estimated_cost_to_date || 0) > 0.005 && c.measured_until;
+  const measuredSub = estimated
+    ? t('utility.balance.measuredThenEstimated', { date: fmt.date(c.measured_until), kwh: fmt.int(c.actual_kwh), value: fmt.eur(c.estimated_cost_to_date) })
+    : consumedSub;
+  // Die Teile der Summe (energy/base/bonus_to_date) — ältere Server liefern
+  // nur die gemessenen Monate
+  const hasParts = c.energy_cost_to_date != null && c.base_to_date != null;
+  // UI-36 — Abschlagsvorschlag, wenn er sich spürbar vom heutigen unterscheidet
+  const suggestHtml = !isFeedIn && c.suggested_advance != null && c.current_advance_amount != null
+      && c.suggested_advance > 0 && Math.abs(proj) > 5
+      && Math.abs(c.suggested_advance - c.current_advance_amount) >= 5
+    ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: fmt.eur(c.suggested_advance), current: fmt.eur(c.current_advance_amount) })}</p>`
+    : '';
 
   // Breakdown row: for water we want three component pills, for gas/strom the
   // simple verbrauch+grundpreis+bonus line.
@@ -500,9 +523,12 @@ function balanceCard(c, u) {
     ? renderWaterBreakdown(c.components, c.actual_bonus_total)
     : (() => {
         const parts = [];
-        if (c.actual_kwh_cost != null)    parts.push(t('utility.balance.breakdownConsumption', { value: fmt.eur(c.actual_kwh_cost) }));
-        if (c.actual_base_total > 0)      parts.push(t('utility.balance.breakdownBase', { value: fmt.eur(c.actual_base_total) }));
-        if (c.actual_bonus_total > 0)     parts.push(t('utility.balance.breakdownBonus', { value: fmt.eur(c.actual_bonus_total) }));
+        const energy = hasParts ? c.energy_cost_to_date : c.actual_kwh_cost;
+        const base   = hasParts ? c.base_to_date : c.actual_base_total;
+        const bonus  = hasParts ? c.bonus_to_date : c.actual_bonus_total;
+        if (energy != null) parts.push(t('utility.balance.breakdownConsumption', { value: fmt.eur(energy) }));
+        if (base > 0)       parts.push(t('utility.balance.breakdownBase', { value: fmt.eur(base) }));
+        if (bonus > 0)      parts.push(t('utility.balance.breakdownBonus', { value: fmt.eur(bonus) }));
         return parts.length > 1 ? `<div class="balance-col__breakdown">${parts.join(' ')}</div>` : '';
       })();
 
@@ -525,9 +551,9 @@ function balanceCard(c, u) {
       <div class="balance-grid">
         <div>
           <div class="balance-col__label">${isFeedIn ? t('utility.balance.colConsumedFeedIn') : t('utility.balance.colConsumed')}</div>
-          <div class="balance-col__value">${fmt.eur(c.actual_cost)}</div>
-          <div class="balance-col__sub">${consumedSub}</div>
+          <div class="balance-col__value">${fmt.eur(costToDate)}</div>
           ${breakdownHtml}
+          <div class="balance-col__sub">${measuredSub}</div>
         </div>
         <div>
           <div class="balance-col__label">${isFeedIn ? t('utility.balance.colPaidFeedIn') : t('utility.balance.colPaid')}</div>
@@ -547,6 +573,7 @@ function balanceCard(c, u) {
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
         </div>
       </div>
+      ${suggestHtml}
       ${isWater && c.components ? renderWaterComponentRow(c.components) : ''}
     </div>
   `;
@@ -643,7 +670,7 @@ function contractsTable(contracts, u) {
         <td><span class="status-pill ${stateCls}">${stateLabel}</span></td>
         <td class="num muted" style="font-size:11px">${tariffStr}</td>
         <td class="num">${c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) : '–'}</td>
-        <td class="num">${fmt.eur(c.actual_cost)}</td>
+        <td class="num">${fmt.eur(c.cost_to_date ?? c.actual_cost)}</td>
         <td class="num">${fmt.eur(c.advance_paid)}</td>
         <td class="num success-text">${bonusStr}</td>
         ${showSpecial ? specialCell(c) : ''}

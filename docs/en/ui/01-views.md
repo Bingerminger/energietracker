@@ -52,13 +52,21 @@ check". Details: [Meter readings → plausibility](../functional/11-zaehlerstaen
 ## 3. Consumption view — cumulative utilities (gas/electricity/water/district heating)
 
 Identical structure per utility: year selection, meter selection, KPI bar
-(consumption, costs, balance today, expected balance), contract/balance card, a
-consumption chart with a temperature overlay, and a monthly table with moving
-averages (MA-3/MA-6) and weather adjustment. The **Contracts & advances**
-table lists per contract tariff, advance, consumed, paid, bonus, **special
-payments** (since v2.5.1: net from the customer's perspective, items in the
-tooltip; gas/electricity/district heating only), balance today and expected
-balance.
+(consumption, costs, advances with the balance of the months read, daily average,
+CO₂), contract/balance card, a consumption chart with a temperature overlay, and a
+monthly table with moving averages (MA-3/MA-6) and weather adjustment.
+
+**Balance card (v2.8.0):** computes by calendar up to today — "Consumed (as of
+today)" breaks down into working price and base price (minus bonuses); below it,
+the card states up to when consumption is measured and from when it is
+estimated. "Advance paid" counts the advances as they were debited. If the
+expected balance deviates noticeably, the card suggests an advance. The KPI
+tiles, by contrast, sum up the months that have been read; if the last reading in
+the current year is some time back, the tile is labelled "Advances up to
+‹date›". The **Contracts & advances** table lists per contract tariff, advance,
+consumed, paid, bonus, **special payments** (since v2.5.1: net from the
+customer's perspective, items in the tooltip; gas/electricity/district heating
+only), balance today and expected balance.
 
 **Implausible readings (v2.6.0):** if there are outliers, a falling reading
 without a meter swap or an unconfirmed suspect value from Home Assistant, a
@@ -83,8 +91,19 @@ invoice is the cost basis.
 
 ## 5. Analysis (heating signature)
 
-An HDD correlation scatter plot with a regression line, an R² comparison of **all
-five** models (linear, polynomial, robust, segmented, sigmoid), anomalies.
+An HDD correlation scatter plot with the curves of **all five** models (linear,
+polynomial, robust, segmented, sigmoid) and their R² comparison, a year
+comparison and anomalies.
+
+Since v2.8.0: filled points feed the curves, **hollow** ones are your own months
+outside the fit (partial month, too few heating degree days or temperatures),
+**grey** ones lie before the cut-off. Below the table, a note says that R²
+measures the fit to the months shown, not predictive quality. The "Effect of the
+measure" card says whether the difference before/after the cut-off is
+statistically supported, with a 95 % range. Anomalies measure each month against
+its own expectation (heating model or the same month in other years). For
+heating oil and pellets a note appears instead of the curves: their monthly
+values are distributed by degree days.
 
 ![Analysis](../../ui/screenshots/analyse.png)
 
@@ -94,6 +113,14 @@ five** models (linear, polynomial, robust, segmented, sigmoid), anomalies.
 
 Model selection (all five), a 12-month forecast as an R²-weighted blend of
 regression and seasonal profile, a cost forecast with the balance of open contracts.
+
+Since v2.8.0 with an **uncertainty band** (the range within which consumption
+lies in 80 % of years) and a line for the year ("in 80 % of years between … and
+…"). Below it, the source of the heating degree days (climate normal at the
+location or your own history) and notices when the history is short. The
+"Method" column says per month how it was computed; months after the end of the
+contract in which the last contract continues as an assumption carry an
+asterisk.
 
 ![Forecast](../../ui/screenshots/prognose.png)
 
@@ -218,9 +245,14 @@ rolled forward according to the recurrence.
 ## 10. Temperatures
 
 CSV import (drag & drop), Open-Meteo sync for the stored location, a monthly chart
-min/avg/max. The basis of every HDD evaluation. If the location is still the
-country default, a note says so (v2.7.0) — the degree days then use the weather
-of another place.
+min/avg/max. The basis of every HDD evaluation. Since v2.8.0 a line above the
+chart states up to when measured values and from when forecasts are available;
+the option "Also replace existing older values with archive values" cleans up
+forecasts that earlier versions stored like measured values. With *Fill weather
+automatically* (settings, on by default) the app syncs by itself once a day when
+it is opened and loads the climate normal the first time. If the location is
+still the country default, a note says so (v2.7.0) — the degree days then use the
+weather of another place.
 
 ![Temperatures](../../ui/screenshots/temperaturen.png)
 

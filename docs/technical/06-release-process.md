@@ -446,6 +446,49 @@ abgenommen ist.
   übernehmen" wählt. Beim Erststart schreibt die App nur Abweichungen vom
   Default fest; wer alle Profilwerte schreibt, friert die Defaults ein, und
   eine spätere Korrektur erreicht neue Installationen nicht mehr.
+- **Eine Erwartung, die den geprüften Wert enthält, prüft nichts (v2.8.0).**
+  Das Saisonmittel der Anomalie-Erkennung enthielt den geprüften Monat selbst,
+  der Trend maß vor allem, in welchem Monat die Daten enden, und Heizarten
+  bekamen im Sommer die Erwartung 0 — jeder Sommer war ein „Ausreißer", ein
+  echter +35-%-Februar ging unter. Erwartungen gehören zum Monat (Heizmodell,
+  derselbe Kalendermonat anderer Jahre), der geprüfte Wert nie in die eigene
+  Erwartung, und die Streuung wird robust geschätzt.
+- **Synthetische Testdaten müssen die alte Rechnung widerlegen können
+  (v2.8.0).** Mehrere neue Regeln waren auf den ersten Testdaten auch
+  **ohne** die Regel grün: kein Rauschen, jedes Jahr dasselbe Klima. Erst die
+  Gegenprobe — Regel gezielt zurückdrehen, Test muss rot werden — zeigte das.
+  Seitdem bekommt jede Rechenregel eine Gegenprobe, und die Testdaten werden
+  so gebaut, dass der alte Weg sichtbar falsch liegt.
+- **Ein Saldo folgt dem Kalender, nicht den Ablesungen (v2.8.0).** Die
+  Abschläge zählten nur für abgelesene Monate: Wer zuletzt im März ablas, sah
+  im September den Saldo von drei Monaten, während neun Abschläge abgebucht
+  waren. Und eine Aufschlüsselung muss ihre Summe ergeben — die erste Fassung
+  der neuen Karte zeigte Teile, denen der Grundpreis der Schätzmonate fehlte.
+  Dasselbe galt für die Jahreskacheln daneben; sie nennen jetzt ihren Stand.
+- **Eine Einstellung ohne Wirkung ist eine falsche Auskunft (v2.8.0).**
+  `confidence_band_sigma` und `weather_auto_fill` standen in den
+  Einstellungen und taten nichts. Beide wirken jetzt — und der tägliche Abruf
+  bei Open-Meteo machte den README-Satz „stellt keine externen Anfragen"
+  falsch. Wer eine Einstellung zum Leben erweckt, prüft, welche Aussagen der
+  Doku an ihrem Nichtstun hingen.
+- **Eine Regel, eine Stelle (v2.8.0).** Welche Monate in die Heizkurve
+  eingehen, entschieden Analyse, Bereinigung, Prognose und Anomalien je leicht
+  anders; derselbe Zähler zeigte R² 0,42 in der Analyse und 0,56 in der
+  Prognose. Jetzt entscheidet `ConsumptionService::isRegressionCandidate()`,
+  und das Chart zeichnet genau die Punkte, die im Fit stecken. Lektion 26
+  (Monatsarithmetik) schnappte dabei zweimal fast wieder zu — in einem Test
+  (`strtotime('-8 months')`) und im Kalibrierfenster (`-12 months` am
+  29. Februar); beide rechnen jetzt vom Monatsersten.
+- **Eine Formel für Jahreswerte taugt nicht ungeprüft für Monate (v2.8.0).**
+  Die erste Fassung von `heat_adjusted` skalierte den Heizanteil
+  (`Ist − Grundlast`) mit `HGT_normal / HGT_ist`, wie VDI 3807 es für
+  Jahreswerte vorsieht. In einem warmen September mit 11 statt 30 Gradtagen
+  ist dieser „Heizanteil" aber Rauschen — ×2,7 ergab +32 %, genug, um den
+  Jahrestrend über seine 3-%-Schwelle zu schieben. Jetzt wird nur der
+  Wettereinfluss laut Modell umgerechnet (`Ist + a × (HGT_normal − HGT_ist)`).
+  Die Tests waren grün, weil ihr synthetisches Klima jedes Jahr gleich war und
+  das Verhältnis damit immer 1; aufgefallen ist es erst beim Lesen des fertigen
+  PDF-Berichts. Testdaten brauchen ein Jahr, das vom Normal abweicht.
 
 ---
 

@@ -26,7 +26,9 @@ data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
 ├── settings.json             # Einstellungen (Defaults: SettingsService::DEFAULTS)
 ├── auth.json                 # Anmeldung, HA-Token, API-Schlüssel — nur Hashes, nie Klartext
-├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max }, … }
+├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max, source }, … } — source seit v2.8.0
+├── climate_normal.json       # Klimanormal am Standort (v2.8.0) — nur Kennzahlen, keine Rohdaten
+├── weather_sync.json         # Zustand des letzten Open-Meteo-Abgleichs (v2.8.0)
 ├── reminders.json            # Termine/Wartung
 ├── recommendations_dismissed.json
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json }
@@ -55,6 +57,25 @@ Heizöl/Pellets aber typischerweise leer — dort ist die **Tankrechnung
 selbst** die Kostenbasis (siehe [Heizöl](../functional/05-heizoel.md)).
 `meter_groups.json` (seit 1.2.0) hält die Gruppen-Stammdaten je Utility;
 die Gruppen-*Mitgliedschaft* steht dagegen am Zähler (`meter_group_id`).
+
+**Temperaturen und Wetter (v2.8.0, additiv — kein Schema-Bump):**
+
+- `temperatures.json`: Jeder Tag trägt `source` — `archive` (Messwert aus
+  dem Open-Meteo-Archiv), `forecast` (Vorhersage, wird durch den Archivwert
+  ersetzt), `csv` oder `manual` (eigene Werte, werden nie überschrieben).
+  Einträge ohne `source` stammen aus älteren Versionen; älter als die
+  Archiv-Verzögerung (sechs Tage) gelten sie als gemessen.
+- `climate_normal.json`: `version`, `latitude`/`longitude` (gerundet),
+  `period` `{from, to}` (die letzten 30 vollen Kalenderjahre), `fetched_at`,
+  `days`, `doy_avg` (366 mittlere Tagesmittel, Tag 60 = 29. Februar) und
+  `hdd` — je Heizgrenze von `"10.0"` bis `"22.0"` in halben Grad
+  `{mean[12], sd[12], year_sd, years}`. Wird neu geholt, wenn der Standort
+  sich um mehr als 0,05° verschiebt oder die Periode nicht mehr an das
+  Vorjahr heranreicht. Kein Backup-Bestandteil: Die Datei lässt sich
+  jederzeit neu erzeugen.
+- `weather_sync.json`: `last_sync_at`, `last_sync_date` (für „einmal am
+  Tag"), `measured_until`, `forecast_until`, `archive_error`,
+  `forecast_error`, `climate_normal` (Status des letzten Abgleichs).
 
 > **`auth.json`** (F1009, erweitert in v2.6.0) enthält nur **Hashes**, nie
 > Klartext, und wird vom Backup **ausgenommen**. Fehlt die Datei, ist die
@@ -245,6 +266,9 @@ Gruppen (Auswahl der Default-Werte):
 | `co2_gas / _strom / _wasser` | 201 / 380 / 350 | g CO₂ je kWh bzw. m³ — *[Unverifiziert]* anpassbar |
 | `co2_heizoel / _pellets / _fernwaerme` | 266 / … | dito |
 | `blend_max` | 0.80 | Obergrenze Regressionsgewicht in der Prognose |
+| `confidence_band_sigma` | 1.28 | Breite des Prognosebands in σ (1,28 ≈ 80 % der Jahre); bis v2.7 ohne Wirkung |
+| `anomaly_threshold` | 2.0 | Schwelle der Anomalie-Erkennung (robuster z-Wert) |
+| `min_days_period`, `min_hdd_regression` | 20, 5 | Mindesttage bzw. -Gradtage, ab denen ein Monat in Modelle eingeht |
 | `forecast_months` | 12 | Prognosehorizont |
 | `forecast_model` | linear | Standard-Regressionsmodell |
 | `segmented_split_mode` | auto | Knickpunkt der segmentierten Regression |
@@ -254,7 +278,8 @@ Gruppen (Auswahl der Default-Werte):
 | `delivery_baseload_share` | 0.15 | wetterunabhängiger Grundlastanteil bei Lieferarten |
 | `tank_warn_pct` | — | Warnschwelle Tankfüllstand |
 | `active_utilities` | alle | welche Arten in Sidebar/Dashboard sichtbar |
-| `location_name`, `latitude`, `longitude` | Leipzig | für Open-Meteo |
+| `location_name`, `latitude`, `longitude` | Leipzig | für Open-Meteo (übermittelt auf zwei Nachkommastellen gerundet) |
+| `weather_auto_fill` | true | *(seit v2.8.0 wirksam)* Temperaturen einmal am Tag beim Öffnen der App abgleichen |
 | `language` | de | Sprache der Oberfläche und der API-Meldungen |
 | `country` | DE | *(v2.7.0)* Land: Schreibweise (mit der Sprache), Effizienzskala — [Länderprofile](../functional/14-laenderprofile.md) |
 | `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — Symbol und Untereinheit; Beträge werden nicht umgerechnet, `*_eur`/`ct_*` meinen Haupt-/Untereinheit |

@@ -135,7 +135,11 @@ export const api = {
   upsertTemp:    (data)                => request('POST', '/api/temperatures', data),
   deleteTemp:    (date)                => request('DELETE',`/api/temperatures/${date}`),
   importTempCsv: (csvText)             => request('POST', '/api/temperatures/import-csv', csvText, { raw: true }),
-  syncOpenMeteo: (data)                => request('POST', '/api/temperatures/sync-open-meteo', data),
+  // v2.8.0 — Optionen als Query (der Server las sie immer dort): reload, auto, start, end
+  syncOpenMeteo: (opts = {})           => {
+    const params = new URLSearchParams(opts).toString();
+    return request('POST', '/api/temperatures/sync-open-meteo' + (params ? '?' + params : ''));
+  },
 
   // F1005 (v1.7.0) — Strom-Saldo (Bezug − PV-Einspeisung) + PV-Summary (Eigenverbrauch + Autarkie)
   stromSaldo:    ()                    => request('GET',  '/api/strom-saldo'),

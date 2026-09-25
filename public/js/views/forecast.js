@@ -158,6 +158,10 @@ function renderResult(u, result, container) {
   // v2.1.5 — die gestrichelte Prognoselinie am letzten Historie-Punkt andocken,
   // damit zwischen Historie und Prognose keine sichtbare Lücke entsteht.
   if (hist.length > 0 && fc.length > 0) fcData[hist.length - 1] = hist[hist.length - 1][consKey];
+  // v2.8.0 (CALC-13) — Unsicherheitsband als Fläche zwischen zwei Linien
+  const hasBand = fc.some(f => f.band_low != null && f.band_high != null);
+  const bandLow  = [...hist.map(() => null), ...fc.map(f => f.band_low ?? null)];
+  const bandHigh = [...hist.map(() => null), ...fc.map(f => f.band_high ?? null)];
 
   const canvas = container.querySelector('#fc-chart');
   chart = makeChart(canvas, {
@@ -166,20 +170,53 @@ function renderResult(u, result, container) {
       labels,
       datasets: [
         { label: t('forecast.chartHist'),     data: histData, borderColor: u.color, backgroundColor: u.color + '22', tension: 0.25, spanGaps: false },
+        ...(hasBand ? [
+          { label: '', data: bandLow, borderColor: 'transparent', pointRadius: 0, tension: 0.25, spanGaps: false, fill: false },
+          { label: t('forecast.chartBand', { level: result.annual?.level_pct ?? 80 }), data: bandHigh, borderColor: 'transparent', backgroundColor: u.color + '26', pointRadius: 0, tension: 0.25, spanGaps: false, fill: '-1' },
+        ] : []),
         { label: t('forecast.chartForecast'), data: fcData,   borderColor: themeColors.text1, borderDash: [6,4], backgroundColor: 'rgba(231,236,243,0.06)', tension: 0.25, spanGaps: false },
       ],
     },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: u.consumption_unit } } } }
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      // die Unterkante des Bands hat keinen eigenen Legendeneintrag
+      plugins: { legend: { labels: { filter: (item) => item.text !== '' } } },
+      scales: { y: { title: { display: true, text: u.consumption_unit } } },
+    }
   }, { label: t('forecast.chartAlt') });
 
   const reg = result.regression;
-  info.innerHTML = t('forecast.info', {
+  const lines = [t('forecast.info', {
     model: u.hgt_relevant ? (reg?.model || 'linear') : 'seasonal_only',
     blend: fmt.num(result.blend_weight * 100, 1),
-    r2: reg ? ` (R² ${fmt.num(reg.r2, 3)})` : '',
+    r2: reg ? ` (${t('forecast.r2Label')} ${fmt.num(reg.r2, 3)})` : '',
     price: fmt.num(result.last_price_ct, 3),
     unit: u.consumption_unit,
-  });
+  })];
+  // v2.8.0 — Jahresband und Herkunft der Heizgradtage
+  if (result.annual) {
+    lines.push(t('forecast.annualBand', {
+      value: fmt.num(result.annual.value, 0), low: fmt.num(result.annual.low, 0), high: fmt.num(result.annual.high, 0),
+      level: result.annual.level_pct, unit: u.consumption_unit,
+    }));
+  }
+  if (u.hgt_relevant && result.hdd_source === 'climate_normal' && result.climate_normal?.period) {
+    lines.push(t('forecast.hddSourceClimate', {
+      from: String(result.climate_normal.period.from).slice(0, 4), to: String(result.climate_normal.period.to).slice(0, 4),
+    }));
+  } else if (u.hgt_relevant && result.hdd_source === 'temperature_history') {
+    lines.push(t('forecast.hddSourceHistory'));
+  }
+  const warn = (result.warnings || []).map(w => {
+    if (w.code === 'history_short') {
+      const names = (w.missing || []).map(m => fmt.month(`2024-${String(m).padStart(2, '0')}`).replace(/\s*2024$/, '')).join(', ');
+      return t('forecast.warn.historyShort', { months: w.months, missing: names || '–' });
+    }
+    if (w.code === 'no_climate_normal') return t('forecast.warn.noClimateNormal');
+    return '';
+  }).filter(Boolean);
+  info.innerHTML = lines.join('<br>')
+    + (warn.length ? `<div class="banner banner--warning" style="margin-top: var(--sp-3)">${warn.map(escapeHtml).join('<br>')}</div>` : '');
 
   // F-02: the forecast now carries a full contract-aware finance projection.
   // `cost_estimated` uses the per-month working/base price of the active
@@ -218,10 +255,10 @@ function renderResult(u, result, container) {
             <td>${fmt.month(r.ym)}</td>
             <td class="num">${fmt.num(r[consKey], 0)}</td>
             ${u.hgt_relevant ? `<td class="num">${fmt.num(r.hdd_estimated, 0)}</td>` : ''}
-            <td class="num">${fmt.eur(r.cost_estimated)}</td>
+            <td class="num">${fmt.eur(r.cost_estimated)}${r.contract_assumed ? ' *' : ''}</td>
             <td class="num">${r.advance_estimated != null ? fmt.eur(r.advance_estimated) : '<span class="dim">–</span>'}</td>
             <td class="num ${balCls}">${bal != null ? fmt.eur(bal) : '<span class="dim">–</span>'}</td>
-            <td><code class="mono" style="font-size: var(--fs-xs)">${escapeHtml(r.method)}</code></td>
+            <td>${methodLabel(r.method)}</td>
           </tr>`;
         }).join('')}
       </tbody>
@@ -229,7 +266,18 @@ function renderResult(u, result, container) {
     ${hasFinance ? `
       <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">
         ${t('forecast.bonusNote')}
+        ${fc.some(r => r.contract_assumed) ? `<br>* ${t('forecast.assumedNote')}` : ''}
       </p>
     ` : ''}
   `;
+}
+
+// v2.8.0 — Methoden lesbar. Das API-Feld bleibt unverändert
+// (`blend(reg=0.56, seasonal=0.44)`), übersetzt wird nur die Anzeige.
+function methodLabel(method) {
+  const known = ['seasonal_only', 'regression_only', 'heat_model', 'filled'];
+  if (known.includes(method)) return escapeHtml(t('forecast.method.' + method));
+  const blend = /^blend\(reg=([\d.]+), seasonal=([\d.]+)\)$/.exec(method || '');
+  if (blend) return escapeHtml(t('forecast.method.blend', { reg: fmt.pct(Number(blend[1]), 0), seasonal: fmt.pct(Number(blend[2]), 0) }));
+  return `<code class="mono" style="font-size: var(--fs-xs)">${escapeHtml(method)}</code>`;
 }

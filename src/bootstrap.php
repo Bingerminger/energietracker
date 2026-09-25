@@ -22,7 +22,7 @@ use Energietracker\Services\{
     TariffComparisonService, TariffSwitchService,
     RecommendationService, ReminderService, PdfReportService,
     StromSaldoService, PvSummaryService, HealthCheckService, DemoService,
-    AuthService, IngestService, I18nService
+    AuthService, IngestService, I18nService, ClimateNormalService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -60,6 +60,7 @@ final class App
     public ConsumptionService $consumption;
     public TemperatureService $temperatures;
     public WeatherService $weather;
+    public ClimateNormalService $climate;   // v2.8.0
     public RegressionService $regression;
     public ForecastService $forecasts;
     public AnomalyService $anomalies;
@@ -124,7 +125,10 @@ final class App
             $this->i18n, $this->regression, $this->deliveryConsumption, $this->factors
         );
         $this->weather      = new WeatherService();
-        $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather);
+        // v2.8.0 — Klimanormal (CALC-30): vom Temperatur-Sync geholt, von
+        // Prognose, Wetterbereinigung und Saldo gelesen.
+        $this->climate      = new ClimateNormalService($this->store, $this->settings);
+        $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather, $this->climate);
         $this->forecasts    = new ForecastService(
             $this->consumption, $this->regression, $this->settings, $this->contracts, $this->i18n
         );
@@ -435,7 +439,7 @@ final class App
         $r->get('/api/utility/{utility}/meters/{id}/forecast', fn($req) => $fCtrl->forMeter($req));
 
         // ── Temperatures ──
-        $tCtrl = new TemperatureController($this->temperatures, $this->i18n);
+        $tCtrl = new TemperatureController($this->temperatures, $this->i18n, $this->settings);
         $r->get('/api/temperatures',                  fn($req) => $tCtrl->index($req));
         $r->post('/api/temperatures',                 fn($req) => $tCtrl->upsert($req));
         $r->post('/api/temperatures/import-csv',      fn($req) => $tCtrl->importCsv($req));

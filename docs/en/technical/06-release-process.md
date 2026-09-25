@@ -414,6 +414,49 @@ accepted.
   the app writes only values that differ from the defaults; writing every
   profile value would freeze the defaults, and a later correction would no
   longer reach new installations.
+- **An expectation that contains the value being checked checks nothing
+  (v2.8.0).** The seasonal mean of the anomaly detection contained the checked
+  month itself, the trend mainly measured in which month the data ended, and
+  heating utilities got an expectation of 0 in summer — every summer was an
+  "outlier", and a genuine +35 % February went unnoticed. Expectations belong to
+  the month (heating model, the same calendar month in other years), the checked
+  value never goes into its own expectation, and the spread is estimated
+  robustly.
+- **Synthetic test data must be able to refute the old calculation
+  (v2.8.0).** Several new rules were green on the first test data even
+  **without** the rule: no noise, the same climate every year. Only the
+  counter-check — deliberately revert the rule, the test must turn red — revealed
+  this. Since then every calculation rule gets a counter-check, and the test data
+  is built so that the old way is visibly wrong.
+- **A balance follows the calendar, not the readings (v2.8.0).** The advances
+  only counted for months with a reading: anyone who last read the meter in March
+  saw the balance of three months in September, while nine advances had been
+  debited. And a breakdown must add up to its total — the first version of the
+  new card showed parts that lacked the base price of the estimated months. The
+  same applied to the annual tiles next to it; they now state their as-of date.
+- **A setting without effect is false information (v2.8.0).**
+  `confidence_band_sigma` and `weather_auto_fill` sat in the settings and did
+  nothing. Both take effect now — and the daily fetch from Open-Meteo made the
+  README sentence "makes no external requests" false. Whoever brings a setting to
+  life checks which statements in the docs depended on it doing nothing.
+- **One rule, one place (v2.8.0).** Which months feed the heating curve was
+  decided slightly differently by the analysis, adjustment, forecast and
+  anomalies; the same meter showed R² 0.42 in the analysis and 0.56 in the
+  forecast. Now `ConsumptionService::isRegressionCandidate()` decides, and the
+  chart draws exactly the points that are in the fit. Lesson 26 (month
+  arithmetic) nearly bit again twice along the way — in a test
+  (`strtotime('-8 months')`) and in the calibration window (`-12 months` on
+  29 February); both now compute from the first of the month.
+- **A formula for annual values does not carry over to months unchecked
+  (v2.8.0).** The first version of `heat_adjusted` scaled the heating share
+  (`actual − base load`) by `HDD_normal / HDD_actual`, as VDI 3807 provides for
+  annual values. In a warm September with 11 instead of 30 degree days, however,
+  this "heating share" is noise — ×2.7 produced +32 %, enough to push the annual
+  trend over its 3 % threshold. Now only the weather influence according to the
+  model is converted (`actual + a × (HDD_normal − HDD_actual)`). The tests were
+  green because their synthetic climate was the same every year, so the ratio was
+  always 1; it only came to light when reading the finished PDF report. Test data
+  needs a year that deviates from the normal.
 
 ---
 

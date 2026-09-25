@@ -20,7 +20,7 @@ Energietracker follows a clear separation of layers. The core principle:
                           |
                           v
   +-----------------------------------------------------------+
-  |  Controllers (26)        |  Services (31)                  |
+  |  Controllers             |  Services                       |
   |  HTTP in / out           |  domain logic, no HTTP          |
   +-----------------------------------------------------------+
                           |
@@ -62,8 +62,8 @@ energietracker/
 │   ├── Http/               # Router, Request, Response, ErrorHandler, CrossSiteGuard
 │   ├── Storage/            # JsonStore, Migrator, WriteLock
 │   ├── Support/            # Dates, Encoding
-│   ├── Services/ (31)      # domain logic (+ Pdf/PdfWriter)
-│   └── Controllers/ (26)   # one file per class (PSR-1)
+│   ├── Services/           # domain logic (+ Pdf/PdfWriter)
+│   └── Controllers/        # one file per class (PSR-1)
 ├── data/                   # runtime data (not in VCS)
 ├── demo-data/              # complete example dataset (8 utilities)
 ├── docs/                   # this compendium
@@ -98,7 +98,7 @@ From this follow two calculation paths (see [data model](04-data-model.md) and
 
 ---
 
-## 4. Services (`src/Services/`, 31 + `Pdf\PdfWriter`)
+## 4. Services (`src/Services/` and `Pdf\PdfWriter`)
 
 Each service is `final`, has a dependency-injected constructor and knows **no
 HTTP**.
@@ -111,14 +111,15 @@ HTTP**.
 | `MeterService` | CRUD meters/tanks, device swap, topology (submeters/groups, F1006) + `external_id` alias (F1009) |
 | `ReadingService` | CRUD readings, auto-assignment to the active device; capture overview with the typical daily consumption; batch upsert for the CSV import (v2.6.0) |
 | `ContractService` | CRUD contracts, strict validation, effective-date lookup |
-| `ConsumptionService` | monthly aggregation (cumulative **and** delivery-based), balance, weather adjustment; delegates the delivery daily distribution to `DeliveryConsumptionService`; since v2.6.0 plausibility (outliers, suspicion, rollover) with `warnings` |
+| `ConsumptionService` | monthly aggregation (cumulative **and** delivery-based), balance by calendar, heating model and weather adjustment (v2.8.0); delegates the delivery daily distribution to `DeliveryConsumptionService`; since v2.6.0 plausibility (outliers, suspicion, rollover) with `warnings` |
 | `DeliveryConsumptionService` | **(since v1.4.4)** daily consumption distribution & tank stock draw for heating oil/pellets — extracted from `ConsumptionService` (~350 lines) |
 | `DeliveryService` | CRUD deliveries, tank stock curve |
-| `TemperatureService` | CSV import, daily map |
-| `WeatherService` | Open-Meteo wrapper (archive + forecast) |
+| `TemperatureService` | CSV import, Open-Meteo sync with a source per day, daily auto-sync (v2.8.0) |
+| `WeatherService` | Open-Meteo wrapper (archive, forecast, 30-year daily means) behind the `WeatherSource` interface |
+| `ClimateNormalService` | **(v2.8.0)** climate normal at the location: HDD mean and spread per calendar month from 30 years |
 | `RegressionService` | 5 models: linear, polynomial, robust, segmented (auto/fixed), sigmoid |
-| `ForecastService` | R²-weighted mix of regression × seasonal profile; contract-based cost forecast |
-| `AnomalyService` | z-score outliers |
+| `ForecastService` | R²-weighted mix of regression × seasonal profile, HDD from the climate normal, uncertainty band; contract-based cost forecast |
+| `AnomalyService` | outliers against the expectation per month, robust spread (v2.8.0) |
 | `BenchmarkService` | efficiency class **per heat source** + combined |
 | `TariffComparisonService` | real + shadow contracts on actual consumption |
 | `TariffSwitchService` | switching decision from the switch date (commitment chain, break-even) |
@@ -138,7 +139,7 @@ HTTP**.
 
 ---
 
-## 5. Controllers (`src/Controllers/`, 26)
+## 5. Controllers (`src/Controllers/`)
 
 Each controller is `final`, one class per file. Methods return `never` and respond
 directly via `Response::json()` / `Response::csv()` / `Response::error()`.

@@ -228,7 +228,11 @@ final class PdfReportService
             $this->i18n->t('report.tableTemp'),
             $this->i18n->t('report.tableHdd'),
         ];
-        $hasWa = $this->anyKey($monthly, 'weather_adjusted');
+        // v2.8.0 (Review CALC-05) — die neuen Felder: witterungsbereinigt nach
+        // dem Heizmodell (`heat_adjusted`) und Abweichung von der Erwartung bei
+        // diesem Wetter (`weather_delta_pct`). Das alte `delta_pct` zeigte
+        // jeden Januar als +71 %.
+        $hasWa = $this->anyKey($monthly, 'heat_adjusted') || $this->anyKey($monthly, 'weather_delta_pct');
         if ($hasWa) { $headers[] = $this->i18n->t('report.tableWeatherAdj'); $headers[] = $this->i18n->t('report.tableDelta'); }
         $colX = [self::M];
         $cwTab = $W - 2 * self::M;
@@ -250,13 +254,20 @@ final class PdfReportService
                 $nf($m['hdd'] ?? 0, 0),
             ];
             if ($hasWa) {
-                $row[] = $m['weather_adjusted'] !== null ? $nf($m['weather_adjusted'], 0) : '–';
-                $row[] = $m['delta_pct'] !== null
-                    ? ((float)$m['delta_pct'] < 0 ? '-' : '+') . $nf(abs((float)$m['delta_pct']), 0)
+                $row[] = ($m['heat_adjusted'] ?? null) !== null ? $nf($m['heat_adjusted'], 0) : '–';
+                $row[] = ($m['weather_delta_pct'] ?? null) !== null
+                    ? ((float)$m['weather_delta_pct'] < 0 ? '-' : '+') . $nf(abs((float)$m['weather_delta_pct']), 0)
                     : '–';
             }
             foreach ($row as $i => $v) $pdf->text($colX[$i], $y, $v, 9, false, self::INK);
             $y += 16;
+        }
+        if ($hasWa) {
+            $y += 4;
+            foreach ($this->wrap($this->i18n->t('report.weatherNote'), 110) as $ln) {
+                $pdf->text(self::M, $y, $ln, 7, false, self::MUTE);
+                $y += 10;
+            }
         }
     }
 

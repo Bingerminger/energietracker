@@ -17,9 +17,10 @@ unfolds its full functionality.
 1. Maintain **living area, year of construction, building type** in the settings —
    the basis of the **efficiency class**.
 2. Run **one** heat source as active (see §3). Plus electricity + water.
-3. Activate **temperatures**: set the location coordinates (default Leipzig) and
-   use the Open-Meteo sync or import CSVs — without a temperature series there is
-   no HDD analysis/weather adjustment.
+3. Activate **temperatures**: set the location coordinates (default Leipzig) —
+   the app then does the sync with Open-Meteo itself, once a day — or import
+   CSVs. Without a temperature series there is no HDD analysis/weather
+   adjustment.
 4. **Record regularly**: read cumulative meters monthly; enter oil/pellet
    deliveries right after receipt (quantity + invoice amount).
 

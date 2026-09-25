@@ -262,6 +262,11 @@ final class TariffSwitchService
                 'r2'                => $fc['regression']['r2'] ?? null,
                 'months_of_history' => count($fc['historical'] ?? []),
                 'annual_total'      => round(array_sum($byMonth), 1),
+                // v2.8.0 (CALC-03) — Datenbasis offenlegen: kurze Historie,
+                // fehlende Kalendermonate, Herkunft der Heizgradtage
+                'warnings'          => $fc['warnings'] ?? [],
+                'hdd_source'        => $fc['hdd_source'] ?? null,
+                'annual_band'       => $fc['annual'] ?? null,
             ],
         ];
     }

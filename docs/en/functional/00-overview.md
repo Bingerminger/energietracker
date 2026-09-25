@@ -5,8 +5,9 @@
 [← Compendium index](../README.md)
 
 This chapter explains the calculation cores that apply to *all* utilities:
-consumption distribution, heating degree days, regression, weather adjustment,
-forecast, efficiency class. All formulas are checked against the source code.
+consumption distribution, heating degree days and temperatures, regression,
+weather adjustment, forecast, efficiency class, anomalies and balance. All
+formulas are checked against the source code (as of v2.8.0).
 
 > **Note on presentation:** formulas are deliberately written as plain-text code
 > blocks (no LaTeX maths) so that they are rendered **identically and correctly**
@@ -62,7 +63,7 @@ number) and should be read off there and maintained in the settings.
 
 ---
 
-## 3. Heating degree days (HDD)
+## 3. Heating degree days (HDD) and temperatures
 
 The central weather reference. Per day with mean outdoor temperature `T_avg` and
 heating limit temperature `T_base` (`hdd_base_temp`, default **15 °C**):
@@ -71,10 +72,50 @@ heating limit temperature `T_base` (`hdd_base_temp`, default **15 °C**):
 HDD_day = max(0, T_base - T_avg)
 ```
 
-Monthly HDD = sum of the daily values. Intuitively: on a 5 °C day `15 - 5 = 10`
-HDD accumulate, on a 20 °C day none. The colder, the more HDD, the more heating
-energy. Only HDD-relevant utilities (gas, district heating, heating oil, pellets)
-use this; electricity and water do not.
+Monthly HDD = sum of the daily values **over the days for which consumption is
+available** (since v2.8.0). If the last reading ends on the 15th, the month gets
+the degree days of 15 days — up to v2.7 it got those of the whole month, and the
+partial month looked like a frugal winter month. `temp_days` counts for how many
+of these days a temperature is available. If more than 10 % are missing, the
+month is incomplete and does not feed any model.
+
+Intuitively: on a 5 °C day `15 - 5 = 10` HDD accumulate, on a 20 °C day none.
+The colder, the more HDD, the more heating energy. Only HDD-relevant utilities
+(gas, district heating, heating oil, pellets) use this; electricity and water do
+not.
+
+### Where the temperatures come from
+
+Every day carries its source (`source`):
+
+| Source | Meaning | Overwritten by |
+|---|---|---|
+| `archive` | measured value from the Open-Meteo archive (about six days' delay) | nothing |
+| `forecast` | forecast for the last few days and the coming week | the archive value, as soon as it is available |
+| `csv`, `manual` | your own import or your own entry | nothing — not even by the fetch |
+
+With `weather_auto_fill` (default on), the app fetches the missing days itself
+**once a day when it is opened**, starting from the first reading. Only the
+location is transmitted, rounded to two decimal places (about 1 km). Entries
+without a source come from versions before v2.8.0. If they are older than the
+archive delay, they count as measured. Anyone who wants to replace them anyway —
+earlier versions stored forecasts like measured values — ticks "Also replace
+existing older values with archive values" (`reload=1`) for the fetch.
+
+### Climate normal
+
+On the first fetch, the app additionally loads the daily means of the last
+**30 full calendar years** at the location and stores only the key figures
+derived from them (`data/climate_normal.json`): the mean heating degree days per
+calendar month, their spread across the years and the spread of the annual
+total — for heating limits from 10 to 22 °C in half-degree steps, because degree
+days cannot be derived from monthly means. The data is reloaded when the location
+moves by more than about 5 km or another year has been completed.
+
+What for: the forecast needs the degree days of a **normal** January even if your
+own history starts in May, and the adjustment compares with the long-term mean
+instead of with your own twelve months. Without a climate normal, the app
+computes with the mean of your own temperature history and says so.
 
 ---
 
@@ -84,13 +125,18 @@ Energietracker fits the relationship **HDD → consumption** with five models
 (`RegressionService`). Each returns parameters, the coefficient of determination
 `R²` and a `valid` flag (enough data points?).
 
-| Model | Form | Use |
+| Model | Form | Minimum points |
 |---|---|---|
-| **linear** | `y = a·x + b` | base case, robust from 3 points |
-| **polynomial** | `y = a·x² + b·x + c` | slight curvature, from 4 points |
-| **robust** | linear, Huber-weighted | dampens outliers |
-| **segmented** | breakpoint: summer base + heating arm | heating/summer operation separated; breakpoint `auto` or fixed |
-| **sigmoid** | S-curve (heating signature) | saturating heating curve, TU München/BDEW form |
+| **linear** | `y = a·x + b` | 3 |
+| **polynomial** | `y = a·x² + b·x + c` | 4 |
+| **robust** | linear, Huber-weighted — dampens outliers | 4 |
+| **segmented** | `y = b + a · max(0, x - k)` — summer base `b`, heating arm from breakpoint `k` | 8, 4 on each side of the breakpoint |
+| **sigmoid** | S-curve (heating signature), TU München/BDEW form | 8, valid from `R² ≥ 0.5` |
+
+Since v2.8.0 the breakpoint model is **continuous**: the base and the heating arm
+meet at the breakpoint. Up to v2.7 both arms were fitted separately and jumped
+apart there. The breakpoint `k` is searched for (`segmented_split_mode = auto`)
+or set to a fixed value.
 
 The sigmoid form (exactly as in the backend `sigmoidPredict`):
 
@@ -99,12 +145,30 @@ kWh = A / (1 + (B / (HDD - θ0))^C) + D     for HDD > θ0
 kWh = D                                     otherwise
 ```
 
-`R²` measures how well the model explains the scatter (`R² = 1`: perfect, `0`: no
-better than the mean):
+`R²` measures how well the model fits the months shown (`R² = 1`: perfect, `0`:
+no better than the mean):
 
 ```text
 R² = 1 - ( Σ (yi - ŷi)² ) / ( Σ (yi - ȳ)² )
 ```
+
+This is **goodness of fit**, not predictive quality: a model with more
+parameters always fits the same points at least as well.
+
+**Which months are points** — since v2.8.0 one rule for analysis, adjustment and
+forecast (up to v2.7 each place chose slightly differently; the same meter showed
+R² 0.42 in the analysis and 0.56 in the forecast):
+
+```text
+point  ⇔  days ≥ min_days_period (20)
+          and temperatures for ≥ 90 % of the days
+          and HDD > min_hdd_regression (5)
+          and consumption > 0
+          and not before the cut-off
+```
+
+Every month carries `regression_point` for this. The analysis scatter plot draws
+months outside the fit as hollow points and months before the cut-off in grey.
 
 The default model is selectable in the settings (`forecast_model`); in the
 **forecast** and the **analysis correlation chart**, all five models are shown.
@@ -113,30 +177,84 @@ The default model is selectable in the settings (`forecast_model`); in the
 
 ## 5. Weather adjustment — "consumed more, or just colder?"
 
-For HDD-relevant utilities, the following is reported per month:
+### Heating model
 
-- **`expected_hgt`** — the consumption *expected* by the regression model for the
-  month's HDD,
-- **`weather_adjusted`** — the consumption normalised to the *long-term*
-  calendar-month HDD (following VDI 3807 logic),
-- **`delta_pct`** — the percentage deviation of actual vs. expected:
+For HDD-relevant utilities with meter readings (gas, district heating), the app
+computes with a heating model per meter since v2.8.0:
 
 ```text
-delta_pct = (actual - expected) / expected × 100
+consumption = a × HDD + c × days
 ```
 
-This lets you separate a cold winter from real over-consumption. Low-load months
-(barely any HDD) are hidden to avoid division-by-almost-zero artefacts.
+`a` is the consumption per degree day (heating share), `c` the base load per day
+(hot water, cooking). It is fitted without an intercept over all months from the
+cut-off onwards that have at least `min_days_period` days, temperatures and
+consumption — **summer included**, as it helps determine the base load. At least
+8 months. A robustness step takes out months that lie more than 3.5 robust
+spreads off (such as a summer with a broken boiler) once and refits. `a` and `c`
+are never negative.
+
+Heating oil and pellets get no heating model: their monthly values are
+**distributed by degree days** from the deliveries. A fit would merely reproduce
+the distribution.
+
+### Fields per month
+
+| Field | Formula | Meaning |
+|---|---|---|
+| `expected_heat` | `a × HDD + c × days` | expectation for exactly this weather and these days |
+| `weather_delta_pct` | `(actual - expected_heat) / expected_heat × 100` | over- or under-consumption **for the given weather** (only months with enough days) |
+| `hdd_normal` | `HDD_normal[month] × days / days_in_month` | degree days of a normal year for the same days |
+| `heat_adjusted` | `actual + a × (hdd_normal - HDD)`, at least `c × days` | weather-adjusted consumption |
+
+`heat_adjusted` converts only the **weather influence according to the model** to
+a normal year; whatever else was different about the month (visitors, holiday, a
+sticking valve) stays as it is. Below `min_hdd_regression` degree days or below
+the base load (holiday, vacancy), the month stays unchanged, and the base load is
+the lower limit. The scaling of the entire heating share by
+`HDD_normal / HDD_actual` known from VDI 3807 suits annual values; in a
+transitional month with 11 instead of 30 degree days it would multiply every
+random deviation by 2.7.
+
+This lets you separate a cold winter from real over-consumption: a January with
+`weather_delta_pct = +2 %` was normal, even if it consumed three times as much as
+October.
+
+> **Replaced (deprecated since v2.8.0, still delivered):**
+> `weather_adjusted` scaled the **entire** consumption with the HDD ratio — hot
+> water included; a September was thus "adjusted" by 54 %. `delta_pct` compared
+> with the mean of all months and therefore measured the season (January
+> "+58 %"). Both fields remain in the API until the next major version; the
+> interface no longer uses them.
+
+### Effect of a measure (cut-off)
+
+If a cut-off is set (F1011), the analysis compares the consumption per degree day
+(slope `a` of the linear heating curve) before and after it. Since v2.8.0 with
+statistical evidence:
+
+```text
+significant  ⇔  |a_after - a_before| / √(se_before² + se_after²) ≥ 1.96
+95 % range of the change (delta method):
+  Δ% ± 196 × √(se_after² + (a_after/a_before)² × se_before²) / a_before
+```
+
+`se` is the standard error of the slope. The interface states whether the
+difference is supported or may lie within the noise — with few winter months that
+is often the case.
 
 ---
 
-## 6. Forecast (12 months)
+## 6. Forecast
 
-`ForecastService` blends two estimators:
+`ForecastService` computes each forecast month with two estimators:
 
-1. **Regression** on the expected future monthly HDD (from the long-term seasonal
-   profile of the temperatures),
-2. **pure seasonal profile** of consumption (monthly mean of the history).
+1. **Regression** of the selected model on the **normal** heating degree days of
+   the month — from the climate normal, otherwise from your own temperature
+   history,
+2. **Seasonal profile**: the mean **daily rate** of the same calendar month
+   (months with at least `min_days_period` days), times the days of the forecast
+   month.
 
 The blend is weighted with the regression `R²`, capped by `blend_max` (default
 **0.80**):
@@ -146,14 +264,50 @@ w        = min(R², blend_max)
 Forecast = w · regression value + (1 - w) · seasonal value
 ```
 
-Intuitively: if the heating signature explains consumption well (high `R²`), the
-regression counts more strongly — but never more than 80 %, so that a single good
-year does not dominate the forecast. For **non**-HDD-relevant utilities
-(electricity, water) the regression is omitted entirely: a pure seasonal forecast.
+Intuitively: if the heating curve explains consumption well (high `R²`), it
+counts more strongly — but never more than 80 %. For **non**-HDD-relevant
+utilities (electricity, water) the regression is omitted: a pure seasonal
+forecast.
 
-In addition, the forecast projects the **costs** of open contracts up to the next
-settlement date (`billing_cycle_anchor_<utility>`, format `DD-MM` in the UI)
-including the advance and the running balance.
+**If a calendar month is missing from your own history** (anyone who starts in
+May has no January yet), it comes from the model alone (`regression_only`),
+otherwise from the heating model (`heat_model`), otherwise from the daily mean of
+all months (`filled`). Up to v2.7 it got 0 degree days and the seasonal value 0 —
+January came out at less than a tenth of the correct value. `warnings` reports a
+short history (`history_short`) and a missing climate normal
+(`no_climate_normal`).
+
+**Temperature offset** (what-if): a year that is δ warmer has exactly the heating
+degree days of the heating limit `T_base - δ`. With a climate normal or your own
+temperature history this is exact; only without both is the shift applied
+linearly across all days of the month, as before.
+
+### Uncertainty band
+
+Per month and for the year:
+
+```text
+σ_month = √( (a × σ_HDD[month])² + σ_residual² )
+band    = forecast ± z × σ_month
+
+σ_year  = √( (a × σ_HDD,year)² + Σ σ_residual² )
+```
+
+`a` is the consumption per degree day, `σ_HDD` the spread of this month's degree
+days over 30 years (climate normal), `σ_HDD,year` that of the annual total — a
+cold winter affects all months at once, hence not the sum of the monthly spreads.
+`σ_residual` is the noise of the heating model; for utilities without a weather
+reference, the spread of the daily rate around the seasonal profile.
+`z = confidence_band_sigma`, default **1.28 ≈ 80 %** of years (up to v2.7 the
+setting had no effect).
+
+### Costs
+
+In addition, the forecast projects the **costs** per month with the working and
+base price valid at that time and the advance from the **effective** payment plan
+(special payments "with effect" change it). After the end of the last contract,
+that contract continues as an assumption — contracts usually renew — and these
+months are marked (`contract_assumed`).
 
 ---
 
@@ -190,16 +344,90 @@ your own source (electricity tariff mix, heating-oil standard).
 
 ## 9. Anomalies
 
-`AnomalyService` flags months whose consumption deviates by more than
-`recommendation_anomaly_sigma` standard deviations from the expected value
-(z-score):
+`AnomalyService` flags months whose consumption deviates clearly from the
+**expectation for exactly this month**. Since v2.8.0:
+
+| Utility | Expectation |
+|---|---|
+| Gas, district heating | `expected_heat` from the heating model (section 5) — in summer that is the base load |
+| Electricity, water, PV | daily rate of the same calendar month in **other** years (median), in the first year that of the two neighbouring months — times the days of the month |
+| Heating oil, pellets | no anomalies: the monthly values are distributed by degree days, so any "deviation" would be an artefact of the distribution |
+
+The month being checked is never part of its own expectation (leave-one-out). Up
+to v2.7, a +60 % March with one year of history was compared with a mean that
+contained it, and heating utilities got an expectation of 0 in summer — every
+summer was an "outlier".
+
+The spread is estimated **robustly** (median and MAD of the residuals instead of
+mean and standard deviation — otherwise a single outlier inflates the standard
+deviation and hides in it), with a floor of 10 % of the expectation or of a
+typical month:
 
 ```text
-z = (actual - mean) / standard deviation
+r       = actual - expected
+σ       = max( 1.4826 × MAD(r),  0.10 × max(expected, typical month) )
+z       = (r - median(r)) / σ
+anomaly ⇔ |z| ≥ anomaly_threshold      (default 2.0)
 ```
+
+The floor prevents a mere +5 % from being reported as "6σ" when the data is very
+even: at 2σ, only what goes beyond about 20 % of a typical month is reported. Not
+checked are months with fewer than `min_days_period` days, months with a meter
+swap and months before the cut-off; with fewer than 5 usable months, nothing is
+checked at all.
+
+The recommendations build on this: **R1** (over-consumption for the given
+weather) measures gas and district heating against the heating model with the
+same spread and floor (threshold `recommendation_anomaly_sigma`); **R4** reports
+the "high" anomalies of the utilities without a weather reference — PV excluded,
+since a high-yield month is no warning sign. **R2** (trend) compares the
+weather-adjusted values (`heat_adjusted`) of the last twelve months with the same
+calendar months of the previous year as soon as at least nine such pairs exist.
 
 Anomalies are hints, not judgements — a move, a new heat pump or a faulty meter
 produce them alike.
+
+---
+
+## 10. Balance to date
+
+For contracts with advances (gas, electricity, district heating), the balance
+card computes **by calendar up to today** since v2.8.0, like the annual
+statement:
+
+```text
+Cost to date       = working price × measured consumption     (up to the last reading)
+                   + working price × estimated consumption    (last reading → today)
+                   + base price, day-exact, up to today
+                   - bonuses up to today
+Advances paid      = advances per payment plan, due at the start of the month,
+                     up to and including the current month
+Balance today      = cost to date - advances paid + special payments (net)
+Expected at end    = balance today + estimated remaining cost - remaining advances
+```
+
+Up to v2.7, costs **and** advances only counted for months with a reading. Anyone
+who had last read the meter in March saw a balance made up of three months in
+September, while the bank had long since debited nine advances.
+
+**The estimate** for the gap and for the remainder runs per day: for gas and
+district heating with the heating model (`a × HDD + c`, with the measured daily
+temperature, for days without a value with the climate normal), otherwise with
+the daily rate of the same calendar month. If the most recent measured months (up
+to six full ones from the last twelve) lie clearly above or below the model — a
+new heating system without a cut-off, changed behaviour — the estimate follows
+this level (`projection_factor`, limited to 0.5 to 1.5).
+
+**Advance suggestion:** if the expected balance deviates noticeably, the card
+suggests an advance that evens it out by the end of the contract:
+
+```text
+suggestion = max(0, rounded( current advance + expected balance / remaining months ))
+```
+
+The breakdown on the card (`energy_cost_to_date`, `base_to_date`,
+`bonus_to_date`) adds up to the total; the estimated part is shown below it with
+the date of the last reading.
 
 ---
 

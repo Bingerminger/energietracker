@@ -218,10 +218,16 @@ lookup, NOT as an array).
 
 ### `POST /api/temperatures/sync-open-meteo`
 
-Loads temperatures for the coordinates stored in the settings (2023–today from the
-archive, plus 14 days of forecast).
+Loads temperatures for the coordinates stored in the settings: measured values
+from the Open-Meteo archive, the forecast for the last few days and the coming
+week, and the first time additionally the climate normal (30 years). Only the
+location is transmitted, rounded to two decimal places.
 
-**Body:** optional `{}`. The location data is taken from the settings.
+**Query (all optional, since v2.8.0):** `start`, `end` (ISO date; without
+`start` from the first reading or delivery), `reload=1` (replace existing values
+with archive values — except your own from CSV or manual entry), `auto=1` (at
+most once a day; this is how the interface calls it when opened).
+**Body:** optional `{}`.
 
 **Response:**
 
@@ -232,11 +238,21 @@ archive, plus 14 days of forecast).
     "imported": 1145,
     "archive_rows": 1131,
     "forecast_rows": 14,
+    "archive_range": "2023-01-01..2026-09-19",
     "archive_error": null,
-    "forecast_error": null
+    "forecast_error": null,
+    "measured_until": "2026-09-19",
+    "forecast_until": "2026-10-08",
+    "climate_normal": { "status": "fetched", "period": { "from": "1996-01-01", "to": "2025-12-31" },
+                        "latitude": 51.34, "longitude": 12.37, "fetched_at": "…" }
   }
 }
 ```
+
+Since v2.8.0 every day in `GET /api/temperatures` carries `source`
+(`archive`, `forecast`, `csv`, `manual`); forecasts are replaced by archive
+values as soon as these are available. Details:
+[API reference](technical/03-api-reference.md).
 
 ### `DELETE /api/temperatures/{date}`
 
@@ -595,6 +611,17 @@ tooltip of the *Special payments* column. `special_payment_net` is the net
 from the customer's perspective (Σ refund − Σ back-payment − Σ advance
 payment). The field is absent for water and PV feed-in.
 
+**Since v2.8.0** the balance for gas, electricity and district heating is
+computed **by calendar up to today**: `advance_paid` counts the advances according
+to the payment plan up to and including the current month (previously only
+months with a reading), `cost_to_date` covers consumption up to today — measured
+up to `measured_until`, estimated afterwards (`estimated_cost_to_date`). In
+addition `energy_cost_to_date`, `base_to_date`, `bonus_to_date` (the parts of the
+total), `estimated_cost_remaining`, `advance_remaining`, `suggested_advance`,
+`balance_as_of`, `projection_method` and `projection_factor` — table in the
+[API reference](technical/03-api-reference.md). `actual_*` still describes only
+the measured months.
+
 `verdict` is a key: `surcharge` (back-payment) when
 `projected_end_balance > 5`, `refund` when `< -5`, otherwise `balanced`. For PV
 feed-in the axis is inverted: `payout`, `reclaim`, `balanced`. The interface
@@ -694,9 +721,16 @@ month is used from the price history.
         "balance_running": -216.71,
         "working_price_ct": 8.2,
         "contract_id": "c_gas_004",
+        "contract_assumed": false,
+        "band_low": 470.2,
+        "band_high": 609.8,
         "method": "blend(reg=0.75, seasonal=0.25)"
       }
     ],
+    "hdd_source": "climate_normal",
+    "annual": { "value": 9387.3, "low": 8619.3, "high": 10155.4, "sigma": 1.28, "level_pct": 80 },
+    "warnings": [],
+    "climate_normal": { "period": { "from": "1996-01-01", "to": "2025-12-31" }, "latitude": 51.34, "longitude": 12.37, "fetched_at": "…" },
     "options": { "temp_offset": 0, "price_factor": 1, "forecast_months": 12 }
   }
 }
@@ -713,7 +747,18 @@ Per forecast month:
   balance at the end of the horizon.
 - `working_price_ct` — the applied working price (the headline tariff).
 - `contract_id` — the active contract, or `null` (then fallback to `last_price_ct`).
-- `method` — `seasonal_only` or `blend(reg=…, seasonal=…)`.
+- `method` — `blend(reg=…, seasonal=…)`, `seasonal_only`, since v2.8.0 also
+  `regression_only` (calendar month without own history), `heat_model` and
+  `filled`.
+- `band_low`/`band_high` *(v2.8.0)* — uncertainty band, width
+  `confidence_band_sigma` (default 1.28 σ ≈ 80 % of years).
+- `hdd_estimated` — since v2.8.0 the normal heating degree days from the
+  climate normal (`hdd_source`), otherwise from your own history.
+- `contract_assumed` *(v2.8.0)* — `true` if the last contract continues as an
+  assumption after the end of the contract.
+
+At the top level since v2.8.0: `annual` (annual total with band), `warnings`
+(`history_short`, `no_climate_normal`), `hdd_source` and `climate_normal`.
 
 Future bonuses are **not** carried forward — only bonuses maintained in the contract
 with a credit date in the forecast period are included. With too little history

@@ -192,7 +192,9 @@
       "co2Avoided": "🌿 CO₂ évité {year}",
       "co2AvoidedSub": "{tons} t de moins que sans PV",
       "co2": "🌍 CO₂ {year}",
-      "co2Sub": "{tons} t"
+      "co2Sub": "{tons} t",
+      "advancesUntil": "💰 Acomptes jusqu’au {date}",
+      "balanceShort": "Solde {value}"
     },
     "cards": {
       "contracts": "📑 Contrats et acomptes",
@@ -257,7 +259,9 @@
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/an · {m2} m²",
       "consShort": "{value} consommation",
-      "gpPlus": " + {value} abonnement"
+      "gpPlus": " + {value} abonnement",
+      "suggestAdvance": "Avec un acompte de {suggested} au lieu de {current}, le décompte serait d’environ ±0.",
+      "measuredThenEstimated": "mesuré jusqu’au {date} ({kwh} kWh), estimé ensuite : {value}"
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -806,7 +810,7 @@
       "location_name": { "label": "Nom du lieu" },
       "latitude": { "label": "Latitude" },
       "longitude": { "label": "Longitude" },
-      "weather_auto_fill": { "label": "Remplir la météo automatiquement" },
+      "weather_auto_fill": { "label": "Remplir la météo automatiquement", "hint": "Récupère les températures d’Open-Meteo au plus une fois par jour à l’ouverture de l’application (lieu arrondi à environ 1 km)." },
       "gas_conversion_factors": {
         "label": "Facteurs de conversion gaz",
         "hint": "Une entrée par période de pouvoir calorifique, telle que la facture de gaz les indique : valable à partir du, coefficient de correction et pouvoir calorifique — le facteur kWh/m³ en est déduit. Sans détail, saisissez le facteur directement. L’entrée sans date s’applique à tout ce qui précède la première date d’effet. Le calcul de consommation découpe chaque intervalle de relevé au jour près aux dates d’effet."
@@ -1158,7 +1162,7 @@
     "lat": "Latitude",
     "lng": "Longitude",
     "locName": "Nom du lieu",
-    "locHint": "Par défaut : Leipzig. Utilisé pour la synchronisation Open-Meteo.",
+    "locHint": "Utilisé pour la synchronisation Open-Meteo et transmis arrondi à environ 1 km.",
     "monthly": "Valeurs mensuelles (min / moy / max)",
     "daysLoaded": "{count} jours chargés",
     "syncToast": "Synchronisation OK · {imported} jours (archive : {archive}, prévision : {forecast})",
@@ -1166,7 +1170,12 @@
     "forecastError": "Prévision : {err}",
     "importToast": "Import : {imported} jours importés, {skipped} ignorés",
     "coordInvalid": "Veuillez saisir un nombre entre {min} et {max}.",
-    "locationDefault": "L’emplacement est encore celui par défaut pour {country} ({name}). Saisis ton propre lieu pour des degrés-jours précis."
+    "locationDefault": "L’emplacement est encore celui par défaut pour {country} ({name}). Saisis ton propre lieu pour des degrés-jours précis.",
+    "status": "Valeurs mesurées jusqu’au {measured}.",
+    "statusWithForecast": "Valeurs mesurées jusqu’au {measured}, prévision jusqu’au {forecast}.",
+    "reload": "Remplacer aussi les anciennes valeurs par les valeurs d’archive (corrige les prévisions enregistrées comme mesures)",
+    "climateFetched": "Normale climatique {from}–{to} chargée — la prévision et la correction climatique utilisent maintenant 30 ans de climat.",
+    "climateFailed": "La normale climatique n’a pas pu être chargée — la prévision utilise ton propre historique de températures."
   },
   "recommendations": {
     "loading": "Chargement des recommandations…",
@@ -1184,12 +1193,12 @@
     "error": "Erreur : {msg}",
     "engine": {
       "r1": {
-        "title": "{label} {ym} : {pct} % au-dessus de la moyenne (corrigé du climat)",
-        "detail": "En {ym}, la consommation corrigée du climat était de {pct} % au-dessus de votre moyenne — et il ne faisait pas plus froid. Un contrôle d’un appareil ou du chauffage peut être utile."
+        "title": "{label} {ym} : {pct} % au-dessus de l’attendu",
+        "detail": "En {ym}, la consommation était de {pct} % au-dessus de ce qu’on attendait par ce temps. Un contrôle des appareils ou du chauffage peut valoir la peine."
       },
       "r2": {
-        "title": "{label} : tendance à la hausse de {pct} %/an",
-        "detail": "La consommation corrigée du climat augmente d’environ {pct} % par an — une dérive progressive. Vérifiez si des appareils vieillissent ou si les habitudes d’usage ont changé."
+        "title": "{label} : {pct} % de plus que l’année précédente",
+        "detail": "Les douze derniers mois étaient, corrigés du climat, de {pct} % au-dessus des mêmes mois de l’année précédente. Vérifie si des appareils vieillissent ou si des habitudes ont changé."
       },
       "r3": {
         "title": "{label} {year} : forte consommation estivale",
@@ -1197,7 +1206,7 @@
       },
       "r4": {
         "title": "{label} {ym} : anomalie statistique",
-        "detail": "La consommation en {ym} s’écarte de façon inhabituellement forte ({sigma}σ) et n’est pas expliquée par la météo. Cela mérite un examen plus attentif."
+        "detail": "La consommation en {ym} est nettement au-dessus de ce qui est habituel pour ce mois ({sigma}σ). Mérite un coup d’œil."
       },
       "r5": {
         "title": "{label} : cuve à {pct} %",
@@ -1341,14 +1350,14 @@
       "seasonal": "Graphique linéaire : profil mensuel moyen",
       "years": "Diagramme en barres : consommation par comparaison annuelle"
     },
-    "hgtTitle": "Corrélation DJU · quatre modèles de régression",
+    "hgtTitle": "Corrélation DJU · comparaison des modèles de régression",
     "seasonalTitle": "Profil saisonnier",
     "notTempDependent": "{label} ne dépend pas de la température — profil saisonnier au lieu des DJU.",
     "yearComparison": "Comparaison annuelle",
     "anomalies": "Anomalies ({count})",
     "noAnomalies": "Aucune anomalie détectée — tous les mois sont dans la plage attendue (seuil σ des paramètres).",
-    "anomalyExplainHgt": "Mois dont la consommation s’écarte du modèle de régression DJU de plus du seuil σ.",
-    "anomalyExplainSeasonal": "Mois dont la consommation s’écarte du profil saisonnier de plus du seuil σ.",
+    "anomalyExplainHgt": "Mois dont la consommation s’écarte de l’attendu de plus que le seuil σ — courbe de chauffe plus charge de base aux degrés-jours de ce mois. La dispersion est estimée de façon robuste (médiane, MAD).",
+    "anomalyExplainSeasonal": "Mois dont la consommation s’écarte de plus que le seuil σ du même mois calendaire des autres années — calculé par jour et sans le mois lui-même.",
     "anomalyCol": { "month": "Mois", "consumption": "Consommation", "expected": "Attendu", "deltaAbs": "Δ absolu", "deltaPct": "Δ %", "sigma": "valeur σ", "hgt": "DJU", "temp": "temp. moy." },
     "model": { "linear": "Linéaire", "polynomial": "Polynomial (degré 2)", "robust": "Robuste (Huber)", "segmented": "Segmenté", "sigmoid": "Sigmoïde" },
     "reg": { "model": "Modèle", "n": "n", "coeffs": "Coefficients", "bestFit": "meilleur ajustement", "tooFew": "trop peu de points de données", "intercept": "ordonnée à l’origine" },
@@ -1415,8 +1424,13 @@
       "effect": "Évolution",
       "perDegreeDay": "{unit} par degré-jour",
       "points": "{n} points de mesure",
-      "weatherCorrected": "corrigé du climat"
-    }
+      "weatherCorrected": "corrigé du climat",
+      "significant": "La différence est statistiquement établie (intervalle à 95 % de {lo} % à {hi} %).",
+      "notSignificant": "La différence n’est pas encore statistiquement établie (intervalle à 95 % de {lo} % à {hi} %) — attends davantage de mois après la mesure."
+    },
+    "deliveryModelled": "Le fioul et les granulés n’ont pas de valeurs mensuelles mesurées : les mois sont répartis à partir des livraisons selon les degrés-jours. Une courbe de chauffe serait circulaire — chaque modèle collerait parfaitement — et n’est donc pas affichée.",
+    "scatterNotInFit": "hors modèle (mois partiel ou peu de degrés-jours)",
+    "regR2Note": "Le R² indique dans quelle mesure la courbe colle aux mois affichés (ajustement) — pas sa capacité à prévoir l’année prochaine."
   },
   "forecast": {
     "noUtilities": "Aucun type d'énergie actif. Les réglages permettent de choisir ceux qui s'affichent.",
@@ -1438,7 +1452,7 @@
     "models": { "linear": "Linéaire", "polynomial": "Polynomial (degré 2)", "robust": "Robuste (Huber)", "segmented": "Segmenté (chauffage/été)", "sigmoid": "Sigmoïde (signature de chauffe)" },
     "chartHist": "Historique",
     "chartForecast": "Prévision",
-    "info": "Modèle : <strong>{model}</strong> · poids de mélange : <strong>{blend} %</strong>{r2} · dernier prix de l’énergie : <strong>{price} {minor}/{unit}</strong>",
+    "info": "Modèle : <strong>{model}</strong> · part de la courbe de chauffe : <strong>{blend} %</strong>{r2} · dernier prix de l’énergie : <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Solde projeté à la fin de l’horizon :",
     "balanceSurcharge": "complément à payer",
     "balanceCredit": "avoir",
@@ -1446,7 +1460,24 @@
     "balanceNote": "· cumulé à partir des coûts estimés moins les acomptes projetés",
     "col": { "month": "Mois", "consumption": "Consommation ({unit})", "hgt": "DJU estimés", "cost": "Coût estimé", "advance": "Acompte projeté", "balance": "Solde courant", "method": "Méthode" },
     "bonusNote": "Les primes futures ne sont pas extrapolées — seules les primes enregistrées dans le contrat avec une date d’avoir dans la période de prévision sont incluses dans les coûts.",
-    "whatIfInvalid": "Veuillez vérifier les champs signalés : décalage de température −20 à 20 °C, facteur de prix 0 à 10, horizon 1 à 24 mois."
+    "whatIfInvalid": "Veuillez vérifier les champs signalés : décalage de température −20 à 20 °C, facteur de prix 0 à 10, horizon 1 à 24 mois.",
+    "chartBand": "Fourchette ({level} % des années)",
+    "r2Label": "qualité d’ajustement R²",
+    "annualBand": "Année : {value} {unit}, dans {level} % des années entre {low} et {high} {unit} — selon l’hiver.",
+    "hddSourceClimate": "Degrés-jours : normale climatique {from}–{to} au lieu.",
+    "hddSourceHistory": "Degrés-jours : moyenne de ton propre historique de températures.",
+    "warn": {
+      "historyShort": "Historique court : consommation pour {months} mois calendaires sur 12. Les mois manquants ({missing}) viennent du modèle — la prévision est d’autant plus incertaine.",
+      "noClimateNormal": "Sans normale climatique : les degrés-jours viennent de ton propre historique. Une synchronisation des températures récupère une fois 30 ans de données climatiques."
+    },
+    "assumedNote": "Pas de contrat pour ce mois — le dernier contrat continue à ses prix (hypothèse ; les contrats se reconduisent).",
+    "method": {
+      "seasonal_only": "profil saisonnier",
+      "regression_only": "courbe de chauffe (pas de valeur propre pour le mois)",
+      "heat_model": "modèle de chauffage",
+      "filled": "moyenne journalière (pas de valeur propre)",
+      "blend": "mélange : {reg} courbe de chauffe, {seasonal} profil saisonnier"
+    }
   },
   "report": {
     "createdOn": "Créé le {date}",
@@ -1478,7 +1509,8 @@
     "tableDelta": "Δ%",
     "continued": "(suite)",
     "meterPageTitle": "{label} {year} — {meter}",
-    "heatDemand": "Énergie de chauffage · {label}"
+    "heatDemand": "Énergie de chauffage · {label}",
+    "weatherNote": "Corrigé du climat : effet météo selon le modèle de chauffage ramené à une année normale ; les écarts propres au mois restent. Δ % : consommation par rapport à l’attendu pour ce temps."
   },
   "migration": {
     "warnNoSettings": "Aucun réglage trouvé dans la sauvegarde — les valeurs par défaut s'appliquent.",

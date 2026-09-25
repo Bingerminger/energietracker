@@ -32,8 +32,17 @@ export async function render(container) {
       min: v?.min ?? null,
       avg: v?.avg ?? null,
       max: v?.max ?? null,
+      source: v?.source ?? null,   // v2.8.0: archive | forecast | csv | manual
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
+  // v2.8.0 — bis wann Messwerte vorliegen, ab wann Vorhersage. Einträge ohne
+  // Quelle (vor v2.8.0) gelten bis heute − 6 Tage als gemessen.
+  const horizon = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  let measuredUntil = null, forecastUntil = null;
+  for (const d of days) {
+    const measured = d.source ? d.source !== 'forecast' : d.date <= horizon;
+    if (measured) measuredUntil = d.date; else forecastUntil = d.date;
+  }
 
   container.innerHTML = `
     <div class="section-head">
@@ -66,6 +75,9 @@ export async function render(container) {
           <div class="field"><label for="loc-name">${t('temperatures.locName')}</label><input class="input input--text" id="loc-name" value="${escapeHtml(settings.location_name || 'Leipzig')}"></div>
         </div>
         <p class="muted">${t('temperatures.locHint')}</p>
+        <label class="settings-field__check" style="margin-top:var(--sp-2)">
+          <input type="checkbox" id="sync-reload"> ${t('temperatures.reload')}
+        </label>
         ${defaultLocation ? `<p class="banner banner--info" style="margin:var(--sp-3) 0 0">${escapeHtml(t('temperatures.locationDefault', { country: t('countries.' + profile.code), name: profile.location_name }))}</p>` : ''}
       </div>
     </div>
@@ -75,6 +87,9 @@ export async function render(container) {
         <h2 style="margin:0;font-size:var(--fs-lg)">${t('temperatures.monthly')}</h2>
         <div class="muted">${t('temperatures.daysLoaded', { count: days.length })}</div>
       </div>
+      ${measuredUntil ? `<p class="muted" style="margin-top:0">${t(forecastUntil ? 'temperatures.statusWithForecast' : 'temperatures.status', {
+        measured: fmt.date(measuredUntil), forecast: forecastUntil ? fmt.date(forecastUntil) : '',
+      })}</p>` : ''}
       <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
     </div>
   `;
@@ -129,10 +144,19 @@ export async function render(container) {
         longitude,
         location_name: container.querySelector('#loc-name').value,
       });
-      const result = await api.syncOpenMeteo({});
+      // v2.8.0 — ohne Zeitraum ab der ersten Ablesung; „reload" ersetzt auch
+      // Werte von vor v2.8.0 durch Archivwerte
+      const reload = container.querySelector('#sync-reload')?.checked;
+      const result = await api.syncOpenMeteo(reload ? { reload: 1 } : {});
       toastOk(t('temperatures.syncToast', { imported: result.imported || 0, archive: result.archive_rows || 0, forecast: result.forecast_rows || 0 }));
       if (result.archive_error)  toastErr(t('temperatures.archiveError', { err: result.archive_error }));
       if (result.forecast_error) toastErr(t('temperatures.forecastError', { err: result.forecast_error }));
+      const cn = result.climate_normal;
+      if (cn?.status === 'fetched' && cn.period) {
+        toastOk(t('temperatures.climateFetched', { from: String(cn.period.from).slice(0, 4), to: String(cn.period.to).slice(0, 4) }));
+      } else if (cn?.status === 'failed') {
+        toastErr(t('temperatures.climateFailed'));
+      }
       render(container);
     } catch (e) { toastErr(e.message); }
   }));

@@ -21,7 +21,10 @@ in [Grundlagen & Methodik](00-overview.md).
 | **HGT (Heizgradtage)** | Maß für „Heizbedarf wegen Kälte" pro Tag/Monat. |
 | **Heizgrenztemperatur** | Außentemperatur, ab der geheizt wird (`hdd_base_temp`, Default 15 °C). |
 | **Heizsignatur** | Regressionszusammenhang HGT → Verbrauch. |
-| **Wetterbereinigung** | Verbrauch normiert auf langjähriges Monats-HGT (VDI-3807-Logik). |
+| **Wetterbereinigung** | Verbrauch auf ein Normaljahr umgerechnet: Seit v2.8.0 wird nur der Wettereinfluss laut Heizmodell umgerechnet, Grundlast und eigene Abweichung des Monats bleiben (`heat_adjusted`). |
+| **Heizmodell** | v2.8.0: `Verbrauch = a × HGT + c × Tage` je Zähler — `a` Verbrauch je Gradtag, `c` Grundlast je Tag. Liefert die Erwartung für jeden Monat (`expected_heat`), auch im Sommer. |
+| **Klimanormal** | v2.8.0: Mittel und Streuung der Heizgradtage je Kalendermonat aus 30 Jahren Tagesmitteln am Standort (Open-Meteo-Archiv). Grundlage für Prognose, Bereinigung und Unsicherheitsband. |
+| **Unsicherheitsband** | v2.8.0: Bereich, in dem der Verbrauch in 80 % der Jahre liegt (`confidence_band_sigma`) — aus der Streuung der Winter und dem Rauschen des Modells. |
 | **R²** | Bestimmtheitsmaß: Anteil erklärter Streuung (0…1). |
 | **Saisonprofil** | Monatsmittel des Verbrauchs über die Historie. |
 | **Blend** | R²-gewichtete Mischung Regression × Saisonprofil in der Prognose. |
@@ -34,7 +37,7 @@ in [Grundlagen & Methodik](00-overview.md).
 | **Zählerstand-Erfassung** | F1004 (v1.6.0): Zentraler View `#/zaehlerstaende` zur schnellen Vor-Ort-Erfassung aller kumulativen Zähler in einem Durchgang. Nur Gas/Strom/Wasser/Fernwärme — Heizöl/Pellets nutzen Lieferungen. |
 | **Effizienzklasse** | kWh/m²·a-Einordnung der Heizenergie (A+…H), seit v1.4.0 pro Quelle. |
 | **Grundlast** | Wetterunabhängiger Sockel (Warmwasser, Standby). |
-| **Anomalie** | Monat mit Z-Score-Abweichung über Schwelle. |
+| **Anomalie** | Monat, der deutlicher als die Schwelle von der Erwartung für genau diesen Monat abweicht (Heizmodell bzw. derselbe Kalendermonat anderer Jahre); robuste Streuung mit Untergrenze, seit v2.8.0. |
 | **Tank-Bestandskurve** | Modellierter (nicht gemessener) Restbestand bei Öl/Pellets. |
 | **Recurrence** | Wiederholregel eines Termins (jährlich, …). |
 
@@ -138,10 +141,18 @@ Spar-Index = (Liter pro Person und Tag) / Referenz × 100
 CO2 = Verbrauch × CO2-Faktor
 ```
 
-**Z-Score (Anomalie):**
+**Z-Score (Anomalie, seit v2.8.0):**
 
 ```text
-z = (Ist - Mittel) / Standardabweichung
+r = Ist - Erwartung
+z = (r - Median(r)) / max( 1,4826 × MAD(r), 0,10 × max(Erwartung, typischer Monat) )
+```
+
+**Heizmodell und Bereinigung (seit v2.8.0):**
+
+```text
+expected_heat = a × HGT + c × Tage
+heat_adjusted = Ist + a × (HGT_normal - HGT_ist)      (mindestens c × Tage)
 ```
 
 ---

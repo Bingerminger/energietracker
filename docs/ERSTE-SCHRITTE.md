@@ -96,9 +96,13 @@ Ab jetzt rechnet die App nicht nur Verbrauch, sondern auch **Kosten** und den
 Damit „mehr verbraucht oder nur kälter?" beantwortet werden kann, braucht Gas
 (und Fernwärme) Außentemperaturen. Sidebar → **Verbrauch → Temperaturen**:
 
-- **Open-Meteo-Sync** für den in den Einstellungen hinterlegten Standort
-  (Default: Leipzig — auf deinen Ort ändern!), **oder**
-- eine Temperatur-CSV importieren.
+- **Open-Meteo** für den in den Einstellungen hinterlegten Standort
+  (Default: Leipzig — auf deinen Ort ändern!). Seit v2.8.0 holt die App die
+  Temperaturen beim Öffnen einmal am Tag selbst (*Einstellungen → Wetter
+  automatisch füllen*); übermittelt wird nur der auf rund 1 km gerundete
+  Standort. Der Knopf **Open-Meteo synchronisieren** stößt den Abgleich
+  sofort an. **Oder**
+- eine Temperatur-CSV importieren — eigene Werte überschreibt der Abgleich nie.
 
 Ohne Temperaturen funktionieren Verbrauch, Kosten und Saldo trotzdem — nur die
 wetterbereinigte Analyse und die HGT-Prognose brauchen sie.

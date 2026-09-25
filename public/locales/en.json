@@ -192,7 +192,9 @@
       "co2Avoided": "🌿 CO₂ avoided {year}",
       "co2AvoidedSub": "{tons} t less than without PV",
       "co2": "🌍 CO₂ {year}",
-      "co2Sub": "{tons} t"
+      "co2Sub": "{tons} t",
+      "advancesUntil": "💰 Advances up to {date}",
+      "balanceShort": "Balance {value}"
     },
     "cards": {
       "contracts": "📑 Contracts & advances",
@@ -257,7 +259,9 @@
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/yr · {m2} m²",
       "consShort": "{value} usage",
-      "gpPlus": " + {value} base"
+      "gpPlus": " + {value} base",
+      "suggestAdvance": "With an advance of {suggested} instead of {current}, the bill would come out at about ±0.",
+      "measuredThenEstimated": "measured up to {date} ({kwh} kWh), estimated since: {value}"
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -806,7 +810,7 @@
       "location_name": { "label": "Place name" },
       "latitude": { "label": "Latitude" },
       "longitude": { "label": "Longitude" },
-      "weather_auto_fill": { "label": "Fill weather automatically" },
+      "weather_auto_fill": { "label": "Fill weather automatically", "hint": "Fetches temperatures from Open-Meteo at most once a day when the app opens (location rounded to about 1 km)." },
       "gas_conversion_factors": {
         "label": "Gas conversion factors",
         "hint": "One entry per calorific-value period, exactly as the gas bill states them: valid from, volume correction factor and calorific value — the kWh/m³ factor is derived. Without a breakdown, enter the factor directly. The undated entry applies to everything before the first cut-off date. Consumption splits every reading interval day-exactly at the cut-off dates."
@@ -1158,7 +1162,7 @@
     "lat": "Latitude",
     "lng": "Longitude",
     "locName": "Place name",
-    "locHint": "Default: Leipzig. Used for the Open-Meteo sync.",
+    "locHint": "Used for the Open-Meteo sync and sent rounded to about 1 km.",
     "monthly": "Monthly values (min / avg / max)",
     "daysLoaded": "{count} days loaded",
     "syncToast": "Sync OK · {imported} days (archive: {archive}, forecast: {forecast})",
@@ -1166,7 +1170,12 @@
     "forecastError": "Forecast: {err}",
     "importToast": "Import: {imported} days imported, {skipped} skipped",
     "coordInvalid": "Please enter a number between {min} and {max}.",
-    "locationDefault": "The location is still the default for {country} ({name}). Enter your own location for accurate degree days."
+    "locationDefault": "The location is still the default for {country} ({name}). Enter your own location for accurate degree days.",
+    "status": "Measured values up to {measured}.",
+    "statusWithForecast": "Measured values up to {measured}, forecast up to {forecast}.",
+    "reload": "Also replace existing older values with archive values (fixes forecasts stored as measurements)",
+    "climateFetched": "Climate normal {from}–{to} loaded — forecast and weather adjustment now use 30 years of climate.",
+    "climateFailed": "The climate normal could not be loaded — the forecast uses your own temperature history."
   },
   "recommendations": {
     "loading": "Loading recommendations…",
@@ -1184,12 +1193,12 @@
     "error": "Error: {msg}",
     "engine": {
       "r1": {
-        "title": "{label} {ym}: weather-adjusted {pct} % above average",
-        "detail": "In {ym} the weather-adjusted consumption was {pct} % above your average — and it wasn't colder. An appliance or heating check may be worthwhile."
+        "title": "{label} {ym}: {pct} % above expectation",
+        "detail": "In {ym} consumption was {pct} % above what this weather would lead one to expect. An appliance or heating check may be worthwhile."
       },
       "r2": {
-        "title": "{label}: rising trend {pct} %/year",
-        "detail": "The weather-adjusted consumption is rising by about {pct} % per year — a gradual decline. Check whether appliances are ageing or usage habits have changed."
+        "title": "{label}: {pct} % more than the previous year",
+        "detail": "The last twelve months were {pct} % above the same months of the previous year, weather-adjusted. Check whether appliances are ageing or habits have changed."
       },
       "r3": {
         "title": "{label} {year}: high summer consumption",
@@ -1197,7 +1206,7 @@
       },
       "r4": {
         "title": "{label} {ym}: statistical anomaly",
-        "detail": "Consumption in {ym} deviates unusually strongly ({sigma}σ) and is not explained by the weather. Worth a closer look."
+        "detail": "Consumption in {ym} is well above what is usual for this month ({sigma}σ). Worth a closer look."
       },
       "r5": {
         "title": "{label}: tank at {pct} %",
@@ -1341,14 +1350,14 @@
       "seasonal": "Line chart: average monthly profile",
       "years": "Bar chart: consumption by year comparison"
     },
-    "hgtTitle": "HDD correlation · four regression models",
+    "hgtTitle": "HDD correlation · regression models compared",
     "seasonalTitle": "Seasonal profile",
     "notTempDependent": "{label} is not temperature-dependent — seasonal profile instead of HDD.",
     "yearComparison": "Year comparison",
     "anomalies": "Anomalies ({count})",
     "noAnomalies": "No anomalies detected — all months are within the expected range (σ threshold from settings).",
-    "anomalyExplainHgt": "Months whose consumption deviates from the HDD regression model by more than the σ threshold.",
-    "anomalyExplainSeasonal": "Months whose consumption deviates from the seasonal profile by more than the σ threshold.",
+    "anomalyExplainHgt": "Months whose consumption deviates by more than the σ threshold from the expectation — heating curve plus base load at this month’s degree days. The spread is estimated robustly (median, MAD).",
+    "anomalyExplainSeasonal": "Months whose consumption deviates by more than the σ threshold from the same calendar month in other years — computed per day and without the month itself.",
     "anomalyCol": { "month": "Month", "consumption": "Consumption", "expected": "Expected", "deltaAbs": "Δ absolute", "deltaPct": "Δ %", "sigma": "σ value", "hgt": "HDD", "temp": "avg temp" },
     "model": { "linear": "Linear", "polynomial": "Polynomial (2)", "robust": "Robust (Huber)", "segmented": "Segmented", "sigmoid": "Sigmoid" },
     "reg": { "model": "Model", "n": "n", "coeffs": "Coefficients", "bestFit": "best fit", "tooFew": "too few data points", "intercept": "intercept" },
@@ -1415,8 +1424,13 @@
       "effect": "Change",
       "perDegreeDay": "{unit} per degree day",
       "points": "{n} data points",
-      "weatherCorrected": "weather-corrected"
-    }
+      "weatherCorrected": "weather-corrected",
+      "significant": "The difference is statistically supported (95 % range {lo} % to {hi} %).",
+      "notSignificant": "The difference is not yet statistically supported (95 % range {lo} % to {hi} %) — wait for more months after the measure."
+    },
+    "deliveryModelled": "Heating oil and pellets have no measured monthly values: the months are distributed from the deliveries by degree days. A heating curve on top would be circular — every model would fit perfectly — so none is shown.",
+    "scatterNotInFit": "not in the model (partial month or few degree days)",
+    "regR2Note": "R² describes how well the curve fits the months shown (goodness of fit) — not how well it predicts next year."
   },
   "forecast": {
     "noUtilities": "No utility is active. You can choose which ones appear in the settings.",
@@ -1438,7 +1452,7 @@
     "models": { "linear": "Linear", "polynomial": "Polynomial (degree 2)", "robust": "Robust (Huber)", "segmented": "Segmented (heating/summer)", "sigmoid": "Sigmoid (heating signature)" },
     "chartHist": "History",
     "chartForecast": "Forecast",
-    "info": "Model: <strong>{model}</strong> · blend weight: <strong>{blend}%</strong>{r2} · last working price: <strong>{price} {minor}/{unit}</strong>",
+    "info": "Model: <strong>{model}</strong> · heating-curve share: <strong>{blend}%</strong>{r2} · last working price: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Projected balance at the end of the horizon:",
     "balanceSurcharge": "back-payment",
     "balanceCredit": "credit",
@@ -1446,7 +1460,24 @@
     "balanceNote": "· cumulative from estimated costs minus projected advances",
     "col": { "month": "Month", "consumption": "Consumption ({unit})", "hgt": "HDD estimated", "cost": "Cost estimated", "advance": "Advance projected", "balance": "Balance running", "method": "Method" },
     "bonusNote": "Future bonuses are not extrapolated — only bonuses recorded in the contract with a credit date within the forecast period are included in the costs.",
-    "whatIfInvalid": "Please check the highlighted fields: temperature offset −20 to 20 °C, price factor 0 to 10, horizon 1 to 24 months."
+    "whatIfInvalid": "Please check the highlighted fields: temperature offset −20 to 20 °C, price factor 0 to 10, horizon 1 to 24 months.",
+    "chartBand": "Range ({level} % of years)",
+    "r2Label": "goodness of fit R²",
+    "annualBand": "Year: {value} {unit}, in {level} % of years between {low} and {high} {unit} — depending on the winter.",
+    "hddSourceClimate": "Degree days: climate normal {from}–{to} at the location.",
+    "hddSourceHistory": "Degree days: average of your own temperature history.",
+    "warn": {
+      "historyShort": "Short history: consumption for {months} of 12 calendar months. The missing ones ({missing}) come from the model — the forecast is correspondingly less certain.",
+      "noClimateNormal": "No climate normal: the degree days come from your own history. A temperature sync fetches 30 years of climate data once."
+    },
+    "assumedNote": "No contract for this month — the last contract continues at its prices (assumption; contracts renew).",
+    "method": {
+      "seasonal_only": "seasonal profile",
+      "regression_only": "heating curve (no own value for the month)",
+      "heat_model": "heating model",
+      "filled": "daily average (no own value)",
+      "blend": "blend: {reg} heating curve, {seasonal} seasonal profile"
+    }
   },
   "report": {
     "createdOn": "Created on {date}",
@@ -1478,7 +1509,8 @@
     "tableDelta": "Δ%",
     "continued": "(cont.)",
     "meterPageTitle": "{label} {year} — {meter}",
-    "heatDemand": "Heating energy · {label}"
+    "heatDemand": "Heating energy · {label}",
+    "weatherNote": "Weather-adjusted: the weather effect per the heating model converted to a normal year; the month’s own deviations stay. Δ %: consumption against the expectation for this weather."
   },
   "migration": {
     "warnNoSettings": "No settings found in the backup — the defaults apply.",

@@ -20,7 +20,7 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
                           |
                           v
   +-----------------------------------------------------------+
-  |  Controllers (26)        |  Services (31)                  |
+  |  Controllers             |  Services                       |
   |  HTTP rein / raus        |  Fachlogik, kein HTTP           |
   +-----------------------------------------------------------+
                           |
@@ -62,8 +62,8 @@ energietracker/
 │   ├── Http/               # Router, Request, Response, ErrorHandler, CrossSiteGuard
 │   ├── Storage/            # JsonStore, Migrator, WriteLock
 │   ├── Support/            # Dates, Encoding
-│   ├── Services/ (31)      # Fachlogik (+ Pdf/PdfWriter)
-│   └── Controllers/ (26)   # je Klasse eine Datei (PSR-1)
+│   ├── Services/           # Fachlogik (+ Pdf/PdfWriter)
+│   └── Controllers/        # je Klasse eine Datei (PSR-1)
 ├── data/                   # Laufzeitdaten (nicht im VCS)
 ├── demo-data/              # vollständiger Beispieldatensatz (8 Arten)
 ├── docs/                   # dieses Kompendium
@@ -101,7 +101,7 @@ Daraus ergeben sich zwei Berechnungspfade (siehe
 
 ---
 
-## 4. Services (`src/Services/`, 31 + `Pdf\PdfWriter`)
+## 4. Services (`src/Services/` und `Pdf\PdfWriter`)
 
 Jeder Service ist `final`, hat einen dependency-injizierten Konstruktor
 und kennt **kein HTTP**.
@@ -114,14 +114,15 @@ und kennt **kein HTTP**.
 | `MeterService` | CRUD Zähler/Tanks, Gerätetausch, Topologie (Subzähler/Gruppen, F1006) + `external_id`-Alias (F1009) |
 | `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device; Erfassungsübersicht mit typischem Tagesverbrauch; Sammel-Upsert für den CSV-Import (v2.6.0) |
 | `ContractService` | CRUD Verträge, strikte Validierung, Stichtag-Lookup |
-| `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo, Wetterbereinigung; delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService`; seit v2.6.0 Plausibilität (Ausreißer, Verdacht, Überlauf) mit `warnings` |
+| `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo nach Kalender, Heizmodell und Wetterbereinigung (v2.8.0); delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService`; seit v2.6.0 Plausibilität (Ausreißer, Verdacht, Überlauf) mit `warnings` |
 | `DeliveryConsumptionService` | **(seit v1.4.4)** Tages-Verbrauchsverteilung & Tank-Bestandsabzug für Heizöl/Pellets — aus `ConsumptionService` extrahiert (~350 Zeilen) |
 | `DeliveryService` | CRUD Lieferungen, Tank-Bestandskurve |
-| `TemperatureService` | CSV-Import, Tages-Map |
-| `WeatherService` | Open-Meteo-Wrapper (Archiv + Vorhersage) |
+| `TemperatureService` | CSV-Import, Open-Meteo-Abgleich mit Quelle je Tag, täglicher Auto-Sync (v2.8.0) |
+| `WeatherService` | Open-Meteo-Wrapper (Archiv, Vorhersage, 30-Jahres-Tagesmittel) hinter dem Interface `WeatherSource` |
+| `ClimateNormalService` | **(v2.8.0)** Klimanormal am Standort: HGT-Mittel und -Streuung je Kalendermonat aus 30 Jahren |
 | `RegressionService` | 5 Modelle: linear, polynomial, robust, segmented (auto/fix), sigmoid |
-| `ForecastService` | R²-gewichtete Mischung Regression × Saisonprofil; vertragsbasierte Kostenprognose |
-| `AnomalyService` | Z-Score-Ausreißer |
+| `ForecastService` | R²-gewichtete Mischung Regression × Saisonprofil, HGT aus dem Klimanormal, Unsicherheitsband; vertragsbasierte Kostenprognose |
+| `AnomalyService` | Ausreißer gegen die Erwartung je Monat, robuste Streuung (v2.8.0) |
 | `BenchmarkService` | Effizienzklasse **pro Heizquelle** + kombiniert |
 | `TariffComparisonService` | echte + Schattenverträge auf Ist-Verbrauch |
 | `TariffSwitchService` | Wechselentscheidung ab Wechseltermin (Bindungskette, Break-even) |
@@ -141,7 +142,7 @@ und kennt **kein HTTP**.
 
 ---
 
-## 5. Controllers (`src/Controllers/`, 26)
+## 5. Controllers (`src/Controllers/`)
 
 Jeder Controller ist `final`, eine Klasse pro Datei. Methoden geben
 `never` zurück und antworten direkt über `Response::json()` /

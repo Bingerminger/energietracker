@@ -69,17 +69,27 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.7.0:
-**Frontend-API-Shape 44/44**, **Browser-Render 64/64** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.8.0:
+**Frontend-API-Shape 49/49**, **Browser-Render 73/73** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle).
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
 JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
-README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.7.0: 346).
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.8.0: 378).
 Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
 **Pflicht-Gate vor jedem Commit** (siehe
 [Release-Prozess](06-release-process.md)).
+
+**Rechenkerne mit synthetischen Daten (v2.8.0).** `WeatherModelTest` erzeugt
+Temperaturen und Verbrauch nach einer bekannten Formel
+(`Verbrauch = a × HGT + c × Tage`) und prüft, dass Heizmodell, Bereinigung,
+Anomalien, Trend, Prognose und Saldo sie wiederfinden — und nichts melden, wo
+nichts ist. `TemperatureSyncTest` ersetzt Open-Meteo durch eine Attrappe
+(Interface `WeatherSource`) und prüft, welche Werte ein Abgleich überschreiben
+darf. Jede neue Regel bekam eine **Gegenprobe**: Code gezielt zurückdrehen,
+der Test muss rot werden. Mehrere Tests waren zunächst auch ohne ihre Regel grün
+(zu glatte Testdaten) und wurden erst dadurch aussagekräftig.
 
 Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 (`.github/workflows/ci.yml`) bei jedem Push und Pull Request gegen

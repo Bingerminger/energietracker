@@ -132,4 +132,10 @@ const boot = () => Promise.all([getSettings(), getCountries()])
     // Badges nachreichen — sie sind Beiwerk und dürfen den ersten Inhalt
     // nicht aufhalten.
     refreshSidebarBadges().catch(() => {});
+    // v2.8.0 (Review CALC-08) — `weather_auto_fill` wirkt jetzt: Temperaturen
+    // im Hintergrund nachladen, höchstens einmal am Tag (der Server prüft das
+    // selbst). Ohne Netz oder mit ausgeschalteter Einstellung passiert nichts.
+    getSettings()
+      .then(s => { if (s?.weather_auto_fill !== false) return api.syncOpenMeteo({ auto: 1 }); })
+      .catch(() => {});
   });

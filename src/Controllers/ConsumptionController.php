@@ -54,15 +54,33 @@ final class ConsumptionController
         // analysis view can compare them. For non-HGT utilities this stays
         // empty and the frontend falls back to a seasonal profile.
         $regressions = [];
-        if (Utilities::isHgtRelevant($utility)) {
+        // v2.8.0 (Review FE-18) — Lieferarten ohne Heizkurve: Ihre Monatswerte
+        // sind selbst nach Gradtagen verteilt, jedes Modell „erklärte" sie mit
+        // R² = 1,000. Die Oberfläche zeigt stattdessen einen Hinweis.
+        $isDelivery = Utilities::isDelivery($utility);
+        if (Utilities::isHgtRelevant($utility) && !$isDelivery) {
             // v1.4.0 — F1011: Monate vor der Zäsur beschreiben ein anderes
             // Gebäude und gehören nicht in den Fit. Sie bleiben im `monthly`
             // und werden im Chart ausgegraut dargestellt — ausgeschlossen wird
             // aus dem Modell, nicht aus der Anzeige. Welche Monate das sind,
             // entscheidet der ConsumptionService an einer Stelle für alle.
             $pts = $this->consumption->regressionPoints($monthly, $utility);
+            // v2.8.0 — die Kurvenpunkte kommen mit; das Frontend rechnet
+            // RegressionService::predict nicht mehr nach.
+            $xMax = 0.0;
+            foreach ($monthly as $m) $xMax = max($xMax, (float)($m['hdd'] ?? 0));
+            $xMax = $xMax > 0 ? $xMax : 1.0;
             foreach (['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] as $model) {
-                $regressions[$model] = $this->regression->fit($model, $pts['x'], $pts['y'], $this->settings);
+                $reg = $this->regression->fit($model, $pts['x'], $pts['y'], $this->settings);
+                if ($reg['valid'] ?? false) {
+                    $steps = in_array($model, ['linear', 'robust'], true) ? 2 : 50;
+                    $reg['curve'] = [];
+                    for ($i = 0; $i <= $steps; $i++) {
+                        $x = $xMax * $i / $steps;
+                        $reg['curve'][] = ['x' => round($x, 2), 'y' => round($this->regression->predict($reg, $x), 2)];
+                    }
+                }
+                $regressions[$model] = $reg;
             }
         }
 
@@ -71,6 +89,8 @@ final class ConsumptionController
             'monthly'     => $monthly,
             'anomalies'   => $this->anomalies->detect($utility, $monthly),
             'regressions' => $regressions,
+            // v2.8.0 — warum eine Heizkurve fehlt (nur bei Lieferarten)
+            'regressions_note' => $isDelivery && Utilities::isHgtRelevant($utility) ? 'delivery_modelled' : null,
             // v1.4.0 — F1011: Zustand der Zäsur + warum ggf. etwas fehlt,
             // und der Vorher/Nachher-Vergleich der Heizkurve.
             'baseline'    => $this->consumption->baselineInfo($utility, $meter, $monthly),
