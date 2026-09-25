@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Dokumentation / Documentation
+    url: https://github.com/Bingerminger/energietracker/blob/main/docs/README.md
+    about: Einstieg, Anleitungen, Referenz / Getting started, guides, reference (English under docs/en/)
+  - name: Fragen und Antworten / FAQ
+    url: https://github.com/Bingerminger/energietracker/blob/main/docs/einstieg/faq.md
+    about: Die häufigsten Fragen / The most common questions
+  - name: Sicherheitslücke melden / Report a vulnerability
+    url: https://github.com/Bingerminger/energietracker/blob/main/SECURITY.md
+    about: Bitte nicht öffentlich / Please not in public

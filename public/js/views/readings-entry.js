@@ -176,7 +176,7 @@ export async function render(container, _params = [], ctx = {}) {
     }
     saveBtn.disabled = false;
     // v2.6.0 — zurückgestellte Karten (Rückfrage abgelehnt) eigens melden
-    if (held > 0) toastErr(t('readingsEntry.toast.held', { count: held }));
+    if (held > 0) toastErr(tp('readingsEntry.toast.held', held));   // v2.14.0 — Pluralform statt „Stand/Stände“
     if (failed > 0) {
       toastErr(t('readingsEntry.toast.savedFailed', { ok, failed }));
     } else if (ok > 0) {

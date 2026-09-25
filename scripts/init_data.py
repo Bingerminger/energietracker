@@ -2,6 +2,11 @@
 """
 init_data.py — Excel-Importer für Energietracker v1.0.0
 
+VERALTET (seit v2.14.0 gekennzeichnet, entfällt mit v3.0.0): nicht mehr
+gepflegt und ungetestet. Kennt nur Gas und Strom, schreibt fest nach ./data
+(ohne ET_DATA_DIR, also nicht in einen Container). Stattdessen den CSV-Import
+der App nutzen: ⚙️ Zähler → CSV-Import (Excel-Blatt als CSV speichern).
+
 Liest data/input.xlsx mit den Tabs "Gas" und "Strom" und schreibt
 Zähler und Readings in das neue v1.0.0-Datenmodell. Cumulative Import:
 bereits vorhandene Readings werden nicht dupliziert.
@@ -29,6 +34,12 @@ import uuid
 from datetime import datetime, date
 from pathlib import Path
 from typing import Any, Optional
+
+# v2.14.0 — bis dahin startete jeder Aufruf den Import, auch `--help`
+# (die Doku empfahl genau diesen Aufruf). Jetzt nur die Beschreibung.
+if any(a in ("-h", "--help") for a in sys.argv[1:]):
+    print(__doc__)
+    sys.exit(0)
 
 try:
     from openpyxl import load_workbook

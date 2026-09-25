@@ -231,7 +231,7 @@ final class ReleaseConsistencyTest extends TestCase
         $routes = array_map(fn($x) => strtoupper($x[1]) . ' ' . str_replace('{utility}', '{u}', $x[2]), $m);
         self::assertGreaterThan(50, count($routes), 'Routen aus bootstrap.php nicht gefunden');
 
-        foreach (['docs/technical/03-api-reference.md', 'docs/en/technical/03-api-reference.md'] as $rel) {
+        foreach (['docs/referenz/api.md', 'docs/en/referenz/api.md'] as $rel) {
             $doc = (string)file_get_contents(self::root() . '/' . $rel);
             $documented = [];
             foreach (preg_split('/\R/', $doc) ?: [] as $line) {

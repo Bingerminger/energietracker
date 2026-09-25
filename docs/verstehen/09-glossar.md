@@ -1,0 +1,196 @@
+# Glossar & Formelsammlung
+
+**Deutsch** · [English](../en/verstehen/09-glossar.md)
+
+[← Szenario Eigenheim](08-szenario-eigenheim.md) · [Kompendium-Index](../README.md)
+
+Kompakte Referenz aller Begriffe und Formeln. Ausführliche Herleitung
+in [Grundlagen & Methodik](00-overview.md).
+
+> Formeln stehen als Klartext-Codeblöcke, damit sie überall (GitHub,
+> Editor, Viewer) identisch und korrekt dargestellt werden.
+
+---
+
+## Begriffe
+
+| Begriff | Bedeutung |
+|---|---|
+| **Kumulativ** | Erfassung über fortlaufende Zählerstände (Gas, Strom, Wasser, Fernwärme). |
+| **Lieferbasiert** | Erfassung über Brennstofflieferungen statt Zähler (Heizöl, Pellets). |
+| **HGT (Heizgradtage)** | Maß für „Heizbedarf wegen Kälte" pro Tag/Monat. |
+| **Heizgrenztemperatur** | Außentemperatur, ab der geheizt wird (`hdd_base_temp`, Default 15 °C). |
+| **Heizsignatur** | Regressionszusammenhang HGT → Verbrauch. |
+| **Wetterbereinigung** | Verbrauch auf ein Normaljahr umgerechnet: Seit v2.8.0 wird nur der Wettereinfluss laut Heizmodell umgerechnet, Grundlast und eigene Abweichung des Monats bleiben (`heat_adjusted`). |
+| **Heizmodell** | v2.8.0: `Verbrauch = a × HGT + c × Tage` je Zähler — `a` Verbrauch je Gradtag, `c` Grundlast je Tag. Liefert die Erwartung für jeden Monat (`expected_heat`), auch im Sommer. |
+| **Klimanormal** | v2.8.0: Mittel und Streuung der Heizgradtage je Kalendermonat aus 30 Jahren Tagesmitteln am Standort (Open-Meteo-Archiv). Grundlage für Prognose, Bereinigung und Unsicherheitsband. |
+| **Unsicherheitsband** | v2.8.0: Bereich, in dem der Verbrauch in 80 % der Jahre liegt (`confidence_band_sigma`) — aus der Streuung der Winter und dem Rauschen des Modells. |
+| **R²** | Bestimmtheitsmaß: Anteil erklärter Streuung (0…1). |
+| **Saisonprofil** | Monatsmittel des Verbrauchs über die Historie. |
+| **Blend** | R²-gewichtete Mischung Regression × Saisonprofil in der Prognose. |
+| **Saldo** | Tatsächliche Kosten − geleistete Abschläge (dazu das Netto der Sonderzahlungen). **Positiv = Nachzahlung droht, negativ = Guthaben** — so rechnen API und CSV-Export. Die Oberfläche zeigt seit v2.13.0 die Kundensicht: „Guthaben“ bzw. „Nachzahlung“ ohne Vorzeichen, in Tabellen + = Guthaben. |
+| **Schattenvertrag** | Ein Tarif, den man nicht hat: entweder ein Angebot vom Vergleichsportal (für die Wechselentscheidung) oder eine Hypothese über die Vergangenheit („Was hätte das gekostet?"). Wirkt **nur** im Tarifvergleich — nie auf Saldo, Prognose oder Vertragsstatus. |
+| **Kündigungsstichtag** | Letzter Tag, an dem die Kündigung beim Anbieter sein muss (`cancel_by`). Seit v2.9.0 zählen die Erinnerungsstufen bis zu diesem Tag, nicht bis zum Vertragsende. |
+| **Kündigungsweise** | v2.9.0 (`notice_mode`): zum Vertragsende, jederzeit zum Monatsende oder jederzeit zu jedem Tag (etwa die Grundversorgung mit zwei Wochen). |
+| **Weiterlaufender Vertrag** | v2.9.0: abgelaufen, ohne Nachfolger und nicht gekündigt — läuft zu den letzten Preisen weiter (`renewed`, Monatszeilen `contract_assumed`) und ist jederzeit mit höchstens einem Monat Frist kündbar. |
+| **Wechseltermin** | v2.3.0: Der erste Tag, an dem ein neuer Tarif liefern könnte. Ergibt sich aus Vertragsende und Kündigungsfrist; davon zu unterscheiden ist der **Kündigungsstichtag**, bis zu dem die Kündigung raus muss. |
+| **Break-even-Verbrauch** | v2.3.0: Die Jahresmenge, ab der ein Angebot den laufenden Vertrag schlägt (Spalte „Lohnt ab"). Liegt sie weit vom erwarteten Verbrauch weg, trägt die Wechselentscheidung auch bei ungenauer Prognose. |
+| **Neukundenbonus** | v2.3.0: Einmalbetrag am Angebot (`signup_bonus_eur`), der nur im ersten Jahr zählt. Die Rangfolge richtet sich bewusst nach den Kosten **ab** dem zweiten Jahr. |
+| **Sonderzahlung** | F1003: Rück-/Nachzahlung oder zusätzliche Abschlagszahlung. Saldo = Kosten - Abschläge + (Σ Rückzahlung - Σ Nachzahlung - Σ Abschlagszahlung). "mit Auswirkung" setzt zusätzlich den künftigen Abschlag. Nur Gas/Strom/Fernwärme. |
+| **Zählerstand-Erfassung** | F1004 (v1.6.0): Zentraler View `#/zaehlerstaende` zur schnellen Vor-Ort-Erfassung aller kumulativen Zähler in einem Durchgang. Nur Gas/Strom/Wasser/Fernwärme — Heizöl/Pellets nutzen Lieferungen. |
+| **Effizienzklasse** | kWh/m²·a-Einordnung der Heizenergie (A+…H), seit v1.4.0 pro Quelle. |
+| **Grundlast** | Wetterunabhängiger Sockel (Warmwasser, Standby). |
+| **Anomalie** | Monat, der deutlicher als die Schwelle von der Erwartung für genau diesen Monat abweicht (Heizmodell bzw. derselbe Kalendermonat anderer Jahre); robuste Streuung mit Untergrenze, seit v2.8.0. |
+| **Tank-Bestandskurve** | Restbestand bei Öl/Pellets je Tag — seit v2.10.0 aus derselben Rechnung wie der Verbrauch (Tankbuch), zwischen Stützstellen gerechnet, danach geschätzt. |
+| **Tankbuch** | v2.10.0: eine Rechnung für Verbrauch, Kosten und Bestand bei Öl/Pellets, gestützt auf bekannte Bestände (Anfangsbestand, Lieferung „bis voll", Peilstand). |
+| **Stützstelle** | Tag mit bekanntem Tankbestand. Zwischen zwei Stützstellen ist der Verbrauch gerechnet, nicht geschätzt. |
+| **Peilstand** | Abgelesener Tankbestand (Anzeiger, Peilstab, Sensor), am Tank unter `tank_levels` gespeichert. |
+| **Energieausweis-nahe Kennzahl** | v2.10.0: zweite Effizienzzahl — Heizwert, witterungsbereinigt, je m² Gebäudenutzfläche, mit Warmwasser-Zuschlag bei dezentraler Bereitung. Kein Verbrauchsausweis (der verlangt 36 Monate). |
+| **Gebäudenutzfläche (AN)** | Bezugsfläche des Energieausweises: 1,2 × Wohnfläche, 1,35 × bei Ein-/Zweifamilien- oder Reihenhaus mit beheiztem Keller (§ 82 GEG). |
+| **Brennwert / Heizwert** | Gas wird nach Brennwert abgerechnet (kWh inklusive Kondensationswärme), Energieausweis und BAFA-CO₂-Faktoren beziehen sich auf den Heizwert: Heizwert-kWh = Brennwert-kWh × 0,906. |
+| **Ersparnis Eigenverbrauch** | v2.10.0: selbst genutzter PV-Strom × Arbeitspreis des Bezugs — was der Eigenverbrauch an Stromkosten vermeidet. |
+| **Recurrence** | Wiederholregel eines Termins (jährlich, …). |
+| **Zäsur** | F1011 (v2.4.0): datierte bauliche Änderung am Zähler (neue Heizung, Dämmung, Fenster). Ab ihrem Tag rechnen Heizmodell, Wetterbereinigung, Anomalien und Prognose neu; Monate davor bleiben sichtbar, aber grau. Die Karte „Wirkung der Maßnahme“ vergleicht vorher und nachher je Heizgradtag. |
+| **Zustandszahl** | Rechnet das gemessene Gasvolumen auf den Normzustand um (Druck, Temperatur am Einbauort); steht auf der Gasrechnung, typisch 0,93–0,97. |
+| **Gas-Umrechnungsfaktor** | v2.5.0 (F1012): Zustandszahl × Brennwert je Zeitraum, mit dem Tag, ab dem er gilt („Gültig ab“). Ein Ableseintervall über einen Wechsel wird tagesgenau geteilt. |
+| **Abrechnungsstichtag** | Tag der Jahresabrechnung je Verbrauchsart (`billing_cycle_anchor_*`, Standard 1. Januar); bis dorthin rechnet die Saldo-Karte die erwartete Abrechnung. |
+| **Ableseart** | Woher ein Zählerstand stammt. In der Rechnungsprüfung: ohne Zusatz abgelesen, **S** als geschätzt erfasst, **E** Ersatzwert — tagesgenau zwischen zwei Ablesungen ermittelt, wo der Versorger ebenfalls schätzt. Die Kürzel auf Versorgerrechnungen unterscheiden sich; ihre Legende steht dort. |
+| **Rechnungsprüfung** | v2.5.0: rechnet eine Gasrechnung Abschnitt für Abschnitt nach — m³ × Zustandszahl × Brennwert = kWh, geteilt an jeder Ablesung und jedem Brennwertwechsel ([Anleitung](../anleitungen/jahresabrechnung.md)). |
+
+---
+
+## Formeln (gegen Code geprüft)
+
+**Tagesverbrauch (kumulativ):**
+
+```text
+kWh_Tag = (c2 - c1) / (t2 - t1)
+```
+
+**Zählertausch:**
+
+```text
+Verbrauch = (final_alt - prev) + (curr - initial_neu)
+```
+
+**Energieumrechnung:**
+
+```text
+Gas:     kWh = m³ × Zustandszahl × Brennwert   (je Zeitraum ab „Gültig ab“, seit v2.5.0)
+Heizöl:  kWh = Liter × Hu
+Pellets: kWh = kg × Hu
+```
+
+**Heizgradtage:**
+
+```text
+HGT_Tag = max(0, T_base - T_avg)
+```
+
+**Bestimmtheitsmaß:**
+
+```text
+R² = 1 - ( Σ (yi - ŷi)² ) / ( Σ (yi - ȳ)² )
+```
+
+**Sigmoid-Heizsignatur** (Backend `sigmoidPredict`):
+
+```text
+kWh = A / (1 + (B / (HGT - θ0))^C) + D     für HGT > θ0
+kWh = D                                     sonst
+```
+
+**Prognose-Blend:**
+
+```text
+w        = min(R², blend_max)
+Prognose = w · Regressionswert + (1 - w) · Saisonwert
+```
+
+**Effizienzkennzahl (je Heizquelle):**
+
+```text
+Kennzahl = (Σ Heiz-kWh des Jahres) / Wohnfläche_m²     [kWh / (m²·a)]
+```
+
+**Energieausweis-nahe Kennzahl (seit v2.10.0):**
+
+```text
+AN       = Wohnfläche × 1,2   (1,35 bei EFH/RH mit beheiztem Keller)
+Kennzahl = Σ bereinigte kWh (Gas × 0,906) / AN  (+ 20 bei dezentralem Warmwasser)
+```
+
+**Tankbuch (Öl/Pellets, seit v2.10.0):**
+
+```text
+Verbrauch zwischen Stützstellen = Bestand_vorher + Σ Lieferungen − Bestand_nachher
+Anteil_Tag ∝ ρ + HGT_Tag           ρ = s · HGT_Jahr / ((1 − s) · 365,25)
+nach der letzten Stützstelle: Rate × (ρ + HGT_Tag), geschätzt
+Preis: gleitender Durchschnitt des Tankinhalts
+```
+
+**Lieferkosten (v1.4.2, Gesamtbetrag-Vorrang):**
+
+```text
+Kosten = total_eur                          falls gesetzt
+Kosten = Menge × unit_price_cents / 100     sonst
+```
+
+**Saldo:**
+
+```text
+Saldo = Σ Kosten - Σ Abschläge + (Σ Rückzahlung - Σ Nachzahlung - Σ Abschlagszahlung)
+
+Saldo > 0  → Nachzahlung droht
+Saldo < 0  → Guthaben
+```
+
+**Wasser-Spar-Index:**
+
+```text
+Spar-Index = (Liter pro Person und Tag) / Referenz × 100
+```
+
+**CO₂** *(Default-Faktoren mit Quelle seit v2.10.0; Strom je Jahr)*:
+
+```text
+CO2 = Verbrauch × CO2-Faktor
+```
+
+**Z-Score (Anomalie, seit v2.8.0):**
+
+```text
+r = Ist - Erwartung
+z = (r - Median(r)) / max( 1,4826 × MAD(r), 0,10 × max(Erwartung, typischer Monat) )
+```
+
+**Heizmodell und Bereinigung (seit v2.8.0):**
+
+```text
+expected_heat = a × HGT + c × Tage
+heat_adjusted = Ist + a × (HGT_normal - HGT_ist)      (mindestens c × Tage)
+```
+
+---
+
+## Default-Werte (Auswahl)
+
+| Schlüssel | Default | Einheit |
+|---|---|---|
+| `gas_conversion_factors` | `[{from:null, kwh_per_m3:11,5}]` | datierte Liste (z × Hs je Stichtag) |
+| `heizoel_kwh_per_l` | 10,0 | kWh/L |
+| `pellets_kwh_per_kg` | 4,8 | kWh/kg |
+| `hdd_base_temp` | 15,0 | °C |
+| `blend_max` | 0,80 | — |
+| `delivery_baseload_share` | 0,15 | Anteil |
+| `forecast_months` | 12 | Monate |
+| `wohnflaeche_m2` | 100 | m² |
+| `co2_gas` | 182 (BAFA, Heizwert × 0,906) | g/kWh |
+| `co2_strom` / `co2_strom_years` | 380 bis 2014, danach Umweltbundesamt je Jahr (2025: 344) | g/kWh |
+| `co2_heizoel` / `co2_pellets` / `co2_fernwaerme` | 266 / 36 / 280 (BAFA) | g/kWh |
+| `co2_wasser` | 350 *(ohne Quelle)* | g/m³ |
+
+---
+
+[← Szenario Eigenheim](08-szenario-eigenheim.md) ·
+[Kompendium-Index](../README.md)

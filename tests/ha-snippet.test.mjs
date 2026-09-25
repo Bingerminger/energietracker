@@ -17,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../public/js/lib/ha-snippet.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const DOCS = ['docs/HOME-ASSISTANT.md', 'docs/en/HOME-ASSISTANT.md'];
+const DOCS = ['docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md'];
 
 let failed = 0, passed = 0;
 function ok(cond, label) {

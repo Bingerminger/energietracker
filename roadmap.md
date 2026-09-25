@@ -1,11 +1,24 @@
 # Energietracker — Roadmap
 
-> Lebendiges Planungs-Dokument. Wird mit jedem Release fortgeschrieben.
-> Bei Konflikt zwischen Roadmap-Reihenfolge und akutem User-Bedarf
-> (z. B. kritischer Bug) gewinnt der Bedarf, und die Roadmap rückt nach.
+> **Kurzfassung.** Jetzt: v2.14.0 — die Doku nach Zielgruppen. Als Nächstes:
+> überarbeitete Diagramme (v2.15.0). Danach: Nebenkostenabrechnung für Mieter
+> (F1008, [#15](https://github.com/Bingerminger/energietracker/issues/15)),
+> Verträge je Zählergruppe ([#17](https://github.com/Bingerminger/energietracker/issues/17))
+> und eine engere Home-Assistant-Anbindung. Bewusst nicht: eigene
+> Smart-Meter-Auslesung (das macht Home Assistant), ein Cloud-Dienst, Konten.
+>
+> *In English:* now v2.14.0 (docs by audience); next revised charts (v2.15.0);
+> then a utility-cost statement for tenants (#15), contracts per meter group (#17)
+> and a deeper Home Assistant integration. Deliberately not: reading smart meters
+> ourselves (Home Assistant does that), a cloud service, accounts.
+>
+> Der Rest dieser Seite ist das Planungsdokument mit Entscheidungen und
+> Historie; es wird mit jedem Release fortgeschrieben. Bei Konflikt zwischen
+> Reihenfolge und akutem Bedarf (etwa einem kritischen Fehler) gewinnt der
+> Bedarf.
 
-**Stand:** 2026-09-25 (synchron mit v2.13.0; Pakete A, B, Länderprofile, C, D und E1 aus dem Gesamtreview)
-**Aktuelle Baseline:** v2.13.0
+**Stand:** 2026-09-25 (synchron mit v2.14.0; Pakete A, B, Länderprofile, C, D und E aus dem Gesamtreview)
+**Aktuelle Baseline:** v2.14.0
 **Schema:** 1.6.0
 
 ---
@@ -58,6 +71,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | N1015 | Mobil: Navigation in sieben Bereichen nach Nutzerfragen (Tabs je Bereich, Menüname = Seitentitel), Tab-Leiste mit ＋ Erfassen und Menü auf dem iPhone, Seiten Verträge & Abschläge / Rechnung prüfen / Jahresbericht, Router mit Token und Abbruch, Zurück-Taste schließt Dialoge, 44-px-Ziele, 16-px-Eingaben, Safe-Area/PWA, Kontraste nach WCAG AA mit Test, Theme dreistufig | v2.11.0 | 2026-09-25 |
 | N1015 | Aufgeräumt (Teil 2): Einstellungen als neun Unterseiten mit Speicherleiste und Expertenbereich, Wetterdaten mit Ortssuche, „Zu tun" auf der Übersicht, schnellere Erfassung (Weiter-Taste, Feldfehler, Rückgängig, Direktsprung je Zähler), CSV-Import mit Vorschau, Rückgängig für Termine und Empfehlungen, einheitliche Seitenköpfe, Pluralformen und Benennungen | v2.12.0 | 2026-09-25 |
 | N1016 | Versteht sich von selbst (Teil 1, App): Hilfe-Ansicht mit Glossar (33 Begriffe, sieben Sprachen), ⓘ-Erklärungen zum Antippen statt Tooltips, Willkommen mit Einrichtungs-Checkliste und Beispieldaten, Leerzustände, Saldo aus Kundensicht, PV als Einspeisung/Vergütung durchgehend, Feldhinweise in den Einstellungen, Quellenangabe der Wetterdaten; API additiv (`has_contracts`, `has_advance_payment_contracts`, `accounting_kind`, `reading_count`) | v2.13.0 | 2026-09-25 |
+| N1016 | Versteht sich von selbst (Teil 2, Doku): Doku nach Zielgruppen (Einstieg, Anleitungen, Verstehen, Referenz, Betrieb, Entwicklung) mit Weiterleitungen für alle 61 alten Pfade, englischer Spiegel mit eigenen Screenshots; neu: Funktionen, FAQ, Handy, Jahresabrechnung, Fehlersuche, Webserver, Einstellungsreferenz; README als Schaufenster, CONTRIBUTING und Issue-Vorlagen; `DocsIntegrityTest` für Links, Anker, Spiegel, Index und Einstellungen | v2.14.0 | 2026-09-25 |
 
 > **Lücke in dieser Tabelle:** v2.2.0 (Vollreview, Tarifvergleich neu, Assets
 > selbst gehostet) und v2.3.0 (Tarifvergleich wird zur Wechselentscheidung)
@@ -106,7 +120,7 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | offen | L | 1.5.0 → 1.6.0 | **nächster Slot**, Detail-Konzept unten |
+| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | offen | L | 1.6.0 → 1.7.0 | **nächster Slot**, Detail-Konzept unten |
 | *(Code offen)* | Verträge pro Zählergruppe (GitHub #17) | offen | M | additiv | aus F1006 offen geblieben („Vertrag pro Gruppe", s. v2.0.1); F-Code wird bei Übernahme vergeben |
 
 > **Sprach-Wellen 2+** (cs, uk, pl, el, tr, hr, sr, sl, fi, no, da, lv, et, hu, bg, ro …)
@@ -116,9 +130,9 @@ Leitlogik dieser Sequenz:
 > languages.json registrieren). Eine neue Sprache braucht keinen Code mehr.
 >
 > **Zweisprachige Doku (DE+EN)** ist ab v2.1.0 die Norm: README/INSTALL als
-> `*.md` (EN) + `*.de.md` (DE), `docs/` als `docs/en/` + `docs/de/`. DE bleibt
-> kanonisch; das große Kompendium (API, funktional, technisch) wird wellenweise
-> ins EN gespiegelt, ohne Info-Verlust.
+> `*.md` (EN) + `*.de.md` (DE), `docs/` (DE) mit Spiegel `docs/en/` am selben
+> relativen Pfad. DE bleibt kanonisch; ein Test prüft seit v2.14.0, dass jede
+> Seite ihren Spiegel hat.
 
 > Das **v2.0.0-Bündel** (N1007 + EN-L10n + N1009 + UX + N1008) ist am
 > 2026-06-10 ausgeliefert → siehe „Bereits ausgeliefert".
@@ -136,7 +150,7 @@ Leitlogik dieser Sequenz:
 ## (ausgeliefert) v1.7.0 — F1005 PV + N1003 Health-Check
 
 → Details in [CHANGELOG.md](CHANGELOG.md#170--2026-05-23--f1005-pv-einspeisung--erzeugung--autarkiequote-n1003-health-check) und
-[`docs/functional/12-pv.md`](docs/functional/12-pv.md). Der ursprüngliche
+[`docs/verstehen/12-pv.md`](docs/verstehen/12-pv.md). Der ursprüngliche
 Roadmap-Eintrag (Skizze) bleibt unten als historischer Kontext stehen,
 damit die Konzept-Wegstrecke nachvollziehbar bleibt.
 
@@ -695,10 +709,10 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
   Bug mit hoher Priorität schiebt sich vor; ein neues User-Feedback kann
   einen Slot übernehmen).
 - **Jedes Feature bekommt** vor Implementation ein ausformuliertes
-  Detail-Konzept (entweder direkt in dieser Datei oder als eigene
-  `docs/functional/NN-…md` bzw. `docs/technical/NN-…md`).
-- **Konzept-Entscheidungen** werden mit Multiple-Choice-Buttons im Chat
-  geklärt, nicht angenommen (Memory-Regel).
+  Detail-Konzept (entweder direkt in dieser Datei oder als eigene Seite unter
+  `docs/verstehen/` bzw. `docs/entwicklung/`).
+- **Konzept-Entscheidungen** klärt der Maintainer vor der Umsetzung — als
+  Auswahl mit der Konsequenz jeder Option —, statt sie anzunehmen.
 - **NFRs vor riskanten Refactors:** N-Codes, die ein F-Feature absichern
   (z. B. Unit-Tests vor Topologie-Refactor), kommen vor diesem F-Feature.
 - **Nach Release** wird der Eintrag von „Geplant" in „Bereits ausgeliefert"
@@ -752,6 +766,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-09-25 | v2.11.0 ausgeliefert (Minor, N1015) | **Mobil** — Paket D, erster Teil (D1). Navigation nach Nutzerfragen in sieben Bereichen mit Tabs; auf dem iPhone Tab-Leiste, Menü als Schublade und Erfassen-Blatt statt 500 px Menüblock über jedem Inhalt; neue Seiten Verträge & Abschläge, Rechnung prüfen (bisher am Ende der Gas-Seite) und Jahresbericht (bisher in den Einstellungen); Router mit eigenem Container, Token und Abbruchsignal je Navigation (langsame Antworten überschrieben die nächste Seite); Zurück-Taste schließt Dialoge; Kontraste nach WCAG AA mit neuem Test; 44-px-Ziele, 16-px-Eingaben, Dialoge als Blatt; Safe-Area, `theme-color`, maskierbares Icon; Theme dreistufig; Einstellungen aktualisieren Zwischenspeicher und Seitenleiste. Kein Schema-Wechsel. Router- und Kontrast-Test neu, 19 Gegenproben. Nächstes: v2.12.0 (D2: Einstellungen als Unterseiten, Dashboard „Zu tun", Schnellerfassung, CSV-Vorschau). |
 | 2026-09-25 | v2.12.0 ausgeliefert (Minor, N1015) | **Aufgeräumt** — Paket D, zweiter Teil (D2). Einstellungen als neun Unterseiten (Speicherleiste, Rückfrage beim Verlassen, Experte eingeklappt); Wetterdaten als einziger Ort für Standort und Wetter, mit Ortssuche (`GET /api/geocode`); „Zu tun" oben auf der Übersicht mit Sprung zur Erfassung je Zähler; Erfassung mit eingeklapptem Datum, Weiter-Taste, Feldfehlern, Zusammenfassung und Rückgängig; CSV-Import zweistufig mit Vorschau (`dry_run`); Rückgängig für „Erledigt" (`last_done` im PATCH) und „Ausblenden" (`DELETE …/dismiss`); einheitliche Seitenköpfe, Pluralformen, Monatsnamen, benannte Rückfragen, „Zu Gruppe zusammenfassen", „Angebot erfassen", Rückblick nur mit Jahren mit Daten; Vertragsformular mit Preiszeilen ab Vertragsbeginn. Behoben: Temperatur-CSV trennte am Dezimalkomma. Kein Schema-Wechsel. 434 → 444 Testmethoden, 27 Gegenproben. Paket D damit abgeschlossen; nächstes Paket: E (v2.13.0, „Versteht sich von selbst"). |
 | 2026-09-25 | v2.13.0 ausgeliefert (Minor, N1016) | **Erklärt** — Paket E, erster Teil (E1, App). Hilfe-Ansicht (`#/help`) mit Erste-Schritte-Checkliste, Doku-Links je Sprache, Datenschutz und Glossar mit Suche; ⓘ an Kennzahlen, Spalten und Markierungen (Blase am Mac, Blatt am iPhone) statt Tooltips; Willkommen ohne Daten mit Beispieldaten; Leerzustände für Verbrauchsarten und Empfehlungen; Saldo als „Guthaben“/„Nachzahlung“ und in Tabellen + = Guthaben; PV-Einspeisung als Vergütung (Erlös, Erhalten, Rückforderung), Erzeugung ohne Kosten, Temperatur und HGT, vermiedenes CO₂ ohne Minus; 18 Feldhinweise, Prognosemodelle mit Namen, Breite des Prognosebands pflegbar, Stichtag PV-Einspeisung statt Heizöl/Pellets; Open-Meteo mit Lizenz in Temperaturen und PDF. API additiv, kein Schema-Wechsel. 444 → 448 Testmethoden, 26 Gegenproben. Nächstes: v2.14.0 (E2: Doku nach Zielgruppen). |
+| 2026-09-25 | v2.14.0 ausgeliefert (Minor, N1016) | **Nachlesbar** — Paket E, zweiter Teil (E2, Doku). `docs/` nach Zielgruppen (Einstieg, Anleitungen, Verstehen, Referenz, Betrieb, Entwicklung), englischer Spiegel unter denselben Dateinamen, 61 alte Pfade als Weiterleitung; neue Seiten Funktionen, FAQ (20 Fragen), Handy, Jahresabrechnung, Fehlersuche, Webserver und Einstellungsreferenz (alle 60 Schlüssel); 17 englische Screenshots; README als Schaufenster (140 statt rund 600 Zeilen), CONTRIBUTING, Issue-Vorlagen; `ARCHITECTURE.md` in „Datenfluss & Algorithmen“ aufgegangen, SVG-Entwürfe entfernt; Englisch mit „unit price“/„standing charge“, Pluralformen in der Zählerübersicht; `scripts/init_data.py` als veraltet gekennzeichnet (`--help` startete den Import). Keine API-Änderung, kein Schema-Wechsel. 448 → 455 Testmethoden (`DocsIntegrityTest`, Pluralformen je `tp()`-Schlüssel). Repo-Beschreibung, Topics und Discussions (Review MKT-06, DOC-23) liegen beim Maintainer. Nächstes Paket: F (v2.15.0, Diagramme). |
 | 2026-09-24 | v2.5.3 ausgeliefert (Patch) | **Keine stillen Fehlbuchungen** — Paket A aus einem Gesamtreview (Berechnungen, Oberfläche Mac/iPhone, Übersetzungen, Doku, API). Schwerpunkt: Eingaben, die bisher still in eine gültige Buchung verwandelt wurden (leeres Zahlenfeld → 0, „12,5" je nach Browser → nichts, HA-Sensor „unavailable" → Zählerstand 0 durch `float(0)` in der eigenen Vorlage, unlesbarer Stichtag → 01-01, leerer Vertrag → „aktiv"). Dazu CSRF-Schutz, Escaping gespeicherter Werte, Datumsprüfung auf allen Schreibpfaden, Beschädigung als 503 mit Quarantäne-Kopie, globale Schreibsperre, Snapshot vor Migration, iPhone-Überbreite (13 von 21 Ansichten → keine), Glossar-Vorzeichen, fachliche Fehlübersetzungen. Kein Schema-Bump, keine Schnittstellenänderung. 256 → 285 Testmethoden, zwei neue Node-Tests in der CI. Die weiteren Pakete folgen als eigene Releases: „Verlässlich und sicher im Heimnetz" (optionale Anmeldung), Länderprofile, „Richtig rechnen", „Mobil und aufgeräumt", „Versteht sich von selbst", „Auswertungen, die man sieht". |
 | 2026-09-15 | v2.5.2 ausgeliefert (Patch) | UX-Politur an der Rechnungsprüfung: je Abschnitt **Stand alt / Stand neu** mit Ableseart wie die Fußnoten der Rechnung — abgelesen, als geschätzt erfasst (`S`), Ersatzwert (`E`, tagesgenau interpoliert, kein Stand über einen Zählertausch hinweg). Anlass: Beim Abgleich zweier echter Jahresrechnungen war nicht zu sehen, welche Abschnittsgrenzen auf echten Ablesungen ruhen und welche auf Schätzungen — bei der zweiten Rechnung vier von sieben Endständen. `bill-check` liefert `counter_*` + `counter_*_kind`. 254 → 256 Tests, der Browser-Test führt die Prüfung jetzt wirklich aus, 7 Toggles greifend. Doku DE + EN. Nächster Slot: F1008. |
 | 2026-09-15 | v2.5.1 ausgeliefert (Patch) | UX-Politur ohne Code: Die Tabelle *Verträge & Abschläge* zeigt je Vertrag jetzt eine Spalte **Sonderzahlungen** (Netto aus Kundensicht, Einzelposten im Tooltip, Hinweistext; nur Gas/Strom/Fernwärme). Aufgefallen beim Nachrechnen einer echten Endabrechnung mit der neuen Rechnungsprüfung: Die gebuchte Gutschrift war in der Vertragshistorie unsichtbar, nur *Bonus* hatte eine Spalte. Drei Weichen per Multiple-Choice (eigene Spalte statt „Boni & Sonder"-Saldo — Bonus ist Vertragsbestandteil, Sonderzahlung Geld außerhalb des Plans; Netto mit Kundenvorzeichen; PATCH statt F-Code). `contract-status` liefert dafür `special_payments[]`. 250 → 254 Tests, 9 Toggles greifend, ein zehnter fand totes `abs()`. Doku DE + EN. Nächster Slot: F1008. |

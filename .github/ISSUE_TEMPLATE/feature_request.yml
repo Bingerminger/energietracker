@@ -1,0 +1,33 @@
+name: Wunsch / Feature request
+description: Eine Idee, was der Energietracker besser können sollte / An idea for what the Energietracker should do better
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Vielleicht gibt es das schon — ein Blick in die [FAQ](https://github.com/Bingerminger/energietracker/blob/main/docs/einstieg/faq.md) und die [Funktionen](https://github.com/Bingerminger/energietracker/blob/main/docs/einstieg/funktionen.md) lohnt.
+        It may already exist — see the [FAQ](https://github.com/Bingerminger/energietracker/blob/main/docs/en/einstieg/faq.md) and the [features](https://github.com/Bingerminger/energietracker/blob/main/docs/en/einstieg/funktionen.md).
+  - type: textarea
+    id: problem
+    attributes:
+      label: Worum geht es? / What is the problem?
+      description: Die Situation, nicht die Lösung — etwa „Meine Rechnung teilt den Zeitraum an …“ / The situation, not the solution
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Vorschlag / Proposal
+  - type: textarea
+    id: example
+    attributes:
+      label: Beispiel / Example
+      description: Ein erfundenes Beispiel genügt — bitte keine echten Rechnungen oder Nummern. / An invented example is enough — please no real bills or numbers.
+  - type: checkboxes
+    id: interfaces
+    attributes:
+      label: Betrifft / Affects
+      options:
+        - label: Home Assistant / API
+        - label: CSV-Import oder -Export / CSV import or export
+        - label: Backup

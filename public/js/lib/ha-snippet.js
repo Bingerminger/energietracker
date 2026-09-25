@@ -1,7 +1,7 @@
 // =====================================================================
 // Home-Assistant-Vorlagen zum Kopieren (v2.5.3).
 //
-// Dieselben Vorlagen stehen in docs/HOME-ASSISTANT.md und im EN-Spiegel;
+// Dieselben Vorlagen stehen in docs/anleitungen/home-assistant.md und im EN-Spiegel;
 // tests/ha-snippet.test.mjs vergleicht sie zeilenweise (ohne Kommentare
 // und URL). Bis v2.5.2 gab es zwei Fassungen, und keine war richtig:
 //

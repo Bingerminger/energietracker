@@ -6,7 +6,7 @@
 > lesen und ändern — im eigenen Heimnetz in Ordnung. Bevor du sie von außen
 > erreichbar machst (Portfreigabe, Reverse-Proxy, QuickConnect), schalte die
 > Anmeldung ein (Einstellungen → Zugriff → „Anmeldung & Zugriff") und lies
-> [Sicherheit & Netzbetrieb](docs/technical/08-security.md). Besser noch:
+> [Sicherheit & Netzbetrieb](docs/betrieb/sicherheit.md). Besser noch:
 > unterwegs per VPN zugreifen.
 
 ## Voraussetzungen
@@ -28,7 +28,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 2.13.0
+├── VERSION                ← 2.14.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein
@@ -77,68 +77,17 @@ ET_DATA_DIR=/srv/energietracker-data php -S 127.0.0.1:8080 router.php
 Bei Apache/nginx wird die Variable über `SetEnv` bzw.
 `fastcgi_param ET_DATA_DIR …` gesetzt.
 
-## Produktiv: Apache
+## Produktiv: Apache oder nginx
 
-Beispiel-Config (Document Root = Projektwurzel):
+Die mitgelieferte `.htaccess` erledigt bei Apache alles Nötige — sie braucht
+`AllowOverride FileInfo` und die Module `mod_rewrite`, `mod_headers` und
+`mod_setenvif`. Für nginx gelten die Regeln aus `docker/nginx.conf`. Beides
+vollständig, mit VirtualHost, `server`-Block und Synology Web Station:
+**[Webserver: Apache und nginx](docs/betrieb/webserver.md)**. Bis v2.13 standen
+hier eigene, abweichende Beispiele.
 
-```apache
-<VirtualHost *:80>
-  ServerName energietracker.example.com
-  DocumentRoot /var/www/energietracker
-
-  <Directory /var/www/energietracker>
-    Options -Indexes +FollowSymLinks
-    # FileInfo lässt die mitgelieferte .htaccess wirken: Sie sperrt data/,
-    # src/, .git/ und andere Nicht-Auslieferungsdateien (seit v2.6.0) und
-    # setzt die Cache-Header.
-    AllowOverride FileInfo
-    Require all granted
-  </Directory>
-
-  # Zweite Sicherung für das Datenverzeichnis
-  <Directory /var/www/energietracker/data>
-    Require all denied
-  </Directory>
-</VirtualHost>
-```
-
-Braucht `mod_rewrite` (dazu `mod_headers`, `mod_setenvif`). Bis v2.5.3 stand
-hier `AllowOverride None` — dann griffen die Regeln der `.htaccess` nicht.
 Prüfen mit den Befehlen unter
-[Sicherheit → Webserver](docs/technical/08-security.md#9-webserver-was-nicht-ausgeliefert-werden-darf).
-
-## Produktiv: nginx
-
-```nginx
-server {
-  listen 80;
-  server_name energietracker.example.com;
-  root /var/www/energietracker;
-  index index.php;
-
-  location / {
-    try_files $uri $uri/ /index.php?$query_string;
-  }
-
-  # Nutzdaten, Quelltext, Punktdateien (.git, .env): nie ausliefern.
-  # Der vollständige Regelsatz steht in docker/nginx.conf.
-  location ~ ^/(data|src|tests|scripts|docker|docs|vendor|demo-data)/ {
-    return 404;
-  }
-  location ~ /\. {
-    return 404;
-  }
-
-  location ~ \.php(/|$) {
-    fastcgi_split_path_info ^(.+\.php)(/.*)$;
-    fastcgi_pass unix:/run/php/php8.4-fpm.sock;
-    fastcgi_index index.php;
-    include fastcgi_params;
-    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-    fastcgi_param PATH_INFO $fastcgi_path_info;
-  }
-}
-```
+[Sicherheit → Webserver](docs/betrieb/sicherheit.md#9-webserver-was-nicht-ausgeliefert-werden-darf).
 
 ## Produktiv: Docker (seit v1.7.3)
 
@@ -157,8 +106,14 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.13.0
+  ghcr.io/bingerminger/energietracker:2.14.0
 ```
+
+> **Docker Desktop (Mac, Windows):** Ein Ordner unter dem Benutzerverzeichnis
+> muss unter Settings → Resources → File sharing freigegeben sein, sonst startet
+> der Container nicht (`mounts denied`, in der Oberfläche oft „HTTP 500“).
+> Einfacher ist ein Named Volume: `-v energietracker-data:/data` — siehe
+> [Docker](docs/betrieb/docker.md#ordner-oder-named-volume).
 
 **Oder lokal bauen:**
 
@@ -181,34 +136,23 @@ Die Logs (JSON Lines) erscheinen bei `ET_LOG_DEST=stderr` direkt in
 `docker logs energietracker`. Der Container hat einen `HEALTHCHECK` gegen
 `GET /api/health`.
 
-## Demo-Daten laden (optional)
+## Beispieldaten laden (optional)
 
-> **Am einfachsten ohne Dateisystem:** Das Repo enthält die Demo-Daten auch als
-> fertiges JSON-Backup unter
-> [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
-> In einem leeren Energietracker kannst du es direkt über
-> *Einstellungen → Daten → Backup & Wiederherstellung → Backup importieren*
-> einspielen (ab v1.7.4 gibt es dafür zusätzlich einen „Demo-Daten laden"-Button).
-> Vor dem Import wird automatisch ein Snapshot deiner aktuellen Daten angelegt.
+Am einfachsten in der App: auf der leeren Übersicht **„Mit Beispieldaten
+ausprobieren“**, sonst Einstellungen → Daten → „Demo-Daten laden“. Vorher legt
+die App einen Snapshot des jetzigen Stands an. Das Repository enthält dieselben
+Daten auch als Backup-Datei:
+[`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
 
-Klassisch per Dateikopie:
+Per Dateikopie nur in ein **leeres** Datenverzeichnis — so bleiben `data/.htaccess`
+und `data/.gitkeep` erhalten:
 
 ```bash
-find data/ -mindepth 1 -not -name '.gitkeep' -delete
-cp -r demo-data/gas demo-data/strom demo-data/wasser \
-      demo-data/fernwaerme demo-data/heizoel demo-data/pellets data/
-mkdir -p data/backups
-cp demo-data/meta.json demo-data/settings.json \
-   demo-data/temperatures.json demo-data/reminders.json data/
+cp -R demo-data/. data/
 ```
 
-> Alternativ einfach das gesamte Verzeichnis kopieren — der Migrator
-> ist idempotent und der Demo-Datensatz trägt bereits `schema_version
-> 1.1.0` (seit v1.4.4), sodass kein Migrationslauf nötig ist:
->
-> ```bash
-> rm -rf data && cp -r demo-data data
-> ```
+Die Dateien tragen das Schema 1.1.0; beim ersten Start hebt der Migrator sie auf
+den aktuellen Stand. Mehr dazu in [`demo-data/README.md`](demo-data/README.md).
 
 ## Migration aus v0.9.0
 
@@ -216,7 +160,7 @@ Wer ein altes v0.9.0-Backup hat: nach der Installation einfach in der
 UI öffnen unter **Einstellungen → Daten → Backup & Wiederherstellung →
 📦 Migration aus v0.9.0** und die JSON-Datei hochladen.
 
-Detaillierte Anleitung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md).
+Detaillierte Anleitung: [Umstieg von v0.9.0](docs/anleitungen/migration-v090.md).
 
 ## Home Assistant anbinden (optional)
 
@@ -226,4 +170,4 @@ lassen? Der Energietracker hat dafür einen offiziellen Push-Endpoint
 unter **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung**.
 
 Schritt-für-Schritt inkl. REST-Command, Automatisierung und Use-Cases
-(Eigenheim, Mietwohnung) in [`docs/HOME-ASSISTANT.md`](docs/HOME-ASSISTANT.md).
+(Eigenheim, Mietwohnung): [Home Assistant anbinden](docs/anleitungen/home-assistant.md).

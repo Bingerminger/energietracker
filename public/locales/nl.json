@@ -227,7 +227,7 @@
       "savedEmpty": "{ok} opgeslagen · {skipped} leeg",
       "saved": "{ok} opgeslagen",
       "nothing": "Geen invoer — niets om op te slaan",
-      "held": "{count} stand(en) niet opgeslagen – controleer de gemarkeerde kaarten.",
+      "held": { "one": "{count} stand niet opgeslagen – controleer de gemarkeerde kaart.", "other": "{count} standen niet opgeslagen – controleer de gemarkeerde kaarten." },
       "undone": {
         "one": "1 meterstand ongedaan gemaakt",
         "other": "{count} meterstanden ongedaan gemaakt"
@@ -757,10 +757,10 @@
     "empty": "Nog geen meters.",
     "emptyCta": "+ Een nieuwe meter toevoegen",
     "summary": {
-      "meters": "{count} meters",
-      "active": "{count} actief",
-      "sub": "{count} submeters",
-      "groups": "{count} groep(en)"
+      "meters": { "one": "{count} meter", "other": "{count} meters" },
+      "active": { "one": "{count} actief", "other": "{count} actief" },
+      "sub": { "one": "{count} submeter", "other": "{count} submeters" },
+      "groups": { "one": "{count} groep", "other": "{count} groepen" }
     },
     "groupsBar": { "label": "Metergroepen:", "dissolveTitle": "Groep opheffen" },
     "deleteGroup": {
@@ -2284,7 +2284,9 @@
       "compendium": "Handboek en methodiek",
       "glossary": "Woordenlijst en formules",
       "homeAssistant": "Home Assistant koppelen",
-      "englishOnly": "De documentatie bestaat in het Duits en het Engels; de links leiden naar de Engelse versie."
+      "englishOnly": "De documentatie bestaat in het Duits en het Engels; de links leiden naar de Engelse versie.",
+      "faq": "Veelgestelde vragen",
+      "troubleshoot": "Problemen oplossen"
     },
     "support": {
       "title": "Vragen en fouten",

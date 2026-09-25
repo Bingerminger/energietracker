@@ -366,8 +366,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     const view = await settingsPage('integrations');
     t('settings/integrationen: Home Assistant', !!view.querySelector('#btn-ha-generate, #btn-ha-revoke'));
     // v2.13.0 (I18N-25) — Anleitung als Link, nicht als Pfad im Fließtext
-    const guide = [...view.querySelectorAll('a[target="_blank"]')].find(a => /HOME-ASSISTANT\.md$/.test(a.getAttribute('href') || ''));
-    t('settings/integrationen: HA-Anleitung verlinkt', !!guide && !view.textContent.includes('docs/HOME-ASSISTANT.md'),
+    const guide = [...view.querySelectorAll('a[target="_blank"]')].find(a => /anleitungen\/home-assistant\.md$/.test(a.getAttribute('href') || ''));
+    t('settings/integrationen: HA-Anleitung verlinkt', !!guide && !view.textContent.includes('HOME-ASSISTANT.md'),
       guide?.getAttribute('href'));
   } catch (e) { t('settings/integrationen: render', false, e.message); }
 
@@ -635,7 +635,11 @@ async function renderView(modPath, params = [], ctx = {}) {
     search.dispatchEvent(new global.window.Event('input'));
     const shown = items.filter(el => !el.hidden).length;
     t('help: Suche filtert', shown >= 1 && shown < items.length, `${shown} Treffer`);
-    t('help: Doku-Links', view.querySelectorAll('.help-links a[href^="https://github.com/"]').length >= 3);
+    // v2.14.0 — jeder Link zeigt auf eine Seite aus lib/docs.js (DocsIntegrityTest prüft, dass es sie gibt)
+    const docs = await import(`${ROOT}/lib/docs.js`);
+    const hrefs = [...view.querySelectorAll('.help-links a')].map(a => a.getAttribute('href') || '');
+    t('help: Doku-Links auf echte Seiten', hrefs.length === 6 && hrefs.every(h => docs.DOC_PATHS.some(p => h.endsWith('/' + p))), hrefs.join(' '));
+    t('help: FAQ und Fehlersuche verlinkt', hrefs.some(h => /einstieg\/faq\.md$/.test(h)) && hrefs.some(h => /betrieb\/fehlersuche\.md$/.test(h)));
     t('help: Checkliste Erste Schritte', !!view.querySelector('[data-role="setup"] .setup-list, [data-role="setup"] .banner--success'));
   } catch (e) { t('help: render', false, e.message); }
 

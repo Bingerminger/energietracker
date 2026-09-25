@@ -227,7 +227,7 @@
       "savedEmpty": "{ok} gespeichert · {skipped} leer",
       "saved": "{ok} gespeichert",
       "nothing": "Keine Eingaben — nichts zu speichern",
-      "held": "{count} Stand/Stände nicht gespeichert – bitte die markierten Karten prüfen.",
+      "held": { "one": "{count} Stand nicht gespeichert – bitte die markierte Karte prüfen.", "other": "{count} Stände nicht gespeichert – bitte die markierten Karten prüfen." },
       "undone": {
         "one": "1 Zählerstand zurückgenommen",
         "other": "{count} Zählerstände zurückgenommen"
@@ -757,10 +757,10 @@
     "empty": "Noch keine Zähler.",
     "emptyCta": "+ Neuen Zähler anlegen",
     "summary": {
-      "meters": "{count} Zähler",
-      "active": "{count} aktiv",
-      "sub": "{count} Subzähler",
-      "groups": "{count} Gruppe(n)"
+      "meters": { "one": "{count} Zähler", "other": "{count} Zähler" },
+      "active": { "one": "{count} aktiv", "other": "{count} aktiv" },
+      "sub": { "one": "{count} Subzähler", "other": "{count} Subzähler" },
+      "groups": { "one": "{count} Gruppe", "other": "{count} Gruppen" }
     },
     "groupsBar": { "label": "Zählergruppen:", "dissolveTitle": "Gruppe auflösen" },
     "deleteGroup": {
@@ -2284,7 +2284,9 @@
       "compendium": "Handbuch und Methodik",
       "glossary": "Glossar und Formeln",
       "homeAssistant": "Home Assistant anbinden",
-      "englishOnly": "Die Dokumentation gibt es auf Deutsch und Englisch; die Links führen zur englischen Fassung."
+      "englishOnly": "Die Dokumentation gibt es auf Deutsch und Englisch; die Links führen zur englischen Fassung.",
+      "faq": "Häufige Fragen",
+      "troubleshoot": "Fehlersuche"
     },
     "support": {
       "title": "Fragen und Fehler",

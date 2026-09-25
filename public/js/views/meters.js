@@ -45,11 +45,12 @@ async function refresh(container, u) {
   // C — Übersichtszeile aus den bereits geladenen Daten.
   const activeCount = meters.filter(m => m.active !== false).length;
   const subCount    = meters.filter(m => m.parent_meter_id).length;
+  // v2.14.0 — Pluralformen („1 meter“ statt „1 meters“, „1 Gruppe“ statt „1 Gruppe(n)“)
   const summaryLine = meters.length ? [
-    t('meters.summary.meters', { count: meters.length }),
-    t('meters.summary.active', { count: activeCount }),
-    ...(subCount ? [t('meters.summary.sub', { count: subCount })] : []),
-    ...(groups.length ? [t('meters.summary.groups', { count: groups.length })] : []),
+    tp('meters.summary.meters', meters.length),
+    tp('meters.summary.active', activeCount),
+    ...(subCount ? [tp('meters.summary.sub', subCount)] : []),
+    ...(groups.length ? [tp('meters.summary.groups', groups.length)] : []),
   ].join(' · ') : '';
 
   container.innerHTML = `

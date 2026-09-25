@@ -28,7 +28,7 @@ Fixes are made on the latest release. Please update before reporting — the
 Without sign-in, anyone who can reach the app can read and change all data.
 How to protect an installation — sign-in, VPN, reverse proxy, HTTPS, web server
 rules — is described in
-[Security & network operation](docs/en/technical/08-security.md).
+[Security & network operation](docs/en/betrieb/sicherheit.md).
 
 ---
 
@@ -61,4 +61,4 @@ aktualisieren — was sich geändert hat, steht im [CHANGELOG](CHANGELOG.md).
 Ohne Anmeldung kann jeder, der die App erreicht, alle Daten lesen und ändern.
 Wie man eine Installation schützt — Anmeldung, VPN, Reverse-Proxy, HTTPS,
 Webserver-Regeln —, steht in
-[Sicherheit & Netzbetrieb](docs/technical/08-security.md).
+[Sicherheit & Netzbetrieb](docs/betrieb/sicherheit.md).

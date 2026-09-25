@@ -227,7 +227,7 @@
       "savedEmpty": "{ok} guardados · {skipped} vazios",
       "saved": "{ok} guardados",
       "nothing": "Sem entradas — nada para guardar",
-      "held": "{count} leitura(s) não guardada(s) – verifique os cartões assinalados.",
+      "held": { "one": "{count} leitura não guardada – verifique o cartão assinalado.", "other": "{count} leituras não guardadas – verifique os cartões assinalados." },
       "undone": {
         "one": "1 leitura anulada",
         "other": "{count} leituras anuladas"
@@ -757,10 +757,10 @@
     "empty": "Ainda sem contadores.",
     "emptyCta": "+ Adicionar um novo contador",
     "summary": {
-      "meters": "{count} contadores",
-      "active": "{count} ativos",
-      "sub": "{count} subcontadores",
-      "groups": "{count} grupo(s)"
+      "meters": { "one": "{count} contador", "other": "{count} contadores" },
+      "active": { "one": "{count} ativo", "other": "{count} ativos" },
+      "sub": { "one": "{count} subcontador", "other": "{count} subcontadores" },
+      "groups": { "one": "{count} grupo", "other": "{count} grupos" }
     },
     "groupsBar": { "label": "Grupos de contadores:", "dissolveTitle": "Dissolver o grupo" },
     "deleteGroup": {
@@ -2284,7 +2284,9 @@
       "compendium": "Manual e metodologia",
       "glossary": "Glossário e fórmulas",
       "homeAssistant": "Ligar o Home Assistant",
-      "englishOnly": "A documentação existe em alemão e inglês; as ligações levam à versão inglesa."
+      "englishOnly": "A documentação existe em alemão e inglês; as ligações levam à versão inglesa.",
+      "faq": "Perguntas frequentes",
+      "troubleshoot": "Resolução de problemas"
     },
     "support": {
       "title": "Perguntas e erros",

@@ -227,7 +227,7 @@
       "savedEmpty": "{ok} saved · {skipped} empty",
       "saved": "{ok} saved",
       "nothing": "No entries — nothing to save",
-      "held": "{count} reading(s) not saved – please check the marked cards.",
+      "held": { "one": "{count} reading not saved – please check the marked card.", "other": "{count} readings not saved – please check the marked cards." },
       "undone": {
         "one": "1 reading undone",
         "other": "{count} readings undone"
@@ -289,7 +289,7 @@
       "consumedMonthsWater": "{months} months · {m3} m³",
       "consumedMonths": "{months} months · {kwh} kWh",
       "breakdownConsumption": "{value} usage",
-      "breakdownBase": "+ {value} base price",
+      "breakdownBase": "+ {value} standing charge",
       "breakdownBonus": "− {value} bonus",
       "waterTw": "{value} drink.",
       "waterSw": "+ {value} waste",
@@ -324,17 +324,17 @@
       "basisSep": "sep. meter",
       "basisTw": "drinking-water usage",
       "perMonthShort": "{value}/month",
-      "gpMonth": "base charge {value} {cur}/month",
+      "gpMonth": "standing charge {value} {cur}/month",
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/yr · {m2} m²",
       "consShort": "{value} usage",
-      "gpPlus": " + {value} base charge",
+      "gpPlus": " + {value} standing charge",
       "suggestAdvance": "With an advance of {suggested} instead of {current}, the bill would come out at about ±0.",
       "measuredThenEstimated": "measured up to {date} ({kwh} kWh), estimated since: {value}",
       "renewed": "The term ended on {date}. Without cancellation the contract runs on at its last prices and can be cancelled any time with at most one month’s notice.",
       "cancelMissed": "Cancellation deadline {date} missed: the contract does not end on {end} but runs on — after that it can be cancelled with at most one month’s notice.",
       "priceIncrease": "Price increase from {date}: {what}.",
-      "piWorking": "energy price {from} → {to} {minor}/kWh",
+      "piWorking": "unit price {from} → {to} {minor}/kWh",
       "piBase": "standing charge {from} → {to} {cur}/month",
       "priceIncreaseDe": "Until then you have a special right to cancel effective on the day of the increase (§ 41 (5) EnWG)."
     },
@@ -356,7 +356,7 @@
       "statePast": "PAST",
       "stateFuture": "FUTURE",
       "periodOpen": "{start} → ongoing",
-      "gpSuffix": "base charge {value} {cur}/month",
+      "gpSuffix": "standing charge {value} {cur}/month",
       "colSpecial": "Special payments",
       "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Tap to see the individual items; they are maintained in the contract management.",
       "stateRenewed": "RENEWED",
@@ -566,7 +566,7 @@
     "newContract": "+ New contract",
     "delivery": {
       "bannerTitle": "{label} has no contracts.",
-      "bannerText": "Unlike gas, electricity, water or district heating, there is no supply contract with working and base prices here. Costs come directly from each delivery/tank invoice (quantity × price per {unit}, or the recorded total amount). A tariff comparison with shadow contracts also does not apply to {label}.",
+      "bannerText": "Unlike gas, electricity, water or district heating, there is no supply contract with unit prices and standing charges here. Costs come directly from each delivery/tank invoice (quantity × price per {unit}, or the recorded total amount). A tariff comparison with shadow contracts also does not apply to {label}.",
       "toDeliveries": "→ To the deliveries"
     },
     "metersWarning": "Add meters first before creating contracts.",
@@ -604,19 +604,19 @@
         "other": "{count} bonuses"
       },
       "workingPrices": {
-        "one": "{count} working price",
-        "other": "{count} working prices"
+        "one": "{count} unit price",
+        "other": "{count} unit prices"
       },
       "basePrices": {
-        "one": "{count} base price",
-        "other": "{count} base prices"
+        "one": "{count} standing charge",
+        "other": "{count} standing charges"
       },
       "specialPayments": {
         "one": "{count} special payment",
         "other": "{count} special payments"
       }
     },
-    "group": { "working": "Working price", "base": "Base price", "advance": "Advance", "addRow": "+ Row" },
+    "group": { "working": "Unit price", "base": "Standing charge", "advance": "Advance", "addRow": "+ Row" },
     "row": {
       "validFrom": "Valid from",
       "copyStart": "From start",
@@ -713,7 +713,7 @@
       "advances": "💰 Advances",
       "bonuses": "🎁 Bonuses",
       "twWorking": "Price per m³ ({minor}/m³)",
-      "twBase": "Base price ({cur}/month)",
+      "twBase": "Standing charge ({cur}/month)",
       "basis": "Calculation basis",
       "basisTw": "from drinking-water usage (default)",
       "basisSep": "separate waste-water meter",
@@ -757,10 +757,10 @@
     "empty": "No meters yet.",
     "emptyCta": "+ Add a new meter",
     "summary": {
-      "meters": "{count} meters",
-      "active": "{count} active",
-      "sub": "{count} sub-meters",
-      "groups": "{count} group(s)"
+      "meters": { "one": "{count} meter", "other": "{count} meters" },
+      "active": { "one": "{count} active", "other": "{count} active" },
+      "sub": { "one": "{count} sub-meter", "other": "{count} sub-meters" },
+      "groups": { "one": "{count} group", "other": "{count} groups" }
     },
     "groupsBar": { "label": "Meter groups:", "dissolveTitle": "Dissolve group" },
     "deleteGroup": {
@@ -1566,10 +1566,10 @@
       "start": "Valid from",
       "workingPrice": "Unit price ({minor}/{unit})",
       "workingPlaceholder": "e.g. 8.50",
-      "basePrice": "Base price ({cur}/month)",
+      "basePrice": "Standing charge ({cur}/month)",
       "basePlaceholder": "e.g. 12.00",
       "create": "Create",
-      "validation": "Label, date and working price are required",
+      "validation": "Label, date and unit price are required",
       "created": "Shadow contract created",
       "error": "Error: {msg}",
       "titleEdit": "Edit offer",
@@ -1757,7 +1757,7 @@
     "models": { "linear": "Linear", "polynomial": "Polynomial (degree 2)", "robust": "Robust (Huber)", "segmented": "Segmented (heating/summer)", "sigmoid": "Sigmoid (heating signature)", "seasonalOnly": "seasonal profile only" },
     "chartHist": "History",
     "chartForecast": "Forecast",
-    "info": "Model: <strong>{model}</strong> · heating-curve share: <strong>{blend}%</strong>{r2} · last working price: <strong>{price} {minor}/{unit}</strong>",
+    "info": "Model: <strong>{model}</strong> · heating-curve share: <strong>{blend}%</strong>{r2} · last unit price: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Projected balance at the end of the horizon:",
     "balanceSurcharge": "back-payment",
     "balanceCredit": "credit",
@@ -2284,11 +2284,13 @@
       "compendium": "Handbook and methodology",
       "glossary": "Glossary and formulas",
       "homeAssistant": "Connect Home Assistant",
-      "englishOnly": "The documentation exists in German and English; the links lead to the English version."
+      "englishOnly": "The documentation exists in German and English; the links lead to the English version.",
+      "faq": "Frequently asked questions",
+      "troubleshoot": "Troubleshooting"
     },
     "support": {
       "title": "Questions and bugs",
-      "text": "Questions, requests and bug reports go to the GitHub project. For a bug report, the diagnostics under Settings → System help.",
+      "text": "Questions, requests and bug reports go to the GitHub project. A bug report is easier with the details from the diagnostics under Settings → System.",
       "issues": "Open the GitHub project",
       "diagnostics": "Open diagnostics"
     },

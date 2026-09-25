@@ -1,0 +1,64 @@
+name: Fehler melden / Report a bug
+description: Etwas funktioniert nicht wie beschrieben / Something does not work as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke! Bitte vorher kurz in die [Fehlersuche](https://github.com/Bingerminger/energietracker/blob/main/docs/betrieb/fehlersuche.md) schauen.
+        Thanks! Please check [Troubleshooting](https://github.com/Bingerminger/energietracker/blob/main/docs/en/betrieb/fehlersuche.md) first.
+
+        **Sicherheitslücken nicht hier melden / Do not report security issues here** — see [SECURITY.md](https://github.com/Bingerminger/energietracker/blob/main/SECURITY.md).
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Einstellungen → System / Settings → System
+      placeholder: "2.14.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Betrieb / Installation
+      options:
+        - Docker / Docker Compose
+        - Synology (Container Manager)
+        - Synology (Web Station)
+        - Apache / nginx
+        - PHP-Server (php -S)
+        - Andere / Other
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Gerät und Browser / Device and browser
+      placeholder: "iPhone, Safari · Mac, Firefox 142 …"
+  - type: textarea
+    id: what
+    attributes:
+      label: Was passiert? / What happens?
+      description: Und was hättest du erwartet? / And what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte / Steps to reproduce
+      placeholder: |
+        1. …
+        2. …
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnose / Diagnostics
+      description: Einstellungen → System → System-Diagnose — den Text markieren und hier einfügen / Settings → System → System diagnostics — select the text and paste it here
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Datenschutz / Privacy
+      options:
+        - label: Keine persönlichen Daten im Text (Zählpunkt- oder Vertragsnummern, Adressen, echte Beträge) — das Repository ist öffentlich. / No personal data in the text (metering point or contract numbers, addresses, real amounts) — the repository is public.
+          required: true

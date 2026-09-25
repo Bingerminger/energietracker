@@ -37,9 +37,11 @@ export async function render(container, _params = [], ctx = {}) {
         <h2 class="card__title" id="help-docs">${escapeHtml(t('help.docs.title'))}</h2>
         <ul class="help-links">
           ${doc('start', 'help.docs.start')}
+          ${doc('faq', 'help.docs.faq')}
           ${doc('compendium', 'help.docs.compendium')}
           ${doc('glossary', 'help.docs.glossary')}
           ${doc('homeAssistant', 'help.docs.homeAssistant')}
+          ${doc('troubleshoot', 'help.docs.troubleshoot')}
         </ul>
         ${docsInOtherLanguage() ? `<p class="muted small">${escapeHtml(t('help.docs.englishOnly'))}</p>` : ''}
 

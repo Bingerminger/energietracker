@@ -227,7 +227,7 @@
       "savedEmpty": "{ok} salvati · {skipped} vuoti",
       "saved": "{ok} salvati",
       "nothing": "Nessun inserimento — niente da salvare",
-      "held": "{count} lettura/e non salvata/e – controlla le schede segnalate.",
+      "held": { "one": "{count} lettura non salvata – controlla la scheda segnalata.", "other": "{count} letture non salvate – controlla le schede segnalate." },
       "undone": {
         "one": "1 lettura annullata",
         "other": "{count} letture annullate"
@@ -757,10 +757,10 @@
     "empty": "Ancora nessun contatore.",
     "emptyCta": "+ Aggiungi un nuovo contatore",
     "summary": {
-      "meters": "{count} contatori",
-      "active": "{count} attivi",
-      "sub": "{count} sotto-contatori",
-      "groups": "{count} gruppo/i"
+      "meters": { "one": "{count} contatore", "other": "{count} contatori" },
+      "active": { "one": "{count} attivo", "other": "{count} attivi" },
+      "sub": { "one": "{count} sotto-contatore", "other": "{count} sotto-contatori" },
+      "groups": { "one": "{count} gruppo", "other": "{count} gruppi" }
     },
     "groupsBar": { "label": "Gruppi di contatori:", "dissolveTitle": "Sciogli il gruppo" },
     "deleteGroup": {
@@ -2284,7 +2284,9 @@
       "compendium": "Manuale e metodologia",
       "glossary": "Glossario e formule",
       "homeAssistant": "Collegare Home Assistant",
-      "englishOnly": "La documentazione esiste in tedesco e in inglese; i link portano alla versione inglese."
+      "englishOnly": "La documentazione esiste in tedesco e in inglese; i link portano alla versione inglese.",
+      "faq": "Domande frequenti",
+      "troubleshoot": "Risoluzione dei problemi"
     },
     "support": {
       "title": "Domande ed errori",

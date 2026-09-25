@@ -6,6 +6,123 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.14.0] — 2026-09-25 — Nachlesbar
+
+MINOR-Release, zweiter Teil von Paket E des Gesamtreviews („Versteht sich von
+selbst“): die Dokumentation, geordnet nach dem, was man vorhat. **Kein
+Schema-Wechsel** (bleibt 1.6.0), **keine Änderung an der API**.
+
+### ⚠️ Für bestehende Installationen
+
+- **Die Doku ist umgezogen.** `docs/` gliedert sich in Einstieg, Anleitungen,
+  Verstehen, Referenz, Betrieb und Entwicklung; die englische Fassung liegt
+  unter `docs/en/` mit denselben Dateinamen. Alle 61 alten Pfade — etwa
+  `docs/HOME-ASSISTANT.md` oder `docs/technical/03-api-reference.md` — bleiben
+  als Weiterleitung stehen: Lesezeichen, Links aus Foren und Issues und die
+  Hilfe älterer Versionen führen weiter ans Ziel.
+- **`scripts/init_data.py` ist veraltet** und entfällt mit v3.0.0. Es kennt nur
+  Gas und Strom und schreibt fest nach `./data`, also nicht in einen Container.
+  Stattdessen den CSV-Import an der Zählerkarte nutzen (⚙️ Zähler →
+  CSV-Import). `--help` zeigt jetzt die Beschreibung — bis v2.13 startete auch
+  dieser Aufruf den Import, und die Installationsanleitung empfahl genau ihn.
+
+### Added
+
+- **Neue Seiten, Deutsch und Englisch (Review DOC-09, DOC-16, DOC-20):**
+  - *Was der Energietracker kann* — alle Funktionen auf einer Seite, nach
+    Fragen geordnet.
+  - *Fragen und Antworten* — 20 Fragen, von „Brauche ich Home Assistant oder
+    einen Smart Meter?“ bis „Welche Daten verlassen meinen Server?“.
+  - *Auf dem Handy nutzen* — im Heimnetz aufrufen, als App auf den
+    Home-Bildschirm legen, schnell ablesen, was ohne Netz geht.
+  - *Jahresabrechnung eintragen und prüfen* — Schritt für Schritt an einer
+    erfundenen Beispielrechnung: Stände, Gasfaktoren, Vertrag, Nachrechnen,
+    Saldo vergleichen, Guthaben buchen.
+  - *Fehlersuche* — Symptom, Ursache, Abhilfe für Start, Speichern, Rechnen
+    und Home Assistant, darunter Docker Desktop mit `mounts denied`.
+  - *Webserver: Apache und nginx* — eine Fassung nach den getesteten Regeln
+    des Docker-Images und der `.htaccess` statt dreier auseinanderlaufender.
+  - *Einstellungen — alle Schlüssel* — alle 60 Schlüssel mit Ort in der
+    Oberfläche, Standard und Wirkung, die veralteten gekennzeichnet.
+- **Hilfe:** Links zu „Häufige Fragen“ und „Fehlersuche“, in allen sieben
+  Sprachen beschriftet.
+- **Englische Screenshots (Review DOC-13, DOC-19):** 17 Aufnahmen der
+  englischen Oberfläche für die englische Ansichtsreferenz und Anleitung —
+  bisher zeigten beide die deutsche.
+- **Mitwirken (Review DOC-23):** `CONTRIBUTING.md` / `CONTRIBUTING.de.md` mit
+  Einrichtung, Tests, Grundsätzen, Doku-Regeln und dem Weg zu einer neuen
+  Sprache; Vorlagen für Fehlermeldungen und Wünsche auf GitHub (Version,
+  Betriebsart, Diagnose, Hinweis auf das öffentliche Repository).
+
+### Changed
+
+- **README als Schaufenster (Review DOC-06, DOC-07, MKT-01, MKT-23):** was die
+  App beantwortet, für wen, was sie neben dem Energie-Dashboard von Home
+  Assistant kann, Schnellstart, was mit den Daten geschieht, Hilfe, Länder,
+  Ausblick — in 140 statt rund 600 Zeilen; die Einzelheiten stehen in der Doku.
+  INSTALL ist entsprechend kürzer.
+- **Kompendium-Index** nach Zielgruppen, mit Einstieg für Neue; die Roadmap
+  beginnt mit einer Kurzfassung (jetzt, als Nächstes, bewusst nicht).
+- **Datenfluss & Algorithmen** ersetzt `docs/ARCHITECTURE.md` (Stand v1.4.4,
+  Review DOC-12): Was die Architektur-Seite schon beschreibt, ist entfallen;
+  geblieben sind der Weg vom Stand zum Saldo, die Prognose, der erste Start und
+  das lokale Ausprobieren. Die API-Beispiele verweisen auf die Referenz als
+  maßgebliche Quelle.
+- **Englisch einheitlich (Review DOC-19):** „unit price“ und „standing charge“
+  in Oberfläche und Doku, statt „working price“, „energy price“, „base price“
+  und „base charge“ für dieselben zwei Dinge.
+- **Pluralformen:** Die Zählerübersicht sagt „1 Gruppe“ statt „1 Gruppe(n)“
+  (englisch „1 meter“ statt „1 meters“), die Meldung zurückgestellter Stände
+  „1 Stand“ statt „Stand/Stände“ — in allen sieben Sprachen.
+- Anleitungen nennen Menüpunkte so, wie die App sie heute nennt
+  („Auswertungen → Analyse“, „Zu Gruppe zusammenfassen“).
+
+### Removed
+
+- Die SVG-Entwürfe unter `docs/screenshots/` (Review DOC-12) — seit v1.9.3
+  durch echte Aufnahmen ersetzt und nirgends mehr verlinkt.
+
+### Fixed
+
+- **Doku-Index (Review DOC-11):** „Alle 68 Endpunkte“ — es sind 86; die
+  Referenz selbst war vollständig, nur der Index nicht.
+- **Englische Hilfe:** Der Hinweis zur Diagnose war missverständlich
+  formuliert.
+
+### Migration
+
+Keine. Schema bleibt 1.6.0.
+
+### Tests
+
+- `DocsIntegrityTest` (neu, +6, Review DOC-11): jeder relative Link und jedes
+  Bild in exakter Schreibweise, jeder Anker, der englische Spiegel jeder Seite,
+  keine Links auf Weiterleitungen, der Index vollständig, die
+  Einstellungsreferenz gegen `SettingsService::DEFAULTS` und jeder Doku-Link
+  der App gegen echte Seiten.
+- `LocaleCatalogTest` (+1): Jeder Schlüssel, den der Code an `tp()`
+  übergibt, hat in jeder Sprache `one` und `other` — die Literalprüfung sah
+  nur `t()`; dazu die Zusatzkategorien einzelner Sprachen.
+  `ReleaseConsistencyTest` und `ha-snippet.test.mjs` auf die neuen Pfade.
+- Browser-Render 157/157 (+1): Die Hilfe verlinkt sechs echte Seiten,
+  darunter FAQ und Fehlersuche.
+- 455 Testmethoden. 14 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Eine Doku ohne Test verrottet** — der Index versprach 68 Endpunkte, als es
+  86 waren. Ein Linkprüfer muss Groß und klein unterscheiden, auch wenn der
+  Mac es nicht tut.
+- **Umziehen heißt weiterleiten** — auf alte Pfade zeigen Leute, die man nicht
+  erreicht.
+- **Ein dokumentierter Befehl muss einmal gelaufen sein** — `--help` startete
+  einen Import.
+- **Eine Übersetzung braucht ein Glossar** — vier Wörter für zwei Begriffe.
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
+---
+
 ## [2.13.0] — 2026-09-25 — Erklärt
 
 MINOR-Release, erster Teil von Paket E des Gesamtreviews („Versteht sich von
@@ -535,7 +652,7 @@ Migration wie gewohnt.
 - Eine Einheit an der Oberfläche ist eine Behauptung, die ein Test prüfen muss.
 - Ein Kennzeichen wirkt nur, wo es gelesen wird.
 
-Ausführlich: [Release-Prozess §5](docs/technical/06-release-process.md).
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
 
 ---
 
@@ -676,7 +793,7 @@ Kündigungsfrist bleibt in Monaten.
 - Ein Vergleich braucht denselben Zeitraum.
 - Eine wirkungslose Einstellung entfernt man nicht still aus der API.
 
-Ausführlich: [Release-Prozess §5](docs/technical/06-release-process.md).
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
 
 ---
 
@@ -875,7 +992,7 @@ ein Zehntel an, und der Saldo zählte Abschläge nur für abgelesene Monate
   Heizanteil-Skalierung nach VDI 3807 machte im PDF der Demo aus einem warmen
   September +32 %. Aufgefallen ist es erst im fertigen Bericht, nicht im Test.
 
-Ausführlich: [Release-Prozess §5](docs/technical/06-release-process.md).
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
 
 ---
 
@@ -933,7 +1050,7 @@ Königreich (Review I18N-01 bis -05, I18N-17 teilweise, MKT-21).
 - **Temperaturen:** Hinweis, wenn der Standort noch die Voreinstellung des
   Landes ist (die Gradtagzahlen rechnen dann mit dem Wetter eines anderen Orts).
 - **`GET /api/countries`** — die Profile (Klasse C).
-- Neues Kapitel [Länderprofile](docs/functional/14-laenderprofile.md) (DE/EN).
+- Neues Kapitel [Länderprofile](docs/verstehen/14-laenderprofile.md) (DE/EN).
 
 ### Changed
 
@@ -1038,7 +1155,7 @@ ein fehlerhaftes Backup legte danach Übersicht und Auswertungen lahm.
 - **Apache/Synology:** Die `.htaccess` sperrt jetzt `data/`, `src/`, `.git/`
   und andere Nicht-Auslieferungsdateien (404). Voraussetzung wie bisher für die
   Cache-Regeln: `AllowOverride FileInfo` und `mod_rewrite`. Prüfen:
-  [Sicherheit → Webserver](docs/technical/08-security.md).
+  [Sicherheit → Webserver](docs/betrieb/sicherheit.md).
 - **Home Assistant:** Ein Wert, der **kleiner** ist als der vorige desselben
   Zählers, wird weiter angenommen (201), aber als Verdacht markiert und zählt
   erst nach Bestätigung. Wer die Anmeldung einschaltet, braucht für den Push
@@ -1122,7 +1239,7 @@ ein fehlerhaftes Backup legte danach Übersicht und Auswertungen lahm.
   Skripte werten ihn statt des übersetzten Texts aus.
 - **Stabilitätszusage** mit drei Klassen (Fremdsysteme, Auswertungen,
   Oberfläche) und Regeln für Änderungen — siehe
-  [API-Referenz](docs/technical/03-api-reference.md).
+  [API-Referenz](docs/referenz/api.md).
 - `HEAD` wie `GET`, falsche Methode → `405` mit `Allow` (bisher 404);
   unbekannter Datensatz in der URL einheitlich `404` (bisher teils 400).
 - `/api/health`: `status` (ok/degraded/error), `checks`, `last_ingest`,
@@ -1188,7 +1305,7 @@ Fehlversuch und Sitzung über Neuladen, Schlüssel, Snapshots, Import mit
 Vorschau und Fundstellen, 409-Rückfrage, Rückfragen bei der Erfassung,
 Verdacht bestätigen, Zählwerk-Stellen — bei 1440, 393 und 375 px.
 
-**Doku** DE + EN: neues Kapitel [Sicherheit & Netzbetrieb](docs/technical/08-security.md),
+**Doku** DE + EN: neues Kapitel [Sicherheit & Netzbetrieb](docs/betrieb/sicherheit.md),
 `SECURITY.md`, API-Referenz (Anmeldung, Fehlercodes, Stabilitätszusage,
 12 neue Routen), `docs/API.md` an den Code angeglichen, Datenmodell,
 Installation, Docker, Home Assistant, Zählerstände, UI-Referenz mit drei neuen
@@ -2773,7 +2890,7 @@ Forenanleitung durch eine saubere, abwärtskompatible Lösung. Schema-Migration
 - **Einstellungs-Sektion „🏠 Home-Assistant-Anbindung".** Token
   erzeugen/anzeigen (einmalig)/widerrufen, Zähler-Aliase pflegen und ein
   fertiges, kopierbares HA-`rest_command`-YAML-Snippet.
-- **Doku:** neue [`docs/HOME-ASSISTANT.md`](docs/HOME-ASSISTANT.md) mit
+- **Doku:** neue [`docs/HOME-ASSISTANT.md`](docs/anleitungen/home-assistant.md) mit
   Schritt-für-Schritt-Anleitung, Fehlersuche und zwei Use-Cases (Eigenheim mit
   PV/Fernwärme, Mietwohnung Strom/Gas/Wasser); `docs/API.md` um Auth- und
   Ingest-Endpoints erweitert.
@@ -3051,11 +3168,11 @@ Demo-Daten — bestehende User-Daten unberührt.
     ~46 %, EEG-Einspeisevergütung 8,2 ct/kWh (IB 04/2023 nach § 48 EEG
     2023). `demo-data/settings.json` aktiviert beide PV-Utilities.
 - **Szenario-Doku für PV**:
-  - [`docs/functional/08-szenario-eigenheim.md`](docs/functional/08-szenario-eigenheim.md)
+  - [`docs/functional/08-szenario-eigenheim.md`](docs/verstehen/08-szenario-eigenheim.md)
     um Sektion 6 „Photovoltaik — Einrichtung und Lesart" erweitert
     (welche Zähler bei welcher Anlage, EEG-Sätze, Strom-Saldo-Lesart,
     Autarkie- und EV-Quote, CO₂-als-vermieden, Erfassungs-Disziplin).
-  - [`docs/functional/07-szenario-wohnung.md`](docs/functional/07-szenario-wohnung.md)
+  - [`docs/functional/07-szenario-wohnung.md`](docs/verstehen/07-szenario-wohnung.md)
     um Sektion 7 „Sonderfall Balkonkraftwerk" ergänzt (warum
     `pv_einspeisung` dort nichts bringt, `pv_erzeugung` optional als
     Performance-Kontrolle).
@@ -3145,7 +3262,7 @@ hat.
 - Neue Frontend-API-Wrapper `api.stromSaldo()`, `api.pvSummary()`,
   `api.health()`.
 - Neues Konzept-Dokument
-  [`docs/functional/12-pv.md`](docs/functional/12-pv.md).
+  [`docs/functional/12-pv.md`](docs/verstehen/12-pv.md).
 
 ### Changed
 
@@ -3476,7 +3593,7 @@ löschen und neu anlegen (sie bekommt dann mit v1.6.1 die korrekte
   Toast zusammen. Nach erfolgreichem Speichern wird der „letzter
   Stand" in der Karte aktualisiert.
 
-- **Doku.** Neue Seite [`docs/functional/11-zaehlerstaende.md`](docs/functional/11-zaehlerstaende.md)
+- **Doku.** Neue Seite [`docs/functional/11-zaehlerstaende.md`](docs/verstehen/11-zaehlerstaende.md)
   mit Aufbau, Validierungsregeln, Mobile-First-Designentscheidungen
   und expliziter Liste der bewusst nicht in v1.6.0 enthaltenen
   Features (Foto, Offline-Cache, OCR, Batch-Endpoint).
@@ -4292,7 +4409,7 @@ Single-File-PHP-Backend, Vanilla-JS-SPA-Frontend, flat-file JSON-Persistenz.
 Eine private Vorgängerversion existierte unter dem Namen *Energietracker
 v0.9.0* (Backup-Format `version: "2.1"`). Backups aus dieser Version
 können mit dem eingebauten Migrator importiert werden — siehe
-[`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md). Außerhalb
+[`docs/MIGRATION-FROM-V090.md`](docs/anleitungen/migration-v090.md). Außerhalb
 dieses Migrationspfads ist v0.9.0 für die öffentliche Codebase irrelevant.
 
 ### Funktionen

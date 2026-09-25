@@ -227,7 +227,7 @@
       "savedEmpty": "{ok} enregistrés · {skipped} vides",
       "saved": "{ok} enregistrés",
       "nothing": "Aucune saisie — rien à enregistrer",
-      "held": "{count} relevé(s) non enregistré(s) – vérifiez les cartes signalées.",
+      "held": { "one": "{count} relevé non enregistré – vérifiez la carte signalée.", "other": "{count} relevés non enregistrés – vérifiez les cartes signalées." },
       "undone": {
         "one": "1 relevé annulé",
         "other": "{count} relevés annulés"
@@ -757,10 +757,10 @@
     "empty": "Aucun compteur pour l’instant.",
     "emptyCta": "+ Ajouter un nouveau compteur",
     "summary": {
-      "meters": "{count} compteurs",
-      "active": "{count} actifs",
-      "sub": "{count} sous-compteurs",
-      "groups": "{count} groupe(s)"
+      "meters": { "one": "{count} compteur", "other": "{count} compteurs" },
+      "active": { "one": "{count} actif", "other": "{count} actifs" },
+      "sub": { "one": "{count} sous-compteur", "other": "{count} sous-compteurs" },
+      "groups": { "one": "{count} groupe", "other": "{count} groupes" }
     },
     "groupsBar": { "label": "Groupes de compteurs :", "dissolveTitle": "Dissoudre le groupe" },
     "deleteGroup": {
@@ -2284,7 +2284,9 @@
       "compendium": "Manuel et méthodologie",
       "glossary": "Glossaire et formules",
       "homeAssistant": "Connecter Home Assistant",
-      "englishOnly": "La documentation existe en allemand et en anglais ; les liens mènent à la version anglaise."
+      "englishOnly": "La documentation existe en allemand et en anglais ; les liens mènent à la version anglaise.",
+      "faq": "Questions fréquentes",
+      "troubleshoot": "Dépannage"
     },
     "support": {
       "title": "Questions et bugs",

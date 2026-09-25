@@ -3,606 +3,139 @@
 
 # Energietracker
 
+**Home Assistant misst — der Energietracker rechnet ab.** Zählerstände rein,
+Antworten raus: Bekomme ich Geld zurück? Stimmt die Gasrechnung? Lohnt sich der
+Wechsel? Habe ich mehr verbraucht, oder war es nur kälter?
+
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.13.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.14.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
-
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-448-success.svg)](tests/)
-[![PWA](https://img.shields.io/badge/PWA-installierbar-3d8bff.svg)](manifest.webmanifest)
-[![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
+[![Tests](https://img.shields.io/badge/Tests-455-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
-[![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-8-f59e0b.svg)](#funktionen)
-[![Selbst gehostet](https://img.shields.io/badge/100%25-selbst%20gehostet-16a34a.svg)](#schnellstart)
+[![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-8-f59e0b.svg)](docs/einstieg/funktionen.md)
+[![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 
-Selbst-gehostete Web-Anwendung zum Erfassen und Analysieren des eigenen
-Energie- und Wasserverbrauchs. Single-File PHP-Backend, Vanilla-JS SPA-Frontend,
-flat-file JSON-Persistenz — keine Datenbank, kein Server-Setup, **überhaupt
-keine Abhängigkeiten zur Laufzeit**. Chart.js und die Schriften liegen im
-Repository. Verbindungen nach außen gehen nur zu Open-Meteo: der
-Temperaturabgleich — höchstens einmal am Tag, übermittelt wird nur der auf
-rund 1 km gerundete Standort, abschaltbar unter *Einstellungen → Wetterdaten →
-Wetter automatisch füllen* (seit v2.8.0; vorher nur auf Knopfdruck) — und, nur
-wenn du dort deinen Ort suchst, der Suchtext (seit v2.12.0).
+<p align="center"><img src="docs/ui/screenshots/dashboard.png" alt="Übersicht mit „Zu tun“, Kennzahlen je Verbrauchsart und Verlauf" width="860"></p>
 
-Bis zu acht Verbrauchsarten parallel: **Gas**, **Strom**, **Wasser**,
-**Fernwärme**, **Heizöl** und **Pellets** (Heizöl/Pellets lieferbasiert
-statt zählerbasiert), plus seit v1.7.0 **PV-Einspeisung** und
-**PV-Erzeugung** für Photovoltaik-Eigentümer (kombinierter Strom-Saldo,
-Autarkiequote). Pro Verbrauchsart: mehrere Zähler mit voll
-modelliertem Zählertausch, beliebige Vertragshistorie mit
-Tarifänderungen, Grundpreis-Verlauf, Abschlägen und Boni. Daraus
-berechnet die App Monatsverbräuche (linear interpoliert bzw. energetisch
-bilanziert), Heizgradtage gegen das lokale Klima (30-jähriges Klimanormal am
-Standort), ein Heizmodell mit Grundlast, fünf Regressionsmodelle (linear,
-polynomial, robust, segmentiert mit datenbasiertem Knickpunkt, Sigmoid),
-modellbasierte Wetterbereinigung, eine Prognose mit Unsicherheitsband, eine
-Effizienzklasse (kWh/m²·a) und einen Saldo pro Vertrag — nach Kalender bis
-heute und als erwartete End-Saldierung, mit Abschlagsvorschlag. Dazu eine statistische Empfehlungs-Engine,
-Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
-PDF-Jahresbericht.
+## Was er beantwortet
 
-> **Status:** v2.13.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
-> betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
-> [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
-> v0.9.0 wird vom Migrator unterstützt.
+| Frage | Antwort in der App |
+|---|---|
+| Bekomme ich Geld zurück? | **Saldo** je Vertrag nach Kalender, erwartete Abrechnung und Abschlagsvorschlag — „Guthaben“ oder „Nachzahlung“ wie auf der Rechnung |
+| Stimmt meine Gasrechnung? | **Rechnungsprüfung**: m³ × Zustandszahl × Brennwert je Abschnitt, genau wie der Versorger rechnet |
+| Soll ich wechseln? | **Wechselentscheidung** mit Kündigungsfrist, Kosten ab dem zweiten Jahr und Gewinnschwelle |
+| Mehr verbraucht oder nur kälter? | **Wetterbereinigung** mit Heizgradtagen vom eigenen Standort und einem Heizmodell |
+| Was kommt auf mich zu? | **Prognose** mit Unsicherheitsband und Kosten je Monat aus dem gültigen Tarif |
+| Wie effizient ist das Haus? | **Effizienz** in kWh/m²·a und eine energieausweis-nahe Kennzahl |
 
-> 🌐 **Sprachen:** Die App-Oberfläche gibt es in **Deutsch, Englisch, Französisch,
-> Italienisch, Spanisch, Portugiesisch und Niederländisch**, umschaltbar unter
-> *Einstellungen → Allgemein → Sprache & Land*. Seit v2.7.0 setzen **Länderprofile** für
-> Deutschland, Österreich, die Schweiz, Frankreich, Italien, Spanien, Portugal,
-> die Niederlande und das Vereinigte Königreich Währung (EUR, CHF, GBP), Zahlen-
-> und Datumsformat, Zeitzone, Wetterstandort, Heizgrenze, CO₂-Faktor und
-> Gaseinheiten — siehe [Länderprofile](docs/functional/14-laenderprofile.md).
-> Die Dokumentation wird zweisprachig gepflegt
-> (Deutsch + Englisch); das Kompendium liegt vollständig auch auf Englisch vor
-> ([`docs/en/`](docs/en/README.md)) — Deutsch bleibt kanonisch und wird bei jedem
-> Release synchron gehalten.
+Acht Verbrauchsarten: Gas, Strom, Wasser, Fernwärme, Heizöl und Pellets (mit
+Tankbuch), PV-Einspeisung und PV-Erzeugung (Eigenverbrauch, Autarkie). Dazu
+Zählertausch, Subzähler und Gruppen, Termine, Empfehlungen, PDF-Jahresbericht
+— und eine Hilfe in der App mit Glossar und ⓘ an jeder Kennzahl.
+→ [Alle Funktionen](docs/einstieg/funktionen.md) ·
+[Alle Ansichten mit Screenshots](docs/referenz/ansichten.md)
 
-> 📚 **Vollständige Dokumentation:** Das getrennte technische und
-> fachliche Kompendium (Installation, API, Datenmodell, je Energieart
-> mit Formeln, Anwender-Szenarien, UI-Referenz) liegt unter
-> **[`docs/`](docs/README.md)**.
+<p align="center"><img src="docs/ui/screenshots/gas-view.png" alt="Gas: Saldo-Karte, Verträge und Monatstabelle" width="420"> <img src="docs/ui/screenshots/tarifvergleich.png" alt="Wechselentscheidung mit Angeboten" width="420"></p>
 
----
+## Für wen
 
-## Inhalt
+- **Haushalte**, die ihre Jahresabrechnung verstehen und vorhersehen wollen —
+  in der Mietwohnung wie im Eigenheim.
+- **Home-Assistant-Nutzer**: Home Assistant pusht die Zählerstände, der
+  Energietracker rechnet Verträge, Abschläge und Prognosen —
+  [Anleitung](docs/anleitungen/home-assistant.md).
+- **Tüftler**: offene REST-API, CSV und JSON-Backup, keine Datenbank.
 
-- [Funktionen](#funktionen)
-- [Dokumentation](#dokumentation)
-- [Schnellstart](#schnellstart)
-- [Datenmodell](#datenmodell)
-- [Verzeichnisstruktur](#verzeichnisstruktur)
-- [Migration aus v0.9.0](#migration-aus-v090)
-- [Weiterführende Dokumentation](#weiterführende-dokumentation)
-- [Mitwirken & Lizenz](#mitwirken--lizenz)
-
----
-
-## Funktionen
-
-### Dateneingabe
-
-- **Zählerstand-Tabelle** pro Utility mit Inline-Edit, Löschen, optionalen
-  Anmerkungen pro Ablesung und einem „geschätzt"-Flag für Korrekturen.
-- **Zukunfts-Readings** zum Vormerken geplanter Abrechnungstermine
-  (werden bei der Verbrauchsberechnung ignoriert, bleiben aber sichtbar).
-- **Zählertausch** als erstklassiges Datenmodell: ein Zähler bündelt
-  einen oder mehrere Geräte (Devices), inkl. Seriennummer, Einbaudatum,
-  Anfangs-/Endzähler und Begründung. Verbrauch wird über Tausch-Grenzen
-  hinweg korrekt berechnet (`(altes_final − vorheriges_reading) +
-  (aktuelles_reading − neues_initial)`).
-- **Mehrere Zähler pro Utility** mit unabhängigen Verträgen
-  (z.B. Hauptzähler + Gartenwasser-Zwischenzähler).
-- **Temperaturen** als CSV-Import (Format `TT.MM.JJJJ;Mittel;Min;Max`;
-  Tabulator und das alte Format mit Anführungszeichen werden ebenfalls gelesen)
-  oder per Open-Meteo für deinen Standort — per Ortssuche unter *Einstellungen →
-  Wetterdaten* (v2.12.0). Seit v2.8.0 täglich automatisch, Messwerte getrennt
-  von Vorhersagen, eigene Werte werden nie überschrieben.
-- **Gas-Umrechnung mit Stichtagen** (v2.5.0): Zustandszahl × Brennwert je
-  Periode, genau wie die Rechnung sie ausweist; tagesgenaue Teilung an
-  jedem Wechsel, dazu eine **Rechnungsprüfung**, die die Versorgerrechnung
-  Abschnitt für Abschnitt nachrechnet.
-- **CSV-Import von Ablesungen** je Zähler: eine Datei mit
-  `datum;zählerstand;notiz;geschätzt` einlesen — vorhandene Ablesungen am
-  selben Datum werden überschrieben und im Ergebnis gemeldet. Seit v2.6.0
-  erkennt der Import die Spalten an der Kopfzeile (auch das eigene
-  Exportformat) und wandelt Excel-Dateien in Windows-1252 um.
-- **Plausibilitätsprüfung** (v2.6.0): Vor dem Speichern fragt die App bei
-  Tippfehlern nach (mehr als das Dreifache des üblichen Tagesverbrauchs,
-  „Komma vergessen?"), bei einem kleineren Stand ohne Zählertausch, bei einem
-  Datum in der Zukunft und bei einem zweiten Stand am selben Tag (ersetzen
-  statt doppeln). Ausreißer und verdächtige Werte aus Home Assistant werden
-  angezeigt und bleiben bis zur Bestätigung aus der Rechnung; ein Überlauf des
-  Zählwerks (99.999 → 0) wird richtig gerechnet.
-
-### Verträge und Saldo
-
-- **Vertragshistorie** pro Zähler: Anbieter, Tarifname, Start/Ende,
-  freier Notiztext.
-- **Tagesgenaue Preishistorie** für Arbeitspreis (ct/Verbrauchseinheit),
-  Grundpreis (€/Monat) und monatlichen Abschlag (€): Ein Vertragswechsel oder
-  eine Preisänderung zur Monatsmitte gilt ab ihrem Tag, wie auf der Rechnung
-  (seit v2.9.0). Ein Vertrag ohne Nachfolger läuft zu seinen letzten Preisen
-  weiter, bis er gekündigt ist.
-- **Boni** mit Gutschriftdatum, Betrag und Label
-  (Neukunden-, Treuebonus, etc.).
-- **Saldo-Berechnung** pro Vertrag:
-  - *Aktueller Saldo* = Kosten bis heute − bis heute fällige Abschläge, nach
-    Kalender; der Verbrauch seit der letzten Ablesung wird geschätzt und so
-    ausgewiesen (seit v2.8.0)
-  - *Erwarteter End-Saldo* = aktueller Saldo + geschätzte Restkosten −
-    restliche Abschläge, mit Abschlagsvorschlag. Offene und weiterlaufende
-    Verträge werden bis zum nächsten Abrechnungsstichtag projiziert (je
-    Utility konfigurierbar, Default 1. Januar).
-  - *Einschätzung*: Erstattung / Nachzahlung / ausgeglichen mit Schwellwert ±5 €
-- **Erinnerung am Kündigungsstichtag**: Mit gepflegter Kündigungsfrist (in
-  Monaten, Wochen oder Tagen) zählen drei Stufen (Default 90 / 30 / 1 Tage)
-  bis zum letzten Kündigungstag, sonst bis zum Vertragsende; verpasste Fristen
-  und angekündigte Preiserhöhungen (mit Hinweis aufs Sonderkündigungsrecht)
-  stehen auf der Saldo-Karte (seit v2.9.0).
-
-### Analyse
-
-- **Heizgradtage** (HGT) je Monat gegen die hinterlegte Basistemperatur
-  (Default 15 °C, in Einstellungen anpassbar).
-- **Fünf Regressionsmodelle** auf HGT vs. Verbrauch:
-  - *Linear*: klassische OLS-Anpassung, schnell und robust für gleichmäßig
-    geheizte Haushalte
-  - *Polynomial Grad 2*: erfasst nicht-lineare Effekte (z.B. Sommer-Grundlast
-    durch Warmwasser)
-  - *Robust (Huber)*: iterativ neu-gewichtete OLS, ignoriert Ausreißer
-  - *Segmentiert*: zwei separate lineare Anpassungen oberhalb/unterhalb eines
-    Schwellwerts (typisch HGT = 50), unterscheidet Heizperiode von Sommerlast
-  - *Sigmoid*: S-Kurve für Haushalte mit ausgeprägter Sättigung bei hohen HGT
-- **Analyse-Zäsur** (v2.4.0): Sanierung am Zähler datieren, und jede
-  Auswertung rechnet ab dort; eine Vorher/Nachher-Kennzahl je Gradtag zeigt
-  die witterungsbereinigte Wirkung.
-- **Anomalien**: Monate, in denen der Verbrauch mehr als 2σ (anpassbar) vom
-  Modell-Erwartungswert abweicht.
-- **Forecast** über 12 Monate als R²-gewichtete Mischung aus
-  Regressionsmodell und Saisonprofil. Die Kostenprognose ist
-  vertragsbasiert: pro Monat wird der dann gültige Arbeits- und
-  Grundpreis aus der Vertragshistorie verwendet, plus projizierter
-  Abschlag und laufender Saldo.
-- **Jahresvergleich mit Monatsdeltas**: Monat-für-Monat-Differenz der
-  beiden jüngsten Jahre, absolut und prozentual.
-- **Wasser-Spar-Index** `(Liter/Person/Tag) / Referenz × 100` mit
-  konfigurierbaren Bandgrenzen.
-
-### Lieferbasierte Energieträger (v1.3.0)
-
-- **Heizöl & Pellets** werden über **Lieferungen** statt Zählerständen
-  erfasst (Datum, Menge, Preis/Einheit oder Gesamtbetrag, Lieferant,
-  Notiz, „geplant"-Flag, „bis voll getankt").
-- **Tankbuch** (seit v2.10.0): eine Rechnung für Verbrauch, Kosten und
-  Bestandskurve. Zwischen bekannten Beständen — Anfangsbestand, Lieferung
-  „bis voll", Peilstand — ist der Verbrauch gerechnet, danach geschätzt und so
-  gekennzeichnet; eine neue Lieferung ändert die Vorjahre nicht mehr. Kosten
-  zum Durchschnittspreis des Tankinhalts, auch für den Anfangsbestand.
-- **Fernwärme** als zusätzliche kumulative, HGT-relevante Verbrauchsart.
-
-### Auswertung & Insights (v1.3.0)
-
-- **Wetterbereinigung**: „mehr verbraucht oder nur kälter?" — Heizmodell je
-  Zähler, Erwartung für jeden Monat und Abweichung bei gegebenem Wetter; der
-  Wettereinfluss wird auf das 30-jährige Klimanormal umgerechnet (seit v2.8.0).
-- **Effizienzklasse** A+…H aus dem Heizenergiebedarf in kWh/m²·a,
-  konfigurierbare Bandgrenzen, nur für ganze Jahre; daneben seit v2.10.0 eine
-  **energieausweis-nahe Kennzahl** (Heizwert, witterungsbereinigt,
-  Gebäudenutzfläche, Warmwasser-Zuschlag, Wärmepumpen-Strom).
-- **CO₂ mit Quelle** (seit v2.10.0): BAFA-Faktoren, Strom je Jahr nach dem
-  Umweltbundesamt, PV als vermiedenes CO₂; Bestandsinstallationen behalten
-  ihre Werte, bis sie die neuen übernehmen.
-- **Empfehlungs-Engine**: sieben statistische Regelfamilien aus den
-  Eigendaten, mit Schweregrad und einzeln ausblendbar.
-- **Sigmoid- und auto-segmentiertes Regressionsmodell** zusätzlich zu
-  linear/polynomial/robust.
-
-### Verwaltung (v1.3.0)
-
-- **Termine & Wartung**: wiederkehrende Erinnerungen (Heizungswartung,
-  Schornsteinfeger, Zähler-Eichfristen …) mit Fälligkeitsstatus.
-- **Tarifvergleich** mit **Schattenverträgen**: hypothetische Tarife auf
-  die echten Verbräuche rechnen, ohne Saldo/Prognose zu beeinflussen.
-- **PDF-Jahresbericht** unter Auswertungen, zum Herunterladen oder im Browser
-  (abhängigkeitsfreier PDF-Writer, kein composer/mPDF nötig).
-- **Mac und iPhone** (v2.11.0): Navigation in sieben Bereichen nach den Fragen
-  der Nutzer. Auf dem iPhone eine Tab-Leiste mit **＋ Erfassen**, Dialoge als
-  Blatt, 44-px-Tippziele und Kontraste nach WCAG AA; die Zurück-Geste schließt
-  Dialoge. Neue Seite **Verträge & Abschläge**: alle Fristen, Abschläge und
-  zu erwartenden Abrechnungen auf einen Blick.
-- **Aufgeräumt** (v2.12.0): „Zu tun" oben auf der Übersicht; Einstellungen als
-  Unterseiten mit Speicherleiste; Ortssuche für die Wetterdaten; Erfassung mit
-  Weiter-Taste, „Rückgängig" und Direktsprung je Zähler; CSV-Import mit
-  Vorschau.
-- **Erklärt** (v2.13.0): eine Hilfe mit ersten Schritten und einem Glossar
-  mit 33 Begriffen in sieben Sprachen; ein ⓘ an jeder Kennzahl, am Mac als
-  Blase, am iPhone als Blatt; ein Willkommen mit Beispieldaten statt leerer
-  Kacheln; der Saldo als „Guthaben“ oder „Nachzahlung“ wie auf der Rechnung;
-  die PV-Einspeisung durchgehend als Vergütung.
-- **Aktivierbare Verbrauchsarten**: nicht genutzte Arten ausblenden,
-  ohne Daten zu verlieren.
-
-### Zähler-Topologie & Automatisierung (v1.8.0 / v1.9.0)
-
-- **Subzähler / Reihenschaltung (F1006):** Ein Zähler kann hinter einem
-  anderen hängen (z. B. Wärmepumpe hinter Haushaltsstrom). Sein Verbrauch
-  wird vom Elternzähler abgezogen — keine Doppelzählung in der Summe.
-- **Zählergruppen (F1006):** Mehrere Zähler (NT + HT Strom, mehrere
-  Wallboxen) lassen sich fürs Dashboard zu einer Gruppe bündeln; ein
-  **Merge-Wizard** führt bestehende Zähler zusammen. Siehe
-  [Meter-Topologie](docs/functional/13-meter-topologie.md).
-- **Home-Assistant-Anbindung (F1009):** Home Assistant pusht Zählerstände
-  automatisch per `POST /api/ingest` (idempotent, Upsert pro Tag).
-  Optionaler API-Token (opt-in) und frei vergebbare Zähler-Aliase. Komplette
-  Anleitung mit Use-Cases: [Home Assistant](docs/HOME-ASSISTANT.md).
-
-### Operativ
-
-- **Optionale Anmeldung** (v2.6.0): Passwort oder Anmeldung über einen
-  vorgeschalteten Proxy (Authelia, Authentik); API-Schlüssel mit Lese- oder
-  Verwaltungsrecht für Skripte. Standardmäßig aus — für bestehende
-  Installationen ändert sich nichts. Siehe
-  [Sicherheit & Netzbetrieb](docs/technical/08-security.md).
-- **Backup & Restore** über die UI: vollständiges JSON-Backup im neuen
-  Format (`backup_version: "3.0"`), zur Wiederherstellung oder zum Umzug.
-  Seit v2.6.0 wird ein Import vollständig geprüft und als Vorschau gezeigt,
-  bevor etwas geschrieben wird; gespeicherte Snapshots lassen sich in den
-  Einstellungen auflisten, herunterladen, einspielen und löschen.
-- **Migration aus v0.9.0**: ein altes Backup-Format (`version: "2.1"`) kann
-  direkt importiert werden, entweder ersetzend oder zusammenführend mit
-  bestehenden Daten. Siehe [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md).
-- **CSV-Export** für Monatsübersicht, Zählerstände und Temperaturreihe —
-  semikolon-getrennt, UTF-8 mit BOM, direkt in Excel/LibreOffice nutzbar.
-  Ergänzt das vollständige JSON-Backup.
-- **Darstellung** rechts in der Topbar: wie das System (Standard), hell oder
-  dunkel; die Wahl merkt sich der Browser (`localStorage`).
-- **System-Diagnose** unter Einstellungen: PHP-Version, Datenverzeichnis,
-  Schreibrechte, Schema-Version, Anzahl Zähler/Ablesungen pro Utility.
-  `GET /api/health` meldet `ok`/`degraded`/`error`, im Fehlerfall mit
-  HTTP 503 — für den Docker-Healthcheck und Uptime-Monitore.
-- **CI-Pipeline** (GitHub Actions): vier Jobs bei jedem Push/PR auf `main` —
-  PHP-Syntax-Lint, PHPUnit-Service-Suite, Frontend-API-Shape + Browser-Render
-  gegen einen echten Backend-Server sowie ein Docker-Image-Smoke. Versions-Tags
-  veröffentlichen automatisch das Multi-Arch-Image (amd64 + arm64) nach GHCR.
-
----
-
-## Dokumentation
-
-Die vollständige Doku liegt als **Kompendium** unter
-[`docs/`](docs/README.md) — getrennt in einen technischen und einen
-fachlichen Teil plus eine UI-Referenz mit **echten Screenshots aller 12
-Ansichten**:
-
-- 🚀 **Neu hier?** → [Erste Schritte](docs/ERSTE-SCHRITTE.md) (geführtes
-  Beispiel von der Installation bis zur ersten Prognose) ·
-  [Anwendungsbeispiele & Use-Cases](docs/USE-CASES.md) (WG, Smart Home, PV,
-  Vermieter)
-- 🔧 **Technisch:** [Installation](docs/technical/01-installation.md) ·
-  [Architektur](docs/technical/02-architecture.md) ·
-  [API](docs/technical/03-api-reference.md) ·
-  [Datenmodell](docs/technical/04-data-model.md) ·
-  [Tests](docs/technical/05-testing.md) ·
-  [Release-Prozess](docs/technical/06-release-process.md)
-- 🏠 **[Home-Assistant-Anbindung](docs/HOME-ASSISTANT.md)** — Zählerstände
-  automatisch aus Home Assistant pushen (Token, Zähler-Alias, REST-Command,
-  Use-Cases Eigenheim & Wohnung).
-- 📚 **Fachlich:** [Grundlagen & Formeln](docs/functional/00-overview.md) ·
-  je Energieart ([Gas](docs/functional/01-gas.md) …
-  [Pellets](docs/functional/06-pellets.md)) ·
-  [Szenario Wohnung](docs/functional/07-szenario-wohnung.md) ·
-  [Szenario Eigenheim](docs/functional/08-szenario-eigenheim.md) ·
-  [Glossar](docs/functional/09-glossar.md)
-- 🖥️ **UI-Referenz:** [Alle Ansichten](docs/ui/01-views.md)
-
-> Die Bilder in der [UI-Referenz](docs/ui/01-views.md) sind **echte
-> Screenshots** der laufenden App mit dem mitgelieferten Demo-Datensatz
-> (Stand v1.9.2).
-
----
+| | Home Assistant (Energie) | Energietracker |
+|---|---|---|
+| Zählerstände | automatisch, in Echtzeit | von Hand, per CSV oder von Home Assistant |
+| Kosten | ein Preis je Einheit | Vertrag mit Arbeits- und Grundpreis, Boni, Abschlägen, tagesgenauen Preiswechseln |
+| Abrechnung | — | Saldo, erwartete Abrechnung, Rechnungsprüfung, Kündigungsfristen |
+| Wetter | — | Heizgradtage vom Standort, Wetterbereinigung |
+| Vorausschau | — | Kostenprognose fürs Jahr, Wechselentscheidung |
 
 ## Schnellstart
 
-### Voraussetzungen
-
-- **PHP ≥ 8.4** (CLI und ein beliebiger Webserver: Apache, nginx, Caddy,
-  oder der eingebaute PHP-Server für lokales Arbeiten)
-- Web-Browser mit ES Modules (alles ab 2020)
-
-### Installation
-
-```bash
-git clone https://github.com/Bingerminger/energietracker.git
-cd energietracker
-
-# Lokaler Test-Server (Document Root = Projektwurzel) — immer mit router.php:
-# ohne liefert PHP jede Datei aus, auch data/ mit allen Daten
-php -S 127.0.0.1:8080 router.php
-```
-
-Browser auf <http://127.0.0.1:8080> → Dashboard erscheint mit leerem Zustand.
-
-> 🔐 **Sicherheit:** Ohne Anmeldung kann jeder, der die App erreicht, alle Daten
-> lesen und ändern — im eigenen Heimnetz in Ordnung. Bevor du sie von außen
-> erreichbar machst, schalte die Anmeldung ein (Einstellungen → Zugriff →
-> „Anmeldung & Zugriff") und lies [Sicherheit & Netzbetrieb](docs/technical/08-security.md).
-
-Die App initialisiert beim ersten Start automatisch `data/meta.json`,
-`data/settings.json`, leere `temperatures.json` und die Utility-Unterordner
-(`data/gas/`, `data/strom/`, `data/wasser/`) inkl. `meters.json`,
-`readings.json`, `contracts.json`. Das Verzeichnis `data/` muss durch
-den Webserver schreibbar sein.
-
-### 🐳 Docker (seit v1.7.3)
-
-Reproduzierbarer Betrieb als Single-Container (nginx + php-fpm). Daten
-liegen im gemounteten Volume `./data`.
-
-```bash
-docker compose up -d        # → http://localhost:8080
-```
-
-Oder ohne Compose, direkt mit dem veröffentlichten Image:
-
 ```bash
 docker run -d --name energietracker -p 8080:80 \
-  -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.13.0
+  -v energietracker-data:/data \
+  ghcr.io/bingerminger/energietracker:2.14.0
 ```
 
-> Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
-> (z. B. `thirsty_archimedes`). Mit `--name` heißt der Container immer
-> `energietracker` — genau wie beim Start über `docker compose`.
+Dann <http://localhost:8080> öffnen. **„Mit Beispieldaten ausprobieren“** zeigt
+sofort, wie alles aussieht; eigene Daten gehen dabei nicht verloren.
 
-Logs (JSON Lines) landen via `docker logs`; Konfiguration über
-`ET_LOG_LEVEL` / `ET_LOG_DEST` / `ET_DATA_DIR`. Details:
-[INSTALL.de.md → Produktiv: Docker](INSTALL.de.md#produktiv-docker-seit-v173).
+Ohne Docker genügt PHP ab 8.4: `git clone`, dann
+`php -S 127.0.0.1:8080 router.php`. Für den Dauerbetrieb:
+[Installation](docs/betrieb/installation.md) ·
+[Docker, auch auf der Synology](docs/betrieb/docker.md) ·
+[Apache und nginx](docs/betrieb/webserver.md) ·
+[Auf dem Handy nutzen](docs/einstieg/handy.md).
 
-### Erstinbetriebnahme
+> 🔐 Ohne Anmeldung kann jeder, der die App erreicht, alles lesen und ändern —
+> im eigenen Heimnetz in Ordnung. Vor dem Zugriff von außen die Anmeldung
+> einschalten: [Sicherheit & Netzbetrieb](docs/betrieb/sicherheit.md).
 
-1. **Einstellungen → Verbrauchsarten & Abrechnung** prüfen:
-   Gas-Umrechnungsfaktoren (Zustandszahl × Brennwert je Stichtag, wie auf der
-   Rechnung; Default 11.5 kWh/m³), HGT-Basistemperatur (Default 15 °C),
-   CO₂-Faktoren. Den eigenen Standort (Lat/Lon, Default Leipzig) setzt du in
-   Schritt 5.
-2. **Verbrauch → Gas/Strom/Wasser → ⚙️ Zähler** öffnen und den ersten
-   Zähler anlegen (ein Default-Gerät wird automatisch erzeugt). Für
-   bestehende Zähler eine Seriennummer + ungefähres Einbaudatum eintragen.
-3. **Verbrauch → Gas → 📑 Verträge** → ersten Vertrag mit
-   Anbieter/Tarif/Start/Ende anlegen, Arbeits- und Grundpreis sowie
-   monatlichen Abschlag eintragen.
-4. **Erste Ablesung** über den `+ Ablesung`-Button. Sobald mindestens zwei
-   Ablesungen vorliegen, beginnt die Monatsverbrauchsberechnung.
-5. **Einstellungen → Wetterdaten:** Ort suchen, dann **Open-Meteo
-   synchronisieren** für lokale Klimadaten (oder eine CSV-Datei hochladen).
+## Deine Daten
 
-### Demo-Daten
+Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie,
+keine Datenbank — nur JSON-Dateien. Nach außen spricht die App allein mit
+Open-Meteo: beim täglichen Wetterabgleich (übermittelt wird der auf rund 1 km
+gerundete Standort, abschaltbar) und bei der Ortssuche, wenn du sie benutzt.
+Schriften und Chart.js liegen im Repository.
 
-> 💡 **Schnellster Weg (kein Dateisystem nötig):** die Demo-Daten liegen auch
-> als JSON-Backup unter
-> [`demo-data/energietracker-demo-backup.json`](demo-data/energietracker-demo-backup.json).
-> In einem leeren Energietracker über *Einstellungen → Daten → Backup &
-> Wiederherstellung → Backup importieren* hochladen (ab v1.7.4 zusätzlich per
-> „Demo-Daten laden"-Button). Es wird vorab automatisch ein Snapshot angelegt.
+## Hilfe und Dokumentation
 
-Im Repository liegen Demo-Daten unter `demo-data/` (Leipziger EFH-Szenario
-2023–2026, drei Utilities, mehrere Verträge mit Tarifwechseln). Zum
-Ausprobieren in `data/` kopieren:
+- In der App: **Hilfe** unten in der Seitenleiste (am iPhone unter „Mehr“) mit
+  ersten Schritten und Glossar, dazu ein ⓘ an jeder Kennzahl.
+- [Erste Schritte](docs/einstieg/erste-schritte.md) ·
+  [Fragen und Antworten](docs/einstieg/faq.md) ·
+  [Jahresabrechnung eintragen und prüfen](docs/anleitungen/jahresabrechnung.md) ·
+  [Fehlersuche](docs/betrieb/fehlersuche.md)
+- Das ganze [Kompendium](docs/README.md): Einstieg · Anleitungen · Verstehen ·
+  Referenz · Betrieb · Entwicklung — auf Deutsch und
+  [Englisch](docs/en/README.md).
+- Fragen, Wünsche und Fehler:
+  [GitHub-Issues](https://github.com/Bingerminger/energietracker/issues).
 
-```bash
-rm -rf data/gas data/strom data/wasser data/meta.json data/settings.json data/temperatures.json
-cp -r demo-data/gas demo-data/strom demo-data/wasser data/
-cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
-```
+## Länder und Annahmen
 
-> Vor dem Kopieren ggf. eigene Daten sichern (Einstellungen → Daten → Backup &
-> Wiederherstellung → *JSON-Backup herunterladen*).
+Die Oberfläche gibt es auf Deutsch, Englisch, Französisch, Italienisch,
+Spanisch, Portugiesisch und Niederländisch; Länderprofile für Deutschland,
+Österreich, die Schweiz, Frankreich, Italien, Spanien, Portugal, die
+Niederlande und das Vereinigte Königreich setzen Währung, Formate, Zeitzone,
+Wetterstandort, Heizgrenze, CO₂-Faktor und Gaseinheiten. Fachlich ist der
+Energietracker in Deutschland zu Hause: Effizienzklassen nach GEG, CO₂-Faktoren
+nach BAFA und Umweltbundesamt, Sonderkündigungsrecht nach EnWG. Anderswo rechnet
+er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
+[Länderprofile](docs/verstehen/14-laenderprofile.md).
 
----
+## Stand und Ausblick
 
-## Datenmodell
+**v2.14.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
+CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
+mit einer neuen Hauptversion und nach Ankündigung. Als Nächstes kommen
+überarbeitete Diagramme, danach die Nebenkostenabrechnung für Mieter
+([#15](https://github.com/Bingerminger/energietracker/issues/15)) und Verträge
+je Zählergruppe ([#17](https://github.com/Bingerminger/energietracker/issues/17))
+— [Roadmap](roadmap.md). Wer von einer privaten v0.9.0 kommt:
+[Migration](docs/anleitungen/migration-v090.md).
 
-Alles liegt als JSON unter `data/`. Die Schema-Version (`1.6.0` — seit
-v2.10.0; Historie im [Datenmodell](docs/technical/04-data-model.md)) steht in
-`data/meta.json` und in jedem exportierten Backup unter `meta.schema_version`;
-das Backup-Format selbst ist `backup_version` 3.0.
+## Mitwirken
 
-```
-data/
-├── meta.json                ← {schema_version, created_at, …}
-├── settings.json            ← {gas_conversion_factors, hdd_base_temp, …}
-├── temperatures.json        ← {"YYYY-MM-DD": {avg, min, max}}
-├── gas/
-│   ├── meters.json          ← [{id, name, icon, devices: [...], …}]
-│   ├── readings.json        ← [{id, meter_id, device_id, date, counter, …}]
-│   └── contracts.json       ← [{id, meter_id, provider, working_prices: [...], …}]
-├── strom/
-│   ├── meters.json
-│   ├── readings.json
-│   └── contracts.json
-├── wasser/
-│   ├── meters.json
-│   ├── readings.json
-│   └── contracts.json
-└── backups/                 ← [optionale Snapshots der UI]
-```
+Pull Requests sind willkommen — Einrichtung, Tests und die Doku-Regeln stehen
+in [CONTRIBUTING.de.md](CONTRIBUTING.de.md); eine neue Sprache braucht keinen
+Code. Sicherheitslücken bitte nicht öffentlich melden, sondern wie in
+[SECURITY.md](SECURITY.md) beschrieben.
 
-### Reading
+## Lizenzen
 
-```json
-{
-  "id": "r_abc12345",
-  "meter_id": "m_gas_main",
-  "device_id": "d_gas_001",
-  "date": "2025-04-15",
-  "counter": 23545.0,
-  "price_cents": null,
-  "note": "Nach Heizungswartung",
-  "is_estimated": false,
-  "is_future": false
-}
-```
-
-`price_cents` ist optional und wird (wenn gesetzt) als forward-fill auf
-spätere Readings angewandt — als Fallback wenn kein passender Vertrag
-existiert. In der Praxis lässt man `price_cents` leer und pflegt
-stattdessen Verträge.
-
-### Meter und Device (Zählertausch)
-
-```json
-{
-  "id": "m_gas_main",
-  "name": "Hauptzähler",
-  "icon": "🔥",
-  "created_at": "2023-01-01T00:00:00+01:00",
-  "active": true,
-  "notes": "",
-  "devices": [
-    {
-      "id": "d_gas_001",
-      "serial": "GAS-2019-AB7321",
-      "installed_on": "2019-04-12",
-      "initial_counter": 0.0,
-      "removed_on": "2024-08-22",
-      "final_counter": 18432.5,
-      "reason": "Eichfrist abgelaufen"
-    },
-    {
-      "id": "d_gas_002",
-      "serial": "GAS-2024-CD8945",
-      "installed_on": "2024-08-22",
-      "initial_counter": 0.0,
-      "removed_on": null,
-      "final_counter": null,
-      "reason": ""
-    }
-  ]
-}
-```
-
-Die Devices-Liste ist chronologisch. Der aktive (= zuletzt installierte
-und nicht ausgebaute) ist derjenige mit `removed_on === null`. Verbrauch
-zwischen zwei Readings auf unterschiedlichen Devices wird über die
-Funktion `ConsumptionService::consumptionBetween()` korrekt überbrückt.
-
-### Contract
-
-```json
-{
-  "id": "c_gas_004",
-  "meter_id": "m_gas_main",
-  "provider": "Vattenfall",
-  "tariff_name": "Easy Gas 12 — 2026",
-  "start": "2026-01-01",
-  "end": "2026-12-31",
-  "notes": "Preisanpassung Anfang 2026",
-  "working_prices":   [{"from": "2026-01-01", "ct_per_kwh": 8.2}],
-  "base_prices":      [{"from": "2026-01-01", "eur_per_month": 10.50}],
-  "advance_payments": [{"from": "2026-01-01", "amount_eur": 130.00}],
-  "bonuses":          [{"credit_date": "2026-06-30", "amount_eur": 75, "type": "neukunde", "label": "Neukundenbonus"}]
-}
-```
-
-Bei Wasser bedeutet das Feld `ct_per_kwh` semantisch *ct/m³* —
-die Einheit wird aus dem Utility-Config (`consumption_unit`) abgeleitet,
-nicht aus dem Feldnamen.
-
-`end: null` entspricht einem offenen Vertrag. Für die Saldo-Projektion
-wird das effektive Ende dann auf den nächsten Abrechnungsstichtag der
-jeweiligen Utility gesetzt (Settings `billing_cycle_anchor_*`, Default
-1. Januar).
-
-### Settings (28 Schlüssel)
-
-Vollständige Liste der konfigurierbaren Werte siehe
-[`docs/technical/04-data-model.md`](docs/technical/04-data-model.md) → *Einstellungen*.
-
----
-
-## Verzeichnisstruktur
-
-```
-energietracker/
-├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
-├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „2.13.0"
-├── README.md                ← diese Datei
-├── CHANGELOG.md
-├── LICENSE
-├── docs/
-│   ├── API.md               ← REST-Endpoint-Referenz mit Beispielen
-│   ├── ARCHITECTURE.md      ← Service-Map, Datenmodell-Details, Berechnungen
-│   ├── MIGRATION-FROM-V090.md
-│   └── screenshots/         ← echte PNG-Screenshots aller Views
-├── src/                     ← PHP backend
-│   ├── bootstrap.php        ← App-Container, Routing
-│   ├── Config/
-│   │   └── Utilities.php    ← Single source of truth für alle 6 Energiearten
-│   ├── Http/                ← Router, Request, Response, ErrorHandler
-│   ├── Storage/
-│   │   ├── JsonStore.php    ← LOCK_EX writes, atomic reads
-│   │   └── Migrator.php     ← Bootstrap-Logik für leeres `data/`
-│   ├── Services/            ← Fachlogik (Consumption, DeliveryConsumption, Forecast, ClimateNormal, Auth, Ingest, …)
-│   └── Controllers/         ← 1 Klasse pro Datei
-├── public/
-│   ├── css/                 ← tokens.css + app.css + components.css
-│   └── js/                  ← Vanilla-JS SPA
-│       ├── app.js           ← Entry
-│       ├── api.js           ← Fetch-Wrapper
-│       ├── router.js        ← Hash-Router
-│       ├── state.js         ← Lightweight Cache
-│       ├── views/           ← dashboard, utility, meters, contracts, …
-│       ├── components/      ← chart, modal, toast
-│       └── lib/             ← format (de-DE)
-├── data/                    ← Laufzeitdaten (gitignored, .gitkeep-Stubs)
-├── demo-data/               ← Optional kopierbarer Demo-Datensatz
-└── scripts/
-    └── init_data.py         ← Python-Helper für Bulk-Import aus Excel
-```
-
----
-
-## Migration aus v0.9.0
-
-Wer aus einem v0.9.0-Backup migrieren möchte:
-
-1. In v0.9.0 ein vollständiges JSON-Backup exportieren (Format-Version
-   `2.1` mit Top-Level-Schlüssel `gas`, `strom`, `temperatures`, `settings`,
-   `contracts`).
-2. v1.2.0 frisch installieren (siehe [Schnellstart](#schnellstart)) oder
-   die Demo-Daten löschen.
-3. **Einstellungen → Daten → Backup & Wiederherstellung → 📦 Migration aus
-   v0.9.0** öffnen und die JSON-Datei hochladen.
-4. Der Migrations-Dialog zeigt was importiert würde (Ablesungen pro
-   Utility, Verträge, Temperaturen, Settings, Warnungen, erkannte
-   Zählerwechsel-Kandidaten).
-5. **Ersetzen** oder **Zusammenführen** wählen → Import. Vor dem
-   Schreiben wird automatisch ein Sicherungs-Snapshot der aktuellen
-   aktuellen Daten unter `data/backups/` angelegt.
-
-Vollständige Schritt-für-Schritt-Anleitung inkl. Schema-Mapping und
-Fehlerbehandlung in [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md).
-
----
-
-## Weiterführende Dokumentation
-
-- [`docs/README.md`](docs/README.md) — **Kompendium-Index** (technisch · fachlich · UI)
-- [`docs/technical/03-api-reference.md`](docs/technical/03-api-reference.md) — vollständige API-Referenz
-- [`docs/technical/04-data-model.md`](docs/technical/04-data-model.md) — Datenmodell & Schemata
-- [`docs/MIGRATION-FROM-V090.md`](docs/MIGRATION-FROM-V090.md) — Migration aus v0.9.0
-- [`CHANGELOG.md`](CHANGELOG.md) — Versionshistorie
-
----
-
-## Mitwirken & Lizenz
-
-Pull Requests willkommen. Vor größeren Änderungen am Datenmodell bitte
-ein Issue öffnen, damit eine Migration sauber durchplanbar bleibt.
-
-MIT License — siehe [`LICENSE`](LICENSE).
+Energietracker steht unter der [MIT-Lizenz](LICENSE). Mitgeliefert werden
+[Chart.js](https://www.chartjs.org/) (MIT, [Lizenz](public/vendor/chart.js-LICENSE.md))
+und die Schriften DM Sans und DM Mono (SIL Open Font License 1.1,
+[Lizenz](public/vendor/fonts/OFL.txt)). Wetterdaten:
+[Open-Meteo.com](https://open-meteo.com/) unter
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

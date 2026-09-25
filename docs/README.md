@@ -2,120 +2,102 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Vollständige Dokumentation zu Energietracker **v2.13.0**.
-> Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
-> eine **UI-Referenz** mit echten Screenshots aller Ansichten.
+> Dokumentation zu Energietracker **v2.14.0**, geordnet nach dem, was du
+> vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
+> Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
-> **Neu hier?** → Direkt zu den [Ersten Schritten](ERSTE-SCHRITTE.md) —
-> ein durchgehendes Beispiel von der Installation bis zur ersten Prognose.
+> **Neu hier?** → [Erste Schritte](einstieg/erste-schritte.md) — ein
+> durchgehendes Beispiel von der Installation bis zur ersten Prognose.
 
-Energietracker ist eine lokal betriebene, abhängigkeitsfreie Web-App zur
-Erfassung und Analyse des häuslichen Energieverbrauchs über bis zu acht
-Verbrauchsarten — **Gas, Strom, Wasser, Fernwärme, Heizöl, Holzpellets,
-PV-Einspeisung, PV-Erzeugung**.
-Kein externer Dienst, keine Datenbank: alles liegt als flache JSON-Datei
-auf dem eigenen Rechner.
-
----
-
-## Wegweiser
-
-### 🔧 Technischer Teil — *für Betrieb & Weiterentwicklung*
-
-| Dokument | Inhalt |
-|---|---|
-| [Installation & Betrieb](technical/01-installation.md) | Voraussetzungen, Einrichtung, Webserver, Update, Backup |
-| [Architektur](technical/02-architecture.md) | Schichtenmodell, Services, Controller, Datenfluss |
-| [API-Referenz](technical/03-api-reference.md) | Alle 68 Endpunkte mit Beispielen |
-| [Datenmodell](technical/04-data-model.md) | JSON-Schemata, Speicherung, Schema-Migration |
-| [Tests](technical/05-testing.md) | Backend-Shape- und Browser-Render-Harness |
-| [Release-Prozess](technical/06-release-process.md) | Versionierung, CHANGELOG, Doku-Pflege |
-| [Docker-Betrieb](technical/07-docker.md) | Container-Quickstart für Einsteiger, `docker compose`, Updates, Daten-Volume, Logs |
-| [Sicherheit & Netzbetrieb](technical/08-security.md) | Anmeldung, API-Schlüssel, Proxy, HTTPS, Webserver-Regeln, Checkliste vor der Freigabe |
-| [Home-Assistant-Anbindung (F1009)](HOME-ASSISTANT.md) | Zählerstände automatisch aus HA pushen: Token, Zähler-Alias, REST-Command, Use-Cases Eigenheim & Wohnung |
-
-### 📚 Fachlicher Teil — *für Verständnis & Anwendung*
-
-| Dokument | Inhalt |
-|---|---|
-| [Grundlagen & Methodik](functional/00-overview.md) | HGT, Regression, Prognose, Wetterbereinigung — die Formeln |
-| [Gas](functional/01-gas.md) | Brennwert, m³→kWh, Heizsignatur |
-| [Strom](functional/02-strom.md) | Grundlast, Saisonprofil, kein HGT |
-| [Wasser](functional/03-wasser.md) | m³, Drei-Komponenten-Tarif, Spar-Index |
-| [Fernwärme](functional/04-fernwaerme.md) | Kumulativ, HGT-relevant, Grundpreis |
-| [Heizöl](functional/05-heizoel.md) | Lieferbasiert, Tankmodell, Hu |
-| [Holzpellets](functional/06-pellets.md) | Lieferbasiert, kg statt Liter |
-| [Szenario: Wohnungsnutzer](functional/07-szenario-wohnung.md) | Best Practices Mietwohnung |
-| [Szenario: Eigenheimbesitzer](functional/08-szenario-eigenheim.md) | Best Practices Eigenheim |
-| [Glossar & Formelsammlung](functional/09-glossar.md) | Alle Begriffe und Formeln kompakt |
-| [Sonderzahlungen (F1003)](functional/10-sonderzahlungen.md) | Rück-/Nachzahlung, Abschlagszahlung, Saldo-Wirkung |
-| [Zählerstand-Erfassung (F1004)](functional/11-zaehlerstaende.md) | Zentrale mobile Ablesungs-Ansicht (Gas/Strom/Wasser/Fernwärme) |
-| [PV-Einspeisung & Erzeugung (F1005)](functional/12-pv.md) | Einspeisezähler, Erzeugungszähler, Strom-Saldo, Autarkiequote |
-| [Meter-Topologie (F1006)](functional/13-meter-topologie.md) | Subzähler (Reihenschaltung) & Zählergruppen — Differenzverbrauch und Dashboard-Bündelung |
-| [Länderprofile (N1014)](functional/14-laenderprofile.md) | Land, Währung, Zeitzone, Schreibweise; Effizienzskala, CO₂-Faktoren, Heizgrenze und Gaseinheiten je Land |
-
-### 🚀 Einstieg & Praxis — *für neue Nutzer*
-
-| Dokument | Inhalt |
-|---|---|
-| [Erste Schritte](ERSTE-SCHRITTE.md) | Durchgehendes Beispiel: Installation → erster Zähler → erste Ablesung → erster Vertrag → erste Prognose |
-| [Home-Assistant-Anbindung (F1009)](HOME-ASSISTANT.md) | Zählerstände automatisch aus HA pushen: Token, Zähler-Alias, REST-Command, Use-Cases |
-| [Anwendungsbeispiele & Use-Cases](USE-CASES.md) | Vier durchgerechnete Praxisfälle: WG mit geteilten Zählern, Smart-Home-Vollausbau, PV-Haushalt, Vermieter mit mehreren Einheiten |
-
-### 🖥️ UI-Referenz
-
-| Dokument | Inhalt |
-|---|---|
-| [Alle Ansichten](ui/01-views.md) | Jede der 12 Views erklärt, mit echtem Screenshot |
+Energietracker ist eine selbst betriebene Web-App für den Energie- und
+Wasserverbrauch eines Haushalts: acht Verbrauchsarten, Verträge und
+Abrechnung, Wetterbereinigung, Prognose und Wechselentscheidung — ohne
+Datenbank, alles als JSON-Dateien auf dem eigenen Server. Nach außen spricht sie
+nur mit Open-Meteo (Wetterdaten).
 
 ---
 
-## Schnelleinstieg nach Rolle
+## 🚀 Einstieg — *loslegen*
 
-- **„Ich bin neu und will einfach loslegen."**
-  → [Erste Schritte](ERSTE-SCHRITTE.md) (geführtes Beispiel von A bis Z)
+| Dokument | Inhalt |
+|---|---|
+| [Erste Schritte](einstieg/erste-schritte.md) | Installation → erster Zähler → erste Ablesung → erster Vertrag → erste Prognose |
+| [Was der Energietracker kann](einstieg/funktionen.md) | Alle Funktionen, nach Fragen geordnet |
+| [Fragen und Antworten](einstieg/faq.md) | Die häufigsten Fragen, kurz beantwortet |
+| [Auf dem Handy nutzen](einstieg/handy.md) | Im Heimnetz aufrufen, als App installieren, was offline geht |
 
-- **„Ich will es nur installieren und benutzen."**
-  → [Installation](technical/01-installation.md) →
-  [Szenario Wohnung](functional/07-szenario-wohnung.md) *oder*
-  [Szenario Eigenheim](functional/08-szenario-eigenheim.md)
+## 🧭 Anleitungen — *eine Aufgabe erledigen*
 
-- **„Mein konkreter Fall ist speziell (WG, PV, Vermieter, Smart Home)."**
-  → [Anwendungsbeispiele & Use-Cases](USE-CASES.md)
+| Dokument | Inhalt |
+|---|---|
+| [Jahresabrechnung eintragen und prüfen](anleitungen/jahresabrechnung.md) | Stände, Preise, Gasfaktoren und Guthaben einer Rechnung übernehmen und nachrechnen |
+| [Home Assistant anbinden](anleitungen/home-assistant.md) | Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command |
+| [Anwendungsfälle](anleitungen/anwendungsfaelle.md) | WG mit geteilten Zählern, Smart Home, PV-Haushalt, Vermieter |
+| [Umstieg von v0.9.0](anleitungen/migration-v090.md) | Altes Backup übernehmen |
 
-- **„Ich nutze Home Assistant und will die Zähler automatisch füttern."**
-  → [Home-Assistant-Anbindung](HOME-ASSISTANT.md)
+## 📚 Verstehen — *wie gerechnet wird*
 
-- **„Ich habe Haupt- und Unterzähler oder will Zähler bündeln."**
-  → [Meter-Topologie](functional/13-meter-topologie.md)
+| Dokument | Inhalt |
+|---|---|
+| [Grundlagen & Methodik](verstehen/00-overview.md) | Heizgradtage, Heizmodell, Regression, Prognose, Wetterbereinigung — die Formeln |
+| [Gas](verstehen/01-gas.md) · [Strom](verstehen/02-strom.md) · [Wasser](verstehen/03-wasser.md) · [Fernwärme](verstehen/04-fernwaerme.md) | Die zählerbasierten Verbrauchsarten |
+| [Heizöl](verstehen/05-heizoel.md) · [Holzpellets](verstehen/06-pellets.md) | Lieferbasiert, mit Tankbuch |
+| [PV-Einspeisung & Erzeugung](verstehen/12-pv.md) | Vergütung, Eigenverbrauch, Autarkie |
+| [Sonderzahlungen](verstehen/10-sonderzahlungen.md) | Rück- und Nachzahlung, Abschlagszahlung, Wirkung auf den Saldo |
+| [Zählerstand-Erfassung](verstehen/11-zaehlerstaende.md) | Erfassung in einem Durchgang, Plausibilität, Direktsprung |
+| [Meter-Topologie](verstehen/13-meter-topologie.md) | Subzähler und Zählergruppen |
+| [Länderprofile](verstehen/14-laenderprofile.md) | Währung, Formate, Effizienzskala, CO₂-Faktoren, Gaseinheiten je Land |
+| [Szenario Wohnung](verstehen/07-szenario-wohnung.md) · [Szenario Eigenheim](verstehen/08-szenario-eigenheim.md) | Durchgerechnete Beispiele |
+| [Glossar & Formelsammlung](verstehen/09-glossar.md) | Alle Begriffe und Formeln kompakt |
 
-- **„Ich wohne nicht in Deutschland."**
-  → [Länderprofile](functional/14-laenderprofile.md)
+## 📖 Referenz — *nachschlagen*
 
-- **„Ich will verstehen, wie die Prognose rechnet."**
-  → [Grundlagen & Methodik](functional/00-overview.md)
+| Dokument | Inhalt |
+|---|---|
+| [Ansichten](referenz/ansichten.md) | Jede Ansicht erklärt, mit echten Screenshots |
+| [Einstellungen](referenz/einstellungen.md) | Jeder Schlüssel mit Standardwert, Ort in der Oberfläche und Wirkung |
+| [API-Referenz](referenz/api.md) | Alle Routen mit Statuscodes und Stabilitätszusage (von einem Test gegen den Code geprüft) |
+| [API-Beispiele](referenz/api-beispiele.md) | Ausführliche Anfragen und Antworten der meistgenutzten Endpunkte |
+| [Datenmodell](referenz/datenmodell.md) | JSON-Schemata, Speicherung, Schema-Migration |
 
-- **„Ich heize mit Öl/Pellets."**
-  → [Heizöl](functional/05-heizoel.md) bzw.
-  [Holzpellets](functional/06-pellets.md)
+## 🛠️ Betrieb — *installieren und am Laufen halten*
 
-- **„Ich will an der Software arbeiten."**
-  → [Architektur](technical/02-architecture.md) →
-  [Datenmodell](technical/04-data-model.md) →
-  [Tests](technical/05-testing.md)
+| Dokument | Inhalt |
+|---|---|
+| [Installation](betrieb/installation.md) | Voraussetzungen, Einrichtung, Update, Backup |
+| [Docker](betrieb/docker.md) | Container-Quickstart, `docker compose`, Synology, Updates, Daten-Volume, Logs |
+| [Webserver](betrieb/webserver.md) | Apache und nginx mit den geprüften Regeln |
+| [Sicherheit & Netzbetrieb](betrieb/sicherheit.md) | Anmeldung, API-Schlüssel, Proxy, HTTPS, Checkliste vor der Freigabe |
+| [Fehlersuche](betrieb/fehlersuche.md) | Symptom → Ursache → Lösung |
+
+## 🧑‍💻 Entwicklung — *am Code arbeiten*
+
+| Dokument | Inhalt |
+|---|---|
+| [Architektur](entwicklung/architektur.md) | Schichten, Services, Controller, Frontend |
+| [Datenfluss & Algorithmen](entwicklung/datenfluss.md) | Vom Zählerstand zum Saldo, Prognose-Algorithmus |
+| [Tests](entwicklung/tests.md) | PHPUnit, Shape- und Render-Tests, Gegenproben |
+| [Release-Prozess](entwicklung/release-prozess.md) | Versionierung, CHANGELOG, Doku-Pflege, Lessons Learned |
+| [Screenshots](entwicklung/screenshots.md) | Wie die Bilder dieser Doku entstehen |
+
+Mitwirken: [CONTRIBUTING.de.md](../CONTRIBUTING.de.md) ·
+Sicherheitslücken: [SECURITY.md](../SECURITY.md) ·
+Versionshistorie: [CHANGELOG.md](../CHANGELOG.md) ·
+Planung: [roadmap.md](../roadmap.md)
 
 ---
 
 ## Konventionen in dieser Doku
 
-- **[Unverifiziert]** markiert Annahmen oder Default-Werte, die nicht aus
-  einer belastbaren Primärquelle stammen und in den Einstellungen
-  angepasst werden sollten (z. B. CO₂-Faktoren).
-- Formeln stehen in LaTeX-ähnlicher Notation; alle hier dokumentierten
-  Formeln sind **gegen den realen Quellcode geprüft**, nicht aus dem
-  Gedächtnis notiert.
-- Pfadangaben sind relativ zum Projektwurzelverzeichnis.
-
-Versionsstand dieses Kompendiums: **v2.5.3** (2026-09-24). Die Doku wird
-ab v1.4.2 bei **jedem** Release synchron mitgeführt — siehe
-[Release-Prozess](technical/06-release-process.md).
+- Begriffe der Oberfläche stehen so da, wie die App sie zeigt; Menüpfade als
+  „Einstellungen → Wetterdaten“.
+- Formeln stehen als Klartext-Codeblock und sind gegen den Quellcode geprüft,
+  nicht aus dem Gedächtnis notiert.
+- **[Unverifiziert]** markiert Annahmen und Standardwerte ohne belastbare
+  Primärquelle, die in den Einstellungen angepasst werden sollten.
+- Pfadangaben sind relativ zum Projektverzeichnis. Seit v2.14.0 ist die Doku
+  nach Zielgruppen geordnet; die alten Pfade (`technical/`, `functional/`,
+  `ui/` …) leiten auf die neuen Orte weiter. Die Dateinamen sind in beiden
+  Sprachen gleich — eine Seite und ihr Spiegel liegen am selben relativen Ort.
+- Ein Test prüft jeden Link und Anker, den englischen Spiegel jeder Seite und
+  dass dieser Index jede Seite führt.

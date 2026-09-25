@@ -77,7 +77,14 @@ final class LocaleCatalogTest extends TestCase
             sort($keys);
             self::assertSame([], array_values(array_diff($ref, $keys)),
                 "$lang.json fehlen Schlüssel");
-            self::assertSame([], array_values(array_diff($keys, $ref)),
+            // v2.14.0 — Sprachen mit mehr Pluralformen (Polnisch, Tschechisch …)
+            // dürfen neben `one`/`other` auch `zero`, `two`, `few` und `many`
+            // tragen; tp() wählt über Intl.PluralRules. Nur neben einem `other`.
+            $extra = array_values(array_filter(array_diff($keys, $ref), function (string $k) use ($ref): bool {
+                if (!preg_match('/^(.*)\.(zero|two|few|many)$/', $k, $m)) return true;
+                return !in_array($m[1] . '.other', $ref, true);
+            }));
+            self::assertSame([], $extra,
                 "$lang.json hat Schlüssel, die im Referenzkatalog fehlen");
         }
     }
@@ -230,5 +237,39 @@ final class LocaleCatalogTest extends TestCase
             }
         }
         self::assertSame([], $problems, implode("\n", $problems));
+    }
+
+    /**
+     * v2.14.0 — Zählungen laufen über `tp('key', n)`, das die Form über
+     * Intl.PluralRules wählt und `key.one`/`key.other` nachschlägt. Die
+     * Literalprüfung oben sieht nur `t(…)`; ein einfacher Text statt der
+     * Formen stünde als roher Schlüssel `key.other` in der Oberfläche.
+     */
+    public function testEveryPluralKeyUsedInTheCodeHasItsForms(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $keys = [];
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator("$root/public/js"));
+        foreach ($it as $f) {
+            if (!$f->isFile() || $f->getExtension() !== 'js') continue;
+            foreach (file($f->getPathname()) ?: [] as $line) {
+                $trimmed = ltrim($line);
+                if (str_starts_with($trimmed, '//') || str_starts_with($trimmed, '*') || str_starts_with($trimmed, '/*')) continue;
+                preg_match_all('/(?<![\w$.])tp\(\s*[\'"]([a-zA-Z][a-zA-Z0-9_.]*)[\'"]\s*,/', $line, $m);
+                foreach ($m[1] as $key) $keys[$key] = true;
+            }
+        }
+        self::assertGreaterThan(10, count($keys), 'kaum tp()-Aufrufe gefunden — Muster veraltet?');
+
+        $missing = [];
+        foreach (self::languages() as $lang) {
+            $flat = self::flatten(self::catalog($lang));
+            foreach (array_keys($keys) as $key) {
+                foreach (['one', 'other'] as $form) {
+                    if (($flat["$key.$form"] ?? '') === '') $missing[] = "$lang: $key.$form";
+                }
+            }
+        }
+        self::assertSame([], $missing, "Pluralformen fehlen:\n" . implode("\n", $missing));
     }
 }
