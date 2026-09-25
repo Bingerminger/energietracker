@@ -55,6 +55,7 @@ export async function render(container) {
           await api.dismissRecommendation(id);
           recs = recs.filter(r => r.id !== id);
           toastOk(t('recommendations.dismissed'));
+          window.dispatchEvent(new CustomEvent('et:badges-refresh'));
           draw();
         } catch (e) { toastErr(t('recommendations.error', { msg: e.message || e })); }
       }));
@@ -76,7 +77,9 @@ function card(r) {
       <div class="rec-card__head">
         <span class="badge badge--${cls}">${sevLabel(sevKey)}</span>
         <span class="rec-card__cat">${esc(catLabel(r.category))}</span>
-        <button class="rec-card__x" data-dismiss="${esc(r.id)}" title="${t('recommendations.dismiss')}" aria-label="${t('recommendations.dismiss')}"><span aria-hidden="true">✕</span></button>
+        <!-- v2.11.0 (Review UI-26) — sichtbarer Text statt „✕": Das Kreuz sah
+             nach „löschen" aus und blendete doch nur 30 Tage aus -->
+        <button type="button" class="btn btn--ghost btn--sm rec-card__dismiss" data-dismiss="${esc(r.id)}">${esc(t('recommendations.dismiss'))}</button>
       </div>
       <div class="rec-card__title">${esc(r.title)}</div>
       <div class="rec-card__detail">${esc(r.detail)}</div>

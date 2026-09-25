@@ -7,13 +7,47 @@
 > **Echte Screenshots.** Die folgenden Bilder sind **tatsächliche
 > Bildschirmaufnahmen** der laufenden App mit dem mitgelieferten
 > [Demo-Datensatz](../../demo-data/) (Light-Theme; Grundstock v1.9.2, Anmeldung,
-> Sicherheitskarte und Rückfrage bei der Erfassung v2.6.0). Wer sie
+> Sicherheitskarte und Rückfrage bei der Erfassung v2.6.0, Navigation v2.11.0). Wer sie
 > selbst neu erzeugen will: Demo-Daten laden und die Views nacheinander
 > aufnehmen — die App braucht dafür keinen Build-Schritt.
 
-Die App ist eine Single-Page-Anwendung mit fester **Topbar** (Logo,
-Theme-Toggle) und einer **Sidebar**, die dynamisch aus den *aktiven*
-Verbrauchsarten gebaut wird (Einstellungen → Aktive Verbrauchsarten).
+Die App ist eine Single-Page-Anwendung. Seit **v2.11.0** folgt die
+Navigation den Fragen der Nutzer: sieben Bereiche statt 17 Einträgen.
+
+| Bereich | Seiten |
+|---|---|
+| Übersicht | Kennzahlen, Tanks, Termine und Empfehlungen im Überblick |
+| Zählerstände | alle Zähler in einem Durchgang |
+| Verbrauch | eine Seite je aktive Verbrauchsart |
+| Kosten & Verträge | Verträge & Abschläge · Wechsel prüfen · Rechnung prüfen |
+| Auswertungen | Analyse · Prognose · Jahresbericht |
+| Hinweise | Termine & Wartung · Empfehlungen (eine Zahl an der Seitenleiste) |
+| Einstellungen | Allgemein · Wetterdaten |
+
+Die Seiten eines Bereichs stehen als **Tabs** über der Ansicht. Menüname und
+Seitentitel sind gleich, und der Tab des Browsers nennt die Ansicht. Frühere
+Adressen (`#/tariffs`, `#/temperatures` …) bleiben gültig. Die Seitenleiste
+zeigt nur die *aktiven* Verbrauchsarten (Einstellungen → Aktive
+Verbrauchsarten) und folgt einer Änderung sofort.
+
+**Mac:** Seitenleiste links. In der Kopfleiste steht **＋ Erfassen**:
+Zählerstände, Lieferung und Peilstand bei Heizöl und Pellets, Termin.
+Daneben der Umschalter für die Darstellung (wie das System, hell, dunkel).
+
+![Navigation am Mac](screenshots/navigation-mac.png)
+
+**iPhone:** Unten liegt eine Tab-Leiste in der Daumenzone: Übersicht,
+Verbrauch, **＋ Erfassen**, Kosten, Mehr.
+
+- „Mehr" öffnet die Seitenleiste als Menü.
+- Die Verbrauchsarten stehen auf ihrer Seite als Tabs.
+- Dialoge erscheinen als Blatt von unten, Kopf- und Fußleiste stehen fest.
+- Die Zurück-Geste schließt einen Dialog, statt die Seite zu verlassen.
+- Tippziele sind mindestens 44 px groß, Eingaben 16 px; Safari zoomt dann
+  nicht mehr bei jedem Fokus.
+- Als Home-Bildschirm-App reicht die Seite bis unter Uhr und Home-Balken.
+
+<p><img src="screenshots/navigation-iphone.png" alt="Übersicht mit Tab-Leiste am iPhone" width="260"> <img src="screenshots/erfassen-iphone.png" alt="Erfassen-Blatt am iPhone" width="260"></p>
 
 ---
 
@@ -31,6 +65,9 @@ weniger als zwölf Monate Daten aller drei Zähler haben, über wie viele Monate
 die Quoten rechnen. Seit v2.7.0 steht
 die Effizienzklasse nur in Ländern mit Skala (Deutschland); sonst zeigt die
 Karte kWh/m²·a und nennt den Grund ([Länderprofile](../functional/14-laenderprofile.md)).
+Seit v2.11.0 heißt ein fälliger Termin „seit 65 Tagen überfällig" statt
+„jetzt". Die Kopf-Aktion „Temperaturen" entfällt; „Erfassen" steht global in
+der Kopfleiste bzw. der Tab-Leiste.
 
 ![Dashboard](screenshots/dashboard.png)
 
@@ -155,14 +192,48 @@ Vertrag als Annahme weiterläuft, tragen ein Sternchen.
 
 ![Prognose](screenshots/prognose.png)
 
+### Jahresbericht (seit v2.11.0 unter Auswertungen)
+
+Ein Jahr als PDF: Übersicht je Verbrauchsart, Effizienz, Monatstabellen und
+offene Empfehlungen. **Im Browser öffnen** zeigt das PDF in einem neuen Tab
+(`yearly.pdf?inline=1`); in der Home-Bildschirm-App auf dem iPhone kam ein
+Download oft nicht an. **Herunterladen** speichert es wie bisher. Bis v2.10
+stand der Bericht in den Einstellungen.
+
 ---
 
-## 7. Tarifvergleich
+## 7. Kosten & Verträge
+
+### Verträge & Abschläge (v2.11.0)
+
+Je Verbrauchsart und Zähler der laufende Vertrag:
+
+- Anbieter, Tarif und Laufzeit bzw. „verlängert sich"
+- **Kündigen bis** mit den verbleibenden Tagen, ab sechs Wochen vorher
+  hervorgehoben; eine verpasste Frist in Rot
+- der Abschlag je Monat
+- was zur Abrechnung zu erwarten ist: Erstattung (grün) oder Nachzahlung
+  (rot)
+
+„Verträge verwalten" führt zur Vertragsliste der Verbrauchsart. Die Zahlen
+kommen aus derselben Rechnung wie die Saldo-Karte der Verbrauchsart.
+
+![Verträge & Abschläge](screenshots/navigation-mac.png)
+
+### Rechnung prüfen (Gas)
+
+Bis v2.10 stand die Rechnungsprüfung am Ende der Gas-Seite, jetzt ist sie eine
+Seite. Sie rechnet eine Gasrechnung nach: je Ablesung und Brennwertwechsel ein
+Abschnitt mit m³ × Zustandszahl × Brennwert = kWh, wie die Zeilen der
+Versorgerrechnung. Zähler und Zeitraum sind wählbar. Die Gas-Seite verweist
+mit dem angezeigten Jahr hierher (`#/bill-check?meter=…&from=…&to=…`).
+
+### Wechsel prüfen (Tarifvergleich)
 
 Beantwortet die Frage, um die es im Energietracker geht: **Soll ich wechseln?**
 Die Ansicht ist in zwei Blöcke geteilt, und die Reihenfolge ist Absicht.
 
-### Wechselentscheidung
+#### Wechselentscheidung
 
 Oben steht der **erwartete Jahresverbrauch** aus der Prognose — genau die Zahl,
 die CHECK24, Verivox und andere Vergleichsportale als Eingabe verlangen. Sie
@@ -218,7 +289,7 @@ Gerechnet wird über zwölf Monate ab Wechseltermin, saisonal gewichtet. Ein
 Wechsel zum 1. Juli deckt damit trotzdem einen vollen Winter ab; eine
 Zwölftelrechnung würde hier danebenliegen.
 
-### Rückblick auf echte Monate
+#### Rückblick auf echte Monate
 
 Darunter, eingeklappt: dieselben Tarife auf den **tatsächlich gemessenen**
 Verbrauch gelegt — „Was hätte Tarif X gekostet?". Das ist der Beleg. Wer sieht,
@@ -238,7 +309,7 @@ unabhängig ist, und damit der Maßstab für die Rangfolge. Verglichen werden
 reine Tarifkosten; Abschläge und Sonderzahlungen sind Zahlungsströme gegen den
 Saldo und bleiben außen vor (sie stehen in der Verbrauchsansicht).
 
-### Angebote pflegen
+#### Angebote pflegen
 
 Ein Angebot wird mit den Feldern erfasst, die auf einem Portalergebnis
 tatsächlich stehen: Arbeitspreis, Grundpreis, **Neukundenbonus als Betrag**
@@ -263,7 +334,8 @@ Vertragsstatus** — sie existieren nur für diesen Vergleich.
 
 Sieben statistische Regelfamilien (Mehrverbrauch-Trend, Sommer-Sockel,
 Anomalie, Tank-Niveau, Vertragsende, Effizienz, …), nach Dringlichkeit
-sortiert, einzeln ausblendbar. Rein datengetrieben, keine Werbung.
+sortiert, einzeln ausblendbar. Rein datengetrieben, keine Werbung. Seit
+v2.11.0 unter **Hinweise**; der Knopf heißt „30 Tage ausblenden" statt „✕".
 
 ![Empfehlungen](screenshots/empfehlungen.png)
 
@@ -273,15 +345,18 @@ sortiert, einzeln ausblendbar. Rein datengetrieben, keine Werbung.
 
 Wiederkehrende Termine (Heizungswartung, Schornsteinfeger,
 Eichfristen — seit v2.9.0 mit eigener Kategorie für die Wärmezähler-Eichung). Fällige/überfällige erscheinen auf dem Dashboard; beim
-Erledigen wird der nächste Termin gemäß Recurrence fortgeschrieben.
+Erledigen wird der nächste Termin gemäß Recurrence fortgeschrieben. Seit
+v2.11.0 der erste Tab unter **Hinweise**; die Zahl an der Seitenleiste zählt
+fällige Termine und offene Empfehlungen zusammen.
 
 ![Termine](screenshots/termine.png)
 
 ---
 
-## 10. Temperaturen
+## 10. Wetterdaten (Einstellungen)
 
-CSV-Import (Drag & Drop), Open-Meteo-Sync für den hinterlegten
+Seit v2.11.0 unter Einstellungen → Wetterdaten; die Adresse `#/temperatures`
+bleibt. CSV-Import (Drag & Drop), Open-Meteo-Sync für den hinterlegten
 Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung. Seit v2.8.0
 steht über dem Chart, bis wann Messwerte und ab wann Vorhersagen vorliegen;
 die Option „Auch vorhandene ältere Werte durch Archivwerte ersetzen" räumt
@@ -296,6 +371,12 @@ Standort noch auf der Voreinstellung des Landes, sagt ein Hinweis das
 ---
 
 ## 11. Einstellungen
+
+Zwei Tabs seit v2.11.0: **Allgemein** und **Wetterdaten** (§10). Der
+PDF-Jahresbericht ist nach Auswertungen gezogen; an seiner alten Stelle steht
+ein Verweis. Nach Demo-Daten, Backup-Import oder Wiederherstellung startet die
+App neu, damit Seitenleiste, Sprache und Zwischenspeicher zum neuen Stand
+passen.
 
 Oben die Karte **Sprache & Land** (v2.7.0): Sprache, Land, Währung und
 Zeitzone, alle mit sofortiger Wirkung. Beim Wechsel des Landes zeigt ein

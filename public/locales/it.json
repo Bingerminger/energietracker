@@ -22,7 +22,6 @@
   },
   "app": {
     "themeToggle": "Cambia tema",
-    "footerStorage": "JSON su file",
     "skipToContent": "Vai al contenuto principale",
     "primaryNav": "Navigazione principale",
     "brandHome": "Energietracker — vai alla panoramica",
@@ -30,7 +29,16 @@
     "offlineSince": "Offline – dati del {when}",
     "networkError": "Nessuna connessione a Energietracker – non è stato salvato nulla.",
     "networkErrorRead": "Nessuna connessione a Energietracker.",
-    "invalidResponse": "Risposta inattesa dal server (HTTP {status})."
+    "invalidResponse": "Risposta inattesa dal server (HTTP {status}).",
+    "timeoutRead": "Energietracker non risponde (tempo scaduto).",
+    "timeoutWrite": "Energietracker non risponde: non è chiaro se il salvataggio sia avvenuto. Ricarica la pagina e controlla.",
+    "retry": "Riprova",
+    "theme": {
+      "toggle": "Aspetto: {mode} – cambia",
+      "system": "come il sistema",
+      "light": "chiaro",
+      "dark": "scuro"
+    }
   },
   "meterNames": {
     "gas": "Contatore principale",
@@ -54,22 +62,43 @@
   },
   "nav": {
     "group": {
-      "capture": "Inserimento",
-      "overview": "Panoramica",
       "consumption": "Consumo",
-      "analysis": "Analisi",
-      "insights": "Indicatori",
-      "system": "Sistema"
+      "analysis": "Valutazioni",
+      "costs": "Costi e contratti",
+      "hints": "Promemoria e consigli"
     },
     "readings": "Letture contatore",
-    "dashboard": "Cruscotto",
-    "temperatures": "Temperature",
-    "correlation": "Correlazione",
+    "dashboard": "Panoramica",
     "forecast": "Previsione",
-    "tariffs": "Confronto tariffe",
+    "tariffs": "Cambio tariffa",
     "recommendations": "Raccomandazioni",
-    "reminders": "Promemoria",
-    "settings": "Impostazioni"
+    "reminders": "Promemoria e manutenzione",
+    "settings": "Impostazioni",
+    "analysis": "Analisi",
+    "contracts": "Contratti e acconti",
+    "billCheck": "Verifica bolletta",
+    "report": "Relazione annuale",
+    "general": "Generali",
+    "weather": "Dati meteo",
+    "tab": {
+      "overview": "Panoramica",
+      "consumption": "Consumi",
+      "capture": "Inserisci",
+      "costs": "Costi",
+      "more": "Altro"
+    },
+    "sheet": {
+      "title": "Inserisci",
+      "readings": "Inserisci letture",
+      "readingsHint": "Tutti i contatori in una volta",
+      "delivery": "Consegna {utility}",
+      "tankLevel": "Lettura serbatoio {utility}",
+      "reminder": "Nuovo promemoria"
+    },
+    "sectionNav": "Pagine di questa sezione",
+    "menu": "Menu",
+    "tabbar": "Navigazione rapida",
+    "captureButton": "Inserisci"
   },
   "dashboard": {
     "loading": "Caricamento della panoramica…",
@@ -110,7 +139,14 @@
       "title": "Promemoria imminenti",
       "due": "scadenza {date}",
       "now": "ora",
-      "inDays": "tra {days} g"
+      "overdueDays": {
+        "one": "scaduto da 1 giorno",
+        "other": "scaduto da {count} giorni"
+      },
+      "inDaysN": {
+        "one": "tra 1 giorno",
+        "other": "tra {count} giorni"
+      }
     },
     "allLink": "tutti",
     "chart": { "title": "Consumo a {months} mesi (tutte le utenze)", "alt": "Grafico a linee: consumo degli ultimi {months} mesi per utenza" },
@@ -124,7 +160,9 @@
       "activeMeters": "Contatori attivi",
       "totalMeters": "{count} in totale"
     },
-    "trend": { "vsPrev": "vs. 12 mesi precedenti", "moreThanPrev": "{pct} % in più rispetto ai 12 mesi precedenti", "lessThanPrev": "{pct} % in meno rispetto ai 12 mesi precedenti" }
+    "trend": { "vsPrev": "vs. 12 mesi precedenti", "moreThanPrev": "{pct} % in più rispetto ai 12 mesi precedenti", "lessThanPrev": "{pct} % in meno rispetto ai 12 mesi precedenti" },
+    "allRecommendations": "Tutte le raccomandazioni",
+    "allReminders": "Tutti i promemoria"
   },
   "readingsEntry": {
     "title": "Letture contatore",
@@ -461,7 +499,8 @@
         "estimated": "S",
         "interpolated": "E"
       },
-      "legend": "Tipo di lettura: senza suffisso = lettura rilevata · S = lettura registrata come stimata · E = valore sostitutivo: in questo giorno non c’è una lettura, è interpolato giorno per giorno tra le letture che lo racchiudono — esattamente dove stima anche il fornitore (limiti di potere calorifico e di periodo). Meno righe con E, meno stima."
+      "legend": "Tipo di lettura: senza suffisso = lettura rilevata · S = lettura registrata come stimata · E = valore sostitutivo: in questo giorno non c’è una lettura, è interpolato giorno per giorno tra le letture che lo racchiudono — esattamente dove stima anche il fornitore (limiti di potere calorifico e di periodo). Meno righe con E, meno stima.",
+      "open": "Verifica bolletta {year}"
     },
     "warnings": {
       "title": "Letture non plausibili: {count}",
@@ -786,7 +825,7 @@
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Caricamento…",
-    "title": "⚙️ Impostazioni",
+    "title": "Impostazioni",
     "subtitle": "Configurazione · esportazione dati · backup e ripristino",
     "save": "Salva impostazioni",
     "saveUnsaved": "Salva •",
@@ -898,7 +937,8 @@
       "title": "📄 Rapporto annuale PDF",
       "hint": "Rapporto multipagina con panoramica, classe di efficienza, tabelle di consumo per utenza e raccomandazioni in corso.",
       "year": "Anno",
-      "download": "Scarica il rapporto annuale"
+      "download": "Scarica il rapporto annuale",
+      "moved": "La relazione annuale ha ora una pagina propria in «Valutazioni»."
     },
     "export": {
       "title": "📤 Esportazione dati (CSV)",
@@ -1025,7 +1065,6 @@
       "aliasesSaved": "{count} alias salvato/i",
       "yamlCopied": "YAML copiato",
       "clipboardFail": "Copia non riuscita",
-      "clipboardUnavailable": "Appunti non disponibili — seleziona manualmente",
       "step4": "4. Automazione (da copiare)",
       "automationHint": "Nell’editor delle automazioni scegli «Modifica in YAML» e incolla. Ogni contatore con alias genera una voce; in <code>sensor_entity</code> indica l’entità con la lettura assoluta del contatore. <code>has_value</code> salta un contatore il cui sensore non è al momento disponibile.",
       "yaml": {
@@ -1243,7 +1282,7 @@
   },
   "temperatures": {
     "loading": "Caricamento…",
-    "title": "🌡️ Temperatura",
+    "title": "Dati meteo",
     "sync": "Sincronizza Open-Meteo",
     "csvImport": "Import CSV",
     "formatHint": "Formato: <code>GG.MM.AAAA\"media\"min\"max</code> (es. <code>15.01.2024\"4.2\"-1.0\"7.1</code>). Valori in °C, virgolette doppie come separatore.",
@@ -1319,7 +1358,7 @@
   },
   "tariff": {
     "loading": "Caricamento…",
-    "title": "Confronto tariffe",
+    "title": "Cambio tariffa",
     "subtitle": "Conviene cambiare? Il consumo previsto messo a confronto con offerte concrete, con lo sguardo ai mesi reali come prova.",
     "noUsable": "Nessuna utenza comparabile attiva. Il confronto tariffe si applica ai tipi con contratto (gas, elettricità, teleriscaldamento).",
     "utility": "Utenza",
@@ -1436,7 +1475,7 @@
   "analysis": {
     "noUtilities": "Nessuna utenza attiva. Nelle impostazioni puoi scegliere quali mostrare.",
     "loading": "Caricamento…",
-    "title": "📊 Analisi",
+    "title": "Analisi",
     "noMeters": "Nessun contatore.",
     "selectUtility": "Scegli utenza",
     "selectMeter": "Scegli contatore",
@@ -1531,7 +1570,7 @@
   "forecast": {
     "noUtilities": "Nessuna utenza attiva. Nelle impostazioni puoi scegliere quali mostrare.",
     "loading": "Caricamento…",
-    "title": "🔮 Previsione",
+    "title": "Previsione",
     "selectUtility": "Scegli utenza",
     "selectMeter": "Scegli contatore",
     "chartAlt": "Grafico a linee: storico del consumo con previsione",
@@ -1612,7 +1651,12 @@
     "revenueValue": "Ricavo {amount}",
     "kpiRevenue": "Ricavi totali",
     "tableRevenue": "Ricavo {cur}",
-    "certificate": "Tipo attestato: {value} kWh/m²·a (potere calorifico inferiore, corretto per il clima, {area} m² utili)"
+    "certificate": "Tipo attestato: {value} kWh/m²·a (potere calorifico inferiore, corretto per il clima, {area} m² utili)",
+    "page": {
+      "subtitle": "Un anno a colpo d’occhio, in PDF da archiviare o condividere.",
+      "open": "Apri nel browser",
+      "note": "Su iPhone il rapporto si apre in una nuova scheda; da lì puoi salvarlo o condividerlo."
+    }
   },
   "migration": {
     "warnNoSettings": "Nessuna impostazione trovata nel backup — valgono i valori predefiniti.",
@@ -1885,5 +1929,31 @@
     "PT": "Portogallo",
     "NL": "Paesi Bassi",
     "GB": "Regno Unito"
+  },
+  "contractsOverview": {
+    "subtitle": "Contratti in corso di tutte le utenze: scadenze, acconti e cosa aspettarsi al conguaglio.",
+    "noUtilities": "Nessuna utenza con contratti attiva.",
+    "manage": "Gestisci contratti",
+    "loadFailed": "Impossibile caricare: {msg}",
+    "noMeter": "Nessun contatore ancora creato.",
+    "meter": "Contatore {name}",
+    "noContract": "Nessun contratto in corso registrato.",
+    "addContract": "Aggiungi contratto",
+    "openEnded": "dal {start}, a tempo indeterminato",
+    "renewed": "dal {start}, si rinnova",
+    "term": "dal {start} al {end}",
+    "cancelMissed": "Termine di disdetta scaduto il {date}",
+    "cancelBy": "Disdire entro il {date}",
+    "daysLeft": {
+      "one": "ancora 1 giorno",
+      "other": "ancora {count} giorni"
+    },
+    "advance": "Acconto {amount} al mese",
+    "expected": "Previsto al {date}:"
+  },
+  "billCheck": {
+    "noMeter": "La verifica ricalcola coefficiente × potere calorifico ed è quindi disponibile per il gas. Crea prima un contatore del gas.",
+    "addMeter": "Crea contatore del gas",
+    "meter": "Contatore"
   }
 }

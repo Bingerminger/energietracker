@@ -52,3 +52,21 @@ export function toast(message, variant = 'info', timeoutMs = 4000) {
 export const toastOk    = (m) => toast(m, 'success');
 export const toastErr   = (m) => toast(m, 'error', 6000);
 export const toastWarn  = (m) => toast(m, 'warning');
+
+// v2.11.0 (Review UI-24) — Meldung über einen Neustart der App hinweg. Nach
+// Demo-Daten, Backup-Import oder Wiederherstellung lädt die App komplett neu
+// (Seitenleiste, Sprache, Zwischenspeicher); die Erfolgsmeldung kommt danach.
+const FLASH_KEY = 'et-flash';
+
+export function toastAfterReload(message, variant = 'success') {
+  try { sessionStorage.setItem(FLASH_KEY, JSON.stringify({ message, variant })); } catch { /* ohne Speicher keine Meldung */ }
+}
+
+export function showPendingToast() {
+  let item = null;
+  try {
+    item = JSON.parse(sessionStorage.getItem(FLASH_KEY) || 'null');
+    sessionStorage.removeItem(FLASH_KEY);
+  } catch { return; }
+  if (item?.message) toast(String(item.message), item.variant === 'error' ? 'error' : 'success', 6000);
+}

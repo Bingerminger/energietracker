@@ -22,7 +22,6 @@
   },
   "app": {
     "themeToggle": "Thema wisselen",
-    "footerStorage": "platte JSON-bestanden",
     "skipToContent": "Naar hoofdinhoud springen",
     "primaryNav": "Hoofdnavigatie",
     "brandHome": "Energietracker — naar het overzicht",
@@ -30,7 +29,16 @@
     "offlineSince": "Offline – stand van {when}",
     "networkError": "Geen verbinding met de Energietracker – er is niets opgeslagen.",
     "networkErrorRead": "Geen verbinding met de Energietracker.",
-    "invalidResponse": "Onverwacht antwoord van de server (HTTP {status})."
+    "invalidResponse": "Onverwacht antwoord van de server (HTTP {status}).",
+    "timeoutRead": "Energietracker reageert niet (time-out).",
+    "timeoutWrite": "Energietracker reageert niet – onduidelijk of er is opgeslagen. Laad de pagina opnieuw en controleer het.",
+    "retry": "Opnieuw proberen",
+    "theme": {
+      "toggle": "Weergave: {mode} – wisselen",
+      "system": "als het systeem",
+      "light": "licht",
+      "dark": "donker"
+    }
   },
   "meterNames": {
     "gas": "Hoofdmeter",
@@ -54,22 +62,43 @@
   },
   "nav": {
     "group": {
-      "capture": "Invoer",
-      "overview": "Overzicht",
       "consumption": "Verbruik",
-      "analysis": "Analyse",
-      "insights": "Inzichten",
-      "system": "Systeem"
+      "analysis": "Inzichten",
+      "costs": "Kosten en contracten",
+      "hints": "Meldingen en tips"
     },
     "readings": "Meterstanden",
-    "dashboard": "Dashboard",
-    "temperatures": "Temperaturen",
-    "correlation": "Correlatie",
+    "dashboard": "Overzicht",
     "forecast": "Prognose",
-    "tariffs": "Tariefvergelijking",
+    "tariffs": "Overstappen",
     "recommendations": "Aanbevelingen",
-    "reminders": "Herinneringen",
-    "settings": "Instellingen"
+    "reminders": "Herinneringen en onderhoud",
+    "settings": "Instellingen",
+    "analysis": "Analyse",
+    "contracts": "Contracten en voorschotten",
+    "billCheck": "Rekening controleren",
+    "report": "Jaarverslag",
+    "general": "Algemeen",
+    "weather": "Weergegevens",
+    "tab": {
+      "overview": "Overzicht",
+      "consumption": "Verbruik",
+      "capture": "Invoeren",
+      "costs": "Kosten",
+      "more": "Meer"
+    },
+    "sheet": {
+      "title": "Invoeren",
+      "readings": "Meterstanden invoeren",
+      "readingsHint": "Alle meters in één keer",
+      "delivery": "Levering {utility}",
+      "tankLevel": "Peilstand {utility}",
+      "reminder": "Nieuwe herinnering"
+    },
+    "sectionNav": "Pagina’s in dit onderdeel",
+    "menu": "Menu",
+    "tabbar": "Snelle navigatie",
+    "captureButton": "Invoeren"
   },
   "dashboard": {
     "loading": "Overzicht laden…",
@@ -110,7 +139,14 @@
       "title": "Aankomende herinneringen",
       "due": "vervalt {date}",
       "now": "nu",
-      "inDays": "over {days} d"
+      "overdueDays": {
+        "one": "1 dag te laat",
+        "other": "{count} dagen te laat"
+      },
+      "inDaysN": {
+        "one": "over 1 dag",
+        "other": "over {count} dagen"
+      }
     },
     "allLink": "alle",
     "chart": { "title": "Verbruik over {months} maanden (alle energieën)", "alt": "Lijndiagram: verbruik van de laatste {months} maanden per energie" },
@@ -124,7 +160,9 @@
       "activeMeters": "Actieve meters",
       "totalMeters": "{count} in totaal"
     },
-    "trend": { "vsPrev": "t.o.v. vorige 12 maanden", "moreThanPrev": "{pct} % meer dan de vorige periode van 12 maanden", "lessThanPrev": "{pct} % minder dan de vorige periode van 12 maanden" }
+    "trend": { "vsPrev": "t.o.v. vorige 12 maanden", "moreThanPrev": "{pct} % meer dan de vorige periode van 12 maanden", "lessThanPrev": "{pct} % minder dan de vorige periode van 12 maanden" },
+    "allRecommendations": "Alle aanbevelingen",
+    "allReminders": "Alle herinneringen"
   },
   "readingsEntry": {
     "title": "Meterstanden",
@@ -461,7 +499,8 @@
         "estimated": "S",
         "interpolated": "E"
       },
-      "legend": "Afleestype: zonder toevoeging = afgelezen stand · S = als geschat vastgelegde meting · E = vervangende waarde: op deze dag is er geen meterstand, hij is per dag geïnterpoleerd tussen de omsluitende metingen — precies waar ook de leverancier schat (grenzen van calorische waarde en periode). Hoe minder rijen met E, hoe minder schatting."
+      "legend": "Afleestype: zonder toevoeging = afgelezen stand · S = als geschat vastgelegde meting · E = vervangende waarde: op deze dag is er geen meterstand, hij is per dag geïnterpoleerd tussen de omsluitende metingen — precies waar ook de leverancier schat (grenzen van calorische waarde en periode). Hoe minder rijen met E, hoe minder schatting.",
+      "open": "Rekening {year} controleren"
     },
     "warnings": {
       "title": "Onwaarschijnlijke meterstanden: {count}",
@@ -786,7 +825,7 @@
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Laden…",
-    "title": "⚙️ Instellingen",
+    "title": "Instellingen",
     "subtitle": "Configuratie · gegevensexport · back-up en herstel",
     "save": "Instellingen opslaan",
     "saveUnsaved": "Opslaan •",
@@ -898,7 +937,8 @@
       "title": "📄 PDF-jaarrapport",
       "hint": "Rapport van meerdere pagina’s met overzicht, efficiëntieklasse, verbruikstabellen per energie en openstaande aanbevelingen.",
       "year": "Jaar",
-      "download": "Jaarrapport downloaden"
+      "download": "Jaarrapport downloaden",
+      "moved": "Het jaarverslag heeft nu een eigen pagina onder „Inzichten”."
     },
     "export": {
       "title": "📤 Gegevensexport (CSV)",
@@ -1025,7 +1065,6 @@
       "aliasesSaved": "{count} alias(sen) opgeslagen",
       "yamlCopied": "YAML gekopieerd",
       "clipboardFail": "Kopiëren mislukt",
-      "clipboardUnavailable": "Klembord niet beschikbaar — selecteer handmatig",
       "step4": "4. Automatisering (om te kopiëren)",
       "automationHint": "Kies in de automatiseringseditor ‘Bewerken in YAML’ en plak. Elke meter met alias krijgt een regel; vul bij <code>sensor_entity</code> de entiteit met de absolute meterstand in. <code>has_value</code> slaat een meter over waarvan de sensor op dat moment niet beschikbaar is.",
       "yaml": {
@@ -1243,7 +1282,7 @@
   },
   "temperatures": {
     "loading": "Laden…",
-    "title": "🌡️ Temperatuur",
+    "title": "Weergegevens",
     "sync": "Open-Meteo synchroniseren",
     "csvImport": "CSV-import",
     "formatHint": "Formaat: <code>DD.MM.JJJJ\"gem\"min\"max</code> (bijv. <code>15.01.2024\"4.2\"-1.0\"7.1</code>). Waarden in °C, dubbele aanhalingstekens als scheidingsteken.",
@@ -1319,7 +1358,7 @@
   },
   "tariff": {
     "loading": "Laden…",
-    "title": "Tariefvergelijking",
+    "title": "Overstappen",
     "subtitle": "Loont overstappen? Het verwachte verbruik afgezet tegen concrete aanbiedingen — met de terugblik op echte maanden als bewijs.",
     "noUsable": "Geen vergelijkbare energieën actief. De tariefvergelijking geldt voor contractgebaseerde typen (gas, elektriciteit, stadsverwarming).",
     "utility": "Energie",
@@ -1436,7 +1475,7 @@
   "analysis": {
     "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
     "loading": "Laden…",
-    "title": "📊 Analyse",
+    "title": "Analyse",
     "noMeters": "Geen meters.",
     "selectUtility": "Energie kiezen",
     "selectMeter": "Meter kiezen",
@@ -1531,7 +1570,7 @@
   "forecast": {
     "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
     "loading": "Laden…",
-    "title": "🔮 Prognose",
+    "title": "Prognose",
     "selectUtility": "Energie kiezen",
     "selectMeter": "Meter kiezen",
     "chartAlt": "Lijndiagram: verbruiksgeschiedenis met prognose",
@@ -1612,7 +1651,12 @@
     "revenueValue": "Opbrengst {amount}",
     "kpiRevenue": "Totale opbrengst",
     "tableRevenue": "Opbrengst {cur}",
-    "certificate": "Naar energielabel: {value} kWh/m²·j (onderste verbrandingswaarde, weergecorrigeerd, {area} m² gebruiksoppervlakte)"
+    "certificate": "Naar energielabel: {value} kWh/m²·j (onderste verbrandingswaarde, weergecorrigeerd, {area} m² gebruiksoppervlakte)",
+    "page": {
+      "subtitle": "Een jaar in één oogopslag, als pdf om te bewaren of te delen.",
+      "open": "Openen in browser",
+      "note": "Op de iPhone opent het verslag in een nieuw tabblad; van daaruit kun je het bewaren of delen."
+    }
   },
   "migration": {
     "warnNoSettings": "Geen instellingen in de back-up gevonden — de standaardwaarden gelden.",
@@ -1885,5 +1929,31 @@
     "PT": "Portugal",
     "NL": "Nederland",
     "GB": "Verenigd Koninkrijk"
+  },
+  "contractsOverview": {
+    "subtitle": "Lopende contracten van alle nutsvoorzieningen: termijnen, voorschotten en wat je bij de afrekening kunt verwachten.",
+    "noUtilities": "Geen nutsvoorziening met contracten actief.",
+    "manage": "Contracten beheren",
+    "loadFailed": "Kon niet worden geladen: {msg}",
+    "noMeter": "Nog geen meter aangemaakt.",
+    "meter": "Meter {name}",
+    "noContract": "Geen lopend contract vastgelegd.",
+    "addContract": "Contract toevoegen",
+    "openEnded": "sinds {start}, voor onbepaalde tijd",
+    "renewed": "sinds {start}, wordt verlengd",
+    "term": "{start} tot {end}",
+    "cancelMissed": "Opzegtermijn verstreken op {date}",
+    "cancelBy": "Opzeggen vóór {date}",
+    "daysLeft": {
+      "one": "nog 1 dag",
+      "other": "nog {count} dagen"
+    },
+    "advance": "Voorschot {amount} per maand",
+    "expected": "Verwacht op {date}:"
+  },
+  "billCheck": {
+    "noMeter": "De controle rekent correctiefactor × calorische waarde na en bestaat daarom voor gas. Maak eerst een gasmeter aan.",
+    "addMeter": "Gasmeter aanmaken",
+    "meter": "Meter"
   }
 }

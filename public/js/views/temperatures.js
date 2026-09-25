@@ -3,7 +3,7 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getSettings, getCountries } from '../state.js';
+import { getSettings, getCountries, saveSettings } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { guardSubmit } from '../components/modal.js';
@@ -138,8 +138,11 @@ export async function render(container) {
     const longitude = latitude === null ? null : coord('lng', 180);
     if (latitude === null || longitude === null) return;
     try {
-      // Persist location to settings first (so backend uses it for the sync)
-      await api.updateSettings({
+      // Persist location to settings first (so backend uses it for the sync).
+      // v2.11.0 (FE-12) — über saveSettings: Das Neuzeichnen danach las bis
+      // v2.10 den alten Standort aus dem Cache und schrieb ihn beim nächsten
+      // Klick zurück.
+      await saveSettings({
         latitude,
         longitude,
         location_name: container.querySelector('#loc-name').value,

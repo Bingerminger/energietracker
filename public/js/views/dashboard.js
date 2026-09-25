@@ -7,7 +7,7 @@ import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { makeChart } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
-import { t } from '../lib/i18n.js';
+import { t, tp } from '../lib/i18n.js';
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
@@ -21,8 +21,20 @@ export async function render(container) {
   // v2.9.0 (CALC-23) — Zeitraum des Verlaufsdiagramms aus den Einstellungen
   const chartSpan = Math.min(36, Math.max(3, Number(settings.dashboard_months) || 12));
 
+  // Tank-Bestände für Delivery-Utilities — v2.11.0 (Review FE-26): alle
+  // parallel und zugleich mit dem Rest; bis v2.10 Tank für Tank nacheinander,
+  // nachdem alles andere schon da war
+  const deliveryUtils = utilities.filter(u => u.reading_kind === 'delivery');
+  const tankListsP = Promise.all(deliveryUtils.map(async u => {
+    try {
+      const meters = (await api.meters(u.key)).filter(m => (m.active ?? true) !== false);
+      const hist = await Promise.all(meters.map(m => api.stockHistory(u.key, m.id).catch(() => null)));
+      return meters.map((m, i) => ({ u, m, sh: hist[i] })).filter(x => x.sh && x.sh.capacity);
+    } catch { return []; }
+  }));
+
   // Fetch consumption for each active utility + Insights in parallel
-  const [datasets, eff, recs, reminders, stromSaldo, pvSummary] = await Promise.all([
+  const [datasets, eff, recs, reminders, stromSaldo, pvSummary, tankLists] = await Promise.all([
     Promise.all(utilities.map(async u => {
       try {
         const c = await api.consumption(u.key);
@@ -38,6 +50,7 @@ export async function render(container) {
     // F1005 (v1.7.0) — Strom-Saldo (Bezug−Einspeisung) + PV-Eigenverbrauch/Autarkie
     api.stromSaldo().catch(() => null),
     api.pvSummary().catch(() => null),
+    tankListsP,
   ]);
 
   // F1005 — Insight-Karte „Strom-Saldo" nur, wenn der User tatsächlich
@@ -54,23 +67,11 @@ export async function render(container) {
   const saldoYear = pvActive ? pickYearRow(stromSaldo.yearly) : null;
   const pvYear    = pvActive && pvSummary ? pickYearRow(pvSummary.yearly) : null;
 
-  // Tank-Bestände für Delivery-Utilities sammeln
-  const deliveryUtils = utilities.filter(u => u.reading_kind === 'delivery');
-  const tanks = [];
-  for (const u of deliveryUtils) {
-    try {
-      const meters = await api.meters(u.key);
-      for (const m of meters) {
-        if ((m.active ?? true) === false) continue;
-        const sh = await api.stockHistory(u.key, m.id).catch(() => null);
-        if (sh && sh.capacity) {
-          const days = sh.days || [];
-          const stock = days.length ? Number(days[days.length - 1].stock || 0) : 0;
-          tanks.push({ utility: u, meter: m, stock, cap: Number(sh.capacity), unit: sh.capacity_unit || u.volume_unit || 'L' });
-        }
-      }
-    } catch {}
-  }
+  const tanks = tankLists.flat().map(({ u, m, sh }) => {
+    const days = sh.days || [];
+    const stock = days.length ? Number(days[days.length - 1].stock || 0) : 0;
+    return { utility: u, meter: m, stock, cap: Number(sh.capacity), unit: sh.capacity_unit || u.volume_unit || 'L' };
+  });
 
   const topRecs = (recs || []).slice(0, 2);
   const dueRem = (reminders || [])
@@ -175,9 +176,10 @@ export async function render(container) {
 
       ${topRecs.length ? `
       <div class="card dash-insight">
-        <h2 class="card__title"><span aria-hidden="true">💡</span> ${t('dashboard.recommendations.title')}
-          <span class="card__title-action"><a class="btn btn--ghost btn--sm" href="#/recommendations">${t('dashboard.allLink')}</a></span>
-        </h2>
+        <div class="card__head">
+          <h2 class="card__title"><span aria-hidden="true">💡</span> ${t('dashboard.recommendations.title')}</h2>
+          <a class="btn btn--ghost btn--sm" href="#/recommendations" aria-label="${escapeHtml(t('dashboard.allRecommendations'))}">${t('dashboard.allLink')}</a>
+        </div>
         ${topRecs.map(r => `<div class="dash-rec dash-rec--${r.severity}">
           <strong>${escapeHtml(r.title)}</strong>
           <span class="muted">${escapeHtml(r.detail.slice(0, 110))}${r.detail.length > 110 ? '…' : ''}</span>
@@ -186,12 +188,16 @@ export async function render(container) {
 
       ${dueRem.length ? `
       <div class="card dash-insight">
-        <h2 class="card__title"><span aria-hidden="true">📌</span> ${t('dashboard.reminders.title')}
-          <span class="card__title-action"><a class="btn btn--ghost btn--sm" href="#/reminders">${t('dashboard.allLink')}</a></span>
-        </h2>
+        <div class="card__head">
+          <h2 class="card__title"><span aria-hidden="true">📌</span> ${t('dashboard.reminders.title')}</h2>
+          <a class="btn btn--ghost btn--sm" href="#/reminders" aria-label="${escapeHtml(t('dashboard.allReminders'))}">${t('dashboard.allLink')}</a>
+        </div>
         ${dueRem.map(r => `<div class="dash-rec">
           <strong>${escapeHtml(r.title)}</strong>
-          <span class="muted">${t('dashboard.reminders.due', { date: fmt.date(r.next_due) })}${r.days_until != null ? ` (${r.days_until <= 0 ? t('dashboard.reminders.now') : t('dashboard.reminders.inDays', { days: r.days_until })})` : ''}</span>
+          <span class="muted">${t('dashboard.reminders.due', { date: fmt.date(r.next_due) })}${r.days_until != null ? ` (${r.days_until < 0
+            // v2.11.0 — „überfällig seit 64 Tagen" statt „jetzt" (Review UI-21)
+            ? tp('dashboard.reminders.overdueDays', -r.days_until)
+            : r.days_until === 0 ? t('dashboard.reminders.now') : tp('dashboard.reminders.inDaysN', r.days_until)})` : ''}</span>
         </div>`).join('')}
       </div>` : ''}
     </div>`;
@@ -200,8 +206,9 @@ export async function render(container) {
     <div class="section-head">
       <h1>${t('dashboard.title')}</h1>
       <div class="section-actions">
-        <a class="btn btn--ghost" href="#/temperatures">${t('nav.temperatures')}</a>
-        <a class="btn btn--primary" href="#/forecast">${t('nav.forecast')}</a>
+        <!-- v2.11.0 (Review UI-21) — „Temperaturen" gehört zu den Wetterdaten;
+             „Erfassen" steht in der Kopfleiste bzw. der Tab-Leiste -->
+        <a class="btn btn--ghost" href="#/forecast">${t('nav.forecast')}</a>
       </div>
     </div>
 

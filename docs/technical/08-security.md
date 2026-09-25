@@ -145,6 +145,17 @@ nginx, Traefik, Synology). Das Sitzungs-Cookie bekommt das Attribut `Secure`
 automatisch, wenn die Anfrage über HTTPS kommt oder der Proxy
 `X-Forwarded-Proto: https` setzt.
 
+**Auch im Heimnetz lohnt HTTPS** (v2.11.0). Browser erlauben manche
+Funktionen nur in einem sicheren Kontext, also über HTTPS oder `localhost`:
+
+- Den Service Worker, und damit die Anzeige ohne Netz, gibt es über
+  `http://<NAS-Adresse>` nicht.
+- Die Home-Bildschirm-App auf dem iPhone ist dann nur ein Lesezeichen.
+
+Kopieren (Token, YAML, Jahresverbrauch) geht seit v2.11.0 auch ohne HTTPS;
+die App hat dafür einen Rückfall. Ein Reverse-Proxy mit Zertifikat schaltet
+den Rest frei, etwa die Synology mit Let's Encrypt oder Caddy.
+
 ## 8. Hostnamen und Einbetten
 
 **`ET_ALLOWED_HOSTS`** (opt-in) schützt gegen *DNS-Rebinding*: Eine fremde

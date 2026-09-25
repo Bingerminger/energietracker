@@ -13,6 +13,7 @@ import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { t } from '../lib/i18n.js';
 import { associateFieldLabels } from '../lib/a11y.js';
+import { renderError } from '../components/error.js';
 
 export async function render(container, params) {
   const utilityKey = params[0];
@@ -28,10 +29,17 @@ export async function render(container, params) {
 
 async function refresh(container, u) {
   container.innerHTML = `<div class="loading">${t('meters.loading')}</div>`;
-  const [meters, groups] = await Promise.all([
-    api.meters(u.key),
-    api.meterGroups(u.key),
-  ]);
+  let meters, groups;
+  try {
+    [meters, groups] = await Promise.all([
+      api.meters(u.key),
+      api.meterGroups(u.key),
+    ]);
+  } catch (e) {
+    // v2.11.0 (Review FE-25) — sonst hing die Ansicht nach dem Speichern bei „Lädt…"
+    renderError(container, e, () => refresh(container, u));
+    return;
+  }
 
   // C — Übersichtszeile aus den bereits geladenen Daten.
   const activeCount = meters.filter(m => m.active !== false).length;

@@ -1,21 +1,40 @@
 // =====================================================================
 // Energietracker v1.2.0 — Lightweight state store
 // Caches utilities config & settings so views don't refetch on every nav.
+//
+// v2.11.0 (Review FE-12) — gemerkt wird das Promise, nicht erst das
+// Ergebnis: Parallele Aufrufe beim Start (Seitenleiste, Ansicht, Badges)
+// fragten sonst jeder einzeln an. Die Abrufe laufen ohne Navigationssignal
+// (`appScope`), weil der Cache jede Ansicht überlebt. Einstellungen werden
+// über `saveSettings()` geschrieben — das hält den Cache aktuell und meldet
+// die Änderung (`et:settingschange`), damit Seitenleiste und Theme folgen.
+// Bis v2.10 las die Temperaturansicht nach dem Speichern den alten Standort
+// aus dem Cache und schrieb ihn beim nächsten Klick zurück.
 // =====================================================================
 
-import { api } from './api.js';
+import { api, appScope } from './api.js';
 
 const state = {
   utilities: null,
+  utilitiesP: null,
   settings: null,
+  settingsP: null,
   countries: null,
   version: document.body.getAttribute('data-app-version') || '1.2.0',
 };
 
-export async function getUtilities() {
-  if (state.utilities) return state.utilities;
-  state.utilities = await api.listUtilities();
-  return state.utilities;
+/** Merkt ein Promise; ein Fehler wird nicht gemerkt (nächster Aufruf fragt neu). */
+function memo(key, load, assign) {
+  if (!state[key]) {
+    state[key] = appScope(load)
+      .then(value => { assign(value); return value; })
+      .catch(err => { state[key] = null; throw err; });
+  }
+  return state[key];
+}
+
+export function getUtilities() {
+  return memo('utilitiesP', () => api.listUtilities(), v => { state.utilities = v; });
 }
 
 export function getUtilitiesSync() { return state.utilities || []; }
@@ -25,10 +44,26 @@ export async function getUtility(key) {
   return list.find(u => u.key === key) || null;
 }
 
-export async function getSettings() {
-  if (state.settings) return state.settings;
-  state.settings = await api.settings();
-  return state.settings;
+export function getSettings() {
+  return memo('settingsP', () => api.settings(), v => { state.settings = v; });
+}
+
+/**
+ * v2.11.0 — Einstellungen speichern (PATCH) und alle Beteiligten
+ * benachrichtigen. Die Antwort des Servers ist der vollständige neue Stand.
+ *
+ * @param {Record<string, unknown>} patch
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function saveSettings(patch) {
+  const result = await api.updateSettings(patch);
+  const { ignored_keys: _ignored, ...settings } = result || {};
+  state.settings = settings;
+  state.settingsP = Promise.resolve(settings);
+  window.dispatchEvent(new CustomEvent('et:settingschange', {
+    detail: { keys: Object.keys(patch || {}), settings },
+  }));
+  return result;
 }
 
 /**
@@ -53,12 +88,12 @@ export async function activeUtilities() {
  */
 export async function getCountries() {
   if (state.countries) return state.countries;
-  try { state.countries = await api.countries(); } catch { return []; }
+  try { state.countries = await appScope(() => api.countries()); } catch { return []; }
   return state.countries;
 }
 
-export function invalidateSettings() { state.settings = null; }
+export function invalidateSettings() { state.settings = null; state.settingsP = null; }
 
 // Bei Sprachwechsel: die Utility-Labels kommen lokalisiert vom Backend,
 // daher den Cache verwerfen, damit getUtilities() neu lädt.
-export function invalidateUtilities() { state.utilities = null; }
+export function invalidateUtilities() { state.utilities = null; state.utilitiesP = null; }

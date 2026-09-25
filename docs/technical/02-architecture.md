@@ -49,12 +49,12 @@ energietracker/
 │   ├── img/                # App-Icon (hell/dunkel), Favicon
 │   └── js/
 │       ├── app.js          # Frontend-Einstiegspunkt
-│       ├── router.js       # Hash-Router
-│       ├── api.js          # fetch-Wrapper (BASE = 'api.php')
-│       ├── state.js        # Utilities-/Settings-Cache
-│       ├── lib/            # sidebar, theme, format, gas-factor
+│       ├── router.js       # Hash-Router (Token, Abbruch, Bereichs-Tabs)
+│       ├── api.js          # fetch-Wrapper (BASE = 'api.php', Zeitlimit)
+│       ├── state.js        # Utilities-/Settings-Cache, saveSettings()
+│       ├── lib/            # nav-model, sidebar, mobile-nav, theme, format, contrast …
 │       ├── components/     # chart, modal, toast
-│       └── views/          # 12 Ansichten (s. UI-Referenz)
+│       └── views/          # 15 Ansichten (s. UI-Referenz)
 ├── src/
 │   ├── bootstrap.php       # DI-Container + Routen-Tabelle
 │   ├── Config/Utilities.php# Verbrauchsarten — single source of truth
@@ -212,8 +212,42 @@ künftiger Endpunkt die Service-Layer-Validierung umgehen sollte.
 ## 7. Frontend
 
 Reine ES-Module, **kein Build-Schritt**. `app.js` ist der Einstieg:
-Theme-Toggle binden → `buildSidebar()` (dynamisch aus aktiven
-Verbrauchsarten) → Utilities-Cache wärmen → Hash-Router starten.
+Theme-Toggle binden → Sprache laden → Utilities-Cache wärmen →
+`buildSidebar()` (dynamisch aus aktiven Verbrauchsarten) → Hash-Router
+starten.
+
+**Navigation (seit v2.11.0).** `lib/nav-model.js` ist die eine Quelle für
+Seitenleiste, Tab-Leiste (iPhone, `lib/mobile-nav.js`) und die Tabs der
+Bereiche. Der Router meldet jede Navigation als Ereignis `et:route`
+(Ansicht, Bereich, Verbrauchsart); Seitenleiste und Tab-Leiste setzen daraus
+ihre Markierung.
+
+**Router (seit v2.11.0).** Jede Navigation bekommt ein Token, ein
+Abbruchsignal und einen eigenen Container im `#view`:
+
+- Der Cleanup der alten Ansicht läuft, bevor die neue startet.
+- Eine verspätete Ansicht schreibt in ihren ausgehängten Container. Ihr
+  Cleanup läuft, sobald sie fertig ist.
+- Leseanfragen (GET) der verlassenen Ansicht bricht `api.js` ab; ihr Promise
+  bleibt offen, die Ansicht läuft nicht weiter und meldet keinen Fehler.
+  Schreibzugriffe laufen immer zu Ende.
+- App-weite Abrufe (`state.js`, Zähler der Seitenleiste) laufen über
+  `appScope()` ohne Signal.
+- Ansichten werden per `import()` geladen; die Import-Map versioniert auch
+  diese Pfade. Nach dem ersten Bild lädt der Router die übrigen im Leerlauf
+  vor, damit sie offline im Cache des Service Workers liegen.
+- `#/pfad?schlüssel=wert` reicht die Query als `ctx.query` an die Ansicht:
+  `render(container, params, ctx)`.
+
+**Einstellungen** schreiben die Ansichten über `state.saveSettings(patch)`:
+PATCH, Zwischenspeicher aktualisieren, Ereignis `et:settingschange`. Die
+Seitenleiste baut sich bei geänderten `active_utilities` neu auf. Nach
+Demo-Daten, Import oder Wiederherstellung lädt die App komplett neu.
+
+**Dialoge** legen beim Öffnen einen History-Eintrag an: Die Zurück-Taste
+schließt den obersten Dialog statt die Seite. Schließt er anders, nimmt er
+den Eintrag mit `history.back()` zurück — außer bei einer Navigation, die
+sonst rückgängig gemacht würde.
 
 > ⚠️ **Architektur-kritisch:** Da alle Module über einen einzigen
 > ES-Modulgraphen geladen werden, bricht **ein einziger fehlerhafter

@@ -83,11 +83,11 @@ function freshDom() {
   return dom;
 }
 
-async function renderView(modPath, params = []) {
+async function renderView(modPath, params = [], ctx = {}) {
   const dom = freshDom();
   const view = global.document.getElementById('view');
   const mod = await import(modPath + '?t=' + Date.now());
-  const cleanup = await mod.render(view, params);
+  const cleanup = await mod.render(view, params, ctx);
   return { dom, view, cleanup };
 }
 
@@ -106,7 +106,8 @@ async function renderView(modPath, params = []) {
       const ct = r.headers.get('content-type') || '';
       if (!ct.includes('javascript')) { bad.push(u + ' → MIME ' + ct); return; }
       const src = await r.text();
-      const re = /from\s+["']([^"']+)["']/g; let m;
+      // v2.11.0 — auch dynamische Importe (der Router lädt die Ansichten bei Bedarf)
+      const re = /(?:from\s+|import\(\s*)["']([^"']+)["']/g; let m;
       while ((m = re.exec(src))) {
         if (m[1].startsWith('.')) await crawl(new URL(m[1], u).href);
       }
@@ -124,7 +125,7 @@ async function renderView(modPath, params = []) {
     freshDom();
     const i18n = await import(`${ROOT}/lib/i18n.js`);
     await i18n.initI18n('de');
-    t('i18n: de-Katalog geladen', i18n.t('nav.dashboard') === 'Dashboard',
+    t('i18n: de-Katalog geladen', i18n.t('nav.dashboard') === 'Übersicht',
       't(nav.dashboard)=' + i18n.t('nav.dashboard'));
   } catch (e) { t('i18n-Init', false, e.message); }
 
@@ -195,7 +196,7 @@ async function renderView(modPath, params = []) {
   try {
     const { view } = await renderView(`${ROOT}/views/tariff.js`);
     const html = view.innerHTML;
-    t('tariff: render ohne Exception', html.includes('Tarifvergleich'));
+    t('tariff: render ohne Exception', html.includes('Wechsel prüfen'));
     t('tariff: Verbrauchsart-Selektor', !!view.querySelector('#t-util'));
     // kurz warten, bis loadAll() beide Blöcke nachzieht
     await new Promise(r => setTimeout(r, 500));
@@ -236,7 +237,8 @@ async function renderView(modPath, params = []) {
     const html = view.innerHTML;
     t('settings: render ohne Exception', html.includes('Einstellungen'));
     t('settings: active_utilities-Checkboxen', view.querySelectorAll('[data-active-util]').length >= 3);
-    t('settings: PDF-Download-Link', !!view.querySelector('#pdf-dl'));
+    // v2.11.0 — der Jahresbericht hat eine eigene Seite; hier nur der Verweis
+    t('settings: Verweis auf den Jahresbericht', !!view.querySelector('a[href="#/report"]'));
     t('settings: sigmoid im Modell-Picker',
       !![...view.querySelectorAll('select option')].find(o => o.value === 'sigmoid'));
     t('settings: Gebäude-Feld wohnflaeche', !!view.querySelector('[data-key="wohnflaeche_m2"]'));
@@ -286,8 +288,9 @@ async function renderView(modPath, params = []) {
     await new Promise(r => setTimeout(r, 500));
     const html = view.innerHTML;
     t('utility(gas): render ohne Exception', html.length > 50 && (html.includes('Gas') || html.includes('Zähler')));
-    // v2.5.0 — F1012: Rechnungsprüfung nur in der Gas-Ansicht
-    t('utility(gas): Rechnungsprüfung vorhanden', !!view.querySelector('#bill-check #bc-run'));
+    // v2.5.0 — F1012: Rechnungsprüfung nur bei Gas; seit v2.11.0 eine eigene
+    // Seite, die Gas-Ansicht verweist mit Zähler und Jahr darauf
+    t('utility(gas): Verweis auf die Rechnungsprüfung', !!view.querySelector('a[href^="#/bill-check?meter="]'));
     // v2.5.1 — Spalte „Sonderzahlungen" in „Verträge & Abschläge": Kopf mit
     // Erklärung, Zelle mit Netto und Tooltip der Einzelposten (Demo-Daten
     // führen am Gas-Vertrag eine Rückzahlung und eine Abschlagszahlung).
@@ -312,11 +315,16 @@ async function renderView(modPath, params = []) {
     t('utility(gas): Saldo-Karte schlüsselt die Summe auf',
       !!consumedCol && /Verbrauch/.test(consumedCol.textContent) && /Grundpreis/.test(consumedCol.textContent));
 
-    // v2.5.2 — Rechnungsprüfung ausführen: Stand alt/neu je Abschnitt mit
-    // Ableseart; Ersatzwerte (E) tragen einen Tooltip, die Fußnote erklärt.
-    view.querySelector('#bc-from').value = '2025-01-01';
-    view.querySelector('#bc-to').value   = '2026-01-01';
-    view.querySelector('#bc-run').click();
+  } catch (e) { t('utility(gas): render', false, e.message); }
+
+  // ── 7c. Rechnung prüfen (eigene Seite seit v2.11.0) ──
+  // v2.5.2 — Stand alt/neu je Abschnitt mit Ableseart; Ersatzwerte (E)
+  // tragen einen Tooltip, die Fußnote erklärt. Zeitraum aus der Adresse →
+  // die Seite rechnet sofort.
+  try {
+    const { view } = await renderView(`${ROOT}/views/bill-check.js`, [],
+      { query: new URLSearchParams('from=2025-01-01&to=2026-01-01') });
+    t('billCheck: Seite mit Überschrift', view.querySelector('h1')?.textContent.includes('Rechnung prüfen'));
     for (let i = 0; i < 40 && !view.querySelector('#bc-result table'); i++) await new Promise(r => setTimeout(r, 100));
     const bcHead = [...view.querySelectorAll('#bc-result thead th')].map(th => th.textContent.trim());
     t('billCheck: Spalten Stand alt / Stand neu', bcHead.includes('Stand alt') && bcHead.includes('Stand neu'), bcHead.join('|'));
@@ -328,7 +336,7 @@ async function renderView(modPath, params = []) {
     t('billCheck: abgelesene Stände ohne Kürzel',
       counters.some(td => td.dataset.kind === 'reading') && counters.filter(td => td.dataset.kind === 'reading').every(td => !td.querySelector('sup')));
     t('billCheck: Fußnote zur Ableseart', !!view.querySelector('#bc-result .bill-check-legend') && view.querySelector('#bc-result .bill-check-legend').textContent.includes('E ='));
-  } catch (e) { t('utility(gas): render', false, e.message); }
+  } catch (e) { t('billCheck: render', false, e.message); }
 
   // ── 7a. Utility-View Wasser: KEINE Spalte Sonderzahlungen (kennt keine) ──
   try {
@@ -342,7 +350,7 @@ async function renderView(modPath, params = []) {
   try {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);
     await new Promise(r => setTimeout(r, 500));
-    t('utility(strom): keine Rechnungsprüfung', !view.querySelector('#bill-check'));
+    t('utility(strom): keine Rechnungsprüfung', !view.querySelector('a[href^="#/bill-check"]'));
   } catch (e) { t('utility(strom): render', false, e.message); }
 
   // ── 7b. F1005 (v1.7.0) — PV-Einspeisung & PV-Erzeugung rendern leer-Smoke ──
@@ -454,6 +462,46 @@ async function renderView(modPath, params = []) {
     t('contracts(gas): Kündigungsweise wählbar', ['', 'term_end', 'month_end', 'any_day'].every(v => modes.includes(v)), modes.join(','));
     t('contracts(gas): Verlängerung ohne Kündigung vorbelegt', modalEl?.querySelector('[name="auto_renews"]')?.checked === true);
   } catch (e) { t('contracts(gas): render', false, e.message); }
+
+  // ── 12. v2.11.0 — Verträge & Abschläge über alle Verbrauchsarten ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/contracts-overview.js`);
+    await new Promise(r => setTimeout(r, 300));
+    t('contractsOverview: Überschrift', !!view.querySelector('h1')?.textContent.includes('Verträge'));
+    const cards = view.querySelectorAll('.contract-overview');
+    t('contractsOverview: eine Karte je Verbrauchsart mit Verträgen', cards.length >= 3, `${cards.length} Karten`);
+    t('contractsOverview: laufender Gasvertrag mit Erwartung zur Abrechnung',
+      !!view.querySelector('.contract-overview[data-utility="gas"] .contract-overview__expected'));
+    t('contractsOverview: Verweis auf die Vertragsverwaltung', !!view.querySelector('a[href="#/utility/gas/contracts"]'));
+  } catch (e) { t('contractsOverview: render', false, e.message); }
+
+  // ── 13. v2.11.0 — Jahresbericht als eigene Seite ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/report.js`);
+    const open = view.querySelector('#report-open');
+    t('report: im Browser öffnen (inline, neuer Tab)',
+      (open?.getAttribute('href') || '').includes('inline=1') && open?.getAttribute('target') === '_blank');
+    t('report: Herunterladen ohne inline', !(view.querySelector('#report-download')?.getAttribute('href') || '').includes('inline'));
+  } catch (e) { t('report: render', false, e.message); }
+
+  // ── 14. v2.11.0 — Navigationsmodell: sieben Bereiche ──
+  try {
+    freshDom();
+    const nm = await import(`${ROOT}/lib/nav-model.js`);
+    const top = nm.sidebarModel([{ key: 'gas', label: 'Gas' }, { key: 'strom', label: 'Strom' }]).map(m => m.key);
+    t('nav: sieben Bereiche', top.join(',') === 'dashboard,readings-entry,consumption,costs,analysis,hints,settings', top.join(','));
+    t('nav: „Rechnung prüfen" nur mit Gas',
+      nm.sectionPages('costs', { utilities: [{ key: 'gas' }] }).some(p => p.view === 'bill-check')
+      && !nm.sectionPages('costs', { utilities: [{ key: 'strom' }] }).some(p => p.view === 'bill-check'));
+    t('nav: Tab-Leiste mit fünf Zielen', nm.tabbarModel('gas').length === 5);
+  } catch (e) { t('nav-model', false, e.message); }
+
+  // ── 15. v2.11.0 — Dashboard: Kopf und Überschriften (UI-21, UI-26) ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/dashboard.js`);
+    t('dashboard: Temperaturen nicht mehr als Kopf-Aktion', !view.querySelector('a[href="#/temperatures"]'));
+    t('dashboard: kein Link in einer Überschrift (UI-26)', !view.querySelector('h2 a, h2 .card__title-action'));
+  } catch (e) { t('dashboard: Kopf', false, e.message); }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);

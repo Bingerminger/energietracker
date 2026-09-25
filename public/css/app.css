@@ -78,11 +78,12 @@ h1, h2, h3, h4 { margin: 0; }
 .layout {
   display: grid;
   grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
-  grid-template-rows: var(--topbar-h) 1fr;
+  grid-template-rows: var(--topbar-total) 1fr;
   grid-template-areas:
     "topbar topbar"
     "sidebar view";
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ── Topbar ─────────────────────────────────────────────────────── */
@@ -90,6 +91,10 @@ h1, h2, h3, h4 { margin: 0; }
   grid-area: topbar;
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 var(--sp-5);
+  /* v2.11.0 (Review UI-25) — unter Uhr und Dynamic Island freilassen */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: max(var(--sp-5), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--sp-5), env(safe-area-inset-right, 0px));
   background: var(--bg-1);
   border-bottom: 1px solid var(--border-1);
   position: sticky; top: 0; z-index: 10;
@@ -112,13 +117,6 @@ h1, h2, h3, h4 { margin: 0; }
   font-size: 13px; font-weight: 500;
   letter-spacing: 0.04em;
   color: var(--text-1);
-}
-.topbar__version {
-  font-family: var(--font-mono); font-size: 11px;
-  color: var(--text-2);
-  padding: 1px 8px; border-radius: var(--r-sm);
-  background: var(--bg-2);
-  border: 1px solid var(--border-2);
 }
 .topbar__status {
   font-family: var(--font-mono); font-size: 11px;
@@ -193,19 +191,22 @@ h1, h2, h3, h4 { margin: 0; }
   border-right: 1px solid var(--border-1);
   display: flex; flex-direction: column;
   padding: var(--sp-3) 0 0;
-  position: sticky; top: var(--topbar-h);
-  height: calc(100vh - var(--topbar-h));
+  position: sticky; top: var(--topbar-total);
+  height: calc(100vh - var(--topbar-total));
+  height: calc(100dvh - var(--topbar-total));
   overflow-y: auto;
 }
 .sidebar__nav {
-  display: flex; flex-direction: column; gap: var(--sp-4);
+  display: flex; flex-direction: column; gap: 2px;
   padding: 0 var(--sp-3);
   flex: 1;
 }
-.sidebar__group { display: flex; flex-direction: column; gap: 2px; }
+/* v2.11.0 — Bereiche als einzelne Einträge, die Verbrauchsarten als Gruppe */
+.sidebar__group { display: flex; flex-direction: column; gap: 2px; margin: var(--sp-2) 0; }
+/* v2.11.0 (Review UI-09) — 11 px in --text-2 statt 9 px unter 3:1 */
 .sidebar__group-label {
-  font-size: 9px; font-weight: 500;
-  color: var(--text-disabled);
+  font-size: 11px; font-weight: 600;
+  color: var(--text-2);
   text-transform: uppercase; letter-spacing: 0.12em;
   padding: var(--sp-3) var(--sp-3) var(--sp-1);
 }
@@ -246,7 +247,7 @@ h1, h2, h3, h4 { margin: 0; }
 .sidebar__footer {
   border-top: 1px solid var(--border-1);
   padding: var(--sp-3) var(--sp-4);
-  font-size: 11px; color: var(--text-disabled);
+  font-size: 11px; color: var(--text-3);
   display: flex; gap: 6px; align-items: center;
 }
 .sidebar__footer a { color: var(--text-2); }
@@ -314,6 +315,8 @@ h1, h2, h3, h4 { margin: 0; }
   text-transform: uppercase; letter-spacing: 0.07em;
   margin-bottom: 8px;
   display: flex; align-items: center; gap: 6px;
+  /* v2.11.0 (Review UI-21) — „EIGENVERBRAUCHSQUOT…" wurde abgeschnitten */
+  flex-wrap: wrap; overflow-wrap: anywhere; hyphens: auto;
 }
 .kpi__value {
   font-family: var(--font-mono); font-size: 22px; font-weight: 500;
@@ -331,7 +334,7 @@ h1, h2, h3, h4 { margin: 0; }
   font-size: 11px; font-weight: 600;
   border-radius: 100px;
 }
-.kpi__trend.up { background: var(--danger-soft); color: var(--c-red); }
+.kpi__trend.up { background: var(--danger-soft); color: var(--danger); }
 .kpi__trend.down { background: var(--success-soft); color: var(--success); }
 .kpi__trend.flat { background: var(--bg-3); color: var(--text-2); }
 
@@ -382,7 +385,9 @@ h1, h2, h3, h4 { margin: 0; }
 
 /* ── Misc helpers ───────────────────────────────────────────────── */
 .muted { color: var(--text-2); }
-.dim   { color: var(--text-disabled); }
+/* v2.11.0 (Review UI-09) — „–" für fehlende Werte ist Information, kein
+   gesperrtes Element: --text-3 (5:1) statt --text-disabled (unter 3:1) */
+.dim   { color: var(--text-3); }
 .num   { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .success-text { color: var(--success); }
 .danger-text  { color: var(--danger); }
@@ -395,26 +400,123 @@ h1, h2, h3, h4 { margin: 0; }
 .empty h3   { margin-bottom: 8px; color: var(--text-1); }
 .empty p    { font-size: 13px; }
 
-/* ── Responsive ─────────────────────────────────────────────────── */
+/* ── Bereichs-Tabs (v2.11.0, Review UI-12) ─────────────────────────
+   Seiten eines Bereichs („Kosten & Verträge": Verträge · Wechsel prüfen ·
+   Rechnung prüfen) als Tabs über der Ansicht; die Seitenleiste nennt nur
+   den Bereich. */
+.section-tabs {
+  display: flex; gap: var(--sp-1);
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-4);
+  border-bottom: 1px solid var(--border-1);
+  overflow-x: auto; scrollbar-width: none;
+}
+.section-tabs::-webkit-scrollbar { display: none; }
+.section-tabs__tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 14px; white-space: nowrap;
+  color: var(--text-2); font-size: var(--fs-sm); font-weight: 500;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.section-tabs__tab:hover { color: var(--text-1); text-decoration: none; }
+.section-tabs__tab.active { color: var(--text-1); border-bottom-color: var(--accent); }
+.section-tabs__tab[data-utility].active { border-bottom-color: var(--util, var(--accent)); }
+/* Die Verbrauchsarten stehen am Mac in der Seitenleiste */
+.section-tabs--mobile { display: none; }
+
+/* Kartenkopf mit Aktion daneben (die Aktion steht nicht in der Überschrift) */
+.card__head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin-bottom: 14px;
+}
+.card__head > .card__title { margin-bottom: 0; }
+.card__head > :last-child:not(.card__title) { margin-left: auto; }
+
+.sidebar__error { padding: var(--sp-3); font-size: var(--fs-sm); color: var(--text-2); }
+.sidebar__error .btn { margin-top: var(--sp-2); }
+.sidebar__label { flex: 1; min-width: 0; }
+
+/* Erfassen am Mac: Knopf in der Kopfleiste */
+.topbar__capture { gap: 4px; }
+
+/* Tab-Leiste und Menü-Hintergrund gibt es nur auf dem iPhone */
+.tabbar, .nav-backdrop { display: none; }
+
+/* ── Responsive ─────────────────────────────────────────────────────
+   v2.11.0 (Review UI-05) — bis v2.10 stand hier die ganze Seitenleiste als
+   Block über dem Inhalt (auf dem iPhone SE drei Viertel des Bildschirms).
+   Jetzt: Tab-Leiste unten, Seitenleiste als Menü hinter „Mehr". */
 @media (max-width: 800px) {
+  html, body { font-size: 1rem; }   /* 16 px Grundschrift */
   .layout {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--topbar-h) auto 1fr;
+    grid-template-rows: var(--topbar-total) 1fr;
     grid-template-areas:
       "topbar"
-      "sidebar"
       "view";
   }
+  /* .btn aus components.css kommt später und setzt display — daher doppelt */
+  .topbar .topbar__capture { display: none; }
+  .topbar { padding-left: max(var(--sp-4), env(safe-area-inset-left, 0px)); padding-right: max(var(--sp-4), env(safe-area-inset-right, 0px)); }
+
   .sidebar {
-    position: static; height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border-1);
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 70;
+    width: min(320px, 86vw); height: 100vh; height: 100dvh;
+    padding-top: calc(var(--sp-4) + env(safe-area-inset-top, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    transform: translateX(-105%);
+    transition: transform 200ms ease-out, visibility 0s linear 200ms;
+    visibility: hidden;
+    box-shadow: var(--shadow-3);
   }
-  .sidebar__nav {
-    flex-direction: row; flex-wrap: wrap; gap: var(--sp-2);
-    overflow-x: auto;
+  body.nav-open .sidebar { transform: none; visibility: visible; transition: transform 200ms ease-out; }
+  body.nav-open { overflow: hidden; }
+  body.nav-open .nav-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 65;
+    background: var(--bg-overlay);
   }
-  .sidebar__group-label { display: none; }
-  .sidebar__footer { display: none; }
-  .view { padding: var(--sp-4); }
+  .sidebar__item { padding: 12px 14px; font-size: var(--fs-md); }
+  .sidebar__footer { padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)); }
+
+  .tabbar {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    background: var(--bg-1);
+    border-top: 1px solid var(--border-2);
+  }
+  .tabbar__item {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    min-height: 44px; padding: 4px 2px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text-2); font: inherit; font-size: 11px; font-weight: 500;
+    text-decoration: none;
+  }
+  .tabbar__item:hover { text-decoration: none; color: var(--text-1); }
+  .tabbar__item.active { color: var(--accent); }
+  .tabbar__icon { font-size: 20px; line-height: 1; }
+  .tabbar__label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tabbar__item--capture .tabbar__icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-fg); font-size: 22px; font-weight: 600;
+  }
+  .tabbar__badge { position: absolute; top: 2px; left: 50%; margin-left: 6px; }
+  .tabbar__badge .sidebar__badge { margin-left: 0; }
+
+  .view {
+    padding: var(--sp-4);
+    padding-left: max(var(--sp-4), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--sp-4), env(safe-area-inset-right, 0px));
+    /* Platz für die Tab-Leiste */
+    padding-bottom: calc(var(--sp-6) + var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+  }
+  .section-tabs--mobile { display: flex; }
+  .section-tabs { margin-top: 0; }
+  .section-tabs__tab { min-height: 44px; }
 }
+
+/* Knöpfe im Kartentitel erben nicht dessen Versalien */
+.card__title .btn { text-transform: none; letter-spacing: normal; font-size: var(--fs-sm); }

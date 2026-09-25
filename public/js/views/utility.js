@@ -24,6 +24,10 @@ import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBet
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
+// v2.11.0 (Review FE-05) — nur der zuletzt gestartete Aufbau zeichnet. Wer
+// schnell den Zähler wechselte, sah sonst die Stände des vorigen unter dem
+// neuen Namen.
+let rerenderSeq = 0;
 const state = {
   utility: null,
   meters: [],
@@ -31,7 +35,7 @@ const state = {
   selectedYear: null,
 };
 
-export async function render(container, params) {
+export async function render(container, params, ctx = {}) {
   const utilities = await getUtilities();
   const utilityKey = params[0];
   const utility = utilities.find(u => u.key === utilityKey);
@@ -52,6 +56,14 @@ export async function render(container, params) {
       state.selectedMeterId = meters[0]?.id || null;
     }
     await rerender(container);
+    // v2.11.0 — Sprungziele des Erfassen-Blatts: ?add=delivery | level | reading
+    const add = ctx.query?.get('add');
+    const target = { delivery: '#btn-new-delivery', level: '#btn-new-level', reading: '#btn-new-reading' }[add];
+    if (target) {
+      // Adresse ohne ?add=… — sonst öffnete Neuladen den Dialog erneut
+      try { history.replaceState(history.state, '', `#/utility/${utility.key}`); } catch { /* egal */ }
+      container.querySelector(target)?.click();
+    }
   } catch (e) {
     container.innerHTML = `<div class="status-banner alert"><div class="status-banner__icon">⚠️</div>
       <div class="status-banner__text">${escapeHtml(e.message)}</div></div>`;
@@ -65,6 +77,7 @@ export async function render(container, params) {
 
 async function rerender(container) {
   const u = state.utility;
+  const my = ++rerenderSeq;
 
   if (!state.meters.length || !state.selectedMeterId) {
     container.innerHTML = `
@@ -90,10 +103,12 @@ async function rerender(container) {
       api.contractStatus(u.key, meter.id),
     ]);
   } catch (e) {
+    if (my !== rerenderSeq) return;
     container.innerHTML = `<div class="status-banner alert"><div class="status-banner__icon">⚠️</div>
       <div class="status-banner__text">${escapeHtml(e.message)}</div></div>`;
     return;
   }
+  if (my !== rerenderSeq) return;
 
   const monthly   = consumptionData.monthly   || [];
   const contracts = contractStatusData.contracts || [];
@@ -117,11 +132,14 @@ async function rerender(container) {
   const isGeneration = u.accounting_kind === 'generation';
   let readings = [], deliveries = [], stockHist = null;
   if (isDelivery) {
-    deliveries = await api.deliveries(u.key, meter.id).catch(() => []);
-    stockHist  = await api.stockHistory(u.key, meter.id).catch(() => null);
+    [deliveries, stockHist] = await Promise.all([
+      api.deliveries(u.key, meter.id).catch(() => []),
+      api.stockHistory(u.key, meter.id).catch(() => null),
+    ]);
   } else {
     readings = await api.readings(u.key, meter.id);
   }
+  if (my !== rerenderSeq) return;
 
   // ── Status banner: how many days since last reading ─────────────
   const sortedReadings = [...readings]
@@ -319,7 +337,7 @@ async function rerender(container) {
       ${readingsTable(readings, u, yr, warnByReading)}
     </div>
     `}
-    ${u.key === 'gas' ? billCheckCard(yr) : ''}
+    ${u.key === 'gas' ? billCheckLink(meter, yr) : ''}
   `;
 
   // Chart
@@ -329,129 +347,17 @@ async function rerender(container) {
   // Wire up events
   wireEvents(container, u, meter, readings, contracts, deliveries);
   if (isDelivery) wireTankLevels(container, u, meter);
-  if (u.key === 'gas') wireBillCheck(container, u, meter);
 }
 
-// ── F1012 (v2.5.0): Rechnungsprüfung ───────────────────────────────────
-//
-// Rechnet die Gasrechnung nach: Für den gewählten Zeitraum liefert das
-// Backend Abschnitte an jeder Ablesung und jedem Brennwertwechsel — je
-// Abschnitt m³ × Zustandszahl × Brennwert = kWh, genau wie die Zeilen einer
-// Versorgerrechnung. Damit lässt sich jede Rechnungszeile gegen die eigenen
-// Zählerstände prüfen, statt sie zu glauben.
-
-function billCheckCard(year) {
-  const from = `${year}-01-01`;
-  const to   = `${year + 1}-01-01`;
+// ── F1012: Rechnungsprüfung — seit v2.11.0 eine eigene Seite (views/bill-check.js)
+function billCheckLink(meter, year) {
+  const href = `#/bill-check?meter=${encodeURIComponent(meter.id)}&from=${year}-01-01&to=${year + 1}-01-01`;
   return `
-    <div class="card" id="bill-check">
-      <div class="card__title">${t('utility.billCheck.title')}</div>
-      <p class="muted" style="margin-bottom:10px">${t('utility.billCheck.hint')}</p>
-      <div class="form-row" style="align-items:flex-end; margin-bottom:10px">
-        <div class="field">
-          <label for="bc-from">${t('utility.billCheck.from')}</label>
-          <input class="input" id="bc-from" type="date" value="${from}">
-        </div>
-        <div class="field">
-          <label for="bc-to">${t('utility.billCheck.to')}</label>
-          <input class="input" id="bc-to" type="date" value="${to}">
-        </div>
-        <div class="field">
-          <button type="button" class="btn btn-gas" id="bc-run">${t('utility.billCheck.run')}</button>
-        </div>
-      </div>
-      <div id="bc-result"></div>
+    <div class="card card--link">
+      <div class="card__title">${t('nav.billCheck')}</div>
+      <p class="muted">${t('utility.billCheck.hint')}</p>
+      <a class="btn btn--ghost btn--sm" href="${href}">${escapeHtml(t('utility.billCheck.open', { year }))}</a>
     </div>`;
-}
-
-function reasonLabel(reason) {
-  const map = {
-    start: 'start', end: 'end', reading: 'reading',
-    reading_estimated: 'readingEstimated', factor: 'factor',
-  };
-  // Kombinationen wie „reading+factor": beide Gründe nennen
-  return reason.split('+').map(r => t('utility.billCheck.reason.' + (map[r] || r))).join(' · ');
-}
-
-// v2.5.2 — Zählerstand an einer Abschnittsgrenze mit Ableseart, wie die
-// Rechnung ihn ausweist: abgelesen (ohne Zusatz), als geschätzt erfasst (S)
-// oder Ersatzwert (E) — kein Stand an diesem Tag, tagesgenau interpoliert.
-// Die Fußnote unter der Tabelle erklärt die Kürzel.
-function counterCell(value, kind) {
-  if (kind == null) return `<td class="num muted counter-cell">–</td>`;
-  const mark = kind === 'reading_estimated' ? t('utility.billCheck.mark.estimated')
-             : kind === 'interpolated'      ? t('utility.billCheck.mark.interpolated') : '';
-  const kindKey = kind === 'reading_estimated' ? 'readingEstimated' : kind;
-  const title = escapeHtml(t('utility.billCheck.kind.' + kindKey));
-  const val = value != null ? fmt.num(value, Number.isInteger(value) ? 0 : 1) : '–';
-  return `<td class="num counter-cell" data-kind="${escapeHtml(kind)}" title="${title}">${val}${mark ? `<sup class="muted"> ${mark}</sup>` : ''}</td>`;
-}
-
-function renderBillCheck(bill, u) {
-  const rows = bill.rows || [];
-  if (!rows.length) return `<p class="muted">${t('utility.billCheck.empty')}</p>`;
-  const tot = bill.totals || {};
-  return `
-    <div class="table-wrap"><table class="table table--compact">
-      <thead><tr>
-        <th scope="col">${t('utility.billCheck.col.period')}</th>
-        <th scope="col" class="num">${t('utility.billCheck.col.counterFrom')}</th>
-        <th scope="col" class="num">${t('utility.billCheck.col.counterTo')}</th>
-        <th scope="col" class="num">${t('utility.billCheck.col.days')}</th>
-        <th scope="col">${t('utility.billCheck.col.reason')}</th>
-        <th scope="col" class="num">m³</th>
-        <th scope="col" class="num">${t('utility.billCheck.col.z')}</th>
-        <th scope="col" class="num">${t('utility.billCheck.col.hs')}</th>
-        <th scope="col" class="num">kWh/m³</th>
-        <th scope="col" class="num">kWh</th>
-      </tr></thead>
-      <tbody>
-        ${rows.map(r => `
-          <tr class="${r.m3 == null ? 'muted' : ''}">
-            <td>${fmt.date(r.from)} – ${fmt.date(r.to_inclusive)}</td>
-            ${counterCell(r.counter_from, r.counter_from_kind)}
-            ${counterCell(r.counter_to, r.counter_to_kind)}
-            <td class="num">${r.days}</td>
-            <td>${reasonLabel(r.reason)}</td>
-            <td class="num">${r.m3 != null ? fmt.num(r.m3, 1) : `<em>${t('utility.billCheck.noReading')}</em>`}</td>
-            <td class="num">${r.zustandszahl != null ? fmt.num(r.zustandszahl, 4) : '–'}</td>
-            <td class="num">${r.brennwert != null ? fmt.num(r.brennwert, 3) : '–'}</td>
-            <td class="num">${fmt.num(r.kwh_per_m3, 3)}</td>
-            <td class="num"><strong>${r.kwh != null ? fmt.num(r.kwh, 0) : '–'}</strong></td>
-          </tr>`).join('')}
-      </tbody>
-      <tfoot><tr>
-        <td><strong>${t('utility.billCheck.total')}</strong></td>
-        <td></td><td></td>
-        <td class="num">${tot.days ?? ''}</td>
-        <td></td>
-        <td class="num"><strong>${fmt.num(tot.m3, 1)}</strong></td>
-        <td></td><td></td><td></td>
-        <td class="num"><strong>${fmt.num(tot.kwh, 0)}</strong></td>
-      </tr></tfoot>
-    </table></div>
-    <p class="muted bill-check-legend" style="margin-top:8px">${t('utility.billCheck.legend')}</p>
-    ${tot.gaps ? `<p class="muted" style="margin-top:8px">${t('utility.billCheck.gaps', { count: tot.gaps })}</p>` : ''}
-    <p class="muted" style="margin-top:8px">${t('utility.billCheck.formula')}</p>`;
-}
-
-function wireBillCheck(container, u, meter) {
-  const btn = container.querySelector('#bc-run');
-  const out = container.querySelector('#bc-result');
-  if (!btn || !out) return;
-  btn.addEventListener('click', async () => {
-    const from = container.querySelector('#bc-from')?.value;
-    const to   = container.querySelector('#bc-to')?.value;
-    if (!from || !to || from >= to) { toastErr(t('utility.billCheck.errRange')); return; }
-    out.innerHTML = `<div class="loading">${t('common.loading')}</div>`;
-    try {
-      const bill = await api.billCheck(u.key, meter.id, from, to);
-      out.innerHTML = renderBillCheck(bill, u);
-    } catch (e) {
-      out.innerHTML = '';
-      toastErr(e.message);
-    }
-  });
 }
 
 function header(u, meter = null) {

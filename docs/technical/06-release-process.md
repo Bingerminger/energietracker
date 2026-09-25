@@ -569,6 +569,29 @@ abgenommen ist.
   Abdeckung: Ein Erzeugungszähler ab Juli ergab „Eigenverbrauch 0". Jetzt
   zählen nur Monate, in denen alle drei Zähler Daten haben, und die Karte
   sagt, wie viele das sind.
+- **Ein gemeinsamer Container ist ein Wettlauf (v2.11.0).** Alle Ansichten
+  schrieben nach ihrem `await` in `#view`. Wer schnell weiterklickte, sah die
+  Antwort der vorigen Seite unter der neuen Überschrift, und deren Cleanup ging
+  verloren. Die Lösung liegt im Router, nicht in zwölf Ansichten: je Navigation
+  ein eigener Container, ein Token und ein Abbruchsignal. Eine verspätete
+  Ansicht schreibt ins Leere und räumt danach auf.
+- **`history.back()` nach einer Navigation macht sie rückgängig (v2.11.0).**
+  Damit die Zurück-Taste einen Dialog schließt, legt er einen
+  History-Eintrag an und nimmt ihn beim Schließen zurück. Schließt ihn
+  dagegen ein Seitenwechsel, muss der Eintrag stehen bleiben — sonst springt
+  der asynchrone Rückschritt auf die alte Seite. Der Router schließt Dialoge
+  deshalb mit dem Grund „Navigation".
+- **Kontraste gehören an einen Test (v2.11.0).** v2.2.0 hatte sie schon einmal
+  korrigiert. Danach senkten ein Farbverlauf auf den Knöpfen, eine feste
+  Mischung „62 % mit Schwarz" für jede Verbrauchsart und weiße Schrift auf
+  Orange sie wieder unter 4,5:1, ohne dass es jemand merkte.
+  `tests/contrast.test.mjs` rechnet jetzt jedes Paar aus Schrift und Fläche
+  aus den Token nach.
+- **Beim lokalen Testen liefert der Service Worker alte Dateien (v2.11.0).**
+  Statische Dateien kommen aus seinem Cache, und er vergleicht ohne Query. Im
+  Release wechselt der Cache mit der Version; zwischen zwei Ständen derselben
+  Version zeigt der Browser aber alte CSS. Für Sichtprüfungen den Worker vorher
+  abmelden.
 
 ---
 

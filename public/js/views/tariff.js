@@ -29,6 +29,7 @@ import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { makeChart } from '../components/chart.js';
 import { fmt as f, escapeHtml as esc, monthShortNames, parseDecimal, formatForInput } from '../lib/format.js';
 import { t, getCurrencySymbol } from '../lib/i18n.js';
+import { copyText } from '../lib/clipboard.js';
 
 let sel = { utility: null, meterId: null, year: null, switchDate: null };
 let charts = { switch: null, retro: null };
@@ -431,13 +432,10 @@ function wireConsumptionCopy(box, d, unit) {
     // Ohne Tausendertrennung und ohne Einheit — so, wie die Portale es
     // im Eingabefeld erwarten.
     const raw = String(Math.round(d.expected_consumption));
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(raw)
-        .then(() => toastOk(t('tariff.switch.copied', { value: raw, unit })))
-        .catch(() => toastErr(t('tariff.switch.copyFail')));
-    } else {
-      toastErr(t('tariff.switch.copyFail'));
-    }
+    // v2.11.0 — mit Rückfall für den Betrieb über http:// (FE-24)
+    copyText(raw).then(ok => ok
+      ? toastOk(t('tariff.switch.copied', { value: raw, unit }))
+      : toastErr(t('tariff.switch.copyFail')));
   });
 }
 

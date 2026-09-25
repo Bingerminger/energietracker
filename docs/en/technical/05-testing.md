@@ -64,14 +64,28 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Both harnesses return exit code 0 on success. As of v2.10.0:
-**frontend API shape 56/56**, **browser render 81/81** (incl. module-graph
-pre-check and the forecast-model check for all five models).
+Both harnesses return exit code 0 on success. As of v2.11.0:
+**frontend API shape 56/56**, **browser render 93/93** (incl. module-graph
+pre-check and the forecast-model check for all five models). Since v2.11.0 the
+module-graph crawl also follows dynamic imports — the router loads views on
+demand.
+
+Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
+`tests/plausibility.test.mjs` and, since v2.11.0:
+
+- **`tests/router.test.mjs`** — JSDOM, made-up views and a staged, delayed
+  `fetch`. It checks that a slow view does not overwrite the faster one, that
+  the cleanup of views left behind runs, that read requests are aborted, that
+  the query arrives, that errors offer "Try again", and that the back button
+  closes a dialog without leaving the page.
+- **`tests/contrast.test.mjs`** — reads the colour tokens from `tokens.css` and
+  the utility colours from `Utilities.php` and checks every text/surface pair in
+  both themes against WCAG AA (4.5:1).
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.10.0: 434). Run it with `vendor/bin/phpunit --no-coverage`. It
+recounts it (v2.11.0: 434). Run it with `vendor/bin/phpunit --no-coverage`. It
 is the **mandatory gate before every commit** (see
 [Release process](06-release-process.md)).
 

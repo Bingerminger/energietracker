@@ -47,8 +47,9 @@
      solange die Utilities noch nicht geladen sind. */
   --util:      var(--accent);
   --util-soft: color-mix(in srgb, var(--accent) 14%, transparent);
-  /* Schriftfarbe auf gefüllter Utility-Fläche (Buttons, aktive Pillen). */
-  --btn-util-fg: #fff;
+  /* Schriftfarbe auf gefüllter Utility-Fläche (Buttons, aktive Pillen);
+     außerhalb einer Verbrauchsart die des Akzents (v2.11.0). */
+  --util-fg:   var(--accent-fg);
 
   /* Semantic accent colors used in v0.9.0 KPI ribbons */
   --c-blue:      #4a90e2;
@@ -62,8 +63,14 @@
   /* ── Semantic ─────────────────────────────────────────────────── */
   --success:     #2de8a4;
   --warning:     #f5c842;
-  --danger:      #ef4444;
+  /* v2.11.0 (Review UI-09) — #ef4444 kam als Schrift auf seiner eigenen
+     Tönung (Badge „Überfällig") auf 4,2:1; #f87171 auf 5,6:1. Gefüllte
+     Flächen mit weißer Schrift nehmen --danger-strong (4,8:1 statt 3,8:1). */
+  --danger:      #f87171;
+  --danger-strong: #dc2626;
   --info:        #4a90e2;
+  /* Schrift auf Akzentfläche (Primärknopf): dunkel auf dem hellen Blau */
+  --accent-fg:   #0a0d12;
 
   --success-soft:rgba(45, 232, 164, 0.14);
   --warning-soft:rgba(245, 200, 66, 0.14);
@@ -107,6 +114,10 @@
 
   /* ── Layout ───────────────────────────────────────────────────── */
   --topbar-h:    48px;
+  /* v2.11.0 — Kopfleiste samt Statusleiste der Home-Bildschirm-App
+     (viewport-fit=cover); ohne Notch ist env(…) 0 */
+  --topbar-total: calc(var(--topbar-h) + env(safe-area-inset-top, 0px));
+  --tabbar-h:    58px;
   --sidebar-w:   220px;
   --content-max: 1400px;
   --transition:  150ms ease-out;
@@ -154,16 +165,22 @@
   --c-blue:      #2563eb;
   --c-violet:    #7c3aed;
   --c-yellow:    #d97706;
-  --c-red:       #dc2626;
+  --c-red:       #b91c1c;
   --c-blue-soft:   rgba( 37,  99, 235, 0.10);
   --c-violet-soft: rgba(124,  58, 237, 0.10);
   --c-yellow-soft: rgba(217, 119,   6, 0.10);
 
-  /* ── Semantic ─────────────────────────────────────────────────── */
-  --success:     #059669;
-  --warning:     #d97706;
-  --danger:      #dc2626;
+  /* ── Semantic ───────────────────────────────────────────────────
+     v2.11.0 (Review UI-09) — auf Weiß gemessen: Grün 3,8 → 5,5, Orange
+     3,2 → 5,6, Rot 4,8 → 6,5 (auf der eigenen Tönung 4,1 → 5,5). Salden,
+     „Abschlag €", Empfehlungstitel und Effizienzklassen erreichen damit AA. */
+  --success:     #047857;
+  --warning:     #a84d07;
+  --danger:      #b91c1c;
+  --danger-strong: #b91c1c;
   --info:        #2563eb;
+  /* Weiß auf #2563eb: 5,2:1 (dunkle Schrift kam auf 3,8:1) */
+  --accent-fg:   #ffffff;
 
   --success-soft:rgba(  5, 150, 105, 0.10);
   --warning-soft:rgba(217, 119,   6, 0.10);

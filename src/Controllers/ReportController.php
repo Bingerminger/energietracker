@@ -27,7 +27,11 @@ final class ReportController
         $pdf = $this->reports->build($year);
 
         header('Content-Type: application/pdf');
-        header('Content-Disposition: attachment; filename="energietracker-' . $year . '.pdf"');
+        // v2.11.0 — `inline=1` zeigt das PDF im Browser (Home-Bildschirm-App auf
+        // dem iPhone: Downloads kamen dort oft nicht an). Ohne bleibt es ein
+        // Download wie bisher.
+        $disposition = $req->queryParam('inline') === '1' ? 'inline' : 'attachment';
+        header('Content-Disposition: ' . $disposition . '; filename="energietracker-' . $year . '.pdf"');
         header('Content-Length: ' . strlen($pdf));
         echo $pdf;
         exit;

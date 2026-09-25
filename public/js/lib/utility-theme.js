@@ -17,16 +17,44 @@
 // Damit ist jede künftige Verbrauchsart automatisch vollständig eingefärbt —
 // die Farbe steht an genau einer Stelle, in Utilities.php.
 //
-// Die Light-Variante wird per `color-mix` im erzeugten CSS abgeleitet, nicht
-// in JavaScript gerechnet: So folgt sie dem Theme-Wechsel ohne Neuberechnung
-// und ohne Listener.
+// v2.11.0 (Review UI-09) — Beide Theme-Varianten werden hier gerechnet und
+// als Hex-Werte ausgegeben, je Farbe so weit getönt, bis sie als Schrift auf
+// der dunkelsten bzw. hellsten Fläche (--bg-2) 4,5:1 erreicht. Die feste
+// Mischung „62 % mit Schwarz" traf Strom (4,0:1) und PV-Erzeugung (3,7:1)
+// im Hellmodus nicht, im Dunkelmodus lagen Heizöl und Pellets als Schrift
+// unter 4,5:1. Die Schrift auf gefüllten Flächen (Knöpfe, aktive Jahres-Pille)
+// ist die mit dem höheren Kontrast — bis v2.10 weiß auf Gas-Orange (2,2:1).
+// Beide Varianten stehen im CSS; der Theme-Wechsel braucht keinen Listener.
 // =====================================================================
+
+import { contrast, mix } from './contrast.js';
 
 const STYLE_ID = 'et-utility-theme';
 
-// Anteil der Grundfarbe im hellen Theme; der Rest ist Schwarz. 62 % trifft
-// für die gesamte Palette einen Kontrast über 4.5:1 auf weißem Grund.
+// Anteil der Grundfarbe im hellen Theme als Startwert; der Rest ist Schwarz.
 const LIGHT_MIX = 62;
+// --bg-2 je Theme: Tabellenköpfe, verschachtelte Flächen — die ungünstigste
+// Unterlage, auf der Utility-Farben als Schrift stehen
+const SURFACE = { dark: '#1c2636', light: '#eef2f7' };
+const TARGET = 4.5;
+const DARK_TEXT = '#0a0d12';
+
+/** Utility-Farbe für ein Theme: getönt, bis sie auf --bg-2 lesbar ist. */
+export function themedColor(color, theme) {
+  const toward = theme === 'light' ? '#000000' : '#ffffff';
+  let share = theme === 'light' ? LIGHT_MIX / 100 : 1;
+  let c = mix(color, toward, share);
+  while (contrast(c, SURFACE[theme]) < TARGET && share > 0.2) {
+    share -= 0.02;
+    c = mix(color, toward, share);
+  }
+  return c;
+}
+
+/** Schrift auf einer gefüllten Fläche: die mit dem höheren Kontrast. */
+export function textOn(bg) {
+  return contrast('#ffffff', bg) >= contrast(DARK_TEXT, bg) ? '#fff' : DARK_TEXT;
+}
 
 /** Fallback, falls die API einmal keine Farbe liefert. */
 const FALLBACK = '#4a90e2';
@@ -48,21 +76,18 @@ export function applyUtilityTheme(utilities) {
     const key = String(u?.key || '').trim();
     if (!key || !/^[a-z0-9_]+$/i.test(key)) continue;   // kein Fremdinhalt im CSS
     const color = normalizeHex(u?.color) || FALLBACK;
-
-    // Schrift auf gefüllter Fläche: helle Utility-Farben (Amber, Cyan,
-    // Emerald) brauchen dunklen Text, dunkle (Violett, Rosé) hellen. Im
-    // hellen Theme ist die Farbe ohnehin abgedunkelt — dort immer weiß.
-    const fgDark = luminance(color) > 0.5 ? '#0a0d12' : '#fff';
+    const dark = themedColor(color, 'dark');
+    const light = themedColor(color, 'light');
 
     rootDark.push(
-      `  --util-${key}: ${color};`,
+      `  --util-${key}: ${dark};`,
       `  --util-${key}-soft: color-mix(in srgb, ${color} 14%, transparent);`,
-      `  --util-${key}-fg: ${fgDark};`
+      `  --util-${key}-fg: ${textOn(dark)};`
     );
     rootLight.push(
-      `  --util-${key}: color-mix(in srgb, ${color} ${LIGHT_MIX}%, #000);`,
+      `  --util-${key}: ${light};`,
       `  --util-${key}-soft: color-mix(in srgb, ${color} 10%, transparent);`,
-      `  --util-${key}-fg: #fff;`
+      `  --util-${key}-fg: ${textOn(light)};`
     );
 
     rules.push(
@@ -109,13 +134,3 @@ function normalizeHex(value) {
   return /^#[0-9a-f]{3}$|^#[0-9a-f]{6}$/i.test(v) ? v : null;
 }
 
-/** Relative Helligkeit nach WCAG, 0 (schwarz) bis 1 (weiß). */
-function luminance(hex) {
-  let h = hex.slice(1);
-  if (h.length === 3) h = h.split('').map(c => c + c).join('');
-  const chan = (i) => {
-    const c = parseInt(h.slice(i, i + 2), 16) / 255;
-    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * chan(0) + 0.7152 * chan(2) + 0.0722 * chan(4);
-}

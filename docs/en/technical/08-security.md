@@ -141,6 +141,17 @@ Traefik, Synology). The session cookie automatically gets the `Secure`
 attribute when the request arrives via HTTPS or the proxy sets
 `X-Forwarded-Proto: https`.
 
+**HTTPS pays off in the home network too** (v2.11.0). Browsers allow some
+features only in a secure context, that is via HTTPS or `localhost`:
+
+- The service worker, and with it the offline view, does not run via
+  `http://<NAS address>`.
+- The home-screen app on the iPhone is then only a bookmark.
+
+Copying (token, YAML, annual consumption) works without HTTPS since v2.11.0;
+the app has a fallback for it. A reverse proxy with a certificate unlocks
+the rest, for example the Synology with Let's Encrypt, or Caddy.
+
 ## 8. Host names and embedding
 
 **`ET_ALLOWED_HOSTS`** (opt-in) protects against *DNS rebinding*: a foreign

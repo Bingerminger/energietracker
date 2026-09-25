@@ -54,7 +54,7 @@ final class I18nServiceTest extends TestCase
         $this->i18n->setLocale('en');
         self::assertSame('en', $this->i18n->locale());
         self::assertSame('Save', $this->i18n->t('common.save'));
-        self::assertSame('Dashboard', $this->i18n->t('nav.dashboard'));
+        self::assertSame('Overview', $this->i18n->t('nav.dashboard'));   // v2.11.0: Menü = Seitentitel
     }
 
     public function testUnknownKeyReturnsKeyItself(): void

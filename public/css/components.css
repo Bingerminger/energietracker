@@ -18,9 +18,16 @@
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-.btn--primary { background: var(--accent); border-color: var(--accent); color: #0a0d12; font-weight: 600; }
+/* v2.11.0 (Review UI-09) — Schrift auf Akzent- und Warnfläche aus den Tokens:
+   im Hellmodus weiß (5,2:1), im Dunkelmodus dunkel (5,9:1). Rot mit weißer
+   Schrift auf --danger-strong (4,8:1 statt 3,8:1). */
+.btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
 .btn--primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-.btn--danger  { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn--danger  { background: var(--danger-strong); border-color: var(--danger-strong); color: #fff; }
+/* Entfernen-Kreuz einer Zeile: Umriss statt roter Vollfläche (Review UI-20) —
+   neben „Speichern" wirkte es wie die Hauptaktion */
+.btn--danger.btn--icon { background: transparent; color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.btn--danger.btn--icon:hover { background: var(--danger-strong); border-color: var(--danger-strong); color: #fff; filter: none; }
 .btn--danger:hover { filter: brightness(1.15); }
 .btn--ghost   { background: transparent; border-color: var(--border-2); }
 .btn--ghost:hover { background: var(--bg-2); }
@@ -127,7 +134,10 @@ textarea.input { min-height: 80px; resize: vertical; }
 
 @media (max-width: 600px) {
   .entry-row, .entry-row.special-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .entry-row > .btn { grid-column: span 2; }
+  /* v2.11.0 (Review UI-16) — Knöpfe der Zeile in ihrer Größe statt als
+     vollbreiter roter Balken mit winzigem „×" */
+  .entry-row > .btn { justify-self: start; }
+  .entry-row > .btn--icon { justify-self: end; }
   .special-row > .special-row__kind,
   .special-row > .special-row__note,
   .special-row > .special-advance { grid-column: 1 / -1; }
@@ -189,13 +199,19 @@ textarea.input { min-height: 80px; resize: vertical; }
   display: flex; align-items: center; justify-content: center;
   z-index: 100; padding: var(--sp-4); animation: fadeIn 120ms ease-out;
 }
+/* v2.11.0 (Review UI-16) — Kopf und Fußleiste bleiben stehen, nur der
+   Inhalt scrollt: „Speichern" lag bei langen Formularen erst ganz unten. */
 .modal {
   background: var(--bg-1); border: 1px solid var(--border-2);
   border-radius: var(--r-lg);
-  width: min(720px, 100%); max-height: 90vh; overflow-y: auto;
+  width: min(720px, 100%);
+  max-height: 90vh; max-height: 90dvh;
+  display: flex; flex-direction: column; overflow: hidden;
   box-shadow: var(--shadow-3);
   animation: slideUp 160ms ease-out;
 }
+.modal--sm { width: min(440px, 100%); }
+.modal--lg { width: min(960px, 100%); }
 .modal__head {
   padding: var(--sp-4) var(--sp-5);
   border-bottom: 1px solid var(--border-1);
@@ -204,7 +220,8 @@ textarea.input { min-height: 80px; resize: vertical; }
 .modal__title { font-size: var(--fs-lg); font-weight: 600; }
 .modal__close { background: transparent; border: none; color: var(--text-3); font-size: 24px; cursor: pointer; }
 .modal__close:hover { color: var(--text-1); }
-.modal__body { padding: var(--sp-5); }
+.modal__body { padding: var(--sp-5); overflow-y: auto; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; }
+.modal__head, .modal__foot { flex: none; }
 .modal__foot {
   padding: var(--sp-4) var(--sp-5);
   border-top: 1px solid var(--border-1);
@@ -223,9 +240,10 @@ textarea.input { min-height: 80px; resize: vertical; }
 /* v2.6.0 — Bei offenem Dialog oben: Unten rechts lag eine Fehlermeldung
    genau über „Speichern" und fing die Klicks ab, bis sie verschwand. */
 body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
-@media (max-width: 600px) {
-  .toast-stack { left: 12px; right: 12px; bottom: 12px; max-width: none; }
-  body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 12px; }
+@media (max-width: 800px) {
+  /* über der Tab-Leiste (v2.11.0) */
+  .toast-stack { left: 12px; right: 12px; bottom: calc(12px + var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); max-width: none; }
+  body:has(.modal-backdrop) .toast-stack { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); }
 }
 .toast {
   background: var(--bg-1); border: 1px solid var(--border-2);
@@ -346,17 +364,17 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
 .regression-summary .table { font-family: var(--font-mono); }
 .regression-summary .muted { font-family: var(--font-mono); font-size: var(--fs-xs); }
 
-/* ── Subtler button gradient ───────────────────────────────────── */
+/* ── Knopf-Tiefe ────────────────────────────────────────────────────
+   v2.11.0 (Review UI-09) — Vollfarbe statt Verlauf: Das untere Ende des
+   Verlaufs mischte 20 % Seitenhintergrund hinein und drückte den Kontrast
+   der Schrift unter 4,5:1 (Gas-Orange 2,2:1). Die Tiefe kommt vom Schatten. */
 .btn--primary {
-  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, var(--bg-0)));
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 2px 8px -2px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .btn--primary:hover {
-  background: linear-gradient(180deg, var(--accent-hover), var(--accent));
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 12px -2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .btn--util {
-  background: linear-gradient(180deg, var(--util, var(--accent)), color-mix(in srgb, var(--util, var(--accent)) 80%, var(--bg-0)));
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 2px 8px -2px color-mix(in srgb, var(--util, var(--accent)) 40%, transparent);
 }
 
@@ -430,11 +448,11 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
 .tank-levels .table td { padding: 8px 10px; }
 .tank-levels .table td.actions { width: 1%; white-space: nowrap; }
 .balance-col__breakdown {
-  font-family: var(--font-mono); font-size: 10px;
-  color: var(--text-disabled);
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--text-3);   /* v2.11.0: --text-disabled lag unter 3:1 */
   margin-top: 4px;
 }
-.balance-col__value.positive { color: var(--c-red); }
+.balance-col__value.positive { color: var(--danger); }
 .balance-col__value.negative { color: var(--success); }
 
 /* Verdict box (rechte Spalte) */
@@ -591,7 +609,7 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
 }
 .settings-field__unit {
-  font-size: 10px; color: var(--text-disabled);
+  font-size: 11px; color: var(--text-3);
   text-transform: none; letter-spacing: 0;
   font-family: var(--font-mono);
 }
@@ -680,7 +698,7 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .sparindex__bar-labels {
   display: flex; justify-content: space-between;
-  font-size: 10px; color: var(--text-disabled);
+  font-size: 11px; color: var(--text-3);
   font-family: var(--font-mono);
   margin-top: 6px;
 }
@@ -786,7 +804,7 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .seg__btn:hover { background: var(--bg-3); color: var(--text-1); }
 .seg__btn.active {
-  background: var(--accent); color: #0a0d12;
+  background: var(--accent); color: var(--accent-fg);
   border-color: var(--accent); font-weight: 600;
 }
 
@@ -805,12 +823,8 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   margin-bottom: var(--sp-2);
 }
 .rec-card__cat { font-size: var(--fs-xs); color: var(--text-2); }
-.rec-card__x {
-  margin-left: auto; background: none; border: none;
-  color: var(--text-2); cursor: pointer; font-size: var(--fs-md);
-  padding: 2px 6px; border-radius: var(--r-sm);
-}
-.rec-card__x:hover { background: var(--bg-3); color: var(--text-1); }
+/* v2.11.0 (Review UI-26) — „30 Tage ausblenden" als Text statt ✕ */
+.rec-card__dismiss { margin-left: auto; }
 .rec-card__title { font-weight: 600; margin-bottom: 4px; }
 .rec-card__detail { font-size: var(--fs-sm); color: var(--text-2); line-height: 1.5; }
 
@@ -1078,4 +1092,75 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 
 @media (prefers-reduced-motion: reduce) {
   .retro-block > summary::before { transition: none; }
+}
+
+/* =====================================================================
+   v2.11.0 — Mobil und aufgeräumt (Review UI-10, UI-16, UI-12)
+   ===================================================================== */
+
+/* Erfassen-Blatt (＋): Zählerstände, Lieferung, Peilstand, Termin */
+.capture-sheet { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.capture-sheet__item {
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-height: 52px; padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border-2); border-radius: var(--r-md);
+  background: var(--bg-2); color: var(--text-1);
+}
+.capture-sheet__item:hover { background: var(--bg-3); text-decoration: none; color: var(--text-1); }
+.capture-sheet__icon { font-size: 22px; width: 28px; text-align: center; flex: none; }
+.capture-sheet__label { display: block; font-weight: 600; }
+.capture-sheet__hint { display: block; font-size: var(--fs-sm); color: var(--text-2); }
+
+/* Verträge & Abschläge — je Verbrauchsart eine Karte */
+.contract-overview__row + .contract-overview__row { border-top: 1px solid var(--border-1); margin-top: var(--sp-3); padding-top: var(--sp-3); }
+.contract-overview__meter { font-size: var(--fs-xs); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+.contract-overview__name { font-weight: 600; font-size: var(--fs-md); }
+.contract-overview__facts { margin-top: var(--sp-2); font-size: var(--fs-sm); }
+.contract-overview__expected { margin-top: var(--sp-2); font-size: var(--fs-sm); }
+
+/* Verweis-Karte (Rechnungsprüfung auf der Gas-Seite, Jahresbericht in den Einstellungen) */
+.card--link p { margin: 0 0 var(--sp-3); }
+
+.report-actions { flex-direction: row; flex-wrap: wrap; gap: var(--sp-2); }
+.report-note { margin: var(--sp-3) 0 0; font-size: var(--fs-sm); }
+
+/* ── Touch-Bedienung (Review UI-10) ─────────────────────────────────
+   Auf dem iPhone lagen alle Bedienelemente unter 44 pt (Apple HIG), rote
+   „Löschen"-Knöpfe mit 28 × 24 px direkt neben „Bearbeiten". Eingaben unter
+   16 px lassen Safari bei jedem Fokus in die Seite zoomen. */
+@media (pointer: coarse), (max-width: 800px) {
+  .btn { min-height: 44px; }
+  .btn--sm { min-height: 40px; padding: 6px 12px; font-size: var(--fs-sm); }
+  .btn--icon { min-width: 44px; justify-content: center; }
+  .pill, .seg__btn { min-height: 44px; display: inline-flex; align-items: center; }
+  .topbar__btn { width: 44px; height: 44px; }
+  .modal__close { min-width: 44px; min-height: 44px; }
+  .input, .select, textarea.input { font-size: 16px; min-height: 44px; }
+  .input[type="checkbox"], .input[type="radio"] { min-height: 0; }
+  /* Abstand zwischen nebeneinanderliegenden Aktionen einer Tabellenzeile */
+  td > .btn + .btn, td > .btn + a.btn, td > a.btn + .btn { margin-left: var(--sp-2); }
+  .table td, .data-table td { padding-top: 10px; padding-bottom: 10px; }
+}
+
+/* ── Dialoge auf dem iPhone als Blatt von unten (Review UI-16) ─────── */
+@keyframes sheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (max-width: 600px) {
+  .modal-backdrop { padding: 0; align-items: flex-end; }
+  .modal {
+    width: 100%;
+    max-height: calc(100vh - 8px);
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 8px);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-left: none; border-right: none; border-bottom: none;
+    animation: sheetUp 200ms ease-out;
+  }
+  .modal__head { padding: var(--sp-3) var(--sp-4); }
+  .modal__body { padding: var(--sp-4); }
+  .modal__foot {
+    padding: var(--sp-3) var(--sp-4);
+    padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+  }
+  .modal__foot .btn { flex: 1 1 0; justify-content: center; }
+  /* Ohne Fußleiste trägt der Inhalt den Abstand zum Home-Balken */
+  .modal__body:last-child { padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px)); }
 }

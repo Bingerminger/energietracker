@@ -15,6 +15,7 @@ import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { t } from '../lib/i18n.js';
 import { associateFieldLabels } from '../lib/a11y.js';
 import { showFieldError } from '../lib/form.js';
+import { renderError } from '../components/error.js';
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
@@ -85,10 +86,17 @@ export async function render(container, params) {
 
 async function refresh(container, u) {
   container.innerHTML = `<div class="loading">${t('contracts.loading')}</div>`;
-  const [meters, contracts] = await Promise.all([
-    api.meters(u.key),
-    api.contracts(u.key),
-  ]);
+  let meters, contracts;
+  try {
+    [meters, contracts] = await Promise.all([
+      api.meters(u.key),
+      api.contracts(u.key),
+    ]);
+  } catch (e) {
+    // v2.11.0 (Review FE-25) — sonst hing die Ansicht nach dem Speichern bei „Lädt…"
+    renderError(container, e, () => refresh(container, u));
+    return;
+  }
 
   // C — neueste Verträge zuerst (nach Startdatum absteigend).
   const sorted = [...contracts].sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')));

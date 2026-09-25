@@ -22,7 +22,6 @@
   },
   "app": {
     "themeToggle": "Theme wechseln",
-    "footerStorage": "flat-file JSON",
     "skipToContent": "Zum Hauptinhalt springen",
     "primaryNav": "Hauptnavigation",
     "brandHome": "Energietracker — zur Übersicht",
@@ -30,7 +29,16 @@
     "offlineSince": "Offline – Stand vom {when}",
     "networkError": "Keine Verbindung zum Energietracker – nichts gespeichert.",
     "networkErrorRead": "Keine Verbindung zum Energietracker.",
-    "invalidResponse": "Unerwartete Antwort vom Server (HTTP {status})."
+    "invalidResponse": "Unerwartete Antwort vom Server (HTTP {status}).",
+    "timeoutRead": "Der Energietracker antwortet nicht (Zeitüberschreitung).",
+    "timeoutWrite": "Der Energietracker antwortet nicht – ob gespeichert wurde, ist unklar. Bitte die Ansicht neu laden und prüfen.",
+    "retry": "Erneut versuchen",
+    "theme": {
+      "toggle": "Darstellung: {mode} – umschalten",
+      "system": "wie das System",
+      "light": "hell",
+      "dark": "dunkel"
+    }
   },
   "meterNames": {
     "gas": "Hauptzähler",
@@ -54,22 +62,43 @@
   },
   "nav": {
     "group": {
-      "capture": "Erfassung",
-      "overview": "Übersicht",
       "consumption": "Verbrauch",
-      "analysis": "Analyse",
-      "insights": "Insights",
-      "system": "System"
+      "analysis": "Auswertungen",
+      "costs": "Kosten & Verträge",
+      "hints": "Hinweise"
     },
     "readings": "Zählerstände",
-    "dashboard": "Dashboard",
-    "temperatures": "Temperaturen",
-    "correlation": "Korrelation",
+    "dashboard": "Übersicht",
     "forecast": "Prognose",
-    "tariffs": "Tarifvergleich",
+    "tariffs": "Wechsel prüfen",
     "recommendations": "Empfehlungen",
-    "reminders": "Termine",
-    "settings": "Einstellungen"
+    "reminders": "Termine & Wartung",
+    "settings": "Einstellungen",
+    "analysis": "Analyse",
+    "contracts": "Verträge & Abschläge",
+    "billCheck": "Rechnung prüfen",
+    "report": "Jahresbericht",
+    "general": "Allgemein",
+    "weather": "Wetterdaten",
+    "tab": {
+      "overview": "Übersicht",
+      "consumption": "Verbrauch",
+      "capture": "Erfassen",
+      "costs": "Kosten",
+      "more": "Mehr"
+    },
+    "sheet": {
+      "title": "Erfassen",
+      "readings": "Zählerstände erfassen",
+      "readingsHint": "Alle Zähler in einem Durchgang",
+      "delivery": "Lieferung {utility}",
+      "tankLevel": "Peilstand {utility}",
+      "reminder": "Termin anlegen"
+    },
+    "sectionNav": "Seiten dieses Bereichs",
+    "menu": "Menü",
+    "tabbar": "Schnellnavigation",
+    "captureButton": "Erfassen"
   },
   "dashboard": {
     "loading": "Lade Übersicht…",
@@ -110,7 +139,14 @@
       "title": "Anstehende Termine",
       "due": "fällig {date}",
       "now": "jetzt",
-      "inDays": "in {days} T"
+      "overdueDays": {
+        "one": "seit 1 Tag überfällig",
+        "other": "seit {count} Tagen überfällig"
+      },
+      "inDaysN": {
+        "one": "in 1 Tag",
+        "other": "in {count} Tagen"
+      }
     },
     "allLink": "alle",
     "chart": { "title": "{months}-Monats-Verbrauch (alle Verbrauchsarten)", "alt": "Liniendiagramm: Verbrauch der letzten {months} Monate je Verbrauchsart" },
@@ -124,7 +160,9 @@
       "activeMeters": "Aktive Zähler",
       "totalMeters": "{count} insgesamt"
     },
-    "trend": { "vsPrev": "vs. vorherige 12 Monate", "moreThanPrev": "{pct} % mehr als im vorherigen 12-Monats-Zeitraum", "lessThanPrev": "{pct} % weniger als im vorherigen 12-Monats-Zeitraum" }
+    "trend": { "vsPrev": "vs. vorherige 12 Monate", "moreThanPrev": "{pct} % mehr als im vorherigen 12-Monats-Zeitraum", "lessThanPrev": "{pct} % weniger als im vorherigen 12-Monats-Zeitraum" },
+    "allRecommendations": "Alle Empfehlungen",
+    "allReminders": "Alle Termine"
   },
   "readingsEntry": {
     "title": "Zählerstände",
@@ -461,7 +499,8 @@
         "estimated": "S",
         "interpolated": "E"
       },
-      "legend": "Ableseart: ohne Zusatz = abgelesener Stand · S = als geschätzt erfasste Ablesung · E = Ersatzwert: an diesem Tag gibt es keinen Zählerstand, er ist tagesgenau zwischen den umschließenden Ablesungen interpoliert — genau dort, wo auch der Versorger schätzt (Brennwert- und Zeitraumgrenzen). Je mehr Zeilen ohne E, desto weniger ist Schätzung."
+      "legend": "Ableseart: ohne Zusatz = abgelesener Stand · S = als geschätzt erfasste Ablesung · E = Ersatzwert: an diesem Tag gibt es keinen Zählerstand, er ist tagesgenau zwischen den umschließenden Ablesungen interpoliert — genau dort, wo auch der Versorger schätzt (Brennwert- und Zeitraumgrenzen). Je mehr Zeilen ohne E, desto weniger ist Schätzung.",
+      "open": "Rechnung {year} prüfen"
     },
     "warnings": {
       "title": "Unplausible Zählerstände: {count}",
@@ -786,7 +825,7 @@
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Lade…",
-    "title": "⚙️ Einstellungen",
+    "title": "Einstellungen",
     "subtitle": "Konfiguration · Datenexport · Backup & Wiederherstellung",
     "save": "Einstellungen speichern",
     "saveUnsaved": "Speichern •",
@@ -898,7 +937,8 @@
       "title": "📄 PDF-Jahresbericht",
       "hint": "Mehrseitiger Bericht mit Übersicht, Effizienzklasse, Verbrauchstabellen je Verbrauchsart und offenen Empfehlungen.",
       "year": "Jahr",
-      "download": "Jahresbericht herunterladen"
+      "download": "Jahresbericht herunterladen",
+      "moved": "Der Jahresbericht hat jetzt eine eigene Seite unter „Auswertungen“."
     },
     "export": {
       "title": "📤 Datenexport (CSV)",
@@ -1025,7 +1065,6 @@
       "aliasesSaved": "{count} Alias(e) gespeichert",
       "yamlCopied": "YAML kopiert",
       "clipboardFail": "Kopieren fehlgeschlagen",
-      "clipboardUnavailable": "Zwischenablage nicht verfügbar — bitte manuell markieren",
       "step4": "4. Automatisierung (zum Kopieren)",
       "automationHint": "Im Automations-Editor „In YAML bearbeiten“ wählen und einfügen. Je Zähler mit Alias entsteht ein Eintrag; bei <code>sensor_entity</code> die Entität mit dem absoluten Zählerstand eintragen. <code>has_value</code> lässt einen Zähler aus, dessen Sensor gerade nicht verfügbar ist.",
       "yaml": {
@@ -1243,7 +1282,7 @@
   },
   "temperatures": {
     "loading": "Lade…",
-    "title": "🌡️ Temperatur",
+    "title": "Wetterdaten",
     "sync": "Open-Meteo synchronisieren",
     "csvImport": "CSV Import",
     "formatHint": "Format: <code>DD.MM.YYYY\"avg\"min\"max</code> (z. B. <code>15.01.2024\"4.2\"-1.0\"7.1</code>). Werte in °C, doppelte Anführungszeichen als Trenner.",
@@ -1319,7 +1358,7 @@
   },
   "tariff": {
     "loading": "Lade…",
-    "title": "Tarifvergleich",
+    "title": "Wechsel prüfen",
     "subtitle": "Lohnt ein Wechsel? Der prognostizierte Verbrauch gegen konkrete Angebote gerechnet — mit dem Rückblick auf echte Monate als Beleg.",
     "noUsable": "Keine vergleichbaren Verbrauchsarten aktiv. Tarifvergleich gilt für vertragsbasierte Arten (Gas, Strom, Fernwärme).",
     "utility": "Verbrauchsart",
@@ -1436,7 +1475,7 @@
   "analysis": {
     "noUtilities": "Keine Verbrauchsart aktiv. In den Einstellungen lässt sich auswählen, welche angezeigt werden.",
     "loading": "Lade…",
-    "title": "📊 Analyse",
+    "title": "Analyse",
     "noMeters": "Keine Zähler.",
     "selectUtility": "Verbrauchsart auswählen",
     "selectMeter": "Zähler auswählen",
@@ -1531,7 +1570,7 @@
   "forecast": {
     "noUtilities": "Keine Verbrauchsart aktiv. In den Einstellungen lässt sich auswählen, welche angezeigt werden.",
     "loading": "Lade…",
-    "title": "🔮 Prognose",
+    "title": "Prognose",
     "selectUtility": "Verbrauchsart auswählen",
     "selectMeter": "Zähler auswählen",
     "chartAlt": "Liniendiagramm: Verbrauchsverlauf mit Prognose",
@@ -1612,7 +1651,12 @@
     "revenueValue": "Erlös {amount}",
     "kpiRevenue": "Erlös gesamt",
     "tableRevenue": "Erlös {cur}",
-    "certificate": "Energieausweis-nah: {value} kWh/m²·a (Heizwert, witterungsbereinigt, {area} m² Gebäudenutzfläche)"
+    "certificate": "Energieausweis-nah: {value} kWh/m²·a (Heizwert, witterungsbereinigt, {area} m² Gebäudenutzfläche)",
+    "page": {
+      "subtitle": "Ein Jahr auf einen Blick, als PDF zum Ablegen oder Teilen.",
+      "open": "Im Browser öffnen",
+      "note": "Auf dem iPhone öffnet sich der Bericht in einem neuen Tab; von dort lässt er sich sichern oder teilen."
+    }
   },
   "migration": {
     "warnNoSettings": "Keine Einstellungen im Backup gefunden — es gelten die Standardwerte.",
@@ -1885,5 +1929,31 @@
     "PT": "Portugal",
     "NL": "Niederlande",
     "GB": "Vereinigtes Königreich"
+  },
+  "contractsOverview": {
+    "subtitle": "Laufende Verträge aller Verbrauchsarten: Fristen, Abschläge und was zur Abrechnung zu erwarten ist.",
+    "noUtilities": "Keine Verbrauchsart mit Verträgen aktiv.",
+    "manage": "Verträge verwalten",
+    "loadFailed": "Konnte nicht geladen werden: {msg}",
+    "noMeter": "Noch kein Zähler angelegt.",
+    "meter": "Zähler {name}",
+    "noContract": "Kein laufender Vertrag erfasst.",
+    "addContract": "Vertrag anlegen",
+    "openEnded": "seit {start}, unbefristet",
+    "renewed": "seit {start}, verlängert sich",
+    "term": "{start} bis {end}",
+    "cancelMissed": "Kündigungsfrist am {date} verstrichen",
+    "cancelBy": "Kündigen bis {date}",
+    "daysLeft": {
+      "one": "noch 1 Tag",
+      "other": "noch {count} Tage"
+    },
+    "advance": "Abschlag {amount} im Monat",
+    "expected": "Erwartet zum {date}:"
+  },
+  "billCheck": {
+    "noMeter": "Die Rechnungsprüfung rechnet Zustandszahl × Brennwert nach und gibt es deshalb für Gas. Lege zuerst einen Gaszähler an.",
+    "addMeter": "Gaszähler anlegen",
+    "meter": "Zähler"
   }
 }

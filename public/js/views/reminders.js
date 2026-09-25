@@ -17,8 +17,16 @@ const RECURRENCE_KEYS = ['none', 'yearly', 'semi-yearly', 'custom-months'];
 const catLabel = (k) => { const v = t('reminders.category.' + k); return v === 'reminders.category.' + k ? k : v; };
 const recLabel = (k) => { const v = t('reminders.recurrence.' + k); return v === 'reminders.recurrence.' + k ? k : v; };
 
-export async function render(container) {
+// v2.11.0 — Zahl an „Hinweise" nach jeder Änderung neu holen
+const badgesChanged = () => window.dispatchEvent(new CustomEvent('et:badges-refresh'));
+
+export async function render(container, _params, ctx = {}) {
   await draw(container);
+  // Sprungziel des Erfassen-Blatts: #/reminders?add=1
+  if (ctx.query?.get('add') === '1') {
+    try { history.replaceState(history.state, '', '#/reminders'); } catch { /* egal */ }
+    openForm(container, null);
+  }
 }
 
 async function draw(container) {
@@ -69,6 +77,7 @@ async function draw(container) {
       try {
         await api.reminderDone(b.dataset.done);
         toastOk(t('reminders.toast.markedDone'));
+        badgesChanged();
         await draw(container);
       } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
     }));
@@ -79,6 +88,7 @@ async function draw(container) {
       try {
         await api.deleteReminder(b.dataset.del);
         toastOk(t('reminders.toast.deleted'));
+        badgesChanged();
         await draw(container);
       } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
     }));
@@ -159,6 +169,7 @@ function openForm(container, existing) {
           else await api.createReminder(payload);
           toastOk(t('reminders.toast.saved'));
           close(null);
+          badgesChanged();
           await draw(container);
         } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
       }));

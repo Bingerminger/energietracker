@@ -6,9 +6,9 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { invalidateSettings, invalidateUtilities, getCountries } from '../state.js';
+import { invalidateUtilities, getCountries, saveSettings } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso, intlLocale } from '../lib/format.js';
-import { toastOk, toastErr } from '../components/toast.js';
+import { toastOk, toastErr, toastAfterReload } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
 import { logout } from '../components/login.js';
 import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../lib/ha-snippet.js';
@@ -16,6 +16,7 @@ import { t, getLocale, initI18n, getLanguages, setCurrencyParams } from '../lib/
 import { setCountry } from '../lib/format.js';
 import { CV_UNITS, cvUnit, gasFactorOf } from '../lib/gas-factor.js';
 import { buildSidebar } from '../lib/sidebar.js';
+import { copyText as copyToClipboard } from '../lib/clipboard.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
 // line under the card title; each field may carry its own `hint` too.
@@ -159,7 +160,7 @@ export async function render(container) {
     </div>
 
     <div class="card settings-card">
-      <h3 class="card__title">${t('settings.lang.title')}</h3>
+      <h2 class="card__title">${t('settings.lang.title')}</h2>
       <p class="settings-card__hint">${t('settings.lang.hint')}</p>
       <div class="settings-fields">
         <div class="field settings-field">
@@ -179,7 +180,7 @@ export async function render(container) {
     </div>
 
     <div class="card settings-card">
-      <h3 class="card__title">${t('settings.activeUtils.title')}</h3>
+      <h2 class="card__title">${t('settings.activeUtils.title')}</h2>
       <p class="settings-card__hint">${t('settings.activeUtils.hint')}</p>
       <div class="settings-fields" id="active-utils">
         ${(utilities || []).map(u => {
@@ -194,21 +195,10 @@ export async function render(container) {
       </div>
     </div>
 
-    <div class="card">
-      <h3 class="card__title">${t('settings.pdf.title')}</h3>
-      <p class="muted" style="margin-bottom: var(--sp-3)">
-        ${t('settings.pdf.hint')}
-      </p>
-      <div class="section-actions">
-        <label>${t('settings.pdf.year')}
-          <select class="select" id="pdf-year" style="margin-left: var(--sp-2)">
-            ${pdfYearOpts()}
-          </select>
-        </label>
-        <a class="btn btn--primary" id="pdf-dl" href="${api.yearlyReportUrl(new Date().getFullYear() - 1)}">
-          ${t('settings.pdf.download')}
-        </a>
-      </div>
+    <div class="card card--link">
+      <h2 class="card__title">${t('settings.pdf.title')}</h2>
+      <p class="muted">${escapeHtml(t('settings.pdf.moved'))}</p>
+      <a class="btn btn--ghost btn--sm" href="#/report">${escapeHtml(t('nav.report'))}</a>
     </div>
 
     <div class="form-actions" style="margin-top: var(--sp-4)">
@@ -216,7 +206,7 @@ export async function render(container) {
     </div>
 
     <div class="card">
-      <h3 class="card__title">${t('settings.export.title')}</h3>
+      <h2 class="card__title">${t('settings.export.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-4)">
         ${t('settings.export.hint')}
       </p>
@@ -257,7 +247,7 @@ export async function render(container) {
     </div>
 
     <div class="card">
-      <h3 class="card__title">${t('settings.backup.title')}</h3>
+      <h2 class="card__title">${t('settings.backup.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-3)">
         ${t('settings.backup.hint')}
       </p>
@@ -314,8 +304,7 @@ export async function render(container) {
   container.querySelector('#btn-take-defaults')?.addEventListener('click', async () => {
     const patch = Object.fromEntries((defaultUpdates || []).map(u => [u.key, u.recommended]));
     try {
-      await api.updateSettings(patch);
-      invalidateSettings();
+      await saveSettings(patch);
       toastOk(t('settings.defaultUpdates.applied'));
       render(container);
     } catch (err) { toastErr(err.message); }
@@ -352,8 +341,9 @@ export async function render(container) {
     }
     const payload = collectSettings(container);
     try {
-      await api.updateSettings(payload);
-      invalidateSettings();
+      // v2.11.0 (FE-12) — saveSettings meldet die Änderung; die Seitenleiste
+      // folgt einer geänderten Auswahl der Verbrauchsarten sofort.
+      await saveSettings(payload);
       baseline = JSON.stringify(payload);   // Stand ist gesichert
       markDirty();
       toastOk(t('settings.saved'));
@@ -366,8 +356,7 @@ export async function render(container) {
   container.querySelector('#lang-select')?.addEventListener('change', async (e) => {
     const lang = e.target.value;
     try {
-      await api.updateSettings({ language: lang });
-      invalidateSettings();
+      await saveSettings({ language: lang });
       await initI18n(lang);
       invalidateUtilities();   // Labels kommen lokalisiert vom Backend → neu laden
       await buildSidebar();
@@ -392,15 +381,6 @@ export async function render(container) {
   });
   container.querySelector('#currency-select')?.addEventListener('change', (e) => applyRegion(container, { currency: e.target.value }, countries));
   container.querySelector('#tz-select')?.addEventListener('change', (e) => applyRegion(container, { timezone: e.target.value }, countries));
-
-  // v1.3.0 — PDF-Jahr-Auswahl aktualisiert den Download-Link
-  const pdfYear = container.querySelector('#pdf-year');
-  const pdfDl   = container.querySelector('#pdf-dl');
-  if (pdfYear && pdfDl) {
-    pdfYear.addEventListener('change', () => {
-      pdfDl.setAttribute('href', api.yearlyReportUrl(pdfYear.value));
-    });
-  }
 
   container.querySelector('#btn-export').addEventListener('click', async () => {
     try {
@@ -447,8 +427,7 @@ export async function render(container) {
           () => api.restoreSnapshot(name),
           () => api.restoreSnapshot(name, { allowWithoutSnapshot: true }));
         if (!report) return;
-        toastOk(t('settings.backup.snapRestored'));
-        await afterRestore(container);
+        afterRestore(t('settings.backup.snapRestored'));
       } catch (e) { showBackupError(e); }
       return;
     }
@@ -480,10 +459,9 @@ export async function render(container) {
       }
       const report = await api.importDemo(!status.is_empty);
       const snap = report?.auto_snapshot_before_restore;
-      invalidateSettings();
-      if (typeof snap === 'string') toastOk(t('settings.backup.demoLoadedSnap', { snap }));
-      else toastOk(t('settings.backup.demoLoaded'));
-      render(container);
+      afterRestore(typeof snap === 'string'
+        ? t('settings.backup.demoLoadedSnap', { snap })
+        : t('settings.backup.demoLoaded'));
     } catch (e) { toastErr(e.message); }
   });
 
@@ -508,10 +486,9 @@ export async function render(container) {
         () => api.importBackup(data, { allowWithoutSnapshot: true }));
       if (!report) return;
       const snap = report.auto_snapshot_before_restore;
-      toastOk(typeof snap === 'string'
+      afterRestore(typeof snap === 'string'
         ? t('settings.backup.importedSnap', { snap })
         : t('settings.backup.imported'));
-      await afterRestore(container);
     } catch (err) { showBackupError(err); }
   });
 
@@ -800,8 +777,7 @@ function chooseProfile(code, diff, profile) {
 
 async function applyRegion(container, patch, countries = []) {
   try {
-    await api.updateSettings(patch);
-    invalidateSettings();
+    await saveSettings(patch);
     if (patch.currency) setCurrencyParams(patch.currency);
     if (patch.country) setCountry(patch.country, countries.find(c => c.code === patch.country)?.languages);
     toastOk(t('settings.region.saved'));
@@ -809,12 +785,10 @@ async function applyRegion(container, patch, countries = []) {
   } catch (err) { toastErr(err.message); }
 }
 
+// v2.11.0 — mit Rückfall für den Betrieb über http:// (FE-24); bis v2.10
+// hieß es dort immer „Zwischenablage nicht verfügbar"
 function copyText(text, okMsg) {
-  if (navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(text).then(() => toastOk(okMsg)).catch(() => toastErr(t('settings.ha.clipboardFail')));
-  } else {
-    toastErr(t('settings.ha.clipboardUnavailable'));
-  }
+  copyToClipboard(text).then(ok => ok ? toastOk(okMsg) : toastErr(t('settings.ha.clipboardFail')));
 }
 
 // ── F1009 — Home-Assistant-Anbindung ─────────────────────────────────────
@@ -848,7 +822,7 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, sessi
 
   return `
     <div class="card" id="ha-card">
-      <h3 class="card__title">${t('settings.ha.title')}</h3>
+      <h2 class="card__title">${t('settings.ha.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-3)">
         ${t('settings.ha.intro')}
       </p>
@@ -964,7 +938,7 @@ function renderSecurityCard(session, keys) {
 
   return `
     <div class="card" id="security-card">
-      <h3 class="card__title">${t('settings.security.title')}</h3>
+      <h2 class="card__title">${t('settings.security.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-3)">${t('settings.security.hint')}</p>
       <div class="section-actions" style="align-items:center;margin-bottom:var(--sp-3)">
         <span class="tag ${mode === 'off' ? 'tag--warning' : 'tag--success'}" id="sec-mode">${t('settings.security.' + label)}</span>
@@ -1139,12 +1113,20 @@ function confirmImport(report, utilities) {
   });
 }
 
-/** Nach Import/Wiederherstellung: Zwischenspeicher, Seitenleiste, Ansicht neu. */
-async function afterRestore(container) {
-  invalidateSettings();
-  invalidateUtilities();
-  try { await buildSidebar(); } catch { /* Ansicht trotzdem neu */ }
-  render(container);
+/**
+ * Nach Demo-Daten, Import oder Wiederherstellung die App neu starten.
+ *
+ * v2.11.0 (Review UI-24) — bis v2.10 wurden hier Zwischenspeicher und
+ * Seitenleiste einzeln erneuert. Sprache, Land, Theme-Farben und Badges
+ * blieben dabei auf dem alten Stand, und nach Demo-Daten zeigte die
+ * Seitenleiste weiter drei statt acht Verbrauchsarten. Ein Neustart erneuert
+ * alles; die Meldung erscheint danach. Die eigenen Listener (beforeunload)
+ * gehen vorher ab, damit kein „ungespeicherte Änderungen" dazwischenfragt.
+ */
+function afterRestore(message) {
+  unlistenAll();
+  toastAfterReload(message);
+  location.reload();
 }
 
 // Adresse dieser Installation, wie Home Assistant sie aufrufen soll.
@@ -1163,7 +1145,7 @@ function haAutomationEntries(haUtilities, metersByUtility) {
 function renderGroup(g, settings) {
   return `
     <div class="card settings-card">
-      <h3 class="card__title">${g.icon ? g.icon + ' ' : ''}${t('settings.group.' + g.gkey + '.title')}</h3>
+      <h2 class="card__title">${g.icon ? `<span aria-hidden="true">${g.icon}</span> ` : ''}${t('settings.group.' + g.gkey + '.title')}</h2>
       <p class="settings-card__hint">${t('settings.group.' + g.gkey + '.hint')}</p>
       <div class="settings-fields">
         ${g.fields.map(f => renderField(f, settings[f.key], settings)).join('')}
@@ -1376,7 +1358,7 @@ function renderDefaultUpdates(updates) {
   if (!Array.isArray(updates) || !updates.length) return '';
   return `
     <div class="card settings-card" id="default-updates">
-      <h3 class="card__title">🆕 ${t('settings.defaultUpdates.title')}</h3>
+      <h2 class="card__title"><span aria-hidden="true">🆕</span> ${t('settings.defaultUpdates.title')}</h2>
       <p class="settings-card__hint">${t('settings.defaultUpdates.hint')}</p>
       <div class="table-wrap"><table class="table table--compact">
         <thead><tr>
@@ -1582,19 +1564,10 @@ function collectSettings(container) {
   return out;
 }
 
-function pdfYearOpts() {
-  const now = new Date().getFullYear();
-  let o = '';
-  for (let y = now; y >= now - 6; y--) {
-    o += `<option value="${y}" ${y === now - 1 ? 'selected' : ''}>${y}</option>`;
-  }
-  return o;
-}
-
 function renderDiagnostics(d) {
   return `
     <div class="card">
-      <h3 class="card__title">${t('settings.diag.title')}</h3>
+      <h2 class="card__title">${t('settings.diag.title')}</h2>
       <dl class="diag-grid">
         ${renderDiagRow(t('settings.diag.appVersion'),    d.app_version,    'mono')}
         ${renderDiagRow(t('settings.diag.schemaVersion'), d.schema_version, 'mono')}

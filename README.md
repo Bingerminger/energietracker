@@ -5,7 +5,7 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.10.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.11.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
@@ -43,7 +43,7 @@ year-end settlement, with a suggested advance payment. On top of that: a statist
 recommendation engine, reminder/maintenance management, a tariff comparison with
 shadow contracts and a PDF annual report.
 
-> **Status:** v2.10.0 is the current public version (initial release was v1.0.2).
+> **Status:** v2.11.0 is the current public version (initial release was v1.0.2).
 > If you want to migrate from a privately run v0.9.0 backup, see
 > [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
 > format is supported by the migrator.
@@ -201,8 +201,13 @@ shadow contracts and a PDF annual report.
   sweep, meter calibration deadlines …) with a due status.
 - **Tariff comparison** with **shadow contracts**: compute hypothetical tariffs
   on your real consumption without affecting the balance/forecast.
-- **PDF annual report** as a file download (dependency-free PDF writer, no
-  composer/mPDF needed).
+- **PDF annual report** under Insights, to download or to view in the browser
+  (dependency-free PDF writer, no composer/mPDF needed).
+- **Mac and iPhone** (v2.11.0): navigation in seven areas along the users'
+  questions. On the iPhone a tab bar with **＋ Add**, dialogs as sheets, 44 px
+  touch targets and contrast per WCAG AA; the back gesture closes dialogs. New
+  page **Contracts & payments**: all deadlines, advance payments and expected
+  bills at a glance.
 - **Toggleable utilities**: hide unused utilities without losing data.
 
 ### Meter topology & automation (v1.8.0 / v1.9.0)
@@ -235,9 +240,8 @@ shadow contracts and a PDF annual report.
 - **CSV export** for the monthly overview, readings and the temperature series —
   semicolon-separated, UTF-8 with BOM, directly usable in Excel/LibreOffice.
   Complements the full JSON backup.
-- **Light/dark toggle** on the right in the top bar. Respects
-  `prefers-color-scheme` on the first visit, then persists the choice in
-  `localStorage`.
+- **Appearance** on the right in the top bar: system (default), light or
+  dark; the browser remembers the choice (`localStorage`).
 - **System diagnostics** under Settings: PHP version, data directory, write
   permissions, schema version, number of meters/readings per utility.
   `GET /api/health` reports `ok`/`degraded`/`error` with HTTP 503 on errors —
@@ -321,7 +325,7 @@ Or without Compose, directly with the published image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.10.0
+  ghcr.io/bingerminger/energietracker:2.11.0
 ```
 
 > Without `--name energietracker` Docker assigns a random name (e.g.
@@ -497,7 +501,7 @@ For the full list of configurable values see
 energietracker/
 ├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
 ├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
-├── VERSION                  ← "2.10.0"
+├── VERSION                  ← "2.11.0"
 ├── README.md                ← this file (English)
 ├── README.de.md             ← German version
 ├── CHANGELOG.md

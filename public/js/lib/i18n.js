@@ -68,6 +68,11 @@ export async function initI18n(lang) {
   return locale;
 }
 
+/** Gibt es den Schlüssel im geladenen Katalog? (vor initI18n: nein) */
+export function hasTranslation(key) {
+  return lookup(catalog, key) != null || lookup(fallback, key) != null;
+}
+
 function lookup(cat, key) {
   let node = cat;
   for (const seg of key.split('.')) {
@@ -117,4 +122,17 @@ export function t(key, params) {
     }
   }
   return str;
+}
+
+/**
+ * v2.11.0 — Pluralform nach den Regeln der Sprache (Intl.PluralRules):
+ * `tp('x.days', n)` sucht `x.days.one`, `x.days.other` (… `few`, `many`) und
+ * setzt `{count}`. Vorher stand „1 Arbeitspreise" oder „noch 1 Tage" da.
+ */
+export function tp(key, count, params = {}) {
+  let cat = 'other';
+  try { cat = new Intl.PluralRules(locale).select(Number(count)); } catch { /* 'other' */ }
+  const k = lookup(catalog, `${key}.${cat}`) != null || lookup(fallback, `${key}.${cat}`) != null
+    ? `${key}.${cat}` : `${key}.other`;
+  return t(k, { count, ...params });
 }

@@ -97,7 +97,8 @@
   min-height: 48px; /* iOS-Touch-Target */
 }
 .field--date .input {
-  font-size: var(--fs-base);
+  /* v2.11.0 (Review UI-10) — 16 px: darunter zoomt Safari beim Fokus (vorher 15 px) */
+  font-size: max(16px, var(--fs-base));
   padding: var(--sp-3);
   min-height: 48px;
   min-width: 140px;
@@ -124,9 +125,10 @@
 
 .reading-card__hint {
   font-size: var(--fs-sm);
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.08);
-  border-left: 3px solid #f59e0b;
+  /* v2.11.0 (Review UI-09) — Token statt festem Amber (2,2:1 auf Weiß) */
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-left: 3px solid var(--warning);
   padding: var(--sp-2) var(--sp-3);
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
@@ -147,6 +149,13 @@
 }
 @media (min-width: 801px) {
   .readings-entry__sticky { left: var(--sidebar-w); }
+}
+/* v2.11.0 — auf dem iPhone über der Tab-Leiste */
+@media (max-width: 800px) {
+  .readings-entry__sticky {
+    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--sp-3);
+  }
 }
 .readings-entry__sticky .btn {
   width: 100%; max-width: 600px;

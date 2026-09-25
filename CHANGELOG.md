@@ -6,6 +6,153 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.11.0] — 2026-09-25 — Mobil
+
+MINOR-Release, erster Teil von Paket D des Gesamtreviews („Mobil und
+aufgeräumt"). **Kein Schema-Wechsel** (bleibt 1.6.0). Die API bleibt, wie sie
+ist; neu ist nur die Option `inline=1` am Jahresbericht.
+
+### ⚠️ Für bestehende Installationen
+
+- **Das Menü ist neu geordnet** — sieben Bereiche statt 17 Einträgen. Wo
+  steht was jetzt?
+  - Verträge, Tarifvergleich („Wechsel prüfen") und Rechnungsprüfung: unter
+    **Kosten & Verträge**
+  - Korrelation („Analyse"), Prognose und PDF-Jahresbericht: unter
+    **Auswertungen**
+  - Empfehlungen und Termine: unter **Hinweise**
+  - Temperaturen („Wetterdaten"): unter **Einstellungen**
+
+  Gespeicherte Adressen (`#/tariffs`, `#/temperatures` …) funktionieren
+  weiter.
+- **Darstellung in drei Stufen:** System (Standard), hell, dunkel. Wer nie
+  umgeschaltet hat, folgt wie bisher dem System.
+
+### Added
+
+- **Navigation nach Nutzerfragen (Review UI-12):** Übersicht · Zählerstände ·
+  Verbrauch · Kosten & Verträge · Auswertungen · Hinweise · Einstellungen.
+  - Bereiche mit mehreren Seiten zeigen diese als Tabs über der Ansicht.
+  - Menüname und Seitentitel stimmen überein.
+  - Der Tab bzw. das Fenster nennt die Ansicht („Prognose · Energietracker").
+- **iPhone (Review UI-05):**
+  - Tab-Leiste unten mit Übersicht, Verbrauch, ＋ Erfassen, Kosten und Mehr.
+  - „Mehr" öffnet das Menü als Schublade; die Verbrauchsarten stehen als Tabs
+    über der Ansicht.
+  - Bis v2.10 stand das ganze Menü als Block über jedem Inhalt — auf dem
+    iPhone SE drei Viertel des Bildschirms.
+- **Erfassen-Blatt:** Zählerstände, Lieferung und Peilstand (Heizöl,
+  Pellets), Termin. Am Mac als „＋ Erfassen" in der Kopfleiste.
+- **Neue Seiten:**
+  - **Verträge & Abschläge:** alle laufenden Verträge mit Kündigungsfrist,
+    Abschlag und dem Ergebnis, das zur Abrechnung zu erwarten ist.
+  - **Rechnung prüfen:** bisher nur am Ende der Gas-Seite; die Gas-Seite
+    verweist jetzt dorthin.
+  - **Jahresbericht:** bisher in den Einstellungen, jetzt mit „Im Browser
+    öffnen" für die Home-Bildschirm-App.
+- `GET /api/reports/yearly.pdf?inline=1` zeigt das PDF im Browser; ohne die
+  Option bleibt es ein Download.
+- **Zurück-Taste und Wischgeste** schließen offene Dialoge und das Menü, statt
+  die Seite darunter zu verlassen.
+- **Home-Bildschirm-App (PWA):**
+  - `viewport-fit=cover` mit Abständen für Uhr, Dynamic Island und
+    Home-Balken.
+  - Statusleiste `default`: Die weiße Schrift der durchsichtigen Leiste stand
+    im Hellmodus auf weißem Grund.
+  - `theme-color` folgt der Darstellung.
+  - Maskierbares Icon, Kurzbefehle „Zählerstände erfassen" und „Verträge".
+
+### Changed
+
+- **Router (Review FE-05):** Jede Navigation bekommt einen eigenen Container,
+  ein Token und ein Abbruchsignal. Bis v2.10 geschah Folgendes:
+  - Eine langsame Antwort überschrieb die schon geöffnete nächste Seite
+    („Übersicht" über „Strom").
+  - Der Cleanup der verlassenen Ansicht ging verloren; ihr Diagramm lief
+    weiter.
+  - Leseanfragen der verlassenen Ansicht liefen weiter; jetzt werden sie
+    abgebrochen.
+
+  Den Zählerwechsel in der Verbrauchsansicht schützt ein eigener Zähler.
+- **Laden (Review FE-26):** Ansichten laden erst beim Öffnen und danach im
+  Leerlauf. Offline ist die App damit weiter vollständig. Die Übersicht lädt
+  die Tanks parallel zum Rest statt einzeln danach.
+- **Zeitlimit (Review FE-25):** 30 s für Lesen, 120 s für Schreiben, 5 min für
+  Import und Wetterabgleich, jeweils mit übersetzter Meldung. Scheitert eine
+  Ansicht, bietet sie „Erneut versuchen" an.
+- **Einstellungen (Review FE-12, UI-24):**
+  - Speichern hält den Zwischenspeicher aktuell; die Seitenleiste folgt einer
+    geänderten Auswahl der Verbrauchsarten sofort.
+  - Nach Demo-Daten, Import oder Wiederherstellung startet die App neu und
+    meldet danach den Erfolg.
+- **Kontraste nach WCAG AA (Review UI-09):**
+  - Primärknöpfe: im Hellmodus weiße Schrift (5,2:1 statt 3,8:1).
+  - Statusfarben im Hellmodus: Grün 5,5:1, Orange 5,6:1, Rot 6,5:1.
+  - Die Farbe jeder Verbrauchsart wird je Theme so weit getönt, bis sie als
+    Schrift 4,5:1 erreicht.
+  - Schrift auf farbigen Knöpfen und der aktiven Jahres-Pille: die mit dem
+    besseren Kontrast. Bis v2.10 stand weiße Schrift auf Gas-Orange (2,2:1).
+  - Knöpfe ohne Farbverlauf.
+  - Löschen-Knöpfe 4,8:1, Gruppenlabels 11 px statt 9 px.
+- **Bedienung am iPhone (Review UI-10, UI-16):**
+  - Tippziele mindestens 44 px, Eingaben 16 px (Safari zoomt nicht mehr bei
+    jedem Fokus), Grundschrift 16 px.
+  - Dialoge erscheinen als Blatt von unten; Kopf- und Fußleiste stehen fest.
+  - Das „×" einer Formularzeile hat eine Umrandung statt einer roten
+    Vollfläche.
+- **Kopieren (Review FE-24):** Token, YAML und Jahresverbrauch lassen sich
+  auch beim Betrieb über `http://` kopieren. Bisher kam dort immer
+  „Zwischenablage nicht verfügbar".
+- **Barrierefreiheit (Review UI-26):**
+  - Screenreader lesen die Symbole der Navigation nicht mehr vor.
+  - Die Überschriften der Einstellungen springen nicht mehr von H1 auf H3.
+  - Die „alle"-Links der Übersicht stehen neben der Überschrift statt darin.
+  - Empfehlungen zeigen „30 Tage ausblenden" als Text statt eines „✕".
+- **Übersicht:**
+  - „Temperaturen" als Kopf-Aktion entfällt.
+  - Fällige Termine heißen „seit 65 Tagen überfällig" statt „jetzt".
+  - Lange Kachelnamen („Eigenverbrauchsquote") brechen um, statt
+    abgeschnitten zu werden.
+- **Versionsnummer:** steht unten in der Seitenleiste statt in der
+  Kopfleiste; „flat-file JSON" entfällt.
+
+### Fixed
+
+- **Temperaturansicht (FE-12):** Nach dem Abgleich zeigten die Felder den
+  alten Standort, und der nächste Klick schrieb ihn zurück.
+- **Nach Demo-Daten (UI-24):** Die Seitenleiste zeigte weiter drei
+  Verbrauchsarten, und beim Neuladen fragte der Browser nach
+  „ungespeicherten Änderungen".
+- **Zählerstand-Erfassung:** Hinweise standen in festem Amber auf Weiß (2,2:1).
+
+### Migration
+
+Keine. Schema bleibt 1.6.0.
+
+### Tests
+
+- `tests/router.test.mjs` (20 Prüfungen): veraltete Antworten, Cleanup,
+  Query, „Erneut versuchen", Abbruch von Leseanfragen, Zurück-Taste.
+- `tests/contrast.test.mjs` (73 Paare nach WCAG AA, beide Themes, alle
+  Farben der Verbrauchsarten).
+- Browser-Render (93) mit den neuen Seiten und dem Navigationsmodell; der
+  Modulgraph-Crawl folgt jetzt auch dynamischen Importen.
+- 434 Testmethoden, Frontend-API-Shape 56/56. 19 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Gemeinsamer Container:** Hängen alle Ansichten an denselben Container,
+  entscheidet die langsamste Antwort, was zu sehen ist. Ein eigener
+  Container je Navigation beendet diesen Wettlauf ohne eine Zeile in den
+  Ansichten.
+- **`history.back()` nach einer Navigation macht sie rückgängig:** Ein
+  Dialog nimmt seinen History-Eintrag nur zurück, wenn er selbst schließt,
+  nicht beim Seitenwechsel.
+- **Kontraste gehören an einen Test:** v2.2.0 hatte sie schon einmal
+  korrigiert; ein Farbverlauf und neue Verbrauchsarten brachten sie zurück.
+
+---
+
 ## [2.10.0] — 2026-09-25 — Energieträger ehrlich
 
 MINOR-Release (F1015). **Schema 1.5.0 → 1.6.0** (additiv, siehe Migration).

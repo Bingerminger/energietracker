@@ -6,14 +6,48 @@
 
 > **Real screenshots.** The following images are **actual screen captures** of the
 > running app with the bundled [demo dataset](../../../demo-data/) (light theme; base
-> set v1.9.2, sign-in, security card and the capture question v2.6.0). The app's
+> set v1.9.2, sign-in, security card and the capture question v2.6.0, navigation
+v2.11.0). The app's
 > interface is in German; the captures are shared with the
 > German compendium. To regenerate them yourself: load the demo data and capture
 > the views one by one — the app needs no build step for this.
 
-The app is a single-page application with a fixed **topbar** (logo, theme toggle)
-and a **sidebar** that is built dynamically from the *active* utilities
-(Settings → Active utilities).
+The app is a single-page application. Since **v2.11.0** its navigation follows
+the users' questions: seven areas instead of 17 entries.
+
+| Area | Pages |
+|---|---|
+| Overview | key figures, tanks, reminders and recommendations at a glance |
+| Meter readings | all meters in one go |
+| Consumption | one page per active utility |
+| Costs & contracts | Contracts & payments · Tariff switch · Check a bill |
+| Insights | Analysis · Forecast · Annual report |
+| Reminders & tips | Reminders & maintenance · Recommendations (one count in the sidebar) |
+| Settings | General · Weather data |
+
+The pages of an area appear as **tabs** above the view. Menu name and page title
+match, and the browser tab names the view. Earlier addresses (`#/tariffs`,
+`#/temperatures` …) keep working. The sidebar shows only the *active* utilities
+(Settings → Active utilities) and follows a change immediately.
+
+**Mac:** sidebar on the left. The top bar holds **＋ Add**: meter readings,
+delivery and tank reading for heating oil and pellets, reminder. Next to it the
+appearance switch (system, light, dark).
+
+![Navigation on the Mac](../../ui/screenshots/navigation-mac.png)
+
+**iPhone:** a tab bar at the bottom, in thumb reach: Overview, Consumption,
+**＋ Add**, Costs, More.
+
+- "More" opens the sidebar as a menu.
+- The utilities appear as tabs on their page.
+- Dialogs slide up as a sheet; header and footer stay in place.
+- The back gesture closes a dialog instead of leaving the page.
+- Touch targets are at least 44 px, inputs 16 px, so Safari no longer zooms
+  on every focus.
+- As a home-screen app the page extends under the clock and home indicator.
+
+<p><img src="../../ui/screenshots/navigation-iphone.png" alt="Overview with tab bar on the iPhone" width="260"> <img src="../../ui/screenshots/erfassen-iphone.png" alt="Add sheet on the iPhone" width="260"></p>
 
 ---
 
@@ -31,6 +65,9 @@ twelve months have data from all three meters, over how many months the rates
 are calculated. Since
 v2.7.0 the efficiency class appears only in countries with a scale (Germany);
 elsewhere the card shows kWh/m²·yr and gives the reason ([country profiles](../functional/14-laenderprofile.md)).
+Since v2.11.0 a due reminder reads "overdue by 65 days" instead of "now". The
+header action "Temperatures" is gone; "Add" sits globally in the top bar or
+the tab bar.
 
 ![Dashboard](../../ui/screenshots/dashboard.png)
 
@@ -152,14 +189,47 @@ asterisk.
 
 ![Forecast](../../ui/screenshots/prognose.png)
 
+### Annual report (under Insights since v2.11.0)
+
+One year as a PDF: overview per utility, efficiency, monthly tables and open
+recommendations. **Open in browser** shows the PDF in a new tab
+(`yearly.pdf?inline=1`); in the home-screen app on the iPhone a download often
+never arrived. **Download** saves it as before. Up to v2.10 the report lived in
+the settings.
+
 ---
 
-## 7. Tariff comparison
+## 7. Costs & contracts
+
+### Contracts & payments (v2.11.0)
+
+Per utility and meter, the current contract:
+
+- provider, tariff and term, or "renews automatically"
+- **Cancel by** with the days left, highlighted from six weeks before; a
+  missed deadline in red
+- the advance payment per month
+- what to expect at the next bill: refund (green) or back-payment (red)
+
+"Manage contracts" leads to the utility's contract list. The figures come from
+the same calculation as the utility's balance card.
+
+![Contracts & payments](../../ui/screenshots/navigation-mac.png)
+
+### Check a bill (gas)
+
+Up to v2.10 the bill check sat at the end of the gas page; now it is a page of
+its own. It recalculates a gas bill: one section per reading and calorific-value
+change, m³ × correction factor × calorific value = kWh, like the lines of the
+supplier's bill. Meter and period can be chosen. The gas page links here with
+the year on display (`#/bill-check?meter=…&from=…&to=…`).
+
+### Tariff switch (tariff comparison)
 
 Answers the question the Energietracker exists for: **should I switch?** The
 view is split into two blocks, and the order is deliberate.
 
-### Switching decision
+#### Switching decision
 
 At the top sits the **expected annual consumption** from the forecast — exactly
 the figure comparison sites ask for as input. One click copies it. The workflow
@@ -214,7 +284,7 @@ The calculation covers twelve months from the switch date, seasonally weighted.
 A switch on 1 July therefore still covers a full winter; a one-twelfth
 calculation would get this wrong.
 
-### Looking back at real months
+#### Looking back at real months
 
 Below, collapsed: the same tariffs applied to **actually measured** consumption
 — "what would tariff X have cost?". This is the proof. Anyone who sees the
@@ -233,7 +303,7 @@ term length, and therefore the basis for the ranking. Only pure tariff costs
 are compared; advance payments and one-off settlements are cash flows against
 the balance and stay out of it (they live in the consumption view).
 
-### Maintaining offers
+#### Maintaining offers
 
 An offer is captured with the fields a portal result actually carries: unit
 price, standing charge, **sign-up bonus as an amount** (not as a credit date —
@@ -257,7 +327,8 @@ for this comparison only.
 
 Seven statistical rule families (over-consumption trend, summer base, anomaly, tank
 level, contract end, efficiency, …), sorted by urgency, individually hideable.
-Purely data-driven, no advertising.
+Purely data-driven, no advertising. Since v2.11.0 under **Reminders & tips**;
+the button reads "Hide for 30 days" instead of "✕".
 
 ![Recommendations](../../ui/screenshots/empfehlungen.png)
 
@@ -268,15 +339,18 @@ Purely data-driven, no advertising.
 Recurring appointments (heating service, chimney sweep, calibration deadlines —
 since v2.9.0 with a category of its own for heat meter calibration). Due/overdue
 ones appear on the dashboard; on completion the next appointment is
-rolled forward according to the recurrence.
+rolled forward according to the recurrence. Since v2.11.0 the first tab under
+**Reminders & tips**; the count in the sidebar adds due reminders and open
+recommendations.
 
 ![Appointments](../../ui/screenshots/termine.png)
 
 ---
 
-## 10. Temperatures
+## 10. Weather data (settings)
 
-CSV import (drag & drop), Open-Meteo sync for the stored location, a monthly chart
+Since v2.11.0 under Settings → Weather data; the address `#/temperatures`
+remains. CSV import (drag & drop), Open-Meteo sync for the stored location, a monthly chart
 min/avg/max. The basis of every HDD evaluation. Since v2.8.0 a line above the
 chart states up to when measured values and from when forecasts are available;
 the option "Also replace existing older values with archive values" cleans up
@@ -291,6 +365,11 @@ weather of another place.
 ---
 
 ## 11. Settings
+
+Two tabs since v2.11.0: **General** and **Weather data** (§10). The PDF annual
+report moved to Insights; a link remains in its old place. After demo data,
+backup import or a restore the app restarts, so that sidebar, language and
+cache match the new state.
 
 At the top the card **Language & country** (v2.7.0): language, country, currency
 and time zone, all taking effect immediately. When the country changes, a dialog

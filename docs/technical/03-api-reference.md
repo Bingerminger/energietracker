@@ -154,7 +154,7 @@ nicht wieder passieren.
 | PATCH | `/api/reminders/{id}` | ändern |
 | DELETE | `/api/reminders/{id}` | löschen |
 | POST | `/api/reminders/{id}/done` | erledigt, Recurrence fortschreiben |
-| GET | `/api/reports/yearly.pdf` | PDF-Jahresbericht (Datei-Download) |
+| GET | `/api/reports/yearly.pdf` | PDF-Jahresbericht (Datei-Download; `?inline=1` zeigt ihn im Browser, v2.11.0) |
 | GET | `/api/export/{u}/monthly.csv` | Monatsaggregate als CSV |
 | GET | `/api/export/{u}/readings.csv` | Ablesungen als CSV (kumulativ) |
 | GET | `/api/export/{u}/deliveries.csv` | **v1.4.2** Lieferungen als CSV (Heizöl/Pellets) |
@@ -774,6 +774,12 @@ achsenlose Mini-Diagramm — stattdessen eine Kennzahlen-Leiste
 plus die Monatstabelle. Erzeugt vom eingebauten, abhängigkeitsfreien
 PDF-Writer.
 
+Seit **v2.11.0** mit `inline=1`: `Content-Disposition: inline` statt
+`attachment` — der Browser zeigt das PDF, statt es herunterzuladen. Die
+Oberfläche öffnet es so in einem neuen Tab („Im Browser öffnen"); in der
+Home-Bildschirm-App auf dem iPhone kam der Download oft nicht an. Ohne die
+Option bleibt alles wie bisher.
+
 ### `POST /api/ingest` *(F1009, v1.9.0 — Home Assistant)*
 
 Idempotenter Push-Eingang für externe Datenlieferanten. **Upsert pro
@@ -917,6 +923,7 @@ Bisher still übernommen, jetzt `400` mit `code` und — bei der Prognose —
 | | `price_factor` | 0–10 |
 | | `model` | `linear`, `polynomial`, `robust`, `segmented`, `sigmoid` |
 | `/api/reports/yearly.pdf` | `year` | 2000–2100 |
+| | `inline` | `1` = anzeigen statt herunterladen (v2.11.0) |
 | `POST /api/temperatures` | `avg`, `min`, `max` | Zahlen, Pflicht |
 | `…/sync-open-meteo` | `start`, `end` | ISO-Datum, `start` ≤ `end` |
 

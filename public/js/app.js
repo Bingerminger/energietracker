@@ -4,9 +4,11 @@
 
 import { startRouter } from './router.js';
 import { getUtilities, getSettings, getCountries } from './state.js';
-import { toastErr } from './components/toast.js';
-import { mountThemeToggle } from './lib/theme.js';
+import { toastErr, showPendingToast } from './components/toast.js';
+import { mountThemeToggle, refreshThemeToggle } from './lib/theme.js';
 import { buildSidebar, refreshSidebarBadges } from './lib/sidebar.js';
+// v2.11.0 — Tab-Leiste, Menü und Erfassen-Blatt (hängen sich an die Ereignisse)
+import './lib/mobile-nav.js';
 import { initI18n, t, getLocale, setCurrencyParams } from './lib/i18n.js';
 import { applyUtilityTheme } from './lib/utility-theme.js';
 import { api } from './api.js';
@@ -25,12 +27,10 @@ function applyShellStrings() {
   // <html lang> an den tatsächlich geladenen Katalog angleichen.
   document.documentElement.setAttribute('lang', getLocale());
 
-  const tt = document.getElementById('theme-toggle');
-  if (tt) {
-    const lbl = t('app.themeToggle');
-    tt.setAttribute('aria-label', lbl);
-    tt.setAttribute('title', lbl);
-  }
+  refreshThemeToggle();
+  // v2.11.0 — weitere Shell-Texte tragen ihren Schlüssel in data-shell
+  document.querySelectorAll('[data-shell]').forEach(el => { el.textContent = t(el.getAttribute('data-shell')); });
+  document.getElementById('tabbar')?.setAttribute('aria-label', t('nav.tabbar'));
   const skip = document.querySelector('.skip-link');
   if (skip) skip.textContent = t('app.skipToContent');
 
@@ -129,6 +129,8 @@ const boot = () => Promise.all([getSettings(), getCountries()])
       console.error('Sidebar-Aufbau fehlgeschlagen', e);
     }
     startRouter(container);
+    // v2.11.0 — Meldung von vor einem Neustart (Import, Demo-Daten)
+    showPendingToast();
     // Badges nachreichen — sie sind Beiwerk und dürfen den ersten Inhalt
     // nicht aufhalten.
     refreshSidebarBadges().catch(() => {});

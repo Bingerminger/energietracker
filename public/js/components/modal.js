@@ -15,9 +15,30 @@ let modalSeq = 0;
 // blieb `inert`, und Speichern rendert in eine fremde Ansicht.
 const openCloses = new Set();
 
+// v2.11.0 (Review FE-09/UI-16) — Die Zurück-Taste (iPhone: Wischgeste)
+// schließt den obersten Dialog, statt die Seite darunter zu verlassen. Jeder
+// Dialog legt dazu einen History-Eintrag ohne neue Adresse an; `popstate`
+// schließt ihn. Schließt der Dialog anders (Knopf, Escape), nimmt er seinen
+// Eintrag mit `history.back()` zurück — dieses eigene `popstate` wird
+// übersprungen. Bei einer Navigation bleibt der Eintrag stehen: Ein
+// `history.back()` nach dem Adresswechsel machte die Navigation rückgängig.
+// Deshalb gilt auch: Code, der einen Dialog schließt und SOFORT navigiert,
+// muss `close(value, 'navigation')` aufrufen.
+let modalEntries = 0;
+let ownPops = 0;
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    if (ownPops > 0) { ownPops--; return; }
+    if (modalEntries > 0 && openCloses.size) {
+      modalEntries--;
+      [...openCloses].pop()?.(null, 'history');
+    }
+  });
+}
+
 /** Schließt alle offenen Dialoge (obersten zuerst). */
-export function closeAllModals() {
-  [...openCloses].reverse().forEach(close => close(null));
+export function closeAllModals(reason = 'navigation') {
+  [...openCloses].reverse().forEach(close => close(null, reason));
 }
 
 export function openModal({ title, body, footer = '', onMount = null, size = 'md' }) {
@@ -58,11 +79,17 @@ export function openModal({ title, body, footer = '', onMount = null, size = 'md
   let resolveClose;
   const closedPromise = new Promise(r => { resolveClose = r; });
   let closed = false;
+  let pushed = false;
+  try { history.pushState(history.state, ''); pushed = true; modalEntries++; } catch { /* ohne History: nur Knöpfe */ }
 
-  function close(value) {
+  function close(value, reason = 'ui') {
     if (closed) return;
     closed = true;
     openCloses.delete(close);
+    if (pushed && reason !== 'history') {
+      modalEntries = Math.max(0, modalEntries - 1);
+      if (reason !== 'navigation') { ownPops++; history.back(); }
+    }
     backdrop.remove();
     document.removeEventListener('keydown', onKey);
     if (appEl && !hadInert) appEl.removeAttribute('inert');

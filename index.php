@@ -125,16 +125,21 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 <html lang="<?= $h($lang) ?>">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- v2.11.0 (Review UI-25) — viewport-fit=cover: In der Home-Bildschirm-App
+     reicht die Seite bis unter Uhr und Home-Balken; die Abstände dafür setzt
+     das CSS über env(safe-area-inset-*). -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111827">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- v2.11.0 — „default" statt „black-translucent": Die weiße Schrift der
+     durchsichtigen Statusleiste stand im Hellmodus auf weißer Kopfleiste. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Energietracker">
 <link rel="manifest" href="manifest.webmanifest">
-<title>Energietracker <?= htmlspecialchars($version, ENT_QUOTES) ?></title>
+<title>Energietracker</title>
 <link rel="icon" type="image/png" sizes="32x32" href="public/img/icon-light-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="public/img/icon-light-16.png">
 <link rel="shortcut icon" href="public/favicon.ico">
@@ -182,9 +187,9 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
     <div class="topbar__brand">
       <span class="topbar__logo" aria-hidden="true"></span>
       <span class="topbar__title">ENERGIETRACKER</span>
-      <span class="topbar__version">v<?= htmlspecialchars($version, ENT_QUOTES) ?></span>
     </div>
     <div class="topbar__actions">
+      <button type="button" class="btn btn--primary btn--sm topbar__capture" data-action="open-capture"><span aria-hidden="true">＋</span> <span data-shell="nav.captureButton"><?= $h($tShell('nav.captureButton', 'Erfassen')) ?></span></button>
       <button type="button" id="theme-toggle" class="topbar__btn" aria-label="<?= $h($tShell('app.themeToggle', 'Theme wechseln')) ?>" title="<?= $h($tShell('app.themeToggle', 'Theme wechseln')) ?>">
         <span class="topbar__btn-icon" aria-hidden="true"></span>
       </button>
@@ -198,14 +203,19 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
       <div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt…')) ?></div>
     </nav>
     <div class="sidebar__footer">
+      <span>v<?= $h($version) ?></span>
+      <span aria-hidden="true">·</span>
       <a href="https://github.com/Bingerminger/energietracker" target="_blank" rel="noopener">GitHub</a>
-      <span>·</span>
-      <span>flat-file JSON</span>
     </div>
   </aside>
+  <!-- v2.11.0 — Hintergrund des Menüs auf dem iPhone (tippen schließt) -->
+  <div class="nav-backdrop" id="nav-backdrop" aria-hidden="true"></div>
 
   <!-- Main content -->
   <main id="view" class="view" tabindex="-1"><div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt…')) ?></div></main>
+
+  <!-- v2.11.0 (Review UI-05) — Tab-Leiste auf dem iPhone, gefüllt von lib/mobile-nav.js -->
+  <nav class="tabbar" id="tabbar" aria-label="<?= $h($tShell('nav.tabbar', 'Schnellnavigation')) ?>"></nav>
 </div>
 
 <!--

@@ -22,7 +22,6 @@
   },
   "app": {
     "themeToggle": "Switch theme",
-    "footerStorage": "flat-file JSON",
     "skipToContent": "Skip to main content",
     "primaryNav": "Main navigation",
     "brandHome": "Energietracker — go to overview",
@@ -30,7 +29,16 @@
     "offlineSince": "Offline – data as of {when}",
     "networkError": "No connection to Energietracker – nothing was saved.",
     "networkErrorRead": "No connection to Energietracker.",
-    "invalidResponse": "Unexpected response from the server (HTTP {status})."
+    "invalidResponse": "Unexpected response from the server (HTTP {status}).",
+    "timeoutRead": "Energietracker is not responding (timeout).",
+    "timeoutWrite": "Energietracker is not responding – it is unclear whether anything was saved. Please reload the page and check.",
+    "retry": "Try again",
+    "theme": {
+      "toggle": "Appearance: {mode} – switch",
+      "system": "system",
+      "light": "light",
+      "dark": "dark"
+    }
   },
   "meterNames": {
     "gas": "Main meter",
@@ -54,22 +62,43 @@
   },
   "nav": {
     "group": {
-      "capture": "Entry",
-      "overview": "Overview",
       "consumption": "Consumption",
-      "analysis": "Analysis",
-      "insights": "Insights",
-      "system": "System"
+      "analysis": "Insights",
+      "costs": "Costs & contracts",
+      "hints": "Reminders & tips"
     },
     "readings": "Meter readings",
-    "dashboard": "Dashboard",
-    "temperatures": "Temperatures",
-    "correlation": "Correlation",
+    "dashboard": "Overview",
     "forecast": "Forecast",
-    "tariffs": "Tariff comparison",
+    "tariffs": "Tariff switch",
     "recommendations": "Recommendations",
-    "reminders": "Reminders",
-    "settings": "Settings"
+    "reminders": "Reminders & maintenance",
+    "settings": "Settings",
+    "analysis": "Analysis",
+    "contracts": "Contracts & payments",
+    "billCheck": "Check a bill",
+    "report": "Annual report",
+    "general": "General",
+    "weather": "Weather data",
+    "tab": {
+      "overview": "Overview",
+      "consumption": "Usage",
+      "capture": "Add",
+      "costs": "Costs",
+      "more": "More"
+    },
+    "sheet": {
+      "title": "Add",
+      "readings": "Enter meter readings",
+      "readingsHint": "All meters in one go",
+      "delivery": "Delivery {utility}",
+      "tankLevel": "Tank reading {utility}",
+      "reminder": "New reminder"
+    },
+    "sectionNav": "Pages in this section",
+    "menu": "Menu",
+    "tabbar": "Quick navigation",
+    "captureButton": "Add"
   },
   "dashboard": {
     "loading": "Loading overview…",
@@ -110,7 +139,14 @@
       "title": "Upcoming reminders",
       "due": "due {date}",
       "now": "now",
-      "inDays": "in {days} d"
+      "overdueDays": {
+        "one": "overdue by 1 day",
+        "other": "overdue by {count} days"
+      },
+      "inDaysN": {
+        "one": "in 1 day",
+        "other": "in {count} days"
+      }
     },
     "allLink": "all",
     "chart": { "title": "{months}-month consumption (all utilities)", "alt": "Line chart: consumption of the last {months} months per utility" },
@@ -124,7 +160,9 @@
       "activeMeters": "Active meters",
       "totalMeters": "{count} total"
     },
-    "trend": { "vsPrev": "vs. previous 12 months", "moreThanPrev": "{pct}% more than the previous 12-month period", "lessThanPrev": "{pct}% less than the previous 12-month period" }
+    "trend": { "vsPrev": "vs. previous 12 months", "moreThanPrev": "{pct}% more than the previous 12-month period", "lessThanPrev": "{pct}% less than the previous 12-month period" },
+    "allRecommendations": "All recommendations",
+    "allReminders": "All reminders"
   },
   "readingsEntry": {
     "title": "Meter readings",
@@ -461,7 +499,8 @@
         "estimated": "S",
         "interpolated": "E"
       },
-      "legend": "Reading type: no suffix = meter reading · S = reading recorded as estimated · E = substitute value: there is no meter reading on this day, it is interpolated day-exact between the enclosing readings — exactly where the supplier estimates too (calorific-value and period boundaries). The fewer rows with E, the less is estimation."
+      "legend": "Reading type: no suffix = meter reading · S = reading recorded as estimated · E = substitute value: there is no meter reading on this day, it is interpolated day-exact between the enclosing readings — exactly where the supplier estimates too (calorific-value and period boundaries). The fewer rows with E, the less is estimation.",
+      "open": "Check the {year} bill"
     },
     "warnings": {
       "title": "Implausible meter readings: {count}",
@@ -786,7 +825,7 @@
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Loading…",
-    "title": "⚙️ Settings",
+    "title": "Settings",
     "subtitle": "Configuration · data export · backup & restore",
     "save": "Save settings",
     "saveUnsaved": "Save •",
@@ -898,7 +937,8 @@
       "title": "📄 PDF annual report",
       "hint": "Multi-page report with overview, efficiency class, consumption tables per utility and open recommendations.",
       "year": "Year",
-      "download": "Download annual report"
+      "download": "Download annual report",
+      "moved": "The annual report now has its own page under “Insights”."
     },
     "export": {
       "title": "📤 Data export (CSV)",
@@ -1025,7 +1065,6 @@
       "aliasesSaved": "{count} alias(es) saved",
       "yamlCopied": "YAML copied",
       "clipboardFail": "Copy failed",
-      "clipboardUnavailable": "Clipboard not available — please select manually",
       "step4": "4. Automation (to copy)",
       "automationHint": "In the automation editor choose “Edit in YAML” and paste. There is one entry per meter with an alias; set <code>sensor_entity</code> to the entity holding the absolute meter reading. <code>has_value</code> skips a meter whose sensor is currently unavailable.",
       "yaml": {
@@ -1243,7 +1282,7 @@
   },
   "temperatures": {
     "loading": "Loading…",
-    "title": "🌡️ Temperature",
+    "title": "Weather data",
     "sync": "Sync Open-Meteo",
     "csvImport": "CSV import",
     "formatHint": "Format: <code>DD.MM.YYYY\"avg\"min\"max</code> (e.g. <code>15.01.2024\"4.2\"-1.0\"7.1</code>). Values in °C, double quotes as separator.",
@@ -1319,7 +1358,7 @@
   },
   "tariff": {
     "loading": "Loading…",
-    "title": "Tariff comparison",
+    "title": "Tariff switch",
     "subtitle": "Is switching worth it? Forecast consumption measured against real offers — with the look back at actual months as proof.",
     "noUsable": "No comparable utilities active. Tariff comparison applies to contract-based types (gas, electricity, district heating).",
     "utility": "Utility",
@@ -1436,7 +1475,7 @@
   "analysis": {
     "noUtilities": "No utility is active. You can choose which ones appear in the settings.",
     "loading": "Loading…",
-    "title": "📊 Analysis",
+    "title": "Analysis",
     "noMeters": "No meters.",
     "selectUtility": "Select utility",
     "selectMeter": "Select meter",
@@ -1531,7 +1570,7 @@
   "forecast": {
     "noUtilities": "No utility is active. You can choose which ones appear in the settings.",
     "loading": "Loading…",
-    "title": "🔮 Forecast",
+    "title": "Forecast",
     "selectUtility": "Select utility",
     "selectMeter": "Select meter",
     "chartAlt": "Line chart: consumption history with forecast",
@@ -1612,7 +1651,12 @@
     "revenueValue": "Revenue {amount}",
     "kpiRevenue": "Total revenue",
     "tableRevenue": "Revenue {cur}",
-    "certificate": "Certificate-style: {value} kWh/m²·yr (net calorific value, weather-adjusted, {area} m² usable floor area)"
+    "certificate": "Certificate-style: {value} kWh/m²·yr (net calorific value, weather-adjusted, {area} m² usable floor area)",
+    "page": {
+      "subtitle": "One year at a glance, as a PDF to file or share.",
+      "open": "Open in browser",
+      "note": "On the iPhone the report opens in a new tab; from there you can save or share it."
+    }
   },
   "migration": {
     "warnNoSettings": "No settings found in the backup — the defaults apply.",
@@ -1885,5 +1929,31 @@
     "PT": "Portugal",
     "NL": "Netherlands",
     "GB": "United Kingdom"
+  },
+  "contractsOverview": {
+    "subtitle": "Current contracts of all utilities: deadlines, advance payments and what to expect at the next bill.",
+    "noUtilities": "No utility with contracts is active.",
+    "manage": "Manage contracts",
+    "loadFailed": "Could not be loaded: {msg}",
+    "noMeter": "No meter set up yet.",
+    "meter": "Meter {name}",
+    "noContract": "No current contract recorded.",
+    "addContract": "Add contract",
+    "openEnded": "since {start}, open-ended",
+    "renewed": "since {start}, renews automatically",
+    "term": "{start} to {end}",
+    "cancelMissed": "Notice deadline passed on {date}",
+    "cancelBy": "Cancel by {date}",
+    "daysLeft": {
+      "one": "1 day left",
+      "other": "{count} days left"
+    },
+    "advance": "Advance payment {amount} per month",
+    "expected": "Expected on {date}:"
+  },
+  "billCheck": {
+    "noMeter": "The bill check recalculates correction factor × calorific value and is therefore available for gas. Set up a gas meter first.",
+    "addMeter": "Set up gas meter",
+    "meter": "Meter"
   }
 }

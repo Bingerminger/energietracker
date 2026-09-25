@@ -5,7 +5,7 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.10.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.11.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
@@ -43,7 +43,7 @@ heute und als erwartete End-Saldierung, mit Abschlagsvorschlag. Dazu eine statis
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v2.10.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v2.11.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -205,8 +205,13 @@ PDF-Jahresbericht.
   Schornsteinfeger, Zähler-Eichfristen …) mit Fälligkeitsstatus.
 - **Tarifvergleich** mit **Schattenverträgen**: hypothetische Tarife auf
   die echten Verbräuche rechnen, ohne Saldo/Prognose zu beeinflussen.
-- **PDF-Jahresbericht** als Datei-Download (abhängigkeitsfreier
-  PDF-Writer, kein composer/mPDF nötig).
+- **PDF-Jahresbericht** unter Auswertungen, zum Herunterladen oder im Browser
+  (abhängigkeitsfreier PDF-Writer, kein composer/mPDF nötig).
+- **Mac und iPhone** (v2.11.0): Navigation in sieben Bereichen nach den Fragen
+  der Nutzer. Auf dem iPhone eine Tab-Leiste mit **＋ Erfassen**, Dialoge als
+  Blatt, 44-px-Tippziele und Kontraste nach WCAG AA; die Zurück-Geste schließt
+  Dialoge. Neue Seite **Verträge & Abschläge**: alle Fristen, Abschläge und
+  zu erwartenden Abrechnungen auf einen Blick.
 - **Aktivierbare Verbrauchsarten**: nicht genutzte Arten ausblenden,
   ohne Daten zu verlieren.
 
@@ -242,9 +247,8 @@ PDF-Jahresbericht.
 - **CSV-Export** für Monatsübersicht, Zählerstände und Temperaturreihe —
   semikolon-getrennt, UTF-8 mit BOM, direkt in Excel/LibreOffice nutzbar.
   Ergänzt das vollständige JSON-Backup.
-- **Tag/Nacht-Umschaltung** rechts in der Topbar. Respektiert beim
-  ersten Besuch `prefers-color-scheme`, persistiert die Wahl danach
-  in `localStorage`.
+- **Darstellung** rechts in der Topbar: wie das System (Standard), hell oder
+  dunkel; die Wahl merkt sich der Browser (`localStorage`).
 - **System-Diagnose** unter Einstellungen: PHP-Version, Datenverzeichnis,
   Schreibrechte, Schema-Version, Anzahl Zähler/Ablesungen pro Utility.
   `GET /api/health` meldet `ok`/`degraded`/`error`, im Fehlerfall mit
@@ -336,7 +340,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.10.0
+  ghcr.io/bingerminger/energietracker:2.11.0
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -514,7 +518,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „2.10.0"
+├── VERSION                  ← „2.11.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE

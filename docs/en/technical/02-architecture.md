@@ -49,12 +49,12 @@ energietracker/
 │   ├── img/                # app icon (light/dark), favicon
 │   └── js/
 │       ├── app.js          # frontend entry point
-│       ├── router.js       # hash router
-│       ├── api.js          # fetch wrapper (BASE = 'api.php')
-│       ├── state.js        # utilities/settings cache
-│       ├── lib/            # sidebar, theme, format, gas-factor
+│       ├── router.js       # hash router (token, abort, area tabs)
+│       ├── api.js          # fetch wrapper (BASE = 'api.php', timeout)
+│       ├── state.js        # utilities/settings cache, saveSettings()
+│       ├── lib/            # nav-model, sidebar, mobile-nav, theme, format, contrast …
 │       ├── components/     # chart, modal, toast
-│       └── views/          # 12 views (see UI reference)
+│       └── views/          # 15 views (see UI reference)
 ├── src/
 │   ├── bootstrap.php       # DI container + route table
 │   ├── Config/Utilities.php# utilities — single source of truth
@@ -205,8 +205,39 @@ the service-layer validation.
 ## 7. Frontend
 
 Pure ES modules, **no build step**. `app.js` is the entry: bind the theme toggle →
-`buildSidebar()` (dynamically from the active utilities) → warm the utilities cache
-→ start the hash router.
+load the language → warm the utilities cache → `buildSidebar()` (dynamically from
+the active utilities) → start the hash router.
+
+**Navigation (since v2.11.0).** `lib/nav-model.js` is the single source for the
+sidebar, the tab bar (iPhone, `lib/mobile-nav.js`) and the tabs of the areas. The
+router announces every navigation as an `et:route` event (view, area, utility);
+sidebar and tab bar set their highlight from it.
+
+**Router (since v2.11.0).** Every navigation gets a token, an abort signal and a
+container of its own inside `#view`:
+
+- The old view's cleanup runs before the new view starts.
+- A late view writes into its detached container. Its cleanup runs as soon as
+  it finishes.
+- `api.js` aborts the read requests (GET) of the view that was left; their
+  promise stays pending, so the view does not continue and reports no error.
+  Writes always complete.
+- App-wide fetches (`state.js`, the sidebar counts) run through `appScope()`
+  without a signal.
+- Views load via `import()`; the import map versions these paths too. After
+  the first paint the router preloads the rest when idle, so they sit in the
+  service worker's cache for offline use.
+- `#/path?key=value` hands the query to the view as `ctx.query`:
+  `render(container, params, ctx)`.
+
+**Settings** are written by the views through `state.saveSettings(patch)`:
+PATCH, update the cache, fire `et:settingschange`. The sidebar rebuilds when
+`active_utilities` changes. After demo data, an import or a restore the app
+reloads completely.
+
+**Dialogs** push a history entry when they open: the back button closes the
+topmost dialog instead of the page. If it closes otherwise, it takes the entry
+back with `history.back()` — except on a navigation, which that would undo.
 
 > ⚠️ **Architecture-critical:** since all modules are loaded via a single ES module
 > graph, **a single faulty relative import** (404) breaks the *entire* app — the

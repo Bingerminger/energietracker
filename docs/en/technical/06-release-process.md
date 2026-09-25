@@ -533,6 +533,25 @@ accepted.
   rates summed annual values of meters with different coverage: a generation
   meter from July onwards yielded "self-consumption 0". Now only months in which
   all three meters have data count, and the card says how many there are.
+- **A shared container is a race (v2.11.0).** All views wrote into `#view` after
+  their `await`. Whoever clicked on quickly saw the previous page's response under
+  the new heading, and its cleanup was lost. The fix sits in the router, not in
+  twelve views: per navigation its own container, a token and an abort signal. A
+  late view writes into the void and cleans up afterwards.
+- **`history.back()` after a navigation undoes it (v2.11.0).** For the back
+  button to close a dialog, the dialog pushes a history entry and takes it back
+  when it closes. If a page change closes it instead, the entry has to stay —
+  otherwise the asynchronous step back jumps to the old page. The router
+  therefore closes dialogs with the reason "navigation".
+- **Contrast belongs in a test (v2.11.0).** v2.2.0 had fixed it once already.
+  Afterwards a gradient on the buttons, a fixed "62 % with black" mix for every
+  utility and white text on orange pushed it below 4.5:1 again, unnoticed.
+  `tests/contrast.test.mjs` now recalculates every text/surface pair from the
+  tokens.
+- **During local testing the service worker serves old files (v2.11.0).** Static
+  files come from its cache, and it matches without the query. In a release the
+  cache changes with the version; between two states of the same version the
+  browser shows old CSS, though. Unregister the worker before visual checks.
 
 ---
 

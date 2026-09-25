@@ -8,10 +8,81 @@ import { getLocale, t } from './lib/i18n.js';
 
 const BASE = 'api.php';
 
-async function request(method, path, body = null, { raw = false } = {}) {
+// v2.11.0 (Review FE-05) — Lese-Anfragen gehören zur Ansicht, die sie stellt.
+//
+// Der Router setzt je Navigation ein Abbruchsignal. Eine GET-Anfrage der
+// Ansicht, die der Nutzer schon verlassen hat, wird abgebrochen, und ihr
+// Promise bleibt offen: Die verwaiste Ansicht läuft nicht weiter, zeichnet
+// nichts in die neue und meldet keinen Fehler. Bis v2.10 überschrieb eine
+// langsame Antwort die schon geöffnete nächste Seite. Schreibzugriffe laufen
+// immer zu Ende.
+//
+// App-weite Abrufe (Einstellungen, Verbrauchsarten, Zähler an der
+// Seitenleiste) gehören keiner Ansicht und laufen über `appScope()`: Ein
+// abgebrochenes Promise im Cache von state.js hielte sonst die ganze App an.
+let navSignal = null;
+
+/** Router: Signal der laufenden Navigation (null = keins). */
+export function setNavigationSignal(signal) { navSignal = signal || null; }
+
+/** Führt `fn` ohne Navigationssignal aus — für Abrufe, die jede Ansicht überleben. */
+export function appScope(fn) {
+  const prev = navSignal;
+  navSignal = null;
+  try { return fn(); } finally { navSignal = prev; }
+}
+
+// v2.11.0 (Review FE-25) — Zeitlimit. Ein hängender Server ließ die Ansicht
+// bisher endlos bei „Lädt…". Schreibzugriffe bekommen mehr Zeit; Import,
+// Demo und Wetterabgleich setzen ihr eigenes Limit.
+const TIMEOUT_READ_MS = 30000;
+const TIMEOUT_WRITE_MS = 120000;
+const TIMEOUT_LONG_MS = 300000;
+
+const pending = () => new Promise(() => {});
+
+/** Ein Signal aus mehreren (AbortSignal.any erst ab Safari 17.4). */
+function anySignal(signals) {
+  const list = signals.filter(Boolean);
+  if (list.length <= 1) return list[0];
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any(list);
+  const ctl = new AbortController();
+  for (const s of list) {
+    if (s.aborted) { ctl.abort(); break; }
+    s.addEventListener('abort', () => ctl.abort(), { once: true });
+  }
+  return ctl.signal;
+}
+
+function timeoutError(method) {
+  const err = new Error(t(method === 'GET' ? 'app.timeoutRead' : 'app.timeoutWrite'));
+  err.status = 0;
+  err.code = 'timeout';
+  return err;
+}
+
+async function request(method, path, body = null, { raw = false, timeoutMs } = {}) {
+  const nav = method === 'GET' ? navSignal : null;
+  if (nav?.aborted) return pending();
+  const limit = timeoutMs ?? (method === 'GET' ? TIMEOUT_READ_MS : TIMEOUT_WRITE_MS);
+  const timeout = new AbortController();
+  const timer = limit > 0 ? setTimeout(() => timeout.abort(), limit) : null;
+  try {
+    return await send(method, path, body, raw, anySignal([nav, timeout.signal]));
+  } catch (e) {
+    // Die Ansicht ist verlassen: nicht weiterlaufen, nichts melden
+    if (nav?.aborted) return pending();
+    if (timeout.signal.aborted) throw timeoutError(method);
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function send(method, path, body, raw, signal) {
   // N1007 — aktive Sprache mitschicken, damit das Backend (Full-Stack-i18n)
   // Fehlermeldungen/Labels in derselben Sprache liefern kann.
-  const opts = { method, headers: { 'Accept-Language': getLocale() } };
+  const opts = { method, headers: { 'Accept-Language': getLocale() }, signal };
   if (body !== null && body !== undefined) {
     if (raw) {
       opts.headers['Content-Type'] = 'text/plain; charset=utf-8';
@@ -27,7 +98,8 @@ async function request(method, path, body = null, { raw = false } = {}) {
   let res;
   try {
     res = await fetch(url, opts);
-  } catch {
+  } catch (e) {
+    if (signal?.aborted) throw e;   // Abbruch oder Zeitlimit: request() entscheidet
     // v2.6.0 — statt „Failed to fetch" / „Load failed" (je nach Browser). Bei
     // Schreibzugriffen ausdrücklich: Es wurde nichts gespeichert.
     const err = new Error(t(method === 'GET' ? 'app.networkErrorRead' : 'app.networkError'));
@@ -44,8 +116,11 @@ async function request(method, path, body = null, { raw = false } = {}) {
   }
   let payload;
   try { payload = await res.json(); }
-  // Keine JSON-Antwort — etwa die Anmeldeseite eines vorgeschalteten Proxys.
-  catch { throw Object.assign(new Error(t('app.invalidResponse', { status: res.status })), { status: res.status }); }
+  catch (e) {
+    if (signal?.aborted) throw e;
+    // Keine JSON-Antwort — etwa die Anmeldeseite eines vorgeschalteten Proxys.
+    throw Object.assign(new Error(t('app.invalidResponse', { status: res.status })), { status: res.status });
+  }
   if (!res.ok || payload.success === false) {
     const err = new Error(payload?.error || `HTTP ${res.status}`);
     err.status = res.status;
@@ -138,7 +213,7 @@ export const api = {
   // v2.8.0 — Optionen als Query (der Server las sie immer dort): reload, auto, start, end
   syncOpenMeteo: (opts = {})           => {
     const params = new URLSearchParams(opts).toString();
-    return request('POST', '/api/temperatures/sync-open-meteo' + (params ? '?' + params : ''));
+    return request('POST', '/api/temperatures/sync-open-meteo' + (params ? '?' + params : ''), null, { timeoutMs: TIMEOUT_LONG_MS });
   },
 
   // F1005 (v1.7.0) — Strom-Saldo (Bezug − PV-Einspeisung) + PV-Summary (Eigenverbrauch + Autarkie)
@@ -154,16 +229,16 @@ export const api = {
   // v2.7.0 — Länderprofile (Voreinstellungen je Land)
   countries:     ()                    => request('GET',  '/api/countries'),
   settingsDefaultUpdates: ()           => request('GET',  '/api/settings/default-updates'),   // v2.10.0
-  exportBackup:  ()                    => request('GET',  '/api/backup/export'),
+  exportBackup:  ()                    => request('GET',  '/api/backup/export', null, { timeoutMs: TIMEOUT_LONG_MS }),
   // v2.6.0 — { dryRun, allowWithoutSnapshot } als Query-Flags
   importBackup:  (data, { dryRun = false, allowWithoutSnapshot = false } = {}) =>
-    request('POST', `/api/backup/import${flags({ dry_run: dryRun, allow_without_snapshot: allowWithoutSnapshot })}`, data),
-  snapshotBackup:()                    => request('POST', '/api/backup/snapshot'),
+    request('POST', `/api/backup/import${flags({ dry_run: dryRun, allow_without_snapshot: allowWithoutSnapshot })}`, data, { timeoutMs: TIMEOUT_LONG_MS }),
+  snapshotBackup:()                    => request('POST', '/api/backup/snapshot', null, { timeoutMs: TIMEOUT_LONG_MS }),
   // v2.6.0 — Snapshots verwalten
   snapshots:       ()                  => request('GET',    '/api/backup/snapshots'),
   snapshotUrl:     (name)              => `${BASE}/api/backup/snapshots/${encodeURIComponent(name)}`,
   restoreSnapshot: (name, { allowWithoutSnapshot = false } = {}) =>
-    request('POST', `/api/backup/snapshots/${encodeURIComponent(name)}/restore${flags({ allow_without_snapshot: allowWithoutSnapshot })}`),
+    request('POST', `/api/backup/snapshots/${encodeURIComponent(name)}/restore${flags({ allow_without_snapshot: allowWithoutSnapshot })}`, null, { timeoutMs: TIMEOUT_LONG_MS }),
   deleteSnapshot:  (name)              => request('DELETE', `/api/backup/snapshots/${encodeURIComponent(name)}`),
 
   // v2.6.0 — Anmeldung (opt-in) und API-Schlüssel
@@ -178,7 +253,7 @@ export const api = {
 
   // Demo-Daten-Import (F1007)
   demoStatus:    ()                    => request('GET',  '/api/demo/status'),
-  importDemo:    (force = false)       => request('POST', '/api/demo/import', { force }),
+  importDemo:    (force = false)       => request('POST', '/api/demo/import', { force }, { timeoutMs: TIMEOUT_LONG_MS }),
 
   // ── v1.3.0 (F1009) — Home-Assistant-Anbindung: API-Token ──
   authStatus:    ()                    => request('GET',    '/api/auth/token'),
@@ -195,7 +270,7 @@ export const api = {
 
   // ── Migration aus v0.9.0 ──
   migrationV09Preview: (backup)         => request('POST', '/api/migration/v09/preview', { backup }),
-  migrationV09Import:  (translated, mode) => request('POST', '/api/migration/v09/import',  { translated, mode }),
+  migrationV09Import:  (translated, mode) => request('POST', '/api/migration/v09/import',  { translated, mode }, { timeoutMs: TIMEOUT_LONG_MS }),
   diagnostics:   ()                    => request('GET',  '/api/diagnostics'),
 
   // ── v1.3.0 — Lieferungen (Heizöl/Pellets) ──
@@ -234,5 +309,9 @@ export const api = {
   reminderDone:  (id, dt=null)=> request('POST',  `/api/reminders/${id}/done`, dt ? { done_date: dt } : {}),
 
   // ── v1.3.0 — PDF-Jahresbericht (Datei-Download, kein JSON) ──
-  yearlyReportUrl: (year) => `${BASE}/api/reports/yearly.pdf${year ? `?year=${year}` : ''}`,
+  // v2.11.0 — `inline`: im Browser anzeigen statt herunterladen
+  yearlyReportUrl: (year, { inline = false } = {}) => {
+    const q = [year ? `year=${year}` : '', inline ? 'inline=1' : ''].filter(Boolean).join('&');
+    return `${BASE}/api/reports/yearly.pdf${q ? '?' + q : ''}`;
+  },
 };
