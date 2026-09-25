@@ -147,7 +147,7 @@
       }
     },
     "allLink": "tutti",
-    "chart": { "title": "Consumo a {months} mesi (tutte le utenze)", "altList": "Grafico a linee: consumo degli ultimi {months} mesi per {list}" },
+    "chart": { "totalTitle": "Energia totale: ultimi {months} mesi (kWh)", "totalNote": "Solo ciò che si può sommare: il consumo in kWh. Acqua e fotovoltaico sono nelle loro schede.", "totalTip": "Totale: {value}", "totalAlt": "Grafico a barre impilate: consumo di energia degli ultimi {months} mesi per {list}, {total} in totale.", "totalColumn": "Totale (kWh)" },
     "card": { "meters": "Contatori", "details": "Dettagli", "window": "Periodo: {from} – {to}", "partial": "{month}: {days} giorni su {total}" },
     "groups": { "summary": "Gruppi ({count})" },
     "kpi": {
@@ -182,6 +182,11 @@
       "title": "Benvenuto in Energietracker",
       "text": "Inserisci le letture dei contatori — l’app ne ricava consumo, costi, saldo degli acconti e previsione. Oppure guarda prima come appare con dati di esempio.",
       "demo": "Prova con dati di esempio"
+    },
+    "spark": {
+      "prev": "Un anno prima",
+      "alt": "Grafico a barre: {label} per mese da {from} a {to}.",
+      "altPrev": "Grafico a barre: {label} per mese da {from} a {to}; la linea mostra gli stessi mesi un anno prima."
     }
   },
   "readingsEntry": {
@@ -336,7 +341,14 @@
       "priceIncrease": "Aumento dei prezzi dal {date}: {what}.",
       "piWorking": "prezzo dell’energia {from} → {to} {minor}/kWh",
       "piBase": "quota fissa {from} → {to} {cur}/mese",
-      "priceIncreaseDe": "Fino ad allora esiste un diritto di recesso speciale con effetto alla data dell’aumento (§ 41 c. 5 EnWG)."
+      "priceIncreaseDe": "Fino ad allora esiste un diritto di recesso speciale con effetto alla data dell’aumento (§ 41 c. 5 EnWG).",
+      "pathTitle": "Costi e acconti nel periodo di fatturazione",
+      "pathCost": "Costi cumulati",
+      "pathPaid": "Pagato: acconti e pagamenti straordinari",
+      "pathBalance": "Saldo",
+      "pathEstimated": "stimato",
+      "pathNote": "Tratteggiato: stimato; i punti vuoti sono dopo oggi. La distanza tra le linee è il saldo, alla fine c'è la fattura attesa.",
+      "pathAlt": "Grafico a linee: costi e pagamenti cumulati da {from} a {to}; alla fine {result}."
     },
     "contractsTable": {
       "emptyTitle": "Nessun contratto registrato",
@@ -383,7 +395,8 @@
       "estimatedLegend": "≈ il mese contiene giorni stimati, dopo l’ultima scorta nota (consegna «pieno completo» o lettura).",
       "colRevenue": "Ricavo {cur}",
       "colCo2Avoided": "CO₂ evitata kg",
-      "partialLegend": "«14 / 31» nei giorni: il mese è rilevato solo in parte; le tendenze non ne tengono conto."
+      "partialLegend": "«14 / 31» nei giorni: il mese è rilevato solo in parte; le tendenze non ne tengono conto.",
+      "colAdjusted": "corretto"
     },
     "readingsTable": {
       "emptyTitle": "Nessuna lettura",
@@ -440,7 +453,7 @@
       "chartAnchors": "Scorta nota",
       "chartAlt": "Andamento della scorta del serbatoio nel {year}"
     },
-    "chart": { "temp": "temperatura media", "alt": "Grafico a barre: consumo mensile e temperatura media", "altSummary": "Grafico a barre: {label} {year} per mese, {total} in totale; massimo a {maxMonth} ({max}), minimo a {minMonth} ({min})." },
+    "chart": { "temp": "temperatura media", "alt": "Grafico a barre: consumo mensile e temperatura media", "altSummary": "Grafico a barre: {label} {year} per mese, {total} in totale; massimo a {maxMonth} ({max}), minimo a {minMonth} ({min}).", "prevYear": "{year} a confronto", "adjustedLabel": "{label} corretto per il clima ({unit})", "measuredValue": "Misurato: {value}", "deviceSwap": "Sostituzione del contatore in questo mese", "altSummaryAdjusted": "Grafico a barre: {label} {year} per mese, corretto per il clima, {total} in totale; massimo a {maxMonth} ({max}), minimo a {minMonth} ({min}).", "altPrev": "A confronto {year}: {total} negli stessi {months} mesi.", "adjustedNote": "Corretto per il clima: riportato a un anno normale nella tua località (modello di riscaldamento). Così il confronto con l'anno precedente mostra se hai risparmiato — non se l'inverno è stato mite.", "modeLabel": "Vista", "modeMeasured": "Misurato", "modeAdjusted": "Corretto per il clima" },
     "readingModal": {
       "titleEdit": "Modifica lettura · {label}",
       "titleNew": "Nuova lettura · {label}",
@@ -546,7 +559,17 @@
       "noReading": "Questo contatore non ha ancora letture. I valori mensili nascono dalla differenza tra due letture.",
       "oneReading": "C’è una sola lettura. I valori mensili nascono dalla differenza tra due letture — aggiungine una seconda, ad esempio quella dell’ultima bolletta."
     },
-    "yearPills": "Anno"
+    "yearPills": "Anno",
+    "pvFlow": {
+      "title": "Flusso di energia {year}",
+      "note": "Autoconsumo e immissione insieme fanno la produzione; la linea mostra quanto è comunque arrivato dalla rete.",
+      "generation": "Produzione (kWh)",
+      "self": "Autoconsumato",
+      "feedIn": "Immesso in rete",
+      "grid": "Prelevato dalla rete",
+      "generationTip": "Prodotto: {value}",
+      "alt": "Grafico a barre: flusso di energia {year} — in {months} mesi con dati di tutti e tre i contatori prodotti {generation}, di cui autoconsumati {self} e immessi in rete {feedIn}; prelevati dalla rete {grid}."
+    }
   },
   "contracts": {
     "priceGroup": {

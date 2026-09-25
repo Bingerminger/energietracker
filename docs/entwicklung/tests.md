@@ -72,8 +72,8 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.15.0:
-**Frontend-API-Shape 61/61**, **Browser-Render 178/178** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.16.0:
+**Frontend-API-Shape 62/62**, **Browser-Render 189/189** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle). Der
 Modulgraph-Crawl folgt seit v2.11.0 auch dynamischen Importen — der Router
 lädt die Ansichten erst bei Bedarf. Seit v2.12.0 rendert der Test jede
@@ -111,7 +111,7 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
 JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
-README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.15.0: 456).
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.16.0: 459).
 `LocaleCatalogTest` prüft seit v2.13.0 auch Schlüssel, die der Code
 zusammensetzt (`glossary.<id>.term`, `settings.field.<key>.label`) — die
 Prüfung auf literale Schlüssel sieht sie nicht. Seit v2.14.0 kennt er
@@ -160,6 +160,15 @@ Strom je Jahr, die Festschreibung alter Defaults bei Bestandsinstallationen
 und das Angebot der neuen, `PvSemanticsTest` Quoten, Ersparnis, Tarifrang und
 Jahresbericht, `EfficiencyCertificateTest` Teiljahre, Grenzen und die
 energieausweis-nahe Kennzahl. 36 Gegenproben, alle rot.
+
+**Saldo-Verlauf (v2.16.0).** `BalancePathTest` legt einen Vertrag über zwölf
+Monate an, der vor acht begann, und prüft die Monatsreihe `balance_path`: der
+letzte Punkt ist der erwartete Endsaldo, Abschläge wachsen nach Plan, ein
+gemessener Monat kostet Arbeitspreis plus Grundpreis, eine Rückzahlung
+vermindert das Bezahlte in ihrem Monat, und nur der laufende Vertrag trägt eine
+Reihe. Der Render-Test prüft dazu Vorjahr und Umschalter im Monatschart (die
+bereinigten Werte müssen `heat_adjusted` sein), den PV-Energiefluss, die
+kleinen Vielfachen der Übersicht und das Temperaturband.
 
 Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 (`.github/workflows/ci.yml`) bei jedem Push und Pull Request gegen

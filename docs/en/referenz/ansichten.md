@@ -7,8 +7,8 @@
 > **Real screenshots.** The following images are **actual screen captures** of the
 > running app with the bundled [demo dataset](../../../demo-data/) (light theme; base
 > set v1.9.2, sign-in, security card and the capture question v2.6.0, navigation
-> v2.11.0, capture, weather data, settings and import preview v2.12.0, help,
-> explanations and PV view v2.13.0, overview, gas and analysis v2.15.0). Since
+> v2.11.0, capture, settings and import preview v2.12.0, help and explanations
+> v2.13.0, analysis v2.15.0, overview, gas, PV and temperatures v2.16.0). Since
 > v2.14.0 the views show the
 > English interface; dialogs, the sign-in and the iPhone captures are still
 > German. How the images are made: [Screenshots](../entwicklung/screenshots.md).
@@ -125,9 +125,14 @@ back is Settings → Data → Snapshots.
 **Period per card (v2.15.0):** every card names its window ("Period:
 Apr 2025 – Mar 2026 · Mar 2026: 14 of 31 days") — the utilities end in
 different months. The arrow compares the same full months a year earlier; up to
-v2.14 the twelve months before, with half a month against a whole one. Below the
-history the values can be expanded as a table, and an m³ axis only appears when
-there is water.
+v2.14 the twelve months before, with half a month against a whole one.
+
+**Small multiples (v2.16.0):** every card shows its own history over the card's
+window, the same months a year earlier as a dotted line. The shared history below
+is called "Total energy" and only stacks what adds up: consumption in kWh; water
+and PV are in their cards. Up to v2.15 heating utilities and electricity shared a
+line axis on which electricity lay flat at the bottom. The values can be expanded
+as a table below.
 
 **PV on the overview (v2.13.0):** the feed-in shows "Feed-in" and
 "Remuneration", the generation "Generation" without a cost tile. For both,
@@ -182,6 +187,20 @@ Identical structure per utility: year selection, meter selection, KPI bar
 (consumption, costs, advances with the balance of the months read, daily average,
 CO₂), contract/balance card, a consumption chart with a temperature overlay, and a
 monthly table with moving averages (MA-3/MA-6) and weather adjustment.
+
+**Balance over time (v2.16.0):** below the figures of the balance card stand the
+cumulative costs and what was paid (advances, special payments) across the billing
+period — dashed where estimated, hollow points after today. The gap between the
+lines is the balance, the last point the expected bill; the numbers can be
+expanded as a table. The backend calculates it with the same function as the
+expected balance (`balance_path`).
+
+**Monthly chart (v2.16.0):** next to every month stands the same month of the
+previous year as an outline. Heating utilities switch between *Measured* and
+*Weather-adjusted*: adjusted by the heating model to a normal year at your
+location, so the comparison shows whether you saved — not whether the winter was
+mild. The monthly table has an "adjusted" column for it, the tooltip names a
+meter replacement in the month.
 
 **Balance card (v2.8.0):** computes by calendar up to today — "Consumed (as of
 today)" breaks down into working price and base price (minus bonuses); below it,
@@ -498,7 +517,8 @@ weather of another place.
 
 Below the chart, since v2.13.0, the source and licence: "Weather data by
 Open-Meteo.com (CC BY 4.0)"; the PDF annual report names it too as soon as it
-shows temperatures.
+shows temperatures. Since v2.16.0 the range from minimum to maximum is a filled
+area, the average the line inside it.
 
 ![Temperatures](../../ui/screenshots/en/temperaturen.png)
 
@@ -628,6 +648,11 @@ no minus in front — the word "avoided" carries the direction, as in the annual
 report. Both PV utilities drop temperature and heating
 degree days; anomalies and the year-on-year comparison rate less feed-in as a
 decline, not as a saving.
+
+**Energy flow (v2.16.0):** both PV pages show per month where the solar power
+went — self-consumed and fed in, stacked to the generation — and as a line what
+still came from the grid. The short description only adds up months with data
+from all three meters.
 
 ![PV](../../ui/screenshots/en/pv.png)
 

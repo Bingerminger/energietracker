@@ -16,18 +16,20 @@ import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { tankLevel } from '../lib/tank.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput, monthShortNames } from '../lib/format.js';
-import { makeChart, utilColor, tokenColor, chartColor, withAlpha } from '../components/chart.js';
+import { makeChart, utilColor, tokenColor, chartColor, withAlpha, chartTableHtml } from '../components/chart.js';
 import { isPartial, daysInMonth, yoyTrend, seriesSummary } from '../lib/chart-data.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { t, getCurrencyMinor } from '../lib/i18n.js';
+import { t, getCurrencyMinor, getCurrencySymbol } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
 import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
+let _balanceChart = null; // v2.16.0 — Saldo-Verlauf im Abrechnungszeitraum
+let _pvChart = null;      // v2.16.0 — PV-Energiefluss
 // v2.11.0 (Review FE-05) — nur der zuletzt gestartete Aufbau zeichnet. Wer
 // schnell den Zähler wechselte, sah sonst die Stände des vorigen unter dem
 // neuen Namen.
@@ -40,6 +42,8 @@ const state = {
   // galt eins für alle: Nach Fernwärme (Daten bis 2025) öffneten Heizöl und
   // PV im Jahr 2025, obwohl es 2026 gab.
   yearByUtility: {},
+  // v2.16.0 (Review FE-19) — Monatschart gemessen oder witterungsbereinigt, je Verbrauchsart
+  chartMode: {},
 };
 
 /**
@@ -103,6 +107,8 @@ export async function render(container, params, ctx = {}) {
   return () => {
     if (_chart) { _chart.destroy(); _chart = null; }
     if (_stockChart) { _stockChart.destroy(); _stockChart = null; }
+    if (_balanceChart) { _balanceChart.destroy(); _balanceChart = null; }
+    if (_pvChart) { _pvChart.destroy(); _pvChart = null; }
   };
 }
 
@@ -161,14 +167,18 @@ async function rerender(container) {
   // v2.10.0 (CALC-17) — Erzeugung emittiert nichts und kostet nichts: CO₂
   // als vermieden, keine Kostenkachel (bis v2.9 als Emission wie ein Verbrauch)
   const isGeneration = u.accounting_kind === 'generation';
-  let readings = [], deliveries = [], stockHist = null;
+  let readings = [], deliveries = [], stockHist = null, pvSummary = null;
   if (isDelivery) {
     [deliveries, stockHist] = await Promise.all([
       api.deliveries(u.key, meter.id).catch(() => []),
       api.stockHistory(u.key, meter.id).catch(() => null),
     ]);
   } else {
-    readings = await api.readings(u.key, meter.id);
+    // v2.16.0 (Review FE-17, FE-31) — PV-Seiten zeigen den Energiefluss aus der PV-Zusammenfassung
+    [readings, pvSummary] = await Promise.all([
+      api.readings(u.key, meter.id),
+      isPv(u) ? api.pvSummary().catch(() => null) : null,
+    ]);
   }
   if (my !== rerenderSeq) return;
 
@@ -249,6 +259,13 @@ async function rerender(container) {
   if (!years.includes(state.yearByUtility[u.key])) state.yearByUtility[u.key] = latestYear;
   const yr = state.yearByUtility[u.key];
   const monthlyYear = monthly.filter(m => m.year === yr);
+  // v2.16.0 (Review FE-19, FE-31) — das Vorjahr als Vergleich im Monatschart;
+  // witterungsbereinigt nach dem Heizmodell (`heat_adjusted`), wo es Werte gibt
+  const prevYear = monthly.filter(m => m.year === yr - 1);
+  const canAdjust = !!u.hgt_relevant && monthlyYear.some(m => m.heat_adjusted != null);
+  const chartMode = canAdjust && state.chartMode[u.key] === 'adjusted' ? 'adjusted' : 'measured';
+  const pvFlowRows = (pvSummary?.monthly || []).filter(m => m.year === yr
+    && ((m.erzeugung_kwh ?? 0) > 0 || (m.einspeisung_kwh ?? 0) > 0));
   // Zähler mit weniger als zwei Ständen: noch keine Monatswerte
   const noValues = !isDelivery && monthly.length === 0;
 
@@ -348,10 +365,17 @@ async function rerender(container) {
     ` : ''}
 
     ${noValues ? '' : `<div class="card">
-      <div class="card__title">${u.icon} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yr })}</div>
+      <div class="card__title">${u.icon} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yr })}
+        ${canAdjust ? `<span class="card__title-action seg" role="group" aria-label="${escapeHtml(t('utility.chart.modeLabel'))}">
+          <button type="button" class="seg__btn ${chartMode === 'measured' ? 'active' : ''}" data-chart-mode="measured" aria-pressed="${chartMode === 'measured'}">${escapeHtml(t('utility.chart.modeMeasured'))}</button>
+          <button type="button" class="seg__btn ${chartMode === 'adjusted' ? 'active' : ''}" data-chart-mode="adjusted" aria-pressed="${chartMode === 'adjusted'}">${escapeHtml(t('utility.chart.modeAdjusted'))}</button>
+        </span>${info('weatherAdjusted')}` : ''}
+      </div>
       <div class="chart-wrap h300"><canvas id="month-chart"></canvas></div>
-      ${monthlyYear.some(isPartial) ? `<p class="chart-note">${escapeHtml(t('chart.partialLegend'))}</p>` : ''}
+      <p class="chart-note" data-role="month-chart-note">${monthChartNote(monthlyYear, chartMode)}</p>
     </div>
+
+    ${pvFlowRows.length ? pvFlowHtml(pvFlowRows, yr) : ''}
 
     <div class="card">
       <div class="card__title">${t('utility.cards.monthlyTable', { year: yr })}</div>
@@ -395,11 +419,13 @@ async function rerender(container) {
   `;
 
   // Chart
-  if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr);
+  if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr, prevYear, chartMode);
   if (isDelivery) drawStockChart('stock-chart', stockHist, u, yr);
+  if (!isDelivery && currentContract) drawBalanceChart('balance-chart', currentContract, u);
+  if (pvFlowRows.length) drawPvFlowChart('pv-flow-chart', pvFlowRows, yr, await getUtilities().catch(() => []));
 
   // Wire up events
-  wireEvents(container, u, meter, readings, contracts, deliveries);
+  wireEvents(container, u, meter, readings, contracts, deliveries, monthly);
   if (isDelivery) wireTankLevels(container, u, meter);
   syncAddress(u, latestYear);
 }
@@ -575,8 +601,142 @@ function balanceCard(c, u, country = 'DE') {
       ${suggestHtml}
       ${notesHtml}
       ${isWater && c.components ? renderWaterComponentRow(c.components) : ''}
+      ${balancePathHtml(c, u, isFeedIn)}
     </div>
   `;
+}
+
+// ── PV-Energiefluss (v2.16.0, Review FE-17, FE-31) ─────────────────
+// Wohin der Sonnenstrom geht und was trotzdem aus dem Netz kommt: je Monat
+// selbst genutzt + eingespeist (zusammen die Erzeugung) als gestapelte
+// Säule, der Netzbezug als Linie. Daten aus GET /api/pv-summary.
+function pvFlowHtml(rows, year) {
+  const k = (v) => (v == null ? null : fmt.int(v));
+  return `
+    <div class="card">
+      <div class="card__title">☀️ ${escapeHtml(t('utility.pvFlow.title', { year }))}${info('selfConsumption')}</div>
+      <div class="chart-wrap h300"><canvas id="pv-flow-chart"></canvas></div>
+      <p class="chart-note">${escapeHtml(t('utility.pvFlow.note'))}</p>
+      ${chartTableHtml({
+        caption: t('utility.pvFlow.title', { year }),
+        columns: [t('utility.monthlyTable.colMonth'), t('utility.pvFlow.generation'), t('utility.pvFlow.self'), t('utility.pvFlow.feedIn'), t('utility.pvFlow.grid')],
+        rows: rows.map(m => [fmt.month(m.ym), k(m.erzeugung_kwh), k(m.eigenverbrauch_kwh), k(m.einspeisung_kwh), k(m.bezug_kwh)]),
+      })}
+    </div>`;
+}
+
+function drawPvFlowChart(canvasId, rows, year, utilities) {
+  const canvas = document.getElementById(canvasId);
+  if (_pvChart) { _pvChart.destroy(); _pvChart = null; }
+  if (!canvas || !rows.length) return;
+  const byKey = Object.fromEntries((utilities || []).map(x => [x.key, x]));
+  const gen = byKey.pv_erzeugung || { color: '#fbbf24' };
+  const feed = byKey.pv_einspeisung || { color: '#10b981' };
+  const grid = byKey.strom || { color: '#22d3ee' };
+  const labels = rows.map(m => fmt.month(m.ym));
+  // Summen für die Kurzbeschreibung nur über Monate mit Daten aller drei
+  // Zähler — sonst ergäben selbst genutzt und eingespeist nicht die Erzeugung
+  const covered = rows.filter(m => m.covered && m.eigenverbrauch_kwh != null);
+  const sum = (k) => covered.reduce((a, m) => a + (Number(m[k]) || 0), 0);
+  _pvChart = makeChart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { type: 'bar', label: t('utility.pvFlow.self'), data: rows.map(m => m.eigenverbrauch_kwh ?? null),
+          backgroundColor: utilColor(gen, 0.55), borderColor: utilColor(gen), borderWidth: 1, stack: 'pv', order: 2 },
+        { type: 'bar', label: t('utility.pvFlow.feedIn'), data: rows.map(m => m.einspeisung_kwh ?? null),
+          backgroundColor: utilColor(feed, 0.55), borderColor: utilColor(feed), borderWidth: 1, stack: 'pv', order: 2 },
+        { type: 'line', label: t('utility.pvFlow.grid'), data: rows.map(m => m.bezug_kwh ?? null),
+          borderColor: utilColor(grid), backgroundColor: 'transparent', tension: 0.25, pointRadius: 3, stack: 'grid', order: 1 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { tooltip: { callbacks: {
+        label: (item) => `${item.dataset.label}: ${fmt.unit(item.parsed.y, 'kWh', 0)}`,
+        footer: (items) => {
+          const m = rows[items[0]?.dataIndex];
+          return m?.erzeugung_kwh != null ? t('utility.pvFlow.generationTip', { value: fmt.unit(m.erzeugung_kwh, 'kWh', 0) }) : '';
+        },
+      } } },
+      scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'kWh' } } },
+    },
+  }, { label: t('utility.pvFlow.alt', { year, months: covered.length,
+    generation: fmt.unit(sum('erzeugung_kwh'), 'kWh', 0), self: fmt.unit(sum('eigenverbrauch_kwh'), 'kWh', 0),
+    feedIn: fmt.unit(sum('einspeisung_kwh'), 'kWh', 0), grid: fmt.unit(sum('bezug_kwh'), 'kWh', 0) }) });
+}
+
+// ── Saldo-Verlauf (v2.16.0, Review FE-31) ──────────────────────────
+// Dieselbe Rechnung wie die Karte, als Monatsreihe (`balance_path` aus der
+// API): aufsummierte Kosten gegen das Bezahlte. Der Abstand der Linien ist
+// der Saldo, der letzte Punkt die erwartete Abrechnung. Beantwortet die
+// häufigste Frage — „Muss ich nachzahlen?“ — auf einen Blick.
+function balancePath(c, isFeedIn) {
+  return !isFeedIn && Array.isArray(c.balance_path) && c.balance_path.length >= 2 ? c.balance_path : null;
+}
+
+function balancePathHtml(c, u, isFeedIn) {
+  const path = balancePath(c, isFeedIn);
+  if (!path) return '';
+  const est = ` · ${t('utility.balance.pathEstimated')}`;
+  return `
+      <div class="balance-path">
+        <div class="card__title">${escapeHtml(t('utility.balance.pathTitle'))}</div>
+        <div class="chart-wrap h220"><canvas id="balance-chart"></canvas></div>
+        <p class="chart-note">${escapeHtml(t('utility.balance.pathNote'))}</p>
+        ${chartTableHtml({
+          caption: t('utility.balance.pathTitle'),
+          columns: [t('utility.monthlyTable.colMonth'), t('utility.balance.pathCost'), t('utility.balance.pathPaid'), t('utility.balance.pathBalance')],
+          rows: path.map(p => {
+            const v = balanceView(p.balance, u);
+            return [fmt.month(p.ym) + (p.estimated ? est : ''), fmt.eur(p.cost), fmt.eur(p.paid), v ? `${v.word} ${fmt.eur(v.amount)}` : fmt.eur(p.balance)];
+          }),
+        })}
+      </div>`;
+}
+
+function drawBalanceChart(canvasId, c, u) {
+  const canvas = document.getElementById(canvasId);
+  if (_balanceChart) { _balanceChart.destroy(); _balanceChart = null; }
+  const path = balancePath(c, feedInKind(u));
+  if (!canvas || !path) return;
+  const labels = path.map(p => fmt.month(p.ym));
+  // Geschätzte Monate gestrichelt — bis zur letzten Ablesung ist gemessen
+  const dash = (ctx) => (path[ctx.p1DataIndex]?.estimated ? [5, 4] : undefined);
+  // Monate nach heute als hohle Punkte
+  const point = (color) => (ctx) => (path[ctx.dataIndex]?.future ? 'transparent' : color());
+  const last = path[path.length - 1];
+  const end = balanceView(last.balance, u);
+  _balanceChart = makeChart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: t('utility.balance.pathCost'), data: path.map(p => p.cost), borderColor: utilColor(u), backgroundColor: utilColor(u, 0.12),
+          pointBackgroundColor: point(utilColor(u)), pointBorderColor: utilColor(u), segment: { borderDash: dash }, tension: 0.2, pointRadius: 3 },
+        { label: t('utility.balance.pathPaid'), data: path.map(p => p.paid), borderColor: tokenColor('accent'), backgroundColor: tokenColor('accent', 0.12),
+          pointBackgroundColor: point(tokenColor('accent')), pointBorderColor: tokenColor('accent'), segment: { borderDash: dash }, tension: 0, pointRadius: 3 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: { callbacks: {
+          label: (item) => `${item.dataset.label}: ${fmt.eur(item.parsed.y)}`,
+          footer: (items) => {
+            const p = path[items[0]?.dataIndex];
+            const v = p ? balanceView(p.balance, u) : null;
+            return v ? `${v.word} ${fmt.eur(v.amount)}${p.estimated ? ` · ${t('utility.balance.pathEstimated')}` : ''}` : '';
+          },
+        } },
+      },
+      scales: { y: { beginAtZero: true, title: { display: true, text: getCurrencySymbol() } } },
+    },
+  }, { label: t('utility.balance.pathAlt', { from: labels[0], to: labels[labels.length - 1],
+    result: end ? `${end.word} ${fmt.eur(end.amount)}` : fmt.eur(last.balance) }) });
 }
 
 function renderWaterBreakdown(components, bonusTotal) {
@@ -728,6 +888,9 @@ function monthlyTable(monthly, u, hasContracts) {
   const generation = generationKind(u);
   const showCost = !generation;
   const showBalance = hasContracts && !feedIn;
+  // v2.16.0 (Review FE-19) — witterungsbereinigt nach dem Heizmodell, bis
+  // dahin nur im PDF; die Spalte steht, wo es solche Werte gibt
+  const adj = !!u.hgt_relevant && monthly.some(m => m.heat_adjusted != null);
   // v1.6.1 — Fix #14: Verbrauchs-Feldname je nach Utility. Wasser/
   // m³-native Utilities tragen den Wert im Feld `m3`; das `kwh`-
   // Feld ist nach applyUtilityFields leer. Vorher las die m³-Spalte
@@ -751,6 +914,7 @@ function monthlyTable(monthly, u, hasContracts) {
       <th scope="col" class="num">${t('utility.monthlyTable.colDays')}</th>
       ${isGas ? '<th scope="col" class="num">m³</th>' : ''}
       <th scope="col" class="num">${u.consumption_unit}</th>
+      ${adj ? `<th scope="col" class="num">${t('utility.monthlyTable.colAdjusted')}${info('weatherAdjusted')}</th>` : ''}
       <th scope="col" class="num">${t('utility.monthlyTable.colPerDay', { unit: u.consumption_unit })}</th>
       ${pv ? '' : `<th scope="col" class="num" title="${t('utility.monthlyTable.colTempTitle')}">${t('utility.monthlyTable.colTemp')}</th>`}
       ${pv ? '' : `<th scope="col" class="num">${t('utility.monthlyTable.colHdd')}${info('hdd')}</th>`}
@@ -775,6 +939,7 @@ function monthlyTable(monthly, u, hasContracts) {
         <td class="num">${part ? `${m.days} / ${daysInMonth(m.ym)}` : (m.days || 0)}</td>
         ${isGas ? `<td class="num">${fmt.int(m.m3)}</td>` : ''}
         <td class="num"><strong>${fmt.int(m[consKey])}</strong></td>
+        ${adj ? `<td class="num">${m.heat_adjusted != null ? fmt.int(m.heat_adjusted) : '–'}</td>` : ''}
         <td class="num">${fmt.num(m.kwh_per_day, 1)}</td>
         ${pv ? '' : `<td class="num">${m.avg_temp != null ? fmt.num(m.avg_temp, 1) : '–'}</td>`}
         ${pv ? '' : `<td class="num">${m.hdd != null ? fmt.int(m.hdd) : '–'}</td>`}
@@ -793,6 +958,7 @@ function monthlyTable(monthly, u, hasContracts) {
       <td class="num">${tot.days}</td>
       ${isGas ? `<td class="num">${fmt.int(tot.m3)}</td>` : ''}
       <td class="num">${fmt.int(tot[consKey])}</td>
+      ${adj ? `<td class="num">${monthly.every(m => m.heat_adjusted != null) ? fmt.int(monthly.reduce((a, m) => a + m.heat_adjusted, 0)) : '–'}</td>` : ''}
       <td></td>${pv ? '' : '<td></td><td></td>'}${showCost ? '<td></td>' : ''}
       ${showCost ? `<td class="num">${fmt.num(tot.cost, 2)}</td>` : ''}
       ${showBalance ? `<td class="num col-yellow">${fmt.num(tot.adv, 2)}</td>` : ''}
@@ -1119,7 +1285,10 @@ function openTankLevelModal(container, u, meter) {
 // v2.15.0 — Farben folgen dem Theme (Review FE-11); ein Teilmonat steht
 // blass da und nennt im Tooltip seine erfassten Tage (FE-08); die
 // Kurzbeschreibung nennt Summe, stärksten und schwächsten Monat (FE-20).
-function drawMonthChart(canvasId, monthly, u, year) {
+// v2.16.0 (Review FE-19, FE-31) — daneben das Vorjahr als Umriss; wahlweise
+// witterungsbereinigt nach dem Heizmodell (`heat_adjusted`): Dann zeigt der
+// Vergleich, ob gespart wurde — nicht, ob der Winter mild war.
+function drawMonthChart(canvasId, monthly, u, year, prevRows = [], mode = 'measured') {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
   if (_chart) { _chart.destroy(); _chart = null; }
@@ -1128,28 +1297,46 @@ function drawMonthChart(canvasId, monthly, u, year) {
   // ist nach applyUtilityFields 0. Vorher las der Chart hart `m.kwh` → das
   // Wasser-Monatschart war eine durchgehende Nullreihe.
   const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
+  const adjusted = mode === 'adjusted';
+  const valKey = adjusted ? 'heat_adjusted' : consKey;
   const labels = monthly.map(m => fmt.month(m.ym));
-  const consumption = monthly.map(m => m[consKey]);
+  const values = monthly.map(m => m[valKey] ?? null);
   const partial = monthly.map(m => isPartial(m));
+  const prevByMonth = new Map(prevRows.map(m => [m.month, m]));
+  const prev = monthly.map(m => prevByMonth.get(m.month)?.[valKey] ?? null);
+  const hasPrev = prev.some(v => v != null);
   const temp = monthly.map(m => m.avg_temp);
-  // v2.13.0 (Review UI-19) — Sonnenstrom hängt nicht an der Temperatur
-  const withTemp = !isPv(u);
+  // v2.13.0 (Review UI-19) — Sonnenstrom hängt nicht an der Temperatur; die
+  // bereinigten Werte gelten für ein Normaljahr, die Temperatur gehört dann nicht dazu
+  const withTemp = !isPv(u) && !adjusted;
   const barColor = (full, part) => (ctx) => withAlpha(chartColor(u), partial[ctx.dataIndex] ? part : full);
+  const unit = u.consumption_unit;
 
   _chart = makeChart(canvas, {
     type: 'bar',
     data: {
       labels,
       datasets: [
+        ...(hasPrev ? [{
+          type: 'bar',
+          label: t('utility.chart.prevYear', { year: year - 1 }),
+          data: prev,
+          backgroundColor: 'transparent',
+          borderColor: utilColor(u, 0.6),
+          borderWidth: 1.5,
+          yAxisID: 'y',
+          // `order` legt bei Chart.js auch die Lage im Balkenpaar fest: Vorjahr links
+          order: 2,
+        }] : []),
         {
           type: 'bar',
-          label: u.label + ' (' + u.consumption_unit + ')',
-          data: consumption,
+          label: adjusted ? t('utility.chart.adjustedLabel', { label: u.label, unit }) : u.label + ' (' + unit + ')',
+          data: values,
           backgroundColor: barColor(0.35, 0.12),
           borderColor: barColor(1, 0.5),
           borderWidth: 1,
           yAxisID: 'y',
-          order: 2,
+          order: 3,
         },
         ...(withTemp ? [{
           type: 'line',
@@ -1170,31 +1357,69 @@ function drawMonthChart(canvasId, monthly, u, year) {
       plugins: {
         tooltip: { callbacks: { footer: (items) => {
           const i = items[0]?.dataIndex;
-          return i != null && partial[i] ? t('chart.partialMonth', { days: monthly[i].days, total: daysInMonth(monthly[i].ym) }) : '';
+          if (i == null) return '';
+          const m = monthly[i];
+          const lines = [];
+          if (partial[i]) lines.push(t('chart.partialMonth', { days: m.days, total: daysInMonth(m.ym) }));
+          if (adjusted && m[consKey] != null) lines.push(t('utility.chart.measuredValue', { value: fmt.unit(m[consKey], unit, 0) }));
+          if (m.device_swap) lines.push(t('utility.chart.deviceSwap'));
+          return lines.join('\n');
         } } },
       },
       scales: {
-        y: { position: 'left', title: { display: true, text: u.consumption_unit } },
+        y: { position: 'left', title: { display: true, text: unit } },
         ...(withTemp ? { y1: { position: 'right', title: { display: true, text: '°C' }, grid: { drawOnChartArea: false } } } : {}),
       },
     }
-  }, { label: monthChartLabel(u, year, labels, consumption) });
+  }, { label: monthChartLabel(u, year, labels, values, prev, adjusted) });
 }
 
-/** Kurzbeschreibung des Monatscharts: Summe, stärkster und schwächster Monat. */
-function monthChartLabel(u, year, labels, values) {
+/** Kurzbeschreibung des Monatscharts: Summe, stärkster und schwächster Monat, Vorjahr. */
+function monthChartLabel(u, year, labels, values, prev = [], adjusted = false) {
   const s = seriesSummary(labels, values);
   if (!s) return t('utility.chart.alt');
   const unit = (v) => fmt.unit(v, u.consumption_unit, 0);
-  return t('utility.chart.altSummary', {
+  let text = t(adjusted ? 'utility.chart.altSummaryAdjusted' : 'utility.chart.altSummary', {
     label: u.label, year, total: unit(s.sum),
     maxMonth: s.max.label, max: unit(s.max.value),
     minMonth: s.min.label, min: unit(s.min.value),
   });
+  // Vorjahr über dieselben Monate, soweit vorhanden
+  const pairs = values.map((v, i) => [v, prev[i]]).filter(([v, p]) => v != null && p != null);
+  if (pairs.length) {
+    text += ' ' + t('utility.chart.altPrev', { year: year - 1, total: unit(pairs.reduce((a, [, p]) => a + Number(p), 0)), months: pairs.length });
+  }
+  return text;
+}
+
+/** Hinweis unter dem Monatschart: Teilmonate und, bereinigt, was die Zahlen bedeuten. */
+function monthChartNote(rows, mode) {
+  const parts = [];
+  if (mode === 'adjusted') parts.push(t('utility.chart.adjustedNote'));
+  if (rows.some(isPartial)) parts.push(t('chart.partialLegend'));
+  return escapeHtml(parts.join(' '));
 }
 
 // ── Event wiring ────────────────────────────────────────────────────
-function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
+function wireEvents(container, u, meter, readings, contracts, deliveries = [], monthly = []) {
+  // v2.16.0 — gemessen / witterungsbereinigt: nur das Diagramm neu, nicht die Seite
+  container.querySelectorAll('[data-chart-mode]').forEach(b => {
+    b.addEventListener('click', () => {
+      const mode = b.dataset.chartMode;
+      state.chartMode[u.key] = mode;
+      container.querySelectorAll('[data-chart-mode]').forEach(x => {
+        const on = x.dataset.chartMode === mode;
+        x.classList.toggle('active', on);
+        x.setAttribute('aria-pressed', String(on));
+      });
+      const yr = state.yearByUtility[u.key];
+      const rows = monthly.filter(m => m.year === yr);
+      drawMonthChart('month-chart', rows, u, yr, monthly.filter(m => m.year === yr - 1), mode);
+      const note = container.querySelector('[data-role="month-chart-note"]');
+      if (note) note.innerHTML = monthChartNote(rows, mode);
+    });
+  });
+
   // Year pills
   container.querySelectorAll('.year-pills .pill').forEach(p => {
     p.addEventListener('click', () => {

@@ -8,9 +8,8 @@
 > Bildschirmaufnahmen** der laufenden App mit dem mitgelieferten
 > [Demo-Datensatz](../../demo-data/) (Light-Theme; Grundstock v1.9.2, Anmeldung,
 > Sicherheitskarte und Rückfrage bei der Erfassung v2.6.0, Navigation v2.11.0,
-> Erfassung, Wetterdaten, Einstellungen und Import-Vorschau v2.12.0,
-> Hilfe, Erklärungen und PV-Ansicht v2.13.0, Übersicht, Gas und Analyse
-> v2.15.0). Wer sie
+> Erfassung, Einstellungen und Import-Vorschau v2.12.0, Hilfe und Erklärungen
+> v2.13.0, Analyse v2.15.0, Übersicht, Gas, PV und Temperaturen v2.16.0). Wer sie
 > selbst neu erzeugen will: Demo-Daten laden und die Views nacheinander
 > aufnehmen — die App braucht dafür keinen Build-Schritt.
 
@@ -130,8 +129,14 @@ jetzigen Stand; zurück geht es über Einstellungen → Daten → Snapshots.
 Apr. 2025 – März 2026 · März 2026: 14 von 31 Tagen“) — die Verbrauchsarten
 enden in verschiedenen Monaten. Der Pfeil vergleicht dieselben vollen Monate
 ein Jahr zuvor; bis v2.14 die zwölf Monate davor, mit einem halben Monat gegen
-einen ganzen. Unter dem Verlauf stehen die Werte als Tabelle, und eine
-m³-Achse erscheint nur, wenn es Wasser gibt.
+einen ganzen.
+
+**Kleine Vielfache (v2.16.0):** Jede Karte zeigt ihren eigenen Verlauf über
+das Kartenfenster, dieselben Monate ein Jahr zuvor als gepunktete Linie. Der
+gemeinsame Verlauf darunter heißt „Energie gesamt“ und stapelt nur, was sich
+addieren lässt: den Verbrauch in kWh; Wasser und PV stehen in ihren Karten.
+Bis v2.15 teilten sich Heizarten und Strom eine Linienachse, auf der Strom
+plattgedrückt am Boden lag. Die Werte stehen darunter als Tabelle.
 
 **PV auf der Übersicht (v2.13.0):** Die Einspeisung zeigt „Einspeisung“ und
 „Vergütung“, die Erzeugung „Erzeugung“ ohne Kostenkachel. Bei beiden ist mehr
@@ -189,6 +194,20 @@ Pro Art identischer Aufbau: Jahr-Auswahl, Zähler-Auswahl, KPI-Leiste
 (Verbrauch, Kosten, Abschläge mit Saldo der abgelesenen Monate, Tagesschnitt,
 CO₂), Vertrags-/Saldo-Karte, Verbrauchschart mit Temperaturüberlagerung sowie
 Monatstabelle mit gleitenden Mitteln (MA-3/MA-6) und Wetterbereinigung.
+
+**Saldo-Verlauf (v2.16.0):** Unter den Zahlen der Saldo-Karte stehen die
+aufsummierten Kosten und das Bezahlte (Abschläge, Sonderzahlungen) über den
+Abrechnungszeitraum — gestrichelt, wo geschätzt ist, hohle Punkte nach heute.
+Der Abstand der Linien ist der Saldo, der letzte Punkt die erwartete
+Abrechnung; die Zahlen stehen als Tabelle darunter. Gerechnet wird im Backend
+mit derselben Funktion wie der erwartete Saldo (`balance_path`).
+
+**Monatschart (v2.16.0):** Neben jedem Monat steht derselbe Monat des Vorjahres
+als Umriss. Heizarten schalten zwischen *Gemessen* und *Witterungsbereinigt*
+um: bereinigt nach dem Heizmodell auf ein Normaljahr am Standort, damit der
+Vergleich zeigt, ob gespart wurde — nicht, ob der Winter mild war. Die
+Monatstabelle führt dafür die Spalte „bereinigt“, der Tooltip nennt einen
+Zählertausch im Monat.
 
 **Saldo-Karte (v2.8.0):** rechnet nach Kalender bis heute — „Verbraucht
 (Stand heute)" zerlegt sich in Arbeitspreis und Grundpreis (abzüglich Boni),
@@ -515,7 +534,8 @@ Standort noch auf der Voreinstellung des Landes, sagt ein Hinweis das
 
 Unter dem Chart steht seit v2.13.0 die Quelle mit Lizenz: „Wetterdaten von
 Open-Meteo.com (CC BY 4.0)“; der PDF-Jahresbericht nennt sie ebenfalls,
-sobald er Temperaturen zeigt.
+sobald er Temperaturen zeigt. Seit v2.16.0 ist die Spanne vom Minimum bis zum
+Maximum eine gefüllte Fläche, das Mittel die Linie darin.
 
 ![Temperaturen](../ui/screenshots/temperaturen.png)
 
@@ -675,6 +695,11 @@ und ein offener Anspruch ist grün statt rot (Legende „+ Guthaben,
 „vermieden“ trägt die Richtung, wie im Jahresbericht. Bei beiden PV-Arten entfallen
 Temperatur und Heizgradtage; Anomalien und Vorjahresvergleich werten weniger
 Einspeisung als Rückgang, nicht als Ersparnis.
+
+**Energiefluss (v2.16.0):** Beide PV-Seiten zeigen je Monat, wohin der
+Sonnenstrom ging — selbst genutzt und eingespeist, gestapelt zur Erzeugung —
+und als Linie, was trotzdem aus dem Netz kam. Die Kurzbeschreibung summiert nur
+Monate mit Daten aller drei Zähler.
 
 ![PV](../ui/screenshots/pv.png)
 

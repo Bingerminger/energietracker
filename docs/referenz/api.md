@@ -367,6 +367,7 @@ Vertrag (additiv):
 | `advance_remaining` | noch fällige Abschläge bis Vertragsende |
 | `suggested_advance` | Abschlag, der den erwarteten Saldo bis Vertragsende ausgleicht (≥ 0), sonst `null` |
 | `projection_factor` | Kalibrierung der Schätzung am jüngsten Niveau (0,5–1,5) |
+| `balance_path` | *(v2.16.0)* nur beim laufenden Vertrag, sonst `null`: dieselbe Rechnung als Monatsreihe vom Vertragsbeginn bis zum Ende bzw. zur nächsten Abrechnung — je Monat `ym`, aufsummiert `cost` (gemessen + geschätzt + Grundpreis − Boni) und `paid` (Abschläge nach Plan − Sonderzahlungen netto), `balance = cost − paid`, `estimated` (enthält Tage nach der letzten Ablesung), `future` (Monat nach heute). Der letzte Punkt ist `projected_end_balance` |
 
 **Geänderte Werte:** `advance_paid` zählt seit v2.8.0 die Abschläge nach
 Kalender bis einschließlich des laufenden Monats (vorher nur Monate mit

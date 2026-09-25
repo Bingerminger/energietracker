@@ -691,6 +691,21 @@ abgenommen ist.
   Kurzbeschreibungen von Jahresvergleich und Saisonprofil waren vertauscht, in
   allen Sprachen: Screenreader hörten „Balkendiagramm“ zu einer Linie. Jetzt
   nennen sie Zeitraum, Summe und Extreme, und der Render-Test prüft den Typ.
+- **Ein Diagramm rechnet wie die Zahl daneben (v2.16.0).** Der Saldo-Verlauf
+  hätte sich aus der Prognose zusammensetzen lassen. Deren Monate beginnen aber
+  erst nach dem letzten gemessenen Monat; der Rest eines halben Monats fehlte,
+  und das Diagramm hätte bei einer anderen Zahl geendet als die Karte darüber.
+  Die Reihe entsteht jetzt im Backend in derselben Funktion wie der erwartete
+  Saldo, und ein Test verlangt, dass der letzte Punkt genau dieser Saldo ist.
+- **Eine Summe nur über vergleichbare Monate (v2.16.0).** Die Kurzbeschreibung
+  des Energieflusses zählte zuerst über alle Monate: Selbst genutzt und
+  eingespeist ergaben nicht die Erzeugung, weil einem Monat die Erzeugung
+  fehlte. Jetzt summiert sie nur Monate mit Daten aller drei Zähler und sagt,
+  wie viele.
+- **Bei Chart.js ordnet `order` auch die Balken (v2.16.0).** Das Vorjahr sollte
+  links neben dem laufenden Jahr stehen und stand rechts: `order` legt nicht
+  nur fest, was oben gezeichnet wird, sondern auch die Lage im Balkenpaar. Der
+  Render-Test prüft die Reihenfolge.
 
 ---
 

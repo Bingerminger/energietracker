@@ -277,9 +277,10 @@ function renderMonthlyChart(days, container = document) {
     data: {
       labels,
       datasets: [
-        { label: t('temperatures.chart.max'), data: maxes, borderColor: tokenColor('danger'), backgroundColor: tokenColor('danger', 0.1), tension: 0.25 },
-        { label: t('temperatures.chart.avg'), data: avgs,  borderColor: tokenColor('text1'),  backgroundColor: tokenColor('text1', 0.1),  tension: 0.25 },
-        { label: t('temperatures.chart.min'), data: mins,  borderColor: tokenColor('info'),   backgroundColor: tokenColor('info', 0.1),   tension: 0.25 },
+        // v2.16.0 (Review FE-31) — die Spanne als Band: Maximum füllt bis zum Minimum
+        { label: t('temperatures.chart.min'), data: mins,  borderColor: tokenColor('info'),   backgroundColor: tokenColor('info', 0.1),   borderWidth: 1, pointRadius: 0, tension: 0.25 },
+        { label: t('temperatures.chart.max'), data: maxes, borderColor: tokenColor('danger'), backgroundColor: tokenColor('text2', 0.12), borderWidth: 1, pointRadius: 0, tension: 0.25, fill: '-1' },
+        { label: t('temperatures.chart.avg'), data: avgs,  borderColor: tokenColor('text1'),  backgroundColor: tokenColor('text1', 0.1),  borderWidth: 2, pointRadius: 2, tension: 0.25 },
       ],
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: '°C' } } } },

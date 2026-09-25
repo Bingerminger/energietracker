@@ -147,7 +147,7 @@
       }
     },
     "allLink": "all",
-    "chart": { "title": "{months}-month consumption (all utilities)", "altList": "Line chart: consumption of the last {months} months for {list}" },
+    "chart": { "totalTitle": "Total energy: last {months} months (kWh)", "totalNote": "Only what adds up: consumption in kWh. Water and PV are in their cards.", "totalTip": "Total: {value}", "totalAlt": "Stacked bar chart: energy consumption of the last {months} months for {list}, {total} in total.", "totalColumn": "Total (kWh)" },
     "card": { "meters": "Meters", "details": "Details", "window": "Period: {from} – {to}", "partial": "{month}: {days} of {total} days" },
     "groups": { "summary": "Groups ({count})" },
     "kpi": {
@@ -182,6 +182,11 @@
       "title": "Welcome to Energietracker",
       "text": "Enter your meter readings — the app turns them into consumption, costs, advance-payment balance and forecast. Or first see what that looks like with sample data.",
       "demo": "Try with sample data"
+    },
+    "spark": {
+      "prev": "A year earlier",
+      "alt": "Bar chart: {label} by month from {from} to {to}.",
+      "altPrev": "Bar chart: {label} by month from {from} to {to}; the line shows the same months a year earlier."
     }
   },
   "readingsEntry": {
@@ -336,7 +341,14 @@
       "priceIncrease": "Price increase from {date}: {what}.",
       "piWorking": "unit price {from} → {to} {minor}/kWh",
       "piBase": "standing charge {from} → {to} {cur}/month",
-      "priceIncreaseDe": "Until then you have a special right to cancel effective on the day of the increase (§ 41 (5) EnWG)."
+      "priceIncreaseDe": "Until then you have a special right to cancel effective on the day of the increase (§ 41 (5) EnWG).",
+      "pathTitle": "Costs and advances over the billing period",
+      "pathCost": "Costs, cumulative",
+      "pathPaid": "Paid: advances and special payments",
+      "pathBalance": "Balance",
+      "pathEstimated": "estimated",
+      "pathNote": "Dashed: estimated; hollow points lie after today. The gap between the lines is the balance, at the end stands the expected bill.",
+      "pathAlt": "Line chart: cumulative costs and payments from {from} to {to}; at the end {result}."
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -383,7 +395,8 @@
       "estimatedLegend": "≈ month contains estimated days — after the last known stock (delivery “filled to full” or tank reading).",
       "colRevenue": "Revenue {cur}",
       "colCo2Avoided": "CO₂ avoided kg",
-      "partialLegend": "\"14 / 31\" under days: the month is only partly recorded; trends leave it out."
+      "partialLegend": "\"14 / 31\" under days: the month is only partly recorded; trends leave it out.",
+      "colAdjusted": "adjusted"
     },
     "readingsTable": {
       "emptyTitle": "No readings",
@@ -440,7 +453,7 @@
       "chartAnchors": "Known stock",
       "chartAlt": "Tank stock over {year}"
     },
-    "chart": { "temp": "avg temperature", "alt": "Bar chart: monthly consumption and average temperature", "altSummary": "Bar chart: {label} {year} by month, {total} in total; highest in {maxMonth} ({max}), lowest in {minMonth} ({min})." },
+    "chart": { "temp": "avg temperature", "alt": "Bar chart: monthly consumption and average temperature", "altSummary": "Bar chart: {label} {year} by month, {total} in total; highest in {maxMonth} ({max}), lowest in {minMonth} ({min}).", "prevYear": "{year} for comparison", "adjustedLabel": "{label} weather-adjusted ({unit})", "measuredValue": "Measured: {value}", "deviceSwap": "Meter replaced this month", "altSummaryAdjusted": "Bar chart: {label} {year} by month, weather-adjusted, {total} in total; highest in {maxMonth} ({max}), lowest in {minMonth} ({min}).", "altPrev": "For comparison {year}: {total} in the same {months} months.", "adjustedNote": "Weather-adjusted: converted to a normal year at your location (heating model). That way the comparison with the previous year shows whether you saved — not whether the winter was mild.", "modeLabel": "View", "modeMeasured": "Measured", "modeAdjusted": "Weather-adjusted" },
     "readingModal": {
       "titleEdit": "Edit reading · {label}",
       "titleNew": "New reading · {label}",
@@ -546,7 +559,17 @@
       "noReading": "This meter has no reading yet. Monthly values come from the difference between two readings.",
       "oneReading": "There is only one reading so far. Monthly values come from the difference between two readings — add a second one, such as the one from your last bill."
     },
-    "yearPills": "Year"
+    "yearPills": "Year",
+    "pvFlow": {
+      "title": "Energy flow {year}",
+      "note": "Self-consumed and fed in together make up the generation; the line shows what still came from the grid.",
+      "generation": "Generation (kWh)",
+      "self": "Self-consumed",
+      "feedIn": "Fed in",
+      "grid": "From the grid",
+      "generationTip": "Generated: {value}",
+      "alt": "Bar chart: energy flow {year} — in {months} months with data from all three meters generated {generation}, of which self-consumed {self} and fed in {feedIn}; from the grid {grid}."
+    }
   },
   "contracts": {
     "priceGroup": {

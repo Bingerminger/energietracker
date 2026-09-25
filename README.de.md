@@ -9,11 +9,11 @@ Wechsel? Habe ich mehr verbraucht, oder war es nur kälter?
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.15.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.16.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-456-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-459-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
 [![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-8-f59e0b.svg)](docs/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -62,7 +62,7 @@ Zählertausch, Subzähler und Gruppen, Termine, Empfehlungen, PDF-Jahresbericht
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:2.15.0
+  ghcr.io/bingerminger/energietracker:2.16.0
 ```
 
 Dann <http://localhost:8080> öffnen. **„Mit Beispieldaten ausprobieren“** zeigt
@@ -115,11 +115,10 @@ er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
 
 ## Stand und Ausblick
 
-**v2.15.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
+**v2.16.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
 CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
-mit einer neuen Hauptversion und nach Ankündigung. Als Nächstes kommen weitere
-Diagramme (gemessen gegen witterungsbereinigt, der Saldo über den
-Abrechnungszeitraum, der PV-Energiefluss), danach die Nebenkostenabrechnung für Mieter
+mit einer neuen Hauptversion und nach Ankündigung. Als Nächstes kommen die
+Nebenkostenabrechnung für Mieter
 ([#15](https://github.com/Bingerminger/energietracker/issues/15)) und Verträge
 je Zählergruppe ([#17](https://github.com/Bingerminger/energietracker/issues/17))
 — [Roadmap](roadmap.md). Wer von einer privaten v0.9.0 kommt:

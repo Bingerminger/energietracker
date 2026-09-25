@@ -285,6 +285,16 @@ const ROOT = require('path').resolve(__dirname, '..');
         && 'cost_to_date' in curC && 'suggested_advance' in curC && 'measured_until' in curC
         && Math.abs(curC.energy_cost_to_date + curC.base_to_date - curC.bonus_to_date - curC.cost_to_date) < 0.02,
       curC ? `${curC.projection_method} · bezahlt ${curC.advance_paid}` : 'kein laufender Vertrag');
+    // v2.16.0 (Review FE-31) — Saldo-Verlauf: Monatsreihe am laufenden Vertrag,
+    // der letzte Punkt ist der erwartete Endsaldo; andere Verträge ohne Reihe
+    const path = curC?.balance_path;
+    const lastP = Array.isArray(path) ? path[path.length - 1] : null;
+    check('contract-status(gas): balance_path endet beim erwarteten Endsaldo',
+      Array.isArray(path) && path.length >= 2
+        && path.every(p => ['ym', 'cost', 'paid', 'balance', 'estimated', 'future'].every(k => k in p))
+        && Math.abs(lastP.balance - curC.projected_end_balance) < 0.03
+        && (cs.contracts || []).filter(c => !c.is_current).every(c => c.balance_path == null),
+      lastP ? `${path.length} Monate · Ende ${lastP.balance} · erwartet ${curC.projected_end_balance}` : 'keine Reihe');
     // v2.9.0 (CALC-10, CALC-11) — Verlängerung, Kündigung, Preiserhöhung
     check('contract-status(gas): renewed, cancel_by, days_to_cancel, switch_date, notice_basis, remind_basis, cancel_missed, price_increase',
       !!curC && ['renewed', 'cancel_by', 'days_to_cancel', 'switch_date', 'notice_basis', 'remind_basis', 'cancel_missed', 'price_increase']

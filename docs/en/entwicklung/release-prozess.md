@@ -646,6 +646,20 @@ accepted.
   descriptions of the year comparison and the seasonal profile were swapped, in
   every language: screen readers heard "bar chart" for a line. Now they name
   period, total and extremes, and the render test checks the type.
+- **A chart calculates like the number next to it (v2.16.0).** The balance over
+  time could have been assembled from the forecast. Its months, however, only
+  start after the last measured month; the rest of a half month was missing, and
+  the chart would have ended at a different number than the card above it. The
+  series is now built in the backend in the same function as the expected
+  balance, and a test demands that the last point is exactly that balance.
+- **A sum only over comparable months (v2.16.0).** The short description of the
+  energy flow first added up all months: self-consumed and fed in did not make
+  the generation, because one month lacked the generation. Now it only adds up
+  months with data from all three meters and says how many.
+- **In Chart.js `order` also arranges the bars (v2.16.0).** The previous year was
+  meant to stand left of the current one and stood on the right: `order` decides
+  not only what is drawn on top but also the position within a bar pair. The
+  render test checks the order.
 
 ---
 

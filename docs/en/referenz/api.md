@@ -362,6 +362,7 @@ estimated. New fields per contract (additive):
 | `advance_remaining` | advances still due until the end of the contract |
 | `suggested_advance` | advance that evens out the expected balance by the end of the contract (≥ 0), otherwise `null` |
 | `projection_factor` | calibration of the estimate to the most recent level (0.5–1.5) |
+| `balance_path` | *(v2.16.0)* only on the current contract, otherwise `null`: the same calculation as a monthly series from the contract start to its end or the next bill — per month `ym`, cumulative `cost` (measured + estimated + standing charge − bonuses) and `paid` (advances by plan − special payments net), `balance = cost − paid`, `estimated` (contains days after the last reading), `future` (month after today). The last point is `projected_end_balance` |
 
 **Changed values:** since v2.8.0 `advance_paid` counts the advances by calendar up
 to and including the current month (previously only months with a reading);

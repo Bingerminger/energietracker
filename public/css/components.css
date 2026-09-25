@@ -288,6 +288,10 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
 .chart-note { margin-top: var(--sp-2); font-size: var(--fs-xs); color: var(--text-2); }
 .table tr.is-partial td { color: var(--text-2); }
 .dash-window { margin: calc(-1 * var(--sp-2)) 0 var(--sp-3); font-size: var(--fs-xs); color: var(--text-2); }
+/* v2.16.0 (Review FE-17) — Mini-Verlauf je Karte der Übersicht */
+.dash-spark { position: relative; height: 64px; margin-top: var(--sp-3); }
+/* Umschalter gemessen/bereinigt im Kartentitel: normale Schrift */
+.card__title .seg__btn { text-transform: none; letter-spacing: normal; }
 
 /* ── Device chain / meter card ─────────────────────────────────── */
 .meter-card {
@@ -453,6 +457,8 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
   border-radius: var(--r-md); font-size: var(--fs-sm);
   background: color-mix(in srgb, var(--info) 8%, transparent); color: var(--text-1);
 }
+/* v2.16.0 (Review FE-31) — Saldo-Verlauf unter den Kennzahlen der Karte */
+.balance-path { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-1); }
 /* v2.9.0 — Vertragshinweise (weiterlaufend, Frist verpasst, Preiserhöhung) */
 .balance-note {
   margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3);

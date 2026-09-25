@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Dokumentation zu Energietracker **v2.15.0**, geordnet nach dem, was du
+> Dokumentation zu Energietracker **v2.16.0**, geordnet nach dem, was du
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >

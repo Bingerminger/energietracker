@@ -68,8 +68,8 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Both harnesses return exit code 0 on success. As of v2.15.0:
-**frontend API shape 61/61**, **browser render 178/178** (incl. module-graph
+Both harnesses return exit code 0 on success. As of v2.16.0:
+**frontend API shape 62/62**, **browser render 189/189** (incl. module-graph
 pre-check and the forecast-model check for all five models). Since v2.11.0 the
 module-graph crawl also follows dynamic imports — the router loads views on
 demand. Since v2.12.0 the test renders every settings sub-page on its own,
@@ -105,7 +105,7 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.15.0: 456). Since v2.13.0 `LocaleCatalogTest` also checks keys
+recounts it (v2.16.0: 459). Since v2.13.0 `LocaleCatalogTest` also checks keys
 the code composes (`glossary.<id>.term`, `settings.field.<key>.label`) — the
 check for literal keys cannot see them. Since v2.14.0 it knows plural forms
 (`one`/`other` and the extra categories some languages need) and checks that
@@ -150,6 +150,15 @@ per year, the pinning of old defaults in existing installations and the offer of
 the new ones, `PvSemanticsTest` rates, savings, tariff rank and the annual
 report, `EfficiencyCertificateTest` partial years, limits and the
 certificate-style figure. 36 counter-checks, all red.
+
+**Balance over time (v2.16.0).** `BalancePathTest` creates a twelve-month contract
+that started eight months ago and checks the monthly series `balance_path`: the
+last point is the expected final balance, advances grow by plan, a measured month
+costs unit price plus standing charge, a refund lowers what was paid in its month,
+and only the current contract carries a series. The render test adds the previous
+year and the switch in the monthly chart (the adjusted values must be
+`heat_adjusted`), the PV energy flow, the small multiples of the overview and the
+temperature band.
 
 This exact sequence runs automated in the **CI pipeline**
 (`.github/workflows/ci.yml`) on every push and pull request against `main`. Four

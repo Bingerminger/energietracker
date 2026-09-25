@@ -147,7 +147,7 @@
       }
     },
     "allLink": "todos",
-    "chart": { "title": "Consumo de {months} meses (todos os serviços)", "altList": "Gráfico de linhas: consumo dos últimos {months} meses para {list}" },
+    "chart": { "totalTitle": "Energia total: últimos {months} meses (kWh)", "totalNote": "Só o que se pode somar: o consumo em kWh. A água e o fotovoltaico estão nos seus cartões.", "totalTip": "Total: {value}", "totalAlt": "Gráfico de barras empilhadas: consumo de energia dos últimos {months} meses para {list}, {total} no total.", "totalColumn": "Total (kWh)" },
     "card": { "meters": "Contadores", "details": "Detalhes", "window": "Período: {from} – {to}", "partial": "{month}: {days} de {total} dias" },
     "groups": { "summary": "Grupos ({count})" },
     "kpi": {
@@ -182,6 +182,11 @@
       "title": "Bem-vindo ao Energietracker",
       "text": "Introduza as leituras dos contadores — a aplicação calcula consumo, custos, saldo dos adiantamentos e previsão. Ou veja primeiro como fica com dados de exemplo.",
       "demo": "Experimentar com dados de exemplo"
+    },
+    "spark": {
+      "prev": "Um ano antes",
+      "alt": "Gráfico de barras: {label} por mês de {from} a {to}.",
+      "altPrev": "Gráfico de barras: {label} por mês de {from} a {to}; a linha mostra os mesmos meses um ano antes."
     }
   },
   "readingsEntry": {
@@ -336,7 +341,14 @@
       "priceIncrease": "Aumento de preços a partir de {date}: {what}.",
       "piWorking": "preço da energia {from} → {to} {minor}/kWh",
       "piBase": "termo fixo {from} → {to} {cur}/mês",
-      "priceIncreaseDe": "Até lá existe um direito especial de denúncia com efeito na data do aumento (§ 41 n.º 5 EnWG)."
+      "priceIncreaseDe": "Até lá existe um direito especial de denúncia com efeito na data do aumento (§ 41 n.º 5 EnWG).",
+      "pathTitle": "Custos e adiantamentos no período de faturação",
+      "pathCost": "Custos acumulados",
+      "pathPaid": "Pago: adiantamentos e pagamentos extraordinários",
+      "pathBalance": "Saldo",
+      "pathEstimated": "estimado",
+      "pathNote": "Tracejado: estimado; os pontos vazios ficam depois de hoje. A distância entre as linhas é o saldo, no fim está a fatura esperada.",
+      "pathAlt": "Gráfico de linhas: custos e pagamentos acumulados de {from} a {to}; no fim {result}."
     },
     "contractsTable": {
       "emptyTitle": "Sem contratos registados",
@@ -383,7 +395,8 @@
       "estimatedLegend": "≈ o mês contém dias estimados, após o último stock conhecido (entrega «atestado» ou leitura).",
       "colRevenue": "Receita {cur}",
       "colCo2Avoided": "CO₂ evitado kg",
-      "partialLegend": "«14 / 31» nos dias: o mês só está registado em parte; as tendências não o consideram."
+      "partialLegend": "«14 / 31» nos dias: o mês só está registado em parte; as tendências não o consideram.",
+      "colAdjusted": "corrigido"
     },
     "readingsTable": {
       "emptyTitle": "Sem leituras",
@@ -440,7 +453,7 @@
       "chartAnchors": "Stock conhecido",
       "chartAlt": "Evolução do stock do depósito em {year}"
     },
-    "chart": { "temp": "temperatura média", "alt": "Gráfico de barras: consumo mensal e temperatura média", "altSummary": "Gráfico de barras: {label} {year} por mês, {total} no total; máximo em {maxMonth} ({max}), mínimo em {minMonth} ({min})." },
+    "chart": { "temp": "temperatura média", "alt": "Gráfico de barras: consumo mensal e temperatura média", "altSummary": "Gráfico de barras: {label} {year} por mês, {total} no total; máximo em {maxMonth} ({max}), mínimo em {minMonth} ({min}).", "prevYear": "{year} para comparação", "adjustedLabel": "{label} corrigido do clima ({unit})", "measuredValue": "Medido: {value}", "deviceSwap": "Troca de contador neste mês", "altSummaryAdjusted": "Gráfico de barras: {label} {year} por mês, corrigido do clima, {total} no total; máximo em {maxMonth} ({max}), mínimo em {minMonth} ({min}).", "altPrev": "Para comparação, {year}: {total} nos mesmos {months} meses.", "adjustedNote": "Corrigido do clima: convertido para um ano normal no seu local (modelo de aquecimento). Assim a comparação com o ano anterior mostra se poupou — não se o inverno foi ameno.", "modeLabel": "Vista", "modeMeasured": "Medido", "modeAdjusted": "Corrigido do clima" },
     "readingModal": {
       "titleEdit": "Editar leitura · {label}",
       "titleNew": "Nova leitura · {label}",
@@ -546,7 +559,17 @@
       "noReading": "Este contador ainda não tem leituras. Os valores mensais resultam da diferença entre duas leituras.",
       "oneReading": "Só existe uma leitura. Os valores mensais resultam da diferença entre duas leituras — acrescente uma segunda, por exemplo a da sua última fatura."
     },
-    "yearPills": "Ano"
+    "yearPills": "Ano",
+    "pvFlow": {
+      "title": "Fluxo de energia {year}",
+      "note": "Autoconsumo e injeção somam a produção; a linha mostra o que ainda assim veio da rede.",
+      "generation": "Produção (kWh)",
+      "self": "Autoconsumido",
+      "feedIn": "Injetado na rede",
+      "grid": "Da rede",
+      "generationTip": "Produzido: {value}",
+      "alt": "Gráfico de barras: fluxo de energia {year} — em {months} meses com dados dos três contadores, produzido {generation}, dos quais autoconsumido {self} e injetado {feedIn}; da rede {grid}."
+    }
   },
   "contracts": {
     "priceGroup": {

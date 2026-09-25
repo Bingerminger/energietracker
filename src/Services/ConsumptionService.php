@@ -319,7 +319,7 @@ final class ConsumptionService
             if (Utilities::hasAdvancePaymentContracts($utility)) {
                 // v2.8.0 (Review CALC-02) — Saldo nach Kalender statt nach
                 // Ablesemonaten, Hochrechnung mit Wetter statt Durchschnitt.
-                $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net'], $renewed);
+                $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net'], $renewed, $isCur);
                 $currentBalance = $projection['current_balance'];
                 $projected      = $projection['projected_end_balance'];
                 $advancePaid    = $projection['advance_paid'];
@@ -446,6 +446,9 @@ final class ConsumptionService
                     'advance_remaining'        => $projection['advance_remaining'],
                     'suggested_advance'        => $projection['suggested_advance'],
                     'projection_factor'        => $projection['factor'],
+                    // v2.16.0 (Review FE-31) — Monatsreihe für den Saldo-Verlauf,
+                    // nur beim laufenden Vertrag (additiv)
+                    'balance_path'             => $projection['path'],
                 ];
             }
             // v2.5.1 — die Einzelposten für die Tabelle „Verträge & Abschläge"
@@ -551,7 +554,7 @@ final class ConsumptionService
         return null;
     }
 
-    private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet, bool $renewed = false): array
+    private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet, bool $renewed = false, bool $withPath = false): array
     {
         $start = (string)($c['start'] ?? $today);
         // Ende exklusiv: ein gepflegtes Vertragsende gehört noch dazu, der
@@ -622,6 +625,71 @@ final class ConsumptionService
             $suggested = max(0.0, round((float)$curAp + $projected / $monthsLeft));
         }
 
+        // v2.16.0 (Review FE-31) — dieselbe Rechnung als Monatsreihe für den
+        // Saldo-Verlauf: je Monat die Kosten (gemessen, geschätzt, Grundpreis,
+        // Boni) und das Bezahlte (Abschläge, Sonderzahlungen), aufsummiert.
+        // Der letzte Punkt ist der erwartete Endsaldo (Test hält es fest).
+        $path = null;
+        if ($withPath) {
+            $startMonth = substr($start, 0, 7);
+            $asOfMonth  = substr($asOf, 0, 7);
+            // Sonderzahlungen in ihrem Monat — wie im Stand heute zählt jede
+            // spätestens ab heute, eine vor dem Beginn ab dem ersten Monat
+            $spByMonth = [];
+            foreach ($c['special_payments'] ?? [] as $sp) {
+                $amt  = abs((float)($sp['amount_eur'] ?? 0));
+                $kind = (string)($sp['kind'] ?? '');
+                $net  = in_array($kind, ['rueckzahlung_mit', 'rueckzahlung_ohne'], true) ? $amt
+                    : (in_array($kind, ['nachzahlung_mit', 'nachzahlung_ohne', 'abschlagszahlung'], true) ? -$amt : 0.0);
+                if ($net === 0.0) continue;
+                $ym = substr((string)($sp['date'] ?? ''), 0, 7);
+                if (!preg_match('/^\d{4}-\d{2}$/', $ym) || $ym < $startMonth) $ym = $startMonth;
+                if ($ym > $asOfMonth) $ym = $asOfMonth;
+                $spByMonth[$ym] = ($spByMonth[$ym] ?? 0.0) + $net;
+            }
+            $measuredByMonth = [];
+            foreach ($monthly as $m) {
+                $ym = (string)($m['ym'] ?? '');
+                if (!empty($m['contract_parts'])) {
+                    foreach ($m['contract_parts'] as $p) {
+                        if ($p['contract_id'] === $c['id']) $measuredByMonth[$ym] = ($measuredByMonth[$ym] ?? 0.0) + (float)$p['kwh_cost'];
+                    }
+                } elseif (($m['contract_id'] ?? null) === $c['id']) {
+                    $measuredByMonth[$ym] = ($measuredByMonth[$ym] ?? 0.0) + (float)($m['kwh_cost'] ?? 0);
+                }
+            }
+            $cumCost = 0.0; $cumPaid = 0.0; $path = [];
+            for ($t = strtotime($startMonth . '-01'); $t !== false && date('Y-m-d', $t) < $endExcl; $t = strtotime('+1 month', $t)) {
+                $ym    = date('Y-m', $t);
+                $dim   = (int)date('t', $t);
+                $cFrom = max(date('Y-m-d', $t), $start);
+                $cTo   = min(date('Y-m-d', strtotime('+1 month', $t)), $endExcl);
+                $cDays = max(0, (int)round((strtotime($cTo) - strtotime($cFrom)) / 86400));
+                if ($cDays === 0) continue;
+                $estimated = $cTo > $gapFrom ? $energy(max($cFrom, $gapFrom), $cTo) : 0.0;
+                $base = 0.0;
+                $segments = $this->contracts->segmentsBetween([$c], $cFrom, $cTo);
+                foreach ($segments as $seg) {
+                    if ($seg['contract'] === null) continue;
+                    $bp = $this->contracts->valueOnDate($c['base_prices'] ?? [], 'eur_per_month', ContractService::priceDate($seg));
+                    if ($bp !== null) $base += $bp * $seg['days'] / $dim;
+                }
+                $bonus  = $this->contracts->bonusForMonth($c, (int)date('Y', $t), (int)date('n', $t));
+                $apDate = $segments !== [] ? ContractService::priceDate($segments[0]) : $cFrom;
+                $ap     = $this->contracts->valueOnDate($plan, 'amount_eur', $apDate);
+                $cumCost += ($measuredByMonth[$ym] ?? 0.0) + $estimated + $base - $bonus;
+                $cumPaid += ($ap !== null ? $ap * min(1.0, $cDays / $dim) : 0.0) - ($spByMonth[$ym] ?? 0.0);
+                $path[] = [
+                    'ym'        => $ym,
+                    'cost'      => round($cumCost, 2),
+                    'paid'      => round($cumPaid, 2),
+                    'balance'   => round($cumCost - $cumPaid, 2),
+                    'estimated' => $cTo > $gapFrom,   // enthält geschätzte Tage
+                    'future'    => $ym > $asOfMonth,
+                ];
+            }
+        }
+
         return [
             'as_of'                    => $asOf,
             'method'                   => $est === null ? 'flat_average' : 'forecast',
@@ -639,6 +707,7 @@ final class ConsumptionService
             'current_balance'          => $current,
             'projected_end_balance'    => $projected,
             'suggested_advance'        => $suggested,
+            'path'                     => $path,
         ];
     }
 

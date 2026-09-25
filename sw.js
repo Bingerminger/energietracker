@@ -21,7 +21,7 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v2.15.0';
+const VERSION = 'v2.16.0';
 const STATIC_CACHE  = `et-static-${VERSION}`;
 const RUNTIME_CACHE = `et-runtime-${VERSION}`;
 

@@ -5,8 +5,8 @@
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
-import { makeChart, utilColor, chartColor, chartTableHtml } from '../components/chart.js';
-import { isPartial, daysInMonth, yoyTrend, lastMonths } from '../lib/chart-data.js';
+import { makeChart, chartColor, withAlpha, tokenColor, chartTableHtml } from '../components/chart.js';
+import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm } from '../lib/chart-data.js';
 import { toastErr } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { loadDemo } from '../lib/demo.js';
@@ -199,6 +199,10 @@ export async function render(container) {
 
     </div>`;
 
+  // v2.16.0 — „Energie gesamt“: nur Verbrauch in kWh, ohne PV (Wasser steht in seiner Karte)
+  const totalKinds = datasets.filter(d => !isPv(d.utility) && d.utility.consumption_unit === 'kWh'
+    && (d.consumption?.monthly_total || []).length);
+
   container.innerHTML = `
     <div class="section-head">
       <h1>${t('dashboard.title')}</h1>
@@ -231,11 +235,12 @@ export async function render(container) {
       ${datasets.map(d => renderUtilityCard(d)).join('')}
     </div>
 
-    <div class="card" style="margin-top: var(--sp-5)">
-      <h2 class="card__title">${t('dashboard.chart.title', { months: chartSpan })}</h2>
+    ${totalKinds.length ? `<div class="card" style="margin-top: var(--sp-5)">
+      <h2 class="card__title">${t('dashboard.chart.totalTitle', { months: chartSpan })}</h2>
       <div class="chart-wrap"><canvas id="dash-chart"></canvas></div>
+      <p class="chart-note">${escapeHtml(t('dashboard.chart.totalNote'))}</p>
       <div data-role="chart-extra"></div>
-    </div>
+    </div>` : ''}
     `}
   `;
 
@@ -250,12 +255,15 @@ export async function render(container) {
     }).catch(() => { /* ohne Liste bleibt der Einstieg bedienbar */ });
   }
 
-  // Render combined chart
-  const chart = renderCombinedChart(datasets, chartSpan, container);
+  // v2.16.0 (Review FE-17) — kleine Vielfache: je Karte ein eigener Verlauf mit
+  // dem Vorjahr; gemeinsam nur, was sich addieren lässt (kWh)
+  const charts = hasAnyData
+    ? [renderTotalChart(datasets, chartSpan, container), ...renderSparks(datasets, container)]
+    : [];
 
-  // Cleanup: destroy chart on next nav (v2.15.0 — ohne window-Global;
+  // Cleanup: destroy charts on next nav (v2.15.0 — ohne window-Global;
   // die Chart-Schicht räumt beim Seitenwechsel ohnehin ab)
-  return () => { chart?.destroy(); };
+  return () => { charts.forEach(c => c?.destroy()); };
 }
 
 /**
@@ -379,6 +387,7 @@ function renderUtilityCard({ utility, consumption }) {
           <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
         </div>`}
       </div>
+      ${last12.length >= 2 ? `<div class="dash-spark"><canvas data-spark="${escapeHtml(utility.key)}"></canvas></div>` : ''}
       ${groupBreakdown(consumption, sumKey, utility)}
     </div>
   `;
@@ -449,91 +458,124 @@ function trendBadge(trend, moreIsGood = false) {
     `<span aria-hidden="true">${arrow} ${pctStr} %</span></span>`;
 }
 
-function renderCombinedChart(datasets, span = 12, container = document) {
+/**
+ * v2.16.0 (Review FE-17) — „Energie gesamt“: die kWh-Verbrauchsarten
+ * gestapelt je Monat. Bis v2.15 teilten sich Heizarten (bis 3.000 kWh) und
+ * Strom (rund 250) eine Linienachse, Wasser hatte eine zweite — Strom lag
+ * plattgedrückt am Boden. Jede Verbrauchsart hat ihren Verlauf jetzt in der
+ * eigenen Karte; hier steht nur, was sich addieren lässt.
+ */
+function renderTotalChart(datasets, span = 12, container = document) {
   const canvas = container.querySelector('#dash-chart');
   if (!canvas) return null;
-
-  // Find the union of months across all utilities (last `span`, v2.9.0:
-  // Einstellung dashboard_months — bis v2.8 fest 12 und die Einstellung
-  // ohne Wirkung; der Vorjahresvergleich der Kacheln bleibt bei 12 Monaten)
-  // v2.13.0 (Review FE-06) — nur Verbrauch: Einspeisung und Erzeugung stehen
-  // in der Strom-Saldo-Karte; auf derselben kWh-Achse lasen sie sich als
-  // Verbrauch
-  datasets = datasets.filter(d => !isPv(d.utility));
+  const kinds = datasets.filter(d => !isPv(d.utility) && d.utility.consumption_unit === 'kWh'
+    && (d.consumption?.monthly_total || []).length);
+  if (!kinds.length) return null;
   const allMonths = new Set();
-  datasets.forEach(d => (d.consumption?.monthly_total || []).slice(-span).forEach(m => allMonths.add(m.ym)));
+  kinds.forEach(d => (d.consumption.monthly_total || []).slice(-span).forEach(m => allMonths.add(m.ym)));
   const months = Array.from(allMonths).sort().slice(-span);
-
-  const seriesList = datasets.map(d => {
+  const labels = months.map(m => fmt.month(m));
+  const seriesList = kinds.map(d => {
     const u = d.utility;
-    const key = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
-    const rows = Object.fromEntries((d.consumption?.monthly_total || []).map(m => [m.ym, m]));
-    // v2.15.0 (Review FE-08) — Teilmonate als hohler Punkt, die Linie dorthin
-    // gestrichelt; der Tooltip nennt die erfassten Tage
+    const rows = Object.fromEntries((d.consumption.monthly_total || []).map(m => [m.ym, m]));
     const partial = months.map(m => !!rows[m] && isPartial(rows[m]));
-    const fill = (ctx) => (partial[ctx.dataIndex] ? 'transparent' : chartColor(u));
-    // v2.5.3 (FE-03) — Monat ohne Daten ist eine Lücke, kein Nullverbrauch.
-    // Die Achse vereint die Monate aller Arten; wer Strom täglich per Home
-    // Assistant schickt und Gas monatlich abliest, sah die jüngsten Gasmonate
-    // als 0 — die zentrale Grafik behauptete „kein Verbrauch".
+    const bar = (full, part) => (ctx) => withAlpha(chartColor(u), partial[ctx.dataIndex] ? part : full);
     return {
-      label: `${u.label} (${u.consumption_unit})`,
-      data:  months.map(m => rows[m]?.[key] ?? null),
-      spanGaps: false,
-      borderColor: utilColor(u),
-      backgroundColor: utilColor(u, 0.2),
-      pointBackgroundColor: fill,
-      pointBorderColor: utilColor(u),
-      pointRadius: (ctx) => (partial[ctx.dataIndex] ? 4 : 3),
-      segment: { borderDash: (ctx) => (partial[ctx.p1DataIndex] ? [5, 4] : undefined) },
-      tension: 0.25,
-      yAxisID: u.consumption_unit === 'kWh' ? 'y_kwh' : 'y_m3',
-      etMeta: { u, rows, key, partial },
+      label: u.label,
+      // v2.5.3 (FE-03) — Monat ohne Daten ist eine Lücke, kein Nullverbrauch
+      data: months.map(m => rows[m]?.kwh ?? null),
+      backgroundColor: bar(0.6, 0.2),
+      borderColor: bar(1, 0.5),
+      borderWidth: 1,
+      stack: 'kwh',
+      etMeta: { rows, partial },
     };
   });
-
-  // v2.15.0 — Achsen nur für Einheiten, die vorkommen (ohne Wasser stand eine
-  // leere m³-Achse 0–1 daneben)
-  const hasKwh = seriesList.some(s => s.yAxisID === 'y_kwh');
-  const hasM3  = seriesList.some(s => s.yAxisID === 'y_m3');
-  const labels = months.map(m => fmt.month(m));
-  const cfg = {
-    type: 'line',
+  const totals = months.map((_, i) => seriesList.reduce((a, s2) => a + (Number(s2.data[i]) || 0), 0));
+  const chart = makeChart(canvas, {
+    type: 'bar',
     data: { labels, datasets: seriesList },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
-        tooltip: { callbacks: { afterLabel: (item) => {
-          const meta = item.dataset.etMeta;
-          const row = meta?.rows[months[item.dataIndex]];
-          return row && meta.partial[item.dataIndex] ? t('chart.partialMonth', { days: row.days, total: daysInMonth(row.ym) }) : '';
-        } } },
+        tooltip: { callbacks: {
+          label: (item) => `${item.dataset.label}: ${fmt.unit(item.parsed.y, 'kWh', 0)}`,
+          afterLabel: (item) => {
+            const meta = item.dataset.etMeta;
+            const row = meta?.rows[months[item.dataIndex]];
+            return row && meta.partial[item.dataIndex] ? t('chart.partialMonth', { days: row.days, total: daysInMonth(row.ym) }) : '';
+          },
+          footer: (items) => t('dashboard.chart.totalTip', { value: fmt.unit(totals[items[0]?.dataIndex] ?? 0, 'kWh', 0) }),
+        } },
       },
-      scales: {
-        ...(hasKwh ? { y_kwh: { position: 'left', title: { display: true, text: 'kWh' } } } : {}),
-        ...(hasM3 ? { y_m3: { position: hasKwh ? 'right' : 'left', title: { display: true, text: 'm³' }, grid: { drawOnChartArea: !hasKwh } } } : {}),
-      },
-    }
-  };
-  const names = datasets.map(d => d.utility.label).join(', ');
-  const chart = makeChart(canvas, cfg, { label: t('dashboard.chart.altList', { months: span, list: names }) });
+      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'kWh' } } },
+    },
+  }, { label: t('dashboard.chart.totalAlt', { months: span, list: kinds.map(d => d.utility.label).join(', '),
+    total: fmt.unit(totals.reduce((a, v) => a + v, 0), 'kWh', 0) }) });
 
   // v2.15.0 (Review FE-20) — die Werte als Tabelle zum Aufklappen
   const extra = container.querySelector('[data-role="chart-extra"]');
-  if (extra && seriesList.length) {
+  if (extra) {
     extra.innerHTML = chartTableHtml({
-      caption: t('dashboard.chart.title', { months: span }),
-      columns: [t('utility.monthlyTable.colMonth'), ...seriesList.map(s => s.label)],
-      rows: months.map((m, i) => [fmt.month(m), ...seriesList.map(s => {
-        const v = s.data[i];
+      caption: t('dashboard.chart.totalTitle', { months: span }),
+      columns: [t('utility.monthlyTable.colMonth'), ...seriesList.map(s2 => `${s2.label} (kWh)`), t('dashboard.chart.totalColumn')],
+      rows: months.map((m, i) => [fmt.month(m), ...seriesList.map(s2 => {
+        const v = s2.data[i];
         if (v == null) return null;
-        const row = s.etMeta.rows[m];
-        return fmt.int(v) + (s.etMeta.partial[i] ? ` (${row.days}/${daysInMonth(m)})` : '');
-      })]),
+        const row = s2.etMeta.rows[m];
+        return fmt.int(v) + (s2.etMeta.partial[i] ? ` (${row.days}/${daysInMonth(m)})` : '');
+      }), fmt.int(totals[i])]),
     });
   }
   return chart;
+}
+
+/**
+ * v2.16.0 (Review FE-17) — Mini-Verlauf je Karte: die zwölf Monate des
+ * Kartenfensters als Säulen, dieselben Monate ein Jahr zuvor als Linie.
+ * Ohne Achsen und Legende; die Zahlen stehen in den Kennzahlen darüber.
+ */
+function renderSparks(datasets, container) {
+  const out = [];
+  for (const d of datasets) {
+    const u = d.utility;
+    const canvas = container.querySelector(`canvas[data-spark="${u.key}"]`);
+    if (!canvas) continue;
+    const monthly = d.consumption?.monthly_total || [];
+    const key = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
+    const win = lastMonths(monthly, 12);
+    if (!win || win.rows.length < 2) continue;
+    const byYm = new Map(monthly.map(m => [m.ym, m]));
+    const rows = win.rows;
+    const partial = rows.map(m => isPartial(m));
+    const prev = rows.map(m => byYm.get(shiftYm(m.ym, -12))?.[key] ?? null);
+    const hasPrev = prev.some(v => v != null);
+    const bar = (full, part) => (ctx) => withAlpha(chartColor(u), partial[ctx.dataIndex] ? part : full);
+    const unit = u.consumption_unit;
+    out.push(makeChart(canvas, {
+      type: 'bar',
+      data: {
+        labels: rows.map(m => fmt.month(m.ym)),
+        datasets: [
+          { type: 'bar', label: u.label, data: rows.map(m => m[key] ?? null), backgroundColor: bar(0.55, 0.18), borderWidth: 0, order: 2 },
+          ...(hasPrev ? [{ type: 'line', label: t('dashboard.spark.prev'), data: prev, borderColor: tokenColor('text2'), borderWidth: 1.5,
+            borderDash: [3, 3], pointRadius: 0, tension: 0.3, spanGaps: false, order: 1 }] : []),
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (item) => `${item.dataset.label}: ${fmt.unit(item.parsed.y, unit, 0)}` } },
+        },
+        scales: { x: { display: false }, y: { display: false, beginAtZero: true } },
+      },
+    }, { label: t(hasPrev ? 'dashboard.spark.altPrev' : 'dashboard.spark.alt', { label: u.label, from: fmt.month(win.from), to: fmt.month(win.to) }) }));
+  }
+  return out;
 }
 
 // Effizienzklasse → Badge-Tönung (gut=success … schlecht=danger)

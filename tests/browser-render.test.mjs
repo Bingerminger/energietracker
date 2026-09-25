@@ -684,7 +684,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['pv_einspeisung']);
     await new Promise(r => setTimeout(r, 400));
     const headsOf = (tbl) => tbl ? [...tbl.querySelectorAll('thead th')].map(th => th.textContent) : [];
-    const monthTbl = [...view.querySelectorAll('.table')].find(tb => headsOf(tb)[0] === 'Monat');
+    // v2.16.0 — Datentabellen der Diagramme beginnen ebenfalls mit „Monat“; gemeint ist die Monatstabelle
+    const monthTbl = [...view.querySelectorAll('.table')].find(tb => headsOf(tb)[0] === 'Monat' && !tb.closest('.chart-data'));
     const heads = headsOf(monthTbl);
     const cHeads = headsOf(view.querySelector('.contracts-table'));
     t('utility(pv_einspeisung): Untertitel Einspeisung', view.textContent.includes('Einspeisung · Vergütung'));
@@ -750,7 +751,8 @@ async function renderView(modPath, params = [], ctx = {}) {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
     await new Promise(r => setTimeout(r, 700));
     const [mc] = chartOn('month-chart');
-    const ds = mc?.config?.data?.datasets?.[0];
+    // v2.16.0 — vorn steht das Vorjahr; das laufende Jahr trägt Farben als Funktion
+    const ds = (mc?.config?.data?.datasets || []).find(d => typeof d.backgroundColor === 'function');
     const months = mc?.config?.data?.labels || [];
     const rows = [...view.querySelectorAll('.table tbody tr')];
     const partialRow = rows.find(r => /^\d+ \/ \d+$/.test(r.children[1]?.textContent.trim() || ''));
@@ -820,7 +822,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     await new Promise(r => setTimeout(r, 400));
     const [tc] = chartOn('temp-chart');
     const labels = (tc?.config?.data?.datasets || []).map(d => d.label);
-    t('temperatures: Reihen übersetzt (bis v2.14 fest „Max/ø/Min“)', labels.join() === 'Maximum,Mittel,Minimum', labels.join());
+    t('temperatures: Reihen übersetzt (bis v2.14 fest „Max/ø/Min“)', [...labels].sort().join() === 'Maximum,Minimum,Mittel', labels.join());
     t('temperatures: Monatswerte als Tabelle', view.querySelectorAll('[data-role="temp-chart-data"] tbody tr').length > 0);
   } catch (e) { t('temperatures: F1', false, e.message); }
 
@@ -834,6 +836,78 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('forecast: Verlauf und Prognose als Tabelle', view.querySelectorAll('[data-role="fc-chart-data"] tbody tr').length > 0);
     t('forecast: Kurzbeschreibung mit Zeitraum', /^Liniendiagramm: Verbrauch .+ und Prognose bis /.test(view.querySelector('#fc-chart')?.getAttribute('aria-label') || ''));
   } catch (e) { t('forecast: F1', false, e.message); }
+
+  // ── 18. v2.16.0 — Was die Rechnung weiß (F2) ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
+    await new Promise(r => setTimeout(r, 900));
+    const [bc] = chartOn('balance-chart');
+    const bds = bc?.config?.data?.datasets || [];
+    t('utility(gas): Saldo-Verlauf mit Kosten und Bezahltem', bds.length === 2 && bds.every(d => d.data.length >= 2)
+      && !!view.querySelector('.balance-path details.chart-data tbody tr') && /am Ende (Guthaben|Nachzahlung)/.test(view.querySelector('#balance-chart')?.getAttribute('aria-label') || ''),
+      view.querySelector('#balance-chart')?.getAttribute('aria-label'));
+    const [mc] = chartOn('month-chart');
+    const mds = mc?.config?.data?.datasets || [];
+    t('utility(gas): Vorjahr im Monatschart, links (order)', /zum Vergleich/.test(mds[0]?.label || '') && mds[0].order < (mds.find(d => typeof d.backgroundColor === 'function')?.order ?? 0),
+      mds.map(d => `${d.label}:${d.order}`).join(' | '));
+    t('utility(gas): Monatstabelle mit Spalte „bereinigt“', [...view.querySelectorAll('.table thead th')].some(th => /bereinigt/.test(th.textContent)));
+    const btn = view.querySelector('[data-chart-mode="adjusted"]');
+    btn?.click();
+    await new Promise(r => setTimeout(r, 200));
+    const [mc2] = chartOn('month-chart');
+    const labels2 = (mc2?.config?.data?.datasets || []).map(d => d.label);
+    t('utility(gas): Umschalter „Witterungsbereinigt“ zeichnet bereinigt, ohne Temperatur', !!btn && btn.getAttribute('aria-pressed') === 'true'
+      && labels2.some(l => /witterungsbereinigt/.test(l)) && !labels2.some(l => /Temperatur/.test(l))
+      && /Normaljahr/.test(view.querySelector('[data-role="month-chart-note"]')?.textContent || ''), labels2.join(' | '));
+    const adjVals = (mc2?.config?.data?.datasets || []).find(d => /witterungsbereinigt/.test(d.label))?.data || [];
+    const { api: apiMod } = await import(`${ROOT}/api.js`);
+    const gm = await apiMod.meters('gas');
+    const cons = await apiMod.meterConsumption('gas', gm[0].id);
+    const yr = Math.max(...(cons.monthly || []).map(m => m.year));
+    const want = (cons.monthly || []).filter(m => m.year === yr).map(m => m.heat_adjusted ?? null);
+    t('utility(gas): bereinigt heißt heat_adjusted (Heizmodell), nicht das Altfeld', JSON.stringify(adjVals) === JSON.stringify(want), `${JSON.stringify(adjVals)} vs ${JSON.stringify(want)}`);
+  } catch (e) { t('utility(gas): F2', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);
+    await new Promise(r => setTimeout(r, 700));
+    t('utility(strom): keine Bereinigung ohne Heizbezug', !view.querySelector('[data-chart-mode]')
+      && ![...view.querySelectorAll('.table thead th')].some(th => /bereinigt/.test(th.textContent)));
+  } catch (e) { t('utility(strom): F2', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['pv_erzeugung']);
+    await new Promise(r => setTimeout(r, 900));
+    const [pc] = chartOn('pv-flow-chart');
+    const pds = pc?.config?.data?.datasets || [];
+    t('utility(pv_erzeugung): Energiefluss gestapelt mit Netzbezug', pds.length === 3 && pds.filter(d => d.stack === 'pv').length === 2
+      && pds.some(d => d.type === 'line') && pc.config.options.scales.y.stacked === true
+      && /Monaten mit Daten aller drei Zähler/.test(view.querySelector('#pv-flow-chart')?.getAttribute('aria-label') || ''),
+      view.querySelector('#pv-flow-chart')?.getAttribute('aria-label'));
+    // Die Teile ergeben das Ganze: erzeugt = selbst genutzt + eingespeist (nur gedeckte Monate)
+    const nums = ((view.querySelector('#pv-flow-chart')?.getAttribute('aria-label') || '').match(/[\d.]+(?= kWh)/g) || []).map(s => Number(s.replace(/\./g, '')));
+    t('utility(pv_erzeugung): Kurzbeschreibung — erzeugt = selbst genutzt + eingespeist', nums.length >= 3 && Math.abs(nums[0] - nums[1] - nums[2]) <= 2, nums.join(' | '));
+  } catch (e) { t('utility(pv_erzeugung): F2', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/dashboard.js`);
+    await new Promise(r => setTimeout(r, 900));
+    const sparks = [...view.querySelectorAll('canvas[data-spark]')];
+    t('dashboard: kleine Vielfache — ein Verlauf je Karte', sparks.length >= 3 && sparks.every(c => chartOn(c.id).length || (global.Chart.instances || []).some(i => i.canvas === c && !i.destroyed)),
+      `${sparks.length} Karten`);
+    const [tc] = chartOn('dash-chart');
+    const tl = (tc?.config?.data?.datasets || []).map(d => d.label);
+    t('dashboard: „Energie gesamt“ gestapelt, ohne Wasser und PV', !!tc && tc.config.options.scales.y.stacked === true && tl.length >= 2
+      && !tl.some(l => /Wasser|PV/.test(l)) && /Energie gesamt/.test(view.querySelector('#dash-chart')?.closest('.card')?.textContent || ''), tl.join(', '));
+  } catch (e) { t('dashboard: F2', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/temperatures.js`);
+    await new Promise(r => setTimeout(r, 400));
+    const [tc] = chartOn('temp-chart');
+    const max = (tc?.config?.data?.datasets || []).find(d => d.label === 'Maximum');
+    t('temperatures: Spanne Min–Max als Band', !!max && max.fill === '-1');
+  } catch (e) { t('temperatures: F2', false, e.message); }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);

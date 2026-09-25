@@ -147,7 +147,7 @@
       }
     },
     "allLink": "tout",
-    "chart": { "title": "Consommation sur {months} mois (toutes les énergies)", "altList": "Graphique linéaire : consommation des {months} derniers mois pour {list}" },
+    "chart": { "totalTitle": "Énergie totale : {months} derniers mois (kWh)", "totalNote": "Uniquement ce qui s'additionne : la consommation en kWh. L'eau et le photovoltaïque figurent dans leurs cartes.", "totalTip": "Total : {value}", "totalAlt": "Diagramme en barres empilées : consommation d'énergie des {months} derniers mois pour {list}, {total} au total.", "totalColumn": "Total (kWh)" },
     "card": { "meters": "Compteurs", "details": "Détails", "window": "Période : {from} – {to}", "partial": "{month} : {days} jours sur {total}" },
     "groups": { "summary": "Groupes ({count})" },
     "kpi": {
@@ -182,6 +182,11 @@
       "title": "Bienvenue dans Energietracker",
       "text": "Saisissez vos relevés — l’application en tire consommation, coûts, solde des acomptes et prévision. Ou voyez d’abord le résultat avec des données d’exemple.",
       "demo": "Essayer avec des données d’exemple"
+    },
+    "spark": {
+      "prev": "Un an plus tôt",
+      "alt": "Diagramme en barres : {label} par mois de {from} à {to}.",
+      "altPrev": "Diagramme en barres : {label} par mois de {from} à {to} ; la courbe montre les mêmes mois un an plus tôt."
     }
   },
   "readingsEntry": {
@@ -336,7 +341,14 @@
       "priceIncrease": "Hausse de prix à partir du {date} : {what}.",
       "piWorking": "prix de l’énergie {from} → {to} {minor}/kWh",
       "piBase": "abonnement {from} → {to} {cur}/mois",
-      "priceIncreaseDe": "D’ici là, un droit de résiliation exceptionnel s’applique à la date de la hausse (§ 41 al. 5 EnWG)."
+      "priceIncreaseDe": "D’ici là, un droit de résiliation exceptionnel s’applique à la date de la hausse (§ 41 al. 5 EnWG).",
+      "pathTitle": "Coûts et acomptes sur la période de facturation",
+      "pathCost": "Coûts cumulés",
+      "pathPaid": "Payé : acomptes et paiements exceptionnels",
+      "pathBalance": "Solde",
+      "pathEstimated": "estimé",
+      "pathNote": "En pointillés : estimé ; les points creux sont après aujourd'hui. L'écart entre les courbes est le solde, à la fin figure la facture attendue.",
+      "pathAlt": "Graphique linéaire : coûts et paiements cumulés de {from} à {to} ; à la fin {result}."
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -383,7 +395,8 @@
       "estimatedLegend": "≈ le mois contient des jours estimés — après le dernier stock connu (livraison « plein complet » ou relevé).",
       "colRevenue": "Revenu {cur}",
       "colCo2Avoided": "CO₂ évité kg",
-      "partialLegend": "« 14 / 31 » dans les jours : le mois n'est relevé qu'en partie ; les tendances ne le prennent pas en compte."
+      "partialLegend": "« 14 / 31 » dans les jours : le mois n'est relevé qu'en partie ; les tendances ne le prennent pas en compte.",
+      "colAdjusted": "corrigé"
     },
     "readingsTable": {
       "emptyTitle": "Aucun relevé",
@@ -440,7 +453,7 @@
       "chartAnchors": "Stock connu",
       "chartAlt": "Évolution du stock de la cuve en {year}"
     },
-    "chart": { "temp": "température moyenne", "alt": "Diagramme en barres : consommation mensuelle et température moyenne", "altSummary": "Diagramme en barres : {label} {year} par mois, {total} au total ; le plus en {maxMonth} ({max}), le moins en {minMonth} ({min})." },
+    "chart": { "temp": "température moyenne", "alt": "Diagramme en barres : consommation mensuelle et température moyenne", "altSummary": "Diagramme en barres : {label} {year} par mois, {total} au total ; le plus en {maxMonth} ({max}), le moins en {minMonth} ({min}).", "prevYear": "{year} pour comparaison", "adjustedLabel": "{label} corrigé du climat ({unit})", "measuredValue": "Mesuré : {value}", "deviceSwap": "Changement de compteur ce mois-ci", "altSummaryAdjusted": "Diagramme en barres : {label} {year} par mois, corrigé du climat, {total} au total ; le plus en {maxMonth} ({max}), le moins en {minMonth} ({min}).", "altPrev": "Pour comparaison {year} : {total} sur les mêmes {months} mois.", "adjustedNote": "Corrigé du climat : ramené à une année normale sur votre site (modèle de chauffage). La comparaison avec l'année précédente montre ainsi si vous avez économisé — pas si l'hiver était doux.", "modeLabel": "Affichage", "modeMeasured": "Mesuré", "modeAdjusted": "Corrigé du climat" },
     "readingModal": {
       "titleEdit": "Modifier le relevé · {label}",
       "titleNew": "Nouveau relevé · {label}",
@@ -546,7 +559,17 @@
       "noReading": "Ce compteur n’a pas encore de relevé. Les valeurs mensuelles naissent de l’écart entre deux relevés.",
       "oneReading": "Il n’y a encore qu’un relevé. Les valeurs mensuelles naissent de l’écart entre deux relevés — ajoutez-en un deuxième, par exemple celui de votre dernière facture."
     },
-    "yearPills": "Année"
+    "yearPills": "Année",
+    "pvFlow": {
+      "title": "Flux d'énergie {year}",
+      "note": "Autoconsommation et injection font ensemble la production ; la courbe montre ce qui a malgré tout été soutiré du réseau.",
+      "generation": "Production (kWh)",
+      "self": "Autoconsommé",
+      "feedIn": "Injecté",
+      "grid": "Soutiré du réseau",
+      "generationTip": "Produit : {value}",
+      "alt": "Diagramme en barres : flux d'énergie {year} — sur {months} mois avec des données des trois compteurs, produit {generation}, dont autoconsommé {self} et injecté {feedIn} ; soutiré du réseau {grid}."
+    }
   },
   "contracts": {
     "priceGroup": {

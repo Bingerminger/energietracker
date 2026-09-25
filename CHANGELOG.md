@@ -6,6 +6,81 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.16.0] — 2026-09-25 — Was die Rechnung weiß
+
+MINOR-Release, zweiter Teil von Paket F des Gesamtreviews („Auswertungen, die
+man sieht“, F1016): Die Diagramme zeigen, was die Rechnung längst wusste. Mit
+diesem Release sind die Pakete A bis F umgesetzt. **Kein Schema-Wechsel**
+(bleibt 1.6.0); die API wächst additiv um ein Feld, nichts entfällt.
+
+### ⚠️ Für bestehende Installationen
+
+- **Die Übersicht zeigt kleine Vielfache.** Jede Karte trägt ihren eigenen
+  Verlauf mit dem Vorjahr; darunter steht statt des gemeinsamen
+  Linienverlaufs „Energie gesamt (kWh)“ als gestapelte Säulen — nur der
+  Verbrauch in kWh, Wasser und PV stehen in ihren Karten.
+
+### Added
+
+- **Saldo-Verlauf (Review FE-31):** Unter den Zahlen der Saldo-Karte stehen die
+  aufsummierten Kosten und das Bezahlte (Abschläge, Sonderzahlungen) über den
+  Abrechnungszeitraum — gestrichelt, wo geschätzt ist, hohle Punkte nach heute.
+  Der Abstand der Linien ist der Saldo, der letzte Punkt die erwartete
+  Abrechnung; die Zahlen stehen als Tabelle darunter.
+- **Gemessen oder witterungsbereinigt (Review FE-19):** Heizarten schalten im
+  Monatschart um. Bereinigt wird nach dem Heizmodell auf ein Normaljahr am
+  Standort (`heat_adjusted`); dann zeigt der Vergleich mit dem Vorjahr, ob
+  gespart wurde, nicht ob der Winter mild war. Die Monatstabelle hat dafür die
+  Spalte „bereinigt“ — bis v2.15 stand die Bereinigung nur im PDF.
+- **Vorjahr im Monatschart (FE-31):** Neben jedem Monat steht derselbe Monat
+  des Vorjahres als Umriss; die Kurzbeschreibung nennt dessen Summe. Der
+  Tooltip nennt einen Zählertausch im Monat.
+- **PV-Energiefluss (Review FE-17, FE-31):** Beide PV-Seiten zeigen je Monat,
+  wohin der Sonnenstrom ging — selbst genutzt und eingespeist, gestapelt zur
+  Erzeugung — und als Linie, was trotzdem aus dem Netz kam.
+- **Kleine Vielfache auf der Übersicht (FE-17):** ein Mini-Verlauf je Karte
+  über ihr Fenster, das Vorjahr als gepunktete Linie.
+- **API (additiv):** `GET /api/utility/{u}/meters/{id}/contract-status` trägt
+  am laufenden Vertrag `balance_path` — dieselbe Rechnung wie
+  `projected_end_balance` als Monatsreihe (`ym`, `cost`, `paid`, `balance`,
+  `estimated`, `future`); andere Verträge `null`.
+
+### Changed
+
+- **„Energie gesamt (kWh)“** ersetzt den Zwei-Achsen-Verlauf der Übersicht, in
+  dem Strom plattgedrückt am Boden lag (Review FE-17).
+- **Temperaturen:** Die Spanne vom Minimum zum Maximum ist eine gefüllte
+  Fläche, das Mittel die Linie darin (FE-31).
+
+### Migration
+
+Keine. Schema bleibt 1.6.0.
+
+### Tests
+
+- `BalancePathTest` (neu, +3): Der letzte Punkt der Reihe ist der erwartete
+  Endsaldo; Abschläge wachsen nach Plan, ein gemessener Monat kostet
+  Arbeitspreis plus Grundpreis, eine Rückzahlung vermindert das Bezahlte in
+  ihrem Monat, nur der laufende Vertrag trägt eine Reihe.
+- Frontend-API-Shape 62/62 (+1): `balance_path` endet beim erwarteten Endsaldo.
+- Browser-Render 189/189 (+11): Saldo-Verlauf, Vorjahr links, Umschalter mit
+  `heat_adjusted` statt des Altfelds, Spalte „bereinigt“ nur bei Heizarten,
+  Energiefluss mit „erzeugt = selbst genutzt + eingespeist“, kleine Vielfache,
+  „Energie gesamt“ ohne Wasser und PV, Temperaturband.
+- 459 Testmethoden. 14 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Ein Diagramm rechnet wie die Zahl daneben:** Der Saldo-Verlauf entsteht
+  im Backend in derselben Funktion wie der erwartete Saldo.
+- **Eine Summe nur über vergleichbare Monate** — sonst ergeben die Teile das
+  Ganze nicht.
+- **Bei Chart.js ordnet `order` auch die Balken.**
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
+---
+
 ## [2.15.0] — 2026-09-25 — Diagramme, die stimmen
 
 MINOR-Release, erster Teil von Paket F des Gesamtreviews („Auswertungen, die

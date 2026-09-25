@@ -147,7 +147,7 @@
       }
     },
     "allLink": "alle",
-    "chart": { "title": "{months}-Monats-Verbrauch (alle Verbrauchsarten)", "altList": "Liniendiagramm: Verbrauch der letzten {months} Monate für {list}" },
+    "chart": { "totalTitle": "Energie gesamt: letzte {months} Monate (kWh)", "totalNote": "Nur, was sich addieren lässt: Verbrauch in kWh. Wasser und PV stehen in ihren Karten.", "totalTip": "Zusammen: {value}", "totalAlt": "Balkendiagramm, gestapelt: Energieverbrauch der letzten {months} Monate für {list}, zusammen {total}.", "totalColumn": "Zusammen (kWh)" },
     "card": { "meters": "Zähler", "details": "Details", "window": "Zeitraum: {from} – {to}", "partial": "{month}: {days} von {total} Tagen" },
     "groups": { "summary": "Gruppen ({count})" },
     "kpi": {
@@ -182,6 +182,11 @@
       "title": "Willkommen beim Energietracker",
       "text": "Trag deine Zählerstände ein — die App rechnet daraus Verbrauch, Kosten, Abschlags-Saldo und Prognose. Oder schau zuerst mit Beispieldaten, wie das aussieht.",
       "demo": "Mit Beispieldaten ausprobieren"
+    },
+    "spark": {
+      "prev": "Ein Jahr zuvor",
+      "alt": "Balkendiagramm: {label} je Monat von {from} bis {to}.",
+      "altPrev": "Balkendiagramm: {label} je Monat von {from} bis {to}; die Linie zeigt dieselben Monate ein Jahr zuvor."
     }
   },
   "readingsEntry": {
@@ -336,7 +341,14 @@
       "priceIncrease": "Preiserhöhung ab {date}: {what}.",
       "piWorking": "Arbeitspreis {from} → {to} {minor}/kWh",
       "piBase": "Grundpreis {from} → {to} {cur}/Monat",
-      "priceIncreaseDe": "Bis dahin besteht ein Sonderkündigungsrecht zum Zeitpunkt der Erhöhung (§ 41 Abs. 5 EnWG)."
+      "priceIncreaseDe": "Bis dahin besteht ein Sonderkündigungsrecht zum Zeitpunkt der Erhöhung (§ 41 Abs. 5 EnWG).",
+      "pathTitle": "Kosten und Abschläge im Abrechnungszeitraum",
+      "pathCost": "Kosten, aufsummiert",
+      "pathPaid": "Bezahlt: Abschläge und Sonderzahlungen",
+      "pathBalance": "Saldo",
+      "pathEstimated": "geschätzt",
+      "pathNote": "Gestrichelt: geschätzt; hohle Punkte liegen nach heute. Der Abstand der Linien ist der Saldo, am Ende steht die erwartete Abrechnung.",
+      "pathAlt": "Liniendiagramm: aufsummierte Kosten und Zahlungen von {from} bis {to}; am Ende {result}."
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -383,7 +395,8 @@
       "estimatedLegend": "≈ Monat enthält geschätzte Tage — nach dem letzten bekannten Bestand (Lieferung „bis voll getankt“ oder Peilstand).",
       "colRevenue": "Erlös {cur}",
       "colCo2Avoided": "CO₂ vermieden kg",
-      "partialLegend": "„14 / 31“ bei den Tagen: Der Monat ist nur teilweise erfasst; Trends lassen ihn aus."
+      "partialLegend": "„14 / 31“ bei den Tagen: Der Monat ist nur teilweise erfasst; Trends lassen ihn aus.",
+      "colAdjusted": "bereinigt"
     },
     "readingsTable": {
       "emptyTitle": "Keine Ablesungen",
@@ -440,7 +453,7 @@
       "chartAnchors": "Bekannter Bestand",
       "chartAlt": "Verlauf des Tankbestands {year}"
     },
-    "chart": { "temp": "ø Temperatur", "alt": "Balkendiagramm: Monatsverbrauch und Durchschnittstemperatur", "altSummary": "Balkendiagramm: {label} {year} je Monat, zusammen {total}; am meisten im {maxMonth} ({max}), am wenigsten im {minMonth} ({min})." },
+    "chart": { "temp": "ø Temperatur", "alt": "Balkendiagramm: Monatsverbrauch und Durchschnittstemperatur", "altSummary": "Balkendiagramm: {label} {year} je Monat, zusammen {total}; am meisten im {maxMonth} ({max}), am wenigsten im {minMonth} ({min}).", "prevYear": "{year} zum Vergleich", "adjustedLabel": "{label} witterungsbereinigt ({unit})", "measuredValue": "Gemessen: {value}", "deviceSwap": "Zählertausch in diesem Monat", "altSummaryAdjusted": "Balkendiagramm: {label} {year} je Monat, witterungsbereinigt, zusammen {total}; am meisten im {maxMonth} ({max}), am wenigsten im {minMonth} ({min}).", "altPrev": "Zum Vergleich {year}: {total} in denselben {months} Monaten.", "adjustedNote": "Witterungsbereinigt: umgerechnet auf ein Normaljahr am Standort (Heizmodell). So zeigt der Vergleich mit dem Vorjahr, ob gespart wurde — nicht, ob der Winter mild war.", "modeLabel": "Darstellung", "modeMeasured": "Gemessen", "modeAdjusted": "Witterungsbereinigt" },
     "readingModal": {
       "titleEdit": "Ablesung bearbeiten · {label}",
       "titleNew": "Neue Ablesung · {label}",
@@ -546,7 +559,17 @@
       "noReading": "Für diesen Zähler gibt es noch keinen Stand. Die Monatswerte entstehen aus der Differenz zweier Stände.",
       "oneReading": "Es gibt erst einen Stand. Die Monatswerte entstehen aus der Differenz zweier Stände — trag einen zweiten ein, etwa den von deiner letzten Rechnung."
     },
-    "yearPills": "Jahr"
+    "yearPills": "Jahr",
+    "pvFlow": {
+      "title": "Energiefluss {year}",
+      "note": "Selbst genutzt und eingespeist ergeben zusammen die Erzeugung; die Linie zeigt, was trotzdem aus dem Netz kam.",
+      "generation": "Erzeugung (kWh)",
+      "self": "Selbst genutzt",
+      "feedIn": "Eingespeist",
+      "grid": "Aus dem Netz",
+      "generationTip": "Erzeugt: {value}",
+      "alt": "Balkendiagramm: Energiefluss {year} — in {months} Monaten mit Daten aller drei Zähler erzeugt {generation}, davon selbst genutzt {self} und eingespeist {feedIn}; aus dem Netz {grid}."
+    }
   },
   "contracts": {
     "priceGroup": {

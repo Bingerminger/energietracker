@@ -147,7 +147,7 @@
       }
     },
     "allLink": "alle",
-    "chart": { "title": "Verbruik over {months} maanden (alle energieën)", "altList": "Lijndiagram: verbruik van de laatste {months} maanden voor {list}" },
+    "chart": { "totalTitle": "Totale energie: laatste {months} maanden (kWh)", "totalNote": "Alleen wat optelbaar is: verbruik in kWh. Water en zonnestroom staan in hun kaarten.", "totalTip": "Samen: {value}", "totalAlt": "Gestapeld staafdiagram: energieverbruik van de laatste {months} maanden voor {list}, samen {total}.", "totalColumn": "Samen (kWh)" },
     "card": { "meters": "Meters", "details": "Details", "window": "Periode: {from} – {to}", "partial": "{month}: {days} van {total} dagen" },
     "groups": { "summary": "Groepen ({count})" },
     "kpi": {
@@ -182,6 +182,11 @@
       "title": "Welkom bij Energietracker",
       "text": "Voer je meterstanden in — de app maakt er verbruik, kosten, voorschotsaldo en prognose van. Of bekijk eerst hoe dat eruitziet met voorbeeldgegevens.",
       "demo": "Proberen met voorbeeldgegevens"
+    },
+    "spark": {
+      "prev": "Een jaar eerder",
+      "alt": "Staafdiagram: {label} per maand van {from} tot {to}.",
+      "altPrev": "Staafdiagram: {label} per maand van {from} tot {to}; de lijn toont dezelfde maanden een jaar eerder."
     }
   },
   "readingsEntry": {
@@ -336,7 +341,14 @@
       "priceIncrease": "Prijsverhoging vanaf {date}: {what}.",
       "piWorking": "energieprijs {from} → {to} {minor}/kWh",
       "piBase": "vastrecht {from} → {to} {cur}/maand",
-      "priceIncreaseDe": "Tot dan geldt een bijzonder opzegrecht per de datum van de verhoging (§ 41 lid 5 EnWG)."
+      "priceIncreaseDe": "Tot dan geldt een bijzonder opzegrecht per de datum van de verhoging (§ 41 lid 5 EnWG).",
+      "pathTitle": "Kosten en voorschotten in de afrekenperiode",
+      "pathCost": "Kosten, opgeteld",
+      "pathPaid": "Betaald: voorschotten en bijzondere betalingen",
+      "pathBalance": "Saldo",
+      "pathEstimated": "geschat",
+      "pathNote": "Gestippeld: geschat; open punten liggen na vandaag. De afstand tussen de lijnen is het saldo, aan het eind staat de verwachte afrekening.",
+      "pathAlt": "Lijndiagram: opgetelde kosten en betalingen van {from} tot {to}; aan het eind {result}."
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -383,7 +395,8 @@
       "estimatedLegend": "≈ maand bevat geschatte dagen — na de laatst bekende voorraad (levering „tot vol getankt” of peilstand).",
       "colRevenue": "Opbrengst {cur}",
       "colCo2Avoided": "CO₂ vermeden kg",
-      "partialLegend": "„14 / 31” bij de dagen: de maand is maar deels vastgelegd; trends laten hem weg."
+      "partialLegend": "„14 / 31” bij de dagen: de maand is maar deels vastgelegd; trends laten hem weg.",
+      "colAdjusted": "gecorrigeerd"
     },
     "readingsTable": {
       "emptyTitle": "Geen meterstanden",
@@ -440,7 +453,7 @@
       "chartAnchors": "Bekende voorraad",
       "chartAlt": "Verloop van de tankvoorraad in {year}"
     },
-    "chart": { "temp": "gemiddelde temperatuur", "alt": "Staafdiagram: maandverbruik en gemiddelde temperatuur", "altSummary": "Staafdiagram: {label} {year} per maand, samen {total}; het meest in {maxMonth} ({max}), het minst in {minMonth} ({min})." },
+    "chart": { "temp": "gemiddelde temperatuur", "alt": "Staafdiagram: maandverbruik en gemiddelde temperatuur", "altSummary": "Staafdiagram: {label} {year} per maand, samen {total}; het meest in {maxMonth} ({max}), het minst in {minMonth} ({min}).", "prevYear": "{year} ter vergelijking", "adjustedLabel": "{label} weergecorrigeerd ({unit})", "measuredValue": "Gemeten: {value}", "deviceSwap": "Meterwissel deze maand", "altSummaryAdjusted": "Staafdiagram: {label} {year} per maand, weergecorrigeerd, samen {total}; het meest in {maxMonth} ({max}), het minst in {minMonth} ({min}).", "altPrev": "Ter vergelijking {year}: {total} in dezelfde {months} maanden.", "adjustedNote": "Weergecorrigeerd: omgerekend naar een normaal jaar op je locatie (verwarmingsmodel). Zo laat de vergelijking met vorig jaar zien of je hebt bespaard — niet of de winter zacht was.", "modeLabel": "Weergave", "modeMeasured": "Gemeten", "modeAdjusted": "Weergecorrigeerd" },
     "readingModal": {
       "titleEdit": "Meterstand bewerken · {label}",
       "titleNew": "Nieuwe meterstand · {label}",
@@ -546,7 +559,17 @@
       "noReading": "Deze meter heeft nog geen stand. Maandwaarden ontstaan uit het verschil tussen twee standen.",
       "oneReading": "Er is pas één stand. Maandwaarden ontstaan uit het verschil tussen twee standen — voer een tweede in, bijvoorbeeld die van je laatste rekening."
     },
-    "yearPills": "Jaar"
+    "yearPills": "Jaar",
+    "pvFlow": {
+      "title": "Energiestroom {year}",
+      "note": "Eigen verbruik en teruglevering vormen samen de opwek; de lijn toont wat toch van het net kwam.",
+      "generation": "Opwek (kWh)",
+      "self": "Zelf gebruikt",
+      "feedIn": "Teruggeleverd",
+      "grid": "Van het net",
+      "generationTip": "Opgewekt: {value}",
+      "alt": "Staafdiagram: energiestroom {year} — in {months} maanden met gegevens van alle drie de meters opgewekt {generation}, waarvan zelf gebruikt {self} en teruggeleverd {feedIn}; van het net {grid}."
+    }
   },
   "contracts": {
     "priceGroup": {
