@@ -82,7 +82,10 @@
     "efficiency": {
       "title": "Effizienz",
       "livingArea": "Wohnfläche {area} m²",
-      "perSource": "je Heizquelle · Wohnfläche {area} m²"
+      "perSource": "je Heizquelle · Wohnfläche {area} m²",
+      "certificate": "Energieausweis-nah: {value} kWh/m²·a{cls}",
+      "certificateTitle": "Heizwert, witterungsbereinigt, bezogen auf {area} m² Gebäudenutzfläche. Ein Verbrauchsausweis verlangt 36 Monate; vorhanden: {months}.",
+      "certificateAll": "Energieausweis-nah, alle Heizquellen: {value} kWh/m²·a{cls}"
     },
     "tanks": { "title": "Tank-Bestände" },
     "stromSaldo": {
@@ -97,7 +100,10 @@
       "autarky": "Autarkiequote",
       "autarkySub": "Anteil eigener Strom",
       "selfUse": "Eigenverbrauchsquote",
-      "selfUseSub": "{kwh} kWh selbst genutzt"
+      "selfUseSub": "{kwh} kWh selbst genutzt",
+      "savings": "Ersparnis Eigenverbrauch",
+      "savingsSub": "{kwh} kWh selbst genutzt × Bezugspreis",
+      "coveredSub": "über {months} Monate mit Daten aller drei Zähler"
     },
     "recommendations": { "title": "Top-Empfehlungen" },
     "reminders": {
@@ -194,7 +200,9 @@
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Abschläge bis {date}",
-      "balanceShort": "Saldo {value}"
+      "balanceShort": "Saldo {value}",
+      "co2AvoidedGenTitle": "Vereinfachte Modellrechnung: erzeugte kWh × Strommix-CO₂-Faktor — verdrängter Netzstrom, Einspeisung eingeschlossen. PV-Lebenszyklus nicht berücksichtigt.",
+      "generation": "Erzeugung"
     },
     "cards": {
       "contracts": "📑 Verträge & Abschläge",
@@ -311,7 +319,9 @@
       "colMa3Title": "Gleitender 3-Monats-Durchschnitt",
       "colMa6": "MA·6",
       "colMa6Title": "Gleitender 6-Monats-Durchschnitt",
-      "total": "Gesamt"
+      "total": "Gesamt",
+      "estimatedTitle": "{days} Tage geschätzt (nach dem letzten bekannten Bestand)",
+      "estimatedLegend": "≈ Monat enthält geschätzte Tage — nach dem letzten bekannten Bestand (Lieferung „bis voll getankt“ oder Peilstand)."
     },
     "readingsTable": {
       "emptyTitle": "Keine Ablesungen",
@@ -338,14 +348,35 @@
       "colTotal": "Gesamt",
       "colSupplier": "Lieferant",
       "colNote": "Notiz",
-      "planned": "GEPLANT"
+      "planned": "GEPLANT",
+      "full": "VOLL"
     },
     "tank": {
       "noCapacity": "Keine Tankkapazität hinterlegt — beim Zähler eintragen, um die Bestandskurve zu sehen.",
       "summary": "aktuell ~{stock} {unit} / {cap} {unit} ({pct} %)",
       "remaining": "{stock} {unit} Restbestand (modelliert)",
       "ofCap": "{pct} % von {cap} {unit}",
-      "modelNote": "Der Bestand wird aus Anfangsbestand + Lieferungen − HGT-gewichtetem Verbrauch modelliert; er ist eine Schätzung, keine Tankpeilung."
+      "noteMeasured": "Verbrauch bis {date} aus bekannten Beständen gerechnet, danach geschätzt.",
+      "noteEstimated": "Bestand und Verbrauch sind aus Anfangsbestand und Lieferungen geschätzt. Genau wird es mit einer Lieferung „bis voll getankt“ oder einem Peilstand.",
+      "warnInconsistent": "Zwischen {from} und {to} passen die Stände nicht zusammen: {excess} {unit} mehr im Tank, als dort sein können. Fehlt eine Lieferung, oder ist ein Stand falsch?",
+      "warnExhausted": "Rechnerisch ist der Tank seit {date} leer. Fehlt eine Lieferung oder ein Peilstand?",
+      "warnNoCalibration": "Noch keine Verbrauchsrate: Dafür braucht es zwei bekannte Tankstände mindestens 14 Tage auseinander (Anfangsbestand, Lieferung „Bis voll getankt“, Peilstand) oder zwei Lieferungen.",
+      "warnFlat": "Für weniger als die Hälfte der Tage liegen Temperaturen vor — der Verbrauch ist gleichmäßig verteilt.",
+      "levelsTitle": "Peilstände",
+      "addLevel": "Peilstand erfassen",
+      "levelsEmpty": "Noch kein Peilstand. Ein abgelesener Stand macht die Rechnung bis zu diesem Tag genau.",
+      "levelDeleteConfirm": "Peilstand vom {date} löschen?",
+      "levelDeleted": "Peilstand gelöscht",
+      "levelSaved": "Peilstand gespeichert",
+      "levelDate": "Datum",
+      "levelValue": "Stand ({unit})",
+      "levelHint": "Am Tankanzeiger, mit dem Peilstab oder vom Füllstandssensor abgelesen.",
+      "levelNote": "Notiz",
+      "levelRange": "Bitte einen Stand zwischen 0 und {cap} {unit} eingeben.",
+      "chartMeasured": "Bestand ({unit}), gerechnet",
+      "chartEstimated": "Bestand ({unit}), geschätzt",
+      "chartAnchors": "Bekannter Bestand",
+      "chartAlt": "Verlauf des Tankbestands {year}"
     },
     "chart": { "temp": "ø Temperatur", "alt": "Balkendiagramm: Monatsverbrauch und Durchschnittstemperatur" },
     "readingModal": {
@@ -375,7 +406,9 @@
       "planned": "Geplante (noch nicht erfolgte) Lieferung",
       "validation": "Datum und positive Menge sind Pflicht.",
       "savedNew": "Lieferung gespeichert",
-      "savedEdit": "Lieferung aktualisiert"
+      "savedEdit": "Lieferung aktualisiert",
+      "fillToFull": "Bis voll getankt",
+      "fillToFullHint": "Der Tank war danach voll. Damit kennt die App den Bestand an diesem Tag und rechnet den Verbrauch bis dahin genau."
     },
     "confirm": {
       "deleteReading": "Ablesung vom {date} wirklich löschen?",
@@ -684,7 +717,11 @@
       "saved": "Zähler gespeichert",
       "digits": "Stellen des Zählwerks (vor dem Komma)",
       "digitsHint": "Nur nötig, wenn das Zählwerk nach 99999 wieder bei 0 beginnen kann: Dann erkennt die Auswertung den Überlauf, statt einen Rückgang zu melden. Leer = unbekannt.",
-      "activeHint": "Abwählen, wenn der Zähler außer Betrieb ist: Seine Historie zählt weiter in allen Summen, er erscheint aber nicht mehr in der Erfassung und löst keine Warnungen aus."
+      "activeHint": "Abwählen, wenn der Zähler außer Betrieb ist: Seine Historie zählt weiter in allen Summen, er erscheint aber nicht mehr in der Erfassung und löst keine Warnungen aus.",
+      "initialStockPrice": "Preis des Anfangsbestands (ct/{unit})",
+      "initialStockPriceHint": "Leer lassen, dann gilt der Preis der ersten Lieferung.",
+      "heatSource": "Heizstrom (Wärmepumpe)",
+      "heatSourceHint": "Dieser Stromzähler misst die Heizung: Er zählt in der Effizienzkennzahl mit."
     },
     "replace": {
       "title": "Zählertausch: {name}",
@@ -788,12 +825,12 @@
     },
     "field": {
       "hdd_base_temp": { "label": "HGT-Basistemperatur", "hint": "Heizgrenze — Tage darunter zählen als Heiztage." },
-      "co2_gas": { "label": "CO₂ Gas" },
-      "co2_strom": { "label": "CO₂ Strom" },
+      "co2_gas": { "label": "CO₂ Gas", "hint": "BAFA: 201 g/kWh, bezogen auf den Heizwert. Die App zählt Gas nach Brennwert (Zustandszahl × Brennwert), daher × 0,906 = 182." },
+      "co2_strom": { "label": "CO₂ Strom", "hint": "Gilt für Jahre vor dem ersten Jahreswert — ohne Jahreswerte für alle Jahre." },
       "co2_wasser": { "label": "CO₂ Wasser" },
-      "co2_fernwaerme": { "label": "CO₂ Fernwärme" },
-      "co2_heizoel": { "label": "CO₂ Heizöl" },
-      "co2_pellets": { "label": "CO₂ Pellets" },
+      "co2_fernwaerme": { "label": "CO₂ Fernwärme", "hint": "BAFA-Pauschale. Genauer ist der Wert Ihres Wärmenetzes — er steht beim Versorger." },
+      "co2_heizoel": { "label": "CO₂ Heizöl", "hint": "BAFA, bezogen auf den Heizwert — so, wie die App Heizöl rechnet." },
+      "co2_pellets": { "label": "CO₂ Pellets", "hint": "BAFA, CO₂-Äquivalente einschließlich Vorkette." },
       "billing_cycle_anchor_gas": { "label": "Stichtag Gas" },
       "billing_cycle_anchor_strom": { "label": "Stichtag Strom" },
       "billing_cycle_anchor_wasser": { "label": "Stichtag Wasser" },
@@ -801,7 +838,7 @@
       "contract_remind_days_2": { "label": "Stufe 2 — Erinnerung" },
       "contract_remind_days_3": { "label": "Stufe 3 — dringend" },
       "wasser_personen_anzahl": { "label": "Personen im Haushalt" },
-      "wasser_personen_referenz": { "label": "Referenz" },
+      "wasser_personen_referenz": { "label": "Referenz", "hint": "BDEW 2024: 122 L je Person und Tag." },
       "wasser_sparindex_gut": { "label": "Spar-Index — gut bis", "hint": "Index ≤ diesem Wert gilt als unauffällig." },
       "wasser_sparindex_warnung": { "label": "Spar-Index — Warnung ab", "hint": "Index ≥ diesem Wert zeigt Sparpotenzial an." },
       "min_days_period": { "label": "Min. Tage pro Periode" },
@@ -815,7 +852,7 @@
       "dashboard_months": { "label": "Monate auf Dashboard" },
       "alert_days_since_reading": { "label": "Warnung nach" },
       "wohnflaeche_m2": { "label": "Wohnfläche", "hint": "Beheizte Fläche — Nenner der Effizienzkennzahl." },
-      "gebaeudetyp": { "label": "Gebäudetyp", "hint": "efh = Einfam., rh = Reihenhaus, mfh = Mehrfam., whg = Wohnung." },
+      "gebaeudetyp": { "label": "Gebäudetyp", "hint": "Mehrfamilienhaus heißt: ab drei Wohnungen." },
       "heizoel_kwh_per_l": { "label": "Heizöl Energiegehalt" },
       "pellets_kwh_per_kg": { "label": "Pellets Energiegehalt" },
       "delivery_baseload_share": { "label": "Sockel-Anteil Verteilung", "hint": "Anteil des Verbrauchs als wetterunabhängige Grundlast (Rest HGT-gewichtet)." },
@@ -838,6 +875,18 @@
       "frame_ancestors": {
         "label": "Erlaubte Einbettungs-Adressen",
         "hint": "Adresse mit Schema und Port, z. B. http://homeassistant.local:8123; mehrere durch Leerzeichen trennen. Leer = nur diese Installation selbst."
+      },
+      "co2_strom_years": {
+        "label": "CO₂ Strom je Jahr",
+        "hint": "Strommix je Jahr (Umweltbundesamt). Nach dem letzten Jahr gilt dessen Wert, davor „CO₂ Strom“."
+      },
+      "beheizter_keller": {
+        "label": "Beheizter Keller",
+        "hint": "Ein-/Zweifamilien- oder Reihenhaus mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2) — für die Kennzahl nach Energieausweis."
+      },
+      "warmwasser_dezentral": {
+        "label": "Warmwasser dezentral",
+        "hint": "Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält 20 kWh/m²·a Zuschlag."
       }
     },
     "boolActive": "aktiv",
@@ -1058,7 +1107,8 @@
         "GB": "Britische Gasrechnung: Volumenkorrekturfaktor 1,02264 als Zustandszahl, Brennwert (Calorific Value) in MJ/m³. Zähler in Kubikfuß (ft³) werden nicht unterstützt.",
         "IT": "Italienische Gasrechnung: „Coefficiente C“ als Zustandszahl, PCS (Potere Calorifico Superiore) meist in GJ/Smc. Preise je Smc rechnet die Vertragsmaske in {minor}/kWh um.",
         "NL": "Niederländische Gasrechnung: Brennwert (calorische waarde) in MJ/m³ eintragen. Preise je m³ rechnet die Vertragsmaske in {minor}/kWh um."
-      }
+      },
+      "defaultHint": "Standardfaktor 11,5 kWh/m³ aktiv. Der Wert Ihres Netzes steht auf der Gasrechnung (Zustandszahl × Brennwert) — typisch sind 10,3 bis 11,1. Mit dem Standard sind kWh, Kosten und CO₂ um bis zu 20 % zu hoch."
     },
     "invalidFields": "Nicht gespeichert: Bitte die rot markierten Felder korrigieren.",
     "dayMonthInvalid": "Bitte als Tag-Monat eingeben, z. B. 01-10 für den 1. Oktober.",
@@ -1120,8 +1170,30 @@
       "colProfile": "Profil",
       "source": {
         "ember2024": "CO₂ Strom: Ember 2024, Stromerzeugungsmix (über Our World in Data)",
-        "default": "CO₂ Strom: bisheriger Standardwert der App"
+        "default": "CO₂ Strom: bisheriger Standardwert der App",
+        "uba": "CO₂ Strom: Umweltbundesamt, Strommix je Jahr"
       }
+    },
+    "co2Years": {
+      "none": "Keine Jahreswerte — für alle Jahre gilt „CO₂ Strom“.",
+      "colYear": "Jahr",
+      "invalid": "Bitte ein Jahr (1990–2100) und einen Wert zwischen 0 und 2000 g/kWh eingeben."
+    },
+    "defaultUpdates": {
+      "title": "Neuere Standardwerte verfügbar",
+      "hint": "Diese Werte stammen aus einer früheren Version. Damit sich beim Update keine Zahl von selbst ändert, sind sie geblieben. Die neuen Werte haben eine belegte Quelle.",
+      "colNew": "Neu",
+      "sources": "Quellen: BAFA-Infoblatt CO₂-Faktoren (2026), Umweltbundesamt (Strommix je Jahr), BDEW (Wasserverbrauch 2024).",
+      "apply": "Neue Werte übernehmen",
+      "applied": "Standardwerte übernommen",
+      "years": "Umweltbundesamt {from}–{to}",
+      "noYears": "ein Wert für alle Jahre"
+    },
+    "buildingTypes": {
+      "efh": "Ein-/Zweifamilienhaus",
+      "rh": "Reihenhaus",
+      "mfh": "Mehrfamilienhaus",
+      "whg": "Wohnung"
     }
   },
   "reminders": {
@@ -1534,7 +1606,13 @@
     "continued": "(Forts.)",
     "meterPageTitle": "{label} {year} — {meter}",
     "heatDemand": "Heizenergie · {label}",
-    "weatherNote": "Witterungsbereinigt: Wettereinfluss laut Heizmodell auf ein Normaljahr umgerechnet, eigene Abweichungen des Monats bleiben. Δ %: Verbrauch gegen die Erwartung bei diesem Wetter."
+    "weatherNote": "Witterungsbereinigt: Wettereinfluss laut Heizmodell auf ein Normaljahr umgerechnet, eigene Abweichungen des Monats bleiben. Δ %: Verbrauch gegen die Erwartung bei diesem Wetter.",
+    "co2Avoided": "{kg} kg vermieden",
+    "co2InGeneration": "in der Erzeugung enthalten",
+    "revenueValue": "Erlös {amount}",
+    "kpiRevenue": "Erlös gesamt",
+    "tableRevenue": "Erlös {cur}",
+    "certificate": "Energieausweis-nah: {value} kWh/m²·a (Heizwert, witterungsbereinigt, {area} m² Gebäudenutzfläche)"
   },
   "migration": {
     "warnNoSettings": "Keine Einstellungen im Backup gefunden — es gelten die Standardwerte.",
@@ -1574,7 +1652,8 @@
       "noLivingArea": "Wohnfläche nicht gesetzt — für die Effizienzklasse bitte in den Einstellungen eintragen.",
       "noHeatData": "Keine Heizenergiedaten für {year} gefunden.",
       "multipleSources": "Mehrere Heizquellen aktiv — die Klasse je Quelle ist aussagekräftiger als die kombinierte Summe. Die kombinierte Sicht ist nur bei bewusst kombiniertem Heizbetrieb (z. B. Grund- und Spitzenlast) sinnvoll.",
-      "noScale": "Für {country} ist keine Effizienzskala hinterlegt. Die Klassen A+ bis H folgen dem deutschen Gebäudeenergiegesetz und werden deshalb nicht angezeigt."
+      "noScale": "Für {country} ist keine Effizienzskala hinterlegt. Die Klassen A+ bis H folgen dem deutschen Gebäudeenergiegesetz und werden deshalb nicht angezeigt.",
+      "incompleteYear": "Für {year} liegen nicht für das ganze Jahr Daten vor — keine Klasse; die Kennzahl gilt nur für den gemessenen Zeitraum."
     },
     "forecast": {
       "tooFewMonths": "Zu wenig historische Daten (weniger als 6 Monate).",
@@ -1622,7 +1701,14 @@
       "invalidBaselineDate": "Ungültiges Datum für die Zäsur: „{date}“ — erwartet wird JJJJ-MM-TT",
       "duplicateBaselineDate": "Für den {date} ist bereits eine Zäsur eingetragen",
       "swapBeforeInstall": "Der Tausch am {date} liegt vor dem Einbau des aktuellen Geräts ({installed}).",
-      "digitsInvalid": "Stellen des Zählwerks: „{value}“ ist ungültig — erlaubt ist eine ganze Zahl von 3 bis 12 oder leer."
+      "digitsInvalid": "Stellen des Zählwerks: „{value}“ ist ungültig — erlaubt ist eine ganze Zahl von 3 bis 12 oder leer.",
+      "invalidTankLevels": "Peilstände müssen als Liste von Einträgen mit Datum und Stand übergeben werden",
+      "invalidTankLevelDate": "Ungültiges Datum für den Peilstand: „{date}“ — erwartet wird JJJJ-MM-TT",
+      "tankLevelFuture": "Der Peilstand am {date} liegt in der Zukunft",
+      "duplicateTankLevel": "Für den {date} ist bereits ein Peilstand eingetragen",
+      "tankLevelInvalid": "Peilstand „{value}“ ist ungültig — erwartet wird eine Zahl ab 0",
+      "tankLevelAboveCapacity": "Peilstand {level} liegt über der Tankkapazität {capacity}",
+      "initialPriceInvalid": "Preis des Anfangsbestands „{value}“ ist ungültig — erwartet wird eine Zahl ab 0 oder leer"
     },
     "common": {
       "unknownUtility": "Unbekannte Verbrauchsart: {utility}",
@@ -1680,7 +1766,8 @@
       "priceNegative": "Stückpreis darf nicht negativ sein",
       "meterIdMissing": "meter_id (Tank/Lager) fehlt",
       "dateFuture": "Lieferdatum liegt in der Zukunft — für geplante Lieferungen is_planned=true setzen",
-      "tankNotExist": "Tank/Lager (meter_id) existiert nicht: {id}"
+      "tankNotExist": "Tank/Lager (meter_id) existiert nicht: {id}",
+      "fullAboveCapacity": "Liefermenge {quantity} ist größer als die Tankkapazität {capacity} — „bis voll getankt“ ist so nicht möglich."
     },
     "ingest": {
       "unknownUtility": "Unbekannte oder fehlende Verbrauchsart (utility): {utility}",

@@ -248,4 +248,29 @@ final class DemoServiceTest extends TestCase
             'Verzeichnisform und Backup müssen dieselben Faktoren führen'
         );
     }
+
+    /**
+     * v2.10.0 — Tankbuch: Der Demo-Heizöltank führt einen Peilstand vor,
+     * damit „gerechnet bis …, danach geschätzt" nach „Demo laden" zu sehen
+     * ist. Verzeichnisform UND Backup.
+     */
+    public function testDemoDataDemonstratesTheTankBook(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $dir = json_decode((string)file_get_contents("$root/demo-data/heizoel/meters.json"), true);
+        $bak = json_decode((string)file_get_contents("$root/demo-data/energietracker-demo-backup.json"), true);
+        $pick = static function (array $meters): ?array {
+            foreach ($meters as $m) {
+                if (($m['id'] ?? null) === 'm_heizoel_tank') return $m;
+            }
+            return null;
+        };
+        $d = $pick($dir ?? []);
+        $b = $pick($bak['utilities']['heizoel']['meters'] ?? []);
+        $this->assertNotNull($d);
+        $this->assertNotNull($b);
+        $this->assertNotEmpty($d['tank_levels'] ?? [], 'demo-data/heizoel/meters.json soll einen Peilstand vorführen');
+        $this->assertEquals($d['tank_levels'], $b['tank_levels'] ?? [],
+            'Verzeichnisform und Backup müssen denselben Peilstand führen');
+    }
 }

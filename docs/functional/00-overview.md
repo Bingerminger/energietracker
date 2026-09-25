@@ -330,8 +330,38 @@ Kennzahl = (Σ Heiz-kWh des Jahres) / Wohnfläche_m²     [kWh / (m²·a)]
 ```
 
 und ordnet ihn anhand der Bandgrenzen
-(`efficiency_class_thresholds`, Default A+ < 30, A < 50, B < 75,
-C < 100, D < 130, E < 160, F < 200, G < 250, sonst H) ein.
+(`efficiency_class_thresholds`, Default A+ bis 30, A bis 50, B bis 75,
+C bis 100, D bis 130, E bis 160, F bis 200, G bis 250, sonst H) ein. Seit
+v2.10.0 gilt eine Grenze **einschließlich** („bis 100" ist C), wie in
+GEG Anlage 10; vorher lag ein Wert genau auf der Grenze eine Klasse
+schlechter.
+
+**Klassen nur für ganze Jahre (seit v2.10.0).** Deckt das Bezugsjahr
+weniger als 360 Tage ab, gibt es keine Klasse, und ein Hinweis sagt, dass
+die Kennzahl nur für den gemessenen Zeitraum gilt. Wer im Juni anfing, bekam
+bisher für sein halbes Jahr ohne Winter eine Traumklasse.
+
+**Zwei Zahlen (seit v2.10.0).** Die Hauskennzahl oben bleibt, wie sie ist:
+Verbrauch je m² Wohnfläche, so wie gemessen. Daneben steht eine
+**energieausweis-nahe** Kennzahl (`certificate`):
+
+```text
+AN        = Wohnfläche × 1,2      (× 1,35 bei Ein-/Zweifamilien- oder Reihenhaus mit beheiztem Keller, § 82 GEG)
+E         = Σ Heizquellen: witterungsbereinigter Jahresverbrauch,
+            Gas × 0,906 (Brennwert → Heizwert)
+Kennzahl  = E / AN  (+ 20 kWh/m²·a bei dezentralem Warmwasser)
+```
+
+Bereinigt wird Monat für Monat mit dem Heizmodell (`heat_adjusted`), wenn
+jeder Monat des Jahres einen solchen Wert hat — bei Gas und Fernwärme mit
+Heizmodell der Normalfall. Sonst (Heizöl, Pellets, Wärmepumpe, Monate ohne
+Modell oder vor einer Zäsur) wird über das Jahr mit dem Klimanormal
+bereinigt (nur der Heizanteil, VDI 3807). Ohne Klimanormal steht der
+Wert wie gemessen da und ist so gekennzeichnet. Ein **Verbrauchsausweis ist
+das nicht**: Der verlangt 36 Monate und die Klimafaktoren des DWD. Die
+Einstellungen *Beheizter Keller* und *Warmwasser dezentral* und das
+Kennzeichen *Heizstrom (Wärmepumpe)* an einem Stromzähler fließen hier ein —
+mit dem Kennzeichen bekommt auch ein Wärmepumpenhaus eine Kennzahl.
 
 **Seit v1.4.0 pro Heizquelle getrennt.** Ein Haus heizt real meist mit
 einer Quelle; alle Heizarten zu summieren ergäbe eine unsinnige Klasse.
@@ -347,10 +377,33 @@ Pellets-Grundlast + Gas-Spitzenlast sinnvoll).
 CO2 = Verbrauch × CO2-Faktor
 ```
 
-mit artspezifischem Faktor (`co2_gas`, `co2_strom`, …). Die Defaults
-sind **[Unverifiziert]** grobe Richtwerte und sollten in den
-Einstellungen an die eigene Quelle (Stromtarif-Mix, Heizöl-Norm)
-angepasst werden.
+mit artspezifischem Faktor (`co2_gas`, `co2_strom`, …), bezogen auf die
+Einheit, in der die App zählt. Seit v2.10.0 hat jeder Default eine Quelle:
+
+| Faktor | Default | Quelle |
+|---|---|---|
+| Gas | 182 g/kWh | BAFA-Infoblatt CO₂-Faktoren (2026): 201 g/kWh bezogen auf den **Heizwert**; die App zählt Gas nach Brennwert, daher × 0,906 |
+| Strom | je Jahr, 2015–2025 (2025: 344 g/kWh) | Umweltbundesamt, Emissionsfaktor Strommix (`co2_strom_years`); nach dem letzten Jahr gilt dessen Wert, davor `co2_strom` (380) |
+| Heizöl | 266 g/kWh | BAFA, bezogen auf den Heizwert — so rechnet die App Heizöl |
+| Pellets | 36 g/kWh | BAFA, CO₂-Äquivalente inklusive Vorkette (bis v2.9: 26) |
+| Fernwärme | 280 g/kWh | BAFA-Pauschale; der Wert des eigenen Netzes steht beim Versorger (bis v2.9: 180) |
+| Wasser | 350 g/m³ | grober Richtwert ohne belegte Quelle |
+
+Bis v2.9 galt für Strom ein Wert für alle Jahre, und der Gasfaktor bezog
+sich auf den Heizwert, während die App Brennwert-kWh zählt (+10 %).
+
+**Bestandsinstallationen behalten ihre Zahlen.** Die Migration auf
+Schema 1.6.0 schreibt bei jeder Installation, die einen dieser Werte nie
+gespeichert hat, den bisherigen Default fest (Lektion 36: Ein Update ändert
+keine Zahl, die der Nutzer nicht selbst angefasst hat). Die Einstellungen
+zeigen dann „Neuere Standardwerte verfügbar" mit bisher und neu — übernommen
+wird nur auf Knopfdruck. Dasselbe gilt für die Wasser-Referenz (127 → 122 L
+je Person und Tag, BDEW 2024). Neue Installationen starten mit den neuen
+Werten.
+
+**PV** vermeidet CO₂, statt es auszustoßen: Erzeugung und Einspeisung
+stehen als „vermieden" da, im Jahresbericht nur einmal
+([PV](12-pv.md#5-co₂-als-vermieden)).
 
 ---
 

@@ -133,7 +133,7 @@ final class BaselineCutoffTest extends ServiceTestCase
 
     public function testFreshInstallCarriesTheBaselineFieldAndSchemaIsBumped(): void
     {
-        self::assertSame('1.5.0', Migrator::SCHEMA_VERSION);
+        self::assertSame('1.6.0', Migrator::SCHEMA_VERSION);
         $meters = $this->store->read('gas/meters.json', []);
         self::assertArrayHasKey('baseline_events', $meters[0], 'Zähler trägt das v1.4.0-Feld');
         self::assertSame([], $meters[0]['baseline_events'], 'Default ist „keine Zäsur"');

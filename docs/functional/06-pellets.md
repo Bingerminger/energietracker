@@ -19,9 +19,11 @@
 
 Pellets funktionieren mechanisch **identisch zu Heizöl**: kein Zähler,
 sondern Lager (`capacity`, `initial_stock`) plus Lieferungen. Das
-gesamte Tankmodell, die Energiebilanz, die kalibrierte Bestandskurve
-(v1.4.0) und der Gesamtbetrag-Vorrang (v1.4.2) gelten unverändert —
-siehe **[Heizöl §3–§5](05-heizoel.md)**.
+Tankbuch (seit v2.10.0: Stützstellen „bis voll" und Peilstand, eine
+Rechnung für Verbrauch, Kosten und Bestand), der gleitende
+Durchschnittspreis und der Gesamtbetrag-Vorrang (v1.4.2) gelten
+unverändert — siehe **[Heizöl §2–§4](05-heizoel.md)**. Ein Peilstand ist bei
+Pellets der geschätzte Füllstand des Lagers in kg.
 
 **Der eine Unterschied: die Einheit.** Pellets werden in **kg**
 geliefert und gelagert, nicht in Litern. Entsprechend:

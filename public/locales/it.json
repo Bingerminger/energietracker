@@ -82,7 +82,10 @@
     "efficiency": {
       "title": "Efficienza",
       "livingArea": "Superficie abitabile {area} m²",
-      "perSource": "per fonte di calore · superficie abitabile {area} m²"
+      "perSource": "per fonte di calore · superficie abitabile {area} m²",
+      "certificate": "Tipo attestato: {value} kWh/m²·a{cls}",
+      "certificateTitle": "Potere calorifico inferiore, corretto per il clima, su {area} m² di superficie utile. Un attestato sui consumi richiede 36 mesi; disponibili: {months}.",
+      "certificateAll": "Tipo attestato, tutte le fonti di calore: {value} kWh/m²·a{cls}"
     },
     "tanks": { "title": "Livelli serbatoio" },
     "stromSaldo": {
@@ -97,7 +100,10 @@
       "autarky": "Autosufficienza",
       "autarkySub": "quota di energia propria",
       "selfUse": "Autoconsumo",
-      "selfUseSub": "{kwh} kWh consumati direttamente"
+      "selfUseSub": "{kwh} kWh consumati direttamente",
+      "savings": "Risparmio da autoconsumo",
+      "savingsSub": "{kwh} kWh autoconsumati × prezzo di acquisto",
+      "coveredSub": "su {months} mesi con dati di tutti e tre i contatori"
     },
     "recommendations": { "title": "Raccomandazioni principali" },
     "reminders": {
@@ -194,7 +200,9 @@
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Acconti fino al {date}",
-      "balanceShort": "Saldo {value}"
+      "balanceShort": "Saldo {value}",
+      "co2AvoidedGenTitle": "Calcolo semplificato: kWh prodotti × fattore CO₂ del mix; elettricità di rete sostituita, immissione compresa. Ciclo di vita del FV non considerato.",
+      "generation": "Produzione"
     },
     "cards": {
       "contracts": "📑 Contratti e acconti",
@@ -311,7 +319,9 @@
       "colMa3Title": "Media mobile a 3 mesi",
       "colMa6": "MM·6",
       "colMa6Title": "Media mobile a 6 mesi",
-      "total": "Totale"
+      "total": "Totale",
+      "estimatedTitle": "{days} giorni stimati (dopo l’ultima scorta nota)",
+      "estimatedLegend": "≈ il mese contiene giorni stimati, dopo l’ultima scorta nota (consegna «pieno completo» o lettura)."
     },
     "readingsTable": {
       "emptyTitle": "Nessuna lettura",
@@ -338,14 +348,35 @@
       "colTotal": "Totale",
       "colSupplier": "Fornitore",
       "colNote": "Nota",
-      "planned": "PIANIFICATA"
+      "planned": "PIANIFICATA",
+      "full": "PIENO"
     },
     "tank": {
       "noCapacity": "Nessuna capacità del serbatoio impostata — inseriscila nel contatore per vedere la curva della scorta.",
       "summary": "attualmente ~{stock} {unit} / {cap} {unit} ({pct} %)",
       "remaining": "{stock} {unit} rimanenti (modellato)",
       "ofCap": "{pct} % di {cap} {unit}",
-      "modelNote": "La scorta è modellata da scorta iniziale + consegne − consumo ponderato sui GG; è una stima, non una misurazione del serbatoio."
+      "noteMeasured": "Consumo calcolato da scorte note fino al {date}, poi stimato.",
+      "noteEstimated": "Scorta e consumo sono stimati dalla scorta iniziale e dalle consegne. Con una consegna «pieno completo» o una lettura del serbatoio diventano esatti.",
+      "warnInconsistent": "Tra il {from} e il {to} i livelli non tornano: {excess} {unit} in più nel serbatoio di quanti possano esserci. Manca una consegna o un livello è errato?",
+      "warnExhausted": "Secondo il calcolo il serbatoio è vuoto dal {date}. Manca una consegna o una lettura?",
+      "warnNoCalibration": "Ancora nessun tasso di consumo: servono due livelli noti del serbatoio ad almeno 14 giorni di distanza (scorta iniziale, consegna «Pieno completo», lettura del serbatoio) oppure due consegne.",
+      "warnFlat": "Le temperature sono disponibili per meno della metà dei giorni: il consumo è distribuito in modo uniforme.",
+      "levelsTitle": "Letture del serbatoio",
+      "addLevel": "Registra lettura",
+      "levelsEmpty": "Ancora nessuna lettura. Una lettura rende il calcolo esatto fino a quel giorno.",
+      "levelDeleteConfirm": "Eliminare la lettura del {date}?",
+      "levelDeleted": "Lettura eliminata",
+      "levelSaved": "Lettura salvata",
+      "levelDate": "Data",
+      "levelValue": "Livello ({unit})",
+      "levelHint": "Letto sull’indicatore del serbatoio, con l’asta o dal sensore di livello.",
+      "levelNote": "Nota",
+      "levelRange": "Inserire un livello tra 0 e {cap} {unit}.",
+      "chartMeasured": "Scorta ({unit}), calcolata",
+      "chartEstimated": "Scorta ({unit}), stimata",
+      "chartAnchors": "Scorta nota",
+      "chartAlt": "Andamento della scorta del serbatoio nel {year}"
     },
     "chart": { "temp": "temperatura media", "alt": "Grafico a barre: consumo mensile e temperatura media" },
     "readingModal": {
@@ -375,7 +406,9 @@
       "planned": "Pianificata (non ancora consegnata)",
       "validation": "La data e una quantità positiva sono obbligatorie.",
       "savedNew": "Consegna salvata",
-      "savedEdit": "Consegna aggiornata"
+      "savedEdit": "Consegna aggiornata",
+      "fillToFull": "Pieno completo",
+      "fillToFullHint": "Dopo il rifornimento il serbatoio era pieno. Così l’app conosce la scorta di quel giorno e calcola esattamente il consumo fino ad allora."
     },
     "confirm": {
       "deleteReading": "Eliminare davvero la lettura del {date}?",
@@ -684,7 +717,11 @@
       "saved": "Contatore salvato",
       "digits": "Cifre del totalizzatore (prima della virgola)",
       "digitsHint": "Serve solo se il totalizzatore può ripartire da 0 dopo 99999: l’analisi riconosce così l’azzeramento invece di segnalare un calo. Vuoto = sconosciuto.",
-      "activeHint": "Deseleziona se il contatore è fuori servizio: il suo storico conta ancora in tutti i totali, ma non compare più nella rilevazione e non genera avvisi."
+      "activeHint": "Deseleziona se il contatore è fuori servizio: il suo storico conta ancora in tutti i totali, ma non compare più nella rilevazione e non genera avvisi.",
+      "initialStockPrice": "Prezzo della scorta iniziale (cent/{unit})",
+      "initialStockPriceHint": "Lasciare vuoto per usare il prezzo della prima consegna.",
+      "heatSource": "Elettricità per riscaldamento (pompa di calore)",
+      "heatSourceHint": "Questo contatore misura il riscaldamento: conta nel valore di efficienza."
     },
     "replace": {
       "title": "Sostituzione contatore: {name}",
@@ -788,12 +825,12 @@
     },
     "field": {
       "hdd_base_temp": { "label": "Temperatura base GG", "hint": "Limite di riscaldamento — i giorni sotto contano come giorni di riscaldamento." },
-      "co2_gas": { "label": "CO₂ gas" },
-      "co2_strom": { "label": "CO₂ elettricità" },
+      "co2_gas": { "label": "CO₂ gas", "hint": "BAFA: 201 g/kWh riferiti al potere calorifico inferiore. L’app conta il gas sul potere calorifico superiore, quindi × 0,906 = 182." },
+      "co2_strom": { "label": "CO₂ elettricità", "hint": "Vale per gli anni prima del primo valore annuale; senza valori annuali, per tutti." },
       "co2_wasser": { "label": "CO₂ acqua" },
-      "co2_fernwaerme": { "label": "CO₂ teleriscaldamento" },
-      "co2_heizoel": { "label": "CO₂ gasolio" },
-      "co2_pellets": { "label": "CO₂ pellet" },
+      "co2_fernwaerme": { "label": "CO₂ teleriscaldamento", "hint": "Valore forfettario BAFA. È più preciso il valore della sua rete di teleriscaldamento: lo fornisce il gestore." },
+      "co2_heizoel": { "label": "CO₂ gasolio", "hint": "BAFA, riferito al potere calorifico inferiore, come l’app calcola il gasolio." },
+      "co2_pellets": { "label": "CO₂ pellet", "hint": "BAFA, CO₂ equivalente compresa la filiera a monte." },
       "billing_cycle_anchor_gas": { "label": "Data di conguaglio gas" },
       "billing_cycle_anchor_strom": { "label": "Data di conguaglio elettricità" },
       "billing_cycle_anchor_wasser": { "label": "Data di conguaglio acqua" },
@@ -801,7 +838,7 @@
       "contract_remind_days_2": { "label": "Livello 2 — promemoria" },
       "contract_remind_days_3": { "label": "Livello 3 — urgente" },
       "wasser_personen_anzahl": { "label": "Persone nel nucleo" },
-      "wasser_personen_referenz": { "label": "Riferimento" },
+      "wasser_personen_referenz": { "label": "Riferimento", "hint": "BDEW 2024: 122 L per persona al giorno (Germania)." },
       "wasser_sparindex_gut": { "label": "Indice di risparmio — buono fino a", "hint": "Un indice ≤ a questo valore è considerato normale." },
       "wasser_sparindex_warnung": { "label": "Indice di risparmio — avviso da", "hint": "Un indice ≥ a questo valore indica un potenziale di risparmio." },
       "min_days_period": { "label": "Giorni min. per periodo" },
@@ -815,7 +852,7 @@
       "dashboard_months": { "label": "Mesi sul cruscotto" },
       "alert_days_since_reading": { "label": "Avvisa dopo" },
       "wohnflaeche_m2": { "label": "Superficie abitabile", "hint": "Superficie riscaldata — denominatore della metrica di efficienza." },
-      "gebaeudetyp": { "label": "Tipo di edificio", "hint": "efh = casa singola, rh = villetta a schiera, mfh = condominio, whg = appartamento." },
+      "gebaeudetyp": { "label": "Tipo di edificio", "hint": "Condominio: da tre unità abitative in su." },
       "heizoel_kwh_per_l": { "label": "Contenuto energetico del gasolio" },
       "pellets_kwh_per_kg": { "label": "Contenuto energetico dei pellet" },
       "delivery_baseload_share": { "label": "Ripartizione quota di base", "hint": "Quota del consumo come carico di base indipendente dal meteo (il resto ponderato sui GG)." },
@@ -838,6 +875,18 @@
       "frame_ancestors": {
         "label": "Indirizzi autorizzati all’incorporamento",
         "hint": "Indirizzo con schema e porta, ad es. http://homeassistant.local:8123; separa più indirizzi con spazi. Vuoto = solo questa installazione."
+      },
+      "co2_strom_years": {
+        "label": "CO₂ elettricità per anno",
+        "hint": "Mix elettrico per anno (Agenzia federale tedesca per l’ambiente, UBA). Dopo l’ultimo anno vale il suo valore, prima «CO₂ elettricità»."
+      },
+      "beheizter_keller": {
+        "label": "Cantina riscaldata",
+        "hint": "Casa uni- o bifamiliare o a schiera con cantina riscaldata: superficie utile = 1,35 × superficie abitabile (altrimenti 1,2), per il valore tipo attestato."
+      },
+      "warmwasser_dezentral": {
+        "label": "Acqua calda decentralizzata",
+        "hint": "Acqua calda con scaldabagno istantaneo o boiler, non dal riscaldamento: il valore tipo attestato riceve un supplemento di 20 kWh/m²·a."
       }
     },
     "boolActive": "attivo",
@@ -1058,7 +1107,8 @@
         "GB": "Bollette del gas britanniche: coefficiente di correzione 1,02264 e potere calorifico in MJ/m³. I contatori in piedi cubi (ft³) non sono supportati.",
         "IT": "Bolletta del gas italiana: il coefficiente C va nel coefficiente di correzione, il PCS (potere calorifico superiore) di solito in GJ/Smc. Il modulo del contratto converte i prezzi al Smc in {minor}/kWh.",
         "NL": "Bollette del gas olandesi: inserisci il potere calorifico (calorische waarde) in MJ/m³. Il modulo del contratto converte i prezzi al m³ in {minor}/kWh."
-      }
+      },
+      "defaultHint": "Fattore predefinito 11,5 kWh/m³ attivo. Il valore della sua rete è in bolletta (coefficiente × potere calorifico), di solito tra 10,3 e 11,1. Con il predefinito kWh, costi e CO₂ risultano fino al 20 % troppo alti."
     },
     "invalidFields": "Non salvato: correggi i campi evidenziati in rosso.",
     "dayMonthInvalid": "Inserisci giorno-mese, ad es. 01-10 per il 1° ottobre.",
@@ -1120,8 +1170,30 @@
       "colProfile": "Profilo",
       "source": {
         "ember2024": "CO₂ elettricità: Ember 2024, mix di generazione (tramite Our World in Data)",
-        "default": "CO₂ elettricità: valore predefinito precedente dell’app"
+        "default": "CO₂ elettricità: valore predefinito precedente dell’app",
+        "uba": "CO₂ elettricità: Agenzia federale tedesca per l’ambiente, mix elettrico per anno"
       }
+    },
+    "co2Years": {
+      "none": "Nessun valore annuale: per tutti gli anni vale «CO₂ elettricità».",
+      "colYear": "Anno",
+      "invalid": "Inserire un anno (1990–2100) e un valore tra 0 e 2000 g/kWh."
+    },
+    "defaultUpdates": {
+      "title": "Sono disponibili valori predefiniti più recenti",
+      "hint": "Questi valori provengono da una versione precedente. Sono stati mantenuti perché nessun numero cambiasse da solo con l’aggiornamento. I nuovi valori hanno una fonte documentata.",
+      "colNew": "Nuovo",
+      "sources": "Fonti: scheda informativa BAFA sui fattori di CO₂ (2026), Agenzia federale tedesca per l’ambiente (mix elettrico per anno), BDEW (consumo d’acqua 2024).",
+      "apply": "Applica i nuovi valori",
+      "applied": "Valori predefiniti applicati",
+      "years": "Agenzia federale per l’ambiente {from}–{to}",
+      "noYears": "un valore per tutti gli anni"
+    },
+    "buildingTypes": {
+      "efh": "Casa uni- o bifamiliare",
+      "rh": "Villetta a schiera",
+      "mfh": "Condominio",
+      "whg": "Appartamento"
     }
   },
   "reminders": {
@@ -1534,7 +1606,13 @@
     "continued": "(segue)",
     "meterPageTitle": "{label} {year} — {meter}",
     "heatDemand": "Energia per il riscaldamento · {label}",
-    "weatherNote": "Corretto per il clima: effetto del meteo secondo il modello di riscaldamento riportato a un anno normale; gli scostamenti propri del mese restano. Δ %: consumo rispetto all’atteso con questo meteo."
+    "weatherNote": "Corretto per il clima: effetto del meteo secondo il modello di riscaldamento riportato a un anno normale; gli scostamenti propri del mese restano. Δ %: consumo rispetto all’atteso con questo meteo.",
+    "co2Avoided": "{kg} kg evitati",
+    "co2InGeneration": "compreso nella produzione",
+    "revenueValue": "Ricavo {amount}",
+    "kpiRevenue": "Ricavi totali",
+    "tableRevenue": "Ricavo {cur}",
+    "certificate": "Tipo attestato: {value} kWh/m²·a (potere calorifico inferiore, corretto per il clima, {area} m² utili)"
   },
   "migration": {
     "warnNoSettings": "Nessuna impostazione trovata nel backup — valgono i valori predefiniti.",
@@ -1574,7 +1652,8 @@
       "noLivingArea": "Superficie abitabile non impostata — inseriscila nelle impostazioni per ottenere la classe di efficienza.",
       "noHeatData": "Nessun dato di energia per riscaldamento trovato per il {year}.",
       "multipleSources": "Più fonti di calore attive — la classe per fonte è più significativa della somma combinata. La vista combinata ha senso solo con riscaldamento volutamente combinato (p. es. carico base e di punta).",
-      "noScale": "Per {country} non è disponibile una scala di efficienza. Le classi da A+ a H seguono la legge tedesca sull’energia negli edifici (GEG) e quindi non vengono mostrate."
+      "noScale": "Per {country} non è disponibile una scala di efficienza. Le classi da A+ a H seguono la legge tedesca sull’energia negli edifici (GEG) e quindi non vengono mostrate.",
+      "incompleteYear": "I dati del {year} non coprono tutto l’anno: nessuna classe; il valore vale solo per il periodo misurato."
     },
     "forecast": {
       "tooFewMonths": "Storico insufficiente (meno di 6 mesi).",
@@ -1622,7 +1701,14 @@
       "invalidBaselineDate": "Data della cesura non valida: «{date}» — è previsto AAAA-MM-GG",
       "duplicateBaselineDate": "Per il {date} esiste già una cesura",
       "swapBeforeInstall": "La sostituzione del {date} è precedente all’installazione del dispositivo attuale ({installed}).",
-      "digitsInvalid": "Cifre del contatore: «{value}» non è valido — è consentito un numero intero da 3 a 12 o vuoto."
+      "digitsInvalid": "Cifre del contatore: «{value}» non è valido — è consentito un numero intero da 3 a 12 o vuoto.",
+      "invalidTankLevels": "Le letture del serbatoio devono essere inviate come elenco di voci con data e livello",
+      "invalidTankLevelDate": "Data non valida per la lettura del serbatoio: «{date}» — è previsto AAAA-MM-GG",
+      "tankLevelFuture": "La lettura del serbatoio del {date} è nel futuro",
+      "duplicateTankLevel": "Esiste già una lettura del serbatoio per il {date}",
+      "tankLevelInvalid": "Lettura del serbatoio «{value}» non valida: è previsto un numero da 0",
+      "tankLevelAboveCapacity": "La lettura del serbatoio {level} supera la capacità {capacity}",
+      "initialPriceInvalid": "Prezzo della scorta iniziale «{value}» non valido: è previsto un numero da 0 o vuoto"
     },
     "common": {
       "unknownUtility": "Utenza sconosciuta: {utility}",
@@ -1680,7 +1766,8 @@
       "priceNegative": "Il prezzo unitario non può essere negativo",
       "meterIdMissing": "meter_id (serbatoio/deposito) è mancante",
       "dateFuture": "La data di consegna è nel futuro — imposta is_planned=true per le consegne pianificate",
-      "tankNotExist": "Il serbatoio/deposito (meter_id) non esiste: {id}"
+      "tankNotExist": "Il serbatoio/deposito (meter_id) non esiste: {id}",
+      "fullAboveCapacity": "La quantità {quantity} supera la capacità del serbatoio {capacity}: «pieno completo» non è possibile così."
     },
     "ingest": {
       "unknownUtility": "Utenza sconosciuta o mancante: {utility}",

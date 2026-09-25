@@ -41,7 +41,14 @@ in [Grundlagen & Methodik](00-overview.md).
 | **Effizienzklasse** | kWh/m²·a-Einordnung der Heizenergie (A+…H), seit v1.4.0 pro Quelle. |
 | **Grundlast** | Wetterunabhängiger Sockel (Warmwasser, Standby). |
 | **Anomalie** | Monat, der deutlicher als die Schwelle von der Erwartung für genau diesen Monat abweicht (Heizmodell bzw. derselbe Kalendermonat anderer Jahre); robuste Streuung mit Untergrenze, seit v2.8.0. |
-| **Tank-Bestandskurve** | Modellierter (nicht gemessener) Restbestand bei Öl/Pellets. |
+| **Tank-Bestandskurve** | Restbestand bei Öl/Pellets je Tag — seit v2.10.0 aus derselben Rechnung wie der Verbrauch (Tankbuch), zwischen Stützstellen gerechnet, danach geschätzt. |
+| **Tankbuch** | v2.10.0: eine Rechnung für Verbrauch, Kosten und Bestand bei Öl/Pellets, gestützt auf bekannte Bestände (Anfangsbestand, Lieferung „bis voll", Peilstand). |
+| **Stützstelle** | Tag mit bekanntem Tankbestand. Zwischen zwei Stützstellen ist der Verbrauch gerechnet, nicht geschätzt. |
+| **Peilstand** | Abgelesener Tankbestand (Anzeiger, Peilstab, Sensor), am Tank unter `tank_levels` gespeichert. |
+| **Energieausweis-nahe Kennzahl** | v2.10.0: zweite Effizienzzahl — Heizwert, witterungsbereinigt, je m² Gebäudenutzfläche, mit Warmwasser-Zuschlag bei dezentraler Bereitung. Kein Verbrauchsausweis (der verlangt 36 Monate). |
+| **Gebäudenutzfläche (AN)** | Bezugsfläche des Energieausweises: 1,2 × Wohnfläche, 1,35 × bei Ein-/Zweifamilien- oder Reihenhaus mit beheiztem Keller (§ 82 GEG). |
+| **Brennwert / Heizwert** | Gas wird nach Brennwert abgerechnet (kWh inklusive Kondensationswärme), Energieausweis und BAFA-CO₂-Faktoren beziehen sich auf den Heizwert: Heizwert-kWh = Brennwert-kWh × 0,906. |
+| **Ersparnis Eigenverbrauch** | v2.10.0: selbst genutzter PV-Strom × Arbeitspreis des Bezugs — was der Eigenverbrauch an Stromkosten vermeidet. |
 | **Recurrence** | Wiederholregel eines Termins (jährlich, …). |
 
 ---
@@ -100,20 +107,20 @@ Prognose = w · Regressionswert + (1 - w) · Saisonwert
 Kennzahl = (Σ Heiz-kWh des Jahres) / Wohnfläche_m²     [kWh / (m²·a)]
 ```
 
-**Lieferenergie-Bilanz (Öl/Pellets):**
+**Energieausweis-nahe Kennzahl (seit v2.10.0):**
 
 ```text
-Gesamt-kWh = (initial_stock + Σ Lieferungen) × Hu
+AN       = Wohnfläche × 1,2   (1,35 bei EFH/RH mit beheiztem Keller)
+Kennzahl = Σ bereinigte kWh (Gas × 0,906) / AN  (+ 20 bei dezentralem Warmwasser)
 ```
 
-**Tagesabzug Bestandskurve (v1.4.0):**
+**Tankbuch (Öl/Pellets, seit v2.10.0):**
 
 ```text
-rate      = (Σ Lieferungen ohne die letzte) · (1 - s)
-            / Σ HGT im Fenster [erste .. letzte Lieferung]
-
-stock_Tag = max(0, stock_Vortag + Lieferung_Tag
-                   - (Grundlast_L + rate · HGT_Tag))
+Verbrauch zwischen Stützstellen = Bestand_vorher + Σ Lieferungen − Bestand_nachher
+Anteil_Tag ∝ ρ + HGT_Tag           ρ = s · HGT_Jahr / ((1 − s) · 365,25)
+nach der letzten Stützstelle: Rate × (ρ + HGT_Tag), geschätzt
+Preis: gleitender Durchschnitt des Tankinhalts
 ```
 
 **Lieferkosten (v1.4.2, Gesamtbetrag-Vorrang):**
@@ -138,7 +145,7 @@ Saldo < 0  → Guthaben
 Spar-Index = (Liter pro Person und Tag) / Referenz × 100
 ```
 
-**CO₂** *(Default-Faktoren [Unverifiziert])*:
+**CO₂** *(Default-Faktoren mit Quelle seit v2.10.0; Strom je Jahr)*:
 
 ```text
 CO2 = Verbrauch × CO2-Faktor
@@ -172,7 +179,10 @@ heat_adjusted = Ist + a × (HGT_normal - HGT_ist)      (mindestens c × Tage)
 | `delivery_baseload_share` | 0,15 | Anteil |
 | `forecast_months` | 12 | Monate |
 | `wohnflaeche_m2` | 100 | m² |
-| `co2_gas / _strom / _wasser` | 201 / 380 / 350 | g/kWh bzw. g/m³ *(Unverifiziert)* |
+| `co2_gas` | 182 (BAFA, Heizwert × 0,906) | g/kWh |
+| `co2_strom` / `co2_strom_years` | 380 bis 2014, danach Umweltbundesamt je Jahr (2025: 344) | g/kWh |
+| `co2_heizoel` / `co2_pellets` / `co2_fernwaerme` | 266 / 36 / 280 (BAFA) | g/kWh |
+| `co2_wasser` | 350 *(ohne Quelle)* | g/m³ |
 
 ---
 

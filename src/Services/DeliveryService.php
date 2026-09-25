@@ -106,25 +106,22 @@ final class DeliveryService
     /**
      * Tank-/Lagerbestand-Verlauf als Tagesreihe.
      *
-     * Berechnung:
-     *   bestand(d) = initial_stock
-     *              + Σ Lieferungen.quantity (Datum ≤ d, nicht-geplant)
-     *              − Σ Verbrauch (Datum ≤ d)
-     *
-     * Der Verbrauch wird aus dem ConsumptionService bezogen, der die
-     * HGT-gewichtete Tagesverteilung kennt. Liegt der Bestand unter
-     * `tank_warn_pct` der Tank-Kapazität, wird das durch das Banner-System
-     * im Frontend abgegriffen.
-     *
-     * Diese Methode liefert eine kompakte Tagesreihe; Wochen-/Monats-
-     * Aggregation übernimmt das Frontend.
+     * v2.10.0 — aus dem Tankbuch ({@see DeliveryConsumptionService::tankModel()}):
+     * dieselbe Rechnung wie Verbrauch und Kosten. `stock` ist der Bestand am
+     * Ende des Tages. Zwischen Stützstellen (Anfangsbestand, Lieferung „bis
+     * voll", Peilstand) ist der Verlauf gerechnet, ab `estimated_from`
+     * geschätzt (`estimated` je Tag).
      *
      * @return array{
      *   meter_id: string,
      *   capacity: ?float,
      *   capacity_unit: ?string,
      *   initial_stock: float,
-     *   days: array<int, array{date: string, stock: float, delivery: float, consumption: float}>
+     *   days: array<int, array{date: string, stock: float, delivery: float, consumption: float, estimated: bool}>,
+     *   anchors: array<int, array{date: string, kind: string, stock: float}>,
+     *   estimated_from: ?string,
+     *   calibration: string,
+     *   warnings: array<int, array<string,mixed>>
      * }
      */
     public function stockHistory(string $utility, string $meterId, ConsumptionService $consumption): array
@@ -135,54 +132,28 @@ final class DeliveryService
             throw new NotFoundException($this->i18n->t('errors.delivery.tankNotFound', ['id' => $meterId]));
         }
 
-        $initialStock = (float)($meter['initial_stock'] ?? 0.0);
-        $capacity     = isset($meter['capacity']) ? (float)$meter['capacity'] : null;
-        $capacityUnit = $meter['capacity_unit'] ?? Utilities::get($utility)['volume_unit'] ?? null;
-
-        // v1.4.0 — Tagesabzug für die Bestandskurve in MENGENEINHEITEN
-        // (Liter/kg), kalibriert aus den Lieferintervallen — KEIN Zwang
-        // auf Endbestand 0 (siehe ConsumptionService::dailyDeliveryStockDraw).
-        $dailyCons = $consumption->dailyDeliveryStockDraw($utility, $meter);
-
-        // Lieferungen ab Tank-Installations-Tag (active device.installed_on)
-        $startDate = $this->meterStartDate($meter);
-        $today     = date('Y-m-d');
-
-        $deliveries = $this->list($utility, $meterId);
-        // Map: date → sum(quantity) — geplante Lieferungen ignorieren
-        $deliveryByDate = [];
-        foreach ($deliveries as $d) {
-            if (!empty($d['is_planned'])) continue;
-            $dt = (string)($d['date'] ?? '');
-            if ($dt === '') continue;
-            $deliveryByDate[$dt] = ($deliveryByDate[$dt] ?? 0.0) + (float)($d['quantity'] ?? 0.0);
-        }
-
+        $model = $consumption->tankModel($utility, $meter);
         $days = [];
-        $stock = $initialStock;
-        $cursor = new \DateTime($startDate);
-        $end    = new \DateTime($today);
-
-        while ($cursor <= $end) {
-            $dStr = $cursor->format('Y-m-d');
-            $delivery = (float)($deliveryByDate[$dStr] ?? 0.0);
-            $cons     = (float)($dailyCons[$dStr] ?? 0.0);
-            $stock    = max(0.0, $stock + $delivery - $cons);
+        foreach ($model['days'] as $date => $row) {
             $days[] = [
-                'date'        => $dStr,
-                'stock'       => round($stock, 2),
-                'delivery'    => round($delivery, 2),
-                'consumption' => round($cons, 4),
+                'date'        => $date,
+                'stock'       => $row['stock'],
+                'delivery'    => $row['delivery'],
+                'consumption' => round($row['draw'], 4),
+                'estimated'   => $row['estimated'],
             ];
-            $cursor->modify('+1 day');
         }
 
         return [
-            'meter_id'      => $meterId,
-            'capacity'      => $capacity,
-            'capacity_unit' => $capacityUnit,
-            'initial_stock' => $initialStock,
-            'days'          => $days,
+            'meter_id'       => $meterId,
+            'capacity'       => isset($meter['capacity']) ? (float)$meter['capacity'] : null,
+            'capacity_unit'  => $meter['capacity_unit'] ?? Utilities::get($utility)['volume_unit'] ?? null,
+            'initial_stock'  => (float)($meter['initial_stock'] ?? 0.0),
+            'days'           => $days,
+            'anchors'        => $model['anchors'],
+            'estimated_from' => $model['estimated_from'],
+            'calibration'    => $model['calibration']['source'],
+            'warnings'       => $model['warnings'],
         ];
     }
 
@@ -208,6 +179,12 @@ final class DeliveryService
             $payload['total_eur'] = (float)$payload['total_eur'];
         }
         if (isset($payload['is_planned'])) $payload['is_planned'] = (bool)$payload['is_planned'];
+        // v2.10.0 — Tankbuch: „bis voll getankt" macht die Lieferung zur
+        // Stützstelle (Bestand danach = Kapazität). "false" als Text ist falsch.
+        if (array_key_exists('fill_to_full', $payload)) {
+            $v = $payload['fill_to_full'];
+            $payload['fill_to_full'] = $v === true || $v === 1 || (is_string($v) && in_array(strtolower($v), ['1', 'true', 'on', 'yes'], true));
+        }
         if (isset($payload['supplier'])) $payload['supplier'] = (string)$payload['supplier'];
         if (isset($payload['note']))     $payload['note']     = (string)$payload['note'];
         return $payload;
@@ -238,16 +215,12 @@ final class DeliveryService
         if (!$meter) {
             throw new \InvalidArgumentException($this->i18n->t('errors.delivery.tankNotExist', ['id' => $d['meter_id']]));
         }
-    }
-
-    private function meterStartDate(array $meter): string
-    {
-        foreach ($meter['devices'] ?? [] as $dev) {
-            if (empty($dev['removed_on']) && !empty($dev['installed_on'])) {
-                return (string)$dev['installed_on'];
-            }
+        // v2.10.0 — „bis voll": Mehr als in den Tank passt, kann nicht geliefert sein
+        $capacity = (float)($meter['capacity'] ?? 0);
+        if (!empty($d['fill_to_full']) && $capacity > 0 && (float)$d['quantity'] > $capacity * 1.02) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.delivery.fullAboveCapacity', [
+                'quantity' => (string)$d['quantity'], 'capacity' => (string)$capacity,
+            ]));
         }
-        // Fallback: created_at oder heute
-        return (string)($meter['created_at'] ?? date('Y-m-d'));
     }
 }

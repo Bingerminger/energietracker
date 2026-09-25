@@ -9,6 +9,13 @@
     "capacity": 3000.0,
     "capacity_unit": "L",
     "initial_stock": 2400.0,
+    "tank_levels": [
+      {
+        "date": "2025-09-17",
+        "level": 1650,
+        "note": "Peilstab vor der Herbstlieferung"
+      }
+    ],
     "devices": [
       {
         "id": "d_oel_001",

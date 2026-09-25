@@ -33,7 +33,7 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
 
 Es gibt **keine** Datenbank. Persistenz ist eine Menge von JSON-Dateien
 unter `data/`, geschrieben mit `LOCK_EX` (exklusiver Lock), damit
-parallele Requests sich nicht zerstören. Schema-Stand: **1.5.0**.
+parallele Requests sich nicht zerstören. Schema-Stand: **1.6.0**.
 
 ---
 
@@ -94,10 +94,12 @@ Daraus ergeben sich zwei Berechnungspfade (siehe
 - **kumulativ** (Gas, Strom, Wasser, Fernwärme): Verbrauch =
   Differenz aufeinanderfolgender Zählerstände, linear über die Tage
   interpoliert.
-- **lieferbasiert** (Heizöl, Pellets): Verbrauch wird energetisch aus
-  Anfangsbestand + Lieferungen bilanziert und HGT-gewichtet auf die
-  Monate verteilt; eine separate, kalibrierte Methode liefert die
-  Tank-Bestandskurve.
+- **lieferbasiert** (Heizöl, Pellets): ein **Tankbuch** (seit v2.10.0) —
+  Anfangsbestand, Lieferungen „bis voll getankt" und Peilstände sind
+  Stützstellen; dazwischen wird der Verbrauch HGT-gewichtet verteilt, danach
+  mit der kalibrierten Rate geschätzt. Verbrauch, Kosten und
+  Tank-Bestandskurve kommen aus derselben Rechnung
+  (`DeliveryConsumptionService::tankModel()`).
 
 ---
 
@@ -115,7 +117,7 @@ und kennt **kein HTTP**.
 | `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device; Erfassungsübersicht mit typischem Tagesverbrauch; Sammel-Upsert für den CSV-Import (v2.6.0) |
 | `ContractService` | CRUD Verträge, strikte Validierung, Stichtag-Lookup; seit v2.9.0 tagesgenaue Abschnitte (`segmentsBetween`), weiterlaufender Vertrag (`resolveForDate`), Kündigungsstichtag (`switchTiming`) |
 | `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo nach Kalender, Heizmodell und Wetterbereinigung (v2.8.0); Verträge tagesgenau mit `contract_parts` (v2.9.0); delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService`; seit v2.6.0 Plausibilität (Ausreißer, Verdacht, Überlauf) mit `warnings` |
-| `DeliveryConsumptionService` | **(seit v1.4.4)** Tages-Verbrauchsverteilung & Tank-Bestandsabzug für Heizöl/Pellets — aus `ConsumptionService` extrahiert (~350 Zeilen) |
+| `DeliveryConsumptionService` | **(seit v1.4.4)** Heizöl/Pellets — aus `ConsumptionService` extrahiert; seit v2.10.0 Tankbuch (`tankModel()`): Stützstellen, eine Rechnung für Verbrauch, Kosten und Bestand, Klimanormal für fehlende Tage |
 | `DeliveryService` | CRUD Lieferungen, Tank-Bestandskurve |
 | `TemperatureService` | CSV-Import, Open-Meteo-Abgleich mit Quelle je Tag, täglicher Auto-Sync (v2.8.0) |
 | `WeatherService` | Open-Meteo-Wrapper (Archiv, Vorhersage, 30-Jahres-Tagesmittel) hinter dem Interface `WeatherSource` |
@@ -123,7 +125,7 @@ und kennt **kein HTTP**.
 | `RegressionService` | 5 Modelle: linear, polynomial, robust, segmented (auto/fix), sigmoid |
 | `ForecastService` | R²-gewichtete Mischung Regression × Saisonprofil, HGT aus dem Klimanormal, Unsicherheitsband; vertragsbasierte Kostenprognose |
 | `AnomalyService` | Ausreißer gegen die Erwartung je Monat, robuste Streuung (v2.8.0) |
-| `BenchmarkService` | Effizienzklasse **pro Heizquelle** + kombiniert |
+| `BenchmarkService` | Effizienzklasse **pro Heizquelle** + kombiniert; seit v2.10.0 Abdeckung je Quelle, Klassen nur für ganze Jahre, energieausweis-nahe Kennzahl (`certificate`), Wärmepumpen-Strom |
 | `TariffComparisonService` | echte + Schattenverträge auf Ist-Verbrauch |
 | `TariffSwitchService` | Wechselentscheidung ab Wechseltermin (Bindungskette, Break-even) |
 | `RecommendationService` | 7 statistische Regelfamilien, Dismiss-State |
@@ -136,7 +138,7 @@ und kennt **kein HTTP**.
 | `DiagnosticsService` | Systemstatus, Schreibrechte, Datenzählung |
 | `HealthCheckService` | `/api/health`: `status` ok/degraded/error, Prüfungen (Schreibrechte, Schema, Dateien, Platz, Temp-Dateien), letzter Ingest — N1003, v2.6.0 |
 | `DemoService` | Ein-Klick-Demo-Import über den Restore-Pfad — F1007 |
-| `PvSummaryService` / `StromSaldoService` | PV-Eigenverbrauch/Autarkie bzw. Strom-Saldo — F1005 |
+| `PvSummaryService` / `StromSaldoService` | PV-Eigenverbrauch/Autarkie bzw. Strom-Saldo — F1005; seit v2.10.0 Quoten über gemeinsam abgedeckte Monate und Ersparnis durch Eigenverbrauch |
 | `AuthService` | Anmeldung (Passwort, Proxy, Sitzungen, Sperre), API-Schlüssel und HA-Token — nur Hashes in `data/auth.json` (F1009, v2.6.0) |
 | `IngestService` | idempotenter Push-Eingang (`/api/ingest`, upsert-by-date) — F1009 |
 

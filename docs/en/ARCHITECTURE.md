@@ -108,7 +108,7 @@ external call view goes through the controllers.
 | `ReadingService` | CRUD of readings, auto-assignment of `device_id` to the active device |
 | `ContractService` | CRUD of contracts, F4-strict validation, `valueValidOn(...)`/`valueOnDate(...)` for the effective-date lookup, `bonusForMonth(...)`; since v2.9.0 `segmentsBetween(...)` (day-exact segments), `resolveForDate(...)` (renewed contract) and `switchTiming(...)` (cancellation deadline) |
 | `ConsumptionService` | monthly aggregation, F2 device bridging, F3 multi-meter aggregation, **`contractStatus()`** for the balance card; F-03 billing-cycle projection of open and renewed contracts, F-05 reminder based on the cancellation deadline (v2.9.0), waste-water `separater_zaehler` resolution with a recursion lock |
-| `DeliveryConsumptionService` | **(v1.4.4)** daily consumption distribution & tank stock draw for heating oil/pellets — extracted from `ConsumptionService` |
+| `DeliveryConsumptionService` | **(v1.4.4)** heating oil/pellets — extracted from `ConsumptionService`; since v2.10.0 `tankModel()` (tank log): one calculation for consumption, costs (moving average price) and stock, anchors `initial_stock`/`fill_to_full`/`tank_levels` |
 | `TemperatureService` | CSV import, Open-Meteo sync with a source per day (`archive`/`forecast`/`csv`/`manual`), daily auto-sync (v2.8.0) |
 | `WeatherService` | Open-Meteo API wrapper (archive, forecast, 30-year daily means) behind the `WeatherSource` interface |
 | `ClimateNormalService` | **(v2.8.0)** climate normal at the location: HDD mean and spread per calendar month from 30 years, stored in `climate_normal.json` |
@@ -215,7 +215,7 @@ Each month is assigned, from `temperatures.json`:
 
 - `kwh_per_day = kwh / days`
 - `m3 = kwh / unit_to_kwh_factor` (gas only)
-- `co2_kg = kwh × co2_setting / 1000`
+- `co2_kg = kwh × factor / 1000` — factor via `SettingsService::co2Factor(key, year)`; electricity per year from `co2_strom_years` (since v2.10.0)
 
 ### Step 5 — contract application (day-exact since v2.9.0)
 
@@ -341,8 +341,9 @@ no contract at all, `last_price_ct` applies as a fallback working price.
 |---|---|---|---|
 | `gas_conversion_factors` | list | `[{from:null, kwh_per_m3:11.5}]` | kWh per m³ gas, dated per cut-off date (since v2.5.0; previously the scalar `gas_conversion_factor`) |
 | `hdd_base_temp` | float | 15 | HDD base temperature in °C |
-| `co2_gas` | int | 201 | g CO₂ per kWh gas |
-| `co2_strom` | int | 380 | g CO₂ per kWh electricity |
+| `co2_gas` | int | 182 | g CO₂ per kWh gas (gross calorific value; BAFA 201 on net calorific value × 0.906 — v2.10.0, previously 201) |
+| `co2_strom` | int | 380 | g CO₂ per kWh electricity for years before the first annual value |
+| `co2_strom_years` | map | UBA 2015–2025 | electricity per year (v2.10.0) |
 | `co2_wasser` | int | 350 | g CO₂ per m³ water |
 | `min_days_period` | int | 20 | minimum days per reading interval (sanity) |
 | `min_hdd_regression` | float | 5 | minimum HDD per month to be considered in the regression |

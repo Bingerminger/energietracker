@@ -53,7 +53,7 @@ php -S 127.0.0.1:8080 router.php
 > die Entwicklung gedacht, nicht für andere im Netz.
 
 Beim ersten Aufruf legt der **Migrator** automatisch die Datenstruktur
-unter `data/` an und hebt sie auf das aktuelle Schema (**1.5.0**). Es ist
+unter `data/` an und hebt sie auf das aktuelle Schema (**1.6.0**). Es ist
 kein manueller Schritt nötig. Ein komplett leeres Verzeichnis wird seit
 v1.9.1 als Erststart erkannt und mit Standard-Zählern (Gas/Strom/Wasser)
 initialisiert.

@@ -46,77 +46,97 @@ Kosten der Lieferung =
 die tatsächlich bezahlte Größe und enthält Liefergebühr, Mindermengen-
 zuschlag oder Rabatte, die ein reines *Preis × Menge* nicht abbildet.
 Der effektive Stückpreis wird daraus abgeleitet
-(`ct/L = total_eur × 100 / Menge`) und über
-Forward-Fill den Verbrauchstagen zugeordnet.
+(`ct/L = total_eur × 100 / Menge`).
+
+**Seit v2.10.0 kostet der verbrauchte Liter, was er im Tank kostet:** Eine
+Lieferung mischt sich mit ihrem Preis unter den Bestand (gleitender
+Durchschnitt), verbraucht wird zum Durchschnittspreis. Der
+**Anfangsbestand** kostet den Preis, der am Tank gepflegt ist
+(`initial_stock_price_ct`), sonst den der ersten Lieferung. Bis v2.9 war
+er kostenlos, und jeder Tag trug den Preis der letzten Lieferung — nach
+einer teuren Herbstlieferung wurde auch das billige Öl vom Frühjahr teuer
+verbucht. Die Monatstabelle zeigt den effektiven Preis je kWh.
 
 > Praktisch: Trage einfach den **Rechnungsbetrag** und die **Liter** der
 > Tankrechnung ein. Den ct/L-Preis musst du nicht ausrechnen.
 
 ---
 
-## 3. Verbrauchsverteilung (Energiebilanz)
+## 3. Tankbuch — eine Rechnung für Verbrauch und Bestand (seit v2.10.0)
 
-Über die Nutzungsdauer gilt die Bilanz: Was im Tank war plus was
-geliefert wurde, wird verbraucht. In Energie:
+Bis v2.9 rechnete die App zweimal: Die Kosten verteilten Anfangsbestand
+plus **alle** Lieferungen auf die Zeit bis heute, als wäre der Tank heute
+leer; die Bestandskurve rechnete mit einer kalibrierten Rate. Folge: Eine
+Lieferung von heute erhöhte den Verbrauch aller Vorjahre um rund 20 %, und
+die Bilanz sagte „Tank leer", während die Kurve 1.466 L zeigte. Jetzt gibt
+es **eine** Rechnung, aus der Verbrauch, Kosten und Bestandskurve kommen.
+
+**Stützstellen** sind Tage, an denen der Bestand bekannt ist:
+
+- der Starttag mit dem **Anfangsbestand**,
+- eine Lieferung **„bis voll getankt"** (`fill_to_full`) — danach ist der
+  Bestand die Tankkapazität,
+- ein **Peilstand** (`tank_levels` am Tank) — abgelesen am Tankanzeiger,
+  mit dem Peilstab oder vom Füllstandssensor.
+
+Zwischen zwei Stützstellen ist der Verbrauch **bekannt**:
 
 ```text
-Gesamt-kWh = (initial_stock + Σ Lieferungen) × Hu
+Verbrauch = Bestand_vorher + Σ Lieferungen dazwischen − Bestand_nachher
 ```
 
-Diese Energie wird auf die Tage verteilt: ein wetterunabhängiger
-**Grundlastanteil** (`delivery_baseload_share`, Default 0,15 — z. B.
-Warmwasser) flach, der **Rest HGT-gewichtet**:
+Er wird nach Grundlast und Gradtagen auf die Tage verteilt:
 
 ```text
-kWh_Tag =  Gesamt-kWh · s / Tage                       (Grundlast, s = 0,15)
-         + (1 - s) · Gesamt-kWh · HGT_Tag / Σ HGT       (Heizanteil)
+Anteil_Tag ∝ ρ + HGT_Tag        ρ = s · HGT_Jahr / ((1 − s) · 365,25)
 ```
 
-Daraus folgen Monatsverbrauch, Kosten (über den Lieferpreis je Tag) und
-die Heizsignatur-Analyse — analog zu Gas.
+ρ ist die Grundlast in Gradtag-Einheiten (`delivery_baseload_share` s,
+Default 0,15 — Warmwasser, Stand-by). Dadurch bekommt ein Sommerintervall
+vor allem Grundlast, statt dass 85 % auf die wenigen kühlen Tage fallen.
+Die Gradtage eines Normaljahrs kommen aus dem Klimanormal, sonst aus der
+eigenen Temperaturhistorie (wenn jeder der zwölf Monate mindestens 15 Tage
+hat), sonst aus
+einem groben mitteleuropäischen Monatsmittel. Fehlende Tagestemperaturen
+füllt das Klimanormal.
+
+**Nach der letzten Stützstelle** rechnet die App mit einer kalibrierten
+Rate weiter und kennzeichnet diese Tage als **geschätzt**
+(`estimated_from`; Monatszeilen `estimated_days`, in der Tabelle „≈"). Die
+Rate kommt aus den Intervallen zwischen Stützstellen, sonst aus der
+Lieferkadenz (was vor der letzten Lieferung geliefert wurde, war zwischen
+erster und letzter Lieferung verbraucht), bei genau einer Lieferung aus der
+Annahme, dass der Anfangsbestand bis zu ihr verbraucht war. Jede Quelle
+braucht mindestens 14 Tage. Reicht keine (etwa nur der Anfangsbestand, oder
+die einzige Lieferung am ersten Tag), gibt es **keine** Verbrauchsrechnung
+und einen Hinweis — bis v2.9 galt dann der ganze Anfangsbestand als bis
+heute verbraucht.
+
+Widersprechen sich zwei Stände (mehr im Tank, als dort sein kann), bucht
+die App dazwischen nichts und meldet es; wird der Tank rechnerisch leer,
+fragt sie nach einer fehlenden Lieferung oder einem Peilstand.
 
 ---
 
-## 4. Tank-Bestandskurve (das v1.4.0-Modell)
+## 4. Tank-Bestandskurve
 
-> **Wichtig:** Der angezeigte Bestand ist eine **kalibrierte
-> Modellschätzung**, *keine* Tankpeilung.
+Die Kurve ist dieselbe Rechnung wie der Verbrauch (§3): Bestand am Ende
+jedes Tages. Die bekannten Stände stehen in `anchors` (Beginn des Tages,
+nach einer Lieferung) und erscheinen als Punkte. Die Tank-Ansicht zeichnet
+den gerechneten Teil durchgezogen, den geschätzten gestrichelt und die
+bekannten Bestände als Punkte, und sie sagt dazu, bis wann aus bekannten
+Beständen gerechnet ist.
 
-Bis v1.3.0 verteilte das Modell die *gesamte* Energie HGT-gewichtet und
-erzwang damit Endbestand ≈ 0 — die Tankkurve war praktisch unbrauchbar
-(immer ~0 %). Außerdem mischte die alte Berechnung Liter mit kWh
-(latenter Einheitenfehler, von der 0-Normierung verdeckt).
+> **Genauer wird es mit Stützstellen:** Eine Lieferung als „bis voll
+> getankt" markieren oder ab und zu einen Peilstand erfassen (Tank-Ansicht,
+> „Peilstand erfassen"). Ab dann ist der Verbrauch bis zu diesem Tag
+> gerechnet, nicht geschätzt — und eine spätere Lieferung ändert ihn nicht
+> mehr.
 
-**Seit v1.4.0** ist die Bestandskurve entkoppelt
-(`dailyDeliveryStockDraw`). Der Tagesabzug ist in **Litern** und nutzt
-eine **aus den geschlossenen Lieferintervallen kalibrierte
-HGT-Rate**:
-
-```text
-rate = (Σ Lieferungen ohne die letzte) · (1 - s)
-       ----------------------------------------------------   [ L / HGT ]
-       Σ HGT im Fenster [erste Lieferung .. letzte Lieferung]
-```
-
-Begründung: Im eingeschwungenen Betrieb refüllt ein Haushalt je Zyklus
-ungefähr das, was es seit der letzten Lieferung verbraucht hat — also
-entspricht „alle Lieferungen außer der letzten" dem Verbrauch im
-geschlossenen Zeitfenster. Diese Rate wird auf Kopf (vor erster
-Lieferung) und offenen Schwanz (nach letzter Lieferung) extrapoliert:
-
-```text
-stock_Tag = max(0, stock_Vortag + Lieferung_Tag
-                   - (Grundlast_L + rate · HGT_Tag))
-```
-
-Es wird **kein** Endbestand 0 mehr erzwungen — der Restbestand ergibt
-sich physisch. Fallback bei < 2 Lieferungen (keine Kadenz ableitbar):
-Rate aus (Anfangsbestand + Σ Lieferungen) über die Fenster-HGT;
-ohne Temperaturen: flacher Abzug.
-
-Die **Kosten-/Effizienzrechnung** nutzt weiterhin die Energiebilanz aus
-§3 — dort ist „gekauft ≈ verbraucht über die Laufzeit" korrekt; nur die
-*Bestandskurve* braucht die kalibrierte Rate.
+*(Bis v2.9 gab es hier zwei Modelle: die kalibrierte Bestandskurve seit
+v1.4.0 und daneben die Energiebilanz für Kosten und Effizienz. Die
+Kadenz-Regel der alten Kurve lebt als Kalibrierung ohne Stützstellen
+weiter.)*
 
 ---
 
@@ -136,8 +156,9 @@ Fehler, sondern bildet die Realität ab.
 - **Heizwert falsch**: 10,0 kWh/L gilt für Heizöl EL. Bei abweichender
   Qualität in den Einstellungen anpassen, sonst kippen kWh und
   Effizienzklasse.
-- **Erwartung einer Tankpeilung**: Der Bestand ist modelliert, nicht
-  gemessen. Eine echte Peilstab-Eingabe ist (noch) nicht vorgesehen.
+- **Kein Peilstand, keine „bis voll"-Lieferung**: Dann ist alles
+  geschätzt, und eine neue Lieferung verschiebt die Rate. Ein Peilstand im
+  Jahr genügt, damit die Vorjahre feststehen (seit v2.10.0).
 - **Geplante Lieferung** (`is_planned`) zählt nicht in Bilanz/Bestand —
   bewusst, damit Vorausplanung den Ist-Stand nicht verfälscht.
 

@@ -5,7 +5,7 @@
 [← API-Referenz](03-api-reference.md) · [Kompendium-Index](../README.md)
 
 Alle Daten liegen als flache JSON-Dateien unter `data/`. Keine Datenbank.
-Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.5.0**
+Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.6.0**
 (in `data/meta.json` und in jedem Backup).
 
 > **Schema-Historie (Kurzfassung):** 1.0.0 utility-orientiertes Layout ·
@@ -15,7 +15,9 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.5.0**
 > Zähler-Alias `external_id` für die Home-Assistant-Anbindung (F1009) ·
 > **1.4.0** Analyse-Zäsuren `baseline_events` am Zähler (F1011) ·
 > **1.5.0** datierte Gas-Umrechnungsfaktoren `gas_conversion_factors` in
-> `settings.json` statt des Skalars `gas_conversion_factor` (F1012).
+> `settings.json` statt des Skalars `gas_conversion_factor` (F1012) ·
+> **1.6.0** bisherige CO₂- und Wasser-Defaults bei Bestandsinstallationen
+> festgeschrieben, bevor die korrigierten gelten (v2.10.0, Lektion 36).
 
 ---
 
@@ -128,9 +130,23 @@ die Gruppen-*Mitgliedschaft* steht dagegen am Zähler (`meter_group_id`).
   // nur bei lieferbasierten Arten (Heizöl/Pellets):
   "capacity": 3000.0,
   "capacity_unit": "L",
-  "initial_stock": 2400.0
+  "initial_stock": 2400.0,
+  "initial_stock_price_ct": 98.5,       // v2.10.0, optional: Preis des Anfangsbestands
+  "tank_levels": [                       // v2.10.0, optional: Peilstände (Stützstellen)
+    { "date": "2025-09-17", "level": 1650, "note": "Peilstab" }
+  ],
+
+  // nur bei Strom, optional (v2.10.0):
+  "heat_source": true                    // Wärmepumpe: zählt in der Effizienzkennzahl
 }
 ```
+
+**Tankbuch (v2.10.0).** `tank_levels` und Lieferungen mit `fill_to_full`
+sind Stützstellen mit bekanntem Bestand; dazwischen ist der Verbrauch
+gerechnet, danach geschätzt ([Heizöl §3](../functional/05-heizoel.md)).
+Fehlt `initial_stock_price_ct`, kostet der Anfangsbestand den Preis der
+ersten Lieferung. Kein Schema-Schritt: Die Felder sind optional und reisen
+im Backup mit.
 
 **Meter-Topologie (F1006).** Ein Zähler kann **Subzähler** eines anderen sein
 (`parent_meter_id`, Reihenschaltung — sein Verbrauch wird beim Elternzähler
@@ -206,7 +222,8 @@ Geräts und meldet sie als `warnings` (siehe
   "date": "2023-09-12", "quantity": 1150.0,
   "unit_price_cents": 104.5, "total_eur": 1201.75,
   "supplier": "Öl Müller GmbH", "note": "Herbstbefüllung",
-  "is_planned": false
+  "is_planned": false,
+  "fill_to_full": false          // v2.10.0: true = danach voll (Stützstelle)
 }
 ```
 
@@ -283,8 +300,11 @@ Gruppen (Auswahl der Default-Werte):
 | `heizoel_kwh_per_l` | 10.0 | Heizwert Heizöl EL |
 | `pellets_kwh_per_kg` | 4.8 | Heizwert Holzpellets (DIN EN ISO 17225-2 A1) |
 | `hdd_base_temp` | 15.0 | Heizgrenztemperatur (°C) für HGT |
-| `co2_gas / _strom / _wasser` | 201 / 380 / 350 | g CO₂ je kWh bzw. m³ — *[Unverifiziert]* anpassbar |
-| `co2_heizoel / _pellets / _fernwaerme` | 266 / … | dito |
+| `co2_gas` | 182 | g CO₂ je kWh (Brennwert): BAFA 201 auf Heizwert × 0,906 — *v2.10.0, vorher 201* |
+| `co2_strom` | 380 | g/kWh für Jahre vor dem ersten Eintrag in `co2_strom_years` |
+| `co2_strom_years` | UBA 2015–2025 | *(v2.10.0)* Jahr → g/kWh, Umweltbundesamt (Emissionsfaktor Strommix); nach dem letzten Jahr gilt dessen Wert |
+| `co2_heizoel / _pellets / _fernwaerme` | 266 / 36 / 280 | g/kWh, BAFA (Pellets CO₂-Äq. inkl. Vorkette; Fernwärme-Pauschale) — *v2.10.0, vorher 266 / 26 / 180* |
+| `co2_wasser` | 350 | g/m³ — grober Richtwert ohne belegte Quelle |
 | `blend_max` | 0.80 | Obergrenze Regressionsgewicht in der Prognose |
 | `confidence_band_sigma` | 1.28 | Breite des Prognosebands in σ (1,28 ≈ 80 % der Jahre); bis v2.7 ohne Wirkung |
 | `anomaly_threshold` | 2.0 | Schwelle der Anomalie-Erkennung (robuster z-Wert) |
@@ -293,6 +313,8 @@ Gruppen (Auswahl der Default-Werte):
 | `forecast_model` | linear | Standard-Regressionsmodell |
 | `segmented_split_mode` | auto | Knickpunkt der segmentierten Regression |
 | `wohnflaeche_m2` | 100 | für Effizienzklasse |
+| `gebaeudetyp`, `beheizter_keller`, `warmwasser_dezentral` | efh, false, false | *(v2.10.0 wirksam)* Gebäudenutzfläche 1,2 bzw. 1,35 × Wohnfläche, Warmwasser-Zuschlag 20 kWh/m²·a für die energieausweis-nahe Kennzahl |
+| `wasser_personen_referenz` | 122 | L je Person und Tag, BDEW 2024 (*v2.10.0, vorher 127*) |
 | `dashboard_months` | 12 | *(seit v2.9.0 wirksam)* Monate im Verbrauchsverlauf des Dashboards (3–36) |
 | `alert_days_since_reading` | 45 | *(seit v2.9.0 wirksam)* „Ablesung überfällig": Warnung ab ⅔, Alarm ab dem Wert |
 | `contract_remind_days_1/2/3` | 90 / 30 / 1 | Erinnerungsstufen; seit v2.9.0 Tage vor dem Kündigungsstichtag, ohne Frist vor dem Vertragsende |
@@ -335,13 +357,17 @@ Schlüssel speichert `PATCH /api/settings` nicht und nennt sie seit v2.6.0 in
   (`parent_meter_id`/`meter_group_id` in 1.2.0, `external_id` in 1.3.0,
   `baseline_events` in 1.4.0) und wandelt in 1.5.0 den Skalar
   `gas_conversion_factor` in die Liste `gas_conversion_factors` um,
-- hebt die Version schrittweise auf den aktuellen Stand (**1.5.0**).
+- schreibt in 1.6.0 für die korrigierten Defaults (`co2_gas`,
+  `co2_strom_years`, `co2_pellets`, `co2_fernwaerme`,
+  `wasser_personen_referenz`) den bisherigen Wert fest, wo die Installation
+  ihn nie gespeichert hat — nur bei Daten älter als 1.6.0,
+- hebt die Version schrittweise auf den aktuellen Stand (**1.6.0**).
 
 Jede Stufe hat ein eigenes `needsVXXXUpgrade()` + `upgradeToVXXX()`-Paar und
 ist für sich idempotent (wiederholtes Ausführen ist ein No-Op).
 
 Die mitgelieferten Demo-Daten tragen `schema_version: 1.1.0` und werden
-beim ersten Start additiv auf den aktuellen Stand (1.5.0) migriert —
+beim ersten Start additiv auf den aktuellen Stand (1.6.0) migriert —
 dabei kommen `meter_groups.json` je Utility (1.2.0) und die Zähler-Felder
 `external_id` (1.3.0) und `baseline_events` (1.4.0) hinzu, ohne bestehende
 Werte anzutasten. Der

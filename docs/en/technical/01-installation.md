@@ -51,7 +51,7 @@ php -S 127.0.0.1:8080 router.php
 > development, not for others on the network.
 
 On first access the **migrator** automatically creates the data structure under
-`data/` and raises it to the current schema (**1.5.0**). No manual step is
+`data/` and raises it to the current schema (**1.6.0**). No manual step is
 needed. A completely empty directory has been recognised as a first start since
 v1.9.1 and initialised with default meters (gas/electricity/water).
 

@@ -5,7 +5,7 @@
 [← API reference](03-api-reference.md) · [Compendium index](../README.md)
 
 All data is stored as flat JSON files under `data/`. No database. Writes are
-serialised by `LOCK_EX`. Schema level: **1.5.0** (in `data/meta.json` and in every
+serialised by `LOCK_EX`. Schema level: **1.6.0** (in `data/meta.json` and in every
 backup).
 
 > **Schema history (short form):** 1.0.0 utility-oriented layout · 1.0.3 water
@@ -15,7 +15,9 @@ backup).
 > for the Home Assistant integration (F1009) · **1.4.0** analysis baseline
 > cut-offs `baseline_events` on the meter (F1011) · **1.5.0** dated gas
 > conversion factors `gas_conversion_factors` in `settings.json` instead of the
-> scalar `gas_conversion_factor` (F1012).
+> scalar `gas_conversion_factor` (F1012) · **1.6.0** previous CO₂ and water
+> defaults pinned in existing installations before the corrected ones apply
+> (v2.10.0, Lesson 36).
 
 ---
 
@@ -127,9 +129,23 @@ contrast, sits on the meter (`meter_group_id`).
   // only for delivery-based utilities (heating oil/pellets):
   "capacity": 3000.0,
   "capacity_unit": "L",
-  "initial_stock": 2400.0
+  "initial_stock": 2400.0,
+  "initial_stock_price_ct": 98.5,       // v2.10.0, optional: price of the initial stock
+  "tank_levels": [                       // v2.10.0, optional: tank readings (anchors)
+    { "date": "2025-09-17", "level": 1650, "note": "Dipstick" }
+  ],
+
+  // electricity only, optional (v2.10.0):
+  "heat_source": true                    // heat pump: counts in the efficiency figure
 }
 ```
+
+**Tank log (v2.10.0).** `tank_levels` and deliveries with `fill_to_full` are
+anchors with a known stock; between them the consumption is calculated,
+afterwards estimated ([Heating oil §3](../functional/05-heizoel.md)). If
+`initial_stock_price_ct` is missing, the initial stock costs the price of the
+first delivery. No schema step: the fields are optional and travel in the
+backup.
 
 **Meter topology (F1006).** A meter can be a **submeter** of another
 (`parent_meter_id`, series connection — its consumption is subtracted from the
@@ -204,7 +220,8 @@ device and reports them as `warnings` (see
   "date": "2023-09-12", "quantity": 1150.0,
   "unit_price_cents": 104.5, "total_eur": 1201.75,
   "supplier": "Oil Müller GmbH", "note": "Autumn refill",
-  "is_planned": false
+  "is_planned": false,
+  "fill_to_full": false          // v2.10.0: true = full afterwards (anchor)
 }
 ```
 
@@ -280,8 +297,11 @@ Groups (a selection of the default values):
 | `heizoel_kwh_per_l` | 10.0 | calorific value of heating oil EL |
 | `pellets_kwh_per_kg` | 4.8 | calorific value of wood pellets (DIN EN ISO 17225-2 A1) |
 | `hdd_base_temp` | 15.0 | heating limit temperature (°C) for HDD |
-| `co2_gas / _strom / _wasser` | 201 / 380 / 350 | g CO₂ per kWh or m³ — *[Unverified]* adjustable |
-| `co2_heizoel / _pellets / _fernwaerme` | 266 / … | ditto |
+| `co2_gas` | 182 | g CO₂ per kWh (gross calorific value): BAFA 201 on net calorific value × 0.906 — *v2.10.0, previously 201* |
+| `co2_strom` | 380 | g/kWh for years before the first entry in `co2_strom_years` |
+| `co2_strom_years` | UBA 2015–2025 | *(v2.10.0)* year → g/kWh, German Environment Agency (emission factor of the electricity mix); after the last year its value applies |
+| `co2_heizoel / _pellets / _fernwaerme` | 266 / 36 / 280 | g/kWh, BAFA (pellets CO₂ eq. incl. the upstream chain; district heating flat rate) — *v2.10.0, previously 266 / 26 / 180* |
+| `co2_wasser` | 350 | g/m³ — rough guide value without a documented source |
 | `blend_max` | 0.80 | upper bound of the regression weight in the forecast |
 | `confidence_band_sigma` | 1.28 | width of the forecast band in σ (1.28 ≈ 80 % of years); without effect up to v2.7 |
 | `anomaly_threshold` | 2.0 | threshold of the anomaly detection (robust z-value) |
@@ -290,6 +310,8 @@ Groups (a selection of the default values):
 | `forecast_model` | linear | default regression model |
 | `segmented_split_mode` | auto | breakpoint of the segmented regression |
 | `wohnflaeche_m2` | 100 | for the efficiency class |
+| `gebaeudetyp`, `beheizter_keller`, `warmwasser_dezentral` | efh, false, false | *(effective since v2.10.0)* usable floor area 1.2 or 1.35 × living area, hot-water surcharge 20 kWh/m²·a for the certificate-style figure |
+| `wasser_personen_referenz` | 122 | L per person and day, BDEW 2024 (*v2.10.0, previously 127*) |
 | `dashboard_months` | 12 | *(effective since v2.9.0)* months in the dashboard's consumption history (3–36) |
 | `alert_days_since_reading` | 45 | *(effective since v2.9.0)* "reading overdue": warning from ⅔, alert from the value itself |
 | `contract_remind_days_1/2/3` | 90 / 30 / 1 | reminder levels; since v2.9.0 days before the cancellation deadline, without a notice period before the contract end |
@@ -330,13 +352,17 @@ does not store unknown keys and names them in `ignored_keys` since v2.6.0.
   `meter_group_id` in 1.2.0, `external_id` in 1.3.0, `baseline_events` in 1.4.0)
   and in 1.5.0 turns the scalar `gas_conversion_factor` into the list
   `gas_conversion_factors`,
-- raises the version step by step to the current state (**1.5.0**).
+- in 1.6.0 pins the previous value for the corrected defaults (`co2_gas`,
+  `co2_strom_years`, `co2_pellets`, `co2_fernwaerme`,
+  `wasser_personen_referenz`) where the installation never saved it — only for
+  data older than 1.6.0,
+- raises the version step by step to the current state (**1.6.0**).
 
 Each step has its own `needsVXXXUpgrade()` + `upgradeToVXXX()` pair and is
 idempotent in itself (a repeated run is a no-op).
 
 The bundled demo data carries `schema_version: 1.1.0` and is migrated additively to
-the current state (1.5.0) on first start — adding `meter_groups.json` per utility
+the current state (1.6.0) on first start — adding `meter_groups.json` per utility
 (1.2.0) and the meter fields `external_id` (1.3.0) and `baseline_events` (1.4.0)
 without touching existing values.
 The migration path (1.0.0 → current schema) is additionally checked in the CI via a

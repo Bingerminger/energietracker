@@ -77,10 +77,13 @@ Vollheizungen auf dieselbe Fläche). Deshalb:
 
 - Trage **jede Lieferung** mit Menge und **Rechnungsbetrag** ein
   (`total_eur` hat seit v1.4.2 Vorrang — enthält Liefergebühr/Rabatt).
-- Die **Bestandskurve** (seit v1.4.0 kalibriert) zeigt einen
-  realistischen Sägezahn und warnt über `tank_warn_pct` rechtzeitig vor
-  Leerstand → rechtzeitig nachbestellen (idealerweise im Sommer, wenn
-  Öl/Pellets günstiger sind).
+- Die **Bestandskurve** zeigt einen realistischen Sägezahn und warnt über
+  `tank_warn_pct` rechtzeitig vor Leerstand → rechtzeitig nachbestellen
+  (idealerweise im Sommer, wenn Öl/Pellets günstiger sind).
+- Markiere eine Lieferung als **„bis voll getankt"** oder erfasse ab und zu
+  einen **Peilstand** (seit v2.10.0): Dann ist der Verbrauch bis zu diesem
+  Tag gerechnet statt geschätzt, und spätere Lieferungen ändern die Vorjahre
+  nicht mehr.
 - Plane die nächste Lieferung als `is_planned` vor — sie erscheint,
   verfälscht aber Bilanz/Bestand nicht.
 
@@ -217,10 +220,11 @@ Wirtschaftlichkeit („was bleibt von meiner Erzeugung im Haus").
 
 ### 6.5 CO₂ als „vermieden"
 
-Die App zeigt für `pv_einspeisung` den CO₂-Wert als negativen Wert mit
-dem Label „vermieden" und einem Tooltip mit Methoden-Hinweis. Die
-Rechnung ist `einspeisung_kWh × co2_strom`-Faktor (Default 380 g/kWh =
-Strom-Mix Deutschland). Sie berücksichtigt **nicht** den
+Die App zeigt für `pv_einspeisung` und seit v2.10.0 auch für
+`pv_erzeugung` den CO₂-Wert als negativen Wert mit dem Label „vermieden"
+und einem Tooltip mit Methoden-Hinweis. Die Rechnung ist
+`kWh × co2_strom`-Faktor des Jahres (Umweltbundesamt, Strommix; 2025:
+344 g/kWh). Sie berücksichtigt **nicht** den
 PV-Lebenszyklus (Herstellung, Transport, Recycling), liegt damit aber
 auf derselben methodischen Ebene wie der CO₂-Faktor für den Bezug — die
 Zahlen sind also direkt vergleichbar.

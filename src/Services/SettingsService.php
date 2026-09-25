@@ -41,8 +41,17 @@ final class SettingsService
         'hdd_base_temp'            => 15.0,    // °C
 
         // ── CO2 emission factors (g per consumption unit) ──
-        'co2_gas'                  => 201.0,   // g/kWh
-        'co2_strom'                => 380.0,   // g/kWh — German grid mix 2024 [Unverifiziert — Defaultwert übernommen aus v0.9.0]
+        // v2.10.0 (Review CALC-19) — je Faktor eine Quelle, bezogen auf die
+        // Einheit, in der die App zählt. Bestandsinstallationen behalten ihre
+        // bisherigen Werte (Migration 1.6.0, LEGACY_DEFAULTS; Lektion 36).
+        //   Gas: BAFA-Infoblatt CO₂-Faktoren v3.4 (2026) nennt 201 g/kWh
+        //        bezogen auf den HEIZWERT; die App zählt Gas nach Brennwert
+        //        (z × Hs) → × 0,906 (BAFA, Tabelle 3) = 182 g/kWh.
+        //   Strom: Umweltbundesamt je Jahr (co2_strom_years), `co2_strom`
+        //        gilt für Jahre davor (s. Countries::CO2_STROM_DE_UBA).
+        'co2_gas'                  => 182.0,   // g/kWh (Brennwert)
+        'co2_strom'                => 380.0,   // g/kWh — für Jahre vor dem ersten Eintrag in co2_strom_years
+        'co2_strom_years'          => Countries::CO2_STROM_DE_UBA,   // Jahr → g/kWh
         'co2_wasser'               => 350.0,   // g/m³ frisch+abwasser — [Unverifiziert] grober Richtwert, in Einstellungen anpassbar
 
         // ── Regression filtering ──
@@ -70,7 +79,7 @@ final class SettingsService
 
         // ── Wasser ──
         'wasser_personen_anzahl'   => 2,
-        'wasser_personen_referenz' => 127.0,
+        'wasser_personen_referenz' => 122.0,   // L/Person·Tag, BDEW 2024 (v2.10.0; vorher 127)
 
         // ── Abrechnungszyklus (F-03, v1.1.0) ──
         'billing_cycle_anchor_gas'    => '01-01',
@@ -118,18 +127,25 @@ final class SettingsService
         // ── v1.3.0 — Gebäude-Stammdaten für kWh/m²-Benchmark ──
         'wohnflaeche_m2'           => 100,
         'baujahr'                  => null,    // veraltet (v2.9.0): ohne Wirkung, nicht mehr in der Oberfläche; entfällt mit v3.0.0
-        'gebaeudetyp'              => 'efh',   // efh|mfh|reihenhaus|wohnung
+        'gebaeudetyp'              => 'efh',   // efh|rh|mfh|whg (Oberfläche; „reihenhaus" wird auch gelesen)
+        // v2.10.0 (CALC-07) — energieausweis-nahe Kennzahl: Gebäudenutzfläche
+        // 1,35 × Wohnfläche bei EFH/RH mit beheiztem Keller (sonst 1,2);
+        // dezentrales Warmwasser bekommt 20 kWh/m²·a Zuschlag
+        'beheizter_keller'         => false,
+        'warmwasser_dezentral'     => false,
 
         // ── v1.3.0 — Energieträger-Konstanten (Hu, CO₂) ──
-        // Heizöl EL: Heizwert ≈ 10.0 kWh/L, CO₂ ≈ 266 g/kWh (≈ 2,66 kg/L)
+        // Heizöl EL: Heizwert ≈ 10.0 kWh/L; CO₂ 266 g/kWh (BAFA v3.4, Heizwert
+        //   — passt, weil die App Heizöl mit dem Heizwert rechnet)
         // Pellets DIN EN ISO 17225-2 A1: Heizwert ≈ 4.8 kWh/kg
-        //   CO₂ nur ≈ 26 g/kWh (biogen, nahezu klimaneutral nach BAFA-Ansatz)
-        // Fernwärme: deutscher Mix ≈ 180 g/kWh [Unverifiziert — schwankt je Versorger stark]
+        //   v2.10.0: CO₂ 36 g/kWh (BAFA v3.4, CO₂-Äquivalente inkl. Vorkette; vorher 26)
+        // Fernwärme: v2.10.0 BAFA-Pauschale 280 g/kWh (vorher 180) — der Wert des
+        //   eigenen Netzes steht beim Versorger und ist der bessere
         'heizoel_kwh_per_l'        => 10.0,
         'pellets_kwh_per_kg'       => 4.8,
         'co2_heizoel'              => 266.0,
-        'co2_pellets'              => 26.0,
-        'co2_fernwaerme'           => 180.0,
+        'co2_pellets'              => 36.0,
+        'co2_fernwaerme'           => 280.0,
 
         // ── v1.3.0 — Regressionsmodelle ──
         'segmented_split_mode'     => 'auto',  // auto|fixed
@@ -169,7 +185,102 @@ final class SettingsService
         ],
     ];
 
+    /**
+     * v2.10.0 — Defaults vor ihrer Korrektur (Lektion 36: „ein Update darf
+     * keine Zahl ändern, die der Nutzer nicht selbst angefasst hat").
+     *
+     * Die Migration 1.6.0 schreibt diese Werte in die settings.json jeder
+     * Bestandsinstallation, die den Schlüssel nie gespeichert hat — deren
+     * Zahlen bleiben also, wie sie waren. Neue Installationen bekommen die
+     * korrigierten Defaults. `defaultUpdates()` bietet den Wechsel an.
+     */
+    public const LEGACY_DEFAULTS = [
+        'co2_gas'                  => 201.0,
+        'co2_strom_years'          => [],
+        'co2_pellets'              => 26.0,
+        'co2_fernwaerme'           => 180.0,
+        'wasser_personen_referenz' => 127.0,
+    ];
+
     public function __construct(private JsonStore $store) {}
+
+    /** v2.10.0 — der aktuelle Default eines Schlüssels (für Migration und Angebot). */
+    public static function defaultFor(string $key): mixed
+    {
+        return self::DEFAULTS[$key] ?? null;
+    }
+
+    /**
+     * v2.10.0 — CO₂-Faktor einer Verbrauchsart für ein Jahr (g je Einheit).
+     * Strom: der Wert des letzten eingetragenen Jahres bis einschließlich
+     * `$year` aus `co2_strom_years`, davor `co2_strom`. Alle anderen: ihr
+     * einer Wert.
+     */
+    public function co2Factor(string $key, int $year): float
+    {
+        if ($key === 'co2_strom') {
+            $best = null;
+            foreach ((array)$this->get('co2_strom_years', []) as $y => $v) {
+                if ((int)$y <= $year && ($best === null || (int)$y > $best[0]) && is_numeric($v)) {
+                    $best = [(int)$y, (float)$v];
+                }
+            }
+            if ($best !== null) return $best[1];
+        }
+        return (float)$this->get($key, 0.0);
+    }
+
+    /**
+     * v2.10.0 — Schlüssel, die noch den bei der Migration festgeschriebenen
+     * alten Default tragen, obwohl ein korrigierter vorliegt. Die
+     * Einstellungen bieten den Wechsel an („Neuere Standardwerte").
+     *
+     * @return list<array{key:string, current:mixed, recommended:mixed}>
+     */
+    public function defaultUpdates(): array
+    {
+        $user = $this->store->read('settings.json', []);
+        if (!is_array($user)) $user = [];
+        $out = [];
+        foreach (self::LEGACY_DEFAULTS as $key => $legacy) {
+            if (!array_key_exists($key, $user)) continue;          // nie festgeschrieben: gilt schon der neue
+            $current = $user[$key];
+            $sameAsLegacy = is_array($legacy) ? $current == $legacy : is_numeric($current) && abs((float)$current - $legacy) < 1e-9;
+            if ($sameAsLegacy && self::DEFAULTS[$key] != $legacy) {
+                $out[] = ['key' => $key, 'current' => $current, 'recommended' => self::DEFAULTS[$key]];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * v2.10.0 — Jahreswerte `Jahr → g/kWh` (Objekt) oder Liste
+     * `[{year, g_per_kwh}]`; streng beim Speichern.
+     *
+     * @return array<int,float>
+     */
+    private static function normalizeYearMap(mixed $v, callable $t): array
+    {
+        if ($v === null || $v === '' || $v === []) return [];
+        if (!is_array($v)) {
+            throw new \InvalidArgumentException($t('errors.settings.valueInvalid', ['key' => 'co2_strom_years', 'value' => gettype($v)]));
+        }
+        $out = [];
+        foreach ($v as $k => $val) {
+            if (is_array($val)) { $k = $val['year'] ?? null; $val = $val['g_per_kwh'] ?? null; }
+            $year = is_numeric($k) ? (int)$k : 0;
+            $num = is_string($val) ? str_replace(',', '.', trim($val)) : $val;
+            if ($year < 1990 || $year > 2100 || (string)$year !== trim((string)$k)
+                || is_bool($num) || !is_numeric($num) || (float)$num < 0 || (float)$num > 2000) {
+                throw new \InvalidArgumentException($t('errors.settings.valueInvalid', [
+                    'key' => 'co2_strom_years', 'value' => trim((string)$k) . ': ' . (is_scalar($val) ? (string)$val : ''),
+                ]));
+            }
+            $out[$year] = round((float)$num, 1);
+        }
+        ksort($out);
+        return $out;
+    }
 
     public function all(): array
     {
@@ -214,6 +325,10 @@ final class SettingsService
             if ($k === 'gas_conversion_factors') {
                 $v = ConversionFactorService::normalizeList($v, $this->translator());
                 if ($v === []) $v = self::defaultGasConversionFactors();
+            }
+            // v2.10.0 (CALC-19) — Strom-CO₂ je Jahr
+            if ($k === 'co2_strom_years') {
+                $v = self::normalizeYearMap($v, $this->translator());
             }
             // v2.7.0 — Länderprofil: nur bekannte Werte. Eine unbekannte
             // Zeitzone würde date_default_timezone_set() beim nächsten Start

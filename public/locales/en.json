@@ -82,7 +82,10 @@
     "efficiency": {
       "title": "Efficiency",
       "livingArea": "Living area {area} m²",
-      "perSource": "per heat source · living area {area} m²"
+      "perSource": "per heat source · living area {area} m²",
+      "certificate": "Certificate-style: {value} kWh/m²·yr{cls}",
+      "certificateTitle": "Net calorific value, weather-adjusted, based on {area} m² usable floor area. A consumption certificate requires 36 months; available: {months}.",
+      "certificateAll": "Certificate-style, all heat sources: {value} kWh/m²·yr{cls}"
     },
     "tanks": { "title": "Tank levels" },
     "stromSaldo": {
@@ -97,7 +100,10 @@
       "autarky": "Self-sufficiency",
       "autarkySub": "share of own power",
       "selfUse": "Self-consumption",
-      "selfUseSub": "{kwh} kWh used directly"
+      "selfUseSub": "{kwh} kWh used directly",
+      "savings": "Self-consumption savings",
+      "savingsSub": "{kwh} kWh used yourself × grid price",
+      "coveredSub": "over {months} months with data from all three meters"
     },
     "recommendations": { "title": "Top recommendations" },
     "reminders": {
@@ -194,7 +200,9 @@
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Advances up to {date}",
-      "balanceShort": "Balance {value}"
+      "balanceShort": "Balance {value}",
+      "co2AvoidedGenTitle": "Simplified model: generated kWh × grid-mix CO₂ factor — displaced grid electricity, feed-in included. PV life cycle not considered.",
+      "generation": "Generation"
     },
     "cards": {
       "contracts": "📑 Contracts & advances",
@@ -311,7 +319,9 @@
       "colMa3Title": "Rolling 3-month average",
       "colMa6": "MA·6",
       "colMa6Title": "Rolling 6-month average",
-      "total": "Total"
+      "total": "Total",
+      "estimatedTitle": "{days} days estimated (after the last known stock)",
+      "estimatedLegend": "≈ month contains estimated days — after the last known stock (delivery “filled to full” or tank reading)."
     },
     "readingsTable": {
       "emptyTitle": "No readings",
@@ -338,14 +348,35 @@
       "colTotal": "Total",
       "colSupplier": "Supplier",
       "colNote": "Note",
-      "planned": "PLANNED"
+      "planned": "PLANNED",
+      "full": "FULL"
     },
     "tank": {
       "noCapacity": "No tank capacity set — enter it on the meter to see the stock curve.",
       "summary": "currently ~{stock} {unit} / {cap} {unit} ({pct} %)",
       "remaining": "{stock} {unit} remaining (modelled)",
       "ofCap": "{pct} % of {cap} {unit}",
-      "modelNote": "Stock is modelled from initial stock + deliveries − HDD-weighted consumption; it is an estimate, not a tank gauge."
+      "noteMeasured": "Consumption calculated from known stock levels up to {date}, estimated afterwards.",
+      "noteEstimated": "Stock and consumption are estimated from the initial stock and the deliveries. A delivery “filled to full” or a tank reading makes them exact.",
+      "warnInconsistent": "Between {from} and {to} the levels do not add up: {excess} {unit} more in the tank than can be there. Is a delivery missing, or is a level wrong?",
+      "warnExhausted": "By calculation the tank has been empty since {date}. Is a delivery or a tank reading missing?",
+      "warnNoCalibration": "No consumption rate yet: it needs two known tank levels at least 14 days apart (initial stock, delivery “Filled to full”, tank reading) or two deliveries.",
+      "warnFlat": "Temperatures are available for fewer than half of the days — consumption is spread evenly.",
+      "levelsTitle": "Tank readings",
+      "addLevel": "Record tank reading",
+      "levelsEmpty": "No tank reading yet. A reading makes the calculation exact up to that day.",
+      "levelDeleteConfirm": "Delete the tank reading of {date}?",
+      "levelDeleted": "Tank reading deleted",
+      "levelSaved": "Tank reading saved",
+      "levelDate": "Date",
+      "levelValue": "Level ({unit})",
+      "levelHint": "Read from the tank gauge, a dipstick or a level sensor.",
+      "levelNote": "Note",
+      "levelRange": "Please enter a level between 0 and {cap} {unit}.",
+      "chartMeasured": "Stock ({unit}), calculated",
+      "chartEstimated": "Stock ({unit}), estimated",
+      "chartAnchors": "Known stock",
+      "chartAlt": "Tank stock over {year}"
     },
     "chart": { "temp": "avg temperature", "alt": "Bar chart: monthly consumption and average temperature" },
     "readingModal": {
@@ -375,7 +406,9 @@
       "planned": "Planned (not yet delivered)",
       "validation": "Date and a positive quantity are required.",
       "savedNew": "Delivery saved",
-      "savedEdit": "Delivery updated"
+      "savedEdit": "Delivery updated",
+      "fillToFull": "Filled to full",
+      "fillToFullHint": "The tank was full afterwards. The app then knows the stock on that day and calculates the consumption up to it exactly."
     },
     "confirm": {
       "deleteReading": "Really delete the reading from {date}?",
@@ -684,7 +717,11 @@
       "saved": "Meter saved",
       "digits": "Register digits (before the decimal point)",
       "digitsHint": "Only needed if the register can roll over from 99999 to 0: the analysis then recognises the rollover instead of reporting a decrease. Empty = unknown.",
-      "activeHint": "Clear this when the meter is out of service: its history still counts in every total, but it no longer appears in the reading entry and raises no warnings."
+      "activeHint": "Clear this when the meter is out of service: its history still counts in every total, but it no longer appears in the reading entry and raises no warnings.",
+      "initialStockPrice": "Price of the initial stock (ct/{unit})",
+      "initialStockPriceHint": "Leave empty to use the price of the first delivery.",
+      "heatSource": "Heating electricity (heat pump)",
+      "heatSourceHint": "This electricity meter measures the heating: it counts towards the efficiency figure."
     },
     "replace": {
       "title": "Meter swap: {name}",
@@ -788,12 +825,12 @@
     },
     "field": {
       "hdd_base_temp": { "label": "HDD base temperature", "hint": "Heating limit — days below count as heating days." },
-      "co2_gas": { "label": "CO₂ gas" },
-      "co2_strom": { "label": "CO₂ electricity" },
+      "co2_gas": { "label": "CO₂ gas", "hint": "BAFA: 201 g/kWh, based on the net calorific value. The app counts gas by gross calorific value (z-number × calorific value), hence × 0.906 = 182." },
+      "co2_strom": { "label": "CO₂ electricity", "hint": "Applies to years before the first yearly value — without yearly values, to all years." },
       "co2_wasser": { "label": "CO₂ water" },
-      "co2_fernwaerme": { "label": "CO₂ district heating" },
-      "co2_heizoel": { "label": "CO₂ heating oil" },
-      "co2_pellets": { "label": "CO₂ pellets" },
+      "co2_fernwaerme": { "label": "CO₂ district heating", "hint": "BAFA flat rate. Your heat network’s own value is more accurate — ask your supplier." },
+      "co2_heizoel": { "label": "CO₂ heating oil", "hint": "BAFA, based on the net calorific value — as the app calculates heating oil." },
+      "co2_pellets": { "label": "CO₂ pellets", "hint": "BAFA, CO₂ equivalents including the upstream chain." },
       "billing_cycle_anchor_gas": { "label": "Settlement date gas" },
       "billing_cycle_anchor_strom": { "label": "Settlement date electricity" },
       "billing_cycle_anchor_wasser": { "label": "Settlement date water" },
@@ -801,7 +838,7 @@
       "contract_remind_days_2": { "label": "Level 2 — reminder" },
       "contract_remind_days_3": { "label": "Level 3 — urgent" },
       "wasser_personen_anzahl": { "label": "People in household" },
-      "wasser_personen_referenz": { "label": "Reference" },
+      "wasser_personen_referenz": { "label": "Reference", "hint": "BDEW 2024: 122 L per person and day (Germany)." },
       "wasser_sparindex_gut": { "label": "Saving index — good up to", "hint": "Index ≤ this value is considered unremarkable." },
       "wasser_sparindex_warnung": { "label": "Saving index — warning from", "hint": "Index ≥ this value indicates saving potential." },
       "min_days_period": { "label": "Min. days per period" },
@@ -815,7 +852,7 @@
       "dashboard_months": { "label": "Months on dashboard" },
       "alert_days_since_reading": { "label": "Warn after" },
       "wohnflaeche_m2": { "label": "Living area", "hint": "Heated area — denominator of the efficiency metric." },
-      "gebaeudetyp": { "label": "Building type", "hint": "efh = detached, rh = terraced, mfh = multi-family, whg = flat." },
+      "gebaeudetyp": { "label": "Building type", "hint": "Multi-family means three or more flats." },
       "heizoel_kwh_per_l": { "label": "Heating oil energy content" },
       "pellets_kwh_per_kg": { "label": "Pellets energy content" },
       "delivery_baseload_share": { "label": "Base-load share distribution", "hint": "Share of consumption as weather-independent base load (rest HDD-weighted)." },
@@ -838,6 +875,18 @@
       "frame_ancestors": {
         "label": "Allowed embedding addresses",
         "hint": "Address with scheme and port, e.g. http://homeassistant.local:8123; separate several with spaces. Empty = only this installation itself."
+      },
+      "co2_strom_years": {
+        "label": "CO₂ electricity per year",
+        "hint": "Electricity mix per year (German Environment Agency, UBA). After the last year its value applies, before that “CO₂ electricity”."
+      },
+      "beheizter_keller": {
+        "label": "Heated basement",
+        "hint": "Single-/two-family or terraced house with heated basement: usable floor area = 1.35 × living area (otherwise 1.2) — for the certificate-style figure."
+      },
+      "warmwasser_dezentral": {
+        "label": "Decentralised hot water",
+        "hint": "Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a 20 kWh/m²·yr surcharge."
       }
     },
     "boolActive": "on",
@@ -1058,7 +1107,8 @@
         "GB": "UK gas bills: enter the volume correction factor 1.02264 and the calorific value in MJ/m³. Imperial meters (ft³) are not supported.",
         "IT": "Italian gas bills: enter the “coefficiente C” as correction factor and the PCS (gross calorific value), usually in GJ/Smc. The contract form converts prices per Smc to {minor}/kWh.",
         "NL": "Dutch gas bills: enter the calorific value (calorische waarde) in MJ/m³. The contract form converts prices per m³ to {minor}/kWh."
-      }
+      },
+      "defaultHint": "Default factor 11.5 kWh/m³ active. Your network’s value is on the gas bill (z-number × calorific value) — typically 10.3 to 11.1. With the default, kWh, costs and CO₂ are up to 20 % too high."
     },
     "invalidFields": "Not saved: please correct the fields marked in red.",
     "dayMonthInvalid": "Please enter as day-month, e.g. 01-10 for 1 October.",
@@ -1120,8 +1170,30 @@
       "colProfile": "Profile",
       "source": {
         "ember2024": "CO₂ electricity: Ember 2024, generation mix (via Our World in Data)",
-        "default": "CO₂ electricity: the app’s previous default"
+        "default": "CO₂ electricity: the app’s previous default",
+        "uba": "CO₂ electricity: German Environment Agency, electricity mix per year"
       }
+    },
+    "co2Years": {
+      "none": "No yearly values — “CO₂ electricity” applies to all years.",
+      "colYear": "Year",
+      "invalid": "Please enter a year (1990–2100) and a value between 0 and 2000 g/kWh."
+    },
+    "defaultUpdates": {
+      "title": "Newer default values available",
+      "hint": "These values come from an earlier version. They were kept so that no figure changes by itself during the update. The new values have a documented source.",
+      "colNew": "New",
+      "sources": "Sources: BAFA information sheet on CO₂ factors (2026), German Environment Agency (electricity mix per year), BDEW (water use 2024).",
+      "apply": "Use the new values",
+      "applied": "Default values applied",
+      "years": "German Environment Agency {from}–{to}",
+      "noYears": "one value for all years"
+    },
+    "buildingTypes": {
+      "efh": "Single- or two-family house",
+      "rh": "Terraced house",
+      "mfh": "Multi-family building",
+      "whg": "Flat"
     }
   },
   "reminders": {
@@ -1534,7 +1606,13 @@
     "continued": "(cont.)",
     "meterPageTitle": "{label} {year} — {meter}",
     "heatDemand": "Heating energy · {label}",
-    "weatherNote": "Weather-adjusted: the weather effect per the heating model converted to a normal year; the month’s own deviations stay. Δ %: consumption against the expectation for this weather."
+    "weatherNote": "Weather-adjusted: the weather effect per the heating model converted to a normal year; the month’s own deviations stay. Δ %: consumption against the expectation for this weather.",
+    "co2Avoided": "{kg} kg avoided",
+    "co2InGeneration": "included in generation",
+    "revenueValue": "Revenue {amount}",
+    "kpiRevenue": "Total revenue",
+    "tableRevenue": "Revenue {cur}",
+    "certificate": "Certificate-style: {value} kWh/m²·yr (net calorific value, weather-adjusted, {area} m² usable floor area)"
   },
   "migration": {
     "warnNoSettings": "No settings found in the backup — the defaults apply.",
@@ -1574,7 +1652,8 @@
       "noLivingArea": "Living area not set — please enter it in the settings to get an efficiency class.",
       "noHeatData": "No heating energy data found for {year}.",
       "multipleSources": "Several heat sources active — the class per source is more meaningful than the combined total. The combined view only makes sense for deliberately combined heating (e.g. base and peak load).",
-      "noScale": "No efficiency scale is available for {country}. Classes A+ to H follow the German Buildings Energy Act (GEG) and are therefore not shown."
+      "noScale": "No efficiency scale is available for {country}. Classes A+ to H follow the German Buildings Energy Act (GEG) and are therefore not shown.",
+      "incompleteYear": "Data for {year} does not cover the whole year — no class; the figure only covers the measured period."
     },
     "forecast": {
       "tooFewMonths": "Not enough history (less than 6 months).",
@@ -1622,7 +1701,14 @@
       "invalidBaselineDate": "Invalid baseline date: “{date}” — expected YYYY-MM-DD",
       "duplicateBaselineDate": "A baseline cut-off already exists for {date}",
       "swapBeforeInstall": "The swap on {date} is before the current device was installed ({installed}).",
-      "digitsInvalid": "Counter digits: “{value}” is invalid — a whole number from 3 to 12, or empty, is allowed."
+      "digitsInvalid": "Counter digits: “{value}” is invalid — a whole number from 3 to 12, or empty, is allowed.",
+      "invalidTankLevels": "Tank readings must be sent as a list of entries with date and level",
+      "invalidTankLevelDate": "Invalid date for the tank reading: “{date}” — expected YYYY-MM-DD",
+      "tankLevelFuture": "The tank reading on {date} lies in the future",
+      "duplicateTankLevel": "A tank reading is already recorded for {date}",
+      "tankLevelInvalid": "Tank reading “{value}” is invalid — expected a number from 0",
+      "tankLevelAboveCapacity": "Tank reading {level} is above the tank capacity {capacity}",
+      "initialPriceInvalid": "Price of the initial stock “{value}” is invalid — expected a number from 0 or empty"
     },
     "common": {
       "unknownUtility": "Unknown utility: {utility}",
@@ -1680,7 +1766,8 @@
       "priceNegative": "Unit price must not be negative",
       "meterIdMissing": "meter_id (tank/store) is missing",
       "dateFuture": "Delivery date is in the future — set is_planned=true for planned deliveries",
-      "tankNotExist": "Tank/store (meter_id) does not exist: {id}"
+      "tankNotExist": "Tank/store (meter_id) does not exist: {id}",
+      "fullAboveCapacity": "Quantity {quantity} exceeds the tank capacity {capacity} — “filled to full” is not possible like this."
     },
     "ingest": {
       "unknownUtility": "Unknown or missing utility: {utility}",

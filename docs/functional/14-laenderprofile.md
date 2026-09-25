@@ -21,7 +21,7 @@ bisherige Verhalten (ein Test hält beides gleich).
 
 | Land | Währung | Zeitzone | Heizgrenze | CO₂ Strom | Standort | Effizienzklasse | Brennwert in |
 |---|---|---|---|---|---|---|---|
-| Deutschland | EUR | Europe/Berlin | 15 °C | 380 g/kWh ¹ | Leipzig | GEG (A+ bis H) | kWh/m³ |
+| Deutschland | EUR | Europe/Berlin | 15 °C | je Jahr ¹ | Leipzig | GEG (A+ bis H) | kWh/m³ |
 | Österreich | EUR | Europe/Vienna | 15 °C | 103 g/kWh | Wien | – | kWh/m³ |
 | Schweiz | CHF | Europe/Zurich | 15 °C | 35 g/kWh | Bern | – | kWh/m³ |
 | Frankreich | EUR | Europe/Paris | 18 °C (DJU) | 40 g/kWh | Paris | – | kWh/m³ |
@@ -31,8 +31,11 @@ bisherige Verhalten (ein Test hält beides gleich).
 | Niederlande | EUR | Europe/Amsterdam | 18 °C (graaddagen) | 251 g/kWh | De Bilt | – | MJ/m³ |
 | Vereinigtes Königreich | GBP | Europe/London | 15,5 °C | 217 g/kWh | London | – | MJ/m³ |
 
-¹ Deutschland behält den bisherigen Default. Alle anderen CO₂-Faktoren: Ember,
-Stromerzeugungsmix 2024, über *Our World in Data*
+¹ Deutschland: Strommix des Umweltbundesamts je Jahr 2015–2025
+(`co2_strom_years`, seit v2.10.0; 2025: 344 g/kWh), davor 380 g/kWh. Nur das
+deutsche Profil hat Jahreswerte — wer das Land wechselt und das Profil
+übernimmt, rechnet mit dem einen Wert des Landes. Alle anderen CO₂-Faktoren:
+Ember, Stromerzeugungsmix 2024, über *Our World in Data*
 („carbon-intensity-electricity"). Die Heizgrenze folgt der nationalen
 Gradtag-Konvention, wo diese eine reine Basistemperatur ist; sonst bleibt es
 bei 15 °C.

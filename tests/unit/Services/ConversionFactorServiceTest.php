@@ -398,7 +398,7 @@ final class ConversionFactorServiceTest extends ServiceTestCase
         self::assertSame(null, $s['gas_conversion_factors'][0]['from']);
         self::assertSame(10.7, $s['gas_conversion_factors'][0]['kwh_per_m3']);
         self::assertEquals(15.0, $s['hdd_base_temp'], 'andere Einstellungen unangetastet');
-        self::assertSame('1.5.0', $this->store->read('meta.json', [])['schema_version']);
+        self::assertSame('1.6.0', $this->store->read('meta.json', [])['schema_version']);
 
         // Und die Historie rechnet mit dem Altwert weiter — nichts springt.
         self::assertSame(10.7, $this->svc->factorOn('gas', '2019-01-01'));

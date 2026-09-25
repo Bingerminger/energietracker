@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.9.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.10.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-398-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-434-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installierbar-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
@@ -43,7 +43,7 @@ heute und als erwartete End-Saldierung, mit Abschlagsvorschlag. Dazu eine statis
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v2.9.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v2.10.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -174,11 +174,12 @@ PDF-Jahresbericht.
 
 - **Heizöl & Pellets** werden über **Lieferungen** statt Zählerständen
   erfasst (Datum, Menge, Preis/Einheit oder Gesamtbetrag, Lieferant,
-  Notiz, „geplant"-Flag). Der Monatsverbrauch wird energetisch
-  bilanziert und über einen Sockelanteil plus HGT-Gewichtung verteilt.
-- **Tank-Bestandskurve**: modellierter Restbestand
-  (Anfangsbestand + Lieferungen − HGT-gewichteter Verbrauch) mit
-  Warnschwelle. Eine Schätzung, keine Tankpeilung.
+  Notiz, „geplant"-Flag, „bis voll getankt").
+- **Tankbuch** (seit v2.10.0): eine Rechnung für Verbrauch, Kosten und
+  Bestandskurve. Zwischen bekannten Beständen — Anfangsbestand, Lieferung
+  „bis voll", Peilstand — ist der Verbrauch gerechnet, danach geschätzt und so
+  gekennzeichnet; eine neue Lieferung ändert die Vorjahre nicht mehr. Kosten
+  zum Durchschnittspreis des Tankinhalts, auch für den Anfangsbestand.
 - **Fernwärme** als zusätzliche kumulative, HGT-relevante Verbrauchsart.
 
 ### Auswertung & Insights (v1.3.0)
@@ -187,7 +188,12 @@ PDF-Jahresbericht.
   Zähler, Erwartung für jeden Monat und Abweichung bei gegebenem Wetter; der
   Wettereinfluss wird auf das 30-jährige Klimanormal umgerechnet (seit v2.8.0).
 - **Effizienzklasse** A+…H aus dem Heizenergiebedarf in kWh/m²·a,
-  konfigurierbare Bandgrenzen, Wohnfläche/Gebäudetyp pflegbar.
+  konfigurierbare Bandgrenzen, nur für ganze Jahre; daneben seit v2.10.0 eine
+  **energieausweis-nahe Kennzahl** (Heizwert, witterungsbereinigt,
+  Gebäudenutzfläche, Warmwasser-Zuschlag, Wärmepumpen-Strom).
+- **CO₂ mit Quelle** (seit v2.10.0): BAFA-Faktoren, Strom je Jahr nach dem
+  Umweltbundesamt, PV als vermiedenes CO₂; Bestandsinstallationen behalten
+  ihre Werte, bis sie die neuen übernehmen.
 - **Empfehlungs-Engine**: sieben statistische Regelfamilien aus den
   Eigendaten, mit Schweregrad und einzeln ausblendbar.
 - **Sigmoid- und auto-segmentiertes Regressionsmodell** zusätzlich zu
@@ -330,7 +336,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.9.0
+  ghcr.io/bingerminger/energietracker:2.10.0
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -384,10 +390,10 @@ cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
 
 ## Datenmodell
 
-Alles liegt als JSON unter `data/`. Schema-Version (`1.1.0` — seit
-v1.3.0; v1.0.3 führte das Wasser-Vertragsmodell ein, v1.1.0 ergänzte die
-lieferbasierten Verbrauchsarten und `reminders.json`) steht in `data/meta.json` und in jedem exportierten Backup unter
-`backup_version`.
+Alles liegt als JSON unter `data/`. Die Schema-Version (`1.6.0` — seit
+v2.10.0; Historie im [Datenmodell](docs/technical/04-data-model.md)) steht in
+`data/meta.json` und in jedem exportierten Backup unter `meta.schema_version`;
+das Backup-Format selbst ist `backup_version` 3.0.
 
 ```
 data/
@@ -508,7 +514,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „2.9.0"
+├── VERSION                  ← „2.10.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE

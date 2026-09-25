@@ -306,6 +306,12 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               <input class="input" name="initial_stock" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(existing?.initial_stock))}">
             </div>
           </div>
+          <div class="field">
+            <label for="mf-initial-price">${t('meters.modal.initialStockPrice', { unit: volUnit })}</label>
+            <input class="input" id="mf-initial-price" name="initial_stock_price_ct" type="text" inputmode="decimal" autocomplete="off"
+                   style="max-width:10rem" value="${escapeHtml(formatForInput(existing?.initial_stock_price_ct))}" aria-describedby="mf-initial-price-hint">
+            <small class="muted" id="mf-initial-price-hint">${t('meters.modal.initialStockPriceHint')}</small>
+          </div>
         ` : ''}
         <div class="field">
           <label>${t('meters.modal.notes')}</label>
@@ -330,6 +336,12 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             </div>
           </div>
         </div>
+        ${u.key === 'strom' ? `
+          <div class="field">
+            <label><input type="checkbox" name="heat_source" ${existing?.heat_source ? 'checked' : ''}> ${t('meters.modal.heatSource')}</label>
+            <span class="settings-field__hint">${t('meters.modal.heatSourceHint')}</span>
+          </div>
+        ` : ''}
         ${existing ? `
           <div class="field">
             <label><input type="checkbox" name="active" ${existing.active ? 'checked' : ''}> ${t('meters.modal.active')}</label>
@@ -420,6 +432,13 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             toastErr(t('common.invalidNumber', { example: formatForInput(1234.5) }));
             return;
           }
+          // v2.10.0 — Preis des Anfangsbestands: leer bleibt leer (= Preis der ersten Lieferung)
+          const initialPriceRaw = isDelivery ? String(f.initial_stock_price_ct?.value ?? '').trim() : '';
+          const initialPrice = initialPriceRaw === '' ? null : parseDecimal(initialPriceRaw);
+          if (initialPriceRaw !== '' && (initialPrice == null || initialPrice < 0)) {
+            toastErr(t('common.invalidNumber', { example: formatForInput(98.5) }));
+            return;
+          }
           const initialCounterRaw = !isDelivery && f.initial_counter ? String(f.initial_counter.value).trim() : '';
           const initialCounter = initialCounterRaw === '' ? 0 : parseDecimal(initialCounterRaw);
           if (!isDelivery && f.initial_counter && (initialCounter == null || initialCounter < 0)) {
@@ -439,6 +458,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 icon:   f.icon.value,
                 notes:  f.notes.value,
                 active: f.active.checked,
+                ...(f.heat_source ? { heat_source: f.heat_source.checked } : {}),   // v2.10.0
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
                 baseline_events: baselineEvents,   // F1011
@@ -447,6 +467,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
               if (isDelivery) {
                 payload.capacity      = capacity;
                 payload.initial_stock = initialStock;
+                payload.initial_stock_price_ct = initialPrice;   // v2.10.0, null entfernt
               } else {
                 payload.digits = digitsRaw === '' ? null : Number(digitsRaw);   // leer entfernt
               }
@@ -461,12 +482,14 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
                 baseline_events: baselineEvents,   // F1011
+                ...(f.heat_source?.checked ? { heat_source: true } : {}),   // v2.10.0
               };
               // v2.1.1 — Fix #18: Delivery-Utilities bekommen Tank-Kapazität +
               // Anfangsbestand statt eines kumulativen Anfangsstands.
               if (isDelivery) {
                 payload.capacity      = capacity;
                 payload.initial_stock = initialStock;
+                if (initialPrice != null) payload.initial_stock_price_ct = initialPrice;   // v2.10.0
               } else {
                 payload.initial_counter = initialCounter;
                 if (digitsRaw !== '') payload.digits = Number(digitsRaw);

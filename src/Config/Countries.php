@@ -17,7 +17,8 @@ namespace Energietracker\Config;
  * Quellen:
  *   - CO₂ Strom (außer DE): Ember 2024, Erzeugungsmix des Landes, über
  *     Our World in Data „carbon-intensity-electricity" (abgerufen 2026-09-25).
- *     DE behält vorerst den bisherigen Default 380 g/kWh.
+ *     DE: seit v2.10.0 Jahreswerte des Umweltbundesamts (CO2_STROM_DE_UBA),
+ *     380 g/kWh nur noch für Jahre vor 2015.
  *   - Heizgrenze: nationale Gradtag-Konvention, wo sie eine reine Basis-
  *     temperatur ist (FR DJU 18 °C, IT gradi giorno 20 °C nach DPR 412/93,
  *     NL graaddagen 18 °C, UK HDD 15,5 °C); sonst 15 °C wie bisher.
@@ -34,6 +35,19 @@ final class Countries
 {
     public const DEFAULT = 'DE';
 
+    /**
+     * v2.10.0 (Review CALC-19) — CO₂ je kWh Strom in Deutschland, je Jahr:
+     * Umweltbundesamt, „Emissionsfaktor Strommix" (direktes CO₂, ohne
+     * Vorkette). 2015–2022 aus Climate Change 13/2025, Tabelle 2; 2023–2025
+     * aus der UBA-Veröffentlichung 2026 (2024 vorläufig, 2025 geschätzt).
+     * Für Jahre danach gilt der letzte Wert, für Jahre davor `co2_strom`.
+     */
+    public const CO2_STROM_DE_UBA = [
+        2015 => 530.0, 2016 => 524.0, 2017 => 490.0, 2018 => 474.0, 2019 => 409.0,
+        2020 => 365.0, 2021 => 406.0, 2022 => 433.0, 2023 => 379.0, 2024 => 353.0,
+        2025 => 344.0,
+    ];
+
     /** Währungen mit Untereinheit (Katalog-Platzhalter {code}, {cur}, {minor}). */
     public const CURRENCIES = [
         'EUR' => ['symbol' => '€',   'minor' => 'ct'],
@@ -44,7 +58,8 @@ final class Countries
     /** @var array<string,array<string,mixed>> */
     private const PROFILES = [
         'DE' => ['languages' => ['de'], 'currency' => 'EUR', 'timezone' => 'Europe/Berlin',
-                 'hdd_base_temp' => 15.0, 'co2_strom' => 380.0, 'co2_strom_source' => 'default',
+                 'hdd_base_temp' => 15.0, 'co2_strom' => 380.0, 'co2_strom_source' => 'uba',
+                 'co2_strom_years' => self::CO2_STROM_DE_UBA,
                  'location' => ['Leipzig Zentrum', 51.3397, 12.3731],
                  'efficiency_scale' => 'geg', 'gas_cv_unit' => 'kwh'],
         'AT' => ['languages' => ['de'], 'currency' => 'EUR', 'timezone' => 'Europe/Vienna',
@@ -149,6 +164,9 @@ final class Countries
             'timezone'      => $p['timezone'],
             'hdd_base_temp' => $p['hdd_base_temp'],
             'co2_strom'     => $p['co2_strom'],
+            // v2.10.0 — Jahreswerte gibt es nur für Deutschland; andere Länder
+            // rechnen mit ihrem einen Wert und erben keine deutschen Jahre
+            'co2_strom_years' => $p['co2_strom_years'] ?? [],
             'location_name' => $name,
             'latitude'      => $lat,
             'longitude'     => $lon,

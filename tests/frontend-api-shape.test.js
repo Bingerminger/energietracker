@@ -53,6 +53,19 @@ const ROOT = require('path').resolve(__dirname, '..');
   // v2.7.0 — Klasse nur mit Skala des Landes; dashboard.js liest `scale`
   check('Effizienz nennt die Skala (Demo: DE → geg)', eff.scale === 'geg' && eff.scale_note === null,
     `scale=${eff.scale}`);
+  // v2.10.0 — zweite Zahl (energieausweis-nah) und Abdeckung je Quelle
+  check('Effizienz (v2.10.0): certificate + coverage_days/complete je Quelle',
+    eff.certificate && typeof eff.certificate.kwh_per_m2 === 'number' && eff.certificate.area_factor >= 1.2
+      && (eff.per_source || []).every(s => Number.isInteger(s.coverage_days) && typeof s.complete === 'boolean'),
+    eff.certificate ? `${eff.certificate.kwh_per_m2} kWh/m²·a auf ${eff.certificate.area_m2} m²` : 'kein certificate');
+  const du = await j('/api/settings/default-updates');
+  check('default-updates (v2.10.0) → Liste (Demo: aktuelle Werte, also leer)', Array.isArray(du) && du.length === 0,
+    JSON.stringify(du).slice(0, 80));
+  const pvs = await j('/api/pv-summary');
+  const pvy = (pvs.yearly || [])[0];
+  check('pv-summary (v2.10.0): months_covered, savings_eur, feed_in_revenue_eur',
+    !pvy || (Number.isInteger(pvy.months_covered) && 'savings_eur' in pvy && 'feed_in_revenue_eur' in pvy),
+    pvy ? `${pvy.year}: ${pvy.months_covered} Monate` : 'keine PV');
 
   // 4a. v2.7.0 — Länderprofile: settings.js, temperatures.js und app.js lesen
   //     code/languages/currency/timezone/location_name/latitude/longitude
@@ -76,6 +89,18 @@ const ROOT = require('path').resolve(__dirname, '..');
     check('Stock-History hat capacity + days[]',
       sh.capacity != null && Array.isArray(sh.days),
       `cap=${sh.capacity} ${sh.capacity_unit || ''}, ${sh.days?.length || 0} Tage`);
+    // v2.10.0 — Tankbuch: Stützstellen, Schätzbeginn, Kalibrierung, Warnungen
+    check('Stock-History (v2.10.0): anchors/estimated_from/calibration/warnings, days[].estimated',
+      Array.isArray(sh.anchors) && sh.anchors.length > 0 && sh.anchors[0].kind === 'start'
+        && 'estimated_from' in sh && typeof sh.calibration === 'string' && Array.isArray(sh.warnings)
+        && sh.days.length > 0 && typeof sh.days[sh.days.length - 1].estimated === 'boolean',
+      `anchors=${(sh.anchors || []).map(a => a.kind).join(',')} cal=${sh.calibration}`);
+    const hc = await j(`/api/utility/heizoel/meters/${hMeters[0].id}/consumption`);
+    const hRows = hc.monthly || [];
+    check('consumption(heizoel, v2.10.0): estimated_days + effektiver Preis je kWh',
+      hRows.length > 0 && hRows.every(m => Number.isInteger(m.estimated_days))
+        && hRows.some(m => m.working_price_ct > 0),
+      `${hRows.length} Monate`);
   } else {
     check('Heizöl-Zähler vorhanden (für Delivery-UI-Test)', true, 'kein Zähler — übersprungen');
   }
@@ -166,6 +191,10 @@ const ROOT = require('path').resolve(__dirname, '..');
   check('settings: gas_conversion_factors ist eine Liste',
     Array.isArray(settings.gas_conversion_factors) && settings.gas_conversion_factors.length >= 1,
     JSON.stringify(settings.gas_conversion_factors)?.slice(0, 80));
+  // v2.10.0 — CO₂ Strom je Jahr als Objekt {Jahr: g/kWh}
+  check('settings: co2_strom_years (v2.10.0) als Jahr → Wert',
+    settings.co2_strom_years && !Array.isArray(settings.co2_strom_years) && Number(settings.co2_strom_years['2024']) > 0,
+    JSON.stringify(settings.co2_strom_years)?.slice(0, 60));
   check('settings: alter Skalar gas_conversion_factor ist weg',
     !('gas_conversion_factor' in settings));
   check('settings: Länderprofil-Schlüssel vorhanden (v2.7.0)',

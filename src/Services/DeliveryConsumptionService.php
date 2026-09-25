@@ -7,52 +7,289 @@ use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 
 /**
- * Tagesverbrauch und Tages-Bestandsabzug für lieferungsbasierte Zähler
- * (Heizöl, Pellets).
+ * Tagesverbrauch und Tankbestand für lieferungsbasierte Zähler (Heizöl,
+ * Pellets).
  *
- * Wurde in v1.4.4 aus ConsumptionService extrahiert, um dessen Größe
- * zu reduzieren. ConsumptionService delegiert seine öffentlichen
- * Delivery-Methoden hierher; die internen Anreicherungs-Methoden
- * (enrichWithWeather, applyContracts, …) verbleiben in ConsumptionService,
- * da sie auch von kumulativen Utilities genutzt werden.
+ * Wurde in v1.4.4 aus ConsumptionService extrahiert. Benötigte
+ * Abhängigkeiten bewusst minimal (JsonStore + Settings), damit kein Zirkel
+ * mit ConsumptionService entsteht; das Klimanormal legt der Service bei
+ * Bedarf selbst an.
  *
- * Benötigte Abhängigkeiten bewusst minimal gehalten (JsonStore + Settings),
- * damit kein Zirkel mit ConsumptionService entsteht.
+ * v2.10.0 — Tankbuch (Review CALC-04, CALC-25): **eine** Rechnung für
+ * Verbrauch, Kosten und Bestandskurve ({@see tankModel()}). Bis v2.9 gab es
+ * zwei: Die Kosten verteilten Anfangsbestand plus alle Lieferungen bis heute
+ * (Endbestand 0), die Bestandskurve rechnete mit einer kalibrierten Rate.
+ * Folge: Eine Lieferung von heute erhöhte den Verbrauch aller Vorjahre, und
+ * die Bilanz sagte „Tank leer", während die Kurve 1.466 L zeigte.
  */
 final class DeliveryConsumptionService
 {
+    /** Mindestzahl Tage, ab der geschlossene Intervalle die Rate bestimmen. */
+    private const MIN_CALIBRATION_DAYS = 14;
+
+    private ?ClimateNormalService $climate;
+    /** @var array<string,array<string,mixed>> je Anfrage einmal rechnen */
+    private array $memo = [];
+
     public function __construct(
         private JsonStore $store,
         private SettingsService $settings,
-    ) {}
+        ?ClimateNormalService $climate = null,
+    ) {
+        $this->climate = $climate;
+    }
 
     // ─────────────────────────────────────────────────────────────────────
-    //  Tagesverbrauch (kWh)
+    //  Tankbuch
     // ─────────────────────────────────────────────────────────────────────
 
     /**
-     * Tagesverbrauch für einen Lieferungs-Meter (Heizöl/Pellets).
+     * v2.10.0 — Tankbuch: Verbrauch, Bestand und Kosten je Tag.
      *
-     * Modell:
-     *   total_kwh   = Σ (Lieferung.quantity × kwh_per_unit) im Zeitraum
-     *                 (nur tatsächliche Lieferungen, geplante ausgeschlossen)
-     *   total_days  = Tage zwischen Meter-Inbetriebnahme und heute
-     *   baseload    = total_kwh × delivery_baseload_share        (gleichverteilt)
-     *   heating     = total_kwh × (1 − delivery_baseload_share)  (HGT-gewichtet)
+     * Konvention: Der Bestand „am Tag D" meint den Stand zu Beginn des Tages,
+     * nach den Lieferungen dieses Tages und vor seinem Verbrauch.
      *
-     *   verbrauch(d) = baseload / total_days
-     *                + heating × HGT(d) / Σ HGT(t..today)
+     * **Stützstellen** — Tage mit bekanntem Bestand:
+     *   - der Starttag mit `initial_stock` (plus Lieferungen desselben Tages),
+     *   - eine Lieferung mit `fill_to_full` (danach = `capacity`),
+     *   - ein Peilstand aus `tank_levels` am Zähler.
      *
-     * Falls für einen Tag keine Temperaturdaten vorliegen (HGT unbekannt),
-     * fließt der Heating-Anteil dort als anteilig-gleichverteilt ein
-     * (Fallback gegen Datenlöcher).
+     * Zwischen zwei Stützstellen i → j ist der Verbrauch **bekannt**:
      *
-     * Die Verteilung respektiert die Energieerhaltung — Σ verbrauch(d) über
-     * alle Tage = total_kwh. Das bedeutet implizit die Annahme, dass der
-     * Tankbestand am Ende des Zeitraums ungefähr dem `initial_stock`
-     * entspricht; bei stark wachsendem oder fallendem Tankbestand ist die
-     * Verteilung entsprechend leicht über- oder untergeschätzt. Akzeptable
-     * Vereinfachung für Privatkundendaten.
+     *   C = Bestand_i + Σ Lieferungen (i < Tag ≤ j) − Bestand_j
+     *
+     * Er wird nach der Form w(Tag) = ρ + HGT(Tag) auf die Tage verteilt
+     * (ρ: Grundlast in HGT-Einheiten, s. {@see shapeRho()}). Nach der letzten
+     * Stützstelle rechnet die kalibrierte Rate r × w(Tag) weiter — als
+     * **geschätzt** gekennzeichnet. Die Rate stammt, in dieser Reihenfolge,
+     *   1. aus den geschlossenen Intervallen (ΣC / Σw, ab 14 Tagen),
+     *   2. aus der Lieferkadenz: Was vor der letzten Lieferung geliefert
+     *      wurde, ist zwischen erster und letzter Lieferung verbraucht,
+     *   3. bei genau einer Lieferung aus der Annahme, dass der Anfangsbestand
+     *      bis zu ihr verbraucht war,
+     * sonst gibt es keine Rate: Ohne Lieferung oder Peilstand lässt sich kein
+     * Verbrauch rechnen (Warnung `no_calibration`, Verbrauch 0).
+     *
+     * Fehlen Temperaturen, füllt das Klimanormal (mittleres Tagesmittel des
+     * Kalendertags) die Lücke, sonst das Mittel der bekannten Tage desselben
+     * Monats; liegen für weniger als die Hälfte der Tage Werte vor, wird flach
+     * verteilt.
+     *
+     * **Kosten:** gleitender Durchschnittspreis des Tankinhalts — eine
+     * Lieferung mischt sich mit ihrem Preis unter den Bestand, verbraucht wird
+     * zum Durchschnitt. Der Anfangsbestand kostet `initial_stock_price_ct`
+     * (ct je Einheit) oder, wenn nicht gepflegt, den Preis der ersten
+     * Lieferung. Bis v2.9 war er kostenlos, und jeder Tag trug den Preis der
+     * letzten Lieferung.
+     *
+     * @return array{
+     *   days: array<string, array{draw: float, stock: float, delivery: float, estimated: bool, price_ct: ?float, cost_eur: ?float}>,
+     *   anchors: array<int, array{date: string, kind: string, stock: float}>,
+     *   estimated_from: ?string,
+     *   calibration: array{source: string, base_per_day: float, per_hdd: float, flat: bool},
+     *   warnings: array<int, array<string,mixed>>,
+     *   hdd_filled_days: int
+     * }
+     */
+    public function tankModel(string $utility, array $meter, ?string $today = null): array
+    {
+        if (!Utilities::isDelivery($utility)) {
+            throw new \InvalidArgumentException('tankModel nur für Delivery-Utilities, nicht für ' . $utility);
+        }
+        $today = $today ?? date('Y-m-d');
+        $memoKey = $utility . '|' . md5(serialize($meter)) . '|' . $today . '|' . $this->store->generation();
+        if (isset($this->memo[$memoKey])) return $this->memo[$memoKey];
+
+        $result = [
+            'days' => [], 'anchors' => [], 'estimated_from' => null,
+            'calibration' => ['source' => 'none', 'base_per_day' => 0.0, 'per_hdd' => 0.0, 'flat' => false],
+            'warnings' => [], 'hdd_filled_days' => 0,
+        ];
+        $start = $this->deliveryMeterStartDate($meter);
+        if ($start > $today) return $this->memo[$memoKey] = $result;
+
+        $baseShare = max(0.0, min(1.0, (float)$this->settings->get('delivery_baseload_share', 0.15)));
+        $hddBase   = (float)$this->settings->get('hdd_base_temp', 15.0);
+        $capacity  = (float)($meter['capacity'] ?? 0.0);
+        $initial   = max(0.0, (float)($meter['initial_stock'] ?? 0.0));
+
+        // ── Lieferungen im Fenster [Start, heute] ──
+        $deliveries = $this->deliveriesFor($utility, $meter, $start, $today);
+        $qByDate = [];
+        $fullDates = [];
+        foreach ($deliveries as $d) {
+            $qByDate[$d['date']] = ($qByDate[$d['date']] ?? 0.0) + (float)$d['quantity'];
+            if (!empty($d['fill_to_full']) && $capacity > 0) $fullDates[$d['date']] = true;
+        }
+
+        // ── Tage und Gradtage ──
+        $dates = [];
+        for ($c = new \DateTimeImmutable($start), $e = new \DateTimeImmutable($today); $c <= $e; $c = $c->modify('+1 day')) {
+            $dates[] = $c->format('Y-m-d');
+        }
+        $temps = $this->store->read('temperatures.json', []);
+        if (!is_array($temps)) $temps = [];
+        [$hdd, $filled, $flat] = $this->hddSeries($dates, $hddBase, $temps);
+        $result['hdd_filled_days'] = $filled;
+        $rho = $flat ? 0.0 : $this->shapeRho($baseShare, $hddBase, $temps);
+        $flat = $flat || $baseShare >= 0.999;
+        $w = [];
+        foreach ($dates as $d) $w[$d] = $flat ? 1.0 : $rho + $hdd[$d];
+
+        // ── Stützstellen ──
+        $anchors = [$start => ['kind' => 'start', 'stock' => $initial + ($qByDate[$start] ?? 0.0)]];
+        foreach (array_keys($fullDates) as $d) {
+            $anchors[$d] = ['kind' => 'full', 'stock' => $capacity];
+        }
+        foreach ($this->tankLevels($meter) as $lv) {
+            if ($lv['date'] < $start || $lv['date'] > $today) continue;
+            $anchors[$lv['date']] = ['kind' => 'level', 'stock' => $lv['level']];
+        }
+        ksort($anchors);
+        $anchorDates = array_keys($anchors);
+
+        // ── Geschlossene Intervalle: bekannter Verbrauch ──
+        $idx = array_flip($dates);
+        $intervals = [];
+        $tolerance = max(1.0, 0.01 * $capacity);
+        for ($k = 0; $k + 1 < count($anchorDates); $k++) {
+            $a = $anchorDates[$k];
+            $b = $anchorDates[$k + 1];
+            $delivered = 0.0;
+            foreach ($qByDate as $d => $q) {
+                if ($d > $a && $d <= $b) $delivered += $q;
+            }
+            $cons = $anchors[$a]['stock'] + $delivered - $anchors[$b]['stock'];
+            $days = array_slice($dates, $idx[$a], $idx[$b] - $idx[$a]);
+            if ($cons < -$tolerance) {
+                $result['warnings'][] = [
+                    'code' => 'inconsistent_level', 'from' => $a, 'to' => $b,
+                    'excess' => round(-$cons, 1),
+                ];
+            }
+            $intervals[] = ['from' => $a, 'to' => $b, 'days' => $days, 'cons' => max(0.0, $cons), 'valid' => $cons >= -$tolerance];
+        }
+
+        // ── Rate kalibrieren ──
+        $rate = null;
+        $source = 'none';
+        $calDays = 0; $calCons = 0.0; $calW = 0.0;
+        foreach ($intervals as $iv) {
+            if (!$iv['valid']) continue;
+            $calDays += count($iv['days']);
+            $calCons += $iv['cons'];
+            foreach ($iv['days'] as $d) $calW += $w[$d];
+        }
+        if ($calDays >= self::MIN_CALIBRATION_DAYS && $calW > 0) {
+            $rate = $calCons / $calW;
+            $source = 'anchors';
+        } else {
+            $deliveryDates = array_values(array_unique(array_column($deliveries, 'date')));
+            if (count($deliveryDates) >= 2) {
+                // Kadenz: alles außer der letzten Lieferung ist zwischen der
+                // ersten und der letzten verbraucht (Tank pendelt um ein Niveau)
+                $first = $deliveryDates[0];
+                $last  = $deliveryDates[count($deliveryDates) - 1];
+                $consumed = 0.0;
+                foreach ($qByDate as $d => $q) if ($d < $last) $consumed += $q;
+                $sumW = 0.0; $n = 0;
+                foreach ($dates as $d) if ($d >= $first && $d < $last) { $sumW += $w[$d]; $n++; }
+                if ($n >= self::MIN_CALIBRATION_DAYS && $sumW > 0 && $consumed > 0) {
+                    $rate = $consumed / $sumW;
+                    $source = 'deliveries';
+                }
+            }
+            if ($rate === null && count($deliveryDates) === 1 && $deliveryDates[0] > $start && $initial > 0) {
+                // Eine Lieferung: Der Anfangsbestand war bis zu ihr verbraucht
+                $sumW = 0.0; $n = 0;
+                foreach ($dates as $d) if ($d < $deliveryDates[0]) { $sumW += $w[$d]; $n++; }
+                if ($n >= self::MIN_CALIBRATION_DAYS && $sumW > 0) {
+                    $rate = $initial / $sumW;
+                    $source = 'first_delivery';
+                }
+            }
+        }
+        if ($rate === null) {
+            $result['warnings'][] = ['code' => 'no_calibration'];
+        }
+        if ($flat) {
+            $result['warnings'][] = ['code' => 'flat_no_temperatures'];
+        }
+        $result['calibration'] = [
+            'source'       => $source,
+            'base_per_day' => round(($rate ?? 0.0) * ($flat ? 1.0 : $rho), 4),
+            'per_hdd'      => round($flat ? 0.0 : ($rate ?? 0.0), 5),
+            'flat'         => $flat,
+        ];
+
+        // ── Tagesverbrauch ──
+        $draw = array_fill_keys($dates, 0.0);
+        $estimated = array_fill_keys($dates, false);
+        foreach ($intervals as $iv) {
+            $sumW = 0.0;
+            foreach ($iv['days'] as $d) $sumW += $w[$d];
+            $n = count($iv['days']);
+            foreach ($iv['days'] as $d) {
+                $draw[$d] = $sumW > 0 ? $iv['cons'] * $w[$d] / $sumW : ($n > 0 ? $iv['cons'] / $n : 0.0);
+            }
+        }
+        $lastAnchor = $anchorDates[count($anchorDates) - 1];
+        foreach ($dates as $d) {
+            if ($d < $lastAnchor) continue;
+            $draw[$d] = $rate !== null ? $rate * $w[$d] : 0.0;
+            $estimated[$d] = true;
+        }
+        $result['estimated_from'] = $lastAnchor;
+
+        // ── Bestand und Kosten ──
+        $avg = $this->initialPrice($meter, $deliveries);
+        $stock = 0.0;              // Ende des Vortags (modelliert, ≥ 0 für die Preisführung)
+        $exhaustedWarned = false;
+        $byDate = [];
+        foreach ($deliveries as $d) $byDate[$d['date']][] = $d;
+        foreach ($dates as $i => $d) {
+            // Anfangsbestand zum Preis p0 in den Tank legen
+            if ($i === 0) $stock = $initial;
+            foreach ($byDate[$d] ?? [] as $dl) {
+                $q = (float)$dl['quantity'];
+                $p = $this->deliveryPrice($dl);
+                if ($p !== null) {
+                    $avg = ($stock + $q) > 0 && $avg !== null
+                        ? ($stock * $avg + $q * $p) / ($stock + $q)
+                        : $p;
+                }
+                $stock += $q;
+            }
+            // Stützstelle: bekannter Bestand ersetzt den mitgeführten
+            if (isset($anchors[$d])) $stock = $anchors[$d]['stock'];
+            $end = $stock - $draw[$d];
+            if ($end < -$tolerance && $estimated[$d] && !$exhaustedWarned) {
+                $result['warnings'][] = ['code' => 'stock_exhausted', 'date' => $d];
+                $exhaustedWarned = true;
+            }
+            $result['days'][$d] = [
+                'draw'      => round($draw[$d], 6),
+                'stock'     => round(max(0.0, $end), 2),
+                'delivery'  => round($qByDate[$d] ?? 0.0, 2),
+                'estimated' => $estimated[$d],
+                'price_ct'  => $avg !== null ? round($avg, 4) : null,
+                'cost_eur'  => $avg !== null ? $draw[$d] * $avg / 100.0 : null,
+            ];
+            $stock = max(0.0, $end);
+        }
+
+        foreach ($anchors as $d => $a) {
+            $result['anchors'][] = ['date' => $d, 'kind' => $a['kind'], 'stock' => round($a['stock'], 2)];
+        }
+        return $this->memo[$memoKey] = $result;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Abgeleitete Tagesreihen (Schnittstelle seit v1.4.0 unverändert)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Tagesverbrauch in kWh (Tankbuch × Heizwert).
      *
      * @return array<string,float>  date(YYYY-MM-DD) → verbrauch_kwh
      */
@@ -63,139 +300,17 @@ final class DeliveryConsumptionService
                 'dailyDeliveryConsumption nur für Delivery-Utilities, nicht für ' . $utility
             );
         }
-        $u = Utilities::get($utility);
-        $convSetting = (string)($u['conversion_setting'] ?? '');
-        $kwhPerUnit  = $convSetting !== ''
-            ? (float)$this->settings->get($convSetting, 1.0)
-            : 1.0;
-        $hddBase     = (float)$this->settings->get('hdd_base_temp', 15.0);
-        $baseShare   = max(0.0, min(1.0, (float)$this->settings->get('delivery_baseload_share', 0.15)));
-
-        // Lieferungen lesen — direktes Read auf die deliveries-Datei
-        // (kein DeliveryService hier, um keine Zirkelabhängigkeit aufzumachen)
-        $all = $this->store->read("$utility/deliveries.json", []);
-        if (!is_array($all)) $all = [];
-        $deliveries = array_values(array_filter(
-            $all,
-            fn($d) => is_array($d)
-                  && ($d['meter_id'] ?? null) === ($meter['id'] ?? null)
-                  && empty($d['is_planned'])
-                  && !empty($d['date'])
-        ));
-
-        $startDate = $this->deliveryMeterStartDate($meter);
-        $today     = date('Y-m-d');
-        if ($startDate > $today) return [];
-
-        // Gesamtenergie aus Lieferungen PLUS dem Anfangsbestand des Tanks.
-        // Σ Verbrauch über die gesamte Laufzeit = (initial_stock + Σ
-        // Lieferungen) × kwh_per_unit — das modelliert: alles, was beim
-        // Start im Tank war plus alles, was nachgefüllt wurde, wird über
-        // die Laufzeit verbraucht. Endbestand ≈ 0 als Modellannahme. Wenn
-        // der reale Endbestand > 0 ist, überschätzt die Verteilung den
-        // Verbrauch leicht; das wird in einer späteren Version durch eine
-        // optionale Tank-Peilung („aktueller Stand laut Peilstab") feiner.
-        $initialStock = (float)($meter['initial_stock'] ?? 0.0);
-        $totalKwh = ($initialStock * $kwhPerUnit);
-        foreach ($deliveries as $d) {
-            $totalKwh += (float)($d['quantity'] ?? 0) * $kwhPerUnit;
+        $kwhPerUnit = $this->kwhPerUnit($utility);
+        $out = [];
+        foreach ($this->tankModel($utility, $meter)['days'] as $d => $row) {
+            $out[$d] = round($row['draw'] * $kwhPerUnit, 6);
         }
-        if ($totalKwh <= 0) return [];
-
-        // Tagesfenster
-        $cursor = new \DateTime($startDate);
-        $end    = new \DateTime($today);
-        $dates  = [];
-        while ($cursor <= $end) {
-            $dates[] = $cursor->format('Y-m-d');
-            $cursor->modify('+1 day');
-        }
-        $totalDays = count($dates);
-        if ($totalDays === 0) return [];
-
-        // HGT pro Tag aus temperatures.json
-        $temps = $this->store->read('temperatures.json', []);
-        if (!is_array($temps)) $temps = [];
-        $hddPerDay = [];
-        $sumHdd = 0.0;
-        $daysWithTemp = 0;
-        foreach ($dates as $d) {
-            $t = $temps[$d] ?? null;
-            $avg = (is_array($t) && isset($t['avg'])) ? (float)$t['avg'] : null;
-            if ($avg !== null) {
-                $hdd = max(0.0, $hddBase - $avg);
-                $hddPerDay[$d] = $hdd;
-                $sumHdd += $hdd;
-                $daysWithTemp++;
-            }
-        }
-
-        $baseloadKwh  = $totalKwh * $baseShare;
-        $heatingKwh   = $totalKwh * (1.0 - $baseShare);
-        $baselinePerDay = $baseloadKwh / $totalDays;
-
-        // Wenn keine Temperaturen vorliegen oder Σ HGT = 0: alles flach
-        $useHdd = $sumHdd > 0 && $daysWithTemp >= max(1, (int)($totalDays * 0.5));
-
-        // Heating-Anteil verteilen: bei Tagen ohne Temp einen anteiligen
-        // Fallback nutzen (gleichverteilt über Tage-ohne-Temp), damit Σ
-        // exakt heatingKwh ergibt.
-        $daysWithoutTemp = $totalDays - $daysWithTemp;
-        $heatingFallbackPerDay = $useHdd && $daysWithoutTemp > 0
-            ? ($heatingKwh * ($daysWithoutTemp / $totalDays)) / $daysWithoutTemp
-            : ($heatingKwh / $totalDays);
-        // Wenn HGT-Modell aktiv: nur der "wirkliche" Heating-Anteil aus den
-        // Tagen mit Temperatur kommt aus Σ HGT; die Tage ohne Temperatur
-        // bekommen den Fallback. Damit Σ exakt stimmt, korrigieren wir das:
-        $heatingWeightedShare = $useHdd ? ($heatingKwh * ($daysWithTemp / $totalDays)) : $heatingKwh;
-
-        $result = [];
-        foreach ($dates as $d) {
-            $hadTemp = array_key_exists($d, $hddPerDay);
-            $heating = 0.0;
-            if ($useHdd && $hadTemp && $sumHdd > 0) {
-                $heating = $heatingWeightedShare * ($hddPerDay[$d] / $sumHdd);
-            } elseif ($useHdd && !$hadTemp) {
-                $heating = $heatingFallbackPerDay;
-            } else {
-                $heating = $heatingKwh / $totalDays;
-            }
-            $result[$d] = round($baselinePerDay + $heating, 6);
-        }
-
-        return $result;
+        return $out;
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    //  Tages-Bestandsabzug (Mengeneinheiten)
-    // ─────────────────────────────────────────────────────────────────────
-
     /**
-     * v1.4.0 — Tagesabzug für die TANK-BESTANDSKURVE (Liter bzw. kg/Tag).
-     *
-     * Anders als {@see dailyDeliveryConsumption()} (die für Kosten/Effizienz
-     * die gesamte gelieferte Energie HGT-gewichtet auf die Laufzeit verteilt
-     * und damit den Endbestand modellbedingt gegen 0 zwingt) berechnet diese
-     * Methode den Abzug aus einer **kalibrierten Verbrauchsrate** und gibt
-     * Mengeneinheiten (nicht kWh) zurück. Dadurch:
-     *   - korrekte Einheit für stock = initial + Lieferungen − Abzug
-     *   - KEIN erzwungener Endbestand 0; der Restbestand ergibt sich physisch
-     *
-     * Kalibrierung der Heizrate (Einheiten pro HGT):
-     *   Über die „geschlossenen" Lieferintervalle (vom ersten bis zum letzten
-     *   realen Liefertag) gilt im eingeschwungenen Zustand: was vor der
-     *   letzten Lieferung geliefert wurde ≈ was in diesem Zeitraum verbraucht
-     *   wurde (der Tank pendelt um ein ähnliches Niveau). Daraus:
-     *       rate = Σ(Lieferungen außer der letzten) × (1−baseShare)
-     *              / ΣHGT(erste Lieferung … letzte Lieferung)
-     *   Dieselbe Rate wird auf Kopf (vor erster Lieferung) und offenen
-     *   Schwanz (nach letzter Lieferung) extrapoliert — der Bestand fällt
-     *   danach realistisch, ohne auf 0 normiert zu werden.
-     *
-     * Fallback bei < 2 Lieferungen (keine Kadenz ableitbar): Rate aus
-     * (Anfangsbestand + Σ Lieferungen) über die Fenster-HGT — dann trendet
-     * der Bestand mangels Information weiterhin Richtung 0, aber
-     * einheitenkorrekt. Ohne Temperaturen: flacher Abzug.
+     * Tagesabzug in Mengeneinheiten (Liter bzw. kg) — dieselbe Reihe wie der
+     * Verbrauch, nur ohne Heizwert.
      *
      * @return array<string,float> date → Abzug in Mengeneinheiten/Tag
      */
@@ -206,100 +321,14 @@ final class DeliveryConsumptionService
                 'dailyDeliveryStockDraw nur für Delivery-Utilities, nicht für ' . $utility
             );
         }
-        $hddBase   = (float)$this->settings->get('hdd_base_temp', 15.0);
-        $baseShare = max(0.0, min(1.0, (float)$this->settings->get('delivery_baseload_share', 0.15)));
+        return array_map(fn($row) => $row['draw'], $this->tankModel($utility, $meter)['days']);
+    }
 
-        $all = $this->store->read("$utility/deliveries.json", []);
-        if (!is_array($all)) $all = [];
-        $deliveries = array_values(array_filter(
-            $all,
-            fn($d) => is_array($d)
-                  && ($d['meter_id'] ?? null) === ($meter['id'] ?? null)
-                  && empty($d['is_planned'])
-                  && !empty($d['date'])
-        ));
-        usort($deliveries, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
-
-        $startDate = $this->deliveryMeterStartDate($meter);
-        $today     = date('Y-m-d');
-        if ($startDate > $today) return [];
-
-        // Tagesfenster
-        $cursor = new \DateTime($startDate);
-        $end    = new \DateTime($today);
-        $dates  = [];
-        while ($cursor <= $end) { $dates[] = $cursor->format('Y-m-d'); $cursor->modify('+1 day'); }
-        $totalDays = count($dates);
-        if ($totalDays === 0) return [];
-
-        // HGT je Tag
-        $temps = $this->store->read('temperatures.json', []);
-        if (!is_array($temps)) $temps = [];
-        $hddPerDay = [];
-        $sumHddWindow = 0.0;
-        foreach ($dates as $d) {
-            $t = $temps[$d] ?? null;
-            $avg = (is_array($t) && isset($t['avg'])) ? (float)$t['avg'] : null;
-            if ($avg !== null) {
-                $hdd = max(0.0, $hddBase - $avg);
-                $hddPerDay[$d] = $hdd;
-                $sumHddWindow += $hdd;
-            }
-        }
-
-        $initialStock = (float)($meter['initial_stock'] ?? 0.0);
-        $totalDelivered = 0.0;
-        foreach ($deliveries as $dlv) $totalDelivered += (float)($dlv['quantity'] ?? 0);
-
-        // Grundlast (flach) — als Mengeneinheit/Tag. Bezugsmenge:
-        // Anfangsbestand + alle Lieferungen (die Grundlast existiert real
-        // unabhängig vom Wetter, z. B. Warmwasser).
-        $baseTotalUnits = ($initialStock + $totalDelivered) * $baseShare;
-        $baselinePerDay = $totalDays > 0 ? $baseTotalUnits / $totalDays : 0.0;
-
-        $noTemp = $sumHddWindow <= 0 || count($hddPerDay) < max(1, (int)($totalDays * 0.5));
-
-        // ── Heizrate (Einheiten pro HGT) kalibrieren ──
-        $ratePerHdd = 0.0;
-        if (!$noTemp) {
-            if (count($deliveries) >= 2) {
-                // geschlossene Intervalle: erste … letzte Lieferung
-                $firstDate = (string)$deliveries[0]['date'];
-                $lastDate  = (string)$deliveries[count($deliveries) - 1]['date'];
-                $sumHddClosed = 0.0;
-                foreach ($hddPerDay as $d => $h) {
-                    if ($d >= $firstDate && $d < $lastDate) $sumHddClosed += $h;
-                }
-                // im Zeitraum verbrauchte Menge ≈ alle Lieferungen außer der letzten
-                $closedDelivered = 0.0;
-                for ($i = 0; $i < count($deliveries) - 1; $i++) {
-                    $closedDelivered += (float)($deliveries[$i]['quantity'] ?? 0);
-                }
-                $heatingClosed = $closedDelivered * (1.0 - $baseShare);
-                if ($sumHddClosed > 0 && $heatingClosed > 0) {
-                    $ratePerHdd = $heatingClosed / $sumHddClosed;
-                }
-            }
-            if ($ratePerHdd <= 0.0) {
-                // Fallback < 2 Lieferungen oder degeneriert: aus
-                // (initial + Σ Lieferungen) über Fenster-HGT (trendet
-                // mangels Kadenz weiter Richtung 0, aber einheitenkorrekt)
-                $heatingUnits = ($initialStock + $totalDelivered) * (1.0 - $baseShare);
-                $ratePerHdd = $sumHddWindow > 0 ? $heatingUnits / $sumHddWindow : 0.0;
-            }
-        }
-
-        $result = [];
-        foreach ($dates as $d) {
-            if ($noTemp) {
-                // flach: (initial + Σ Lieferungen) gleichverteilt
-                $result[$d] = round(($initialStock + $totalDelivered) / $totalDays, 6);
-                continue;
-            }
-            $hdd = $hddPerDay[$d] ?? 0.0;
-            $result[$d] = round($baselinePerDay + $ratePerHdd * $hdd, 6);
-        }
-        return $result;
+    /** Heizwert je Mengeneinheit (kWh/L bzw. kWh/kg) aus den Einstellungen. */
+    public function kwhPerUnit(string $utility): float
+    {
+        $convSetting = (string)(Utilities::get($utility)['conversion_setting'] ?? '');
+        return $convSetting !== '' ? (float)$this->settings->get($convSetting, 1.0) : 1.0;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -315,5 +344,170 @@ final class DeliveryConsumptionService
             }
         }
         return (string)($meter['created_at'] ?? date('Y-m-d'));
+    }
+
+    /**
+     * Echte Lieferungen des Zählers im Fenster, nach Datum sortiert. Geplante
+     * zählen nicht, künftige ebenso wenig; Lieferungen vor dem Start stecken
+     * im Anfangsbestand.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function deliveriesFor(string $utility, array $meter, string $start, string $today): array
+    {
+        $all = $this->store->read("$utility/deliveries.json", []);
+        if (!is_array($all)) $all = [];
+        $out = array_values(array_filter(
+            $all,
+            fn($d) => is_array($d)
+                  && ($d['meter_id'] ?? null) === ($meter['id'] ?? null)
+                  && empty($d['is_planned'])
+                  && !empty($d['date'])
+                  && (string)$d['date'] >= $start
+                  && (string)$d['date'] <= $today
+                  && (float)($d['quantity'] ?? 0) > 0
+        ));
+        usort($out, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
+        return $out;
+    }
+
+    /**
+     * Peilstände des Zählers, tolerant gelesen (Backup, Altbestand).
+     *
+     * @return array<int,array{date:string,level:float}>
+     */
+    private function tankLevels(array $meter): array
+    {
+        $out = [];
+        foreach ((array)($meter['tank_levels'] ?? []) as $lv) {
+            if (!is_array($lv) || empty($lv['date']) || !is_numeric($lv['level'] ?? null)) continue;
+            $out[] = ['date' => (string)$lv['date'], 'level' => max(0.0, (float)$lv['level'])];
+        }
+        return $out;
+    }
+
+    /** Effektiver Stückpreis einer Lieferung in ct je Einheit (Rechnungsbetrag hat Vorrang). */
+    private function deliveryPrice(array $d): ?float
+    {
+        $q = (float)($d['quantity'] ?? 0);
+        if (isset($d['total_eur']) && $d['total_eur'] !== null && is_numeric($d['total_eur']) && $q > 0) {
+            return (float)$d['total_eur'] * 100.0 / $q;
+        }
+        if (isset($d['unit_price_cents']) && $d['unit_price_cents'] !== null && is_numeric($d['unit_price_cents'])) {
+            return (float)$d['unit_price_cents'];
+        }
+        return null;
+    }
+
+    /** Preis des Anfangsbestands: gepflegt, sonst der der ersten Lieferung mit Preis. */
+    private function initialPrice(array $meter, array $deliveries): ?float
+    {
+        $p = $meter['initial_stock_price_ct'] ?? null;
+        if ($p !== null && $p !== '' && is_numeric($p) && (float)$p >= 0) return (float)$p;
+        foreach ($deliveries as $d) {
+            $price = $this->deliveryPrice($d);
+            if ($price !== null) return $price;
+        }
+        return null;
+    }
+
+    /**
+     * Gradtage je Tag. Fehlende Tage: Klimanormal, sonst Mittel der bekannten
+     * Tage desselben Kalendermonats; liegen für weniger als die Hälfte der
+     * Tage Werte vor, wird flach verteilt.
+     *
+     * @param array<int,string> $dates
+     * @param array<string,mixed> $temps  temperatures.json
+     * @return array{0: array<string,float>, 1: int, 2: bool}  [HGT je Tag, per Klimanormal gefüllte Tage, flach]
+     */
+    private function hddSeries(array $dates, float $hddBase, array $temps): array
+    {
+        $hdd = [];
+        $known = 0; $filled = 0;
+        foreach ($dates as $d) {
+            $t = $temps[$d] ?? null;
+            $avg = (is_array($t) && isset($t['avg']) && is_numeric($t['avg'])) ? (float)$t['avg'] : null;
+            if ($avg !== null) { $hdd[$d] = max(0.0, $hddBase - $avg); $known++; continue; }
+            $normal = $this->climate()->dayAvg($d);
+            if ($normal !== null) { $hdd[$d] = max(0.0, $hddBase - $normal); $filled++; continue; }
+            $hdd[$d] = null;
+        }
+        $missing = count($dates) - $known - $filled;
+        if ($missing === 0) return [$hdd, $filled, false];
+        if ($known + $filled < 0.5 * count($dates)) {
+            return [array_fill_keys($dates, 0.0), $filled, true];
+        }
+        $byMonth = []; $all = [];
+        foreach ($hdd as $d => $v) {
+            if ($v === null) continue;
+            $byMonth[(int)substr($d, 5, 2)][] = $v;
+            $all[] = $v;
+        }
+        $mean = fn(array $xs) => array_sum($xs) / count($xs);
+        foreach ($hdd as $d => $v) {
+            if ($v !== null) continue;
+            $m = (int)substr($d, 5, 2);
+            $hdd[$d] = isset($byMonth[$m]) ? $mean($byMonth[$m]) : $mean($all);
+        }
+        return [$hdd, $filled, false];
+    }
+
+    /**
+     * Grundlast in HGT-Einheiten: Bei einem Grundlastanteil s am Jahr gilt
+     * b × 365 = s × A und r × HGT_Jahr = (1 − s) × A, also
+     * ρ = b / r = s × HGT_Jahr / ((1 − s) × 365). Die Tagesform ρ + HGT(Tag)
+     * ist damit unabhängig davon, ob ein Intervall im Sommer oder im Winter
+     * liegt — ein Sommerintervall bekommt vor allem Grundlast, nicht 85 % auf
+     * die wenigen kühlen Tage.
+     */
+    private function shapeRho(float $baseShare, float $hddBase, array $temps): float
+    {
+        if ($baseShare <= 0.0) return 0.0;
+        $year = $this->annualHdd($hddBase, $temps);
+        if ($year <= 0) return 1.0;
+        return $baseShare * $year / ((1.0 - min(0.999, $baseShare)) * 365.25);
+    }
+
+    /**
+     * Heizgradtage eines Normaljahrs am Standort: aus dem Klimanormal, sonst
+     * aus der eigenen Temperaturhistorie, wenn sie alle zwölf Monate abdeckt,
+     * sonst aus einem groben mitteleuropäischen Monatsmittel.
+     *
+     * Nie aus dem Fenster des Tanks allein: Wer im Mai anfängt, hätte sonst
+     * ein „Jahr" mit 25 Gradtagen, ρ ginge gegen 0, und die im Sommer
+     * kalibrierte Rate würde im Herbst zu Hunderten Litern am Tag.
+     *
+     * @param array<string,mixed> $temps
+     */
+    private function annualHdd(float $hddBase, array $temps): float
+    {
+        $year = 0.0;
+        for ($m = 1; $m <= 12; $m++) {
+            $n = $this->climate()->hddForMonth($m, $hddBase);
+            if ($n === null) { $year = 0.0; break; }
+            $year += (float)$n['mean'];
+        }
+        if ($year > 0) return $year;
+
+        $days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        $byMonth = [];
+        foreach ($temps as $d => $t) {
+            if (!is_array($t) || !isset($t['avg']) || !is_numeric($t['avg'])) continue;
+            $byMonth[(int)substr((string)$d, 5, 2)][] = max(0.0, $hddBase - (float)$t['avg']);
+        }
+        if (count($byMonth) === 12 && min(array_map('count', $byMonth)) >= 15) {
+            foreach ($byMonth as $m => $vals) $year += array_sum($vals) / count($vals) * $days[$m - 1];
+            return $year;
+        }
+
+        // Grobes Monatsmittel der Lufttemperatur, mitteleuropäisch (°C)
+        $normal = [1, 2, 5, 9, 13, 16, 18, 18, 14, 9, 5, 2];
+        foreach ($normal as $i => $t) $year += max(0.0, $hddBase - $t) * $days[$i];
+        return $year;
+    }
+
+    private function climate(): ClimateNormalService
+    {
+        return $this->climate ??= new ClimateNormalService($this->store, $this->settings);
     }
 }

@@ -39,11 +39,24 @@ final class ClimateNormalService
         private SettingsService $settings,
     ) {}
 
-    /** @return array<string,mixed>|null das gespeicherte Normal */
+    /** @var array<string,mixed>|null */
+    private ?array $cached = null;
+    private int $cachedAt = -1;
+
+    /**
+     * @return array<string,mixed>|null das gespeicherte Normal
+     *
+     * v2.10.0 — je Schreibstand des Stores einmal gelesen: Das Tankbuch
+     * fragt für jeden Tag ohne Temperatur `dayAvg()`.
+     */
     public function get(): ?array
     {
+        $gen = $this->store->generation();
+        if ($this->cachedAt === $gen) return $this->cached;
         $n = $this->store->read(self::FILE, []);
-        return is_array($n) && isset($n['hdd']) && is_array($n['hdd']) ? $n : null;
+        $this->cached = is_array($n) && isset($n['hdd']) && is_array($n['hdd']) ? $n : null;
+        $this->cachedAt = $gen;
+        return $this->cached;
     }
 
     public function save(array $normal): void

@@ -295,7 +295,10 @@ function candidateRowHtml(c, unit, d) {
   }
 
   const diff = c.vs_reference_year2_eur;
-  const diffCls = diff == null ? '' : (diff < 0 ? 'success-text' : (diff > 0 ? 'danger-text' : ''));
+  // v2.10.0 (CALC-17) — Einspeisung: Beträge sind Erlöse, mehr ist besser
+  const better = d?.higher_is_better ? diff > 0 : diff < 0;
+  const worse  = d?.higher_is_better ? diff < 0 : diff > 0;
+  const diffCls = diff == null ? '' : (better ? 'success-text' : (worse ? 'danger-text' : ''));
   const diffStr = c.is_reference
     ? `<span class="muted">${esc(t('tariff.switch.reference'))}</span>`
     : diff == null ? '<span class="dim">–</span>'
@@ -507,7 +510,7 @@ async function loadRetro(container) {
             <th scope="col" class="num" title="${esc(t('tariff.unitCostTitle'))}">${esc(t('tariff.col.unitCost', { unit }))}</th>
             <th scope="col" class="num">${esc(t('tariff.col.savings'))}</th>
           </tr></thead>
-          <tbody>${data.rows.map(r => retroRowHtml(r, unit)).join('')}</tbody>
+          <tbody>${data.rows.map(r => retroRowHtml(r, unit, !!data.higher_is_better)).join('')}</tbody>
         </table>
       </div>
 
@@ -530,9 +533,11 @@ async function loadRetro(container) {
   }
 }
 
-function retroRowHtml(r, unit) {
+function retroRowHtml(r, unit, higherIsBetter = false) {
   const vs = r.vs_real_eur;
-  const vsCls = vs == null ? '' : (vs < 0 ? 'success-text' : (vs > 0 ? 'danger-text' : ''));
+  const good = higherIsBetter ? vs > 0 : vs < 0;
+  const bad  = higherIsBetter ? vs < 0 : vs > 0;
+  const vsCls = vs == null ? '' : (good ? 'success-text' : (bad ? 'danger-text' : ''));
   const vsStr = vs == null
     ? '<span class="dim">–</span>'
     : `${vs > 0 ? '+' : ''}${f.eur(vs)}${r.vs_real_pct != null

@@ -6436,9 +6436,24 @@
             }
         ],
         "hdd_base_temp": 15,
-        "co2_gas": 201,
+        "co2_gas": 182,
         "co2_strom": 380,
+        "co2_strom_years": {
+            "2015": 530,
+            "2016": 524,
+            "2017": 490,
+            "2018": 474,
+            "2019": 409,
+            "2020": 365,
+            "2021": 406,
+            "2022": 433,
+            "2023": 379,
+            "2024": 353,
+            "2025": 344
+        },
         "co2_wasser": 350,
+        "co2_pellets": 36,
+        "co2_fernwaerme": 280,
         "min_days_period": 20,
         "min_hdd_regression": 5,
         "blend_max": 0.8,
@@ -6453,7 +6468,7 @@
         "longitude": 12.3731,
         "weather_auto_fill": true,
         "wasser_personen_anzahl": 3,
-        "wasser_personen_referenz": 127,
+        "wasser_personen_referenz": 122,
         "active_utilities": [
             "gas",
             "strom",
@@ -9268,6 +9283,13 @@
                     "capacity": 3000,
                     "capacity_unit": "L",
                     "initial_stock": 2400,
+                    "tank_levels": [
+                        {
+                            "date": "2025-09-17",
+                            "level": 1650,
+                            "note": "Peilstab vor der Herbstlieferung"
+                        }
+                    ],
                     "devices": [
                         {
                             "id": "d_oel_001",

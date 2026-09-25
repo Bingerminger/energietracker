@@ -49,4 +49,14 @@ final class SettingsController
     {
         Response::json(Countries::all());
     }
+
+    /**
+     * v2.10.0 — Korrigierte Standardwerte, die diese Installation noch nicht
+     * nutzt (Migration 1.6.0 hat die alten festgeschrieben, Lektion 36).
+     * Übernommen wird per PATCH /api/settings.
+     */
+    public function defaultUpdates(Request $req): never
+    {
+        Response::json($this->settings->defaultUpdates());
+    }
 }

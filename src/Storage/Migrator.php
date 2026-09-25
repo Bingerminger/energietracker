@@ -43,7 +43,7 @@ use Energietracker\Config\Utilities;
  */
 final class Migrator
 {
-    public const SCHEMA_VERSION = '1.5.0';
+    public const SCHEMA_VERSION = '1.6.0';
 
     // v2.2.0 — der I18nService ist optional: der Migrator wird im Bootstrap
     // sehr früh und in Tests ohne Container konstruiert. Fehlt er, greifen
@@ -134,6 +134,7 @@ final class Migrator
         ['needsV130Upgrade',           'upgradeToV130'],
         ['needsV140Upgrade',           'upgradeToV140'],
         ['needsV150Upgrade',           'upgradeToV150'],
+        ['needsV160Upgrade',           'upgradeToV160'],
     ];
 
     /** Nur zum Prüfen von außen (Test hält die Liste vollständig). */
@@ -153,6 +154,43 @@ final class Migrator
         if (!is_array($s)) return false;
         return array_key_exists('gas_conversion_factor', $s)
             || !array_key_exists('gas_conversion_factors', $s);
+    }
+
+    /**
+     * v1.5.0 → v1.6.0 — korrigierte Defaults (CO₂, Wasser-Referenz; Review
+     * CALC-19/24) dürfen Bestandsinstallationen nicht still verändern
+     * (Lektion 36). Nötig, solange die Daten älter als 1.6.0 sind und der
+     * Merker `co2_strom_years` fehlt — eine unter 1.6.0 angelegte
+     * Installation darf bei einem späteren Schema-Schritt nie alte Werte
+     * bekommen.
+     */
+    public function needsV160Upgrade(): bool
+    {
+        $v = (string)($this->store->read('meta.json', [])['schema_version'] ?? '');
+        if ($v !== '' && version_compare($v, '1.6.0', '>=')) return false;
+        $s = $this->store->read('settings.json', []);
+        return is_array($s) && !array_key_exists('co2_strom_years', $s);
+    }
+
+    /**
+     * Schreibt für jeden Schlüssel aus SettingsService::LEGACY_DEFAULTS, den
+     * die Installation nie gespeichert hat, den bisherigen Default fest. Wer
+     * einen Wert selbst gesetzt hat, behält ihn ohnehin. Idempotent.
+     */
+    public function upgradeToV160(): array
+    {
+        $s = $this->store->read('settings.json', []);
+        if (!is_array($s)) $s = [];
+        $frozen = [];
+        foreach (\Energietracker\Services\SettingsService::LEGACY_DEFAULTS as $key => $legacy) {
+            if (array_key_exists($key, $s)) continue;
+            $s[$key] = $legacy;
+            $frozen[] = $key;
+        }
+        $this->store->write('settings.json', $s);
+        return [$frozen
+            ? 'v1.6.0: bisherige Standardwerte festgeschrieben: ' . implode(', ', $frozen)
+            : 'v1.6.0: alle betroffenen Einstellungen waren schon gesetzt'];
     }
 
     public function needsMigration(): bool

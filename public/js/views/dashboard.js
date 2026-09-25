@@ -103,6 +103,15 @@ export async function render(container) {
           </div>
           <div class="kpi__sub">${t('dashboard.efficiency.perSource', { area: eff.wohnflaeche_m2 })}</div>
         `}
+        ${eff.certificate ? `
+          <p class="kpi__sub dash-eff__cert" title="${escapeHtml(t('dashboard.efficiency.certificateTitle', {
+            area: fmt.num(eff.certificate.area_m2, 0),
+            months: eff.certificate.months_36,
+          }))}">${escapeHtml(t(eff.per_source.length > 1 ? 'dashboard.efficiency.certificateAll' : 'dashboard.efficiency.certificate', {
+            value: fmt.num(eff.certificate.kwh_per_m2, 0),
+            cls: eff.scale !== null && eff.certificate.class ? ' · ' + eff.certificate.class : '',
+          }))}</p>` : ''}
+        ${eff.per_source.some(s => s.complete === false) && eff.note ? `<p class="muted dash-eff__note">${escapeHtml(eff.note)}</p>` : ''}
         ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
       </div>` : ''}
 
@@ -139,11 +148,21 @@ export async function render(container) {
             <div class="kpi__value">${fmt.eur(saldoYear.saldo_netto)}</div>
             <div class="kpi__sub">${saldoYear.saldo_netto < 0 ? t('dashboard.stromSaldo.nettoEarn') : t('dashboard.stromSaldo.nettoCost')}</div>
           </div>
+          ${pvYear && pvYear.savings_eur != null ? `
+          <div class="kpi">
+            <div class="kpi__label">${t('dashboard.stromSaldo.savings')}</div>
+            <div class="kpi__value positive">${fmt.eur(pvYear.savings_eur)}</div>
+            <div class="kpi__sub">${t('dashboard.stromSaldo.savingsSub', { kwh: fmt.num(pvYear.eigenverbrauch_kwh, 0) })}</div>
+          </div>` : ''}
           ${pvYear && pvYear.autarkiequote != null ? `
           <div class="kpi">
             <div class="kpi__label">${t('dashboard.stromSaldo.autarky')}</div>
             <div class="kpi__value">${(pvYear.autarkiequote * 100).toFixed(0)} %</div>
-            <div class="kpi__sub">${t('dashboard.stromSaldo.autarkySub')}</div>
+            <div class="kpi__sub">${pvYear.months_covered < 12
+              // weniger als ein ganzes Jahr (laufendes Jahr, später Beginn oder
+              // ungleiche Abdeckung): sagen, worüber die Quote rechnet
+              ? t('dashboard.stromSaldo.coveredSub', { months: pvYear.months_covered })
+              : t('dashboard.stromSaldo.autarkySub')}</div>
           </div>` : ''}
           ${pvYear && pvYear.eigenverbrauchsquote != null ? `
           <div class="kpi">

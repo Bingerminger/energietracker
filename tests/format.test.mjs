@@ -68,6 +68,10 @@ eq(fmt.money(1234.5).startsWith('CHF'), true, 'de-CH: Franken vor dem Betrag');
 eq(/^1.234\.5$/.test(fmt.num(1234.5, 1)), true, 'de-CH: Dezimalpunkt');
 setCountry('DE', ['de']); setCurrencyParams('EUR');
 eq(intlLocale(), 'de-DE', 'zurück auf Deutschland');
+// v2.10.0 — keine „negative Null" (−0,04 °C mit einer Stelle)
+eq(fmt.num(-0.04, 1), '0,0', 'gerundet 0 ist 0, nicht „-0,0"');
+eq(fmt.num(-0.05, 1), '-0,1', 'ab der halben Stelle bleibt das Vorzeichen');
+eq(fmt.int(-0.3), '0', 'int: keine „-0"');
 eq(fmt.money(1234.5), '1.234,50\u00a0€', 'de-DE: Euro');
 await initI18n('en');
 // Bestandsinstallationen tragen das Land DE — Englisch muss dort englisch

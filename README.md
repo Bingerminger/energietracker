@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.9.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.10.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-398-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-434-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installable-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
@@ -43,7 +43,7 @@ year-end settlement, with a suggested advance payment. On top of that: a statist
 recommendation engine, reminder/maintenance management, a tariff comparison with
 shadow contracts and a PDF annual report.
 
-> **Status:** v2.9.0 is the current public version (initial release was v1.0.2).
+> **Status:** v2.10.0 is the current public version (initial release was v1.0.2).
 > If you want to migrate from a privately run v0.9.0 backup, see
 > [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
 > format is supported by the migrator.
@@ -168,11 +168,13 @@ shadow contracts and a PDF annual report.
 
 - **Heating oil & pellets** are recorded via **deliveries** instead of meter
   readings (date, quantity, price/unit or total amount, supplier, note,
-  "planned" flag). The monthly consumption is energetically balanced and
-  distributed via a base-load share plus HDD weighting.
-- **Tank stock curve**: modelled remaining stock (initial stock + deliveries −
-  HDD-weighted consumption) with a warning threshold. An estimate, not a tank
-  gauge.
+  "planned" flag, "filled to full").
+- **Tank log** (since v2.10.0): one calculation for consumption, cost and the
+  stock curve. Between known stock levels — initial stock, a delivery "filled
+  to full", a tank reading — consumption is calculated, after the last one it
+  is estimated and marked as such; a new delivery no longer changes previous
+  years. Cost at the average price of the tank contents, the initial stock
+  included.
 - **District heating** as an additional cumulative, HDD-relevant utility.
 
 ### Evaluation & insights (v1.3.0)
@@ -182,7 +184,12 @@ shadow contracts and a PDF annual report.
   weather; the weather effect is converted to the 30-year climate normal (since
   v2.8.0).
 - **Efficiency class** A+…H from the heating energy demand in kWh/m²·a,
-  configurable band limits, living area/building type maintainable.
+  configurable band limits, complete years only; since v2.10.0 alongside a
+  **certificate-style figure** (net calorific value, weather-adjusted, usable
+  floor area, hot-water surcharge, heat-pump electricity).
+- **CO₂ with sources** (since v2.10.0): BAFA factors, electricity per year from
+  the German Environment Agency, PV as avoided CO₂; existing installations keep
+  their values until they take the new ones.
 - **Recommendation engine**: seven statistical rule families from your own data,
   with severity and individually dismissible.
 - **Sigmoid and auto-segmented regression model** in addition to
@@ -314,7 +321,7 @@ Or without Compose, directly with the published image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.9.0
+  ghcr.io/bingerminger/energietracker:2.10.0
 ```
 
 > Without `--name energietracker` Docker assigns a random name (e.g.
@@ -368,10 +375,10 @@ cp demo-data/meta.json demo-data/settings.json demo-data/temperatures.json data/
 
 ## Data model
 
-Everything is stored as JSON under `data/`. The schema version (`1.1.0` — since
-v1.3.0; v1.0.3 introduced the water contract model, v1.1.0 added the
-delivery-based utilities and `reminders.json`) is in `data/meta.json` and in
-every exported backup under `backup_version`.
+Everything is stored as JSON under `data/`. The schema version (`1.6.0` — since
+v2.10.0; history in the [data model](docs/technical/04-data-model.md)) is in
+`data/meta.json` and in every exported backup under `meta.schema_version`; the
+backup format itself is `backup_version` 3.0.
 
 ```
 data/
@@ -490,7 +497,7 @@ For the full list of configurable values see
 energietracker/
 ├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
 ├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
-├── VERSION                  ← "2.9.0"
+├── VERSION                  ← "2.10.0"
 ├── README.md                ← this file (English)
 ├── README.de.md             ← German version
 ├── CHANGELOG.md

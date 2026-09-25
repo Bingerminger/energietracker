@@ -75,9 +75,13 @@ several full heating systems on the same area). Therefore:
 
 - Enter **every delivery** with quantity and **invoice amount** (`total_eur` has
   taken precedence since v1.4.2 — it includes the delivery fee/rebate).
-- The **stock curve** (calibrated since v1.4.0) shows a realistic sawtooth and,
-  via `tank_warn_pct`, warns in good time before it runs empty → reorder in time
-  (ideally in summer, when oil/pellets are cheaper).
+- The **stock curve** shows a realistic sawtooth and, via `tank_warn_pct`, warns
+  in good time before it runs empty → reorder in time (ideally in summer, when
+  oil/pellets are cheaper).
+- Mark a delivery as **"filled to full"** or record a **tank reading** every now
+  and then (since v2.10.0): the consumption up to that day is then calculated
+  instead of estimated, and later deliveries no longer change the previous
+  years.
 - Plan the next delivery in advance as `is_planned` — it appears but does not
   distort the balance/stock.
 
@@ -210,10 +214,11 @@ of my generation in the house").
 
 ### 6.5 CO₂ as "avoided"
 
-For `pv_einspeisung`, the app shows the CO₂ value as a negative value with the
-label "avoided" and a tooltip with a method note. The calculation is
-`feedin_kWh × co2_strom` factor (default 380 g/kWh = German electricity mix). It
-does **not** account for the PV life cycle (manufacture, transport, recycling), but
+For `pv_einspeisung`, and since v2.10.0 also for `pv_erzeugung`, the app shows the
+CO₂ value as a negative value with the label "avoided" and a tooltip with a
+method note. The calculation is `kWh × co2_strom` factor of the year (German
+Environment Agency (UBA), electricity mix; 2025: 344 g/kWh). It does **not**
+account for the PV life cycle (manufacture, transport, recycling), but
 it sits on the same methodological level as the CO₂ factor for the import — so the
 numbers are directly comparable.
 

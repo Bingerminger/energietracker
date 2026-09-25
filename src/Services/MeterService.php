@@ -194,6 +194,17 @@ final class MeterService
             $meter['capacity']      = (float)$input['capacity'];
             $meter['capacity_unit'] = (string)($input['capacity_unit'] ?? $u['volume_unit'] ?? '');
             $meter['initial_stock'] = (float)$input['initial_stock'];
+            // v2.10.0 — Tankbuch: Peilstände und Preis des Anfangsbestands
+            if (array_key_exists('tank_levels', $input)) {
+                $meter['tank_levels'] = $this->normalizeTankLevels($input['tank_levels'], $meter['capacity']);
+            }
+            $price = $this->normalizeInitialPrice($input['initial_stock_price_ct'] ?? null);
+            if ($price !== null) $meter['initial_stock_price_ct'] = $price;
+        }
+
+        // v2.10.0 (CALC-07) — Wärmepumpen-Stromzähler
+        if ($utility === 'strom' && self::flag($input['heat_source'] ?? false)) {
+            $meter['heat_source'] = true;
         }
 
         if ($meter['name'] === '') {
@@ -218,6 +229,12 @@ final class MeterService
                 if (array_key_exists($f, $input)) {
                     $m[$f] = $f === 'active' ? (bool)$input[$f] : (string)$input[$f];
                 }
+            }
+            // v2.10.0 (CALC-07) — Stromzähler einer Wärmepumpe: zählt in der
+            // Effizienzkennzahl mit (BenchmarkService)
+            if ($utility === 'strom' && array_key_exists('heat_source', $input)) {
+                if (self::flag($input['heat_source'])) $m['heat_source'] = true;
+                else unset($m['heat_source']);
             }
             // v1.2.0 — F1006: Topologie-Beziehungen änderbar
             if (array_key_exists('parent_meter_id', $input)) {
@@ -257,6 +274,16 @@ final class MeterService
                 }
                 if (array_key_exists('initial_stock', $input)) {
                     $m['initial_stock'] = (float)$input['initial_stock'];
+                }
+                // v2.10.0 — Tankbuch: Peilstände (immer die ganze Liste) und
+                // Preis des Anfangsbestands (leer entfernt ihn)
+                if (array_key_exists('tank_levels', $input)) {
+                    $m['tank_levels'] = $this->normalizeTankLevels($input['tank_levels'], (float)($m['capacity'] ?? 0));
+                }
+                if (array_key_exists('initial_stock_price_ct', $input)) {
+                    $price = $this->normalizeInitialPrice($input['initial_stock_price_ct']);
+                    if ($price === null) unset($m['initial_stock_price_ct']);
+                    else $m['initial_stock_price_ct'] = $price;
                 }
             }
         }
@@ -584,6 +611,87 @@ final class MeterService
 
         usort($out, fn(array $a, array $b) => strcmp($a['date'], $b['date']));
         return $out;
+    }
+
+    /**
+     * v2.10.0 — Tankbuch (Review CALC-25): Peilstände eines Tanks/Lagers.
+     * Jeder Eintrag ist eine Stützstelle — der Verbrauch bis dorthin ist
+     * damit bekannt, nicht mehr geschätzt. Streng beim Speichern: echtes
+     * Datum, nicht in der Zukunft, ein Stand je Tag, 0 ≤ Stand ≤ Kapazität
+     * (+2 % für Ablesegenauigkeit).
+     *
+     * @return array<int,array{date:string,level:float,note:string}>
+     */
+    private function normalizeTankLevels(mixed $value, float $capacity): array
+    {
+        if ($value === null || $value === '' || $value === false) return [];
+        if (!is_array($value)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.invalidTankLevels'));
+        }
+        $out = [];
+        $seen = [];
+        $today = date('Y-m-d');
+        foreach ($value as $raw) {
+            if (!is_array($raw)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.invalidTankLevels'));
+            }
+            $date = trim((string)($raw['date'] ?? ''));
+            if (!self::isIsoDate($date)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.invalidTankLevelDate', ['date' => $date]));
+            }
+            if ($date > $today) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.tankLevelFuture', ['date' => $date]));
+            }
+            if (isset($seen[$date])) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.duplicateTankLevel', ['date' => $date]));
+            }
+            $seen[$date] = true;
+            $rawLevel = $raw['level'] ?? null;
+            if (is_string($rawLevel)) $rawLevel = str_replace(',', '.', trim($rawLevel));
+            if (is_bool($rawLevel) || !is_numeric($rawLevel) || !is_finite((float)$rawLevel) || (float)$rawLevel < 0) {
+                $shown = is_scalar($raw['level'] ?? null) ? (string)$raw['level'] : '';
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.tankLevelInvalid', ['value' => $shown]));
+            }
+            $level = (float)$rawLevel;
+            if ($capacity > 0 && $level > $capacity * 1.02) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.tankLevelAboveCapacity', [
+                    'level' => (string)$level, 'capacity' => (string)$capacity,
+                ]));
+            }
+            $note = trim((string)($raw['note'] ?? ''));
+            if (mb_strlen($note) > self::BASELINE_LABEL_MAX) $note = mb_substr($note, 0, self::BASELINE_LABEL_MAX);
+            $out[] = ['date' => $date, 'level' => round($level, 2), 'note' => $note];
+        }
+        usort($out, fn(array $a, array $b) => strcmp($a['date'], $b['date']));
+        return $out;
+    }
+
+    /**
+     * Ja/Nein aus JSON oder Formular. `!empty()` hielt die Zeichenkette
+     * "false" für ein Ja — wie `fill_to_full` (DeliveryService) gilt nur ein
+     * ausdrückliches Ja.
+     */
+    private static function flag(mixed $v): bool
+    {
+        return $v === true || $v === 1
+            || (is_string($v) && in_array(strtolower(trim($v)), ['1', 'true', 'on', 'yes'], true));
+    }
+
+    /**
+     * v2.10.0 — Preis des Anfangsbestands in ct je Einheit (L bzw. kg).
+     * Leer = nicht gepflegt: Das Tankbuch nimmt dann den Preis der ersten
+     * Lieferung (bis v2.9 war der Anfangsbestand kostenlos).
+     */
+    private function normalizeInitialPrice(mixed $raw): ?float
+    {
+        if ($raw === null || $raw === '') return null;
+        $v = is_string($raw) ? str_replace(',', '.', trim($raw)) : $raw;
+        if (is_bool($v) || !is_numeric($v) || !is_finite((float)$v) || (float)$v < 0) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.initialPriceInvalid', [
+                'value' => is_scalar($raw) ? (string)$raw : '',
+            ]));
+        }
+        return round((float)$v, 4);
     }
 
     /** Echtes Kalenderdatum im Format YYYY-MM-DD? (seit v2.5.3 eine Stelle: Support\Dates) */

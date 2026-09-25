@@ -14,7 +14,7 @@
 
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
-import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput, monthShortNames } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
@@ -23,6 +23,7 @@ import { t, getCurrencyMinor } from '../lib/i18n.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 
 let _chart = null;
+let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
 const state = {
   utility: null,
   meters: [],
@@ -56,7 +57,10 @@ export async function render(container, params) {
       <div class="status-banner__text">${escapeHtml(e.message)}</div></div>`;
   }
 
-  return () => { if (_chart) { _chart.destroy(); _chart = null; } };
+  return () => {
+    if (_chart) { _chart.destroy(); _chart = null; }
+    if (_stockChart) { _stockChart.destroy(); _stockChart = null; }
+  };
 }
 
 async function rerender(container) {
@@ -108,6 +112,9 @@ async function rerender(container) {
   // „Kosten" sind ein Vergütungs-Erlös. Labels, Farben und Vorzeichen-
   // Deutung kippen für accounting_kind = feed_in.
   const isFeedIn = u.accounting_kind === 'feed_in';
+  // v2.10.0 (CALC-17) — Erzeugung emittiert nichts und kostet nichts: CO₂
+  // als vermieden, keine Kostenkachel (bis v2.9 als Emission wie ein Verbrauch)
+  const isGeneration = u.accounting_kind === 'generation';
   let readings = [], deliveries = [], stockHist = null;
   if (isDelivery) {
     deliveries = await api.deliveries(u.key, meter.id).catch(() => []);
@@ -217,15 +224,16 @@ async function rerender(container) {
 
     <div class="kpi-grid">
       <div class="kpi c-${u.key}">
-        <div class="kpi__label">${u.icon} ${isFeedIn ? t('utility.kpi.feedIn') : t('utility.kpi.consumption')} ${yr}</div>
+        <div class="kpi__label">${u.icon} ${isFeedIn ? t('utility.kpi.feedIn') : isGeneration ? t('utility.kpi.generation') : t('utility.kpi.consumption')} ${yr}</div>
         <div class="kpi__value">${fmt.unit(totUnit, u.consumption_unit, 0)}</div>
         ${u.key === 'gas' ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
       </div>
+      ${isGeneration ? '' : `
       <div class="kpi c-${u.key}">
         <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${yr}</div>
         <div class="kpi__value ${isFeedIn ? 'positive' : ''}">${fmt.eur(totCost)}</div>
         <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? totCost / monthlyYear.length : 0) })}</div>
-      </div>
+      </div>`}
       ${hasContract && !isFeedIn ? `
         <div class="kpi c-yellow">
           <div class="kpi__label">${partialYear ? t('utility.kpi.advancesUntil', { date: fmt.date(measuredUntil) }) : t('utility.kpi.advances', { year: yr })}</div>
@@ -241,8 +249,8 @@ async function rerender(container) {
           <span style="font-size:14px;color:var(--text-2)">${u.consumption_unit}</span></div>
         <div class="kpi__sub">${t('utility.kpi.daysCount', { days: totDays })}</div>
       </div>
-      ${u.accounting_kind === 'feed_in' ? `
-      <div class="kpi c-violet" title="${t('utility.kpi.co2AvoidedTitle')}">
+      ${isFeedIn || isGeneration ? `
+      <div class="kpi c-violet" title="${t(isGeneration ? 'utility.kpi.co2AvoidedGenTitle' : 'utility.kpi.co2AvoidedTitle')}">
         <div class="kpi__label">${t('utility.kpi.co2Avoided', { year: yr })}</div>
         <div class="kpi__value">−${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2AvoidedSub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
@@ -286,6 +294,9 @@ async function rerender(container) {
         </span>` : ''}
       </div>
       ${stockTankBar(stockHist, u)}
+      ${stockHist && stockHist.capacity ? `<div class="chart-wrap h220"><canvas id="stock-chart"></canvas></div>` : ''}
+      ${tankNotes(stockHist, u)}
+      ${tankLevelsBlock(meter, u)}
     </div>
 
     <div class="card">
@@ -313,9 +324,11 @@ async function rerender(container) {
 
   // Chart
   drawMonthChart('month-chart', monthlyYear, u);
+  if (isDelivery) drawStockChart('stock-chart', stockHist, u, yr);
 
   // Wire up events
   wireEvents(container, u, meter, readings, contracts, deliveries);
+  if (isDelivery) wireTankLevels(container, u, meter);
   if (u.key === 'gas') wireBillCheck(container, u, meter);
 }
 
@@ -768,8 +781,11 @@ function monthlyTable(monthly, u, hasContracts) {
     ${monthly.map(m => {
       const cum = m.cumulative_balance;
       const bCls = cum == null ? 'muted' : cum > 0 ? 'danger-text' : cum < 0 ? 'success-text' : 'muted';
+      // v2.10.0 — Tankbuch: Monate mit geschätzten Tagen (nach dem letzten bekannten Bestand)
+      const est = m.estimated_days > 0
+        ? ` <span class="muted" title="${escapeHtml(t('utility.monthlyTable.estimatedTitle', { days: m.estimated_days }))}">≈</span>` : '';
       return `<tr>
-        <td><strong>${fmt.month(m.ym)}</strong></td>
+        <td><strong>${fmt.month(m.ym)}</strong>${est}</td>
         <td class="num">${m.days || 0}</td>
         ${isGas ? `<td class="num">${fmt.int(m.m3)}</td>` : ''}
         <td class="num"><strong>${fmt.int(m[consKey])}</strong></td>
@@ -798,7 +814,8 @@ function monthlyTable(monthly, u, hasContracts) {
       <td class="num">${fmt.int(tot.co2)}</td>
       <td></td><td></td>
     </tr></tfoot>
-  </table></div>`;
+  </table></div>
+  ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}`;
 }
 
 // ── Readings-Tabelle ────────────────────────────────────────────────
@@ -890,7 +907,7 @@ function deliveriesTable(deliveries, u) {
       const tot = d.total_eur != null ? Number(d.total_eur)
                   : (upC != null ? qty * upC / 100 : null);
       return `<tr data-delivery-id="${escapeHtml(d.id)}">
-        <td><strong>${fmt.date(d.date)}</strong> ${d.is_planned ? `<span class="status-pill future">${t('utility.deliveriesTable.planned')}</span>` : ''}</td>
+        <td><strong>${fmt.date(d.date)}</strong> ${d.is_planned ? `<span class="status-pill future">${t('utility.deliveriesTable.planned')}</span>` : ''} ${d.fill_to_full ? `<span class="status-pill active" title="${escapeHtml(t('utility.deliveryModal.fillToFullHint'))}">${t('utility.deliveriesTable.full')}</span>` : ''}</td>
         <td class="num">${fmt.num(qty, 0)} ${unit}</td>
         <td class="num">${upC != null ? fmt.num(upC, 2) + ' ' + getCurrencyMinor() : '–'}</td>
         <td class="num">${tot != null ? fmt.eur(tot) : '–'}</td>
@@ -938,10 +955,177 @@ function stockTankBar(stockHist, u) {
         <span>${t('utility.tank.remaining', { stock: `<strong>${fmt.num(stock, 0)}</strong>`, unit })}</span>
         <span class="muted">${t('utility.tank.ofCap', { pct: pct.toFixed(0), cap: fmt.num(cap, 0), unit })}</span>
       </div>
-      <p class="muted" style="font-size:12px;margin-top:8px">
-        ${t('utility.tank.modelNote')}
-      </p>
     </div>`;
+}
+
+// ── v2.10.0 — Tankbuch: Herkunft der Zahlen, Warnungen, Peilstände ──
+// Die Rechnung kennt den Bestand an Stützstellen (Anfangsbestand, Lieferung
+// „bis voll", Peilstand); dazwischen ist der Verbrauch gerechnet, danach
+// geschätzt. Die Karte sagt, was davon gilt — und was fehlt.
+function tankNotes(stockHist, u) {
+  if (!stockHist) return '';
+  const unit = stockHist.capacity_unit || u.volume_unit || 'L';
+  const anchors = Array.isArray(stockHist.anchors) ? stockHist.anchors : [];
+  const known = anchors.filter(a => a.kind !== 'start');
+  const notes = [];
+  notes.push(known.length
+    ? t('utility.tank.noteMeasured', { date: fmt.date(stockHist.estimated_from) })
+    : t('utility.tank.noteEstimated'));
+  for (const w of Array.isArray(stockHist.warnings) ? stockHist.warnings : []) {
+    if (w.code === 'inconsistent_level') {
+      notes.push(t('utility.tank.warnInconsistent', { from: fmt.date(w.from), to: fmt.date(w.to), excess: fmt.num(w.excess, 0), unit }));
+    } else if (w.code === 'stock_exhausted') {
+      notes.push(t('utility.tank.warnExhausted', { date: fmt.date(w.date) }));
+    } else if (w.code === 'no_calibration') {
+      notes.push(t('utility.tank.warnNoCalibration'));
+    } else if (w.code === 'flat_no_temperatures') {
+      notes.push(t('utility.tank.warnFlat'));
+    }
+  }
+  return notes.map((n, i) => `<p class="${i === 0 ? 'muted' : 'balance-note'}" style="font-size:12px;margin-top:8px">${escapeHtml(n)}</p>`).join('');
+}
+
+function tankLevelsBlock(meter, u) {
+  const unit = meter.capacity_unit || u.volume_unit || 'L';
+  const levels = [...(Array.isArray(meter.tank_levels) ? meter.tank_levels : [])].sort((a, b) => b.date.localeCompare(a.date));
+  const rows = levels.map(l => `
+    <tr>
+      <td>${fmt.date(l.date)}</td>
+      <td class="num" style="white-space:nowrap">${fmt.num(l.level, 0)} ${escapeHtml(unit)}</td>
+      <td class="muted">${escapeHtml(l.note || '')}</td>
+      <td class="actions"><button class="icon-btn" data-action="delete-level" data-date="${escapeHtml(l.date)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button></td>
+    </tr>`).join('');
+  return `
+    <div class="tank-levels" style="margin-top:16px">
+      <div class="card__title" style="font-size:14px">${t('utility.tank.levelsTitle')}
+        <span class="card__title-action"><button class="btn btn-${u.key} btn--sm" id="btn-new-level">${t('utility.tank.addLevel')}</button></span>
+      </div>
+      ${levels.length
+        ? `<div class="table-wrap"><table class="table"><tbody>${rows}</tbody></table></div>`
+        : `<p class="muted" style="font-size:12px">${t('utility.tank.levelsEmpty')}</p>`}
+    </div>`;
+}
+
+function drawStockChart(canvasId, stockHist, u, year) {
+  const canvas = document.getElementById(canvasId);
+  if (_stockChart) { _stockChart.destroy(); _stockChart = null; }
+  if (!canvas || !stockHist) return;
+  const days = (stockHist.days || []).filter(d => d.date.startsWith(String(year)));
+  if (!days.length) return;
+  const unit = stockHist.capacity_unit || u.volume_unit || 'L';
+  const anchorAt = new Map((stockHist.anchors || []).map(a => [a.date, a]));
+  // Gerechnet und geschätzt als zwei Linien; der erste geschätzte Tag hängt
+  // auch an der gerechneten Linie, damit kein Loch entsteht.
+  const measured  = days.map((d, i) => (!d.estimated || (i > 0 && !days[i - 1].estimated)) ? d.stock : null);
+  const estimated = days.map(d => d.estimated ? d.stock : null);
+  // Punkte zeigen den bekannten Stand (Beginn des Tages, nach einer
+  // Lieferung), nicht den Tagesendwert der Kurve — sonst stünde ein
+  // erfasster Peilstand von 1650 L als 1640 L da.
+  const anchors   = days.map(d => anchorAt.has(d.date) ? anchorAt.get(d.date).stock : null);
+  const labels = days.map(d => d.date);
+  const shortMonths = monthShortNames();
+  _stockChart = makeChart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: t('utility.tank.chartMeasured', { unit }), data: measured, borderColor: u.color, backgroundColor: 'transparent', pointRadius: 0, borderWidth: 2, spanGaps: false },
+        { label: t('utility.tank.chartEstimated', { unit }), data: estimated, borderColor: u.color, backgroundColor: 'transparent', pointRadius: 0, borderWidth: 2, borderDash: [5, 4], spanGaps: false },
+        { label: t('utility.tank.chartAnchors'), data: anchors, borderColor: themeColors.accent, backgroundColor: themeColors.accent, showLine: false, pointRadius: 4 },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        // Beschriftung nur an Monatsersten, auf schmalen Bildschirmen jedes Quartal
+        x: { grid: { display: false }, ticks: { autoSkip: false, maxRotation: 0,
+          callback: function (v, i) {
+            const d = labels[i];
+            if (!d || !d.endsWith('-01')) return '';
+            const m = Number(d.slice(5, 7));
+            const step = (this.chart?.width || 600) < 520 ? 3 : 1;
+            return (m - 1) % step === 0 ? shortMonths[m - 1] : '';
+          } } },
+        y: { min: 0, suggestedMax: Number(stockHist.capacity) || undefined, title: { display: true, text: unit } },
+      },
+    },
+  }, { label: t('utility.tank.chartAlt', { year }) });
+}
+
+function wireTankLevels(container, u, meter) {
+  container.querySelector('#btn-new-level')?.addEventListener('click', () => openTankLevelModal(container, u, meter));
+  container.querySelectorAll('[data-action="delete-level"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const date = btn.dataset.date;
+      const ok = await confirmModal({
+        message: t('utility.tank.levelDeleteConfirm', { date: fmt.date(date) }),
+        confirmLabel: t('utility.readingsTable.delete'), danger: true,
+      });
+      if (!ok) return;
+      const levels = (meter.tank_levels || []).filter(l => l.date !== date);
+      try {
+        await api.updateMeter(u.key, meter.id, { tank_levels: levels });
+        toastOk(t('utility.tank.levelDeleted'));
+        state.meters = await api.meters(u.key);
+        rerender(container);
+      } catch (e) { toastErr(e.message); }
+    });
+  });
+}
+
+function openTankLevelModal(container, u, meter) {
+  const unit = meter.capacity_unit || u.volume_unit || 'L';
+  const body = `
+    <form id="level-form">
+      <div class="field">
+        <label for="lf-date">${t('utility.tank.levelDate')}</label>
+        <input class="input" id="lf-date" type="date" name="date" value="${escapeHtml(todayIso())}" max="${escapeHtml(todayIso())}" required>
+      </div>
+      <div class="field">
+        <label for="lf-level">${t('utility.tank.levelValue', { unit })}</label>
+        <input class="input" id="lf-level" type="text" inputmode="decimal" autocomplete="off" name="level" required aria-describedby="lf-level-hint lf-level-msg">
+        <small class="muted" id="lf-level-hint">${t('utility.tank.levelHint')}</small>
+        <div class="field-error" id="lf-level-msg" role="alert" hidden></div>
+      </div>
+      <div class="field">
+        <label for="lf-note">${t('utility.tank.levelNote')}</label>
+        <input class="input input--text" id="lf-note" type="text" name="note" maxlength="80">
+      </div>
+    </form>`;
+  const footer = `
+    <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+    <button type="button" class="btn btn--primary" data-act="save">${t('utility.readingModal.create')}</button>`;
+  openModal({
+    title: t('utility.tank.addLevel'),
+    body, footer,
+    onMount({ modalEl, close }) {
+      modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
+      const saveBtn = modalEl.querySelector('[data-act="save"]');
+      saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
+        const form = modalEl.querySelector('#level-form');
+        const levelEl = form.level;
+        const level = parseDecimal(levelEl.value);
+        const cap = Number(meter.capacity) || 0;
+        if (level == null || level < 0 || (cap > 0 && level > cap * 1.02)) {
+          showFieldError(levelEl, modalEl.querySelector('#lf-level-msg'),
+            cap > 0 ? t('utility.tank.levelRange', { cap: fmt.num(cap, 0), unit }) : t('common.invalidNumber', { example: formatForInput(1234.5) }));
+          return;
+        }
+        const date = form.date.value;
+        if (!date) return;
+        const levels = (meter.tank_levels || []).filter(l => l.date !== date);
+        levels.push({ date, level, note: form.note.value.trim() });
+        try {
+          await api.updateMeter(u.key, meter.id, { tank_levels: levels });
+          toastOk(t('utility.tank.levelSaved'));
+          close(true);
+          state.meters = await api.meters(u.key);
+          rerender(container);
+        } catch (e) { toastErr(e.message); }
+      }));
+    },
+  });
 }
 
 // ── Chart ───────────────────────────────────────────────────────────
@@ -1252,6 +1436,13 @@ function openDeliveryModal(container, u, meter, delivery) {
       </div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+          <input type="checkbox" name="fill_to_full" ${delivery?.fill_to_full ? 'checked' : ''} aria-describedby="df-full-hint">
+          <span>${t('utility.deliveryModal.fillToFull')}</span>
+        </label>
+        <small class="muted" id="df-full-hint">${t('utility.deliveryModal.fillToFullHint')}</small>
+      </div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
           <input type="checkbox" name="is_planned" ${delivery?.is_planned ? 'checked' : ''}>
           <span>${t('utility.deliveryModal.planned')}</span>
         </label>
@@ -1296,6 +1487,7 @@ function openDeliveryModal(container, u, meter, delivery) {
           supplier: form.supplier.value.trim(),
           note: form.note.value.trim(),
           is_planned: form.is_planned.checked,
+          fill_to_full: form.fill_to_full.checked,   // v2.10.0 — Tankbuch-Stützstelle
         };
         // Optionale Felder: leer bleibt leer; Text, der keine Zahl ist, ist ein Fehler.
         for (const [el, key, msgId] of [[uEl, 'unit_price_cents', '#df-unit-price-msg'], [tEl, 'total_eur', '#df-total-msg']]) {

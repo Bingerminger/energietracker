@@ -41,7 +41,14 @@ A compact reference of all terms and formulas. The detailed derivation is in
 | **Efficiency class** | The kWh/m²·a classification of heating energy (A+…H), per source since v1.4.0. |
 | **Base load** | The weather-independent base (hot water, standby). |
 | **Anomaly** | A month that deviates from the expectation for exactly this month by more than the threshold (heating model or the same calendar month in other years); robust spread with a floor, since v2.8.0. |
-| **Tank stock curve** | The modelled (not measured) remaining stock for oil/pellets. |
+| **Tank stock curve** | The remaining stock of oil/pellets per day — since v2.10.0 from the same calculation as the consumption (tank log), calculated between anchors, estimated afterwards. |
+| **Tank log** | v2.10.0: one calculation for consumption, costs and stock of oil/pellets, based on known stock levels (initial stock, delivery "filled to full", tank reading). |
+| **Anchor (known stock level)** | A day with a known tank stock. Between two anchors the consumption is calculated, not estimated. |
+| **Tank reading** | A tank stock read off (gauge, dipstick, sensor), stored on the tank under `tank_levels`. |
+| **Certificate-style figure** | v2.10.0: the second efficiency figure — net calorific value, weather-adjusted, per m² of usable floor area, with a hot-water surcharge for decentralised hot water. Not a consumption certificate (that requires 36 months). |
+| **Usable floor area (AN)** | The reference area of the energy performance certificate: 1.2 × living area, 1.35 × for a single/two-family or terraced house with a heated basement (§ 82 GEG). |
+| **Gross / net calorific value** | Gas is billed by gross calorific value (kWh including the heat of condensation); the energy performance certificate and the BAFA CO₂ factors refer to the net calorific value: net kWh = gross kWh × 0.906. |
+| **Self-consumption savings** | v2.10.0: self-used PV electricity × working price of the grid import — the electricity costs that self-consumption avoids. |
 | **Recurrence** | The repeat rule of an appointment (annual, …). |
 
 ---
@@ -100,20 +107,20 @@ forecast = w · regression value + (1 - w) · seasonal value
 metric = (Σ heating kWh of the year) / living_area_m²     [kWh / (m²·a)]
 ```
 
-**Delivery energy balance (oil/pellets):**
+**Certificate-style figure (since v2.10.0):**
 
 ```text
-total kWh = (initial_stock + Σ deliveries) × Hu
+AN     = living area × 1.2   (1.35 for a single/two-family or terraced house with heated basement)
+metric = Σ adjusted kWh (gas × 0.906) / AN  (+ 20 with decentralised hot water)
 ```
 
-**Daily draw of the stock curve (v1.4.0):**
+**Tank log (oil/pellets, since v2.10.0):**
 
 ```text
-rate      = (Σ deliveries without the last) · (1 - s)
-            / Σ HDD in the window [first .. last delivery]
-
-stock_day = max(0, stock_prevday + delivery_day
-                   - (base_load_L + rate · HDD_day))
+consumption between anchors = stock_before + Σ deliveries − stock_after
+share_day ∝ ρ + HDD_day           ρ = s · HDD_year / ((1 − s) · 365.25)
+after the last anchor: rate × (ρ + HDD_day), estimated
+price: moving average of the tank content
 ```
 
 **Delivery costs (v1.4.2, total-amount precedence):**
@@ -138,7 +145,7 @@ balance < 0  → credit
 saving index = (litres per person per day) / reference × 100
 ```
 
-**CO₂** *(default factors [Unverified])*:
+**CO₂** *(default factors with a source since v2.10.0; electricity per year)*:
 
 ```text
 CO2 = consumption × CO2 factor
@@ -172,7 +179,10 @@ heat_adjusted = actual + a × (HDD_normal - HDD_actual)      (at least c × days
 | `delivery_baseload_share` | 0.15 | share |
 | `forecast_months` | 12 | months |
 | `wohnflaeche_m2` | 100 | m² |
-| `co2_gas / _strom / _wasser` | 201 / 380 / 350 | g/kWh or g/m³ *(Unverified)* |
+| `co2_gas` | 182 (BAFA, net calorific value × 0.906) | g/kWh |
+| `co2_strom` / `co2_strom_years` | 380 until 2014, then German Environment Agency per year (2025: 344) | g/kWh |
+| `co2_heizoel` / `co2_pellets` / `co2_fernwaerme` | 266 / 36 / 280 (BAFA) | g/kWh |
+| `co2_wasser` | 350 *(no source)* | g/m³ |
 
 ---
 

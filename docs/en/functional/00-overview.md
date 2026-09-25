@@ -320,7 +320,38 @@ metric = (Σ heating kWh of the year) / living_area_m²     [kWh / (m²·a)]
 ```
 
 and classifies it using the band limits (`efficiency_class_thresholds`, default
-A+ < 30, A < 50, B < 75, C < 100, D < 130, E < 160, F < 200, G < 250, otherwise H).
+A+ up to 30, A up to 50, B up to 75, C up to 100, D up to 130, E up to 160, F up to
+200, G up to 250, otherwise H). Since v2.10.0 a limit is **inclusive** ("up to
+100" is C), as in GEG Annex 10; previously a value exactly on the limit landed
+one class worse.
+
+**Classes only for full years (since v2.10.0).** If the reference year covers
+fewer than 360 days, there is no class, and a note says that the figure only
+applies to the measured period. Anyone who started in June used to get a dream
+class for their half year without a winter.
+
+**Two figures (since v2.10.0).** The house figure above stays as it is:
+consumption per m² of living area, as measured. Alongside it there is a
+**certificate-style** figure (`certificate`):
+
+```text
+AN      = living area × 1.2      (× 1.35 for a single/two-family or terraced house with heated basement, § 82 GEG)
+E       = Σ heat sources: weather-adjusted annual consumption,
+          gas × 0.906 (gross → net calorific value)
+metric  = E / AN  (+ 20 kWh/m²·a with decentralised hot water)
+```
+
+The adjustment runs month by month with the heating model (`heat_adjusted`)
+when every month of the year has such a value — the normal case for gas and
+district heating with a heating model. Otherwise (heating oil, pellets, heat
+pump, months without a model or before a baseline cut) it is adjusted over the
+year with the climate normal (heating share only, VDI 3807). Without a climate normal the value
+stands as measured and is marked as such. This is **not a consumption
+certificate**: that requires 36 months and the climate factors of the DWD
+(German Meteorological Service). The settings *Heated basement* and
+*Decentralised hot water* and the flag *Heating electricity (heat pump)* on an
+electricity meter feed into it — with the flag, a heat-pump house gets a figure
+too.
 
 **Since v1.4.0, separated per heat source.** A house usually heats with one
 source in reality; summing all heating types would yield a nonsensical class. The
@@ -336,9 +367,33 @@ operation such as a pellet base load + a gas peak load).
 CO2 = consumption × CO2 factor
 ```
 
-with a utility-specific factor (`co2_gas`, `co2_strom`, …). The defaults are
-**[Unverified]** rough guide values and should be adjusted in the settings to
-your own source (electricity tariff mix, heating-oil standard).
+with a utility-specific factor (`co2_gas`, `co2_strom`, …), relative to the unit
+in which the app counts. Since v2.10.0 every default has a source:
+
+| Factor | Default | Source |
+|---|---|---|
+| Gas | 182 g/kWh | BAFA information sheet on CO₂ factors (2026): 201 g/kWh relative to the **net calorific value**; the app counts gas by gross calorific value, hence × 0.906 |
+| Electricity | per year, 2015–2025 (2025: 344 g/kWh) | German Environment Agency (UBA), emission factor of the electricity mix (`co2_strom_years`); after the last year its value applies, before that `co2_strom` (380) |
+| Heating oil | 266 g/kWh | BAFA, relative to the net calorific value — which is how the app calculates heating oil |
+| Pellets | 36 g/kWh | BAFA, CO₂ equivalents including the upstream chain (up to v2.9: 26) |
+| District heating | 280 g/kWh | BAFA flat rate; the value of your own network is available from the supplier (up to v2.9: 180) |
+| Water | 350 g/m³ | rough guide value without a documented source |
+
+Up to v2.9 a single value applied to electricity for all years, and the gas
+factor referred to the net calorific value while the app counts gross-calorific
+kWh (+10 %).
+
+**Existing installations keep their figures.** The migration to schema 1.6.0
+pins the previous default in every installation that never saved one of these
+values (Lesson 36: an update does not change a figure the user has not touched
+themselves). The settings then show "Newer default values available" with the
+old and the new value — they are only applied at the push of a button. The same
+applies to the water reference (127 → 122 L per person and day, BDEW 2024). New
+installations start with the new values.
+
+**PV** avoids CO₂ instead of emitting it: generation and feed-in are shown as
+"avoided", and only once in the annual report
+([PV](12-pv.md#5-co₂-as-avoided)).
 
 ---
 

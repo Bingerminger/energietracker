@@ -82,7 +82,10 @@
     "efficiency": {
       "title": "Efficacité",
       "livingArea": "Surface habitable {area} m²",
-      "perSource": "par source de chaleur · surface habitable {area} m²"
+      "perSource": "par source de chaleur · surface habitable {area} m²",
+      "certificate": "Type certificat : {value} kWh/m²·an{cls}",
+      "certificateTitle": "PCI, corrigé du climat, rapporté à {area} m² de surface utile. Un DPE sur consommation exige 36 mois ; disponibles : {months}.",
+      "certificateAll": "Type certificat, toutes sources de chaleur : {value} kWh/m²·an{cls}"
     },
     "tanks": { "title": "Niveaux de cuve" },
     "stromSaldo": {
@@ -97,7 +100,10 @@
       "autarky": "Autonomie",
       "autarkySub": "part d’électricité propre",
       "selfUse": "Autoconsommation",
-      "selfUseSub": "{kwh} kWh consommés directement"
+      "selfUseSub": "{kwh} kWh consommés directement",
+      "savings": "Économie d’autoconsommation",
+      "savingsSub": "{kwh} kWh autoconsommés × prix d’achat",
+      "coveredSub": "sur {months} mois avec des données des trois compteurs"
     },
     "recommendations": { "title": "Recommandations principales" },
     "reminders": {
@@ -194,7 +200,9 @@
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Acomptes jusqu’au {date}",
-      "balanceShort": "Solde {value}"
+      "balanceShort": "Solde {value}",
+      "co2AvoidedGenTitle": "Calcul simplifié : kWh produits × facteur CO₂ du mix — électricité du réseau évitée, injection comprise. Cycle de vie du PV non pris en compte.",
+      "generation": "Production"
     },
     "cards": {
       "contracts": "📑 Contrats et acomptes",
@@ -311,7 +319,9 @@
       "colMa3Title": "Moyenne mobile sur 3 mois",
       "colMa6": "MM·6",
       "colMa6Title": "Moyenne mobile sur 6 mois",
-      "total": "Total"
+      "total": "Total",
+      "estimatedTitle": "{days} jours estimés (après le dernier stock connu)",
+      "estimatedLegend": "≈ le mois contient des jours estimés — après le dernier stock connu (livraison « plein complet » ou relevé)."
     },
     "readingsTable": {
       "emptyTitle": "Aucun relevé",
@@ -338,14 +348,35 @@
       "colTotal": "Total",
       "colSupplier": "Fournisseur",
       "colNote": "Note",
-      "planned": "PLANIFIÉE"
+      "planned": "PLANIFIÉE",
+      "full": "PLEIN"
     },
     "tank": {
       "noCapacity": "Aucune capacité de cuve définie — saisissez-la sur le compteur pour voir la courbe de stock.",
       "summary": "actuellement ~{stock} {unit} / {cap} {unit} ({pct} %)",
       "remaining": "{stock} {unit} restants (modélisé)",
       "ofCap": "{pct} % de {cap} {unit}",
-      "modelNote": "Le stock est modélisé à partir du stock initial + livraisons − consommation pondérée par les DJU ; c’est une estimation, pas une jauge de cuve."
+      "noteMeasured": "Consommation calculée à partir de stocks connus jusqu’au {date}, estimée ensuite.",
+      "noteEstimated": "Le stock et la consommation sont estimés à partir du stock initial et des livraisons. Une livraison « plein complet » ou un relevé de cuve les rend exacts.",
+      "warnInconsistent": "Entre le {from} et le {to}, les niveaux ne concordent pas : {excess} {unit} de plus dans la cuve que possible. Manque-t-il une livraison, ou un niveau est-il faux ?",
+      "warnExhausted": "Par le calcul, la cuve est vide depuis le {date}. Manque-t-il une livraison ou un relevé ?",
+      "warnNoCalibration": "Pas encore de taux de consommation : il faut deux niveaux de cuve connus à au moins 14 jours d’intervalle (stock initial, livraison « Plein complet », relevé de cuve) ou deux livraisons.",
+      "warnFlat": "Des températures existent pour moins de la moitié des jours — la consommation est répartie uniformément.",
+      "levelsTitle": "Relevés de cuve",
+      "addLevel": "Saisir un relevé",
+      "levelsEmpty": "Aucun relevé pour l’instant. Un relevé rend le calcul exact jusqu’à ce jour.",
+      "levelDeleteConfirm": "Supprimer le relevé du {date} ?",
+      "levelDeleted": "Relevé supprimé",
+      "levelSaved": "Relevé enregistré",
+      "levelDate": "Date",
+      "levelValue": "Niveau ({unit})",
+      "levelHint": "Lu sur la jauge, à la pige ou sur le capteur de niveau.",
+      "levelNote": "Note",
+      "levelRange": "Veuillez saisir un niveau entre 0 et {cap} {unit}.",
+      "chartMeasured": "Stock ({unit}), calculé",
+      "chartEstimated": "Stock ({unit}), estimé",
+      "chartAnchors": "Stock connu",
+      "chartAlt": "Évolution du stock de la cuve en {year}"
     },
     "chart": { "temp": "température moyenne", "alt": "Diagramme en barres : consommation mensuelle et température moyenne" },
     "readingModal": {
@@ -375,7 +406,9 @@
       "planned": "Planifiée (pas encore livrée)",
       "validation": "La date et une quantité positive sont obligatoires.",
       "savedNew": "Livraison enregistrée",
-      "savedEdit": "Livraison mise à jour"
+      "savedEdit": "Livraison mise à jour",
+      "fillToFull": "Plein complet",
+      "fillToFullHint": "La cuve était pleine ensuite. L’application connaît alors le stock ce jour-là et calcule exactement la consommation jusque-là."
     },
     "confirm": {
       "deleteReading": "Vraiment supprimer le relevé du {date} ?",
@@ -684,7 +717,11 @@
       "saved": "Compteur enregistré",
       "digits": "Chiffres du totalisateur (avant la virgule)",
       "digitsHint": "Nécessaire seulement si le totalisateur peut repasser de 99999 à 0 : l’analyse reconnaît alors la remise à zéro au lieu de signaler une baisse. Vide = inconnu.",
-      "activeHint": "Décocher si le compteur est hors service : son historique compte toujours dans tous les totaux, mais il n’apparaît plus dans la saisie et ne déclenche plus d’alertes."
+      "activeHint": "Décocher si le compteur est hors service : son historique compte toujours dans tous les totaux, mais il n’apparaît plus dans la saisie et ne déclenche plus d’alertes.",
+      "initialStockPrice": "Prix du stock initial (ct/{unit})",
+      "initialStockPriceHint": "Laisser vide pour reprendre le prix de la première livraison.",
+      "heatSource": "Électricité de chauffage (pompe à chaleur)",
+      "heatSourceHint": "Ce compteur mesure le chauffage : il compte dans l’indicateur d’efficacité."
     },
     "replace": {
       "title": "Changement de compteur : {name}",
@@ -788,12 +825,12 @@
     },
     "field": {
       "hdd_base_temp": { "label": "Température de base DJU", "hint": "Limite de chauffe — les jours en dessous comptent comme jours de chauffe." },
-      "co2_gas": { "label": "CO₂ gaz" },
-      "co2_strom": { "label": "CO₂ électricité" },
+      "co2_gas": { "label": "CO₂ gaz", "hint": "BAFA : 201 g/kWh rapportés au PCI. L’application compte le gaz au PCS (coefficient × pouvoir calorifique), d’où × 0,906 = 182." },
+      "co2_strom": { "label": "CO₂ électricité", "hint": "S’applique aux années précédant la première valeur annuelle — sans valeurs annuelles, à toutes." },
       "co2_wasser": { "label": "CO₂ eau" },
-      "co2_fernwaerme": { "label": "CO₂ chauffage urbain" },
-      "co2_heizoel": { "label": "CO₂ fioul" },
-      "co2_pellets": { "label": "CO₂ granulés" },
+      "co2_fernwaerme": { "label": "CO₂ chauffage urbain", "hint": "Forfait BAFA. La valeur de votre réseau de chaleur est plus précise — elle est disponible auprès du fournisseur." },
+      "co2_heizoel": { "label": "CO₂ fioul", "hint": "BAFA, rapporté au PCI — comme l’application calcule le fioul." },
+      "co2_pellets": { "label": "CO₂ granulés", "hint": "BAFA, équivalents CO₂ amont compris." },
       "billing_cycle_anchor_gas": { "label": "Date de régularisation gaz" },
       "billing_cycle_anchor_strom": { "label": "Date de régularisation électricité" },
       "billing_cycle_anchor_wasser": { "label": "Date de régularisation eau" },
@@ -801,7 +838,7 @@
       "contract_remind_days_2": { "label": "Niveau 2 — rappel" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
       "wasser_personen_anzahl": { "label": "Personnes dans le foyer" },
-      "wasser_personen_referenz": { "label": "Référence" },
+      "wasser_personen_referenz": { "label": "Référence", "hint": "BDEW 2024 : 122 L par personne et par jour (Allemagne)." },
       "wasser_sparindex_gut": { "label": "Indice d’économie — bon jusqu’à", "hint": "Un indice ≤ à cette valeur est considéré comme normal." },
       "wasser_sparindex_warnung": { "label": "Indice d’économie — alerte à partir de", "hint": "Un indice ≥ à cette valeur indique un potentiel d’économie." },
       "min_days_period": { "label": "Jours min. par période" },
@@ -815,7 +852,7 @@
       "dashboard_months": { "label": "Mois sur le tableau de bord" },
       "alert_days_since_reading": { "label": "Alerter après" },
       "wohnflaeche_m2": { "label": "Surface habitable", "hint": "Surface chauffée — dénominateur de la métrique d’efficacité." },
-      "gebaeudetyp": { "label": "Type de bâtiment", "hint": "efh = maison individuelle, rh = maison mitoyenne, mfh = immeuble collectif, whg = appartement." },
+      "gebaeudetyp": { "label": "Type de bâtiment", "hint": "Immeuble collectif : à partir de trois logements." },
       "heizoel_kwh_per_l": { "label": "Contenu énergétique du fioul" },
       "pellets_kwh_per_kg": { "label": "Contenu énergétique des granulés" },
       "delivery_baseload_share": { "label": "Répartition de la part de base", "hint": "Part de la consommation en charge de base indépendante de la météo (le reste pondéré par les DJU)." },
@@ -838,6 +875,18 @@
       "frame_ancestors": {
         "label": "Adresses autorisées pour l’intégration",
         "hint": "Adresse avec schéma et port, p. ex. http://homeassistant.local:8123 ; séparez plusieurs adresses par des espaces. Vide = uniquement cette installation."
+      },
+      "co2_strom_years": {
+        "label": "CO₂ électricité par année",
+        "hint": "Mix électrique par année (Agence fédérale allemande de l’environnement, UBA). Après la dernière année, sa valeur s’applique ; avant, « CO₂ électricité »."
+      },
+      "beheizter_keller": {
+        "label": "Sous-sol chauffé",
+        "hint": "Maison individuelle, bifamiliale ou mitoyenne avec sous-sol chauffé : surface utile = 1,35 × surface habitable (sinon 1,2) — pour l’indicateur de type certificat."
+      },
+      "warmwasser_dezentral": {
+        "label": "Eau chaude décentralisée",
+        "hint": "Eau chaude par chauffe-eau instantané ou ballon, pas par le chauffage : l’indicateur de type certificat reçoit un supplément de 20 kWh/m²·an."
       }
     },
     "boolActive": "activé",
@@ -1058,7 +1107,8 @@
         "GB": "Factures de gaz britanniques : coefficient de correction 1,02264 et pouvoir calorifique en MJ/m³. Les compteurs en pieds cubes (ft³) ne sont pas pris en charge.",
         "IT": "Factures de gaz italiennes : « coefficiente C » comme coefficient de correction, PCS (pouvoir calorifique supérieur) le plus souvent en GJ/Smc. Le formulaire de contrat convertit les prix au Smc en {minor}/kWh.",
         "NL": "Factures de gaz néerlandaises : saisis le pouvoir calorifique (calorische waarde) en MJ/m³. Le formulaire de contrat convertit les prix au m³ en {minor}/kWh."
-      }
+      },
+      "defaultHint": "Facteur par défaut 11,5 kWh/m³ actif. La valeur de votre réseau figure sur la facture de gaz (coefficient × pouvoir calorifique) — typiquement 10,3 à 11,1. Avec la valeur par défaut, kWh, coûts et CO₂ sont jusqu’à 20 % trop élevés."
     },
     "invalidFields": "Non enregistré : veuillez corriger les champs signalés en rouge.",
     "dayMonthInvalid": "Veuillez saisir jour-mois, p. ex. 01-10 pour le 1er octobre.",
@@ -1120,8 +1170,30 @@
       "colProfile": "Profil",
       "source": {
         "ember2024": "CO₂ électricité : Ember 2024, mix de production (via Our World in Data)",
-        "default": "CO₂ électricité : valeur par défaut antérieure de l’application"
+        "default": "CO₂ électricité : valeur par défaut antérieure de l’application",
+        "uba": "CO₂ électricité : Agence fédérale allemande de l’environnement, mix électrique par année"
       }
+    },
+    "co2Years": {
+      "none": "Aucune valeur annuelle — « CO₂ électricité » s’applique à toutes les années.",
+      "colYear": "Année",
+      "invalid": "Veuillez saisir une année (1990–2100) et une valeur entre 0 et 2000 g/kWh."
+    },
+    "defaultUpdates": {
+      "title": "Valeurs par défaut plus récentes disponibles",
+      "hint": "Ces valeurs proviennent d’une version antérieure. Elles ont été conservées pour qu’aucun chiffre ne change tout seul lors de la mise à jour. Les nouvelles valeurs ont une source documentée.",
+      "colNew": "Nouveau",
+      "sources": "Sources : fiche BAFA sur les facteurs CO₂ (2026), Agence fédérale allemande de l’environnement (mix électrique par année), BDEW (consommation d’eau 2024).",
+      "apply": "Appliquer les nouvelles valeurs",
+      "applied": "Valeurs par défaut appliquées",
+      "years": "Agence fédérale de l’environnement {from}–{to}",
+      "noYears": "une valeur pour toutes les années"
+    },
+    "buildingTypes": {
+      "efh": "Maison individuelle ou bifamiliale",
+      "rh": "Maison mitoyenne",
+      "mfh": "Immeuble collectif",
+      "whg": "Appartement"
     }
   },
   "reminders": {
@@ -1534,7 +1606,13 @@
     "continued": "(suite)",
     "meterPageTitle": "{label} {year} — {meter}",
     "heatDemand": "Énergie de chauffage · {label}",
-    "weatherNote": "Corrigé du climat : effet météo selon le modèle de chauffage ramené à une année normale ; les écarts propres au mois restent. Δ % : consommation par rapport à l’attendu pour ce temps."
+    "weatherNote": "Corrigé du climat : effet météo selon le modèle de chauffage ramené à une année normale ; les écarts propres au mois restent. Δ % : consommation par rapport à l’attendu pour ce temps.",
+    "co2Avoided": "{kg} kg évités",
+    "co2InGeneration": "inclus dans la production",
+    "revenueValue": "Recette {amount}",
+    "kpiRevenue": "Recettes totales",
+    "tableRevenue": "Recette {cur}",
+    "certificate": "Type certificat : {value} kWh/m²·an (PCI, corrigé du climat, {area} m² de surface utile)"
   },
   "migration": {
     "warnNoSettings": "Aucun réglage trouvé dans la sauvegarde — les valeurs par défaut s'appliquent.",
@@ -1574,7 +1652,8 @@
       "noLivingArea": "Surface habitable non renseignée — saisis-la dans les réglages pour obtenir la classe d'efficacité.",
       "noHeatData": "Aucune donnée de chauffage trouvée pour {year}.",
       "multipleSources": "Plusieurs sources de chaleur actives — la classe par source est plus parlante que le total combiné. La vue combinée n'a de sens qu'en chauffage volontairement combiné (p. ex. base et pointe).",
-      "noScale": "Aucune échelle d’efficacité n’est disponible pour {country}. Les classes A+ à H suivent la loi allemande sur l’énergie des bâtiments (GEG) et ne sont donc pas affichées."
+      "noScale": "Aucune échelle d’efficacité n’est disponible pour {country}. Les classes A+ à H suivent la loi allemande sur l’énergie des bâtiments (GEG) et ne sont donc pas affichées.",
+      "incompleteYear": "Les données de {year} ne couvrent pas toute l’année — pas de classe ; l’indicateur ne vaut que pour la période mesurée."
     },
     "forecast": {
       "tooFewMonths": "Historique insuffisant (moins de 6 mois).",
@@ -1622,7 +1701,14 @@
       "invalidBaselineDate": "Date de rupture invalide : « {date} » — format attendu AAAA-MM-JJ",
       "duplicateBaselineDate": "Une rupture est déjà enregistrée pour le {date}",
       "swapBeforeInstall": "Le changement du {date} précède l’installation de l’appareil actuel ({installed}).",
-      "digitsInvalid": "Chiffres du compteur : « {value} » n’est pas valide — un nombre entier de 3 à 12, ou vide, est autorisé."
+      "digitsInvalid": "Chiffres du compteur : « {value} » n’est pas valide — un nombre entier de 3 à 12, ou vide, est autorisé.",
+      "invalidTankLevels": "Les relevés de cuve doivent être transmis sous forme de liste d’entrées avec date et niveau",
+      "invalidTankLevelDate": "Date invalide pour le relevé de cuve : « {date} » — format attendu AAAA-MM-JJ",
+      "tankLevelFuture": "Le relevé de cuve du {date} est dans le futur",
+      "duplicateTankLevel": "Un relevé de cuve existe déjà pour le {date}",
+      "tankLevelInvalid": "Relevé de cuve « {value} » invalide — nombre à partir de 0 attendu",
+      "tankLevelAboveCapacity": "Le relevé de cuve {level} dépasse la capacité {capacity}",
+      "initialPriceInvalid": "Prix du stock initial « {value} » invalide — nombre à partir de 0 ou vide attendu"
     },
     "common": {
       "unknownUtility": "Énergie inconnue : {utility}",
@@ -1680,7 +1766,8 @@
       "priceNegative": "Le prix unitaire ne doit pas être négatif",
       "meterIdMissing": "meter_id (cuve/stock) est manquant",
       "dateFuture": "La date de livraison est dans le futur — définissez is_planned=true pour les livraisons planifiées",
-      "tankNotExist": "La cuve/le stock (meter_id) n’existe pas : {id}"
+      "tankNotExist": "La cuve/le stock (meter_id) n’existe pas : {id}",
+      "fullAboveCapacity": "La quantité {quantity} dépasse la capacité de la cuve {capacity} : « plein complet » n’est pas possible ainsi."
     },
     "ingest": {
       "unknownUtility": "Énergie inconnue ou manquante : {utility}",

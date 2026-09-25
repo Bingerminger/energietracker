@@ -532,6 +532,43 @@ abgenommen ist.
   sind sie verschwunden, aus der API nicht: Wer sie per Skript setzt, bekäme
   sonst ohne Ankündigung einen anderen Stand zurück. Sie sind als veraltet
   markiert und entfallen erst mit einer Major-Version.
+- **Zwei Rechnungen für dieselbe Größe widersprechen sich irgendwann
+  (v2.10.0).** Bei Heizöl und Pellets kamen die Kosten aus einer Bilanz, die
+  den Tank heute für leer hielt, die Bestandskurve aus einer kalibrierten
+  Rate. Lektion 12 hatte das Auseinanderziehen empfohlen — richtig war es
+  nur, solange beide Annahmen stimmten. Die der Kosten stimmte nie: Eine
+  Lieferung von heute erhöhte die Vorjahre um 20 %. Die Antwort war nicht ein
+  zweites Modell, sondern ein richtiges: bekannte Bestände als Stützstellen,
+  eine Rechnung für Verbrauch, Kosten und Kurve.
+- **Eine Größe, die ein Jahr beschreibt, gehört aus einem Jahr geschätzt
+  (v2.10.0).** Die Tagesform des Tankbuchs braucht die Gradtage eines
+  Normaljahrs. Die erste Fassung nahm sie aus dem Fenster des Tanks — wer im
+  Mai anfing, hatte ein „Jahr" mit kaum Gradtagen, die im Sommer kalibrierte
+  Rate wurde im Herbst zu 767 L am Tag. Aufgefallen ist es an einem Test mit
+  Daten relativ zu heute. Jetzt: Klimanormal, sonst eine Historie mit allen
+  zwölf Monaten, sonst ein grobes Monatsmittel.
+- **Ein korrigierter Default braucht einen Migrationsschritt (v2.10.0).**
+  Lektion 36 angewandt: Gas-, Pellet-, Fernwärme- und Strom-CO₂ und die
+  Wasser-Referenz haben neue, belegte Defaults. Wer sie nie gespeichert hat,
+  hätte ohne Zutun andere Zahlen gesehen. Schema 1.6.0 schreibt bei
+  Bestandsinstallationen die alten Werte fest — aber nur bei Daten älter als
+  1.6.0, sonst würde ein späterer Schritt einer neuen Installation alte Werte
+  aufzwingen. Die Einstellungen bieten den Wechsel an.
+- **Eine Einheit an der Oberfläche ist eine Behauptung (v2.10.0).** Die
+  CO₂-Faktoren für Heizöl und Pellets waren mit g/L und g/kg beschriftet,
+  gerechnet wurde je kWh — neun Releases lang, weil kein Test die Beschriftung
+  mit der Rechnung verglich. Der Render-Test prüft sie jetzt.
+- **Ein Kennzeichen wirkt nur, wo es gelesen wird (v2.10.0).**
+  `accounting_kind` gibt es seit v1.7.0, aber Jahresbericht, Tarifwechsel
+  und die Erzeugungsansicht fragten es nie: Die Einspeisung stand als
+  „Kosten", mehr Vergütung als „teurer", die Erzeugung als Emission.
+  Dieselbe Klasse wie Lektion 22 — eine Eigenschaft, die nur manche
+  Konsumenten beachten, ist keine.
+- **Quoten brauchen dieselbe Grundlage in Zähler und Nenner (v2.10.0).** Die
+  PV-Quoten summierten Jahreswerte von Zählern mit unterschiedlicher
+  Abdeckung: Ein Erzeugungszähler ab Juli ergab „Eigenverbrauch 0". Jetzt
+  zählen nur Monate, in denen alle drei Zähler Daten haben, und die Karte
+  sagt, wie viele das sind.
 
 ---
 

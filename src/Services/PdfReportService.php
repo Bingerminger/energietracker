@@ -98,6 +98,24 @@ final class PdfReportService
                 }
                 $y += 12;
             }
+            // v2.10.0 (CALC-07) — zweite Zahl: energieausweis-nah (Heizwert,
+            // witterungsbereinigt, Gebäudenutzfläche); Hinweis bei Teiljahren
+            if (!empty($eff['certificate'])) {
+                $c = $eff['certificate'];
+                $line = $this->i18n->t('report.certificate', [
+                    'value' => $this->i18n->number((float)$c['kwh_per_m2'], 0),
+                    'area'  => $this->i18n->number((float)$c['area_m2'], 0),
+                ]) . ($hasScale && !empty($c['class']) ? ' · ' . $this->i18n->t('report.class', ['class' => (string)$c['class']]) : '');
+                $pdf->text(self::M, $y, $line, 9, false, self::MUTE);
+                $y += 16;
+            }
+            if (in_array(false, array_column($perSource, 'complete'), true) && !empty($eff['note'])) {
+                foreach ($this->wrap((string)$eff['note'], 100) as $ln) {
+                    $pdf->text(self::M, $y, $ln, 8, false, self::MUTE);
+                    $y += 12;
+                }
+                $y += 6;
+            }
             if (!$hasScale && !empty($eff['scale_note'])) {
                 foreach ($this->wrap((string)$eff['scale_note'], 100) as $ln) {
                     $pdf->text(self::M, $y, $ln, 8, false, self::MUTE);
@@ -122,17 +140,36 @@ final class PdfReportService
         $pdf->line(self::M, $y, $W - self::M, $y, 0.5, self::RULE);
         $y += 16;
 
-        foreach ($this->activeUtilities() as $utility) {
+        // v2.10.0 (Review CALC-17) — PV nach ihrer Bedeutung: Einspeisung ist
+        // ein Erlös, keine Kosten; Erzeugung emittiert nichts, sie vermeidet.
+        // Die vermiedene Menge steht einmal — bei der Erzeugung, wenn es sie
+        // gibt (die Einspeisung ist ein Teil davon), sonst bei der Einspeisung.
+        $active = $this->activeUtilities();
+        $hasGeneration = in_array('pv_erzeugung', $active, true)
+            && $this->yearAggregate('pv_erzeugung', $year)['kwh'] > 0;
+        foreach ($active as $utility) {
             $agg = $this->yearAggregate($utility, $year);
             if ($agg['kwh'] <= 0 && $agg['m3'] <= 0) continue;
             $u = Utilities::get($utility);
+            $kind = Utilities::accountingKind($utility);
             $valStr = $u['consumption_unit'] === 'kWh'
                 ? $this->i18n->number($agg['kwh'], 0) . ' kWh'
                 : $this->i18n->number($agg['m3'], 1) . ' m³';
+            $avoided = $this->i18n->t('report.co2Avoided', ['kg' => $this->i18n->number($agg['co2'], 0)]);
+            $costStr = match ($kind) {
+                'feed_in'    => $this->i18n->t('report.revenueValue', ['amount' => $this->i18n->money($agg['cost'])]),
+                'generation' => '–',
+                default      => $this->i18n->money($agg['cost']),
+            };
+            $co2Str = match ($kind) {
+                'generation' => $avoided,
+                'feed_in'    => $hasGeneration ? $this->i18n->t('report.co2InGeneration') : $avoided,
+                default      => $this->i18n->number($agg['co2'], 0) . ' kg',
+            };
             $pdf->text($cols[0], $y, $this->utilLabel($utility), 10, false, self::INK);
             $pdf->text($cols[1], $y, $valStr, 10, false, self::INK);
-            $pdf->text($cols[2], $y, $this->i18n->money($agg['cost']), 10, false, self::INK);
-            $pdf->text($cols[3], $y, $this->i18n->number($agg['co2'], 0) . ' kg', 10, false, self::INK);
+            $pdf->text($cols[2], $y, $costStr, 10, false, self::INK);
+            $pdf->text($cols[3], $y, $co2Str, 10, false, self::INK);
             $y += 20;
         }
 
@@ -203,13 +240,16 @@ final class PdfReportService
             if ($minM === null || $v < (float)($minM[$vf] ?? 0)) $minM = $m;
         }
         $nf = fn($v, $d = 0) => $this->i18n->number((float)$v, $d);
+        // v2.10.0 (CALC-17) — Einspeisung: Erlös statt Kosten; Erzeugung: keine Geldspalte
+        $kind = Utilities::accountingKind($utility);
         $kpis = [
             [$this->i18n->t('report.kpiAnnual'),    $nf($sum, $isKwh ? 0 : 1) . ' ' . $unit],
             [$this->i18n->t('report.kpiAvgMonth'),  $nf($avg, $isKwh ? 0 : 1) . ' ' . $unit],
-            [$this->i18n->t('report.kpiTotalCost'), $this->i18n->money($cost)],
-            [$this->i18n->t('report.kpiPeakMonth'), $maxM ? ($this->i18n->month((string)$maxM['ym']) . ' · ' . $nf($maxM[$vf], $isKwh ? 0 : 1)) : '–'],
-            [$this->i18n->t('report.kpiLowMonth'),  $minM ? ($this->i18n->month((string)$minM['ym']) . ' · ' . $nf($minM[$vf], $isKwh ? 0 : 1)) : '–'],
         ];
+        if ($kind === 'feed_in') $kpis[] = [$this->i18n->t('report.kpiRevenue'), $this->i18n->money($cost)];
+        elseif ($kind !== 'generation') $kpis[] = [$this->i18n->t('report.kpiTotalCost'), $this->i18n->money($cost)];
+        $kpis[] = [$this->i18n->t('report.kpiPeakMonth'), $maxM ? ($this->i18n->month((string)$maxM['ym']) . ' · ' . $nf($maxM[$vf], $isKwh ? 0 : 1)) : '–'];
+        $kpis[] = [$this->i18n->t('report.kpiLowMonth'),  $minM ? ($this->i18n->month((string)$minM['ym']) . ' · ' . $nf($minM[$vf], $isKwh ? 0 : 1)) : '–'];
         $ky = $y + 6;
         $kw = ($W - 2 * self::M) / count($kpis);
         foreach ($kpis as $i => [$lab, $val]) {
@@ -225,7 +265,7 @@ final class PdfReportService
         $headers = [
             $this->i18n->t('report.tableMonth'),
             $isKwh ? 'kWh' : 'm³',
-            $this->i18n->t('report.tableCost'),
+            $kind === 'feed_in' ? $this->i18n->t('report.tableRevenue') : $this->i18n->t('report.tableCost'),
             $this->i18n->t('report.tableTemp'),
             $this->i18n->t('report.tableHdd'),
         ];
@@ -250,7 +290,7 @@ final class PdfReportService
             $row = [
                 $this->i18n->month((string)($m['ym'] ?? '')),
                 $nf($m[$vf] ?? 0, $isKwh ? 0 : 1),
-                $nf($m['cost'] ?? 0, 2),
+                $kind === 'generation' ? '–' : $nf($m['cost'] ?? 0, 2),
                 $m['avg_temp'] !== null ? $nf($m['avg_temp'], 1) : '–',
                 $nf($m['hdd'] ?? 0, 0),
             ];

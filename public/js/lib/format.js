@@ -116,10 +116,14 @@ export function monthShortNames() {
   return Array.from({ length: 12 }, (_, i) => f.format(new Date(2024, i, 1, 12)));
 }
 
+// v2.10.0 — Was auf die angezeigte Stellenzahl zu 0 rundet, ist 0: Intl
+// schrieb −0,04 °C mit einer Stelle als „-0,0".
+const noNegZero = (v, d) => { const n = Number(v); return Math.abs(n) < 0.5 / 10 ** d ? 0 : n; };
+
 export const fmt = {
-  num:   (v, d=2) => v == null || isNaN(v) ? '–' : numFmt(d).format(Number(v)),
-  dec:   (v, max=2) => v == null || isNaN(v) ? '–' : decFmt(max).format(Number(v)),
-  int:   (v)      => v == null || isNaN(v) ? '–' : numFmt(0).format(Number(v)),
+  num:   (v, d=2) => v == null || isNaN(v) ? '–' : numFmt(d).format(noNegZero(v, d)),
+  dec:   (v, max=2) => v == null || isNaN(v) ? '–' : decFmt(max).format(noNegZero(v, max)),
+  int:   (v)      => v == null || isNaN(v) ? '–' : numFmt(0).format(noNegZero(v, 0)),
   eur:   (v)      => v == null || isNaN(v) ? '–' : eurFmt().format(Number(v)),
   money: (v)      => v == null || isNaN(v) ? '–' : eurFmt().format(Number(v)),
   pct:   (v, d=1) => v == null || isNaN(v) ? '–' : numFmt(d).format(Number(v) * 100) + ' %',

@@ -77,8 +77,8 @@ Liefert Systemzustand und Schema-Informationen.
 {
   "success": true,
   "data": {
-    "app_version": "2.6.0",
-    "schema_version": "1.5.0",
+    "app_version": "2.10.0",
+    "schema_version": "1.6.0",
     "php_version": "8.4.12",
     "data_dir": "/var/www/energietracker/data",
     "data_dir_writable": true,

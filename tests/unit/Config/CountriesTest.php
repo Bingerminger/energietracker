@@ -65,7 +65,7 @@ final class CountriesTest extends TestCase
             self::assertLessThanOrEqual(22.0, $p['hdd_base_temp'], "$c: Heizgrenze unplausibel");
             self::assertGreaterThan(0.0, $p['co2_strom'], "$c: CO₂-Faktor fehlt");
             self::assertLessThan(1000.0, $p['co2_strom'], "$c: CO₂-Faktor unplausibel");
-            self::assertContains($p['co2_strom_source'], ['default', 'ember-2024'], "$c: Quelle des CO₂-Faktors unbekannt");
+            self::assertContains($p['co2_strom_source'], ['uba', 'ember-2024'], "$c: Quelle des CO₂-Faktors unbekannt");
             self::assertContains($p['efficiency_scale'], [null, 'geg'], "$c: unbekannte Effizienzskala");
             self::assertContains($p['gas_cv_unit'], SettingsService::GAS_CV_UNITS, "$c: unbekannte Brennwert-Einheit");
         }

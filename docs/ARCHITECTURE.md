@@ -110,7 +110,7 @@ und kennt kein HTTP. Aufruf-Sicht von außen geht über die Controller.
 | `ReadingService` | CRUD von Readings, Auto-Zuweisung von `device_id` zum aktiven Device |
 | `ContractService` | CRUD von Verträgen, F4-strikte Validierung, `valueValidOn(...)`/`valueOnDate(...)` für Stichtag-Lookup, `bonusForMonth(...)`; seit v2.9.0 `segmentsBetween(...)` (tagesgenaue Abschnitte), `resolveForDate(...)` (weiterlaufender Vertrag) und `switchTiming(...)` (Kündigungsstichtag) |
 | `ConsumptionService` | Monatsaggregation, F2-Device-Bridging, F3-Multi-Meter-Aggregation, **`contractStatus()`** für Saldo-Karte; F-03 Abrechnungszyklus-Projektion offener und weiterlaufender Verträge, F-05 Erinnerung am Kündigungsstichtag (v2.9.0), Schmutzwasser-`separater_zaehler`-Auflösung mit Rekursionssperre |
-| `DeliveryConsumptionService` | **(v1.4.4)** Tages-Verbrauchsverteilung & Tank-Bestandsabzug für Heizöl/Pellets — aus `ConsumptionService` extrahiert |
+| `DeliveryConsumptionService` | **(v1.4.4)** Heizöl/Pellets — aus `ConsumptionService` extrahiert; seit v2.10.0 `tankModel()` (Tankbuch): eine Rechnung für Verbrauch, Kosten (gleitender Durchschnittspreis) und Bestand, Stützstellen `initial_stock`/`fill_to_full`/`tank_levels` |
 | `TemperatureService` | CSV-Import, Open-Meteo-Abgleich mit Quelle je Tag (`archive`/`forecast`/`csv`/`manual`), täglicher Auto-Sync (v2.8.0) |
 | `WeatherService` | Open-Meteo-API-Wrapper (Archiv, Vorhersage, 30-Jahres-Tagesmittel) hinter dem Interface `WeatherSource` |
 | `ClimateNormalService` | **(v2.8.0)** Klimanormal am Standort: HGT-Mittel und -Streuung je Kalendermonat aus 30 Jahren, gespeichert in `climate_normal.json` |
@@ -217,7 +217,7 @@ Jeder Monat bekommt aus `temperatures.json` zugeordnet:
 
 - `kwh_per_day = kwh / days`
 - `m3 = kwh / unit_to_kwh_factor` (nur Gas)
-- `co2_kg = kwh × co2_setting / 1000`
+- `co2_kg = kwh × Faktor / 1000` — Faktor über `SettingsService::co2Factor(Schlüssel, Jahr)`; Strom je Jahr aus `co2_strom_years` (seit v2.10.0)
 
 ### Schritt 5 — Contract-Application (seit v2.9.0 tagesgenau)
 
@@ -346,8 +346,9 @@ Boni werden nicht fortgeschrieben. Fehlt jeder Vertrag, greift
 |---|---|---|---|
 | `gas_conversion_factors` | list | `[{from:null, kwh_per_m3:11.5}]` | kWh pro m³ Gas, datiert je Stichtag (seit v2.5.0; vorher Skalar `gas_conversion_factor`) |
 | `hdd_base_temp` | float | 15 | HGT-Basistemperatur in °C |
-| `co2_gas` | int | 201 | g CO₂ pro kWh Gas |
-| `co2_strom` | int | 380 | g CO₂ pro kWh Strom |
+| `co2_gas` | int | 182 | g CO₂ pro kWh Gas (Brennwert; BAFA 201 auf Heizwert × 0,906 — v2.10.0, vorher 201) |
+| `co2_strom` | int | 380 | g CO₂ pro kWh Strom für Jahre vor dem ersten Jahreswert |
+| `co2_strom_years` | map | UBA 2015–2025 | Strom je Jahr (v2.10.0) |
 | `co2_wasser` | int | 350 | g CO₂ pro m³ Wasser |
 | `min_days_period` | int | 20 | Mindest-Tage pro Ableseintervall (Sanity) |
 | `min_hdd_regression` | float | 5 | Mindest-HGT pro Monat zur Berücksichtigung in der Regression |

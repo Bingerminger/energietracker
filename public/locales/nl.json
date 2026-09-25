@@ -82,7 +82,10 @@
     "efficiency": {
       "title": "Efficiëntie",
       "livingArea": "Woonoppervlak {area} m²",
-      "perSource": "per warmtebron · woonoppervlak {area} m²"
+      "perSource": "per warmtebron · woonoppervlak {area} m²",
+      "certificate": "Naar energielabel: {value} kWh/m²·j{cls}",
+      "certificateTitle": "Onderste verbrandingswaarde, gecorrigeerd voor het weer, op {area} m² gebruiksoppervlakte. Een verbruikslabel vraagt 36 maanden; beschikbaar: {months}.",
+      "certificateAll": "Naar energielabel, alle warmtebronnen: {value} kWh/m²·j{cls}"
     },
     "tanks": { "title": "Tankniveaus" },
     "stromSaldo": {
@@ -97,7 +100,10 @@
       "autarky": "Zelfvoorziening",
       "autarkySub": "aandeel eigen stroom",
       "selfUse": "Zelfverbruik",
-      "selfUseSub": "{kwh} kWh direct verbruikt"
+      "selfUseSub": "{kwh} kWh direct verbruikt",
+      "savings": "Besparing eigen verbruik",
+      "savingsSub": "{kwh} kWh zelf gebruikt × afnameprijs",
+      "coveredSub": "over {months} maanden met gegevens van alle drie meters"
     },
     "recommendations": { "title": "Belangrijkste aanbevelingen" },
     "reminders": {
@@ -194,7 +200,9 @@
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Voorschotten t/m {date}",
-      "balanceShort": "Saldo {value}"
+      "balanceShort": "Saldo {value}",
+      "co2AvoidedGenTitle": "Vereenvoudigde modelberekening: opgewekte kWh × CO₂-factor stroommix — verdrongen netstroom, teruglevering inbegrepen. Levenscyclus van pv niet meegenomen.",
+      "generation": "Opwekking"
     },
     "cards": {
       "contracts": "📑 Contracten en voorschotten",
@@ -311,7 +319,9 @@
       "colMa3Title": "Voortschrijdend gemiddelde over 3 maanden",
       "colMa6": "GM·6",
       "colMa6Title": "Voortschrijdend gemiddelde over 6 maanden",
-      "total": "Totaal"
+      "total": "Totaal",
+      "estimatedTitle": "{days} dagen geschat (na de laatst bekende voorraad)",
+      "estimatedLegend": "≈ maand bevat geschatte dagen — na de laatst bekende voorraad (levering „tot vol getankt” of peilstand)."
     },
     "readingsTable": {
       "emptyTitle": "Geen meterstanden",
@@ -338,14 +348,35 @@
       "colTotal": "Totaal",
       "colSupplier": "Leverancier",
       "colNote": "Notitie",
-      "planned": "GEPLAND"
+      "planned": "GEPLAND",
+      "full": "VOL"
     },
     "tank": {
       "noCapacity": "Geen tankcapaciteit ingesteld — voer deze in bij de meter om de voorraadcurve te zien.",
       "summary": "momenteel ~{stock} {unit} / {cap} {unit} ({pct} %)",
       "remaining": "{stock} {unit} resterend (gemodelleerd)",
       "ofCap": "{pct} % van {cap} {unit}",
-      "modelNote": "De voorraad wordt gemodelleerd uit beginvoorraad + leveringen − op graaddagen gewogen verbruik; het is een schatting, geen tankpeiling."
+      "noteMeasured": "Verbruik tot {date} berekend uit bekende voorraden, daarna geschat.",
+      "noteEstimated": "Voorraad en verbruik zijn geschat uit de beginvoorraad en de leveringen. Met een levering „tot vol getankt” of een peilstand worden ze exact.",
+      "warnInconsistent": "Tussen {from} en {to} kloppen de standen niet: {excess} {unit} meer in de tank dan er kan zijn. Ontbreekt een levering, of is een stand fout?",
+      "warnExhausted": "Volgens de berekening is de tank sinds {date} leeg. Ontbreekt een levering of een peilstand?",
+      "warnNoCalibration": "Nog geen verbruikstempo: daarvoor zijn twee bekende tankstanden met minstens 14 dagen ertussen nodig (beginvoorraad, levering „Tot vol getankt”, peilstand) of twee leveringen.",
+      "warnFlat": "Voor minder dan de helft van de dagen zijn temperaturen bekend — het verbruik is gelijkmatig verdeeld.",
+      "levelsTitle": "Peilstanden",
+      "addLevel": "Peilstand vastleggen",
+      "levelsEmpty": "Nog geen peilstand. Een afgelezen stand maakt de berekening tot die dag exact.",
+      "levelDeleteConfirm": "Peilstand van {date} verwijderen?",
+      "levelDeleted": "Peilstand verwijderd",
+      "levelSaved": "Peilstand opgeslagen",
+      "levelDate": "Datum",
+      "levelValue": "Stand ({unit})",
+      "levelHint": "Afgelezen op de tankmeter, met de peilstok of van de niveausensor.",
+      "levelNote": "Notitie",
+      "levelRange": "Voer een stand tussen 0 en {cap} {unit} in.",
+      "chartMeasured": "Voorraad ({unit}), berekend",
+      "chartEstimated": "Voorraad ({unit}), geschat",
+      "chartAnchors": "Bekende voorraad",
+      "chartAlt": "Verloop van de tankvoorraad in {year}"
     },
     "chart": { "temp": "gemiddelde temperatuur", "alt": "Staafdiagram: maandverbruik en gemiddelde temperatuur" },
     "readingModal": {
@@ -375,7 +406,9 @@
       "planned": "Gepland (nog niet geleverd)",
       "validation": "Datum en een positieve hoeveelheid zijn verplicht.",
       "savedNew": "Levering opgeslagen",
-      "savedEdit": "Levering bijgewerkt"
+      "savedEdit": "Levering bijgewerkt",
+      "fillToFull": "Tot vol getankt",
+      "fillToFullHint": "De tank was daarna vol. Zo kent de app de voorraad op die dag en berekent het verbruik tot dan exact."
     },
     "confirm": {
       "deleteReading": "De meterstand van {date} echt verwijderen?",
@@ -684,7 +717,11 @@
       "saved": "Meter opgeslagen",
       "digits": "Cijfers van het telwerk (vóór de komma)",
       "digitsHint": "Alleen nodig als het telwerk na 99999 weer bij 0 kan beginnen: de analyse herkent dan de overloop in plaats van een daling te melden. Leeg = onbekend.",
-      "activeHint": "Uitvinken als de meter buiten gebruik is: de geschiedenis telt nog mee in alle totalen, maar de meter verschijnt niet meer bij het invoeren en geeft geen waarschuwingen."
+      "activeHint": "Uitvinken als de meter buiten gebruik is: de geschiedenis telt nog mee in alle totalen, maar de meter verschijnt niet meer bij het invoeren en geeft geen waarschuwingen.",
+      "initialStockPrice": "Prijs van de beginvoorraad (ct/{unit})",
+      "initialStockPriceHint": "Leeg laten om de prijs van de eerste levering te gebruiken.",
+      "heatSource": "Verwarmingsstroom (warmtepomp)",
+      "heatSourceHint": "Deze stroommeter meet de verwarming: hij telt mee in het efficiëntiekengetal."
     },
     "replace": {
       "title": "Meterwissel: {name}",
@@ -788,12 +825,12 @@
     },
     "field": {
       "hdd_base_temp": { "label": "Graaddagen-basistemperatuur", "hint": "Stookgrens — dagen eronder tellen als stookdagen." },
-      "co2_gas": { "label": "CO₂ gas" },
-      "co2_strom": { "label": "CO₂ elektriciteit" },
+      "co2_gas": { "label": "CO₂ gas", "hint": "BAFA: 201 g/kWh op basis van de onderste verbrandingswaarde. De app telt gas op bovenste verbrandingswaarde, dus × 0,906 = 182." },
+      "co2_strom": { "label": "CO₂ elektriciteit", "hint": "Geldt voor jaren vóór de eerste jaarwaarde — zonder jaarwaarden voor alle jaren." },
       "co2_wasser": { "label": "CO₂ water" },
-      "co2_fernwaerme": { "label": "CO₂ stadsverwarming" },
-      "co2_heizoel": { "label": "CO₂ stookolie" },
-      "co2_pellets": { "label": "CO₂ pellets" },
+      "co2_fernwaerme": { "label": "CO₂ stadsverwarming", "hint": "Forfaitaire BAFA-waarde. De waarde van uw warmtenet is nauwkeuriger — die heeft de leverancier." },
+      "co2_heizoel": { "label": "CO₂ stookolie", "hint": "BAFA, op basis van de onderste verbrandingswaarde — zoals de app stookolie rekent." },
+      "co2_pellets": { "label": "CO₂ pellets", "hint": "BAFA, CO₂-equivalenten inclusief de voorketen." },
       "billing_cycle_anchor_gas": { "label": "Afrekendatum gas" },
       "billing_cycle_anchor_strom": { "label": "Afrekendatum elektriciteit" },
       "billing_cycle_anchor_wasser": { "label": "Afrekendatum water" },
@@ -801,7 +838,7 @@
       "contract_remind_days_2": { "label": "Niveau 2 — herinnering" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
       "wasser_personen_anzahl": { "label": "Personen in het huishouden" },
-      "wasser_personen_referenz": { "label": "Referentie" },
+      "wasser_personen_referenz": { "label": "Referentie", "hint": "BDEW 2024: 122 L per persoon per dag (Duitsland)." },
       "wasser_sparindex_gut": { "label": "Besparingsindex — goed tot", "hint": "Een index ≤ deze waarde geldt als normaal." },
       "wasser_sparindex_warnung": { "label": "Besparingsindex — waarschuwing vanaf", "hint": "Een index ≥ deze waarde duidt op besparingspotentieel." },
       "min_days_period": { "label": "Min. dagen per periode" },
@@ -815,7 +852,7 @@
       "dashboard_months": { "label": "Maanden op het dashboard" },
       "alert_days_since_reading": { "label": "Waarschuwen na" },
       "wohnflaeche_m2": { "label": "Woonoppervlak", "hint": "Verwarmd oppervlak — noemer van de efficiëntiemaat." },
-      "gebaeudetyp": { "label": "Gebouwtype", "hint": "efh = vrijstaand, rh = rijwoning, mfh = meergezinswoning, whg = appartement." },
+      "gebaeudetyp": { "label": "Gebouwtype", "hint": "Meergezinswoning: vanaf drie woningen." },
       "heizoel_kwh_per_l": { "label": "Energie-inhoud stookolie" },
       "pellets_kwh_per_kg": { "label": "Energie-inhoud pellets" },
       "delivery_baseload_share": { "label": "Verdeling basislastaandeel", "hint": "Aandeel van het verbruik als weeronafhankelijke basislast (de rest op graaddagen gewogen)." },
@@ -838,6 +875,18 @@
       "frame_ancestors": {
         "label": "Toegestane adressen voor insluiten",
         "hint": "Adres met schema en poort, bijv. http://homeassistant.local:8123; meerdere scheiden met spaties. Leeg = alleen deze installatie zelf."
+      },
+      "co2_strom_years": {
+        "label": "CO₂ stroom per jaar",
+        "hint": "Stroommix per jaar (Duits milieuagentschap UBA). Na het laatste jaar geldt diens waarde, daarvoor „CO₂ stroom”."
+      },
+      "beheizter_keller": {
+        "label": "Verwarmde kelder",
+        "hint": "Een-/tweegezins- of rijwoning met verwarmde kelder: gebruiksoppervlakte = 1,35 × woonoppervlakte (anders 1,2) — voor het kengetal naar energielabel."
+      },
+      "warmwasser_dezentral": {
+        "label": "Warm water decentraal",
+        "hint": "Warm water via doorstromer of boiler, niet via de verwarming: het kengetal naar energielabel krijgt 20 kWh/m²·j toeslag."
       }
     },
     "boolActive": "aan",
@@ -1058,7 +1107,8 @@
         "GB": "Britse gasrekening: volumeherleidingsfactor 1,02264 en calorische waarde in MJ/m³. Meters in kubieke voet (ft³) worden niet ondersteund.",
         "IT": "Italiaanse gasrekening: ‘coefficiente C’ als volumeherleidingsfactor, PCS (bovenste verbrandingswaarde) meestal in GJ/Smc. Het contractformulier rekent prijzen per Smc om naar {minor}/kWh.",
         "NL": "Nederlandse gasrekening: vul de calorische waarde in MJ/m³ in. Het contractformulier rekent prijzen per m³ om naar {minor}/kWh."
-      }
+      },
+      "defaultHint": "Standaardfactor 11,5 kWh/m³ actief. De waarde van uw net staat op de gasrekening (correctiefactor × verbrandingswaarde) — meestal 10,3 tot 11,1. Met de standaard zijn kWh, kosten en CO₂ tot 20 % te hoog."
     },
     "invalidFields": "Niet opgeslagen: corrigeer de rood gemarkeerde velden.",
     "dayMonthInvalid": "Voer in als dag-maand, bijv. 01-10 voor 1 oktober.",
@@ -1120,8 +1170,30 @@
       "colProfile": "Profiel",
       "source": {
         "ember2024": "CO₂ elektriciteit: Ember 2024, productiemix (via Our World in Data)",
-        "default": "CO₂ elektriciteit: eerdere standaardwaarde van de app"
+        "default": "CO₂ elektriciteit: eerdere standaardwaarde van de app",
+        "uba": "CO₂ stroom: Duits milieuagentschap, stroommix per jaar"
       }
+    },
+    "co2Years": {
+      "none": "Geen jaarwaarden — voor alle jaren geldt „CO₂ stroom”.",
+      "colYear": "Jaar",
+      "invalid": "Voer een jaar (1990–2100) en een waarde tussen 0 en 2000 g/kWh in."
+    },
+    "defaultUpdates": {
+      "title": "Nieuwere standaardwaarden beschikbaar",
+      "hint": "Deze waarden komen uit een eerdere versie. Ze zijn gebleven zodat bij de update geen getal vanzelf verandert. De nieuwe waarden hebben een onderbouwde bron.",
+      "colNew": "Nieuw",
+      "sources": "Bronnen: BAFA-informatieblad CO₂-factoren (2026), Duits milieuagentschap (stroommix per jaar), BDEW (waterverbruik 2024).",
+      "apply": "Nieuwe waarden overnemen",
+      "applied": "Standaardwaarden overgenomen",
+      "years": "Duits milieuagentschap {from}–{to}",
+      "noYears": "één waarde voor alle jaren"
+    },
+    "buildingTypes": {
+      "efh": "Een- of tweegezinswoning",
+      "rh": "Rijwoning",
+      "mfh": "Meergezinswoning",
+      "whg": "Appartement"
     }
   },
   "reminders": {
@@ -1534,7 +1606,13 @@
     "continued": "(vervolg)",
     "meterPageTitle": "{label} {year} — {meter}",
     "heatDemand": "Verwarmingsenergie · {label}",
-    "weatherNote": "Weergecorrigeerd: weersinvloed volgens het verwarmingsmodel omgerekend naar een normaal jaar; eigen afwijkingen van de maand blijven. Δ %: verbruik ten opzichte van de verwachting bij dit weer."
+    "weatherNote": "Weergecorrigeerd: weersinvloed volgens het verwarmingsmodel omgerekend naar een normaal jaar; eigen afwijkingen van de maand blijven. Δ %: verbruik ten opzichte van de verwachting bij dit weer.",
+    "co2Avoided": "{kg} kg vermeden",
+    "co2InGeneration": "inbegrepen in de opwekking",
+    "revenueValue": "Opbrengst {amount}",
+    "kpiRevenue": "Totale opbrengst",
+    "tableRevenue": "Opbrengst {cur}",
+    "certificate": "Naar energielabel: {value} kWh/m²·j (onderste verbrandingswaarde, weergecorrigeerd, {area} m² gebruiksoppervlakte)"
   },
   "migration": {
     "warnNoSettings": "Geen instellingen in de back-up gevonden — de standaardwaarden gelden.",
@@ -1574,7 +1652,8 @@
       "noLivingArea": "Woonoppervlak niet ingesteld — vul het in bij de instellingen voor de efficiëntieklasse.",
       "noHeatData": "Geen verwarmingsgegevens gevonden voor {year}.",
       "multipleSources": "Meerdere warmtebronnen actief — de klasse per bron zegt meer dan de gecombineerde som. De gecombineerde weergave is alleen zinvol bij bewust gecombineerd stoken (bijv. basis- en pieklast).",
-      "noScale": "Voor {country} is geen efficiëntieschaal beschikbaar. De klassen A+ t/m H volgen de Duitse gebouwenenergiewet (GEG) en worden daarom niet getoond."
+      "noScale": "Voor {country} is geen efficiëntieschaal beschikbaar. De klassen A+ t/m H volgen de Duitse gebouwenenergiewet (GEG) en worden daarom niet getoond.",
+      "incompleteYear": "De gegevens voor {year} beslaan niet het hele jaar — geen klasse; het kengetal geldt alleen voor de gemeten periode."
     },
     "forecast": {
       "tooFewMonths": "Te weinig historie (minder dan 6 maanden).",
@@ -1622,7 +1701,14 @@
       "invalidBaselineDate": "Ongeldige datum voor het peilmoment: „{date}” — verwacht wordt JJJJ-MM-DD",
       "duplicateBaselineDate": "Er bestaat al een peilmoment voor {date}",
       "swapBeforeInstall": "De wissel op {date} ligt vóór de installatie van het huidige apparaat ({installed}).",
-      "digitsInvalid": "Cijfers van het telwerk: ‘{value}’ is ongeldig — toegestaan is een geheel getal van 3 tot 12 of leeg."
+      "digitsInvalid": "Cijfers van het telwerk: ‘{value}’ is ongeldig — toegestaan is een geheel getal van 3 tot 12 of leeg.",
+      "invalidTankLevels": "Peilstanden moeten als lijst van regels met datum en stand worden doorgegeven",
+      "invalidTankLevelDate": "Ongeldige datum voor de peilstand: „{date}” — verwacht wordt JJJJ-MM-DD",
+      "tankLevelFuture": "De peilstand op {date} ligt in de toekomst",
+      "duplicateTankLevel": "Voor {date} is al een peilstand vastgelegd",
+      "tankLevelInvalid": "Peilstand „{value}” is ongeldig — verwacht wordt een getal vanaf 0",
+      "tankLevelAboveCapacity": "Peilstand {level} ligt boven de tankinhoud {capacity}",
+      "initialPriceInvalid": "Prijs van de beginvoorraad „{value}” is ongeldig — verwacht wordt een getal vanaf 0 of leeg"
     },
     "common": {
       "unknownUtility": "Onbekende energie: {utility}",
@@ -1680,7 +1766,8 @@
       "priceNegative": "De stukprijs mag niet negatief zijn",
       "meterIdMissing": "meter_id (tank/opslag) ontbreekt",
       "dateFuture": "De leverdatum ligt in de toekomst — stel is_planned=true in voor geplande leveringen",
-      "tankNotExist": "De tank/opslag (meter_id) bestaat niet: {id}"
+      "tankNotExist": "De tank/opslag (meter_id) bestaat niet: {id}",
+      "fullAboveCapacity": "De hoeveelheid {quantity} is groter dan de tankinhoud {capacity} — „tot vol getankt” kan zo niet."
     },
     "ingest": {
       "unknownUtility": "Onbekende of ontbrekende energie: {utility}",

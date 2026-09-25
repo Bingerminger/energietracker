@@ -18,9 +18,11 @@
 ## 1. Like heating oil — with one important unit difference
 
 Pellets work mechanically **identically to heating oil**: no meter, but a store
-(`capacity`, `initial_stock`) plus deliveries. The entire tank model, the energy
-balance, the calibrated stock curve (v1.4.0) and the total-amount precedence
-(v1.4.2) apply unchanged — see **[Heating oil §3–§5](05-heizoel.md)**.
+(`capacity`, `initial_stock`) plus deliveries. The tank log (since v2.10.0:
+anchors "filled to full" and tank reading, one calculation for consumption, costs
+and stock), the moving average price and the total-amount precedence (v1.4.2)
+apply unchanged — see **[Heating oil §2–§4](05-heizoel.md)**. For pellets, a tank
+reading is the estimated fill level of the store in kg.
 
 **The one difference: the unit.** Pellets are delivered and stored in **kg**, not
 litres. Accordingly:

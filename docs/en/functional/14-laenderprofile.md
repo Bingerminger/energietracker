@@ -21,7 +21,7 @@ previous behaviour (a test keeps both equal).
 
 | Country | Currency | Time zone | Heating threshold | CO₂ electricity | Location | Efficiency class | Calorific value in |
 |---|---|---|---|---|---|---|---|
-| Germany | EUR | Europe/Berlin | 15 °C | 380 g/kWh ¹ | Leipzig | GEG (A+ to H) | kWh/m³ |
+| Germany | EUR | Europe/Berlin | 15 °C | per year ¹ | Leipzig | GEG (A+ to H) | kWh/m³ |
 | Austria | EUR | Europe/Vienna | 15 °C | 103 g/kWh | Wien | – | kWh/m³ |
 | Switzerland | CHF | Europe/Zurich | 15 °C | 35 g/kWh | Bern | – | kWh/m³ |
 | France | EUR | Europe/Paris | 18 °C (DJU) | 40 g/kWh | Paris | – | kWh/m³ |
@@ -31,7 +31,11 @@ previous behaviour (a test keeps both equal).
 | Netherlands | EUR | Europe/Amsterdam | 18 °C (graaddagen) | 251 g/kWh | De Bilt | – | MJ/m³ |
 | United Kingdom | GBP | Europe/London | 15.5 °C | 217 g/kWh | London | – | MJ/m³ |
 
-¹ Germany keeps the previous default. All other CO₂ factors: Ember,
+¹ Germany: electricity mix of the German Environment Agency (UBA) per year
+2015–2025 (`co2_strom_years`, since v2.10.0; 2025: 344 g/kWh), 380 g/kWh
+before that. Only the German profile carries yearly values — whoever switches
+the country and applies the profile calculates with that country's single
+value. All other CO₂ factors: Ember,
 electricity generation mix 2024, via *Our World in Data*
 ("carbon-intensity-electricity"). The heating threshold follows the national
 degree-day convention where it is a plain base temperature; otherwise it

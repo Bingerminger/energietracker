@@ -426,6 +426,9 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
   border-radius: var(--r-md); font-size: var(--fs-sm);
   background: color-mix(in srgb, var(--warning) 10%, transparent); color: var(--text-1);
 }
+/* v2.10.0 — Tankbuch: Peilstände kompakt, damit sie am iPhone in die Karte passen */
+.tank-levels .table td { padding: 8px 10px; }
+.tank-levels .table td.actions { width: 1%; white-space: nowrap; }
 .balance-col__breakdown {
   font-family: var(--font-mono); font-size: 10px;
   color: var(--text-disabled);

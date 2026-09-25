@@ -69,14 +69,14 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.9.0:
-**Frontend-API-Shape 50/50**, **Browser-Render 76/76** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.10.0:
+**Frontend-API-Shape 56/56**, **Browser-Render 81/81** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle).
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
 JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
-README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.9.0: 398).
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.10.0: 434).
 Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
 **Pflicht-Gate vor jedem Commit** (siehe
 [Release-Prozess](06-release-process.md)).
@@ -97,6 +97,17 @@ gekündigten Vertrag, Kündigungsstichtag und Erinnerung, verpasste Fristen,
 Preiserhöhungen, anteilige Abschläge und die Prognose. `TotalsAndSettingsRulesTest`
 hält fest, dass ein Zähler außer Betrieb in jeder Summe zählt, und prüft die
 Abrechnungsstichtage.
+
+**Energieträger (v2.10.0).** `TankModelTest` baut ein Klima mit Winter und
+Sommer und prüft das Tankbuch: Eine Lieferung von heute ändert die
+Vorjahre nicht, zwischen Anfangsbestand und Peilstand ist der Verbrauch
+bekannt, Kurve und Verbrauch sind eine Reihe, der Tank mischt Preise, ein
+Sommerintervall trägt Grundlast, widersprüchliche Stände werden gemeldet,
+fehlende Temperaturen kommen aus dem Klimanormal. `Co2FactorsTest` prüft
+Strom je Jahr, die Festschreibung alter Defaults bei Bestandsinstallationen
+und das Angebot der neuen, `PvSemanticsTest` Quoten, Ersparnis, Tarifrang und
+Jahresbericht, `EfficiencyCertificateTest` Teiljahre, Grenzen und die
+energieausweis-nahe Kennzahl. 36 Gegenproben, alle rot.
 
 Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 (`.github/workflows/ci.yml`) bei jedem Push und Pull Request gegen

@@ -33,10 +33,13 @@ const GROUPS = [
   { gkey: 'co2', icon: '🌍', fields: [
     { key: 'co2_gas',    unit: 'g/kWh', step: '1' },
     { key: 'co2_strom',  unit: 'g/kWh', step: '1' },
+    // v2.10.0 (CALC-19) — Strom je Jahr (Umweltbundesamt), eigener Feldtyp
+    { key: 'co2_strom_years', type: 'co2years' },
     { key: 'co2_wasser', unit: 'g/m³',  step: '1' },
     { key: 'co2_fernwaerme', unit: 'g/kWh', step: '1' },
-    { key: 'co2_heizoel',    unit: 'g/L',   step: '1' },
-    { key: 'co2_pellets',    unit: 'g/kg',  step: '1' },
+    // v2.10.0 — gerechnet wird je kWh; die Beschriftung stand bis v2.9 auf g/L bzw. g/kg
+    { key: 'co2_heizoel',    unit: 'g/kWh', step: '1' },
+    { key: 'co2_pellets',    unit: 'g/kWh', step: '1' },
   ]},
   { gkey: 'billing', icon: '📅', fields: [
     { key: 'billing_cycle_anchor_gas',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
@@ -70,7 +73,11 @@ const GROUPS = [
   ]},
   { gkey: 'building', icon: '🏢', fields: [
     { key: 'wohnflaeche_m2', unit: 'm²', step: '1' },
-    { key: 'gebaeudetyp',    type: 'select', options: ['efh', 'rh', 'mfh', 'whg'] },
+    // v2.10.0 — Klartext statt Kürzel: efh zählt als Ein-/Zweifamilienhaus (GEG § 82)
+    { key: 'gebaeudetyp',    type: 'select', options: ['efh', 'rh', 'mfh', 'whg'], optionLabels: 'settings.buildingTypes' },
+    // v2.10.0 (CALC-07) — für die energieausweis-nahe Kennzahl
+    { key: 'beheizter_keller',     type: 'bool' },
+    { key: 'warmwasser_dezentral', type: 'bool' },
   ]},
   { gkey: 'delivery', icon: '🛢️', fields: [
     { key: 'heizoel_kwh_per_l', unit: 'kWh/L', step: '0.1' },
@@ -118,7 +125,7 @@ function listen(target, type, handler) {
 export async function render(container) {
   unlistenAll();
   container.innerHTML = `<div class="loading">${t('settings.loading')}</div>`;
-  const [settings, diag, utilities, authStatus, session, apiKeys, snapshots, countries] = await Promise.all([
+  const [settings, diag, utilities, authStatus, session, apiKeys, snapshots, countries, defaultUpdates] = await Promise.all([
     api.settings(),
     api.diagnostics().catch(() => null),
     api.listUtilities().catch(() => []),
@@ -129,6 +136,8 @@ export async function render(container) {
     api.snapshots().catch(() => []),
     // v2.7.0 — Länderprofile für die Karte „Sprache & Land"
     getCountries(),
+    // v2.10.0 — korrigierte Standardwerte, die diese Installation noch nicht nutzt
+    api.settingsDefaultUpdates().catch(() => []),
   ]);
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
@@ -162,6 +171,8 @@ export async function render(container) {
         ${renderRegionFields(settings, countries || [])}
       </div>
     </div>
+
+    ${renderDefaultUpdates(defaultUpdates)}
 
     <div class="settings-grid">
       ${GROUPS.map(g => renderGroup(g, settings)).join('')}
@@ -298,6 +309,17 @@ export async function render(container) {
   // der Baseline stehen, damit Hinzufügen/Entfernen den Ungespeichert-Marker
   // auslöst wie jede andere Änderung.
   wireGasFactors(container);
+  wireCo2Years(container);   // v2.10.0
+  // v2.10.0 — korrigierte Standardwerte übernehmen (Lektion 36)
+  container.querySelector('#btn-take-defaults')?.addEventListener('click', async () => {
+    const patch = Object.fromEntries((defaultUpdates || []).map(u => [u.key, u.recommended]));
+    try {
+      await api.updateSettings(patch);
+      invalidateSettings();
+      toastOk(t('settings.defaultUpdates.applied'));
+      render(container);
+    } catch (err) { toastErr(err.message); }
+  });
 
   let baseline = JSON.stringify(collectSettings(container));
   const saveButtons = [...container.querySelectorAll('#btn-save, #btn-save-2')];
@@ -732,6 +754,10 @@ function profileDiff(settings, p) {
     fmt.num(settings.hdd_base_temp, 1) + ' °C', fmt.num(p.hdd_base_temp, 1) + ' °C', { hdd_base_temp: p.hdd_base_temp });
   add('co2_strom', t('settings.field.co2_strom.label'),
     fmt.num(settings.co2_strom, 0) + ' g/kWh', fmt.num(p.co2_strom, 0) + ' g/kWh', { co2_strom: p.co2_strom });
+  // v2.10.0 — Jahreswerte (nur Deutschland); andere Länder rechnen mit einem Wert
+  add('co2_strom_years', t('settings.field.co2_strom_years.label'),
+    defaultValueText('co2_strom_years', settings.co2_strom_years), defaultValueText('co2_strom_years', p.co2_strom_years),
+    { co2_strom_years: p.co2_strom_years ?? [] });
   const loc = (name, lat, lon) => `${name} (${fmt.num(lat, 4)}, ${fmt.num(lon, 4)})`;
   add('location', t('settings.group.location.title'),
     loc(settings.location_name, settings.latitude, settings.longitude), loc(p.location_name, p.latitude, p.longitude),
@@ -743,7 +769,8 @@ function profileDiff(settings, p) {
 
 /** Dialog: alle Profilwerte übernehmen, nur das Land ändern oder abbrechen. */
 function chooseProfile(code, diff, profile) {
-  const source = profile.co2_strom_source === 'ember-2024' ? 'ember2024' : 'default';
+  const source = profile.co2_strom_source === 'ember-2024' ? 'ember2024'
+    : profile.co2_strom_source === 'uba' ? 'uba' : 'default';
   const ctrl = openModal({
     title: t('settings.region.applyTitle', { country: t('countries.' + code) }),
     body: `
@@ -756,7 +783,7 @@ function chooseProfile(code, diff, profile) {
         </tr></thead>
         <tbody>${diff.map(d => `<tr><td>${escapeHtml(d.label)}</td><td>${escapeHtml(d.now)}</td><td><strong>${escapeHtml(d.next)}</strong></td></tr>`).join('')}</tbody>
       </table></div>
-      ${diff.some(d => d.key === 'co2_strom') ? `<p class="muted">${escapeHtml(t('settings.region.source.' + source))}</p>` : ''}
+      ${diff.some(d => d.key === 'co2_strom' || d.key === 'co2_strom_years') ? `<p class="muted">${escapeHtml(t('settings.region.source.' + source))}</p>` : ''}
       <p class="muted">${t('settings.region.applyKeep')}</p>`,
     footer: `
       <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
@@ -1164,11 +1191,14 @@ function renderField(f, value, settings = {}) {
   if (f.type === 'gasfactors') {
     return renderGasFactors(f, Array.isArray(value) ? value : [], hint, settings);
   }
+  if (f.type === 'co2years') {
+    return renderCo2Years(f, yearMap(value), hint);
+  }
   if (f.type === 'select') {
     return `<div class="field settings-field">
       ${labelHtml}
       <select class="select" id="${fieldId}" data-key="${f.key}"${describedBy}>
-        ${f.options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${o}</option>`).join('')}
+        ${f.options.map(o => `<option value="${o}" ${o === value ? 'selected' : ''}>${f.optionLabels ? escapeHtml(t(`${f.optionLabels}.${o}`)) : o}</option>`).join('')}
       </select>
       ${hint}
     </div>`;
@@ -1236,6 +1266,135 @@ function firstInvalidSetting(container) {
   return first;
 }
 
+// ── v2.10.0 (CALC-19): CO₂ Strom je Jahr ──────────────────────────────
+//
+// Der Strommix ändert sich jedes Jahr; das Umweltbundesamt veröffentlicht den
+// Faktor je Jahr. Für Jahre nach dem letzten Eintrag gilt dessen Wert, für
+// Jahre davor der eine Wert „CO₂ Strom". Die Tabelle lebt wie die Gasfaktoren
+// in einem versteckten JSON-Feld.
+
+/** Jahreswerte als Objekt {Jahr: g/kWh}; PHP liefert eine leere Liste als []. */
+function yearMap(value) {
+  if (Array.isArray(value)) {
+    return Object.fromEntries(value.filter(e => e && e.year != null).map(e => [String(e.year), e.g_per_kwh]));
+  }
+  return value && typeof value === 'object' ? { ...value } : {};
+}
+
+function renderCo2YearRows(map) {
+  const years = Object.keys(map).sort();
+  if (!years.length) return `<tr><td colspan="3" class="muted">${t('settings.co2Years.none')}</td></tr>`;
+  return years.map(y => `
+    <tr>
+      <td>${escapeHtml(y)}</td>
+      <td class="num">${fmt.num(map[y], 0)}</td>
+      <td><button type="button" class="btn btn--ghost btn--sm" data-cy-del="${escapeHtml(y)}" aria-label="${t('settings.gasFactors.remove')}">${t('settings.gasFactors.remove')}</button></td>
+    </tr>`).join('');
+}
+
+function renderCo2Years(f, map, hint) {
+  return `<div class="field settings-field settings-field--wide" data-co2years>
+    <label>${t('settings.field.co2_strom_years.label')}</label>
+    ${hint}
+    <input type="hidden" data-key="${f.key}" data-type="json" value="${escapeHtml(JSON.stringify(map))}">
+    <div class="table-wrap" style="margin-top:8px">
+      <table class="table table--compact" data-cy-table>
+        <thead><tr>
+          <th scope="col">${t('settings.co2Years.colYear')}</th>
+          <th scope="col" class="num">g/kWh</th>
+          <th scope="col"></th>
+        </tr></thead>
+        <tbody>${renderCo2YearRows(map)}</tbody>
+      </table>
+    </div>
+    <div class="form-row" style="margin-top:10px; align-items:flex-end">
+      <div class="field">
+        <label for="cy-year">${t('settings.co2Years.colYear')}</label>
+        <input class="input" id="cy-year" type="text" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="${new Date().getFullYear() - 1}">
+      </div>
+      <div class="field">
+        <label for="cy-value">g/kWh</label>
+        <input class="input" id="cy-value" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(formatForInput(344))}">
+      </div>
+      <div class="field">
+        <button type="button" class="btn btn--ghost" data-cy-add>${t('settings.gasFactors.add')}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function wireCo2Years(container) {
+  const root = container.querySelector('[data-co2years]');
+  if (!root) return;
+  const hidden = root.querySelector('[data-key="co2_strom_years"]');
+  const tbody  = root.querySelector('[data-cy-table] tbody');
+  const read   = () => { try { return yearMap(JSON.parse(hidden.value || '{}')); } catch { return {}; } };
+  const write  = (map) => {
+    hidden.value = JSON.stringify(map);
+    tbody.innerHTML = renderCo2YearRows(map);
+    hidden.dispatchEvent(new Event('input', { bubbles: true }));   // Ungespeichert-Marker
+  };
+  root.addEventListener('click', (ev) => {
+    const del = ev.target.closest('[data-cy-del]');
+    if (del) {
+      const map = read();
+      delete map[del.getAttribute('data-cy-del')];
+      write(map);
+      return;
+    }
+    if (ev.target.closest('[data-cy-add]')) {
+      const year = (root.querySelector('#cy-year')?.value || '').trim();
+      const val  = parseDecimal(root.querySelector('#cy-value')?.value ?? '');
+      if (!/^(19[9]\d|20\d\d|2100)$/.test(year) || val == null || val < 0 || val > 2000) {
+        toastErr(t('settings.co2Years.invalid'));
+        return;
+      }
+      const map = read();
+      map[year] = val;
+      write(map);
+      root.querySelector('#cy-year').value = '';
+      root.querySelector('#cy-value').value = '';
+    }
+  });
+}
+
+// ── v2.10.0 — korrigierte Standardwerte anbieten (Lektion 36) ─────────
+//
+// Die Migration 1.6.0 hat bei Bestandsinstallationen die alten Defaults
+// festgeschrieben, damit sich keine Zahl still ändert. Hier steht, was es
+// inzwischen Besseres gibt — übernommen wird nur auf Knopfdruck.
+function defaultValueText(key, v) {
+  if (key === 'co2_strom_years') {
+    const years = Object.keys(yearMap(v)).sort();
+    return years.length ? t('settings.defaultUpdates.years', { from: years[0], to: years[years.length - 1] }) : t('settings.defaultUpdates.noYears');
+  }
+  if (key === 'wasser_personen_referenz') return fmt.num(v, 0) + ' ' + t('settings.unit.lPerPersonDay');
+  return fmt.num(v, 0) + ' g/kWh';
+}
+
+function renderDefaultUpdates(updates) {
+  if (!Array.isArray(updates) || !updates.length) return '';
+  return `
+    <div class="card settings-card" id="default-updates">
+      <h3 class="card__title">🆕 ${t('settings.defaultUpdates.title')}</h3>
+      <p class="settings-card__hint">${t('settings.defaultUpdates.hint')}</p>
+      <div class="table-wrap"><table class="table table--compact">
+        <thead><tr>
+          <th scope="col">${t('settings.region.colSetting')}</th>
+          <th scope="col">${t('settings.region.colNow')}</th>
+          <th scope="col">${t('settings.defaultUpdates.colNew')}</th>
+        </tr></thead>
+        <tbody>${updates.map(u => `<tr>
+          <td>${escapeHtml((u.key.startsWith('wasser_') ? t('settings.group.water.title') + ': ' : '') + t('settings.field.' + u.key + '.label'))}</td>
+          <td>${escapeHtml(defaultValueText(u.key, u.current))}</td>
+          <td><strong>${escapeHtml(defaultValueText(u.key, u.recommended))}</strong></td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+      <p class="muted" style="margin-top:8px">${t('settings.defaultUpdates.sources')}</p>
+      <div class="form-actions"><button type="button" class="btn btn--primary" id="btn-take-defaults">${t('settings.defaultUpdates.apply')}</button></div>
+    </div>`;
+}
+
 // ── F1012: datierte Gas-Umrechnungsfaktoren ───────────────────────────
 //
 // Ein Eintrag je Brennwertperiode, wie die Gasrechnung sie ausweist:
@@ -1258,6 +1417,16 @@ function renderGasFactorRows(list, unit = CV_UNITS.kwh) {
     </tr>`).join('');
 }
 
+/**
+ * v2.10.0 (Review CALC-19) — nur der ausgelieferte Standard (undatiert 11,5)?
+ * Typische Netze liegen bei 10,3–11,1 kWh/m³ (H-Gas), L-Gas darunter; mit
+ * dem Standard wären kWh, Kosten und CO₂ um 5–20 % zu hoch.
+ */
+function isDefaultGasFactor(list) {
+  return list.length === 1 && !list[0].from && list[0].zustandszahl == null
+    && Math.abs(Number(list[0].kwh_per_m3) - 11.5) < 1e-9;
+}
+
 function renderGasFactors(f, list, hint, settings = {}) {
   const lastZ = [...list].reverse().find(e => e.zustandszahl != null)?.zustandszahl ?? '';
   const unit = cvUnit(settings.gas_cv_unit);
@@ -1276,6 +1445,7 @@ function renderGasFactors(f, list, hint, settings = {}) {
     </div>
     <p class="muted" data-gf-mjhint ${unit === CV_UNITS.kwh ? 'hidden' : ''}>${t('settings.gasFactors.mjHint')}</p>
     ${countryHint.startsWith('settings.') ? '' : `<p class="muted">${countryHint}</p>`}
+    ${isDefaultGasFactor(list) ? `<p class="balance-note" data-gf-default>${t('settings.gasFactors.defaultHint')}</p>` : ''}
     <div class="table-wrap" style="margin-top:8px">
       <table class="table table--compact" data-gf-table>
         <thead><tr>

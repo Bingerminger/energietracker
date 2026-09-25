@@ -12,7 +12,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 ```
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
-`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **83 routes**, v2.7.0 —
+`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **84 routes**, v2.10.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -104,6 +104,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/settings` | settings |
 | PATCH | `/api/settings` | change settings |
 | GET | `/api/countries` | country profiles: defaults per country *(v2.7.0)* |
+| GET | `/api/settings/default-updates` | corrected defaults this installation does not use yet (CO₂, water reference) *(v2.10.0)* — see below |
 | GET | `/api/temperatures` | daily temperatures (map) |
 | POST | `/api/temperatures` | upsert a day |
 | POST | `/api/temperatures/import-csv` | CSV import |
@@ -130,7 +131,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | POST | `/api/utility/{u}/deliveries` | create |
 | PATCH | `/api/utility/{u}/deliveries/{id}` | change |
 | DELETE | `/api/utility/{u}/deliveries/{id}` | delete |
-| GET | `/api/utility/{u}/meters/{id}/stock-history` | tank stock curve |
+| GET | `/api/utility/{u}/meters/{id}/stock-history` | tank stock curve; since v2.10.0 the tank log with anchors and the start of the estimate — see below |
 | GET | `/api/utility/{u}/contracts` | contracts |
 | POST | `/api/utility/{u}/contracts` | create |
 | GET | `/api/utility/{u}/contracts/{id}` | single |
@@ -143,7 +144,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow (retrospective) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | switching decision from the switch date; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | bill verification: sections per reading and calorific-value change, `?from=&to=` (F1012, **gas only**, otherwise 400) |
-| GET | `/api/benchmarks/efficiency` | efficiency class per heat source |
+| GET | `/api/benchmarks/efficiency` | efficiency class per heat source; since v2.10.0 with coverage and the certificate-style figure — see below |
 | GET | `/api/recommendations` | statistical recommendations |
 | POST | `/api/recommendations/{id}/dismiss` | hide a recommendation |
 | GET | `/api/reminders` | appointments + due status |
@@ -166,7 +167,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | POST | `/api/migration/v09/preview` | analyse a v0.9.0 backup |
 | POST | `/api/migration/v09/import` | adopt a v0.9.0 backup |
 | GET | `/api/strom-saldo` | electricity balance (import − PV feed-in), F1005 |
-| GET | `/api/pv-summary` | PV self-consumption + self-sufficiency rate, F1005 |
+| GET | `/api/pv-summary` | PV self-consumption + self-sufficiency rate, F1005; since v2.10.0 over jointly covered months, with savings — see below |
 | GET | `/api/demo/status` | demo data available/store empty? (F1007) |
 | POST | `/api/demo/import` | load the demo dataset (F1007) |
 | GET | `/api/auth/token` | API token status (never the token itself), F1009 |
@@ -550,10 +551,46 @@ when the country changes (class C):
   "location_name": "Wien", "latitude": 48.2082, "longitude": 16.3738 }
 ```
 
+The German profile additionally carries `co2_strom_years` (yearly values of
+the German Environment Agency, since v2.10.0) and `"co2_strom_source": "uba"`.
+
 On **first start** (empty data directory) the app picks language and country
 from `Accept-Language` and writes only the values that differ from the
 defaults. After that the header changes nothing. Details:
 [country profiles](../functional/14-laenderprofile.md).
+
+### CO₂ factors per year, corrected defaults *(v2.10.0)*
+
+- `co2_strom_years`: object `{"2024": 353, "2025": 344}` (year → g/kWh).
+  `PATCH` also accepts it as a list `[{year, g_per_kwh}]`; years 1990–2100,
+  values 0–2000, otherwise 400 `errors.settings.valueInvalid`. A year uses the
+  value of the last listed year up to it; before the first listed year,
+  `co2_strom` applies. Monthly rows (`co2_kg`) use the factor of their year.
+- New defaults with a source: `co2_gas` 182 (BAFA 201 on net calorific value ×
+  0.906), `co2_pellets` 36, `co2_fernwaerme` 280, `co2_strom_years` German
+  Environment Agency (UBA) 2015–2025, `wasser_personen_referenz` 122 (BDEW
+  2024).
+- **Existing installations:** the 1.6.0 migration pins the previous default for
+  each of these keys that the installation never saved (`co2_strom_years: []`).
+  `GET /api/settings/default-updates` returns what could be adopted:
+  `[{ "key": "co2_gas", "current": 201, "recommended": 182 }, …]` — only keys
+  that still carry exactly the old default. Adopting them is done via
+  `PATCH /api/settings`.
+- `beheizter_keller`, `warmwasser_dezentral` (bool, default `false`) for the
+  certificate-style figure.
+
+### PV: rates, savings, tariff rank *(v2.10.0)*
+
+`GET /api/pv-summary`: monthly rows carry `covered` (all three meters have
+data), `bezug_price_ct`, `savings_eur` (self-consumption × working price of the
+import) and `feed_in_revenue_eur`; in months that are not covered,
+`eigenverbrauch_kwh` and the rates are `null`. Annual rows carry
+`months_with_data`, `months_covered`, `savings_eur`, `feed_in_revenue_eur`,
+`pv_benefit_eur`; self-consumption and rates are calculated over covered months
+only (up to v2.9 over all months — with "0" for uneven coverage).
+
+`tariff-switch` and `tariff-comparison` return `higher_is_better`: `true` for the
+feed-in; the offers are then sorted by **higher** revenue.
 
 ### `GET /api/utility/gas/meters/{id}/bill-check?from=YYYY-MM-DD&to=YYYY-MM-DD` *(F1012, v2.5.0)*
 
@@ -601,14 +638,57 @@ interval — the supplier estimates at the very same places.
 { "success": true, "data": {
   "capacity": 3000, "capacity_unit": "L", "initial_stock": 2400,
   "days": [ { "date": "2023-01-01", "stock": 2389.4,
-              "delivery": 0, "consumption": 10.6 }, … ]
+              "delivery": 0, "consumption": 10.6, "estimated": false }, … ],
+  "anchors": [ { "date": "2023-01-01", "kind": "start", "stock": 2400 },
+               { "date": "2025-09-17", "kind": "level", "stock": 1650 } ],
+  "estimated_from": "2025-09-17",
+  "calibration": "anchors",
+  "warnings": []
 }}
 ```
 
-The stock is a **calibrated model estimate** (initial stock + deliveries −
-HDD-weighted consumption, rate from the closed delivery intervals), **not** a tank
-gauging. Since v1.4.0 the model no longer forces a final stock of 0. Details:
+**Since v2.10.0 (tank log)** stock and consumption come from **one**
+calculation — the same one the monthly rows, the costs and the efficiency figure
+come from. `stock` is the stock at the end of the day. `anchors` lists the known
+stock levels (`start` = initial stock, `full` = delivery "filled to full",
+`level` = tank reading); between them the consumption is calculated, from
+`estimated_from` onwards it is estimated (`estimated` per day). `calibration`
+names the origin of the rate: `anchors`, `deliveries` (delivery cadence),
+`first_delivery` or `none`. `warnings`: `inconsistent_level` (`from`, `to`,
+`excess` — the levels do not add up, nothing is booked in between),
+`stock_exhausted` (`date` — empty by calculation, checked on estimated days
+only), `no_calibration` (no rate: fewer than 14 days between known levels, no
+two deliveries and no single delivery after an initial stock above 0),
+`flat_no_temperatures`. Up to v2.9 the curve was a
+second model alongside the cost calculation. Details:
 [Heating oil](../functional/05-heizoel.md).
+
+**Monthly rows** of heating oil and pellets (`…/consumption`) carry, since
+v2.10.0, `estimated_days` (days after the last anchor) and `working_price_ct`
+(effective price per kWh from the moving average price of the tank content; up
+to v2.9 `null`). `cost` is calculated at the average price of the tank content,
+the initial stock at `initial_stock_price_ct` or at the price of the first
+delivery (up to v2.9: €0).
+
+### Tank: `tank_levels`, `initial_stock_price_ct`; delivery: `fill_to_full` *(v2.10.0, additive)*
+
+- `PATCH …/meters/{id}` (heating oil/pellets only) with `tank_levels`: the
+  **whole** list `[{date, level, note}]`. Strict: a real date, not in the future,
+  one level per day, 0 ≤ `level` ≤ capacity (+2 %), decimal comma allowed.
+  Errors → 400 `errors.meter.invalidTankLevels`, `…invalidTankLevelDate`,
+  `…tankLevelFuture`, `…duplicateTankLevel`, `…tankLevelInvalid`,
+  `…tankLevelAboveCapacity`.
+- `initial_stock_price_ct` (ct per L or kg) on creation or via `PATCH`;
+  empty/`null` removes it (the price of the first delivery then applies).
+  Invalid → 400 `errors.meter.initialPriceInvalid`.
+- `POST|PATCH …/deliveries` with `fill_to_full: true` (also `"true"`, `1`;
+  `"false"` is false): after the delivery the tank is full. A quantity above the
+  capacity (+2 %) → 400 `errors.delivery.fullAboveCapacity`.
+- Electricity: `heat_source: true` on the meter marks a heat pump — it then
+  counts in the efficiency figure.
+
+All fields travel in the backup (whole records); the CSV export of the
+deliveries stays unchanged.
 
 ### `GET /api/benchmarks/efficiency?year=YYYY`
 
@@ -624,6 +704,10 @@ Since **v1.4.0** per heat source:
   "primary":  { "utility": "gas", "label": "Gas", "kwh": 10685.8,
                 "kwh_per_m2": 106.9, "class": "D" },
   "combined": { "kwh": 10685.8, "kwh_per_m2": 106.9, "class": "D" },
+  "certificate": { "area_m2": 120, "area_factor": 1.2, "kwh": 9681,
+                   "kwh_per_m2": 80.7, "dhw_surcharge": 0,
+                   "weather_adjusted": true, "complete": true,
+                   "class": "C", "months_36": 36 },
   "thresholds": { "A+": 30, "A": 50, "…": 0 },
   "scale": "geg", "scale_note": null,
   "note": null,
@@ -645,6 +729,17 @@ today only `geg` (Germany). For other countries `scale` is `null`, every
 `kwh_per_m2` stays. A class under German law would mislead in France (DPE)
 or Austria (HWB).
 
+*(v2.10.0)* Each source carries `coverage_days` and `complete` (≥ 360 days);
+**no class without a full year** (`class: null`, `note` explains why). Limits
+are inclusive ("up to 100" = C). Electricity meters with `heat_source: true`
+appear as source `strom`. `certificate` is the certificate-style figure: gas ×
+0.906 (gross → net calorific value), weather-adjusted (`weather_adjusted`),
+relative to `area_m2` = living area × `area_factor` (1.2; 1.35 for
+`gebaeudetyp` efh/rh with `beheizter_keller`), plus `dhw_surcharge` (20 with
+`warmwasser_dezentral`). `months_36` counts the months with heating data in the
+three years up to the reference year — a consumption certificate requires 36.
+Formulas: [Fundamentals §7](../functional/00-overview.md#7-efficiency-class).
+
 ### `GET /api/export/{u}/deliveries.csv` *(v1.4.2, heating oil/pellets)*
 
 CSV with one row per delivery: `tank/store ID`, `tank/store`, `date`,
@@ -655,10 +750,10 @@ Semicolon-separated, UTF-8 BOM, German decimal comma. For cumulative utilities u
 ### `POST /api/utility/{u}/deliveries`
 
 Required: `meter_id`, `date`, `quantity` (> 0). Optional `unit_price_cents`
-**or** `total_eur`, `supplier`, `note`, `is_planned`. **Since v1.4.2** `total_eur`
-takes precedence over `unit_price_cents` — the invoice amount is the figure
-actually paid (incl. the delivery fee/rebate); the effective unit price is derived
-from it (`total_eur · 100 / quantity`).
+**or** `total_eur`, `supplier`, `note`, `is_planned`, `fill_to_full` (v2.10.0).
+**Since v1.4.2** `total_eur` takes precedence over `unit_price_cents` — the
+invoice amount is the figure actually paid (incl. the delivery fee/rebate); the
+effective unit price is derived from it (`total_eur · 100 / quantity`).
 
 ### `GET /api/reports/yearly.pdf?year=YYYY`
 
@@ -774,7 +869,7 @@ back; `recommendations_dismissed` is part of the backup since v2.6.0.
 ### `GET|HEAD /api/health` *(N1003; extended in v2.6.0)*
 
 ```json
-{ "status": "ok", "version": "2.6.0", "schema_version": "1.5.0",
+{ "status": "ok", "version": "2.10.0", "schema_version": "1.6.0",
   "data_dir_writable": true, "migrations_pending": 0,
   "data_initialized_at": "2026-09-24T23:58:03+02:00",
   "php_version": "8.4.12", "timezone": "Europe/Berlin",

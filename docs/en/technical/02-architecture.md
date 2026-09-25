@@ -33,7 +33,7 @@ Energietracker follows a clear separation of layers. The core principle:
 
 There is **no** database. Persistence is a set of JSON files under `data/`,
 written with `LOCK_EX` (an exclusive lock) so that parallel requests do not
-destroy one another. Schema level: **1.5.0**.
+destroy one another. Schema level: **1.6.0**.
 
 ---
 
@@ -92,9 +92,12 @@ From this follow two calculation paths (see [data model](04-data-model.md) and
 
 - **cumulative** (gas, electricity, water, district heating): consumption =
   difference of successive meter readings, linearly interpolated over the days.
-- **delivery-based** (heating oil, pellets): consumption is energetically
-  balanced from the initial stock + deliveries and distributed HDD-weighted over
-  the months; a separate, calibrated method provides the tank stock curve.
+- **delivery-based** (heating oil, pellets): a **tank log** (since v2.10.0) —
+  initial stock, deliveries "filled to full" and tank readings are anchor
+  points; in between, consumption is distributed HDD-weighted, after the last
+  one it is estimated with the calibrated rate. Consumption, cost and the tank
+  stock curve come from the same calculation
+  (`DeliveryConsumptionService::tankModel()`).
 
 ---
 
@@ -112,7 +115,7 @@ HTTP**.
 | `ReadingService` | CRUD readings, auto-assignment to the active device; capture overview with the typical daily consumption; batch upsert for the CSV import (v2.6.0) |
 | `ContractService` | CRUD contracts, strict validation, effective-date lookup; since v2.9.0 day-exact segments (`segmentsBetween`), renewed contract (`resolveForDate`), cancellation deadline (`switchTiming`) |
 | `ConsumptionService` | monthly aggregation (cumulative **and** delivery-based), balance by calendar, heating model and weather adjustment (v2.8.0); contracts day-exact with `contract_parts` (v2.9.0); delegates the delivery daily distribution to `DeliveryConsumptionService`; since v2.6.0 plausibility (outliers, suspicion, rollover) with `warnings` |
-| `DeliveryConsumptionService` | **(since v1.4.4)** daily consumption distribution & tank stock draw for heating oil/pellets — extracted from `ConsumptionService` (~350 lines) |
+| `DeliveryConsumptionService` | **(since v1.4.4)** heating oil/pellets — extracted from `ConsumptionService`; since v2.10.0 the tank log (`tankModel()`): anchors, one calculation for consumption, costs and stock, climate normal for missing days |
 | `DeliveryService` | CRUD deliveries, tank stock curve |
 | `TemperatureService` | CSV import, Open-Meteo sync with a source per day, daily auto-sync (v2.8.0) |
 | `WeatherService` | Open-Meteo wrapper (archive, forecast, 30-year daily means) behind the `WeatherSource` interface |
@@ -120,7 +123,7 @@ HTTP**.
 | `RegressionService` | 5 models: linear, polynomial, robust, segmented (auto/fixed), sigmoid |
 | `ForecastService` | R²-weighted mix of regression × seasonal profile, HDD from the climate normal, uncertainty band; contract-based cost forecast |
 | `AnomalyService` | outliers against the expectation per month, robust spread (v2.8.0) |
-| `BenchmarkService` | efficiency class **per heat source** + combined |
+| `BenchmarkService` | efficiency class **per heat source** + combined; since v2.10.0 coverage per source, classes only for full years, certificate-style figure (`certificate`), heat-pump electricity |
 | `TariffComparisonService` | real + shadow contracts on actual consumption |
 | `TariffSwitchService` | switching decision from the switch date (commitment chain, break-even) |
 | `RecommendationService` | 7 statistical rule families, dismiss state |
@@ -133,7 +136,7 @@ HTTP**.
 | `DiagnosticsService` | system status, write permissions, data count |
 | `HealthCheckService` | `/api/health`: `status` ok/degraded/error, checks (write permissions, schema, files, disk space, temp files), last ingest — N1003, v2.6.0 |
 | `DemoService` | one-click demo import via the restore path — F1007 |
-| `PvSummaryService` / `StromSaldoService` | PV self-consumption/self-sufficiency resp. electricity balance — F1005 |
+| `PvSummaryService` / `StromSaldoService` | PV self-consumption/self-sufficiency resp. electricity balance — F1005; since v2.10.0 rates over the months covered by all meters, and self-consumption savings |
 | `AuthService` | sign-in (password, proxy, sessions, lockout), API keys and the HA token — hashes only in `data/auth.json` (F1009, v2.6.0) |
 | `IngestService` | idempotent push intake (`/api/ingest`, upsert-by-date) — F1009 |
 

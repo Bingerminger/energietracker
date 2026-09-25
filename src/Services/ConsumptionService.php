@@ -1944,9 +1944,10 @@ final class ConsumptionService
     private function applyUtilityFields(array $monthly, string $utility): array
     {
         $u = Utilities::get($utility);
-        $co2Factor = (float)$this->settings->get($u['co2_setting'], 0.0);
 
         foreach ($monthly as &$m) {
+            // v2.10.0 (CALC-19) — Strom je Jahr (Umweltbundesamt), sonst ein Wert
+            $co2Factor = $this->settings->co2Factor((string)$u['co2_setting'], (int)($m['year'] ?? (int)substr((string)($m['ym'] ?? ''), 0, 4)));
             if ($u['consumption_unit'] === 'kWh') {
                 $m['co2_kg'] = round($m['kwh'] * $co2Factor / 1000.0, 1);
             } else {
@@ -2511,6 +2512,15 @@ final class ConsumptionService
     }
 
     /**
+     * v2.10.0 — Delegiert an DeliveryConsumptionService::tankModel().
+     * @return array<string,mixed>
+     */
+    public function tankModel(string $utility, array $meter): array
+    {
+        return $this->getDeliveryConsumption()->tankModel($utility, $meter);
+    }
+
+    /**
      * Monatsaggregation für einen Delivery-Meter.
      *
      * Im Gegensatz zur kumulativen Berechnung gibt es keine „echten" Reading-
@@ -2529,96 +2539,45 @@ final class ConsumptionService
         if (!is_array($temps)) $temps = [];
         $hddBase = $hddBaseOverride ?? (float)$this->settings->get('hdd_base_temp', 15.0);
 
-        $daily = $this->getDeliveryConsumption()->dailyDeliveryConsumption($utility, $meter);
-        if (empty($daily)) return [];
-
-        // Lieferungen für Preis-pro-Monat-Aggregation
-        $all = $this->store->read("$utility/deliveries.json", []);
-        if (!is_array($all)) $all = [];
-        $deliveries = array_values(array_filter(
-            $all,
-            fn($d) => is_array($d)
-                  && ($d['meter_id'] ?? null) === ($meter['id'] ?? null)
-                  && empty($d['is_planned'])
-        ));
-        usort($deliveries, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
-
-        // Forward-fill effektiver Stückpreis (ct pro volume_unit)
-        // Konvertierung in ct/kWh erfolgt unten, weil die Tagesreihe kWh ist.
-        $convSetting = (string)($u['conversion_setting'] ?? '');
-        $kwhPerUnit  = $convSetting !== ''
-            ? (float)$this->settings->get($convSetting, 1.0)
-            : 1.0;
-
-        $priceCtPerKwhByDate = [];
-        $lastPriceCtPerUnit = null;
-        foreach ($deliveries as $d) {
-            // v1.4.2 — Gesamtbetrag der Tankrechnung hat Vorrang: er ist
-            // die tatsächlich bezahlte Größe (inkl. Liefergebühr/Rabatt).
-            // Daraus effektiver Stückpreis = total_eur·100 / Menge.
-            // Fällt zurück auf unit_price_cents, wenn kein Gesamtbetrag.
-            $qty = (float)($d['quantity'] ?? 0);
-            $totalEur = isset($d['total_eur']) && $d['total_eur'] !== null
-                ? (float)$d['total_eur'] : null;
-            $unitCt = isset($d['unit_price_cents']) && $d['unit_price_cents'] !== null
-                ? (float)$d['unit_price_cents'] : null;
-            if ($totalEur !== null && $qty > 0) {
-                $lastPriceCtPerUnit = $totalEur * 100.0 / $qty;
-            } elseif ($unitCt !== null) {
-                $lastPriceCtPerUnit = $unitCt;
-            }
-            // ct pro Einheit → ct pro kWh
-            $priceCtPerKwhByDate[$d['date']] =
-                $lastPriceCtPerUnit !== null && $kwhPerUnit > 0
-                    ? $lastPriceCtPerUnit / $kwhPerUnit
-                    : null;
-        }
-
-        // Forward-fill auf alle Tage
-        $sortedDates = array_keys($daily);
-        sort($sortedDates);
-        $currentPrice = null;
-        $pricePerDay = [];
-        $deliveryDates = array_keys($priceCtPerKwhByDate);
-        sort($deliveryDates);
-        $dIdx = 0;
-        foreach ($sortedDates as $d) {
-            while ($dIdx < count($deliveryDates) && $deliveryDates[$dIdx] <= $d) {
-                $currentPrice = $priceCtPerKwhByDate[$deliveryDates[$dIdx]];
-                $dIdx++;
-            }
-            $pricePerDay[$d] = $currentPrice;
-        }
+        // v2.10.0 — Tankbuch (CALC-04): Verbrauch und Kosten aus derselben
+        // Rechnung wie die Bestandskurve. Kosten zum gleitenden
+        // Durchschnittspreis des Tankinhalts statt zum Preis der letzten
+        // Lieferung; der Anfangsbestand ist nicht mehr kostenlos.
+        $delivery   = $this->getDeliveryConsumption();
+        $model      = $delivery->tankModel($utility, $meter);
+        if (empty($model['days'])) return [];
+        $kwhPerUnit = $delivery->kwhPerUnit($utility);
 
         // Monatsaggregation
         $monthly = [];
         $coverage = [];   // v2.9.0 — je Tag ein Abschnitt: die Vertragsrechnung schneidet tagesgenau
-        foreach ($daily as $d => $kwh) {
+        foreach ($model['days'] as $d => $row) {
             $ym = substr($d, 0, 7);
             if (!isset($monthly[$ym])) {
-                $monthly[$ym] = ['kwh' => 0.0, 'days' => 0, 'cost' => 0.0, '_priceSum' => 0.0, '_priceN' => 0];
+                $monthly[$ym] = ['kwh' => 0.0, 'days' => 0, 'cost' => 0.0, 'estimated_days' => 0];
             }
+            $kwh = $row['draw'] * $kwhPerUnit;
             $coverage[$ym][] = [$d, date('Y-m-d', strtotime($d . ' +1 day')), (float)$kwh];
             $monthly[$ym]['kwh']  += $kwh;
             $monthly[$ym]['days'] += 1;
-            $p = $pricePerDay[$d];
-            if ($p !== null) {
-                $monthly[$ym]['cost'] += $kwh * $p / 100.0;
-                $monthly[$ym]['_priceSum'] += $p;
-                $monthly[$ym]['_priceN']++;
-            }
+            if ($row['cost_eur'] !== null) $monthly[$ym]['cost'] += $row['cost_eur'];
+            // v2.10.0 — Tage nach dem letzten bekannten Bestand sind geschätzt
+            if ($row['estimated']) $monthly[$ym]['estimated_days']++;
         }
-        // _priceSum/_priceN aufräumen (interne Felder)
-        foreach ($monthly as &$m) {
-            unset($m['_priceSum'], $m['_priceN']);
-        }
-        unset($m);
 
         // Mit der Abdeckung zählen die Gradtage des laufenden Monats nur bis
         // heute — gespeicherte Vorhersagetage liegen nicht mehr darin.
         $monthly = $this->enrichWithWeather($monthly, $temps, $hddBase, $coverage);
         $monthly = $this->applyUtilityFields($monthly, $utility);
         $monthly = $this->applyContracts($monthly, $utility, $meter['id'], $coverage);
+        // v2.10.0 — effektiver Preis je kWh aus dem Tankbuch (gleitender
+        // Durchschnitt des Tankinhalts); bis v2.9 stand hier nichts
+        foreach ($monthly as &$m) {
+            if ($m['contract_id'] === null && ($m['kwh'] ?? 0) > 0 && ($m['cost'] ?? 0) > 0) {
+                $m['working_price_ct'] = round($m['cost'] / $m['kwh'] * 100.0, 4);
+            }
+        }
+        unset($m);
         ksort($monthly);
         $monthly = array_values($monthly);
         // v1.6.1 — Issue #13: Wechsel-Monate auch im Wasser-Pfad flaggen

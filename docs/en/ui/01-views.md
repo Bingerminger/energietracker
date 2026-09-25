@@ -22,9 +22,15 @@ and a **sidebar** that is built dynamically from the *active* utilities
 The entry point. 12-month figures per utility, efficiency class **per heat
 source**, tank levels (oil/pellets), **electricity balance & self-sufficiency** for
 PV, the combined consumption history (as many months as set under *Months on
-dashboard* in the settings, since v2.9.0) and due appointments. Since v2.7.0 the
-efficiency class appears only in countries with a scale (Germany); elsewhere the
-card shows kWh/m²·yr and gives the reason ([country profiles](../functional/14-laenderprofile.md)).
+dashboard* in the settings, since v2.9.0) and due appointments. Since v2.10.0 the
+**certificate-style figure** appears below the efficiency (with several heat
+sources one for all of them together, tooltip with the reference area and the
+months); an incomplete year gets no class but a note instead. The PV card
+additionally shows the **self-consumption savings** and, as long as fewer than
+twelve months have data from all three meters, over how many months the rates
+are calculated. Since
+v2.7.0 the efficiency class appears only in countries with a scale (Germany);
+elsewhere the card shows kWh/m²·yr and gives the reason ([country profiles](../functional/14-laenderprofile.md)).
 
 ![Dashboard](../../ui/screenshots/dashboard.png)
 
@@ -91,9 +97,18 @@ reading dialog asks the same questions as the meter-reading capture.
 
 ## 4. Consumption view — delivery-based utilities (heating oil/pellets)
 
-Instead of meter readings: the tank stock curve (modelled, calibrated) and a
-delivery table (date, quantity, price, total, supplier). No contract area — the tank
-invoice is the cost basis.
+Instead of meter readings: a tank card and a delivery table (date, quantity,
+price, total, supplier). No contract area — the tank invoice is the cost basis.
+
+**Tank log (v2.10.0):** the tank card shows the fill level and the **stock
+history** of the selected year — calculated as a solid line, estimated dashed,
+known stocks as points — and states below it up to when the calculation is based
+on known stocks. Notes appear when levels do not add up, the tank is empty by
+calculation or no calculation is possible yet. Below that, the **tank readings**
+with "Record tank reading" (date, level, note) and delete. In the delivery
+dialog, **"Filled to full"** marks a delivery as an anchor; the table shows it
+with "FULL". Months with estimated days carry "≈" in the monthly table; the
+ct/kWh column shows the effective price.
 
 ![Heating oil view](../../ui/screenshots/heizoel-view.png)
 
@@ -285,6 +300,14 @@ country only" or "Cancel". Since v2.7.0 the gas conversion factors accept the
 calorific value in kWh/m³, MJ/m³ or GJ/Smc, with a hint for British, Italian
 and Dutch bills.
 
+Since v2.10.0: **CO₂ factors** of the energy sources with their source, all per
+kWh (heating oil and pellets were labelled g/L and g/kg respectively, but
+calculated per kWh; water stays per m³ and without a source), electricity **per year** as a table; **Building & efficiency** with *Heated
+basement* and *Decentralised hot water*. If an installation still carries the old
+default values, **"Newer default values available"** appears at the top with the
+old and the new value and the button "Use the new values". If only the default
+gas factor 11.5 is active, the gas factor table points this out.
+
 All settings grouped: conversion & HDD, **billing cycle (DD-MM)**, building &
 efficiency, calorific values, forecast model, **embedding** (since v2.6.0:
 addresses allowed to embed the app, such as a Home Assistant dashboard), active
@@ -326,7 +349,7 @@ Meter/device management incl. meter swap (the device chain) and contract mainten
 summarises the swap before performing it. A **contract** needs a provider or tariff
 and at least one working price; the start is prefilled with the day after the
 current commitment, and the app asks before a new contract supersedes a running one. Since v2.9.0 the **Notice period** takes months, weeks or days, plus **Cancellation takes effect** ("automatic", "at the end of the term", "any time, at month end", "any time, to any day") and the **"Renews unless cancelled"** checkbox — clear it once you have cancelled. A meter with *Active* cleared still counts in every total, but no longer appears in the reading entry and raises no warnings. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
-management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading). For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
+management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading), since v2.10.0 optionally the **price of the initial stock** (empty = price of the first delivery). An electricity meter can be flagged as **Heating electricity (heat pump)** — it then counts in the efficiency figure. For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as
 an expandable collective entry; a **merge wizard** combines several existing meters
@@ -340,8 +363,11 @@ into a group. Per meter, the HA alias (`external_id`) can also be set here.
 
 A dedicated view for photovoltaics: the feed-in meter (remuneration as revenue), the
 generation meter, the **electricity balance** (grid import − feed-in) and the
-**self-sufficiency rate/self-consumption**. PV utilities have no default meter —
-anyone without a system sees no phantom meters.
+**self-sufficiency rate/self-consumption**. Since v2.10.0 the generation shows
+"Generation" and avoided CO₂ instead of "Consumption" and an emission, without a
+cost tile; in the tariff switch of the feed-in, the higher remuneration comes
+first. PV utilities have no default meter — anyone without a system sees no
+phantom meters.
 
 ![PV](../../ui/screenshots/pv.png)
 

@@ -22,7 +22,13 @@ Verbrauchsarten gebaut wird (Einstellungen → Aktive Verbrauchsarten).
 Einstieg. 12-Monats-Kennzahlen je Art, Effizienzklasse **pro
 Heizquelle**, Tank-Bestände (Öl/Pellets), **Strom-Saldo & Autarkie** bei
 PV, kombinierter Verbrauchsverlauf (so viele Monate wie in den Einstellungen
-unter *Monate auf Dashboard*, seit v2.9.0) und fällige Termine. Seit v2.7.0 steht
+unter *Monate auf Dashboard*, seit v2.9.0) und fällige Termine. Seit v2.10.0
+steht unter der Effizienz die **energieausweis-nahe Kennzahl** (bei mehreren
+Heizquellen für alle zusammen, Tooltip mit Bezugsfläche und Monaten); ein
+unvollständiges Jahr bekommt keine Klasse, sondern einen Hinweis. Die
+PV-Karte zeigt zusätzlich die **Ersparnis durch Eigenverbrauch** und, solange
+weniger als zwölf Monate Daten aller drei Zähler haben, über wie viele Monate
+die Quoten rechnen. Seit v2.7.0 steht
 die Effizienzklasse nur in Ländern mit Skala (Deutschland); sonst zeigt die
 Karte kWh/m²·a und nennt den Grund ([Länderprofile](../functional/14-laenderprofile.md)).
 
@@ -93,9 +99,20 @@ Zählerstand-Erfassung.
 
 ## 4. Verbrauchsansicht — lieferbasierte Arten (Heizöl/Pellets)
 
-Statt Zählerständen: Tank-Bestandskurve (modelliert, kalibriert) und
-Lieferungstabelle (Datum, Menge, Preis, Gesamt, Lieferant). Kein
-Vertrags-Bereich — die Tankrechnung ist die Kostenbasis.
+Statt Zählerständen: Tank-Karte und Lieferungstabelle (Datum, Menge, Preis,
+Gesamt, Lieferant). Kein Vertrags-Bereich — die Tankrechnung ist die
+Kostenbasis.
+
+**Tankbuch (v2.10.0):** Die Tank-Karte zeigt Füllstand und den
+**Bestandsverlauf** des gewählten Jahres — gerechnet durchgezogen, geschätzt
+gestrichelt, bekannte Bestände als Punkte — und sagt darunter, bis wann aus
+bekannten Beständen gerechnet ist. Hinweise erscheinen, wenn Stände nicht
+zusammenpassen, der Tank rechnerisch leer ist oder noch keine Rechnung
+möglich ist. Darunter die **Peilstände** mit „Peilstand erfassen" (Datum,
+Stand, Notiz) und Löschen. Im Lieferdialog markiert **„Bis voll getankt"**
+eine Lieferung als Stützstelle; die Tabelle zeigt sie mit „VOLL". Monate mit
+geschätzten Tagen tragen in der Monatstabelle „≈"; die Spalte ct/kWh zeigt
+den effektiven Preis.
 
 ![Heizöl-Ansicht](screenshots/heizoel-view.png)
 
@@ -289,6 +306,15 @@ Gas-Umrechnungsfaktoren lässt sich der Brennwert seit v2.7.0 in kWh/m³,
 MJ/m³ oder GJ/Smc eingeben; für britische, italienische und niederländische
 Rechnungen steht ein Hinweis dabei.
 
+Seit v2.10.0: **CO₂-Faktoren** der Energieträger mit Quelle, alle je kWh
+(Heizöl und Pellets waren mit g/L bzw. g/kg beschriftet, gerechnet wurde je
+kWh; Wasser bleibt je m³ und ohne Quellenangabe), Strom
+**je Jahr** als Tabelle; **Gebäude & Effizienz** mit *Beheizter Keller* und
+*Warmwasser dezentral*. Trägt eine Installation noch die alten
+Standardwerte, steht oben **„Neuere Standardwerte verfügbar"** mit bisher und
+neu und dem Knopf „Neue Werte übernehmen". Ist nur der Standard-Gasfaktor
+11,5 aktiv, weist die Gasfaktor-Tabelle darauf hin.
+
 Alle Einstellungen gruppiert: Umrechnung & HGT, **Abrechnungszyklus
 (TT-MM)**, Gebäude & Effizienz, Heizwerte, Prognosemodell, **Einbetten**
 (seit v2.6.0: Adressen, die die App einbetten dürfen, etwa ein
@@ -344,7 +370,10 @@ den Arbeitspreisen eines Gasvertrags rechnet **„Preis je m³ umrechnen“**
 (v2.7.0) einen Preis je m³ oder Smc in ct/kWh um und trägt ihn ein. Bei
 Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant — beim Anlegen
 und Bearbeiten eines Tanks werden **Tank-Kapazität** und **Anfangsbestand**
-erfasst (statt eines kumulativen Zählerstands). Bei kumulativen Zählern
+erfasst (statt eines kumulativen Zählerstands), seit v2.10.0 optional der
+**Preis des Anfangsbestands** (leer = Preis der ersten Lieferung). Ein
+Stromzähler lässt sich als **Heizstrom (Wärmepumpe)** kennzeichnen — er zählt
+dann in der Effizienzkennzahl. Bei kumulativen Zählern
 lassen sich seit v2.6.0 die **Stellen des Zählwerks** pflegen — dann rechnet
 die Auswertung einen Überlauf (99.999 → 0) richtig; die Gerätezeile zeigt
 sie an.
@@ -362,7 +391,10 @@ sich hier auch der HA-Alias (`external_id`) setzen.
 
 Eigene Ansicht für Photovoltaik: Einspeisezähler (Vergütung als Erlös),
 Erzeugungszähler, **Strom-Saldo** (Netzbezug − Einspeisung) und
-**Autarkiequote/Eigenverbrauch**. PV-Verbrauchsarten haben keinen
+**Autarkiequote/Eigenverbrauch**. Seit v2.10.0 zeigt die Erzeugung
+„Erzeugung" und vermiedenes CO₂ statt „Verbrauch" und Emission, ohne
+Kostenkachel; im Tarifwechsel der Einspeisung steht die höhere Vergütung
+vorn. PV-Verbrauchsarten haben keinen
 Default-Zähler — wer keine Anlage hat, sieht keine Phantom-Zähler.
 
 ![PV](screenshots/pv.png)

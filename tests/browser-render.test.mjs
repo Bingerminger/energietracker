@@ -226,6 +226,8 @@ async function renderView(modPath, params = []) {
     t('dashboard: Verbrauchskarten vorhanden', view.querySelectorAll('.card').length >= 1);
     const canvas = view.querySelector('#dash-chart');
     t('dashboard: Chart-Canvas eingebunden', !!canvas);
+    // v2.10.0 — Effizienzkarte mit der zweiten Zahl (energieausweis-nah)
+    t('dashboard: Effizienz mit energieausweis-naher Kennzahl', !!view.querySelector('.dash-eff__cert'));
   } catch (e) { t('dashboard: render', false, e.message); }
 
   // ── 5. Settings (größte View, alle neuen Felder) ──
@@ -252,6 +254,13 @@ async function renderView(modPath, params = []) {
       !!view.querySelector('#currency-select') && view.querySelectorAll('#tz-select option').length > 10);
     t('settings: Brennwert-Einheit kWh, MJ, GJ',
       [...view.querySelectorAll('[data-key="gas_cv_unit"] option')].map(o => o.value).join() === 'kwh,mj,gj');
+    // v2.10.0 — CO₂ Strom je Jahr, Einheiten je kWh, Gebäude für die zweite Kennzahl
+    t('settings: CO₂-Jahreswerte als Tabelle (v2.10.0)',
+      view.querySelectorAll('[data-co2years] [data-cy-table] tbody tr').length >= 3
+        && view.querySelector('[data-key="co2_strom_years"]')?.getAttribute('data-type') === 'json');
+    t('settings: CO₂ Heizöl/Pellets je kWh', /CO₂ Heizöl[^<]*<span class="settings-field__unit">g\/kWh/.test(html));
+    t('settings: beheizter Keller und dezentrales Warmwasser',
+      !!view.querySelector('[data-key="beheizter_keller"]') && !!view.querySelector('[data-key="warmwasser_dezentral"]'));
   } catch (e) { t('settings: render', false, e.message); }
 
   // ── 6. Utility-View: Delivery-Modus (Heizöl) ──
@@ -264,6 +273,11 @@ async function renderView(modPath, params = []) {
     // Bei vorhandenem Tank: Lieferungs-Button + Tank-Balken
     const hasDeliveryUI = html.includes('Lieferung') || html.includes('Noch keine Zähler');
     t('utility(heizoel): Delivery-UI oder leerer Zustand', hasDeliveryUI);
+    // v2.10.0 — Tankbuch: Bestandskurve, Herkunftshinweis, Peilstände
+    t('utility(heizoel): Tankbuch mit Kurve, Hinweis und Peilständen',
+      !!view.querySelector('#stock-chart') && !!view.querySelector('#btn-new-level')
+        && /gerechnet|geschätzt/.test(html) && html.includes('Peilst'),
+      'Kurve/Knopf/Hinweis fehlt');
   } catch (e) { t('utility(heizoel): render', false, e.message); }
 
   // ── 7. Utility-View: kumulativ (Gas) — Regressionspfad nicht gebrochen ──

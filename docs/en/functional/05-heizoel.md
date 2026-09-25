@@ -45,76 +45,89 @@ cost of delivery =
 **Since v1.4.2** `total_eur` takes precedence: the invoice total is the amount
 actually paid and includes a delivery fee, a small-quantity surcharge or rebates
 that a plain *price × quantity* would not capture. The effective unit price is
-derived from it (`ct/L = total_eur × 100 / quantity`) and assigned to the
-consumption days via a forward fill.
+derived from it (`ct/L = total_eur × 100 / quantity`).
+
+**Since v2.10.0 a consumed litre costs what it costs in the tank:** a delivery
+mixes into the stock at its price (moving average), and consumption is charged at
+the average price. The **initial stock** costs the price maintained on the tank
+(`initial_stock_price_ct`), otherwise that of the first delivery. Up to v2.9 it
+was free, and every day carried the price of the last delivery — after an
+expensive autumn delivery, even the cheap oil from spring was booked as
+expensive. The monthly table shows the effective price per kWh.
 
 > In practice: just enter the **invoice amount** and the **litres** of the tank
 > invoice. You do not need to compute the ct/L price.
 
 ---
 
-## 3. Consumption distribution (energy balance)
+## 3. Tank log — one calculation for consumption and stock (since v2.10.0)
 
-Over the usage period the balance holds: what was in the tank plus what was
-delivered is consumed. In energy:
+Up to v2.9 the app calculated twice: the costs distributed the initial stock plus
+**all** deliveries over the time up to today, as if the tank were empty today;
+the stock curve worked with a calibrated rate. Consequence: a delivery made today
+increased the consumption of all previous years by around 20 %, and the balance
+said "tank empty" while the curve showed 1,466 L. Now there is **one**
+calculation from which consumption, costs and the stock curve come.
+
+**Anchors** are days on which the stock is known:
+
+- the start day with the **initial stock**,
+- a delivery **"filled to full"** (`fill_to_full`) — afterwards the stock is the
+  tank capacity,
+- a **tank reading** (`tank_levels` on the tank) — read from the tank gauge, with
+  a dipstick or from the level sensor.
+
+Between two anchors the consumption is **known**:
 
 ```text
-total kWh = (initial_stock + Σ deliveries) × Hu
+consumption = stock_before + Σ deliveries in between − stock_after
 ```
 
-This energy is distributed over the days: a weather-independent **base-load
-share** (`delivery_baseload_share`, default 0.15 — e.g. hot water) flat, the
-**rest HDD-weighted**:
+It is distributed over the days by base load and degree days:
 
 ```text
-kWh_day =  total kWh · s / days                      (base load, s = 0.15)
-         + (1 - s) · total kWh · HDD_day / Σ HDD      (heating share)
+share_day ∝ ρ + HDD_day        ρ = s · HDD_year / ((1 − s) · 365.25)
 ```
 
-From this follow monthly consumption, costs (via the delivery price per day) and
-the heating-signature analysis — analogous to gas.
+ρ is the base load in degree-day units (`delivery_baseload_share` s, default
+0.15 — hot water, stand-by). As a result, a summer interval gets mainly base
+load, instead of 85 % falling on the few cool days. The degree days of a normal
+year come from the climate normal, otherwise from your own temperature history
+(if each of the twelve months has at least 15 days), otherwise from a rough Central European monthly
+mean. Missing daily temperatures are filled from the climate normal.
+
+**After the last anchor** the app continues with a calibrated rate and marks these
+days as **estimated** (`estimated_from`; monthly rows `estimated_days`, "≈" in
+the table). The rate comes from the intervals between anchors, otherwise from the
+delivery cadence (what was delivered before the last delivery was consumed
+between the first and the last delivery), and with exactly one delivery from the
+assumption that the initial stock was used up by then. Each source needs at
+least 14 days. If none suffices (for example only the initial stock, or the only
+delivery on the first day), there is **no** consumption calculation and a notice
+— up to v2.9 the entire initial stock then counted as consumed by today.
+
+If two levels contradict each other (more in the tank than can be there), the app
+books nothing in between and reports it; if the tank runs empty by calculation,
+it asks for a missing delivery or a tank reading.
 
 ---
 
-## 4. Tank stock curve (the v1.4.0 model)
+## 4. Tank stock curve
 
-> **Important:** the displayed stock is a **calibrated model estimate**, *not* a
-> tank gauging.
+The curve is the same calculation as the consumption (§3): the stock at the end
+of each day. The known levels are in `anchors` (start of the day, after a
+delivery) and appear as points. The tank view draws the calculated part
+as a solid line, the estimated part dashed and the known stocks as points, and it
+states up to when the calculation is based on known stocks.
 
-Up to v1.3.0 the model distributed the *entire* energy HDD-weighted and thereby
-forced final stock ≈ 0 — the tank curve was practically useless (always ~0 %).
-The old calculation also mixed litres with kWh (a latent unit error, masked by
-the 0-normalisation).
+> **It gets more accurate with anchors:** mark a delivery as "filled to full" or
+> record a tank reading every now and then (tank view, "Record tank reading").
+> From then on the consumption up to that day is calculated, not estimated — and
+> a later delivery no longer changes it.
 
-**Since v1.4.0** the stock curve is decoupled (`dailyDeliveryStockDraw`). The
-daily draw is in **litres** and uses an **HDD rate calibrated from the closed
-delivery intervals**:
-
-```text
-rate = (Σ deliveries without the last) · (1 - s)
-       ----------------------------------------------------   [ L / HDD ]
-       Σ HDD in the window [first delivery .. last delivery]
-```
-
-Reasoning: in steady-state operation a household refills, per cycle, roughly what
-it has consumed since the last delivery — so "all deliveries except the last"
-corresponds to consumption in the closed time window. This rate is extrapolated
-onto the head (before the first delivery) and the open tail (after the last
-delivery):
-
-```text
-stock_day = max(0, stock_prevday + delivery_day
-                   - (base_load_L + rate · HDD_day))
-```
-
-A final stock of 0 is **no longer** forced — the remaining stock follows
-physically. Fallback with < 2 deliveries (no cadence derivable): rate from
-(initial stock + Σ deliveries) over the window HDD; without temperatures: a flat
-draw.
-
-The **cost/efficiency calculation** still uses the energy balance from §3 — there
-"bought ≈ consumed over the term" is correct; only the *stock curve* needs the
-calibrated rate.
+*(Up to v2.9 there were two models here: the calibrated stock curve since v1.4.0
+and, alongside it, the energy balance for costs and efficiency. The cadence rule
+of the old curve lives on as the calibration without anchors.)*
 
 ---
 
@@ -133,8 +146,9 @@ that is not an error but reflects reality.
 - **Wrong calorific value**: 10.0 kWh/L applies to heating oil EL. For a different
   quality, adjust it in the settings, otherwise kWh and the efficiency class tip
   over.
-- **Expecting a tank gauging**: the stock is modelled, not measured. A real
-  dip-stick input is (still) not provided.
+- **No tank reading, no "filled to full" delivery**: then everything is
+  estimated, and a new delivery shifts the rate. One tank reading a year is
+  enough for the previous years to be settled (since v2.10.0).
 - **A planned delivery** (`is_planned`) does not count in the balance/stock — by
   design, so that forward planning does not distort the actual state.
 

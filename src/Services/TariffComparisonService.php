@@ -193,12 +193,15 @@ final class TariffComparisonService
         // Sortierung: echte Verträge zuerst (die Ist-Linie), dann die
         // Hypothesen nach effektivem Einheitspreis — die faire Rangfolge.
         // Zeilen ohne rechenbaren Preis ans Ende.
-        usort($rows, function ($a, $b) {
+        // v2.10.0 (Review CALC-17) — Einspeisung: Erlöse, mehr ist besser
+        $higherIsBetter = Utilities::isFeedIn($utility);
+        usort($rows, function ($a, $b) use ($higherIsBetter) {
             if ($a['is_shadow'] !== $b['is_shadow']) return $a['is_shadow'] <=> $b['is_shadow'];
-            $au = $a['unit_cost_ct'] ?? PHP_FLOAT_MAX;
-            $bu = $b['unit_cost_ct'] ?? PHP_FLOAT_MAX;
-            if ($au !== $bu) return $au <=> $bu;
-            return ($a['total_eur'] ?? PHP_FLOAT_MAX) <=> ($b['total_eur'] ?? PHP_FLOAT_MAX);
+            $none = $higherIsBetter ? -PHP_FLOAT_MAX : PHP_FLOAT_MAX;
+            $au = $a['unit_cost_ct'] ?? $none;
+            $bu = $b['unit_cost_ct'] ?? $none;
+            $cmp = $au !== $bu ? $au <=> $bu : (($a['total_eur'] ?? $none) <=> ($b['total_eur'] ?? $none));
+            return $higherIsBetter ? -$cmp : $cmp;
         });
 
         return [
@@ -207,6 +210,7 @@ final class TariffComparisonService
             'unit'           => $unit,
             'period'         => ['from' => $from, 'to' => $to, 'label' => $label, 'months' => $totalMonths],
             'supported'      => true,
+            'higher_is_better' => $higherIsBetter,   // v2.10.0
             'note'           => $rows ? null : $this->i18n->t('errors.tariff.noContracts'),
             'real_total_eur' => $realTotal !== null ? round($realTotal, 2) : null,
             'rows'           => $rows,
@@ -312,6 +316,8 @@ final class TariffComparisonService
             'period'         => ['from' => null, 'to' => null, 'label' => $label, 'months' => 0],
             'supported'      => $supported,
             'note'           => $note,
+            // gleiche Form wie die volle Antwort (Prüfung vor dem v2.10.0-Release)
+            'higher_is_better' => Utilities::exists($utility) && Utilities::isFeedIn($utility),
             'real_total_eur' => null,
             'rows'           => [],
         ];

@@ -6,6 +6,131 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.10.0] — 2026-09-25 — Energieträger ehrlich
+
+MINOR-Release (F1015). **Schema 1.5.0 → 1.6.0** (additiv, siehe Migration).
+Neue Felder sind additiv; bestehende Felder bleiben.
+
+**Der Anlass.** Das Gesamtreview hat Heizöl, Pellets, CO₂, PV und die
+Effizienzklasse nachgerechnet: Eine Heizöllieferung von heute erhöhte den
+Verbrauch aller Vorjahre um rund 20 %, der Anfangsbestand war kostenlos, der
+Gas-CO₂-Faktor bezog sich auf den Heizwert, während die App Brennwert zählt,
+Strom hatte einen Faktor für alle Jahre, die PV-Erzeugung stand als Emission
+im Jahresbericht, und ein halbes Jahr ergab die Effizienzklasse „A"
+(Review CALC-04, -07, -17, -18, -19, -24, -25).
+
+### ⚠️ Für bestehende Installationen
+
+- **Werte ändern sich** — Klasse B der Stabilitätszusage: Die Felder bleiben,
+  ihre Berechnung wird korrigiert.
+  - **Heizöl und Pellets:** Verbrauch, Kosten und Bestandskurve kommen aus
+    einer Rechnung (Tankbuch). Ohne Peilstand und ohne Lieferung „bis voll"
+    gilt die Rate der Bestandskurve jetzt auch für Verbrauch und Kosten — die
+    Jahreswerte liegen typisch niedriger, weil der Tank nicht mehr als heute
+    leer gilt. Kosten zum Durchschnittspreis des Tankinhalts; der
+    Anfangsbestand kostet den Preis der ersten Lieferung (bis v2.9: 0 €).
+    Ohne jede Lieferung und ohne Peilstand gibt es keinen Verbrauch mehr (bis
+    v2.9 galt der ganze Anfangsbestand als bis heute verbraucht).
+  - **Effizienzklasse:** Jahre mit weniger als 360 Tagen Daten bekommen keine
+    Klasse mehr; Grenzen gelten einschließlich („bis 100" ist C statt D).
+  - **PV-Quoten** rechnen nur über Monate, in denen Bezug, Einspeisung und
+    Erzeugung Daten haben; in anderen Monaten sind Eigenverbrauch und Quoten
+    `null` statt 0.
+  - **Tarifwechsel und Rückblick der Einspeisung:** höhere Vergütung zuerst.
+- **Keine Zahl ändert sich bei den CO₂-Faktoren und der Wasser-Referenz von
+  selbst:** Die Migration schreibt die bisherigen Defaults fest, wo sie nie
+  gespeichert wurden. Die Einstellungen zeigen „Neuere Standardwerte
+  verfügbar" — übernommen wird nur auf Knopfdruck.
+- **Rückweg:** Nach dem Update auf Schema 1.6.0 startet eine ältere Version
+  nicht mehr auf diesen Daten (Downgrade-Schutz, 503). Vor der Migration legt
+  die App einen Snapshot `pre-migration-1.5.0_…` an.
+
+### Added
+
+- **Tankbuch (CALC-04, CALC-25):** Stützstellen mit bekanntem Bestand —
+  Anfangsbestand, Lieferung `fill_to_full` („bis voll getankt"), Peilstände
+  `tank_levels` am Tank. Dazwischen ist der Verbrauch gerechnet
+  (`Bestand_vorher + Lieferungen − Bestand_nachher`), verteilt nach Grundlast
+  und Gradtagen; danach mit einer kalibrierten Rate geschätzt und so
+  gekennzeichnet. `stock-history` liefert `anchors`, `estimated_from`,
+  `calibration`, `warnings` und `estimated` je Tag; Monatszeilen
+  `estimated_days` und den effektiven `working_price_ct`. Preis des
+  Anfangsbestands `initial_stock_price_ct` am Tank. Oberfläche: Bestandsverlauf
+  mit bekannten Beständen, Peilstände erfassen und löschen, „Bis voll
+  getankt" im Lieferdialog, „≈" für geschätzte Monate.
+- **Energieausweis-nahe Kennzahl (CALC-07):** `certificate` in
+  `/api/benchmarks/efficiency` — Gas × 0,906 (Brennwert → Heizwert),
+  witterungsbereinigt (Heizmodell bzw. Klimanormal), bezogen auf die
+  Gebäudenutzfläche (1,2 bzw. 1,35 × Wohnfläche), Warmwasser-Zuschlag 20
+  kWh/m²·a. Neue Einstellungen `beheizter_keller`, `warmwasser_dezentral`;
+  Stromzähler lassen sich als Wärmepumpe (`heat_source`) kennzeichnen und
+  zählen dann als Heizquelle. `coverage_days`/`complete` je Quelle.
+- **CO₂ je Jahr und mit Quelle (CALC-19):** `co2_strom_years`
+  (Umweltbundesamt, Emissionsfaktor Strommix 2015–2025); neue Defaults Gas
+  182 (BAFA 201 auf Heizwert × 0,906), Pellets 36, Fernwärme 280 (BAFA),
+  Wasser-Referenz 122 L (BDEW 2024). Hinweise mit Quelle je Faktor in den
+  Einstellungen, Jahreswerte als Tabelle. `GET /api/settings/default-updates`
+  und die Karte „Neuere Standardwerte verfügbar". Hinweis, wenn nur der
+  Standard-Gasfaktor 11,5 aktiv ist.
+- **PV (CALC-17, CALC-18):** `pv-summary` mit `covered`/`months_covered`,
+  `savings_eur` (Eigenverbrauch × Arbeitspreis des Bezugs),
+  `feed_in_revenue_eur`, `pv_benefit_eur`; Dashboard-Kachel „Ersparnis
+  Eigenverbrauch". `higher_is_better` in Tarifwechsel und Rückblick.
+
+### Changed
+
+- **Heizöl/Pellets:** Fehlende Tagestemperaturen füllt das Klimanormal statt
+  einer flachen Verteilung; die Tagesform nutzt die Gradtage eines
+  Normaljahrs, damit ein Sommerintervall vor allem Grundlast trägt.
+- **PV:** Die Erzeugung zeigt vermiedenes CO₂ und keine Kostenkachel; im
+  Jahresbericht steht die Einspeisung als Erlös, das vermiedene CO₂ einmal.
+- **Effizienz** im Dashboard und im Jahresbericht mit der zweiten Zahl und
+  einem Hinweis für unvollständige Jahre.
+- **Gebäudetyp** im Klartext statt als Kürzel (Ein-/Zweifamilienhaus,
+  Reihenhaus, Mehrfamilienhaus, Wohnung): Er bestimmt jetzt die
+  Gebäudenutzfläche der neuen Kennzahl.
+- **PV-Kachel „Autarkiequote":** nennt die Zahl der Monate, solange es weniger als
+  zwölf mit Daten aller drei Zähler sind (auch im laufenden Jahr).
+
+### Fixed
+
+- CO₂-Faktoren für Heizöl und Pellets waren in den Einstellungen mit g/L und
+  g/kg beschriftet; gerechnet wurde (und wird) je kWh.
+- Zahlen, die auf die angezeigte Stelle zu 0 runden, erschienen als „-0,0"
+  (etwa −0,04 °C).
+- Die Erzeugungsansicht nannte die erzeugte Menge „Verbrauch".
+
+### Migration
+
+Schema **1.6.0**: Für `co2_gas`, `co2_strom_years`, `co2_pellets`,
+`co2_fernwaerme` und `wasser_personen_referenz` schreibt der Migrator bei
+Daten älter als 1.6.0 den bisherigen Default in `settings.json`, wenn der
+Schlüssel dort fehlt (201 / [] / 26 / 180 / 127). Gesetzte Werte bleiben.
+Neue Installationen starten mit den korrigierten Defaults. Snapshot vor der
+Migration wie gewohnt.
+
+### Tests
+
+- Neu: `TankModelTest` (16), `Co2FactorsTest` (8), `PvSemanticsTest` (5),
+  `EfficiencyCertificateTest` (6), Demo-Test für den Peilstand, Prüfungen
+  gegen negative Null; Schema-Pins auf 1.6.0.
+- 434 Testmethoden (vorher 398), Frontend-API-Shape 56/56, Browser-Render
+  81/81. 36 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- Zwei Rechnungen für dieselbe Größe widersprechen sich irgendwann — die
+  Antwort war eine richtige Rechnung, nicht zwei.
+- Eine Größe, die ein Jahr beschreibt, gehört aus einem Jahr geschätzt.
+- Ein korrigierter Default braucht einen Migrationsschritt (Lektion 36), und
+  der darf nur alte Daten betreffen.
+- Eine Einheit an der Oberfläche ist eine Behauptung, die ein Test prüfen muss.
+- Ein Kennzeichen wirkt nur, wo es gelesen wird.
+
+Ausführlich: [Release-Prozess §5](docs/technical/06-release-process.md).
+
+---
+
 ## [2.9.0] — 2026-09-25 — Verträge wie die Rechnung
 
 MINOR-Release (F1014). Kein Schema-Bump, keine Datenmigration. Neue

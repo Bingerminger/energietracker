@@ -175,9 +175,15 @@ final class TariffSwitchService
         // Referenz bleibt oben; die Angebote dahinter nach dem DAUERHAFTEN
         // Preis sortiert. Nach Jahr 1 zu sortieren würde Lockangebote
         // belohnen — genau die Verzerrung, die das Modul auflösen soll.
-        usort($candidates, function ($a, $b) {
+        // v2.10.0 (Review CALC-17) — bei der Einspeisung sind die Beträge
+        // Erlöse: mehr ist besser, die Rangfolge kehrt sich um. Bis v2.9 stand
+        // ein Angebot mit höherer Vergütung als „teurer" in Rot hinten.
+        $higherIsBetter = Utilities::isFeedIn($utility);
+        usort($candidates, function ($a, $b) use ($higherIsBetter) {
             if ($a['is_reference'] !== $b['is_reference']) return $b['is_reference'] <=> $a['is_reference'];
-            return ($a['year2_eur'] ?? PHP_FLOAT_MAX) <=> ($b['year2_eur'] ?? PHP_FLOAT_MAX);
+            $none = $higherIsBetter ? -PHP_FLOAT_MAX : PHP_FLOAT_MAX;
+            $cmp = ($a['year2_eur'] ?? $none) <=> ($b['year2_eur'] ?? $none);
+            return $higherIsBetter ? -$cmp : $cmp;
         });
 
         return [
@@ -185,6 +191,7 @@ final class TariffSwitchService
             'meter_id'  => $meterId,
             'unit'      => $unit,
             'supported' => true,
+            'higher_is_better' => $higherIsBetter,   // v2.10.0 — Einspeisung: Beträge sind Erlöse
             'note'      => $candidates ? null : $this->i18n->t('errors.tariff.noContracts'),
             'today'     => $today,
             // `current` beschreibt den heute laufenden Vertrag, die Termine
@@ -673,6 +680,8 @@ final class TariffSwitchService
             'unit'                 => $unit,
             'supported'            => false,
             'note'                 => $note,
+            // gleiche Form wie die volle Antwort (Prüfung vor dem v2.10.0-Release)
+            'higher_is_better'     => Utilities::exists($utility) && Utilities::isFeedIn($utility),
             'today'                => $today,
             'current'              => null,
             'switch_date'          => null,

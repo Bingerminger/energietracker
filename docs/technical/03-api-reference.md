@@ -12,8 +12,8 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 ```
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
-`heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`. Stand: **83 Routen**,
-v2.7.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+`heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`. Stand: **84 Routen**,
+v2.10.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -106,6 +106,7 @@ nicht wieder passieren.
 | GET | `/api/settings` | Einstellungen |
 | PATCH | `/api/settings` | Einstellungen ändern |
 | GET | `/api/countries` | Länderprofile: Voreinstellungen je Land *(v2.7.0)* |
+| GET | `/api/settings/default-updates` | Korrigierte Standardwerte, die diese Installation noch nicht nutzt (CO₂, Wasser-Referenz) *(v2.10.0)* — s. u. |
 | GET | `/api/temperatures` | Tagestemperaturen (Map) |
 | POST | `/api/temperatures` | Tagesdatum upsert |
 | POST | `/api/temperatures/import-csv` | CSV-Import |
@@ -132,7 +133,7 @@ nicht wieder passieren.
 | POST | `/api/utility/{u}/deliveries` | anlegen |
 | PATCH | `/api/utility/{u}/deliveries/{id}` | ändern |
 | DELETE | `/api/utility/{u}/deliveries/{id}` | löschen |
-| GET | `/api/utility/{u}/meters/{id}/stock-history` | Tank-Bestandskurve |
+| GET | `/api/utility/{u}/meters/{id}/stock-history` | Tank-Bestandskurve; seit v2.10.0 Tankbuch mit Stützstellen und Schätzbeginn — s. u. |
 | GET | `/api/utility/{u}/contracts` | Verträge |
 | POST | `/api/utility/{u}/contracts` | anlegen |
 | GET | `/api/utility/{u}/contracts/{id}` | einzeln |
@@ -145,7 +146,7 @@ nicht wieder passieren.
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | Rechnungsprüfung: Abschnitte je Ablesung und Brennwertwechsel, `?from=&to=` (F1012, **nur Gas**, sonst 400) |
-| GET | `/api/benchmarks/efficiency` | Effizienzklasse pro Heizquelle |
+| GET | `/api/benchmarks/efficiency` | Effizienzklasse pro Heizquelle; seit v2.10.0 mit Abdeckung und energieausweis-naher Kennzahl — s. u. |
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden |
 | GET | `/api/reminders` | Termine + Fälligkeitsstatus |
@@ -168,7 +169,7 @@ nicht wieder passieren.
 | POST | `/api/migration/v09/preview` | v0.9.0-Backup analysieren |
 | POST | `/api/migration/v09/import` | v0.9.0-Backup übernehmen |
 | GET | `/api/strom-saldo` | Strom-Saldo (Bezug − PV-Einspeisung), F1005 |
-| GET | `/api/pv-summary` | PV-Eigenverbrauch + Autarkiequote, F1005 |
+| GET | `/api/pv-summary` | PV-Eigenverbrauch + Autarkiequote, F1005; seit v2.10.0 über gemeinsam abgedeckte Monate, mit Ersparnis — s. u. |
 | GET | `/api/demo/status` | Demo-Daten verfügbar/Store leer? (F1007) |
 | POST | `/api/demo/import` | Demo-Datensatz laden (F1007) |
 | GET | `/api/auth/token` | API-Token-Status (nie der Token selbst), F1009 |
@@ -557,10 +558,47 @@ Landeswechsel Werte vorschlägt (Klasse C):
   "location_name": "Wien", "latitude": 48.2082, "longitude": 16.3738 }
 ```
 
+Das deutsche Profil trägt zusätzlich `co2_strom_years` (Jahreswerte des
+Umweltbundesamts, seit v2.10.0) und `"co2_strom_source": "uba"`.
+
 Beim **Erststart** (leeres Datenverzeichnis) wählt die App Sprache und Land
 aus `Accept-Language` und schreibt nur die Werte, die vom Default abweichen.
 Danach ändert die Kopfzeile nichts mehr. Details:
 [Länderprofile](../functional/14-laenderprofile.md).
+
+### CO₂-Faktoren je Jahr, korrigierte Standardwerte *(v2.10.0)*
+
+- `co2_strom_years`: Objekt `{"2024": 353, "2025": 344}` (Jahr → g/kWh).
+  `PATCH` nimmt es auch als Liste `[{year, g_per_kwh}]`; Jahre 1990–2100,
+  Werte 0–2000, sonst 400 `errors.settings.valueInvalid`. Für ein Jahr gilt
+  der Wert des letzten eingetragenen Jahres bis dahin, davor `co2_strom`.
+  Monatszeilen (`co2_kg`) rechnen mit dem Faktor ihres Jahres.
+- Neue Defaults mit Quelle: `co2_gas` 182 (BAFA 201 auf Heizwert × 0,906),
+  `co2_pellets` 36, `co2_fernwaerme` 280, `co2_strom_years` Umweltbundesamt
+  2015–2025, `wasser_personen_referenz` 122 (BDEW 2024).
+- **Bestandsinstallationen:** Die Migration 1.6.0 schreibt für jeden dieser
+  Schlüssel, den die Installation nie gespeichert hat, den bisherigen
+  Default fest (`co2_strom_years: []`). `GET /api/settings/default-updates`
+  liefert, was sich übernehmen ließe:
+  `[{ "key": "co2_gas", "current": 201, "recommended": 182 }, …]` —
+  nur Schlüssel, die noch genau den alten Default tragen. Übernommen wird per
+  `PATCH /api/settings`.
+- `beheizter_keller`, `warmwasser_dezentral` (bool, Default `false`) für
+  die energieausweis-nahe Kennzahl.
+
+### PV: Quoten, Ersparnis, Tarifrang *(v2.10.0)*
+
+`GET /api/pv-summary`: Monatszeilen tragen `covered` (alle drei Zähler
+haben Daten), `bezug_price_ct`, `savings_eur` (Eigenverbrauch ×
+Arbeitspreis des Bezugs) und `feed_in_revenue_eur`; in nicht abgedeckten
+Monaten sind `eigenverbrauch_kwh` und die Quoten `null`. Jahreszeilen
+tragen `months_with_data`, `months_covered`, `savings_eur`,
+`feed_in_revenue_eur`, `pv_benefit_eur`; Eigenverbrauch und Quoten
+rechnen nur über abgedeckte Monate (bis v2.9 über alle — mit „0" bei
+ungleicher Abdeckung).
+
+`tariff-switch` und `tariff-comparison` liefern `higher_is_better`: bei der
+Einspeisung `true`, die Angebote stehen dann nach **höherem** Erlös sortiert.
 
 ### `GET /api/utility/gas/meters/{id}/bill-check?from=YYYY-MM-DD&to=YYYY-MM-DD` *(F1012, v2.5.0)*
 
@@ -607,15 +645,57 @@ umschließenden Intervalls — der Versorger schätzt an denselben Stellen.
 { "success": true, "data": {
   "capacity": 3000, "capacity_unit": "L", "initial_stock": 2400,
   "days": [ { "date": "2023-01-01", "stock": 2389.4,
-              "delivery": 0, "consumption": 10.6 }, … ]
+              "delivery": 0, "consumption": 10.6, "estimated": false }, … ],
+  "anchors": [ { "date": "2023-01-01", "kind": "start", "stock": 2400 },
+               { "date": "2025-09-17", "kind": "level", "stock": 1650 } ],
+  "estimated_from": "2025-09-17",
+  "calibration": "anchors",
+  "warnings": []
 }}
 ```
 
-Der Bestand ist eine **kalibrierte Modellschätzung** (Anfangsbestand +
-Lieferungen − HGT-gewichteter Verbrauch, Rate aus den geschlossenen
-Lieferintervallen), **keine** Tankpeilung. Seit v1.4.0 erzwingt das
-Modell **keinen** Endbestand 0 mehr. Details:
-[Heizöl](../functional/05-heizoel.md).
+**Seit v2.10.0 (Tankbuch)** kommen Bestand und Verbrauch aus **einer**
+Rechnung — derselben, aus der die Monatszeilen, Kosten und die
+Effizienzkennzahl kommen. `stock` ist der Bestand am Ende des Tages.
+`anchors` sind die Stützstellen (`start` = Anfangsbestand, `full` =
+Lieferung „bis voll", `level` = Peilstand); zwischen ihnen ist der
+Verbrauch gerechnet, ab `estimated_from` geschätzt (`estimated` je Tag).
+`calibration` nennt die Herkunft der Rate: `anchors`, `deliveries`
+(Lieferkadenz), `first_delivery` oder `none`. `warnings`:
+`inconsistent_level` (`from`, `to`, `excess` — Stände passen nicht
+zusammen, dazwischen wird nichts gebucht), `stock_exhausted` (`date` —
+rechnerisch leer, nur an geschätzten Tagen geprüft), `no_calibration` (keine
+Rate: weniger als 14 Tage zwischen bekannten Ständen, keine zwei Lieferungen
+und keine einzelne Lieferung nach einem Anfangsbestand über 0),
+`flat_no_temperatures`. Bis v2.9 war die Kurve ein zweites Modell neben der
+Kostenrechnung. Details: [Heizöl](../functional/05-heizoel.md).
+
+**Monatszeilen** von Heizöl und Pellets (`…/consumption`) tragen seit
+v2.10.0 `estimated_days` (Tage nach der letzten Stützstelle) und
+`working_price_ct` (effektiver Preis je kWh aus dem gleitenden
+Durchschnittspreis des Tankinhalts; bis v2.9 `null`). `cost` rechnet zum
+Durchschnittspreis des Tankinhalts, der Anfangsbestand zu
+`initial_stock_price_ct` bzw. dem Preis der ersten Lieferung (bis v2.9: 0 €).
+
+### Tank: `tank_levels`, `initial_stock_price_ct`; Lieferung: `fill_to_full` *(v2.10.0, additiv)*
+
+- `PATCH …/meters/{id}` (nur Heizöl/Pellets) mit `tank_levels`: die
+  **ganze** Liste `[{date, level, note}]`. Streng: echtes Datum, nicht in
+  der Zukunft, ein Stand je Tag, 0 ≤ `level` ≤ Kapazität (+2 %),
+  Dezimalkomma erlaubt. Fehler → 400 `errors.meter.invalidTankLevels`,
+  `…invalidTankLevelDate`, `…tankLevelFuture`, `…duplicateTankLevel`,
+  `…tankLevelInvalid`, `…tankLevelAboveCapacity`.
+- `initial_stock_price_ct` (ct je L bzw. kg) beim Anlegen oder per
+  `PATCH`; leer/`null` entfernt ihn (dann gilt der Preis der ersten
+  Lieferung). Ungültig → 400 `errors.meter.initialPriceInvalid`.
+- `POST|PATCH …/deliveries` mit `fill_to_full: true` (auch `"true"`, `1`;
+  `"false"` ist falsch): Nach der Lieferung ist der Tank voll. Eine Menge
+  über der Kapazität (+2 %) → 400 `errors.delivery.fullAboveCapacity`.
+- Strom: `heat_source: true` am Zähler kennzeichnet eine Wärmepumpe —
+  er zählt dann in der Effizienzkennzahl.
+
+Alle Felder reisen im Backup mit (ganze Datensätze); der CSV-Export der
+Lieferungen bleibt unverändert.
 
 ### `GET /api/benchmarks/efficiency?year=YYYY`
 
@@ -631,6 +711,10 @@ Seit **v1.4.0** pro Heizquelle:
   "primary":  { "utility": "gas", "label": "Gas", "kwh": 10685.8,
                 "kwh_per_m2": 106.9, "class": "D" },
   "combined": { "kwh": 10685.8, "kwh_per_m2": 106.9, "class": "D" },
+  "certificate": { "area_m2": 120, "area_factor": 1.2, "kwh": 9681,
+                   "kwh_per_m2": 80.7, "dhw_surcharge": 0,
+                   "weather_adjusted": true, "complete": true,
+                   "class": "C", "months_36": 36 },
   "thresholds": { "A+": 30, "A": 50, "…": 0 },
   "scale": "geg", "scale_note": null,
   "note": null,
@@ -653,6 +737,18 @@ heute nur `geg` (Deutschland). Für andere Länder ist `scale` `null`, alle
 Kennzahl `kwh_per_m2` bleibt. Eine Klasse nach deutschem Recht wäre in
 Frankreich (DPE) oder Österreich (HWB) irreführend.
 
+*(v2.10.0)* Jede Quelle trägt `coverage_days` und `complete` (≥ 360 Tage);
+**ohne ganzes Jahr keine Klasse** (`class: null`, `note` erklärt es).
+Grenzen gelten einschließlich („bis 100" = C). Stromzähler mit
+`heat_source: true` erscheinen als Quelle `strom`. `certificate` ist die
+energieausweis-nahe Kennzahl: Gas × 0,906 (Brennwert → Heizwert),
+witterungsbereinigt (`weather_adjusted`), bezogen auf `area_m2` =
+Wohnfläche × `area_factor` (1,2; 1,35 bei `gebaeudetyp` efh/rh mit
+`beheizter_keller`), plus `dhw_surcharge` (20 bei
+`warmwasser_dezentral`). `months_36` zählt die Monate mit Heizdaten in den
+drei Jahren bis zum Bezugsjahr — ein Verbrauchsausweis verlangt 36.
+Formeln: [Grundlagen §7](../functional/00-overview.md#7-effizienzklasse).
+
 ### `GET /api/export/{u}/deliveries.csv` *(v1.4.2, Heizöl/Pellets)*
 
 CSV mit einer Zeile je Lieferung: `Tank/Lager-ID`, `Tank/Lager`,
@@ -664,7 +760,7 @@ Dezimalkomma. Für kumulative Arten stattdessen `readings.csv` nutzen.
 
 Pflicht: `meter_id`, `date`, `quantity` (> 0). Optional
 `unit_price_cents` **oder** `total_eur`, `supplier`, `note`,
-`is_planned`. **Seit v1.4.2** hat `total_eur` Vorrang vor
+`is_planned`, `fill_to_full` (v2.10.0). **Seit v1.4.2** hat `total_eur` Vorrang vor
 `unit_price_cents` — der Rechnungsbetrag ist die tatsächlich bezahlte
 Größe (inkl. Liefergebühr/Rabatt); der effektive Stückpreis wird daraus
 abgeleitet (`total_eur · 100 / Menge`).
@@ -788,7 +884,7 @@ Datei mitten im Schreiben, werden die schon geschriebenen zurückgesetzt;
 ### `GET|HEAD /api/health` *(N1003; v2.6.0 erweitert)*
 
 ```json
-{ "status": "ok", "version": "2.6.0", "schema_version": "1.5.0",
+{ "status": "ok", "version": "2.10.0", "schema_version": "1.6.0",
   "data_dir_writable": true, "migrations_pending": 0,
   "data_initialized_at": "2026-09-24T23:58:03+02:00",
   "php_version": "8.4.12", "timezone": "Europe/Berlin",

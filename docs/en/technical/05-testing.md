@@ -64,14 +64,14 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Both harnesses return exit code 0 on success. As of v2.9.0:
-**frontend API shape 50/50**, **browser render 76/76** (incl. module-graph
+Both harnesses return exit code 0 on success. As of v2.10.0:
+**frontend API shape 56/56**, **browser render 81/81** (incl. module-graph
 pre-check and the forecast-model check for all five models).
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.9.0: 398). Run it with `vendor/bin/phpunit --no-coverage`. It
+recounts it (v2.10.0: 434). Run it with `vendor/bin/phpunit --no-coverage`. It
 is the **mandatory gate before every commit** (see
 [Release process](06-release-process.md)).
 
@@ -90,6 +90,17 @@ price change, a contract switch and a gap, the renewed and the cancelled
 contract, cancellation deadline and reminder, missed deadlines, price increases,
 pro-rata advances and the forecast. `TotalsAndSettingsRulesTest` pins down that a
 meter out of service counts in every total, and checks the billing dates.
+
+**Energy sources (v2.10.0).** `TankModelTest` builds a climate with winter and
+summer and checks the tank log: a delivery made today does not change the
+previous years, between the initial stock and a tank reading the consumption is
+known, curve and consumption are one series, the tank mixes prices, a summer
+interval carries base load, contradictory levels are reported, missing
+temperatures come from the climate normal. `Co2FactorsTest` checks electricity
+per year, the pinning of old defaults in existing installations and the offer of
+the new ones, `PvSemanticsTest` rates, savings, tariff rank and the annual
+report, `EfficiencyCertificateTest` partial years, limits and the
+certificate-style figure. 36 counter-checks, all red.
 
 This exact sequence runs automated in the **CI pipeline**
 (`.github/workflows/ci.yml`) on every push and pull request against `main`. Four

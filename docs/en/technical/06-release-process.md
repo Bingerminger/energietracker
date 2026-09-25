@@ -499,6 +499,40 @@ accepted.
   interface but not from the API: anyone who sets them by script would
   otherwise get a different state back without notice. They are marked as
   deprecated and are only dropped with a major version.
+- **Two calculations of the same quantity will contradict each other sooner or
+  later (v2.10.0).** For heating oil and pellets, the costs came from a balance
+  that assumed the tank was empty today, the stock curve from a calibrated rate.
+  Lesson 12 had recommended pulling the two apart — which was only right as long
+  as both assumptions held. The one behind the costs never did: a delivery made
+  today raised the previous years by 20 %. The answer was not a second model but
+  a correct one: known stock levels as anchors, one calculation for consumption,
+  costs and curve.
+- **A quantity that describes a year must be estimated from a year
+  (v2.10.0).** The daily shape of the tank log needs the degree days of a normal
+  year. The first version took them from the tank's window — anyone who started
+  in May had a "year" with hardly any degree days, and the rate calibrated in
+  summer turned into 767 L a day in autumn. It came to light in a test with data
+  relative to today. Now: climate normal, otherwise a history covering all twelve
+  months, otherwise a rough monthly mean.
+- **A corrected default needs a migration step (v2.10.0).** Lesson 36 applied:
+  gas, pellet, district-heating and electricity CO₂ and the water reference have
+  new, documented defaults. Anyone who never saved them would have seen different
+  figures without doing anything. Schema 1.6.0 pins the old values in existing
+  installations — but only for data older than 1.6.0, otherwise a later step
+  would force old values onto a new installation. The settings offer the switch.
+- **A unit on the interface is a claim (v2.10.0).** The CO₂ factors for heating
+  oil and pellets were labelled g/L and g/kg, but calculated per kWh — for nine
+  releases, because no test compared the label with the calculation. The render
+  test now checks it.
+- **A flag only takes effect where it is read (v2.10.0).** `accounting_kind` has
+  existed since v1.7.0, but the annual report, the tariff switch and the
+  generation view never asked for it: the feed-in appeared as "costs", more
+  remuneration as "more expensive", the generation as an emission. The same class
+  as Lesson 22 — a property that only some consumers respect is not one.
+- **Rates need the same basis in numerator and denominator (v2.10.0).** The PV
+  rates summed annual values of meters with different coverage: a generation
+  meter from July onwards yielded "self-consumption 0". Now only months in which
+  all three meters have data count, and the card says how many there are.
 
 ---
 

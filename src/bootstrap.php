@@ -117,7 +117,10 @@ final class App
         $this->readings     = new ReadingService($this->store, $this->meters, $this->i18n);
         $this->contracts    = new ContractService($this->store, $this->meters, $this->i18n);
         $this->regression   = new RegressionService();
-        $this->deliveryConsumption = new DeliveryConsumptionService($this->store, $this->settings);
+        // v2.8.0 — Klimanormal (CALC-30): vom Temperatur-Sync geholt, von
+        // Prognose, Wetterbereinigung, Saldo und (v2.10.0) Tankbuch gelesen.
+        $this->climate      = new ClimateNormalService($this->store, $this->settings);
+        $this->deliveryConsumption = new DeliveryConsumptionService($this->store, $this->settings, $this->climate);
         // v2.5.0 — F1012: datierte Gas-Umrechnungsfaktoren (Zustandszahl × Brennwert)
         $this->factors      = new ConversionFactorService($this->settings, $this->i18n);
         $this->consumption  = new ConsumptionService(
@@ -125,9 +128,6 @@ final class App
             $this->i18n, $this->regression, $this->deliveryConsumption, $this->factors
         );
         $this->weather      = new WeatherService();
-        // v2.8.0 — Klimanormal (CALC-30): vom Temperatur-Sync geholt, von
-        // Prognose, Wetterbereinigung und Saldo gelesen.
-        $this->climate      = new ClimateNormalService($this->store, $this->settings);
         $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather, $this->climate);
         $this->forecasts    = new ForecastService(
             $this->consumption, $this->regression, $this->settings, $this->contracts, $this->i18n
@@ -141,7 +141,7 @@ final class App
         $this->csvExport    = new CsvExportService(
             $this->consumption, $this->readings, $this->meters, $this->temperatures, $this->deliveries, $this->i18n
         );
-        $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n);
+        $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n, $this->climate);
         $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n);
         $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n);
         $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries, $this->i18n);
@@ -451,6 +451,7 @@ final class App
         $r->get('/api/settings',   fn($req) => $sCtrl->index($req));
         $r->patch('/api/settings', fn($req) => $sCtrl->update($req));
         $r->get('/api/countries',  fn($req) => $sCtrl->countries($req));   // v2.7.0 — Länderprofile
+        $r->get('/api/settings/default-updates', fn($req) => $sCtrl->defaultUpdates($req));   // v2.10.0
 
         $bCtrl = new BackupController($this->backups);
         $r->get('/api/backup/export',     fn($req) => $bCtrl->export($req));
