@@ -489,6 +489,15 @@ abgenommen ist.
   Die Tests waren grün, weil ihr synthetisches Klima jedes Jahr gleich war und
   das Verhältnis damit immer 1; aufgefallen ist es erst beim Lesen des fertigen
   PDF-Berichts. Testdaten brauchen ein Jahr, das vom Normal abweicht.
+- **Jede Hochrechnung braucht den Fall „nichts hochzurechnen" (v2.8.1).**
+  Die Saldo-Hochrechnung aus v2.8.0 rief ihre Schätzung auch dann auf, wenn
+  es keine gab — ein Vertrag an einem Zähler mit weniger als zwei Ablesungen,
+  der übliche Einstieg eines neuen Nutzers. `contract-status` antwortete mit
+  500, die Verbrauchsansicht zeigte nur die Fehlermeldung. Browser- und
+  Shape-Tests laufen gegen die vollständigen Demo-Daten und sehen diesen
+  Zustand nie. Aufgefallen ist es beim Schreiben eines Tests für das nächste
+  Paket. Seitdem gehört zu jeder neuen Rechnung ein Test mit leerem und mit
+  vollständig ausgeschlossenem Datenstand (etwa alles vor einer Zäsur).
 
 ---
 

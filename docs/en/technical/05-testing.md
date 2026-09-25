@@ -71,7 +71,7 @@ pre-check and the forecast-model check for all five models).
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.8.0: 378). Run it with `vendor/bin/phpunit --no-coverage`. It
+recounts it (v2.8.1: 379). Run it with `vendor/bin/phpunit --no-coverage`. It
 is the **mandatory gate before every commit** (see
 [Release process](06-release-process.md)).
 

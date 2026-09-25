@@ -6,6 +6,36 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.8.1] — 2026-09-25 — Saldo ohne Messwerte
+
+PATCH-Release. Kein Schema-Bump, keine Datenmigration.
+
+### Fixed
+
+- **Verbrauchsansicht brach mit HTTP 500 ab**, wenn an einem Zähler ein
+  Vertrag mit Abschlägen hängt (Gas, Strom, Fernwärme), aber noch keine zwei
+  Ablesungen vorliegen — der übliche Einstieg: erst den Vertrag anlegen, dann
+  ablesen. Dasselbe, wenn alle Ablesungen vor einer frisch gesetzten Zäsur
+  liegen. Die in v2.8.0 eingeführte Saldo-Hochrechnung hatte dann nichts
+  hochzurechnen und rief eine leere Schätzung auf; `GET …/contract-status`
+  antwortete mit 500, und die Ansicht zeigte nur noch die Fehlermeldung.
+  Jetzt rechnet der Saldo bis heute mit Grundpreis und Abschlägen und ohne
+  geschätzten Verbrauch (`projection_method: "flat_average"`).
+
+### Tests
+
+- Neu: `testBalanceWithoutUsableMonthsDoesNotFail` (beide Fälle); per
+  Gegenprobe als greifend nachgewiesen. 379 Testmethoden.
+
+### Lessons Learned
+
+- Jede neue Hochrechnung braucht den Fall „nichts hochzurechnen". Die
+  Browser- und Shape-Tests laufen gegen die vollständigen Demo-Daten und
+  sehen den Einstieg eines neuen Nutzers nie; der Fehler fiel beim Schreiben
+  eines Tests für das nächste Paket auf.
+
+---
+
 ## [2.8.0] — 2026-09-25 — Rechnen wie die Abrechnung
 
 MINOR-Release (F1013). Kein Schema-Bump, keine Datenmigration. Neue Felder

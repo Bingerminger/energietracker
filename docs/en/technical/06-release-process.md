@@ -457,6 +457,15 @@ accepted.
   green because their synthetic climate was the same every year, so the ratio was
   always 1; it only came to light when reading the finished PDF report. Test data
   needs a year that deviates from the normal.
+- **Every projection needs the "nothing to project" case (v2.8.1).** The
+  balance projection introduced in v2.8.0 called its estimator even when there
+  was none — a contract on a meter with fewer than two readings, the usual
+  first step of a new user. `contract-status` answered with 500, and the
+  consumption view showed nothing but the error message. The browser and shape
+  tests run against the complete demo data and never see that state. It came
+  to light while writing a test for the next package. Since then every new
+  calculation gets a test with an empty data set and with one that is
+  excluded entirely (for example everything before a cut-off).
 
 ---
 

@@ -494,6 +494,10 @@ final class ConsumptionService
         foreach ($monthly as $m) if (!empty($m['working_price_ct'])) $fallbackWp = (float)$m['working_price_ct'];
 
         $energy = function (string $from, string $to) use ($c, $est, $fallbackWp): float {
+            // v2.8.1 — ohne verwertbare Monate (noch keine zwei Ablesungen,
+            // oder alle vor einer Zäsur) gibt es nichts hochzurechnen. In
+            // v2.8.0 rief der Saldo hier null auf und brach mit HTTP 500 ab.
+            if ($est === null) return 0.0;
             $sum = 0.0;
             foreach ($est($from, $to) as $ym => $vol) {
                 [$y, $mo] = array_map('intval', explode('-', $ym));

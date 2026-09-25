@@ -76,7 +76,7 @@ Vorprüfung und Forecast-Modell-Check für alle fünf Modelle).
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
 JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
-README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.8.0: 378).
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.8.1: 379).
 Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
 **Pflicht-Gate vor jedem Commit** (siehe
 [Release-Prozess](06-release-process.md)).
