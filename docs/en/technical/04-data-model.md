@@ -317,7 +317,8 @@ Groups (a selection of the default values):
 | `contract_remind_days_1/2/3` | 90 / 30 / 1 | reminder levels; since v2.9.0 days before the cancellation deadline, without a notice period before the contract end |
 | `min_temp_days_forecast`, `baujahr` | 20, null | **deprecated (v2.9.0)**, without effect and no longer in the interface; dropped with v3.0.0 |
 | `efficiency_class_thresholds` | A+…G | band limits kWh/m²·a |
-| `billing_cycle_anchor_*` | 01-01 | billing date — stored `MM-DD`, **displayed `DD-MM`** (v1.4.2); since v2.9.0 it must be a calendar day, otherwise 400 |
+| `billing_cycle_anchor_*` | 01-01 | billing date — stored `MM-DD`, **displayed `DD-MM`** (v1.4.2); since v2.9.0 it must be a calendar day, otherwise 400. Since v2.13.0 also `…_pv_einspeisung` (the remuneration is calculated up to the billing date) |
+| `billing_cycle_anchor_heizoel`, `…_pellets` | 01-01 | **deprecated (v2.13.0)**, without effect (no advances, no balance) and no longer in the interface; removed in v3.0.0 |
 | `delivery_baseload_share` | 0.15 | weather-independent base-load share for delivery utilities |
 | `tank_warn_pct` | — | warning threshold for the tank level |
 | `active_utilities` | all | which utilities are visible in the sidebar/dashboard |

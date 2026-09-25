@@ -8,6 +8,11 @@ import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
+import { loadDemo } from '../lib/demo.js';
+import { tankLevel } from '../lib/tank.js';
+import { info, infoNote } from '../components/info.js';
+import { isFeedIn, isGeneration, isPv, moreIsBetter } from '../lib/semantics.js';
+import { setupSteps, setupListHtml } from '../lib/onboarding.js';
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
@@ -90,7 +95,7 @@ export async function render(container) {
     <div class="grid grid-2">
       ${eff && Array.isArray(eff.per_source) && eff.per_source.length ? `
       <div class="card dash-insight">
-        <h2 class="card__title"><span aria-hidden="true">🏅</span> ${t('dashboard.efficiency.title')} ${eff.year}</h2>
+        <h2 class="card__title"><span aria-hidden="true">🏅</span> ${t('dashboard.efficiency.title')} ${eff.year}${info('efficiency')}</h2>
         ${eff.per_source.length === 1 ? `
           <div class="dash-eff">
             ${eff.scale === null ? '' : `<span class="dash-eff__class">${eff.per_source[0].class ?? '–'}</span>`}
@@ -109,12 +114,12 @@ export async function render(container) {
           <div class="kpi__sub">${t('dashboard.efficiency.perSource', { area: eff.wohnflaeche_m2 })}</div>
         `}
         ${eff.certificate ? `
-          <p class="kpi__sub dash-eff__cert" title="${escapeHtml(t('dashboard.efficiency.certificateTitle', {
-            area: fmt.num(eff.certificate.area_m2, 0),
-            months: eff.certificate.months_36,
-          }))}">${escapeHtml(t(eff.per_source.length > 1 ? 'dashboard.efficiency.certificateAll' : 'dashboard.efficiency.certificate', {
+          <p class="kpi__sub dash-eff__cert">${escapeHtml(t(eff.per_source.length > 1 ? 'dashboard.efficiency.certificateAll' : 'dashboard.efficiency.certificate', {
             value: fmt.num(eff.certificate.kwh_per_m2, 0),
             cls: eff.scale !== null && eff.certificate.class ? ' · ' + eff.certificate.class : '',
+          }))}${infoNote(t('glossary.efficiency.term'), t('dashboard.efficiency.certificateTitle', {
+            area: fmt.num(eff.certificate.area_m2, 0),
+            months: eff.certificate.months_36,
           }))}</p>` : ''}
         ${eff.per_source.some(s => s.complete === false) && eff.note ? `<p class="muted dash-eff__note">${escapeHtml(eff.note)}</p>` : ''}
         ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
@@ -122,10 +127,10 @@ export async function render(container) {
 
       ${tanks.length ? `
       <div class="card dash-insight">
-        <h2 class="card__title"><span aria-hidden="true">🛢️</span> ${t('dashboard.tanks.title')}</h2>
+        <h2 class="card__title"><span aria-hidden="true">🛢️</span> ${t('dashboard.tanks.title')}${info('tankBook')}</h2>
         ${tanks.map(tk => {
           const pct = tk.cap > 0 ? Math.max(0, Math.min(100, tk.stock / tk.cap * 100)) : 0;
-          const cls = pct <= 8 ? 'alert' : (pct <= 15 ? 'warn' : 'ok');
+          const cls = tankLevel(pct, settings?.tank_warn_pct);
           return `<div class="dash-tank">
             <div class="dash-tank__label">${tk.utility.icon} ${escapeHtml(tk.meter.name || tk.utility.label)}
               <span class="muted">${fmt.num(tk.stock,0)} / ${fmt.num(tk.cap,0)} ${tk.unit}</span></div>
@@ -144,24 +149,25 @@ export async function render(container) {
             <div class="kpi__sub">${t('dashboard.stromSaldo.bezugSub', { kwh: fmt.num(saldoYear.bezug_kwh, 0) })}</div>
           </div>
           <div class="kpi">
-            <div class="kpi__label">${t('dashboard.stromSaldo.pvRevenue')}</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.pvRevenue')}${info('feedIn')}</div>
             <div class="kpi__value">${fmt.eur(saldoYear.einspeisung_revenue)}</div>
             <div class="kpi__sub">${t('dashboard.stromSaldo.pvRevenueSub', { kwh: fmt.num(saldoYear.einspeisung_kwh, 0) })}</div>
           </div>
           <div class="kpi kpi--accent">
             <div class="kpi__label">${t('dashboard.stromSaldo.netto')}</div>
-            <div class="kpi__value">${fmt.eur(saldoYear.saldo_netto)}</div>
+            <!-- v2.13.0 (Review UI-18) — ohne Vorzeichen, die Zeile darunter sagt die Richtung -->
+            <div class="kpi__value ${saldoYear.saldo_netto < 0 ? 'success-text' : ''}">${fmt.eur(Math.abs(saldoYear.saldo_netto || 0))}</div>
             <div class="kpi__sub">${saldoYear.saldo_netto < 0 ? t('dashboard.stromSaldo.nettoEarn') : t('dashboard.stromSaldo.nettoCost')}</div>
           </div>
           ${pvYear && pvYear.savings_eur != null ? `
           <div class="kpi">
-            <div class="kpi__label">${t('dashboard.stromSaldo.savings')}</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.savings')}${info('selfConsumption')}</div>
             <div class="kpi__value positive">${fmt.eur(pvYear.savings_eur)}</div>
             <div class="kpi__sub">${t('dashboard.stromSaldo.savingsSub', { kwh: fmt.num(pvYear.eigenverbrauch_kwh, 0) })}</div>
           </div>` : ''}
           ${pvYear && pvYear.autarkiequote != null ? `
           <div class="kpi">
-            <div class="kpi__label">${t('dashboard.stromSaldo.autarky')}</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.autarky')}${info('autarky')}</div>
             <div class="kpi__value">${(pvYear.autarkiequote * 100).toFixed(0)} %</div>
             <div class="kpi__sub">${pvYear.months_covered < 12
               // weniger als ein ganzes Jahr (laufendes Jahr, später Beginn oder
@@ -171,7 +177,7 @@ export async function render(container) {
           </div>` : ''}
           ${pvYear && pvYear.eigenverbrauchsquote != null ? `
           <div class="kpi">
-            <div class="kpi__label">${t('dashboard.stromSaldo.selfUse')}</div>
+            <div class="kpi__label">${t('dashboard.stromSaldo.selfUse')}${info('selfConsumptionRate')}</div>
             <div class="kpi__value">${(pvYear.eigenverbrauchsquote * 100).toFixed(0)} %</div>
             <div class="kpi__sub">${t('dashboard.stromSaldo.selfUseSub', { kwh: fmt.num(pvYear.eigenverbrauch_kwh, 0) })}</div>
           </div>` : ''}
@@ -203,12 +209,19 @@ export async function render(container) {
     </div>
 
     ${!hasAnyData ? `
-    <div class="card dash-empty">
-      <div class="dash-empty__icon" aria-hidden="true">📋</div>
-      <h2 class="card__title">${t('dashboard.empty.title')}</h2>
-      <p class="muted dash-empty__text">${t('dashboard.empty.text')}</p>
-      <a class="btn btn--primary" href="#/zaehlerstaende">${t('dashboard.empty.cta')}</a>
-    </div>
+    <!-- v2.13.0 (Review UI-32, DOC-31) — Einstieg statt Leerseite: was die App
+         tut, die ersten Schritte mit Häkchen aus den Daten, und Beispieldaten
+         zum Ausprobieren (vorher sichert der Server den jetzigen Stand) -->
+    <section class="card dash-welcome" aria-labelledby="dash-welcome-title">
+      <h2 class="dash-welcome__title" id="dash-welcome-title">${escapeHtml(t('dashboard.welcome.title'))}</h2>
+      <p class="dash-welcome__text">${escapeHtml(t('dashboard.welcome.text'))}</p>
+      <div class="dash-welcome__actions">
+        <a class="btn btn--primary" href="#/zaehlerstaende">${escapeHtml(t('dashboard.empty.cta'))}</a>
+        <button type="button" class="btn btn--ghost" data-action="demo">${escapeHtml(t('dashboard.welcome.demo'))}</button>
+      </div>
+      <h3 class="dash-welcome__steps">${escapeHtml(t('help.setup.title'))}</h3>
+      <div data-role="setup"></div>
+    </section>
     ` : `
     ${todoHtml(todo)}
     ${insightsHtml}
@@ -223,6 +236,17 @@ export async function render(container) {
     </div>
     `}
   `;
+
+  // v2.13.0 — Einstieg: Beispieldaten und die ersten Schritte
+  if (!hasAnyData) {
+    container.querySelector('[data-action="demo"]')?.addEventListener('click', async () => {
+      try { await loadDemo(); } catch (e) { toastErr(e.message); }
+    });
+    setupSteps().then(steps => {
+      const box = container.querySelector('[data-role="setup"]');
+      if (box?.isConnected) box.innerHTML = setupListHtml(steps);
+    }).catch(() => { /* ohne Liste bleibt der Einstieg bedienbar */ });
+  }
 
   // Render combined chart
   renderCombinedChart(datasets, chartSpan);
@@ -320,6 +344,12 @@ function renderUtilityCard({ utility, consumption }) {
   // v2.12.0 (Review UI-21) — die Kachel „Aktive Zähler 1 · 1 insgesamt" stand
   // achtmal auf der Übersicht; die Zähler sind einen Klick entfernt
   const noContract = totalCost === 0;                     // D — kein Vertrag/keine Kosten
+  // v2.13.0 (Review FE-06) — Einspeisung ist ein Erlös, Erzeugung hat weder
+  // Kosten noch Vertrag; bei beiden ist mehr besser (Trendfarbe)
+  const feedIn = isFeedIn(utility);
+  const generation = isGeneration(utility);
+  const better = moreIsBetter(utility);
+  const valueLabel = t(feedIn ? 'dashboard.kpi.feedIn' : generation ? 'dashboard.kpi.generation' : 'dashboard.kpi.consumption');
 
   return `
     <div class="card" data-utility="${utility.key}">
@@ -332,15 +362,15 @@ function renderUtilityCard({ utility, consumption }) {
       </div>
       <div class="grid grid-2 dash-util-kpis">
         <div class="kpi">
-          <div class="kpi__label">${t('dashboard.kpi.consumption')}</div>
-          <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(totalCons, prevCons, hasPrev)}</div>
+          <div class="kpi__label">${valueLabel}</div>
+          <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(totalCons, prevCons, hasPrev, better)}</div>
           <div class="kpi__sub">${utility.consumption_unit}</div>
         </div>
-        <div class="kpi">
-          <div class="kpi__label">${t('dashboard.kpi.cost')}</div>
-          <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(totalCost, prevCost, hasPrev)}`}</div>
-          <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : t('dashboard.kpi.costSub')}</div>
-        </div>
+        ${generation ? '' : `<div class="kpi">
+          <div class="kpi__label">${t(feedIn ? 'dashboard.kpi.revenue' : 'dashboard.kpi.cost')}</div>
+          <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(totalCost, prevCost, hasPrev, better)}`}</div>
+          <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
+        </div>`}
       </div>
       ${groupBreakdown(consumption, sumKey, utility)}
     </div>
@@ -393,12 +423,13 @@ function groupBreakdown(consumption, sumKey, utility) {
 // B — kleiner Trend-Indikator: aktuelle 12 Monate vs. vorherige 12 Monate.
 // Mehr Verbrauch/Kosten = ungünstig (danger ▲), weniger = gut (success ▼).
 // Liefert leeren String, wenn kein belastbarer Vergleich möglich ist.
-function trendBadge(curr, prev, hasPrev) {
+function trendBadge(curr, prev, hasPrev, moreIsGood = false) {
   if (!hasPrev || prev == null || prev <= 0) return '';
   const pct = (curr - prev) / prev * 100;
   if (!isFinite(pct) || Math.abs(pct) < 0.5) return '';
   const up = pct > 0;
-  const tone = up ? 'danger' : 'success';
+  // v2.13.0 (Review FE-06) — bei Einspeisung und Erzeugung ist mehr gut
+  const tone = up === moreIsGood ? 'success' : 'danger';
   const arrow = up ? '▲' : '▼';
   const title = escapeHtml(t('dashboard.trend.vsPrev'));
   const pctStr = fmt.num(Math.abs(pct), 0);
@@ -416,6 +447,10 @@ function renderCombinedChart(datasets, span = 12) {
   // Find the union of months across all utilities (last `span`, v2.9.0:
   // Einstellung dashboard_months — bis v2.8 fest 12 und die Einstellung
   // ohne Wirkung; der Vorjahresvergleich der Kacheln bleibt bei 12 Monaten)
+  // v2.13.0 (Review FE-06) — nur Verbrauch: Einspeisung und Erzeugung stehen
+  // in der Strom-Saldo-Karte; auf derselben kWh-Achse lasen sie sich als
+  // Verbrauch
+  datasets = datasets.filter(d => !isPv(d.utility));
   const allMonths = new Set();
   datasets.forEach(d => (d.consumption?.monthly_total || []).slice(-span).forEach(m => allMonths.add(m.ym)));
   const months = Array.from(allMonths).sort().slice(-span);

@@ -84,6 +84,22 @@ final class TotalsAndSettingsRulesTest extends ServiceTestCase
         self::assertSame('2027-01-01', $anchor);
     }
 
+    /**
+     * v2.13.0 (Review FE-10) — Die Einspeisevergütung rechnet ihren Saldo bis
+     * zum nächsten Stichtag; der Schlüssel fehlte in den Defaults und war
+     * damit weder sichtbar noch pflegbar. Er folgt derselben Prüfung.
+     */
+    public function testFeedInHasItsOwnBillingAnchor(): void
+    {
+        self::assertSame('01-01', $this->settings->get('billing_cycle_anchor_pv_einspeisung'));
+        self::assertArrayHasKey('billing_cycle_anchor_pv_einspeisung', $this->settings->all());
+        $this->settings->set(['billing_cycle_anchor_pv_einspeisung' => '07-01']);
+        $anchor = (new \ReflectionMethod($this->consumption, 'nextBillingAnchor'))->invoke($this->consumption, 'pv_einspeisung', '2026-09-25');
+        self::assertSame('2027-07-01', $anchor);
+        $this->expectException(\InvalidArgumentException::class);
+        $this->settings->set(['billing_cycle_anchor_pv_einspeisung' => '02-30']);
+    }
+
     /** v2.9.0 (CALC-24) — Wärmezähler haben eine eigene Eichfrist (fünf Jahre). */
     public function testHeatMeterCalibrationIsAReminderCategory(): void
     {

@@ -453,8 +453,10 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
   color: var(--text-3);   /* v2.11.0: --text-disabled lag unter 3:1 */
   margin-top: 4px;
 }
-.balance-col__value.positive { color: var(--danger); }
-.balance-col__value.negative { color: var(--success); }
+/* v2.13.0 (Review UI-18) — Farbe nach Bedeutung; bis v2.12 war die rote
+   Klasse „positive" (positiver Saldo = Nachzahlung) */
+.balance-col__value--credit { color: var(--success); }
+.balance-col__value--due { color: var(--danger); }
 
 /* Verdict box (rechte Spalte) */
 .balance-verdict {
@@ -1004,13 +1006,14 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   white-space: nowrap;
 }
 
-/* v2.0.0 (UX) — Leerzustand des Dashboards für neue Nutzer ohne Ablesungen */
-.dash-empty {
-  text-align: center;
-  padding: var(--sp-6, 32px) var(--sp-4, 16px);
-}
-.dash-empty__icon { font-size: 2.5rem; line-height: 1; margin-bottom: var(--sp-3); }
-.dash-empty__text { max-width: 46ch; margin: var(--sp-2) auto var(--sp-4); }
+/* v2.13.0 (Review UI-32, UI-27) — Einstieg auf der leeren Übersicht: links
+   ausgerichtet wie der Rest der Seite (bis v2.12 stand die Überschrift links,
+   der Rest zentriert), mit den ersten Schritten */
+.dash-welcome { padding: var(--sp-5); }
+.dash-welcome__title { font-size: var(--fs-xl); font-weight: 700; margin: 0 0 var(--sp-2); }
+.dash-welcome__text { max-width: 62ch; margin: 0 0 var(--sp-4); color: var(--text-2); }
+.dash-welcome__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-5); }
+.dash-welcome__steps { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); margin: 0 0 var(--sp-2); }
 
 /* ─────────────────────────────────────────────────────────────────────
    v2.3.0 — Tarifvergleich: Wechselentscheidung
@@ -1247,3 +1250,87 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 
 /* v2.12.0 — Feldfehler in Dialog-Formularen dicht am Feld */
 .form-grid > .field-error { margin-top: calc(-1 * var(--sp-2)); }
+
+/* ─────────────────────────────────────────────────────────────────────
+   v2.13.0 — Hilfe (Review DOC-10, UI-17, UI-32)
+   ───────────────────────────────────────────────────────────────────── */
+/* ⓘ neben einem Label: öffnet die Erklärung aus dem Glossar */
+.info-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; margin-left: 4px; padding: 0; vertical-align: middle;
+  border: none; border-radius: 50%; background: transparent;
+  color: var(--text-2); font-size: 14px; line-height: 1; cursor: pointer;
+  text-transform: none; letter-spacing: normal;
+}
+.info-btn:hover, .info-btn[aria-expanded="true"] { color: var(--accent); background: var(--bg-2); }
+.info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* Tippziel 32 px, ohne die Zeile zu verschieben */
+@media (pointer: coarse) { .info-btn { width: 32px; height: 32px; margin: -6px -6px -6px -2px; } }
+.info-pop {
+  position: absolute; z-index: 1200; max-width: 340px;
+  padding: 12px 38px 12px 14px;
+  background: var(--bg-1); color: var(--text-1);
+  border: 1px solid var(--border-2); border-radius: var(--r-md);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .18);
+  font-size: var(--fs-sm); line-height: 1.45; text-align: left;
+}
+.info-pop__term { display: block; margin-bottom: 4px; }
+.info-pop__text { margin: 0 0 6px; }
+.info-pop__more { font-size: var(--fs-xs); }
+.info-pop__close {
+  position: absolute; top: 4px; right: 4px; width: 30px; height: 30px;
+  border: none; background: transparent; color: var(--text-2); font-size: 18px; cursor: pointer;
+}
+/* iPhone: als Blatt über der Tab-Leiste statt als schwebende Box */
+@media (max-width: 600px) {
+  .info-pop {
+    position: fixed; left: 8px !important; right: 8px; top: auto !important; max-width: none;
+    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 8px);
+  }
+}
+
+/* Erste Schritte (Übersicht und Hilfe) */
+.setup-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.setup-list__item { display: flex; gap: var(--sp-3); align-items: flex-start; }
+.setup-list__mark {
+  flex: none; width: 26px; height: 26px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--border-2); color: var(--text-2); font-size: var(--fs-sm); font-weight: 600;
+}
+.setup-list__item--done .setup-list__mark { background: var(--success); border-color: var(--success); color: var(--bg-1); }
+.setup-list__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setup-list__item--done .setup-list__body a { color: var(--text-2); text-decoration: line-through; }
+
+/* Hilfe-Ansicht */
+.help-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: var(--sp-4); margin-bottom: var(--sp-4); }
+.help-grid > .card { margin-bottom: 0; }
+.help-links { margin: 0 0 var(--sp-2); padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+.help-subtitle { margin-top: var(--sp-4); }
+.help-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-2) 0 0; }
+.help-glossary .card__head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.help-glossary__search { max-width: 260px; }
+.glossary-list { margin: var(--sp-3) 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--sp-3) var(--sp-5); }
+.glossary-list__item { scroll-margin-top: 80px; padding: var(--sp-2); border-radius: var(--r-sm); }
+.glossary-list__item[hidden] { display: none; }
+.glossary-list__item dt { font-weight: 600; margin-bottom: 2px; }
+.glossary-list__item dd { margin: 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
+.glossary-list__item--focus { background: var(--c-blue-soft); }
+
+/* v2.13.0 — Quellenangabe unter Diagrammen */
+.attribution { margin: var(--sp-2) 0 0; }
+
+/* v2.13.0 — Schalter mit ⓘ daneben */
+.toggle-wrap { display: inline-flex; align-items: center; }
+
+/* v2.13.0 (Review UI-17) — Einzelposten der Sonderzahlungen zum Aufklappen
+   (vorher nur im Tooltip, auf dem iPhone unsichtbar) */
+.special-details > summary { cursor: pointer; list-style: none; }
+.special-details > summary::-webkit-details-marker { display: none; }
+.special-details > summary::after { content: ' ▾'; font-size: 10px; color: var(--text-2); }
+.special-details[open] > summary::after { content: ' ▴'; }
+.special-details__list { margin: 4px 0 0; padding: 0; list-style: none; text-align: left; min-width: 14rem; font-size: 11px; color: var(--text-2); white-space: normal; }
+.special-details__list li + li { margin-top: 4px; }
+.contracts-table .tariff-part { white-space: nowrap; }
+
+/* v2.13.0 — Leerzustand der Verbrauchsansicht */
+.empty-card p { max-width: 62ch; color: var(--text-2); margin: 0 0 var(--sp-3); }

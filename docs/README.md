@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Vollständige Dokumentation zu Energietracker **v2.12.0**.
+> Vollständige Dokumentation zu Energietracker **v2.13.0**.
 > Getrennt in einen **technischen** und einen **fachlichen** Teil, plus
 > eine **UI-Referenz** mit echten Screenshots aller Ansichten.
 >

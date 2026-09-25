@@ -6,6 +6,139 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.13.0] — 2026-09-25 — Erklärt
+
+MINOR-Release, erster Teil von Paket E des Gesamtreviews („Versteht sich von
+selbst“): die App erklärt sich selbst. **Kein Schema-Wechsel** (bleibt 1.6.0).
+Die API wächst additiv — drei Felder an den Verbrauchsarten, eins an der
+Ablese-Übersicht, ein Einstellungsschlüssel —, nichts entfällt.
+
+### ⚠️ Für bestehende Installationen
+
+- **Der Saldo steht in Kundensicht.** Karten und Kacheln sagen „Guthaben“
+  (grün) oder „Nachzahlung“ (rot) ohne Vorzeichen; in Tabellen heißt
+  **+ Guthaben** und **− Nachzahlung**, mit einer Legende darunter. Bis v2.12
+  stand dort die Buchhaltungssicht (Kosten − Abschläge, Minus = Guthaben).
+  API und CSV-Export behalten ihr Vorzeichen — Integrationen sind nicht
+  betroffen.
+- **Abrechnungsstichtage:** Heizöl und Pellets entfallen in der Oberfläche —
+  sie haben keine Abschläge und damit keinen Stichtag; die Felder wirkten
+  nicht. Neu ist der Stichtag der **PV-Einspeisung**. Die Schlüssel bleiben in
+  der API (siehe Deprecated).
+- **PV-Einspeisung:** Die Vertragstabelle zeigt „Vergütung“ und „Erhalten“
+  statt „Verbraucht“ und „Bezahlt“, die Monatstabelle „Erlös“ statt „Kosten“.
+  Vermiedenes CO₂ steht ohne Minus da.
+
+### Added
+
+- **Hilfe (`#/help`)** in der Fußzeile der Seitenleiste, am iPhone unter
+  „Mehr“: Erste Schritte mit Häkchen aus den Daten, Dokumentation in der
+  passenden Sprache (Deutsch oder Englisch, mit Hinweis), Fragen und Fehler
+  (GitHub, Diagnose), Deine Daten, und ein **Glossar mit 33 Begriffen** in
+  allen sieben Sprachen, durchsuchbar, mit Sprung `#/help?term=…`.
+- **ⓘ-Erklärungen zum Antippen (Review DOC-10, UI-17):** an Heizgradtagen,
+  R², Modellen, gleitenden Mitteln, Saldo, Zäsur, Gewinnschwelle,
+  Kündigungsstichtag, Wechseltermin, Sonderzahlungen, Effizienz, Autarkie,
+  vermiedenem CO₂ und weiteren Kennzahlen. Am Mac als Blase, am iPhone als
+  Blatt über der Tab-Leiste; Escape oder ein Tipp daneben schließt. Dieselben
+  Texte wie im Glossar. Erklärungen je Zeile — warum ein Stand „PRÜFEN“ oder
+  „UNPLAUSIBEL“ trägt, was „VOLL“ bei einer Lieferung heißt, worauf sich die
+  energieausweis-nahe Kennzahl bezieht — öffnet das ⓘ daneben.
+- **Willkommen (Review UI-32, DOC-31):** Ohne Daten zeigt die Übersicht, was
+  die App tut, die ersten Schritte und „Mit Beispieldaten ausprobieren“
+  (vorher sichert der Server den jetzigen Stand).
+- **Leerzustände (Review UI-27):** Eine Verbrauchsart ohne Monatswerte sagt,
+  warum (kein oder erst ein Stand), und führt zur Erfassung dieses Zählers.
+  Empfehlungen sagen bei zu wenig Daten genau das statt „alles im grünen
+  Bereich“.
+- **Einstellungen:** Hinweise an 18 weiteren Feldern; **Breite des
+  Prognosebands** (`confidence_band_sigma`, wirkt seit v2.8.0, bisher nur per
+  API) unter Experte; Prognosemodell und Split-Modus mit Namen statt
+  Schlüsseln; Stichtag **PV-Einspeisung** (`billing_cycle_anchor_pv_einspeisung`,
+  Default `01-01`; bis v2.12 galt fest der Jahresbeginn); die
+  Home-Assistant-Anleitung als Link in der passenden Sprache statt als
+  Dateipfad.
+- **Quellenangabe der Wetterdaten (Review DOC-22):** „Wetterdaten von
+  Open-Meteo.com (CC BY 4.0)“ unter den Temperaturen und im PDF-Jahresbericht,
+  sobald er Temperaturen zeigt — die Lizenz verlangt es.
+- **API (additiv):**
+  - `GET /api/utilities` trägt je Verbrauchsart `has_contracts`,
+    `has_advance_payment_contracts` und `accounting_kind` (`consumption`,
+    `feed_in`, `generation`) — die Oberfläche fragt die Eigenschaften ab,
+    statt Listen zu pflegen (Review FE-14).
+  - `GET /api/readings-overview` trägt je Zähler `reading_count`.
+
+### Changed
+
+- **PV durchgehend als Einspeisung und Erzeugung (Review FE-06, UI-18,
+  UI-19):**
+  - Übersicht: „Einspeisung“ und „Vergütung“, die Erzeugung ohne
+    Kostenkachel; mehr ist bei beiden gut (grüner Pfeil). Der gemeinsame
+    Verlauf zeigt nur noch Bezug — PV-Kilowattstunden standen dort als
+    Verbrauch.
+  - Verbrauchsart: Untertitel und Diagrammtitel je Art; Einspeisung mit Erlös,
+    offenem Anspruch in Grün und Legende „+ Guthaben, − Rückforderung“;
+    beide PV-Arten ohne Temperatur und Heizgradtage.
+  - Analyse: Anomalien und Vorjahresvergleich werten weniger Einspeisung als
+    Rückgang, nicht als Ersparnis.
+- **Erklärungen sichtbar statt im Tooltip (Review UI-27):** Sonderzahlungen
+  zum Aufklappen, Spaltenerklärungen des Tarifvergleichs unter den Tabellen,
+  Grundpreis ausgeschrieben („Grundpreis 12,95 €/Monat“ statt „13 € GP“),
+  „HGT“ in der Sprache der Oberfläche (HDD, DJU, GG, GD).
+- **Prognose:** Modellname übersetzt, Saldo-Spalte in Kundensicht mit ⓘ,
+  Modell und Horizont aus den Einstellungen vorbelegt.
+- **Verträge & Abschläge:** ohne Heizöl und Pellets — der Link „Vertrag
+  anlegen“ führte auf eine Seite ohne Verträge.
+- Am iPhone ist auch die Fußzeile der Seitenleiste (Hilfe, GitHub) mit 44 px
+  antippbar.
+
+### Deprecated
+
+- `billing_cycle_anchor_heizoel` und `billing_cycle_anchor_pellets` — ohne
+  Wirkung, werden weiter geliefert und angenommen, entfallen mit v3.0.0.
+
+### Fixed
+
+- **PV-Einspeisung:** Ein offener Vergütungsanspruch stand rot wie eine
+  Nachzahlung; die Erlöskachel war nicht eingefärbt.
+- **Tankwarnung:** Übersicht und Verbrauchsart färbten den Füllstand mit
+  festen 8 und 15 %; die Einstellung `tank_warn_pct` wirkte nur auf die
+  Empfehlungen. Jetzt gilt sie überall (Warnung ab dem Wert, Alarm ab der
+  Hälfte).
+
+### Migration
+
+Keine. Schema bleibt 1.6.0.
+
+### Tests
+
+- `LocaleCatalogTest` (+1): zusammengesetzte Schlüssel — Glossar-Einträge und
+  Beschriftungen der Einstellungsfelder in allen Sprachen, keine verwaisten
+  Glossar-Einträge.
+- `PdfReportServiceTest` (+1): Quellenangabe nur, wenn Temperaturen im Bericht
+  stehen. `TotalsAndSettingsRulesTest` (+1): Stichtag PV-Einspeisung.
+  `ReadingOverviewUnitsTest` (+1): `reading_count`.
+- Browser-Render 156/156 (+32): Hilfe mit Glossar, Suche und Sprung; ⓘ öffnen
+  und mit Escape schließen; Willkommen nur ohne Daten; PV-Semantik in
+  Übersicht, Monats- und Vertragstabelle; Saldo in Kundensicht; Quellenangabe;
+  Einstellungen (Modellnamen, Prognoseband, Stichtage, HA-Link).
+- Frontend-API-Shape 61/61: `has_contracts`, `has_advance_payment_contracts`,
+  `accounting_kind`, `reading_count`.
+- 448 Testmethoden. 26 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Ein lokaler Name überschattet einen Import:** `const info = …` in der
+  Prognose machte den neuen ⓘ-Helfer `info()` unerreichbar; die Tabelle blieb
+  leer, ohne dass die Seite abstürzte. Ein bestehender Render-Test fiel.
+- **Ein Tooltip ist keine Erklärung** — auf dem iPhone gibt es ihn nicht.
+- **Ein Vorzeichen ist eine Perspektive:** Rechnung und API behalten die
+  Buchhaltungssicht, die Oberfläche spricht in Worten.
+- **Zusammengesetzte Schlüssel sieht keine Literalprüfung** — sie brauchen
+  eine eigene.
+
+---
+
 ## [2.12.0] — 2026-09-25 — Aufgeräumt
 
 MINOR-Release, zweiter Teil von Paket D des Gesamtreviews („Mobil und

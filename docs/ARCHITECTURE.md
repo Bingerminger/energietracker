@@ -369,6 +369,9 @@ Boni werden nicht fortgeschrieben. Fehlt jeder Vertrag, greift
 | `billing_cycle_anchor_gas` | string | `01-01` | Abrechnungsstichtag Gas (`MM-TT`, seit v2.9.0 als echter Kalendertag geprüft, sonst 400); Saldo offener und weiterlaufender Verträge wird bis dorthin projiziert (F-03) |
 | `billing_cycle_anchor_strom` | string | `01-01` | Abrechnungsstichtag Strom (F-03) |
 | `billing_cycle_anchor_wasser` | string | `01-01` | Abrechnungsstichtag Wasser (F-03) |
+| `billing_cycle_anchor_fernwaerme` | string | `01-01` | Abrechnungsstichtag Fernwärme (v1.3.0) |
+| `billing_cycle_anchor_pv_einspeisung` | string | `01-01` | Abrechnungsstichtag der Einspeisevergütung (v2.13.0; bis dahin galt der Jahresbeginn fest) |
+| `billing_cycle_anchor_heizoel`, `…_pellets` | string | `01-01` | **Veraltet (v2.13.0), ohne Wirkung** — keine Abschläge, kein Saldo; entfallen mit v3.0.0 |
 | `contract_remind_days_1` | int | 90 | Erinnerung Stufe 1 — Tage vor dem Kündigungsstichtag, ohne Frist vor dem Vertragsende (F-05; Stichtag seit v2.9.0) |
 | `contract_remind_days_2` | int | 30 | Erinnerung Stufe 2 (F-05) |
 | `contract_remind_days_3` | int | 1 | Erinnerung Stufe 3 — dringend (F-05) |

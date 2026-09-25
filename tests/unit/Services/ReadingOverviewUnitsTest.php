@@ -47,6 +47,28 @@ final class ReadingOverviewUnitsTest extends ServiceTestCase
         self::assertSame('m³', $byUtility['wasser']['unit']);
     }
 
+    /**
+     * v2.13.0 — Die Einrichtungs-Checkliste und der Leerzustand einer
+     * Verbrauchsart fragen, ob es schon zwei Stände gibt (erst dann entsteht
+     * ein Verbrauch). Gezählt werden echte Stände, keine Zukunftswerte.
+     */
+    public function testOverviewCountsTheRealReadingsPerMeter(): void
+    {
+        $meterId = $this->setMeterDevices('strom', [[
+            'id' => 'd1', 'serial' => null, 'installed_on' => '2024-01-01',
+            'initial_counter' => 0.0, 'removed_on' => null,
+            'final_counter' => null, 'reason' => null,
+        ]]);
+        $row = fn() => array_values(array_filter($this->readings->overview([]), fn($r) => $r['meter_id'] === $meterId))[0];
+        self::assertSame(0, $row()['reading_count']);
+        $this->setReadings('strom', $meterId, [
+            ['date' => '2024-01-01', 'counter' => 100.0, 'device_id' => 'd1'],
+            ['date' => '2024-02-01', 'counter' => 250.0, 'device_id' => 'd1'],
+            ['date' => '2099-01-01', 'counter' => 900.0, 'device_id' => 'd1', 'is_future' => true],
+        ]);
+        self::assertSame(2, $row()['reading_count']);
+    }
+
     /** Die Einheiten kommen aus der SSOT, nicht aus einer zweiten Liste. */
     public function testOverviewUnitsMatchTheUtilitiesSsot(): void
     {

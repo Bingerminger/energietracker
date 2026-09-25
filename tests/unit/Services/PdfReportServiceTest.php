@@ -177,6 +177,35 @@ final class PdfReportServiceTest extends ServiceTestCase
         }
     }
 
+    /**
+     * v2.13.0 (Review DOC-22) — Die Wetterdaten stehen unter CC BY 4.0; wo
+     * Temperaturen im Bericht erscheinen, muss die Quelle dabeistehen. Ohne
+     * Temperaturen gibt es nichts zuzuordnen.
+     */
+    public function testWeatherSourceIsNamedWhereTemperaturesAppear(): void
+    {
+        $meterId = $this->setMeterDevices('gas', [[
+            'id' => 'd1', 'serial' => null, 'installed_on' => '2023-12-01',
+            'initial_counter' => 0.0, 'removed_on' => null,
+            'final_counter' => null, 'reason' => null,
+        ]]);
+        $this->seedYear('gas', $meterId, 'd1');
+        $this->settings->set(['active_utilities' => ['gas']]);
+
+        $without = implode(' ', $this->pdfTexts($this->service()->build(2024)));
+        self::assertStringNotContainsString('Open-Meteo', $without, 'Ohne Temperaturen keine Quellenangabe');
+
+        $temps = [];
+        for ($d = new \DateTimeImmutable('2024-01-01'); $d < new \DateTimeImmutable('2025-01-01'); $d = $d->modify('+1 day')) {
+            $temps[$d->format('Y-m-d')] = ['avg' => 5.0, 'min' => 1.0, 'max' => 9.0, 'source' => 'archive'];
+        }
+        $this->store->write('temperatures.json', $temps);
+        $with = implode(' ', $this->pdfTexts($this->service()->build(2024)));
+        // Klammern stehen im PDF-Textoperator maskiert: \( … \)
+        self::assertStringContainsString('Open-Meteo.com', $with, 'Quelle fehlt');
+        self::assertStringContainsString('CC BY 4.0', $with, 'Lizenz fehlt');
+    }
+
     /** Abgeschaltete Verbrauchsarten gehören nicht in den Bericht. */
     public function testInactiveUtilitiesAreLeftOut(): void
     {

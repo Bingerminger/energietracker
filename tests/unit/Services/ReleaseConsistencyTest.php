@@ -80,7 +80,8 @@ final class ReleaseConsistencyTest extends TestCase
     /** Die Versionsstempel der Einstiegsdokumente folgen dem Release. */
     public function testReadmeAndInstallCarryTheCurrentVersion(): void
     {
-        foreach (['README.md', 'README.de.md', 'INSTALL.md', 'INSTALL.de.md'] as $file) {
+        // v2.13.0 (Review DOC-29) — auch der Kopf des Doku-Kompendiums
+        foreach (['README.md', 'README.de.md', 'INSTALL.md', 'INSTALL.de.md', 'docs/README.md'] as $file) {
             $txt = (string)file_get_contents(self::root() . '/' . $file);
             self::assertStringContainsString(
                 self::version(), $txt,
@@ -178,8 +179,14 @@ final class ReleaseConsistencyTest extends TestCase
     public function testFrontendHasNoExternalResourceReferences(): void
     {
         $files = ['index.php', 'sw.js', 'manifest.webmanifest'];
-        foreach (glob(self::root() . '/public/js/**/*.js') ?: [] as $f) {
-            $files[] = substr($f, strlen(self::root()) + 1);
+        // v2.13.0 (Review DOC-29) — rekursiv: PHP-glob kennt kein `**`, das
+        // Muster traf nur die Unterordner, nicht app.js, api.js, router.js
+        $it = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(self::root() . '/public/js', \FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($it as $f) {
+            if (!$f->isFile() || $f->getExtension() !== 'js') continue;
+            $files[] = substr($f->getPathname(), strlen(self::root()) + 1);
         }
         foreach (glob(self::root() . '/public/css/*.css') ?: [] as $f) {
             $files[] = substr($f, strlen(self::root()) + 1);
@@ -197,6 +204,13 @@ final class ReleaseConsistencyTest extends TestCase
                 // Der Projekt-Link in der Fußzeile ist ein Verweis, keine
                 // geladene Ressource.
                 if (str_contains($line, 'github.com/Bingerminger')) continue;
+                // v2.13.0 — ein Link (<a href>) lädt nichts; geprüft bleiben
+                // src, url() und <link href> (etwa die Quellenangabe Open-Meteo)
+                $withoutLinks = preg_replace('#<a\s[^>]*href\s*=\s*["\']https?://[^"\']*["\']#i', '', $line);
+                if (!preg_match('#(?:src|href)\s*=\s*["\']https?://#i', (string)$withoutLinks)
+                    && !preg_match('#url\(\s*["\']?https?://#i', (string)$withoutLinks)) {
+                    continue;
+                }
                 $offenders[] = $rel . ':' . ($n + 1) . ' → ' . trim($line);
             }
         }

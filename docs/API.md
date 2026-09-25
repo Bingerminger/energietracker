@@ -756,7 +756,8 @@ Pro Prognosemonat:
 - `advance_estimated` — der für den Monat gültige Abschlag, oder `null`
   wenn kein Vertrag/kein Abschlag gepflegt ist.
 - `balance_running` — kumuliert `cost_estimated − advance_estimated`.
-  Negativ = Guthaben, positiv = Nachzahlung; der Wert des letzten Monats
+  Negativ = Guthaben, positiv = Nachzahlung (die Oberfläche zeigt seit v2.13.0
+  die Kundensicht mit Worten); der Wert des letzten Monats
   ist der projizierte Saldo am Horizontende.
 - `working_price_ct` — der angesetzte Arbeitspreis (Headline-Tarif).
 - `contract_id` — der aktive Vertrag, oder `null` (dann Fallback auf

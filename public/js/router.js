@@ -47,6 +47,7 @@ const ROUTES = [
   [/^\/settings$/,                   'settings'],
   [/^\/settings\/([a-z]+)$/,         'settings'],   // v2.12.0 — Unterseiten
   [/^\/temperatures$/,               'temperatures'],
+  [/^\/help$/,                       'help'],           // v2.13.0
 ];
 
 // Ansicht → Modul und Bereich. `tab` nennt den Tab, der bei einer Unterseite
@@ -67,6 +68,7 @@ const VIEWS = {
   'recommendations':    { section: 'hints',       load: () => import('./views/recommendations.js') },
   'settings':           { section: 'settings',    load: () => import('./views/settings.js') },
   'temperatures':       { section: 'settings',    load: () => import('./views/temperatures.js') },
+  'help':               { section: 'help',        load: () => import('./views/help.js') },
 };
 
 // Bereiche, deren Seiten als Tabs über der Ansicht stehen. Die Verbrauchsarten

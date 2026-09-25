@@ -69,8 +69,8 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.12.0:
-**Frontend-API-Shape 59/59**, **Browser-Render 124/124** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.13.0:
+**Frontend-API-Shape 61/61**, **Browser-Render 156/156** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle). Der
 Modulgraph-Crawl folgt seit v2.11.0 auch dynamischen Importen — der Router
 lädt die Ansichten erst bei Bedarf. Seit v2.12.0 rendert der Test jede
@@ -78,6 +78,9 @@ Einstellungs-Unterseite einzeln, übergibt Ansichten eine Query (Direktsprung
 der Erfassung) und löst Speichern und Feldfehler in Dialogen aus. Der
 Shape-Test ruft den Import-Trockenlauf und das Wieder-Einblenden einer
 Empfehlung auf — gegen die Demo-Kopie, die das Skript danach verwirft.
+Seit v2.13.0 öffnet der Render-Test die ⓘ-Erklärungen per Klick und schließt
+sie mit Escape, rendert die Hilfe mit Sprung zu einem Begriff und prüft die
+PV-Ansichten auf Vergütung statt Kosten und den Saldo auf die Kundensicht.
 
 Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 `tests/plausibility.test.mjs` und seit v2.11.0:
@@ -94,7 +97,10 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
 JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
-README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.12.0: 444).
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.13.0: 448).
+`LocaleCatalogTest` prüft seit v2.13.0 auch Schlüssel, die der Code
+zusammensetzt (`glossary.<id>.term`, `settings.field.<key>.label`) — die
+Prüfung auf literale Schlüssel sieht sie nicht.
 Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
 **Pflicht-Gate vor jedem Commit** (siehe
 [Release-Prozess](06-release-process.md)).

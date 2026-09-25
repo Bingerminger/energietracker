@@ -7,7 +7,8 @@
 > **Real screenshots.** The following images are **actual screen captures** of the
 > running app with the bundled [demo dataset](../../../demo-data/) (light theme; base
 > set v1.9.2, sign-in, security card and the capture question v2.6.0, navigation
-> v2.11.0, overview, capture, weather data, settings and import preview v2.12.0). The app's
+> v2.11.0, overview, capture, weather data, settings and import preview v2.12.0,
+> help, explanations and PV view v2.13.0). The app's
 > interface is in German; the captures are shared with the
 > German compendium. To regenerate them yourself: load the demo data and capture
 > the views one by one — the app needs no build step for this.
@@ -50,6 +51,19 @@ appearance switch (system, light, dark).
 
 <p><img src="../../ui/screenshots/navigation-iphone.png" alt="Overview with tab bar on the iPhone" width="260"> <img src="../../ui/screenshots/erfassen-iphone.png" alt="Add sheet on the iPhone" width="260"></p>
 
+**Explanations on tap (v2.13.0):** technical terms carry an **ⓘ** — heating
+degree days, R², moving average, balance, cut-off, break-even, notice deadline
+and more. Tapping or clicking opens the explanation: on the Mac as a bubble
+below the term, on the iPhone as a sheet above the tab bar. "All terms" leads
+to the help (§15); Escape or a tap elsewhere closes it. Up to
+v2.12 these explanations lived in tooltips, which the iPhone does not have.
+Where an explanation belongs to a single row — why a reading carries "CHECK",
+what "FULL" means on a delivery — the ⓘ next to it opens exactly that one.
+
+<p><img src="../../ui/screenshots/erklaerung-mac.png" alt="Explanation of heating degree days on the Mac" width="420"> <img src="../../ui/screenshots/erklaerung-iphone.png" alt="The same explanation as a sheet on the iPhone" width="260"></p>
+
+The **help** sits in the footer of the sidebar, on the iPhone under "More".
+
 ---
 
 ## 1. Overview (dashboard)
@@ -59,7 +73,7 @@ source**, tank levels (oil/pellets), **electricity balance & self-sufficiency** 
 PV, the combined consumption history (as many months as set under *Months on
 dashboard* in the settings, since v2.9.0) and due appointments. Since v2.10.0 the
 **certificate-style figure** appears below the efficiency (with several heat
-sources one for all of them together, tooltip with the reference area and the
+sources one for all of them together, ⓘ with the reference area and the
 months); an incomplete year gets no class but a note instead. The PV card
 additionally shows the **self-consumption savings** and, as long as fewer than
 twelve months have data from all three meters, over how many months the rates
@@ -78,6 +92,20 @@ are combined into one line ("7 meters are waiting for a reading"). Each line
 is tappable as a whole, on the iPhone with "›" instead of a button. The reminder card further
 down and the "Active meters" tile per utility are gone; key-figure tiles no
 longer lift on hover, because they are not clickable.
+
+**Without data (v2.13.0)** a welcome replaces the empty tiles: what the
+Energietracker does, the first steps with ticks taken from the data (location,
+first and second reading, contract, optionally Home Assistant) and **"Try with
+sample data"**. The app saves the current state first; the way
+back is Settings → Data → Snapshots.
+
+![Welcome without data](../../ui/screenshots/willkommen.png)
+
+**PV on the overview (v2.13.0):** the feed-in shows "Feed-in" and
+"Remuneration", the generation "Generation" without a cost tile. For both,
+more is good: the upward arrow is green. The combined chart now shows only
+what is drawn from the grid — up to v2.12 it also stacked the PV kilowatt-hours
+as if they were consumption.
 
 ![Dashboard](../../ui/screenshots/dashboard.png)
 
@@ -136,8 +164,21 @@ tiles, by contrast, sum up the months that have been read; if the last reading i
 the current year is some time back, the tile is labelled "Advances up to
 ‹date›". The **Contracts & advances** table lists per contract tariff, advance,
 consumed, paid, bonus, **special payments** (since v2.5.1: net from the
-customer's perspective, items in the tooltip; gas/electricity/district heating
-only), balance today and expected balance.
+customer's perspective; since v2.13.0 the items expand instead of sitting in
+the tooltip; gas/electricity/district heating only), balance today and
+expected balance. The standing charge is spelled out ("base charge
+12.95 €/month" instead of "13 € base").
+
+**Balance from the customer's side (v2.13.0):** card and tile name the balance
+with a word and without a sign — "Credit €120.00" in green, "Additional
+payment €60.00" in red, with the period it covers. In tables **+ means credit** and
+**− means additional payment**, explained in a line below. Up to v2.12 the app showed
+the accounting view (cost − advances, minus = credit) — the opposite of what
+the bill says. The API and the CSV export keep their sign.
+
+**No monthly values yet (v2.13.0):** if a meter has no reading or only one,
+the page explains that monthly values come from the difference between two
+readings and leads to the capture of exactly this meter.
 
 **Since v2.9.0** the card calculates to the day: a switch or a price change in
 mid-month applies from its own day. Below the figures, notes appear when they
@@ -151,8 +192,8 @@ the value itself).
 **Implausible readings (v2.6.0):** if there are outliers, a falling reading
 without a meter swap or an unconfirmed suspect value from Home Assistant, a
 notice above the year selection lists the affected readings with a link to the
-meter swap. In the readings table they carry "CHECK" or "IMPLAUSIBLE" (tooltip
-with the reason); ✅ confirms a suspect reading — only then does it count. The
+meter swap. In the readings table they carry "CHECK" or "IMPLAUSIBLE" (since
+v2.13.0 with an ⓘ and the reason, before in the tooltip); ✅ confirms a suspect reading — only then does it count. The
 reading dialog asks the same questions as the meter-reading capture.
 
 ![Gas view](../../ui/screenshots/gas-view.png)
@@ -189,9 +230,9 @@ otherwise the contract end.
 
 Since v2.8.0: filled points feed the curves, **hollow** ones are your own months
 outside the fit (partial month, too few heating degree days or temperatures),
-**grey** ones lie before the cut-off. Below the table, a note says that R²
+**grey** ones lie before the baseline date. Below the table, a note says that R²
 measures the fit to the months shown, not predictive quality. The "Effect of the
-measure" card says whether the difference before/after the cut-off is
+measure" card says whether the difference before/after the baseline date is
 statistically supported, with a 95 % range. Anomalies measure each month against
 its own expectation (heating model or the same month in other years). For
 heating oil and pellets a note appears instead of the curves: their monthly
@@ -213,6 +254,10 @@ location or your own history) and notices when the history is short. The
 "Method" column says per month how it was computed; months after the end of the
 contract in which the last contract continues as an assumption carry an
 asterisk.
+
+Since v2.13.0 the model name is in the interface language and the balance
+column is from the customer's side (+ credit, − additional payment) with an ⓘ. Model
+and horizon are pre-set from the settings.
 
 ![Forecast](../../ui/screenshots/prognose.png)
 
@@ -239,7 +284,9 @@ Per utility and meter, the current contract:
 - what to expect at the next bill: refund (green) or back-payment (red)
 
 "Manage contracts" leads to the utility's contract list. The figures come from
-the same calculation as the utility's balance card.
+the same calculation as the utility's balance card. Heating oil and pellets
+are no longer listed since v2.13.0 — their costs sit on the deliveries, and the
+"Add contract" link led to a page without contracts.
 
 ![Contracts & payments](../../ui/screenshots/navigation-mac.png)
 
@@ -291,6 +338,9 @@ The ranking shows, per offer:
 | **Difference** | against the current contract carried forward |
 | **Pays off from** | the annual consumption above which the offer beats the current contract |
 
+Since v2.13.0 this explanation sits below the ranking instead of only in the
+tooltip of the column headers; "Pays off from" carries an ⓘ.
+
 **Ranking follows "Year 2 on".** An offer that is only cheap in the first year
 does not win the ranking — the year-1 figure still sits beside it so it can be
 checked against what the portal displayed.
@@ -328,7 +378,8 @@ The **ct/unit** column holds the total cost per kWh or m³ — unit price,
 standing charge and bonuses combined. It is the only figure independent of the
 term length, and therefore the basis for the ranking. Only pure tariff costs
 are compared; advance payments and one-off settlements are cash flows against
-the balance and stay out of it (they live in the consumption view).
+the balance and stay out of it (they live in the consumption view). Both
+stand below the table since v2.13.0.
 
 Since v2.12.0 the year picker offers only years with consumption data (up to
 v2.11 always the last seven years); months follow the language's notation
@@ -362,7 +413,9 @@ Seven statistical rule families (over-consumption trend, summer base, anomaly, t
 level, contract end, efficiency, …), sorted by urgency, individually hideable.
 Purely data-driven, no advertising. Since v2.11.0 under **Reminders & tips**;
 the button reads "Hide for 30 days" instead of "✕". Since v2.12.0 the message
-names the recommendation and offers **"Undo"** for ten seconds.
+names the recommendation and offers **"Undo"** for ten seconds. Since v2.13.0
+the page says when there is too little data (no meter with three readings)
+that it is too early for recommendations — before, it read "all clear".
 
 ![Recommendations](../../ui/screenshots/empfehlungen.png)
 
@@ -413,6 +466,10 @@ it is opened and loads the climate normal the first time. If the location is
 still the country default, a note says so (v2.7.0) — the degree days then use the
 weather of another place.
 
+Below the chart, since v2.13.0, the source and licence: "Weather data by
+Open-Meteo.com (CC BY 4.0)"; the PDF annual report names it too as soon as it
+shows temperatures.
+
 ![Temperatures](../../ui/screenshots/temperaturen.png)
 
 ---
@@ -425,7 +482,7 @@ Since v2.12.0 **nine sub-pages** instead of one long page:
 |---|---|
 | General | Language & country, overview (months, forecast horizon, warn after days without a reading), contract reminders |
 | Household & building | living area, building type, heated basement, hot water; persons in the household |
-| Utilities & billing | active utilities, all billing cut-off dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors |
+| Utilities & billing | active utilities, all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors |
 | Weather data | §10 |
 | Data | CSV export, backup & restore with snapshots, demo data, migration from v0.9.0; link to the annual report |
 | Integrations | Home Assistant integration |
@@ -434,8 +491,17 @@ Since v2.12.0 **nine sub-pages** instead of one long page:
 | System | version, licence, system diagnostics |
 
 Each page saves through a bar at the bottom ("Discard" · "Save") that appears
-only after a change. Leaving the page with unsaved changes asks first. The PDF
-annual report sits under Insights since v2.11.0. After demo data, backup import
+only after a change. Leaving the page with unsaved changes asks first.
+
+**Since v2.13.0:** 18 more fields carry a hint on what they do. The card of
+billing dates lists the **PV feed-in** (its remuneration is calculated up to
+the billing date); heating oil and pellets are gone there — they have no
+advances and therefore no billing date, the fields had no effect. Under Expert
+the forecast models carry names instead of keys, and the **forecast band
+width** can be set (effective since v2.8.0, until now only via the API). The
+Home Assistant card links the guide in the matching language.
+
+The PDF annual report sits under Insights since v2.11.0. After demo data, backup import
 or a restore the app restarts, so that sidebar, language and cache match the
 new state.
 
@@ -524,6 +590,15 @@ cost tile; in the tariff switch of the feed-in, the higher remuneration comes
 first. PV utilities have no default meter — anyone without a system sees no
 phantom meters.
 
+**Since v2.13.0** the feed-in speaks of remuneration throughout: the monthly
+table has "Revenue" instead of "Cost" and no advance columns, the contract
+table "Earned" and "Received" instead of "Consumed" and "Paid", and an open
+claim is green instead of red (legend "+ credit, − reclaim"). Avoided CO₂ has
+no minus in front — the word "avoided" carries the direction, as in the annual
+report. Both PV utilities drop temperature and heating
+degree days; anomalies and the year-on-year comparison rate less feed-in as a
+decline, not as a saving.
+
 ![PV](../../ui/screenshots/pv.png)
 
 ---
@@ -542,6 +617,28 @@ app, the top bar shows "Offline – data as of …". Changes without a connectio
 are reported as "No connection to Energietracker – nothing was saved."
 
 ![Sign-in](../../ui/screenshots/anmeldung.png)
+
+---
+
+## 15. Help (v2.13.0)
+
+Reached from the footer of the sidebar, on the iPhone under "More"
+(`#/help`). Four cards and the glossary:
+
+- **First steps:** the same list as in the welcome, with ticks from the data;
+  once everything is done, it says so.
+- **Documentation:** getting started, compendium and Home Assistant guide on
+  GitHub — in German for a German interface, otherwise in English (with a note
+  when your own language is missing).
+- **Questions and bugs:** GitHub issues and the pointer to the diagnostics
+  under Settings → System, whose details a bug report needs.
+- **Your data:** everything stays on your own server — no accounts, no
+  advertising, no telemetry. The only outside contact is Open-Meteo: the daily
+  weather sync (location rounded to about 1 km) and the place search.
+- **Terms:** 33 entries in all seven languages with a search. The ⓘ in the app
+  opens the same texts; `#/help?term=hdd` jumps to a term.
+
+![Help](../../ui/screenshots/hilfe.png)
 
 ---
 

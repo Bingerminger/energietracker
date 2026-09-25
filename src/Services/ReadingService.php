@@ -262,7 +262,8 @@ final class ReadingService
      *   meter_id:string, meter_name:string, meter_icon:string,
      *   meter_notes:string, active_device_id:?string,
      *   last_reading:?array{date:string, counter:float, is_estimated:bool, id:string, device_id:?string},
-     *   expected_next_min:?float, typical_per_day:?float, suspect_count:int
+     *   expected_next_min:?float, typical_per_day:?float, suspect_count:int,
+     *   reading_count:int
      * }>
      */
     public function overview(array $activeUtilities): array
@@ -325,6 +326,8 @@ final class ReadingService
                     // v2.6.0 — für die Rückfrage bei ungewöhnlichem Sprung
                     'typical_per_day'   => $this->typicalPerDay($real),
                     'suspect_count'     => $suspects,
+                    // v2.13.0 — Erste-Schritte-Liste: Verbrauch entsteht erst ab zwei Ständen
+                    'reading_count'     => count($real),
                 ];
             }
         }

@@ -16,8 +16,15 @@ let filterSev = 'all';
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('recommendations.loading')}</div>`;
   let recs;
+  // v2.13.0 (Review UI-27) — ohne Daten hieß es „alles im grünen Bereich";
+  // jetzt sagt die Seite, dass es für Empfehlungen noch zu wenig gibt
+  let tooLittleData = false;
   try {
     recs = await api.recommendations();
+    if (!recs.length) {
+      const rows = (await api.readingsOverview().catch(() => null))?.rows || [];
+      tooLittleData = rows.length > 0 && !rows.some(r => (r.reading_count || 0) >= 3);
+    }
   } catch (e) {
     container.innerHTML = `<div class="banner banner--error">${t('recommendations.loadError', { msg: esc(e.message || e) })}</div>`;
     return;
@@ -43,7 +50,7 @@ export async function render(container) {
       </div>
 
       ${list.length === 0
-        ? `<div class="banner banner--info">${filterSev === 'all' ? t('recommendations.emptyAll') : t('recommendations.emptyFiltered', { sev: sevLabel(filterSev) })}</div>`
+        ? `<div class="banner banner--info">${tooLittleData ? esc(t('recommendations.emptyNoData')) : filterSev === 'all' ? t('recommendations.emptyAll') : t('recommendations.emptyFiltered', { sev: sevLabel(filterSev) })}</div>`
         : `<div class="rec-list">${list.map(card).join('')}</div>`}
     `;
 

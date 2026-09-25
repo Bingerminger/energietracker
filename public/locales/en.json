@@ -19,7 +19,8 @@
     "required": "required",
     "actions": "Actions",
     "invalidNumber": "Please enter a valid number, e.g. {example}.",
-    "undo": "Undo"
+    "undo": "Undo",
+    "hddShort": "HDD"
   },
   "app": {
     "themeToggle": "Switch theme",
@@ -98,14 +99,13 @@
     "sectionNav": "Pages in this section",
     "menu": "Menu",
     "tabbar": "Quick navigation",
-    "captureButton": "Add"
+    "captureButton": "Add",
+    "help": "Help"
   },
   "dashboard": {
     "loading": "Loading overview…",
     "title": "Overview",
     "empty": {
-      "title": "No readings yet",
-      "text": "Add your first meter reading to see consumption, costs and forecasts.",
       "cta": "Add first reading"
     },
     "efficiency": {
@@ -154,7 +154,11 @@
       "consumption": "Consumption (last 12 months)",
       "cost": "Cost (last 12 months)",
       "costSub": "incl. bonuses",
-      "noContract": "no contract on file"
+      "noContract": "no contract on file",
+      "feedIn": "Feed-in (last 12 months)",
+      "generation": "Generation (last 12 months)",
+      "revenue": "Remuneration (last 12 months)",
+      "revenueSub": "revenue from feed-in"
     },
     "trend": { "vsPrev": "vs. previous 12 months", "moreThanPrev": "{pct}% more than the previous 12-month period", "lessThanPrev": "{pct}% less than the previous 12-month period" },
     "allRecommendations": "All recommendations",
@@ -173,6 +177,11 @@
         "one": "{count} meter is waiting for a reading",
         "other": "{count} meters are waiting for a reading"
       }
+    },
+    "welcome": {
+      "title": "Welcome to Energietracker",
+      "text": "Enter your meter readings — the app turns them into consumption, costs, advance-payment balance and forecast. Or first see what that looks like with sample data.",
+      "demo": "Try with sample data"
     }
   },
   "readingsEntry": {
@@ -244,17 +253,15 @@
       "cost": "💶 Cost",
       "perMonth": "avg {value}/month",
       "advances": "💰 Advances {year}",
-      "yearBalance": "Year balance {value}",
+      "yearBalance": "Year balance: {value}",
       "dailyAvg": "📅 Daily average",
       "daysCount": "{days} days",
-      "co2AvoidedTitle": "Simplified model: kWh fed in × grid-mix CO₂ factor. PV life-cycle not included.",
       "co2Avoided": "🌿 CO₂ avoided {year}",
       "co2AvoidedSub": "{tons} t less than without PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Advances up to {date}",
-      "balanceShort": "Balance {value}",
-      "co2AvoidedGenTitle": "Simplified model: generated kWh × grid-mix CO₂ factor — displaced grid electricity, feed-in included. PV life cycle not considered.",
+      "balanceShort": "Balance: {value}",
       "generation": "Generation"
     },
     "cards": {
@@ -268,7 +275,9 @@
       "deliveriesCount": "{count} deliveries total",
       "readings": "🔢 Readings",
       "readingsYear": "📋 Readings {year}",
-      "readingsCount": "{count} readings total"
+      "readingsCount": "{count} readings total",
+      "monthlyChartFeedIn": "Feed-in per month {year}",
+      "monthlyChartGeneration": "Generation per month {year}"
     },
     "balance": {
       "title": "⚖️ Balance current contract — {name}",
@@ -302,8 +311,8 @@
       "subCredit": "Credit with grid operator",
       "subReclaim": "Repayment due",
       "subBalanced": "balanced",
-      "subUnderpaid": "Underpaid",
-      "subOverpaid": "Overpaid",
+      "subUnderpaid": "Additional payment — paid too little so far",
+      "subOverpaid": "Credit — paid too much so far",
       "verdictLabel": "Expected at settlement",
       "dateNext": "next settlement: {date}",
       "dateEnd": "contract end: {date}",
@@ -315,11 +324,11 @@
       "basisSep": "sep. meter",
       "basisTw": "drinking-water usage",
       "perMonthShort": "{value}/month",
-      "gpMonth": "{value} {cur}/m base",
+      "gpMonth": "base charge {value} {cur}/month",
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/yr · {m2} m²",
       "consShort": "{value} usage",
-      "gpPlus": " + {value} base",
+      "gpPlus": " + {value} base charge",
       "suggestAdvance": "With an advance of {suggested} instead of {current}, the bill would come out at about ±0.",
       "measuredThenEstimated": "measured up to {date} ({kwh} kWh), estimated since: {value}",
       "renewed": "The term ended on {date}. Without cancellation the contract runs on at its last prices and can be cancelled any time with at most one month’s notice.",
@@ -347,11 +356,12 @@
       "statePast": "PAST",
       "stateFuture": "FUTURE",
       "periodOpen": "{start} → ongoing",
-      "gpSuffix": "{value} {cur} base",
+      "gpSuffix": "base charge {value} {cur}/month",
       "colSpecial": "Special payments",
-      "colSpecialTitle": "Net of special payments: refunds from the supplier count positive, back-payments and extra advance payments negative. Individual items in the cell tooltip.",
-      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Hover the cell for the individual items; they are maintained in the contract management.",
-      "stateRenewed": "RENEWED"
+      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Tap to see the individual items; they are maintained in the contract management.",
+      "stateRenewed": "RENEWED",
+      "colEarned": "Earned",
+      "colReceived": "Received"
     },
     "monthlyTable": {
       "noData": "No data for this year.",
@@ -361,20 +371,18 @@
       "colTemp": "avg temp",
       "colTempTitle": "Average temperature in the month",
       "colHdd": "HDD",
-      "colHddTitle": "Heating degree days — sum of daily differences between heating limit and outdoor temperature",
       "colPrice": "{minor}/{unit}",
       "colCost": "Cost {cur}",
       "colAdvance": "Advance {cur}",
       "colCumBalance": "Balance (cum.)",
-      "colCumBalanceTitle": "Cumulative balance since contract start",
       "colCo2": "CO₂ kg",
       "colMa3": "MA·3",
-      "colMa3Title": "Rolling 3-month average",
       "colMa6": "MA·6",
-      "colMa6Title": "Rolling 6-month average",
       "total": "Total",
       "estimatedTitle": "{days} days estimated (after the last known stock)",
-      "estimatedLegend": "≈ month contains estimated days — after the last known stock (delivery “filled to full” or tank reading)."
+      "estimatedLegend": "≈ month contains estimated days — after the last known stock (delivery “filled to full” or tank reading).",
+      "colRevenue": "Revenue {cur}",
+      "colCo2Avoided": "CO₂ avoided kg"
     },
     "readingsTable": {
       "emptyTitle": "No readings",
@@ -528,6 +536,14 @@
       "dip": "{date}: {counter} {unit} – downward outlier, ignored",
       "decrease": "{date}: {counter} {unit} – lower than on {prevDate} ({prevCounter} {unit}); meter swap or rollover not recorded?",
       "gotoMeters": "Record meter swap"
+    },
+    "subtitleDelivery": "Deliveries · tank stock · monthly consumption",
+    "subtitleFeedIn": "Readings · feed-in · remuneration",
+    "subtitleGeneration": "Readings · generation · avoided CO₂",
+    "noData": {
+      "title": "No monthly values yet",
+      "noReading": "This meter has no reading yet. Monthly values come from the difference between two readings.",
+      "oneReading": "There is only one reading so far. Monthly values come from the difference between two readings — add a second one, such as the one from your last bill."
     }
   },
   "contracts": {
@@ -883,17 +899,17 @@
       "done": "{count} meters grouped in “{name}”"
     },
     "baseline": {
-      "title": "Baseline cut-offs",
+      "title": "Baseline dates",
       "hint": "After building work the house consumes differently for good. Enter the date here — the analyses then start from that point, while older months stay visible but no longer feed the model. A future date may be recorded in advance; it only takes effect once reached.",
       "date": "Date",
       "label": "Description",
       "labelPlaceholder": "e.g. loft insulation",
-      "add": "Add cut-off",
+      "add": "Add baseline date",
       "remove": "Remove",
-      "none": "No cut-off recorded — every analysis uses the full history.",
+      "none": "No baseline date recorded — every analysis uses the full history.",
       "active": "in effect",
       "future": "future",
-      "dateRequired": "Please give a date for the cut-off"
+      "dateRequired": "Please give a date for the baseline"
     }
   },
   "settings": {
@@ -940,7 +956,7 @@
       "hdd_base_temp": { "label": "HDD base temperature", "hint": "Heating limit — days below count as heating days." },
       "co2_gas": { "label": "CO₂ gas", "hint": "BAFA: 201 g/kWh, based on the net calorific value. The app counts gas by gross calorific value (z-number × calorific value), hence × 0.906 = 182." },
       "co2_strom": { "label": "CO₂ electricity", "hint": "Applies to years before the first yearly value — without yearly values, to all years." },
-      "co2_wasser": { "label": "CO₂ water" },
+      "co2_wasser": { "label": "CO₂ water", "hint": "For treatment and pumping per m³ of water — an estimate without an official source." },
       "co2_fernwaerme": { "label": "CO₂ district heating", "hint": "BAFA flat rate. Your heat network’s own value is more accurate — ask your supplier." },
       "co2_heizoel": { "label": "CO₂ heating oil", "hint": "BAFA, based on the net calorific value — as the app calculates heating oil." },
       "co2_pellets": { "label": "CO₂ pellets", "hint": "BAFA, CO₂ equivalents including the upstream chain." },
@@ -950,40 +966,38 @@
       "contract_remind_days_1": { "label": "Level 1 — early warning" },
       "contract_remind_days_2": { "label": "Level 2 — reminder" },
       "contract_remind_days_3": { "label": "Level 3 — urgent" },
-      "wasser_personen_anzahl": { "label": "People in household" },
+      "wasser_personen_anzahl": { "label": "People in household", "hint": "For the water saving index: litres per person and day compared with the reference." },
       "wasser_personen_referenz": { "label": "Reference", "hint": "BDEW 2024: 122 L per person and day (Germany)." },
       "wasser_sparindex_gut": { "label": "Saving index — good up to", "hint": "Index ≤ this value is considered unremarkable." },
       "wasser_sparindex_warnung": { "label": "Saving index — warning from", "hint": "Index ≥ this value indicates saving potential." },
-      "min_days_period": { "label": "Min. days per period" },
-      "min_hdd_regression": { "label": "Min. HDD for regression" },
-      "blend_max": { "label": "Max. blend weight" },
-      "forecast_months": { "label": "Forecast horizon" },
-      "forecast_model": { "label": "Default model" },
+      "min_days_period": { "label": "Min. days per period", "hint": "Months with fewer recorded days (partial months) stay out of the heating signature and anomalies." },
+      "min_hdd_regression": { "label": "Min. HDD for regression", "hint": "Months with fewer degree days stay out of the heating signature — in summer the base load drives consumption, not the weather." },
+      "blend_max": { "label": "Max. blend weight", "hint": "Highest weight of the weather model in the forecast; the rest comes from the seasonal profile. 0.8 means at least 20 % seasonal profile." },
+      "forecast_months": { "label": "Forecast horizon", "hint": "How many months the forecast looks ahead (1–24). Default of the forecast view." },
+      "forecast_model": { "label": "Default model", "hint": "Model for forecast and tariff comparison. Linear suits most homes; the analysis shows which one explains your data best." },
       "segmented_split_mode": { "label": "Segment breakpoint", "hint": "auto = fitted from data, fixed = fixed HDD value below." },
       "segmented_fixed_split": { "label": "Fixed breakpoint", "hint": "Only effective in “fixed” mode." },
-      "anomaly_threshold": { "label": "Anomaly threshold" },
-      "dashboard_months": { "label": "Months on dashboard" },
-      "alert_days_since_reading": { "label": "Warn after" },
+      "anomaly_threshold": { "label": "Anomaly threshold", "hint": "From what deviation (in units of spread σ) a month counts as unusual in the analysis. Smaller means more sensitive." },
+      "dashboard_months": { "label": "Months on dashboard", "hint": "How many months the history on the overview shows (3–36)." },
+      "alert_days_since_reading": { "label": "Warn after", "hint": "If the last reading is older, the meter appears under “To do” and the consumption view reminds you." },
       "wohnflaeche_m2": { "label": "Living area", "hint": "Heated area — denominator of the efficiency metric." },
       "gebaeudetyp": { "label": "Building type", "hint": "Multi-family means three or more flats." },
-      "heizoel_kwh_per_l": { "label": "Heating oil energy content" },
-      "pellets_kwh_per_kg": { "label": "Pellets energy content" },
+      "heizoel_kwh_per_l": { "label": "Heating oil energy content", "hint": "Energy per litre of heating oil (net calorific value, usually 10 kWh/L). Converts litres to kWh." },
+      "pellets_kwh_per_kg": { "label": "Pellets energy content", "hint": "Energy per kg of pellets (usually 4.8 kWh/kg). Converts kg to kWh." },
       "delivery_baseload_share": { "label": "Base-load share distribution", "hint": "Share of consumption as weather-independent base load (rest HDD-weighted)." },
-      "tank_warn_pct": { "label": "Tank warning from" },
-      "reminder_warn_days_before": { "label": "Reminder “due soon” from" },
-      "reminder_overdue_days": { "label": "Grace until “overdue”" },
-      "recommendation_anomaly_sigma": { "label": "Recommendation anomaly threshold" },
-      "recommendation_trend_pct_year": { "label": "Recommendation trend threshold" },
+      "tank_warn_pct": { "label": "Tank warning from", "hint": "Below this level the tank turns yellow, below half of it red, and “To do” suggests a delivery." },
+      "reminder_warn_days_before": { "label": "Reminder “due soon” from", "hint": "From this many days before the date, a reminder counts as “due soon”." },
+      "reminder_overdue_days": { "label": "Grace until “overdue”", "hint": "For this many days after the date a reminder still counts as due, then as overdue. 0 = from the next day." },
+      "recommendation_anomaly_sigma": { "label": "Recommendation anomaly threshold", "hint": "The same kind of threshold for recommendations: only from this deviation on does a tip appear." },
+      "recommendation_trend_pct_year": { "label": "Recommendation trend threshold", "hint": "From what increase per year the recommendations report rising consumption." },
       "billing_cycle_anchor_fernwaerme": { "label": "Settlement date district heating" },
-      "billing_cycle_anchor_heizoel": { "label": "Settlement date heating oil" },
-      "billing_cycle_anchor_pellets": { "label": "Settlement date pellets" },
       "location_name": { "label": "Place name" },
       "latitude": { "label": "Latitude" },
       "longitude": { "label": "Longitude" },
       "weather_auto_fill": { "label": "Fill weather automatically", "hint": "Fetches temperatures from Open-Meteo at most once a day when the app opens (location rounded to about 1 km)." },
       "gas_conversion_factors": {
         "label": "Gas conversion factors",
-        "hint": "One entry per calorific-value period, exactly as the gas bill states them: valid from, volume correction factor and calorific value — the kWh/m³ factor is derived. Without a breakdown, enter the factor directly. The undated entry applies to everything before the first cut-off date. Consumption splits every reading interval day-exactly at the cut-off dates."
+        "hint": "One entry per calorific-value period, exactly as the gas bill states them: valid from, volume correction factor and calorific value — the kWh/m³ factor is derived. Without a breakdown, enter the factor directly. The undated entry applies to everything before the first effective date. Consumption splits every reading interval day-exactly at the effective dates."
       },
       "frame_ancestors": {
         "label": "Allowed embedding addresses",
@@ -1000,6 +1014,13 @@
       "warmwasser_dezentral": {
         "label": "Decentralised hot water",
         "hint": "Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a 20 kWh/m²·yr surcharge."
+      },
+      "billing_cycle_anchor_pv_einspeisung": {
+        "label": "Settlement date PV feed-in"
+      },
+      "confidence_band_sigma": {
+        "label": "Forecast band width",
+        "hint": "In units of spread σ: 1.28 means consumption falls inside the band in 80 % of years; 1.64 would be 90 %."
       }
     },
     "boolActive": "on",
@@ -1106,7 +1127,7 @@
     },
     "ha": {
       "title": "🏠 Home Assistant integration",
-      "intro": "Let Home Assistant send your meter readings to the Energietracker automatically — you no longer maintain them by hand. Home Assistant provides the values, the Energietracker handles contracts, costs and forecasts. Guide: <code>docs/HOME-ASSISTANT.md</code>.",
+      "intro": "Let Home Assistant send your meter readings to the Energietracker automatically — you no longer maintain them by hand. Home Assistant provides the values, the Energietracker handles contracts, costs and forecasts.",
       "step1": "1. API token",
       "tokenHint": "Protects the push endpoint <code>/api/ingest</code>. <strong>Without sign-in it also accepts values without a token</strong> – meant for the home network. With sign-in switched on, it always requires a token.",
       "tokenActive": "🔒 token active",
@@ -1152,7 +1173,8 @@
       "aliasesSavedN": {
         "one": "{count} alias saved",
         "other": "{count} aliases saved"
-      }
+      },
+      "guide": "Guide"
     },
     "diag": {
       "title": "🩺 System diagnostics",
@@ -1202,7 +1224,7 @@
     },
     "gasFactors": {
       "none": "No entry yet — the default factor applies.",
-      "undated": "before the first cut-off date",
+      "undated": "before the first effective date",
       "remove": "Remove",
       "colFrom": "Valid from",
       "colZ": "Volume correction factor",
@@ -1362,6 +1384,10 @@
       "aboutTitle": "About Energietracker",
       "about": "Energietracker {version} – consumption, costs and contracts, local and without a cloud.",
       "license": "Free software under the MIT licence"
+    },
+    "splitModes": {
+      "auto": "automatically from the data",
+      "fixed": "fixed value"
     }
   },
   "reminders": {
@@ -1447,7 +1473,8 @@
     "geoPlaceholder": "e.g. Leeds or LS1",
     "geoSearch": "Search",
     "geoNone": "No place found.",
-    "locationSaved": "Location saved"
+    "locationSaved": "Location saved",
+    "attribution": "Weather data by"
   },
   "recommendations": {
     "loading": "Loading recommendations…",
@@ -1496,7 +1523,8 @@
     },
     "dismissedNamed": "“{title}” hidden for 30 days",
     "restored": "Recommendation shown again",
-    "dismissNamed": "Hide for 30 days: {title}"
+    "dismissNamed": "Hide for 30 days: {title}",
+    "emptyNoData": "Not enough data for recommendations yet — they appear once there are a few months of consumption."
   },
   "tariff": {
     "loading": "Loading…",
@@ -1595,7 +1623,6 @@
       },
       "year1Title": "First-year cost, sign-up bonus already deducted",
       "year2Title": "Ongoing annual cost without one-off bonuses",
-      "breakEvenTitle": "Above this annual consumption the tariff beats your current one",
       "breakEvenDelta": "{pct} % of expected consumption",
       "breakEvenNone": "No crossover — the tariff is cheaper or dearer at any volume",
       "bonusIncluded": "incl. {value} bonus",
@@ -1634,7 +1661,7 @@
     "noAnomalies": "No anomalies detected — all months are within the expected range (σ threshold from settings).",
     "anomalyExplainHgt": "Months whose consumption deviates by more than the σ threshold from the expectation — heating curve plus base load at this month’s degree days. The spread is estimated robustly (median, MAD).",
     "anomalyExplainSeasonal": "Months whose consumption deviates by more than the σ threshold from the same calendar month in other years — computed per day and without the month itself.",
-    "anomalyCol": { "month": "Month", "consumption": "Consumption", "expected": "Expected", "deltaAbs": "Δ absolute", "deltaPct": "Δ %", "sigma": "σ value", "hgt": "HDD", "temp": "avg temp" },
+    "anomalyCol": { "month": "Month", "consumption": "Consumption", "expected": "Expected", "deltaAbs": "Δ absolute", "deltaPct": "Δ %", "sigma": "σ value", "hgt": "HDD", "temp": "avg temp", "feedIn": "Feed-in", "generation": "Generation" },
     "model": { "linear": "Linear", "polynomial": "Polynomial (2)", "robust": "Robust (Huber)", "segmented": "Segmented", "sigmoid": "Sigmoid" },
     "reg": { "model": "Model", "n": "n", "coeffs": "Coefficients", "bestFit": "best fit", "tooFew": "too few data points", "intercept": "intercept" },
     "scatterPoints": "Months",
@@ -1661,7 +1688,8 @@
       "colDeltaAbs": "Δ absolute",
       "colDeltaPct": "Δ %",
       "sumRow": "Total (shared months)",
-      "note": "Comparison only over months that have data in both years. Positive values = more consumption than the previous year."
+      "note": "Comparison only over months that have data in both years. Positive values = more consumption than the previous year.",
+      "notePv": "Positive values = more yield than in the same month of the previous year (green). Only months with data in both years are compared."
     },
     "spar": {
       "title": "💧 Water saving index",
@@ -1684,18 +1712,18 @@
       "indexNote": "{bandNote} Index 100 = exactly the per-person reference consumption stored in the settings."
     },
     "baseline": {
-      "chartPre": "before the cut-off",
+      "chartPre": "before the baseline date",
       "activeSince": "Analysis starts at {date} — {label}",
       "activeSinceNoLabel": "Analysis starts at {date}",
       "excluded": "{count} earlier months stay visible but do not feed the model.",
       "limitsTitle": "What cannot be computed right now",
       "limit": {
         "weather_adjustment": "Weather correction needs at least {need} months of history — {have} available.",
-        "regression": "The regression needs at least {need} data points after the cut-off — {have} available.",
+        "regression": "The regression needs at least {need} data points after the baseline date — {have} available.",
         "anomalies": "Anomaly detection needs at least {need} usable months — {have} available."
       },
       "comparisonTitle": "Effect of the measure",
-      "comparisonHint": "Consumption per degree day before and after the cut-off. This figure is already weather-corrected: it says how much the building needs per degree of cold, regardless of how cold the winter was.",
+      "comparisonHint": "Consumption per degree day before and after the baseline date. This figure is already weather-corrected: it says how much the building needs per degree of cold, regardless of how cold the winter was.",
       "before": "before",
       "after": "after",
       "effect": "Change",
@@ -1726,7 +1754,7 @@
     "monthlyDetail": "Monthly detail",
     "noMeters": "No meters.",
     "noForecast": "No forecast possible",
-    "models": { "linear": "Linear", "polynomial": "Polynomial (degree 2)", "robust": "Robust (Huber)", "segmented": "Segmented (heating/summer)", "sigmoid": "Sigmoid (heating signature)" },
+    "models": { "linear": "Linear", "polynomial": "Polynomial (degree 2)", "robust": "Robust (Huber)", "segmented": "Segmented (heating/summer)", "sigmoid": "Sigmoid (heating signature)", "seasonalOnly": "seasonal profile only" },
     "chartHist": "History",
     "chartForecast": "Forecast",
     "info": "Model: <strong>{model}</strong> · heating-curve share: <strong>{blend}%</strong>{r2} · last working price: <strong>{price} {minor}/{unit}</strong>",
@@ -1798,7 +1826,8 @@
       "subtitle": "One year at a glance, as a PDF to file or share.",
       "open": "Open in browser",
       "note": "On the iPhone the report opens in a new tab; from there you can save or share it."
-    }
+    },
+    "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself."
   },
   "migration": {
     "warnNoSettings": "No settings found in the backup — the defaults apply.",
@@ -1886,9 +1915,9 @@
       "groupNotFoundId": "Meter group not found: {group}",
       "groupNameEmpty": "Group name must not be empty",
       "mergeNeedTwo": "Merging requires at least two meters",
-      "invalidBaselineList": "Baseline cut-offs must be a list of entries carrying a date",
+      "invalidBaselineList": "Baseline dates must be a list of entries carrying a date",
       "invalidBaselineDate": "Invalid baseline date: “{date}” — expected YYYY-MM-DD",
-      "duplicateBaselineDate": "A baseline cut-off already exists for {date}",
+      "duplicateBaselineDate": "A baseline date already exists for {date}",
       "swapBeforeInstall": "The swap on {date} is before the current device was installed ({installed}).",
       "digitsInvalid": "Counter digits: “{value}” is invalid — a whole number from 3 to 12, or empty, is allowed.",
       "invalidTankLevels": "Tank readings must be sent as a list of entries with date and level",
@@ -2004,7 +2033,7 @@
       "factorsNotList": "Conversion factors must be passed as a list of entries",
       "factorInvalidDate": "Invalid date “{date}” — expected YYYY-MM-DD",
       "factorDuplicateDate": "A conversion factor already exists for {date}",
-      "factorTwoUndated": "Only one entry may be undated — it applies to everything before the first cut-off date",
+      "factorTwoUndated": "Only one entry may be undated — it applies to everything before the first effective date",
       "factorZOutOfRange": "Volume correction factor {value} is implausible — expected 0.8 to 1.1",
       "factorHsOutOfRange": "Calorific value {value} is implausible — expected 8 to 13 kWh/m³",
       "factorHalfPair": "Volume correction factor and calorific value belong together — give both, or the factor directly",
@@ -2100,5 +2129,207 @@
     "noMeter": "The bill check recalculates correction factor × calorific value and is therefore available for gas. Set up a gas meter first.",
     "addMeter": "Set up gas meter",
     "meter": "Meter"
+  },
+  "glossary": {
+    "hdd": {
+      "term": "Heating degree days (HDD)",
+      "text": "How cold it was, measured against the heating threshold: per day the difference between the threshold and the daily mean, 0 on warm days. More degree days mean more heating demand."
+    },
+    "heatingLimit": {
+      "term": "Heating threshold",
+      "text": "The outdoor temperature below which heating starts — usually 15 °C in Germany (setting “HDD base temperature”). Warmer days count no degree days."
+    },
+    "heatingSignature": {
+      "term": "Heating signature",
+      "text": "The relation between degree days and consumption, calculated from your own months: how much your home uses per degree day and how large the weather-independent base load is."
+    },
+    "baseload": {
+      "term": "Base load",
+      "text": "The part of consumption that does not depend on the weather — hot water, cooking or standby, for example. It occurs in summer too."
+    },
+    "weatherAdjusted": {
+      "term": "Weather-adjusted",
+      "text": "Consumption converted to normal weather at your location (climate normal). Only the weather share is converted, so a mild and a cold winter become comparable."
+    },
+    "climateNormal": {
+      "term": "Climate normal",
+      "text": "Average degree days per calendar month from 30 years of weather data for your location. The basis for forecast and weather adjustment."
+    },
+    "r2": {
+      "term": "R² (coefficient of determination)",
+      "text": "How well a model explains your monthly values — from 0 (not at all) to 1 (completely). From about 0.7 the relation is clear."
+    },
+    "models": {
+      "term": "Heating signature models",
+      "text": "Linear: a straight line. Polynomial: a slightly curved line. Robust (Huber): like linear, but insensitive to outliers. Segmented: two lines with a break point where heating starts. Sigmoid: an S-curve that flattens in severe cold."
+    },
+    "movingAverage": {
+      "term": "Moving average (MA·3, MA·6)",
+      "text": "The mean of the last 3 or 6 months. It smooths out single outliers and shows the trend."
+    },
+    "forecastBlend": {
+      "term": "Forecast blend",
+      "text": "The forecast blends the weather model with your seasonal profile (average per calendar month). The better the model fits (R²), the more it counts — up to the “Max. blend weight”."
+    },
+    "anomaly": {
+      "term": "Unusual month",
+      "text": "A month that differs clearly from what was expected for exactly this month. The threshold (σ) says by how many units of spread it must differ at least."
+    },
+    "balance": {
+      "term": "Balance",
+      "text": "The difference between the cost of your consumption and the advance payments made (including one-off payments). Credit: you paid more and get money back. Additional payment: consumption cost more."
+    },
+    "advance": {
+      "term": "Advance payment",
+      "text": "The monthly payment made in advance to the supplier. The annual bill compares the total with the actual costs."
+    },
+    "workingPrice": {
+      "term": "Unit price",
+      "text": "The price per unit consumed — ct/kWh, for water ct/m³."
+    },
+    "basePrice": {
+      "term": "Standing charge",
+      "text": "A fixed amount per month, independent of consumption."
+    },
+    "specialPayment": {
+      "term": "One-off payment",
+      "text": "A refund, additional payment or extra advance outside the monthly advance. “With effect” also changes the future advance."
+    },
+    "offer": {
+      "term": "Offer",
+      "text": "A tariff you do not have — from a comparison site, for example. It only affects the tariff comparison, never balance, forecast or contract status. Technically it is a shadow contract."
+    },
+    "switchDate": {
+      "term": "Switch date",
+      "text": "The first day a new tariff could supply — from contract end and notice period. The cancellation must reach the supplier by the notice deadline."
+    },
+    "noticeDeadline": {
+      "term": "Notice deadline",
+      "text": "The last day the cancellation must reach the supplier. If missed, a contract that renews unless cancelled is extended."
+    },
+    "breakEven": {
+      "term": "Pays off from",
+      "text": "The annual volume above which an offer is cheaper than your contract. If it is far from your consumption, the decision holds even with an imprecise forecast. A dash means there is no crossing point: the offer is cheaper or dearer at any volume."
+    },
+    "baseline": {
+      "term": "Baseline date",
+      "text": "A date from which your home changed — insulation or a new heating system, for example. Evaluations start at the baseline date so old values do not distort the picture."
+    },
+    "calorificValue": {
+      "term": "Calorific value",
+      "text": "The energy content of one cubic metre of gas in kWh, as the supplier states it per period on the bill."
+    },
+    "zNumber": {
+      "term": "Volume correction factor",
+      "text": "Converts the measured gas volume to standard conditions (pressure, temperature). kWh = m³ × correction factor × calorific value."
+    },
+    "cutoffDate": {
+      "term": "Effective date",
+      "text": "The day from which a new value applies — a new price or calorific value, for example. Up to the day before, the old one applies."
+    },
+    "efficiency": {
+      "term": "Efficiency figure",
+      "text": "Heating energy per m² and year (kWh/m²·yr). The home figure refers to the living area; the certificate-style figure calculates like an energy certificate (net calorific value, weather-adjusted, usable area). Not an official certificate."
+    },
+    "feedIn": {
+      "term": "Feed-in",
+      "text": "Solar power you deliver to the grid. The remuneration is revenue — more is better here."
+    },
+    "selfConsumption": {
+      "term": "Self-consumption",
+      "text": "Solar power you use yourself: generation minus feed-in. It replaces grid power — the saving is calculated with your unit price."
+    },
+    "autarky": {
+      "term": "Self-sufficiency rate",
+      "text": "The share of your electricity consumption covered by your own system."
+    },
+    "selfConsumptionRate": {
+      "term": "Self-consumption rate",
+      "text": "The share of the solar energy generated that you use yourself."
+    },
+    "estimated": {
+      "term": "Estimated",
+      "text": "A reading that was estimated rather than read — often by the supplier. It counts but stays marked."
+    },
+    "tankBook": {
+      "term": "Tank ledger",
+      "text": "For heating oil and pellets, consumption follows from initial stock, deliveries and known stock levels (delivery “to full”, tank reading). Between two known levels it is calculated, afterwards estimated."
+    },
+    "subMeter": {
+      "term": "Submeter and group",
+      "text": "A submeter measures part of another meter and is subtracted from it so that nothing counts twice. A group only combines meters for the overview."
+    },
+    "co2Avoided": {
+      "term": "Avoided CO₂",
+      "text": "Solar power replaces grid power. The calculation uses the CO₂ factor of grid electricity (Settings → Utilities & billing) — this much CO₂ would otherwise have been emitted. Simplified: manufacturing the system is not included."
+    }
+  },
+  "help": {
+    "title": "Help",
+    "subtitle": "Getting started, terms and documentation",
+    "explain": "Explain: {term}",
+    "moreInGlossary": "All terms",
+    "setup": {
+      "title": "Getting started",
+      "allDone": "All set up."
+    },
+    "glossary": {
+      "title": "Terms",
+      "search": "Search terms",
+      "none": "No term found."
+    },
+    "docs": {
+      "title": "Documentation",
+      "start": "Getting started",
+      "compendium": "Handbook and methodology",
+      "glossary": "Glossary and formulas",
+      "homeAssistant": "Connect Home Assistant",
+      "englishOnly": "The documentation exists in German and English; the links lead to the English version."
+    },
+    "support": {
+      "title": "Questions and bugs",
+      "text": "Questions, requests and bug reports go to the GitHub project. For a bug report, the diagnostics under Settings → System help.",
+      "issues": "Open the GitHub project",
+      "diagnostics": "Open diagnostics"
+    },
+    "privacy": {
+      "title": "Your data",
+      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it."
+    }
+  },
+  "onboarding": {
+    "done": "done",
+    "open": "open",
+    "optional": "optional",
+    "step": {
+      "location": {
+        "title": "Set your location",
+        "text": "The app needs the weather at your location for degree days and forecast."
+      },
+      "firstReading": {
+        "title": "Add your first meter reading",
+        "text": "Read your meters and enter the values."
+      },
+      "secondReading": {
+        "title": "Add a second reading",
+        "text": "Consumption comes from the difference between two readings — for example, add the reading from your last bill."
+      },
+      "contract": {
+        "title": "Add your contract",
+        "text": "With prices and advance payment the app calculates costs and tells you whether an additional payment is coming."
+      },
+      "homeAssistant": {
+        "title": "Connect Home Assistant",
+        "text": "Send meter readings automatically instead of typing them."
+      }
+    }
+  },
+  "saldo": {
+    "credit": "Credit",
+    "due": "Additional payment",
+    "reclaim": "Reclaim",
+    "even": "balanced",
+    "tableLegend": "Balance: + credit, − additional payment.",
+    "tableLegendFeedIn": "Balance: + credit, − reclaim."
   }
 }

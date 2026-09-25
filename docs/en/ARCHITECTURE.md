@@ -364,6 +364,9 @@ no contract at all, `last_price_ct` applies as a fallback working price.
 | `billing_cycle_anchor_gas` | string | `01-01` | billing date gas (`MM-DD`, checked as a real calendar day since v2.9.0, otherwise 400); the balance of open and renewed contracts is projected up to there (F-03) |
 | `billing_cycle_anchor_strom` | string | `01-01` | billing date electricity (F-03) |
 | `billing_cycle_anchor_wasser` | string | `01-01` | billing date water (F-03) |
+| `billing_cycle_anchor_fernwaerme` | string | `01-01` | billing date district heating (v1.3.0) |
+| `billing_cycle_anchor_pv_einspeisung` | string | `01-01` | billing date of the feed-in remuneration (v2.13.0; until then the start of the year applied) |
+| `billing_cycle_anchor_heizoel`, `…_pellets` | string | `01-01` | **Deprecated (v2.13.0), without effect** — no advances, no balance; removed in v3.0.0 |
 | `contract_remind_days_1` | int | 90 | reminder level 1 — days before the cancellation deadline, without a notice period before the contract end (F-05; deadline since v2.9.0) |
 | `contract_remind_days_2` | int | 30 | reminder level 2 (F-05) |
 | `contract_remind_days_3` | int | 1 | reminder level 3 — urgent (F-05) |

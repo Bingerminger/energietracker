@@ -87,8 +87,13 @@ final class SettingsService
         'billing_cycle_anchor_wasser' => '01-01',
         // v1.3.0 — Abrechnungsanker für die neuen Utilities
         'billing_cycle_anchor_fernwaerme' => '01-01',
+        // veraltet (v2.13.0): Heizöl und Pellets haben keine Abschläge und damit
+        // keinen Saldo bis zum Stichtag — ohne Wirkung, nicht mehr in der
+        // Oberfläche; entfallen mit v3.0.0
         'billing_cycle_anchor_heizoel'    => '01-01',
         'billing_cycle_anchor_pellets'    => '01-01',
+        // v2.13.0 — die Einspeisevergütung rechnet ebenfalls nach einem Stichtag
+        'billing_cycle_anchor_pv_einspeisung' => '01-01',
 
         // ── Vertragserinnerungen (F-05, v1.1.0) ──
         'contract_remind_days_1'   => 90,

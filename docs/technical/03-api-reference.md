@@ -13,7 +13,7 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung`. Stand: **86 Routen**,
-v2.12.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+v2.13.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -102,7 +102,7 @@ nicht wieder passieren.
 | POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin}`; Klartext einmalig *(v2.6.0)* |
 | DELETE | `/api/auth/keys/{id}` | Schlüssel widerrufen *(v2.6.0)* |
 | GET | `/api/diagnostics` | Systemstatus, Schreibrechte, Schema |
-| GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration |
+| GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration; seit v2.13.0 je Art `has_contracts`, `has_advance_payment_contracts` und `accounting_kind` (`consumption`, `feed_in`, `generation`) |
 | GET | `/api/settings` | Einstellungen |
 | PATCH | `/api/settings` | Einstellungen ändern |
 | GET | `/api/countries` | Länderprofile: Voreinstellungen je Land *(v2.7.0)* |
@@ -218,7 +218,8 @@ es keine Zählerstände, sondern Lieferungen.
         },
         "expected_next_min": 12345.67,
         "typical_per_day": 4.2,        // seit v2.6.0: Median der letzten ≤ 10 Intervalle, null bei < 2
-        "suspect_count": 0             // seit v2.6.0: unbestätigte Verdachtsfälle (Home Assistant)
+        "suspect_count": 0,            // seit v2.6.0: unbestätigte Verdachtsfälle (Home Assistant)
+        "reading_count": 41            // seit v2.13.0: Zahl der echten Stände (ohne geplante und verdächtige)
       }
     ]
   }
@@ -228,7 +229,9 @@ es keine Zählerstände, sondern Lieferungen.
 **Seit v2.6.0** fließen verdächtige Stände (`is_suspect`) nicht in
 `last_reading` ein — ein Home-Assistant-Push mit 0 wäre sonst die Basis der
 nächsten Erfassung. `typical_per_day` trägt die Rückfrage „Das wären 400 kWh
-am Tag, üblich sind 8".
+am Tag, üblich sind 8". `reading_count` (seit v2.13.0) zählt die Stände, aus
+denen ein Verbrauch entstehen kann: Einrichtungs-Checkliste und Leerzustände
+fragen danach, ob es schon zwei gibt.
 
 **`unit` gegen `consumption_unit` (seit v2.4.2, GitHub #21).** Ein Gaszähler
 zählt Kubikmeter; kWh entsteht erst über den Umrechnungsfaktor. `unit` ist die
@@ -430,7 +433,9 @@ gewählte Jahr leer ist, damit die Jahresauswahl bedienbar bleibt.
 **`PATCH /api/settings`:** `billing_cycle_anchor_*` muss ein Kalendertag
 `MM-TT` sein, sonst 400 `errors.settings.valueInvalid`.
 `min_temp_days_forecast` und `baujahr` sind **veraltet** (ohne Wirkung,
-entfallen mit v3.0.0); sie werden weiter geliefert und angenommen.
+entfallen mit v3.0.0); sie werden weiter geliefert und angenommen. Seit v2.13.0
+gilt das auch für `billing_cycle_anchor_heizoel` und `…_pellets`; neu ist
+`billing_cycle_anchor_pv_einspeisung` (Default `01-01`).
 
 ### `GET /api/utility/{u}/meters/{id}/forecast` *(v2.8.0 erweitert)*
 

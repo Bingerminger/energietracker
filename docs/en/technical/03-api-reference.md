@@ -12,7 +12,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 ```
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
-`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **86 routes**, v2.12.0 —
+`pellets`, `pv_einspeisung`, `pv_erzeugung`. As of: **86 routes**, v2.13.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -100,7 +100,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | POST | `/api/auth/keys` | create a key `{name, scope: read\|admin}`; plaintext once *(v2.6.0)* |
 | DELETE | `/api/auth/keys/{id}` | revoke a key *(v2.6.0)* |
 | GET | `/api/diagnostics` | system status, write permissions, schema |
-| GET | `/api/utilities` | list of utilities + configuration |
+| GET | `/api/utilities` | list of utilities + configuration; since v2.13.0 each with `has_contracts`, `has_advance_payment_contracts` and `accounting_kind` (`consumption`, `feed_in`, `generation`) |
 | GET | `/api/settings` | settings |
 | PATCH | `/api/settings` | change settings |
 | GET | `/api/countries` | country profiles: defaults per country *(v2.7.0)* |
@@ -215,7 +215,8 @@ oil/pellets) are excluded — there are no meter readings there, but deliveries.
         },
         "expected_next_min": 12345.67,
         "typical_per_day": 4.2,        // since v2.6.0: median of the last ≤ 10 intervals, null with < 2
-        "suspect_count": 0             // since v2.6.0: unconfirmed suspect readings (Home Assistant)
+        "suspect_count": 0,            // since v2.6.0: unconfirmed suspect readings (Home Assistant)
+        "reading_count": 41            // since v2.13.0: number of real readings (no planned or suspect ones)
       }
     ]
   }
@@ -225,7 +226,9 @@ oil/pellets) are excluded — there are no meter readings there, but deliveries.
 **Since v2.6.0** suspect readings (`is_suspect`) do not count as
 `last_reading` — a Home Assistant push of 0 would otherwise become the baseline
 of the next capture. `typical_per_day` backs the question "That would be
-400 kWh a day, usually it is 8".
+400 kWh a day, usually it is 8". `reading_count` (since v2.13.0) counts the
+readings a consumption can come from: the setup checklist and the empty states
+ask whether there are two yet.
 
 **`unit` versus `consumption_unit` (since v2.4.2, GitHub #21).** A gas meter
 counts cubic metres; kWh only comes into being through the conversion factor.
@@ -423,7 +426,9 @@ year is empty, so the year picker stays usable.
 **`PATCH /api/settings`:** `billing_cycle_anchor_*` must be a calendar day
 `MM-DD`, otherwise 400 `errors.settings.valueInvalid`.
 `min_temp_days_forecast` and `baujahr` are **deprecated** (without effect,
-dropped with v3.0.0); they are still delivered and accepted.
+dropped with v3.0.0); they are still delivered and accepted. Since v2.13.0 the
+same applies to `billing_cycle_anchor_heizoel` and `…_pellets`; new is
+`billing_cycle_anchor_pv_einspeisung` (default `01-01`).
 
 ### `GET /api/utility/{u}/meters/{id}/forecast` *(extended in v2.8.0)*
 

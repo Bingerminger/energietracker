@@ -50,7 +50,7 @@ final class ConsumptionController
         if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
         $monthly = $this->consumption->forMeter($utility, $meter, $hddBase !== null ? (float)$hddBase : null);
 
-        // For HGT-relevant utilities, fit all four regression models so the
+        // For HGT-relevant utilities, fit all five regression models so the
         // analysis view can compare them. For non-HGT utilities this stays
         // empty and the frontend falls back to a seasonal profile.
         $regressions = [];

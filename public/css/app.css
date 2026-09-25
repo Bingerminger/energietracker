@@ -477,7 +477,9 @@ h1, h2, h3, h4 { margin: 0; }
     background: var(--bg-overlay);
   }
   .sidebar__item { padding: 12px 14px; font-size: var(--fs-md); }
-  .sidebar__footer { padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)); }
+  .sidebar__footer { padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)); font-size: var(--fs-sm); }
+  /* v2.13.0 — „Hilfe" steht hier; auch ein Fußzeilen-Link braucht 44 px zum Tippen */
+  .sidebar__footer a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; padding: 0 var(--sp-2); }
 
   .tabbar {
     display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));

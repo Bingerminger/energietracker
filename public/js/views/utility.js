@@ -14,12 +14,15 @@
 
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
+import { tankLevel } from '../lib/tank.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput, monthShortNames } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t, getCurrencyMinor } from '../lib/i18n.js';
+import { info, infoNote } from '../components/info.js';
+import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 
 let _chart = null;
@@ -210,6 +213,8 @@ async function rerender(container) {
   }
   const yr = state.selectedYear;
   const monthlyYear = monthly.filter(m => m.year === yr);
+  // Zähler mit weniger als zwei Ständen: noch keine Monatswerte
+  const noValues = !isDelivery && monthly.length === 0;
 
   // ── Compute year totals for KPIs ────────────────────────────────
   // v1.6.1 — Fix #14: nutze utility-spezifischen Feldnamen (consKey)
@@ -221,6 +226,7 @@ async function rerender(container) {
   const totM3   = monthlyYear.reduce((s, m) => s + (m.m3 || 0), 0);
   const totAdv  = monthlyYear.reduce((s, m) => s + (m.advance_eur || 0), 0);
   const yearBalance = totCost - totAdv;
+  const yearBalanceView = balanceView(yearBalance, u);
   const hasContract = monthlyYear.some(m => m.contract_id);
   const currentContract = contracts.find(c => c.is_current);
   // v2.8.0 — Die Kacheln summieren die Monatszeilen, also nur abgelesene
@@ -238,26 +244,36 @@ async function rerender(container) {
     ${statusBannerHtml}
     ${warningsBannerHtml}
 
-    ${yearPills(years, yr, u.key)}
+    ${noValues ? `
+    <!-- v2.13.0 (Review UI-27) — Leerzustand statt „0 kWh, 0,00 €" und eines
+         leeren Diagramms: Monatswerte gibt es erst ab zwei Ständen -->
+    <div class="card empty-card">
+      <h2 class="card__title">${escapeHtml(t('utility.noData.title'))}</h2>
+      <p>${escapeHtml(t(readings.length ? 'utility.noData.oneReading' : 'utility.noData.noReading'))}</p>
+      <a class="btn btn--primary" href="#/zaehlerstaende?meter=${encodeURIComponent(meter.id)}">${escapeHtml(t('dashboard.todo.readingAction'))}</a>
+    </div>` : ''}
 
-    <div class="kpi-grid">
+    ${noValues ? '' : yearPills(years, yr, u.key)}
+
+    ${noValues ? '' : `<div class="kpi-grid">
       <div class="kpi c-${u.key}">
         <div class="kpi__label">${u.icon} ${isFeedIn ? t('utility.kpi.feedIn') : isGeneration ? t('utility.kpi.generation') : t('utility.kpi.consumption')} ${yr}</div>
         <div class="kpi__value">${fmt.unit(totUnit, u.consumption_unit, 0)}</div>
-        ${u.key === 'gas' ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
+        ${usesGasFactors(u) ? `<div class="kpi__sub">${fmt.unit(totM3, 'm³', 0)}</div>` : ''}
       </div>
       ${isGeneration ? '' : `
       <div class="kpi c-${u.key}">
         <div class="kpi__label">${isFeedIn ? t('utility.kpi.revenue') : t('utility.kpi.cost')} ${yr}</div>
-        <div class="kpi__value ${isFeedIn ? 'positive' : ''}">${fmt.eur(totCost)}</div>
+        <div class="kpi__value ${isFeedIn ? 'success-text' : ''}">${fmt.eur(totCost)}</div>
         <div class="kpi__sub">${t('utility.kpi.perMonth', { value: fmt.eur(monthlyYear.length ? totCost / monthlyYear.length : 0) })}</div>
       </div>`}
       ${hasContract && !isFeedIn ? `
         <div class="kpi c-yellow">
           <div class="kpi__label">${partialYear ? t('utility.kpi.advancesUntil', { date: fmt.date(measuredUntil) }) : t('utility.kpi.advances', { year: yr })}</div>
           <div class="kpi__value">${fmt.eur(totAdv)}</div>
-          <div class="kpi__sub ${yearBalance < 0 ? 'positive' : (yearBalance > 0 ? 'negative' : '')}">
-            ${t(partialYear ? 'utility.kpi.balanceShort' : 'utility.kpi.yearBalance', { value: (yearBalance > 0 ? '+' : '') + fmt.eur(yearBalance) })}
+          <!-- v2.13.0 (Review UI-18) — Kundensicht: „Guthaben 75,29 €" statt „−75,29 €" -->
+          <div class="kpi__sub ${yearBalanceView?.credit ? 'positive' : (yearBalanceView?.credit === false ? 'negative' : '')}">
+            ${t(partialYear ? 'utility.kpi.balanceShort' : 'utility.kpi.yearBalance', { value: `${yearBalanceView.word} ${fmt.eur(yearBalanceView.amount)}` })}${info('balance')}
           </div>
         </div>
       ` : ''}
@@ -268,9 +284,10 @@ async function rerender(container) {
         <div class="kpi__sub">${t('utility.kpi.daysCount', { days: totDays })}</div>
       </div>
       ${isFeedIn || isGeneration ? `
-      <div class="kpi c-violet" title="${t(isGeneration ? 'utility.kpi.co2AvoidedGenTitle' : 'utility.kpi.co2AvoidedTitle')}">
-        <div class="kpi__label">${t('utility.kpi.co2Avoided', { year: yr })}</div>
-        <div class="kpi__value">−${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
+      <div class="kpi c-violet">
+        <div class="kpi__label">${t('utility.kpi.co2Avoided', { year: yr })}${info('co2Avoided')}</div>
+        <!-- v2.13.0 — „vermieden“ ohne Minus: das Wort trägt die Richtung (wie im Jahresbericht) -->
+        <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2AvoidedSub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>
       ` : `
@@ -279,11 +296,11 @@ async function rerender(container) {
         <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2Sub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>`}
-    </div>
+    </div>`}
 
     ${!isDelivery && currentContract ? balanceCard(currentContract, u, country) : ''}
 
-    ${!isDelivery ? `
+    ${!isDelivery && u.has_contracts !== false ? `
     <div class="card">
       <div class="card__title">${t('utility.cards.contracts')}
         <span class="card__title-action">
@@ -294,15 +311,15 @@ async function rerender(container) {
     </div>
     ` : ''}
 
-    <div class="card">
-      <div class="card__title">${u.icon} ${t('utility.cards.monthlyChart', { year: yr })}</div>
+    ${noValues ? '' : `<div class="card">
+      <div class="card__title">${u.icon} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yr })}</div>
       <div class="chart-wrap h300"><canvas id="month-chart"></canvas></div>
     </div>
 
     <div class="card">
       <div class="card__title">${t('utility.cards.monthlyTable', { year: yr })}</div>
       ${monthlyTable(monthlyYear, u, hasContract)}
-    </div>
+    </div>`}
 
     ${isDelivery ? `
     <div class="card">
@@ -311,7 +328,7 @@ async function rerender(container) {
           <span class="muted" style="font-size:12px">${stockTankSummary(stockHist, u)}</span>
         </span>` : ''}
       </div>
-      ${stockTankBar(stockHist, u)}
+      ${stockTankBar(stockHist, u, settings.tank_warn_pct)}
       ${stockHist && stockHist.capacity ? `<div class="chart-wrap h220"><canvas id="stock-chart"></canvas></div>` : ''}
       ${tankNotes(stockHist, u)}
       ${tankLevelsBlock(meter, u)}
@@ -337,11 +354,11 @@ async function rerender(container) {
       ${readingsTable(readings, u, yr, warnByReading)}
     </div>
     `}
-    ${u.key === 'gas' ? billCheckLink(meter, yr) : ''}
+    ${usesGasFactors(u) ? billCheckLink(meter, yr) : ''}
   `;
 
   // Chart
-  drawMonthChart('month-chart', monthlyYear, u);
+  if (!noValues) drawMonthChart('month-chart', monthlyYear, u);
   if (isDelivery) drawStockChart('stock-chart', stockHist, u, yr);
 
   // Wire up events
@@ -371,7 +388,7 @@ function header(u, meter = null) {
     <div class="view-header">
       <div>
         <h1 class="view-header__title" style="color:var(--util-${u.key})"><span aria-hidden="true">${icon}</span> ${escapeHtml(u.label)}</h1>
-        <div class="view-header__subtitle">${t('utility.subtitle')}</div>
+        <div class="view-header__subtitle">${t(u.reading_kind === 'delivery' ? 'utility.subtitleDelivery' : feedInKind(u) ? 'utility.subtitleFeedIn' : generationKind(u) ? 'utility.subtitleGeneration' : 'utility.subtitle')}</div>
       </div>
       <div class="view-header__actions">
         ${meterSelectorHtml}
@@ -408,7 +425,7 @@ function balanceCard(c, u, country = 'DE') {
   const verdict = c.verdict;
   const verdictCls = { refund: 'refund', payout: 'refund', surcharge: 'surcharge', reclaim: 'surcharge', balanced: 'balanced' }[verdict] || 'balanced';
   const arrow = { refund: '↓', payout: '↓', surcharge: '↑', reclaim: '↑', balanced: '→' }[verdict] || '→';
-  const sign = v => v > 0 ? '+' : '';
+  const curView = balanceView(cur, u);
   const dateLabel = isFeedIn
     ? t('utility.balance.dateNext', { date: fmt.date(c.effective_end) })
     : (c.is_open_ended || c.renewed   // v2.9.0 — weiterlaufend: nächste Abrechnung, kein Vertragsende
@@ -503,13 +520,15 @@ function balanceCard(c, u, country = 'DE') {
           ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${spCount === 1 ? t('utility.balance.specialCountOne') : t('utility.balance.specialCount', { count: spCount })}</div>${specialHtml}` : ''}
         </div>
         <div>
-          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colClaimFeedIn') : t('utility.balance.colBalance')}</div>
-          <div class="balance-col__value ${isFeedIn ? (cur > 0 ? 'negative' : cur < 0 ? 'positive' : '') : (cur > 0 ? 'positive' : cur < 0 ? 'negative' : '')}">${sign(cur)}${fmt.eur(cur)}</div>
+          <div class="balance-col__label">${isFeedIn ? t('utility.balance.colClaimFeedIn') : t('utility.balance.colBalance')}${info('balance')}</div>
+          <!-- v2.13.0 (Review UI-18) — Kundensicht ohne Vorzeichen; die Farbe
+               folgt der Bedeutung (bis v2.12 hieß die rote Klasse „positive") -->
+          <div class="balance-col__value ${curView?.credit ? 'balance-col__value--credit' : curView?.credit === false ? 'balance-col__value--due' : ''}">${fmt.eur(curView ? curView.amount : cur)}</div>
           <div class="balance-col__sub">${isFeedIn ? (cur > 0 ? t('utility.balance.subCredit') : cur < 0 ? t('utility.balance.subReclaim') : t('utility.balance.subBalanced')) : (cur > 0 ? t('utility.balance.subUnderpaid') : cur < 0 ? t('utility.balance.subOverpaid') : t('utility.balance.subBalanced'))}</div>
         </div>
         <div class="balance-verdict ${verdictCls}">
           <div class="balance-verdict__label">${arrow} ${t('utility.balance.verdictLabel')}</div>
-          <div class="balance-verdict__value">${sign(proj)}${fmt.eur(proj)}</div>
+          <div class="balance-verdict__value">${fmt.eur(Math.abs(proj || 0))}</div>
           <div class="balance-verdict__verdict">${t('utility.verdict.' + verdict)}</div>
           <div class="balance-verdict__date">${escapeHtml(dateLabel)}</div>
         </div>
@@ -573,8 +592,12 @@ function contractsTable(contracts, u) {
       <a class="btn btn--primary" href="#/utility/${u.key}/contracts">${t('utility.contractsTable.emptyCta')}</a>
     </div>`;
   }
-  const sign = v => v > 0 ? '+' : '';
-  const balCls = v => v > 0 ? 'danger-text' : v < 0 ? 'success-text' : 'muted';
+  // v2.13.0 (Review UI-18) — Vorzeichen aus Kundensicht (+ = Guthaben), bei
+  // der Einspeisung ist ein Anspruch grün (bis v2.12 rot)
+  const balCell = (v, bold = false) => {
+    const bv = balanceView(v, u);
+    return bv ? `<td class="num ${bv.cls}"${bold ? ' style="font-weight:600"' : ''}>${bv.signed}</td>` : '<td class="num muted">–</td>';
+  };
   // v2.5.1 — Spalte „Sonderzahlungen": nur dort, wo das Backend Einzelposten
   // liefert (Gas/Strom/Fernwärme). Wasser und Einspeisung kennen keine
   // Sonderzahlungen; bei ihnen fehlt das Feld, und die Spalte entfällt.
@@ -586,11 +609,12 @@ function contractsTable(contracts, u) {
       <th scope="col">${t('utility.contractsTable.colStatus')}</th>
       <th scope="col" class="num">${t('utility.contractsTable.colTariff')}</th>
       <th scope="col" class="num">${t('utility.contractsTable.colAdvance')}</th>
-      <th scope="col" class="num">${t('utility.contractsTable.colConsumed')}</th>
-      <th scope="col" class="num">${t('utility.contractsTable.colPaid')}</th>
+      <!-- v2.13.0 — bei der Einspeisung zahlt der Netzbetreiber: verdient und erhalten, nicht verbraucht und bezahlt -->
+      <th scope="col" class="num">${t(feedInKind(u) ? 'utility.contractsTable.colEarned' : 'utility.contractsTable.colConsumed')}</th>
+      <th scope="col" class="num">${t(feedInKind(u) ? 'utility.contractsTable.colReceived' : 'utility.contractsTable.colPaid')}</th>
       <th scope="col" class="num">${t('utility.contractsTable.colBonus')}</th>
-      ${showSpecial ? `<th scope="col" class="num special-col" title="${escapeHtml(t('utility.contractsTable.colSpecialTitle'))}">${t('utility.contractsTable.colSpecial')}</th>` : ''}
-      <th scope="col" class="num">${t('utility.contractsTable.colBalanceToday')}</th>
+      ${showSpecial ? `<th scope="col" class="num special-col">${t('utility.contractsTable.colSpecial')}${info('specialPayment')}</th>` : ''}
+      <th scope="col" class="num">${t('utility.contractsTable.colBalanceToday')}${info('balance')}</th>
       <th scope="col" class="num">${t('utility.contractsTable.colBalanceExpected')}</th>
     </tr></thead>
     <tbody>
@@ -603,8 +627,10 @@ function contractsTable(contracts, u) {
         : `${fmt.date(c.start)} → ${fmt.date(c.end)}`;
       const tariffParts = [];
       if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + ' ' + getCurrencyMinor());
-      if (c.current_base_price_eur   != null) tariffParts.push(t('utility.contractsTable.gpSuffix', { value: fmt.int(c.current_base_price_eur) }));
-      const tariffStr = tariffParts.length ? tariffParts.join(' · ') : '–';
+      // v2.13.0 — ausgeschrieben statt „GP“, auf den Cent statt gerundet
+      if (c.current_base_price_eur   != null) tariffParts.push(t('utility.contractsTable.gpSuffix', { value: fmt.num(c.current_base_price_eur, 2) }));
+      // Je Preis eine Zeile, ohne Umbruch darin (sonst „Grundpreis 11,90 / €/Monat“)
+      const tariffStr = tariffParts.length ? tariffParts.map(p => `<span class="tariff-part">${p}</span>`).join('<br>') : '–';
       const bonusStr = c.actual_bonus_total > 0 ? fmt.eur(c.actual_bonus_total) : '–';
       return `<tr>
         <td class="provider-cell">${escapeHtml(c.provider || '–')}${c.tariff_name ? `<small>${escapeHtml(c.tariff_name)}</small>` : ''}</td>
@@ -616,19 +642,20 @@ function contractsTable(contracts, u) {
         <td class="num">${fmt.eur(c.advance_paid)}</td>
         <td class="num success-text">${bonusStr}</td>
         ${showSpecial ? specialCell(c) : ''}
-        <td class="num ${balCls(cur)}">${sign(cur)}${fmt.eur(cur)}</td>
-        <td class="num ${balCls(proj)}" style="font-weight:600">${sign(proj)}${fmt.eur(proj)}</td>
+        ${balCell(cur)}
+        ${balCell(proj, true)}
       </tr>`;
     }).join('')}
     </tbody>
   </table></div>
-  ${showSpecial ? `<p class="muted" style="font-size:11px;margin:8px 4px 0">${t('utility.contractsTable.hint')}</p>` : ''}`;
+  <p class="muted" style="font-size:11px;margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>`;
 }
 
 // v2.5.1 — Zelle „Sonderzahlungen": Netto aus Kundensicht. Erhalten (Rück-
 // zahlung) zählt positiv, gezahlt (Nach-/Abschlagszahlung) negativ — das ist
-// dieselbe Größe, die der Saldo als `special_payment_net` addiert. Die
-// Einzelposten stehen im Tooltip, damit die Tabelle schmal bleibt.
+// dieselbe Größe, die der Saldo als `special_payment_net` addiert.
+// v2.13.0 (Review UI-17) — die Einzelposten zum Aufklappen statt im Tooltip,
+// den es auf dem iPhone nicht gibt.
 function specialCell(c) {
   const items = Array.isArray(c.special_payments) ? c.special_payments : [];
   if (!items.length) return `<td class="num muted special-cell">–</td>`;
@@ -642,13 +669,26 @@ function specialCell(c) {
     return sp.note ? `${line} (${sp.note})` : line;
   });
   const count = items.length > 1 ? ` <small class="muted">(${items.length})</small>` : '';
-  return `<td class="num ${cls} special-cell" title="${escapeHtml(lines.join('\n'))}">${sign}${fmt.eur(net)}${count}</td>`;
+  return `<td class="num ${cls} special-cell">
+    <details class="special-details">
+      <summary>${sign}${fmt.eur(net)}${count}</summary>
+      <ul class="special-details__list">${lines.map(l => `<li>${escapeHtml(l)}</li>`).join('')}</ul>
+    </details>
+  </td>`;
 }
 
 // ── Monatstabelle ───────────────────────────────────────────────────
 function monthlyTable(monthly, u, hasContracts) {
   if (!monthly.length) return `<p class="muted" style="padding:16px">${t('utility.monthlyTable.noData')}</p>`;
-  const isGas = u.key === 'gas';
+  const isGas = usesGasFactors(u);
+  // v2.13.0 (Review UI-19) — PV: kein Wetterbezug, Einspeisung als Erlös
+  // ohne Abschlagsspalten (dort stand nur „–"), Erzeugung ganz ohne Kosten;
+  // CO₂ ist bei PV vermieden und steht mit Minus wie in der Kachel
+  const pv = isPv(u);
+  const feedIn = feedInKind(u);
+  const generation = generationKind(u);
+  const showCost = !generation;
+  const showBalance = hasContracts && !feedIn;
   // v1.6.1 — Fix #14: Verbrauchs-Feldname je nach Utility. Wasser/
   // m³-native Utilities tragen den Wert im Feld `m3`; das `kwh`-
   // Feld ist nach applyUtilityFields leer. Vorher las die m³-Spalte
@@ -673,20 +713,19 @@ function monthlyTable(monthly, u, hasContracts) {
       ${isGas ? '<th scope="col" class="num">m³</th>' : ''}
       <th scope="col" class="num">${u.consumption_unit}</th>
       <th scope="col" class="num">${t('utility.monthlyTable.colPerDay', { unit: u.consumption_unit })}</th>
-      <th scope="col" class="num" title="${t('utility.monthlyTable.colTempTitle')}">${t('utility.monthlyTable.colTemp')}</th>
-      <th scope="col" class="num" title="${t('utility.monthlyTable.colHddTitle')}">${t('utility.monthlyTable.colHdd')}</th>
-      <th scope="col" class="num">ct/${u.consumption_unit === 'kWh' ? 'kWh' : 'm³'}</th>
-      <th scope="col" class="num">${t('utility.monthlyTable.colCost')}</th>
-      ${hasContracts ? `<th scope="col" class="num col-yellow">${t('utility.monthlyTable.colAdvance')}</th>` : ''}
-      ${hasContracts ? `<th scope="col" class="num" title="${t('utility.monthlyTable.colCumBalanceTitle')}">${t('utility.monthlyTable.colCumBalance')}</th>` : ''}
-      <th scope="col" class="num col-violet">${t('utility.monthlyTable.colCo2')}</th>
-      <th scope="col" class="num col-blue" title="${t('utility.monthlyTable.colMa3Title')}">${t('utility.monthlyTable.colMa3')}</th>
-      <th scope="col" class="num col-yellow" title="${t('utility.monthlyTable.colMa6Title')}">${t('utility.monthlyTable.colMa6')}</th>
+      ${pv ? '' : `<th scope="col" class="num" title="${t('utility.monthlyTable.colTempTitle')}">${t('utility.monthlyTable.colTemp')}</th>`}
+      ${pv ? '' : `<th scope="col" class="num">${t('utility.monthlyTable.colHdd')}${info('hdd')}</th>`}
+      ${showCost ? `<th scope="col" class="num">${t('utility.monthlyTable.colPrice', { minor: getCurrencyMinor(), unit: u.consumption_unit })}</th>` : ''}
+      ${showCost ? `<th scope="col" class="num">${t(feedIn ? 'utility.monthlyTable.colRevenue' : 'utility.monthlyTable.colCost')}</th>` : ''}
+      ${showBalance ? `<th scope="col" class="num col-yellow">${t('utility.monthlyTable.colAdvance')}</th>` : ''}
+      ${showBalance ? `<th scope="col" class="num">${t('utility.monthlyTable.colCumBalance')}${info('balance')}</th>` : ''}
+      <th scope="col" class="num col-violet">${t(pv ? 'utility.monthlyTable.colCo2Avoided' : 'utility.monthlyTable.colCo2')}</th>
+      <th scope="col" class="num col-blue">${t('utility.monthlyTable.colMa3')}${info('movingAverage')}</th>
+      <th scope="col" class="num col-yellow">${t('utility.monthlyTable.colMa6')}</th>
     </tr></thead>
     <tbody>
     ${monthly.map(m => {
-      const cum = m.cumulative_balance;
-      const bCls = cum == null ? 'muted' : cum > 0 ? 'danger-text' : cum < 0 ? 'success-text' : 'muted';
+      const cumView = balanceView(m.cumulative_balance, u, (n) => fmt.num(n, 2));
       // v2.10.0 — Tankbuch: Monate mit geschätzten Tagen (nach dem letzten bekannten Bestand)
       const est = m.estimated_days > 0
         ? ` <span class="muted" title="${escapeHtml(t('utility.monthlyTable.estimatedTitle', { days: m.estimated_days }))}">≈</span>` : '';
@@ -696,12 +735,12 @@ function monthlyTable(monthly, u, hasContracts) {
         ${isGas ? `<td class="num">${fmt.int(m.m3)}</td>` : ''}
         <td class="num"><strong>${fmt.int(m[consKey])}</strong></td>
         <td class="num">${fmt.num(m.kwh_per_day, 1)}</td>
-        <td class="num">${m.avg_temp != null ? fmt.num(m.avg_temp, 1) : '–'}</td>
-        <td class="num">${m.hdd != null ? fmt.int(m.hdd) : '–'}</td>
-        <td class="num">${m.working_price_ct != null ? fmt.num(m.working_price_ct, 4) : '–'}</td>
-        <td class="num"><strong>${fmt.num(m.cost, 2)}</strong></td>
-        ${hasContracts ? `<td class="num col-yellow">${m.advance_eur != null ? fmt.num(m.advance_eur, 2) : '–'}</td>` : ''}
-        ${hasContracts ? `<td class="num ${bCls}" style="font-weight:500">${cum != null ? sign(cum) + fmt.num(cum, 2) : '–'}</td>` : ''}
+        ${pv ? '' : `<td class="num">${m.avg_temp != null ? fmt.num(m.avg_temp, 1) : '–'}</td>`}
+        ${pv ? '' : `<td class="num">${m.hdd != null ? fmt.int(m.hdd) : '–'}</td>`}
+        ${showCost ? `<td class="num">${m.working_price_ct != null ? fmt.num(m.working_price_ct, 4) : '–'}</td>` : ''}
+        ${showCost ? `<td class="num"><strong>${fmt.num(m.cost, 2)}</strong></td>` : ''}
+        ${showBalance ? `<td class="num col-yellow">${m.advance_eur != null ? fmt.num(m.advance_eur, 2) : '–'}</td>` : ''}
+        ${showBalance ? `<td class="num ${cumView ? cumView.cls : 'muted'}" style="font-weight:500">${cumView ? cumView.signed : '–'}</td>` : ''}
         <td class="num col-violet">${fmt.int(m.co2_kg)}</td>
         <td class="num col-blue">${m.ma3 != null ? fmt.int(m.ma3) : '–'}</td>
         <td class="num col-yellow">${m.ma6 != null ? fmt.int(m.ma6) : '–'}</td>
@@ -713,14 +752,15 @@ function monthlyTable(monthly, u, hasContracts) {
       <td class="num">${tot.days}</td>
       ${isGas ? `<td class="num">${fmt.int(tot.m3)}</td>` : ''}
       <td class="num">${fmt.int(tot[consKey])}</td>
-      <td></td><td></td><td></td><td></td>
-      <td class="num">${fmt.num(tot.cost, 2)}</td>
-      ${hasContracts ? `<td class="num col-yellow">${fmt.num(tot.adv, 2)}</td>` : ''}
-      ${hasContracts ? `<td class="num ${yearBal > 0 ? 'danger-text' : yearBal < 0 ? 'success-text' : 'muted'}" style="font-weight:600">${sign(yearBal)}${fmt.num(yearBal, 2)}</td>` : ''}
+      <td></td>${pv ? '' : '<td></td><td></td>'}${showCost ? '<td></td>' : ''}
+      ${showCost ? `<td class="num">${fmt.num(tot.cost, 2)}</td>` : ''}
+      ${showBalance ? `<td class="num col-yellow">${fmt.num(tot.adv, 2)}</td>` : ''}
+      ${showBalance ? (() => { const yb = balanceView(yearBal, u, (n) => fmt.num(n, 2)); return `<td class="num ${yb ? yb.cls : 'muted'}" style="font-weight:600">${yb ? yb.signed : '–'}</td>`; })() : ''}
       <td class="num">${fmt.int(tot.co2)}</td>
       <td></td><td></td>
     </tr></tfoot>
   </table></div>
+  ${showBalance ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('saldo.tableLegend')}</p>` : ''}
   ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}`;
 }
 
@@ -771,9 +811,10 @@ function readingsTable(readings, u, year = null, warnByReading = new Map()) {
     ${sorted.map(r => {
       // v2.6.0 — Verdacht (Home Assistant, fallender Stand) und Ausreißer
       const warn = warnByReading.get(r.id);
+      // v2.13.0 (Review UI-27) — der Grund zum Antippen statt nur als Tooltip
       const flag = r.is_suspect
-        ? `<span class="status-pill suspect" title="${escapeHtml(t('utility.readingsTable.suspectTitle'))}">${t('utility.readingsTable.suspect')}</span>`
-        : warn ? `<span class="status-pill implausible" title="${escapeHtml(warningText(warn, u))}">${t('utility.readingsTable.implausible')}</span>` : '';
+        ? `<span class="status-pill suspect">${t('utility.readingsTable.suspect')}</span>${infoNote(t('utility.readingsTable.suspect'), t('utility.readingsTable.suspectTitle'))}`
+        : warn ? `<span class="status-pill implausible">${t('utility.readingsTable.implausible')}</span>${infoNote(t('utility.readingsTable.implausible'), warningText(warn, u))}` : '';
       return `<tr data-reading-id="${escapeHtml(r.id)}"${r.is_suspect || warn ? ' class="row--flagged"' : ''}>
       <td><strong>${fmt.date(r.date)}</strong> ${r.is_future ? `<span class="status-pill future">${t('utility.readingsTable.future')}</span>` : ''} ${r.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''} ${flag}</td>
       <td class="num">${fmt.num(r.counter, 1)} ${u.unit}</td>
@@ -813,7 +854,7 @@ function deliveriesTable(deliveries, u) {
       const tot = d.total_eur != null ? Number(d.total_eur)
                   : (upC != null ? qty * upC / 100 : null);
       return `<tr data-delivery-id="${escapeHtml(d.id)}">
-        <td><strong>${fmt.date(d.date)}</strong> ${d.is_planned ? `<span class="status-pill future">${t('utility.deliveriesTable.planned')}</span>` : ''} ${d.fill_to_full ? `<span class="status-pill active" title="${escapeHtml(t('utility.deliveryModal.fillToFullHint'))}">${t('utility.deliveriesTable.full')}</span>` : ''}</td>
+        <td><strong>${fmt.date(d.date)}</strong> ${d.is_planned ? `<span class="status-pill future">${t('utility.deliveriesTable.planned')}</span>` : ''} ${d.fill_to_full ? `<span class="status-pill active">${t('utility.deliveriesTable.full')}</span>${infoNote(t('utility.deliveriesTable.full'), t('utility.deliveryModal.fillToFullHint'))}` : ''}</td>
         <td class="num">${fmt.num(qty, 0)} ${unit}</td>
         <td class="num">${upC != null ? fmt.num(upC, 2) + ' ' + getCurrencyMinor() : '–'}</td>
         <td class="num">${tot != null ? fmt.eur(tot) : '–'}</td>
@@ -839,7 +880,7 @@ function stockTankSummary(stockHist, u) {
   return t('utility.tank.summary', { stock: fmt.num(stock, 0), unit, cap: fmt.num(stockHist.capacity, 0), pct: pct.toFixed(0) });
 }
 
-function stockTankBar(stockHist, u) {
+function stockTankBar(stockHist, u, warnPct) {
   if (!stockHist || !stockHist.capacity) {
     return `<div class="empty" style="padding:24px"><p class="muted">${t('utility.tank.noCapacity')}</p></div>`;
   }
@@ -849,9 +890,7 @@ function stockTankBar(stockHist, u) {
   const stock = last ? Number(last.stock || 0) : 0;
   const cap = Number(stockHist.capacity);
   const pct = cap > 0 ? Math.max(0, Math.min(100, stock / cap * 100)) : 0;
-  let barCls = 'ok';
-  if (pct <= 8)  barCls = 'alert';
-  else if (pct <= 15) barCls = 'warn';
+  const barCls = tankLevel(pct, warnPct);
   return `
     <div class="tank-bar-wrap">
       <div class="tank-bar" aria-hidden="true">
@@ -1047,6 +1086,8 @@ function drawMonthChart(canvasId, monthly, u) {
   const labels = monthly.map(m => fmt.month(m.ym));
   const consumption = monthly.map(m => m[consKey]);
   const temp = monthly.map(m => m.avg_temp);
+  // v2.13.0 (Review UI-19) — Sonnenstrom hängt nicht an der Temperatur
+  const withTemp = !isPv(u);
 
   _chart = makeChart(canvas, {
     type: 'bar',
@@ -1063,7 +1104,7 @@ function drawMonthChart(canvasId, monthly, u) {
           yAxisID: 'y',
           order: 2,
         },
-        {
+        ...(withTemp ? [{
           type: 'line',
           label: t('utility.chart.temp'),
           data: temp,
@@ -1073,7 +1114,7 @@ function drawMonthChart(canvasId, monthly, u) {
           pointRadius: 2,
           yAxisID: 'y1',
           order: 1,
-        },
+        }] : []),
       ],
     },
     options: {
@@ -1081,7 +1122,7 @@ function drawMonthChart(canvasId, monthly, u) {
       interaction: { mode: 'index', intersect: false },
       scales: {
         y: { position: 'left', title: { display: true, text: u.consumption_unit } },
-        y1: { position: 'right', title: { display: true, text: '°C' }, grid: { drawOnChartArea: false } },
+        ...(withTemp ? { y1: { position: 'right', title: { display: true, text: '°C' }, grid: { drawOnChartArea: false } } } : {}),
       },
     }
   }, { label: t('utility.chart.alt') });

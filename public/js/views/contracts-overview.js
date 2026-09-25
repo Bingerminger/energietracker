@@ -25,7 +25,9 @@ export async function render(container) {
     </div>`;
   container.innerHTML = `${header}<div class="loading" role="status">${escapeHtml(t('common.loading'))}</div>`;
 
-  const utilities = (await activeUtilities()).filter(u => u.has_contracts !== false);
+  // v2.13.0 — ohne Heizöl und Pellets: deren Kosten stehen an den Lieferungen,
+  // der Link „Vertrag anlegen" führte auf eine Seite ohne Verträge
+  const utilities = (await activeUtilities()).filter(u => u.has_contracts !== false && u.reading_kind !== 'delivery');
   if (!utilities.length) {
     container.innerHTML = `${header}<div class="empty"><p>${escapeHtml(t('contractsOverview.noUtilities'))}</p></div>`;
     return;

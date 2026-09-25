@@ -7,11 +7,13 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { activeUtilities } from '../state.js';
+import { activeUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
+import { info } from '../components/info.js';
+import { balanceView, isFeedIn } from '../lib/semantics.js';
 
 let chart = null;
 
@@ -131,6 +133,16 @@ export async function render(container) {
   meterSel.addEventListener('change', run);
   container.querySelector('#btn-go').addEventListener('click', run);
 
+  // v2.13.0 (Review FE-10) — Modell und Horizont aus den Einstellungen
+  // vorbelegen. Bis v2.12 stand hier fest „linear, 12", während der
+  // Tarifvergleich das eingestellte Modell nutzte: zwei Ansichten, zwei
+  // verschiedene Prognosen.
+  const s = (await getSettings().catch(() => null)) || {};
+  const modelSel = container.querySelector('#model');
+  if (modelSel && [...modelSel.options].some(o => o.value === s.forecast_model)) modelSel.value = s.forecast_model;
+  const fm = Number(s.forecast_months);
+  if (Number.isInteger(fm) && fm >= 1 && fm <= 24) container.querySelector('#months').value = String(fm);
+
   await loadMeters();
   await run();
 
@@ -138,11 +150,13 @@ export async function render(container) {
 }
 
 function renderResult(u, result, container) {
-  const info = container.querySelector('#fc-info');
+  // v2.13.0 — nicht `info`: Der Name gehört dem ⓘ-Knopf aus components/info.js,
+  // die lokale Variable überschattete ihn und die Tabelle blieb leer
+  const infoEl = container.querySelector('#fc-info');
   const tbl  = container.querySelector('#fc-table');
 
   if (!result.valid) {
-    info.innerHTML = `<span class="danger-text">${escapeHtml(result.reason || t('forecast.noForecast'))}</span>`;
+    infoEl.innerHTML =`<span class="danger-text">${escapeHtml(result.reason || t('forecast.noForecast'))}</span>`;
     tbl.innerHTML = '';
     return;
   }
@@ -186,8 +200,11 @@ function renderResult(u, result, container) {
   }, { label: t('forecast.chartAlt') });
 
   const reg = result.regression;
+  // v2.13.0 (Review UI-17) — Modellname übersetzt statt Schlüssel („linear", „seasonal_only")
+  const modelKey = u.hgt_relevant ? (reg?.model || 'linear') : 'seasonal_only';
+  const modelName = modelKey === 'seasonal_only' ? t('forecast.models.seasonalOnly') : t(`forecast.models.${modelKey}`);
   const lines = [t('forecast.info', {
-    model: u.hgt_relevant ? (reg?.model || 'linear') : 'seasonal_only',
+    model: escapeHtml(modelName === `forecast.models.${modelKey}` ? modelKey : modelName),
     blend: fmt.num(result.blend_weight * 100, 1),
     r2: reg ? ` (${t('forecast.r2Label')} ${fmt.num(reg.r2, 3)})` : '',
     price: fmt.num(result.last_price_ct, 3),
@@ -215,7 +232,7 @@ function renderResult(u, result, container) {
     if (w.code === 'no_climate_normal') return t('forecast.warn.noClimateNormal');
     return '';
   }).filter(Boolean);
-  info.innerHTML = lines.join('<br>')
+  infoEl.innerHTML = lines.join('<br>')
     + (warn.length ? `<div class="banner banner--warning" style="margin-top: var(--sp-3)">${warn.map(escapeHtml).join('<br>')}</div>` : '');
 
   // F-02: the forecast now carries a full contract-aware finance projection.
@@ -243,13 +260,13 @@ function renderResult(u, result, container) {
         ${u.hgt_relevant ? `<th scope="col" class="num">${t('forecast.col.hgt')}</th>` : ''}
         <th scope="col" class="num">${t('forecast.col.cost')}</th>
         <th scope="col" class="num">${t('forecast.col.advance')}</th>
-        <th scope="col" class="num">${t('forecast.col.balance')}</th>
+        <th scope="col" class="num">${t('forecast.col.balance')}${info('balance')}</th>
         <th scope="col">${t('forecast.col.method')}</th>
       </tr></thead>
       <tbody>
         ${fc.map(r => {
-          const bal = r.balance_running;
-          const balCls = bal == null ? '' : (bal > 0 ? 'danger-text' : bal < 0 ? 'success-text' : '');
+          // v2.13.0 (Review UI-18) — Vorzeichen aus Kundensicht, + heißt Guthaben
+          const balView = balanceView(r.balance_running, u);
           return `
           <tr>
             <td>${fmt.month(r.ym)}</td>
@@ -257,7 +274,7 @@ function renderResult(u, result, container) {
             ${u.hgt_relevant ? `<td class="num">${fmt.num(r.hdd_estimated, 0)}</td>` : ''}
             <td class="num">${fmt.eur(r.cost_estimated)}${r.contract_assumed ? ' *' : ''}</td>
             <td class="num">${r.advance_estimated != null ? fmt.eur(r.advance_estimated) : '<span class="dim">–</span>'}</td>
-            <td class="num ${balCls}">${bal != null ? fmt.eur(bal) : '<span class="dim">–</span>'}</td>
+            <td class="num ${balView ? balView.cls : ''}">${balView ? balView.signed : '<span class="dim">–</span>'}</td>
             <td>${methodLabel(r.method)}</td>
           </tr>`;
         }).join('')}
@@ -265,7 +282,7 @@ function renderResult(u, result, container) {
     </table></div>
     ${hasFinance ? `
       <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">
-        ${t('forecast.bonusNote')}
+        ${t(isFeedIn(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')} ${t('forecast.bonusNote')}
         ${fc.some(r => r.contract_assumed) ? `<br>* ${t('forecast.assumedNote')}` : ''}
       </p>
     ` : ''}

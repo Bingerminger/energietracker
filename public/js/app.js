@@ -14,6 +14,10 @@ import { applyUtilityTheme } from './lib/utility-theme.js';
 import { api } from './api.js';
 import { showLogin, logout } from './components/login.js';
 import { intlLocale, setCountry } from './lib/format.js';
+import { installInfoPopovers } from './components/info.js';
+
+// v2.13.0 — ⓘ-Erklärungen: ein Handler für alle Knöpfe
+installInfoPopovers();
 
 const container = document.getElementById('view');
 

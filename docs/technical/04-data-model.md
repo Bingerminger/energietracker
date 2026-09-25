@@ -320,7 +320,8 @@ Gruppen (Auswahl der Default-Werte):
 | `contract_remind_days_1/2/3` | 90 / 30 / 1 | Erinnerungsstufen; seit v2.9.0 Tage vor dem Kündigungsstichtag, ohne Frist vor dem Vertragsende |
 | `min_temp_days_forecast`, `baujahr` | 20, null | **veraltet (v2.9.0)**, ohne Wirkung und nicht mehr in der Oberfläche; entfallen mit v3.0.0 |
 | `efficiency_class_thresholds` | A+…G | Bandgrenzen kWh/m²·a |
-| `billing_cycle_anchor_*` | 01-01 | Abrechnungsstichtag — gespeichert `MM-TT`, **angezeigt `TT-MM`** (v1.4.2); seit v2.9.0 muss es ein Kalendertag sein, sonst 400 |
+| `billing_cycle_anchor_*` | 01-01 | Abrechnungsstichtag — gespeichert `MM-TT`, **angezeigt `TT-MM`** (v1.4.2); seit v2.9.0 muss es ein Kalendertag sein, sonst 400. Seit v2.13.0 auch `…_pv_einspeisung` (die Vergütung rechnet bis zum Stichtag) |
+| `billing_cycle_anchor_heizoel`, `…_pellets` | 01-01 | **veraltet (v2.13.0)**, ohne Wirkung (keine Abschläge, kein Saldo) und nicht mehr in der Oberfläche; entfallen mit v3.0.0 |
 | `delivery_baseload_share` | 0.15 | wetterunabhängiger Grundlastanteil bei Lieferarten |
 | `tank_warn_pct` | — | Warnschwelle Tankfüllstand |
 | `active_utilities` | alle | welche Arten in Sidebar/Dashboard sichtbar |

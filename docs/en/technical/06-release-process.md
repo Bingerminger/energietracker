@@ -571,6 +571,27 @@ accepted.
   A toast with "Undo" is quick to build, the way back in the data model is not;
   both belong in the same change, or the interface promises something it cannot
   do.
+- **A local name shadows an import (v2.13.0).** In the forecast the `#fc-info`
+  element had always been called `info`; since v2.13.0 that is also the name of
+  the ⓘ button. The local variable won, `info('balance')` threw, and the error
+  ended up in the view's `try/catch`: the page stood, only the table stayed
+  empty. An existing render test failed; a scan over all modules found no second
+  case. Short names for shared helpers are convenient and collide for exactly
+  that reason.
+- **A tooltip is not an explanation (v2.13.0).** Some thirty explanations lived
+  in `title` attributes — visible on hover on the Mac, not at all on the iPhone.
+  Now an ⓘ opens them on tap, from a catalogue that is also the glossary of the
+  help; a test keeps list and catalogue in step.
+- **A sign is a point of view (v2.13.0).** The balance is cost − advances, minus
+  means credit: right for accounting, wrong for someone whose bill says
+  "credit". Calculation and API keep their sign, integrations depend on it; the
+  interface translates it into words and flips it in tables, with a legend. The
+  same for "CO₂ avoided −674 kg": the word carries the direction, a minus in
+  front negates twice.
+- **Composed keys escape a literal check (v2.13.0).** `` t(`glossary.${id}.term`) ``
+  slips past the test for literal keys; a missing entry would show raw in the
+  interface. The check now runs over the lists the keys come from (glossary,
+  settings fields).
 
 ---
 

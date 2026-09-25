@@ -751,7 +751,8 @@ Per forecast month:
 - `advance_estimated` — the advance valid for the month, or `null` if no
   contract/advance is maintained.
 - `balance_running` — cumulative `cost_estimated − advance_estimated`. Negative =
-  credit, positive = back-payment; the value of the last month is the projected
+  credit, positive = back-payment (since v2.13.0 the interface shows the
+  customer's side in words); the value of the last month is the projected
   balance at the end of the horizon.
 - `working_price_ct` — the applied working price (the headline tariff).
 - `contract_id` — the active contract, or `null` (then fallback to `last_price_ct`).

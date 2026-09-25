@@ -299,10 +299,15 @@ async function renderView(modPath, params = [], ctx = {}) {
   try {
     const view = await settingsPage('utilities');
     t('settings/verbrauchsarten: active_utilities-Checkboxen', view.querySelectorAll('[data-active-util]').length >= 3);
-    // v2.12.0 — alle sechs Abrechnungsstichtage an einer Stelle
-    t('settings/verbrauchsarten: sechs Abrechnungsstichtage in einer Karte',
-      view.querySelectorAll('[data-key^="billing_cycle_anchor_"]').length === 6
+    // v2.12.0 — alle Abrechnungsstichtage an einer Stelle; v2.13.0 (FE-10)
+    // ohne Heizöl/Pellets (keine Abschläge, kein Stichtag), mit PV-Einspeisung
+    const anchors = [...view.querySelectorAll('[data-key^="billing_cycle_anchor_"]')].map(el => el.dataset.key);
+    t('settings/verbrauchsarten: fünf Abrechnungsstichtage in einer Karte',
+      anchors.length === 5
         && new Set([...view.querySelectorAll('[data-key^="billing_cycle_anchor_"]')].map(el => el.closest('.settings-card'))).size === 1);
+    t('settings/verbrauchsarten: Stichtag PV-Einspeisung statt Heizöl/Pellets',
+      anchors.includes('billing_cycle_anchor_pv_einspeisung')
+        && !anchors.includes('billing_cycle_anchor_heizoel') && !anchors.includes('billing_cycle_anchor_pellets'));
     // v2.5.0 — F1012: datierte Gas-Faktoren als Tabelle mit Erfassungszeile
     t('settings/verbrauchsarten: Gas-Faktoren-Tabelle über die ganze Breite',
       !!view.querySelector('.settings-card--wide [data-gasfactors] [data-gf-table]'));
@@ -343,6 +348,13 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('settings/experte: eingeklappt mit Warnung', !!details && !details.open && !!details.querySelector('.banner--warning'));
     t('settings/experte: sigmoid im Modell-Picker',
       !![...view.querySelectorAll('select option')].find(o => o.value === 'sigmoid'));
+    // v2.13.0 (UI-17) — lesbare Namen statt der Schlüssel, Bandbreite pflegbar
+    const modelOpt = view.querySelector('[data-key="forecast_model"] option[value="segmented"]');
+    t('settings/experte: Modellnamen übersetzt', !!modelOpt && modelOpt.textContent.trim() !== 'segmented',
+      modelOpt?.textContent);
+    const splitOpt = view.querySelector('[data-key="segmented_split_mode"] option[value="auto"]');
+    t('settings/experte: Split-Modus übersetzt', !!splitOpt && splitOpt.textContent.trim() !== 'auto', splitOpt?.textContent);
+    t('settings/experte: Breite des Prognosebands', !!view.querySelector('[data-key="confidence_band_sigma"]'));
   } catch (e) { t('settings/experte: render', false, e.message); }
 
   try {
@@ -353,6 +365,10 @@ async function renderView(modPath, params = [], ctx = {}) {
   try {
     const view = await settingsPage('integrations');
     t('settings/integrationen: Home Assistant', !!view.querySelector('#btn-ha-generate, #btn-ha-revoke'));
+    // v2.13.0 (I18N-25) — Anleitung als Link, nicht als Pfad im Fließtext
+    const guide = [...view.querySelectorAll('a[target="_blank"]')].find(a => /HOME-ASSISTANT\.md$/.test(a.getAttribute('href') || ''));
+    t('settings/integrationen: HA-Anleitung verlinkt', !!guide && !view.textContent.includes('docs/HOME-ASSISTANT.md'),
+      guide?.getAttribute('href'));
   } catch (e) { t('settings/integrationen: render', false, e.message); }
 
   // ── 6. Utility-View: Delivery-Modus (Heizöl) ──
@@ -384,13 +400,17 @@ async function renderView(modPath, params = [], ctx = {}) {
     // v2.5.1 — Spalte „Sonderzahlungen" in „Verträge & Abschläge": Kopf mit
     // Erklärung, Zelle mit Netto und Tooltip der Einzelposten (Demo-Daten
     // führen am Gas-Vertrag eine Rückzahlung und eine Abschlagszahlung).
+    // v2.13.0 (UI-17) — Erklärung über ⓘ, Einzelposten zum Aufklappen statt
+    // Tooltip (auf dem iPhone unerreichbar)
     const spHead = view.querySelector('.contracts-table th.special-col');
-    t('utility(gas): Spalte Sonderzahlungen mit Erklärung', !!spHead && (spHead.getAttribute('title') || '').length > 20);
+    t('utility(gas): Spalte Sonderzahlungen mit Erklärung',
+      !!spHead?.querySelector('.info-btn[data-glossary="specialPayment"]'));
     const spCells = [...view.querySelectorAll('.contracts-table td.special-cell')];
-    const filled = spCells.find(td => td.getAttribute('title'));
-    t('utility(gas): Zelle Sonderzahlungen mit Netto + Tooltip',
-      !!filled && /[+−-]?\d/.test(filled.textContent) && (filled.getAttribute('title') || '').includes('·'),
-      filled ? `${filled.textContent.trim()} | ${(filled.getAttribute('title') || '').split('\n')[0]}` : `${spCells.length} Zellen, keine mit Tooltip`);
+    const filled = spCells.find(td => td.querySelector('details.special-details'));
+    const spItems = filled ? [...filled.querySelectorAll('.special-details__list li')].map(li => li.textContent) : [];
+    t('utility(gas): Zelle Sonderzahlungen mit Netto + aufklappbaren Posten',
+      !!filled && /[+−-]?\d/.test(filled.querySelector('summary')?.textContent || '') && spItems.length > 0 && spItems.every(s => s.includes('·')),
+      filled ? `${filled.querySelector('summary')?.textContent.trim()} | ${spItems[0] || ''}` : `${spCells.length} Zellen, keine aufklappbar`);
     t('utility(gas): Hinweistext unter der Tabelle', view.innerHTML.includes('Sonderzahlungen =') || view.innerHTML.includes('Special payments ='));
     // v2.8.0 — Kachel und Saldo-Karte widersprechen sich nicht: Liegt die
     // letzte Ablesung im laufenden Jahr zurück, nennt die Abschlagskachel
@@ -600,6 +620,116 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('dashboard: Temperaturen nicht mehr als Kopf-Aktion', !view.querySelector('a[href="#/temperatures"]'));
     t('dashboard: kein Link in einer Überschrift (UI-26)', !view.querySelector('h2 a, h2 .card__title-action'));
   } catch (e) { t('dashboard: Kopf', false, e.message); }
+
+  // ── 16. v2.13.0 — Hilfe, Glossar und Erklärungen zum Antippen (E1) ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/help.js`, [], { query: new URLSearchParams('term=hdd') });
+    await new Promise(r => setTimeout(r, 300));
+    const gl = await import(`${ROOT}/components/info.js`);
+    const items = [...view.querySelectorAll('.glossary-list__item')];
+    t('help: Glossar vollständig', items.length === gl.GLOSSARY.length, `${items.length}/${gl.GLOSSARY.length}`);
+    t('help: jeder Begriff übersetzt', items.every(el => !/glossary\./.test(el.textContent)));
+    t('help: Sprung aus dem ⓘ markiert den Begriff', !!view.querySelector('#g-hdd.glossary-list__item--focus'));
+    const search = view.querySelector('[data-role="search"]');
+    search.value = gl.glossaryTerm('hdd');
+    search.dispatchEvent(new global.window.Event('input'));
+    const shown = items.filter(el => !el.hidden).length;
+    t('help: Suche filtert', shown >= 1 && shown < items.length, `${shown} Treffer`);
+    t('help: Doku-Links', view.querySelectorAll('.help-links a[href^="https://github.com/"]').length >= 3);
+    t('help: Checkliste Erste Schritte', !!view.querySelector('[data-role="setup"] .setup-list, [data-role="setup"] .banner--success'));
+  } catch (e) { t('help: render', false, e.message); }
+
+  try {
+    const dom = freshDom();
+    const gl = await import(`${ROOT}/components/info.js?t=${Date.now()}`);
+    gl.installInfoPopovers();
+    const main = global.document.getElementById('view');
+    main.innerHTML = `<p>HGT ${gl.info('hdd')}</p><p>${gl.infoNote('Prüfen', 'Kleiner als der vorherige Stand.')}</p>`;
+    const [b1, b2] = main.querySelectorAll('.info-btn');
+    b1.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    let pop = global.document.querySelector('.info-pop');
+    t('ⓘ: Klick öffnet die Erklärung aus dem Glossar',
+      !!pop && pop.textContent.includes(gl.glossaryText('hdd')) && b1.getAttribute('aria-expanded') === 'true');
+    t('ⓘ: Verweis ins Glossar', !!pop?.querySelector('a[href="#/help?term=hdd"]'));
+    global.document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    t('ⓘ: Escape schließt', !global.document.querySelector('.info-pop') && b1.getAttribute('aria-expanded') === 'false');
+    b2.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    pop = global.document.querySelector('.info-pop');
+    t('ⓘ: Erklärung je Zeile, ohne Glossar-Link',
+      !!pop && pop.textContent.includes('Kleiner als der vorherige Stand.') && !pop.querySelector('.info-pop__more'));
+  } catch (e) { t('ⓘ: Popover', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/dashboard.js`);
+    t('dashboard: ⓘ an den Kennzahlen', view.querySelectorAll('.info-btn').length >= 2, `${view.querySelectorAll('.info-btn').length}`);
+    t('dashboard: kein Willkommen, wenn Daten da sind', !view.querySelector('.dash-welcome'));
+    t('dashboard: PV als Einspeisung und Vergütung, nicht als Verbrauch und Kosten',
+      /Einspeisung \(letzte 12 Monate\)/.test(view.textContent) && /Vergütung \(letzte 12 Monate\)/.test(view.textContent));
+  } catch (e) { t('dashboard: E1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['pv_einspeisung']);
+    await new Promise(r => setTimeout(r, 400));
+    const headsOf = (tbl) => tbl ? [...tbl.querySelectorAll('thead th')].map(th => th.textContent) : [];
+    const monthTbl = [...view.querySelectorAll('.table')].find(tb => headsOf(tb)[0] === 'Monat');
+    const heads = headsOf(monthTbl);
+    const cHeads = headsOf(view.querySelector('.contracts-table'));
+    t('utility(pv_einspeisung): Untertitel Einspeisung', view.textContent.includes('Einspeisung · Vergütung'));
+    t('utility(pv_einspeisung): Monate mit Erlös statt Kosten, ohne Abschlagsspalten',
+      heads.some(h => h.startsWith('Erlös')) && !heads.some(h => h.startsWith('Kosten') || h.startsWith('Abschlag')), heads.join('|'));
+    t('utility(pv_einspeisung): CO₂ als vermieden', heads.some(h => h.includes('vermieden')));
+    // v2.13.0 — „vermieden“ trägt die Richtung, ein Minus davor verneint doppelt
+    const co2Val = [...view.querySelectorAll('.kpi')].find(k => /vermieden/.test(k.textContent))?.querySelector('.kpi__value')?.textContent.trim() || '';
+    t('utility(pv_einspeisung): vermiedenes CO₂ ohne Minus', /^\d/.test(co2Val), co2Val);
+    t('utility(pv_einspeisung): Legende mit Rückforderung statt Nachzahlung',
+      view.textContent.includes('Saldo: + Guthaben, − Rückforderung.') && !view.textContent.includes('− Nachzahlung'));
+    // Der Netzbetreiber zahlt: verdient und erhalten, nicht verbraucht und bezahlt
+    t('utility(pv_einspeisung): Vertrag mit Vergütung und Erhalten',
+      cHeads.includes('Vergütung') && cHeads.includes('Erhalten') && !cHeads.includes('Verbraucht') && !cHeads.includes('Bezahlt'), cHeads.join('|'));
+  } catch (e) { t('utility(pv_einspeisung): E1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['pv_erzeugung']);
+    await new Promise(r => setTimeout(r, 400));
+    const heads = [...view.querySelectorAll('.table thead th')].map(th => th.textContent);
+    t('utility(pv_erzeugung): ohne Kosten- und Vertragsteil',
+      !heads.some(h => h.startsWith('Kosten') || h.startsWith('Erlös')) && !view.querySelector('.contracts-table'), heads.join('|'));
+    t('utility(pv_erzeugung): ohne Temperatur und Gradtage', !heads.some(h => /Temp|HGT/.test(h)));
+  } catch (e) { t('utility(pv_erzeugung): E1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
+    await new Promise(r => setTimeout(r, 500));
+    // v2.13.0 (Review UI-18) — Saldo aus Kundensicht: Wort statt Vorzeichen
+    const bal = view.querySelector('.balance-col__value--credit, .balance-col__value--due');
+    t('utility(gas): Saldo als Guthaben/Nachzahlung ohne Minus',
+      !!bal && !/^[\s]*[−-]/.test(bal.textContent), bal?.textContent.trim());
+    t('utility(gas): Legende zum Vorzeichen', view.textContent.includes('Saldo: + Guthaben, − Nachzahlung.'));
+    t('utility(gas): Grundpreis ausgeschrieben', !/\bGP\b/.test(view.textContent) && /Grundpreis/.test(view.textContent));
+  } catch (e) { t('utility(gas): E1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/temperatures.js`);
+    await new Promise(r => setTimeout(r, 300));
+    // v2.13.0 (Review DOC-22) — Open-Meteo verlangt die Quellenangabe (CC BY 4.0)
+    t('temperatures: Quelle und Lizenz der Wetterdaten',
+      !!view.querySelector('.attribution a[href="https://open-meteo.com/"]')
+        && !!view.querySelector('.attribution a[href="https://creativecommons.org/licenses/by/4.0/"]'));
+  } catch (e) { t('temperatures: E1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/forecast.js`);
+    await new Promise(r => setTimeout(r, 600));
+    t('forecast: ⓘ am Saldo, Vorzeichen-Legende',
+      !!view.querySelector('#fc-table th .info-btn[data-glossary="balance"]') && view.textContent.includes('Saldo: + Guthaben'));
+  } catch (e) { t('forecast: E1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/tariff.js`);
+    await new Promise(r => setTimeout(r, 600));
+    // v2.13.0 (Review UI-27) — Spaltenerklärungen sichtbar statt nur im Tooltip
+    t('tariff: keine Erklärung nur im Tooltip', !view.querySelector('th[title]'));
+  } catch (e) { t('tariff: E1', false, e.message); }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);

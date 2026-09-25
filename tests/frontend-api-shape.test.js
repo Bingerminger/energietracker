@@ -359,6 +359,19 @@ const ROOT = require('path').resolve(__dirname, '..');
   check('readings-overview: typical_per_day, suspect_count, last_reading.id/device_id',
     row && 'typical_per_day' in row && typeof row.suspect_count === 'number'
       && typeof row.last_reading.id === 'string' && 'device_id' in row.last_reading);
+  // v2.13.0 — Einrichtungs-Checkliste und Leerzustände fragen nach der Zahl der Stände
+  check('readings-overview: reading_count (v2.13.0) als Ganzzahl',
+    (ovw2.rows || []).length > 0 && ovw2.rows.every(x => Number.isInteger(x.reading_count))
+      && row.reading_count >= 1, `${row?.reading_count}`);
+  // v2.13.0 — die Oberfläche fragt die Eigenschaften einer Verbrauchsart ab,
+  // statt Listen wie ['gas','strom','fernwaerme'] zu pflegen
+  check('utilities: has_contracts, has_advance_payment_contracts, accounting_kind (v2.13.0)',
+    utilities.every(u => typeof u.has_contracts === 'boolean' && typeof u.has_advance_payment_contracts === 'boolean'
+      && ['consumption', 'feed_in', 'generation'].includes(u.accounting_kind))
+      && utilities.find(u => u.key === 'pv_erzeugung')?.has_contracts === false
+      && utilities.find(u => u.key === 'gas')?.has_advance_payment_contracts === true
+      && utilities.find(u => u.key === 'wasser')?.has_advance_payment_contracts === false,
+    utilities.map(u => `${u.key}:${u.accounting_kind}`).join(','));
   if (gMeters.length) {
     const gc = await j(`/api/utility/gas/meters/${gMeters[0].id}/consumption`);
     check('Verbrauch je Zähler liefert warnings[]', Array.isArray(gc.warnings), `${gc.warnings?.length} Warnungen`);

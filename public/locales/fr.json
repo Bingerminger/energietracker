@@ -19,7 +19,8 @@
     "required": "obligatoire",
     "actions": "Actions",
     "invalidNumber": "Veuillez saisir un nombre valide, p. ex. {example}.",
-    "undo": "Annuler"
+    "undo": "Annuler",
+    "hddShort": "DJU"
   },
   "app": {
     "themeToggle": "Changer de thème",
@@ -98,14 +99,13 @@
     "sectionNav": "Pages de cette rubrique",
     "menu": "Menu",
     "tabbar": "Navigation rapide",
-    "captureButton": "Saisir"
+    "captureButton": "Saisir",
+    "help": "Aide"
   },
   "dashboard": {
     "loading": "Chargement de l’aperçu…",
     "title": "Aperçu",
     "empty": {
-      "title": "Aucun relevé pour l’instant",
-      "text": "Ajoutez votre premier relevé de compteur pour voir la consommation, les coûts et les prévisions.",
       "cta": "Ajouter le premier relevé"
     },
     "efficiency": {
@@ -154,7 +154,11 @@
       "consumption": "Consommation (12 derniers mois)",
       "cost": "Coût (12 derniers mois)",
       "costSub": "primes incluses",
-      "noContract": "aucun contrat enregistré"
+      "noContract": "aucun contrat enregistré",
+      "feedIn": "Injection (12 derniers mois)",
+      "generation": "Production (12 derniers mois)",
+      "revenue": "Rémunération (12 derniers mois)",
+      "revenueSub": "revenu de l’injection"
     },
     "trend": { "vsPrev": "vs. 12 mois précédents", "moreThanPrev": "{pct} % de plus que la période de 12 mois précédente", "lessThanPrev": "{pct} % de moins que la période de 12 mois précédente" },
     "allRecommendations": "Toutes les recommandations",
@@ -173,6 +177,11 @@
         "one": "{count} compteur attend un relevé",
         "other": "{count} compteurs attendent un relevé"
       }
+    },
+    "welcome": {
+      "title": "Bienvenue dans Energietracker",
+      "text": "Saisissez vos relevés — l’application en tire consommation, coûts, solde des acomptes et prévision. Ou voyez d’abord le résultat avec des données d’exemple.",
+      "demo": "Essayer avec des données d’exemple"
     }
   },
   "readingsEntry": {
@@ -244,17 +253,15 @@
       "cost": "💶 Coût",
       "perMonth": "moy. {value}/mois",
       "advances": "💰 Acomptes {year}",
-      "yearBalance": "Solde annuel {value}",
+      "yearBalance": "Solde de l’année : {value}",
       "dailyAvg": "📅 Moyenne journalière",
       "daysCount": "{days} jours",
-      "co2AvoidedTitle": "Modèle simplifié : kWh injectés × facteur CO₂ du mix réseau. Cycle de vie du PV non inclus.",
       "co2Avoided": "🌿 CO₂ évité {year}",
       "co2AvoidedSub": "{tons} t de moins que sans PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Acomptes jusqu’au {date}",
-      "balanceShort": "Solde {value}",
-      "co2AvoidedGenTitle": "Calcul simplifié : kWh produits × facteur CO₂ du mix — électricité du réseau évitée, injection comprise. Cycle de vie du PV non pris en compte.",
+      "balanceShort": "Solde : {value}",
       "generation": "Production"
     },
     "cards": {
@@ -268,7 +275,9 @@
       "deliveriesCount": "{count} livraisons au total",
       "readings": "🔢 Relevés",
       "readingsYear": "📋 Relevés {year}",
-      "readingsCount": "{count} relevés au total"
+      "readingsCount": "{count} relevés au total",
+      "monthlyChartFeedIn": "Injection par mois {year}",
+      "monthlyChartGeneration": "Production par mois {year}"
     },
     "balance": {
       "title": "⚖️ Solde du contrat en cours — {name}",
@@ -302,8 +311,8 @@
       "subCredit": "Avoir chez le gestionnaire de réseau",
       "subReclaim": "À rembourser",
       "subBalanced": "équilibré",
-      "subUnderpaid": "Sous-payé",
-      "subOverpaid": "Trop-payé",
+      "subUnderpaid": "Supplément — trop peu payé jusqu’ici",
+      "subOverpaid": "Avoir — trop payé jusqu’ici",
       "verdictLabel": "Attendu à la régularisation",
       "dateNext": "prochaine régularisation : {date}",
       "dateEnd": "fin du contrat : {date}",
@@ -315,7 +324,7 @@
       "basisSep": "compteur sép.",
       "basisTw": "consommation d’eau potable",
       "perMonthShort": "{value}/mois",
-      "gpMonth": "{value} {cur}/m abonnement",
+      "gpMonth": "abonnement {value} {cur}/mois",
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/an · {m2} m²",
       "consShort": "{value} consommation",
@@ -347,11 +356,12 @@
       "statePast": "PASSÉ",
       "stateFuture": "FUTUR",
       "periodOpen": "{start} → en cours",
-      "gpSuffix": "{value} {cur} abonnement",
+      "gpSuffix": "abonnement {value} {cur}/mois",
       "colSpecial": "Paiements spéciaux",
-      "colSpecialTitle": "Net des paiements spéciaux : les remboursements du fournisseur comptent positivement, les rappels et acomptes supplémentaires négativement. Détail des postes dans l’info-bulle de la cellule.",
-      "hint": "Bonus = avoirs issus du contrat (bonus immédiat, de changement, nouveau client). Paiements spéciaux = remboursements (+), rappels et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Survolez la cellule pour le détail ; la saisie se fait dans la gestion des contrats.",
-      "stateRenewed": "PROLONGÉ"
+      "hint": "Bonus = avoirs issus du contrat (bonus immédiat, de changement, nouveau client). Paiements spéciaux = remboursements (+), rappels et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Touchez pour voir le détail ; la saisie se fait dans la gestion des contrats.",
+      "stateRenewed": "PROLONGÉ",
+      "colEarned": "Rémunération",
+      "colReceived": "Reçu"
     },
     "monthlyTable": {
       "noData": "Aucune donnée pour cette année.",
@@ -361,20 +371,18 @@
       "colTemp": "temp. moy.",
       "colTempTitle": "Température moyenne du mois",
       "colHdd": "DJU",
-      "colHddTitle": "Degrés-jours de chauffe — somme des écarts journaliers entre la limite de chauffe et la température extérieure",
       "colPrice": "{minor}/{unit}",
       "colCost": "Coût {cur}",
       "colAdvance": "Acompte {cur}",
       "colCumBalance": "Solde (cumulé)",
-      "colCumBalanceTitle": "Solde cumulé depuis le début du contrat",
       "colCo2": "CO₂ kg",
       "colMa3": "MM·3",
-      "colMa3Title": "Moyenne mobile sur 3 mois",
       "colMa6": "MM·6",
-      "colMa6Title": "Moyenne mobile sur 6 mois",
       "total": "Total",
       "estimatedTitle": "{days} jours estimés (après le dernier stock connu)",
-      "estimatedLegend": "≈ le mois contient des jours estimés — après le dernier stock connu (livraison « plein complet » ou relevé)."
+      "estimatedLegend": "≈ le mois contient des jours estimés — après le dernier stock connu (livraison « plein complet » ou relevé).",
+      "colRevenue": "Revenu {cur}",
+      "colCo2Avoided": "CO₂ évité kg"
     },
     "readingsTable": {
       "emptyTitle": "Aucun relevé",
@@ -528,6 +536,14 @@
       "dip": "{date} : {counter} {unit} – valeur aberrante vers le bas, ignorée",
       "decrease": "{date} : {counter} {unit} – inférieur au {prevDate} ({prevCounter} {unit}) ; changement ou remise à zéro du compteur non enregistré ?",
       "gotoMeters": "Enregistrer un changement de compteur"
+    },
+    "subtitleDelivery": "Livraisons · stock de la cuve · consommation mensuelle",
+    "subtitleFeedIn": "Relevés · injection · rémunération",
+    "subtitleGeneration": "Relevés · production · CO₂ évité",
+    "noData": {
+      "title": "Pas encore de valeurs mensuelles",
+      "noReading": "Ce compteur n’a pas encore de relevé. Les valeurs mensuelles naissent de l’écart entre deux relevés.",
+      "oneReading": "Il n’y a encore qu’un relevé. Les valeurs mensuelles naissent de l’écart entre deux relevés — ajoutez-en un deuxième, par exemple celui de votre dernière facture."
     }
   },
   "contracts": {
@@ -940,7 +956,7 @@
       "hdd_base_temp": { "label": "Température de base DJU", "hint": "Limite de chauffe — les jours en dessous comptent comme jours de chauffe." },
       "co2_gas": { "label": "CO₂ gaz", "hint": "BAFA : 201 g/kWh rapportés au PCI. L’application compte le gaz au PCS (coefficient × pouvoir calorifique), d’où × 0,906 = 182." },
       "co2_strom": { "label": "CO₂ électricité", "hint": "S’applique aux années précédant la première valeur annuelle — sans valeurs annuelles, à toutes." },
-      "co2_wasser": { "label": "CO₂ eau" },
+      "co2_wasser": { "label": "CO₂ eau", "hint": "Pour le traitement et le pompage par m³ d’eau — une estimation sans source officielle." },
       "co2_fernwaerme": { "label": "CO₂ chauffage urbain", "hint": "Forfait BAFA. La valeur de votre réseau de chaleur est plus précise — elle est disponible auprès du fournisseur." },
       "co2_heizoel": { "label": "CO₂ fioul", "hint": "BAFA, rapporté au PCI — comme l’application calcule le fioul." },
       "co2_pellets": { "label": "CO₂ granulés", "hint": "BAFA, équivalents CO₂ amont compris." },
@@ -950,33 +966,31 @@
       "contract_remind_days_1": { "label": "Niveau 1 — préavis précoce" },
       "contract_remind_days_2": { "label": "Niveau 2 — rappel" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
-      "wasser_personen_anzahl": { "label": "Personnes dans le foyer" },
+      "wasser_personen_anzahl": { "label": "Personnes dans le foyer", "hint": "Pour l’indice d’économie d’eau : litres par personne et par jour par rapport à la référence." },
       "wasser_personen_referenz": { "label": "Référence", "hint": "BDEW 2024 : 122 L par personne et par jour (Allemagne)." },
       "wasser_sparindex_gut": { "label": "Indice d’économie — bon jusqu’à", "hint": "Un indice ≤ à cette valeur est considéré comme normal." },
       "wasser_sparindex_warnung": { "label": "Indice d’économie — alerte à partir de", "hint": "Un indice ≥ à cette valeur indique un potentiel d’économie." },
-      "min_days_period": { "label": "Jours min. par période" },
-      "min_hdd_regression": { "label": "DJU min. pour la régression" },
-      "blend_max": { "label": "Poids de mélange max." },
-      "forecast_months": { "label": "Horizon de prévision" },
-      "forecast_model": { "label": "Modèle par défaut" },
+      "min_days_period": { "label": "Jours min. par période", "hint": "Les mois avec moins de jours saisis (mois partiels) restent hors de la signature et des anomalies." },
+      "min_hdd_regression": { "label": "DJU min. pour la régression", "hint": "Les mois avec moins de degrés-jours restent hors de la signature — en été la charge de base détermine la consommation, pas la météo." },
+      "blend_max": { "label": "Poids de mélange max.", "hint": "Poids maximal du modèle météo dans la prévision ; le reste vient du profil saisonnier. 0,8 signifie au moins 20 % de profil saisonnier." },
+      "forecast_months": { "label": "Horizon de prévision", "hint": "Nombre de mois calculés par la prévision (1–24). Valeur par défaut de la vue Prévision." },
+      "forecast_model": { "label": "Modèle par défaut", "hint": "Modèle pour la prévision et la comparaison des tarifs. Le linéaire convient à la plupart des logements ; l’analyse montre lequel explique le mieux vos données." },
       "segmented_split_mode": { "label": "Point de rupture du segment", "hint": "auto = ajusté sur les données, fixed = valeur DJU fixe ci-dessous." },
       "segmented_fixed_split": { "label": "Point de rupture fixe", "hint": "Effectif uniquement en mode « fixed »." },
-      "anomaly_threshold": { "label": "Seuil d’anomalie" },
-      "dashboard_months": { "label": "Mois sur le tableau de bord" },
-      "alert_days_since_reading": { "label": "Alerter après" },
+      "anomaly_threshold": { "label": "Seuil d’anomalie", "hint": "À partir de quel écart (en unités de dispersion σ) un mois est atypique dans l’analyse. Plus petit = plus sensible." },
+      "dashboard_months": { "label": "Mois sur le tableau de bord", "hint": "Nombre de mois affichés par l’historique de la vue d’ensemble (3–36)." },
+      "alert_days_since_reading": { "label": "Alerter après", "hint": "Si le dernier relevé est plus ancien, le compteur apparaît sous « À faire » et la vue consommation vous le rappelle." },
       "wohnflaeche_m2": { "label": "Surface habitable", "hint": "Surface chauffée — dénominateur de la métrique d’efficacité." },
       "gebaeudetyp": { "label": "Type de bâtiment", "hint": "Immeuble collectif : à partir de trois logements." },
-      "heizoel_kwh_per_l": { "label": "Contenu énergétique du fioul" },
-      "pellets_kwh_per_kg": { "label": "Contenu énergétique des granulés" },
+      "heizoel_kwh_per_l": { "label": "Contenu énergétique du fioul", "hint": "Énergie par litre de fioul (PCI, en général 10 kWh/L). Convertit les litres en kWh." },
+      "pellets_kwh_per_kg": { "label": "Contenu énergétique des granulés", "hint": "Énergie par kg de granulés (en général 4,8 kWh/kg). Convertit les kg en kWh." },
       "delivery_baseload_share": { "label": "Répartition de la part de base", "hint": "Part de la consommation en charge de base indépendante de la météo (le reste pondéré par les DJU)." },
-      "tank_warn_pct": { "label": "Alerte de cuve à partir de" },
-      "reminder_warn_days_before": { "label": "Rappel « bientôt dû » à partir de" },
-      "reminder_overdue_days": { "label": "Délai jusqu’à « en retard »" },
-      "recommendation_anomaly_sigma": { "label": "Seuil d’anomalie des recommandations" },
-      "recommendation_trend_pct_year": { "label": "Seuil de tendance des recommandations" },
+      "tank_warn_pct": { "label": "Alerte de cuve à partir de", "hint": "Sous ce niveau la cuve passe au jaune, sous la moitié au rouge, et « À faire » propose une livraison." },
+      "reminder_warn_days_before": { "label": "Rappel « bientôt dû » à partir de", "hint": "À partir de ce nombre de jours avant l’échéance, un rappel est « bientôt dû »." },
+      "reminder_overdue_days": { "label": "Délai jusqu’à « en retard »", "hint": "Pendant ce nombre de jours après l’échéance, un rappel reste dû, ensuite il est en retard. 0 = dès le lendemain." },
+      "recommendation_anomaly_sigma": { "label": "Seuil d’anomalie des recommandations", "hint": "Le même type de seuil pour les recommandations : une suggestion n’apparaît qu’à partir de cet écart." },
+      "recommendation_trend_pct_year": { "label": "Seuil de tendance des recommandations", "hint": "À partir de quelle hausse par an les recommandations signalent une consommation en hausse." },
       "billing_cycle_anchor_fernwaerme": { "label": "Date de régularisation chauffage urbain" },
-      "billing_cycle_anchor_heizoel": { "label": "Date de régularisation fioul" },
-      "billing_cycle_anchor_pellets": { "label": "Date de régularisation granulés" },
       "location_name": { "label": "Nom du lieu" },
       "latitude": { "label": "Latitude" },
       "longitude": { "label": "Longitude" },
@@ -1000,6 +1014,13 @@
       "warmwasser_dezentral": {
         "label": "Eau chaude décentralisée",
         "hint": "Eau chaude par chauffe-eau instantané ou ballon, pas par le chauffage : l’indicateur de type certificat reçoit un supplément de 20 kWh/m²·an."
+      },
+      "billing_cycle_anchor_pv_einspeisung": {
+        "label": "Date de régularisation injection PV"
+      },
+      "confidence_band_sigma": {
+        "label": "Largeur de la bande de prévision",
+        "hint": "En unités de dispersion σ : 1,28 signifie que la consommation reste dans la bande 80 % des années ; 1,64 correspondrait à 90 %."
       }
     },
     "boolActive": "activé",
@@ -1106,7 +1127,7 @@
     },
     "ha": {
       "title": "🏠 Intégration Home Assistant",
-      "intro": "Laissez Home Assistant envoyer automatiquement vos relevés de compteur à l’Energietracker — vous ne les saisissez plus à la main. Home Assistant fournit les valeurs, l’Energietracker gère contrats, coûts et prévisions. Guide : <code>docs/HOME-ASSISTANT.md</code>.",
+      "intro": "Laissez Home Assistant envoyer automatiquement vos relevés de compteur à l’Energietracker — vous ne les saisissez plus à la main. Home Assistant fournit les valeurs, l’Energietracker gère contrats, coûts et prévisions.",
       "step1": "1. Jeton d’API",
       "tokenHint": "Protège le point de terminaison push <code>/api/ingest</code>. <strong>Sans connexion, il accepte aussi des valeurs sans jeton</strong> – prévu pour le réseau domestique. Lorsque la connexion est activée, il exige toujours un jeton.",
       "tokenActive": "🔒 jeton actif",
@@ -1152,7 +1173,8 @@
       "aliasesSavedN": {
         "one": "{count} alias enregistré",
         "other": "{count} alias enregistrés"
-      }
+      },
+      "guide": "Guide"
     },
     "diag": {
       "title": "🩺 Diagnostic système",
@@ -1362,6 +1384,10 @@
       "aboutTitle": "À propos d’Energietracker",
       "about": "Energietracker {version} – consommation, coûts et contrats, en local et sans cloud.",
       "license": "Logiciel libre sous licence MIT"
+    },
+    "splitModes": {
+      "auto": "automatiquement à partir des données",
+      "fixed": "valeur fixe"
     }
   },
   "reminders": {
@@ -1447,7 +1473,8 @@
     "geoPlaceholder": "p. ex. Lyon ou 69001",
     "geoSearch": "Rechercher",
     "geoNone": "Aucun lieu trouvé.",
-    "locationSaved": "Emplacement enregistré"
+    "locationSaved": "Emplacement enregistré",
+    "attribution": "Données météo :"
   },
   "recommendations": {
     "loading": "Chargement des recommandations…",
@@ -1496,7 +1523,8 @@
     },
     "dismissedNamed": "« {title} » masqué pendant 30 jours",
     "restored": "Recommandation de nouveau affichée",
-    "dismissNamed": "Masquer pendant 30 jours : {title}"
+    "dismissNamed": "Masquer pendant 30 jours : {title}",
+    "emptyNoData": "Pas encore assez de données pour des recommandations — elles apparaissent dès que quelques mois de consommation existent."
   },
   "tariff": {
     "loading": "Chargement…",
@@ -1595,7 +1623,6 @@
       },
       "year1Title": "Coût de la première année, prime de bienvenue déjà déduite",
       "year2Title": "Coût annuel durable, hors primes ponctuelles",
-      "breakEvenTitle": "Au-delà de cette consommation annuelle, le tarif bat l'actuel",
       "breakEvenDelta": "{pct} % de la consommation prévue",
       "breakEvenNone": "Pas de point de croisement — le tarif est moins ou plus cher quelle que soit la quantité",
       "bonusIncluded": "dont {value} de prime",
@@ -1634,7 +1661,7 @@
     "noAnomalies": "Aucune anomalie détectée — tous les mois sont dans la plage attendue (seuil σ des paramètres).",
     "anomalyExplainHgt": "Mois dont la consommation s’écarte de l’attendu de plus que le seuil σ — courbe de chauffe plus charge de base aux degrés-jours de ce mois. La dispersion est estimée de façon robuste (médiane, MAD).",
     "anomalyExplainSeasonal": "Mois dont la consommation s’écarte de plus que le seuil σ du même mois calendaire des autres années — calculé par jour et sans le mois lui-même.",
-    "anomalyCol": { "month": "Mois", "consumption": "Consommation", "expected": "Attendu", "deltaAbs": "Δ absolu", "deltaPct": "Δ %", "sigma": "valeur σ", "hgt": "DJU", "temp": "temp. moy." },
+    "anomalyCol": { "month": "Mois", "consumption": "Consommation", "expected": "Attendu", "deltaAbs": "Δ absolu", "deltaPct": "Δ %", "sigma": "valeur σ", "hgt": "DJU", "temp": "temp. moy.", "feedIn": "Injection", "generation": "Production" },
     "model": { "linear": "Linéaire", "polynomial": "Polynomial (degré 2)", "robust": "Robuste (Huber)", "segmented": "Segmenté", "sigmoid": "Sigmoïde" },
     "reg": { "model": "Modèle", "n": "n", "coeffs": "Coefficients", "bestFit": "meilleur ajustement", "tooFew": "trop peu de points de données", "intercept": "ordonnée à l’origine" },
     "scatterPoints": "Mois",
@@ -1661,7 +1688,8 @@
       "colDeltaAbs": "Δ absolu",
       "colDeltaPct": "Δ %",
       "sumRow": "Total (mois communs)",
-      "note": "Comparaison uniquement sur les mois ayant des données dans les deux années. Valeurs positives = plus de consommation que l’année précédente."
+      "note": "Comparaison uniquement sur les mois ayant des données dans les deux années. Valeurs positives = plus de consommation que l’année précédente.",
+      "notePv": "Valeurs positives = plus de rendement que le même mois de l’année précédente (vert). Seuls les mois avec des données les deux années sont comparés."
     },
     "spar": {
       "title": "💧 Indice d’économie d’eau",
@@ -1726,7 +1754,7 @@
     "monthlyDetail": "Détail mensuel",
     "noMeters": "Aucun compteur.",
     "noForecast": "Aucune prévision possible",
-    "models": { "linear": "Linéaire", "polynomial": "Polynomial (degré 2)", "robust": "Robuste (Huber)", "segmented": "Segmenté (chauffage/été)", "sigmoid": "Sigmoïde (signature de chauffe)" },
+    "models": { "linear": "Linéaire", "polynomial": "Polynomial (degré 2)", "robust": "Robuste (Huber)", "segmented": "Segmenté (chauffage/été)", "sigmoid": "Sigmoïde (signature de chauffe)", "seasonalOnly": "profil saisonnier seul" },
     "chartHist": "Historique",
     "chartForecast": "Prévision",
     "info": "Modèle : <strong>{model}</strong> · part de la courbe de chauffe : <strong>{blend} %</strong>{r2} · dernier prix de l’énergie : <strong>{price} {minor}/{unit}</strong>",
@@ -1798,7 +1826,8 @@
       "subtitle": "Une année en un coup d’œil, en PDF à classer ou partager.",
       "open": "Ouvrir dans le navigateur",
       "note": "Sur l’iPhone, le rapport s’ouvre dans un nouvel onglet ; de là, vous pouvez l’enregistrer ou le partager."
-    }
+    },
+    "weatherSource": "Températures : Open-Meteo.com (CC BY 4.0), sauf saisie personnelle."
   },
   "migration": {
     "warnNoSettings": "Aucun réglage trouvé dans la sauvegarde — les valeurs par défaut s'appliquent.",
@@ -2100,5 +2129,207 @@
     "noMeter": "La vérification recalcule coefficient × pouvoir calorifique et n’existe donc que pour le gaz. Créez d’abord un compteur de gaz.",
     "addMeter": "Créer un compteur de gaz",
     "meter": "Compteur"
+  },
+  "glossary": {
+    "hdd": {
+      "term": "Degrés-jours (DJU)",
+      "text": "Le froid mesuré par rapport à la température de non-chauffage : chaque jour l’écart entre ce seuil et la moyenne du jour, 0 les jours chauds. Plus de degrés-jours, plus de besoin de chauffage."
+    },
+    "heatingLimit": {
+      "term": "Température de non-chauffage",
+      "text": "Température extérieure en dessous de laquelle on chauffe — en Allemagne généralement 15 °C (réglage « Température de base DJU »). Les jours plus chauds ne comptent pas de degrés-jours."
+    },
+    "heatingSignature": {
+      "term": "Signature énergétique",
+      "text": "La relation entre degrés-jours et consommation, calculée à partir de vos propres mois : ce que votre logement consomme par degré-jour et l’importance de la charge de base indépendante de la météo."
+    },
+    "baseload": {
+      "term": "Charge de base",
+      "text": "La part de la consommation qui ne dépend pas de la météo — eau chaude, cuisson ou veille par exemple. Elle existe aussi en été."
+    },
+    "weatherAdjusted": {
+      "term": "Corrigé du climat",
+      "text": "Consommation ramenée à une météo normale sur votre site (normale climatique). Seule la part liée au climat est convertie : un hiver doux et un hiver froid deviennent comparables."
+    },
+    "climateNormal": {
+      "term": "Normale climatique",
+      "text": "Degrés-jours moyens par mois calendaire sur 30 ans de données météo pour votre site. Base de la prévision et de la correction climatique."
+    },
+    "r2": {
+      "term": "R² (coefficient de détermination)",
+      "text": "Dans quelle mesure un modèle explique vos valeurs mensuelles — de 0 (pas du tout) à 1 (entièrement). À partir d’environ 0,7 la relation est nette."
+    },
+    "models": {
+      "term": "Modèles de signature",
+      "text": "Linéaire : une droite. Polynomial : une courbe légèrement arquée. Robuste (Huber) : comme le linéaire, mais insensible aux valeurs aberrantes. Segmenté : deux droites avec un point de rupture au début du chauffage. Sigmoïde : une courbe en S qui s’aplatit par grand froid."
+    },
+    "movingAverage": {
+      "term": "Moyenne mobile (MM·3, MM·6)",
+      "text": "La moyenne des 3 ou 6 derniers mois. Elle lisse les valeurs isolées et montre la tendance."
+    },
+    "forecastBlend": {
+      "term": "Mélange de la prévision",
+      "text": "La prévision mélange le modèle météo et votre profil saisonnier (moyenne par mois calendaire). Plus le modèle est ajusté (R²), plus il pèse — au plus jusqu’au « Poids de mélange max. »."
+    },
+    "anomaly": {
+      "term": "Mois atypique",
+      "text": "Un mois qui s’écarte nettement de ce qui était attendu pour ce mois précis. Le seuil (σ) indique de combien d’unités de dispersion il doit au moins s’écarter."
+    },
+    "balance": {
+      "term": "Solde",
+      "text": "L’écart entre le coût de votre consommation et les acomptes versés (paiements exceptionnels compris). Avoir : vous avez payé plus, de l’argent vous revient. Supplément : la consommation a coûté plus."
+    },
+    "advance": {
+      "term": "Acompte",
+      "text": "Le paiement mensuel versé d’avance au fournisseur. La facture annuelle compare leur total aux coûts réels."
+    },
+    "workingPrice": {
+      "term": "Prix de l’énergie",
+      "text": "Le prix par unité consommée — ct/kWh, pour l’eau ct/m³."
+    },
+    "basePrice": {
+      "term": "Abonnement",
+      "text": "Un montant fixe par mois, indépendant de la consommation."
+    },
+    "specialPayment": {
+      "term": "Paiement exceptionnel",
+      "text": "Remboursement, supplément ou acompte supplémentaire en dehors de l’acompte mensuel. « Avec effet » modifie en plus l’acompte futur."
+    },
+    "offer": {
+      "term": "Offre",
+      "text": "Un tarif que vous n’avez pas — issu d’un comparateur par exemple. Il n’agit que sur la comparaison, jamais sur le solde, la prévision ou le statut du contrat. Techniquement, c’est un contrat fictif."
+    },
+    "switchDate": {
+      "term": "Date de changement",
+      "text": "Le premier jour où un nouveau tarif pourrait fournir — selon la fin du contrat et le préavis. La résiliation doit parvenir au fournisseur avant la date limite."
+    },
+    "noticeDeadline": {
+      "term": "Date limite de résiliation",
+      "text": "Le dernier jour où la résiliation doit parvenir au fournisseur. Passé ce jour, un contrat à reconduction tacite est prolongé."
+    },
+    "breakEven": {
+      "term": "Rentable dès",
+      "text": "Le volume annuel à partir duquel une offre est moins chère que votre contrat. S’il est loin de votre consommation, la décision tient même si la prévision est imprécise. Un tiret signifie qu’il n’y a pas de point de croisement : l’offre est moins chère ou plus chère quelle que soit la quantité."
+    },
+    "baseline": {
+      "term": "Rupture de référence",
+      "text": "Une date à partir de laquelle votre logement a changé — isolation ou nouveau chauffage par exemple. Les analyses partent de cette date pour que les anciennes valeurs ne faussent pas l’image."
+    },
+    "calorificValue": {
+      "term": "Pouvoir calorifique",
+      "text": "Le contenu énergétique d’un mètre cube de gaz en kWh, tel que le fournisseur l’indique par période sur la facture."
+    },
+    "zNumber": {
+      "term": "Coefficient de conversion",
+      "text": "Ramène le volume de gaz mesuré aux conditions normales (pression, température). kWh = m³ × coefficient × pouvoir calorifique."
+    },
+    "cutoffDate": {
+      "term": "Date d’effet",
+      "text": "Le jour à partir duquel une nouvelle valeur s’applique — un nouveau prix ou pouvoir calorifique par exemple. Jusqu’à la veille, l’ancienne s’applique."
+    },
+    "efficiency": {
+      "term": "Indicateur d’efficacité",
+      "text": "Énergie de chauffage par m² et par an (kWh/m²·an). L’indicateur du logement se rapporte à la surface habitable ; l’indicateur proche du DPE calcule comme un certificat énergétique (PCI, corrigé du climat, surface utile). Ce n’est pas un certificat officiel."
+    },
+    "feedIn": {
+      "term": "Injection",
+      "text": "L’électricité solaire que vous injectez dans le réseau. La rémunération est un revenu — plus, c’est mieux."
+    },
+    "selfConsumption": {
+      "term": "Autoconsommation",
+      "text": "L’électricité solaire que vous utilisez vous-même : production moins injection. Elle remplace le courant du réseau — l’économie se calcule avec votre prix de l’énergie."
+    },
+    "autarky": {
+      "term": "Taux d’autarcie",
+      "text": "La part de votre consommation d’électricité couverte par votre propre installation."
+    },
+    "selfConsumptionRate": {
+      "term": "Taux d’autoconsommation",
+      "text": "La part de l’énergie solaire produite que vous utilisez vous-même."
+    },
+    "estimated": {
+      "term": "Estimé",
+      "text": "Un relevé estimé plutôt que lu — souvent par le fournisseur. Il compte mais reste signalé."
+    },
+    "tankBook": {
+      "term": "Registre de cuve",
+      "text": "Pour le fioul et les granulés, la consommation découle du stock initial, des livraisons et des niveaux connus (livraison « jusqu’au plein », relevé de jauge). Entre deux niveaux connus, elle est calculée ; ensuite estimée."
+    },
+    "subMeter": {
+      "term": "Sous-compteur et groupe",
+      "text": "Un sous-compteur mesure une partie d’un autre compteur et en est déduit pour ne rien compter deux fois. Un groupe réunit des compteurs seulement pour la vue d’ensemble."
+    },
+    "co2Avoided": {
+      "term": "CO₂ évité",
+      "text": "L’électricité solaire remplace celle du réseau. Le calcul utilise le facteur CO₂ de l’électricité du réseau (Paramètres → Énergies et facturation) — autant de CO₂ aurait sinon été émis. Simplifié : la fabrication de l’installation n’est pas comptée."
+    }
+  },
+  "help": {
+    "title": "Aide",
+    "subtitle": "Premiers pas, termes et documentation",
+    "explain": "Explication : {term}",
+    "moreInGlossary": "Tous les termes",
+    "setup": {
+      "title": "Premiers pas",
+      "allDone": "Tout est configuré."
+    },
+    "glossary": {
+      "title": "Termes",
+      "search": "Rechercher un terme",
+      "none": "Aucun terme trouvé."
+    },
+    "docs": {
+      "title": "Documentation",
+      "start": "Bien démarrer",
+      "compendium": "Manuel et méthodologie",
+      "glossary": "Glossaire et formules",
+      "homeAssistant": "Connecter Home Assistant",
+      "englishOnly": "La documentation existe en allemand et en anglais ; les liens mènent à la version anglaise."
+    },
+    "support": {
+      "title": "Questions et bugs",
+      "text": "Questions, souhaits et rapports de bug se font dans le projet GitHub. Pour un rapport de bug, le diagnostic sous Paramètres → Système aide.",
+      "issues": "Ouvrir le projet GitHub",
+      "diagnostics": "Ouvrir le diagnostic"
+    },
+    "privacy": {
+      "title": "Vos données",
+      "text": "Tout reste sur votre serveur : pas de compte, pas de publicité, pas de télémétrie. L’application ne communique qu’avec Open-Meteo — pour la synchronisation météo quotidienne (seulement la position arrondie à environ 1 km, désactivable sous Paramètres → Données météo) et pour la recherche de lieu quand vous l’utilisez."
+    }
+  },
+  "onboarding": {
+    "done": "fait",
+    "open": "à faire",
+    "optional": "facultatif",
+    "step": {
+      "location": {
+        "title": "Définir votre lieu",
+        "text": "L’application a besoin de la météo de votre lieu pour les degrés-jours et la prévision."
+      },
+      "firstReading": {
+        "title": "Saisir votre premier relevé",
+        "text": "Relevez vos compteurs et saisissez les valeurs."
+      },
+      "secondReading": {
+        "title": "Saisir un deuxième relevé",
+        "text": "La consommation naît de l’écart entre deux relevés — ajoutez par exemple celui de votre dernière facture."
+      },
+      "contract": {
+        "title": "Saisir votre contrat",
+        "text": "Avec les prix et l’acompte, l’application calcule les coûts et vous dit si un supplément s’annonce."
+      },
+      "homeAssistant": {
+        "title": "Connecter Home Assistant",
+        "text": "Transmettre les relevés automatiquement au lieu de les saisir."
+      }
+    }
+  },
+  "saldo": {
+    "credit": "Avoir",
+    "due": "Supplément",
+    "reclaim": "Remboursement dû",
+    "even": "équilibré",
+    "tableLegend": "Solde : + avoir, − supplément.",
+    "tableLegendFeedIn": "Solde : + avoir, − remboursement dû."
   }
 }

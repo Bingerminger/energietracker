@@ -43,8 +43,11 @@ const SPECIAL_KIND_AFFECTS_ADVANCE = new Set(
 // F1003-Scope (Spiegel von Utilities::hasAdvancePaymentContracts):
 // Standard-Abschlagsvertrag = kumulativ und nicht Wasser → Gas, Strom,
 // Fernwärme. Heizöl/Pellets (delivery) und Wasser bleiben außen vor.
+// v2.13.0 (Review FE-14) — aus der SSOT (`/api/utilities`) statt einer Kopie
+// der Regel; die Kopie bot PV-Einspeisung Sonderzahlungen an, die der Server
+// still verwarf
 function hasAdvancePaymentContracts(u) {
-  return (u?.reading_kind || 'cumulative') === 'cumulative' && u?.key !== 'wasser';
+  return u?.has_advance_payment_contracts === true;
 }
 
 export async function render(container, params) {

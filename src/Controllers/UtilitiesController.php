@@ -15,6 +15,12 @@ use Energietracker\Services\I18nService;
  * N1007 (v2.0.0): das `label` jeder Verbrauchsart wird über den I18nService
  * sprachabhängig ersetzt (Accept-Language). Fehlt ein Katalog-Eintrag, bleibt
  * das deutsche Default-Label aus Utilities.php erhalten.
+ *
+ * v2.13.0 (Review FE-14) — jede Verbrauchsart trägt `has_contracts`,
+ * `has_advance_payment_contracts` und `accounting_kind` (additiv). Bis v2.12
+ * standen die Felder nur, wenn sie in der Konfiguration gesetzt waren, und das
+ * Frontend hielt eine eigene Kopie der Regel — sie bot PV-Einspeisung
+ * Sonderzahlungen an, die der Server still verwarf.
  */
 final class UtilitiesController
 {
@@ -31,6 +37,9 @@ final class UtilitiesController
             if ($translated !== $catalogKey) {
                 $u['label'] = $translated;
             }
+            $u['has_contracts']                 = Utilities::hasContracts($key);
+            $u['has_advance_payment_contracts'] = Utilities::hasAdvancePaymentContracts($key);
+            $u['accounting_kind']               = Utilities::accountingKind($key);
         }
         unset($u);
         Response::json($all);

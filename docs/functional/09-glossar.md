@@ -28,7 +28,7 @@ in [Grundlagen & Methodik](00-overview.md).
 | **R²** | Bestimmtheitsmaß: Anteil erklärter Streuung (0…1). |
 | **Saisonprofil** | Monatsmittel des Verbrauchs über die Historie. |
 | **Blend** | R²-gewichtete Mischung Regression × Saisonprofil in der Prognose. |
-| **Saldo** | Tatsächliche Kosten − geleistete Abschläge (dazu das Netto der Sonderzahlungen). **Positiv = Nachzahlung droht, negativ = Guthaben.** |
+| **Saldo** | Tatsächliche Kosten − geleistete Abschläge (dazu das Netto der Sonderzahlungen). **Positiv = Nachzahlung droht, negativ = Guthaben** — so rechnen API und CSV-Export. Die Oberfläche zeigt seit v2.13.0 die Kundensicht: „Guthaben“ bzw. „Nachzahlung“ ohne Vorzeichen, in Tabellen + = Guthaben. |
 | **Schattenvertrag** | Ein Tarif, den man nicht hat: entweder ein Angebot vom Vergleichsportal (für die Wechselentscheidung) oder eine Hypothese über die Vergangenheit („Was hätte das gekostet?"). Wirkt **nur** im Tarifvergleich — nie auf Saldo, Prognose oder Vertragsstatus. |
 | **Kündigungsstichtag** | Letzter Tag, an dem die Kündigung beim Anbieter sein muss (`cancel_by`). Seit v2.9.0 zählen die Erinnerungsstufen bis zu diesem Tag, nicht bis zum Vertragsende. |
 | **Kündigungsweise** | v2.9.0 (`notice_mode`): zum Vertragsende, jederzeit zum Monatsende oder jederzeit zu jedem Tag (etwa die Grundversorgung mit zwei Wochen). |

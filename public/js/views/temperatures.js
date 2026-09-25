@@ -110,6 +110,8 @@ export async function render(container) {
         measured: fmt.date(measuredUntil), forecast: forecastUntil ? fmt.date(forecastUntil) : '',
       })}</p>` : ''}
       <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
+      <!-- v2.13.0 (Review DOC-22) — Quelle und Lizenz der Wetterdaten -->
+      <p class="muted small attribution">${escapeHtml(t('temperatures.attribution'))} <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>)</p>
     </div>
   `;
 

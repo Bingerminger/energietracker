@@ -28,6 +28,7 @@ import { t, tp } from '../lib/i18n.js';
 import { fmt as baseFmt, escapeHtml as esc, parseDecimal, todayIso } from '../lib/format.js';
 import { checkReading, confirmIssues, issueText } from '../lib/plausibility.js';
 import { showFieldError } from '../lib/form.js';
+import { info } from '../components/info.js';
 
 // v2.2.0 — vorher ein eigener Formatierer mit fest verdrahtetem de-DE/en-GB.
 // Jetzt die gemeinsame Intl-Quelle; `num` bleibt „bis zu N Stellen" (Zählerstände
@@ -258,10 +259,12 @@ function renderRow(r, today) {
       <div class="reading-card__preview" data-role="preview" hidden></div>
 
       <div class="reading-card__extras">
-        <label class="toggle">
-          <input type="checkbox" data-role="estimated" />
-          <span>${t('readingsEntry.row.estimated')}</span>
-        </label>
+        <span class="toggle-wrap">
+          <label class="toggle">
+            <input type="checkbox" data-role="estimated" />
+            <span>${t('readingsEntry.row.estimated')}</span>
+          </label>${info('estimated')}
+        </span>
         <button type="button" class="btn btn--ghost btn--sm" data-action="toggle-date"
           aria-expanded="false" aria-controls="rc-date-${escIdx(r)}">
           ${t('readingsEntry.row.otherDate')}

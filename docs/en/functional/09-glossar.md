@@ -28,7 +28,7 @@ A compact reference of all terms and formulas. The detailed derivation is in
 | **R²** | Coefficient of determination: the share of explained scatter (0…1). |
 | **Seasonal profile** | The monthly mean of consumption over the history. |
 | **Blend** | The R²-weighted mix of regression × seasonal profile in the forecast. |
-| **Balance** | Actual costs − advances paid (plus the net of special payments). **Positive = back-payment looming, negative = credit.** |
+| **Balance** | Actual costs − advances paid (plus the net of special payments). **Positive = back-payment looming, negative = credit** — that is how the API and the CSV export calculate. Since v2.13.0 the interface shows the customer's side: "credit" or "additional payment" without a sign, in tables + = credit. |
 | **Shadow contract** | A tariff you do not hold: either an offer from a comparison site (for the switching decision) or a hypothesis about the past ("what would that have cost?"). Takes effect **only** in the tariff comparison — never on the balance, forecast or contract status. |
 | **Cancellation deadline** | The last day by which the notice must reach the supplier (`cancel_by`). Since v2.9.0 the reminder levels count down to this day, not to the contract end. |
 | **Notice mode** | v2.9.0 (`notice_mode`): at the end of the term, any time at month end, or any time to any day (for example default supply, German *Grundversorgung*, with two weeks' notice). |

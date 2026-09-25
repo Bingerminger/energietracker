@@ -13,6 +13,8 @@ import { fmt, escapeHtml, monthShortNames } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
+import { info } from '../components/info.js';
+import { isFeedIn, isGeneration, moreIsBetter, changeTone } from '../lib/semantics.js';
 
 // Locale-bewusste Kurz-Monatsnamen für die Chart-Achsen. v2.2.0: aus der
 // gemeinsamen Intl-Quelle in lib/format.js statt einer zweiten, nur auf de/en
@@ -104,7 +106,7 @@ async function renderForMeter(u, meterId, body) {
         </div>
       ` : u.hgt_relevant ? `
         <div class="card">
-          <h3 class="card__title">${t('analysis.hgtTitle')}</h3>
+          <h3 class="card__title">${t('analysis.hgtTitle')}${info('heatingSignature')}</h3>
           <div class="chart-wrap"><canvas id="ch-hdd"></canvas></div>
           <div class="regression-summary" id="reg-summary"></div>
         </div>
@@ -125,7 +127,7 @@ async function renderForMeter(u, meterId, body) {
     ${renderYoyWidget(monthly, u, consKey)}
 
     <div class="card" style="margin-top: var(--sp-5)">
-      <h3 class="card__title">${t('analysis.anomalies', { count: anomalies.length })}</h3>
+      <h3 class="card__title">${t('analysis.anomalies', { count: anomalies.length })}${info('anomaly')}</h3>
       ${anomalies.length === 0 ? `<p class="muted">${t('analysis.noAnomalies')}</p>` : `
         <p class="muted" style="margin-bottom:12px">
           ${u.hgt_relevant ? t('analysis.anomalyExplainHgt') : t('analysis.anomalyExplainSeasonal')}
@@ -133,7 +135,7 @@ async function renderForMeter(u, meterId, body) {
         <div class="table-wrap"><table class="table">
           <thead><tr>
             <th scope="col">${t('analysis.anomalyCol.month')}</th>
-            <th scope="col" class="num">${t('analysis.anomalyCol.consumption')}</th>
+            <th scope="col" class="num">${t(isFeedIn(u) ? 'analysis.anomalyCol.feedIn' : isGeneration(u) ? 'analysis.anomalyCol.generation' : 'analysis.anomalyCol.consumption')}</th>
             <th scope="col" class="num">${t('analysis.anomalyCol.expected')}</th>
             <th scope="col" class="num">${t('analysis.anomalyCol.deltaAbs')}</th>
             <th scope="col" class="num">${t('analysis.anomalyCol.deltaPct')}</th>
@@ -146,7 +148,8 @@ async function renderForMeter(u, meterId, body) {
               const val = a.value ?? 0;
               const dev = a.deviation ?? 0;
               const pct = a.percent ?? 0;
-              const cls = z >= 0 ? 'danger-text' : 'success-text';
+              // v2.13.0 (Review FE-06) — mehr Einspeisung ist gut
+              const cls = changeTone(z, u) || 'success-text';
               const unit = u.consumption_unit;
               return `
                 <tr>
@@ -216,7 +219,7 @@ function renderBaselineBlock(baseline, comparison, u) {
     const better = comparison.delta_pct < 0;
     parts.push(`
       <div class="card" style="margin-top: var(--sp-5)">
-        <h3 class="card__title">${t('analysis.baseline.comparisonTitle')}</h3>
+        <h3 class="card__title">${t('analysis.baseline.comparisonTitle')}${info('baseline')}</h3>
         <p class="muted" style="margin-bottom:12px">${t('analysis.baseline.comparisonHint')}</p>
         <div class="kpi-grid">
           <div class="kpi">
@@ -377,7 +380,7 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'top', labels: { color: themeColors.text2 } } },
       scales: {
-        x: { title: { display: true, text: 'HGT' } },
+        x: { title: { display: true, text: t('common.hddShort') } },   // v2.13.0 — bis v2.12 „HGT" in jeder Sprache
         y: { title: { display: true, text: u.consumption_unit } },
       },
     }
@@ -393,7 +396,7 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
   if (note) {
     note.innerHTML = `
       <table class="table table--compact">
-        <thead><tr><th scope="col">${t('analysis.reg.model')}</th><th scope="col" class="num">R²</th><th scope="col" class="num">${t('analysis.reg.n')}</th><th scope="col">${t('analysis.reg.coeffs')}</th></tr></thead>
+        <thead><tr><th scope="col">${t('analysis.reg.model')}${info('models')}</th><th scope="col" class="num">R²${info('r2')}</th><th scope="col" class="num">${t('analysis.reg.n')}</th><th scope="col">${t('analysis.reg.coeffs')}</th></tr></thead>
         <tbody>
           ${ranked.map(r => `
             <tr class="${bestModel && r.model === bestModel.model ? 'is-best' : ''}">
@@ -420,19 +423,19 @@ function formatCoefficients(model, reg, u) {
   switch (model) {
     case 'linear':
     case 'robust':
-      return `${unit}/HGT = ${fmt.num(reg.a ?? 0, 2)}, ${t('analysis.reg.intercept')} = ${fmt.num(reg.b ?? 0, 1)}`;
+      return `${unit}/${t('common.hddShort')} = ${fmt.num(reg.a ?? 0, 2)}, ${t('analysis.reg.intercept')} = ${fmt.num(reg.b ?? 0, 1)}`;
     case 'polynomial':
       return `a = ${(reg.a ?? 0).toExponential(2)}, b = ${fmt.num(reg.b ?? 0, 2)}, c = ${fmt.num(reg.c ?? 0, 1)}`;
     case 'segmented': {
       // v2.8.0 — stetiges Knickmodell: Sockel + Steigung × max(0, HGT − Knick)
       const heat = reg.heat || {}; const base = reg.base || {};
-      return `${fmt.num(base.b ?? 0, 0)} + ${fmt.num(heat.a ?? 0, 2)} × max(0, HGT − ${fmt.num(reg.split ?? 0, 0)})`;
+      return `${fmt.num(base.b ?? 0, 0)} + ${fmt.num(heat.a ?? 0, 2)} × max(0, ${t('common.hddShort')} − ${fmt.num(reg.split ?? 0, 0)})`;
     }
     case 'sigmoid': {
       // v2.8.0 — aus den Parametern statt aus `predict`: Zahlen im Format der
       // Sprache, Vorzeichen von θ₀ ausgeschrieben
       const t0 = reg.theta0 ?? 0;
-      return `${unit} = ${fmt.num(reg.A ?? 0, 1)} / (1 + (${fmt.num(reg.B ?? 0, 1)} / (HGT ${t0 < 0 ? '+' : '−'} ${fmt.num(Math.abs(t0), 1)}))^${reg.C ?? '–'}) + ${fmt.num(reg.D ?? 0, 0)}`;
+      return `${unit} = ${fmt.num(reg.A ?? 0, 1)} / (1 + (${fmt.num(reg.B ?? 0, 1)} / (${t('common.hddShort')} ${t0 < 0 ? '+' : '−'} ${fmt.num(Math.abs(t0), 1)}))^${reg.C ?? '–'}) + ${fmt.num(reg.D ?? 0, 0)}`;
     }
     default: return '';
   }
@@ -553,7 +556,7 @@ function renderYoyWidget(monthly, u, consKey) {
   const cell = (v, d = 0) => v == null ? '<span class="dim">–</span>' : fmt.num(v, d);
   const deltaCell = (delta, pct) => {
     if (delta == null) return '<td class="num"><span class="dim">–</span></td><td class="num"><span class="dim">–</span></td>';
-    const cls = delta > 0 ? 'danger-text' : delta < 0 ? 'success-text' : '';
+    const cls = changeTone(delta, u);   // v2.13.0 — bei PV ist mehr gut
     const sign = delta > 0 ? '+' : '';
     return `
       <td class="num ${cls}">${sign}${fmt.num(delta, 0)}</td>
@@ -590,7 +593,7 @@ function renderYoyWidget(monthly, u, consKey) {
         </tr></tfoot>
       </table></div>
       <p class="muted" style="font-size: var(--fs-xs); margin-top: var(--sp-2)">
-        ${t('analysis.yoy.note')}
+        ${t(moreIsBetter(u) ? 'analysis.yoy.notePv' : 'analysis.yoy.note')}
       </p>
     </div>
   `;
@@ -603,7 +606,7 @@ function renderYoyWidget(monthly, u, consKey) {
 async function renderWaterSparindex(monthly) {
   const settings = await getSettings().catch(() => ({}));
   const personen = Number(settings.wasser_personen_anzahl) || 1;
-  const referenz = Number(settings.wasser_personen_referenz) || 127;
+  const referenz = Number(settings.wasser_personen_referenz) || 122;   // v2.13.0 — Standard seit v2.10.0
   const bandGut = Number(settings.wasser_sparindex_gut) || 100;
   const bandWarn = Number(settings.wasser_sparindex_warnung) || 150;
 

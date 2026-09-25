@@ -19,7 +19,8 @@
     "required": "Pflichtfeld",
     "actions": "Aktionen",
     "invalidNumber": "Bitte eine gültige Zahl eingeben, z. B. {example}.",
-    "undo": "Rückgängig"
+    "undo": "Rückgängig",
+    "hddShort": "HGT"
   },
   "app": {
     "themeToggle": "Theme wechseln",
@@ -98,14 +99,13 @@
     "sectionNav": "Seiten dieses Bereichs",
     "menu": "Menü",
     "tabbar": "Schnellnavigation",
-    "captureButton": "Erfassen"
+    "captureButton": "Erfassen",
+    "help": "Hilfe"
   },
   "dashboard": {
     "loading": "Lade Übersicht…",
     "title": "Übersicht",
     "empty": {
-      "title": "Noch keine Ablesungen",
-      "text": "Erfasse deinen ersten Zählerstand, um Verbrauch, Kosten und Prognosen zu sehen.",
       "cta": "Ersten Zählerstand erfassen"
     },
     "efficiency": {
@@ -154,7 +154,11 @@
       "consumption": "Verbrauch (letzte 12 Monate)",
       "cost": "Kosten (letzte 12 Monate)",
       "costSub": "inkl. Boni",
-      "noContract": "kein Vertrag hinterlegt"
+      "noContract": "kein Vertrag hinterlegt",
+      "feedIn": "Einspeisung (letzte 12 Monate)",
+      "generation": "Erzeugung (letzte 12 Monate)",
+      "revenue": "Vergütung (letzte 12 Monate)",
+      "revenueSub": "Erlös aus der Einspeisung"
     },
     "trend": { "vsPrev": "vs. vorherige 12 Monate", "moreThanPrev": "{pct} % mehr als im vorherigen 12-Monats-Zeitraum", "lessThanPrev": "{pct} % weniger als im vorherigen 12-Monats-Zeitraum" },
     "allRecommendations": "Alle Empfehlungen",
@@ -173,6 +177,11 @@
         "one": "{count} Zähler wartet auf eine Ablesung",
         "other": "{count} Zähler warten auf eine Ablesung"
       }
+    },
+    "welcome": {
+      "title": "Willkommen beim Energietracker",
+      "text": "Trag deine Zählerstände ein — die App rechnet daraus Verbrauch, Kosten, Abschlags-Saldo und Prognose. Oder schau zuerst mit Beispieldaten, wie das aussieht.",
+      "demo": "Mit Beispieldaten ausprobieren"
     }
   },
   "readingsEntry": {
@@ -244,17 +253,15 @@
       "cost": "💶 Kosten",
       "perMonth": "ø {value}/Monat",
       "advances": "💰 Abschläge {year}",
-      "yearBalance": "Saldo Jahr {value}",
+      "yearBalance": "Saldo im Jahr: {value}",
       "dailyAvg": "📅 Tagesschnitt",
       "daysCount": "{days} Tage",
-      "co2AvoidedTitle": "Vereinfachte Modellrechnung: eingespeiste kWh × Strommix-CO₂-Faktor. PV-Lebenszyklus nicht berücksichtigt.",
       "co2Avoided": "🌿 CO₂ vermieden {year}",
       "co2AvoidedSub": "{tons} t weniger als ohne PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Abschläge bis {date}",
-      "balanceShort": "Saldo {value}",
-      "co2AvoidedGenTitle": "Vereinfachte Modellrechnung: erzeugte kWh × Strommix-CO₂-Faktor — verdrängter Netzstrom, Einspeisung eingeschlossen. PV-Lebenszyklus nicht berücksichtigt.",
+      "balanceShort": "Saldo: {value}",
       "generation": "Erzeugung"
     },
     "cards": {
@@ -268,7 +275,9 @@
       "deliveriesCount": "{count} Lieferungen gesamt",
       "readings": "🔢 Zählerstände",
       "readingsYear": "📋 Ablesungen {year}",
-      "readingsCount": "{count} Ablesungen gesamt"
+      "readingsCount": "{count} Ablesungen gesamt",
+      "monthlyChartFeedIn": "Einspeisung je Monat {year}",
+      "monthlyChartGeneration": "Erzeugung je Monat {year}"
     },
     "balance": {
       "title": "⚖️ Saldo aktueller Vertrag — {name}",
@@ -302,8 +311,8 @@
       "subCredit": "Guthaben beim Netzbetreiber",
       "subReclaim": "Rückforderung",
       "subBalanced": "ausgeglichen",
-      "subUnderpaid": "Unterzahlt",
-      "subOverpaid": "Überzahlt",
+      "subUnderpaid": "Nachzahlung — bisher zu wenig gezahlt",
+      "subOverpaid": "Guthaben — bisher zu viel gezahlt",
       "verdictLabel": "Erwartet bei Abrechnung",
       "dateNext": "nächste Abrechnung: {date}",
       "dateEnd": "Vertragsende: {date}",
@@ -315,11 +324,11 @@
       "basisSep": "sep. Zähler",
       "basisTw": "Trinkwasser-Verbr.",
       "perMonthShort": "{value}/Monat",
-      "gpMonth": "{value} {cur}/M GP",
+      "gpMonth": "Grundpreis {value} {cur}/Monat",
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/J · {m2} m²",
       "consShort": "{value} Verbr.",
-      "gpPlus": " + {value} GP",
+      "gpPlus": " + {value} Grundpreis",
       "suggestAdvance": "Mit {suggested} statt {current} Abschlag läge die Abrechnung bei etwa ±0.",
       "measuredThenEstimated": "gemessen bis {date} ({kwh} kWh), danach geschätzt: {value}",
       "renewed": "Die Laufzeit endete am {date}. Der Vertrag läuft ohne Kündigung zu den letzten Preisen weiter und ist jederzeit mit höchstens einem Monat Frist kündbar.",
@@ -347,11 +356,12 @@
       "statePast": "VERGANGEN",
       "stateFuture": "ZUKÜNFTIG",
       "periodOpen": "{start} → laufend",
-      "gpSuffix": "{value} {cur} GP",
+      "gpSuffix": "Grundpreis {value} {cur}/Monat",
       "colSpecial": "Sonderzahlungen",
-      "colSpecialTitle": "Netto aus Sonderzahlungen: Rückzahlungen vom Versorger zählen positiv, Nach- und Abschlagszahlungen negativ. Einzelposten im Tooltip der Zelle.",
-      "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Einzelposten erscheinen beim Überfahren der Zelle, gepflegt werden sie in der Vertragsverwaltung.",
-      "stateRenewed": "VERLÄNGERT"
+      "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Antippen zeigt die Einzelposten; gepflegt werden sie in der Vertragsverwaltung.",
+      "stateRenewed": "VERLÄNGERT",
+      "colEarned": "Vergütung",
+      "colReceived": "Erhalten"
     },
     "monthlyTable": {
       "noData": "Keine Daten für dieses Jahr.",
@@ -361,20 +371,18 @@
       "colTemp": "ø Temp",
       "colTempTitle": "Durchschnittstemperatur im Monat",
       "colHdd": "HGT",
-      "colHddTitle": "Heizgradtage — Summe der täglichen Differenz zwischen Heizgrenze und Außentemperatur",
       "colPrice": "{minor}/{unit}",
       "colCost": "Kosten {cur}",
       "colAdvance": "Abschlag {cur}",
       "colCumBalance": "Saldo (kum.)",
-      "colCumBalanceTitle": "Kumulierter Saldo seit Vertragsbeginn",
       "colCo2": "CO₂ kg",
       "colMa3": "MA·3",
-      "colMa3Title": "Gleitender 3-Monats-Durchschnitt",
       "colMa6": "MA·6",
-      "colMa6Title": "Gleitender 6-Monats-Durchschnitt",
       "total": "Gesamt",
       "estimatedTitle": "{days} Tage geschätzt (nach dem letzten bekannten Bestand)",
-      "estimatedLegend": "≈ Monat enthält geschätzte Tage — nach dem letzten bekannten Bestand (Lieferung „bis voll getankt“ oder Peilstand)."
+      "estimatedLegend": "≈ Monat enthält geschätzte Tage — nach dem letzten bekannten Bestand (Lieferung „bis voll getankt“ oder Peilstand).",
+      "colRevenue": "Erlös {cur}",
+      "colCo2Avoided": "CO₂ vermieden kg"
     },
     "readingsTable": {
       "emptyTitle": "Keine Ablesungen",
@@ -528,6 +536,14 @@
       "dip": "{date}: {counter} {unit} – Ausreißer nach unten, nicht berücksichtigt",
       "decrease": "{date}: {counter} {unit} – kleiner als am {prevDate} ({prevCounter} {unit}); Zählertausch oder Überlauf nicht erfasst?",
       "gotoMeters": "Zählertausch erfassen"
+    },
+    "subtitleDelivery": "Lieferungen · Tankbestand · Monatsverbrauch",
+    "subtitleFeedIn": "Zählerstände · Einspeisung · Vergütung",
+    "subtitleGeneration": "Zählerstände · Erzeugung · vermiedenes CO₂",
+    "noData": {
+      "title": "Noch keine Monatswerte",
+      "noReading": "Für diesen Zähler gibt es noch keinen Stand. Die Monatswerte entstehen aus der Differenz zweier Stände.",
+      "oneReading": "Es gibt erst einen Stand. Die Monatswerte entstehen aus der Differenz zweier Stände — trag einen zweiten ein, etwa den von deiner letzten Rechnung."
     }
   },
   "contracts": {
@@ -940,7 +956,7 @@
       "hdd_base_temp": { "label": "HGT-Basistemperatur", "hint": "Heizgrenze — Tage darunter zählen als Heiztage." },
       "co2_gas": { "label": "CO₂ Gas", "hint": "BAFA: 201 g/kWh, bezogen auf den Heizwert. Die App zählt Gas nach Brennwert (Zustandszahl × Brennwert), daher × 0,906 = 182." },
       "co2_strom": { "label": "CO₂ Strom", "hint": "Gilt für Jahre vor dem ersten Jahreswert — ohne Jahreswerte für alle Jahre." },
-      "co2_wasser": { "label": "CO₂ Wasser" },
+      "co2_wasser": { "label": "CO₂ Wasser", "hint": "Für Aufbereitung und Pumpen je m³ Wasser — ein Schätzwert ohne amtliche Quelle." },
       "co2_fernwaerme": { "label": "CO₂ Fernwärme", "hint": "BAFA-Pauschale. Genauer ist der Wert Ihres Wärmenetzes — er steht beim Versorger." },
       "co2_heizoel": { "label": "CO₂ Heizöl", "hint": "BAFA, bezogen auf den Heizwert — so, wie die App Heizöl rechnet." },
       "co2_pellets": { "label": "CO₂ Pellets", "hint": "BAFA, CO₂-Äquivalente einschließlich Vorkette." },
@@ -950,33 +966,31 @@
       "contract_remind_days_1": { "label": "Stufe 1 — Vorwarnung" },
       "contract_remind_days_2": { "label": "Stufe 2 — Erinnerung" },
       "contract_remind_days_3": { "label": "Stufe 3 — dringend" },
-      "wasser_personen_anzahl": { "label": "Personen im Haushalt" },
+      "wasser_personen_anzahl": { "label": "Personen im Haushalt", "hint": "Für den Wasser-Spar-Index: Liter je Person und Tag im Vergleich zur Referenz." },
       "wasser_personen_referenz": { "label": "Referenz", "hint": "BDEW 2024: 122 L je Person und Tag." },
       "wasser_sparindex_gut": { "label": "Spar-Index — gut bis", "hint": "Index ≤ diesem Wert gilt als unauffällig." },
       "wasser_sparindex_warnung": { "label": "Spar-Index — Warnung ab", "hint": "Index ≥ diesem Wert zeigt Sparpotenzial an." },
-      "min_days_period": { "label": "Min. Tage pro Periode" },
-      "min_hdd_regression": { "label": "Min. HGT für Regression" },
-      "blend_max": { "label": "Max. Blend-Gewicht" },
-      "forecast_months": { "label": "Prognose-Horizont" },
-      "forecast_model": { "label": "Standardmodell" },
+      "min_days_period": { "label": "Min. Tage pro Periode", "hint": "Monate mit weniger erfassten Tagen (Teilmonate) bleiben aus Heizsignatur und Anomalien heraus." },
+      "min_hdd_regression": { "label": "Min. HGT für Regression", "hint": "Monate mit weniger Heizgradtagen bleiben aus der Heizsignatur heraus — im Sommer bestimmt die Grundlast den Verbrauch, nicht das Wetter." },
+      "blend_max": { "label": "Max. Blend-Gewicht", "hint": "Höchstes Gewicht des Wettermodells in der Prognose; der Rest kommt aus dem Saisonprofil. 0,8 heißt: mindestens 20 % Saisonprofil." },
+      "forecast_months": { "label": "Prognose-Horizont", "hint": "Wie viele Monate die Prognose vorausrechnet (1–24). Vorbelegung der Prognose-Ansicht." },
+      "forecast_model": { "label": "Standardmodell", "hint": "Modell für Prognose und Tarifvergleich. Linear passt für die meisten Häuser; die Analyse zeigt, welches deine Daten am besten erklärt." },
       "segmented_split_mode": { "label": "Segment-Knickpunkt", "hint": "auto = datenbasiert gefittet, fixed = fester HGT-Wert unten." },
       "segmented_fixed_split": { "label": "Fester Knickpunkt", "hint": "Nur wirksam bei Modus „fixed“." },
-      "anomaly_threshold": { "label": "Anomalie-Schwelle" },
-      "dashboard_months": { "label": "Monate auf Dashboard" },
-      "alert_days_since_reading": { "label": "Warnung nach" },
+      "anomaly_threshold": { "label": "Anomalie-Schwelle", "hint": "Ab welcher Abweichung (in Streuungseinheiten σ) ein Monat in der Analyse als auffällig gilt. Kleiner heißt empfindlicher." },
+      "dashboard_months": { "label": "Monate auf Dashboard", "hint": "Wie viele Monate der Verlauf auf der Übersicht zeigt (3–36)." },
+      "alert_days_since_reading": { "label": "Warnung nach", "hint": "Liegt die letzte Ablesung länger zurück, steht der Zähler unter „Zu tun“ und die Verbrauchsansicht erinnert daran." },
       "wohnflaeche_m2": { "label": "Wohnfläche", "hint": "Beheizte Fläche — Nenner der Effizienzkennzahl." },
       "gebaeudetyp": { "label": "Gebäudetyp", "hint": "Mehrfamilienhaus heißt: ab drei Wohnungen." },
-      "heizoel_kwh_per_l": { "label": "Heizöl Energiegehalt" },
-      "pellets_kwh_per_kg": { "label": "Pellets Energiegehalt" },
+      "heizoel_kwh_per_l": { "label": "Heizöl Energiegehalt", "hint": "Energie je Liter Heizöl (Heizwert, üblich 10 kWh/L). Rechnet Liter in kWh um." },
+      "pellets_kwh_per_kg": { "label": "Pellets Energiegehalt", "hint": "Energie je kg Pellets (üblich 4,8 kWh/kg). Rechnet kg in kWh um." },
       "delivery_baseload_share": { "label": "Sockel-Anteil Verteilung", "hint": "Anteil des Verbrauchs als wetterunabhängige Grundlast (Rest HGT-gewichtet)." },
-      "tank_warn_pct": { "label": "Tank-Warnung ab" },
-      "reminder_warn_days_before": { "label": "Termin „bald fällig“ ab" },
-      "reminder_overdue_days": { "label": "Kulanz bis „überfällig“" },
-      "recommendation_anomaly_sigma": { "label": "Empfehlung Anomalie-Schwelle" },
-      "recommendation_trend_pct_year": { "label": "Empfehlung Trend-Schwelle" },
+      "tank_warn_pct": { "label": "Tank-Warnung ab", "hint": "Unter diesem Füllstand wird der Tank gelb, unter der Hälfte davon rot, und „Zu tun“ schlägt eine Lieferung vor." },
+      "reminder_warn_days_before": { "label": "Termin „bald fällig“ ab", "hint": "Ab so vielen Tagen vor dem Termin gilt er als „bald fällig“." },
+      "reminder_overdue_days": { "label": "Kulanz bis „überfällig“", "hint": "So viele Tage nach dem Termin gilt er noch als fällig, danach als überfällig. 0 = ab dem Tag danach." },
+      "recommendation_anomaly_sigma": { "label": "Empfehlung Anomalie-Schwelle", "hint": "Dieselbe Art Schwelle für die Empfehlungen: erst ab dieser Abweichung entsteht ein Hinweis." },
+      "recommendation_trend_pct_year": { "label": "Empfehlung Trend-Schwelle", "hint": "Ab welchem Anstieg je Jahr die Empfehlungen einen steigenden Verbrauch melden." },
       "billing_cycle_anchor_fernwaerme": { "label": "Stichtag Fernwärme" },
-      "billing_cycle_anchor_heizoel": { "label": "Stichtag Heizöl" },
-      "billing_cycle_anchor_pellets": { "label": "Stichtag Pellets" },
       "location_name": { "label": "Ortsname" },
       "latitude": { "label": "Breitengrad" },
       "longitude": { "label": "Längengrad" },
@@ -1000,6 +1014,13 @@
       "warmwasser_dezentral": {
         "label": "Warmwasser dezentral",
         "hint": "Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält 20 kWh/m²·a Zuschlag."
+      },
+      "billing_cycle_anchor_pv_einspeisung": {
+        "label": "Stichtag PV-Einspeisung"
+      },
+      "confidence_band_sigma": {
+        "label": "Breite des Prognosebands",
+        "hint": "In Streuungseinheiten σ: 1,28 heißt, der Verbrauch liegt in 80 % der Jahre im Band; 1,64 wären 90 %."
       }
     },
     "boolActive": "aktiv",
@@ -1106,7 +1127,7 @@
     },
     "ha": {
       "title": "🏠 Home-Assistant-Anbindung",
-      "intro": "Lass Home Assistant deine Zählerstände automatisch an den Energietracker senden — du pflegst sie dann nicht mehr von Hand. Home Assistant liefert die Werte, der Energietracker übernimmt Verträge, Kosten und Prognosen. Anleitung: <code>docs/HOME-ASSISTANT.md</code>.",
+      "intro": "Lass Home Assistant deine Zählerstände automatisch an den Energietracker senden — du pflegst sie dann nicht mehr von Hand. Home Assistant liefert die Werte, der Energietracker übernimmt Verträge, Kosten und Prognosen.",
       "step1": "1. API-Token",
       "tokenHint": "Schützt den Push-Endpoint <code>/api/ingest</code>. <strong>Ohne Anmeldung nimmt er Werte auch ohne Token an</strong> – gedacht fürs Heimnetz. Ist die Anmeldung eingeschaltet, verlangt er immer einen Token.",
       "tokenActive": "🔒 Token aktiv",
@@ -1152,7 +1173,8 @@
       "aliasesSavedN": {
         "one": "{count} Alias gespeichert",
         "other": "{count} Aliasse gespeichert"
-      }
+      },
+      "guide": "Anleitung"
     },
     "diag": {
       "title": "🩺 System-Diagnose",
@@ -1362,6 +1384,10 @@
       "aboutTitle": "Über den Energietracker",
       "about": "Energietracker {version} – Verbrauch, Kosten und Verträge, lokal und ohne Cloud.",
       "license": "Freie Software unter der MIT-Lizenz"
+    },
+    "splitModes": {
+      "auto": "automatisch aus den Daten",
+      "fixed": "fester Wert"
     }
   },
   "reminders": {
@@ -1447,7 +1473,8 @@
     "geoPlaceholder": "z. B. Leipzig oder 04109",
     "geoSearch": "Suchen",
     "geoNone": "Kein Ort gefunden.",
-    "locationSaved": "Standort gespeichert"
+    "locationSaved": "Standort gespeichert",
+    "attribution": "Wetterdaten von"
   },
   "recommendations": {
     "loading": "Lade Empfehlungen…",
@@ -1496,7 +1523,8 @@
     },
     "dismissedNamed": "„{title}“ für 30 Tage ausgeblendet",
     "restored": "Empfehlung wieder eingeblendet",
-    "dismissNamed": "30 Tage ausblenden: {title}"
+    "dismissNamed": "30 Tage ausblenden: {title}",
+    "emptyNoData": "Noch zu wenig Daten für Empfehlungen — sie entstehen, sobald einige Monate Verbrauch vorliegen."
   },
   "tariff": {
     "loading": "Lade…",
@@ -1595,7 +1623,6 @@
       },
       "year1Title": "Kosten im ersten Jahr, Neukundenbonus bereits abgezogen",
       "year2Title": "Dauerhafte Jahreskosten ohne einmalige Boni",
-      "breakEvenTitle": "Ab diesem Jahresverbrauch ist der Tarif günstiger als der aktuelle",
       "breakEvenDelta": "{pct} % zum erwarteten Verbrauch",
       "breakEvenNone": "Kein Schnittpunkt — der Tarif ist bei jeder Menge günstiger oder teurer",
       "bonusIncluded": "inkl. {value} Bonus",
@@ -1634,7 +1661,7 @@
     "noAnomalies": "Keine Anomalien erkannt — alle Monate liegen innerhalb des Erwartungsbereichs (σ-Schwelle aus Einstellungen).",
     "anomalyExplainHgt": "Monate, deren Verbrauch mehr als die σ-Schwelle von der Erwartung abweicht — Heizkurve plus Grundlast bei den Heizgradtagen dieses Monats. Die Streuung wird robust geschätzt (Median, MAD).",
     "anomalyExplainSeasonal": "Monate, deren Verbrauch mehr als die σ-Schwelle vom selben Kalendermonat anderer Jahre abweicht — je Tag gerechnet und ohne den Monat selbst.",
-    "anomalyCol": { "month": "Monat", "consumption": "Verbrauch", "expected": "Erwartet", "deltaAbs": "Δ absolut", "deltaPct": "Δ %", "sigma": "σ-Wert", "hgt": "HGT", "temp": "ø Temp" },
+    "anomalyCol": { "month": "Monat", "consumption": "Verbrauch", "expected": "Erwartet", "deltaAbs": "Δ absolut", "deltaPct": "Δ %", "sigma": "σ-Wert", "hgt": "HGT", "temp": "ø Temp", "feedIn": "Einspeisung", "generation": "Erzeugung" },
     "model": { "linear": "Linear", "polynomial": "Polynomial (2)", "robust": "Robust (Huber)", "segmented": "Segmentiert", "sigmoid": "Sigmoid" },
     "reg": { "model": "Modell", "n": "n", "coeffs": "Koeffizienten", "bestFit": "bestes Fit", "tooFew": "zu wenige Datenpunkte", "intercept": "Achsenabschnitt" },
     "scatterPoints": "Monate",
@@ -1661,7 +1688,8 @@
       "colDeltaAbs": "Δ absolut",
       "colDeltaPct": "Δ %",
       "sumRow": "Summe (gemeinsame Monate)",
-      "note": "Vergleich nur über Monate, die in beiden Jahren Daten haben. Positive Werte = Mehrverbrauch gegenüber dem Vorjahr."
+      "note": "Vergleich nur über Monate, die in beiden Jahren Daten haben. Positive Werte = Mehrverbrauch gegenüber dem Vorjahr.",
+      "notePv": "Positive Werte = mehr Ertrag als im Vorjahresmonat (grün). Verglichen werden nur Monate, die in beiden Jahren Daten haben."
     },
     "spar": {
       "title": "💧 Wasser-Spar-Index",
@@ -1726,7 +1754,7 @@
     "monthlyDetail": "Monatsdetail",
     "noMeters": "Keine Zähler.",
     "noForecast": "Keine Prognose möglich",
-    "models": { "linear": "Linear", "polynomial": "Polynomial (Grad 2)", "robust": "Robust (Huber)", "segmented": "Segmentiert (Heizen/Sommer)", "sigmoid": "Sigmoid (Heizsignatur)" },
+    "models": { "linear": "Linear", "polynomial": "Polynomial (Grad 2)", "robust": "Robust (Huber)", "segmented": "Segmentiert (Heizen/Sommer)", "sigmoid": "Sigmoid (Heizsignatur)", "seasonalOnly": "nur Saisonprofil" },
     "chartHist": "Historie",
     "chartForecast": "Prognose",
     "info": "Modell: <strong>{model}</strong> · Anteil Heizkurve: <strong>{blend} %</strong>{r2} · Letzter Arbeitspreis: <strong>{price} {minor}/{unit}</strong>",
@@ -1798,7 +1826,8 @@
       "subtitle": "Ein Jahr auf einen Blick, als PDF zum Ablegen oder Teilen.",
       "open": "Im Browser öffnen",
       "note": "Auf dem iPhone öffnet sich der Bericht in einem neuen Tab; von dort lässt er sich sichern oder teilen."
-    }
+    },
+    "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), soweit nicht selbst erfasst."
   },
   "migration": {
     "warnNoSettings": "Keine Einstellungen im Backup gefunden — es gelten die Standardwerte.",
@@ -2100,5 +2129,207 @@
     "noMeter": "Die Rechnungsprüfung rechnet Zustandszahl × Brennwert nach und gibt es deshalb für Gas. Lege zuerst einen Gaszähler an.",
     "addMeter": "Gaszähler anlegen",
     "meter": "Zähler"
+  },
+  "glossary": {
+    "hdd": {
+      "term": "Heizgradtage (HGT)",
+      "text": "Wie kalt es war, gemessen an der Heizgrenze: je Tag die Differenz zwischen Heizgrenze und Tagesmittel, an warmen Tagen 0. Mehr Heizgradtage bedeuten mehr Heizbedarf."
+    },
+    "heatingLimit": {
+      "term": "Heizgrenze",
+      "text": "Außentemperatur, ab der geheizt wird — in Deutschland üblicherweise 15 °C (Einstellung „HGT-Basistemperatur“). Wärmere Tage zählen keine Heizgradtage."
+    },
+    "heatingSignature": {
+      "term": "Heizsignatur",
+      "text": "Der Zusammenhang zwischen Heizgradtagen und Verbrauch, aus deinen eigenen Monaten gerechnet: wie viel dein Haus je Gradtag braucht und wie groß die wetterunabhängige Grundlast ist."
+    },
+    "baseload": {
+      "term": "Grundlast",
+      "text": "Der Teil des Verbrauchs, der nicht vom Wetter abhängt — etwa Warmwasser, Kochen oder Standby. Er fällt auch im Sommer an."
+    },
+    "weatherAdjusted": {
+      "term": "Witterungsbereinigt",
+      "text": "Verbrauch, umgerechnet auf normales Wetter am Standort (Klimanormal). Nur der Wetteranteil wird umgerechnet — so lassen sich ein milder und ein kalter Winter vergleichen."
+    },
+    "climateNormal": {
+      "term": "Klimanormal",
+      "text": "Durchschnittliche Heizgradtage je Kalendermonat aus 30 Jahren Wetterdaten für deinen Standort. Grundlage für Prognose und Witterungsbereinigung."
+    },
+    "r2": {
+      "term": "R² (Bestimmtheitsmaß)",
+      "text": "Wie gut ein Modell deine Monatswerte erklärt — von 0 (gar nicht) bis 1 (vollständig). Ab etwa 0,7 ist der Zusammenhang deutlich."
+    },
+    "models": {
+      "term": "Modelle der Heizsignatur",
+      "text": "Linear: eine Gerade. Polynom: eine leicht gekrümmte Kurve. Robust (Huber): wie linear, aber unempfindlich gegen Ausreißer. Segmentiert: zwei Geraden mit Knickpunkt am Heizbeginn. Sigmoid: eine S-Kurve, die bei großer Kälte abflacht."
+    },
+    "movingAverage": {
+      "term": "Gleitender Durchschnitt (MA·3, MA·6)",
+      "text": "Das Mittel der letzten 3 bzw. 6 Monate. Es glättet einzelne Ausreißer und zeigt den Trend."
+    },
+    "forecastBlend": {
+      "term": "Mischung der Prognose",
+      "text": "Die Prognose mischt das Wettermodell mit deinem Saisonprofil (Durchschnitt je Kalendermonat). Je besser das Modell passt (R²), desto mehr zählt es — höchstens bis zum „Max. Blend-Gewicht“."
+    },
+    "anomaly": {
+      "term": "Auffälliger Monat",
+      "text": "Ein Monat, der deutlich von dem abweicht, was für genau diesen Monat zu erwarten war. Die Schwelle (σ) sagt, um wie viele Streuungseinheiten er mindestens abweichen muss."
+    },
+    "balance": {
+      "term": "Saldo",
+      "text": "Der Unterschied zwischen den Kosten deines Verbrauchs und den gezahlten Abschlägen (samt Sonderzahlungen). Guthaben: Du hast mehr gezahlt, es kommt Geld zurück. Nachzahlung: Der Verbrauch hat mehr gekostet."
+    },
+    "advance": {
+      "term": "Abschlag",
+      "text": "Die monatliche Vorauszahlung an den Versorger. Die Jahresabrechnung vergleicht die Summe mit den tatsächlichen Kosten."
+    },
+    "workingPrice": {
+      "term": "Arbeitspreis",
+      "text": "Der Preis je verbrauchter Einheit — ct/kWh, bei Wasser ct/m³."
+    },
+    "basePrice": {
+      "term": "Grundpreis (GP)",
+      "text": "Ein fester Betrag je Monat, unabhängig vom Verbrauch."
+    },
+    "specialPayment": {
+      "term": "Sonderzahlung",
+      "text": "Rückzahlung, Nachzahlung oder zusätzliche Abschlagszahlung außerhalb des Monatsabschlags. „Mit Auswirkung“ ändert zusätzlich den künftigen Abschlag."
+    },
+    "offer": {
+      "term": "Angebot",
+      "text": "Ein Tarif, den du nicht hast — etwa vom Vergleichsportal. Er wirkt nur im Tarifvergleich, nie auf Saldo, Prognose oder Vertragsstatus. Technisch heißt er Schattenvertrag."
+    },
+    "switchDate": {
+      "term": "Wechseltermin",
+      "text": "Der erste Tag, an dem ein neuer Tarif liefern könnte — aus Vertragsende und Kündigungsfrist. Die Kündigung muss bis zum Kündigungsstichtag beim Anbieter sein."
+    },
+    "noticeDeadline": {
+      "term": "Kündigungsstichtag",
+      "text": "Der letzte Tag, an dem die Kündigung beim Anbieter sein muss. Verpasst, verlängert sich ein Vertrag, der sich ohne Kündigung verlängert."
+    },
+    "breakEven": {
+      "term": "Lohnt ab",
+      "text": "Die Jahresmenge, ab der ein Angebot günstiger ist als dein Vertrag. Liegt sie weit von deinem Verbrauch weg, stimmt die Entscheidung auch bei ungenauer Prognose. Steht dort ein Strich, gibt es keinen Schnittpunkt: Das Angebot ist bei jeder Menge günstiger oder teurer."
+    },
+    "baseline": {
+      "term": "Zäsur",
+      "text": "Ein Datum, ab dem sich dein Haus verändert hat — etwa Dämmung oder neue Heizung. Auswertungen rechnen ab der Zäsur, damit alte Werte das Bild nicht verfälschen."
+    },
+    "calorificValue": {
+      "term": "Brennwert",
+      "text": "Der Energieinhalt eines Kubikmeters Gas in kWh, wie ihn der Versorger je Zeitraum auf der Rechnung angibt."
+    },
+    "zNumber": {
+      "term": "Zustandszahl",
+      "text": "Rechnet das gemessene Gasvolumen auf Normbedingungen um (Druck, Temperatur). kWh = m³ × Zustandszahl × Brennwert."
+    },
+    "cutoffDate": {
+      "term": "Stichtag",
+      "text": "Der Tag, ab dem ein neuer Wert gilt — etwa ein neuer Preis oder Brennwert. Bis zum Vortag gilt der alte."
+    },
+    "efficiency": {
+      "term": "Effizienzkennzahl",
+      "text": "Heizenergie je m² und Jahr (kWh/m²·a). Die Hauskennzahl bezieht sich auf die Wohnfläche; die energieausweis-nahe Zahl rechnet wie ein Energieausweis (Heizwert, witterungsbereinigt, Nutzfläche). Kein offizieller Ausweis."
+    },
+    "feedIn": {
+      "term": "Einspeisung",
+      "text": "Solarstrom, den du ins Netz abgibst. Die Vergütung ist ein Erlös — mehr ist hier besser."
+    },
+    "selfConsumption": {
+      "term": "Eigenverbrauch",
+      "text": "Solarstrom, den du selbst nutzt: Erzeugung minus Einspeisung. Er ersetzt Strom aus dem Netz — die Ersparnis rechnet mit deinem Arbeitspreis."
+    },
+    "autarky": {
+      "term": "Autarkiequote",
+      "text": "Der Anteil deines Stromverbrauchs, den die eigene Anlage deckt."
+    },
+    "selfConsumptionRate": {
+      "term": "Eigenverbrauchsquote",
+      "text": "Der Anteil der erzeugten Solarenergie, den du selbst nutzt."
+    },
+    "estimated": {
+      "term": "Geschätzt",
+      "text": "Ein Stand, der nicht abgelesen, sondern geschätzt wurde — oft vom Versorger. Er zählt, bleibt aber markiert."
+    },
+    "tankBook": {
+      "term": "Tankbuch",
+      "text": "Bei Heizöl und Pellets ergibt sich der Verbrauch aus Anfangsbestand, Lieferungen und bekannten Beständen (Lieferung „bis voll“, Peilstand). Zwischen zwei bekannten Beständen ist er gerechnet, danach geschätzt."
+    },
+    "subMeter": {
+      "term": "Subzähler und Gruppe",
+      "text": "Ein Subzähler misst einen Teil eines anderen Zählers und wird von ihm abgezogen, damit nichts doppelt zählt. Eine Gruppe fasst Zähler nur für die Übersicht zusammen."
+    },
+    "co2Avoided": {
+      "term": "Vermiedenes CO₂",
+      "text": "Solarstrom ersetzt Strom aus dem Netz. Gerechnet wird mit dem CO₂-Faktor des Netzstroms (Einstellungen → Verbrauchsarten & Abrechnung) — so viel CO₂ wäre sonst entstanden. Vereinfacht: Die Herstellung der Anlage ist nicht eingerechnet."
+    }
+  },
+  "help": {
+    "title": "Hilfe",
+    "subtitle": "Erste Schritte, Begriffe und Dokumentation",
+    "explain": "Erklärung: {term}",
+    "moreInGlossary": "Alle Begriffe",
+    "setup": {
+      "title": "Erste Schritte",
+      "allDone": "Alles eingerichtet."
+    },
+    "glossary": {
+      "title": "Begriffe",
+      "search": "Begriff suchen",
+      "none": "Kein Begriff gefunden."
+    },
+    "docs": {
+      "title": "Dokumentation",
+      "start": "Einstieg",
+      "compendium": "Handbuch und Methodik",
+      "glossary": "Glossar und Formeln",
+      "homeAssistant": "Home Assistant anbinden",
+      "englishOnly": "Die Dokumentation gibt es auf Deutsch und Englisch; die Links führen zur englischen Fassung."
+    },
+    "support": {
+      "title": "Fragen und Fehler",
+      "text": "Fragen, Wünsche und Fehlermeldungen gehören ins GitHub-Projekt. Für eine Fehlermeldung hilft die Diagnose unter Einstellungen → System.",
+      "issues": "Zum GitHub-Projekt",
+      "diagnostics": "Zur Diagnose"
+    },
+    "privacy": {
+      "title": "Deine Daten",
+      "text": "Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo — beim täglichen Wetterabgleich (nur der auf rund 1 km gerundete Standort, abschaltbar unter Einstellungen → Wetterdaten) und bei der Ortssuche, wenn du sie benutzt."
+    }
+  },
+  "onboarding": {
+    "done": "erledigt",
+    "open": "offen",
+    "optional": "optional",
+    "step": {
+      "location": {
+        "title": "Ort festlegen",
+        "text": "Für Heizgradtage und Prognose braucht die App das Wetter deines Orts."
+      },
+      "firstReading": {
+        "title": "Ersten Zählerstand erfassen",
+        "text": "Lies deine Zähler ab und trag die Stände ein."
+      },
+      "secondReading": {
+        "title": "Zweiten Stand erfassen",
+        "text": "Verbrauch entsteht aus der Differenz zweier Stände — trag zum Beispiel den Stand von deiner letzten Rechnung nach."
+      },
+      "contract": {
+        "title": "Vertrag eintragen",
+        "text": "Mit Preisen und Abschlag rechnet die App Kosten und sagt dir, ob eine Nachzahlung droht."
+      },
+      "homeAssistant": {
+        "title": "Home Assistant anbinden",
+        "text": "Zählerstände automatisch übertragen statt abtippen."
+      }
+    }
+  },
+  "saldo": {
+    "credit": "Guthaben",
+    "due": "Nachzahlung",
+    "reclaim": "Rückforderung",
+    "even": "ausgeglichen",
+    "tableLegend": "Saldo: + Guthaben, − Nachzahlung.",
+    "tableLegendFeedIn": "Saldo: + Guthaben, − Rückforderung."
   }
 }

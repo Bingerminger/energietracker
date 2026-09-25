@@ -310,6 +310,12 @@ final class PdfReportService
                 $y += 10;
             }
         }
+        // v2.13.0 (Review DOC-22) — die Lizenz der Wetterdaten (CC BY 4.0)
+        // verlangt die Quellenangabe überall, wo sie erscheinen
+        if ($this->anyKey($monthly, 'avg_temp')) {
+            $y += 4;
+            $pdf->text(self::M, $y, $this->i18n->t('report.weatherSource'), 7, false, self::MUTE);
+        }
     }
 
     private function header(PdfWriter $pdf, string $title, float $W): float

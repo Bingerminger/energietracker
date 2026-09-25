@@ -64,15 +64,18 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Both harnesses return exit code 0 on success. As of v2.12.0:
-**frontend API shape 59/59**, **browser render 124/124** (incl. module-graph
+Both harnesses return exit code 0 on success. As of v2.13.0:
+**frontend API shape 61/61**, **browser render 156/156** (incl. module-graph
 pre-check and the forecast-model check for all five models). Since v2.11.0 the
 module-graph crawl also follows dynamic imports — the router loads views on
 demand. Since v2.12.0 the test renders every settings sub-page on its own,
 passes a query to views (the capture view's direct link) and triggers saving
 and field errors in dialogs. The shape test calls the import dry run and
 re-showing a recommendation — against the demo copy, which the script
-discards afterwards.
+discards afterwards. Since v2.13.0 the render test opens the ⓘ explanations by
+click and closes them with Escape, renders the help with a jump to a term and
+checks the PV views for remuneration instead of cost and the balance for the
+customer's side.
 
 Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 `tests/plausibility.test.mjs` and, since v2.11.0:
@@ -89,7 +92,10 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.12.0: 444). Run it with `vendor/bin/phpunit --no-coverage`. It
+recounts it (v2.13.0: 448). Since v2.13.0 `LocaleCatalogTest` also checks keys
+the code composes (`glossary.<id>.term`, `settings.field.<key>.label`) — the
+check for literal keys cannot see them. Run it with
+`vendor/bin/phpunit --no-coverage`. It
 is the **mandatory gate before every commit** (see
 [Release process](06-release-process.md)).
 

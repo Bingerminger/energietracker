@@ -205,6 +205,9 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
     <div class="sidebar__footer">
       <span>v<?= $h($version) ?></span>
       <span aria-hidden="true">·</span>
+      <!-- v2.13.0 — Hilfe: erste Schritte, Begriffe, Doku (auch im iPhone-Menü) -->
+      <a href="#/help" data-shell="nav.help"><?= $h($tShell('nav.help', 'Hilfe')) ?></a>
+      <span aria-hidden="true">·</span>
       <a href="https://github.com/Bingerminger/energietracker" target="_blank" rel="noopener">GitHub</a>
     </div>
   </aside>

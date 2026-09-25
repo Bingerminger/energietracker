@@ -19,7 +19,8 @@
     "required": "verplicht",
     "actions": "Acties",
     "invalidNumber": "Voer een geldig getal in, bijv. {example}.",
-    "undo": "Ongedaan maken"
+    "undo": "Ongedaan maken",
+    "hddShort": "GD"
   },
   "app": {
     "themeToggle": "Thema wisselen",
@@ -98,14 +99,13 @@
     "sectionNav": "Pagina’s in dit onderdeel",
     "menu": "Menu",
     "tabbar": "Snelle navigatie",
-    "captureButton": "Invoeren"
+    "captureButton": "Invoeren",
+    "help": "Help"
   },
   "dashboard": {
     "loading": "Overzicht laden…",
     "title": "Overzicht",
     "empty": {
-      "title": "Nog geen meterstanden",
-      "text": "Voeg je eerste meterstand toe om verbruik, kosten en prognoses te zien.",
       "cta": "Eerste meterstand toevoegen"
     },
     "efficiency": {
@@ -154,7 +154,11 @@
       "consumption": "Verbruik (laatste 12 maanden)",
       "cost": "Kosten (laatste 12 maanden)",
       "costSub": "incl. bonussen",
-      "noContract": "geen contract geregistreerd"
+      "noContract": "geen contract geregistreerd",
+      "feedIn": "Teruglevering (laatste 12 maanden)",
+      "generation": "Opwek (laatste 12 maanden)",
+      "revenue": "Vergoeding (laatste 12 maanden)",
+      "revenueSub": "opbrengst uit teruglevering"
     },
     "trend": { "vsPrev": "t.o.v. vorige 12 maanden", "moreThanPrev": "{pct} % meer dan de vorige periode van 12 maanden", "lessThanPrev": "{pct} % minder dan de vorige periode van 12 maanden" },
     "allRecommendations": "Alle aanbevelingen",
@@ -173,6 +177,11 @@
         "one": "{count} meter wacht op een meterstand",
         "other": "{count} meters wachten op een meterstand"
       }
+    },
+    "welcome": {
+      "title": "Welkom bij Energietracker",
+      "text": "Voer je meterstanden in — de app maakt er verbruik, kosten, voorschotsaldo en prognose van. Of bekijk eerst hoe dat eruitziet met voorbeeldgegevens.",
+      "demo": "Proberen met voorbeeldgegevens"
     }
   },
   "readingsEntry": {
@@ -244,17 +253,15 @@
       "cost": "💶 Kosten",
       "perMonth": "gem. {value}/maand",
       "advances": "💰 Voorschotten {year}",
-      "yearBalance": "Jaarsaldo {value}",
+      "yearBalance": "Jaarsaldo: {value}",
       "dailyAvg": "📅 Daggemiddelde",
       "daysCount": "{days} dagen",
-      "co2AvoidedTitle": "Vereenvoudigd model: teruggeleverde kWh × CO₂-factor netmix. Levenscyclus van PV niet inbegrepen.",
       "co2Avoided": "🌿 CO₂ vermeden {year}",
       "co2AvoidedSub": "{tons} t minder dan zonder PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Voorschotten t/m {date}",
-      "balanceShort": "Saldo {value}",
-      "co2AvoidedGenTitle": "Vereenvoudigde modelberekening: opgewekte kWh × CO₂-factor stroommix — verdrongen netstroom, teruglevering inbegrepen. Levenscyclus van pv niet meegenomen.",
+      "balanceShort": "Saldo: {value}",
       "generation": "Opwekking"
     },
     "cards": {
@@ -268,7 +275,9 @@
       "deliveriesCount": "{count} leveringen in totaal",
       "readings": "🔢 Meterstanden",
       "readingsYear": "📋 Meterstanden {year}",
-      "readingsCount": "{count} meterstanden in totaal"
+      "readingsCount": "{count} meterstanden in totaal",
+      "monthlyChartFeedIn": "Teruglevering per maand {year}",
+      "monthlyChartGeneration": "Opwek per maand {year}"
     },
     "balance": {
       "title": "⚖️ Saldo lopend contract — {name}",
@@ -302,8 +311,8 @@
       "subCredit": "Tegoed bij netbeheerder",
       "subReclaim": "Terug te betalen",
       "subBalanced": "in evenwicht",
-      "subUnderpaid": "Te weinig betaald",
-      "subOverpaid": "Te veel betaald",
+      "subUnderpaid": "Bijbetaling — tot nu toe te weinig betaald",
+      "subOverpaid": "Tegoed — tot nu toe te veel betaald",
       "verdictLabel": "Verwacht bij eindafrekening",
       "dateNext": "volgende afrekening: {date}",
       "dateEnd": "einde contract: {date}",
@@ -315,7 +324,7 @@
       "basisSep": "aparte meter",
       "basisTw": "drinkwaterverbruik",
       "perMonthShort": "{value}/maand",
-      "gpMonth": "{value} {cur}/m vastrecht",
+      "gpMonth": "vastrecht {value} {cur}/maand",
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/jaar · {m2} m²",
       "consShort": "{value} verbruik",
@@ -347,11 +356,12 @@
       "statePast": "VERLEDEN",
       "stateFuture": "TOEKOMST",
       "periodOpen": "{start} → lopend",
-      "gpSuffix": "{value} {cur} vastrecht",
+      "gpSuffix": "vastrecht {value} {cur}/maand",
       "colSpecial": "Bijzondere betalingen",
-      "colSpecialTitle": "Netto van bijzondere betalingen: terugbetalingen van de leverancier tellen positief, bijbetalingen en extra voorschotten negatief. Afzonderlijke posten in de tooltip van de cel.",
-      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Beweeg over de cel voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden.",
-      "stateRenewed": "VERLENGD"
+      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Tik voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden.",
+      "stateRenewed": "VERLENGD",
+      "colEarned": "Vergoeding",
+      "colReceived": "Ontvangen"
     },
     "monthlyTable": {
       "noData": "Geen gegevens voor dit jaar.",
@@ -361,20 +371,18 @@
       "colTemp": "gem. temp.",
       "colTempTitle": "Gemiddelde temperatuur van de maand",
       "colHdd": "GD",
-      "colHddTitle": "Graaddagen — som van de dagelijkse verschillen tussen de stookgrens en de buitentemperatuur",
       "colPrice": "{minor}/{unit}",
       "colCost": "Kosten {cur}",
       "colAdvance": "Voorschot {cur}",
       "colCumBalance": "Saldo (cum.)",
-      "colCumBalanceTitle": "Cumulatief saldo sinds begin van het contract",
       "colCo2": "CO₂ kg",
       "colMa3": "GM·3",
-      "colMa3Title": "Voortschrijdend gemiddelde over 3 maanden",
       "colMa6": "GM·6",
-      "colMa6Title": "Voortschrijdend gemiddelde over 6 maanden",
       "total": "Totaal",
       "estimatedTitle": "{days} dagen geschat (na de laatst bekende voorraad)",
-      "estimatedLegend": "≈ maand bevat geschatte dagen — na de laatst bekende voorraad (levering „tot vol getankt” of peilstand)."
+      "estimatedLegend": "≈ maand bevat geschatte dagen — na de laatst bekende voorraad (levering „tot vol getankt” of peilstand).",
+      "colRevenue": "Opbrengst {cur}",
+      "colCo2Avoided": "CO₂ vermeden kg"
     },
     "readingsTable": {
       "emptyTitle": "Geen meterstanden",
@@ -528,6 +536,14 @@
       "dip": "{date}: {counter} {unit} – uitschieter naar beneden, genegeerd",
       "decrease": "{date}: {counter} {unit} – lager dan op {prevDate} ({prevCounter} {unit}); meterwissel of overloop niet vastgelegd?",
       "gotoMeters": "Meterwissel vastleggen"
+    },
+    "subtitleDelivery": "Leveringen · tankvoorraad · maandverbruik",
+    "subtitleFeedIn": "Meterstanden · teruglevering · vergoeding",
+    "subtitleGeneration": "Meterstanden · opwek · vermeden CO₂",
+    "noData": {
+      "title": "Nog geen maandwaarden",
+      "noReading": "Deze meter heeft nog geen stand. Maandwaarden ontstaan uit het verschil tussen twee standen.",
+      "oneReading": "Er is pas één stand. Maandwaarden ontstaan uit het verschil tussen twee standen — voer een tweede in, bijvoorbeeld die van je laatste rekening."
     }
   },
   "contracts": {
@@ -940,7 +956,7 @@
       "hdd_base_temp": { "label": "Graaddagen-basistemperatuur", "hint": "Stookgrens — dagen eronder tellen als stookdagen." },
       "co2_gas": { "label": "CO₂ gas", "hint": "BAFA: 201 g/kWh op basis van de onderste verbrandingswaarde. De app telt gas op bovenste verbrandingswaarde, dus × 0,906 = 182." },
       "co2_strom": { "label": "CO₂ elektriciteit", "hint": "Geldt voor jaren vóór de eerste jaarwaarde — zonder jaarwaarden voor alle jaren." },
-      "co2_wasser": { "label": "CO₂ water" },
+      "co2_wasser": { "label": "CO₂ water", "hint": "Voor zuivering en pompen per m³ water — een schatting zonder officiële bron." },
       "co2_fernwaerme": { "label": "CO₂ stadsverwarming", "hint": "Forfaitaire BAFA-waarde. De waarde van uw warmtenet is nauwkeuriger — die heeft de leverancier." },
       "co2_heizoel": { "label": "CO₂ stookolie", "hint": "BAFA, op basis van de onderste verbrandingswaarde — zoals de app stookolie rekent." },
       "co2_pellets": { "label": "CO₂ pellets", "hint": "BAFA, CO₂-equivalenten inclusief de voorketen." },
@@ -950,33 +966,31 @@
       "contract_remind_days_1": { "label": "Niveau 1 — vroege waarschuwing" },
       "contract_remind_days_2": { "label": "Niveau 2 — herinnering" },
       "contract_remind_days_3": { "label": "Niveau 3 — urgent" },
-      "wasser_personen_anzahl": { "label": "Personen in het huishouden" },
+      "wasser_personen_anzahl": { "label": "Personen in het huishouden", "hint": "Voor de waterbesparingsindex: liters per persoon per dag ten opzichte van de referentie." },
       "wasser_personen_referenz": { "label": "Referentie", "hint": "BDEW 2024: 122 L per persoon per dag (Duitsland)." },
       "wasser_sparindex_gut": { "label": "Besparingsindex — goed tot", "hint": "Een index ≤ deze waarde geldt als normaal." },
       "wasser_sparindex_warnung": { "label": "Besparingsindex — waarschuwing vanaf", "hint": "Een index ≥ deze waarde duidt op besparingspotentieel." },
-      "min_days_period": { "label": "Min. dagen per periode" },
-      "min_hdd_regression": { "label": "Min. graaddagen voor regressie" },
-      "blend_max": { "label": "Max. mengingsgewicht" },
-      "forecast_months": { "label": "Prognosehorizon" },
-      "forecast_model": { "label": "Standaardmodel" },
+      "min_days_period": { "label": "Min. dagen per periode", "hint": "Maanden met minder geregistreerde dagen (deelmaanden) blijven buiten de stooklijn en de afwijkingen." },
+      "min_hdd_regression": { "label": "Min. graaddagen voor regressie", "hint": "Maanden met minder graaddagen blijven buiten de stooklijn — in de zomer bepaalt de basislast het verbruik, niet het weer." },
+      "blend_max": { "label": "Max. mengingsgewicht", "hint": "Hoogste gewicht van het weermodel in de prognose; de rest komt uit het seizoensprofiel. 0,8 betekent minstens 20 % seizoensprofiel." },
+      "forecast_months": { "label": "Prognosehorizon", "hint": "Hoeveel maanden de prognose vooruit rekent (1–24). Standaard van de prognoseweergave." },
+      "forecast_model": { "label": "Standaardmodel", "hint": "Model voor prognose en tariefvergelijking. Lineair past bij de meeste woningen; de analyse toont welk model je gegevens het best verklaart." },
       "segmented_split_mode": { "label": "Segmentbreekpunt", "hint": "auto = afgeleid uit de gegevens, fixed = vaste graaddagenwaarde hieronder." },
       "segmented_fixed_split": { "label": "Vast breekpunt", "hint": "Alleen actief in de modus « fixed »." },
-      "anomaly_threshold": { "label": "Afwijkingsdrempel" },
-      "dashboard_months": { "label": "Maanden op het dashboard" },
-      "alert_days_since_reading": { "label": "Waarschuwen na" },
+      "anomaly_threshold": { "label": "Afwijkingsdrempel", "hint": "Vanaf welke afwijking (in spreidingseenheden σ) een maand in de analyse als afwijkend geldt. Kleiner betekent gevoeliger." },
+      "dashboard_months": { "label": "Maanden op het dashboard", "hint": "Hoeveel maanden het verloop op het overzicht toont (3–36)." },
+      "alert_days_since_reading": { "label": "Waarschuwen na", "hint": "Is de laatste meterstand ouder, dan staat de meter onder ‘Te doen’ en herinnert de verbruiksweergave eraan." },
       "wohnflaeche_m2": { "label": "Woonoppervlak", "hint": "Verwarmd oppervlak — noemer van de efficiëntiemaat." },
       "gebaeudetyp": { "label": "Gebouwtype", "hint": "Meergezinswoning: vanaf drie woningen." },
-      "heizoel_kwh_per_l": { "label": "Energie-inhoud stookolie" },
-      "pellets_kwh_per_kg": { "label": "Energie-inhoud pellets" },
+      "heizoel_kwh_per_l": { "label": "Energie-inhoud stookolie", "hint": "Energie per liter stookolie (onderwaarde, meestal 10 kWh/L). Rekent liters om naar kWh." },
+      "pellets_kwh_per_kg": { "label": "Energie-inhoud pellets", "hint": "Energie per kg pellets (meestal 4,8 kWh/kg). Rekent kg om naar kWh." },
       "delivery_baseload_share": { "label": "Verdeling basislastaandeel", "hint": "Aandeel van het verbruik als weeronafhankelijke basislast (de rest op graaddagen gewogen)." },
-      "tank_warn_pct": { "label": "Tankwaarschuwing vanaf" },
-      "reminder_warn_days_before": { "label": "Herinnering « bijna vervallen » vanaf" },
-      "reminder_overdue_days": { "label": "Marge tot « vervallen »" },
-      "recommendation_anomaly_sigma": { "label": "Aanbevelings-afwijkingsdrempel" },
-      "recommendation_trend_pct_year": { "label": "Aanbevelings-trenddrempel" },
+      "tank_warn_pct": { "label": "Tankwaarschuwing vanaf", "hint": "Onder dit niveau wordt de tank geel, onder de helft rood, en ‘Te doen’ stelt een levering voor." },
+      "reminder_warn_days_before": { "label": "Herinnering « bijna vervallen » vanaf", "hint": "Vanaf zoveel dagen voor de datum geldt een herinnering als ‘binnenkort’." },
+      "reminder_overdue_days": { "label": "Marge tot « vervallen »", "hint": "Zoveel dagen na de datum geldt een herinnering nog als verschuldigd, daarna als te laat. 0 = vanaf de dag erna." },
+      "recommendation_anomaly_sigma": { "label": "Aanbevelings-afwijkingsdrempel", "hint": "Hetzelfde soort drempel voor de aanbevelingen: pas vanaf deze afwijking verschijnt een tip." },
+      "recommendation_trend_pct_year": { "label": "Aanbevelings-trenddrempel", "hint": "Vanaf welke stijging per jaar de aanbevelingen een stijgend verbruik melden." },
       "billing_cycle_anchor_fernwaerme": { "label": "Afrekendatum stadsverwarming" },
-      "billing_cycle_anchor_heizoel": { "label": "Afrekendatum stookolie" },
-      "billing_cycle_anchor_pellets": { "label": "Afrekendatum pellets" },
       "location_name": { "label": "Plaatsnaam" },
       "latitude": { "label": "Breedtegraad" },
       "longitude": { "label": "Lengtegraad" },
@@ -1000,6 +1014,13 @@
       "warmwasser_dezentral": {
         "label": "Warm water decentraal",
         "hint": "Warm water via doorstromer of boiler, niet via de verwarming: het kengetal naar energielabel krijgt 20 kWh/m²·j toeslag."
+      },
+      "billing_cycle_anchor_pv_einspeisung": {
+        "label": "Afrekendatum PV-teruglevering"
+      },
+      "confidence_band_sigma": {
+        "label": "Breedte van de prognoseband",
+        "hint": "In spreidingseenheden σ: 1,28 betekent dat het verbruik in 80 % van de jaren binnen de band valt; 1,64 zou 90 % zijn."
       }
     },
     "boolActive": "aan",
@@ -1106,7 +1127,7 @@
     },
     "ha": {
       "title": "🏠 Home Assistant-integratie",
-      "intro": "Laat Home Assistant je meterstanden automatisch naar de Energietracker sturen — je houdt ze niet meer met de hand bij. Home Assistant levert de waarden, de Energietracker beheert contracten, kosten en prognoses. Handleiding: <code>docs/HOME-ASSISTANT.md</code>.",
+      "intro": "Laat Home Assistant je meterstanden automatisch naar de Energietracker sturen — je houdt ze niet meer met de hand bij. Home Assistant levert de waarden, de Energietracker beheert contracten, kosten en prognoses.",
       "step1": "1. API-token",
       "tokenHint": "Beschermt het push-endpoint <code>/api/ingest</code>. <strong>Zonder inloggen accepteert het ook waarden zonder token</strong> – bedoeld voor het thuisnetwerk. Met inloggen aan vereist het altijd een token.",
       "tokenActive": "🔒 token actief",
@@ -1152,7 +1173,8 @@
       "aliasesSavedN": {
         "one": "{count} alias opgeslagen",
         "other": "{count} aliassen opgeslagen"
-      }
+      },
+      "guide": "Handleiding"
     },
     "diag": {
       "title": "🩺 Systeemdiagnose",
@@ -1362,6 +1384,10 @@
       "aboutTitle": "Over Energietracker",
       "about": "Energietracker {version} – verbruik, kosten en contracten, lokaal en zonder cloud.",
       "license": "Vrije software onder de MIT-licentie"
+    },
+    "splitModes": {
+      "auto": "automatisch uit de gegevens",
+      "fixed": "vaste waarde"
     }
   },
   "reminders": {
@@ -1447,7 +1473,8 @@
     "geoPlaceholder": "bijv. Utrecht of 3511",
     "geoSearch": "Zoeken",
     "geoNone": "Geen plaats gevonden.",
-    "locationSaved": "Locatie opgeslagen"
+    "locationSaved": "Locatie opgeslagen",
+    "attribution": "Weergegevens van"
   },
   "recommendations": {
     "loading": "Aanbevelingen laden…",
@@ -1496,7 +1523,8 @@
     },
     "dismissedNamed": "‘{title}’ 30 dagen verborgen",
     "restored": "Aanbeveling weer zichtbaar",
-    "dismissNamed": "30 dagen verbergen: {title}"
+    "dismissNamed": "30 dagen verbergen: {title}",
+    "emptyNoData": "Nog te weinig gegevens voor aanbevelingen — die verschijnen zodra er een paar maanden verbruik is."
   },
   "tariff": {
     "loading": "Laden…",
@@ -1595,7 +1623,6 @@
       },
       "year1Title": "Kosten in het eerste jaar, welkomstbonus al afgetrokken",
       "year2Title": "Blijvende jaarkosten zonder eenmalige bonussen",
-      "breakEvenTitle": "Boven dit jaarverbruik is het tarief goedkoper dan het huidige",
       "breakEvenDelta": "{pct} % van het verwachte verbruik",
       "breakEvenNone": "Geen omslagpunt — het tarief is bij elke hoeveelheid goedkoper of duurder",
       "bonusIncluded": "incl. {value} bonus",
@@ -1634,7 +1661,7 @@
     "noAnomalies": "Geen afwijkingen gevonden — alle maanden liggen binnen het verwachte bereik (σ-drempel uit de instellingen).",
     "anomalyExplainHgt": "Maanden waarvan het verbruik meer dan de σ-drempel afwijkt van de verwachting — stooklijn plus basislast bij de graaddagen van die maand. De spreiding wordt robuust geschat (mediaan, MAD).",
     "anomalyExplainSeasonal": "Maanden waarvan het verbruik meer dan de σ-drempel afwijkt van dezelfde kalendermaand in andere jaren — per dag berekend en zonder de maand zelf.",
-    "anomalyCol": { "month": "Maand", "consumption": "Verbruik", "expected": "Verwacht", "deltaAbs": "Δ absoluut", "deltaPct": "Δ %", "sigma": "σ-waarde", "hgt": "GD", "temp": "gem. temp." },
+    "anomalyCol": { "month": "Maand", "consumption": "Verbruik", "expected": "Verwacht", "deltaAbs": "Δ absoluut", "deltaPct": "Δ %", "sigma": "σ-waarde", "hgt": "GD", "temp": "gem. temp.", "feedIn": "Teruglevering", "generation": "Opwek" },
     "model": { "linear": "Lineair", "polynomial": "Polynomiaal (2)", "robust": "Robuust (Huber)", "segmented": "Gesegmenteerd", "sigmoid": "Sigmoïde" },
     "reg": { "model": "Model", "n": "n", "coeffs": "Coëfficiënten", "bestFit": "beste fit", "tooFew": "te weinig gegevens", "intercept": "snijpunt" },
     "scatterPoints": "Maanden",
@@ -1661,7 +1688,8 @@
       "colDeltaAbs": "Δ absoluut",
       "colDeltaPct": "Δ %",
       "sumRow": "Totaal (gemeenschappelijke maanden)",
-      "note": "Vergelijking alleen over de maanden die in beide jaren gegevens hebben. Positieve waarden = meer verbruik dan het voorgaande jaar."
+      "note": "Vergelijking alleen over de maanden die in beide jaren gegevens hebben. Positieve waarden = meer verbruik dan het voorgaande jaar.",
+      "notePv": "Positieve waarden = meer opbrengst dan in dezelfde maand vorig jaar (groen). Alleen maanden met gegevens in beide jaren worden vergeleken."
     },
     "spar": {
       "title": "💧 Waterbesparingsindex",
@@ -1726,7 +1754,7 @@
     "monthlyDetail": "Maanddetail",
     "noMeters": "Geen meters.",
     "noForecast": "Geen prognose mogelijk",
-    "models": { "linear": "Lineair", "polynomial": "Polynomiaal (graad 2)", "robust": "Robuust (Huber)", "segmented": "Gesegmenteerd (verwarming/zomer)", "sigmoid": "Sigmoïde (stookhandtekening)" },
+    "models": { "linear": "Lineair", "polynomial": "Polynomiaal (graad 2)", "robust": "Robuust (Huber)", "segmented": "Gesegmenteerd (verwarming/zomer)", "sigmoid": "Sigmoïde (stookhandtekening)", "seasonalOnly": "alleen seizoensprofiel" },
     "chartHist": "Geschiedenis",
     "chartForecast": "Prognose",
     "info": "Model: <strong>{model}</strong> · aandeel stooklijn: <strong>{blend} %</strong>{r2} · laatste energieprijs: <strong>{price} {minor}/{unit}</strong>",
@@ -1798,7 +1826,8 @@
       "subtitle": "Een jaar in één oogopslag, als pdf om te bewaren of te delen.",
       "open": "Openen in browser",
       "note": "Op de iPhone opent het verslag in een nieuw tabblad; van daaruit kun je het bewaren of delen."
-    }
+    },
+    "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), tenzij zelf ingevoerd."
   },
   "migration": {
     "warnNoSettings": "Geen instellingen in de back-up gevonden — de standaardwaarden gelden.",
@@ -2100,5 +2129,207 @@
     "noMeter": "De controle rekent correctiefactor × calorische waarde na en bestaat daarom voor gas. Maak eerst een gasmeter aan.",
     "addMeter": "Gasmeter aanmaken",
     "meter": "Meter"
+  },
+  "glossary": {
+    "hdd": {
+      "term": "Graaddagen",
+      "text": "Hoe koud het was, gemeten tegen de stookgrens: per dag het verschil tussen de stookgrens en het daggemiddelde, 0 op warme dagen. Meer graaddagen betekent meer warmtevraag."
+    },
+    "heatingLimit": {
+      "term": "Stookgrens",
+      "text": "De buitentemperatuur waaronder gestookt wordt — in Duitsland meestal 15 °C (instelling ‘Graaddagen-basistemperatuur’). Warmere dagen tellen geen graaddagen."
+    },
+    "heatingSignature": {
+      "term": "Stooklijn",
+      "text": "Het verband tussen graaddagen en verbruik, berekend uit je eigen maanden: hoeveel je woning per graaddag verbruikt en hoe groot de weersonafhankelijke basislast is."
+    },
+    "baseload": {
+      "term": "Basislast",
+      "text": "Het deel van het verbruik dat niet van het weer afhangt — bijvoorbeeld warm water, koken of stand-by. Het is er ook in de zomer."
+    },
+    "weatherAdjusted": {
+      "term": "Weergecorrigeerd",
+      "text": "Verbruik omgerekend naar normaal weer op je locatie (klimaatnormaal). Alleen het weerdeel wordt omgerekend, zodat een zachte en een koude winter vergelijkbaar worden."
+    },
+    "climateNormal": {
+      "term": "Klimaatnormaal",
+      "text": "Gemiddelde graaddagen per kalendermaand uit 30 jaar weergegevens voor je locatie. Basis voor prognose en weercorrectie."
+    },
+    "r2": {
+      "term": "R² (determinatiecoëfficiënt)",
+      "text": "Hoe goed een model je maandwaarden verklaart — van 0 (helemaal niet) tot 1 (volledig). Vanaf ongeveer 0,7 is het verband duidelijk."
+    },
+    "models": {
+      "term": "Modellen van de stooklijn",
+      "text": "Lineair: een rechte lijn. Polynoom: een licht gebogen lijn. Robuust (Huber): als lineair, maar ongevoelig voor uitschieters. Gesegmenteerd: twee lijnen met een knikpunt waar het stoken begint. Sigmoïde: een S-curve die bij strenge kou afvlakt."
+    },
+    "movingAverage": {
+      "term": "Voortschrijdend gemiddelde (MA·3, MA·6)",
+      "text": "Het gemiddelde van de laatste 3 of 6 maanden. Het strijkt losse uitschieters glad en toont de trend."
+    },
+    "forecastBlend": {
+      "term": "Menging van de prognose",
+      "text": "De prognose mengt het weermodel met je seizoensprofiel (gemiddelde per kalendermaand). Hoe beter het model past (R²), hoe zwaarder het telt — hooguit tot het ‘Max. mengingsgewicht’."
+    },
+    "anomaly": {
+      "term": "Afwijkende maand",
+      "text": "Een maand die duidelijk afwijkt van wat voor precies die maand te verwachten was. De drempel (σ) zegt met hoeveel spreidingseenheden hij minstens moet afwijken."
+    },
+    "balance": {
+      "term": "Saldo",
+      "text": "Het verschil tussen de kosten van je verbruik en de betaalde voorschotten (inclusief bijzondere betalingen). Tegoed: je hebt meer betaald en krijgt geld terug. Bijbetaling: het verbruik kostte meer."
+    },
+    "advance": {
+      "term": "Voorschot",
+      "text": "De maandelijkse vooruitbetaling aan de leverancier. De jaarafrekening vergelijkt het totaal met de werkelijke kosten."
+    },
+    "workingPrice": {
+      "term": "Energieprijs",
+      "text": "De prijs per verbruikte eenheid — ct/kWh, bij water ct/m³."
+    },
+    "basePrice": {
+      "term": "Vastrecht",
+      "text": "Een vast bedrag per maand, los van het verbruik."
+    },
+    "specialPayment": {
+      "term": "Bijzondere betaling",
+      "text": "Terugbetaling, bijbetaling of extra voorschot buiten het maandvoorschot. ‘Met gevolg’ past bovendien het toekomstige voorschot aan."
+    },
+    "offer": {
+      "term": "Aanbod",
+      "text": "Een tarief dat je niet hebt — bijvoorbeeld van een vergelijkingssite. Het telt alleen in de tariefvergelijking, nooit in saldo, prognose of contractstatus. Technisch is het een schaduwcontract."
+    },
+    "switchDate": {
+      "term": "Overstapdatum",
+      "text": "De eerste dag waarop een nieuw tarief kan leveren — uit contracteinde en opzegtermijn. De opzegging moet uiterlijk op de opzegdatum bij de leverancier zijn."
+    },
+    "noticeDeadline": {
+      "term": "Uiterste opzegdatum",
+      "text": "De laatste dag waarop de opzegging bij de leverancier moet zijn. Gemist? Dan wordt een stilzwijgend verlengend contract verlengd."
+    },
+    "breakEven": {
+      "term": "Loont vanaf",
+      "text": "De jaarhoeveelheid vanaf welke een aanbod goedkoper is dan je contract. Ligt die ver van je verbruik, dan klopt de beslissing ook bij een onnauwkeurige prognose. Een streepje betekent dat er geen snijpunt is: het aanbod is bij elke hoeveelheid goedkoper of duurder."
+    },
+    "baseline": {
+      "term": "Peilmoment",
+      "text": "Een datum vanaf wanneer je woning veranderd is — bijvoorbeeld isolatie of een nieuwe verwarming. Analyses rekenen vanaf die datum, zodat oude waarden het beeld niet vertekenen."
+    },
+    "calorificValue": {
+      "term": "Calorische waarde",
+      "text": "De energie-inhoud van een kubieke meter gas in kWh, zoals de leverancier die per periode op de rekening vermeldt."
+    },
+    "zNumber": {
+      "term": "Correctiefactor",
+      "text": "Rekent het gemeten gasvolume om naar normale omstandigheden (druk, temperatuur). kWh = m³ × correctiefactor × calorische waarde."
+    },
+    "cutoffDate": {
+      "term": "Ingangsdatum",
+      "text": "De dag vanaf welke een nieuwe waarde geldt — bijvoorbeeld een nieuwe prijs of calorische waarde. Tot de dag ervoor geldt de oude."
+    },
+    "efficiency": {
+      "term": "Efficiëntiegetal",
+      "text": "Verwarmingsenergie per m² en jaar (kWh/m²·j). Het woninggetal gaat uit van de woonoppervlakte; het label-achtige getal rekent als een energielabel (onderwaarde, weergecorrigeerd, gebruiksoppervlakte). Geen officieel label."
+    },
+    "feedIn": {
+      "term": "Teruglevering",
+      "text": "Zonnestroom die je aan het net levert. De vergoeding is opbrengst — meer is hier beter."
+    },
+    "selfConsumption": {
+      "term": "Eigen verbruik",
+      "text": "Zonnestroom die je zelf gebruikt: opwek min teruglevering. Die vervangt stroom van het net — de besparing rekent met je energieprijs."
+    },
+    "autarky": {
+      "term": "Zelfvoorzieningsgraad",
+      "text": "Het deel van je stroomverbruik dat je eigen installatie dekt."
+    },
+    "selfConsumptionRate": {
+      "term": "Eigenverbruiksgraad",
+      "text": "Het deel van de opgewekte zonne-energie dat je zelf gebruikt."
+    },
+    "estimated": {
+      "term": "Geschat",
+      "text": "Een stand die geschat is in plaats van afgelezen — vaak door de leverancier. Hij telt mee, maar blijft gemarkeerd."
+    },
+    "tankBook": {
+      "term": "Tankboek",
+      "text": "Bij stookolie en pellets volgt het verbruik uit beginvoorraad, leveringen en bekende standen (levering ‘tot vol’, peilstand). Tussen twee bekende standen is het berekend, daarna geschat."
+    },
+    "subMeter": {
+      "term": "Tussenmeter en groep",
+      "text": "Een tussenmeter meet een deel van een andere meter en wordt daarvan afgetrokken, zodat niets dubbel telt. Een groep bundelt meters alleen voor het overzicht."
+    },
+    "co2Avoided": {
+      "term": "Vermeden CO₂",
+      "text": "Zonnestroom vervangt stroom van het net. Gerekend wordt met de CO₂-factor van netstroom (Instellingen → Nutsvoorzieningen en afrekening) — zoveel CO₂ was anders uitgestoten. Vereenvoudigd: de productie van de installatie telt niet mee."
+    }
+  },
+  "help": {
+    "title": "Help",
+    "subtitle": "Eerste stappen, begrippen en documentatie",
+    "explain": "Uitleg: {term}",
+    "moreInGlossary": "Alle begrippen",
+    "setup": {
+      "title": "Eerste stappen",
+      "allDone": "Alles is ingesteld."
+    },
+    "glossary": {
+      "title": "Begrippen",
+      "search": "Begrip zoeken",
+      "none": "Geen begrip gevonden."
+    },
+    "docs": {
+      "title": "Documentatie",
+      "start": "Aan de slag",
+      "compendium": "Handboek en methodiek",
+      "glossary": "Woordenlijst en formules",
+      "homeAssistant": "Home Assistant koppelen",
+      "englishOnly": "De documentatie bestaat in het Duits en het Engels; de links leiden naar de Engelse versie."
+    },
+    "support": {
+      "title": "Vragen en fouten",
+      "text": "Vragen, wensen en foutmeldingen horen in het GitHub-project. Bij een foutmelding helpt de diagnose onder Instellingen → Systeem.",
+      "issues": "Naar het GitHub-project",
+      "diagnostics": "Naar de diagnose"
+    },
+    "privacy": {
+      "title": "Je gegevens",
+      "text": "Alles blijft op je server: geen accounts, geen reclame, geen telemetrie. De app praat alleen met Open-Meteo — bij de dagelijkse weersynchronisatie (alleen de op ongeveer 1 km afgeronde locatie, uit te schakelen onder Instellingen → Weergegevens) en bij het zoeken naar een plaats als je dat gebruikt."
+    }
+  },
+  "onboarding": {
+    "done": "klaar",
+    "open": "open",
+    "optional": "optioneel",
+    "step": {
+      "location": {
+        "title": "Stel je locatie in",
+        "text": "Voor graaddagen en prognose heeft de app het weer op je locatie nodig."
+      },
+      "firstReading": {
+        "title": "Voer je eerste meterstand in",
+        "text": "Lees je meters af en voer de standen in."
+      },
+      "secondReading": {
+        "title": "Voer een tweede stand in",
+        "text": "Verbruik ontstaat uit het verschil tussen twee standen — voer bijvoorbeeld de stand van je laatste rekening in."
+      },
+      "contract": {
+        "title": "Voer je contract in",
+        "text": "Met prijzen en voorschot berekent de app de kosten en zegt je of er een bijbetaling aankomt."
+      },
+      "homeAssistant": {
+        "title": "Koppel Home Assistant",
+        "text": "Meterstanden automatisch doorsturen in plaats van intypen."
+      }
+    }
+  },
+  "saldo": {
+    "credit": "Tegoed",
+    "due": "Bijbetaling",
+    "reclaim": "Terugvordering",
+    "even": "in evenwicht",
+    "tableLegend": "Saldo: + tegoed, − bijbetaling.",
+    "tableLegendFeedIn": "Saldo: + tegoed, − terugvordering."
   }
 }

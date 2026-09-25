@@ -13,6 +13,8 @@ import { confirmModal, openModal } from '../components/modal.js';
 import { logout } from '../components/login.js';
 import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../lib/ha-snippet.js';
 import { t, tp, getLocale, initI18n, getLanguages, setCurrencyParams } from '../lib/i18n.js';
+import { loadDemo } from '../lib/demo.js';
+import { docUrl } from '../lib/docs.js';
 import { setCountry } from '../lib/format.js';
 import { CV_UNITS, cvUnit, gasFactorOf } from '../lib/gas-factor.js';
 import { buildSidebar } from '../lib/sidebar.js';
@@ -61,8 +63,10 @@ const GROUPS = [
     { key: 'billing_cycle_anchor_strom',      type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
     { key: 'billing_cycle_anchor_wasser',     type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
     { key: 'billing_cycle_anchor_fernwaerme', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
-    { key: 'billing_cycle_anchor_heizoel',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
-    { key: 'billing_cycle_anchor_pellets',    type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
+    // v2.13.0 (Review FE-10) — Heizöl und Pellets haben keine Abschläge und
+    // damit keinen Stichtag (die Felder wirkten nicht); die Einspeisevergütung
+    // rechnet dagegen nach einem, das Feld fehlte
+    { key: 'billing_cycle_anchor_pv_einspeisung', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
   ]},
   { gkey: 'physical', page: 'utilities', icon: '🔬', wide: true, fields: [
     // v2.5.0 — F1012: datierte Liste (Zustandszahl × Brennwert je Stichtag)
@@ -97,9 +101,12 @@ const GROUPS = [
     { key: 'min_days_period',        step: '1' },
     { key: 'min_hdd_regression',     step: '0.5' },
     { key: 'blend_max',              step: '0.05' },
-    { key: 'forecast_model',         type: 'select', options: ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] },
-    { key: 'segmented_split_mode',   type: 'select', options: ['auto', 'fixed'] },
-    { key: 'segmented_fixed_split',  unit: 'HGT', step: '1' },
+    // v2.13.0 (Review UI-17) — lesbare Namen statt der Schlüssel
+    { key: 'forecast_model',         type: 'select', options: ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'], optionLabels: 'forecast.models' },
+    { key: 'segmented_split_mode',   type: 'select', options: ['auto', 'fixed'], optionLabels: 'settings.splitModes' },
+    // v2.13.0 — wirkte seit v2.8.0 auf das Prognoseband, stand aber nirgends
+    { key: 'confidence_band_sigma',  unit: 'σ', step: '0.01' },
+    { key: 'segmented_fixed_split',  unitKey: 'common.hddShort', step: '1' },   // v2.13.0 — übersetzt
     { key: 'anomaly_threshold',      unit: 'σ', step: '0.1' },
   ]},
   { gkey: 'remindersRec', page: 'expert', icon: '🧪', fields: [
@@ -491,28 +498,10 @@ function wireDataPage(container, utilities, rerender) {
     catch (e) { toastErr(e.message); }
   });
 
-  // F1007 — Demo-Daten-Komfort-Import
+  // F1007 — Demo-Daten-Komfort-Import (v2.13.0: gemeinsam mit der leeren Übersicht)
   container.querySelector('#btn-demo')?.addEventListener('click', async () => {
-    try {
-      const status = await api.demoStatus();
-      if (!status.available) {
-        toastErr(t('settings.backup.demoUnavailable'));
-        return;
-      }
-      if (!status.is_empty) {
-        const ok = await confirmModal({
-          title: t('settings.backup.demoConfirmTitle'),
-          message: t('settings.backup.demoConfirmMsg'),
-          confirmLabel: t('settings.backup.demoConfirmBtn'), danger: true,
-        });
-        if (!ok) return;
-      }
-      const report = await api.importDemo(!status.is_empty);
-      const snap = report?.auto_snapshot_before_restore;
-      afterRestore(typeof snap === 'string'
-        ? t('settings.backup.demoLoadedSnap', { snap })
-        : t('settings.backup.demoLoaded'));
-    } catch (e) { toastErr(e.message); }
+    try { await loadDemo({ beforeReload: unlistenAll }); }
+    catch (e) { toastErr(e.message); }
   });
 
   container.querySelector('#btn-import')?.addEventListener('click',
@@ -888,6 +877,9 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, sessi
       <h2 class="card__title">${t('settings.ha.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-3)">
         ${t('settings.ha.intro')}
+        <!-- v2.13.0 (Review I18N-25) — klickbar und in der passenden Sprache;
+             bis v2.12 stand hier der deutsche Pfad als Text -->
+        <a href="${escapeHtml(docUrl('homeAssistant'))}" target="_blank" rel="noopener">${escapeHtml(t('settings.ha.guide'))}</a>
       </p>
 
       <h4 class="settings-subhead">${t('settings.ha.step1')}</h4>

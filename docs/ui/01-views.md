@@ -8,7 +8,8 @@
 > Bildschirmaufnahmen** der laufenden App mit dem mitgelieferten
 > [Demo-Datensatz](../../demo-data/) (Light-Theme; Grundstock v1.9.2, Anmeldung,
 > Sicherheitskarte und Rückfrage bei der Erfassung v2.6.0, Navigation v2.11.0,
-> Übersicht, Erfassung, Wetterdaten, Einstellungen und Import-Vorschau v2.12.0). Wer sie
+> Übersicht, Erfassung, Wetterdaten, Einstellungen und Import-Vorschau v2.12.0,
+> Hilfe, Erklärungen und PV-Ansicht v2.13.0). Wer sie
 > selbst neu erzeugen will: Demo-Daten laden und die Views nacheinander
 > aufnehmen — die App braucht dafür keinen Build-Schritt.
 
@@ -50,6 +51,20 @@ Verbrauch, **＋ Erfassen**, Kosten, Mehr.
 
 <p><img src="screenshots/navigation-iphone.png" alt="Übersicht mit Tab-Leiste am iPhone" width="260"> <img src="screenshots/erfassen-iphone.png" alt="Erfassen-Blatt am iPhone" width="260"></p>
 
+**Erklärungen zum Antippen (v2.13.0):** Neben Fachbegriffen steht ein **ⓘ** —
+Heizgradtage, R², gleitendes Mittel, Saldo, Zäsur, Gewinnschwelle,
+Kündigungsstichtag und weitere. Antippen oder Klicken öffnet die Erklärung:
+am Mac als Blase unter dem Begriff, am iPhone als Blatt über der Tab-Leiste.
+„Alle Begriffe“ führt in die Hilfe (§15); Escape oder ein Tipp daneben
+schließt sie. Bis v2.12 standen diese Erklärungen in Tooltips, die es auf dem
+iPhone nicht gibt. Gehört eine Erklärung zu einer einzelnen Zeile — warum ein
+Stand „PRÜFEN“ trägt, was „VOLL“ bei einer Lieferung heißt —, öffnet das ⓘ
+daneben genau diese.
+
+<p><img src="screenshots/erklaerung-mac.png" alt="Erklärung zu den Heizgradtagen am Mac" width="420"> <img src="screenshots/erklaerung-iphone.png" alt="Dieselbe Erklärung als Blatt am iPhone" width="260"></p>
+
+Die **Hilfe** steht in der Fußzeile der Seitenleiste, am iPhone unter „Mehr“.
+
 ---
 
 ## 1. Übersicht (Dashboard)
@@ -59,7 +74,7 @@ Heizquelle**, Tank-Bestände (Öl/Pellets), **Strom-Saldo & Autarkie** bei
 PV, kombinierter Verbrauchsverlauf (so viele Monate wie in den Einstellungen
 unter *Monate auf Dashboard*, seit v2.9.0) und fällige Termine. Seit v2.10.0
 steht unter der Effizienz die **energieausweis-nahe Kennzahl** (bei mehreren
-Heizquellen für alle zusammen, Tooltip mit Bezugsfläche und Monaten); ein
+Heizquellen für alle zusammen, ⓘ mit Bezugsfläche und Monaten); ein
 unvollständiges Jahr bekommt keine Klasse, sondern einen Hinweis. Die
 PV-Karte zeigt zusätzlich die **Ersparnis durch Eigenverbrauch** und, solange
 weniger als zwölf Monate Daten aller drei Zähler haben, über wie viele Monate
@@ -80,6 +95,20 @@ Ablesung"). Jede Zeile ist als Ganzes antippbar, am iPhone mit „›" statt Kno
 weiter unten und die Kachel „Aktive Zähler" je Verbrauchsart entfallen;
 Kennzahl-Kacheln heben sich nicht mehr beim Überfahren, weil sie nicht
 klickbar sind.
+
+**Ohne Daten (v2.13.0)** steht statt leerer Kacheln ein Willkommen: was der
+Energietracker tut, die ersten Schritte mit Häkchen aus den Daten (Standort,
+erster und zweiter Stand, Vertrag, optional Home Assistant) und
+**„Mit Beispieldaten ausprobieren“**. Vorher sichert die App den
+jetzigen Stand; zurück geht es über Einstellungen → Daten → Snapshots.
+
+![Willkommen ohne Daten](screenshots/willkommen.png)
+
+**PV auf der Übersicht (v2.13.0):** Die Einspeisung zeigt „Einspeisung“ und
+„Vergütung“, die Erzeugung „Erzeugung“ ohne Kostenkachel. Bei beiden ist mehr
+gut: Der Pfeil nach oben ist grün. Der gemeinsame Verlauf zeigt nur noch, was
+bezogen wird — bis v2.12 standen dort auch die PV-Kilowattstunden, als wären
+sie Verbrauch.
 
 ![Dashboard](screenshots/dashboard.png)
 
@@ -140,9 +169,22 @@ Saldo spürbar ab, schlägt die Karte einen Abschlag vor. Die KPI-Kacheln
 summieren dagegen die abgelesenen Monate; liegt die letzte Ablesung im
 laufenden Jahr zurück, heißt die Kachel „Abschläge bis ‹Datum›". Die Tabelle
 **Verträge & Abschläge** führt je Vertrag Tarif, Abschlag, Verbraucht,
-Bezahlt, Bonus, **Sonderzahlungen** (seit v2.5.1: Netto aus Kundensicht,
-Einzelposten im Tooltip; nur bei Gas/Strom/Fernwärme) sowie Saldo heute
-und erwarteten Saldo.
+Bezahlt, Bonus, **Sonderzahlungen** (seit v2.5.1: Netto aus Kundensicht;
+seit v2.13.0 die Einzelposten zum Aufklappen statt im Tooltip; nur bei
+Gas/Strom/Fernwärme) sowie Saldo heute und erwarteten Saldo. Der Grundpreis
+steht ausgeschrieben da („Grundpreis 12,95 €/Monat“ statt „13 € GP“).
+
+**Saldo aus Kundensicht (v2.13.0):** Karte und Kachel nennen den Saldo mit
+Wort und ohne Vorzeichen — „Guthaben 120,00 €“ in Grün, „Nachzahlung
+60,00 €“ in Rot, dazu der Bezugszeitraum. In Tabellen steht **+ für
+Guthaben** und **− für Nachzahlung**, erklärt in einer Zeile darunter. Bis
+v2.12 zeigte die App die Buchhaltungssicht (Kosten − Abschläge, Minus =
+Guthaben) — das Gegenteil dessen, was die Abrechnung sagt. API und CSV-Export
+behalten ihr Vorzeichen.
+
+**Noch keine Monatswerte (v2.13.0):** Hat ein Zähler keinen oder erst einen
+Stand, erklärt die Seite, dass Monatswerte aus der Differenz zweier Stände
+entstehen, und führt zur Erfassung genau dieses Zählers.
 
 **Seit v2.9.0** rechnet die Karte tagesgenau: Ein Wechsel oder eine
 Preisänderung zur Monatsmitte gilt ab ihrem Tag. Unter den Zahlen stehen
@@ -156,8 +198,9 @@ Das Banner „Ablesung überfällig" richtet sich nach der Einstellung
 **Unplausible Stände (v2.6.0):** Gibt es Ausreißer, einen fallenden Stand
 ohne Zählertausch oder einen unbestätigten Verdacht aus Home Assistant, steht
 oberhalb der Jahresauswahl ein Hinweis mit den betroffenen Ständen und einem
-Link zum Zählertausch. In der Ablesetabelle tragen sie „PRÜFEN" bzw.
-„UNPLAUSIBEL" (Tooltip mit der Begründung); einen Verdacht bestätigt ✅ —
+Link zum Zählertausch. In der Ablesetabelle tragen sie „PRÜFEN“ bzw.
+„UNPLAUSIBEL“ (seit v2.13.0 mit ⓘ und der Begründung, vorher im Tooltip);
+einen Verdacht bestätigt ✅ —
 erst dann zählt er. Der Ablese-Dialog stellt dieselben Rückfragen wie die
 Zählerstand-Erfassung.
 
@@ -221,6 +264,10 @@ Historie) und Hinweise bei kurzer Historie. Die Spalte „Methode" sagt je
 Monat, wie gerechnet wurde; Monate nach Vertragsende, in denen der letzte
 Vertrag als Annahme weiterläuft, tragen ein Sternchen.
 
+Seit v2.13.0 steht der Modellname in der Sprache der Oberfläche, die
+Saldo-Spalte aus Kundensicht (+ Guthaben, − Nachzahlung) mit ⓘ. Modell und
+Horizont sind aus den Einstellungen vorbelegt.
+
 ![Prognose](screenshots/prognose.png)
 
 ### Jahresbericht (seit v2.11.0 unter Auswertungen)
@@ -246,8 +293,10 @@ Je Verbrauchsart und Zähler der laufende Vertrag:
 - was zur Abrechnung zu erwarten ist: Erstattung (grün) oder Nachzahlung
   (rot)
 
-„Verträge verwalten" führt zur Vertragsliste der Verbrauchsart. Die Zahlen
-kommen aus derselben Rechnung wie die Saldo-Karte der Verbrauchsart.
+„Verträge verwalten“ führt zur Vertragsliste der Verbrauchsart. Die Zahlen
+kommen aus derselben Rechnung wie die Saldo-Karte der Verbrauchsart. Heizöl
+und Pellets fehlen seit v2.13.0 in der Liste — ihre Kosten stehen an den
+Lieferungen, der Link „Vertrag anlegen“ führte auf eine Seite ohne Verträge.
 
 ![Verträge & Abschläge](screenshots/navigation-mac.png)
 
@@ -301,7 +350,10 @@ Die Rangliste zeigt je Angebot:
 | **Differenz** | gegen den fortgeschriebenen Bestandsvertrag |
 | **Lohnt ab** | der Jahresverbrauch, ab dem das Angebot den Bestandsvertrag schlägt |
 
-**Sortiert wird nach „ab 2. Jahr".** Ein Lockangebot, das nur im ersten Jahr
+Seit v2.13.0 steht diese Erklärung unter der Rangliste statt nur im Tooltip
+der Spaltenköpfe; „Lohnt ab“ trägt ein ⓘ.
+
+**Sortiert wird nach „ab 2. Jahr“.** Ein Lockangebot, das nur im ersten Jahr
 billig ist, gewinnt die Rangfolge damit nicht — die Jahr-1-Zahl steht trotzdem
 daneben, um sie mit der Portalanzeige abzugleichen.
 
@@ -339,7 +391,8 @@ Die Spalte **ct/Einheit** trägt die Vollkosten je kWh bzw. m³ — Arbeitspreis
 Grundpreis und Boni zusammen. Sie ist die einzige Größe, die von der Laufzeit
 unabhängig ist, und damit der Maßstab für die Rangfolge. Verglichen werden
 reine Tarifkosten; Abschläge und Sonderzahlungen sind Zahlungsströme gegen den
-Saldo und bleiben außen vor (sie stehen in der Verbrauchsansicht).
+Saldo und bleiben außen vor (sie stehen in der Verbrauchsansicht). Beides
+steht seit v2.13.0 unter der Tabelle.
 
 Die Jahresauswahl bietet seit v2.12.0 nur Jahre mit Verbrauchsdaten an (bis
 v2.11 fest die letzten sieben Jahre); Monate stehen in der Schreibweise der
@@ -375,7 +428,9 @@ Anomalie, Tank-Niveau, Vertragsende, Effizienz, …), nach Dringlichkeit
 sortiert, einzeln ausblendbar. Rein datengetrieben, keine Werbung. Seit
 v2.11.0 unter **Hinweise**; der Knopf heißt „30 Tage ausblenden" statt „✕".
 Seit v2.12.0 nennt die Meldung die Empfehlung und bietet zehn Sekunden
-**„Rückgängig"**.
+**„Rückgängig“**. Seit v2.13.0 sagt die Seite bei zu wenig Daten (kein Zähler
+mit drei Ständen), dass es für Empfehlungen noch zu früh ist — vorher stand
+dort „alles im grünen Bereich“.
 
 ![Empfehlungen](screenshots/empfehlungen.png)
 
@@ -426,6 +481,10 @@ Vorhersagen auf, die frühere Versionen wie Messwerte gespeichert haben. Mit
 Standort noch auf der Voreinstellung des Landes, sagt ein Hinweis das
 (v2.7.0) — die Gradtagzahlen rechnen dann mit dem Wetter eines anderen Orts.
 
+Unter dem Chart steht seit v2.13.0 die Quelle mit Lizenz: „Wetterdaten von
+Open-Meteo.com (CC BY 4.0)“; der PDF-Jahresbericht nennt sie ebenfalls,
+sobald er Temperaturen zeigt.
+
 ![Temperaturen](screenshots/temperaturen.png)
 
 ---
@@ -448,7 +507,17 @@ Seit v2.12.0 **neun Unterseiten** statt einer langen Seite:
 
 Gespeichert wird je Seite über eine Leiste unten („Verwerfen" · „Speichern"),
 die erst bei einer Änderung erscheint. Wer die Seite mit ungespeicherten
-Änderungen verlässt, wird gefragt. Der PDF-Jahresbericht steht seit v2.11.0
+Änderungen verlässt, wird gefragt.
+
+**Seit v2.13.0:** 18 Felder mehr tragen einen Hinweis, was sie bewirken. Die
+Karte der Abrechnungsstichtage führt die **PV-Einspeisung** (ihre Vergütung
+rechnet bis zum Stichtag); Heizöl und Pellets entfallen dort — sie haben keine
+Abschläge und damit keinen Stichtag, die Felder wirkten nicht. Unter Experte
+stehen die Prognosemodelle mit Namen statt Schlüssel, und die **Breite des
+Prognosebands** ist pflegbar (seit v2.8.0 wirksam, bisher nur per API). Die
+Home-Assistant-Karte verlinkt die Anleitung in der passenden Sprache.
+
+Der PDF-Jahresbericht steht seit v2.11.0
 unter Auswertungen. Nach Demo-Daten, Backup-Import oder Wiederherstellung
 startet die App neu, damit Seitenleiste, Sprache und Zwischenspeicher zum
 neuen Stand passen.
@@ -566,6 +635,15 @@ Kostenkachel; im Tarifwechsel der Einspeisung steht die höhere Vergütung
 vorn. PV-Verbrauchsarten haben keinen
 Default-Zähler — wer keine Anlage hat, sieht keine Phantom-Zähler.
 
+**Seit v2.13.0** spricht die Einspeisung durchgehend von Vergütung: Die
+Monatstabelle führt „Erlös“ statt „Kosten“ und keine Abschlagsspalten, die
+Vertragstabelle „Vergütung“ und „Erhalten“ statt „Verbraucht“ und „Bezahlt“,
+und ein offener Anspruch ist grün statt rot (Legende „+ Guthaben,
+− Rückforderung“). Vermiedenes CO₂ steht ohne Minus da — das Wort
+„vermieden“ trägt die Richtung, wie im Jahresbericht. Bei beiden PV-Arten entfallen
+Temperatur und Heizgradtage; Anomalien und Vorjahresvergleich werten weniger
+Einspeisung als Rückgang, nicht als Ersparnis.
+
 ![PV](screenshots/pv.png)
 
 ---
@@ -585,6 +663,29 @@ App, zeigt die Kopfleiste „Offline – Stand vom …". Änderungen ohne Verbin
 meldet die App als „Keine Verbindung zum Energietracker – nichts gespeichert."
 
 ![Anmeldung](screenshots/anmeldung.png)
+
+---
+
+## 15. Hilfe (v2.13.0)
+
+Erreichbar über die Fußzeile der Seitenleiste, am iPhone unter „Mehr“
+(`#/help`). Vier Karten und das Glossar:
+
+- **Erste Schritte:** dieselbe Liste wie im Willkommen, mit Häkchen aus den
+  Daten; sind alle Schritte erledigt, steht das da.
+- **Dokumentation:** Einstieg, Kompendium und Home-Assistant-Anleitung auf
+  GitHub — auf Deutsch in deutscher Oberfläche, sonst auf Englisch (mit
+  Hinweis, wenn die eigene Sprache fehlt).
+- **Fragen und Fehler:** GitHub-Issues und der Verweis auf die Diagnose unter
+  Einstellungen → System, deren Angaben eine Meldung braucht.
+- **Deine Daten:** Alles bleibt auf dem eigenen Server — keine Konten, keine
+  Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo:
+  beim täglichen Wetterabgleich (Standort auf rund 1 km gerundet) und bei der
+  Ortssuche.
+- **Begriffe:** 33 Einträge in allen sieben Sprachen mit Suche. Dieselben
+  Texte öffnet das ⓘ in der App; `#/help?term=hdd` springt zu einem Begriff.
+
+![Hilfe](screenshots/hilfe.png)
 
 ---
 

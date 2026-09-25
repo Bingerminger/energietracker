@@ -192,4 +192,43 @@ final class LocaleCatalogTest extends TestCase
         }
         self::assertSame([], $mismatches, implode("\n", $mismatches));
     }
+
+    /**
+     * v2.13.0 — Schlüssel, die der Code zusammensetzt, sieht die Prüfung auf
+     * literale Schlüssel nicht: `glossary.${id}.term` für jeden Eintrag der
+     * Glossarliste und `settings.field.${key}.label` für jedes Einstellungsfeld.
+     * Fehlt einer, steht der rohe Schlüssel in der Oberfläche. Umgekehrt ist ein
+     * Katalogeintrag ohne Listeneintrag ein Begriff, den niemand findet.
+     */
+    public function testComposedKeysExistForGlossaryAndSettingsFields(): void
+    {
+        $root = dirname(__DIR__, 3);
+        $info = (string)file_get_contents("$root/public/js/components/info.js");
+        self::assertSame(1, preg_match('/export const GLOSSARY = \[(.*?)\];/s', $info, $m), 'Glossarliste nicht gefunden');
+        preg_match_all("/'([a-zA-Z0-9]+)'/", $m[1], $ids);
+        $glossary = $ids[1];
+        self::assertGreaterThan(20, count($glossary));
+
+        $settings = (string)file_get_contents("$root/public/js/views/settings.js");
+        preg_match_all("/\{ key: '([a-z0-9_]+)'/", $settings, $fields);
+        self::assertGreaterThan(40, count($fields[1]));
+
+        $problems = [];
+        foreach (self::languages() as $lang) {
+            $cat = self::catalog($lang);
+            $flat = self::flatten($cat);
+            foreach ($glossary as $id) {
+                foreach (['term', 'text'] as $part) {
+                    if (($flat["glossary.$id.$part"] ?? '') === '') $problems[] = "$lang: glossary.$id.$part";
+                }
+            }
+            foreach (array_keys($cat['glossary'] ?? []) as $id) {
+                if (!in_array($id, $glossary, true)) $problems[] = "$lang: glossary.$id steht nicht in der Glossarliste";
+            }
+            foreach ($fields[1] as $key) {
+                if (($flat["settings.field.$key.label"] ?? '') === '') $problems[] = "$lang: settings.field.$key.label";
+            }
+        }
+        self::assertSame([], $problems, implode("\n", $problems));
+    }
 }

@@ -611,6 +611,29 @@ abgenommen ist.
   und für das Ausblenden gab es kein Gegenstück. Ein Toast mit „Rückgängig"
   ist schnell gebaut, der Rückweg im Datenmodell nicht; beides gehört in
   denselben Change, sonst verspricht die Oberfläche etwas, das sie nicht kann.
+- **Ein lokaler Name überschattet einen Import (v2.13.0).** In der Prognose
+  hieß das Element `#fc-info` seit jeher `info`; seit v2.13.0 heißt so auch
+  der ⓘ-Knopf. Die lokale Variable gewann, `info('balance')` warf, und der
+  Fehler landete im `try/catch` der Ansicht: Die Seite stand, nur die Tabelle
+  blieb leer. Ein bestehender Render-Test fiel; ein Scan über alle Module fand
+  keinen zweiten Fall. Kurze Namen für geteilte Helfer sind bequem und
+  kollidieren genau deshalb.
+- **Ein Tooltip ist keine Erklärung (v2.13.0).** Gut dreißig Erklärungen
+  standen in `title`-Attributen — am Mac beim Überfahren sichtbar, auf dem
+  iPhone gar nicht. Jetzt öffnet ein ⓘ sie zum Antippen, aus einem Katalog,
+  der zugleich das Glossar der Hilfe ist; ein Test hält Liste und Katalog
+  deckungsgleich.
+- **Ein Vorzeichen ist eine Perspektive (v2.13.0).** Der Saldo rechnet
+  Kosten − Abschläge, Minus heißt Guthaben: richtig für die Buchhaltung,
+  falsch für jemanden, dessen Abrechnung „Guthaben“ sagt. Rechnung und
+  Schnittstelle behalten ihr Vorzeichen, Integrationen hängen daran; die
+  Oberfläche übersetzt in Worte und dreht es in Tabellen, mit Legende.
+  Dasselbe bei „CO₂ vermieden −674 kg“: Das Wort trägt die Richtung, ein Minus
+  davor verneint doppelt.
+- **Zusammengesetzte Schlüssel sieht keine Literalprüfung (v2.13.0).**
+  `` t(`glossary.${id}.term`) `` rutscht durch den Test auf literale Schlüssel;
+  ein fehlender Eintrag stünde roh in der Oberfläche. Geprüft wird jetzt über
+  die Listen, aus denen die Schlüssel entstehen (Glossar, Einstellungsfelder).
 
 ---
 

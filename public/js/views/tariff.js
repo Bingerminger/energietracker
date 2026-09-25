@@ -30,6 +30,7 @@ import { makeChart } from '../components/chart.js';
 import { fmt as f, escapeHtml as esc, monthShortNames, parseDecimal, formatForInput } from '../lib/format.js';
 import { t, getCurrencySymbol } from '../lib/i18n.js';
 import { copyText } from '../lib/clipboard.js';
+import { info } from '../components/info.js';
 
 let sel = { utility: null, meterId: null, year: null, switchDate: null };
 let charts = { switch: null, retro: null };
@@ -179,16 +180,18 @@ async function loadSwitch(container) {
           <table class="data-table tariff-table">
             <thead><tr>
               <th scope="col">${esc(t('tariff.switch.col.tariff'))}</th>
-              <th scope="col" class="num" title="${esc(t('tariff.switch.year1Title'))}">${esc(t('tariff.switch.col.year1'))}</th>
-              <th scope="col" class="num" title="${esc(t('tariff.switch.year2Title'))}">${esc(t('tariff.switch.col.year2'))}</th>
+              <th scope="col" class="num">${esc(t('tariff.switch.col.year1'))}</th>
+              <th scope="col" class="num">${esc(t('tariff.switch.col.year2'))}</th>
               <th scope="col" class="num">${esc(t('tariff.switch.col.diff'))}</th>
-              <th scope="col" class="num" title="${esc(t('tariff.switch.breakEvenTitle'))}">${esc(t('tariff.switch.col.breakEven'))}</th>
+              <th scope="col" class="num">${esc(t('tariff.switch.col.breakEven'))}${info('breakEven')}</th>
               <th scope="col"><span class="sr-only">${esc(t('common.actions'))}</span></th>
             </tr></thead>
             <tbody>${d.candidates.map(c => candidateRowHtml(c, unit, d)).join('')}</tbody>
           </table>
         </div>
-        <p class="muted small">${esc(t('tariff.switch.rankingHint'))}</p>
+        <!-- v2.13.0 (Review UI-27) — die Spaltenerklärung sichtbar statt nur
+             als Tooltip, den es auf dem Telefon nicht gibt -->
+        <p class="muted small">${esc(t('tariff.switch.col.year1'))}: ${esc(t('tariff.switch.year1Title'))} · ${esc(t('tariff.switch.col.year2'))}: ${esc(t('tariff.switch.year2Title'))}. ${esc(t('tariff.switch.rankingHint'))}</p>
 
         <div class="card" style="margin-top: var(--sp-4)">
           <div class="card__title">${esc(t('tariff.switch.chartTitle'))}</div>
@@ -251,7 +254,7 @@ function timingCardHtml(d) {
       : days < 0 ? t('tariff.switch.cancelPassed')
       : t('tariff.switch.cancelIn', { days });
     cancelLine = `<p class="${cls}">
-      ${esc(t('tariff.switch.cancelBy', { date: f.date(c.cancel_by) }))}
+      ${esc(t('tariff.switch.cancelBy', { date: f.date(c.cancel_by) }))}${info('noticeDeadline')}
       ${note ? `<span class="muted">· ${esc(note)}</span>` : ''}
     </p>`;
   } else if (c) {
@@ -272,7 +275,7 @@ function timingCardHtml(d) {
 
   return `
     <div class="card switch-card">
-      <div class="card__title">${esc(t('tariff.switch.switchDate'))}</div>
+      <div class="card__title">${esc(t('tariff.switch.switchDate'))}${info('switchDate')}</div>
       <div class="switch-date-row">
         <input class="input" type="date" id="t-switch-date" value="${esc(d.switch_date || '')}"
                aria-label="${esc(t('tariff.switch.switchDate'))}">
@@ -510,7 +513,7 @@ async function loadRetro(container) {
             <th scope="col">${esc(t('tariff.col.period'))}</th>
             <th scope="col" class="num">${esc(t('tariff.col.consumption'))}</th>
             <th scope="col" class="num">${esc(t('tariff.col.cost'))}</th>
-            <th scope="col" class="num" title="${esc(t('tariff.unitCostTitle'))}">${esc(t('tariff.col.unitCost', { unit }))}</th>
+            <th scope="col" class="num">${esc(t('tariff.col.unitCost', { unit }))}</th>
             <th scope="col" class="num">${esc(t('tariff.col.savings'))}</th>
           </tr></thead>
           <tbody>${noRows
@@ -520,6 +523,7 @@ async function loadRetro(container) {
       </div>
 
       ${anyPartial ? `<p class="muted small">${esc(t('tariff.partialHint'))}</p>` : ''}
+      <p class="muted small">${esc(t('tariff.col.unitCost', { unit }))}: ${esc(t('tariff.unitCostTitle'))}</p>
       <p class="muted small">${esc(t('tariff.legend'))}</p>
     </details>
   `;
