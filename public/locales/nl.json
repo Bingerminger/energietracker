@@ -107,7 +107,7 @@
       "inDays": "over {days} d"
     },
     "allLink": "alle",
-    "chart": { "title": "Verbruik over 12 maanden (alle energieën)", "alt": "Lijndiagram: verbruik van de laatste 12 maanden per energie" },
+    "chart": { "title": "Verbruik over {months} maanden (alle energieën)", "alt": "Lijndiagram: verbruik van de laatste {months} maanden per energie" },
     "card": { "meters": "Meters", "details": "Details" },
     "groups": { "summary": "Groepen ({count})" },
     "kpi": {
@@ -245,7 +245,6 @@
       "subOverpaid": "Te veel betaald",
       "verdictLabel": "Verwacht bij eindafrekening",
       "dateNext": "volgende afrekening: {date}",
-      "dateEstOpen": "geschat einde: {date} (open contract, +12 mnd)",
       "dateEnd": "einde contract: {date}",
       "components": "💧 Componenten",
       "tw": "Drinkwater",
@@ -261,7 +260,13 @@
       "consShort": "{value} verbruik",
       "gpPlus": " + {value} vastrecht",
       "suggestAdvance": "Met een voorschot van {suggested} in plaats van {current} zou de afrekening op ongeveer ±0 uitkomen.",
-      "measuredThenEstimated": "gemeten tot {date} ({kwh} kWh), daarna geschat: {value}"
+      "measuredThenEstimated": "gemeten tot {date} ({kwh} kWh), daarna geschat: {value}",
+      "renewed": "De looptijd eindigde op {date}. Zonder opzegging loopt het contract tegen de laatste prijzen door en is het altijd met hoogstens één maand opzegbaar.",
+      "cancelMissed": "Opzegdatum {date} gemist: het contract eindigt niet op {end} maar loopt door — daarna opzegbaar met hoogstens één maand.",
+      "priceIncrease": "Prijsverhoging vanaf {date}: {what}.",
+      "piWorking": "energieprijs {from} → {to} {minor}/kWh",
+      "piBase": "vastrecht {from} → {to} {cur}/maand",
+      "priceIncreaseDe": "Tot dan geldt een bijzonder opzegrecht per de datum van de verhoging (§ 41 lid 5 EnWG)."
     },
     "contractsTable": {
       "emptyTitle": "Geen contracten geregistreerd",
@@ -284,7 +289,8 @@
       "gpSuffix": "{value} {cur} vastrecht",
       "colSpecial": "Bijzondere betalingen",
       "colSpecialTitle": "Netto van bijzondere betalingen: terugbetalingen van de leverancier tellen positief, bijbetalingen en extra voorschotten negatief. Afzonderlijke posten in de tooltip van de cel.",
-      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Beweeg over de cel voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden."
+      "hint": "Bonus = tegoeden uit het contract (direct-, overstap-, nieuwe-klantbonus). Bijzondere betalingen = terugbetalingen (+), bijbetalingen en extra voorschotten (−) buiten het voorschotschema; beide tellen mee in het saldo. Beweeg over de cel voor de afzonderlijke posten; ze worden in het contractbeheer bijgehouden.",
+      "stateRenewed": "VERLENGD"
     },
     "monthlyTable": {
       "noData": "Geen gegevens voor dit jaar.",
@@ -509,7 +515,7 @@
       "create": "Aanmaken",
       "validationHalfRows": "Vul de half ingevulde rijen aan of maak ze leeg",
       "saved": "Contract opgeslagen",
-      "noticePeriod": "Opzegtermijn (maanden)",
+      "noticePeriod": "Opzegtermijn",
       "noticePeriodPlaceholder": "bijv. 1",
       "noticePeriodHint": "De tariefvergelijking leidt hieruit de opzegdatum af en waarschuwt voordat de termijn verstrijkt.",
       "priceGuarantee": "Prijs gegarandeerd tot",
@@ -520,7 +526,23 @@
       "workingPriceRequired": "Er is minstens één rij ‘{group}’ met datum en bedrag nodig.",
       "supersedeTitle": "Lopend contract vervangen?",
       "supersedeMessage": "Vanaf {date} geldt dit contract in plaats van ‘{name}’ – bij overlappende contracten wint het latere begin. Saldo en prognose rekenen dan met de nieuwe prijzen.",
-      "supersedeOk": "Ja, vervangen"
+      "supersedeOk": "Ja, vervangen",
+      "noticeUnitLabel": "Eenheid van de opzegtermijn",
+      "noticeUnit": {
+        "months": "maanden",
+        "weeks": "weken",
+        "days": "dagen"
+      },
+      "noticeMode": "Opzegging werkt",
+      "noticeModeOption": {
+        "auto": "automatisch",
+        "term_end": "aan het einde van de looptijd",
+        "month_end": "altijd, aan het einde van de maand",
+        "any_day": "altijd, op elke dag"
+      },
+      "noticeModeHint": "Automatisch: aan het einde van de looptijd; zonder einde altijd aan het einde van de maand. De basislevering is bijvoorbeeld altijd met twee weken opzegbaar.",
+      "autoRenews": "Loopt door zonder opzegging",
+      "autoRenewsHint": "Na het einde loopt het contract tegen de laatste prijzen door tot het wordt opgezegd — dan met hoogstens één maand opzegtermijn. Uitvinken als het is opgezegd."
     },
     "delete": { "title": "Contract verwijderen?", "message": "Contract definitief verwijderen?", "confirm": "Verwijderen", "deleted": "Contract verwijderd" },
     "deleteContract": "Contract verwijderen",
@@ -661,7 +683,8 @@
       "save": "Opslaan",
       "saved": "Meter opgeslagen",
       "digits": "Cijfers van het telwerk (vóór de komma)",
-      "digitsHint": "Alleen nodig als het telwerk na 99999 weer bij 0 kan beginnen: de analyse herkent dan de overloop in plaats van een daling te melden. Leeg = onbekend."
+      "digitsHint": "Alleen nodig als het telwerk na 99999 weer bij 0 kan beginnen: de analyse herkent dan de overloop in plaats van een daling te melden. Leeg = onbekend.",
+      "activeHint": "Uitvinken als de meter buiten gebruik is: de geschiedenis telt nog mee in alle totalen, maar de meter verschijnt niet meer bij het invoeren en geeft geen waarschuwingen."
     },
     "replace": {
       "title": "Meterwissel: {name}",
@@ -723,7 +746,6 @@
   "settings": {
     "placeholder": {
       "dayMonth": "DD-MM (01-01)",
-      "yearExample": "bijv. 1998",
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Laden…",
@@ -786,7 +808,6 @@
       "min_hdd_regression": { "label": "Min. graaddagen voor regressie" },
       "blend_max": { "label": "Max. mengingsgewicht" },
       "forecast_months": { "label": "Prognosehorizon" },
-      "min_temp_days_forecast": { "label": "Min. temp-dagen prognose" },
       "forecast_model": { "label": "Standaardmodel" },
       "segmented_split_mode": { "label": "Segmentbreekpunt", "hint": "auto = afgeleid uit de gegevens, fixed = vaste graaddagenwaarde hieronder." },
       "segmented_fixed_split": { "label": "Vast breekpunt", "hint": "Alleen actief in de modus « fixed »." },
@@ -794,7 +815,6 @@
       "dashboard_months": { "label": "Maanden op het dashboard" },
       "alert_days_since_reading": { "label": "Waarschuwen na" },
       "wohnflaeche_m2": { "label": "Woonoppervlak", "hint": "Verwarmd oppervlak — noemer van de efficiëntiemaat." },
-      "baujahr": { "label": "Bouwjaar" },
       "gebaeudetyp": { "label": "Gebouwtype", "hint": "efh = vrijstaand, rh = rijwoning, mfh = meergezinswoning, whg = appartement." },
       "heizoel_kwh_per_l": { "label": "Energie-inhoud stookolie" },
       "pellets_kwh_per_kg": { "label": "Energie-inhoud pellets" },
@@ -1126,7 +1146,8 @@
       "wasserzaehler_eichung": "IJking watermeter",
       "dichtheitspruefung": "Lekdichtheidstest",
       "lieferung_planen": "Levering plannen",
-      "custom": "Overig"
+      "custom": "Overig",
+      "waermezaehler_eichung": "IJking warmtemeter"
     },
     "recurrence": { "none": "Eenmalig", "yearly": "Jaarlijks", "semi-yearly": "Halfjaarlijks", "custom-months": "Elke N maanden" },
     "due": { "today": "vandaag", "inDays": "over {days} d", "agoDays": "{days} d geleden" },
@@ -1214,7 +1235,9 @@
       },
       "r6": {
         "title": "{label}: het contract eindigt over {days} dagen",
-        "detail": "Het contract « {provider} » eindigt over {days} dagen. Start nu een tariefvergelijking en stap zo nodig over."
+        "detail": "Het contract « {provider} » eindigt over {days} dagen. Start nu een tariefvergelijking en stap zo nodig over.",
+        "titleCancel": "{label}: opzeggen vóór {date} ({days} dagen)",
+        "detailCancel": "Om het contract « {provider} » op {end} te laten eindigen in plaats van door te lopen, moet de opzegging vóór {date} bij de leverancier zijn. Start nu een tariefvergelijking en stap zo nodig over."
       },
       "r7": {
         "title": "{label}: efficiëntieklasse {class} ({kwh} kWh/m²·a)",
@@ -1240,7 +1263,7 @@
     "shadowFallbackLabel": "Hypothese",
     "months": "{count} mnd",
     "monthsOne": "1 maand",
-    "partialHint": "Contracten die maar een deel van de periode dekken, zijn met hun looptijd gemarkeerd. Verbruik en kosten gelden altijd precies voor die maanden.",
+    "partialHint": "Echte contracten die maar een deel van de periode dekken, zijn met hun looptijd gemarkeerd; verbruik en kosten gelden precies voor die dagen. Schaduwcontracten gelden als prijsblad voor de hele periode — zo blijven aanbiedingen met verschillende looptijden vergelijkbaar.",
     "projectedFull": "geëxtrapoleerd naar {months} mnd: {value}",
     "realTotal": "Werkelijk gefactureerd in de periode: {value}",
     "noRows": "Geen contracten met een eenheidsprijs in de gekozen periode.",
@@ -1373,7 +1396,8 @@
       "endsInDays": "over {days} dagen",
       "ends": "{provider} eindigt {when}",
       "fallbackProvider": "Contract",
-      "checkNote": "Controleer de opzegtermijn en een vervolgcontract."
+      "checkNote": "Controleer de opzegtermijn en een vervolgcontract.",
+      "cancelBy": "Zeg {provider} op vóór {date} (nog {days} dagen), anders loopt het contract na {end} door."
     },
     "yoy": {
       "title": "Jaarvergelijking · maandelijkse verschillen",
@@ -1643,7 +1667,9 @@
       "dateBeforeStart": "{field} mag niet vóór het begin van het contract liggen.",
       "bonusNotNumeric": "De welkomstbonus moet een getal zijn.",
       "bonusNegative": "De welkomstbonus mag niet negatief zijn.",
-      "amountInvalid": "{label}-invoer nr. {n}: bedrag ‘{value}’ is geen getal"
+      "amountInvalid": "{label}-invoer nr. {n}: bedrag ‘{value}’ is geen getal",
+      "noticeDaysOutOfRange": "De opzegtermijn in dagen moet tussen 0 en 730 liggen.",
+      "noticeModeInvalid": "Onbekende opzegwijze „{mode}” (toegestaan: term_end, month_end, any_day)."
     },
     "delivery": {
       "notFound": "Levering niet gevonden: {id}",

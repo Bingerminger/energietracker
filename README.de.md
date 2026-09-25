@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.8.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.9.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-379-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-398-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installierbar-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
@@ -43,7 +43,7 @@ heute und als erwartete End-Saldierung, mit Abschlagsvorschlag. Dazu eine statis
 Termin-/Wartungsverwaltung, Tarifvergleich mit Schattenverträgen und ein
 PDF-Jahresbericht.
 
-> **Status:** v2.8.1 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
+> **Status:** v2.9.0 ist die aktuelle öffentliche Version (initial release war v1.0.2). Wer aus einem privat
 > betriebenen v0.9.0-Backup migrieren möchte, findet die Anleitung unter
 > [Migration aus v0.9.0](docs/MIGRATION-FROM-V090.md) — das Backup-Format
 > v0.9.0 wird vom Migrator unterstützt.
@@ -120,21 +120,27 @@ PDF-Jahresbericht.
 
 - **Vertragshistorie** pro Zähler: Anbieter, Tarifname, Start/Ende,
   freier Notiztext.
-- **Stichtag-genaue Preishistorie** für Arbeitspreis (ct/Verbrauchseinheit),
-  Grundpreis (€/Monat) und monatlichen Abschlag (€). Mehrere Stichtage
-  pro Vertrag werden als forward-fill auf die Monate angewandt.
+- **Tagesgenaue Preishistorie** für Arbeitspreis (ct/Verbrauchseinheit),
+  Grundpreis (€/Monat) und monatlichen Abschlag (€): Ein Vertragswechsel oder
+  eine Preisänderung zur Monatsmitte gilt ab ihrem Tag, wie auf der Rechnung
+  (seit v2.9.0). Ein Vertrag ohne Nachfolger läuft zu seinen letzten Preisen
+  weiter, bis er gekündigt ist.
 - **Boni** mit Gutschriftdatum, Betrag und Label
   (Neukunden-, Treuebonus, etc.).
 - **Saldo-Berechnung** pro Vertrag:
-  - *Aktueller Saldo* = bereits angefallene Kosten − bisher bezahlte Abschläge
-  - *Erwarteter End-Saldo* = aktueller Saldo + (verbleibende Monate × ø
-    Monatskosten − Monatsabschlag). Offene Verträge werden bis zum
-    nächsten Abrechnungsstichtag projiziert (je Utility konfigurierbar,
-    Default 1. Januar).
+  - *Aktueller Saldo* = Kosten bis heute − bis heute fällige Abschläge, nach
+    Kalender; der Verbrauch seit der letzten Ablesung wird geschätzt und so
+    ausgewiesen (seit v2.8.0)
+  - *Erwarteter End-Saldo* = aktueller Saldo + geschätzte Restkosten −
+    restliche Abschläge, mit Abschlagsvorschlag. Offene und weiterlaufende
+    Verträge werden bis zum nächsten Abrechnungsstichtag projiziert (je
+    Utility konfigurierbar, Default 1. Januar).
   - *Einschätzung*: Erstattung / Nachzahlung / ausgeglichen mit Schwellwert ±5 €
-- **Erinnerung an Vertragsende**: Verträge, deren Ende innerhalb einer
-  konfigurierbaren Frist liegt (drei Stufen, Default 90 / 30 / 1 Tage),
-  werden in der Korrelations-Ansicht als gestufter Hinweis angezeigt.
+- **Erinnerung am Kündigungsstichtag**: Mit gepflegter Kündigungsfrist (in
+  Monaten, Wochen oder Tagen) zählen drei Stufen (Default 90 / 30 / 1 Tage)
+  bis zum letzten Kündigungstag, sonst bis zum Vertragsende; verpasste Fristen
+  und angekündigte Preiserhöhungen (mit Hinweis aufs Sonderkündigungsrecht)
+  stehen auf der Saldo-Karte (seit v2.9.0).
 
 ### Analyse
 
@@ -177,11 +183,11 @@ PDF-Jahresbericht.
 
 ### Auswertung & Insights (v1.3.0)
 
-- **Wetterbereinigung**: „mehr verbraucht oder nur kälter?" — Verbrauch
-  normiert auf das langjährige Kalendermonats-HGT, plus
-  Regressionserwartung und Abweichung in Prozent.
+- **Wetterbereinigung**: „mehr verbraucht oder nur kälter?" — Heizmodell je
+  Zähler, Erwartung für jeden Monat und Abweichung bei gegebenem Wetter; der
+  Wettereinfluss wird auf das 30-jährige Klimanormal umgerechnet (seit v2.8.0).
 - **Effizienzklasse** A+…H aus dem Heizenergiebedarf in kWh/m²·a,
-  konfigurierbare Bandgrenzen, Wohnfläche/Baujahr/Gebäudetyp pflegbar.
+  konfigurierbare Bandgrenzen, Wohnfläche/Gebäudetyp pflegbar.
 - **Empfehlungs-Engine**: sieben statistische Regelfamilien aus den
   Eigendaten, mit Schweregrad und einzeln ausblendbar.
 - **Sigmoid- und auto-segmentiertes Regressionsmodell** zusätzlich zu
@@ -324,7 +330,7 @@ Oder ohne Compose, direkt mit dem veröffentlichten Image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.8.1
+  ghcr.io/bingerminger/energietracker:2.9.0
 ```
 
 > Ohne `--name energietracker` vergibt Docker einen zufälligen Namen
@@ -502,7 +508,7 @@ Vollständige Liste der konfigurierbaren Werte siehe
 energietracker/
 ├── api.php                  ← 20-Z. Entry-Point, delegiert an src/bootstrap.php
 ├── index.php                ← SPA-Shell (Sidebar + Topbar, lädt /public/js/app.js)
-├── VERSION                  ← „2.8.1"
+├── VERSION                  ← „2.9.0"
 ├── README.md                ← diese Datei
 ├── CHANGELOG.md
 ├── LICENSE

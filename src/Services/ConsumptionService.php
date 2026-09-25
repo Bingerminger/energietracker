@@ -116,7 +116,7 @@ final class ConsumptionService
         // fließen also nur Zähler OHNE `parent_meter_id` ein.
         $totals = [];
         foreach ($perMeter as $entry) {
-            if (($entry['meter']['parent_meter_id'] ?? null) !== null) {
+            if (!MeterService::countsInTotals($entry['meter'])) {
                 continue; // Subzähler: bereits im Elternzähler enthalten
             }
             foreach ($entry['monthly'] as $m) {
@@ -193,9 +193,20 @@ final class ConsumptionService
         // Horizont werden weiter unten entsprechend gedreht/begrenzt.
         $isFeedIn  = Utilities::isFeedIn($utility);
 
-        // Index monthly by (contract_id, ym)
+        // Index monthly by (contract_id, ym). v2.9.0 — ein Monat mit zwei
+        // Verträgen zählt je Vertrag nur seinen Teil (CALC-10).
         $byContract = [];
         foreach ($monthly as $m) {
+            if (!empty($m['contract_parts'])) {
+                foreach ($m['contract_parts'] as $p) {
+                    $byContract[$p['contract_id']][] = [
+                        'ym' => $m['ym'], 'kwh' => $p['kwh'], 'cost' => $p['cost'], 'kwh_cost' => $p['kwh_cost'],
+                        'base_price_eur' => $p['base_price_eur'], 'bonus_eur' => $p['bonus_eur'],
+                        'advance_eur' => $p['advance_eur'],
+                    ];
+                }
+                continue;
+            }
             $cid = $m['contract_id'] ?? null;
             if (!$cid) continue;
             $byContract[$cid][] = $m;
@@ -209,6 +220,18 @@ final class ConsumptionService
             $isPast  = !empty($c['end']) && $c['end'] < $today;
             $isFut   = ($c['start'] ?? '9999') > $today;
             $isOpen  = empty($c['end']);
+            // v2.9.0 (Review CALC-10) — abgelaufen, aber ohne Nachfolger und
+            // nicht gekündigt: Der Vertrag läuft weiter (§ 309 Nr. 9 BGB).
+            // Er zählt dann als laufend, bis zur nächsten Abrechnung.
+            $renewed = false;
+            if ($isPast && ContractService::renews($c)) {
+                $r = $this->contracts->resolveForDate($contracts, $today);
+                $renewed = $r !== null && $r['assumed'] && ($r['contract']['id'] ?? null) === $cid;
+            }
+            if ($renewed) {
+                $isCur = true;
+                $isPast = false;
+            }
             // F-03: a contract with a pflegtem Ende ends on that date. An open
             // contract (end = null) is projected to the next billing-cycle
             // anchor of its utility (Settings: billing_cycle_anchor_<utility>),
@@ -218,12 +241,13 @@ final class ConsumptionService
             // Jahre (z.B. bis 2043); die alte Logik hätte die Vergütung über
             // die gesamte Restlaufzeit hochgerechnet (z.B. „+10.756 €
             // erwartet"), was als „nächste Abrechnung" grob irreführend ist.
+            $hasEnd  = !empty($c['end']) && !$renewed;
             $effEnd  = $isFeedIn
                 ? min(
-                    !empty($c['end']) ? $c['end'] : '9999-12-31',
+                    $hasEnd ? $c['end'] : '9999-12-31',
                     $this->nextBillingAnchor($utility, $today)
                   )
-                : (!empty($c['end'])
+                : ($hasEnd
                     ? $c['end']
                     : $this->nextBillingAnchor($utility, $today));
 
@@ -295,7 +319,7 @@ final class ConsumptionService
             if (Utilities::hasAdvancePaymentContracts($utility)) {
                 // v2.8.0 (Review CALC-02) — Saldo nach Kalender statt nach
                 // Ablesemonaten, Hochrechnung mit Wetter statt Durchschnitt.
-                $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net']);
+                $projection = $this->balanceProjection($utility, $meter, $c, $monthly, $today, $effEnd, $spSummary['net'], $renewed);
                 $currentBalance = $projection['current_balance'];
                 $projected      = $projection['projected_end_balance'];
                 $advancePaid    = $projection['advance_paid'];
@@ -335,15 +359,31 @@ final class ConsumptionService
                 } catch (\Exception) {
                     $daysUntilEnd = null;
                 }
-                if ($daysUntilEnd !== null && $daysUntilEnd >= 0) {
-                    $r1 = (int)$this->settings->get('contract_remind_days_1', 90);
-                    $r2 = (int)$this->settings->get('contract_remind_days_2', 30);
-                    $r3 = (int)$this->settings->get('contract_remind_days_3', 1);
-                    if ($daysUntilEnd <= $r3)      { $remindStage = 3; }
-                    elseif ($daysUntilEnd <= $r2)  { $remindStage = 2; }
-                    elseif ($daysUntilEnd <= $r1)  { $remindStage = 1; }
-                    $shouldRemind = $remindStage > 0;
-                }
+            }
+            // v2.9.0 (Review CALC-11) — erinnert wird zum Kündigungsstichtag,
+            // nicht zum Vertragsende: Mit einem Monat Frist kamen zwei der drei
+            // Erinnerungen nach dem Stichtag, mit drei Monaten alle drei. Ohne
+            // gepflegte Frist bleibt es beim Vertragsende.
+            $timing = $this->contracts->switchTiming($c, $today, $renewed);
+            $remindBasis = null;
+            $ref = null;
+            $cancelMissed = false;
+            if ($timing['basis'] === 'fixed_end' && $timing['cancel_by'] !== null && !$isPast && !$renewed) {
+                $remindBasis = 'cancel_by';
+                $ref = $timing['days_to_cancel'];
+                $cancelMissed = $ref < 0 && $daysUntilEnd !== null && $daysUntilEnd >= 0;
+            } elseif (!empty($c['end']) && !$renewed) {
+                $remindBasis = 'end';
+                $ref = $daysUntilEnd;
+            }
+            if ($ref !== null && $ref >= 0) {
+                $r1 = (int)$this->settings->get('contract_remind_days_1', 90);
+                $r2 = (int)$this->settings->get('contract_remind_days_2', 30);
+                $r3 = (int)$this->settings->get('contract_remind_days_3', 1);
+                if ($ref <= $r3)      { $remindStage = 3; }
+                elseif ($ref <= $r2)  { $remindStage = 2; }
+                elseif ($ref <= $r1)  { $remindStage = 1; }
+                $shouldRemind = $remindStage > 0;
             }
 
             $row = [
@@ -380,6 +420,16 @@ final class ConsumptionService
                 'days_until_end'              => $daysUntilEnd,
                 'should_remind'               => $shouldRemind,
                 'remind_stage'                => $remindStage,
+                // v2.9.0 (CALC-10, CALC-11) — Verlängerung, Kündigung, Preise
+                'renewed'                     => $renewed,
+                'cancel_by'                   => $timing['cancel_by'],
+                'days_to_cancel'              => $timing['days_to_cancel'],
+                'switch_date'                 => $timing['switch_date'],
+                'notice_basis'                => $timing['basis'],
+                'remind_basis'                => $remindBasis,
+                'cancel_missed'               => $cancelMissed,
+                'price_increase'              => $isCur && !$isFeedIn && $utility !== 'wasser'
+                    ? $this->upcomingPriceIncrease($c, $today) : null,
                 // v2.8.0 — wie gerechnet wurde (additiv)
                 'balance_as_of'               => $projection['as_of'] ?? $today,
                 'projection_method'           => $projection !== null ? $projection['method'] : 'flat_average',
@@ -470,19 +520,57 @@ final class ConsumptionService
      *
      * @return array<string,mixed>
      */
-    private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet): array
+    /**
+     * v2.9.0 (Review CALC-11) — Die nächste angekündigte Preiserhöhung eines
+     * Vertrags: der erste Stichtag nach heute, an dem Arbeits- oder Grundpreis
+     * steigt. In Deutschland besteht dann ein Sonderkündigungsrecht zum
+     * Zeitpunkt der Änderung (§ 41 Abs. 5 EnWG); die Oberfläche sagt das dazu.
+     *
+     * @return array{from:string,working_price_ct:?array{0:float,1:float},base_price_eur:?array{0:float,1:float}}|null
+     */
+    private function upcomingPriceIncrease(array $c, string $today): ?array
+    {
+        $dates = [];
+        foreach (['working_prices', 'base_prices'] as $group) {
+            foreach ($c[$group] ?? [] as $e) {
+                $d = (string)($e['from'] ?? '');
+                if ($d > $today && (empty($c['end']) || $d <= $c['end'])) $dates[$d] = true;
+            }
+        }
+        $dates = array_keys($dates);
+        sort($dates);
+        foreach ($dates as $d) {
+            $out = ['from' => $d, 'working_price_ct' => null, 'base_price_eur' => null];
+            foreach (['working_prices' => ['ct_per_kwh', 'working_price_ct'], 'base_prices' => ['eur_per_month', 'base_price_eur']] as $group => [$field, $key]) {
+                $now = $this->contracts->valueOnDate($c[$group] ?? [], $field, $today);
+                $new = $this->contracts->valueOnDate($c[$group] ?? [], $field, $d);
+                if ($now !== null && $new !== null && $new > $now + 1e-9) $out[$key] = [$now, $new];
+            }
+            if ($out['working_price_ct'] !== null || $out['base_price_eur'] !== null) return $out;
+        }
+        return null;
+    }
+
+    private function balanceProjection(string $utility, array $meter, array $c, array $monthly, string $today, string $effEnd, float $specialNet, bool $renewed = false): array
     {
         $start = (string)($c['start'] ?? $today);
         // Ende exklusiv: ein gepflegtes Vertragsende gehört noch dazu, der
-        // Abrechnungstag eines offenen Vertrags nicht mehr.
-        $endExcl = !empty($c['end']) ? date('Y-m-d', strtotime($c['end'] . ' +1 day')) : $effEnd;
+        // Abrechnungstag eines offenen oder weiterlaufenden Vertrags nicht mehr.
+        $endExcl = !empty($c['end']) && !$renewed ? date('Y-m-d', strtotime($c['end'] . ' +1 day')) : $effEnd;
         if ($endExcl <= $start) $endExcl = date('Y-m-d', strtotime($start . ' +1 day'));
         $asOf = min(max($today, $start), $endExcl);   // heute, eingeklemmt in den Vertrag
 
-        // Gemessen: Arbeitspreis der Monatszeilen dieses Vertrags
+        // Gemessen: Arbeitspreis der Monatszeilen dieses Vertrags — bei zwei
+        // Verträgen in einem Monat nur sein Teil (v2.9.0)
         $measuredEnergy = 0.0;
         foreach ($monthly as $m) {
-            if (($m['contract_id'] ?? null) === $c['id']) $measuredEnergy += (float)($m['kwh_cost'] ?? 0);
+            if (!empty($m['contract_parts'])) {
+                foreach ($m['contract_parts'] as $p) {
+                    if ($p['contract_id'] === $c['id']) $measuredEnergy += (float)$p['kwh_cost'];
+                }
+            } elseif (($m['contract_id'] ?? null) === $c['id']) {
+                $measuredEnergy += (float)($m['kwh_cost'] ?? 0);
+            }
         }
         $measuredUntil = $this->lastReadingDate($utility, $meter);
         $gapFrom = max($start, $measuredUntil ?? $start);
@@ -493,15 +581,18 @@ final class ConsumptionService
         $fallbackWp = null;
         foreach ($monthly as $m) if (!empty($m['working_price_ct'])) $fallbackWp = (float)$m['working_price_ct'];
 
-        $energy = function (string $from, string $to) use ($c, $est, $fallbackWp): float {
+        // v2.9.0 — je Tag zum an diesem Tag gültigen Arbeitspreis (CALC-10);
+        // nach dem Ende eines weiterlaufenden Vertrags zu seinem letzten Preis
+        $end = (string)($c['end'] ?? '');
+        $energy = function (string $from, string $to) use ($c, $est, $fallbackWp, $end): float {
             // v2.8.1 — ohne verwertbare Monate (noch keine zwei Ablesungen,
             // oder alle vor einer Zäsur) gibt es nichts hochzurechnen. In
             // v2.8.0 rief der Saldo hier null auf und brach mit HTTP 500 ab.
             if ($est === null) return 0.0;
             $sum = 0.0;
-            foreach ($est($from, $to) as $ym => $vol) {
-                [$y, $mo] = array_map('intval', explode('-', $ym));
-                $wp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mo) ?? $fallbackWp ?? 0.0;
+            foreach ($est($from, $to) as $date => $vol) {
+                $priceDay = $end !== '' && $date > $end ? $end : $date;
+                $wp = $this->contracts->valueOnDate($c['working_prices'] ?? [], 'ct_per_kwh', $priceDay) ?? $fallbackWp ?? 0.0;
                 $sum += $vol * (float)$wp / 100.0;
             }
             return $sum;
@@ -582,28 +673,38 @@ final class ConsumptionService
             // Monat „bis heute" oder „Rest"? (ein künftiger Vertrag hat kein „bis heute")
             $bucket = ($started && date('Y-m', $t) <= $asOfMonth) ? 'to_date' : 'rest';
 
-            // Grundpreis: Tage vor heute nach „bis heute", ab heute nach „Rest"
-            $bp = $this->contracts->valueValidOn($c['base_prices'] ?? [], 'eur_per_month', $y, $mo);
-            if ($bp !== null) {
-                $splitAt = min(max($asOf, $cFrom), $cTo);
-                $before  = $started ? max(0, (int)round((strtotime($splitAt) - strtotime($cFrom)) / 86400)) : 0;
-                $out['to_date']['base'] += (float)$bp * $before / $dim;
-                $out['rest']['base']    += (float)$bp * ($cDays - $before) / $dim;
+            // Grundpreis: Tage vor heute nach „bis heute", ab heute nach
+            // „Rest" — v2.9.0 je Preisabschnitt tagesgenau (CALC-10)
+            $splitAt  = min(max($asOf, $cFrom), $cTo);
+            $segments = $this->contracts->segmentsBetween([$c], $cFrom, $cTo);
+            foreach ($segments as $seg) {
+                if ($seg['contract'] === null) continue;
+                $bp = $this->contracts->valueOnDate($c['base_prices'] ?? [], 'eur_per_month', ContractService::priceDate($seg));
+                if ($bp === null) continue;
+                $before = $started
+                    ? max(0, min($seg['days'], (int)round((strtotime($splitAt) - strtotime($seg['from'])) / 86400)))
+                    : 0;
+                $out['to_date']['base'] += $bp * $before / $dim;
+                $out['rest']['base']    += $bp * ($seg['days'] - $before) / $dim;
             }
+            // Boni nur in der eigentlichen Laufzeit (Gutschrift nach dem Ende
+            // zählt im letzten Vertragsmonat, s. bonusForMonth)
             $out[$bucket]['bonus'] += $this->contracts->bonusForMonth($c, $y, $mo);
-            $ap = $this->contracts->valueValidOn($plan, 'amount_eur', $y, $mo);
-            if ($ap !== null) $out[$bucket]['advance'] += (float)$ap * min(1.0, $cDays / $dim);
+            // Abschlag: der Betrag am ersten Vertragstag des Monats, anteilig
+            $apDate = $segments !== [] ? ContractService::priceDate($segments[0]) : $cFrom;
+            $ap = $this->contracts->valueOnDate($plan, 'amount_eur', $apDate);
+            if ($ap !== null) $out[$bucket]['advance'] += $ap * min(1.0, $cDays / $dim);
         }
         return $out;
     }
 
     /**
-     * Schätzt den Verbrauch je Monat für [von, bis) — für Lücke und Rest des
+     * Schätzt den Verbrauch je Tag für [von, bis) — für Lücke und Rest des
      * Saldos. Heizarten mit Heizmodell: je Tag a × HGT + c (HGT aus der
      * Tagestemperatur, für Tage ohne Wert aus dem Normal des Monats); sonst die
      * Tagesrate desselben Kalendermonats aus vollen Monaten.
      *
-     * @return (callable(string,string):array<string,float>)|null  ym → Menge
+     * @return (callable(string,string):array<string,float>)|null  Tag → Menge
      */
     private function volumeEstimator(string $utility, array $monthly, string $vf): ?callable
     {
@@ -647,7 +748,6 @@ final class ConsumptionService
             $out = [];
             for ($t = strtotime($from . ' 12:00:00'); $t !== false && date('Y-m-d', $t) < $to; $t += 86400) {
                 $d = date('Y-m-d', $t);
-                $ym = substr($d, 0, 7);
                 $mo = (int)date('n', $t);
                 if ($heat !== null) {
                     $hdd = isset($temps[$d]['avg'])
@@ -657,7 +757,8 @@ final class ConsumptionService
                 } else {
                     $vol = !empty($rates[$mo]) ? array_sum($rates[$mo]) / count($rates[$mo]) : $overall;
                 }
-                $out[$ym] = ($out[$ym] ?? 0.0) + $vol * $factor;
+                // v2.9.0 — je Tag: der Arbeitspreis gilt tagesgenau (CALC-10)
+                $out[$d] = $vol * $factor;
             }
             return $out;
         };
@@ -697,10 +798,12 @@ final class ConsumptionService
     private function nextBillingAnchor(string $utility, string $today): string
     {
         $anchor = (string)$this->settings->get('billing_cycle_anchor_' . $utility, '01-01');
-        if (!preg_match('/^(\d{2})-(\d{2})$/', $anchor, $mm)) {
+        // v2.9.0 (CALC-24) — auch Form-gültige, aber unmögliche Tage („13-45")
+        // aus Import oder API fallen auf den Jahresbeginn zurück
+        if (!SettingsService::isMonthDay($anchor)) {
             $anchor = '01-01';
-            $mm = [null, '01', '01'];
         }
+        preg_match('/^(\d{2})-(\d{2})$/', $anchor, $mm);
         // Clamp 29.–31. Feb. to 28 to keep the resulting date constructible
         // in every (also non-leap) year.
         if ($mm[1] === '02' && (int)$mm[2] > 28) {
@@ -962,7 +1065,7 @@ final class ConsumptionService
 
         $monthly = $this->enrichWithWeather($monthly, $temps, $hddBase, $coverage);
         $monthly = $this->applyUtilityFields($monthly, $utility);
-        $monthly = $this->applyContracts($monthly, $utility, $meter['id']);
+        $monthly = $this->applyContracts($monthly, $utility, $meter['id'], $coverage);
         ksort($monthly);
         $monthly = array_values($monthly);
         // v1.6.1 — Issue #13: Wechsel-Monate flaggen
@@ -1777,7 +1880,9 @@ final class ConsumptionService
                 $out[$ym]['raw']  += $raw;
                 $out[$ym]['days'] += $d;
                 $out[$ym]['cost'] += $kwh * $priceCents / 100.0;
-                $out[$ym]['spans'][] = [$cur->format('Y-m-d'), $seg->format('Y-m-d')];
+                // v2.9.0 — mit den kWh des Abschnitts: Die Vertragsrechnung
+                // teilt sie an Vertrags- und Preisstichtagen (CALC-10)
+                $out[$ym]['spans'][] = [$cur->format('Y-m-d'), $seg->format('Y-m-d'), $kwh];
             }
             $cur = $seg;
         }
@@ -1862,7 +1967,12 @@ final class ConsumptionService
         return $monthly;
     }
 
-    private function applyContracts(array $monthly, string $utility, string $meterId): array
+    /**
+     * @param array<string,list<array{0:string,1:string,2?:float}>> $coverage
+     *        v2.9.0 — Tage mit Verbrauch je Monat und ihre Menge; ohne Angabe
+     *        gilt ein Abschnitt ab dem Monatsersten über `days` Tage.
+     */
+    private function applyContracts(array $monthly, string $utility, string $meterId, array $coverage = []): array
     {
         $contracts = $this->contracts->list($utility, $meterId);
         // v1.3.0 — Schattenverträge fließen NICHT in den Saldo ein.
@@ -1874,7 +1984,7 @@ final class ConsumptionService
         }
         return $utility === 'wasser'
             ? $this->applyWaterContracts($monthly, $contracts, $utility)
-            : $this->applyStandardContracts($monthly, $contracts);
+            : $this->applyStandardContracts($monthly, $contracts, $coverage);
     }
 
     private function applyEmptyContractFields(array $monthly, string $utility): array
@@ -1899,55 +2009,164 @@ final class ConsumptionService
         return $monthly;
     }
 
-    /** Gas / Strom — original flat shape with working_prices / base_prices. */
-    private function applyStandardContracts(array $monthly, array $contracts): array
+    /**
+     * Gas / Strom / Fernwärme / Einspeisung — Arbeitspreis, Grundpreis,
+     * Abschlag und Boni je Monat.
+     *
+     * v2.9.0 (Review CALC-10) — tagesgenau wie die Rechnung. Bis v2.8 galt der
+     * ganze Monat nach Vertrag und Preisen vom Monatsersten: Ein Wechsel zum 15.
+     * rechnete den Juni komplett zum alten Preis, eine Preiserhöhung zum
+     * 15. März griff erst im April, und nach einem vergessenen Vertragsende
+     * kostete Verbrauch 0 €. Jetzt:
+     *   Arbeitspreis  je Verbrauchsabschnitt (`$coverage`: die Tage mit
+     *                 Ablesung und ihre kWh), geschnitten an Vertrags- und
+     *                 Preisstichtagen
+     *   Grundpreis    tagesanteilig je Vertrag und Preis
+     *   Abschlag      Monatsbetrag am ersten Vertragstag des Monats, anteilig
+     *                 nach den Vertragstagen (wie calendarSums)
+     *   Boni          je Vertrag nach Gutschriftmonat
+     * Liegen zwei Verträge in einem Monat, trägt die Zeile den mit den meisten
+     * Tagen als `contract_id` und die Teile einzeln in `contract_parts`. Läuft
+     * ein beendeter Vertrag mangels Kündigung weiter, ist die Zeile
+     * `contract_assumed` — seine letzten Preise gelten fort.
+     *
+     * @param array<string,list<array{0:string,1:string,2?:float}>> $coverage
+     */
+    private function applyStandardContracts(array $monthly, array $contracts, array $coverage = []): array
     {
         $running = [];
-        foreach ($monthly as &$m) {
-            $first = $m['ym'] . '-01';
-            $c = $this->contracts->findActiveForDate($contracts, $first);
-            if (!$c) {
+        foreach ($monthly as $ym => &$m) {
+            $y = (int)$m['year']; $mn = (int)$m['month'];
+            $monthStart  = sprintf('%04d-%02d-01', $y, $mn);
+            $nextMonth   = date('Y-m-d', strtotime($monthStart . ' +1 month'));
+            $dim         = (int)date('t', strtotime($monthStart));
+            $kwh         = (float)($m['kwh'] ?? 0);
+            $readingCost = (float)($m['cost'] ?? 0);   // aus dem Ablesepreis: Rückfall ohne Vertragspreis
+            $spans = $coverage[$ym] ?? [[
+                $monthStart,
+                date('Y-m-d', strtotime($monthStart . ' +' . max(1, min($dim, (int)($m['days'] ?? $dim))) . ' days')),
+                $kwh,
+            ]];
+
+            /** @var array<string,array<string,mixed>> $parts */
+            $parts = [];
+            $looseCost = 0.0;   // Verbrauch an Tagen ohne Vertrag
+            foreach ($spans as $span) {
+                [$a, $b] = $span;
+                $spanKwh  = (float)($span[2] ?? 0.0);
+                $spanDays = max(1, (int)round((strtotime($b) - strtotime($a)) / 86400));
+                foreach ($this->contracts->segmentsBetween($contracts, $a, $b) as $seg) {
+                    $share = $spanKwh * $seg['days'] / $spanDays;
+                    $c = $seg['contract'];
+                    if ($c === null) {
+                        $looseCost += $kwh > 0 ? $readingCost * $share / $kwh : 0.0;
+                        continue;
+                    }
+                    $parts[$c['id']] ??= self::emptyContractPart($c);
+                    $wp = $this->contracts->valueOnDate($c['working_prices'] ?? [], 'ct_per_kwh', ContractService::priceDate($seg));
+                    $parts[$c['id']]['kwh']      += $share;
+                    $parts[$c['id']]['kwh_cost'] += $wp !== null
+                        ? $share * $wp / 100.0
+                        : ($kwh > 0 ? $readingCost * $share / $kwh : 0.0);
+                    $parts[$c['id']]['assumed']  = $parts[$c['id']]['assumed'] || $seg['assumed'];
+                }
+            }
+            // Grundpreis und Abschlag nach Kalendertagen des Monats
+            foreach ($this->contracts->segmentsBetween($contracts, $monthStart, $nextMonth) as $seg) {
+                $c = $seg['contract'];
+                if ($c === null) continue;
+                $parts[$c['id']] ??= self::emptyContractPart($c);
+                $date = ContractService::priceDate($seg);
+                $bp = $this->contracts->valueOnDate($c['base_prices'] ?? [], 'eur_per_month', $date);
+                if ($bp !== null) {
+                    $parts[$c['id']]['base'] += $bp * $seg['days'] / $dim;
+                    $parts[$c['id']]['has_base'] = true;
+                }
+                $parts[$c['id']]['days'] += $seg['days'];
+                $parts[$c['id']]['advance_date'] ??= $date;
+                $parts[$c['id']]['assumed'] = $parts[$c['id']]['assumed'] || $seg['assumed'];
+            }
+
+            if ($parts === []) {
                 $m['contract_id'] = null; $m['advance_eur'] = null;
                 $m['base_price_eur'] = null; $m['working_price_ct'] = null;
                 $m['bonus_eur'] = null;
                 $m['kwh_cost'] = $m['cost'] ?? null;
                 $m['monthly_balance'] = null; $m['cumulative_balance'] = null;
+                $m['contract_assumed'] = false;
                 continue;
             }
-            $y = (int)$m['year']; $mn = (int)$m['month'];
-            $wp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn);
-            $bp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
-            // F1003 — effektiver Abschlagsplan inkl. "mit Auswirkung"-Sonderzahlungen
-            $ap = $this->contracts->valueValidOn($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn);
-            $bn = $this->contracts->bonusForMonth($c, $y, $mn);
 
-            $value = (float)($m['kwh'] ?? 0);
-            $kwhCost = (float)($m['cost'] ?? 0);
-            if ($wp !== null && $value > 0) {
-                $kwhCost = round($value * $wp / 100.0, 2);
+            $sum = ['kwh' => 0.0, 'kwh_cost' => $looseCost, 'base' => 0.0, 'bonus' => 0.0, 'advance' => null];
+            $hasBase = false;
+            foreach ($parts as $cid => &$p) {
+                $c = $p['contract'];
+                // F1003 — effektiver Abschlagsplan inkl. „mit Auswirkung"
+                $ap = $p['advance_date'] !== null
+                    ? $this->contracts->valueOnDate($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $p['advance_date'])
+                    : null;
+                $p['advance'] = $ap !== null ? $ap * min(1.0, $p['days'] / $dim) : null;
+                $p['bonus']   = $p['assumed'] && ($c['end'] ?? '') < $monthStart ? 0.0 : $this->contracts->bonusForMonth($c, $y, $mn);
+                $p['cost']    = $p['kwh_cost'] + $p['base'] - $p['bonus'];
+                $sum['kwh']      += $p['kwh'];
+                $sum['kwh_cost'] += $p['kwh_cost'];
+                $sum['base']     += $p['base'];
+                $sum['bonus']    += $p['bonus'];
+                $hasBase = $hasBase || $p['has_base'];
+                if ($p['advance'] !== null) $sum['advance'] = ($sum['advance'] ?? 0.0) + $p['advance'];
+                if ($p['advance'] !== null) {
+                    $running[$cid] = ($running[$cid] ?? 0.0) + $p['cost'] - $p['advance'];
+                }
             }
-            $combined = round($kwhCost + (float)($bp ?? 0) - $bn, 2);
+            unset($p);
 
-            $m['contract_id']      = $c['id'];
-            $m['advance_eur']      = $ap;
-            $m['base_price_eur']   = $bp;
-            $m['working_price_ct'] = $wp;
-            $m['bonus_eur']        = round($bn, 2);
-            $m['kwh_cost']         = $kwhCost;
+            // Die Zeile gehört dem Vertrag mit den meisten Tagen im Monat
+            uasort($parts, fn($x, $z) => [$z['days'], (string)($z['contract']['start'] ?? '')] <=> [$x['days'], (string)($x['contract']['start'] ?? '')]);
+            $mainId = (string)array_key_first($parts);
+            $main   = $parts[$mainId];
+            $wpNow  = $sum['kwh'] > 0
+                ? $sum['kwh_cost'] / $sum['kwh'] * 100.0
+                : $this->contracts->valueOnDate($main['contract']['working_prices'] ?? [], 'ct_per_kwh', $main['advance_date'] ?? $monthStart);
+            $combined = round($sum['kwh_cost'] + $sum['base'] - $sum['bonus'], 2);
+
+            $m['contract_id']      = $mainId;
+            $m['contract_assumed'] = $main['assumed'];
+            $m['advance_eur']      = $sum['advance'] !== null ? round($sum['advance'], 2) : null;
+            $m['base_price_eur']   = $hasBase ? round($sum['base'], 2) : null;
+            $m['working_price_ct'] = $wpNow !== null ? round($wpNow, 4) : null;
+            $m['bonus_eur']        = round($sum['bonus'], 2);
+            $m['kwh_cost']         = round($sum['kwh_cost'], 2);
             $m['cost']             = $combined;
-
-            if ($ap !== null) {
-                $delta = $combined - (float)$ap;
-                $m['monthly_balance'] = round($delta, 2);
-                $running[$c['id']] = ($running[$c['id']] ?? 0.0) + $delta;
-                $m['cumulative_balance'] = round($running[$c['id']], 2);
+            if (count($parts) > 1) {
+                $m['contract_parts'] = array_values(array_map(fn($id, $p) => [
+                    'contract_id'    => $id,
+                    'days'           => $p['days'],
+                    'kwh'            => round($p['kwh'], 1),
+                    'kwh_cost'       => round($p['kwh_cost'], 2),
+                    'base_price_eur' => $p['has_base'] ? round($p['base'], 2) : null,
+                    'advance_eur'    => $p['advance'] !== null ? round($p['advance'], 2) : null,
+                    'bonus_eur'      => round($p['bonus'], 2),
+                    'cost'           => round($p['cost'], 2),
+                    'assumed'        => $p['assumed'],
+                ], array_keys($parts), $parts));
+            }
+            if ($m['advance_eur'] !== null) {
+                $m['monthly_balance']    = round($combined - $m['advance_eur'], 2);
+                $m['cumulative_balance'] = isset($running[$mainId]) ? round($running[$mainId], 2) : null;
             } else {
-                $m['monthly_balance'] = null;
+                $m['monthly_balance']    = null;
                 $m['cumulative_balance'] = null;
             }
         }
         unset($m);
         return $monthly;
+    }
+
+    /** @return array<string,mixed> leerer Anteil eines Vertrags an einem Monat */
+    private static function emptyContractPart(array $contract): array
+    {
+        return ['contract' => $contract, 'kwh' => 0.0, 'kwh_cost' => 0.0, 'base' => 0.0, 'has_base' => false,
+                'days' => 0, 'advance_date' => null, 'assumed' => false];
     }
 
     /**
@@ -2373,11 +2592,13 @@ final class ConsumptionService
 
         // Monatsaggregation
         $monthly = [];
+        $coverage = [];   // v2.9.0 — je Tag ein Abschnitt: die Vertragsrechnung schneidet tagesgenau
         foreach ($daily as $d => $kwh) {
             $ym = substr($d, 0, 7);
             if (!isset($monthly[$ym])) {
                 $monthly[$ym] = ['kwh' => 0.0, 'days' => 0, 'cost' => 0.0, '_priceSum' => 0.0, '_priceN' => 0];
             }
+            $coverage[$ym][] = [$d, date('Y-m-d', strtotime($d . ' +1 day')), (float)$kwh];
             $monthly[$ym]['kwh']  += $kwh;
             $monthly[$ym]['days'] += 1;
             $p = $pricePerDay[$d];
@@ -2393,9 +2614,11 @@ final class ConsumptionService
         }
         unset($m);
 
-        $monthly = $this->enrichWithWeather($monthly, $temps, $hddBase);
+        // Mit der Abdeckung zählen die Gradtage des laufenden Monats nur bis
+        // heute — gespeicherte Vorhersagetage liegen nicht mehr darin.
+        $monthly = $this->enrichWithWeather($monthly, $temps, $hddBase, $coverage);
         $monthly = $this->applyUtilityFields($monthly, $utility);
-        $monthly = $this->applyContracts($monthly, $utility, $meter['id']);
+        $monthly = $this->applyContracts($monthly, $utility, $meter['id'], $coverage);
         ksort($monthly);
         $monthly = array_values($monthly);
         // v1.6.1 — Issue #13: Wechsel-Monate auch im Wasser-Pfad flaggen

@@ -466,6 +466,39 @@ accepted.
   to light while writing a test for the next package. Since then every new
   calculation gets a test with an empty data set and with one that is
   excluded entirely (for example everything before a cut-off).
+- **A test can also cement a bug (v2.9.0).** For years
+  `ContractEdgeCasesTest` explicitly guaranteed that a contract switch on the
+  15th assigns the whole month to the old contract
+  (`…AttributesEntireMonthToContractActiveOnFirst`). The test described the
+  behaviour, not the supplier's bill — and so stood in the way of the fix. Such
+  a test is not adjusted silently: it is renamed (`…SplitsTheMonthByDay`), the
+  CHANGELOG names the changed values, and the counter-check shows that the new
+  test rejects the old way.
+- **No record does not mean zero (v2.9.0).** Consumption after a forgotten
+  contract end cost €0 — the app assumed that the bill ends with the end date.
+  The supplier keeps billing. Related to Lesson 24: where data is missing, what
+  belongs there is the correct domain assumption (the contract runs on) plus a
+  note that it is an assumption — not a silent zero.
+- **A reminder counts down to the action, not to the event (v2.9.0).** The
+  three levels counted down to the contract end. With one month's notice, two
+  of three reminders came after the last day to cancel — punctual and useless.
+  Whoever reminds counts back from the last day on which something can still be
+  done.
+- **A comparison needs the same period (v2.9.0).** A shadow contract applied
+  only to its own term. An offer entered from April to September therefore
+  looked cheaper than the same offer for the whole year: it was missing the
+  winter. An offer is a price sheet and applies to the whole comparison period.
+- **What "inactive" means was defined differently in four places (v2.9.0).**
+  The consumption view and the CSV counted a deselected meter, the PDF report
+  and the efficiency class did not — the same meter, two annual totals. The
+  same class as Lessons 19 and 22. Now the meaning lives in one place
+  (`MeterService::countsInTotals()` for totals, `inService()` for capture and
+  warnings): a meter out of service still has a past.
+- **A setting without effect is not removed silently (v2.9.0).**
+  `min_temp_days_forecast` and `baujahr` did nothing. They are gone from the
+  interface but not from the API: anyone who sets them by script would
+  otherwise get a different state back without notice. They are marked as
+  deprecated and are only dropped with a major version.
 
 ---
 

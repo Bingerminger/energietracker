@@ -30,6 +30,9 @@ A compact reference of all terms and formulas. The detailed derivation is in
 | **Blend** | The R²-weighted mix of regression × seasonal profile in the forecast. |
 | **Balance** | Actual costs − advances paid (plus the net of special payments). **Positive = back-payment looming, negative = credit.** |
 | **Shadow contract** | A tariff you do not hold: either an offer from a comparison site (for the switching decision) or a hypothesis about the past ("what would that have cost?"). Takes effect **only** in the tariff comparison — never on the balance, forecast or contract status. |
+| **Cancellation deadline** | The last day by which the notice must reach the supplier (`cancel_by`). Since v2.9.0 the reminder levels count down to this day, not to the contract end. |
+| **Notice mode** | v2.9.0 (`notice_mode`): at the end of the term, any time at month end, or any time to any day (for example default supply, German *Grundversorgung*, with two weeks' notice). |
+| **Renewed contract** | v2.9.0: expired, without a successor and not cancelled — runs on at its last prices (`renewed`, monthly rows `contract_assumed`) and can be cancelled any time with at most one month's notice. |
 | **Switch date** | v2.3.0: the first day a new tariff could start supplying. Derived from the contract end and the notice period; distinct from the **cancellation deadline**, by which notice must be given. |
 | **Break-even consumption** | v2.3.0: the annual volume above which an offer beats the running contract (column "Pays off from"). If it sits far from the expected consumption, the switching decision holds even with an imprecise forecast. |
 | **Sign-up bonus** | v2.3.0: a one-off amount on the offer (`signup_bonus_eur`) that counts in the first year only. The ranking deliberately follows the cost **from** year two. |

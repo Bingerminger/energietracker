@@ -11,18 +11,17 @@ use PHPUnit\Framework\Attributes\CoversClass;
 /**
  * N1002 — Case 8: Vertragswechsel mitten im Monat.
  *
- * Stichtag-Konvention: {@see ConsumptionService::applyStandardContracts()}
- * fragt mit dem 1. des Monats `findActiveForDate($contracts, $ym . '-01')`
- * den aktiven Vertrag ab. Folge: ein Monat wird IMMER vollständig dem am
- * Monatsersten gültigen Vertrag zugeordnet — keine tagsgenaue Aufteilung.
- * Das ist eine bewusste Vereinfachung (vgl. functional/03-vertraege.md);
- * dieser Test schreibt sie fest, bevor F1006 das Modell anfasst.
+ * Bis v2.8 galt der Vertrag vom Monatsersten für den ganzen Monat; dieser Test
+ * schrieb das als bewusste Vereinfachung fest. v2.9.0 (Review CALC-10) rechnet
+ * tagesgenau wie die Rechnung: Der Monat wird an Vertrags- und Preisstichtagen
+ * geteilt, die Zeile gehört dem Vertrag mit den meisten Tagen, die Teile
+ * stehen in `contract_parts`.
  */
 #[CoversClass(ContractService::class)]
 #[CoversClass(ConsumptionService::class)]
 final class ContractEdgeCasesTest extends ServiceTestCase
 {
-    public function testContractSwitchMidMonthAttributesEntireMonthToContractActiveOnFirst(): void
+    public function testContractSwitchMidMonthSplitsTheMonthByDay(): void
     {
         $meterId = $this->setMeterDevices('strom', [[
             'id' => 'd_strom_1', 'serial' => null,
@@ -61,22 +60,31 @@ final class ContractEdgeCasesTest extends ServiceTestCase
         $monthly = $this->consumption->forMeter('strom', $meter);
         $byYm    = array_column($monthly, null, 'ym');
 
-        // März 2024: Wechsel ist am 15.03., am 01.03. galt noch Vertrag A.
-        // → März-Verbrauch wird vollständig Vertrag A zugeschlagen.
-        self::assertSame($a['id'], $byYm['2024-03']['contract_id'],
-            'März-Monat muss dem am 01.03. aktiven Vertrag A zugeschlagen werden');
-        self::assertSame(30.0, (float)$byYm['2024-03']['working_price_ct'],
-            'Arbeitspreis im März stammt aus Vertrag A');
+        // März 2024: 100 kWh über 31 Tage. A liefert 14 Tage (01.–14.), B 17.
+        $march = $byYm['2024-03'];
+        self::assertSame($b['id'], $march['contract_id'], 'die Zeile gehört dem Vertrag mit den meisten Tagen');
+        $parts = array_column($march['contract_parts'] ?? [], null, 'contract_id');
+        self::assertCount(2, $parts);
+        self::assertSame(14, $parts[$a['id']]['days']);
+        self::assertSame(17, $parts[$b['id']]['days']);
+        self::assertEqualsWithDelta(100 * 14 / 31, $parts[$a['id']]['kwh'], 0.1);
+        self::assertEqualsWithDelta(100 * 14 / 31 * 0.30, $parts[$a['id']]['kwh_cost'], 0.01, 'A-Tage zum A-Preis');
+        self::assertEqualsWithDelta(100 * 17 / 31 * 0.40, $parts[$b['id']]['kwh_cost'], 0.01, 'B-Tage zum B-Preis');
+        self::assertEqualsWithDelta(10.0 * 14 / 31, $parts[$a['id']]['base_price_eur'], 0.01, 'Grundpreis tagesanteilig');
+        self::assertEqualsWithDelta(15.0 * 17 / 31, $parts[$b['id']]['base_price_eur'], 0.01);
+        $expected = 100 * 14 / 31 * 0.30 + 100 * 17 / 31 * 0.40 + 10.0 * 14 / 31 + 15.0 * 17 / 31;
+        self::assertEqualsWithDelta($expected, $march['cost'], 0.02, 'bis v2.8: 40,00 € (ganzer Monat zu A)');
 
-        // April 2024: Vertrag A endete 14.03., Vertrag B aktiv ab 15.03.
-        // → April läuft komplett mit B.
-        self::assertSame($b['id'], $byYm['2024-04']['contract_id'],
-            'April-Monat läuft mit dem Folgevertrag B');
-        self::assertSame(40.0, (float)$byYm['2024-04']['working_price_ct'],
-            'Arbeitspreis im April stammt aus Vertrag B');
-
-        // Februar 2024: ungebrochen Vertrag A.
+        // April 2024: ganz B; Februar 2024: ganz A — ohne Teile.
+        self::assertSame($b['id'], $byYm['2024-04']['contract_id']);
+        self::assertSame(40.0, (float)$byYm['2024-04']['working_price_ct']);
+        self::assertArrayNotHasKey('contract_parts', $byYm['2024-04']);
         self::assertSame($a['id'], $byYm['2024-02']['contract_id']);
+
+        // Der Vertragsstatus summiert die Teile je Vertrag
+        $status = array_column($this->consumption->contractStatus('strom', $meter)['contracts'], null, 'contract_id');
+        self::assertEqualsWithDelta(100 + 100 * 14 / 31, $status[$a['id']]['actual_kwh'], 0.2);
+        self::assertEqualsWithDelta(100 * 17 / 31 + 100, $status[$b['id']]['actual_kwh'], 0.2);
     }
 
     /**

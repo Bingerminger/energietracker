@@ -59,7 +59,6 @@ const GROUPS = [
     { key: 'min_hdd_regression',     step: '0.5' },
     { key: 'blend_max',              step: '0.05' },
     { key: 'forecast_months',        unitKey: 'settings.unit.months', step: '1' },
-    { key: 'min_temp_days_forecast', step: '1' },
     { key: 'forecast_model',         type: 'select', options: ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'] },
     { key: 'segmented_split_mode',   type: 'select', options: ['auto', 'fixed'] },
     { key: 'segmented_fixed_split',  unit: 'HGT', step: '1' },
@@ -71,7 +70,6 @@ const GROUPS = [
   ]},
   { gkey: 'building', icon: '🏢', fields: [
     { key: 'wohnflaeche_m2', unit: 'm²', step: '1' },
-    { key: 'baujahr',        type: 'text', placeholderKey: 'settings.placeholder.yearExample' },
     { key: 'gebaeudetyp',    type: 'select', options: ['efh', 'rh', 'mfh', 'whg'] },
   ]},
   { gkey: 'delivery', icon: '🛢️', fields: [

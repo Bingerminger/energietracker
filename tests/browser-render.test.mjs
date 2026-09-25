@@ -431,6 +431,14 @@ async function renderView(modPath, params = []) {
       t('contracts(gas): Übernehmen füllt die Arbeitspreis-Zeile', !!row && row.querySelector('[data-role="amount"]').value !== '',
         row ? row.querySelector('[data-role="amount"]').value : 'keine Zeile');
     }
+    // v2.9.0 (CALC-10, CALC-11) — Frist mit Einheit, Kündigungsweise,
+    // Verlängerung standardmäßig an
+    const modalEl = global.document.querySelector('#modal-root');
+    const units = [...(modalEl?.querySelectorAll('[name="notice_unit"] option') || [])].map(o => o.value);
+    const modes = [...(modalEl?.querySelectorAll('[name="notice_mode"] option') || [])].map(o => o.value);
+    t('contracts(gas): Frist in Monaten, Wochen oder Tagen', units.join(',') === 'months,weeks,days', units.join(','));
+    t('contracts(gas): Kündigungsweise wählbar', ['', 'term_end', 'month_end', 'any_day'].every(v => modes.includes(v)), modes.join(','));
+    t('contracts(gas): Verlängerung ohne Kündigung vorbelegt', modalEl?.querySelector('[name="auto_renews"]')?.checked === true);
   } catch (e) { t('contracts(gas): render', false, e.message); }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);

@@ -104,10 +104,10 @@ external call view goes through the controllers.
 | Service | Responsibility |
 |---|---|
 | `SettingsService` | read/merge the settings file, type-cast for numeric values |
-| `MeterService` | CRUD of meters + F2 (device replace) |
+| `MeterService` | CRUD of meters + F2 (device replace); `countsInTotals()`/`inService()` define what "inactive" means (v2.9.0) |
 | `ReadingService` | CRUD of readings, auto-assignment of `device_id` to the active device |
-| `ContractService` | CRUD of contracts, F4-strict validation, `valueValidOn(...)` for the effective-date lookup, `bonusForMonth(...)` |
-| `ConsumptionService` | monthly aggregation, F2 device bridging, F3 multi-meter aggregation, **`contractStatus()`** for the balance card; F-03 billing-cycle projection of open contracts, F-05 contract-end reminder, waste-water `separater_zaehler` resolution with a recursion lock |
+| `ContractService` | CRUD of contracts, F4-strict validation, `valueValidOn(...)`/`valueOnDate(...)` for the effective-date lookup, `bonusForMonth(...)`; since v2.9.0 `segmentsBetween(...)` (day-exact segments), `resolveForDate(...)` (renewed contract) and `switchTiming(...)` (cancellation deadline) |
+| `ConsumptionService` | monthly aggregation, F2 device bridging, F3 multi-meter aggregation, **`contractStatus()`** for the balance card; F-03 billing-cycle projection of open and renewed contracts, F-05 reminder based on the cancellation deadline (v2.9.0), waste-water `separater_zaehler` resolution with a recursion lock |
 | `DeliveryConsumptionService` | **(v1.4.4)** daily consumption distribution & tank stock draw for heating oil/pellets — extracted from `ConsumptionService` |
 | `TemperatureService` | CSV import, Open-Meteo sync with a source per day (`archive`/`forecast`/`csv`/`manual`), daily auto-sync (v2.8.0) |
 | `WeatherService` | Open-Meteo API wrapper (archive, forecast, 30-year daily means) behind the `WeatherSource` interface |
@@ -217,21 +217,43 @@ Each month is assigned, from `temperatures.json`:
 - `m3 = kwh / unit_to_kwh_factor` (gas only)
 - `co2_kg = kwh × co2_setting / 1000`
 
-### Step 5 — contract application
+### Step 5 — contract application (day-exact since v2.9.0)
 
-For each month the contract active for the month-start date is determined
-(`ContractService::findActiveForDate(...)`). From it:
+`ContractService::segmentsBetween(...)` splits every month at every contract
+start and end and at every effective date of the working prices, base prices
+and advances. Which contract applies on a given day is decided by
+`resolveForDate(...)`: on overlap, the one that started later; after a contract
+end without a successor, the most recently ended contract as an assumption
+(`assumed`), as long as it is not marked as cancelled (`auto_renews: false`).
+Per segment:
 
-- `working_price_ct` = the to-the-date working price (`valueValidOn`)
-- `base_price_eur` = the to-the-date base price
-- `advance_eur` = the to-the-date monthly advance
-- `bonus_eur` = possibly the bonus for this month (proportional to the bonus credit
-  date)
-- `kwh_cost = kwh × working_price_ct / 100`
+```
+Working price = consumption on the segment's days (from step 2)
+                × price on the segment's day (valueOnDate; after the end
+                  the price on the last contract day, priceDate)
+Base price    = monthly amount × segment days / days in month
+Advance       = monthly amount on the first contract day of the month
+                × contract days / days in month
+Bonus         = per contract; not for assumed segments after the end
+```
+
+The month row:
+
+- `contract_id` = the contract with the most days, `contract_assumed`
+- `working_price_ct` = the volume-weighted working price of the month
+- `kwh_cost`, `base_price_eur`, `advance_eur`, `bonus_eur` = sums of the
+  segments
 - `cost = kwh_cost + base_price_eur − bonus_eur`
 - `monthly_balance = cost − advance_eur` (positive = underpaid)
-- `cumulative_balance` = the running balance per contract ID (reset on every
-  contract change)
+- `cumulative_balance` = the running balance per contract ID
+- `contract_parts[]` — only with more than one contract in the month: per
+  contract `days`, `kwh`, `kwh_cost`, `base_price_eur`, `advance_eur`,
+  `bonus_eur`, `cost`, `assumed`
+
+Up to v2.8 the contract valid on the first of the month applied to the whole
+month (`findActiveForDate(first of month)`). **Water** still calculates this
+way: the three-component model has no advances, and its tariffs change at the
+turn of the year.
 
 ### Step 6 — moving averages
 
@@ -245,25 +267,32 @@ After the month rows, `ConsumptionService::contractStatus()` delivers the
 aggregation per contract ID:
 
 ```
-actual_kwh       = Σ kwh
-actual_cost      = Σ cost
+actual_kwh       = Σ kwh           (measured months; with two contracts
+actual_cost      = Σ cost           in a month only this contract's part)
 actual_kwh_cost  = Σ kwh_cost
 actual_base_total  = Σ base_price_eur
 actual_bonus_total = Σ bonus_eur
-advance_paid     = Σ advance_eur
 months_actual    = count(months)
-current_balance  = actual_cost − advance_paid
 ```
 
-For the **expected end balance**, an extrapolation over the remaining months:
+Since v2.8.0 the **balance** is computed by calendar up to today
+(`balanceProjection`), like the annual statement:
 
 ```
-months_to_end   = monthsBetween(today, effective_end)
-avg_monthly_cost = actual_cost / months_actual
-monthly_advance  = current_advance_amount
-delta_remaining  = (avg_monthly_cost − monthly_advance) × months_to_end
-projected_end_balance = current_balance + delta_remaining
+cost_to_date          = energy_cost_to_date + base_to_date − bonus_to_date
+advance_paid          = advances per payment plan up to and including
+                        the current month
+current_balance       = cost_to_date − advance_paid + special_payment_net
+projected_end_balance = current_balance + estimated_cost_remaining
+                        − advance_remaining
 ```
+
+Consumption since the last reading is estimated (heating model or seasonal
+profile). Open and renewed contracts (`renewed`, since v2.9.0) are calculated up
+to the next billing date. Since v2.9.0 there is also the cancellation deadline
+(`ContractService::switchTiming`: `cancel_by`, `switch_date`, `notice_basis`),
+the reminder level relative to that day (`remind_basis`), `cancel_missed` and
+the next entered price increase (`price_increase`).
 
 `verdict` threshold:
 - `back-payment` if `projected > +5 €`
@@ -293,17 +322,20 @@ forecast_kwh = weight × regression_pred + (1 − weight) × seasonal_avg
 With `hgt_relevant: false` (water), `weight = 0` is set — the forecast consists
 exclusively of the seasonal profile.
 
-**Cost forecast (F-02, since v1.1.0).** Per forecast month, `projectMonthFinances()`
-resolves the then-active contract and uses the working and base price valid for that
-month from the price history (`ContractService::valueValidOn(...)`). From this arise
+**Cost forecast (F-02, since v1.1.0).** Per forecast month this yields
 `cost_estimated` (working price × quantity + base price − known bonuses),
 `advance_estimated` (the valid advance) and `balance_running` (cumulative costs −
-advance). Future bonuses are not carried forward. If an active contract is missing,
-`last_price_ct` applies as a fallback working price.
+advance). Since v2.9.0 `projectStandardMonth()` splits the month at contract and
+price effective dates like the actual calculation (`segmentsBetween`); the
+quantity is distributed over the segments by days, base price and advance pro
+rata. After a contract end without a successor, the last contract runs on as an
+assumption (`contract_assumed`). Water still resolves the contract on the first of
+the month (`resolveForDate`). Future bonuses are not carried forward. If there is
+no contract at all, `last_price_ct` applies as a fallback working price.
 
 ---
 
-## 6. Settings inventory (28 keys)
+## 6. Settings inventory (selection)
 
 | Key | Type | Default | Meaning |
 |---|---|---|---|
@@ -316,11 +348,11 @@ advance). Future bonuses are not carried forward. If an active contract is missi
 | `min_hdd_regression` | float | 5 | minimum HDD per month to be considered in the regression |
 | `blend_max` | float | 0.8 | maximum weight of the regression component in the forecast |
 | `forecast_months` | int | 12 | forecast horizon in months |
-| `min_temp_days_forecast` | int | 20 | minimum days of temperature data per month for use |
+| `min_temp_days_forecast` | int | 20 | **Deprecated (v2.9.0), without effect**, dropped with v3.0.0 — a month counts if temperatures exist for 90 % of its consumption days (since v2.8.0) |
 | `forecast_model` | string | `linear` | default model for the forecast (`linear`/`polynomial`/`robust`/`segmented`/`sigmoid`) |
 | `confidence_band_sigma` | float | 1.28 | width of the forecast band in standard deviations (1.28 ≈ 80 % of years; without effect up to v2.7) |
-| `dashboard_months` | int | 12 | how many months to show on the dashboard |
-| `alert_days_since_reading` | int | 45 | status-banner threshold "reading overdue" |
+| `dashboard_months` | int | 12 | months in the dashboard's consumption history (3–36; effective since v2.9.0, previously fixed at 12) |
+| `alert_days_since_reading` | int | 45 | status banner "reading overdue": warning from ⅔ of the days, alert after that (effective since v2.9.0, previously fixed at 30/60) |
 | `anomaly_threshold` | float | 2 | threshold (robust z-value) for anomaly detection |
 | `location_name` | string | "Leipzig Zentrum" | display name of the location |
 | `latitude` | float | 51.3397 | geo-lat for Open-Meteo |
@@ -328,12 +360,12 @@ advance). Future bonuses are not carried forward. If an active contract is missi
 | `weather_auto_fill` | bool | true | fetch temperatures from Open-Meteo once a day when the app is opened (effective since v2.8.0; transmits the rounded location) |
 | `wasser_personen_anzahl` | int | 2 | persons in the household for the water reference |
 | `wasser_personen_referenz` | int | 127 | reference litres per person per day |
-| `billing_cycle_anchor_gas` | string | `01-01` | billing date gas (`MM-DD`); the balance of open contracts is projected up to there (F-03) |
+| `billing_cycle_anchor_gas` | string | `01-01` | billing date gas (`MM-DD`, checked as a real calendar day since v2.9.0, otherwise 400); the balance of open and renewed contracts is projected up to there (F-03) |
 | `billing_cycle_anchor_strom` | string | `01-01` | billing date electricity (F-03) |
 | `billing_cycle_anchor_wasser` | string | `01-01` | billing date water (F-03) |
-| `contract_remind_days_1` | int | 90 | contract-end reminder level 1 — days before (F-05) |
-| `contract_remind_days_2` | int | 30 | contract-end reminder level 2 (F-05) |
-| `contract_remind_days_3` | int | 1 | contract-end reminder level 3 — urgent (F-05) |
+| `contract_remind_days_1` | int | 90 | reminder level 1 — days before the cancellation deadline, without a notice period before the contract end (F-05; deadline since v2.9.0) |
+| `contract_remind_days_2` | int | 30 | reminder level 2 (F-05) |
+| `contract_remind_days_3` | int | 1 | reminder level 3 — urgent (F-05) |
 | `wasser_sparindex_gut` | int | 100 | water saving index: values ≤ count as unremarkable (F-10) |
 | `wasser_sparindex_warnung` | int | 150 | water saving index: values ≥ show saving potential (F-10) |
 

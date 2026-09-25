@@ -107,7 +107,7 @@
       "inDays": "en {days} d"
     },
     "allLink": "todos",
-    "chart": { "title": "Consumo de 12 meses (todos los suministros)", "alt": "Gráfico de líneas: consumo de los últimos 12 meses por suministro" },
+    "chart": { "title": "Consumo de {months} meses (todos los suministros)", "alt": "Gráfico de líneas: consumo de los últimos {months} meses por suministro" },
     "card": { "meters": "Contadores", "details": "Detalles" },
     "groups": { "summary": "Grupos ({count})" },
     "kpi": {
@@ -245,7 +245,6 @@
       "subOverpaid": "Pagado de más",
       "verdictLabel": "Previsto en la liquidación",
       "dateNext": "próxima liquidación: {date}",
-      "dateEstOpen": "fin estimado: {date} (contrato abierto, +12 meses)",
       "dateEnd": "fin del contrato: {date}",
       "components": "💧 Componentes",
       "tw": "Agua potable",
@@ -261,7 +260,13 @@
       "consShort": "{value} consumo",
       "gpPlus": " + {value} término fijo",
       "suggestAdvance": "Con un pago a cuenta de {suggested} en lugar de {current}, la liquidación quedaría en torno a ±0.",
-      "measuredThenEstimated": "medido hasta el {date} ({kwh} kWh), estimado desde entonces: {value}"
+      "measuredThenEstimated": "medido hasta el {date} ({kwh} kWh), estimado desde entonces: {value}",
+      "renewed": "El plazo terminó el {date}. Sin cancelación, el contrato continúa con los últimos precios y se puede cancelar en cualquier momento con un preaviso de un mes como máximo.",
+      "cancelMissed": "Plazo de cancelación del {date} vencido: el contrato no termina el {end}, sino que continúa; después se puede cancelar con un preaviso de un mes como máximo.",
+      "priceIncrease": "Subida de precios a partir del {date}: {what}.",
+      "piWorking": "precio de la energía {from} → {to} {minor}/kWh",
+      "piBase": "término fijo {from} → {to} {cur}/mes",
+      "priceIncreaseDe": "Hasta entonces existe un derecho especial de cancelación con efecto en la fecha de la subida (§ 41 apdo. 5 EnWG)."
     },
     "contractsTable": {
       "emptyTitle": "Sin contratos registrados",
@@ -284,7 +289,8 @@
       "gpSuffix": "{value} {cur} término fijo",
       "colSpecial": "Pagos especiales",
       "colSpecialTitle": "Neto de pagos especiales: las devoluciones del proveedor cuentan en positivo, los pagos complementarios y anticipos adicionales en negativo. Partidas individuales en la descripción emergente de la celda.",
-      "hint": "Bono = abonos del contrato (bono inmediato, de cambio, de nuevo cliente). Pagos especiales = devoluciones (+), pagos complementarios y anticipos adicionales (−) fuera del plan de anticipos; ambos entran en el saldo. Pasa el cursor por la celda para ver las partidas; se gestionan en la administración de contratos."
+      "hint": "Bono = abonos del contrato (bono inmediato, de cambio, de nuevo cliente). Pagos especiales = devoluciones (+), pagos complementarios y anticipos adicionales (−) fuera del plan de anticipos; ambos entran en el saldo. Pasa el cursor por la celda para ver las partidas; se gestionan en la administración de contratos.",
+      "stateRenewed": "PRORROGADO"
     },
     "monthlyTable": {
       "noData": "Sin datos para este año.",
@@ -509,7 +515,7 @@
       "create": "Crear",
       "validationHalfRows": "Completa o vacía las filas a medio rellenar",
       "saved": "Contrato guardado",
-      "noticePeriod": "Plazo de preaviso (meses)",
+      "noticePeriod": "Plazo de preaviso",
       "noticePeriodPlaceholder": "p. ej. 1",
       "noticePeriodHint": "El comparador de tarifas calcula con esto la fecha de rescisión y avisa antes de que venza el plazo.",
       "priceGuarantee": "Precio garantizado hasta",
@@ -520,7 +526,23 @@
       "workingPriceRequired": "Se necesita al menos una fila «{group}» con fecha e importe.",
       "supersedeTitle": "¿Sustituir el contrato en curso?",
       "supersedeMessage": "A partir del {date} se aplica este contrato en lugar de «{name}»: si los contratos se solapan, prevalece el inicio más reciente. El saldo y la previsión usan entonces los nuevos precios.",
-      "supersedeOk": "Sí, sustituir"
+      "supersedeOk": "Sí, sustituir",
+      "noticeUnitLabel": "Unidad del plazo de preaviso",
+      "noticeUnit": {
+        "months": "meses",
+        "weeks": "semanas",
+        "days": "días"
+      },
+      "noticeMode": "La cancelación surte efecto",
+      "noticeModeOption": {
+        "auto": "automático",
+        "term_end": "al final del plazo",
+        "month_end": "en cualquier momento, a fin de mes",
+        "any_day": "en cualquier momento, cualquier día"
+      },
+      "noticeModeHint": "Automático: al final del plazo; sin fin, en cualquier momento a fin de mes. El suministro básico, por ejemplo, se puede cancelar en cualquier momento con dos semanas de preaviso.",
+      "autoRenews": "Se prorroga si no se cancela",
+      "autoRenewsHint": "Tras el final, el contrato continúa con los últimos precios hasta que se cancele — entonces con un preaviso de un mes como máximo. Desmarcar si ya se ha cancelado."
     },
     "delete": { "title": "¿Eliminar el contrato?", "message": "¿Eliminar el contrato de forma permanente?", "confirm": "Eliminar", "deleted": "Contrato eliminado" },
     "deleteContract": "Eliminar contrato",
@@ -661,7 +683,8 @@
       "save": "Guardar",
       "saved": "Contador guardado",
       "digits": "Dígitos del totalizador (antes de la coma)",
-      "digitsHint": "Solo hace falta si el totalizador puede volver a 0 después de 99999: el análisis reconoce entonces el desbordamiento en lugar de indicar un descenso. Vacío = desconocido."
+      "digitsHint": "Solo hace falta si el totalizador puede volver a 0 después de 99999: el análisis reconoce entonces el desbordamiento en lugar de indicar un descenso. Vacío = desconocido.",
+      "activeHint": "Desmarcar si el contador está fuera de servicio: su historial sigue contando en todos los totales, pero ya no aparece en la toma de lecturas ni genera avisos."
     },
     "replace": {
       "title": "Cambio de contador: {name}",
@@ -723,7 +746,6 @@
   "settings": {
     "placeholder": {
       "dayMonth": "DD-MM (01-01)",
-      "yearExample": "p. ej. 1998",
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Cargando…",
@@ -786,7 +808,6 @@
       "min_hdd_regression": { "label": "GD mín. para la regresión" },
       "blend_max": { "label": "Peso de mezcla máx." },
       "forecast_months": { "label": "Horizonte de previsión" },
-      "min_temp_days_forecast": { "label": "Días de temp. mín. previsión" },
       "forecast_model": { "label": "Modelo predeterminado" },
       "segmented_split_mode": { "label": "Punto de quiebre del segmento", "hint": "auto = ajustado a los datos, fixed = valor GD fijo abajo." },
       "segmented_fixed_split": { "label": "Punto de quiebre fijo", "hint": "Solo efectivo en modo « fixed »." },
@@ -794,7 +815,6 @@
       "dashboard_months": { "label": "Meses en el panel" },
       "alert_days_since_reading": { "label": "Avisar tras" },
       "wohnflaeche_m2": { "label": "Superficie habitable", "hint": "Superficie calefactada — denominador de la métrica de eficiencia." },
-      "baujahr": { "label": "Año de construcción" },
       "gebaeudetyp": { "label": "Tipo de edificio", "hint": "efh = unifamiliar, rh = adosado, mfh = plurifamiliar, whg = piso." },
       "heizoel_kwh_per_l": { "label": "Contenido energético del gasóleo" },
       "pellets_kwh_per_kg": { "label": "Contenido energético de los pellets" },
@@ -1126,7 +1146,8 @@
       "wasserzaehler_eichung": "Calibración del contador de agua",
       "dichtheitspruefung": "Prueba de estanqueidad",
       "lieferung_planen": "Planificar entrega",
-      "custom": "Otro"
+      "custom": "Otro",
+      "waermezaehler_eichung": "Calibración del contador de calor"
     },
     "recurrence": { "none": "Una vez", "yearly": "Anual", "semi-yearly": "Semestral", "custom-months": "Cada N meses" },
     "due": { "today": "hoy", "inDays": "en {days} d", "agoDays": "hace {days} d" },
@@ -1214,7 +1235,9 @@
       },
       "r6": {
         "title": "{label}: el contrato termina en {days} días",
-        "detail": "El contrato « {provider} » termina en {days} días. Inicia ahora una comparativa de tarifas y cambia si es necesario."
+        "detail": "El contrato « {provider} » termina en {days} días. Inicia ahora una comparativa de tarifas y cambia si es necesario.",
+        "titleCancel": "{label}: cancelar antes del {date} ({days} días)",
+        "detailCancel": "Para que el contrato « {provider} » termine el {end} y no se prorrogue, la cancelación debe llegar al proveedor antes del {date}. Inicia ahora una comparativa de tarifas y cambia si es necesario."
       },
       "r7": {
         "title": "{label}: clase de eficiencia {class} ({kwh} kWh/m²·a)",
@@ -1240,7 +1263,7 @@
     "shadowFallbackLabel": "Hipótesis",
     "months": "{count} mes.",
     "monthsOne": "1 mes",
-    "partialHint": "Los contratos que cubren solo parte del periodo están marcados con su duración. El consumo y el coste siempre se refieren exactamente a esos meses.",
+    "partialHint": "Los contratos reales que cubren solo parte del periodo están marcados con su duración; el consumo y el coste se refieren exactamente a esos días. Los contratos sombra cuentan como tarifa para todo el periodo, para que ofertas de distinta duración sean comparables.",
     "projectedFull": "extrapolado a {months} mes.: {value}",
     "realTotal": "Facturado realmente en el periodo: {value}",
     "noRows": "Ningún contrato con precio unitario en el periodo seleccionado.",
@@ -1373,7 +1396,8 @@
       "endsInDays": "en {days} días",
       "ends": "{provider} termina {when}",
       "fallbackProvider": "Contrato",
-      "checkNote": "Comprueba el plazo de preaviso y un contrato sucesor."
+      "checkNote": "Comprueba el plazo de preaviso y un contrato sucesor.",
+      "cancelBy": "Cancela {provider} antes del {date} (quedan {days} días); si no, el contrato continúa después del {end}."
     },
     "yoy": {
       "title": "Comparación anual · variaciones mensuales",
@@ -1643,7 +1667,9 @@
       "dateBeforeStart": "{field} no puede ser anterior al inicio del contrato.",
       "bonusNotNumeric": "El bono de bienvenida debe ser un número.",
       "bonusNegative": "El bono de bienvenida no puede ser negativo.",
-      "amountInvalid": "Entrada {label} n.º{n}: el importe «{value}» no es un número"
+      "amountInvalid": "Entrada {label} n.º{n}: el importe «{value}» no es un número",
+      "noticeDaysOutOfRange": "El plazo de preaviso en días debe estar entre 0 y 730.",
+      "noticeModeInvalid": "Modo de preaviso desconocido «{mode}» (permitidos: term_end, month_end, any_day)."
     },
     "delivery": {
       "notFound": "Entrega no encontrada: {id}",

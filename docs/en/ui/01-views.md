@@ -21,7 +21,8 @@ and a **sidebar** that is built dynamically from the *active* utilities
 
 The entry point. 12-month figures per utility, efficiency class **per heat
 source**, tank levels (oil/pellets), **electricity balance & self-sufficiency** for
-PV, the combined consumption history and due appointments. Since v2.7.0 the
+PV, the combined consumption history (as many months as set under *Months on
+dashboard* in the settings, since v2.9.0) and due appointments. Since v2.7.0 the
 efficiency class appears only in countries with a scale (Germany); elsewhere the
 card shows kWh/m²·yr and gives the reason ([country profiles](../functional/14-laenderprofile.md)).
 
@@ -68,6 +69,15 @@ consumed, paid, bonus, **special payments** (since v2.5.1: net from the
 customer's perspective, items in the tooltip; gas/electricity/district heating
 only), balance today and expected balance.
 
+**Since v2.9.0** the card calculates to the day: a switch or a price change in
+mid-month applies from its own day. Below the figures, notes appear when they
+apply — the contract has expired and runs on without cancellation (status
+**RENEWED**, end date = next billing date), the cancellation deadline has been
+missed, or an entered price increase is coming up (in Germany with the special
+right to cancel under § 41 Abs. 5 EnWG). The "reading overdue" banner follows
+the setting *Warn after* (days without a reading; warning from ⅔, alert from
+the value itself).
+
 **Implausible readings (v2.6.0):** if there are outliers, a falling reading
 without a meter swap or an unconfirmed suspect value from Home Assistant, a
 notice above the year selection lists the affected readings with a link to the
@@ -93,7 +103,10 @@ invoice is the cost basis.
 
 An HDD correlation scatter plot with the curves of **all five** models (linear,
 polynomial, robust, segmented, sigmoid) and their R² comparison, a year
-comparison and anomalies.
+comparison and anomalies. Above this, the contract reminders appear in three
+levels; since v2.9.0, when a notice period is maintained, they name the **cancellation
+deadline** ("Cancel … by …, otherwise the contract runs on beyond …"),
+otherwise the contract end.
 
 Since v2.8.0: filled points feed the curves, **hollow** ones are your own months
 outside the fit (partial month, too few heating degree days or temperatures),
@@ -192,9 +205,12 @@ Below, collapsed: the same tariffs applied to **actually measured** consumption
 — "what would tariff X have cost?". This is the proof. Anyone who sees the
 maths hold up on real data will also trust the forecast.
 
-Every row refers to **exactly the months that contract covers**: consumption,
-cost and difference all mean the same period. Contracts with a shorter term
-carry their month count as a marker, plus an extrapolation to the full period.
+Real contracts refer to **exactly the days they cover** — what the bill booked;
+contracts with a shorter term carry their month count as a marker, plus an
+extrapolation to the full period. **Shadow contracts count as a price sheet for
+the whole period** (since v2.9.0): an offer entered only from April to September
+used to look cheaper than the same offer for the whole year, because it was
+missing the winter.
 
 The **ct/unit** column holds the total cost per kWh or m³ — unit price,
 standing charge and bonuses combined. It is the only figure independent of the
@@ -234,8 +250,9 @@ Purely data-driven, no advertising.
 
 ## 9. Appointments & maintenance
 
-Recurring appointments (heating service, chimney sweep, calibration deadlines).
-Due/overdue ones appear on the dashboard; on completion the next appointment is
+Recurring appointments (heating service, chimney sweep, calibration deadlines —
+since v2.9.0 with a category of its own for heat meter calibration). Due/overdue
+ones appear on the dashboard; on completion the next appointment is
 rolled forward according to the recurrence.
 
 ![Appointments](../../ui/screenshots/termine.png)
@@ -308,7 +325,7 @@ Meter/device management incl. meter swap (the device chain) and contract mainten
 **meter swap** requires the final reading, shows the last known reading and
 summarises the swap before performing it. A **contract** needs a provider or tariff
 and at least one working price; the start is prefilled with the day after the
-current commitment, and the app asks before a new contract supersedes a running one. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
+current commitment, and the app asks before a new contract supersedes a running one. Since v2.9.0 the **Notice period** takes months, weeks or days, plus **Cancellation takes effect** ("automatic", "at the end of the term", "any time, at month end", "any time, to any day") and the **"Renews unless cancelled"** checkbox — clear it once you have cancelled. A meter with *Active* cleared still counts in every total, but no longer appears in the reading entry and raises no warnings. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
 management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading). For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as

@@ -30,7 +30,7 @@ kWh-Zähler, stark heizgetrieben — aber **ohne** Volumenumrechnung
 
 Arbeitspreis (ct/kWh) + Grundpreis (€/Monat, oft als Leistungspreis).
 Preisänderungen werden über die `working_prices`/`base_prices`-Historie
-mit Forward-Fill korrekt zeitlich zugeordnet.
+tagesgenau zugeordnet (seit v2.9.0; vorher ab dem Folgemonat).
 
 Rück-/Nachzahlungen und zusätzliche Abschlagszahlungen werden als
 **[Sonderzahlungen](10-sonderzahlungen.md)** (F1003) erfasst und gehen

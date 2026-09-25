@@ -5,12 +5,12 @@
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.8.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.9.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-379-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-398-success.svg)](tests/)
 [![PWA](https://img.shields.io/badge/PWA-installable-3d8bff.svg)](manifest.webmanifest)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
@@ -43,7 +43,7 @@ year-end settlement, with a suggested advance payment. On top of that: a statist
 recommendation engine, reminder/maintenance management, a tariff comparison with
 shadow contracts and a PDF annual report.
 
-> **Status:** v2.8.1 is the current public version (initial release was v1.0.2).
+> **Status:** v2.9.0 is the current public version (initial release was v1.0.2).
 > If you want to migrate from a privately run v0.9.0 backup, see
 > [Migration from v0.9.0](docs/MIGRATION-FROM-V090.md) — the v0.9.0 backup
 > format is supported by the migrator.
@@ -116,20 +116,27 @@ shadow contracts and a PDF annual report.
 
 - **Contract history** per meter: provider, tariff name, start/end, free-text
   note.
-- **Date-accurate price history** for working price (ct/consumption unit), base
-  price (€/month) and the monthly advance (€). Several effective dates per
-  contract are applied to the months as a forward fill.
+- **Day-accurate price history** for working price (ct/consumption unit), base
+  price (€/month) and the monthly advance (€): a contract switch or price
+  change in mid-month applies from its day, as on the bill (since v2.9.0). A
+  contract without a successor runs on at its last prices until it is
+  cancelled.
 - **Bonuses** with credit date, amount and label (new-customer, loyalty bonus,
   etc.).
 - **Balance calculation** per contract:
-  - *Current balance* = costs incurred so far − advances paid so far
-  - *Expected year-end balance* = current balance + (remaining months × avg
-    monthly cost − monthly advance). Open contracts are projected to the next
-    settlement date (configurable per utility, default 1 January).
+  - *Current balance* = costs up to today − advances due up to today, by
+    calendar; consumption since the last reading is estimated and shown as
+    such (since v2.8.0)
+  - *Expected year-end balance* = current balance + estimated remaining cost −
+    remaining advances, with a suggested advance. Open and running-on contracts
+    are projected to the next settlement date (configurable per utility,
+    default 1 January).
   - *Verdict*: refund / surcharge / balanced with a ±5 € threshold
-- **Contract-end reminder**: contracts whose end falls within a configurable
-  window (three levels, default 90 / 30 / 1 days) are shown as a staged hint in
-  the correlation view.
+- **Reminder at the cancellation deadline**: with a notice period (in months,
+  weeks or days) three levels (default 90 / 30 / 1 days) count down to the last
+  day to cancel, otherwise to the contract end; missed deadlines and announced
+  price increases (with a note on the special right to cancel) appear on the
+  balance card (since v2.9.0).
 
 ### Analysis
 
@@ -170,11 +177,12 @@ shadow contracts and a PDF annual report.
 
 ### Evaluation & insights (v1.3.0)
 
-- **Weather adjustment**: "consumed more, or just colder?" — consumption
-  normalised to the long-term calendar-month HDD, plus the regression
-  expectation and the deviation in per cent.
+- **Weather adjustment**: "consumed more, or just colder?" — a heating model per
+  meter, the expectation for every month and the deviation for the given
+  weather; the weather effect is converted to the 30-year climate normal (since
+  v2.8.0).
 - **Efficiency class** A+…H from the heating energy demand in kWh/m²·a,
-  configurable band limits, living area/year built/building type maintainable.
+  configurable band limits, living area/building type maintainable.
 - **Recommendation engine**: seven statistical rule families from your own data,
   with severity and individually dismissible.
 - **Sigmoid and auto-segmented regression model** in addition to
@@ -306,7 +314,7 @@ Or without Compose, directly with the published image:
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.8.1
+  ghcr.io/bingerminger/energietracker:2.9.0
 ```
 
 > Without `--name energietracker` Docker assigns a random name (e.g.
@@ -482,7 +490,7 @@ For the full list of configurable values see
 energietracker/
 ├── api.php                  ← 20-line entry point, delegates to src/bootstrap.php
 ├── index.php                ← SPA shell (sidebar + top bar, loads /public/js/app.js)
-├── VERSION                  ← "2.8.1"
+├── VERSION                  ← "2.9.0"
 ├── README.md                ← this file (English)
 ├── README.de.md             ← German version
 ├── CHANGELOG.md

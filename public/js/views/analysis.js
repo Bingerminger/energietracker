@@ -490,17 +490,21 @@ function renderContractReminders(contractStatus) {
 
   return due.map(c => {
     const stage = c.remind_stage || 1;
-    const days = c.days_until_end;
+    // v2.9.0 (CALC-11) — mit gepflegter Frist zählt der Kündigungsstichtag
+    const byCancel = c.remind_basis === 'cancel_by' && c.cancel_by;
+    const days = byCancel ? c.days_to_cancel : c.days_until_end;
     const provider = c.provider || c.tariff_name || t('analysis.contractEnd.fallbackProvider');
     const stageLabel = t('analysis.contractEnd.stage' + stage);
     const when = days === 0 ? t('analysis.contractEnd.endsToday')
       : days === 1 ? t('analysis.contractEnd.endsTomorrow')
       : t('analysis.contractEnd.endsInDays', { days });
+    const text = byCancel
+      ? t('analysis.contractEnd.cancelBy', { provider: escapeHtml(provider), date: fmt.date(c.cancel_by), days, end: fmt.date(c.end) })
+      : `${t('analysis.contractEnd.ends', { provider: escapeHtml(provider), when })} ${c.end ? `(${fmt.date(c.end)})` : ''}.`;
     return `
       <div class="banner ${stageClass[stage] || 'banner--info'}" style="margin-bottom: var(--sp-3)">
         <strong>${t('analysis.contractEnd.title', { stage: stageLabel })}</strong>
-        ${t('analysis.contractEnd.ends', { provider: escapeHtml(provider), when })}
-        ${c.end ? `(${fmt.date(c.end)})` : ''}.
+        ${text}
         <span class="muted"> ${t('analysis.contractEnd.checkNote')}</span>
       </div>
     `;

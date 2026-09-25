@@ -52,7 +52,7 @@ final class SettingsService
         // ── Forecast ──
         'blend_max'                => 0.80,
         'forecast_months'          => 12,
-        'min_temp_days_forecast'   => 20,
+        'min_temp_days_forecast'   => 20,       // veraltet (v2.9.0): ohne Wirkung, ersetzt durch die 90-%-Regel (ConsumptionService::hasTemperatureCoverage); entfällt mit v3.0.0
         'forecast_model'           => 'linear', // linear|polynomial|robust|segmented|sigmoid
 
         // ── Dashboard ──
@@ -117,7 +117,7 @@ final class SettingsService
 
         // ── v1.3.0 — Gebäude-Stammdaten für kWh/m²-Benchmark ──
         'wohnflaeche_m2'           => 100,
-        'baujahr'                  => null,
+        'baujahr'                  => null,    // veraltet (v2.9.0): ohne Wirkung, nicht mehr in der Oberfläche; entfällt mit v3.0.0
         'gebaeudetyp'              => 'efh',   // efh|mfh|reihenhaus|wohnung
 
         // ── v1.3.0 — Energieträger-Konstanten (Hu, CO₂) ──
@@ -231,10 +231,25 @@ final class SettingsService
                     'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
                 ]));
             }
+            // v2.9.0 (Review CALC-24) — Abrechnungsstichtag als echter
+            // Kalendertag (MM-TT). „13-45" ergab bisher ein unmögliches Datum
+            // und null verbleibende Monate im Saldo.
+            if (str_starts_with($k, 'billing_cycle_anchor_') && !self::isMonthDay($v)) {
+                throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
+                    'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
+                ]));
+            }
             $current[$k] = $v;
         }
         $this->store->write('settings.json', $current);
         return $this->all();
+    }
+
+    /** v2.9.0 — „MM-TT" als gültiger Kalendertag (der 29.02. zählt, Schaltjahr). */
+    public static function isMonthDay(mixed $v): bool
+    {
+        return is_string($v) && preg_match('/^(\d{2})-(\d{2})$/', $v, $m) === 1
+            && checkdate((int)$m[1], (int)$m[2], 2024);
     }
 
     /** Der ausgelieferte Default der Faktorliste — auch für die Migration. */

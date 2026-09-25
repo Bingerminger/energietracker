@@ -626,6 +626,30 @@ final class MeterService
     }
 
     /**
+     * v2.9.0 (Review CALC-15) — Was „inaktiv" heißt, steht hier und nur hier.
+     *
+     * Ein inaktiver Zähler ist **außer Betrieb**: Seine Historie bleibt wahr
+     * und zählt in jeder Summe (Verbrauchsart, Dashboard, CSV, PDF, Effizienz),
+     * aber er bekommt keine neuen Ablesungen, erscheint nicht in der Erfassung
+     * und löst keine Warnungen oder Empfehlungen aus. Bis v2.8 zählten Utility-
+     * Sicht und CSV ihn mit, PDF und Effizienz nicht — derselbe Wasserzähler
+     * ergab 138,8 m³ in der einen und 126,7 m³ in der anderen Sicht.
+     *
+     * `countsInTotals()`: gehört ein Zähler in Summen? Subzähler nie — sie sind
+     * im Elternzähler schon enthalten (F1006). `inService()`: ist er in Betrieb?
+     */
+    public static function countsInTotals(array $meter): bool
+    {
+        return ($meter['parent_meter_id'] ?? null) === null;
+    }
+
+    /** v2.9.0 — in Betrieb (Erfassung, Warnungen, Empfehlungen); s. countsInTotals() */
+    public static function inService(array $meter): bool
+    {
+        return ($meter['active'] ?? true) !== false;
+    }
+
+    /**
      * Die **wirksame** Zäsur eines Zählers: das späteste Ereignis, dessen
      * Datum nicht in der Zukunft liegt. Künftig datierte Ereignisse sind
      * gespeichert, wirken aber noch nicht.

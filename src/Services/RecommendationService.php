@@ -46,7 +46,8 @@ final class RecommendationService
 
         foreach ($activeUtilities as $utility) {
             foreach ($this->meters->list($utility) as $meter) {
-                if (($meter['active'] ?? true) === false) continue;
+                // v2.9.0 (CALC-15) — außer Betrieb: keine Empfehlungen
+                if (!MeterService::inService($meter)) continue;
                 $monthly = $this->consumption->forMeter($utility, $meter);
                 if (!empty($monthly)) {
                     $recs = array_merge($recs, $this->ruleWeatherIndependent($utility, $meter, $monthly));
@@ -296,16 +297,26 @@ final class RecommendationService
         $out = [];
         foreach ($status['contracts'] ?? [] as $c) {
             if (!($c['should_remind'] ?? false)) continue;
-            $days = $c['days_until_end'] ?? null;
+            // v2.9.0 (Review CALC-11) — mit gepflegter Frist zählt der
+            // Kündigungsstichtag; bisher kam die Erinnerung zum Vertragsende,
+            // oft nach Ablauf der Frist
+            $byCancel = ($c['remind_basis'] ?? null) === 'cancel_by';
+            $days = $byCancel ? ($c['days_to_cancel'] ?? null) : ($c['days_until_end'] ?? null);
             if ($days === null || $days < 0) continue;
+            $provider = (string)($c['provider'] ?? $c['tariff_name'] ?? '—');
             $out[] = $this->mk(
                 'r6', [$utility, $meter['id'], (string)($c['contract_id'] ?? $c['id'] ?? '')],
                 $days <= 14 ? 'urgent' : 'warning', 'vertrag',
-                $this->i18n->t('recommendations.engine.r6.title', ['label' => $this->utilLabel($utility), 'days' => $days]),
-                $this->i18n->t('recommendations.engine.r6.detail', [
-                    'provider' => (string)($c['provider'] ?? $c['tariff_name'] ?? '—'),
-                    'days'     => $days,
-                ]),
+                $byCancel
+                    ? $this->i18n->t('recommendations.engine.r6.titleCancel', ['label' => $this->utilLabel($utility), 'days' => $days, 'date' => $this->i18n->date((string)$c['cancel_by'])])
+                    : $this->i18n->t('recommendations.engine.r6.title', ['label' => $this->utilLabel($utility), 'days' => $days]),
+                $byCancel
+                    ? $this->i18n->t('recommendations.engine.r6.detailCancel', [
+                        'provider' => $provider,
+                        'date'     => $this->i18n->date((string)$c['cancel_by']),
+                        'end'      => $this->i18n->date((string)($c['end'] ?? '')),
+                    ])
+                    : $this->i18n->t('recommendations.engine.r6.detail', ['provider' => $provider, 'days' => $days]),
                 ['utility' => $utility, 'meter_id' => $meter['id']]
             );
         }

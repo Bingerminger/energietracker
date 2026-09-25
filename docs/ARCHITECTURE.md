@@ -106,10 +106,10 @@ und kennt kein HTTP. Aufruf-Sicht von außen geht über die Controller.
 | Service | Verantwortung |
 |---|---|
 | `SettingsService` | Read/merge der Settings-Datei, type-cast für numerische Werte |
-| `MeterService` | CRUD von Metern + F2 (Device-Replace) |
+| `MeterService` | CRUD von Metern + F2 (Device-Replace); `countsInTotals()`/`inService()` legen fest, was „inaktiv" heißt (v2.9.0) |
 | `ReadingService` | CRUD von Readings, Auto-Zuweisung von `device_id` zum aktiven Device |
-| `ContractService` | CRUD von Verträgen, F4-strikte Validierung, `valueValidOn(...)` für Stichtag-Lookup, `bonusForMonth(...)` |
-| `ConsumptionService` | Monatsaggregation, F2-Device-Bridging, F3-Multi-Meter-Aggregation, **`contractStatus()`** für Saldo-Karte; F-03 Abrechnungszyklus-Projektion offener Verträge, F-05 Vertragsende-Erinnerung, Schmutzwasser-`separater_zaehler`-Auflösung mit Rekursionssperre |
+| `ContractService` | CRUD von Verträgen, F4-strikte Validierung, `valueValidOn(...)`/`valueOnDate(...)` für Stichtag-Lookup, `bonusForMonth(...)`; seit v2.9.0 `segmentsBetween(...)` (tagesgenaue Abschnitte), `resolveForDate(...)` (weiterlaufender Vertrag) und `switchTiming(...)` (Kündigungsstichtag) |
+| `ConsumptionService` | Monatsaggregation, F2-Device-Bridging, F3-Multi-Meter-Aggregation, **`contractStatus()`** für Saldo-Karte; F-03 Abrechnungszyklus-Projektion offener und weiterlaufender Verträge, F-05 Erinnerung am Kündigungsstichtag (v2.9.0), Schmutzwasser-`separater_zaehler`-Auflösung mit Rekursionssperre |
 | `DeliveryConsumptionService` | **(v1.4.4)** Tages-Verbrauchsverteilung & Tank-Bestandsabzug für Heizöl/Pellets — aus `ConsumptionService` extrahiert |
 | `TemperatureService` | CSV-Import, Open-Meteo-Abgleich mit Quelle je Tag (`archive`/`forecast`/`csv`/`manual`), täglicher Auto-Sync (v2.8.0) |
 | `WeatherService` | Open-Meteo-API-Wrapper (Archiv, Vorhersage, 30-Jahres-Tagesmittel) hinter dem Interface `WeatherSource` |
@@ -219,21 +219,43 @@ Jeder Monat bekommt aus `temperatures.json` zugeordnet:
 - `m3 = kwh / unit_to_kwh_factor` (nur Gas)
 - `co2_kg = kwh × co2_setting / 1000`
 
-### Schritt 5 — Contract-Application
+### Schritt 5 — Contract-Application (seit v2.9.0 tagesgenau)
 
-Für jeden Monat wird der für das Monatsstart-Datum aktive Vertrag
-ermittelt (`ContractService::findActiveForDate(...)`). Daraus:
+`ContractService::segmentsBetween(...)` teilt jeden Monat an jedem
+Vertragsbeginn und -ende und an jedem Stichtag der Arbeitspreise,
+Grundpreise und Abschläge. Welcher Vertrag an einem Tag gilt, entscheidet
+`resolveForDate(...)`: bei Überlappung der spätere Beginn; nach einem
+Vertragsende ohne Nachfolger der zuletzt beendete Vertrag als Annahme
+(`assumed`), solange er nicht als gekündigt markiert ist
+(`auto_renews: false`). Je Abschnitt:
 
-- `working_price_ct` = stichtag-genauer Arbeitspreis (`valueValidOn`)
-- `base_price_eur` = stichtag-genauer Grundpreis
-- `advance_eur` = stichtag-genauer monatlicher Abschlag
-- `bonus_eur` = ggf. Bonus für diesen Monat (proportional zum Bonus-
-  Gutschriftdatum)
-- `kwh_cost = kwh × working_price_ct / 100`
+```
+Arbeitspreis = Verbrauch der Abschnittstage (aus Schritt 2)
+               × Preis am Abschnittstag (valueOnDate; nach dem Ende
+                 der Preis am letzten Vertragstag, priceDate)
+Grundpreis   = Monatsbetrag × Abschnittstage / Monatstage
+Abschlag     = Monatsbetrag am ersten Vertragstag des Monats
+               × Vertragstage / Monatstage
+Bonus        = je Vertrag; nicht für angenommene Abschnitte nach dem Ende
+```
+
+Die Monatszeile:
+
+- `contract_id` = Vertrag mit den meisten Tagen, `contract_assumed`
+- `working_price_ct` = mengengewichteter Arbeitspreis des Monats
+- `kwh_cost`, `base_price_eur`, `advance_eur`, `bonus_eur` = Summen der
+  Abschnitte
 - `cost = kwh_cost + base_price_eur − bonus_eur`
 - `monthly_balance = cost − advance_eur` (positiv = Unterzahlt)
-- `cumulative_balance` = laufender Saldo pro Vertrag-ID (resettet bei
-  jedem Vertragswechsel)
+- `cumulative_balance` = laufender Saldo pro Vertrag-ID
+- `contract_parts[]` — nur bei mehr als einem Vertrag im Monat: je Vertrag
+  `days`, `kwh`, `kwh_cost`, `base_price_eur`, `advance_eur`,
+  `bonus_eur`, `cost`, `assumed`
+
+Bis v2.8 galt der Vertrag vom Monatsersten für den ganzen Monat
+(`findActiveForDate(Monatserster)`). **Wasser** rechnet weiterhin so: Das
+Drei-Komponenten-Modell kennt keine Abschläge, und seine Tarife ändern sich
+zum Jahreswechsel.
 
 ### Schritt 6 — Moving Averages
 
@@ -247,26 +269,33 @@ Nach den Monatszeilen liefert `ConsumptionService::contractStatus()` pro
 Contract-ID die Aggregation:
 
 ```
-actual_kwh       = Σ kwh
-actual_cost      = Σ cost
+actual_kwh       = Σ kwh           (gemessene Monate; bei zwei Verträgen
+actual_cost      = Σ cost           im Monat nur der Teil dieses Vertrags)
 actual_kwh_cost  = Σ kwh_cost
 actual_base_total  = Σ base_price_eur
 actual_bonus_total = Σ bonus_eur
-advance_paid     = Σ advance_eur
 months_actual    = count(Monate)
-current_balance  = actual_cost − advance_paid
 ```
 
-Für den **erwarteten End-Saldo** wird über die verbleibenden Monate
-extrapoliert:
+Der **Saldo** rechnet seit v2.8.0 nach Kalender bis heute
+(`balanceProjection`), wie die Jahresabrechnung:
 
 ```
-months_to_end   = monthsBetween(today, effective_end)
-avg_monthly_cost = actual_cost / months_actual
-monthly_advance  = current_advance_amount
-delta_remaining  = (avg_monthly_cost − monthly_advance) × months_to_end
-projected_end_balance = current_balance + delta_remaining
+cost_to_date          = energy_cost_to_date + base_to_date − bonus_to_date
+advance_paid          = Abschläge nach Zahlungsplan bis einschließlich
+                        des laufenden Monats
+current_balance       = cost_to_date − advance_paid + special_payment_net
+projected_end_balance = current_balance + estimated_cost_remaining
+                        − advance_remaining
 ```
+
+Der Verbrauch seit der letzten Ablesung wird geschätzt (Heizmodell bzw.
+Saisonprofil). Offene und weiterlaufende Verträge (`renewed`, seit v2.9.0)
+rechnen bis zum nächsten Abrechnungsstichtag. Dazu kommen seit v2.9.0 der
+Kündigungsstichtag (`ContractService::switchTiming`: `cancel_by`,
+`switch_date`, `notice_basis`), die Erinnerungsstufe relativ zu diesem Tag
+(`remind_basis`), `cancel_missed` und die nächste eingetragene
+Preiserhöhung (`price_increase`).
 
 `verdict`-Schwelle:
 - `Nachzahlung` wenn `projected > +5 €`
@@ -297,18 +326,21 @@ forecast_kwh = weight × regression_pred + (1 − weight) × seasonal_avg
 Bei `hgt_relevant: false` (Wasser) wird `weight = 0` gesetzt — die
 Vorhersage besteht ausschließlich aus dem Saisonprofil.
 
-**Kostenprognose (F-02, seit v1.1.0).** Pro Prognosemonat löst
-`projectMonthFinances()` den dann aktiven Vertrag auf und verwendet den
-für diesen Monat gültigen Arbeits- und Grundpreis aus der Preishistorie
-(`ContractService::valueValidOn(...)`). Daraus entstehen `cost_estimated`
-(Arbeitspreis × Menge + Grundpreis − bekannte Boni), `advance_estimated`
-(der gültige Abschlag) und `balance_running` (kumuliert Kosten − Abschlag).
-Künftige Boni werden nicht fortgeschrieben. Fehlt ein aktiver Vertrag,
-greift `last_price_ct` als Fallback-Arbeitspreis.
+**Kostenprognose (F-02, seit v1.1.0).** Pro Prognosemonat entstehen
+`cost_estimated` (Arbeitspreis × Menge + Grundpreis − bekannte Boni),
+`advance_estimated` (der gültige Abschlag) und `balance_running`
+(kumuliert Kosten − Abschlag). Seit v2.9.0 teilt `projectStandardMonth()`
+den Monat wie die Ist-Rechnung an Vertrags- und Preisstichtagen
+(`segmentsBetween`); die Menge verteilt sich nach Tagen auf die Abschnitte,
+Grundpreis und Abschlag anteilig. Nach einem Vertragsende ohne Nachfolger
+läuft der letzte Vertrag als Annahme weiter (`contract_assumed`). Wasser
+löst den Vertrag weiterhin am Monatsersten auf (`resolveForDate`). Künftige
+Boni werden nicht fortgeschrieben. Fehlt jeder Vertrag, greift
+`last_price_ct` als Fallback-Arbeitspreis.
 
 ---
 
-## 6. Settings-Inventar (28 Schlüssel)
+## 6. Settings-Inventar (Auswahl)
 
 | Schlüssel | Typ | Default | Bedeutung |
 |---|---|---|---|
@@ -321,11 +353,11 @@ greift `last_price_ct` als Fallback-Arbeitspreis.
 | `min_hdd_regression` | float | 5 | Mindest-HGT pro Monat zur Berücksichtigung in der Regression |
 | `blend_max` | float | 0.8 | Maximales Gewicht der Regressionskomponente im Forecast |
 | `forecast_months` | int | 12 | Forecast-Horizont in Monaten |
-| `min_temp_days_forecast` | int | 20 | Mindest-Tage Temperaturdaten pro Monat zur Verwendung |
+| `min_temp_days_forecast` | int | 20 | **Veraltet (v2.9.0), ohne Wirkung**, entfällt mit v3.0.0 — ein Monat zählt, wenn für 90 % seiner Verbrauchstage Temperaturen vorliegen (seit v2.8.0) |
 | `forecast_model` | string | `linear` | Default-Modell für den Forecast (`linear`/`polynomial`/`robust`/`segmented`/`sigmoid`) |
 | `confidence_band_sigma` | float | 1.28 | Breite des Prognosebands in Standardabweichungen (1,28 ≈ 80 % der Jahre; bis v2.7 ohne Wirkung) |
-| `dashboard_months` | int | 12 | Wie viele Monate auf dem Dashboard zeigen |
-| `alert_days_since_reading` | int | 45 | Status-Banner-Schwelle „Ablesung überfällig" |
+| `dashboard_months` | int | 12 | Monate im Verbrauchsverlauf des Dashboards (3–36; seit v2.9.0 wirksam, vorher fest 12) |
+| `alert_days_since_reading` | int | 45 | Status-Banner „Ablesung überfällig": Warnung ab ⅔ der Tage, Alarm danach (seit v2.9.0 wirksam, vorher fest 30/60) |
 | `anomaly_threshold` | float | 2 | Schwelle (robuster z-Wert) für die Anomalie-Erkennung |
 | `location_name` | string | "Leipzig Zentrum" | Anzeigename des Standorts |
 | `latitude` | float | 51.3397 | Geo-Lat für Open-Meteo |
@@ -333,12 +365,12 @@ greift `last_price_ct` als Fallback-Arbeitspreis.
 | `weather_auto_fill` | bool | true | Temperaturen einmal am Tag beim Öffnen der App von Open-Meteo holen (seit v2.8.0 wirksam; übermittelt den gerundeten Standort) |
 | `wasser_personen_anzahl` | int | 2 | Personen im Haushalt für Wasser-Referenz |
 | `wasser_personen_referenz` | int | 127 | Referenz-Liter pro Person pro Tag |
-| `billing_cycle_anchor_gas` | string | `01-01` | Abrechnungsstichtag Gas (`MM-TT`); Saldo offener Verträge wird bis dorthin projiziert (F-03) |
+| `billing_cycle_anchor_gas` | string | `01-01` | Abrechnungsstichtag Gas (`MM-TT`, seit v2.9.0 als echter Kalendertag geprüft, sonst 400); Saldo offener und weiterlaufender Verträge wird bis dorthin projiziert (F-03) |
 | `billing_cycle_anchor_strom` | string | `01-01` | Abrechnungsstichtag Strom (F-03) |
 | `billing_cycle_anchor_wasser` | string | `01-01` | Abrechnungsstichtag Wasser (F-03) |
-| `contract_remind_days_1` | int | 90 | Vertragsende-Erinnerung Stufe 1 — Tage vorher (F-05) |
-| `contract_remind_days_2` | int | 30 | Vertragsende-Erinnerung Stufe 2 (F-05) |
-| `contract_remind_days_3` | int | 1 | Vertragsende-Erinnerung Stufe 3 — dringend (F-05) |
+| `contract_remind_days_1` | int | 90 | Erinnerung Stufe 1 — Tage vor dem Kündigungsstichtag, ohne Frist vor dem Vertragsende (F-05; Stichtag seit v2.9.0) |
+| `contract_remind_days_2` | int | 30 | Erinnerung Stufe 2 (F-05) |
+| `contract_remind_days_3` | int | 1 | Erinnerung Stufe 3 — dringend (F-05) |
 | `wasser_sparindex_gut` | int | 100 | Wasser-Spar-Index: Werte ≤ gelten als unauffällig (F-10) |
 | `wasser_sparindex_warnung` | int | 150 | Wasser-Spar-Index: Werte ≥ zeigen Sparpotenzial (F-10) |
 

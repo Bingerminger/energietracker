@@ -108,10 +108,10 @@ HTTP**.
 | `SettingsService` | read/merge settings, type casts; defaults in `DEFAULTS`; cached per data state (v2.6.0) |
 | `ConversionFactorService` | dated gas factors (F1012), day-exact |
 | `I18nService` | catalogues, `t()`, language from the setting or `Accept-Language`; maps messages to their error code (v2.6.0) |
-| `MeterService` | CRUD meters/tanks, device swap, topology (submeters/groups, F1006) + `external_id` alias (F1009) |
+| `MeterService` | CRUD meters/tanks, device swap, topology (submeters/groups, F1006) + `external_id` alias (F1009); `countsInTotals()`/`inService()`: a meter out of service counts in totals, not in capture and warnings (v2.9.0) |
 | `ReadingService` | CRUD readings, auto-assignment to the active device; capture overview with the typical daily consumption; batch upsert for the CSV import (v2.6.0) |
-| `ContractService` | CRUD contracts, strict validation, effective-date lookup |
-| `ConsumptionService` | monthly aggregation (cumulative **and** delivery-based), balance by calendar, heating model and weather adjustment (v2.8.0); delegates the delivery daily distribution to `DeliveryConsumptionService`; since v2.6.0 plausibility (outliers, suspicion, rollover) with `warnings` |
+| `ContractService` | CRUD contracts, strict validation, effective-date lookup; since v2.9.0 day-exact segments (`segmentsBetween`), renewed contract (`resolveForDate`), cancellation deadline (`switchTiming`) |
+| `ConsumptionService` | monthly aggregation (cumulative **and** delivery-based), balance by calendar, heating model and weather adjustment (v2.8.0); contracts day-exact with `contract_parts` (v2.9.0); delegates the delivery daily distribution to `DeliveryConsumptionService`; since v2.6.0 plausibility (outliers, suspicion, rollover) with `warnings` |
 | `DeliveryConsumptionService` | **(since v1.4.4)** daily consumption distribution & tank stock draw for heating oil/pellets — extracted from `ConsumptionService` (~350 lines) |
 | `DeliveryService` | CRUD deliveries, tank stock curve |
 | `TemperatureService` | CSV import, Open-Meteo sync with a source per day, daily auto-sync (v2.8.0) |

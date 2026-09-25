@@ -343,18 +343,19 @@ final class ForecastService
         float $priceFactor
     ): array {
         $first = sprintf('%04d-%02d-01', $year, $month);
-        $c = $this->contracts->findActiveForDate($contracts, $first);
-        $assumed = false;
+        if ($utility !== 'wasser') {
+            return $this->projectStandardMonth($contracts, $year, $month, $volume, $fallbackPriceCt, $priceFactor);
+        }
         // v2.8.0 (CALC-12) — ohne Folgevertrag läuft der letzte weiter, zu
         // seinen letzten Preisen. Bisher fielen Grundpreis und Abschlag weg.
+        // v2.9.0 — nur, wenn er sich verlängert (`auto_renews`).
+        $r = $this->contracts->resolveForDate($contracts, $first);
+        $c = $r['contract'] ?? null;
+        $assumed = $r['assumed'] ?? false;
         $asOfYear = $year; $asOfMonth = $month;
-        if (!$c) {
-            $c = self::lastEndedBefore($contracts, $first);
-            if ($c) {
-                $assumed = true;
-                $asOfYear = (int)substr((string)$c['end'], 0, 4);
-                $asOfMonth = (int)substr((string)$c['end'], 5, 2);
-            }
+        if ($assumed) {
+            $asOfYear = (int)substr((string)$c['end'], 0, 4);
+            $asOfMonth = (int)substr((string)$c['end'], 5, 2);
         }
 
         if (!$c) {
@@ -373,75 +374,100 @@ final class ForecastService
         // „mit Auswirkung" ändert den Abschlag ab ihrem Datum.
         $advancePlan = $this->contracts->effectiveAdvanceSchedule($c);
 
-        if ($utility === 'wasser') {
-            $tw = $c['trinkwasser']         ?? [];
-            $sw = $c['schmutzwasser']       ?? [];
-            $nw = $c['niederschlagswasser'] ?? [];
+        // Wasser: monatlich (Preise der Stadtwerke wechseln zum Jahresbeginn)
+        $tw = $c['trinkwasser']         ?? [];
+        $sw = $c['schmutzwasser']       ?? [];
+        $nw = $c['niederschlagswasser'] ?? [];
 
-            $twWp = $this->contracts->valueValidOn($tw['working_prices'] ?? [], 'ct_per_m3', $asOfYear, $asOfMonth);
-            $twBp = $this->contracts->valueValidOn($tw['base_prices']    ?? [], 'eur_per_month', $asOfYear, $asOfMonth);
-            $swWp = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $asOfYear, $asOfMonth);
-            // Niederschlagswasser rates carry two fields per entry; valueValidOn
-            // walks the same sorted list for each, so both resolve to the same
-            // stichtag entry.
-            $nwRate = $this->contracts->valueValidOn($nw['rates'] ?? [], 'eur_per_m2_year', $asOfYear, $asOfMonth);
-            $nwArea = $this->contracts->valueValidOn($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $asOfYear, $asOfMonth);
+        $twWp = $this->contracts->valueValidOn($tw['working_prices'] ?? [], 'ct_per_m3', $asOfYear, $asOfMonth);
+        $twBp = $this->contracts->valueValidOn($tw['base_prices']    ?? [], 'eur_per_month', $asOfYear, $asOfMonth);
+        $swWp = $this->contracts->valueValidOn($sw['working_prices'] ?? [], 'ct_per_m3', $asOfYear, $asOfMonth);
+        // Niederschlagswasser rates carry two fields per entry; valueValidOn
+        // walks the same sorted list for each, so both resolve to the same
+        // stichtag entry.
+        $nwRate = $this->contracts->valueValidOn($nw['rates'] ?? [], 'eur_per_m2_year', $asOfYear, $asOfMonth);
+        $nwArea = $this->contracts->valueValidOn($nw['rates'] ?? [], 'versiegelte_flaeche_m2', $asOfYear, $asOfMonth);
 
-            $twPrice   = $twWp !== null ? (float)$twWp * $priceFactor : $fallbackPriceCt;
-            $twWorking = $volume * $twPrice / 100.0;
-            $twBase    = $twBp !== null ? (float)$twBp : 0.0;
-            // See class docblock: the separate-meter volume is not forecast;
-            // the Trinkwasser volume is used as the Schmutzwasser basis here.
-            $swCost = $swWp !== null ? $volume * (float)$swWp * $priceFactor / 100.0 : 0.0;
-            $nwMonthly = ($nwRate !== null && $nwArea !== null)
-                ? (float)$nwRate * (float)$nwArea / 12.0
-                : 0.0;
+        $twPrice   = $twWp !== null ? (float)$twWp * $priceFactor : $fallbackPriceCt;
+        $twWorking = $volume * $twPrice / 100.0;
+        $twBase    = $twBp !== null ? (float)$twBp : 0.0;
+        // See class docblock: the separate-meter volume is not forecast;
+        // the Trinkwasser volume is used as the Schmutzwasser basis here.
+        $swCost = $swWp !== null ? $volume * (float)$swWp * $priceFactor / 100.0 : 0.0;
+        $nwMonthly = ($nwRate !== null && $nwArea !== null)
+            ? (float)$nwRate * (float)$nwArea / 12.0
+            : 0.0;
 
-            $cost = $twWorking + $twBase + $swCost + $nwMonthly - $bonus;
-            $ap   = $this->contracts->valueValidOn($advancePlan, 'amount_eur', $asOfYear, $asOfMonth);
-
-            return [
-                'cost'             => $cost,
-                'advance'          => $ap !== null ? (float)$ap : null,
-                'working_price_ct' => $twWp !== null ? $twPrice : null,
-                'contract_id'      => $c['id'] ?? null,
-                'assumed'          => $assumed,
-            ];
-        }
-
-        // Gas / Strom — flat shape.
-        $wp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $asOfYear, $asOfMonth);
-        $bp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $asOfYear, $asOfMonth);
-        $ap = $this->contracts->valueValidOn($advancePlan, 'amount_eur', $asOfYear, $asOfMonth);
-
-        $price       = $wp !== null ? (float)$wp * $priceFactor : $fallbackPriceCt;
-        $workingCost = $volume * $price / 100.0;
-        $base        = $bp !== null ? (float)$bp : 0.0;
-        $cost        = $workingCost + $base - $bonus;
+        $cost = $twWorking + $twBase + $swCost + $nwMonthly - $bonus;
+        $ap   = $this->contracts->valueValidOn($advancePlan, 'amount_eur', $asOfYear, $asOfMonth);
 
         return [
             'cost'             => $cost,
             'advance'          => $ap !== null ? (float)$ap : null,
-            'working_price_ct' => $wp !== null ? $price : $fallbackPriceCt,
+            'working_price_ct' => $twWp !== null ? $twPrice : null,
             'contract_id'      => $c['id'] ?? null,
             'assumed'          => $assumed,
         ];
     }
 
     /**
-     * Der zuletzt beendete Vertrag vor einem Tag (für die Fortschreibung).
+     * v2.9.0 (Review CALC-10) — Finanzen eines Prognosemonats für Gas, Strom,
+     * Fernwärme und Einspeisung, tagesgenau wie die Rechnung: Der Monat wird an
+     * Vertrags- und Preisstichtagen geteilt, die Menge verteilt sich
+     * gleichmäßig auf die Tage, Grundpreis tagesanteilig, Abschlag als
+     * Monatsbetrag anteilig nach Vertragstagen. Ein beendeter Vertrag ohne
+     * Nachfolger läuft als Annahme weiter, wenn er sich verlängert.
      *
      * @param array<int,array<string,mixed>> $contracts
+     * @return array{cost:float,advance:?float,working_price_ct:?float,contract_id:?string,assumed:bool}
      */
-    private static function lastEndedBefore(array $contracts, string $date): ?array
+    private function projectStandardMonth(array $contracts, int $year, int $month, float $volume, float $fallbackPriceCt, float $priceFactor): array
     {
-        $best = null;
-        foreach ($contracts as $c) {
-            $end = (string)($c['end'] ?? '');
-            if ($end === '' || $end >= $date || ($c['start'] ?? '9999') > $date) continue;
-            if ($best === null || $end > (string)$best['end']) $best = $c;
+        $monthStart = sprintf('%04d-%02d-01', $year, $month);
+        $nextMonth  = date('Y-m-d', strtotime($monthStart . ' +1 month'));
+        $dim        = (int)date('t', strtotime($monthStart));
+
+        $cost = 0.0; $advance = null; $energyCost = 0.0; $energyVol = 0.0;
+        $byContract = [];   // id → [days, assumed, contract, first]
+        foreach ($this->contracts->segmentsBetween($contracts, $monthStart, $nextMonth) as $seg) {
+            $vol = $volume * $seg['days'] / $dim;
+            $c = $seg['contract'];
+            if ($c === null) {
+                $cost += $vol * $fallbackPriceCt / 100.0;
+                continue;
+            }
+            $date = ContractService::priceDate($seg);
+            $wp = $this->contracts->valueOnDate($c['working_prices'] ?? [], 'ct_per_kwh', $date);
+            $bp = $this->contracts->valueOnDate($c['base_prices'] ?? [], 'eur_per_month', $date);
+            $price = $wp !== null ? $wp * $priceFactor : $fallbackPriceCt;
+            $cost += $vol * $price / 100.0 + ($bp !== null ? $bp * $seg['days'] / $dim : 0.0);
+            $energyCost += $vol * $price; $energyVol += $vol;
+            $byContract[$c['id']] ??= ['days' => 0, 'assumed' => false, 'contract' => $c, 'first' => $date];
+            $byContract[$c['id']]['days'] += $seg['days'];
+            $byContract[$c['id']]['assumed'] = $byContract[$c['id']]['assumed'] || $seg['assumed'];
         }
-        return $best;
+        if ($byContract === []) {
+            // Kein Vertrag — letzter bekannter Einheitspreis
+            return ['cost' => $cost, 'advance' => null, 'working_price_ct' => $fallbackPriceCt,
+                    'contract_id' => null, 'assumed' => false];
+        }
+        foreach ($byContract as $b) {
+            $c = $b['contract'];
+            // Boni nur in der eigentlichen Laufzeit; der effektive
+            // Abschlagsplan berücksichtigt „mit Auswirkung" (v2.8.0)
+            if (!$b['assumed']) $cost -= $this->contracts->bonusForMonth($c, $year, $month);
+            $ap = $this->contracts->valueOnDate($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $b['first']);
+            if ($ap !== null) $advance = ($advance ?? 0.0) + $ap * min(1.0, $b['days'] / $dim);
+        }
+        uasort($byContract, fn($x, $z) => [$z['days'], (string)($z['contract']['start'] ?? '')] <=> [$x['days'], (string)($x['contract']['start'] ?? '')]);
+        $main = $byContract[array_key_first($byContract)];
+        return [
+            'cost'             => $cost,
+            'advance'          => $advance,
+            'working_price_ct' => $energyVol > 0 ? $energyCost / $energyVol : $fallbackPriceCt,
+            'contract_id'      => (string)array_key_first($byContract),
+            'assumed'          => $main['assumed'],
+        ];
     }
 
     /** Standardnormalverteilung (Abramowitz/Stegun 26.2.17, Fehler < 7,5·10⁻⁸). */

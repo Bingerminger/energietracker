@@ -107,7 +107,7 @@
       "inDays": "in {days} d"
     },
     "allLink": "all",
-    "chart": { "title": "12-month consumption (all utilities)", "alt": "Line chart: consumption of the last 12 months per utility" },
+    "chart": { "title": "{months}-month consumption (all utilities)", "alt": "Line chart: consumption of the last {months} months per utility" },
     "card": { "meters": "Meters", "details": "Details" },
     "groups": { "summary": "Groups ({count})" },
     "kpi": {
@@ -245,7 +245,6 @@
       "subOverpaid": "Overpaid",
       "verdictLabel": "Expected at settlement",
       "dateNext": "next settlement: {date}",
-      "dateEstOpen": "estimated end: {date} (open contract, +12 m)",
       "dateEnd": "contract end: {date}",
       "components": "💧 Components",
       "tw": "Drinking water",
@@ -261,7 +260,13 @@
       "consShort": "{value} usage",
       "gpPlus": " + {value} base",
       "suggestAdvance": "With an advance of {suggested} instead of {current}, the bill would come out at about ±0.",
-      "measuredThenEstimated": "measured up to {date} ({kwh} kWh), estimated since: {value}"
+      "measuredThenEstimated": "measured up to {date} ({kwh} kWh), estimated since: {value}",
+      "renewed": "The term ended on {date}. Without cancellation the contract runs on at its last prices and can be cancelled any time with at most one month’s notice.",
+      "cancelMissed": "Cancellation deadline {date} missed: the contract does not end on {end} but runs on — after that it can be cancelled with at most one month’s notice.",
+      "priceIncrease": "Price increase from {date}: {what}.",
+      "piWorking": "energy price {from} → {to} {minor}/kWh",
+      "piBase": "standing charge {from} → {to} {cur}/month",
+      "priceIncreaseDe": "Until then you have a special right to cancel effective on the day of the increase (§ 41 (5) EnWG)."
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -284,7 +289,8 @@
       "gpSuffix": "{value} {cur} base",
       "colSpecial": "Special payments",
       "colSpecialTitle": "Net of special payments: refunds from the supplier count positive, back-payments and extra advance payments negative. Individual items in the cell tooltip.",
-      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Hover the cell for the individual items; they are maintained in the contract management."
+      "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Hover the cell for the individual items; they are maintained in the contract management.",
+      "stateRenewed": "RENEWED"
     },
     "monthlyTable": {
       "noData": "No data for this year.",
@@ -509,7 +515,7 @@
       "create": "Create",
       "validationHalfRows": "Please complete or clear half-empty rows",
       "saved": "Contract saved",
-      "noticePeriod": "Notice period (months)",
+      "noticePeriod": "Notice period",
       "noticePeriodPlaceholder": "e.g. 1",
       "noticePeriodHint": "The tariff comparison derives the cancellation date from this and warns before the deadline passes.",
       "priceGuarantee": "Price guaranteed until",
@@ -520,7 +526,23 @@
       "workingPriceRequired": "At least one “{group}” row with date and amount is required.",
       "supersedeTitle": "Replace the running contract?",
       "supersedeMessage": "From {date} this contract applies instead of “{name}” – where contracts overlap, the later start wins. Balance and forecast then use the new prices.",
-      "supersedeOk": "Yes, replace"
+      "supersedeOk": "Yes, replace",
+      "noticeUnitLabel": "Unit of the notice period",
+      "noticeUnit": {
+        "months": "months",
+        "weeks": "weeks",
+        "days": "days"
+      },
+      "noticeMode": "Cancellation takes effect",
+      "noticeModeOption": {
+        "auto": "automatic",
+        "term_end": "at the end of the term",
+        "month_end": "any time, at month end",
+        "any_day": "any time, to any day"
+      },
+      "noticeModeHint": "Automatic: at the end of the term; without an end, any time at month end. Default supply (Grundversorgung), for example, can be cancelled any time with two weeks’ notice.",
+      "autoRenews": "Renews unless cancelled",
+      "autoRenewsHint": "After the end the contract runs on at its last prices until it is cancelled — then with at most one month’s notice. Clear this once you have cancelled."
     },
     "delete": { "title": "Delete contract?", "message": "Delete contract permanently?", "confirm": "Delete", "deleted": "Contract deleted" },
     "deleteContract": "Delete contract",
@@ -661,7 +683,8 @@
       "save": "Save",
       "saved": "Meter saved",
       "digits": "Register digits (before the decimal point)",
-      "digitsHint": "Only needed if the register can roll over from 99999 to 0: the analysis then recognises the rollover instead of reporting a decrease. Empty = unknown."
+      "digitsHint": "Only needed if the register can roll over from 99999 to 0: the analysis then recognises the rollover instead of reporting a decrease. Empty = unknown.",
+      "activeHint": "Clear this when the meter is out of service: its history still counts in every total, but it no longer appears in the reading entry and raises no warnings."
     },
     "replace": {
       "title": "Meter swap: {name}",
@@ -723,7 +746,6 @@
   "settings": {
     "placeholder": {
       "dayMonth": "DD-MM (01-01)",
-      "yearExample": "e.g. 1998",
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Loading…",
@@ -786,7 +808,6 @@
       "min_hdd_regression": { "label": "Min. HDD for regression" },
       "blend_max": { "label": "Max. blend weight" },
       "forecast_months": { "label": "Forecast horizon" },
-      "min_temp_days_forecast": { "label": "Min. temp days forecast" },
       "forecast_model": { "label": "Default model" },
       "segmented_split_mode": { "label": "Segment breakpoint", "hint": "auto = fitted from data, fixed = fixed HDD value below." },
       "segmented_fixed_split": { "label": "Fixed breakpoint", "hint": "Only effective in “fixed” mode." },
@@ -794,7 +815,6 @@
       "dashboard_months": { "label": "Months on dashboard" },
       "alert_days_since_reading": { "label": "Warn after" },
       "wohnflaeche_m2": { "label": "Living area", "hint": "Heated area — denominator of the efficiency metric." },
-      "baujahr": { "label": "Year built" },
       "gebaeudetyp": { "label": "Building type", "hint": "efh = detached, rh = terraced, mfh = multi-family, whg = flat." },
       "heizoel_kwh_per_l": { "label": "Heating oil energy content" },
       "pellets_kwh_per_kg": { "label": "Pellets energy content" },
@@ -1126,7 +1146,8 @@
       "wasserzaehler_eichung": "Water meter calibration",
       "dichtheitspruefung": "Leak test",
       "lieferung_planen": "Plan delivery",
-      "custom": "Other"
+      "custom": "Other",
+      "waermezaehler_eichung": "Heat meter calibration"
     },
     "recurrence": { "none": "One-time", "yearly": "Yearly", "semi-yearly": "Half-yearly", "custom-months": "Every N months" },
     "due": { "today": "today", "inDays": "in {days} d", "agoDays": "{days} d ago" },
@@ -1214,7 +1235,9 @@
       },
       "r6": {
         "title": "{label}: contract ends in {days} days",
-        "detail": "The contract “{provider}” ends in {days} days. Start a tariff comparison now and switch if needed."
+        "detail": "The contract “{provider}” ends in {days} days. Start a tariff comparison now and switch if needed.",
+        "titleCancel": "{label}: cancel by {date} ({days} days)",
+        "detailCancel": "For the contract “{provider}” to end on {end} instead of running on, the cancellation must reach the supplier by {date}. Start a tariff comparison now and switch if needed."
       },
       "r7": {
         "title": "{label}: efficiency class {class} ({kwh} kWh/m²·a)",
@@ -1240,7 +1263,7 @@
     "shadowFallbackLabel": "Hypothesis",
     "months": "{count} mo.",
     "monthsOne": "1 month",
-    "partialHint": "Contracts covering only part of the period are marked with their duration. Consumption and cost always refer to exactly those months.",
+    "partialHint": "Real contracts covering only part of the period are marked with their duration; consumption and cost refer to exactly those days. Shadow contracts count as a price sheet for the whole period — so offers with different terms stay comparable.",
     "projectedFull": "extrapolated to {months} mo.: {value}",
     "realTotal": "Actually billed in this period: {value}",
     "noRows": "No contracts with a unit price in the selected period.",
@@ -1373,7 +1396,8 @@
       "endsInDays": "in {days} days",
       "ends": "{provider} ends {when}",
       "fallbackProvider": "Contract",
-      "checkNote": "Check the notice period and a follow-up contract."
+      "checkNote": "Check the notice period and a follow-up contract.",
+      "cancelBy": "Cancel {provider} by {date} ({days} days left), otherwise the contract runs on beyond {end}."
     },
     "yoy": {
       "title": "Year comparison · monthly deltas",
@@ -1643,7 +1667,9 @@
       "dateBeforeStart": "{field} must not be before the contract start.",
       "bonusNotNumeric": "The sign-up bonus must be a number.",
       "bonusNegative": "The sign-up bonus must not be negative.",
-      "amountInvalid": "{label} entry #{n}: amount “{value}” is not a number"
+      "amountInvalid": "{label} entry #{n}: amount “{value}” is not a number",
+      "noticeDaysOutOfRange": "The notice period in days must be between 0 and 730.",
+      "noticeModeInvalid": "Unknown notice mode “{mode}” (allowed: term_end, month_end, any_day)."
     },
     "delivery": {
       "notFound": "Delivery not found: {id}",

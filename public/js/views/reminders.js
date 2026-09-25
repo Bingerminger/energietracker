@@ -11,7 +11,7 @@ import { escapeHtml as esc, todayIso, fmt } from '../lib/format.js';
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
 const STATUS_RANK = { overdue: 0, due: 1, due_soon: 2, ok: 3 }; // B — Sortierreihenfolge
-const CATEGORY_KEYS = ['heizung_wartung', 'schornsteinfeger', 'gaszaehler_eichung', 'stromzaehler_eichung', 'wasserzaehler_eichung', 'dichtheitspruefung', 'lieferung_planen', 'custom'];
+const CATEGORY_KEYS = ['heizung_wartung', 'schornsteinfeger', 'gaszaehler_eichung', 'stromzaehler_eichung', 'wasserzaehler_eichung', 'waermezaehler_eichung', 'dichtheitspruefung', 'lieferung_planen', 'custom'];
 const RECURRENCE_KEYS = ['none', 'yearly', 'semi-yearly', 'custom-months'];
 
 const catLabel = (k) => { const v = t('reminders.category.' + k); return v === 'reminders.category.' + k ? k : v; };

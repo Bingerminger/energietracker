@@ -58,9 +58,13 @@ final class TariffComparisonServiceTest extends ServiceTestCase
      * Schattenvertrag, der erst zur Jahresmitte beginnt (30 ct).
      *
      * Vor v2.2.0 bekam der Schattenvertrag den vollen Jahresverbrauch
-     * zugeschrieben und wies dadurch eine Ersparnis aus, obwohl er teurer ist.
+     * zugeschrieben, aber nur ein halbes Jahr Kosten, und wies dadurch eine
+     * Ersparnis aus, obwohl er teurer ist. v2.2.0 zählte dann nur seine eigenen
+     * Monate — das machte Sommerangebote um den Winter billiger (Review
+     * CALC-21). Seit v2.9.0 ist ein Schattenvertrag ein Preisblatt: Er gilt für
+     * den ganzen Zeitraum, Verbrauch UND Kosten.
      */
-    public function testHalfYearShadowReportsOnlyItsOwnMonths(): void
+    public function testShadowTariffAppliesToTheWholePeriod(): void
     {
         $meterId = $this->seedYear();
 
@@ -85,15 +89,55 @@ final class TariffComparisonServiceTest extends ServiceTestCase
             'Ohne Grundpreis ist der Einheitspreis der Arbeitspreis');
 
         $shadow = $byLabel['Halbjahr'];
-        self::assertFalse($shadow['covers_full_period'], 'Der Schattenvertrag deckt nur einen Teil ab');
-        self::assertLessThan($real['months_covered'], $shadow['months_covered'],
-            'Der Schattenvertrag darf nicht so viele Monate zählen wie der echte');
-        self::assertLessThan($real['consumption'], $shadow['consumption'],
-            'ENTSCHEIDEND: der Teilzeitraum-Vertrag darf nicht den vollen Jahresverbrauch melden');
+        self::assertTrue($shadow['covers_full_period'], 'das Preisblatt gilt für das ganze Jahr');
+        self::assertSame($real['months_covered'], $shadow['months_covered']);
+        self::assertEqualsWithDelta($real['consumption'], $shadow['consumption'], 0.1);
+        self::assertEqualsWithDelta($shadow['consumption'] * 0.30, $shadow['total_eur'], 0.05,
+            'ENTSCHEIDEND: Kosten und Verbrauch über dieselben Monate — keine erfundene Ersparnis');
         self::assertEqualsWithDelta(30.0, $shadow['unit_cost_ct'], 0.01,
             'Der Einheitspreis macht den teureren Tarif unabhängig von der Laufzeit sichtbar');
         self::assertGreaterThan($real['unit_cost_ct'], $shadow['unit_cost_ct'],
             'Ein teurerer Tarif muss auch als teurer erscheinen');
+        self::assertGreaterThan(0.0, $shadow['vs_real_eur'], 'teurer als die Wirklichkeit');
+    }
+
+    /** v2.9.0 — echte Verträge zeigen, was die (tagesgenaue) Rechnung gebucht hat. */
+    public function testRealRowsAddUpToTheBilledTotal(): void
+    {
+        $meterId = $this->seedYear();
+        $this->contracts->create('strom', [
+            'meter_id' => $meterId, 'provider' => 'A', 'tariff_name' => 'Alt',
+            'start' => '2024-01-01', 'end' => '2024-06-14',
+            'working_prices' => [['from' => '2024-01-01', 'ct_per_kwh' => 20.0]],
+        ]);
+        $this->contracts->create('strom', [
+            'meter_id' => $meterId, 'provider' => 'B', 'tariff_name' => 'Neu', 'start' => '2024-06-15',
+            'working_prices' => [['from' => '2024-06-15', 'ct_per_kwh' => 30.0]],
+        ]);
+        $res = $this->tariffs->compare('strom', $meterId, 2024);
+        $sum = array_sum(array_map(fn($r) => (float)$r['total_eur'], array_filter($res['rows'], fn($r) => !$r['is_shadow'])));
+        self::assertEqualsWithDelta($res['real_total_eur'], $sum, 0.05, 'der Juni ist zwischen A und B geteilt');
+    }
+
+    /**
+     * v2.9.0 (Review CALC-21) — gleiche Preise, gleicher Rang: Ein Angebot nur
+     * für April bis September war bisher 33 % „günstiger" hochgerechnet und
+     * stand im Einheitspreis vor einem identischen Ganzjahresangebot.
+     */
+    public function testSummerOnlyOfferIsNotCheaperThanTheSameOfferAllYear(): void
+    {
+        $meterId = $this->seedYear();
+        $prices = ['working_prices' => [['from' => '2024-01-01', 'ct_per_kwh' => 25.0]],
+                   'base_prices'    => [['from' => '2024-01-01', 'eur_per_month' => 10.0]]];
+        $this->contracts->create('strom', ['meter_id' => $meterId, 'tariff_name' => 'Ganzjahr', 'shadow_label' => 'Ganzjahr',
+            'is_shadow' => true, 'start' => '2024-01-01'] + $prices);
+        $this->contracts->create('strom', ['meter_id' => $meterId, 'tariff_name' => 'Sommer', 'shadow_label' => 'Sommer',
+            'is_shadow' => true, 'start' => '2024-04-01', 'end' => '2024-09-30',
+            'working_prices' => [['from' => '2024-04-01', 'ct_per_kwh' => 25.0]],
+            'base_prices'    => [['from' => '2024-04-01', 'eur_per_month' => 10.0]]]);
+        $byLabel = array_column($this->tariffs->compare('strom', $meterId, 2024)['rows'], null, 'label');
+        self::assertEqualsWithDelta($byLabel['Ganzjahr']['total_eur'], $byLabel['Sommer']['total_eur'], 0.01);
+        self::assertEqualsWithDelta($byLabel['Ganzjahr']['unit_cost_ct'], $byLabel['Sommer']['unit_cost_ct'], 0.001);
     }
 
     /**

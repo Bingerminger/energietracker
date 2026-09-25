@@ -25,7 +25,7 @@ use Energietracker\Support\Dates;
  *
  * Vordefinierte Kategorien mit Default-Intervallen (Monate):
  *   heizung_wartung 12 · schornsteinfeger 6 · gaszaehler_eichung 96
- *   stromzaehler_eichung 96 · wasserzaehler_eichung 72
+ *   stromzaehler_eichung 96 · wasserzaehler_eichung 72 · waermezaehler_eichung 60
  *   dichtheitspruefung 48 · lieferung_planen — · custom —
  *
  * [Unverifiziert] Die Eich-Intervalle (MessEV) sind branchenübliche
@@ -40,6 +40,7 @@ final class ReminderService
         'gaszaehler_eichung'    => 96,
         'stromzaehler_eichung'  => 96,
         'wasserzaehler_eichung' => 72,
+        'waermezaehler_eichung' => 60,   // v2.9.0 (CALC-24): MessEV Anlage 7 Nr. 7.1, fünf Jahre
         'dichtheitspruefung'    => 48,
         'lieferung_planen'      => null,
         'custom'                => null,

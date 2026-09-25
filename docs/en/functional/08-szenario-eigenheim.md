@@ -14,7 +14,7 @@ unfolds its full functionality.
 
 ## 1. Recommended setup
 
-1. Maintain **living area, year of construction, building type** in the settings —
+1. Maintain **living area and building type** in the settings —
    the basis of the **efficiency class**.
 2. Run **one** heat source as active (see §3). Plus electricity + water.
 3. Activate **temperatures**: set the location coordinates (default Leipzig) —

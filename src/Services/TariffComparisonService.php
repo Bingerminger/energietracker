@@ -131,7 +131,12 @@ final class TariffComparisonService
 
         $rows = [];
         foreach ($this->contracts->list($utility, $meterId) as $c) {
-            $calc = $this->calculateForContract($c, $monthly);
+            // v2.9.0 (Review CALC-21) — ein Schattenvertrag ist ein Preisblatt
+            // und gilt für ALLE Monate des Zeitraums; ein echter zeigt, was
+            // die Rechnung wirklich gebucht hat
+            $calc = empty($c['is_shadow'])
+                ? $this->actualForContract($c, $monthly)
+                : $this->calculateForContract($c, $monthly);
             if ($calc['months'] === 0) {
                 // Vertrag liegt komplett außerhalb des gewählten Zeitraums —
                 // eine Zeile mit lauter „–" ist nur Rauschen.
@@ -146,10 +151,15 @@ final class TariffComparisonService
 
             // Referenz über GENAU die Monate dieses Vertrags — nicht über die
             // gesamte Periode. Sonst vergleicht ein Halbjahresvertrag seine
-            // sechs Monate gegen zwölf reale.
+            // sechs Monate gegen zwölf reale. Ein echter Vertrag IST die
+            // Referenz (bei einem Wechsel im Monat nur sein Teil).
             $realSame = null;
-            foreach ($calc['yms'] as $ym) {
-                if (isset($realByYm[$ym])) $realSame = ($realSame ?? 0.0) + $realByYm[$ym];
+            if (!$isShadow) {
+                $realSame = $calc['total'];
+            } else {
+                foreach ($calc['yms'] as $ym) {
+                    if (isset($realByYm[$ym])) $realSame = ($realSame ?? 0.0) + $realByYm[$ym];
+                }
             }
 
             $total   = $calc['total'];
@@ -204,12 +214,43 @@ final class TariffComparisonService
     }
 
     /**
-     * Kosten, Menge und Laufzeit eines Vertrags über die Monatsreihe.
+     * v2.9.0 — Was die Rechnung für einen echten Vertrag gebucht hat: seine
+     * Monatszeilen, bei zwei Verträgen in einem Monat nur sein Teil
+     * (`contract_parts`, tagesgenau seit CALC-10).
      *
-     * Nur Monate, in denen der Vertrag aktiv war, zählen — für Kosten UND
-     * Menge. Monate ohne gepflegten Arbeitspreis bleiben außen vor, weil sie
-     * die Kosten nicht rechenbar machen; sie dürfen dann auch nicht in die
-     * Menge einfließen, sonst sinkt der Einheitspreis künstlich.
+     * @return array{total: ?float, consumption: float, months: int, yms: array<int,string>}
+     */
+    private function actualForContract(array $c, array $monthly): array
+    {
+        $total = 0.0; $consumption = 0.0; $yms = [];
+        foreach ($monthly as $m) {
+            $ym = (string)($m['ym'] ?? '');
+            if (!empty($m['contract_parts'])) {
+                foreach ($m['contract_parts'] as $p) {
+                    if (($p['contract_id'] ?? null) !== ($c['id'] ?? null)) continue;
+                    $total += (float)$p['cost'];
+                    $consumption += (float)$p['kwh'];
+                    $yms[] = $ym;
+                }
+            } elseif (($m['contract_id'] ?? null) === ($c['id'] ?? null)) {
+                $total += (float)($m['cost'] ?? 0);
+                $consumption += (float)($m['kwh'] ?? 0);
+                $yms[] = $ym;
+            }
+        }
+        return ['total' => $yms ? $total : null, 'consumption' => $consumption, 'months' => count($yms), 'yms' => $yms];
+    }
+
+    /**
+     * Kosten, Menge und Laufzeit eines Schattenvertrags über die Monatsreihe.
+     *
+     * v2.9.0 (Review CALC-21) — der Tarif gilt für ALLE Monate des Zeitraums,
+     * nicht nur für seine Laufzeit: Ein Angebot nur für April bis September
+     * sah bisher 33 % günstiger aus als dasselbe Angebot für das ganze Jahr,
+     * weil ihm der Winter fehlte. Vor dem ersten Preiseintrag gilt dessen
+     * Preis. Monate ohne Arbeitspreis bleiben außen vor, weil sie die Kosten
+     * nicht rechenbar machen; sie dürfen dann auch nicht in die Menge
+     * einfließen, sonst sinkt der Einheitspreis künstlich.
      *
      * @return array{total: ?float, consumption: float, months: int, yms: array<int,string>}
      */
@@ -222,14 +263,15 @@ final class TariffComparisonService
         foreach ($monthly as $m) {
             $ym = (string)($m['ym'] ?? '');
             if ($ym === '') continue;
-            if (!$this->contracts->findActiveForDate([$c], $ym . '-01')) continue;
 
             $y  = (int)($m['year'] ?? 0);
             $mn = (int)($m['month'] ?? 0);
-            $wp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn);
+            $wp = $this->contracts->valueValidOn($c['working_prices'] ?? [], 'ct_per_kwh', $y, $mn)
+               ?? self::firstValue($c['working_prices'] ?? [], 'ct_per_kwh');
             if ($wp === null) continue; // ohne Arbeitspreis nicht rechenbar
 
-            $bp = $this->contracts->valueValidOn($c['base_prices'] ?? [], 'eur_per_month', $y, $mn);
+            $bp = $this->contracts->valueValidOn($c['base_prices'] ?? [], 'eur_per_month', $y, $mn)
+               ?? self::firstValue($c['base_prices'] ?? [], 'eur_per_month');
             $bn = $this->contracts->bonusForMonth($c, $y, $mn);
 
             $value = (float)($m['kwh'] ?? 0);
@@ -244,6 +286,18 @@ final class TariffComparisonService
             'months'      => count($yms),
             'yms'         => $yms,
         ];
+    }
+
+    /** Der Wert des frühesten Eintrags einer datierten Liste. */
+    private static function firstValue(array $entries, string $field): ?float
+    {
+        $best = null; $val = null;
+        foreach ($entries as $e) {
+            $from = (string)($e['from'] ?? '');
+            if ($from === '' || !isset($e[$field]) || !is_numeric($e[$field])) continue;
+            if ($best === null || $from < $best) { $best = $from; $val = (float)$e[$field]; }
+        }
+        return $val;
     }
 
     /** @return array<string,mixed> */

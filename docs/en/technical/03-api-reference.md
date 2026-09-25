@@ -138,7 +138,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | DELETE | `/api/utility/{u}/contracts/{id}` | delete |
 | GET | `/api/utility/{u}/consumption` | monthly consumption (utility-wide) |
 | GET | `/api/utility/{u}/meters/{id}/consumption` | consumption + anomalies + regressions |
-| GET | `/api/utility/{u}/meters/{id}/contract-status` | balance per contract; since v2.5.1 with `special_payments[]` (items, gas/electricity/district heating only); since v2.8.0 by calendar up to today — see below |
+| GET | `/api/utility/{u}/meters/{id}/contract-status` | balance per contract; since v2.5.1 with `special_payments[]` (items, gas/electricity/district heating only); since v2.8.0 by calendar up to today, since v2.9.0 day-exact with the cancellation deadline — see below |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | forecast with uncertainty band, climate normal and warnings (v2.8.0) — see below |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | tariff comparison real vs. shadow (retrospective) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | switching decision from the switch date; optional `?switch_date=YYYY-MM-DD` |
@@ -363,6 +363,62 @@ to and including the current month (previously only months with a reading);
 `projected_end_balance = current_balance + estimated_cost_remaining −
 advance_remaining`. `actual_cost`, `actual_kwh_cost` and `actual_base_total` still
 describe only the measured months.
+
+### Contracts day-exact, cancellation deadline *(v2.9.0)*
+
+**Contract fields (additive, optional):** `notice_period_days` (0–730, takes
+precedence over `notice_period_months`), `notice_mode` (`term_end` |
+`month_end` | `any_day`, `null` = automatic) and `auto_renews` (`false` =
+cancelled). Invalid values → 400 `errors.contract.noticeDaysOutOfRange` or
+`errors.contract.noticeModeInvalid`. Meaning: [data model](04-data-model.md).
+
+**Monthly rows** (`…/consumption`, gas/electricity/district heating/heating
+oil/pellets/PV): contract and prices apply from their own day. `contract_id` is
+the contract with the most days in the month; new are `contract_assumed`
+(`true` = the contract has expired and runs on without a successor) and — only
+with more than one contract in the month — `contract_parts[]`, each entry with
+`contract_id`, `days`, `kwh`, `kwh_cost`, `base_price_eur`, `advance_eur`,
+`bonus_eur`, `cost`, `assumed`. The totals of the monthly row are the sums of the
+parts. Water stays with the contract of the first of the month.
+
+**`contract-status`, new fields per contract:**
+
+| Field | Meaning |
+|---|---|
+| `renewed` | expired, without a successor, not cancelled: runs on (`is_current: true`); the balance runs up to the next billing date |
+| `cancel_by` | last day to give notice; today for contracts that can be cancelled any time and for renewed ones |
+| `days_to_cancel` | days until `cancel_by` (negative = passed) |
+| `switch_date` | earliest day with the new supplier |
+| `notice_basis` | `fixed_end`, `open_ended`, `min_term`, `renewed` or `unknown` (no notice period maintained) |
+| `remind_basis` | `cancel_by` or `end` — what `remind_stage` and `should_remind` refer to; `null` for open-ended and renewed contracts (no staged reminder) |
+| `cancel_missed` | deadline passed, the contract runs on beyond its end |
+| `price_increase` | next entered increase: `{from, working_price_ct: [old, new] \| null, base_price_eur: [old, new] \| null}`, otherwise `null` |
+
+A renewed contract can be cancelled with at most one month's notice
+(§ 309 Nr. 9 BGB); `switch_date` uses the shorter of the contract's own notice
+period and one month.
+
+**Changed values:** months with a contract switch or a price change in
+mid-month, advances in the first and last contract month (pro rata) and
+consumption after a contract end without a successor (previously €0).
+`days_until_end` still counts down to the contract end; `remind_stage` and
+`should_remind` refer to `cancel_by` when a notice period is maintained
+(`remind_basis: "cancel_by"`).
+
+**`tariff-switch`:** the `current` block additionally carries
+`notice_period_days`, `notice_mode` and `renewed`; a renewed contract forms the
+commitment chain instead of reporting "no running contract".
+
+**`tariff-comparison` (retrospective):** real contracts show what the bill
+booked (with two contracts in a month, only their part). Shadow contracts count
+as a price sheet for **all** months of the period, before their first price
+entry with its price — up to v2.8 only for their own term, which made a summer
+offer without a winter look cheaper.
+
+**`PATCH /api/settings`:** `billing_cycle_anchor_*` must be a calendar day
+`MM-DD`, otherwise 400 `errors.settings.valueInvalid`.
+`min_temp_days_forecast` and `baujahr` are **deprecated** (without effect,
+dropped with v3.0.0); they are still delivered and accepted.
 
 ### `GET /api/utility/{u}/meters/{id}/forecast` *(extended in v2.8.0)*
 

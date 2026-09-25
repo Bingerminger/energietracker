@@ -13,7 +13,7 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { getUtilities } from '../state.js';
+import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
 import { makeChart, themeColors } from '../components/chart.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
@@ -94,6 +94,11 @@ async function rerender(container) {
   const monthly   = consumptionData.monthly   || [];
   const contracts = contractStatusData.contracts || [];
   const isDelivery = u.reading_kind === 'delivery';
+  // v2.9.0 — Rechtshinweise (Sonderkündigungsrecht) nur im passenden Land;
+  // die Schwelle „Ablesung überfällig" aus den Einstellungen (CALC-23)
+  const settings = (await getSettings().catch(() => null)) || {};
+  const country = settings.country || 'DE';
+  const alertDays = Math.max(1, Number(settings.alert_days_since_reading) || 45);
   // v1.6.1 — Fix #14: Verbrauchs-Feldname utility-abhängig.
   // Wasser/m³-native Utilities tragen den Verbrauch im Feld `m3`,
   // kWh-Utilities im Feld `kwh`. Vorher las das KPI immer `m.kwh`
@@ -121,9 +126,12 @@ async function rerender(container) {
     const today = new Date(todayIso());
     const lastDate = new Date(lastReading.date);
     const days = Math.floor((today - lastDate) / 86400000);
+    // v2.9.0 (CALC-23) — die Einstellung wirkt: Alarm ab der Schwelle,
+    // Hinweis ab zwei Dritteln (Standard 45 → ab 30 Tagen gelb, ab 46 rot;
+    // bis v2.8 fest 30/60 und die Einstellung ohne Wirkung)
     let cls = 'ok', icon = '✓';
-    if (days > 60)      { cls = 'alert'; icon = '⚠️'; }
-    else if (days > 30) { cls = 'warn';  icon = '⚡'; }
+    if (days > alertDays)                        { cls = 'alert'; icon = '⚠️'; }
+    else if (days > Math.round(alertDays * 2 / 3)) { cls = 'warn';  icon = '⚡'; }
     // Trend: compare last 3 months to previous 3 months.
     // P-PV-01 — Bei PV (feed_in/generation) ist dieser Vergleich reine
     // Saisonalität (Frühling vs. Winter, Sonne ≠ konstant), kein echter
@@ -247,7 +255,7 @@ async function rerender(container) {
       </div>`}
     </div>
 
-    ${!isDelivery && currentContract ? balanceCard(currentContract, u) : ''}
+    ${!isDelivery && currentContract ? balanceCard(currentContract, u, country) : ''}
 
     ${!isDelivery ? `
     <div class="card">
@@ -469,7 +477,7 @@ function yearPills(years, current, utilityKey) {
 }
 
 // ── Saldo-Karte aktueller Vertrag ───────────────────────────────────
-function balanceCard(c, u) {
+function balanceCard(c, u, country = 'DE') {
   // P-PV-01 — feed_in (PV-Einspeisung): „Saldo" ist ein Vergütungs-Erlös.
   // Verdict-Farben und Saldo-Vorzeichen-Deutung kippen: positiver Saldo
   // ist gut (grün), nicht warnend (rot).
@@ -484,8 +492,8 @@ function balanceCard(c, u) {
   const sign = v => v > 0 ? '+' : '';
   const dateLabel = isFeedIn
     ? t('utility.balance.dateNext', { date: fmt.date(c.effective_end) })
-    : (c.is_open_ended
-        ? t('utility.balance.dateEstOpen', { date: fmt.date(c.effective_end) })
+    : (c.is_open_ended || c.renewed   // v2.9.0 — weiterlaufend: nächste Abrechnung, kein Vertragsende
+        ? t('utility.balance.dateNext', { date: fmt.date(c.effective_end) })
         : t('utility.balance.dateEnd', { date: fmt.date(c.effective_end) }));
 
   const tariffParts = [];
@@ -516,6 +524,20 @@ function balanceCard(c, u) {
       && Math.abs(c.suggested_advance - c.current_advance_amount) >= 5
     ? `<p class="balance-suggest">${t('utility.balance.suggestAdvance', { suggested: fmt.eur(c.suggested_advance), current: fmt.eur(c.current_advance_amount) })}</p>`
     : '';
+  // v2.9.0 (CALC-10, CALC-11) — weiterlaufender Vertrag, verpasste Frist,
+  // angekündigte Preiserhöhung
+  const notes = [];
+  if (c.renewed) notes.push(t('utility.balance.renewed', { date: fmt.date(c.end) }));
+  if (c.cancel_missed) notes.push(t('utility.balance.cancelMissed', { date: fmt.date(c.cancel_by), end: fmt.date(c.end) }));
+  if (c.price_increase) {
+    const pi = c.price_increase;
+    const what = [];
+    if (pi.working_price_ct) what.push(t('utility.balance.piWorking', { from: fmt.num(pi.working_price_ct[0], 2), to: fmt.num(pi.working_price_ct[1], 2) }));
+    if (pi.base_price_eur) what.push(t('utility.balance.piBase', { from: fmt.num(pi.base_price_eur[0], 2), to: fmt.num(pi.base_price_eur[1], 2) }));
+    notes.push(t('utility.balance.priceIncrease', { date: fmt.date(pi.from), what: what.join(', ') })
+      + (country === 'DE' ? ' ' + t('utility.balance.priceIncreaseDe') : ''));
+  }
+  const notesHtml = notes.map(n => `<p class="balance-note">${escapeHtml(n)}</p>`).join('');
 
   // Breakdown row: for water we want three component pills, for gas/strom the
   // simple verbrauch+grundpreis+bonus line.
@@ -574,6 +596,7 @@ function balanceCard(c, u) {
         </div>
       </div>
       ${suggestHtml}
+      ${notesHtml}
       ${isWater && c.components ? renderWaterComponentRow(c.components) : ''}
     </div>
   `;
@@ -654,7 +677,7 @@ function contractsTable(contracts, u) {
     <tbody>
     ${contracts.map(c => {
       const stateCls = c.is_current ? 'active' : c.is_past ? 'past' : 'future';
-      const stateLabel = c.is_current ? t('utility.contractsTable.stateActive') : c.is_past ? t('utility.contractsTable.statePast') : t('utility.contractsTable.stateFuture');
+      const stateLabel = c.renewed ? t('utility.contractsTable.stateRenewed') : c.is_current ? t('utility.contractsTable.stateActive') : c.is_past ? t('utility.contractsTable.statePast') : t('utility.contractsTable.stateFuture');
       const cur = c.current_balance, proj = c.projected_end_balance;
       const period = c.is_open_ended
         ? t('utility.contractsTable.periodOpen', { start: fmt.date(c.start) })

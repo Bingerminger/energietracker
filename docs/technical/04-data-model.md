@@ -232,12 +232,32 @@ Gesamtbetrag gesetzt ist, wird `unit_price_cents` genutzt.
                           "amount_eur": 142.5, "note": "JA 2023",
                           "new_advance_eur": 95,
                           "advance_from": "2024-04-01" } ],
-  "is_shadow": false, "shadow_label": null
+  "is_shadow": false, "shadow_label": null,
+  "notice_period_months": 1, "notice_period_days": null,
+  "notice_mode": null, "auto_renews": null,
+  "min_term_end": null, "price_guarantee_until": null,
+  "signup_bonus_eur": null
 }
 ```
 
 `is_shadow: true` = hypothetischer Tarif für den Vergleich; beeinflusst
-**weder** Saldo **noch** Prognose. Wasser nutzt zusätzlich ein
+**weder** Saldo **noch** Prognose.
+
+**Kündigung (v2.3.0, erweitert v2.9.0)** — alle Felder optional, `null` =
+nicht gepflegt:
+
+| Feld | Bedeutung |
+|---|---|
+| `notice_period_months` | Kündigungsfrist in Monaten; `0` = jederzeit |
+| `notice_period_days` | *(v2.9.0)* Frist in Tagen (0–730), hat Vorrang vor den Monaten; die Oberfläche speichert Wochen als Tage |
+| `notice_mode` | *(v2.9.0)* `term_end` (zum Vertragsende), `month_end` (jederzeit zum Monatsende), `any_day` (jederzeit zu jedem Tag); `null` = mit Ende zum Vertragsende, ohne Ende zum Monatsende |
+| `auto_renews` | *(v2.9.0)* `false` = gekündigt, endet wirklich; sonst läuft der Vertrag ohne Nachfolger zu seinen letzten Preisen weiter |
+| `min_term_end` | Ende der Mindestlaufzeit (unbefristete Verträge) |
+| `price_guarantee_until` | Ende der Preisgarantie |
+| `signup_bonus_eur` | Neukundenbonus als Betrag (Angebote im Tarifvergleich) |
+
+Ungültige Werte lehnt die API mit 400 ab (`errors.contract.noticeDaysOutOfRange`,
+`errors.contract.noticeModeInvalid`). Wasser nutzt zusätzlich ein
 Drei-Komponenten-Modell (Trink-/Schmutz-/Niederschlagswasser), siehe
 [Wasser](../functional/03-wasser.md).
 
@@ -273,8 +293,12 @@ Gruppen (Auswahl der Default-Werte):
 | `forecast_model` | linear | Standard-Regressionsmodell |
 | `segmented_split_mode` | auto | Knickpunkt der segmentierten Regression |
 | `wohnflaeche_m2` | 100 | für Effizienzklasse |
+| `dashboard_months` | 12 | *(seit v2.9.0 wirksam)* Monate im Verbrauchsverlauf des Dashboards (3–36) |
+| `alert_days_since_reading` | 45 | *(seit v2.9.0 wirksam)* „Ablesung überfällig": Warnung ab ⅔, Alarm ab dem Wert |
+| `contract_remind_days_1/2/3` | 90 / 30 / 1 | Erinnerungsstufen; seit v2.9.0 Tage vor dem Kündigungsstichtag, ohne Frist vor dem Vertragsende |
+| `min_temp_days_forecast`, `baujahr` | 20, null | **veraltet (v2.9.0)**, ohne Wirkung und nicht mehr in der Oberfläche; entfallen mit v3.0.0 |
 | `efficiency_class_thresholds` | A+…G | Bandgrenzen kWh/m²·a |
-| `billing_cycle_anchor_*` | 01-01 | Abrechnungsstichtag — gespeichert `MM-TT`, **angezeigt `TT-MM`** (v1.4.2) |
+| `billing_cycle_anchor_*` | 01-01 | Abrechnungsstichtag — gespeichert `MM-TT`, **angezeigt `TT-MM`** (v1.4.2); seit v2.9.0 muss es ein Kalendertag sein, sonst 400 |
 | `delivery_baseload_share` | 0.15 | wetterunabhängiger Grundlastanteil bei Lieferarten |
 | `tank_warn_pct` | — | Warnschwelle Tankfüllstand |
 | `active_utilities` | alle | welche Arten in Sidebar/Dashboard sichtbar |

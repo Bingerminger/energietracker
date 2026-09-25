@@ -69,14 +69,14 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.8.0:
-**Frontend-API-Shape 49/49**, **Browser-Render 73/73** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.9.0:
+**Frontend-API-Shape 50/50**, **Browser-Render 76/76** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle).
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
 JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
-README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.8.1: 379).
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.9.0: 398).
 Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
 **Pflicht-Gate vor jedem Commit** (siehe
 [Release-Prozess](06-release-process.md)).
@@ -90,6 +90,13 @@ nichts ist. `TemperatureSyncTest` ersetzt Open-Meteo durch eine Attrappe
 darf. Jede neue Regel bekam eine **Gegenprobe**: Code gezielt zurückdrehen,
 der Test muss rot werden. Mehrere Tests waren zunächst auch ohne ihre Regel grün
 (zu glatte Testdaten) und wurden erst dadurch aussagekräftig.
+
+**Verträge tagesgenau (v2.9.0).** `ContractDayAccurateTest` prüft Monate mit
+Preisänderung, Vertragswechsel und Lücke, den weiterlaufenden und den
+gekündigten Vertrag, Kündigungsstichtag und Erinnerung, verpasste Fristen,
+Preiserhöhungen, anteilige Abschläge und die Prognose. `TotalsAndSettingsRulesTest`
+hält fest, dass ein Zähler außer Betrieb in jeder Summe zählt, und prüft die
+Abrechnungsstichtage.
 
 Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 (`.github/workflows/ci.yml`) bei jedem Push und Pull Request gegen

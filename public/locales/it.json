@@ -107,7 +107,7 @@
       "inDays": "tra {days} g"
     },
     "allLink": "tutti",
-    "chart": { "title": "Consumo a 12 mesi (tutte le utenze)", "alt": "Grafico a linee: consumo degli ultimi 12 mesi per utenza" },
+    "chart": { "title": "Consumo a {months} mesi (tutte le utenze)", "alt": "Grafico a linee: consumo degli ultimi {months} mesi per utenza" },
     "card": { "meters": "Contatori", "details": "Dettagli" },
     "groups": { "summary": "Gruppi ({count})" },
     "kpi": {
@@ -245,7 +245,6 @@
       "subOverpaid": "Pagato in più",
       "verdictLabel": "Atteso al conguaglio",
       "dateNext": "prossimo conguaglio: {date}",
-      "dateEstOpen": "fine stimata: {date} (contratto aperto, +12 mesi)",
       "dateEnd": "fine del contratto: {date}",
       "components": "💧 Componenti",
       "tw": "Acqua potabile",
@@ -261,7 +260,13 @@
       "consShort": "{value} consumo",
       "gpPlus": " + {value} quota fissa",
       "suggestAdvance": "Con un acconto di {suggested} invece di {current}, il conguaglio sarebbe di circa ±0.",
-      "measuredThenEstimated": "misurato fino al {date} ({kwh} kWh), poi stimato: {value}"
+      "measuredThenEstimated": "misurato fino al {date} ({kwh} kWh), poi stimato: {value}",
+      "renewed": "La durata è terminata il {date}. Senza disdetta il contratto prosegue agli ultimi prezzi e si può disdire in qualsiasi momento con al massimo un mese di preavviso.",
+      "cancelMissed": "Termine di disdetta del {date} superato: il contratto non termina il {end} ma prosegue — dopo si può disdire con al massimo un mese di preavviso.",
+      "priceIncrease": "Aumento dei prezzi dal {date}: {what}.",
+      "piWorking": "prezzo dell’energia {from} → {to} {minor}/kWh",
+      "piBase": "quota fissa {from} → {to} {cur}/mese",
+      "priceIncreaseDe": "Fino ad allora esiste un diritto di recesso speciale con effetto alla data dell’aumento (§ 41 c. 5 EnWG)."
     },
     "contractsTable": {
       "emptyTitle": "Nessun contratto registrato",
@@ -284,7 +289,8 @@
       "gpSuffix": "{value} {cur} quota fissa",
       "colSpecial": "Pagamenti speciali",
       "colSpecialTitle": "Netto dei pagamenti speciali: i rimborsi del fornitore contano in positivo, conguagli e acconti aggiuntivi in negativo. Singole voci nel tooltip della cella.",
-      "hint": "Bonus = accrediti dal contratto (bonus immediato, di cambio, nuovo cliente). Pagamenti speciali = rimborsi (+), conguagli e acconti aggiuntivi (−) fuori dal piano acconti; entrambi entrano nel saldo. Passa sulla cella per le singole voci; si gestiscono nella gestione contratti."
+      "hint": "Bonus = accrediti dal contratto (bonus immediato, di cambio, nuovo cliente). Pagamenti speciali = rimborsi (+), conguagli e acconti aggiuntivi (−) fuori dal piano acconti; entrambi entrano nel saldo. Passa sulla cella per le singole voci; si gestiscono nella gestione contratti.",
+      "stateRenewed": "RINNOVATO"
     },
     "monthlyTable": {
       "noData": "Nessun dato per quest’anno.",
@@ -509,7 +515,7 @@
       "create": "Crea",
       "validationHalfRows": "Completa o svuota le righe parzialmente compilate",
       "saved": "Contratto salvato",
-      "noticePeriod": "Preavviso (mesi)",
+      "noticePeriod": "Preavviso",
       "noticePeriodPlaceholder": "es. 1",
       "noticePeriodHint": "Il confronto tariffe ne ricava la data di disdetta e avvisa prima della scadenza.",
       "priceGuarantee": "Prezzo garantito fino al",
@@ -520,7 +526,23 @@
       "workingPriceRequired": "Serve almeno una riga «{group}» con data e importo.",
       "supersedeTitle": "Sostituire il contratto in corso?",
       "supersedeMessage": "Dal {date} vale questo contratto al posto di «{name}»: se i contratti si sovrappongono, prevale l’inizio più recente. Saldo e previsione usano poi i nuovi prezzi.",
-      "supersedeOk": "Sì, sostituisci"
+      "supersedeOk": "Sì, sostituisci",
+      "noticeUnitLabel": "Unità del preavviso",
+      "noticeUnit": {
+        "months": "mesi",
+        "weeks": "settimane",
+        "days": "giorni"
+      },
+      "noticeMode": "La disdetta ha effetto",
+      "noticeModeOption": {
+        "auto": "automatico",
+        "term_end": "alla scadenza",
+        "month_end": "in qualsiasi momento, a fine mese",
+        "any_day": "in qualsiasi momento, qualsiasi giorno"
+      },
+      "noticeModeHint": "Automatico: alla scadenza; senza scadenza, in qualsiasi momento a fine mese. La fornitura di base, ad esempio, si può disdire in qualsiasi momento con due settimane di preavviso.",
+      "autoRenews": "Si rinnova senza disdetta",
+      "autoRenewsHint": "Dopo la scadenza il contratto prosegue agli ultimi prezzi finché non viene disdetto — allora con al massimo un mese di preavviso. Deseleziona se è già disdetto."
     },
     "delete": { "title": "Eliminare il contratto?", "message": "Eliminare definitivamente il contratto?", "confirm": "Elimina", "deleted": "Contratto eliminato" },
     "deleteContract": "Elimina contratto",
@@ -661,7 +683,8 @@
       "save": "Salva",
       "saved": "Contatore salvato",
       "digits": "Cifre del totalizzatore (prima della virgola)",
-      "digitsHint": "Serve solo se il totalizzatore può ripartire da 0 dopo 99999: l’analisi riconosce così l’azzeramento invece di segnalare un calo. Vuoto = sconosciuto."
+      "digitsHint": "Serve solo se il totalizzatore può ripartire da 0 dopo 99999: l’analisi riconosce così l’azzeramento invece di segnalare un calo. Vuoto = sconosciuto.",
+      "activeHint": "Deseleziona se il contatore è fuori servizio: il suo storico conta ancora in tutti i totali, ma non compare più nella rilevazione e non genera avvisi."
     },
     "replace": {
       "title": "Sostituzione contatore: {name}",
@@ -723,7 +746,6 @@
   "settings": {
     "placeholder": {
       "dayMonth": "GG-MM (01-01)",
-      "yearExample": "p. es. 1998",
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Caricamento…",
@@ -786,7 +808,6 @@
       "min_hdd_regression": { "label": "GG min. per la regressione" },
       "blend_max": { "label": "Peso di miscela max." },
       "forecast_months": { "label": "Orizzonte di previsione" },
-      "min_temp_days_forecast": { "label": "Giorni temp. min. previsione" },
       "forecast_model": { "label": "Modello predefinito" },
       "segmented_split_mode": { "label": "Punto di rottura del segmento", "hint": "auto = adattato sui dati, fixed = valore GG fisso sotto." },
       "segmented_fixed_split": { "label": "Punto di rottura fisso", "hint": "Effettivo solo in modalità « fixed »." },
@@ -794,7 +815,6 @@
       "dashboard_months": { "label": "Mesi sul cruscotto" },
       "alert_days_since_reading": { "label": "Avvisa dopo" },
       "wohnflaeche_m2": { "label": "Superficie abitabile", "hint": "Superficie riscaldata — denominatore della metrica di efficienza." },
-      "baujahr": { "label": "Anno di costruzione" },
       "gebaeudetyp": { "label": "Tipo di edificio", "hint": "efh = casa singola, rh = villetta a schiera, mfh = condominio, whg = appartamento." },
       "heizoel_kwh_per_l": { "label": "Contenuto energetico del gasolio" },
       "pellets_kwh_per_kg": { "label": "Contenuto energetico dei pellet" },
@@ -1126,7 +1146,8 @@
       "wasserzaehler_eichung": "Taratura del contatore dell’acqua",
       "dichtheitspruefung": "Prova di tenuta",
       "lieferung_planen": "Pianifica consegna",
-      "custom": "Altro"
+      "custom": "Altro",
+      "waermezaehler_eichung": "Taratura del contatore di calore"
     },
     "recurrence": { "none": "Una tantum", "yearly": "Annuale", "semi-yearly": "Semestrale", "custom-months": "Ogni N mesi" },
     "due": { "today": "oggi", "inDays": "tra {days} g", "agoDays": "{days} g fa" },
@@ -1214,7 +1235,9 @@
       },
       "r6": {
         "title": "{label}: il contratto termina tra {days} giorni",
-        "detail": "Il contratto « {provider} » termina tra {days} giorni. Avvia ora un confronto tariffe e cambia se necessario."
+        "detail": "Il contratto « {provider} » termina tra {days} giorni. Avvia ora un confronto tariffe e cambia se necessario.",
+        "titleCancel": "{label}: disdire entro il {date} ({days} giorni)",
+        "detailCancel": "Perché il contratto « {provider} » termini il {end} invece di proseguire, la disdetta deve arrivare al fornitore entro il {date}. Avvia ora un confronto tariffe e cambia se necessario."
       },
       "r7": {
         "title": "{label}: classe di efficienza {class} ({kwh} kWh/m²·a)",
@@ -1240,7 +1263,7 @@
     "shadowFallbackLabel": "Ipotesi",
     "months": "{count} mesi",
     "monthsOne": "1 mese",
-    "partialHint": "I contratti che coprono solo una parte del periodo riportano la loro durata. Consumo e costo si riferiscono sempre esattamente a quei mesi.",
+    "partialHint": "I contratti reali che coprono solo una parte del periodo riportano la loro durata; consumo e costo si riferiscono esattamente a quei giorni. I contratti ombra valgono come listino per l’intero periodo, così le offerte con durate diverse restano confrontabili.",
     "projectedFull": "proiettato su {months} mesi: {value}",
     "realTotal": "Effettivamente fatturato nel periodo: {value}",
     "noRows": "Nessun contratto con prezzo unitario nel periodo selezionato.",
@@ -1373,7 +1396,8 @@
       "endsInDays": "tra {days} giorni",
       "ends": "{provider} termina {when}",
       "fallbackProvider": "Contratto",
-      "checkNote": "Verifica il termine di disdetta e un contratto successivo."
+      "checkNote": "Verifica il termine di disdetta e un contratto successivo.",
+      "cancelBy": "Disdire {provider} entro il {date} (mancano {days} giorni), altrimenti il contratto prosegue oltre il {end}."
     },
     "yoy": {
       "title": "Confronto annuale · variazioni mensili",
@@ -1643,7 +1667,9 @@
       "dateBeforeStart": "{field} non può precedere l'inizio del contratto.",
       "bonusNotNumeric": "Il bonus di benvenuto deve essere un numero.",
       "bonusNegative": "Il bonus di benvenuto non può essere negativo.",
-      "amountInvalid": "Voce {label} n°{n}: l’importo «{value}» non è un numero"
+      "amountInvalid": "Voce {label} n°{n}: l’importo «{value}» non è un numero",
+      "noticeDaysOutOfRange": "Il preavviso in giorni deve essere compreso tra 0 e 730.",
+      "noticeModeInvalid": "Modalità di disdetta sconosciuta «{mode}» (consentite: term_end, month_end, any_day)."
     },
     "delivery": {
       "notFound": "Consegna non trovata: {id}",

@@ -64,14 +64,14 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Both harnesses return exit code 0 on success. As of v2.8.0:
-**frontend API shape 49/49**, **browser render 73/73** (incl. module-graph
+Both harnesses return exit code 0 on success. As of v2.9.0:
+**frontend API shape 50/50**, **browser render 76/76** (incl. module-graph
 pre-check and the forecast-model check for all five models).
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.8.1: 379). Run it with `vendor/bin/phpunit --no-coverage`. It
+recounts it (v2.9.0: 398). Run it with `vendor/bin/phpunit --no-coverage`. It
 is the **mandatory gate before every commit** (see
 [Release process](06-release-process.md)).
 
@@ -84,6 +84,12 @@ stand-in (interface `WeatherSource`) and checks which values a sync may
 overwrite. Every new rule got a **counter-check**: deliberately revert the code,
 and the test must turn red. Several tests were initially green even without their
 rule (test data too smooth) and only became meaningful through this.
+
+**Contracts to the day (v2.9.0).** `ContractDayAccurateTest` checks months with a
+price change, a contract switch and a gap, the renewed and the cancelled
+contract, cancellation deadline and reminder, missed deadlines, price increases,
+pro-rata advances and the forecast. `TotalsAndSettingsRulesTest` pins down that a
+meter out of service counts in every total, and checks the billing dates.
 
 This exact sequence runs automated in the **CI pipeline**
 (`.github/workflows/ci.yml`) on every push and pull request against `main`. Four

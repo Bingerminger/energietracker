@@ -107,7 +107,7 @@
       "inDays": "in {days} T"
     },
     "allLink": "alle",
-    "chart": { "title": "12-Monats-Verbrauch (alle Verbrauchsarten)", "alt": "Liniendiagramm: Verbrauch der letzten 12 Monate je Verbrauchsart" },
+    "chart": { "title": "{months}-Monats-Verbrauch (alle Verbrauchsarten)", "alt": "Liniendiagramm: Verbrauch der letzten {months} Monate je Verbrauchsart" },
     "card": { "meters": "Zähler", "details": "Details" },
     "groups": { "summary": "Gruppen ({count})" },
     "kpi": {
@@ -245,7 +245,6 @@
       "subOverpaid": "Überzahlt",
       "verdictLabel": "Erwartet bei Abrechnung",
       "dateNext": "nächste Abrechnung: {date}",
-      "dateEstOpen": "geschätztes Ende: {date} (offener Vertrag, +12 M)",
       "dateEnd": "Vertragsende: {date}",
       "components": "💧 Komponenten",
       "tw": "Trinkwasser",
@@ -261,7 +260,13 @@
       "consShort": "{value} Verbr.",
       "gpPlus": " + {value} GP",
       "suggestAdvance": "Mit {suggested} statt {current} Abschlag läge die Abrechnung bei etwa ±0.",
-      "measuredThenEstimated": "gemessen bis {date} ({kwh} kWh), danach geschätzt: {value}"
+      "measuredThenEstimated": "gemessen bis {date} ({kwh} kWh), danach geschätzt: {value}",
+      "renewed": "Die Laufzeit endete am {date}. Der Vertrag läuft ohne Kündigung zu den letzten Preisen weiter und ist jederzeit mit höchstens einem Monat Frist kündbar.",
+      "cancelMissed": "Kündigungsstichtag {date} verpasst: Der Vertrag endet nicht zum {end}, sondern läuft weiter — danach mit höchstens einem Monat Frist kündbar.",
+      "priceIncrease": "Preiserhöhung ab {date}: {what}.",
+      "piWorking": "Arbeitspreis {from} → {to} {minor}/kWh",
+      "piBase": "Grundpreis {from} → {to} {cur}/Monat",
+      "priceIncreaseDe": "Bis dahin besteht ein Sonderkündigungsrecht zum Zeitpunkt der Erhöhung (§ 41 Abs. 5 EnWG)."
     },
     "contractsTable": {
       "emptyTitle": "Keine Verträge erfasst",
@@ -284,7 +289,8 @@
       "gpSuffix": "{value} {cur} GP",
       "colSpecial": "Sonderzahlungen",
       "colSpecialTitle": "Netto aus Sonderzahlungen: Rückzahlungen vom Versorger zählen positiv, Nach- und Abschlagszahlungen negativ. Einzelposten im Tooltip der Zelle.",
-      "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Einzelposten erscheinen beim Überfahren der Zelle, gepflegt werden sie in der Vertragsverwaltung."
+      "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Einzelposten erscheinen beim Überfahren der Zelle, gepflegt werden sie in der Vertragsverwaltung.",
+      "stateRenewed": "VERLÄNGERT"
     },
     "monthlyTable": {
       "noData": "Keine Daten für dieses Jahr.",
@@ -509,7 +515,7 @@
       "create": "Anlegen",
       "validationHalfRows": "Bitte halb-leere Zeilen vervollständigen oder leeren",
       "saved": "Vertrag gespeichert",
-      "noticePeriod": "Kündigungsfrist (Monate)",
+      "noticePeriod": "Kündigungsfrist",
       "noticePeriodPlaceholder": "z. B. 1",
       "noticePeriodHint": "Der Tarifvergleich errechnet daraus den Kündigungstermin und warnt, bevor die Frist abläuft.",
       "priceGuarantee": "Preisgarantie bis",
@@ -520,7 +526,23 @@
       "workingPriceRequired": "Mindestens eine Zeile „{group}“ mit Datum und Betrag ist nötig.",
       "supersedeTitle": "Laufenden Vertrag ablösen?",
       "supersedeMessage": "Ab {date} gilt dieser Vertrag statt „{name}“ – bei überschneidenden Verträgen zählt der spätere Beginn. Saldo und Prognose rechnen dann mit den neuen Preisen.",
-      "supersedeOk": "Ja, ablösen"
+      "supersedeOk": "Ja, ablösen",
+      "noticeUnitLabel": "Einheit der Kündigungsfrist",
+      "noticeUnit": {
+        "months": "Monate",
+        "weeks": "Wochen",
+        "days": "Tage"
+      },
+      "noticeMode": "Kündigung wirkt",
+      "noticeModeOption": {
+        "auto": "automatisch",
+        "term_end": "zum Vertragsende",
+        "month_end": "jederzeit zum Monatsende",
+        "any_day": "jederzeit zu jedem Tag"
+      },
+      "noticeModeHint": "Automatisch: zum Vertragsende, ohne Ende jederzeit zum Monatsende. Die Grundversorgung ist zum Beispiel jederzeit mit zwei Wochen kündbar.",
+      "autoRenews": "Verlängert sich ohne Kündigung",
+      "autoRenewsHint": "Nach dem Ende läuft der Vertrag zu den letzten Preisen weiter, bis er gekündigt wird — dann mit höchstens einem Monat Frist. Abwählen, wenn gekündigt ist."
     },
     "delete": { "title": "Vertrag löschen?", "message": "Vertrag dauerhaft löschen?", "confirm": "Löschen", "deleted": "Vertrag gelöscht" },
     "deleteContract": "Vertrag löschen",
@@ -661,7 +683,8 @@
       "save": "Speichern",
       "saved": "Zähler gespeichert",
       "digits": "Stellen des Zählwerks (vor dem Komma)",
-      "digitsHint": "Nur nötig, wenn das Zählwerk nach 99999 wieder bei 0 beginnen kann: Dann erkennt die Auswertung den Überlauf, statt einen Rückgang zu melden. Leer = unbekannt."
+      "digitsHint": "Nur nötig, wenn das Zählwerk nach 99999 wieder bei 0 beginnen kann: Dann erkennt die Auswertung den Überlauf, statt einen Rückgang zu melden. Leer = unbekannt.",
+      "activeHint": "Abwählen, wenn der Zähler außer Betrieb ist: Seine Historie zählt weiter in allen Summen, er erscheint aber nicht mehr in der Erfassung und löst keine Warnungen aus."
     },
     "replace": {
       "title": "Zählertausch: {name}",
@@ -723,7 +746,6 @@
   "settings": {
     "placeholder": {
       "dayMonth": "TT-MM (01-01)",
-      "yearExample": "z. B. 1998",
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Lade…",
@@ -786,7 +808,6 @@
       "min_hdd_regression": { "label": "Min. HGT für Regression" },
       "blend_max": { "label": "Max. Blend-Gewicht" },
       "forecast_months": { "label": "Prognose-Horizont" },
-      "min_temp_days_forecast": { "label": "Min. Temp-Tage Prognose" },
       "forecast_model": { "label": "Standardmodell" },
       "segmented_split_mode": { "label": "Segment-Knickpunkt", "hint": "auto = datenbasiert gefittet, fixed = fester HGT-Wert unten." },
       "segmented_fixed_split": { "label": "Fester Knickpunkt", "hint": "Nur wirksam bei Modus „fixed“." },
@@ -794,7 +815,6 @@
       "dashboard_months": { "label": "Monate auf Dashboard" },
       "alert_days_since_reading": { "label": "Warnung nach" },
       "wohnflaeche_m2": { "label": "Wohnfläche", "hint": "Beheizte Fläche — Nenner der Effizienzkennzahl." },
-      "baujahr": { "label": "Baujahr" },
       "gebaeudetyp": { "label": "Gebäudetyp", "hint": "efh = Einfam., rh = Reihenhaus, mfh = Mehrfam., whg = Wohnung." },
       "heizoel_kwh_per_l": { "label": "Heizöl Energiegehalt" },
       "pellets_kwh_per_kg": { "label": "Pellets Energiegehalt" },
@@ -1126,7 +1146,8 @@
       "wasserzaehler_eichung": "Wasserzähler-Eichung",
       "dichtheitspruefung": "Dichtheitsprüfung",
       "lieferung_planen": "Lieferung planen",
-      "custom": "Sonstiges"
+      "custom": "Sonstiges",
+      "waermezaehler_eichung": "Wärmezähler-Eichung"
     },
     "recurrence": { "none": "Einmalig", "yearly": "Jährlich", "semi-yearly": "Halbjährlich", "custom-months": "Alle N Monate" },
     "due": { "today": "heute", "inDays": "in {days} T", "agoDays": "vor {days} T" },
@@ -1214,7 +1235,9 @@
       },
       "r6": {
         "title": "{label}: Vertrag endet in {days} Tagen",
-        "detail": "Der Vertrag „{provider}“ endet in {days} Tagen. Jetzt Tarifvergleich starten und ggf. wechseln."
+        "detail": "Der Vertrag „{provider}“ endet in {days} Tagen. Jetzt Tarifvergleich starten und ggf. wechseln.",
+        "titleCancel": "{label}: Kündigung bis {date} ({days} Tage)",
+        "detailCancel": "Damit der Vertrag „{provider}“ zum {end} endet und nicht weiterläuft, muss die Kündigung bis {date} beim Anbieter sein. Jetzt Tarifvergleich starten und ggf. wechseln."
       },
       "r7": {
         "title": "{label}: Effizienzklasse {class} ({kwh} kWh/m²·a)",
@@ -1240,7 +1263,7 @@
     "shadowFallbackLabel": "Hypothese",
     "months": "{count} Mon.",
     "monthsOne": "1 Monat",
-    "partialHint": "Verträge, die nur einen Teil des Zeitraums abdecken, sind mit ihrer Laufzeit markiert. Verbrauch und Kosten beziehen sich immer auf genau diese Monate.",
+    "partialHint": "Echte Verträge, die nur einen Teil des Zeitraums abdecken, sind mit ihrer Laufzeit markiert; Verbrauch und Kosten beziehen sich auf genau diese Tage. Schattenverträge gelten als Preisblatt für den ganzen Zeitraum — so sind Angebote mit unterschiedlicher Laufzeit vergleichbar.",
     "projectedFull": "hochgerechnet auf {months} Mon.: {value}",
     "realTotal": "Tatsächlich abgerechnet im Zeitraum: {value}",
     "noRows": "Keine Verträge mit Arbeitspreis im gewählten Zeitraum.",
@@ -1373,7 +1396,8 @@
       "endsInDays": "in {days} Tagen",
       "ends": "{provider} endet {when}",
       "fallbackProvider": "Vertrag",
-      "checkNote": "Kündigungsfrist und Anschlussvertrag prüfen."
+      "checkNote": "Kündigungsfrist und Anschlussvertrag prüfen.",
+      "cancelBy": "Kündigung für {provider} bis {date} (noch {days} Tage), sonst läuft der Vertrag über den {end} hinaus weiter."
     },
     "yoy": {
       "title": "Jahresvergleich · Monatsdeltas",
@@ -1643,7 +1667,9 @@
       "dateBeforeStart": "{field} darf nicht vor dem Vertragsbeginn liegen.",
       "bonusNotNumeric": "Der Neukundenbonus muss eine Zahl sein.",
       "bonusNegative": "Der Neukundenbonus darf nicht negativ sein.",
-      "amountInvalid": "{label}-Eintrag #{n}: Betrag „{value}“ ist keine Zahl"
+      "amountInvalid": "{label}-Eintrag #{n}: Betrag „{value}“ ist keine Zahl",
+      "noticeDaysOutOfRange": "Die Kündigungsfrist in Tagen muss zwischen 0 und 730 liegen.",
+      "noticeModeInvalid": "Unbekannte Kündigungsweise „{mode}“ (erlaubt: term_end, month_end, any_day)."
     },
     "delivery": {
       "notFound": "Lieferung nicht gefunden: {id}",

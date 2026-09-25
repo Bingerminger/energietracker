@@ -429,6 +429,55 @@ The breakdown on the card (`energy_cost_to_date`, `base_to_date`,
 `bonus_to_date`) adds up to the total; the estimated part is shown below it with
 the date of the last reading.
 
+### Day-exact like the bill (since v2.9.0)
+
+Contract and prices apply **from their own day**, not from the first of the
+month. A month is split at every contract start and end and at every effective
+date of the working prices, base prices and advances:
+
+```text
+Working price  per segment: consumption on the segment's days × price of that day
+Base price     monthly amount × days of the segment / days of the month
+Advance        monthly amount on the first contract day of the month,
+               pro rata to the contract days in the month
+```
+
+Up to v2.8 the contract valid on the first of the month applied to the whole
+month: a switch on the 15th charged all of June at the old price, and a price
+increase on 15 March only took effect in April. If two contracts fall within one
+month, the monthly row belongs to the one with the most days; both parts are
+listed in `contract_parts`, and each contract's balance counts only its own
+part.
+
+**Without cancellation a contract runs on.** If a contract ends without a
+successor starting, the app keeps calculating with its last prices and advances
+(`contract_assumed`) — just as the supplier does. Up to v2.8, consumption after
+a forgotten contract end cost €0. Anyone who has cancelled clears the "Renews
+unless cancelled" checkbox on the contract (`auto_renews: false`). Since March
+2022 a contract that runs on can be cancelled any time with at most one month's
+notice (§ 309 Nr. 9 BGB); the balance card says so, and the balance runs up to
+the next billing date.
+
+### Cancellation deadline and reminder (since v2.9.0)
+
+```text
+Cancel by (fixed term)   = contract end − notice period
+Switch date (any time)   = today + notice period, to month end or to any day
+Switch date (renewed)    = today + min(notice period, 1 month)
+```
+
+Notice periods can be given in months, weeks or days (`notice_period_months` or
+`notice_period_days`), plus the notice mode (`notice_mode`: at the end of the
+term, any time at month end, any time to any day — for example default supply,
+German *Grundversorgung*, with two weeks' notice). The three reminder levels
+(`contract_remind_days_1/2/3`, default 90/30/1 days) count down to the
+**cancellation deadline**, no longer to the contract end: with one month's
+notice, two of the three reminders used to arrive after the deadline. If the
+deadline has been missed, the card says so (`cancel_missed`). A price increase
+entered for the future appears as a note — in Germany together with the special
+right to cancel (*Sonderkündigungsrecht*) effective on the day of the increase
+(§ 41 Abs. 5 EnWG).
+
 ---
 
 [← Compendium index](../README.md) ·

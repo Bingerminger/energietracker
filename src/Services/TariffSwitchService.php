@@ -111,9 +111,20 @@ final class TariffSwitchService
         // Folgevertrags als „Wechseltermin" und rechnete die Referenz mit den
         // Preisen des auslaufenden Vertrags weiter.
         $chain   = $this->bindingChain($real, $today);
+        // v2.9.0 (Review CALC-10) — kein Vertrag läuft heute, aber einer ist
+        // ohne Kündigung abgelaufen: Er läuft weiter und ist jederzeit mit
+        // höchstens einem Monat Frist kündbar. Bisher hieß das hier „kein Vertrag".
+        $renewed = false;
+        if ($chain === []) {
+            $r = $this->contracts->resolveForDate($real, $today);
+            if ($r !== null && $r['assumed']) {
+                $chain = [$r['contract']];
+                $renewed = true;
+            }
+        }
         $current = $chain ? $chain[0] : null;
         $last    = $chain ? $chain[count($chain) - 1] : null;
-        $timing  = $last ? $this->contracts->switchTiming($last, $today) : null;
+        $timing  = $last ? $this->contracts->switchTiming($last, $today, $renewed) : null;
 
         $override = trim((string)($opts['switch_date'] ?? ''));
         if ($override !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $override)) {
@@ -186,6 +197,9 @@ final class TariffSwitchService
                 'tariff_name'          => (string)($current['tariff_name'] ?? ''),
                 'end'                  => $current['end'] ?? null,
                 'notice_period_months' => $current['notice_period_months'] ?? null,
+                'notice_period_days'   => $current['notice_period_days'] ?? null,   // v2.9.0
+                'notice_mode'          => $current['notice_mode'] ?? null,          // v2.9.0
+                'renewed'              => $renewed,                                 // v2.9.0
                 'switch_date'          => $timing['switch_date'] ?? null,
                 'cancel_by'            => $timing['cancel_by'] ?? null,
                 'days_to_cancel'       => $timing['days_to_cancel'] ?? null,

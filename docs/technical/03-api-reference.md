@@ -140,7 +140,7 @@ nicht wieder passieren.
 | DELETE | `/api/utility/{u}/contracts/{id}` | löschen |
 | GET | `/api/utility/{u}/consumption` | Monatsverbrauch (utility-weit) |
 | GET | `/api/utility/{u}/meters/{id}/consumption` | Verbrauch + Anomalien + Regressionen |
-| GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, nur Gas/Strom/Fernwärme); seit v2.8.0 nach Kalender bis heute — s. u. |
+| GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, nur Gas/Strom/Fernwärme); seit v2.8.0 nach Kalender bis heute, seit v2.9.0 tagesgenau mit Kündigungsstichtag — s. u. |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | Prognose mit Unsicherheitsband, Klimanormal und Hinweisen (v2.8.0) — s. u. |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
@@ -369,6 +369,63 @@ special_payment_net`, `projected_end_balance = current_balance +
 estimated_cost_remaining − advance_remaining`. `actual_cost`,
 `actual_kwh_cost` und `actual_base_total` beschreiben weiterhin nur die
 gemessenen Monate.
+
+### Verträge tagesgenau, Kündigungsstichtag *(v2.9.0)*
+
+**Vertragsfelder (additiv, optional):** `notice_period_days` (0–730, Vorrang
+vor `notice_period_months`), `notice_mode` (`term_end` | `month_end` |
+`any_day`, `null` = automatisch) und `auto_renews` (`false` = gekündigt).
+Ungültige Werte → 400 `errors.contract.noticeDaysOutOfRange` bzw.
+`errors.contract.noticeModeInvalid`. Bedeutung:
+[Datenmodell](04-data-model.md).
+
+**Monatszeilen** (`…/consumption`, Gas/Strom/Fernwärme/Heizöl/Pellets/PV):
+Vertrag und Preise gelten ab ihrem Tag. `contract_id` ist der Vertrag mit
+den meisten Tagen im Monat; neu sind `contract_assumed` (`true` = der
+Vertrag ist abgelaufen und läuft ohne Nachfolger weiter) und — nur bei mehr
+als einem Vertrag im Monat — `contract_parts[]` mit je `contract_id`,
+`days`, `kwh`, `kwh_cost`, `base_price_eur`, `advance_eur`, `bonus_eur`,
+`cost`, `assumed`. Die Summen der Monatszeile sind die Summen der Teile.
+Wasser bleibt beim Vertrag des Monatsersten.
+
+**`contract-status`, neue Felder je Vertrag:**
+
+| Feld | Bedeutung |
+|---|---|
+| `renewed` | abgelaufen, ohne Nachfolger, nicht gekündigt: läuft weiter (`is_current: true`); der Saldo rechnet bis zur nächsten Abrechnung |
+| `cancel_by` | letzter Tag für die Kündigung; bei jederzeit kündbaren und weiterlaufenden Verträgen heute |
+| `days_to_cancel` | Tage bis `cancel_by` (negativ = vorbei) |
+| `switch_date` | frühester Tag beim neuen Anbieter |
+| `notice_basis` | `fixed_end`, `open_ended`, `min_term`, `renewed` oder `unknown` (keine Frist gepflegt) |
+| `remind_basis` | `cancel_by` oder `end` — worauf sich `remind_stage` und `should_remind` beziehen; `null` bei offenen und weiterlaufenden Verträgen (keine Stufen-Erinnerung) |
+| `cancel_missed` | Stichtag verstrichen, der Vertrag läuft über sein Ende hinaus |
+| `price_increase` | nächste eingetragene Erhöhung: `{from, working_price_ct: [alt, neu] \| null, base_price_eur: [alt, neu] \| null}`, sonst `null` |
+
+Ein weiterlaufender Vertrag ist höchstens mit einem Monat Frist kündbar
+(§ 309 Nr. 9 BGB); `switch_date` rechnet mit dem kürzeren von eigener Frist
+und einem Monat.
+
+**Geänderte Werte:** Monate mit einem Vertragswechsel oder einer
+Preisänderung zur Monatsmitte, Abschläge im ersten und letzten Vertragsmonat
+(anteilig) und Verbrauch nach einem Vertragsende ohne Nachfolger (bisher
+0 €). `days_until_end` zählt weiter bis zum Vertragsende; `remind_stage` und
+`should_remind` beziehen sich bei gepflegter Frist auf `cancel_by`
+(`remind_basis: "cancel_by"`).
+
+**`tariff-switch`:** Der Block `current` trägt zusätzlich
+`notice_period_days`, `notice_mode` und `renewed`; ein weiterlaufender
+Vertrag bildet die Bindungskette, statt „kein laufender Vertrag" zu melden.
+
+**`tariff-comparison` (Rückblick):** Echte Verträge zeigen, was die Rechnung
+gebucht hat (bei zwei Verträgen im Monat nur ihren Teil). Schattenverträge
+gelten als Preisblatt für **alle** Monate des Zeitraums, vor ihrem ersten
+Preiseintrag mit dessen Preis — bis v2.8 nur für ihre Laufzeit, womit ein
+Sommerangebot ohne Winter billiger aussah.
+
+**`PATCH /api/settings`:** `billing_cycle_anchor_*` muss ein Kalendertag
+`MM-TT` sein, sonst 400 `errors.settings.valueInvalid`.
+`min_temp_days_forecast` und `baujahr` sind **veraltet** (ohne Wirkung,
+entfallen mit v3.0.0); sie werden weiter geliefert und angenommen.
 
 ### `GET /api/utility/{u}/meters/{id}/forecast` *(v2.8.0 erweitert)*
 

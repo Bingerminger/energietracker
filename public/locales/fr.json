@@ -107,7 +107,7 @@
       "inDays": "dans {days} j"
     },
     "allLink": "tout",
-    "chart": { "title": "Consommation sur 12 mois (toutes les énergies)", "alt": "Graphique linéaire : consommation des 12 derniers mois par énergie" },
+    "chart": { "title": "Consommation sur {months} mois (toutes les énergies)", "alt": "Graphique linéaire : consommation des {months} derniers mois par énergie" },
     "card": { "meters": "Compteurs", "details": "Détails" },
     "groups": { "summary": "Groupes ({count})" },
     "kpi": {
@@ -245,7 +245,6 @@
       "subOverpaid": "Trop-payé",
       "verdictLabel": "Attendu à la régularisation",
       "dateNext": "prochaine régularisation : {date}",
-      "dateEstOpen": "fin estimée : {date} (contrat ouvert, +12 mois)",
       "dateEnd": "fin du contrat : {date}",
       "components": "💧 Composantes",
       "tw": "Eau potable",
@@ -261,7 +260,13 @@
       "consShort": "{value} consommation",
       "gpPlus": " + {value} abonnement",
       "suggestAdvance": "Avec un acompte de {suggested} au lieu de {current}, le décompte serait d’environ ±0.",
-      "measuredThenEstimated": "mesuré jusqu’au {date} ({kwh} kWh), estimé ensuite : {value}"
+      "measuredThenEstimated": "mesuré jusqu’au {date} ({kwh} kWh), estimé ensuite : {value}",
+      "renewed": "La durée a pris fin le {date}. Sans résiliation, le contrat continue aux derniers prix et se résilie à tout moment avec un préavis d’un mois au plus.",
+      "cancelMissed": "Date limite de résiliation du {date} dépassée : le contrat ne se termine pas le {end} mais continue — ensuite résiliable avec un préavis d’un mois au plus.",
+      "priceIncrease": "Hausse de prix à partir du {date} : {what}.",
+      "piWorking": "prix de l’énergie {from} → {to} {minor}/kWh",
+      "piBase": "abonnement {from} → {to} {cur}/mois",
+      "priceIncreaseDe": "D’ici là, un droit de résiliation exceptionnel s’applique à la date de la hausse (§ 41 al. 5 EnWG)."
     },
     "contractsTable": {
       "emptyTitle": "Aucun contrat enregistré",
@@ -284,7 +289,8 @@
       "gpSuffix": "{value} {cur} abonnement",
       "colSpecial": "Paiements spéciaux",
       "colSpecialTitle": "Net des paiements spéciaux : les remboursements du fournisseur comptent positivement, les rappels et acomptes supplémentaires négativement. Détail des postes dans l’info-bulle de la cellule.",
-      "hint": "Bonus = avoirs issus du contrat (bonus immédiat, de changement, nouveau client). Paiements spéciaux = remboursements (+), rappels et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Survolez la cellule pour le détail ; la saisie se fait dans la gestion des contrats."
+      "hint": "Bonus = avoirs issus du contrat (bonus immédiat, de changement, nouveau client). Paiements spéciaux = remboursements (+), rappels et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Survolez la cellule pour le détail ; la saisie se fait dans la gestion des contrats.",
+      "stateRenewed": "PROLONGÉ"
     },
     "monthlyTable": {
       "noData": "Aucune donnée pour cette année.",
@@ -509,7 +515,7 @@
       "create": "Créer",
       "validationHalfRows": "Veuillez compléter ou vider les lignes à moitié remplies",
       "saved": "Contrat enregistré",
-      "noticePeriod": "Préavis (mois)",
+      "noticePeriod": "Préavis",
       "noticePeriodPlaceholder": "p. ex. 1",
       "noticePeriodHint": "Le comparateur en déduit la date de résiliation et alerte avant l'échéance.",
       "priceGuarantee": "Prix garanti jusqu'au",
@@ -520,7 +526,23 @@
       "workingPriceRequired": "Au moins une ligne « {group} » avec date et montant est nécessaire.",
       "supersedeTitle": "Remplacer le contrat en cours ?",
       "supersedeMessage": "À partir du {date}, ce contrat s’applique à la place de « {name} » – en cas de chevauchement, le début le plus récent l’emporte. Le solde et la prévision utilisent alors les nouveaux prix.",
-      "supersedeOk": "Oui, remplacer"
+      "supersedeOk": "Oui, remplacer",
+      "noticeUnitLabel": "Unité du préavis",
+      "noticeUnit": {
+        "months": "mois",
+        "weeks": "semaines",
+        "days": "jours"
+      },
+      "noticeMode": "La résiliation prend effet",
+      "noticeModeOption": {
+        "auto": "automatique",
+        "term_end": "à la fin de la durée",
+        "month_end": "à tout moment, en fin de mois",
+        "any_day": "à tout moment, n’importe quel jour"
+      },
+      "noticeModeHint": "Automatique : à la fin de la durée ; sans fin, à tout moment en fin de mois. La fourniture de base, par exemple, se résilie à tout moment avec deux semaines de préavis.",
+      "autoRenews": "Se prolonge sans résiliation",
+      "autoRenewsHint": "Après la fin, le contrat continue aux derniers prix jusqu’à sa résiliation — alors avec un préavis d’un mois au plus. Décocher une fois résilié."
     },
     "delete": { "title": "Supprimer le contrat ?", "message": "Supprimer définitivement le contrat ?", "confirm": "Supprimer", "deleted": "Contrat supprimé" },
     "deleteContract": "Supprimer le contrat",
@@ -661,7 +683,8 @@
       "save": "Enregistrer",
       "saved": "Compteur enregistré",
       "digits": "Chiffres du totalisateur (avant la virgule)",
-      "digitsHint": "Nécessaire seulement si le totalisateur peut repasser de 99999 à 0 : l’analyse reconnaît alors la remise à zéro au lieu de signaler une baisse. Vide = inconnu."
+      "digitsHint": "Nécessaire seulement si le totalisateur peut repasser de 99999 à 0 : l’analyse reconnaît alors la remise à zéro au lieu de signaler une baisse. Vide = inconnu.",
+      "activeHint": "Décocher si le compteur est hors service : son historique compte toujours dans tous les totaux, mais il n’apparaît plus dans la saisie et ne déclenche plus d’alertes."
     },
     "replace": {
       "title": "Changement de compteur : {name}",
@@ -723,7 +746,6 @@
   "settings": {
     "placeholder": {
       "dayMonth": "JJ-MM (01-01)",
-      "yearExample": "p. ex. 1998",
       "frameAncestors": "http://homeassistant.local:8123"
     },
     "loading": "Chargement…",
@@ -786,7 +808,6 @@
       "min_hdd_regression": { "label": "DJU min. pour la régression" },
       "blend_max": { "label": "Poids de mélange max." },
       "forecast_months": { "label": "Horizon de prévision" },
-      "min_temp_days_forecast": { "label": "Jours de temp. min. prévision" },
       "forecast_model": { "label": "Modèle par défaut" },
       "segmented_split_mode": { "label": "Point de rupture du segment", "hint": "auto = ajusté sur les données, fixed = valeur DJU fixe ci-dessous." },
       "segmented_fixed_split": { "label": "Point de rupture fixe", "hint": "Effectif uniquement en mode « fixed »." },
@@ -794,7 +815,6 @@
       "dashboard_months": { "label": "Mois sur le tableau de bord" },
       "alert_days_since_reading": { "label": "Alerter après" },
       "wohnflaeche_m2": { "label": "Surface habitable", "hint": "Surface chauffée — dénominateur de la métrique d’efficacité." },
-      "baujahr": { "label": "Année de construction" },
       "gebaeudetyp": { "label": "Type de bâtiment", "hint": "efh = maison individuelle, rh = maison mitoyenne, mfh = immeuble collectif, whg = appartement." },
       "heizoel_kwh_per_l": { "label": "Contenu énergétique du fioul" },
       "pellets_kwh_per_kg": { "label": "Contenu énergétique des granulés" },
@@ -1126,7 +1146,8 @@
       "wasserzaehler_eichung": "Calibrage du compteur d’eau",
       "dichtheitspruefung": "Contrôle d’étanchéité",
       "lieferung_planen": "Planifier une livraison",
-      "custom": "Autre"
+      "custom": "Autre",
+      "waermezaehler_eichung": "Calibrage du compteur de chaleur"
     },
     "recurrence": { "none": "Ponctuel", "yearly": "Annuel", "semi-yearly": "Semestriel", "custom-months": "Tous les N mois" },
     "due": { "today": "aujourd’hui", "inDays": "dans {days} j", "agoDays": "il y a {days} j" },
@@ -1214,7 +1235,9 @@
       },
       "r6": {
         "title": "{label} : le contrat se termine dans {days} jours",
-        "detail": "Le contrat « {provider} » se termine dans {days} jours. Lancez dès maintenant un comparatif tarifaire et changez si nécessaire."
+        "detail": "Le contrat « {provider} » se termine dans {days} jours. Lancez dès maintenant un comparatif tarifaire et changez si nécessaire.",
+        "titleCancel": "{label} : résilier avant le {date} ({days} jours)",
+        "detailCancel": "Pour que le contrat « {provider} » se termine le {end} au lieu de se prolonger, la résiliation doit parvenir au fournisseur avant le {date}. Lancez dès maintenant un comparatif tarifaire et changez si nécessaire."
       },
       "r7": {
         "title": "{label} : classe d’efficacité {class} ({kwh} kWh/m²·a)",
@@ -1240,7 +1263,7 @@
     "shadowFallbackLabel": "Hypothèse",
     "months": "{count} mois",
     "monthsOne": "1 mois",
-    "partialHint": "Les contrats ne couvrant qu'une partie de la période portent leur durée. La consommation et le coût se rapportent toujours exactement à ces mois.",
+    "partialHint": "Les contrats réels ne couvrant qu'une partie de la période portent leur durée ; la consommation et le coût se rapportent exactement à ces jours. Les contrats fictifs valent grille tarifaire pour toute la période — les offres de durées différentes restent ainsi comparables.",
     "projectedFull": "extrapolé sur {months} mois : {value}",
     "realTotal": "Réellement facturé sur la période : {value}",
     "noRows": "Aucun contrat avec prix unitaire sur la période choisie.",
@@ -1373,7 +1396,8 @@
       "endsInDays": "dans {days} jours",
       "ends": "{provider} se termine {when}",
       "fallbackProvider": "Contrat",
-      "checkNote": "Vérifiez le délai de préavis et un contrat de suite."
+      "checkNote": "Vérifiez le délai de préavis et un contrat de suite.",
+      "cancelBy": "Résilier {provider} avant le {date} (encore {days} jours), sinon le contrat continue au-delà du {end}."
     },
     "yoy": {
       "title": "Comparaison annuelle · écarts mensuels",
@@ -1643,7 +1667,9 @@
       "dateBeforeStart": "{field} ne peut pas précéder le début du contrat.",
       "bonusNotNumeric": "La prime de bienvenue doit être un nombre.",
       "bonusNegative": "La prime de bienvenue ne peut pas être négative.",
-      "amountInvalid": "Entrée {label} n°{n} : le montant « {value} » n’est pas un nombre"
+      "amountInvalid": "Entrée {label} n°{n} : le montant « {value} » n’est pas un nombre",
+      "noticeDaysOutOfRange": "Le préavis en jours doit être compris entre 0 et 730.",
+      "noticeModeInvalid": "Mode de résiliation inconnu « {mode} » (autorisés : term_end, month_end, any_day)."
     },
     "delivery": {
       "notFound": "Livraison introuvable : {id}",

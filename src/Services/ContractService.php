@@ -46,6 +46,14 @@ final class ContractService
         'advance_payments' => ['from', 'amount_eur'],
     ];
 
+    /**
+     * v2.9.0 (Review CALC-11) — wie gekündigt wird: zum Laufzeitende (der
+     * befristete Normalfall), jederzeit zum Monatsende (bisher die Annahme für
+     * unbefristete Verträge) oder jederzeit zu jedem Tag (Grundversorgung,
+     * verlängerte Verträge).
+     */
+    public const NOTICE_MODES = ['term_end', 'month_end', 'any_day'];
+
     /** Water component field groups (v1.0.3). */
     private const FIELD_GROUPS_WATER_COMMON = [
         'advance_payments' => ['from', 'amount_eur'],
@@ -114,6 +122,13 @@ final class ContractService
             'notice_period_months'  => $input['notice_period_months']  ?? null,
             'min_term_end'          => $input['min_term_end']          ?? null,
             'price_guarantee_until' => $input['price_guarantee_until'] ?? null,
+            // v2.9.0 (Review CALC-10, CALC-11) — Verlängerung und Fristen wie
+            // im Vertrag: Ohne Kündigung läuft ein Vertrag nach dem Ende weiter
+            // (null = ja, der Normalfall), Fristen gibt es auch in Wochen und
+            // Tagen, und nicht jeder Vertrag endet nur zum Laufzeitende.
+            'auto_renews'           => $input['auto_renews']           ?? null,
+            'notice_period_days'    => $input['notice_period_days']    ?? null,
+            'notice_mode'           => $input['notice_mode']           ?? null,
             // Neukundenbonus als Betrag, nicht als Gutschriftstermin. Auf dem
             // Vergleichsportal steht „Bonus 130 €" — wann er gutgeschrieben
             // wird, weiß beim Anlegen niemand. `bonuses[]` bleibt für echte,
@@ -168,7 +183,7 @@ final class ContractService
         // v2.3.0 — die Wechselfelder gelten für jede Vertragsart, auch für
         // Wasser und Einspeisung: eine Kündigungsfrist hat jeder Vertrag.
         $switchFields = ['notice_period_months', 'min_term_end', 'price_guarantee_until',
-                         'signup_bonus_eur'];
+                         'signup_bonus_eur', 'auto_renews', 'notice_period_days', 'notice_mode'];
         $standardFields = array_merge($isFeedIn
             ? ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                'working_prices', 'bonuses',
@@ -351,6 +366,37 @@ final class ContractService
             $c['notice_period_months'] = $n;
         }
 
+        // v2.9.0 — Frist in Tagen (Wochen speichert die Oberfläche als Tage).
+        // Gesetzt hat sie Vorrang vor den Monaten.
+        $days = $c['notice_period_days'] ?? null;
+        if ($days === null || $days === '' || $days === false) {
+            $c['notice_period_days'] = null;
+        } else {
+            if (!is_numeric($days)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeNotNumeric'));
+            }
+            $d = (int)$days;
+            if ($d < 0 || $d > 730) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeDaysOutOfRange'));
+            }
+            $c['notice_period_days'] = $d;
+        }
+
+        $mode = $c['notice_mode'] ?? null;
+        if ($mode === null || $mode === '' || $mode === false) {
+            $c['notice_mode'] = null;
+        } elseif (!in_array($mode, self::NOTICE_MODES, true)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.contract.noticeModeInvalid', ['mode' => (string)$mode]));
+        }
+
+        // null = nicht angegeben (verlängert sich, der gesetzliche Normalfall)
+        $renews = $c['auto_renews'] ?? null;
+        $c['auto_renews'] = match (true) {
+            $renews === null || $renews === '' => null,
+            $renews === false || $renews === 0 || $renews === '0' || $renews === 'false' => false,
+            default => true,
+        };
+
         foreach (['min_term_end', 'price_guarantee_until'] as $field) {
             $v = $c[$field] ?? null;
             $v = ($v === null || $v === false) ? '' : trim((string)$v);
@@ -398,17 +444,45 @@ final class ContractService
      * Ohne gepflegte Frist gibt es keinen belastbaren Termin — dann liefert die
      * Methode `null` und die Oberfläche fragt danach, statt etwas zu erfinden.
      *
+     * v2.9.0 (Review CALC-11):
+     *   - Fristen auch in Tagen (`notice_period_days`, hat Vorrang).
+     *   - `notice_mode`: `term_end` (zum Laufzeitende, Standard bei Verträgen
+     *     mit Ende), `month_end` (jederzeit zum Monatsende, Standard ohne
+     *     Ende), `any_day` (jederzeit, etwa die Grundversorgung mit zwei
+     *     Wochen). Ein befristeter Vertrag, der jederzeit kündbar ist, endet
+     *     frühestens nach der Frist, spätestens zu seinem Ende.
+     *   - `$renewed`: Die Laufzeit ist abgelaufen, der Vertrag läuft mangels
+     *     Kündigung weiter. Seit März 2022 ist er dann jederzeit mit höchstens
+     *     einem Monat Frist kündbar (§ 309 Nr. 9 b BGB) — ohne gepflegte
+     *     Frist wird ein Monat angenommen.
+     *
      * @return array{switch_date: ?string, cancel_by: ?string, days_to_cancel: ?int, basis: string}
      */
-    public function switchTiming(array $contract, ?string $today = null): array
+    public function switchTiming(array $contract, ?string $today = null, bool $renewed = false): array
     {
         $today  = $today ?: date('Y-m-d');
-        $notice = $contract['notice_period_months'] ?? null;
+        $notice = self::noticeOf($contract);
         $end    = $contract['end'] ?? null;
+        $mode   = $contract['notice_mode'] ?? null;
 
-        if (!empty($end)) {
+        if ($renewed) {
+            $cap = ['months' => 1, 'days' => null];
+            $effective = self::addNotice($today, $cap);
+            if ($notice !== null) {
+                $own = self::addNotice($today, $notice);
+                if ($own < $effective) $effective = $own;
+            }
+            return [
+                'switch_date'    => date('Y-m-d', strtotime($effective . ' +1 day')),
+                'cancel_by'      => $today,
+                'days_to_cancel' => 0,
+                'basis'          => 'renewed',
+            ];
+        }
+
+        if (!empty($end) && ($mode === null || $mode === 'term_end')) {
             $switch   = date('Y-m-d', strtotime($end . ' +1 day'));
-            $cancelBy = $notice !== null ? self::subMonthsClamped($end, (int)$notice) : null;
+            $cancelBy = $notice !== null ? self::subNotice($end, $notice) : null;
             return [
                 'switch_date'    => $switch,
                 'cancel_by'      => $cancelBy,
@@ -421,24 +495,66 @@ final class ContractService
             return ['switch_date' => null, 'cancel_by' => null, 'days_to_cancel' => null, 'basis' => 'unknown'];
         }
 
-        // Kündigung heute → wirksam zum Monatsende nach Ablauf der Frist.
-        // Über den Monatsersten gerechnet, weil den es in jedem Monat gibt.
-        $effective = (new \DateTimeImmutable($today))
-            ->modify('first day of this month')
-            ->add(new \DateInterval('P' . (int)$notice . 'M'))
-            ->modify('last day of this month')
-            ->format('Y-m-d');
+        // Kündigung heute → wirksam nach Ablauf der Frist: zu jedem Tag oder
+        // zum Monatsende danach (über den Monatsersten gerechnet, den es in
+        // jedem Monat gibt).
+        $effective = $mode === 'any_day'
+            ? self::addNotice($today, $notice)
+            : (new \DateTimeImmutable(self::addNotice($today, $notice)))->modify('last day of this month')->format('Y-m-d');
+        $basis = 'open_ended';
         $minTerm = $contract['min_term_end'] ?? null;
-        $boundByMinTerm = !empty($minTerm) && $minTerm > $effective;
-        if ($boundByMinTerm) {
+        if (!empty($minTerm) && $minTerm > $effective) {
             $effective = $minTerm;
+            $basis = 'min_term';
+        }
+        if (!empty($end) && $end < $effective) {
+            // Die Laufzeit endet vor Ablauf der Frist — dann eben zum Ende.
+            $effective = $end;
+            $basis = 'fixed_end';
         }
         return [
             'switch_date'    => date('Y-m-d', strtotime($effective . ' +1 day')),
             'cancel_by'      => $today,
             'days_to_cancel' => 0,
-            'basis'          => $boundByMinTerm ? 'min_term' : 'open_ended',
+            'basis'          => $basis,
         ];
+    }
+
+    /**
+     * v2.9.0 — Kündigungsfrist eines Vertrags: Tage haben Vorrang vor
+     * Monaten; null, wenn keine gepflegt ist.
+     *
+     * @return array{months:?int,days:?int}|null
+     */
+    public static function noticeOf(array $contract): ?array
+    {
+        $days = $contract['notice_period_days'] ?? null;
+        if ($days !== null && $days !== '') return ['months' => null, 'days' => (int)$days];
+        $months = $contract['notice_period_months'] ?? null;
+        if ($months !== null && $months !== '') return ['months' => (int)$months, 'days' => null];
+        return null;
+    }
+
+    /** Datum plus Frist (Monate über den Monatsersten geklemmt, Lesson 26). */
+    private static function addNotice(string $date, array $notice): string
+    {
+        if (($notice['days'] ?? null) !== null) {
+            return (new \DateTimeImmutable($date))->modify('+' . (int)$notice['days'] . ' days')->format('Y-m-d');
+        }
+        $months = (int)($notice['months'] ?? 0);
+        $d      = new \DateTimeImmutable($date);
+        $target = $d->modify('first day of this month')->add(new \DateInterval("P{$months}M"));
+        $day    = min((int)$d->format('j'), (int)$target->format('t'));
+        return $target->setDate((int)$target->format('Y'), (int)$target->format('n'), $day)->format('Y-m-d');
+    }
+
+    /** Datum minus Frist — der letzte Tag, an dem die Kündigung zugehen muss. */
+    private static function subNotice(string $date, array $notice): string
+    {
+        if (($notice['days'] ?? null) !== null) {
+            return (new \DateTimeImmutable($date))->modify('-' . (int)$notice['days'] . ' days')->format('Y-m-d');
+        }
+        return self::subMonthsClamped($date, (int)($notice['months'] ?? 0));
     }
 
     /**
@@ -783,6 +899,125 @@ final class ContractService
             }
         }
         return $best;
+    }
+
+    /**
+     * v2.9.0 (Review CALC-10) — Wert einer datierten Liste an einem Tag: der
+     * letzte Eintrag mit `from` ≤ Tag. Anders als {@see valueValidOn()}, das
+     * nur den Monatsersten prüft, greift eine Preisänderung zum 15. am 15. —
+     * wie auf der Rechnung, nicht erst im Folgemonat.
+     */
+    public function valueOnDate(array $entries, string $field, string $date): ?float
+    {
+        $val = null;
+        $best = '';
+        foreach ($entries as $e) {
+            $from = (string)($e['from'] ?? '');
+            if ($from === '' || $from > $date || !isset($e[$field]) || !is_numeric($e[$field])) continue;
+            if ($from >= $best) {
+                $best = $from;
+                $val = (float)$e[$field];
+            }
+        }
+        return $val;
+    }
+
+    /**
+     * v2.9.0 (Review CALC-10) — Der Vertrag, nach dem ein Tag abgerechnet
+     * wird. Gilt keiner, läuft der zuletzt beendete weiter, sofern er sich
+     * verlängert (`auto_renews`, fehlend = ja): Ohne Kündigung endet ein
+     * Energievertrag nicht, er verlängert sich (§ 309 Nr. 9 BGB). Bisher kostete
+     * Verbrauch nach einem vergessenen Vertragsende 0 €.
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     * @return array{contract:array<string,mixed>,assumed:bool}|null
+     */
+    public function resolveForDate(array $contracts, string $date): ?array
+    {
+        $c = $this->findActiveForDate($contracts, $date);
+        if ($c !== null) return ['contract' => $c, 'assumed' => false];
+        $last = self::lastEndedBefore($contracts, $date);
+        if ($last !== null && self::renews($last)) return ['contract' => $last, 'assumed' => true];
+        return null;
+    }
+
+    /** v2.9.0 — Verlängert sich der Vertrag ohne Kündigung? Fehlt die Angabe: ja. */
+    public static function renews(array $contract): bool
+    {
+        return ($contract['auto_renews'] ?? null) !== false;
+    }
+
+    /**
+     * Der zuletzt beendete Vertrag vor einem Tag (für die Fortschreibung).
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     */
+    public static function lastEndedBefore(array $contracts, string $date): ?array
+    {
+        $best = null;
+        foreach ($contracts as $c) {
+            $end = (string)($c['end'] ?? '');
+            if ($end === '' || $end >= $date || ($c['start'] ?? '9999') > $date) continue;
+            if ($best === null || $end > (string)$best['end']) $best = $c;
+        }
+        return $best;
+    }
+
+    /**
+     * v2.9.0 (Review CALC-10) — Zerlegt [von, bis) in Abschnitte, in denen
+     * Vertrag und Preise gleich bleiben: geschnitten an Beginn und Ende jedes
+     * Vertrags und an jedem Stichtag seiner Arbeitspreise, Grundpreise und
+     * Abschläge (effektiver Plan). Wie die Rechnung, die an denselben Tagen
+     * eine neue Zeile beginnt. `assumed` markiert Abschnitte, in denen ein
+     * beendeter Vertrag weiterläuft; seine Preise gelten dann wie an seinem
+     * letzten Tag ({@see priceDate()}).
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     * @return list<array{from:string,to:string,days:int,contract:?array,assumed:bool}>
+     */
+    public function segmentsBetween(array $contracts, string $from, string $to): array
+    {
+        if ($to <= $from) return [];
+        $cuts = [];
+        foreach ($contracts as $c) {
+            $dates = [(string)($c['start'] ?? '')];
+            if (!empty($c['end'])) $dates[] = date('Y-m-d', strtotime($c['end'] . ' +1 day'));
+            foreach (['working_prices', 'base_prices'] as $group) {
+                foreach ($c[$group] ?? [] as $e) $dates[] = (string)($e['from'] ?? '');
+            }
+            foreach ($this->effectiveAdvanceSchedule($c) as $e) $dates[] = $e['from'];
+            foreach ($dates as $d) {
+                if ($d > $from && $d < $to) $cuts[$d] = true;
+            }
+        }
+        $cuts = array_keys($cuts);
+        sort($cuts);
+        $bounds = array_merge([$from], $cuts, [$to]);
+        $out = [];
+        for ($i = 0, $n = count($bounds) - 1; $i < $n; $i++) {
+            [$a, $b] = [$bounds[$i], $bounds[$i + 1]];
+            $r = $this->resolveForDate($contracts, $a);
+            $out[] = [
+                'from'     => $a,
+                'to'       => $b,
+                'days'     => self::daysBetween($a, $b),
+                'contract' => $r['contract'] ?? null,
+                'assumed'  => $r['assumed'] ?? false,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * v2.9.0 — Der Tag, dessen Preise in einem Abschnitt gelten: der Beginn
+     * des Abschnitts, bei einem weiterlaufenden Vertrag sein letzter Tag.
+     */
+    public static function priceDate(array $segment): string
+    {
+        $c = $segment['contract'] ?? [];
+        return !empty($segment['assumed']) && !empty($c['end']) && $c['end'] < $segment['from']
+            ? (string)$c['end']
+            : (string)$segment['from'];
     }
 
     public function valueValidOn(array $entries, string $field, int $year, int $month): ?float

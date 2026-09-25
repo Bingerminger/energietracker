@@ -159,10 +159,11 @@ final class BenchmarkService
     {
         $sum = 0.0;
         foreach ($this->meters->list($utility) as $meter) {
-            if (($meter['active'] ?? true) === false) continue;
             // v2.1.3 — F1006: Subzähler überspringen (im Eltern-Brutto bereits
             // enthalten), sonst Doppelzählung → zu hohe kWh/m²·a-Effizienzklasse.
-            if (($meter['parent_meter_id'] ?? null) !== null) continue;
+            // v2.9.0 (CALC-15) — ein Zähler außer Betrieb zählt mit seiner
+            // Historie: Das Jahr, in dem er noch lief, hatte diesen Verbrauch.
+            if (!MeterService::countsInTotals($meter)) continue;
             $monthly = $this->consumption->forMeter($utility, $meter);
             foreach ($monthly as $m) {
                 if ((int)($m['year'] ?? 0) === $year) {

@@ -21,7 +21,8 @@ Verbrauchsarten gebaut wird (Einstellungen → Aktive Verbrauchsarten).
 
 Einstieg. 12-Monats-Kennzahlen je Art, Effizienzklasse **pro
 Heizquelle**, Tank-Bestände (Öl/Pellets), **Strom-Saldo & Autarkie** bei
-PV, kombinierter Verbrauchsverlauf und fällige Termine. Seit v2.7.0 steht
+PV, kombinierter Verbrauchsverlauf (so viele Monate wie in den Einstellungen
+unter *Monate auf Dashboard*, seit v2.9.0) und fällige Termine. Seit v2.7.0 steht
 die Effizienzklasse nur in Ländern mit Skala (Deutschland); sonst zeigt die
 Karte kWh/m²·a und nennt den Grund ([Länderprofile](../functional/14-laenderprofile.md)).
 
@@ -69,6 +70,15 @@ Bezahlt, Bonus, **Sonderzahlungen** (seit v2.5.1: Netto aus Kundensicht,
 Einzelposten im Tooltip; nur bei Gas/Strom/Fernwärme) sowie Saldo heute
 und erwarteten Saldo.
 
+**Seit v2.9.0** rechnet die Karte tagesgenau: Ein Wechsel oder eine
+Preisänderung zur Monatsmitte gilt ab ihrem Tag. Unter den Zahlen stehen
+Hinweise, wenn sie zutreffen — der Vertrag ist abgelaufen und läuft ohne
+Kündigung weiter (Status **VERLÄNGERT**, Enddatum = nächste Abrechnung), der
+Kündigungsstichtag ist verpasst, oder eine eingetragene Preiserhöhung steht
+bevor (in Deutschland mit dem Sonderkündigungsrecht nach § 41 Abs. 5 EnWG).
+Das Banner „Ablesung überfällig" richtet sich nach der Einstellung
+*Warnung nach* (Tage ohne Ablesung; Warnung ab ⅔, Alarm ab dem Wert).
+
 **Unplausible Stände (v2.6.0):** Gibt es Ausreißer, einen fallenden Stand
 ohne Zählertausch oder einen unbestätigten Verdacht aus Home Assistant, steht
 oberhalb der Jahresauswahl ein Hinweis mit den betroffenen Ständen und einem
@@ -95,7 +105,10 @@ Vertrags-Bereich — die Tankrechnung ist die Kostenbasis.
 
 HGT-Korrelations-Streudiagramm mit den Kurven **aller fünf** Modelle
 (linear, polynomial, robust, segmentiert, sigmoid) und ihrem R²-Vergleich,
-Jahresvergleich und Anomalien.
+Jahresvergleich und Anomalien. Darüber stehen die Vertragserinnerungen in
+drei Stufen; seit v2.9.0 nennen sie bei gepflegter Kündigungsfrist den
+**Kündigungsstichtag** („Kündigung für … bis …, sonst läuft der Vertrag über
+den … hinaus weiter"), sonst das Vertragsende.
 
 Seit v2.8.0: Volle Punkte gehen in die Kurven ein, **hohle** sind eigene
 Monate außerhalb des Fits (Teilmonat, zu wenig Heizgradtage oder Temperaturen),
@@ -194,10 +207,13 @@ Darunter, eingeklappt: dieselben Tarife auf den **tatsächlich gemessenen**
 Verbrauch gelegt — „Was hätte Tarif X gekostet?". Das ist der Beleg. Wer sieht,
 dass die Rechnung auf echten Daten aufgeht, glaubt auch der Prognose.
 
-Jede Zeile bezieht sich auf **genau die Monate, die dieser Vertrag abdeckt**:
-Verbrauch, Kosten und Differenz meinen denselben Zeitraum. Verträge mit
-kürzerer Laufzeit tragen ihre Monatszahl als Marke und zusätzlich eine
-Hochrechnung auf die volle Periode.
+Echte Verträge beziehen sich auf **genau die Tage, die sie abdecken** —
+das, was die Rechnung gebucht hat; Verträge mit kürzerer Laufzeit tragen ihre
+Monatszahl als Marke und zusätzlich eine Hochrechnung auf die volle Periode.
+**Schattenverträge gelten als Preisblatt für den ganzen Zeitraum** (seit
+v2.9.0): Ein Angebot, das nur von April bis September eingetragen ist, sah
+bisher billiger aus als dasselbe Angebot fürs ganze Jahr, weil ihm der Winter
+fehlte.
 
 Die Spalte **ct/Einheit** trägt die Vollkosten je kWh bzw. m³ — Arbeitspreis,
 Grundpreis und Boni zusammen. Sie ist die einzige Größe, die von der Laufzeit
@@ -239,7 +255,7 @@ sortiert, einzeln ausblendbar. Rein datengetrieben, keine Werbung.
 ## 9. Termine & Wartung
 
 Wiederkehrende Termine (Heizungswartung, Schornsteinfeger,
-Eichfristen). Fällige/überfällige erscheinen auf dem Dashboard; beim
+Eichfristen — seit v2.9.0 mit eigener Kategorie für die Wärmezähler-Eichung). Fällige/überfällige erscheinen auf dem Dashboard; beim
 Erledigen wird der nächste Termin gemäß Recurrence fortgeschrieben.
 
 ![Termine](screenshots/termine.png)
@@ -317,7 +333,13 @@ Sonderzahlungen). Seit v2.5.3 verlangt der **Zählertausch** den Endstand,
 zeigt den letzten bekannten Stand und fasst den Tausch vor dem Ausführen
 zusammen. Ein **Vertrag** braucht Anbieter oder Tarif und mindestens einen
 Arbeitspreis; der Beginn ist mit dem Tag nach der laufenden Bindung vorbelegt,
-und bevor ein neuer Vertrag einen laufenden ablöst, fragt die App nach. Unter
+und bevor ein neuer Vertrag einen laufenden ablöst, fragt die App nach. Seit
+v2.9.0 nimmt die **Kündigungsfrist** Monate, Wochen oder Tage, dazu die
+**Kündigungsweise** (automatisch, zum Vertragsende, jederzeit zum Monatsende,
+jederzeit zu jedem Tag) und den Haken **„Verlängert sich ohne Kündigung"** —
+herausnehmen, wenn gekündigt ist. Ein Zähler, bei dem *aktiv* abgewählt ist,
+zählt weiter in allen Summen, verschwindet aber aus der Erfassung und aus den
+Warnungen. Unter
 den Arbeitspreisen eines Gasvertrags rechnet **„Preis je m³ umrechnen“**
 (v2.7.0) einen Preis je m³ oder Smc in ct/kWh um und trägt ihn ein. Bei
 Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant — beim Anlegen

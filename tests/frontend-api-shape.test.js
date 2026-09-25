@@ -232,6 +232,11 @@ const ROOT = require('path').resolve(__dirname, '..');
         && 'cost_to_date' in curC && 'suggested_advance' in curC && 'measured_until' in curC
         && Math.abs(curC.energy_cost_to_date + curC.base_to_date - curC.bonus_to_date - curC.cost_to_date) < 0.02,
       curC ? `${curC.projection_method} · bezahlt ${curC.advance_paid}` : 'kein laufender Vertrag');
+    // v2.9.0 (CALC-10, CALC-11) — Verlängerung, Kündigung, Preiserhöhung
+    check('contract-status(gas): renewed, cancel_by, days_to_cancel, switch_date, notice_basis, remind_basis, cancel_missed, price_increase',
+      !!curC && ['renewed', 'cancel_by', 'days_to_cancel', 'switch_date', 'notice_basis', 'remind_basis', 'cancel_missed', 'price_increase']
+        .every(k => k in curC) && typeof curC.renewed === 'boolean',
+      curC ? `basis ${curC.notice_basis}` : 'kein laufender Vertrag');
     const withSp = (cs.contracts || []).find(c => Array.isArray(c.special_payments) && c.special_payments.length);
     check('contract-status(gas): special_payments[] mit Einzelposten', !!withSp,
       withSp ? `${withSp.special_payments.length} Posten` : 'kein Vertrag mit Sonderzahlungen in den Demo-Daten');

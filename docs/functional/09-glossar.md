@@ -30,6 +30,9 @@ in [Grundlagen & Methodik](00-overview.md).
 | **Blend** | R²-gewichtete Mischung Regression × Saisonprofil in der Prognose. |
 | **Saldo** | Tatsächliche Kosten − geleistete Abschläge (dazu das Netto der Sonderzahlungen). **Positiv = Nachzahlung droht, negativ = Guthaben.** |
 | **Schattenvertrag** | Ein Tarif, den man nicht hat: entweder ein Angebot vom Vergleichsportal (für die Wechselentscheidung) oder eine Hypothese über die Vergangenheit („Was hätte das gekostet?"). Wirkt **nur** im Tarifvergleich — nie auf Saldo, Prognose oder Vertragsstatus. |
+| **Kündigungsstichtag** | Letzter Tag, an dem die Kündigung beim Anbieter sein muss (`cancel_by`). Seit v2.9.0 zählen die Erinnerungsstufen bis zu diesem Tag, nicht bis zum Vertragsende. |
+| **Kündigungsweise** | v2.9.0 (`notice_mode`): zum Vertragsende, jederzeit zum Monatsende oder jederzeit zu jedem Tag (etwa die Grundversorgung mit zwei Wochen). |
+| **Weiterlaufender Vertrag** | v2.9.0: abgelaufen, ohne Nachfolger und nicht gekündigt — läuft zu den letzten Preisen weiter (`renewed`, Monatszeilen `contract_assumed`) und ist jederzeit mit höchstens einem Monat Frist kündbar. |
 | **Wechseltermin** | v2.3.0: Der erste Tag, an dem ein neuer Tarif liefern könnte. Ergibt sich aus Vertragsende und Kündigungsfrist; davon zu unterscheiden ist der **Kündigungsstichtag**, bis zu dem die Kündigung raus muss. |
 | **Break-even-Verbrauch** | v2.3.0: Die Jahresmenge, ab der ein Angebot den laufenden Vertrag schlägt (Spalte „Lohnt ab"). Liegt sie weit vom erwarteten Verbrauch weg, trägt die Wechselentscheidung auch bei ungenauer Prognose. |
 | **Neukundenbonus** | v2.3.0: Einmalbetrag am Angebot (`signup_bonus_eur`), der nur im ersten Jahr zählt. Die Rangfolge richtet sich bewusst nach den Kosten **ab** dem zweiten Jahr. |

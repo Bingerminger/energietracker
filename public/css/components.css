@@ -420,6 +420,12 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
   border-radius: var(--r-md); font-size: var(--fs-sm);
   background: color-mix(in srgb, var(--info) 8%, transparent); color: var(--text-1);
 }
+/* v2.9.0 — Vertragshinweise (weiterlaufend, Frist verpasst, Preiserhöhung) */
+.balance-note {
+  margin: var(--sp-2) 0 0; padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md); font-size: var(--fs-sm);
+  background: color-mix(in srgb, var(--warning) 10%, transparent); color: var(--text-1);
+}
 .balance-col__breakdown {
   font-family: var(--font-mono); font-size: 10px;
   color: var(--text-disabled);
@@ -589,6 +595,11 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .settings-field__hint {
   font-size: var(--fs-xs); color: var(--text-3);
   line-height: 1.45; margin-top: 2px;
+}
+/* v2.9.0 — Zahl mit Einheit nebeneinander (Kündigungsfrist); minmax(0,1fr),
+   damit das Paar auf dem iPhone nicht über den Rand wächst */
+.input-pair {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-2);
 }
 .settings-field__check {
   display: flex; align-items: center; gap: 8px;

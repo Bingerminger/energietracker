@@ -648,6 +648,14 @@ pro Vertrag:
   konfigurierbar (Default 90 / 30 / 1 Tage).
 - `should_remind` — `true`, sobald `remind_stage > 0`.
 
+**Seit v2.9.0** zählen die Stufen bis zum **Kündigungsstichtag**
+(`remind_basis: "cancel_by"`), sobald eine Kündigungsfrist gepflegt ist —
+sonst wie bisher bis zum Ende (`"end"`). Dazu `cancel_by`,
+`days_to_cancel`, `switch_date`, `notice_basis` (`fixed_end`,
+`open_ended`, `min_term`, `renewed`, `unknown`), `cancel_missed`,
+`renewed` (abgelaufen ohne Nachfolger, läuft weiter) und `price_increase`
+(nächste eingetragene Erhöhung). Details: [API-Referenz](technical/03-api-reference.md).
+
 **Wasser-spezifische Antwort** (seit v1.0.3): jedes Vertrags-Objekt enthält
 zusätzlich `actual_m3` und `components` mit der Aufschlüsselung der drei
 Komponenten:

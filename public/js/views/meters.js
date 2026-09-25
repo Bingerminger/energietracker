@@ -333,6 +333,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
         ${existing ? `
           <div class="field">
             <label><input type="checkbox" name="active" ${existing.active ? 'checked' : ''}> ${t('meters.modal.active')}</label>
+            <span class="settings-field__hint">${t('meters.modal.activeHint')}</span>
           </div>
         ` : ''}
       </form>

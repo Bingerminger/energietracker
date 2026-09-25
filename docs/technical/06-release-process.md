@@ -498,6 +498,40 @@ abgenommen ist.
   Zustand nie. Aufgefallen ist es beim Schreiben eines Tests für das nächste
   Paket. Seitdem gehört zu jeder neuen Rechnung ein Test mit leerem und mit
   vollständig ausgeschlossenem Datenstand (etwa alles vor einer Zäsur).
+- **Ein Test kann auch einen Fehler festschreiben (v2.9.0).**
+  `ContractEdgeCasesTest` sicherte seit Jahren ausdrücklich zu, dass ein
+  Vertragswechsel zum 15. den ganzen Monat dem alten Vertrag zuschlägt
+  (`…AttributesEntireMonthToContractActiveOnFirst`). Der Test beschrieb das
+  Verhalten, nicht die Rechnung des Versorgers — und stand damit der Korrektur
+  im Weg. Ein solcher Test wird nicht still angepasst: Er wird umbenannt
+  (`…SplitsTheMonthByDay`), das CHANGELOG nennt die geänderten Werte, und die
+  Gegenprobe zeigt, dass der neue Test den alten Weg ablehnt.
+- **Ohne Datensatz ist nicht null (v2.9.0).** Verbrauch nach einem
+  vergessenen Vertragsende kostete 0 € — die App nahm an, mit dem Enddatum ende
+  auch die Rechnung. Der Versorger rechnet weiter. Verwandt mit Lektion 24:
+  Wo Daten fehlen, gehört die fachlich richtige Annahme hin (der Vertrag läuft
+  weiter) und ein Hinweis, dass es eine Annahme ist — keine stille Null.
+- **Eine Erinnerung zählt bis zum Handeln, nicht bis zum Ereignis (v2.9.0).**
+  Die drei Stufen zählten bis zum Vertragsende. Mit einem Monat Frist kamen
+  zwei von drei Erinnerungen nach dem letzten Kündigungstag — pünktlich und
+  nutzlos. Wer erinnert, rechnet vom letzten Tag zurück, an dem man noch
+  etwas tun kann.
+- **Ein Vergleich braucht denselben Zeitraum (v2.9.0).** Ein Schattenvertrag
+  galt nur für seine Laufzeit. Ein Angebot, das von April bis September
+  eingetragen war, sah damit günstiger aus als dasselbe Angebot fürs ganze
+  Jahr: Ihm fehlte der Winter. Ein Angebot ist ein Preisblatt und gilt für den
+  ganzen Vergleichszeitraum.
+- **Was „inaktiv" heißt, stand an vier Stellen verschieden (v2.9.0).**
+  Verbrauchsansicht und CSV zählten einen abgewählten Zähler mit, PDF-Bericht
+  und Effizienzklasse nicht — derselbe Zähler, zwei Jahressummen. Dieselbe
+  Klasse wie Lektion 19 und 22. Jetzt steht die Bedeutung an einer Stelle
+  (`MeterService::countsInTotals()` für Summen, `inService()` für Erfassung
+  und Warnungen): Ein Zähler außer Betrieb hat trotzdem eine Vergangenheit.
+- **Eine wirkungslose Einstellung entfernt man nicht still (v2.9.0).**
+  `min_temp_days_forecast` und `baujahr` taten nichts. Aus der Oberfläche
+  sind sie verschwunden, aus der API nicht: Wer sie per Skript setzt, bekäme
+  sonst ohne Ankündigung einen anderen Stand zurück. Sie sind als veraltet
+  markiert und entfallen erst mit einer Major-Version.
 
 ---
 

@@ -140,7 +140,8 @@ final class PdfReportService
         foreach ($this->activeUtilities() as $utility) {
             $meters = $this->meters->list($utility);
             foreach ($meters as $meter) {
-                if (($meter['active'] ?? true) === false) continue;
+                // v2.9.0 (CALC-15) — auch außer Betrieb: Die Seite erscheint
+                // für jedes Jahr, in dem der Zähler Verbrauch hatte
                 $monthly = $this->consumption->forMeter($utility, $meter);
                 $monthly = array_values(array_filter($monthly, fn($m) => (int)($m['year'] ?? 0) === $year));
                 if (empty($monthly)) continue;
@@ -289,11 +290,11 @@ final class PdfReportService
     {
         $kwh = $m3 = $cost = $co2 = 0.0;
         foreach ($this->meters->list($utility) as $meter) {
-            if (($meter['active'] ?? true) === false) continue;
             // v2.1.3 — F1006: Subzähler nicht mitzählen; der Elternzähler trägt
             // den Brutto-Verbrauch bereits inklusive (sonst Doppelzählung,
             // analog ConsumptionService::forUtility-Gesamtsumme).
-            if (($meter['parent_meter_id'] ?? null) !== null) continue;
+            // v2.9.0 (CALC-15) — Zähler außer Betrieb zählen mit ihrer Historie.
+            if (!MeterService::countsInTotals($meter)) continue;
             foreach ($this->consumption->forMeter($utility, $meter) as $m) {
                 if ((int)($m['year'] ?? 0) !== $year) continue;
                 $kwh  += (float)($m['kwh'] ?? 0);

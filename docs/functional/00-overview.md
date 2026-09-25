@@ -442,6 +442,53 @@ Die Aufschlüsselung auf der Karte (`energy_cost_to_date`,
 `base_to_date`, `bonus_to_date`) ergibt die Summe; der geschätzte Teil
 steht darunter mit dem Datum der letzten Ablesung.
 
+### Tagesgenau wie die Rechnung (seit v2.9.0)
+
+Vertrag und Preise gelten **ab ihrem Tag**, nicht ab dem Monatsersten. Ein
+Monat wird an jedem Vertragsbeginn und -ende und an jedem Stichtag der
+Arbeitspreise, Grundpreise und Abschläge geteilt:
+
+```text
+Arbeitspreis  je Abschnitt: Verbrauch der Abschnittstage × Preis dieses Tages
+Grundpreis    Monatsbetrag × Tage des Abschnitts / Tage des Monats
+Abschlag      Monatsbetrag am ersten Vertragstag des Monats,
+              anteilig nach den Vertragstagen im Monat
+```
+
+Bis v2.8 galt der Vertrag vom Monatsersten für den ganzen Monat: Ein Wechsel
+zum 15. rechnete den Juni zum alten Preis, eine Preiserhöhung zum 15. März griff
+erst im April. Liegen zwei Verträge in einem Monat, gehört die Monatszeile dem
+mit den meisten Tagen; beide Teile stehen in `contract_parts`, und der Saldo
+jedes Vertrags zählt nur seinen Teil.
+
+**Ohne Kündigung läuft ein Vertrag weiter.** Endet ein Vertrag, ohne dass ein
+Nachfolger beginnt, rechnet die App mit seinen letzten Preisen und Abschlägen
+weiter (`contract_assumed`) — so wie der Versorger. Bis v2.8 kostete
+Verbrauch nach einem vergessenen Vertragsende 0 €. Wer gekündigt hat, nimmt
+am Vertrag den Haken „Verlängert sich ohne Kündigung" heraus (`auto_renews:
+false`). Ein weiterlaufender Vertrag ist seit März 2022 jederzeit mit
+höchstens einem Monat Frist kündbar (§ 309 Nr. 9 BGB); die Saldo-Karte sagt
+das dazu, und der Saldo läuft bis zur nächsten Abrechnung.
+
+### Kündigungsstichtag und Erinnerung (seit v2.9.0)
+
+```text
+Stichtag (befristet)   = Vertragsende − Kündigungsfrist
+Wechsel (jederzeit)    = heute + Frist, zum Monatsende oder zu jedem Tag
+Wechsel (weiterlaufend)= heute + min(Frist, 1 Monat)
+```
+
+Fristen gibt es in Monaten, Wochen oder Tagen (`notice_period_months` bzw.
+`notice_period_days`), dazu die Kündigungsweise (`notice_mode`: zum
+Vertragsende, jederzeit zum Monatsende, jederzeit zu jedem Tag — etwa die
+Grundversorgung mit zwei Wochen). Die drei Erinnerungsstufen
+(`contract_remind_days_1/2/3`, Standard 90/30/1 Tage) zählen bis zum
+**Kündigungsstichtag**, nicht mehr bis zum Vertragsende: Mit einem Monat Frist
+kamen bisher zwei der drei Erinnerungen nach dem Stichtag. Ist der Stichtag
+verpasst, sagt die Karte das (`cancel_missed`). Eine eingetragene
+Preiserhöhung in der Zukunft erscheint als Hinweis, in Deutschland mit dem
+Sonderkündigungsrecht zum Zeitpunkt der Erhöhung (§ 41 Abs. 5 EnWG).
+
 ---
 
 [← Kompendium-Index](../README.md) ·

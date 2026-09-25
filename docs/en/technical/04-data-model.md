@@ -230,13 +230,33 @@ is set is `unit_price_cents` used.
                           "amount_eur": 142.5, "note": "Statement 2023",
                           "new_advance_eur": 95,
                           "advance_from": "2024-04-01" } ],
-  "is_shadow": false, "shadow_label": null
+  "is_shadow": false, "shadow_label": null,
+  "notice_period_months": 1, "notice_period_days": null,
+  "notice_mode": null, "auto_renews": null,
+  "min_term_end": null, "price_guarantee_until": null,
+  "signup_bonus_eur": null
 }
 ```
 
 `is_shadow: true` = a hypothetical tariff for the comparison; affects **neither**
-the balance **nor** the forecast. Water additionally uses a three-component model
-(drinking/waste/rainwater), see [Water](../functional/03-wasser.md).
+the balance **nor** the forecast.
+
+**Cancellation (v2.3.0, extended in v2.9.0)** — all fields optional, `null` = not
+maintained:
+
+| Field | Meaning |
+|---|---|
+| `notice_period_months` | notice period in months; `0` = any time |
+| `notice_period_days` | *(v2.9.0)* notice period in days (0–730), takes precedence over the months; the interface stores weeks as days |
+| `notice_mode` | *(v2.9.0)* `term_end` (at the end of the term), `month_end` (any time, at month end), `any_day` (any time, to any day); `null` = at the end of the term if there is an end, otherwise at month end |
+| `auto_renews` | *(v2.9.0)* `false` = cancelled, the contract really ends; otherwise it runs on without a successor at its last prices |
+| `min_term_end` | end of the minimum term (open-ended contracts) |
+| `price_guarantee_until` | end of the price guarantee |
+| `signup_bonus_eur` | sign-up bonus as an amount (offers in the tariff comparison) |
+
+The API rejects invalid values with 400 (`errors.contract.noticeDaysOutOfRange`,
+`errors.contract.noticeModeInvalid`). Water additionally uses a three-component
+model (drinking/waste/rainwater), see [Water](../functional/03-wasser.md).
 
 **`special_payments` (F1003, from v1.5.0)** — only for gas/electricity/district
 heating (single source of truth: `Utilities::hasAdvancePaymentContracts()`).
@@ -270,8 +290,12 @@ Groups (a selection of the default values):
 | `forecast_model` | linear | default regression model |
 | `segmented_split_mode` | auto | breakpoint of the segmented regression |
 | `wohnflaeche_m2` | 100 | for the efficiency class |
+| `dashboard_months` | 12 | *(effective since v2.9.0)* months in the dashboard's consumption history (3–36) |
+| `alert_days_since_reading` | 45 | *(effective since v2.9.0)* "reading overdue": warning from ⅔, alert from the value itself |
+| `contract_remind_days_1/2/3` | 90 / 30 / 1 | reminder levels; since v2.9.0 days before the cancellation deadline, without a notice period before the contract end |
+| `min_temp_days_forecast`, `baujahr` | 20, null | **deprecated (v2.9.0)**, without effect and no longer in the interface; dropped with v3.0.0 |
 | `efficiency_class_thresholds` | A+…G | band limits kWh/m²·a |
-| `billing_cycle_anchor_*` | 01-01 | billing date — stored `MM-DD`, **displayed `DD-MM`** (v1.4.2) |
+| `billing_cycle_anchor_*` | 01-01 | billing date — stored `MM-DD`, **displayed `DD-MM`** (v1.4.2); since v2.9.0 it must be a calendar day, otherwise 400 |
 | `delivery_baseload_share` | 0.15 | weather-independent base-load share for delivery utilities |
 | `tank_warn_pct` | — | warning threshold for the tank level |
 | `active_utilities` | all | which utilities are visible in the sidebar/dashboard |

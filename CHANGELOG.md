@@ -6,6 +6,147 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.9.0] — 2026-09-25 — Verträge wie die Rechnung
+
+MINOR-Release (F1014). Kein Schema-Bump, keine Datenmigration. Neue
+Vertrags- und Antwortfelder sind additiv; zwei wirkungslose Einstellungen sind
+als veraltet markiert und werden weiter geliefert.
+
+**Der Anlass.** Das Gesamtreview hat die Vertragsrechnung neben die
+Jahresabrechnung gelegt: Ein Vertragswechsel zum 15. rechnete den ganzen Monat
+zum alten Preis, eine Preiserhöhung zur Monatsmitte griff erst im Folgemonat,
+Verbrauch nach einem vergessenen Vertragsende kostete 0 €, und mit einem Monat
+Kündigungsfrist kamen zwei von drei Erinnerungen nach dem letzten
+Kündigungstag (Review CALC-10, -11, -15, -21, -23, -24).
+
+### ⚠️ Für bestehende Installationen
+
+- **Werte ändern sich** — Klasse B der Stabilitätszusage: Die Felder bleiben,
+  ihre Berechnung wird korrigiert.
+  - **Monate mit Vertragswechsel oder Preisänderung zur Monatsmitte** werden
+    am Stichtag geteilt: Arbeitspreis nach dem Verbrauch der Tage, Grundpreis
+    nach Tagen. Die Monatszeile gehört dem Vertrag mit den meisten Tagen;
+    beide Teile stehen in `contract_parts`.
+  - **Abschläge in Monaten mit Vertragsbeginn oder -ende** zählen anteilig
+    nach den Vertragstagen. Bisher bekam der Vertrag vom Monatsersten den
+    vollen Abschlag.
+  - **Nach einem Vertragsende ohne Nachfolger** läuft der Vertrag zu seinen
+    letzten Preisen und Abschlägen weiter, wie beim Versorger — bisher kostete
+    dieser Verbrauch 0 €. Wer gekündigt hat: am Vertrag „Verlängert sich ohne
+    Kündigung" abwählen, dann endet er wie bisher.
+  - **Erinnerungen** (Analyse, Empfehlung „Vertrag") zählen bei gepflegter
+    Kündigungsfrist bis zum Kündigungsstichtag statt bis zum Vertragsende —
+    sie kommen also um die Frist früher.
+  - **Tarifvergleich, Rückblick:** Schattenverträge gelten als Preisblatt für
+    den ganzen Zeitraum; Angebote mit kurzer Laufzeit zeigen andere Werte.
+    Echte Verträge zeigen, was die Monatsrechnung gebucht hat.
+  - **Zähler außer Betrieb** (nicht aktiv) zählen im PDF-Jahresbericht und in
+    der Effizienzklasse mit ihrer Historie — wie schon in Verbrauchsansicht,
+    Dashboard und CSV.
+  - **Banner „Ablesung überfällig"** folgt der Einstellung *Warnung nach*
+    (Default 45: Warnung ab 30, Alarm ab 45 Tagen; bisher fest 30
+    und 60).
+- **Abrechnungsstichtag** wird beim Speichern geprüft: Ein Wert, der kein
+  Kalendertag ist (`13-45`, `02-30`), wird mit 400 abgelehnt. Ein bereits
+  gespeicherter ungültiger Wert rechnet mit dem 1. Januar.
+
+### Deprecated
+
+- Einstellungen `min_temp_days_forecast` (seit v2.8.0 durch die 90-%-Regel
+  ersetzt) und `baujahr` (floss nie in eine Rechnung ein): ohne Wirkung,
+  nicht mehr in der Oberfläche. `GET`/`PATCH /api/settings` liefern und
+  nehmen sie weiter an; sie entfallen frühestens mit v3.0.0.
+
+### Added
+
+- **Verträge tagesgenau (CALC-10):** `ContractService::segmentsBetween()`
+  teilt Monate an Vertragsbeginn und -ende und an jedem Stichtag von
+  Arbeitspreis, Grundpreis und Abschlag. Monatszeilen tragen
+  `contract_assumed` und bei zwei Verträgen im Monat `contract_parts[]`
+  (`contract_id`, `days`, `kwh`, `kwh_cost`, `base_price_eur`,
+  `advance_eur`, `bonus_eur`, `cost`, `assumed`); der Saldo jedes
+  Vertrags zählt nur seinen Teil. Wasser bleibt beim Vertrag des
+  Monatsersten.
+- **Weiterlaufende Verträge:** Vertragsfeld `auto_renews` (`false` =
+  gekündigt), in `contract-status` `renewed`. Die Vertragstabelle zeigt
+  **VERLÄNGERT**, der Saldo rechnet bis zur nächsten Abrechnung, und die
+  Saldo-Karte sagt, dass der Vertrag jederzeit mit höchstens einem Monat Frist
+  kündbar ist (§ 309 Nr. 9 BGB).
+- **Kündigungsstichtag (CALC-11):** Frist in Monaten, Wochen oder Tagen
+  (`notice_period_days`, 0–730, Vorrang vor den Monaten) und Kündigungsweise
+  `notice_mode` (`term_end`, `month_end`, `any_day`). `contract-status`
+  liefert `cancel_by`, `days_to_cancel`, `switch_date`, `notice_basis`,
+  `remind_basis` und `cancel_missed`; Erinnerung und Empfehlung nennen den
+  Stichtag, die Saldo-Karte einen verpassten.
+- **Preiserhöhung (CALC-11):** `price_increase` — die nächste eingetragene
+  Erhöhung von Arbeits- oder Grundpreis. Die Saldo-Karte weist darauf hin, in
+  Deutschland mit dem Sonderkündigungsrecht zum Zeitpunkt der Erhöhung
+  (§ 41 Abs. 5 EnWG).
+- **Wärmezähler-Eichung** als Terminkategorie (fünf Jahre, CALC-24).
+- Zählerdialog: Hinweis, was „aktiv" abwählen bewirkt.
+
+### Changed
+
+- **Prognose:** Die Kostenrechnung teilt Monate wie die Ist-Rechnung
+  (`ForecastService::projectStandardMonth()`); ein Vertragswechsel im
+  Prognosezeitraum wirkt ab seinem Tag.
+- **Tarifvergleich (CALC-21):** Rückblick wie unter ⚠️ beschrieben. Die
+  Wechselentscheidung nimmt einen weiterlaufenden Vertrag als Bindung, statt
+  „kein laufender Vertrag" zu melden; `current` trägt `notice_period_days`,
+  `notice_mode` und `renewed`.
+- **Zähler außer Betrieb (CALC-15):** Was „inaktiv" heißt, steht an einer
+  Stelle (`MeterService::countsInTotals()`, `inService()`): Die Historie
+  zählt in jeder Summe; Erfassung, Warnungen und Empfehlungen lassen den
+  Zähler aus.
+- **Einstellungen mit Wirkung (CALC-23):** `dashboard_months` bestimmt den
+  Verlauf auf dem Dashboard (3–36 Monate), `alert_days_since_reading` das
+  Banner „Ablesung überfällig".
+- Vertragsformular: Kündigungsfrist mit Einheit, Kündigungsweise, Haken
+  „Verlängert sich ohne Kündigung".
+
+### Fixed
+
+- Verbrauch nach einem Vertragsende ohne Nachfolger kostete 0 € (CALC-10).
+- Ein ungültiger Abrechnungsstichtag ergab ein unmögliches Datum und null
+  verbleibende Monate im Saldo (CALC-24).
+- Derselbe Zähler außer Betrieb ergab im PDF-Jahresbericht und in der
+  Effizienzklasse eine andere Jahressumme als in der Verbrauchsansicht
+  (CALC-15).
+- Saldo-Karte offener Verträge: Sie nannte „geschätztes Ende … (offener
+  Vertrag, +12 M)", gerechnet wird aber bis zum nächsten Abrechnungsstichtag.
+  Jetzt steht dort „nächste Abrechnung: …".
+
+### Migration
+
+Keine. Schema bleibt 1.5.0. Verträge ohne die neuen Felder laufen weiter:
+Ohne `auto_renews` verlängert sich ein Vertrag ohne Nachfolger, die
+Kündigungsfrist bleibt in Monaten.
+
+### Tests
+
+- Neu: `ContractDayAccurateTest` (13 Tests: Preisänderung zur Monatsmitte,
+  Verlängerung, Kündigung, Lücke zwischen Verträgen, Stichtag und Erinnerung,
+  verpasste Frist, Preiserhöhung, anteilige Abschläge, Prognose),
+  `TotalsAndSettingsRulesTest` (4), drei neue Fälle in
+  `TariffComparisonServiceTest`. Der Test, der den Monatsersten festschrieb,
+  ist bewusst umgeschrieben (`testContractSwitchMidMonthSplitsTheMonthByDay`).
+- 398 Testmethoden (vorher 379), Frontend-API-Shape 50/50, Browser-Render
+  76/76. Jede neue Regel hat eine Gegenprobe (26, alle rot).
+
+### Lessons Learned
+
+- Ein Test kann auch einen Fehler festschreiben — dann wird er umbenannt und
+  begründet, nicht still angepasst.
+- Ohne Datensatz ist nicht null: Wo Daten fehlen, gehört die fachlich
+  richtige Annahme hin, als Annahme gekennzeichnet.
+- Eine Erinnerung zählt bis zum letzten Tag, an dem man handeln kann.
+- Ein Vergleich braucht denselben Zeitraum.
+- Eine wirkungslose Einstellung entfernt man nicht still aus der API.
+
+Ausführlich: [Release-Prozess §5](docs/technical/06-release-process.md).
+
+---
+
 ## [2.8.1] — 2026-09-25 — Saldo ohne Messwerte
 
 PATCH-Release. Kein Schema-Bump, keine Datenmigration.

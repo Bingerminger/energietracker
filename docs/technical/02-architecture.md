@@ -111,10 +111,10 @@ und kennt **kein HTTP**.
 | `SettingsService` | Settings lesen/mergen, Typ-Casts; Defaults in `DEFAULTS`; je Datenstand zwischengespeichert (v2.6.0) |
 | `ConversionFactorService` | datierte Gas-Faktoren (F1012), tagesgenau |
 | `I18nService` | Kataloge, `t()`, Sprache aus Einstellung bzw. `Accept-Language`; ordnet Meldungen ihrem Fehlercode zu (v2.6.0) |
-| `MeterService` | CRUD Zähler/Tanks, Gerätetausch, Topologie (Subzähler/Gruppen, F1006) + `external_id`-Alias (F1009) |
+| `MeterService` | CRUD Zähler/Tanks, Gerätetausch, Topologie (Subzähler/Gruppen, F1006) + `external_id`-Alias (F1009); `countsInTotals()`/`inService()`: ein Zähler außer Betrieb zählt in Summen, nicht in Erfassung und Warnungen (v2.9.0) |
 | `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device; Erfassungsübersicht mit typischem Tagesverbrauch; Sammel-Upsert für den CSV-Import (v2.6.0) |
-| `ContractService` | CRUD Verträge, strikte Validierung, Stichtag-Lookup |
-| `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo nach Kalender, Heizmodell und Wetterbereinigung (v2.8.0); delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService`; seit v2.6.0 Plausibilität (Ausreißer, Verdacht, Überlauf) mit `warnings` |
+| `ContractService` | CRUD Verträge, strikte Validierung, Stichtag-Lookup; seit v2.9.0 tagesgenaue Abschnitte (`segmentsBetween`), weiterlaufender Vertrag (`resolveForDate`), Kündigungsstichtag (`switchTiming`) |
+| `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo nach Kalender, Heizmodell und Wetterbereinigung (v2.8.0); Verträge tagesgenau mit `contract_parts` (v2.9.0); delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService`; seit v2.6.0 Plausibilität (Ausreißer, Verdacht, Überlauf) mit `warnings` |
 | `DeliveryConsumptionService` | **(seit v1.4.4)** Tages-Verbrauchsverteilung & Tank-Bestandsabzug für Heizöl/Pellets — aus `ConsumptionService` extrahiert (~350 Zeilen) |
 | `DeliveryService` | CRUD Lieferungen, Tank-Bestandskurve |
 | `TemperatureService` | CSV-Import, Open-Meteo-Abgleich mit Quelle je Tag, täglicher Auto-Sync (v2.8.0) |

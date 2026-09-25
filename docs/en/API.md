@@ -645,6 +645,14 @@ contract:
   days).
 - `should_remind` — `true` as soon as `remind_stage > 0`.
 
+**Since v2.9.0** the levels count down to the **cancellation deadline**
+(`remind_basis: "cancel_by"`) as soon as a notice period is maintained —
+otherwise, as before, to the end (`"end"`). In addition `cancel_by`,
+`days_to_cancel`, `switch_date`, `notice_basis` (`fixed_end`, `open_ended`,
+`min_term`, `renewed`, `unknown`), `cancel_missed`, `renewed` (expired without a
+successor, runs on) and `price_increase` (next entered increase). Details:
+[API reference](technical/03-api-reference.md).
+
 **Water-specific response** (since v1.0.3): each contract object additionally
 contains `actual_m3` and `components` with the breakdown of the three components:
 

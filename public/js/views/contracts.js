@@ -357,9 +357,15 @@ async function openContractModal(u, meters, existing, contracts = []) {
         <div class="form-row">
           <div class="field">
             <label>${t('contracts.modal.noticePeriod')}</label>
-            <input class="input" type="text" inputmode="numeric" name="notice_period_months"
-                   value="${escapeHtml(String(initial.notice_period_months ?? ''))}"
-                   placeholder="${escapeHtml(t('contracts.modal.noticePeriodPlaceholder'))}">
+            <!-- v2.9.0 (CALC-11) — Frist in Monaten, Wochen oder Tagen -->
+            <div class="input-pair">
+              <input class="input" type="text" inputmode="numeric" name="notice_value"
+                     value="${escapeHtml(noticeInitial(initial).value)}"
+                     placeholder="${escapeHtml(t('contracts.modal.noticePeriodPlaceholder'))}">
+              <select class="input" name="notice_unit" aria-label="${escapeHtml(t('contracts.modal.noticeUnitLabel'))}">
+                ${['months', 'weeks', 'days'].map(un => `<option value="${un}" ${noticeInitial(initial).unit === un ? 'selected' : ''}>${t('contracts.modal.noticeUnit.' + un)}</option>`).join('')}
+              </select>
+            </div>
             <span class="settings-field__hint">${t('contracts.modal.noticePeriodHint')}</span>
             <div class="field-error" data-role="notice-msg" role="alert" hidden></div>
           </div>
@@ -370,11 +376,27 @@ async function openContractModal(u, meters, existing, contracts = []) {
             <span class="settings-field__hint">${t('contracts.modal.priceGuaranteeHint')}</span>
           </div>
         </div>
+        <div class="form-row">
+          <div class="field">
+            <label>${t('contracts.modal.noticeMode')}</label>
+            <select class="input" name="notice_mode">
+              ${['', 'term_end', 'month_end', 'any_day'].map(mo => `<option value="${mo}" ${(initial.notice_mode || '') === mo ? 'selected' : ''}>${t('contracts.modal.noticeModeOption.' + (mo || 'auto'))}</option>`).join('')}
+            </select>
+            <span class="settings-field__hint">${t('contracts.modal.noticeModeHint')}</span>
+          </div>
+          <div class="field">
+            <label>${t('contracts.modal.minTermEnd')}</label>
+            <input class="input" type="date" name="min_term_end"
+                   value="${escapeHtml(initial.min_term_end || '')}">
+            <span class="settings-field__hint">${t('contracts.modal.minTermEndHint')}</span>
+          </div>
+        </div>
         <div class="field">
-          <label>${t('contracts.modal.minTermEnd')}</label>
-          <input class="input" type="date" name="min_term_end"
-                 value="${escapeHtml(initial.min_term_end || '')}">
-          <span class="settings-field__hint">${t('contracts.modal.minTermEndHint')}</span>
+          <label class="settings-field__check">
+            <input type="checkbox" name="auto_renews" ${initial.auto_renews === false ? '' : 'checked'}>
+            ${t('contracts.modal.autoRenews')}
+          </label>
+          <span class="settings-field__hint">${t('contracts.modal.autoRenewsHint')}</span>
         </div>
         <div class="field">
           <label>${t('contracts.modal.notes')}</label>
@@ -418,11 +440,14 @@ async function openContractModal(u, meters, existing, contracts = []) {
             toastErr(t('contracts.modal.validationHalfRows'));
             return;
           }
-          const noticeEl  = f.querySelector('[name="notice_period_months"]');
+          const noticeEl  = f.querySelector('[name="notice_value"]');
           const noticeRaw = noticeEl?.value.trim() || '';
-          const noticeOk  = noticeRaw === '' || (/^\d{1,2}$/.test(noticeRaw) && Number(noticeRaw) <= 24);
+          const unit      = f.querySelector('[name="notice_unit"]')?.value || 'months';
+          const noticeN   = Number(noticeRaw);
+          const noticeOk  = noticeRaw === '' || (/^\d{1,3}$/.test(noticeRaw)
+            && (unit === 'months' ? noticeN <= 24 : (unit === 'weeks' ? noticeN * 7 : noticeN) <= 730));
           showFieldError(noticeEl, f.querySelector('[data-role="notice-msg"]'),
-            noticeOk ? null : t('errors.contract.noticeOutOfRange'));
+            noticeOk ? null : t(unit === 'months' ? 'errors.contract.noticeOutOfRange' : 'errors.contract.noticeDaysOutOfRange'));
           if (!noticeOk) return;
 
           const payload = collectPayload(f);
@@ -840,11 +865,24 @@ function amountValue(raw) {
   return parseDecimal(s) ?? s;
 }
 
+// v2.9.0 — gespeicherte Frist zurück in Zahl und Einheit (durch 7 teilbare
+// Tage als Wochen)
+function noticeInitial(c) {
+  const d = c?.notice_period_days;
+  if (d !== null && d !== undefined && d !== '') {
+    return Number(d) > 0 && Number(d) % 7 === 0 ? { value: String(Number(d) / 7), unit: 'weeks' } : { value: String(d), unit: 'days' };
+  }
+  const m = c?.notice_period_months;
+  return { value: m === null || m === undefined ? '' : String(m), unit: 'months' };
+}
+
 function collectPayload(form) {
   // Leeres Feld → null, nicht 0 oder "": Eine Kündigungsfrist von null heißt
   // „nicht gepflegt" und schaltet die Terminrechnung ab; eine von 0 hieße
   // „jederzeit kündbar" und ist eine Aussage.
-  const notice = form.notice_period_months?.value.trim();
+  const notice = form.notice_value?.value.trim();
+  const unit   = form.notice_unit?.value || 'months';
+  const n      = notice === '' || notice === undefined ? null : Number(notice);
   const payload = {
     provider:    form.provider.value,
     tariff_name: form.tariff_name.value,
@@ -852,7 +890,12 @@ function collectPayload(form) {
     start:       form.start.value,
     end:         form.end.value || null,
     notes:       form.notes.value,
-    notice_period_months:  notice === '' || notice === undefined ? null : Number(notice),
+    // v2.9.0 (CALC-11) — Monate bleiben im bisherigen Feld; Wochen und Tage
+    // stehen in Tagen, und das Monatsfeld ist dann leer
+    notice_period_months:  n !== null && unit === 'months' ? n : null,
+    notice_period_days:    n !== null && unit !== 'months' ? (unit === 'weeks' ? n * 7 : n) : null,
+    notice_mode:           form.notice_mode?.value || null,
+    auto_renews:           form.auto_renews ? form.auto_renews.checked : null,
     min_term_end:          form.min_term_end?.value || null,
     price_guarantee_until: form.price_guarantee_until?.value || null,
   };

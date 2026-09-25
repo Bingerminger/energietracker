@@ -14,7 +14,7 @@ Energietracker den vollen Funktionsumfang.
 
 ## 1. Empfohlene Einrichtung
 
-1. **Wohnfläche, Baujahr, Gebäudetyp** in den Einstellungen pflegen —
+1. **Wohnfläche und Gebäudetyp** in den Einstellungen pflegen —
    Grundlage der **Effizienzklasse**.
 2. **Eine** Heizquelle als aktiv führen (siehe §3). Strom + Wasser
    zusätzlich.

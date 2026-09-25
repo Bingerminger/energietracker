@@ -18,6 +18,8 @@ export async function render(container) {
     ? settings.active_utilities
     : allUtilities.map(u => u.key);
   const utilities = allUtilities.filter(u => active.includes(u.key));
+  // v2.9.0 (CALC-23) — Zeitraum des Verlaufsdiagramms aus den Einstellungen
+  const chartSpan = Math.min(36, Math.max(3, Number(settings.dashboard_months) || 12));
 
   // Fetch consumption for each active utility + Insights in parallel
   const [datasets, eff, recs, reminders, stromSaldo, pvSummary] = await Promise.all([
@@ -199,14 +201,14 @@ export async function render(container) {
     </div>
 
     <div class="card" style="margin-top: var(--sp-5)">
-      <h2 class="card__title">${t('dashboard.chart.title')}</h2>
+      <h2 class="card__title">${t('dashboard.chart.title', { months: chartSpan })}</h2>
       <div class="chart-wrap"><canvas id="dash-chart"></canvas></div>
     </div>
     `}
   `;
 
   // Render combined chart
-  renderCombinedChart(datasets);
+  renderCombinedChart(datasets, chartSpan);
 
   // Cleanup: destroy chart on next nav
   return () => {
@@ -322,14 +324,16 @@ function trendBadge(curr, prev, hasPrev) {
     `<span aria-hidden="true">${arrow} ${pctStr} %</span></span>`;
 }
 
-function renderCombinedChart(datasets) {
+function renderCombinedChart(datasets, span = 12) {
   const canvas = document.getElementById('dash-chart');
   if (!canvas) return;
 
-  // Find the union of months across all utilities (last 12)
+  // Find the union of months across all utilities (last `span`, v2.9.0:
+  // Einstellung dashboard_months — bis v2.8 fest 12 und die Einstellung
+  // ohne Wirkung; der Vorjahresvergleich der Kacheln bleibt bei 12 Monaten)
   const allMonths = new Set();
-  datasets.forEach(d => (d.consumption?.monthly_total || []).slice(-12).forEach(m => allMonths.add(m.ym)));
-  const months = Array.from(allMonths).sort().slice(-12);
+  datasets.forEach(d => (d.consumption?.monthly_total || []).slice(-span).forEach(m => allMonths.add(m.ym)));
+  const months = Array.from(allMonths).sort().slice(-span);
 
   const seriesList = datasets.map(d => {
     const u = d.utility;
@@ -362,7 +366,7 @@ function renderCombinedChart(datasets) {
       },
     }
   };
-  window._dashChart = makeChart(canvas, cfg, { label: t('dashboard.chart.alt') });
+  window._dashChart = makeChart(canvas, cfg, { label: t('dashboard.chart.alt', { months: span }) });
 }
 
 // Effizienzklasse → Badge-Tönung (gut=success … schlecht=danger)

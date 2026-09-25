@@ -278,7 +278,7 @@ final class ReadingService
 
             $meters = $this->meters->list($key);
             foreach ($meters as $m) {
-                if (!($m['active'] ?? true)) continue;
+                if (!MeterService::inService($m)) continue;   // v2.9.0: außer Betrieb nicht in der Erfassung
 
                 // Letzte reale Ablesung (geplante is_future ausschließen)
                 // v2.6.0 — verdächtige Stände ebenfalls: Ein Home-Assistant-

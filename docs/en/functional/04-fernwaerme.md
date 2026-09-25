@@ -29,8 +29,8 @@ the connected load) plus a working price.
 ## Contracts
 
 Working price (ct/kWh) + base price (€/month, often as a demand charge). Price
-changes are correctly assigned over time via the `working_prices`/`base_prices`
-history with a forward fill.
+changes are assigned to the day via the `working_prices`/`base_prices` history
+(since v2.9.0; previously from the following month).
 
 Refunds/surcharges and additional advance payments are recorded as
 **[special payments](10-sonderzahlungen.md)** (F1003) and feed into the balance.

@@ -28,7 +28,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 2.8.1
+├── VERSION                ← 2.9.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP backend
 ├── data/                  ← must be writable
@@ -154,7 +154,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:2.8.1
+  ghcr.io/bingerminger/energietracker:2.9.0
 ```
 
 **Or build locally:**
