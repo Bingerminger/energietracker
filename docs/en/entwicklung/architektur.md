@@ -239,6 +239,27 @@ reloads completely.
 topmost dialog instead of the page. If it closes otherwise, it takes the entry
 back with `history.back()` — except on a navigation, which that would undo.
 
+**Charts (since v2.15.0).** Chart.js 4.5.1 lives under `public/vendor/`
+(unchanged from the npm package, integrity checked against the registry) and
+comes as a global `Chart`. Every view draws through `components/chart.js`:
+
+- `makeChart(canvas, config, {label})` enters each chart in a registry. A
+  canvas carries exactly one; on the `et:route` event the layer clears up what
+  the old view left behind. A Chart.js error goes to the console, not into a
+  toast.
+- Colours are functions in the configurations: `utilColor(u, alpha)` (the
+  utility's colour, tinted per theme via `themedColor` from
+  `lib/utility-theme.js`) and `tokenColor(name)` (theme token). On the
+  `et:themechange` event the layer resets the defaults, releases the axis
+  colours Chart.js copied when the chart was created, and redraws every open
+  chart.
+- `chartTableHtml()` returns the numbers of a chart as an expandable table.
+
+`lib/chart-data.js` holds the rules for monthly series, without DOM:
+`isPartial()` (partial month, `days` less than the month), `yoyTrend()` (the
+same full months a year earlier, weather-adjusted when all carry a value),
+`lastMonths()` and `seriesSummary()` for short descriptions.
+
 > ⚠️ **Architecture-critical:** since all modules are loaded via a single ES module
 > graph, **a single faulty relative import** (404) breaks the *entire* app — the
 > interface stays at "Loading…". That was exactly bug v1.4.1 (`sidebar.js` imported

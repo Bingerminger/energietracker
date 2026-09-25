@@ -249,6 +249,29 @@ schließt den obersten Dialog statt die Seite. Schließt er anders, nimmt er
 den Eintrag mit `history.back()` zurück — außer bei einer Navigation, die
 sonst rückgängig gemacht würde.
 
+**Diagramme (seit v2.15.0).** Chart.js 4.5.1 liegt unter `public/vendor/`
+(unverändert aus dem npm-Paket, Integrität gegen die Registry geprüft) und
+kommt als globales `Chart`. Alle Ansichten zeichnen über
+`components/chart.js`:
+
+- `makeChart(canvas, config, {label})` trägt jedes Chart in eine Registry
+  ein. Ein Canvas trägt genau eins; beim Ereignis `et:route` räumt die Schicht
+  ab, was die alte Ansicht liegen ließ. Ein Fehler von Chart.js landet in der
+  Konsole, nicht in einem Toast.
+- Farben stehen in den Konfigurationen als Funktionen: `utilColor(u, alpha)`
+  (Farbe der Verbrauchsart, je Theme getönt über `themedColor` aus
+  `lib/utility-theme.js`) und `tokenColor(name)` (Theme-Token). Beim
+  Ereignis `et:themechange` setzt die Schicht die Vorgaben neu, löst die
+  Achsenfarben, die Chart.js beim Anlegen kopiert hat, und zeichnet jedes
+  offene Chart neu.
+- `chartTableHtml()` liefert die Zahlen eines Diagramms als aufklappbare
+  Tabelle.
+
+`lib/chart-data.js` hält die Regeln für Monatsreihen, ohne DOM:
+`isPartial()` (Teilmonat, `days` kleiner als der Monat), `yoyTrend()`
+(dieselben vollen Monate ein Jahr zuvor, witterungsbereinigt, wenn alle einen
+Wert tragen), `lastMonths()` und `seriesSummary()` für Kurzbeschreibungen.
+
 > ⚠️ **Architektur-kritisch:** Da alle Module über einen einzigen
 > ES-Modulgraphen geladen werden, bricht **ein einziger fehlerhafter
 > relativer Import** (404) die *gesamte* App — die Oberfläche bleibt bei

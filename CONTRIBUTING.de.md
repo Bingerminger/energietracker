@@ -43,8 +43,8 @@ node --import='data:text/javascript,import{register}from"node:module";import{pat
 ```
 
 Ohne Server laufen `tests/format.test.mjs`, `tests/router.test.mjs`,
-`tests/contrast.test.mjs`, `tests/plausibility.test.mjs` und
-`tests/ha-snippet.test.mjs`. Die CI führt alles bei jedem Pull Request aus.
+`tests/contrast.test.mjs`, `tests/chart.test.mjs`, `tests/plausibility.test.mjs`
+und `tests/ha-snippet.test.mjs`. Die CI führt alles bei jedem Pull Request aus.
 Details: [Tests](docs/entwicklung/tests.md).
 
 Eine Änderung bringt ihren Test mit. Bewährt hat sich die **Gegenprobe**: den

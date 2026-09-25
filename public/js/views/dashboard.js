@@ -5,7 +5,8 @@
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, todayIso } from '../lib/format.js';
-import { makeChart } from '../components/chart.js';
+import { makeChart, utilColor, chartColor, chartTableHtml } from '../components/chart.js';
+import { isPartial, daysInMonth, yoyTrend, lastMonths } from '../lib/chart-data.js';
 import { toastErr } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
 import { loadDemo } from '../lib/demo.js';
@@ -233,6 +234,7 @@ export async function render(container) {
     <div class="card" style="margin-top: var(--sp-5)">
       <h2 class="card__title">${t('dashboard.chart.title', { months: chartSpan })}</h2>
       <div class="chart-wrap"><canvas id="dash-chart"></canvas></div>
+      <div data-role="chart-extra"></div>
     </div>
     `}
   `;
@@ -249,13 +251,11 @@ export async function render(container) {
   }
 
   // Render combined chart
-  renderCombinedChart(datasets, chartSpan);
+  const chart = renderCombinedChart(datasets, chartSpan, container);
 
-  // Cleanup: destroy chart on next nav
-  return () => {
-    const ch = window._dashChart;
-    if (ch) { ch.destroy(); window._dashChart = null; }
-  };
+  // Cleanup: destroy chart on next nav (v2.15.0 — ohne window-Global;
+  // die Chart-Schicht räumt beim Seitenwechsel ohnehin ab)
+  return () => { chart?.destroy(); };
 }
 
 /**
@@ -334,13 +334,19 @@ function todoHtml(items) {
 function renderUtilityCard({ utility, consumption }) {
   const monthly = consumption?.monthly_total || [];
   const sumKey = utility.consumption_unit === 'kWh' ? 'kwh' : 'm3';
-  const last12 = monthly.slice(-12);
-  const prev12 = monthly.slice(-24, -12);                 // B — Vergleichszeitraum
+  // v2.15.0 (Review FE-08) — Jede Karte nennt ihr Fenster: Bei Gas endete es
+  // im März, bei Heizöl im September, bei Fernwärme im Dezember — unter
+  // derselben Überschrift. Der Trend vergleicht dieselben vollen Monate des
+  // Vorjahres; bis v2.14 stand ein halber März gegen einen ganzen.
+  const win = lastMonths(monthly, 12);
+  const last12 = win?.rows || [];
   const totalCons = last12.reduce((s, m) => s + (m[sumKey] || 0), 0);
   const totalCost = last12.reduce((s, m) => s + (m.cost  || 0), 0);
-  const prevCons  = prev12.reduce((s, m) => s + (m[sumKey] || 0), 0);
-  const prevCost  = prev12.reduce((s, m) => s + (m.cost  || 0), 0);
-  const hasPrev   = prev12.length >= 6;                   // genug Vergleichsdaten
+  const within = last12.map(m => m.ym);
+  const trendCons = yoyTrend(monthly, sumKey, { months: 12, minMonths: 6, within });
+  const trendCost = yoyTrend(monthly, 'cost', { months: 12, minMonths: 6, within });
+  const windowText = win ? t('dashboard.card.window', { from: fmt.month(win.from), to: fmt.month(win.to) })
+    + (win.partialLast ? ' · ' + t('dashboard.card.partial', { month: fmt.month(win.to), days: win.lastDays, total: win.lastTotal }) : '') : '';
   // v2.12.0 (Review UI-21) — die Kachel „Aktive Zähler 1 · 1 insgesamt" stand
   // achtmal auf der Übersicht; die Zähler sind einen Klick entfernt
   const noContract = totalCost === 0;                     // D — kein Vertrag/keine Kosten
@@ -360,15 +366,16 @@ function renderUtilityCard({ utility, consumption }) {
           <a class="btn btn--sm btn--util" href="#/utility/${utility.key}">${t('dashboard.card.details')}</a>
         </div>
       </div>
+      ${windowText ? `<p class="dash-window">${escapeHtml(windowText)}</p>` : ''}
       <div class="grid grid-2 dash-util-kpis">
         <div class="kpi">
           <div class="kpi__label">${valueLabel}</div>
-          <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(totalCons, prevCons, hasPrev, better)}</div>
+          <div class="kpi__value">${fmt.num(totalCons, 0)} ${trendBadge(trendCons, better)}</div>
           <div class="kpi__sub">${utility.consumption_unit}</div>
         </div>
         ${generation ? '' : `<div class="kpi">
           <div class="kpi__label">${t(feedIn ? 'dashboard.kpi.revenue' : 'dashboard.kpi.cost')}</div>
-          <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(totalCost, prevCost, hasPrev, better)}`}</div>
+          <div class="kpi__value">${noContract ? '<span class="kpi__empty" aria-hidden="true">—</span>' : `${fmt.eur(totalCost)} ${trendBadge(trendCost, better)}`}</div>
           <div class="kpi__sub">${noContract ? t('dashboard.kpi.noContract') : t(feedIn ? 'dashboard.kpi.revenueSub' : 'dashboard.kpi.costSub')}</div>
         </div>`}
       </div>
@@ -420,29 +427,31 @@ function groupBreakdown(consumption, sumKey, utility) {
     </details>`;
 }
 
-// B — kleiner Trend-Indikator: aktuelle 12 Monate vs. vorherige 12 Monate.
-// Mehr Verbrauch/Kosten = ungünstig (danger ▲), weniger = gut (success ▼).
-// Liefert leeren String, wenn kein belastbarer Vergleich möglich ist.
-function trendBadge(curr, prev, hasPrev, moreIsGood = false) {
-  if (!hasPrev || prev == null || prev <= 0) return '';
-  const pct = (curr - prev) / prev * 100;
+// B — kleiner Trend-Indikator. Mehr Verbrauch/Kosten = ungünstig (danger ▲),
+// weniger = gut (success ▼). v2.15.0 — `trend` aus yoyTrend(): dieselben
+// vollen Monate des Vorjahres. Leer, wenn kein belastbarer Vergleich möglich ist.
+function trendBadge(trend, moreIsGood = false) {
+  if (!trend) return '';
+  const pct = trend.pct;
   if (!isFinite(pct) || Math.abs(pct) < 0.5) return '';
   const up = pct > 0;
   // v2.13.0 (Review FE-06) — bei Einspeisung und Erzeugung ist mehr gut
   const tone = up === moreIsGood ? 'success' : 'danger';
   const arrow = up ? '▲' : '▼';
-  const title = escapeHtml(t('dashboard.trend.vsPrev'));
+  const span = trend.months.length > 1
+    ? `${fmt.month(trend.months[0])} – ${fmt.month(trend.months[trend.months.length - 1])}` : fmt.month(trend.months[0]);
+  const title = escapeHtml(t('dashboard.trend.vsPrev', { span }));
   const pctStr = fmt.num(Math.abs(pct), 0);
   // A11y: Pfeil + Farbe sind rein visuell — der aria-label nennt Richtung
   // und Bezug im Klartext; der Pfeil-Glyph bleibt aus dem Accessibility-Tree.
-  const label = escapeHtml(t(up ? 'dashboard.trend.moreThanPrev' : 'dashboard.trend.lessThanPrev', { pct: pctStr }));
+  const label = escapeHtml(t(up ? 'dashboard.trend.moreThanPrev' : 'dashboard.trend.lessThanPrev', { pct: pctStr, span }));
   return `<span class="kpi__trend kpi__trend--${tone}" title="${title}" aria-label="${label}">` +
     `<span aria-hidden="true">${arrow} ${pctStr} %</span></span>`;
 }
 
-function renderCombinedChart(datasets, span = 12) {
-  const canvas = document.getElementById('dash-chart');
-  if (!canvas) return;
+function renderCombinedChart(datasets, span = 12, container = document) {
+  const canvas = container.querySelector('#dash-chart');
+  if (!canvas) return null;
 
   // Find the union of months across all utilities (last `span`, v2.9.0:
   // Einstellung dashboard_months — bis v2.8 fest 12 und die Einstellung
@@ -458,35 +467,73 @@ function renderCombinedChart(datasets, span = 12) {
   const seriesList = datasets.map(d => {
     const u = d.utility;
     const key = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
-    const byYm = Object.fromEntries((d.consumption?.monthly_total || []).map(m => [m.ym, m[key]]));
+    const rows = Object.fromEntries((d.consumption?.monthly_total || []).map(m => [m.ym, m]));
+    // v2.15.0 (Review FE-08) — Teilmonate als hohler Punkt, die Linie dorthin
+    // gestrichelt; der Tooltip nennt die erfassten Tage
+    const partial = months.map(m => !!rows[m] && isPartial(rows[m]));
+    const fill = (ctx) => (partial[ctx.dataIndex] ? 'transparent' : chartColor(u));
     // v2.5.3 (FE-03) — Monat ohne Daten ist eine Lücke, kein Nullverbrauch.
     // Die Achse vereint die Monate aller Arten; wer Strom täglich per Home
     // Assistant schickt und Gas monatlich abliest, sah die jüngsten Gasmonate
     // als 0 — die zentrale Grafik behauptete „kein Verbrauch".
     return {
       label: `${u.label} (${u.consumption_unit})`,
-      data:  months.map(m => byYm[m] ?? null),
+      data:  months.map(m => rows[m]?.[key] ?? null),
       spanGaps: false,
-      borderColor: u.color,
-      backgroundColor: u.color + '33',
+      borderColor: utilColor(u),
+      backgroundColor: utilColor(u, 0.2),
+      pointBackgroundColor: fill,
+      pointBorderColor: utilColor(u),
+      pointRadius: (ctx) => (partial[ctx.dataIndex] ? 4 : 3),
+      segment: { borderDash: (ctx) => (partial[ctx.p1DataIndex] ? [5, 4] : undefined) },
       tension: 0.25,
       yAxisID: u.consumption_unit === 'kWh' ? 'y_kwh' : 'y_m3',
+      etMeta: { u, rows, key, partial },
     };
   });
 
+  // v2.15.0 — Achsen nur für Einheiten, die vorkommen (ohne Wasser stand eine
+  // leere m³-Achse 0–1 daneben)
+  const hasKwh = seriesList.some(s => s.yAxisID === 'y_kwh');
+  const hasM3  = seriesList.some(s => s.yAxisID === 'y_m3');
+  const labels = months.map(m => fmt.month(m));
   const cfg = {
     type: 'line',
-    data: { labels: months.map(m => fmt.month(m)), datasets: seriesList },
+    data: { labels, datasets: seriesList },
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: { callbacks: { afterLabel: (item) => {
+          const meta = item.dataset.etMeta;
+          const row = meta?.rows[months[item.dataIndex]];
+          return row && meta.partial[item.dataIndex] ? t('chart.partialMonth', { days: row.days, total: daysInMonth(row.ym) }) : '';
+        } } },
+      },
       scales: {
-        y_kwh: { position: 'left',  title: { display: true, text: 'kWh' } },
-        y_m3:  { position: 'right', title: { display: true, text: 'm³'  }, grid: { drawOnChartArea: false } },
+        ...(hasKwh ? { y_kwh: { position: 'left', title: { display: true, text: 'kWh' } } } : {}),
+        ...(hasM3 ? { y_m3: { position: hasKwh ? 'right' : 'left', title: { display: true, text: 'm³' }, grid: { drawOnChartArea: !hasKwh } } } : {}),
       },
     }
   };
-  window._dashChart = makeChart(canvas, cfg, { label: t('dashboard.chart.alt', { months: span }) });
+  const names = datasets.map(d => d.utility.label).join(', ');
+  const chart = makeChart(canvas, cfg, { label: t('dashboard.chart.altList', { months: span, list: names }) });
+
+  // v2.15.0 (Review FE-20) — die Werte als Tabelle zum Aufklappen
+  const extra = container.querySelector('[data-role="chart-extra"]');
+  if (extra && seriesList.length) {
+    extra.innerHTML = chartTableHtml({
+      caption: t('dashboard.chart.title', { months: span }),
+      columns: [t('utility.monthlyTable.colMonth'), ...seriesList.map(s => s.label)],
+      rows: months.map((m, i) => [fmt.month(m), ...seriesList.map(s => {
+        const v = s.data[i];
+        if (v == null) return null;
+        const row = s.etMeta.rows[m];
+        return fmt.int(v) + (s.etMeta.partial[i] ? ` (${row.days}/${daysInMonth(m)})` : '');
+      })]),
+    });
+  }
+  return chart;
 }
 
 // Effizienzklasse → Badge-Tönung (gut=success … schlecht=danger)

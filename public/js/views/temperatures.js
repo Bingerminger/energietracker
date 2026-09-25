@@ -8,7 +8,7 @@ import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js'
 import { toastOk, toastErr } from '../components/toast.js';
 import { guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
-import { makeChart, themeColors } from '../components/chart.js';
+import { makeChart, tokenColor, chartTableHtml } from '../components/chart.js';
 import { t } from '../lib/i18n.js';
 
 export async function render(container) {
@@ -110,6 +110,7 @@ export async function render(container) {
         measured: fmt.date(measuredUntil), forecast: forecastUntil ? fmt.date(forecastUntil) : '',
       })}</p>` : ''}
       <div class="chart-wrap"><canvas id="temp-chart"></canvas></div>
+      <div data-role="temp-chart-data"></div>
       <!-- v2.13.0 (Review DOC-22) — Quelle und Lizenz der Wetterdaten -->
       <p class="muted small attribution">${escapeHtml(t('temperatures.attribution'))} <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>)</p>
     </div>
@@ -234,9 +235,10 @@ export async function render(container) {
     } catch (e) { toastErr(e.message); }
   }));
 
-  renderMonthlyChart(days);
+  const chart = renderMonthlyChart(days, container);
 
-  return () => { const c = window._tempChart; if (c) { c.destroy(); window._tempChart = null; } };
+  // v2.15.0 — ohne window-Global; die Chart-Schicht räumt beim Seitenwechsel ab
+  return () => { chart?.destroy(); };
 }
 
 async function importCsv(file, container) {
@@ -248,10 +250,9 @@ async function importCsv(file, container) {
   } catch (e) { toastErr(e.message); }
 }
 
-function renderMonthlyChart(days) {
-  const canvas = document.getElementById('temp-chart');
-  if (!canvas) return;
-  if (window._tempChart) window._tempChart.destroy();
+function renderMonthlyChart(days, container = document) {
+  const canvas = container.querySelector('#temp-chart');
+  if (!canvas) return null;
 
   // Aggregate per month
   const byMonth = {};
@@ -269,16 +270,32 @@ function renderMonthlyChart(days) {
   const maxes  = months.map(m => byMonth[m].max === -Infinity ? null : byMonth[m].max);
   const avgs   = months.map(m => byMonth[m].n ? byMonth[m].sum / byMonth[m].n : null);
 
-  window._tempChart = makeChart(canvas, {
+  // v2.15.0 — Beschriftungen übersetzt (bis v2.14 fest „Max/ø/Min“), Farben
+  // aus den Theme-Token (danger/info), die dem Theme-Wechsel folgen
+  const chart = makeChart(canvas, {
     type: 'line',
     data: {
       labels,
       datasets: [
-        { label: 'Max', data: maxes, borderColor: '#f87171', backgroundColor: 'rgba(248,113,113,0.1)', tension: 0.25 },
-        { label: 'ø',   data: avgs,  borderColor: themeColors.text1, backgroundColor: 'rgba(231,236,243,0.1)', tension: 0.25 },
-        { label: 'Min', data: mins,  borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.1)', tension: 0.25 },
+        { label: t('temperatures.chart.max'), data: maxes, borderColor: tokenColor('danger'), backgroundColor: tokenColor('danger', 0.1), tension: 0.25 },
+        { label: t('temperatures.chart.avg'), data: avgs,  borderColor: tokenColor('text1'),  backgroundColor: tokenColor('text1', 0.1),  tension: 0.25 },
+        { label: t('temperatures.chart.min'), data: mins,  borderColor: tokenColor('info'),   backgroundColor: tokenColor('info', 0.1),   tension: 0.25 },
       ],
     },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: '°C' } } } },
-  }, { label: t('temperatures.chart.alt') });
+  }, { label: months.length
+    ? t('temperatures.chart.altSpan', { from: labels[0], to: labels[labels.length - 1] })
+    : t('temperatures.chart.alt') });
+
+  // v2.15.0 (Review FE-20) — die Monatswerte als Tabelle zum Aufklappen
+  const extra = container.querySelector('[data-role="temp-chart-data"]');
+  if (extra) {
+    const c = (v) => (v == null ? null : fmt.num(v, 1));
+    extra.innerHTML = chartTableHtml({
+      caption: t('temperatures.chart.alt'),
+      columns: [t('utility.monthlyTable.colMonth'), `${t('temperatures.chart.min')} (°C)`, `${t('temperatures.chart.avg')} (°C)`, `${t('temperatures.chart.max')} (°C)`],
+      rows: months.map((m, i) => [labels[i], c(mins[i]), c(avgs[i]), c(maxes[i])]),
+    });
+  }
+  return chart;
 }

@@ -43,8 +43,8 @@ node --import='data:text/javascript,import{register}from"node:module";import{pat
 ```
 
 Without a server, `tests/format.test.mjs`, `tests/router.test.mjs`,
-`tests/contrast.test.mjs`, `tests/plausibility.test.mjs` and
-`tests/ha-snippet.test.mjs` run. CI runs everything on every pull request.
+`tests/contrast.test.mjs`, `tests/chart.test.mjs`, `tests/plausibility.test.mjs`
+and `tests/ha-snippet.test.mjs` run. CI runs everything on every pull request.
 Details: [Tests](docs/en/entwicklung/tests.md).
 
 A change brings its test. The **counter-check** has proven itself: briefly turn

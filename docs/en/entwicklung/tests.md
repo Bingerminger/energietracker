@@ -28,9 +28,13 @@ Requires a running backend server.
 ## 2. `browser-render.test.mjs`
 
 Loads the **real** view ES modules in JSDOM and calls `render()` against the
-running backend server. Chart.js is stubbed via `esm-loader.mjs`; the remaining
-view logic (DOM construction, events, data flow) runs for real. Catches:
-ReferenceErrors, broken DOM queries, template errors, event-binding errors.
+running backend server. Chart.js itself is replaced by a recording stub on
+`window.Chart` (JSDOM has no canvas); the chart layer `components/chart.js` and
+the remaining view logic (DOM construction, events, data flow) run for real. Up
+to v2.14 `esm-loader.mjs` replaced the chart layer with a stub as well — it never
+ran in the test; today the loader only points the API address at the test
+server. Catches: ReferenceErrors, broken DOM queries, template errors,
+event-binding errors.
 
 ### Module-graph pre-check (since v1.4.1)
 
@@ -64,8 +68,8 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Both harnesses return exit code 0 on success. As of v2.14.0:
-**frontend API shape 61/61**, **browser render 156/156** (incl. module-graph
+Both harnesses return exit code 0 on success. As of v2.15.0:
+**frontend API shape 61/61**, **browser render 178/178** (incl. module-graph
 pre-check and the forecast-model check for all five models). Since v2.11.0 the
 module-graph crawl also follows dynamic imports — the router loads views on
 demand. Since v2.12.0 the test renders every settings sub-page on its own,
@@ -75,7 +79,10 @@ re-showing a recommendation — against the demo copy, which the script
 discards afterwards. Since v2.13.0 the render test opens the ⓘ explanations by
 click and closes them with Escape, renders the help with a jump to a term and
 checks the PV views for remuneration instead of cost and the balance for the
-customer's side.
+customer's side. Since v2.15.0 it checks the recorded charts: colours as
+functions, the partial month pale with "14 of 31 days" in the tooltip, short
+descriptions, data tables, year and meter from the address, two quick forecast
+runs with one chart.
 
 Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 `tests/plausibility.test.mjs` and, since v2.11.0:
@@ -88,11 +95,17 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 - **`tests/contrast.test.mjs`** — reads the colour tokens from `tokens.css` and
   the utility colours from `Utilities.php` and checks every text/surface pair in
   both themes against WCAG AA (4.5:1).
+- **`tests/chart.test.mjs`** (v2.15.0) — the chart layer with a recording stub:
+  one chart per canvas, clean-up on navigation, redrawing on a theme change
+  including the axis colours, no throw on a Chart.js error, every chart colour
+  (utilities and palettes) at 3:1 on the card in both themes; plus the monthly
+  rules from `lib/chart-data.js` (partial month, trend against the same months
+  a year earlier, weather-adjusted only when every month carries a value).
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.14.0: 455). Since v2.13.0 `LocaleCatalogTest` also checks keys
+recounts it (v2.15.0: 456). Since v2.13.0 `LocaleCatalogTest` also checks keys
 the code composes (`glossary.<id>.term`, `settings.field.<key>.label`) — the
 check for literal keys cannot see them. Since v2.14.0 it knows plural forms
 (`one`/`other` and the extra categories some languages need) and checks that
@@ -151,9 +164,9 @@ GHCR on every version tag.
 ## 4. Known limit
 
 A real **headless Chromium smoke** is not possible in the build environment (no
-browser binary). Chart.js is stubbed in the test — the entire view logic, DOM
-creation, event binding and backend data flow run for real, but **not** the actual
-canvas chart rendering. Recommendation before every release: click through once
+browser binary). Chart.js is a stub in the test — the entire view logic including
+the chart layer, DOM creation, event binding and backend data flow run for real,
+but **not** the actual canvas chart rendering. Recommendation before every release: click through once
 manually in the browser, especially the chart-bearing views (dashboard combo
 chart, consumption monthly chart, analysis, forecast).
 

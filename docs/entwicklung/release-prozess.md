@@ -665,6 +665,32 @@ abgenommen ist.
   `Intl.PluralRules`; der Katalogtest prüft, dass jeder Zählschlüssel seine
   Formen in jeder Sprache hat, und kennt die Kategorien, die Französisch,
   Spanisch, Italienisch und Portugiesisch zusätzlich brauchen.
+- **Ein Update liest die Vorgaben nicht neu (v2.15.0).** Offene Diagramme
+  sollten beim Theme-Wechsel umfärben: Vorgaben neu setzen, `chart.update()`.
+  Die Balken folgten, die Achsen nicht — Chart.js kopiert die Achsen-Vorgaben
+  beim Anlegen in die Konfiguration des Charts. Aufgefallen ist es erst im
+  Browser; das Stub im Test kennt diese Kopie nicht. Jetzt löst die
+  Chart-Schicht die kopierten Farben vor dem Neuzeichnen, und der Test bildet
+  die Kopie nach.
+- **Ein ersetztes Modul ist ein ungetestetes Modul (v2.15.0).** Der Render-Test
+  lud an Stelle von `components/chart.js` einen Stub aus der Zeit, als Chart.js
+  ein ES-Modul war. Registry, Farben und Beschreibungen der Diagramme liefen in
+  keinem Test; erst die neuen Prüfungen scheiterten an fehlenden Exporten.
+  Ersetzt wird nur, was die Umgebung nicht kann — hier das Canvas, also
+  `window.Chart`, nicht die eigene Schicht darüber.
+- **Ein Trend braucht denselben Zeitraum (v2.15.0).** Drei Monate gegen die drei
+  davor maßen die Jahreszeit: Fernwärme +470 %, Gas −48 % mit einem halben März.
+  Der Pfeil vergleicht jetzt dieselben vollen Monate ein Jahr zuvor, bei
+  Heizarten witterungsbereinigt, und jede Karte der Übersicht nennt ihr
+  Fenster, weil die Verbrauchsarten in verschiedenen Monaten enden.
+  Beinahe hätte der neue Trend dabei das falsche Feld genommen: `weather_adjusted`
+  heißt richtig, skaliert aber auch das Warmwasser und steht nur noch für die
+  Schnittstelle da; bereinigt wird seit v2.8.0 über `heat_adjusted`. Ein Test
+  rechnet den angezeigten Wert jetzt aus dem richtigen Feld nach.
+- **Eine Beschreibung, die niemand sieht, prüft niemand (v2.15.0).** Die
+  Kurzbeschreibungen von Jahresvergleich und Saisonprofil waren vertauscht, in
+  allen Sprachen: Screenreader hörten „Balkendiagramm“ zu einer Linie. Jetzt
+  nennen sie Zeitraum, Summe und Extreme, und der Render-Test prüft den Typ.
 
 ---
 

@@ -147,8 +147,8 @@
       }
     },
     "allLink": "all",
-    "chart": { "title": "{months}-month consumption (all utilities)", "alt": "Line chart: consumption of the last {months} months per utility" },
-    "card": { "meters": "Meters", "details": "Details" },
+    "chart": { "title": "{months}-month consumption (all utilities)", "altList": "Line chart: consumption of the last {months} months for {list}" },
+    "card": { "meters": "Meters", "details": "Details", "window": "Period: {from} – {to}", "partial": "{month}: {days} of {total} days" },
     "groups": { "summary": "Groups ({count})" },
     "kpi": {
       "consumption": "Consumption (last 12 months)",
@@ -160,7 +160,7 @@
       "revenue": "Remuneration (last 12 months)",
       "revenueSub": "revenue from feed-in"
     },
-    "trend": { "vsPrev": "vs. previous 12 months", "moreThanPrev": "{pct}% more than the previous 12-month period", "lessThanPrev": "{pct}% less than the previous 12-month period" },
+    "trend": { "vsPrev": "{span} compared with the same months a year earlier", "moreThanPrev": "{pct}% more: {span} compared with the same months a year earlier", "lessThanPrev": "{pct}% less: {span} compared with the same months a year earlier" },
     "allRecommendations": "All recommendations",
     "todo": {
       "title": "To do",
@@ -245,7 +245,7 @@
     },
     "header": { "meters": "Meters", "metersTitle": "Meter management", "selectMeter": "Select meter" },
     "action": { "newReading": "+ Reading", "newReadingBanner": "+ New reading", "newDelivery": "+ Delivery" },
-    "banner": { "lastReading": "Last reading {days} days ago", "trend": "3-month trend" },
+    "banner": { "lastReading": "Last reading {days} days ago", "trendYoY": "{span} vs. previous year", "trendYoYAdjusted": "{span} vs. previous year, weather-adjusted" },
     "kpi": {
       "feedIn": "Feed-in",
       "consumption": "Consumption",
@@ -382,7 +382,8 @@
       "estimatedTitle": "{days} days estimated (after the last known stock)",
       "estimatedLegend": "≈ month contains estimated days — after the last known stock (delivery “filled to full” or tank reading).",
       "colRevenue": "Revenue {cur}",
-      "colCo2Avoided": "CO₂ avoided kg"
+      "colCo2Avoided": "CO₂ avoided kg",
+      "partialLegend": "\"14 / 31\" under days: the month is only partly recorded; trends leave it out."
     },
     "readingsTable": {
       "emptyTitle": "No readings",
@@ -439,7 +440,7 @@
       "chartAnchors": "Known stock",
       "chartAlt": "Tank stock over {year}"
     },
-    "chart": { "temp": "avg temperature", "alt": "Bar chart: monthly consumption and average temperature" },
+    "chart": { "temp": "avg temperature", "alt": "Bar chart: monthly consumption and average temperature", "altSummary": "Bar chart: {label} {year} by month, {total} in total; highest in {maxMonth} ({max}), lowest in {minMonth} ({min})." },
     "readingModal": {
       "titleEdit": "Edit reading · {label}",
       "titleNew": "New reading · {label}",
@@ -544,7 +545,8 @@
       "title": "No monthly values yet",
       "noReading": "This meter has no reading yet. Monthly values come from the difference between two readings.",
       "oneReading": "There is only one reading so far. Monthly values come from the difference between two readings — add a second one, such as the one from your last bill."
-    }
+    },
+    "yearPills": "Year"
   },
   "contracts": {
     "priceGroup": {
@@ -1449,7 +1451,7 @@
     "downloadExample": "Download example CSV",
     "dropZone": "Drop a file here or click to select",
     "dropZoneAria": "Select a CSV file or drop it here",
-    "chart": { "alt": "Line chart: monthly minimum, average and maximum temperature" },
+    "chart": { "alt": "Line chart: monthly minimum, average and maximum temperature", "max": "Maximum", "avg": "Average", "min": "Minimum", "altSpan": "Line chart: monthly minimum, average and maximum temperature, {from} – {to}" },
     "location": "Location (for Open-Meteo)",
     "lat": "Latitude",
     "lng": "Longitude",
@@ -1650,8 +1652,8 @@
     "selectMeter": "Select meter",
     "chartAlt": {
       "hdd": "Scatter chart: consumption over heating degree days with regression models",
-      "seasonal": "Line chart: average monthly profile",
-      "years": "Bar chart: consumption by year comparison"
+      "seasonal": "Bar chart: {label} on average per calendar month, full months only",
+      "years": "Line chart: {label} by month, one line per year from {from} to {to}"
     },
     "hgtTitle": "HDD correlation · regression models compared",
     "seasonalTitle": "Seasonal profile",
@@ -1735,7 +1737,12 @@
     },
     "deliveryModelled": "Heating oil and pellets have no measured monthly values: the months are distributed from the deliveries by degree days. A heating curve on top would be circular — every model would fit perfectly — so none is shown.",
     "scatterNotInFit": "not in the model (partial month or few degree days)",
-    "regR2Note": "R² describes how well the curve fits the months shown (goodness of fit) — not how well it predicts next year."
+    "regR2Note": "R² describes how well the curve fits the months shown (goodness of fit) — not how well it predicts next year.",
+    "seasonalAvgShort": "Average",
+    "yearsCount": "Years",
+    "partialStar": "* Partial month: only some of the days recorded.",
+    "pointRole": "Model",
+    "pointInFit": "in the model"
   },
   "forecast": {
     "noUtilities": "No utility is active. You can choose which ones appear in the settings.",
@@ -1782,7 +1789,8 @@
       "heat_model": "heating model",
       "filled": "daily average (no own value)",
       "blend": "blend: {reg} heating curve, {seasonal} seasonal profile"
-    }
+    },
+    "chartAltSpan": "Line chart: consumption {from} – {to} and forecast until {until}"
   },
   "report": {
     "createdOn": "Created on {date}",
@@ -2333,5 +2341,10 @@
     "even": "balanced",
     "tableLegend": "Balance: + credit, − additional payment.",
     "tableLegendFeedIn": "Balance: + credit, − reclaim."
+  },
+  "chart": {
+    "dataTable": "Data as a table",
+    "partialMonth": "Partial month: {days} of {total} days recorded",
+    "partialLegend": "Pale bars: month only partly recorded, such as the current one. Trends leave these months out."
   }
 }

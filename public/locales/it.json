@@ -147,8 +147,8 @@
       }
     },
     "allLink": "tutti",
-    "chart": { "title": "Consumo a {months} mesi (tutte le utenze)", "alt": "Grafico a linee: consumo degli ultimi {months} mesi per utenza" },
-    "card": { "meters": "Contatori", "details": "Dettagli" },
+    "chart": { "title": "Consumo a {months} mesi (tutte le utenze)", "altList": "Grafico a linee: consumo degli ultimi {months} mesi per {list}" },
+    "card": { "meters": "Contatori", "details": "Dettagli", "window": "Periodo: {from} – {to}", "partial": "{month}: {days} giorni su {total}" },
     "groups": { "summary": "Gruppi ({count})" },
     "kpi": {
       "consumption": "Consumo (ultimi 12 mesi)",
@@ -160,7 +160,7 @@
       "revenue": "Compenso (ultimi 12 mesi)",
       "revenueSub": "ricavo dall’immissione"
     },
-    "trend": { "vsPrev": "vs. 12 mesi precedenti", "moreThanPrev": "{pct} % in più rispetto ai 12 mesi precedenti", "lessThanPrev": "{pct} % in meno rispetto ai 12 mesi precedenti" },
+    "trend": { "vsPrev": "{span} rispetto agli stessi mesi di un anno prima", "moreThanPrev": "{pct} % in più: {span} rispetto agli stessi mesi di un anno prima", "lessThanPrev": "{pct} % in meno: {span} rispetto agli stessi mesi di un anno prima" },
     "allRecommendations": "Tutte le raccomandazioni",
     "todo": {
       "title": "Da fare",
@@ -245,7 +245,7 @@
     },
     "header": { "meters": "Contatori", "metersTitle": "Gestione contatori", "selectMeter": "Scegli contatore" },
     "action": { "newReading": "+ Lettura", "newReadingBanner": "+ Nuova lettura", "newDelivery": "+ Consegna" },
-    "banner": { "lastReading": "Ultima lettura {days} giorni fa", "trend": "tendenza a 3 mesi" },
+    "banner": { "lastReading": "Ultima lettura {days} giorni fa", "trendYoY": "{span} rispetto all'anno precedente", "trendYoYAdjusted": "{span} rispetto all'anno precedente, corretto per il clima" },
     "kpi": {
       "feedIn": "Immissione",
       "consumption": "Consumo",
@@ -382,7 +382,8 @@
       "estimatedTitle": "{days} giorni stimati (dopo l’ultima scorta nota)",
       "estimatedLegend": "≈ il mese contiene giorni stimati, dopo l’ultima scorta nota (consegna «pieno completo» o lettura).",
       "colRevenue": "Ricavo {cur}",
-      "colCo2Avoided": "CO₂ evitata kg"
+      "colCo2Avoided": "CO₂ evitata kg",
+      "partialLegend": "«14 / 31» nei giorni: il mese è rilevato solo in parte; le tendenze non ne tengono conto."
     },
     "readingsTable": {
       "emptyTitle": "Nessuna lettura",
@@ -439,7 +440,7 @@
       "chartAnchors": "Scorta nota",
       "chartAlt": "Andamento della scorta del serbatoio nel {year}"
     },
-    "chart": { "temp": "temperatura media", "alt": "Grafico a barre: consumo mensile e temperatura media" },
+    "chart": { "temp": "temperatura media", "alt": "Grafico a barre: consumo mensile e temperatura media", "altSummary": "Grafico a barre: {label} {year} per mese, {total} in totale; massimo a {maxMonth} ({max}), minimo a {minMonth} ({min})." },
     "readingModal": {
       "titleEdit": "Modifica lettura · {label}",
       "titleNew": "Nuova lettura · {label}",
@@ -544,7 +545,8 @@
       "title": "Ancora nessun valore mensile",
       "noReading": "Questo contatore non ha ancora letture. I valori mensili nascono dalla differenza tra due letture.",
       "oneReading": "C’è una sola lettura. I valori mensili nascono dalla differenza tra due letture — aggiungine una seconda, ad esempio quella dell’ultima bolletta."
-    }
+    },
+    "yearPills": "Anno"
   },
   "contracts": {
     "priceGroup": {
@@ -1449,7 +1451,7 @@
     "downloadExample": "Scarica CSV di esempio",
     "dropZone": "Trascina qui un file o clicca per selezionarlo",
     "dropZoneAria": "Seleziona un file CSV o trascinalo qui",
-    "chart": { "alt": "Grafico a linee: temperature mensili minima, media e massima" },
+    "chart": { "alt": "Grafico a linee: temperature mensili minima, media e massima", "max": "Massima", "avg": "Media", "min": "Minima", "altSpan": "Grafico a linee: temperature mensili minima, media e massima, {from} – {to}" },
     "location": "Posizione (per Open-Meteo)",
     "lat": "Latitudine",
     "lng": "Longitudine",
@@ -1650,8 +1652,8 @@
     "selectMeter": "Scegli contatore",
     "chartAlt": {
       "hdd": "Grafico a dispersione: consumo in funzione dei gradi giorno con modelli di regressione",
-      "seasonal": "Grafico a linee: profilo mensile medio",
-      "years": "Grafico a barre: consumo per confronto annuale"
+      "seasonal": "Grafico a barre: {label} in media per mese di calendario, solo mesi completi",
+      "years": "Grafico a linee: {label} per mese, una linea per anno dal {from} al {to}"
     },
     "hgtTitle": "Correlazione GG · modelli di regressione a confronto",
     "seasonalTitle": "Profilo stagionale",
@@ -1735,7 +1737,12 @@
     },
     "deliveryModelled": "Gasolio e pellet non hanno valori mensili misurati: i mesi sono ripartiti dalle consegne in base ai gradi giorno. Una curva di riscaldamento sarebbe circolare — ogni modello coinciderebbe perfettamente — e quindi non viene mostrata.",
     "scatterNotInFit": "fuori modello (mese parziale o pochi gradi giorno)",
-    "regR2Note": "L’R² descrive quanto la curva si adatta ai mesi mostrati (adattamento) — non quanto bene prevede l’anno prossimo."
+    "regR2Note": "L’R² descrive quanto la curva si adatta ai mesi mostrati (adattamento) — non quanto bene prevede l’anno prossimo.",
+    "seasonalAvgShort": "Media",
+    "yearsCount": "Anni",
+    "partialStar": "* Mese parziale: rilevata solo una parte dei giorni.",
+    "pointRole": "Modello",
+    "pointInFit": "nel modello"
   },
   "forecast": {
     "noUtilities": "Nessuna utenza attiva. Nelle impostazioni puoi scegliere quali mostrare.",
@@ -1782,7 +1789,8 @@
       "heat_model": "modello di riscaldamento",
       "filled": "media giornaliera (nessun valore proprio)",
       "blend": "combinazione: {reg} curva di riscaldamento, {seasonal} profilo stagionale"
-    }
+    },
+    "chartAltSpan": "Grafico a linee: consumo {from} – {to} e previsione fino a {until}"
   },
   "report": {
     "createdOn": "Creato il {date}",
@@ -2333,5 +2341,10 @@
     "even": "in pari",
     "tableLegend": "Saldo: + credito, − conguaglio.",
     "tableLegendFeedIn": "Saldo: + credito, − restituzione."
+  },
+  "chart": {
+    "dataTable": "Dati in tabella",
+    "partialMonth": "Mese parziale: {days} giorni su {total} rilevati",
+    "partialLegend": "Barre chiare: mese rilevato solo in parte, per esempio quello in corso. Le tendenze non ne tengono conto."
   }
 }

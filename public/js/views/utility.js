@@ -16,13 +16,14 @@ import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { tankLevel } from '../lib/tank.js';
 import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput, monthShortNames } from '../lib/format.js';
-import { makeChart, themeColors } from '../components/chart.js';
+import { makeChart, utilColor, tokenColor, chartColor, withAlpha } from '../components/chart.js';
+import { isPartial, daysInMonth, yoyTrend, seriesSummary } from '../lib/chart-data.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { t, getCurrencyMinor } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
-import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView } from '../lib/semantics.js';
+import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
 
 let _chart = null;
@@ -35,8 +36,30 @@ const state = {
   utility: null,
   meters: [],
   selectedMeterId: null,
-  selectedYear: null,
+  // v2.15.0 (Review FE-22, UI-28) — das Jahr je Verbrauchsart. Bis v2.14
+  // galt eins für alle: Nach Fernwärme (Daten bis 2025) öffneten Heizöl und
+  // PV im Jahr 2025, obwohl es 2026 gab.
+  yearByUtility: {},
 };
+
+/**
+ * v2.15.0 (Review FE-29) — Auswahl in der Adresse: `#/utility/gas?year=2025&meter=…`
+ * lässt sich teilen, als Lesezeichen ablegen und übersteht Neuladen.
+ * replaceState statt eines neuen Eintrags: Zurück führt zur vorigen Seite,
+ * nicht durch jede angeklickte Jahreszahl.
+ */
+function syncAddress(u, latestYear = null) {
+  const q = new URLSearchParams();
+  const year = state.yearByUtility[u.key];
+  // Das jüngste Jahr ist der Normalfall — ein Lesezeichen soll dann auch im
+  // nächsten Jahr das jüngste zeigen, nicht das von heute
+  if (year && year !== latestYear) q.set('year', String(year));
+  if (state.selectedMeterId && state.meters.length > 1) q.set('meter', state.selectedMeterId);
+  const hash = `#/utility/${u.key}${q.toString() ? '?' + q : ''}`;
+  if (window.location.hash !== hash) {
+    try { history.replaceState(history.state, '', hash); } catch { /* egal */ }
+  }
+}
 
 export async function render(container, params, ctx = {}) {
   const utilities = await getUtilities();
@@ -55,16 +78,21 @@ export async function render(container, params, ctx = {}) {
   try {
     const meters = await api.meters(utility.key);
     state.meters = meters;
+    // v2.15.0 — Auswahl aus der Adresse (?meter=…&year=…) vor der gemerkten
+    const wantMeter = ctx.query?.get('meter');
+    if (wantMeter && meters.some(m => m.id === wantMeter)) state.selectedMeterId = wantMeter;
     if (!state.selectedMeterId || !meters.find(m => m.id === state.selectedMeterId)) {
       state.selectedMeterId = meters[0]?.id || null;
     }
+    const wantYear = Number(ctx.query?.get('year'));
+    if (Number.isInteger(wantYear) && wantYear > 1900 && wantYear < 3000) state.yearByUtility[utility.key] = wantYear;
     await rerender(container);
     // v2.11.0 — Sprungziele des Erfassen-Blatts: ?add=delivery | level | reading
     const add = ctx.query?.get('add');
     const target = { delivery: '#btn-new-delivery', level: '#btn-new-level', reading: '#btn-new-reading' }[add];
     if (target) {
       // Adresse ohne ?add=… — sonst öffnete Neuladen den Dialog erneut
-      try { history.replaceState(history.state, '', `#/utility/${utility.key}`); } catch { /* egal */ }
+      syncAddress(utility);
       container.querySelector(target)?.click();
     }
   } catch (e) {
@@ -160,22 +188,21 @@ async function rerender(container) {
     let cls = 'ok', icon = '✓';
     if (days > alertDays)                        { cls = 'alert'; icon = '⚠️'; }
     else if (days > Math.round(alertDays * 2 / 3)) { cls = 'warn';  icon = '⚡'; }
-    // Trend: compare last 3 months to previous 3 months.
-    // P-PV-01 — Bei PV (feed_in/generation) ist dieser Vergleich reine
-    // Saisonalität (Frühling vs. Winter, Sonne ≠ konstant), kein echter
-    // Verbrauchstrend → irreführend, daher unterdrückt.
-    // C — 3-Monats-Trend als farbiger Pfeil (mehr Verbrauch = rot ▲).
+    // v2.15.0 (Review FE-08) — Trend gegen dieselben Monate des Vorjahres,
+    // nur volle Monate, bei Heizarten witterungsbereinigt. Bis v2.14 standen
+    // die letzten drei gegen die drei davor: Heizsaison gegen Sommer ergab
+    // bei Fernwärme +470 %, ein halber März bei Gas −48 %. Deshalb war der
+    // Pfeil bei PV ganz abgeschaltet; gegen das Vorjahr gilt er auch dort
+    // (mehr Sonnenstrom ist gut).
     let trendStr = '';
-    if (monthly.length >= 6 && u.accounting_kind !== 'feed_in' && u.accounting_kind !== 'generation') {
-      const recent = monthly.slice(-3).reduce((s, m) => s + (m[consKey] || 0), 0);
-      const prev   = monthly.slice(-6, -3).reduce((s, m) => s + (m[consKey] || 0), 0);
-      if (prev > 0) {
-        const pct = ((recent - prev) / prev * 100);
-        const up = pct > 0;
-        const tone = up ? 'danger' : 'success';
-        const arrow = up ? '▲' : '▼';
-        trendStr = ` · ${t('utility.banner.trend')} <span class="kpi__trend kpi__trend--${tone}">${arrow} ${fmt.num(Math.abs(pct), 1)} %</span>`;
-      }
+    const tr = yoyTrend(monthly, consKey, { months: 3, adjustedKey: u.hgt_relevant ? 'heat_adjusted' : null });
+    if (tr && Math.abs(tr.pct) >= 0.5) {
+      const up = tr.pct > 0;
+      const tone = up === moreIsBetter(u) ? 'success' : 'danger';
+      const span = tr.months.length > 1
+        ? `${fmt.month(tr.months[0])} – ${fmt.month(tr.months[tr.months.length - 1])}` : fmt.month(tr.months[0]);
+      const label = t(tr.adjusted ? 'utility.banner.trendYoYAdjusted' : 'utility.banner.trendYoY', { span });
+      trendStr = ` · ${escapeHtml(label)} <span class="kpi__trend kpi__trend--${tone}"><span aria-hidden="true">${up ? '▲' : '▼'}</span> ${up ? '+' : '−'}${fmt.num(Math.abs(tr.pct), 1)} %</span>`;
     }
     statusBannerHtml = `
       <div class="status-banner ${cls}">
@@ -207,11 +234,20 @@ async function rerender(container) {
       </div>` : '';
 
   // ── Years available ─────────────────────────────────────────────
-  const years = [...new Set(monthly.map(m => m.year))].sort();
-  if (!state.selectedYear || !years.includes(state.selectedYear)) {
-    state.selectedYear = years[years.length - 1] || new Date().getFullYear();
-  }
-  const yr = state.selectedYear;
+  // v2.15.0 (Review UI-28) — auch aus Ablesungen und Lieferungen: Ein Stand
+  // in einem Jahr ohne Monatswert (etwa ein vorgemerkter) war nicht erreichbar
+  const yearOf = (d) => Number(String(d || '').slice(0, 4));
+  const years = [...new Set([
+    ...monthly.map(m => m.year),
+    ...readings.map(r => yearOf(r.date)),
+    ...deliveries.map(d => yearOf(d.date)),
+  ].filter(y => Number.isInteger(y) && y > 1900))].sort((a, b) => a - b);
+  // Vorgewählt ist das jüngste Jahr mit Monatswerten — ein vorgemerkter
+  // Stand im nächsten Jahr soll nicht auf ein leeres Jahr führen
+  const dataYears = monthly.map(m => m.year).filter(Number.isInteger);
+  const latestYear = dataYears.length ? Math.max(...dataYears) : (years[years.length - 1] || new Date().getFullYear());
+  if (!years.includes(state.yearByUtility[u.key])) state.yearByUtility[u.key] = latestYear;
+  const yr = state.yearByUtility[u.key];
   const monthlyYear = monthly.filter(m => m.year === yr);
   // Zähler mit weniger als zwei Ständen: noch keine Monatswerte
   const noValues = !isDelivery && monthly.length === 0;
@@ -314,6 +350,7 @@ async function rerender(container) {
     ${noValues ? '' : `<div class="card">
       <div class="card__title">${u.icon} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yr })}</div>
       <div class="chart-wrap h300"><canvas id="month-chart"></canvas></div>
+      ${monthlyYear.some(isPartial) ? `<p class="chart-note">${escapeHtml(t('chart.partialLegend'))}</p>` : ''}
     </div>
 
     <div class="card">
@@ -358,12 +395,13 @@ async function rerender(container) {
   `;
 
   // Chart
-  if (!noValues) drawMonthChart('month-chart', monthlyYear, u);
+  if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr);
   if (isDelivery) drawStockChart('stock-chart', stockHist, u, yr);
 
   // Wire up events
   wireEvents(container, u, meter, readings, contracts, deliveries);
   if (isDelivery) wireTankLevels(container, u, meter);
+  syncAddress(u, latestYear);
 }
 
 // ── F1012: Rechnungsprüfung — seit v2.11.0 eine eigene Seite (views/bill-check.js)
@@ -405,9 +443,10 @@ function header(u, meter = null) {
 
 function yearPills(years, current, utilityKey) {
   if (!years.length) return '';
-  return `<div class="year-pills">
+  // v2.15.0 — aria-pressed: die aktive Pille war nur an der Farbe erkennbar
+  return `<div class="year-pills" role="group" aria-label="${escapeHtml(t('utility.yearPills'))}">
     ${years.map(y =>
-      `<button class="pill ${y === current ? 'active ' + utilityKey : ''}" data-year="${y}">${y}</button>`
+      `<button type="button" class="pill ${y === current ? 'active ' + utilityKey : ''}" data-year="${y}" aria-pressed="${y === current}">${y}</button>`
     ).join('')}
   </div>`;
 }
@@ -729,9 +768,11 @@ function monthlyTable(monthly, u, hasContracts) {
       // v2.10.0 — Tankbuch: Monate mit geschätzten Tagen (nach dem letzten bekannten Bestand)
       const est = m.estimated_days > 0
         ? ` <span class="muted" title="${escapeHtml(t('utility.monthlyTable.estimatedTitle', { days: m.estimated_days }))}">≈</span>` : '';
-      return `<tr>
+      // v2.15.0 (Review FE-08) — Teilmonat mit erfassten Tagen, sichtbar statt im Tooltip
+      const part = isPartial(m);
+      return `<tr${part ? ' class="is-partial"' : ''}>
         <td><strong>${fmt.month(m.ym)}</strong>${est}</td>
-        <td class="num">${m.days || 0}</td>
+        <td class="num">${part ? `${m.days} / ${daysInMonth(m.ym)}` : (m.days || 0)}</td>
         ${isGas ? `<td class="num">${fmt.int(m.m3)}</td>` : ''}
         <td class="num"><strong>${fmt.int(m[consKey])}</strong></td>
         <td class="num">${fmt.num(m.kwh_per_day, 1)}</td>
@@ -761,7 +802,8 @@ function monthlyTable(monthly, u, hasContracts) {
     </tr></tfoot>
   </table></div>
   ${showBalance ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('saldo.tableLegend')}</p>` : ''}
-  ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}`;
+  ${monthly.some(m => m.estimated_days > 0) ? `<p class="muted" style="font-size:12px;margin-top:8px">${t('utility.monthlyTable.estimatedLegend')}</p>` : ''}
+  ${monthly.some(isPartial) ? `<p class="muted" style="font-size:12px;margin-top:8px">${escapeHtml(t('utility.monthlyTable.partialLegend'))}</p>` : ''}`;
 }
 
 // ── Readings-Tabelle ────────────────────────────────────────────────
@@ -974,9 +1016,9 @@ function drawStockChart(canvasId, stockHist, u, year) {
     data: {
       labels,
       datasets: [
-        { label: t('utility.tank.chartMeasured', { unit }), data: measured, borderColor: u.color, backgroundColor: 'transparent', pointRadius: 0, borderWidth: 2, spanGaps: false },
-        { label: t('utility.tank.chartEstimated', { unit }), data: estimated, borderColor: u.color, backgroundColor: 'transparent', pointRadius: 0, borderWidth: 2, borderDash: [5, 4], spanGaps: false },
-        { label: t('utility.tank.chartAnchors'), data: anchors, borderColor: themeColors.accent, backgroundColor: themeColors.accent, showLine: false, pointRadius: 4 },
+        { label: t('utility.tank.chartMeasured', { unit }), data: measured, borderColor: utilColor(u), backgroundColor: 'transparent', pointRadius: 0, borderWidth: 2, spanGaps: false },
+        { label: t('utility.tank.chartEstimated', { unit }), data: estimated, borderColor: utilColor(u), backgroundColor: 'transparent', pointRadius: 0, borderWidth: 2, borderDash: [5, 4], spanGaps: false },
+        { label: t('utility.tank.chartAnchors'), data: anchors, borderColor: tokenColor('accent'), backgroundColor: tokenColor('accent'), showLine: false, pointRadius: 4 },
       ],
     },
     options: {
@@ -1074,10 +1116,13 @@ function openTankLevelModal(container, u, meter) {
 }
 
 // ── Chart ───────────────────────────────────────────────────────────
-function drawMonthChart(canvasId, monthly, u) {
+// v2.15.0 — Farben folgen dem Theme (Review FE-11); ein Teilmonat steht
+// blass da und nennt im Tooltip seine erfassten Tage (FE-08); die
+// Kurzbeschreibung nennt Summe, stärksten und schwächsten Monat (FE-20).
+function drawMonthChart(canvasId, monthly, u, year) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
-  if (_chart) _chart.destroy();
+  if (_chart) { _chart.destroy(); _chart = null; }
   // v2.2.0 — Verbrauchs-Feldname utility-abhängig (wie in KPI und Monatstabelle,
   // Fix #14): m³-native Verbrauchsarten tragen den Wert in `m3`, das `kwh`-Feld
   // ist nach applyUtilityFields 0. Vorher las der Chart hart `m.kwh` → das
@@ -1085,9 +1130,11 @@ function drawMonthChart(canvasId, monthly, u) {
   const consKey = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
   const labels = monthly.map(m => fmt.month(m.ym));
   const consumption = monthly.map(m => m[consKey]);
+  const partial = monthly.map(m => isPartial(m));
   const temp = monthly.map(m => m.avg_temp);
   // v2.13.0 (Review UI-19) — Sonnenstrom hängt nicht an der Temperatur
   const withTemp = !isPv(u);
+  const barColor = (full, part) => (ctx) => withAlpha(chartColor(u), partial[ctx.dataIndex] ? part : full);
 
   _chart = makeChart(canvas, {
     type: 'bar',
@@ -1098,8 +1145,8 @@ function drawMonthChart(canvasId, monthly, u) {
           type: 'bar',
           label: u.label + ' (' + u.consumption_unit + ')',
           data: consumption,
-          backgroundColor: hexToRgba(u.color, 0.3),
-          borderColor: u.color,
+          backgroundColor: barColor(0.35, 0.12),
+          borderColor: barColor(1, 0.5),
           borderWidth: 1,
           yAxisID: 'y',
           order: 2,
@@ -1108,7 +1155,7 @@ function drawMonthChart(canvasId, monthly, u) {
           type: 'line',
           label: t('utility.chart.temp'),
           data: temp,
-          borderColor: themeColors.accent,
+          borderColor: tokenColor('accent'),
           backgroundColor: 'transparent',
           tension: 0.3,
           pointRadius: 2,
@@ -1120,19 +1167,30 @@ function drawMonthChart(canvasId, monthly, u) {
     options: {
       responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      plugins: {
+        tooltip: { callbacks: { footer: (items) => {
+          const i = items[0]?.dataIndex;
+          return i != null && partial[i] ? t('chart.partialMonth', { days: monthly[i].days, total: daysInMonth(monthly[i].ym) }) : '';
+        } } },
+      },
       scales: {
         y: { position: 'left', title: { display: true, text: u.consumption_unit } },
         ...(withTemp ? { y1: { position: 'right', title: { display: true, text: '°C' }, grid: { drawOnChartArea: false } } } : {}),
       },
     }
-  }, { label: t('utility.chart.alt') });
+  }, { label: monthChartLabel(u, year, labels, consumption) });
 }
 
-function hexToRgba(hex, alpha) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
+/** Kurzbeschreibung des Monatscharts: Summe, stärkster und schwächster Monat. */
+function monthChartLabel(u, year, labels, values) {
+  const s = seriesSummary(labels, values);
+  if (!s) return t('utility.chart.alt');
+  const unit = (v) => fmt.unit(v, u.consumption_unit, 0);
+  return t('utility.chart.altSummary', {
+    label: u.label, year, total: unit(s.sum),
+    maxMonth: s.max.label, max: unit(s.max.value),
+    minMonth: s.min.label, min: unit(s.min.value),
+  });
 }
 
 // ── Event wiring ────────────────────────────────────────────────────
@@ -1140,7 +1198,7 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = []) {
   // Year pills
   container.querySelectorAll('.year-pills .pill').forEach(p => {
     p.addEventListener('click', () => {
-      state.selectedYear = Number(p.getAttribute('data-year'));
+      state.yearByUtility[u.key] = Number(p.getAttribute('data-year'));
       rerender(container);
     });
   });

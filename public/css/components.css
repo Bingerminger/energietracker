@@ -275,6 +275,20 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
 .chart-wrap.tall   { height: 480px; }
 .chart-wrap.short  { height: 220px; }
 
+/* v2.15.0 (Review FE-20) — die Zahlen hinter einem Diagramm, aufklappbar;
+   die Zeile ist am iPhone 44 px hoch antippbar */
+.chart-data { margin-top: var(--sp-2); }
+.chart-data > summary {
+  cursor: pointer; color: var(--text-2); font-size: var(--fs-sm);
+  min-height: 44px; display: flex; align-items: center;
+}
+.chart-data > summary:hover { color: var(--text-1); }
+.chart-data .table-wrap { max-height: 360px; overflow: auto; }
+/* v2.15.0 (Review FE-08) — Hinweise unter einem Diagramm, Teilmonate */
+.chart-note { margin-top: var(--sp-2); font-size: var(--fs-xs); color: var(--text-2); }
+.table tr.is-partial td { color: var(--text-2); }
+.dash-window { margin: calc(-1 * var(--sp-2)) 0 var(--sp-3); font-size: var(--fs-xs); color: var(--text-2); }
+
 /* ── Device chain / meter card ─────────────────────────────────── */
 .meter-card {
   background: var(--bg-1); border: 1px solid var(--border-1);

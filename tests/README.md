@@ -36,7 +36,7 @@ Braucht Node ≥ 20 und `jsdom` (`npm install --no-save jsdom`).
 
 ## Ohne Server
 
-`format.test.mjs`, `router.test.mjs`, `contrast.test.mjs`,
+`format.test.mjs`, `router.test.mjs`, `contrast.test.mjs`, `chart.test.mjs`,
 `plausibility.test.mjs`, `ha-snippet.test.mjs` — jeweils mit `node` starten.
 
 Alle Harnesses enden mit Exit-Code 0 bei Erfolg.

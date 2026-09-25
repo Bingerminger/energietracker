@@ -28,7 +28,8 @@ function freshDom() {
     { url: 'http://127.0.0.1:8899/', pretendToBeVisual: true }
   );
   // JSDOM-Globals für die Module bereitstellen
-  for (const k of ['window', 'document', 'location',
+  // v2.15.0 — history: Ansichten schreiben ihre Auswahl per replaceState in die Adresse
+  for (const k of ['window', 'document', 'location', 'history',
                     'HTMLElement', 'Node', 'CustomEvent', 'Event',
                     'getComputedStyle']) {
     try { global[k] = dom.window[k]; }
@@ -65,7 +66,15 @@ function freshDom() {
   // Chart.js kommt im Browser per CDN-<script> als globales `Chart`.
   // JSDOM hat kein Canvas-2D — daher ein No-Op-Stub mit der von
   // components/chart.js genutzten Oberfläche (defaults, Konstruktor).
-  const ChartStub = function () { return { destroy(){}, update(){}, resize(){}, data:{}, options:{} }; };
+  // v2.15.0 — das Stub zeichnet Canvas und Konfiguration auf: Farben,
+  // Teilmonate und Kurzbeschreibungen lassen sich so am echten Aufbau prüfen
+  const ChartStub = function (canvas, config) {
+    const inst = { canvas, config, destroyed: false, destroy() { this.destroyed = true; },
+      update(){}, resize(){}, data: config?.data || {}, options: config?.options || {} };
+    ChartStub.instances.push(inst);
+    return inst;
+  };
+  ChartStub.instances = [];
   ChartStub.defaults = {
     color: '', borderColor: '',
     font: { family: '', size: 12 },
@@ -734,6 +743,97 @@ async function renderView(modPath, params = [], ctx = {}) {
     // v2.13.0 (Review UI-27) — Spaltenerklärungen sichtbar statt nur im Tooltip
     t('tariff: keine Erklärung nur im Tooltip', !view.querySelector('th[title]'));
   } catch (e) { t('tariff: E1', false, e.message); }
+
+  // ── 17. v2.15.0 — Diagramme, die stimmen (F1) ──
+  const chartOn = (id) => (global.Chart.instances || []).filter(i => i.canvas?.id === id && !i.destroyed);
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas']);
+    await new Promise(r => setTimeout(r, 700));
+    const [mc] = chartOn('month-chart');
+    const ds = mc?.config?.data?.datasets?.[0];
+    const months = mc?.config?.data?.labels || [];
+    const rows = [...view.querySelectorAll('.table tbody tr')];
+    const partialRow = rows.find(r => /^\d+ \/ \d+$/.test(r.children[1]?.textContent.trim() || ''));
+    t('utility(gas): Monatschart eingetragen, Farbe als Funktion (folgt dem Theme)', !!mc && typeof ds?.borderColor === 'function' && typeof ds?.backgroundColor === 'function');
+    const pIdx = months.length - 1;
+    const fullBg = ds?.backgroundColor?.({ dataIndex: 0 }) || '', partBg = ds?.backgroundColor?.({ dataIndex: pIdx }) || '';
+    t('utility(gas): Teilmonat blass, volle Monate kräftig', /0\.12\)$/.test(partBg) && /0\.35\)$/.test(fullBg), `${fullBg} | ${partBg}`);
+    const footer = mc?.config?.options?.plugins?.tooltip?.callbacks?.footer?.([{ dataIndex: pIdx }]) || '';
+    t('utility(gas): Tooltip nennt die erfassten Tage', /Teilmonat: 14 von 31 Tagen/.test(footer), footer);
+    t('utility(gas): Teilmonat in der Tabelle „14 / 31“ und erklärt', !!partialRow && partialRow.classList.contains('is-partial')
+      && /nur teilweise erfasst/.test(view.textContent) && !!view.querySelector('.chart-note'));
+    t('utility(gas): Kurzbeschreibung mit Summe und Monaten', /^Balkendiagramm: Gas 2026 je Monat, zusammen .+ am meisten im .+ am wenigsten im /.test(view.querySelector('#month-chart')?.getAttribute('aria-label') || ''),
+      view.querySelector('#month-chart')?.getAttribute('aria-label'));
+    const banner = view.querySelector('.status-banner')?.textContent || '';
+    t('utility(gas): Trend gegen das Vorjahr statt „3-Monats-Trend“', /gegenüber Vorjahr/.test(banner) && !/3-Monats-Trend/.test(banner), banner.replace(/\s+/g, ' ').trim().slice(0, 120));
+    // Witterungsbereinigt heißt Heizmodell (`heat_adjusted`, v2.8.0) — das Altfeld
+    // `weather_adjusted` skaliert auch das Warmwasser und bleibt nur für die API
+    const { api: apiMod } = await import(`${ROOT}/api.js`);
+    const cd = await import(`${ROOT}/lib/chart-data.js`);
+    const gasMeters = await apiMod.meters('gas');
+    const cons = await apiMod.meterConsumption('gas', gasMeters[0].id);
+    const want = cd.yoyTrend(cons.monthly || [], 'kwh', { months: 3, adjustedKey: 'heat_adjusted' });
+    const wantTxt = want ? new Intl.NumberFormat('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(Math.abs(want.pct)) + ' %' : '';
+    t('utility(gas): Trend aus dem Heizmodell (heat_adjusted)', !!want && want.adjusted && banner.includes(wantTxt), `${wantTxt} in „${banner.replace(/\s+/g, ' ').trim().slice(0, 140)}“`);
+    t('utility(gas): Jahres-Pille mit aria-pressed', view.querySelector('.year-pills .pill.active')?.getAttribute('aria-pressed') === 'true'
+      && view.querySelectorAll('.year-pills .pill[aria-pressed="false"]').length >= 1);
+  } catch (e) { t('utility(gas): F1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/utility.js`, ['gas'], { query: new URLSearchParams('year=2025') });
+    await new Promise(r => setTimeout(r, 700));
+    t('utility(gas): Direktlink ?year=2025 wählt das Jahr', view.querySelector('.year-pills .pill.active')?.textContent.trim() === '2025');
+    t('utility(gas): Auswahl steht in der Adresse', /[?&]year=2025/.test(global.window.location.hash), global.window.location.hash);
+  } catch (e) { t('utility(gas): Direktlink', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/dashboard.js`);
+    await new Promise(r => setTimeout(r, 700));
+    t('dashboard: jede Karte nennt ihren Zeitraum', view.querySelectorAll('.dash-window').length >= 1
+      && [...view.querySelectorAll('.dash-window')].every(p => /^Zeitraum: /.test(p.textContent)));
+    const [dc] = chartOn('dash-chart');
+    t('dashboard: Verlauf mit Theme-Farben und Datentabelle', !!dc && typeof dc.config.data.datasets[0]?.borderColor === 'function'
+      && view.querySelectorAll('[data-role="chart-extra"] details.chart-data tbody tr').length > 0);
+    t('dashboard: Trend nennt denselben Zeitraum ein Jahr zuvor', [...view.querySelectorAll('.kpi__trend')].every(s => /ein Jahr zuvor/.test(s.getAttribute('aria-label') || '')));
+  } catch (e) { t('dashboard: F1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/analysis.js`, ['strom']);
+    await new Promise(r => setTimeout(r, 700));
+    const sel = view.querySelector('#util-select');
+    if (sel && sel.value !== 'strom' && [...sel.options].some(o => o.value === 'strom')) {
+      sel.value = 'strom'; sel.dispatchEvent(new global.window.Event('change'));
+      await new Promise(r => setTimeout(r, 800));
+    }
+    t('analyse(strom): Saisonprofil heißt Balken-, Jahresvergleich Liniendiagramm (bis v2.14 vertauscht)',
+      /^Balkendiagramm/.test(view.querySelector('#ch-seasonal')?.getAttribute('aria-label') || '')
+        && /^Liniendiagramm/.test(view.querySelector('#ch-years')?.getAttribute('aria-label') || ''));
+    const [yc] = chartOn('ch-years');
+    const dashes = (yc?.config?.data?.datasets || []).map(d => JSON.stringify(d.borderDash));
+    t('analyse(strom): Jahre unterscheiden sich nicht nur in der Farbe', dashes.length < 2 || new Set(dashes).size === dashes.length, dashes.join(' '));
+    t('analyse(strom): Saison und Jahre als Tabelle', !!view.querySelector('[data-role="seasonal-data"] details.chart-data')
+      && !!view.querySelector('[data-role="years-data"] details.chart-data'));
+  } catch (e) { t('analyse(strom): F1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/temperatures.js`);
+    await new Promise(r => setTimeout(r, 400));
+    const [tc] = chartOn('temp-chart');
+    const labels = (tc?.config?.data?.datasets || []).map(d => d.label);
+    t('temperatures: Reihen übersetzt (bis v2.14 fest „Max/ø/Min“)', labels.join() === 'Maximum,Mittel,Minimum', labels.join());
+    t('temperatures: Monatswerte als Tabelle', view.querySelectorAll('[data-role="temp-chart-data"] tbody tr').length > 0);
+  } catch (e) { t('temperatures: F1', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/forecast.js`);
+    await new Promise(r => setTimeout(r, 700));
+    view.querySelector('#btn-go')?.click();
+    view.querySelector('#btn-go')?.click();
+    await new Promise(r => setTimeout(r, 900));
+    t('forecast: zwei schnelle Läufe, ein Chart', chartOn('fc-chart').length === 1, `${chartOn('fc-chart').length} offen`);
+    t('forecast: Verlauf und Prognose als Tabelle', view.querySelectorAll('[data-role="fc-chart-data"] tbody tr').length > 0);
+    t('forecast: Kurzbeschreibung mit Zeitraum', /^Liniendiagramm: Verbrauch .+ und Prognose bis /.test(view.querySelector('#fc-chart')?.getAttribute('aria-label') || ''));
+  } catch (e) { t('forecast: F1', false, e.message); }
 
   console.log(`\n  ERGEBNIS: ${pass} bestanden, ${fail} fehlgeschlagen`);
   process.exit(fail ? 1 : 0);

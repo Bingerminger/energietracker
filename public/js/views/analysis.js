@@ -10,7 +10,8 @@
 import { api } from '../api.js';
 import { activeUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, monthShortNames } from '../lib/format.js';
-import { makeChart, themeColors } from '../components/chart.js';
+import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
+import { isPartial, daysInMonth } from '../lib/chart-data.js';
 import { toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
 import { info } from '../components/info.js';
@@ -108,12 +109,14 @@ async function renderForMeter(u, meterId, body) {
         <div class="card">
           <h3 class="card__title">${t('analysis.hgtTitle')}${info('heatingSignature')}</h3>
           <div class="chart-wrap"><canvas id="ch-hdd"></canvas></div>
+          <div data-role="hdd-data"></div>
           <div class="regression-summary" id="reg-summary"></div>
         </div>
       ` : `
         <div class="card">
           <h3 class="card__title">${t('analysis.seasonalTitle')}</h3>
           <div class="chart-wrap"><canvas id="ch-seasonal"></canvas></div>
+          <div data-role="seasonal-data"></div>
           <p class="muted">${t('analysis.notTempDependent', { label: escapeHtml(u.label) })}</p>
         </div>
       `}
@@ -121,6 +124,7 @@ async function renderForMeter(u, meterId, body) {
       <div class="card">
         <h3 class="card__title">${t('analysis.yearComparison')}</h3>
         <div class="chart-wrap"><canvas id="ch-years"></canvas></div>
+        <div data-role="years-data"></div>
       </div>
     </div>
 
@@ -157,7 +161,8 @@ async function renderForMeter(u, meterId, body) {
                   <td class="num">${fmt.num(val, 0)} ${unit}</td>
                   <td class="num">${fmt.num(a.expected, 0)} ${unit}</td>
                   <td class="num ${cls}">${dev >= 0 ? '+' : ''}${fmt.num(dev, 0)}</td>
-                  <td class="num ${cls}">${pct >= 0 ? '+' : ''}${fmt.num(pct, 1)} %</td>
+                  <!-- v2.15.0 (Review FE-08) — ohne Erwartung keine Abweichung in Prozent; bis v2.14 stand „+0,0 %“ -->
+                  <td class="num ${a.expected > 0 ? cls : 'muted'}">${a.expected > 0 ? `${pct >= 0 ? '+' : ''}${fmt.num(pct, 1)} %` : '–'}</td>
                   <td class="num ${cls}" style="font-weight:600">${z >= 0 ? '+' : ''}${fmt.num(z, 2)}</td>
                   ${u.hgt_relevant ? `<td class="num">${a.hdd != null ? fmt.int(a.hdd) : '–'}</td><td class="num">${a.avg_temp != null ? fmt.num(a.avg_temp, 1) + ' °C' : '–'}</td>` : ''}
                 </tr>`;
@@ -169,8 +174,8 @@ async function renderForMeter(u, meterId, body) {
 
   // Render charts
   if (u.hgt_relevant && meterData.regressions_note !== 'delivery_modelled') renderHgtScatter(monthly, u, consKey, regressions);
-  else if (!u.hgt_relevant) renderSeasonalProfile(monthly, u, consKey);
-  renderYearComparison(monthly, u, consKey);
+  else if (!u.hgt_relevant) renderSeasonalProfile(monthly, u, consKey, body);
+  renderYearComparison(monthly, u, consKey, body);
 }
 
 // ── F1011: Zäsur — Hinweisband, Grenzen, Vorher/Nachher ─────────────
@@ -342,7 +347,7 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
       label: modelLabel(model),
       data: linePoints,
       type: 'line',
-      borderColor: style.color,
+      borderColor: utilColor({ color: style.color }),   // v2.15.0 — je Theme getönt
       borderDash: style.dash,
       borderWidth: 2,
       pointRadius: 0,
@@ -359,7 +364,7 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
         ...(prePoints.length ? [{
           label: t('analysis.baseline.chartPre'),
           data: prePoints,
-          backgroundColor: preBaselineColor(),
+          backgroundColor: preBaselineColor,   // v2.15.0 — Funktion: folgt dem Theme
           pointRadius: 3,
         }] : []),
         // Hohl in der Farbe der Verbrauchsart: eigene Monate, nur nicht im
@@ -368,23 +373,34 @@ function renderHgtScatter(monthly, u, consKey, regressions) {
           label: t('analysis.scatterNotInFit'),
           data: outPoints,
           backgroundColor: 'transparent',
-          borderColor: u.color,
+          borderColor: utilColor(u),
           borderWidth: 1.5,
           pointRadius: 4,
         }] : []),
-        { label: t('analysis.scatterPoints'), data: points, backgroundColor: u.color, pointRadius: 4 },
+        { label: t('analysis.scatterPoints'), data: points, backgroundColor: utilColor(u), pointRadius: 4 },
         ...lineDatasets,
       ],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'top', labels: { color: themeColors.text2 } } },
+      plugins: { legend: { position: 'top', labels: { color: tokenColor('text2') } } },
       scales: {
         x: { title: { display: true, text: t('common.hddShort') } },   // v2.13.0 — bis v2.12 „HGT" in jeder Sprache
         y: { title: { display: true, text: u.consumption_unit } },
       },
     }
   }, { label: t('analysis.chartAlt.hdd') }));
+
+  // v2.15.0 (Review FE-20) — die Punkte als Tabelle, mit ihrer Rolle im Modell
+  const box = document.querySelector('[data-role="hdd-data"]');
+  if (box) {
+    const role = (m) => m.pre_baseline ? t('analysis.baseline.chartPre') : inFit(m) ? t('analysis.pointInFit') : t('analysis.scatterNotInFit');
+    box.innerHTML = chartTableHtml({
+      caption: t('analysis.hgtTitle'),
+      columns: [t('utility.monthlyTable.colMonth'), t('common.hddShort'), u.consumption_unit, t('analysis.pointRole')],
+      rows: usable.map(m => [fmt.month(m.ym), fmt.int(m.hdd), fmt.int(m[consKey]), role(m)]),
+    });
+  }
 
   // R² summary table — sortiert nach R² absteigend
   const ranked = summaryRows
@@ -441,43 +457,105 @@ function formatCoefficients(model, reg, u) {
   }
 }
 
-function renderSeasonalProfile(monthly, u, consKey) {
-  const canvas = document.getElementById('ch-seasonal');
+// v2.15.0 (Review FE-08, FE-20) — Das Saisonprofil mittelt nur volle Monate:
+// Ein halber März drückte den März-Schnitt, ein erster Teilmonat nach dem
+// Einbau ebenso. Monate ohne Werte bleiben leer statt 0. Darunter die Zahlen
+// als Tabelle, mit der Zahl der Jahre je Monat.
+function renderSeasonalProfile(monthly, u, consKey, root = document) {
+  const canvas = root.querySelector('#ch-seasonal');
   if (!canvas) return;
-  const buckets = Array.from({length:12}, () => []);
-  monthly.forEach(m => { if (m[consKey] > 0) buckets[m.month-1].push(m[consKey]); });
-  const avgs = buckets.map(arr => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0);
+  const buckets = Array.from({ length: 12 }, () => []);
+  monthly.forEach(m => { if (m[consKey] > 0 && !isPartial(m)) buckets[m.month - 1].push(m[consKey]); });
+  const avgs = buckets.map(arr => arr.length ? arr.reduce((a, v) => a + v, 0) / arr.length : null);
   const labels = monthNames();
   charts.push(makeChart(canvas, {
     type: 'bar',
-    data: { labels, datasets: [{ label: t('analysis.seasonalAvg', { label: u.label }), data: avgs, backgroundColor: u.color + '88', borderColor: u.color }] },
+    data: { labels, datasets: [{ label: t('analysis.seasonalAvg', { label: u.label }), data: avgs, backgroundColor: utilColor(u, 0.55), borderColor: utilColor(u), borderWidth: 1 }] },
     options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: u.consumption_unit } } } }
-  }, { label: t('analysis.chartAlt.seasonal') }));
+  }, { label: t('analysis.chartAlt.seasonal', { label: u.label }) }));
+  const box = root.querySelector('[data-role="seasonal-data"]');
+  if (box) {
+    box.innerHTML = chartTableHtml({
+      caption: t('analysis.seasonalTitle'),
+      columns: [t('utility.monthlyTable.colMonth'), `${t('analysis.seasonalAvgShort')} (${u.consumption_unit})`, t('analysis.yearsCount')],
+      rows: labels.map((l, i) => [l, avgs[i] == null ? null : fmt.int(avgs[i]), buckets[i].length ? String(buckets[i].length) : null]),
+    });
+  }
 }
 
-function renderYearComparison(monthly, u, consKey) {
-  const canvas = document.getElementById('ch-years');
+// Ein Linienstil und eine Punktform je Jahr — bis v2.14 unterschieden sich die
+// Jahre nur über die Farbe (Review FE-20). Das jüngste Jahr steht kräftiger.
+const YEAR_STYLES = [
+  { color: '#22d3ee', dash: [],          point: 'circle' },
+  { color: '#f59e0b', dash: [6, 4],      point: 'rect' },
+  { color: '#a78bfa', dash: [2, 3],      point: 'triangle' },
+  { color: '#10b981', dash: [10, 4],     point: 'rectRot' },
+  { color: '#ef4444', dash: [4, 2],      point: 'star' },
+  { color: '#3b82f6', dash: [8, 3, 2, 3], point: 'crossRot' },
+];
+
+function renderYearComparison(monthly, u, consKey, root = document) {
+  const canvas = root.querySelector('#ch-years');
   if (!canvas) return;
   const byYear = {};
+  const partialByYear = {};
   monthly.forEach(m => {
-    if (!byYear[m.year]) byYear[m.year] = Array(12).fill(null);
-    byYear[m.year][m.month-1] = m[consKey];
+    if (!byYear[m.year]) { byYear[m.year] = Array(12).fill(null); partialByYear[m.year] = Array(12).fill(false); }
+    byYear[m.year][m.month - 1] = m[consKey];
+    partialByYear[m.year][m.month - 1] = isPartial(m);
   });
   const years = Object.keys(byYear).sort();
-  const colors = ['#22d3ee', '#f59e0b', '#a78bfa', '#10b981', '#ef4444', '#3b82f6'];
+  const labels = monthNames();
+  // Die jüngsten Jahre bekommen die ersten Stile — sie wechseln dann nicht,
+  // sobald ein weiteres Jahr hinzukommt
+  const styleOf = (i) => YEAR_STYLES[(years.length - 1 - i) % YEAR_STYLES.length];
   charts.push(makeChart(canvas, {
     type: 'line',
     data: {
-      labels: monthNames(),
-      datasets: years.map((y, i) => ({
-        label: y, data: byYear[y],
-        borderColor: colors[i % colors.length],
-        backgroundColor: colors[i % colors.length] + '22',
-        tension: 0.25, spanGaps: true,
-      })),
+      labels,
+      datasets: years.map((y, i) => {
+        const st = styleOf(i);
+        const latest = i === years.length - 1;
+        const partial = partialByYear[y];
+        return {
+          label: y, data: byYear[y],
+          borderColor: utilColor({ color: st.color }),
+          backgroundColor: utilColor({ color: st.color }, 0.13),
+          borderWidth: latest ? 2.5 : 1.5,
+          borderDash: st.dash,
+          pointStyle: st.point,
+          pointRadius: latest ? 4 : 3,
+          // v2.15.0 (Review FE-08) — Teilmonat als hohler Punkt
+          pointBackgroundColor: (ctx) => (partial[ctx.dataIndex] ? 'transparent' : utilColor({ color: st.color })()),
+          tension: 0.25, spanGaps: true,
+        };
+      }),
     },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { title: { display: true, text: u.consumption_unit } } } }
-  }, { label: t('analysis.chartAlt.years') }));
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: { callbacks: { afterLabel: (item) => {
+        const y = years[item.datasetIndex];
+        const i = item.dataIndex;
+        const row = monthly.find(m => String(m.year) === y && m.month === i + 1);
+        return row && isPartial(row) ? t('chart.partialMonth', { days: row.days, total: daysInMonth(row.ym) }) : '';
+      } } } },
+      scales: { y: { title: { display: true, text: u.consumption_unit } } },
+    }
+  }, { label: t('analysis.chartAlt.years', { label: u.label, from: years[0] ?? '–', to: years[years.length - 1] ?? '–' }) }));
+  const box = root.querySelector('[data-role="years-data"]');
+  if (box && years.length) {
+    box.innerHTML = chartTableHtml({
+      caption: t('analysis.yearComparison'),
+      columns: [t('utility.monthlyTable.colMonth'), ...years.map(y => `${y} (${u.consumption_unit})`)],
+      rows: labels.map((l, i) => [l, ...years.map(y => {
+        const v = byYear[y][i];
+        return v == null ? null : fmt.int(v) + (partialByYear[y][i] ? ' *' : '');
+      })]),
+    });
+    if (years.some(y => partialByYear[y].some(Boolean))) {
+      box.insertAdjacentHTML('beforeend', `<p class="chart-note">${escapeHtml(t('analysis.partialStar'))}</p>`);
+    }
+  }
 }
 
 // ── F-05: contract-end reminders ───────────────────────────────────

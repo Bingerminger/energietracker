@@ -147,8 +147,8 @@
       }
     },
     "allLink": "alle",
-    "chart": { "title": "Verbruik over {months} maanden (alle energieën)", "alt": "Lijndiagram: verbruik van de laatste {months} maanden per energie" },
-    "card": { "meters": "Meters", "details": "Details" },
+    "chart": { "title": "Verbruik over {months} maanden (alle energieën)", "altList": "Lijndiagram: verbruik van de laatste {months} maanden voor {list}" },
+    "card": { "meters": "Meters", "details": "Details", "window": "Periode: {from} – {to}", "partial": "{month}: {days} van {total} dagen" },
     "groups": { "summary": "Groepen ({count})" },
     "kpi": {
       "consumption": "Verbruik (laatste 12 maanden)",
@@ -160,7 +160,7 @@
       "revenue": "Vergoeding (laatste 12 maanden)",
       "revenueSub": "opbrengst uit teruglevering"
     },
-    "trend": { "vsPrev": "t.o.v. vorige 12 maanden", "moreThanPrev": "{pct} % meer dan de vorige periode van 12 maanden", "lessThanPrev": "{pct} % minder dan de vorige periode van 12 maanden" },
+    "trend": { "vsPrev": "{span} vergeleken met dezelfde maanden een jaar eerder", "moreThanPrev": "{pct} % meer: {span} vergeleken met dezelfde maanden een jaar eerder", "lessThanPrev": "{pct} % minder: {span} vergeleken met dezelfde maanden een jaar eerder" },
     "allRecommendations": "Alle aanbevelingen",
     "todo": {
       "title": "Te doen",
@@ -245,7 +245,7 @@
     },
     "header": { "meters": "Meters", "metersTitle": "Meterbeheer", "selectMeter": "Meter kiezen" },
     "action": { "newReading": "+ Meterstand", "newReadingBanner": "+ Nieuwe meterstand", "newDelivery": "+ Levering" },
-    "banner": { "lastReading": "Laatste meterstand {days} dagen geleden", "trend": "trend over 3 maanden" },
+    "banner": { "lastReading": "Laatste meterstand {days} dagen geleden", "trendYoY": "{span} t.o.v. vorig jaar", "trendYoYAdjusted": "{span} t.o.v. vorig jaar, weergecorrigeerd" },
     "kpi": {
       "feedIn": "Teruglevering",
       "consumption": "Verbruik",
@@ -382,7 +382,8 @@
       "estimatedTitle": "{days} dagen geschat (na de laatst bekende voorraad)",
       "estimatedLegend": "≈ maand bevat geschatte dagen — na de laatst bekende voorraad (levering „tot vol getankt” of peilstand).",
       "colRevenue": "Opbrengst {cur}",
-      "colCo2Avoided": "CO₂ vermeden kg"
+      "colCo2Avoided": "CO₂ vermeden kg",
+      "partialLegend": "„14 / 31” bij de dagen: de maand is maar deels vastgelegd; trends laten hem weg."
     },
     "readingsTable": {
       "emptyTitle": "Geen meterstanden",
@@ -439,7 +440,7 @@
       "chartAnchors": "Bekende voorraad",
       "chartAlt": "Verloop van de tankvoorraad in {year}"
     },
-    "chart": { "temp": "gemiddelde temperatuur", "alt": "Staafdiagram: maandverbruik en gemiddelde temperatuur" },
+    "chart": { "temp": "gemiddelde temperatuur", "alt": "Staafdiagram: maandverbruik en gemiddelde temperatuur", "altSummary": "Staafdiagram: {label} {year} per maand, samen {total}; het meest in {maxMonth} ({max}), het minst in {minMonth} ({min})." },
     "readingModal": {
       "titleEdit": "Meterstand bewerken · {label}",
       "titleNew": "Nieuwe meterstand · {label}",
@@ -544,7 +545,8 @@
       "title": "Nog geen maandwaarden",
       "noReading": "Deze meter heeft nog geen stand. Maandwaarden ontstaan uit het verschil tussen twee standen.",
       "oneReading": "Er is pas één stand. Maandwaarden ontstaan uit het verschil tussen twee standen — voer een tweede in, bijvoorbeeld die van je laatste rekening."
-    }
+    },
+    "yearPills": "Jaar"
   },
   "contracts": {
     "priceGroup": {
@@ -1449,7 +1451,7 @@
     "downloadExample": "Voorbeeld-CSV downloaden",
     "dropZone": "Zet hier een bestand neer of klik om te selecteren",
     "dropZoneAria": "Selecteer een CSV-bestand of zet het hier neer",
-    "chart": { "alt": "Lijndiagram: maandelijkse minimum-, gemiddelde en maximumtemperatuur" },
+    "chart": { "alt": "Lijndiagram: maandelijkse minimum-, gemiddelde en maximumtemperatuur", "max": "Maximum", "avg": "Gemiddeld", "min": "Minimum", "altSpan": "Lijndiagram: maandelijkse minimum-, gemiddelde en maximumtemperatuur, {from} – {to}" },
     "location": "Locatie (voor Open-Meteo)",
     "lat": "Breedtegraad",
     "lng": "Lengtegraad",
@@ -1650,8 +1652,8 @@
     "selectMeter": "Meter kiezen",
     "chartAlt": {
       "hdd": "Spreidingsdiagram: verbruik ten opzichte van graaddagen met regressiemodellen",
-      "seasonal": "Lijndiagram: gemiddeld maandprofiel",
-      "years": "Staafdiagram: verbruik per jaarvergelijking"
+      "seasonal": "Staafdiagram: {label} gemiddeld per kalendermaand, alleen volledige maanden",
+      "years": "Lijndiagram: {label} per maand, één lijn per jaar van {from} tot {to}"
     },
     "hgtTitle": "Graaddagencorrelatie · regressiemodellen vergeleken",
     "seasonalTitle": "Seizoensprofiel",
@@ -1735,7 +1737,12 @@
     },
     "deliveryModelled": "Voor stookolie en pellets zijn er geen gemeten maandwaarden: de maanden worden vanuit de leveringen naar graaddagen verdeeld. Een stooklijn daarover zou een cirkelredenering zijn — elk model zou perfect passen — en wordt daarom niet getoond.",
     "scatterNotInFit": "niet in het model (deelmaand of weinig graaddagen)",
-    "regR2Note": "R² beschrijft hoe goed de curve de getoonde maanden treft (fit) — niet hoe goed hij volgend jaar voorspelt."
+    "regR2Note": "R² beschrijft hoe goed de curve de getoonde maanden treft (fit) — niet hoe goed hij volgend jaar voorspelt.",
+    "seasonalAvgShort": "Gemiddelde",
+    "yearsCount": "Jaren",
+    "partialStar": "* Deelmaand: slechts een deel van de dagen vastgelegd.",
+    "pointRole": "Model",
+    "pointInFit": "in het model"
   },
   "forecast": {
     "noUtilities": "Geen verbruikssoort actief. In de instellingen kies je welke worden getoond.",
@@ -1782,7 +1789,8 @@
       "heat_model": "verwarmingsmodel",
       "filled": "daggemiddelde (geen eigen waarde)",
       "blend": "mix: {reg} stooklijn, {seasonal} seizoensprofiel"
-    }
+    },
+    "chartAltSpan": "Lijndiagram: verbruik {from} – {to} en prognose tot {until}"
   },
   "report": {
     "createdOn": "Gemaakt op {date}",
@@ -2333,5 +2341,10 @@
     "even": "in evenwicht",
     "tableLegend": "Saldo: + tegoed, − bijbetaling.",
     "tableLegendFeedIn": "Saldo: + tegoed, − terugvordering."
+  },
+  "chart": {
+    "dataTable": "Gegevens als tabel",
+    "partialMonth": "Deelmaand: {days} van {total} dagen vastgelegd",
+    "partialLegend": "Lichte balken: maand maar deels vastgelegd, zoals de lopende. Trends laten zulke maanden weg."
   }
 }

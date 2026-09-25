@@ -147,8 +147,8 @@
       }
     },
     "allLink": "alle",
-    "chart": { "title": "{months}-Monats-Verbrauch (alle Verbrauchsarten)", "alt": "Liniendiagramm: Verbrauch der letzten {months} Monate je Verbrauchsart" },
-    "card": { "meters": "Zähler", "details": "Details" },
+    "chart": { "title": "{months}-Monats-Verbrauch (alle Verbrauchsarten)", "altList": "Liniendiagramm: Verbrauch der letzten {months} Monate für {list}" },
+    "card": { "meters": "Zähler", "details": "Details", "window": "Zeitraum: {from} – {to}", "partial": "{month}: {days} von {total} Tagen" },
     "groups": { "summary": "Gruppen ({count})" },
     "kpi": {
       "consumption": "Verbrauch (letzte 12 Monate)",
@@ -160,7 +160,7 @@
       "revenue": "Vergütung (letzte 12 Monate)",
       "revenueSub": "Erlös aus der Einspeisung"
     },
-    "trend": { "vsPrev": "vs. vorherige 12 Monate", "moreThanPrev": "{pct} % mehr als im vorherigen 12-Monats-Zeitraum", "lessThanPrev": "{pct} % weniger als im vorherigen 12-Monats-Zeitraum" },
+    "trend": { "vsPrev": "{span} gegenüber denselben Monaten ein Jahr zuvor", "moreThanPrev": "{pct} % mehr: {span} gegenüber denselben Monaten ein Jahr zuvor", "lessThanPrev": "{pct} % weniger: {span} gegenüber denselben Monaten ein Jahr zuvor" },
     "allRecommendations": "Alle Empfehlungen",
     "todo": {
       "title": "Zu tun",
@@ -245,7 +245,7 @@
     },
     "header": { "meters": "Zähler", "metersTitle": "Zählerverwaltung", "selectMeter": "Zähler auswählen" },
     "action": { "newReading": "+ Ablesung", "newReadingBanner": "+ Neue Ablesung", "newDelivery": "+ Lieferung" },
-    "banner": { "lastReading": "Letzte Ablesung vor {days} Tagen", "trend": "3-Monats-Trend" },
+    "banner": { "lastReading": "Letzte Ablesung vor {days} Tagen", "trendYoY": "{span} gegenüber Vorjahr", "trendYoYAdjusted": "{span} gegenüber Vorjahr, witterungsbereinigt" },
     "kpi": {
       "feedIn": "Einspeisung",
       "consumption": "Verbrauch",
@@ -382,7 +382,8 @@
       "estimatedTitle": "{days} Tage geschätzt (nach dem letzten bekannten Bestand)",
       "estimatedLegend": "≈ Monat enthält geschätzte Tage — nach dem letzten bekannten Bestand (Lieferung „bis voll getankt“ oder Peilstand).",
       "colRevenue": "Erlös {cur}",
-      "colCo2Avoided": "CO₂ vermieden kg"
+      "colCo2Avoided": "CO₂ vermieden kg",
+      "partialLegend": "„14 / 31“ bei den Tagen: Der Monat ist nur teilweise erfasst; Trends lassen ihn aus."
     },
     "readingsTable": {
       "emptyTitle": "Keine Ablesungen",
@@ -439,7 +440,7 @@
       "chartAnchors": "Bekannter Bestand",
       "chartAlt": "Verlauf des Tankbestands {year}"
     },
-    "chart": { "temp": "ø Temperatur", "alt": "Balkendiagramm: Monatsverbrauch und Durchschnittstemperatur" },
+    "chart": { "temp": "ø Temperatur", "alt": "Balkendiagramm: Monatsverbrauch und Durchschnittstemperatur", "altSummary": "Balkendiagramm: {label} {year} je Monat, zusammen {total}; am meisten im {maxMonth} ({max}), am wenigsten im {minMonth} ({min})." },
     "readingModal": {
       "titleEdit": "Ablesung bearbeiten · {label}",
       "titleNew": "Neue Ablesung · {label}",
@@ -544,7 +545,8 @@
       "title": "Noch keine Monatswerte",
       "noReading": "Für diesen Zähler gibt es noch keinen Stand. Die Monatswerte entstehen aus der Differenz zweier Stände.",
       "oneReading": "Es gibt erst einen Stand. Die Monatswerte entstehen aus der Differenz zweier Stände — trag einen zweiten ein, etwa den von deiner letzten Rechnung."
-    }
+    },
+    "yearPills": "Jahr"
   },
   "contracts": {
     "priceGroup": {
@@ -1449,7 +1451,7 @@
     "downloadExample": "Beispiel-CSV herunterladen",
     "dropZone": "Datei hier ablegen oder klicken zum Auswählen",
     "dropZoneAria": "CSV-Datei auswählen oder hier ablegen",
-    "chart": { "alt": "Liniendiagramm: monatliche Minimal-, Mittel- und Maximaltemperatur" },
+    "chart": { "alt": "Liniendiagramm: monatliche Minimal-, Mittel- und Maximaltemperatur", "max": "Maximum", "avg": "Mittel", "min": "Minimum", "altSpan": "Liniendiagramm: monatliche Minimal-, Mittel- und Maximaltemperatur, {from} – {to}" },
     "location": "Standort (für Open-Meteo)",
     "lat": "Breitengrad",
     "lng": "Längengrad",
@@ -1650,8 +1652,8 @@
     "selectMeter": "Zähler auswählen",
     "chartAlt": {
       "hdd": "Streudiagramm: Verbrauch über Heizgradtagen mit Regressionsmodellen",
-      "seasonal": "Liniendiagramm: durchschnittliches Monatsprofil",
-      "years": "Balkendiagramm: Verbrauch im Jahresvergleich"
+      "seasonal": "Balkendiagramm: {label} im Durchschnitt je Kalendermonat, nur volle Monate",
+      "years": "Liniendiagramm: {label} je Monat, ein Linienzug je Jahr von {from} bis {to}"
     },
     "hgtTitle": "HGT-Korrelation · Regressionsmodelle im Vergleich",
     "seasonalTitle": "Saisonprofil",
@@ -1735,7 +1737,12 @@
     },
     "deliveryModelled": "Für Heizöl und Pellets gibt es keine gemessenen Monatswerte: Die Monate werden aus den Lieferungen nach Gradtagen verteilt. Eine Heizkurve darüber wäre ein Zirkelschluss — jedes Modell träfe perfekt — und wird deshalb nicht gezeigt.",
     "scatterNotInFit": "nicht im Modell (Teilmonat oder wenig Heizgradtage)",
-    "regR2Note": "R² beschreibt, wie gut die Kurve die gezeigten Monate trifft (Anpassung) — nicht, wie gut sie das nächste Jahr vorhersagt."
+    "regR2Note": "R² beschreibt, wie gut die Kurve die gezeigten Monate trifft (Anpassung) — nicht, wie gut sie das nächste Jahr vorhersagt.",
+    "seasonalAvgShort": "Durchschnitt",
+    "yearsCount": "Jahre",
+    "partialStar": "* Teilmonat: nur ein Teil der Tage erfasst.",
+    "pointRole": "Modell",
+    "pointInFit": "im Modell"
   },
   "forecast": {
     "noUtilities": "Keine Verbrauchsart aktiv. In den Einstellungen lässt sich auswählen, welche angezeigt werden.",
@@ -1782,7 +1789,8 @@
       "heat_model": "Heizmodell",
       "filled": "Tagesmittel (kein eigener Wert)",
       "blend": "Mischung: {reg} Heizkurve, {seasonal} Saisonprofil"
-    }
+    },
+    "chartAltSpan": "Liniendiagramm: Verbrauch {from} – {to} und Prognose bis {until}"
   },
   "report": {
     "createdOn": "Erstellt am {date}",
@@ -2333,5 +2341,10 @@
     "even": "ausgeglichen",
     "tableLegend": "Saldo: + Guthaben, − Nachzahlung.",
     "tableLegendFeedIn": "Saldo: + Guthaben, − Rückforderung."
+  },
+  "chart": {
+    "dataTable": "Daten als Tabelle",
+    "partialMonth": "Teilmonat: {days} von {total} Tagen erfasst",
+    "partialLegend": "Blasse Balken: Monat nur teilweise erfasst, etwa der laufende. Trends lassen solche Monate aus."
   }
 }

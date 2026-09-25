@@ -621,6 +621,31 @@ accepted.
   catalogue test checks that every counting key has its forms in every
   language, and knows the categories French, Spanish, Italian and Portuguese
   need in addition.
+- **An update does not re-read the defaults (v2.15.0).** Open charts were meant
+  to recolour on a theme change: set the defaults again, `chart.update()`. The
+  bars followed, the axes did not — Chart.js copies the axis defaults into the
+  chart's configuration when it is created. It only showed in the browser; the
+  stub in the test knows nothing of this copy. Now the chart layer releases the
+  copied colours before redrawing, and the test reproduces the copy.
+- **A replaced module is an untested module (v2.15.0).** The render test loaded
+  a stub in place of `components/chart.js`, left over from the time Chart.js was
+  an ES module. The registry, colours and descriptions of the charts ran in no
+  test; only the new checks failed on missing exports. Replace only what the
+  environment cannot do — here the canvas, so `window.Chart`, not your own layer
+  on top of it.
+- **A trend needs the same period (v2.15.0).** Three months against the three
+  before measured the season: district heating +470 %, gas −48 % with half a
+  March. The arrow now compares the same full months a year earlier,
+  weather-adjusted for heating utilities, and every card on the overview names
+  its window, because the utilities end in different months. The new trend
+  nearly took the wrong field: `weather_adjusted` has the right name but also
+  scales the hot water and only remains for the API; since v2.8.0 the adjustment
+  is `heat_adjusted`. A test now recomputes the displayed value from the right
+  field.
+- **A description nobody sees is checked by nobody (v2.15.0).** The short
+  descriptions of the year comparison and the seasonal profile were swapped, in
+  every language: screen readers heard "bar chart" for a line. Now they name
+  period, total and extremes, and the render test checks the type.
 
 ---
 

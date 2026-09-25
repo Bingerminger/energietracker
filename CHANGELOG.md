@@ -6,6 +6,112 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [2.15.0] — 2026-09-25 — Diagramme, die stimmen
+
+MINOR-Release, erster Teil von Paket F des Gesamtreviews („Auswertungen, die
+man sieht“, F1016): Die Diagramme zeigen, was die Daten hergeben — und nicht
+mehr. **Kein Schema-Wechsel** (bleibt 1.6.0), **keine Änderung an der API**.
+
+### ⚠️ Für bestehende Installationen
+
+- **Trendpfeile rechnen anders.** Das Banner einer Verbrauchsart und die Karten
+  der Übersicht vergleichen jetzt dieselben vollen Monate ein Jahr zuvor. Das
+  Banner rechnet bei Heizarten witterungsbereinigt nach dem Heizmodell
+  (`heat_adjusted`), wenn für alle beteiligten Monate ein Wert vorliegt; die
+  Karten vergleichen gemessene Werte. Bis v2.14 standen die letzten drei Monate
+  gegen die drei davor bzw. zwölf gegen zwölf mit einem halben Monat am Ende —
+  die Prozentzahlen ändern sich deshalb, teils deutlich. Ohne Vorjahresmonate
+  steht kein Pfeil.
+- **Chart.js 4.5.1** statt 4.4.1 (unverändert aus dem npm-Paket, Integrität
+  gegen die Registry geprüft).
+
+### Added
+
+- **Teilmonate kenntlich (Review FE-08):** Der erste Monat nach dem Einbau, der
+  laufende oder ein Monat bis zur letzten Ablesung steht blass (Balken) bzw. als
+  hohler Punkt am Ende einer gestrichelten Linie da; der Tooltip sagt
+  „Teilmonat: 14 von 31 Tagen“, die Monatstabelle „14 / 31“ mit Legende. Das
+  Saisonprofil mittelt nur volle Monate.
+- **Zeitraum je Karte (FE-08):** Jede Karte der Übersicht nennt ihr Fenster
+  („Zeitraum: Apr. 2025 – März 2026 · März 2026: 14 von 31 Tagen“) — die
+  Verbrauchsarten enden in verschiedenen Monaten.
+- **Daten als Tabelle (Review FE-20):** unter dem Verlauf der Übersicht, den
+  Temperaturen, der Prognose, der Heizsignatur, dem Saisonprofil und dem
+  Jahresvergleich, zum Aufklappen (am iPhone 44 px hoch).
+- **Kurzbeschreibungen mit Kernaussage (FE-20):** „Balkendiagramm: Gas 2026 je
+  Monat, zusammen 1.630 kWh; am meisten im Jan. 2026 (692 kWh), am wenigsten
+  im März 2026 (313 kWh).“ Prognose und Temperaturen nennen ihren Zeitraum,
+  die Übersicht ihre Verbrauchsarten.
+- **Jahr und Zähler in der Adresse (Review FE-22, FE-29, UI-28):**
+  `#/utility/gas?year=2025` (bei mehreren Zählern mit `&meter=…`) öffnet genau
+  diese Auswahl. Jede Verbrauchsart merkt sich ihr Jahr — bis v2.14 öffneten
+  Heizöl und PV nach einem Besuch bei der Fernwärme im Jahr 2025, obwohl es 2026
+  gab. Jahre ergeben sich auch aus Ablesungen und Lieferungen; die aktive
+  Jahres-Pille trägt `aria-pressed`.
+
+### Changed
+
+- **Farben folgen dem Theme (Review FE-11):** Offene Diagramme färben sich beim
+  Umschalten sofort um — Datensätze, Achsen, Gitter. Im hellen Theme sind die
+  Farben der Verbrauchsarten abgedunkelt wie im Rest der Oberfläche: Strom
+  stand bis v2.14 mit 1,8:1 auf Weiß, jetzt über 4,5:1. Dasselbe gilt für die
+  Farben der Modelle, Jahre und Angebote.
+- **Jahresvergleich:** Linienstil und Punktform je Jahr, das jüngste Jahr
+  kräftiger; bis v2.14 unterschieden sich die Jahre nur in der Farbe (FE-20).
+- **Übersicht:** Die m³-Achse erscheint nur, wenn es Wasser gibt (FE-17).
+- **Temperaturen:** Die Reihen heißen „Maximum“, „Mittel“ und „Minimum“ in der
+  Sprache der Oberfläche; bis v2.14 fest „Max“, „ø“, „Min“.
+- **Anomalien:** Ohne Erwartung steht „–“ statt „+0,0 %“ (FE-08).
+
+### Fixed
+
+- **Prognose (Review FE-16):** Zwei schnelle Klicks auf „Aktualisieren“ warfen
+  „Canvas is already in use …“ roh und englisch in einen Toast; jetzt zeichnet
+  nur der zuletzt gestartete Lauf, und ein Fehler von Chart.js landet in der
+  Konsole statt in der Oberfläche.
+- **Tarifvergleich (FE-16):** Jeder Wechsel des Wechseltermins hängte ein
+  Diagramm ab, das im Speicher blieb.
+- **Analyse (FE-20):** Die Kurzbeschreibungen von Jahresvergleich und
+  Saisonprofil waren vertauscht — Screenreader hörten „Balkendiagramm“ zu einer
+  Linie.
+- Übersicht und Temperaturen hielten ihre Diagramme in `window`-Globals; alle
+  Diagramme laufen jetzt über eine Registry, die beim Seitenwechsel aufräumt.
+
+### Migration
+
+Keine. Schema bleibt 1.6.0.
+
+### Tests
+
+- `tests/chart.test.mjs` (neu, 30 Prüfungen, auch in der CI): ein Chart je
+  Canvas, Aufräumen beim Seitenwechsel, Neuzeichnen beim Theme-Wechsel samt
+  Achsenfarben, kein Wurf bei einem Chart.js-Fehler, jede Chartfarbe mit 3:1 auf
+  der Karte in beiden Themes; Teilmonat, Trend gegen das Vorjahr, bereinigt nur
+  mit Werten für alle Monate.
+- Browser-Render 178/178 (+21): Der Test lädt jetzt die echte Chart-Schicht —
+  bis v2.14 ersetzte der Test-Loader sie durch einen Stub — und prüft am
+  aufgezeichneten Diagramm Farben, Teilmonat, Tooltip, Kurzbeschreibung,
+  Datentabellen, Jahr aus der Adresse und die Prognose nach zwei schnellen
+  Läufen.
+- `ReleaseConsistencyTest` (+1): Die Architektur-Doku nennt die mitgelieferte
+  Chart.js-Version.
+- 456 Testmethoden. 22 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Ein Update liest die Vorgaben nicht neu:** Chart.js kopiert
+  Achsen-Vorgaben beim Anlegen; beim Theme-Wechsel blieben die Achsen alt.
+- **Ein ersetztes Modul ist ein ungetestetes Modul:** Der Render-Test lud einen
+  Stub statt der Chart-Schicht.
+- **Ein Trend braucht denselben Zeitraum** — drei Monate gegen drei maßen die
+  Jahreszeit.
+- **Eine Beschreibung, die niemand sieht, prüft niemand** — die vertauschten
+  Kurzbeschreibungen fielen jahrelang nicht auf.
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
+---
+
 ## [2.14.0] — 2026-09-25 — Nachlesbar
 
 MINOR-Release, zweiter Teil von Paket E des Gesamtreviews („Versteht sich von

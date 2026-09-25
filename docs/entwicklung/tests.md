@@ -30,10 +30,13 @@ Benötigt einen laufenden Backend-Server.
 ## 2. `browser-render.test.mjs`
 
 Lädt die **echten** View-ES-Module in JSDOM und ruft `render()` gegen
-den laufenden Backend-Server auf. Chart.js wird über `esm-loader.mjs`
-gestubbt; die übrige View-Logik (DOM-Aufbau, Events, Datenfluss) läuft
-echt. Fängt: ReferenceErrors, kaputte DOM-Queries, Template-Fehler,
-Event-Binding-Fehler.
+den laufenden Backend-Server auf. Chart.js selbst ersetzt ein
+aufzeichnendes Stub auf `window.Chart` (JSDOM hat kein Canvas); die
+Chart-Schicht `components/chart.js` und die übrige View-Logik (DOM-Aufbau,
+Events, Datenfluss) laufen echt. Bis v2.14 ersetzte `esm-loader.mjs` auch die
+Chart-Schicht durch einen Stub — sie lief im Test nie; heute biegt der Loader
+nur noch die API-Adresse auf den Testserver. Fängt: ReferenceErrors, kaputte
+DOM-Queries, Template-Fehler, Event-Binding-Fehler.
 
 ### Modulgraph-Vorprüfung (seit v1.4.1)
 
@@ -69,8 +72,8 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.14.0:
-**Frontend-API-Shape 61/61**, **Browser-Render 156/156** (inkl. Modulgraph-
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.15.0:
+**Frontend-API-Shape 61/61**, **Browser-Render 178/178** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle). Der
 Modulgraph-Crawl folgt seit v2.11.0 auch dynamischen Importen — der Router
 lädt die Ansichten erst bei Bedarf. Seit v2.12.0 rendert der Test jede
@@ -81,6 +84,10 @@ Empfehlung auf — gegen die Demo-Kopie, die das Skript danach verwirft.
 Seit v2.13.0 öffnet der Render-Test die ⓘ-Erklärungen per Klick und schließt
 sie mit Escape, rendert die Hilfe mit Sprung zu einem Begriff und prüft die
 PV-Ansichten auf Vergütung statt Kosten und den Saldo auf die Kundensicht.
+Seit v2.15.0 prüft er an den aufgezeichneten Diagrammen: Farben als
+Funktionen, der Teilmonat blass mit „14 von 31 Tagen“ im Tooltip,
+Kurzbeschreibungen, Datentabellen, Jahr und Zähler aus der Adresse, zwei
+schnelle Prognoseläufe mit einem Chart.
 
 Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 `tests/plausibility.test.mjs` und seit v2.11.0:
@@ -93,11 +100,18 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 - **`tests/contrast.test.mjs`** — liest die Farb-Token aus `tokens.css` und
   die Farben der Verbrauchsarten aus `Utilities.php` und prüft alle Paare
   aus Schrift und Fläche in beiden Themes gegen WCAG AA (4,5:1).
+- **`tests/chart.test.mjs`** (v2.15.0) — die Chart-Schicht mit einem
+  aufzeichnenden Stub: ein Chart je Canvas, Aufräumen beim Seitenwechsel,
+  Neuzeichnen beim Theme-Wechsel samt Achsenfarben, kein Wurf bei einem
+  Chart.js-Fehler, jede Chartfarbe (Verbrauchsarten und Paletten) mit 3:1 auf
+  der Karte in beiden Themes; dazu die Monatsregeln aus `lib/chart-data.js`
+  (Teilmonat, Trend gegen dieselben Monate des Vorjahres, witterungsbereinigt
+  nur, wenn alle Monate einen Wert tragen).
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
 JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
-README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.14.0: 455).
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.15.0: 456).
 `LocaleCatalogTest` prüft seit v2.13.0 auch Schlüssel, die der Code
 zusammensetzt (`glossary.<id>.term`, `settings.field.<key>.label`) — die
 Prüfung auf literale Schlüssel sieht sie nicht. Seit v2.14.0 kennt er
@@ -161,10 +175,10 @@ Multi-Arch-Image (amd64 + arm64) nach GHCR.
 ## 4. Bekannte Grenze
 
 Ein echter **Headless-Chromium-Smoke** ist in der Build-Umgebung nicht
-möglich (kein Browser-Binary). Chart.js ist im Test gestubbt — die
-gesamte View-Logik, DOM-Erzeugung, Event-Bindung und der Backend-
-Datenfluss laufen echt, **nicht** aber das tatsächliche Canvas-Chart-
-Rendering. Empfehlung vor jedem Release: einmal manuell im Browser
+möglich (kein Browser-Binary). Chart.js ist im Test ein Stub — die
+gesamte View-Logik samt Chart-Schicht, DOM-Erzeugung, Event-Bindung und der
+Backend-Datenfluss laufen echt, **nicht** aber das tatsächliche
+Canvas-Chart-Rendering. Empfehlung vor jedem Release: einmal manuell im Browser
 durchklicken, besonders die Chart-haltigen Ansichten (Dashboard-
 Kombichart, Verbrauchs-Monatschart, Analyse, Prognose).
 

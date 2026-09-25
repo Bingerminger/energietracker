@@ -245,4 +245,20 @@ final class ReleaseConsistencyTest extends TestCase
                 "$rel: Die genannte Routenzahl muss " . count($routes) . ' lauten');
         }
     }
+
+    /**
+     * v2.15.0 (Review FE-27) — Die Version von Chart.js steht im Kopf der
+     * mitgelieferten Datei; die Architektur-Doku (DE und EN) nennt dieselbe.
+     * Bis v2.14 lag 4.4.1 von Dezember 2023 dort, und keine Doku sagte es.
+     */
+    public function testVendoredChartJsVersionIsDocumented(): void
+    {
+        $head = (string)file_get_contents(self::root() . '/public/vendor/chart.umd.min.js', false, null, 0, 200);
+        self::assertSame(1, preg_match('/Chart\.js v(\d+\.\d+\.\d+)/', $head, $m),
+            'public/vendor/chart.umd.min.js trägt keinen Versionskopf');
+        foreach (['docs/entwicklung/architektur.md', 'docs/en/entwicklung/architektur.md'] as $rel) {
+            self::assertStringContainsString('Chart.js ' . $m[1], (string)file_get_contents(self::root() . '/' . $rel),
+                "$rel nennt nicht die mitgelieferte Chart.js-Version {$m[1]}");
+        }
+    }
 }

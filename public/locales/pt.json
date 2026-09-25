@@ -147,8 +147,8 @@
       }
     },
     "allLink": "todos",
-    "chart": { "title": "Consumo de {months} meses (todos os serviços)", "alt": "Gráfico de linhas: consumo dos últimos {months} meses por serviço" },
-    "card": { "meters": "Contadores", "details": "Detalhes" },
+    "chart": { "title": "Consumo de {months} meses (todos os serviços)", "altList": "Gráfico de linhas: consumo dos últimos {months} meses para {list}" },
+    "card": { "meters": "Contadores", "details": "Detalhes", "window": "Período: {from} – {to}", "partial": "{month}: {days} de {total} dias" },
     "groups": { "summary": "Grupos ({count})" },
     "kpi": {
       "consumption": "Consumo (últimos 12 meses)",
@@ -160,7 +160,7 @@
       "revenue": "Remuneração (últimos 12 meses)",
       "revenueSub": "receita da injeção"
     },
-    "trend": { "vsPrev": "vs. 12 meses anteriores", "moreThanPrev": "{pct} % mais do que o período de 12 meses anterior", "lessThanPrev": "{pct} % menos do que o período de 12 meses anterior" },
+    "trend": { "vsPrev": "{span} face aos mesmos meses um ano antes", "moreThanPrev": "{pct} % mais: {span} face aos mesmos meses um ano antes", "lessThanPrev": "{pct} % menos: {span} face aos mesmos meses um ano antes" },
     "allRecommendations": "Todas as recomendações",
     "todo": {
       "title": "A fazer",
@@ -245,7 +245,7 @@
     },
     "header": { "meters": "Contadores", "metersTitle": "Gestão de contadores", "selectMeter": "Escolher contador" },
     "action": { "newReading": "+ Leitura", "newReadingBanner": "+ Nova leitura", "newDelivery": "+ Entrega" },
-    "banner": { "lastReading": "Última leitura há {days} dias", "trend": "tendência a 3 meses" },
+    "banner": { "lastReading": "Última leitura há {days} dias", "trendYoY": "{span} face ao ano anterior", "trendYoYAdjusted": "{span} face ao ano anterior, corrigido pelo clima" },
     "kpi": {
       "feedIn": "Injeção",
       "consumption": "Consumo",
@@ -382,7 +382,8 @@
       "estimatedTitle": "{days} dias estimados (após o último stock conhecido)",
       "estimatedLegend": "≈ o mês contém dias estimados, após o último stock conhecido (entrega «atestado» ou leitura).",
       "colRevenue": "Receita {cur}",
-      "colCo2Avoided": "CO₂ evitado kg"
+      "colCo2Avoided": "CO₂ evitado kg",
+      "partialLegend": "«14 / 31» nos dias: o mês só está registado em parte; as tendências não o consideram."
     },
     "readingsTable": {
       "emptyTitle": "Sem leituras",
@@ -439,7 +440,7 @@
       "chartAnchors": "Stock conhecido",
       "chartAlt": "Evolução do stock do depósito em {year}"
     },
-    "chart": { "temp": "temperatura média", "alt": "Gráfico de barras: consumo mensal e temperatura média" },
+    "chart": { "temp": "temperatura média", "alt": "Gráfico de barras: consumo mensal e temperatura média", "altSummary": "Gráfico de barras: {label} {year} por mês, {total} no total; máximo em {maxMonth} ({max}), mínimo em {minMonth} ({min})." },
     "readingModal": {
       "titleEdit": "Editar leitura · {label}",
       "titleNew": "Nova leitura · {label}",
@@ -544,7 +545,8 @@
       "title": "Ainda sem valores mensais",
       "noReading": "Este contador ainda não tem leituras. Os valores mensais resultam da diferença entre duas leituras.",
       "oneReading": "Só existe uma leitura. Os valores mensais resultam da diferença entre duas leituras — acrescente uma segunda, por exemplo a da sua última fatura."
-    }
+    },
+    "yearPills": "Ano"
   },
   "contracts": {
     "priceGroup": {
@@ -1449,7 +1451,7 @@
     "downloadExample": "Transferir CSV de exemplo",
     "dropZone": "Largue aqui um ficheiro ou clique para selecionar",
     "dropZoneAria": "Selecione um ficheiro CSV ou largue-o aqui",
-    "chart": { "alt": "Gráfico de linhas: temperaturas mensais mínima, média e máxima" },
+    "chart": { "alt": "Gráfico de linhas: temperaturas mensais mínima, média e máxima", "max": "Máxima", "avg": "Média", "min": "Mínima", "altSpan": "Gráfico de linhas: temperaturas mensais mínima, média e máxima, {from} – {to}" },
     "location": "Localização (para Open-Meteo)",
     "lat": "Latitude",
     "lng": "Longitude",
@@ -1650,8 +1652,8 @@
     "selectMeter": "Escolher contador",
     "chartAlt": {
       "hdd": "Gráfico de dispersão: consumo em função dos graus-dia de aquecimento com modelos de regressão",
-      "seasonal": "Gráfico de linhas: perfil mensal médio",
-      "years": "Gráfico de barras: consumo por comparação anual"
+      "seasonal": "Gráfico de barras: {label} em média por mês civil, só meses completos",
+      "years": "Gráfico de linhas: {label} por mês, uma linha por ano de {from} a {to}"
     },
     "hgtTitle": "Correlação GD · modelos de regressão comparados",
     "seasonalTitle": "Perfil sazonal",
@@ -1735,7 +1737,12 @@
     },
     "deliveryModelled": "O gasóleo e os pellets não têm valores mensais medidos: os meses são distribuídos a partir das entregas segundo os graus-dia. Uma curva de aquecimento seria circular — qualquer modelo encaixaria na perfeição — e por isso não é mostrada.",
     "scatterNotInFit": "fora do modelo (mês parcial ou poucos graus-dia)",
-    "regR2Note": "O R² descreve o quão bem a curva se ajusta aos meses mostrados (ajuste) — não o quão bem prevê o próximo ano."
+    "regR2Note": "O R² descreve o quão bem a curva se ajusta aos meses mostrados (ajuste) — não o quão bem prevê o próximo ano.",
+    "seasonalAvgShort": "Média",
+    "yearsCount": "Anos",
+    "partialStar": "* Mês parcial: só uma parte dos dias foi registada.",
+    "pointRole": "Modelo",
+    "pointInFit": "no modelo"
   },
   "forecast": {
     "noUtilities": "Nenhum tipo de consumo activo. Nas definições pode escolher quais aparecem.",
@@ -1782,7 +1789,8 @@
       "heat_model": "modelo de aquecimento",
       "filled": "média diária (sem valor próprio)",
       "blend": "combinação: {reg} curva de aquecimento, {seasonal} perfil sazonal"
-    }
+    },
+    "chartAltSpan": "Gráfico de linhas: consumo {from} – {to} e previsão até {until}"
   },
   "report": {
     "createdOn": "Criado a {date}",
@@ -2333,5 +2341,10 @@
     "even": "equilibrado",
     "tableLegend": "Saldo: + crédito, − acerto a pagar.",
     "tableLegendFeedIn": "Saldo: + crédito, − devolução."
+  },
+  "chart": {
+    "dataTable": "Dados em tabela",
+    "partialMonth": "Mês parcial: {days} de {total} dias registados",
+    "partialLegend": "Barras claras: mês registado só em parte, por exemplo o atual. As tendências não os consideram."
   }
 }

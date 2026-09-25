@@ -26,7 +26,7 @@ import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
-import { makeChart } from '../components/chart.js';
+import { makeChart, utilColor } from '../components/chart.js';
 import { fmt as f, escapeHtml as esc, monthShortNames, parseDecimal, formatForInput } from '../lib/format.js';
 import { t, getCurrencySymbol } from '../lib/i18n.js';
 import { copyText } from '../lib/clipboard.js';
@@ -380,8 +380,9 @@ function drawSwitchChart(box, d, unit) {
   // `getComputedStyle(--util-…)`: Das liefert im Hellmodus
   // `color-mix(in srgb, … )`, und die Canvas-API verwirft solche Werte
   // stillschweigend — die Fläche wird schwarz und verdeckt alles darunter.
-  const uColor = currentUtility?.color || '#4a90e2';
-  const offerColors = ['#8b5cf6', '#2563eb', '#d97706', '#dc2626'];
+  // v2.15.0 — über utilColor(): je Theme getönt und beim Umschalten neu
+  const uColor = currentUtility?.color ? currentUtility : { color: '#4a90e2' };
+  const offerColors = ['#8b5cf6', '#2563eb', '#d97706', '#dc2626'].map(color => ({ color }));
 
   const months = monthShortNames();
   const labels = usable[0].monthly.map(m => {
@@ -399,8 +400,8 @@ function drawSwitchChart(box, d, unit) {
     return {
       label: c.label,
       data: c.monthly.map(m => m.cost),
-      borderColor: color,
-      backgroundColor: color + '22',
+      borderColor: utilColor(color),
+      backgroundColor: utilColor(color, 0.13),
       borderWidth: c.is_reference ? 2.5 : 2,
       // Nur die Referenz wird gefüllt, und zwar schwach: Die Angebote laufen
       // darüber und müssen sichtbar bleiben — sonst verdeckt der Bestand
@@ -415,6 +416,9 @@ function drawSwitchChart(box, d, unit) {
     };
   });
 
+  // v2.15.0 (Review FE-16) — der Wechselblock baut sein Canvas bei jedem
+  // Terminwechsel neu; das alte Chart hing sonst abgehängt im Speicher
+  charts.switch?.destroy();
   charts.switch = makeChart(canvas, {
     type: 'line',
     data: { labels, datasets },

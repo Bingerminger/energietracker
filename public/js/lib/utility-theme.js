@@ -127,9 +127,10 @@ export function applyUtilityTheme(utilities) {
 
 /**
  * Lässt nur saubere Hex-Farben durch. Alles andere käme aus der API in einen
- * <style>-Block — dort hat unvalidierter Text nichts verloren.
+ * <style>-Block — dort hat unvalidierter Text nichts verloren. Seit v2.15.0
+ * nutzt auch die Chart-Schicht sie (components/chart.js, `chartColor`).
  */
-function normalizeHex(value) {
+export function normalizeHex(value) {
   const v = String(value ?? '').trim();
   return /^#[0-9a-f]{3}$|^#[0-9a-f]{6}$/i.test(v) ? v : null;
 }

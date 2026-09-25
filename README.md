@@ -9,11 +9,11 @@ switching worth it? Did I use more, or was it just colder?
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.14.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.15.0-blue.svg)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-455-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-456-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-8-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -63,7 +63,7 @@ and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:2.14.0
+  ghcr.io/bingerminger/energietracker:2.15.0
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
@@ -116,10 +116,11 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v2.14.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
+**v2.15.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
 APIs, CSV formats and the backup format change only additively; anything is
-removed only with a new major version and after notice. Next up are revised
-charts, then the utility-cost statement for tenants
+removed only with a new major version and after notice. Next up are further
+charts (measured against weather-adjusted, the balance across the billing
+period, the PV energy flow), then the utility-cost statement for tenants
 ([#15](https://github.com/Bingerminger/energietracker/issues/15)) and contracts
 per meter group ([#17](https://github.com/Bingerminger/energietracker/issues/17))
 — [roadmap](roadmap.md) (in German). Coming from a private v0.9.0:

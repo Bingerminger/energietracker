@@ -7,8 +7,9 @@
 > **Real screenshots.** The following images are **actual screen captures** of the
 > running app with the bundled [demo dataset](../../../demo-data/) (light theme; base
 > set v1.9.2, sign-in, security card and the capture question v2.6.0, navigation
-> v2.11.0, overview, capture, weather data, settings and import preview v2.12.0,
-> help, explanations and PV view v2.13.0). Since v2.14.0 the views show the
+> v2.11.0, capture, weather data, settings and import preview v2.12.0, help,
+> explanations and PV view v2.13.0, overview, gas and analysis v2.15.0). Since
+> v2.14.0 the views show the
 > English interface; dialogs, the sign-in and the iPhone captures are still
 > German. How the images are made: [Screenshots](../entwicklung/screenshots.md).
 
@@ -63,6 +64,27 @@ what "FULL" means on a delivery — the ⓘ next to it opens exactly that one.
 
 The **help** sits in the footer of the sidebar, on the iPhone under "More".
 
+**Charts (v2.15.0)** follow the same rules everywhere:
+
+- **Partial months** — the first month after installation, the current one, a
+  month up to the last reading — appear pale (bars) or as a hollow point at the
+  end of a dashed line. The tooltip names the recorded days ("Partial month: 14
+  of 31 days recorded"), tables show "14 / 31". Trends and the seasonal profile
+  leave them out.
+- **Trends** compare the same full months a year earlier. The banner of a
+  heating utility is weather-adjusted by the heating model when every month
+  involved has a value; the cards on the overview compare measured values. Up to
+  v2.14 the last three stood against the three before — heating season against
+  summer.
+- **Colours** are those of the utility, darkened in the light theme (at least
+  3:1 on the card); open charts recolour at once when you switch.
+- **Data as a table:** below every chart without a table of its own the numbers
+  can be expanded. Screen readers hear a short description with period, total
+  and the highest and lowest month.
+- **Year and meter in the address:** `#/utility/gas?year=2025` (with several
+  meters `&meter=…`) opens exactly that selection — to share, as a bookmark,
+  after reloading. Each utility remembers its year.
+
 ---
 
 ## 1. Overview (dashboard)
@@ -99,6 +121,13 @@ sample data"**. The app saves the current state first; the way
 back is Settings → Data → Snapshots.
 
 ![Welcome without data](../../ui/screenshots/en/willkommen.png)
+
+**Period per card (v2.15.0):** every card names its window ("Period:
+Apr 2025 – Mar 2026 · Mar 2026: 14 of 31 days") — the utilities end in
+different months. The arrow compares the same full months a year earlier; up to
+v2.14 the twelve months before, with half a month against a whole one. Below the
+history the values can be expanded as a table, and an m³ axis only appears when
+there is water.
 
 **PV on the overview (v2.13.0):** the feed-in shows "Feed-in" and
 "Remuneration", the generation "Generation" without a cost tile. For both,
@@ -186,7 +215,9 @@ apply — the contract has expired and runs on without cancellation (status
 missed, or an entered price increase is coming up (in Germany with the special
 right to cancel under § 41 Abs. 5 EnWG). The "reading overdue" banner follows
 the setting *Warn after* (days without a reading; warning from ⅔, alert from
-the value itself).
+the value itself). Since v2.15.0 it names the trend of the last three full
+months against the same months a year earlier ("Dec 2025 – Feb 2026 vs.
+previous year, weather-adjusted"), for PV too, where more is good.
 
 **Implausible readings (v2.6.0):** if there are outliers, a falling reading
 without a meter swap or an unconfirmed suspect value from Home Assistant, a

@@ -9,7 +9,7 @@
 import { api } from '../api.js';
 import { activeUtilities, getSettings } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
-import { makeChart, themeColors } from '../components/chart.js';
+import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
 import { toastErr } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
 import { info } from '../components/info.js';
@@ -71,6 +71,7 @@ export async function render(container) {
     <div class="card" style="margin-top: var(--sp-5)">
       <h3 class="card__title">${t('forecast.history')}</h3>
       <div class="chart-wrap"><canvas id="fc-chart"></canvas></div>
+      <div data-role="fc-chart-data"></div>
       <div id="fc-info" class="muted" style="margin-top: var(--sp-3)"></div>
     </div>
 
@@ -90,8 +91,12 @@ export async function render(container) {
     meterSel.innerHTML = currentMeters.map(m => `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)}</option>`).join('');
   }
 
+  // v2.15.0 (Review FE-16) — nur der zuletzt gestartete Lauf zeichnet. Zwei
+  // schnelle Klicks legten zwei Charts auf dasselbe Canvas; der zweite warf
+  // „Canvas is already in use“ roh und englisch in einen Toast.
+  let runSeq = 0;
   async function run() {
-    if (chart) { chart.destroy(); chart = null; }
+    const my = ++runSeq;
     const utility = utilities.find(u => u.key === utilSel.value);
     if (!currentMeters.length) {
       container.querySelector('#fc-info').textContent = t('forecast.noMeters');
@@ -125,8 +130,9 @@ export async function render(container) {
     };
     try {
       const result = await api.forecast(utility.key, meterSel.value, opts);
+      if (my !== runSeq) return;   // überholt
       renderResult(utility, result, container);
-    } catch (e) { toastErr(e.message); }
+    } catch (e) { if (my === runSeq) toastErr(e.message); }
   }
 
   utilSel.addEventListener('change',  async () => { await loadMeters(); run(); });
@@ -155,9 +161,12 @@ function renderResult(u, result, container) {
   const infoEl = container.querySelector('#fc-info');
   const tbl  = container.querySelector('#fc-table');
 
+  const chartData = container.querySelector('[data-role="fc-chart-data"]');
   if (!result.valid) {
+    if (chart) { chart.destroy(); chart = null; }
     infoEl.innerHTML =`<span class="danger-text">${escapeHtml(result.reason || t('forecast.noForecast'))}</span>`;
     tbl.innerHTML = '';
+    if (chartData) chartData.innerHTML = '';
     return;
   }
 
@@ -183,12 +192,14 @@ function renderResult(u, result, container) {
     data: {
       labels,
       datasets: [
-        { label: t('forecast.chartHist'),     data: histData, borderColor: u.color, backgroundColor: u.color + '22', tension: 0.25, spanGaps: false },
+        { label: t('forecast.chartHist'),     data: histData, borderColor: utilColor(u), backgroundColor: utilColor(u, 0.13), tension: 0.25, spanGaps: false },
         ...(hasBand ? [
           { label: '', data: bandLow, borderColor: 'transparent', pointRadius: 0, tension: 0.25, spanGaps: false, fill: false },
-          { label: t('forecast.chartBand', { level: result.annual?.level_pct ?? 80 }), data: bandHigh, borderColor: 'transparent', backgroundColor: u.color + '26', pointRadius: 0, tension: 0.25, spanGaps: false, fill: '-1' },
+          { label: t('forecast.chartBand', { level: result.annual?.level_pct ?? 80 }), data: bandHigh, borderColor: 'transparent', backgroundColor: utilColor(u, 0.15), pointRadius: 0, tension: 0.25, spanGaps: false, fill: '-1' },
         ] : []),
-        { label: t('forecast.chartForecast'), data: fcData,   borderColor: themeColors.text1, borderDash: [6,4], backgroundColor: 'rgba(231,236,243,0.06)', tension: 0.25, spanGaps: false },
+        // v2.15.0 (Review FE-11) — Farbe als Funktion: Bis v2.14 behielt die
+        // Linie nach dem Theme-Wechsel das helle Grau und verschwand (1,0:1)
+        { label: t('forecast.chartForecast'), data: fcData,   borderColor: tokenColor('text1'), borderDash: [6,4], backgroundColor: tokenColor('text1', 0.06), tension: 0.25, spanGaps: false },
       ],
     },
     options: {
@@ -197,7 +208,24 @@ function renderResult(u, result, container) {
       plugins: { legend: { labels: { filter: (item) => item.text !== '' } } },
       scales: { y: { title: { display: true, text: u.consumption_unit } } },
     }
-  }, { label: t('forecast.chartAlt') });
+  }, { label: hist.length && fc.length
+    ? t('forecast.chartAltSpan', { from: fmt.month(hist[0].ym), to: fmt.month(hist[hist.length - 1].ym), until: fmt.month(fc[fc.length - 1].ym) })
+    : t('forecast.chartAlt') });
+
+  // v2.15.0 (Review FE-20) — Verlauf und Prognose als Tabelle zum Aufklappen
+  if (chartData) {
+    const unit = u.consumption_unit;
+    chartData.innerHTML = chartTableHtml({
+      caption: t('forecast.history'),
+      columns: [t('forecast.col.month'), `${t('forecast.chartHist')} (${unit})`, `${t('forecast.chartForecast')} (${unit})`,
+        ...(hasBand ? [t('forecast.chartBand', { level: result.annual?.level_pct ?? 80 })] : [])],
+      rows: [
+        ...hist.map(h => [fmt.month(h.ym), fmt.int(h[consKey]), null, ...(hasBand ? [null] : [])]),
+        ...fc.map(f => [fmt.month(f.ym), null, fmt.int(f[consKey]),
+          ...(hasBand ? [f.band_low != null && f.band_high != null ? `${fmt.int(f.band_low)} – ${fmt.int(f.band_high)}` : null] : [])]),
+      ],
+    });
+  }
 
   const reg = result.regression;
   // v2.13.0 (Review UI-17) — Modellname übersetzt statt Schlüssel („linear", „seasonal_only")

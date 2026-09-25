@@ -147,8 +147,8 @@
       }
     },
     "allLink": "tout",
-    "chart": { "title": "Consommation sur {months} mois (toutes les énergies)", "alt": "Graphique linéaire : consommation des {months} derniers mois par énergie" },
-    "card": { "meters": "Compteurs", "details": "Détails" },
+    "chart": { "title": "Consommation sur {months} mois (toutes les énergies)", "altList": "Graphique linéaire : consommation des {months} derniers mois pour {list}" },
+    "card": { "meters": "Compteurs", "details": "Détails", "window": "Période : {from} – {to}", "partial": "{month} : {days} jours sur {total}" },
     "groups": { "summary": "Groupes ({count})" },
     "kpi": {
       "consumption": "Consommation (12 derniers mois)",
@@ -160,7 +160,7 @@
       "revenue": "Rémunération (12 derniers mois)",
       "revenueSub": "revenu de l’injection"
     },
-    "trend": { "vsPrev": "vs. 12 mois précédents", "moreThanPrev": "{pct} % de plus que la période de 12 mois précédente", "lessThanPrev": "{pct} % de moins que la période de 12 mois précédente" },
+    "trend": { "vsPrev": "{span} par rapport aux mêmes mois un an plus tôt", "moreThanPrev": "{pct} % de plus : {span} par rapport aux mêmes mois un an plus tôt", "lessThanPrev": "{pct} % de moins : {span} par rapport aux mêmes mois un an plus tôt" },
     "allRecommendations": "Toutes les recommandations",
     "todo": {
       "title": "À faire",
@@ -245,7 +245,7 @@
     },
     "header": { "meters": "Compteurs", "metersTitle": "Gestion des compteurs", "selectMeter": "Choisir un compteur" },
     "action": { "newReading": "+ Relevé", "newReadingBanner": "+ Nouveau relevé", "newDelivery": "+ Livraison" },
-    "banner": { "lastReading": "Dernier relevé il y a {days} jours", "trend": "tendance sur 3 mois" },
+    "banner": { "lastReading": "Dernier relevé il y a {days} jours", "trendYoY": "{span} par rapport à l'année précédente", "trendYoYAdjusted": "{span} par rapport à l'année précédente, corrigé du climat" },
     "kpi": {
       "feedIn": "Injection",
       "consumption": "Consommation",
@@ -382,7 +382,8 @@
       "estimatedTitle": "{days} jours estimés (après le dernier stock connu)",
       "estimatedLegend": "≈ le mois contient des jours estimés — après le dernier stock connu (livraison « plein complet » ou relevé).",
       "colRevenue": "Revenu {cur}",
-      "colCo2Avoided": "CO₂ évité kg"
+      "colCo2Avoided": "CO₂ évité kg",
+      "partialLegend": "« 14 / 31 » dans les jours : le mois n'est relevé qu'en partie ; les tendances ne le prennent pas en compte."
     },
     "readingsTable": {
       "emptyTitle": "Aucun relevé",
@@ -439,7 +440,7 @@
       "chartAnchors": "Stock connu",
       "chartAlt": "Évolution du stock de la cuve en {year}"
     },
-    "chart": { "temp": "température moyenne", "alt": "Diagramme en barres : consommation mensuelle et température moyenne" },
+    "chart": { "temp": "température moyenne", "alt": "Diagramme en barres : consommation mensuelle et température moyenne", "altSummary": "Diagramme en barres : {label} {year} par mois, {total} au total ; le plus en {maxMonth} ({max}), le moins en {minMonth} ({min})." },
     "readingModal": {
       "titleEdit": "Modifier le relevé · {label}",
       "titleNew": "Nouveau relevé · {label}",
@@ -544,7 +545,8 @@
       "title": "Pas encore de valeurs mensuelles",
       "noReading": "Ce compteur n’a pas encore de relevé. Les valeurs mensuelles naissent de l’écart entre deux relevés.",
       "oneReading": "Il n’y a encore qu’un relevé. Les valeurs mensuelles naissent de l’écart entre deux relevés — ajoutez-en un deuxième, par exemple celui de votre dernière facture."
-    }
+    },
+    "yearPills": "Année"
   },
   "contracts": {
     "priceGroup": {
@@ -1449,7 +1451,7 @@
     "downloadExample": "Télécharger un exemple CSV",
     "dropZone": "Déposez un fichier ici ou cliquez pour le sélectionner",
     "dropZoneAria": "Sélectionner un fichier CSV ou le déposer ici",
-    "chart": { "alt": "Graphique linéaire : températures mensuelles minimale, moyenne et maximale" },
+    "chart": { "alt": "Graphique linéaire : températures mensuelles minimale, moyenne et maximale", "max": "Maximum", "avg": "Moyenne", "min": "Minimum", "altSpan": "Graphique linéaire : températures mensuelles minimale, moyenne et maximale, {from} – {to}" },
     "location": "Localisation (pour Open-Meteo)",
     "lat": "Latitude",
     "lng": "Longitude",
@@ -1650,8 +1652,8 @@
     "selectMeter": "Choisir un compteur",
     "chartAlt": {
       "hdd": "Nuage de points : consommation en fonction des degrés-jours de chauffe avec modèles de régression",
-      "seasonal": "Graphique linéaire : profil mensuel moyen",
-      "years": "Diagramme en barres : consommation par comparaison annuelle"
+      "seasonal": "Diagramme en barres : {label} en moyenne par mois calendaire, mois complets uniquement",
+      "years": "Graphique linéaire : {label} par mois, une ligne par année de {from} à {to}"
     },
     "hgtTitle": "Corrélation DJU · comparaison des modèles de régression",
     "seasonalTitle": "Profil saisonnier",
@@ -1735,7 +1737,12 @@
     },
     "deliveryModelled": "Le fioul et les granulés n’ont pas de valeurs mensuelles mesurées : les mois sont répartis à partir des livraisons selon les degrés-jours. Une courbe de chauffe serait circulaire — chaque modèle collerait parfaitement — et n’est donc pas affichée.",
     "scatterNotInFit": "hors modèle (mois partiel ou peu de degrés-jours)",
-    "regR2Note": "Le R² indique dans quelle mesure la courbe colle aux mois affichés (ajustement) — pas sa capacité à prévoir l’année prochaine."
+    "regR2Note": "Le R² indique dans quelle mesure la courbe colle aux mois affichés (ajustement) — pas sa capacité à prévoir l’année prochaine.",
+    "seasonalAvgShort": "Moyenne",
+    "yearsCount": "Années",
+    "partialStar": "* Mois partiel : seule une partie des jours est relevée.",
+    "pointRole": "Modèle",
+    "pointInFit": "dans le modèle"
   },
   "forecast": {
     "noUtilities": "Aucun type d'énergie actif. Les réglages permettent de choisir ceux qui s'affichent.",
@@ -1782,7 +1789,8 @@
       "heat_model": "modèle de chauffage",
       "filled": "moyenne journalière (pas de valeur propre)",
       "blend": "mélange : {reg} courbe de chauffe, {seasonal} profil saisonnier"
-    }
+    },
+    "chartAltSpan": "Graphique linéaire : consommation {from} – {to} et prévision jusqu'à {until}"
   },
   "report": {
     "createdOn": "Créé le {date}",
@@ -2333,5 +2341,10 @@
     "even": "équilibré",
     "tableLegend": "Solde : + avoir, − supplément.",
     "tableLegendFeedIn": "Solde : + avoir, − remboursement dû."
+  },
+  "chart": {
+    "dataTable": "Données sous forme de tableau",
+    "partialMonth": "Mois partiel : {days} jours sur {total} relevés",
+    "partialLegend": "Barres pâles : mois relevé en partie seulement, par exemple le mois en cours. Les tendances ne les prennent pas en compte."
   }
 }

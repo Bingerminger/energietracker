@@ -39,13 +39,15 @@ jobs:
       # Home-Assistant-Vorlage gegen beide Sprachfassungen der Anleitung.
       # v2.6.0 — Rückfragen bei der Erfassung (Sprung, Rückgang, gleicher Tag).
       # v2.11.0 — Router (veraltete Antworten, Zurück-Taste) und Kontraste (WCAG AA).
-      - name: Frontend-Unit-Tests (Zahlenparser, HA-Vorlage, Plausibilität, Router, Kontraste)
+      # v2.15.0 — Chart-Schicht (Registry, Theme, Farben) und Monatsreihen (Teilmonate, Trends).
+      - name: Frontend-Unit-Tests (Zahlenparser, HA-Vorlage, Plausibilität, Router, Kontraste, Charts)
         run: |
           node tests/format.test.mjs
           node tests/ha-snippet.test.mjs
           node tests/plausibility.test.mjs
           node tests/router.test.mjs
           node tests/contrast.test.mjs
+          node tests/chart.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata

@@ -8,8 +8,9 @@
 > Bildschirmaufnahmen** der laufenden App mit dem mitgelieferten
 > [Demo-Datensatz](../../demo-data/) (Light-Theme; Grundstock v1.9.2, Anmeldung,
 > Sicherheitskarte und Rückfrage bei der Erfassung v2.6.0, Navigation v2.11.0,
-> Übersicht, Erfassung, Wetterdaten, Einstellungen und Import-Vorschau v2.12.0,
-> Hilfe, Erklärungen und PV-Ansicht v2.13.0). Wer sie
+> Erfassung, Wetterdaten, Einstellungen und Import-Vorschau v2.12.0,
+> Hilfe, Erklärungen und PV-Ansicht v2.13.0, Übersicht, Gas und Analyse
+> v2.15.0). Wer sie
 > selbst neu erzeugen will: Demo-Daten laden und die Views nacheinander
 > aufnehmen — die App braucht dafür keinen Build-Schritt.
 
@@ -65,6 +66,27 @@ daneben genau diese.
 
 Die **Hilfe** steht in der Fußzeile der Seitenleiste, am iPhone unter „Mehr“.
 
+**Diagramme (v2.15.0)** folgen überall denselben Regeln:
+
+- **Teilmonate** — der erste Monat nach dem Einbau, der laufende, ein Monat
+  bis zur letzten Ablesung — stehen blass (Balken) bzw. als hohler Punkt am
+  Ende einer gestrichelten Linie da. Der Tooltip nennt die erfassten Tage
+  („Teilmonat: 14 von 31 Tagen“), Tabellen zeigen „14 / 31“. Trends und das
+  Saisonprofil lassen sie aus.
+- **Trends** vergleichen dieselben vollen Monate ein Jahr zuvor. Das Banner
+  einer Heizart rechnet dabei witterungsbereinigt nach dem Heizmodell, wenn für
+  alle beteiligten Monate ein Wert vorliegt; die Karten der Übersicht
+  vergleichen gemessene Werte. Bis v2.14 standen die letzten drei gegen die
+  drei davor — Heizsaison gegen Sommer.
+- **Farben** sind die der Verbrauchsart, im hellen Theme abgedunkelt (mindestens
+  3:1 auf der Karte); beim Umschalten färben sich offene Diagramme sofort um.
+- **Daten als Tabelle:** Unter jedem Diagramm ohne eigene Tabelle stehen die
+  Zahlen zum Aufklappen. Screenreader hören eine Kurzbeschreibung mit
+  Zeitraum, Summe sowie stärkstem und schwächstem Monat.
+- **Jahr und Zähler in der Adresse:** `#/utility/gas?year=2025` (bei mehreren
+  Zählern mit `&meter=…`) öffnet genau diese Auswahl — zum Teilen, als
+  Lesezeichen, nach dem Neuladen. Jede Verbrauchsart merkt sich ihr Jahr.
+
 ---
 
 ## 1. Übersicht (Dashboard)
@@ -103,6 +125,13 @@ erster und zweiter Stand, Vertrag, optional Home Assistant) und
 jetzigen Stand; zurück geht es über Einstellungen → Daten → Snapshots.
 
 ![Willkommen ohne Daten](../ui/screenshots/willkommen.png)
+
+**Zeitraum je Karte (v2.15.0):** Jede Karte nennt ihr Fenster („Zeitraum:
+Apr. 2025 – März 2026 · März 2026: 14 von 31 Tagen“) — die Verbrauchsarten
+enden in verschiedenen Monaten. Der Pfeil vergleicht dieselben vollen Monate
+ein Jahr zuvor; bis v2.14 die zwölf Monate davor, mit einem halben Monat gegen
+einen ganzen. Unter dem Verlauf stehen die Werte als Tabelle, und eine
+m³-Achse erscheint nur, wenn es Wasser gibt.
 
 **PV auf der Übersicht (v2.13.0):** Die Einspeisung zeigt „Einspeisung“ und
 „Vergütung“, die Erzeugung „Erzeugung“ ohne Kostenkachel. Bei beiden ist mehr
@@ -193,7 +222,10 @@ Kündigung weiter (Status **VERLÄNGERT**, Enddatum = nächste Abrechnung), der
 Kündigungsstichtag ist verpasst, oder eine eingetragene Preiserhöhung steht
 bevor (in Deutschland mit dem Sonderkündigungsrecht nach § 41 Abs. 5 EnWG).
 Das Banner „Ablesung überfällig" richtet sich nach der Einstellung
-*Warnung nach* (Tage ohne Ablesung; Warnung ab ⅔, Alarm ab dem Wert).
+*Warnung nach* (Tage ohne Ablesung; Warnung ab ⅔, Alarm ab dem Wert). Seit
+v2.15.0 nennt es den Trend der letzten drei vollen Monate gegen dieselben
+Monate des Vorjahres („Dez. 2025 – Feb. 2026 gegenüber Vorjahr,
+witterungsbereinigt“), auch bei PV, wo mehr gut ist.
 
 **Unplausible Stände (v2.6.0):** Gibt es Ausreißer, einen fallenden Stand
 ohne Zählertausch oder einen unbestätigten Verdacht aus Home Assistant, steht
