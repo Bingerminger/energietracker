@@ -72,7 +72,7 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v2.16.0:
+Beide Harnesses geben Exit-Code 0 bei Erfolg. Stand v3.0.0:
 **Frontend-API-Shape 62/62**, **Browser-Render 189/189** (inkl. Modulgraph-
 Vorprüfung und Forecast-Modell-Check für alle fünf Modelle). Der
 Modulgraph-Crawl folgt seit v2.11.0 auch dynamischen Importen — der Router
@@ -107,11 +107,19 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   der Karte in beiden Themes; dazu die Monatsregeln aus `lib/chart-data.js`
   (Teilmonat, Trend gegen dieselben Monate des Vorjahres, witterungsbereinigt
   nur, wenn alle Monate einen Wert tragen).
+- **`tests/demo.test.mjs`** (v3.0.0) — die öffentliche Demo: baut sie mit
+  `tools/build-demo.mjs` (startet selbst einen PHP-Server auf 8895), liefert sie
+  statisch aus (8894) und startet die echte `app.js` aus dem Bauergebnis in
+  JSDOM. Dann jede Seite des Navigationsmodells: keine Anfrage ohne
+  vorberechnete Antwort, kein Fehler, Kennzeichen und Hinweisleiste mit
+  Sprachwahl, Rechnungsprüfung mit Vorbelegung, Quellcode-Link auf den Tag,
+  Schreiben abgelehnt, CSV und PDF als Dateien. Lokal:
+  `node tests/demo.test.mjs` (braucht PHP und jsdom).
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
 JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
-README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v2.16.0: 459).
+README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v3.0.0: 472).
 `LocaleCatalogTest` prüft seit v2.13.0 auch Schlüssel, die der Code
 zusammensetzt (`glossary.<id>.term`, `settings.field.<key>.label`) — die
 Prüfung auf literale Schlüssel sieht sie nicht. Seit v2.14.0 kennt er

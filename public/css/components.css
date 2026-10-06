@@ -1354,3 +1354,34 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 
 /* v2.13.0 — Leerzustand der Verbrauchsansicht */
 .empty-card p { max-width: 62ch; color: var(--text-2); margin: 0 0 var(--sp-3); }
+
+/* v3.0.0 — Öffentliche Demo (GitHub Pages): Kennzeichen in der Kopfleiste und
+   Hinweisleiste unten. Die Leiste liegt außerhalb des Seitenrasters (fest
+   positioniert) und auf dem iPhone über der Tab-Leiste. */
+.demo-chip {
+  margin-left: var(--sp-2); padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--accent); background: transparent; color: var(--accent);
+  font: inherit; font-size: var(--fs-xs); font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; cursor: pointer;
+}
+.demo-bar {
+  position: fixed; z-index: 55; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  width: min(760px, calc(100vw - 2 * var(--sp-4)));
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--r-md);
+  background: var(--bg-1); color: var(--text-1);
+  border: 1px solid var(--accent); box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
+}
+.demo-bar[hidden] { display: none; }
+.demo-bar__text { flex: 1 1 22rem; margin: 0; font-size: var(--fs-sm); }
+.demo-bar__lang { font: inherit; font-size: var(--fs-sm); min-height: 32px; }
+.demo-bar__close {
+  min-width: 32px; min-height: 32px; border: none; background: none;
+  color: var(--text-2); font-size: 20px; line-height: 1; cursor: pointer;
+}
+@media (max-width: 800px) {
+  .demo-bar { bottom: calc(var(--tabbar-h) + var(--sp-3) + env(safe-area-inset-bottom, 0px)); }
+  .demo-bar__lang, .demo-bar__close { min-height: 44px; }
+  .demo-bar__close { min-width: 44px; }
+}

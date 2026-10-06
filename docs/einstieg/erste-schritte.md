@@ -164,6 +164,14 @@ Beispieldatensatz über alle acht Verbrauchsarten ein (mit Warnung + Auto-Snapsh
 falls schon Daten vorhanden sind). Danach kannst du sofort bei
 [Schritt 6](#6-auswerten) weitermachen.
 
+Seit v3.0.0 reicht der Beispielhaushalt bis heute: Zählerstände, Lieferungen
+und Temperaturen werden beim Laden mit den Werten desselben Zeitraums im
+Vorjahr fortgeschrieben, Termine liegen relativ zu heute (einer ist fällig).
+
+Ganz ohne Installation geht es in der
+[öffentlichen Demo](https://bingerminger.github.io/energietracker/) — derselbe
+Beispielhaushalt zum Ansehen; gespeichert wird dort nichts.
+
 ---
 
 [← Kompendium-Index](../README.md)

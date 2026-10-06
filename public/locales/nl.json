@@ -1408,7 +1408,8 @@
     "system": {
       "aboutTitle": "Over Energietracker",
       "about": "Energietracker {version} – verbruik, kosten en contracten, lokaal en zonder cloud.",
-      "license": "Vrije software onder de MIT-licentie"
+      "license": "Vrije software onder de GNU AGPL v3.0 of later",
+      "source": "Broncode van deze versie"
     },
     "splitModes": {
       "auto": "automatisch uit de gegevens",
@@ -2369,5 +2370,14 @@
     "dataTable": "Gegevens als tabel",
     "partialMonth": "Deelmaand: {days} van {total} dagen vastgelegd",
     "partialLegend": "Lichte balken: maand maar deels vastgelegd, zoals de lopende. Trends laten zulke maanden weg."
+  },
+  "demo": {
+    "chip": "Demo",
+    "text": "Voorbeeldhuishouden, bijgewerkt tot {date}. Kijk rustig rond – in de demo wordt niets opgeslagen.",
+    "install": "Zelf installeren",
+    "language": "Taal",
+    "close": "Melding sluiten",
+    "readOnly": "In de demo wordt niets opgeslagen. Met een eigen installatie leg je je eigen gegevens vast.",
+    "unavailable": "Deze analyse is in de demo niet vooraf berekend – met een eigen installatie werkt ze wel."
   }
 }

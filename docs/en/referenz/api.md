@@ -171,7 +171,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/strom-saldo` | electricity balance (import − PV feed-in), F1005 |
 | GET | `/api/pv-summary` | PV self-consumption + self-sufficiency rate, F1005; since v2.10.0 over jointly covered months, with savings — see below |
 | GET | `/api/demo/status` | demo data available/store empty? (F1007) |
-| POST | `/api/demo/import` | load the demo dataset (F1007) |
+| POST | `/api/demo/import` | load the demo dataset (F1007); since v3.0.0 carried forward to today (readings, deliveries, temperatures as in the same period a year earlier, reminders relative to today) |
 | GET | `/api/auth/token` | API token status (never the token itself), F1009 |
 | POST | `/api/auth/token` | generate a token (one-time plaintext), F1009 |
 | DELETE | `/api/auth/token` | revoke the token → API open again, F1009 |

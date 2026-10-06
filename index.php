@@ -120,9 +120,13 @@ $tShell = function (string $path, string $fallback) use ($catalog): string {
     return is_string($ref) ? $ref : $fallback;
 };
 $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
+// v3.0.0 — Bau der öffentlichen Demo (tools/build-demo.mjs): `data-demo` schaltet
+// lib/demo-mode.js ein, ein Service Worker wird nicht registriert. Nur über die
+// Umgebung beim Bauen, nie über eine Anfrage.
+$demoBuild = getenv('ET_DEMO_BUILD') === '1';
 ?>
 <!doctype html>
-<html lang="<?= $h($lang) ?>">
+<html lang="<?= $h($lang) ?>"<?= $demoBuild ? ' data-demo' : '' ?>>
 <head>
 <meta charset="utf-8">
 <!-- v2.11.0 (Review UI-25) — viewport-fit=cover: In der Home-Bildschirm-App
@@ -278,6 +282,7 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 <!-- N1008 (PWA) — Service Worker registrieren. Inline (kein Modul), damit der
      relative Pfad 'sw.js' gegen die Dokument-URL (Web-Wurzel) auflöst und der
      Worker Root-Scope erhält. -->
+<?php if (!$demoBuild): ?>
 <script nonce="<?= $nonce ?>">
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {
@@ -285,5 +290,6 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
     });
   }
 </script>
+<?php endif; ?>
 </body>
 </html>

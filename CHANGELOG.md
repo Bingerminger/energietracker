@@ -6,6 +6,90 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.0.0] — 2026-10-07 — Frei zum Ausprobieren
+
+MAJOR-Release ohne Bruch: Die Hauptversion markiert den **Lizenzwechsel zur
+GNU AGPL v3.0 oder neuer**. Daten, Schnittstellen, CSV- und Backup-Format
+bleiben unverändert, **kein Schema-Wechsel** (bleibt 1.6.0). Dazu kommt eine
+**öffentliche Demo** auf GitHub Pages.
+
+### ⚠️ Für bestehende Installationen
+
+- **Lizenz:** Ab 3.0.0 gilt die [GNU AGPL v3.0 oder neuer](LICENSE). Für die
+  eigene Installation ändert sich nichts — nutzen, ändern und weitergeben sind
+  frei. Wer eine veränderte Fassung anderen als Netzdienst anbietet, muss auch
+  deren Quellcode zugänglich machen. **Versionen bis 2.16.0 bleiben unter der
+  MIT-Lizenz verfügbar**, unter der sie erschienen sind; alle Releases, Tags
+  und Images bleiben bestehen.
+- **Docker:** Wer `latest` zieht, bekommt ab jetzt die AGPL-Fassung; die Tags
+  `2.16` und `2.16.0` bleiben beim letzten MIT-Stand.
+
+### Added
+
+- **Öffentliche Demo** unter <https://bingerminger.github.io/energietracker/>
+  (Review MKT-22): die echte Oberfläche mit einem Beispielhaushalt, in allen
+  sieben Sprachen (folgt dem Browser, umschaltbar), ohne Installation. Die
+  Antworten berechnet der echte Server beim Bauen (`tools/build-demo.mjs`);
+  `lib/demo-mode.js` beantwortet sie im Browser, Speichern ist abgeschaltet.
+  Gebaut wird beim GitHub-Release und montags, damit die Daten bis heute
+  reichen (`.github/workflows/pages.yml`).
+- **Demo-Daten bis heute** (`DemoDataAligner`): „Mit Beispieldaten
+  ausprobieren“ schreibt Zählerstände, Lieferungen und Temperaturen mit den
+  Werten desselben Zeitraums im Vorjahr fort und legt die Termine relativ zu
+  heute (einer ist fällig). Bis 2.16.0 endeten die Demo-Ablesungen im März
+  2026.
+- **Quellcode dieser Version:** Einstellungen → System verlinkt den Tag der
+  laufenden Version (AGPL §13).
+- **`CREDITS.md`** (mitgelieferte Bestandteile, Dienste, Datenquellen) und
+  **`TRADEMARKS.md`** (genannte Produktnamen).
+
+### Changed
+
+- **Lizenz:** `LICENSE` (AGPL-Text, von GitHub erkannt), README-Abzeichen und
+  -Abschnitt, `CONTRIBUTING` (Beiträge unter AGPL, ohne CLA), `composer.json`,
+  Docker-Label `org.opencontainers.image.licenses`, Hinweis in der App in sieben
+  Sprachen, FAQ „Was bedeutet die AGPL für mich?“.
+
+### Fixed
+
+- **Ein Test lief mit dem Kalender:** `TankModelTest` legte Tage relativ zu
+  heute in ein jahreszeitliches Klima; seit dem 07.10.2026 lief der Tank darin
+  leer, und die geprüfte Bilanz gilt nur für einen nicht leeren Tank. Der
+  Ablauf ist jetzt kalenderfest, die Vorbedingung eine eigene Zusicherung.
+
+### Migration
+
+Keine. Schema bleibt 1.6.0.
+
+### Tests
+
+- `LicenseConsistencyTest` (neu, +4): Lizenztext, `composer.json`,
+  Docker-Label, README-Abzeichen samt MIT-Hinweis bis 2.16.0, CONTRIBUTING und
+  die Systemseite in sieben Sprachen mit Link auf den Versions-Tag.
+- `DemoDataAlignerTest` (neu, +8): nichts Neues am Exporttag; Stände wachsen
+  bis heute mit dem Verbrauch des Vorjahreszeitraums, auch über mehrere Jahre
+  und über einen Zählertausch; Temperaturen lückenlos, Januar wie im Vorjahr;
+  genau ein fälliger Termin; Lieferungen einmal je Jahr; 29. Februar ohne
+  Überlauf.
+- `DemoServiceTest` (+1): der Import reicht bis heute.
+- `tests/demo.test.mjs` (neu, CI): baut die Demo und klickt die echte App durch
+  45 Seiten — keine fehlende Antwort, kein Fehler, Schreiben abgelehnt, CSV und
+  PDF als Dateien.
+- 472 Testmethoden. 14 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Eine Demo ist nur so aktuell wie ihre Daten** — fortschreiben statt
+  einfrieren.
+- **Fortschreiben am letzten Stand, nicht am Stichtag des Schnappschusses** —
+  sonst erfindet ein langes Intervall einen Vorjahresvergleich.
+- **Tests mit Daten relativ zu heute laufen mit dem Kalender.**
+- **Ein neuer Dateiname kann schon vergeben sein.**
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
+---
+
 ## [2.16.0] — 2026-09-25 — Was die Rechnung weiß
 
 MINOR-Release, zweiter Teil von Paket F des Gesamtreviews („Auswertungen, die

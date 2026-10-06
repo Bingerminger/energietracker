@@ -160,6 +160,14 @@ restore → Load demo data** imports a complete example dataset across all eight
 utilities (with a warning + auto-snapshot if data already exists). After that you
 can continue right at [step 6](#6-evaluate).
 
+Since v3.0.0 the sample household reaches up to today: readings, deliveries and
+temperatures are carried forward on loading with the values of the same period
+one year earlier, and reminders sit relative to today (one is due).
+
+Without installing anything there is the
+[public demo](https://bingerminger.github.io/energietracker/) — the same sample
+household to look around; nothing is saved there.
+
 ---
 
 [← Compendium index](../README.md)

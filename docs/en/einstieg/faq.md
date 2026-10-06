@@ -142,7 +142,16 @@ is in [Security & network operation](../betrieb/sicherheit.md).
 
 ### What does the Energietracker cost?
 
-Nothing. It is under the MIT licence.
+Nothing. Since version 3.0.0 it is under the
+[GNU AGPL v3.0 or later](../../../LICENSE); versions up to 2.16.0 remain
+available under the MIT licence they were published with.
+
+### What does the AGPL mean for me?
+
+For your own installation, nothing: using, changing and sharing it is free.
+Whoever offers a modified version to others as a network service must make
+its source code available to them too. Under Settings → System a link leads to
+the source code of exactly the running version.
 
 ### Where do I report a bug or a wish?
 

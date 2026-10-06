@@ -2,7 +2,7 @@
     "name": "bingerminger/energietracker",
     "description": "Self-hosted household consumption tracker. Composer is dev-only — runtime stays Composer-free via the hand-rolled autoloader in src/bootstrap.php.",
     "type": "project",
-    "license": "MIT",
+    "license": "AGPL-3.0-or-later",
     "require": {
         "php": ">=8.4"
     },

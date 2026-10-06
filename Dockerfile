@@ -8,6 +8,12 @@
 # src/bootstrap.php) — es wird KEIN `composer install` ausgeführt.
 FROM php:8.4-fpm-alpine
 
+# v3.0.0 — Lizenz und Quelle auch bei lokal gebauten Images (das GHCR-Image
+# bekommt dieselben Angaben zusätzlich aus docker/metadata-action).
+LABEL org.opencontainers.image.title="Energietracker" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.source="https://github.com/Bingerminger/energietracker"
+
 # nginx + supervisor für den Single-Container-Betrieb; OPcache ist im Image
 # enthalten und wird nur eingeschaltet (v2.6.0).
 RUN apk add --no-cache nginx supervisor \

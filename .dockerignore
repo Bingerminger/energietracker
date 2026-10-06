@@ -22,3 +22,6 @@ CHANGELOG.md
 docs
 scripts
 *.log
+# v3.0.0 — Bauwerkzeug und Bauergebnis der öffentlichen Demo
+tools
+dist

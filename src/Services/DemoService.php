@@ -63,8 +63,11 @@ final class DemoService
      * Importiert die Demo-Daten. Sind bereits Daten vorhanden, ist der Import
      * nur mit $force = true erlaubt — sonst wirft die Methode, und das
      * Frontend zeigt zuvor eine Warnung und ruft mit force erneut auf.
+     *
+     * v3.0.0 — Die Daten werden vorher bis heute fortgeschrieben
+     * (`DemoDataAligner`); `$today` nur für Tests.
      */
-    public function import(bool $force = false): array
+    public function import(bool $force = false, ?string $today = null): array
     {
         if (!$this->isAvailable()) {
             throw new NotFoundException($this->i18n->t('errors.demo.backupNotFound'));
@@ -79,6 +82,7 @@ final class DemoService
         if (!is_array($payload)) {
             throw new \RuntimeException($this->i18n->t('errors.demo.backupInvalid'));
         }
+        $payload = DemoDataAligner::align($payload, $today ?? date('Y-m-d'));
         $report = $this->backups->import($payload);
         $report['demo_import'] = true;
         return $report;

@@ -1408,7 +1408,8 @@
     "system": {
       "aboutTitle": "Über den Energietracker",
       "about": "Energietracker {version} – Verbrauch, Kosten und Verträge, lokal und ohne Cloud.",
-      "license": "Freie Software unter der MIT-Lizenz"
+      "license": "Freie Software unter der GNU AGPL v3.0 oder neuer",
+      "source": "Quellcode dieser Version"
     },
     "splitModes": {
       "auto": "automatisch aus den Daten",
@@ -2369,5 +2370,14 @@
     "dataTable": "Daten als Tabelle",
     "partialMonth": "Teilmonat: {days} von {total} Tagen erfasst",
     "partialLegend": "Blasse Balken: Monat nur teilweise erfasst, etwa der laufende. Trends lassen solche Monate aus."
+  },
+  "demo": {
+    "chip": "Demo",
+    "text": "Beispielhaushalt, fortgeschrieben bis {date}. Schau dich um – gespeichert wird in der Demo nichts.",
+    "install": "Selbst installieren",
+    "language": "Sprache",
+    "close": "Hinweis schließen",
+    "readOnly": "In der Demo wird nichts gespeichert. Mit einer eigenen Installation erfasst du deine Daten.",
+    "unavailable": "Diese Auswertung ist in der Demo nicht vorberechnet – mit einer eigenen Installation geht sie."
   }
 }

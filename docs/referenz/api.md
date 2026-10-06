@@ -173,7 +173,7 @@ nicht wieder passieren.
 | GET | `/api/strom-saldo` | Strom-Saldo (Bezug − PV-Einspeisung), F1005 |
 | GET | `/api/pv-summary` | PV-Eigenverbrauch + Autarkiequote, F1005; seit v2.10.0 über gemeinsam abgedeckte Monate, mit Ersparnis — s. u. |
 | GET | `/api/demo/status` | Demo-Daten verfügbar/Store leer? (F1007) |
-| POST | `/api/demo/import` | Demo-Datensatz laden (F1007) |
+| POST | `/api/demo/import` | Demo-Datensatz laden (F1007); seit v3.0.0 bis heute fortgeschrieben (Stände, Lieferungen, Temperaturen wie im Vorjahreszeitraum, Termine relativ zu heute) |
 | GET | `/api/auth/token` | API-Token-Status (nie der Token selbst), F1009 |
 | POST | `/api/auth/token` | Token erzeugen (einmalig Klartext), F1009 |
 | DELETE | `/api/auth/token` | Token widerrufen → API wieder offen, F1009 |

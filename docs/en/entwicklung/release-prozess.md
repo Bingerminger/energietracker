@@ -660,6 +660,31 @@ accepted.
   meant to stand left of the current one and stood on the right: `order` decides
   not only what is drawn on top but also the position within a bar pair. The
   render test checks the order.
+- **A demo is only as current as its data (v3.0.0).** The demo data were a
+  snapshot from May 2026. Half a year later "Try with sample data" showed a
+  household nobody had read since March, with overdue reminders. The import now
+  carries the data forward to today (`DemoDataAligner`) — for the public demo
+  as well as in the app.
+- **Carry forward from the last reading, not from the snapshot day (v3.0.0).**
+  The first version started at the export day. Between the last gas reading
+  (March) and the export (May) there was then a long interval that spread the
+  consumption over the months differently than a year earlier — and the demo
+  reported "+15 % against the previous year, weather-adjusted" for an exact
+  repetition. Only a look in the browser showed it; since then every series
+  starts at its own last entry, and a test demands summer consumption as in the
+  year before.
+- **Tests with dates relative to today run with the calendar (v3.0.0).**
+  `TankModelTest` put days relative to today into a seasonal climate. From
+  07/10/2026 the tank ran empty before the first delivery, and the checked
+  balance only holds while it is not empty — red without a code change.
+  Conversely, the check "a demo reminder is due" was only green because time
+  had passed. A precondition a test depends on belongs into the test as its own
+  assertion; fixtures that need "today" fix it.
+- **A new file name may already be taken (v3.0.0).** The new demo module was
+  to be called `lib/demo.js` — that file had existed since v2.13.0 (the "Load
+  demo data" button) and was overwritten on creation. That was caught before the
+  commit; the module is now called `lib/demo-mode.js`. Since then, creating a
+  file starts with checking whether it already exists.
 
 ---
 

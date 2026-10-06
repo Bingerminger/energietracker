@@ -68,7 +68,7 @@ register("./tests/esm-loader.mjs",pathToFileURL("./"));' \
   tests/browser-render.test.mjs
 ```
 
-Both harnesses return exit code 0 on success. As of v2.16.0:
+Both harnesses return exit code 0 on success. As of v3.0.0:
 **frontend API shape 62/62**, **browser render 189/189** (incl. module-graph
 pre-check and the forecast-model check for all five models). Since v2.11.0 the
 module-graph crawl also follows dynamic imports — the router loads views on
@@ -101,11 +101,18 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   (utilities and palettes) at 3:1 on the card in both themes; plus the monthly
   rules from `lib/chart-data.js` (partial month, trend against the same months
   a year earlier, weather-adjusted only when every month carries a value).
+- **`tests/demo.test.mjs`** (v3.0.0) — the public demo: builds it with
+  `tools/build-demo.mjs` (starts its own PHP server on 8895), serves it
+  statically (8894) and starts the real `app.js` from the build in JSDOM. Then
+  every page of the navigation model: no request without a precomputed answer,
+  no error, badge and notice with language choice, bill check with its
+  defaults, source link to the tag, writes refused, CSV and PDF as files.
+  Locally: `node tests/demo.test.mjs` (needs PHP and jsdom).
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
-recounts it (v2.16.0: 459). Since v2.13.0 `LocaleCatalogTest` also checks keys
+recounts it (v3.0.0: 472). Since v2.13.0 `LocaleCatalogTest` also checks keys
 the code composes (`glossary.<id>.term`, `settings.field.<key>.label`) — the
 check for literal keys cannot see them. Since v2.14.0 it knows plural forms
 (`one`/`other` and the extra categories some languages need) and checks that

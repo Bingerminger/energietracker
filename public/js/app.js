@@ -9,12 +9,14 @@ import { mountThemeToggle, refreshThemeToggle } from './lib/theme.js';
 import { buildSidebar, refreshSidebarBadges } from './lib/sidebar.js';
 // v2.11.0 — Tab-Leiste, Menü und Erfassen-Blatt (hängen sich an die Ereignisse)
 import './lib/mobile-nav.js';
-import { initI18n, t, getLocale, setCurrencyParams } from './lib/i18n.js';
+import { initI18n, t, getLocale, getLanguages, setCurrencyParams } from './lib/i18n.js';
 import { applyUtilityTheme } from './lib/utility-theme.js';
 import { api } from './api.js';
 import { showLogin, logout } from './components/login.js';
-import { intlLocale, setCountry } from './lib/format.js';
+import { intlLocale, setCountry, fmt } from './lib/format.js';
 import { installInfoPopovers } from './components/info.js';
+// v3.0.0 — öffentliche Demo: Sprache vom Browser, Kennzeichen und Hinweisleiste
+import { DEMO, demoLanguage, mountDemoUi } from './lib/demo-mode.js';
 
 // v2.13.0 — ⓘ-Erklärungen: ein Handler für alle Knöpfe
 installInfoPopovers();
@@ -115,11 +117,18 @@ const boot = () => Promise.all([getSettings(), getCountries()])
     // v2.7.0 — Länderprofil: Währung und Region vor dem ersten Rendern
     setCurrencyParams(s?.currency);
     setCountry(s?.country, countries.find(c => c.code === s?.country)?.languages);
-    return initI18n(s?.language);
+    return initI18n(DEMO ? demoLanguage() : s?.language);
   })
-  .catch(() => initI18n('de'))
+  .catch(() => initI18n(DEMO ? demoLanguage() : 'de'))
   .finally(async () => {
     applyShellStrings();
+    if (DEMO) {
+      mountDemoUi({
+        languages: Object.entries(getLanguages()).map(([code, label]) => ({ code, label })),
+        locale: getLocale(),
+        formatDate: (d) => fmt.date(d),
+      }).catch((e) => console.error('Demo-Hinweis', e));
+    }
     try {
       const utilities = await getUtilities();
       applyUtilityTheme(utilities);
@@ -141,7 +150,10 @@ const boot = () => Promise.all([getSettings(), getCountries()])
     // v2.8.0 (Review CALC-08) — `weather_auto_fill` wirkt jetzt: Temperaturen
     // im Hintergrund nachladen, höchstens einmal am Tag (der Server prüft das
     // selbst). Ohne Netz oder mit ausgeschalteter Einstellung passiert nichts.
-    getSettings()
-      .then(s => { if (s?.weather_auto_fill !== false) return api.syncOpenMeteo({ auto: 1 }); })
-      .catch(() => {});
+    // In der Demo gibt es keinen Server, der abgleichen könnte.
+    if (!DEMO) {
+      getSettings()
+        .then(s => { if (s?.weather_auto_fill !== false) return api.syncOpenMeteo({ auto: 1 }); })
+        .catch(() => {});
+    }
   });

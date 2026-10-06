@@ -1408,7 +1408,8 @@
     "system": {
       "aboutTitle": "Acerca de Energietracker",
       "about": "Energietracker {version}: consumo, costes y contratos, en local y sin nube.",
-      "license": "Software libre bajo la licencia MIT"
+      "license": "Software libre bajo la licencia GNU AGPL v3.0 o posterior",
+      "source": "Código fuente de esta versión"
     },
     "splitModes": {
       "auto": "automáticamente a partir de los datos",
@@ -2369,5 +2370,14 @@
     "dataTable": "Datos en tabla",
     "partialMonth": "Mes parcial: {days} de {total} días registrados",
     "partialLegend": "Barras claras: mes registrado solo en parte, por ejemplo el actual. Las tendencias no los tienen en cuenta."
+  },
+  "demo": {
+    "chip": "Demo",
+    "text": "Hogar de ejemplo, actualizado hasta el {date}. Echa un vistazo: en la demo no se guarda nada.",
+    "install": "Instálalo tú mismo",
+    "language": "Idioma",
+    "close": "Cerrar aviso",
+    "readOnly": "En la demo no se guarda nada. Con tu propia instalación registras tus datos.",
+    "unavailable": "Este análisis no está precalculado en la demo; funciona con tu propia instalación."
   }
 }

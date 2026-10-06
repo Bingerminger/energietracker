@@ -706,6 +706,33 @@ abgenommen ist.
   links neben dem laufenden Jahr stehen und stand rechts: `order` legt nicht
   nur fest, was oben gezeichnet wird, sondern auch die Lage im Balkenpaar. Der
   Render-Test prüft die Reihenfolge.
+- **Eine Demo ist nur so aktuell wie ihre Daten (v3.0.0).** Die Demo-Daten
+  waren ein Schnappschuss vom Mai 2026. Ein halbes Jahr später zeigte
+  „Mit Beispieldaten ausprobieren“ einen Haushalt, den seit März niemand
+  abgelesen hatte, mit überfälligen Terminen. Der Import schreibt die Daten
+  jetzt bis heute fort (`DemoDataAligner`) — für die öffentliche Demo
+  genauso wie in der App.
+- **Fortschreiben am letzten Stand, nicht am Stichtag des Schnappschusses
+  (v3.0.0).** Die erste Fassung setzte am Exporttag an. Zwischen der letzten
+  Gas-Ablesung (März) und dem Export (Mai) lag dann ein langes Intervall, das
+  den Verbrauch anders auf die Monate verteilte als im Vorjahr — und die Demo
+  meldete „+15 % gegenüber Vorjahr, witterungsbereinigt“ für eine exakte
+  Wiederholung. Erst der Blick in den Browser zeigte es; seitdem setzt jede
+  Reihe an ihrem eigenen letzten Eintrag an, und ein Test verlangt
+  Sommerverbrauch wie im Vorjahr.
+- **Tests mit Daten relativ zu heute laufen mit dem Kalender (v3.0.0).**
+  `TankModelTest` legte Tage relativ zu heute in ein jahreszeitliches Klima.
+  Seit dem 07.10.2026 lief der Tank darin vor der ersten Lieferung leer, und
+  die geprüfte Bilanz gilt nur, solange er nicht leer ist — rot ohne
+  Codeänderung. Umgekehrt war die Prüfung „ein Demo-Termin ist fällig“ nur
+  grün, weil Zeit vergangen war. Eine Vorbedingung, von der der Test abhängt,
+  gehört als eigene Zusicherung in den Test; Fixtures, die „heute“ brauchen,
+  legen es fest.
+- **Ein neuer Dateiname kann schon vergeben sein (v3.0.0).** Das neue
+  Demo-Modul sollte `lib/demo.js` heißen — die Datei gab es seit v2.13.0
+  (der Knopf „Demo-Daten laden“) und wurde beim Anlegen überschrieben. Das
+  fiel vor dem Commit auf; das Modul heißt jetzt `lib/demo-mode.js`. Vor dem
+  Anlegen einer Datei steht seitdem der Blick, ob es sie schon gibt.
 
 ---
 

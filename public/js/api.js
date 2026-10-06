@@ -5,8 +5,12 @@
 // =====================================================================
 
 import { getLocale, t } from './lib/i18n.js';
+import { DEMO, demoRequest, demoFileUrl } from './lib/demo-mode.js';
 
 const BASE = 'api.php';
+
+/** Datei-Downloads (CSV, PDF): im Echtbetrieb über api.php, in der Demo als fertige Datei (v3.0.0). */
+const fileUrl = (path) => (DEMO ? demoFileUrl(path, getLocale()) : `${BASE}${path}`);
 
 // v2.11.0 (Review FE-05) — Lese-Anfragen gehören zur Ansicht, die sie stellt.
 //
@@ -80,6 +84,8 @@ async function request(method, path, body = null, { raw = false, timeoutMs } = {
 }
 
 async function send(method, path, body, raw, signal) {
+  // v3.0.0 — öffentliche Demo ohne PHP: Antworten aus dem Abzug (lib/demo-mode.js)
+  if (DEMO) return demoRequest(method, path, getLocale());
   // N1007 — aktive Sprache mitschicken, damit das Backend (Full-Stack-i18n)
   // Fehlermeldungen/Labels in derselben Sprache liefern kann.
   const opts = { method, headers: { 'Accept-Language': getLocale() }, signal };
@@ -266,10 +272,10 @@ export const api = {
   // ── CSV-Export (F-07) ──
   // These return a file download, not JSON — so they are plain URLs the
   // browser navigates to / anchors to, not request() calls.
-  exportMonthlyCsvUrl:      (u) => `${BASE}/api/export/${u}/monthly.csv`,
-  exportReadingsCsvUrl:     (u) => `${BASE}/api/export/${u}/readings.csv`,
-  exportDeliveriesCsvUrl:   (u) => `${BASE}/api/export/${u}/deliveries.csv`,
-  exportTemperaturesCsvUrl: ()  => `${BASE}/api/export/temperatures.csv`,
+  exportMonthlyCsvUrl:      (u) => fileUrl(`/api/export/${u}/monthly.csv`),
+  exportReadingsCsvUrl:     (u) => fileUrl(`/api/export/${u}/readings.csv`),
+  exportDeliveriesCsvUrl:   (u) => fileUrl(`/api/export/${u}/deliveries.csv`),
+  exportTemperaturesCsvUrl: ()  => fileUrl('/api/export/temperatures.csv'),
 
   // ── Migration aus v0.9.0 ──
   migrationV09Preview: (backup)         => request('POST', '/api/migration/v09/preview', { backup }),
@@ -317,6 +323,6 @@ export const api = {
   // v2.11.0 — `inline`: im Browser anzeigen statt herunterladen
   yearlyReportUrl: (year, { inline = false } = {}) => {
     const q = [year ? `year=${year}` : '', inline ? 'inline=1' : ''].filter(Boolean).join('&');
-    return `${BASE}/api/reports/yearly.pdf${q ? '?' + q : ''}`;
+    return fileUrl(`/api/reports/yearly.pdf${q ? '?' + q : ''}`);
   },
 };

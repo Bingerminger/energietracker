@@ -68,6 +68,7 @@ energietracker/
 ├── demo-data/              # vollständiger Beispieldatensatz (8 Arten)
 ├── docs/                   # dieses Kompendium
 ├── tests/                  # Test-Harnesses
+├── tools/build-demo.mjs    # öffentliche Demo bauen (v3.0.0, s. § 8)
 └── scripts/init_data.py    # optionaler Excel-Import
 ```
 
@@ -138,6 +139,7 @@ und kennt **kein HTTP**.
 | `DiagnosticsService` | Systemstatus, Schreibrechte, Datenzählung |
 | `HealthCheckService` | `/api/health`: `status` ok/degraded/error, Prüfungen (Schreibrechte, Schema, Dateien, Platz, Temp-Dateien), letzter Ingest — N1003, v2.6.0 |
 | `DemoService` | Ein-Klick-Demo-Import über den Restore-Pfad — F1007 |
+| `DemoDataAligner` | schreibt die Demo-Daten beim Import bis heute fort: Stände ab dem letzten Stand je Zähler mit dem Verbrauch des Vorjahreszeitraums, Lieferungen und Temperaturen wie im Vorjahr, Termine relativ zu heute — reine Funktion (v3.0.0) |
 | `PvSummaryService` / `StromSaldoService` | PV-Eigenverbrauch/Autarkie bzw. Strom-Saldo — F1005; seit v2.10.0 Quoten über gemeinsam abgedeckte Monate und Ersparnis durch Eigenverbrauch |
 | `AuthService` | Anmeldung (Passwort, Proxy, Sitzungen, Sperre), API-Schlüssel und HA-Token — nur Hashes in `data/auth.json` (F1009, v2.6.0) |
 | `IngestService` | idempotenter Push-Eingang (`/api/ingest`, upsert-by-date) — F1009 |
@@ -280,6 +282,39 @@ Wert tragen), `lastMonths()` und `seriesSummary()` für Kurzbeschreibungen.
 > (`tests/browser-render.test.mjs`) crawlt seit v1.4.1 den kompletten
 > Modulgraphen über HTTP und fängt solche Fehler. Siehe
 > [Tests](tests.md).
+
+## 8. Öffentliche Demo (seit v3.0.0)
+
+Die Demo unter <https://bingerminger.github.io/energietracker/> ist die echte
+Oberfläche ohne PHP. GitHub Pages liefert nur Dateien aus; die Antworten der
+API entstehen deshalb vorab:
+
+1. `tools/build-demo.mjs` startet `php -S … router.php` mit leerem
+   Datenverzeichnis und lädt die Demo-Daten über `POST /api/demo/import` —
+   dabei schreibt `DemoDataAligner` sie bis zum Bautag fort.
+2. Das Skript ruft jede Leseanfrage ab, die die Oberfläche stellt (je
+   Verbrauchsart, Zähler und Vertrag; Prognose je Modell mit den Vorgaben der
+   Ansicht; Rechnungsprüfung und Tarifvergleich je Jahr) und legt die
+   Antworten inhaltsadressiert unter `demo-api/r/` ab, mit einem Index je
+   Sprache (`demo-api/index-<sprache>.json`). Was in allen Sprachen gleich ist,
+   liegt nur einmal da. CSV- und PDF-Downloads liegen als Dateien daneben.
+3. `index.php` wird mit `ET_DEMO_BUILD=1` gerendert: `<html data-demo>`, kein
+   Service Worker.
+
+Im Browser schaltet `data-demo` das Modul `lib/demo-mode.js` ein. `api.js`
+reicht jede Anfrage dorthin weiter: GET aus dem Abzug, Schreiben mit „In der
+Demo wird nichts gespeichert“, eine nicht vorberechnete Anfrage (eigene
+Was-wäre-wenn-Werte, frei gewählter Zeitraum) mit „nicht vorberechnet“. Den
+Schlüssel einer Anfrage (Pfad + sortierte Query) berechnen Bauskript und
+Browser mit derselben Funktion (`lib/demo-key.js`). Die Sprache folgt in der
+Demo dem Browser; ein Hinweis unten bietet Sprachwahl und den Weg zur eigenen
+Installation.
+
+Veröffentlicht wird über `.github/workflows/pages.yml` — beim GitHub-Release
+(die Demo zeigt, was veröffentlicht ist) und montags, damit die Daten wieder
+bis heute reichen. `tests/demo.test.mjs` baut die Demo in der CI und klickt die
+echte App durch alle Seiten; rot, sobald eine Seite eine Antwort braucht, die
+nicht vorberechnet ist.
 
 ---
 

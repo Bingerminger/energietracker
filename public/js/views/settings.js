@@ -727,12 +727,17 @@ function wireIntegrationsPage(container, rerender) {
 // ── Seite „System": Version und Verweise (v2.12.0, Review UI-29) ──────────
 function renderAbout(diag) {
   const version = diag?.app_version || document.body.getAttribute('data-app-version') || '';
+  // v3.0.0 — AGPL §13: der Quellcode genau dieser Version ist einen Klick entfernt
+  // (Tag vX.Y.Z); ohne lesbare Version das Repository.
+  const repo = 'https://github.com/Bingerminger/energietracker';
+  const source = /^\d+\.\d+\.\d+$/.test(version) ? `${repo}/tree/v${version}` : repo;
   return `
     <div class="card">
       <h2 class="card__title">${escapeHtml(t('settings.system.aboutTitle'))}</h2>
       <p>${escapeHtml(t('settings.system.about', { version }))}</p>
       <p class="muted">${escapeHtml(t('settings.system.license'))}
-        · <a href="https://github.com/Bingerminger/energietracker" target="_blank" rel="noopener">GitHub</a></p>
+        · <a href="${escapeHtml(source)}" target="_blank" rel="noopener" data-source-link>${escapeHtml(t('settings.system.source'))}</a>
+        · <a href="${repo}" target="_blank" rel="noopener">GitHub</a></p>
     </div>`;
 }
 

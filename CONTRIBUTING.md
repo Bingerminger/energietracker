@@ -96,4 +96,5 @@ app is the way (glossary texts under `glossary.*`).
 - one topic per pull request, with a test;
 - `vendor/bin/phpunit` and the browser tests green;
 - docs and CHANGELOG (section for the next version) updated;
-- contributions are under the project's [MIT licence](LICENSE).
+- contributions are published under the project's licence,
+  [AGPL-3.0-or-later](LICENSE) — no separate agreement (CLA) needed.

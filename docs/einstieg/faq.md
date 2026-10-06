@@ -147,7 +147,16 @@ Checkliste steht unter [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
 
 ### Was kostet der Energietracker?
 
-Nichts. Er steht unter der MIT-Lizenz.
+Nichts. Seit Version 3.0.0 steht er unter der
+[GNU AGPL v3.0 oder neuer](../../LICENSE); Versionen bis 2.16.0 bleiben unter
+der MIT-Lizenz verfügbar, unter der sie erschienen sind.
+
+### Was bedeutet die AGPL für mich?
+
+Für die eigene Installation nichts: nutzen, ändern und weitergeben ist frei.
+Wer eine veränderte Fassung anderen als Netzdienst anbietet, muss ihnen auch
+deren Quellcode zugänglich machen. Unter Einstellungen → System führt ein Link
+zum Quellcode genau der laufenden Version.
 
 ### Wo melde ich einen Fehler oder einen Wunsch?
 

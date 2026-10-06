@@ -7,13 +7,16 @@
 readings in, answers out: Will I get money back? Is my gas bill right? Is
 switching worth it? Did I use more, or was it just colder?
 
+**[▶ Try the live demo](https://bingerminger.github.io/energietracker/)** — a
+sample household carried forward to today, in seven languages, nothing to install.
+
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-2.16.0-blue.svg)](CHANGELOG.md)
-[![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](CHANGELOG.md)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-459-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-472-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-8-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -63,7 +66,7 @@ and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:2.16.0
+  ghcr.io/bingerminger/energietracker:3.0.0
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
@@ -116,7 +119,7 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v2.16.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
+**v3.0.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
 APIs, CSV formats and the backup format change only additively; anything is
 removed only with a new major version and after notice. Next up are the
 utility-cost statement for tenants
@@ -131,11 +134,16 @@ Pull requests are welcome — setup, tests and the documentation rules are in
 [CONTRIBUTING.md](CONTRIBUTING.md); a new language needs no code. Please do not
 report security issues publicly, but as described in [SECURITY.md](SECURITY.md).
 
-## Licences
+## Licence
 
-Energietracker is under the [MIT licence](LICENSE). It ships
-[Chart.js](https://www.chartjs.org/) (MIT, [licence](public/vendor/chart.js-LICENSE.md))
-and the fonts DM Sans and DM Mono (SIL Open Font License 1.1,
-[licence](public/vendor/fonts/OFL.txt)). Weather data:
+Since version 3.0.0 the Energietracker is under the
+[GNU AGPL v3.0 or later](LICENSE) — use, change, share; whoever offers a
+modified version as a network service shares its source code too. For your own
+installation nothing changes. Versions up to 2.16.0 remain available under the
+MIT licence they were published with.
+
+It ships [Chart.js](https://www.chartjs.org/) (MIT) and the fonts DM Sans and
+DM Mono (SIL Open Font License 1.1); weather data comes from
 [Open-Meteo.com](https://open-meteo.com/) under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — details in
+[CREDITS.md](CREDITS.md), product names in [TRADEMARKS.md](TRADEMARKS.md).

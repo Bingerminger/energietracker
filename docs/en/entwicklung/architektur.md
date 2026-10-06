@@ -68,6 +68,7 @@ energietracker/
 ├── demo-data/              # complete example dataset (8 utilities)
 ├── docs/                   # this compendium
 ├── tests/                  # test harnesses
+├── tools/build-demo.mjs    # build the public demo (v3.0.0, see § 8)
 └── scripts/init_data.py    # optional Excel import
 ```
 
@@ -136,6 +137,7 @@ HTTP**.
 | `DiagnosticsService` | system status, write permissions, data count |
 | `HealthCheckService` | `/api/health`: `status` ok/degraded/error, checks (write permissions, schema, files, disk space, temp files), last ingest — N1003, v2.6.0 |
 | `DemoService` | one-click demo import via the restore path — F1007 |
+| `DemoDataAligner` | carries the demo data forward to today on import: readings from each meter's last reading with the consumption of the same period a year earlier, deliveries and temperatures as a year earlier, reminders relative to today — pure function (v3.0.0) |
 | `PvSummaryService` / `StromSaldoService` | PV self-consumption/self-sufficiency resp. electricity balance — F1005; since v2.10.0 rates over the months covered by all meters, and self-consumption savings |
 | `AuthService` | sign-in (password, proxy, sessions, lockout), API keys and the HA token — hashes only in `data/auth.json` (F1009, v2.6.0) |
 | `IngestService` | idempotent push intake (`/api/ingest`, upsert-by-date) — F1009 |
@@ -266,6 +268,38 @@ same full months a year earlier, weather-adjusted when all carry a value),
 > `./state.js` instead of `../state.js`). The browser render test
 > (`tests/browser-render.test.mjs`) has crawled the complete module graph over HTTP
 > since v1.4.1 and catches such errors. See [Tests](tests.md).
+
+## 8. Public demo (since v3.0.0)
+
+The demo at <https://bingerminger.github.io/energietracker/> is the real
+interface without PHP. GitHub Pages only serves files, so the API answers are
+produced in advance:
+
+1. `tools/build-demo.mjs` starts `php -S … router.php` with an empty data
+   directory and loads the demo data via `POST /api/demo/import` — on the way
+   `DemoDataAligner` carries them forward to the build day.
+2. The script requests every read the interface makes (per utility, meter and
+   contract; the forecast per model with the view's defaults; bill check and
+   tariff comparison per year) and stores the answers content-addressed under
+   `demo-api/r/`, with one index per language (`demo-api/index-<lang>.json`).
+   What is the same in all languages is stored once. CSV and PDF downloads lie
+   next to them as files.
+3. `index.php` is rendered with `ET_DEMO_BUILD=1`: `<html data-demo>`, no
+   service worker.
+
+In the browser `data-demo` switches on `lib/demo-mode.js`. `api.js` hands every
+request to it: GET from the snapshot, writes with "Nothing is saved in the
+demo", a request that is not precomputed (your own what-if values, a freely
+chosen period) with "not precomputed". The build script and the browser compute
+a request's key (path + sorted query) with the same function
+(`lib/demo-key.js`). In the demo the language follows the browser; a notice at
+the bottom offers a language choice and the way to your own installation.
+
+Publishing runs through `.github/workflows/pages.yml` — on a GitHub release (the
+demo shows what is released) and on Mondays, so the data reach up to today
+again. `tests/demo.test.mjs` builds the demo in CI and clicks the real app
+through every page; red as soon as a page needs an answer that is not
+precomputed.
 
 ---
 

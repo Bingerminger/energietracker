@@ -135,6 +135,13 @@ jobs:
           ET_TEST_HOST: http://127.0.0.1:8899
           ET_DATA_DIR: /tmp/etdata
 
+      # v3.0.0 — Öffentliche Demo: mit dem echten Server bauen (Demo-Daten bis
+      # heute fortgeschrieben) und die echte App in JSDOM durch alle Seiten
+      # klicken. Rot, wenn eine Seite eine Antwort braucht, die nicht
+      # vorberechnet ist. Startet eigene Server (8895 PHP, 8894 statisch).
+      - name: Öffentliche Demo (bauen und durchklicken)
+        run: node tests/demo.test.mjs
+
   lint-php:
     name: PHP Syntax-Check
     runs-on: ubuntu-latest

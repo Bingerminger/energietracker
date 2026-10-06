@@ -100,12 +100,30 @@ final class DemoServiceTest extends TestCase
     public function testImportRestoresDeliveriesForDeliveryUtilities(): void
     {
         $svc = $this->service();
-        $svc->import();
+        // v3.0.0 — am Exporttag: genau die drei Lieferungen des Backups
+        // (später kommen fortgeschriebene dazu, s. DemoDataAlignerTest)
+        $svc->import(false, '2026-05-31');
 
         $oil = $this->store->read('heizoel/deliveries.json', []);
         $pellets = $this->store->read('pellets/deliveries.json', []);
         $this->assertCount(3, $oil, 'Heizöl-Lieferungen müssen aus dem Demo-Backup kommen');
         $this->assertCount(3, $pellets, 'Pellets-Lieferungen müssen aus dem Demo-Backup kommen');
+    }
+
+    /**
+     * v3.0.0 — „Mit Beispieldaten ausprobieren“ zeigt einen Haushalt von heute:
+     * Monate nach dem Export reichen die Stände bis an heute heran.
+     */
+    public function testImportBringsTheDemoUpToToday(): void
+    {
+        $svc = $this->service();
+        $svc->import(false, '2027-02-10');
+        $gas = $this->store->read('gas/readings.json', []);
+        $latest = max(array_column($gas, 'date'));
+        $this->assertGreaterThan('2026-11-01', $latest, 'jüngste Gas-Ablesung höchstens ein Vierteljahr alt');
+        $this->assertLessThanOrEqual('2027-02-10', $latest);
+        $temps = $this->store->read('temperatures.json', []);
+        $this->assertArrayHasKey('2027-02-10', $temps, 'Temperaturen bis heute');
     }
 
     /**

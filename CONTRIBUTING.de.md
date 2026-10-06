@@ -97,4 +97,5 @@ Hilfe in der App der Weg (Glossar-Texte unter `glossary.*`).
 - ein Thema je Pull Request, mit Test;
 - `vendor/bin/phpunit` und die Browser-Tests grün;
 - Doku und CHANGELOG (Abschnitt für die nächste Version) nachgezogen;
-- Beiträge stehen unter der [MIT-Lizenz](LICENSE) des Projekts.
+- Beiträge erscheinen unter der Lizenz des Projekts,
+  [AGPL-3.0-or-later](LICENSE) — eine eigene Vereinbarung (CLA) ist nicht nötig.

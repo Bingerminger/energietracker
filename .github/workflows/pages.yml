@@ -1,0 +1,73 @@
+name: Demo
+
+# v3.0.0 — Die öffentliche Demo auf GitHub Pages: die App-Hülle ohne PHP, die
+# Antworten vorberechnet vom echten Server (tools/build-demo.mjs). Gebaut wird
+# immer aus dem neuesten Release-Tag — die Demo zeigt, was veröffentlicht ist,
+# nicht den Stand von main:
+#   • beim Veröffentlichen eines GitHub-Releases (Freigabemarke des Release-Zugs)
+#   • montags, damit die Demo-Daten wieder bis heute reichen
+#   • von Hand
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Eine Veröffentlichung zur Zeit; eine neuere ersetzt eine wartende.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Demo bauen und veröffentlichen
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Neuestes Release auschecken
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(git tag --list 'v*' --sort=-version:refname | head -n1)
+          fi
+          git checkout --quiet "$TAG"
+          echo "Demo aus $TAG"
+
+      - name: PHP einrichten (8.4)
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, json
+          coverage: none
+
+      - name: Node.js einrichten (20)
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Demo bauen
+        run: node tools/build-demo.mjs --out dist/demo
+
+      - name: Pages einrichten
+        uses: actions/configure-pages@v6
+
+      - name: Hochladen
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/demo
+
+      - name: Veröffentlichen
+        id: deployment
+        uses: actions/deploy-pages@v5

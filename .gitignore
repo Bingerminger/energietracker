@@ -42,3 +42,6 @@ venv/
 
 ## graphify — generierter Knowledge-Graph (lokal, regenerierbar)
 graphify-out/
+
+## Öffentliche Demo — Bauergebnis von tools/build-demo.mjs (v3.0.0)
+/dist/
