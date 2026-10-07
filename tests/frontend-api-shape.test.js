@@ -9,6 +9,17 @@ const path = require('path');
 const BASE = process.env.ET_TEST_HOST || 'http://127.0.0.1:8899';
 const ROOT = require('path').resolve(__dirname, '..');
 
+// v3.1.0 — jede Antwort sofort zu Ende lesen. Viele Prüfungen sehen nur Status
+// und Kopf an; bleibt der Körper ungelesen und schließt der PHP-Server die
+// Verbindung, bricht undici in der CI mit `assert(!this.paused)` ab (lokal nicht).
+const rawFetch = globalThis.fetch;
+globalThis.fetch = async (url, init) => {
+  const r = await rawFetch(url, init);
+  const buf = await r.arrayBuffer();
+  const empty = [101, 204, 205, 304].includes(r.status) || (init?.method || 'GET').toUpperCase() === 'HEAD';
+  return new Response(empty ? null : buf, { status: r.status, statusText: r.statusText, headers: r.headers });
+};
+
 
 (async () => {
   const results = [];

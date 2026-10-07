@@ -49,13 +49,21 @@ function freshDom() {
   const BASE_URL = (dom.window.location && dom.window.location.href)
     || 'http://127.0.0.1:8899/';
   const nativeFetch = global.fetch;
+  // v3.1.0 — Antwort sofort zu Ende lesen: Ein ungelesener Körper lässt undici in
+  // der CI mit `assert(!this.paused)` abbrechen, wenn der PHP-Server die
+  // Verbindung schließt (frontend-api-shape.test.js, gleiche Ursache).
+  const buffered = async (r, init) => {
+    const buf = await r.arrayBuffer();
+    const empty = [101, 204, 205, 304].includes(r.status) || (init?.method || 'GET').toUpperCase() === 'HEAD';
+    return new Response(empty ? null : buf, { status: r.status, statusText: r.statusText, headers: r.headers });
+  };
   const browserLikeFetch = (input, init) => {
     try {
       if (typeof input === 'string' && !/^https?:\/\//i.test(input)) {
         input = new URL(input, BASE_URL).href;
       }
     } catch {}
-    return nativeFetch(input, init);
+    return nativeFetch(input, init).then(r => buffered(r, init));
   };
   try { dom.window.fetch = browserLikeFetch; }
   catch { Object.defineProperty(dom.window, 'fetch', { value: browserLikeFetch, configurable: true }); }
