@@ -25,10 +25,10 @@ final class ForecastController
     {
         $utility = $req->param('utility');
         $meterId = $req->param('id');
-        $meter = $this->meters->get($utility, $meterId);
+        $meter = $this->meters->target($utility, $meterId);   // v3.1.0 (H6): auch Gruppe
         if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
         $opts = [];
-        foreach (['forecast_months', 'temp_offset', 'price_factor', 'model'] as $k) {
+        foreach (['forecast_months', 'temp_offset', 'price_factor', 'model', 'co2_scenario_eur_t', 'co2_scenario_from'] as $k) {
             if (($v = $req->queryParam($k)) !== null) $opts[$k] = $v;
         }
         // v2.6.0 — Grenzen. `forecast_months=100000` erschöpfte den Speicher
@@ -47,6 +47,15 @@ final class ForecastController
         if (isset($opts['price_factor'])
             && (!is_numeric($opts['price_factor']) || (float)$opts['price_factor'] < 0 || (float)$opts['price_factor'] > 10)) {
             $bad('price_factor', '0…10');
+        }
+        // v3.1.0 (H4, MKT-26) — CO₂-Preis-Szenario
+        if (isset($opts['co2_scenario_eur_t']) && $opts['co2_scenario_eur_t'] !== ''
+            && (!is_numeric($opts['co2_scenario_eur_t']) || (float)$opts['co2_scenario_eur_t'] < 0 || (float)$opts['co2_scenario_eur_t'] > 1000)) {
+            $bad('co2_scenario_eur_t', '0…1000');
+        }
+        if (isset($opts['co2_scenario_from']) && (!ctype_digit((string)$opts['co2_scenario_from'])
+            || (int)$opts['co2_scenario_from'] < 2021 || (int)$opts['co2_scenario_from'] > 2100)) {
+            $bad('co2_scenario_from', '2021–2100');
         }
         if (isset($opts['model'])
             && !in_array($opts['model'], ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'], true)) {

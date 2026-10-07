@@ -2,21 +2,11 @@
   "common": {
     "save": "Save",
     "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "add": "Add",
     "close": "Close",
-    "back": "Back",
     "confirm": "Confirm",
     "yes": "Yes",
     "no": "No",
     "loading": "Loading…",
-    "error": "Error",
-    "success": "Success",
-    "none": "None",
-    "all": "All",
-    "optional": "optional",
-    "required": "required",
     "actions": "Actions",
     "invalidNumber": "Please enter a valid number, e.g. {example}.",
     "undo": "Undo",
@@ -26,7 +16,6 @@
     "themeToggle": "Switch theme",
     "skipToContent": "Skip to main content",
     "primaryNav": "Main navigation",
-    "brandHome": "Energietracker — go to overview",
     "offline": "Offline – last loaded data",
     "offlineSince": "Offline – data as of {when}",
     "networkError": "No connection to Energietracker – nothing was saved.",
@@ -50,7 +39,8 @@
     "heizoel": "Oil tank",
     "pellets": "Pellet store",
     "pv_einspeisung": "Feed-in meter",
-    "pv_erzeugung": "Generation meter"
+    "pv_erzeugung": "Generation meter",
+    "waerme": "Heat meter"
   },
   "utilityNames": {
     "gas": "Gas",
@@ -60,7 +50,8 @@
     "heizoel": "Heating oil",
     "pellets": "Wood pellets",
     "pv_einspeisung": "PV feed-in",
-    "pv_erzeugung": "PV generation"
+    "pv_erzeugung": "PV generation",
+    "waerme": "Heat"
   },
   "nav": {
     "group": {
@@ -92,15 +83,22 @@
       "title": "Add",
       "readings": "Enter meter readings",
       "readingsHint": "All meters in one go",
-      "delivery": "Delivery {utility}",
-      "tankLevel": "Tank reading {utility}",
+      "delivery": "Delivery — {utility}",
+      "tankLevel": "Tank reading — {utility}",
       "reminder": "New reminder"
     },
     "sectionNav": "Pages in this section",
     "menu": "Menu",
     "tabbar": "Quick navigation",
     "captureButton": "Add",
-    "help": "Help"
+    "help": "Help",
+    "badge": {
+      "outbox": {
+        "one": "{count} reading not saved yet",
+        "other": "{count} readings not saved yet"
+      }
+    },
+    "tenancy": "Tenancy"
   },
   "dashboard": {
     "loading": "Loading overview…",
@@ -132,7 +130,10 @@
       "selfUseSub": "{kwh} kWh used directly",
       "savings": "Self-consumption savings",
       "savingsSub": "{kwh} kWh used yourself × grid price",
-      "coveredSub": "over {months} months with data from all three meters"
+      "coveredSub": {
+        "one": "over {months} month with data from all three meters",
+        "other": "over {months} months with data from all three meters"
+      }
     },
     "recommendations": { "title": "Top recommendations" },
     "reminders": {
@@ -224,9 +225,12 @@
     },
     "preview": {
       "sinceLast": "{delta} {unit} since last reading",
-      "sinceLastDays": "{delta} {unit} since last reading ({days} days ago)"
+      "sinceLastDays": {
+        "one": "{delta} {unit} since last reading ({days} day ago)",
+        "other": "{delta} {unit} since last reading ({days} days ago)"
+      }
     },
-    "hint": { "lower": "Note: value is lower than the last reading ({min}). That's fine for a meter swap etc." },
+    "hint": {},
     "toast": {
       "savedFailed": "{ok} saved, {failed} failed",
       "savedEmpty": "{ok} saved · {skipped} empty",
@@ -237,6 +241,54 @@
         "one": "1 reading undone",
         "other": "{count} readings undone"
       }
+    },
+    "queue": {
+      "title": "Not saved yet",
+      "queued": "Waiting for a connection",
+      "waitingN": {
+        "one": "{count} reading is waiting for a connection and will be sent later.",
+        "other": "{count} readings are waiting for a connection and will be sent later."
+      },
+      "sent": {
+        "one": "{count} reading recorded offline has been saved",
+        "other": "{count} readings recorded offline have been saved"
+      },
+      "conflict": "There is already a reading on {date} ({value}) – replace it or keep the existing one?",
+      "replace": "Replace",
+      "keep": "Keep existing",
+      "failed": "Not saved: {reason}",
+      "edit": "Edit",
+      "discard": "Discard",
+      "sendNow": "Send now",
+      "stillOffline": "Still no connection – the readings keep waiting.",
+      "attention": "Not every reading recorded offline could be saved – please check under Meter readings."
+    },
+    "photo": {
+      "add": "Photo",
+      "remove": "Remove photo",
+      "view": "View photo",
+      "alt": "Photo of the meter reading",
+      "uploading": "Uploading photo…",
+      "unreadable": "The image cannot be read – please choose another photo."
+    },
+    "ocr": {
+      "reading": "Recognising text…",
+      "found": "Recognised: {value}",
+      "apply": "Use",
+      "none": "No meter reading recognised – please enter it by hand.",
+      "failed": "Text recognition: {reason}"
+    },
+    "period": {
+      "kind": "Consumption per period",
+      "lastLabel": "Last period:",
+      "month": "Month",
+      "value": "Consumption ({unit})",
+      "reference": "Comparison values from the consumption information",
+      "ref": {
+        "prev_month": "Previous month ({unit})",
+        "prev_year_month": "Same month last year ({unit})",
+        "average_user": "Average user ({unit})"
+      }
     }
   },
   "utility": {
@@ -245,12 +297,23 @@
     "subtitle": "Readings · monthly consumption · contracts & balance",
     "noMeters": {
       "title": "No meters yet",
-      "text": "Add a {label} meter via the meter management.",
+      "text": "{label}: add a meter via the meter management.",
       "cta": "Go to meter management"
     },
     "header": { "meters": "Meters", "metersTitle": "Meter management", "selectMeter": "Select meter" },
     "action": { "newReading": "+ Reading", "newReadingBanner": "+ New reading", "newDelivery": "+ Delivery" },
-    "banner": { "lastReading": "Last reading {days} days ago", "trendYoY": "{span} vs. previous year", "trendYoYAdjusted": "{span} vs. previous year, weather-adjusted" },
+    "banner": {
+      "trendYoY": "{span} vs. previous year",
+      "trendYoYAdjusted": "{span} vs. previous year, weather-adjusted",
+      "lastReading": {
+        "one": "Last reading {days} day ago",
+        "other": "Last reading {days} days ago"
+      },
+      "lastPeriod": {
+        "one": "Last period ended {count} day ago",
+        "other": "Last period ended {count} days ago"
+      }
+    },
     "kpi": {
       "feedIn": "Feed-in",
       "consumption": "Consumption",
@@ -260,14 +323,17 @@
       "advances": "💰 Advances {year}",
       "yearBalance": "Year balance: {value}",
       "dailyAvg": "📅 Daily average",
-      "daysCount": "{days} days",
       "co2Avoided": "🌿 CO₂ avoided {year}",
       "co2AvoidedSub": "{tons} t less than without PV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Advances up to {date}",
       "balanceShort": "Balance: {value}",
-      "generation": "Generation"
+      "generation": "Generation",
+      "daysCount": {
+        "one": "{days} day",
+        "other": "{days} days"
+      }
     },
     "cards": {
       "contracts": "📑 Contracts & advances",
@@ -277,12 +343,17 @@
       "monthlyTable": "📋 Monthly table {year}",
       "stockTank": "🛢️ Stock & tank",
       "deliveries": "🚚 Deliveries",
-      "deliveriesCount": "{count} deliveries total",
-      "readings": "🔢 Readings",
       "readingsYear": "📋 Readings {year}",
-      "readingsCount": "{count} readings total",
       "monthlyChartFeedIn": "Feed-in per month {year}",
-      "monthlyChartGeneration": "Generation per month {year}"
+      "monthlyChartGeneration": "Generation per month {year}",
+      "deliveriesCount": {
+        "one": "{count} delivery total",
+        "other": "{count} deliveries total"
+      },
+      "readingsCount": {
+        "one": "{count} reading total",
+        "other": "{count} readings total"
+      }
     },
     "balance": {
       "title": "⚖️ Balance current contract — {name}",
@@ -291,8 +362,6 @@
       "unitWorking": "{value} {minor}/kWh",
       "unitBase": "{value} {cur}/month",
       "unitAdvance": "Advance {value}",
-      "consumedMonthsWater": "{months} months · {m3} m³",
-      "consumedMonths": "{months} months · {kwh} kWh",
       "breakdownConsumption": "{value} usage",
       "breakdownBase": "+ {value} standing charge",
       "breakdownBonus": "− {value} bonus",
@@ -302,8 +371,6 @@
       "specialRefund": "+ {value} refund",
       "specialSurcharge": "− {value} back-payment",
       "specialAdvance": "− {value} advance payment",
-      "specialCount": "{count} special payments",
-      "specialCountOne": "1 special payment",
       "colConsumedFeedIn": "Feed-in payment (as of today)",
       "colConsumed": "Consumed (as of today)",
       "colPaidFeedIn": "Already paid out",
@@ -348,7 +415,19 @@
       "pathBalance": "Balance",
       "pathEstimated": "estimated",
       "pathNote": "Dashed: estimated; hollow points lie after today. The gap between the lines is the balance, at the end stands the expected bill.",
-      "pathAlt": "Line chart: cumulative costs and payments from {from} to {to}; at the end {result}."
+      "pathAlt": "Line chart: cumulative costs and payments from {from} to {to}; at the end {result}.",
+      "consumedMonths": {
+        "one": "{months} month · {kwh} kWh",
+        "other": "{months} months · {kwh} kWh"
+      },
+      "consumedMonthsWater": {
+        "one": "{months} month · {m3} m³",
+        "other": "{months} months · {m3} m³"
+      },
+      "specialCount": {
+        "one": "{count} special payment",
+        "other": "{count} special payments"
+      }
     },
     "contractsTable": {
       "emptyTitle": "No contracts recorded",
@@ -391,17 +470,19 @@
       "colMa3": "MA·3",
       "colMa6": "MA·6",
       "total": "Total",
-      "estimatedTitle": "{days} days estimated (after the last known stock)",
       "estimatedLegend": "≈ month contains estimated days — after the last known stock (delivery “filled to full” or tank reading).",
       "colRevenue": "Revenue {cur}",
       "colCo2Avoided": "CO₂ avoided kg",
-      "partialLegend": "\"14 / 31\" under days: the month is only partly recorded; trends leave it out.",
-      "colAdjusted": "adjusted"
+      "partialLegend": "“14 / 31” under days: the month is only partly recorded; trends leave it out.",
+      "colAdjusted": "adjusted",
+      "estimatedTitle": {
+        "one": "{days} day estimated (after the last known stock)",
+        "other": "{days} days estimated (after the last known stock)"
+      }
     },
     "readingsTable": {
       "emptyTitle": "No readings",
       "emptyYear": "No readings in {year}",
-      "emptyYearHint": "{count} readings are recorded in total — reachable via the year selector above.",
       "colDate": "Date",
       "colCounter": "Meter reading",
       "colNote": "Note",
@@ -412,7 +493,11 @@
       "suspect": "CHECK",
       "suspectTitle": "Lower than the previous reading (Home Assistant). Counts in the analysis only after confirmation.",
       "implausible": "IMPLAUSIBLE",
-      "confirmReading": "Confirm reading"
+      "confirmReading": "Confirm reading",
+      "emptyYearHint": {
+        "one": "{count} reading is recorded in total — reachable via the year selector above.",
+        "other": "{count} readings are recorded in total — reachable via the year selector above."
+      }
     },
     "deliveriesTable": {
       "emptyTitle": "No deliveries",
@@ -428,9 +513,9 @@
     },
     "tank": {
       "noCapacity": "No tank capacity set — enter it on the meter to see the stock curve.",
-      "summary": "currently ~{stock} {unit} / {cap} {unit} ({pct} %)",
+      "summary": "currently ~{stock} {unit} / {cap} {unit} ({pct}%)",
       "remaining": "{stock} {unit} remaining (modelled)",
-      "ofCap": "{pct} % of {cap} {unit}",
+      "ofCap": "{pct}% of {cap} {unit}",
       "noteMeasured": "Consumption calculated from known stock levels up to {date}, estimated afterwards.",
       "noteEstimated": "Stock and consumption are estimated from the initial stock and the deliveries. A delivery “filled to full” or a tank reading makes them exact.",
       "warnInconsistent": "Between {from} and {to} the levels do not add up: {excess} {unit} more in the tank than can be there. Is a delivery missing, or is a level wrong?",
@@ -453,7 +538,24 @@
       "chartAnchors": "Known stock",
       "chartAlt": "Tank stock over {year}"
     },
-    "chart": { "temp": "avg temperature", "alt": "Bar chart: monthly consumption and average temperature", "altSummary": "Bar chart: {label} {year} by month, {total} in total; highest in {maxMonth} ({max}), lowest in {minMonth} ({min}).", "prevYear": "{year} for comparison", "adjustedLabel": "{label} weather-adjusted ({unit})", "measuredValue": "Measured: {value}", "deviceSwap": "Meter replaced this month", "altSummaryAdjusted": "Bar chart: {label} {year} by month, weather-adjusted, {total} in total; highest in {maxMonth} ({max}), lowest in {minMonth} ({min}).", "altPrev": "For comparison {year}: {total} in the same {months} months.", "adjustedNote": "Weather-adjusted: converted to a normal year at your location (heating model). That way the comparison with the previous year shows whether you saved — not whether the winter was mild.", "modeLabel": "View", "modeMeasured": "Measured", "modeAdjusted": "Weather-adjusted" },
+    "chart": {
+      "temp": "avg temperature",
+      "alt": "Bar chart: monthly consumption and average temperature",
+      "altSummary": "Bar chart: {label} {year} by month, {total} in total; highest in {maxMonth} ({max}), lowest in {minMonth} ({min}).",
+      "prevYear": "{year} for comparison",
+      "adjustedLabel": "{label} weather-adjusted ({unit})",
+      "measuredValue": "Measured: {value}",
+      "deviceSwap": "Meter replaced this month",
+      "altSummaryAdjusted": "Bar chart: {label} {year} by month, weather-adjusted, {total} in total; highest in {maxMonth} ({max}), lowest in {minMonth} ({min}).",
+      "adjustedNote": "Weather-adjusted: converted to a normal year at your location (heating model). That way the comparison with the previous year shows whether you saved — not whether the winter was mild.",
+      "modeLabel": "View",
+      "modeMeasured": "Measured",
+      "modeAdjusted": "Weather-adjusted",
+      "altPrev": {
+        "one": "For comparison {year}: {total} in the same month.",
+        "other": "For comparison {year}: {total} in the same {months} months."
+      }
+    },
     "readingModal": {
       "titleEdit": "Edit reading · {label}",
       "titleNew": "New reading · {label}",
@@ -466,7 +568,6 @@
       "validation": "Date and reading are required.",
       "savedNew": "Reading saved",
       "savedEdit": "Reading updated",
-      "confirmLower": "This reading is below the last one ({last} {unit}). Meter readings normally only go up; a replaced meter belongs under “Meter swap”. Save anyway?",
       "confirmLowerOk": "Save anyway"
     },
     "deliveryModal": {
@@ -496,11 +597,13 @@
     },
     "preview": {
       "sinceLast": "{delta} {unit} since last reading",
-      "sinceLastDays": "{delta} {unit} since last reading ({days} days ago)"
+      "sinceLastDays": {
+        "one": "{delta} {unit} since last reading ({days} day ago)",
+        "other": "{delta} {unit} since last reading ({days} days ago)"
+      }
     },
-    "verdict": { "surcharge": "Back-payment", "refund": "Refund", "payout": "Payout", "reclaim": "Repayment due", "balanced": "Balanced" },
+    "verdict": { "surcharge": "Back-payment", "refund": "Credit", "payout": "Payout", "reclaim": "Repayment due", "balanced": "Balanced" },
     "billCheck": {
-      "title": "Bill verification",
       "hint": "Recalculates the gas bill: per section m³ × volume correction factor × calorific value = kWh, like the lines of a supplier bill. A new section starts at every reading and every calorific-value change.",
       "from": "From",
       "to": "To (exclusive)",
@@ -524,7 +627,8 @@
         "end": "End",
         "reading": "Reading",
         "readingEstimated": "Reading (estimated)",
-        "factor": "Calorific value change"
+        "factor": "Calorific value change",
+        "price": "Price change"
       },
       "kind": {
         "reading": "meter reading",
@@ -532,15 +636,16 @@
         "interpolated": "substitute value — no meter reading on this day, interpolated day-exact between the enclosing readings"
       },
       "mark": {
-        "estimated": "S",
-        "interpolated": "E"
+        "estimated": "E",
+        "interpolated": "I"
       },
-      "legend": "Reading type: no suffix = meter reading · S = reading recorded as estimated · E = substitute value: there is no meter reading on this day, it is interpolated day-exact between the enclosing readings — exactly where the supplier estimates too (calorific-value and period boundaries). The fewer rows with E, the less is estimation.",
+      "legend": "Reading type: no suffix = meter reading · {est} = reading recorded as estimated · {int} = interpolated value: there is no meter reading on this day, it is interpolated day-exact between the enclosing readings — exactly where the supplier estimates too (calorific-value and period boundaries). The more rows without {int}, the less is estimation.",
       "open": "Check the {year} bill",
       "gapsN": {
         "one": "{count} section without an enclosing reading — consumption is missing there.",
         "other": "{count} sections without an enclosing reading — consumption is missing there."
-      }
+      },
+      "hintGeneric": "Recalculates the annual bill: per section consumption × unit price plus fixed costs, like the lines of a supplier bill. A new section starts at every reading and every price change."
     },
     "warnings": {
       "title": "Implausible meter readings: {count}",
@@ -568,8 +673,45 @@
       "feedIn": "Fed in",
       "grid": "From the grid",
       "generationTip": "Generated: {value}",
-      "alt": "Bar chart: energy flow {year} — in {months} months with data from all three meters generated {generation}, of which self-consumed {self} and fed in {feedIn}; from the grid {grid}."
-    }
+      "alt": {
+        "one": "Bar chart: energy flow {year} — in {months} month with data from all three meters generated {generation}, of which self-consumed {self} and fed in {feedIn}; from the grid {grid}.",
+        "other": "Bar chart: energy flow {year} — in {months} months with data from all three meters generated {generation}, of which self-consumed {self} and fed in {feedIn}; from the grid {grid}."
+      }
+    },
+    "photo": {
+      "open": "Open in new tab",
+      "removed": "Photo removed"
+    },
+    "periods": {
+      "title": "Periods {year}",
+      "count": {
+        "one": "{count} period",
+        "other": "{count} periods"
+      },
+      "add": "+ Period",
+      "edit": "Edit period",
+      "empty": "No period this year yet",
+      "emptyHint": "Enter month by month from the consumption information, or import a CSV file under Meters.",
+      "colPeriod": "Period",
+      "colValue": "Consumption {unit}",
+      "colReference": "Comparison values",
+      "ref": {
+        "prev_month": "Previous month",
+        "prev_year_month": "Same month last year",
+        "average_user": "Average user"
+      },
+      "from": "From",
+      "to": "To (inclusive)",
+      "value": "Consumption",
+      "unit": "Unit",
+      "saved": "Period saved",
+      "deleted": "Period deleted",
+      "confirmDelete": "Delete period {from} – {to}?"
+    },
+    "water": {
+      "dhwNote": "Heat for this hot water in {year}: about {kwh} kWh at {temp} °C – calculated under HeizkostenV § 9, not measured."
+    },
+    "groupContractNote": "This meter is billed through the group contract “{name}”. Balance and advance payments apply to the whole group."
   },
   "contracts": {
     "priceGroup": {
@@ -582,7 +724,9 @@
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
-      "eurPerMonth": "{cur}/month"
+      "eurPerMonth": "{cur}/month",
+      "eurPerKwYear": "{cur}/kW per year",
+      "eurPerYear": "{cur}/year"
     },
     "loading": "Loading…",
     "unknown": "Unknown utility: {key}",
@@ -591,7 +735,7 @@
     "newContract": "+ New contract",
     "delivery": {
       "bannerTitle": "{label} has no contracts.",
-      "bannerText": "Unlike gas, electricity, water or district heating, there is no supply contract with unit prices and standing charges here. Costs come directly from each delivery/tank invoice (quantity × price per {unit}, or the recorded total amount). A tariff comparison with shadow contracts also does not apply to {label}.",
+      "bannerText": "Unlike gas, electricity, water or district heating, there is no supply contract with unit prices and standing charges here. Costs come directly from each delivery/tank invoice (quantity × price per {unit}, or the recorded total amount). A tariff comparison with shadow contracts does not apply here either ({label}).",
       "toDeliveries": "→ To the deliveries"
     },
     "metersWarning": "Add meters first before creating contracts.",
@@ -604,7 +748,8 @@
       "meterLabel": "Meter:",
       "open": "open",
       "noMeter": "—",
-      "shadowHint": "Shadow contract — a what-if scenario for the tariff comparison only. Not counted in costs, balance or forecast."
+      "shadowHint": "Shadow contract — a what-if scenario for the tariff comparison only. Not counted in costs, balance or forecast.",
+      "groupLabel": "Meter group:"
     },
     "status": { "active": "ACTIVE", "past": "PAST", "future": "FUTURE" },
     "summary": {
@@ -697,7 +842,8 @@
       },
       "noticeModeHint": "Automatic: at the end of the term; without an end, any time at month end. Default supply (Grundversorgung), for example, can be cancelled any time with two weeks’ notice.",
       "autoRenews": "Renews unless cancelled",
-      "autoRenewsHint": "After the end the contract runs on at its last prices until it is cancelled — then with at most one month’s notice. Clear this once you have cancelled."
+      "autoRenewsHint": "After the end the contract runs on at its last prices until it is cancelled — then with at most one month’s notice. Clear this once you have cancelled.",
+      "groupTargets": "Meter groups (one contract for all)"
     },
     "delete": { "title": "Delete contract?", "confirm": "Delete", "deleted": "Contract deleted", "messageNamed": "Delete the contract “{name}” permanently? Its prices, advance payments and bonuses are lost." },
     "deleteContract": "Delete contract",
@@ -756,7 +902,10 @@
       "bonusAmount": "Amount {cur}",
       "bonusLabel": "Label",
       "addRow": "+ Row",
-      "startRequired": "Contract start is required."
+      "startRequired": "Contract start is required.",
+      "basisDeduct": "drinking water minus deduction meters (e.g. garden)",
+      "deductMeters": "Deduction meters",
+      "deductHint": "Water that runs through these meters (e.g. garden water) costs drinking water but no waste water. Best keep the garden meter as a sub-meter of the main meter, so it is not counted twice in the totals."
     },
     "perM3": {
       "toggleTitle": "Convert a price per m³ to {minor}/kWh",
@@ -764,6 +913,44 @@
       "result": "= {ct} {minor}/kWh (÷ {hs} kWh/m³ calorific value on {date})",
       "resultFactor": "= {ct} {minor}/kWh (÷ conversion factor {hs} kWh/m³ on {date})",
       "apply": "Apply"
+    },
+    "fw": {
+      "title": "District heating: connection and key figures",
+      "capacityKw": "Connected load (kW)",
+      "capacityPrice": "Capacity charge",
+      "meteringPrice": "Metering charge",
+      "co2Factor": "Network CO₂ factor (g/kWh)",
+      "primaryEnergy": "Primary energy factor",
+      "hint": "Found on the bill or the heat supplier’s price sheet. Capacity and metering charges count as fixed costs; the network CO₂ factor replaces the general value for district heating."
+    },
+    "hint": {
+      "termOver24": "Note: the minimum term is longer than 24 months. In Germany, an initial term this long is invalid for consumers (§ 309 no. 9 BGB)."
+    },
+    "groupPrices": {
+      "title": "Unit price per meter (e.g. peak/off-peak)",
+      "hint": "One standing charge but a separate unit price per register — e.g. for peak and off-peak. Empty = unit price above."
+    },
+    "gridReduction": {
+      "title": "Reduced grid fee (§ 14a EnWG, module 1)"
+    },
+    "priceImport": {
+      "button": "Import monthly prices",
+      "title": "Apply monthly prices",
+      "preview": "The file contains prices for {n} months ({from} to {to}). Each applies from the first of the month; prices with the same effective date are replaced.",
+      "skipped": {
+        "one": "{count} line is skipped.",
+        "other": "{count} lines are skipped."
+      },
+      "confirm": "Apply",
+      "done": "Monthly prices applied"
+    },
+    "revenue": {
+      "title": "Credit notes from the direct marketer",
+      "hint": "With direct marketing the revenue follows the market value. Enter the credit note — for its period it replaces kWh × price.",
+      "add": "Add credit note",
+      "from": "From",
+      "to": "To (inclusive)",
+      "amount": "Amount"
     }
   },
   "meters": {
@@ -804,8 +991,6 @@
       "inactive": "inactive",
       "sub": "Sub-meter",
       "group": "Group: {name}",
-      "devicesOne": "{count} device",
-      "devices": "{count} devices",
       "deviceLine": "Device {n}",
       "serial": "SN {serial}",
       "active": "→ active",
@@ -815,7 +1000,12 @@
       "csvImport": "CSV import",
       "edit": "Edit",
       "delete": "Delete",
-      "digits": "{n} digits"
+      "digits": "{n} digits",
+      "devices": {
+        "one": "{count} device",
+        "other": "{count} devices"
+      },
+      "periodTag": "per period"
     },
     "modal": {
       "titleEdit": "Edit meter",
@@ -842,8 +1032,18 @@
       "activeHint": "Clear this when the meter is out of service: its history still counts in every total, but it no longer appears in the reading entry and raises no warnings.",
       "initialStockPrice": "Price of the initial stock (ct/{unit})",
       "initialStockPriceHint": "Leave empty to use the price of the first delivery.",
-      "heatSource": "Heating electricity (heat pump)",
-      "heatSourceHint": "This electricity meter measures the heating: it counts towards the efficiency figure."
+      "role": "Role",
+      "roleHint": {
+        "strom": "Heat pump: this electricity meter measures the heating and counts towards the efficiency figure.",
+        "wasser": "Hot water: the app also shows the heat needed for it (calculated value under HeizkostenV § 9). Garden: water that does not go into the sewer.",
+        "pv_erzeugung": "Battery: charging and discharging as separate meters, apart from generation.",
+        "waerme": "Consumption: heat that arrives in the home (counts as heating energy). Heat pump output: does not count as heating energy, otherwise it would be counted twice next to the heating electricity."
+      },
+      "capture": "Recording",
+      "captureHint": "Consumption per period: for values that already come as consumption – such as the monthly consumption information from the metering service. Switching is possible while the meter has no data.",
+      "malo": "Market location ID (MaLo)",
+      "melo": "Metering location ID (MeLo)",
+      "maloHint": "For switching supplier; shown on the bill. MaLo: 11 digits; MeLo: 33 characters starting with “DE”."
     },
     "replace": {
       "title": "Meter swap: {name}",
@@ -864,7 +1064,7 @@
       "title": "Import readings: {name}",
       "intro": "Reads readings from a CSV file for the meter <strong>{name}</strong>. Before importing, a preview shows every row and what it will do — an existing reading on the same day is <strong>replaced</strong>.",
       "formatLabel": "Expected format",
-      "formatHint": "Separator <code>;</code> or <code>,</code> · date <code>DD.MM.YYYY</code> or <code>YYYY-MM-DD</code> · decimal comma allowed · columns <em>note</em> and <em>estimated</em> optional · a header row is detected automatically.",
+      "formatHint": "Separator <code>;</code> or <code>,</code> · date <code>DD/MM/YYYY</code>, <code>DD.MM.YYYY</code>, <code>DD-MM-YYYY</code> or <code>YYYY-MM-DD</code> (day before month) · decimal comma allowed · columns <em>note</em> and <em>estimated</em> optional · a header row is detected automatically.",
       "downloadExample": "Download example CSV",
       "dropZone": "Drop a CSV file here or click to select",
       "dropZoneAria": "Select a CSV file or drop it here",
@@ -907,7 +1107,8 @@
         "one": "{count} reading imported",
         "other": "{count} readings imported"
       },
-      "importing": "Importing…"
+      "importing": "Importing…",
+      "exampleNote": "Start of year"
     },
     "mergeModal": {
       "title": "Group meters",
@@ -921,7 +1122,10 @@
       "submit": "Save group",
       "needTwo": "Please select at least two meters",
       "needName": "Please provide a group name or choose an existing group",
-      "done": "{count} meters grouped in “{name}”"
+      "done": {
+        "one": "{count} meter grouped in “{name}”",
+        "other": "{count} meters grouped in “{name}”"
+      }
     },
     "baseline": {
       "title": "Baseline dates",
@@ -935,21 +1139,82 @@
       "active": "in effect",
       "future": "future",
       "dateRequired": "Please give a date for the baseline"
+    },
+    "roles": {
+      "strom": {
+        "household": "Household",
+        "heat_pump": "Heat pump (heating electricity)",
+        "ev_charger": "Wallbox (EV charger)"
+      },
+      "wasser": {
+        "cold": "Cold water",
+        "warm": "Hot water",
+        "garden": "Garden"
+      },
+      "pv_erzeugung": {
+        "generation": "Generation",
+        "battery_charge": "Battery – charging",
+        "battery_discharge": "Battery – discharging"
+      },
+      "waerme": {
+        "consumption": "Home consumption",
+        "heat_pump_output": "Heat pump output"
+      }
+    },
+    "capture": {
+      "counter": "Meter readings",
+      "period": "Consumption per period"
+    },
+    "periodImport": {
+      "intro": "Import consumption per period for “{name}” from a CSV file.",
+      "formatHint": "One line each: a month and the consumption ({unit}), or from; to; consumption; note. Header optional; overlapping periods are skipped.",
+      "previewSummary": {
+        "one": "{count} period can be imported.",
+        "other": "{count} periods can be imported."
+      },
+      "confirm": {
+        "one": "Import {count} period",
+        "other": "Import {count} periods"
+      },
+      "result": {
+        "one": "{count} period imported · skipped: {skipped}",
+        "other": "{count} periods imported · skipped: {skipped}"
+      }
+    },
+    "pv": {
+      "title": "PV system",
+      "plugIn": "Plug-in solar device (balcony system, no feed-in meter)",
+      "plugInHint": "Up to 2,000 Wp of modules and 800 VA inverter; registration only in the German market master data register. The app estimates self-consumption with the share from the settings.",
+      "investment": "Investment (incl. VAT)",
+      "commissionedOn": "In operation since",
+      "batteryCapacity": "Storage capacity (kWh)",
+      "hint": "Investment and commissioning date give the payback. The storage capacity belongs on the meter with the role “Battery – charging” and gives the full cycles."
+    },
+    "heatPumpLink": {
+      "title": "Heat pump electricity meter",
+      "hint": "For the seasonal performance factor (heat ÷ electricity). Electricity meters with the heat pump role are offered.",
+      "loading": "Loading …",
+      "none": "No electricity meter with the heat pump role set up."
     }
   },
   "settings": {
     "placeholder": {
       "dayMonth": "DD-MM (01-01)",
-      "frameAncestors": "http://homeassistant.local:8123"
+      "frameAncestors": "http://homeassistant.local:8123",
+      "ocrEndpoint": "http://192.168.178.20:11434",
+      "ocrModel": "qwen2.5vl",
+      "referenceSource": "e.g. benchmark 2025"
     },
     "loading": "Loading…",
-    "title": "Settings",
     "saved": "Settings saved",
     "lang": {
       "title": "🌐 Language & country / Sprache",
-      "hint": "Language and country take effect immediately. The country sets number and date formats, currency and time zone; when you change it, the app suggests matching defaults.",
-      "label": "Language",
-      "saved": "Language changed"
+      "hint": "The language applies to this device; without a choice of its own it follows the installation's default language, which also sets the annual report, CSV files and Home Assistant. The country sets number and date formats, currency and time zone; when you change it, the app suggests matching defaults.",
+      "saved": "Language changed",
+      "deviceLabel": "Language on this device",
+      "deviceFollow": "Same as the installation ({lang})",
+      "defaultLabel": "Default language of the installation",
+      "defaultSaved": "Default language changed"
     },
     "unit": {
       "days": "days",
@@ -958,7 +1223,9 @@
       "daysBefore": "days before",
       "pctRemaining": "% remaining",
       "pctYear": "%/year",
-      "lPerPersonDay": "L/person/day"
+      "lPerPersonDay": "L/person/day",
+      "seconds": "seconds",
+      "eurPerTonne": "{cur}/t"
     },
     "group": {
       "physical": { "title": "Physical constants", "hint": "Conversion and heating-degree-day base — affect all analyses." },
@@ -975,6 +1242,30 @@
       "embedding": {
         "title": "Embedding",
         "hint": "Other sites may not embed Energietracker – this protects against hijacked clicks. For a webpage card on a Home Assistant dashboard, enter its address here."
+      },
+      "attachments": {
+        "title": "Receipts",
+        "hint": "Photos of meter readings and PDF files are kept in the data directory and go into the backup."
+      },
+      "ocr": {
+        "title": "Text recognition in the home network",
+        "hint": "Suggests the meter reading from a photo – using your own service such as Ollama or LM Studio. Only addresses in your own network; nothing goes to a cloud service. Empty = off."
+      },
+      "tenancy": {
+        "title": "Home and hot water",
+        "hint": "If you rent, the Costs area gets the “Tenancy” page. The energy source sets the CO₂ value of the heat."
+      },
+      "co2price": {
+        "title": "CO₂ price",
+        "hint": "The CO₂ price in fuel (BEHG). Without your own values the country profile applies; the scenario shows in the forecast what a higher price would cost."
+      },
+      "pv": {
+        "title": "Photovoltaics",
+        "hint": "Assumptions for a plug-in solar device without a feed-in meter."
+      },
+      "reference": {
+        "title": "Own reference values",
+        "hint": "For the benchmark on the overview. The app ships no tables; enter the values an electricity or heating benchmark gives you."
       }
     },
     "field": {
@@ -997,7 +1288,7 @@
       "wasser_sparindex_warnung": { "label": "Saving index — warning from", "hint": "Index ≥ this value indicates saving potential." },
       "min_days_period": { "label": "Min. days per period", "hint": "Months with fewer recorded days (partial months) stay out of the heating signature and anomalies." },
       "min_hdd_regression": { "label": "Min. HDD for regression", "hint": "Months with fewer degree days stay out of the heating signature — in summer the base load drives consumption, not the weather." },
-      "blend_max": { "label": "Max. blend weight", "hint": "Highest weight of the weather model in the forecast; the rest comes from the seasonal profile. 0.8 means at least 20 % seasonal profile." },
+      "blend_max": { "label": "Max. blend weight", "hint": "Highest weight of the weather model in the forecast; the rest comes from the seasonal profile. 0.8 means at least 20% seasonal profile." },
       "forecast_months": { "label": "Forecast horizon", "hint": "How many months the forecast looks ahead (1–24). Default of the forecast view." },
       "forecast_model": { "label": "Default model", "hint": "Model for forecast and tariff comparison. Linear suits most homes; the analysis shows which one explains your data best." },
       "segmented_split_mode": { "label": "Segment breakpoint", "hint": "auto = fitted from data, fixed = fixed HDD value below." },
@@ -1045,7 +1336,79 @@
       },
       "confidence_band_sigma": {
         "label": "Forecast band width",
-        "hint": "In units of spread σ: 1.28 means consumption falls inside the band in 80 % of years; 1.64 would be 90 %."
+        "hint": "In units of spread σ: 1.28 means consumption falls inside the band in 80% of years; 1.64 would be 90%."
+      },
+      "attachments_max_mb": {
+        "label": "Storage for receipts, at most",
+        "hint": "Applies to all receipts together. From 80% the backup card shows a warning."
+      },
+      "ocr_endpoint": {
+        "label": "Service address",
+        "hint": "For example http://192.168.178.20:11434 (Ollama) or http://192.168.178.20:1234/v1 (LM Studio)."
+      },
+      "ocr_api": {
+        "label": "Interface",
+        "hint": "Ollama uses /api/chat, LM Studio and other OpenAI-compatible servers /v1/chat/completions."
+      },
+      "ocr_model": {
+        "label": "Model",
+        "hint": "A vision model, for example qwen2.5vl or llama3.2-vision."
+      },
+      "ocr_timeout_s": {
+        "label": "Time limit",
+        "hint": "On a NAS without a graphics card, vision models often need 20 to 60 seconds."
+      },
+      "wohnverhaeltnis": {
+        "label": "I live",
+        "hint": "Renting: prepayment, estimate and service charge statements under Costs → Tenancy."
+      },
+      "waerme_energietraeger": {
+        "label": "Heat comes from",
+        "hint": "For the CO₂ value of the Heat utility – an approximation, since the heat is counted, not the fuel."
+      },
+      "warmwasser_energietraeger": {
+        "label": "Hot water is heated by",
+        "hint": "For information only: the heat of the hot-water meters as a share of this utility."
+      },
+      "warmwasser_temp_c": {
+        "label": "Hot water temperature",
+        "hint": "For the heat of the hot-water meters under HeizkostenV § 9: 2.5 kWh per m³ and degree above 10 °C. Unknown: 60 °C."
+      },
+      "co2_price_eur_t_years": {
+        "label": "CO₂ price per year",
+        "hint": "Your own values override the country profile (Germany: 2021–2025 fixed prices, 2026 60 euros per tonne)."
+      },
+      "co2_price_scenario_eur_t": {
+        "label": "Scenario: CO₂ price",
+        "hint": "Default for the forecast; empty = off."
+      },
+      "co2_price_scenario_from": {
+        "label": "Scenario from year",
+        "hint": "From 2028 the European emissions trading (ETS2) replaces the fixed prices."
+      },
+      "pv_assumed_self_consumption_pct": {
+        "label": "Assumed self-consumption",
+        "hint": "Share of generation the household uses itself — empty = no assumption, then the app shows no ratio."
+      },
+      "co2_pv_avoided": {
+        "label": "CO₂ avoided by PV",
+        "hint": "Your own avoidance factor, e.g. from the German Environment Agency’s emissions balance of renewable energy — empty = electricity mix as for “CO₂ electricity”."
+      },
+      "reference_strom_kwh": {
+        "label": "Reference household electricity",
+        "hint": "kWh per year, without heat pump and wall box — empty = no benchmark."
+      },
+      "reference_heat_kwh_m2": {
+        "label": "Reference heating",
+        "hint": "kWh per m² living area and year — empty = no benchmark. Heating benchmarks use the whole building; for a flat it is only a guide."
+      },
+      "reference_source": {
+        "label": "Source",
+        "hint": "Shown below the benchmark, e.g. title and year."
+      },
+      "warmwasser_elektrisch": {
+        "label": "Hot water by electricity",
+        "hint": "Instantaneous electric heater or electric boiler — electricity benchmarks distinguish by it."
       }
     },
     "boolActive": "on",
@@ -1062,7 +1425,7 @@
     },
     "export": {
       "title": "📤 Data export (CSV)",
-      "hint": "Tabular export for Excel, LibreOffice or Google Sheets — semicolon-separated, UTF-8 with BOM, German decimal comma. Complements the full JSON backup below.",
+      "hint": "Tabular export for Excel, LibreOffice or Google Sheets (UTF-8 with BOM). Complements the full JSON backup below.",
       "monthly": "Monthly overview",
       "monthlyHint": "Consumption, cost, advance and balance per month.",
       "readings": "Readings / deliveries",
@@ -1071,7 +1434,11 @@
       "temperatures": "Temperature series",
       "temperaturesHint": "Daily min / avg / max values of the whole series.",
       "exportTemperatures": "Export temperatures",
-      "noActive": "No active utility."
+      "noActive": "No active utility.",
+      "formatLabel": "File format",
+      "formatLocal": "Spreadsheet in the default language ({lang}) — recommended",
+      "formatV1": "CSV format 1 — stable, for scripts",
+      "formatHint": "The spreadsheet uses column names, decimal mark and date of the default language, so it opens directly in Excel or LibreOffice. Format 1 stays as it has been since version 1.1: semicolon, decimal comma, date YYYY-MM-DD. Both can be imported again."
     },
     "backup": {
       "title": "💾 Backup & restore",
@@ -1088,7 +1455,6 @@
       "demoConfirmBtn": "Load demo data",
       "demoLoadedSnap": "Demo data loaded. Safety snapshot: {snap}",
       "demoLoaded": "Demo data loaded.",
-      "importConfirmTitle": "Import backup?",
       "importConfirmMsg": "The current data will be overwritten. The app first creates a safety snapshot automatically – you can restore it under “Stored snapshots”.",
       "importConfirmBtn": "Import",
       "importedSnap": "Backup imported. Safety snapshot: {snap}",
@@ -1148,7 +1514,12 @@
         "counter": "meter reading is not a number",
         "devices": "invalid device list",
         "entry": "invalid entry {what}"
-      }
+      },
+      "attachments": {
+        "one": "Receipts: {count} file, {size} MB of {max} MB – included in the backup.",
+        "other": "Receipts: {count} files, {size} MB of {max} MB – included in the backup."
+      },
+      "attachmentsFull": "The storage for receipts is almost full."
     },
     "ha": {
       "title": "🏠 Home Assistant integration",
@@ -1190,7 +1561,12 @@
         "secretComment": "whole value from secrets.yaml, including “Bearer”",
         "floatComment": "float without a default: if the sensor is unavailable the push fails instead of recording 0.",
         "automationAlias": "Energietracker: send meter readings",
-        "hasValueComment": "Only send when the sensor has a value – right after a restart it is briefly “unavailable”."
+        "hasValueComment": "Only send when the sensor has a value – right after a restart it is briefly “unavailable”.",
+        "scanComment": "once an hour is enough",
+        "readKeyComment": "only needed if sign-in is enabled",
+        "sensorBalance": "Balance",
+        "sensorForecast": "Forecast 12 months",
+        "sensorDaysSince": "Days since reading"
       },
       "lastUsed": "Last used: {when}",
       "neverUsed": "Nothing has arrived with this token yet.",
@@ -1199,7 +1575,12 @@
         "one": "{count} alias saved",
         "other": "{count} aliases saved"
       },
-      "guide": "Guide"
+      "guide": "Guide",
+      "sensors": {
+        "title": "Step 5 · Values back into Home Assistant",
+        "intro": "REST sensors for balance, 12-month forecast and days since the last reading — into configuration.yaml. One request per hour for all sensors.",
+        "keyHint": "With sign-in enabled, Home Assistant needs an API key with scope “read” (Settings → Access) to read, in secrets.yaml:"
+      }
     },
     "diag": {
       "title": "🩺 System diagnostics",
@@ -1219,10 +1600,13 @@
       "colContracts": "Contracts",
       "colLastReading": "Last reading",
       "tempSeries": "Temperature series",
-      "tempStored": "<strong>{count}</strong> daily values stored.",
       "knownKeys": "Known settings keys",
       "yes": "yes",
-      "no": "no"
+      "no": "no",
+      "tempStored": {
+        "one": "<strong>{count}</strong> daily value stored.",
+        "other": "<strong>{count}</strong> daily values stored."
+      }
     },
     "migrationDialog": {
       "title": "Migration from v0.9.0",
@@ -1231,8 +1615,7 @@
       "readings": "Readings",
       "contracts": "Contracts",
       "tempSettings": "{temps} temperature days · {settings} settings keys",
-      "candidates": "{count} possible meter swaps detected",
-      "candidatesHint": "— model as device swap after the import?",
+      "candidatesHint": "— model as meter swap after the import?",
       "colUtility": "Utility",
       "colDate": "Date",
       "colCounter": "Reading",
@@ -1245,7 +1628,11 @@
       "mergeDesc": "— only readings/contracts with a new ID are added. Existing data is kept. Temperature days are only added if the date does not yet exist.",
       "import": "Import",
       "done": "Migration OK · {total} readings written · snapshot {snapshot}",
-      "failed": "Import failed: {msg}"
+      "failed": "Import failed: {msg}",
+      "candidates": {
+        "one": "{count} possible meter swap detected",
+        "other": "{count} possible meter swaps detected"
+      }
     },
     "gasFactors": {
       "none": "No entry yet — the default factor applies.",
@@ -1271,7 +1658,7 @@
         "IT": "Italian gas bills: enter the “coefficiente C” as correction factor and the PCS (gross calorific value), usually in GJ/Smc. The contract form converts prices per Smc to {minor}/kWh.",
         "NL": "Dutch gas bills: enter the calorific value (calorische waarde) in MJ/m³. The contract form converts prices per m³ to {minor}/kWh."
       },
-      "defaultHint": "Default factor 11.5 kWh/m³ active. Your network’s value is on the gas bill (z-number × calorific value) — typically 10.3 to 11.1. With the default, kWh, costs and CO₂ are up to 20 % too high."
+      "defaultHint": "Default factor 11.5 kWh/m³ active. Your network’s value is on the gas bill (z-number × calorific value) — typically 10.3 to 11.1. With the default, kWh, costs and CO₂ are up to 20% too high."
     },
     "invalidFields": "Not saved: please correct the fields marked in red.",
     "dayMonthInvalid": "Please enter as day-month, e.g. 01-10 for 1 October.",
@@ -1315,7 +1702,8 @@
       "keyRevoke": "Revoke",
       "keyRevokeTitle": "Revoke key?",
       "keyRevokeMsg": "Programs using the key “{name}” will lose access.",
-      "keyRevoked": "Key revoked."
+      "keyRevoked": "Key revoked.",
+      "scopeCalendar": "calendar subscription only"
     },
     "region": {
       "country": "Country",
@@ -1340,7 +1728,9 @@
     "co2Years": {
       "none": "No yearly values — “CO₂ electricity” applies to all years.",
       "colYear": "Year",
-      "invalid": "Please enter a year (1990–2100) and a value between 0 and 2000 g/kWh."
+      "invalid": "Please enter a year (1990–2100) and a value between 0 and 2000 g/kWh.",
+      "nonePrice": "No own yearly values — the country profile’s values apply.",
+      "invalidPrice": "Please enter a year (1990–2100) and a price between 0 and 1000 {unit}."
     },
     "defaultUpdates": {
       "title": "Newer default values available",
@@ -1414,11 +1804,28 @@
     "splitModes": {
       "auto": "automatically from the data",
       "fixed": "fixed value"
+    },
+    "ocrApis": {
+      "ollama": "Ollama",
+      "openai": "OpenAI-compatible (LM Studio, LocalAI)"
+    },
+    "tenure": {
+      "eigentum": "in my own home",
+      "miete": "in a rented home"
+    },
+    "heatSource": {
+      "none": "not specified",
+      "gas": "Gas",
+      "heizoel": "Heating oil",
+      "pellets": "Wood pellets",
+      "fernwaerme": "District heating",
+      "strom": "Electricity (heat pump, instantaneous water heater)",
+      "waerme": "Heat (central)"
     }
   },
   "reminders": {
     "suggest": {
-      "deliveryTitle": "Plan next {label} delivery",
+      "deliveryTitle": "{label}: plan the next delivery",
       "deliveryNote": "Suggested automatically from your previous delivery intervals."
     },
     "loading": "Loading reminders…",
@@ -1442,7 +1849,17 @@
       "waermezaehler_eichung": "Heat meter calibration"
     },
     "recurrence": { "none": "One-time", "yearly": "Yearly", "semi-yearly": "Half-yearly", "custom-months": "Every N months" },
-    "due": { "today": "today", "inDays": "in {days} d", "agoDays": "{days} d ago" },
+    "due": {
+      "today": "today",
+      "inDays": {
+        "one": "in {days} day",
+        "other": "in {days} days"
+      },
+      "agoDays": {
+        "one": "{days} day ago",
+        "other": "{days} days ago"
+      }
+    },
     "action": { "done": "Done", "edit": "Edit", "delete": "Delete", "doneNamed": "Done: {title}", "editNamed": "Edit: {title}", "deleteNamed": "Delete: {title}" },
     "toast": { "deleted": "Deleted", "saved": "Saved", "error": "Error: {msg}", "doneNext": "“{title}” done · next due {date}", "doneOnce": "“{title}” done", "undone": "“{title}” is open again" },
     "deleteConfirm": { "title": "Delete reminder", "confirm": "Delete", "messageNamed": "Really delete “{title}”? This cannot be undone." },
@@ -1471,7 +1888,7 @@
     "title": "Weather data",
     "sync": "Sync Open-Meteo",
     "csvImport": "CSV import",
-    "formatHint": "Format: <code>DD.MM.YYYY;mean;min;max</code> (e.g. <code>15.01.2024;4.2;-1.0;7.1</code>), values in °C. Semicolon, tab or comma as separator; the old format with double quotes still works.",
+    "formatHint": "Format: <code>DD.MM.YYYY;mean;min;max</code> (e.g. <code>15.01.2024;4.2;-1.0;7.1</code>), values in °C. Semicolon, tab or comma as separator; the old format with double quotes still works. Dates also as <code>DD/MM/YYYY</code>, <code>DD-MM-YYYY</code> or <code>YYYY-MM-DD</code>; a header row is detected.",
     "downloadExample": "Download example CSV",
     "dropZone": "Drop a file here or click to select",
     "dropZoneAria": "Select a CSV file or drop it here",
@@ -1482,11 +1899,8 @@
     "locName": "Place name",
     "locHint": "Used for the Open-Meteo sync and sent rounded to about 1 km.",
     "monthly": "Monthly values (min / avg / max)",
-    "daysLoaded": "{count} days loaded",
-    "syncToast": "Sync OK · {imported} days (archive: {archive}, forecast: {forecast})",
     "archiveError": "Archive: {err}",
     "forecastError": "Forecast: {err}",
-    "importToast": "Import: {imported} days imported, {skipped} skipped",
     "coordInvalid": "Please enter a number between {min} and {max}.",
     "locationDefault": "The location is still the default for {country} ({name}). Enter your own location for accurate degree days.",
     "status": "Measured values up to {measured}.",
@@ -1500,7 +1914,24 @@
     "geoSearch": "Search",
     "geoNone": "No place found.",
     "locationSaved": "Location saved",
-    "attribution": "Weather data by"
+    "attribution": "Weather data by",
+    "daysLoaded": {
+      "one": "{count} day loaded",
+      "other": "{count} days loaded"
+    },
+    "syncToast": {
+      "one": "Sync OK · {imported} day (archive: {archive}, forecast: {forecast})",
+      "other": "Sync OK · {imported} days (archive: {archive}, forecast: {forecast})"
+    },
+    "importToast": "Import: {imported}, {skipped}",
+    "importDays": {
+      "one": "{count} day imported",
+      "other": "{count} days imported"
+    },
+    "importSkipped": {
+      "one": "{count} skipped",
+      "other": "{count} skipped"
+    }
   },
   "recommendations": {
     "loading": "Loading recommendations…",
@@ -1512,45 +1943,62 @@
     "sev": { "urgent": "Urgent", "warning": "Attention", "info": "Note" },
     "cat": { "effizienz": "Efficiency", "vertrag": "Contract", "bestand": "Stock", "anomalie": "Anomaly", "trend": "Trend" },
     "emptyAll": "No recommendations — all clear.",
-    "emptyFiltered": "No {sev} recommendations — all clear.",
     "dismiss": "Hide for 30 days",
     "error": "Error: {msg}",
     "engine": {
       "r1": {
-        "title": "{label} {ym}: {pct} % above expectation",
-        "detail": "In {ym} consumption was {pct} % above what this weather would lead one to expect. An appliance or heating check may be worthwhile."
+        "title": "{label} {ym}: {pct}% above expectation",
+        "detail": "In {ym} consumption was {pct}% above what this weather would lead one to expect. An appliance or heating check may be worthwhile."
       },
       "r2": {
-        "title": "{label}: {pct} % more than the previous year",
-        "detail": "The last twelve months were {pct} % above the same months of the previous year, weather-adjusted. Check whether appliances are ageing or habits have changed."
+        "title": "{label}: {pct}% more than the previous year",
+        "detail": "The last twelve months were {pct}% above the same months of the previous year, weather-adjusted. Check whether appliances are ageing or habits have changed."
       },
       "r3": {
         "title": "{label} {year}: high summer consumption",
-        "detail": "In July {year} consumption was {pct} % of the January value. For pure space heating this should be much lower — likely inefficient hot-water preparation."
+        "detail": "In July {year} consumption was {pct}% of the January value. For pure space heating this should be much lower — likely inefficient hot-water preparation."
       },
       "r4": {
         "title": "{label} {ym}: statistical anomaly",
         "detail": "Consumption in {ym} is well above what is usual for this month ({sigma}σ). Worth a closer look."
       },
       "r5": {
-        "title": "{label}: tank at {pct} %",
-        "detail": "The modelled stock of “{name}” is around {stock} {unit} ({pct} % of capacity). A delivery should be scheduled."
+        "title": "{label}: tank at {pct}%",
+        "detail": "The modelled stock of “{name}” is around {stock} {unit} ({pct}% of capacity). A delivery should be scheduled."
       },
       "r6": {
-        "title": "{label}: contract ends in {days} days",
-        "detail": "The contract “{provider}” ends in {days} days. Start a tariff comparison now and switch if needed.",
-        "titleCancel": "{label}: cancel by {date} ({days} days)",
-        "detailCancel": "For the contract “{provider}” to end on {end} instead of running on, the cancellation must reach the supplier by {date}. Start a tariff comparison now and switch if needed."
+        "detailCancel": "For the contract “{provider}” to end on {end} instead of running on, the cancellation must reach the supplier by {date}. Start a tariff comparison now and switch if needed.",
+        "title": {
+          "one": "{label}: contract ends in {days} day",
+          "other": "{label}: contract ends in {days} days"
+        },
+        "titleCancel": {
+          "one": "{label}: cancel by {date} ({days} day)",
+          "other": "{label}: cancel by {date} ({days} days)"
+        },
+        "detail": {
+          "one": "The contract “{provider}” ends in {days} day. Start a tariff comparison now and switch if needed.",
+          "other": "The contract “{provider}” ends in {days} days. Start a tariff comparison now and switch if needed."
+        }
       },
       "r7": {
         "title": "{label}: efficiency class {class} ({kwh} kWh/m²·a)",
-        "detail": "The heating energy demand {year} for {label} corresponds to efficiency class {class} ({kwh} kWh/m²·a). Insulation, heating optimisation or a hydraulic balance can improve the class noticeably."
+        "detail": "{label}: the heating energy demand {year} corresponds to efficiency class {class} ({kwh} kWh/m²·a). Insulation, heating optimisation or a hydraulic balance can improve the class noticeably."
+      },
+      "rPriceIncrease": {
+        "title": "{label}: price increase from {date}",
+        "detail": "{provider} is raising prices from {date}. This gives you a special right to terminate as of that day (§ 41(5) EnWG). Compare now and give notice in time if another tariff is cheaper."
       }
     },
     "dismissedNamed": "“{title}” hidden for 30 days",
     "restored": "Recommendation shown again",
     "dismissNamed": "Hide for 30 days: {title}",
-    "emptyNoData": "Not enough data for recommendations yet — they appear once there are a few months of consumption."
+    "emptyNoData": "Not enough data for recommendations yet — they appear once there are a few months of consumption.",
+    "emptyFiltered": {
+      "urgent": "No urgent recommendations — all clear.",
+      "warning": "No warnings — all clear.",
+      "info": "No notes — all clear."
+    }
   },
   "tariff": {
     "loading": "Loading…",
@@ -1565,21 +2013,15 @@
     "loadingComparison": "Loading comparison…",
     "noMeter": "No meter available.",
     "notSupported": "Not supported.",
-    "noContracts": "No contracts to compare.",
     "shadowBadge": "Shadow",
     "shadowFallbackLabel": "Hypothesis",
-    "months": "{count} mo.",
-    "monthsOne": "1 month",
     "partialHint": "Real contracts covering only part of the period are marked with their duration; consumption and cost refer to exactly those days. Shadow contracts count as a price sheet for the whole period — so offers with different terms stay comparable.",
     "projectedFull": "extrapolated to {months} mo.: {value}",
     "realTotal": "Actually billed in this period: {value}",
-    "noRows": "No contracts with a unit price in the selected period.",
-    "chartTitle": "Price comparison per unit",
-    "chartAlt": "Bar chart of total cost per unit ({unit}) for each tariff",
     "unitCostTitle": "Total cost per unit — unit price, standing charge and bonuses combined. The only figure that fairly compares terms of different lengths.",
-    "legend": "Negative (green) = cheaper than the contract actually billed for the same months. Only pure tariff costs are compared; advance payments and one-off settlements are cash flows and stay out of it.",
+    "legend": "Negative (green) = cheaper than the contract actually billed for the same months. Only pure tariff costs are compared; advance payments and special payments are cash flows and stay out of it.",
     "action": { "edit": "Edit", "delete": "Delete", "editNamed": "Edit: {name}", "deleteNamed": "Remove: {name}" },
-    "col": { "tariff": "Tariff", "period": "Period", "consumption": "Consumption", "cost": "Cost", "unitCost": "{minor}/{unit}", "vsReal": "vs. actual", "savings": "Difference" },
+    "col": { "tariff": "Tariff", "period": "Period", "consumption": "Consumption", "cost": "Cost", "unitCost": "{minor}/{unit}", "savings": "Difference" },
     "period": "Period: {label}",
     "periodRange": "Period: {label} ({from} – {to})",
     "shadow": {
@@ -1623,7 +2065,6 @@
       "copy": "Copy figure",
       "copied": "{value} {unit} copied",
       "copyFail": "Could not copy",
-      "basis": "Based on {months} months of consumption history",
       "switchDate": "Earliest switch date",
       "source": {
         "contract": "from contract",
@@ -1634,10 +2075,8 @@
       "currentContract": "Current: {label}",
       "runsUntil": "runs until {date}",
       "cancelBy": "Cancel by {date}",
-      "cancelIn": "{days} days left",
       "cancelPassed": "Deadline passed",
       "noNotice": "Add the notice period to the contract and the date will be calculated.",
-      "window": "Comparison period {from} to {to} ({months} months)",
       "current": "Current",
       "reference": "Baseline",
       "col": {
@@ -1649,22 +2088,74 @@
       },
       "year1Title": "First-year cost, sign-up bonus already deducted",
       "year2Title": "Ongoing annual cost without one-off bonuses",
-      "breakEvenDelta": "{pct} % of expected consumption",
+      "breakEvenDelta": "{pct}% of expected consumption",
       "breakEvenNone": "No crossover — the tariff is cheaper or dearer at any volume",
       "bonusIncluded": "incl. {value} bonus",
       "guaranteeEnds": "Price guarantee ends {date}",
-      "sensitivity": "{low} … {high} at ±10 % consumption",
+      "sensitivity": "{low} … {high} at ±10% consumption",
       "rankingHint": "Ranked by the ongoing cost from year two — a sign-up bonus disappears after twelve months.",
       "chartTitle": "Cost over the comparison period",
       "chartAlt": "Monthly cost per tariff across the comparison period",
       "noOffers": "No offer saved yet. Search a comparison site with {value} {unit} and enter the result here.",
       "addOffer": "Add offer",
-      "contractChain": "{first} + {count} contracts in sequence",
-      "followUp": "Follow-on already signed: {label} ({from} – {to})"
+      "followUp": "Follow-on already signed: {label} ({from} – {to})",
+      "cancelIn": {
+        "one": "{days} day left",
+        "other": "{days} days left"
+      },
+      "basis": {
+        "one": "Based on {months} month of consumption history",
+        "other": "Based on {months} months of consumption history"
+      },
+      "window": {
+        "one": "Comparison period {from} to {to} ({months} month)",
+        "other": "Comparison period {from} to {to} ({months} months)"
+      },
+      "contractChain": {
+        "one": "{first} + {count} contract in sequence",
+        "other": "{first} + {count} contracts in sequence"
+      },
+      "portal": "Official tariff comparison ({country}) ↗"
     },
     "retro": {
       "heading": "Looking back at real months",
       "intro": "The same tariffs applied to consumption actually measured — the proof that the maths holds up."
+    },
+    "months": {
+      "one": "{count} month",
+      "other": "{count} mo."
+    },
+    "switchChecklist": {
+      "title": "Have ready for switching",
+      "malo": "Market location ID",
+      "serial": "Meter number",
+      "lastReading": "Last meter reading ({date})",
+      "hint": "The new supplier will ask for these details.",
+      "copy": "Copy details",
+      "copied": "Details copied"
+    },
+    "groupOption": "Group: {name}",
+    "dynamic": {
+      "toggle": "Dynamic tariff (wholesale price per month)",
+      "markup": "Mark-up per kWh",
+      "markupHint": "Everything except the wholesale price: grid fee, levies, taxes, margin — shown on the supplier’s price sheet.",
+      "vat": "VAT on the wholesale price (%)",
+      "flatNote": "Wholesale price as a monthly average — as if your consumption were spread evenly across the day; evening use usually costs more.",
+      "assumedMonths": {
+        "one": "{count} month without a market value: same month of the previous year assumed.",
+        "other": "{count} months without a market value: same month of the previous year assumed."
+      },
+      "missingMarket": "Wholesale prices for the dynamic tariff are missing — load them below under “Wholesale electricity prices”."
+    },
+    "market": {
+      "title": "Wholesale electricity prices",
+      "range": "Monthly averages available: {from} to {to}",
+      "empty": "No wholesale prices loaded yet.",
+      "hint": "Basis for the dynamic tariff check: add an offer as a dynamic tariff and the app calculates with each month’s wholesale price. Prices are loaded only when you tap the button.",
+      "sync": "Load from SMARD",
+      "import": "Import file",
+      "loaded": "Wholesale prices {from} to {to} loaded",
+      "attribution": "Wholesale prices Germany/Luxembourg: Bundesnetzagentur | SMARD.de (CC BY 4.0)"
     }
   },
   "analysis": {
@@ -1693,17 +2184,24 @@
     "scatterPoints": "Months",
     "seasonalAvg": "{label} avg",
     "contractEnd": {
-      "stage1": "Early warning",
-      "stage2": "Reminder",
-      "stage3": "Urgent",
-      "title": "Contract end {stage}:",
       "endsToday": "today",
       "endsTomorrow": "tomorrow",
-      "endsInDays": "in {days} days",
       "ends": "{provider} ends {when}",
       "fallbackProvider": "Contract",
       "checkNote": "Check the notice period and a follow-up contract.",
-      "cancelBy": "Cancel {provider} by {date} ({days} days left), otherwise the contract runs on beyond {end}."
+      "heading": {
+        "stage1": "Early warning — contract end:",
+        "stage2": "Reminder — contract end:",
+        "stage3": "Contract end — urgent:"
+      },
+      "endsInDays": {
+        "one": "in {days} day",
+        "other": "in {days} days"
+      },
+      "cancelBy": {
+        "one": "Cancel {provider} by {date} ({days} day left), otherwise the contract runs on beyond {end}.",
+        "other": "Cancel {provider} by {date} ({days} days left), otherwise the contract runs on beyond {end}."
+      }
     },
     "yoy": {
       "title": "Year comparison · monthly deltas",
@@ -1729,19 +2227,22 @@
       "perPersonDay": "{liters} L / person / day",
       "reference": "· reference {ref} L",
       "basis": "Basis: {months} · {m3} m³ · {persons}",
-      "monthsOne": "{count} month",
-      "monthsMany": "{count} months",
-      "personsOne": "{count} person",
-      "personsMany": "{count} people",
       "barGut": "good ≤ {value}",
       "barWarn": "warning ≥ {value}",
-      "indexNote": "{bandNote} Index 100 = exactly the per-person reference consumption stored in the settings."
+      "indexNote": "{bandNote} Index 100 = exactly the per-person reference consumption stored in the settings.",
+      "months": {
+        "one": "{count} month",
+        "other": "{count} months"
+      },
+      "persons": {
+        "one": "{count} person",
+        "other": "{count} people"
+      }
     },
     "baseline": {
       "chartPre": "before the baseline date",
       "activeSince": "Analysis starts at {date} — {label}",
       "activeSinceNoLabel": "Analysis starts at {date}",
-      "excluded": "{count} earlier months stay visible but do not feed the model.",
       "limitsTitle": "What cannot be computed right now",
       "limit": {
         "weather_adjustment": "Weather correction needs at least {need} months of history — {have} available.",
@@ -1756,8 +2257,16 @@
       "perDegreeDay": "{unit} per degree day",
       "points": "{n} data points",
       "weatherCorrected": "weather-corrected",
-      "significant": "The difference is statistically supported (95 % range {lo} % to {hi} %).",
-      "notSignificant": "The difference is not yet statistically supported (95 % range {lo} % to {hi} %) — wait for more months after the measure."
+      "significant": "The difference is statistically supported (95% range {lo}% to {hi}%).",
+      "notSignificant": "The difference is not yet statistically supported (95% range {lo}% to {hi}%) — wait for more months after the measure.",
+      "excluded": {
+        "one": "{count} earlier month stays visible but does not feed the model.",
+        "other": "{count} earlier months stay visible but do not feed the model."
+      },
+      "seasonalMean": {
+        "hint": "Without a heating curve: the same calendar months before and after the cut-off are compared ({n} months), scaled to a year. Weather is not adjusted.",
+        "perYear": "{unit} per year"
+      }
     },
     "deliveryModelled": "Heating oil and pellets have no measured monthly values: the months are distributed from the deliveries by degree days. A heating curve on top would be circular — every model would fit perfectly — so none is shown.",
     "scatterNotInFit": "not in the model (partial month or few degree days)",
@@ -1797,9 +2306,9 @@
     "col": { "month": "Month", "consumption": "Consumption ({unit})", "hgt": "HDD estimated", "cost": "Cost estimated", "advance": "Advance projected", "balance": "Balance running", "method": "Method" },
     "bonusNote": "Future bonuses are not extrapolated — only bonuses recorded in the contract with a credit date within the forecast period are included in the costs.",
     "whatIfInvalid": "Please check the highlighted fields: temperature offset −20 to 20 °C, price factor 0 to 10, horizon 1 to 24 months.",
-    "chartBand": "Range ({level} % of years)",
+    "chartBand": "Range ({level}% of years)",
     "r2Label": "goodness of fit R²",
-    "annualBand": "Year: {value} {unit}, in {level} % of years between {low} and {high} {unit} — depending on the winter.",
+    "annualBand": "Year: {value} {unit}, in {level}% of years between {low} and {high} {unit} — depending on the winter.",
     "hddSourceClimate": "Degree days: climate normal {from}–{to} at the location.",
     "hddSourceHistory": "Degree days: average of your own temperature history.",
     "warn": {
@@ -1814,7 +2323,12 @@
       "filled": "daily average (no own value)",
       "blend": "blend: {reg} heating curve, {seasonal} seasonal profile"
     },
-    "chartAltSpan": "Line chart: consumption {from} – {to} and forecast until {until}"
+    "chartAltSpan": "Line chart: consumption {from} – {to} and forecast until {until}",
+    "co2Scenario": {
+      "label": "CO₂ price from {year} ({cur}/t)",
+      "placeholder": "empty = off",
+      "delta": "With {price} {cur}/t CO₂ from {from}: +{ct} {minor}/kWh, {amount} more over the next 12 months (incl. VAT)."
+    }
   },
   "report": {
     "createdOn": "Created on {date}",
@@ -1855,11 +2369,19 @@
     "tableRevenue": "Revenue {cur}",
     "certificate": "Certificate-style: {value} kWh/m²·yr (net calorific value, weather-adjusted, {area} m² usable floor area)",
     "page": {
-      "subtitle": "One year at a glance, as a PDF to file or share.",
+      "subtitle": "A year at a glance — to print, file or share.",
       "open": "Open in browser",
-      "note": "On the iPhone the report opens in a new tab; from there you can save or share it."
+      "note": "On the iPhone the report opens in a new tab; from there you can save or share it.",
+      "pdfHeading": "PDF file",
+      "languageNote": "The PDF is created in the installation’s default language ({lang}); the print view follows this device’s language."
     },
-    "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself."
+    "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself.",
+    "print": {
+      "open": "Open print view",
+      "button": "Print / save as PDF",
+      "back": "← Annual report",
+      "hint": "The report in the language and notation of the interface. “Print” puts it on paper or saves it as PDF — on the iPhone via Share → Print."
+    }
   },
   "migration": {
     "warnNoSettings": "No settings found in the backup — the defaults apply.",
@@ -1924,9 +2446,9 @@
       "noWorkingPrice": "No unit price on file — this tariff cannot be calculated."
     },
     "meter": {
-      "multipleMeters": "Multiple meters for {utility} are not allowed",
-      "capacityRequired": "Tank capacity (capacity) > 0 is required for {label}",
-      "initialStockRequired": "Initial stock (initial_stock) ≥ 0 is required for {label}",
+      "multipleMeters": "{utility}: multiple meters are not allowed",
+      "capacityRequired": "{label}: a tank capacity above 0 is required (API: capacity).",
+      "initialStockRequired": "{label}: an initial stock of 0 or more is required (API: initial_stock).",
       "nameEmpty": "Meter name must not be empty",
       "notFound": "Meter not found",
       "notFoundId": "Meter not found: {id}",
@@ -1935,10 +2457,10 @@
       "hasContracts": "Meter still has contracts — please delete or reassign the contracts first",
       "isParent": "Meter is a parent of sub-meters — please dissolve the sub-meter assignment first",
       "noOpenDevice": "No open meter — please create the meter initially first",
-      "oldFinalRequired": "For a meter swap the final reading of the old device („old_final_counter“) must be provided.",
+      "oldFinalRequired": "For a meter swap the final reading of the old device (“old_final_counter”) must be provided.",
       "unknownUtility": "Unknown utility: {utility}",
-      "invalidAlias": "Invalid alias „{alias}“ — allowed are 1–64 characters of letters, digits, _ . -",
-      "aliasTaken": "Alias „{alias}“ is already in use for {utility}",
+      "invalidAlias": "Invalid alias “{alias}” — allowed are 1–64 characters of letters, digits, _ . -",
+      "aliasTaken": "{utility}: alias “{alias}” is already in use",
       "selfParent": "A meter cannot be its own parent meter",
       "parentNotFound": "Parent meter not found: {parent}",
       "chainParentIsSub": "Multi-level sub-meter chains are not allowed — the chosen parent meter is itself already a sub-meter (max. 1 level).",
@@ -1958,7 +2480,17 @@
       "duplicateTankLevel": "A tank reading is already recorded for {date}",
       "tankLevelInvalid": "Tank reading “{value}” is invalid — expected a number from 0",
       "tankLevelAboveCapacity": "Tank reading {level} is above the tank capacity {capacity}",
-      "initialPriceInvalid": "Price of the initial stock “{value}” is invalid — expected a number from 0 or empty"
+      "initialPriceInvalid": "Price of the initial stock “{value}” is invalid — expected a number from 0 or empty",
+      "roleInvalid": "Unknown role “{role}” for this meter.",
+      "captureInvalid": "Unknown recording method “{value}” – possible are meter readings or consumption per period.",
+      "captureLocked": "The recording method cannot be changed while the meter has data of the current kind.",
+      "maloInvalid": "Market location ID “{value}” is invalid – it has 11 digits, the last one a check digit",
+      "meloInvalid": "Metering location ID “{value}” is invalid – it has 33 characters and starts with DE",
+      "hasPeriods": "Meter still has periods — please delete the periods first",
+      "hasBills": "Meter still has bills — please delete the bills first",
+      "groupHasContracts": "The meter group still has contracts — please delete or reassign the group contracts first",
+      "heatPumpLinkInvalid": "Meter “{id}” is not an electricity meter with the heat pump role",
+      "valueInvalid": "{field}: “{value}” is not a valid value"
     },
     "common": {
       "unknownUtility": "Unknown utility: {utility}",
@@ -1971,20 +2503,22 @@
       "noDevice": "No device of this meter is active for the date {date}",
       "notFound": "Reading not found",
       "counterInvalid": "Invalid meter reading “{value}” – expected a number of 0 or more.",
-      "dateInvalid": "Invalid reading date “{date}” – expected YYYY-MM-DD."
+      "dateInvalid": "Invalid reading date “{date}” – expected YYYY-MM-DD.",
+      "clientRefInvalid": "Invalid entry identifier (client_ref): 8 to 64 characters of letters, digits and hyphens.",
+      "periodMeter": "This meter records consumption per period – please enter a period instead of a meter reading."
     },
     "contract": {
-      "noContracts": "No contracts can be created for {label} (statistics-only utility).",
+      "noContracts": "{label}: no contracts can be created (statistics-only utility).",
       "notFound": "Contract not found",
       "startRequired": "Contract start (start) is required",
       "endBeforeStart": "Contract end is before contract start",
-      "swBasisInvalid": "Waste-water basis must be \"trinkwasser\" or \"separater_zaehler\", was: {basis}",
-      "swSeparateMeterRequired": "With waste-water basis \"separater_zaehler\", separater_zaehler_meter_id must be set",
+      "swBasisInvalid": "Waste-water basis must be “trinkwasser”, “separater_zaehler” or “trinkwasser_minus_abzug”, was: {basis}",
+      "swSeparateMeterRequired": "With waste-water basis “separater_zaehler”, separater_zaehler_meter_id must be set",
       "swEntryMissing": "Rainwater entry #{n}: {fields} missing",
       "entryMissing": "{label} entry #{n}: {field} missing",
       "bonusEntryMissing": "Bonus entry #{n}: {field} missing",
       "specialPaymentMissing": "Special payment #{n}: {field} missing",
-      "specialPaymentUnknownKind": "Special payment #{n}: unknown kind \"{kind}\"",
+      "specialPaymentUnknownKind": "Special payment #{n}: unknown kind “{kind}”",
       "specialPaymentImpactMissing": "Special payment #{n} (with impact): {field} missing",
       "fields": {
         "date": "Date",
@@ -2005,12 +2539,22 @@
       "bonusNegative": "The sign-up bonus must not be negative.",
       "amountInvalid": "{label} entry #{n}: amount “{value}” is not a number",
       "noticeDaysOutOfRange": "The notice period in days must be between 0 and 730.",
-      "noticeModeInvalid": "Unknown notice mode “{mode}” (allowed: term_end, month_end, any_day)."
+      "noticeModeInvalid": "Unknown notice mode “{mode}” (allowed: term_end, month_end, any_day).",
+      "swDeductionRequired": "For “drinking water minus deduction meters”, choose at least one deduction meter.",
+      "swDeductionSelf": "The contract’s meter cannot be its own deduction meter.",
+      "valueInvalid": "{field}: “{value}” is not a valid value",
+      "capacityMissing": "A capacity charge needs the connected load in kW",
+      "targetInvalid": "“{id}” is not a valid target for a group contract — the group must belong to the utility and have meters",
+      "groupMemberOverlap": "A meter of the group has its own contract in this period (from {start}) — end it first, otherwise the standing charge and consumption count twice",
+      "dynamicShadowOnly": "A dynamic tariff can only be calculated as an offer (shadow contract) for electricity — record a real dynamic contract with monthly prices",
+      "priceModelInvalid": "Unknown price model “{value}”",
+      "priceImportEmpty": "The file contains no line in the format month;price",
+      "priceImportUnsupported": "Monthly prices are only available for contracts with a unit price per kWh"
     },
     "delivery": {
       "notFound": "Delivery not found: {id}",
       "tankNotFound": "Tank/store not found: {id}",
-      "notDeliveryBased": "Utility „{utility}“ is not delivery-based; use the ReadingService.",
+      "notDeliveryBased": "“{utility}” is recorded via meter readings, not deliveries — please add a reading.",
       "dateMissing": "Delivery date (date) is missing or not in format YYYY-MM-DD",
       "quantityPositive": "Delivery quantity (quantity) must be > 0",
       "priceNegative": "Unit price must not be negative",
@@ -2025,15 +2569,18 @@
       "valueMissing": "Reading (value) is missing or not a number",
       "dateFormat": "Date must be in format YYYY-MM-DD: {date}",
       "meterMissing": "Meter (meter) is missing — provide alias or internal ID",
-      "meterNotFound": "No meter found for „{meter}“ in {utility} (neither as alias nor as ID)",
+      "meterNotFound": "{utility}: no meter found for “{meter}” (neither as alias nor as ID)",
       "unauthorized": "Unauthorised — send a valid API token as “Authorization: Bearer <token>”.",
-      "tokenRequiredWithLogin": "Sign-in is enabled – the push then needs an API token. Please create one in the settings."
+      "tokenRequiredWithLogin": "Sign-in is enabled – the push then needs an API token. Please create one in the settings.",
+      "tooMany": "Too many entries in one batch (at most {max}, received: {count}).",
+      "bodyInvalid": "Invalid entry: an object with utility, meter and value is expected.",
+      "periodMeter": "The meter “{meter}” records consumption per period and does not accept meter readings."
     },
     "backup": {
       "noVersionField": "No backup_version field — not a valid backup",
       "versionUnsupported": "Backup version {ver} is not directly supported. Please import it via the migration into v1.0.0 first, or use a newer backup.",
       "schemaNewer": "Backup schema {schema} is newer than the app schema {appSchema}. Please update the app first, then import the backup.",
-      "invalid": "The backup is incomplete or damaged ({count} problem(s)). Nothing was restored.",
+      "invalid": "The backup is incomplete or damaged (problems: {count}). Nothing was restored.",
       "snapshotFailed": "The safety snapshot before restoring failed. Without it there is no way back. Restore anyway only with explicit consent.",
       "snapshotNotFound": "Snapshot “{name}” not found.",
       "snapshotUnreadable": "Snapshot “{name}” is unreadable (not valid JSON)."
@@ -2044,7 +2591,11 @@
       "rowIncomplete": "Line {line}: date or reading missing",
       "counterNotNumeric": "Line {line}: reading is not a number ({value})",
       "rowError": "Line {line}: {message}",
-      "tooFewColumns": "Line {line}: too few columns"
+      "tooFewColumns": "Line {line}: too few columns",
+      "dateMonthFirst": "Line {line}: month above 12 ({value}) — please write the day before the month (DD/MM/YYYY) or YYYY-MM-DD",
+      "anchorMissing": "Consumption values need a starting reading: a reading on {date} or a start value",
+      "mappingInvalid": "The column mapping does not fit the file — please check columns, unit and header rows",
+      "seriesRow": "Line {line}: no date or value recognised (“{value}”)"
     },
     "demo": {
       "backupNotFound": "Demo backup not found.",
@@ -2052,14 +2603,14 @@
       "backupInvalid": "Demo backup is invalid (not JSON)."
     },
     "migration": {
-      "noVersionField": "No \"version\" field in the backup — probably not a v0.9.0 backup. Expected are v0.9.0 backups with version \"2.1\" or older.",
-      "versionUnrecognized": "Backup version \"{ver}\" is not recognised. Supported are v0.9.0 backup formats: {supported}. For native v1.0.3 backups (backup_version 3.0+) please use the standard import in Settings → Backup & Restore.",
+      "noVersionField": "No “version” field in the backup — probably not a v0.9.0 backup. Expected are v0.9.0 backups with version “2.1” or older.",
+      "versionUnrecognized": "Backup version “{ver}” is not recognised. Supported are v0.9.0 backup formats: {supported}. For native v1.0.3 backups (backup_version 3.0+) please use the standard import in Settings → Backup & Restore.",
       "invalidMode": "Invalid mode: {mode} (allowed: replace, merge)",
       "backupMissing": "The “backup” field is missing or not an object.",
       "translatedMissing": "The “translated” field is missing or not an object."
     },
     "csv": {
-      "notDeliveryBased": "Utility „{utility}“ is not delivery-based; use the readings export."
+      "notDeliveryBased": "Utility “{utility}” is not delivery-based; use the readings export."
     },
     "settings": {
       "factorsNotList": "Conversion factors must be passed as a list of entries",
@@ -2075,7 +2626,8 @@
     },
     "billCheck": {
       "gasOnly": "Bill verification is only available for gas",
-      "invalidRange": "Please give a valid range (from < to, YYYY-MM-DD)"
+      "invalidRange": "Please give a valid range (from < to, YYYY-MM-DD)",
+      "unsupportedUtility": "“{utility}” has no bill check"
     },
     "http": {
       "crossSite": "Rejected: the request came from another website. Changes can only be made from within Energietracker.",
@@ -2083,10 +2635,15 @@
       "hostNotAllowed": "The host name “{host}” is not allowed (ET_ALLOWED_HOSTS)."
     },
     "storage": {
-      "dataTooNew": "The data comes from a newer version (schema {schema}). This version only knows schema {app} and writes nothing so as not to damage it. Please start the newer version again."
+      "dataTooNew": "The data comes from a newer version (schema {schema}). This version only knows schema {app} and writes nothing so as not to damage it. Please start the newer version again.",
+      "corrupted": "The file {file} is damaged (not valid JSON). Please restore it from a backup or repair it; until then it will not be overwritten.",
+      "corruptedCopy": "The file {file} is damaged (not valid JSON); a copy is at {copy}. Please restore it from a backup or repair it; until then it will not be overwritten.",
+      "unreadable": "The file {file} cannot be read — please check the permissions of the data directory.",
+      "locked": "The file {file} cannot be locked. Please try again in a moment."
     },
     "report": {
-      "yearRange": "The year must be a number between 2000 and 2100."
+      "yearRange": "The year must be a number between 2000 and 2100.",
+      "pdfUnsupportedLanguage": "The PDF cannot set this language. The print view (Annual report → Open print view) prints it and saves it as PDF."
     },
     "auth": {
       "required": "Please sign in.",
@@ -2097,8 +2654,78 @@
       "passwordFixed": "The password is set via the environment (ET_ADMIN_PASSWORD_HASH) and cannot be changed here.",
       "modeFixed": "Sign-in is set via the environment (ET_AUTH) and cannot be turned off here.",
       "passwordTooShort": "The password needs at least {min} characters.",
-      "scopeInvalid": "Unknown scope – read and admin are allowed.",
+      "scopeInvalid": "Unknown scope – read, admin and calendar are allowed.",
       "keyNotFound": "API key not found."
+    },
+    "weather": {
+      "badFormat": "Open-Meteo replied in an unexpected format.",
+      "noDays": "Open-Meteo replied but returned no usable days.",
+      "network": "Open-Meteo cannot be reached ({detail}). Check the server’s network and DNS.",
+      "http": "Open-Meteo replied with HTTP {status}. Try again later.",
+      "noTransport": "The server cannot fetch web addresses: PHP has neither cURL nor allow_url_fopen."
+    },
+    "export": {
+      "formatInvalid": "Unknown CSV format “{format}” — allowed are 1 and local."
+    },
+    "attachment": {
+      "type": "Only photos (JPEG, PNG, WebP) and PDF files can be stored as a receipt.",
+      "size": "The file is too large – {max} MB at most.",
+      "quota": "The storage for receipts is full ({max} MB at most) – delete old receipts or raise the limit in the settings.",
+      "notFound": "Receipt not found",
+      "wrongKind": "This receipt does not belong to this kind of entry."
+    },
+    "ocr": {
+      "off": "No text recognition set up (Settings → Expert).",
+      "notLocal": "Text recognition has to run in your own network – “{host}” is not an address in the home network.",
+      "timeout": "Text recognition did not answer within {seconds} seconds.",
+      "unreachable": "Text recognition cannot be reached.",
+      "badAnswer": "Text recognition returned no usable answer."
+    },
+    "period": {
+      "notFound": "Period not found",
+      "meterNotPeriod": "This meter records meter readings, not consumption per period (recording method in the meter dialogue).",
+      "dateInvalid": "Invalid date “{date}” – expected YYYY-MM-DD (or a month YYYY-MM).",
+      "order": "The period starts after its end ({from} – {to}).",
+      "valueInvalid": "Invalid value “{value}” – expected a number of 0 or more.",
+      "overlap": "The period overlaps an existing one ({from} – {to}).",
+      "csvDate": "Line {line}: period not recognised ({value}).",
+      "csvValue": "Line {line}: value is not a number ({value}).",
+      "csvLine": "Line {line}: {message}"
+    },
+    "tenancy": {
+      "notFound": "Tenancy not found",
+      "statementNotFound": "Statement not found",
+      "dateInvalid": "Invalid date “{date}” – expected YYYY-MM-DD.",
+      "endBeforeStart": "The end is before the start.",
+      "anchorInvalid": "Invalid date “{value}” – expected a calendar day (DD.MM.).",
+      "listInvalid": "A list is incomplete or in the wrong format.",
+      "meterNotFound": "Meter “{id}” not found.",
+      "periodInvalid": "The billing period starts after its end ({from} – {to}).",
+      "amountInvalid": "Invalid amount “{value}”."
+    },
+    "co2": {
+      "yearInvalid": "Invalid year “{year}” – possible from 2021."
+    },
+    "bill": {
+      "notFound": "Bill not found",
+      "noResult": "The bill shows neither an additional payment nor a credit – there is nothing to book",
+      "noContract": "There is no contract for this period – add one first",
+      "periodInvalid": "Period “{from}” to “{to}” is invalid",
+      "amountInvalid": "Amount “{value}” is not a valid number"
+    },
+    "marketPrices": {
+      "noRows": "The file contains no wholesale prices — expected a SMARD download or lines like 2025-01;114.14",
+      "syncFailed": "SMARD could not be reached or returned no values — try again later or import a file"
+    },
+    "evReport": {
+      "methodInvalid": "Unknown method “{value}” — allowed are contract and flat",
+      "flatMissing": "No flat electricity rate is known for {year} — enter it yourself",
+      "noContract": "There is no paying contract for the wall box — neither its own nor one on the parent meter",
+      "yearInvalid": "Year “{year}” is invalid",
+      "flatInvalid": "Flat rate “{value}” is not a valid number (0 to 200 cents)"
+    },
+    "heatPump": {
+      "yearInvalid": "Year “{year}” is invalid"
     }
   },
   "login": {
@@ -2123,7 +2750,9 @@
     "group": ",",
     "date": "d/m/Y",
     "monthsShort": "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sept,Oct,Nov,Dec",
-    "money": "{cur}{amount}"
+    "money": "{cur}{amount}",
+    "typography": "none",
+    "pdfCharset": "cp1252"
   },
   "countries": {
     "DE": "Germany",
@@ -2158,9 +2787,61 @@
     "expected": "Expected on {date}:"
   },
   "billCheck": {
-    "noMeter": "The bill check recalculates correction factor × calorific value and is therefore available for gas. Set up a gas meter first.",
-    "addMeter": "Set up gas meter",
-    "meter": "Meter"
+    "noMeter": "The bill check recalculates the annual bill for gas, electricity, water and district heating. Set up a meter first.",
+    "addMeter": "Set up meter",
+    "meter": "Meter",
+    "pickUtility": "Utility",
+    "row": {
+      "price": "Price ({minor}/{unit})",
+      "energyCost": "Consumption cost",
+      "fixed": "Fixed costs"
+    },
+    "ownTotal": "Recalculated: {total} (less bonus {rebate})",
+    "invoice": {
+      "title": "According to the bill",
+      "hint": "Enter the figures from the supplier’s annual bill. The app recalculates the same period and shows where it differs.",
+      "toInclusive": "To (inclusive)",
+      "issued": "Bill date",
+      "kwh": "Consumption on the bill (kWh)",
+      "m3": "Consumption on the bill (m³)",
+      "amount": "Bill amount (incl. VAT)",
+      "advances": "Advance payments made",
+      "result": "Additional payment / credit",
+      "resultHint": "positive = additional payment",
+      "items": "Other items (levies, fees, credits)",
+      "addItem": "Add item",
+      "itemLabel": "Description",
+      "itemAmount": "Amount (credit negative)",
+      "co2Cost": "CO₂ cost on the bill",
+      "attach": "Attach bill (PDF or photo)",
+      "save": "Save bill"
+    },
+    "saved": "Bill saved",
+    "book": "Book as special payment",
+    "booked": "Booked as a special payment in the contract",
+    "bookedTag": "booked",
+    "compare": "Compare",
+    "noBills": "No bill recorded yet.",
+    "confirmDelete": "Delete this bill? A special payment already booked stays in the contract.",
+    "bookNote": "Annual bill {from} – {to}",
+    "delta": {
+      "title": "Comparison {from} – {to}",
+      "ours": "Recalculated",
+      "invoice": "On the bill",
+      "diff": "Difference",
+      "amount": "Amount",
+      "ok": "matches",
+      "check": "check"
+    },
+    "reason": {
+      "estimated_reading_at_boundary": "An estimated or interpolated meter reading sits at a boundary of the period – the bill may use a different reading.",
+      "price_change_inside": "The price changes within the period – the supplier may split consumption between old and new price differently.",
+      "factor_change_inside": "The calorific value or correction factor changes within the period.",
+      "items_not_modelled": "The other items are taken over from the bill, not recalculated.",
+      "price_missing": "The contract has no price for part of the period – costs are missing there too.",
+      "gaps": "Meter readings are missing within the period."
+    },
+    "ownTotalOnly": "Recalculated: {total}"
   },
   "glossary": {
     "hdd": {
@@ -2209,7 +2890,7 @@
     },
     "balance": {
       "term": "Balance",
-      "text": "The difference between the cost of your consumption and the advance payments made (including one-off payments). Credit: you paid more and get money back. Additional payment: consumption cost more."
+      "text": "The difference between the cost of your consumption and the advance payments made (including special payments). Credit: you paid more and get money back. Additional payment: consumption cost more."
     },
     "advance": {
       "term": "Advance payment",
@@ -2224,7 +2905,7 @@
       "text": "A fixed amount per month, independent of consumption."
     },
     "specialPayment": {
-      "term": "One-off payment",
+      "term": "Special payment",
       "text": "A refund, additional payment or extra advance outside the monthly advance. “With effect” also changes the future advance."
     },
     "offer": {
@@ -2288,12 +2969,52 @@
       "text": "For heating oil and pellets, consumption follows from initial stock, deliveries and known stock levels (delivery “to full”, tank reading). Between two known levels it is calculated, afterwards estimated."
     },
     "subMeter": {
-      "term": "Submeter and group",
-      "text": "A submeter measures part of another meter and is subtracted from it so that nothing counts twice. A group only combines meters for the overview."
+      "term": "Sub-meter and group",
+      "text": "A sub-meter measures part of another meter and is subtracted from it so that nothing counts twice. A group only combines meters for the overview."
     },
     "co2Avoided": {
       "term": "Avoided CO₂",
       "text": "Solar power replaces grid power. The calculation uses the CO₂ factor of grid electricity (Settings → Utilities & billing) — this much CO₂ would otherwise have been emitted. Simplified: manufacturing the system is not included."
+    },
+    "periodCapture": {
+      "term": "Consumption per period",
+      "text": "A way of recording besides meter readings: each period holds the consumption itself, for example from the monthly consumption information. The app spreads it over the months to the day; after that everything works as with meter readings."
+    },
+    "uvi": {
+      "term": "Monthly consumption information",
+      "text": "Since 2022, tenants with remotely read meters in Germany must be told their heating and hot-water consumption every month, with the previous month, the same month last year and an average user (HeizkostenV § 6a). The values can be entered as consumption per period."
+    },
+    "prepayment": {
+      "term": "Prepayment (service charges)",
+      "text": "What a tenant pays the landlord every month for heating and operating costs. The service charge statement compares it with the actual costs."
+    },
+    "utilityStatement": {
+      "term": "Service charge statement",
+      "text": "The landlord’s annual statement. In Germany it must arrive within twelve months of the end of the billing period; objections are possible up to twelve months after receipt (BGB § 556). Both deadlines appear in the calendar."
+    },
+    "dhw": {
+      "term": "Hot-water heat",
+      "text": "The heat used by a hot-water meter, calculated under HeizkostenV § 9: 2.5 kWh per m³ and degree above 10 °C. 1 m³ at 60 °C is 125 kWh. A calculated value, not a measurement."
+    },
+    "co2Price": {
+      "term": "CO₂ price (BEHG)",
+      "text": "Since 2021 suppliers of gas and heating oil in Germany pay a price for every tonne of CO₂ and pass it on in the unit price: 55 euros in 2025, 60 euros per tonne in 2026. The app shows it – it is not a surcharge. It is calculated with the standard BEHG factors; wood, pellets and electricity carry none."
+    },
+    "co2Split": {
+      "term": "Sharing CO₂ costs",
+      "text": "In German rented homes, tenant and landlord share the CO₂ costs in ten stages (CO2KostAufG): below 12 kg CO₂ per m² and year the tenant bears everything, from 52 kg the landlord 95%. The value is rounded to one decimal place."
+    },
+    "dynamicTariff": {
+      "term": "Dynamic tariff",
+      "text": "An electricity tariff whose unit price follows the wholesale price (§ 41a EnWG). It is billed per quarter hour with a smart metering system. The app estimates it with the monthly wholesale average plus a mark-up — an approximation, not a substitute for the bill."
+    },
+    "module14a": {
+      "term": "§ 14a EnWG (controllable consumers)",
+      "text": "The grid operator may throttle heat pumps, wall boxes and storage above 4.2 kW during bottlenecks; in return the grid fee drops. Module 1: a fixed amount per year. Module 2: a separate meter with 40% of the grid unit price. Module 3: time-variable grid fees on top of module 1."
+    },
+    "jaz": {
+      "term": "Seasonal performance factor (SPF)",
+      "text": "How much heat a heat pump makes from one kWh of electricity, measured over a year: heat ÷ electricity. Needs a heat meter on the heat pump. In a field test, air/water units reached about 3.4, brine/water 4.3."
     }
   },
   "help": {
@@ -2328,8 +3049,9 @@
     },
     "privacy": {
       "title": "Your data",
-      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it."
-    }
+      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it — and, only if you enter it, to your own text recognition service in your home network. When you tap “Load from SMARD”, the app fetches wholesale electricity prices from the Federal Network Agency; nothing of yours is sent."
+    },
+    "onYourBill": "On your bill ({country}): “{term}”"
   },
   "onboarding": {
     "done": "done",
@@ -2361,10 +3083,10 @@
   "saldo": {
     "credit": "Credit",
     "due": "Additional payment",
-    "reclaim": "Reclaim",
+    "reclaim": "Repayment due",
     "even": "balanced",
     "tableLegend": "Balance: + credit, − additional payment.",
-    "tableLegendFeedIn": "Balance: + credit, − reclaim."
+    "tableLegendFeedIn": "Balance: + credit, − repayment due."
   },
   "chart": {
     "dataTable": "Data as a table",
@@ -2379,5 +3101,461 @@
     "close": "Close notice",
     "readOnly": "Nothing is saved in the demo. With your own installation you record your own data.",
     "unavailable": "This evaluation is not precomputed in the demo – it works with your own installation."
+  },
+  "manifest": {
+    "description": "Consumption, costs and contracts for electricity, gas, water, district heating, heating oil, pellets and PV — local and without a cloud.",
+    "shortcutCapture": "Record meter readings",
+    "shortcutContractsShort": "Contracts"
+  },
+  "csvLocal": {
+    "monthly": {
+      "month": "Month",
+      "days": "Days",
+      "consumption": "Consumption ({unit})",
+      "cost": "Cost ({code})",
+      "advance": "Advance payment ({code})",
+      "monthBalance": "Monthly balance ({code})",
+      "balanceCumulative": "Cumulative balance ({code})",
+      "avgTemp": "Avg temp (°C)",
+      "hdd": "HDD",
+      "co2": "CO₂ (kg)"
+    },
+    "readings": {
+      "meterId": "Meter ID",
+      "meter": "Meter",
+      "deviceId": "Device ID",
+      "date": "Date",
+      "reading": "Reading",
+      "price": "Price ({minor})",
+      "note": "Note",
+      "estimated": "Estimated",
+      "future": "Future"
+    },
+    "deliveries": {
+      "storageId": "Tank/store ID",
+      "storage": "Tank/store",
+      "date": "Date",
+      "quantity": "Quantity ({unit})",
+      "unitPrice": "Price ({minor}/{unit})",
+      "total": "Total ({code})",
+      "supplier": "Supplier",
+      "note": "Note",
+      "planned": "Planned"
+    },
+    "temperatures": {
+      "date": "Date",
+      "avg": "Mean (°C)",
+      "min": "Min (°C)",
+      "max": "Max (°C)"
+    },
+    "file": {
+      "monthly": "monthly",
+      "readings": "readings",
+      "deliveries": "deliveries",
+      "temperatures": "temperatures",
+      "exampleReadings": "example-readings",
+      "exampleTemperatures": "example-temperatures",
+      "periods": "periods"
+    },
+    "periods": {
+      "from": "From",
+      "to": "To",
+      "value": "Value",
+      "note": "Note",
+      "meterId": "Meter ID",
+      "meter": "Meter",
+      "unit": "Unit",
+      "estimated": "Estimated",
+      "source": "Source"
+    },
+    "evCharging": {
+      "month": "Month",
+      "meterId": "Meter ID",
+      "kwh": "kWh",
+      "price": "Price (cents/kWh)",
+      "baseShare": "Standing charge share",
+      "amount": "Amount",
+      "method": "Method"
+    }
+  },
+  "calendar": {
+    "name": "Energietracker — deadlines and dates",
+    "event": {
+      "reminder": "{title}",
+      "cancelBy": "{label}: last day to cancel ({provider})",
+      "termEnd": "{label}: contract ends ({provider})",
+      "priceGuaranteeEnd": "{label}: price guarantee ends ({provider})",
+      "priceIncrease": "{label}: price increase ({provider}) — check special termination",
+      "readingDue": "{label}: take a meter reading ({meter})",
+      "tankReorder": "{label}: plan a delivery ({meter})",
+      "tenancyStatementDue": "Service charge statement up to {period} due: {label}",
+      "objectionDeadline": "Last day to object to the service charge statement: {label}",
+      "co2ClaimDeadline": "CO₂ cost {year}: last day to claim the landlord’s share of {amount}"
+    },
+    "subscribe": "Subscribe in your calendar",
+    "intro": "Dates, cancellation deadlines, contract ends, price guarantees and due readings as a calendar subscription. The calendar refreshes them every 12 hours.",
+    "copy": "Copy address",
+    "appleHint": "Apple Calendar: File → New Calendar Subscription, location “On My Mac” or on the iPhone “On My iPhone” — the device then fetches it itself and reaches the app on your home network.",
+    "googleHint": "Google Calendar fetches subscriptions from Google’s servers — that only works if the app can be reached from the internet.",
+    "tokenCreated": "A dedicated calendar key was created for the subscription. It only works for this calendar and can be revoked under Settings → Access.",
+    "createConfirm": "With sign-in switched on, the subscription needs its own calendar key. It only allows reading the dates and can be revoked under Settings → Access.",
+    "existingKeys": {
+      "one": "There is already {count} calendar key – a new link creates another one.",
+      "other": "There are already {count} calendar keys – a new link creates another one."
+    },
+    "createLink": "Create link"
+  },
+  "tenancy": {
+    "title": "Tenancy",
+    "subtitle": "Prepayment, what the current billing period is likely to cost, and the service charge statements.",
+    "loading": "Loading…",
+    "select": "Choose tenancy",
+    "new": "+ Tenancy",
+    "empty": {
+      "title": "No tenancy yet",
+      "text": "Set up your tenancy: prepayment, billing date and the meters from the consumption information. The app then works out what the current period is likely to cost."
+    },
+    "budget": {
+      "title": "Prepayment and costs",
+      "unavailable": "The estimate is not available right now.",
+      "period": "Billing period {from} – {to}",
+      "expected": "Expected costs",
+      "prepaid": "Prepaid",
+      "result": "Likely outcome",
+      "additional": "{amount} additional payment",
+      "credit": "{amount} credit",
+      "even": "about even",
+      "suggested": "Suitable prepayment per month",
+      "disclaimer": "An estimate from your meters and the prices of the last statement – not a service charge statement. What the landlord bills may differ.",
+      "months": "Month by month",
+      "colMonth": "Month",
+      "colHeat": "Heating",
+      "colWater": "Water",
+      "colBalance": "Running total",
+      "estimated": "estimated"
+    },
+    "risk": {
+      "low": "Little additional payment expected",
+      "medium": "Small additional payment possible",
+      "high": "Additional payment likely"
+    },
+    "assumption": {
+      "price_missing_heat": "No price per kWh of heat entered – heating costs are missing from the estimate.",
+      "price_missing_warm_water": "No price per m³ of hot water entered.",
+      "price_missing_cold_water": "No price per m³ of cold water entered.",
+      "prepayment_missing": "No prepayment is entered for part of the period.",
+      "no_meters": "No meters assigned – only the flat charges are counted.",
+      "monthsEstimated": {
+        "one": "{count} month is estimated (heating model and climate normal, or previous year).",
+        "other": "{count} months are estimated (heating model and climate normal, or previous year)."
+      }
+    },
+    "details": {
+      "title": "Tenancy",
+      "edit": "Edit",
+      "prepaymentValue": "Heating {heating} + operating costs {operating} per month",
+      "meterCount": {
+        "one": "{count} meter",
+        "other": "{count} meters"
+      },
+      "uviHint": "You enter the monthly consumption information under the utility:"
+    },
+    "field": {
+      "label": "Name",
+      "landlord": "Landlord or managing agent",
+      "start": "Start",
+      "end": "End (empty = ongoing)",
+      "anchor": "Billing period starts on (DD.MM.)",
+      "prepayment": "Prepayment",
+      "prepayments": "Prepayments",
+      "prices": "Prices",
+      "fixedCosts": "Flat charges",
+      "heatPrice": "Heat",
+      "warmWaterPrice": "Hot water",
+      "coldWaterPrice": "Cold water and sewage",
+      "meters": "Assigned meters",
+      "notes": "Note",
+      "area": "Floor area per tenancy agreement (m²)",
+      "areaPlaceholder": "empty = from settings"
+    },
+    "meters": {
+      "heat": "Heating:",
+      "warm_water": "Hot water:",
+      "cold_water": "Cold water:"
+    },
+    "form": {
+      "titleNew": "Set up tenancy",
+      "titleEdit": "Edit tenancy",
+      "addRow": "+ Row",
+      "removeRow": "Remove row",
+      "from": "From",
+      "heatingMonth": "Heating {cur} per month",
+      "operatingMonth": "Operating costs {cur} per month",
+      "heatPrice": "Heat {cur} per kWh",
+      "warmWaterPrice": "Hot water {cur} per m³",
+      "coldWaterPrice": "Cold water {cur} per m³",
+      "pricesHint": "From the last statement (cost of the category divided by consumption, standing charges included). When you save a statement, the app can take them over itself.",
+      "fixedHint": "Whatever is not billed by consumption: waste, cleaning, insurance, cable… – per year as in the last statement.",
+      "fixedLabel": "Name",
+      "perYear": "{cur} per year",
+      "noMeters": "no meters of this kind",
+      "saved": "Tenancy saved",
+      "delete": "Delete tenancy",
+      "confirmDelete": "Delete the tenancy together with its statements?",
+      "deleted": "Tenancy deleted"
+    },
+    "statements": {
+      "title": "Service charge statements",
+      "add": "+ Statement",
+      "empty": "No statement recorded yet.",
+      "colPeriod": "Period",
+      "colReceived": "Received",
+      "colTotal": "Costs",
+      "colPrepaid": "Prepaid",
+      "colResult": "Result",
+      "additional": "{amount} additional payment",
+      "credit": "{amount} credit",
+      "pdf": "Open statement",
+      "confirmDelete": "Delete statement?",
+      "deleted": "Statement deleted"
+    },
+    "statement": {
+      "titleNew": "Record statement",
+      "titleEdit": "Edit statement",
+      "from": "Period from",
+      "to": "to",
+      "received": "Received on",
+      "total": "Total costs ({cur})",
+      "prepaid": "Prepaid ({cur})",
+      "heatKwh": "Heat consumption on the statement (kWh)",
+      "heatCost": "Heating costs ({cur})",
+      "positions": "Items",
+      "positionsHint": "For the prices, hot and cold water with cost and consumption (m³) are enough; sewage counts towards cold water.",
+      "posLabel": "Item",
+      "posCategory": "Kind",
+      "posAmount": "Amount ({cur})",
+      "posConsumption": "Consumption",
+      "newPrepayment": "New prepayment as per the statement",
+      "attachPdf": "Attach PDF or photo",
+      "attached": {
+        "one": "{count} receipt attached",
+        "other": "{count} receipts attached"
+      },
+      "applyPrices": "Take over prices from it (from the day after the period)",
+      "applyPrepayment": "Take over the new prepayment",
+      "saved": "Statement saved"
+    },
+    "category": {
+      "heating": "Heating",
+      "warm_water": "Hot water",
+      "cold_water": "Cold water",
+      "sewage": "Sewage",
+      "operating": "Operating costs",
+      "other": "Other"
+    }
+  },
+  "co2cost": {
+    "title": "CO₂ price in the fuel {year}",
+    "amount": "Included",
+    "perKwh": "Per kWh",
+    "emissions": "Emissions (BEHG)",
+    "price": "CO₂ price",
+    "netNote": "Already part of the unit price – not a surcharge. Net {net}, shown above including VAT.",
+    "source": {
+      "computed": "Calculated with the standard BEHG factor.",
+      "bill": "As per the supplier’s bill.",
+      "contract": "With the network’s emission factor from the contract."
+    },
+    "approx": "Approximation: the heat is counted, not the fuel.",
+    "priceAssumed": "This year’s price is not fixed yet; the last known one is used.",
+    "notSupported": "The app knows no CO₂ price in fuel for the selected country."
+  },
+  "co2split": {
+    "title": "Sharing CO₂ costs {year}",
+    "case": {
+      "self_supplied": "Own heating with your own contract: you claim the landlord’s share yourself – in writing, within twelve months of the supplier’s bill.",
+      "central": "Central heating: the landlord states the stage and share in the heating cost statement. The app checks the calculation."
+    },
+    "perM2": "CO₂ per m² and year",
+    "stage": "Stage",
+    "landlordShare": "Landlord’s share",
+    "amount": "Refund",
+    "noData": "There is no gas or heating-oil data and no CO₂ information in a statement for this year.",
+    "notSupported": "Sharing CO₂ costs applies to rented homes in Germany (CO2KostAufG).",
+    "disclaimer": "An estimate under the CO2KostAufG, not legal advice.",
+    "check": {
+      "stage": "The stage on the statement differs from the recalculated one.",
+      "share": "The landlord’s share on the statement differs from the table.",
+      "amount": "The landlord’s amount on the statement differs from the recalculated one.",
+      "missing_values": "Emissions or floor area are missing from the statement – nothing can be checked.",
+      "area_missing": "No stage without the floor area – please enter it in the tenancy or under Household."
+    },
+    "reduction": {
+      "own_appliances": "−5%: gas also used for own appliances (e.g. gas cooker)",
+      "restriction_one": "Share halved: one public-law restriction (e.g. listed building)",
+      "restriction_both": "No sharing: restrictions against both renovation and replacing the heating"
+    },
+    "form": {
+      "title": "CO₂ costs (CO2KostAufG)",
+      "ownAppliances": "Gas also for own appliances (e.g. gas cooker) – refund −5%",
+      "restriction": "Public-law restrictions (§ 9)",
+      "restrictions": {
+        "none": "none",
+        "one": "against renovation or replacing the heating (share halved)",
+        "both": "against both (no sharing)"
+      }
+    },
+    "statement": {
+      "title": "CO₂ information on the heating cost statement",
+      "emissions": "Emissions (kg CO₂)",
+      "cost": "CO₂ costs ({cur})",
+      "stage": "Stage on the statement",
+      "share": "Landlord’s share on the statement (%)",
+      "amount": "Landlord’s amount on the statement ({cur})"
+    },
+    "letter": {
+      "open": "Letter (PDF)",
+      "title": "Refund of the landlord’s share of CO₂ costs (CO2KostAufG)",
+      "subtitle": "Billing year {year} · Home: {label}",
+      "emissions": "Emissions of the year",
+      "area": "Floor area",
+      "perM2": "CO₂ emissions per m² and year",
+      "stage": "Stage under the annex to the CO2KostAufG",
+      "share": "Landlord’s share",
+      "cost": "CO₂ costs of the year (incl. VAT)",
+      "amount": "Refund amount",
+      "body": "Under § 6(2) CO2KostAufG the landlord bears the share stated. Please offset the amount in the next service charge statement or pay it out. The supplier’s bill is enclosed.",
+      "bodyCentral": "Recalculation of the CO₂ information on the heating cost statement under §§ 5 and 7 CO2KostAufG."
+    }
+  },
+  "evReport": {
+    "title": "Charging record (company car)",
+    "intro": "Monthly statement for reimbursement by your employer: the amount on the wall box meter and its price — either the contract price with a pro-rata standing charge or the flat electricity rate.",
+    "year": "Year",
+    "methodLabel": "Price",
+    "method": {
+      "contract": "Contract price with pro-rata standing charge",
+      "flat": "Flat electricity rate"
+    },
+    "flatLabel": "Flat rate per kWh (cents)",
+    "summary": "Charged: {kwh} kWh · to reimburse: {amount}",
+    "priceMissing": "Some months have no contract price; they count without an amount.",
+    "downloadCsv": "Download CSV",
+    "downloadPdf": "Download PDF",
+    "disclaimer": "Statement following the German Federal Ministry of Finance letter of 11 Nov 2025 (charging a company car at home), not tax advice. Splitting the standing charge by kWh is an assumption. A self-made record alone is not enough — attach the contract and the bill.",
+    "pdf": {
+      "title": "Charging record {year}",
+      "meter": "Meter",
+      "method": "Price",
+      "basis": "Amount: difference of the wall box meter readings, spread over the months day by day. Contract price: energy cost of the paying contract per kWh in the month plus the standing charge by the wall box share of consumption.",
+      "signature": "Date, signature"
+    },
+    "col": {
+      "month": "Month",
+      "readings": "Meter readings",
+      "kwh": "kWh",
+      "price": "cents/kWh",
+      "baseShare": "Standing charge share",
+      "amount": "Amount",
+      "total": "Total"
+    }
+  },
+  "heatPump": {
+    "title": "Heat pump {year}",
+    "jaz": "Seasonal performance factor",
+    "season": "Heating season (Oct–Apr)",
+    "energy": "Heat / electricity",
+    "coverage": {
+      "one": "from {count} month with both meters",
+      "other": "from {count} months with both meters"
+    },
+    "month": "Month",
+    "heat": "Heat (kWh)",
+    "elec": "Electricity (kWh)",
+    "cop": "Performance factor",
+    "noHeatMeter": "The seasonal performance factor needs a heat meter on the heat pump: a heat meter with the role “Heat pump output”, linked to this electricity meter.",
+    "notLinked": "The heat meter is not linked to a heat pump electricity meter yet (meter dialog).",
+    "noOverlap": "This year there is no month in which both the heat and the electricity meter have values.",
+    "reference": "For context: field test “WP-QS im Bestand” (Fraunhofer ISE, 2025) — air/water on average {air}, brine/water {ground}. Whether the backup heater and hot water count depends on where the meters sit."
+  },
+  "pv": {
+    "battery": {
+      "title": "Battery {year}",
+      "charged": "Charged",
+      "discharged": "Discharged",
+      "efficiency": "Efficiency",
+      "losses": "Losses {kwh} kWh",
+      "cycles": "Full cycles"
+    },
+    "payback": {
+      "title": "Payback",
+      "investment": "Investment",
+      "benefit": "Benefit so far",
+      "perYear": "recently {value} a year",
+      "expected": "Paid back probably",
+      "reached": "Paid back since",
+      "years": "about {years} years",
+      "hint": "Benefit = avoided grid purchase (self-consumption × unit price) + feed-in revenue since commissioning. Maintenance, inverter replacement and interest are not included."
+    },
+    "plugIn": {
+      "assumed": "Plug-in solar: self-consumption assumed at {pct}% of generation (settings)."
+    },
+    "hint51": "In operation since 25 Feb 2025: there is no feed-in tariff for periods with a negative wholesale price once a smart metering system is installed (§ 51 EEG). This is offset by a longer funding period."
+  },
+  "comparison": {
+    "title": "Benchmark {year}",
+    "strom": "Household electricity: {kwh} kWh against {own} kWh (your reference value)",
+    "heating": "{label}: {value} kWh/m² against {own} kWh/m² (your reference value)",
+    "incomplete": "The year does not yet have values for every month — only a full year is compared.",
+    "special": "With PV, a heat pump or a wall box the general electricity benchmark does not fit; heat pump and wall box are already excluded here.",
+    "source": "Source of the reference values: {source}",
+    "empty": "Enter your own reference values in the settings (household), e.g. from an electricity or heating benchmark — the app then places your consumption.",
+    "link": {
+      "stromspiegel": "Stromspiegel: check your class (German)",
+      "heizspiegel": "Heizspiegel: check heating costs (German)"
+    }
+  },
+  "import": {
+    "series": {
+      "button": "Import time series",
+      "title": "Time series from a portal — {name}",
+      "intro": "For files from the portals of grid operators, metering operators, inverters or heat pumps: quarter-hour, hourly or daily values are condensed into daily values.",
+      "pickFile": "Choose file",
+      "skipRows": "Header rows",
+      "dateCol": "Date (and time) column",
+      "timeCol": "Time column (if separate)",
+      "valueCol": "Value column",
+      "column": "Column {n}",
+      "none": "— none —",
+      "kindLabel": "The values are",
+      "kind": {
+        "consumption": "Consumption per interval",
+        "counter": "Meter readings"
+      },
+      "unit": "Unit of the values",
+      "stampLabel": "Time stamp marks",
+      "stamp": {
+        "start": "the start of the interval",
+        "end": "the end of the interval"
+      },
+      "anchor": "Start value (meter reading)",
+      "anchorHint": "Only for consumption values on a meter with readings: the reading at the start of the first day. Empty = the reading on that day.",
+      "previewButton": "Preview",
+      "importButton": "Import",
+      "noFile": "Please choose a file first.",
+      "skipped": {
+        "one": "{count} line without date or value skipped.",
+        "other": "{count} lines without date or value skipped."
+      },
+      "done": "Time series imported",
+      "summary": {
+        "one": "{count} day, {from}: {total} {unit} in total",
+        "other": "{count} days from {from} to {to}, {total} {unit} in total"
+      },
+      "summaryCounter": {
+        "one": "{count} day, {from} (the last reading of the day)",
+        "other": "{count} days from {from} to {to} (the last reading of each day)"
+      }
+    }
   }
 }

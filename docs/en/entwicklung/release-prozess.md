@@ -685,6 +685,33 @@ accepted.
   demo data" button) and was overwritten on creation. That was caught before the
   commit; the module is now called `lib/demo-mode.js`. Since then, creating a
   file starts with checking whether it already exists.
+- **One schema step for many new stores (v3.1.0).** Eight packages brought
+  six new stores and one utility. Instead of one step per package, a single
+  stage 1.7.0 only creates empty stores and changes no record; new fields on
+  existing records are optional and need no migration. Every new store is in
+  the `BackupService` list, and a round-trip test guards it.
+- **Measuring roles do not belong in totals (v3.1.0).** Battery charge and
+  discharge and the heat output of a heat pump measure energy that is already
+  counted. The first version added them to the total of their utility — PV
+  generation twice, heat twice next to the heat pump's electricity. Now
+  `MeterService::ROLES_OUTSIDE_TOTALS` treats them like sub-meters, and a test
+  checks the totals.
+- **Describing it is a code review (v3.1.0).** The documentation briefs asked
+  to report contradictions with the code instead of adjusting the docs. That
+  surfaced four bugs before anyone noticed them: the summary gave `null`
+  instead of the default role, a meter with periods could be deleted, a reading
+  could be moved onto a period meter by PATCH, and measuring roles counted in
+  the totals.
+- **Check the data licence before building on it (v3.1.0).** BDEW publishes
+  the standard load profiles (H25) without a licence for reuse; the tables of
+  the German electricity and heating benchmarks need written permission. Both
+  stayed out: the dynamic tariff check uses the monthly average and says so,
+  the comparison uses your own reference values and links to the benchmarks.
+  Since then, research comes before the specification.
+- **Generate time series in UTC (v3.1.0).** The test generator for quarter-hour
+  values counted with `modify('+15 minutes')` in local time and skipped the
+  repeated hour of the autumn clock change — the test expected a 24-hour day
+  where the meter measures 25. The generator now runs over UTC timestamps.
 
 ---
 

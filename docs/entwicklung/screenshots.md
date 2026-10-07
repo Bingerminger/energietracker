@@ -30,6 +30,10 @@ noch fünf SVG-Attrappen aus v1.0.2.
      --data '{"language":"en"}' http://127.0.0.1:8910/api.php/api/settings
    ```
 
+   Seit v3.1.0 gilt eine Sprache, die der Browser für dieses Gerät gespeichert
+   hat (`localStorage['et-language']`), vor der Einstellung — sie vorher
+   entfernen oder gleich auf `en` setzen.
+
 3. **Browser**: hell (`localStorage['et-theme'] = 'light'` — ein Browserprofil
    merkt sich die Wahl je Adresse), Fenster 1440 × 1500 bzw. 1440 × 900, fürs
    iPhone 375 × 812.

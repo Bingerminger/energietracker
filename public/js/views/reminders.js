@@ -8,6 +8,7 @@ import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { t, tp } from '../lib/i18n.js';
 import { escapeHtml as esc, todayIso, fmt } from '../lib/format.js';
+import { copyText } from '../lib/clipboard.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
@@ -54,6 +55,7 @@ async function draw(container) {
         <p class="view-header__subtitle">${t('reminders.subtitle')}</p>
       </div>
       <div class="view-header__actions">
+        <button class="btn btn--ghost" id="rem-subscribe"><span aria-hidden="true">📅</span> ${t('calendar.subscribe')}</button>
         <button class="btn btn--primary" id="rem-add" data-rem-add>${t('reminders.add')}</button>
       </div>
     </div>
@@ -74,6 +76,7 @@ async function draw(container) {
   `;
 
   container.querySelectorAll('[data-rem-add]').forEach(b => b.addEventListener('click', () => openForm(container, null)));
+  container.querySelector('#rem-subscribe')?.addEventListener('click', () => openCalendarSubscription());
   container.querySelectorAll('[data-edit]').forEach(b =>
     b.addEventListener('click', () => openForm(container, list.find(r => r.id === b.dataset.edit))));
   container.querySelectorAll('[data-done]').forEach(b =>
@@ -119,8 +122,8 @@ function rowHtml(r) {
   const days = r.days_until;
   const dueLabel = days == null ? ''
     : days === 0 ? t('reminders.due.today')
-    : days > 0 ? t('reminders.due.inDays', { days })
-    : t('reminders.due.agoDays', { days: -days });
+    : days > 0 ? tp('reminders.due.inDays', days, { days })
+    : tp('reminders.due.agoDays', -days, { days: -days });
   // v2.7.0 — Datum in der Schreibweise von Sprache und Land (fmt.date escapt Unlesbares)
   const dueStr = fmt.date(r.next_due) + (dueLabel ? ` <span class="muted">(${dueLabel})</span>` : '');
   return `<tr>
@@ -209,4 +212,53 @@ function openForm(container, existing) {
   return ctrl;
 }
 
+// v3.1.0 (Paket H1, MKT-09) — Fristen und Termine als Kalender-Abo. Mit
+// eingeschalteter Anmeldung bekommt das Abo einen eigenen Schlüssel (Bereich
+// „calendar"), der nur für den Kalender gilt und im Link stehen darf.
+async function openCalendarSubscription() {
+  let url = new URL(api.calendarUrl(), location.href).href;
+  let tokenNote = '';
+  try {
+    const session = await api.session();
+    if (session?.mode && session.mode !== 'off') {
+      // Ein Link braucht einen eigenen Schlüssel — erst nach Rückfrage, nicht
+      // bei jedem Öffnen (der Schlüssel lässt sich später nicht mehr anzeigen)
+      const existing = ((await api.apiKeys().catch(() => [])) || []).filter(k => k.scope === 'calendar').length;
+      const ok = await confirmModal({
+        title: t('calendar.subscribe'),
+        message: t('calendar.createConfirm') + (existing ? ' ' + tp('calendar.existingKeys', existing) : ''),
+        confirmLabel: t('calendar.createLink'),
+      });
+      if (!ok) return;
+      const key = await api.createApiKey(t('calendar.name'), 'calendar');
+      url += `?token=${encodeURIComponent(key.key)}`;
+      tokenNote = `<p class="muted small">${esc(t('calendar.tokenCreated'))}</p>`;
+    }
+  } catch (e) {
+    toastErr(t('reminders.toast.error', { msg: e.message || e }));
+    return;
+  }
+  const webcal = url.replace(/^https?:/, 'webcal:');
+  const field = (id, value) => `
+    <div class="field cal-field">
+      <input class="input" id="${id}" readonly value="${esc(value)}">
+      <button type="button" class="btn btn--sm" data-copy="#${id}">${esc(t('calendar.copy'))}</button>
+    </div>`;
+  openModal({
+    title: t('calendar.subscribe'),
+    body: `
+      <p>${esc(t('calendar.intro'))}</p>
+      ${field('cal-webcal', webcal)}
+      ${field('cal-https', url)}
+      ${tokenNote}
+      <p class="muted small">${esc(t('calendar.appleHint'))}</p>
+      <p class="muted small">${esc(t('calendar.googleHint'))}</p>`,
+    onMount: ({ modalEl }) => {
+      modalEl.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', async () => {
+        await copyText(modalEl.querySelector(b.dataset.copy)?.value || '');
+        toastOk(t('settings.ha.yamlCopied'));
+      }));
+    },
+  });
+}
 

@@ -243,6 +243,21 @@ significant  ⇔  |a_after - a_before| / √(se_before² + se_after²) ≥ 1.96
 difference is supported or may lie within the noise — with few winter months that
 is often the case.
 
+**Without a heating curve (since v3.1.0).** Electricity, water and PV have no
+slope per degree day. For them the app compares the daily average per calendar
+month before and after the baseline date — only months that exist in both
+phases (at least three):
+
+```text
+before/after per year = Σ (daily average of the month × days of the month) × 365 / Σ days
+Δ%                    = (after − before) / before × 100
+95 % range            = Δ% ± 1.96 × spread of the monthly ratios (after/before) / √n × 100
+```
+
+The difference is supported when the range does not include 0. The weather is
+not adjusted here (`method: "seasonal_mean"`; the heating-curve variant is
+called `hdd_slope`).
+
 ---
 
 ## 6. Forecast
@@ -349,9 +364,11 @@ year with the climate normal (heating share only, VDI 3807). Without a climate n
 stands as measured and is marked as such. This is **not a consumption
 certificate**: that requires 36 months and the climate factors of the DWD
 (German Meteorological Service). The settings *Heated basement* and
-*Decentralised hot water* and the flag *Heating electricity (heat pump)* on an
-electricity meter feed into it — with the flag, a heat-pump house gets a figure
-too.
+*Decentralised hot water* and the role *Heat pump (heating electricity)* on an
+electricity meter (up to v3.0 the flag *Heating electricity (heat pump)*) feed
+into it — with this role, a heat-pump house gets a figure too. Since v3.1.0
+**heat** counts as well, but only meters with the role *Home consumption*
+([Heat](15-waerme.md#4-efficiency-figure)).
 
 **Since v1.4.0, separated per heat source.** A house usually heats with one
 source in reality; summing all heating types would yield a nonsensical class. The
@@ -393,7 +410,8 @@ installations start with the new values.
 
 **PV** avoids CO₂ instead of emitting it: generation and feed-in are shown as
 "avoided", and only once in the annual report
-([PV](12-pv.md#5-co₂-as-avoided)).
+([PV](12-pv.md#5-co₂-as-avoided)). Since v3.1.0 your own avoidance factor can
+apply instead of the electricity mix (`co2_pv_avoided`).
 
 ---
 
@@ -532,6 +550,38 @@ deadline has been missed, the card says so (`cancel_missed`). A price increase
 entered for the future appears as a note — in Germany together with the special
 right to cancel (*Sonderkündigungsrecht*) effective on the day of the increase
 (§ 41 Abs. 5 EnWG).
+
+---
+
+## 11. Further calculations *(v3.1.0)*
+
+In brief, with the place of the full explanation:
+
+```text
+group contract       member cost = consumption × its own unit price;
+                     standing charge, advance, bonuses only with the first member
+                     blended price (forecast, switch) = Σ price × share of consumption over the last 12 months
+§ 14a module 1       fixed costs per month = standing charge − reduction per year / 12   (day-exact)
+dynamic check        unit price per month = wholesale monthly average × (1 + VAT) + mark-up
+charging record      contract price: kWh × (energy cost / kWh of the paying meter)
+                                     + standing charge × kWh wall box / kWh parent meter
+                     flat rate:      kWh × flat rate
+seasonal perf.       SPF = Σ heat / Σ electricity, only months with both values
+battery              efficiency = discharged / charged;  full cycles = charged / capacity
+plug-in solar        self-consumption = generation × assumed share   (without a feed-in meter)
+payback              benefit = self-consumption × unit price + feed-in revenue since commissioning
+                     years   = investment / benefit of the last 12 months
+credit notes         replace kWh × feed-in tariff in their period, spread day by day
+benchmark            Δ% = (annual value − own reference value) / reference value × 100   (full years only)
+time series          per day: last meter reading or sum of the intervals
+```
+
+More: [Electricity](02-strom.md) (group contract, § 14a, dynamic tariffs),
+[Charging record](../anleitungen/ladestrom-nachweis.md),
+[Heat §7](15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310),
+[PV §7–11](12-pv.md#7-battery-v310),
+[Time series from portals](../anleitungen/daten-aus-portalen.md) and the
+benchmark in the [API reference](../referenz/api.md#benchmark-get-apibenchmarkscomparison-v310).
 
 ---
 

@@ -21,7 +21,7 @@ Navigation den Fragen der Nutzer: sieben Bereiche statt 17 Einträgen.
 | Übersicht | „Zu tun", Kennzahlen, Tanks und Empfehlungen im Überblick |
 | Zählerstände | alle Zähler in einem Durchgang |
 | Verbrauch | eine Seite je aktive Verbrauchsart |
-| Kosten & Verträge | Verträge & Abschläge · Wechsel prüfen · Rechnung prüfen |
+| Kosten & Verträge | Verträge & Abschläge · Wechsel prüfen · Rechnung prüfen · Mietverhältnis (v3.1.0, nur „zur Miete“) |
 | Auswertungen | Analyse · Prognose · Jahresbericht |
 | Hinweise | Termine & Wartung · Empfehlungen (eine Zahl an der Seitenleiste) |
 | Einstellungen | Allgemein · Haushalt & Gebäude · Verbrauchsarten & Abrechnung · Wetterdaten · Daten · Integrationen · Zugriff · Experte · System |
@@ -59,7 +59,10 @@ am Mac als Blase unter dem Begriff, am iPhone als Blatt über der Tab-Leiste.
 schließt sie. Bis v2.12 standen diese Erklärungen in Tooltips, die es auf dem
 iPhone nicht gibt. Gehört eine Erklärung zu einer einzelnen Zeile — warum ein
 Stand „PRÜFEN“ trägt, was „VOLL“ bei einer Lieferung heißt —, öffnet das ⓘ
-daneben genau diese.
+daneben genau diese. Seit v3.1.0 nennt die Erklärung eines Rechnungsbegriffs
+auch seinen Wortlaut auf der Rechnung des eingestellten Landes, etwa „Auf
+deiner Rechnung (Österreich): „Teilbetrag““ beim Abschlag
+([Länderprofile §8](../verstehen/14-laenderprofile.md#8-so-heißt-das-auf-deiner-rechnung)).
 
 <p><img src="../ui/screenshots/erklaerung-mac.png" alt="Erklärung zu den Heizgradtagen am Mac" width="420"> <img src="../ui/screenshots/erklaerung-iphone.png" alt="Dieselbe Erklärung als Blatt am iPhone" width="260"></p>
 
@@ -115,7 +118,10 @@ Erfassung; mehr fasst eine Zeile zusammen („7 Zähler warten auf eine
 Ablesung"). Jede Zeile ist als Ganzes antippbar, am iPhone mit „›" statt Knopf. Die Terminkarte
 weiter unten und die Kachel „Aktive Zähler" je Verbrauchsart entfallen;
 Kennzahl-Kacheln heben sich nicht mehr beim Überfahren, weil sie nicht
-klickbar sind.
+klickbar sind. Seit v3.1.0 kommen die Einträge aus der Agenda
+(`GET /api/agenda`, alle Ereignisse mit `due_now`) — derselben Quelle wie das
+Kalender-Abo (§9) und die Sensoren für Home Assistant. Die Regeln sind
+dieselben wie bisher; bis v3.0 setzte der Browser die Liste selbst zusammen.
 
 **Ohne Daten (v2.13.0)** steht statt leerer Kacheln ein Willkommen: was der
 Energietracker tut, die ersten Schritte mit Häkchen aus den Daten (Standort,
@@ -144,6 +150,18 @@ gut: Der Pfeil nach oben ist grün. Der gemeinsame Verlauf zeigt nur noch, was
 bezogen wird — bis v2.12 standen dort auch die PV-Kilowattstunden, als wären
 sie Verbrauch.
 
+**Einordnung (v3.1.0):** Die Karte 📏 **„Einordnung {Jahr}“** (Vorjahr) stellt
+den Jahresverbrauch eigenen Vergleichswerten gegenüber — „Haushaltsstrom: …
+kWh gegenüber … kWh (dein Vergleichswert)“ und je Heizart „… kWh/m² gegenüber
+… kWh/m²“, mit der Abweichung in % (grün darunter, rot darüber), nur für volle
+Jahre. Darunter, wo es zutrifft: dass das Jahr noch nicht alle Monate hat, dass
+mit PV, Wärmepumpe oder Wallbox der allgemeine Stromspiegel nicht passt
+(Wärmepumpe und Wallbox sind schon herausgerechnet), und die Quelle der
+Vergleichswerte. Ohne eigene Werte steht dort, wo man sie einträgt
+(Einstellungen → Haushalt & Gebäude → Eigene Vergleichswerte). In Deutschland
+verlinkt die Karte „Stromspiegel: eigene Klasse prüfen“ und „Heizspiegel:
+Heizkosten prüfen“ ↗. Ohne Werte und ohne Links entfällt sie.
+
 ![Dashboard](../ui/screenshots/dashboard.png)
 
 ---
@@ -151,7 +169,7 @@ sie Verbrauch.
 ## 2. Zählerstand-Erfassung (F1004)
 
 Zentrale, mobil-freundliche Eingabemaske: alle aktiven kumulativen Zähler
-(Gas/Strom/Wasser/Fernwärme/PV) mit jeweils dem letzten Stand als
+(Gas/Strom/Wasser/Fernwärme/PV, seit v3.1.0 Heizwärme) mit jeweils dem letzten Stand als
 Orientierung — ideal fürs monatliche Ablesen am Handy.
 
 **Seit v2.6.0 mit Plausibilitätsprüfung:** Schon beim Tippen erscheint ein
@@ -181,6 +199,42 @@ Details: [Zählerstände → Plausibilität](../verstehen/11-zaehlerstaende.md).
 - **Direktsprung je Zähler:** `#/zaehlerstaende?meter=<id>` öffnet die
   Erfassung mit der Karte dieses Zählers im Fokus — für ein Lesezeichen auf dem
   Home-Bildschirm, einen Kurzbefehl oder „Zu tun".
+
+**Seit v3.1.0:**
+
+- **„📷 Foto“** je Karte nimmt ein Bild des Zählwerks als Beleg mit; am Handy
+  öffnet sich die Kamera. Die Karte zeigt ein Vorschaubild mit „Foto
+  entfernen“. Das Bild wird im Browser auf höchstens 1600 Pixel verkleinert und
+  als JPEG neu kodiert (ohne EXIF- und GPS-Daten) und mit dem Stand
+  gespeichert.
+- **Texterkennung:** Ist unter Einstellungen → Experte ein Dienst eingetragen,
+  lädt „📷 Foto“ das Bild sofort hoch und zeigt erst „Texterkennung läuft …“,
+  dann „Erkannt: 12.345,6“ mit **„Übernehmen“** — das setzt den Wert ins Feld,
+  gespeichert wird wie gewohnt mit „Alle speichern“. Erkennt der Dienst nichts,
+  steht „Kein Zählerstand erkannt – bitte von Hand eintragen.“ da
+  ([Texterkennung im Heimnetz](../anleitungen/texterkennung.md)).
+- **Ohne Verbindung:** Eine Karte, deren Speichern an der Verbindung scheitert,
+  zeigt ⏳ „Wartet auf Verbindung“; der Stand liegt in der Warteschlange des
+  Browsers. Oben erscheint die Karte **„Noch nicht gespeichert“** mit jedem
+  wartenden Stand (Zähler · Wert · Datum, 📷 mit Foto), „Verwerfen“ und
+  **„Jetzt senden“**. Die Zahl der wartenden Stände steht auch am Menüpunkt
+  „Zählerstände“ und am ＋ der Tab-Leiste.
+- **Konflikt:** Gibt es beim Nachsenden am selben Tag schon einen anderen
+  Stand, fragt der Eintrag „Am … gibt es schon einen Stand (…) – ersetzen oder
+  den vorhandenen behalten?“ mit **„Ersetzen“** und **„Vorhandenen behalten“**.
+  Lehnt der Server einen Stand ab, steht „Nicht gespeichert: Grund“ mit
+  **„Bearbeiten“** (Werte und Foto zurück in die Karte) und **„Verwerfen“** da.
+  Einzelheiten: [Auf dem Handy nutzen](../einstieg/handy.md#die-warteschlange-noch-nicht-gespeichert).
+- **Zähler mit „Verbrauch je Zeitraum“:** Statt Datum und Stand zeigt die
+  Karte „Monat“ und „Verbrauch (kWh)“ bzw. die Einheit der Art, darüber „Letzter
+  Zeitraum:“ mit Zeitraum und Wert. Vorbelegt ist der Monat nach dem letzten
+  Zeitraum, ohne Zeitraum der Vormonat. Aufklappbar **„Vergleichswerte laut
+  Verbrauchsinfo“** mit Vormonat, Vorjahresmonat und Durchschnittsnutzer — so,
+  wie die monatliche Verbrauchsinfo des Messdienstes sie nennt. „Geschätzt“ und
+  Notiz wie bei Ständen; „Alle speichern“ legt einen Zeitraum über den ganzen
+  Monat an, die Offline-Warteschlange gilt auch hier. Bei Gas trägt die Karte
+  kWh ein; m³ gehen über die Verbrauchsansicht. Hintergrund:
+  [Heizwärme](../verstehen/15-waerme.md).
 
 ![Zählerstände](../ui/screenshots/zaehlerstaende.png)
 
@@ -255,6 +309,72 @@ einen Verdacht bestätigt ✅ —
 erst dann zählt er. Der Ablese-Dialog stellt dieselben Rückfragen wie die
 Zählerstand-Erfassung.
 
+**Foto zum Stand (v3.1.0):** Trägt ein Stand ein Foto, zeigt die
+Ablesetabelle ein kleines Vorschaubild. Ein Klick öffnet die Großansicht mit
+„In neuem Tab öffnen“ und „Foto entfernen“ — Entfernen löst das Foto vom Stand;
+die Datei wird nach 24 Stunden aufgeräumt.
+
+**Zeiträume statt Ablesungen (v3.1.0):** Bei einem Zähler mit „Verbrauch je
+Zeitraum“ steht statt der Ablesetabelle die Karte **„Zeiträume {Jahr}“** mit
+Zeitraum, Verbrauch und den Vergleichswerten (Vormonat · Vorjahresmonat ·
+Durchschnittsnutzer), ✏️ und 🗑️ je Zeile. **„+ Zeitraum“** öffnet den Dialog
+mit „Von“, „Bis (einschließlich)“ — vorbelegt mit dem Monat nach dem letzten
+Zeitraum, sonst dem Vormonat —, „Verbrauch“, „Einheit“, den
+Vergleichswerten, „Geschätzt“ und Notiz. Die Einheit lässt sich nur bei Gas
+wählen: kWh (Verbrauch) oder m³ (Zählereinheit, umgerechnet mit den
+Gasfaktoren). Ein überlappender Zeitraum wird abgelehnt. Leer steht da: „Noch
+kein Zeitraum in diesem Jahr“ mit dem Hinweis, Monat für Monat aus der
+Verbrauchsinfo einzutragen oder unter Zähler eine CSV-Datei einzulesen. Das
+Banner „Ablesung überfällig“ zählt hier ab dem Ende des letzten Zeitraums
+(„Letzter Zeitraum endete vor … Tagen“). Chart, Monatstabelle, Verträge und
+Wetterbereinigung laufen wie bei Ständen.
+
+**Warmwasser-Wärme (v3.1.0):** Bei einem Wasserzähler mit der Rolle
+„Warmwasser“ steht unter den Tabellen „Wärme für dieses Warmwasser {Jahr}: rund
+… kWh bei … °C – Rechenwert nach HeizkostenV § 9, kein Messwert.“ mit ⓘ. Die
+Temperatur kommt aus Einstellungen → Haushalt & Gebäude → Wohnen und
+Warmwasser.
+
+**Rechnung prüfen (v3.1.0):** Gas, Strom, Wasser und Fernwärme tragen unter
+den Tabellen die Karte **„Rechnung prüfen“** mit dem Knopf „Rechnung {Jahr}
+prüfen“. Er öffnet die Seite mit Verbrauchsart, Zähler und dem angezeigten
+Jahr (`#/bill-check?utility=…&meter=…&from=…&to=…`) und rechnet gleich nach.
+Bis v3.0 gab es den Verweis nur bei Gas.
+
+**CO₂-Preis im Brennstoff (v3.1.0):** Bei Gas, Heizöl, Fernwärme und
+Heizwärme folgt — in Deutschland — die Karte **„CO₂-Preis im Brennstoff
+{Jahr}“** mit ⓘ: „Darin enthalten“ (der Betrag mit Umsatzsteuer), „Je kWh“,
+„Emissionen (BEHG)“ und „CO₂-Preis“ in €/t. Darunter „Steckt schon im
+Arbeitspreis – kein Aufschlag. Netto …, oben mit Umsatzsteuer.“, die Quelle
+(Standardfaktor, Versorgerrechnung oder Emissionsfaktor des Wärmenetzes) und,
+wo es zutrifft, die Hinweise auf die Näherung bei Heizwärme und auf einen
+angenommenen Preis. Ohne Verbrauch im Jahr oder ohne Faktor — Fernwärme ohne
+Netzfaktor im Vertrag — entfällt die Karte
+([CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md)).
+
+**Gruppenvertrag (v3.1.0):** Ist der Zähler Mitglied einer Gruppe mit
+Gruppenvertrag, zeigt die Saldo-Karte den Gruppenvertrag mit dem Hinweis
+„Dieser Zähler rechnet über den Gruppenvertrag „…“. Saldo und Abschläge gelten
+für die ganze Gruppe.“ ([Meter-Topologie](../verstehen/13-meter-topologie.md#gruppenvertrag-v310)).
+
+**Ladestrom-Nachweis (v3.1.0):** Bei einem Stromzähler mit der Rolle „Wallbox“
+folgt die Karte **„Ladestrom-Nachweis (Dienstwagen)“** mit „Jahr“ (laufendes
+und drei Vorjahre, vorgewählt das Vorjahr), „Preis“ („Vertragspreis mit
+anteiligem Grundpreis“ oder „Strompreispauschale“), bei der Pauschale „Pauschale
+je kWh (Cent)“, der Zeile „Geladen: … kWh · zu erstatten: …“, den Knöpfen
+„CSV herunterladen“ und „PDF herunterladen“ und dem Hinweis „keine
+Steuerberatung“. Ohne zahlenden Vertrag oder ohne Pauschale steht dort die
+Meldung ([Ladestrom-Nachweis](../anleitungen/ladestrom-nachweis.md)).
+
+**Wärmepumpe (v3.1.0):** Beim Stromzähler mit der Rolle „Wärmepumpe
+(Heizstrom)“ und beim Heizwärme-Zähler mit der Rolle „Wärmemenge der
+Wärmepumpe“ folgt die Karte **„Wärmepumpe {Jahr}“** mit ⓘ: „Jahresarbeitszahl“
+(„aus … Monaten mit beiden Zählern“), „Heizperiode (Okt.–Apr.)“, „Wärme /
+Strom“ in kWh und eine Tabelle je Monat mit Wärme, Strom und Arbeitszahl; darunter
+die Werte des Feldtests zur Einordnung. Fehlt der Wärmezähler, die Verknüpfung
+oder ein gemeinsamer Monat, sagt die Karte das
+([Heizwärme §7](../verstehen/15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310)).
+
 ![Gas-Ansicht](../ui/screenshots/gas-view.png)
 
 ---
@@ -274,7 +394,8 @@ möglich ist. Darunter die **Peilstände** mit „Peilstand erfassen" (Datum,
 Stand, Notiz) und Löschen. Im Lieferdialog markiert **„Bis voll getankt"**
 eine Lieferung als Stützstelle; die Tabelle zeigt sie mit „VOLL". Monate mit
 geschätzten Tagen tragen in der Monatstabelle „≈"; die Spalte ct/kWh zeigt
-den effektiven Preis.
+den effektiven Preis. Bei Heizöl steht seit v3.1.0 darunter die Karte
+„CO₂-Preis im Brennstoff“ wie in §3.
 
 ![Heizöl-Ansicht](../ui/screenshots/heizoel-view.png)
 
@@ -298,6 +419,12 @@ mit 95-%-Bereich. Anomalien messen jeden Monat an seiner eigenen Erwartung
 (Heizmodell bzw. derselbe Monat anderer Jahre). Bei Heizöl und Pellets steht
 statt der Kurven ein Hinweis: Ihre Monatswerte sind nach Gradtagen verteilt.
 
+Seit v3.1.0 gibt es „Wirkung der Maßnahme“ auch für **Strom, Wasser und PV**:
+„vorher“, „nachher“ (je hochgerechnet „… pro Jahr“) und die „Veränderung“ in %
+und je Jahr, mit dem Satz „Ohne Heizkurve: verglichen werden dieselben
+Kalendermonate vor und nach der Zäsur (… Monate), hochgerechnet auf ein Jahr.
+Das Wetter ist nicht bereinigt.“
+
 ![Analyse](../ui/screenshots/analyse.png)
 
 ---
@@ -319,15 +446,40 @@ Seit v2.13.0 steht der Modellname in der Sprache der Oberfläche, die
 Saldo-Spalte aus Kundensicht (+ Guthaben, − Nachzahlung) mit ⓘ. Modell und
 Horizont sind aus den Einstellungen vorbelegt.
 
+**CO₂-Preis-Szenario (v3.1.0):** Neben den Was-wäre-wenn-Feldern steht
+**„CO₂-Preis ab 2028 (€/t)“** mit ⓘ — leer = aus, vorbelegt aus Einstellungen
+→ Experte → „CO₂-Preis“. Mit einem Wert schreibt die Seite unter die Prognose
+etwa „Mit 150 €/t CO₂ ab 2028: +1,94 ct/kWh, in den nächsten 12 Monaten …
+mehr (mit Umsatzsteuer).“ Die Prognose selbst ändert sich nicht. Das Startjahr
+kommt aus „Szenario ab Jahr“ derselben Einstellungen; erreicht die Prognose es
+nicht, fehlt die Zeile. Für Gas, Heizöl und Heizwärme mit Gas oder Heizöl als
+Energieträger ([CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md#6-wo-du-ihn-siehst)).
+
 ![Prognose](../ui/screenshots/prognose.png)
 
 ### Jahresbericht (seit v2.11.0 unter Auswertungen)
 
-Ein Jahr als PDF: Übersicht je Verbrauchsart, Effizienz, Monatstabellen und
-offene Empfehlungen. **Im Browser öffnen** zeigt das PDF in einem neuen Tab
-(`yearly.pdf?inline=1`); in der Home-Bildschirm-App auf dem iPhone kam ein
-Download oft nicht an. **Herunterladen** speichert es wie bisher. Bis v2.10
-stand der Bericht in den Einstellungen.
+Ein Jahr auf einen Blick: Übersicht je Verbrauchsart, Effizienz,
+Monatstabellen und offene Empfehlungen. Bis v2.10 stand der Bericht in den
+Einstellungen.
+
+**Druckansicht (v3.1.0)** ist der Hauptknopf: **Druckansicht öffnen** zeigt
+den Bericht des gewählten Jahres als Seite in der App (`#/report/print?year=…`)
+— in der Sprache dieses Geräts, Zahlen, Daten und Beträge so geschrieben wie
+in der übrigen Oberfläche, die Diagramme als Vektorgrafik. **Drucken / als PDF
+sichern** öffnet den Druckdialog des Browsers; beim Drucken blendet die Seite
+Seitenleiste, Kopfleiste, Tabs und Knöpfe aus und setzt A4. Am iPhone geht
+das über Teilen → Drucken; dort lässt sich der Bericht auch als PDF sichern.
+Daten liefert `GET /api/reports/yearly`.
+
+Darunter steht die **PDF-Datei** wie bisher: **Im Browser öffnen** zeigt das
+PDF in einem neuen Tab (`yearly.pdf?inline=1`) — in der Home-Bildschirm-App
+auf dem iPhone kam ein Download oft nicht an —, **Jahresbericht
+herunterladen** speichert es. Ein Hinweis sagt: „Das PDF entsteht in der Standardsprache der
+Installation (…); die Druckansicht folgt der Sprache dieses Geräts.“ Die
+eingebauten PDF-Schriften kennen nur westeuropäische Zeichen (CP1252); seit
+v3.1.0 wird „CO₂“ dort zu „CO2“ statt zu „CO“. Für eine Sprache, die das PDF
+nicht setzen kann, entfällt der Block, und die Druckansicht bleibt.
 
 ---
 
@@ -341,7 +493,7 @@ Je Verbrauchsart und Zähler der laufende Vertrag:
 - **Kündigen bis** mit den verbleibenden Tagen, ab sechs Wochen vorher
   hervorgehoben; eine verpasste Frist in Rot
 - der Abschlag je Monat
-- was zur Abrechnung zu erwarten ist: Erstattung (grün) oder Nachzahlung
+- was zur Abrechnung zu erwarten ist: Guthaben (grün) oder Nachzahlung
   (rot)
 
 „Verträge verwalten“ führt zur Vertragsliste der Verbrauchsart. Die Zahlen
@@ -351,13 +503,36 @@ Lieferungen, der Link „Vertrag anlegen“ führte auf eine Seite ohne Verträg
 
 ![Verträge & Abschläge](../ui/screenshots/navigation-mac.png)
 
-### Rechnung prüfen (Gas)
+### Rechnung prüfen
 
-Bis v2.10 stand die Rechnungsprüfung am Ende der Gas-Seite, jetzt ist sie eine
-Seite. Sie rechnet eine Gasrechnung nach: je Ablesung und Brennwertwechsel ein
-Abschnitt mit m³ × Zustandszahl × Brennwert = kWh, wie die Zeilen der
-Versorgerrechnung. Zähler und Zeitraum sind wählbar. Die Gas-Seite verweist
-mit dem angezeigten Jahr hierher (`#/bill-check?meter=…&from=…&to=…`).
+Bis v2.10 stand die Rechnungsprüfung am Ende der Gas-Seite, seit v2.11.0 ist
+sie eine Seite (`#/bill-check`), seit **v3.1.0** für **Gas, Strom, Wasser und
+Fernwärme**. Oben die Auswahl **„Verbrauchsart“** (bei mehreren) und
+**„Zähler“** (bei mehreren), darunter „Von“, „Bis (ausschließlich)“ und
+**„Nachrechnen“**. Die Seite der Verbrauchsart verweist mit Art, Zähler und
+Jahr hierher (`?utility=…&meter=…&from=…&to=…`).
+
+Die Tabelle schneidet den Zeitraum wie die Versorgerrechnung: bei Gas an jeder
+Ablesung und jedem Brennwertwechsel (m³ × Zustandszahl × Brennwert = kWh), bei
+den anderen Arten an jeder Ablesung und jedem Preis- oder Vertragsstichtag
+(Grenze „Preiswechsel“). Je Abschnitt Zeitraum, Stand alt und neu mit
+Ableseart, Tage, Grenze, Menge und seit v3.1.0 **Preis**, **Verbrauchskosten**
+und **Feste Kosten**; darunter „Nachgerechnet: …“ (abzüglich eines Bonus) und
+die Legende der Ablesearten.
+
+**Laut Rechnung (v3.1.0):** Die zweite Karte nimmt die Werte der
+Versorgerrechnung auf — Von, „Bis einschließlich“, Rechnungsdatum, Verbrauch
+laut Rechnung (kWh bzw. m³), Rechnungsbetrag (brutto), gezahlte Abschläge,
+Nachzahlung/Guthaben (positiv = Nachzahlung; leer = Betrag − Abschläge),
+**„Weitere Posten“** (Umlagen, Gebühren, Gutschriften mit „Posten
+hinzufügen“), bei Gas „Emissionen (kg CO₂)“ und „CO₂-Kosten laut Rechnung“
+und „Rechnung anhängen (PDF oder Foto)“. **„Rechnung speichern“** legt sie an
+und vergleicht sofort. Die Liste darunter zeigt je Rechnung Zeitraum, Menge,
+Betrag und Nachzahlung/Guthaben mit 📄, **„Vergleichen“**, **„Als
+Sonderzahlung buchen“** (danach die Marke „gebucht“) und 🗑️. Der Vergleich
+stellt Nachgerechnet, Laut Rechnung und Abweichung für Menge, Betrag und
+Abschläge nebeneinander, mit dem Urteil **„passt“** oder **„prüfen“** und den
+möglichen Gründen ([Jahresabrechnung](../anleitungen/jahresabrechnung.md#7-laut-rechnung-erfassen-vergleichen-buchen)).
 
 ### Wechsel prüfen (Tarifvergleich)
 
@@ -373,12 +548,22 @@ draußen suchen, das gefundene Angebot mit **„+ Angebot erfassen"** eintragen
 (technisch ein Schattenvertrag).
 
 Eine Anbindung an Vergleichsportale gibt es bewusst nicht. Die Anwendung holt
-keine Tarife von außen; der Nutzer trägt ein, was er gefunden hat.
+keine Tarife von außen; der Nutzer trägt ein, was er gefunden hat. Wo das
+eingestellte Land einen amtlichen Tarifvergleich hat (Österreich, Frankreich,
+Italien, Spanien, Portugal), verlinkt die Ansicht ihn seit v3.1.0 unter dem
+Jahresverbrauch: „Amtlicher Tarifvergleich (Österreich) ↗“ — ein Link, kein
+Abruf ([Länderprofile §8](../verstehen/14-laenderprofile.md#8-so-heißt-das-auf-deiner-rechnung)).
 
 Daneben steht der **Wechseltermin**. Er ergibt sich aus Vertragsende und
 Kündigungsfrist; die Frist wird mit Restlaufzeit angezeigt und farblich
 hervorgehoben, sobald es eng wird — sie ist das, was im Alltag verpasst wird.
 Wer ein anderes Szenario durchrechnen will, setzt das Datum von Hand.
+
+**Gruppen (v3.1.0):** Die Auswahl der Zähler führt zusätzlich „Gruppe: …“ für
+jede Zählergruppe mit Gruppenvertrag. Prognose und Rangliste rechnen dann mit
+dem Verbrauch der ganzen Gruppe, bei Arbeitspreisen je Zählwerk mit einem
+Mischpreis; ein Angebot, das hier entsteht, gilt für die Gruppe. Die Karte
+„Für den Wechsel bereithalten“ entfällt für Gruppen — sie gilt je Zähler.
 
 Maßgeblich ist dabei nicht der heute laufende Vertrag allein, sondern die
 **Bindungskette**: Ist der Anschlussvertrag bereits abgeschlossen, ist der
@@ -391,6 +576,19 @@ einem Tag beendet die Kette; danach ist man frei.
 Kündigungsfrist, Mindestlaufzeit und Preisgarantie werden **am Vertrag**
 gepflegt (Vertragsverwaltung der jeweiligen Verbrauchsart). Ohne sie kann der
 Vergleich keinen Termin errechnen und nicht vor einer ablaufenden Frist warnen.
+
+**Für den Wechsel bereithalten (v3.1.0):** Eine Karte mit den Angaben, die der
+neue Anbieter abfragt — **Marktlokations-ID**, **Zählernummer** (Seriennummer
+des eingebauten Geräts) und **„Letzter Zählerstand ({Datum})“** — und dem Knopf
+**„Angaben kopieren“**. Was fehlt, entfällt; ohne jede Angabe entfällt die
+Karte. Die MaLo-ID trägst du im Zählerdialog ein (§12).
+
+**Preiserhöhung (v3.1.0):** Steht im laufenden oder folgenden Vertrag eine
+künftige Preiserhöhung, meldet die App in Deutschland die Empfehlung
+„{Art}: Preiserhöhung zum {Datum}“ mit dem Hinweis auf das
+Sonderkündigungsrecht zu diesem Tag (§ 41 Abs. 5 EnWG). Solange die
+Empfehlung steht, erscheint die Preiserhöhung auch unter „Zu tun“;
+ausgeblendet steht sie nur noch im Kalender.
 
 Die Rangliste zeigt je Angebot:
 
@@ -458,6 +656,24 @@ tatsächlich stehen: Arbeitspreis, Grundpreis, **Neukundenbonus als Betrag**
 und Kündigungsfrist. Als Startdatum ist der errechnete Wechseltermin
 vorbelegt.
 
+**Dynamischer Tarif (v3.1.0, Strom):** Das Angebotsformular hat das Häkchen
+**„Dynamischer Tarif (Börsenpreis je Monat)“**. Mit ihm entfällt der
+Arbeitspreis; stattdessen stehen dort „Aufschlag je kWh“ (mit dem Hinweis,
+was dazugehört) und „Umsatzsteuer auf den Börsenpreis (%)“, vorbelegt mit 19.
+In Rangliste und Rückblick steht unter einem solchen Angebot „Börsenpreis als
+Monatsmittel — als verteile sich dein Verbrauch gleichmäßig über den Tag;
+Abendverbrauch ist meist teurer.“ und, wenn nötig, für wie viele Monate der
+Vorjahresmonat angenommen wurde. Fehlen die Börsenpreise, erscheint statt des
+Angebots der Hinweis, sie unter „Börsenstrompreise“ zu laden.
+
+**Börsenstrompreise (v3.1.0, Strom):** Die Karte **„Börsenstrompreise“** mit ⓘ
+nennt den Bereich der vorhandenen Monatsmittel („Monatsmittel vorhanden: … bis
+…“ bzw. „Noch keine Börsenpreise geladen.“), erklärt den Dynamik-Check und hat
+die Knöpfe **„Von SMARD laden“** (holt die Monatswerte, nur auf Knopfdruck) und
+**„Datei importieren“** (SMARD-Download oder `JJJJ-MM;€/MWh`). Darunter die
+Quelle „Großhandelspreise Deutschland/Luxemburg: Bundesnetzagentur | SMARD.de
+(CC BY 4.0)“ ([Strom → Dynamische Tarife](../verstehen/02-strom.md#dynamische-tarife-v310)).
+
 Angebote lassen sich anlegen, bearbeiten und löschen; die Löschen-Rückfrage
 nennt das Angebot (v2.12.0). In der Vertragsliste
 tragen sie ein eigenes Kennzeichen, damit sie nicht mit einem laufenden
@@ -469,6 +685,102 @@ Vertragsstatus** — sie existieren nur für diesen Vergleich.
 > sind lieferbasiert — dort ist die Lieferrechnung die Kostenbasis.
 
 ![Tarifvergleich](../ui/screenshots/tarifvergleich.png)
+
+### Mietverhältnis *(v3.1.0)*
+
+Für Mieter, die Heizung und Wasser über die Nebenkosten zahlen. Die Seite
+(`#/tenancy`) erscheint unter **Kosten & Verträge**, sobald unter Einstellungen
+→ Haushalt & Gebäude → Wohnen und Warmwasser „Ich wohne: zur Miete“ gewählt
+ist; im Eigentum gibt es sie nicht. Oben „+ Mietverhältnis“, bei mehreren eine
+Auswahl. Ohne Mietverhältnis steht „Noch kein Mietverhältnis“ da, mit der Bitte,
+Vorauszahlung, Abrechnungsstichtag und die Zähler aus der Verbrauchsinfo
+anzulegen. Schritt für Schritt: [Als Mieter](../anleitungen/mieter.md).
+
+Drei Karten, in Deutschland seit v3.1.0 eine vierte („CO₂-Kosten teilen“):
+
+**Vorauszahlung und Kosten** ⓘ — die Hilfsrechnung für den laufenden
+Abrechnungszeitraum („Abrechnungszeitraum … – …“):
+
+- Kennzahlen **Erwartete Kosten**, **Vorausgezahlt**, **Voraussichtlich**
+  („… Nachzahlung“, „… Guthaben“ oder „etwa ausgeglichen“) mit einem Hinweis
+  zum Risiko — „Kaum Nachzahlung zu erwarten“, „Kleine Nachzahlung möglich“
+  (bis 10 % der Vorauszahlung) oder „Nachzahlung wahrscheinlich“ — und
+  **Passende Vorauszahlung je Monat**.
+- Darunter fest: „Eine Hilfsrechnung aus deinen Zählern und den Preisen der
+  letzten Abrechnung – keine Nebenkostenabrechnung. Was der Vermieter
+  abrechnet, kann abweichen.“
+- Die **Annahmen**, wenn sie zutreffen: fehlender Preis für Wärme, Warmwasser
+  oder Kaltwasser, fehlende Vorauszahlung, keine Zähler zugeordnet, wie viele
+  Monate geschätzt sind.
+- Aufklappbar **„Monat für Monat“**: Monat, Heizung (kWh), Wasser (m³, warm und
+  kalt zusammen), Erwartete Kosten, Vorausgezahlt und Stand (aufsummiert).
+  Geschätzte Monate stehen blass mit „geschätzt“.
+
+**CO₂-Kosten teilen {Jahr}** ⓘ *(v3.1.0)* — für das Vorjahr der Anteil des
+Vermieters an den CO₂-Kosten nach dem CO2KostAufG. Ein Satz nennt den Fall
+(eigene Heizung mit eigenem Vertrag oder Zentralheizung), darunter **CO₂ je
+m² und Jahr**, **Stufe** (… / 10), **Anteil Vermieter** und **Erstattung**,
+Abweichungen der Heizkostenabrechnung als Warnung, die Kürzungen und
+„Hilfsrechnung nach dem CO2KostAufG, keine Rechtsberatung.“ **„Anschreiben
+(PDF)“** öffnet das Schreiben an den Vermieter bzw. das Prüfergebnis in einem
+neuen Tab. Ohne Fläche oder Daten sagt die Karte, was fehlt; im Eigentum oder
+außerhalb Deutschlands fehlt sie
+([CO₂-Kosten mit dem Vermieter teilen](../anleitungen/co2-aufteilung.md)).
+
+**Stammdaten** — Titel ist die Bezeichnung des Mietverhältnisses, daneben
+**„Bearbeiten“**. Beginn (und Ende), Vermieter oder Verwaltung, Beginn des
+Abrechnungszeitraums (TT.MM.), die heute gültige Vorauszahlung („Heizung … +
+Betriebskosten … je Monat“), die Preise für Wärme (ct/kWh), Warmwasser und
+„Kaltwasser und Abwasser“ (je m³) und die Zahl der zugeordneten Zähler. Ein
+Satz mit ⓘ verweist auf die Verbrauchsart: „Die monatliche Verbrauchsinfo
+trägst du bei der Verbrauchsart ein: Heizwärme“ — nur, wenn Heizwärme aktiv
+ist.
+
+Der Dialog **„Mietverhältnis anlegen“/„bearbeiten“** hat Bezeichnung,
+Vermieter oder Verwaltung, seit v3.1.0 **„Wohnfläche laut Mietvertrag (m²)“**
+(leer = aus den Einstellungen), Beginn, „Ende (leer = läuft)“,
+„Abrechnungszeitraum beginnt am (TT.MM.)“ und drei Listen mit „+ Zeile“ und ✕,
+je Zeile ein „Ab“-Datum:
+
+- **Vorauszahlungen** — Heizung und Betriebskosten je Monat,
+- **Preise** — Wärme je kWh, Warmwasser je m³, Kaltwasser je m³; Hinweis:
+  aus der letzten Abrechnung, Kosten der Kategorie geteilt durch den Verbrauch,
+  Grundkosten eingeschlossen,
+- **Pauschale Umlagen** — Bezeichnung und Betrag je Jahr (Müll, Hausreinigung,
+  Versicherung, Kabel …).
+
+Unter **Zugeordnete Zähler** stehen Häkchen für „Heizung:“ (Zähler der
+Heizwärme), „Warmwasser:“ und „Kaltwasser:“ (Wasserzähler). Seit v3.1.0 folgt
+die Feldgruppe **„CO₂-Kosten (CO2KostAufG)“**: das Häkchen „Gas auch für eigene
+Geräte (z. B. Gasherd) – Erstattung −5 %“ und die Auswahl „Öffentlich-rechtliche
+Vorgaben (§ 9)“ — keine, „gegen Sanierung oder Heizungstausch (Anteil
+halbiert)“ oder „gegen beides (keine Aufteilung)“; dazu eine Notiz.
+„Mietverhältnis löschen“ fragt nach — es nimmt seine Abrechnungen mit.
+
+**Nebenkostenabrechnungen** ⓘ — Liste mit Zeitraum, Erhalten, Kosten,
+Vorausgezahlt und Ergebnis („… Nachzahlung“ bzw. „… Guthaben“), je Beleg ein
+📄 („Abrechnung öffnen“), ✏️ und 🗑️. **„+ Abrechnung“** öffnet „Abrechnung
+erfassen“:
+
+- Zeitraum von, bis, „Erhalten am“ (damit beginnt die Einwandfrist),
+- Kosten insgesamt und Vorausgezahlt,
+- Wärmeverbrauch laut Abrechnung (kWh) und Heizkosten,
+- **Posten** mit Bezeichnung, Art (Heizung, Warmwasser, Kaltwasser, Abwasser,
+  Betriebskosten, Sonstiges), Betrag und Verbrauch — „Für die Preise reichen
+  Warmwasser und Kaltwasser mit Kosten und Verbrauch (m³); Abwasser zählt zum
+  Kaltwasser.“,
+- *(v3.1.0)* **CO₂-Angaben der Heizkostenabrechnung**: Emissionen (kg CO₂),
+  CO₂-Kosten, Stufe laut Abrechnung, Anteil Vermieter laut Abrechnung (%),
+  Betrag Vermieter laut Abrechnung — Grundlage der Prüfung bei Zentralheizung,
+- **Neue Vorauszahlung laut Abrechnung** (Ab, Heizung, Betriebskosten),
+- „📄 PDF oder Foto anhängen“ (mehrere möglich),
+- zwei Häkchen, vorbelegt an: **„Preise daraus übernehmen (ab dem Tag nach dem
+  Zeitraum)“** und **„Neue Vorauszahlung übernehmen“**, dazu eine Notiz.
+
+Agenda und Kalender kennen bei „zur Miete“ zwei Fristen: wann die Abrechnung
+spätestens kommen muss und bis wann Einwände möglich sind
+([Kalender](../anleitungen/kalender.md)). Bei eigener Gastherme kommt seit
+v3.1.0 die Frist für die Erstattung der CO₂-Kosten dazu.
 
 ---
 
@@ -501,6 +813,17 @@ fehlender Titel oder ein fehlendes Datum steht am Feld statt in einer Meldung
 unten rechts; die Löschen-Rückfrage nennt den Termin. Ein Intervall in Monaten
 steht als „Alle 48 Monate" statt „Alle N Monate (48)".
 
+**Im Kalender abonnieren (v3.1.0):** Der Knopf über der Liste öffnet einen
+Dialog mit zwei Adressen zum Kopieren — `webcal://…` (öffnet die
+Kalender-App direkt) und `https://…`. Das Abo enthält Termine,
+Kündigungsstichtage, Vertragsenden, Ende der Preisgarantie, Preiserhöhungen
+und fällige Ablesungen; der Kalender holt es alle 12 Stunden neu. Ist die
+Anmeldung eingeschaltet, legt die App dafür einen eigenen
+**Kalender-Schlüssel** an und hängt ihn an den Link; er gilt nur für dieses
+Abo und lässt sich unter Einstellungen → Zugriff widerrufen. Hinweise zu
+Apple Kalender und Google Kalender stehen im Dialog. Einrichtung je
+Kalender-App: [Fristen im Kalender](../anleitungen/kalender.md).
+
 ![Termine](../ui/screenshots/termine.png)
 
 ---
@@ -521,7 +844,10 @@ Standort, Monatschart Min/Ø/Max. Grundlage jeder HGT-Auswertung.
 - Der Abgleich speichert einen geänderten Standort vorher.
 - CSV im üblichen Format `TT.MM.JJJJ;Mittel;Min;Max` mit Dezimalkomma;
   Tabulator und das alte Format mit Anführungszeichen werden ebenfalls
-  gelesen. Bis v2.11 trennte der Import auch am Dezimalkomma.
+  gelesen. Bis v2.11 trennte der Import auch am Dezimalkomma. Seit v3.1.0
+  versteht er auch Tabellen aus anderen Sprachen — Datum als `T/M/JJJJ` oder
+  `T-M-JJJJ`, Kopfzeile wie „Date;Moyenne;Min;Max“ — und jede eigene
+  Export-Datei; die Beispiel-CSV kommt in der Sprache der Oberfläche.
 
 Seit v2.8.0
 steht über dem Chart, bis wann Messwerte und ab wann Vorhersagen vorliegen;
@@ -530,7 +856,7 @@ Vorhersagen auf, die frühere Versionen wie Messwerte gespeichert haben. Mit
 *Wetter automatisch füllen* (Standard an) gleicht die App beim
 Öffnen einmal am Tag selbst ab und lädt beim ersten Mal das Klimanormal. Steht der
 Standort noch auf der Voreinstellung des Landes, sagt ein Hinweis das
-(v2.7.0) — die Gradtagzahlen rechnen dann mit dem Wetter eines anderen Orts.
+(v2.7.0) — die Heizgradtage rechnen dann mit dem Wetter eines anderen Orts.
 
 Unter dem Chart steht seit v2.13.0 die Quelle mit Lizenz: „Wetterdaten von
 Open-Meteo.com (CC BY 4.0)“; der PDF-Jahresbericht nennt sie ebenfalls,
@@ -548,13 +874,13 @@ Seit v2.12.0 **neun Unterseiten** statt einer langen Seite:
 | Seite | Inhalt |
 |---|---|
 | Allgemein | Sprache & Land, Übersicht (Monate, Prognosehorizont, Warnung nach Tagen ohne Ablesung), Vertragserinnerungen |
-| Haushalt & Gebäude | Wohnfläche, Gebäudetyp, beheizter Keller, Warmwasser; Personen im Haushalt |
-| Verbrauchsarten & Abrechnung | aktive Verbrauchsarten, alle Abrechnungsstichtage in einer Karte, Physikalische Konstanten (Gasfaktoren, Heizgrenze), Heizwerte und Tankwarnung, CO₂-Faktoren |
+| Haushalt & Gebäude | Wohnfläche, Gebäudetyp, beheizter Keller, Warmwasser; seit v3.1.0 „Wohnen und Warmwasser“ und „Eigene Vergleichswerte“ (für die Einordnung); Personen im Haushalt |
+| Verbrauchsarten & Abrechnung | aktive Verbrauchsarten (seit v3.1.0 auch Heizwärme), alle Abrechnungsstichtage in einer Karte, Physikalische Konstanten (Gasfaktoren, Heizgrenze), Heizwerte und Tankwarnung, CO₂-Faktoren (seit v3.1.0 mit „CO₂ vermieden durch PV“), seit v3.1.0 „Photovoltaik“ (angenommener Eigenverbrauch eines Balkonkraftwerks) |
 | Wetterdaten | §10 |
-| Daten | CSV-Export, Backup & Wiederherstellung mit Snapshots, Demo-Daten, Migration aus v0.9.0; Verweis zum Jahresbericht |
+| Daten | CSV-Export (Tabelle in der Standardsprache oder Format 1), Backup & Wiederherstellung mit Snapshots, Demo-Daten, Migration aus v0.9.0; Verweis zum Jahresbericht |
 | Integrationen | Home-Assistant-Anbindung |
 | Zugriff | Anmeldung & Zugriff, Einbetten |
-| Experte | eingeklappt und mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen |
+| Experte | seit v3.1.0 oben Belege (Speichergrenze) und Texterkennung im Heimnetz; darunter eingeklappt („Rechenparameter anzeigen“) und mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen, seit v3.1.0 CO₂-Preis |
 | System | Version, Lizenz, System-Diagnose |
 
 Gespeichert wird je Seite über eine Leiste unten („Verwerfen" · „Speichern"),
@@ -575,7 +901,19 @@ startet die App neu, damit Seitenleiste, Sprache und Zwischenspeicher zum
 neuen Stand passen.
 
 Oben die Karte **Sprache & Land** (v2.7.0): Sprache, Land, Währung und
-Zeitzone, alle mit sofortiger Wirkung. Beim Wechsel des Landes zeigt ein
+Zeitzone, alle mit sofortiger Wirkung. Seit v3.1.0 gibt es zwei
+Sprachfelder:
+
+- **Sprache auf diesem Gerät** — gilt nur für diesen Browser und wird dort
+  gespeichert, nicht auf dem Server. Die erste Wahl, „Wie die Installation
+  (…)“, folgt der Standardsprache. So kann im selben Haushalt ein Handy
+  Englisch zeigen und das andere Deutsch.
+- **Standardsprache der Installation** — die Einstellung `language`. Sie
+  gilt für Geräte ohne eigene Wahl und für alles, was ohne Gerät entsteht:
+  PDF-Jahresbericht, CSV-Dateien, Meldungen an Home Assistant und Skripte.
+
+Bis v3.0 stellte eine Person die Sprache für alle Geräte um. Beim Wechsel des
+Landes zeigt ein
 Dialog die Werte, die das Länderprofil ändern würde — bisher und neu
 nebeneinander, mit der Quelle des CO₂-Faktors —, und bietet „Alle
 übernehmen“, „Nur Land ändern“ oder „Abbrechen“. Bei den
@@ -597,9 +935,27 @@ dürfen, etwa ein Home-Assistant-Dashboard. Die **🏠 Home-Assistant-Anbindung
 (F1009)** auf der Seite Integrationen
 — API-Token verwalten, Zähler-Aliase pflegen und drei fertige Vorlagen
 kopieren: REST-Command, Eintrag für die `secrets.yaml` und (seit v2.5.3) eine
-Automatisierung aus den Aliasen, die vor jedem Push `has_value` prüft.
+Automatisierung aus den Aliasen, die vor jedem Push `has_value` prüft. Seit
+v3.1.0 folgt **„Schritt 5 · Werte zurück nach Home Assistant“**: REST-Sensoren
+für die `configuration.yaml`, die `GET /api/summary` einmal je Stunde abfragen —
+je Zähler Saldo (bei Arten mit Vertrag), Prognose der nächsten 12 Monate und
+Tage seit der letzten Ablesung. Ist die Anmeldung eingeschaltet, steht darunter
+der `secrets.yaml`-Eintrag `energietracker_read` für einen API-Schlüssel mit
+Bereich „Lesen“. Läuft die App unter Home-Assistant-Ingress, nennen die
+Vorlagen `http://<Hostname des Containers>` als Adresse statt der
+Ingress-Adresse aus der Adresszeile
+([Home Assistant, Schritt 5](../anleitungen/home-assistant.md)).
 Zahlenfelder und Abrechnungsstichtage werden vor dem Speichern geprüft;
 Fehler stehen rot am Feld.
+
+**Datenexport (CSV, v3.1.0):** Über den Knöpfen steht die Wahl des Formats:
+„Tabelle in der Standardsprache (…) — empfohlen“ öffnet sich mit Spaltennamen,
+Dezimalzeichen und Datum der Standardsprache direkt in Excel oder
+LibreOffice; „CSV-Format 1 — stabil, für Skripte“ bleibt, wie es seit
+Version 1.1 ist. Der Browser merkt sich die Wahl; beide lassen sich wieder
+importieren. Exportiert werden Monatsübersicht, Zählerstände bzw. Lieferungen
+je Verbrauchsart und die Temperaturreihe
+([CSV-Formate](api.md#csv-formate-v310)).
 
 **Backup & Restore (v2.6.0):** Ein Import wird erst vollständig geprüft und als
 Vorschau gezeigt (was eingespielt wird, was mangels Inhalt unverändert bleibt);
@@ -607,12 +963,41 @@ ein fehlerhaftes Backup ändert nichts und nennt die Fundstellen. Darunter die
 **gespeicherten Snapshots** mit Zeitpunkt, Anlass und Größe — herunterladen
 (⬇️), einspielen (↩️, vorher sichert die App den jetzigen Stand) oder löschen.
 Scheitert der Sicherungs-Snapshot, fragt die App, ob trotzdem eingespielt
-werden soll.
+werden soll. Seit v3.1.0 steht über den Knöpfen, sobald es Belege gibt, die
+Zeile „Belege: 12 Dateien, 3,4 MB von 500 MB – im Backup enthalten.“; ab
+80 % der Grenze in Warnfarbe mit „Der Speicher für Belege ist fast voll.“
+
+**Wohnen und Warmwasser (v3.1.0, Seite Haushalt & Gebäude):** Die Karte 🔑
+zwischen „Gebäude & Effizienz“ und den Wasser-Referenzwerten. „Ich wohne“ — „im
+Eigentum“ oder „zur Miete“; zur Miete erscheint unter Kosten & Verträge die
+Seite [Mietverhältnis](#mietverhältnis-v310). „Heizwärme kommt aus“ und
+„Warmwasser wird erwärmt mit“ — Auswahl der Energieträger, erste Wahl „keine
+Angabe“; „Warmwassertemperatur“ in °C
+([Einstellungen](einstellungen.md#wohnen-und-warmwasser-v310)).
+
+**Belege und Texterkennung (v3.1.0, Seite Experte):** Zwei Gruppen oben auf der
+Seite, vor dem eingeklappten Teil „Rechenparameter anzeigen“ — sie sind keine
+Rechenparameter. **📎 Belege** mit „Speicher für Belege, höchstens“
+(`attachments_max_mb`). **🔎 Texterkennung im Heimnetz** mit „Adresse des
+Dienstes“, „Schnittstelle“ (Ollama oder „OpenAI-kompatibel (LM Studio,
+LocalAI)“), „Modell“ und „Zeitlimit“. Leer gelassen bleibt die Texterkennung
+aus ([Einstellungen](einstellungen.md#texterkennung-im-heimnetz-v310),
+[Anleitung](../anleitungen/texterkennung.md)).
+
+**CO₂-Preis (v3.1.0, Seite Experte, unter „Rechenparameter anzeigen“):** Die
+Gruppe 🏷️ mit „CO₂-Preis je Jahr“ — einer Tabelle Jahr → €/t mit Löschen je
+Zeile und den Feldern Jahr und €/t zum Hinzufügen; eigene Werte gehen dem
+Länderprofil vor —, „Szenario: CO₂-Preis“ (Vorbelegung der Prognose, leer =
+aus) und „Szenario ab Jahr“
+([Einstellungen](einstellungen.md#co₂-preis-v310)).
 
 **Anmeldung & Zugriff (v2.6.0):** zeigt den Modus (ohne Anmeldung, Passwort,
 Proxy), schaltet die Passwort-Anmeldung ein, ändert das Passwort oder schaltet
 sie wieder aus (mit dem bisherigen Passwort) und verwaltet **API-Schlüssel**
-für Skripte (Lesen oder Verwalten, Klartext einmalig, zuletzt benutzt). Was per
+für Skripte (Lesen oder Verwalten, Klartext einmalig, zuletzt benutzt). Seit
+v3.1.0 stehen dort auch die Kalender-Schlüssel, die „Im Kalender abonnieren“
+nach einer Rückfrage („Link erzeugen“) anlegt (Bereich „nur Kalender-Abo“);
+Widerrufen beendet das Abo. Was per
 Umgebungsvariable festgelegt ist, ist hier nur zu sehen. Die
 Home-Assistant-Karte zeigt seit v2.6.0, wann zuletzt ein Wert mit dem Token
 ankam, und warnt, wenn die Anmeldung an ist, aber kein Token existiert.
@@ -650,12 +1035,95 @@ den Arbeitspreisen eines Gasvertrags rechnet **„Preis je m³ umrechnen“**
 Öl/Pellets ist hier nur die Tank-/Lagerverwaltung relevant — beim Anlegen
 und Bearbeiten eines Tanks werden **Tank-Kapazität** und **Anfangsbestand**
 erfasst (statt eines kumulativen Zählerstands), seit v2.10.0 optional der
-**Preis des Anfangsbestands** (leer = Preis der ersten Lieferung). Ein
-Stromzähler lässt sich als **Heizstrom (Wärmepumpe)** kennzeichnen — er zählt
-dann in der Effizienzkennzahl. Bei kumulativen Zählern
+**Preis des Anfangsbestands** (leer = Preis der ersten Lieferung). Bei
+kumulativen Zählern
 lassen sich seit v2.6.0 die **Stellen des Zählwerks** pflegen — dann rechnet
 die Auswertung einen Überlauf (99.999 → 0) richtig; die Gerätezeile zeigt
 sie an.
+
+**Rolle und Erfassung (v3.1.0):** Der Zählerdialog hat bei Strom, Wasser,
+PV-Erzeugung und Heizwärme die Auswahl **„Rolle“** mit einem Hinweis darunter
+— sie ersetzt die frühere Checkbox „Heizstrom (Wärmepumpe)“:
+
+| Art | Rollen |
+|---|---|
+| Strom | Haushalt · Wärmepumpe (Heizstrom) — zählt in der Effizienzkennzahl · Wallbox |
+| Wasser | Kaltwasser · Warmwasser — die App weist zusätzlich die Wärme dafür aus · Garten |
+| PV-Erzeugung | Erzeugung · Speicher – Ladung · Speicher – Entladung |
+| Heizwärme | Verbrauch der Wohnung · Wärmemenge der Wärmepumpe — zählt nicht als Heizenergie, sonst stünde sie neben dem Heizstrom doppelt |
+
+Bei allen Arten mit Zählerständen kommt **„Erfassung“** dazu: „Zählerstände“
+oder „Verbrauch je Zeitraum“ — „für Werte, die schon als Verbrauch vorliegen –
+etwa die monatliche Verbrauchsinfo des Messdienstes. Wechseln geht, solange
+der Zähler keine Daten hat.“ Die Zählerkarte trägt dann die Marke „je
+Zeitraum“, ebenso jede Rolle außer der Standardrolle. Ein Zähler mit
+Verbrauch je Zeitraum hat keinen Zählertausch; „CSV-Import“ öffnet bei ihm den
+Import von Zeiträumen: je Zeile ein Monat und der Verbrauch oder `von; bis;
+Verbrauch; Notiz`, Kopfzeile optional, mit Vorschau („N Zeiträume lassen sich
+einlesen“); überlappende Zeiträume werden übersprungen und gemeldet
+([Heizwärme](../verstehen/15-waerme.md)).
+
+**Markt- und Messlokation (v3.1.0):** Außer bei Heizöl und Pellets hat der
+Zählerdialog die Felder **„Marktlokations-ID (MaLo)“** und
+**„Messlokations-ID (MeLo)“** mit dem Hinweis „Für den Lieferantenwechsel,
+steht auf der Rechnung. MaLo: 11 Ziffern; MeLo: 33 Zeichen ab „DE“.“ Eine
+falsche ID — etwa eine MaLo-ID mit falscher Prüfziffer — lehnt die App mit
+einer Meldung ab. Die MaLo-ID erscheint in der Wechselentscheidung unter „Für
+den Wechsel bereithalten“ (§7).
+
+**Fernwärme (v3.1.0):** Der Vertragsdialog der Fernwärme hat zwei weitere
+Preislisten mit Stichtag — **„Leistungspreis“** (€ je kW und Jahr) und
+**„Messpreis“** (€ je Jahr) — und die Feldgruppe **„Fernwärme: Anschluss und
+Kennwerte“** mit „Anschlussleistung (kW)“, „CO₂-Faktor des Netzes (g/kWh)“ und
+„Primärenergiefaktor“ samt Hinweis, wo die Werte stehen
+([Fernwärme](../verstehen/04-fernwaerme.md#feste-kosten-leistungs--und-messpreis-v310)).
+
+**Gruppenvertrag (v3.1.0):** Bei Gas, Strom und Fernwärme führt die Auswahl
+„Zähler“ im Vertragsdialog zusätzlich **„Zählergruppen (ein Vertrag für
+alle)“** — jede Gruppe mit Mitgliedern. Mit einer Gruppe erscheint
+**„Arbeitspreis je Zähler (z. B. HT/NT)“**: je Mitglied eine Preisliste mit
+Stichtag, leer gilt der Arbeitspreis oben. Die Vertragskarte nennt dann
+„Zählergruppe: …“ statt des Zählers
+([Gruppenvertrag](../verstehen/13-meter-topologie.md#gruppenvertrag-v310)).
+
+**Reduziertes Netzentgelt (v3.1.0):** Der Stromvertrag hat die Preisliste
+**„Reduziertes Netzentgelt (§ 14a EnWG, Modul 1)“** in € je Jahr, mit
+Stichtag ([Strom](../verstehen/02-strom.md#steuerbare-verbraucher-v310)).
+
+**Gutschriften des Direktvermarkters (v3.1.0):** Der Vertragsdialog der
+Einspeisung hat den Abschnitt **„Gutschriften des Direktvermarkters“** mit
+„Von“, „Bis einschließlich“ und „Betrag“ je Zeile und „Gutschrift hinzufügen“
+([PV §11](../verstehen/12-pv.md#11-gutschriften-des-direktvermarkters-v310)).
+
+**Monatspreise importieren (v3.1.0):** Auf der Karte eines echten Vertrags
+(nicht bei Wasser und Einspeisung) liest **„Monatspreise importieren“** eine
+Datei `Monat;ct/kWh[;Grundpreis]`. Die Vorschau „Monatspreise übernehmen“ nennt
+die Monate („Die Datei enthält Preise für … Monate …“) und übersprungene
+Zeilen; „Übernehmen“ trägt je Monat einen Arbeitspreis (und Grundpreis) ab dem
+Ersten ein ([Strom](../verstehen/02-strom.md#dynamische-tarife-v310)).
+
+**PV-Anlage und Wärmepumpe im Zählerdialog (v3.1.0):** Bei PV-Erzeugung die
+Feldgruppe **„PV-Anlage“** mit „Balkonkraftwerk (Steckersolargerät, ohne
+Einspeisezähler)“, „Investition (brutto)“, „In Betrieb seit“ und
+„Speicherkapazität (kWh)“ samt Hinweisen. Bei Heizwärme mit der Rolle
+„Wärmemenge der Wärmepumpe“ die Auswahl **„Stromzähler der Wärmepumpe“** —
+Stromzähler mit der Rolle Wärmepumpe zum Ankreuzen.
+
+**Zeitreihe importieren (v3.1.0):** Jede Zählerkarte einer Art mit
+Zählerständen trägt den Knopf **„Zeitreihe importieren“**. Der Dialog
+„Zeitreihe aus einem Portal — …“ zeigt nach „Datei wählen“ die ersten Zeilen
+und fragt „Kopfzeilen“, „Spalte Datum (und Uhrzeit)“, „Spalte Uhrzeit (falls
+getrennt)“, „Spalte Wert“, „Die Werte sind“ (Verbrauch je Intervall oder
+Zählerstände), „Einheit der Werte“, „Zeitstempel bezeichnet“ (Beginn oder Ende
+des Intervalls) und „Startwert (Zählerstand)“. „Vorschau“ nennt Tage,
+Zeitraum und Summe; „Übernehmen“ schreibt und merkt sich die Zuordnung je
+Zähler im Browser ([Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md)).
+
+**Mindestlaufzeit über 24 Monate (v3.1.0):** Endet die Mindestlaufzeit eines
+Vertrags mehr als 24 Monate nach seinem Beginn, zeigt die App nach dem
+Speichern den Hinweis „Die Mindestlaufzeit ist länger als 24 Monate. In
+Deutschland ist eine so lange Erstlaufzeit für Verbraucher unwirksam (§ 309
+Nr. 9 BGB).“ Gespeichert wird der Vertrag trotzdem.
 
 **Meter-Topologie:** Subzähler werden unter ihrem Elternzähler eingerückt
 dargestellt, Gruppen als aufklappbarer Sammeleintrag; **„Zu Gruppe
@@ -670,6 +1138,13 @@ Stand (mit altem Wert) oder unverändert — und den Rückfragen der Erfassung:
 Rückgang, Sprung, Größenordnung, Zukunft, doppeltes Datum. Auffällige Zeilen
 stehen immer in der Liste, unauffällige bis 50. Erst „N Zeilen importieren"
 schreibt; „Andere Datei wählen" beginnt von vorn.
+
+Seit v3.1.0 liest der Import Tabellen in jeder Sprache der App: Spaltennamen
+wie „Date“, „Index“ oder „Lectura“, das Datum als `TT.MM.JJJJ`, `TT/MM/JJJJ`,
+`TT-MM-JJJJ` oder `JJJJ-MM-TT`, „geschätzt“ als Ja der Sprache. Ein Datum mit
+dem Monat vor dem Tag (`01/15/2026`) deutet er nicht um, sondern meldet die
+Zeile. Das Beispiel unter dem Dateifeld und die Beispiel-CSV stehen in der
+Sprache der Oberfläche.
 
 ![Vorschau des CSV-Imports](../ui/screenshots/import-vorschau.png)
 
@@ -700,6 +1175,21 @@ Einspeisung als Rückgang, nicht als Ersparnis.
 Sonnenstrom ging — selbst genutzt und eingespeist, gestapelt zur Erzeugung —
 und als Linie, was trotzdem aus dem Netz kam. Die Kurzbeschreibung summiert nur
 Monate mit Daten aller drei Zähler.
+
+**Speicher, Amortisation, Hinweise (v3.1.0):** Die Ansicht der PV-Erzeugung
+zeigt, wo die Daten es hergeben:
+
+- **„Speicher {Jahr}“** — „Geladen“, „Entladen“, „Wirkungsgrad“ mit „Verluste
+  … kWh“ und „Vollzyklen“ (nur mit Speicherkapazität);
+- **„Amortisation“** — „Investition“, „Nutzen bisher“ mit „zuletzt … im Jahr“
+  und „Zurück seit“ bzw. „Zurück voraussichtlich“ mit „rund … Jahre“, darunter,
+  was der Nutzen enthält und was nicht;
+- bei einem Balkonkraftwerk ohne Einspeisezähler „Balkonkraftwerk:
+  Eigenverbrauch angenommen mit … % der Erzeugung (Einstellungen).“;
+- in Deutschland bei Inbetriebnahme ab dem 25.02.2025 der Hinweis zu § 51 EEG
+  (keine Vergütung bei negativem Börsenpreis mit intelligentem Messsystem).
+
+Mehr in [PV §7–10](../verstehen/12-pv.md#7-speicher-v310).
 
 ![PV](../ui/screenshots/pv.png)
 
@@ -739,9 +1229,14 @@ Erreichbar über die Fußzeile der Seitenleiste, am iPhone unter „Mehr“
 - **Deine Daten:** Alles bleibt auf dem eigenen Server — keine Konten, keine
   Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo:
   beim täglichen Wetterabgleich (Standort auf rund 1 km gerundet) und bei der
-  Ortssuche.
-- **Begriffe:** 33 Einträge in allen sieben Sprachen mit Suche. Dieselben
+  Ortssuche — und, nur wenn eingetragen, mit dem eigenen Texterkennungsdienst
+  im Heimnetz (v3.1.0) — und, nur auf Knopfdruck („Von SMARD laden“ unter
+  Wechsel prüfen), mit SMARD für die Börsenstrompreise (v3.1.0).
+- **Begriffe:** seit v3.1.0 43 Einträge (in v2.13.0 33) in allen sieben Sprachen mit Suche. Dieselben
   Texte öffnet das ⓘ in der App; `#/help?term=hdd` springt zu einem Begriff.
+  Seit v3.1.0 steht unter Rechnungsbegriffen, wie die Rechnung des
+  eingestellten Landes sie nennt („Auf deiner Rechnung (Frankreich):
+  „Mensualité““).
 
 ![Hilfe](../ui/screenshots/hilfe.png)
 

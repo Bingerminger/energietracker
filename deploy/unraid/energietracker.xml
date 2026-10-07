@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<!--
+  Energietracker – Vorlage für Unraid (Docker-Tab / Community Applications).
+  Synchron halten mit Dockerfile, docker-compose.yml und docs/betrieb/docker.md:
+  Image, Port, Datenpfad und Umgebungsvariablen. ReleaseConsistencyTest prüft das.
+-->
+<Container version="2">
+  <Name>Energietracker</Name>
+  <Repository>ghcr.io/bingerminger/energietracker:latest</Repository>
+  <Registry>https://github.com/Bingerminger/energietracker/pkgs/container/energietracker</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Bingerminger/energietracker/issues</Support>
+  <Project>https://github.com/Bingerminger/energietracker</Project>
+  <ReadMe>https://github.com/Bingerminger/energietracker/blob/main/docs/en/betrieb/docker.md</ReadMe>
+  <Overview>Energy and water tracker for your home: meter readings, supply contracts, monthly advance payments, annual bills, weather-adjusted analysis and forecasts for electricity, gas, water, district heating, heating oil, pellets and PV. A web app (PWA) in seven languages. No database: all data stays as JSON files in the appdata folder. Home Assistant can push meter readings automatically and read balances back. Built for your own network; switch on the built-in sign-in (ET_AUTH) before you expose it.</Overview>
+  <Category>HomeAutomation: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:80]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Bingerminger/energietracker/main/deploy/unraid/energietracker.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Bingerminger/energietracker/main/public/img/icon-light-512.png</Icon>
+  <License>https://github.com/Bingerminger/energietracker/blob/main/LICENSE</License>
+  <Screenshot>https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/dashboard.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/zaehler-vertraege.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/prognose.png</Screenshot>
+  <Screenshot>https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/tarifvergleich.png</Screenshot>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="WebUI port" Target="80" Default="8080" Mode="tcp" Description="Port of the web interface. Change the host port if 8080 is in use; the container always listens on 80." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/energietracker" Mode="rw" Description="All data (meters, readings, contracts, settings, snapshots) as JSON files. Keep this path stable and include it in your backups. On first start the container makes it writable for its web server user." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/energietracker</Config>
+  <Config Name="Log level (ET_LOG_LEVEL)" Target="ET_LOG_LEVEL" Default="info" Mode="" Description="debug, info, warning or error. debug also logs every request." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
+  <Config Name="Log destination (ET_LOG_DEST)" Target="ET_LOG_DEST" Default="stderr" Mode="" Description="stderr (container log), file (data/logs/app.log) or null." Type="Variable" Display="advanced" Required="false" Mask="false">stderr</Config>
+  <Config Name="Sign-in mode (ET_AUTH)" Target="ET_AUTH" Default="" Mode="" Description="Optional. off, password or proxy. Empty = switchable in the app (Settings → Access). ET_AUTH=off is also the way back in after a forgotten password." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Admin password hash (ET_ADMIN_PASSWORD_HASH)" Target="ET_ADMIN_PASSWORD_HASH" Default="" Mode="" Description="Optional. Password as a PHP password_hash() value; fixes the password so it cannot be changed in the app." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="Trusted proxies (ET_TRUSTED_PROXIES)" Target="ET_TRUSTED_PROXIES" Default="" Mode="" Description="Optional. Addresses or CIDR ranges of your reverse proxy (comma-separated). Only requests from there may set the user header in proxy mode." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Allowed hosts (ET_ALLOWED_HOSTS)" Target="ET_ALLOWED_HOSTS" Default="" Mode="" Description="Optional. Comma-separated host names the app answers to, *.example.org allowed (protection against DNS rebinding). IP addresses and localhost always work. Empty = all." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="Frame ancestors (ET_FRAME_ANCESTORS)" Target="ET_FRAME_ANCESTORS" Default="" Mode="" Description="Optional. Origins allowed to embed the app, e.g. http://homeassistant.local:8123 for a Home Assistant webpage card." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+</Container>

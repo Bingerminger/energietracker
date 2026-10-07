@@ -68,6 +68,7 @@ final class TariffSwitchService
         private ContractService $contracts,
         private MeterService $meters,
         private I18nService $i18n,
+        private ?MarketPriceService $market = null,   // v3.1.0 (H6, MKT-12)
     ) {}
 
     /**
@@ -81,7 +82,7 @@ final class TariffSwitchService
                 $this->i18n->t('errors.common.unknownUtility', ['utility' => $utility])
             );
         }
-        $meter = $this->meters->get($utility, $meterId);
+        $meter = $this->meters->target($utility, $meterId);   // v3.1.0 (H6): auch Gruppe
         if (!$meter) {
             throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
@@ -99,9 +100,20 @@ final class TariffSwitchService
                 $this->i18n->t('errors.tariff.deliveryUnsupported', ['label' => $u['label']]));
         }
 
-        $all    = $this->contracts->list($utility, $meterId);
+        // v3.1.0 (H6) — HT/NT einer Gruppe als Mischpreis
+        $all    = array_map(fn($c) => $this->forecast->contractView($utility, $meter, $c), $this->contracts->list($utility, $meterId));
         $real   = array_values(array_filter($all, fn($c) => empty($c['is_shadow'])));
         $shadow = array_values(array_filter($all, fn($c) => !empty($c['is_shadow'])));
+        // v3.1.0 (H6, MKT-12) — dynamischer Kandidat: Monatspreise aus den Marktdaten,
+        // künftige Monate nach dem Vorjahresmonat; ohne Marktdaten kein Kandidat
+        $dynamicNoData = false;
+        foreach ($shadow as $i => $s) {
+            if (($s['price_model'] ?? null) !== 'dynamic') continue;
+            $s = $this->market?->expand($s, date('Y-m', strtotime('-36 months')), date('Y-m', strtotime('+36 months'))) ?? $s;
+            if (empty($s['working_prices'])) { $dynamicNoData = true; unset($shadow[$i]); continue; }
+            $shadow[$i] = $s;
+        }
+        $shadow = array_values($shadow);
 
         // ── Wechseltermin ───────────────────────────────────────────────
         // Nicht der heute laufende Vertrag entscheidet, sondern das Ende der
@@ -159,7 +171,8 @@ final class TariffSwitchService
             $candidates[] = $this->evaluateChain($chain, $window, true);
         }
         foreach ($shadow as $s) {
-            $candidates[] = $this->evaluate($s, $window, $unit, false);
+            $candidates[] = $this->evaluate($s, $window, $unit, false)
+                + (($s['price_model'] ?? '') === 'dynamic' ? ['price_model' => 'dynamic', 'dynamic_assumed_months' => count($s['dynamic_assumed'] ?? [])] : []);
         }
 
         $reference = null;
@@ -230,6 +243,7 @@ final class TariffSwitchService
             'expected_consumption' => round($expectedConsumption, 1),
             'forecast'             => $seasonal['quality'],
             'candidates'           => array_values($candidates),
+            'dynamic_missing_market' => $dynamicNoData,   // v3.1.0 (H6)
         ];
     }
 
@@ -433,7 +447,7 @@ final class TariffSwitchService
         // Deckt das Fenster mehrere Verträge ab, muss das Label das sagen —
         // sonst steht dort ein Tarif, der nur einen Teil der Zahlen erklärt.
         $label = count($usedIds) > 1
-            ? $this->i18n->t('tariff.switch.contractChain', [
+            ? $this->i18n->tp('tariff.switch.contractChain', count($usedIds), [
                 'first' => $this->labelFor($chain[0]),
                 'count' => count($usedIds),
               ])

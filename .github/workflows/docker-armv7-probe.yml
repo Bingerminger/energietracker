@@ -1,0 +1,49 @@
+name: Docker armv7 (Probelauf)
+
+# v3.1.0 (API-39) — Baut das Image für linux/arm/v7 (ältere Raspberry Pi,
+# 32-Bit-NAS) unter QEMU und startet es, ohne zu veröffentlichen. Erst wenn
+# dieser Lauf grün ist, kommt arm/v7 in die Plattformliste von
+# docker-publish.yml — ein Fehlschlag dort würde das Image für alle
+# Plattformen blockieren. Manuell starten: Actions → „Docker armv7" → Run.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: arm/v7 bauen & smoke-testen
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: QEMU einrichten
+        uses: docker/setup-qemu-action@v3
+
+      - name: Buildx einrichten
+        uses: docker/setup-buildx-action@v3
+
+      - name: Bauen (linux/arm/v7, ohne Push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm/v7
+          load: true
+          tags: energietracker:armv7
+
+      - name: Smoke-Test unter QEMU
+        run: |
+          docker run -d --platform linux/arm/v7 --name et -p 8080:80 energietracker:armv7
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:8080/api/health -o /tmp/health.json; then break; fi
+            sleep 5
+          done
+          docker logs et 2>&1 | tail -20
+          cat /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+          docker exec et php -v

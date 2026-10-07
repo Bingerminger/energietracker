@@ -124,6 +124,8 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 // lib/demo-mode.js ein, ein Service Worker wird nicht registriert. Nur über die
 // Umgebung beim Bauen, nie über eine Anfrage.
 $demoBuild = getenv('ET_DEMO_BUILD') === '1';
+// v3.1.0 (Ökosystem G1/G3) — hinter Home-Assistant-Ingress?
+$ingress = trim((string)($_SERVER['HTTP_X_INGRESS_PATH'] ?? '')) !== '';
 ?>
 <!doctype html>
 <html lang="<?= $h($lang) ?>"<?= $demoBuild ? ' data-demo' : '' ?>>
@@ -133,6 +135,7 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
      reicht die Seite bis unter Uhr und Home-Balken; die Abstände dafür setzt
      das CSS über env(safe-area-inset-*). -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<?php if ($ingress): ?><meta name="et-ingress-host" content="<?= $h((string)gethostname()) ?>"><?php endif; ?>
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111827">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
@@ -142,7 +145,9 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
      durchsichtigen Statusleiste stand im Hellmodus auf weißer Kopfleiste. -->
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Energietracker">
-<link rel="manifest" href="manifest.webmanifest">
+<!-- v3.1.0 (I18N-30) — Manifest in der Sprache des Geräts (app.js setzt die
+     Gerätesprache nach); die Demo hat kein PHP und nimmt die statische Datei. -->
+<link rel="manifest" href="<?= $demoBuild ? 'manifest.webmanifest' : 'api.php/api/manifest?lang=' . $h($lang) ?>">
 <title>Energietracker</title>
 <link rel="icon" type="image/png" sizes="32x32" href="public/img/icon-light-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="public/img/icon-light-16.png">
@@ -166,6 +171,12 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
   } catch (e) {
     document.documentElement.setAttribute('data-theme', 'dark');
   }
+  // v3.1.0 (Review I18N-29) — Sprache dieses Geräts schon für die erste
+  // Darstellung (Vorlesen, Silbentrennung); i18n.js setzt sie danach endgültig.
+  try {
+    var lang = localStorage.getItem('et-language');
+    if (lang && /^[a-z]{2}$/.test(lang)) document.documentElement.setAttribute('lang', lang);
+  } catch (e) {}
 })();
 </script>
 <!--
@@ -181,6 +192,7 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
 <link rel="stylesheet" href="public/css/app.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/components.css?v=<?= $cb ?>">
 <link rel="stylesheet" href="public/css/readings-entry.css?v=<?= $cb ?>">
+<link rel="stylesheet" href="public/css/print.css?v=<?= $cb ?>">
 </head>
 <body data-app-version="<?= $h($version) ?>">
 <a class="skip-link" href="#view"><?= $h($tShell('app.skipToContent', 'Zum Hauptinhalt springen')) ?></a>
@@ -204,7 +216,7 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
   <!-- Left sidebar -->
   <aside class="sidebar" id="sidebar">
     <nav class="sidebar__nav" id="primary-nav" aria-label="<?= $h($tShell('app.primaryNav', 'Hauptnavigation')) ?>">
-      <div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt…')) ?></div>
+      <div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt …')) ?></div>
     </nav>
     <div class="sidebar__footer">
       <span>v<?= $h($version) ?></span>
@@ -219,7 +231,7 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
   <div class="nav-backdrop" id="nav-backdrop" aria-hidden="true"></div>
 
   <!-- Main content -->
-  <main id="view" class="view" tabindex="-1"><div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt…')) ?></div></main>
+  <main id="view" class="view" tabindex="-1"><div class="loading" role="status"><?= $h($tShell('common.loading', 'Lädt …')) ?></div></main>
 
   <!-- v2.11.0 (Review UI-05) — Tab-Leiste auf dem iPhone, gefüllt von lib/mobile-nav.js -->
   <nav class="tabbar" id="tabbar" aria-label="<?= $h($tShell('nav.tabbar', 'Schnellnavigation')) ?>"></nav>
@@ -252,9 +264,16 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
   var VERSION = <?= json_encode($version) ?>;
   if (!('caches' in window)) return;
   var GUARD = 'et-cache-healed';
+  // v3.1.0 (Ökosystem G1) — nur die Caches und den Worker DIESER Installation:
+  // Auf demselben Ursprung können eine zweite Installation oder (unter Ingress)
+  // Home Assistant selbst eigene Caches und Worker haben.
+  var SCOPE = new URL('.', location.href).pathname;
+  var PREFIX = 'et:' + SCOPE + ':';
+  var mine = function (k) { return k.indexOf(PREFIX) === 0 || /^et-(static|runtime)-v/.test(k); };
   caches.keys().then(function (keys) {
+    keys = keys.filter(mine);
     var stale = keys.filter(function (k) {
-      return k.indexOf('et-') === 0 && k.indexOf(VERSION) === -1;
+      return k.indexOf(VERSION) === -1;
     });
     if (!stale.length) { try { sessionStorage.removeItem(GUARD); } catch (e) {} return; }
     if (sessionStorage.getItem(GUARD) === VERSION) return;   // schon versucht
@@ -263,7 +282,9 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
       Promise.all(keys.map(function (k) { return caches.delete(k); })),
       navigator.serviceWorker && navigator.serviceWorker.getRegistrations
         ? navigator.serviceWorker.getRegistrations().then(function (rs) {
-            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+            return Promise.all(rs.filter(function (r) {
+              return new URL(r.scope).pathname === SCOPE;
+            }).map(function (r) { return r.unregister(); }));
           })
         : Promise.resolve()
     ]).then(function () { location.reload(); });
@@ -282,7 +303,11 @@ $demoBuild = getenv('ET_DEMO_BUILD') === '1';
 <!-- N1008 (PWA) — Service Worker registrieren. Inline (kein Modul), damit der
      relative Pfad 'sw.js' gegen die Dokument-URL (Web-Wurzel) auflöst und der
      Worker Root-Scope erhält. -->
-<?php if (!$demoBuild): ?>
+<?php
+// v3.1.0 (Ökosystem G1/G3) — Unter Home-Assistant-Ingress teilt die App den
+// Ursprung mit Home Assistant: kein eigener Service Worker (Scope und Caches
+// gehören HA), offline gibt es dort nicht.
+if (!$demoBuild && !$ingress): ?>
 <script nonce="<?= $nonce ?>">
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', function () {

@@ -51,6 +51,10 @@ final class Utilities
             'co2_setting'     => 'co2_strom',
             'default_meter_name' => 'Hauptzähler',
             'allow_multiple_meters' => true,
+            // v3.1.0 (H3, B9) — Rollen der Zähler; die erste ist der Standard.
+            // heat_pump = Wärmepumpe (Alias des älteren Felds heat_source),
+            // ev_charger = Wallbox
+            'meter_roles'     => ['household', 'heat_pump', 'ev_charger'],
         ],
         'wasser' => [
             'key'             => 'wasser',
@@ -66,6 +70,9 @@ final class Utilities
             'co2_setting'     => 'co2_wasser',
             'default_meter_name' => 'Hauptzähler',
             'allow_multiple_meters' => true,
+            // v3.1.0 (H3, B9/CALC-28) — warm: Warmwasserzähler (Wärme nach
+            // HeizkostenV § 9 als Rechenwert), garden: Gartenwasser
+            'meter_roles'     => ['cold', 'warm', 'garden'],
         ],
 
         // ── v1.3.0 — Fernwärme: kumulativer kWh-Zähler, analog Strom, aber HGT-relevant ──
@@ -166,6 +173,33 @@ final class Utilities
             'allow_multiple_meters' => true,
             'accounting_kind' => 'generation',
             'has_contracts'   => false,
+            // v3.1.0 (H3, B9) — Speicher: Ladung/Entladung als eigene Zähler
+            'meter_roles'     => ['generation', 'battery_charge', 'battery_discharge'],
+        ],
+
+        // ── v3.1.0 (H3, B8) — Heizwärme: was in der Wohnung ankommt, nicht der
+        //     Brennstoff. Für Mieter mit Wärmezähler oder monatlicher
+        //     Verbrauchsinfo (HeizkostenV § 6a; Erfassung „je Zeitraum", B2)
+        //     und für die Wärmemenge einer Wärmepumpe (Rolle heat_pump_output).
+        //     Keine Versorgerverträge — bezahlt wird über das Mietverhältnis.
+        //     CO₂ über den Energieträger der Heizung (Einstellung
+        //     waerme_energietraeger), ohne Angabe 0. Nicht standardmäßig aktiv.
+        'waerme' => [
+            'key'             => 'waerme',
+            'label'           => 'Heizwärme',
+            'icon'            => '♨️',
+            'unit'            => 'kWh',
+            'consumption_unit'=> 'kWh',
+            'unit_to_kwh'     => false,
+            'reading_kind'    => 'cumulative',
+            'conversion_setting' => null,
+            'hgt_relevant'    => true,
+            'color'           => '#ea580c',          // orange
+            'co2_setting'     => null,               // aus waerme_energietraeger
+            'default_meter_name' => 'Wärmezähler',
+            'allow_multiple_meters' => true,
+            'has_contracts'   => false,
+            'meter_roles'     => ['consumption', 'heat_pump_output'],
         ],
     ];
 
@@ -184,7 +218,7 @@ final class Utilities
     public static function get(string $key): array
     {
         if (!isset(self::$defs[$key])) {
-            throw new \InvalidArgumentException("Unbekannte Verbrauchsart: $key");
+            throw new \Energietracker\Support\LocalizedException('errors.common.unknownUtility', ['utility' => $key], "Unknown utility: $key");
         }
         return self::$defs[$key];
     }
@@ -275,6 +309,50 @@ final class Utilities
     public static function isGenerationOnly(string $key): bool
     {
         return self::accountingKind($key) === 'generation';
+    }
+
+    /**
+     * v3.1.0 (H3, B9) — Rollen der Zähler einer Art; leer = keine Rollen.
+     * Die erste ist der Standard für Zähler ohne Angabe.
+     *
+     * @return list<string>
+     */
+    public static function meterRoles(string $key): array
+    {
+        return array_values((array)(self::get($key)['meter_roles'] ?? []));
+    }
+
+    /** v3.1.0 — Rolle eines Zählers (fehlt = Standard; strom: heat_source = heat_pump). */
+    public static function roleOf(string $key, array $meter): ?string
+    {
+        $roles = self::meterRoles($key);
+        if ($roles === []) return null;
+        $role = $meter['role'] ?? null;
+        if ($key === 'strom' && $role === null && !empty($meter['heat_source'])) return 'heat_pump';
+        return in_array($role, $roles, true) ? $role : $roles[0];
+    }
+
+    /**
+     * v3.1.0 (H3, B8) — CO₂-Einstellung einer Art. Heizwärme hat keine
+     * eigene: Sie kommt vom Energieträger der Heizung (waerme_energietraeger).
+     */
+    public static function co2Setting(string $key, ?string $heatSource = null): ?string
+    {
+        if ($key === 'waerme') {
+            return ($heatSource !== null && $heatSource !== 'waerme' && self::exists($heatSource))
+                ? (self::get($heatSource)['co2_setting'] ?? null) : null;
+        }
+        return self::get($key)['co2_setting'] ?? null;
+    }
+
+    /**
+     * v3.1.0 (Paket H5, UI-35/MKT-17) — Rechnungsprüfung möglich: Zählerstände,
+     * Verträge, Verbrauch (nicht Erzeugung, nicht Einspeisung — die bekommt eine
+     * Gutschrift, keine Rechnung).
+     */
+    public static function supportsBillCheck(string $key): bool
+    {
+        return self::exists($key) && self::isCumulative($key) && self::hasContracts($key) && self::accountingKind($key) === 'consumption';
     }
 
     public static function dataPath(string $key, string $rootDir): string

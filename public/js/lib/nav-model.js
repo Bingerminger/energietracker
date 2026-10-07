@@ -21,10 +21,11 @@ import { t } from './i18n.js';
  * aus der Routentabelle (router.js).
  *
  * @param {string} section
- * @param {{utilities?: Array<{key: string, label: string, icon?: string}>}} ctx
+ * @param {{utilities?: Array<{key: string, label: string, icon?: string}>, tenant?: boolean}} ctx
+ *        tenant (v3.1.0) — „Ich wohne zur Miete": Seite „Mietverhältnis" unter Kosten
  * @returns {Array<{view: string, href: string, label: string, badge?: string, utility?: string}>}
  */
-export function sectionPages(section, { utilities = [] } = {}) {
+export function sectionPages(section, { utilities = [], tenant = false } = {}) {
   switch (section) {
     case 'consumption':
       return utilities.map(u => ({ view: 'utility:' + u.key, href: `#/utility/${u.key}`, label: u.label, icon: u.icon, utility: u.key }));
@@ -33,10 +34,13 @@ export function sectionPages(section, { utilities = [] } = {}) {
         { view: 'contracts-overview', href: '#/contracts', label: t('nav.contracts') },
         { view: 'tariffs', href: '#/tariffs', label: t('nav.tariffs') },
       ];
-      // Die Rechnungsprüfung rechnet Zustandszahl × Brennwert — nur Gas (F1012)
-      if (utilities.some(u => u.key === 'gas')) {
+      // v3.1.0 (H5, UI-35) — für alle Arten mit Zählerständen und Verträgen (bis
+      // v3.0 nur Gas: Zustandszahl × Brennwert, F1012)
+      if (utilities.some(u => u.supports_bill_check || u.key === 'gas')) {
         pages.push({ view: 'bill-check', href: '#/bill-check', label: t('nav.billCheck') });
       }
+      // v3.1.0 (H3, F1008) — Mieter: Vorauszahlung, Budget, Nebenkostenabrechnungen
+      if (tenant) pages.push({ view: 'tenancy', href: '#/tenancy', label: t('nav.tenancy') });
       return pages;
     }
     case 'analysis':
@@ -78,7 +82,7 @@ export function sectionPages(section, { utilities = [] } = {}) {
 export function sidebarModel(utilities) {
   return [
     { key: 'dashboard', section: 'overview', href: '#/dashboard', icon: '🏠', label: t('nav.dashboard') },
-    { key: 'readings-entry', section: 'capture', href: '#/zaehlerstaende', icon: '📋', label: t('nav.readings') },
+    { key: 'readings-entry', section: 'capture', href: '#/zaehlerstaende', icon: '📋', label: t('nav.readings'), badge: 'outbox' },
     {
       key: 'consumption', section: 'consumption', group: t('nav.group.consumption'),
       children: utilities.map(u => ({
@@ -98,7 +102,7 @@ export function tabbarModel(firstUtility) {
   return [
     { key: 'overview', section: 'overview', href: '#/dashboard', icon: '🏠', label: t('nav.tab.overview') },
     { key: 'consumption', section: 'consumption', href: firstUtility ? `#/utility/${firstUtility}` : '#/dashboard', icon: '📈', label: t('nav.tab.consumption') },
-    { key: 'capture', section: 'capture', action: 'capture', icon: '＋', label: t('nav.tab.capture') },
+    { key: 'capture', section: 'capture', action: 'capture', icon: '＋', label: t('nav.tab.capture'), badge: 'outbox' },
     { key: 'costs', section: 'costs', href: '#/contracts', icon: '💶', label: t('nav.tab.costs') },
     { key: 'more', action: 'more', icon: '☰', label: t('nav.tab.more'), badge: 'hints' },
   ];

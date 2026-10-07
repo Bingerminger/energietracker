@@ -50,17 +50,17 @@ final class WeatherService implements WeatherSource
             self::ARCHIVE_API, $lat, $lon, $start, $end, self::timezone()
         );
         $resp = $this->httpGet($url, 120);
-        if (!$resp['ok']) return ['data' => [], 'error' => $resp['error']];
+        if (!$resp['ok']) return ['data' => []] + self::failure($resp);
         $data = json_decode((string)$resp['body'], true);
         if (!is_array($data) || !isset($data['daily']['time'])) {
-            return ['data' => [], 'error' => 'Unerwartetes Antwortformat von Open-Meteo'];
+            return ['data' => [], 'error' => self::BAD_FORMAT, 'error_code' => 'badFormat'];
         }
         $out = [];
         foreach ($data['daily']['time'] as $i => $date) {
             $v = $data['daily']['temperature_2m_mean'][$i] ?? null;
             if ($v !== null) $out[(string)$date] = (float)$v;
         }
-        return ['data' => $out, 'error' => $out ? null : 'Antwort 200 OK, aber 0 verwendbare Tage'];
+        return $out ? ['data' => $out, 'error' => null] : ['data' => [], 'error' => self::NO_DAYS, 'error_code' => 'noDays'];
     }
 
     public function archiveUrl(float $lat, float $lon, string $start, string $end): string
@@ -92,9 +92,9 @@ final class WeatherService implements WeatherSource
             . '&count=' . max(1, min(10, $count))
             . '&language=' . rawurlencode($language) . '&format=json';
         $resp = $this->httpGet($url, 10);
-        if (!$resp['ok']) return ['data' => [], 'error' => $resp['error']];
+        if (!$resp['ok']) return ['data' => []] + self::failure($resp);
         $json = json_decode((string)$resp['body'], true);
-        if (!is_array($json)) return ['data' => [], 'error' => 'Unerwartetes Antwortformat von Open-Meteo'];
+        if (!is_array($json)) return ['data' => [], 'error' => self::BAD_FORMAT, 'error_code' => 'badFormat'];
         $out = [];
         foreach (($json['results'] ?? []) as $r) {
             if (!is_array($r) || !isset($r['name'], $r['latitude'], $r['longitude'])) continue;
@@ -110,6 +110,20 @@ final class WeatherService implements WeatherSource
         return ['data' => $out, 'error' => null];
     }
 
+    // v3.1.0 (Review I18N-14) — `error` ist der technische Text fürs Log (bis v3.0
+    // landete er deutsch im Toast, auch in einer englischen Oberfläche).
+    // `error_code` (badFormat, noDays, network, http, noTransport) übersetzt
+    // TemperatureService über errors.weather.<code>.
+    private const BAD_FORMAT = 'Unexpected response format from Open-Meteo';
+    private const NO_DAYS = 'HTTP 200, but no usable days';
+
+    /** Fehlerfelder einer gescheiterten Anfrage. */
+    private static function failure(array $resp): array
+    {
+        return ['error' => $resp['error'], 'error_code' => $resp['error_code'] ?? 'network', 'detail' => $resp['detail'] ?? null,
+                'http_code' => $resp['http_code'] ?? null];
+    }
+
     private static function timezone(): string
     {
         return rawurlencode(date_default_timezone_get());
@@ -119,11 +133,11 @@ final class WeatherService implements WeatherSource
     {
         $resp = $this->httpGet($url, $timeout);
         if (!$resp['ok']) {
-            return ['data' => [], 'error' => $resp['error'], 'url' => $url, 'http_code' => $resp['http_code']];
+            return ['data' => [], 'url' => $url, 'http_code' => $resp['http_code']] + self::failure($resp);
         }
         $data = json_decode($resp['body'], true);
         if (!is_array($data) || !isset($data['daily']['time'])) {
-            return ['data' => [], 'error' => 'Unerwartetes Antwortformat von Open-Meteo', 'url' => $url];
+            return ['data' => [], 'error' => self::BAD_FORMAT, 'error_code' => 'badFormat', 'url' => $url];
         }
         $out = [];
         $times = $data['daily']['time'];
@@ -137,7 +151,8 @@ final class WeatherService implements WeatherSource
         }
         return [
             'data'      => $out,
-            'error'     => empty($out) ? 'Antwort 200 OK, aber 0 verwendbare Tage' : null,
+            'error'     => empty($out) ? self::NO_DAYS : null,
+            'error_code' => empty($out) ? 'noDays' : null,
             'url'       => $url,
             'http_code' => $resp['http_code'],
             'rows'      => count($out),
@@ -161,18 +176,19 @@ final class WeatherService implements WeatherSource
             $code  = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
             if ($errno) {
                 return ['ok' => false, 'body' => null, 'http_code' => null,
-                        'error' => "cURL #$errno: " . ($cerr ?: 'unbekannt')];
+                        'error' => "cURL #$errno: " . ($cerr ?: 'unknown'), 'error_code' => 'network',
+                        'detail' => $cerr ?: "cURL #$errno"];
             }
             if ($code !== 200) {
                 return ['ok' => false, 'body' => $body ?: null, 'http_code' => $code,
-                        'error' => "HTTP $code"];
+                        'error' => "HTTP $code", 'error_code' => 'http'];
             }
             return ['ok' => true, 'body' => (string)$body, 'http_code' => 200, 'error' => null];
         }
 
         if (!ini_get('allow_url_fopen')) {
             return ['ok' => false, 'body' => null, 'http_code' => null,
-                    'error' => 'Neither cURL nor allow_url_fopen available'];
+                    'error' => 'Neither cURL nor allow_url_fopen available', 'error_code' => 'noTransport'];
         }
         $ctx = stream_context_create(['http' => [
             'timeout' => $timeout, 'ignore_errors' => true,
@@ -182,7 +198,8 @@ final class WeatherService implements WeatherSource
         if ($r === false) {
             $err = error_get_last();
             return ['ok' => false, 'body' => null, 'http_code' => null,
-                    'error' => 'file_get_contents fehlgeschlagen: ' . ($err['message'] ?? '?')];
+                    'error' => 'file_get_contents failed: ' . ($err['message'] ?? '?'), 'error_code' => 'network',
+                    'detail' => (string)($err['message'] ?? '?')];
         }
         return ['ok' => true, 'body' => $r, 'http_code' => 200, 'error' => null];
     }

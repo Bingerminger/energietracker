@@ -45,6 +45,7 @@ final class ErrorHandler
         if (!headers_sent()) {
             http_response_code($status);
             header('Content-Type: application/json; charset=utf-8');
+            header('Vary: X-ET-Language, Accept-Language');
             header('Cache-Control: no-cache, no-store, must-revalidate');
         }
         $payload = ['success' => false, 'error' => $public, 'code' => $code];
@@ -83,7 +84,15 @@ final class ErrorHandler
             $detail  = ['file' => basename($e->getFile()), 'line' => $e->getLine(), 'type' => $e::class];
             self::$logger?->error($e->getMessage(), $detail + ['status' => $status, 'error_id' => $errorId]);
             $code = $e instanceof \Energietracker\Storage\StorageCorruptedException ? 'errors.storage.corrupted' : null;
-            self::respond($status, $e->getMessage(), $detail, $errorId, $code);
+            $message = $e->getMessage();
+            // v3.1.0 (Review I18N-14) — Schlüssel statt Rohtext: in der Sprache der Anfrage
+            if ($e instanceof \Energietracker\Support\LocalizedException) {
+                $code = $e->key;
+                if (self::$translate) $message = (self::$translate)($e->key, $e->params);
+            } elseif ($e instanceof \Energietracker\Storage\StorageCorruptedException && self::$translate) {
+                $message = (self::$translate)('errors.storage.' . $e->kind, ['file' => $e->dataFile, 'copy' => (string)$e->copy]);
+            }
+            self::respond($status, $message, $detail, $errorId, $code);
             exit;
         });
 

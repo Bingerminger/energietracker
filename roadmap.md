@@ -1,15 +1,15 @@
 # Energietracker — Roadmap
 
-> **Kurzfassung.** Jetzt: v2.16.0 — was die Rechnung weiß; damit sind die
-> Pakete A bis F des Gesamtreviews umgesetzt. Als Nächstes: Nebenkostenabrechnung für Mieter
+> **Kurzfassung.** Jetzt: v3.1.0 — für jeden Haushalt; damit sind alle
+> Pakete A bis H des Gesamtreviews umgesetzt, darunter das Mieter-Paket
 > (F1008, [#15](https://github.com/Bingerminger/energietracker/issues/15)),
-> Verträge je Zählergruppe ([#17](https://github.com/Bingerminger/energietracker/issues/17))
-> und eine engere Home-Assistant-Anbindung. Bewusst nicht: eigene
+> Verträge je Zählergruppe (F1017, [#17](https://github.com/Bingerminger/energietracker/issues/17))
+> und die engere Home-Assistant-Anbindung. Bewusst nicht: eigene
 > Smart-Meter-Auslesung (das macht Home Assistant), ein Cloud-Dienst, Konten.
 >
-> *In English:* now v2.16.0 (what the bill knows; review packages A to F are
-> done); next a utility-cost statement for tenants (#15), contracts per meter group (#17)
-> and a deeper Home Assistant integration. Deliberately not: reading smart meters
+> *In English:* now v3.1.0 (for every household; review packages A to H are
+> done, including the tenant package #15, contracts per meter group #17 and the
+> deeper Home Assistant integration). Deliberately not: reading smart meters
 > ourselves (Home Assistant does that), a cloud service, accounts.
 >
 > Der Rest dieser Seite ist das Planungsdokument mit Entscheidungen und
@@ -123,8 +123,8 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | offen | L | 1.6.0 → 1.7.0 | **nächster Slot**, Detail-Konzept unten |
-| *(Code offen)* | Verträge pro Zählergruppe (GitHub #17) | offen | M | additiv | aus F1006 offen geblieben („Vertrag pro Gruppe", s. v2.0.1); F-Code wird bei Übernahme vergeben |
+| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | v3.1.0 | L | 1.6.0 → 1.7.0 | **umgesetzt in v3.1.0** (Paket H3); dazu CO₂-Kostenaufteilung (H4) und Rechnungsprüfung für alle Arten (H5) — s. Abschnitt F1008 unten |
+| **F1017** | Verträge pro Zählergruppe (GitHub #17) | v3.1.0 | M | additiv | **umgesetzt in v3.1.0** (Paket H6): Gruppenvertrag mit Arbeitspreis je Mitglied (HT/NT) — s. Abschnitt F1017 unten |
 
 > **Sprach-Wellen 2+** (cs, uk, pl, el, tr, hr, sr, sl, fi, no, da, lv, et, hu, bg, ro …)
 > sind bewusst zurückgestellt (User-Entscheidung 2026-06-10) und werden
@@ -479,7 +479,51 @@ Mietwohnung Strom/Gas/Wasser).
 
 ---
 
-## F1008 — NKA für Mieter (GitHub #15)
+## F1008 — NKA für Mieter (GitHub #15) — umgesetzt in v3.1.0
+
+**Stand:** **umgesetzt in v3.1.0** (Paket H3, Schema 1.7.0). Kein
+Abrechnungsprogramm für Vermieter, sondern eine Hilfsrechnung für Mieter, die
+Heizung und Wasser über die Nebenkosten zahlen:
+
+- **Einstellung `wohnverhaeltnis`** (`eigentum` | `miete`, Standard
+  `eigentum`): Bei „zur Miete“ erscheint unter Kosten & Verträge die Seite
+  **Mietverhältnis** (`#/tenancy`); Eigentümer sehen keine Änderung.
+- **Mietverhältnis** (`tenancies.json`): Beginn/Ende, Abrechnungsstichtag,
+  datierte Listen für Vorauszahlungen, Preise (Wärme je kWh, Warm- und
+  Kaltwasser je m³) und pauschale Umlagen, Zuordnung der Zähler.
+- **Hilfsrechnung** `GET /api/tenancies/{id}/budget`: erwartete Kosten des
+  laufenden Abrechnungszeitraums gegen die Vorauszahlung, Monat für Monat,
+  gemessen aus den Zählern oder geschätzt (Heizmodell mit Klimanormal,
+  Vorjahresmonat, Tagesmittel), mit Einschätzung und passender Vorauszahlung.
+- **Nebenkostenabrechnungen** (`tenancy_statements.json`) mit Posten,
+  Belegen (PDF/Foto über die Belege aus H2) und neuer Vorauszahlung; beim
+  Speichern lassen sich Preise und Vorauszahlung ins Mietverhältnis übernehmen.
+- **Fristen** in Agenda und Kalender: Abrechnung fällig (Ende des
+  Abrechnungszeitraums + 12 Monate) und Einwandfrist (Zugang + 12 Monate,
+  § 556 Abs. 3 BGB).
+- Dazu, nicht auf Mieter beschränkt: Verbrauchsart **Heizwärme** (`waerme`),
+  Erfassungsart **Verbrauch je Zeitraum** (`capture: 'period'`, für die
+  monatliche Verbrauchsinfo nach HeizkostenV § 6a), **Zählerrollen** (`role`)
+  und die **Warmwasser-Wärme** nach HeizkostenV § 9 (CALC-28).
+
+**Wie die drei Module der Skizze aufgingen:** (1) „relevante Zählerstände“
+wurden die Zuordnung der Zähler im Mietverhältnis plus Zählerrollen statt
+eines Zähler-Flags; (2) pauschale Umlagen sind eine datierte Liste am
+Mietverhältnis; (3) die jährliche Endabrechnung ist ein eigener Topf mit
+PDF-Belegen (im Backup), getrennt von Versorgerrechnungen.
+
+**Ebenfalls umgesetzt in v3.1.0 (eigene Pakete):** die CO₂-Kostenaufteilung
+zwischen Mieter und Vermieter nach dem CO2KostAufG (Paket H4; das Feld `co2`
+an der Abrechnung trägt die Angaben der Heizkostenabrechnung, dazu der
+CO₂-Preis im Brennstoff) und die Rechnungsprüfung für alle Arten mit
+Zählerständen und Vertrag samt erfasster Versorgerrechnung (Paket H5).
+Doku: [CO₂-Kosten mit dem Vermieter teilen](docs/anleitungen/co2-aufteilung.md),
+[Jahresabrechnung](docs/anleitungen/jahresabrechnung.md).
+
+Doku: [Als Mieter](docs/anleitungen/mieter.md),
+[Heizwärme](docs/verstehen/15-waerme.md).
+
+Der ursprüngliche Planungsstand bleibt zur Nachvollziehbarkeit stehen:
 
 **Quelle:** GitHub-Issue #15, offen seit 2026-05-22 (vom User selbst).
 
@@ -682,6 +726,43 @@ löschbar.
 Nicht Teil von F1011: automatische Erkennung des Bruchs aus den Daten
 (Chow-Test o. Ä.). Der Nutzer weiß, wann er gedämmt hat — Raten wäre
 schlechter als Eintragen.
+
+---
+
+## F1017 — Verträge pro Zählergruppe (GitHub #17) — umgesetzt in v3.1.0
+
+**Stand:** **umgesetzt in v3.1.0** (Paket H6, kein Schema-Schritt). Aus F1006
+offen geblieben: Gruppen fassten bis v3.0 nur den Verbrauch fürs Dashboard
+zusammen, Verträge gehörten immer zu einem Zähler.
+
+- Ein Vertrag kann `meter_group_id` statt `meter_id` tragen — für Gas, Strom
+  und Fernwärme. Optional `working_prices_by_meter`: eigener Arbeitspreis je
+  Mitglied, etwa Hoch- und Niedertarif eines Doppeltarifzählers.
+- Jedes Mitglied rechnet seinen Verbrauch zu seinem Preis; Grundpreis,
+  Abschläge und Boni trägt nur das erste Mitglied. So stimmt jede Summe ohne
+  Sonderweg — die Doppelzählung, derentwegen v1.8.0 das Thema vertagt hatte,
+  kann nicht entstehen. Ein Mitglied darf im selben Zeitraum keinen eigenen
+  echten Vertrag haben.
+- Auswertungen für die ganze Gruppe (`…/meter-groups/{id}/consumption`,
+  `contract-status`, `forecast`, `tariff-switch`, `bill-check`), Mischpreis für
+  Prognose und Wechsel, Agenda und Empfehlungen auch für Gruppenverträge.
+
+Doku: [Meter-Topologie](docs/verstehen/13-meter-topologie.md#gruppenvertrag-v310),
+[Strom](docs/verstehen/02-strom.md).
+
+**Ebenfalls umgesetzt in v3.1.0 (Pakete H6–H8, ohne eigenen F-Code):**
+reduziertes Netzentgelt nach § 14a EnWG (Modul 1), Monatspreise aus einer
+Datei und der Dynamik-Check mit Börsenstrompreisen von SMARD (nur auf
+Knopfdruck), der Ladestrom-Nachweis für den Dienstwagen, die
+Jahresarbeitszahl der Wärmepumpe, PV mit Speicher, Balkonkraftwerk,
+Amortisation und Hinweis zu § 51 EEG, Gutschriften des Direktvermarkters, der
+Vorher/Nachher-Vergleich ohne Heizkurve, die Einordnung an eigenen
+Vergleichswerten und der Import von Zeitreihen aus Portalen. Der
+Zeitreihen-Import ergänzt die Leitlinie „Smart-Meter-Auslesung macht Home
+Assistant“: Dateien aus Portalen liest die App, eine Verbindung zu Portalen
+baut sie nicht auf. Doku: [Ladestrom-Nachweis](docs/anleitungen/ladestrom-nachweis.md),
+[Zeitreihen aus Portalen](docs/anleitungen/daten-aus-portalen.md),
+[PV](docs/verstehen/12-pv.md), [Heizwärme](docs/verstehen/15-waerme.md).
 
 ---
 

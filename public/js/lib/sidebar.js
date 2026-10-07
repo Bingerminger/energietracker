@@ -11,12 +11,13 @@
 
 import { activeUtilities, invalidateUtilities } from '../state.js';
 import { api, appScope } from '../api.js';
-import { t } from './i18n.js';
+import { t, tp } from './i18n.js';
 import { escapeHtml as esc } from './format.js';
 import { sidebarModel } from './nav-model.js';
 
 let lastRoute = null;
-const badgeCounts = { reminders: 0, remindersAlert: false, recommendations: 0 };
+// v3.1.0 (H2) — outbox: offline erfasste Stände, die noch nicht beim Server sind
+const badgeCounts = { reminders: 0, remindersAlert: false, recommendations: 0, outbox: 0 };
 
 function itemHtml(item, cls = 'sidebar__item') {
   const attrs = [
@@ -92,15 +93,19 @@ function applyBadges() {
     reminders: [badgeCounts.reminders, badgeCounts.remindersAlert],
     recommendations: [badgeCounts.recommendations, false],
     hints: [hints, badgeCounts.remindersAlert],
+    outbox: [badgeCounts.outbox, true],
   };
   document.querySelectorAll('[data-badge]').forEach(slot => {
-    const [count, alert] = values[slot.getAttribute('data-badge')] || [0, false];
+    const kind = slot.getAttribute('data-badge');
+    const [count, alert] = values[kind] || [0, false];
+    const title = kind === 'outbox' ? ` title="${esc(tp('nav.badge.outbox', count))}"` : '';
     slot.innerHTML = count > 0
-      ? `<span class="sidebar__badge${alert ? ' sidebar__badge--alert' : ''}">${count}</span>`
+      ? `<span class="sidebar__badge${alert ? ' sidebar__badge--alert' : ''}"${title}>${count}</span>`
       : '';
   });
 }
 window.addEventListener('et:badges-slots', applyBadges);
+window.addEventListener('et:outbox', (e) => { badgeCounts.outbox = Number(e.detail) || 0; applyBadges(); });
 
 /**
  * v2.2.0 — Zähler an „Hinweise" (Termine + Empfehlungen) nachreichen.

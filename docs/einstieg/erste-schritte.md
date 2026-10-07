@@ -90,7 +90,7 @@ verwalten → + Neuer Vertrag**:
 - optional **Abschlag** (€/Monat) für die Saldo-Rechnung und **Boni**.
 
 Ab jetzt rechnet die App nicht nur Verbrauch, sondern auch **Kosten** und den
-**Saldo** gegen deine Abschläge (Nachzahlung/Erstattung).
+**Saldo** gegen deine Abschläge (Nachzahlung/Guthaben).
 
 ---
 
@@ -160,8 +160,8 @@ ohnehin im gemounteten `data/`-Volume.
 
 Zum reinen Ausprobieren musst du nichts eintippen: **Einstellungen → Daten →
 Backup & Wiederherstellung → Demo-Daten laden** spielt einen vollständigen
-Beispieldatensatz über alle acht Verbrauchsarten ein (mit Warnung + Auto-Snapshot,
-falls schon Daten vorhanden sind). Danach kannst du sofort bei
+Beispieldatensatz über acht Verbrauchsarten ein — alle außer Heizwärme (mit
+Warnung + Auto-Snapshot, falls schon Daten vorhanden sind). Danach kannst du sofort bei
 [Schritt 6](#6-auswerten) weitermachen.
 
 Seit v3.0.0 reicht der Beispielhaushalt bis heute: Zählerstände, Lieferungen

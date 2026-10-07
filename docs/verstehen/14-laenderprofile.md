@@ -60,7 +60,11 @@ Default, greift die Korrektur auch dort. Nach dem Erststart ändert die
 Kopfzeile nichts mehr.
 
 **In den Einstellungen.** Die Karte „Sprache & Land" enthält Sprache, Land,
-Währung und Zeitzone; alle vier wirken sofort. Beim Wechsel des Landes zeigt
+Währung und Zeitzone; alle wirken sofort. Die Sprache gibt es seit v3.1.0
+zweimal: „Sprache auf diesem Gerät“ (nur dieser Browser) und
+„Standardsprache der Installation“ (Geräte ohne eigene Wahl, PDF, CSV, Home
+Assistant). Land, Währung und Zeitzone gelten für die ganze Installation.
+Beim Wechsel des Landes zeigt
 ein Dialog, welche Werte das Profil ändern würde — bisher und neu
 nebeneinander, mit der Quelle des CO₂-Faktors:
 
@@ -90,7 +94,8 @@ Die letzte Zeile ist Absicht: Englisch in Deutschland schreibt englisch. Der
 Browser (`Intl`) schriebe für „en-DE" deutsche Zahlen — und jede bestehende
 englische Installation trägt das Land DE, hätte sie also über Nacht bekommen.
 
-Die Oberfläche formatiert mit `Intl`, der PDF-Jahresbericht und die Texte der
+Die Oberfläche und die Druckansicht des Jahresberichts formatieren mit `Intl`,
+der PDF-Jahresbericht, die CSV-Tabellen im Format „local“ und die Texte der
 Empfehlungen mit denselben Regeln im Backend (Katalogschlüssel `format.*`,
 Länderabweichungen in `Countries::FORMAT_OVERRIDES`).
 
@@ -168,7 +173,89 @@ die erste leere.
 
 ---
 
-## 8. Grenzen
+## 8. So heißt das auf deiner Rechnung
+
+Die Oberfläche spricht eine Sprache, die Rechnung ein Land. „Acompte“ heißt
+der Abschlag in der französischen Oberfläche — auf einer französischen
+Rechnung steht „Mensualité“, auf einer österreichischen statt „Abschlag“
+„Teilbetrag“. Seit **v3.1.0** kennt jedes Länderprofil die Wörter, die auf
+der Rechnung des Landes stehen. Die App zeigt sie
+
+- in der **ⓘ-Erklärung** und im **Glossar der Hilfe**: „Auf deiner Rechnung
+  (Österreich): „Teilbetrag““,
+- im **Tarifwechsel** als Link „Amtlicher Tarifvergleich (Land) ↗“, wo das
+  Land einen hat.
+
+Die Begriffe stehen im Wortlaut der Rechnung, also in der Landessprache,
+gleich in welcher Sprache die Oberfläche läuft. Die Schweiz hat drei Fassungen
+(Deutsch, Französisch, Italienisch); die App nimmt die der Oberfläche, bei
+anderen Sprachen die deutsche.
+
+| Land | Arbeitspreis | Grundpreis | Abschlag | Zustandszahl | Brennwert | Saldo |
+|---|---|---|---|---|---|---|
+| Deutschland | Arbeitspreis / Verbrauchspreis | Grundpreis | Abschlag | Zustandszahl (z-Zahl) | Brennwert | Nachzahlung / Guthaben |
+| Österreich | Energie-Verbrauchspreis | Energie-Grundpreis | Teilbetrag | – | Verrechnungsbrennwert | Nachzahlung / Guthaben |
+| Schweiz (de) | Arbeitspreis („Arbeit“) | Grundpreis / Grundtarif | Akontozahlung | Zustandszahl | Brennwert | – |
+| Schweiz (fr) | Prix du kilowattheure | Abonnement | Acompte | – | Pouvoir calorifique supérieur (PCS) | – |
+| Schweiz (it) | Prezzo dell’energia | Tassa base | Acconto | – | – | Conguaglio |
+| Frankreich | Prix du kWh | Abonnement | Mensualité | – | PCS (pouvoir calorifique supérieur) | Régularisation (à payer ou trop-perçu) |
+| Italien | Quota consumi (prima: quota energia) | Quota fissa | – | Coefficiente C | Potere calorifico superiore (P) | Ricalcoli / conguaglio |
+| Spanien | Término de energía / término variable | Término fijo / término de potencia | – | – | PCS (poder calorífico superior) | Regularización |
+| Portugal | Preço da energia | Termo fixo / potência contratada | – | – | PCS (poder calorífico superior) | Acerto de faturação |
+| Niederlande | Leveringstarief | Vaste leveringskosten (vroeger: vastrecht) | Termijnbedrag | Correctiefactor | Calorische waarde | Jaarafrekening: terugbetaling of bijbetaling |
+| Vereinigtes Königreich | Unit rate | Standing charge | Direct Debit | Correction factor (1.02264) | Calorific value | Account balance (in credit / in debit) |
+
+„–“ heißt: Die Rechnung des Landes kennt keinen gleichbedeutenden Posten, und
+die App zeigt dort nichts. Das ist Absicht:
+
+- **Zustandszahl** fehlt für Österreich, Frankreich, Spanien und Portugal.
+  Dort steht nur der Gesamtfaktor auf der Rechnung (Umrechnungsfaktor,
+  *coefficient de conversion*) — Zustandszahl × Brennwert in einer Zahl, nicht
+  die Zustandszahl allein. Ihn als „Zustandszahl“ auszugeben, verführte zum
+  falschen Eintrag.
+- **Abschlag** fehlt für Italien, Spanien und Portugal: Die Rechnungen dort
+  kennen keine festen Abschläge.
+
+**Amtliche Tarifvergleiche** (`comparison_portal`):
+
+| Land | Vergleich | Verantwortlich |
+|---|---|---|
+| Österreich | <https://www.e-control.at/tarifkalkulator> | E-Control (Regulierungsbehörde) |
+| Frankreich | <https://comparateur-offres.energie-info.fr/> | Médiateur national de l’énergie |
+| Italien | <https://www.ilportaleofferte.it/portaleOfferte/> | ARERA (Regulierungsbehörde) |
+| Spanien | <https://comparador.cnmc.gob.es/> | CNMC (Wettbewerbs- und Regulierungsbehörde) |
+| Portugal | <https://simuladorprecos.erse.pt/> | ERSE (Regulierungsbehörde) |
+
+Keinen amtlichen Vergleich verlinkt die App für Deutschland (§ 41c EnWG sieht
+ein Vertrauenszeichen für Vergleichsportale vor; vergeben ist bisher keins),
+die Schweiz (Haushalte können ihren Lieferanten nicht wählen), die
+Niederlande (die ACM zertifiziert nur private Vergleichsseiten) und das
+Vereinigte Königreich (Ofgem betreibt kein eigenes Portal). Ein privates
+Vergleichsportal verlinkt die App nirgends.
+
+**Quellen** der Begriffe:
+
+- Deutschland: § 40 Abs. 4 EnWG (standardisierte Begriffe auf der Rechnung).
+- Österreich: E-Control, Musterrechnungen Strom und Gas.
+- Frankreich: energie-info.fr (Médiateur national de l’énergie).
+- Italien: ARERA, Glossar zur Rechnung (*Bolletta*); seit 1. Juli 2025 heißt
+  der Posten „quota consumi“, vorher „quota energia“.
+- Spanien: CNMC, „Ejemplo de factura de suministro de gas“.
+- Portugal: ERSE, „Compreender a fatura“.
+- Niederlande: ACM.
+- Vereinigtes Königreich: GOV.UK, „Gas meter readings and bill calculation“
+  (Korrekturfaktor 1.02264); Ofgem zu den Standing charges.
+
+Die Daten stehen in `src/Config/Countries.php` (`bill_terms`,
+`comparison_portal`); `GET /api/countries` liefert sie aus
+([API-Referenz](../referenz/api.md#länderprofil-country-currency-timezone-gas_cv_unit-v270-additiv)).
+**Pflegehinweis:** Rechnungen und Portale ändern sich, Links altern. Die CI
+prüft die Adressen nicht. Wer einen toten Link oder einen neuen Begriff
+findet, ändert `Countries.php` mit Quelle im Pull Request.
+
+---
+
+## 9. Grenzen
 
 - **Keine Währungsumrechnung** (siehe §4).
 - **Gaszähler in Kubikfuß** (ältere britische Zähler, „imperial") werden
@@ -176,6 +263,8 @@ die erste leere.
 - **Neun Länder.** Ein weiteres Land ist ein Eintrag in
   `src/Config/Countries.php` plus sein Name in den Sprachkatalogen
   (`countries.XX`); `CountriesTest` prüft die Vollständigkeit.
-- **Die Sprache gilt für die ganze Installation**, nicht je Gerät.
+- **Land, Währung und Zeitzone gelten für die ganze Installation.** Die
+  Sprache wählt seit v3.1.0 jedes Gerät selbst (bis v3.0 galt auch sie für
+  alle).
 
 → API: [Länderprofil in der API-Referenz](../referenz/api.md#länderprofil-country-currency-timezone-gas_cv_unit-v270-additiv)

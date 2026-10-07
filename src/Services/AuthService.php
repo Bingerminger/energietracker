@@ -255,7 +255,10 @@ final class AuthService
         $trusted = array_filter(array_map('trim', explode(',', (string)getenv('ET_TRUSTED_PROXIES'))));
         $remote = (string)($server['REMOTE_ADDR'] ?? '');
         if ($trusted === [] || !self::ipInList($remote, $trusted)) return null;
-        foreach (['HTTP_REMOTE_USER', 'HTTP_X_FORWARDED_USER', 'HTTP_X_REMOTE_USER'] as $h) {
+        // v3.1.0 (Ökosystem G2) — Home Assistant (Ingress) schickt X-Remote-User-Name
+        // und X-Remote-User-Id, nicht X-Remote-User
+        foreach (['HTTP_REMOTE_USER', 'HTTP_X_FORWARDED_USER', 'HTTP_X_REMOTE_USER',
+                  'HTTP_X_REMOTE_USER_NAME', 'HTTP_X_REMOTE_USER_ID'] as $h) {
             $u = trim((string)($server[$h] ?? ''));
             if ($u !== '') return $u;
         }
@@ -303,7 +306,8 @@ final class AuthService
     /** @return array{id:string, key:string} Klartext nur hier */
     public function createApiKey(string $name, string $scope): array
     {
-        if (!in_array($scope, ['read', 'admin'], true)) throw new \InvalidArgumentException('scope');
+        // v3.1.0 (MKT-09) — `calendar`: nur das Kalender-Abo, nur als ?token=
+        if (!in_array($scope, ['read', 'admin', 'calendar'], true)) throw new \InvalidArgumentException('scope');
         $name = trim($name) === '' ? $scope : mb_substr(trim($name), 0, 60);
         $key  = 'etk_' . bin2hex(random_bytes(24));
         $id   = 'k_' . bin2hex(random_bytes(4));

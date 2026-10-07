@@ -40,7 +40,18 @@ final class IngestController
         if ($this->auth->requiresAuth() && !$this->auth->verify($req->bearerToken())) {
             Response::error($this->i18n->t('errors.ingest.unauthorized'), 401);
         }
-        $result = $this->ingest->ingest((array)$req->body);
+        $body = $req->body;
+        // v3.1.0 (API-34) — Stapel: eine Liste oder {"readings": [...]}. Antwort 200
+        // auch bei Teilfehlern (je Eintrag `status`/`code`); das Einzelobjekt
+        // bleibt unverändert (201/200 wie bisher).
+        if (is_array($body) && ((array_is_list($body) && $body !== []) || is_array($body['readings'] ?? null))) {
+            $items = array_is_list($body) ? $body : $body['readings'];
+            if (!array_is_list($items) || $items === []) {
+                Response::error($this->i18n->t('errors.ingest.bodyInvalid'), 400, null, 'errors.ingest.bodyInvalid');
+            }
+            Response::json($this->ingest->ingestMany($items));
+        }
+        $result = $this->ingest->ingest((array)$body);
         // 201 bei neu angelegt, 200 bei Aktualisierung (upsert-by-date).
         Response::json($result, $result['status'] === 'created' ? 201 : 200);
     }

@@ -108,9 +108,17 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   no error, badge and notice with language choice, bill check with its
   defaults, source link to the tag, writes refused, CSV and PDF as files.
   Locally: `node tests/demo.test.mjs` (needs PHP and jsdom).
+- **`tests/plural.test.mjs`** (v3.1.0) — `pluralCategory()` from `lib/i18n.js`
+  (Intl.PluralRules, Portuguese as pt-PT) against
+  `tests/fixtures/plural-cases.json`, the same file `PluralRulesTest` checks in
+  the backend; plus no home-made plurals (`=== 1 ? t(…)`) in the views.
+- **`tests/hardcoded-text.test.mjs`** (v3.1.0) — no texts in the code of views
+  and components: text nodes in HTML templates and literals with an umlaut or ß
+  stand out. Units, formula symbols and names are allowed (list in the test).
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
-base class `ServiceTestCase`): real against actual JSON files, without mocks. The
+base class `ServiceTestCase`, since v3.1.0 `HttpServerTestCase` for tests over
+HTTP): real against actual JSON files, without mocks. The
 current number of test methods is in the README badge — `ReleaseConsistencyTest`
 recounts it (v3.0.0: 472). Since v2.13.0 `LocaleCatalogTest` also checks keys
 the code composes (`glossary.<id>.term`, `settings.field.<key>.label`) — the
@@ -167,13 +175,92 @@ year and the switch in the monthly chart (the adjusted values must be
 `heat_adjusted`), the PV energy flow, the small multiples of the overview and the
 temperature band.
 
+**Languages (v3.1.0).** Dedicated tests check what translators and developers
+can get wrong; the rules behind them are in
+[Translating](uebersetzen.md):
+
+- `CatalogStyleTest` — the content of the catalogues: termbase
+  (`tests/fixtures/termbase.json`, glossary = canonical form), form of address
+  per language, the German canon, typography per language, labels not in
+  mid-sentence, count placeholders only in plural groups, completeness of a
+  language (`format.*`, plural rule, country), ASCII file names of the CSV
+  exports, letters of the bill check. `LocaleCatalogTest` keeps checking the
+  structure (same keys and placeholders).
+- `CatalogUsageTest` — every catalogue key is used, literally or through a
+  prefix the code composes; a counter-test shows that the detection finds a
+  dead key.
+- `HardcodedTextTest` — no message texts in the backend where text reaches the
+  client (`throw`, `Response::error`, `'error' =>`, `$errors[] =`).
+- `PluralRulesTest` — `I18nService::tp()` and `PLURAL_RULES` against
+  `tests/fixtures/plural-cases.json`; every language from `languages.json` has a
+  rule and cases.
+- `CsvFormatV1Test` — format 1 of the CSV exports byte for byte against
+  `tests/fixtures/csv-format-1/` (header of the monthly overview in all seven
+  languages, file names). Rewrite only with `ET_WRITE_GOLDEN=1` — and then it is
+  no longer format 1.
+- `CsvLocalFormatTest` — format "local" per language (separator, decimal
+  separator, dates, yes/no, file name), an unknown format with its error code,
+  and every export file can be imported again — spreadsheets from other
+  languages and impossible or US dates too.
+- `PdfCharsetTest` — every report text of a language with
+  `format.pdfCharset = cp1252` reaches the PDF without loss ("CO₂" → "CO2",
+  widths in characters); a language with `none` counts as not settable
+  (`pdfSupported()`, the route then answers 422); every catalogue names its
+  character set.
+- `DeviceLanguageTest` — against a real PHP server: `X-ET-Language` before the
+  default language, `Vary`, the default language without the header, the
+  manifest in the requested language.
+- `DemoDataTranslatorTest` — every text of the demo data is translated into
+  every language (`demo-data/translations.json`); IDs, numbers and company
+  names stay.
+
+**Over HTTP (v3.1.0).** A service test cannot see headers, status codes and
+access rules. For those there is the base class `HttpServerTestCase`
+(`tests/unit/Support/`): it starts `php -S … router.php` on a free port with
+its own data directory, its own `settings.json` and its own environment
+variables (`ET_AUTH` …), and removes both afterwards. `AgendaAccessTest` and
+`IngressTest` build on it.
+
+**Home Assistant, calendar, operation (v3.1.0):**
+
+- `AgendaServiceTest` — the agenda from reminders, readings and contracts
+  (kind, date, `severity`, `due_now`); a dismissed contract reminder is no
+  longer due “now”; the calendar is valid iCalendar with stable UIDs, texts are
+  escaped and long lines folded without splitting a UTF-8 character; the key
+  set of `/api/summary` is frozen and every key is always present.
+- `AgendaAccessTest` — against a real PHP server with sign-in switched on:
+  `/api/summary` only with a key, with `Cache-Control: private, max-age=300`;
+  the calendar only with a key of scope `calendar` in the link; a read key in
+  the link is refused, and the calendar key works on no other route.
+- `BulkIngestTest` — batch ingest: a year of daily values writes each file once
+  (`JsonStore::batch()`), faulty entries do not hold up the others and keep
+  their `index`, a falling value inside the batch is suspect, the limit of 500
+  entries, the single object answers as before.
+- `IngressTest` — running under Home Assistant ingress: no service worker and
+  an internal address for the HA template when `X-Ingress-Path` arrives; caches
+  and worker belong to this installation (prefix `et:<scope>:`, the self-repair
+  unregisters only its own worker); `X-Remote-User-Name` and `X-Remote-User-Id`
+  count only from the trusted proxy.
+- `DeployTemplatesTest` — the templates for Unraid, CasaOS and Umbrel
+  (`deploy/`) name the same image, port and data path as `docker-compose.yml`
+  and the Dockerfile; the Unraid template is valid XML and knows every
+  environment variable.
+- Since v3.1.0 `tests/ha-snippet.test.mjs` also compares the sensor block from
+  [step 5 of the Home Assistant guide](../anleitungen/home-assistant.md) line by
+  line with the app's template (`haRestSensorYaml`), without comments, address
+  and names.
+
 This exact sequence runs automated in the **CI pipeline**
 (`.github/workflows/ci.yml`) on every push and pull request against `main`. Four
 jobs: **lint-php** (syntax check of all `*.php`), **phpunit** (service suite),
 **test** (migration smoke + frontend API shape + browser render via `router.php`)
-and **docker** (build image + container smoke against `/api/health`). A separate
-workflow `docker-publish.yml` publishes the multi-arch image (amd64 + arm64) to
-GHCR on every version tag.
+and **docker** (build image + container smoke against `/api/health`). Since
+v3.1.0 **lint-php** and **phpunit** each run under PHP 8.2, 8.3 and 8.4 — the
+minimum version, the version in Ubuntu 24.04 and the one in the Docker image. A
+separate workflow `docker-publish.yml` publishes the multi-arch image (amd64 +
+arm64) to GHCR on every version tag. `docker-armv7-probe.yml` (v3.1.0, started
+by hand only) builds the image for `linux/arm/v7` under QEMU and starts it
+without publishing; only once it is green does arm/v7 join the platform list.
 
 ---
 

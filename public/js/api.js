@@ -11,6 +11,7 @@ const BASE = 'api.php';
 
 /** Datei-Downloads (CSV, PDF): im Echtbetrieb über api.php, in der Demo als fertige Datei (v3.0.0). */
 const fileUrl = (path) => (DEMO ? demoFileUrl(path, getLocale()) : `${BASE}${path}`);
+const csvQuery = (format) => (format === 'local' ? '?format=local' : '');
 
 // v2.11.0 (Review FE-05) — Lese-Anfragen gehören zur Ansicht, die sie stellt.
 //
@@ -87,11 +88,15 @@ async function send(method, path, body, raw, signal) {
   // v3.0.0 — öffentliche Demo ohne PHP: Antworten aus dem Abzug (lib/demo-mode.js)
   if (DEMO) return demoRequest(method, path, getLocale());
   // N1007 — aktive Sprache mitschicken, damit das Backend (Full-Stack-i18n)
-  // Fehlermeldungen/Labels in derselben Sprache liefern kann.
-  const opts = { method, headers: { 'Accept-Language': getLocale() }, signal };
+  // Fehlermeldungen/Labels in derselben Sprache liefern kann. v3.1.0 — das
+  // Backend richtet sich nach `X-ET-Language` (Sprache dieses Geräts, I18N-29);
+  // Accept-Language bleibt für ältere Server.
+  const opts = { method, headers: { 'Accept-Language': getLocale(), 'X-ET-Language': getLocale() }, signal };
   if (body !== null && body !== undefined) {
     if (raw) {
-      opts.headers['Content-Type'] = 'text/plain; charset=utf-8';
+      // v3.1.0 — Belege: Blob mit eigenem Typ (Bild, PDF); sonst Text (CSV)
+      const blob = typeof Blob !== 'undefined' && body instanceof Blob;
+      opts.headers['Content-Type'] = blob ? (body.type || 'application/octet-stream') : 'text/plain; charset=utf-8';
       opts.body = body;
     } else {
       opts.headers['Content-Type'] = 'application/json';
@@ -147,6 +152,10 @@ function flags(obj) {
   const on = Object.entries(obj).filter(([, v]) => v).map(([k]) => `${k}=1`);
   return on.length ? `?${on.join('&')}` : '';
 }
+
+// v3.1.0 (H6) — Parameter des Ladestrom-Nachweises
+const evQuery = (meterId, year, method, flat) =>
+  `meter_id=${encodeURIComponent(meterId)}&year=${encodeURIComponent(year)}&method=${encodeURIComponent(method)}${flat !== '' && flat != null ? `&flat_ct=${encodeURIComponent(flat)}` : ''}`;
 
 export const api = {
   // Utilities
@@ -272,10 +281,11 @@ export const api = {
   // ── CSV-Export (F-07) ──
   // These return a file download, not JSON — so they are plain URLs the
   // browser navigates to / anchors to, not request() calls.
-  exportMonthlyCsvUrl:      (u) => fileUrl(`/api/export/${u}/monthly.csv`),
-  exportReadingsCsvUrl:     (u) => fileUrl(`/api/export/${u}/readings.csv`),
-  exportDeliveriesCsvUrl:   (u) => fileUrl(`/api/export/${u}/deliveries.csv`),
-  exportTemperaturesCsvUrl: ()  => fileUrl('/api/export/temperatures.csv'),
+  // v3.1.0 (Review I18N-10) — format 'local' = Tabelle in der Standardsprache, '1' = eingefroren
+  exportMonthlyCsvUrl:      (u, f = '1') => fileUrl(`/api/export/${u}/monthly.csv${csvQuery(f)}`),
+  exportReadingsCsvUrl:     (u, f = '1') => fileUrl(`/api/export/${u}/readings.csv${csvQuery(f)}`),
+  exportDeliveriesCsvUrl:   (u, f = '1') => fileUrl(`/api/export/${u}/deliveries.csv${csvQuery(f)}`),
+  exportTemperaturesCsvUrl: (f = '1')    => fileUrl(`/api/export/temperatures.csv${csvQuery(f)}`),
 
   // ── Migration aus v0.9.0 ──
   migrationV09Preview: (backup)         => request('POST', '/api/migration/v09/preview', { backup }),
@@ -314,6 +324,9 @@ export const api = {
 
   // ── v1.3.0 — Termine/Erinnerungen ──
   reminders:     ()           => request('GET',   '/api/reminders'),
+  // v3.1.0 (H1) — Fristen und Termine aus einer Quelle (Dashboard, Kalender, HA)
+  agenda:        (days = 90)  => request('GET',   `/api/agenda?days=${days}`),
+  calendarUrl:   ()           => fileUrl('/api/calendar.ics'),
   createReminder:(data)       => request('POST',  '/api/reminders', data),
   updateReminder:(id, data)   => request('PATCH', `/api/reminders/${id}`, data),
   deleteReminder:(id)         => request('DELETE',`/api/reminders/${id}`),
@@ -321,8 +334,64 @@ export const api = {
 
   // ── v1.3.0 — PDF-Jahresbericht (Datei-Download, kein JSON) ──
   // v2.11.0 — `inline`: im Browser anzeigen statt herunterladen
+  // v3.1.0 (I18N-12) — derselbe Bericht als Daten für die Druckansicht
+  yearlyReport: (year) => request('GET', `/api/reports/yearly?year=${year}`),
   yearlyReportUrl: (year, { inline = false } = {}) => {
     const q = [year ? `year=${year}` : '', inline ? 'inline=1' : ''].filter(Boolean).join('&');
     return fileUrl(`/api/reports/yearly.pdf${q ? '?' + q : ''}`);
   },
+
+  // ── v3.1.0 (H3, B2) — Verbrauch je Zeitraum ──
+  periods:       (u, meterId)          => request('GET', `/api/utility/${u}/periods${meterId ? `?meter_id=${encodeURIComponent(meterId)}` : ''}`),
+  createPeriod:  (u, data)             => request('POST', `/api/utility/${u}/periods`, data),
+  updatePeriod:  (u, id, data)         => request('PATCH', `/api/utility/${u}/periods/${encodeURIComponent(id)}`, data),
+  deletePeriod:  (u, id)               => request('DELETE', `/api/utility/${u}/periods/${encodeURIComponent(id)}`),
+  importPeriodCsv: (u, meterId, csvText, { dryRun = false } = {}) =>
+    request('POST', `/api/utility/${u}/meters/${meterId}/periods/import-csv${dryRun ? '?dry_run=1' : ''}`, csvText, { raw: true }),
+  // ── v3.1.0 (H6) — Großhandelspreise (SMARD) und Monatspreise ──
+  marketPrices:       ()                => request('GET',  '/api/market-prices'),
+  importMarketPrices: (csvText, { dryRun = false } = {}) =>
+    request('POST', `/api/market-prices/import-csv${dryRun ? '?dry_run=1' : ''}`, csvText, { raw: true }),
+  syncSmard:          ()                => request('POST', '/api/market-prices/sync-smard', {}),
+  importContractPrices: (u, id, csvText, { dryRun = false } = {}) =>
+    request('POST', `/api/utility/${u}/contracts/${encodeURIComponent(id)}/prices/import-csv${dryRun ? '?dry_run=1' : ''}`, csvText, { raw: true }),
+  // ── v3.1.0 (H5) — Versorgerrechnungen ──
+  bills:         (u, meterId)          => request('GET', `/api/utility/${u}/bills${meterId ? `?meter_id=${encodeURIComponent(meterId)}` : ''}`),
+  createBill:    (u, data)             => request('POST', `/api/utility/${u}/bills`, data),
+  updateBill:    (u, id, data)         => request('PATCH', `/api/utility/${u}/bills/${encodeURIComponent(id)}`, data),
+  deleteBill:    (u, id)               => request('DELETE', `/api/utility/${u}/bills/${encodeURIComponent(id)}`),
+  billCompare:   (u, id)               => request('GET', `/api/utility/${u}/bills/${encodeURIComponent(id)}/check`),
+  bookBill:      (u, id)               => request('POST', `/api/utility/${u}/bills/${encodeURIComponent(id)}/book`, {}),
+  // ── v3.1.0 (H4) — CO₂-Preis und Aufteilung ──
+  co2Costs:      (year)               => request('GET', `/api/co2-costs?year=${year}`),
+  co2Split:      (year)               => request('GET', `/api/co2-split?year=${year}`),
+  co2SplitPdfUrl: (year, { inline = false } = {}) => fileUrl(`/api/reports/co2-split.pdf?year=${year}${inline ? '&inline=1' : ''}`),
+  heatPump:    (year)                   => request('GET', `/api/heat-pump?year=${encodeURIComponent(year)}`),   // v3.1.0 (H7)
+  // v3.1.0 (H8) — Einordnung mit eigenen Vergleichswerten, Zeitreihen aus Portalen
+  comparison:  (year)                   => request('GET', `/api/benchmarks/comparison${year ? `?year=${encodeURIComponent(year)}` : ''}`),
+  importSeries: (u, meterId, csv, mapping, { dryRun = false } = {}) =>
+    request('POST', `/api/utility/${u}/meters/${encodeURIComponent(meterId)}/import-series${dryRun ? '?dry_run=1' : ''}`, { csv, mapping }),
+  // ── v3.1.0 (H6, MKT-14) — Ladestrom-Nachweis ──
+  evReport:    (meterId, year, method = 'contract', flat = '') =>
+    request('GET', `/api/reports/ev-charging?${evQuery(meterId, year, method, flat)}`),
+  evReportUrl: (meterId, year, method, flat, ext) => fileUrl(`/api/reports/ev-charging.${ext}?${evQuery(meterId, year, method, flat)}`),
+  // ── v3.1.0 (H3, F1008) — Mietverhältnis ──
+  tenancies:       ()                  => request('GET', '/api/tenancies'),
+  createTenancy:   (data)              => request('POST', '/api/tenancies', data),
+  updateTenancy:   (id, data)          => request('PATCH', `/api/tenancies/${encodeURIComponent(id)}`, data),
+  deleteTenancy:   (id)                => request('DELETE', `/api/tenancies/${encodeURIComponent(id)}`),
+  tenancyBudget:   (id)                => request('GET', `/api/tenancies/${encodeURIComponent(id)}/budget`),
+  tenancyStatements: (id)              => request('GET', `/api/tenancies/${encodeURIComponent(id)}/statements`),
+  createStatement: (id, data)          => request('POST', `/api/tenancies/${encodeURIComponent(id)}/statements`, data),
+  updateStatement: (id, sid, data)     => request('PATCH', `/api/tenancies/${encodeURIComponent(id)}/statements/${encodeURIComponent(sid)}`, data),
+  deleteStatement: (id, sid)           => request('DELETE', `/api/tenancies/${encodeURIComponent(id)}/statements/${encodeURIComponent(sid)}`),
+
+  // ── v3.1.0 (H2) — Belege (Fotos, PDFs) und Texterkennung im Heimnetz ──
+  attachments:      ()                  => request('GET', '/api/attachments'),
+  uploadAttachment: (blob, kind, name)  => request('POST',
+    `/api/attachments?kind=${encodeURIComponent(kind)}${name ? `&name=${encodeURIComponent(name)}` : ''}`,
+    blob, { raw: true, timeoutMs: TIMEOUT_LONG_MS }),
+  attachmentUrl:    (id)                => `${BASE}/api/attachments/${encodeURIComponent(id)}`,
+  deleteAttachment: (id)                => request('DELETE', `/api/attachments/${encodeURIComponent(id)}`),
+  ocrReading:       (attachmentId)      => request('POST', '/api/ocr/reading', { attachment_id: attachmentId }, { timeoutMs: TIMEOUT_LONG_MS }),
 };

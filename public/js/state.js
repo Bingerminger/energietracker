@@ -39,6 +39,9 @@ export function getUtilities() {
 
 export function getUtilitiesSync() { return state.utilities || []; }
 
+/** v3.1.0 — zuletzt geladene Einstellungen (synchron; leer, solange nicht geladen). */
+export function getSettingsSync() { return state.settings || {}; }
+
 export async function getUtility(key) {
   const list = await getUtilities();
   return list.find(u => u.key === key) || null;

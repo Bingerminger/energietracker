@@ -16,12 +16,14 @@ partly split cold/hot. No tank of your own.
 | Quantity | Tracking | Note |
 |---|---|---|
 | Household electricity | **good** — own meter, own bill | core benefit |
-| Hot water/heating | **limited** | only if your flat has its own meters |
+| Heating (heat) | **good** with the monthly consumption information *(since v3.1.0)* | consumption per period; before that only with a meter of your own in the flat |
+| Hot water | **good**, if flat meter or consumption information | role “Hot water”, the heat for it as a calculated value |
 | Cold water | **good**, if flat meter | otherwise only the building statement |
-| Building gas/district heating | mostly **not** directly | only estimable via the annual statement |
+| Building gas/district heating | mostly **not** directly | paid by the landlord; you see the heat of your flat |
 
-**Recommendation:** focus on **electricity** and — if present — **water**. Only
-track heating if the flat has its own meters.
+**Recommendation:** focus on **electricity**, **heat** from the consumption
+information and — if present — **water**. With “I live: in a rented home” the
+page **Tenancy** is added (section 3a).
 
 ---
 
@@ -58,6 +60,37 @@ consumption since the last reading is estimated and shown as an estimate
 
 ---
 
+## 3a. Heating and service charges *(since v3.1.0)*
+
+You do not pay for heating and hot water to a supplier but through the service
+charges to the landlord. So there is no balance in the sense of a supplier
+contract, but a counterpart — the page **Tenancy** under Costs & contracts:
+
+1. **Settings → Household & building → “I live”: “in a rented home”.**
+2. Switch on the utility **Heat** and create a meter with the recording
+   **“Consumption per period”**. Each month enter the value from the
+   consumption information (German HeizkostenV § 6a, since 2022 for remotely
+   read devices).
+3. Create water meters with the roles **Cold water** and **Hot water** — side by
+   side, not as sub-meters.
+4. Create the **tenancy**: prepayment, billing date, prices from the last
+   statement, flat charges, assignment of the meters.
+
+The card “Prepayment and costs” then works like the balance: expected costs of
+the current billing period against the prepayment, with a suitable prepayment
+per month.
+
+```text
+outcome = Σ (heat kWh × price + water m³ × price + flat charges / 12) − Σ prepayment
+```
+
+An **estimate, not a service charge statement** — what the landlord bills may
+differ. The deadlines for the statement and for objections appear in the
+calendar. Step by step: [As a tenant](../anleitungen/mieter.md); background:
+[Heat](15-waerme.md).
+
+---
+
 ## 4. Shadow contracts: calculate a tariff switch
 
 Create a **shadow contract** (`is_shadow`) with the terms of a desired tariff.
@@ -85,29 +118,62 @@ readings:
 ## 6. What you should NOT force
 
 - Do not invent "estimated" building heating values just to make an efficiency
-  class appear — the class is a single-family-home metric and, for flat dwellers
-  without their own heat metering, of little significance.
+  class appear — the class is a building metric and, for flat dwellers without
+  their own heat metering, of little significance. With heat from the
+  consumption information (since v3.1.0) a figure for the flat appears — a
+  rough guide, because the position in the building and the neighbouring flats
+  play a part.
 - Do not think of water in kWh — it stays m³.
 
 ---
 
-## 7. Special case: balcony solar plant
+## 7. Special case: plug-in solar
 
-Plug-in mini PV systems ("balcony power plant", up to 800 W) feed in via a normal
-socket since the Solar Package I. There is **no feed-in meter** (a backward-running
-import meter is automatically excluded by modern two-way meters, which only show
-the net import). Consequences for the app:
+Plug-in solar devices (“balcony power plants”) feed into the home’s wiring via
+a socket. In Germany, since the Solarpaket I (2024):
 
-- **Activating `pv_einspeisung` brings nothing** — you have no meter for it. With
-  no data, the app computes empty.
-- **`pv_erzeugung` is optionally useful** if your inverter has a kWh meter. You
-  then record its reading monthly and see the generation as pure statistics. The
-  electricity balance stays unchanged (no feed-in share), but you have a
-  performance check of your balcony plant.
-- The actual effect shows on the normal `strom` meter: *less* import. So you
-  measure the economics of a balcony plant by comparing the import kWh
-  before/after (ideally weather-adjusted, but electricity is mostly not strongly
-  HDD-driven — an annual mean is enough).
+- **Size:** up to **2,000 Wp** of modules and **800 VA** of inverter power.
+- **Registration:** only in the **market master data register**
+  (Marktstammdatenregister), within a month of commissioning; no longer with
+  the grid operator.
+- **Surplus:** what goes into the grid is taken by the grid operator **free of
+  charge** — there is no feed-in tariff.
+- **Meter:** an old Ferraris meter without a backstop may run backwards for a
+  transition period, until the metering operator replaces it with a modern
+  meter. A modern meter counts import and feed-in separately or only the
+  import — it never runs backwards.
+
+Up to v3.0 this page said a backward-running meter was “automatically
+excluded” by modern meters — for old Ferraris meters that was not true.
+
+**Setting up (since v3.1.0):**
+
+1. Switch on the utility **PV generation** (Settings → Utilities & billing →
+   Active utilities) and create the inverter’s meter if it shows a kWh reading
+   (on the device or in the manufacturer’s app; a file from there is read by
+   [Time series from portals](../anleitungen/daten-aus-portalen.md)). In the
+   meter dialog tick **“Plug-in solar device (balcony system, no feed-in
+   meter)”**; under “PV system”, optionally investment and commissioning date
+   for the payback.
+2. Under Settings → Utilities & billing → **Photovoltaics** enter the
+   **assumed self-consumption**, for example 70 %. Without a feed-in meter the
+   app calculates self-consumption with it and shows savings, self-sufficiency
+   and payback — marked as an assumption
+   ([PV §8](12-pv.md#8-plug-in-solar-v310)).
+3. You do not need **PV feed-in**: there is no contract and usually no meter
+   for it. If you can read the feed-in register of a modern meter, create it
+   there — then the app calculates with the measured feed-in instead of the
+   assumption.
+
+**Measuring the effect — the baseline date.** The actual effect shows on the
+electricity meter: less import. On the electricity meter, under *Baseline
+dates*, enter the commissioning date with the label “Plug-in solar in
+operation”. Since v3.1.0 the analysis also compares before and after for
+electricity: the daily average per calendar month in both phases, over the
+months that exist in both (at least three), scaled up to a year — in the card
+“Effect of the measure”, stating whether the difference is statistically
+supported. The weather is not adjusted; a sunny summer counts. The comparison
+becomes reliable after a year with the device.
 
 ---
 

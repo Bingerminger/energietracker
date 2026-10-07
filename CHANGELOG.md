@@ -6,6 +6,290 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.1.0] — 2026-10-07 — Für jeden Haushalt
+
+MINOR-Release mit den letzten beiden Paketen des Gesamtreviews in einem
+Schritt: **Paket G „International“** (Sprache pro Gerät, Terminologie,
+CSV in der Landessprache) und **Paket H „Ökosystem und Ausbau“** (H1–H8:
+Home Assistant liest mit, Belege und Offline-Erfassung, Mieter-Paket, CO₂-Preis,
+Rechnungen für alle Arten, Strom mit Gruppenvertrag und Börsenpreisen,
+Wärmepumpe und PV, Einordnung und Portal-Importe). Damit sind
+[#15] (Nebenkosten für Mieter) und [#17] (Verträge je Zählergruppe) umgesetzt.
+**Ein Schemaschritt 1.6.0 → 1.7.0**, der nur leere Töpfe anlegt. API,
+CSV-Format 1, Backup-Format 3.0 und der Home-Assistant-Ingest wachsen additiv;
+nichts entfällt.
+
+### ⚠️ Für bestehende Installationen
+
+- **Schema 1.7.0:** Beim ersten Start legt die Migration neue, leere Töpfe an
+  (Liste unter „Migration“) und ändert keinen Datensatz. Ein Snapshot entsteht
+  vorher wie bei jedem Schemaschritt.
+- **Sprache pro Gerät:** Die Oberfläche folgt jetzt der Sprache, die du auf dem
+  Gerät wählst (Einstellungen → Allgemein → „Sprache auf diesem Gerät“). Die
+  bisherige Einstellung heißt „Standardsprache der Installation“ und gilt für
+  neue Geräte, den PDF-Jahresbericht, CSV „local“, den Kalender und Home
+  Assistant.
+- **Eigener Webserver (Apache/nginx):** Mit Belegen werden Backups größer. Das
+  Docker-Image erlaubt jetzt 256 MB je Anfrage (`post_max_size`,
+  `upload_max_filesize`, nginx `client_max_body_size`), `memory_limit` 768 MB
+  und `fastcgi_read_timeout` 310 s. Wer selbst betreibt, passt die Werte an
+  ([Webserver](docs/betrieb/webserver.md)). Die Sperrliste umfasst jetzt auch
+  `tools/`, `dist/` und `deploy/` — `.htaccess` erledigt das für Apache, eine
+  eigene nginx-Konfiguration braucht die drei Verzeichnisse von Hand.
+- **PHP ab 8.2** statt 8.4 (CI prüft 8.2, 8.3 und 8.4; das Docker-Image bleibt
+  bei 8.4).
+- **Zählerdialog:** Die Auswahl „Rolle“ ersetzt das Häkchen „Heizstrom
+  (Wärmepumpe)“. Das Feld `heat_source` bleibt und wird mit `role` gleich
+  gehalten.
+
+### Added
+
+**Sprachen (Paket G)**
+
+- **Sprache pro Gerät (I18N-29):** Die Oberfläche schickt `X-ET-Language`;
+  Reihenfolge Gerät → Standardsprache der Installation → `Accept-Language`.
+  API-Antworten tragen `Vary: X-ET-Language, Accept-Language`. Das
+  App-Manifest gibt es je Sprache (`GET /api/manifest?lang=`, I18N-30).
+- **CSV in der Landessprache (I18N-10/11):** `?format=local[&lang=]` mit
+  Kopfzeilen, Dezimal- und Feldtrenner, Datum und Ja/Nein der Sprache. Format 1
+  bleibt Standard der API und ist eingefroren (Stabilitätsklasse A). Der Import
+  liest ISO-Datum und Tag-vor-Monat in jeder Schreibweise, Kopfzeilen aus allen
+  sieben Sprachen und jede eigene Export-Datei; Monat-vor-Tag wird nie
+  umgedeutet (`errors.import.dateMonthFirst`).
+- **Jahresbericht als Druckansicht (I18N-12):** `#/report/print?year=` in der
+  Sprache des Geräts, Diagramme als SVG, „Drucken / als PDF sichern“.
+  `GET /api/reports/yearly` liefert die Daten als JSON.
+- **So heißt das auf deiner Rechnung (I18N-27):** `GET /api/countries` trägt
+  `bill_terms` (Wortlaut der Rechnung je Land) und `comparison_portal`
+  (amtliche Vergleichsportale in AT, FR, IT, ES, PT). ⓘ-Erklärungen und
+  Glossar zeigen den Begriff, die Wechselentscheidung verlinkt das Portal.
+- **Demo-Daten in der Sprache der Oberfläche (I18N-24):** Zähler, Tarife,
+  Notizen und Termine des Beispielhaushalts werden beim Import übersetzt
+  (`demo-data/translations.json`); Firmennamen, IDs und Zahlen bleiben.
+- **Seite „Übersetzen und Sprachen“** mit Stilguide und Checklisten für eine
+  neue Sprache und einen neuen Schlüssel.
+
+**Home Assistant liest mit (H1)**
+
+- **`GET /api/summary`** (`summary_version: 1`, Klasse A): Kennzahlen je
+  Zähler (Saldo, Prognose, Tage seit Ablesung, Vertrag, Tank) für REST-Sensoren;
+  die App erzeugt die passende YAML-Vorlage. Zugang mit API-Schlüssel `read`.
+- **Agenda und Kalender-Abo:** `GET /api/agenda` bündelt alle Fristen und
+  Termine — „Zu tun“ auf der Übersicht liest daraus. `GET /api/calendar.ics`
+  (iCalendar, stabile UIDs, Vorwarnung) mit eigenem Schlüsselbereich
+  `calendar`, der nur für das Abo gilt.
+- **Stapel-Ingest:** `POST /api/ingest` nimmt bis zu 500 Stände auf einmal
+  (Liste oder `{"readings": [...]}`), Antwort je Eintrag; das Einzelobjekt
+  bleibt unverändert.
+- **Ingress und Plattformen:** Betrieb unter Home-Assistant-Ingress (Proxy-
+  Anmeldung erkennt `X-Remote-User-Name`/`-Id`), Vorlagen für Unraid, CasaOS
+  und Umbrel unter `deploy/`. Anleitungen für den Kalender und für ioBroker,
+  Node-RED und openHAB.
+
+**Belege, offline, Foto (H2)**
+
+- **Belege:** Fotos und PDFs an Ablesungen, Rechnungen und Abrechnungen
+  (`/api/attachments`), geprüft am Inhalt, mit Speichergrenze
+  `attachments_max_mb`. Im Backup als `attachment_files`
+  (`?attachments=0` lässt sie weg), beim Import gegen SHA-256 geprüft.
+- **Offline erfassen (FE-32):** Scheitert das Speichern am Netz, wartet der
+  Stand im Browser und geht automatisch nach; `client_ref` verhindert doppelte
+  Stände (Antwort 200 mit `duplicate: true`). Konflikte mit einem anderen
+  Stand am selben Tag fragt die App nach.
+- **Foto am Zähler (MKT-08):** „📷 Foto“ in „Zählerstände“, im Browser
+  verkleinert, EXIF samt GPS entfernt.
+- **Texterkennung im Heimnetz (MKT-08):** optional, aus per Standard. Ein
+  eigener Bilddienst (Ollama oder OpenAI-kompatibel, z. B. LM Studio) liest den
+  Stand vom Foto; die Adresse muss im eigenen Netz liegen
+  (`errors.ocr.notLocal`), gespeichert wird nur nach Klick.
+
+**Mieter-Paket (H3, F1008, [#15])**
+
+- **Verbrauchsart „Heizwärme“ (`waerme`):** Wärmemengenzähler oder monatliche
+  Verbrauchsinformation, mit Wetterbereinigung und Prognose wie bei Gas; CO₂
+  über den eingestellten Energieträger als Näherung. Neun Verbrauchsarten.
+- **Verbrauch je Zeitraum:** dritte Erfassungsart neben Zählerständen und
+  Lieferungen (`capture: period`), Routen `…/periods`, CSV-Import und -Export,
+  Vergleichswerte der Verbrauchsinfo (§ 6a HeizkostenV).
+- **Zählerrollen:** Haushalt, Wärmepumpe, Wallbox; Kalt-, Warm-, Gartenwasser;
+  Erzeugung, Speicher laden/entladen; Heizwärme, Wärmemenge der Wärmepumpe.
+  Messende Rollen (Speicher, Wärmemenge der Wärmepumpe) zählen wie Subzähler
+  nicht in die Summen.
+- **Warmwasser-Wärme:** Wasserzähler mit Rolle „warm“ zeigen die Wärme nach
+  § 9 HeizkostenV (2,5 × m³ × (t − 10)).
+- **Mietverhältnis:** Vorauszahlungen, Preise, Umlagen und Zähler; Budget gegen
+  die Nebenkostenvorauszahlung mit Risiko und passender Vorauszahlung;
+  Nebenkostenabrechnungen erfassen und Preise übernehmen; Abrechnungs- und
+  Einwendungsfrist in Agenda und Kalender. Hilfsrechnung, keine
+  Nebenkostenabrechnung.
+
+**CO₂-Preis (H4)**
+
+- **CO₂-Preis im Brennstoff (CALC-27):** Ausweis nach BEHG-Standardfaktoren
+  mit dem Preis je Jahr (Länderprofil DE, eigene Werte möglich), Karte in der
+  Verbrauchsansicht, `GET /api/co2-costs`. Szenario in der Prognose
+  (MKT-26).
+- **CO₂-Kosten mit dem Vermieter teilen (MKT-15):** Stufe nach CO2KostAufG,
+  Vermieteranteil für Etagenheizungen samt PDF-Anschreiben, Prüfung der
+  Heizkostenabrechnung bei Zentralheizung, Frist zum Einfordern im Kalender
+  (`co2_claim_deadline`). `GET /api/co2-split`,
+  `GET /api/reports/co2-split.pdf`.
+
+**Rechnungen, Fernwärme, Wechsel (H5)**
+
+- **Rechnungsprüfung für Gas, Strom, Wasser und Fernwärme (UI-35, MKT-17):**
+  Nachrechnung je Abschnitt; die Versorgerrechnung wird erfasst
+  (`/api/utility/{u}/bills`), verglichen (`…/check`, Urteil „passt“ oder
+  „prüfen“ mit Gründen) und als Sonderzahlung gebucht (`…/book`, einmal je
+  Rechnung).
+- **Fernwärme (CALC-31):** Anschlussleistung, Leistungs- und Messpreis mit
+  Stichtagen fließen in die festen Kosten; Netzfaktor aus dem Vertrag für
+  CO₂-Bilanz und CO₂-Preis.
+- **Lieferantenwechsel (MKT-24):** MaLo- und MeLo-ID am Zähler (mit
+  Prüfziffer), Karte „Für den Wechsel bereithalten“, Hinweis bei Laufzeiten
+  über 24 Monate, Empfehlung bei einer gepflegten Preiserhöhung
+  (Sonderkündigungsrecht).
+
+**Strom (H6, F1017, [#17])**
+
+- **Ein Vertrag für eine Zählergruppe:** `meter_group_id` statt `meter_id`,
+  optional ein Arbeitspreis je Mitglied (HT/NT). Grundpreis, Abschläge und
+  Boni trägt das erste Mitglied, damit jede Summe stimmt. Auswertungen der
+  Gruppe unter `/api/utility/{u}/meter-groups/{id}/…`; eine Versorgerrechnung
+  an einem Mitglied wird mit der ganzen Gruppe verglichen und in den
+  Gruppenvertrag gebucht.
+- **§ 14a EnWG, Modul 1 (MKT-13):** reduziertes Netzentgelt als Abzug von den
+  festen Kosten.
+- **Börsenstrompreise und Dynamik-Check (MKT-12):** Monatsmittel Day-Ahead aus
+  einer SMARD-Datei oder auf Knopfdruck von SMARD (`/api/market-prices`);
+  Schattenvertrag „dynamischer Tarif“ in der Wechselentscheidung. Monatspreise
+  eines Vertrags lassen sich aus CSV importieren.
+- **Ladestrom-Nachweis für den Dienstwagen (MKT-14):** je Monat nach
+  Vertragspreis oder Pauschale, als JSON, CSV und PDF
+  (`/api/reports/ev-charging`). Keine Steuerberatung.
+
+**Wärmepumpe und PV (H7)**
+
+- **Jahresarbeitszahl (MKT-18):** Wärmemenge gegen Strom der Wärmepumpe je
+  Monat und Jahr, mit Feldtest-Vergleichswerten (`GET /api/heat-pump`).
+- **PV (CALC-29, MKT-16):** Speicher (geladen, entladen, Verluste,
+  Vollzyklen), Balkonkraftwerk mit angenommenem Eigenverbrauch, Amortisation,
+  Hinweis zu § 51 EEG, eigener Vermeidungsfaktor, Gutschriften des
+  Direktvermarkters am Einspeisevertrag.
+- **Vorher/Nachher ohne Heizkurve:** Die Analyse-Zäsur vergleicht jetzt auch
+  Strom, Wasser und PV (`method: seasonal_mean`).
+
+**Einordnen und übernehmen (H8)**
+
+- **Eigene Vergleichswerte (MKT-11):** Karte „Einordnung“ auf der Übersicht
+  gegen selbst eingetragene Werte, mit Links auf Strom- und Heizspiegel
+  (`GET /api/benchmarks/comparison`).
+- **Zeitreihen aus Portalen (MKT-19):** Viertelstunden-, Stunden- oder
+  Tageswerte von Netzbetreiber, Wechselrichter oder Wärmepumpe mit
+  Spaltenzuordnung, Vorschau und Trockenlauf
+  (`POST …/meters/{id}/import-series`); Zeitumstellung wird richtig gezählt.
+
+**Wasser**
+
+- **Schmutzwasser = Hauptzähler minus Abzugszähler (CALC-20):** neue Basis
+  `trinkwasser_minus_abzug` mit `abzug_meter_ids`, z. B. für den Gartenzähler;
+  die Prognose rechnet den Anteil je Monat.
+
+### Changed
+
+- **Sprache:** Terminologie nach einer Termbase (= Glossar), Anrede je Sprache,
+  Typografie der Zielsprachen, Plural über CLDR-Regeln im Browser und auf dem
+  Server, Bezeichnungen nicht mehr mitten im Satz (I18N-06/09/15/19/20/21).
+  Die Kürzel der Rechnungsprüfung folgen der Sprache (en/fr/es/pt E/I,
+  it/nl S/I, de unverändert S/E; I18N-08).
+- **Fehlermeldungen übersetzt (I18N-14):** Wetterabgleich mit
+  `archive_error_code`/`forecast_error_code`, beschädigte Datendatei; der Code
+  bleibt gleich.
+- **PDF:** Zeichensatz je Sprache (`format.pdfCharset`); eine Sprache ohne
+  passenden Zeichensatz bekommt 422 `errors.report.pdfUnsupportedLanguage`
+  statt falscher Zeichen.
+- **„Zu tun“** kommt aus der Agenda — dieselben Regeln, eine Logik für
+  Übersicht, Kalender und Home Assistant.
+- **Service Worker:** Die Caches tragen den Pfad der Installation im Namen;
+  die Selbstheilung räumt nur eigene Caches ab.
+- **Demo-Daten:** erfundene Anbieter; der Gartenzähler ist Subzähler des
+  Hauptzählers und Abzugszähler fürs Schmutzwasser.
+- **Docker:** größere Upload- und Speichergrenzen (siehe oben).
+
+### Fixed
+
+- **Webserver-Sperrliste:** `tools/` und `dist/` (seit 3.0.0 im Repository)
+  fehlten auf der Apache-Sperrliste; jetzt gesperrt wie `deploy/` und
+  `requirements.txt`.
+  `WebrootRulesTest` verlangt, dass jedes Verzeichnis außer `public/` auf der
+  Liste steht.
+- **Zwei Installationen auf einem Ursprung** (z. B. Test und Betrieb auf
+  derselben NAS, oder Ingress): Der Service Worker der einen löschte die
+  Caches der anderen.
+- **Demo zählte den Gartenwasserzähler doppelt** (eigener Wurzelzähler mit
+  eigenem Trinkwasserpreis, CALC-20).
+- **Portugiesisch:** Pluralregeln nach pt-PT statt pt-BR.
+
+### Deprecated
+
+- `errors.billCheck.gasOnly` wird nicht mehr gesendet; eine Art ohne
+  Rechnungsprüfung bekommt `errors.billCheck.unsupportedUtility`. Der Schlüssel
+  bleibt bis zur nächsten Hauptversion im Katalog.
+
+### Migration
+
+Schema **1.6.0 → 1.7.0**, automatisch beim ersten Start, nur additiv:
+
+- neue, leere Töpfe `attachments.json`, `tenancies.json`,
+  `tenancy_statements.json`, `market_prices.json`;
+- je Verbrauchsart `periods.json` und `bills.json`;
+- die Verbrauchsart `waerme` mit leeren Grundtöpfen, ohne Standardzähler.
+
+`data/instance.json` (Kennung der Installation für Kalender und Home Assistant)
+entsteht beim ersten Aufruf und ist bewusst nicht im Backup. Das Backup-Format
+bleibt 3.0; ältere Versionen ignorieren die neuen Schlüssel.
+
+### Tests
+
+- 31 neue Testklassen: `CatalogStyleTest` (Termbase, Anrede,
+  Typografie, Satzbau, Kürzel), `CatalogUsageTest`, `HardcodedTextTest`,
+  `PluralRulesTest`, `CsvFormatV1Test` (Golden Files), `CsvLocalFormatTest`,
+  `PdfCharsetTest`, `DeviceLanguageTest`, `AgendaServiceTest`,
+  `AgendaAccessTest`, `BulkIngestTest`, `IngressTest`, `DeployTemplatesTest`,
+  `WebrootRulesTest`, `AttachmentServiceTest`, `BackupAttachmentRoundtripTest`,
+  `ReadingClientRefTest`, `OcrServiceTest`, `OutboundHostsTest`,
+  `PeriodCaptureTest`, `MeterRolesAndHeatTest`, `TenancyTest`, `Co2CostTest`,
+  `BillServiceTest`, `GroupContractTest` (HT/NT: 964 € wie von Hand),
+  `MarketPriceTest`, `EvChargingReportTest`, `HeatPumpAndPvTest`,
+  `SeriesImportAndReferenceTest`, `WaterDeductionMeterTest`,
+  `DemoDataTranslatorTest`; Basis `HttpServerTestCase` für HTTP-Tests.
+- Neue Node-Suiten: `tests/plural.test.mjs`, `tests/hardcoded-text.test.mjs`,
+  `tests/outbox.test.mjs`.
+- Frontend-API-Shape 112/112, Browser-Render 218/218, Demo-Klicktest 46 Seiten
+  ohne fehlende Antwort.
+- 639 Testmethoden (+167). 57 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Ein Schemaschritt für viele neue Töpfe** — leer anlegen, nichts umbauen;
+  dann bleibt die Migration auch über acht Pakete hinweg trivial.
+- **Messende Rollen gehören nicht in Summen.** Speicher und Wärmemenge einer
+  Wärmepumpe messen etwas, das schon gezählt ist — wie ein Subzähler.
+- **Die Doku-Beschreibung ist ein Code-Review.** Wer jede Antwort und jeden
+  Fehlercode beschreiben muss, findet die Stellen, an denen der Code etwas
+  anderes tut.
+- **Erst die Lizenz der Daten, dann der Einbau.** Lastprofile und
+  Spiegel-Tabellen blieben draußen; eigene Werte und Links tragen genauso.
+- **Zeitreihen in UTC erzeugen** — ein Viertelstunden-Takt in Ortszeit
+  überspringt die doppelte Stunde der Zeitumstellung.
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
+[#15]: https://github.com/Bingerminger/energietracker/issues/15
+[#17]: https://github.com/Bingerminger/energietracker/issues/17
+
+---
+
 ## [3.0.0] — 2026-10-07 — Frei zum Ausprobieren
 
 MAJOR-Release ohne Bruch: Die Hauptversion markiert den **Lizenzwechsel zur

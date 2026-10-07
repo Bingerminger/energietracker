@@ -52,6 +52,9 @@ final class Response
             header('Content-Type: application/json; charset=utf-8');
             header('Cache-Control: no-cache, no-store, must-revalidate');
             header('X-Content-Type-Options: nosniff');
+            // v3.1.0 (Review I18N-29) — Texte hängen an der Sprache des Geräts;
+            // ein Cache (Service Worker offline) darf sie nicht vermischen.
+            header('Vary: X-ET-Language, Accept-Language');
         }
         echo json_encode(
             ['success' => true, 'data' => $data],
@@ -73,6 +76,7 @@ final class Response
         if (!headers_sent()) {
             http_response_code($status);
             header('Content-Type: application/json; charset=utf-8');
+            header('Vary: X-ET-Language, Accept-Language');   // v3.1.0 — Meldung in der Sprache des Geräts
             header('Cache-Control: no-cache, no-store, must-revalidate');
             header('X-Content-Type-Options: nosniff');
         }

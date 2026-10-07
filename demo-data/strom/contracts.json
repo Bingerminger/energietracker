@@ -2,7 +2,7 @@
   {
     "id": "c_strom_001",
     "meter_id": "m_strom_main",
-    "provider": "Stadtwerke Leipzig",
+    "provider": "Stadtwerke Musterstadt",
     "tariff_name": "Strom Basis 2023",
     "start": "2023-01-01",
     "end": "2023-12-31",
@@ -34,7 +34,7 @@
   {
     "id": "c_strom_002",
     "meter_id": "m_strom_main",
-    "provider": "E.ON",
+    "provider": "Energie Nordring",
     "tariff_name": "Strom Direkt 12",
     "start": "2024-01-01",
     "end": "2024-12-31",
@@ -73,7 +73,7 @@
   {
     "id": "c_strom_003",
     "meter_id": "m_strom_main",
-    "provider": "E.ON",
+    "provider": "Energie Nordring",
     "tariff_name": "Strom Direkt 12 — Verlängerung",
     "start": "2025-01-01",
     "end": "2025-12-31",
@@ -105,7 +105,7 @@
   {
     "id": "c_strom_004",
     "meter_id": "m_strom_main",
-    "provider": "E.ON",
+    "provider": "Energie Nordring",
     "tariff_name": "Strom Direkt 12 — 2026",
     "start": "2026-01-01",
     "end": "2026-12-31",
@@ -137,7 +137,7 @@
   {
     "id": "c_strom_shadow_natur",
     "meter_id": "m_strom_main",
-    "provider": "Naturenergie Süd",
+    "provider": "Grünquell Energie",
     "tariff_name": "Naturstrom 12",
     "start": "2027-01-01",
     "end": null,
@@ -167,7 +167,7 @@
   {
     "id": "c_strom_shadow_klassik",
     "meter_id": "m_strom_main",
-    "provider": "Stadtwerke Leipzig",
+    "provider": "Stadtwerke Musterstadt",
     "tariff_name": "Strom Klassik",
     "start": "2027-01-01",
     "end": null,

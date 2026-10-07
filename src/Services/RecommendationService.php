@@ -60,6 +60,10 @@ final class RecommendationService
                 }
                 $recs = array_merge($recs, $this->ruleContractEnd($utility, $meter));
             }
+            // v3.1.0 (H6, #17) — Gruppenverträge: Fristen und Preiserhöhung wie beim Zähler
+            foreach ($this->consumption->contractTargets($utility) as $target) {
+                if (!empty($target['is_group'])) $recs = array_merge($recs, $this->ruleContractEnd($utility, $target));
+            }
         }
         $recs = array_merge($recs, $this->ruleEfficiencyClass());
 
@@ -307,6 +311,24 @@ final class RecommendationService
             return [];
         }
         $out = [];
+        // v3.1.0 (H5, MKT-24) — angekündigte Preiserhöhung: Sonderkündigungsrecht
+        // prüfen (§ 41 Abs. 5 EnWG; nur Deutschland, nur wenn sie noch kommt)
+        if ((string)$this->settings->get('country', 'DE') === 'DE') {
+            $today = date('Y-m-d');
+            foreach ($status['contracts'] ?? [] as $c) {
+                $from = $c['price_increase']['from'] ?? null;
+                if (!is_string($from) || $from < $today || (empty($c['is_current']) && empty($c['is_future']))) continue;
+                $out[] = $this->mk(
+                    'r_price_increase', [$utility, $meter['id'], (string)($c['contract_id'] ?? $c['id'] ?? ''), $from],
+                    'warning', 'vertrag',
+                    $this->i18n->t('recommendations.engine.rPriceIncrease.title', ['label' => $this->utilLabel($utility), 'date' => $this->i18n->date($from)]),
+                    $this->i18n->t('recommendations.engine.rPriceIncrease.detail', [
+                        'provider' => (string)($c['provider'] ?? $c['tariff_name'] ?? '—'), 'date' => $this->i18n->date($from),
+                    ]),
+                    ['utility' => $utility, 'meter_id' => $meter['id'], 'contract_id' => (string)($c['contract_id'] ?? ''), 'from' => $from]
+                );
+            }
+        }
         foreach ($status['contracts'] ?? [] as $c) {
             if (!($c['should_remind'] ?? false)) continue;
             // v2.9.0 (Review CALC-11) — mit gepflegter Frist zählt der
@@ -320,15 +342,15 @@ final class RecommendationService
                 'r6', [$utility, $meter['id'], (string)($c['contract_id'] ?? $c['id'] ?? '')],
                 $days <= 14 ? 'urgent' : 'warning', 'vertrag',
                 $byCancel
-                    ? $this->i18n->t('recommendations.engine.r6.titleCancel', ['label' => $this->utilLabel($utility), 'days' => $days, 'date' => $this->i18n->date((string)$c['cancel_by'])])
-                    : $this->i18n->t('recommendations.engine.r6.title', ['label' => $this->utilLabel($utility), 'days' => $days]),
+                    ? $this->i18n->tp('recommendations.engine.r6.titleCancel', (int)$days, ['label' => $this->utilLabel($utility), 'days' => $days, 'date' => $this->i18n->date((string)$c['cancel_by'])])
+                    : $this->i18n->tp('recommendations.engine.r6.title', (int)$days, ['label' => $this->utilLabel($utility), 'days' => $days]),
                 $byCancel
                     ? $this->i18n->t('recommendations.engine.r6.detailCancel', [
                         'provider' => $provider,
                         'date'     => $this->i18n->date((string)$c['cancel_by']),
                         'end'      => $this->i18n->date((string)($c['end'] ?? '')),
                     ])
-                    : $this->i18n->t('recommendations.engine.r6.detail', ['provider' => $provider, 'days' => $days]),
+                    : $this->i18n->tp('recommendations.engine.r6.detail', (int)$days, ['provider' => $provider, 'days' => $days]),
                 ['utility' => $utility, 'meter_id' => $meter['id']]
             );
         }
@@ -376,9 +398,20 @@ final class RecommendationService
         return ($v < 0 ? '-' : '+') . $this->i18n->number(abs($v), $decimals);
     }
 
+    /**
+     * Stabile ID einer Empfehlung (Regel + Kontext). v3.1.0 — öffentlich für die
+     * Agenda, die so erkennt, ob eine Vertragserinnerung ausgeblendet ist.
+     *
+     * @param list<string> $ctx
+     */
+    public static function ruleId(string $rule, array $ctx): string
+    {
+        return $rule . '_' . substr(md5($rule . '|' . implode('|', $ctx)), 0, 12);
+    }
+
     private function mk(string $rule, array $ctx, string $severity, string $category, string $title, string $detail, array $evidence): array
     {
-        $id = $rule . '_' . substr(md5($rule . '|' . implode('|', $ctx)), 0, 12);
+        $id = self::ruleId($rule, $ctx);
         return [
             'id'       => $id,
             'severity' => $severity,

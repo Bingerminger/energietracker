@@ -733,6 +733,35 @@ abgenommen ist.
   (der Knopf „Demo-Daten laden“) und wurde beim Anlegen überschrieben. Das
   fiel vor dem Commit auf; das Modul heißt jetzt `lib/demo-mode.js`. Vor dem
   Anlegen einer Datei steht seitdem der Blick, ob es sie schon gibt.
+- **Ein Schemaschritt für viele neue Töpfe (v3.1.0).** Acht Pakete brachten
+  sechs neue Töpfe und eine Verbrauchsart. Statt eines Schritts je Paket legt
+  eine Stufe 1.7.0 nur leere Töpfe an und ändert keinen Datensatz; neue Felder
+  an bestehenden Datensätzen sind optional und brauchen keine Migration. Jeder
+  neue Topf steht in der Liste des `BackupService`, und ein Rundreise-Test
+  sichert ihn.
+- **Messende Rollen gehören nicht in Summen (v3.1.0).** Speicher laden und
+  entladen und die Wärmemenge einer Wärmepumpe messen Energie, die schon
+  gezählt ist. Die erste Fassung zählte sie in die Summe ihrer Verbrauchsart —
+  die PV-Erzeugung doppelt, die Heizwärme neben dem Wärmepumpenstrom doppelt.
+  Jetzt behandelt `MeterService::ROLES_OUTSIDE_TOTALS` sie wie Subzähler, und
+  ein Test prüft die Summen.
+- **Die Doku-Beschreibung ist ein Code-Review (v3.1.0).** Die Doku-Aufträge
+  verlangten, Widersprüche zum Code zu melden, statt die Doku anzupassen. So
+  kamen vier Fehler ans Licht, bevor sie jemand bemerkte: Die Summary nannte
+  `null` statt der Standardrolle, ein Zähler mit Zeiträumen ließ sich löschen,
+  eine Ablesung ließ sich per PATCH auf einen Zeitraum-Zähler umhängen, und
+  messende Rollen zählten in die Summen.
+- **Erst die Lizenz der Daten, dann der Einbau (v3.1.0).** Die
+  Standardlastprofile (H25) veröffentlicht der BDEW ohne Nutzungslizenz, die
+  Tabellen aus Strom- und Heizspiegel brauchen eine schriftliche Genehmigung.
+  Beides blieb draußen: Der Dynamik-Check rechnet mit dem Monatsmittel und sagt
+  das, die Einordnung nimmt eigene Vergleichswerte und verlinkt die Spiegel.
+  Die Recherche steht seitdem vor der Spezifikation.
+- **Zeitreihen in UTC erzeugen (v3.1.0).** Der Testgenerator für
+  Viertelstundenwerte zählte mit `modify('+15 minutes')` in Ortszeit und
+  übersprang dabei die doppelte Stunde der Zeitumstellung im Herbst — der Test
+  erwartete einen Tag mit 24 Stunden, wo der Zähler 25 misst. Der Generator
+  läuft jetzt über UTC-Zeitstempel.
 
 ---
 

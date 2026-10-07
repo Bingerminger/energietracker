@@ -4,7 +4,7 @@
 
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
-import { fmt, escapeHtml, todayIso } from '../lib/format.js';
+import { fmt, escapeHtml } from '../lib/format.js';
 import { makeChart, chartColor, withAlpha, tokenColor, chartTableHtml } from '../components/chart.js';
 import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm } from '../lib/chart-data.js';
 import { toastErr } from '../components/toast.js';
@@ -40,7 +40,7 @@ export async function render(container) {
   }));
 
   // Fetch consumption for each active utility + Insights in parallel
-  const [datasets, eff, recs, reminders, stromSaldo, pvSummary, tankLists, overview] = await Promise.all([
+  const [datasets, eff, recs, events, stromSaldo, pvSummary, tankLists] = await Promise.all([
     Promise.all(utilities.map(async u => {
       try {
         const c = await api.consumption(u.key);
@@ -52,14 +52,15 @@ export async function render(container) {
     })),
     api.efficiency().catch(() => null),
     api.recommendations().catch(() => []),
-    api.reminders().catch(() => []),
+    // v3.1.0 (H1, B5) — „Zu tun" kommt aus der Agenda (dieselbe Quelle wie Kalender und Home Assistant)
+    api.agenda(90).then(d => d?.events || []).catch(() => []),
     // F1005 (v1.7.0) — Strom-Saldo (Bezug−Einspeisung) + PV-Eigenverbrauch/Autarkie
     api.stromSaldo().catch(() => null),
     api.pvSummary().catch(() => null),
     tankListsP,
-    // v2.12.0 — letzte Ablesung je Zähler für „Zu tun" (ein Aufruf)
-    api.readingsOverview().catch(() => null),
   ]);
+  // v3.1.0 (H8, MKT-11) — Einordnung; eigene Karte, sobald ein Vergleichswert oder ein Link da ist
+  const cmp = await api.comparison().catch(() => null);
 
   // F1005 — Insight-Karte „Strom-Saldo" nur, wenn der User tatsächlich
   // PV-Einspeisung erfasst. Sonst leere/nullenlange Anzeige bei Nicht-PV-
@@ -84,7 +85,7 @@ export async function render(container) {
   // v2.12.0 (Review UI-21) — „Zu tun" zuerst: fällige Termine, fällige
   // Ablesungen, Kündigungsfristen und Tanks an einer Stelle. Bis v2.11 lag das
   // auf drei Karten verteilt unter Effizienz und Strom-Saldo.
-  const todo = buildTodo({ reminders, recs, overview, settings, utilities });
+  const todo = buildTodo(events, recs);
   const todoRecIds = new Set(todo.filter(x => x.recId).map(x => x.recId));
   const topRecs = (recs || []).filter(r => !todoRecIds.has(r.id)).slice(0, 2);
 
@@ -125,6 +126,8 @@ export async function render(container) {
         ${eff.per_source.some(s => s.complete === false) && eff.note ? `<p class="muted dash-eff__note">${escapeHtml(eff.note)}</p>` : ''}
         ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
       </div>` : ''}
+
+      ${comparisonCardHtml(cmp, utilities)}
 
       ${tanks.length ? `
       <div class="card dash-insight">
@@ -169,17 +172,17 @@ export async function render(container) {
           ${pvYear && pvYear.autarkiequote != null ? `
           <div class="kpi">
             <div class="kpi__label">${t('dashboard.stromSaldo.autarky')}${info('autarky')}</div>
-            <div class="kpi__value">${(pvYear.autarkiequote * 100).toFixed(0)} %</div>
+            <div class="kpi__value">${fmt.pct(pvYear.autarkiequote, 0)}</div>
             <div class="kpi__sub">${pvYear.months_covered < 12
               // weniger als ein ganzes Jahr (laufendes Jahr, später Beginn oder
               // ungleiche Abdeckung): sagen, worüber die Quote rechnet
-              ? t('dashboard.stromSaldo.coveredSub', { months: pvYear.months_covered })
+              ? tp('dashboard.stromSaldo.coveredSub', pvYear.months_covered, { months: pvYear.months_covered })
               : t('dashboard.stromSaldo.autarkySub')}</div>
           </div>` : ''}
           ${pvYear && pvYear.eigenverbrauchsquote != null ? `
           <div class="kpi">
             <div class="kpi__label">${t('dashboard.stromSaldo.selfUse')}${info('selfConsumptionRate')}</div>
-            <div class="kpi__value">${(pvYear.eigenverbrauchsquote * 100).toFixed(0)} %</div>
+            <div class="kpi__value">${fmt.pct(pvYear.eigenverbrauchsquote, 0)}</div>
             <div class="kpi__sub">${t('dashboard.stromSaldo.selfUseSub', { kwh: fmt.num(pvYear.eigenverbrauch_kwh, 0) })}</div>
           </div>` : ''}
         </div>
@@ -269,50 +272,46 @@ export async function render(container) {
 /**
  * v2.12.0 (Review UI-21) — Was jetzt zu tun ist, mit Sprung dorthin.
  * Termine (fällig/überfällig), Ablesungen älter als
- * `alert_days_since_reading`, Kündigungsfristen und Tanks aus den
- * Empfehlungen (Kategorien „vertrag" und „bestand").
+ * `alert_days_since_reading`, Kündigungsfristen und Tanks.
+ *
+ * v3.1.0 (Paket H1, B5) — die Regeln stehen jetzt einmal im Backend
+ * (AgendaService, `due_now`); Kalender-Abo und Home Assistant lesen dieselben
+ * Ereignisse. Vertrags- und Bestandseinträge tragen den Text ihrer Empfehlung
+ * wie bis v3.0.
  */
-function buildTodo({ reminders, recs, overview, settings, utilities }) {
+function buildTodo(events, recs) {
   const items = [];
-  for (const r of reminders || []) {
-    if (!['due', 'overdue'].includes(r.status)) continue;
-    const when = r.days_until == null ? fmt.date(r.next_due)
-      : r.days_until < 0 ? tp('dashboard.reminders.overdueDays', -r.days_until)
-      : r.days_until === 0 ? t('dashboard.reminders.now') : tp('dashboard.reminders.inDaysN', r.days_until);
-    items.push({ icon: '📌', tone: r.status === 'overdue' ? 'alert' : 'warn', text: r.title, sub: when,
-      href: '#/reminders', action: t('dashboard.todo.reminderAction') });
-  }
-  const alertDays = Math.max(1, Number(settings?.alert_days_since_reading) || 45);
-  const active = new Set((utilities || []).map(u => u.key));
-  const today = new Date(todayIso() + 'T00:00:00');
-  const due = [];
-  for (const row of overview?.rows || []) {
-    if (!active.has(row.utility)) continue;
-    const last = row.last_reading?.date;
-    const days = last ? Math.round((today - new Date(last + 'T00:00:00')) / 86400000) : null;
-    if (days !== null && days <= alertDays) continue;
-    due.push({ row, days });
+  const due = (events || []).filter(e => e.due_now);
+  const recById = new Map((recs || []).map(r => [r.id, r]));
+  for (const e of due.filter(x => x.kind === 'reminder')) {
+    const d = e.ref?.days_until;
+    const when = d == null ? fmt.date(e.date)
+      : d < 0 ? tp('dashboard.reminders.overdueDays', -d)
+      : d === 0 ? t('dashboard.reminders.now') : tp('dashboard.reminders.inDaysN', d);
+    items.push({ icon: '📌', tone: e.severity === 'overdue' ? 'alert' : 'warn', text: e.params?.title ?? e.title, sub: when,
+      href: e.href, action: t('dashboard.todo.reminderAction') });
   }
   // Bis zu zwei Zähler einzeln (mit Sprung zur Karte), mehr als eine Zeile —
   // sonst schiebt ein monatlicher Ablesetag die ganze Übersicht nach unten
-  if (due.length > 2) {
-    const names = due.map(d => d.row.meter_name);
-    items.push({ icon: '📋', tone: 'warn', text: tp('dashboard.todo.readingsDue', due.length),
+  const readings = due.filter(x => x.kind === 'reading_due');
+  if (readings.length > 2) {
+    const names = readings.map(e => e.params?.meter || '');
+    items.push({ icon: '📋', tone: 'warn', text: tp('dashboard.todo.readingsDue', readings.length),
       sub: names.slice(0, 3).join(', ') + (names.length > 3 ? ' …' : ''),
       href: '#/zaehlerstaende', action: t('dashboard.todo.readingAction') });
   } else {
-    for (const { row, days } of due) {
-      items.push({ icon: row.utility_icon || '📋', tone: 'warn', text: `${row.utility_label} · ${row.meter_name}`,
-        sub: days === null ? t('dashboard.todo.readingNever') : tp('dashboard.todo.readingDue', days),
-        href: `#/zaehlerstaende?meter=${encodeURIComponent(row.meter_id)}`, action: t('dashboard.todo.readingAction') });
+    for (const e of readings) {
+      const days = e.ref?.days_since_reading;
+      items.push({ icon: e.ref?.icon || '📋', tone: 'warn', text: `${e.params?.label} · ${e.params?.meter}`,
+        sub: days == null ? t('dashboard.todo.readingNever') : tp('dashboard.todo.readingDue', days),
+        href: e.href, action: t('dashboard.todo.readingAction') });
     }
   }
-  for (const r of recs || []) {
-    if (r.category !== 'vertrag' && r.category !== 'bestand') continue;
-    const u = r.evidence?.utility;
-    const isTank = r.category === 'bestand';
-    items.push({ icon: isTank ? '🛢️' : '📄', tone: r.severity === 'urgent' ? 'alert' : 'warn', text: r.title, recId: r.id,
-      href: isTank ? `#/utility/${encodeURIComponent(u || '')}?add=delivery` : (u ? `#/utility/${encodeURIComponent(u)}/contracts` : '#/contracts'),
+  for (const e of due.filter(x => ['cancel_by', 'term_end', 'tank_reorder'].includes(x.kind))) {
+    const isTank = e.kind === 'tank_reorder';
+    const rec = recById.get(e.ref?.recommendation_id);
+    items.push({ icon: isTank ? '🛢️' : '📄', tone: e.severity === 'urgent' ? 'alert' : 'warn', text: rec?.title ?? e.title,
+      recId: e.ref?.recommendation_id, href: e.href,
       action: t(isTank ? 'dashboard.todo.tankAction' : 'dashboard.todo.contractAction') });
   }
   // Überfälliges zuerst
@@ -585,4 +584,28 @@ function effClsTone(cls) {
   if (['C', 'D'].includes(cls)) return 'info';
   if (['E', 'F'].includes(cls)) return 'warning';
   return 'danger'; // G, H
+}
+
+// v3.1.0 (H8, MKT-11) — Einordnung des eigenen Verbrauchs an selbst eingetragenen
+// Vergleichswerten (Strom- und Heizspiegel liegen nicht bei: Ihre Tabellen
+// brauchen eine Genehmigung); dazu die Links zur Selbstprüfung (nur DE)
+function comparisonCardHtml(c, utilities = []) {
+  if (!c?.supported) return '';
+  const s = c.strom;
+  const heat = (c.heating || []).filter(h => h.own_value != null);
+  const hasOwn = (s && s.own_value != null) || heat.length;
+  const links = Object.entries(c.links || {});
+  if (!hasOwn && !links.length) return '';
+  const delta = (d) => d == null ? '' : ` <span class="${d > 0 ? 'danger-text' : 'success-text'}">(${d > 0 ? '+' : ''}${fmt.num(d, 0)} %)</span>`;
+  return `
+      <div class="card dash-insight">
+        <h2 class="card__title"><span aria-hidden="true">📏</span> ${escapeHtml(t('comparison.title', { year: c.year }))}</h2>
+        ${s && s.own_value != null ? `<p>${escapeHtml(t('comparison.strom', { kwh: fmt.int(s.kwh), own: fmt.int(s.own_value) }))}${s.complete ? delta(s.delta_pct) : ''}</p>
+          ${s.complete ? '' : `<p class="muted small">${escapeHtml(t('comparison.incomplete'))}</p>`}
+          ${s.special_household ? `<p class="muted small">${escapeHtml(t('comparison.special'))}</p>` : ''}` : ''}
+        ${heat.map(h => `<p>${escapeHtml(t('comparison.heating', { label: utilities.find(x => x.key === h.utility)?.label || h.utility, value: fmt.num(h.kwh_per_m2, 0), own: fmt.num(h.own_value, 0) }))}${h.complete ? delta(h.delta_pct) : ''}</p>`).join('')}
+        ${c.source && hasOwn ? `<p class="muted small">${escapeHtml(t('comparison.source', { source: c.source }))}</p>` : ''}
+        ${!hasOwn ? `<p class="muted small">${escapeHtml(t('comparison.empty'))}</p>` : ''}
+        ${links.length ? `<p class="small">${links.map(([k, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('comparison.link.' + k))}</a>`).join(' · ')}</p>` : ''}
+      </div>`;
 }

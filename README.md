@@ -12,13 +12,13 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
-[![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.4-777BB4.svg)](composer.json)
+[![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-472-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-639-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
-[![Utilities](https://img.shields.io/badge/utilities-8-f59e0b.svg)](docs/en/einstieg/funktionen.md)
+[![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
 
 <p align="center"><img src="docs/ui/screenshots/en/dashboard.png" alt="Overview with to-dos, key figures per utility and history" width="860"></p>
@@ -28,17 +28,20 @@ sample household carried forward to today, in seven languages, nothing to instal
 | Question | Answer in the app |
 |---|---|
 | Will I get money back? | **Balance** per contract by calendar, the expected bill and a suggested advance — "credit" or "additional payment", as on the bill |
-| Is my gas bill right? | **Bill check**: m³ × volume correction factor × calorific value per section, exactly as the supplier calculates |
+| Is my annual bill right? | **Bill check** for gas, electricity, water and district heating: recalculated per section, held against the bill, the result booked as a special payment |
 | Should I switch? | **Switch decision** with notice period, cost from year two and break-even |
 | Used more, or just colder? | **Weather adjustment** with heating degree days from your own location and a heating model |
 | What lies ahead? | **Forecast** with an uncertainty band and the cost per month from the valid tariff |
-| How efficient is the house? | **Efficiency** in kWh/m²·yr and a certificate-style figure |
+| How efficient is the house? | **Efficiency** in kWh/m²·yr and a certificate-style figure; with a heat pump the seasonal performance factor |
+| Does my rent prepayment cover it? | **Tenancy**: heating and water against the service charge prepayment, deadlines in the calendar, CO₂ costs shared with the landlord |
 
-Eight utilities: gas, electricity, water, district heating, heating oil and
+Nine utilities: gas, electricity, water, district heating, heating oil and
 pellets (with a tank book), PV feed-in and PV generation (self-consumption,
-self-sufficiency). Plus meter swaps, sub-meters and groups, reminders,
-recommendations, a PDF annual report — and help inside the app with a glossary
-and an ⓘ next to every key figure.
+self-sufficiency, storage) and heat (heat meter or monthly consumption
+information). Plus meter swaps, sub-meters and groups — also with one contract
+for peak and off-peak —, receipts and meter photos, reminders as a calendar
+feed, recommendations, a PDF annual report and a summary for Home Assistant —
+and help inside the app with a glossary and an ⓘ next to every key figure.
 → [All features](docs/en/einstieg/funktionen.md) ·
 [All views with screenshots](docs/en/referenz/ansichten.md)
 
@@ -66,13 +69,13 @@ and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.0.0
+  ghcr.io/bingerminger/energietracker:3.1.0
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
 what everything looks like; your own data is not lost.
 
-Without Docker, PHP 8.4 or later is enough: `git clone`, then
+Without Docker, PHP 8.2 or later is enough: `git clone`, then
 `php -S 127.0.0.1:8080 router.php`. For permanent use:
 [Installation](docs/en/betrieb/installation.md) ·
 [Docker, also on Synology](docs/en/betrieb/docker.md) ·
@@ -86,10 +89,13 @@ Without Docker, PHP 8.4 or later is enough: `git clone`, then
 ## Your data
 
 Everything stays on your server: no accounts, no ads, no telemetry, no
-database — just JSON files. The only outside contact is Open-Meteo: the daily
+database — just JSON files. The app talks only to Open-Meteo: for the daily
 weather sync (it sends your location rounded to about 1 km, and can be switched
-off) and the place search, if you use it. Fonts and Chart.js ship with the
-repository.
+off) and the place search, if you use it. Two more paths are yours to switch
+on: your own text recognition service in your home network, if you set one up,
+and wholesale electricity prices for the dynamic tariff check, when you tap
+“Load from SMARD” (Federal Network Agency; nothing of yours is sent). Fonts and
+Chart.js ship with the repository.
 
 ## Help and documentation
 
@@ -119,20 +125,25 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.0.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
+**v3.1.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
 APIs, CSV formats and the backup format change only additively; anything is
-removed only with a new major version and after notice. Next up are the
-utility-cost statement for tenants
-([#15](https://github.com/Bingerminger/energietracker/issues/15)) and contracts
-per meter group ([#17](https://github.com/Bingerminger/energietracker/issues/17))
-— [roadmap](roadmap.md) (in German). Coming from a private v0.9.0:
+removed only with a new major version and after notice. With 3.1.0 the tenant
+package ([#15](https://github.com/Bingerminger/energietracker/issues/15)) and
+contracts per meter group
+([#17](https://github.com/Bingerminger/energietracker/issues/17)) have arrived;
+what comes next is in the [roadmap](roadmap.md) (in German). Coming from a
+private v0.9.0:
 [migration](docs/en/anleitungen/migration-v090.md).
 
 ## Contributing
 
 Pull requests are welcome — setup, tests and the documentation rules are in
-[CONTRIBUTING.md](CONTRIBUTING.md); a new language needs no code. Please do not
-report security issues publicly, but as described in [SECURITY.md](SECURITY.md).
+[CONTRIBUTING.md](CONTRIBUTING.md). A new language is mostly translation — a
+catalogue, an entry in `languages.json` and its notation under `format.*` — plus
+a few lines of code for the plural rule and the country assignment; the
+checklist is in [Translating and languages](docs/en/entwicklung/uebersetzen.md).
+Please do not report security issues publicly, but as described in
+[SECURITY.md](SECURITY.md).
 
 ## Licence
 

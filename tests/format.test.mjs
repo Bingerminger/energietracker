@@ -12,7 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { parseDecimal, fmt, todayIso, formatForInput, setCountry, intlLocale } from '../public/js/lib/format.js';
-import { initI18n, t, setCurrencyParams, getCurrency } from '../public/js/lib/i18n.js';
+import { initI18n, t, setCurrencyParams, getCurrency, typography } from '../public/js/lib/i18n.js';
 import { gasEntryOn, gasFactorOf, cvUnit, CV_UNITS } from '../public/js/lib/gas-factor.js';
 
 // i18n lädt Kataloge per fetch; ohne Server scheitert das still — die Sprache
@@ -98,6 +98,25 @@ eq(t('contracts.unit.ctPerKwh'), 'Rp./kWh', 'Untereinheit aus der Währung');
 eq(t('contracts.unit.ctPerKwh', { minor: 'x' }), 'x/kWh', 'ausdrückliche Parameter haben Vorrang');
 setCurrencyParams('EUR');
 eq(t('contracts.unit.ctPerKwh'), 'ct/kWh', 'Euro: ct');
+
+// ── v3.1.0 (I18N-20) — Prozent und Einheit je Sprache, fr-Typografie ──
+const NB = ' ', NNB = ' ';
+eq(fmt.pct(0.125, 1), `12,5${NB}%`, 'de: Prozent mit geschütztem Leerzeichen');
+eq(fmt.pct(-0.0004, 1), `0,0${NB}%`, 'de: keine negative Null');
+eq(fmt.unit(1234, 'kWh'), `1.234${NB}kWh`, 'de: Zahl und Einheit bleiben zusammen');
+eq(t('analysis.reg.bestFit'), 'beste Anpassung', 'de-Kanon');
+await initI18n('en');
+eq(fmt.pct(0.125, 1), '12.5%', 'en: Prozent ohne Leerzeichen');
+eq(fmt.unit(3, 'm³'), `3${NB}m³`, 'en: geschütztes Leerzeichen vor der Einheit');
+await initI18n('nl');
+eq(fmt.pct(0.5, 0), '50%', 'nl: Prozent ohne Leerzeichen (CLDR)');
+await initI18n('fr');
+eq(/^12,5[\u00a0\u202f]%$/.test(fmt.pct(0.125, 1)), true, 'fr: geschütztes Leerzeichen vor % (ICU: U+00A0 oder U+202F)');
+eq(t('forecast.info', { model: 'x', blend: 50, r2: '', price: 1, unit: 'kWh' }).includes(`Modèle${NB}:`), true, 'fr: geschütztes Leerzeichen vor dem Doppelpunkt');
+eq(typography('fr', 'Total : 3 % ; « Gaz » ?'), `Total${NB}: 3${NB}%${NNB}; «${NB}Gaz${NB}»${NNB}?`, 'fr: typography()');
+eq(typography('none', 'Total : 3 %'), `Total : 3${NB}%`, 'andere Sprachen: nur vor %');
+eq(t('errors.contract.specialPaymentUnknownKind', { n: 2, kind: 'x' }).includes(`«${NB}x${NB}»`), true, 'fr: Guillemets geschützt');
+setCurrencyParams('EUR');
 globalThis.fetch = realFetch;
 await initI18n('de');
 

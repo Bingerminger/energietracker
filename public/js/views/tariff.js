@@ -28,9 +28,9 @@ import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { makeChart, utilColor } from '../components/chart.js';
 import { fmt as f, escapeHtml as esc, monthShortNames, parseDecimal, formatForInput } from '../lib/format.js';
-import { t, getCurrencySymbol } from '../lib/i18n.js';
+import { t, tp, getCurrencySymbol } from '../lib/i18n.js';
 import { copyText } from '../lib/clipboard.js';
-import { info } from '../components/info.js';
+import { info, billPortal } from '../components/info.js';
 
 let sel = { utility: null, meterId: null, year: null, switchDate: null };
 let charts = { switch: null, retro: null };
@@ -83,9 +83,19 @@ export async function render(container) {
 
   let meters = [];
   try { meters = await api.meters(sel.utility); } catch {}
+  // v3.1.0 (H6, #17) — Gruppen mit Gruppenvertrag (HT/NT) als eigene Auswahl
+  try {
+    const [groups, contracts] = await Promise.all([api.meterGroups(sel.utility), api.contracts(sel.utility)]);
+    for (const g of groups) {
+      if (contracts.some(c => c.meter_group_id === g.id && !c.is_shadow)) meters.push({ id: g.id, name: t('tariff.groupOption', { name: g.name }), is_group: true });
+    }
+  } catch {}
+  sel.isGroup = false;
   if (!sel.meterId || !meters.find(m => m.id === sel.meterId)) {
     sel.meterId = meters[0]?.id || null;
   }
+  sel.isGroup = !!meters.find(m => m.id === sel.meterId)?.is_group;
+  sel.groups = new Set(meters.filter(m => m.is_group).map(m => m.id));
 
   container.innerHTML = `
     <div class="view-header">
@@ -110,6 +120,10 @@ export async function render(container) {
       <div class="loading" role="status">${esc(t('tariff.loadingComparison'))}</div>
     </section>
 
+    <section id="t-checklist" style="margin-top: var(--sp-5)"></section>
+
+    <section id="t-market" style="margin-top: var(--sp-5)"></section>
+
     <section id="t-retro" style="margin-top: var(--sp-5)"></section>
   `;
 
@@ -118,7 +132,7 @@ export async function render(container) {
     destroyCharts(); render(container);
   });
   container.querySelector('#t-meter').addEventListener('change', e => {
-    sel.meterId = e.target.value; sel.switchDate = null; loadAll(container);
+    sel.meterId = e.target.value; sel.switchDate = null; sel.isGroup = !!sel.groups?.has(sel.meterId); loadAll(container);
   });
   container.querySelector('#t-addshadow').addEventListener('click', () =>
     openShadowForm(container, null));
@@ -129,7 +143,88 @@ export async function render(container) {
 
 async function loadAll(container) {
   destroyCharts();
-  await Promise.all([loadSwitch(container), loadRetro(container)]);
+  await Promise.all([loadSwitch(container), loadRetro(container), loadChecklist(container), loadMarket(container)]);
+}
+
+// v3.1.0 (H6, B7/MKT-12) — Großhandelspreise für den Dynamik-Check: nur Strom,
+// nur auf Knopfdruck von SMARD oder aus einer Datei
+async function loadMarket(container) {
+  const box = container.querySelector('#t-market');
+  if (!box) return;
+  if (sel.utility !== 'strom') { box.innerHTML = ''; return; }
+  const mp = await api.marketPrices().catch(() => null);
+  const months = Object.keys(mp?.months || {}).sort();
+  box.innerHTML = `<div class="card">
+    <h2 class="card__title">${esc(t('tariff.market.title'))}${info('dynamicTariff')}</h2>
+    <p class="muted small">${esc(months.length
+      ? t('tariff.market.range', { from: f.month(months[0]), to: f.month(months[months.length - 1]) })
+      : t('tariff.market.empty'))}</p>
+    <p class="muted small">${esc(t('tariff.market.hint'))}</p>
+    <div class="form-actions">
+      <button type="button" class="btn btn--ghost btn--sm" id="t-smard">${esc(t('tariff.market.sync'))}</button>
+      <label class="btn btn--ghost btn--sm">${esc(t('tariff.market.import'))}
+        <input type="file" accept=".csv,text/csv,text/plain" id="t-market-file" class="sr-only"></label>
+    </div>
+    <p class="muted small">${esc(t('tariff.market.attribution'))}</p>
+  </div>`;
+  const syncBtn = box.querySelector('#t-smard');
+  syncBtn.addEventListener('click', guardSubmit(syncBtn, async () => {
+    try {
+      const r = await api.syncSmard();
+      toastOk(t('tariff.market.loaded', { from: f.month(r.from), to: f.month(r.to) }));
+      await loadAll(container);
+    } catch (e) { toastErr(e.message || e); }
+  }));
+  box.querySelector('#t-market-file').addEventListener('change', async ev => {
+    const file = ev.target.files?.[0];
+    if (!file) return;
+    try {
+      const r = await api.importMarketPrices(await file.text());
+      toastOk(t('tariff.market.loaded', { from: f.month(r.from), to: f.month(r.to) }));
+      await loadAll(container);
+    } catch (e) { toastErr(e.message || e); }
+  });
+}
+
+// v3.1.0 (H6) — Hinweis unter einem dynamischen Kandidaten
+function dynamicNote(r) {
+  if (r.price_model !== 'dynamic') return '';
+  return `<div class="muted small">${esc(t('tariff.dynamic.flatNote'))}${r.dynamic_assumed_months
+    ? ' ' + esc(tp('tariff.dynamic.assumedMonths', r.dynamic_assumed_months)) : ''}</div>`;
+}
+
+// v3.1.0 (H5, MKT-24) — „Für den Wechsel bereithalten": MaLo-ID, Zählernummer,
+// letzter Stand. Ein Wechsel dauert seit 06/2025 nur noch einen Werktag; das
+// Portal fragt genau diese Angaben ab.
+async function loadChecklist(container) {
+  const box = container.querySelector('#t-checklist');
+  if (!box || !sel.meterId) return;
+  if (sel.isGroup) { box.innerHTML = ''; return; }   // v3.1.0 (H6) — je Zähler, nicht je Gruppe
+  const [meter, readings] = await Promise.all([
+    api.meter(sel.utility, sel.meterId).catch(() => null),
+    api.readings(sel.utility, sel.meterId).catch(() => []),
+  ]);
+  if (!meter) { box.innerHTML = ''; return; }
+  const device = (meter.devices || []).find(d => !d.removed_on) || null;
+  const last = [...(readings || [])].filter(r => !r.is_future).sort((a, b) => b.date.localeCompare(a.date))[0] || null;
+  const unit = currentUtility?.unit || '';
+  const lines = [
+    meter.malo_id ? [t('tariff.switchChecklist.malo'), meter.malo_id] : null,
+    device?.serial ? [t('tariff.switchChecklist.serial'), device.serial] : null,
+    last ? [t('tariff.switchChecklist.lastReading', { date: f.date(last.date) }), `${f.dec(last.counter, 3)} ${unit}`] : null,
+  ].filter(Boolean);
+  if (!lines.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="card">
+    <h2 class="card__title">${esc(t('tariff.switchChecklist.title'))}</h2>
+    <dl class="diag-grid">${lines.map(([k, v]) => `<dt>${esc(k)}</dt><dd class="mono">${esc(v)}</dd>`).join('')}</dl>
+    <p class="muted small">${esc(t('tariff.switchChecklist.hint'))}</p>
+    <button type="button" class="btn btn--ghost btn--sm" id="t-copy-checklist">${esc(t('tariff.switchChecklist.copy'))}</button>
+  </div>`;
+  box.querySelector('#t-copy-checklist').addEventListener('click', () => {
+    copyText(lines.map(([k, v]) => `${k}: ${v}`).join('\n')).then(ok => ok
+      ? toastOk(t('tariff.switchChecklist.copied'))
+      : toastErr(t('tariff.switch.copyFail')));
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -192,6 +287,7 @@ async function loadSwitch(container) {
         <!-- v2.13.0 (Review UI-27) — die Spaltenerklärung sichtbar statt nur
              als Tooltip, den es auf dem Telefon nicht gibt -->
         <p class="muted small">${esc(t('tariff.switch.col.year1'))}: ${esc(t('tariff.switch.year1Title'))} · ${esc(t('tariff.switch.col.year2'))}: ${esc(t('tariff.switch.year2Title'))}. ${esc(t('tariff.switch.rankingHint'))}</p>
+        ${d.dynamic_missing_market ? `<p class="banner banner--info">${esc(t('tariff.dynamic.missingMarket'))}</p>` : ''}
 
         <div class="card" style="margin-top: var(--sp-4)">
           <div class="card__title">${esc(t('tariff.switch.chartTitle'))}</div>
@@ -217,7 +313,7 @@ async function loadSwitch(container) {
 function consumptionCardHtml(d, unit) {
   const q = d.forecast || {};
   const quality = q.months_of_history != null
-    ? t('tariff.switch.basis', { months: q.months_of_history })
+    ? tp('tariff.switch.basis', q.months_of_history, { months: q.months_of_history })
     : '';
   return `
     <div class="card switch-card switch-card--consumption">
@@ -226,6 +322,7 @@ function consumptionCardHtml(d, unit) {
         <strong>${f.int(d.expected_consumption)}</strong> <span class="unit">${esc(unit)}</span>
       </p>
       <p class="muted small">${esc(t('tariff.switch.expectedHint'))}</p>
+      ${billPortal() ? `<p class="small"><a href="${esc(billPortal().url)}" target="_blank" rel="noopener" data-role="portal">${esc(t('tariff.switch.portal', { country: billPortal().country }))}</a></p>` : ''}
       <button class="btn btn--sm btn--ghost" id="t-copy-consumption">
         <span aria-hidden="true">⧉</span> ${esc(t('tariff.switch.copy'))}
       </button>
@@ -252,7 +349,7 @@ function timingCardHtml(d) {
     const cls = days == null ? '' : (days < 0 ? 'danger-text' : (days <= 45 ? 'warning-text' : ''));
     const note = days == null ? ''
       : days < 0 ? t('tariff.switch.cancelPassed')
-      : t('tariff.switch.cancelIn', { days });
+      : tp('tariff.switch.cancelIn', days, { days });
     cancelLine = `<p class="${cls}">
       ${esc(t('tariff.switch.cancelBy', { date: f.date(c.cancel_by) }))}${info('noticeDeadline')}
       ${note ? `<span class="muted">· ${esc(note)}</span>` : ''}
@@ -286,7 +383,7 @@ function timingCardHtml(d) {
              ${c.end ? esc(t('tariff.switch.runsUntil', { date: f.date(c.end) })) : ''}</p>` : ''}
       ${followUp}
       ${cancelLine}
-      <p class="muted small">${esc(t('tariff.switch.window', {
+      <p class="muted small">${esc(tp('tariff.switch.window', d.window.months, {
         from: f.month(d.window.from), to: f.month(d.window.to), months: d.window.months }))}</p>
     </div>`;
 }
@@ -337,7 +434,7 @@ function candidateRowHtml(c, unit, d) {
 
   return `<tr class="${c.is_shadow ? 'row-shadow' : ''}${c.is_reference ? ' row-reference' : ''}"
               data-contract="${esc(c.contract_id)}">
-    <td>${badgeFor(c)}${esc(c.label)}${guaranteeLine}</td>
+    <td>${badgeFor(c)}${esc(c.label)}${guaranteeLine}${dynamicNote(c)}</td>
     <td class="num">${f.eur(c.year1_eur)}${bonusLine}</td>
     <td class="num"><strong>${f.eur(c.year2_eur)}</strong>${sens}</td>
     <td class="num ${diffCls}">${diffStr}</td>
@@ -554,11 +651,9 @@ function retroRowHtml(r, unit, higherIsBetter = false) {
   const vsStr = vs == null
     ? '<span class="dim">–</span>'
     : `${vs > 0 ? '+' : ''}${f.eur(vs)}${r.vs_real_pct != null
-        ? ` <span class="muted">(${r.vs_real_pct > 0 ? '+' : ''}${f.num(r.vs_real_pct, 1)} %)</span>` : ''}`;
+        ? ` <span class="muted">(${r.vs_real_pct > 0 ? '+' : ''}${f.pct(r.vs_real_pct / 100, 1)})</span>` : ''}`;
 
-  const monthsLabel = r.months_covered === 1
-    ? t('tariff.monthsOne')
-    : t('tariff.months', { count: r.months_covered });
+  const monthsLabel = tp('tariff.months', r.months_covered);
   const periodCell = r.covers_full_period
     ? `<span class="muted">${esc(monthsLabel)}</span>`
     : `<span class="badge badge--info">${esc(monthsLabel)}</span>`;
@@ -571,7 +666,7 @@ function retroRowHtml(r, unit, higherIsBetter = false) {
     : '';
 
   return `<tr class="${r.is_shadow ? 'row-shadow' : ''}">
-    <td>${r.is_shadow ? `<span class="badge badge--shadow">${esc(t('tariff.shadowBadge'))}</span> ` : ''}${esc(r.label)}</td>
+    <td>${r.is_shadow ? `<span class="badge badge--shadow">${esc(t('tariff.shadowBadge'))}</span> ` : ''}${esc(r.label)}${dynamicNote(r)}</td>
     <td>${periodCell}</td>
     <td class="num">${f.int(r.consumption)} ${esc(unit)}</td>
     <td class="num"><strong>${r.total_eur != null ? f.eur(r.total_eur) : '<span class="dim">–</span>'}</strong>${projected}</td>
@@ -625,7 +720,8 @@ function openShadowForm(container, existing) {
   const isEdit = !!existing;
   const unit = (lastSwitch && lastSwitch.unit) || (lastRetro && lastRetro.unit) || 'kWh';
   const wp0 = existing?.working_prices?.[0] || {};
-  const bp0 = existing?.base_prices?.[0] || {};
+  const bp0 = existing?.base_prices?.[0] || (existing?.dynamic ? { eur_per_month: existing.dynamic.base_eur_month } : {});
+  const isDyn = existing?.price_model === 'dynamic';   // v3.1.0 (H6, MKT-12)
   // Ein neues Angebot gilt ab dem Wechseltermin — das ist die Zahl, die die
   // App gerade ausgerechnet hat, und damit die sinnvollste Vorbelegung.
   const start = existing?.start
@@ -643,7 +739,15 @@ function openShadowForm(container, existing) {
         <label>${esc(t('tariff.shadow.provider'))}<input type="text" id="s-prov"
           value="${esc(existing?.provider || '')}"
           placeholder="${esc(t('tariff.shadow.providerPlaceholder'))}"></label>
-        <label>${esc(t('tariff.shadow.workingPrice', { unit }))}<input type="text" inputmode="decimal" autocomplete="off" id="s-wp"
+        ${sel.utility === 'strom' ? `
+        <label class="settings-field__check" style="grid-column: 1 / -1"><input type="checkbox" id="s-dyn" ${isDyn ? 'checked' : ''}>
+          ${esc(t('tariff.dynamic.toggle'))}${info('dynamicTariff')}</label>
+        <label data-dyn>${esc(t('tariff.dynamic.markup'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-markup"
+          value="${esc(formatForInput(existing?.dynamic?.markup_ct_per_kwh))}">
+          <span class="settings-field__hint">${esc(t('tariff.dynamic.markupHint'))}</span></label>
+        <label data-dyn>${esc(t('tariff.dynamic.vat'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-vat"
+          value="${esc(formatForInput(existing?.dynamic?.vat_pct ?? 19))}"></label>` : ''}
+        <label data-fixed>${esc(t('tariff.shadow.workingPrice', { unit }))}<input type="text" inputmode="decimal" autocomplete="off" id="s-wp"
           value="${esc(formatForInput(wp0.ct_per_kwh))}" placeholder="${esc(t('tariff.shadow.workingPlaceholder'))}"></label>
         <label>${esc(t('tariff.shadow.basePrice'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-bp"
           value="${esc(formatForInput(bp0.eur_per_month))}" placeholder="${esc(t('tariff.shadow.basePlaceholder'))}"></label>
@@ -666,6 +770,15 @@ function openShadowForm(container, existing) {
       <button type="button" class="btn btn--primary" data-act="save">${esc(isEdit ? t('tariff.shadow.save') : t('tariff.shadow.create'))}</button>`,
     onMount: ({ bodyEl, modalEl, close }) => {
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
+      // v3.1.0 (H6) — dynamisch: Aufschlag statt Arbeitspreis
+      const dynBox = bodyEl.querySelector('#s-dyn');
+      const syncDyn = () => {
+        const on = !!dynBox?.checked;
+        bodyEl.querySelectorAll('[data-dyn]').forEach(el => { el.hidden = !on; });
+        bodyEl.querySelectorAll('[data-fixed]').forEach(el => { el.hidden = on; });
+      };
+      dynBox?.addEventListener('change', syncDyn);
+      syncDyn();
       const saveBtn = modalEl.querySelector('[data-act="save"]');
       saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
         const val = id => bodyEl.querySelector(id).value.trim();
@@ -682,7 +795,10 @@ function openShadowForm(container, existing) {
           return bad ? undefined : n;
         };
         const startVal = val('#s-start');
-        const wp = parseDecimal(val('#s-wp'));
+        const dyn = !!bodyEl.querySelector('#s-dyn')?.checked;
+        const markup = dyn ? optional('#s-markup') : null;
+        const vat = dyn ? optional('#s-vat') : null;
+        const wp = dyn ? 0 : parseDecimal(val('#s-wp'));
         const bp = optional('#s-bp');
         const bonus = optional('#s-bonus');
         const noticeRaw = val('#s-notice');
@@ -691,22 +807,25 @@ function openShadowForm(container, existing) {
         bodyEl.querySelector('#s-wp').classList.toggle('invalid', wp === null);
         const label = val('#s-label');
         if (!label || !startVal || wp === null) { toastErr(t('tariff.shadow.validation')); return; }
-        if (bp === undefined || bonus === undefined) {
+        if (bp === undefined || bonus === undefined || markup === undefined || vat === undefined) {
           toastErr(t('common.invalidNumber', { example: formatForInput(1234.5) }));
           return;
         }
         if (!noticeOk) { toastErr(t('errors.contract.noticeOutOfRange')); return; }
 
         const payload = {
-          meter_id: sel.meterId,
+          ...(sel.isGroup ? { meter_group_id: sel.meterId } : { meter_id: sel.meterId }),   // v3.1.0 (H6)
           provider: val('#s-prov'),
           tariff_name: label,
           start: startVal,
           end: val('#s-end') || null,
           is_shadow: true,
           shadow_label: label,
-          working_prices: [{ from: startVal, ct_per_kwh: wp }],
-          base_prices: bp === null ? [] : [{ from: startVal, eur_per_month: bp }],
+          working_prices: dyn ? [] : [{ from: startVal, ct_per_kwh: wp }],
+          base_prices: dyn || bp === null ? [] : [{ from: startVal, eur_per_month: bp }],
+          // v3.1.0 (H6, MKT-12) — Dynamik-Check: Börsenpreis je Monat + Aufschlag
+          price_model: dyn ? 'dynamic' : null,
+          ...(dyn ? { dynamic: { markup_ct_per_kwh: markup ?? 0, base_eur_month: bp ?? 0, vat_pct: vat ?? 19 } } : {}),
           signup_bonus_eur: bonus,
           price_guarantee_until: val('#s-guarantee') || null,
           notice_period_months: noticeRaw === '' ? null : Number(noticeRaw),

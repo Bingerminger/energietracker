@@ -11,7 +11,7 @@ hinter einem anderen"** und **„mehrere Zähler gehören eigentlich zusammen"**
 | Beziehung | Feld am Zähler | Wirkung |
 |---|---|---|
 | **Subzähler** (Reihenschaltung) | `parent_meter_id` | Verbrauch wird vom Elternzähler **abgezogen** |
-| **Gruppe** | `meter_group_id` | Verbräuche werden im Dashboard **zusammengefasst** |
+| **Gruppe** | `meter_group_id` | Verbräuche werden im Dashboard **zusammengefasst**; seit v3.1.0 auch ein **gemeinsamer Vertrag** |
 
 Beide Felder sind optional (Default `null`) und additiv — bestehende Daten
 bleiben unverändert.
@@ -52,6 +52,24 @@ der Verbrauchsart-Summe taucht er **nicht** zusätzlich auf.
 - **Löschschutz.** Ein Elternzähler mit zugeordneten Subzählern lässt sich nicht
   löschen, ohne die Zuordnung vorher zu lösen.
 
+### Modul 2: ein eigener Zähler mit eigenem Vertrag *(v3.1.0)*
+
+Nach § 14a EnWG, Modul 2, bekommt eine Wärmepumpe oder Wallbox einen eigenen
+Zähler des Netzbetreibers, und ihr Netz-Arbeitspreis sinkt auf 40 %
+([Strom → Steuerbare Verbraucher](02-strom.md#steuerbare-verbraucher-v310)).
+Abgerechnet werden dann zwei Mengen zu zwei Preisen. So bildest du das ab:
+
+1. Den Zähler der Wärmepumpe bzw. Wallbox als eigenen Stromzähler anlegen, mit
+   der Rolle „Wärmepumpe (Heizstrom)“ bzw. „Wallbox“.
+2. **Hängt er hinter dem Haushaltszähler** (der Haushaltszähler misst alles),
+   den Haushaltszähler als Elternzähler setzen: Die App zieht die Menge dort
+   ab, der Haushaltsvertrag rechnet nur den Rest. **Sitzen beide Zähler
+   nebeneinander**, bleibt das Feld leer.
+3. Dem Zähler einen **eigenen Vertrag** mit dem niedrigeren Arbeitspreis geben.
+
+Saldo und Kosten stehen dann je Zähler da; die Summe der Verbrauchsart stimmt
+in beiden Fällen.
+
 ---
 
 ## 2. Zählergruppen
@@ -76,12 +94,60 @@ vergeben, fertig. Im Hintergrund setzt der Dialog `meter_group_id` bei allen
 gewählten Zählern (`POST …/meter-groups/merge`; bis v2.11 hieß er
 „Zähler zusammenführen“).
 
-### Was Gruppen (noch) nicht tun
+### Gruppenvertrag *(v3.1.0)*
 
-In v1.8.0 fassen Gruppen ausschließlich den **Verbrauch fürs Dashboard**
-zusammen. **Verträge bleiben pro Zähler** — es gibt (noch) keinen
-Gruppen-Vertrag mit gemeinsamem Saldo. Diese Erweiterung ist bewusst auf ein
-späteres Release vertagt, um Doppelzählungen in der Saldo-Logik zu vermeiden.
+Bis v3.0 fassten Gruppen nur den **Verbrauch fürs Dashboard** zusammen;
+Verträge gehörten immer zu einem Zähler. Seit v3.1.0 kann ein Vertrag **einer
+Gruppe** gehören ([#17](https://github.com/Bingerminger/energietracker/issues/17))
+— für Gas, Strom und Fernwärme, also die Arten mit Abschlagsverträgen. Der
+typische Fall ist ein Doppeltarifzähler: zwei Zählwerke (HT und NT), ein
+Vertrag mit einem Grundpreis und zwei Arbeitspreisen
+([Strom](02-strom.md#hoch--und-niedertarif-ein-vertrag-für-eine-zählergruppe-v310)).
+
+**Anlegen.** Im Vertragsdialog unter **„Zähler“** die Gruppe wählen — sie steht
+unter „Zählergruppen (ein Vertrag für alle)“, sobald sie Mitglieder hat. Dann
+erscheint **„Arbeitspreis je Zähler (z. B. HT/NT)“**: je Mitglied eine eigene
+Preisliste; leer gilt der Arbeitspreis oben. Die Vertragskarte nennt die Gruppe
+statt eines Zählers.
+
+**Rechnen.** Jedes Mitglied rechnet seinen Verbrauch zu seinem Arbeitspreis.
+Grundpreis, Abschläge und Boni trägt nur das **erste Mitglied** (Reihenfolge
+der Zählerliste) — so zählen sie genau einmal, und jede Summe stimmt: die der
+Verbrauchsart, die Übersicht, der Jahresbericht, der CSV-Export und die
+Effizienzkennzahl.
+
+```text
+Beispiel: HT 2.000 kWh × 30 ct + NT 1.000 kWh × 22 ct + 12 × 12 € Grundpreis
+        = 600 € + 220 € + 144 € = 964 € im Jahr
+```
+
+**Wo du es siehst.**
+
+- **Verbrauchsansicht eines Mitglieds:** Die Saldo-Karte zeigt den Saldo des
+  Gruppenvertrags mit dem Hinweis „Dieser Zähler rechnet über den
+  Gruppenvertrag „…“. Saldo und Abschläge gelten für die ganze Gruppe.“
+- **Wechsel prüfen:** Die Auswahl der Zähler führt „Gruppe: …“ für jede Gruppe
+  mit Gruppenvertrag. Prognose und Wechselentscheidung rechnen mit dem
+  Verbrauch der ganzen Gruppe; bei zwei Arbeitspreisen mit einem Mischpreis,
+  gewichtet mit dem Verbrauch der Zählwerke in den letzten zwölf Monaten. Ein
+  Angebot (Schattenvertrag) für die Gruppe legst du dort an.
+- **Zu tun, Kalender, Empfehlungen:** Kündigungsstichtag, Vertragsende und
+  Preiserhöhung gelten auch für Gruppenverträge.
+- **Rechnung prüfen:** In der Oberfläche je Zähler — das erste Mitglied mit den
+  festen Kosten, die anderen mit ihrem Verbrauch. Die ganze Gruppe auf einmal
+  rechnet `GET …/meter-groups/{id}/bill-check` nach
+  ([API](../referenz/api.md#gruppenvertrag-v310)).
+
+**Regeln.**
+
+- Ein Mitglied darf im Zeitraum eines Gruppenvertrags **keinen eigenen echten
+  Vertrag** haben, und umgekehrt — sonst zählten Grundpreis und Verbrauch
+  doppelt. Die App lehnt das ab („Ein Zähler der Gruppe hat in diesem Zeitraum
+  einen eigenen Vertrag …“); den alten Vertrag vorher beenden. Angebote
+  (Schattenverträge) sind davon nicht betroffen.
+- Eine Gruppe mit Verträgen lässt sich nicht auflösen; erst die
+  Gruppenverträge löschen oder einem Zähler zuordnen.
+- Wasser kennt keine Gruppenverträge.
 
 ---
 

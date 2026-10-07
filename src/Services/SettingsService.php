@@ -129,6 +129,37 @@ final class SettingsService
         // die eigene Seite. Gelesen von index.php.
         'frame_ancestors'          => '',
 
+        // ── v3.1.0 (Paket H2) — Belege und Texterkennung ──
+        'attachments_max_mb'       => 500,      // alle Belege zusammen (Fotos, PDFs)
+        // Texterkennung für Zählerfotos über einen eigenen Dienst im Heimnetz.
+        // Leer = aus, keine Verbindung. OcrService lehnt öffentliche Adressen ab.
+        'ocr_endpoint'             => '',
+        'ocr_api'                  => 'ollama', // ollama (/api/chat) | openai (/v1/chat/completions, z. B. LM Studio)
+        'ocr_model'                => '',
+        'ocr_timeout_s'            => 30,
+
+        // ── v3.1.0 (Paket H4) — CO₂-Preis (BEHG) ──
+        // Eigene Jahreswerte in €/t; leer = die des Länderprofils (Countries::CO2_PRICE_DE_BEHG)
+        'co2_price_eur_t_years'    => [],
+        // Szenario für die Prognose: Preis ab einem Jahr (null = aus)
+        'co2_price_scenario_eur_t' => null,
+        'co2_price_scenario_from'  => 2028,
+
+        // ── v3.1.0 (Paket H7) — PV ──
+        // Vermeidungsfaktor der PV in g/kWh; leer = Strommix (co2_strom) wie bisher
+        'co2_pv_avoided'           => null,
+        // Balkonkraftwerk ohne Einspeisezähler: angenommener Eigenverbrauch in %; leer = keine Annahme
+        'pv_assumed_self_consumption_pct' => null,
+
+        // ── v3.1.0 (Paket H8, MKT-11) — Einordnung mit eigenen Vergleichswerten ──
+        // Haushaltsstrom kWh/a und Heizung kWh/m²·a, z. B. aus Strom- bzw.
+        // Heizspiegel; leer = keine Einordnung. Quelle frei („Stromspiegel 2025").
+        'reference_strom_kwh'      => null,
+        'reference_heat_kwh_m2'    => null,
+        'reference_source'         => '',
+        // Warmwasser wird mit Strom bereitet (Durchlauferhitzer, Boiler) — Kontext der Einordnung
+        'warmwasser_elektrisch'    => false,
+
         // ── v1.3.0 — Gebäude-Stammdaten für kWh/m²-Benchmark ──
         'wohnflaeche_m2'           => 100,
         'baujahr'                  => null,    // veraltet (v2.9.0): ohne Wirkung, nicht mehr in der Oberfläche; entfällt mit v3.0.0
@@ -138,6 +169,15 @@ final class SettingsService
         // dezentrales Warmwasser bekommt 20 kWh/m²·a Zuschlag
         'beheizter_keller'         => false,
         'warmwasser_dezentral'     => false,
+        // v3.1.0 (Paket H3) — Mieter-Paket (F1008) und Warmwasser (CALC-28).
+        // eigentum = wie bisher; miete blendet „Mietverhältnis“ ein.
+        'wohnverhaeltnis'          => 'eigentum', // eigentum | miete
+        // Womit die Heizwärme erzeugt wird — für ihren CO₂-Wert (null = unbekannt, 0)
+        'waerme_energietraeger'    => null,       // gas | heizoel | pellets | fernwaerme | strom | null
+        // HeizkostenV § 9 Abs. 2: Q = 2,5 · V · (t_w − 10); Rechenwert für Warmwasserzähler
+        'warmwasser_temp_c'        => 60,
+        // Womit das Warmwasser erwärmt wird (Hinweis „davon Warmwasser“ bei dieser Art)
+        'warmwasser_energietraeger' => null,      // gas | heizoel | pellets | fernwaerme | strom | waerme | null
 
         // ── v1.3.0 — Energieträger-Konstanten (Hu, CO₂) ──
         // Heizöl EL: Heizwert ≈ 10.0 kWh/L; CO₂ 266 g/kWh (BAFA v3.4, Heizwert
@@ -264,21 +304,21 @@ final class SettingsService
      *
      * @return array<int,float>
      */
-    private static function normalizeYearMap(mixed $v, callable $t): array
+    private static function normalizeYearMap(mixed $v, callable $t, string $key = 'co2_strom_years', float $max = 2000.0): array
     {
         if ($v === null || $v === '' || $v === []) return [];
         if (!is_array($v)) {
-            throw new \InvalidArgumentException($t('errors.settings.valueInvalid', ['key' => 'co2_strom_years', 'value' => gettype($v)]));
+            throw new \InvalidArgumentException($t('errors.settings.valueInvalid', ['key' => $key, 'value' => gettype($v)]));
         }
         $out = [];
         foreach ($v as $k => $val) {
-            if (is_array($val)) { $k = $val['year'] ?? null; $val = $val['g_per_kwh'] ?? null; }
+            if (is_array($val)) { $k = $val['year'] ?? null; $val = $val['g_per_kwh'] ?? $val['eur_t'] ?? $val['value'] ?? null; }
             $year = is_numeric($k) ? (int)$k : 0;
             $num = is_string($val) ? str_replace(',', '.', trim($val)) : $val;
             if ($year < 1990 || $year > 2100 || (string)$year !== trim((string)$k)
-                || is_bool($num) || !is_numeric($num) || (float)$num < 0 || (float)$num > 2000) {
+                || is_bool($num) || !is_numeric($num) || (float)$num < 0 || (float)$num > $max) {
                 throw new \InvalidArgumentException($t('errors.settings.valueInvalid', [
-                    'key' => 'co2_strom_years', 'value' => trim((string)$k) . ': ' . (is_scalar($val) ? (string)$val : ''),
+                    'key' => $key, 'value' => trim((string)$k) . ': ' . (is_scalar($val) ? (string)$val : ''),
                 ]));
             }
             $out[$year] = round((float)$num, 1);
@@ -335,15 +375,25 @@ final class SettingsService
             if ($k === 'co2_strom_years') {
                 $v = self::normalizeYearMap($v, $this->translator());
             }
+            // v3.1.0 (H4) — CO₂-Preis je Jahr in €/t
+            if ($k === 'co2_price_eur_t_years') {
+                $v = self::normalizeYearMap($v, $this->translator(), $k, 1000.0);
+            }
             // v2.7.0 — Länderprofil: nur bekannte Werte. Eine unbekannte
             // Zeitzone würde date_default_timezone_set() beim nächsten Start
             // mit einer Warnung quittieren und still UTC rechnen.
+            // v3.1.0 — „keine Angabe" aus der Oberfläche (none/leer) ist null
+            if (in_array($k, ['waerme_energietraeger', 'warmwasser_energietraeger'], true) && ($v === '' || $v === 'none')) $v = null;
             $allowed = match ($k) {
                 'country'     => Countries::codes(),
                 'currency'    => array_keys(Countries::CURRENCIES),
                 // ALL_WITH_BC: Browser bieten teils noch ältere Namen an (Europe/Kiev)
                 'timezone'    => \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC),
                 'gas_cv_unit' => self::GAS_CV_UNITS,
+                'ocr_api'     => ['ollama', 'openai'],   // v3.1.0
+                'wohnverhaeltnis' => ['eigentum', 'miete'],
+                'waerme_energietraeger'     => [null, 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom'],
+                'warmwasser_energietraeger' => [null, 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom', 'waerme'],
                 default       => null,
             };
             if ($allowed !== null && !in_array($v, $allowed, true)) {
@@ -354,6 +404,42 @@ final class SettingsService
             // v2.9.0 (Review CALC-24) — Abrechnungsstichtag als echter
             // Kalendertag (MM-TT). „13-45" ergab bisher ein unmögliches Datum
             // und null verbleibende Monate im Saldo.
+            // v3.1.0 (H2) — Grenzen und Adresse der Texterkennung
+            $range = match ($k) {
+                'attachments_max_mb' => [10, 100000],
+                'ocr_timeout_s'      => [5, 300],
+                'warmwasser_temp_c'  => [30, 90],
+                'co2_price_scenario_from' => [2021, 2100],
+                default              => null,
+            };
+            $bad = ($range !== null && (!is_numeric($v) || (int)$v != $v || (int)$v < $range[0] || (int)$v > $range[1]))
+                || ($k === 'ocr_endpoint' && !self::isHttpUrlOrEmpty($v))
+                || ($k === 'ocr_model' && (!is_string($v) || strlen($v) > 200));
+            if ($bad) {
+                throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
+                    'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
+                ]));
+            }
+            if ($range !== null) $v = (int)$v;
+            // v3.1.0 (H7) — PV-Vermeidungsfaktor und angenommener Eigenverbrauch; leer = aus
+            if (in_array($k, ['co2_pv_avoided', 'pv_assumed_self_consumption_pct', 'reference_strom_kwh', 'reference_heat_kwh_m2'], true)) {
+                $max = ['co2_pv_avoided' => 2000.0, 'pv_assumed_self_consumption_pct' => 100.0,
+                        'reference_strom_kwh' => 100000.0, 'reference_heat_kwh_m2' => 1000.0][$k];
+                if ($v === '' || $v === null) $v = null;
+                elseif (!is_numeric($v) || (float)$v < 0 || (float)$v > $max) {
+                    throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
+                } else $v = round((float)$v, 1);
+            }
+            if ($k === 'co2_price_scenario_eur_t') {
+                if ($v === '' || $v === null) $v = null;
+                elseif (!is_numeric($v) || (float)$v < 0 || (float)$v > 1000) {
+                    throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
+                } else $v = round((float)$v, 2);
+            }
+            if ($k === 'ocr_endpoint' || $k === 'ocr_model') $v = trim((string)$v);
+            // v3.1.0 (H8) — Quelle der Vergleichswerte: kurzer Text
+            if ($k === 'reference_source') $v = mb_substr(trim((string)$v), 0, 120);
+            if ($k === 'warmwasser_elektrisch') $v = (bool)$v;
             if (str_starts_with($k, 'billing_cycle_anchor_') && !self::isMonthDay($v)) {
                 throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
                     'key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v),
@@ -363,6 +449,17 @@ final class SettingsService
         }
         $this->store->write('settings.json', $current);
         return $this->all();
+    }
+
+    /** v3.1.0 — leer oder eine http(s)-Adresse mit Host. */
+    public static function isHttpUrlOrEmpty(mixed $v): bool
+    {
+        if (!is_string($v)) return false;
+        $v = trim($v);
+        if ($v === '') return true;
+        $p = parse_url($v);
+        return is_array($p) && in_array(strtolower((string)($p['scheme'] ?? '')), ['http', 'https'], true)
+            && ($p['host'] ?? '') !== '' && !isset($p['user']) && !isset($p['pass']);
     }
 
     /** v2.9.0 — „MM-TT" als gültiger Kalendertag (der 29.02. zählt, Schaltjahr). */

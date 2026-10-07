@@ -153,7 +153,7 @@ without a system sees nothing of them. Anyone with a system activates both in
 |---|---|
 | Only a feed-in meter (standard commissioning up to ~2022) | Activate only `pv_einspeisung`. The electricity balance is computed, self-consumption/self-sufficiency rate stay zero (`has_generation_meter: false`). |
 | Feed-in meter + generation meter at the inverter | Activate both. Full view: electricity balance, self-consumption rate, self-sufficiency rate. |
-| System with a battery | Activate both as above; the app shows the *effective* self-sufficiency rate (the battery automatically raises the self-consumption in the numbers). |
+| System with a battery | Activate both as above; the app shows the *effective* self-sufficiency rate (the battery automatically raises the self-consumption in the numbers). Since v3.1.0 also one meter each for charging and discharging under PV generation (roles “Battery – charging”, “Battery – discharging”) — then the card “Battery” shows losses, efficiency and full cycles ([PV §7](12-pv.md#7-battery-v310)). |
 | Several PV strings (e.g. south and east roof with separate inverters) | Create one `pv_erzeugung` meter per string — the app sums them for the dashboard automatically. |
 
 ### 6.2 Contract = feed-in tariff
@@ -215,24 +215,67 @@ of my generation in the house").
 ### 6.5 CO₂ as "avoided"
 
 For `pv_einspeisung`, and since v2.10.0 also for `pv_erzeugung`, the app shows the
-CO₂ value as a negative value with the label "avoided" and a tooltip with a
+CO₂ value with the word “avoided” (since v2.13.0 without a minus) and an ⓘ with a
 method note. The calculation is `kWh × co2_strom` factor of the year (German
 Environment Agency (UBA), electricity mix; 2025: 344 g/kWh). It does **not**
 account for the PV life cycle (manufacture, transport, recycling), but
 it sits on the same methodological level as the CO₂ factor for the import — so the
-numbers are directly comparable.
+numbers are directly comparable. Since v3.1.0 you can enter your own avoidance
+factor instead (“CO₂ avoided by PV”, [PV §5](12-pv.md#5-co₂-as-avoided)).
 
 ### 6.6 Recording discipline
 
 - Take readings on the **same date** as the import electricity meter — otherwise
   the monthly aggregates drift apart and the balance fluctuates artificially.
-- For systems with a battery: the battery state (charge SoC) is not recorded by
-  the app. Only generation and feed-in count.
+- For systems with a battery: the app does not record the state of charge (SoC).
+  Since v3.1.0 charged and discharged kWh run along as meters of their own; they
+  do not count as generation.
 - For reduced direct marketing after the 20 EEG years: create a new contract with
   the current other-direct-marketing rate and set the contract end of the old EEG
-  contract — the app calculates the transition to the exact date.
+  contract — the app calculates the transition to the exact date. If the revenue
+  varies with the market value, since v3.1.0 you enter the direct marketer’s
+  credit notes ([PV §11](12-pv.md#11-credit-notes-from-the-direct-marketer-v310)).
+- With investment and commissioning date on the generation meter the app shows
+  when the system has paid for itself ([PV §9](12-pv.md#9-payback-v310)).
 
 Full technical reference: [PV detailed concept](12-pv.md).
+
+---
+
+## 6a. Heat pump *(v3.1.0)*
+
+A heat pump heats with electricity. To keep heating and household electricity
+apart, and for the app to say how well the system works, up to three meters are
+needed:
+
+| Meter | Utility, role | What for |
+|---|---|---|
+| House connection | Electricity, “Household” | import and costs of the whole house |
+| Heat pump | Electricity, “Heat pump (heating electricity)” — as a sub-meter of the house connection if it sits behind it | heating electricity; counts as heating energy in the efficiency figure |
+| Heat output | Heat, “Heat pump output”, linked under “Heat pump electricity meter” | the heat delivered — for the seasonal performance factor |
+
+**Seasonal performance factor.** With a heat meter, the views of both meters
+show the card **“Heat pump {year}”**: the seasonal performance factor (heat ÷
+electricity), the factor for the heating season (October to April) and per
+month heat, electricity and performance factor. In the Fraunhofer ISE field
+test “WP-QS im Bestand” (2025), air/water heat pumps averaged 3.4 and
+brine/water 4.3.
+
+> **Example (made up).** 9,000 kWh of heat from 2,500 kWh of electricity: SPF 3.6.
+
+Only months in which both meters have values count. Whether the backup heater,
+hot water and pumps are included depends on where the meters sit. The heat
+output counts neither in the efficiency figure nor in the sums of heat — the
+heat pump is already there with its electricity. Background:
+[Heat §7](15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310).
+
+**Grid fee.** If the heat pump is controllable under § 14a EnWG, the grid fee
+drops: with module 1 by a fixed amount per year (in the electricity contract
+“Reduced grid fee”), with module 2 via a meter of its own with its own contract
+([Electricity](02-strom.md#controllable-consumers-v310)).
+
+**PV and heat pump together** — worked through in
+[use case C](../anleitungen/anwendungsfaelle.md#c--pv-household-with-a-heat-pump).
 
 ---
 
@@ -248,7 +291,10 @@ the recurrence.
 ## Further reading
 
 - **Record a heat pump or wallbox separately?** Create it as a **submeter** behind
-  the house connection: [Meter topology](13-meter-topologie.md).
+  the house connection: [Meter topology](13-meter-topologie.md). For a company
+  car there is the [charging record](../anleitungen/ladestrom-nachweis.md).
+- **Take over values from the portal** of the inverter, heat pump or grid
+  operator: [Time series from portals](../anleitungen/daten-aus-portalen.md).
 - **Feed meters automatically from Home Assistant:**
   [Home Assistant integration](../anleitungen/home-assistant.md).
 - **Fully worked examples** (PV + heat pump, a landlord with several units):

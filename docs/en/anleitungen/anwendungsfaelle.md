@@ -4,7 +4,7 @@
 
 [← Compendium index](../README.md)
 
-Four worked-through practical cases that show how Energietracker is set up and
+Five worked-through practical cases that show how Energietracker is set up and
 used in concrete living situations. Each case names the **meters**, the
 **settings** and a **typical workflow**. For the basic setup, see
 [Getting started](../einstieg/erste-schritte.md) first.
@@ -15,6 +15,7 @@ used in concrete living situations. Each case names the **meters**, the
 | [B — Smart home / Home Assistant](#b--smart-home--home-assistant-full-build-out) | Automatic push | F1009 |
 | [C — PV household with a heat pump](#c--pv-household-with-a-heat-pump) | PV + sub-meters | F1005, F1006 |
 | [D — Landlord with several units](#d--landlord-with-several-units) | Meters per unit | F1006 |
+| [E — Wall box and company car](#e--wall-box-and-company-car) | Charging record, § 14a EnWG | v3.1.0 |
 
 ---
 
@@ -121,13 +122,35 @@ consumption of the heat pump.
 - **Self-sufficiency rate & self-consumption** (`/api/pv-summary`) from
   generation vs. draw.
 - The **heat-pump sub-meter** shows how much of the house electricity goes into
-  heating without doubling the electricity total; marked as heating electricity,
-  it counts in the efficiency figure. The app does not calculate a seasonal
-  performance factor (SPF) — the heat produced is missing for that.
+  heating without doubling the electricity total; with the role “Heat pump
+  (heating electricity)” it counts in the efficiency figure.
 
-Background: [PV](../verstehen/12-pv.md) and
-[Meter topology](../verstehen/13-meter-topologie.md). If you also pull the heat-pump
-values from HA, combine this with use case B (alias `strom_waermepumpe`).
+**Since v3.1.0 also:**
+
+- **Seasonal performance factor.** With a heat meter — Heat, role “Heat pump
+  output”, linked to the heat pump’s electricity meter — both meters show the
+  card “Heat pump {year}”: e.g. 9,000 kWh of heat from 2,500 kWh of
+  electricity, SPF 3.6 (made-up example;
+  [Heat §7](../verstehen/15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310)).
+- **Battery.** Charging and discharging meters under PV generation (roles
+  “Battery – charging” and “Battery – discharging”) give losses, efficiency and
+  full cycles ([PV §7](../verstehen/12-pv.md#7-battery-v310)).
+- **Payback.** Investment and commissioning date on the inverter meter show
+  when the system has paid for itself
+  ([PV §9](../verstehen/12-pv.md#9-payback-v310)).
+- **Grid fee under § 14a EnWG.** If the heat pump is controllable, the
+  reduction (module 1) goes into the electricity contract; with a meter of its
+  own from the grid operator (module 2) the heat pump meter gets a contract of
+  its own ([Electricity](../verstehen/02-strom.md#controllable-consumers-v310)).
+- **Data from the portals** of inverter and heat pump can be read as a file
+  ([Time series from portals](daten-aus-portalen.md)).
+
+Background: [PV](../verstehen/12-pv.md),
+[Detached house scenario §6a](../verstehen/08-szenario-eigenheim.md#6a-heat-pump-v310)
+and [Meter topology](../verstehen/13-meter-topologie.md). If you also pull the
+heat-pump values from HA, combine this with use case B (alias
+`strom_waermepumpe`, for the heat output e.g. `waerme_wp` —
+[Home Assistant](home-assistant.md#use-case-c--heat-pump-with-a-heat-meter)).
 
 ---
 
@@ -147,7 +170,9 @@ separately and prepare the later utility bill.
 3. If a unit has several meters **of the same type** (such as peak/off-peak or a
    wallbox), a **group** combines them (⚙️ Meters → "Group meters").
    Groups apply per utility — electricity and water of one flat cannot be
-   bundled into one group.
+   bundled into one group. Since v3.1.0 a contract can belong to the whole
+   group, e.g. a peak/off-peak contract with one standing charge and two unit
+   prices ([Group contract](../verstehen/13-meter-topologie.md#group-contract-v310)).
 
 **What happens.** Under **Consumption → Electricity** or **Water**, the
 selection at the top shows every meter with consumption, cost and the balance of
@@ -156,11 +181,46 @@ readings (Settings → Data) carries the meter on every row — the unit can be
 filtered from it. The monthly overview exports the total per utility, not per
 unit.
 
-> **Outlook NKA.** A utility-cost statement for tenants (units across
-> utilities, apportionments, final statement) is planned as feature **F1008**
-> ([#15](https://github.com/Bingerminger/energietracker/issues/15)), contracts
-> per meter group as
-> [#17](https://github.com/Bingerminger/energietracker/issues/17).
+> **Service charges.** Since v3.1.0 there is the **tenant’s** view: prepayment
+> against expected costs and the service charge statement with its deadlines
+> (F1008, [#15](https://github.com/Bingerminger/energietracker/issues/15),
+> [As a tenant](mieter.md)). The app does not produce a statement for the
+> landlord across several units. Contracts per meter group
+> ([#17](https://github.com/Bingerminger/energietracker/issues/17)) exist since
+> v3.1.0.
+
+---
+
+## E — Wall box and company car
+
+**Situation.** A detached house with a wall box behind the household meter. The
+company car is charged at home; the employer reimburses the electricity and
+wants a monthly statement.
+
+**Setup.**
+
+1. `strom` *"house connection"* with the electricity contract.
+2. `strom` *"wall box"* with the role **“Wallbox (EV charger)”** and the parent
+   meter *"house connection"* → sub-meter.
+3. Read the wall box monthly, ideally on the first of the month — by hand, via
+   Home Assistant or from the wall box portal.
+4. Optional: if the wall box is controllable under § 14a EnWG, fill the list
+   “Reduced grid fee (§ 14a EnWG, module 1)” in the electricity contract.
+
+**What happens.** The wall box’s consumption view shows the card **“Charging
+record (company car)”**: choose the year, choose the price — contract price
+with a pro-rata standing charge or the flat electricity rate (2026:
+34 ct/kWh) —, download CSV or PDF. The electricity total stays right because
+the wall box is contained in the house connection as a sub-meter.
+
+```
+Example (made up), contract price, March:
+  house connection 400 kWh, energy cost €120.00 → 30 ct/kWh, standing charge €12.00
+  wall box 100 kWh → €30.00 + €12.00 × 100/400 = €33.00
+```
+
+A statement, not tax advice — step by step:
+[Record charging electricity for a company car](ladestrom-nachweis.md).
 
 ---
 
@@ -170,8 +230,9 @@ unit.
 - **I have Home Assistant and never want to type again.** → B
 - **I have PV (+ a heat pump).** → C
 - **I manage several residential units.** → D
+- **I charge a company car at home.** → E
 
-All four can be combined — e.g. a landlord (D) with an HA push (B) per unit. To
+All five can be combined — e.g. a landlord (D) with an HA push (B) per unit. To
 get started: [Getting started](../einstieg/erste-schritte.md).
 
 ---

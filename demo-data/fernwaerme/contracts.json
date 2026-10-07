@@ -2,7 +2,7 @@
   {
     "id": "c_fw_001",
     "meter_id": "m_fernwaerme_main",
-    "provider": "Stadtwerke Leipzig",
+    "provider": "Stadtwerke Musterstadt",
     "tariff_name": "Fernwärme Komfort",
     "start": "2023-01-01",
     "end": null,

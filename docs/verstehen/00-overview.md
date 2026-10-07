@@ -252,6 +252,20 @@ signifikant  ⇔  |a_nach - a_vor| / √(se_vor² + se_nach²) ≥ 1,96
 der Unterschied belegt ist oder im Rauschen liegen kann — bei wenigen
 Wintermonaten ist das oft der Fall.
 
+**Ohne Heizkurve (seit v3.1.0).** Strom, Wasser und PV haben keine Steigung je
+Gradtag. Für sie vergleicht die App das Tagesmittel je Kalendermonat vor und
+nach der Zäsur — nur Monate, die es in beiden Phasen gibt (mindestens drei):
+
+```text
+vorher/nachher je Jahr = Σ (Tagesmittel des Monats × Tage des Monats) × 365 / Σ Tage
+Δ%                     = (nachher − vorher) / vorher × 100
+95-%-Bereich           = Δ% ± 1,96 × Streuung der Monatsverhältnisse (nachher/vorher) / √n × 100
+```
+
+Belegt ist der Unterschied, wenn der Bereich 0 nicht einschließt. Das Wetter
+ist hier nicht bereinigt (`method: "seasonal_mean"`; die Heizkurven-Variante
+heißt `hdd_slope`).
+
 ---
 
 ## 6. Prognose
@@ -359,9 +373,12 @@ Modell oder vor einer Zäsur) wird über das Jahr mit dem Klimanormal
 bereinigt (nur der Heizanteil, VDI 3807). Ohne Klimanormal steht der
 Wert wie gemessen da und ist so gekennzeichnet. Ein **Verbrauchsausweis ist
 das nicht**: Der verlangt 36 Monate und die Klimafaktoren des DWD. Die
-Einstellungen *Beheizter Keller* und *Warmwasser dezentral* und das
-Kennzeichen *Heizstrom (Wärmepumpe)* an einem Stromzähler fließen hier ein —
-mit dem Kennzeichen bekommt auch ein Wärmepumpenhaus eine Kennzahl.
+Einstellungen *Beheizter Keller* und *Warmwasser dezentral* und die Rolle
+*Wärmepumpe (Heizstrom)* an einem Stromzähler (bis v3.0 das Kennzeichen
+*Heizstrom (Wärmepumpe)*) fließen hier ein — mit dieser Rolle bekommt auch ein
+Wärmepumpenhaus eine Kennzahl. Seit v3.1.0 zählt auch die **Heizwärme** mit,
+aber nur Zähler mit der Rolle *Verbrauch der Wohnung*
+([Heizwärme](15-waerme.md#4-effizienzkennzahl)).
 
 **Seit v1.4.0 pro Heizquelle getrennt.** Ein Haus heizt real meist mit
 einer Quelle; alle Heizarten zu summieren ergäbe eine unsinnige Klasse.
@@ -403,7 +420,8 @@ Werten.
 
 **PV** vermeidet CO₂, statt es auszustoßen: Erzeugung und Einspeisung
 stehen als „vermieden" da, im Jahresbericht nur einmal
-([PV](12-pv.md#5-co₂-als-vermieden)).
+([PV](12-pv.md#5-co₂-als-vermieden)). Seit v3.1.0 kann statt des Strommixes
+ein eigener Vermeidungsfaktor gelten (`co2_pv_avoided`).
 
 ---
 
@@ -541,6 +559,38 @@ kamen bisher zwei der drei Erinnerungen nach dem Stichtag. Ist der Stichtag
 verpasst, sagt die Karte das (`cancel_missed`). Eine eingetragene
 Preiserhöhung in der Zukunft erscheint als Hinweis, in Deutschland mit dem
 Sonderkündigungsrecht zum Zeitpunkt der Erhöhung (§ 41 Abs. 5 EnWG).
+
+---
+
+## 11. Weitere Rechnungen *(v3.1.0)*
+
+Kurz zusammengefasst, mit dem Ort der ausführlichen Erklärung:
+
+```text
+Gruppenvertrag      Kosten Mitglied = Verbrauch × eigener Arbeitspreis;
+                    Grundpreis, Abschlag, Boni nur beim ersten Mitglied
+                    Mischpreis (Prognose, Wechsel) = Σ Preis × Anteil am Verbrauch der letzten 12 Monate
+§ 14a Modul 1       feste Kosten je Monat = Grundpreis − Reduzierung je Jahr / 12   (tagesgenau)
+Dynamik-Check       Arbeitspreis je Monat = Börsen-Monatsmittel × (1 + USt) + Aufschlag
+Ladestrom           Vertragspreis: kWh × (Arbeitskosten / kWh des zahlenden Zählers)
+                                   + Grundpreis × kWh Wallbox / kWh Elternzähler
+                    Pauschale:     kWh × Pauschale
+Jahresarbeitszahl   JAZ = Σ Wärme / Σ Strom, nur Monate mit beiden Werten
+Speicher            Wirkungsgrad = entladen / geladen;  Vollzyklen = geladen / Kapazität
+Balkonkraftwerk     Eigenverbrauch = Erzeugung × angenommener Anteil   (ohne Einspeisezähler)
+Amortisation        Nutzen = Eigenverbrauch × Arbeitspreis + Einspeiseerlös seit Inbetriebnahme
+                    Jahre  = Investition / Nutzen der letzten 12 Monate
+Gutschriften        ersetzen kWh × Vergütung im Zeitraum, tagesgenau verteilt
+Einordnung          Δ% = (Jahreswert − eigener Vergleichswert) / Vergleichswert × 100   (nur volle Jahre)
+Zeitreihen          je Tag: letzter Zählerstand bzw. Summe der Intervalle
+```
+
+Mehr dazu: [Strom](02-strom.md) (Gruppenvertrag, § 14a, dynamische Tarife),
+[Ladestrom-Nachweis](../anleitungen/ladestrom-nachweis.md),
+[Heizwärme §7](15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310),
+[PV §7–11](12-pv.md#7-speicher-v310),
+[Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md) und die
+Einordnung in der [API-Referenz](../referenz/api.md#einordnung-get-apibenchmarkscomparison-v310).
 
 ---
 

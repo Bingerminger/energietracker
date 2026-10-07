@@ -23,7 +23,27 @@ final class BackupController
 
     public function export(Request $req): never
     {
-        Response::json($this->backups->export());
+        // v3.1.0 — gestreamt, in der gewohnten Hülle {success, data};
+        // `?attachments=0` lässt die Belegdateien weg (der Index bleibt).
+        $withFiles = ($req->queryParam('attachments') ?? '1') !== '0';
+        $w = function (string $s): void { echo $s; };
+        $started = false;
+        $this->backups->streamExport(function (string $s) use ($w, &$started): void {
+            if (!$started) {
+                while (ob_get_level() > 0) ob_end_clean();
+                if (!headers_sent()) {
+                    http_response_code(200);
+                    header('Content-Type: application/json; charset=utf-8');
+                    header('Cache-Control: no-cache, no-store, must-revalidate');
+                    header('X-Content-Type-Options: nosniff');
+                }
+                $w('{"success":true,"data":');
+                $started = true;
+            }
+            $w($s);
+        }, $withFiles);
+        $w('}');
+        exit;
     }
 
     public function import(Request $req): never

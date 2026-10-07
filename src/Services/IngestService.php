@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Config\Utilities;
+use Energietracker\Storage\JsonStore;
 use Energietracker\Support\Dates;
+use Energietracker\Support\LocalizedException;
 
 /**
  * F1009 — Push-Ingest für externe Datenlieferanten (Home Assistant).
@@ -27,6 +29,7 @@ final class IngestService
         private MeterService $meters,
         private ReadingService $readings,
         private I18nService $i18n,
+        private ?JsonStore $store = null,   // v3.1.0 — Stapel schreiben einmal je Datei
     ) {}
 
     /**
@@ -80,6 +83,10 @@ final class IngestService
                 $this->i18n->t('errors.ingest.meterNotFound', ['meter' => $meterRef, 'utility' => $utility])
             );
         }
+        // v3.1.0 (H3, B2) — ein Zähler mit Verbrauch je Zeitraum nimmt keine Stände an
+        if (($meter['capture'] ?? 'counter') === 'period') {
+            throw new \Energietracker\Support\LocalizedException('errors.ingest.periodMeter', ['meter' => $meterRef], 'ingest to period meter');
+        }
         $meterId = (string)$meter['id'];
 
         // Upsert-by-date: existiert schon eine Ablesung dieses Zählers am
@@ -120,6 +127,57 @@ final class IngestService
             'is_suspect' => $suspect,
         ]);
         return $this->result('created', $utility, $meterId, $date, $created, $suspect, $previous);
+    }
+
+    /** Obergrenze eines Stapels (API-34). */
+    public const BULK_MAX = 500;
+
+    /**
+     * v3.1.0 (Paket H1, API-34) — Stapel: mehrere Stände in einer Anfrage,
+     * etwa zum Nachliefern nach einem Ausfall von Home Assistant oder aus
+     * Node-RED. Jeder Eintrag wird wie ein Einzel-Ingest behandelt (gleiche
+     * Prüfungen, gleiche Antwortfelder) und bekommt seinen `index`; ein
+     * fehlerhafter Eintrag hält die anderen nicht auf. Verarbeitet wird nach
+     * Verbrauchsart, Zähler und Datum (so sieht die Verdachtsprüfung frühere
+     * Stände desselben Stapels), geantwortet in Eingabereihenfolge. Jede Datei
+     * wird einmal geschrieben (JsonStore::batch).
+     *
+     * @param list<mixed> $items
+     * @return array{results:list<array<string,mixed>>, created:int, updated:int, failed:int}
+     */
+    public function ingestMany(array $items): array
+    {
+        if (count($items) > self::BULK_MAX) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.ingest.tooMany', ['max' => self::BULK_MAX, 'count' => count($items)]));
+        }
+        $key = fn($x) => is_array($x)
+            ? [(string)($x['utility'] ?? ''), (string)($x['meter'] ?? $x['meter_id'] ?? ''), (string)($x['date'] ?? '9999')]
+            : ['', '', ''];
+        $order = array_keys($items);
+        usort($order, fn($a, $b) => [$key($items[$a]), $a] <=> [$key($items[$b]), $b]);
+
+        $results = [];
+        $work = function () use ($items, $order, &$results): void {
+            foreach ($order as $i) {
+                if (!is_array($items[$i])) {
+                    $results[$i] = ['index' => $i, 'status' => 'error', 'code' => 'errors.ingest.bodyInvalid',
+                                    'error' => $this->i18n->t('errors.ingest.bodyInvalid')];
+                    continue;
+                }
+                try {
+                    $results[$i] = ['index' => $i] + $this->ingest($items[$i]);
+                } catch (\InvalidArgumentException $e) {
+                    $code = $e instanceof LocalizedException ? $e->key : ($this->i18n->errorCodeFor($e->getMessage()) ?? 'errors.http.badRequest');
+                    $msg = $e instanceof LocalizedException ? $this->i18n->t($e->key, $e->params) : $e->getMessage();
+                    $results[$i] = ['index' => $i, 'status' => 'error', 'code' => $code, 'error' => $msg];
+                }
+            }
+        };
+        $this->store !== null ? $this->store->batch($work) : $work();
+        ksort($results);
+        $results = array_values($results);
+        $count = fn(string $s) => count(array_filter($results, fn($r) => $r['status'] === $s));
+        return ['results' => $results, 'created' => $count('created'), 'updated' => $count('updated'), 'failed' => $count('error')];
     }
 
     /** @return array<string,mixed> */

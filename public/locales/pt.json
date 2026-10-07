@@ -2,21 +2,11 @@
   "common": {
     "save": "Guardar",
     "cancel": "Cancelar",
-    "delete": "Eliminar",
-    "edit": "Editar",
-    "add": "Adicionar",
     "close": "Fechar",
-    "back": "Voltar",
     "confirm": "Confirmar",
     "yes": "Sim",
     "no": "Não",
     "loading": "A carregar…",
-    "error": "Erro",
-    "success": "Operação concluída",
-    "none": "Nenhum",
-    "all": "Todos",
-    "optional": "opcional",
-    "required": "obrigatório",
     "actions": "Ações",
     "invalidNumber": "Introduza um número válido, p. ex. {example}.",
     "undo": "Anular",
@@ -26,7 +16,6 @@
     "themeToggle": "Mudar tema",
     "skipToContent": "Saltar para o conteúdo principal",
     "primaryNav": "Navegação principal",
-    "brandHome": "Energietracker — ir para a visão geral",
     "offline": "Offline – últimos dados carregados",
     "offlineSince": "Offline – dados de {when}",
     "networkError": "Sem ligação ao Energietracker – nada foi guardado.",
@@ -50,7 +39,8 @@
     "heizoel": "Depósito de gasóleo",
     "pellets": "Silo de pellets",
     "pv_einspeisung": "Contador de injeção",
-    "pv_erzeugung": "Contador de produção"
+    "pv_erzeugung": "Contador de produção",
+    "waerme": "Contador de calor"
   },
   "utilityNames": {
     "gas": "Gás",
@@ -60,7 +50,8 @@
     "heizoel": "Gasóleo",
     "pellets": "Pellets de madeira",
     "pv_einspeisung": "Injeção FV",
-    "pv_erzeugung": "Produção FV"
+    "pv_erzeugung": "Produção FV",
+    "waerme": "Calor"
   },
   "nav": {
     "group": {
@@ -77,7 +68,7 @@
     "reminders": "Lembretes e manutenção",
     "settings": "Definições",
     "analysis": "Análise",
-    "contracts": "Contratos e pagamentos por conta",
+    "contracts": "Contratos e adiantamentos",
     "billCheck": "Verificar fatura",
     "report": "Relatório anual",
     "weather": "Dados meteorológicos",
@@ -92,15 +83,22 @@
       "title": "Registar",
       "readings": "Registar leituras",
       "readingsHint": "Todos os contadores de uma vez",
-      "delivery": "Entrega {utility}",
-      "tankLevel": "Leitura do depósito {utility}",
+      "delivery": "Entrega — {utility}",
+      "tankLevel": "Leitura do depósito — {utility}",
       "reminder": "Novo lembrete"
     },
     "sectionNav": "Páginas desta secção",
     "menu": "Menu",
     "tabbar": "Navegação rápida",
     "captureButton": "Registar",
-    "help": "Ajuda"
+    "help": "Ajuda",
+    "badge": {
+      "outbox": {
+        "one": "{count} leitura ainda não guardada",
+        "other": "{count} leituras ainda não guardadas"
+      }
+    },
+    "tenancy": "Arrendamento"
   },
   "dashboard": {
     "loading": "A carregar a visão geral…",
@@ -132,7 +130,10 @@
       "selfUseSub": "{kwh} kWh consumidos diretamente",
       "savings": "Poupança do autoconsumo",
       "savingsSub": "{kwh} kWh autoconsumidos × preço de compra",
-      "coveredSub": "em {months} meses com dados dos três contadores"
+      "coveredSub": {
+        "one": "em {months} mês com dados dos três contadores",
+        "other": "em {months} meses com dados dos três contadores"
+      }
     },
     "recommendations": { "title": "Recomendações principais" },
     "reminders": {
@@ -160,7 +161,7 @@
       "revenue": "Remuneração (últimos 12 meses)",
       "revenueSub": "receita da injeção"
     },
-    "trend": { "vsPrev": "{span} face aos mesmos meses um ano antes", "moreThanPrev": "{pct} % mais: {span} face aos mesmos meses um ano antes", "lessThanPrev": "{pct} % menos: {span} face aos mesmos meses um ano antes" },
+    "trend": { "vsPrev": "{span} face aos mesmos meses um ano antes", "moreThanPrev": "{pct}% mais: {span} face aos mesmos meses um ano antes", "lessThanPrev": "{pct}% menos: {span} face aos mesmos meses um ano antes" },
     "allRecommendations": "Todas as recomendações",
     "todo": {
       "title": "A fazer",
@@ -224,9 +225,12 @@
     },
     "preview": {
       "sinceLast": "{delta} {unit} desde a última leitura",
-      "sinceLastDays": "{delta} {unit} desde a última leitura (há {days} dias)"
+      "sinceLastDays": {
+        "one": "{delta} {unit} desde a última leitura (há {days} dia)",
+        "other": "{delta} {unit} desde a última leitura (há {days} dias)"
+      }
     },
-    "hint": { "lower": "Aviso: o valor é inferior à última leitura ({min}). É normal em caso de substituição de contador, etc." },
+    "hint": {},
     "toast": {
       "savedFailed": "{ok} guardados, {failed} falharam",
       "savedEmpty": "{ok} guardados · {skipped} vazios",
@@ -237,6 +241,54 @@
         "one": "1 leitura anulada",
         "other": "{count} leituras anuladas"
       }
+    },
+    "queue": {
+      "title": "Ainda não guardado",
+      "queued": "À espera de ligação",
+      "waitingN": {
+        "one": "{count} leitura aguarda ligação e será enviada mais tarde.",
+        "other": "{count} leituras aguardam ligação e serão enviadas mais tarde."
+      },
+      "sent": {
+        "one": "{count} leitura registada offline foi guardada",
+        "other": "{count} leituras registadas offline foram guardadas"
+      },
+      "conflict": "Em {date} já existe uma leitura ({value}) – substituir ou manter a existente?",
+      "replace": "Substituir",
+      "keep": "Manter a existente",
+      "failed": "Não guardado: {reason}",
+      "edit": "Editar",
+      "discard": "Descartar",
+      "sendNow": "Enviar agora",
+      "stillOffline": "Ainda sem ligação – as leituras continuam em espera.",
+      "attention": "Nem todas as leituras registadas offline puderam ser guardadas – verifique em Leituras."
+    },
+    "photo": {
+      "add": "Fotografia",
+      "remove": "Remover fotografia",
+      "view": "Ver fotografia",
+      "alt": "Fotografia da leitura",
+      "uploading": "A carregar a fotografia…",
+      "unreadable": "Não é possível ler a imagem – escolha outra fotografia."
+    },
+    "ocr": {
+      "reading": "A reconhecer o texto…",
+      "found": "Reconhecido: {value}",
+      "apply": "Usar",
+      "none": "Nenhuma leitura reconhecida – introduza-a manualmente.",
+      "failed": "Reconhecimento de texto: {reason}"
+    },
+    "period": {
+      "kind": "Consumo por período",
+      "lastLabel": "Último período:",
+      "month": "Mês",
+      "value": "Consumo ({unit})",
+      "reference": "Valores de comparação segundo a informação de consumo",
+      "ref": {
+        "prev_month": "Mês anterior ({unit})",
+        "prev_year_month": "Mesmo mês do ano anterior ({unit})",
+        "average_user": "Utilizador médio ({unit})"
+      }
     }
   },
   "utility": {
@@ -245,12 +297,23 @@
     "subtitle": "Leituras · consumo mensal · contratos e saldo",
     "noMeters": {
       "title": "Ainda sem contadores",
-      "text": "Adicione um contador de {label} através da gestão de contadores.",
+      "text": "{label}: adicione um contador através da gestão de contadores.",
       "cta": "Ir para a gestão de contadores"
     },
     "header": { "meters": "Contadores", "metersTitle": "Gestão de contadores", "selectMeter": "Escolher contador" },
     "action": { "newReading": "+ Leitura", "newReadingBanner": "+ Nova leitura", "newDelivery": "+ Entrega" },
-    "banner": { "lastReading": "Última leitura há {days} dias", "trendYoY": "{span} face ao ano anterior", "trendYoYAdjusted": "{span} face ao ano anterior, corrigido pelo clima" },
+    "banner": {
+      "trendYoY": "{span} face ao ano anterior",
+      "trendYoYAdjusted": "{span} face ao ano anterior, corrigido pelo clima",
+      "lastReading": {
+        "one": "Última leitura há {days} dia",
+        "other": "Última leitura há {days} dias"
+      },
+      "lastPeriod": {
+        "one": "O último período terminou há {count} dia",
+        "other": "O último período terminou há {count} dias"
+      }
+    },
     "kpi": {
       "feedIn": "Injeção",
       "consumption": "Consumo",
@@ -260,14 +323,17 @@
       "advances": "💰 Adiantamentos {year}",
       "yearBalance": "Saldo do ano: {value}",
       "dailyAvg": "📅 Média diária",
-      "daysCount": "{days} dias",
       "co2Avoided": "🌿 CO₂ evitado {year}",
       "co2AvoidedSub": "{tons} t menos do que sem FV",
       "co2": "🌍 CO₂ {year}",
       "co2Sub": "{tons} t",
       "advancesUntil": "💰 Adiantamentos até {date}",
       "balanceShort": "Saldo: {value}",
-      "generation": "Produção"
+      "generation": "Produção",
+      "daysCount": {
+        "one": "{days} dia",
+        "other": "{days} dias"
+      }
     },
     "cards": {
       "contracts": "📑 Contratos e adiantamentos",
@@ -277,12 +343,17 @@
       "monthlyTable": "📋 Tabela mensal {year}",
       "stockTank": "🛢️ Existências e depósito",
       "deliveries": "🚚 Entregas",
-      "deliveriesCount": "{count} entregas no total",
-      "readings": "🔢 Leituras",
       "readingsYear": "📋 Leituras {year}",
-      "readingsCount": "{count} leituras no total",
       "monthlyChartFeedIn": "Injeção mensal {year}",
-      "monthlyChartGeneration": "Produção mensal {year}"
+      "monthlyChartGeneration": "Produção mensal {year}",
+      "deliveriesCount": {
+        "one": "{count} entrega no total",
+        "other": "{count} entregas no total"
+      },
+      "readingsCount": {
+        "one": "{count} leitura no total",
+        "other": "{count} leituras no total"
+      }
     },
     "balance": {
       "title": "⚖️ Saldo do contrato em curso — {name}",
@@ -291,10 +362,8 @@
       "unitWorking": "{value} {minor}/kWh",
       "unitBase": "{value} {cur}/mês",
       "unitAdvance": "Adiantamento {value}",
-      "consumedMonthsWater": "{months} meses · {m3} m³",
-      "consumedMonths": "{months} meses · {kwh} kWh",
       "breakdownConsumption": "{value} consumo",
-      "breakdownBase": "+ {value} tarifa fixa",
+      "breakdownBase": "+ {value} termo fixo",
       "breakdownBonus": "− {value} bónus",
       "waterTw": "{value} pot.",
       "waterSw": "+ {value} residual",
@@ -302,8 +371,6 @@
       "specialRefund": "+ {value} reembolso",
       "specialSurcharge": "− {value} acerto a pagar",
       "specialAdvance": "− {value} adiantamento extraordinário",
-      "specialCount": "{count} pagamentos extraordinários",
-      "specialCountOne": "1 pagamento extraordinário",
       "colConsumedFeedIn": "Remuneração (até hoje)",
       "colConsumed": "Consumido (até hoje)",
       "colPaidFeedIn": "Já pago",
@@ -329,17 +396,17 @@
       "basisSep": "contador sep.",
       "basisTw": "consumo de água potável",
       "perMonthShort": "{value}/mês",
-      "gpMonth": "tarifa fixa {value} {cur}/mês",
+      "gpMonth": "termo fixo {value} {cur}/mês",
       "ctPerM3": "{value} {minor}/m³",
       "eurPerM2Year": "{value} {cur}/m²/ano · {m2} m²",
       "consShort": "{value} consumo",
-      "gpPlus": " + {value} tarifa fixa",
+      "gpPlus": " + {value} termo fixo",
       "suggestAdvance": "Com um adiantamento de {suggested} em vez de {current}, o acerto ficaria em cerca de ±0.",
       "measuredThenEstimated": "medido até {date} ({kwh} kWh), depois estimado: {value}",
       "renewed": "O prazo terminou a {date}. Sem denúncia, o contrato continua aos últimos preços e pode ser denunciado a qualquer momento com um pré-aviso de no máximo um mês.",
       "cancelMissed": "Prazo de denúncia de {date} ultrapassado: o contrato não termina a {end}, continua — depois pode ser denunciado com um pré-aviso de no máximo um mês.",
       "priceIncrease": "Aumento de preços a partir de {date}: {what}.",
-      "piWorking": "preço da energia {from} → {to} {minor}/kWh",
+      "piWorking": "preço unitário {from} → {to} {minor}/kWh",
       "piBase": "termo fixo {from} → {to} {cur}/mês",
       "priceIncreaseDe": "Até lá existe um direito especial de denúncia com efeito na data do aumento (§ 41 n.º 5 EnWG).",
       "pathTitle": "Custos e adiantamentos no período de faturação",
@@ -348,7 +415,19 @@
       "pathBalance": "Saldo",
       "pathEstimated": "estimado",
       "pathNote": "Tracejado: estimado; os pontos vazios ficam depois de hoje. A distância entre as linhas é o saldo, no fim está a fatura esperada.",
-      "pathAlt": "Gráfico de linhas: custos e pagamentos acumulados de {from} a {to}; no fim {result}."
+      "pathAlt": "Gráfico de linhas: custos e pagamentos acumulados de {from} a {to}; no fim {result}.",
+      "consumedMonths": {
+        "one": "{months} mês · {kwh} kWh",
+        "other": "{months} meses · {kwh} kWh"
+      },
+      "consumedMonthsWater": {
+        "one": "{months} mês · {m3} m³",
+        "other": "{months} meses · {m3} m³"
+      },
+      "specialCount": {
+        "one": "{count} pagamento extraordinário",
+        "other": "{count} pagamentos extraordinários"
+      }
     },
     "contractsTable": {
       "emptyTitle": "Sem contratos registados",
@@ -368,9 +447,9 @@
       "statePast": "PASSADO",
       "stateFuture": "FUTURO",
       "periodOpen": "{start} → em curso",
-      "gpSuffix": "tarifa fixa {value} {cur}/mês",
-      "colSpecial": "Pagamentos especiais",
-      "hint": "Bónus = créditos do contrato (bónus imediato, de mudança, de novo cliente). Pagamentos especiais = reembolsos (+), acertos e adiantamentos adicionais (−) fora do plano de adiantamentos; ambos entram no saldo. Toque para ver os itens; são geridos na gestão de contratos.",
+      "gpSuffix": "termo fixo {value} {cur}/mês",
+      "colSpecial": "Pagamentos extraordinários",
+      "hint": "Bónus = créditos do contrato (bónus imediato, de mudança, de novo cliente). Pagamentos extraordinários = reembolsos (+), acertos e adiantamentos adicionais (−) fora do plano de adiantamentos; ambos entram no saldo. Toque para ver os itens; são geridos na gestão de contratos.",
       "stateRenewed": "RENOVADO",
       "colEarned": "Remuneração",
       "colReceived": "Recebido"
@@ -391,17 +470,19 @@
       "colMa3": "MM·3",
       "colMa6": "MM·6",
       "total": "Total",
-      "estimatedTitle": "{days} dias estimados (após o último stock conhecido)",
       "estimatedLegend": "≈ o mês contém dias estimados, após o último stock conhecido (entrega «atestado» ou leitura).",
       "colRevenue": "Receita {cur}",
       "colCo2Avoided": "CO₂ evitado kg",
       "partialLegend": "«14 / 31» nos dias: o mês só está registado em parte; as tendências não o consideram.",
-      "colAdjusted": "corrigido"
+      "colAdjusted": "corrigido",
+      "estimatedTitle": {
+        "one": "{days} dia estimado (após o último stock conhecido)",
+        "other": "{days} dias estimados (após o último stock conhecido)"
+      }
     },
     "readingsTable": {
       "emptyTitle": "Sem leituras",
       "emptyYear": "Sem leituras em {year}",
-      "emptyYearHint": "Estão registadas {count} leituras no total — acessíveis pelo seletor de ano acima.",
       "colDate": "Data",
       "colCounter": "Leitura do contador",
       "colNote": "Nota",
@@ -412,7 +493,11 @@
       "suspect": "VERIFICAR",
       "suspectTitle": "Inferior à leitura anterior (Home Assistant). Só conta na análise depois de confirmada.",
       "implausible": "IMPLAUSÍVEL",
-      "confirmReading": "Confirmar leitura"
+      "confirmReading": "Confirmar leitura",
+      "emptyYearHint": {
+        "one": "Está registada {count} leitura no total — acessível pelo seletor de ano acima.",
+        "other": "Estão registadas {count} leituras no total — acessíveis pelo seletor de ano acima."
+      }
     },
     "deliveriesTable": {
       "emptyTitle": "Sem entregas",
@@ -428,9 +513,9 @@
     },
     "tank": {
       "noCapacity": "Capacidade do depósito não definida — introduza-a no contador para ver a curva de existências.",
-      "summary": "atualmente ~{stock} {unit} / {cap} {unit} ({pct} %)",
+      "summary": "atualmente ~{stock} {unit} / {cap} {unit} ({pct}%)",
       "remaining": "{stock} {unit} restantes (modelado)",
-      "ofCap": "{pct} % de {cap} {unit}",
+      "ofCap": "{pct}% de {cap} {unit}",
       "noteMeasured": "Consumo calculado a partir de stocks conhecidos até {date}; depois, estimado.",
       "noteEstimated": "O stock e o consumo são estimados a partir do stock inicial e das entregas. Com uma entrega «atestado» ou uma leitura do depósito ficam exatos.",
       "warnInconsistent": "Entre {from} e {to} os níveis não batem certo: {excess} {unit} a mais no depósito do que pode haver. Falta uma entrega ou há um nível errado?",
@@ -453,7 +538,24 @@
       "chartAnchors": "Stock conhecido",
       "chartAlt": "Evolução do stock do depósito em {year}"
     },
-    "chart": { "temp": "temperatura média", "alt": "Gráfico de barras: consumo mensal e temperatura média", "altSummary": "Gráfico de barras: {label} {year} por mês, {total} no total; máximo em {maxMonth} ({max}), mínimo em {minMonth} ({min}).", "prevYear": "{year} para comparação", "adjustedLabel": "{label} corrigido do clima ({unit})", "measuredValue": "Medido: {value}", "deviceSwap": "Troca de contador neste mês", "altSummaryAdjusted": "Gráfico de barras: {label} {year} por mês, corrigido do clima, {total} no total; máximo em {maxMonth} ({max}), mínimo em {minMonth} ({min}).", "altPrev": "Para comparação, {year}: {total} nos mesmos {months} meses.", "adjustedNote": "Corrigido do clima: convertido para um ano normal no seu local (modelo de aquecimento). Assim a comparação com o ano anterior mostra se poupou — não se o inverno foi ameno.", "modeLabel": "Vista", "modeMeasured": "Medido", "modeAdjusted": "Corrigido do clima" },
+    "chart": {
+      "temp": "temperatura média",
+      "alt": "Gráfico de barras: consumo mensal e temperatura média",
+      "altSummary": "Gráfico de barras: {label} {year} por mês, {total} no total; máximo em {maxMonth} ({max}), mínimo em {minMonth} ({min}).",
+      "prevYear": "{year} para comparação",
+      "adjustedLabel": "{label} corrigido do clima ({unit})",
+      "measuredValue": "Medido: {value}",
+      "deviceSwap": "Troca de contador neste mês",
+      "altSummaryAdjusted": "Gráfico de barras: {label} {year} por mês, corrigido do clima, {total} no total; máximo em {maxMonth} ({max}), mínimo em {minMonth} ({min}).",
+      "adjustedNote": "Corrigido do clima: convertido para um ano normal no seu local (modelo de aquecimento). Assim a comparação com o ano anterior mostra se poupou — não se o inverno foi ameno.",
+      "modeLabel": "Vista",
+      "modeMeasured": "Medido",
+      "modeAdjusted": "Corrigido do clima",
+      "altPrev": {
+        "one": "Para comparação, {year}: {total} no mesmo mês.",
+        "other": "Para comparação, {year}: {total} nos mesmos {months} meses."
+      }
+    },
     "readingModal": {
       "titleEdit": "Editar leitura · {label}",
       "titleNew": "Nova leitura · {label}",
@@ -466,7 +568,6 @@
       "validation": "A data e a leitura são obrigatórias.",
       "savedNew": "Leitura guardada",
       "savedEdit": "Leitura atualizada",
-      "confirmLower": "Esta leitura é inferior à última ({last} {unit}). A leitura de um contador normalmente só sobe; um contador substituído regista-se em «Substituição de contador». Guardar mesmo assim?",
       "confirmLowerOk": "Guardar mesmo assim"
     },
     "deliveryModal": {
@@ -496,11 +597,13 @@
     },
     "preview": {
       "sinceLast": "{delta} {unit} desde a última leitura",
-      "sinceLastDays": "{delta} {unit} desde a última leitura (há {days} dias)"
+      "sinceLastDays": {
+        "one": "{delta} {unit} desde a última leitura (há {days} dia)",
+        "other": "{delta} {unit} desde a última leitura (há {days} dias)"
+      }
     },
     "verdict": { "surcharge": "Acerto a pagar", "refund": "Reembolso", "payout": "Pagamento", "reclaim": "A devolver", "balanced": "Equilibrado" },
     "billCheck": {
-      "title": "Verificação de fatura",
       "hint": "Recalcula a fatura do gás: por troço m³ × coeficiente de correção × poder calorífico = kWh, como as linhas da fatura do fornecedor. Um novo troço começa em cada leitura e em cada mudança do poder calorífico.",
       "from": "De",
       "to": "Até (exclusive)",
@@ -524,7 +627,8 @@
         "end": "Fim",
         "reading": "Leitura",
         "readingEstimated": "Leitura (estimada)",
-        "factor": "Mudança de PCS"
+        "factor": "Mudança de PCS",
+        "price": "Mudança de preço"
       },
       "kind": {
         "reading": "leitura efetuada",
@@ -532,15 +636,16 @@
         "interpolated": "valor substitutivo — sem leitura nesse dia, interpolado dia a dia entre as leituras que o delimitam"
       },
       "mark": {
-        "estimated": "S",
-        "interpolated": "E"
+        "estimated": "E",
+        "interpolated": "I"
       },
-      "legend": "Tipo de leitura: sem sufixo = leitura efetuada · S = leitura registada como estimada · E = valor substitutivo: nesse dia não há leitura, é interpolado dia a dia entre as leituras que o delimitam — exatamente onde o fornecedor também estima (limites de poder calorífico e de período). Quanto menos linhas com E, menos estimativa.",
+      "legend": "Tipo de leitura: sem sufixo = leitura efetuada · {est} = leitura registada como estimada · {int} = valor interpolado: nesse dia não há leitura, é interpolado dia a dia entre as leituras que o delimitam — exatamente onde o fornecedor também estima (limites de poder calorífico e de período). Quanto mais linhas sem {int}, menos estimativa.",
       "open": "Verificar a fatura de {year}",
       "gapsN": {
         "one": "{count} troço sem leitura envolvente — aí falta o consumo.",
         "other": "{count} troços sem leitura envolvente — aí falta o consumo."
-      }
+      },
+      "hintGeneric": "Recalcula a fatura anual: por troço consumo × preço unitário mais custos fixos, como as linhas da fatura do fornecedor. Um novo troço começa em cada leitura e em cada mudança de preço."
     },
     "warnings": {
       "title": "Leituras implausíveis: {count}",
@@ -568,8 +673,45 @@
       "feedIn": "Injetado na rede",
       "grid": "Da rede",
       "generationTip": "Produzido: {value}",
-      "alt": "Gráfico de barras: fluxo de energia {year} — em {months} meses com dados dos três contadores, produzido {generation}, dos quais autoconsumido {self} e injetado {feedIn}; da rede {grid}."
-    }
+      "alt": {
+        "one": "Gráfico de barras: fluxo de energia {year} — em {months} mês com dados dos três contadores, produzido {generation}, dos quais autoconsumido {self} e injetado {feedIn}; da rede {grid}.",
+        "other": "Gráfico de barras: fluxo de energia {year} — em {months} meses com dados dos três contadores, produzido {generation}, dos quais autoconsumido {self} e injetado {feedIn}; da rede {grid}."
+      }
+    },
+    "photo": {
+      "open": "Abrir num novo separador",
+      "removed": "Fotografia removida"
+    },
+    "periods": {
+      "title": "Períodos {year}",
+      "count": {
+        "one": "{count} período",
+        "other": "{count} períodos"
+      },
+      "add": "+ Período",
+      "edit": "Editar período",
+      "empty": "Ainda nenhum período este ano",
+      "emptyHint": "Introduza mês a mês a partir da informação de consumo ou importe um ficheiro CSV em Contadores.",
+      "colPeriod": "Período",
+      "colValue": "Consumo {unit}",
+      "colReference": "Valores de comparação",
+      "ref": {
+        "prev_month": "Mês anterior",
+        "prev_year_month": "Mesmo mês do ano anterior",
+        "average_user": "Utilizador médio"
+      },
+      "from": "De",
+      "to": "Até (inclusive)",
+      "value": "Consumo",
+      "unit": "Unidade",
+      "saved": "Período guardado",
+      "deleted": "Período eliminado",
+      "confirmDelete": "Eliminar o período {from} – {to}?"
+    },
+    "water": {
+      "dhwNote": "Calor para esta água quente em {year}: cerca de {kwh} kWh a {temp} °C – valor calculado segundo a HeizkostenV § 9, não medido."
+    },
+    "groupContractNote": "Este contador é faturado através do contrato de grupo «{name}». O saldo e os adiantamentos valem para todo o grupo."
   },
   "contracts": {
     "priceGroup": {
@@ -582,7 +724,9 @@
     },
     "unit": {
       "ctPerKwh": "{minor}/kWh",
-      "eurPerMonth": "{cur}/mês"
+      "eurPerMonth": "{cur}/mês",
+      "eurPerKwYear": "{cur}/kW por ano",
+      "eurPerYear": "{cur}/ano"
     },
     "loading": "A carregar…",
     "unknown": "Serviço desconhecido: {key}",
@@ -591,7 +735,7 @@
     "newContract": "+ Novo contrato",
     "delivery": {
       "bannerTitle": "{label} não tem contratos.",
-      "bannerText": "Ao contrário do gás, eletricidade, água ou aquecimento urbano, aqui não há um contrato de fornecimento com preço de energia e tarifa fixa. Os custos vêm diretamente de cada fatura de entrega/depósito (quantidade × preço por {unit}, ou o montante total registado). Uma comparação de tarifas com contratos hipotéticos também não se aplica a {label}.",
+      "bannerText": "Ao contrário do gás, eletricidade, água ou aquecimento urbano, aqui não há um contrato de fornecimento com preço unitário e termo fixo. Os custos vêm diretamente de cada fatura de entrega/depósito (quantidade × preço por {unit}, ou o montante total registado). Uma comparação de tarifas com contratos hipotéticos também não se aplica ({label}).",
       "toDeliveries": "→ Para as entregas"
     },
     "metersWarning": "Adicione primeiro contadores antes de criar contratos.",
@@ -604,7 +748,8 @@
       "meterLabel": "Contador:",
       "open": "aberto",
       "noMeter": "—",
-      "shadowHint": "Contrato hipotético — apenas um cenário para a comparação de tarifas. Não conta em custos, saldo nem previsão."
+      "shadowHint": "Contrato hipotético — apenas um cenário para a comparação de tarifas. Não conta em custos, saldo nem previsão.",
+      "groupLabel": "Grupo de contadores:"
     },
     "status": { "active": "ATIVO", "past": "PASSADO", "future": "FUTURO" },
     "summary": {
@@ -629,19 +774,19 @@
         "other": "{count} bónus"
       },
       "workingPrices": {
-        "one": "{count} preço de energia",
-        "other": "{count} preços de energia"
+        "one": "{count} preço unitário",
+        "other": "{count} preços unitários"
       },
       "basePrices": {
-        "one": "{count} preço de tarifa fixa",
-        "other": "{count} preços de tarifa fixa"
+        "one": "{count} termo fixo",
+        "other": "{count} termos fixos"
       },
       "specialPayments": {
         "one": "{count} pagamento extraordinário",
         "other": "{count} pagamentos extraordinários"
       }
     },
-    "group": { "working": "Preço da energia", "base": "Tarifa fixa", "advance": "Adiantamento", "addRow": "+ Linha" },
+    "group": { "working": "Preço unitário", "base": "Termo fixo", "advance": "Adiantamento", "addRow": "+ Linha" },
     "row": {
       "validFrom": "Válido a partir de",
       "copyStart": "Desde o início",
@@ -697,7 +842,8 @@
       },
       "noticeModeHint": "Automático: no fim do prazo; sem fim, a qualquer momento no fim do mês. O fornecimento básico, por exemplo, pode ser denunciado a qualquer momento com duas semanas de pré-aviso.",
       "autoRenews": "Renova-se sem denúncia",
-      "autoRenewsHint": "Após o fim, o contrato continua aos últimos preços até ser denunciado — então com um pré-aviso de no máximo um mês. Desmarcar se já foi denunciado."
+      "autoRenewsHint": "Após o fim, o contrato continua aos últimos preços até ser denunciado — então com um pré-aviso de no máximo um mês. Desmarcar se já foi denunciado.",
+      "groupTargets": "Grupos de contadores (um contrato para todos)"
     },
     "delete": { "title": "Eliminar o contrato?", "confirm": "Eliminar", "deleted": "Contrato eliminado", "messageNamed": "Eliminar de forma permanente o contrato «{name}»? Os seus preços, adiantamentos e bónus perdem-se." },
     "deleteContract": "Eliminar contrato",
@@ -712,7 +858,7 @@
     "special": {
       "title": "Pagamentos extraordinários",
       "add": "+ Pagamento extraordinário",
-      "hint": "Reembolso, acerto a pagar ou adiantamento adicional. « Com efeito » também ajusta o adiantamento mensal futuro.",
+      "hint": "Reembolso, acerto a pagar ou adiantamento adicional. «Com efeito» também ajusta o adiantamento mensal futuro.",
       "date": "Data",
       "amount": "Montante {cur}",
       "kind": "Tipo",
@@ -738,7 +884,7 @@
       "advances": "💰 Adiantamentos",
       "bonuses": "🎁 Bónus",
       "twWorking": "Preço por m³ ({minor}/m³)",
-      "twBase": "Tarifa fixa ({cur}/mês)",
+      "twBase": "Termo fixo ({cur}/mês)",
       "basis": "Base de cálculo",
       "basisTw": "pelo consumo de água potável (predefinido)",
       "basisSep": "contador de água residual separado",
@@ -756,7 +902,10 @@
       "bonusAmount": "Montante {cur}",
       "bonusLabel": "Etiqueta",
       "addRow": "+ Linha",
-      "startRequired": "O início do contrato é obrigatório."
+      "startRequired": "O início do contrato é obrigatório.",
+      "basisDeduct": "água potável menos contadores de dedução (p. ex. jardim)",
+      "deductMeters": "Contadores de dedução",
+      "deductHint": "A água que passa por estes contadores (p. ex. a do jardim) custa água potável, mas não água residual. O ideal é manter o contador do jardim como subcontador do contador principal, para não contar duas vezes nos totais."
     },
     "perM3": {
       "toggleTitle": "Converter um preço por m³ em {minor}/kWh",
@@ -764,6 +913,44 @@
       "result": "= {ct} {minor}/kWh (÷ {hs} kWh/m³ de poder calorífico em {date})",
       "resultFactor": "= {ct} {minor}/kWh (÷ fator de conversão {hs} kWh/m³ em {date})",
       "apply": "Aplicar"
+    },
+    "fw": {
+      "title": "Aquecimento urbano: ligação e parâmetros",
+      "capacityKw": "Potência contratada (kW)",
+      "capacityPrice": "Termo de potência",
+      "meteringPrice": "Encargo de contagem",
+      "co2Factor": "Fator de CO₂ da rede (g/kWh)",
+      "primaryEnergy": "Fator de energia primária",
+      "hint": "Consta da fatura ou da tabela de preços do fornecedor de calor. O termo de potência e o encargo de contagem contam como custos fixos; o fator de CO₂ da rede substitui o valor geral do aquecimento urbano."
+    },
+    "hint": {
+      "termOver24": "Nota: o prazo mínimo é superior a 24 meses. Na Alemanha, um prazo inicial tão longo não é válido para consumidores (§ 309 n.º 9 BGB)."
+    },
+    "groupPrices": {
+      "title": "Preço unitário por contador (p. ex. vazio/fora de vazio)",
+      "hint": "Um só termo fixo, mas um preço unitário próprio por registo — p. ex. vazio e fora de vazio. Vazio = preço unitário acima."
+    },
+    "gridReduction": {
+      "title": "Tarifa de rede reduzida (§ 14a EnWG, módulo 1)"
+    },
+    "priceImport": {
+      "button": "Importar preços mensais",
+      "title": "Aplicar preços mensais",
+      "preview": "O ficheiro contém preços para {n} meses (de {from} a {to}). Cada um aplica-se a partir do primeiro dia do mês; os preços com a mesma data de efeito são substituídos.",
+      "skipped": {
+        "one": "{count} linha é ignorada.",
+        "other": "{count} linhas são ignoradas."
+      },
+      "confirm": "Aplicar",
+      "done": "Preços mensais aplicados"
+    },
+    "revenue": {
+      "title": "Créditos do comercializador direto",
+      "hint": "Com comercialização direta, a receita acompanha o valor de mercado. Introduza o crédito — no seu período substitui kWh × preço.",
+      "add": "Adicionar crédito",
+      "from": "De",
+      "to": "Até (inclusive)",
+      "amount": "Montante"
     }
   },
   "meters": {
@@ -790,13 +977,13 @@
     "groupsBar": { "label": "Grupos de contadores:", "dissolveTitle": "Dissolver o grupo" },
     "deleteGroup": {
       "title": "Dissolver o grupo?",
-      "message": "Dissolver o grupo « {name} »? Os contadores atribuídos são mantidos e apenas removidos do grupo.",
+      "message": "Dissolver o grupo «{name}»? Os contadores atribuídos são mantidos e apenas removidos do grupo.",
       "confirm": "Dissolver",
       "done": "Grupo dissolvido"
     },
     "deleteMeter": {
       "title": "Eliminar o contador?",
-      "message": "Eliminar o contador « {name} » e o seu histórico de dispositivos? As leituras e os contratos têm de ser removidos primeiro.",
+      "message": "Eliminar o contador «{name}» e o seu histórico de dispositivos? As leituras e os contratos têm de ser removidos primeiro.",
       "confirm": "Eliminar",
       "done": "Contador eliminado"
     },
@@ -804,8 +991,6 @@
       "inactive": "inativo",
       "sub": "Subcontador",
       "group": "Grupo: {name}",
-      "devicesOne": "{count} dispositivo",
-      "devices": "{count} dispositivos",
       "deviceLine": "Dispositivo {n}",
       "serial": "N.º {serial}",
       "active": "→ ativo",
@@ -815,7 +1000,12 @@
       "csvImport": "Importar CSV",
       "edit": "Editar",
       "delete": "Eliminar",
-      "digits": "{n} dígitos"
+      "digits": "{n} dígitos",
+      "devices": {
+        "one": "{count} dispositivo",
+        "other": "{count} dispositivos"
+      },
+      "periodTag": "por período"
     },
     "modal": {
       "titleEdit": "Editar contador",
@@ -842,12 +1032,22 @@
       "activeHint": "Desmarcar se o contador estiver fora de serviço: o histórico continua a contar em todos os totais, mas deixa de aparecer no registo de leituras e não gera avisos.",
       "initialStockPrice": "Preço do stock inicial (cênt./{unit})",
       "initialStockPriceHint": "Deixe vazio para usar o preço da primeira entrega.",
-      "heatSource": "Eletricidade de aquecimento (bomba de calor)",
-      "heatSourceHint": "Este contador mede o aquecimento: conta no valor de eficiência."
+      "role": "Função",
+      "roleHint": {
+        "strom": "Bomba de calor: este contador elétrico mede o aquecimento e conta no indicador de eficiência.",
+        "wasser": "Água quente: a aplicação indica também o calor necessário (valor calculado segundo a HeizkostenV § 9). Jardim: água que não vai para o esgoto.",
+        "pv_erzeugung": "Bateria: carga e descarga como contadores próprios, separados da produção.",
+        "waerme": "Consumo: calor que chega à habitação (conta como energia de aquecimento). Calor da bomba de calor: não conta como energia de aquecimento; caso contrário, seria contado duas vezes ao lado da eletricidade de aquecimento."
+      },
+      "capture": "Registo",
+      "captureHint": "Consumo por período: para valores que já vêm como consumo – por exemplo, a informação mensal do serviço de medição. É possível mudar enquanto o contador não tiver dados.",
+      "malo": "ID do ponto de entrega (MaLo)",
+      "melo": "ID do ponto de medição (MeLo)",
+      "maloHint": "Para mudar de fornecedor; consta da fatura. MaLo: 11 dígitos; MeLo: 33 carateres a começar por «DE»."
     },
     "replace": {
       "title": "Substituição de contador: {name}",
-      "intro": "Fecha o dispositivo atualmente aberto com uma leitura final e cria um novo dispositivo. O consumo ao longo da substituição é calculado corretamente de forma automática — acabou o « consumo negativo » após uma substituição.",
+      "intro": "Fecha o dispositivo atualmente aberto com uma leitura final e cria um novo dispositivo. O consumo ao longo da substituição é calculado corretamente de forma automática — acabou o «consumo negativo» após uma substituição.",
       "date": "Data da substituição *",
       "oldFinal": "Leitura final contador antigo ({unit}) *",
       "newInitial": "Leitura inicial contador novo ({unit}) *",
@@ -864,7 +1064,7 @@
       "title": "Importar leituras: {name}",
       "intro": "Lê leituras de um ficheiro CSV para o contador <strong>{name}</strong>. Antes de importar, uma pré-visualização mostra cada linha e o seu efeito — uma leitura existente no mesmo dia é <strong>substituída</strong>.",
       "formatLabel": "Formato esperado",
-      "formatHint": "Separador <code>;</code> ou <code>,</code> · data <code>DD.MM.AAAA</code> ou <code>AAAA-MM-DD</code> · vírgula decimal permitida · colunas <em>nota</em> e <em>estimada</em> opcionais · uma linha de cabeçalho é detetada automaticamente.",
+      "formatHint": "Separador <code>;</code> ou <code>,</code> · data <code>DD/MM/AAAA</code>, <code>DD.MM.AAAA</code>, <code>DD-MM-AAAA</code> ou <code>AAAA-MM-DD</code> (dia antes do mês) · vírgula decimal permitida · colunas <em>nota</em> e <em>estimada</em> opcionais · uma linha de cabeçalho é detetada automaticamente.",
       "downloadExample": "Transferir CSV de exemplo",
       "dropZone": "Largue aqui um ficheiro CSV ou clique para selecionar",
       "dropZoneAria": "Selecione um ficheiro CSV ou largue-o aqui",
@@ -907,7 +1107,8 @@
         "one": "{count} leitura importada",
         "other": "{count} leituras importadas"
       },
-      "importing": "A importar…"
+      "importing": "A importar…",
+      "exampleNote": "Início do ano"
     },
     "mergeModal": {
       "title": "Agrupar contadores",
@@ -921,7 +1122,10 @@
       "submit": "Guardar grupo",
       "needTwo": "Selecione pelo menos dois contadores",
       "needName": "Indique um nome de grupo ou escolha um grupo existente",
-      "done": "{count} contadores agrupados em «{name}»"
+      "done": {
+        "one": "{count} contador agrupado em «{name}»",
+        "other": "{count} contadores agrupados em «{name}»"
+      }
     },
     "baseline": {
       "title": "Cortes de referência",
@@ -935,21 +1139,82 @@
       "active": "em vigor",
       "future": "futuro",
       "dateRequired": "Indique uma data para o corte"
+    },
+    "roles": {
+      "strom": {
+        "household": "Casa",
+        "heat_pump": "Bomba de calor (eletricidade de aquecimento)",
+        "ev_charger": "Carregador do carro elétrico"
+      },
+      "wasser": {
+        "cold": "Água fria",
+        "warm": "Água quente",
+        "garden": "Jardim"
+      },
+      "pv_erzeugung": {
+        "generation": "Produção",
+        "battery_charge": "Bateria – carga",
+        "battery_discharge": "Bateria – descarga"
+      },
+      "waerme": {
+        "consumption": "Consumo da habitação",
+        "heat_pump_output": "Calor produzido pela bomba de calor"
+      }
+    },
+    "capture": {
+      "counter": "Leituras",
+      "period": "Consumo por período"
+    },
+    "periodImport": {
+      "intro": "Importar o consumo por período de «{name}» a partir de um ficheiro CSV.",
+      "formatHint": "Uma linha cada: um mês e o consumo ({unit}), ou de; até; consumo; nota. Cabeçalho opcional; os períodos sobrepostos são ignorados.",
+      "previewSummary": {
+        "one": "Pode ser importado {count} período.",
+        "other": "Podem ser importados {count} períodos."
+      },
+      "confirm": {
+        "one": "Importar {count} período",
+        "other": "Importar {count} períodos"
+      },
+      "result": {
+        "one": "{count} período importado · ignorados: {skipped}",
+        "other": "{count} períodos importados · ignorados: {skipped}"
+      }
+    },
+    "pv": {
+      "title": "Instalação FV",
+      "plugIn": "Kit solar de ligar à tomada (varanda, sem contador de injeção)",
+      "plugInHint": "Até 2.000 Wp de módulos e 800 VA de inversor; registo apenas no registo alemão (Marktstammdatenregister). A aplicação estima o autoconsumo com a percentagem das definições.",
+      "investment": "Investimento (IVA incluído)",
+      "commissionedOn": "Em funcionamento desde",
+      "batteryCapacity": "Capacidade de armazenamento (kWh)",
+      "hint": "O investimento e a entrada em funcionamento dão a amortização. A capacidade de armazenamento pertence ao contador com a função «Bateria – carga» e dá os ciclos completos."
+    },
+    "heatPumpLink": {
+      "title": "Contador de eletricidade da bomba de calor",
+      "hint": "Para o fator de desempenho sazonal (calor ÷ eletricidade). São propostos os contadores de eletricidade com a função bomba de calor.",
+      "loading": "A carregar …",
+      "none": "Não há nenhum contador de eletricidade com a função bomba de calor."
     }
   },
   "settings": {
     "placeholder": {
       "dayMonth": "DD-MM (01-01)",
-      "frameAncestors": "http://homeassistant.local:8123"
+      "frameAncestors": "http://homeassistant.local:8123",
+      "ocrEndpoint": "http://192.168.178.20:11434",
+      "ocrModel": "qwen2.5vl",
+      "referenceSource": "p. ex. índice 2025"
     },
     "loading": "A carregar…",
-    "title": "Definições",
     "saved": "Definições guardadas",
     "lang": {
       "title": "🌐 Idioma e país / Language",
-      "hint": "O idioma e o país têm efeito imediato. O país define o formato de números e datas, a moeda e o fuso horário; ao alterá-lo, a aplicação propõe predefinições adequadas.",
-      "label": "Idioma",
-      "saved": "Idioma alterado"
+      "hint": "O idioma aplica-se a este dispositivo; sem escolha própria, segue o idioma predefinido da instalação, que também determina o relatório anual, os ficheiros CSV e o Home Assistant. O país define o formato de números e datas, a moeda e o fuso horário; ao alterá-lo, a aplicação propõe predefinições adequadas.",
+      "saved": "Idioma alterado",
+      "deviceLabel": "Idioma neste dispositivo",
+      "deviceFollow": "Como a instalação ({lang})",
+      "defaultLabel": "Idioma predefinido da instalação",
+      "defaultSaved": "Idioma predefinido alterado"
     },
     "unit": {
       "days": "dias",
@@ -958,7 +1223,9 @@
       "daysBefore": "dias antes",
       "pctRemaining": "% restante",
       "pctYear": "%/ano",
-      "lPerPersonDay": "L/pessoa/dia"
+      "lPerPersonDay": "L/pessoa/dia",
+      "seconds": "segundos",
+      "eurPerTonne": "{cur}/t"
     },
     "group": {
       "physical": { "title": "Constantes físicas", "hint": "Conversão e base de graus-dia — afetam todas as análises." },
@@ -975,6 +1242,30 @@
       "embedding": {
         "title": "Incorporação",
         "hint": "Outros sites não podem incorporar o Energietracker – isto protege contra cliques desviados. Para um cartão de página web num painel do Home Assistant, introduza aqui o respetivo endereço."
+      },
+      "attachments": {
+        "title": "Comprovativos",
+        "hint": "As fotografias de leituras e os ficheiros PDF ficam no diretório de dados e entram na cópia de segurança."
+      },
+      "ocr": {
+        "title": "Reconhecimento de texto na rede doméstica",
+        "hint": "Propõe a leitura a partir de uma fotografia – através de um serviço próprio como Ollama ou LM Studio. Apenas endereços da rede própria; nada vai para um serviço na nuvem. Vazio = desligado."
+      },
+      "tenancy": {
+        "title": "Habitação e água quente",
+        "hint": "Para quem vive em arrendamento, a área Custos recebe a página «Arrendamento». A fonte de energia determina o valor de CO₂ do calor."
+      },
+      "co2price": {
+        "title": "Preço do CO₂",
+        "hint": "O preço do CO₂ no combustível (BEHG). Sem valores próprios aplicam-se os do perfil do país; o cenário mostra na previsão quanto custaria um preço mais alto."
+      },
+      "pv": {
+        "title": "Fotovoltaico",
+        "hint": "Pressupostos para um kit solar sem contador de injeção."
+      },
+      "reference": {
+        "title": "Valores de referência próprios",
+        "hint": "Para a comparação na visão geral. A aplicação não inclui tabelas; introduza os valores que um índice de eletricidade ou aquecimento lhe indica."
       }
     },
     "field": {
@@ -997,11 +1288,11 @@
       "wasser_sparindex_warnung": { "label": "Índice de poupança — aviso a partir de", "hint": "Um índice ≥ a este valor indica potencial de poupança." },
       "min_days_period": { "label": "Dias mín. por período", "hint": "Os meses com menos dias registados (meses parciais) ficam fora da assinatura energética e das anomalias." },
       "min_hdd_regression": { "label": "GD mín. para a regressão", "hint": "Os meses com menos graus-dia ficam fora da assinatura energética — no verão manda a carga de base, não o tempo." },
-      "blend_max": { "label": "Peso de mistura máx.", "hint": "Peso máximo do modelo meteorológico na previsão; o resto vem do perfil sazonal. 0,8 significa pelo menos 20 % de perfil sazonal." },
+      "blend_max": { "label": "Peso de mistura máx.", "hint": "Peso máximo do modelo meteorológico na previsão; o resto vem do perfil sazonal. 0,8 significa pelo menos 20% de perfil sazonal." },
       "forecast_months": { "label": "Horizonte de previsão", "hint": "Quantos meses a previsão calcula (1–24). Valor predefinido da vista Previsão." },
       "forecast_model": { "label": "Modelo predefinido", "hint": "Modelo para a previsão e a comparação de tarifas. O linear serve para a maioria das casas; a análise mostra qual explica melhor os seus dados." },
       "segmented_split_mode": { "label": "Ponto de rutura do segmento", "hint": "auto = ajustado aos dados, fixed = valor GD fixo abaixo." },
-      "segmented_fixed_split": { "label": "Ponto de rutura fixo", "hint": "Apenas efetivo no modo « fixed »." },
+      "segmented_fixed_split": { "label": "Ponto de rutura fixo", "hint": "Apenas efetivo no modo «fixed»." },
       "anomaly_threshold": { "label": "Limiar de anomalia", "hint": "A partir de que desvio (em unidades de dispersão σ) um mês é atípico na análise. Mais pequeno = mais sensível." },
       "dashboard_months": { "label": "Meses no painel", "hint": "Quantos meses a evolução mostra na vista geral (3–36)." },
       "alert_days_since_reading": { "label": "Avisar após", "hint": "Se a última leitura for mais antiga, o contador aparece em «A fazer» e a vista de consumo lembra-o." },
@@ -1011,8 +1302,8 @@
       "pellets_kwh_per_kg": { "label": "Conteúdo energético dos pellets", "hint": "Energia por kg de pellets (normalmente 4,8 kWh/kg). Converte kg em kWh." },
       "delivery_baseload_share": { "label": "Repartição da carga de base", "hint": "Percentagem do consumo como carga de base independente do clima (o resto ponderado por GD)." },
       "tank_warn_pct": { "label": "Aviso de depósito a partir de", "hint": "Abaixo deste nível o depósito fica amarelo, abaixo de metade vermelho, e «A fazer» sugere uma entrega." },
-      "reminder_warn_days_before": { "label": "Lembrete « a vencer » a partir de", "hint": "A partir destes dias antes da data, um lembrete conta como «vence em breve»." },
-      "reminder_overdue_days": { "label": "Tolerância até « vencido »", "hint": "Durante estes dias após a data, um lembrete continua pendente; depois, em atraso. 0 = a partir do dia seguinte." },
+      "reminder_warn_days_before": { "label": "Lembrete «a vencer» a partir de", "hint": "A partir destes dias antes da data, um lembrete conta como «vence em breve»." },
+      "reminder_overdue_days": { "label": "Tolerância até «vencido»", "hint": "Durante estes dias após a data, um lembrete continua pendente; depois, em atraso. 0 = a partir do dia seguinte." },
       "recommendation_anomaly_sigma": { "label": "Limiar de anomalia das recomendações", "hint": "O mesmo tipo de limiar para as recomendações: só a partir deste desvio surge um aviso." },
       "recommendation_trend_pct_year": { "label": "Limiar de tendência das recomendações", "hint": "A partir de que aumento anual as recomendações assinalam um consumo crescente." },
       "billing_cycle_anchor_fernwaerme": { "label": "Data de acerto aquecimento urbano" },
@@ -1022,7 +1313,7 @@
       "weather_auto_fill": { "label": "Preencher o clima automaticamente", "hint": "Obtém temperaturas da Open-Meteo no máximo uma vez por dia ao abrir a aplicação (localização arredondada a cerca de 1 km)." },
       "gas_conversion_factors": {
         "label": "Fatores de conversão do gás",
-        "hint": "Uma entrada por período de poder calorífico, tal como a fatura do gás os indica: válido a partir de, coeficiente de correção e poder calorífico — o fator kWh/m³ é calculado a partir deles. Sem discriminação, introduza o fator diretamente. A entrada sem data aplica-se a tudo antes da primeira data de vigência. O cálculo do consumo divide cada intervalo de leitura dia a dia nas datas de vigência."
+        "hint": "Uma entrada por período de poder calorífico, tal como a fatura do gás os indica: válido a partir de, coeficiente de correção e poder calorífico — o fator kWh/m³ é calculado a partir deles. Sem discriminação, introduza o fator diretamente. A entrada sem data aplica-se a tudo antes da primeira data de efeito. O cálculo do consumo divide cada intervalo de leitura dia a dia nas datas de efeito."
       },
       "frame_ancestors": {
         "label": "Endereços autorizados para incorporação",
@@ -1045,7 +1336,79 @@
       },
       "confidence_band_sigma": {
         "label": "Largura da banda de previsão",
-        "hint": "Em unidades de dispersão σ: 1,28 significa que o consumo fica dentro da banda em 80 % dos anos; 1,64 seria 90 %."
+        "hint": "Em unidades de dispersão σ: 1,28 significa que o consumo fica dentro da banda em 80% dos anos; 1,64 seria 90%."
+      },
+      "attachments_max_mb": {
+        "label": "Espaço para comprovativos, no máximo",
+        "hint": "Aplica-se a todos os comprovativos em conjunto. A partir de 80% o cartão da cópia de segurança mostra um aviso."
+      },
+      "ocr_endpoint": {
+        "label": "Endereço do serviço",
+        "hint": "Por exemplo http://192.168.178.20:11434 (Ollama) ou http://192.168.178.20:1234/v1 (LM Studio)."
+      },
+      "ocr_api": {
+        "label": "Interface",
+        "hint": "O Ollama usa /api/chat; o LM Studio e outros servidores compatíveis com OpenAI, /v1/chat/completions."
+      },
+      "ocr_model": {
+        "label": "Modelo",
+        "hint": "Um modelo de visão, por exemplo qwen2.5vl ou llama3.2-vision."
+      },
+      "ocr_timeout_s": {
+        "label": "Tempo máximo",
+        "hint": "Num NAS sem placa gráfica, os modelos de visão demoram frequentemente 20 a 60 segundos."
+      },
+      "wohnverhaeltnis": {
+        "label": "Situação",
+        "hint": "Em arrendamento: adiantamento, estimativa e acertos de encargos em Custos → Arrendamento."
+      },
+      "waerme_energietraeger": {
+        "label": "O calor provém de",
+        "hint": "Para o valor de CO₂ do serviço Calor – uma aproximação, pois conta-se o calor, não o combustível."
+      },
+      "warmwasser_energietraeger": {
+        "label": "A água quente é aquecida com",
+        "hint": "Apenas informativo: o calor dos contadores de água quente como parte deste serviço."
+      },
+      "warmwasser_temp_c": {
+        "label": "Temperatura da água quente",
+        "hint": "Para o calor dos contadores de água quente segundo a HeizkostenV § 9: 2,5 kWh por m³ e grau acima de 10 °C. Desconhecida: 60 °C."
+      },
+      "co2_price_eur_t_years": {
+        "label": "Preço do CO₂ por ano",
+        "hint": "Os valores próprios substituem o perfil do país (Alemanha: 2021–2025 preços fixos, 2026 60 euros por tonelada)."
+      },
+      "co2_price_scenario_eur_t": {
+        "label": "Cenário: preço do CO₂",
+        "hint": "Valor predefinido da previsão; vazio = desligado."
+      },
+      "co2_price_scenario_from": {
+        "label": "Cenário a partir do ano",
+        "hint": "A partir de 2028 o comércio europeu de emissões (ETS2) substitui os preços fixos."
+      },
+      "pv_assumed_self_consumption_pct": {
+        "label": "Autoconsumo assumido",
+        "hint": "Parte da produção usada pela casa — vazio = sem pressuposto; a aplicação não mostra a quota."
+      },
+      "co2_pv_avoided": {
+        "label": "CO₂ evitado pelo FV",
+        "hint": "Fator de emissões evitadas próprio, p. ex. do balanço de emissões das renováveis da Agência Federal do Ambiente alemã — vazio = mix elétrico como em «CO₂ eletricidade»."
+      },
+      "reference_strom_kwh": {
+        "label": "Referência eletricidade doméstica",
+        "hint": "kWh por ano, sem bomba de calor nem carregador — vazio = sem comparação."
+      },
+      "reference_heat_kwh_m2": {
+        "label": "Referência aquecimento",
+        "hint": "kWh por m² de área e por ano — vazio = sem comparação. Os índices de aquecimento consideram o edifício inteiro; para uma habitação é só uma referência."
+      },
+      "reference_source": {
+        "label": "Fonte",
+        "hint": "Aparece por baixo da comparação, p. ex. título e ano."
+      },
+      "warmwasser_elektrisch": {
+        "label": "Água quente elétrica",
+        "hint": "Esquentador elétrico ou termoacumulador elétrico — os índices de eletricidade distinguem por isso."
       }
     },
     "boolActive": "ativado",
@@ -1062,7 +1425,7 @@
     },
     "export": {
       "title": "📤 Exportação de dados (CSV)",
-      "hint": "Exportação em tabela para Excel, LibreOffice ou Google Sheets — separado por ponto e vírgula, UTF-8 com BOM, vírgula decimal. Complementa a cópia de segurança JSON completa abaixo.",
+      "hint": "Exportação em tabela para Excel, LibreOffice ou Google Sheets (UTF-8 com BOM). Complementa a cópia de segurança JSON completa mais abaixo.",
       "monthly": "Visão geral mensal",
       "monthlyHint": "Consumo, custo, adiantamento e saldo por mês.",
       "readings": "Leituras / entregas",
@@ -1071,7 +1434,11 @@
       "temperatures": "Série de temperaturas",
       "temperaturesHint": "Valores diários mín / médios / máx de toda a série.",
       "exportTemperatures": "Exportar temperaturas",
-      "noActive": "Nenhum serviço ativo."
+      "noActive": "Nenhum serviço ativo.",
+      "formatLabel": "Formato dos ficheiros",
+      "formatLocal": "Tabela no idioma predefinido ({lang}) — recomendado",
+      "formatV1": "Formato CSV 1 — estável, para scripts",
+      "formatHint": "A tabela usa os nomes de coluna, o separador decimal e a data do idioma predefinido e abre assim diretamente no Excel ou LibreOffice. O formato 1 mantém-se como desde a versão 1.1: ponto e vírgula, vírgula decimal, data AAAA-MM-DD. Ambos podem ser importados de novo."
     },
     "backup": {
       "title": "💾 Cópia de segurança e restauro",
@@ -1080,7 +1447,7 @@
       "snapshot": "Guardar instantâneo",
       "import": "Importar cópia de segurança…",
       "demo": "Carregar dados de demonstração",
-      "demoHint": "« Carregar dados de demonstração » importa um conjunto de dados de exemplo completo — ideal para experimentar um Energietracker vazio. Se já existirem dados, é avisado e é criado um instantâneo automaticamente.",
+      "demoHint": "«Carregar dados de demonstração» importa um conjunto de dados de exemplo completo — ideal para experimentar um Energietracker vazio. Se já existirem dados, é avisado e é criado um instantâneo automaticamente.",
       "snapshotToast": "Instantâneo: {file}",
       "demoUnavailable": "Os dados de demonstração não estão disponíveis nesta instalação.",
       "demoConfirmTitle": "Carregar os dados de demonstração?",
@@ -1088,7 +1455,6 @@
       "demoConfirmBtn": "Carregar dados de demonstração",
       "demoLoadedSnap": "Dados de demonstração carregados. Instantâneo de segurança: {snap}",
       "demoLoaded": "Dados de demonstração carregados.",
-      "importConfirmTitle": "Importar a cópia de segurança?",
       "importConfirmMsg": "Os dados atuais serão substituídos. Antes, a aplicação cria automaticamente um instantâneo de segurança – pode restaurá-lo em «Instantâneos guardados».",
       "importConfirmBtn": "Importar",
       "importedSnap": "Cópia de segurança importada. Instantâneo de segurança: {snap}",
@@ -1148,7 +1514,12 @@
         "counter": "a leitura não é um número",
         "devices": "lista de dispositivos inválida",
         "entry": "entrada inválida {what}"
-      }
+      },
+      "attachments": {
+        "one": "Comprovativos: {count} ficheiro, {size} MB de {max} MB – incluídos na cópia de segurança.",
+        "other": "Comprovativos: {count} ficheiros, {size} MB de {max} MB – incluídos na cópia de segurança."
+      },
+      "attachmentsFull": "O espaço para comprovativos está quase cheio."
     },
     "ha": {
       "title": "🏠 Integração com o Home Assistant",
@@ -1190,7 +1561,12 @@
         "secretComment": "valor completo do secrets.yaml, incluindo «Bearer»",
         "floatComment": "float sem valor por omissão: se o sensor estiver indisponível, o envio falha em vez de registar 0.",
         "automationAlias": "Energietracker: enviar leituras",
-        "hasValueComment": "Enviar apenas se o sensor tiver um valor – logo após um reinício fica brevemente «unavailable»."
+        "hasValueComment": "Enviar apenas se o sensor tiver um valor – logo após um reinício fica brevemente «unavailable».",
+        "scanComment": "uma vez por hora chega",
+        "readKeyComment": "só se o início de sessão estiver ativo",
+        "sensorBalance": "Saldo",
+        "sensorForecast": "Previsão 12 meses",
+        "sensorDaysSince": "Dias desde a leitura"
       },
       "lastUsed": "Última utilização: {when}",
       "neverUsed": "Ainda não chegou nada com este token.",
@@ -1199,7 +1575,12 @@
         "one": "{count} alias guardado",
         "other": "{count} alias guardados"
       },
-      "guide": "Guia"
+      "guide": "Guia",
+      "sensors": {
+        "title": "Passo 5 · Os valores no Home Assistant",
+        "intro": "Sensores REST para saldo, previsão a 12 meses e dias desde a última leitura — em configuration.yaml. Um pedido por hora para todos os sensores.",
+        "keyHint": "Com o início de sessão ativo, o Home Assistant precisa para ler de uma chave de API com âmbito «leitura» (Definições → Acesso), em secrets.yaml:"
+      }
     },
     "diag": {
       "title": "🩺 Diagnóstico do sistema",
@@ -1219,10 +1600,13 @@
       "colContracts": "Contratos",
       "colLastReading": "Última leitura",
       "tempSeries": "Série de temperaturas",
-      "tempStored": "<strong>{count}</strong> valores diários guardados.",
       "knownKeys": "Chaves de definições conhecidas",
       "yes": "sim",
-      "no": "não"
+      "no": "não",
+      "tempStored": {
+        "one": "<strong>{count}</strong> valor diário guardado.",
+        "other": "<strong>{count}</strong> valores diários guardados."
+      }
     },
     "migrationDialog": {
       "title": "Migração a partir de v0.9.0",
@@ -1231,7 +1615,6 @@
       "readings": "Leituras",
       "contracts": "Contratos",
       "tempSettings": "{temps} dias de temperatura · {settings} chaves de definições",
-      "candidates": "{count} possíveis substituições de contador detetadas",
       "candidatesHint": "— modelá-las como substituição de dispositivo após a importação?",
       "colUtility": "Serviço",
       "colDate": "Data",
@@ -1245,11 +1628,15 @@
       "mergeDesc": "— apenas leituras/contratos com um ID novo são adicionados. Os dados existentes são mantidos. Os dias de temperatura só são adicionados se a data ainda não existir.",
       "import": "Importar",
       "done": "Migração OK · {total} leituras gravadas · instantâneo {snapshot}",
-      "failed": "Importação falhou: {msg}"
+      "failed": "Importação falhou: {msg}",
+      "candidates": {
+        "one": "{count} possível substituição de contador detetada",
+        "other": "{count} possíveis substituições de contador detetadas"
+      }
     },
     "gasFactors": {
       "none": "Ainda sem entradas — aplica-se o fator predefinido.",
-      "undated": "antes da primeira data de vigência",
+      "undated": "antes da primeira data de efeito",
       "remove": "Remover",
       "colFrom": "Válido a partir de",
       "colZ": "Coeficiente de correção",
@@ -1271,7 +1658,7 @@
         "IT": "Faturas de gás italianas: o «coefficiente C» como coeficiente de correção e o PCS (poder calorífico superior), normalmente em GJ/Smc. O formulário do contrato converte preços por Smc em {minor}/kWh.",
         "NL": "Faturas de gás neerlandesas: indique o poder calorífico (calorische waarde) em MJ/m³. O formulário do contrato converte preços por m³ em {minor}/kWh."
       },
-      "defaultHint": "Fator predefinido 11,5 kWh/m³ ativo. O valor da sua rede consta da fatura do gás (coeficiente × poder calorífico), tipicamente entre 10,3 e 11,1. Com o predefinido, kWh, custos e CO₂ ficam até 20 % demasiado altos."
+      "defaultHint": "Fator predefinido 11,5 kWh/m³ ativo. O valor da sua rede consta da fatura do gás (coeficiente × poder calorífico), tipicamente entre 10,3 e 11,1. Com o predefinido, kWh, custos e CO₂ ficam até 20% demasiado altos."
     },
     "invalidFields": "Não guardado: corrija os campos assinalados a vermelho.",
     "dayMonthInvalid": "Introduza dia-mês, p. ex. 01-10 para 1 de outubro.",
@@ -1315,7 +1702,8 @@
       "keyRevoke": "Revogar",
       "keyRevokeTitle": "Revogar a chave?",
       "keyRevokeMsg": "Os programas que usam a chave «{name}» perdem o acesso.",
-      "keyRevoked": "Chave revogada."
+      "keyRevoked": "Chave revogada.",
+      "scopeCalendar": "só subscrição de calendário"
     },
     "region": {
       "country": "País",
@@ -1340,7 +1728,9 @@
     "co2Years": {
       "none": "Sem valores anuais: para todos os anos vale «CO₂ eletricidade».",
       "colYear": "Ano",
-      "invalid": "Introduza um ano (1990–2100) e um valor entre 0 e 2000 g/kWh."
+      "invalid": "Introduza um ano (1990–2100) e um valor entre 0 e 2000 g/kWh.",
+      "nonePrice": "Sem valores anuais próprios: valem os valores do perfil do país.",
+      "invalidPrice": "Introduza um ano (1990–2100) e um preço entre 0 e 1000 {unit}."
     },
     "defaultUpdates": {
       "title": "Há valores predefinidos mais recentes",
@@ -1414,11 +1804,28 @@
     "splitModes": {
       "auto": "automaticamente a partir dos dados",
       "fixed": "valor fixo"
+    },
+    "ocrApis": {
+      "ollama": "Ollama",
+      "openai": "Compatível com OpenAI (LM Studio, LocalAI)"
+    },
+    "tenure": {
+      "eigentum": "em habitação própria",
+      "miete": "em arrendamento"
+    },
+    "heatSource": {
+      "none": "não indicado",
+      "gas": "Gás",
+      "heizoel": "Gasóleo de aquecimento",
+      "pellets": "Pellets de madeira",
+      "fernwaerme": "Aquecimento urbano",
+      "strom": "Eletricidade (bomba de calor, esquentador elétrico)",
+      "waerme": "Calor (central)"
     }
   },
   "reminders": {
     "suggest": {
-      "deliveryTitle": "Planear a próxima entrega de {label}",
+      "deliveryTitle": "{label}: planear a próxima entrega",
       "deliveryNote": "Sugerido automaticamente a partir das entregas anteriores."
     },
     "loading": "A carregar os lembretes…",
@@ -1442,7 +1849,17 @@
       "waermezaehler_eichung": "Calibração do contador de calor"
     },
     "recurrence": { "none": "Única", "yearly": "Anual", "semi-yearly": "Semestral", "custom-months": "A cada N meses" },
-    "due": { "today": "hoje", "inDays": "em {days} d", "agoDays": "há {days} d" },
+    "due": {
+      "today": "hoje",
+      "inDays": {
+        "one": "em {days} dia",
+        "other": "em {days} dias"
+      },
+      "agoDays": {
+        "one": "há {days} dia",
+        "other": "há {days} dias"
+      }
+    },
     "action": { "done": "Concluído", "edit": "Editar", "delete": "Eliminar", "doneNamed": "Concluído: {title}", "editNamed": "Editar: {title}", "deleteNamed": "Eliminar: {title}" },
     "toast": { "deleted": "Eliminado", "saved": "Guardado", "error": "Erro: {msg}", "doneNext": "«{title}» concluído · próximo prazo {date}", "doneOnce": "«{title}» concluído", "undone": "«{title}» voltou a estar pendente" },
     "deleteConfirm": { "title": "Eliminar lembrete", "confirm": "Eliminar", "messageNamed": "Eliminar mesmo «{title}»? Não é possível anular." },
@@ -1471,7 +1888,7 @@
     "title": "Dados meteorológicos",
     "sync": "Sincronizar Open-Meteo",
     "csvImport": "Importar CSV",
-    "formatHint": "Formato: <code>DD.MM.AAAA;média;mín;máx</code> (p. ex. <code>15.01.2024;4,2;-1,0;7,1</code>), valores em °C. Ponto e vírgula, tabulação ou vírgula como separador; o formato antigo com aspas continua a funcionar.",
+    "formatHint": "Formato: <code>DD.MM.AAAA;média;mín;máx</code> (p. ex. <code>15.01.2024;4,2;-1,0;7,1</code>), valores em °C. Ponto e vírgula, tabulação ou vírgula como separador; o formato antigo com aspas continua a funcionar. Data também como <code>DD/MM/AAAA</code>, <code>DD-MM-AAAA</code> ou <code>AAAA-MM-DD</code>; é detetada uma linha de cabeçalho.",
     "downloadExample": "Transferir CSV de exemplo",
     "dropZone": "Largue aqui um ficheiro ou clique para selecionar",
     "dropZoneAria": "Selecione um ficheiro CSV ou largue-o aqui",
@@ -1482,11 +1899,8 @@
     "locName": "Nome do local",
     "locHint": "Usada na sincronização com a Open-Meteo e enviada arredondada a cerca de 1 km.",
     "monthly": "Valores mensais (mín / média / máx)",
-    "daysLoaded": "{count} dias carregados",
-    "syncToast": "Sincronização OK · {imported} dias (arquivo: {archive}, previsão: {forecast})",
     "archiveError": "Arquivo: {err}",
     "forecastError": "Previsão: {err}",
-    "importToast": "Importação: {imported} dias importados, {skipped} ignorados",
     "coordInvalid": "Introduza um número entre {min} e {max}.",
     "locationDefault": "A localização ainda é a predefinida para {country} ({name}). Indique a sua localização para obter graus-dia precisos.",
     "status": "Valores medidos até {measured}.",
@@ -1500,7 +1914,24 @@
     "geoSearch": "Procurar",
     "geoNone": "Nenhuma localidade encontrada.",
     "locationSaved": "Localização guardada",
-    "attribution": "Dados meteorológicos de"
+    "attribution": "Dados meteorológicos de",
+    "daysLoaded": {
+      "one": "{count} dia carregado",
+      "other": "{count} dias carregados"
+    },
+    "syncToast": {
+      "one": "Sincronização OK · {imported} dia (arquivo: {archive}, previsão: {forecast})",
+      "other": "Sincronização OK · {imported} dias (arquivo: {archive}, previsão: {forecast})"
+    },
+    "importToast": "Importação: {imported}, {skipped}",
+    "importDays": {
+      "one": "{count} dia importado",
+      "other": "{count} dias importados"
+    },
+    "importSkipped": {
+      "one": "{count} ignorado",
+      "other": "{count} ignorados"
+    }
   },
   "recommendations": {
     "loading": "A carregar as recomendações…",
@@ -1512,45 +1943,62 @@
     "sev": { "urgent": "Urgente", "warning": "Atenção", "info": "Nota" },
     "cat": { "effizienz": "Eficiência", "vertrag": "Contrato", "bestand": "Existências", "anomalie": "Anomalia", "trend": "Tendência" },
     "emptyAll": "Sem recomendações — tudo em ordem.",
-    "emptyFiltered": "Sem recomendações {sev} — tudo em ordem.",
     "dismiss": "Ocultar durante 30 dias",
     "error": "Erro: {msg}",
     "engine": {
       "r1": {
-        "title": "{label} {ym}: {pct} % acima do esperado",
-        "detail": "Em {ym} o consumo ficou {pct} % acima do esperado para esse tempo. Pode valer a pena verificar aparelhos ou o aquecimento."
+        "title": "{label} {ym}: {pct}% acima do esperado",
+        "detail": "Em {ym} o consumo ficou {pct}% acima do esperado para esse tempo. Pode valer a pena verificar aparelhos ou o aquecimento."
       },
       "r2": {
-        "title": "{label}: {pct} % mais do que no ano anterior",
-        "detail": "Os últimos doze meses ficaram, corrigidos pelo clima, {pct} % acima dos mesmos meses do ano anterior. Verifique se os aparelhos estão a envelhecer ou se os hábitos mudaram."
+        "title": "{label}: {pct}% mais do que no ano anterior",
+        "detail": "Os últimos doze meses ficaram, corrigidos pelo clima, {pct}% acima dos mesmos meses do ano anterior. Verifique se os aparelhos estão a envelhecer ou se os hábitos mudaram."
       },
       "r3": {
         "title": "{label} {year}: consumo de verão elevado",
-        "detail": "Em julho de {year} o consumo foi {pct} % do valor de janeiro. Para o aquecimento de espaços puro deveria ser muito mais baixo — provavelmente uma produção de água quente ineficiente."
+        "detail": "Em julho de {year} o consumo foi {pct}% do valor de janeiro. Para o aquecimento de espaços puro deveria ser muito mais baixo — provavelmente uma produção de água quente ineficiente."
       },
       "r4": {
         "title": "{label} {ym}: anomalia estatística",
         "detail": "O consumo em {ym} está bem acima do habitual para este mês ({sigma}σ). Merece uma verificação."
       },
       "r5": {
-        "title": "{label}: depósito a {pct} %",
-        "detail": "As existências modeladas de « {name} » são de cerca de {stock} {unit} ({pct} % da capacidade). Convém planear uma entrega."
+        "title": "{label}: depósito a {pct}%",
+        "detail": "As existências modeladas de «{name}» são de cerca de {stock} {unit} ({pct}% da capacidade). Convém planear uma entrega."
       },
       "r6": {
-        "title": "{label}: o contrato termina em {days} dias",
-        "detail": "O contrato « {provider} » termina em {days} dias. Inicie agora uma comparação de tarifas e mude se necessário.",
-        "titleCancel": "{label}: denunciar até {date} ({days} dias)",
-        "detailCancel": "Para que o contrato « {provider} » termine a {end} em vez de continuar, a denúncia tem de chegar ao fornecedor até {date}. Inicie agora uma comparação de tarifas e mude se necessário."
+        "detailCancel": "Para que o contrato «{provider}» termine a {end} em vez de continuar, a denúncia tem de chegar ao fornecedor até {date}. Inicie agora uma comparação de tarifas e mude se necessário.",
+        "title": {
+          "one": "{label}: o contrato termina em {days} dia",
+          "other": "{label}: o contrato termina em {days} dias"
+        },
+        "titleCancel": {
+          "one": "{label}: denunciar até {date} ({days} dia)",
+          "other": "{label}: denunciar até {date} ({days} dias)"
+        },
+        "detail": {
+          "one": "O contrato «{provider}» termina em {days} dia. Inicie agora uma comparação de tarifas e mude se necessário.",
+          "other": "O contrato «{provider}» termina em {days} dias. Inicie agora uma comparação de tarifas e mude se necessário."
+        }
       },
       "r7": {
         "title": "{label}: classe de eficiência {class} ({kwh} kWh/m²·a)",
-        "detail": "A necessidade de energia de aquecimento {year} para {label} corresponde à classe de eficiência {class} ({kwh} kWh/m²·a). Isolamento, otimização do aquecimento ou um equilíbrio hidráulico podem melhorar a classe de forma notável."
+        "detail": "{label}: a necessidade de energia de aquecimento {year} corresponde à classe de eficiência {class} ({kwh} kWh/m²·a). Isolamento, otimização do aquecimento ou um equilíbrio hidráulico podem melhorar a classe de forma notável."
+      },
+      "rPriceIncrease": {
+        "title": "{label}: aumento de preço a partir de {date}",
+        "detail": "{provider} aumenta os preços a partir de {date}. Existe por isso um direito de rescisão extraordinário nessa data (§ 41 n.º 5 EnWG). Compare já e rescinda a tempo se outra tarifa for mais barata."
       }
     },
     "dismissedNamed": "«{title}» oculto durante 30 dias",
     "restored": "Recomendação novamente visível",
     "dismissNamed": "Ocultar durante 30 dias: {title}",
-    "emptyNoData": "Ainda não há dados suficientes para recomendações — surgem quando houver alguns meses de consumo."
+    "emptyNoData": "Ainda não há dados suficientes para recomendações — surgem quando houver alguns meses de consumo.",
+    "emptyFiltered": {
+      "urgent": "Sem recomendações urgentes — tudo em ordem.",
+      "warning": "Sem avisos — tudo em ordem.",
+      "info": "Sem notas — tudo em ordem."
+    }
   },
   "tariff": {
     "loading": "A carregar…",
@@ -1565,21 +2013,15 @@
     "loadingComparison": "A carregar a comparação…",
     "noMeter": "Não há contador disponível.",
     "notSupported": "Não suportado.",
-    "noContracts": "Não há contratos para comparar.",
     "shadowBadge": "Hipotético",
     "shadowFallbackLabel": "Hipótese",
-    "months": "{count} mes.",
-    "monthsOne": "1 mês",
-    "partialHint": "Os contratos reais que cobrem apenas parte do período estão marcados com a sua duração; o consumo e o custo referem-se exactamente a esses dias. Os contratos-sombra valem como tabela de preços para todo o período, para que ofertas com prazos diferentes sejam comparáveis.",
+    "partialHint": "Os contratos reais que cobrem apenas parte do período estão marcados com a sua duração; o consumo e o custo referem-se exatamente a esses dias. Os contratos-sombra valem como tabela de preços para todo o período, para que ofertas com prazos diferentes sejam comparáveis.",
     "projectedFull": "extrapolado para {months} mes.: {value}",
-    "realTotal": "Realmente facturado no período: {value}",
-    "noRows": "Nenhum contrato com preço unitário no período seleccionado.",
-    "chartTitle": "Comparação de preço por unidade",
-    "chartAlt": "Gráfico de barras do custo total por unidade ({unit}) de cada tarifa",
+    "realTotal": "Realmente faturado no período: {value}",
     "unitCostTitle": "Custo total por unidade — preço unitário, termo fixo e bónus em conjunto. O único valor que compara com justiça durações diferentes.",
-    "legend": "Negativo (verde) = mais barato do que o contrato realmente facturado nos mesmos meses. Comparam-se apenas custos de tarifa; adiantamentos e acertos são fluxos de caixa e ficam de fora.",
+    "legend": "Negativo (verde) = mais barato do que o contrato realmente faturado nos mesmos meses. Comparam-se apenas custos de tarifa; adiantamentos e pagamentos extraordinários são fluxos de caixa e ficam de fora.",
     "action": { "edit": "Editar", "delete": "Eliminar", "editNamed": "Editar: {name}", "deleteNamed": "Remover: {name}" },
-    "col": { "tariff": "Tarifa", "period": "Período", "consumption": "Consumo", "cost": "Custo", "unitCost": "{minor}/{unit}", "vsReal": "vs. real", "savings": "Diferença" },
+    "col": { "tariff": "Tarifa", "period": "Período", "consumption": "Consumo", "cost": "Custo", "unitCost": "{minor}/{unit}", "savings": "Diferença" },
     "period": "Período: {label}",
     "periodRange": "Período: {label} ({from} – {to})",
     "shadow": {
@@ -1592,10 +2034,10 @@
       "start": "Válido a partir de",
       "workingPrice": "Preço unitário ({minor}/{unit})",
       "workingPlaceholder": "p. ex. 8,50",
-      "basePrice": "Tarifa fixa ({cur}/mês)",
+      "basePrice": "Termo fixo ({cur}/mês)",
       "basePlaceholder": "p. ex. 12,00",
       "create": "Criar",
-      "validation": "A etiqueta, a data e o preço da energia são obrigatórios",
+      "validation": "A etiqueta, a data e o preço unitário são obrigatórios",
       "created": "Contrato hipotético criado",
       "error": "Erro: {msg}",
       "titleEdit": "Editar oferta",
@@ -1623,7 +2065,6 @@
       "copy": "Copiar valor",
       "copied": "{value} {unit} copiado",
       "copyFail": "Não foi possível copiar",
-      "basis": "Com base em {months} meses de histórico de consumo",
       "switchDate": "Mudança possível a partir de",
       "source": {
         "contract": "do contrato",
@@ -1634,10 +2075,8 @@
       "currentContract": "Atual: {label}",
       "runsUntil": "vigora até {date}",
       "cancelBy": "Rescindir até {date}",
-      "cancelIn": "faltam {days} dias",
       "cancelPassed": "Prazo ultrapassado",
       "noNotice": "Indique o pré-aviso no contrato e a data será calculada.",
-      "window": "Período de comparação {from} a {to} ({months} meses)",
       "current": "Atual",
       "reference": "Referência",
       "col": {
@@ -1649,26 +2088,78 @@
       },
       "year1Title": "Custo do primeiro ano, com o bónus de adesão já descontado",
       "year2Title": "Custo anual permanente sem bónus pontuais",
-      "breakEvenDelta": "{pct} % do consumo previsto",
+      "breakEvenDelta": "{pct}% do consumo previsto",
       "breakEvenNone": "Sem ponto de cruzamento — a tarifa é mais barata ou mais cara com qualquer consumo",
       "bonusIncluded": "incl. {value} de bónus",
       "guaranteeEnds": "A garantia de preço termina a {date}",
-      "sensitivity": "{low} … {high} com ±10 % de consumo",
+      "sensitivity": "{low} … {high} com ±10% de consumo",
       "rankingHint": "Ordenado pelo custo permanente a partir do segundo ano — um bónus de adesão desaparece ao fim de doze meses.",
       "chartTitle": "Evolução do custo no período de comparação",
       "chartAlt": "Custo mensal por tarifa ao longo do período de comparação",
       "noOffers": "Ainda não há nenhuma oferta guardada. Procure com {value} {unit} num comparador e introduza aqui o resultado.",
       "addOffer": "Introduzir oferta",
-      "contractChain": "{first} + {count} contratos seguidos",
-      "followUp": "Contrato seguinte já celebrado: {label} ({from} – {to})"
+      "followUp": "Contrato seguinte já celebrado: {label} ({from} – {to})",
+      "cancelIn": {
+        "one": "falta {days} dia",
+        "other": "faltam {days} dias"
+      },
+      "basis": {
+        "one": "Com base em {months} mês de histórico de consumo",
+        "other": "Com base em {months} meses de histórico de consumo"
+      },
+      "window": {
+        "one": "Período de comparação {from} a {to} ({months} mês)",
+        "other": "Período de comparação {from} a {to} ({months} meses)"
+      },
+      "contractChain": {
+        "one": "{first} + {count} contrato seguido",
+        "other": "{first} + {count} contratos seguidos"
+      },
+      "portal": "Comparador oficial de ofertas ({country}) ↗"
     },
     "retro": {
       "heading": "Retrospetiva de meses reais",
       "intro": "As mesmas tarifas aplicadas ao consumo realmente medido — a prova de que as contas batem certo."
+    },
+    "months": {
+      "one": "{count} mês",
+      "other": "{count} mes."
+    },
+    "switchChecklist": {
+      "title": "Ter à mão para a mudança",
+      "malo": "ID do ponto de entrega",
+      "serial": "Número do contador",
+      "lastReading": "Última leitura ({date})",
+      "hint": "O novo fornecedor pedirá estes dados.",
+      "copy": "Copiar dados",
+      "copied": "Dados copiados"
+    },
+    "groupOption": "Grupo: {name}",
+    "dynamic": {
+      "toggle": "Tarifa dinâmica (preço grossista por mês)",
+      "markup": "Acréscimo por kWh",
+      "markupHint": "Tudo exceto o preço grossista: tarifa de rede, encargos, impostos, margem — consta da tabela de preços do fornecedor.",
+      "vat": "IVA sobre o preço grossista (%)",
+      "flatNote": "Preço grossista como média mensal — como se o consumo se distribuísse de forma uniforme ao longo do dia; o consumo ao fim do dia costuma custar mais.",
+      "assumedMonths": {
+        "one": "{count} mês sem valor de mercado: assumido o mesmo mês do ano anterior.",
+        "other": "{count} meses sem valor de mercado: assumidos os mesmos meses do ano anterior."
+      },
+      "missingMarket": "Faltam preços grossistas para a tarifa dinâmica — carregue-os abaixo em «Preços grossistas de eletricidade»."
+    },
+    "market": {
+      "title": "Preços grossistas de eletricidade",
+      "range": "Médias mensais disponíveis: de {from} a {to}",
+      "empty": "Ainda não há preços grossistas carregados.",
+      "hint": "Base da verificação de tarifa dinâmica: adicione uma oferta como tarifa dinâmica e a aplicação calcula com o preço grossista de cada mês. Só se carregam ao premir o botão.",
+      "sync": "Carregar do SMARD",
+      "import": "Importar ficheiro",
+      "loaded": "Preços grossistas de {from} a {to} carregados",
+      "attribution": "Preços grossistas Alemanha/Luxemburgo: Bundesnetzagentur | SMARD.de (CC BY 4.0)"
     }
   },
   "analysis": {
-    "noUtilities": "Nenhum tipo de consumo activo. Nas definições pode escolher quais aparecem.",
+    "noUtilities": "Nenhum serviço ativo. Nas definições pode escolher quais aparecem.",
     "loading": "A carregar…",
     "title": "Análise",
     "noMeters": "Sem contadores.",
@@ -1693,17 +2184,24 @@
     "scatterPoints": "Meses",
     "seasonalAvg": "{label} média",
     "contractEnd": {
-      "stage1": "Aviso antecipado",
-      "stage2": "Lembrete",
-      "stage3": "Urgente",
-      "title": "Fim do contrato {stage}:",
       "endsToday": "hoje",
       "endsTomorrow": "amanhã",
-      "endsInDays": "em {days} dias",
       "ends": "{provider} termina {when}",
       "fallbackProvider": "Contrato",
       "checkNote": "Verifique o prazo de pré-aviso e um contrato sucessor.",
-      "cancelBy": "Denuncie {provider} até {date} (faltam {days} dias); caso contrário, o contrato continua depois de {end}."
+      "heading": {
+        "stage1": "Aviso prévio de fim de contrato:",
+        "stage2": "Lembrete de fim de contrato:",
+        "stage3": "Fim do contrato — urgente:"
+      },
+      "endsInDays": {
+        "one": "em {days} dia",
+        "other": "em {days} dias"
+      },
+      "cancelBy": {
+        "one": "Denuncie {provider} até {date} (falta {days} dia); caso contrário, o contrato continua depois de {end}.",
+        "other": "Denuncie {provider} até {date} (faltam {days} dias); caso contrário, o contrato continua depois de {end}."
+      }
     },
     "yoy": {
       "title": "Comparação anual · variações mensais",
@@ -1729,19 +2227,22 @@
       "perPersonDay": "{liters} L / pessoa / dia",
       "reference": "· referência {ref} L",
       "basis": "Base: {months} · {m3} m³ · {persons}",
-      "monthsOne": "{count} mês",
-      "monthsMany": "{count} meses",
-      "personsOne": "{count} pessoa",
-      "personsMany": "{count} pessoas",
       "barGut": "bom ≤ {value}",
       "barWarn": "aviso ≥ {value}",
-      "indexNote": "{bandNote} Índice 100 = exatamente o consumo de referência por pessoa definido nas definições."
+      "indexNote": "{bandNote} Índice 100 = exatamente o consumo de referência por pessoa definido nas definições.",
+      "months": {
+        "one": "{count} mês",
+        "other": "{count} meses"
+      },
+      "persons": {
+        "one": "{count} pessoa",
+        "other": "{count} pessoas"
+      }
     },
     "baseline": {
       "chartPre": "antes do corte",
       "activeSince": "A análise começa em {date} — {label}",
       "activeSinceNoLabel": "A análise começa em {date}",
-      "excluded": "{count} meses anteriores continuam visíveis, mas não alimentam o modelo.",
       "limitsTitle": "O que não pode ser calculado neste momento",
       "limit": {
         "weather_adjustment": "A correção climática precisa de pelo menos {need} meses de histórico — existem {have}.",
@@ -1756,8 +2257,16 @@
       "perDegreeDay": "{unit} por grau-dia",
       "points": "{n} pontos de medição",
       "weatherCorrected": "corrigido pelo clima",
-      "significant": "A diferença está estatisticamente comprovada (intervalo de 95 % de {lo} % a {hi} %).",
-      "notSignificant": "A diferença ainda não está estatisticamente comprovada (intervalo de 95 % de {lo} % a {hi} %) — aguarde mais meses após a medida."
+      "significant": "A diferença está estatisticamente comprovada (intervalo de 95% de {lo}% a {hi}%).",
+      "notSignificant": "A diferença ainda não está estatisticamente comprovada (intervalo de 95% de {lo}% a {hi}%) — aguarde mais meses após a medida.",
+      "excluded": {
+        "one": "{count} mês anterior continua visível, mas não alimenta o modelo.",
+        "other": "{count} meses anteriores continuam visíveis, mas não alimentam o modelo."
+      },
+      "seasonalMean": {
+        "hint": "Sem curva de aquecimento: comparam-se os mesmos meses antes e depois do corte ({n} meses), extrapolados para um ano. O tempo não é corrigido.",
+        "perYear": "{unit} por ano"
+      }
     },
     "deliveryModelled": "O gasóleo e os pellets não têm valores mensais medidos: os meses são distribuídos a partir das entregas segundo os graus-dia. Uma curva de aquecimento seria circular — qualquer modelo encaixaria na perfeição — e por isso não é mostrada.",
     "scatterNotInFit": "fora do modelo (mês parcial ou poucos graus-dia)",
@@ -1769,7 +2278,7 @@
     "pointInFit": "no modelo"
   },
   "forecast": {
-    "noUtilities": "Nenhum tipo de consumo activo. Nas definições pode escolher quais aparecem.",
+    "noUtilities": "Nenhum serviço ativo. Nas definições pode escolher quais aparecem.",
     "loading": "A carregar…",
     "title": "Previsão",
     "selectUtility": "Escolher serviço",
@@ -1788,7 +2297,7 @@
     "models": { "linear": "Linear", "polynomial": "Polinomial (grau 2)", "robust": "Robusto (Huber)", "segmented": "Segmentado (aquecimento/verão)", "sigmoid": "Sigmoide (assinatura de aquecimento)", "seasonalOnly": "apenas perfil sazonal" },
     "chartHist": "Histórico",
     "chartForecast": "Previsão",
-    "info": "Modelo: <strong>{model}</strong> · peso da curva de aquecimento: <strong>{blend} %</strong>{r2} · último preço da energia: <strong>{price} {minor}/{unit}</strong>",
+    "info": "Modelo: <strong>{model}</strong> · peso da curva de aquecimento: <strong>{blend}%</strong>{r2} · último preço unitário: <strong>{price} {minor}/{unit}</strong>",
     "balanceLabel": "Saldo projetado no fim do horizonte:",
     "balanceSurcharge": "acerto a pagar",
     "balanceCredit": "crédito",
@@ -1797,9 +2306,9 @@
     "col": { "month": "Mês", "consumption": "Consumo ({unit})", "hgt": "GD estimados", "cost": "Custo estimado", "advance": "Adiantamento projetado", "balance": "Saldo corrente", "method": "Método" },
     "bonusNote": "Os bónus futuros não são extrapolados — nos custos entram apenas os bónus registados no contrato com data de crédito dentro do período de previsão.",
     "whatIfInvalid": "Verifique os campos assinalados: desvio de temperatura de −20 a 20 °C, fator de preço de 0 a 10, horizonte de 1 a 24 meses.",
-    "chartBand": "Intervalo ({level} % dos anos)",
+    "chartBand": "Intervalo ({level}% dos anos)",
     "r2Label": "qualidade de ajuste R²",
-    "annualBand": "Ano: {value} {unit}, em {level} % dos anos entre {low} e {high} {unit} — conforme o inverno.",
+    "annualBand": "Ano: {value} {unit}, em {level}% dos anos entre {low} e {high} {unit} — conforme o inverno.",
     "hddSourceClimate": "Graus-dia: normal climática {from}–{to} no local.",
     "hddSourceHistory": "Graus-dia: média do seu próprio histórico de temperaturas.",
     "warn": {
@@ -1814,7 +2323,12 @@
       "filled": "média diária (sem valor próprio)",
       "blend": "combinação: {reg} curva de aquecimento, {seasonal} perfil sazonal"
     },
-    "chartAltSpan": "Gráfico de linhas: consumo {from} – {to} e previsão até {until}"
+    "chartAltSpan": "Gráfico de linhas: consumo {from} – {to} e previsão até {until}",
+    "co2Scenario": {
+      "label": "Preço do CO₂ a partir de {year} ({cur}/t)",
+      "placeholder": "vazio = desligado",
+      "delta": "Com {price} {cur}/t de CO₂ a partir de {from}: +{ct} {minor}/kWh, mais {amount} nos próximos 12 meses (com IVA)."
+    }
   },
   "report": {
     "createdOn": "Criado a {date}",
@@ -1855,11 +2369,19 @@
     "tableRevenue": "Receita {cur}",
     "certificate": "Tipo certificado: {value} kWh/m²·a (poder calorífico inferior, corrigido pelo clima, {area} m² úteis)",
     "page": {
-      "subtitle": "Um ano num relance, em PDF para arquivar ou partilhar.",
+      "subtitle": "Um ano num relance — para imprimir, arquivar ou partilhar.",
       "open": "Abrir no navegador",
-      "note": "No iPhone o relatório abre num novo separador; a partir daí pode guardá-lo ou partilhá-lo."
+      "note": "No iPhone o relatório abre num novo separador; a partir daí pode guardá-lo ou partilhá-lo.",
+      "pdfHeading": "Ficheiro PDF",
+      "languageNote": "O PDF é criado no idioma predefinido da instalação ({lang}); a vista de impressão segue o idioma deste dispositivo."
     },
-    "weatherSource": "Temperaturas: Open-Meteo.com (CC BY 4.0), salvo as introduzidas por si."
+    "weatherSource": "Temperaturas: Open-Meteo.com (CC BY 4.0), salvo as introduzidas por si.",
+    "print": {
+      "open": "Abrir a vista de impressão",
+      "button": "Imprimir / guardar como PDF",
+      "back": "← Relatório anual",
+      "hint": "O relatório no idioma e na notação da interface. «Imprimir» passa-o para papel ou guarda-o como PDF — no iPhone através de Partilhar → Imprimir."
+    }
   },
   "migration": {
     "warnNoSettings": "Não foram encontradas definições na cópia — aplicam-se os valores predefinidos.",
@@ -1900,7 +2422,7 @@
     "benchmark": {
       "noLivingArea": "Área habitável não definida — introduza-a nas definições para obter a classe de eficiência.",
       "noHeatData": "Não foram encontrados dados de energia de aquecimento para {year}.",
-      "multipleSources": "Várias fontes de calor activas — a classe por fonte é mais expressiva do que a soma combinada. A vista combinada só faz sentido com aquecimento deliberadamente combinado (p. ex. carga de base e de ponta).",
+      "multipleSources": "Várias fontes de calor ativas — a classe por fonte é mais expressiva do que a soma combinada. A vista combinada só faz sentido com aquecimento deliberadamente combinado (p. ex. carga de base e de ponta).",
       "noScale": "Não existe escala de eficiência para {country}. As classes A+ a H seguem a lei alemã de energia nos edifícios (GEG) e por isso não são mostradas.",
       "incompleteYear": "Os dados de {year} não cobrem o ano todo: sem classe; o valor vale só para o período medido."
     },
@@ -1917,16 +2439,16 @@
     },
     "tariff": {
       "waterUnsupported": "A comparação de tarifas para a água (tarifa de três componentes) não está incluída nesta versão.",
-      "deliveryUnsupported": "{label} é facturado por entregas e não tem contratos de tarifa — aí a factura de entrega é a base de custos.",
+      "deliveryUnsupported": "{label} é faturado por entregas e não tem contratos de tarifa — aí a fatura de entrega é a base de custos.",
       "noConsumption": "Ainda não há dados de consumo para este contador.",
-      "noConsumptionInPeriod": "Não há dados de consumo no período seleccionado.",
+      "noConsumptionInPeriod": "Não há dados de consumo no período selecionado.",
       "noContracts": "Nenhum contrato para comparar.",
       "noWorkingPrice": "Sem preço unitário registado — a tarifa não pode ser calculada."
     },
     "meter": {
-      "multipleMeters": "Não são permitidos vários contadores para {utility}",
-      "capacityRequired": "Para {label} é necessária uma capacidade de depósito (capacity) > 0",
-      "initialStockRequired": "Para {label} são necessárias existências iniciais (initial_stock) ≥ 0",
+      "multipleMeters": "{utility}: não são permitidos vários contadores",
+      "capacityRequired": "{label}: é necessária uma capacidade de depósito superior a 0 (API: capacity).",
+      "initialStockRequired": "{label}: são necessárias existências iniciais de pelo menos 0 (API: initial_stock).",
       "nameEmpty": "O nome do contador não pode estar vazio",
       "notFound": "Contador não encontrado",
       "notFoundId": "Contador não encontrado: {id}",
@@ -1935,10 +2457,10 @@
       "hasContracts": "O contador ainda tem contratos — elimine ou reatribua primeiro os contratos",
       "isParent": "O contador é principal de subcontadores — dissolva primeiro a atribuição dos subcontadores",
       "noOpenDevice": "Nenhum contador aberto — crie primeiro o contador inicialmente",
-      "oldFinalRequired": "Para uma substituição de contador deve ser indicada a leitura final do dispositivo antigo (« old_final_counter »).",
+      "oldFinalRequired": "Para uma substituição de contador deve ser indicada a leitura final do dispositivo antigo («old_final_counter»).",
       "unknownUtility": "Serviço desconhecido: {utility}",
-      "invalidAlias": "Alias « {alias} » inválido — são permitidos 1 a 64 caracteres entre letras, dígitos, _ . -",
-      "aliasTaken": "O alias « {alias} » já está em uso para {utility}",
+      "invalidAlias": "Alias «{alias}» inválido — são permitidos 1 a 64 caracteres entre letras, dígitos, _ . -",
+      "aliasTaken": "{utility}: o alias «{alias}» já está em uso",
       "selfParent": "Um contador não pode ser o seu próprio contador principal",
       "parentNotFound": "Contador principal não encontrado: {parent}",
       "chainParentIsSub": "Não são permitidas cadeias de subcontadores de vários níveis — o contador principal escolhido é, ele próprio, já um subcontador (máx. 1 nível).",
@@ -1958,7 +2480,17 @@
       "duplicateTankLevel": "Já existe uma leitura do depósito para {date}",
       "tankLevelInvalid": "Leitura do depósito «{value}» inválida: esperado um número a partir de 0",
       "tankLevelAboveCapacity": "A leitura do depósito {level} excede a capacidade {capacity}",
-      "initialPriceInvalid": "Preço do stock inicial «{value}» inválido: esperado um número a partir de 0 ou vazio"
+      "initialPriceInvalid": "Preço do stock inicial «{value}» inválido: esperado um número a partir de 0 ou vazio",
+      "roleInvalid": "Função desconhecida «{role}» para este contador.",
+      "captureInvalid": "Forma de registo desconhecida «{value}» – possíveis: leituras ou consumo por período.",
+      "captureLocked": "A forma de registo não pode ser alterada enquanto o contador tiver dados do tipo atual.",
+      "maloInvalid": "O ID do ponto de entrega «{value}» não é válido – tem 11 dígitos, o último é um dígito de controlo",
+      "meloInvalid": "O ID do ponto de medição «{value}» não é válido – tem 33 carateres e começa por DE",
+      "hasPeriods": "O contador ainda tem períodos — elimine primeiro os períodos",
+      "hasBills": "O contador ainda tem faturas — elimine primeiro as faturas",
+      "groupHasContracts": "O grupo de contadores ainda tem contratos — elimine ou reatribua primeiro os contratos de grupo",
+      "heatPumpLinkInvalid": "O contador «{id}» não é um contador de eletricidade com a função bomba de calor",
+      "valueInvalid": "{field}: «{value}» não é um valor válido"
     },
     "common": {
       "unknownUtility": "Serviço desconhecido: {utility}",
@@ -1971,20 +2503,22 @@
       "noDevice": "Nenhum dispositivo deste contador está ativo na data {date}",
       "notFound": "Leitura não encontrada",
       "counterInvalid": "Leitura inválida «{value}» – é esperado um número igual ou superior a 0.",
-      "dateInvalid": "Data de leitura inválida «{date}» – formato esperado: AAAA-MM-DD."
+      "dateInvalid": "Data de leitura inválida «{date}» – formato esperado: AAAA-MM-DD.",
+      "clientRefInvalid": "Identificador de registo inválido (client_ref): 8 a 64 caracteres entre letras, algarismos e hífen.",
+      "periodMeter": "Este contador regista o consumo por período – introduza um período em vez de uma leitura."
     },
     "contract": {
-      "noContracts": "Para {label} não é possível criar contratos (serviço apenas estatístico).",
+      "noContracts": "{label}: não é possível criar contratos (serviço apenas estatístico).",
       "notFound": "Contrato não encontrado",
       "startRequired": "O início do contrato (start) é obrigatório",
       "endBeforeStart": "O fim do contrato é anterior ao início do contrato",
-      "swBasisInvalid": "A base de água residual deve ser « trinkwasser » ou « separater_zaehler », era: {basis}",
-      "swSeparateMeterRequired": "Com a base de água residual « separater_zaehler » tem de estar definido separater_zaehler_meter_id",
+      "swBasisInvalid": "A base de água residual deve ser «trinkwasser», «separater_zaehler» ou «trinkwasser_minus_abzug», era: {basis}",
+      "swSeparateMeterRequired": "Com a base de água residual «separater_zaehler» tem de estar definido separater_zaehler_meter_id",
       "swEntryMissing": "Entrada de água pluvial n.º{n}: falta {fields}",
-      "entryMissing": "Entrada {label} n.º{n}: falta {field}",
+      "entryMissing": "{label}, entrada n.º{n}: falta {field}",
       "bonusEntryMissing": "Entrada de bónus n.º{n}: falta {field}",
       "specialPaymentMissing": "Pagamento extraordinário n.º{n}: falta {field}",
-      "specialPaymentUnknownKind": "Pagamento extraordinário n.º{n}: tipo desconhecido « {kind} »",
+      "specialPaymentUnknownKind": "Pagamento extraordinário n.º{n}: tipo desconhecido «{kind}»",
       "specialPaymentImpactMissing": "Pagamento extraordinário n.º{n} (com efeito): falta {field}",
       "fields": {
         "date": "Data",
@@ -2003,14 +2537,24 @@
       "dateBeforeStart": "{field} não pode ser anterior ao início do contrato.",
       "bonusNotNumeric": "O bónus de adesão tem de ser um número.",
       "bonusNegative": "O bónus de adesão não pode ser negativo.",
-      "amountInvalid": "Entrada {label} n.º{n}: o montante «{value}» não é um número",
+      "amountInvalid": "{label}, entrada n.º{n}: o montante «{value}» não é um número",
       "noticeDaysOutOfRange": "O pré-aviso em dias tem de estar entre 0 e 730.",
-      "noticeModeInvalid": "Modo de denúncia desconhecido «{mode}» (permitidos: term_end, month_end, any_day)."
+      "noticeModeInvalid": "Modo de denúncia desconhecido «{mode}» (permitidos: term_end, month_end, any_day).",
+      "swDeductionRequired": "Para «água potável menos contadores de dedução», escolha pelo menos um contador de dedução.",
+      "swDeductionSelf": "O contador do contrato não pode ser o seu próprio contador de dedução.",
+      "valueInvalid": "{field}: «{value}» não é um valor válido",
+      "capacityMissing": "Um termo de potência precisa da potência contratada em kW",
+      "targetInvalid": "«{id}» não é um destino válido para um contrato de grupo — o grupo tem de pertencer ao serviço e ter contadores",
+      "groupMemberOverlap": "Um contador do grupo tem contrato próprio neste período (desde {start}) — termine-o primeiro; caso contrário, o termo fixo e o consumo contam duas vezes",
+      "dynamicShadowOnly": "Uma tarifa dinâmica só pode ser calculada como oferta (contrato hipotético) para eletricidade — um contrato dinâmico real regista-se com preços mensais",
+      "priceModelInvalid": "Modelo de preço desconhecido «{value}»",
+      "priceImportEmpty": "O ficheiro não contém nenhuma linha no formato mês;preço",
+      "priceImportUnsupported": "Os preços mensais só existem para contratos com preço unitário por kWh"
     },
     "delivery": {
       "notFound": "Entrega não encontrada: {id}",
       "tankNotFound": "Depósito/armazém não encontrado: {id}",
-      "notDeliveryBased": "O serviço « {utility} » não se baseia em entregas; use o ReadingService.",
+      "notDeliveryBased": "«{utility}» é registado por leituras do contador, não por entregas — registe uma leitura.",
       "dateMissing": "A data de entrega (date) está em falta ou não está no formato AAAA-MM-DD",
       "quantityPositive": "A quantidade entregue (quantity) tem de ser > 0",
       "priceNegative": "O preço unitário não pode ser negativo",
@@ -2025,15 +2569,18 @@
       "valueMissing": "A leitura (value) está em falta ou não é um número",
       "dateFormat": "A data tem de estar no formato AAAA-MM-DD: {date}",
       "meterMissing": "O contador (meter) está em falta — indique alias ou ID interno",
-      "meterNotFound": "Nenhum contador encontrado para « {meter} » em {utility} (nem como alias nem como ID)",
+      "meterNotFound": "{utility}: nenhum contador encontrado para «{meter}» (nem como alias nem como ID)",
       "unauthorized": "Não autorizado — envie um token de API válido como «Authorization: Bearer <token>».",
-      "tokenRequiredWithLogin": "O início de sessão está ativo – o envio precisa então de um token de API. Crie um nas definições."
+      "tokenRequiredWithLogin": "O início de sessão está ativo – o envio precisa então de um token de API. Crie um nas definições.",
+      "tooMany": "Demasiadas entradas num lote (no máximo {max}, recebidas: {count}).",
+      "bodyInvalid": "Entrada inválida: espera-se um objeto com utility, meter e value.",
+      "periodMeter": "O contador «{meter}» regista o consumo por período e não aceita leituras."
     },
     "backup": {
       "noVersionField": "Sem campo backup_version — não é uma cópia de segurança válida",
       "versionUnsupported": "A versão de cópia de segurança {ver} não é suportada diretamente. Importe-a primeiro através da migração para v1.0.0, ou use uma cópia mais recente.",
       "schemaNewer": "O esquema da cópia de segurança {schema} é mais recente do que o esquema da app {appSchema}. Atualize primeiro a app, depois importe a cópia.",
-      "invalid": "A cópia de segurança está incompleta ou danificada ({count} problema(s)). Nada foi restaurado.",
+      "invalid": "A cópia de segurança está incompleta ou danificada (problemas: {count}). Nada foi restaurado.",
       "snapshotFailed": "O instantâneo de segurança antes do restauro falhou. Sem ele não há volta atrás. Restaurar mesmo assim só com consentimento expresso.",
       "snapshotNotFound": "Instantâneo «{name}» não encontrado.",
       "snapshotUnreadable": "O instantâneo «{name}» não é legível (JSON inválido)."
@@ -2044,7 +2591,11 @@
       "rowIncomplete": "Linha {line}: falta a data ou a leitura",
       "counterNotNumeric": "Linha {line}: a leitura não é um número ({value})",
       "rowError": "Linha {line}: {message}",
-      "tooFewColumns": "Linha {line}: colunas insuficientes"
+      "tooFewColumns": "Linha {line}: colunas insuficientes",
+      "dateMonthFirst": "Linha {line}: mês acima de 12 ({value}) — escreva o dia antes do mês (DD/MM/AAAA) ou AAAA-MM-DD",
+      "anchorMissing": "Os valores de consumo precisam de uma leitura inicial: uma leitura em {date} ou um valor inicial",
+      "mappingInvalid": "A atribuição de colunas não corresponde ao ficheiro — verifique colunas, unidade e linhas de cabeçalho",
+      "seriesRow": "Linha {line}: nenhuma data ou valor reconhecido («{value}»)"
     },
     "demo": {
       "backupNotFound": "Cópia de segurança de demonstração não encontrada.",
@@ -2052,20 +2603,20 @@
       "backupInvalid": "A cópia de segurança de demonstração é inválida (não é JSON)."
     },
     "migration": {
-      "noVersionField": "Sem campo « version » na cópia de segurança — provavelmente não é uma cópia v0.9.0. São esperadas cópias v0.9.0 com a versão « 2.1 » ou anterior.",
-      "versionUnrecognized": "A versão de cópia de segurança « {ver} » não é reconhecida. São suportados os formatos de cópia v0.9.0: {supported}. Para cópias nativas v1.0.3 (backup_version 3.0+) use a importação padrão em Definições → Cópia de segurança e restauro.",
+      "noVersionField": "Sem campo «version» na cópia de segurança — provavelmente não é uma cópia v0.9.0. São esperadas cópias v0.9.0 com a versão «2.1» ou anterior.",
+      "versionUnrecognized": "A versão de cópia de segurança «{ver}» não é reconhecida. São suportados os formatos de cópia v0.9.0: {supported}. Para cópias nativas v1.0.3 (backup_version 3.0+) use a importação padrão em Definições → Cópia de segurança e restauro.",
       "invalidMode": "Modo inválido: {mode} (permitidos: replace, merge)",
       "backupMissing": "O campo «backup» está em falta ou não é um objecto.",
       "translatedMissing": "O campo «translated» está em falta ou não é um objecto."
     },
     "csv": {
-      "notDeliveryBased": "O serviço « {utility} » não se baseia em entregas; use a exportação de leituras."
+      "notDeliveryBased": "O serviço «{utility}» não se baseia em entregas; use a exportação de leituras."
     },
     "settings": {
       "factorsNotList": "Os fatores de conversão têm de ser fornecidos como uma lista de entradas",
       "factorInvalidDate": "Data inválida «{date}» — esperado AAAA-MM-DD",
       "factorDuplicateDate": "Já existe um fator de conversão para {date}",
-      "factorTwoUndated": "Só uma entrada pode não ter data — aplica-se a tudo antes da primeira data de vigência",
+      "factorTwoUndated": "Só uma entrada pode não ter data — aplica-se a tudo antes da primeira data de efeito",
       "factorZOutOfRange": "Coeficiente de correção {value} inverosímil — esperado entre 0,8 e 1,1",
       "factorHsOutOfRange": "Poder calorífico {value} inverosímil — esperado entre 8 e 13 kWh/m³",
       "factorHalfPair": "Coeficiente de correção e poder calorífico andam juntos — indique ambos, ou o fator diretamente",
@@ -2075,7 +2626,8 @@
     },
     "billCheck": {
       "gasOnly": "A verificação de fatura só está disponível para gás",
-      "invalidRange": "Indique um período válido (de < até, AAAA-MM-DD)"
+      "invalidRange": "Indique um período válido (de < até, AAAA-MM-DD)",
+      "unsupportedUtility": "«{utility}» não tem verificação de fatura"
     },
     "http": {
       "crossSite": "Recusado: o pedido veio de outro site. As alterações só são possíveis a partir do Energietracker.",
@@ -2083,10 +2635,15 @@
       "hostNotAllowed": "O nome de anfitrião «{host}» não é permitido (ET_ALLOWED_HOSTS)."
     },
     "storage": {
-      "dataTooNew": "Os dados provêm de uma versão mais recente (esquema {schema}). Esta versão só conhece o esquema {app} e não escreve nada para não os danificar. Volte a iniciar a versão mais recente."
+      "dataTooNew": "Os dados provêm de uma versão mais recente (esquema {schema}). Esta versão só conhece o esquema {app} e não escreve nada para não os danificar. Volte a iniciar a versão mais recente.",
+      "corrupted": "O ficheiro {file} está danificado (JSON inválido). Restaure-o a partir de uma cópia de segurança ou repare-o; até lá não será substituído.",
+      "corruptedCopy": "O ficheiro {file} está danificado (JSON inválido); há uma cópia em {copy}. Restaure-o a partir de uma cópia de segurança ou repare-o; até lá não será substituído.",
+      "unreadable": "O ficheiro {file} não pode ser lido — verifique as permissões do diretório de dados.",
+      "locked": "O ficheiro {file} não pode ser bloqueado. Tente novamente dentro de momentos."
     },
     "report": {
-      "yearRange": "O ano tem de ser um número entre 2000 e 2100."
+      "yearRange": "O ano tem de ser um número entre 2000 e 2100.",
+      "pdfUnsupportedLanguage": "O PDF não consegue compor este idioma. A vista de impressão (Relatório anual → Abrir a vista de impressão) imprime-o e guarda-o como PDF."
     },
     "auth": {
       "required": "Inicie sessão, por favor.",
@@ -2097,8 +2654,78 @@
       "passwordFixed": "A palavra-passe é definida através do ambiente (ET_ADMIN_PASSWORD_HASH) e não pode ser alterada aqui.",
       "modeFixed": "O início de sessão é definido através do ambiente (ET_AUTH) e não pode ser desativado aqui.",
       "passwordTooShort": "A palavra-passe precisa de pelo menos {min} caracteres.",
-      "scopeInvalid": "Âmbito desconhecido – são permitidos read e admin.",
+      "scopeInvalid": "Âmbito desconhecido – são permitidos read, admin e calendar.",
       "keyNotFound": "Chave de API não encontrada."
+    },
+    "weather": {
+      "badFormat": "A Open-Meteo respondeu num formato inesperado.",
+      "noDays": "A Open-Meteo respondeu, mas sem dias utilizáveis.",
+      "network": "Não é possível contactar a Open-Meteo ({detail}). Verifique a rede e o DNS do servidor.",
+      "http": "A Open-Meteo respondeu com HTTP {status}. Tente novamente mais tarde.",
+      "noTransport": "O servidor não consegue obter endereços web: o PHP não tem cURL nem allow_url_fopen."
+    },
+    "export": {
+      "formatInvalid": "Formato CSV desconhecido «{format}» — são aceites 1 e local."
+    },
+    "attachment": {
+      "type": "Como comprovativo só é possível guardar fotografias (JPEG, PNG, WebP) e ficheiros PDF.",
+      "size": "O ficheiro é demasiado grande – no máximo {max} MB.",
+      "quota": "O espaço para comprovativos está cheio (no máximo {max} MB) – elimine comprovativos antigos ou aumente o limite nas definições.",
+      "notFound": "Comprovativo não encontrado",
+      "wrongKind": "Este comprovativo não corresponde a esta entrada."
+    },
+    "ocr": {
+      "off": "Nenhum reconhecimento de texto configurado (Definições → Especialista).",
+      "notLocal": "O reconhecimento de texto tem de funcionar na rede própria – «{host}» não é um endereço da rede doméstica.",
+      "timeout": "O reconhecimento de texto não respondeu em {seconds} segundos.",
+      "unreachable": "O reconhecimento de texto não está acessível.",
+      "badAnswer": "O reconhecimento de texto não devolveu uma resposta utilizável."
+    },
+    "period": {
+      "notFound": "Período não encontrado",
+      "meterNotPeriod": "Este contador regista leituras, não consumo por período (forma de registo na ficha do contador).",
+      "dateInvalid": "Data inválida «{date}» – esperado AAAA-MM-DD (ou um mês AAAA-MM).",
+      "order": "O período começa depois do fim ({from} – {to}).",
+      "valueInvalid": "Valor inválido «{value}» – esperado um número a partir de 0.",
+      "overlap": "O período sobrepõe-se a um existente ({from} – {to}).",
+      "csvDate": "Linha {line}: período não reconhecido ({value}).",
+      "csvValue": "Linha {line}: o valor não é um número ({value}).",
+      "csvLine": "Linha {line}: {message}"
+    },
+    "tenancy": {
+      "notFound": "Arrendamento não encontrado",
+      "statementNotFound": "Acerto não encontrado",
+      "dateInvalid": "Data inválida «{date}» – esperado AAAA-MM-DD.",
+      "endBeforeStart": "O fim é anterior ao início.",
+      "anchorInvalid": "Data inválida «{value}» – esperado um dia do calendário (DD.MM.).",
+      "listInvalid": "Uma lista está incompleta ou no formato errado.",
+      "meterNotFound": "Contador «{id}» não encontrado.",
+      "periodInvalid": "O período de acerto começa depois do fim ({from} – {to}).",
+      "amountInvalid": "Montante inválido «{value}»."
+    },
+    "co2": {
+      "yearInvalid": "Ano inválido «{year}» – possível a partir de 2021."
+    },
+    "bill": {
+      "notFound": "Fatura não encontrada",
+      "noResult": "A fatura não indica acerto nem crédito – não há nada a registar",
+      "noContract": "Não há contrato para este período – adicione primeiro um",
+      "periodInvalid": "O período «{from}» – «{to}» não é válido",
+      "amountInvalid": "O montante «{value}» não é um número válido"
+    },
+    "marketPrices": {
+      "noRows": "O ficheiro não contém preços grossistas — espera-se um download do SMARD ou linhas como 2025-01;114,14",
+      "syncFailed": "O SMARD não está acessível ou não devolveu valores — tente mais tarde ou importe um ficheiro"
+    },
+    "evReport": {
+      "methodInvalid": "Método desconhecido «{value}» — são permitidos contract e flat",
+      "flatMissing": "Não há valor fixo de eletricidade para {year} — introduza-o",
+      "noContract": "Não há contrato pagador para o carregador — nem próprio nem no contador principal",
+      "yearInvalid": "O ano «{year}» não é válido",
+      "flatInvalid": "O valor fixo «{value}» não é um número válido (0 a 200 cêntimos)"
+    },
+    "heatPump": {
+      "yearInvalid": "O ano «{year}» não é válido"
     }
   },
   "login": {
@@ -2123,7 +2750,9 @@
     "group": " ",
     "date": "d/m/Y",
     "monthsShort": "jan.,fev.,mar.,abr.,mai.,jun.,jul.,ago.,set.,out.,nov.,dez.",
-    "money": "{amount} {cur}"
+    "money": "{amount} {cur}",
+    "typography": "none",
+    "pdfCharset": "cp1252"
   },
   "countries": {
     "DE": "Alemanha",
@@ -2137,7 +2766,7 @@
     "GB": "Reino Unido"
   },
   "contractsOverview": {
-    "subtitle": "Contratos em vigor de todos os serviços: prazos, pagamentos por conta e o que esperar na fatura final.",
+    "subtitle": "Contratos em vigor de todos os serviços: prazos, adiantamentos e o que esperar na fatura final.",
     "noUtilities": "Nenhum serviço com contratos está ativo.",
     "manage": "Gerir contratos",
     "loadFailed": "Não foi possível carregar: {msg}",
@@ -2154,13 +2783,65 @@
       "one": "falta 1 dia",
       "other": "faltam {count} dias"
     },
-    "advance": "Pagamento por conta {amount} por mês",
+    "advance": "Adiantamento {amount} por mês",
     "expected": "Previsto a {date}:"
   },
   "billCheck": {
-    "noMeter": "A verificação recalcula fator de correção × poder calorífico e por isso existe para o gás. Crie primeiro um contador de gás.",
-    "addMeter": "Criar contador de gás",
-    "meter": "Contador"
+    "noMeter": "A verificação recalcula a fatura anual de gás, eletricidade, água e aquecimento urbano. Crie primeiro um contador.",
+    "addMeter": "Criar contador",
+    "meter": "Contador",
+    "pickUtility": "Serviço",
+    "row": {
+      "price": "Preço ({minor}/{unit})",
+      "energyCost": "Custo do consumo",
+      "fixed": "Custos fixos"
+    },
+    "ownTotal": "Recalculado: {total} (bónus de {rebate} descontado)",
+    "invoice": {
+      "title": "Segundo a fatura",
+      "hint": "Introduza os valores da fatura anual do fornecedor. A aplicação recalcula o mesmo período e mostra onde difere.",
+      "toInclusive": "Até (inclusive)",
+      "issued": "Data da fatura",
+      "kwh": "Consumo faturado (kWh)",
+      "m3": "Consumo faturado (m³)",
+      "amount": "Montante da fatura (IVA incluído)",
+      "advances": "Adiantamentos pagos",
+      "result": "Acerto / crédito",
+      "resultHint": "positivo = acerto a pagar",
+      "items": "Outras rubricas (taxas, encargos, créditos)",
+      "addItem": "Adicionar rubrica",
+      "itemLabel": "Descrição",
+      "itemAmount": "Montante (crédito negativo)",
+      "co2Cost": "Custo de CO₂ segundo a fatura",
+      "attach": "Anexar fatura (PDF ou foto)",
+      "save": "Guardar fatura"
+    },
+    "saved": "Fatura guardada",
+    "book": "Registar como pagamento extraordinário",
+    "booked": "Registado como pagamento extraordinário no contrato",
+    "bookedTag": "registado",
+    "compare": "Comparar",
+    "noBills": "Ainda não há nenhuma fatura registada.",
+    "confirmDelete": "Eliminar esta fatura? Um pagamento extraordinário já registado mantém-se no contrato.",
+    "bookNote": "Fatura anual {from} – {to}",
+    "delta": {
+      "title": "Comparação {from} – {to}",
+      "ours": "Recalculado",
+      "invoice": "Segundo a fatura",
+      "diff": "Diferença",
+      "amount": "Montante",
+      "ok": "confere",
+      "check": "verificar"
+    },
+    "reason": {
+      "estimated_reading_at_boundary": "Num limite do período há uma leitura estimada ou interpolada – a fatura pode usar outra leitura.",
+      "price_change_inside": "O preço muda dentro do período – o fornecedor pode repartir o consumo entre o preço antigo e o novo de outra forma.",
+      "factor_change_inside": "O PCS ou o coeficiente de correção muda dentro do período.",
+      "items_not_modelled": "As outras rubricas são retiradas da fatura, sem recálculo.",
+      "price_missing": "O contrato não tem preço para parte do período – aí também faltam custos.",
+      "gaps": "Faltam leituras dentro do período."
+    },
+    "ownTotalOnly": "Recalculado: {total}"
   },
   "glossary": {
     "hdd": {
@@ -2216,11 +2897,11 @@
       "text": "O pagamento mensal antecipado ao fornecedor. A fatura anual compara o total com os custos reais."
     },
     "workingPrice": {
-      "term": "Preço da energia",
+      "term": "Preço unitário",
       "text": "O preço por unidade consumida — ct/kWh, na água ct/m³."
     },
     "basePrice": {
-      "term": "Tarifa fixa",
+      "term": "Termo fixo",
       "text": "Um valor fixo por mês, independente do consumo."
     },
     "specialPayment": {
@@ -2252,8 +2933,8 @@
       "text": "O conteúdo energético de um metro cúbico de gás em kWh, tal como o fornecedor o indica por período na fatura."
     },
     "zNumber": {
-      "term": "Fator de correção",
-      "text": "Converte o volume de gás medido para condições normais (pressão, temperatura). kWh = m³ × fator × poder calorífico."
+      "term": "Coeficiente de correção",
+      "text": "Converte o volume de gás medido para condições normais (pressão, temperatura). kWh = m³ × coeficiente × poder calorífico."
     },
     "cutoffDate": {
       "term": "Data de efeito",
@@ -2269,7 +2950,7 @@
     },
     "selfConsumption": {
       "term": "Autoconsumo",
-      "text": "A eletricidade solar que usa: produção menos injeção. Substitui a da rede — a poupança calcula-se com o seu preço da energia."
+      "text": "A eletricidade solar que usa: produção menos injeção. Substitui a da rede — a poupança calcula-se com o seu preço unitário."
     },
     "autarky": {
       "term": "Taxa de autossuficiência",
@@ -2294,6 +2975,46 @@
     "co2Avoided": {
       "term": "CO₂ evitado",
       "text": "A eletricidade solar substitui a da rede. O cálculo usa o fator de CO₂ da eletricidade da rede (Definições → Serviços e faturação) — esse CO₂ teria sido emitido de outra forma. Simplificado: não inclui o fabrico da instalação."
+    },
+    "periodCapture": {
+      "term": "Consumo por período",
+      "text": "Uma forma de registo ao lado das leituras: cada período contém o próprio consumo, por exemplo da informação mensal. A aplicação reparte-o pelos meses ao dia; depois tudo funciona como com leituras."
+    },
+    "uvi": {
+      "term": "Informação mensal de consumo",
+      "text": "Na Alemanha, desde 2022 os inquilinos com contadores de leitura remota devem conhecer todos os meses o consumo de aquecimento e água quente, com o mês anterior, o mesmo mês do ano anterior e um utilizador médio (HeizkostenV § 6a). Os valores introduzem-se como consumo por período."
+    },
+    "prepayment": {
+      "term": "Adiantamento de encargos",
+      "text": "O que um inquilino paga todos os meses ao senhorio pelo aquecimento e encargos. O acerto de encargos compara-o com os custos reais."
+    },
+    "utilityStatement": {
+      "term": "Acerto de encargos",
+      "text": "O acerto anual do senhorio. Na Alemanha deve chegar no máximo doze meses após o fim do período; as contestações são possíveis até doze meses após a receção (BGB § 556). Os dois prazos aparecem no calendário."
+    },
+    "dhw": {
+      "term": "Calor da água quente",
+      "text": "O calor consumido por um contador de água quente, calculado segundo a HeizkostenV § 9: 2,5 kWh por m³ e grau acima de 10 °C. 1 m³ a 60 °C são 125 kWh. Um valor calculado, não medido."
+    },
+    "co2Price": {
+      "term": "Preço do CO₂ (BEHG)",
+      "text": "Desde 2021, na Alemanha, os fornecedores de gás e gasóleo pagam um preço por cada tonelada de CO₂ e repercutem-no no preço unitário: 55 euros em 2025, 60 euros por tonelada em 2026. A aplicação indica-o – não é um acréscimo. Calcula-se com os fatores padrão do BEHG; lenha, pellets e eletricidade não o têm."
+    },
+    "co2Split": {
+      "term": "Repartição dos custos de CO₂",
+      "text": "Nas habitações arrendadas na Alemanha, inquilino e senhorio repartem os custos de CO₂ em dez escalões (CO2KostAufG): abaixo de 12 kg de CO₂ por m² e ano paga tudo o inquilino; a partir de 52 kg, o senhorio 95%. O valor é arredondado a uma casa decimal."
+    },
+    "dynamicTariff": {
+      "term": "Tarifa dinâmica",
+      "text": "Uma tarifa de eletricidade cujo preço unitário acompanha o preço grossista (§ 41a EnWG). É faturada a cada quarto de hora com um contador inteligente. A aplicação estima-a com a média mensal do mercado mais um acréscimo — uma aproximação, não uma fatura."
+    },
+    "module14a": {
+      "term": "§ 14a EnWG (consumidores controláveis)",
+      "text": "O operador de rede pode limitar bombas de calor, carregadores e baterias acima de 4,2 kW em caso de congestionamento; em troca, a tarifa de rede baixa. Módulo 1: um montante fixo por ano. Módulo 2: um contador próprio com 40% do preço unitário de rede. Módulo 3: tarifas de rede variáveis além do módulo 1."
+    },
+    "jaz": {
+      "term": "Fator de desempenho sazonal (SPF)",
+      "text": "Quanto calor uma bomba de calor produz com um kWh de eletricidade, medido ao longo de um ano: calor ÷ eletricidade. Precisa de um contador de calor na bomba. Num ensaio de campo, os aparelhos ar/água ficaram em cerca de 3,4 e os de salmoura/água em 4,3."
     }
   },
   "help": {
@@ -2328,8 +3049,9 @@
     },
     "privacy": {
       "title": "Os seus dados",
-      "text": "Tudo fica no seu servidor: sem contas, sem publicidade, sem telemetria. A aplicação só comunica com o Open-Meteo — na sincronização meteorológica diária (apenas a localização arredondada a cerca de 1 km, desativável em Definições → Dados meteorológicos) e na pesquisa de local quando a usa."
-    }
+      "text": "Tudo fica no seu servidor: sem contas, sem publicidade, sem telemetria. A aplicação só comunica com o Open-Meteo — na sincronização meteorológica diária (apenas a localização arredondada a cerca de 1 km, desativável em Definições → Dados meteorológicos) e na pesquisa de local quando a usa — e, apenas se for introduzido, com o serviço próprio de reconhecimento de texto na rede doméstica. Ao tocar em «Carregar do SMARD», a aplicação obtém os preços grossistas de eletricidade da Bundesnetzagentur; não é enviado nenhum dado do utilizador."
+    },
+    "onYourBill": "Na sua fatura ({country}): «{term}»"
   },
   "onboarding": {
     "done": "feito",
@@ -2379,5 +3101,461 @@
     "close": "Fechar aviso",
     "readOnly": "Na demo nada é guardado. Com a sua própria instalação regista os seus dados.",
     "unavailable": "Esta análise não está pré-calculada na demo – funciona com a sua própria instalação."
+  },
+  "manifest": {
+    "description": "Consumo, custos e contratos de eletricidade, gás, água, aquecimento urbano, gasóleo, pellets e fotovoltaico — localmente e sem nuvem.",
+    "shortcutCapture": "Registar leituras",
+    "shortcutContractsShort": "Contratos"
+  },
+  "csvLocal": {
+    "monthly": {
+      "month": "Mês",
+      "days": "Dias",
+      "consumption": "Consumo ({unit})",
+      "cost": "Custo ({code})",
+      "advance": "Adiantamento ({code})",
+      "monthBalance": "Saldo mensal ({code})",
+      "balanceCumulative": "Saldo acumulado ({code})",
+      "avgTemp": "Temp média (°C)",
+      "hdd": "GD",
+      "co2": "CO₂ (kg)"
+    },
+    "readings": {
+      "meterId": "ID contador",
+      "meter": "Contador",
+      "deviceId": "ID dispositivo",
+      "date": "Data",
+      "reading": "Leitura",
+      "price": "Preço ({minor})",
+      "note": "Nota",
+      "estimated": "Estimada",
+      "future": "Futura"
+    },
+    "deliveries": {
+      "storageId": "ID depósito/silo",
+      "storage": "Depósito/silo",
+      "date": "Data",
+      "quantity": "Quantidade ({unit})",
+      "unitPrice": "Preço ({minor}/{unit})",
+      "total": "Total ({code})",
+      "supplier": "Fornecedor",
+      "note": "Nota",
+      "planned": "Planeada"
+    },
+    "temperatures": {
+      "date": "Data",
+      "avg": "Média (°C)",
+      "min": "Mín (°C)",
+      "max": "Máx (°C)"
+    },
+    "file": {
+      "monthly": "mensal",
+      "readings": "leituras",
+      "deliveries": "entregas",
+      "temperatures": "temperaturas",
+      "exampleReadings": "exemplo-leituras",
+      "exampleTemperatures": "exemplo-temperaturas",
+      "periods": "periodos"
+    },
+    "periods": {
+      "from": "De",
+      "to": "Até",
+      "value": "Valor",
+      "note": "Nota",
+      "meterId": "ID contador",
+      "meter": "Contador",
+      "unit": "Unidade",
+      "estimated": "Estimado",
+      "source": "Fonte"
+    },
+    "evCharging": {
+      "month": "Mês",
+      "meterId": "ID contador",
+      "kwh": "kWh",
+      "price": "Preço (cênt./kWh)",
+      "baseShare": "Parte do termo fixo",
+      "amount": "Montante",
+      "method": "Método"
+    }
+  },
+  "calendar": {
+    "name": "Energietracker — prazos e compromissos",
+    "event": {
+      "reminder": "{title}",
+      "cancelBy": "{label}: último dia para denunciar ({provider})",
+      "termEnd": "{label}: fim do contrato ({provider})",
+      "priceGuaranteeEnd": "{label}: fim da garantia de preço ({provider})",
+      "priceIncrease": "{label}: aumento de preço ({provider}) — verifique a denúncia",
+      "readingDue": "{label}: ler o contador ({meter})",
+      "tankReorder": "{label}: planear uma entrega ({meter})",
+      "tenancyStatementDue": "Acerto de encargos até {period} devido: {label}",
+      "objectionDeadline": "Último dia para contestar o acerto de encargos: {label}",
+      "co2ClaimDeadline": "Custo de CO₂ {year}: último dia para reclamar a parte do senhorio de {amount}"
+    },
+    "subscribe": "Subscrever no calendário",
+    "intro": "Compromissos, prazos de denúncia, fim de contratos, garantias de preço e leituras pendentes como subscrição de calendário. O calendário atualiza-os a cada 12 horas.",
+    "copy": "Copiar o endereço",
+    "appleHint": "Calendário da Apple: Ficheiro → Nova subscrição de calendário, localização «No meu Mac» ou no iPhone «No meu iPhone» — assim o dispositivo descarrega-o sozinho e chega à app na rede de casa.",
+    "googleHint": "O Google Calendar descarrega as subscrições a partir dos servidores da Google — só funciona se a app estiver acessível a partir da Internet.",
+    "tokenCreated": "Foi criada uma chave de calendário própria para a subscrição. Só vale para este calendário e pode ser revogada em Definições → Acesso.",
+    "createConfirm": "Com o início de sessão ativado, a subscrição precisa de uma chave de calendário própria. Só permite ler as datas e pode ser revogada em Definições → Acesso.",
+    "existingKeys": {
+      "one": "Já existe {count} chave de calendário – uma nova ligação cria outra.",
+      "other": "Já existem {count} chaves de calendário – uma nova ligação cria outra."
+    },
+    "createLink": "Criar ligação"
+  },
+  "tenancy": {
+    "title": "Arrendamento",
+    "subtitle": "Adiantamento de encargos, custo provável do período em curso e acertos de encargos.",
+    "loading": "A carregar…",
+    "select": "Escolher arrendamento",
+    "new": "+ Arrendamento",
+    "empty": {
+      "title": "Ainda nenhum arrendamento",
+      "text": "Crie o arrendamento: adiantamento de encargos, data do acerto e os contadores da informação de consumo. A aplicação calcula então o custo provável do período em curso."
+    },
+    "budget": {
+      "title": "Adiantamento e custos",
+      "unavailable": "A estimativa não está disponível de momento.",
+      "period": "Período de acerto {from} – {to}",
+      "expected": "Custos previstos",
+      "prepaid": "Adiantado",
+      "result": "Resultado provável",
+      "additional": "{amount} de acerto a pagar",
+      "credit": "{amount} a favor",
+      "even": "mais ou menos equilibrado",
+      "suggested": "Adiantamento mensal adequado",
+      "disclaimer": "Uma estimativa a partir dos contadores e dos preços do último acerto – não um acerto de encargos. O que o senhorio cobrar pode ser diferente.",
+      "months": "Mês a mês",
+      "colMonth": "Mês",
+      "colHeat": "Aquecimento",
+      "colWater": "Água",
+      "colBalance": "Acumulado",
+      "estimated": "estimado"
+    },
+    "risk": {
+      "low": "Pouco acerto a pagar previsto",
+      "medium": "Pequeno acerto a pagar possível",
+      "high": "Acerto a pagar provável"
+    },
+    "assumption": {
+      "price_missing_heat": "Nenhum preço por kWh de calor introduzido – os custos de aquecimento faltam na estimativa.",
+      "price_missing_warm_water": "Nenhum preço por m³ de água quente introduzido.",
+      "price_missing_cold_water": "Nenhum preço por m³ de água fria introduzido.",
+      "prepayment_missing": "Não há adiantamento introduzido para parte do período.",
+      "no_meters": "Nenhum contador associado – só contam os montantes fixos.",
+      "monthsEstimated": {
+        "one": "{count} mês está estimado (modelo de aquecimento e normal climática, ou ano anterior).",
+        "other": "{count} meses estão estimados (modelo de aquecimento e normal climática, ou ano anterior)."
+      }
+    },
+    "details": {
+      "title": "Arrendamento",
+      "edit": "Editar",
+      "prepaymentValue": "Aquecimento {heating} + encargos {operating} por mês",
+      "meterCount": {
+        "one": "{count} contador",
+        "other": "{count} contadores"
+      },
+      "uviHint": "A informação mensal de consumo introduz-se no serviço:"
+    },
+    "field": {
+      "label": "Designação",
+      "landlord": "Senhorio ou administração",
+      "start": "Início",
+      "end": "Fim (vazio = em curso)",
+      "anchor": "O período de acerto começa a (DD.MM.)",
+      "prepayment": "Adiantamento",
+      "prepayments": "Adiantamentos",
+      "prices": "Preços",
+      "fixedCosts": "Montantes fixos",
+      "heatPrice": "Calor",
+      "warmWaterPrice": "Água quente",
+      "coldWaterPrice": "Água fria e saneamento",
+      "meters": "Contadores associados",
+      "notes": "Nota",
+      "area": "Área segundo o contrato de arrendamento (m²)",
+      "areaPlaceholder": "vazio = das definições"
+    },
+    "meters": {
+      "heat": "Aquecimento:",
+      "warm_water": "Água quente:",
+      "cold_water": "Água fria:"
+    },
+    "form": {
+      "titleNew": "Criar arrendamento",
+      "titleEdit": "Editar arrendamento",
+      "addRow": "+ Linha",
+      "removeRow": "Remover linha",
+      "from": "A partir de",
+      "heatingMonth": "Aquecimento {cur} por mês",
+      "operatingMonth": "Encargos {cur} por mês",
+      "heatPrice": "Calor {cur} por kWh",
+      "warmWaterPrice": "Água quente {cur} por m³",
+      "coldWaterPrice": "Água fria {cur} por m³",
+      "pricesHint": "Do último acerto (custo da categoria dividido pelo consumo, termos fixos incluídos). Ao guardar um acerto, a aplicação pode adotá-los automaticamente.",
+      "fixedHint": "O que não é cobrado pelo consumo: lixo, limpeza, seguro, cabo… – por ano segundo o último acerto.",
+      "fixedLabel": "Designação",
+      "perYear": "{cur} por ano",
+      "noMeters": "nenhum contador deste tipo",
+      "saved": "Arrendamento guardado",
+      "delete": "Eliminar arrendamento",
+      "confirmDelete": "Eliminar o arrendamento juntamente com os acertos?",
+      "deleted": "Arrendamento eliminado"
+    },
+    "statements": {
+      "title": "Acertos de encargos",
+      "add": "+ Acerto",
+      "empty": "Ainda nenhum acerto registado.",
+      "colPeriod": "Período",
+      "colReceived": "Recebido",
+      "colTotal": "Custos",
+      "colPrepaid": "Adiantado",
+      "colResult": "Resultado",
+      "additional": "{amount} de acerto a pagar",
+      "credit": "{amount} a favor",
+      "pdf": "Abrir o acerto",
+      "confirmDelete": "Eliminar o acerto?",
+      "deleted": "Acerto eliminado"
+    },
+    "statement": {
+      "titleNew": "Registar acerto",
+      "titleEdit": "Editar acerto",
+      "from": "Período de",
+      "to": "até",
+      "received": "Recebido a",
+      "total": "Custos totais ({cur})",
+      "prepaid": "Adiantado ({cur})",
+      "heatKwh": "Consumo de calor segundo o acerto (kWh)",
+      "heatCost": "Custos de aquecimento ({cur})",
+      "positions": "Rubricas",
+      "positionsHint": "Para os preços bastam a água quente e fria com custo e consumo (m³); o saneamento conta com a água fria.",
+      "posLabel": "Rubrica",
+      "posCategory": "Tipo",
+      "posAmount": "Montante ({cur})",
+      "posConsumption": "Consumo",
+      "newPrepayment": "Novo adiantamento segundo o acerto",
+      "attachPdf": "Anexar PDF ou fotografia",
+      "attached": {
+        "one": "{count} comprovativo anexado",
+        "other": "{count} comprovativos anexados"
+      },
+      "applyPrices": "Adotar os preços (a partir do dia seguinte ao período)",
+      "applyPrepayment": "Adotar o novo adiantamento",
+      "saved": "Acerto guardado"
+    },
+    "category": {
+      "heating": "Aquecimento",
+      "warm_water": "Água quente",
+      "cold_water": "Água fria",
+      "sewage": "Saneamento",
+      "operating": "Encargos",
+      "other": "Outros"
+    }
+  },
+  "co2cost": {
+    "title": "Preço do CO₂ no combustível {year}",
+    "amount": "Incluído",
+    "perKwh": "Por kWh",
+    "emissions": "Emissões (BEHG)",
+    "price": "Preço do CO₂",
+    "netNote": "Já incluído no preço unitário – não é um acréscimo. Líquido {net}, acima com IVA.",
+    "source": {
+      "computed": "Calculado com o fator padrão do BEHG.",
+      "bill": "Segundo a fatura do fornecedor.",
+      "contract": "Com o fator de emissão da rede indicado no contrato."
+    },
+    "approx": "Aproximação: conta-se o calor, não o combustível.",
+    "priceAssumed": "O preço deste ano ainda não está fixado; usa-se o último conhecido.",
+    "notSupported": "A aplicação não conhece um preço do CO₂ no combustível para o país escolhido."
+  },
+  "co2split": {
+    "title": "Repartição dos custos de CO₂ {year}",
+    "case": {
+      "self_supplied": "Aquecimento próprio com contrato próprio: a parte do senhorio é reclamada pelo inquilino – por escrito, no prazo de doze meses após a fatura do fornecedor.",
+      "central": "Aquecimento central: o senhorio indica o escalão e a parte no acerto do aquecimento. A aplicação confere o cálculo."
+    },
+    "perM2": "CO₂ por m² e ano",
+    "stage": "Escalão",
+    "landlordShare": "Parte do senhorio",
+    "amount": "Reembolso",
+    "noData": "Para este ano não há dados de gás ou gasóleo nem indicações de CO₂ num acerto.",
+    "notSupported": "A repartição dos custos de CO₂ aplica-se a habitações arrendadas na Alemanha (CO2KostAufG).",
+    "disclaimer": "Estimativa segundo o CO2KostAufG, não aconselhamento jurídico.",
+    "check": {
+      "stage": "O escalão do acerto difere do recalculado.",
+      "share": "A parte do senhorio no acerto difere da tabela.",
+      "amount": "O montante do senhorio no acerto difere do recalculado.",
+      "missing_values": "Faltam emissões ou área no acerto – não é possível recalcular.",
+      "area_missing": "Sem área não há escalão – introduza-a no arrendamento ou em Agregado."
+    },
+    "reduction": {
+      "own_appliances": "−5%: gás também para aparelhos próprios (p. ex. fogão)",
+      "restriction_one": "Parte reduzida a metade: uma restrição de direito público (p. ex. património)",
+      "restriction_both": "Sem repartição: restrições contra a renovação e a troca do aquecimento"
+    },
+    "form": {
+      "title": "Custos de CO₂ (CO2KostAufG)",
+      "ownAppliances": "Gás também para aparelhos próprios (p. ex. fogão) – reembolso −5%",
+      "restriction": "Restrições de direito público (§ 9)",
+      "restrictions": {
+        "none": "nenhuma",
+        "one": "contra a renovação ou a troca do aquecimento (parte reduzida a metade)",
+        "both": "contra ambos (sem repartição)"
+      }
+    },
+    "statement": {
+      "title": "Indicações de CO₂ do acerto do aquecimento",
+      "emissions": "Emissões (kg CO₂)",
+      "cost": "Custos de CO₂ ({cur})",
+      "stage": "Escalão segundo o acerto",
+      "share": "Parte do senhorio segundo o acerto (%)",
+      "amount": "Montante do senhorio segundo o acerto ({cur})"
+    },
+    "letter": {
+      "open": "Carta (PDF)",
+      "title": "Reembolso da parte do senhorio nos custos de CO₂ (CO2KostAufG)",
+      "subtitle": "Ano do acerto {year} · Habitação: {label}",
+      "emissions": "Emissões do ano",
+      "area": "Área habitável",
+      "perM2": "Emissões de CO₂ por m² e ano",
+      "stage": "Escalão segundo o anexo do CO2KostAufG",
+      "share": "Parte do senhorio",
+      "cost": "Custos de CO₂ do ano (com IVA)",
+      "amount": "Montante do reembolso",
+      "body": "Segundo o § 6, n.º 2 do CO2KostAufG, o senhorio suporta a parte indicada. Solicita-se a compensação do montante no próximo acerto de encargos ou o seu pagamento. Segue em anexo a fatura do fornecedor.",
+      "bodyCentral": "Recálculo das indicações de CO₂ do acerto do aquecimento segundo os §§ 5 e 7 do CO2KostAufG."
+    }
+  },
+  "evReport": {
+    "title": "Registo de carregamento (viatura da empresa)",
+    "intro": "Resumo mensal para o reembolso pelo empregador: a quantidade no contador do carregador e o seu preço — à escolha o preço do contrato com a parte proporcional do termo fixo ou o valor fixo de eletricidade.",
+    "year": "Ano",
+    "methodLabel": "Preço",
+    "method": {
+      "contract": "Preço do contrato com termo fixo proporcional",
+      "flat": "Valor fixo de eletricidade"
+    },
+    "flatLabel": "Valor fixo por kWh (cêntimos)",
+    "summary": "Carregado: {kwh} kWh · a reembolsar: {amount}",
+    "priceMissing": "Alguns meses não têm preço de contrato; contam sem montante.",
+    "downloadCsv": "Descarregar CSV",
+    "downloadPdf": "Descarregar PDF",
+    "disclaimer": "Resumo segundo a circular do Ministério Federal das Finanças alemão de 11/11/2025 (carregamento da viatura da empresa em casa), não é aconselhamento fiscal. A repartição do termo fixo por kWh é um pressuposto. Um registo próprio não basta — junte o contrato e a fatura.",
+    "pdf": {
+      "title": "Registo de carregamento {year}",
+      "meter": "Contador",
+      "method": "Preço",
+      "basis": "Quantidade: diferença das leituras do contador do carregador, distribuída dia a dia pelos meses. Preço do contrato: custo da energia do contrato pagador por kWh no mês mais o termo fixo segundo a parte do carregador no consumo.",
+      "signature": "Data, assinatura"
+    },
+    "col": {
+      "month": "Mês",
+      "readings": "Leituras",
+      "kwh": "kWh",
+      "price": "cênt./kWh",
+      "baseShare": "Parte do termo fixo",
+      "amount": "Montante",
+      "total": "Total"
+    }
+  },
+  "heatPump": {
+    "title": "Bomba de calor {year}",
+    "jaz": "Fator de desempenho sazonal",
+    "season": "Época de aquecimento (out.–abr.)",
+    "energy": "Calor / eletricidade",
+    "coverage": {
+      "one": "de {count} mês com ambos os contadores",
+      "other": "de {count} meses com ambos os contadores"
+    },
+    "month": "Mês",
+    "heat": "Calor (kWh)",
+    "elec": "Eletricidade (kWh)",
+    "cop": "Fator de desempenho",
+    "noHeatMeter": "O fator sazonal precisa de um contador de calor na bomba: contador de calor com a função «Calor produzido pela bomba de calor», ligado a este contador de eletricidade.",
+    "notLinked": "O contador de calor ainda não está ligado a nenhum contador de eletricidade da bomba (diálogo do contador).",
+    "noOverlap": "Este ano não há nenhum mês em que o contador de calor e o de eletricidade tenham valores.",
+    "reference": "Para referência: ensaio de campo «WP-QS im Bestand» (Fraunhofer ISE, 2025) — ar/água em média {air}, salmoura/água {ground}. Se a resistência de apoio e a água quente contam depende de onde estão os contadores."
+  },
+  "pv": {
+    "battery": {
+      "title": "Bateria {year}",
+      "charged": "Carregado",
+      "discharged": "Descarregado",
+      "efficiency": "Rendimento",
+      "losses": "Perdas {kwh} kWh",
+      "cycles": "Ciclos completos"
+    },
+    "payback": {
+      "title": "Amortização",
+      "investment": "Investimento",
+      "benefit": "Benefício até agora",
+      "perYear": "ultimamente {value} por ano",
+      "expected": "Amortizada provavelmente",
+      "reached": "Amortizada desde",
+      "years": "cerca de {years} anos",
+      "hint": "Benefício = compra à rede evitada (autoconsumo × preço unitário) + receita de injeção desde a entrada em funcionamento. Manutenção, substituição do inversor e juros não estão incluídos."
+    },
+    "plugIn": {
+      "assumed": "Kit solar: autoconsumo assumido em {pct}% da produção (definições)."
+    },
+    "hint51": "Em funcionamento desde 25/02/2025: não há remuneração de injeção nos períodos com preço grossista negativo, logo que esteja instalado um contador inteligente (§ 51 EEG). Compensa-se com um período de apoio mais longo."
+  },
+  "comparison": {
+    "title": "Comparação {year}",
+    "strom": "Eletricidade doméstica: {kwh} kWh face a {own} kWh (o seu valor de referência)",
+    "heating": "{label}: {value} kWh/m² face a {own} kWh/m² (o seu valor de referência)",
+    "incomplete": "O ano ainda não tem valores para todos os meses — só se compara um ano completo.",
+    "special": "Com FV, bomba de calor ou carregador, a referência geral não se aplica; a bomba de calor e o carregador já estão excluídos aqui.",
+    "source": "Fonte dos valores de referência: {source}",
+    "empty": "Introduza valores de referência próprios nas definições (casa), p. ex. de um índice de eletricidade ou aquecimento — a aplicação enquadra então o seu consumo.",
+    "link": {
+      "stromspiegel": "Stromspiegel: verificar a classe (em alemão)",
+      "heizspiegel": "Heizspiegel: verificar os custos de aquecimento (em alemão)"
+    }
+  },
+  "import": {
+    "series": {
+      "button": "Importar série temporal",
+      "title": "Série de um portal — {name}",
+      "intro": "Para ficheiros de portais do operador de rede, de contagem, do inversor ou da bomba de calor: os valores de quarto de hora, horários ou diários são agregados por dia.",
+      "pickFile": "Escolher ficheiro",
+      "skipRows": "Linhas de cabeçalho",
+      "dateCol": "Coluna data (e hora)",
+      "timeCol": "Coluna hora (se separada)",
+      "valueCol": "Coluna valor",
+      "column": "Coluna {n}",
+      "none": "— nenhuma —",
+      "kindLabel": "Os valores são",
+      "kind": {
+        "consumption": "Consumo por intervalo",
+        "counter": "Leituras"
+      },
+      "unit": "Unidade dos valores",
+      "stampLabel": "A marca temporal indica",
+      "stamp": {
+        "start": "o início do intervalo",
+        "end": "o fim do intervalo"
+      },
+      "anchor": "Valor inicial (leitura)",
+      "anchorHint": "Só para valores de consumo num contador com leituras: a leitura no início do primeiro dia. Vazio = a leitura desse dia.",
+      "previewButton": "Pré-visualização",
+      "importButton": "Importar",
+      "noFile": "Escolha primeiro um ficheiro.",
+      "skipped": {
+        "one": "{count} linha sem data ou valor ignorada.",
+        "other": "{count} linhas sem data ou valor ignoradas."
+      },
+      "done": "Série importada",
+      "summary": {
+        "one": "{count} dia, {from}: {total} {unit} no total",
+        "other": "{count} dias de {from} a {to}, {total} {unit} no total"
+      },
+      "summaryCounter": {
+        "one": "{count} dia, {from} (a última leitura do dia)",
+        "other": "{count} dias de {from} a {to} (a última leitura de cada dia)"
+      }
+    }
   }
 }

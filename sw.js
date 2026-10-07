@@ -21,9 +21,18 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v3.0.0';
-const STATIC_CACHE  = `et-static-${VERSION}`;
-const RUNTIME_CACHE = `et-runtime-${VERSION}`;
+const VERSION = 'v3.1.0';
+// v3.1.0 (Ökosystem G1) — Caches tragen den Scope der Installation im Namen.
+// Zwei Installationen auf einem Ursprung (ACC und Prod auf derselben NAS,
+// die App unter Home-Assistant-Ingress neben HAs eigenem Worker) löschten
+// bis v3.0 gegenseitig ihre Caches: `activate` warf alles weg, was nicht
+// den eigenen Namen trug. Jetzt räumt jede Installation nur unter ihrem
+// Präfix auf (und einmalig die alten Namen ohne Scope).
+const SCOPE = new URL(self.registration.scope).pathname;
+const PREFIX = `et:${SCOPE}:`;
+const STATIC_CACHE  = `${PREFIX}static-${VERSION}`;
+const RUNTIME_CACHE = `${PREFIX}runtime-${VERSION}`;
+const isLegacy = (k) => /^et-(static|runtime)-v/.test(k);
 
 // v2.2.0 — Precache der App-Shell samt Schriften und Chart.js. Vorher standen
 // hier nur die SPA-Wurzel und das Manifest: Wer die Anwendung installierte und
@@ -36,6 +45,7 @@ const SHELL_URLS = [
   './public/css/app.css',
   './public/css/components.css',
   './public/css/readings-entry.css',
+  './public/css/print.css',
   './public/vendor/fonts.css',
   './public/vendor/fonts/dm-sans.woff2',
   './public/vendor/fonts/dm-mono-400.woff2',
@@ -57,7 +67,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then(keys => Promise.all(
-        keys.filter(k => k !== STATIC_CACHE && k !== RUNTIME_CACHE)
+        keys.filter(k => (k.startsWith(PREFIX) || isLegacy(k)) && k !== STATIC_CACHE && k !== RUNTIME_CACHE)
             .map(k => caches.delete(k))
       ))
       .then(() => self.clients.claim())

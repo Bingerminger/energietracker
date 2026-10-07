@@ -11,7 +11,7 @@ solves two very common everyday situations: **"one meter sits behind another"** 
 | Relationship | Field on the meter | Effect |
 |---|---|---|
 | **Submeter** (series connection) | `parent_meter_id` | consumption is **subtracted** from the parent meter |
-| **Group** | `meter_group_id` | consumptions are **combined** in the dashboard |
+| **Group** | `meter_group_id` | consumptions are **combined** in the dashboard; since v3.1.0 also a **shared contract** |
 
 Both fields are optional (default `null`) and additive — existing data stays
 unchanged.
@@ -52,6 +52,25 @@ utility total it does **not** additionally appear.
 - **Deletion protection.** A parent meter with assigned submeters cannot be deleted
   without first removing the assignment.
 
+### Module 2: a separate meter with its own contract *(v3.1.0)*
+
+Under § 14a EnWG, module 2, a heat pump or wall box gets a meter of its own
+from the grid operator, and its grid unit price drops to 40 %
+([Electricity → Controllable consumers](02-strom.md#controllable-consumers-v310)).
+Two amounts are then billed at two prices. This is how you model it:
+
+1. Create the heat pump’s or wall box’s meter as an electricity meter of its
+   own, with the role “Heat pump (heating electricity)” or “Wallbox (EV
+   charger)”.
+2. **If it sits behind the household meter** (the household meter measures
+   everything), set the household meter as its parent: the app subtracts the
+   amount there, and the household contract only calculates the rest. **If the
+   two meters sit side by side**, leave the field empty.
+3. Give the meter a **contract of its own** with the lower unit price.
+
+Balance and costs then appear per meter; the sum of the utility is right in
+both cases.
+
 ---
 
 ## 2. Meter groups
@@ -76,12 +95,60 @@ meters"**: select several existing meters, give a group name, done. In the
 background the dialog sets `meter_group_id` on all selected meters
 (`POST …/meter-groups/merge`).
 
-### What groups do (not yet) do
+### Group contract *(v3.1.0)*
 
-In v1.8.0, groups combine exclusively the **consumption for the dashboard**.
-**Contracts stay per meter** — there is (not yet) a group contract with a shared
-balance. This extension is deliberately deferred to a later release, to avoid
-double-counting in the balance logic.
+Up to v3.0, groups only combined the **consumption for the dashboard**;
+contracts always belonged to a meter. Since v3.1.0 a contract can belong to **a
+group** ([#17](https://github.com/Bingerminger/energietracker/issues/17)) — for
+gas, electricity and district heating, the utilities with advance-payment
+contracts. The typical case is a dual-rate meter: two registers (peak and
+off-peak), one contract with one standing charge and two unit prices
+([Electricity](02-strom.md#peak-and-off-peak-one-contract-for-a-meter-group-v310)).
+
+**Creating it.** In the contract dialog choose the group under **“Meter”** — it
+is listed under “Meter groups (one contract for all)” once it has members.
+Then **“Unit price per meter (e.g. peak/off-peak)”** appears: one price list
+per member; empty means the unit price above. The contract card names the
+group instead of a meter.
+
+**Calculating.** Each member calculates its consumption at its unit price.
+Standing charge, advance payments and bonuses are carried by the **first
+member** only (order of the meter list) — so they count exactly once, and every
+sum is right: the utility’s, the overview, the annual report, the CSV export and
+the efficiency figure.
+
+```text
+Example: peak 2,000 kWh × 30 ct + off-peak 1,000 kWh × 22 ct + 12 × €12 standing charge
+       = €600 + €220 + €144 = €964 per year
+```
+
+**Where you see it.**
+
+- **Consumption view of a member:** the balance card shows the balance of the
+  group contract with the note “This meter is billed through the group contract
+  “…”. Balance and advance payments apply to the whole group.”
+- **Tariff switch:** the meter choice lists “Group: …” for every group with a
+  group contract. Forecast and switch decision calculate with the consumption of
+  the whole group; with two unit prices using a blended price, weighted with the
+  registers’ consumption over the last twelve months. You add an offer (shadow
+  contract) for the group there.
+- **To do, calendar, recommendations:** cancellation deadline, contract end and
+  price increase also apply to group contracts.
+- **Check a bill:** in the interface per meter — the first member with the
+  fixed costs, the others with their consumption. The whole group at once is
+  recalculated by `GET …/meter-groups/{id}/bill-check`
+  ([API](../referenz/api.md#group-contract-v310)).
+
+**Rules.**
+
+- A member may have **no real contract of its own** in the period of a group
+  contract, and vice versa — otherwise the standing charge and consumption
+  would count twice. The app refuses it (“A meter of the group has its own
+  contract in this period …”); end the old contract first. Offers (shadow
+  contracts) are not affected.
+- A group with contracts cannot be dissolved; first delete the group contracts
+  or assign them to a meter.
+- Water has no group contracts.
 
 ---
 

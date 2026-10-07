@@ -48,6 +48,9 @@ jobs:
           node tests/router.test.mjs
           node tests/contrast.test.mjs
           node tests/chart.test.mjs
+          node tests/plural.test.mjs
+          node tests/hardcoded-text.test.mjs
+          node tests/outbox.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata
@@ -143,16 +146,21 @@ jobs:
         run: node tests/demo.test.mjs
 
   lint-php:
-    name: PHP Syntax-Check
+    name: PHP Syntax-Check (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    # v3.1.0 (API-39) — Mindestversion PHP 8.2 (Debian 12), 8.3 (Ubuntu 24.04), 8.4 (Docker)
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.2", "8.3", "8.4"]
 
     steps:
       - uses: actions/checkout@v5
 
-      - name: PHP einrichten (8.4)
+      - name: PHP einrichten (${{ matrix.php }})
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.4"
+          php-version: ${{ matrix.php }}
           extensions: mbstring, json
           coverage: none
 
@@ -160,17 +168,22 @@ jobs:
         run: find . -name "*.php" -not -path "./.git/*" -not -path "./vendor/*" | xargs -P4 -I{} php -l {}
 
   phpunit:
-    name: PHPUnit-Suite (Service-Schicht)
+    name: PHPUnit-Suite (Service-Schicht) (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
+    # v3.1.0 (API-39) — Mindestversion PHP 8.2 (Debian 12), 8.3 (Ubuntu 24.04), 8.4 (Docker)
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.2", "8.3", "8.4"]
     needs: lint-php
 
     steps:
       - uses: actions/checkout@v5
 
-      - name: PHP einrichten (8.4)
+      - name: PHP einrichten (${{ matrix.php }})
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.4"
+          php-version: ${{ matrix.php }}
           extensions: mbstring, json
           coverage: none
 
@@ -178,8 +191,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: vendor
-          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
-          restore-keys: composer-${{ runner.os }}-
+          key: composer-${{ runner.os }}-php${{ matrix.php }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ matrix.php }}-
 
       - name: Composer-Dependencies installieren
         run: composer install --no-progress --no-interaction --prefer-dist

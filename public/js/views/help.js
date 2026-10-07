@@ -9,7 +9,7 @@
 // =====================================================================
 import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/format.js';
-import { GLOSSARY, glossaryTerm, glossaryText } from '../components/info.js';
+import { GLOSSARY, glossaryTerm, glossaryText, billLine } from '../components/info.js';
 import { setupSteps, setupListHtml, openSteps } from '../lib/onboarding.js';
 import { docUrl, docsInOtherLanguage, ISSUES_URL } from '../lib/docs.js';
 
@@ -68,6 +68,7 @@ export async function render(container, _params = [], ctx = {}) {
         <div class="glossary-list__item" id="g-${escapeHtml(x.id)}" data-term="${escapeHtml(x.id)}">
           <dt>${escapeHtml(x.term)}</dt>
           <dd>${escapeHtml(x.text)}</dd>
+          ${billLine(x.id) ? `<dd class="glossary-list__bill muted small">${escapeHtml(billLine(x.id))}</dd>` : ''}
         </div>`).join('')}
       </dl>
       <p class="muted" data-role="none" hidden>${escapeHtml(t('help.glossary.none'))}</p>

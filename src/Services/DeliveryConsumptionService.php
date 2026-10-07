@@ -94,7 +94,7 @@ final class DeliveryConsumptionService
     public function tankModel(string $utility, array $meter, ?string $today = null): array
     {
         if (!Utilities::isDelivery($utility)) {
-            throw new \InvalidArgumentException('tankModel nur für Delivery-Utilities, nicht für ' . $utility);
+            throw new \Energietracker\Support\LocalizedException('errors.delivery.notDeliveryBased', ['utility' => $utility], "tankModel only for delivery utilities, not $utility");
         }
         $today = $today ?? date('Y-m-d');
         $memoKey = $utility . '|' . md5(serialize($meter)) . '|' . $today . '|' . $this->store->generation();
@@ -296,9 +296,8 @@ final class DeliveryConsumptionService
     public function dailyDeliveryConsumption(string $utility, array $meter): array
     {
         if (!Utilities::isDelivery($utility)) {
-            throw new \InvalidArgumentException(
-                'dailyDeliveryConsumption nur für Delivery-Utilities, nicht für ' . $utility
-            );
+            throw new \Energietracker\Support\LocalizedException('errors.delivery.notDeliveryBased', ['utility' => $utility],
+                "dailyDeliveryConsumption only for delivery utilities, not $utility");
         }
         $kwhPerUnit = $this->kwhPerUnit($utility);
         $out = [];
@@ -317,9 +316,8 @@ final class DeliveryConsumptionService
     public function dailyDeliveryStockDraw(string $utility, array $meter): array
     {
         if (!Utilities::isDelivery($utility)) {
-            throw new \InvalidArgumentException(
-                'dailyDeliveryStockDraw nur für Delivery-Utilities, nicht für ' . $utility
-            );
+            throw new \Energietracker\Support\LocalizedException('errors.delivery.notDeliveryBased', ['utility' => $utility],
+                "dailyDeliveryStockDraw only for delivery utilities, not $utility");
         }
         return array_map(fn($row) => $row['draw'], $this->tankModel($utility, $meter)['days']);
     }

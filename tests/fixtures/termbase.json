@@ -1,0 +1,102 @@
+{
+  "_comment": "Termbase der Oberfläche (I18N-06, v3.1.0). Je Begriff die kanonische Form (use) und Varianten, die nicht mehr vorkommen dürfen (avoid). Geprüft von CatalogStyleTest::testTermbase: avoid-Wendungen beginnen an einer Wortgrenze, Groß/klein egal, Plurale am Wortende werden mitgefangen. Ist glossary gesetzt, muss glossary.<id>.term die use-Form enthalten. allowKeys = Schlüssel, die bewusst abweichen (csv.* ist Format 1 und eingefroren). Rechnungsbegriffe gehören nicht hierher, sondern in Countries::billTerms (I18N-27).",
+  "terms": [
+    {
+      "id": "workingPrice", "glossary": "workingPrice",
+      "use": { "de": "Arbeitspreis", "en": "unit price", "fr": "prix unitaire", "it": "prezzo unitario", "es": "precio unitario", "pt": "preço unitário", "nl": "eenheidsprijs" },
+      "avoid": {
+        "fr": ["prix de l’énergie", "prix de l'énergie"],
+        "it": ["prezzo dell’energia", "prezzi dell’energia", "prezzo dell'energia"],
+        "es": ["precio de la energía", "precio de energía", "precios de energía", "precio por unidad"],
+        "pt": ["preço da energia", "preço de energia", "preços de energia"],
+        "nl": ["energieprijs", "energieprijzen", "kale prijs"]
+      }
+    },
+    {
+      "id": "basePrice", "glossary": "basePrice",
+      "use": { "de": "Grundpreis", "en": "standing charge", "fr": "abonnement", "it": "quota fissa", "es": "término fijo", "pt": "termo fixo", "nl": "vastrecht" },
+      "avoid": { "pt": ["tarifa fixa"] }
+    },
+    {
+      "id": "specialPayment", "glossary": "specialPayment",
+      "use": { "de": "Sonderzahlung", "en": "special payment", "fr": "paiement exceptionnel", "it": "pagamento straordinario", "es": "pago extraordinario", "pt": "pagamento extraordinário", "nl": "bijzondere betaling" },
+      "avoid": {
+        "en": ["one-off payment", "one-off settlement"],
+        "fr": ["paiement spécial", "paiements spéciaux"],
+        "it": ["pagamento speciale", "pagamenti speciali"],
+        "es": ["pago especial", "pagos especiales"],
+        "pt": ["pagamento especial", "pagamentos especiais"]
+      }
+    },
+    {
+      "id": "advance", "glossary": "advance",
+      "use": { "de": "Abschlag", "en": "advance payment", "fr": "acompte", "it": "acconto", "es": "anticipo", "pt": "adiantamento", "nl": "voorschot" },
+      "avoid": { "es": ["pago a cuenta", "pagos a cuenta"], "pt": ["pagamento por conta", "pagamentos por conta"] },
+      "allowKeys": ["csv.*"]
+    },
+    {
+      "id": "cutoffDate", "glossary": "cutoffDate",
+      "use": { "de": "Stichtag", "en": "effective date", "fr": "date d’effet", "it": "data di decorrenza", "es": "fecha de efecto", "pt": "data de efeito", "nl": "ingangsdatum" },
+      "avoid": { "es": ["fecha de vigencia", "fechas de vigencia"], "pt": ["data de vigência", "datas de vigência"] }
+    },
+    {
+      "id": "zNumber", "glossary": "zNumber",
+      "use": { "de": "Zustandszahl", "en": "correction factor", "fr": "coefficient de correction", "it": "coefficiente di correzione", "es": "coeficiente de corrección", "pt": "coeficiente de correção", "nl": "volumeherleidingsfactor" },
+      "avoid": {
+        "fr": ["coefficient de conversion"],
+        "es": ["factor de corrección"],
+        "pt": ["fator de correção"],
+        "nl": ["correctiefactor"]
+      }
+    },
+    {
+      "id": "subMeter", "glossary": "subMeter",
+      "use": { "de": "Subzähler", "en": "sub-meter", "fr": "sous-compteur", "it": "sottocontatore", "es": "subcontador", "pt": "subcontador", "nl": "tussenmeter" },
+      "avoid": { "en": ["submeter"], "it": ["sotto-contatore", "sotto-contatori"], "nl": ["submeter"] }
+    },
+    {
+      "id": "autarky", "glossary": "autarky",
+      "use": { "de": "Autarkiequote", "en": "self-sufficiency", "fr": "autarcie", "it": "autosufficienza", "es": "autosuficiencia", "pt": "autossuficiência", "nl": "zelfvoorziening" },
+      "avoid": { "fr": ["autonomie"] }
+    },
+    {
+      "id": "selfConsumption", "glossary": "selfConsumption",
+      "use": { "de": "Eigenverbrauch", "en": "self-consumption", "fr": "autoconsommation", "it": "autoconsumo", "es": "autoconsumo", "pt": "autoconsumo", "nl": "eigen verbruik" },
+      "avoid": { "nl": ["zelfverbruik"] }
+    },
+    {
+      "id": "utility", "glossary": null,
+      "use": { "de": "Verbrauchsart", "en": "utility", "fr": "type de consommation", "it": "utenza", "es": "suministro", "pt": "serviço", "nl": "verbruikssoort" },
+      "avoid": {
+        "fr": ["énergie inconnue", "énergies actives", "type d’énergie", "type d'énergie", "types d’énergie", "types d'énergie"],
+        "pt": ["tipo de consumo"],
+        "nl": ["nutsvoorziening", "nutsvoorzieningen", "energiesoort", "energieën", "onbekende energie"]
+      }
+    },
+    {
+      "id": "settings", "glossary": null,
+      "use": { "de": "Einstellungen", "en": "settings", "fr": "paramètres", "it": "impostazioni", "es": "ajustes", "pt": "definições", "nl": "instellingen" },
+      "avoid": { "fr": ["réglages"] }
+    },
+    {
+      "id": "bonus", "glossary": null,
+      "use": { "de": "Bonus", "en": "bonus", "fr": "prime", "it": "bonus", "es": "bonificación", "pt": "bónus", "nl": "bonus" },
+      "avoid": { "fr": ["bonus"] }
+    },
+    {
+      "id": "additionalPayment", "glossary": null,
+      "use": { "de": "Nachzahlung", "en": "additional payment", "fr": "complément", "it": "conguaglio", "es": "pago adicional", "pt": "acerto", "nl": "bijbetaling" },
+      "avoid": { "es": ["pagos complementarios", "pago complementario"] }
+    },
+    {
+      "id": "repaymentDue", "glossary": null,
+      "use": { "de": "Rückforderung", "en": "repayment due" },
+      "avoid": { "en": ["reclaim"] }
+    },
+    {
+      "id": "meterSwap", "glossary": null,
+      "use": { "de": "Zählertausch", "en": "meter swap" },
+      "avoid": { "en": ["device swap"] }
+    }
+  ]
+}

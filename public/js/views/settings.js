@@ -11,11 +11,12 @@ import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso, intlLocale } f
 import { toastOk, toastErr, toastAfterReload } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
 import { logout } from '../components/login.js';
-import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../lib/ha-snippet.js';
-import { t, tp, getLocale, initI18n, getLanguages, setCurrencyParams } from '../lib/i18n.js';
+import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml } from '../lib/ha-snippet.js';
+import { t, tp, getLocale, initI18n, getLanguages, setCurrencyParams, deviceLanguage, setDeviceLanguage, hasTranslation, getCurrencySymbol } from '../lib/i18n.js';
 import { loadDemo } from '../lib/demo.js';
 import { docUrl } from '../lib/docs.js';
 import { setCountry } from '../lib/format.js';
+import { setBillContext } from '../components/info.js';
 import { CV_UNITS, cvUnit, gasFactorOf } from '../lib/gas-factor.js';
 import { buildSidebar } from '../lib/sidebar.js';
 import { copyText as copyToClipboard } from '../lib/clipboard.js';
@@ -48,6 +49,20 @@ const GROUPS = [
     // v2.10.0 (CALC-07) — für die energieausweis-nahe Kennzahl
     { key: 'beheizter_keller',     type: 'bool' },
     { key: 'warmwasser_dezentral', type: 'bool' },
+  ]},
+  // v3.1.0 (H3) — Mieter-Paket (F1008), Heizwärme (B8), Warmwasser (CALC-28)
+  { gkey: 'tenancy', page: 'household', icon: '🔑', fields: [
+    { key: 'wohnverhaeltnis', type: 'select', options: ['eigentum', 'miete'], optionLabels: 'settings.tenure' },
+    { key: 'waerme_energietraeger', type: 'select', options: ['none', 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom'], optionLabels: 'settings.heatSource' },
+    { key: 'warmwasser_energietraeger', type: 'select', options: ['none', 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom', 'waerme'], optionLabels: 'settings.heatSource' },
+    { key: 'warmwasser_temp_c', unit: '°C', step: '1' },
+  ]},
+  // v3.1.0 (H8, MKT-11) — Einordnung mit eigenen Vergleichswerten (z. B. aus Strom-/Heizspiegel)
+  { gkey: 'reference', page: 'household', icon: '📏', fields: [
+    { key: 'reference_strom_kwh',   unit: 'kWh/a', step: '1' },
+    { key: 'reference_heat_kwh_m2', unit: 'kWh/m²·a', step: '1' },
+    { key: 'reference_source',      type: 'text', placeholderKey: 'settings.placeholder.referenceSource' },
+    { key: 'warmwasser_elektrisch', type: 'bool' },
   ]},
   { gkey: 'water', page: 'household', icon: '💧', fields: [
     { key: 'wasser_personen_anzahl',   step: '1' },
@@ -89,6 +104,12 @@ const GROUPS = [
     // v2.10.0 — gerechnet wird je kWh; die Beschriftung stand bis v2.9 auf g/L bzw. g/kg
     { key: 'co2_heizoel',    unit: 'g/kWh', step: '1' },
     { key: 'co2_pellets',    unit: 'g/kWh', step: '1' },
+    // v3.1.0 (H7, CALC-29) — eigener Vermeidungsfaktor der PV; leer = Strommix
+    { key: 'co2_pv_avoided', unit: 'g/kWh', step: '1' },
+  ]},
+  // v3.1.0 (H7, CALC-29) — Balkonkraftwerk ohne Einspeisezähler
+  { gkey: 'pv', page: 'utilities', icon: '☀️', fields: [
+    { key: 'pv_assumed_self_consumption_pct', unit: '%', step: '1' },
   ]},
   // ── Zugriff ──
   // v2.6.0 — frame-ancestors der Content-Security-Policy (index.php): Wer die
@@ -113,6 +134,22 @@ const GROUPS = [
     { key: 'recommendation_anomaly_sigma', unit: 'σ', step: '0.1' },
     { key: 'recommendation_trend_pct_year', unitKey: 'settings.unit.pctYear', step: '0.5' },
     { key: 'delivery_baseload_share', step: '0.05' },
+  ]},
+  // v3.1.0 (Paket H4) — CO₂-Preis je Jahr (eigene Werte statt Länderprofil) und Szenario
+  { gkey: 'co2price', page: 'expert', icon: '🏷️', wide: true, fields: [
+    { key: 'co2_price_eur_t_years', type: 'co2years' },
+    { key: 'co2_price_scenario_eur_t', unitKey: 'settings.unit.eurPerTonne', step: '1' },
+    { key: 'co2_price_scenario_from', step: '1' },
+  ]},
+  // v3.1.0 (Paket H2) — Belege und Texterkennung im Heimnetz (MKT-08)
+  { gkey: 'attachments', page: 'expert', icon: '📎', visible: true, fields: [
+    { key: 'attachments_max_mb', unit: 'MB', step: '1' },
+  ]},
+  { gkey: 'ocr', page: 'expert', icon: '🔎', visible: true, fields: [
+    { key: 'ocr_endpoint',  type: 'text', placeholderKey: 'settings.placeholder.ocrEndpoint' },
+    { key: 'ocr_api',       type: 'select', options: ['ollama', 'openai'], optionLabels: 'settings.ocrApis' },
+    { key: 'ocr_model',     type: 'text', placeholderKey: 'settings.placeholder.ocrModel' },
+    { key: 'ocr_timeout_s', unitKey: 'settings.unit.seconds', step: '1' },
   ]},
   // Der Standort steht seit v2.12.0 nur noch bei den Wetterdaten (temperatures.js).
 ];
@@ -146,7 +183,7 @@ export async function render(container, params = [], ctx = {}) {
   container.innerHTML = `<div class="loading">${t('settings.loading')}</div>`;
 
   const needs = (...pages) => pages.includes(page);
-  const [settings, diag, utilities, authStatus, session, apiKeys, snapshots, countries, defaultUpdates] = await Promise.all([
+  const [settings, diag, utilities, authStatus, session, apiKeys, snapshots, countries, defaultUpdates, attachments] = await Promise.all([
     api.settings(),
     needs('system') ? api.diagnostics().catch(() => null) : null,
     needs('utilities', 'data', 'integrations') ? api.listUtilities().catch(() => []) : [],
@@ -159,6 +196,8 @@ export async function render(container, params = [], ctx = {}) {
     needs('general') ? getCountries() : [],
     // v2.10.0 — korrigierte Standardwerte, die diese Installation noch nicht nutzt
     needs('general') ? api.settingsDefaultUpdates().catch(() => []) : [],
+    // v3.1.0 (H2) — Belege: Anzahl und Speicher für die Backup-Karte
+    needs('data') ? api.attachments().catch(() => null) : null,
   ]);
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
@@ -170,9 +209,13 @@ export async function render(container, params = [], ctx = {}) {
     }));
   }
 
+  // v3.1.0 — Gruppen mit `visible` stehen auf der Experten-Seite vor dem
+  // eingeklappten Teil (Belege, Texterkennung sind keine Rechenparameter)
+  const grid = (list) => list.length
+    ? `<div class="settings-grid">${list.map(g => renderGroup(g, settings)).join('')}</div>` : '';
   const groups = GROUPS.filter(g => g.page === page);
-  const groupsHtml = groups.length
-    ? `<div class="settings-grid">${groups.map(g => renderGroup(g, settings)).join('')}</div>` : '';
+  const groupsHtml = grid(page === 'expert' ? groups.filter(g => !g.visible) : groups);
+  const visibleHtml = page === 'expert' ? grid(groups.filter(g => g.visible)) : '';
   const bodies = {
     general: `
       <div class="card settings-card">
@@ -180,9 +223,16 @@ export async function render(container, params = [], ctx = {}) {
         <p class="settings-card__hint">${t('settings.lang.hint')}</p>
         <div class="settings-fields">
           <div class="field settings-field">
-            <label for="lang-select">${t('settings.lang.label')}</label>
+            <label for="lang-select">${t('settings.lang.deviceLabel')}</label>
             <select class="select" id="lang-select">
-              ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === getLocale() ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
+              <option value="" ${deviceLanguage() ? '' : 'selected'}>${escapeHtml(t('settings.lang.deviceFollow', { lang: getLanguages()[settings.language] || getLanguages()[getLocale()] || '' }))}</option>
+              ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === deviceLanguage() ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field settings-field">
+            <label for="lang-default-select">${t('settings.lang.defaultLabel')}</label>
+            <select class="select" id="lang-default-select">
+              ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === (settings.language || getLocale()) ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
             </select>
           </div>
           ${renderRegionFields(settings, countries || [])}
@@ -210,7 +260,7 @@ export async function render(container, params = [], ctx = {}) {
       ${groupsHtml}`,
     data: `
       ${renderExportCard(settings, utilities)}
-      ${renderBackupCard(snapshots)}
+      ${renderBackupCard(snapshots, attachments)}
       <div class="card card--link">
         <h2 class="card__title">${t('settings.pdf.title')}</h2>
         <p class="muted">${escapeHtml(t('settings.pdf.moved'))}</p>
@@ -219,6 +269,7 @@ export async function render(container, params = [], ctx = {}) {
     integrations: renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, session),
     access: `${renderSecurityCard(session, apiKeys)}${groupsHtml}`,
     expert: `
+      ${visibleHtml}
       <details class="settings-expert">
         <summary>${escapeHtml(t('settings.expert.summary'))}</summary>
         <p class="banner banner--warning">${escapeHtml(t('settings.expert.warning'))}</p>
@@ -316,16 +367,29 @@ export async function render(container, params = [], ctx = {}) {
     render(container, params, ctx);
   });
 
-  // Sprachumschalter: Sprache speichern, i18n neu laden, Sidebar + View neu rendern.
+  // Sprache wechseln: i18n neu laden, Sidebar + View neu rendern.
+  const applyLanguage = async (lang) => {
+    await initI18n(lang);
+    invalidateUtilities();   // Labels kommen lokalisiert vom Backend → neu laden
+    await buildSidebar();
+    toastOk(t('settings.lang.saved'));
+    render(container, params, ctx);
+  };
+  // v3.1.0 (I18N-29) — Sprache dieses Geräts (im Browser); leer = wie die Installation
   container.querySelector('#lang-select')?.addEventListener('change', async (e) => {
+    const lang = e.target.value || null;
+    setDeviceLanguage(lang);
+    try { await applyLanguage(lang || settings.language); }
+    catch (err) { toastErr(err.message); }
+  });
+  // Standardsprache der Installation: neue Geräte, PDF, CSV, Home Assistant
+  container.querySelector('#lang-default-select')?.addEventListener('change', async (e) => {
     const lang = e.target.value;
     try {
       await saveSettings({ language: lang });
-      await initI18n(lang);
-      invalidateUtilities();   // Labels kommen lokalisiert vom Backend → neu laden
-      await buildSidebar();
-      toastOk(t('settings.lang.saved'));
-      render(container, params, ctx);
+      settings.language = lang;
+      if (!deviceLanguage()) await applyLanguage(lang);
+      else { toastOk(t('settings.lang.defaultSaved')); render(container, params, ctx); }
     } catch (err) { toastErr(err.message); }
   });
 
@@ -355,13 +419,36 @@ export async function render(container, params = [], ctx = {}) {
 }
 
 // ── Seite „Daten": Export, Sicherung, Demo-Daten, Migration ──────────────
+// v3.1.0 (Review I18N-10) — CSV in der Standardsprache oder als Format 1; die
+// Wahl merkt sich der Browser.
+const CSV_FORMAT_KEY = 'et-csv-format';
+function csvFormat() {
+  try { return localStorage.getItem(CSV_FORMAT_KEY) === '1' ? '1' : 'local'; } catch { return 'local'; }
+}
+function csvUrl(kind, utility, format) {
+  if (kind === 'monthly') return api.exportMonthlyCsvUrl(utility, format);
+  if (kind === 'deliveries') return api.exportDeliveriesCsvUrl(utility, format);
+  if (kind === 'temperatures') return api.exportTemperaturesCsvUrl(format);
+  return api.exportReadingsCsvUrl(utility, format);
+}
+
 function renderExportCard(settings, utilities) {
+  const fmt = csvFormat();
+  const langName = getLanguages()[settings.language] || getLanguages()[getLocale()] || '';
   return `
     <div class="card">
       <h2 class="card__title">${t('settings.export.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-4)">
         ${t('settings.export.hint')}
       </p>
+      <div class="field settings-field" style="margin-bottom: var(--sp-4)">
+        <label for="csv-format">${t('settings.export.formatLabel')}</label>
+        <select class="select" id="csv-format">
+          <option value="local" ${fmt === 'local' ? 'selected' : ''}>${escapeHtml(t('settings.export.formatLocal', { lang: langName }))}</option>
+          <option value="1" ${fmt === '1' ? 'selected' : ''}>${escapeHtml(t('settings.export.formatV1'))}</option>
+        </select>
+        <p class="settings-field__hint">${t('settings.export.formatHint')}</p>
+      </div>
       <div class="export-grid">
         <div class="export-tile">
           <div class="export-tile__label">${t('settings.export.monthly')}</div>
@@ -369,7 +456,7 @@ function renderExportCard(settings, utilities) {
           <div class="export-tile__actions">
             ${(utilities || [])
               .filter(u => exportActive(settings, u.key))
-              .map(u => `<a class="btn btn--sm btn-${u.key}" href="${api.exportMonthlyCsvUrl(u.key)}" download>${escapeHtml(u.label)}</a>`)
+              .map(u => `<a class="btn btn--sm btn-${u.key}" href="${csvUrl('monthly', u.key, fmt)}" data-csv="monthly" data-utility="${u.key}" download>${escapeHtml(u.label)}</a>`)
               .join('') || `<span class="muted" style="font-size:12px">${t('settings.export.noActive')}</span>`}
           </div>
         </div>
@@ -381,9 +468,9 @@ function renderExportCard(settings, utilities) {
               .filter(u => exportActive(settings, u.key))
               .map(u => {
                 const isDelivery = u.reading_kind === 'delivery';
-                const url = isDelivery ? api.exportDeliveriesCsvUrl(u.key) : api.exportReadingsCsvUrl(u.key);
+                const kind = isDelivery ? 'deliveries' : 'readings';
                 const tag = isDelivery ? t('settings.export.deliveriesTag') : '';
-                return `<a class="btn btn--sm btn-${u.key}" href="${url}" download>${escapeHtml(u.label)}${tag}</a>`;
+                return `<a class="btn btn--sm btn-${u.key}" href="${csvUrl(kind, u.key, fmt)}" data-csv="${kind}" data-utility="${u.key}" download>${escapeHtml(u.label)}${tag}</a>`;
               })
               .join('') || `<span class="muted" style="font-size:12px">${t('settings.export.noActive')}</span>`}
           </div>
@@ -392,20 +479,21 @@ function renderExportCard(settings, utilities) {
           <div class="export-tile__label">${t('settings.export.temperatures')}</div>
           <div class="export-tile__hint">${t('settings.export.temperaturesHint')}</div>
           <div class="export-tile__actions">
-            <a class="btn btn--sm" href="${api.exportTemperaturesCsvUrl()}" download>${t('settings.export.exportTemperatures')}</a>
+            <a class="btn btn--sm" href="${csvUrl('temperatures', null, fmt)}" data-csv="temperatures" download>${t('settings.export.exportTemperatures')}</a>
           </div>
         </div>
       </div>
     </div>`;
 }
 
-function renderBackupCard(snapshots) {
+function renderBackupCard(snapshots, attachments = null) {
   return `
     <div class="card">
       <h2 class="card__title">${t('settings.backup.title')}</h2>
       <p class="muted" style="margin-bottom: var(--sp-3)">
         ${t('settings.backup.hint')}
       </p>
+      ${renderAttachmentUsage(attachments)}
       <div class="section-actions">
         <button class="btn" id="btn-export">${t('settings.backup.download')}</button>
         <button class="btn" id="btn-snapshot">${t('settings.backup.snapshot')}</button>
@@ -438,7 +526,24 @@ function renderBackupCard(snapshots) {
     </div>`;
 }
 
+// v3.1.0 (H2) — Belege im Backup: Anzahl, Speicher, Warnung ab 80 % der Grenze
+function renderAttachmentUsage(a) {
+  const u = a?.usage;
+  if (!u || !u.count) return '';
+  const mb = (b) => fmt.dec(b / 1048576, 1);
+  const pct = u.max_bytes > 0 ? u.bytes / u.max_bytes : 0;
+  return `<p class="settings-card__hint${pct >= 0.8 ? ' settings-card__hint--warn' : ''}" style="margin: 0 0 var(--sp-3)">
+    ${escapeHtml(tp('settings.backup.attachments', u.count, { size: mb(u.bytes), max: mb(u.max_bytes) }))}
+    ${pct >= 0.8 ? ' ' + escapeHtml(t('settings.backup.attachmentsFull')) : ''}
+  </p>`;
+}
+
 function wireDataPage(container, utilities, rerender) {
+  const fmtSel = container.querySelector('#csv-format');
+  fmtSel?.addEventListener('change', () => {
+    try { localStorage.setItem(CSV_FORMAT_KEY, fmtSel.value); } catch { /* nur für diese Ansicht */ }
+    container.querySelectorAll('[data-csv]').forEach(a => { a.href = csvUrl(a.dataset.csv, a.dataset.utility, fmtSel.value); });
+  });
   container.querySelector('#btn-export')?.addEventListener('click', async () => {
     try {
       const data = await api.exportBackup();
@@ -836,7 +941,10 @@ async function applyRegion(container, patch, countries = [], rerender = () => {}
   try {
     await saveSettings(patch);
     if (patch.currency) setCurrencyParams(patch.currency);
-    if (patch.country) setCountry(patch.country, countries.find(c => c.code === patch.country)?.languages);
+    if (patch.country) {
+      setCountry(patch.country, countries.find(c => c.code === patch.country)?.languages);
+      setBillContext(countries.find(c => c.code === patch.country) || null);
+    }
     toastOk(t('settings.region.saved'));
     rerender();
   } catch (err) { toastErr(err.message); }
@@ -944,8 +1052,27 @@ function renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, sessi
       <div class="section-actions">
         <button class="btn btn--sm" data-ha-copy="#ha-automation">${t('settings.ha.copyYaml')}</button>
       </div>
+
+      <!-- v3.1.0 (Paket H1, API-33) — Werte zurück nach Home Assistant -->
+      <h4 class="settings-subhead">${t('settings.ha.sensors.title')}</h4>
+      <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">${t('settings.ha.sensors.intro')}</p>
+      <pre class="code-block" id="ha-sensors"><code>${escapeHtml(haRestSensorYaml(haBaseUrl(), haSensorMeters(haUtilities, metersByUtility)))}</code></pre>
+      <div class="section-actions">
+        <button class="btn btn--sm" data-ha-copy="#ha-sensors">${t('settings.ha.copyYaml')}</button>
+      </div>
+      ${session && session.mode !== 'off' ? `
+      <p class="muted" style="font-size:12px;margin:var(--sp-2) 0">${t('settings.ha.sensors.keyHint')}</p>
+      <pre class="code-block" id="ha-read-secret"><code>${escapeHtml(haReadSecretYaml())}</code></pre>` : ''}
     </div>
   `;
+}
+
+// v3.1.0 — Zähler für die Sensor-Vorlage: Schlüssel wie in /api/summary
+function haSensorMeters(haUtilities, metersByUtility) {
+  return haUtilities.flatMap(u => (metersByUtility[u.key] || []).map(m => ({
+    key: `${u.key}.${m.id}`, name: `${u.label} ${m.name}`, unit: u.consumption_unit || 'kWh',
+    hasContract: u.has_contracts !== false && u.accounting_kind !== 'generation',
+  })));
 }
 
 // ── v2.6.0 — Anmeldung & Zugriff ─────────────────────────────────────────
@@ -1044,7 +1171,7 @@ function renderKeyTable(keys) {
     </tr></thead>
     <tbody>${keys.map(k => `<tr>
       <td>${escapeHtml(k.name)}</td>
-      <td>${t(k.scope === 'admin' ? 'settings.security.scopeAdmin' : 'settings.security.scopeRead')}</td>
+      <td>${t(k.scope === 'admin' ? 'settings.security.scopeAdmin' : k.scope === 'calendar' ? 'settings.security.scopeCalendar' : 'settings.security.scopeRead')}</td>
       <td>${stampHtml(k.created_at)}</td>
       <td>${k.last_used_at ? stampHtml(k.last_used_at) : `<span class="muted">${t('settings.security.keyNever')}</span>`}</td>
       <td style="text-align:right">
@@ -1190,7 +1317,13 @@ function afterRestore(message) {
 }
 
 // Adresse dieser Installation, wie Home Assistant sie aufrufen soll.
+// v3.1.0 (Ökosystem G3) — Unter Ingress zeigt die Adresszeile
+// https://ha…/api/hassio_ingress/<token>/: Das braucht eine HA-Sitzung, und das
+// Token wechselt. Home Assistant erreicht die App dann im internen Netz unter
+// ihrem Hostnamen (der Server nennt ihn in <meta name="et-ingress-host">).
 function haBaseUrl() {
+  const host = document.querySelector('meta[name="et-ingress-host"]')?.getAttribute('content');
+  if (host) return `http://${host}`;
   return `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`.replace(/\/$/, '');
 }
 
@@ -1323,9 +1456,10 @@ function yearMap(value) {
   return value && typeof value === 'object' ? { ...value } : {};
 }
 
-function renderCo2YearRows(map) {
+function renderCo2YearRows(map, key = 'co2_strom_years') {
   const years = Object.keys(map).sort();
-  if (!years.length) return `<tr><td colspan="3" class="muted">${t('settings.co2Years.none')}</td></tr>`;
+  // v3.1.0 — der CO₂-Preis fällt ohne eigene Werte auf das Länderprofil zurück, nicht auf „CO₂ Strom"
+  if (!years.length) return `<tr><td colspan="3" class="muted">${t(key === 'co2_price_eur_t_years' ? 'settings.co2Years.nonePrice' : 'settings.co2Years.none')}</td></tr>`;
   return years.map(y => `
     <tr>
       <td>${escapeHtml(y)}</td>
@@ -1334,19 +1468,23 @@ function renderCo2YearRows(map) {
     </tr>`).join('');
 }
 
+// v3.1.0 — auch für den CO₂-Preis je Jahr (co2_price_eur_t_years, €/t)
+const yearUnit = (key) => key === 'co2_price_eur_t_years' ? `${getCurrencySymbol()}/t` : 'g/kWh';
+const yearMax = (key) => key === 'co2_price_eur_t_years' ? 1000 : 2000;
+
 function renderCo2Years(f, map, hint) {
-  return `<div class="field settings-field settings-field--wide" data-co2years>
-    <label>${t('settings.field.co2_strom_years.label')}</label>
+  return `<div class="field settings-field settings-field--wide" data-co2years data-year-key="${f.key}">
+    <label>${t('settings.field.' + f.key + '.label')}</label>
     ${hint}
     <input type="hidden" data-key="${f.key}" data-type="json" value="${escapeHtml(JSON.stringify(map))}">
     <div class="table-wrap" style="margin-top:8px">
       <table class="table table--compact" data-cy-table>
         <thead><tr>
           <th scope="col">${t('settings.co2Years.colYear')}</th>
-          <th scope="col" class="num">g/kWh</th>
+          <th scope="col" class="num">${escapeHtml(yearUnit(f.key))}</th>
           <th scope="col"></th>
         </tr></thead>
-        <tbody>${renderCo2YearRows(map)}</tbody>
+        <tbody>${renderCo2YearRows(map, f.key)}</tbody>
       </table>
     </div>
     <div class="form-row" style="margin-top:10px; align-items:flex-end">
@@ -1355,8 +1493,8 @@ function renderCo2Years(f, map, hint) {
         <input class="input" id="cy-year" type="text" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="${new Date().getFullYear() - 1}">
       </div>
       <div class="field">
-        <label for="cy-value">g/kWh</label>
-        <input class="input" id="cy-value" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(formatForInput(344))}">
+        <label for="cy-value">${escapeHtml(yearUnit(f.key))}</label>
+        <input class="input" id="cy-value" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(formatForInput(f.key === 'co2_price_eur_t_years' ? 65 : 344))}">
       </div>
       <div class="field">
         <button type="button" class="btn btn--ghost" data-cy-add>${t('settings.gasFactors.add')}</button>
@@ -1368,12 +1506,13 @@ function renderCo2Years(f, map, hint) {
 function wireCo2Years(container) {
   const root = container.querySelector('[data-co2years]');
   if (!root) return;
-  const hidden = root.querySelector('[data-key="co2_strom_years"]');
+  const key = root.getAttribute('data-year-key') || 'co2_strom_years';
+  const hidden = root.querySelector(`[data-key="${key}"]`);
   const tbody  = root.querySelector('[data-cy-table] tbody');
   const read   = () => { try { return yearMap(JSON.parse(hidden.value || '{}')); } catch { return {}; } };
   const write  = (map) => {
     hidden.value = JSON.stringify(map);
-    tbody.innerHTML = renderCo2YearRows(map);
+    tbody.innerHTML = renderCo2YearRows(map, key);
     hidden.dispatchEvent(new Event('input', { bubbles: true }));   // Ungespeichert-Marker
   };
   root.addEventListener('click', (ev) => {
@@ -1387,8 +1526,8 @@ function wireCo2Years(container) {
     if (ev.target.closest('[data-cy-add]')) {
       const year = (root.querySelector('#cy-year')?.value || '').trim();
       const val  = parseDecimal(root.querySelector('#cy-value')?.value ?? '');
-      if (!/^(19[9]\d|20\d\d|2100)$/.test(year) || val == null || val < 0 || val > 2000) {
-        toastErr(t('settings.co2Years.invalid'));
+      if (!/^(19[9]\d|20\d\d|2100)$/.test(year) || val == null || val < 0 || val > yearMax(key)) {
+        toastErr(key === 'co2_price_eur_t_years' ? t('settings.co2Years.invalidPrice', { unit: yearUnit(key) }) : t('settings.co2Years.invalid'));
         return;
       }
       const map = read();
@@ -1472,7 +1611,8 @@ function isDefaultGasFactor(list) {
 function renderGasFactors(f, list, hint, settings = {}) {
   const lastZ = [...list].reverse().find(e => e.zustandszahl != null)?.zustandszahl ?? '';
   const unit = cvUnit(settings.gas_cv_unit);
-  const countryHint = t('settings.gasFactors.countryHint.' + settings.country);
+  const hintKey = 'settings.gasFactors.countryHint.' + settings.country;
+  const countryHint = hasTranslation(hintKey) ? t(hintKey) : '';
   return `<div class="field settings-field settings-field--wide" data-gasfactors>
     <label>${t('settings.field.gas_conversion_factors.label')}</label>
     ${hint}
@@ -1486,7 +1626,7 @@ function renderGasFactors(f, list, hint, settings = {}) {
       </div>
     </div>
     <p class="muted" data-gf-mjhint ${unit === CV_UNITS.kwh ? 'hidden' : ''}>${t('settings.gasFactors.mjHint')}</p>
-    ${countryHint.startsWith('settings.') ? '' : `<p class="muted">${countryHint}</p>`}
+    ${countryHint ? `<p class="muted">${countryHint}</p>` : ''}
     ${isDefaultGasFactor(list) ? `<p class="balance-note" data-gf-default>${t('settings.gasFactors.defaultHint')}</p>` : ''}
     <div class="table-wrap" style="margin-top:8px">
       <table class="table table--compact" data-gf-table>
@@ -1662,7 +1802,7 @@ function renderDiagnostics(d) {
       </table></div>
 
       <h4 class="diag-subhead">${t('settings.diag.tempSeries')}</h4>
-      <p class="diag-line">${t('settings.diag.tempStored', { count: fmt.int(d.temperatures?.rows ?? 0) })}</p>
+      <p class="diag-line">${tp('settings.diag.tempStored', d.temperatures?.rows ?? 0, { count: fmt.int(d.temperatures?.rows ?? 0) })}</p>
 
       <h4 class="diag-subhead">${t('settings.diag.knownKeys')}
         <span class="muted" style="font-weight:400">(${(d.settings_known_keys || []).length})</span>
@@ -1704,7 +1844,7 @@ function openMigrationDialog(previewResult, onDone) {
       <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:14px 0">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);margin-bottom:8px">${t('settings.migrationDialog.whatImported')}</div>
         <table class="table table--compact" style="margin:0">
-          <thead><tr><th></th><th class="num">Gas</th><th class="num">Strom</th><th class="num">Wasser</th></tr></thead>
+          <thead><tr><th></th><th class="num">${escapeHtml(t('utilityNames.gas'))}</th><th class="num">${escapeHtml(t('utilityNames.strom'))}</th><th class="num">${escapeHtml(t('utilityNames.wasser'))}</th></tr></thead>
           <tbody>
             <tr><td>${t('settings.migrationDialog.readings')}</td><td class="num">${r.readings.gas}</td><td class="num">${r.readings.strom}</td><td class="num">${r.readings.wasser}</td></tr>
             <tr><td>${t('settings.migrationDialog.contracts')}</td><td class="num">${r.contracts.gas}</td><td class="num">${r.contracts.strom}</td><td class="num">${r.contracts.wasser}</td></tr>
@@ -1724,7 +1864,7 @@ function openMigrationDialog(previewResult, onDone) {
       ${candidates.length ? `
         <details style="margin:12px 0">
           <summary style="cursor:pointer;color:var(--text-2);font-size:12px">
-            <strong>${t('settings.migrationDialog.candidates', { count: candidates.length })}</strong>
+            <strong>${tp('settings.migrationDialog.candidates', candidates.length)}</strong>
             ${t('settings.migrationDialog.candidatesHint')}
           </summary>
           <table class="table table--compact" style="margin-top:8px">

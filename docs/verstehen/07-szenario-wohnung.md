@@ -16,12 +16,14 @@ Typische Ausgangslage: Mietwohnung, **Strom** über eigenen Vertrag,
 | Größe | Tracking | Hinweis |
 |---|---|---|
 | Haushaltsstrom | **gut** — eigener Zähler, eigene Rechnung | Kernnutzen |
-| Warmwasser/Heizung | **eingeschränkt** | nur falls eigene Wohnungszähler vorhanden |
+| Heizung (Heizwärme) | **gut** mit der monatlichen Verbrauchsinfo *(seit v3.1.0)* | Verbrauch je Zeitraum; vorher nur mit eigenem Wohnungszähler |
+| Warmwasser | **gut**, falls Wohnungszähler oder Verbrauchsinfo | Rolle „Warmwasser“, Wärme dafür als Rechenwert |
 | Kaltwasser | **gut**, falls Wohnungszähler | sonst nur Hausabrechnung |
-| Gas/Fernwärme des Hauses | meist **nicht** direkt | nur über die jährliche Abrechnung schätzbar |
+| Gas/Fernwärme des Hauses | meist **nicht** direkt | zahlt der Vermieter; du siehst die Heizwärme deiner Wohnung |
 
-**Empfehlung:** Fokus auf **Strom** und – wenn vorhanden – **Wasser**.
-Heizung nur tracken, wenn die Wohnung eigene Zähler hat.
+**Empfehlung:** Fokus auf **Strom**, **Heizwärme** aus der Verbrauchsinfo und
+– wenn vorhanden – **Wasser**. Mit „Ich wohne: zur Miete“ kommt die Seite
+**Mietverhältnis** dazu (Abschnitt 3a).
 
 ---
 
@@ -60,6 +62,38 @@ geschätzt und als Schätzung ausgewiesen
 
 ---
 
+## 3a. Heizung und Nebenkosten *(seit v3.1.0)*
+
+Heizung und Warmwasser zahlst du nicht an einen Versorger, sondern über die
+Nebenkosten an den Vermieter. Dafür gibt es keinen Saldo im Sinne eines
+Versorgervertrags, aber ein Gegenstück — die Seite **Mietverhältnis** unter
+Kosten & Verträge:
+
+1. **Einstellungen → Haushalt & Gebäude → „Ich wohne“: „zur Miete“.**
+2. Verbrauchsart **Heizwärme** einschalten und einen Zähler mit der Erfassung
+   **„Verbrauch je Zeitraum“** anlegen. Jeden Monat den Wert aus der
+   Verbrauchsinfo eintragen (HeizkostenV § 6a, seit 2022 bei fernablesbaren
+   Geräten).
+3. Wasserzähler mit den Rollen **Kaltwasser** und **Warmwasser** anlegen —
+   nebeneinander, nicht als Subzähler.
+4. **Mietverhältnis** anlegen: Vorauszahlung, Abrechnungsstichtag, Preise aus
+   der letzten Abrechnung, pauschale Umlagen, Zuordnung der Zähler.
+
+Die Karte „Vorauszahlung und Kosten“ rechnet dann wie der Saldo: erwartete
+Kosten des laufenden Abrechnungszeitraums gegen die Vorauszahlung, mit einer
+passenden Vorauszahlung je Monat.
+
+```text
+Ergebnis = Σ (Wärme-kWh × Preis + Wasser-m³ × Preis + Umlagen / 12) − Σ Vorauszahlung
+```
+
+Eine **Hilfsrechnung, keine Nebenkostenabrechnung** — was der Vermieter
+abrechnet, kann abweichen. Die Fristen für Abrechnung und Einwände stehen im
+Kalender. Schritt für Schritt: [Als Mieter](../anleitungen/mieter.md);
+Hintergrund: [Heizwärme](15-waerme.md).
+
+---
+
 ## 4. Schattenverträge: Tarifwechsel durchrechnen
 
 Lege einen **Schattenvertrag** (`is_shadow`) mit den Konditionen eines
@@ -88,32 +122,63 @@ Lesarten:
 ## 6. Was du NICHT erzwingen solltest
 
 - Keine „geschätzten" Hausheizungswerte erfinden, nur damit eine
-  Effizienzklasse erscheint — die Klasse ist eine Eigenheim-Kennzahl
+  Effizienzklasse erscheint — die Klasse ist eine Gebäudekennzahl
   und für Wohnungsnutzer ohne eigene Heizmessung wenig aussagekräftig.
+  Mit Heizwärme aus der Verbrauchsinfo (seit v3.1.0) erscheint eine
+  Kennzahl für die Wohnung — ein Anhaltspunkt, denn Lage im Haus und
+  Nachbarwohnungen wirken mit.
 - Wasser nicht in kWh denken — es bleibt m³.
 
 ---
 
 ## 7. Sonderfall Balkonkraftwerk
 
-Steckerfertige Mini-PV-Anlagen („Balkonkraftwerk", bis 800 W) speisen
-seit dem Solarpaket I über die normale Steckdose ein. Es gibt **keinen
-Einspeisezähler** (rückwärts laufender Bezugszähler ist mit modernen
-Zweirichtungs-Zählern automatisch ausgeschlossen, der Bezugszähler
-zeigt nur den Netto-Bezug). Folgen für die App:
+Steckersolargeräte („Balkonkraftwerke“) speisen über eine Steckdose ins
+Hausnetz ein. Seit dem Solarpaket I (2024) gilt:
 
-- **`pv_einspeisung` aktivieren bringt nichts** — du hast keinen Zähler
-  dafür. Die App rechnet ohne Daten leer.
-- **`pv_erzeugung` ist optional sinnvoll**, wenn dein Wechselrichter
-  einen kWh-Zähler hat. Du erfasst dann monatlich seinen Stand und
-  siehst die Erzeugung als reine Statistik. Strom-Saldo bleibt
-  unverändert (kein Einspeisungs-Anteil), aber du hast eine
-  Performance-Kontrolle deines Balkonkraftwerks.
-- Der eigentliche Effekt zeigt sich am normalen `strom`-Zähler:
-  *weniger* Bezug. Die Wirtschaftlichkeit eines Balkonkraftwerks misst
-  du daher am Bezugs-kWh-Vergleich Vorher/Nachher (am besten
-  wetterbereinigt, aber Strom ist meist nicht stark HGT-getrieben —
-  Jahres-Mittelwert reicht).
+- **Größe:** bis **2.000 Wp** Modulleistung und **800 VA**
+  Wechselrichterleistung.
+- **Anmeldung:** nur im **Marktstammdatenregister**, binnen eines Monats nach
+  Inbetriebnahme; beim Netzbetreiber nicht mehr.
+- **Überschuss:** Was ins Netz geht, nimmt der Netzbetreiber **unentgeltlich**
+  ab — eine Vergütung gibt es nicht.
+- **Zähler:** Ein alter Ferraris-Zähler ohne Rücklaufsperre darf übergangsweise
+  rückwärts laufen, bis der Messstellenbetreiber ihn gegen einen modernen
+  Zähler tauscht. Ein moderner Zähler zählt Bezug und Einspeisung getrennt
+  oder nur den Bezug — rückwärts läuft er nie.
+
+Bis v3.0 stand hier, ein rückwärts laufender Zähler sei mit modernen Zählern
+„automatisch ausgeschlossen“ — für alte Ferraris-Zähler stimmte das nicht.
+
+**Einrichten (seit v3.1.0):**
+
+1. **Verbrauchsart PV-Erzeugung** einschalten (Einstellungen →
+   Verbrauchsarten & Abrechnung → Aktive Verbrauchsarten) und den Zähler des
+   Wechselrichters anlegen, wenn er einen kWh-Stand zeigt (am Gerät oder in
+   der App des Herstellers; eine Datei daraus liest
+   [Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md)). Im
+   Zählerdialog **„Balkonkraftwerk (Steckersolargerät, ohne
+   Einspeisezähler)“** ankreuzen; unter „PV-Anlage“ auf Wunsch Investition und
+   Inbetriebnahme für die Amortisation.
+2. Unter Einstellungen → Verbrauchsarten & Abrechnung → **Photovoltaik** den
+   **angenommenen Eigenverbrauch** eintragen, zum Beispiel 70 %. Ohne
+   Einspeisezähler rechnet die App den Eigenverbrauch damit und zeigt
+   Ersparnis, Autarkie und Amortisation — als Annahme gekennzeichnet
+   ([PV §8](12-pv.md#8-balkonkraftwerk-v310)).
+3. **PV-Einspeisung** brauchst du nicht: Es gibt keinen Vertrag und meist
+   keinen Zähler dafür. Kannst du das Einspeise-Zählwerk eines modernen
+   Zählers ablesen, leg es dort an — dann rechnet die App mit der gemessenen
+   Einspeisung statt mit der Annahme.
+
+**Wirkung messen — die Zäsur.** Der eigentliche Effekt zeigt sich am
+Stromzähler: weniger Bezug. Trag am Stromzähler unter *Analyse-Zäsuren* das
+Datum der Inbetriebnahme mit der Bezeichnung „Balkonkraftwerk in Betrieb“ ein.
+Seit v3.1.0 vergleicht die Analyse auch bei Strom vorher und nachher: das
+Tagesmittel je Kalendermonat in beiden Phasen, über die Monate, die es in
+beiden gibt (mindestens drei), hochgerechnet auf ein Jahr — in der Karte
+„Wirkung der Maßnahme“ mit der Aussage, ob der Unterschied statistisch belegt
+ist. Das Wetter ist dabei nicht bereinigt; ein sonniger Sommer zählt mit.
+Belastbar wird der Vergleich nach einem Jahr mit dem Gerät.
 
 ---
 

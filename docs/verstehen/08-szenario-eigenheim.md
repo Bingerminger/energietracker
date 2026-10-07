@@ -159,7 +159,7 @@ Abrechnung → Aktive Verbrauchsarten*.
 |---|---|
 | Nur Einspeisezähler (Standard-Inbetriebnahme bis ~2022) | Nur `pv_einspeisung` aktivieren. Strom-Saldo wird berechnet, Eigenverbrauch/Autarkiequote bleiben null (`has_generation_meter: false`). |
 | Einspeisezähler + Erzeugungszähler am Wechselrichter | Beide aktivieren. Volle Sicht: Strom-Saldo, Eigenverbrauchsquote, Autarkiequote. |
-| Anlage mit Speicher | Beide aktivieren wie oben; die App zeigt die *effektive* Autarkiequote (Speicher erhöht den Eigenverbrauch automatisch in den Zahlen). |
+| Anlage mit Speicher | Beide aktivieren wie oben; die App zeigt die *effektive* Autarkiequote (Speicher erhöht den Eigenverbrauch automatisch in den Zahlen). Seit v3.1.0 zusätzlich je ein Zähler für Ladung und Entladung unter PV-Erzeugung (Rollen „Speicher – Ladung“, „Speicher – Entladung“) — dann zeigt die Karte „Speicher“ Verluste, Wirkungsgrad und Vollzyklen ([PV §7](12-pv.md#7-speicher-v310)). |
 | Mehrere PV-Stränge (z. B. Süd- und Ost-Dach mit getrennten Wechselrichtern) | Pro Strang einen `pv_erzeugung`-Zähler anlegen — die App summiert sie für das Dashboard automatisch. |
 
 ### 6.2 Vertrag = Einspeisevergütung
@@ -222,27 +222,69 @@ Wirtschaftlichkeit („was bleibt von meiner Erzeugung im Haus").
 ### 6.5 CO₂ als „vermieden"
 
 Die App zeigt für `pv_einspeisung` und seit v2.10.0 auch für
-`pv_erzeugung` den CO₂-Wert als negativen Wert mit dem Label „vermieden"
-und einem Tooltip mit Methoden-Hinweis. Die Rechnung ist
+`pv_erzeugung` den CO₂-Wert mit dem Wort „vermieden“ (seit v2.13.0 ohne
+Minus) und einem ⓘ mit Methoden-Hinweis. Die Rechnung ist
 `kWh × co2_strom`-Faktor des Jahres (Umweltbundesamt, Strommix; 2025:
 344 g/kWh). Sie berücksichtigt **nicht** den
 PV-Lebenszyklus (Herstellung, Transport, Recycling), liegt damit aber
 auf derselben methodischen Ebene wie der CO₂-Faktor für den Bezug — die
-Zahlen sind also direkt vergleichbar.
+Zahlen sind also direkt vergleichbar. Seit v3.1.0 lässt sich stattdessen ein
+eigener Vermeidungsfaktor eintragen („CO₂ vermieden durch PV“,
+[PV §5](12-pv.md#5-co₂-als-vermieden)).
 
 ### 6.6 Erfassungs-Disziplin
 
 - Ablesungen am **selben Datum** wie der Bezugs-Strom-Zähler — sonst
   laufen die Monats-Aggregate auseinander und der Saldo schwankt
   künstlich.
-- Bei Anlagen mit Speicher: der Speicher-Zustand (ladungs-SoC) wird
-  von der App nicht erfasst. Nur Erzeugung und Einspeisung zählen.
+- Bei Anlagen mit Speicher: den Ladezustand (SoC) erfasst die App nicht.
+  Geladene und entladene kWh laufen seit v3.1.0 als eigene Zähler mit; sie
+  zählen nicht zur Erzeugung.
 - Bei reduzierter Direktvermarktung nach den 20 EEG-Jahren: einen neuen
   Vertrag mit aktuellem Sonstige-Direktvermarktung-Satz anlegen, das
   Vertragsende des alten EEG-Vertrags setzen — die App rechnet den
-  Übergang stichtagsgenau.
+  Übergang stichtagsgenau. Schwankt der Erlös mit dem Marktwert, trägst du seit
+  v3.1.0 die Gutschriften des Direktvermarkters ein ([PV §11](12-pv.md#11-gutschriften-des-direktvermarkters-v310)).
+- Mit Investition und Inbetriebnahme am Erzeugungszähler zeigt die App, wann
+  sich die Anlage bezahlt gemacht hat ([PV §9](12-pv.md#9-amortisation-v310)).
 
 Vollständige technische Referenz: [PV-Detailkonzept](12-pv.md).
+
+---
+
+## 6a. Wärmepumpe *(v3.1.0)*
+
+Eine Wärmepumpe heizt mit Strom. Damit Heizstrom und Haushaltsstrom getrennt
+bleiben und die App sagen kann, wie gut die Anlage arbeitet, braucht es bis zu
+drei Zähler:
+
+| Zähler | Verbrauchsart, Rolle | Wofür |
+|---|---|---|
+| Hausanschluss | Strom, „Haushalt“ | Bezug und Kosten des ganzen Hauses |
+| Wärmepumpe | Strom, „Wärmepumpe (Heizstrom)“ — als Subzähler des Hausanschlusses, wenn er dahinter sitzt | Heizstrom; zählt in der Effizienzkennzahl als Heizenergie |
+| Wärmemenge | Heizwärme, „Wärmemenge der Wärmepumpe“, verknüpft unter „Stromzähler der Wärmepumpe“ | die gelieferte Wärme — für die Jahresarbeitszahl |
+
+**Jahresarbeitszahl.** Mit Wärmemengenzähler zeigen die Ansichten beider Zähler
+die Karte **„Wärmepumpe {Jahr}“**: Jahresarbeitszahl (Wärme ÷ Strom), die
+Arbeitszahl der Heizperiode (Oktober bis April) und je Monat Wärme, Strom und
+Arbeitszahl. Im Feldtest „WP-QS im Bestand“ des Fraunhofer ISE (2025) lagen
+Luft/Wasser-Wärmepumpen im Mittel bei 3,4, Sole/Wasser bei 4,3.
+
+> **Beispiel (erfunden).** 9.000 kWh Wärme aus 2.500 kWh Strom: JAZ 3,6.
+
+Gezählt werden nur Monate, in denen beide Zähler Werte haben. Ob Heizstab,
+Warmwasser und Pumpen in der Zahl stecken, hängt davon ab, wo die Zähler
+sitzen. Die Wärmemenge zählt weder in der Effizienzkennzahl noch in den Summen
+der Heizwärme — die Wärmepumpe steht dort schon mit ihrem Strom. Hintergrund:
+[Heizwärme §7](15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310).
+
+**Netzentgelt.** Ist die Wärmepumpe nach § 14a EnWG steuerbar, sinkt das
+Netzentgelt: mit Modul 1 um einen festen Betrag im Jahr (im Stromvertrag
+„Reduziertes Netzentgelt“), mit Modul 2 über einen eigenen Zähler mit eigenem
+Vertrag ([Strom](02-strom.md#steuerbare-verbraucher-v310)).
+
+**PV und Wärmepumpe zusammen** — durchgerechnet in
+[Anwendungsfall C](../anleitungen/anwendungsfaelle.md#c--pv-haushalt-mit-wärmepumpe).
 
 ---
 
@@ -258,7 +300,11 @@ der nächste Termin gemäß Recurrence fortgeschrieben.
 ## Weiterführend
 
 - **Wärmepumpe oder Wallbox getrennt erfassen?** Lege sie als **Subzähler**
-  hinter dem Hausanschluss an: [Meter-Topologie](13-meter-topologie.md).
+  hinter dem Hausanschluss an: [Meter-Topologie](13-meter-topologie.md). Für
+  den Dienstwagen gibt es den
+  [Ladestrom-Nachweis](../anleitungen/ladestrom-nachweis.md).
+- **Werte aus dem Portal** von Wechselrichter, Wärmepumpe oder Netzbetreiber
+  übernehmen: [Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md).
 - **Zähler automatisch aus Home Assistant füttern:**
   [Home-Assistant-Anbindung](../anleitungen/home-assistant.md).
 - **Komplett durchgerechnete Beispiele** (PV + Wärmepumpe, Vermieter mit

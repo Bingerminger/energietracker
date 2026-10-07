@@ -152,4 +152,22 @@ final class BackupSafetyTest extends ServiceTestCase
         }
         self::assertSame([], array_values(array_unique($missing)));
     }
+
+    /**
+     * v3.1.0 (H2) — Binärdateien sieht der Test oben nicht. Jedes
+     * `writeBinary`-Ziel liegt unter `attachments/` (das sichert der
+     * BackupService über `attachment_files`), und der Index ist ein Topf.
+     */
+    public function testEveryBinaryFileLivesUnderAttachments(): void
+    {
+        self::assertContains(\Energietracker\Services\AttachmentService::INDEX, BackupService::TOP_POTS);
+        $bad = [];
+        foreach (glob(dirname(__DIR__, 3) . '/src/{Services,Storage,Controllers}/*.php', GLOB_BRACE) as $file) {
+            preg_match_all('/->writeBinary\(\s*([^,]+),/', (string)file_get_contents($file), $m);
+            foreach ($m[1] as $target) {
+                if (!str_starts_with(trim($target), "'attachments/'") && trim($target) !== '$rel') $bad[] = basename($file) . ': ' . $target;
+            }
+        }
+        self::assertSame([], $bad);
+    }
 }

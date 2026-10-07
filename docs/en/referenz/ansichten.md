@@ -21,7 +21,7 @@ the users' questions: seven areas instead of 17 entries.
 | Overview | "To do", key figures, tanks and recommendations at a glance |
 | Meter readings | all meters in one go |
 | Consumption | one page per active utility |
-| Costs & contracts | Contracts & payments · Tariff switch · Check a bill |
+| Costs & contracts | Contracts & payments · Tariff switch · Check a bill · Tenancy (v3.1.0, only “in a rented home”) |
 | Insights | Analysis · Forecast · Annual report |
 | Reminders & tips | Reminders & maintenance · Recommendations (one count in the sidebar) |
 | Settings | General · Household & building · Utilities & billing · Weather data · Data · Integrations · Access · Expert · System |
@@ -59,6 +59,10 @@ to the help (§15); Escape or a tap elsewhere closes it. Up to
 v2.12 these explanations lived in tooltips, which the iPhone does not have.
 Where an explanation belongs to a single row — why a reading carries "CHECK",
 what "FULL" means on a delivery — the ⓘ next to it opens exactly that one.
+Since v3.1.0 the explanation of a billing term also gives its wording on the
+bill of the configured country, such as "On your bill (Austria):
+“Teilbetrag”" for the advance payment
+([country profiles §8](../verstehen/14-laenderprofile.md#8-what-your-bill-calls-it)).
 
 <p><img src="../../ui/screenshots/en/erklaerung-mac.png" alt="Explanation of heating degree days on the Mac" width="420"> <img src="../../ui/screenshots/erklaerung-iphone.png" alt="The same explanation as a sheet on the iPhone" width="260"></p>
 
@@ -112,7 +116,11 @@ meters the entry jumps straight to that meter's card in the capture view; more
 are combined into one line ("7 meters are waiting for a reading"). Each line
 is tappable as a whole, on the iPhone with "›" instead of a button. The reminder card further
 down and the "Active meters" tile per utility are gone; key-figure tiles no
-longer lift on hover, because they are not clickable.
+longer lift on hover, because they are not clickable. Since v3.1.0 the entries
+come from the agenda (`GET /api/agenda`, every event with `due_now`) — the same
+source as the calendar subscription (§9) and the sensors for Home Assistant.
+The rules are the same as before; up to v3.0 the browser assembled the list
+itself.
 
 **Without data (v2.13.0)** a welcome replaces the empty tiles: what the
 Energietracker does, the first steps with ticks taken from the data (location,
@@ -140,6 +148,18 @@ more is good: the upward arrow is green. The combined chart now shows only
 what is drawn from the grid — up to v2.12 it also stacked the PV kilowatt-hours
 as if they were consumption.
 
+**Benchmark (v3.1.0):** the card 📏 **“Benchmark {year}”** (previous year) sets
+the annual consumption against your own reference values — “Household
+electricity: … kWh against … kWh (your reference value)” and per heating type
+“… kWh/m² against … kWh/m²”, with the deviation in % (green below, red above),
+only for full years. Below, where it applies: that the year does not yet have
+every month, that with PV, a heat pump or a wall box the general electricity
+benchmark does not fit (heat pump and wall box are already excluded), and the
+source of the reference values. Without your own values it says where to enter
+them (Settings → Household & building → Own reference values). In Germany the
+card links “Stromspiegel: check your class (German)” and “Heizspiegel: check
+heating costs (German)” ↗. Without values and without links it is left out.
+
 ![Dashboard](../../ui/screenshots/en/dashboard.png)
 
 ---
@@ -147,7 +167,7 @@ as if they were consumption.
 ## 2. Meter-reading capture (F1004)
 
 The central, mobile-friendly input mask: all active cumulative meters
-(gas/electricity/water/district heating/PV) each with the last reading for
+(gas/electricity/water/district heating/PV, since v3.1.0 heat) each with the last reading for
 orientation — ideal for the monthly reading on the phone.
 
 **Since v2.6.0 with plausibility checks:** while typing, a note appears when the
@@ -174,6 +194,42 @@ check". Details: [Meter readings → plausibility](../verstehen/11-zaehlerstaend
 - **Direct link per meter:** `#/zaehlerstaende?meter=<id>` opens the capture
   view with that meter's card in focus — for a home-screen bookmark, a shortcut
   or "To do".
+
+**Since v3.1.0:**
+
+- **“📷 Photo”** on every card takes a picture of the register along as a
+  receipt; on a phone the camera opens. The card shows a thumbnail with
+  “Remove photo”. The picture is scaled down in the browser to at most 1600
+  pixels and re-encoded as JPEG (without EXIF and GPS data) and saved with the
+  reading.
+- **Text recognition:** if a service is set up under Settings → Expert,
+  “📷 Photo” uploads the picture right away and first shows “Recognising
+  text…”, then “Recognised: 12,345.6” with **“Use”** — that puts the value into
+  the field; saving works as usual with “Save all”. If the service recognises
+  nothing, it says “No meter reading recognised – please enter it by hand.”
+  ([Text recognition in the home network](../anleitungen/texterkennung.md)).
+- **Without a connection:** a card whose saving fails for lack of a connection
+  shows ⏳ “Waiting for a connection”; the reading sits in the browser's queue.
+  At the top the card **“Not saved yet”** appears with every waiting reading
+  (meter · value · date, 📷 with a photo), “Discard” and **“Send now”**. The
+  number of waiting readings also shows on the “Meter readings” menu item and
+  on the ＋ in the tab bar.
+- **Conflict:** if, when sending later, there is already a different reading on
+  the same day, the entry asks “There is already a reading on … (…) – replace
+  it or keep the existing one?” with **“Replace”** and **“Keep existing”**. If
+  the server rejects a reading, “Not saved: reason” appears with **“Edit”**
+  (values and photo back into the card) and **“Discard”**. Details:
+  [Use on your phone](../einstieg/handy.md#the-not-saved-yet-queue).
+- **Meters with “consumption per period”:** instead of date and reading the
+  card shows “Month” and “Consumption (kWh)” or the utility's unit, above it
+  “Last period:” with the period and its value. The month after the last
+  period is pre-filled, without a period the previous month. Expandable
+  **“Comparison values from the consumption information”** with previous month,
+  same month last year and average user — as the monthly consumption
+  information from the metering service states them. “estimated” and the note
+  work as for readings; “Save all” creates a period covering the whole month,
+  and the offline queue applies here too. For gas the card enters kWh; m³ go
+  through the consumption view. Background: [Heat](../verstehen/15-waerme.md).
 
 ![Meter readings](../../ui/screenshots/en/zaehlerstaende.png)
 
@@ -245,6 +301,69 @@ meter swap. In the readings table they carry "CHECK" or "IMPLAUSIBLE" (since
 v2.13.0 with an ⓘ and the reason, before in the tooltip); ✅ confirms a suspect reading — only then does it count. The
 reading dialog asks the same questions as the meter-reading capture.
 
+**Photo with the reading (v3.1.0):** if a reading carries a photo, the readings
+table shows a small thumbnail. A click opens the large view with “Open in new
+tab” and “Remove photo” — removing detaches the photo from the reading; the
+file is cleaned up after 24 hours.
+
+**Periods instead of readings (v3.1.0):** for a meter with “consumption per
+period” the readings table gives way to the card **“Periods {year}”** with
+period, consumption and the comparison values (previous month · same month
+last year · average user), ✏️ and 🗑️ per row. **“+ Period”** opens the dialog
+with “From”, “To (inclusive)” — pre-filled with the month after the last
+period, otherwise the previous month —, “Consumption”, “Unit”, the comparison
+values, “estimated” and a note. The unit can only be chosen for gas: kWh
+(consumption) or m³ (meter unit, converted with the gas factors). An
+overlapping period is rejected. When empty, it says “No period this year yet”
+with the hint to enter month by month from the consumption information or to
+import a CSV file under Meters. The “reading overdue” banner counts from the
+end of the last period here (“Last period ended … days ago”). Chart, monthly
+table, contracts and weather adjustment work as with readings.
+
+**Hot-water heat (v3.1.0):** for a water meter with the role “Hot water”, a
+line below the tables says “Heat for this hot water in {year}: about … kWh at
+… °C – calculated under HeizkostenV § 9, not measured.” with an ⓘ. The
+temperature comes from Settings → Household & building → Home and hot water.
+
+**Check a bill (v3.1.0):** gas, electricity, water and district heating carry
+the card **“Check a bill”** below the tables with the button “Check the {year}
+bill”. It opens the page with utility, meter and the year on display
+(`#/bill-check?utility=…&meter=…&from=…&to=…`) and recalculates straight away.
+Up to v3.0 the link existed for gas only.
+
+**CO₂ price in the fuel (v3.1.0):** for gas, heating oil, district heating and
+heat — in Germany — the card **“CO₂ price in the fuel {year}”** follows, with an
+ⓘ: “Included” (the amount including VAT), “Per kWh”, “Emissions (BEHG)” and
+“CO₂ price” in €/t. Below it “Already part of the unit price – not a surcharge.
+Net …, shown above including VAT.”, the source (standard factor, supplier bill
+or the heat network’s emission factor) and, where they apply, the notes on the
+approximation for heat and on an assumed price. Without consumption in the year
+or without a factor — district heating without a network factor in the contract
+— the card is left out ([CO₂ price in fuel](../verstehen/16-co2-preis.md)).
+
+**Group contract (v3.1.0):** if the meter is a member of a group with a group
+contract, the balance card shows the group contract with the note “This meter
+is billed through the group contract “…”. Balance and advance payments apply to
+the whole group.” ([Meter topology](../verstehen/13-meter-topologie.md#group-contract-v310)).
+
+**Charging record (v3.1.0):** for an electricity meter with the role “Wallbox
+(EV charger)” the card **“Charging record (company car)”** follows, with “Year”
+(current and three previous years, the previous year preselected), “Price”
+(“Contract price with pro-rata standing charge” or “Flat electricity rate”),
+for the flat rate “Flat rate per kWh (cents)”, the line “Charged: … kWh · to
+reimburse: …”, the buttons “Download CSV” and “Download PDF” and the note “not
+tax advice”. Without a paying contract or without a flat rate the message
+appears there ([Charging record](../anleitungen/ladestrom-nachweis.md)).
+
+**Heat pump (v3.1.0):** for the electricity meter with the role “Heat pump
+(heating electricity)” and for the heat meter with the role “Heat pump output”
+the card **“Heat pump {year}”** follows with an ⓘ: “Seasonal performance
+factor” (“from … months with both meters”), “Heating season (Oct–Apr)”, “Heat
+/ electricity” in kWh and a table per month with heat, electricity and
+performance factor; below it the field-test values for context. If the heat
+meter, the link or a common month is missing, the card says so
+([Heat §7](../verstehen/15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310)).
+
 ![Gas view](../../ui/screenshots/en/gas-view.png)
 
 ---
@@ -262,7 +381,8 @@ calculation or no calculation is possible yet. Below that, the **tank readings**
 with "Record tank reading" (date, level, note) and delete. In the delivery
 dialog, **"Filled to full"** marks a delivery as an anchor; the table shows it
 with "FULL". Months with estimated days carry "≈" in the monthly table; the
-ct/kWh column shows the effective price.
+ct/kWh column shows the effective price. For heating oil, since v3.1.0 the card
+“CO₂ price in the fuel” follows below, as in §3.
 
 ![Heating oil view](../../ui/screenshots/en/heizoel-view.png)
 
@@ -287,6 +407,12 @@ its own expectation (heating model or the same month in other years). For
 heating oil and pellets a note appears instead of the curves: their monthly
 values are distributed by degree days.
 
+Since v3.1.0 “Effect of the measure” also exists for **electricity, water and
+PV**: “before”, “after” (each scaled to “… per year”) and the “change” in % and
+per year, with the sentence that without a heating curve the same calendar
+months before and after the baseline date are compared, scaled up to a year,
+and that the weather is not adjusted.
+
 ![Analysis](../../ui/screenshots/en/analyse.png)
 
 ---
@@ -308,15 +434,39 @@ Since v2.13.0 the model name is in the interface language and the balance
 column is from the customer's side (+ credit, − additional payment) with an ⓘ. Model
 and horizon are pre-set from the settings.
 
+**CO₂ price scenario (v3.1.0):** next to the what-if fields sits **“CO₂ price
+from 2028 (€/t)”** with an ⓘ — empty = off, pre-filled from Settings → Expert →
+“CO₂ price”. With a value the page writes below the forecast something like
+“With 150 €/t CO₂ from 2028: +1.94 ct/kWh, … more over the next 12 months (incl.
+VAT).” The forecast itself does not change. The start year comes from “Scenario
+from year” in the same settings; if the forecast does not reach it, the line is
+missing. For gas, heating oil and heat with gas or heating oil as the energy
+source ([CO₂ price in fuel](../verstehen/16-co2-preis.md#6-where-you-see-it)).
+
 ![Forecast](../../ui/screenshots/en/prognose.png)
 
 ### Annual report (under Insights since v2.11.0)
 
-One year as a PDF: overview per utility, efficiency, monthly tables and open
-recommendations. **Open in browser** shows the PDF in a new tab
-(`yearly.pdf?inline=1`); in the home-screen app on the iPhone a download often
-never arrived. **Download** saves it as before. Up to v2.10 the report lived in
-the settings.
+One year at a glance: overview per utility, efficiency, monthly tables and open
+recommendations. Up to v2.10 the report lived in the settings.
+
+**Print view (v3.1.0)** is the main button: **Open print view** shows the report
+of the chosen year as a page inside the app (`#/report/print?year=…`) — in the
+language of this device, with numbers, dates and amounts written as in the rest
+of the interface, the charts as vector graphics. **Print / save as PDF** opens
+the browser's print dialog; when printing, the page hides sidebar, header, tabs
+and buttons and sets A4. On the iPhone this works via Share → Print, where the
+report can also be saved as a PDF. The data comes from
+`GET /api/reports/yearly`.
+
+Below it the **PDF file** stays as before: **Open in browser** shows the PDF in
+a new tab (`yearly.pdf?inline=1`) — in the home-screen app on the iPhone a
+download often never arrived —, **Download annual report** saves it. A note
+says: "The PDF is created in the installation’s default language (…); the
+print view follows this device’s language." The built-in PDF fonts only know
+Western European characters (CP1252); since v3.1.0 "CO₂" becomes "CO2" there
+instead of "CO". For a language the PDF cannot set, the block disappears and
+the print view remains.
 
 ---
 
@@ -330,7 +480,7 @@ Per utility and meter, the current contract:
 - **Cancel by** with the days left, highlighted from six weeks before; a
   missed deadline in red
 - the advance payment per month
-- what to expect at the next bill: refund (green) or back-payment (red)
+- what to expect at the next bill: credit (green) or back-payment (red)
 
 "Manage contracts" leads to the utility's contract list. The figures come from
 the same calculation as the utility's balance card. Heating oil and pellets
@@ -339,13 +489,35 @@ are no longer listed since v2.13.0 — their costs sit on the deliveries, and th
 
 ![Contracts & payments](../../ui/screenshots/en/navigation-mac.png)
 
-### Check a bill (gas)
+### Check a bill
 
-Up to v2.10 the bill check sat at the end of the gas page; now it is a page of
-its own. It recalculates a gas bill: one section per reading and calorific-value
-change, m³ × correction factor × calorific value = kWh, like the lines of the
-supplier's bill. Meter and period can be chosen. The gas page links here with
-the year on display (`#/bill-check?meter=…&from=…&to=…`).
+Up to v2.10 the bill check sat at the end of the gas page, since v2.11.0 it is a
+page of its own (`#/bill-check`), since **v3.1.0** for **gas, electricity, water
+and district heating**. At the top the selection **“Utility”** (with several)
+and **“Meter”** (with several), below it “From”, “To (exclusive)” and
+**“Recalculate”**. The utility’s page links here with utility, meter and year
+(`?utility=…&meter=…&from=…&to=…`).
+
+The table cuts the period like the supplier bill: for gas at every reading and
+every calorific-value change (m³ × correction factor × calorific value = kWh),
+for the other utilities at every reading and every price or contract date
+(boundary “Price change”). Per section period, old and new reading with reading
+type, days, boundary, quantity and since v3.1.0 **Price**, **Consumption cost**
+and **Fixed costs**; below it “Recalculated: …” (less any bonus) and the legend
+of the reading types.
+
+**According to the bill (v3.1.0):** the second card takes the figures of the
+supplier bill — From, “To (inclusive)”, bill date, consumption on the bill (kWh
+or m³), bill amount (incl. VAT), advance payments made, additional
+payment/credit (positive = additional payment; empty = amount − advances),
+**“Other items”** (levies, fees, credits with “Add item”), for gas “Emissions (kg
+CO₂)” and “CO₂ cost on the bill” and “Attach bill (PDF or photo)”. **“Save
+bill”** creates it and compares at once. The list below shows per bill period,
+quantity, amount and additional payment/credit with 📄, **“Compare”**, **“Book
+as special payment”** (afterwards the tag “booked”) and 🗑️. The comparison sets
+recalculated, on the bill and difference side by side for quantity, amount and
+advances, with the verdict **“matches”** or **“check”** and the possible
+reasons ([Annual bill](../anleitungen/jahresabrechnung.md#7-on-the-bill-enter-compare-book)).
 
 ### Tariff switch (tariff comparison)
 
@@ -360,12 +532,22 @@ is therefore: take the number, search elsewhere, enter the offer you found with
 **"+ Add offer"** (technically a shadow contract).
 
 There is deliberately no integration with comparison sites. The application
-fetches no tariffs from outside; the user enters what they found.
+fetches no tariffs from outside; the user enters what they found. Where the
+configured country has an official tariff comparison (Austria, France, Italy,
+Spain, Portugal), the view links it below the annual consumption since v3.1.0:
+"Official tariff comparison (Austria) ↗" — a link, not a fetch
+([country profiles §8](../verstehen/14-laenderprofile.md#8-what-your-bill-calls-it)).
 
 Next to it sits the **switch date**, derived from the contract end and the
 notice period. The deadline is shown with the days remaining and highlighted
 once it gets tight — it is the thing people miss in everyday life. To model a
 different scenario, set the date by hand.
+
+**Groups (v3.1.0):** the meter choice also lists “Group: …” for every meter
+group with a group contract. Forecast and ranking then calculate with the
+consumption of the whole group, with unit prices per register using a blended
+price; an offer created here applies to the group. The card “Have ready for
+switching” is left out for groups — it applies per meter.
 
 What counts here is not the currently running contract alone but the **binding
 chain**: if the follow-on contract has already been signed, the switch for the
@@ -377,6 +559,18 @@ more than a day ends the chain; after that you are free.
 Notice period, minimum term and price guarantee are maintained **on the
 contract** (contract management of the respective utility). Without them the
 comparison cannot derive a date or warn before a deadline passes.
+
+**Have ready for switching (v3.1.0):** a card with the details the new supplier
+asks for — **Market location ID**, **Meter number** (serial number of the
+installed device) and **“Last meter reading ({date})”** — and the button **“Copy
+details”**. Whatever is missing is left out; without any detail the card is left
+out. You enter the market location ID in the meter dialog (§12).
+
+**Price increase (v3.1.0):** if the running or following contract has a future
+price increase entered, the app reports, in Germany, the recommendation “{label}:
+price increase from {date}” with the note on the special right to terminate as
+of that day (§ 41(5) EnWG). While the recommendation stands, the price increase
+also appears under “To do”; once hidden it is only in the calendar.
 
 The ranking shows, per offer:
 
@@ -442,6 +636,25 @@ price, standing charge, **sign-up bonus as an amount** (not as a credit date —
 nobody knows that when entering it), price guarantee and notice period. The
 calculated switch date is pre-filled as the start.
 
+**Dynamic tariff (v3.1.0, electricity):** the offer form has the tick
+**“Dynamic tariff (wholesale price per month)”**. With it the unit price field
+disappears; instead there are “Mark-up per kWh” (with a hint on what belongs to
+it) and “VAT on the wholesale price (%)”, pre-filled with 19. In the ranking and
+the look-back, such an offer carries “Wholesale price as a monthly average — as
+if your consumption were spread evenly across the day; evening use usually
+costs more.” and, if needed, for how many months the previous year’s month was
+assumed. If wholesale prices are missing, a note to load them under “Wholesale
+electricity prices” appears instead of the offer.
+
+**Wholesale electricity prices (v3.1.0, electricity):** the card **“Wholesale
+electricity prices”** with an ⓘ names the range of available monthly averages
+(“Monthly averages available: … to …” or “No wholesale prices loaded yet.”),
+explains the dynamic tariff check and has the buttons **“Load from SMARD”**
+(fetches the monthly values, only on request) and **“Import file”** (SMARD
+download or `YYYY-MM;€/MWh`). Below it the source “Wholesale prices
+Germany/Luxembourg: Bundesnetzagentur | SMARD.de (CC BY 4.0)”
+([Electricity → Dynamic tariffs](../verstehen/02-strom.md#dynamic-tariffs-v310)).
+
 Offers can be created, edited and deleted; the delete question names the offer
 (v2.12.0). In the contract list they carry
 their own marker so they are not mistaken for a running contract. They affect
@@ -453,6 +666,99 @@ for this comparison only.
 > there the delivery invoice is the cost basis.
 
 ![Tariff comparison](../../ui/screenshots/en/tarifvergleich.png)
+
+### Tenancy *(v3.1.0)*
+
+For tenants who pay heating and water through the service charges. The page
+(`#/tenancy`) appears under **Costs & contracts** as soon as “I live: in a
+rented home” is chosen under Settings → Household & building → Home and hot
+water; in your own home it does not exist. At the top “+ Tenancy”, with several
+a selection. Without a tenancy it says “No tenancy yet” and asks you to set up
+prepayment, billing date and the meters from the consumption information. Step
+by step: [As a tenant](../anleitungen/mieter.md).
+
+Three cards, in Germany since v3.1.0 a fourth (“Sharing CO₂ costs”):
+
+**Prepayment and costs** ⓘ — the estimate for the current billing period
+(“Billing period … – …”):
+
+- Key figures **Expected costs**, **Prepaid**, **Likely outcome** (“…
+  additional payment”, “… credit” or “about even”) with a note on the risk —
+  “Little additional payment expected”, “Small additional payment possible”
+  (up to 10 % of the prepayment) or “Additional payment likely” — and
+  **Suitable prepayment per month**.
+- Always below: “An estimate from your meters and the prices of the last
+  statement – not a service charge statement. What the landlord bills may
+  differ.”
+- The **assumptions**, where they apply: a missing price for heat, hot water or
+  cold water, a missing prepayment, no meters assigned, how many months are
+  estimated.
+- Expandable **“Month by month”**: month, heating (kWh), water (m³, hot and
+  cold together), expected costs, prepaid and running total. Estimated months
+  are pale with “estimated”.
+
+**Sharing CO₂ costs {year}** ⓘ *(v3.1.0)* — for the previous year, the
+landlord’s share of the CO₂ costs under the CO2KostAufG. One sentence names the
+case (own heating with your own contract, or central heating), below it **CO₂
+per m² and year**, **Stage** (… / 10), **Landlord’s share** and **Refund**,
+differences in the heating cost statement as a warning, the reductions and “An
+estimate under the CO2KostAufG, not legal advice.” **“Letter (PDF)”** opens the
+letter to the landlord or the check result in a new tab. Without an area or data
+the card says what is missing; in your own home or outside Germany it is left
+out ([Share CO₂ costs with the landlord](../anleitungen/co2-aufteilung.md)).
+
+**Master data** — titled with the name of the tenancy, next to it **“Edit”**.
+Start (and end), landlord or managing agent, start of the billing period
+(DD.MM.), the prepayment valid today (“Heating … + operating costs … per
+month”), the prices for heat (per kWh in the minor unit), hot water and “Cold
+water and sewage” (per m³) and the number of assigned meters. A sentence with
+an ⓘ points to the utility: “You enter the monthly consumption information
+under the utility: Heat” — only if Heat is active.
+
+The dialog **“Set up tenancy”/“Edit tenancy”** has name, landlord or managing
+agent, since v3.1.0 **“Floor area per tenancy agreement (m²)”** (empty = from
+settings), start, “End (empty = ongoing)”, “Billing period starts on (DD.MM.)”
+and three lists with “+ Row” and ✕, each row with a “From” date:
+
+- **Prepayments** — heating and operating costs per month,
+- **Prices** — heat per kWh, hot water per m³, cold water per m³; hint: from
+  the last statement, cost of the category divided by consumption, standing
+  charges included,
+- **Flat charges** — name and amount per year (waste, cleaning, insurance,
+  cable …).
+
+Under **Assigned meters** there are checkboxes for “Heating:” (meters of the
+Heat utility), “Hot water:” and “Cold water:” (water meters). Since v3.1.0 the
+field group **“CO₂ costs (CO2KostAufG)”** follows: the checkbox “Gas also for
+own appliances (e.g. gas cooker) – refund −5%” and the selection “Public-law
+restrictions (§ 9)” — none, “against renovation or replacing the heating (share
+halved)” or “against both (no sharing)”; plus a note. “Delete tenancy” asks
+first — it takes its statements with it.
+
+**Service charge statements** ⓘ — a list with period, received, costs,
+prepaid and result (“… additional payment” or “… credit”), a 📄 per receipt
+(“Open statement”), ✏️ and 🗑️. **“+ Statement”** opens “Record statement”:
+
+- period from, to, “Received on” (this starts the objection period),
+- total costs and prepaid,
+- heat consumption on the statement (kWh) and heating costs,
+- **Items** with name, kind (heating, hot water, cold water, sewage, operating
+  costs, other), amount and consumption — “For the prices, hot and cold water
+  with cost and consumption (m³) are enough; sewage counts towards cold
+  water.”,
+- *(v3.1.0)* **CO₂ information on the heating cost statement**: emissions (kg
+  CO₂), CO₂ costs, stage on the statement, landlord’s share on the statement
+  (%), landlord’s amount on the statement — basis of the check with central
+  heating,
+- **New prepayment as per the statement** (from, heating, operating costs),
+- “📄 Attach PDF or photo” (several possible),
+- two checkboxes, ticked by default: **“Take over prices from it (from the day
+  after the period)”** and **“Take over the new prepayment”**, plus a note.
+
+With “in a rented home”, agenda and calendar know two deadlines: by when the
+statement must arrive at the latest and until when objections are possible
+([Calendar](../anleitungen/kalender.md)). With your own gas boiler, since v3.1.0
+the deadline for the refund of the CO₂ costs is added.
 
 ---
 
@@ -485,6 +791,16 @@ appears at the field instead of in a message at the bottom right; the delete
 question names the reminder. An interval in months reads "Every 48 months"
 instead of "Every N months (48)".
 
+**Subscribe in your calendar (v3.1.0):** the button above the list opens a
+dialog with two addresses to copy — `webcal://…` (opens the calendar app
+directly) and `https://…`. The subscription holds reminders, cancellation
+deadlines, contract ends, ends of price guarantees, price increases and due
+readings; the calendar fetches it again every 12 hours. With sign-in switched
+on, the app creates a dedicated **calendar key** for it and appends it to the
+link; it only works for this subscription and can be revoked under Settings →
+Access. Notes on Apple Calendar and Google Calendar are in the dialog. Setup
+per calendar app: [Deadlines in your calendar](../anleitungen/kalender.md).
+
 ![Appointments](../../ui/screenshots/en/termine.png)
 
 ---
@@ -504,7 +820,10 @@ min/avg/max. The basis of every HDD evaluation.
 - The sync saves a changed location first.
 - CSV in the usual format `DD.MM.YYYY;avg;min;max` with a decimal comma; tab and
   the old double-quote format are read as well. Up to v2.11 the import also
-  split at the decimal comma.
+  split at the decimal comma. Since v3.1.0 it also understands spreadsheets
+  from other languages — dates as `D/M/YYYY` or `D-M-YYYY`, a header such as
+  "Date;Moyenne;Min;Max" — and every export file of your own; the example CSV
+  comes in the interface language.
 
 Since v2.8.0 a line above the
 chart states up to when measured values and from when forecasts are available;
@@ -531,13 +850,13 @@ Since v2.12.0 **nine sub-pages** instead of one long page:
 | Page | Contents |
 |---|---|
 | General | Language & country, overview (months, forecast horizon, warn after days without a reading), contract reminders |
-| Household & building | living area, building type, heated basement, hot water; persons in the household |
-| Utilities & billing | active utilities, all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors |
+| Household & building | living area, building type, heated basement, hot water; since v3.1.0 “Home and hot water” and “Own reference values” (for the benchmark); persons in the household |
+| Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar) |
 | Weather data | §10 |
-| Data | CSV export, backup & restore with snapshots, demo data, migration from v0.9.0; link to the annual report |
+| Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data, migration from v0.9.0; link to the annual report |
 | Integrations | Home Assistant integration |
 | Access | Sign-in & access, embedding |
-| Expert | collapsed and with a warning: regression, forecast model, anomaly and recommendation thresholds |
+| Expert | since v3.1.0 at the top receipts (storage limit) and text recognition in the home network; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price |
 | System | version, licence, system diagnostics |
 
 Each page saves through a bar at the bottom ("Discard" · "Save") that appears
@@ -556,7 +875,20 @@ or a restore the app restarts, so that sidebar, language and cache match the
 new state.
 
 At the top the card **Language & country** (v2.7.0): language, country, currency
-and time zone, all taking effect immediately. When the country changes, a dialog
+and time zone, all taking effect immediately. Since v3.1.0 there are two
+language fields:
+
+- **Language on this device** — applies to this browser only and is stored
+  there, not on the server. The first choice, "Same as the installation (…)",
+  follows the default language. So one phone in a household can show English
+  and another German.
+- **Default language of the installation** — the setting `language`. It
+  applies to devices without a choice of their own and to everything produced
+  without a device: PDF annual report, CSV files, messages to Home Assistant
+  and scripts.
+
+Up to v3.0 one person switched the language for every device. When the country
+changes, a dialog
 shows the values the country profile would change — current and new side by
 side, with the source of the CO₂ factor — and offers "Apply all", "Change
 country only" or "Cancel". Since v2.7.0 the gas conversion factors accept the
@@ -576,21 +908,66 @@ such as a Home Assistant dashboard. The **🏠 Home Assistant integration
 (F1009)** on the Integrations page — manage the API token, maintain meter aliases and copy three
 ready-made templates: the REST command, the `secrets.yaml` entry and (since v2.5.3)
 an automation built from the aliases that checks `has_value` before every push.
+Since v3.1.0 **“Step 5 · Values back into Home Assistant”** follows: REST
+sensors for `configuration.yaml` that query `GET /api/summary` once an hour —
+per meter the balance (for utilities with a contract), the forecast for the
+next 12 months and the days since the last reading. With sign-in switched on,
+the `secrets.yaml` entry `energietracker_read` for an API key with scope
+“Read” appears below. When the app runs under Home Assistant ingress, the
+templates name `http://<container host name>` as the address instead of the
+ingress address from the address bar
+([Home Assistant, step 5](../anleitungen/home-assistant.md)).
 Number fields and billing anchors are validated before saving; errors appear in
 red at the field.
+
+**Data export (CSV, v3.1.0):** above the buttons sits the choice of format:
+"Spreadsheet in the default language (…) — recommended" opens directly in
+Excel or LibreOffice with the column names, decimal separator and dates of the
+default language; "CSV format 1 — stable, for scripts" stays as it has been
+since version 1.1. The browser remembers the choice; both can be imported
+again. Exported are the monthly overview, readings or deliveries per utility
+and the temperature series ([CSV formats](api.md#csv-formats-v310)).
 
 **Backup & restore (v2.6.0):** an import is first checked completely and shown as
 a preview (what is restored, what stays unchanged for lack of content); a faulty
 backup changes nothing and names the findings. Below, the **stored snapshots**
 with time, occasion and size — download (⬇️), restore (↩️, the app saves the
 current state first) or delete. If the safety snapshot fails, the app asks
-whether to restore anyway.
+whether to restore anyway. Since v3.1.0, as soon as there are receipts, a line
+above the buttons reads “Receipts: 12 files, 3.4 MB of 500 MB – included in
+the backup.”; from 80 % of the limit in the warning colour with “The storage
+for receipts is almost full.”
+
+**Home and hot water (v3.1.0, Household & building page):** the 🔑 card
+between “Building & efficiency” and the water reference values. “I live” — “in
+my own home” or “in a rented home”; renting adds the [Tenancy](#tenancy-v310)
+page under Costs & contracts. “Heat comes from” and “Hot water is heated by” —
+a choice of energy sources, first option “not specified”; “Hot water
+temperature” in °C ([Settings](einstellungen.md#home-and-hot-water-v310)).
+
+**Receipts and text recognition (v3.1.0, Expert page):** two groups at the top
+of the page, before the collapsed part “Show calculation parameters” — they are
+not calculation parameters. **📎 Receipts** with “Storage for receipts, at
+most” (`attachments_max_mb`). **🔎 Text recognition in the home network** with
+“Service address”, “Interface” (Ollama or “OpenAI-compatible (LM Studio,
+LocalAI)”), “Model” and “Time limit”. Left empty, text recognition stays off
+([Settings](einstellungen.md#text-recognition-in-the-home-network-v310),
+[guide](../anleitungen/texterkennung.md)).
+
+**CO₂ price (v3.1.0, Expert page, under “Show calculation parameters”):** the
+group 🏷️ with “CO₂ price per year” — a table year → €/t with delete per row and
+the fields year and €/t for adding; your own values take precedence over the
+country profile —, “Scenario: CO₂ price” (default for the forecast, empty = off)
+and “Scenario from year” ([Settings](einstellungen.md#co₂-price-v310)).
 
 **Sign-in & access (v2.6.0):** shows the mode (no sign-in, password, proxy),
 switches password sign-in on, changes the password or switches it off again
 (with the current password) and manages **API keys** for scripts (read or
-manage, plaintext once, last used). Whatever is fixed by an environment variable
-is only displayed here. Since v2.6.0 the Home Assistant card shows when a value
+manage, plaintext once, last used). Since v3.1.0 it also lists the calendar
+keys that “Subscribe in your calendar” creates after asking first (“Create
+link”; scope “calendar subscription only”); revoking one ends the
+subscription. Whatever is fixed by an
+environment variable is only displayed here. Since v2.6.0 the Home Assistant card shows when a value
 last arrived with the token and warns when sign-in is on but no token exists.
 
 ![Settings](../../ui/screenshots/en/einstellungen.png)
@@ -609,7 +986,90 @@ Meter/device management incl. meter swap (the device chain) and contract mainten
 summarises the swap before performing it. A **contract** needs a provider or tariff
 and at least one working price; the start is prefilled with the day after the
 current commitment, and the app asks before a new contract supersedes a running one. Since v2.12.0 the first price rows apply from the contract start and follow it until someone changes their date; a pre-filled row without an amount stays empty. "From start" (up to v2.11 "⇧ Start") sets a row to the contract start. The contract card counts in the right plural ("1 working price"), delete is an outlined button, and the question names the contract. Since v2.9.0 the **Notice period** takes months, weeks or days, plus **Cancellation takes effect** ("automatic", "at the end of the term", "any time, at month end", "any time, to any day") and the **"Renews unless cancelled"** checkbox — clear it once you have cancelled. A meter with *Active* cleared still counts in every total, but no longer appears in the reading entry and raises no warnings. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
-management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading), since v2.10.0 optionally the **price of the initial stock** (empty = price of the first delivery). An electricity meter can be flagged as **Heating electricity (heat pump)** — it then counts in the efficiency figure. For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
+management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading), since v2.10.0 optionally the **price of the initial stock** (empty = price of the first delivery). For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
+
+**Role and recording (v3.1.0):** for electricity, water, PV generation and
+heat, the meter dialog has the choice **“Role”** with a hint below — it
+replaces the former “Heating electricity (heat pump)” checkbox:
+
+| Utility | Roles |
+|---|---|
+| Electricity | Household · Heat pump (heating electricity) — counts towards the efficiency figure · Wallbox (EV charger) |
+| Water | Cold water · Hot water — the app also shows the heat needed for it · Garden |
+| PV generation | Generation · Battery – charging · Battery – discharging |
+| Heat | Home consumption · Heat pump output — does not count as heating energy, otherwise it would be counted twice next to the heating electricity |
+
+All utilities with meter readings also get **“Recording”**: “Meter readings”
+or “Consumption per period” — “for values that already come as consumption –
+such as the monthly consumption information from the metering service.
+Switching is possible while the meter has no data.” The meter card then
+carries the tag “per period”, likewise any role other than the default. A
+meter with consumption per period has no meter swap; “CSV import” opens the
+import of periods for it: one line each with a month and the consumption, or
+`from; to; consumption; note`, header optional, with a preview (“N periods can
+be imported”); overlapping periods are skipped and reported
+([Heat](../verstehen/15-waerme.md)).
+
+**Market and metering location (v3.1.0):** except for heating oil and pellets,
+the meter dialog has the fields **“Market location ID (MaLo)”** and **“Metering
+location ID (MeLo)”** with the hint “For switching supplier; shown on the bill.
+MaLo: 11 digits; MeLo: 33 characters starting with “DE”.” The app rejects a
+wrong ID — such as a market location ID with a wrong check digit — with a
+message. The market location ID appears in the switching decision under “Have
+ready for switching” (§7).
+
+**District heating (v3.1.0):** the district heating contract dialog has two
+more price lists with an effective date — **“Capacity charge”** (€ per kW and
+year) and **“Metering charge”** (€ per year) — and the field group **“District
+heating: connection and key figures”** with “Connected load (kW)”, “Network CO₂
+factor (g/kWh)” and “Primary energy factor” plus a hint where the values are
+found ([District heating](../verstehen/04-fernwaerme.md#fixed-costs-capacity-and-metering-charge-v310)).
+
+**Group contract (v3.1.0):** for gas, electricity and district heating the
+“Meter” choice in the contract dialog also lists **“Meter groups (one contract
+for all)”** — every group with members. With a group, **“Unit price per meter
+(e.g. peak/off-peak)”** appears: one price list with effective dates per
+member, empty means the unit price above. The contract card then names “Meter
+group: …” instead of the meter
+([Group contract](../verstehen/13-meter-topologie.md#group-contract-v310)).
+
+**Reduced grid fee (v3.1.0):** the electricity contract has the price list
+**“Reduced grid fee (§ 14a EnWG, module 1)”** in € per year, with an effective
+date ([Electricity](../verstehen/02-strom.md#controllable-consumers-v310)).
+
+**Credit notes from the direct marketer (v3.1.0):** the feed-in contract
+dialog has the section **“Credit notes from the direct marketer”** with “From”,
+“To (inclusive)” and “Amount” per row and “Add credit note”
+([PV §11](../verstehen/12-pv.md#11-credit-notes-from-the-direct-marketer-v310)).
+
+**Import monthly prices (v3.1.0):** on the card of a real contract (not for
+water and feed-in), **“Import monthly prices”** reads a file
+`month;ct/kWh[;standing charge]`. The preview “Apply monthly prices” names the
+months (“The file contains prices for … months …”) and skipped lines; “Apply”
+enters a unit price (and standing charge) per month from the first
+([Electricity](../verstehen/02-strom.md#dynamic-tariffs-v310)).
+
+**PV system and heat pump in the meter dialog (v3.1.0):** for PV generation the
+field group **“PV system”** with “Plug-in solar device (balcony system, no
+feed-in meter)”, “Investment (incl. VAT)”, “In operation since” and “Storage
+capacity (kWh)” with hints. For heat with the role “Heat pump output” the
+choice **“Heat pump electricity meter”** — electricity meters with the heat
+pump role to tick.
+
+**Import time series (v3.1.0):** every meter card of a utility with meter
+readings carries the button **“Import time series”**. The dialog “Time series
+from a portal — …” shows the first lines after “Choose file” and asks for
+“Header rows”, “Date (and time) column”, “Time column (if separate)”, “Value
+column”, “The values are” (consumption per interval or meter readings), “Unit
+of the values”, “Time stamp marks” (start or end of the interval) and “Start
+value (meter reading)”. “Preview” names days, period and total; “Import”
+writes and remembers the mapping per meter in the browser
+([Time series from portals](../anleitungen/daten-aus-portalen.md)).
+
+**Minimum term over 24 months (v3.1.0):** if a contract’s minimum term ends more
+than 24 months after its start, the app shows after saving the note “The minimum
+term is longer than 24 months. In Germany, an initial term this long is invalid
+for consumers (§ 309 no. 9 BGB).” The contract is saved anyway.
 
 **Meter topology:** submeters are shown indented under their parent meter, groups as
 an expandable collective entry; **"Group meters"** (up to v2.11 "Merge meters")
@@ -623,6 +1083,13 @@ preview shows each row with its effect — new, replaces the existing reading
 jump, order of magnitude, future, duplicate date. Conspicuous rows are always
 listed, others up to 50. Only "Import N rows" writes; "Choose another file"
 starts over.
+
+Since v3.1.0 the import reads spreadsheets in every language of the app: column
+names such as "Date", "Index" or "Lectura", dates as `DD.MM.YYYY`,
+`DD/MM/YYYY`, `DD-MM-YYYY` or `YYYY-MM-DD`, "estimated" as the yes of the
+language. A date with the month before the day (`01/15/2026`) is not
+reinterpreted; the row is reported. The example below the file field and the
+example CSV are in the interface language.
 
 ![CSV import preview](../../ui/screenshots/import-vorschau.png)
 
@@ -653,6 +1120,22 @@ decline, not as a saving.
 went — self-consumed and fed in, stacked to the generation — and as a line what
 still came from the grid. The short description only adds up months with data
 from all three meters.
+
+**Battery, payback, notes (v3.1.0):** the PV generation view shows, where the
+data allows:
+
+- **“Battery {year}”** — “Charged”, “Discharged”, “Efficiency” with “Losses …
+  kWh” and “Full cycles” (only with a storage capacity);
+- **“Payback”** — “Investment”, “Benefit so far” with “recently … a year” and
+  “Paid back since” or “Paid back probably” with “about … years”, below it what
+  the benefit includes and what it does not;
+- for plug-in solar without a feed-in meter “Plug-in solar: self-consumption
+  assumed at …% of generation (settings).”;
+- in Germany, for commissioning on or after 25 Feb 2025, the note on § 51 EEG
+  (no feed-in tariff at negative wholesale prices with a smart metering
+  system).
+
+More in [PV §7–10](../verstehen/12-pv.md#7-battery-v310).
 
 ![PV](../../ui/screenshots/en/pv.png)
 
@@ -689,10 +1172,15 @@ Reached from the footer of the sidebar, on the iPhone under "More"
 - **Questions and bugs:** GitHub issues and the pointer to the diagnostics
   under Settings → System, whose details a bug report needs.
 - **Your data:** everything stays on your own server — no accounts, no
-  advertising, no telemetry. The only outside contact is Open-Meteo: the daily
-  weather sync (location rounded to about 1 km) and the place search.
-- **Terms:** 33 entries in all seven languages with a search. The ⓘ in the app
-  opens the same texts; `#/help?term=hdd` jumps to a term.
+  advertising, no telemetry. The app talks only to Open-Meteo: for the daily
+  weather sync (location rounded to about 1 km) and the place search — and,
+  only if set up, to your own text recognition service in the home network
+  (v3.1.0) — and, only on request (“Load from SMARD” under Tariff switch), to
+  SMARD for wholesale electricity prices (v3.1.0).
+- **Terms:** since v3.1.0 43 entries (33 in v2.13.0) in all seven languages with a search. The ⓘ in the app
+  opens the same texts; `#/help?term=hdd` jumps to a term. Since v3.1.0
+  billing terms also show what the bill of the configured country calls them
+  ("On your bill (France): “Mensualité”").
 
 ![Help](../../ui/screenshots/en/hilfe.png)
 

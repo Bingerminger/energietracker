@@ -7,6 +7,7 @@ use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
 use Energietracker\Http\NotFoundException;
+use Energietracker\Support\LocalizedException;
 
 /**
  * Contract management. Each contract belongs to exactly one meter (F3).
@@ -24,8 +25,9 @@ use Energietracker\Http\NotFoundException;
  *    The component shapes:
  *      trinkwasser: { working_prices[{from,ct_per_m3}], base_prices[{from,eur_per_month}] }
  *      schmutzwasser: {
- *          basis: 'trinkwasser' | 'separater_zaehler',
+ *          basis: 'trinkwasser' | 'separater_zaehler' | 'trinkwasser_minus_abzug',
  *          separater_zaehler_meter_id: ?string,
+ *          abzug_meter_ids: string[],   // v3.1.0 — Abzugszähler (Garten), nur bei trinkwasser_minus_abzug
  *          working_prices[{from,ct_per_m3}]
  *      }
  *      niederschlagswasser: {
@@ -54,6 +56,14 @@ final class ContractService
      */
     public const NOTICE_MODES = ['term_end', 'month_end', 'any_day'];
 
+    /**
+     * v3.1.0 (Paket H5, CALC-31) — Felder eines Fernwärmevertrags: Anschluss-
+     * leistung in kW, Leistungspreis €/kW·a, Mess-/Verrechnungspreis €/a (beide
+     * datiert), Emissionsfaktor des Netzes in g CO₂/kWh laut Versorger und der
+     * Primärenergiefaktor (nur zur Information).
+     */
+    public const DISTRICT_HEATING_FIELDS = ['capacity_kw', 'capacity_prices', 'metering_prices', 'co2_g_per_kwh', 'primary_energy_factor'];
+
     /** Water component field groups (v1.0.3). */
     private const FIELD_GROUPS_WATER_COMMON = [
         'advance_payments' => ['from', 'amount_eur'],
@@ -73,7 +83,9 @@ final class ContractService
         $all = $this->store->read("$utility/contracts.json", []);
         if (!is_array($all)) $all = [];
         if ($meterId !== null) {
-            $all = array_values(array_filter($all, fn($c) => ($c['meter_id'] ?? null) === $meterId));
+            // v3.1.0 (H6, #17) — eine Gruppen-ID liefert die Gruppenverträge
+            $all = array_values(array_filter($all, fn($c) => ($c['meter_id'] ?? null) === $meterId
+                || ($c['meter_group_id'] ?? null) === $meterId));
         }
         usort($all, fn($a, $b) => strcmp($a['start'] ?? '', $b['start'] ?? ''));
         return $all;
@@ -97,9 +109,16 @@ final class ContractService
                 $this->i18n->t('errors.contract.noContracts', ['label' => Utilities::get($utility)['label']])
             );
         }
-        $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
-        if (!$this->meters->get($utility, $meterId)) {
-            throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
+        // v3.1.0 (H6, #17) — Vertrag für eine Zählergruppe statt für einen Zähler
+        $groupId = self::groupTarget($input);
+        if ($groupId !== null) {
+            $this->assertGroupTarget($utility, $groupId);
+            $meterId = null;
+        } else {
+            $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
+            if (!$this->meters->get($utility, $meterId)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
+            }
         }
         $base = [
             'id'           => 'c_' . bin2hex(random_bytes(6)),
@@ -159,14 +178,35 @@ final class ContractService
             $base['special_payments'] = Utilities::hasAdvancePaymentContracts($utility)
                 ? ($input['special_payments'] ?? [])
                 : [];
+            // v3.1.0 (H5, CALC-31) — Fernwärme: Leistungs- und Messpreis, Netz-CO₂-Faktor
+            if ($utility === 'fernwaerme') {
+                foreach (self::DISTRICT_HEATING_FIELDS as $f) {
+                    if (array_key_exists($f, $input)) $base[$f] = $input[$f];
+                }
+            }
+            // v3.1.0 (H6) — Gruppenvertrag: Arbeitspreise je Mitglied (HT/NT);
+            // Strom: § 14a EnWG Modul 1 als jährliche Reduzierung des Netzentgelts
+            if ($groupId !== null) {
+                $base['meter_group_id'] = $groupId;
+                $base['working_prices_by_meter'] = $input['working_prices_by_meter'] ?? [];
+            }
+            if ($utility === 'strom' && array_key_exists('grid_reduction', $input)) $base['grid_reduction'] = $input['grid_reduction'];
+            // v3.1.0 (H7, MKT-16) — Einspeisung: Gutschriften des Direktvermarkters
+            if (Utilities::isFeedIn($utility) && array_key_exists('revenue_statements', $input)) $base['revenue_statements'] = $input['revenue_statements'];
+            // v3.1.0 (H6, MKT-12) — Preismodell: fest (fehlt), Monatspreise, dynamisch (Schattenvertrag Strom)
+            if (array_key_exists('price_model', $input)) $base['price_model'] = $input['price_model'];
+            if (array_key_exists('dynamic', $input)) $base['dynamic'] = $input['dynamic'];
             $contract = $this->normalize($base);
+            if ($groupId !== null) $this->assertGroupPrices($utility, $contract);
+            $this->assertPriceModel($utility, $contract);
         }
 
         $all = $this->store->read("$utility/contracts.json", []);
         if (!is_array($all)) $all = [];
+        $this->assertNoGroupOverlap($utility, $contract, $all);
         $all[] = $contract;
         $this->store->write("$utility/contracts.json", $all);
-        return $contract;
+        return $contract + self::warnings($contract);
     }
 
     public function update(string $utility, string $id, array $input): array
@@ -186,12 +226,15 @@ final class ContractService
                          'signup_bonus_eur', 'auto_renews', 'notice_period_days', 'notice_mode'];
         $standardFields = array_merge($isFeedIn
             ? ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
-               'working_prices', 'bonuses',
+               'working_prices', 'bonuses', 'revenue_statements',   // v3.1.0 (H7)
                'is_shadow', 'shadow_label']
             : ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                'working_prices', 'base_prices', 'advance_payments', 'bonuses',
                'special_payments',
                'is_shadow', 'shadow_label'], $switchFields);
+        if ($utility === 'fernwaerme') $standardFields = array_merge($standardFields, self::DISTRICT_HEATING_FIELDS);   // v3.1.0
+        if ($utility === 'strom') $standardFields[] = 'grid_reduction';   // v3.1.0 (H6, MKT-13)
+        array_push($standardFields, 'price_model', 'dynamic');            // v3.1.0 (H6, MKT-12)
         $waterFields    = array_merge(['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                            'trinkwasser', 'schmutzwasser', 'niederschlagswasser',
                            'advance_payments', 'bonuses',
@@ -203,14 +246,28 @@ final class ContractService
             foreach ($fields as $f) {
                 if (array_key_exists($f, $input)) $c[$f] = $input[$f];
             }
+            // v3.1.0 (H6, #17) — Ziel wechseln: Gruppe oder Zähler
+            if (($gid = self::groupTarget($input)) !== null) {
+                $this->assertGroupTarget($utility, $gid);
+                $c['meter_group_id'] = $gid;
+                $c['meter_id'] = null;
+            } elseif (!empty($input['meter_id'])) {
+                unset($c['meter_group_id'], $c['working_prices_by_meter']);
+            }
+            if (!empty($c['meter_group_id']) && array_key_exists('working_prices_by_meter', $input)) {
+                $c['working_prices_by_meter'] = $input['working_prices_by_meter'];
+            }
             $c = $utility === 'wasser' ? $this->normalizeWater($c) : $this->normalize($c);
+            if (!empty($c['meter_group_id'])) $this->assertGroupPrices($utility, $c);
+            if ($utility !== 'wasser') $this->assertPriceModel($utility, $c);
+            $this->assertNoGroupOverlap($utility, $c, $all);
             $found = $c;
             break;
         }
         unset($c);
         if (!$found) throw new NotFoundException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $all);
-        return $found;
+        return $found + self::warnings($found);
     }
 
     public function delete(string $utility, string $id): void
@@ -243,6 +300,67 @@ final class ContractService
         $c['bonuses'] = $this->normalizeBonuses($c['bonuses'] ?? []);
         // F1003 — Sonderzahlungen
         $c['special_payments'] = $this->normalizeSpecialPayments($c['special_payments'] ?? []);
+        // v3.1.0 (H6) — Gruppenvertrag: Arbeitspreise je Mitglied; Strom: § 14a Modul 1
+        if (!empty($c['meter_group_id'])) {
+            $byMeter = [];
+            foreach ((array)($c['working_prices_by_meter'] ?? []) as $mid => $list) {
+                $list = $this->normalizePriceList(is_array($list) ? $list : [], 'from', 'ct_per_kwh', $this->groupLabel('working_prices'));
+                if ($list !== []) $byMeter[(string)$mid] = $list;
+            }
+            $c['working_prices_by_meter'] = $byMeter;
+        } else {
+            unset($c['meter_group_id'], $c['working_prices_by_meter']);
+        }
+        if (array_key_exists('grid_reduction', $c)) {
+            $c['grid_reduction'] = array_map(fn($e) => $e + ['module' => 1],
+                $this->normalizePriceList((array)($c['grid_reduction'] ?? []), 'from', 'eur_per_year', $this->i18n->t('contracts.gridReduction.title')));
+        }
+        // v3.1.0 (H7, MKT-16) — Gutschriften des Direktvermarkters (Einspeisung)
+        if (array_key_exists('revenue_statements', $c)) $c['revenue_statements'] = $this->normalizeRevenueStatements((array)($c['revenue_statements'] ?? []));
+        // v3.1.0 (H6, MKT-12) — Preismodell; „fest" wird nicht gespeichert
+        if (array_key_exists('price_model', $c)) {
+            $pm = $c['price_model'];
+            if ($pm === null || $pm === '' || $pm === 'fixed') unset($c['price_model']);
+            elseif (!in_array($pm, ['monthly', 'dynamic'], true)) {
+                throw new LocalizedException('errors.contract.priceModelInvalid', ['value' => is_scalar($pm) ? (string)$pm : ''], 'price model');
+            }
+        }
+        if (($c['price_model'] ?? null) === 'dynamic') {
+            $d = is_array($c['dynamic'] ?? null) ? $c['dynamic'] : [];
+            $num = function (string $k, float $def, float $max) use ($d): float {
+                $v = $d[$k] ?? null;
+                if ($v === null || $v === '') return $def;
+                $n = is_string($v) ? ReadingImportService::parseNum($v) : (is_numeric($v) ? (float)$v : null);
+                if ($n === null || $n < 0 || $n > $max) {
+                    throw new LocalizedException('errors.contract.valueInvalid', ['field' => $k, 'value' => is_scalar($v) ? (string)$v : ''], 'dynamic');
+                }
+                return round($n, 4);
+            };
+            $c['dynamic'] = ['markup_ct_per_kwh' => $num('markup_ct_per_kwh', 0.0, 100), 'base_eur_month' => $num('base_eur_month', 0.0, 1000),
+                             'vat_pct' => $num('vat_pct', 19.0, 30), 'weighting' => 'flat'];
+        } else {
+            unset($c['dynamic']);
+        }
+        // v3.1.0 (CALC-31) — Fernwärme-Fixkosten und Netzfaktor (nur wenn gesetzt)
+        if (array_key_exists('capacity_prices', $c)) {
+            $c['capacity_prices'] = $this->normalizePriceList($c['capacity_prices'] ?? [], 'from', 'eur_per_kw_year', $this->i18n->t('contracts.fw.capacityPrice'));
+        }
+        if (array_key_exists('metering_prices', $c)) {
+            $c['metering_prices'] = $this->normalizePriceList($c['metering_prices'] ?? [], 'from', 'eur_per_year', $this->i18n->t('contracts.fw.meteringPrice'));
+        }
+        foreach (['capacity_kw' => 100000, 'co2_g_per_kwh' => 2000, 'primary_energy_factor' => 5] as $f => $max) {
+            if (!array_key_exists($f, $c)) continue;
+            $v = $c[$f];
+            if ($v === null || $v === '') { $c[$f] = null; continue; }
+            $n = is_string($v) ? ReadingImportService::parseNum($v) : (is_numeric($v) ? (float)$v : null);
+            if ($n === null || $n < 0 || $n > $max) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.valueInvalid', ['field' => $this->i18n->t(['capacity_kw' => 'contracts.fw.capacityKw', 'co2_g_per_kwh' => 'contracts.fw.co2Factor', 'primary_energy_factor' => 'contracts.fw.primaryEnergy'][$f]), 'value' => is_scalar($v) ? (string)$v : '']));
+            }
+            $c[$f] = round($n, 4);
+        }
+        if (!empty($c['capacity_prices']) && empty($c['capacity_kw'])) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.contract.capacityMissing'));
+        }
         return $this->normalizeSwitchFields($c);
     }
 
@@ -267,7 +385,7 @@ final class ContractService
         // ── Schmutzwasser ───────────────────────────────────────────
         $sw = is_array($c['schmutzwasser'] ?? null) ? $c['schmutzwasser'] : [];
         $basis = (string)($sw['basis'] ?? 'trinkwasser');
-        if (!in_array($basis, ['trinkwasser', 'separater_zaehler'], true)) {
+        if (!in_array($basis, ['trinkwasser', 'separater_zaehler', 'trinkwasser_minus_abzug'], true)) {
             throw new \InvalidArgumentException(
                 $this->i18n->t('errors.contract.swBasisInvalid', ['basis' => $basis])
             );
@@ -281,6 +399,23 @@ final class ContractService
                 $this->i18n->t('errors.contract.swSeparateMeterRequired')
             );
         }
+        // v3.1.0 (Review CALC-20) — Schmutzwasser = Trinkwasser minus Abzugszähler
+        // (Gartenwasser fließt nicht in den Kanal). Der häufigste Fall auf der
+        // Abwasserrechnung; bis v3.0 nur über einen separaten Zähler abbildbar.
+        $deduct = [];
+        if ($basis === 'trinkwasser_minus_abzug') {
+            foreach ((array)($sw['abzug_meter_ids'] ?? []) as $id) {
+                $id = trim((string)$id);
+                if ($id !== '' && !in_array($id, $deduct, true)) $deduct[] = $id;
+            }
+            if ($deduct === []) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.swDeductionRequired'));
+            }
+            if (in_array((string)($c['meter_id'] ?? ''), $deduct, true)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.contract.swDeductionSelf'));
+            }
+        }
+        $sw['abzug_meter_ids'] = $deduct;
         $sw['working_prices'] = $this->normalizePriceList(
             $sw['working_prices'] ?? [], 'from', 'ct_per_m3', $this->i18n->t('contracts.priceGroup.swWorking')
         );
@@ -907,6 +1042,53 @@ final class ContractService
      * nur den Monatsersten prüft, greift eine Preisänderung zum 15. am 15. —
      * wie auf der Rechnung, nicht erst im Folgemonat.
      */
+    /**
+     * v3.1.0 (H5, MKT-24) — Hinweise beim Speichern (nicht gespeichert):
+     * `term_over_24_months` — eine Erstlaufzeit über 24 Monate ist für
+     * Verbraucher unwirksam (§ 309 Nr. 9 BGB).
+     *
+     * @return array{warnings?: list<string>}
+     */
+    public static function warnings(array $c): array
+    {
+        $w = [];
+        $start = (string)($c['start'] ?? '');
+        $min = (string)($c['min_term_end'] ?? '');
+        if ($start !== '' && $min !== '' && $min > date('Y-m-d', (int)strtotime("$start +24 months -1 day"))) $w[] = 'term_over_24_months';
+        return $w === [] ? [] : ['warnings' => $w];
+    }
+
+    /**
+     * v3.1.0 (Paket H5, CALC-31) — feste Kosten je Monat an einem Tag: Grundpreis
+     * plus (Fernwärme) Anschlussleistung × Leistungspreis / 12 plus Messpreis / 12.
+     * Null, wenn nichts davon gepflegt ist. Eine Formel für Saldo, Prognose und
+     * Rechnungsprüfung.
+     */
+    public function fixedPerMonthOn(array $c, string $date): ?float
+    {
+        $bp = $this->valueOnDate($c['base_prices'] ?? [], 'eur_per_month', $date);
+        $cap = !empty($c['capacity_kw']) ? $this->valueOnDate($c['capacity_prices'] ?? [], 'eur_per_kw_year', $date) : null;
+        $met = $this->valueOnDate($c['metering_prices'] ?? [], 'eur_per_year', $date);
+        $red = $this->valueOnDate($c['grid_reduction'] ?? [], 'eur_per_year', $date);   // v3.1.0 (H6, § 14a Modul 1)
+        if ($bp === null && $cap === null && $met === null && $red === null) return null;
+        return ($bp ?? 0.0) + ($cap !== null ? (float)$c['capacity_kw'] * $cap / 12 : 0.0) + ($met !== null ? $met / 12 : 0.0)
+            - ($red !== null ? $red / 12 : 0.0);
+    }
+
+    /** v3.1.0 (CALC-31) — Aufteilung der festen Kosten je Monat (für Tooltip und Rechnungsprüfung). */
+    public function fixedPartsOn(array $c, string $date): array
+    {
+        $cap = !empty($c['capacity_kw']) ? $this->valueOnDate($c['capacity_prices'] ?? [], 'eur_per_kw_year', $date) : null;
+        $met = $this->valueOnDate($c['metering_prices'] ?? [], 'eur_per_year', $date);
+        return [
+            'base'     => $this->valueOnDate($c['base_prices'] ?? [], 'eur_per_month', $date),
+            'capacity' => $cap !== null ? (float)$c['capacity_kw'] * $cap / 12 : null,
+            'metering' => $met !== null ? $met / 12 : null,
+            // v3.1.0 (H6) — § 14a Modul 1, negativ
+            'grid_reduction' => ($red = $this->valueOnDate($c['grid_reduction'] ?? [], 'eur_per_year', $date)) !== null ? -$red / 12 : null,
+        ];
+    }
+
     public function valueOnDate(array $entries, string $field, string $date): ?float
     {
         $val = null;
@@ -982,8 +1164,13 @@ final class ContractService
         foreach ($contracts as $c) {
             $dates = [(string)($c['start'] ?? '')];
             if (!empty($c['end'])) $dates[] = date('Y-m-d', strtotime($c['end'] . ' +1 day'));
-            foreach (['working_prices', 'base_prices'] as $group) {
+            // v3.1.0 (CALC-31) — dazu Leistungs- und Messpreis der Fernwärme
+            foreach (['working_prices', 'base_prices', 'capacity_prices', 'metering_prices', 'grid_reduction'] as $group) {
                 foreach ($c[$group] ?? [] as $e) $dates[] = (string)($e['from'] ?? '');
+            }
+            // v3.1.0 (H6) — Arbeitspreise je Mitglied eines Gruppenvertrags
+            foreach ((array)($c['working_prices_by_meter'] ?? []) as $list) {
+                foreach ((array)$list as $e) $dates[] = (string)($e['from'] ?? '');
             }
             foreach ($this->effectiveAdvanceSchedule($c) as $e) $dates[] = $e['from'];
             foreach ($dates as $d) {
@@ -1004,6 +1191,173 @@ final class ContractService
                 'contract' => $r['contract'] ?? null,
                 'assumed'  => $r['assumed'] ?? false,
             ];
+        }
+        return $out;
+    }
+
+    // ── v3.1.0 (H6, #17) — Gruppenvertrag ──────────────────────────────
+
+    /** Gruppen-ID aus der Eingabe (`meter_group_id`), sonst null. */
+    private static function groupTarget(array $input): ?string
+    {
+        $g = $input['meter_group_id'] ?? null;
+        return is_string($g) && $g !== '' ? $g : null;
+    }
+
+    /** Gruppe derselben Art mit Mitgliedern; nur Arten mit Abschlagsverträgen (Gas, Strom, Fernwärme). */
+    private function assertGroupTarget(string $utility, string $groupId): void
+    {
+        if (!Utilities::hasAdvancePaymentContracts($utility) || $this->meters->getGroup($utility, $groupId) === null
+            || $this->meters->groupMembers($utility, $groupId) === []) {
+            throw new LocalizedException('errors.contract.targetInvalid', ['id' => $groupId], 'contract target');
+        }
+    }
+
+    /** Preise je Mitglied nur für Zähler der Gruppe. */
+    private function assertGroupPrices(string $utility, array $c): void
+    {
+        $ids = array_column($this->meters->groupMembers($utility, (string)$c['meter_group_id']), 'id');
+        foreach (array_keys((array)($c['working_prices_by_meter'] ?? [])) as $mid) {
+            if (!in_array((string)$mid, $ids, true)) {
+                throw new LocalizedException('errors.contract.targetInvalid', ['id' => (string)$mid], 'price for non-member');
+            }
+        }
+    }
+
+    /**
+     * Ein Mitglied hat im Zeitraum eines Gruppenvertrags keinen eigenen echten
+     * Vertrag (und umgekehrt) — sonst zählten Grundpreis und Verbrauch doppelt.
+     * Schattenverträge zählen nicht.
+     */
+    private function assertNoGroupOverlap(string $utility, array $c, array $all): void
+    {
+        if (!empty($c['is_shadow']) || $utility === 'wasser') return;
+        $overlaps = fn(array $a, array $b): bool => (string)($a['start'] ?? '') <= (string)(($b['end'] ?? '') ?: '9999-12-31')
+            && (string)($b['start'] ?? '') <= (string)(($a['end'] ?? '') ?: '9999-12-31');
+        $clash = function (array $o) use ($c, $overlaps): bool {
+            return is_array($o) && ($o['id'] ?? null) !== ($c['id'] ?? null) && empty($o['is_shadow']) && $overlaps($c, $o);
+        };
+        if (!empty($c['meter_group_id'])) {
+            $members = array_column($this->meters->groupMembers($utility, (string)$c['meter_group_id']), 'id');
+            foreach ($all as $o) {
+                if (is_array($o) && in_array($o['meter_id'] ?? null, $members, true) && $clash($o)) {
+                    throw new LocalizedException('errors.contract.groupMemberOverlap', ['start' => (string)($o['start'] ?? '')], 'group member overlap');
+                }
+            }
+            return;
+        }
+        $meter = $this->meters->get($utility, (string)($c['meter_id'] ?? ''));
+        $gid = (string)($meter['meter_group_id'] ?? '');
+        if ($gid === '') return;
+        foreach ($all as $o) {
+            if (is_array($o) && ($o['meter_group_id'] ?? null) === $gid && $clash($o)) {
+                throw new LocalizedException('errors.contract.groupMemberOverlap', ['start' => (string)($o['start'] ?? '')], 'group member overlap');
+            }
+        }
+    }
+
+    /**
+     * v3.1.0 (H7, MKT-16) — Gutschriften: {from, to (inklusive), amount_eur, kwh?,
+     * attachment_id?}. Ganz leere Zeilen fallen weg.
+     */
+    private function normalizeRevenueStatements(array $list): array
+    {
+        $out = [];
+        $label = $this->i18n->t('contracts.revenue.title');
+        foreach (array_values($list) as $i => $s) {
+            if (!is_array($s)) continue;
+            $from = trim((string)($s['from'] ?? '')); $to = trim((string)($s['to'] ?? ''));
+            $amt = $s['amount_eur'] ?? null;
+            if ($from === '' && $to === '' && ($amt === null || $amt === '')) continue;
+            $this->assertDate($from, $label . ' #' . ($i + 1));
+            $this->assertDate($to, $label . ' #' . ($i + 1));
+            if ($to < $from) throw new \InvalidArgumentException($this->i18n->t('errors.contract.endBeforeStart'));
+            $e = ['from' => $from, 'to' => $to, 'amount_eur' => round($this->parseAmount(is_string($amt) ? (ReadingImportService::parseNum($amt) ?? $amt) : $amt, $label, $i + 1), 2)];
+            if (isset($s['kwh']) && is_numeric($s['kwh'])) $e['kwh'] = round((float)$s['kwh'], 1);
+            if (!empty($s['attachment_id'])) $e['attachment_id'] = (string)$s['attachment_id'];
+            $out[] = $e;
+        }
+        usort($out, fn($a, $b) => strcmp($a['from'], $b['from']));
+        return $out;
+    }
+
+    /** v3.1.0 (H6, MKT-12) — dynamisch nur als Schattenvertrag für Strom (Dynamik-Check). */
+    private function assertPriceModel(string $utility, array $c): void
+    {
+        if (($c['price_model'] ?? null) === 'dynamic' && ($utility !== 'strom' || empty($c['is_shadow']))) {
+            throw new LocalizedException('errors.contract.dynamicShadowOnly', [], 'dynamic contract');
+        }
+    }
+
+    /**
+     * v3.1.0 (H6, MKT-12) — Monatspreise aus einer Datei: `monat;ct_kwh[;grundpreis]`
+     * (Monat als MM.JJJJ, MM/JJJJ oder JJJJ-MM; Kopfzeile erlaubt). Schreibt je
+     * Monat einen Arbeitspreis (und Grundpreis) ab dem Monatsersten und setzt das
+     * Preismodell „monthly". Einträge mit demselben Stichtag werden ersetzt.
+     *
+     * @return array<string,mixed>
+     */
+    public function importMonthlyPrices(string $utility, string $id, string $text, bool $dryRun = false): array
+    {
+        $c = $this->get($utility, $id) ?? throw new NotFoundException($this->i18n->t('errors.contract.notFound'));
+        if ($utility === 'wasser' || Utilities::isFeedIn($utility)) {
+            throw new LocalizedException('errors.contract.priceImportUnsupported', [], 'price import');
+        }
+        $wp = []; $bp = []; $errors = [];
+        $lines = preg_split('/\r\n|\n|\r/', trim((string)preg_replace('/^\xEF\xBB\xBF/', '', $text))) ?: [];
+        foreach ($lines as $i => $line) {
+            if (trim($line) === '') continue;
+            $cells = str_getcsv($line, ';', '"', '');
+            $month = PeriodService::parseMonth((string)($cells[0] ?? ''));
+            $ct = ReadingImportService::parseNum((string)($cells[1] ?? ''));
+            if ($month === null || $ct === null) {
+                if ($i > 0 || $month !== null) $errors[] = ['line' => $i + 1, 'text' => mb_substr($line, 0, 80)];
+                continue;
+            }
+            $wp[$month[0]] = ['from' => $month[0], 'ct_per_kwh' => round($ct, 4)];
+            $base = isset($cells[2]) && trim((string)$cells[2]) !== '' ? ReadingImportService::parseNum((string)$cells[2]) : null;
+            if ($base !== null) $bp[$month[0]] = ['from' => $month[0], 'eur_per_month' => round($base, 2)];
+        }
+        if ($wp === []) throw new LocalizedException('errors.contract.priceImportEmpty', [], 'price import empty');
+        ksort($wp);
+        $result = ['months' => count($wp), 'from' => array_key_first($wp), 'to' => array_key_last($wp),
+                   'base_prices' => count($bp), 'errors' => $errors];
+        if ($dryRun) return $result + ['would_import' => count($wp)];
+        $merge = function (array $old, array $new): array {
+            $byFrom = [];
+            foreach ($old as $e) if (is_array($e)) $byFrom[(string)($e['from'] ?? '')] = $e;
+            foreach ($new as $f => $e) $byFrom[$f] = $e;
+            ksort($byFrom);
+            return array_values($byFrom);
+        };
+        $this->update($utility, $id, ['working_prices' => $merge((array)($c['working_prices'] ?? []), $wp),
+            'base_prices' => $merge((array)($c['base_prices'] ?? []), $bp), 'price_model' => 'monthly']);
+        return $result;
+    }
+
+    /** Arbeitspreise, die für einen Zähler gelten: im Gruppenvertrag die des Mitglieds, sonst die allgemeinen. */
+    public static function workingPricesFor(array $c, ?string $meterId): array
+    {
+        if ($meterId !== null && !empty($c['working_prices_by_meter'][$meterId])) return (array)$c['working_prices_by_meter'][$meterId];
+        return (array)($c['working_prices'] ?? []);
+    }
+
+    /**
+     * Zähler und Gruppen mit Vertrag einer Art: die Zähler in Betrieb und je
+     * Gruppe mit einem echten Gruppenvertrag die Gruppe als Ziel
+     * ({@see MeterService::groupTarget()}). Für Agenda und Empfehlungen.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public function targets(string $utility): array
+    {
+        $out = array_values(array_filter($this->meters->list($utility), fn($m) => MeterService::inService($m)));
+        $seen = [];
+        foreach ($this->list($utility) as $c) {
+            $gid = (string)($c['meter_group_id'] ?? '');
+            if ($gid === '' || !empty($c['is_shadow']) || isset($seen[$gid])) continue;
+            $seen[$gid] = true;
+            if (($g = $this->meters->groupTarget($utility, $gid)) !== null) $out[] = $g;
         }
         return $out;
     }

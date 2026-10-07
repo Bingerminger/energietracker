@@ -6,8 +6,10 @@
 
 Eine Gasrechnung in den Energietracker übernehmen, nachrechnen und das Guthaben
 buchen. Danach zeigt die App denselben Saldo wie die Rechnung, und die
-Prognose rechnet mit dem neuen Abschlag weiter. Für Strom und Fernwärme gilt
-dasselbe ohne Schritt 2.
+Prognose rechnet mit dem neuen Abschlag weiter. Für Strom, Wasser und
+Fernwärme gilt dasselbe ohne Schritt 2 — seit v3.1.0 auch die
+Rechnungsprüfung, und die Werte der Rechnung lassen sich erfassen, vergleichen
+und als Sonderzahlung buchen (Schritt 7).
 
 ---
 
@@ -42,8 +44,9 @@ Ihr neuer Abschlag ab 01.03.2026: 140,00 €
 | Zählerstände mit Datum und Ableseart | zwei Ablesungen am Gaszähler (Schritt 1) |
 | Zustandszahl und Brennwert je Zeitraum | Gas-Umrechnungsfaktoren (Schritt 2) |
 | Arbeitspreis, Grundpreis, Abschlag | der Vertrag (Schritt 3) |
-| Energie je Zeitraum | Rechnung prüfen (Schritt 4) |
-| Guthaben bzw. Nachzahlung | Saldo des Vertrags (Schritt 5), danach als Sonderzahlung gebucht (Schritt 6) |
+| Energie und Kosten je Zeitraum | Rechnung prüfen (Schritt 4) |
+| Guthaben bzw. Nachzahlung | Saldo des Vertrags (Schritt 5), danach als Sonderzahlung gebucht (Schritt 6 oder 7) |
+| Rechnungsbetrag, Abschläge, Ergebnis, Umlagen, CO₂-Angaben | „Laut Rechnung“ (Schritt 7) |
 | neuer Abschlag | am Vertrag, mit seinem Datum (Schritt 6) |
 
 ## 1. Zählerstände
@@ -89,20 +92,63 @@ laufenden Vertrag bearbeiten:
 - Hat sich ein Preis unterm Jahr geändert, eine weitere Zeile mit dem Datum der
   Änderung; sie gilt ab diesem Tag.
 
+**Fernwärme** hat seit v3.1.0 eigene feste Kosten: im Vertragsdialog die
+Listen **„Leistungspreis“** (€ je kW und Jahr) und **„Messpreis“** (€ je Jahr),
+je mit Stichtag, und in der Feldgruppe „Fernwärme: Anschluss und Kennwerte“ die
+**Anschlussleistung (kW)**. Die App rechnet daraus feste Kosten je Monat
+([Fernwärme](../verstehen/04-fernwaerme.md#feste-kosten-leistungs--und-messpreis-v310)).
+**Wasser** hat Trink-, Schmutz- und Niederschlagswasser
+([Wasser](../verstehen/03-wasser.md)).
+
+**Hoch- und Niedertarif (seit v3.1.0).** Rechnet die Stromrechnung zwei
+Zählwerke mit einem Grundpreis ab, legst du beide als Zähler an, fasst sie zu
+einer **Gruppe** zusammen (⚙️ Zähler → „Zu Gruppe zusammenfassen“) und den
+Vertrag für die Gruppe an: unter „Zähler“ die Gruppe, unter **„Arbeitspreis je
+Zähler (z. B. HT/NT)“** je Zählwerk sein Preis. Grundpreis und Abschlag zählen
+einmal ([Strom](../verstehen/02-strom.md#hoch--und-niedertarif-ein-vertrag-für-eine-zählergruppe-v310)).
+
 ## 4. Nachrechnen
 
-**Kosten & Verträge → Rechnung prüfen** (oder auf der Gas-Seite
-„Rechnung … prüfen“): Zähler und Zeitraum 01.01.2025 bis 31.12.2025 wählen. Die
-Seite zeigt je Abschnitt Kubikmeter, Zustandszahl, Brennwert und kWh — dieselben
-Zeilen wie die Rechnung. Hinter einem Stand steht, woher er kommt: ohne Zusatz
-abgelesen, **S** als geschätzt erfasst, **E** ein Ersatzwert, den die App
-zwischen zwei Ablesungen tagesgenau ermittelt, genau dort, wo auch der Versorger
-schätzt.
+**Kosten & Verträge → Rechnung prüfen** (oder auf der Seite der Verbrauchsart
+„Rechnung … prüfen“). Seit v3.1.0 gibt es die Prüfung für **Gas, Strom, Wasser
+und Fernwärme** — oben wählst du die Verbrauchsart, daneben den Zähler, wenn es
+mehrere gibt. Dann **Von** 01.01.2025 und **Bis (ausschließlich)** 01.01.2026
+und **„Nachrechnen“**. Der Link von der Verbrauchsart setzt Art, Zähler und Jahr
+schon ein.
+
+Die Tabelle schneidet den Zeitraum in Abschnitte — wie die Zeilen der
+Rechnung:
+
+- **Gas:** an jeder Ablesung und jedem Brennwertwechsel; je Abschnitt
+  Kubikmeter, Zustandszahl, Brennwert und kWh.
+- **Strom, Wasser, Fernwärme:** an jeder Ablesung und an jedem Stichtag des
+  Vertrags — Beginn, Ende, Preisänderung, Abschlagsänderung (Grenze
+  „Preiswechsel“).
+
+Je Abschnitt stehen außerdem **Preis** (ct je kWh), **Verbrauchskosten** und
+**Feste Kosten** — gerechnet mit denselben Bausteinen wie Monatstabelle und
+Saldo: der Arbeitspreis am Tag, der Grundpreis nach Kalendertagen des Monats,
+bei Fernwärme dazu Leistungs- und Messpreis. Bei Wasser sind die
+Verbrauchskosten Trink- und Schmutzwasser je m³, die festen Kosten Grundpreis
+und Niederschlagswasser. Darunter die Summe: „Nachgerechnet: …“, abzüglich
+eines Bonus, der im Zeitraum gutgeschrieben wurde.
+
+Hinter einem Stand steht, woher er kommt: ohne Zusatz abgelesen, **S** als
+geschätzt erfasst, **E** ein Ersatzwert, den die App zwischen zwei Ablesungen
+tagesgenau ermittelt, genau dort, wo auch der Versorger schätzt.
+
+**Gruppenvertrag (HT/NT).** Die Seite rechnet je Zähler: Das erste Zählwerk
+der Gruppe trägt die festen Kosten, das zweite nur seinen Verbrauch — die
+Summe beider ist die Rechnung. Beide auf einmal, mit den Abschnitten
+nacheinander und den festen Kosten einmal, rechnet die API nach
+(`GET /api/utility/strom/meter-groups/{id}/bill-check`,
+[API-Referenz](../referenz/api.md#gruppenvertrag-v310)).
 
 Stimmen die Kubikmeter, aber nicht die kWh, fehlt meist ein Faktor-Zeitraum
 (Schritt 2). Die Aufteilung auf die Abschnitte kann um wenige Kubikmeter
 abweichen, weil der Versorger den Zwischenstand anders schätzt; die Summe bleibt
-gleich.
+gleich. Fehlt für einen Teil des Zeitraums ein Preis im Vertrag, sagt die Seite
+das — dort fehlen auch die Kosten.
 
 ## 5. Saldo vergleichen
 
@@ -135,7 +181,64 @@ Eine **Nachzahlung** bucht sich genauso, mit der Art „Nachzahlung …“. Nich
 beides tun: Wer den neuen Abschlag schon als Abschlagszeile eingetragen hat,
 nimmt die Art „ohne Auswirkung“ ([Sonderzahlungen](../verstehen/10-sonderzahlungen.md)).
 
-## 7. Danach
+Seit v3.1.0 geht das auch mit einem Knopf aus der erfassten Rechnung
+(Schritt 7) — dann immer als Art „ohne Auswirkung“.
+
+## 7. „Laut Rechnung“: erfassen, vergleichen, buchen
+
+Seit **v3.1.0** hält die App die Rechnung des Versorgers selbst fest und
+stellt sie der eigenen Rechnung gegenüber. Auf **Rechnung prüfen** steht unter
+der Tabelle die Karte **„Laut Rechnung“** für den gewählten Zähler.
+
+**Erfassen.** Aus dem Beispiel:
+
+| Feld | Eintrag |
+|---|---|
+| Von / Bis einschließlich | 01.01.2025 / 31.12.2025 — hier zählt der letzte Tag mit, wie auf der Rechnung |
+| Rechnungsdatum | das Datum der Rechnung, etwa 10.02.2026 |
+| Verbrauch laut Rechnung (kWh) | 16.437 — bei Wasser in m³ |
+| Rechnungsbetrag (brutto) | 1.655,00 |
+| Gezahlte Abschläge | 1.800,00 |
+| Nachzahlung / Guthaben | leer lassen: Die App rechnet Betrag − Abschläge = −145,00. **Positiv = Nachzahlung**, negativ = Guthaben |
+| Weitere Posten | Umlagen, Gebühren, Gutschriften mit Bezeichnung und Betrag (Gutschrift negativ) — die App rechnet sie nicht nach, sondern zählt sie zur eigenen Summe |
+| Emissionen (kg CO₂), CO₂-Kosten laut Rechnung | nur bei Gas: die CO₂-Angaben der Rechnung, den Betrag netto, wie er dort steht. Sie gehen dem Standardfaktor vor ([CO₂-Preis](../verstehen/16-co2-preis.md)) und setzen zur Miete die Frist für die Erstattung ([CO₂-Kosten teilen](co2-aufteilung.md)) |
+| Rechnung anhängen (PDF oder Foto) | der Beleg; die Liste zeigt ihn als 📄 |
+
+**„Rechnung speichern“** legt sie an und zeigt gleich den Vergleich.
+
+**Vergleichen.** Die Liste darunter führt jede Rechnung mit Zeitraum, Menge,
+Rechnungsbetrag und Nachzahlung/Guthaben. **„Vergleichen“** zeigt eine Tabelle
+**Nachgerechnet · Laut Rechnung · Abweichung** für Menge, Betrag und gezahlte
+Abschläge, dazu ein Urteil:
+
+- **„passt“** — Menge auf 1 % genau und Betrag auf 1 % oder 2 € genau;
+- **„prüfen“** — sonst; ohne Menge und Betrag gibt es kein Urteil.
+
+Darunter die möglichen Gründe einer Abweichung, etwa: ein geschätzter oder
+interpolierter Stand an einer Grenze des Zeitraums, ein Preiswechsel oder ein
+Brennwertwechsel im Zeitraum, weitere Posten, die die App nur übernimmt, ein
+fehlender Preis im Vertrag oder fehlende Zählerstände. Nachgerechnet heißt:
+Verbrauchskosten + feste Kosten − Bonus + weitere Posten.
+
+**Buchen.** **„Als Sonderzahlung buchen“** legt das Ergebnis als
+Sonderzahlung im Vertrag an — eine Nachzahlung bzw. Rückzahlung **„ohne
+Auswirkung auf Abschläge“**, Betrag ohne Vorzeichen, Datum = Rechnungsdatum
+(ohne Datum der Tag nach dem Zeitraum), Notiz „Jahresabrechnung … – …“. Der
+Vertrag ist der, der am Ende des Zeitraums galt. Danach trägt die Rechnung
+„gebucht“; ein zweites Buchen ändert nichts. Den neuen Abschlag trägst du als
+Abschlagszeile am Vertrag ein (Schritt 6). Ohne Ergebnis oder ohne Vertrag
+lehnt die App ab und sagt warum.
+
+**Löschen** (🗑️) fragt nach. Eine schon gebuchte Sonderzahlung bleibt im
+Vertrag; sie löschst du dort, wenn sie weg soll.
+
+**Bei einem Gruppenvertrag** erfasst du „Laut Rechnung“ an einem der
+Zählwerke. Der Vergleich rechnet trotzdem die ganze Gruppe nach — beide
+Zählwerke, die festen Kosten und den Abschlag einmal —, denn der Versorger
+schickt eine Rechnung für beide. „Als Sonderzahlung buchen“ bucht in den
+Gruppenvertrag.
+
+## 8. Danach
 
 - Die **Saldo-Karte** rechnet jetzt bis zum nächsten Abrechnungsstichtag
   (Einstellungen → Verbrauchsarten & Abrechnung → Stichtag Gas; Standard
@@ -143,7 +246,7 @@ nimmt die Art „ohne Auswirkung“ ([Sonderzahlungen](../verstehen/10-sonderzah
   neuen Abschlag des Versorgers, lohnt ein Blick in die Prognose.
 - Mit gepflegter Kündigungsfrist erinnert die App rechtzeitig vor dem
   Kündigungsstichtag; **Kosten & Verträge → Wechsel prüfen** vergleicht Angebote.
-- Nächstes Jahr dieselben Schritte — meist nur 1, 2 und 6.
+- Nächstes Jahr dieselben Schritte — meist nur 1, 2 und 7.
 
 ---
 

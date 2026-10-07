@@ -2,10 +2,13 @@
 
 **English** · [Deutsch](../../verstehen/11-zaehlerstaende.md)
 
-> Applies to **gas, electricity, water, district heating** — the utilities with
-> the cumulative meter-reading model. **Heating oil** and **pellets** are excluded:
-> they record consumption via deliveries, not via readings — their own data model
-> with its own UI (see [Heating oil](05-heizoel.md), [Pellets](06-pellets.md)).
+> Applies to **gas, electricity, water, district heating, PV** and since v3.1.0
+> **heat** — the utilities with the cumulative meter-reading model. **Heating
+> oil** and **pellets** are excluded: they record consumption via deliveries,
+> not via readings — their own data model with its own UI (see
+> [Heating oil](05-heizoel.md), [Pellets](06-pellets.md)). Meters with
+> **consumption per period** (v3.1.0) are here too, with a card of their own
+> ([below](#meters-with-consumption-per-period-v310)).
 
 ## Purpose
 
@@ -34,6 +37,35 @@ Per meter, the card contains:
 - **Estimated** — a toggle that marks the reading as an estimate (maps to the
   existing `is_estimated` flag of the reading schema)
 - **Note** — expandable on click, optional, max. 200 characters
+- **Photo** (v3.1.0) — “📷 Photo” takes a picture of the register along as a
+  receipt (on a phone the camera opens). The browser scales it down to at most
+  1600 pixels and re-encodes it as JPEG; EXIF data including the GPS location
+  are dropped along the way. If a text recognition service in the home network
+  is set up, the server suggests the reading: “Recognised: … – Use”
+  ([Text recognition in the home network](../anleitungen/texterkennung.md)).
+
+## Meters with consumption per period *(v3.1.0)*
+
+If a meter has the recording “Consumption per period” (meter dialog →
+“Recording”), you do not enter a reading but the consumption of a month — for
+example from the monthly consumption information of the metering service. Its
+card shows “Consumption per period” below the name and contains:
+
+- **Last period** — from, to and consumption of the latest entry,
+- **Month** — pre-filled with the month after the last period, without a
+  period with the previous month,
+- **Consumption** in the consumption unit of the utility (kWh, for water m³),
+- expandable **“Comparison values from the consumption information”** —
+  previous month, same month last year, average user; they are stored and
+  shown, but not calculated with,
+- **Estimated** and **Note** as for a reading.
+
+The date at the top, photo, text recognition and the plausibility questions do
+not apply to this card. It is saved together with the other cards via “Save
+all” (`POST /api/utility/{u}/periods` with `month`); “Undo” and the offline
+queue apply here too. A month that overlaps an existing period is rejected —
+the message appears below the field. How the app spreads a period over the
+months: [Heat → consumption per period](15-waerme.md#2-consumption-per-period).
 
 ## Saving
 
@@ -51,6 +83,14 @@ A single sticky button at the bottom. On click:
 A faulty card does **not** block the others — robust against partial failures.
 After a successful save, the "last reading" in the card is updated so that a
 second click validates against the new baseline.
+
+**Without a connection (v3.1.0):** if a card fails for lack of a connection or
+on the time limit, the reading — photo included — goes into the offline queue
+instead of being lost. The card shows ⏳ “Waiting for a connection”, the list
+“Not saved yet” appears at the top, and the app sends it by itself as soon as
+the server can be reached again. Conflicts on the same day are yours to decide
+(“Replace” or “Keep existing”). Details and limits:
+[Use on your phone](../einstieg/handy.md#the-not-saved-yet-queue).
 
 ## Validation
 
@@ -114,6 +154,28 @@ marks the readings ("CHECK", "IMPLAUSIBLE"); a suspect reading can be confirmed
 with ✅. Technical details:
 [API reference → `warnings`](../referenz/api.md).
 
+## Many values at once: time series from portals *(v3.1.0)*
+
+Meter entry is built for single readings. If a portal delivers many values at
+once — quarter hours from the grid operator, daily values from the inverter,
+the heat output of the heat pump —, the button **“Import time series”** under
+Consumption → *utility* → ⚙️ Meters reads them:
+
+- A **column mapping** says where date, time and value are, whether the values
+  are meter readings or consumption per interval, in which unit (kWh, Wh, MWh)
+  and whether the time stamp marks the start or the end of the interval.
+- The app condenses into **daily values**: for meter readings the last reading
+  of the day as a reading, for consumption values the day’s total — as a
+  period (meter with consumption per period) or as a reading, summed up from a
+  starting reading.
+- Daylight saving time and end stamps at 0:00 count correctly; a preview shows
+  days, period and total before anything is written. The browser remembers the
+  mapping per meter.
+
+After that the plausibility checks after saving run as for any reading
+(outliers, decreases). Step by step:
+[Time series from portals](../anleitungen/daten-aus-portalen.md).
+
 ## Mobile first
 
 The view is built from the ground up for iPhone portrait:
@@ -135,22 +197,46 @@ width. (Up to v2.11 the per-card date sat to the right of the meter field.)
 - **Backend:** a single aggregate endpoint `GET /api/readings-overview` that
   delivers all active cumulative meters plus each one's last real reading in one
   round trip. On opening the view: one HTTP call, then pure client-side rendering.
-- **Saving:** reuses the existing route `POST /api/utility/{u}/readings` — no new
-  schema, no batch endpoint, no migration. A faulty row affects only that one row.
+  Since v3.1.0 every row additionally carries `capture`, `last_period` and
+  `role`; `capture` decides which card the view shows.
+- **Saving:** reuses the existing route `POST /api/utility/{u}/readings` — no
+  batch endpoint. A faulty row affects only that one row.
+- **No duplicates when sending later (v3.1.0):** every entry sends a
+  `client_ref`. If the same identifier arrives a second time for the same
+  meter — the response got lost on the way, the queue sends again —, the server
+  returns the existing reading with `200` and `duplicate: true` instead of
+  creating a second one.
+- **Queue (v3.1.0):** `public/js/lib/outbox.js`, stored in the browser's
+  IndexedDB (`et-outbox`).
+- **Photo (v3.1.0):** `POST /api/attachments?kind=reading_photo` creates the
+  receipt, the field `attachment_id` on the reading links it; text recognition
+  runs through `POST /api/ocr/reading`
+  ([API reference → Receipts](../referenz/api.md#receipts-and-text-recognition-v310)).
 - **Status:** the existing `is_estimated` flag in the reading schema carries the
-  status information. No new field, no data-model change.
+  status information. `client_ref` and `attachment_id` are additive fields;
+  existing readings stay as they are.
 - **Scope gating:** the single source of truth is `Utilities::isCumulative()` in
   the backend, mirrored in the frontend.
 
 ## What is deliberately not included
 
-- **Storing a photo of the reading** — not planned: it would need binary
-  storage, thumbnails and clean-up. To take over the digits, Live Text on the
-  iPhone is enough ("Scan Text" in the field).
-- **Buffering input without a connection** — not planned; meters are read on
-  your own Wi-Fi almost always. If saving fails, the input stays on the card
-  until the page is reloaded ([Use on your phone](../einstieg/handy.md)).
-- **Digit recognition of our own (OCR)** — not planned; see Live Text.
+Photo as a receipt, offline queue and text recognition exist since v3.1.0
+(above). Deliberately not:
+
+- **Text recognition through a cloud service** — meter photos do not leave
+  the home network. As a text recognition service the app only accepts
+  addresses in your own network; there is no switch to lift this
+  ([Text recognition in the home network](../anleitungen/texterkennung.md)).
+  Without a service of your own, Live Text on the iPhone does the job (“Scan
+  Text” in the field).
+- **Saving without confirmation** — text recognition only suggests. Only “Use”
+  puts the value into the field; it is saved like any other reading, with the
+  plausibility check.
+- **Reading the meter directly** (optical reading head, smart-meter interface)
+  — Home Assistant does that and sends the readings
+  ([Connect Home Assistant](../anleitungen/home-assistant.md)). Since v3.1.0
+  files from portals are read by the time series import (above); the app does
+  not connect to the portals themselves.
 - **Bulk saving as a single atomic endpoint** — the current sequential writing has
   the advantage that partial failures are located precisely. A batch endpoint would
   give up this advantage; it will only come if real performance measurements

@@ -14,6 +14,7 @@ import { showFieldError } from '../lib/form.js';
 import { t, tp } from '../lib/i18n.js';
 import { checkReading, issueText, typicalPerDay, deviceChangedBetween } from '../lib/plausibility.js';
 import { associateFieldLabels } from '../lib/a11y.js';
+import { exampleReadingsCsv, downloadExample } from '../lib/csv-example.js';
 import { renderError } from '../components/error.js';
 
 export async function render(container, params) {
@@ -132,6 +133,14 @@ async function refresh(container, u) {
     });
   });
 
+  // v3.1.0 (H8, MKT-19) — Zeitreihe aus einem Portal
+  container.querySelectorAll('[data-import-series]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const m = meters.find(x => x.id === b.getAttribute('data-import-series'));
+      if (m && await openImportSeriesModal(u, m)) refresh(container, u);
+    });
+  });
+
   container.querySelectorAll('[data-delete-meter]').forEach(b => {
     b.addEventListener('click', async () => {
       const id = b.getAttribute('data-delete-meter');
@@ -204,9 +213,11 @@ function renderMeterCard(meter, u, groups, isSub) {
           ${meter.active ? '' : `<span class="tag tag--warning">${t('meters.card.inactive')}</span>`}
           ${isSub ? `<span class="tag">${t('meters.card.sub')}</span>` : ''}
           ${gName ? `<span class="tag tag--util">${t('meters.card.group', { name: escapeHtml(gName) })}</span>` : ''}
+          ${meter.capture === 'period' ? `<span class="tag">${t('meters.card.periodTag')}</span>` : ''}
+          ${roleOf(u, meter) && roleOf(u, meter) !== u.meter_roles[0] ? `<span class="tag">${escapeHtml(t(`meters.roles.${u.key}.${roleOf(u, meter)}`))}</span>` : ''}
         </div>
         <div class="meter-card__meta">
-          ${devices.length === 1 ? t('meters.card.devicesOne', { count: devices.length }) : t('meters.card.devices', { count: devices.length })}
+          ${tp('meters.card.devices', devices.length)}
           ${meter.notes ? ' · ' + escapeHtml(meter.notes) : ''}
         </div>
         <ul class="device-list">
@@ -223,13 +234,22 @@ function renderMeterCard(meter, u, groups, isSub) {
         </ul>
       </div>
       <div class="row-actions" style="flex-direction:column; gap: 4px">
-        <button class="btn btn--sm" data-replace-device="${escapeHtml(meter.id)}">${t('meters.card.replace')}</button>
+        ${meter.capture === 'period' ? '' : `<button class="btn btn--sm" data-replace-device="${escapeHtml(meter.id)}">${t('meters.card.replace')}</button>`}
         <button class="btn btn--sm" data-import-readings="${escapeHtml(meter.id)}">${t('meters.card.csvImport')}</button>
+        ${u.reading_kind === 'delivery' ? '' : `<button class="btn btn--sm btn--ghost" data-import-series="${escapeHtml(meter.id)}">${t('import.series.button')}</button>`}
         <button class="btn btn--sm btn--ghost" data-edit-meter="${escapeHtml(meter.id)}">${t('meters.card.edit')}</button>
         <button class="btn btn--sm btn--danger btn--quiet" data-delete-meter="${escapeHtml(meter.id)}">${t('meters.card.delete')}</button>
       </div>
     </div>
   `;
+}
+
+// v3.1.0 (H3, B9) — Rolle eines Zählers wie Utilities::roleOf (strom: heat_source = heat_pump)
+function roleOf(u, meter) {
+  const roles = Array.isArray(u.meter_roles) ? u.meter_roles : [];
+  if (!roles.length) return null;
+  const r = meter?.role ?? (u.key === 'strom' && meter?.heat_source ? 'heat_pump' : null);
+  return roles.includes(r) ? r : roles[0];
 }
 
 // ───── New / Edit meter ─────────────────────────────────────────────
@@ -327,6 +347,19 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           <label>${t('meters.modal.notes')}</label>
           <textarea class="input input--text" name="notes">${escapeHtml(existing?.notes || '')}</textarea>
         </div>
+        ${isDelivery ? '' : `
+        <!-- v3.1.0 (H5, MKT-24) — für den Lieferantenwechsel -->
+        <div class="form-row">
+          <div class="field">
+            <label for="mf-malo">${t('meters.modal.malo')}</label>
+            <input class="input" id="mf-malo" name="malo_id" type="text" inputmode="numeric" autocomplete="off" maxlength="11" value="${escapeHtml(existing?.malo_id || '')}" aria-describedby="mf-malo-hint">
+          </div>
+          <div class="field">
+            <label for="mf-melo">${t('meters.modal.melo')}</label>
+            <input class="input" id="mf-melo" name="melo_id" type="text" autocomplete="off" maxlength="33" value="${escapeHtml(existing?.melo_id || '')}">
+          </div>
+        </div>
+        <small class="muted" id="mf-malo-hint">${t('meters.modal.maloHint')}</small>`}
         <div class="field">
           <label>${t('meters.baseline.title')}</label>
           <small class="muted">${t('meters.baseline.hint')}</small>
@@ -346,12 +379,46 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             </div>
           </div>
         </div>
-        ${u.key === 'strom' ? `
+        ${Array.isArray(u.meter_roles) && u.meter_roles.length ? `
           <div class="field">
-            <label><input type="checkbox" name="heat_source" ${existing?.heat_source ? 'checked' : ''}> ${t('meters.modal.heatSource')}</label>
-            <span class="settings-field__hint">${t('meters.modal.heatSourceHint')}</span>
+            <label for="mf-role">${t('meters.modal.role')}</label>
+            <select class="input" id="mf-role" name="role" aria-describedby="mf-role-hint">
+              ${u.meter_roles.map(r => `<option value="${r}" ${r === roleOf(u, existing) ? 'selected' : ''}>${escapeHtml(t(`meters.roles.${u.key}.${r}`))}</option>`).join('')}
+            </select>
+            <span class="settings-field__hint" id="mf-role-hint">${t(`meters.modal.roleHint.${u.key}`)}</span>
           </div>
         ` : ''}
+        ${u.key === 'pv_erzeugung' ? `
+          <!-- v3.1.0 (H7, CALC-29) — Balkonkraftwerk, Amortisation, Speicher -->
+          <fieldset class="field"><legend>${t('meters.pv.title')}</legend>
+            <label class="settings-field__check"><input type="checkbox" name="plug_in" ${existing?.plug_in ? 'checked' : ''}> ${t('meters.pv.plugIn')}</label>
+            <span class="settings-field__hint">${t('meters.pv.plugInHint')}</span>
+            <div class="form-row">
+              <div class="field"><label for="mf-invest">${t('meters.pv.investment')}</label>
+                <input class="input" id="mf-invest" name="investment_eur" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(existing?.investment_eur))}"></div>
+              <div class="field"><label for="mf-comm">${t('meters.pv.commissionedOn')}</label>
+                <input class="input" id="mf-comm" name="commissioned_on" type="date" value="${escapeHtml(existing?.commissioned_on || '')}"></div>
+              <div class="field"><label for="mf-batcap">${t('meters.pv.batteryCapacity')}</label>
+                <input class="input" id="mf-batcap" name="battery_capacity_kwh" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(existing?.battery_capacity_kwh))}"></div>
+            </div>
+            <span class="settings-field__hint">${t('meters.pv.hint')}</span>
+          </fieldset>` : ''}
+        ${u.key === 'waerme' ? `
+          <!-- v3.1.0 (H7, MKT-18) — Stromzähler der Wärmepumpe für die Jahresarbeitszahl -->
+          <fieldset class="field" data-role="hp-link"><legend>${t('meters.heatPumpLink.title')}</legend>
+            <div data-role="hp-list" class="muted small">${t('meters.heatPumpLink.loading')}</div>
+            <span class="settings-field__hint">${t('meters.heatPumpLink.hint')}</span>
+          </fieldset>` : ''}
+        ${isDelivery ? '' : `
+          <div class="field">
+            <label for="mf-capture">${t('meters.modal.capture')}</label>
+            <select class="input" id="mf-capture" name="capture" aria-describedby="mf-capture-hint">
+              <option value="counter" ${existing?.capture === 'period' ? '' : 'selected'}>${t('meters.capture.counter')}</option>
+              <option value="period" ${existing?.capture === 'period' ? 'selected' : ''}>${t('meters.capture.period')}</option>
+            </select>
+            <span class="settings-field__hint" id="mf-capture-hint">${t('meters.modal.captureHint')}</span>
+          </div>
+        `}
         ${existing ? `
           <div class="field">
             <label><input type="checkbox" name="active" ${existing.active ? 'checked' : ''}> ${t('meters.modal.active')}</label>
@@ -426,6 +493,35 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
 
         drawBaseline();
 
+        // v3.1.0 (H7) — Wärmezähler: Stromzähler mit der Rolle Wärmepumpe zur Auswahl
+        const hpList = modalEl.querySelector('[data-role="hp-list"]');
+        if (hpList) {
+          api.meters('strom').then(list => {
+            const pumps = list.filter(m => m.role === 'heat_pump' || m.heat_source);
+            const linked = new Set(existing?.heat_pump_meter_ids || []);
+            hpList.innerHTML = pumps.length
+              ? pumps.map(m => `<label class="settings-field__check"><input type="checkbox" data-hp-meter="${escapeHtml(m.id)}" ${linked.has(m.id) ? 'checked' : ''}> ${escapeHtml(m.name)}</label>`).join('')
+              : escapeHtml(t('meters.heatPumpLink.none'));
+          }).catch(() => { hpList.textContent = t('meters.heatPumpLink.none'); });
+        }
+        // Felder der PV-Anlage und der Wärmepumpe (nur, wo es sie gibt)
+        const energyFields = (f) => {
+          const out = {};
+          if (u.key === 'pv_erzeugung') {
+            out.plug_in = !!f.plug_in?.checked;
+            for (const k of ['investment_eur', 'battery_capacity_kwh']) {
+              const raw = f[k]?.value.trim() ?? '';
+              out[k] = raw === '' ? null : parseDecimal(raw);
+              if (raw !== '' && out[k] == null) throw new Error(t('common.invalidNumber', { example: formatForInput(1234.5) }));
+            }
+            out.commissioned_on = f.commissioned_on?.value || null;
+          }
+          if (u.key === 'waerme' && hpList) {
+            out.heat_pump_meter_ids = [...modalEl.querySelectorAll('[data-hp-meter]:checked')].map(b => b.getAttribute('data-hp-meter'));
+          }
+          return out;
+        };
+
         const saveBtn = modalEl.querySelector('[data-act="save"]');
         saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
           const f = modalEl.querySelector('#meter-form');
@@ -468,10 +564,13 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 icon:   f.icon.value,
                 notes:  f.notes.value,
                 active: f.active.checked,
-                ...(f.heat_source ? { heat_source: f.heat_source.checked } : {}),   // v2.10.0
+                ...(f.role ? { role: f.role.value } : {}),         // v3.1.0 (B9; strom: heat_pump = Heizstrom)
+                ...(f.malo_id ? { malo_id: f.malo_id.value, melo_id: f.melo_id.value } : {}),   // v3.1.0 (MKT-24)
+                ...(f.capture ? { capture: f.capture.value } : {}),   // v3.1.0 (B2)
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
                 baseline_events: baselineEvents,   // F1011
+                ...energyFields(f),                // v3.1.0 (H7)
               };
               // v2.1.1 — Fix #18: Tank-Felder mitsenden (nur Heizöl/Pellets).
               if (isDelivery) {
@@ -492,7 +591,11 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
                 parent_meter_id: f.parent_meter_id.value || null,
                 meter_group_id:  f.meter_group_id.value || null,
                 baseline_events: baselineEvents,   // F1011
-                ...(f.heat_source?.checked ? { heat_source: true } : {}),   // v2.10.0
+                ...(f.role ? { role: f.role.value } : {}),            // v3.1.0 (B9)
+                ...(f.malo_id?.value ? { malo_id: f.malo_id.value } : {}),
+                ...(f.melo_id?.value ? { melo_id: f.melo_id.value } : {}),
+                ...(f.capture?.value === 'period' ? { capture: 'period' } : {}),   // v3.1.0 (B2)
+                ...energyFields(f),                                                  // v3.1.0 (H7)
               };
               // v2.1.1 — Fix #18: Delivery-Utilities bekommen Tank-Kapazität +
               // Anfangsbestand statt eines kumulativen Anfangsstands.
@@ -617,14 +720,13 @@ async function openReplaceDeviceModal(u, meter) {
 // Bulk-imports meter readings from a CSV into one specific meter.
 // Existing readings on the same date are overwritten and reported.
 async function openImportReadingsModal(u, meter) {
+  if (meter.capture === 'period') return openImportPeriodsModal(u, meter);
   return new Promise(resolve => {
     const body = `
       <p>${t('meters.import.intro', { name: escapeHtml(meter.name) })}</p>
       <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:12px 0;font-size:12px">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);margin-bottom:6px">${t('meters.import.formatLabel')}</div>
-        <code class="mono" style="display:block;color:var(--text-1)">datum;zaehlerstand;notiz;geschaetzt</code>
-        <code class="mono" style="display:block;color:var(--text-2)">01.02.2026;12345,6;Jahresanfang;false</code>
-        <code class="mono" style="display:block;color:var(--text-2)">2026-03-01;12567.8;;ja</code>
+        ${exampleReadingsCsv().trim().split('\n').map((l, i) => `<code class="mono" style="display:block;color:var(${i ? '--text-2' : '--text-1'})">${escapeHtml(l)}</code>`).join('')}
         <div style="margin-top:8px;color:var(--text-2)">
           ${t('meters.import.formatHint')}
         </div>
@@ -697,13 +799,7 @@ async function openImportReadingsModal(u, meter) {
 
         // B — Beispiel-CSV als Datei erzeugen und herunterladen.
         modalEl.querySelector('#dl-example')?.addEventListener('click', () => {
-          const csv = 'datum;zaehlerstand;notiz;geschaetzt\n01.02.2026;12345,6;Jahresanfang;false\n2026-03-01;12567.8;;ja\n';
-          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = 'beispiel-ablesungen.csv';
-          a.click();
-          URL.revokeObjectURL(a.href);
+          downloadExample(exampleReadingsCsv(), 'exampleReadings');
         });
 
         drop.addEventListener('click', () => input.click());
@@ -723,6 +819,83 @@ async function openImportReadingsModal(u, meter) {
           close(didImport); resolve(didImport);
         });
       }
+    });
+  });
+}
+
+/**
+ * v3.1.0 (H3, B2) — CSV-Import für Zähler mit Verbrauch je Zeitraum:
+ * `von;bis;wert[;notiz]` oder `monat;wert`. Erst Trockenlauf, dann Import;
+ * überlappende Zeilen bleiben draußen und werden genannt.
+ */
+async function openImportPeriodsModal(u, meter) {
+  const unit = u.consumption_unit || u.unit || '';
+  return new Promise(resolve => {
+    openModal({
+      title: t('meters.import.title', { name: meter.name }),
+      body: `
+        <p>${t('meters.periodImport.intro', { name: escapeHtml(meter.name) })}</p>
+        <div style="background:var(--bg-2);border-radius:var(--r-md);padding:12px 14px;margin:12px 0;font-size:12px">
+          <code class="mono" style="display:block">2026-01;812</code>
+          <code class="mono" style="display:block">${escapeHtml(fmt.date('2026-02-01'))};${escapeHtml(fmt.date('2026-02-28'))};745</code>
+          <div style="margin-top:8px;color:var(--text-2)">${t('meters.periodImport.formatHint', { unit: escapeHtml(unit) })}</div>
+        </div>
+        <div class="drop-zone" id="pimport-drop" role="button" tabindex="0" aria-label="${t('meters.import.dropZoneAria')}">
+          <p>${t('meters.import.dropZone')}</p>
+          <input type="file" id="pimport-input" accept=".csv,text/csv,text/plain" style="display:none">
+        </div>
+        <div id="pimport-result" style="margin-top:12px"></div>`,
+      footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${t('meters.import.close')}</button>`,
+      onMount({ modalEl, close }) {
+        let done = false;
+        const drop = modalEl.querySelector('#pimport-drop');
+        const input = modalEl.querySelector('#pimport-input');
+        const result = modalEl.querySelector('#pimport-result');
+        const errorsHtml = (errs) => errs.length
+          ? `<ul class="import-preview__errors">${errs.slice(0, 8).map(e => `<li>${escapeHtml(e)}</li>`).join('')}${errs.length > 8 ? `<li>${t('meters.import.moreErrors', { count: errs.length - 8 })}</li>` : ''}</ul>` : '';
+        const handle = async (file) => {
+          if (!file) return;
+          const text = await file.text();
+          result.innerHTML = `<p class="muted">${t('meters.import.reading')}</p>`;
+          try {
+            const p = await api.importPeriodCsv(u.key, meter.id, text, { dryRun: true });
+            const n = p.would_import ?? 0;
+            drop.hidden = true;
+            result.innerHTML = `
+              <div class="import-preview">
+                <p class="import-preview__summary">${escapeHtml(tp('meters.periodImport.previewSummary', n))}</p>
+                ${errorsHtml(p.errors || [])}
+                ${(p.rows || []).length ? `<div class="table-wrap"><table class="data-table import-preview__table"><thead><tr>
+                  <th scope="col">${t('utility.periods.colPeriod')}</th><th scope="col" class="num">${t('utility.periods.colValue', { unit: escapeHtml(unit) })}</th>
+                </tr></thead><tbody>${p.rows.slice(0, 50).map(r => `<tr><td>${fmt.date(r.from)} – ${fmt.date(r.to)}</td><td class="num">${fmt.dec(r.value, 3)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+                <div class="import-preview__actions">
+                  <button type="button" class="btn btn--ghost" data-act="other-file">${t('meters.import.otherFile')}</button>
+                  ${n ? `<button type="button" class="btn btn--primary" data-act="import">${escapeHtml(tp('meters.periodImport.confirm', n))}</button>` : ''}
+                </div>
+              </div>`;
+            result.querySelector('[data-act="other-file"]')?.addEventListener('click', () => { result.innerHTML = ''; drop.hidden = false; input.value = ''; });
+            result.querySelector('[data-act="import"]')?.addEventListener('click', async () => {
+              try {
+                const res = await api.importPeriodCsv(u.key, meter.id, text);
+                done = done || res.imported > 0;
+                result.innerHTML = `<div class="banner ${res.skipped ? 'banner--warning' : 'banner--success'}" style="font-size:12px">
+                  ${escapeHtml(tp('meters.periodImport.result', res.imported, { skipped: res.skipped }))}${errorsHtml(res.errors || [])}</div>`;
+                if (res.imported) toastOk(tp('meters.periodImport.result', res.imported, { skipped: res.skipped }));
+                drop.hidden = false; input.value = '';
+              } catch (e) { result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`; }
+            });
+          } catch (e) {
+            result.innerHTML = `<div class="banner banner--error" style="font-size:12px">${escapeHtml(e.message)}</div>`;
+          }
+        };
+        drop.addEventListener('click', () => input.click());
+        drop.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+        drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('dragover'); });
+        drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+        drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('dragover'); handle(e.dataTransfer.files[0]); });
+        input.addEventListener('change', (e) => handle(e.target.files[0]));
+        modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(done); resolve(done); });
+      },
     });
   });
 }
@@ -868,11 +1041,125 @@ async function openMergeModal(u, meters, groups) {
             if (groupId) payload.group_id = groupId;
             else payload.name = f.name.value.trim();
             const res = await api.mergeMeterGroup(u.key, payload);
-            toastOk(t('meters.mergeModal.done', { count: res.members, name: res.group.name }));
+            toastOk(tp('meters.mergeModal.done', res.members, { name: res.group.name }));
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
         });
       }
+    });
+  });
+}
+
+// v3.1.0 (H8, MKT-19) — Zeitreihe aus einem Portal (Netzbetreiber, Wechselrichter,
+// Wärmepumpe): Spalten zuordnen, als Tageswerte prüfen, übernehmen. Die letzte
+// Zuordnung je Zähler merkt sich der Browser.
+async function openImportSeriesModal(u, meter) {
+  const storeKey = `et-series-map-${u.key}-${meter.id}`;
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(storeKey) || '{}') || {}; } catch { saved = {}; }
+  const kwhUnit = (u.unit || '') === 'kWh';
+  return new Promise(resolve => {
+    let text = '';
+    let ok = false;
+    const body = `
+      <p class="muted">${t('import.series.intro')}</p>
+      <div class="field">
+        <label class="btn btn--ghost btn--sm">${t('import.series.pickFile')}
+          <input type="file" accept=".csv,.txt,text/csv,text/plain" data-role="series-file" class="sr-only"></label>
+        <span class="muted small" data-role="series-name"></span>
+      </div>
+      <pre class="small" data-role="series-head" style="max-height:8rem;overflow:auto;white-space:pre"></pre>
+      <div class="form-row">
+        <div class="field"><label for="ser-skip">${t('import.series.skipRows')}</label>
+          <input class="input" id="ser-skip" type="text" inputmode="numeric" value="${escapeHtml(String(saved.skip_rows ?? 1))}"></div>
+        <div class="field"><label for="ser-date">${t('import.series.dateCol')}</label><select class="select" id="ser-date"></select></div>
+        <div class="field"><label for="ser-time">${t('import.series.timeCol')}</label><select class="select" id="ser-time"></select></div>
+        <div class="field"><label for="ser-value">${t('import.series.valueCol')}</label><select class="select" id="ser-value"></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label for="ser-kind">${t('import.series.kindLabel')}</label>
+          <select class="select" id="ser-kind">${['consumption', 'counter'].map(k => `<option value="${k}" ${saved.value_kind === k ? 'selected' : ''}>${t('import.series.kind.' + k)}</option>`).join('')}</select></div>
+        <div class="field"><label for="ser-unit">${t('import.series.unit')}</label>
+          <select class="select" id="ser-unit">${(kwhUnit ? [['1', 'kWh'], ['0.001', 'Wh'], ['1000', 'MWh']] : [['1', u.unit || '']]).map(([f, l]) => `<option value="${f}" ${String(saved.unit_factor ?? '1') === f ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('')}</select></div>
+        <div class="field"><label for="ser-stamp">${t('import.series.stampLabel')}</label>
+          <select class="select" id="ser-stamp">${['start', 'end'].map(k => `<option value="${k}" ${saved.interval_stamp === k ? 'selected' : ''}>${t('import.series.stamp.' + k)}</option>`).join('')}</select></div>
+        <div class="field"><label for="ser-anchor">${t('import.series.anchor')}</label>
+          <input class="input" id="ser-anchor" type="text" inputmode="decimal" autocomplete="off"></div>
+      </div>
+      <span class="settings-field__hint">${t('import.series.anchorHint')}</span>
+      <div data-role="series-preview" style="margin-top:12px"></div>`;
+    openModal({
+      title: t('import.series.title', { name: meter.name || meter.id }),
+      body, size: 'lg',
+      footer: `
+        <button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+        <button type="button" class="btn btn--ghost" data-act="preview">${t('import.series.previewButton')}</button>
+        <button type="button" class="btn btn--util" data-act="import" disabled>${t('import.series.importButton')}</button>`,
+      onMount({ modalEl, close }) {
+        associateFieldLabels(modalEl);
+        const q = (s) => modalEl.querySelector(s);
+        const fillColumns = () => {
+          const lines = text.split(/\r\n|\n|\r/).filter(l => l.trim() !== '');
+          q('[data-role="series-head"]').textContent = lines.slice(0, 6).join('\n');
+          const skip = Math.max(0, parseInt(q('#ser-skip').value, 10) || 0);
+          const sample = lines[skip] || lines[0] || '';
+          const sep = sample.includes(';') ? ';' : (sample.includes('\t') ? '\t' : ',');
+          const head = skip > 0 ? (lines[skip - 1] || '').split(sep) : [];
+          const n = sample.split(sep).length;
+          const label = (i) => `${i + 1}: ${(head[i] || t('import.series.column', { n: i + 1 })).trim().slice(0, 40)}`;
+          const opts = (sel, withNone) => (withNone ? `<option value="">${t('import.series.none')}</option>` : '')
+            + Array.from({ length: n }, (_, i) => `<option value="${i}" ${String(sel) === String(i) ? 'selected' : ''}>${escapeHtml(label(i))}</option>`).join('');
+          q('#ser-date').innerHTML = opts(saved.date_col ?? 0, false);
+          q('#ser-time').innerHTML = opts(saved.time_col ?? '', true);
+          q('#ser-value').innerHTML = opts(saved.value_col ?? Math.min(1, n - 1), false);
+        };
+        const mapping = () => ({
+          skip_rows: Math.max(0, parseInt(q('#ser-skip').value, 10) || 0),
+          date_col: Number(q('#ser-date').value || 0),
+          time_col: q('#ser-time').value === '' ? null : Number(q('#ser-time').value),
+          value_col: Number(q('#ser-value').value || 1),
+          value_kind: q('#ser-kind').value,
+          unit_factor: Number(q('#ser-unit').value),
+          interval_stamp: q('#ser-stamp').value,
+          start_counter: q('#ser-anchor').value.trim() === '' ? null : parseDecimal(q('#ser-anchor').value),
+        });
+        q('[data-role="series-file"]').addEventListener('change', async ev => {
+          const file = ev.target.files?.[0];
+          if (!file) return;
+          text = await file.text();
+          q('[data-role="series-name"]').textContent = file.name;
+          fillColumns();
+        });
+        q('#ser-skip').addEventListener('change', () => { if (text) fillColumns(); });
+        modalEl.querySelectorAll('select, input').forEach(el => el.addEventListener('change', () => { ok = false; q('[data-act="import"]').disabled = true; }));
+        q('[data-act="cancel"]').addEventListener('click', () => { close(false); resolve(false); });
+        const previewBtn = q('[data-act="preview"]');
+        previewBtn.addEventListener('click', guardSubmit(previewBtn, async () => {
+          if (!text) { toastErr(t('import.series.noFile')); return; }
+          try {
+            const r = await api.importSeries(u.key, meter.id, text, mapping(), { dryRun: true });
+            q('[data-role="series-preview"]').innerHTML = `
+              <p><strong>${escapeHtml(r.total != null
+                ? tp('import.series.summary', r.days, { from: fmt.date(r.from), to: fmt.date(r.to), total: fmt.num(r.total, 1), unit: u.consumption_unit || u.unit })
+                : tp('import.series.summaryCounter', r.days, { from: fmt.date(r.from), to: fmt.date(r.to) }))}</strong></p>
+              ${r.skipped ? `<p class="muted small">${escapeHtml(tp('import.series.skipped', r.skipped))}</p>` : ''}
+              <div class="table-wrap"><table class="table table--compact"><tbody>${(r.preview || []).map(p => `<tr><td>${fmt.date(p.date)}</td><td class="num">${fmt.num(p.value, 3)}</td></tr>`).join('')}</tbody></table></div>`;
+            ok = true;
+            q('[data-act="import"]').disabled = false;
+          } catch (e) { toastErr(e.message); }
+        }));
+        const importBtn = q('[data-act="import"]');
+        importBtn.addEventListener('click', guardSubmit(importBtn, async () => {
+          if (!ok) return;
+          try {
+            const m = mapping();
+            await api.importSeries(u.key, meter.id, text, m);
+            try { localStorage.setItem(storeKey, JSON.stringify({ ...m, start_counter: undefined })); } catch { /* ohne Speicher */ }
+            toastOk(t('import.series.done'));
+            close(true); resolve(true);
+          } catch (e) { toastErr(e.message); }
+        }));
+      },
     });
   });
 }

@@ -5,16 +5,18 @@
 [← Kompendium-Index](../README.md)
 
 Das Docker-Image bringt seinen Webserver mit ([Docker](docker.md)). Diese Seite
-ist für den Betrieb auf einem vorhandenen Webserver mit PHP 8.4 — Apache (auch
-die Synology Web Station) oder nginx. Die Regeln sind in beiden Fällen dieselben
-und stammen aus der getesteten Konfiguration des Images (`docker/nginx.conf`)
-bzw. der mitgelieferten `.htaccess`:
+ist für den Betrieb auf einem vorhandenen Webserver mit PHP 8.2 oder neuer
+(seit v3.1.0; empfohlen 8.4) — Apache (auch die Synology Web Station) oder
+nginx. Die Regeln sind in beiden Fällen dieselben und stammen aus der
+getesteten Konfiguration des Images (`docker/nginx.conf`) bzw. der
+mitgelieferten `.htaccess`:
 
 1. **Nur Auslieferungsgut ausliefern.** `data/` (alle Nutzdaten und Backups),
    `src/`, `tests/`, `scripts/`, `docker/`, `docs/`, `demo-data/`, `vendor/`,
-   alle Punktdateien (`.git/`, `.env` …) und die Projektdateien im
-   Wurzelverzeichnis (`composer.json`, `Dockerfile`, `VERSION`, `*.md`) gehören
-   nie über HTTP heraus.
+   seit v3.1.0 auch `tools/`, `dist/` und `deploy/` (Vorlagen für Unraid,
+   CasaOS und Umbrel), alle Punktdateien (`.git/`, `.env` …) und die
+   Projektdateien im Wurzelverzeichnis (`composer.json`, `Dockerfile`,
+   `VERSION`, `*.md`) gehören nie über HTTP heraus.
 2. **API über `api.php`.** Die Oberfläche ruft `api.php/api/…` auf; Umschreiben
    ist nicht nötig.
 3. **Oberfläche über `index.php`.** Navigiert wird per Hash (`#/…`).
@@ -25,6 +27,8 @@ bzw. der mitgelieferten `.htaccess`:
    Home-Assistant-Push mit 401.
 6. **Schreibrecht** für den Webserver-Benutzer auf `data/`
    ([Installation → Schreibrechte](installation.md#33-schreibrechte)).
+7. **Genug Platz für große Anfragen** — seit v3.1.0 stehen Belege im Backup
+   ([Upload-Grenzen](#upload-grenzen-und-php-speicher-v310)).
 
 ---
 
@@ -35,7 +39,7 @@ die zweite Sicherung. Voraussetzungen:
 
 - `AllowOverride` mindestens `FileInfo` für das Projektverzeichnis,
 - die Module `mod_rewrite`, `mod_headers` und `mod_setenvif`,
-- PHP 8.4 (PHP-FPM oder `mod_php`).
+- PHP 8.2 oder neuer (PHP-FPM oder `mod_php`).
 
 Ein VirtualHost dafür:
 
@@ -67,7 +71,8 @@ relativ.
 
 ### Synology Web Station
 
-- **Web Station → Webdienst**: Apache 2.4 mit einem PHP-8.4-Profil; den Ordner
+- **Web Station → Webdienst**: Apache 2.4 mit einem PHP-Profil ab 8.2 (8.4,
+  wenn angeboten); den Ordner
   unter `web/` ablegen. Die `.htaccess` greift dort.
 - Der Benutzer `http` braucht Schreibrecht auf `data/` (File Station →
   Eigenschaften → Berechtigung).
@@ -89,10 +94,10 @@ server {
     server_name energietracker.example;
     root /var/www/energietracker;
     index index.php;
-    client_max_body_size 32m;              # Backup-Import, CSV-Upload
+    client_max_body_size 256m;             # Backup-Import mit Belegen, CSV-Upload (v3.1.0; vorher 32m)
 
     # 1. nur Auslieferungsgut
-    location ~ ^/(data|src|tests|scripts|docker|docs|vendor|demo-data)/ { return 404; }
+    location ~ ^/(data|src|tests|scripts|docker|docs|vendor|demo-data|tools|dist|deploy)/ { return 404; }
     location ~ /\. { return 404; }
     location ~* ^/[^/]+\.(md|json|lock|ya?ml|dist|txt|conf|sh|ini)$ { return 404; }
     location ~ ^/(Dockerfile|VERSION)$ { return 404; }
@@ -103,7 +108,7 @@ server {
         fastcgi_pass unix:/run/php/php8.4-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $document_root/api.php;
         fastcgi_param SCRIPT_NAME /api.php;
-        fastcgi_read_timeout 120s;
+        fastcgi_read_timeout 310s;         # Texterkennung bis 300 s (v3.1.0; vorher 120s)
         # fastcgi_param ET_DATA_DIR /srv/energietracker-data;
     }
 
@@ -134,6 +139,37 @@ server {
 nginx reicht den `Authorization`-Header von sich aus an PHP-FPM weiter
 (Punkt 5). Für ein Unterverzeichnis müssten alle Muster das Präfix tragen —
 einfacher ist ein eigener Hostname.
+
+## Upload-Grenzen und PHP-Speicher *(v3.1.0)*
+
+Seit v3.1.0 enthält ein Backup die Belege (Fotos, PDFs) base64-kodiert — es
+ist damit rund ein Drittel größer als die Dateien selbst und wächst mit jedem
+Foto. Das Docker-Image ist darauf eingestellt; auf einem eigenen Webserver
+setzt du dieselben Werte:
+
+| Wo | Einstellung | Docker-Image | Wozu |
+|---|---|---|---|
+| PHP | `post_max_size`, `upload_max_filesize` | `256M` | größter Backup-Import, PDF-Beleg bis 10 MB |
+| PHP | `memory_limit` | `768M` | Der Import eines großen Backups braucht etwa die doppelte Größe an PHP-Speicher |
+| PHP | `max_execution_time` | `120` | große Importe |
+| nginx | `client_max_body_size` | `256m` | sonst `413 Request Entity Too Large` vor PHP |
+| nginx | `fastcgi_read_timeout` | `310s` | große Importe, Texterkennung: Ihr Zeitlimit (`ocr_timeout_s`) reicht bis 300 s; vorher `120s`, dann brach nginx eine langsame Erkennung vor PHP ab |
+
+- **PHP-Werte** stehen in der `php.ini` bzw. im PHP-FPM-Pool
+  (`php_admin_value[post_max_size] = 256M`); in der Synology Web Station im
+  PHP-Profil unter den Skriptsprache-Einstellungen.
+- **Apache** begrenzt den Körper selbst mit `LimitRequestBody`; aktuelle
+  Versionen erlauben von Haus aus 1 GB — das reicht.
+- Für Fotos (höchstens 3 MB) genügen die PHP-Vorgaben (8 MB). Für PDF-Belege
+  und Backups mit vielen Fotos die Grenzen anheben — sonst bricht der Upload
+  ab ([Fehlersuche](fehlersuche.md)).
+- `memory_limit` wirkt als Obergrenze; gebraucht wird der Speicher nur beim
+  Einspielen eines großen Backups.
+- Ein Upload über `post_max_size` kommt bei PHP leer an; die App erkennt das
+  und antwortet mit `400` und `errors.attachment.size` samt der Grenze („Die
+  Datei ist zu groß – höchstens … MB.“).
+- Steht ein Reverse-Proxy davor, braucht auch er ein Zeitlimit über 300
+  Sekunden, wenn die Texterkennung lange rechnen darf.
 
 ## Der PHP-eigene Server — nur zum Ausprobieren
 

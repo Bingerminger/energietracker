@@ -115,6 +115,9 @@ final class AuthFlowTest extends TestCase
         self::assertSame(401, $this->req('GET', '/api/utilities', null, ['Cookie' => 'et_session=' . time() + 999 . '.' . str_repeat('0', 64)])['status'],
             'gefälschtes Cookie');
 
+        self::assertSame(200, $this->req('GET', '/api/manifest')['status'],
+            'v3.1.0 — Manifest auch mit Anmeldung (Browser holen es ohne Cookies), sonst keine Installation');
+
         $h = $this->req('GET', '/api/health')['json']['data'];
         self::assertSame(['status', 'version'], array_keys($h), 'Minimalform ohne Anmeldung');
         self::assertArrayHasKey('checks', $this->req('GET', '/api/health', null, $cookie)['json']['data']);
@@ -153,7 +156,7 @@ final class AuthFlowTest extends TestCase
         try {
             self::assertTrue(App::hostAllowed('energie.example.org'));
             self::assertTrue(App::hostAllowed('nas.home.arpa:8005'));
-            self::assertTrue(App::hostAllowed('192.168.1.4:8005'), 'IP-Adressen immer');
+            self::assertTrue(App::hostAllowed('192.168.178.4:8080'), 'IP-Adressen immer');
             self::assertTrue(App::hostAllowed('[::1]:8080'));
             self::assertTrue(App::hostAllowed('localhost'));
             self::assertFalse(App::hostAllowed('rebind.attacker.example'));

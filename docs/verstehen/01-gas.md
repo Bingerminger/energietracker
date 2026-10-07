@@ -58,7 +58,7 @@ Wichtig zu wissen:
 - **Tagesgenau.** Liegt ein Stichtag mitten in einem Ableseintervall, wird
   das Intervall dort geteilt — jeder Tag rechnet mit seinem Faktor. Der
   Versorger tut dasselbe, allerdings mit *geschätzten* Zwischenständen
-  (Ableseart „S" auf der Rechnung); hier braucht es keine Schätzung.
+  (auf der Rechnung etwa „S“ oder „E“ für geschätzt); hier braucht es keine Schätzung.
 - **Plausibilitätsprüfung beim Speichern:** Zustandszahl 0,8–1,1, Brennwert
   8–13, Faktor 5–15 kWh/m³. Ein Tippfehler wie 115 statt 11,5 würde sonst
   jeden Verbrauch verzehnfachen — still.
@@ -87,6 +87,9 @@ diesem Tag gibt es keinen Zählerstand, er ist tagesgenau zwischen den
 umschließenden Ablesungen interpoliert. Das sind genau die Stellen, an
 denen auch der Versorger schätzt (Brennwert- und Zeitraumgrenzen); je
 weniger `E` in der Tabelle, desto weniger Schätzung steckt im Vergleich.
+Die Kürzel folgen der Sprache der Oberfläche (seit v3.1.0): Deutsch S/E,
+Englisch, Französisch, Spanisch und Portugiesisch E/I, Italienisch und
+Niederländisch S/I — so, wie die Rechnungen dort Schätzungen kennzeichnen.
 Über einen Zählertausch hinweg gibt es keinen fortlaufenden Stand, der
 Ersatzwert bleibt dann ohne Zahl. Weicht eine Zeile ab, ist entweder ein
 Faktor falsch eingetragen oder der Versorger hat einen Zwischenstand

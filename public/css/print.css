@@ -1,0 +1,65 @@
+/* =====================================================================
+   Energietracker v3.1.0 — Druck (Review I18N-12)
+
+   Die Druckansicht des Jahresberichts (#/report/print) und jede andere Seite
+   drucken ohne App-Rahmen: keine Seitenleiste, Kopfleiste, Tabs, Meldungen
+   oder Knöpfe, heller Hintergrund unabhängig vom Theme, A4.
+   ===================================================================== */
+
+/* ── Bildschirm: Druckansicht ─────────────────────────────────────────── */
+.report-print__actions { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
+.report-print { display: grid; gap: var(--sp-5); }
+.report-print .print-section {
+  background: var(--bg-1); border: 1px solid var(--border-1); border-radius: var(--r-lg);
+  padding: var(--sp-5);
+}
+.report-print h2 { margin: 0 0 var(--sp-3); font-size: 1.25rem; }
+.report-print h3 { margin: var(--sp-4) 0 var(--sp-2); font-size: 1rem; }
+.report-print__cover { text-align: left; }
+.report-print__brand { letter-spacing: .12em; font-weight: 700; color: var(--accent); font-size: .85rem; }
+.report-print__title { font-size: 2rem; margin: var(--sp-2) 0; }
+.report-print__location { font-size: 1.1rem; margin: 0 0 var(--sp-3); }
+.report-print__tile { background: var(--bg-2); border-radius: var(--r-md); padding: var(--sp-4); }
+.report-print__big { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.report-print__kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.report-print__kpi { background: var(--bg-2); border-radius: var(--r-md); padding: var(--sp-3); }
+.report-print__kpi strong { white-space: nowrap; }
+.report-print__bars { width: 100%; max-width: 560px; height: auto; margin: 0 0 var(--sp-3); display: block; }
+.report-print__bars text { font-size: 9px; fill: var(--text-2); }
+.report-print__table { width: 100%; }
+.report-print__table .num { text-align: right; white-space: nowrap; }
+.report-print__rec { border-left: 3px solid var(--border-1); padding: var(--sp-1) 0 var(--sp-1) var(--sp-3); margin-bottom: var(--sp-3); }
+.report-print__rec--urgent { border-left-color: var(--danger, #dc2626); }
+.report-print__rec--warning { border-left-color: var(--warning, #d97706); }
+.report-print__sev { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+
+/* ── Papier ───────────────────────────────────────────────────────────── */
+@media print {
+  @page { size: A4; margin: 15mm; }
+
+  .sidebar, .topbar, .tabbar, .toast-stack, .nav-backdrop, .skip-link, .demo-bar,
+  .no-print, button, .btn { display: none !important; }
+
+  html, body, .layout, .view, main {
+    background: #fff !important; color: #111 !important;
+    margin: 0 !important; padding: 0 !important; box-shadow: none !important;
+  }
+  .layout { display: block !important; }
+
+  .report-print { display: block; }
+  .report-print .print-section {
+    background: #fff; border: 0; border-radius: 0; padding: 0;
+    break-before: page;
+  }
+  .report-print .print-section:first-child { break-before: auto; }
+  .report-print__tile, .report-print__kpi, .report-print__bars {
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .report-print__tile, .report-print__kpi { background: #f1f5f9 !important; }
+  .report-print__table, .report-print__table tr { break-inside: avoid; }
+  .table-wrap, .table-scroll { overflow: visible !important; }
+  a { color: inherit; text-decoration: none; }
+}

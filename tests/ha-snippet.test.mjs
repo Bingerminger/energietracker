@@ -14,7 +14,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { haRestCommandYaml, haSecretsYaml, haAutomationYaml } from '../public/js/lib/ha-snippet.js';
+import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml } from '../public/js/lib/ha-snippet.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = ['docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md'];
@@ -88,6 +88,20 @@ for (const file of DOCS) {
     ok(pushes === guards, `${file}: YAML-Block ${i + 1} prüft vor jedem Push has_value (${guards}/${pushes})`);
   }
 }
+
+// v3.1.0 (H1, API-33) — Sensoren auf /api/summary: Doku-Block wie in der App.
+// Namen sind übersetzt (wie Kommentare) und werden neutralisiert, ebenso die URL.
+const sensorNorm = (yaml) => normalize(yaml).map(l => l.replace(/resource: ".*"/, 'resource: "<URL>"').replace(/name: ".*"/, 'name: "<NAME>"'));
+const appSensors = sensorNorm(haRestSensorYaml('http://example.invalid',
+  [{ key: 'strom.m_strom_default', name: 'Strom', unit: 'kWh', hasContract: true }]));
+for (const file of DOCS) {
+  const blocks = yamlBlocks(readFileSync(join(ROOT, file), 'utf8'));
+  const sensors = blocks.find(b => b.trimStart().startsWith('rest:') && b.includes('/api/summary'));
+  ok(!!sensors, `${file}: Sensor-Block (rest: … /api/summary) vorhanden`);
+  if (sensors) sameLines(sensorNorm(sensors), appSensors, `${file}: Sensoren wie in der App`);
+}
+ok(haRestSensorYaml('x', []).includes("selectattr('key', 'eq', 'strom.m_strom_default')"), 'App: Sensor-Vorlage ohne Zähler zeigt ein Beispiel');
+ok(haReadSecretYaml().startsWith('energietracker_read: "Bearer etk_'), 'App: Lese-Schlüssel als ganzer Header-Wert');
 
 // Die App-Vorlagen selbst
 ok(!haRestCommandYaml('x').includes('float(0)'), 'App: REST-Command ohne float(0)');

@@ -88,9 +88,11 @@ final class ReadingImportService
             // v2.6.0 — so passt auch der eigene readings.csv-Export
             // (Zaehler-ID;Zaehler;Geraet-ID;Datum;Zaehlerstand;…), der sich
             // bisher nicht wieder einlesen ließ.
+            // v3.1.0 (Review I18N-11) — Kopf ist, was nicht mit Datum oder Zahl
+            // beginnt; die Spaltennamen kennt der Import aus allen Sprachkatalogen.
             if ($first) {
                 $first = false;
-                if (preg_match('/datum|date|z[äa]hler|counter/i', $line)) {
+                if ($this->isHeader($parts)) {
                     $cols = $this->columnsFromHeader($parts) ?? $cols;
                     continue;
                 }
@@ -107,10 +109,10 @@ final class ReadingImportService
                 continue;
             }
 
-            $iso = $this->parseDate(trim((string)($parts[$cols['date']] ?? '')));
+            $iso = Dates::parseUserDate(trim((string)($parts[$cols['date']] ?? '')), $dateError);
             if ($iso === null) {
                 $skipped++;
-                $errors[] = $this->i18n->t('errors.import.dateUnrecognized',
+                $errors[] = $this->i18n->t($dateError === 'monthFirst' ? 'errors.import.dateMonthFirst' : 'errors.import.dateUnrecognized',
                     ['line' => $lineNo + 1, 'value' => trim((string)($parts[$cols['date']] ?? ''))]);
                 continue;
             }
@@ -167,23 +169,23 @@ final class ReadingImportService
      */
     private function columnsFromHeader(array $header): ?array
     {
-        $find = function (array $names) use ($header): ?int {
+        // v3.1.0 — dazu die Namen aus csvLocal.readings.* aller Sprachen
+        $find = function (array $names, string $localKey) use ($header): ?int {
+            $names = array_merge($names, array_map([self::class, 'fold'], array_values($this->i18n->valuesInAllLanguages($localKey))));
             foreach ($header as $i => $h) {
-                $h = strtolower(trim((string)$h, " \t\"'"));
-                $h = strtr($h, ['ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue']);
-                if (in_array($h, $names, true)) return $i;
+                if (in_array(self::fold((string)$h), $names, true)) return $i;
             }
             return null;
         };
-        $date    = $find(['datum', 'date']);
-        $counter = $find(['zaehlerstand', 'zahlerstand', 'stand', 'counter', 'value', 'wert']);
+        $date    = $find(['datum', 'date'], 'csvLocal.readings.date');
+        $counter = $find(['zaehlerstand', 'zahlerstand', 'stand', 'counter', 'value', 'wert'], 'csvLocal.readings.reading');
         if ($date === null || $counter === null) return null;
         return [
             'date'      => $date,
             'counter'   => $counter,
-            'note'      => $find(['notiz', 'note', 'bemerkung']),
-            'estimated' => $find(['geschaetzt', 'geschatzt', 'estimated']),
-            'meter'     => $find(['zaehler-id', 'meter_id', 'meter-id']),
+            'note'      => $find(['notiz', 'note', 'bemerkung'], 'csvLocal.readings.note'),
+            'estimated' => $find(['geschaetzt', 'geschatzt', 'estimated'], 'csvLocal.readings.estimated'),
+            'meter'     => $find(['zaehler-id', 'meter_id', 'meter-id'], 'csvLocal.readings.meterId'),
         ];
     }
 
@@ -223,18 +225,31 @@ final class ReadingImportService
         return $report;
     }
 
-    private function parseDate(string $s): ?string
+    /**
+     * v3.1.0 — Spaltenname zum Vergleich: klein, ohne Akzente und Umlaute, ohne
+     * Einheit in Klammern („Prix (ct)" → „prix", „Zählerstand" → „zaehlerstand").
+     */
+    public static function fold(string $s): string
     {
-        $s = trim($s, " \t\"'");
-        // v2.5.3 — kalendergültig: der 31.02. ist kein Datum.
-        if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})$/', $s, $m)) {
-            $iso = "$m[3]-$m[2]-$m[1]";
-            return Dates::isIsoDate($iso) ? $iso : null;
-        }
-        return Dates::isIsoDate($s) ? $s : null;
+        $s = mb_strtolower(trim($s, " \t\"'\u{FEFF}"));
+        $s = (string)preg_replace('/\s*\(.*\)\s*$/u', '', $s);
+        return strtr($s, [
+            'ä' => 'ae', 'ö' => 'oe', 'ü' => 'ue', 'ß' => 'ss',
+            'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ç' => 'c', 'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i', 'ñ' => 'n', 'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o',
+            'ù' => 'u', 'ú' => 'u', 'û' => 'u',
+        ]);
     }
 
-    private function parseNum(string $s): ?float
+    /** @param list<string|null> $parts */
+    private function isHeader(array $parts): bool
+    {
+        $first = trim((string)($parts[0] ?? ''), " \t\"'");
+        return preg_match('/\p{L}/u', implode('', array_map('strval', $parts))) === 1
+            && Dates::parseUserDate($first) === null && $this->parseNum($first) === null;
+    }
+
+    public static function parseNum(string $s): ?float
     {
         // Accept "12345.6", "12345,6", "12.345,6", "12,345.6", quoted or spaced.
         $raw = trim($s, " \t\"'");
@@ -256,9 +271,14 @@ final class ReadingImportService
         return is_numeric($raw) ? (float)$raw : null;
     }
 
+    /** v3.1.0 — „ja" in jeder Sprache des Katalogs (oui, sì, sí, sim …), „geschätzt" ebenso. */
     private function parseBool(string $s): bool
     {
-        $s = strtolower(trim($s, " \t\"'"));
-        return in_array($s, ['1', 'true', 'ja', 'yes', 'x', 'wahr', 'geschätzt', 'geschaetzt'], true);
+        $yes = array_map([self::class, 'fold'], array_merge(
+            ['1', 'true', 'ja', 'yes', 'x', 'wahr', 'geschätzt'],
+            array_values($this->i18n->valuesInAllLanguages('common.yes')),
+            array_values($this->i18n->valuesInAllLanguages('csvLocal.readings.estimated')),
+        ));
+        return in_array(self::fold($s), $yes, true);
     }
 }

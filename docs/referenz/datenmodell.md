@@ -5,7 +5,7 @@
 [← API-Referenz](api.md) · [Kompendium-Index](../README.md)
 
 Alle Daten liegen als flache JSON-Dateien unter `data/`. Keine Datenbank.
-Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.6.0**
+Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.7.0**
 (in `data/meta.json` und in jedem Backup).
 
 > **Schema-Historie (Kurzfassung):** 1.0.0 utility-orientiertes Layout ·
@@ -17,7 +17,12 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.6.0**
 > **1.5.0** datierte Gas-Umrechnungsfaktoren `gas_conversion_factors` in
 > `settings.json` statt des Skalars `gas_conversion_factor` (F1012) ·
 > **1.6.0** bisherige CO₂- und Wasser-Defaults bei Bestandsinstallationen
-> festgeschrieben, bevor die korrigierten gelten (v2.10.0, Lektion 36).
+> festgeschrieben, bevor die korrigierten gelten (v2.10.0, Lektion 36) ·
+> **1.7.0** Töpfe `attachments.json` (Belege), `tenancies.json` und
+> `tenancy_statements.json` (Mietverhältnis), `market_prices.json`
+> (Börsenstrompreise), je Verbrauchsart `periods.json`
+> (Verbrauch je Zeitraum) und `bills.json` (Versorgerrechnungen) und die neue
+> Verbrauchsart `waerme/` leer angelegt, ebenso fehlende Grundtöpfe (v3.1.0).
 
 ---
 
@@ -33,14 +38,21 @@ data/
 ├── weather_sync.json         # Zustand des letzten Open-Meteo-Abgleichs (v2.8.0)
 ├── reminders.json            # Termine/Wartung
 ├── recommendations_dismissed.json
-├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json }
-├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json }
-├── wasser/     { meters.json, readings.json, contracts.json, meter_groups.json }
-├── fernwaerme/ { meters.json, readings.json, contracts.json, meter_groups.json }
-├── heizoel/    { meters.json, deliveries.json, contracts.json, meter_groups.json }
-├── pellets/    { meters.json, deliveries.json, contracts.json, meter_groups.json }
-├── pv_einspeisung/ { meters.json, readings.json, contracts.json, meter_groups.json }
-├── pv_erzeugung/   { meters.json, readings.json, contracts.json, meter_groups.json }
+├── attachments.json          # Index der Belege (v3.1.0, Schema 1.7.0)
+├── attachments/              # Belegdateien <id>.<jpg|png|webp|pdf> (v3.1.0)
+├── tenancies.json            # Mietverhältnisse (v3.1.0, Schema 1.7.0)
+├── tenancy_statements.json   # Nebenkostenabrechnungen (v3.1.0, Schema 1.7.0)
+├── market_prices.json        # Börsenstrompreise als Monatsmittel (v3.1.0, Schema 1.7.0)
+├── instance.json             # Kennung der Installation (v3.1.0) — nicht im Backup
+├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── wasser/     { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── fernwaerme/ { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── heizoel/    { meters.json, deliveries.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── pellets/    { meters.json, deliveries.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── pv_einspeisung/ { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── pv_erzeugung/   { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── waerme/     { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }   # Heizwärme (v3.1.0)
 ├── logs/       # JSON-Lines-Log (N1010)
 ├── .write.lock # Schreibsperre (v2.5.3)
 └── backups/    # Snapshots: backup_… (eigene), pre-restore-/pre-migration-/pre-demo-/pre-v09-… (automatisch)
@@ -50,15 +62,35 @@ data/
 bestimmt den Anlass (`reason` in `GET /api/backup/snapshots`). Aufbewahrung:
 von den eigenen die letzten zehn, automatische 30 Tage, je Anlass mindestens
 die drei neuesten. Ein Snapshot entsteht gestreamt über eine Temp-Datei und
-wird erst am Ende umbenannt.
+wird erst am Ende umbenannt. Seit v3.1.0 enthält er die Belege (base64) —
+`backups/` wächst deshalb mit jedem Foto, je Snapshot einmal.
 
-Kumulative Arten (Gas, Strom, Wasser, Fernwärme, PV) haben `readings.json`;
-lieferbasierte Arten (Heizöl, Pellets) haben stattdessen
+Kumulative Arten (Gas, Strom, Wasser, Fernwärme, PV, seit v3.1.0 Heizwärme)
+haben `readings.json`; lieferbasierte Arten (Heizöl, Pellets) haben stattdessen
 `deliveries.json`. `contracts.json` existiert bei allen, ist für
 Heizöl/Pellets aber typischerweise leer — dort ist die **Tankrechnung
-selbst** die Kostenbasis (siehe [Heizöl](../verstehen/05-heizoel.md)).
+selbst** die Kostenbasis (siehe [Heizöl](../verstehen/05-heizoel.md)). Bei
+Heizwärme und PV-Erzeugung bleibt er leer: Beide haben keine Verträge.
 `meter_groups.json` (seit 1.2.0) hält die Gruppen-Stammdaten je Utility;
 die Gruppen-*Mitgliedschaft* steht dagegen am Zähler (`meter_group_id`).
+`periods.json` (v3.1.0) hält die Zeiträume der Zähler mit „Verbrauch je
+Zeitraum" ([Zeitraum](#zeitraum-v310)); angelegt wird er bei jeder Art, genutzt
+nur bei den Arten mit Zählerständen. `bills.json` (v3.1.0) hält die
+Versorgerrechnungen ([Versorgerrechnung](#versorgerrechnung-v310)); ebenfalls
+bei jeder Art angelegt, genutzt bei Gas, Strom, Wasser und Fernwärme.
+
+**Heizwärme (`waerme/`, v3.1.0).** Die neunte Verbrauchsart: Wärme, die in der
+Wohnung ankommt, in kWh. Ihr Ordner entsteht mit Schema 1.7.0 leer, auch in
+Bestandsinstallationen; Standardzähler gibt es keine, und aktiv ist sie erst,
+wenn sie unter Einstellungen → Verbrauchsarten & Abrechnung gewählt ist
+(`active_utilities`). Mehr in [Heizwärme](../verstehen/15-waerme.md).
+
+**`instance.json` (v3.1.0).** `{instance_id, created_at}` — die Kennung der
+Installation, `et_` und 16 Hexziffern, beim ersten Bedarf zufällig angelegt.
+Der Kalender bildet daraus die UIDs seiner Ereignisse, `GET /api/summary`
+liefert sie als `instance_id`. Die Datei gehört bewusst **nicht** ins Backup:
+Nach einem Restore auf eine zweite Installation hätten sonst beide dieselbe
+Kennung.
 
 **Temperaturen und Wetter (v2.8.0, additiv — kein Schema-Bump):**
 
@@ -137,9 +169,71 @@ die Gruppen-*Mitgliedschaft* steht dagegen am Zähler (`meter_group_id`).
   ],
 
   // nur bei Strom, optional (v2.10.0):
-  "heat_source": true                    // Wärmepumpe: zählt in der Effizienzkennzahl
+  "heat_source": true,                   // Wärmepumpe: zählt in der Effizienzkennzahl
+
+  // v3.1.0, optional — fehlt = Standard:
+  "role": "heat_pump",                   // Rolle des Zählers, je Art (s. u.)
+  "capture": "period",                   // Erfassungsart: fehlt = Zählerstände
+
+  // v3.1.0, optional — für den Lieferantenwechsel (nicht bei Heizöl/Pellets):
+  "malo_id": "51234567895",              // Marktlokations-ID (synthetisches Beispiel)
+  "melo_id": "DE…",                      // Messlokations-ID, 33 Zeichen
+
+  // v3.1.0, nur bei PV-Erzeugung, optional:
+  "plug_in": true,                       // Balkonkraftwerk ohne Einspeisezähler
+  "investment_eur": 800,                 // Investition brutto (Amortisation)
+  "commissioned_on": "2025-04-12",       // Inbetriebnahme (Amortisation, § 51 EEG)
+  "battery_capacity_kwh": 5.0,           // Speicherkapazität, am Zähler mit Rolle battery_charge
+
+  // v3.1.0, nur bei Heizwärme mit Rolle heat_pump_output, optional:
+  "heat_pump_meter_ids": ["m_wp_strom"]  // Stromzähler der Wärmepumpe (Rolle heat_pump)
 }
 ```
+
+**PV- und Wärmepumpen-Felder (v3.1.0).** `plug_in` (`true` oder fehlt),
+`investment_eur` (0–10.000.000), `commissioned_on` (ISO-Datum) und
+`battery_capacity_kwh` (0–10.000) gibt es nur bei `pv_erzeugung`; ungültige
+Werte → `errors.meter.valueInvalid`, leer entfernt das Feld. Sie speisen
+Amortisation, Speicher-Kennzahlen und die Annahme für ein Balkonkraftwerk in
+`GET /api/pv-summary` ([API](api.md#pv-speicher-balkonkraftwerk-amortisation-v310-additiv)).
+`heat_pump_meter_ids` (nur `waerme`) nennt Stromzähler mit der Rolle
+`heat_pump`, sonst `errors.meter.heatPumpLinkInvalid`; daraus rechnet
+`GET /api/heat-pump` die Jahresarbeitszahl
+([API](api.md#jahresarbeitszahl-der-wärmepumpe-v310)).
+
+**Markt- und Messlokation (`malo_id`, `melo_id`, v3.1.0).** Die
+Marktlokations-ID hat 11 Ziffern, die erste nicht 0, die letzte ist eine
+Prüfziffer nach BDEW; die Messlokations-ID hat 33 Zeichen, „DE“ und 31 Ziffern
+oder Großbuchstaben. Leerzeichen entfernt die App, ein leerer Wert löscht das
+Feld; Falsches lehnt sie ab (`errors.meter.maloInvalid`, `…meloInvalid`). Die
+Wechselentscheidung zeigt die MaLo-ID unter „Für den Wechsel bereithalten“.
+
+**Rolle (`role`, v3.1.0).** Was ein Zähler misst, bei den Arten, die Rollen
+kennen. Die erste ist der Standard und wird **nicht** gespeichert — ein Zähler
+ohne `role` hat sie.
+
+| Art | Rollen (erste = Standard) |
+|---|---|
+| `strom` | `household`, `heat_pump` (Heizstrom, zählt in der Effizienzkennzahl), `ev_charger` (Wallbox: Ladestrom-Nachweis; nicht im Haushaltsstrom der Einordnung, ebenso wenig `heat_pump`) |
+| `wasser` | `cold`, `warm` (Warmwasser: zusätzlich die Wärme dafür als Rechenwert), `garden` |
+| `pv_erzeugung` | `generation`, `battery_charge`, `battery_discharge` (Speicher: zählen nicht zur Erzeugung und nicht in Summen, nur in den Speicher-Kennzahlen) |
+| `waerme` | `consumption` (Wärme der Wohnung, zählt in der Effizienzkennzahl), `heat_pump_output` (Wärmemenge einer Wärmepumpe, zählt weder in Summen noch in der Effizienzkennzahl — sonst stünde sie neben dem Heizstrom doppelt; Grundlage der Jahresarbeitszahl) |
+
+Beim Strom bleiben `role: heat_pump` und das ältere Feld `heat_source: true`
+gleich: Wer das eine setzt, setzt das andere mit, damit ältere Versionen die
+Wärmepumpe weiter erkennen. Eine Rolle, die die Art nicht kennt (oder eine
+Rolle bei einer Art ohne Rollen), lehnt die API mit 400 ab
+(`errors.meter.roleInvalid`). `GET /api/readings-overview` nennt die Rolle
+jedes Zählers (`null` bei Arten ohne Rollen).
+
+**Erfassungsart (`capture`, v3.1.0).** `counter` (Zählerstände, Standard, wird
+nicht gespeichert) oder `period` (Verbrauch je Zeitraum) — für alle Arten mit
+Zählerständen, nicht für Heizöl und Pellets. Ein Zähler mit `period` hat statt
+Ablesungen Zeiträume in `periods.json`; Ablesungen und Home-Assistant-Pushes
+lehnt er ab (`errors.reading.periodMeter`, `errors.ingest.periodMeter`).
+Wechseln lässt sich die Art nur, solange der Zähler keine Daten der bisherigen
+Art hat (400 `errors.meter.captureLocked`); ein unbekannter Wert ergibt
+`errors.meter.captureInvalid`.
 
 **Tankbuch (v2.10.0).** `tank_levels` und Lieferungen mit `fill_to_full`
 sind Stützstellen mit bekanntem Bestand; dazwischen ist der Verbrauch
@@ -151,7 +245,8 @@ im Backup mit.
 **Meter-Topologie (F1006).** Ein Zähler kann **Subzähler** eines anderen sein
 (`parent_meter_id`, Reihenschaltung — sein Verbrauch wird beim Elternzähler
 abgezogen) und/oder **Mitglied einer Gruppe** (`meter_group_id`, fasst mehrere
-Zähler fürs Dashboard zusammen). Regeln: max. eine Subzähler-Ebene (keine
+Zähler fürs Dashboard zusammen; seit v3.1.0 auch für einen gemeinsamen
+Vertrag). Regeln: max. eine Subzähler-Ebene (keine
 Ketten/Zyklen); ein Elternzähler mit Subzählern lässt sich nicht löschen, ohne
 die Zuordnung zu lösen. Siehe [Meter-Topologie](../verstehen/13-meter-topologie.md).
 
@@ -167,6 +262,9 @@ akzeptiert ihn anstelle der internen ID. Default `null` = kein Alias.
 
 Reine Stammdaten (ID + Name). Welche Zähler dazugehören, steht **nicht** hier,
 sondern als `meter_group_id` am jeweiligen Zähler (Single-Source-of-Truth).
+Seit v3.1.0 kann eine Gruppe Ziel eines Vertrags sein (`meter_group_id` am
+Vertrag, s. u.); die Reihenfolge der Mitglieder ist die der Zählerliste, und das
+erste trägt die festen Kosten des Gruppenvertrags.
 
 ### Device (Gerät innerhalb eines Zählers — Zählertausch)
 
@@ -210,9 +308,230 @@ Zwei optionale Felder seit v2.6.0 (additiv, nur vorhanden, wenn gesetzt):
 - `is_suspect: true`: fallender Stand aus dem Ingest; zählt nicht, bis er
   bestätigt (`PATCH` mit `is_suspect: false`) oder korrigiert ist.
 
+Zwei weitere seit v3.1.0, ebenso optional:
+
+- `client_ref`: Kennung der Erfassung (8–64 Zeichen `[A-Za-z0-9-]`), vom
+  Client gewählt. Eine zweite Anlage mit derselben Kennung am selben Zähler
+  legt keinen neuen Stand an (Offline-Warteschlange,
+  [API](api.md#ablesungen-client_ref-attachment_id-v310-additiv)).
+- `attachment_id`: Foto des Zählerstands — ID eines Belegs mit
+  `kind: reading_photo` ([Belege](#belege-v310)).
+
 Die Verbrauchsrechnung übergeht außerdem **eingeklemmte Ausreißer** desselben
 Geräts und meldet sie als `warnings` (siehe
 [Zählerstände → Plausibilität](../verstehen/11-zaehlerstaende.md)).
+
+### Belege *(v3.1.0)*
+
+Dateien zu einem Datensatz — Fotos von Zählerständen, Belege zu Zeiträumen,
+PDFs oder Fotos von Nebenkostenabrechnungen und seit v3.1.0 von
+Versorgerrechnungen (`ref.type` `reading`, `period`, `tenancy_statement`,
+`bill`). Die Datei liegt unter
+`data/attachments/<id>.<ext>`, ihr Eintrag im Index `attachments.json` (eine
+Liste):
+
+```jsonc
+{
+  "id": "att_5f0c2a9e81d34b67",        // att_ + 16 Hexziffern
+  "kind": "reading_photo",             // reading_photo | bill_pdf | statement_pdf | other
+  "mime": "image/jpeg",                // image/jpeg | image/png | image/webp | application/pdf — aus dem Inhalt bestimmt
+  "size": 284113,                      // Byte
+  "sha256": "9c1e…",
+  "created_at": "2026-10-07T08:12:40+02:00",
+  "ref": { "type": "reading", "utility": "strom", "id": "20261007-1a2b3c4d" },   // oder null
+  "original_name": "zaehler.jpg"       // optional, wenn beim Hochladen genannt
+}
+```
+
+- **Verweis in beide Richtungen.** `ref` zeigt auf den Datensatz, der
+  Datensatz trägt `attachment_id`. Gesetzt und gelöst wird beides zusammen
+  über die API ([Belege](api.md#belege-und-texterkennung-v310)).
+- **Verwaist** ist ein Beleg mit `ref: null` — hochgeladen und nie
+  gespeichert, oder die Ablesung wurde gelöscht bzw. das Foto gelöst; dann
+  steht der Zeitpunkt in `unlinked_at`. Er wird nach **24 Stunden** (ab
+  `unlinked_at`, sonst ab `created_at`) aufgeräumt, beim nächsten Hochladen
+  und beim Rotieren der Snapshots. Dateien in `attachments/` ohne
+  Indexeintrag ebenso.
+- **Grenzen.** Foto 3 MB, PDF 10 MB, alle zusammen `attachments_max_mb`
+  (Standard 500 MB).
+- **Backup.** `attachments` ist ein Topf wie jeder andere; die Dateien stehen
+  base64-kodiert unter `attachment_files` (`{id: base64}`). Das Backup-Format
+  bleibt `3.0`; ältere Versionen übergehen den Schlüssel. Der Import prüft
+  jede Datei gegen `sha256` und Inhaltstyp, bevor er schreibt
+  ([Snapshots und Import](api.md#snapshots-und-import-v260)).
+
+### Zeitraum *(v3.1.0)*
+
+Verbrauch je Zeitraum — für Werte, die schon als Verbrauch vorliegen, etwa die
+monatliche Verbrauchsinfo des Messdienstes. Nur an Zählern mit
+`capture: "period"`, je Verbrauchsart in `<art>/periods.json` (eine Liste):
+
+```jsonc
+{
+  "id": "p_3a9f1c20b7e4",            // p_ + 12 Hexziffern
+  "meter_id": "m_waerme_1",
+  "from": "2026-01-01",
+  "to": "2026-01-31",                // inklusive
+  "value": 820,                      // ≥ 0, auf drei Nachkommastellen gerundet
+  "value_unit": "consumption",       // consumption | meter — nur bei Gas verschieden
+  "is_estimated": false,
+  "source": "manual",                // manual | csv | import
+  "reference": {                     // optional, Vergleichswerte der Verbrauchsinfo
+    "prev_month": 760, "prev_year_month": 900, "average_user": 850
+  },
+  "note": "",                        // bis 500 Zeichen
+  "attachment_id": null,             // optional: Beleg (Foto, PDF)
+  "client_ref": "…"                  // optional, wie bei Ablesungen
+}
+```
+
+- **Einheit.** `consumption` ist die Verbrauchseinheit der Art (kWh, bei
+  Wasser m³), `meter` die Zählereinheit. Die beiden unterscheiden sich nur bei
+  Gas: `meter` = m³, gerechnet mit den datierten Umrechnungsfaktoren in kWh;
+  `consumption` = kWh, die m³ rechnet die App für Rechnungsprüfung und CSV
+  zurück. Bei allen anderen Arten wird `value_unit` immer `consumption`.
+- **Regeln.** `from ≤ to` (sonst `errors.period.order`); zwei Zeiträume
+  desselben Zählers dürfen sich nicht berühren (`errors.period.overlap`).
+  `client_ref` wirkt wie bei Ablesungen: dieselbe Kennung am selben Zähler legt
+  keinen zweiten Zeitraum an.
+- **Rechnung.** Tagesrate = Wert / Tage des Zeitraums, tagesgenau auf die
+  Monate verteilt; Lücken bleiben Lücken (Abdeckung wie bei Zählerständen).
+  Danach läuft alles wie bei Ständen. Mehr in
+  [Heizwärme](../verstehen/15-waerme.md).
+
+### Mietverhältnis und Nebenkostenabrechnung *(v3.1.0)*
+
+Für Mieter, die Heizung und Wasser über die Nebenkosten zahlen
+([Anleitung](../anleitungen/mieter.md)). Zwei Listen auf oberster Ebene.
+
+`tenancies.json`:
+
+```jsonc
+{
+  "id": "t_8c21e4f09a3b",
+  "start": "2024-04-01",
+  "end": null,                       // optional; leer = läuft
+  "label": "Wohnung 2. OG",
+  "landlord": "",                    // optional
+  "wohnflaeche_m2": 68,              // optional, laut Mietvertrag; leer = Einstellung
+  "co2_own_appliances": false,       // v3.1.0 (H4): Gas auch für eigene Geräte → Erstattung × 0,95
+  "co2_restriction": "none",         // v3.1.0 (H4): none | one | both (§ 9 CO2KostAufG)
+  "billing_anchor": "01-01",         // MM-TT, Beginn des Abrechnungszeitraums (Standard 01-01)
+  "prepayments": [                   // datiert, nach from sortiert
+    { "from": "2024-04-01", "heating_eur_month": 70, "operating_eur_month": 50 }
+  ],
+  "prices": [
+    { "from": "2025-01-01", "heat_eur_per_kwh": 0.15, "warm_water_eur_per_m3": 9.5,
+      "cold_water_eur_per_m3": 4.5, "source": "statement", "statement_id": "s_…" }
+  ],
+  "fixed_costs": [                   // pauschale Umlagen je Jahr
+    { "from": "2025-01-01", "label": "Müll", "eur_per_year": 180 }
+  ],
+  "meter_ids": { "heat": ["m_waerme_1"], "warm_water": ["m_ww_1"], "cold_water": ["m_kw_1"] },
+  "notes": ""
+}
+```
+
+- `prepayments`, `prices`, `fixed_costs` sind datierte Listen: Es gilt der
+  späteste Eintrag mit `from ≤ Tag`; bei den Preisen je Feld, bei den Umlagen
+  je Bezeichnung. Preise sind optional (`source`: `statement` aus einer
+  Abrechnung übernommen, `estimate` selbst eingetragen).
+- `meter_ids`: `heat` nimmt Zähler der Heizwärme, `warm_water` und `cold_water`
+  Wasserzähler. Ein unbekannter Zähler ergibt `errors.tenancy.meterNotFound`.
+
+`tenancy_statements.json`:
+
+```jsonc
+{
+  "id": "s_51d0a7c3e2f6",
+  "tenancy_id": "t_8c21e4f09a3b",
+  "period_from": "2025-01-01", "period_to": "2025-12-31",
+  "received_on": "2026-06-15",       // optional: Zugang, Beginn der Einwandfrist
+  "total_cost_eur": 1500, "prepaid_eur": 1440,
+  "result_eur": 60,                  // positiv = Nachzahlung, negativ = Guthaben
+  "positions": [
+    { "label": "Warmwasser", "category": "warm_water", "amount_eur": 285, "consumption": 30, "unit": "m³" }
+  ],
+  "heat": { "consumption": 9000, "unit": "kWh", "cost_eur": 1350 },   // optional; unit kWh | MWh
+  "co2": null,                       // optional (v3.1.0, H4): {emissions_kg, cost_eur, stage,
+                                     //   landlord_share_pct, landlord_amount_eur} laut Heizkostenabrechnung
+  "new_prepayment": { "from": "2026-07-01", "heating_eur_month": 75, "operating_eur_month": 50 },
+  "attachment_ids": [],              // Belege (PDF, Foto)
+  "booked": false,
+  "note": "",
+  "created_at": "2026-06-20T18:02:11+02:00"
+}
+```
+
+- `category` ∈ {`heating`, `warm_water`, `cold_water`, `sewage`, `operating`,
+  `other`}; ein unbekannter Wert wird `other`.
+- `result_eur` fehlt in der Anfrage → Kosten − Vorauszahlung; positiv heißt
+  Nachzahlung (wie beim Saldo).
+- Wer eine Abrechnung mit `apply_prices` speichert, bekommt im Mietverhältnis
+  einen Preiseintrag `source: statement` ab dem Tag nach `period_to`;
+  `apply_prepayment` übernimmt `new_prepayment` in `prepayments`. Beides sind
+  Schalter der Anfrage, keine gespeicherten Felder
+  ([API](api.md)).
+- Ein gelöschtes Mietverhältnis nimmt seine Abrechnungen mit; deren Belege
+  werden frei und nach 24 Stunden aufgeräumt.
+- **CO₂-Kosten (v3.1.0, H4).** `co2_own_appliances` und `co2_restriction` am
+  Mietverhältnis kürzen den Anteil des Vermieters bei eigener Gastherme;
+  `co2` an der Abrechnung trägt die CO₂-Angaben der Heizkostenabrechnung
+  (Emissionen 0–10.000.000 kg, Beträge bis 1.000.000, Stufe 1–10, Anteil
+  0–100 %). Ist `co2` gesetzt, gilt für das Jahr, in dem der Zeitraum endet, der
+  Fall Zentralheizung ([CO₂-Kosten teilen](../anleitungen/co2-aufteilung.md)).
+
+Alle Beträge in der Hauptwährung (`*_eur` meint die eingestellte Währung,
+s. `currency`). Die Werte oben sind Beispiele.
+
+**Backup.** `tenancies`, `tenancy_statements` und je Verbrauchsart `periods`
+und `bills` sind Töpfe wie die anderen und reisen im Backup mit; das Format
+bleibt `3.0`. `instance.json` bleibt draußen (s. o.).
+
+### Versorgerrechnung *(v3.1.0)*
+
+Die Rechnung des Versorgers mit ihren eigenen Zahlen, je Verbrauchsart in
+`<art>/bills.json` (eine Liste) — für den Vergleich mit der eigenen Rechnung,
+das Buchen des Ergebnisses und die CO₂-Angaben
+([Jahresabrechnung](../anleitungen/jahresabrechnung.md#7-laut-rechnung-erfassen-vergleichen-buchen)):
+
+```jsonc
+{
+  "id": "b_3f9c0a1d2e4b",            // b_ + 12 Hexziffern
+  "meter_id": "m_gas_main",
+  "contract_id": null,               // optional; sonst der Vertrag am Ende des Zeitraums
+  "kind": "annual",                  // annual | final | interim
+  "period_from": "2025-01-01",
+  "period_to": "2025-12-31",         // inklusive
+  "issued_on": "2026-02-10",         // optional: Rechnungsdatum
+  "invoice": {                       // jeder Wert optional
+    "energy_kwh": 16437,             // bei Wasser volume_m3
+    "amount_eur": 1655,              // Rechnungsbetrag brutto
+    "advances_paid_eur": 1800,
+    "result_eur": -145               // positiv = Nachzahlung; ohne Angabe Betrag − Abschläge
+  },
+  "items": [                         // weitere Posten, nicht nachgerechnet
+    { "label": "Messstellenbetrieb", "amount_eur": 12.5, "kind": "fee" }   // levy | fee | credit | other
+  ],
+  "co2": { "emissions_kg": 2981.5, "cost_eur": 163.98 },   // optional; Betrag netto, dazu stated_factor?
+  "attachment_ids": [],              // Belege (PDF, Foto)
+  "special_payment_id": null,        // gesetzt, sobald das Ergebnis gebucht ist
+  "note": "",
+  "created_at": "2026-02-14T18:20:05+01:00"
+}
+```
+
+- **Arten.** Nur Gas, Strom, Wasser und Fernwärme nehmen Rechnungen an
+  (`errors.billCheck.unsupportedUtility` sonst); der Topf entsteht bei allen.
+- **Regeln.** `period_from ≤ period_to` (`errors.bill.periodInvalid`), Zahlen
+  im erlaubten Bereich (`errors.bill.amountInvalid`). Ein Zähler mit
+  Rechnungen lässt sich nicht löschen (`errors.meter.hasBills`).
+- **Buchen** legt eine Sonderzahlung „ohne Auswirkung“ im Vertrag an und
+  merkt sich ihre ID in `special_payment_id` — einmal je Rechnung. Wer die
+  Rechnung löscht, behält die Sonderzahlung; die Belege werden frei.
+- **CO₂.** Emissionen und Betrag gehen beim CO₂-Preis dem Standardfaktor vor;
+  `issued_on` einer Gasrechnung setzt zur Miete die Frist für die Erstattung
+  ([CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md)).
 
 ### Delivery (Brennstofflieferung — Heizöl/Pellets)
 
@@ -221,7 +540,7 @@ Geräts und meldet sie als `warnings` (siehe
   "id": "del_heizoel_a1", "meter_id": "m_heizoel_tank",
   "date": "2023-09-12", "quantity": 1150.0,
   "unit_price_cents": 104.5, "total_eur": 1201.75,
-  "supplier": "Öl Müller GmbH", "note": "Herbstbefüllung",
+  "supplier": "Ölhandel Am Hafen GmbH", "note": "Herbstbefüllung",
   "is_planned": false,
   "fill_to_full": false          // v2.10.0: true = danach voll (Stützstelle)
 }
@@ -274,9 +593,76 @@ nicht gepflegt:
 | `signup_bonus_eur` | Neukundenbonus als Betrag (Angebote im Tarifvergleich) |
 
 Ungültige Werte lehnt die API mit 400 ab (`errors.contract.noticeDaysOutOfRange`,
-`errors.contract.noticeModeInvalid`). Wasser nutzt zusätzlich ein
+`errors.contract.noticeModeInvalid`). Endet `min_term_end` mehr als 24 Monate
+nach `start`, antwortet die API seit v3.1.0 beim Speichern zusätzlich mit
+`warnings: ["term_over_24_months"]` (§ 309 Nr. 9 BGB); gespeichert wird der
+Hinweis nicht.
+
+**Fernwärme (v3.1.0, CALC-31)** — nur bei `fernwaerme`, alle optional:
+
+```jsonc
+{
+  "capacity_kw": 10,                                          // Anschlussleistung (kW)
+  "capacity_prices": [ { "from": "2025-01-01", "eur_per_kw_year": 60 } ],   // Leistungspreis
+  "metering_prices": [ { "from": "2025-01-01", "eur_per_year": 120 } ],     // Messpreis
+  "co2_g_per_kwh": 180,                                       // Emissionsfaktor des Wärmenetzes
+  "primary_energy_factor": 0.6                                // nur zur Information
+}
+```
+
+Feste Kosten je Monat = Grundpreis + `capacity_kw` × Leistungspreis / 12 +
+Messpreis / 12 (im Beispiel ohne Grundpreis 60 €). Ein Leistungspreis braucht
+`capacity_kw` (`errors.contract.capacityMissing`); ungültige Werte →
+`errors.contract.valueInvalid`. `co2_g_per_kwh` ersetzt `co2_fernwaerme` für
+die Monate des Vertrags ([Fernwärme](../verstehen/04-fernwaerme.md)). Kein
+Schema-Schritt: Fehlende Felder bedeuten „nicht gepflegt“.
+
+**Gruppenvertrag, Netzentgelt, Preismodell, Gutschriften (v3.1.0)** — alle
+optional, fehlend = wie bisher:
+
+```jsonc
+{
+  "meter_id": null,                                   // bei einem Gruppenvertrag
+  "meter_group_id": "g_strom_ab12cd34",               // Gas, Strom, Fernwärme
+  "working_prices_by_meter": {                        // Arbeitspreis je Mitglied (HT/NT)
+    "m_strom_ht": [ { "from": "2026-01-01", "ct_per_kwh": 30.0 } ],
+    "m_strom_nt": [ { "from": "2026-01-01", "ct_per_kwh": 22.0 } ]
+  },
+  "grid_reduction": [ { "from": "2026-01-01", "eur_per_year": 120, "module": 1 } ],   // nur Strom, § 14a EnWG
+  "price_model": "dynamic",                           // fehlt = fest; "monthly"; "dynamic" nur Schattenvertrag Strom
+  "dynamic": { "markup_ct_per_kwh": 15, "base_eur_month": 10, "vat_pct": 19, "weighting": "flat" },
+  "revenue_statements": [                             // nur Einspeisung
+    { "from": "2026-06-01", "to": "2026-06-30", "amount_eur": 23.40, "kwh": 290.5 }
+  ]
+}
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `meter_group_id`, `working_prices_by_meter` | Vertrag für eine Zählergruppe. Jedes Mitglied rechnet zu seinem Arbeitspreis (fehlt er, `working_prices`); Grundpreis, Abschläge und Boni trägt nur das erste Mitglied. Kein Mitglied darf im selben Zeitraum einen eigenen echten Vertrag haben (`errors.contract.groupMemberOverlap`) — [API](api.md#gruppenvertrag-v310) |
+| `grid_reduction` | reduziertes Netzentgelt nach § 14a EnWG, Modul 1, in € je Jahr; tagesgenau als Abzug von den festen Kosten |
+| `price_model`, `dynamic` | Preismodell: fest (fehlt), `monthly` (Monatspreise, etwa aus dem Import) oder `dynamic` (Dynamik-Check, nur als Schattenvertrag Strom; Aufschlag 0–100 ct/kWh, Grundpreis 0–1000 €/Monat, USt 0–30 %, Standard 19) |
+| `revenue_statements` | Gutschriften des Direktvermarkters, `to` einschließlich; ersetzen für ihren Zeitraum kWh × Vergütung, tagesgenau |
+
+Kein Schema-Schritt: Die Felder reisen mit dem Vertrag im Backup.
+
+Wasser nutzt zusätzlich ein
 Drei-Komponenten-Modell (Trink-/Schmutz-/Niederschlagswasser), siehe
 [Wasser](../verstehen/03-wasser.md).
+
+### Börsenstrompreise (`market_prices.json`) *(v3.1.0)*
+
+```json
+{ "source": "smard", "area": "DE-LU", "unit": "ct/kWh",
+  "months": { "2025-01": { "avg_ct": 11.414 } },
+  "imported_at": "2026-02-03T19:12:00+01:00" }
+```
+
+Großhandelspreise Strom (Day-Ahead, Deutschland/Luxemburg) als Monatsmittel in
+ct/kWh, netto — gefüllt aus einer Datei (`source: "csv"`) oder auf Knopfdruck
+von SMARD (`"smard"`); ein Import ersetzt nur die Monate, die er enthält.
+Grundlage des Dynamik-Checks ([API](api.md#börsenstrompreise-und-dynamik-check-v310)).
+Teil des Backups; Schema 1.7.0 legt den Topf leer an.
 
 **`special_payments` (F1003, ab v1.5.0)** — nur bei Gas/Strom/Fernwärme
 (Single-Source-of-Truth: `Utilities::hasAdvancePaymentContracts()`).
@@ -326,15 +712,26 @@ eine Auswahl mit Hintergrund:
 | `billing_cycle_anchor_heizoel`, `…_pellets` | 01-01 | **veraltet (v2.13.0)**, ohne Wirkung (keine Abschläge, kein Saldo) und nicht mehr in der Oberfläche; entfallen mit v3.0.0 |
 | `delivery_baseload_share` | 0.15 | wetterunabhängiger Grundlastanteil bei Lieferarten |
 | `tank_warn_pct` | 15 | Warnschwelle Tankfüllstand in %; Alarm ab der Hälfte (seit v2.13.0 auch in der Oberfläche) |
-| `active_utilities` | gas, strom, wasser | welche Arten Menü und Auswertungen zeigen; abgewählte behalten ihre Daten |
+| `active_utilities` | gas, strom, wasser | welche Arten Menü und Auswertungen zeigen; abgewählte behalten ihre Daten. Heizwärme (`waerme`, v3.1.0) ist nicht standardmäßig aktiv |
+| `wohnverhaeltnis` | eigentum | *(v3.1.0)* `eigentum` oder `miete`; bei `miete` erscheint die Seite „Mietverhältnis“, und die Agenda kennt die Fristen der Nebenkostenabrechnung |
+| `waerme_energietraeger` | null | *(v3.1.0)* womit die Heizwärme erzeugt wird (`gas`, `heizoel`, `pellets`, `fernwaerme`, `strom`) — ihr CO₂-Wert kommt mit dessen Faktor, ohne Angabe 0 |
+| `warmwasser_temp_c` | 60 | *(v3.1.0)* Warmwassertemperatur (30–90 °C) für die Wärme der Warmwasserzähler nach HeizkostenV § 9 Abs. 2 |
+| `warmwasser_energietraeger` | null | *(v3.1.0)* womit das Warmwasser erwärmt wird (wie oben, dazu `waerme`) — nur zur Information |
 | `location_name`, `latitude`, `longitude` | Leipzig | für Open-Meteo (übermittelt auf zwei Nachkommastellen gerundet) |
 | `weather_auto_fill` | true | *(seit v2.8.0 wirksam)* Temperaturen einmal am Tag beim Öffnen der App abgleichen |
-| `language` | de | Sprache der Oberfläche und der API-Meldungen |
+| `language` | de | Standardsprache der Installation (Geräte ohne eigene Wahl, PDF, CSV, Home Assistant); ein Gerät kann per `X-ET-Language` abweichen (v3.1.0) |
 | `country` | DE | *(v2.7.0)* Land: Schreibweise (mit der Sprache), Effizienzskala — [Länderprofile](../verstehen/14-laenderprofile.md) |
 | `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — Symbol und Untereinheit; Beträge werden nicht umgerechnet, `*_eur`/`ct_*` meinen Haupt-/Untereinheit |
 | `timezone` | Europe/Berlin | *(v2.7.0)* IANA-Zeitzone: „heute“, Fälligkeiten, Tagesgrenzen der Wetterdaten |
 | `gas_cv_unit` | kwh | *(v2.7.0)* Eingabeeinheit des Brennwerts (`kwh`, `mj`, `gj`); gespeichert wird immer kWh/m³ |
 | `frame_ancestors` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (CSP `frame-ancestors`), z. B. `http://homeassistant.local:8123` |
+| `attachments_max_mb` | 500 | *(v3.1.0)* Speicher für alle Belege zusammen in MB (10–100000) |
+| `ocr_endpoint`, `ocr_api`, `ocr_model`, `ocr_timeout_s` | *(leer)*, ollama, *(leer)*, 30 | *(v3.1.0)* Texterkennung im Heimnetz; leer = aus, keine Verbindung — [Einstellungen](einstellungen.md), [Anleitung](../anleitungen/texterkennung.md) |
+| `co2_price_eur_t_years` | `{}` | *(v3.1.0)* eigene CO₂-Preise je Jahr in €/t (Jahr → Wert, 0–1000); leer = Länderprofil — [CO₂-Preis](../verstehen/16-co2-preis.md) |
+| `co2_price_scenario_eur_t`, `co2_price_scenario_from` | null, 2028 | *(v3.1.0)* CO₂-Preis-Szenario der Prognose: Preis in €/t (leer = aus) und erstes Jahr |
+| `co2_pv_avoided` | null | *(v3.1.0)* eigener Vermeidungsfaktor der PV in g/kWh (0–2000); leer = Strommix |
+| `pv_assumed_self_consumption_pct` | null | *(v3.1.0)* angenommener Eigenverbrauch eines Balkonkraftwerks ohne Einspeisezähler in % (0–100); leer = keine Annahme |
+| `reference_strom_kwh`, `reference_heat_kwh_m2`, `reference_source`, `warmwasser_elektrisch` | null, null, leer, false | *(v3.1.0)* eigene Vergleichswerte für die Einordnung: Haushaltsstrom in kWh/a (0–100000), Heizung in kWh/m²·a (0–1000), Quelle (bis 120 Zeichen), Warmwasser mit Strom |
 
 Die vollständige Liste steht in `SettingsService::DEFAULTS`. Unbekannte
 Schlüssel speichert `PATCH /api/settings` nicht und nennt sie seit v2.6.0 in
@@ -364,13 +761,20 @@ Schlüssel speichert `PATCH /api/settings` nicht und nennt sie seit v2.6.0 in
   `co2_strom_years`, `co2_pellets`, `co2_fernwaerme`,
   `wasser_personen_referenz`) den bisherigen Wert fest, wo die Installation
   ihn nie gespeichert hat — nur bei Daten älter als 1.6.0,
-- hebt die Version schrittweise auf den aktuellen Stand (**1.6.0**).
+- legt in 1.7.0 (v3.1.0) die Töpfe `attachments.json`, `tenancies.json`,
+  `tenancy_statements.json` und `market_prices.json` sowie je Verbrauchsart fehlende Grundtöpfe
+  (`meters`, `contracts`, `meter_groups`, `readings` bzw. `deliveries`),
+  `periods.json` und `bills.json` leer an — so bekommt auch eine Bestandsinstallation den
+  Ordner der neuen Verbrauchsart `waerme/`, ohne Standardzähler. Ein
+  vorhandener Datensatz wird dabei nicht verändert; ein Erststart legt
+  dieselben Töpfe an,
+- hebt die Version schrittweise auf den aktuellen Stand (**1.7.0**).
 
 Jede Stufe hat ein eigenes `needsVXXXUpgrade()` + `upgradeToVXXX()`-Paar und
 ist für sich idempotent (wiederholtes Ausführen ist ein No-Op).
 
 Die mitgelieferten Demo-Daten tragen `schema_version: 1.1.0` und werden
-beim ersten Start additiv auf den aktuellen Stand (1.6.0) migriert —
+beim ersten Start additiv auf den aktuellen Stand (1.7.0) migriert —
 dabei kommen `meter_groups.json` je Utility (1.2.0) und die Zähler-Felder
 `external_id` (1.3.0) und `baseline_events` (1.4.0) hinzu, ohne bestehende
 Werte anzutasten. Der

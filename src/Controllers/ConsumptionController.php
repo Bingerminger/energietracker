@@ -46,7 +46,7 @@ final class ConsumptionController
         $meterId = $req->param('id');
         $utility = $req->param('utility');
         $hddBase = $req->queryParam('hdd_base');
-        $meter = $this->meters->get($utility, $meterId);
+        $meter = $this->meters->target($utility, $meterId);   // v3.1.0 (H6): auch Gruppe
         if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
         $monthly = $this->consumption->forMeter($utility, $meter, $hddBase !== null ? (float)$hddBase : null);
 
@@ -105,7 +105,7 @@ final class ConsumptionController
     {
         $meterId = $req->param('id');
         $utility = $req->param('utility');
-        $meter = $this->meters->get($utility, $meterId);
+        $meter = $this->meters->target($utility, $meterId);   // v3.1.0 (H6): auch Gruppe
         if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
         Response::json($this->consumption->contractStatus($utility, $meter));
     }
@@ -119,10 +119,13 @@ final class ConsumptionController
     {
         $meterId = $req->param('id');
         $utility = $req->param('utility');
-        if ($utility !== 'gas') {
-            Response::error($this->i18n->t('errors.billCheck.gasOnly'), 400);
+        // v3.1.0 (Paket H5, MKT-17) — alle Arten mit Zählerständen und Verträgen;
+        // errors.billCheck.gasOnly bleibt im Katalog (deprecated), der neue Code
+        // heißt errors.billCheck.unsupportedUtility
+        if (!\Energietracker\Config\Utilities::supportsBillCheck((string)$utility)) {
+            Response::error($this->i18n->t('errors.billCheck.unsupportedUtility', ['utility' => (string)$utility]), 400, null, 'errors.billCheck.unsupportedUtility');
         }
-        $meter = $this->meters->get($utility, $meterId);
+        $meter = $this->meters->target($utility, $meterId);   // v3.1.0 (H6): auch Gruppe
         if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
 
         $from = (string)($req->queryParam('from') ?? '');
@@ -131,6 +134,6 @@ final class ConsumptionController
         if (!preg_match($iso, $from) || !preg_match($iso, $to) || $from >= $to) {
             Response::error($this->i18n->t('errors.billCheck.invalidRange'), 400);
         }
-        Response::json($this->consumption->gasBillBreakdown($meter, $from, $to));
+        Response::json($this->consumption->billBreakdown((string)$utility, $meter, $from, $to));
     }
 }

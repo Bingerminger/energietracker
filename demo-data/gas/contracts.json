@@ -2,7 +2,7 @@
   {
     "id": "c_gas_001",
     "meter_id": "m_gas_main",
-    "provider": "Stadtwerke Leipzig",
+    "provider": "Stadtwerke Musterstadt",
     "tariff_name": "Naturgas Basis 2023",
     "start": "2023-01-01",
     "end": "2023-12-31",
@@ -34,7 +34,7 @@
   {
     "id": "c_gas_002",
     "meter_id": "m_gas_main",
-    "provider": "Stadtwerke Leipzig",
+    "provider": "Stadtwerke Musterstadt",
     "tariff_name": "Naturgas Basis 2024",
     "start": "2024-01-01",
     "end": "2024-12-31",
@@ -90,7 +90,7 @@
   {
     "id": "c_gas_003",
     "meter_id": "m_gas_main",
-    "provider": "Vattenfall",
+    "provider": "Nordwind Energie",
     "tariff_name": "Easy Gas 12",
     "start": "2025-01-01",
     "end": "2025-12-31",
@@ -129,7 +129,7 @@
   {
     "id": "c_gas_004",
     "meter_id": "m_gas_main",
-    "provider": "Vattenfall",
+    "provider": "Nordwind Energie",
     "tariff_name": "Easy Gas 12 — 2026",
     "start": "2026-01-01",
     "end": "2026-12-31",
@@ -161,7 +161,7 @@
   {
     "id": "c_gas_shadow_oeko",
     "meter_id": "m_gas_main",
-    "provider": "Naturenergie Süd",
+    "provider": "Grünquell Energie",
     "tariff_name": "Ökogas Fix 12",
     "start": "2027-01-01",
     "end": null,
@@ -191,7 +191,7 @@
   {
     "id": "c_gas_shadow_flex",
     "meter_id": "m_gas_main",
-    "provider": "Stadtwerke Leipzig",
+    "provider": "Stadtwerke Musterstadt",
     "tariff_name": "Gas Basis Flex",
     "start": "2027-01-01",
     "end": null,

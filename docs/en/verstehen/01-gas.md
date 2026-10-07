@@ -82,11 +82,14 @@ Period | Reading (from) | Reading (to) | Days | Boundary | m³ | Vol. corr. | Ca
 — exactly the lines the bill shows, including the meter reading at the
 start and end of every section. Each reading carries its **reading type**
 like the footnotes on the bill (since v2.5.2): no suffix for a real meter
-reading, `S` for a reading recorded as estimated, `E` for a **substitute
+reading, `E` for a reading recorded as estimated, `I` for an **interpolated
 value** — there is no meter reading on that day, it is interpolated
 day-exact between the enclosing readings. Those are exactly the places
 where the supplier estimates too (calorific-value and period boundaries);
-the fewer `E` in the table, the less estimation is in the comparison.
+the fewer `I` in the table, the less estimation is in the comparison. The
+letters follow the interface language (since v3.1.0): German S/E, English,
+French, Spanish and Portuguese E/I, Italian and Dutch S/I — the way bills
+there mark estimates.
 Across a meter swap there is no continuous reading, so the substitute
 value stays without a number. If a line differs, either a factor is
 entered wrongly or the supplier estimated an intermediate reading

@@ -11,7 +11,8 @@
 
 ## Requirements
 
-- PHP ≥ 8.4 (the CLI is sufficient for development)
+- PHP ≥ 8.2 (since v3.1.0; CI tests 8.2, 8.3 and 8.4, the Docker image ships
+  8.4; the CLI is sufficient for development)
 - A web browser with ES modules (anything from mid-2020)
 - Optional: Apache, nginx, Caddy for production
 
@@ -28,7 +29,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.0.0
+├── VERSION                ← 3.1.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP backend
 ├── data/                  ← must be writable
@@ -104,7 +105,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:3.0.0
+  ghcr.io/bingerminger/energietracker:3.1.0
 ```
 
 > **Docker Desktop (Mac, Windows):** a folder under your home directory must be
@@ -133,6 +134,9 @@ in the Compose file):
 With `ET_LOG_DEST=stderr` the logs (JSON Lines) appear directly in
 `docker logs energietracker`. The container has a `HEALTHCHECK` against
 `GET /api/health`.
+
+Templates for Synology, Unraid, CasaOS/ZimaOS and Umbrel (the last three under
+`deploy/`, since v3.1.0): [Docker operation](docs/en/betrieb/docker.md).
 
 ## Load sample data (optional)
 

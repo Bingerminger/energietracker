@@ -43,7 +43,16 @@ use Energietracker\Config\Utilities;
  */
 final class Migrator
 {
-    public const SCHEMA_VERSION = '1.6.0';
+    public const SCHEMA_VERSION = '1.7.0';
+
+    /**
+     * v3.1.0 (Paket H, ein Schemaschritt für alle neuen Töpfe) — legt die
+     * Stufe 1.7.0 leer an, ebenso der Erststart. Neue Töpfe von v3.1.0
+     * gehören HIER ergänzt (und in den BackupService).
+     */
+    public const V170_TOP_POTS = ['attachments.json', 'tenancies.json', 'tenancy_statements.json', 'market_prices.json'];
+    /** … und je Verbrauchsart. */
+    public const V170_UTILITY_POTS = ['periods', 'bills'];
 
     // v2.2.0 — der I18nService ist optional: der Migrator wird im Bootstrap
     // sehr früh und in Tests ohne Container konstruiert. Fehlt er, greifen
@@ -135,6 +144,7 @@ final class Migrator
         ['needsV140Upgrade',           'upgradeToV140'],
         ['needsV150Upgrade',           'upgradeToV150'],
         ['needsV160Upgrade',           'upgradeToV160'],
+        ['needsV170Upgrade',           'upgradeToV170'],
     ];
 
     /** Nur zum Prüfen von außen (Test hält die Liste vollständig). */
@@ -191,6 +201,42 @@ final class Migrator
         return [$frozen
             ? 'v1.6.0: bisherige Standardwerte festgeschrieben: ' . implode(', ', $frozen)
             : 'v1.6.0: alle betroffenen Einstellungen waren schon gesetzt'];
+    }
+
+    /**
+     * v1.6.0 → v1.7.0 (v3.1.0, Paket H) — neue, leere Töpfe: Belege, und je
+     * Verbrauchsart die Grundtöpfe (eine neue Art wie `waerme` bekommt sie so
+     * auch in Bestandsinstallationen). Ändert keinen vorhandenen Datensatz.
+     * Nötig, solange die Daten älter als 1.7.0 sind.
+     */
+    public function needsV170Upgrade(): bool
+    {
+        $v = (string)($this->store->read('meta.json', [])['schema_version'] ?? '');
+        if ($v !== '' && version_compare($v, '1.7.0', '>=')) return false;
+        return $this->missingV170Pots() !== [];
+    }
+
+    /** @return list<string> */
+    private function missingV170Pots(): array
+    {
+        $missing = [];
+        foreach (self::V170_TOP_POTS as $file) {
+            if (!$this->store->exists($file)) $missing[] = $file;
+        }
+        foreach (Utilities::keys() as $key) {
+            $base = ['meters', 'contracts', 'meter_groups', Utilities::isDelivery($key) ? 'deliveries' : 'readings'];
+            foreach ([...$base, ...self::V170_UTILITY_POTS] as $pot) {
+                if (!$this->store->exists("$key/$pot.json")) $missing[] = "$key/$pot.json";
+            }
+        }
+        return $missing;
+    }
+
+    public function upgradeToV170(): array
+    {
+        $made = $this->missingV170Pots();
+        foreach ($made as $file) $this->store->write($file, []);
+        return [$made ? 'v1.7.0: angelegt: ' . implode(', ', $made) : 'v1.7.0: alle Töpfe waren schon da'];
     }
 
     public function needsMigration(): bool
@@ -841,6 +887,8 @@ final class Migrator
         if (!$this->store->exists('reminders.json')) {
             $this->store->write('reminders.json', []);
         }
+        // v3.1.0 — Töpfe der Stufe 1.7.0
+        foreach ($this->missingV170Pots() as $file) $this->store->write($file, []);
         $this->store->write('meta.json', [
             'schema_version' => self::SCHEMA_VERSION,
             'created_at'     => date('c'),

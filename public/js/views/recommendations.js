@@ -50,7 +50,7 @@ export async function render(container) {
       </div>
 
       ${list.length === 0
-        ? `<div class="banner banner--info">${tooLittleData ? esc(t('recommendations.emptyNoData')) : filterSev === 'all' ? t('recommendations.emptyAll') : t('recommendations.emptyFiltered', { sev: sevLabel(filterSev) })}</div>`
+        ? `<div class="banner banner--info">${tooLittleData ? esc(t('recommendations.emptyNoData')) : filterSev === 'all' ? t('recommendations.emptyAll') : t(`recommendations.emptyFiltered.${filterSev}`)}</div>`
         : `<div class="rec-list">${list.map(card).join('')}</div>`}
     `;
 

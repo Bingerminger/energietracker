@@ -29,6 +29,14 @@ The place search draws on [GeoNames](https://www.geonames.org/) (CC BY 4.0).
 Open-Meteo is contacted only by the server, for the weather sync (which can be
 switched off) and when you search for a place.
 
+### SMARD (Federal Network Agency)
+
+Since v3.1.0 the dynamic tariff check uses monthly day-ahead wholesale prices
+for Germany/Luxembourg: source **Bundesnetzagentur | SMARD.de**, licensed under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The app names the
+source next to the prices. SMARD is contacted only when you tap “Load from
+SMARD”; you can import a SMARD download file instead.
+
 ## Development only — not shipped
 
 | Tool | Licence | Purpose |
@@ -75,6 +83,13 @@ Quelle unter dem Temperaturdiagramm und im Jahresbericht. Die Ortssuche greift
 auf [GeoNames](https://www.geonames.org/) (CC BY 4.0) zurück. Open-Meteo wird
 nur vom Server angesprochen: beim abschaltbaren Wetterabgleich und bei der
 Ortssuche.
+
+Seit v3.1.0 nutzt der Dynamik-Check die Day-Ahead-Großhandelspreise für
+Deutschland/Luxemburg als Monatsmittel: Quelle **Bundesnetzagentur |
+SMARD.de**, unter [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Die
+App nennt die Quelle neben den Preisen. SMARD wird nur angesprochen, wenn du auf
+„Von SMARD laden“ tippst; stattdessen kannst du eine SMARD-Downloaddatei
+importieren.
 
 ### Nur in der Entwicklung — nicht ausgeliefert
 

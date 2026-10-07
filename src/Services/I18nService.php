@@ -158,10 +158,78 @@ final class I18nService
                 $value = str_replace('{' . $k . '}', (string)$v, $value);
             }
         }
+        // v3.1.0 (Review I18N-20) — CSV-Format 1 ist eingefroren (Spaltenköpfe
+        // byte-gleich), deshalb ohne Typografie.
+        if (!str_starts_with($key, 'csv')) {   // csv.* (Format 1) und csvLocal.*
+            $value = self::typography((string)($this->lookup($loc, 'format.typography') ?? 'none'), $value);
+        }
         if (str_starts_with($key, 'errors.')) {
             $this->errorKeys[$value] = $key;
         }
         return $value;
+    }
+
+    /**
+     * v3.1.0 (Review I18N-09) — CLDR-Pluralregeln (Kardinalzahlen) je Sprache,
+     * ohne ext-intl. `one`: „i=1" = genau 1 (ganzzahlig), „i=0..1" = ganzzahliger
+     * Anteil 0 oder 1 (Französisch: „0 jour", „1,5 jour"). `many` = runde
+     * Millionen (fr/it/es/pt: „1 million de …"); fehlt die Form im Katalog, gilt
+     * `other` — wie tp() im Browser. Eine neue Sprache braucht hier eine Zeile
+     * (CatalogStyleTest prüft das gegen languages.json).
+     */
+    public const PLURAL_RULES = [
+        'de' => ['one' => 'i=1'],
+        'en' => ['one' => 'i=1'],
+        'nl' => ['one' => 'i=1'],
+        'it' => ['one' => 'i=1', 'many' => 'million'],
+        'es' => ['one' => 'i=1', 'many' => 'million'],
+        'pt' => ['one' => 'i=1', 'many' => 'million'],
+        'fr' => ['one' => 'i=0..1', 'many' => 'million'],
+    ];
+
+    /** Pluralkategorie (one, many, other) einer Zahl in einer Sprache. */
+    public static function pluralCategory(string $locale, int|float $n): string
+    {
+        $rule = self::PLURAL_RULES[$locale] ?? self::PLURAL_RULES[self::DEFAULT_LOCALE];
+        $abs = abs((float)$n);
+        $i = (int)floor($abs);
+        $isInt = $abs === (float)$i;
+        if (($rule['many'] ?? null) === 'million' && $isInt && $i !== 0 && $i % 1000000 === 0) return 'many';
+        if ($rule['one'] === 'i=0..1' ? ($i === 0 || $i === 1) : ($isInt && $i === 1)) return 'one';
+        return 'other';
+    }
+
+    /**
+     * Pluralform nach den Regeln der Sprache: sucht `$key.one`/`.many`/`.other`
+     * und setzt `{count}` (explizite Parameter haben Vorrang). Gegenstück zu
+     * tp() in public/js/lib/i18n.js.
+     *
+     * @param array<string,scalar> $params
+     */
+    public function tp(string $key, int|float $count, array $params = [], ?string $locale = null): string
+    {
+        $loc = $this->normalize($locale) ?? $this->locale();
+        $cat = self::pluralCategory($loc, $count);
+        $has = $this->lookup($loc, "$key.$cat") ?? $this->lookup(self::DEFAULT_LOCALE, "$key.$cat");
+        return $this->t($has !== null ? "$key.$cat" : "$key.other", $params + ['count' => $count], $loc);
+    }
+
+    /**
+     * v3.1.0 (Review I18N-20) — Geschützte Leerzeichen bei der Ausgabe statt im
+     * Katalog (unsichtbare Zeichen tippt niemand zuverlässig ins JSON). Vor „%"
+     * in jeder Sprache ein geschütztes Leerzeichen, falls dort eines steht;
+     * Französisch (`format.typography: "fr"`) schützt dazu „ :", „ ;", „ !",
+     * „ ?" und das Innere von « … ». Dieselben Regeln wie typography() in
+     * public/js/lib/i18n.js.
+     */
+    public static function typography(string $mode, string $s): string
+    {
+        $s = (string)preg_replace('/(\d) %/u', "\$1\u{00A0}%", $s);
+        if ($mode === 'fr') {
+            $s = str_replace([' :', '« ', ' »'], ["\u{00A0}:", "«\u{00A0}", "\u{00A0}»"], $s);
+            $s = (string)preg_replace('/ ([;!?])/u', "\u{202F}\$1", $s);
+        }
+        return $s;
     }
 
     /**
@@ -280,6 +348,48 @@ final class I18nService
     }
 
     /** @return array{0:string,1:string} Dezimal- und Tausendertrenner */
+    /**
+     * v3.1.0 (Review I18N-12) — Kann das PDF diese Sprache setzen? Die
+     * eingebauten PDF-Schriften kennen nur CP1252 (lateinische Schriften);
+     * der Katalog sagt es über `format.pdfCharset` („cp1252" oder „none").
+     */
+    public function pdfSupported(): bool
+    {
+        return $this->t('format.pdfCharset') !== 'none';
+    }
+
+    /** v3.1.0 (Review I18N-10) — Dezimaltrenner von Sprache und Land („," oder „."). */
+    public function decimalSeparator(): string
+    {
+        return $this->separators()[0];
+    }
+
+    /**
+     * v3.1.0 — Standardsprache der Installation (Einstellung `language`),
+     * unabhängig von der Sprache dieses Geräts. Sie bestimmt Jahresbericht,
+     * CSV „local" und Home Assistant.
+     */
+    public function installationLocale(): string
+    {
+        return $this->normalize((string)$this->settings->get('language', self::DEFAULT_LOCALE)) ?? self::DEFAULT_LOCALE;
+    }
+
+    /**
+     * Wert eines Schlüssels in allen unterstützten Sprachen (ohne Platzhalter-
+     * Ersetzung) — für Importe, die Kopfzeilen jeder Sprache verstehen.
+     *
+     * @return array<string,string> Sprache → Wert
+     */
+    public function valuesInAllLanguages(string $key): array
+    {
+        $out = [];
+        foreach ($this->supported() as $loc) {
+            $v = $this->lookup($loc, $key);
+            if ($v !== null) $out[$loc] = $v;
+        }
+        return $out;
+    }
+
     private function separators(): array
     {
         $o = $this->formatOverride();
@@ -319,7 +429,8 @@ final class I18nService
         return $this->catalogs[$locale] = is_array($data) ? $data : [];
     }
 
-    private function normalize(?string $locale): ?string
+    /** Unterstützte Sprache zu einem Kürzel (`en-GB` → `en`), sonst null. v3.1.0: öffentlich für `X-ET-Language`. */
+    public function normalize(?string $locale): ?string
     {
         if ($locale === null || $locale === '') {
             return null;

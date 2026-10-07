@@ -2,11 +2,13 @@
 
 **Deutsch** · [English](../en/verstehen/11-zaehlerstaende.md)
 
-> Gilt für **Gas, Strom, Wasser, Fernwärme** — die Energieträger mit
-> kumulativem Zählerstand-Modell. **Heizöl** und **Pellets** sind
-> ausgenommen: sie erfassen den Verbrauch über Lieferungen, nicht über
-> Ablesungen — ein eigenes Datenmodell mit eigener UI (siehe
-> [Heizöl](05-heizoel.md), [Pellets](06-pellets.md)).
+> Gilt für **Gas, Strom, Wasser, Fernwärme, PV** und seit v3.1.0
+> **Heizwärme** — die Verbrauchsarten mit kumulativem Zählerstand-Modell.
+> **Heizöl** und **Pellets** sind ausgenommen: sie erfassen den Verbrauch über
+> Lieferungen, nicht über Ablesungen — ein eigenes Datenmodell mit eigener UI
+> (siehe [Heizöl](05-heizoel.md), [Pellets](06-pellets.md)). Zähler mit
+> **Verbrauch je Zeitraum** (v3.1.0) stehen ebenfalls hier, mit einer eigenen
+> Karte ([unten](#zähler-mit-verbrauch-je-zeitraum-v310)).
 
 ## Wozu
 
@@ -37,6 +39,36 @@ Pro Zähler enthält die Karte:
 - **Geschätzt** — Toggle, der die Ablesung als Schätzung markiert
   (mappt auf das bestehende `is_estimated`-Flag des Reading-Schemas)
 - **Notiz** — auf Klick aufklappbar, optional, max. 200 Zeichen
+- **Foto** (v3.1.0) — „📷 Foto“ nimmt ein Bild des Zählwerks als Beleg mit
+  (am Handy öffnet sich die Kamera). Der Browser verkleinert es auf höchstens
+  1600 Pixel und kodiert es neu als JPEG; EXIF-Daten samt GPS-Ort fallen dabei
+  weg. Ist ein Texterkennungsdienst im Heimnetz eingetragen, schlägt der Server
+  den Stand vor: „Erkannt: … – Übernehmen“
+  ([Texterkennung im Heimnetz](../anleitungen/texterkennung.md)).
+
+## Zähler mit Verbrauch je Zeitraum *(v3.1.0)*
+
+Hat ein Zähler die Erfassung „Verbrauch je Zeitraum“ (Zählerdialog →
+„Erfassung“), trägst du keinen Stand ein, sondern den Verbrauch eines Monats —
+etwa aus der monatlichen Verbrauchsinfo des Messdienstes. Seine Karte zeigt
+unter dem Namen „Verbrauch je Zeitraum“ und enthält:
+
+- **Letzter Zeitraum** — von, bis und Verbrauch des jüngsten Eintrags,
+- **Monat** — vorbelegt mit dem Monat nach dem letzten Zeitraum, ohne
+  Zeitraum mit dem Vormonat,
+- **Verbrauch** in der Verbrauchseinheit der Art (kWh, bei Wasser m³),
+- aufklappbar **„Vergleichswerte laut Verbrauchsinfo“** — Vormonat,
+  Vorjahresmonat, Durchschnittsnutzer; sie werden gespeichert und angezeigt,
+  aber nicht gerechnet,
+- **Geschätzt** und **Notiz** wie bei einem Stand.
+
+Datum oben, Foto, Texterkennung und die Plausibilitätsrückfragen gelten für
+diese Karte nicht. Gespeichert wird mit den anderen Karten über „Alle
+speichern“ (`POST /api/utility/{u}/periods` mit `month`); „Rückgängig“ und die
+Offline-Warteschlange gelten auch hier. Ein Monat, der sich mit einem
+vorhandenen Zeitraum überschneidet, wird abgewiesen — die Meldung steht unter
+dem Feld. Wie die App einen Zeitraum auf die Monate verteilt:
+[Heizwärme → Verbrauch je Zeitraum](15-waerme.md#2-verbrauch-je-zeitraum).
 
 ## Speichern
 
@@ -56,6 +88,14 @@ Eine fehlerhafte Karte blockiert die anderen **nicht** — robust gegen
 Teilfehler. Nach erfolgreichem Speichern wird der „letzter Stand" in
 der Karte aktualisiert, damit ein zweiter Klick gegen die neue
 Baseline validiert.
+
+**Ohne Verbindung (v3.1.0):** Scheitert eine Karte an fehlender Verbindung
+oder am Zeitlimit, landet der Stand samt Foto in der Offline-Warteschlange
+statt verloren zu gehen. Die Karte zeigt ⏳ „Wartet auf Verbindung“, oben steht
+die Liste „Noch nicht gespeichert“, und die App sendet von selbst nach, sobald
+der Server wieder erreichbar ist. Konflikte am selben Tag entscheidest du
+(„Ersetzen“ oder „Vorhandenen behalten“). Einzelheiten und Grenzen:
+[Auf dem Handy nutzen](../einstieg/handy.md#die-warteschlange-noch-nicht-gespeichert).
 
 ## Validierung
 
@@ -125,6 +165,28 @@ Jahresauswahl, die Tabelle markiert die Stände („PRÜFEN", „UNPLAUSIBEL");
 ein Verdacht lässt sich mit ✅ bestätigen. Technisch:
 [API-Referenz → `warnings`](../referenz/api.md).
 
+## Viele Werte auf einmal: Zeitreihen aus Portalen *(v3.1.0)*
+
+Die Erfassung ist für einzelne Stände gebaut. Liefert ein Portal viele Werte
+auf einmal — Viertelstunden vom Netzbetreiber, Tageswerte vom Wechselrichter,
+die Wärmemenge der Wärmepumpe —, liest sie der Knopf **„Zeitreihe
+importieren“** unter Verbrauch → *Verbrauchsart* → ⚙️ Zähler ein:
+
+- Eine **Spaltenzuordnung** sagt, wo Datum, Uhrzeit und Wert stehen, ob die
+  Werte Zählerstände oder Verbrauch je Intervall sind, in welcher Einheit
+  (kWh, Wh, MWh) und ob der Zeitstempel Beginn oder Ende des Intervalls meint.
+- Die App verdichtet zu **Tageswerten**: bei Zählerständen der letzte Stand
+  des Tages als Ablesung, bei Verbrauchswerten die Summe des Tages — als
+  Zeitraum (Zähler mit Verbrauch je Zeitraum) oder als Stand, aufsummiert ab
+  einem Anfangsstand.
+- Zeitumstellung und Endstempel um 0:00 zählen richtig; eine Vorschau zeigt
+  Tage, Zeitraum und Summe, bevor etwas geschrieben wird. Die Zuordnung merkt
+  sich der Browser je Zähler.
+
+Danach laufen die Plausibilitätsprüfungen nach dem Speichern wie bei jedem
+Stand (Ausreißer, Rückgang). Schritt für Schritt:
+[Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md).
+
 ## Mobile First
 
 Die Ansicht ist von Grund auf für iPhone-Hochformat gebaut:
@@ -147,27 +209,47 @@ Zählerfeld.)
 - **Backend:** ein einziger Aggregat-Endpunkt `GET /api/readings-overview`,
   der alle aktiven kumulativen Zähler plus jeweils letzte reale
   Ablesung in einem Roundtrip liefert. Beim Öffnen der Ansicht: ein
-  HTTP-Call, danach reines clientseitiges Rendering.
+  HTTP-Call, danach reines clientseitiges Rendering. Seit v3.1.0 trägt jede
+  Zeile additiv `capture`, `last_period` und `role`; an `capture` entscheidet
+  die Ansicht, welche Karte sie zeigt.
 - **Speichern:** wiederverwendet die bestehende Route
-  `POST /api/utility/{u}/readings` — kein neues Schema, kein
-  Batch-Endpunkt, keine Migration. Eine fehlerhafte Zeile betrifft
-  ausschließlich diese eine Zeile.
+  `POST /api/utility/{u}/readings` — kein Batch-Endpunkt. Eine fehlerhafte
+  Zeile betrifft ausschließlich diese eine Zeile.
+- **Kein Doppel beim Nachsenden (v3.1.0):** Jede Erfassung schickt eine
+  `client_ref` mit. Kommt dieselbe Kennung für denselben Zähler ein zweites Mal
+  an — die Antwort ging unterwegs verloren, die Warteschlange sendet nach —,
+  liefert der Server den vorhandenen Stand mit `200` und `duplicate: true`,
+  statt einen zweiten anzulegen.
+- **Warteschlange (v3.1.0):** `public/js/lib/outbox.js`, gespeichert in
+  IndexedDB (`et-outbox`) des Browsers.
+- **Foto (v3.1.0):** `POST /api/attachments?kind=reading_photo` legt den Beleg
+  an, das Feld `attachment_id` am Stand verknüpft ihn; die Texterkennung läuft
+  über `POST /api/ocr/reading`
+  ([API-Referenz → Belege](../referenz/api.md#belege-und-texterkennung-v310)).
 - **Status:** das bestehende `is_estimated`-Flag im Reading-Schema
-  trägt die Statusinformation. Kein neues Feld, keine Datenmodell-
-  Änderung.
+  trägt die Statusinformation. `client_ref` und `attachment_id` sind
+  additive Felder; vorhandene Stände bleiben, wie sie sind.
 - **Scope-Gating:** Single-Source-of-Truth ist
   `Utilities::isCumulative()` im Backend, gespiegelt im Frontend.
 
 ## Was bewusst nicht dabei ist
 
-- **Foto der Ablesung speichern** — nicht geplant: Es bräuchte Binärspeicher,
-  Vorschaubilder und Aufräumen. Zum Übernehmen der Ziffern genügt am iPhone
-  Live Text („Text scannen“ im Feld).
-- **Eingaben ohne Verbindung puffern** — nicht geplant; abgelesen wird fast
-  immer im eigenen WLAN. Scheitert das Speichern, bleibt die Eingabe auf der
-  Karte stehen, bis die Seite neu geladen wird
-  ([Auf dem Handy nutzen](../einstieg/handy.md)).
-- **Eigene Ziffernerkennung (OCR)** — nicht geplant; siehe Live Text.
+Foto als Beleg, Offline-Warteschlange und Texterkennung gibt es seit v3.1.0
+(oben). Bewusst nicht:
+
+- **Texterkennung über einen Cloud-Dienst** — Zählerfotos verlassen das
+  Heimnetz nicht. Als Texterkennungsdienst nimmt die App nur Adressen im
+  eigenen Netz an; einen Schalter, der das aufhebt, gibt es nicht
+  ([Texterkennung im Heimnetz](../anleitungen/texterkennung.md)). Ohne eigenen
+  Dienst genügt am iPhone Live Text („Text scannen“ im Feld).
+- **Speichern ohne Bestätigung** — die Texterkennung schlägt nur vor. Erst
+  „Übernehmen“ setzt den Wert ins Feld, gespeichert wird wie jeder andere Stand,
+  mit Plausibilitätsprüfung.
+- **Eigene Zählerauslese** (optischer Lesekopf, Smart-Meter-Schnittstelle) —
+  das übernimmt Home Assistant und sendet die Stände
+  ([Home Assistant anbinden](../anleitungen/home-assistant.md)). Dateien aus
+  Portalen liest seit v3.1.0 der Zeitreihen-Import (oben); eine Verbindung zu
+  den Portalen selbst baut die App nicht auf.
 - **Sammel-Speichern als ein einziger atomarer Endpunkt** — das
   aktuelle sequenzielle Schreiben hat den Vorteil, dass Teilfehler
   präzise lokalisiert werden. Ein Batch-Endpunkt würde diesen

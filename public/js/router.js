@@ -25,7 +25,7 @@ import { escapeHtml } from './lib/format.js';
 import { closeAllModals } from './components/modal.js';
 import { renderError } from './components/error.js';
 import { setNavigationSignal } from './api.js';
-import { activeUtilities } from './state.js';
+import { activeUtilities, getSettingsSync } from './state.js';
 import { sectionPages } from './lib/nav-model.js';
 
 // Pfad (ohne „#" und Query) → Ansicht. Alte Adressen bleiben gültig.
@@ -39,9 +39,11 @@ const ROUTES = [
   [/^\/contracts$/,                  'contracts-overview'],
   [/^\/tariffs$/,                    'tariffs'],
   [/^\/bill-check$/,                 'bill-check'],
+  [/^\/tenancy$/,                    'tenancy'],        // v3.1.0 (H3, F1008)
   [/^\/analysis$/,                   'analysis'],
   [/^\/forecast$/,                   'forecast'],
   [/^\/report$/,                     'report'],
+  [/^\/report\/print$/,              'report-print'],   // v3.1.0 (I18N-12)
   [/^\/reminders$/,                  'reminders'],
   [/^\/recommendations$/,            'recommendations'],
   [/^\/settings$/,                   'settings'],
@@ -61,9 +63,11 @@ const VIEWS = {
   'contracts-overview': { section: 'costs',       load: () => import('./views/contracts-overview.js') },
   'tariffs':            { section: 'costs',       load: () => import('./views/tariff.js') },
   'bill-check':         { section: 'costs',       load: () => import('./views/bill-check.js') },
+  'tenancy':            { section: 'costs',       load: () => import('./views/tenancy.js') },
   'analysis':           { section: 'analysis',    load: () => import('./views/analysis.js') },
   'forecast':           { section: 'analysis',    load: () => import('./views/forecast.js') },
   'report':             { section: 'analysis',    load: () => import('./views/report.js') },
+  'report-print':       { section: 'analysis', tab: 'report', load: () => import('./views/report-print.js') },
   'reminders':          { section: 'hints',       load: () => import('./views/reminders.js') },
   'recommendations':    { section: 'hints',       load: () => import('./views/recommendations.js') },
   'settings':           { section: 'settings',    load: () => import('./views/settings.js') },
@@ -101,7 +105,7 @@ function runCleanup(fn) {
 
 /** Tabs eines Bereichs; der Tab der aktiven Seite trägt aria-current. */
 function sectionTabsHtml(section, activeKey, utilities) {
-  const pages = sectionPages(section, { utilities });
+  const pages = sectionPages(section, { utilities, tenant: getSettingsSync().wohnverhaeltnis === 'miete' });
   if (pages.length < 2) return '';
   const cls = section === 'consumption' ? 'section-tabs section-tabs--mobile' : 'section-tabs';
   return `<nav class="${cls}" aria-label="${escapeHtml(t('nav.sectionNav'))}">

@@ -82,8 +82,8 @@ final class Co2FactorsTest extends ServiceTestCase
 
     public function testALaterSchemaStepNeverFreezesOldValuesOntoANewInstallation(): void
     {
-        // unter 1.6.0 angelegt: settings.json ohne co2_strom_years
-        self::assertSame('1.6.0', $this->store->read('meta.json', [])['schema_version']);
+        // unter 1.6.0 oder später angelegt (seit v3.1.0: 1.7.0): settings.json ohne co2_strom_years
+        self::assertSame('1.7.0', $this->store->read('meta.json', [])['schema_version']);
         self::assertFalse((new Migrator($this->store))->needsV160Upgrade());
     }
 

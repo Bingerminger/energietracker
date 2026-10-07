@@ -21,7 +21,7 @@ checks that this page names every key.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `language` | `de` | Language | Interface language: de, en, fr, it, es, pt, nl. Card "Language & country". |
+| `language` | `de` | Default language of the installation | de, en, fr, it, es, pt, nl. Applies to devices without a choice of their own, to the annual report and CSV files, and to messages for Home Assistant and scripts. Since v3.1.0 every device also picks its own language ("Language on this device", stored in the browser); the app sends it as `X-ET-Language`, and labels and messages of the API follow it. |
 | `country` | `DE` | Country | Country (ISO code). Changing it offers to apply the country profile — see [Country profiles](../verstehen/14-laenderprofile.md). |
 | `currency` | `EUR` | Currency | Currency (ISO code) for display; nothing is converted. |
 | `timezone` | `Europe/Berlin` | Time zone | Time zone for "today", billing dates and reminders. |
@@ -50,10 +50,39 @@ checks that this page names every key.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `wohnflaeche_m2` | 100 | Living area | Heated area — denominator of the efficiency metric. |
+| `wohnflaeche_m2` | 100 | Living area | Heated area — denominator of the efficiency metric. Since v3.1.0 also the area for the CO₂ stage ([CO₂ price](../verstehen/16-co2-preis.md)); when you rent, the floor area from the tenancy takes precedence. |
 | `gebaeudetyp` | `efh` | Building type | Multi-family means three or more flats. Values: `efh` detached/semi-detached, `rh` terraced house, `mfh` apartment building, `whg` flat. Determines the reference area of the certificate-style figure. |
 | `beheizter_keller` | off | Heated basement | Single-/two-family or terraced house with heated basement: usable floor area = 1.35 × living area (otherwise 1.2) — for the certificate-style figure. |
 | `warmwasser_dezentral` | off | Decentralised hot water | Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a 20 kWh/m²·yr surcharge. |
+
+### Home and hot water *(v3.1.0)*
+
+If you rent, the Costs area gets the “Tenancy” page; the energy source sets the
+CO₂ value of the heat. Step by step for tenants:
+[As a tenant](../anleitungen/mieter.md); the calculation:
+[Heat](../verstehen/15-waerme.md).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `wohnverhaeltnis` | `eigentum` | I live | “in my own home” (`eigentum`) or “in a rented home” (`miete`). Rented: the “Tenancy” page appears under Costs & contracts (prepayment, estimate, service charge statements), and agenda and calendar know the two deadlines of the service charge statement. In Germany the app also splits the CO₂ costs between tenant and landlord ([Share CO₂ costs](../anleitungen/co2-aufteilung.md)). In your own home nothing changes. |
+| `waerme_energietraeger` | empty | Heat comes from | For the CO₂ value of the Heat utility – an approximation, since the heat is counted, not the fuel. Values: `gas`, `heizoel`, `pellets`, `fernwaerme`, `strom` (heat pump, instantaneous water heater) or empty (“not specified”) — then the CO₂ value is 0. The CO₂ factor of that energy source is used (electricity per year). |
+| `warmwasser_energietraeger` | empty | Hot water is heated by | What heats the hot water: the same values plus `waerme` (“Heat (central)”). For information only; the calculation does not change. |
+| `warmwasser_temp_c` | 60 | Hot water temperature | For the heat of the hot-water meters under HeizkostenV § 9 (2): 2.5 kWh per m³ and degree above 10 °C (30–90 °C). Unknown: 60 °C — then 1 m³ of hot water is 125 kWh. Only affects water meters with the role “Hot water”. |
+
+### Own reference values *(v3.1.0)*
+
+For the card “Benchmark {year}” on the overview. The app ships no tables from
+the German electricity or heating benchmarks (Strom-/Heizspiegel) — using them
+requires permission —; you enter the values that, for example, the electricity
+benchmark gives for your household. Empty = no benchmark
+([API](api.md#benchmark-get-apibenchmarkscomparison-v310)).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `reference_strom_kwh` | empty (`null`) | Reference household electricity | kWh per year (0–100000), without heat pump and wall box. The app sets the household electricity of a full year next to it — all electricity meters without the roles heat pump and wall box — and states the deviation in %. |
+| `reference_heat_kwh_m2` | empty (`null`) | Reference heating | kWh per m² living area and year (0–1000). Compared per heating type, weather-adjusted where the heating model exists. Heating benchmarks use the whole building; for a flat it is only a guide. |
+| `reference_source` | empty | Source | Text of up to 120 characters, e.g. title and year; shown below the benchmark. |
+| `warmwasser_elektrisch` | off | Hot water by electricity | Instantaneous electric heater or electric boiler. Electricity benchmarks distinguish by it; the app returns the setting with the benchmark but does not calculate with it. |
 
 ### Water reference values
 
@@ -70,7 +99,7 @@ checks that this page names every key.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `active_utilities` | `gas, strom, wasser` | Active utilities | Which utilities the menu and evaluations show. Deselected ones keep their data. |
+| `active_utilities` | `gas, strom, wasser` | Active utilities | Which utilities the menu and evaluations show. Deselected ones keep their data. Since v3.1.0 there are nine; the new Heat utility (`waerme`) is not active by default — choose it here if you need it. |
 
 ### Billing cycle
 
@@ -109,6 +138,13 @@ checks that this page names every key.
 | `co2_fernwaerme` | 280 | CO₂ district heating | BAFA flat rate. Your heat network’s own value is more accurate — ask your supplier. Former default 180. |
 | `co2_heizoel` | 266 | CO₂ heating oil | BAFA, based on the net calorific value — as the app calculates heating oil. |
 | `co2_pellets` | 36 | CO₂ pellets | BAFA, CO₂ equivalents including the upstream chain. Former default 26. |
+| `co2_pv_avoided` | empty (`null`) | CO₂ avoided by PV | *(v3.1.0)* Your own avoidance factor in g/kWh (0–2000) for PV generation and feed-in. Empty = electricity mix as for “CO₂ electricity” (previous behaviour). The app suggests no value; the German Environment Agency’s emissions balance of renewable energy gives a guide. |
+
+### Photovoltaics *(v3.1.0)*
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `pv_assumed_self_consumption_pct` | empty (`null`) | Assumed self-consumption | Share of generation in % (0–100) that the household uses itself — for a plug-in solar device without a feed-in meter. Only takes effect when a generation meter is marked as plug-in solar and there is no feed-in meter: self-consumption is then generation × share. Empty = no assumption, no ratio ([PV](../verstehen/12-pv.md#8-plug-in-solar-v310)). |
 
 ## Settings → Weather data
 
@@ -131,6 +167,30 @@ checks that this page names every key.
 
 ## Settings → Expert
 
+Since v3.1.0 the groups “Receipts” and “Text recognition in the home network”
+come first; the calculation parameters (regression & forecast,
+recommendations & distribution, since v3.1.0 CO₂ price) sit below, collapsed
+behind “Show calculation parameters”.
+
+### Receipts *(v3.1.0)*
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `attachments_max_mb` | 500 | Storage for receipts, at most | Upper limit for all receipts together (photos, PDFs) in MB, 10–100000. Once it is reached, the app refuses new receipts. From 80 % the backup card under Settings → Data shows a warning. A single photo may have at most 3 MB, a PDF 10 MB. |
+
+### Text recognition in the home network *(v3.1.0)*
+
+Suggests the meter reading from a photo using your own service such as Ollama
+or LM Studio — only in your own network. Setup:
+[Text recognition in the home network](../anleitungen/texterkennung.md).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `ocr_endpoint` | empty | Service address | Base address with `http://` or `https://`, for example `http://192.168.178.20:11434` (Ollama) or `http://192.168.178.20:1234/v1` (LM Studio); the app appends the path. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise text recognition refuses. |
+| `ocr_api` | `ollama` | Interface | `ollama` (`/api/chat`) or `openai` — OpenAI-compatible (`/v1/chat/completions`), such as LM Studio or LocalAI. |
+| `ocr_model` | empty | Model | Name of a vision model as the service knows it, for example `qwen2.5vl`, `llama3.2-vision` or `minicpm-v` (at most 200 characters). |
+| `ocr_timeout_s` | 30 | Time limit | Seconds the server waits for the answer (5–300). On a NAS without a graphics card, vision models often need 20 to 60 seconds. Since v3.1.0 nginx in the Docker image waits up to 310 seconds, so the whole time limit applies; behind your own web server or reverse proxy, its limit counts. |
+
 ### Regression & forecast
 
 | Key | Default | In the app | Effect |
@@ -151,6 +211,18 @@ checks that this page names every key.
 | `recommendation_anomaly_sigma` | 2 | Recommendation anomaly threshold | The same kind of threshold for recommendations: only from this deviation on does a tip appear. |
 | `recommendation_trend_pct_year` | 3 | Recommendation trend threshold | From what increase per year the recommendations report rising consumption. |
 | `delivery_baseload_share` | 0.15 | Base-load share distribution | Share of consumption as weather-independent base load (rest HDD-weighted). |
+
+### CO₂ price *(v3.1.0)*
+
+The CO₂ price in fuel (BEHG) — background and calculation under
+[CO₂ price in fuel](../verstehen/16-co2-preis.md). Effective only in countries
+with a CO₂ price, today Germany.
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `co2_price_eur_t_years` | empty (`{}`) = country profile | CO₂ price per year | Your own yearly values in € per tonne as a table year → €/t (years 1990–2100, values 0–1000); they take precedence over the country profile (Germany: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). For a year without a value the last known one applies as an assumption. Via the API an object `{"2027": 65}` or a list `[{year, eur_t}]`. |
+| `co2_price_scenario_eur_t` | empty (`null`) = off | Scenario: CO₂ price | Default for the forecast field “CO₂ price from 2028 (€/t)” (0–1000 €/t): the forecast then shows what this price would cost extra. Empty = off. |
+| `co2_price_scenario_from` | 2028 | Scenario from year | First year the scenario applies to (2021–2100). In 2028 the European emissions trading (ETS2) is to replace the fixed prices. |
 
 ## Only via the API
 

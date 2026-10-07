@@ -40,6 +40,7 @@ final class UtilitiesController
             $u['has_contracts']                 = Utilities::hasContracts($key);
             $u['has_advance_payment_contracts'] = Utilities::hasAdvancePaymentContracts($key);
             $u['accounting_kind']               = Utilities::accountingKind($key);
+            $u['supports_bill_check']           = Utilities::supportsBillCheck($key);   // v3.1.0 (H5)
         }
         unset($u);
         Response::json($all);

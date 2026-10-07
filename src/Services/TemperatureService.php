@@ -46,7 +46,22 @@ final class TemperatureService
         private SettingsService $settings,
         private WeatherSource $weather,
         private ?ClimateNormalService $climate = null,
+        private ?I18nService $i18n = null,
     ) {}
+
+    /**
+     * v3.1.0 (Review I18N-14) — Fehler des Wetterabgleichs in der Sprache der
+     * Anfrage. Ohne Code (Testdoubles) oder ohne Übersetzung bleibt der Rohtext.
+     */
+    private function weatherError(array $res): ?string
+    {
+        if (($res['error'] ?? null) === null) return null;
+        $code = $res['error_code'] ?? null;
+        if ($code === null || $this->i18n === null) return (string)$res['error'];
+        return $this->i18n->t("errors.weather.$code", [
+            'detail' => (string)($res['detail'] ?? ''), 'status' => (string)($res['http_code'] ?? ''),
+        ]);
+    }
 
     /** @return array<string,array{avg:float,min:float,max:float}> */
     public function all(): array
@@ -120,12 +135,16 @@ final class TemperatureService
         $lines = preg_split('/\r\n|\r|\n/', $csv) ?: [];
         $imported = 0; $skipped = 0; $errors = [];
         $entries = [];
+        $first = true;
         foreach ($lines as $lineNo => $line) {
             $line = trim($line);
             if ($line === '') continue;
-            // Skip header
-            if ($lineNo === 0 && (stripos($line, 'datum') !== false || stripos($line, 'temperatur') !== false)) {
-                continue;
+            // Kopfzeile — v3.1.0 (Review I18N-11) in jeder Sprache: die erste Zeile,
+            // die nicht mit einem Datum beginnt („Date;Moyenne;Min;Max", „Fecha;…").
+            if ($first) {
+                $first = false;
+                $cell = (string)(preg_split('/[;,\t"]/', $line)[0] ?? '');
+                if (preg_match('/\p{L}/u', $line) && Dates::parseUserDate($cell) === null) continue;
             }
             // Split on double-quote (allow ; , or tab as fallback).
             // v2.12.0 (Review UI-30) — das übliche Format ist jetzt
@@ -140,15 +159,10 @@ final class TemperatureService
                 $parts = explode($sep, $line);
             }
             if (count($parts) < 4) { $skipped++; continue; }
-            $date = trim((string)$parts[0]);
-            // Convert DD.MM.YYYY → YYYY-MM-DD
-            if (preg_match('/^(\d{2})\.(\d{2})\.(\d{4})$/', $date, $m)) {
-                $iso = "$m[3]-$m[2]-$m[1]";
-            } elseif (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $date)) {
-                $iso = $date;
-            } else { $skipped++; continue; }
-            // v2.5.3 — kalendergültig, sonst bricht der Schlüssel die HGT-Rechnung
-            if (!Dates::isIsoDate($iso)) { $skipped++; continue; }
+            // TT.MM.JJJJ, TT/MM/JJJJ, TT-MM-JJJJ (v3.1.0) oder ISO — kalendergültig
+            // (v2.5.3), sonst bricht der Schlüssel die HGT-Rechnung
+            $iso = Dates::parseUserDate((string)$parts[0]);
+            if ($iso === null) { $skipped++; continue; }
             $avg = $this->parseNum((string)$parts[1]);
             $min = $this->parseNum((string)$parts[2]);
             $max = $this->parseNum((string)$parts[3]);
@@ -202,10 +216,11 @@ final class TemperatureService
             }
         }
 
-        $archiveRows = 0; $archiveError = null;
+        $archiveRows = 0; $archiveError = null; $archiveCode = null;
         if ($archiveFrom !== null) {
             $res = $this->weather->fetchArchive($lat, $lon, $archiveFrom, $end);
-            $archiveError = $res['error'] ?? null;
+            $archiveError = $this->weatherError($res);
+            $archiveCode = $res['error_code'] ?? null;
             $archiveRows = $this->bulkUpsert($res['data'] ?? [], 'archive',
                 fn(string $d, ?array $e): bool => $reload
                     ? !in_array($e['source'] ?? null, ['csv', 'manual'], true)
@@ -232,7 +247,9 @@ final class TemperatureService
             'measured_until'  => $measuredUntil,
             'forecast_until'  => $forecastUntil,
             'archive_error'   => $archiveError,
-            'forecast_error'  => $forecast['error'] ?? null,
+            'archive_error_code'  => $archiveCode,
+            'forecast_error'  => $this->weatherError($forecast),
+            'forecast_error_code' => $forecast['error_code'] ?? null,
             'climate_normal'  => $climate,
         ];
         $this->store->write(self::META_FILE, $meta);
@@ -243,7 +260,9 @@ final class TemperatureService
             'forecast_rows'   => $forecastRows,
             'archive_range'   => $archiveFrom !== null ? "$archiveFrom..$end" : null,
             'archive_error'   => $archiveError,
-            'forecast_error'  => $forecast['error'] ?? null,
+            'archive_error_code'  => $archiveCode,
+            'forecast_error'  => $this->weatherError($forecast),
+            'forecast_error_code' => $forecast['error_code'] ?? null,
             'measured_until'  => $measuredUntil,
             'forecast_until'  => $forecastUntil,
             'climate_normal'  => $climate,
@@ -301,7 +320,7 @@ final class TemperatureService
         $period = ClimateNormalService::period();
         $res = $this->weather->fetchArchiveMeans($lat, $lon, $period['from'], $period['to']);
         if (($res['data'] ?? []) === []) {
-            return ['status' => 'failed', 'error' => $res['error'] ?? null] + ($this->climate->summary() ?? []);
+            return ['status' => 'failed', 'error' => $this->weatherError($res), 'error_code' => $res['error_code'] ?? null] + ($this->climate->summary() ?? []);
         }
         $this->climate->save(ClimateNormalService::compute($res['data'], $lat, $lon, $period));
         return ['status' => 'fetched'] + ($this->climate->summary() ?? []);

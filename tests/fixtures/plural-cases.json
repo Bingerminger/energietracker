@@ -1,0 +1,75 @@
+{
+  "_comment": "Pluralkategorie je Sprache und Zahl (CLDR). tests/plural.test.mjs prüft Intl.PluralRules dagegen, PluralRulesTest.php I18nService::pluralCategory() — Backend und Browser wählen dieselbe Form.",
+  "cases": {
+    "de": {
+      "0": "other",
+      "1": "one",
+      "2": "other",
+      "5": "other",
+      "21": "other",
+      "100": "other",
+      "1000000": "other",
+      "1.5": "other"
+    },
+    "en": {
+      "0": "other",
+      "1": "one",
+      "2": "other",
+      "5": "other",
+      "21": "other",
+      "100": "other",
+      "1000000": "other",
+      "1.5": "other"
+    },
+    "fr": {
+      "0": "one",
+      "1": "one",
+      "2": "other",
+      "5": "other",
+      "21": "other",
+      "100": "other",
+      "1000000": "many",
+      "1.5": "one"
+    },
+    "it": {
+      "0": "other",
+      "1": "one",
+      "2": "other",
+      "5": "other",
+      "21": "other",
+      "100": "other",
+      "1000000": "many",
+      "1.5": "other"
+    },
+    "es": {
+      "0": "other",
+      "1": "one",
+      "2": "other",
+      "5": "other",
+      "21": "other",
+      "100": "other",
+      "1000000": "many",
+      "1.5": "other"
+    },
+    "pt": {
+      "0": "other",
+      "1": "one",
+      "2": "other",
+      "5": "other",
+      "21": "other",
+      "100": "other",
+      "1000000": "many",
+      "1.5": "other"
+    },
+    "nl": {
+      "0": "other",
+      "1": "one",
+      "2": "other",
+      "5": "other",
+      "21": "other",
+      "100": "other",
+      "1000000": "other",
+      "1.5": "other"
+    }
+  }
+}

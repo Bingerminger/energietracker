@@ -115,10 +115,19 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   Sprachwahl, Rechnungsprüfung mit Vorbelegung, Quellcode-Link auf den Tag,
   Schreiben abgelehnt, CSV und PDF als Dateien. Lokal:
   `node tests/demo.test.mjs` (braucht PHP und jsdom).
+- **`tests/plural.test.mjs`** (v3.1.0) — `pluralCategory()` aus
+  `lib/i18n.js` (Intl.PluralRules, Portugiesisch als pt-PT) gegen
+  `tests/fixtures/plural-cases.json`, dieselbe Datei, die `PluralRulesTest` im
+  Backend prüft; dazu keine selbstgebauten Plurale (`=== 1 ? t(…)`) in den
+  Ansichten.
+- **`tests/hardcoded-text.test.mjs`** (v3.1.0) — keine Texte im Code der
+  Ansichten und Komponenten: Textknoten in HTML-Vorlagen und Literale mit
+  Umlaut oder ß fallen auf. Erlaubt sind Einheiten, Formelzeichen und Namen
+  (Liste im Test).
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
-(`tests/unit/…`, Basisklasse `ServiceTestCase`): real gegen echte
-JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
+(`tests/unit/…`, Basisklasse `ServiceTestCase`, für Tests über HTTP seit
+v3.1.0 `HttpServerTestCase`): real gegen echte JSON-Dateien, ohne Mocks. Die aktuelle Zahl der Testmethoden steht im
 README-Abzeichen — `ReleaseConsistencyTest` zählt sie nach (v3.0.0: 472).
 `LocaleCatalogTest` prüft seit v2.13.0 auch Schlüssel, die der Code
 zusammensetzt (`glossary.<id>.term`, `settings.field.<key>.label`) — die
@@ -178,14 +187,98 @@ Reihe. Der Render-Test prüft dazu Vorjahr und Umschalter im Monatschart (die
 bereinigten Werte müssen `heat_adjusted` sein), den PV-Energiefluss, die
 kleinen Vielfachen der Übersicht und das Temperaturband.
 
+**Sprachen (v3.1.0).** Eigene Tests prüfen, was Übersetzer und Entwickler
+falsch machen können; die Regeln dahinter stehen unter
+[Übersetzen](uebersetzen.md):
+
+- `CatalogStyleTest` — Inhalt der Kataloge: Termbase
+  (`tests/fixtures/termbase.json`, Glossar = kanonische Form), Anrede je
+  Sprache, deutscher Kanon, Typografie je Sprache, Bezeichnungen nicht mitten
+  im Satz, Zähl-Platzhalter nur in Pluralgruppen, Vollständigkeit einer
+  Sprache (`format.*`, Pluralregel, Land), ASCII-Dateinamen der CSV-Exporte,
+  Kürzel der Rechnungsprüfung. `LocaleCatalogTest` prüft daneben wie bisher die
+  Struktur (gleiche Schlüssel und Platzhalter).
+- `CatalogUsageTest` — jeder Katalogschlüssel wird benutzt, wörtlich oder
+  über ein Präfix, das der Code zusammensetzt; ein Gegentest zeigt, dass die
+  Erkennung einen toten Schlüssel findet.
+- `HardcodedTextTest` — keine Meldungstexte im Backend an den Stellen, an
+  denen Text beim Client ankommt (`throw`, `Response::error`, `'error' =>`,
+  `$errors[] =`).
+- `PluralRulesTest` — `I18nService::tp()` und `PLURAL_RULES` gegen
+  `tests/fixtures/plural-cases.json`; jede Sprache aus `languages.json` hat
+  eine Regel und Fälle.
+- `CsvFormatV1Test` — Format 1 der CSV-Exporte Byte für Byte gegen
+  `tests/fixtures/csv-format-1/` (Kopfzeile der Monatsübersicht in allen
+  sieben Sprachen, Dateinamen). Neu schreiben nur mit `ET_WRITE_GOLDEN=1` —
+  und dann ist es kein Format 1 mehr.
+- `CsvLocalFormatTest` — Format „local“ je Sprache (Trenner, Dezimalzeichen,
+  Datum, Ja/Nein, Dateiname), unbekanntes Format mit Fehlercode, und jede
+  Export-Datei lässt sich wieder importieren — auch Tabellen aus anderen
+  Sprachen und unmögliche oder US-Daten.
+- `PdfCharsetTest` — jeder Berichtstext einer Sprache mit
+  `format.pdfCharset = cp1252` kommt verlustfrei im PDF an („CO₂“ → „CO2“,
+  Breiten in Zeichen); eine Sprache mit `none` gilt als nicht setzbar
+  (`pdfSupported()`, die Route antwortet dann mit 422); jeder Katalog nennt
+  seinen Zeichensatz.
+- `DeviceLanguageTest` — gegen einen echten PHP-Server: `X-ET-Language` vor
+  der Standardsprache, `Vary`, ohne Kopfzeile die Standardsprache, das
+  Manifest in der gewünschten Sprache.
+- `DemoDataTranslatorTest` — jeder Text der Demo-Daten ist in jede Sprache
+  übersetzt (`demo-data/translations.json`), IDs, Zahlen und Firmennamen
+  bleiben.
+
+**Über HTTP (v3.1.0).** Kopfzeilen, Statuscodes und Zugriffsregeln sieht ein
+Service-Test nicht. Dafür gibt es die Basisklasse `HttpServerTestCase`
+(`tests/unit/Support/`): Sie startet `php -S … router.php` auf einem freien
+Port mit eigenem Datenverzeichnis, eigener `settings.json` und eigenen
+Umgebungsvariablen (`ET_AUTH` …) und räumt beides danach ab. Auf ihr bauen
+`AgendaAccessTest` und `IngressTest` auf.
+
+**Home Assistant, Kalender, Betrieb (v3.1.0):**
+
+- `AgendaServiceTest` — die Agenda aus Terminen, Ablesungen und Verträgen
+  (Art, Datum, `severity`, `due_now`); eine ausgeblendete
+  Vertragserinnerung ist nicht mehr „jetzt“ fällig; der Kalender ist gültiges
+  iCalendar mit stabilen UIDs, Texte werden maskiert und lange Zeilen gefaltet,
+  ohne ein UTF-8-Zeichen zu teilen; der Schlüsselsatz von `/api/summary` ist
+  festgeschrieben und jeder Schlüssel immer vorhanden.
+- `AgendaAccessTest` — gegen einen echten PHP-Server mit eingeschalteter
+  Anmeldung: `/api/summary` nur mit Schlüssel, mit `Cache-Control: private,
+  max-age=300`; der Kalender nur mit einem Schlüssel des Bereichs `calendar`
+  im Link; ein Lese-Schlüssel im Link wird abgelehnt, der Kalender-Schlüssel
+  gilt auf keiner anderen Route.
+- `BulkIngestTest` — Stapel-Ingest: ein Jahr Tageswerte schreibt jede Datei
+  einmal (`JsonStore::batch()`), fehlerhafte Einträge halten die übrigen nicht
+  auf und behalten ihren `index`, ein fallender Wert innerhalb des Stapels ist
+  verdächtig, die Obergrenze von 500 Einträgen, das Einzelobjekt antwortet
+  wie bisher.
+- `IngressTest` — Betrieb unter Home-Assistant-Ingress: kein Service Worker
+  und eine interne Adresse für die HA-Vorlage, wenn `X-Ingress-Path` ankommt;
+  Caches und Worker gehören der eigenen Installation (Präfix `et:<scope>:`,
+  die Selbstheilung meldet nur den eigenen Worker ab); `X-Remote-User-Name` und
+  `X-Remote-User-Id` gelten nur vom vertrauenswürdigen Proxy.
+- `DeployTemplatesTest` — die Vorlagen für Unraid, CasaOS und Umbrel
+  (`deploy/`) nennen dasselbe Image, denselben Port und denselben Datenpfad
+  wie `docker-compose.yml` und das Dockerfile; die Unraid-Vorlage ist gültiges
+  XML und kennt jede Umgebungsvariable.
+- `tests/ha-snippet.test.mjs` vergleicht seit v3.1.0 auch den Sensor-Block
+  aus [Schritt 5 der Home-Assistant-Anleitung](../anleitungen/home-assistant.md)
+  zeilenweise mit der Vorlage der App (`haRestSensorYaml`), ohne Kommentare,
+  Adresse und Namen.
+
 Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 (`.github/workflows/ci.yml`) bei jedem Push und Pull Request gegen
 `main`. Vier Jobs: **lint-php** (Syntax-Check aller `*.php`),
 **phpunit** (Service-Suite), **test** (Migrations-Smoke +
 Frontend-API-Shape + Browser-Render über `router.php`) und **docker**
-(Image bauen + Container-Smoke gegen `/api/health`). Ein separater
-Workflow `docker-publish.yml` veröffentlicht bei jedem Versions-Tag das
-Multi-Arch-Image (amd64 + arm64) nach GHCR.
+(Image bauen + Container-Smoke gegen `/api/health`). Seit v3.1.0 laufen
+**lint-php** und **phpunit** je unter PHP 8.2, 8.3 und 8.4 — der
+Mindestversion, der Version von Ubuntu 24.04 und der im Docker-Image. Ein
+separater Workflow `docker-publish.yml` veröffentlicht bei jedem Versions-Tag
+das Multi-Arch-Image (amd64 + arm64) nach GHCR. `docker-armv7-probe.yml`
+(v3.1.0, nur von Hand gestartet) baut das Image für `linux/arm/v7` unter QEMU
+und startet es, ohne zu veröffentlichen; erst wenn er grün ist, kommt arm/v7 in
+die Plattformliste.
 
 ---
 

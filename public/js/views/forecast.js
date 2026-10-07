@@ -64,6 +64,11 @@ export async function render(container) {
           <label for="months">${t('forecast.horizon')}</label>
           <input class="input" id="months" type="text" inputmode="numeric" autocomplete="off" value="12">
         </div>
+        <!-- v3.1.0 (H4, MKT-26) — CO₂-Preis-Szenario (leer = aus) -->
+        <div class="field">
+          <label for="co2-scenario"><span data-role="co2-label">${t('forecast.co2Scenario.label', { year: 2028 })}</span>${info('co2Price')}</label>
+          <input class="input" id="co2-scenario" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(t('forecast.co2Scenario.placeholder'))}">
+        </div>
       </div>
       <div class="form-actions"><button class="btn btn--util" id="btn-go">${t('forecast.update')}</button></div>
     </div>
@@ -118,7 +123,9 @@ export async function render(container) {
     const tempOffset  = whatIf('temp-offset', 0, n => Math.abs(n) <= 20);
     const priceFactor = whatIf('price-factor', 1, n => n >= 0 && n <= 10);
     const months      = whatIf('months', 12, n => Number.isInteger(n) && n >= 1 && n <= 24);
-    if (tempOffset === null || priceFactor === null || months === null) {
+    const co2Raw      = container.querySelector('#co2-scenario').value.trim();
+    const co2         = co2Raw === '' ? '' : whatIf('co2-scenario', 0, n => n >= 0 && n <= 1000);
+    if (tempOffset === null || priceFactor === null || months === null || co2 === null) {
       toastErr(t('forecast.whatIfInvalid'));
       return;
     }
@@ -127,6 +134,7 @@ export async function render(container) {
       price_factor: priceFactor,
       model:        container.querySelector('#model').value,
       forecast_months: months,
+      co2_scenario_eur_t: co2,
     };
     try {
       const result = await api.forecast(utility.key, meterSel.value, opts);
@@ -146,6 +154,10 @@ export async function render(container) {
   const s = (await getSettings().catch(() => null)) || {};
   const modelSel = container.querySelector('#model');
   if (modelSel && [...modelSel.options].some(o => o.value === s.forecast_model)) modelSel.value = s.forecast_model;
+  if (s.co2_price_scenario_eur_t != null) container.querySelector('#co2-scenario').value = formatForInput(s.co2_price_scenario_eur_t);
+  // v3.1.0 — das Startjahr des Szenarios aus den Einstellungen (vorher fest „ab 2028")
+  const co2Label = container.querySelector('[data-role="co2-label"]');
+  if (co2Label && s.co2_price_scenario_from) co2Label.textContent = t('forecast.co2Scenario.label', { year: s.co2_price_scenario_from });
   const fm = Number(s.forecast_months);
   if (Number.isInteger(fm) && fm >= 1 && fm <= 24) container.querySelector('#months').value = String(fm);
 
@@ -251,6 +263,13 @@ function renderResult(u, result, container) {
     }));
   } else if (u.hgt_relevant && result.hdd_source === 'temperature_history') {
     lines.push(t('forecast.hddSourceHistory'));
+  }
+  // v3.1.0 (H4, MKT-26) — was ein höherer CO₂-Preis kosten würde
+  if (result.co2_scenario?.delta_ct_per_kwh != null) {
+    const c = result.co2_scenario;
+    lines.push(escapeHtml(t('forecast.co2Scenario.delta', {
+      price: fmt.num(c.eur_t, 0), from: c.from, ct: fmt.num(c.delta_ct_per_kwh, 2), amount: fmt.eur(c.delta_cost_12m_eur),
+    })));
   }
   const warn = (result.warnings || []).map(w => {
     if (w.code === 'history_short') {

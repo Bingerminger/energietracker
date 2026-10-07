@@ -1,0 +1,28 @@
+# Energietracker — Vorlage für ein Umbrel-Paket (Ordner `energietracker/` im
+# Repo getumbrel/umbrel-apps). Vor einer Einreichung: Image per Index-Digest
+# pinnen (repo:tag@sha256:…), `submission` auf die PR-URL setzen, `gallery`
+# leer lassen (die Bilder ergänzt das Umbrel-Team).
+manifestVersion: 1
+id: energietracker
+category: finance
+name: Energietracker
+version: "3.1.0"
+tagline: Meter readings, contracts and costs for energy and water
+description: >-
+  Record meter readings and fuel deliveries, keep supply contracts with prices and advance
+  payments, and see weather-adjusted consumption, balance and forecasts for electricity, gas,
+  water, district heating, heating oil, pellets and PV. Seven languages, no database — all data
+  stays as JSON files on your Umbrel. Home Assistant can push readings and read values back.
+releaseNotes: ""
+developer: Bingerminger
+website: https://github.com/Bingerminger/energietracker
+dependencies: []
+repo: https://github.com/Bingerminger/energietracker
+support: https://github.com/Bingerminger/energietracker/issues
+port: 8780
+gallery: []
+path: ""
+defaultUsername: ""
+defaultPassword: ""
+submitter: Bingerminger
+submission: ""

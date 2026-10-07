@@ -8,8 +8,10 @@ Energietracker is deliberately **dependency-free**: no Composer, no npm build, n
 database, no external service at runtime — apart from Open-Meteo for the
 temperature sync (since v2.8.0 automatically once a day, can be switched off
 under *Settings → Weather data → Fill weather automatically*) and, only on
-request, the place search (since v2.12.0). A PHP-capable web server and a
-browser are enough.
+request, the place search (since v2.12.0) — plus, only if you set one up, your
+own text recognition service in the home network and, only on request,
+the download of wholesale electricity prices from SMARD (both since v3.1.0). A
+PHP-capable web server and a browser are enough.
 
 ---
 
@@ -17,8 +19,8 @@ browser are enough.
 
 | Component | At least | Recommended | Purpose |
 |---|---|---|---|
-| PHP | 8.4 | 8.4 | backend runtime (up to v2.13 this wrongly said 8.1) |
-| PHP extensions | `json`, `mbstring` *(optional)* | ditto | JSON store; `iconv` for PDF umlauts |
+| PHP | 8.2 | 8.4 | backend runtime; CI tests 8.2, 8.3 and 8.4, the Docker image ships 8.4 (minimum 8.2 since v3.1.0, before that 8.4) |
+| PHP extensions | `json`, `mbstring` *(optional)* | ditto | JSON store; `iconv` for PDF umlauts; `curl` for text recognition (v3.1.0) |
 | Web server | PHP built-in server | Apache/nginx | delivery |
 | Browser | a current Chromium/Firefox/Safari | ditto | SPA frontend (ES modules) |
 | Python | — | — | not needed; only the deprecated `scripts/init_data.py` uses it (§6) |
@@ -193,4 +195,6 @@ docker compose up -d        # → http://localhost:8080
 
 A detailed, beginner-friendly guide (volumes, updates, logs, environment
 variables, troubleshooting) is in its own chapter:
-**[Docker operation (for beginners)](docker.md)**.
+**[Docker operation (for beginners)](docker.md)**. It also covers the templates
+for Synology, Unraid, CasaOS/ZimaOS and Umbrel (the last three since v3.1.0,
+files under `deploy/`).

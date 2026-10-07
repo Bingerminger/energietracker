@@ -4,17 +4,18 @@
 
 import { startRouter } from './router.js';
 import { getUtilities, getSettings, getCountries } from './state.js';
-import { toastErr, showPendingToast } from './components/toast.js';
+import { toastErr, toastOk, showPendingToast } from './components/toast.js';
 import { mountThemeToggle, refreshThemeToggle } from './lib/theme.js';
 import { buildSidebar, refreshSidebarBadges } from './lib/sidebar.js';
 // v2.11.0 — Tab-Leiste, Menü und Erfassen-Blatt (hängen sich an die Ereignisse)
 import './lib/mobile-nav.js';
-import { initI18n, t, getLocale, getLanguages, setCurrencyParams } from './lib/i18n.js';
+import { initI18n, t, tp, getLocale, getLanguages, setCurrencyParams, deviceLanguage, presetLocale } from './lib/i18n.js';
+import { startOutbox } from './lib/outbox.js';
 import { applyUtilityTheme } from './lib/utility-theme.js';
 import { api } from './api.js';
 import { showLogin, logout } from './components/login.js';
 import { intlLocale, setCountry, fmt } from './lib/format.js';
-import { installInfoPopovers } from './components/info.js';
+import { installInfoPopovers, setBillContext } from './components/info.js';
 // v3.0.0 — öffentliche Demo: Sprache vom Browser, Kennzeichen und Hinweisleiste
 import { DEMO, demoLanguage, mountDemoUi } from './lib/demo-mode.js';
 
@@ -79,11 +80,14 @@ window.addEventListener('et:online', () => {
   }
 });
 
+// v3.1.0 (I18N-29) — die ersten Anfragen schon in der Sprache dieses Geräts
+presetLocale(DEMO ? demoLanguage() : deviceLanguage());
+
 api.session()
   .catch(() => ({ mode: 'off', authenticated: true }))
   .then(async (session) => {
     if (session.mode !== 'off' && !session.authenticated) {
-      await initI18n(document.documentElement.lang || 'de');
+      await initI18n(deviceLanguage() || document.documentElement.lang || 'de');
       showLogin();
       return;
     }
@@ -117,11 +121,16 @@ const boot = () => Promise.all([getSettings(), getCountries()])
     // v2.7.0 — Länderprofil: Währung und Region vor dem ersten Rendern
     setCurrencyParams(s?.currency);
     setCountry(s?.country, countries.find(c => c.code === s?.country)?.languages);
-    return initI18n(DEMO ? demoLanguage() : s?.language);
+    setBillContext(countries.find(c => c.code === s?.country) || null);
+    // v3.1.0 — eigene Sprache des Geräts vor der Standardsprache der Installation
+    return initI18n(DEMO ? demoLanguage() : (deviceLanguage() || s?.language));
   })
   .catch(() => initI18n(DEMO ? demoLanguage() : 'de'))
   .finally(async () => {
     applyShellStrings();
+    // v3.1.0 (I18N-30) — Manifest in der Sprache dieses Geräts (beim Installieren gelesen)
+    document.querySelector('link[rel="manifest"]')?.setAttribute('href',
+      DEMO ? `manifest-${getLocale()}.webmanifest` : `api.php/api/manifest?lang=${getLocale()}`);
     if (DEMO) {
       mountDemoUi({
         languages: Object.entries(getLanguages()).map(([code, label]) => ({ code, label })),
@@ -147,6 +156,14 @@ const boot = () => Promise.all([getSettings(), getCountries()])
     // Badges nachreichen — sie sind Beiwerk und dürfen den ersten Inhalt
     // nicht aufhalten.
     refreshSidebarBadges().catch(() => {});
+    // v3.1.0 (Paket H2, FE-32) — offline erfasste Stände nachsenden (online,
+    // Server antwortet wieder, App-Start, Seite wieder sichtbar)
+    if (!DEMO) {
+      startOutbox(api, (r) => {
+        if (r.sent) toastOk(tp('readingsEntry.queue.sent', r.sent));
+        if (r.failed || r.conflicts) toastErr(t('readingsEntry.queue.attention'));
+      });
+    }
     // v2.8.0 (Review CALC-08) — `weather_auto_fill` wirkt jetzt: Temperaturen
     // im Hintergrund nachladen, höchstens einmal am Tag (der Server prüft das
     // selbst). Ohne Netz oder mit ausgeschalteter Einstellung passiert nichts.

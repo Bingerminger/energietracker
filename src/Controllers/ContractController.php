@@ -21,6 +21,13 @@ final class ContractController
         private I18nService $i18n,
     ) {}
 
+    /** v3.1.0 (H6, MKT-12) — POST /api/utility/{u}/contracts/{id}/prices/import-csv[?dry_run=1], Body: CSV */
+    public function importPrices(Request $req): never
+    {
+        Response::json($this->contracts->importMonthlyPrices((string)$req->param('utility'), (string)$req->param('id'),
+            (string)$req->rawBody, $req->queryParam('dry_run') === '1'));
+    }
+
     public function index(Request $req): never
     {
         $meterId = $req->queryParam('meter_id');

@@ -62,6 +62,22 @@ function serve(dir, port) {
       return Object.keys(idx).length === built.keys;
     });
     t('Index je Sprache vollständig', sameKeys, langs.join(' '));
+    // v3.1.0 — Server-Texte in der Sprache der Demo (X-ET-Language), nicht in der Standardsprache
+    const labelOf = (lang) => {
+      const idx = JSON.parse(readFileSync(join(out, `demo-api/index-${lang}.json`), 'utf8'));
+      const res = JSON.parse(readFileSync(join(out, 'demo-api/r', idx['/api/utilities']), 'utf8'));
+      return res.data.find(u => u.key === 'strom')?.label;
+    };
+    t('Bezeichnungen je Sprache vom Server', labelOf('en') === 'Electricity' && labelOf('fr') === 'Électricité'
+      && labelOf('de') === 'Strom', `${labelOf('de')} · ${labelOf('en')} · ${labelOf('fr')}`);
+    // v3.1.0 (I18N-24) — die Demo-Daten selbst in der Sprache (Zählername)
+    const meterOf = (lang) => {
+      const idx = JSON.parse(readFileSync(join(out, `demo-api/index-${lang}.json`), 'utf8'));
+      const res = JSON.parse(readFileSync(join(out, 'demo-api/r', idx['/api/utility/gas/meters']), 'utf8'));
+      return res.data[0]?.name;
+    };
+    t('Demo-Daten je Sprache', meterOf('de') === 'Hauptzähler Gas' && meterOf('en') === 'Main gas meter'
+      && meterOf('nl') === 'Hoofdgasmeter', `${meterOf('de')} · ${meterOf('en')} · ${meterOf('nl')}`);
     const html = readFileSync(join(out, 'index.html'), 'utf8');
     t('index.html: data-demo, kein Service Worker', html.includes(' data-demo') && !html.includes("serviceWorker.register('sw.js')"));
 
@@ -123,7 +139,7 @@ function serve(dir, port) {
     const routes = ['#/dashboard', '#/zaehlerstaende',
       ...active.flatMap(u => [`#/utility/${u.key}`, `#/utility/${u.key}/meters`, `#/utility/${u.key}/contracts`]),
       `#/utility/gas?year=${year - 1}`,
-      '#/contracts', '#/tariffs', '#/bill-check', '#/analysis', '#/forecast', '#/report',
+      '#/contracts', '#/tariffs', '#/bill-check', '#/analysis', '#/forecast', '#/report', '#/report/print',
       '#/reminders', '#/recommendations', '#/help', '#/temperatures',
       '#/settings', '#/settings/household', '#/settings/utilities', '#/settings/data',
       '#/settings/integrations', '#/settings/access', '#/settings/expert', '#/settings/system'];

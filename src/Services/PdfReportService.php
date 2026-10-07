@@ -213,6 +213,94 @@ final class PdfReportService
         return $pdf->output();
     }
 
+    /**
+     * v3.1.0 (Review I18N-12) — der Jahresbericht als Daten, ohne Formatierung.
+     *
+     * Grundlage der Druckansicht im Browser (`#/report/print`), die Zahlen,
+     * Daten und Beträge mit Intl formatiert und jede Schrift druckt. Das PDF
+     * bleibt daneben für lateinische Sprachen (CP1252-Fonts). Gleiche Auswahl
+     * wie build(): aktive Verbrauchsarten, je Zähler mit Verbrauch im Jahr eine
+     * Seite, die ersten 12 Empfehlungen.
+     *
+     * @return array<string,mixed>
+     */
+    public function yearlyData(int $year): array
+    {
+        $active = $this->activeUtilities();
+        $utilities = [];
+        foreach ($active as $utility) {
+            $agg = $this->yearAggregate($utility, $year);
+            if ($agg['kwh'] <= 0 && $agg['m3'] <= 0) continue;
+            $isKwh = Utilities::get($utility)['consumption_unit'] === 'kWh';
+            $utilities[] = [
+                'utility'         => $utility,
+                'label'           => $this->utilLabel($utility),
+                'accounting_kind' => Utilities::accountingKind($utility),
+                'unit'            => $isKwh ? 'kWh' : 'm³',
+                'consumption'     => round($isKwh ? $agg['kwh'] : $agg['m3'], 3),
+                'cost'            => round($agg['cost'], 2),
+                'co2_kg'          => round($agg['co2'], 1),
+            ];
+        }
+        $meters = [];
+        foreach ($active as $utility) {
+            $isKwh = Utilities::get($utility)['consumption_unit'] === 'kWh';
+            $vf = $isKwh ? 'kwh' : 'm3';
+            foreach ($this->meters->list($utility) as $meter) {
+                $monthly = array_values(array_filter(
+                    $this->consumption->forMeter($utility, $meter),
+                    fn($m) => (int)($m['year'] ?? 0) === $year
+                ));
+                if (empty($monthly)) continue;
+                $months = array_map(fn($m) => [
+                    'ym'                => (string)($m['ym'] ?? ''),
+                    'value'             => round((float)($m[$vf] ?? 0), 3),
+                    'cost'              => round((float)($m['cost'] ?? 0), 2),
+                    'avg_temp'          => $m['avg_temp'] ?? null,
+                    'hdd'               => $m['hdd'] ?? null,
+                    'heat_adjusted'     => $m['heat_adjusted'] ?? null,
+                    'weather_delta_pct' => $m['weather_delta_pct'] ?? null,
+                ], $monthly);
+                $used = array_values(array_filter($months, fn($m) => $m['value'] > 0));
+                $sum = array_sum(array_column($months, 'value'));
+                $peak = $low = null;
+                foreach ($used as $m) {
+                    if ($peak === null || $m['value'] > $peak['value']) $peak = ['ym' => $m['ym'], 'value' => $m['value']];
+                    if ($low === null || $m['value'] < $low['value']) $low = ['ym' => $m['ym'], 'value' => $m['value']];
+                }
+                $meters[] = [
+                    'utility'         => $utility,
+                    'label'           => $this->utilLabel($utility),
+                    'meter_id'        => (string)($meter['id'] ?? ''),
+                    'meter_name'      => (string)($meter['name'] ?? ''),
+                    'accounting_kind' => Utilities::accountingKind($utility),
+                    'unit'            => $isKwh ? 'kWh' : 'm³',
+                    'months'          => $months,
+                    'kpis'            => [
+                        'sum'       => round($sum, 3),
+                        'avg_month' => round($sum / max(1, count($used)), 3),
+                        'cost'      => round(array_sum(array_column($months, 'cost')), 2),
+                        'peak'      => $peak,
+                        'low'       => $low,
+                    ],
+                    'has_weather_adjusted' => $this->anyKey($monthly, 'heat_adjusted') || $this->anyKey($monthly, 'weather_delta_pct'),
+                    'has_temperature'      => $this->anyKey($monthly, 'avg_temp'),
+                ];
+            }
+        }
+        return [
+            'year'           => $year,
+            'created_on'     => date('Y-m-d'),
+            'location_name'  => (string)$this->settings->get('location_name', ''),
+            'version'        => trim((string)@file_get_contents(dirname(__DIR__, 2) . '/VERSION')),
+            'efficiency'     => $this->benchmark->efficiency($year),
+            'utilities'      => $utilities,
+            'has_generation' => in_array('pv_erzeugung', array_column($utilities, 'utility'), true),
+            'meters'         => $meters,
+            'recommendations'=> array_slice($this->recommendations->all(), 0, 12),
+        ];
+    }
+
     private function utilityPage(PdfWriter $pdf, string $utility, array $meter, array $monthly, int $year, float $W): void
     {
         $u = Utilities::get($utility);

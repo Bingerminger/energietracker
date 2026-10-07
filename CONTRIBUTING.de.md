@@ -6,7 +6,8 @@ Danke fürs Mitmachen! Am meisten helfen:
 
 - **Fehlermeldungen** mit den Angaben aus Einstellungen → System →
   System-Diagnose und den Schritten, die zum Fehler führen.
-- **Übersetzungen** — eine neue Sprache braucht keinen Code (siehe unten).
+- **Übersetzungen** — eine neue Sprache ist vor allem ein Katalog, dazu ein
+  paar Zeilen Konfiguration (siehe unten).
 - **Doku**: Fehler, Lücken, eine fehlende Frage in der
   [FAQ](docs/einstieg/faq.md).
 - **Code** — vor größeren Änderungen am Datenmodell oder an der API bitte erst
@@ -17,7 +18,8 @@ Sicherheitslücken bitte **nicht** als Issue, sondern wie in
 
 ## Einrichten
 
-PHP 8.4 genügt zum Laufen, ohne Composer, ohne Build-Schritt:
+PHP ab 8.2 genügt zum Laufen (die CI prüft 8.2, 8.3 und 8.4), ohne Composer,
+ohne Build-Schritt:
 
 ```bash
 git clone https://github.com/Bingerminger/energietracker.git
@@ -43,8 +45,9 @@ node --import='data:text/javascript,import{register}from"node:module";import{pat
 ```
 
 Ohne Server laufen `tests/format.test.mjs`, `tests/router.test.mjs`,
-`tests/contrast.test.mjs`, `tests/chart.test.mjs`, `tests/plausibility.test.mjs`
-und `tests/ha-snippet.test.mjs`. Die CI führt alles bei jedem Pull Request aus.
+`tests/contrast.test.mjs`, `tests/chart.test.mjs`, `tests/plausibility.test.mjs`,
+`tests/ha-snippet.test.mjs`, `tests/plural.test.mjs` und
+`tests/hardcoded-text.test.mjs`. Die CI führt alles bei jedem Pull Request aus.
 Details: [Tests](docs/entwicklung/tests.md).
 
 Eine Änderung bringt ihren Test mit. Bewährt hat sich die **Gegenprobe**: den
@@ -80,17 +83,32 @@ Abschnitten Added, Changed, Deprecated, Fixed, Migration und Tests.
 
 ## Eine Sprache hinzufügen
 
+Die vollständige Checkliste, den Stilguide (Anrede, Begriffe, Typografie,
+Plural) und die Tests dazu beschreibt
+[Übersetzen und Sprachen](docs/entwicklung/uebersetzen.md). In Kürze:
+
 1. `public/locales/en.json` nach `public/locales/<code>.json` kopieren
    (ISO-639-1, z. B. `pl`) und übersetzen. Platzhalter wie `{count}` bleiben
    stehen; Pluralformen stehen als `one`/`other` (weitere Kategorien wie
-   `few`/`many` sind erlaubt, gewählt wird über `Intl.PluralRules`).
+   `few`/`many` sind erlaubt).
 2. In `public/locales/languages.json` eintragen: `"pl": "Polski"`.
-3. `vendor/bin/phpunit --filter LocaleCatalogTest` prüft, dass alle Schlüssel da
-   sind und die Platzhalter stimmen.
+3. Die Schreibweise im Katalog unter `format.*` festlegen — Dezimal- und
+   Tausendertrenner, Datumsmuster, Monatskürzel, Betrag, `typography` und
+   `pdfCharset`.
+4. Die Sprache im Code bekannt machen: Pluralregel in
+   `I18nService::PLURAL_RULES` (mit Fällen in
+   `tests/fixtures/plural-cases.json`), Land für den Erststart in
+   `Countries::BY_LANGUAGE`, Kürzel der Rechnungsprüfung, Begriffe der
+   Termbase und die Übersetzung der Demo-Daten.
+5. `vendor/bin/phpunit --no-coverage --filter 'LocaleCatalogTest|CatalogStyleTest|PluralRulesTest'`
+   prüft Schlüssel, Platzhalter, Stil und Vollständigkeit.
 
-Zahlen- und Datumsformate kommen aus dem Browser (`Intl`); Code braucht es
-nicht. Die Doku gibt es auf Deutsch und Englisch — für weitere Sprachen ist die
-Hilfe in der App der Weg (Glossar-Texte unter `glossary.*`).
+Im Browser formatiert `Intl` Zahlen und Daten; das Backend formatiert für
+PDF-Jahresbericht, CSV-Tabellen und Empfehlungstexte selbst — nach `format.*`
+im Katalog und den Länderabweichungen in `src/Config/Countries.php`. Ohne diese
+Angaben schriebe es deutsch. Die Doku gibt es auf Deutsch und Englisch — für
+weitere Sprachen ist die Hilfe in der App der Weg (Glossar-Texte unter
+`glossary.*`).
 
 ## Pull Requests
 

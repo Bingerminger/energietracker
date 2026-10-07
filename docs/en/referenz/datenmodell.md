@@ -5,7 +5,7 @@
 [← API reference](api.md) · [Compendium index](../README.md)
 
 All data is stored as flat JSON files under `data/`. No database. Writes are
-serialised by `LOCK_EX`. Schema level: **1.6.0** (in `data/meta.json` and in every
+serialised by `LOCK_EX`. Schema level: **1.7.0** (in `data/meta.json` and in every
 backup).
 
 > **Schema history (short form):** 1.0.0 utility-oriented layout · 1.0.3 water
@@ -17,7 +17,11 @@ backup).
 > conversion factors `gas_conversion_factors` in `settings.json` instead of the
 > scalar `gas_conversion_factor` (F1012) · **1.6.0** previous CO₂ and water
 > defaults pinned in existing installations before the corrected ones apply
-> (v2.10.0, Lesson 36).
+> (v2.10.0, Lesson 36) · **1.7.0** pots `attachments.json` (receipts),
+> `tenancies.json` and `tenancy_statements.json` (tenancy), `market_prices.json`
+> (wholesale electricity prices), `periods.json`
+> (consumption per period) and `bills.json` (supplier bills) per utility and the
+> new utility `waerme/` created empty, as well as missing basic pots (v3.1.0).
 
 ---
 
@@ -33,14 +37,21 @@ data/
 ├── weather_sync.json         # state of the last Open-Meteo sync (v2.8.0)
 ├── reminders.json            # appointments/maintenance
 ├── recommendations_dismissed.json
-├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json }
-├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json }
-├── wasser/     { meters.json, readings.json, contracts.json, meter_groups.json }
-├── fernwaerme/ { meters.json, readings.json, contracts.json, meter_groups.json }
-├── heizoel/    { meters.json, deliveries.json, contracts.json, meter_groups.json }
-├── pellets/    { meters.json, deliveries.json, contracts.json, meter_groups.json }
-├── pv_einspeisung/ { meters.json, readings.json, contracts.json, meter_groups.json }
-├── pv_erzeugung/   { meters.json, readings.json, contracts.json, meter_groups.json }
+├── attachments.json          # index of the receipts (v3.1.0, schema 1.7.0)
+├── attachments/              # receipt files <id>.<jpg|png|webp|pdf> (v3.1.0)
+├── tenancies.json            # tenancies (v3.1.0, schema 1.7.0)
+├── tenancy_statements.json   # service charge statements (v3.1.0, schema 1.7.0)
+├── market_prices.json        # wholesale electricity prices as monthly averages (v3.1.0, schema 1.7.0)
+├── instance.json             # identifier of the installation (v3.1.0) — not in the backup
+├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── wasser/     { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── fernwaerme/ { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── heizoel/    { meters.json, deliveries.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── pellets/    { meters.json, deliveries.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── pv_einspeisung/ { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── pv_erzeugung/   { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
+├── waerme/     { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }   # heat (v3.1.0)
 ├── logs/       # JSON Lines log (N1010)
 ├── .write.lock # write lock (v2.5.3)
 └── backups/    # snapshots: backup_… (own), pre-restore-/pre-migration-/pre-demo-/pre-v09-… (automatic)
@@ -50,15 +61,35 @@ data/
 determines the occasion (`reason` in `GET /api/backup/snapshots`). Retention: of
 your own the last ten, automatic ones 30 days, at least the three newest per
 occasion. A snapshot is streamed into a temporary file and only renamed at the
-end.
+end. Since v3.1.0 it contains the receipts (base64) — so `backups/` grows with
+every photo, once per snapshot.
 
-Cumulative utilities (gas, electricity, water, district heating, PV) have
-`readings.json`; delivery-based utilities (heating oil, pellets) have
-`deliveries.json` instead. `contracts.json` exists for all of them, but is
-typically empty for heating oil/pellets — there the **tank invoice itself** is the
-cost basis (see [Heating oil](../verstehen/05-heizoel.md)). `meter_groups.json`
-(since 1.2.0) holds the group master data per utility; the group *membership*, by
-contrast, sits on the meter (`meter_group_id`).
+Cumulative utilities (gas, electricity, water, district heating, PV, since
+v3.1.0 heat) have `readings.json`; delivery-based utilities (heating oil,
+pellets) have `deliveries.json` instead. `contracts.json` exists for all of
+them, but is typically empty for heating oil/pellets — there the **tank invoice
+itself** is the cost basis (see [Heating oil](../verstehen/05-heizoel.md)). For
+heat and PV generation it stays empty: neither has contracts.
+`meter_groups.json` (since 1.2.0) holds the group master data per utility; the
+group *membership*, by contrast, sits on the meter (`meter_group_id`).
+`periods.json` (v3.1.0) holds the periods of meters recording “consumption per
+period” ([Period](#period-v310)); it is created for every utility but used only
+by those with meter readings. `bills.json` (v3.1.0) holds the supplier bills
+([Supplier bill](#supplier-bill-v310)); likewise created for every utility,
+used for gas, electricity, water and district heating.
+
+**Heat (`waerme/`, v3.1.0).** The ninth utility: heat arriving in the home, in
+kWh. Its folder is created empty with schema 1.7.0, in existing installations
+too; there are no default meters, and it only becomes active once chosen under
+Settings → Utilities & billing (`active_utilities`). More in
+[Heat](../verstehen/15-waerme.md).
+
+**`instance.json` (v3.1.0).** `{instance_id, created_at}` — the identifier of
+the installation, `et_` and 16 hex digits, created at random when first needed.
+The calendar builds the UIDs of its events from it, `GET /api/summary` returns
+it as `instance_id`. The file deliberately stays **out** of the backup:
+otherwise, after a restore onto a second installation, both would share the
+same identifier.
 
 **Temperatures and weather (v2.8.0, additive — no schema bump):**
 
@@ -136,9 +167,71 @@ contrast, sits on the meter (`meter_group_id`).
   ],
 
   // electricity only, optional (v2.10.0):
-  "heat_source": true                    // heat pump: counts in the efficiency figure
+  "heat_source": true,                   // heat pump: counts in the efficiency figure
+
+  // v3.1.0, optional — missing = default:
+  "role": "heat_pump",                   // role of the meter, per utility (see below)
+  "capture": "period",                   // way of recording: missing = meter readings
+
+  // v3.1.0, optional — for switching supplier (not for heating oil/pellets):
+  "malo_id": "51234567895",              // market location ID (synthetic example)
+  "melo_id": "DE…",                      // metering location ID, 33 characters
+
+  // v3.1.0, PV generation only, optional:
+  "plug_in": true,                       // plug-in solar device without a feed-in meter
+  "investment_eur": 800,                 // investment incl. VAT (payback)
+  "commissioned_on": "2025-04-12",       // commissioning (payback, § 51 EEG)
+  "battery_capacity_kwh": 5.0,           // storage capacity, on the meter with role battery_charge
+
+  // v3.1.0, heat with role heat_pump_output only, optional:
+  "heat_pump_meter_ids": ["m_wp_strom"]  // electricity meters of the heat pump (role heat_pump)
 }
 ```
+
+**PV and heat pump fields (v3.1.0).** `plug_in` (`true` or missing),
+`investment_eur` (0–10,000,000), `commissioned_on` (ISO date) and
+`battery_capacity_kwh` (0–10,000) exist only for `pv_erzeugung`; invalid values →
+`errors.meter.valueInvalid`, empty removes the field. They feed payback, battery
+figures and the plug-in solar assumption in `GET /api/pv-summary`
+([API](api.md#pv-battery-plug-in-solar-payback-v310-additive)).
+`heat_pump_meter_ids` (only `waerme`) names electricity meters with the role
+`heat_pump`, otherwise `errors.meter.heatPumpLinkInvalid`; `GET /api/heat-pump`
+calculates the seasonal performance factor from it
+([API](api.md#seasonal-performance-factor-of-the-heat-pump-v310)).
+
+**Market and metering location (`malo_id`, `melo_id`, v3.1.0).** The market
+location ID has 11 digits, the first not 0, the last a check digit per BDEW;
+the metering location ID has 33 characters, “DE” and 31 digits or capital
+letters. The app removes spaces, an empty value deletes the field; it rejects
+anything else (`errors.meter.maloInvalid`, `…meloInvalid`). The switching
+decision shows the market location ID under “Have ready for switching”.
+
+**Role (`role`, v3.1.0).** What a meter measures, for the utilities that know
+roles. The first is the default and is **not** stored — a meter without `role`
+has it.
+
+| Utility | Roles (first = default) |
+|---|---|
+| `strom` | `household`, `heat_pump` (heating electricity, counts in the efficiency figure), `ev_charger` (wallbox: charging record; not part of household electricity in the benchmark, nor is `heat_pump`) |
+| `wasser` | `cold`, `warm` (hot water: the heat needed for it is shown as a calculated value), `garden` |
+| `pv_erzeugung` | `generation`, `battery_charge`, `battery_discharge` (battery: not counted as generation nor in sums, only in the battery figures) |
+| `waerme` | `consumption` (heat of the home, counts in the efficiency figure), `heat_pump_output` (output of a heat pump, counts neither in sums nor in the efficiency figure — it would otherwise be counted twice next to the heating electricity; basis of the seasonal performance factor) |
+
+For electricity, `role: heat_pump` and the older field `heat_source: true` stay
+in step: setting one sets the other, so older versions keep recognising the
+heat pump. A role the utility does not know (or any role for a utility without
+roles) is rejected by the API with 400 (`errors.meter.roleInvalid`).
+`GET /api/readings-overview` names the role of every meter (`null` for
+utilities without roles).
+
+**Way of recording (`capture`, v3.1.0).** `counter` (meter readings, default,
+not stored) or `period` (consumption per period) — for all utilities with meter
+readings, not for heating oil and pellets. A meter with `period` has periods in
+`periods.json` instead of readings; it rejects readings and Home Assistant
+pushes (`errors.reading.periodMeter`, `errors.ingest.periodMeter`). The way of
+recording can only be switched while the meter has no data of the current kind
+(400 `errors.meter.captureLocked`); an unknown value gives
+`errors.meter.captureInvalid`.
 
 **Tank log (v2.10.0).** `tank_levels` and deliveries with `fill_to_full` are
 anchors with a known stock; between them the consumption is calculated,
@@ -150,7 +243,8 @@ backup.
 **Meter topology (F1006).** A meter can be a **submeter** of another
 (`parent_meter_id`, series connection — its consumption is subtracted from the
 parent meter) and/or a **member of a group** (`meter_group_id`, combines several
-meters for the dashboard). Rules: at most one submeter level (no chains/cycles); a
+meters for the dashboard; since v3.1.0 also for a shared contract). Rules: at most
+one submeter level (no chains/cycles); a
 parent meter with submeters cannot be deleted without removing the assignment. See
 [meter topology](../verstehen/13-meter-topologie.md).
 
@@ -165,7 +259,10 @@ accepts it in place of the internal ID. Default `null` = no alias.
 ```
 
 Pure master data (ID + name). Which meters belong to it is **not** stored here, but
-as `meter_group_id` on the respective meter (single source of truth).
+as `meter_group_id` on the respective meter (single source of truth). Since
+v3.1.0 a group can be the target of a contract (`meter_group_id` on the
+contract, see below); the order of the members is that of the meter list, and
+the first one carries the fixed costs of the group contract.
 
 ### Device (a device within a meter — meter swap)
 
@@ -208,9 +305,228 @@ Two optional fields since v2.6.0 (additive, only present when set):
 - `is_suspect: true`: a falling reading from the ingest; it does not count until
   confirmed (`PATCH` with `is_suspect: false`) or corrected.
 
+Two more since v3.1.0, likewise optional:
+
+- `client_ref`: an identifier of the entry (8–64 characters `[A-Za-z0-9-]`),
+  chosen by the client. Creating a second reading with the same identifier on
+  the same meter does not add a new one (offline queue,
+  [API](api.md#readings-client_ref-attachment_id-v310-additive)).
+- `attachment_id`: photo of the meter reading — ID of a receipt with
+  `kind: reading_photo` ([Receipts](#receipts-v310)).
+
 The consumption calculation also skips **sandwiched outliers** of the same
 device and reports them as `warnings` (see
 [Meter readings → plausibility](../verstehen/11-zaehlerstaende.md)).
+
+### Receipts *(v3.1.0)*
+
+Files belonging to a record — photos of meter readings, receipts for periods,
+PDFs or photos of service charge statements and, since v3.1.0, of supplier bills
+(`ref.type` `reading`, `period`, `tenancy_statement`, `bill`). The file lives
+under `data/attachments/<id>.<ext>`,
+its entry in the index `attachments.json` (a list):
+
+```jsonc
+{
+  "id": "att_5f0c2a9e81d34b67",        // att_ + 16 hex digits
+  "kind": "reading_photo",             // reading_photo | bill_pdf | statement_pdf | other
+  "mime": "image/jpeg",                // image/jpeg | image/png | image/webp | application/pdf — determined from the content
+  "size": 284113,                      // bytes
+  "sha256": "9c1e…",
+  "created_at": "2026-10-07T08:12:40+02:00",
+  "ref": { "type": "reading", "utility": "strom", "id": "20261007-1a2b3c4d" },   // or null
+  "original_name": "meter.jpg"         // optional, if given on upload
+}
+```
+
+- **Reference in both directions.** `ref` points to the record, the record
+  carries `attachment_id`. Both are set and removed together through the API
+  ([Receipts](api.md#receipts-and-text-recognition-v310)).
+- **Orphaned** is a receipt with `ref: null` — uploaded and never saved, or
+  the reading was deleted or the photo detached; then `unlinked_at` holds the
+  time. It is cleaned up after **24 hours** (from `unlinked_at`, otherwise from
+  `created_at`), on the next upload and when the snapshots rotate. Files in
+  `attachments/` without an index entry likewise.
+- **Limits.** Photo 3 MB, PDF 10 MB, all together `attachments_max_mb`
+  (default 500 MB).
+- **Backup.** `attachments` is a pot like any other; the files are stored
+  base64-encoded under `attachment_files` (`{id: base64}`). The backup format
+  stays `3.0`; older versions skip the key. The import checks every file
+  against `sha256` and content type before writing
+  ([Snapshots and import](api.md#snapshots-and-import-v260)).
+
+### Period *(v3.1.0)*
+
+Consumption per period — for values that already come as consumption, such as
+the monthly consumption information from the metering service. Only on meters
+with `capture: "period"`, per utility in `<utility>/periods.json` (a list):
+
+```jsonc
+{
+  "id": "p_3a9f1c20b7e4",            // p_ + 12 hex digits
+  "meter_id": "m_waerme_1",
+  "from": "2026-01-01",
+  "to": "2026-01-31",                // inclusive
+  "value": 820,                      // ≥ 0, rounded to three decimals
+  "value_unit": "consumption",       // consumption | meter — differ only for gas
+  "is_estimated": false,
+  "source": "manual",                // manual | csv | import
+  "reference": {                     // optional, comparison values of the consumption information
+    "prev_month": 760, "prev_year_month": 900, "average_user": 850
+  },
+  "note": "",                        // up to 500 characters
+  "attachment_id": null,             // optional: receipt (photo, PDF)
+  "client_ref": "…"                  // optional, as for readings
+}
+```
+
+- **Unit.** `consumption` is the utility's consumption unit (kWh, for water
+  m³), `meter` the meter unit. The two differ only for gas: `meter` = m³,
+  converted to kWh with the dated conversion factors; `consumption` = kWh, the
+  app works the m³ back out for the bill check and the CSV. For every other
+  utility `value_unit` is always `consumption`.
+- **Rules.** `from ≤ to` (otherwise `errors.period.order`); two periods of the
+  same meter must not touch (`errors.period.overlap`). `client_ref` works as
+  for readings: the same identifier on the same meter does not create a second
+  period.
+- **Calculation.** Daily rate = value / days of the period, spread over the
+  months to the day; gaps stay gaps (coverage as with meter readings). After
+  that everything runs as with readings. More in
+  [Heat](../verstehen/15-waerme.md).
+
+### Tenancy and service charge statement *(v3.1.0)*
+
+For tenants who pay heating and water through the service charges
+([guide](../anleitungen/mieter.md)). Two lists at the top level.
+
+`tenancies.json`:
+
+```jsonc
+{
+  "id": "t_8c21e4f09a3b",
+  "start": "2024-04-01",
+  "end": null,                       // optional; empty = ongoing
+  "label": "Flat 2nd floor",
+  "landlord": "",                    // optional
+  "wohnflaeche_m2": 68,              // optional, per tenancy agreement; empty = setting
+  "co2_own_appliances": false,       // v3.1.0 (H4): gas also for own appliances → refund × 0.95
+  "co2_restriction": "none",         // v3.1.0 (H4): none | one | both (§ 9 CO2KostAufG)
+  "billing_anchor": "01-01",         // MM-DD, start of the billing period (default 01-01)
+  "prepayments": [                   // dated, sorted by from
+    { "from": "2024-04-01", "heating_eur_month": 70, "operating_eur_month": 50 }
+  ],
+  "prices": [
+    { "from": "2025-01-01", "heat_eur_per_kwh": 0.15, "warm_water_eur_per_m3": 9.5,
+      "cold_water_eur_per_m3": 4.5, "source": "statement", "statement_id": "s_…" }
+  ],
+  "fixed_costs": [                   // flat charges per year
+    { "from": "2025-01-01", "label": "Waste", "eur_per_year": 180 }
+  ],
+  "meter_ids": { "heat": ["m_waerme_1"], "warm_water": ["m_ww_1"], "cold_water": ["m_kw_1"] },
+  "notes": ""
+}
+```
+
+- `prepayments`, `prices`, `fixed_costs` are dated lists: the latest entry with
+  `from ≤ day` applies; for prices per field, for flat charges per label.
+  Prices are optional (`source`: `statement` taken over from a statement,
+  `estimate` entered yourself).
+- `meter_ids`: `heat` takes meters of the Heat utility, `warm_water` and
+  `cold_water` water meters. An unknown meter gives
+  `errors.tenancy.meterNotFound`.
+
+`tenancy_statements.json`:
+
+```jsonc
+{
+  "id": "s_51d0a7c3e2f6",
+  "tenancy_id": "t_8c21e4f09a3b",
+  "period_from": "2025-01-01", "period_to": "2025-12-31",
+  "received_on": "2026-06-15",       // optional: receipt, starts the objection period
+  "total_cost_eur": 1500, "prepaid_eur": 1440,
+  "result_eur": 60,                  // positive = additional payment, negative = credit
+  "positions": [
+    { "label": "Hot water", "category": "warm_water", "amount_eur": 285, "consumption": 30, "unit": "m³" }
+  ],
+  "heat": { "consumption": 9000, "unit": "kWh", "cost_eur": 1350 },   // optional; unit kWh | MWh
+  "co2": null,                       // optional (v3.1.0, H4): {emissions_kg, cost_eur, stage,
+                                     //   landlord_share_pct, landlord_amount_eur} per heating cost statement
+  "new_prepayment": { "from": "2026-07-01", "heating_eur_month": 75, "operating_eur_month": 50 },
+  "attachment_ids": [],              // receipts (PDF, photo)
+  "booked": false,
+  "note": "",
+  "created_at": "2026-06-20T18:02:11+02:00"
+}
+```
+
+- `category` ∈ {`heating`, `warm_water`, `cold_water`, `sewage`, `operating`,
+  `other`}; an unknown value becomes `other`.
+- `result_eur` missing in the request → costs − prepayment; positive means an
+  additional payment (as with the balance).
+- Saving a statement with `apply_prices` adds a price entry `source: statement`
+  to the tenancy, valid from the day after `period_to`; `apply_prepayment`
+  takes `new_prepayment` over into `prepayments`. Both are switches of the
+  request, not stored fields ([API](api.md)).
+- Deleting a tenancy takes its statements with it; their receipts become free
+  and are cleaned up after 24 hours.
+- **CO₂ costs (v3.1.0, H4).** `co2_own_appliances` and `co2_restriction` on the
+  tenancy reduce the landlord’s share with your own gas boiler; `co2` on the
+  statement carries the CO₂ details of the heating cost statement (emissions
+  0–10,000,000 kg, amounts up to 1,000,000, stage 1–10, share 0–100 %). If `co2`
+  is set, the central-heating case applies for the year in which the period ends
+  ([Share CO₂ costs](../anleitungen/co2-aufteilung.md)).
+
+All amounts in the main currency (`*_eur` means the configured currency, see
+`currency`). The values above are examples.
+
+**Backup.** `tenancies`, `tenancy_statements` and, per utility, `periods` and
+`bills` are pots like the others and travel in the backup; the format stays
+`3.0`. `instance.json` stays out (see above).
+
+### Supplier bill *(v3.1.0)*
+
+The supplier’s bill with its own figures, per utility in `<utility>/bills.json`
+(a list) — for comparing with your own calculation, booking the result and the
+CO₂ details
+([Annual bill](../anleitungen/jahresabrechnung.md#7-on-the-bill-enter-compare-book)):
+
+```jsonc
+{
+  "id": "b_3f9c0a1d2e4b",            // b_ + 12 hex digits
+  "meter_id": "m_gas_main",
+  "contract_id": null,               // optional; otherwise the contract at the end of the period
+  "kind": "annual",                  // annual | final | interim
+  "period_from": "2025-01-01",
+  "period_to": "2025-12-31",         // inclusive
+  "issued_on": "2026-02-10",         // optional: bill date
+  "invoice": {                       // every value optional
+    "energy_kwh": 16437,             // for water volume_m3
+    "amount_eur": 1655,              // bill amount incl. VAT
+    "advances_paid_eur": 1800,
+    "result_eur": -145               // positive = additional payment; without it amount − advances
+  },
+  "items": [                         // other items, not recalculated
+    { "label": "Metering", "amount_eur": 12.5, "kind": "fee" }   // levy | fee | credit | other
+  ],
+  "co2": { "emissions_kg": 2981.5, "cost_eur": 163.98 },   // optional; amount net, plus stated_factor?
+  "attachment_ids": [],              // receipts (PDF, photo)
+  "special_payment_id": null,        // set once the result is booked
+  "note": "",
+  "created_at": "2026-02-14T18:20:05+01:00"
+}
+```
+
+- **Utilities.** Only gas, electricity, water and district heating accept bills
+  (`errors.billCheck.unsupportedUtility` otherwise); the pot exists for all.
+- **Rules.** `period_from ≤ period_to` (`errors.bill.periodInvalid`), numbers
+  within the allowed range (`errors.bill.amountInvalid`). A meter with bills
+  cannot be deleted (`errors.meter.hasBills`).
+- **Booking** adds a special payment “not affecting advances” in the contract
+  and keeps its ID in `special_payment_id` — once per bill. Deleting the bill
+  keeps the special payment; the receipts are released.
+- **CO₂.** Emissions and amount take precedence over the standard factor for
+  the CO₂ price; the `issued_on` of a gas bill sets, for tenants, the deadline
+  for the refund ([CO₂ price in fuel](../verstehen/16-co2-preis.md)).
 
 ### Delivery (a fuel delivery — heating oil/pellets)
 
@@ -272,8 +588,74 @@ maintained:
 | `signup_bonus_eur` | sign-up bonus as an amount (offers in the tariff comparison) |
 
 The API rejects invalid values with 400 (`errors.contract.noticeDaysOutOfRange`,
-`errors.contract.noticeModeInvalid`). Water additionally uses a three-component
-model (drinking/waste/rainwater), see [Water](../verstehen/03-wasser.md).
+`errors.contract.noticeModeInvalid`). If `min_term_end` ends more than 24
+months after `start`, the API since v3.1.0 also answers on saving with
+`warnings: ["term_over_24_months"]` (§ 309 no. 9 BGB); the note is not stored.
+
+**District heating (v3.1.0, CALC-31)** — `fernwaerme` only, all optional:
+
+```jsonc
+{
+  "capacity_kw": 10,                                          // connected load (kW)
+  "capacity_prices": [ { "from": "2025-01-01", "eur_per_kw_year": 60 } ],   // capacity charge
+  "metering_prices": [ { "from": "2025-01-01", "eur_per_year": 120 } ],     // metering charge
+  "co2_g_per_kwh": 180,                                       // emission factor of the heat network
+  "primary_energy_factor": 0.6                                // for information only
+}
+```
+
+Fixed costs per month = base price + `capacity_kw` × capacity charge / 12 +
+metering charge / 12 (in the example, without a base price, 60 €). A capacity
+charge needs `capacity_kw` (`errors.contract.capacityMissing`); invalid values →
+`errors.contract.valueInvalid`. `co2_g_per_kwh` replaces `co2_fernwaerme` for
+the months of the contract ([District heating](../verstehen/04-fernwaerme.md)).
+No schema step: missing fields mean “not maintained”.
+
+**Group contract, grid fee, price model, credit notes (v3.1.0)** — all
+optional, missing = as before:
+
+```jsonc
+{
+  "meter_id": null,                                   // for a group contract
+  "meter_group_id": "g_strom_ab12cd34",               // gas, electricity, district heating
+  "working_prices_by_meter": {                        // unit price per member (peak/off-peak)
+    "m_strom_ht": [ { "from": "2026-01-01", "ct_per_kwh": 30.0 } ],
+    "m_strom_nt": [ { "from": "2026-01-01", "ct_per_kwh": 22.0 } ]
+  },
+  "grid_reduction": [ { "from": "2026-01-01", "eur_per_year": 120, "module": 1 } ],   // electricity only, § 14a EnWG
+  "price_model": "dynamic",                           // missing = fixed; "monthly"; "dynamic" only electricity shadow contract
+  "dynamic": { "markup_ct_per_kwh": 15, "base_eur_month": 10, "vat_pct": 19, "weighting": "flat" },
+  "revenue_statements": [                             // feed-in only
+    { "from": "2026-06-01", "to": "2026-06-30", "amount_eur": 23.40, "kwh": 290.5 }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `meter_group_id`, `working_prices_by_meter` | contract for a meter group. Each member calculates at its unit price (if missing, `working_prices`); standing charge, advance payments and bonuses are carried by the first member only. No member may have a real contract of its own in the same period (`errors.contract.groupMemberOverlap`) — [API](api.md#group-contract-v310) |
+| `grid_reduction` | reduced grid fee under § 14a EnWG, module 1, in € per year; day-exact as a deduction from the fixed costs |
+| `price_model`, `dynamic` | price model: fixed (missing), `monthly` (monthly prices, e.g. from the import) or `dynamic` (dynamic tariff check, only as an electricity shadow contract; mark-up 0–100 ct/kWh, standing charge 0–1000 €/month, VAT 0–30 %, default 19) |
+| `revenue_statements` | credit notes from the direct marketer, `to` inclusive; replace kWh × feed-in tariff for their period, day-exact |
+
+No schema step: the fields travel with the contract in the backup.
+
+Water additionally uses a three-component model (drinking/waste/rainwater), see
+[Water](../verstehen/03-wasser.md).
+
+### Wholesale electricity prices (`market_prices.json`) *(v3.1.0)*
+
+```json
+{ "source": "smard", "area": "DE-LU", "unit": "ct/kWh",
+  "months": { "2025-01": { "avg_ct": 11.414 } },
+  "imported_at": "2026-02-03T19:12:00+01:00" }
+```
+
+Wholesale electricity prices (day-ahead, Germany/Luxembourg) as monthly
+averages in ct/kWh, net — filled from a file (`source: "csv"`) or on request
+from SMARD (`"smard"`); an import replaces only the months it contains. Basis
+of the dynamic tariff check ([API](api.md#wholesale-electricity-prices-and-dynamic-tariff-check-v310)).
+Part of the backup; schema 1.7.0 creates the pot empty.
 
 **`special_payments` (F1003, from v1.5.0)** — only for gas/electricity/district
 heating (single source of truth: `Utilities::hasAdvancePaymentContracts()`).
@@ -323,15 +705,26 @@ here a selection with background:
 | `billing_cycle_anchor_heizoel`, `…_pellets` | 01-01 | **deprecated (v2.13.0)**, without effect (no advances, no balance) and no longer in the interface; removed in v3.0.0 |
 | `delivery_baseload_share` | 0.15 | weather-independent base-load share for delivery utilities |
 | `tank_warn_pct` | 15 | warning threshold for the tank level in %; alert from half of it (since v2.13.0 also in the interface) |
-| `active_utilities` | gas, strom, wasser | which utilities menu and evaluations show; deselected ones keep their data |
+| `active_utilities` | gas, strom, wasser | which utilities menu and evaluations show; deselected ones keep their data. Heat (`waerme`, v3.1.0) is not active by default |
+| `wohnverhaeltnis` | eigentum | *(v3.1.0)* `eigentum` (own home) or `miete` (rented); with `miete` the “Tenancy” page appears and the agenda knows the deadlines of the service charge statement |
+| `waerme_energietraeger` | null | *(v3.1.0)* what produces the heat (`gas`, `heizoel`, `pellets`, `fernwaerme`, `strom`) — its CO₂ value comes with that factor, without an answer 0 |
+| `warmwasser_temp_c` | 60 | *(v3.1.0)* hot-water temperature (30–90 °C) for the heat of the hot-water meters under HeizkostenV § 9 (2) |
+| `warmwasser_energietraeger` | null | *(v3.1.0)* what heats the hot water (as above, plus `waerme`) — for information only |
 | `location_name`, `latitude`, `longitude` | Leipzig | for Open-Meteo (transmitted rounded to two decimal places) |
 | `weather_auto_fill` | true | *(effective since v2.8.0)* sync the temperatures once a day when the app is opened |
-| `language` | de | language of the interface and of API messages |
+| `language` | de | default language of the installation (devices without a choice of their own, PDF, CSV, Home Assistant); a device can differ via `X-ET-Language` (v3.1.0) |
 | `country` | DE | *(v2.7.0)* country: formats (together with the language), efficiency scale — [country profiles](../verstehen/14-laenderprofile.md) |
 | `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — symbol and minor unit; amounts are not converted, `*_eur`/`ct_*` mean major/minor unit |
 | `timezone` | Europe/Berlin | *(v2.7.0)* IANA time zone: "today", due dates, day boundaries of the weather data |
 | `gas_cv_unit` | kwh | *(v2.7.0)* input unit of the calorific value (`kwh`, `mj`, `gj`); storage is always kWh/m³ |
 | `frame_ancestors` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (CSP `frame-ancestors`), e.g. `http://homeassistant.local:8123` |
+| `attachments_max_mb` | 500 | *(v3.1.0)* storage for all receipts together in MB (10–100000) |
+| `ocr_endpoint`, `ocr_api`, `ocr_model`, `ocr_timeout_s` | *(empty)*, ollama, *(empty)*, 30 | *(v3.1.0)* text recognition in the home network; empty = off, no connection — [settings](einstellungen.md), [guide](../anleitungen/texterkennung.md) |
+| `co2_price_eur_t_years` | `{}` | *(v3.1.0)* your own CO₂ prices per year in €/t (year → value, 0–1000); empty = country profile — [CO₂ price](../verstehen/16-co2-preis.md) |
+| `co2_price_scenario_eur_t`, `co2_price_scenario_from` | null, 2028 | *(v3.1.0)* CO₂ price scenario of the forecast: price in €/t (empty = off) and first year |
+| `co2_pv_avoided` | null | *(v3.1.0)* your own PV avoidance factor in g/kWh (0–2000); empty = electricity mix |
+| `pv_assumed_self_consumption_pct` | null | *(v3.1.0)* assumed self-consumption of a plug-in solar device without a feed-in meter in % (0–100); empty = no assumption |
+| `reference_strom_kwh`, `reference_heat_kwh_m2`, `reference_source`, `warmwasser_elektrisch` | null, null, empty, false | *(v3.1.0)* your own reference values for the benchmark: household electricity in kWh/yr (0–100000), heating in kWh/m²·yr (0–1000), source (up to 120 characters), hot water by electricity |
 
 The complete list is in `SettingsService::DEFAULTS`. `PATCH /api/settings`
 does not store unknown keys and names them in `ignored_keys` since v2.6.0.
@@ -359,13 +752,19 @@ does not store unknown keys and names them in `ignored_keys` since v2.6.0.
   `co2_strom_years`, `co2_pellets`, `co2_fernwaerme`,
   `wasser_personen_referenz`) where the installation never saved it — only for
   data older than 1.6.0,
-- raises the version step by step to the current state (**1.6.0**).
+- in 1.7.0 (v3.1.0) creates the pots `attachments.json`, `tenancies.json`,
+  `tenancy_statements.json` and `market_prices.json` as well as missing basic pots per utility
+  (`meters`, `contracts`, `meter_groups`, `readings` or `deliveries`),
+  `periods.json` and `bills.json` empty — so an existing installation also gets the folder of
+  the new utility `waerme/`, without default meters. No existing record is
+  changed; a first start creates the same pots,
+- raises the version step by step to the current state (**1.7.0**).
 
 Each step has its own `needsVXXXUpgrade()` + `upgradeToVXXX()` pair and is
 idempotent in itself (a repeated run is a no-op).
 
 The bundled demo data carries `schema_version: 1.1.0` and is migrated additively to
-the current state (1.6.0) on first start — adding `meter_groups.json` per utility
+the current state (1.7.0) on first start — adding `meter_groups.json` per utility
 (1.2.0) and the meter fields `external_id` (1.3.0) and `baseline_events` (1.4.0)
 without touching existing values.
 The migration path (1.0.0 → current schema) is additionally checked in the CI via a

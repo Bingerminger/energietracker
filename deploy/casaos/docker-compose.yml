@@ -1,0 +1,54 @@
+# Energietracker — Vorlage für CasaOS / ZimaOS („Custom Install" oder App-Store-PR,
+# Format v2 mit x-casaos auf oberster Ebene). Synchron halten mit
+# docker-compose.yml und docs/betrieb/docker.md; ReleaseConsistencyTest prüft
+# Image, Port und Datenpfad. Die Version ist gepinnt, wie es der Store verlangt.
+name: energietracker
+services:
+  energietracker:
+    image: ghcr.io/bingerminger/energietracker:3.1.0
+    container_name: energietracker
+    restart: unless-stopped
+    ports:
+      - target: 80
+        published: "8080"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /DATA/AppData/$AppID/data
+        target: /data
+    environment:
+      ET_LOG_LEVEL: info
+      ET_LOG_DEST: stderr
+
+x-casaos:
+  id: io.github.bingerminger.energietracker
+  version: "3.1.0"
+  architectures:
+    - amd64
+    - arm64
+  main: energietracker
+  category: Finance
+  author: Bingerminger
+  developer: Bingerminger
+  icon: https://raw.githubusercontent.com/Bingerminger/energietracker/main/public/img/icon-light-512.png
+  screenshot_link:
+    - https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/dashboard.png
+    - https://raw.githubusercontent.com/Bingerminger/energietracker/main/docs/ui/screenshots/en/prognose.png
+  port_map: "8080"
+  index: /
+  title:
+    en_US: Energietracker
+  tagline:
+    en_US: Meter readings, contracts and costs for energy and water — local, without a cloud
+    de_DE: Zählerstände, Verträge und Kosten für Energie und Wasser — lokal, ohne Cloud
+  description:
+    en_US: >
+      Record meter readings and fuel deliveries, keep supply contracts with prices and advance
+      payments, and see weather-adjusted consumption, balance and forecasts for electricity, gas,
+      water, district heating, heating oil, pellets and PV. Seven languages, no database — all data
+      stays as JSON files. Home Assistant can push readings and read values back.
+    de_DE: >
+      Zählerstände und Lieferungen erfassen, Verträge mit Preisen und Abschlägen pflegen,
+      witterungsbereinigten Verbrauch, Saldo und Prognose sehen — für Strom, Gas, Wasser,
+      Fernwärme, Heizöl, Pellets und PV. Sieben Sprachen, keine Datenbank, alle Daten als
+      JSON-Dateien. Home Assistant kann Stände schicken und Werte zurücklesen.

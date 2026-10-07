@@ -62,24 +62,40 @@ final class I18nServiceTest extends TestCase
         self::assertSame('does.not.exist', $this->i18n->t('does.not.exist'));
     }
 
+    /**
+     * v3.1.0 (Review I18N-18) — mit eigenem Katalog statt der echten: Bis v3.0
+     * prüfte dieser Test laut eigenem Kommentar keinen Rückfall, sondern nur,
+     * dass ein vorhandener englischer Schlüssel nicht roh erscheint.
+     */
+    private function fixtureI18n(): I18nService
+    {
+        $dir = $this->dataDir . '/locales';
+        @mkdir($dir, 0755, true);
+        file_put_contents("$dir/languages.json", json_encode(['de' => 'Deutsch', 'en' => 'English']));
+        file_put_contents("$dir/de.json", json_encode(['x' => ['only' => 'Nur deutsch', 'p' => 'Hallo {name}, {n} € kostet {name}']]));
+        file_put_contents("$dir/en.json", json_encode(['y' => 'English only']));
+        return new I18nService($dir, $this->settings);
+    }
+
     public function testFallsBackToGermanWhenKeyMissingInEnglish(): void
     {
-        // Ein Key, der (bewusst) nur in de existiert, fällt im en-Modus auf de
-        // zurück statt den Key zu zeigen. Wir simulieren das über einen Locale-
-        // override auf eine nicht vorhandene Sprache wäre falsch; stattdessen
-        // prüfen wir: ein vorhandener Key liefert in en NICHT den rohen Key.
-        $this->i18n->setLocale('en');
-        self::assertNotSame('common.cancel', $this->i18n->t('common.cancel'));
+        $i18n = $this->fixtureI18n();
+        $i18n->setLocale('en');
+        self::assertSame('Nur deutsch', $i18n->t('x.only'), 'fehlt in en → de');
+        self::assertSame('English only', $i18n->t('y'));
+        self::assertSame('x.missing', $i18n->t('x.missing'), 'fehlt überall → Schlüssel');
+        foreach (glob($this->dataDir . '/locales/*') ?: [] as $f) @unlink($f);
+        @rmdir($this->dataDir . '/locales');
     }
 
     public function testParamInterpolation(): void
     {
-        // Nutzt einen Key mit Platzhalter, falls vorhanden; sonst überspringen.
-        // Hier direkt über einen synthetischen Aufruf: {name} bleibt ersetzt,
-        // wenn der Katalog einen passenden Eintrag hätte. Wir testen die
-        // Mechanik stellvertretend über den Key-Fallback (kein Platzhalter →
-        // unveränderte Rückgabe).
-        self::assertSame('Speichern', $this->i18n->t('common.save', ['name' => 'X']));
+        $i18n = $this->fixtureI18n();
+        // jeder Platzhalter, auch mehrfach; `$`-Folgen bleiben wörtlich
+        self::assertSame('Hallo A$$B, 3 € kostet A$$B', $i18n->t('x.p', ['name' => 'A$$B', 'n' => 3]));
+        self::assertSame('Hallo {name}, 1 € kostet {name}', $i18n->t('x.p', ['n' => 1]), 'ohne Wert bleibt der Platzhalter stehen');
+        foreach (glob($this->dataDir . '/locales/*') ?: [] as $f) @unlink($f);
+        @rmdir($this->dataDir . '/locales');
     }
 
     public function testNegotiateAcceptLanguage(): void

@@ -82,7 +82,11 @@ async function enumerate(get) {
     '/api/health', '/api/diagnostics', '/api/backup/snapshots', '/api/session',
     '/api/auth/keys', '/api/auth/token', '/api/demo/status', '/api/reminders',
     '/api/recommendations', '/api/recommendations?include_dismissed=1',
-    '/api/benchmarks/efficiency');
+    '/api/benchmarks/efficiency',
+    // v3.1.0 (H1) — „Zu tun" aus der Agenda; Kennzahlen wie für Home Assistant
+    '/api/agenda?days=90', '/api/summary', '/api/attachments',   // v3.1.0 — H1, H2
+    // v3.1.0 (H3–H8) — Mietverhältnis, Börsenpreise, Einordnung auf der Übersicht
+    '/api/tenancies', '/api/market-prices', '/api/benchmarks/comparison');
 
   const settings = (await get('/api/settings')).json?.data ?? {};
   const utilities = (await get('/api/utilities')).json?.data ?? [];
@@ -97,6 +101,7 @@ async function enumerate(get) {
       `/api/utility/${k}/contracts`, `/api/utility/${k}/consumption`);
     const delivery = u.reading_kind === 'delivery';
     if (delivery) add(`/api/utility/${k}/deliveries`);
+    if (u.supports_bill_check) add(`/api/utility/${k}/bills`);   // v3.1.0 (H5)
     for (const list of ['readings', 'deliveries']) {
       for (const r of (await get(`/api/utility/${k}/${list}`)).json?.data ?? []) {
         const y = Number(String(r.date || '').slice(0, 4));
@@ -112,12 +117,14 @@ async function enumerate(get) {
         `/api/utility/${k}/meters/${id}/contract-status`, `/api/utility/${k}/meters/${id}/tariff-comparison`,
         `/api/utility/${k}/meters/${id}/tariff-switch`);
       if (delivery) add(`/api/utility/${k}/deliveries?meter_id=${q}`, `/api/utility/${k}/meters/${id}/stock-history`);
+      if (u.supports_bill_check) add(`/api/utility/${k}/bills?meter_id=${q}`);    // v3.1.0 (H5)
+      if (m.capture === 'period') add(`/api/utility/${k}/periods?meter_id=${q}`); // v3.1.0 (H3)
       for (const model of FORECAST_MODELS) {
         // Vorbelegung der Prognose-Ansicht: ohne Was-wäre-wenn, Horizont aus den Einstellungen
         add(`/api/utility/${k}/meters/${id}/forecast?` + new URLSearchParams({
           temp_offset: 0, price_factor: 1, model, forecast_months: months }).toString());
       }
-      allMeters.push({ utility: k, id });
+      allMeters.push({ utility: k, id, billCheck: !!u.supports_bill_check });
     }
     for (const c of (await get(`/api/utility/${k}/contracts`)).json?.data ?? []) {
       add(`/api/utility/${k}/contracts/${c.id}`);
@@ -126,20 +133,29 @@ async function enumerate(get) {
   const years = [];
   for (let y = firstYear; y <= lastYear; y++) years.push(y);
   for (const y of years) add(`/api/benchmarks/efficiency?year=${y}`);
+  for (const y of years) add(`/api/reports/yearly?year=${y}`);   // v3.1.0 — Druckansicht
+  for (const y of years) add(`/api/co2-costs?year=${y}`);       // v3.1.0 (H4) — CO₂-Preis-Karte in der Verbrauchsansicht
+  // v3.1.0 (H4, H7, H8) — CO₂-Aufteilung, Wärmepumpen-Karte, Einordnung je Jahr
+  for (const y of years) add(`/api/co2-split?year=${y}`, `/api/heat-pump?year=${y}`, `/api/benchmarks/comparison?year=${y}`);
   for (const m of allMeters) {
     const k = m.utility;
     for (const y of years) {
       add(`/api/utility/${k}/meters/${m.id}/tariff-comparison?year=${y}`);
-      // Rechnungsprüfung: Vorbelegung (Vorjahr) und der Verweis je Jahr aus der Gas-Ansicht
-      if (k === 'gas') add(`/api/utility/${k}/meters/${m.id}/bill-check?from=${y}-01-01&to=${y + 1}-01-01`);
+      // Rechnungsprüfung: Vorbelegung (Vorjahr) und der Verweis je Jahr aus der
+      // Verbrauchsansicht — seit v3.1.0 (H5) für jede Art mit Rechnungsprüfung
+      if (m.billCheck) add(`/api/utility/${k}/meters/${m.id}/bill-check?from=${y}-01-01&to=${y + 1}-01-01`);
     }
   }
   const files = [];
+  // v3.1.0 (I18N-10) — jede Tabelle auch im Format „local"
+  const csv = (p) => files.push(p, `${p}?format=local`);
   for (const u of utilities) {
-    files.push(`/api/export/${u.key}/monthly.csv`, `/api/export/${u.key}/readings.csv`);
-    if (u.reading_kind === 'delivery') files.push(`/api/export/${u.key}/deliveries.csv`);
+    csv(`/api/export/${u.key}/monthly.csv`);
+    csv(`/api/export/${u.key}/readings.csv`);
+    if (u.reading_kind === 'delivery') csv(`/api/export/${u.key}/deliveries.csv`);
   }
-  files.push('/api/export/temperatures.csv', '/api/reports/yearly.pdf');
+  csv('/api/export/temperatures.csv');
+  files.push('/api/reports/yearly.pdf', '/api/calendar.ics');   // v3.1.0 — Kalender-Abo
   for (const y of years) files.push(`/api/reports/yearly.pdf?year=${y}`);
   return { keys: [...keys].sort(), files, years };
 }
@@ -149,9 +165,11 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
   const { proc, base } = await startServer(port, dataDir);
   const stats = { keys: 0, responses: 0, files: 0, bytes: 0 };
   try {
+    // v3.1.0 — `X-ET-Language` wie die Oberfläche (Sprache pro Gerät): Bezeichnungen
+    // und Meldungen kommen so in jeder Sprache, nicht in der Standardsprache des Servers.
     const fetchRaw = async (path, lang = 'de', init = {}) => {
       const r = await fetch(`${base}/api.php${path}`, {
-        ...init, headers: { 'Accept-Language': lang, ...(init.headers || {}) } });
+        ...init, headers: { 'Accept-Language': lang, 'X-ET-Language': lang, ...(init.headers || {}) } });
       return { status: r.status, buf: Buffer.from(await r.arrayBuffer()), type: r.headers.get('content-type') || '' };
     };
     const get = async (path, lang = 'de') => {
@@ -161,10 +179,14 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
       return { ...r, json };
     };
 
-    // Demo-Daten laden — fortgeschrieben bis heute
-    const imp = await fetchRaw('/api/demo/import', 'de', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) });
-    if (imp.status !== 200) throw new Error(`Demo-Import: HTTP ${imp.status} ${imp.buf.toString('utf8').slice(0, 300)}`);
+    // Demo-Daten laden — fortgeschrieben bis heute, Namen und Notizen in der Sprache
+    // der Anfrage (v3.1.0, I18N-24). Je Sprache neu, die IDs bleiben dieselben.
+    const importDemo = async (lang) => {
+      const imp = await fetchRaw('/api/demo/import', lang, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) });
+      if (imp.status !== 200) throw new Error(`Demo-Import (${lang}): HTTP ${imp.status} ${imp.buf.toString('utf8').slice(0, 300)}`);
+    };
+    await importDemo('de');
 
     const { keys, files, years } = await enumerate(get);
     const languages = Object.keys(JSON.parse(readFileSync(join(ROOT, 'public/locales/languages.json'), 'utf8')));
@@ -189,35 +211,23 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
       return JSON.stringify(json);
     };
 
-    // Deutsch und Englisch immer; die übrigen Sprachen nur, wo sich die Antwort unterscheidet
+    // Jede Sprache vollständig; gleiche Antworten liegen dank Inhaltsadresse nur einmal da
     const index = Object.fromEntries(languages.map(l => [l, {}]));
-    const byLang = {};
-    for (const lang of ['de', 'en']) {
-      byLang[lang] = {};
-      for (const key of keys) {
-        const r = await get(key, lang);
-        try { byLang[lang][key] = asStored(r); }
-        catch (e) { throw new Error(`${key} (${lang}): ${e.message}`); }
-      }
-    }
-    const varying = keys.filter(k => byLang.de[k] !== byLang.en[k]);
+    const firstOf = {};
     for (const lang of languages) {
+      await importDemo(lang);
       for (const key of keys) {
-        let text = byLang[lang]?.[key];
-        if (text === undefined) {
-          text = varying.includes(key) ? asStored(await get(key, lang)) : byLang.de[key];
-        }
+        let text;
+        try { text = asStored(await get(key, lang)); }
+        catch (e) { throw new Error(`${key} (${lang}): ${e.message}`); }
         index[lang][key] = store(text);
+        firstOf[key] ??= index[lang][key];
       }
       writeFileSync(join(out, 'demo-api', `index-${lang}.json`), JSON.stringify(index[lang]));
-    }
-    stats.keys = keys.length;
-    stats.responses = stored.size;
-
-    // Datei-Downloads je Sprache
-    for (const lang of languages) {
+      // Datei-Downloads dieser Sprache, solange ihre Daten geladen sind
       for (const f of files) {
-        const r = await fetchRaw(f, lang);
+        // „local" in der Sprache der Demo (im Betrieb: Standardsprache der Installation)
+        const r = await fetchRaw(f.includes('format=local') ? `${f}&lang=${lang}` : f, lang);
         if (r.status !== 200) throw new Error(`${f} (${lang}): HTTP ${r.status}`);
         const target = join(out, 'demo-api', 'files', lang, demoFileName(f));
         mkdirSync(dirname(target), { recursive: true });
@@ -226,6 +236,9 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
         stats.bytes += r.buf.length;
       }
     }
+    const varying = keys.filter(k => languages.some(l => index[l][k] !== firstOf[k]));
+    stats.keys = keys.length;
+    stats.responses = stored.size;
 
     // App-Hülle: index.php wie im Betrieb gerendert, mit `data-demo`
     const html = execFileSync('php', ['index.php'], {
@@ -234,6 +247,11 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
     writeFileSync(join(out, 'index.html'), html);
     cpSync(join(ROOT, 'public'), join(out, 'public'), { recursive: true });
     for (const f of ['manifest.webmanifest', 'LICENSE']) cpSync(join(ROOT, f), join(out, f));
+    // v3.1.0 (I18N-30) — Manifest je Sprache; die Pfade zeigen von api.php/api/ (../../) auf die Wurzel der Demo
+    for (const lang of languages) {
+      const m = (await get(`/api/manifest?lang=${lang}`)).buf.toString('utf8').replaceAll('../../', './');
+      writeFileSync(join(out, `manifest-${lang}.webmanifest`), m);
+    }
     writeFileSync(join(out, '.nojekyll'), '');
 
     const version = readFileSync(join(ROOT, 'VERSION'), 'utf8').trim();

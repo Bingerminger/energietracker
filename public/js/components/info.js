@@ -8,7 +8,7 @@
 // Der Katalog ist die einzige Quelle — die Hilfe-Ansicht listet dieselben
 // Einträge.
 // =====================================================================
-import { t } from '../lib/i18n.js';
+import { t, getLocale } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/format.js';
 
 /** Alle Begriffe des Glossars (Schlüssel unter `glossary.`). */
@@ -20,10 +20,48 @@ export const GLOSSARY = [
   'baseline', 'calorificValue', 'zNumber', 'cutoffDate', 'efficiency',
   'feedIn', 'selfConsumption', 'autarky', 'selfConsumptionRate',
   'estimated', 'tankBook', 'subMeter', 'co2Avoided',
+  // v3.1.0 (H3) — Verbrauch je Zeitraum, Mieter-Paket, Warmwasser
+  'periodCapture', 'uvi', 'prepayment', 'utilityStatement', 'dhw',
+  // v3.1.0 (H4) — CO₂-Preis und Aufteilung
+  'co2Price', 'co2Split',
+  // v3.1.0 (H6) — dynamischer Tarif, § 14a EnWG
+  'dynamicTariff', 'module14a',
+  // v3.1.0 (H7) — Wärmepumpe
+  'jaz',
 ];
 
 export const glossaryTerm = (id) => t(`glossary.${id}.term`);
 export const glossaryText = (id) => t(`glossary.${id}.text`);
+
+// v3.1.0 (Review I18N-27) — So heißt das auf der Rechnung des eingestellten
+// Landes. Die Begriffe kommen aus dem Länderprofil (GET /api/countries,
+// Config\Countries); app.js und die Einstellungen setzen das Land.
+let bill = { code: null, terms: {}, portal: null };
+
+/** @param {object|null} profile Länderprofil aus /api/countries */
+export function setBillContext(profile) {
+  bill = { code: profile?.code || null, terms: profile?.bill_terms || {}, portal: profile?.comparison_portal || null };
+}
+
+/** Wortlaut auf der Rechnung zu einer Glossar-ID oder null. Schweiz: je Sprache. */
+export function billTerm(id) {
+  let terms = bill.terms || {};
+  if (Object.values(terms).some(v => v && typeof v === 'object')) {
+    terms = terms[getLocale()] || Object.values(terms)[0] || {};
+  }
+  return typeof terms[id] === 'string' ? terms[id] : null;
+}
+
+/** „Auf deiner Rechnung (Land): „…"" oder ''. */
+export function billLine(id) {
+  const term = billTerm(id);
+  return term ? t('help.onYourBill', { country: t(`countries.${bill.code}`), term }) : '';
+}
+
+/** Amtlicher Tarifvergleich des Landes: { url, country } oder null. */
+export function billPortal() {
+  return bill.portal ? { url: bill.portal, country: t(`countries.${bill.code}`) } : null;
+}
 
 /** HTML eines ⓘ-Knopfs zum Glossar-Begriff `id`. Nicht in Links oder Knöpfe setzen. */
 export function info(id) {
@@ -78,6 +116,7 @@ function show(btn) {
   pop.innerHTML = `
     <strong class="info-pop__term">${escapeHtml(term)}</strong>
     <p class="info-pop__text">${escapeHtml(text)}</p>
+    ${id && billLine(id) ? `<p class="info-pop__bill">${escapeHtml(billLine(id))}</p>` : ''}
     ${id ? `<a class="info-pop__more" href="#/help?term=${encodeURIComponent(id)}">${escapeHtml(t('help.moreInGlossary'))}</a>` : ''}
     <button type="button" class="info-pop__close" aria-label="${escapeHtml(t('common.close'))}"><span aria-hidden="true">×</span></button>`;
   document.body.appendChild(pop);

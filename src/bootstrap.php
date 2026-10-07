@@ -22,7 +22,11 @@ use Energietracker\Services\{
     TariffComparisonService, TariffSwitchService,
     RecommendationService, ReminderService, PdfReportService,
     StromSaldoService, PvSummaryService, HealthCheckService, DemoService,
-    AuthService, IngestService, I18nService, ClimateNormalService
+    AuthService, IngestService, I18nService, ClimateNormalService,
+    AgendaService, CalendarService, SummaryService, InstanceService,
+    AttachmentService, OcrService, PeriodService, TenancyService, TenancyBudgetService,
+    Co2CostService, Co2SplitService, BillService, MarketPriceService, EvChargingReportService, HeatPumpService,
+    SeriesImportService, ReferenceService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -33,7 +37,9 @@ use Energietracker\Controllers\{
     TariffSwitchController,
     RecommendationController, ReminderController, ReportController,
     StromSaldoController, PvSummaryController, HealthController, DemoController,
-    AuthController, IngestController, SessionController
+    AuthController, IngestController, SessionController, ManifestController, AgendaController,
+    AttachmentController, PeriodController, TenancyController, Co2Controller, BillController, MarketPriceController, EvChargingController, HeatPumpController,
+    SeriesImportController
 };
 
 /**
@@ -85,6 +91,23 @@ final class App
     public AuthService $auth;
     public IngestService $ingest;
     public I18nService $i18n;
+    public InstanceService $instance;   // v3.1.0
+    public AgendaService $agenda;       // v3.1.0 (H1, B5)
+    public CalendarService $calendar;   // v3.1.0 (H1, MKT-09)
+    public SummaryService $summary;     // v3.1.0 (H1, API-33)
+    public AttachmentService $attachments;   // v3.1.0 (H2, B1)
+    public OcrService $ocr;                  // v3.1.0 (H2, MKT-08)
+    public PeriodService $periods;           // v3.1.0 (H3, B2)
+    public TenancyService $tenancies;        // v3.1.0 (H3, F1008)
+    public TenancyBudgetService $tenancyBudget;
+    public Co2CostService $co2Costs;         // v3.1.0 (H4, CALC-27)
+    public Co2SplitService $co2Split;        // v3.1.0 (H4, MKT-15)
+    public BillService $bills;               // v3.1.0 (H5, B3/UI-35)
+    public MarketPriceService $marketPrices; // v3.1.0 (H6, B7/MKT-12)
+    public EvChargingReportService $evCharging; // v3.1.0 (H6, MKT-14)
+    public HeatPumpService $heatPumps;      // v3.1.0 (H7, MKT-18)
+    public SeriesImportService $seriesImport; // v3.1.0 (H8, MKT-19)
+    public ReferenceService $references;    // v3.1.0 (H8, MKT-11)
 
     public function __construct(string $dataDir)
     {
@@ -128,7 +151,7 @@ final class App
             $this->i18n, $this->regression, $this->deliveryConsumption, $this->factors
         );
         $this->weather      = new WeatherService();
-        $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather, $this->climate);
+        $this->temperatures = new TemperatureService($this->store, $this->settings, $this->weather, $this->climate, $this->i18n);
         $this->forecasts    = new ForecastService(
             $this->consumption, $this->regression, $this->settings, $this->contracts, $this->i18n
         );
@@ -142,20 +165,46 @@ final class App
             $this->consumption, $this->readings, $this->meters, $this->temperatures, $this->deliveries, $this->i18n
         );
         $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n, $this->climate);
-        $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n);
-        $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n);
+        $this->marketPrices = new MarketPriceService($this->store, $this->i18n);   // v3.1.0 (H6)
+        $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n, $this->marketPrices);
+        $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n, $this->marketPrices);
         $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries, $this->i18n);
         $this->reminders    = new ReminderService($this->store, $this->settings, $this->i18n);
         $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark, $this->recommendations, $this->i18n);
         // F1005 + N1003 (v1.7.0)
         $this->stromSaldo   = new StromSaldoService($this->consumption);
-        $this->pvSummary    = new PvSummaryService($this->consumption);
+        $this->pvSummary    = new PvSummaryService($this->consumption, $this->settings);
         $this->health       = new HealthCheckService($this->store);
         // F1007 (v1.7.4)
         $this->demo         = new DemoService($this->store, $this->backups, $this->i18n);
         // F1009 — HA-Anbindung: Token-Auth + idempotenter Push-Ingest.
         $this->auth         = new AuthService($this->store);
-        $this->ingest       = new IngestService($this->meters, $this->readings, $this->i18n);
+        $this->ingest       = new IngestService($this->meters, $this->readings, $this->i18n, $this->store);
+        // v3.1.0 (Paket H1) — Agenda, Kalender, Kennzahlen für Home Assistant
+        $this->instance     = new InstanceService($this->store);
+        // v3.1.0 (Paket H3) — Verbrauch je Zeitraum, Mietverhältnis
+        $this->periods      = new PeriodService($this->store, $this->meters, $this->i18n);
+        $this->tenancies    = new TenancyService($this->store, $this->meters, $this->i18n);
+        $this->tenancyBudget = new TenancyBudgetService($this->tenancies, $this->meters, $this->consumption, $this->i18n);
+        // v3.1.0 (Paket H4) — CO₂-Preis im Brennstoff, Aufteilung Mieter/Vermieter
+        $this->co2Costs     = new Co2CostService($this->store, $this->settings, $this->meters, $this->consumption,
+            $this->contracts, $this->i18n, $this->tenancies);
+        $this->co2Split     = new Co2SplitService($this->co2Costs, $this->tenancies, $this->settings, $this->i18n);
+        $this->evCharging   = new EvChargingReportService($this->meters, $this->readings, $this->consumption, $this->settings, $this->i18n);
+        $this->heatPumps    = new HeatPumpService($this->meters, $this->consumption);
+        // v3.1.0 (Paket H8) — Zeitreihen aus Portalen, Einordnung mit eigenen Vergleichswerten
+        $this->seriesImport = new SeriesImportService($this->readingImport, $this->readings, $this->meters, $this->periods, $this->settings, $this->i18n);
+        $this->references   = new ReferenceService($this->consumption, $this->meters, $this->settings);
+        // v3.1.0 (Paket H5) — Versorgerrechnungen
+        $this->bills        = new BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
+        $this->agenda       = new AgendaService($this->settings, $this->meters, $this->readings, $this->contracts,
+            $this->consumption, $this->reminders, $this->recommendations, $this->i18n, $this->tenancies, $this->co2Split);
+        $this->calendar     = new CalendarService($this->agenda, $this->settings, $this->instance, $this->i18n);
+        $this->summary      = new SummaryService($this->settings, $this->meters, $this->readings, $this->consumption,
+            $this->forecasts, $this->deliveries, $this->pvSummary, $this->stromSaldo, $this->agenda, $this->instance);
+        // v3.1.0 (Paket H2) — Belege und Texterkennung im Heimnetz
+        $this->attachments  = new AttachmentService($this->store, $this->settings, $this->i18n);
+        $this->ocr          = new OcrService($this->settings, $this->attachments);
 
         // Auto-migrate or initialize on first run.
         // Reihenfolge wichtig: ein komplett leeres Verzeichnis (echter
@@ -254,13 +303,21 @@ final class App
         // Methode + URI ergänzt der Logger selbst aus $_SERVER.
         $this->logger->debug('request');
 
-        // N1007 — das `language`-Setting ist die Quelle der Wahrheit (das
-        // Frontend nutzt es exklusiv). Es gilt für ALLE serverseitigen Texte,
-        // auch für Downloads wie den PDF-Report, die als Browser-Navigation
-        // laufen und sonst über den Accept-Language-Header verfälscht würden.
-        // Accept-Language greift nur, wenn kein gültiges Setting vorliegt.
+        // Sprache der serverseitigen Texte, in dieser Reihenfolge:
+        // 1. v3.1.0 (Review I18N-29) — `X-ET-Language`: die Sprache, die die
+        //    Oberfläche auf diesem Gerät zeigt (api.js schickt sie bei jeder
+        //    Anfrage). Seit die Sprache pro Gerät gilt, kann sie von der
+        //    Einstellung abweichen; Bezeichnungen und Meldungen folgen ihr.
+        // 2. N1007 — das `language`-Setting, die Standardsprache der Installation.
+        //    Es gilt für alles ohne Header: Downloads wie PDF und CSV (laufen als
+        //    Browser-Navigation, deren Accept-Language die Browsersprache ist),
+        //    Home Assistant, Skripte.
+        // 3. Accept-Language, solange kein gültiges Setting vorliegt.
+        $device = $this->i18n->normalize($_SERVER['HTTP_X_ET_LANGUAGE'] ?? null);
         $langSetting = (string)$this->settings->get('language', '');
-        if (in_array($langSetting, $this->i18n->supported(), true)) {
+        if ($device !== null) {
+            $this->i18n->setLocale($device);
+        } elseif (in_array($langSetting, $this->i18n->supported(), true)) {
             $this->i18n->setLocale($langSetting);
         } else {
             $negotiated = $this->i18n->negotiate($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null);
@@ -333,8 +390,17 @@ final class App
     {
         $mode = $this->auth->mode();
         if ($mode === 'off') return true;
+        // v3.1.0 (MKT-09) — Kalender-Abo: Kalender-Apps können keine Kopfzeile
+        // senden, der Schlüssel steht im Link. Dort gilt NUR ein Schlüssel mit
+        // Bereich `calendar` (ein `read`/`admin`-Schlüssel im Link landete in
+        // Logs und Kalender-Synchronisationen), und er gilt nirgends sonst.
+        $feedToken = $req->queryParam('token');
+        if ($req->path === '/api/calendar.ics' && $feedToken !== null && $feedToken !== '') {
+            return $this->auth->apiKeyScope($feedToken) === 'calendar';
+        }
         if ($this->auth->validSession($_COOKIE[AuthService::COOKIE] ?? null)) return true;
         $scope = $this->auth->apiKeyScope($req->bearerToken());
+        if ($scope === 'calendar') return false;
         if ($scope !== null) {
             $this->readOnlyKey = $scope === 'read';
             return true;
@@ -344,12 +410,14 @@ final class App
 
     /**
      * Ohne Anmeldung erreichbar: Ingest (eigener Token), Health (Minimalform),
-     * die Anmeldung selbst.
+     * die Anmeldung selbst und das Manifest (v3.1.0 — Browser holen es ohne
+     * Cookies; es enthält keine Daten).
      */
     private static function isPublic(Request $req): bool
     {
         return ($req->method === 'POST' && $req->path === '/api/ingest')
             || (in_array($req->method, ['GET', 'HEAD'], true) && $req->path === '/api/health')
+            || (in_array($req->method, ['GET', 'HEAD'], true) && $req->path === '/api/manifest')
             || ($req->path === '/api/session' && in_array($req->method, ['GET', 'POST', 'DELETE'], true))
             || $req->method === 'OPTIONS';
     }
@@ -378,6 +446,10 @@ final class App
         // ── Utilities listing ──
         $utilCtrl = new UtilitiesController($this->i18n);
         $r->get('/api/utilities', fn($req) => $utilCtrl->index($req));
+
+        // ── v3.1.0 (I18N-30) — Web-App-Manifest in der Sprache des Geräts ──
+        $manifestCtrl = new ManifestController($this->i18n);
+        $r->get('/api/manifest', fn($req) => $manifestCtrl->show($req));
 
         // ── Meters per utility ──
         $meterCtrl = new MeterController($this->meters, $this->i18n);
@@ -409,6 +481,55 @@ final class App
         // F1004 (v1.6.0): Aggregat für den zentralen Zählerstand-Erfassungs-View
         $r->get('/api/readings-overview',              fn($req) => $readingCtrl->overview($req));
 
+        // v3.1.0 (Paket H3, B2) — Verbrauch je Zeitraum
+        $periodCtrl = new PeriodController($this->periods);
+        $r->get('/api/utility/{utility}/periods',          fn($req) => $periodCtrl->index($req));
+        $r->post('/api/utility/{utility}/periods',         fn($req) => $periodCtrl->create($req));
+        $r->patch('/api/utility/{utility}/periods/{id}',   fn($req) => $periodCtrl->update($req));
+        $r->delete('/api/utility/{utility}/periods/{id}',  fn($req) => $periodCtrl->destroy($req));
+        $r->post('/api/utility/{utility}/meters/{id}/periods/import-csv', fn($req) => $periodCtrl->importCsv($req));
+
+        // v3.1.0 (Paket H3, F1008) — Mietverhältnis, Abrechnungen, Budget
+        $tenCtrl = new TenancyController($this->tenancies, $this->tenancyBudget);
+        $r->get('/api/tenancies',                              fn($req) => $tenCtrl->index($req));
+        $r->post('/api/tenancies',                             fn($req) => $tenCtrl->create($req));
+        $r->patch('/api/tenancies/{id}',                       fn($req) => $tenCtrl->update($req));
+        $r->delete('/api/tenancies/{id}',                      fn($req) => $tenCtrl->destroy($req));
+        $r->get('/api/tenancies/{id}/budget',                  fn($req) => $tenCtrl->budget($req));
+        $r->get('/api/tenancies/{id}/statements',              fn($req) => $tenCtrl->statements($req));
+        $r->post('/api/tenancies/{id}/statements',             fn($req) => $tenCtrl->createStatement($req));
+        $r->patch('/api/tenancies/{id}/statements/{sid}',      fn($req) => $tenCtrl->updateStatement($req));
+        $r->delete('/api/tenancies/{id}/statements/{sid}',     fn($req) => $tenCtrl->destroyStatement($req));
+
+        // v3.1.0 (Paket H4) — CO₂-Preis, Aufteilung, Anschreiben
+        $co2Ctrl = new Co2Controller($this->co2Costs, $this->co2Split, $this->i18n);
+        $r->get('/api/co2-costs',              fn($req) => $co2Ctrl->costs($req));
+        $r->get('/api/co2-split',              fn($req) => $co2Ctrl->split($req));
+        $r->get('/api/reports/co2-split.pdf',  fn($req) => $co2Ctrl->letter($req));
+
+        // v3.1.0 (H6, MKT-14) — Ladestrom-Nachweis (Dienstwagen)
+        $evCtrl = new EvChargingController($this->evCharging, $this->csvExport, $this->i18n);
+        $r->get('/api/reports/ev-charging',      fn($req) => $evCtrl->json($req));
+        $r->get('/api/reports/ev-charging.csv',  fn($req) => $evCtrl->csv($req));
+        $r->get('/api/reports/ev-charging.pdf',  fn($req) => $evCtrl->pdf($req));
+
+        // v3.1.0 (H7, MKT-18) — Jahresarbeitszahl der Wärmepumpe
+        $hpCtrl = new HeatPumpController($this->heatPumps, $this->i18n);
+        $r->get('/api/heat-pump', fn($req) => $hpCtrl->index($req));
+
+        // v3.1.0 (H8, MKT-19) — Zeitreihe mit Spaltenzuordnung (Body: {csv, mapping})
+        $siCtrl = new SeriesImportController($this->seriesImport);
+        $r->post('/api/utility/{utility}/meters/{id}/import-series', fn($req) => $siCtrl->import($req));
+
+        // v3.1.0 (Paket H5) — Versorgerrechnungen erfassen, prüfen, buchen
+        $billCtrl = new BillController($this->bills);
+        $r->get('/api/utility/{utility}/bills',              fn($req) => $billCtrl->index($req));
+        $r->post('/api/utility/{utility}/bills',             fn($req) => $billCtrl->create($req));
+        $r->patch('/api/utility/{utility}/bills/{id}',       fn($req) => $billCtrl->update($req));
+        $r->delete('/api/utility/{utility}/bills/{id}',      fn($req) => $billCtrl->destroy($req));
+        $r->get('/api/utility/{utility}/bills/{id}/check',   fn($req) => $billCtrl->check($req));
+        $r->post('/api/utility/{utility}/bills/{id}/book',   fn($req) => $billCtrl->book($req));
+
         // ── Deliveries (v1.3.0 — Heizöl/Pellets) ──
         $deliveryCtrl = new DeliveryController($this->deliveries, $this->consumption, $this->meters);
         $r->get('/api/utility/{utility}/deliveries',         fn($req) => $deliveryCtrl->index($req));
@@ -424,6 +545,13 @@ final class App
         $r->post('/api/utility/{utility}/contracts',        fn($req) => $contractCtrl->create($req));
         $r->get('/api/utility/{utility}/contracts/{id}',    fn($req) => $contractCtrl->show($req));
         $r->patch('/api/utility/{utility}/contracts/{id}',  fn($req) => $contractCtrl->update($req));
+        $r->post('/api/utility/{utility}/contracts/{id}/prices/import-csv', fn($req) => $contractCtrl->importPrices($req));   // v3.1.0 (H6)
+
+        // v3.1.0 (H6, B7/MKT-12) — Großhandelspreise Strom (SMARD) für den Dynamik-Check
+        $mpCtrl = new MarketPriceController($this->marketPrices, $this->i18n);
+        $r->get('/api/market-prices',              fn($req) => $mpCtrl->index($req));
+        $r->post('/api/market-prices/import-csv',  fn($req) => $mpCtrl->importCsv($req));
+        $r->post('/api/market-prices/sync-smard',  fn($req) => $mpCtrl->syncSmard($req));
         $r->delete('/api/utility/{utility}/contracts/{id}', fn($req) => $contractCtrl->destroy($req));
 
         // ── Consumption (monthly aggregates) ──
@@ -465,11 +593,12 @@ final class App
         $r->delete('/api/backup/snapshots/{name}',        fn($req) => $bCtrl->deleteSnapshot($req));
 
         // ── CSV-Export (F-07) ──
-        $exCtrl = new ExportController($this->csvExport);
+        $exCtrl = new ExportController($this->csvExport, $this->periods);
         $r->get('/api/export/temperatures.csv',          fn($req) => $exCtrl->temperatures($req));
         $r->get('/api/export/{utility}/monthly.csv',     fn($req) => $exCtrl->monthly($req));
         $r->get('/api/export/{utility}/readings.csv',    fn($req) => $exCtrl->readings($req));
         $r->get('/api/export/{utility}/deliveries.csv',  fn($req) => $exCtrl->deliveries($req));
+        $r->get('/api/export/{utility}/periods.csv',     fn($req) => $exCtrl->periods($req));   // v3.1.0
 
         // ── Migration aus v0.9.0 ──
         $mgCtrl = new MigrationController($this->migrationLegacy, $this->i18n);
@@ -480,8 +609,9 @@ final class App
         $r->get('/api/diagnostics', fn($req) => $dCtrl->index($req));
 
         // ── Benchmark (v1.3.0 — Effizienzklasse kWh/m²) ──
-        $bCtrl = new BenchmarkController($this->benchmark);
+        $bCtrl = new BenchmarkController($this->benchmark, $this->references);
         $r->get('/api/benchmarks/efficiency', fn($req) => $bCtrl->efficiency($req));
+        $r->get('/api/benchmarks/comparison', fn($req) => $bCtrl->comparison($req));   // v3.1.0 (H8, MKT-11)
 
         // ── Tarifvergleich (v1.3.0 — Schattenverträge) ──
         $tcCtrl = new TariffComparisonController($this->tariffs);
@@ -492,6 +622,13 @@ final class App
         $tsCtrl = new TariffSwitchController($this->tariffSwitch);
         $r->get('/api/utility/{utility}/meters/{id}/tariff-switch',
                                               fn($req) => $tsCtrl->analyze($req));
+
+        // v3.1.0 (H6, #17) — Gruppenvertrag: dieselben Auswertungen für eine Zählergruppe
+        $r->get('/api/utility/{utility}/meter-groups/{id}/consumption',     fn($req) => $cCtrl->meter($req));
+        $r->get('/api/utility/{utility}/meter-groups/{id}/contract-status', fn($req) => $cCtrl->contractStatus($req));
+        $r->get('/api/utility/{utility}/meter-groups/{id}/bill-check',      fn($req) => $cCtrl->billCheck($req));
+        $r->get('/api/utility/{utility}/meter-groups/{id}/forecast',        fn($req) => $fCtrl->forMeter($req));
+        $r->get('/api/utility/{utility}/meter-groups/{id}/tariff-switch',   fn($req) => $tsCtrl->analyze($req));
 
         // ── Empfehlungen (v1.3.0 — statistische Insights) ──
         $recCtrl = new RecommendationController($this->recommendations);
@@ -510,6 +647,21 @@ final class App
         // ── PDF-Jahresbericht (v1.3.0) ──
         $repCtrl = new ReportController($this->reports, $this->i18n);
         $r->get('/api/reports/yearly.pdf', fn($req) => $repCtrl->yearly($req));
+        $r->get('/api/reports/yearly',     fn($req) => $repCtrl->yearlyData($req));   // v3.1.0 (I18N-12)
+
+        // v3.1.0 (Paket H1) — Agenda, Kalender-Abo, Kennzahlen für Home Assistant
+        $agCtrl = new AgendaController($this->agenda, $this->calendar, $this->summary);
+        $r->get('/api/agenda',        fn($req) => $agCtrl->agenda($req));
+        $r->get('/api/calendar.ics',  fn($req) => $agCtrl->calendar($req));
+        $r->get('/api/summary',       fn($req) => $agCtrl->summary($req));
+
+        // v3.1.0 (Paket H2) — Belege (Fotos, PDFs) und Texterkennung
+        $attCtrl = new AttachmentController($this->attachments, $this->ocr, $this->i18n);
+        $r->get('/api/attachments',          fn($req) => $attCtrl->index($req));
+        $r->post('/api/attachments',         fn($req) => $attCtrl->create($req));
+        $r->get('/api/attachments/{id}',     fn($req) => $attCtrl->show($req));
+        $r->delete('/api/attachments/{id}',  fn($req) => $attCtrl->destroy($req));
+        $r->post('/api/ocr/reading',         fn($req) => $attCtrl->ocr($req));
 
         // ── F1005 (v1.7.0) — Strom-Saldo + PV-Summary ──
         $saldoCtrl = new StromSaldoController($this->stromSaldo);

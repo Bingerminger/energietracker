@@ -55,6 +55,7 @@ final class TariffComparisonService
         private ContractService $contracts,
         private MeterService $meters,
         private I18nService $i18n,
+        private ?MarketPriceService $market = null,   // v3.1.0 (H6, MKT-12)
     ) {}
 
     /**
@@ -81,7 +82,7 @@ final class TariffComparisonService
         if (!Utilities::exists($utility)) {
             throw new \InvalidArgumentException($this->i18n->t('errors.common.unknownUtility', ['utility' => $utility]));
         }
-        $meter = $this->meters->get($utility, $meterId);
+        $meter = $this->meters->target($utility, $meterId);   // v3.1.0 (H6): auch Gruppe
         if (!$meter) {
             throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
         }
@@ -135,7 +136,13 @@ final class TariffComparisonService
         $realTotal = $realByYm ? array_sum($realByYm) : null;
 
         $rows = [];
-        foreach ($this->contracts->list($utility, $meterId) as $c) {
+        $dynamicNoData = false;
+        foreach (array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), $this->contracts->list($utility, $meterId)) as $c) {
+            // v3.1.0 (H6, MKT-12) — dynamischer Schattenvertrag: Monatspreise aus den Marktdaten
+            if (($c['price_model'] ?? null) === 'dynamic') {
+                $c = $this->market?->expand($c, (string)$from, (string)$to) ?? $c;
+                if (empty($c['working_prices'])) { $dynamicNoData = true; continue; }
+            }
             // v2.9.0 (Review CALC-21) — ein Schattenvertrag ist ein Preisblatt
             // und gilt für ALLE Monate des Zeitraums; ein echter zeigt, was
             // die Rechnung wirklich gebucht hat
@@ -174,6 +181,8 @@ final class TariffComparisonService
                 'contract_id'        => (string)$c['id'],
                 'label'              => $rowLabel,
                 'is_shadow'          => $isShadow,
+                'price_model'        => (string)($c['price_model'] ?? 'fixed'),             // v3.1.0 (H6)
+                'dynamic_assumed_months' => count((array)($c['dynamic_assumed'] ?? [])),
                 'provider'           => (string)($c['provider'] ?? ''),
                 'tariff_name'        => (string)($c['tariff_name'] ?? ''),
                 'months_covered'     => $calc['months'],
@@ -220,6 +229,7 @@ final class TariffComparisonService
             'note'           => $rows ? null : $this->i18n->t('errors.tariff.noContracts'),
             'real_total_eur' => $realTotal !== null ? round($realTotal, 2) : null,
             'rows'           => $rows,
+            'dynamic_missing_market' => $dynamicNoData,   // v3.1.0 (H6) — dynamischer Kandidat ohne Marktdaten
         ];
     }
 

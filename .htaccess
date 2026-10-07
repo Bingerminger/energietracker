@@ -21,10 +21,12 @@
 # Unterverzeichnis wie /energietracker-acc/.
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteRule ^(data|src|tests|scripts|docker|docs|vendor|demo-data|graphify-out|node_modules)(/|$) - [R=404,L]
+  # v3.1.0 — tools/ (Demo-Bau) und dist/ (Bauergebnis) dazu; WebrootRulesTest
+  # verlangt, dass jedes Verzeichnis außer public/ hier steht.
+  RewriteRule ^(data|src|tests|scripts|docker|docs|vendor|demo-data|graphify-out|node_modules|tools|dist|deploy)(/|$) - [R=404,L]
   # Punktdateien und -verzeichnisse: .git, .github, .env, .htaccess …
   RewriteRule (^|/)\. - [R=404,L]
-  RewriteRule ^(composer\.(json|lock)|phpunit\.xml\.dist|router\.php|Dockerfile|docker-compose\.yml|VERSION|[^/]+\.md)$ - [R=404,L]
+  RewriteRule ^(composer\.(json|lock)|phpunit\.xml\.dist|router\.php|Dockerfile|docker-compose\.yml|VERSION|requirements\.txt|[^/]+\.md)$ - [R=404,L]
 </IfModule>
 
 # ── v2.6.0 — Bearer-Token für den Home-Assistant-Push ───────────────────

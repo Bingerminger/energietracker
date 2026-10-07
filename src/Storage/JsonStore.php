@@ -57,17 +57,19 @@ final class JsonStore
      */
     public function read(string $relative, mixed $default = []): mixed
     {
+        // v3.1.0 — im Stapel (batch) zuerst die gepufferte Fassung
+        if ($this->buffer !== null && array_key_exists($relative, $this->buffer)) return $this->buffer[$relative];
         $path = $this->path($relative);
         if (!is_file($path)) return $default;
 
         $fp = @fopen($path, 'rb');
         if (!$fp) {
             throw new StorageCorruptedException('Datei ist nicht lesbar: ' . $relative
-                . ' — bitte Dateirechte des Datenverzeichnisses prüfen.');
+                . ' — bitte Dateirechte des Datenverzeichnisses prüfen.', 'unreadable', $relative);
         }
         try {
             if (!flock($fp, LOCK_SH)) {
-                throw new StorageCorruptedException('Datei lässt sich nicht sperren: ' . $relative);
+                throw new StorageCorruptedException('Datei lässt sich nicht sperren: ' . $relative, 'locked', $relative);
             }
             $contents = stream_get_contents($fp);
             flock($fp, LOCK_UN);
@@ -76,7 +78,7 @@ final class JsonStore
         }
 
         if (!is_string($contents)) {
-            throw new StorageCorruptedException('Datei ist nicht lesbar: ' . $relative);
+            throw new StorageCorruptedException('Datei ist nicht lesbar: ' . $relative, 'unreadable', $relative);
         }
         if (trim($contents) === '') return $default;
 
@@ -87,7 +89,8 @@ final class JsonStore
                 'Datei ist beschädigt (kein gültiges JSON): ' . $relative
                 . ($copy !== null ? ' — eine Kopie liegt unter ' . $copy : '')
                 . '. Bitte aus einem Backup wiederherstellen oder die Datei reparieren;'
-                . ' bis dahin wird sie nicht überschrieben.'
+                . ' bis dahin wird sie nicht überschrieben.',
+                $copy !== null ? 'corruptedCopy' : 'corrupted', $relative, $copy
             );
         }
         return is_array($decoded) ? $decoded : $default;
@@ -106,7 +109,86 @@ final class JsonStore
         return @file_put_contents($copyAbs, $contents, LOCK_EX) !== false ? $copyRel : null;
     }
 
+    /**
+     * v3.1.0 (Paket H1, API-34) — Stapel: Schreibvorgänge innerhalb von `$fn`
+     * landen zuerst im Speicher (Lesen sieht sie), am Ende wird jede Datei
+     * genau einmal geschrieben. Ein Sammel-Ingest mit 365 Tageswerten schreibt
+     * so `readings.json` einmal statt 365-mal. Wirft `$fn`, wird nichts
+     * geschrieben. Verschachtelt gilt der äußere Stapel.
+     *
+     * @template T
+     * @param callable():T $fn
+     * @return T
+     */
+    public function batch(callable $fn): mixed
+    {
+        if ($this->buffer !== null) return $fn();
+        $this->buffer = [];
+        try {
+            $result = $fn();
+            $pending = $this->buffer;
+            $this->buffer = null;
+            foreach ($pending as $relative => $data) $this->writeNow($relative, $data);
+            return $result;
+        } finally {
+            $this->buffer = null;
+        }
+    }
+
+    /** @var array<string,mixed>|null gepufferte Schreibvorgänge eines Stapels */
+    private ?array $buffer = null;
+
+    /**
+     * v3.1.0 (Paket H2, B1) — Binärdatei atomar schreiben (Belege: Fotos, PDFs),
+     * wie write(): Temp-Datei im selben Verzeichnis, fsync, rename. Nur unter
+     * `attachments/` (BackupSafetyTest prüft das für alle Aufrufer).
+     */
+    public function writeBinary(string $relative, string $bytes): void
+    {
+        if (!str_starts_with($relative, 'attachments/')) {
+            throw new \InvalidArgumentException('Binary files belong under attachments/: ' . $relative);
+        }
+        $path = $this->path($relative);
+        $dir = dirname($path);
+        if (!is_dir($dir)) @mkdir($dir, 0755, true);
+        $tmp = $path . '.tmp.' . bin2hex(random_bytes(4));
+        $fp = @fopen($tmp, 'wb');
+        if ($fp === false) throw new \RuntimeException('Could not write temporary file: ' . $relative);
+        $ok = false;
+        try {
+            $ok = fwrite($fp, $bytes) === strlen($bytes) && fflush($fp);
+            if ($ok && function_exists('fsync')) @fsync($fp);
+        } finally {
+            fclose($fp);
+        }
+        if (!$ok || !@rename($tmp, $path)) {
+            @unlink($tmp);
+            throw new \RuntimeException('Could not write file: ' . $relative);
+        }
+        @chmod($path, 0644);
+        $this->diskWrites++;
+    }
+
+    /** Anzahl der Schreibvorgänge auf die Platte (für Tests des Stapels). */
+    public function diskWrites(): int
+    {
+        return $this->diskWrites;
+    }
+
+    private int $diskWrites = 0;
+
     public function write(string $relative, mixed $data): void
+    {
+        if ($this->buffer !== null) {
+            $this->path($relative);   // Pfadprüfung wie beim echten Schreiben
+            $this->buffer[$relative] = $data;
+            $this->generation++;      // Zwischenergebnisse (forMeter-Memo) verfallen trotzdem
+            return;
+        }
+        $this->writeNow($relative, $data);
+    }
+
+    private function writeNow(string $relative, mixed $data): void
     {
         $path = $this->path($relative);
         $dir = dirname($path);
@@ -148,6 +230,7 @@ final class JsonStore
         }
         @chmod($path, 0644);
         $this->generation++;
+        $this->diskWrites++;
     }
 
     /**
@@ -165,12 +248,14 @@ final class JsonStore
 
     public function exists(string $relative): bool
     {
+        if ($this->buffer !== null && array_key_exists($relative, $this->buffer)) return true;
         return is_file($this->path($relative));
     }
 
     public function delete(string $relative): bool
     {
         $path = $this->path($relative);
+        if ($this->buffer !== null) unset($this->buffer[$relative]);
         $this->generation++;
         return is_file($path) ? @unlink($path) : true;
     }

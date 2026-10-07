@@ -37,7 +37,7 @@ let countryLanguages = [];
 export function setCountry(code, languages = []) {
   country = /^[A-Z]{2}$/.test(String(code || '')) ? code : 'DE';
   countryLanguages = Array.isArray(languages) ? languages : [];
-  numCache.clear(); eurCache.clear(); decCache.clear(); dateCache.clear(); monthCache.clear();
+  numCache.clear(); eurCache.clear(); decCache.clear(); dateCache.clear(); monthCache.clear(); pctCache.clear();
 }
 const regionCache = new Map();
 export const intlLocale = () => {
@@ -92,6 +92,21 @@ function decFmt(max) {
   return f;
 }
 
+// v3.1.0 (Review I18N-20) — Prozent nach der Sprache: de „12,5 %", fr mit
+// schmalem geschütztem Leerzeichen, en/it/pt/nl „12.5%"/„12,5%". Vorher hängte
+// fmt.pct überall „ %" mit normalem Leerzeichen an — das Zeichen konnte allein
+// in die nächste Zeile rutschen.
+const pctCache = new Map();
+function pctFmt(d) {
+  const key = `${intlLocale()}|${d}`;
+  let f = pctCache.get(key);
+  if (!f) {
+    f = new Intl.NumberFormat(intlLocale(), { style: 'percent', minimumFractionDigits: d, maximumFractionDigits: d });
+    pctCache.set(key, f);
+  }
+  return f;
+}
+
 const dateCache  = new Map();
 const monthCache = new Map();
 function dtFmt(cache, opts) {
@@ -126,7 +141,7 @@ export const fmt = {
   int:   (v)      => v == null || isNaN(v) ? '–' : numFmt(0).format(noNegZero(v, 0)),
   eur:   (v)      => v == null || isNaN(v) ? '–' : eurFmt().format(Number(v)),
   money: (v)      => v == null || isNaN(v) ? '–' : eurFmt().format(Number(v)),
-  pct:   (v, d=1) => v == null || isNaN(v) ? '–' : numFmt(d).format(Number(v) * 100) + ' %',
+  pct:   (v, d=1) => v == null || isNaN(v) ? '–' : pctFmt(d).format(noNegZero(v, d + 2)),
   // v2.5.3 — Unlesbare Werte kommen ESCAPED zurück. Vorher gab `date()` jeden
   // String roh zurück, der kein Datum war, und die Aufrufer setzten das
   // Ergebnis in innerHTML: HTML in einem Vertragsdatum (per API oder aus
@@ -151,7 +166,9 @@ export const fmt = {
     const dt = new Date(Number(m[1]), Number(m[2]) - 1, 1, 12);
     return dtFmt(monthCache, { month: 'short', year: 'numeric' }).format(dt);
   },
-  unit: (v, unit, digits=0) => v == null || isNaN(v) ? '–' : `${numFmt(digits).format(Number(v))} ${unit}`,
+  // v3.1.0 (Review I18N-20) — geschütztes Leerzeichen: Zahl und Einheit stehen
+  // nie in zwei Zeilen.
+  unit: (v, unit, digits=0) => v == null || isNaN(v) ? '–' : `${numFmt(digits).format(Number(v))} ${unit}`,
 };
 
 export function escapeHtml(s) {

@@ -7,6 +7,7 @@ use Energietracker\Storage\JsonStore;
 use Energietracker\Config\Utilities;
 use Energietracker\Support\Dates;
 use Energietracker\Http\NotFoundException;
+use Energietracker\Support\LocalizedException;
 
 /**
  * Manages meters per utility.
@@ -91,7 +92,7 @@ final class MeterService
         $this->assertUtility($utility);
         $u = Utilities::get($utility);
         if (empty($u['allow_multiple_meters']) && !empty($this->list($utility))) {
-            throw new \InvalidArgumentException($this->i18n->t('errors.meter.multipleMeters', ['utility' => $utility]));
+            throw new \InvalidArgumentException($this->i18n->t('errors.meter.multipleMeters', ['utility' => $this->i18n->utilityLabel($utility)]));
         }
         $isDelivery = Utilities::isDelivery($utility);
 
@@ -206,6 +207,17 @@ final class MeterService
         if ($utility === 'strom' && self::flag($input['heat_source'] ?? false)) {
             $meter['heat_source'] = true;
         }
+        // v3.1.0 (H3, B9) — Rolle des Zählers (strom: heat_pump ⇔ heat_source)
+        $this->applyRole($utility, $meter, $input);
+        // v3.1.0 (H5, MKT-24) — Marktlokation und Messlokation für den Lieferantenwechsel
+        $this->applyLocationIds($meter, $input);
+        // v3.1.0 (H7) — PV-Anlage und Wärmepumpe
+        $this->applyEnergyFields($utility, $meter, $input);
+        // v3.1.0 (H3, B2) — Erfassungsart: Zählerstände (Standard) oder Verbrauch je Zeitraum
+        if (array_key_exists('capture', $input)) {
+            $capture = $this->normalizeCapture($utility, $input['capture']);
+            if ($capture === 'period') $meter['capture'] = 'period';
+        }
 
         if ($meter['name'] === '') {
             throw new \InvalidArgumentException($this->i18n->t('errors.meter.nameEmpty'));
@@ -235,6 +247,26 @@ final class MeterService
             if ($utility === 'strom' && array_key_exists('heat_source', $input)) {
                 if (self::flag($input['heat_source'])) $m['heat_source'] = true;
                 else unset($m['heat_source']);
+            }
+            // v3.1.0 (H3, B9) — Rolle; (B2) Erfassungsart, gesperrt solange
+            // Daten der anderen Art da sind
+            $this->applyRole($utility, $m, $input);
+            $this->applyLocationIds($m, $input);
+            $this->applyEnergyFields($utility, $m, $input);
+            if (array_key_exists('capture', $input)) {
+                $capture = $this->normalizeCapture($utility, $input['capture']);
+                $current = (string)($m['capture'] ?? 'counter');
+                if ($capture !== $current) {
+                    $other = $current === 'period' ? "$utility/periods.json" : "$utility/readings.json";
+                    $rows = $this->store->read($other, []);
+                    foreach (is_array($rows) ? $rows : [] as $r) {
+                        if (is_array($r) && ($r['meter_id'] ?? null) === $meterId) {
+                            throw new LocalizedException('errors.meter.captureLocked', [], 'capture change with data');
+                        }
+                    }
+                    if ($capture === 'period') $m['capture'] = 'period';
+                    else unset($m['capture']);
+                }
             }
             // v1.2.0 — F1006: Topologie-Beziehungen änderbar
             if (array_key_exists('parent_meter_id', $input)) {
@@ -323,6 +355,12 @@ final class MeterService
         foreach ($contracts as $c) {
             if (($c['meter_id'] ?? null) === $meterId) {
                 throw new \InvalidArgumentException($this->i18n->t('errors.meter.hasContracts'));
+            }
+        }
+        // v3.1.0 (H3, H5) — Verbrauch je Zeitraum und Versorgerrechnungen hängen am Zähler
+        foreach (['periods' => 'errors.meter.hasPeriods', 'bills' => 'errors.meter.hasBills'] as $pot => $key) {
+            foreach ((array)$this->store->read("$utility/$pot.json", []) as $x) {
+                if (is_array($x) && ($x['meter_id'] ?? null) === $meterId) throw new \InvalidArgumentException($this->i18n->t($key));
             }
         }
         // v1.2.0 — F1006: ein Elternzähler mit Subzählern kann nicht gelöscht
@@ -552,7 +590,7 @@ final class MeterService
             if (($m['id'] ?? null) === $selfId) continue;
             if (($m['external_id'] ?? null) === $alias) {
                 throw new \InvalidArgumentException(
-                    $this->i18n->t('errors.meter.aliasTaken', ['alias' => $alias, 'utility' => $utility])
+                    $this->i18n->t('errors.meter.aliasTaken', ['alias' => $alias, 'utility' => $this->i18n->utilityLabel($utility)])
                 );
             }
         }
@@ -678,6 +716,127 @@ final class MeterService
     }
 
     /**
+     * v3.1.0 (H3, B9) — Rolle aus `role` (oder beim Strom aus `heat_source`)
+     * setzen und prüfen. Beim Strom bleiben beide Felder gleich: heat_pump ⇔
+     * heat_source, damit ältere Versionen die Wärmepumpe weiter erkennen. Die
+     * Standardrolle wird nicht gespeichert (fehlt = Standard).
+     */
+    private function applyRole(string $utility, array &$meter, array $input): void
+    {
+        $roles = Utilities::meterRoles($utility);
+        if ($roles === []) {
+            if (isset($input['role']) && $input['role'] !== '' && $input['role'] !== null) {
+                throw new LocalizedException('errors.meter.roleInvalid', ['role' => (string)$input['role']], 'role for utility without roles');
+            }
+            return;
+        }
+        if (array_key_exists('role', $input)) {
+            $role = $input['role'] === null || $input['role'] === '' ? $roles[0] : (string)$input['role'];
+            if (!in_array($role, $roles, true)) {
+                throw new LocalizedException('errors.meter.roleInvalid', ['role' => $role], 'unknown role');
+            }
+        } elseif ($utility === 'strom' && array_key_exists('heat_source', $input)) {
+            $role = self::flag($input['heat_source']) ? 'heat_pump' : (($meter['role'] ?? null) === 'heat_pump' ? $roles[0] : ($meter['role'] ?? $roles[0]));
+        } else {
+            return;
+        }
+        if ($role === $roles[0]) unset($meter['role']);
+        else $meter['role'] = $role;
+        if ($utility === 'strom') {
+            if ($role === 'heat_pump') $meter['heat_source'] = true;
+            else unset($meter['heat_source']);
+        }
+    }
+
+    /**
+     * v3.1.0 (H7) — Felder für eigene Kennzahlen:
+     *   pv_erzeugung  plug_in (Balkonkraftwerk), investment_eur und commissioned_on
+     *                 (Amortisation, § 51 EEG), battery_capacity_kwh (Vollzyklen)
+     *   waerme        heat_pump_meter_ids: Stromzähler der Wärmepumpe (Rolle
+     *                 heat_pump) für die Jahresarbeitszahl
+     * Leer bzw. false entfernt das Feld.
+     */
+    private function applyEnergyFields(string $utility, array &$meter, array $input): void
+    {
+        if ($utility === 'pv_erzeugung') {
+            if (array_key_exists('plug_in', $input)) {
+                if (self::flag($input['plug_in'])) $meter['plug_in'] = true; else unset($meter['plug_in']);
+            }
+            foreach (['investment_eur' => 10000000.0, 'battery_capacity_kwh' => 10000.0] as $f => $max) {
+                if (!array_key_exists($f, $input)) continue;
+                $v = $input[$f];
+                if ($v === null || $v === '') { unset($meter[$f]); continue; }
+                $n = is_string($v) ? ReadingImportService::parseNum($v) : (is_numeric($v) ? (float)$v : null);
+                if ($n === null || $n < 0 || $n > $max) {
+                    throw new LocalizedException('errors.meter.valueInvalid', ['field' => $f, 'value' => is_scalar($v) ? (string)$v : ''], $f);
+                }
+                $meter[$f] = round($n, 2);
+            }
+            if (array_key_exists('commissioned_on', $input)) {
+                $v = (string)($input['commissioned_on'] ?? '');
+                if ($v === '') unset($meter['commissioned_on']);
+                elseif (!Dates::isIsoDate($v)) throw new LocalizedException('errors.meter.valueInvalid', ['field' => 'commissioned_on', 'value' => $v], 'commissioned_on');
+                else $meter['commissioned_on'] = $v;
+            }
+        }
+        if ($utility === 'waerme' && array_key_exists('heat_pump_meter_ids', $input)) {
+            $ids = array_values(array_unique(array_filter(array_map('strval', (array)($input['heat_pump_meter_ids'] ?? [])), fn($x) => $x !== '')));
+            foreach ($ids as $id) {
+                $m = $this->get('strom', $id);
+                if ($m === null || Utilities::roleOf('strom', $m) !== 'heat_pump') {
+                    throw new LocalizedException('errors.meter.heatPumpLinkInvalid', ['id' => $id], 'heat pump link');
+                }
+            }
+            if ($ids === []) unset($meter['heat_pump_meter_ids']); else $meter['heat_pump_meter_ids'] = $ids;
+        }
+    }
+
+    /**
+     * v3.1.0 (H5, MKT-24) — MaLo-ID (11 Ziffern, letzte = Prüfziffer) und
+     * MeLo-ID (33 Zeichen: „DE" + 31 Ziffern/Großbuchstaben). Leer entfernt.
+     */
+    private function applyLocationIds(array &$meter, array $input): void
+    {
+        if (array_key_exists('malo_id', $input)) {
+            $v = preg_replace('/\s+/', '', (string)($input['malo_id'] ?? '')) ?? '';
+            if ($v === '') unset($meter['malo_id']);
+            elseif (!self::isValidMalo($v)) throw new LocalizedException('errors.meter.maloInvalid', ['value' => $v], 'malo');
+            else $meter['malo_id'] = $v;
+        }
+        if (array_key_exists('melo_id', $input)) {
+            $v = strtoupper(preg_replace('/\s+/', '', (string)($input['melo_id'] ?? '')) ?? '');
+            if ($v === '') unset($meter['melo_id']);
+            elseif (!preg_match('/^DE[0-9A-Z]{31}$/', $v)) throw new LocalizedException('errors.meter.meloInvalid', ['value' => $v], 'melo');
+            else $meter['melo_id'] = $v;
+        }
+    }
+
+    /**
+     * Prüfziffer der Marktlokations-ID: Ziffern an ungerader Stelle (1, 3, … 9)
+     * einfach, an gerader Stelle (2, … 10) doppelt summieren; die Prüfziffer
+     * ergänzt die Summe zur nächsten Zehn.
+     */
+    public static function isValidMalo(string $id): bool
+    {
+        if (!preg_match('/^[1-9]\d{10}$/', $id)) return false;
+        $odd = 0; $even = 0;
+        for ($i = 0; $i < 10; $i++) {
+            if ($i % 2 === 0) $odd += (int)$id[$i]; else $even += (int)$id[$i];
+        }
+        return (10 - (($odd + 2 * $even) % 10)) % 10 === (int)$id[10];
+    }
+
+    /** v3.1.0 (H3, B2) — 'counter' oder 'period'; Zeiträume nur bei Zählerständen-Arten. */
+    private function normalizeCapture(string $utility, mixed $v): string
+    {
+        $c = $v === null || $v === '' ? 'counter' : (string)$v;
+        if (!in_array($c, ['counter', 'period'], true) || ($c === 'period' && !Utilities::isCumulative($utility))) {
+            throw new LocalizedException('errors.meter.captureInvalid', ['value' => is_scalar($v) ? (string)$v : ''], 'capture');
+        }
+        return $c;
+    }
+
+    /**
      * v2.10.0 — Preis des Anfangsbestands in ct je Einheit (L bzw. kg).
      * Leer = nicht gepflegt: Das Tankbuch nimmt dann den Preis der ersten
      * Lieferung (bis v2.9 war der Anfangsbestand kostenlos).
@@ -744,12 +903,22 @@ final class MeterService
      * ergab 138,8 m³ in der einen und 126,7 m³ in der anderen Sicht.
      *
      * `countsInTotals()`: gehört ein Zähler in Summen? Subzähler nie — sie sind
-     * im Elternzähler schon enthalten (F1006). `inService()`: ist er in Betrieb?
+     * im Elternzähler schon enthalten (F1006). Seit v3.1.0 (H3, B9) auch nicht
+     * Zähler mit einer Rolle aus ROLES_OUTSIDE_TOTALS: Sie messen Energie, die
+     * nicht Verbrauch bzw. Erzeugung der Art ist. `inService()`: ist er in Betrieb?
      */
     public static function countsInTotals(array $meter): bool
     {
-        return ($meter['parent_meter_id'] ?? null) === null;
+        return ($meter['parent_meter_id'] ?? null) === null
+            && !in_array($meter['role'] ?? null, self::ROLES_OUTSIDE_TOTALS, true);
     }
+
+    /**
+     * v3.1.0 (H3) — Batterie lädt/entlädt (pv_erzeugung) ist keine Erzeugung,
+     * die Wärmeabgabe der Wärmepumpe (waerme) misst dieselbe Wärme wie der
+     * Verbrauchszähler noch einmal — beide nur für eigene Kennzahlen (JAZ, Speicher).
+     */
+    public const ROLES_OUTSIDE_TOTALS = ['battery_charge', 'battery_discharge', 'heat_pump_output'];
 
     /** v2.9.0 — in Betrieb (Erfassung, Warnungen, Empfehlungen); s. countsInTotals() */
     public static function inService(array $meter): bool
@@ -865,6 +1034,32 @@ final class MeterService
         return null;
     }
 
+    /** v3.1.0 (H6, #17) — Mitglieder einer Gruppe in der Reihenfolge der Zählerliste; das erste trägt die festen Kosten eines Gruppenvertrags. */
+    public function groupMembers(string $utility, string $groupId): array
+    {
+        return array_values(array_filter($this->list($utility), fn($m) => ($m['meter_group_id'] ?? null) === $groupId));
+    }
+
+    /**
+     * v3.1.0 (H6, #17) — Eine Gruppe als Ziel von Auswertungen (Verbrauch,
+     * Vertragsstatus, Prognose, Wechsel, Rechnungsprüfung): ein Datensatz wie
+     * ein Zähler mit `is_group` und den Mitgliedern. Null, wenn es sie nicht gibt.
+     */
+    public function groupTarget(string $utility, string $groupId): ?array
+    {
+        $g = $this->getGroup($utility, $groupId);
+        if ($g === null) return null;
+        return ['id' => $groupId, 'name' => (string)($g['name'] ?? $groupId), 'is_group' => true,
+                'members' => array_column($this->groupMembers($utility, $groupId), 'id'),
+                'devices' => [], 'active' => true, 'created_at' => (string)($g['created_at'] ?? '')];
+    }
+
+    /** v3.1.0 (H6) — Zähler oder Gruppe zu einer ID. */
+    public function target(string $utility, string $id): ?array
+    {
+        return $this->get($utility, $id) ?? $this->groupTarget($utility, $id);
+    }
+
     public function createGroup(string $utility, array $input): array
     {
         $this->assertUtility($utility);
@@ -913,6 +1108,12 @@ final class MeterService
     {
         if ($this->getGroup($utility, $groupId) === null) {
             throw new NotFoundException($this->i18n->t('errors.meter.groupNotFound'));
+        }
+        // v3.1.0 (H6) — ein Gruppenvertrag hängt an der Gruppe
+        foreach ((array)$this->store->read("$utility/contracts.json", []) as $c) {
+            if (is_array($c) && ($c['meter_group_id'] ?? null) === $groupId) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.meter.groupHasContracts'));
+            }
         }
         // Mitglieder lösen
         $meters = $this->list($utility);

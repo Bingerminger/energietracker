@@ -30,6 +30,10 @@ v1.0.2.
      --data '{"language":"en"}' http://127.0.0.1:8910/api.php/api/settings
    ```
 
+   Since v3.1.0 a language the browser has stored for this device
+   (`localStorage['et-language']`) takes precedence over the setting — remove
+   it first or set it to `en` straight away.
+
 3. **Browser**: light (`localStorage['et-theme'] = 'light'` — a browser profile
    remembers the choice per address), window 1440 × 1500 or 1440 × 900, for the
    iPhone 375 × 812.

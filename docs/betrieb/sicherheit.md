@@ -39,6 +39,8 @@ Auch im offenen Betrieb gelten seit v2.5.3/v2.6.0:
 | Webserver-Regeln | `data/` (alle Nutzdaten und Backups), `src/`, `.git/` und andere Nicht-Auslieferungsdateien liefert der Webserver nicht aus (§ 9). |
 | Content-Security-Policy | Nur Skripte der eigenen Installation laufen — eine zweite Linie gegen eingeschleustes HTML. |
 | Fehlermeldungen | Keine Pfade, Dateinamen oder Zeilennummern in API-Antworten (nur mit `ET_DEBUG=1`); ein Serverfehler nennt eine Fehler-ID, die Einzelheiten stehen im Protokoll. |
+| Belege *(v3.1.0)* | Fotos und PDFs werden am Inhalt geprüft und nur über die API ausgeliefert, ein PDF ohne Skripte (§ 9). |
+| Texterkennung *(v3.1.0)* | Der Server verbindet sich nur mit Adressen im eigenen Netz, geprüft bei jedem Aufruf (§ 9). |
 
 Das schützt vor fremden **Webseiten**, nicht vor fremden **Menschen oder
 Geräten im Netz** — dafür ist die Anmeldung da.
@@ -56,7 +58,10 @@ Was sich damit ändert:
 - Jede API-Route verlangt eine Sitzung (Browser) oder einen API-Schlüssel
   (Skripte, § 5). Ohne beides: `401`.
 - **Home Assistant braucht dann einen Token** (§ 4) — ohne Token lehnt der
-  Push jeden Wert ab.
+  Push jeden Wert ab. Für die Werte zurück nach Home Assistant braucht es
+  zusätzlich einen API-Schlüssel `read` (§ 5).
+- Das **Kalender-Abo** braucht einen Kalender-Schlüssel im Link (§ 5); die App
+  legt ihn beim Abonnieren an (seit v3.1.0).
 - `/api/health` antwortet ohne Anmeldung nur noch mit `{status, version}` —
   genug für Docker und Uptime-Monitore.
 - Nach **fünf** falschen Passwörtern innerhalb von 15 Minuten ist die
@@ -101,6 +106,11 @@ Pflicht. Einrichtung: [Home Assistant](../anleitungen/home-assistant.md).
   wird er gespeichert, aber **als Verdacht markiert** und zählt erst nach
   deiner Bestätigung — so erzeugt eine 0 aus Home Assistant keinen
   Phantomverbrauch.
+- **Werte zurück nach Home Assistant** (seit v3.1.0): Die REST-Sensoren lesen
+  `GET /api/summary`. Dafür gilt der Token nicht — mit eingeschalteter
+  Anmeldung braucht Home Assistant einen API-Schlüssel mit Berechtigung
+  `read` (§ 5), in der `secrets.yaml` als `energietracker_read`. Er darf nur
+  lesen; ein `admin`-Schlüssel gehört nicht in Home Assistant.
 
 ## 5. API-Schlüssel für Skripte
 
@@ -111,8 +121,9 @@ ist nur sein Hash.
 
 | Berechtigung | darf |
 |---|---|
-| Lesen (`read`) | nur abrufen (`GET`) — z. B. für einen REST-Sensor in Home Assistant oder eine Auswertung |
+| Lesen (`read`) | nur abrufen (`GET`) — z. B. für die REST-Sensoren in Home Assistant (`/api/summary`) oder eine Auswertung |
 | Verwalten (`admin`) | alles, auch ändern und löschen — z. B. für ein Backup-Skript, das auch einspielt |
+| Kalender (`calendar`, seit v3.1.0) | nur das Kalender-Abo `GET /api/calendar.ics`, und nur als `?token=…` im Link |
 
 ```bash
 curl -H "Authorization: Bearer etk_…" https://energie.example.org/api.php/api/backup/export > backup.json
@@ -120,6 +131,21 @@ curl -H "Authorization: Bearer etk_…" https://energie.example.org/api.php/api/
 
 Die Liste zeigt je Schlüssel, wann er zuletzt benutzt wurde. Nicht mehr
 gebrauchte Schlüssel widerrufen.
+
+**Kalender-Schlüssel.** Kalender-Apps können keine Kopfzeile senden; der
+Schlüssel steht deshalb im Link und landet damit in Kalender-Synchronisationen
+und Protokollen. Darum ist er eng gefasst:
+
+- Er gilt nur für `/api/calendar.ics` und nur als `?token=…`. Auf jeder
+  anderen Route, auch als `Authorization`-Kopfzeile, antwortet die App mit
+  `401`.
+- Ein `read`- oder `admin`-Schlüssel im Link wird abgewiesen (`401`) — sonst
+  stünde ein Schlüssel mit Lesezugriff auf alles in jeder Kalender-App.
+- Die App legt den Schlüssel an, wenn du unter Hinweise → Termine & Wartung
+  „Im Kalender abonnieren“ wählst und die Rückfrage mit „Link erzeugen“
+  bestätigst — nicht schon beim Öffnen. Widerrufen unter Einstellungen → Zugriff; der
+  Kalender bekommt danach nichts mehr. Einrichtung:
+  [Kalender abonnieren](../anleitungen/kalender.md).
 
 ## 6. Anmeldung über einen vorgeschalteten Proxy
 
@@ -132,12 +158,17 @@ ET_TRUSTED_PROXIES=172.18.0.0/16   # Adresse(n) oder Netze des Proxys, kommagetr
 ```
 
 Der Energietracker übernimmt dann den Benutzer aus `Remote-User`,
-`X-Forwarded-User` oder `X-Remote-User` — **nur** bei Anfragen von den
-Adressen in `ET_TRUSTED_PROXIES`. Von anderswo gilt die Kopfzeile nicht, sonst
-könnte jeder sie selbst setzen. Der Proxy muss diese Kopfzeilen aus den
-Anfragen der Nutzer **entfernen**, bevor er seine eigenen setzt (bei den
-genannten Diensten Standard). API-Schlüssel funktionieren im Proxy-Modus
-zusätzlich.
+`X-Forwarded-User`, `X-Remote-User` oder — seit v3.1.0 — `X-Remote-User-Name`
+bzw. `X-Remote-User-Id` (so meldet Home Assistant unter Ingress den Benutzer)
+— **nur** bei Anfragen von den Adressen in `ET_TRUSTED_PROXIES`. Von anderswo
+gilt die Kopfzeile nicht, sonst könnte jeder sie selbst setzen. Der Proxy muss
+diese Kopfzeilen aus den Anfragen der Nutzer **entfernen**, bevor er seine
+eigenen setzt (bei den genannten Diensten Standard). API-Schlüssel
+funktionieren im Proxy-Modus zusätzlich.
+
+Unter Home-Assistant-Ingress ist der Proxy der Supervisor:
+`ET_AUTH=proxy` und `ET_TRUSTED_PROXIES=172.30.32.2` — Einzelheiten in
+[Home Assistant](../anleitungen/home-assistant.md).
 
 ## 7. HTTPS
 
@@ -185,7 +216,7 @@ getrennt.
 | Pfad | Inhalt |
 |---|---|
 | `data/` | alle Nutzdaten, `auth.json`, Backups und Snapshots |
-| `src/`, `tests/`, `scripts/`, `docker/`, `docs/`, `demo-data/`, `vendor/` | Quelltext, Tests, Hilfsdateien |
+| `src/`, `tests/`, `scripts/`, `docker/`, `docs/`, `demo-data/`, `vendor/`, `tools/`, `dist/`, `deploy/` | Quelltext, Tests, Hilfsdateien, Vorlagen (die drei letzten seit v3.1.0) |
 | `.git/`, `.github/`, `.env` und alle Punktdateien | Historie, Konfiguration |
 | `composer.json`, `Dockerfile`, `VERSION`, `*.md` im Wurzelverzeichnis | Projektdateien |
 
@@ -209,6 +240,40 @@ curl -s -o /dev/null -w '%{http_code}\n' http://nas.local/energietracker/.git/co
 curl -s -o /dev/null -w '%{http_code}\n' http://nas.local/energietracker/src/bootstrap.php
 ```
 
+### Belege und Texterkennung *(v3.1.0)*
+
+**Belege.** Fotos und PDFs liegen unter `data/attachments/` — für den
+Webserver gesperrt wie der Rest von `data/`. Heraus kommen sie nur über
+`GET /api/attachments/{id}`, also mit derselben Anmeldung wie alles andere.
+
+- Angenommen wird nur, was nach seinem **Inhalt** (den ersten Bytes) ein JPEG,
+  PNG, WebP oder PDF ist; Endung und `Content-Type` zählen nicht. SVG und
+  HTML, die Skripte tragen könnten, lehnt die App ab.
+- Ausgeliefert wird mit dem gespeicherten Typ und
+  `X-Content-Type-Options: nosniff` — der Browser rät nicht, was die Datei
+  sein könnte.
+- Ein PDF kommt mit `Content-Security-Policy: sandbox`: Es läuft ohne Skripte
+  und ohne Zugriff auf die App.
+- Grenzen: Foto 3 MB, PDF 10 MB, alle zusammen `attachments_max_mb`.
+
+**Datenschutz beim Foto.** Der Browser verkleinert ein Zählerfoto vor dem
+Hochladen und kodiert es neu als JPEG. Dabei fallen die EXIF-Daten weg — auch
+der GPS-Ort, den Handys oft mitspeichern. Backups und Snapshots enthalten die
+Fotos: Wer ein Backup weitergibt, gibt die Fotos mit.
+
+**Texterkennung nur im Heimnetz.** Ist ein Texterkennungsdienst eingetragen
+(`ocr_endpoint`), verbindet sich der **Server** mit ihm — nie der Browser,
+dessen Content-Security-Policy nur die eigene Seite erlaubt. Jede Adresse, auf
+die der Name zeigt, muss lokal sein (Loopback, private Netze, Link-local,
+`100.64.0.0/10`, IPv6-ULA). Geprüft wird bei jedem Aufruf nach der
+Namensauflösung, verbunden wird mit genau der geprüften Adresse, Weiterleitungen
+werden nicht verfolgt. So schickt weder ein Tippfehler noch ein umgebogener
+DNS-Eintrag (DNS-Rebinding) ein Zählerfoto ins Internet. Einen Schalter dagegen
+gibt es nicht; leer heißt: keine Verbindung. Das Ziel bestimmt, wer die
+Einstellungen ändern darf — mit eingeschalteter Anmeldung nur Angemeldete und
+`admin`-Schlüssel. Einrichtung:
+[Texterkennung im Heimnetz](../anleitungen/texterkennung.md).
+
 ## 10. Protokoll und Fehlersuche
 
 - `ET_DEBUG=1` schreibt Datei, Zeile und Ausnahmetyp in Fehlerantworten —
@@ -223,7 +288,8 @@ curl -s -o /dev/null -w '%{http_code}\n' http://nas.local/energietracker/src/boo
 
 - [ ] Anmeldung eingeschaltet (§ 3) oder Proxy-Anmeldung (§ 6)
 - [ ] HTTPS über den Reverse-Proxy (§ 7)
-- [ ] Home Assistant mit Token (§ 4)
+- [ ] Home Assistant mit Token, Rückkanal mit `read`-Schlüssel (§ 4)
+- [ ] Kalender-Abo nur mit Kalender-Schlüssel im Link (§ 5)
 - [ ] `data/` & Co. liefern `404` (§ 9)
 - [ ] `ET_ALLOWED_HOSTS` gesetzt (§ 8)
 - [ ] `ET_DEBUG` nicht gesetzt (§ 10)

@@ -41,6 +41,11 @@ Das offizielle Image ist **Multi-Arch** (`linux/amd64` **und** `linux/arm64`),
 läuft also nativ auf Intel/AMD-Servern **und** auf Apple Silicon (M1–M4) sowie
 ARM-NAS.
 
+Für 32-Bit-ARM (`linux/arm/v7`, ältere Raspberry Pi und NAS) gibt es noch
+kein veröffentlichtes Image. Ein Probelauf in der CI baut und startet es
+bereits (seit v3.1.0); erst wenn er verlässlich durchläuft, kommt die
+Plattform ins veröffentlichte Image.
+
 ---
 
 ## Wo liegen meine Daten? (das Wichtigste!)
@@ -159,6 +164,89 @@ Station — siehe [Webserver](webserver.md#synology-web-station).
 
 ---
 
+## Unraid
+
+Seit v3.1.0 liegt im Projekt eine Vorlage für den Docker-Tab von Unraid:
+[`deploy/unraid/energietracker.xml`](../../deploy/unraid/energietracker.xml).
+In den Community Applications ist Energietracker noch nicht gelistet; die
+Vorlage kommt deshalb von Hand auf den Server.
+
+1. Die Vorlage in den Ordner für eigene Vorlagen laden (Unraid-Terminal, Symbol
+   `>_` oben rechts):
+
+   ```bash
+   wget -O /boot/config/plugins/dockerMan/templates-user/my-Energietracker.xml \
+     https://raw.githubusercontent.com/Bingerminger/energietracker/main/deploy/unraid/energietracker.xml
+   ```
+
+2. **Docker → Add Container**, unter *Template* die Vorlage „Energietracker“
+   (eigene Vorlagen) wählen.
+3. Die Vorgaben passen meist: Port **8080** auf dem Host (der Container hört
+   immer auf 80), Daten unter **`/mnt/user/appdata/energietracker`** (im
+   Container `/data`). Die `ET_*`-Variablen stehen unter *Show more
+   settings*, alle optional. **Apply** startet den Container.
+4. Über das Container-Symbol → *WebUI* öffnen.
+
+Die Vorlage nutzt `:latest`. Wer Updates bewusst einspielen will, setzt unter
+*Repository* eine feste Version (siehe [Welchen Tag soll ich nehmen?](#welchen-tag-soll-ich-nehmen)).
+
+**Rechte:** Unraid-Freigaben gehören `nobody:users` (99:100). Der Container
+stellt `/data` beim Start auf seinen Webserver-Benutzer `www-data` (UID 82),
+wenn der Besitzer nicht stimmt — auf dem Host gehört der Ordner danach UID 82.
+Setzt das Unraid-Werkzeug *New Permissions* die Rechte zurück, startest du den
+Container neu; er stellt sie wieder um.
+
+---
+
+## CasaOS und ZimaOS
+
+Seit v3.1.0 liegt eine Compose-Datei im Format von CasaOS bei:
+[`deploy/casaos/docker-compose.yml`](../../deploy/casaos/docker-compose.yml).
+Sie pinnt die aktuelle Version, Port **8080**, Daten unter
+`/DATA/AppData/$AppID/data` (im Container `/data`).
+
+1. In CasaOS (oder ZimaOS) im Bereich *Apps* auf **+** → **Custom Install**
+   (eigene App installieren).
+2. Oben rechts **Import** wählen, den Inhalt der Datei einfügen und
+   übernehmen.
+3. Installieren, danach die App über ihr Symbol öffnen.
+
+Für ein Update den Tag unter `image:` und `version:` auf die neue Version
+setzen.
+
+---
+
+## Umbrel
+
+[`deploy/umbrel/`](../../deploy/umbrel/) enthält seit v3.1.0 die Vorlage für
+ein Umbrel-Paket (`umbrel-app.yml` und `docker-compose.yml`) — für einen
+eigenen Community App Store oder eine spätere Einreichung im offiziellen Store.
+Dort ist Energietracker noch nicht gelistet.
+
+- Vor der App steht der `app_proxy` von Umbrel: Wer die Oberfläche öffnet,
+  meldet sich bei Umbrel an.
+- Ausnahme ist der Home-Assistant-Push: `/api/ingest` und `/api.php/api/ingest`
+  stehen in `PROXY_AUTH_WHITELIST` und sind ohne Umbrel-Cookie erreichbar.
+  Erzeuge deshalb in der App einen Ingest-Token (Einstellungen → Integrationen),
+  sonst kann jeder im Netz Zählerstände schicken.
+- Alle anderen Pfade verlangen die Umbrel-Anmeldung, auch `/api/summary`
+  (Werte zurück nach Home Assistant) und das Kalender-Abo. Wer sie von außen
+  braucht, ergänzt sie in `PROXY_AUTH_WHITELIST` und schaltet die Anmeldung
+  der App ein ([Sicherheit & Netzbetrieb](sicherheit.md)).
+- Die Daten liegen unter `${APP_DATA_DIR}/data` (im Container `/data`).
+- Für eine Einreichung muss das Image per Digest gepinnt werden
+  (`repo:tag@sha256:…`); die Datei sagt, was noch fehlt.
+
+---
+
+## Home Assistant
+
+Eine Home-Assistant-App (früher „Add-on“) ist in Vorbereitung. Wer die App
+schon jetzt in Home Assistant einbettet oder unter Ingress betreibt, findet die
+Besonderheiten in der Anleitung [Home Assistant](../anleitungen/home-assistant.md).
+
+---
+
 ## Welchen Tag soll ich nehmen?
 
 | Tag | Bedeutung | Empfehlung |
@@ -230,10 +318,18 @@ Was die Anmeldung bewirkt und wann du sie brauchst:
 [Sicherheit & Netzbetrieb](sicherheit.md).
 
 **PHP-Einstellungen (seit v2.6.0):** Das Image bringt eine eigene `php.ini`
-mit — `memory_limit` 256 MB, `post_max_size`/`upload_max_filesize` 32 MB,
-`max_execution_time` 120 s, Fehlerausgabe aus, OPcache an. Bis v2.5.3 galten
-die PHP-Vorgaben (128 MB, 8 MB); ein Backup mit vielen Jahren Tagesdaten ließ
-sich damit nicht zurückspielen.
+mit — `max_execution_time` 120 s, Fehlerausgabe aus, OPcache an. Seit v3.1.0
+`post_max_size`/`upload_max_filesize` **256 MB** und `memory_limit` **768 MB**
+(vorher 32 MB und 256 MB), nginx nimmt Anfragen bis 256 MB an
+(`client_max_body_size`, vorher 32 MB): Mit Belegen (Fotos, PDFs) wird ein
+Backup schnell größer, und der Import hält es beim Einspielen etwa doppelt im
+Speicher. Bis v2.5.3 galten die PHP-Vorgaben (128 MB, 8 MB); ein Backup mit
+vielen Jahren Tagesdaten ließ sich damit nicht zurückspielen. Ebenfalls seit
+v3.1.0 wartet nginx bis zu **310 Sekunden** auf PHP (`fastcgi_read_timeout`,
+vorher 120 s): Die Texterkennung im Heimnetz darf bis 300 Sekunden rechnen
+(`ocr_timeout_s`), auf einem NAS ohne Grafikkarte kommt das vor. Das Warten
+auf den Dienst zählt unter Linux nicht in `max_execution_time`. Steht ein
+eigener Reverse-Proxy davor, gilt dessen Zeitlimit zusätzlich.
 
 **Healthcheck:** Der Container fragt `GET /api/health` ab. Seit v2.6.0
 antwortet der Endpunkt bei einer echten Störung (Daten nicht schreibbar,
@@ -291,6 +387,12 @@ bis v2.5.3 still auf das alte Schema zurückzustempeln.
   bleiben), eigene nach zehn.
 - Auf Dateiebene liegt alles im gemounteten `data/`-Ordner — den kannst du
   zusätzlich klassisch sichern (kopieren).
+- **Belege** (seit v3.1.0): Fotos von Zählerständen liegen in
+  `data/attachments/` und stehen in jedem Backup und jedem Snapshot. Das
+  Volume wächst deshalb mit jedem Foto — einmal für die Datei, einmal je
+  Snapshot in `data/backups/`. Wie viel die Belege belegen, zeigt
+  Einstellungen → Daten über den Backup-Knöpfen; die Obergrenze setzt
+  `attachments_max_mb` (Standard 500 MB).
 
 ---
 
@@ -319,6 +421,9 @@ nutzt für den Container-`HEALTHCHECK` den Endpoint `GET /api/health`.
 | Docker Desktop: Container bleibt auf „Created“, Fehler `mounts denied` bzw. „HTTP 500“ | Der Datenordner ist unter Settings → Resources → File sharing nicht freigegeben. Freigeben oder ein Named Volume nehmen: `-v energietracker-data:/data`. |
 | Port 8080 belegt | Anderen Host-Port wählen, z. B. `-p 9000:80`. |
 | „403/Permission denied" auf `data` | Der Container setzt die Rechte beim Start; bei eigenem Host-Ordner ggf. Schreibrechte prüfen. |
+| Unraid: nach *New Permissions* „Daten nicht schreibbar“ | Container neu starten — er stellt `/data` wieder auf `www-data` (UID 82). |
+| Texterkennung „nicht erreichbar“, obwohl Ollama auf demselben Rechner läuft | Im Container ist `localhost` der Container selbst. Die Adresse des Rechners im Heimnetz eintragen und Ollama mit `OLLAMA_HOST=0.0.0.0` starten — [Texterkennung im Heimnetz](../anleitungen/texterkennung.md#wenn-der-energietracker-in-docker-läuft). |
+| Texterkennung mit langem Zeitlimit endet mit `504` | Das Image selbst wartet seit v3.1.0 bis 310 s; ein Reverse-Proxy davor wartet kürzer. Dessen Zeitlimit über 300 s setzen oder `ocr_timeout_s` senken. |
 
 ---
 

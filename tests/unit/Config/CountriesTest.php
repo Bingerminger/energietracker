@@ -148,4 +148,50 @@ final class CountriesTest extends TestCase
         self::assertSame('NL', Countries::forLanguage('nl'));
         self::assertSame('DE', Countries::forLanguage('xx'), 'Unbekannte Sprache fällt auf das Standardland');
     }
+
+    /**
+     * v3.1.0 (Review I18N-27) — Rechnungsbegriffe je Land gehören zu einem
+     * Glossarbegriff (die ⓘ-Erklärung zeigt sie), und jedes Land nennt
+     * mindestens Arbeits- und Grundpreis.
+     */
+    public function testBillTermsBelongToTheGlossary(): void
+    {
+        $info = (string)file_get_contents(dirname(__DIR__, 3) . '/public/js/components/info.js');
+        self::assertSame(1, preg_match('/export const GLOSSARY = \[(.*?)\];/s', $info, $m));
+        preg_match_all("/'([a-zA-Z0-9]+)'/", $m[1], $ids);
+        $glossary = $ids[1];
+        foreach (Countries::all() as $p) {
+            $terms = $p['bill_terms'] ?? null;
+            self::assertIsArray($terms, "{$p['code']}: bill_terms fehlt");
+            // Schweiz: je Landessprache ein Satz
+            $sets = array_filter($terms, 'is_array') ? $terms : ['*' => $terms];
+            if (count($sets) > 1 || !isset($sets['*'])) {
+                self::assertSame($p['languages'], array_keys($sets), "{$p['code']}: bill_terms je Landessprache");
+            }
+            foreach ($sets as $lang => $set) {
+                foreach ($set as $id => $term) {
+                    self::assertContains($id, $glossary, "{$p['code']}/$lang: $id ist kein Glossarbegriff");
+                    self::assertIsString($term);
+                    self::assertNotSame('', trim($term));
+                }
+                self::assertArrayHasKey('workingPrice', $set, "{$p['code']}/$lang");
+                self::assertArrayHasKey('basePrice', $set, "{$p['code']}/$lang");
+            }
+        }
+    }
+
+    /** Nur amtliche bzw. regulatorische Vergleichsportale, über HTTPS. */
+    public function testComparisonPortalsAreOfficial(): void
+    {
+        $allowed = ['www.e-control.at', 'comparateur-offres.energie-info.fr', 'www.ilportaleofferte.it',
+                    'comparador.cnmc.gob.es', 'simuladorprecos.erse.pt'];
+        foreach (Countries::all() as $p) {
+            self::assertArrayHasKey('comparison_portal', $p, $p['code']);
+            $url = $p['comparison_portal'];
+            if ($url === null) continue;
+            self::assertStringStartsWith('https://', $url, $p['code']);
+            self::assertContains(parse_url($url, PHP_URL_HOST), $allowed, "{$p['code']}: kein bekanntes amtliches Portal");
+        }
+        self::assertNull(Countries::get('DE')['comparison_portal'], 'Deutschland hat kein amtliches Portal');
+    }
 }

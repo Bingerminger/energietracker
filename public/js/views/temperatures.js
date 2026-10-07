@@ -9,7 +9,8 @@ import { toastOk, toastErr } from '../components/toast.js';
 import { guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { makeChart, tokenColor, chartTableHtml } from '../components/chart.js';
-import { t } from '../lib/i18n.js';
+import { t, tp } from '../lib/i18n.js';
+import { exampleTemperaturesCsv, downloadExample } from '../lib/csv-example.js';
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('temperatures.loading')}</div>`;
@@ -104,7 +105,7 @@ export async function render(container) {
     <div class="card" style="margin-top: var(--sp-5)">
       <div class="section-head">
         <h2 class="card__title">${t('temperatures.monthly')}</h2>
-        <div class="muted">${t('temperatures.daysLoaded', { count: days.length })}</div>
+        <div class="muted">${tp('temperatures.daysLoaded', days.length)}</div>
       </div>
       ${measuredUntil ? `<p class="muted" style="margin-top:0">${t(forecastUntil ? 'temperatures.statusWithForecast' : 'temperatures.status', {
         measured: fmt.date(measuredUntil), forecast: forecastUntil ? fmt.date(forecastUntil) : '',
@@ -136,15 +137,9 @@ export async function render(container) {
 
   // Beispiel-CSV als Datei erzeugen und herunterladen.
   container.querySelector('#dl-example')?.addEventListener('click', () => {
-    // v2.12.0 — übliches CSV mit Semikolon (das alte Format mit
+    // v3.1.0 (I18N-11) — in der Sprache der Oberfläche (das alte Format mit
     // Anführungszeichen liest der Import weiter)
-    const csv = 'Datum;Mittel;Min;Max\n15.01.2024;4,2;-1,0;7,1\n16.01.2024;3,8;-2,0;6,5\n';
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'beispiel-temperaturen.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
+    downloadExample(exampleTemperaturesCsv(), 'exampleTemperatures');
   });
 
   // v2.12.0 (Review UI-30) — Standort prüfen und speichern; beim Verlassen
@@ -222,7 +217,7 @@ export async function render(container) {
       // Werte von vor v2.8.0 durch Archivwerte
       const reload = container.querySelector('#sync-reload')?.checked;
       const result = await api.syncOpenMeteo(reload ? { reload: 1 } : {});
-      toastOk(t('temperatures.syncToast', { imported: result.imported || 0, archive: result.archive_rows || 0, forecast: result.forecast_rows || 0 }));
+      toastOk(tp('temperatures.syncToast', result.imported || 0, { imported: result.imported || 0, archive: result.archive_rows || 0, forecast: result.forecast_rows || 0 }));
       if (result.archive_error)  toastErr(t('temperatures.archiveError', { err: result.archive_error }));
       if (result.forecast_error) toastErr(t('temperatures.forecastError', { err: result.forecast_error }));
       const cn = result.climate_normal;
@@ -245,7 +240,7 @@ async function importCsv(file, container) {
   try {
     const text = await file.text();
     const res = await api.importTempCsv(text);
-    toastOk(t('temperatures.importToast', { imported: res.imported || 0, skipped: res.skipped || 0 }));
+    toastOk(t('temperatures.importToast', { imported: tp('temperatures.importDays', res.imported || 0), skipped: tp('temperatures.importSkipped', res.skipped || 0) }));
     render(container);
   } catch (e) { toastErr(e.message); }
 }

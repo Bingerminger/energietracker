@@ -60,7 +60,11 @@ correction applies there as well. After the first start the header changes
 nothing.
 
 **In the settings.** The card "Language & country" holds language, country,
-currency and time zone; all four take effect immediately. When the country
+currency and time zone; all take effect immediately. Since v3.1.0 the
+language appears twice: "Language on this device" (this browser only) and
+"Default language of the installation" (devices without a choice of their own,
+PDF, CSV, Home Assistant). Country, currency and time zone apply to the whole
+installation. When the country
 changes, a dialog shows which values the profile would change — current and
 new side by side, with the source of the CO₂ factor:
 
@@ -90,7 +94,8 @@ The last row is deliberate: English in Germany writes English. The browser
 (`Intl`) would write German numbers for "en-DE" — and every existing English
 installation carries the country DE, so it would have got them overnight.
 
-The interface formats with `Intl`; the yearly PDF report and the
+The interface and the print view of the annual report format with `Intl`; the
+yearly PDF report, the CSV spreadsheets in format "local" and the
 recommendation texts follow the same rules in the backend (catalog keys
 `format.*`, country deviations in `Countries::FORMAT_OVERRIDES`).
 
@@ -166,7 +171,88 @@ one.
 
 ---
 
-## 8. Limits
+## 8. What your bill calls it
+
+The interface speaks a language, the bill a country. "Advance payment" is what
+the English interface calls it — a British bill says "Direct Debit", an
+Austrian one "Teilbetrag" where a German one says "Abschlag". Since **v3.1.0**
+every country profile knows the words printed on that country's bills. The app
+shows them
+
+- in the **ⓘ explanation** and in the **glossary of the help**: "On your bill
+  (Austria): “Teilbetrag”",
+- in the **tariff switch** as the link "Official tariff comparison (country) ↗",
+  where the country has one.
+
+The terms are quoted as on the bill, i.e. in the country's language, whatever
+language the interface runs in. Switzerland has three versions (German, French,
+Italian); the app takes the one of the interface, and the German one for other
+languages.
+
+| Country | Unit price | Standing charge | Advance payment | Correction factor | Calorific value | Balance |
+|---|---|---|---|---|---|---|
+| Germany | Arbeitspreis / Verbrauchspreis | Grundpreis | Abschlag | Zustandszahl (z-Zahl) | Brennwert | Nachzahlung / Guthaben |
+| Austria | Energie-Verbrauchspreis | Energie-Grundpreis | Teilbetrag | – | Verrechnungsbrennwert | Nachzahlung / Guthaben |
+| Switzerland (de) | Arbeitspreis („Arbeit“) | Grundpreis / Grundtarif | Akontozahlung | Zustandszahl | Brennwert | – |
+| Switzerland (fr) | Prix du kilowattheure | Abonnement | Acompte | – | Pouvoir calorifique supérieur (PCS) | – |
+| Switzerland (it) | Prezzo dell’energia | Tassa base | Acconto | – | – | Conguaglio |
+| France | Prix du kWh | Abonnement | Mensualité | – | PCS (pouvoir calorifique supérieur) | Régularisation (à payer ou trop-perçu) |
+| Italy | Quota consumi (prima: quota energia) | Quota fissa | – | Coefficiente C | Potere calorifico superiore (P) | Ricalcoli / conguaglio |
+| Spain | Término de energía / término variable | Término fijo / término de potencia | – | – | PCS (poder calorífico superior) | Regularización |
+| Portugal | Preço da energia | Termo fixo / potência contratada | – | – | PCS (poder calorífico superior) | Acerto de faturação |
+| Netherlands | Leveringstarief | Vaste leveringskosten (vroeger: vastrecht) | Termijnbedrag | Correctiefactor | Calorische waarde | Jaarafrekening: terugbetaling of bijbetaling |
+| United Kingdom | Unit rate | Standing charge | Direct Debit | Correction factor (1.02264) | Calorific value | Account balance (in credit / in debit) |
+
+"–" means: the country's bill has no item with the same meaning, and the app
+shows nothing there. That is deliberate:
+
+- The **correction factor** is missing for Austria, France, Spain and
+  Portugal. Their bills only state the overall factor (Umrechnungsfaktor,
+  *coefficient de conversion*) — correction factor × calorific value in one
+  number, not the correction factor alone. Showing it as the correction factor
+  would invite a wrong entry.
+- The **advance payment** is missing for Italy, Spain and Portugal: bills there
+  know no fixed advance payments.
+
+**Official tariff comparisons** (`comparison_portal`):
+
+| Country | Comparison | Responsible |
+|---|---|---|
+| Austria | <https://www.e-control.at/tarifkalkulator> | E-Control (regulator) |
+| France | <https://comparateur-offres.energie-info.fr/> | Médiateur national de l’énergie |
+| Italy | <https://www.ilportaleofferte.it/portaleOfferte/> | ARERA (regulator) |
+| Spain | <https://comparador.cnmc.gob.es/> | CNMC (competition and regulatory authority) |
+| Portugal | <https://simuladorprecos.erse.pt/> | ERSE (regulator) |
+
+The app links no official comparison for Germany (§ 41c EnWG provides for a
+trust mark for comparison portals; none has been awarded so far), Switzerland
+(households cannot choose their supplier), the Netherlands (the ACM only
+certifies private comparison sites) and the United Kingdom (Ofgem runs no
+portal of its own). The app links no private comparison portal anywhere.
+
+**Sources** of the terms:
+
+- Germany: § 40 (4) EnWG (standardised terms on the bill).
+- Austria: E-Control, sample bills for electricity and gas.
+- France: energie-info.fr (Médiateur national de l’énergie).
+- Italy: ARERA, glossary of the bill (*Bolletta*); since 1 July 2025 the item
+  is called "quota consumi", before "quota energia".
+- Spain: CNMC, "Ejemplo de factura de suministro de gas".
+- Portugal: ERSE, "Compreender a fatura".
+- Netherlands: ACM.
+- United Kingdom: GOV.UK, "Gas meter readings and bill calculation" (correction
+  factor 1.02264); Ofgem on standing charges.
+
+The data lives in `src/Config/Countries.php` (`bill_terms`,
+`comparison_portal`); `GET /api/countries` serves it
+([API reference](../referenz/api.md#country-profile-country-currency-timezone-gas_cv_unit-v270-additive)).
+**Upkeep:** bills and portals change, links age. CI does not check the
+addresses. Whoever finds a dead link or a new term changes `Countries.php`,
+with the source in the pull request.
+
+---
+
+## 9. Limits
 
 - **No currency conversion** (see §4).
 - **Gas meters counting cubic feet** (older British "imperial" meters) are not
@@ -174,6 +260,8 @@ one.
 - **Nine countries.** Another country is one entry in
   `src/Config/Countries.php` plus its name in the language catalogs
   (`countries.XX`); `CountriesTest` checks completeness.
-- **The language applies to the whole installation**, not per device.
+- **Country, currency and time zone apply to the whole installation.** Since
+  v3.1.0 every device picks its own language (up to v3.0 that applied to all as
+  well).
 
 → API: [country profile in the API reference](../referenz/api.md#country-profile-country-currency-timezone-gas_cv_unit-v270-additive)

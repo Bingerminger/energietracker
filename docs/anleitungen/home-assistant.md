@@ -25,15 +25,20 @@ Feature F1009).
 │  Home Assistant │  ──────────────────▶  │   Energietracker   │
 │  (Smart Meter)  │   POST /api/ingest    │  Verträge · Kosten │
 │                 │   Bearer-Token        │  Prognosen · UI    │
-└─────────────────┘                       └────────────────────┘
+│                 │  ◀──────────────────  │                    │
+│  Sensoren       │   GET /api/summary    │                    │
+└─────────────────┘   stündlich           └────────────────────┘
 ```
 
 1. **API-Token** im Energietracker erzeugen (einmalig) → schützt den Push.
 2. Jedem Zähler einen **Alias** geben (z. B. `stromzaehler_haus`).
 3. In HA ein **REST-Command** + eine **Automatisierung** anlegen, die abends
    die Zählerstände sendet.
+4. Optional (seit v3.1.0): **Werte zurück** — REST-Sensoren zeigen Saldo,
+   Prognose und Tage seit der letzten Ablesung in Home Assistant
+   ([Schritt 5](#schritt-5--werte-zurück-nach-home-assistant)).
 
-Alle drei Schritte lassen sich direkt im Energietracker unter
+Alle Schritte lassen sich direkt im Energietracker unter
 **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung** vorbereiten
 (inkl. Copy-&-Paste-YAML).
 
@@ -168,6 +173,116 @@ mode: single
 
 ---
 
+## Schritt 5 — Werte zurück nach Home Assistant
+
+Seit v3.1.0 geht es auch in die andere Richtung: Der Energietracker rechnet
+Saldo, Prognose und Fälligkeiten, Home Assistant zeigt sie an und reagiert
+darauf. Quelle ist `GET /api/summary` — eine Abfrage für alle Sensoren, die
+Felder stehen in der
+[API-Referenz](../referenz/api.md#get-apisummary-v310).
+
+Die Einstellungen erzeugen den Block fertig aus deinen Zählern (Karte
+**„Schritt 5 · Werte zurück nach Home Assistant“**): je Zähler die Prognose der
+nächsten zwölf Monate und die Tage seit der letzten Ablesung, bei Zählern mit
+Vertrag dazu der Saldo. Für einen Stromzähler sieht das so aus — in die
+`configuration.yaml`:
+
+```yaml
+rest:
+  - resource: "http://DEINE-ENERGIETRACKER-IP:8080/api.php/api/summary"
+    scan_interval: 3600   # einmal je Stunde genügt
+    headers:
+      Authorization: !secret energietracker_read   # nur nötig, wenn die Anmeldung eingeschaltet ist
+    sensor:
+      - name: "Strom – Saldo"
+        unique_id: energietracker_strom_m_strom_default_balance
+        value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_strom_default') | map(attribute='contract.balance', default=none) | first }}"
+        device_class: monetary
+        unit_of_measurement: "EUR"
+      - name: "Strom – Prognose 12 Monate"
+        unique_id: energietracker_strom_m_strom_default_forecast_12m
+        value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_strom_default') | map(attribute='forecast_12m.value', default=none) | first }}"
+        device_class: energy
+        unit_of_measurement: "kWh"
+      - name: "Strom – Tage seit Ablesung"
+        unique_id: energietracker_strom_m_strom_default_days_since_reading
+        value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_strom_default') | map(attribute='days_since_reading', default=none) | first }}"
+        device_class: duration
+        unit_of_measurement: "d"
+```
+
+- **`key`** ist `<Verbrauchsart>.<interne Zähler-ID>` (nicht der Alias) — die
+  Vorlage aus den Einstellungen setzt ihn richtig ein. Die `unique_id` leitet
+  sich daraus ab und bleibt stabil, solange der Zähler bleibt.
+- **`scan_interval: 3600`**: Die Werte ändern sich höchstens mit einer neuen
+  Ablesung; einmal je Stunde genügt. Die Antwort darf fünf Minuten
+  zwischengespeichert werden.
+- **Saldo** hat das Vorzeichen der API: positiv = Nachzahlung, negativ =
+  Guthaben (bei der PV-Einspeisung: positiv = Auszahlung). Die Einheit `EUR`
+  steht für die Währung deiner Einstellungen.
+- Ein Sensor zeigt „unbekannt“, wenn es den Wert nicht gibt — etwa ohne
+  laufenden Vertrag oder bevor die Prognose genug Daten hat.
+
+**Mit eingeschalteter Anmeldung** braucht Home Assistant zum Lesen einen
+API-Schlüssel mit Bereich **„Lesen“** (Einstellungen → Zugriff → „API-Schlüssel
+für Skripte“). Der Ingest-Token aus Schritt 1 gilt dafür nicht. In die
+`secrets.yaml`, wieder der ganze Header-Wert:
+
+```yaml
+energietracker_read: "Bearer etk_…"
+```
+
+Ohne Anmeldung lässt du die beiden Zeilen `headers:` und `Authorization: …`
+weg — sonst bemängelt Home Assistant das fehlende Secret.
+
+**Dashboard-Karte** (Karte „Entitäten“, im Karten-Editor „Code-Editor“):
+
+```yaml
+type: entities
+title: Energietracker
+entities:
+  - entity: sensor.strom_saldo
+  - entity: sensor.strom_prognose_12_monate
+  - entity: sensor.strom_tage_seit_ablesung
+```
+
+Die Entitäts-IDs bildet Home Assistant aus dem Namen; prüfe sie unter
+Einstellungen → Geräte & Dienste → Entitäten.
+
+**Automatisierung „Kündigungsfrist in 30 Tagen“.** Dafür ein vierter Sensor,
+unter `sensor:` im Block oben angefügt:
+
+```yaml
+      - name: "Strom – Tage bis Stichtag"
+        unique_id: energietracker_strom_m_strom_default_days_to_cancel
+        value_template: "{{ value_json.data.meters | selectattr('key', 'eq', 'strom.m_strom_default') | map(attribute='contract.days_to_cancel', default=none) | first }}"
+        unit_of_measurement: "d"
+```
+
+Und die Automatisierung:
+
+```yaml
+alias: "Energietracker: Kündigungsfrist in 30 Tagen"
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.strom_tage_bis_stichtag
+    below: 31
+    above: 0
+actions:
+  - action: persistent_notification.create
+    data:
+      title: "Strom: Kündigungsfrist"
+      message: >-
+        Noch {{ states('sensor.strom_tage_bis_stichtag') }} Tage bis zum letzten
+        Tag für die Kündigung. Jetzt Angebote vergleichen.
+mode: single
+```
+
+Sie löst einmal aus, wenn der Wert unter 31 fällt. Wer Fristen lieber im
+Kalender sieht: [Kalender abonnieren](kalender.md).
+
+---
+
 ## Wichtig: Einheiten müssen passen
 
 Der Energietracker rechnet mit den Einheiten der jeweiligen Verbrauchsart. Der
@@ -181,10 +296,12 @@ HA-Sensor muss **denselben kumulativen Zählerstand** in dieser Einheit liefern:
 | Fernwärme     | `fernwaerme`| kWh |
 | PV-Einspeisung | `pv_einspeisung` | kWh |
 | PV-Erzeugung  | `pv_erzeugung` | kWh |
+| Heizwärme *(v3.1.0)* | `waerme` | kWh |
 
 > **Nicht unterstützt:** Heizöl und Pellets (`heizoel`/`pellets`) — die arbeiten
 > mit **Lieferungen** statt Zählerständen. Ein Ingest darauf wird mit `400`
-> abgelehnt.
+> abgelehnt. Ebenso ein Zähler mit der Erfassung „Verbrauch je Zeitraum“
+> (`errors.ingest.periodMeter`, seit v3.1.0).
 
 Wichtig ist der **absolute Zählerstand** (der Wert auf dem Zähler), nicht der
 Tagesverbrauch — der Energietracker bildet Differenzen selbst und rechnet
@@ -285,6 +402,123 @@ vorzubereiten.
 
 ---
 
+## Use-Case C — Wärmepumpe mit Wärmemengenzähler
+
+**Situation:** Eigenheim mit Wärmepumpe. HA liest den Stromzähler der
+Wärmepumpe und ihren Wärmemengenzähler (über die Integration des Herstellers
+oder einen M-Bus-Adapter). Seit v3.1.0 rechnet der Energietracker daraus die
+Jahresarbeitszahl ([Heizwärme §7](../verstehen/15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310)).
+
+**Im Energietracker:**
+
+| Zähler | Verbrauchsart, Rolle | Alias |
+|--------|---------------|-------|
+| Wärmepumpe Strom | `strom`, Rolle „Wärmepumpe (Heizstrom)“, Subzähler des Hausanschlusses | `strom_waermepumpe` |
+| Wärmemenge Wärmepumpe | `waerme`, Rolle „Wärmemenge der Wärmepumpe“, unter „Stromzähler der Wärmepumpe“ mit `strom_waermepumpe` verknüpft | `waerme_wp` |
+
+Die Verbrauchsart **Heizwärme** muss eingeschaltet sein (Einstellungen →
+Verbrauchsarten & Abrechnung). Beide Sensoren liefern kumulative Zählerstände
+in kWh.
+
+**HA-Automatisierung:**
+
+```yaml
+alias: "Energie: Wärmepumpe → Energietracker"
+triggers:
+  - trigger: time
+    at: "23:55:00"
+actions:
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.waermepumpe_strom_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "strom",  meter: "strom_waermepumpe", sensor_entity: "sensor.waermepumpe_strom_total_kwh" }
+  - if: [{ condition: template, value_template: "{{ has_value('sensor.waermepumpe_waerme_total_kwh') }}" }]
+    then:
+      - action: rest_command.energietracker_push
+        data: { utility: "waerme", meter: "waerme_wp",         sensor_entity: "sensor.waermepumpe_waerme_total_kwh" }
+mode: single
+```
+
+Beide Stände kommen am selben Abend an; die Karte „Wärmepumpe {Jahr}“ zählt
+nur Monate, in denen beide Zähler Werte haben.
+
+---
+
+## Nachliefern nach einem Ausfall
+
+War Home Assistant ein paar Tage aus oder hat der Lesekopf nichts geliefert,
+fehlen diese Tage. Das kostet nichts: Der Energietracker verteilt den Verbrauch
+zwischen zwei Ablesungen linear. Wer die Stände trotzdem hat — aus der
+HA-Statistik, einer InfluxDB oder dem Log des Lesekopfs —, schickt sie seit
+v3.1.0 in **einem** Stapel nach: eine Liste von bis zu 500 Einträgen, jeder wie
+ein einzelner Push.
+
+```bash
+curl -X POST "http://DEINE-IP:8080/api.php/api/ingest" \
+  -H "Authorization: Bearer DEIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"readings":[
+        {"utility":"strom","meter":"strom_haus","value":12301.4,"date":"2026-10-03"},
+        {"utility":"strom","meter":"strom_haus","value":12312.9,"date":"2026-10-04"},
+        {"utility":"strom","meter":"strom_haus","value":12324.0,"date":"2026-10-05"}
+      ]}'
+```
+
+Die Antwort ist `200`, auch wenn einzelne Einträge scheitern. **Prüfe
+`failed`**: Die Antwort nennt je Eintrag `status` (`created`, `updated` oder
+`error`) und bei Fehlern den `code`, dazu die Summen `created`, `updated` und
+`failed`. Mit `jq`:
+
+```bash
+… | jq '.data.failed, [.data.results[] | select(.status == "error") | {index, code}]'
+```
+
+Mit Node-RED baut ein Funktionsknoten den Stapel, etwa aus einer Abfrage der
+letzten Tage, und ein `http request`-Knoten schickt ihn ab:
+
+```js
+// msg.payload: [{ day: '2026-10-03', kwh: 12301.4 }, …] aus der vorigen Abfrage
+const readings = msg.payload
+  .filter(r => Number.isFinite(Number(r.kwh)))          // nie 0 oder leer senden
+  .map(r => ({ utility: 'strom', meter: 'strom_haus', value: Number(r.kwh), date: r.day }));
+if (readings.length === 0) return null;
+msg.payload = { readings };
+msg.headers = { Authorization: 'Bearer ' + env.get('ET_TOKEN') };
+return msg;
+```
+
+Wie ein Funktionsknoten danach `failed` auswertet und wie Home Assistant das
+mit `response_variable` tut, steht in der
+[API-Referenz](../referenz/api.md#stapel-v310); die vollständigen Rezepte für
+Node-RED, ioBroker und openHAB unter [Andere Systeme](andere-systeme.md).
+
+---
+
+## Betrieb unter Home-Assistant-Ingress
+
+Läuft der Energietracker selbst hinter Home-Assistant-Ingress (aufgerufen über
+die Seitenleiste von Home Assistant), gilt seit v3.1.0:
+
+- **Nicht offline.** Unter Ingress teilt die App ihren Ursprung mit Home
+  Assistant und registriert keinen Service Worker. Offline erfassen geht nur beim
+  direkten Aufruf über den eigenen Port.
+- **Adresse in den Vorlagen.** Die Ingress-Adresse braucht eine HA-Sitzung und
+  wechselt. Die Vorlagen in den Einstellungen nennen deshalb
+  `http://<Container-Hostname>` — darüber erreicht Home Assistant die App im
+  internen Netz.
+- **Anmeldung über Home Assistant.** Ingress lässt nur angemeldete HA-Benutzer
+  durch. Soll die App den Benutzer übernehmen, setze `ET_AUTH=proxy` und
+  `ET_TRUSTED_PROXIES=172.30.32.2` (die Adresse, von der Ingress-Anfragen
+  kommen). Home Assistant schickt `X-Remote-User-Name` und `X-Remote-User-Id`;
+  der Energietracker erkennt sie seit v3.1.0. Push und Sensoren laufen nicht über
+  Ingress und brauchen dann Token bzw. Lese-Schlüssel wie oben. Mehr:
+  [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
+- **Uploads bis 16 MiB.** Ohne `ingress_stream: true` in der Konfiguration der
+  App begrenzt Home Assistant Uploads über Ingress auf 16 MiB. Ein größeres
+  Backup spielst du über den direkten Port ein.
+
+---
+
 ## Fehlersuche
 
 | Symptom (HA-Log) | Ursache & Lösung |
@@ -296,6 +530,8 @@ vorzubereiten.
 | `400 Zählerstand … keine Zahl` | Der HA-Sensor liefert `unknown`/`unavailable`. Den Push dann **auslassen**, nie durch 0 ersetzen: Bedingung `has_value(…)` wie in Schritt 4. `| float(0)` tauscht den sichtbaren Fehler gegen eine stille Falschbuchung. |
 | Template-Fehler „float got invalid input“ im HA-Log | Dieselbe Ursache, von `| float` ohne Ersatzwert gemeldet — gewollt: Es wird nichts gebucht. Bedingung `has_value(…)` ergänzen, dann bleibt das Log ruhig. |
 | Antwort `created`/`updated`, aber der Wert taucht nicht auf | Die Verbrauchsart ist unter Einstellungen → Verbrauchsarten & Abrechnung → Aktive Verbrauchsarten abgewählt (dann fehlt sie im Menü, gespeichert ist der Wert trotzdem), oder die Ansicht zeigt einen anderen Zähler bzw. ein anderes Jahr. Auch ein auf „inaktiv“ gesetzter Zähler nimmt Werte an und zählt mit. |
+| Sensoren aus Schritt 5: `401` oder „unbekannt“ | `401`: Anmeldung eingeschaltet, aber kein Lese-Schlüssel (`energietracker_read`) — der Ingest-Token gilt dafür nicht. „unbekannt“: `key` passt nicht (er nennt die interne Zähler-ID, nicht den Alias) oder der Wert fehlt (kein laufender Vertrag, noch keine Prognose). Die Vorlage in den Einstellungen setzt die Schlüssel richtig ein. |
+| Stapel: Antwort `200`, aber Stände fehlen | Einzelne Einträge sind gescheitert — `failed` und die Einträge mit `"status": "error"` nennen Grund (`code`) und Position (`index`). |
 
 **Schnelltest** (von der HA-Maschine aus, offener Modus oder mit Token):
 
@@ -325,4 +561,5 @@ ein Überlauf nicht als Verdacht, und die Auswertung rechnet ihn richtig.
 
 ---
 
-← [Doku-Index](../README.md) · [API-Referenz](../referenz/api-beispiele.md)
+← [Doku-Index](../README.md) · [API-Referenz](../referenz/api-beispiele.md) ·
+[Andere Systeme](andere-systeme.md) · [Kalender abonnieren](kalender.md)

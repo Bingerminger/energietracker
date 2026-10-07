@@ -46,7 +46,9 @@ use Energietracker\Config\Utilities;
 final class BenchmarkService
 {
     /** Heizenergie-Verbrauchsarten — nur diese zählen für kWh/m². */
-    private const HEAT_UTILITIES = ['gas', 'fernwaerme', 'heizoel', 'pellets'];
+    // v3.1.0 (H3, B8) — dazu Heizwärme (Zähler mit Rolle consumption; die
+    // Wärmemenge einer Wärmepumpe zählt nicht, sonst stünde sie neben dem WP-Strom doppelt)
+    private const HEAT_UTILITIES = ['gas', 'fernwaerme', 'heizoel', 'pellets', 'waerme'];
 
     /** Mindestabdeckung eines Bezugsjahrs in Tagen, damit es eine Klasse gibt. */
     public const MIN_COVERAGE_DAYS = 360;
@@ -262,7 +264,7 @@ final class BenchmarkService
             // v2.9.0 (CALC-15) — ein Zähler außer Betrieb zählt mit seiner
             // Historie: Das Jahr, in dem er noch lief, hatte diesen Verbrauch.
             if (!MeterService::countsInTotals($meter)) continue;
-            if ($utility === 'strom' && empty($meter['heat_source'])) continue;
+            if (!self::countsAsHeat($utility, $meter)) continue;
             foreach ($this->consumption->forMeter($utility, $meter) as $m) {
                 if ((int)($m['year'] ?? 0) !== $year) continue;
                 $k = (float)($m['kwh'] ?? 0);
@@ -310,13 +312,26 @@ final class BenchmarkService
         $out = [];
         foreach ($this->meters->list($utility) as $meter) {
             if (!MeterService::countsInTotals($meter)) continue;
-            if ($utility === 'strom' && empty($meter['heat_source'])) continue;
+            if (!self::countsAsHeat($utility, $meter)) continue;
             foreach ($this->consumption->forMeter($utility, $meter) as $m) {
                 $y = (int)($m['year'] ?? 0);
                 if ($y >= $year - 2 && $y <= $year && (float)($m['kwh'] ?? 0) > 0) $out[(string)$m['ym']] = true;
             }
         }
         return $out;
+    }
+
+    /**
+     * v3.1.0 (B9) — zählt der Zähler als Heizenergie? Strom nur mit Rolle
+     * heat_pump (früher heat_source), Heizwärme nur mit Rolle consumption.
+     */
+    private static function countsAsHeat(string $utility, array $meter): bool
+    {
+        return match ($utility) {
+            'strom'  => Utilities::roleOf('strom', $meter) === 'heat_pump',
+            'waerme' => Utilities::roleOf('waerme', $meter) === 'consumption',
+            default  => true,
+        };
     }
 
     /**

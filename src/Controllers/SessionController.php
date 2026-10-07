@@ -100,7 +100,7 @@ final class SessionController
     public function createKey(Request $req): never
     {
         $scope = (string)$req->input('scope', 'read');
-        if (!in_array($scope, ['read', 'admin'], true)) {
+        if (!in_array($scope, ['read', 'admin', 'calendar'], true)) {   // v3.1.0 — calendar: Kalender-Abo
             Response::error($this->i18n->t('errors.auth.scopeInvalid'), 400);
         }
         $created = $this->auth->createApiKey((string)$req->input('name', ''), $scope);

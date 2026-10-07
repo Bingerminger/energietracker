@@ -6,7 +6,8 @@ Thanks for joining in! What helps most:
 
 - **Bug reports** with the details from Settings → System → System diagnostics
   and the steps that lead to the error.
-- **Translations** — a new language needs no code (see below).
+- **Translations** — a new language is mostly a catalogue, plus a few lines of
+  configuration (see below).
 - **Documentation**: mistakes, gaps, a question missing from the
   [FAQ](docs/en/einstieg/faq.md).
 - **Code** — before larger changes to the data model or the API please open an
@@ -17,7 +18,8 @@ Please do **not** report security issues as an issue, but as described in
 
 ## Setting up
 
-PHP 8.4 is enough to run it, without Composer, without a build step:
+PHP 8.2 or newer is enough to run it (the CI checks 8.2, 8.3 and 8.4), without
+Composer, without a build step:
 
 ```bash
 git clone https://github.com/Bingerminger/energietracker.git
@@ -43,8 +45,9 @@ node --import='data:text/javascript,import{register}from"node:module";import{pat
 ```
 
 Without a server, `tests/format.test.mjs`, `tests/router.test.mjs`,
-`tests/contrast.test.mjs`, `tests/chart.test.mjs`, `tests/plausibility.test.mjs`
-and `tests/ha-snippet.test.mjs` run. CI runs everything on every pull request.
+`tests/contrast.test.mjs`, `tests/chart.test.mjs`, `tests/plausibility.test.mjs`,
+`tests/ha-snippet.test.mjs`, `tests/plural.test.mjs` and
+`tests/hardcoded-text.test.mjs` run. CI runs everything on every pull request.
 Details: [Tests](docs/en/entwicklung/tests.md).
 
 A change brings its test. The **counter-check** has proven itself: briefly turn
@@ -79,15 +82,30 @@ Added, Changed, Deprecated, Fixed, Migration and Tests.
 
 ## Adding a language
 
+The complete checklist, the style guide (form of address, terms, typography,
+plurals) and the tests behind it are in
+[Translating and languages](docs/en/entwicklung/uebersetzen.md). In short:
+
 1. Copy `public/locales/en.json` to `public/locales/<code>.json` (ISO 639-1,
    e.g. `pl`) and translate it. Placeholders like `{count}` stay; plural forms
    are written as `one`/`other` (further categories such as `few`/`many` are
-   allowed, the choice follows `Intl.PluralRules`).
+   allowed).
 2. Register it in `public/locales/languages.json`: `"pl": "Polski"`.
-3. `vendor/bin/phpunit --filter LocaleCatalogTest` checks that every key is
-   there and the placeholders match.
+3. Set the notation in the catalogue under `format.*` — decimal and thousands
+   separator, date pattern, month abbreviations, amount, `typography` and
+   `pdfCharset`.
+4. Make the language known to the code: plural rule in
+   `I18nService::PLURAL_RULES` (with cases in
+   `tests/fixtures/plural-cases.json`), country for the first start in
+   `Countries::BY_LANGUAGE`, letters of the bill check, termbase terms and the
+   translation of the demo data.
+5. `vendor/bin/phpunit --no-coverage --filter 'LocaleCatalogTest|CatalogStyleTest|PluralRulesTest'`
+   checks keys, placeholders, style and completeness.
 
-Number and date formats come from the browser (`Intl`); no code is needed. The
+In the browser `Intl` formats numbers and dates; the backend formats the PDF
+annual report, CSV spreadsheets and recommendation texts itself — following
+`format.*` in the catalogue and the country deviations in
+`src/Config/Countries.php`. Without them it would write German notation. The
 docs exist in German and English — for further languages the help inside the
 app is the way (glossary texts under `glossary.*`).
 

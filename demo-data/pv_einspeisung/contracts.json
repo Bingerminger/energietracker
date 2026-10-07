@@ -2,7 +2,7 @@
     {
         "id": "c_pv_eeg_2023",
         "meter_id": "m_pv_einspeisung_main",
-        "provider": "MITNETZ Strom",
+        "provider": "Netzbetrieb Mitte",
         "tariff_name": "EEG-Einspeisevergütung (IB 04/2023)",
         "start": "2023-04-01",
         "end": "2043-03-31",

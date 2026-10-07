@@ -1,0 +1,5 @@
+﻿Zaehler-ID;Zaehler;Geraet-ID;Datum;Zaehlerstand;Preis (ct);Notiz;Geschaetzt;Zukunft
+m_strom_default;Hauptzähler;d1;2025-01-01;0;;;nein;nein
+m_strom_default;Hauptzähler;d1;2025-02-01;310,5;;"'=HYPERLINK(""x"")";ja;nein
+m_strom_default;Hauptzähler;d1;2025-03-01;590,25;31,5;"Notiz; mit ""Zeichen""";nein;nein
+m_strom_default;Hauptzähler;d1;2025-04-01;1234,5678;;;nein;ja

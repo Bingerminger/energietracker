@@ -30,10 +30,10 @@ use Energietracker\Config\Utilities;
  * Future bonuses are NOT extrapolated — only bonuses explicitly pflegt in
  * the contract with a credit_date in the forecast window count.
  *
- * Limitation: for Wasser with a Schmutzwasser `separater_zaehler` basis the
- * forecast uses the Trinkwasser volume as the Schmutzwasser basis (the
- * separate meter is not itself forecast). The historical view computes the
- * separate volume correctly; only the forward projection simplifies.
+ * Wasser: The Schmutzwasser volume of a forecast month is the Trinkwasser
+ * volume times the share of the same calendar month in the meter's history
+ * (v3.1.0, CALC-20 — garden water in summer, separate meter). Without
+ * history the share is 1. Until v3.0 the full Trinkwasser volume was used.
  *
  * v2.8.0 (Review CALC-03, CALC-12, CALC-13)
  * -----------------------------------------
@@ -64,6 +64,12 @@ final class ForecastService
         private I18nService $i18n,
     ) {}
 
+    /** v3.1.0 (H6) — für den Wechsel: Gruppenvertrag mit HT/NT als Mischpreis. */
+    public function contractView(string $utility, array $meter, array $c): array
+    {
+        return $this->consumption->contractView($utility, $meter, $c);
+    }
+
     public function forMeter(string $utility, array $meter, array $opts = []): array
     {
         $u = Utilities::get($utility);
@@ -73,6 +79,9 @@ final class ForecastService
         }
 
         $valueField = $u['consumption_unit'] === 'kWh' ? 'kwh' : 'm3';
+        // v3.1.0 (Review CALC-20) — Schmutzwasser-Anteil je Kalendermonat aus der
+        // eigenen Historie (Gartenwasser im Sommer, separater Zähler); ohne Daten 1.
+        $sewageShare = $utility === 'wasser' ? self::sewageShareByMonth($monthly) : [];
         $fcMonths   = (int)($opts['forecast_months'] ?? $this->settings->get('forecast_months', 12));
         $minDays    = (int)$this->settings->get('min_days_period', 20);
         $blendMax   = (float)$this->settings->get('blend_max', 0.80);
@@ -146,10 +155,11 @@ final class ForecastService
         // übernahm ein Schattenvertrag die Preis-/Abschlagsprojektion, sobald der
         // letzte echte Vertrag vor dem Prognosehorizont endete — die Prognose
         // rechnete dann still mit einem Tarif, den es nicht gibt.
-        $contracts = array_values(array_filter(
+        // v3.1.0 (H6) — HT/NT einer Gruppe als Mischpreis
+        $contracts = array_values(array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), array_filter(
             $this->contracts->list($utility, (string)($meter['id'] ?? '')),
             fn($c) => empty($c['is_shadow'])
-        ));
+        )));
 
         // Unsicherheit (v2.8.0): Gewicht der Wetterstreuung = Verbrauch je
         // Gradtag, dazu das Rauschen des Modells.
@@ -243,7 +253,7 @@ final class ForecastService
 
             // F-02: full contract-aware monthly finance projection.
             $fin = $this->projectMonthFinances(
-                $utility, $contracts, $yr, $mn, $blended, $fallbackPrice, $priceFactor
+                $utility, $contracts, $yr, $mn, $blended, $fallbackPrice, $priceFactor, $sewageShare[$mn] ?? 1.0
             );
             $runningBalance += $fin['cost'] - ($fin['advance'] ?? 0.0);
 
@@ -297,6 +307,28 @@ final class ForecastService
             $warnings[] = ['code' => 'no_climate_normal', 'hdd_source' => $hddSource];
         }
 
+        // v3.1.0 (H4, MKT-26) — CO₂-Preis-Szenario: Mehrkosten ab einem Jahr, wenn der
+        // Preis höher läge. Nur Ausweis — cost_estimated bleibt unverändert.
+        $co2Scenario = null;
+        $scenario = $opts['co2_scenario_eur_t'] ?? $this->settings->get('co2_price_scenario_eur_t');
+        if ($scenario !== null && $scenario !== '' && is_numeric($scenario)) {
+            $from = (int)($opts['co2_scenario_from'] ?? $this->settings->get('co2_price_scenario_from', 2028));
+            $sum12 = 0.0; $deltaCt = null;
+            foreach ($forecast as $i => &$f) {
+                if ((int)$f['year'] < $from) continue;
+                $ct = Co2CostService::scenarioDeltaCtPerKwh($this->settings, $utility, (float)$scenario, (int)$f['year']);
+                if ($ct === null) break;
+                $deltaCt ??= $ct;
+                $f['co2_delta_eur'] = round((float)($f['kwh'] ?? 0) * $ct / 100, 2);
+                if ($i < 12) $sum12 += $f['co2_delta_eur'];
+            }
+            unset($f);
+            if ($deltaCt !== null || Co2CostService::factorFor($this->settings, $utility) !== null) {
+                $co2Scenario = ['eur_t' => (float)$scenario, 'from' => $from,
+                    'delta_ct_per_kwh' => $deltaCt !== null ? round($deltaCt, 3) : null, 'delta_cost_12m_eur' => round($sum12, 2)];
+            }
+        }
+
         return [
             'valid'        => true,
             'utility'      => $u['key'],
@@ -310,6 +342,7 @@ final class ForecastService
             'annual'       => $annual,
             'warnings'     => $warnings,
             'climate_normal' => $this->consumption->climate()->summary(),
+            'co2_scenario' => $co2Scenario,
             'options'      => [
                 'temp_offset'   => $tempOffset,
                 'price_factor'  => $priceFactor,
@@ -340,7 +373,8 @@ final class ForecastService
         int $month,
         float $volume,
         float $fallbackPriceCt,
-        float $priceFactor
+        float $priceFactor,
+        float $sewageShare = 1.0
     ): array {
         $first = sprintf('%04d-%02d-01', $year, $month);
         if ($utility !== 'wasser') {
@@ -391,9 +425,9 @@ final class ForecastService
         $twPrice   = $twWp !== null ? (float)$twWp * $priceFactor : $fallbackPriceCt;
         $twWorking = $volume * $twPrice / 100.0;
         $twBase    = $twBp !== null ? (float)$twBp : 0.0;
-        // See class docblock: the separate-meter volume is not forecast;
-        // the Trinkwasser volume is used as the Schmutzwasser basis here.
-        $swCost = $swWp !== null ? $volume * (float)$swWp * $priceFactor / 100.0 : 0.0;
+        // v3.1.0 — Schmutzwasser = Trinkwasser × Anteil desselben Kalendermonats
+        // in der Historie (s. sewageShareByMonth); bis v3.0 das volle Volumen.
+        $swCost = $swWp !== null ? $volume * $sewageShare * (float)$swWp * $priceFactor / 100.0 : 0.0;
         $nwMonthly = ($nwRate !== null && $nwArea !== null)
             ? (float)$nwRate * (float)$nwArea / 12.0
             : 0.0;
@@ -438,7 +472,7 @@ final class ForecastService
             }
             $date = ContractService::priceDate($seg);
             $wp = $this->contracts->valueOnDate($c['working_prices'] ?? [], 'ct_per_kwh', $date);
-            $bp = $this->contracts->valueOnDate($c['base_prices'] ?? [], 'eur_per_month', $date);
+            $bp = $this->contracts->fixedPerMonthOn($c, $date);
             $price = $wp !== null ? $wp * $priceFactor : $fallbackPriceCt;
             $cost += $vol * $price / 100.0 + ($bp !== null ? $bp * $seg['days'] / $dim : 0.0);
             $energyCost += $vol * $price; $energyVol += $vol;
@@ -477,5 +511,31 @@ final class ForecastService
         $d = 0.3989422804014327 * exp(-$x * $x / 2);
         $p = $d * $t * (0.319381530 + $t * (-0.356563782 + $t * (1.781477937 + $t * (-1.821255978 + $t * 1.330274429))));
         return $x >= 0 ? 1.0 - $p : $p;
+    }
+
+    /**
+     * v3.1.0 (Review CALC-20) — Anteil des Schmutzwassers am Trinkwasser je
+     * Kalendermonat, aus den gerechneten Monaten mit Vertrag: Σ Schmutzwasser /
+     * Σ Trinkwasser. Monate ohne Daten fehlen (Aufrufer nimmt dann 1).
+     *
+     * @param array<int,array<string,mixed>> $monthly Zeilen aus ConsumptionService::forMeter
+     * @return array<int,float> Monat (1–12) → Anteil 0…1
+     */
+    public static function sewageShareByMonth(array $monthly): array
+    {
+        $tw = $sw = [];
+        foreach ($monthly as $m) {
+            $t = $m['trinkwasser']['m3'] ?? null;
+            $s = $m['schmutzwasser']['m3'] ?? null;
+            if ($t === null || $s === null || (float)$t <= 0) continue;
+            $mn = (int)$m['month'];
+            $tw[$mn] = ($tw[$mn] ?? 0.0) + (float)$t;
+            $sw[$mn] = ($sw[$mn] ?? 0.0) + (float)$s;
+        }
+        $out = [];
+        foreach ($tw as $mn => $sum) {
+            $out[$mn] = round(min(1.0, max(0.0, $sw[$mn] / $sum)), 4);
+        }
+        return $out;
     }
 }

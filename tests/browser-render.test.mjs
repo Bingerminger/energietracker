@@ -4,6 +4,7 @@
 // ReferenceErrors, kaputte DOM-Queries, Template- und Event-Bugs, die
 // reine Backend-Shape-Tests NICHT sehen.
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 const __dir = dirname(fileURLToPath(import.meta.url));
@@ -208,12 +209,101 @@ async function renderView(modPath, params = [], ctx = {}) {
       v2.querySelector('.reading-card--focus')?.dataset.meterId === wanted, `meter=${wanted}`);
   } catch (e) { t('readings-entry: render', false, e.message); }
 
+  // ── v3.1.0 (H2, FE-32/MKT-08) — Foto-Knopf; ohne Verbindung einreihen,
+  //    Badge zählt, beim Nachsenden kommt jeder Stand genau einmal an ──
+  try {
+    const outbox = await import(`${ROOT}/lib/outbox.js`);
+    const { api } = await import(`${ROOT}/api.js`);
+    const { formatForInput } = await import(`${ROOT}/lib/format.js`);
+    outbox.useStore(outbox.memoryStore());
+    const { view } = await renderView(`${ROOT}/views/readings-entry.js`);
+    const photo = view.querySelector('[data-role="photo"]');
+    t('readings-entry: Foto-Knopf öffnet die Kamera (accept=image/*, capture)',
+      photo?.getAttribute('accept') === 'image/*' && photo?.getAttribute('capture') === 'environment');
+    const rows = (await api.readingsOverview()).rows;
+    const today = new Date().toISOString().slice(0, 10);
+    const rowOf = (c) => rows.find(x => x.utility === c.dataset.utility && x.meter_id === c.dataset.meterId);
+    // Karten ohne Stand von heute (der löste die Rückfrage „ersetzen?“ aus)
+    const cards = [...view.querySelectorAll('.reading-card')]
+      .filter(c => { const l = rowOf(c)?.last_reading; return !l || l.date < today; }).slice(0, 2);
+    const before = {};
+    for (const c of cards) {
+      const r = rowOf(c);
+      before[c.dataset.meterId] = (await api.readings(r.utility, r.meter_id)).length;
+      // derselbe Wert wie zuletzt: keine Rückfrage (weder kleiner noch Sprung)
+      c.querySelector('[data-role="counter"]').value = formatForInput(r.last_reading?.counter ?? 0);
+    }
+    let badge = null;
+    global.window.addEventListener('et:outbox', (e) => { badge = e.detail; });
+    const realFetch = global.fetch;
+    global.fetch = (input, init) => (init?.method && init.method !== 'GET')
+      ? Promise.reject(new TypeError('Failed to fetch')) : realFetch(input, init);
+    view.querySelector('[data-action="save-all"]').dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    for (let i = 0; i < 40 && (await outbox.count()) < 2; i++) await new Promise(r => setTimeout(r, 50));
+    await new Promise(r => setTimeout(r, 50));
+    global.fetch = realFetch;
+    t('readings-entry offline: zwei Stände eingereiht, Badge 2',
+      (await outbox.count()) === 2 && badge === 2, `count=${await outbox.count()}, badge=${badge}`);
+    t('readings-entry offline: Karten zeigen „wartet“, Liste „Noch nicht gespeichert“',
+      cards.every(c => c.querySelector('.reading-card__status--warn')) && view.querySelectorAll('.outbox-item').length === 2
+        && !view.querySelector('[data-role="outbox"]').hidden);
+    const refs = (await outbox.list()).map(e => e.client_ref);
+    const res = await outbox.flush(api);
+    const again = await outbox.flush(api);
+    const after = {};
+    for (const c of cards) {
+      const list = await api.readings(c.dataset.utility, c.dataset.meterId);
+      after[c.dataset.meterId] = list.length;
+      // aufräumen: spätere Ansichten rechnen mit den Demo-Daten
+      for (const r of list.filter(x => refs.includes(x.client_ref))) await api.deleteReading(c.dataset.utility, r.id);
+    }
+    t('readings-entry online: beide genau einmal gespeichert, Badge 0',
+      res.sent === 2 && again.sent === 0 && badge === 0
+        && cards.every(c => after[c.dataset.meterId] === before[c.dataset.meterId] + 1),
+      JSON.stringify({ sent: res.sent, before, after }));
+  } catch (e) { t('readings-entry: Offline-Warteschlange', false, e.message); }
+
+  // ── v3.1.0 (H3) — Zeitraum-Karte in der Erfassung, Ansicht „Mietverhältnis" ──
+  try {
+    const { api } = await import(`${ROOT}/api.js`);
+    const state = await import(`${ROOT}/state.js`);
+    const before = await api.settings();
+    await api.updateSettings({ active_utilities: [...(before.active_utilities || []), 'waerme'], wohnverhaeltnis: 'miete' });
+    const pm = await api.createMeter('waerme', { name: 'UVI', capture: 'period', installed_on: '2020-01-01' });
+    try {
+      const { view } = await renderView(`${ROOT}/views/readings-entry.js`);
+      const card = view.querySelector(`.reading-card[data-meter-id="${pm.id}"]`);
+      t('readings-entry: Zeitraum-Zähler bekommt Monat + Verbrauch statt Stand',
+        card?.dataset.capture === 'period' && card.querySelector('input[type="month"][data-role="month"]') && card.querySelector('[data-ref="average_user"]'));
+
+      state.invalidateSettings?.();
+      const ten = await api.createTenancy({ start: '2024-01-01', meter_ids: { heat: [pm.id] },
+        prepayments: [{ from: '2024-01-01', heating_eur_month: 100, operating_eur_month: 50 }] });
+      const { view: tv } = await renderView(`${ROOT}/views/tenancy.js`);
+      t('tenancy: Budget, Stammdaten und Abrechnungen',
+        tv.querySelector('.view-header__title')?.textContent.includes('Mietverhältnis') && tv.querySelectorAll('.card').length >= 3
+          && tv.querySelector('#st-new') && tv.querySelector('#ten-edit'), `${tv.querySelectorAll('.card').length} Karten`);
+      tv.querySelector('#st-new').dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+      await new Promise(r => setTimeout(r, 50));
+      t('tenancy: Formular „Abrechnung erfassen" öffnet', !!global.document.querySelector('#st-form'));
+      global.document.querySelector('.modal__close')?.click();
+      const nav = await import(`${ROOT}/lib/nav-model.js`);
+      t('nav: Seite Mietverhältnis nur zur Miete',
+        nav.sectionPages('costs', { tenant: true }).some(p => p.view === 'tenancy') && !nav.sectionPages('costs', {}).some(p => p.view === 'tenancy'));
+      await api.deleteTenancy(ten.id);
+    } finally {
+      await api.deleteMeter('waerme', pm.id).catch(() => {});
+      await api.updateSettings({ active_utilities: before.active_utilities, wohnverhaeltnis: before.wohnverhaeltnis || 'eigentum' });
+    }
+  } catch (e) { t('H3: Zeitraum-Karte / Mietverhältnis', false, e.message); }
+
   // ── 2. Termine ──
   try {
     const { view } = await renderView(`${ROOT}/views/reminders.js`);
     const html = view.innerHTML;
     t('reminders: render ohne Exception', html.includes('Termine') && !html.includes('Lade Termine'));
     t('reminders: + Termin-Button vorhanden', !!view.querySelector('#rem-add'));
+    t('reminders: Kalender-Abo anbietbar (H1)', !!view.querySelector('#rem-subscribe'));
     // Modal öffnen — fängt Modal-Wiring-Bugs (Lesson v1.0.4)
     view.querySelector('#rem-add')?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
     const modal = global.document.querySelector('#modal-root .modal');
@@ -253,6 +343,10 @@ async function renderView(modPath, params = [], ctx = {}) {
       !!view.querySelector('.switch-bignum strong'));
     t('tariff: Verbrauch kopierbar', !!view.querySelector('#t-copy-consumption'));
     t('tariff: Wechseltermin wählbar', !!view.querySelector('#t-switch-date'));
+    // v3.1.0 (H5, MKT-24) — Angaben für den Wechsel mit Kopierknopf
+    const cl = view.querySelector('#t-checklist');
+    t('tariff: Checkliste für den Wechsel mit letztem Stand', !!cl?.querySelector('#t-copy-checklist') && /Letzter Zählerstand/.test(cl.textContent),
+      (cl?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 90));
 
     // Der Rückblick ist eingeklappt, muss aber existieren und Zeilen tragen.
     const retro = view.querySelector('.retro-block');
@@ -288,6 +382,28 @@ async function renderView(modPath, params = [], ctx = {}) {
 
   // ── 5. Einstellungen — seit v2.12.0 Unterseiten (Review UI-13) ──
   const settingsPage = async (page) => (await renderView(`${ROOT}/views/settings.js`, page ? [page] : [])).view;
+
+  // v3.1.0 (I18N-29) — Sprache dieses Geräts: im Browser, nicht für alle
+  try {
+    const view = await settingsPage();
+    const storage = global.window.localStorage;
+    Object.defineProperty(global, 'localStorage', { value: storage, configurable: true, writable: true });
+    storage.removeItem('et-language');
+    const calls = [];
+    const realFetch = global.fetch;
+    global.fetch = (u, o = {}) => { calls.push(`${(o.method || 'GET').toUpperCase()} ${u}`); return realFetch(u, o); };
+    const sel = view.querySelector('#lang-select');
+    sel.value = 'en';
+    sel.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 500));
+    global.fetch = realFetch;
+    const writes = calls.filter(c => !c.startsWith('GET'));
+    t('settings: Gerätesprache wechseln — merkt sich der Browser, kein PATCH',
+      storage.getItem('et-language') === 'en' && writes.length === 0, writes.join(', ') || 'nur GET');
+    storage.removeItem('et-language');
+    const i18n = await import(`${ROOT}/lib/i18n.js`);
+    await i18n.initI18n('de');
+  } catch (e) { t('settings: Gerätesprache', false, e.message); }
   try {
     const view = await settingsPage();
     t('settings/allgemein: Seite „Allgemein"', !!view.querySelector('h1')?.textContent.includes('Allgemein'));
@@ -378,6 +494,10 @@ async function renderView(modPath, params = [], ctx = {}) {
     const guide = [...view.querySelectorAll('a[target="_blank"]')].find(a => /anleitungen\/home-assistant\.md$/.test(a.getAttribute('href') || ''));
     t('settings/integrationen: HA-Anleitung verlinkt', !!guide && !view.textContent.includes('HOME-ASSISTANT.md'),
       guide?.getAttribute('href'));
+    // v3.1.0 (H1, API-33) — Sensor-Vorlage auf /api/summary, je Zähler mit Schlüssel aus der Summary
+    const sensors = view.querySelector('#ha-sensors')?.textContent || '';
+    t('settings/integrationen: REST-Sensoren auf /api/summary', /^rest:\n  - resource: ".*\/api\.php\/api\/summary"/.test(sensors)
+      && /selectattr\('key', 'eq', 'gas\.[^']+'\)/.test(sensors) && sensors.includes('device_class: monetary'), sensors.slice(0, 80));
   } catch (e) { t('settings/integrationen: render', false, e.message); }
 
   // ── 6. Utility-View: Delivery-Modus (Heizöl) ──
@@ -404,8 +524,10 @@ async function renderView(modPath, params = [], ctx = {}) {
     const html = view.innerHTML;
     t('utility(gas): render ohne Exception', html.length > 50 && (html.includes('Gas') || html.includes('Zähler')));
     // v2.5.0 — F1012: Rechnungsprüfung nur bei Gas; seit v2.11.0 eine eigene
-    // Seite, die Gas-Ansicht verweist mit Zähler und Jahr darauf
-    t('utility(gas): Verweis auf die Rechnungsprüfung', !!view.querySelector('a[href^="#/bill-check?meter="]'));
+    // Seite, die Gas-Ansicht verweist mit Zähler und Jahr darauf (seit v3.1.0 mit Art)
+    const bcHrefs = [...view.querySelectorAll('a[href^="#/bill-check"]')].map(a => a.getAttribute('href'));
+    t('utility(gas): Verweis auf die Rechnungsprüfung', bcHrefs.some(h => h.startsWith('#/bill-check?utility=gas&meter=')),
+      bcHrefs.join(' ') || 'kein Verweis');
     // v2.5.1 — Spalte „Sonderzahlungen" in „Verträge & Abschläge": Kopf mit
     // Erklärung, Zelle mit Netto und Tooltip der Einzelposten (Demo-Daten
     // führen am Gas-Vertrag eine Rückzahlung und eine Abschlagszahlung).
@@ -457,6 +579,19 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('billCheck: Fußnote zur Ableseart', !!view.querySelector('#bc-result .bill-check-legend') && view.querySelector('#bc-result .bill-check-legend').textContent.includes('E ='));
   } catch (e) { t('billCheck: render', false, e.message); }
 
+  // v3.1.0 (H5) — Rechnungsprüfung für Strom: Kostenspalten ohne Gasspalten, Formular „Laut Rechnung"
+  try {
+    const { view } = await renderView(`${ROOT}/views/bill-check.js`, [],
+      { query: new URLSearchParams('utility=strom&from=2025-01-01&to=2026-01-01') });
+    for (let i = 0; i < 40 && !view.querySelector('#bc-result table'); i++) await new Promise(r => setTimeout(r, 100));
+    const head = [...view.querySelectorAll('#bc-result thead th')].map(th => th.textContent.trim());
+    t('billCheck(strom): Kostenspalten ohne Gasspalten',
+      head.includes('Verbrauchskosten') && head.includes('Feste Kosten') && !head.includes('Zustandszahl'), head.join('|'));
+    t('billCheck(strom): eigene Summe genannt', /Nachgerechnet: .*\d/.test(view.querySelector('#bc-result .bill-check-total')?.textContent || ''));
+    for (let i = 0; i < 20 && !view.querySelector('#bi-form'); i++) await new Promise(r => setTimeout(r, 100));
+    t('billCheck(strom): Formular „Laut Rechnung" ohne CO₂-Felder', !!view.querySelector('#bi-form') && !view.querySelector('#bi-co2kg'));
+  } catch (e) { t('billCheck(strom): render', false, e.message); }
+
   // ── 7a. Utility-View Wasser: KEINE Spalte Sonderzahlungen (kennt keine) ──
   try {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['wasser']);
@@ -465,11 +600,11 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('utility(wasser): keine Spalte Sonderzahlungen', !view.querySelector('.contracts-table th.special-col'));
   } catch (e) { t('utility(wasser): render', false, e.message); }
 
-  // ── 7b. Utility-View Strom: KEINE Rechnungsprüfung (F1012 ist Gas-only) ──
+  // ── 7b. Utility-View Strom: Rechnungsprüfung seit v3.1.0 (H5) auch hier ──
   try {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['strom']);
     await new Promise(r => setTimeout(r, 500));
-    t('utility(strom): keine Rechnungsprüfung', !view.querySelector('a[href^="#/bill-check"]'));
+    t('utility(strom): Rechnungsprüfung verlinkt', !!view.querySelector('a[href^="#/bill-check?utility=strom"]'));
   } catch (e) { t('utility(strom): render', false, e.message); }
 
   // ── 7b. F1005 (v1.7.0) — PV-Einspeisung & PV-Erzeugung rendern leer-Smoke ──
@@ -499,7 +634,7 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('forecast: Hinweis ohne Klimanormal', /Ohne Klimanormal/.test(info));
     // Methode übersetzt statt des API-Rohwerts blend(reg=…, seasonal=…)
     const tableText = view.textContent || '';
-    t('forecast: Methode lesbar', /Mischung: \d+ % Heizkurve/.test(tableText) && !/blend\(reg=/.test(tableText));
+    t('forecast: Methode lesbar', /Mischung: \d+\s%\sHeizkurve/.test(tableText) && !/blend\(reg=/.test(tableText));
   } catch (e) { t('forecast: render', false, e.message); }
 
   // ── 9. Analyse-View: Sigmoid im Korrelations-Chart (Fix v1.4.3 #1) ──
@@ -611,6 +746,50 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('report: Herunterladen ohne inline', !(view.querySelector('#report-download')?.getAttribute('href') || '').includes('inline'));
   } catch (e) { t('report: render', false, e.message); }
 
+  // ── 13b. v3.1.0 (I18N-12) — Druckansicht des Jahresberichts, de und fr ──
+  try {
+    const year = new Date().getFullYear() - 1;
+    const i18n = await import(`${ROOT}/lib/i18n.js`);
+    const rawKey = /\b[a-z]+(\.[a-zA-Z0-9]+){2,}\b/;
+    for (const lang of ['de', 'fr']) {
+      await i18n.initI18n(lang);
+      const { view } = await renderView(`${ROOT}/views/report-print.js`, [], { query: new URLSearchParams(`year=${year}`) });
+      const sections = view.querySelectorAll('.report-print .print-section');
+      const meters = view.querySelectorAll('.report-print__bars').length;
+      const text = view.querySelector('.report-print')?.textContent || '';
+      t(`report-print (${lang}): Deckblatt, Übersicht, je Zähler ein Abschnitt, Empfehlungen`,
+        sections.length === meters + 3 && meters >= 3, `${sections.length} Abschnitte, ${meters} Zähler`);
+      t(`report-print (${lang}): kein Rohschlüssel, kein „undefined"`, !rawKey.test(text) && !/undefined|NaN/.test(text),
+        (text.match(rawKey) || text.match(/undefined|NaN/) || [''])[0]);
+      if (lang === 'fr') {
+        t('report-print (fr): Zahlen mit geschütztem Tausendertrenner', /\d[  ]\d{3}/.test(text));
+        t('report-print (fr): französische Überschriften', /Rapport annuel/.test(text) && !/Jahresbericht/.test(text));
+      }
+    }
+    // v3.1.0 (I18N-18) — Hauptansichten in fr und en: kein Rohschlüssel, kein „undefined"
+    for (const lang of ['fr', 'en']) {
+      await i18n.initI18n(lang);
+      const bad = [];
+      for (const [mod, params] of [['dashboard', []], ['utility', ['gas']], ['contracts-overview', []], ['settings', []],
+        ['help', []], ['bill-check', []], ['tariff', []]]) {
+        const { view } = await renderView(`${ROOT}/views/${mod}.js`, params, { query: new URLSearchParams() });
+        await new Promise(r => setTimeout(r, 300));
+        const text = view.textContent || '';
+        const hit = text.match(rawKey) || text.match(/\bundefined\b|\bNaN\b/);
+        if (hit) bad.push(`${mod}: ${hit[0]}`);
+      }
+      t(`Hauptansichten (${lang}): kein Rohschlüssel, kein „undefined"`, bad.length === 0, bad.join(' · '));
+    }
+    await i18n.initI18n('de');
+    const css = readFileSync(new URL('../public/css/print.css', import.meta.url), 'utf8');
+    t('print.css: @media print blendet Seitenleiste und Knöpfe aus, A4',
+      /@media print[\s\S]*\.sidebar[\s\S]*display:\s*none/.test(css) && /size:\s*A4/.test(css));
+    const shell = readFileSync(new URL('../index.php', import.meta.url), 'utf8');
+    t('print.css: in index.php eingebunden', shell.includes('public/css/print.css'));
+    const { view } = await renderView(`${ROOT}/views/report.js`);
+    t('report: Druckansicht ist der Hauptknopf', /#\/report\/print\?year=\d{4}/.test(view.querySelector('#report-print.btn--primary')?.getAttribute('href') || ''));
+  } catch (e) { t('report-print: render', false, e.message); }
+
   // ── 14. v2.11.0 — Navigationsmodell: sieben Bereiche ──
   try {
     freshDom();
@@ -670,6 +849,19 @@ async function renderView(modPath, params = [], ctx = {}) {
     pop = global.document.querySelector('.info-pop');
     t('ⓘ: Erklärung je Zeile, ohne Glossar-Link',
       !!pop && pop.textContent.includes('Kleiner als der vorherige Stand.') && !pop.querySelector('.info-pop__more'));
+
+    // v3.1.0 (I18N-27) — Rechnungsbegriff des eingestellten Landes
+    const countries = await (await global.fetch('http://127.0.0.1:8899/api.php/api/countries')).json().then(d => d.data ?? d);
+    gl.setBillContext(countries.find(c => c.code === 'FR'));
+    global.document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    main.innerHTML = `<p>${gl.info('workingPrice')}</p>`;
+    main.querySelector('.info-btn').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    pop = global.document.querySelector('.info-pop');
+    t('ⓘ Arbeitspreis mit Land FR nennt „Prix du kWh"', /Prix du kWh/.test(pop?.querySelector('.info-pop__bill')?.textContent || ''),
+      pop?.querySelector('.info-pop__bill')?.textContent || 'keine Zeile');
+    t('Tarifvergleich FR: amtliches Portal', gl.billPortal()?.url === 'https://comparateur-offres.energie-info.fr/');
+    gl.setBillContext(countries.find(c => c.code === 'DE'));
+    t('Deutschland: kein amtliches Portal', gl.billPortal() === null);
   } catch (e) { t('ⓘ: Popover', false, e.message); }
 
   try {
@@ -885,7 +1077,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       && /Monaten mit Daten aller drei Zähler/.test(view.querySelector('#pv-flow-chart')?.getAttribute('aria-label') || ''),
       view.querySelector('#pv-flow-chart')?.getAttribute('aria-label'));
     // Die Teile ergeben das Ganze: erzeugt = selbst genutzt + eingespeist (nur gedeckte Monate)
-    const nums = ((view.querySelector('#pv-flow-chart')?.getAttribute('aria-label') || '').match(/[\d.]+(?= kWh)/g) || []).map(s => Number(s.replace(/\./g, '')));
+    const nums = ((view.querySelector('#pv-flow-chart')?.getAttribute('aria-label') || '').match(/[\d.]+(?=\skWh)/g) || []).map(s => Number(s.replace(/\./g, '')));
     t('utility(pv_erzeugung): Kurzbeschreibung — erzeugt = selbst genutzt + eingespeist', nums.length >= 3 && Math.abs(nums[0] - nums[1] - nums[2]) <= 2, nums.join(' | '));
   } catch (e) { t('utility(pv_erzeugung): F2', false, e.message); }
 

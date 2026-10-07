@@ -13,7 +13,17 @@ use Energietracker\Services\BenchmarkService;
  */
 final class BenchmarkController
 {
-    public function __construct(private BenchmarkService $benchmark) {}
+    public function __construct(
+        private BenchmarkService $benchmark,
+        private ?\Energietracker\Services\ReferenceService $references = null,   // v3.1.0 (H8)
+    ) {}
+
+    /** v3.1.0 (H8, MKT-11) — GET /api/benchmarks/comparison?year= (Standard: Vorjahr) */
+    public function comparison(Request $req): never
+    {
+        $year = $req->queryParam('year');
+        Response::json($this->references?->compare($year !== null && ctype_digit($year) ? (int)$year : null) ?? ['supported' => false]);
+    }
 
     public function efficiency(Request $req): never
     {

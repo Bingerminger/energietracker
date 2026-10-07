@@ -83,6 +83,9 @@ final class DemoService
             throw new \RuntimeException($this->i18n->t('errors.demo.backupInvalid'));
         }
         $payload = DemoDataAligner::align($payload, $today ?? date('Y-m-d'));
+        // v3.1.0 (I18N-24) — Namen, Notizen und Termine in der Sprache der Anfrage
+        $payload = DemoDataTranslator::translate($payload, $this->i18n->locale(),
+            DemoDataTranslator::load(dirname($this->demoBackupPath()) . '/translations.json'));
         $report = $this->backups->import($payload);
         $report['demo_import'] = true;
         return $report;

@@ -29,6 +29,13 @@ use Energietracker\Support\Dates;
  *     neu kodieren — ein 15-Jahres-Bestand sprengte sonst 128 MB), atomar
  *     geschrieben, rotiert und lassen sich auflisten, laden, einspielen und
  *     löschen.
+ *
+ * v3.1.0 (Paket H2, B1) — Belege: Der Index `attachments` ist ein Topf wie
+ * jeder andere; die Dateien stehen base64-kodiert unter `attachment_files`
+ * ({id: base64}). Das Format bleibt 3.0 — ältere Versionen ignorieren den
+ * unbekannten Schlüssel. Der Import prüft jede Datei gegen `sha256` und
+ * Inhaltstyp aus dem Index, bevor er schreibt. Export und Snapshot werden
+ * gestreamt, Datei für Datei.
  */
 final class BackupService
 {
@@ -42,6 +49,13 @@ final class BackupService
         'reminders'                 => 'reminders.json',
         // v2.6.0 — ausgeblendete Empfehlungen (vorher still ausgelassen)
         'recommendations_dismissed' => 'recommendations_dismissed.json',
+        // v3.1.0 (H2) — Index der Belege; die Dateien selbst unter attachment_files
+        'attachments'               => 'attachments.json',
+        // v3.1.0 (H3, F1008) — Mietverhältnis und Nebenkostenabrechnungen
+        'tenancies'                 => 'tenancies.json',
+        'tenancy_statements'        => 'tenancy_statements.json',
+        // v3.1.0 (H6, B7) — Großhandelspreise je Monat (SMARD bzw. Datei)
+        'market_prices'             => 'market_prices.json',
     ];
 
     /**
@@ -49,7 +63,9 @@ final class BackupService
      * meter_groups (F1006) fehlten bis dahin. Neue Datentöpfe gehören HIER
      * ergänzt; BackupCoverageTest prüft das gegen alle Schreibstellen.
      */
-    public const UTILITY_POTS = ['meters', 'readings', 'contracts', 'deliveries', 'meter_groups'];
+    public const UTILITY_POTS = ['meters', 'readings', 'contracts', 'deliveries', 'meter_groups',
+        'periods',    // v3.1.0 (H3, B2) — Verbrauch je Zeitraum
+        'bills'];     // v3.1.0 (H5, B3) — Versorgerrechnungen
 
     /** Aufbewahrung: manuelle Snapshots (Präfix `backup_`) … */
     private const KEEP_MANUAL = 10;
@@ -63,7 +79,7 @@ final class BackupService
 
     public function __construct(private JsonStore $store, private I18nService $i18n) {}
 
-    public function export(): array
+    public function export(bool $withFiles = true): array
     {
         $payload = [
             'backup_version' => self::BACKUP_VERSION,
@@ -80,7 +96,55 @@ final class BackupService
                 $payload['utilities'][$key][$pot] = $this->store->read("$key/$pot.json", []);
             }
         }
+        if ($withFiles) {
+            $payload['attachment_files'] = [];
+            foreach ($this->attachmentFiles() as $id => $path) {
+                $payload['attachment_files'][$id] = base64_encode((string)file_get_contents($path));
+            }
+        }
         return $payload;
+    }
+
+    /**
+     * v3.1.0 — Export gestreamt (für `GET /api/backup/export`): Mit Belegen
+     * wäre das Backup sonst zweimal ganz im Speicher (base64 und JSON). Eine
+     * beschädigte Datei bricht wie bisher mit 503 ab — geprüft wird vor dem
+     * ersten Byte.
+     *
+     * @param callable(string): void $w
+     */
+    public function streamExport(callable $w, bool $withFiles = true): void
+    {
+        foreach ($this->potFiles() as $file) $this->store->read($file, []);   // wirft bei beschädigter Datei
+        $this->writeBackup($w, $withFiles);
+    }
+
+    /** Alle Topf-Dateien (ohne meta.json). @return list<string> */
+    private function potFiles(): array
+    {
+        $files = array_values(self::TOP_POTS);
+        foreach (Utilities::keys() as $key) {
+            foreach (self::UTILITY_POTS as $pot) $files[] = "$key/$pot.json";
+        }
+        return $files;
+    }
+
+    /**
+     * Belege mit vorhandener Datei, laut Index.
+     *
+     * @return array<string,string> id → absoluter Pfad
+     */
+    private function attachmentFiles(): array
+    {
+        $out = [];
+        $idx = $this->store->exists(AttachmentService::INDEX) ? $this->store->read(AttachmentService::INDEX, []) : [];
+        foreach (is_array($idx) ? $idx : [] as $a) {
+            $id = (string)($a['id'] ?? '');
+            if (!preg_match(AttachmentService::ID, $id)) continue;
+            $path = $this->store->path('attachments/' . $id . '.' . AttachmentService::extension((string)($a['mime'] ?? '')));
+            if (is_file($path)) $out[$id] = $path;
+        }
+        return $out;
     }
 
     /**
@@ -120,7 +184,7 @@ final class BackupService
         // v2.6.0 — erst alles prüfen, dann schreiben. Vorher schrieb der
         // Import Topf für Topf ungeprüft; `{"meters":[1,2]}` legte danach
         // Übersicht, Empfehlungen und Effizienz mit HTTP 500 lahm.
-        [$writes, $report] = $this->plan($payload);
+        [$writes, $report, $binaries] = $this->plan($payload);
         if ($report['problems'] !== []) {
             throw new BackupInvalidException(
                 $this->i18n->t('errors.backup.invalid', ['count' => count($report['problems'])]),
@@ -147,7 +211,16 @@ final class BackupService
         // Schreiben mit Rückweg: Scheitert eine Datei mittendrin (Platte voll),
         // werden die schon geschriebenen auf ihren alten Stand zurückgesetzt.
         $done = [];
+        $newFiles = [];
         try {
+            // v3.1.0 — erst die Belege, dann der Index: Ein Index-Eintrag zeigt
+            // nie auf eine Datei, die noch fehlt. Gleiche ID = gleicher Inhalt
+            // (sha256 geprüft); vorhandene Dateien bleiben unberührt.
+            foreach ($binaries as $rel => $b64) {
+                if (is_file($this->store->path($rel))) continue;
+                $this->store->writeBinary($rel, (string)base64_decode($b64, true));
+                $newFiles[] = $rel;
+            }
             foreach ($writes as $file => $data) {
                 $before = $this->store->exists($file) ? @file_get_contents($this->store->path($file)) : null;
                 $this->store->write($file, $data);
@@ -158,6 +231,7 @@ final class BackupService
                 if ($before === null) { $this->store->delete($file); continue; }
                 @file_put_contents($this->store->path($file), $before, LOCK_EX);
             }
+            foreach ($newFiles as $rel) @unlink($this->store->path($rel));
             throw $e;
         }
 
@@ -183,7 +257,7 @@ final class BackupService
      * Teil-Restore (dokumentiert): Ein Topf, der im Backup fehlt, bleibt
      * unverändert. Der Bericht nennt ihn unter `untouched`.
      *
-     * @return array{0: array<string,mixed>, 1: array<string,mixed>}
+     * @return array{0: array<string,mixed>, 1: array<string,mixed>, 2: array<string,string>}
      */
     private function plan(array $payload): array
     {
@@ -203,8 +277,42 @@ final class BackupService
                 }
             }
             if ($key === 'reminders') $this->checkList($payload[$key], $key, ['id'], [], $problem);
+            if ($key === 'tenancies') $this->checkList($payload[$key], $key, ['id', 'start'], ['start'], $problem);
+            if ($key === 'tenancy_statements') {
+                $this->checkList($payload[$key], $key, ['id', 'tenancy_id', 'period_from', 'period_to'], ['period_from', 'period_to'], $problem);
+            }
+            if ($key === 'attachments' && $this->checkList($payload[$key], $key, ['id', 'kind', 'mime', 'size', 'sha256'], [], $problem)) {
+                foreach ($payload[$key] as $i => $a) {
+                    if (!preg_match(AttachmentService::ID, (string)$a['id'])) $problem($key, $i, 'id');
+                    elseif (AttachmentService::extension((string)$a['mime']) === 'bin') $problem($key, $i, 'mime');
+                }
+            }
             $writes[$file] = $payload[$key];
             $report[$key] = count($payload[$key]);
+        }
+
+        // v3.1.0 — Belege: jede Datei gegen sha256 und Inhaltstyp des Index
+        $binaries = [];
+        if (isset($payload['attachment_files'])) {
+            $files = $payload['attachment_files'];
+            $index = [];
+            foreach (is_array($payload['attachments'] ?? null) ? $payload['attachments'] : [] as $a) {
+                if (is_array($a) && isset($a['id'])) $index[(string)$a['id']] = $a;
+            }
+            if (!is_array($files)) {
+                $problem('attachment_files', null, 'not_an_object');
+                $files = [];
+            }
+            foreach ($files as $id => $b64) {
+                $id = (string)$id;
+                $a = $index[$id] ?? null;
+                if ($a === null || !preg_match(AttachmentService::ID, $id)) { $problem('attachment_files', null, "unknown:$id"); continue; }
+                $bytes = is_string($b64) ? base64_decode($b64, true) : false;
+                if ($bytes === false || !hash_equals((string)$a['sha256'], hash('sha256', $bytes))) { $problem('attachment_files', null, "sha256:$id"); continue; }
+                if (AttachmentService::sniff($bytes) !== $a['mime']) { $problem('attachment_files', null, "mime:$id"); continue; }
+                $binaries['attachments/' . $id . '.' . AttachmentService::extension((string)$a['mime'])] = $b64;
+            }
+            $report['attachment_files'] = count($binaries);
         }
 
         $utilities = $payload['utilities'] ?? null;
@@ -225,6 +333,8 @@ final class BackupService
                     'contracts'    => [['id', 'meter_id', 'start'], ['start']],
                     'deliveries'   => [['id', 'date'], ['date']],
                     'meter_groups' => [['id'], []],
+                    'periods'      => [['id', 'meter_id', 'from', 'to'], ['from', 'to']],
+                    'bills'        => [['id', 'meter_id', 'period_from', 'period_to'], ['period_from', 'period_to']],
                 };
                 if ($this->checkList($list, "$key/$pot", $required, $dates, $problem)) {
                     $writes["$key/$pot.json"] = $list;
@@ -238,7 +348,7 @@ final class BackupService
             $writes['meta.json'] = $payload['meta'];
         }
         $report['problems'] = $problems;
-        return [$writes, $report];
+        return [$writes, $report, $binaries];
     }
 
     /**
@@ -287,28 +397,9 @@ final class BackupService
         $fp = @fopen($tmp, 'wb');
         if ($fp === false) throw new \RuntimeException('Snapshot lässt sich nicht schreiben');
         try {
-            $w = function (string $s) use ($fp): void {
+            $this->writeBackup(function (string $s) use ($fp): void {
                 if (fwrite($fp, $s) !== strlen($s)) throw new \RuntimeException('Snapshot lässt sich nicht schreiben');
-            };
-            $enc = fn(mixed $v): string => (string)json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
-            $w('{"backup_version":' . $enc(self::BACKUP_VERSION)
-                . ',"app_version":' . $enc($this->appVersion())
-                . ',"exported_at":' . $enc(date('c'))
-                . ',"meta":' . $this->rawPot('meta.json', '{}'));
-            foreach (self::TOP_POTS as $key => $file) {
-                $w(',' . $enc($key) . ':' . $this->rawPot($file, '[]'));
-            }
-            $w(',"utilities":{');
-            $firstU = true;
-            foreach (Utilities::keys() as $key) {
-                $w(($firstU ? '' : ',') . $enc($key) . ':{');
-                $firstU = false;
-                foreach (self::UTILITY_POTS as $i => $pot) {
-                    $w(($i ? ',' : '') . $enc($pot) . ':' . $this->rawPot("$key/$pot.json", '[]'));
-                }
-                $w('}');
-            }
-            $w('}}');
+            }, true);
             fflush($fp);
             if (function_exists('fsync')) @fsync($fp);
         } catch (\Throwable $e) {
@@ -323,6 +414,45 @@ final class BackupService
         }
         $this->rotate();
         return $name;
+    }
+
+    /**
+     * Schreibt ein Backup als JSON über `$w`, Topf für Topf roh und Beleg für
+     * Beleg (base64). Gemeinsamer Weg von Snapshot und Export.
+     *
+     * @param callable(string): void $w
+     */
+    private function writeBackup(callable $w, bool $withFiles): void
+    {
+        $enc = fn(mixed $v): string => (string)json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+        $w('{"backup_version":' . $enc(self::BACKUP_VERSION)
+            . ',"app_version":' . $enc($this->appVersion())
+            . ',"exported_at":' . $enc(date('c'))
+            . ',"meta":' . $this->rawPot('meta.json', '{}'));
+        foreach (self::TOP_POTS as $key => $file) {
+            $w(',' . $enc($key) . ':' . $this->rawPot($file, '[]'));
+        }
+        $w(',"utilities":{');
+        $firstU = true;
+        foreach (Utilities::keys() as $key) {
+            $w(($firstU ? '' : ',') . $enc($key) . ':{');
+            $firstU = false;
+            foreach (self::UTILITY_POTS as $i => $pot) {
+                $w(($i ? ',' : '') . $enc($pot) . ':' . $this->rawPot("$key/$pot.json", '[]'));
+            }
+            $w('}');
+        }
+        $w('}');
+        if ($withFiles) {
+            $w(',"attachment_files":{');
+            $first = true;
+            foreach ($this->attachmentFiles() as $id => $path) {
+                $w(($first ? '' : ',') . $enc($id) . ':"' . base64_encode((string)file_get_contents($path)) . '"');
+                $first = false;
+            }
+            $w('}');
+        }
+        $w('}');
     }
 
     /**
@@ -419,6 +549,8 @@ final class BackupService
                 if ($drop) @unlink($this->store->path('backups') . '/' . $s['name']);
             }
         }
+        // v3.1.0 (H2) — verwaiste Belege (ohne Verweis, älter als 24 h)
+        AttachmentService::sweep($this->store);
     }
 
     private function appVersion(): string

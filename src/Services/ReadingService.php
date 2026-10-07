@@ -31,6 +31,14 @@ final class ReadingService
         private I18nService $i18n,
     ) {}
 
+    /** v3.1.0 (H3, B2) — ein Zähler mit Verbrauch je Zeitraum hat keine Stände. */
+    public static function assertCounterMeter(array $meter): void
+    {
+        if ((($meter['capture'] ?? 'counter')) === 'period') {
+            throw new \Energietracker\Support\LocalizedException('errors.reading.periodMeter', [], 'reading on period meter');
+        }
+    }
+
     /** @return array<int,array<string,mixed>> */
     public function list(string $utility, ?string $meterId = null): array
     {
@@ -62,6 +70,21 @@ final class ReadingService
         $meterId = $input['meter_id'] ?? $this->meters->defaultId($utility);
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) throw new \InvalidArgumentException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
+        self::assertCounterMeter($meter);
+
+        // v3.1.0 (Paket H2, FE-32) — Kennung des Geräts für diese Erfassung: Die
+        // Offline-Warteschlange sendet nach, und ein zweiter Versuch (zwei Tabs,
+        // Verbindung riss nach dem Speichern ab) darf keine zweite Ablesung anlegen.
+        $clientRef = null;
+        if (isset($input['client_ref']) && $input['client_ref'] !== '') {
+            $clientRef = (string)$input['client_ref'];
+            if (!preg_match('/^[A-Za-z0-9-]{8,64}$/', $clientRef)) {
+                throw new \InvalidArgumentException($this->i18n->t('errors.reading.clientRefInvalid'));
+            }
+            foreach ($this->list($utility, (string)$meterId) as $existing) {
+                if (($existing['client_ref'] ?? null) === $clientRef) return $existing + ['duplicate' => true];
+            }
+        }
 
         $device = $this->meters->deviceOnDate($meter, $date);
         if (!$device && $this->meters->backdateFirstDevice($utility, (string)$meterId, $date) !== null) {
@@ -94,6 +117,13 @@ final class ReadingService
         // Beide nur, wenn gesetzt — bestehende Datensätze bleiben gleich.
         if (in_array($input['source'] ?? null, self::SOURCES, true)) $reading['source'] = $input['source'];
         if (!empty($input['is_suspect'])) $reading['is_suspect'] = true;
+        if ($clientRef !== null) $reading['client_ref'] = $clientRef;
+        // v3.1.0 (Paket H2, MKT-08) — Foto des Zählerstands als Beleg
+        if (!empty($input['attachment_id'])) {
+            AttachmentService::link($this->store, (string)$input['attachment_id'], 'reading_photo',
+                ['type' => 'reading', 'utility' => $utility, 'id' => $reading['id']]);
+            $reading['attachment_id'] = (string)$input['attachment_id'];
+        }
 
         $all = $this->store->read("$utility/readings.json", []);
         if (!is_array($all)) $all = [];
@@ -107,6 +137,10 @@ final class ReadingService
     {
         if (array_key_exists('date', $input)) $this->assertDate((string)$input['date']);
         if (array_key_exists('counter', $input)) $input['counter'] = $this->parseCounter($input['counter']);
+        // v3.1.0 (H3) — umhängen nur auf einen Zähler mit Zählerständen
+        if (array_key_exists('meter_id', $input) && ($target = $this->meters->get($utility, (string)$input['meter_id'])) !== null) {
+            self::assertCounterMeter($target);
+        }
 
         $all = $this->store->read("$utility/readings.json", []);
         if (!is_array($all)) $all = [];
@@ -129,6 +163,17 @@ final class ReadingService
                 unset($r['is_suspect']);
             }
             if (in_array($input['source'] ?? null, self::SOURCES, true)) $r['source'] = $input['source'];
+            // v3.1.0 (Paket H2) — Foto setzen, ersetzen oder entfernen
+            if (array_key_exists('attachment_id', $input) && ($input['attachment_id'] ?? null) !== ($r['attachment_id'] ?? null)) {
+                if (!empty($r['attachment_id'])) AttachmentService::unlinkRef($this->store, 'reading', (string)$r['id']);
+                if (!empty($input['attachment_id'])) {
+                    AttachmentService::link($this->store, (string)$input['attachment_id'], 'reading_photo',
+                        ['type' => 'reading', 'utility' => $utility, 'id' => (string)$r['id']]);
+                    $r['attachment_id'] = (string)$input['attachment_id'];
+                } else {
+                    unset($r['attachment_id']);
+                }
+            }
             // Recompute device_id from date
             $meter = $this->meters->get($utility, $r['meter_id']);
             if ($meter) {
@@ -165,6 +210,7 @@ final class ReadingService
     {
         $meter = $this->meters->get($utility, $meterId);
         if (!$meter) throw new NotFoundException($this->i18n->t('errors.common.meterNotFound', ['id' => $meterId]));
+        self::assertCounterMeter($meter);
 
         // Erstes Gerät ggf. einmal vorverlegen (s. create()).
         $dates = array_filter(array_map(fn($r) => (string)($r['date'] ?? ''), $rows), [Dates::class, 'isIsoDate']);
@@ -238,6 +284,8 @@ final class ReadingService
         $kept = array_values(array_filter($all, fn($r) => ($r['id'] ?? null) !== $id));
         if (count($kept) === count($all)) throw new NotFoundException($this->i18n->t('errors.reading.notFound'));
         $this->store->write("$utility/readings.json", $kept);
+        // v3.1.0 — ein Foto bleibt 24 h erhalten („Rückgängig"), dann räumt es der Belege-Dienst auf
+        AttachmentService::unlinkRef($this->store, 'reading', $id);
     }
 
     /**
@@ -328,10 +376,27 @@ final class ReadingService
                     'suspect_count'     => $suspects,
                     // v2.13.0 — Erste-Schritte-Liste: Verbrauch entsteht erst ab zwei Ständen
                     'reading_count'     => count($real),
+                    // v3.1.0 (H3, B2/B9) — Erfassungsart, letzter Zeitraum, Rolle (additiv)
+                    'capture'           => (string)($m['capture'] ?? 'counter'),
+                    'last_period'       => $this->lastPeriod($key, (string)$m['id']),
+                    'role'              => Utilities::roleOf($key, $m),
                 ];
             }
         }
         return $rows;
+    }
+
+    /** v3.1.0 (H3, B2) — letzter Zeitraum eines Zählers mit Verbrauch je Zeitraum, sonst null. */
+    private function lastPeriod(string $utility, string $meterId): ?array
+    {
+        $last = null;
+        $all = $this->store->read("$utility/periods.json", []);
+        foreach (is_array($all) ? $all : [] as $p) {
+            if (!is_array($p) || ($p['meter_id'] ?? null) !== $meterId) continue;
+            if ($last === null || (string)$p['to'] > (string)$last['to']) $last = $p;
+        }
+        return $last === null ? null : ['id' => (string)$last['id'], 'from' => (string)$last['from'], 'to' => (string)$last['to'],
+            'value' => (float)($last['value'] ?? 0), 'value_unit' => (string)($last['value_unit'] ?? 'consumption')];
     }
 
     /**

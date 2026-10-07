@@ -6,7 +6,7 @@
     "quantity": 2400.0,
     "unit_price_cents": 34.0,
     "total_eur": 816.0,
-    "supplier": "Pellet-Hof Sachsen",
+    "supplier": "Pelletwerk Talblick",
     "note": "Sommereinkauf",
     "is_planned": false
   },
@@ -17,7 +17,7 @@
     "quantity": 2400.0,
     "unit_price_cents": 31.5,
     "total_eur": 756.0,
-    "supplier": "Pellet-Hof Sachsen",
+    "supplier": "Pelletwerk Talblick",
     "note": "",
     "is_planned": false
   },
@@ -28,7 +28,7 @@
     "quantity": 2400.0,
     "unit_price_cents": 33.0,
     "total_eur": 792.0,
-    "supplier": "Pellet-Hof Sachsen",
+    "supplier": "Pelletwerk Talblick",
     "note": "",
     "is_planned": false
   }

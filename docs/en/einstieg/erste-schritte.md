@@ -156,8 +156,9 @@ Docker operation your data is in the mounted `data/` volume anyway.
 ## Shortcut: demo data
 
 To just try it out you don't have to type anything: **Settings → Data → Backup &
-restore → Load demo data** imports a complete example dataset across all eight
-utilities (with a warning + auto-snapshot if data already exists). After that you
+restore → Load demo data** imports a complete example dataset across eight
+utilities — all except heat (with a warning + auto-snapshot if data already
+exists). After that you
 can continue right at [step 6](#6-evaluate).
 
 Since v3.0.0 the sample household reaches up to today: readings, deliveries and

@@ -60,29 +60,43 @@ final class PdfWriter
         return $this->pageH - $y;
     }
 
+    /**
+     * UTF-8 → CP1252 (WinAnsiEncoding der eingebauten Helvetica).
+     *
+     * v3.1.0 (Review I18N-12) — Zeichen abbilden statt wegwerfen: „CO₂" wurde
+     * zu „CO", der Mittelpunkt in „kWh/m²·a" zu „-" (0xB7 gibt es in CP1252),
+     * das schmale geschützte Leerzeichen der französischen Typografie
+     * verschwand. Sprachen mit anderem Alphabet druckt die Druckansicht im
+     * Browser (format.pdfCharset = none).
+     */
+    public static function toCp1252(string $s): string
+    {
+        $s = self::normalize($s);
+        // iconv ist auf praktisch jeder PHP-Installation vorhanden (auch ohne
+        // mbstring); //TRANSLIT bildet Unbekanntes sinnvoll ab, //IGNORE wirft
+        // den Rest weg statt zu scheitern.
+        $conv = @iconv('UTF-8', 'CP1252//TRANSLIT//IGNORE', $s);
+        return $conv !== false ? $conv : (preg_replace('/[^\x20-\x7E]/', '?', $s) ?? $s);
+    }
+
+    /**
+     * Zeichen, die in CP1252 fehlen oder typografisch vereinfacht werden, vorab
+     * abbilden (UTF-8 → UTF-8). Was danach übrig bleibt, muss CP1252 kennen —
+     * PdfCharsetTest prüft das für alle Katalogtexte des Berichts.
+     */
+    public static function normalize(string $s): string
+    {
+        return strtr($s, [
+            '–'=>'-', '—'=>'-', '−'=>'-', '×'=>'x', '…'=>'...',
+            '„'=>'"', '“'=>'"', '”'=>'"', '’'=>"'", '‚'=>"'", '‘'=>"'",
+            '₂'=>'2', '₃'=>'3', "\u{202F}"=>"\u{00A0}", "\u{2009}"=>"\u{00A0}",
+            'σ'=>'sigma', 'Δ'=>'Delta', '≥'=>'>=', '≤'=>'<=', '→'=>'->', '←'=>'<-',
+        ]);
+    }
+
     private function esc(string $s): string
     {
-        // Häufige Sonderzeichen, die in CP1252 nicht 1:1 existieren oder
-        // typografisch ersetzt werden sollen, vorab normalisieren.
-        $pre = [
-            '–'=>'-', '—'=>'-', '×'=>'x', '…'=>'...',
-            '„'=>'"', '"'=>'"', '"'=>'"', '’'=>"'", '‚'=>"'", '·'=>'-',
-            'σ'=>'sigma', 'Δ'=>'Delta', '≥'=>'>=', '≤'=>'<=', '→'=>'->',
-        ];
-        $s = strtr($s, $pre);
-
-        // UTF-8 → CP1252 (WinAnsiEncoding des PDF-Fonts). iconv ist auf
-        // praktisch jeder PHP-Installation vorhanden (auch ohne mbstring);
-        // //TRANSLIT bildet Unbekanntes sinnvoll ab, //IGNORE wirft den
-        // Rest weg statt zu scheitern.
-        $conv = @iconv('UTF-8', 'CP1252//TRANSLIT//IGNORE', $s);
-        if ($conv !== false) {
-            $s = $conv;
-        } else {
-            // Fallback ohne iconv: nur ASCII durchlassen
-            $s = preg_replace('/[^\x20-\x7E]/', '?', $s) ?? $s;
-        }
-
+        $s = self::toCp1252($s);
         return str_replace(['\\', '(', ')', "\r", "\n"], ['\\\\', '\\(', '\\)', '', ' '], $s);
     }
 
@@ -103,10 +117,14 @@ final class PdfWriter
         $this->text($xRight - $w, $y, $s, $size, $bold, $rgb);
     }
 
-    /** Helvetica-Breitenschätzung (avg. 0.52 em — ausreichend für Layout). */
+    /**
+     * Helvetica-Breitenschätzung (avg. 0.52 em — ausreichend für Layout).
+     * v3.1.0 — gezählt werden Zeichen nach der Umwandlung, nicht UTF-8-Bytes:
+     * „Énergie" ist 7 Zeichen breit, nicht 8.
+     */
     public function textWidth(string $s, float $size, bool $bold = false): float
     {
-        return strlen($s) * $size * ($bold ? 0.56 : 0.52);
+        return strlen(self::toCp1252($s)) * $size * ($bold ? 0.56 : 0.52);
     }
 
     public function line(float $x1, float $y1, float $x2, float $y2, float $w = 0.5, ?array $rgb = null): void

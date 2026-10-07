@@ -27,6 +27,21 @@ const GROUPS = [
   { key: 'advance_payments', titleKey: 'contracts.group.advance', dateKey: 'from', amountKey: 'amount_eur',    amountKey_: 'contracts.unit.eurPerMonth' },
 ];
 
+// v3.1.0 (H5, CALC-31) — Fernwärme: Leistungspreis je kW und Jahr, Messpreis je Jahr
+const FW_GROUPS = [
+  { key: 'capacity_prices', titleKey: 'contracts.fw.capacityPrice', dateKey: 'from', amountKey: 'eur_per_kw_year', amountKey_: 'contracts.unit.eurPerKwYear' },
+  { key: 'metering_prices', titleKey: 'contracts.fw.meteringPrice', dateKey: 'from', amountKey: 'eur_per_year',    amountKey_: 'contracts.unit.eurPerYear' },
+];
+// v3.1.0 (H6, MKT-13) — § 14a EnWG Modul 1: pauschale Reduzierung des Netzentgelts je Jahr (Strom)
+const GRID_GROUP = { key: 'grid_reduction', titleKey: 'contracts.gridReduction.title', dateKey: 'from', amountKey: 'eur_per_year', amountKey_: 'contracts.unit.eurPerYear' };
+const groupsFor = (u) => (u?.key === 'fernwaerme' ? [...GROUPS, ...FW_GROUPS] : u?.key === 'strom' ? [...GROUPS, GRID_GROUP] : GROUPS);
+// v3.1.0 (H6, #17) — Arbeitspreis je Zähler eines Gruppenvertrags (HT/NT)
+const memberGroup = (m) => ({ key: `wpm:${m.id}`, title: m.name || m.id, dateKey: 'from', amountKey: 'ct_per_kwh', amountKey_: 'contracts.unit.ctPerKwh' });
+function groupDef(key) {
+  if (key.startsWith('wpm:')) return memberGroup({ id: key.slice(4) });
+  return [...GROUPS, ...FW_GROUPS, GRID_GROUP].find(x => x.key === key);
+}
+
 // F1003 — Sonderzahlungs-Arten. Die *_mit-Arten verändern zusätzlich den
 // künftigen Abschlag. Labels über t('contracts.kinds.<value>').
 const SPECIAL_PAYMENT_KINDS = [
@@ -89,11 +104,12 @@ export async function render(container, params) {
 
 async function refresh(container, u) {
   container.innerHTML = `<div class="loading">${t('contracts.loading')}</div>`;
-  let meters, contracts;
+  let meters, contracts, groups;
   try {
-    [meters, contracts] = await Promise.all([
+    [meters, contracts, groups] = await Promise.all([
       api.meters(u.key),
       api.contracts(u.key),
+      api.meterGroups(u.key).catch(() => []),   // v3.1.0 (H6, #17)
     ]);
   } catch (e) {
     // v2.11.0 (Review FE-25) — sonst hing die Ansicht nach dem Speichern bei „Lädt…"
@@ -120,14 +136,14 @@ async function refresh(container, u) {
 
       <div id="contracts-list">
         ${sorted.length === 0 ? `<p class="muted">${t('contracts.empty')}</p>${meters.length ? `<button type="button" class="btn btn--util" data-action="new-contract">${t('contracts.emptyCta')}</button>` : ''}` : ''}
-        ${sorted.map(c => renderContractCard(c, meters, u)).join('')}
+        ${sorted.map(c => renderContractCard(c, meters, u, groups)).join('')}
       </div>
     </div>
   `;
 
   container.querySelectorAll('[data-action="new-contract"]').forEach(btn => {
     btn.addEventListener('click', () => {
-      dispatchContractModal(u, meters, null, contracts).then(changed => { if (changed) refresh(container, u); });
+      dispatchContractModal(u, meters, null, contracts, groups).then(changed => { if (changed) refresh(container, u); });
     });
   });
 
@@ -135,8 +151,32 @@ async function refresh(container, u) {
     b.addEventListener('click', async () => {
       const id = b.getAttribute('data-edit-contract');
       const c = contracts.find(x => x.id === id);
-      const changed = await dispatchContractModal(u, meters, c, contracts);
+      const changed = await dispatchContractModal(u, meters, c, contracts, groups);
       if (changed) refresh(container, u);
+    });
+  });
+
+  // v3.1.0 (H6, MKT-12) — Monatspreise (monat;ct_kwh[;grundpreis]) mit Vorschau
+  container.querySelectorAll('[data-import-prices]').forEach(inp => {
+    inp.addEventListener('change', async () => {
+      const file = inp.files?.[0];
+      if (!file) return;
+      const id = inp.getAttribute('data-import-prices');
+      try {
+        const text = await file.text();
+        const dry = await api.importContractPrices(u.key, id, text, { dryRun: true });
+        const ok = await confirmModal({
+          title: t('contracts.priceImport.title'),
+          message: t('contracts.priceImport.preview', { n: dry.would_import, from: fmt.date(dry.from), to: fmt.date(dry.to) })
+            + (dry.errors?.length ? ' ' + tp('contracts.priceImport.skipped', dry.errors.length) : ''),
+          confirmLabel: t('contracts.priceImport.confirm'),
+        });
+        if (!ok) return;
+        await api.importContractPrices(u.key, id, text);
+        toastOk(t('contracts.priceImport.done'));
+        refresh(container, u);
+      } catch (e) { toastErr(e.message); }
+      finally { inp.value = ''; }
     });
   });
 
@@ -154,11 +194,14 @@ async function refresh(container, u) {
   });
 }
 
-function dispatchContractModal(u, meters, existing, contracts = []) {
+function dispatchContractModal(u, meters, existing, contracts = [], groups = []) {
   return u.key === 'wasser'
     ? openWaterContractModal(u, meters, existing, contracts)
-    : openContractModal(u, meters, existing, contracts);
+    : openContractModal(u, meters, existing, contracts, groups);
 }
+
+// v3.1.0 (H6, #17) — Ziel eines Vertrags: Zähler oder Zählergruppe
+const targetOf = (c) => c?.meter_group_id || c?.meter_id || '';
 
 // v2.5.3 (UI-04) — Ein neuer Vertrag beginnt am Tag nach dem Ende der
 // laufenden Bindung, sonst heute. Vorher stand immer „heute" im Feld: Ein
@@ -183,7 +226,7 @@ function suggestStart(contracts, meterId) {
 // zählen nicht, sie rechnen nirgends mit.
 function supersededContract(contracts, payload, ownId) {
   return contracts.find(c =>
-    c.id !== ownId && !c.is_shadow && c.meter_id === payload.meter_id
+    c.id !== ownId && !c.is_shadow && targetOf(c) === targetOf(payload)
     && (c.start || '') < payload.start
     && (!c.end || c.end >= payload.start));
 }
@@ -192,7 +235,7 @@ function supersededContract(contracts, payload, ownId) {
 // wenn sich Beginn oder Zähler geändert haben — eine bestehende Überlappung
 // ist schon entschieden.
 async function confirmSupersede(contracts, payload, existing) {
-  if (existing && existing.start === payload.start && existing.meter_id === payload.meter_id) return true;
+  if (existing && existing.start === payload.start && targetOf(existing) === targetOf(payload)) return true;
   const other = supersededContract(contracts, payload, existing?.id);
   if (!other) return true;
   const name = [other.provider, other.tariff_name].filter(Boolean).join(' · ')
@@ -262,8 +305,9 @@ function contractStatus(c) {
   return { cls: 'active', label: t('contracts.status.active') };
 }
 
-function renderContractCard(c, meters, u) {
+function renderContractCard(c, meters, u, groups = []) {
   const meter = meters.find(m => m.id === c.meter_id);
+  const group = c.meter_group_id ? groups.find(g => g.id === c.meter_group_id) : null;
   let summary;
   if (u.key === 'wasser') {
     const tw = c.trinkwasser || {};
@@ -296,12 +340,16 @@ function renderContractCard(c, meters, u) {
           <span class="status-pill ${st.cls}">${st.label}</span></h2>
         <div class="section-actions">
           <button class="btn btn--sm btn--ghost" data-edit-contract="${escapeHtml(c.id)}">${t('contracts.card.edit')}</button>
+          ${u.key !== 'wasser' && u.accounting_kind !== 'feed_in' && !c.is_shadow ? `<label class="btn btn--sm btn--ghost">${t('contracts.priceImport.button')}
+            <input type="file" accept=".csv,text/csv,text/plain" class="sr-only" data-import-prices="${escapeHtml(c.id)}"></label>` : ''}
           <button class="btn btn--sm btn--danger btn--quiet" data-delete-contract="${escapeHtml(c.id)}" title="${t('contracts.deleteContract')}" aria-label="${t('contracts.deleteContract')}"><span aria-hidden="true">×</span></button>
         </div>
       </div>
       <div class="muted" style="font-size: var(--fs-sm)">
         ${fmt.date(c.start)} – ${c.end ? fmt.date(c.end) : t('contracts.card.open')}
-        · ${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>
+        · ${c.meter_group_id
+          ? `${t('contracts.card.groupLabel')} <strong>${escapeHtml(group?.name || c.meter_group_id)}</strong>`
+          : `${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>`}
         · ${summary}
       </div>
       ${c.is_shadow ? `<p class="muted" style="margin-top:var(--sp-2);font-size:var(--fs-xs)">${t('contracts.card.shadowHint')}</p>` : ''}
@@ -316,7 +364,7 @@ function renderContractCard(c, meters, u) {
 // bearbeitet wird, die in m³ misst und in kWh abrechnet (Gas).
 let perM3Ctx = null;
 
-async function openContractModal(u, meters, existing, contracts = []) {
+async function openContractModal(u, meters, existing, contracts = [], groups = []) {
   perM3Ctx = null;
   if (u?.unit === 'm³' && u?.consumption_unit === 'kWh') {
     const s = await getSettings().catch(() => null);
@@ -338,6 +386,8 @@ async function openContractModal(u, meters, existing, contracts = []) {
       special_payments: [],
     };
 
+    // v3.1.0 (H6, #17) — Gruppen mit Mitgliedern als Vertragsziel (Gas, Strom, Fernwärme)
+    const targetGroups = hasAdvancePaymentContracts(u) ? groups.filter(g => meters.some(m => m.meter_group_id === g.id)) : [];
     const body = document.createElement('div');
     body.innerHTML = `
       <form id="contract-form">
@@ -355,6 +405,8 @@ async function openContractModal(u, meters, existing, contracts = []) {
             <label>${t('contracts.modal.meter')}</label>
             <select class="select" name="meter_id">
               ${meters.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === initial.meter_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
+              ${targetGroups.length ? `<optgroup label="${escapeHtml(t('contracts.modal.groupTargets'))}">${targetGroups.map(g =>
+                `<option value="g:${escapeHtml(g.id)}" ${g.id === initial.meter_group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}</optgroup>` : ''}
             </select>
           </div>
         </div>
@@ -421,11 +473,25 @@ async function openContractModal(u, meters, existing, contracts = []) {
           <textarea class="input input--text" name="notes">${escapeHtml(initial.notes || '')}</textarea>
         </div>
 
-        ${GROUPS.map(g => renderGroupSection(g, initial[g.key] || [])).join('')}
+        ${groupsFor(u).map(g => renderGroupSection(g, initial[g.key] || [])).join('')}
+        <div data-role="member-prices">${memberPricesHtml(initial.meter_group_id, meters, initial.working_prices_by_meter)}</div>
+        ${u?.key === 'fernwaerme' ? `
+        <fieldset class="field"><legend>${t('contracts.fw.title')}</legend>
+          <div class="form-row">
+            <div class="field"><label>${t('contracts.fw.capacityKw')}</label>
+              <input class="input" name="capacity_kw" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.capacity_kw))}"></div>
+            <div class="field"><label>${t('contracts.fw.co2Factor')}</label>
+              <input class="input" name="co2_g_per_kwh" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.co2_g_per_kwh))}"></div>
+            <div class="field"><label>${t('contracts.fw.primaryEnergy')}</label>
+              <input class="input" name="primary_energy_factor" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.primary_energy_factor))}"></div>
+          </div>
+          <span class="settings-field__hint">${t('contracts.fw.hint')}</span>
+        </fieldset>` : ''}
 
         ${renderBonusSection(initial.bonuses || [])}
 
         ${hasAdvancePaymentContracts(u) ? renderSpecialPaymentSection(initial.special_payments || []) : ''}
+        ${u?.accounting_kind === 'feed_in' ? renderRevenueSection(initial.revenue_statements || []) : ''}
       </form>
     `;
 
@@ -468,12 +534,13 @@ async function openContractModal(u, meters, existing, contracts = []) {
             noticeOk ? null : t(unit === 'months' ? 'errors.contract.noticeOutOfRange' : 'errors.contract.noticeDaysOutOfRange'));
           if (!noticeOk) return;
 
-          const payload = collectPayload(f);
+          const payload = collectPayload(f, u);
           if (!await confirmSupersede(contracts, payload, existing)) return;
           try {
-            if (isEdit) await api.updateContract(u.key, existing.id, payload);
-            else        await api.createContract(u.key, payload);
+            const saved = isEdit ? await api.updateContract(u.key, existing.id, payload) : await api.createContract(u.key, payload);
             toastOk(t('contracts.modal.saved'));
+            // v3.1.0 (H5, MKT-24) — Hinweise des Servers (nicht gespeichert)
+            if ((saved?.warnings || []).includes('term_over_24_months')) toastErr(t('contracts.hint.termOver24'));
             close(true); resolve(true);
           } catch (e) { toastErr(e.message); }
         }));
@@ -498,10 +565,29 @@ async function openContractModal(u, meters, existing, contracts = []) {
 
         try { bindEntryGroupHandlers(modalEl); }
         catch (e) { console.warn('contract modal: entry-group binding failed:', e); }
+        // v3.1.0 (H6, #17) — Gruppe gewählt: Arbeitspreise je Mitglied anbieten
+        const targetSel = modalEl.querySelector('[name="meter_id"]');
+        targetSel?.addEventListener('change', () => {
+          const box = modalEl.querySelector('[data-role="member-prices"]');
+          if (!box) return;
+          box.innerHTML = targetSel.value.startsWith('g:') ? memberPricesHtml(targetSel.value.slice(2), meters, {}) : '';
+          bindEntryGroupHandlers(modalEl, box);
+          associateFieldLabels(box);
+        });
         try { bindPerM3(modalEl); }
         catch (e) { console.warn('contract modal: per-m³ helper failed:', e); }
         try { bindBonusHandlers(modalEl); }
         catch (e) { console.warn('contract modal: bonus binding failed:', e); }
+        // v3.1.0 (H7, MKT-16) — Gutschriften des Direktvermarkters
+        modalEl.querySelector('[data-action="add-revenue"]')?.addEventListener('click', () => {
+          const wrap = document.createElement('div');
+          wrap.innerHTML = revenueRowHtml({});
+          modalEl.querySelector('[data-role="revenue-rows"]').appendChild(wrap.firstElementChild);
+          associateFieldLabels(modalEl.querySelector('[data-role="revenue-rows"]'));
+        });
+        modalEl.querySelector('[data-role="revenue-rows"]')?.addEventListener('click', ev => {
+          ev.target.closest('[data-action="remove-revenue"]')?.closest('.revenue-row')?.remove();
+        });
         try { bindSpecialPaymentHandlers(modalEl); }
         catch (e) { console.warn('contract modal: special-payment binding failed:', e); }
         // A11y: alle Formularfelder mit ihren Labels verknüpfen.
@@ -515,9 +601,9 @@ async function openContractModal(u, meters, existing, contracts = []) {
 function renderGroupSection(g, entries) {
   if (entries.length === 0) entries = [{ [g.dateKey]: '', [g.amountKey]: '' }];
   return `
-    <div class="entry-group" data-group="${g.key}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}">
+    <div class="entry-group" data-group="${escapeHtml(g.key)}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}">
       <div class="entry-group__head">
-        <div class="entry-group__title">${t(g.titleKey)}</div>
+        <div class="entry-group__title">${g.title ? escapeHtml(g.title) : t(g.titleKey)}</div>
         <button type="button" class="btn btn--sm btn--ghost" data-action="add-row">${t('contracts.group.addRow')}</button>
       </div>
       <div class="field-error" data-role="group-msg" role="alert" hidden></div>
@@ -624,13 +710,17 @@ function renderEntryRow(g, e) {
   `;
 }
 
-function bindEntryGroupHandlers(modalEl) {
+// v3.1.0 (H6) — `root`: nur einen nachgeladenen Teil binden (Preise je Mitglied).
+// Zeilen fügt jetzt jede Liste an, nicht nur die drei Grundlisten (Fernwärme,
+// § 14a und Mitgliederpreise kamen sonst ohne Definition an)
+function bindEntryGroupHandlers(modalEl, root = modalEl) {
   // Add-row buttons
-  modalEl.querySelectorAll('[data-action="add-row"]').forEach(btn => {
+  root.querySelectorAll('[data-action="add-row"]').forEach(btn => {
     btn.addEventListener('click', () => {
       const group = btn.closest('[data-group]');
       const gKey  = group.getAttribute('data-group');
-      const g = GROUPS.find(x => x.key === gKey);
+      const g = groupDef(gKey);
+      if (!g) return;
       const wrap = document.createElement('div');
       wrap.innerHTML = renderEntryRow(g, { [g.dateKey]: '', [g.amountKey]: '' });
       const row = wrap.firstElementChild;
@@ -641,7 +731,18 @@ function bindEntryGroupHandlers(modalEl) {
   });
 
   // Initial rows
-  modalEl.querySelectorAll('.entry-row').forEach(row => bindRowHandlers(modalEl, row));
+  root.querySelectorAll('.entry-row').forEach(row => bindRowHandlers(modalEl, row));
+}
+
+// v3.1.0 (H6, #17) — Arbeitspreis je Zähler der Gruppe (HT/NT), leer = allgemeiner Arbeitspreis
+function memberPricesHtml(gid, meters, byMeter = {}) {
+  if (!gid) return '';
+  const members = meters.filter(m => m.meter_group_id === gid);
+  if (!members.length) return '';
+  return `<fieldset class="field"><legend>${t('contracts.groupPrices.title')}</legend>
+    <span class="settings-field__hint">${t('contracts.groupPrices.hint')}</span>
+    ${members.map(m => renderGroupSection(memberGroup(m), (byMeter || {})[m.id] || [])).join('')}
+  </fieldset>`;
 }
 
 function bindRowHandlers(modalEl, row) {
@@ -665,7 +766,7 @@ function bindRowHandlers(modalEl, row) {
     // Keep at least one row visible
     if (group && group.querySelectorAll('.entry-row').length === 0) {
       const gKey = group.getAttribute('data-group');
-      const g = GROUPS.find(x => x.key === gKey);
+      const g = groupDef(gKey);
       if (!g) return;
       const wrap = document.createElement('div');
       wrap.innerHTML = renderEntryRow(g, { [g.dateKey]: '', [g.amountKey]: '' });
@@ -906,17 +1007,51 @@ function noticeInitial(c) {
   return { value: m === null || m === undefined ? '' : String(m), unit: 'months' };
 }
 
-function collectPayload(form) {
+// v3.1.0 (H7, MKT-16) — Gutschriften des Direktvermarkters (Einspeisung): Zeitraum und Betrag
+function renderRevenueSection(items) {
+  return `<fieldset class="field"><legend>${t('contracts.revenue.title')}</legend>
+    <span class="settings-field__hint">${t('contracts.revenue.hint')}</span>
+    <div data-role="revenue-rows">${items.map(revenueRowHtml).join('')}</div>
+    <button type="button" class="btn btn--sm btn--ghost" data-action="add-revenue">${t('contracts.revenue.add')}</button>
+  </fieldset>`;
+}
+
+function revenueRowHtml(s) {
+  return `<div class="entry-row revenue-row">
+    <div class="field"><label>${t('contracts.revenue.from')}</label><input class="input" type="date" data-role="rev-from" value="${escapeHtml(s.from || '')}"></div>
+    <div class="field"><label>${t('contracts.revenue.to')}</label><input class="input" type="date" data-role="rev-to" value="${escapeHtml(s.to || '')}"></div>
+    <div class="field"><label>${t('contracts.revenue.amount')}</label>${amountInput('rev-amount', s.amount_eur, 2)}</div>
+    <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-revenue" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
+  </div>`;
+}
+
+function collectEntries(group, g) {
+  const entries = [];
+  group?.querySelectorAll('.entry-row').forEach(row => {
+    const dateEl = row.querySelector('[data-role="date"]');
+    const date   = dateEl.value.trim();
+    const amount = row.querySelector('[data-role="amount"]').value.trim();
+    // Send all rows including half-filled — backend will reject loudly.
+    // But skip fully-empty so blank template rows don't trigger silent drops.
+    // v2.12.0 — ein vorbelegtes Datum ohne Betrag gilt als leer
+    if (!amount && (!date || dateEl.dataset.auto === '1')) return;
+    entries.push({ [g.dateKey]: date, [g.amountKey]: amountValue(amount) });
+  });
+  return entries;
+}
+
+function collectPayload(form, u = null) {
   // Leeres Feld → null, nicht 0 oder "": Eine Kündigungsfrist von null heißt
   // „nicht gepflegt" und schaltet die Terminrechnung ab; eine von 0 hieße
   // „jederzeit kündbar" und ist eine Aussage.
   const notice = form.notice_value?.value.trim();
   const unit   = form.notice_unit?.value || 'months';
   const n      = notice === '' || notice === undefined ? null : Number(notice);
+  const target = form.meter_id.value;   // v3.1.0 (H6) — „g:<id>" = Zählergruppe
   const payload = {
     provider:    form.provider.value,
     tariff_name: form.tariff_name.value,
-    meter_id:    form.meter_id.value,
+    meter_id:    target.startsWith('g:') ? null : target,
     start:       form.start.value,
     end:         form.end.value || null,
     notes:       form.notes.value,
@@ -930,21 +1065,18 @@ function collectPayload(form) {
     price_guarantee_until: form.price_guarantee_until?.value || null,
   };
 
-  for (const g of GROUPS) {
-    const group = form.querySelector(`[data-group="${g.key}"]`);
-    const rows = group.querySelectorAll('.entry-row');
-    const entries = [];
-    rows.forEach(row => {
-      const dateEl = row.querySelector('[data-role="date"]');
-      const date   = dateEl.value.trim();
-      const amount = row.querySelector('[data-role="amount"]').value.trim();
-      // Send all rows including half-filled — backend will reject loudly.
-      // But skip fully-empty so blank template rows don't trigger silent drops.
-      // v2.12.0 — ein vorbelegtes Datum ohne Betrag gilt als leer
-      if (!amount && (!date || dateEl.dataset.auto === '1')) return;
-      entries.push({ [g.dateKey]: date, [g.amountKey]: amountValue(amount) });
+  for (const g of groupsFor(u)) {
+    payload[g.key] = collectEntries(form.querySelector(`[data-group="${g.key}"]`), g);
+  }
+  // v3.1.0 (H6, #17) — Gruppenvertrag mit Arbeitspreisen je Mitglied
+  if (target.startsWith('g:')) {
+    payload.meter_group_id = target.slice(2);
+    payload.working_prices_by_meter = {};
+    form.querySelectorAll('[data-group^="wpm:"]').forEach(group => {
+      const key = group.getAttribute('data-group');
+      const entries = collectEntries(group, groupDef(key));
+      if (entries.length) payload.working_prices_by_meter[key.slice(4)] = entries;
     });
-    payload[g.key] = entries;
   }
 
   const bonusEntries = [];
@@ -981,6 +1113,21 @@ function collectPayload(form) {
   });
   payload.special_payments = specialEntries;
 
+  // v3.1.0 (H7, MKT-16) — Gutschriften (nur Einspeisung)
+  if (u?.accounting_kind === 'feed_in') {
+    payload.revenue_statements = [...form.querySelectorAll('.revenue-row')].map(row => ({
+      from: row.querySelector('[data-role="rev-from"]').value,
+      to: row.querySelector('[data-role="rev-to"]').value,
+      amount_eur: amountValue(row.querySelector('[data-role="rev-amount"]').value.trim()),
+    })).filter(s => s.from || s.to || s.amount_eur !== null);
+  }
+  // v3.1.0 (H5, CALC-31) — Fernwärme: Anschlussleistung, Netzfaktor, Primärenergiefaktor
+  if (u?.key === 'fernwaerme') {
+    for (const k of ['capacity_kw', 'co2_g_per_kwh', 'primary_energy_factor']) {
+      const raw = form[k]?.value.trim() ?? '';
+      payload[k] = raw === '' ? null : amountValue(raw);
+    }
+  }
   return payload;
 }
 
@@ -1030,8 +1177,11 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
         // Toggle separater Zähler input
         const basisRadios = modalEl.querySelectorAll('input[name="schmutz-basis"]');
         const basisSep = modalEl.querySelector('#schmutz-separater-row');
+        const basisDeduct = modalEl.querySelector('#schmutz-abzug-row');
         basisRadios.forEach(r => r.addEventListener('change', () => {
-          basisSep.style.display = modalEl.querySelector('input[name="schmutz-basis"]:checked').value === 'separater_zaehler' ? '' : 'none';
+          const v = modalEl.querySelector('input[name="schmutz-basis"]:checked').value;
+          basisSep.style.display = v === 'separater_zaehler' ? '' : 'none';
+          if (basisDeduct) basisDeduct.style.display = v === 'trinkwasser_minus_abzug' ? '' : 'none';
         }));
 
         modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => { close(null); resolve(false); });
@@ -1120,11 +1270,25 @@ function waterFormHtml(c, meters, u) {
               <input type="radio" name="schmutz-basis" value="separater_zaehler" ${basis === 'separater_zaehler' ? 'checked' : ''}>
               <span>${t('contracts.water.basisSep')}</span>
             </label>
+            <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:normal">
+              <input type="radio" name="schmutz-basis" value="trinkwasser_minus_abzug" ${basis === 'trinkwasser_minus_abzug' ? 'checked' : ''}>
+              <span>${t('contracts.water.basisDeduct')}</span>
+            </label>
           </div>
           <div class="field" id="schmutz-separater-row" style="${basis === 'separater_zaehler' ? '' : 'display:none'}">
             <label>${t('contracts.water.sepMeter')}</label>
             <select class="select" name="schmutz_separater_zaehler_meter_id">${sepMeterOpts || `<option value="">${t('contracts.water.noMoreMeters')}</option>`}</select>
           </div>
+          <!-- v3.1.0 (Review CALC-20) — Abzugszähler, z. B. der Gartenzähler -->
+          <fieldset class="field" id="schmutz-abzug-row" style="${basis === 'trinkwasser_minus_abzug' ? '' : 'display:none'};border:0;padding:0;margin:0">
+            <legend>${t('contracts.water.deductMeters')}</legend>
+            ${otherMeters.length ? otherMeters.map(m => `
+            <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:normal">
+              <input type="checkbox" name="schmutz_abzug" value="${escapeHtml(m.id)}" ${(sw.abzug_meter_ids || []).includes(m.id) ? 'checked' : ''}>
+              <span>${escapeHtml(m.name)}</span>
+            </label>`).join('') : `<p class="muted small">${t('contracts.water.noMoreMeters')}</p>`}
+            <p class="muted small">${t('contracts.water.deductHint')}</p>
+          </fieldset>
           ${renderWaterEntryGroup('sw-working', t('contracts.water.swWorking'), sw.working_prices || [], ['from', 'ct_per_m3'], [t('contracts.water.colDate'), t('contracts.water.colCtM3')])}
         </div>
       </details>
@@ -1320,6 +1484,8 @@ function collectWaterForm(modalEl) {
       separater_zaehler_meter_id: (fd.get('schmutz-basis') === 'separater_zaehler')
         ? (fd.get('schmutz_separater_zaehler_meter_id') || null)
         : null,
+      // v3.1.0 (CALC-20) — Abzugszähler (Garten); der Server prüft, dass es welche gibt
+      abzug_meter_ids: fd.get('schmutz-basis') === 'trinkwasser_minus_abzug' ? fd.getAll('schmutz_abzug') : [],
       working_prices: collect('sw-working').map(r => ({ from: r.from, ct_per_m3: num(r.ct_per_m3) })),
     },
     niederschlagswasser: {

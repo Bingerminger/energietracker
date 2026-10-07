@@ -21,6 +21,35 @@ let fallback = {};         // Default-Sprache (de) für fehlende Keys
 
 export function getLocale() { return locale; }
 
+// v3.1.0 (Review I18N-29) — Sprache pro Gerät. Bis v3.0 stellte eine Person die
+// Sprache für den ganzen Haushalt um. Jetzt merkt sich jedes Gerät seine Wahl im
+// Browser; ohne eigene Wahl gilt die Standardsprache der Installation (Einstellung
+// `language`, die auch PDF, CSV und Home Assistant bestimmt).
+const DEVICE_KEY = 'et-language';
+
+/** Eigene Sprache dieses Geräts oder null (= wie die Installation). */
+export function deviceLanguage() {
+  try { return localStorage.getItem(DEVICE_KEY) || null; } catch { return null; }
+}
+
+/**
+ * Sprache für die ersten Anfragen, bevor ein Katalog geladen ist: Einstellungen
+ * und Länderliste kommen so schon in der Sprache des Geräts (der Server prüft
+ * den Wert; initI18n() legt sie danach endgültig fest).
+ */
+export function presetLocale(lang) {
+  const loc = String(lang || '').slice(0, 2).toLowerCase();
+  if (/^[a-z]{2}$/.test(loc)) locale = loc;
+}
+
+/** @param {string|null} lang  null = der Installation folgen */
+export function setDeviceLanguage(lang) {
+  try {
+    if (lang) localStorage.setItem(DEVICE_KEY, lang);
+    else localStorage.removeItem(DEVICE_KEY);
+  } catch { /* Speicher gesperrt: gilt nur bis zum Neuladen */ }
+}
+
 /** Registry { code: Anzeigename } der unterstützten Sprachen. */
 export function getLanguages() { return LANGUAGES; }
 
@@ -64,6 +93,7 @@ export async function initI18n(lang) {
   locale = normalize(lang);
   catalog = await loadCatalog(locale);
   fallback = locale === DEFAULT_LOCALE ? catalog : await loadCatalog(DEFAULT_LOCALE);
+  typographyMode = lookup(catalog, 'format.typography') || 'none';
   document.documentElement.setAttribute('lang', locale);
   return locale;
 }
@@ -108,6 +138,27 @@ export function getCurrencySymbol() { return currencyParams.cur; }
 /** Untereinheit der Währung (ct, Rp., p) — für Preise je kWh oder Liter. */
 export function getCurrencyMinor() { return currencyParams.minor; }
 
+// v3.1.0 (Review I18N-20) — Geschützte Leerzeichen setzt die Ausgabe, nicht der
+// Katalog: unsichtbare Zeichen im JSON tippt niemand zuverlässig. Vor „%" steht
+// in jeder Sprache ein geschütztes Leerzeichen (falls dort überhaupt eines steht);
+// Französisch (`format.typography: "fr"`) schützt zusätzlich „ :", „ ;", „ !",
+// „ ?" und das Innere von « … ». Gleiche Regeln im Backend
+// (I18nService::typography); CSV-Format 1 bleibt davon unberührt.
+let typographyMode = 'none';
+const NBSP = ' ', NNBSP = ' ';
+
+/** @param {string} mode 'fr' oder 'none' (Katalogwert format.typography) */
+export function typography(mode, str) {
+  let s = String(str).replace(/(\d) %/g, `$1${NBSP}%`);
+  if (mode === 'fr') {
+    s = s.replace(/ :/g, `${NBSP}:`)
+      .replace(/ ([;!?])/g, `${NNBSP}$1`)
+      .replace(/« /g, `«${NBSP}`)
+      .replace(/ »/g, `${NBSP}»`);
+  }
+  return s;
+}
+
 /**
  * Übersetzt einen Punkt-Key. Platzhalter `{name}` werden aus `params` ersetzt.
  * Reihenfolge: aktive Sprache → Default-Sprache → Key selbst.
@@ -118,10 +169,13 @@ export function t(key, params) {
   if (str == null) return key;
   if (str.includes('{')) {
     for (const [k, v] of Object.entries({ ...currencyParams, ...(params || {}) })) {
-      str = str.replaceAll(`{${k}}`, String(v));
+      // v3.1.0 (Review FE-23) — Ersetzung als Funktion: Ein Ersatz-String wertet
+      // `$$`, `$&`, `` $` ``, `$'` aus — „Keller $$ Spar“ wurde zu „Keller $ Spar“.
+      str = str.replaceAll(`{${k}}`, () => String(v));
     }
   }
-  return str;
+  // CSV-Kopfzeilen ohne geschützte Leerzeichen (wie im Backend)
+  return key.startsWith('csv') ? str : typography(typographyMode, str);
 }
 
 /**
@@ -129,9 +183,18 @@ export function t(key, params) {
  * `tp('x.days', n)` sucht `x.days.one`, `x.days.other` (… `few`, `many`) und
  * setzt `{count}`. Vorher stand „1 Arbeitspreise" oder „noch 1 Tage" da.
  */
+// v3.1.0 (Review I18N-09) — „pt" allein sind in Intl die brasilianischen Regeln
+// („0 dia"); der Katalog ist europäisches Portugiesisch („0 dias"). Backend:
+// I18nService::PLURAL_RULES, beide gegen tests/fixtures/plural-cases.json.
+const PLURAL_LOCALE = { pt: 'pt-PT' };
+
+/** Pluralkategorie (one, few, many, other) einer Zahl in der aktiven Sprache. */
+export function pluralCategory(count, loc = locale) {
+  try { return new Intl.PluralRules(PLURAL_LOCALE[loc] || loc).select(Number(count)); } catch { return 'other'; }
+}
+
 export function tp(key, count, params = {}) {
-  let cat = 'other';
-  try { cat = new Intl.PluralRules(locale).select(Number(count)); } catch { /* 'other' */ }
+  const cat = pluralCategory(count);
   const k = lookup(catalog, `${key}.${cat}`) != null || lookup(fallback, `${key}.${cat}`) != null
     ? `${key}.${cat}` : `${key}.other`;
   return t(k, { count, ...params });

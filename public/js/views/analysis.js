@@ -13,7 +13,7 @@ import { fmt, escapeHtml, monthShortNames } from '../lib/format.js';
 import { makeChart, utilColor, tokenColor, chartTableHtml } from '../components/chart.js';
 import { isPartial, daysInMonth } from '../lib/chart-data.js';
 import { toastErr } from '../components/toast.js';
-import { t } from '../lib/i18n.js';
+import { t, tp } from '../lib/i18n.js';
 import { info } from '../components/info.js';
 import { isFeedIn, isGeneration, moreIsBetter, changeTone } from '../lib/semantics.js';
 
@@ -158,11 +158,11 @@ async function renderForMeter(u, meterId, body) {
               return `
                 <tr>
                   <td><strong>${fmt.month(a.ym)}</strong></td>
-                  <td class="num">${fmt.num(val, 0)} ${unit}</td>
-                  <td class="num">${fmt.num(a.expected, 0)} ${unit}</td>
+                  <td class="num">${fmt.unit(val, unit, 0)}</td>
+                  <td class="num">${fmt.unit(a.expected, unit, 0)}</td>
                   <td class="num ${cls}">${dev >= 0 ? '+' : ''}${fmt.num(dev, 0)}</td>
                   <!-- v2.15.0 (Review FE-08) — ohne Erwartung keine Abweichung in Prozent; bis v2.14 stand „+0,0 %“ -->
-                  <td class="num ${a.expected > 0 ? cls : 'muted'}">${a.expected > 0 ? `${pct >= 0 ? '+' : ''}${fmt.num(pct, 1)} %` : '–'}</td>
+                  <td class="num ${a.expected > 0 ? cls : 'muted'}">${a.expected > 0 ? `${pct >= 0 ? '+' : ''}${fmt.pct(pct / 100, 1)}` : '–'}</td>
                   <td class="num ${cls}" style="font-weight:600">${z >= 0 ? '+' : ''}${fmt.num(z, 2)}</td>
                   ${u.hgt_relevant ? `<td class="num">${a.hdd != null ? fmt.int(a.hdd) : '–'}</td><td class="num">${a.avg_temp != null ? fmt.num(a.avg_temp, 1) + ' °C' : '–'}</td>` : ''}
                 </tr>`;
@@ -204,7 +204,7 @@ function renderBaselineBlock(baseline, comparison, u) {
     parts.push(`
       <div class="banner banner--info">
         <strong>${since}</strong>
-        ${excluded > 0 ? `<br><span class="muted">${t('analysis.baseline.excluded', { count: excluded })}</span>` : ''}
+        ${excluded > 0 ? `<br><span class="muted">${tp('analysis.baseline.excluded', excluded)}</span>` : ''}
       </div>`);
   }
 
@@ -219,7 +219,27 @@ function renderBaselineBlock(baseline, comparison, u) {
       </div>`);
   }
 
-  if (comparison) {
+  // v3.1.0 (H7, MKT-16) — ohne Heizkurve: dieselben Kalendermonate vorher/nachher
+  if (comparison?.method === 'seasonal_mean') {
+    const better = comparison.delta_pct < 0;
+    const perYear = t('analysis.baseline.seasonalMean.perYear', { unit: escapeHtml(comparison.unit) });
+    parts.push(`
+      <div class="card" style="margin-top: var(--sp-5)">
+        <h3 class="card__title">${t('analysis.baseline.comparisonTitle')}${info('baseline')}</h3>
+        <p class="muted" style="margin-bottom:12px">${t('analysis.baseline.seasonalMean.hint', { n: comparison.months_compared })}</p>
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kpi__label">${t('analysis.baseline.before')}</div>
+            <div class="kpi__value">${fmt.int(comparison.before.per_year)}</div><div class="kpi__sub">${perYear}</div></div>
+          <div class="kpi"><div class="kpi__label">${t('analysis.baseline.after')}</div>
+            <div class="kpi__value">${fmt.int(comparison.after.per_year)}</div><div class="kpi__sub">${perYear}</div></div>
+          <div class="kpi"><div class="kpi__label">${t('analysis.baseline.effect')}</div>
+            <div class="kpi__value ${comparison.significant === false ? '' : (better ? 'success-text' : 'danger-text')}">${comparison.delta_pct > 0 ? '+' : ''}${fmt.num(comparison.delta_pct, 1)} %</div>
+            <div class="kpi__sub">${comparison.delta_per_year > 0 ? '+' : ''}${fmt.int(comparison.delta_per_year)} ${perYear}</div></div>
+        </div>
+        <p class="muted" style="margin-top:10px">${t(comparison.significant ? 'analysis.baseline.significant' : 'analysis.baseline.notSignificant', {
+          lo: fmt.num(comparison.delta_pct_ci95[0], 0), hi: fmt.num(comparison.delta_pct_ci95[1], 0) })}</p>
+      </div>`);
+  } else if (comparison) {
     const perDay = t('analysis.baseline.perDegreeDay', { unit: escapeHtml(comparison.unit) });
     const better = comparison.delta_pct < 0;
     parts.push(`
@@ -570,21 +590,20 @@ function renderContractReminders(contractStatus) {
   const stageClass = { 1: 'banner--info', 2: 'banner--warning', 3: 'banner--error' };
 
   return due.map(c => {
-    const stage = c.remind_stage || 1;
+    const stage = Math.min(3, Math.max(1, Number(c.remind_stage) || 1));
     // v2.9.0 (CALC-11) — mit gepflegter Frist zählt der Kündigungsstichtag
     const byCancel = c.remind_basis === 'cancel_by' && c.cancel_by;
     const days = byCancel ? c.days_to_cancel : c.days_until_end;
     const provider = c.provider || c.tariff_name || t('analysis.contractEnd.fallbackProvider');
-    const stageLabel = t('analysis.contractEnd.stage' + stage);
     const when = days === 0 ? t('analysis.contractEnd.endsToday')
       : days === 1 ? t('analysis.contractEnd.endsTomorrow')
-      : t('analysis.contractEnd.endsInDays', { days });
+      : tp('analysis.contractEnd.endsInDays', days, { days });
     const text = byCancel
-      ? t('analysis.contractEnd.cancelBy', { provider: escapeHtml(provider), date: fmt.date(c.cancel_by), days, end: fmt.date(c.end) })
+      ? tp('analysis.contractEnd.cancelBy', days, { provider: escapeHtml(provider), date: fmt.date(c.cancel_by), days, end: fmt.date(c.end) })
       : `${t('analysis.contractEnd.ends', { provider: escapeHtml(provider), when })} ${c.end ? `(${fmt.date(c.end)})` : ''}.`;
     return `
       <div class="banner ${stageClass[stage] || 'banner--info'}" style="margin-bottom: var(--sp-3)">
-        <strong>${t('analysis.contractEnd.title', { stage: stageLabel })}</strong>
+        <strong>${t(`analysis.contractEnd.heading.stage${stage}`)}</strong>
         ${text}
         <span class="muted"> ${t('analysis.contractEnd.checkNote')}</span>
       </div>
@@ -638,7 +657,7 @@ function renderYoyWidget(monthly, u, consKey) {
     const sign = delta > 0 ? '+' : '';
     return `
       <td class="num ${cls}">${sign}${fmt.num(delta, 0)}</td>
-      <td class="num ${cls}">${pct == null ? '–' : sign + fmt.num(pct, 1) + ' %'}</td>
+      <td class="num ${cls}">${pct == null ? '–' : sign + fmt.pct(pct / 100, 1)}</td>
     `;
   };
 
@@ -733,9 +752,9 @@ async function renderWaterSparindex(monthly) {
                <span class="muted">${t('analysis.spar.reference', { ref: fmt.num(referenz, 0) })}</span></div>
           <div class="muted" style="font-size: var(--fs-xs)">
             ${t('analysis.spar.basis', {
-              months: recent.length === 1 ? t('analysis.spar.monthsOne', { count: recent.length }) : t('analysis.spar.monthsMany', { count: recent.length }),
+              months: tp('analysis.spar.months', recent.length),
               m3: fmt.num(totalM3, 1),
-              persons: personen === 1 ? t('analysis.spar.personsOne', { count: personen }) : t('analysis.spar.personsMany', { count: personen }),
+              persons: tp('analysis.spar.persons', personen),
             })}
           </div>
         </div>

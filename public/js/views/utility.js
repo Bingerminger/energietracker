@@ -21,7 +21,7 @@ import { isPartial, daysInMonth, yoyTrend, seriesSummary } from '../lib/chart-da
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { showFieldError } from '../lib/form.js';
 import { toastOk, toastErr } from '../components/toast.js';
-import { t, getCurrencyMinor, getCurrencySymbol } from '../lib/i18n.js';
+import { t, tp, getCurrencyMinor, getCurrencySymbol } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
 import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
@@ -149,6 +149,21 @@ async function rerender(container) {
 
   const monthly   = consumptionData.monthly   || [];
   const contracts = contractStatusData.contracts || [];
+  // v3.1.0 (H6, #17) — rechnet der Zähler über einen Gruppenvertrag, zeigt die
+  // Ansicht dessen Saldo (die Gruppe als Ganzes) und sagt es dazu
+  let groupNote = '';
+  const gcRef = contractStatusData.group_contract;
+  if (gcRef?.contract_id) {
+    const [gs, groups] = await Promise.all([
+      api.contractStatus(u.key, gcRef.group_id).catch(() => null),
+      api.meterGroups(u.key).catch(() => []),
+    ]);
+    const gc = (gs?.contracts || []).find(c => c.contract_id === gcRef.contract_id);
+    if (gc) {
+      contracts.push(gc);
+      groupNote = `<p class="muted small">${escapeHtml(t('utility.groupContractNote', { name: groups.find(g => g.id === gcRef.group_id)?.name || gcRef.group_id }))}</p>`;
+    }
+  }
   const isDelivery = u.reading_kind === 'delivery';
   // v2.9.0 — Rechtshinweise (Sonderkündigungsrecht) nur im passenden Land;
   // die Schwelle „Ablesung überfällig" aus den Einstellungen (CALC-23)
@@ -167,8 +182,12 @@ async function rerender(container) {
   // v2.10.0 (CALC-17) — Erzeugung emittiert nichts und kostet nichts: CO₂
   // als vermieden, keine Kostenkachel (bis v2.9 als Emission wie ein Verbrauch)
   const isGeneration = u.accounting_kind === 'generation';
-  let readings = [], deliveries = [], stockHist = null, pvSummary = null;
-  if (isDelivery) {
+  let readings = [], deliveries = [], stockHist = null, pvSummary = null, periods = [];
+  // v3.1.0 (H3, B2) — Zähler mit Verbrauch je Zeitraum: Zeiträume statt Stände
+  const isPeriod = !isDelivery && meter.capture === 'period';
+  if (isPeriod) {
+    periods = await api.periods(u.key, meter.id).catch(() => []);
+  } else if (isDelivery) {
     [deliveries, stockHist] = await Promise.all([
       api.deliveries(u.key, meter.id).catch(() => []),
       api.stockHistory(u.key, meter.id).catch(() => null),
@@ -186,7 +205,8 @@ async function rerender(container) {
   const sortedReadings = [...readings]
     .filter(r => !r.is_future)
     .sort((a, b) => b.date.localeCompare(a.date));
-  const lastReading = !isDelivery ? sortedReadings[0] : null;
+  const lastPeriod = isPeriod ? [...periods].sort((a, b) => b.to.localeCompare(a.to))[0] : null;
+  const lastReading = isPeriod ? (lastPeriod ? { date: lastPeriod.to } : null) : (!isDelivery ? sortedReadings[0] : null);
   let statusBannerHtml = '';
   if (lastReading) {
     const today = new Date(todayIso());
@@ -218,7 +238,7 @@ async function rerender(container) {
       <div class="status-banner ${cls}">
         <div class="status-banner__icon">${icon}</div>
         <div class="status-banner__text">
-          <strong>${t('utility.banner.lastReading', { days })}</strong> · ${fmt.date(lastReading.date)}${trendStr}
+          <strong>${isPeriod ? tp('utility.banner.lastPeriod', days, { days }) : tp('utility.banner.lastReading', days, { days })}</strong> · ${fmt.date(lastReading.date)}${trendStr}
         </div>
         <button class="btn btn-${u.key} btn--sm" id="banner-new-reading">${t('utility.action.newReadingBanner')}</button>
       </div>`;
@@ -334,7 +354,7 @@ async function rerender(container) {
         <div class="kpi__label">${t('utility.kpi.dailyAvg')}</div>
         <div class="kpi__value">${totDays ? fmt.unit(totUnit / totDays, u.consumption_unit, 1).replace(u.consumption_unit, '') : '–'}
           <span style="font-size:14px;color:var(--text-2)">${u.consumption_unit}</span></div>
-        <div class="kpi__sub">${t('utility.kpi.daysCount', { days: totDays })}</div>
+        <div class="kpi__sub">${tp('utility.kpi.daysCount', totDays, { days: totDays })}</div>
       </div>
       ${isFeedIn || isGeneration ? `
       <div class="kpi c-violet">
@@ -351,7 +371,7 @@ async function rerender(container) {
       </div>`}
     </div>`}
 
-    ${!isDelivery && currentContract ? balanceCard(currentContract, u, country) : ''}
+    ${!isDelivery && currentContract ? groupNote + balanceCard(currentContract, u, country) : ''}
 
     ${!isDelivery && u.has_contracts !== false ? `
     <div class="card">
@@ -376,6 +396,7 @@ async function rerender(container) {
     </div>
 
     ${pvFlowRows.length ? pvFlowHtml(pvFlowRows, yr) : ''}
+    ${u.key === 'pv_erzeugung' ? pvExtrasHtml(pvSummary, yr) : ''}
 
     <div class="card">
       <div class="card__title">${t('utility.cards.monthlyTable', { year: yr })}</div>
@@ -398,25 +419,58 @@ async function rerender(container) {
     <div class="card">
       <div class="card__title">${t('utility.cards.deliveries')}
         <span class="card__title-action">
-          <span class="muted" style="font-size:12px;margin-right:8px">${t('utility.cards.deliveriesCount', { count: deliveries.length })}</span>
+          <span class="muted" style="font-size:12px;margin-right:8px">${tp('utility.cards.deliveriesCount', deliveries.length)}</span>
           <button class="btn btn-${u.key} btn--sm" id="btn-new-delivery">${t('utility.action.newDelivery')}</button>
         </span>
       </div>
       ${deliveriesTable(deliveries, u)}
     </div>
+    ` : isPeriod ? `
+    <div class="card">
+      <div class="card__title">${t('utility.periods.title', { year: yr })}
+        <span class="card__title-action">
+          <span class="muted" style="font-size:12px;margin-right:8px">${tp('utility.periods.count', periods.length)}</span>
+          <button class="btn btn-${u.key} btn--sm" id="btn-new-period">${t('utility.periods.add')}</button>
+        </span>
+      </div>
+      ${periodsTable(periods, u, yr)}
+    </div>
     ` : `
     <div class="card">
       <div class="card__title">${t('utility.cards.readingsYear', { year: yr })}
         <span class="card__title-action">
-          <span class="muted" style="font-size:12px;margin-right:8px">${t('utility.cards.readingsCount', { count: readings.length })}</span>
+          <span class="muted" style="font-size:12px;margin-right:8px">${tp('utility.cards.readingsCount', readings.length)}</span>
           <button class="btn btn-${u.key} btn--sm" id="btn-new-reading">${t('utility.action.newReading')}</button>
         </span>
       </div>
       ${readingsTable(readings, u, yr, warnByReading)}
     </div>
     `}
-    ${usesGasFactors(u) ? billCheckLink(meter, yr) : ''}
+    ${u.supports_bill_check ? billCheckLink(u, meter, yr) : ''}
+    ${dhwNote(monthly, yr)}
+    <div data-role="co2-cost"></div>
+    ${u.key === 'strom' && meter.role === 'ev_charger' ? '<div data-role="ev-report"></div>' : ''}
+    ${(u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output') ? '<div data-role="heat-pump"></div>' : ''}
   `;
+  // v3.1.0 (H7, MKT-18) — Jahresarbeitszahl am Strom- und am Wärmezähler der Wärmepumpe
+  if ((u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output')) {
+    api.heatPump(yr).then(r => {
+      const el = container.querySelector('[data-role="heat-pump"]');
+      const p = (r?.pumps || []).find(x => x.heat_meter_id === meter.id || (x.elec_meter_ids || []).includes(meter.id));
+      if (el && my === rerenderSeq) el.innerHTML = heatPumpCardHtml(p, r?.reference, yr);
+    }).catch(() => {});
+  }
+  // v3.1.0 (H6, MKT-14) — Wallbox: Ladestrom-Nachweis für den Dienstwagen
+  if (u.key === 'strom' && meter.role === 'ev_charger') loadEvReport(container, meter, new Date().getFullYear() - 1);
+  // v3.1.0 (H4, CALC-27) — CO₂-Preis im Brennstoff (nur wo das Land ihn kennt)
+  if (['gas', 'heizoel', 'fernwaerme', 'waerme'].includes(u.key)) {
+    api.co2Costs(yr).then(c => {
+      const row = c?.supported ? (c.rows || []).find(r => r.utility === u.key) : null;
+      const el = container.querySelector('[data-role="co2-cost"]');
+      if (!row || !el || my !== rerenderSeq) return;
+      el.innerHTML = co2CostCard(row, c, yr);
+    }).catch(() => {});
+  }
 
   // Chart
   if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr, prevYear, chartMode);
@@ -425,18 +479,19 @@ async function rerender(container) {
   if (pvFlowRows.length) drawPvFlowChart('pv-flow-chart', pvFlowRows, yr, await getUtilities().catch(() => []));
 
   // Wire up events
-  wireEvents(container, u, meter, readings, contracts, deliveries, monthly);
+  wireEvents(container, u, meter, readings, contracts, deliveries, monthly, periods);
   if (isDelivery) wireTankLevels(container, u, meter);
   syncAddress(u, latestYear);
 }
 
 // ── F1012: Rechnungsprüfung — seit v2.11.0 eine eigene Seite (views/bill-check.js)
-function billCheckLink(meter, year) {
-  const href = `#/bill-check?meter=${encodeURIComponent(meter.id)}&from=${year}-01-01&to=${year + 1}-01-01`;
+// v3.1.0 (H5) — für jede Art mit Rechnungsprüfung (Strom, Wasser, Fernwärme, Gas)
+function billCheckLink(u, meter, year) {
+  const href = `#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(meter.id)}&from=${year}-01-01&to=${year + 1}-01-01`;
   return `
     <div class="card card--link">
       <div class="card__title">${t('nav.billCheck')}</div>
-      <p class="muted">${t('utility.billCheck.hint')}</p>
+      <p class="muted">${u.key === 'gas' ? t('utility.billCheck.hint') : t('utility.billCheck.hintGeneric')}</p>
       <a class="btn btn--ghost btn--sm" href="${href}">${escapeHtml(t('utility.billCheck.open', { year }))}</a>
     </div>`;
 }
@@ -507,8 +562,8 @@ function balanceCard(c, u, country = 'DE') {
   const tariffText = tariffParts.length ? tariffParts.join(' · ') : t('utility.balance.noTariff');
 
   const consumedSub = isWater
-    ? t('utility.balance.consumedMonthsWater', { months: c.months_actual, m3: fmt.num(c.actual_m3 || 0, 1) })
-    : t('utility.balance.consumedMonths', { months: c.months_actual, kwh: fmt.int(c.actual_kwh) });
+    ? tp('utility.balance.consumedMonthsWater', c.months_actual, { months: c.months_actual, m3: fmt.num(c.actual_m3 || 0, 1) })
+    : tp('utility.balance.consumedMonths', c.months_actual, { months: c.months_actual, kwh: fmt.int(c.actual_kwh) });
   // v2.8.0 (CALC-02) — Kosten bis heute: gemessen bis zur letzten Ablesung,
   // danach geschätzt (Wetter, Saison). Ältere Server liefern nur actual_cost.
   const costToDate = c.cost_to_date ?? c.actual_cost;
@@ -582,7 +637,7 @@ function balanceCard(c, u, country = 'DE') {
           <div class="balance-col__label">${isFeedIn ? t('utility.balance.colPaidFeedIn') : t('utility.balance.colPaid')}</div>
           <div class="balance-col__value">${isFeedIn ? '–' : fmt.eur(c.advance_paid)}</div>
           <div class="balance-col__sub">${isFeedIn ? t('utility.balance.paidViaGrid') : (c.current_advance_amount != null ? t('utility.balance.paidCurrent', { value: fmt.eur(c.current_advance_amount) }) : t('utility.balance.paidCurrentNone'))}</div>
-          ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${spCount === 1 ? t('utility.balance.specialCountOne') : t('utility.balance.specialCount', { count: spCount })}</div>${specialHtml}` : ''}
+          ${!isFeedIn && specialHtml ? `<div class="balance-col__sub" style="margin-top:6px">${tp('utility.balance.specialCount', spCount)}</div>${specialHtml}` : ''}
         </div>
         <div>
           <div class="balance-col__label">${isFeedIn ? t('utility.balance.colClaimFeedIn') : t('utility.balance.colBalance')}${info('balance')}</div>
@@ -663,7 +718,7 @@ function drawPvFlowChart(canvasId, rows, year, utilities) {
       } } },
       scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'kWh' } } },
     },
-  }, { label: t('utility.pvFlow.alt', { year, months: covered.length,
+  }, { label: tp('utility.pvFlow.alt', covered.length, { year, months: covered.length,
     generation: fmt.unit(sum('erzeugung_kwh'), 'kWh', 0), self: fmt.unit(sum('eigenverbrauch_kwh'), 'kWh', 0),
     feedIn: fmt.unit(sum('einspeisung_kwh'), 'kWh', 0), grid: fmt.unit(sum('bezug_kwh'), 'kWh', 0) }) });
 }
@@ -931,7 +986,7 @@ function monthlyTable(monthly, u, hasContracts) {
       const cumView = balanceView(m.cumulative_balance, u, (n) => fmt.num(n, 2));
       // v2.10.0 — Tankbuch: Monate mit geschätzten Tagen (nach dem letzten bekannten Bestand)
       const est = m.estimated_days > 0
-        ? ` <span class="muted" title="${escapeHtml(t('utility.monthlyTable.estimatedTitle', { days: m.estimated_days }))}">≈</span>` : '';
+        ? ` <span class="muted" title="${escapeHtml(tp('utility.monthlyTable.estimatedTitle', m.estimated_days, { days: m.estimated_days }))}">≈</span>` : '';
       // v2.15.0 (Review FE-08) — Teilmonat mit erfassten Tagen, sichtbar statt im Tooltip
       const part = isPartial(m);
       return `<tr${part ? ' class="is-partial"' : ''}>
@@ -1003,7 +1058,7 @@ function readingsTable(readings, u, year = null, warnByReading = new Map()) {
     return `<div class="empty" style="padding:32px">
       <div class="empty-icon">📋</div>
       <h2>${t('utility.readingsTable.emptyYear', { year })}</h2>
-      <p class="muted">${t('utility.readingsTable.emptyYearHint', { count: readings.length })}</p>
+      <p class="muted">${tp('utility.readingsTable.emptyYearHint', readings.length)}</p>
     </div>`;
   }
 
@@ -1028,6 +1083,7 @@ function readingsTable(readings, u, year = null, warnByReading = new Map()) {
       <td class="num">${fmt.num(r.counter, 1)} ${u.unit}</td>
       <td class="muted" style="font-size:12px">${escapeHtml(r.note || '')}</td>
       <td style="text-align:right;white-space:nowrap">
+        ${r.attachment_id ? `<button class="icon-btn icon-btn--thumb" data-action="view-photo" data-id="${escapeHtml(r.id)}" title="${t('readingsEntry.photo.view')}" aria-label="${t('readingsEntry.photo.view')}"><img class="reading-thumb" src="${escapeHtml(api.attachmentUrl(r.attachment_id))}" alt="" loading="lazy" decoding="async"></button>` : ''}
         ${r.is_suspect ? `<button class="icon-btn" data-action="confirm-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.confirmReading')}" aria-label="${t('utility.readingsTable.confirmReading')}"><span aria-hidden="true">✅</span></button>` : ''}
         <button class="icon-btn" data-action="edit-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
         <button class="icon-btn" data-action="delete-reading" data-id="${escapeHtml(r.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
@@ -1036,6 +1092,238 @@ function readingsTable(readings, u, year = null, warnByReading = new Map()) {
     }).join('')}
     </tbody>
   </table></div>`;
+}
+
+// ── v3.1.0 (H3, B2) — Verbrauch je Zeitraum ──────────────────────────
+function periodsTable(periods, u, year = null) {
+  const unitOf = (p) => p.value_unit === 'meter' ? u.unit : (u.consumption_unit || u.unit);
+  const list = [...periods].filter(p => year == null || p.from.slice(0, 4) === String(year) || p.to.slice(0, 4) === String(year))
+    .sort((a, b) => b.from.localeCompare(a.from));
+  if (!list.length) {
+    return `<div class="empty" style="padding:32px"><div class="empty-icon">📅</div><h2>${t('utility.periods.empty')}</h2>
+      <p class="muted">${t('utility.periods.emptyHint')}</p></div>`;
+  }
+  return `<div class="table-wrap"><table class="table">
+    <thead><tr>
+      <th scope="col">${t('utility.periods.colPeriod')}</th>
+      <th scope="col" class="num">${t('utility.periods.colValue', { unit: '' }).trim()}</th>
+      <th scope="col">${t('utility.periods.colReference')}</th>
+      <th scope="col">${t('utility.readingsTable.colNote')}</th>
+      <th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
+    </tr></thead>
+    <tbody>${list.map(p => {
+      const ref = p.reference || {};
+      const refs = ['prev_month', 'prev_year_month', 'average_user'].filter(k => ref[k] != null)
+        .map(k => `${escapeHtml(t('utility.periods.ref.' + k))}: ${fmt.num(ref[k], 1)}`).join(' · ');
+      return `<tr data-period-id="${escapeHtml(p.id)}">
+        <td><strong>${fmt.date(p.from)} – ${fmt.date(p.to)}</strong> ${p.is_estimated ? `<span class="status-pill" style="background:var(--c-yellow-soft);color:var(--c-yellow)">${t('utility.readingsTable.estimated')}</span>` : ''}</td>
+        <td class="num">${fmt.num(p.value, 1)} ${escapeHtml(unitOf(p))}</td>
+        <td class="muted" style="font-size:12px">${refs}</td>
+        <td class="muted" style="font-size:12px">${escapeHtml(p.note || '')}</td>
+        <td style="text-align:right;white-space:nowrap">
+          <button class="icon-btn" data-action="edit-period" data-id="${escapeHtml(p.id)}" title="${t('utility.readingsTable.edit')}" aria-label="${t('utility.readingsTable.edit')}"><span aria-hidden="true">✏️</span></button>
+          <button class="icon-btn" data-action="delete-period" data-id="${escapeHtml(p.id)}" title="${t('utility.readingsTable.delete')}" aria-label="${t('utility.readingsTable.delete')}"><span aria-hidden="true">🗑️</span></button>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+// v3.1.0 (H4, CALC-27) — „CO₂-Preis im Jahr": steckt im Arbeitspreis, kein Aufschlag
+function co2CostCard(row, c, year) {
+  const src = t('co2cost.source.' + row.source);
+  return `<div class="card">
+    <h2 class="card__title">${escapeHtml(t('co2cost.title', { year }))}${info('co2Price')}</h2>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi__label">${t('co2cost.amount')}</div><div class="kpi__value">${fmt.eur(row.cost_eur_gross)}</div></div>
+      <div class="kpi"><div class="kpi__label">${t('co2cost.perKwh')}</div><div class="kpi__value">${fmt.num(row.ct_per_kwh, 2)} ${escapeHtml(getCurrencyMinor())}/kWh</div></div>
+      <div class="kpi"><div class="kpi__label">${t('co2cost.emissions')}</div><div class="kpi__value">${fmt.num(row.emissions_kg, 0)} kg</div></div>
+      <div class="kpi"><div class="kpi__label">${t('co2cost.price')}</div><div class="kpi__value">${fmt.num(row.price_eur_t, 0)} ${escapeHtml(getCurrencySymbol())}/t</div></div>
+    </div>
+    <p class="muted small">${escapeHtml(t('co2cost.netNote', { net: fmt.eur(row.cost_eur_net) }))} ${escapeHtml(src)}${row.approx ? ' ' + escapeHtml(t('co2cost.approx')) : ''}${c.price?.assumed ? ' ' + escapeHtml(t('co2cost.priceAssumed')) : ''}</p>
+  </div>`;
+}
+
+// v3.1.0 (H3, CALC-28) — Warmwasserzähler: Wärme als Rechenwert nach HeizkostenV § 9
+// v3.1.0 (H6, MKT-14) — Ladestrom-Nachweis (BMF-Schreiben vom 11.11.2025): Jahr,
+// Methode (Vertragspreis mit anteiligem Grundpreis oder Pauschale), CSV und PDF
+async function loadEvReport(container, meter, year, method = 'contract', flat = '') {
+  const el = container.querySelector('[data-role="ev-report"]');
+  if (!el) return;
+  let r = null, err = null;
+  try { r = await api.evReport(meter.id, year, method, flat); } catch (e) { err = e.message; }
+  const now = new Date().getFullYear();
+  el.innerHTML = `<div class="card">
+    <h2 class="card__title">${escapeHtml(t('evReport.title'))}</h2>
+    <p class="muted small">${escapeHtml(t('evReport.intro'))}</p>
+    <div class="form-row">
+      <div class="field"><label for="ev-year">${t('evReport.year')}</label>
+        <select class="select" id="ev-year">${[now, now - 1, now - 2, now - 3].map(y => `<option value="${y}" ${y === year ? 'selected' : ''}>${y}</option>`).join('')}</select></div>
+      <div class="field"><label for="ev-method">${t('evReport.methodLabel')}</label>
+        <select class="select" id="ev-method">${['contract', 'flat'].map(m => `<option value="${m}" ${m === method ? 'selected' : ''}>${escapeHtml(t('evReport.method.' + m))}</option>`).join('')}</select></div>
+      <div class="field" ${method === 'flat' ? '' : 'hidden'}><label for="ev-flat">${t('evReport.flatLabel')}</label>
+        <input class="input" id="ev-flat" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(flat !== '' ? formatForInput(Number(flat)) : formatForInput(r?.flat_ct))}"></div>
+    </div>
+    ${err ? `<p class="banner banner--info">${escapeHtml(err)}</p>` : `
+      <p><strong>${escapeHtml(t('evReport.summary', { kwh: fmt.num(r.total.kwh, 0), amount: fmt.eur(r.total.amount_eur) }))}</strong></p>
+      ${r.price_missing ? `<p class="muted small">${escapeHtml(t('evReport.priceMissing'))}</p>` : ''}
+      <div class="form-actions">
+        <a class="btn btn--ghost btn--sm" href="${escapeHtml(api.evReportUrl(meter.id, year, method, flat, 'csv'))}" download>${escapeHtml(t('evReport.downloadCsv'))}</a>
+        <a class="btn btn--ghost btn--sm" href="${escapeHtml(api.evReportUrl(meter.id, year, method, flat, 'pdf'))}" target="_blank" rel="noopener">${escapeHtml(t('evReport.downloadPdf'))}</a>
+      </div>`}
+    <p class="muted small">${escapeHtml(t('evReport.disclaimer'))}</p>
+  </div>`;
+  const reload = () => {
+    const raw = el.querySelector('#ev-flat')?.value.trim() || '';
+    const n = raw === '' ? '' : parseDecimal(raw);
+    loadEvReport(container, meter, Number(el.querySelector('#ev-year').value), el.querySelector('#ev-method').value, n == null ? '' : String(n));
+  };
+  el.querySelector('#ev-year').addEventListener('change', reload);
+  el.querySelector('#ev-method').addEventListener('change', reload);
+  el.querySelector('#ev-flat')?.addEventListener('change', reload);
+}
+
+// v3.1.0 (H7, MKT-18) — Jahresarbeitszahl: Wärme ÷ Strom der Wärmepumpe
+function heatPumpCardHtml(p, ref, year) {
+  if (!p) return `<div class="card"><h2 class="card__title">${escapeHtml(t('heatPump.title', { year }))}${info('jaz')}</h2>
+    <p class="muted">${escapeHtml(t('heatPump.noHeatMeter'))}</p></div>`;
+  return `<div class="card">
+    <h2 class="card__title">${escapeHtml(t('heatPump.title', { year }))}${info('jaz')}</h2>
+    ${p.jaz != null ? `
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi__label">${escapeHtml(t('heatPump.jaz'))}</div><div class="kpi__value">${fmt.num(p.jaz, 1)}</div>
+          <div class="kpi__sub">${escapeHtml(tp('heatPump.coverage', p.months_covered))}</div></div>
+        ${p.jaz_heating_season != null ? `<div class="kpi"><div class="kpi__label">${escapeHtml(t('heatPump.season'))}</div><div class="kpi__value">${fmt.num(p.jaz_heating_season, 1)}</div></div>` : ''}
+        <div class="kpi"><div class="kpi__label">${escapeHtml(t('heatPump.energy'))}</div><div class="kpi__value">${fmt.int(p.heat_kwh)} / ${fmt.int(p.elec_kwh)}</div>
+          <div class="kpi__sub">kWh</div></div>
+      </div>
+      <div class="table-wrap"><table class="table table--compact"><thead><tr>
+        <th scope="col">${escapeHtml(t('heatPump.month'))}</th><th scope="col" class="num">${escapeHtml(t('heatPump.heat'))}</th>
+        <th scope="col" class="num">${escapeHtml(t('heatPump.elec'))}</th><th scope="col" class="num">${escapeHtml(t('heatPump.cop'))}</th></tr></thead>
+        <tbody>${p.months.map(m => `<tr><td>${escapeHtml(fmt.month(m.ym))}</td><td class="num">${fmt.int(m.heat_kwh)}</td><td class="num">${fmt.int(m.elec_kwh)}</td><td class="num">${fmt.num(m.cop, 1)}</td></tr>`).join('')}</tbody>
+      </table></div>` : `<p class="muted">${escapeHtml(t(p.linked ? 'heatPump.noOverlap' : 'heatPump.notLinked'))}</p>`}
+    <p class="muted small">${escapeHtml(t('heatPump.reference', { air: fmt.num(ref?.air_water ?? 3.4, 1), ground: fmt.num(ref?.ground_water ?? 4.3, 1) }))}</p>
+  </div>`;
+}
+
+// v3.1.0 (H7, CALC-29) — PV: Speicher, Amortisation, Annahme Balkonkraftwerk, § 51 EEG
+function pvExtrasHtml(pv, year) {
+  if (!pv) return '';
+  const y = (pv.yearly || []).find(x => x.year === year);
+  const parts = [];
+  if (y?.battery) {
+    const b = y.battery;
+    parts.push(`<div class="card"><h2 class="card__title">${escapeHtml(t('pv.battery.title', { year }))}</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi__label">${escapeHtml(t('pv.battery.charged'))}</div><div class="kpi__value">${fmt.int(b.charged_kwh)} kWh</div></div>
+        <div class="kpi"><div class="kpi__label">${escapeHtml(t('pv.battery.discharged'))}</div><div class="kpi__value">${fmt.int(b.discharged_kwh)} kWh</div></div>
+        ${b.efficiency_pct != null ? `<div class="kpi"><div class="kpi__label">${escapeHtml(t('pv.battery.efficiency'))}</div><div class="kpi__value">${fmt.num(b.efficiency_pct, 0)} %</div>
+          <div class="kpi__sub">${escapeHtml(t('pv.battery.losses', { kwh: fmt.int(b.losses_kwh) }))}</div></div>` : ''}
+        ${b.full_cycles != null ? `<div class="kpi"><div class="kpi__label">${escapeHtml(t('pv.battery.cycles'))}</div><div class="kpi__value">${fmt.num(b.full_cycles, 0)}</div></div>` : ''}
+      </div></div>`);
+  }
+  const p = pv.payback;
+  if (p) {
+    parts.push(`<div class="card"><h2 class="card__title">${escapeHtml(t('pv.payback.title'))}</h2>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi__label">${escapeHtml(t('pv.payback.investment'))}</div><div class="kpi__value">${fmt.eur(p.investment_eur)}</div></div>
+        <div class="kpi"><div class="kpi__label">${escapeHtml(t('pv.payback.benefit'))}</div><div class="kpi__value">${fmt.eur(p.benefit_to_date_eur)}</div>
+          ${p.avg_benefit_12m_eur != null ? `<div class="kpi__sub">${escapeHtml(t('pv.payback.perYear', { value: fmt.eur(p.avg_benefit_12m_eur) }))}</div>` : ''}</div>
+        ${p.break_even_ym ? `<div class="kpi"><div class="kpi__label">${escapeHtml(t(p.break_even_projected ? 'pv.payback.expected' : 'pv.payback.reached'))}</div>
+          <div class="kpi__value">${escapeHtml(fmt.month(p.break_even_ym))}</div>
+          ${p.years_to_break_even != null ? `<div class="kpi__sub">${escapeHtml(t('pv.payback.years', { years: fmt.num(p.years_to_break_even, 1) }))}</div>` : ''}</div>` : ''}
+      </div>
+      <p class="muted small">${escapeHtml(t('pv.payback.hint'))}</p></div>`);
+  }
+  if (pv.self_consumption_assumed_pct != null) {
+    parts.push(`<p class="muted small">${escapeHtml(t('pv.plugIn.assumed', { pct: fmt.num(pv.self_consumption_assumed_pct, 0) }))}</p>`);
+  }
+  if ((pv.hints || []).includes('negative_prices')) {
+    parts.push(`<p class="banner banner--info">${escapeHtml(t('pv.hint51'))}</p>`);
+  }
+  return parts.join('');
+}
+
+function dhwNote(monthly, year) {
+  const rows = (monthly || []).filter(m => m.dhw_kwh != null && String(m.ym || '').startsWith(String(year)));
+  if (!rows.length) return '';
+  const kwh = rows.reduce((s, m) => s + Number(m.dhw_kwh || 0), 0);
+  return `<p class="muted" style="font-size:12px;margin:var(--sp-2) 0 0">${escapeHtml(t('utility.water.dhwNote', {
+    kwh: fmt.num(kwh, 0), year, temp: fmt.num(rows[0].dhw_temp_c, 0) }))}${info('dhw')}</p>`;
+}
+
+function openPeriodModal(container, u, meter, period, periods = []) {
+  const isGas = u.unit !== u.consumption_unit;
+  const last = [...periods].sort((a, b) => b.to.localeCompare(a.to))[0];
+  // neuer Zeitraum: der Monat nach dem letzten, sonst der Vormonat
+  const start = (() => {
+    const d = last ? new Date(last.to + 'T12:00:00') : new Date();
+    if (last) d.setDate(d.getDate() + 1); else { d.setDate(1); d.setMonth(d.getMonth() - 1); }
+    return d;
+  })();
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 0, 12);
+  const from = period?.from || iso(start);
+  const to = period?.to || iso(end);
+  const ref = period?.reference || {};
+  const body = `
+    <form id="period-form">
+      <div class="form-row">
+        <div class="field"><label for="pf-from">${t('utility.periods.from')}</label><input class="input" id="pf-from" name="from" type="date" required value="${escapeHtml(from)}"></div>
+        <div class="field"><label for="pf-to">${t('utility.periods.to')}</label><input class="input" id="pf-to" name="to" type="date" required value="${escapeHtml(to)}"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label for="pf-value">${t('utility.periods.value')}</label>
+          <input class="input" id="pf-value" name="value" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(period?.value))}"></div>
+        <div class="field"><label for="pf-unit">${t('utility.periods.unit')}</label>
+          <select class="input" id="pf-unit" name="value_unit" ${isGas ? '' : 'disabled'}>
+            <option value="consumption" ${period?.value_unit === 'meter' ? '' : 'selected'}>${escapeHtml(u.consumption_unit)}</option>
+            ${isGas ? `<option value="meter" ${period?.value_unit === 'meter' ? 'selected' : ''}>${escapeHtml(u.unit)}</option>` : ''}
+          </select></div>
+      </div>
+      <fieldset class="field">
+        <legend>${t('readingsEntry.period.reference')}</legend>
+        <div class="form-row">
+          ${['prev_month', 'prev_year_month', 'average_user'].map(k => `
+          <div class="field"><label for="pf-${k}">${t('utility.periods.ref.' + k)}</label>
+            <input class="input" id="pf-${k}" data-ref="${k}" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(ref[k]))}"></div>`).join('')}
+        </div>
+      </fieldset>
+      <div class="field"><label><input type="checkbox" name="is_estimated" ${period?.is_estimated ? 'checked' : ''}> ${t('utility.readingsTable.estimated')}</label></div>
+      <div class="field"><label for="pf-note">${t('utility.readingsTable.colNote')}</label>
+        <input class="input input--text" id="pf-note" name="note" type="text" maxlength="500" value="${escapeHtml(period?.note || '')}"></div>
+    </form>`;
+  openModal({
+    title: period ? t('utility.periods.edit') : t('utility.periods.add'),
+    body,
+    footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
+      <button type="button" class="btn btn-${u.key}" data-act="save">${t('common.save')}</button>`,
+    onMount({ modalEl, close }) {
+      modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(false));
+      const saveBtn = modalEl.querySelector('[data-act="save"]');
+      saveBtn.addEventListener('click', guardSubmit(saveBtn, async () => {
+        const f = modalEl.querySelector('#period-form');
+        const value = parseDecimal(f.value.value);
+        if (value == null || value < 0) { toastErr(t('common.invalidNumber', { example: formatForInput(812.5) })); return; }
+        const reference = {};
+        for (const el of f.querySelectorAll('[data-ref]')) {
+          const v = parseDecimal(el.value.trim());
+          if (v != null && v >= 0) reference[el.dataset.ref] = v;
+        }
+        const data = {
+          from: f.from.value, to: f.to.value, value, value_unit: f.value_unit.value || 'consumption',
+          is_estimated: f.is_estimated.checked, note: f.note.value, reference,
+        };
+        try {
+          if (period) await api.updatePeriod(u.key, period.id, data);
+          else await api.createPeriod(u.key, { ...data, meter_id: meter.id });
+          toastOk(t('utility.periods.saved'));
+          close(true);
+          rerender(container);
+        } catch (e) { toastErr(e.message); }
+      }));
+    },
+  });
 }
 
 // ── Lieferungen (Heizöl/Pellets) ────────────────────────────────────
@@ -1387,7 +1675,7 @@ function monthChartLabel(u, year, labels, values, prev = [], adjusted = false) {
   // Vorjahr über dieselben Monate, soweit vorhanden
   const pairs = values.map((v, i) => [v, prev[i]]).filter(([v, p]) => v != null && p != null);
   if (pairs.length) {
-    text += ' ' + t('utility.chart.altPrev', { year: year - 1, total: unit(pairs.reduce((a, [, p]) => a + Number(p), 0)), months: pairs.length });
+    text += ' ' + tp('utility.chart.altPrev', pairs.length, { year: year - 1, total: unit(pairs.reduce((a, [, p]) => a + Number(p), 0)), months: pairs.length });
   }
   return text;
 }
@@ -1401,7 +1689,7 @@ function monthChartNote(rows, mode) {
 }
 
 // ── Event wiring ────────────────────────────────────────────────────
-function wireEvents(container, u, meter, readings, contracts, deliveries = [], monthly = []) {
+function wireEvents(container, u, meter, readings, contracts, deliveries = [], monthly = [], periods = []) {
   // v2.16.0 — gemessen / witterungsbereinigt: nur das Diagramm neu, nicht die Seite
   container.querySelectorAll('[data-chart-mode]').forEach(b => {
     b.addEventListener('click', () => {
@@ -1437,7 +1725,26 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = [], m
   // Reading actions
   const newReadingHandlers = ['#header-new-reading', '#banner-new-reading', '#btn-new-reading'];
   newReadingHandlers.forEach(sel => {
-    container.querySelector(sel)?.addEventListener('click', () => openReadingModal(container, u, meter, null, readings));
+    container.querySelector(sel)?.addEventListener('click', () => (meter?.capture === 'period'
+      ? openPeriodModal(container, u, meter, null, periods)
+      : openReadingModal(container, u, meter, null, readings)));
+  });
+  // v3.1.0 (H3, B2) — Zeiträume anlegen, bearbeiten, löschen
+  container.querySelector('#btn-new-period')?.addEventListener('click', () => openPeriodModal(container, u, meter, null, periods));
+  container.querySelectorAll('[data-action="edit-period"]').forEach(btn => {
+    btn.addEventListener('click', () => openPeriodModal(container, u, meter, periods.find(p => p.id === btn.getAttribute('data-id')), periods));
+  });
+  container.querySelectorAll('[data-action="delete-period"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const p = periods.find(x => x.id === btn.getAttribute('data-id'));
+      const ok = await confirmModal({
+        message: t('utility.periods.confirmDelete', { from: fmt.date(p?.from), to: fmt.date(p?.to) }),
+        confirmLabel: t('utility.readingsTable.delete'), danger: true,
+      });
+      if (!ok) return;
+      try { await api.deletePeriod(u.key, p.id); toastOk(t('utility.periods.deleted')); rerender(container); }
+      catch (e) { toastErr(e.message); }
+    });
   });
 
   container.querySelectorAll('[data-action="edit-reading"]').forEach(btn => {
@@ -1445,6 +1752,28 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = [], m
       const id = btn.getAttribute('data-id');
       const reading = readings.find(r => r.id === id);
       openReadingModal(container, u, meter, reading, readings);
+    });
+  });
+  // v3.1.0 (H2, MKT-08) — Foto zur Ablesung groß ansehen, entfernen
+  container.querySelectorAll('[data-action="view-photo"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const reading = readings.find(r => r.id === btn.getAttribute('data-id'));
+      if (!reading?.attachment_id) return;
+      const m = openModal({
+        title: `${t('readingsEntry.photo.alt')} · ${fmt.date(reading.date)}`,
+        size: 'lg',
+        body: `<img class="photo-lightbox" src="${escapeHtml(api.attachmentUrl(reading.attachment_id))}" alt="${escapeHtml(t('readingsEntry.photo.alt'))} ${escapeHtml(fmt.date(reading.date))}">`,
+        footer: `<a class="btn btn--ghost" href="${escapeHtml(api.attachmentUrl(reading.attachment_id))}" target="_blank" rel="noopener">${t('utility.photo.open')}</a>
+          <button type="button" class="btn btn--danger" data-action="photo-remove">${t('readingsEntry.photo.remove')}</button>`,
+      });
+      m.modalEl.querySelector('[data-action="photo-remove"]').addEventListener('click', guardSubmit(m.modalEl.querySelector('[data-action="photo-remove"]'), async () => {
+        try {
+          await api.updateReading(u.key, reading.id, { attachment_id: null });
+          m.close(true);
+          toastOk(t('utility.photo.removed'));
+          rerender(container);
+        } catch (e) { toastErr(e.message); }
+      }));
     });
   });
   // v2.6.0 — Verdacht aus Home Assistant bestätigen: Der Stand zählt wieder.
@@ -1577,7 +1906,7 @@ function openReadingModal(container, u, meter, reading, readings = []) {
         });
         previewEl.textContent = [
           days != null
-            ? t('utility.preview.sinceLastDays', { delta, unit: u.unit, days })
+            ? tp('utility.preview.sinceLastDays', days, { delta, unit: u.unit, days })
             : t('utility.preview.sinceLast', { delta, unit: u.unit }),
           ...issues.map(i => issueText(i, { unit: u.unit, date })),
         ].join(' · ');

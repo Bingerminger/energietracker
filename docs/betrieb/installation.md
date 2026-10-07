@@ -8,8 +8,10 @@ Energietracker ist bewusst **abhängigkeitsfrei**: kein Composer, kein
 npm-Build, keine Datenbank, kein externer Dienst zur Laufzeit — außer
 Open-Meteo für den Temperaturabgleich (seit v2.8.0 einmal am Tag automatisch,
 abschaltbar unter *Einstellungen → Wetterdaten → Wetter automatisch füllen*)
-und, nur auf Knopfdruck, die Ortssuche (seit v2.12.0). Es genügt ein
-PHP-fähiger Webserver und ein Browser.
+und, nur auf Knopfdruck, die Ortssuche (seit v2.12.0) — dazu, nur wenn du ihn
+einträgst, ein eigener Texterkennungsdienst im Heimnetz, und, nur auf
+Knopfdruck, der Abruf der Börsenstrompreise von SMARD (beides seit v3.1.0). Es
+genügt ein PHP-fähiger Webserver und ein Browser.
 
 ---
 
@@ -17,8 +19,8 @@ PHP-fähiger Webserver und ein Browser.
 
 | Komponente | Mindestens | Empfohlen | Zweck |
 |---|---|---|---|
-| PHP | 8.4 | 8.4 | Backend-Laufzeit (bis v2.13 stand hier fälschlich 8.1) |
-| PHP-Erweiterungen | `json`, `mbstring` *(optional)* | dito | JSON-Speicher; `iconv` für PDF-Umlaute |
+| PHP | 8.2 | 8.4 | Backend-Laufzeit; die CI prüft 8.2, 8.3 und 8.4, das Docker-Image bringt 8.4 mit (Mindestversion 8.2 seit v3.1.0, vorher 8.4) |
+| PHP-Erweiterungen | `json`, `mbstring` *(optional)* | dito | JSON-Speicher; `iconv` für PDF-Umlaute; `curl` für die Texterkennung (v3.1.0) |
 | Webserver | PHP built-in server | Apache/nginx | Auslieferung |
 | Browser | aktueller Chromium/Firefox/Safari | dito | SPA-Frontend (ES-Module) |
 | Python | — | — | nicht nötig; nur das veraltete `scripts/init_data.py` braucht es (§6) |
@@ -201,4 +203,6 @@ docker compose up -d        # → http://localhost:8080
 
 Ausführliche, einsteigerfreundliche Anleitung (Volumes, Updates, Logs,
 Umgebungsvariablen, Fehlersuche) im eigenen Kapitel:
-**[Docker-Betrieb (für Einsteiger)](docker.md)**.
+**[Docker-Betrieb (für Einsteiger)](docker.md)**. Dort stehen auch die
+Vorlagen für Synology, Unraid, CasaOS/ZimaOS und Umbrel (die drei letzten seit
+v3.1.0, Dateien unter `deploy/`).

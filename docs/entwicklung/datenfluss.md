@@ -136,7 +136,7 @@ Preiserhöhung (`price_increase`).
 
 `verdict`-Schwelle:
 - `Nachzahlung` wenn `projected > +5 €`
-- `Erstattung` wenn `projected < −5 €`
+- `Guthaben` wenn `projected < −5 €`
 - `Ausgeglichen` dazwischen
 
 ---

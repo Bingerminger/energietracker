@@ -20,15 +20,28 @@
 // v2.0.0 (N1007/UX): i18n-Strings über t(); locale-bewusstes fmt;
 //   A Verbrauchs-Vorschau bei Eingabe, B globales Ablesedatum,
 //   C Fortschrittsanzeige am Speichern-Button, D CTA im Leerzustand.
+//
+// v3.1.0 (Paket H2, FE-32/MKT-08): Ohne Verbindung landet ein Stand in der
+//   Offline-Warteschlange (lib/outbox.js) und wird nachgesendet; jede Karte
+//   kann ein Foto als Beleg mitnehmen; ist ein Texterkennungsdienst im
+//   Heimnetz eingetragen, schlägt er den Stand vor (gespeichert wird nie
+//   ohne Klick).
 // =====================================================================
 import { api } from '../api.js';
-import { getUtilities } from '../state.js';
+import { getUtilities, getSettings } from '../state.js';
 import { toastOk, toastErr, toastUndo } from '../components/toast.js';
 import { t, tp } from '../lib/i18n.js';
-import { fmt as baseFmt, escapeHtml as esc, parseDecimal, todayIso } from '../lib/format.js';
+import { fmt as baseFmt, escapeHtml as esc, parseDecimal, todayIso, formatForInput } from '../lib/format.js';
 import { checkReading, confirmIssues, issueText } from '../lib/plausibility.js';
 import { showFieldError } from '../lib/form.js';
 import { info } from '../components/info.js';
+import * as outbox from '../lib/outbox.js';
+import { shrinkPhoto } from '../lib/photo.js';
+
+// Abmeldung der Warteschlangen-Anzeige (cleanup)
+let _offOutbox = null;
+// Texterkennung eingetragen? (ocr_endpoint)
+let _ocrOn = false;
 
 // v2.2.0 — vorher ein eigener Formatierer mit fest verdrahtetem de-DE/en-GB.
 // Jetzt die gemeinsame Intl-Quelle; `num` bleibt „bis zu N Stellen" (Zählerstände
@@ -67,8 +80,9 @@ export async function render(container, _params = [], ctx = {}) {
 
   let rows = [];
   try {
-    const data = await api.readingsOverview();
+    const [data, settings] = await Promise.all([api.readingsOverview(), getSettings().catch(() => ({}))]);
     rows = Array.isArray(data?.rows) ? data.rows : [];
+    _ocrOn = !!String(settings?.ocr_endpoint || '').trim();
   } catch (e) {
     listEl.innerHTML = `<div class="empty" style="padding:32px">
       <div class="empty-icon">⚠️</div>
@@ -93,16 +107,25 @@ export async function render(container, _params = [], ctx = {}) {
   }
 
   // B — globales Ablesedatum oben + alle Zähler-Karten.
+  // v3.1.0 — darüber: was noch nicht beim Server angekommen ist
   listEl.innerHTML = `
+    <div class="readings-entry__outbox card" data-role="outbox" hidden></div>
     <div class="readings-entry__toolbar">
       <label class="field field--date">
         <span class="field__label">${t('readingsEntry.globalDateLabel')}</span>
         <input class="input" data-role="global-date" type="date" value="${esc(today)}" />
       </label>
     </div>
-    ${rows.map(r => renderRow(r, today)).join('')}
+    ${rows.map(r => r.capture === 'period' ? renderPeriodRow(r) : renderRow(r, today)).join('')}
   `;
-  rows.forEach((r) => bindRow(listEl.querySelector(`[data-row-index="${r.__seq}"]`), r));
+  rows.forEach((r) => (r.capture === 'period' ? bindPeriodRow : bindRow)(listEl.querySelector(`[data-row-index="${r.__seq}"]`), r));
+
+  // v3.1.0 — Warteschlange anzeigen und bei jeder Änderung neu zeichnen
+  const outboxEl = listEl.querySelector('[data-role="outbox"]');
+  const drawOutbox = () => renderOutbox(outboxEl, rows, listEl, today).catch(() => {});
+  _offOutbox?.();
+  _offOutbox = outbox.onChange(drawOutbox);
+  drawOutbox();
 
   // B — globales Datum auf alle Karten anwenden + Vorschau neu berechnen.
   // v2.12.0 — Karten mit eigenem Datum („Anderes Datum" geöffnet) behalten es.
@@ -157,7 +180,7 @@ export async function render(container, _params = [], ctx = {}) {
   saveBtn.addEventListener('click', async () => {
     saveBtn.disabled = true;
     saveLbl.textContent = t('readingsEntry.saving');
-    let ok = 0, skipped = 0, failed = 0, held = 0;
+    let ok = 0, skipped = 0, failed = 0, held = 0, queued = 0;
     const created = [];   // neu angelegt → lässt sich rückgängig machen
     const summary = [];
     const cards = listEl.querySelectorAll('.reading-card');
@@ -167,14 +190,17 @@ export async function render(container, _params = [], ctx = {}) {
       const res  = await trySaveCard(card, r, today);
       if (res.status === 'ok') {
         ok++;
-        if (res.createdId) created.push({ utility: r.utility, id: res.createdId });
+        if (res.createdId) created.push({ utility: r.utility, id: res.createdId, kind: res.kind || 'reading' });
         if (res.delta) summary.push(res.delta);
       }
       else if (res.status === 'skip') skipped++;
       else if (res.status === 'held') held++;
+      else if (res.status === 'queued') queued++;
       else                   failed++;
     }
     saveBtn.disabled = false;
+    // v3.1.0 — ohne Verbindung: eingereiht, wird nachgesendet
+    if (queued > 0) toastErr(tp('readingsEntry.queue.waitingN', await outbox.count().catch(() => queued)));
     // v2.6.0 — zurückgestellte Karten (Rückfrage abgelehnt) eigens melden
     if (held > 0) toastErr(tp('readingsEntry.toast.held', held));   // v2.14.0 — Pluralform statt „Stand/Stände“
     if (failed > 0) {
@@ -189,7 +215,7 @@ export async function render(container, _params = [], ctx = {}) {
         toastUndo(msg, async () => {
           let undone = 0;
           for (const c of created) {
-            try { await api.deleteReading(c.utility, c.id); undone++; } catch (e) { toastErr(e.message); }
+            try { await (c.kind === 'period' ? api.deletePeriod(c.utility, c.id) : api.deleteReading(c.utility, c.id)); undone++; } catch (e) { toastErr(e.message); }
           }
           if (undone) toastOk(tp('readingsEntry.toast.undone', undone));
           await refreshLastReadings(listEl, rows, today);
@@ -273,6 +299,17 @@ function renderRow(r, today) {
           aria-expanded="false" aria-controls="rc-note-${escIdx(r)}">
           ${t('readingsEntry.row.addNote')}
         </button>
+        <!-- v3.1.0 (MKT-08) — Foto als Beleg; capture öffnet am Handy die Kamera -->
+        <label class="btn btn--ghost btn--sm reading-card__photo-btn">
+          <span aria-hidden="true">📷</span> ${t('readingsEntry.photo.add')}
+          <input type="file" accept="image/*" capture="environment" data-role="photo" class="sr-only" />
+        </label>
+      </div>
+
+      <div class="reading-card__photo" data-role="photo-wrap" hidden>
+        <img class="reading-card__thumb" data-role="photo-img" alt="${t('readingsEntry.photo.alt')}" />
+        <button type="button" class="btn btn--ghost btn--sm" data-action="photo-remove">${t('readingsEntry.photo.remove')}</button>
+        <span class="reading-card__ocr" data-role="ocr" aria-live="polite"></span>
       </div>
 
       <div class="reading-card__note" data-role="note-wrap" id="rc-note-${escIdx(r)}" hidden>
@@ -309,7 +346,7 @@ function previewText(r, value, dateVal) {
     if (Number.isFinite(d) && d > 0) days = d;
   }
   return days != null
-    ? t('readingsEntry.preview.sinceLastDays', { delta, unit: r.unit, days })
+    ? tp('readingsEntry.preview.sinceLastDays', days, { delta, unit: r.unit, days })
     : t('readingsEntry.preview.sinceLast', { delta, unit: r.unit });
 }
 
@@ -379,6 +416,58 @@ function bindRow(card, r) {
   counterEl?.addEventListener('input', update);
   dateEl?.addEventListener('change', update);
   card.__update = update;
+
+  // v3.1.0 (MKT-08) — Foto: verkleinern, Vorschau; mit Texterkennung gleich
+  // hochladen und den erkannten Stand anbieten
+  const photoEl = card.querySelector('[data-role="photo"]');
+  const photoWrap = card.querySelector('[data-role="photo-wrap"]');
+  const photoImg = card.querySelector('[data-role="photo-img"]');
+  const ocrEl = card.querySelector('[data-role="ocr"]');
+  const clearPhoto = () => {
+    if (card.__photo?.url) URL.revokeObjectURL(card.__photo.url);
+    card.__photo = null;
+    photoWrap.hidden = true;
+    photoImg.removeAttribute('src');
+    ocrEl.textContent = '';
+    if (photoEl) photoEl.value = '';
+  };
+  card.__clearPhoto = clearPhoto;
+  card.querySelector('[data-action="photo-remove"]')?.addEventListener('click', clearPhoto);
+  photoEl?.addEventListener('change', async () => {
+    const file = photoEl.files?.[0];
+    if (!file) return;
+    let blob;
+    try { blob = await shrinkPhoto(file); }
+    catch { toastErr(t('readingsEntry.photo.unreadable')); photoEl.value = ''; return; }
+    clearPhoto();
+    card.__photo = { blob, url: URL.createObjectURL(blob), attachment_id: null };
+    photoImg.src = card.__photo.url;
+    photoWrap.hidden = false;
+    if (!_ocrOn) return;
+    const photo = card.__photo;
+    try {
+      ocrEl.textContent = t('readingsEntry.photo.uploading');
+      photo.attachment_id = (await api.uploadAttachment(blob, 'reading_photo'))?.id ?? null;
+      if (card.__photo !== photo || !photo.attachment_id) return;
+      ocrEl.textContent = t('readingsEntry.ocr.reading');
+      const res = await api.ocrReading(photo.attachment_id);
+      if (card.__photo !== photo) return;
+      if (res?.value == null) { ocrEl.textContent = t('readingsEntry.ocr.none'); return; }
+      const shown = fmt.num(res.value, 3);
+      ocrEl.innerHTML = `${esc(t('readingsEntry.ocr.found', { value: shown }))}
+        <button type="button" class="btn btn--ghost btn--sm" data-action="ocr-apply">${t('readingsEntry.ocr.apply')}</button>`;
+      ocrEl.querySelector('[data-action="ocr-apply"]').addEventListener('click', () => {
+        counterEl.value = formatForInput(res.value);
+        counterEl.dispatchEvent(new Event('input', { bubbles: true }));
+        counterEl.focus();
+        ocrEl.textContent = '';
+      });
+    } catch (e) {
+      if (card.__photo !== photo) return;
+      // ohne Netz: das Foto bleibt und geht mit dem Stand (Warteschlange)
+      ocrEl.textContent = e.code === 'network' ? '' : t('readingsEntry.ocr.failed', { reason: e.message || '' });
+    }
+  });
 }
 
 // A11y (N1009): Der Status ist visuell nur eine Glyphe (✓/✗/…). Da die
@@ -392,6 +481,7 @@ function setCardStatus(statusEl, kind) {
     failed:  { glyph: '✗', cls: 'err',     label: t('readingsEntry.status.failed') },
     invalid: { glyph: '✗', cls: 'err',     label: t('readingsEntry.status.invalid') },
     held:    { glyph: '!', cls: 'warn',    label: t('readingsEntry.status.held') },
+    queued:  { glyph: '⏳', cls: 'warn',   label: t('readingsEntry.queue.queued') },
   };
   const s = map[kind];
   if (!s) return;
@@ -399,7 +489,152 @@ function setCardStatus(statusEl, kind) {
   statusEl.innerHTML = `<span aria-hidden="true">${s.glyph}</span><span class="sr-only">${esc(s.label)}</span>`;
 }
 
+// ── v3.1.0 (Paket H3, B2) — Zähler mit Verbrauch je Zeitraum ──────────
+// Statt eines Stands: Monat und Verbrauch, etwa aus der monatlichen
+// Verbrauchsinfo des Messdienstes (HeizkostenV § 6a), dazu auf Wunsch deren
+// Vergleichswerte. Vorbelegt ist der Monat nach dem letzten Zeitraum, sonst
+// der Vormonat.
+
+function nextPeriodMonth(r) {
+  const to = r.last_period?.to;
+  const d = to ? new Date(to + 'T12:00:00') : new Date();
+  if (to) d.setDate(d.getDate() + 1); else d.setMonth(d.getMonth() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function renderPeriodRow(r) {
+  const unit = r.consumption_unit || r.unit;
+  const last = r.last_period;
+  const lastStr = last
+    ? `${fmt.date(last.from)} – ${fmt.date(last.to)}: ${fmt.num(last.value, 3)} ${esc(unit)}`
+    : t('readingsEntry.row.lastNone');
+  const i = escIdx(r);
+  return `
+    <article class="reading-card reading-card--period" data-row-index="${i}" data-utility="${esc(r.utility)}" data-meter-id="${esc(r.meter_id)}" data-capture="period" aria-labelledby="rc-name-${i}">
+      <div class="reading-card__head">
+        <span class="reading-card__icon" aria-hidden="true">${esc(r.utility_icon || r.meter_icon || '•')}</span>
+        <div class="reading-card__title">
+          <div class="reading-card__name" id="rc-name-${i}">${esc(r.meter_name)}</div>
+          <div class="reading-card__sub">${esc(r.utility_label)} · ${t('readingsEntry.period.kind')}</div>
+        </div>
+        <span class="reading-card__status" data-role="status" aria-live="polite"></span>
+      </div>
+      <div class="reading-card__last">${t('readingsEntry.period.lastLabel')} <strong>${lastStr}</strong></div>
+      <div class="reading-card__inputs reading-card__inputs--period">
+        <label class="field field--date">
+          <span class="field__label">${t('readingsEntry.period.month')}</span>
+          <input class="input" data-role="month" type="month" value="${esc(nextPeriodMonth(r))}" />
+        </label>
+        <label class="field field--counter">
+          <span class="field__label">${t('readingsEntry.period.value', { unit: esc(unit) })}</span>
+          <input class="input input--counter" data-role="counter" type="text" inputmode="decimal" autocomplete="off" aria-describedby="rc-err-${i}" />
+        </label>
+      </div>
+      <div class="field-error" data-role="error" id="rc-err-${i}" role="alert" hidden></div>
+      <details class="reading-card__ref">
+        <summary>${t('readingsEntry.period.reference')}</summary>
+        <div class="reading-card__inputs">
+          ${['prev_month', 'prev_year_month', 'average_user'].map(f => `
+          <label class="field field--counter">
+            <span class="field__label">${t('readingsEntry.period.ref.' + f, { unit: esc(unit) })}</span>
+            <input class="input" data-ref="${f}" type="text" inputmode="decimal" autocomplete="off" />
+          </label>`).join('')}
+        </div>
+      </details>
+      <div class="reading-card__extras">
+        <span class="toggle-wrap">
+          <label class="toggle"><input type="checkbox" data-role="estimated" /><span>${t('readingsEntry.row.estimated')}</span></label>
+        </span>
+        <button type="button" class="btn btn--ghost btn--sm" data-action="toggle-note" aria-expanded="false" aria-controls="rc-note-${i}">${t('readingsEntry.row.addNote')}</button>
+      </div>
+      <div class="reading-card__note" data-role="note-wrap" id="rc-note-${i}" hidden>
+        <label class="field">
+          <span class="field__label">${t('readingsEntry.row.note')}</span>
+          <input class="input" data-role="note" type="text" maxlength="200" placeholder="${t('readingsEntry.row.notePlaceholder')}" />
+        </label>
+      </div>
+    </article>`;
+}
+
+function bindPeriodRow(card, r) {
+  if (!card) return;
+  const noteWrap = card.querySelector('[data-role="note-wrap"]');
+  const noteBtn = card.querySelector('[data-action="toggle-note"]');
+  noteBtn?.addEventListener('click', () => {
+    const open = noteWrap.hidden;
+    noteWrap.hidden = !open;
+    noteBtn.setAttribute('aria-expanded', String(open));
+    noteBtn.textContent = open ? t('readingsEntry.row.hideNote') : t('readingsEntry.row.addNote');
+    if (open) card.querySelector('[data-role="note"]')?.focus();
+  });
+  const counterEl = card.querySelector('[data-role="counter"]');
+  const errorEl = card.querySelector('[data-role="error"]');
+  counterEl?.addEventListener('input', () => { if (errorEl && !errorEl.hidden) showFieldError(counterEl, errorEl, null); });
+}
+
+async function trySavePeriodCard(card, r) {
+  const counterEl = card.querySelector('[data-role="counter"]');
+  const statusEl = card.querySelector('[data-role="status"]');
+  const errorEl = card.querySelector('[data-role="error"]');
+  const raw = (counterEl?.value || '').trim();
+  if (raw === '') return { status: 'skip' };
+  const value = parseDecimal(raw);
+  const month = card.querySelector('[data-role="month"]')?.value || '';
+  if (value == null || value < 0 || !/^\d{4}-\d{2}$/.test(month)) {
+    setCardStatus(statusEl, 'invalid');
+    showFieldError(null, errorEl, t('readingsEntry.error.invalidNumber'));
+    return { status: 'fail' };
+  }
+  const reference = {};
+  for (const el of card.querySelectorAll('[data-ref]')) {
+    const v = parseDecimal(el.value.trim());
+    if (v != null && v >= 0) reference[el.dataset.ref] = v;
+  }
+  const data = {
+    meter_id: r.meter_id, month, value,
+    is_estimated: !!card.querySelector('[data-role="estimated"]')?.checked,
+    note: card.querySelector('[data-role="note"]')?.value || '',
+    ...(Object.keys(reference).length ? { reference } : {}),
+  };
+  card.__clientRef ??= outbox.newClientRef();
+  const reset = () => {
+    showFieldError(null, errorEl, null);
+    counterEl.value = '';
+    card.querySelectorAll('[data-ref]').forEach(el => { el.value = ''; });
+    const n = card.querySelector('[data-role="note"]'); if (n) n.value = '';
+    card.__clientRef = null;
+  };
+  setCardStatus(statusEl, 'saving');
+  try {
+    const p = await api.createPeriod(r.utility, { ...data, client_ref: card.__clientRef });
+    setCardStatus(statusEl, 'saved');
+    reset();
+    r.last_period = { from: p.from, to: p.to, value: p.value };
+    const monthEl = card.querySelector('[data-role="month"]');
+    if (monthEl) monthEl.value = nextPeriodMonth(r);
+    return { status: 'ok', createdId: p.duplicate ? null : p.id, kind: 'period', delta: `${r.utility_label} ${fmt.num(value, 3)} ${r.consumption_unit || r.unit}` };
+  } catch (e) {
+    if (e.code === 'network' || e.code === 'timeout') {
+      try {
+        await outbox.enqueue({
+          kind: 'period', client_ref: card.__clientRef, utility: r.utility, meter_id: r.meter_id,
+          meter_label: `${r.utility_label} · ${r.meter_name}`, unit: r.consumption_unit || r.unit,
+          date: month + '-01', month, counter: value, note: data.note, is_estimated: data.is_estimated,
+          reference: data.reference || null,
+        });
+        setCardStatus(statusEl, 'queued');
+        reset();
+        return { status: 'queued' };
+      } catch { /* kein IndexedDB */ }
+    }
+    setCardStatus(statusEl, 'failed');
+    showFieldError(null, errorEl, e.message || t('readingsEntry.error.unknown'));
+    return { status: 'fail' };
+  }
+}
+
 async function trySaveCard(card, r, today = todayIso()) {
+  if (r.capture === 'period') return trySavePeriodCard(card, r);
   const counterEl   = card.querySelector('[data-role="counter"]');
   const dateEl      = card.querySelector('[data-role="date"]');
   const estimatedEl = card.querySelector('[data-role="estimated"]');
@@ -442,32 +677,142 @@ async function trySaveCard(card, r, today = todayIso()) {
 
   setCardStatus(statusEl, 'saving');
 
-  try {
-    const data = {
-      meter_id:     r.meter_id,
-      date,
-      counter,
-      note:         noteEl?.value || '',
-      is_estimated: !!estimatedEl?.checked,
-    };
-    let createdId = null;
-    if (replace) await api.updateReading(r.utility, replace.id, data);   // ersetzen statt doppeln
-    else         createdId = (await api.createReading(r.utility, data))?.id ?? null;
-    setCardStatus(statusEl, 'saved');
+  const data = {
+    meter_id:     r.meter_id,
+    date,
+    counter,
+    note:         noteEl?.value || '',
+    is_estimated: !!estimatedEl?.checked,
+  };
+  // v3.1.0 (FE-32) — eine Kennung je Erfassung: Kommt die Antwort nicht an
+  // (Zeitlimit) und der Stand wird erneut gesendet, legt der Server keinen
+  // zweiten an.
+  card.__clientRef ??= outbox.newClientRef();
+  const photo = card.__photo;
+  const resetCard = () => {
     showFieldError(null, errorEl, null);
     counterEl?.removeAttribute('aria-invalid');
     // Eingabe zurücksetzen, damit Doppel-Save nicht doppelt schreibt.
     if (counterEl) counterEl.value = '';
     if (noteEl)    noteEl.value = '';
     if (estimatedEl) estimatedEl.checked = false;
+    card.__clientRef = null;
+    card.__clearPhoto?.();
     // Vorschau/Hinweis dieser Karte zurücksetzen.
     card.__update?.();
+  };
+  try {
+    if (photo && !photo.attachment_id) photo.attachment_id = (await api.uploadAttachment(photo.blob, 'reading_photo'))?.id ?? null;
+    if (photo?.attachment_id) data.attachment_id = photo.attachment_id;
+    let createdId = null;
+    if (replace) await api.updateReading(r.utility, replace.id, data);   // ersetzen statt doppeln
+    else         createdId = (await api.createReading(r.utility, { ...data, client_ref: card.__clientRef }))?.id ?? null;
+    setCardStatus(statusEl, 'saved');
+    resetCard();
     return { status: 'ok', createdId, delta };
   } catch (e) {
+    // v3.1.0 — keine Verbindung (oder keine Antwort): einreihen statt verlieren
+    if (e.code === 'network' || e.code === 'timeout') {
+      try {
+        await outbox.enqueue({
+          client_ref: card.__clientRef, utility: r.utility, meter_id: r.meter_id,
+          meter_label: `${r.utility_label} · ${r.meter_name}`, unit: r.unit,
+          ...data, attachment_id: data.attachment_id ?? null,
+          photo_blob: photo && !photo.attachment_id ? photo.blob : null,
+          resolve: replace ? 'replace' : null,
+        });
+        setCardStatus(statusEl, 'queued');
+        resetCard();
+        return { status: 'queued' };
+      } catch { /* kein IndexedDB: wie bisher als Fehler melden */ }
+    }
     setCardStatus(statusEl, 'failed');
     showFieldError(null, errorEl, e.message || t('readingsEntry.error.unknown'));
     return { status: 'fail' };
   }
+}
+
+// v3.1.0 (FE-32) — „Noch nicht gespeichert": wartende, fehlgeschlagene und
+// strittige Stände mit ihren Aktionen
+async function renderOutbox(el, rows, listEl, today) {
+  if (!el) return;
+  const items = await outbox.list();
+  el.hidden = items.length === 0;
+  if (!items.length) { el.innerHTML = ''; return; }
+  const waiting = items.filter(i => i.status === 'waiting').length;
+  const line = (i) => {
+    const when = i.kind === 'period' ? esc(i.month || '') : fmt.date(i.date);
+    const what = `${esc(i.meter_label || i.meter_id)} · ${fmt.num(i.counter, 3)} ${esc(i.unit || '')} · ${when}${i.photo_blob || i.attachment_id ? ' · 📷' : ''}`;
+    const ref = esc(i.client_ref);
+    let state, actions = '';
+    if (i.status === 'conflict') {
+      state = esc(t('readingsEntry.queue.conflict', { date: fmt.date(i.date), value: fmt.num(i.conflict?.counter, 3) }));
+      actions = `<button type="button" class="btn btn--sm" data-outbox="replace" data-ref="${ref}">${t('readingsEntry.queue.replace')}</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-outbox="keep" data-ref="${ref}">${t('readingsEntry.queue.keep')}</button>`;
+    } else if (i.status === 'failed') {
+      state = esc(t('readingsEntry.queue.failed', { reason: i.last_error || '' }));
+      actions = `<button type="button" class="btn btn--ghost btn--sm" data-outbox="edit" data-ref="${ref}">${t('readingsEntry.queue.edit')}</button>
+        <button type="button" class="btn btn--ghost btn--sm" data-outbox="discard" data-ref="${ref}">${t('readingsEntry.queue.discard')}</button>`;
+    } else {
+      state = esc(t('readingsEntry.queue.queued'));
+      actions = `<button type="button" class="btn btn--ghost btn--sm" data-outbox="discard" data-ref="${ref}">${t('readingsEntry.queue.discard')}</button>`;
+    }
+    return `<li class="outbox-item outbox-item--${esc(i.status)}"><div><strong>${what}</strong><div class="muted">${state}</div></div><div class="outbox-item__actions">${actions}</div></li>`;
+  };
+  el.innerHTML = `
+    <h2 class="card__title">${t('readingsEntry.queue.title')}</h2>
+    ${waiting ? `<p class="muted">${esc(tp('readingsEntry.queue.waitingN', waiting))}</p>` : ''}
+    <ul class="outbox-list">${items.map(line).join('')}</ul>
+    ${waiting ? `<button type="button" class="btn btn--sm" data-outbox="send">${t('readingsEntry.queue.sendNow')}</button>` : ''}`;
+  el.onclick = async (ev) => {
+    const btn = ev.target.closest('[data-outbox]');
+    if (!btn) return;
+    const ref = btn.dataset.ref;
+    const action = btn.dataset.outbox;
+    if (action === 'discard' || action === 'keep') await outbox.remove(ref);
+    if (action === 'replace') await outbox.resolve(ref, 'replace');
+    if (action === 'edit') {
+      // zurück in die Karte; von dort wie gewohnt speichern
+      const item = items.find(i => i.client_ref === ref);
+      const card = item && listEl.querySelector(`.reading-card[data-utility="${CSS.escape(item.utility)}"][data-meter-id="${CSS.escape(item.meter_id)}"]`);
+      if (card) {
+        card.querySelector('[data-role="counter"]').value = formatForInput(item.counter);
+        const d = card.querySelector('[data-role="date"]');
+        if (d) { d.value = item.date; card.querySelector('[data-role="date-wrap"]').hidden = item.date === today; }
+        const mo = card.querySelector('[data-role="month"]');
+        if (mo && item.month) mo.value = item.month;
+        const n = card.querySelector('[data-role="note"]');
+        if (n) n.value = item.note || '';
+        card.querySelector('[data-role="estimated"]').checked = !!item.is_estimated;
+        for (const [k, v] of Object.entries(item.reference || {})) {
+          const el = card.querySelector(`[data-ref="${k}"]`);
+          if (el) el.value = formatForInput(v);
+        }
+        // das Foto geht mit zurück (Blob oder schon hochgeladener Beleg)
+        if (item.photo_blob || item.attachment_id) {
+          card.__clearPhoto?.();
+          const img = card.querySelector('[data-role="photo-img"]');
+          card.__photo = { blob: item.photo_blob || null, attachment_id: item.attachment_id || null,
+            url: item.photo_blob ? URL.createObjectURL(item.photo_blob) : null };
+          img.src = card.__photo.url || api.attachmentUrl(item.attachment_id);
+          card.querySelector('[data-role="photo-wrap"]').hidden = false;
+        }
+        card.__update?.();
+        card.scrollIntoView?.({ block: 'center' });
+        card.querySelector('[data-role="counter"]').focus({ preventScroll: true });
+      }
+      await outbox.remove(ref);
+    }
+    if (action === 'send' || action === 'replace') {
+      const r = await outbox.flush(api).catch(() => null);
+      if (r?.sent) {
+        toastOk(tp('readingsEntry.queue.sent', r.sent));
+        await refreshLastReadings(listEl, rows, today);
+      } else if (r?.stopped === 'offline') {
+        toastErr(t('readingsEntry.queue.stillOffline'));
+      }
+    }
+  };
 }
 
 // Nach erfolgreichem Speichern den „letzter Stand"-Anker auf den
@@ -488,6 +833,17 @@ async function refreshLastReadings(listEl, rows, today) {
       const card = listEl.querySelector(`[data-row-index="${r.__seq}"]`);
       if (!card) return;
       const lastEl = card.querySelector('.reading-card__last');
+      // v3.1.0 (H3) — Zeitraum-Zähler: letzter Zeitraum statt letzter Stand
+      if (r.capture === 'period') {
+        r.last_period = next.last_period;
+        const unit = r.consumption_unit || r.unit;
+        if (lastEl) {
+          lastEl.innerHTML = `${t('readingsEntry.period.lastLabel')} <strong>${next.last_period
+            ? `${fmt.date(next.last_period.from)} – ${fmt.date(next.last_period.to)}: ${fmt.num(next.last_period.value, 3)} ${esc(unit)}`
+            : t('readingsEntry.row.lastNone')}</strong>`;
+        }
+        return;
+      }
       // v2.12.0 — nach „Rückgängig" kann der Stand wieder leer sein
       if (lastEl) {
         lastEl.innerHTML = `${t('readingsEntry.row.lastLabel')} <strong>${next.last_reading
@@ -499,4 +855,7 @@ async function refreshLastReadings(listEl, rows, today) {
   } catch { /* still */ }
 }
 
-export function cleanup() { /* keine globalen Listener */ }
+export function cleanup() {
+  _offOutbox?.();
+  _offOutbox = null;
+}

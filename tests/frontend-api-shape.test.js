@@ -69,6 +69,250 @@ const ROOT = require('path').resolve(__dirname, '..');
         && dry.imported === 0 && before === after, `${before} → ${after} Stände`);
   }
 
+  // v3.1.0 (I18N-10) — CSV „local" neben Format 1; unbekanntes Format → 400 mit Code
+  const loc = await fetch(`${BASE}/api/export/temperatures.csv?format=local`);
+  check('CSV ?format=local → text/csv mit Dateiname aus dem Katalog',
+    loc.status === 200 && (loc.headers.get('content-type') || '').startsWith('text/csv')
+      && /filename="?energietracker-temperaturen-/.test(loc.headers.get('content-disposition') || ''),
+    loc.headers.get('content-disposition') || `HTTP ${loc.status}`);
+  const badFmt = await fetch(`${BASE}/api/export/temperatures.csv?format=xlsx`);
+  const fmtBody = await badFmt.json().catch(() => ({}));
+  check('CSV ?format=xlsx → 400, code errors.export.formatInvalid',
+    badFmt.status === 400 && fmtBody.code === 'errors.export.formatInvalid', `${badFmt.status} ${fmtBody.code}`);
+
+  // v3.1.0 (H1) — Agenda, Kennzahlen für Home Assistant, Kalender-Abo
+  const ag = await j('/api/agenda?days=90');
+  const ev = (ag.events || [])[0];
+  check('GET /api/agenda → events[{uid,kind,date,title,severity,due_now,href,ref}]',
+    Array.isArray(ag.events) && ag.events.length > 0 && ev && typeof ev.uid === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ev.date)
+      && typeof ev.due_now === 'boolean' && ['overdue', 'urgent', 'due', 'upcoming'].includes(ev.severity),
+    `${(ag.events || []).length} Ereignisse, ${(ag.events || []).filter(e => e.due_now).length} jetzt`);
+  const sum = await j('/api/summary');
+  const sm = (sum.meters || [])[0];
+  check('GET /api/summary → summary_version 1, meters[].contract/forecast_12m, agenda',
+    sum.summary_version === 1 && /^et_[0-9a-f]{16}$/.test(sum.instance_id || '') && sm && 'contract' in sm
+      && 'forecast_12m' in sm && 'days_since_reading' in sm && typeof sum.agenda?.due === 'number',
+    `${(sum.meters || []).length} Zähler`);
+  const ics = await fetch(`${BASE}/api/calendar.ics`);
+  const icsBody = await ics.text();
+  check('GET /api/calendar.ics → text/calendar, BEGIN:VCALENDAR',
+    ics.status === 200 && (ics.headers.get('content-type') || '').startsWith('text/calendar') && icsBody.startsWith('BEGIN:VCALENDAR\r\n'),
+    `${(icsBody.match(/BEGIN:VEVENT/g) || []).length} Ereignisse`);
+
+  // v3.1.0 (H2) — Beleg hochladen (roher Body), ausliefern, an eine Ablesung
+  // hängen; doppeltes Senden mit derselben client_ref legt keinen zweiten Stand an
+  const jpeg = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/yQALCAABAAEBAREA/8wABgAQEAX/2gAIAQEAAD8A0s8g/9k=', 'base64');
+  const up = await fetch(`${BASE}/api/attachments?kind=reading_photo`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: jpeg })
+    .then(async r => ({ status: r.status, data: (await r.json()).data }));
+  check('POST /api/attachments (JPEG, roher Body) → 201, att_…, image/jpeg, sha256',
+    up.status === 201 && /^att_[0-9a-f]{16}$/.test(up.data?.id || '') && up.data.mime === 'image/jpeg' && /^[0-9a-f]{64}$/.test(up.data.sha256 || ''),
+    `HTTP ${up.status}`);
+  const svg = await fetch(`${BASE}/api/attachments?kind=reading_photo`, { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: '<svg xmlns="http://www.w3.org/2000/svg"/>' });
+  check('POST /api/attachments mit SVG-Inhalt → 400 errors.attachment.type',
+    svg.status === 400 && (await svg.json()).code === 'errors.attachment.type');
+  if (up.data?.id) {
+    const dl = await fetch(`${BASE}/api/attachments/${up.data.id}`);
+    const bytes = Buffer.from(await dl.arrayBuffer());
+    check('GET /api/attachments/{id} → image/jpeg, immutable, gleiche Bytes',
+      dl.status === 200 && dl.headers.get('content-type') === 'image/jpeg'
+        && /immutable/.test(dl.headers.get('cache-control') || '') && bytes.equals(jpeg));
+    const list = await j('/api/attachments');
+    check('GET /api/attachments → attachments[], usage{count,bytes,max_bytes}',
+      Array.isArray(list.attachments) && list.attachments.some(a => a.id === up.data.id)
+        && Number.isInteger(list.usage?.bytes) && list.usage.max_bytes > 0);
+    const gm = (await j('/api/utility/gas/meters'))[0];
+    if (gm) {
+      const body = JSON.stringify({ meter_id: gm.id, date: '2001-02-03', counter: 1, client_ref: 'shape-test-0001', attachment_id: up.data.id });
+      const post = () => fetch(`${BASE}/api/utility/gas/readings`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+        .then(async r => ({ status: r.status, data: (await r.json()).data }));
+      const first = await post();
+      const second = await post();
+      check('POST readings mit client_ref: 201, dann 200 duplicate:true, dieselbe ID, attachment_id',
+        first.status === 201 && second.status === 200 && second.data?.duplicate === true
+          && second.data.id === first.data?.id && first.data?.attachment_id === up.data.id,
+        `${first.status}/${second.status}`);
+      if (first.data?.id) await fetch(`${BASE}/api/utility/gas/readings/${first.data.id}`, { method: 'DELETE' });
+    }
+    await fetch(`${BASE}/api/attachments/${up.data.id}`, { method: 'DELETE' });
+  }
+  // v3.1.0 (H3) — Verbrauch je Zeitraum, Mietverhältnis, Budget
+  {
+    const JSONH = { 'Content-Type': 'application/json' };
+    const post = (p, b, m = 'POST') => fetch(`${BASE}${p}`, { method: m, headers: JSONH, body: JSON.stringify(b) })
+      .then(async r => ({ status: r.status, data: (await r.json()).data }));
+    const pm = (await post('/api/utility/waerme/meters', { name: 'UVI', capture: 'period', installed_on: '2020-01-01' })).data;
+    check('POST meters mit capture=period', pm?.capture === 'period');
+    const per = await post('/api/utility/waerme/periods', { meter_id: pm.id, month: '2025-01', value: 750 });
+    check('POST periods (Monat) → 201, from/to/value/value_unit',
+      per.status === 201 && per.data.from === '2025-01-01' && per.data.to === '2025-01-31' && per.data.value === 750 && per.data.value_unit === 'consumption');
+    const plist = await j(`/api/utility/waerme/periods?meter_id=${encodeURIComponent(pm.id)}`);
+    check('GET periods?meter_id → Liste', Array.isArray(plist) && plist.length === 1);
+    const ovl = await post('/api/utility/waerme/periods', { meter_id: pm.id, from: '2025-01-20', to: '2025-02-10', value: 1 });
+    check('POST periods überlappend → 400 errors.period.overlap', ovl.status === 400);
+    const ten = (await post('/api/tenancies', {
+      start: '2024-01-01', billing_anchor: '01-01',
+      prepayments: [{ from: '2024-01-01', heating_eur_month: 120, operating_eur_month: 0 }],
+      prices: [{ from: '2024-01-01', heat_eur_per_kwh: 0.15 }], meter_ids: { heat: [pm.id] },
+    })).data;
+    const bud = await j(`/api/tenancies/${ten.id}/budget`);
+    check('GET tenancies/{id}/budget → months[], expected/prepaid/projected_result_eur, risk, assumptions[]',
+      Array.isArray(bud.months) && bud.months.length >= 1 && typeof bud.expected_eur === 'number'
+        && typeof bud.projected_result_eur === 'number' && Array.isArray(bud.assumptions) && /^\d{4}-\d{2}-\d{2}$/.test(bud.period_from),
+      `${bud.months?.length} Monate`);
+    const st = await post(`/api/tenancies/${ten.id}/statements`, { period_from: '2024-01-01', period_to: '2024-12-31', total_cost_eur: 1500, prepaid_eur: 1440 });
+    check('POST statements → 201, result_eur = Kosten − Vorauszahlung', st.status === 201 && st.data.result_eur === 60);
+    const sts = await j(`/api/tenancies/${ten.id}/statements`);
+    check('GET statements → Liste', Array.isArray(sts) && sts[0]?.id === st.data.id);
+    const csv = await fetch(`${BASE}/api/export/waerme/periods.csv`);
+    check('GET export/{u}/periods.csv → text/csv', csv.status === 200 && (csv.headers.get('content-type') || '').startsWith('text/csv')
+      && (await csv.text()).includes('Von;Bis;Wert'));
+    await fetch(`${BASE}/api/tenancies/${ten.id}`, { method: 'DELETE' });
+    await fetch(`${BASE}/api/utility/waerme/periods/${per.data.id}`, { method: 'DELETE' });
+    await fetch(`${BASE}/api/utility/waerme/meters/${pm.id}`, { method: 'DELETE' });
+  }
+
+  // v3.1.0 (H4) — CO₂-Preis, Aufteilung, Szenario
+  {
+    const y = new Date().getFullYear() - 1;
+    const cc = await j(`/api/co2-costs?year=${y}`);
+    const gasRow = (cc.rows || []).find(r => r.utility === 'gas');
+    check('GET /api/co2-costs → supported, rows[{utility,kwh,emissions_kg,price_eur_t,cost_eur_net,cost_eur_gross,ct_per_kwh,source}]',
+      cc.supported === true && Array.isArray(cc.rows) && (!gasRow || (typeof gasRow.ct_per_kwh === 'number' && gasRow.source === 'computed')),
+      gasRow ? `Gas ${gasRow.cost_eur_gross} €` : 'ohne Gasjahr');
+    const bad = await fetch(`${BASE}/api/co2-costs?year=1990`);
+    check('GET /api/co2-costs?year=1990 → 400 errors.co2.yearInvalid', bad.status === 400 && (await bad.json()).code === 'errors.co2.yearInvalid');
+    const cs = await j(`/api/co2-split?year=${y}`);
+    check('GET /api/co2-split (Eigentum) → supported:false mit Hinweis', cs.supported === false && typeof cs.note === 'string');
+    const pdf = await fetch(`${BASE}/api/reports/co2-split.pdf?year=${y}`);
+    check('GET /api/reports/co2-split.pdf → application/pdf', pdf.status === 200 && (pdf.headers.get('content-type') || '').startsWith('application/pdf'));
+    const gm = (await j('/api/utility/gas/meters'))[0];
+    if (gm) {
+      const fc = await j(`/api/utility/gas/meters/${gm.id}/forecast?co2_scenario_eur_t=150&co2_scenario_from=2021`);
+      check('GET forecast?co2_scenario_eur_t → co2_scenario{eur_t,from,delta_ct_per_kwh,delta_cost_12m_eur}, co2_delta_eur je Monat',
+        !fc.valid || (fc.co2_scenario?.eur_t === 150 && typeof fc.co2_scenario.delta_cost_12m_eur === 'number' && 'co2_delta_eur' in (fc.forecast?.[0] || {})));
+    }
+  }
+
+  // v3.1.0 (H5) — Rechnungsprüfung für Strom, Versorgerrechnung erfassen, prüfen, buchen
+  {
+    const JSONH = { 'Content-Type': 'application/json' };
+    const send = (p, b, m = 'POST') => fetch(`${BASE}${p}`, { method: m, headers: JSONH, body: b === undefined ? undefined : JSON.stringify(b) })
+      .then(async r => { const x = await r.json(); return { status: r.status, data: x.data, code: x.code }; });
+    const sm = (await j('/api/utility/strom/meters'))[0];
+    const y = new Date().getFullYear() - 1;
+    const bd = await j(`/api/utility/strom/meters/${sm.id}/bill-check?from=${y}-01-01&to=${y + 1}-01-01`);
+    check('bill-check(strom) → rows[{from,to,kwh,energy_cost,fixed_cost}], totals{kwh,energy_cost,fixed_cost,bonus,total,price_missing}',
+      Array.isArray(bd.rows) && bd.rows.length > 0 && ['energy_cost', 'fixed_cost', 'kwh'].every(k => k in bd.rows[0])
+        && ['kwh', 'energy_cost', 'fixed_cost', 'bonus', 'total', 'price_missing'].every(k => k in (bd.totals || {})),
+      `${bd.rows?.length} Zeilen, ${bd.totals?.total} €`);
+    const b = await send('/api/utility/strom/bills', { meter_id: sm.id, period_from: `${y}-01-01`, period_to: `${y}-12-31`,
+      issued_on: `${y + 1}-02-01`, invoice: { energy_kwh: bd.totals.kwh, amount_eur: bd.totals.total + 1, advances_paid_eur: bd.totals.total - 49 } });
+    check('POST bills → 201, result_eur = Betrag − Abschläge', b.status === 201 && b.data.invoice.result_eur === 50, `Status ${b.status}`);
+    const cmp = await j(`/api/utility/strom/bills/${b.data.id}/check`);
+    check('GET bills/{id}/check → ours/invoice/delta/verdict/reasons', cmp.verdict === 'ok' && typeof cmp.ours?.total === 'number'
+      && typeof cmp.delta?.eur === 'number' && Array.isArray(cmp.reasons), `${cmp.verdict} Δ ${cmp.delta?.eur}`);
+    const booked = await send(`/api/utility/strom/bills/${b.data.id}/book`, {});
+    const again = await send(`/api/utility/strom/bills/${b.data.id}/book`, {});
+    check('POST bills/{id}/book → special_payment_id, zweites Buchen ändert nichts',
+      booked.status === 200 && !!booked.data.special_payment_id && again.data.special_payment_id === booked.data.special_payment_id);
+    // aufräumen: Sonderzahlung aus dem Vertrag, Rechnung löschen
+    const contracts = await j(`/api/utility/strom/contracts?meter_id=${encodeURIComponent(sm.id)}`);
+    const ct = contracts.find(c => c.id === booked.data.contract_id);
+    if (ct) await send(`/api/utility/strom/contracts/${ct.id}`, { special_payments: (ct.special_payments || []).filter(p => p.id !== booked.data.special_payment_id) }, 'PATCH');
+    const del = await fetch(`${BASE}/api/utility/strom/bills/${b.data.id}`, { method: 'DELETE' });
+    check('DELETE bills/{id} → 200', del.status === 200);
+    const oil = await send('/api/utility/heizoel/bills', { period_from: `${y}-01-01`, period_to: `${y}-12-31` });
+    check('POST heizoel/bills → 400 errors.billCheck.unsupportedUtility', oil.status === 400 && oil.code === 'errors.billCheck.unsupportedUtility', `${oil.status} ${oil.code}`);
+    const mal = await send(`/api/utility/strom/meters/${sm.id}`, { malo_id: '51234567894' }, 'PATCH');
+    check('PATCH meter malo_id mit falscher Prüfziffer → 400 errors.meter.maloInvalid', mal.status === 400 && mal.code === 'errors.meter.maloInvalid');
+  }
+
+  // v3.1.0 (H6, #17) — Gruppenvertrag HT/NT: ein Grundpreis, Auswertungen auf der Gruppe
+  {
+    const JSONH = { 'Content-Type': 'application/json' };
+    const send = (p, b, m = 'POST') => fetch(`${BASE}${p}`, { method: m, headers: JSONH, body: b === undefined ? undefined : JSON.stringify(b) })
+      .then(async r => { const x = await r.json(); return { status: r.status, data: x.data, code: x.code }; });
+    const y = new Date().getFullYear() - 1;
+    const ht = (await send('/api/utility/strom/meters', { name: 'HT-Test', installed_on: `${y}-01-01` })).data;
+    const nt = (await send('/api/utility/strom/meters', { name: 'NT-Test', installed_on: `${y}-01-01` })).data;
+    const grp = (await send('/api/utility/strom/meter-groups', { name: 'Doppeltarif-Test' })).data;
+    for (const m of [ht, nt]) await send(`/api/utility/strom/meters/${m.id}`, { meter_group_id: grp.id }, 'PATCH');
+    const rIds = [];
+    for (const [m, kwh] of [[ht, 2000], [nt, 1000]]) {
+      for (const [d, v] of [[`${y}-01-01`, 0], [`${y + 1}-01-01`, kwh]]) {
+        const r = await send('/api/utility/strom/readings', { meter_id: m.id, date: d, counter: v });
+        if (r.data?.id) rIds.push(r.data.id);
+      }
+    }
+    const gc = await send('/api/utility/strom/contracts', { meter_group_id: grp.id, provider: 'Test', tariff_name: 'HT/NT', start: `${y}-01-01`,
+      working_prices: [{ from: `${y}-01-01`, ct_per_kwh: 30 }], working_prices_by_meter: { [nt.id]: [{ from: `${y}-01-01`, ct_per_kwh: 22 }] },
+      base_prices: [{ from: `${y}-01-01`, eur_per_month: 12 }] });
+    check('POST contracts mit meter_group_id → 201, meter_id null', gc.status === 201 && gc.data.meter_id === null && gc.data.meter_group_id === grp.id, `${gc.status} ${gc.code || ''}`);
+    const gcons = await j(`/api/utility/strom/meter-groups/${grp.id}/consumption`);
+    const yearCost = (gcons.monthly || []).filter(m => String(m.ym).startsWith(`${y}-`)).reduce((s, m) => s + (m.cost || 0), 0);
+    check('GET meter-groups/{id}/consumption → Summe der Mitglieder, Grundpreis einmal (964 €)', Math.abs(yearCost - 964) < 0.5, yearCost.toFixed(2));
+    const gst = await j(`/api/utility/strom/meter-groups/${grp.id}/contract-status`);
+    check('GET meter-groups/{id}/contract-status → Gruppenvertrag', (gst.contracts || [])[0]?.contract_id === gc.data.id);
+    const mst = await j(`/api/utility/strom/meters/${nt.id}/contract-status`);
+    check('contract-status eines Mitglieds → group_contract {group_id, contract_id}', mst.group_contract?.group_id === grp.id && mst.group_contract?.contract_id === gc.data.id);
+    for (const r of ['forecast', 'tariff-switch', `bill-check?from=${y}-01-01&to=${y + 1}-01-01`]) {
+      const res = await fetch(`${BASE}/api/utility/strom/meter-groups/${grp.id}/${r}`);
+      check(`GET meter-groups/{id}/${r.split('?')[0]} → 200`, res.status === 200, `Status ${res.status}`);
+    }
+    const ovl = await send('/api/utility/strom/contracts', { meter_id: ht.id, provider: 'X', start: `${y}-06-01`, working_prices: [{ from: `${y}-06-01`, ct_per_kwh: 25 }] });
+    check('eigener Vertrag eines Mitglieds im Gruppenzeitraum → 400 errors.contract.groupMemberOverlap', ovl.status === 400 && ovl.code === 'errors.contract.groupMemberOverlap');
+    // v3.1.0 (H6, MKT-12/MKT-14) — Marktpreise und Ladestrom-Nachweis
+    const mp = await j('/api/market-prices');
+    check('GET /api/market-prices → months{}, unit ct/kWh, attribution SMARD', typeof mp.months === 'object' && mp.unit === 'ct/kWh' && /SMARD/.test(mp.attribution || ''));
+    const mpDry = await fetch(`${BASE}/api/market-prices/import-csv?dry_run=1`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: `${y}-01;100\n${y}-02;80,5\n` })
+      .then(r => r.json()).then(x => x.data);
+    check('POST market-prices/import-csv?dry_run=1 → would_import, nichts geschrieben', mpDry?.would_import === 2);
+    const ev = await j(`/api/reports/ev-charging?meter_id=${encodeURIComponent(nt.id)}&year=${y}&method=flat&flat_ct=34`);
+    check('GET /api/reports/ev-charging (Pauschale) → rows[{ym,kwh,price_ct,base_share_eur,amount_eur}], total', Array.isArray(ev.rows) && ev.rows.length > 0
+      && ['ym', 'kwh', 'price_ct', 'base_share_eur', 'amount_eur'].every(k => k in ev.rows[0]) && Math.abs(ev.total.amount_eur - ev.total.kwh * 0.34) < 0.05,
+      `${ev.total?.kwh} kWh → ${ev.total?.amount_eur} €`);
+    const evCsv = await fetch(`${BASE}/api/reports/ev-charging.csv?meter_id=${encodeURIComponent(nt.id)}&year=${y}&method=flat&flat_ct=34`);
+    check('GET ev-charging.csv → text/csv, Kopf Format 1', evCsv.status === 200 && (await evCsv.text()).includes('Monat;Zaehler-ID;kWh;Preis ct/kWh;Grundpreis-Anteil;Betrag;Methode'));
+    const evPdf = await fetch(`${BASE}/api/reports/ev-charging.pdf?meter_id=${encodeURIComponent(nt.id)}&year=${y}&method=flat&flat_ct=34`);
+    check('GET ev-charging.pdf → application/pdf', evPdf.status === 200 && (evPdf.headers.get('content-type') || '').startsWith('application/pdf'));
+    // v3.1.0 (H7) — Wärmepumpe, PV-Bilanz additiv
+    const hp = await j(`/api/heat-pump?year=${y}`);
+    check('GET /api/heat-pump → year, pumps[], reference{air_water, ground_water}', hp.year === y && Array.isArray(hp.pumps) && hp.reference?.air_water === 3.4);
+    const pvs = await j('/api/pv-summary');
+    check('GET /api/pv-summary → additiv payback (null ohne Investition), hints[], yearly[].battery',
+      'payback' in pvs && Array.isArray(pvs.hints) && (pvs.yearly || []).every(r => 'battery' in r));
+    // v3.1.0 (H8) — Einordnung, Zeitreihe (Trockenlauf)
+    const cmp = await j(`/api/benchmarks/comparison?year=${y}`);
+    check('GET /api/benchmarks/comparison → year, strom{kwh,own_value,…}|null, heating[], links{}', cmp.year === y && Array.isArray(cmp.heating) && typeof cmp.links === 'object');
+    const ser = await send(`/api/utility/strom/meters/${ht.id}/import-series?dry_run=1`, {
+      csv: `Zeit;Wh\n01.02.${y + 1} 00:00;500\n01.02.${y + 1} 00:15;500\n02.02.${y + 1} 00:00;250\n`,
+      mapping: { skip_rows: 1, date_col: 0, value_col: 1, value_kind: 'consumption', unit_factor: 0.001, start_counter: 10 } });
+    check('POST meters/{id}/import-series?dry_run=1 → days, total, preview[]', ser.status === 200 && ser.data.days === 2 && Math.abs(ser.data.total - 1.25) < 1e-9 && ser.data.dry_run === true,
+      `${ser.status} ${ser.code || ''}`);
+    // aufräumen
+    await fetch(`${BASE}/api/utility/strom/contracts/${gc.data.id}`, { method: 'DELETE' });
+    for (const id of rIds) await fetch(`${BASE}/api/utility/strom/readings/${id}`, { method: 'DELETE' });
+    await fetch(`${BASE}/api/utility/strom/meter-groups/${grp.id}`, { method: 'DELETE' });
+    for (const m of [ht, nt]) await fetch(`${BASE}/api/utility/strom/meters/${m.id}`, { method: 'DELETE' });
+  }
+
+  const ocr = await fetch(`${BASE}/api/ocr/reading`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"attachment_id":"att_0000000000000000"}' });
+  check('POST /api/ocr/reading ohne eingetragenen Dienst → 400 errors.ocr.off',
+    ocr.status === 400 && (await ocr.json()).code === 'errors.ocr.off');
+
+  // v3.1.0 (I18N-12) — Jahresbericht als Daten für die Druckansicht
+  const rep = await j(`/api/reports/yearly?year=${new Date().getFullYear() - 1}`);
+  const rm = (rep.meters || [])[0];
+  check('GET /api/reports/yearly → utilities[], meters[].months/kpis, recommendations[]',
+    Number.isInteger(rep.year) && Array.isArray(rep.utilities) && rep.utilities.length > 0
+      && rm && Array.isArray(rm.months) && typeof rm.kpis?.sum === 'number' && typeof rm.unit === 'string'
+      && Array.isArray(rep.recommendations) && rep.efficiency && typeof rep.has_generation === 'boolean',
+    `${(rep.meters || []).length} Zähler`);
+  const repBad = await fetch(`${BASE}/api/reports/yearly?year=1999`);
+  const repBadBody = await repBad.json().catch(() => ({}));
+  check('GET /api/reports/yearly?year=1999 → 400 errors.report.yearRange',
+    repBad.status === 400 && repBadBody.code === 'errors.report.yearRange', `${repBad.status} ${repBadBody.code}`);
+
   // 4. efficiency shape
   const eff = await j('/api/benchmarks/efficiency?year=2024');
   check('Effizienz liefert class+kwh_per_m2',
@@ -251,8 +495,10 @@ const ROOT = require('path').resolve(__dirname, '..');
       const chained = bill.rows.slice(1).every((x, i) => x.counter_from === bill.rows[i].counter_to);
       check('bill-check: Stand neu einer Zeile = Stand alt der nächsten', chained);
     }
-    const bad = await fetch(`${BASE}/api/utility/strom/meters/x/bill-check?from=2025-01-01&to=2026-01-01`);
-    check('bill-check für Strom → 400', bad.status === 400, `Status ${bad.status}`);
+    // v3.1.0 (H5) — Strom, Wasser, Fernwärme haben die Rechnungsprüfung; Heizöl nicht
+    const bad = await fetch(`${BASE}/api/utility/heizoel/meters/x/bill-check?from=2025-01-01&to=2026-01-01`);
+    const badBody = await bad.json();
+    check('bill-check für Heizöl → 400 errors.billCheck.unsupportedUtility', bad.status === 400 && badBody.code === 'errors.billCheck.unsupportedUtility', `Status ${bad.status}`);
 
     // v2.8.0 — C1: Monatszeilen mit den neuen Feldern, Kurven der Regression,
     // Prognose mit Hinweisen und Band, Saldo nach Kalender

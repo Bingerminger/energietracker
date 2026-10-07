@@ -10,6 +10,7 @@ demo-data
 # F1007: das eine Demo-Backup muss ins Image (für den UI-Demo-Import),
 # der Rest von demo-data/ bleibt außen vor.
 !demo-data/energietracker-demo-backup.json
+!demo-data/translations.json
 tests
 # Nur das Composer-Verzeichnis im Wurzelpfad — public/vendor/ (Schriften und
 # Chart.js, seit v2.2.0 selbst gehostet) muss ins Image.
@@ -25,3 +26,6 @@ scripts
 # v3.0.0 — Bauwerkzeug und Bauergebnis der öffentlichen Demo
 tools
 dist
+deploy
+# v3.1.0 — lokaler Wissensgraph (gitignoriert) gehört nie ins Image
+graphify-out

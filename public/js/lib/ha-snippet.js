@@ -37,6 +37,59 @@ export function haRestCommandYaml(baseUrl) {
   ].join('\n');
 }
 
+/**
+ * v3.1.0 (Paket H1, API-33) — Werte zurück nach Home Assistant: REST-Sensoren
+ * auf `GET /api/summary`, eine Abfrage für alle Sensoren. Je Zähler Saldo,
+ * Prognose der nächsten 12 Monate und Tage seit der letzten Ablesung.
+ *
+ * @param {string} baseUrl
+ * @param {{key: string, name: string, unit: string, hasContract: boolean}[]} meters
+ */
+export function haRestSensorYaml(baseUrl, meters) {
+  const list = meters.length ? meters : [{ key: 'strom.m_strom_default', name: 'Strom', unit: 'kWh', hasContract: true }];
+  const pick = (key, path) => `{{ value_json.data.meters | selectattr('key', 'eq', '${key}')`
+    + ` | map(attribute='${path}', default=none) | first }}`;
+  const deviceClass = (unit) => (unit === 'kWh' ? 'energy' : 'water');
+  const lines = [
+    'rest:',
+    `  - resource: "${baseUrl}/api.php/api/summary"`,
+    `    scan_interval: 3600   # ${t('settings.ha.yaml.scanComment')}`,
+    '    headers:',
+    `      Authorization: !secret energietracker_read   # ${t('settings.ha.yaml.readKeyComment')}`,
+    '    sensor:',
+  ];
+  for (const m of list) {
+    const id = m.key.replace(/[^a-z0-9_]/gi, '_').toLowerCase();
+    if (m.hasContract) {
+      lines.push(
+        `      - name: "${m.name} – ${t('settings.ha.yaml.sensorBalance')}"`,
+        `        unique_id: energietracker_${id}_balance`,
+        `        value_template: "${pick(m.key, 'contract.balance')}"`,
+        '        device_class: monetary',
+        '        unit_of_measurement: "EUR"',
+      );
+    }
+    lines.push(
+      `      - name: "${m.name} – ${t('settings.ha.yaml.sensorForecast')}"`,
+      `        unique_id: energietracker_${id}_forecast_12m`,
+      `        value_template: "${pick(m.key, 'forecast_12m.value')}"`,
+      `        device_class: ${deviceClass(m.unit)}`,
+      `        unit_of_measurement: "${m.unit}"`,
+      `      - name: "${m.name} – ${t('settings.ha.yaml.sensorDaysSince')}"`,
+      `        unique_id: energietracker_${id}_days_since_reading`,
+      `        value_template: "${pick(m.key, 'days_since_reading')}"`,
+      '        device_class: duration',
+      '        unit_of_measurement: "d"',
+    );
+  }
+  return lines.join('\n');
+}
+
+/** Lese-Schlüssel für die Sensoren (secrets.yaml), nur bei eingeschalteter Anmeldung nötig. */
+export function haReadSecretYaml() {
+  return 'energietracker_read: "Bearer etk_…"';
+}
+
 /** Eintrag für die secrets.yaml — der ganze Header-Wert, samt „Bearer". */
 export function haSecretsYaml() {
   return 'energietracker_auth: "Bearer et_…"';

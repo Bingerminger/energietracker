@@ -33,7 +33,13 @@ Energietracker folgt einer klaren Schichtentrennung. Kernprinzip:
 
 Es gibt **keine** Datenbank. Persistenz ist eine Menge von JSON-Dateien
 unter `data/`, geschrieben mit `LOCK_EX` (exklusiver Lock), damit
-parallele Requests sich nicht zerstören. Schema-Stand: **1.6.0**.
+parallele Requests sich nicht zerstören. Schema-Stand: **1.7.0**.
+
+**Stapel (seit v3.1.0).** `JsonStore::batch(fn)` puffert alle Schreibvorgänge
+innerhalb von `fn` im Speicher — Lesen sieht sie schon —, und schreibt am Ende
+jede Datei genau einmal. Ein Sammel-Ingest mit 365 Tageswerten schreibt
+`readings.json` so einmal statt 365-mal. Wirft `fn`, wird nichts geschrieben;
+verschachtelt gilt der äußere Stapel.
 
 ---
 
@@ -45,14 +51,15 @@ energietracker/
 ├── index.php               # SPA-Shell (HTML, Favicon, Theme-Anti-Flash)
 ├── VERSION                 # einzige Quelle der Versionsnummer
 ├── public/
-│   ├── css/                # tokens, app, components
+│   ├── css/                # tokens, app, components, print (v3.1.0)
+│   ├── locales/            # Sprachkataloge <lang>.json + languages.json (s. Übersetzen)
 │   ├── img/                # App-Icon (hell/dunkel), Favicon
 │   └── js/
 │       ├── app.js          # Frontend-Einstiegspunkt
 │       ├── router.js       # Hash-Router (Token, Abbruch, Bereichs-Tabs)
 │       ├── api.js          # fetch-Wrapper (BASE = 'api.php', Zeitlimit)
 │       ├── state.js        # Utilities-/Settings-Cache, saveSettings()
-│       ├── lib/            # nav-model, sidebar, mobile-nav, theme, format, contrast …
+│       ├── lib/            # nav-model, sidebar, mobile-nav, theme, format, contrast, outbox, photo …
 │       ├── components/     # chart, modal, toast
 │       └── views/          # 15 Ansichten (s. UI-Referenz)
 ├── src/
@@ -61,11 +68,12 @@ energietracker/
 │   ├── Config/Countries.php# Länderprofile (v2.7.0) — single source of truth
 │   ├── Http/               # Router, Request, Response, ErrorHandler, CrossSiteGuard
 │   ├── Storage/            # JsonStore, Migrator, WriteLock
-│   ├── Support/            # Dates, Encoding
+│   ├── Support/            # Dates, Encoding, LocalizedException
 │   ├── Services/           # Fachlogik (+ Pdf/PdfWriter)
 │   └── Controllers/        # je Klasse eine Datei (PSR-1)
 ├── data/                   # Laufzeitdaten (nicht im VCS)
 ├── demo-data/              # vollständiger Beispieldatensatz (8 Arten)
+├── deploy/                 # Vorlagen für Unraid, CasaOS, Umbrel (v3.1.0)
 ├── docs/                   # dieses Kompendium
 ├── tests/                  # Test-Harnesses
 ├── tools/build-demo.mjs    # öffentliche Demo bauen (v3.0.0, s. § 8)
@@ -113,9 +121,11 @@ und kennt **kein HTTP**.
 |---|---|
 | `SettingsService` | Settings lesen/mergen, Typ-Casts; Defaults in `DEFAULTS`; je Datenstand zwischengespeichert (v2.6.0) |
 | `ConversionFactorService` | datierte Gas-Faktoren (F1012), tagesgenau |
-| `I18nService` | Kataloge, `t()`, Sprache aus Einstellung bzw. `Accept-Language`; ordnet Meldungen ihrem Fehlercode zu (v2.6.0) |
+| `I18nService` | Kataloge, `t()`, `tp()` (Pluralregeln `PLURAL_RULES`, v3.1.0), Typografie der Ausgabe, Zahlen und Daten über `format.*`; Sprache je Anfrage seit v3.1.0 in der Reihenfolge `X-ET-Language` (Gerät) → Einstellung `language` → `Accept-Language` (gesetzt in `App::handle()`); `installationLocale()` für PDF und CSV; ordnet Meldungen ihrem Fehlercode zu (v2.6.0) — [Übersetzen](uebersetzen.md) |
 | `MeterService` | CRUD Zähler/Tanks, Gerätetausch, Topologie (Subzähler/Gruppen, F1006) + `external_id`-Alias (F1009); `countsInTotals()`/`inService()`: ein Zähler außer Betrieb zählt in Summen, nicht in Erfassung und Warnungen (v2.9.0) |
-| `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device; Erfassungsübersicht mit typischem Tagesverbrauch; Sammel-Upsert für den CSV-Import (v2.6.0) |
+| `ReadingService` | CRUD Ablesungen, Auto-Zuordnung zum aktiven Device; Erfassungsübersicht mit typischem Tagesverbrauch; Sammel-Upsert für den CSV-Import (v2.6.0); seit v3.1.0 `client_ref` (kein Doppel beim Nachsenden) und `attachment_id` (Foto) |
+| `AttachmentService` | **(v3.1.0)** Belege: Fotos und PDFs unter `data/attachments/`, Index `attachments.json`; Typ aus den ersten Bytes, Grenzen je Datei und gesamt, Verweis auf den Datensatz, Aufräumen verwaister Belege nach 24 h |
+| `OcrService` | **(v3.1.0)** Texterkennung über einen eigenen Dienst im Heimnetz (Ollama oder OpenAI-kompatibel); prüft bei jedem Aufruf, dass jede Adresse lokal ist, und verbindet mit genau der geprüften (`CURLOPT_RESOLVE`), ohne Weiterleitungen |
 | `ContractService` | CRUD Verträge, strikte Validierung, Stichtag-Lookup; seit v2.9.0 tagesgenaue Abschnitte (`segmentsBetween`), weiterlaufender Vertrag (`resolveForDate`), Kündigungsstichtag (`switchTiming`) |
 | `ConsumptionService` | Monatsaggregation (kumulativ **und** lieferbasiert), Saldo nach Kalender, Heizmodell und Wetterbereinigung (v2.8.0); Verträge tagesgenau mit `contract_parts` (v2.9.0); delegiert die Liefer-Tagesverteilung an `DeliveryConsumptionService`; seit v2.6.0 Plausibilität (Ausreißer, Verdacht, Überlauf) mit `warnings` |
 | `DeliveryConsumptionService` | **(seit v1.4.4)** Heizöl/Pellets — aus `ConsumptionService` extrahiert; seit v2.10.0 Tankbuch (`tankModel()`): Stützstellen, eine Rechnung für Verbrauch, Kosten und Bestand, Klimanormal für fehlende Tage |
@@ -132,17 +142,40 @@ und kennt **kein HTTP**.
 | `RecommendationService` | 7 statistische Regelfamilien, Dismiss-State |
 | `ReminderService` | Termine/Wartung, Recurrence-Fortschreibung |
 | `PdfReportService` + `Pdf\PdfWriter` | Jahresbericht, eigener PDF-Generator |
-| `BackupService` | Export/Import Format 3.0 mit Prüfung vor dem Schreiben und Rückweg; Snapshots (Liste, Download, Einspielen, Rotation) |
+| `BackupService` | Export/Import Format 3.0 mit Prüfung vor dem Schreiben und Rückweg; Snapshots (Liste, Download, Einspielen, Rotation); seit v3.1.0 mit Belegen (`attachment_files`, geprüft gegen `sha256`), Export und Snapshot gestreamt |
 | `MigrationService` | v0.9.0-Import (Preview + Apply) |
-| `ReadingImportService` | CSV-Bulk-Import von Ablesungen |
-| `CsvExportService` | tabellarischer Export (inkl. Lieferungen) |
+| `ReadingImportService` | CSV-Bulk-Import von Ablesungen; seit v3.1.0 Kopfzeilen aller Sprachen und Datum über `Support\Dates::parseUserDate()` |
+| `CsvExportService` | tabellarischer Export (inkl. Lieferungen); seit v3.1.0 Format 1 (eingefroren) und „local“ in der Standardsprache — [CSV-Formate](../referenz/api.md#csv-formate-v310) |
 | `DiagnosticsService` | Systemstatus, Schreibrechte, Datenzählung |
 | `HealthCheckService` | `/api/health`: `status` ok/degraded/error, Prüfungen (Schreibrechte, Schema, Dateien, Platz, Temp-Dateien), letzter Ingest — N1003, v2.6.0 |
 | `DemoService` | Ein-Klick-Demo-Import über den Restore-Pfad — F1007 |
 | `DemoDataAligner` | schreibt die Demo-Daten beim Import bis heute fort: Stände ab dem letzten Stand je Zähler mit dem Verbrauch des Vorjahreszeitraums, Lieferungen und Temperaturen wie im Vorjahr, Termine relativ zu heute — reine Funktion (v3.0.0) |
+| `DemoDataTranslator` | übersetzt die beschreibenden Texte der Demo-Daten (Namen, Notizen, Tarife, Termine) aus `demo-data/translations.json` in die Sprache der Oberfläche; Firmennamen, IDs und Zahlen bleiben — reine Funktion (v3.1.0) |
 | `PvSummaryService` / `StromSaldoService` | PV-Eigenverbrauch/Autarkie bzw. Strom-Saldo — F1005; seit v2.10.0 Quoten über gemeinsam abgedeckte Monate und Ersparnis durch Eigenverbrauch |
 | `AuthService` | Anmeldung (Passwort, Proxy, Sitzungen, Sperre), API-Schlüssel und HA-Token — nur Hashes in `data/auth.json` (F1009, v2.6.0) |
-| `IngestService` | idempotenter Push-Eingang (`/api/ingest`, upsert-by-date) — F1009 |
+| `IngestService` | idempotenter Push-Eingang (`/api/ingest`, upsert-by-date) — F1009; seit v3.1.0 Stapel (`ingestMany()`, bis 500 Einträge, sortiert nach Verbrauchsart, Zähler und Datum, ein Schreibvorgang je Datei über `JsonStore::batch()`) |
+| `AgendaService` | **(v3.1.0)** Fristen und Termine aus einer Quelle: Termine, fällige Ablesungen, Kündigungsstichtag, Vertragsende, Ende der Preisgarantie, Preiserhöhung, Bestand niedrig. Je Ereignis `uid`, `kind`, `date`, `severity`, `due_now`; `due_now` füllt „Zu tun“ im Dashboard |
+| `CalendarService` | **(v3.1.0)** Kalender-Abo nach RFC 5545 aus der Agenda (365 Tage): ganztägig, UID `<art>-<id>@<instance_id>`, VALARM nach `reminder_warn_days_before`, Texte in der Standardsprache der Installation |
+| `SummaryService` | **(v3.1.0)** Kennzahlen für Home Assistant und Skripte (`/api/summary`, `summary_version` 1): je Zähler Stand, Verbrauch, Vertrag, Prognose, Tank; dazu PV und Agenda. Jeder Schlüssel ist immer da (Wert oder null) |
+| `InstanceService` | **(v3.1.0)** Kennung der Installation (`et_` + 16 Hex) in `data/instance.json`, beim ersten Bedarf angelegt; Teil der Kalender-UIDs und der Antwort von `/api/summary`. Bewusst nicht im Backup — nach einem Restore hätten sonst zwei Installationen dieselbe Kennung |
+| `PeriodService` | **(v3.1.0)** Verbrauch je Zeitraum (`<art>/periods.json`): anlegen, ändern, CSV-Import und -Export; die Verteilung auf die Monate übernimmt `ConsumptionService` |
+| `TenancyService` | **(v3.1.0)** Mietverhältnis (`tenancies.json`) und Nebenkostenabrechnungen (`tenancy_statements.json`) mit Belegen; Übernahme von Preisen und Vorauszahlung in das Mietverhältnis |
+| `TenancyBudgetService` | **(v3.1.0)** Hilfsrechnung: erwartete Kosten des laufenden Abrechnungszeitraums gegen die Vorauszahlung, Monat für Monat gemessen oder geschätzt |
+| `Co2CostService` | **(v3.1.0)** CO₂-Preis im Brennstoff (BEHG) je Art und Jahr — Ausweis, kein Aufschlag; Quelle Rechnung, Netzfaktor oder Standardfaktor; Stufe nach CO2KostAufG |
+| `Co2SplitService` | **(v3.1.0)** CO₂-Kosten zwischen Mieter und Vermieter (CO2KostAufG): selbst ausrechnen (Etagenheizung) oder Heizkostenabrechnung prüfen (Zentralheizung); Anschreiben als PDF |
+| `BillService` | **(v3.1.0)** Versorgerrechnungen (`<art>/bills.json`): erfassen, mit `billBreakdown()` vergleichen, Ergebnis als Sonderzahlung buchen |
+| `MarketPriceService` | **(v3.1.0)** Großhandelspreise Strom als Monatsmittel (`market_prices.json`): Datei-Import, Abruf von SMARD nur auf Knopfdruck, Übersetzung eines dynamischen Schattenvertrags in Monatspreise (`expand()`) |
+| `EvChargingReportService` | **(v3.1.0)** Ladestrom-Nachweis der Wallbox je Monat: Vertragspreis des zahlenden Vertrags samt Grundpreis-Anteil oder Strompreispauschale (Länderprofil), PDF über `Pdf\PdfWriter` |
+| `HeatPumpService` | **(v3.1.0)** Jahresarbeitszahl: Wärme des Zählers mit Rolle `heat_pump_output` ÷ Strom der verknüpften Zähler, nur Monate mit beiden Seiten |
+| `SeriesImportService` | **(v3.1.0)** Zeitreihen aus Portalen mit Spaltenzuordnung zu Tageswerten verdichten — als Ablesungen (über `ReadingImportService`) oder Zeiträume (über `PeriodService`) |
+| `ReferenceService` | **(v3.1.0)** Einordnung an eigenen Vergleichswerten: Haushaltsstrom ohne Wärmepumpe und Wallbox, Heizung je m², Links zur Selbstprüfung (nur DE) |
+
+Seit v3.1.0 kennt `ConsumptionService` außerdem den **Gruppenvertrag**
+(`contractScope()`, `computeForGroup()`, `contractView()` für den Mischpreis),
+das reduzierte Netzentgelt nach § 14a EnWG, Gutschriften des Direktvermarkters
+und den Vorher/Nachher-Vergleich ohne Heizkurve; `MeterService::groupTarget()`
+macht eine Gruppe zum Ziel der Auswertungen, `PvSummaryService` rechnet
+Speicher, Amortisation und die Annahme für ein Balkonkraftwerk.
 
 ---
 
@@ -160,7 +193,16 @@ Jeder Controller ist `final`, eine Klasse pro Datei. Methoden geben
 `ExportController`, `BackupController`, `MigrationController`,
 `DiagnosticsController`, `HealthController`, `DemoController`,
 `PvSummaryController`, `StromSaldoController`, `AuthController`,
-`IngestController`, `SessionController`.
+`IngestController`, `SessionController`, `ManifestController` (v3.1.0:
+Web-App-Manifest in der Sprache des Geräts), `AgendaController` (v3.1.0:
+`/api/agenda`, `/api/calendar.ics`, `/api/summary`), `AttachmentController`
+(v3.1.0: Belege und Texterkennung), `PeriodController`, `TenancyController`,
+`Co2Controller`, `BillController` (alle v3.1.0), `MarketPriceController`
+(`/api/market-prices`), `EvChargingController` (`/api/reports/ev-charging…`),
+`HeatPumpController` (`/api/heat-pump`), `SeriesImportController`
+(`…/import-series`, alle v3.1.0). Die Einordnung liegt im
+`BenchmarkController`, der Monatspreis-Import im `ContractController`, die
+Auswertungen einer Zählergruppe in denselben Controllern wie die eines Zählers.
 
 *(Hinweis: Gruppen-Endpoints aus F1006 liegen im `MeterController`,
 Auth/Ingest aus F1009 in `AuthController`/`IngestController`, Anmeldung und
@@ -170,8 +212,10 @@ API-Schlüssel (v2.6.0) im `SessionController`.)*
 `bootstrap.php` Hostnamen (`ET_ALLOWED_HOSTS`), fremde Browser-Anfragen
 (`CrossSiteGuard`) und — bei eingeschalteter Anmeldung — Sitzung,
 API-Schlüssel oder Proxy-Benutzer. Öffentlich bleiben Ingest, Health (in
-Minimalform) und die Anmeldung selbst. Details:
-[Sicherheit](../betrieb/sicherheit.md).
+Minimalform) und die Anmeldung selbst. Das Kalender-Abo (v3.1.0) nimmt
+zusätzlich einen Schlüssel des Bereichs `calendar` als `?token=…` an — nur
+dort und nur so; ein Lese- oder Admin-Schlüssel im Link wird abgelehnt.
+Details: [Sicherheit](../betrieb/sicherheit.md).
 
 Die vollständige Routen-Liste steht in der
 [API-Referenz](../referenz/api.md).
@@ -185,9 +229,10 @@ Die vollständige Routen-Liste steht in der
 | Exception | HTTP | Bedeutung |
 |---|---|---|
 | `InvalidArgumentException` | 400 | ungültige Eingabe |
+| `Support\LocalizedException` | 400 | ungültige Eingabe aus Code ohne `I18nService` (statische Helfer wie `Utilities::get()`): trägt Katalogschlüssel und Parameter, der ErrorHandler übersetzt in die Sprache der Anfrage und meldet den Schlüssel als `code` (v3.1.0) |
 | `Http\NotFoundException` | 404 | Ressource fehlt (seit v2.2.1 als Typ statt Textmuster; seit v2.6.0 auch für Datensätze in der URL) |
 | `Http\ConflictException` | 409 | Konflikt, z. B. Sicherungs-Snapshot gescheitert (v2.6.0) |
-| `Storage\StorageCorruptedException` | 503 | Datendatei beschädigt (v2.5.3) |
+| `Storage\StorageCorruptedException` | 503 | Datendatei beschädigt (v2.5.3); seit v3.1.0 übersetzt der ErrorHandler die Meldung (`errors.storage.<art>`), `code` bleibt `errors.storage.corrupted` |
 | sonstige | 500 | unerwarteter Fehler — generische Meldung mit `error_id`, Einzelheiten im Log (v2.6.0) |
 
 Antwort-Hülle einheitlich:
@@ -241,10 +286,40 @@ Abbruchsignal und einen eigenen Container im `#view`:
 - `#/pfad?schlüssel=wert` reicht die Query als `ctx.query` an die Ansicht:
   `render(container, params, ctx)`.
 
+**Sprache.** `lib/i18n.js` lädt den Katalog der Sprache dieses Geräts
+(`localStorage` `et-language`, sonst die Einstellung `language`) und übersetzt
+mit `t()` und `tp()`; `api.js` schickt die Sprache bei jeder Anfrage als
+`X-ET-Language` mit, damit die Texte der API dazu passen (v3.1.0). Zahlen,
+Beträge und Daten formatiert `lib/format.js` über `Intl` nach Sprache und
+Land. Aufbau, Stilregeln und Checklisten: [Übersetzen](uebersetzen.md).
+
 **Einstellungen** schreiben die Ansichten über `state.saveSettings(patch)`:
 PATCH, Zwischenspeicher aktualisieren, Ereignis `et:settingschange`. Die
 Seitenleiste baut sich bei geänderten `active_utilities` neu auf. Nach
 Demo-Daten, Import oder Wiederherstellung lädt die App komplett neu.
+
+**„Zu tun“ (seit v3.1.0)** setzt das Dashboard nicht mehr selbst zusammen,
+sondern zeigt die Ereignisse aus `GET /api/agenda` mit `due_now`. Kalender-Abo
+und Home Assistant lesen dieselbe Agenda — eine Regel für alle drei.
+
+**Service Worker (seit v3.1.0 je Installation).** Die Caches tragen den Scope
+der Installation im Namen: `et:<scope>:static-<version>` und
+`et:<scope>:runtime-<version>`. Beim Aktivieren löscht der Worker nur Caches
+mit dem eigenen Präfix (und einmalig die alten Namen ohne Scope); die
+Selbstheilung in `index.php` (Cache-Version ≠ Shell-Version → Caches leeren,
+Worker abmelden, neu laden) sieht nur die eigenen Caches und meldet nur den
+Worker ab, dessen Scope der Pfad dieser Installation ist. Bis v3.0 räumte
+jede Installation alles ab, was nicht ihren Namen trug — bei zwei
+Installationen auf einem Ursprung (zwei Instanzen auf derselben NAS unter
+verschiedenen Pfaden) gegenseitig, unter Home-Assistant-Ingress auch Caches
+und Worker von Home Assistant.
+
+**Home-Assistant-Ingress (v3.1.0).** Kommt die Seite mit der Kopfzeile
+`X-Ingress-Path`, registriert `index.php` keinen Service Worker (Scope und
+Caches gehören dort Home Assistant; offline gibt es unter Ingress nicht) und
+nennt den Hostnamen des Containers in `<meta name="et-ingress-host">`. Die
+Home-Assistant-Vorlage in den Einstellungen nimmt dann `http://<Hostname>`
+als Adresse statt der Ingress-Adresse aus der Adresszeile.
 
 **Dialoge** legen beim Öffnen einen History-Eintrag an: Die Zurück-Taste
 schließt den obersten Dialog statt die Seite. Schließt er anders, nimmt er

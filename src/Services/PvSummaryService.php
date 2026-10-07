@@ -24,6 +24,7 @@ final class PvSummaryService
 {
     public function __construct(
         private ConsumptionService $consumption,
+        private ?SettingsService $settings = null,   // v3.1.0 (H7)
     ) {}
 
     /**
@@ -58,12 +59,26 @@ final class PvSummaryService
         $collect($einspeisung, 'einspeisung_kwh');
         $collect($erzeugung,   'erzeugung_kwh');
         $prices = $this->bezugPrices($strom);
+        // v3.1.0 (H7, CALC-29) — Balkonkraftwerk ohne Einspeisezähler: Eigenverbrauch
+        // nach der Einstellung pv_assumed_self_consumption_pct (leer = wie bisher)
+        $genMeters = array_map(fn($pm) => $pm['meter'] ?? [], $erzeugung['meters'] ?? []);
+        $pct = $this->settings?->get('pv_assumed_self_consumption_pct');
+        $plugInPct = is_numeric($pct) && array_filter($genMeters, fn($m) => !empty($m['plug_in'])) && empty($einspeisung['meters'] ?? [])
+            ? (float)$pct : null;
 
         foreach ($byYm as $ym => &$row) {
             // Quoten nur, wo alle drei Zähler Daten haben: Ein Erzeugungszähler
             // ab Juli ergab bis v2.9 für das Jahr „Eigenverbrauch 0, Autarkie 0"
-            $row['covered'] = count($seen[$ym] ?? []) === 3;
+            $assumed = $plugInPct !== null && !empty($seen[$ym]['erzeugung_kwh']) && !empty($seen[$ym]['bezug_kwh']);
+            $row['covered'] = $assumed || count($seen[$ym] ?? []) === 3;
             $this->enrichRow($row);
+            if ($assumed) {
+                $eigen = round($row['erzeugung_kwh'] * $plugInPct / 100, 1);
+                $row['eigenverbrauch_kwh'] = $eigen;
+                $row['eigenverbrauchsquote'] = $row['erzeugung_kwh'] > 0.1 ? round($plugInPct / 100, 4) : null;
+                $row['autarkiequote'] = ($eigen + $row['bezug_kwh']) > 0.1 ? round($eigen / ($eigen + $row['bezug_kwh']), 4) : null;
+                $row['self_consumption_assumed'] = true;
+            }
             if (!$row['covered']) {
                 $row['eigenverbrauch_kwh'] = null;
                 $row['eigenverbrauchsquote'] = null;
@@ -106,7 +121,9 @@ final class PvSummaryService
             }
             unset($y);
         }
+        $battery = $this->batteryByYear($erzeugung);
         foreach ($yearly as &$y) {
+            $y['battery'] = $battery[$y['year']] ?? null;   // v3.1.0 (H7) — Speicher, nur mit Speicherrollen
             $covered = $y['months_covered'] > 0;
             $y['eigenverbrauch_kwh']   = $covered ? round($y['_ev'], 1) : null;
             $y['eigenverbrauchsquote'] = $covered && $y['_erz'] > 0.1 ? round($y['_ev'] / $y['_erz'], 4) : null;
@@ -120,10 +137,97 @@ final class PvSummaryService
         unset($y);
         ksort($yearly);
 
+        $payback = $this->payback($genMeters, $monthly);
+        $since = $payback['commissioned_on'] ?? null;
+        foreach ($genMeters as $m) if (!empty($m['commissioned_on']) && ($since === null || $m['commissioned_on'] < $since)) $since = $m['commissioned_on'];
         return [
             'monthly'              => $monthly,
             'yearly'               => array_values($yearly),
             'has_generation_meter' => $hasErz,
+            // v3.1.0 (H7, CALC-29) — additiv
+            'payback'              => $payback,
+            'self_consumption_assumed_pct' => $plugInPct,
+            'hints'                => $since !== null && $since >= '2025-02-25'
+                && (string)($this->settings?->get('country', 'DE') ?? 'DE') === 'DE' ? ['negative_prices'] : [],
+        ];
+    }
+
+    /**
+     * v3.1.0 (H7, CALC-29) — Speicher je Jahr aus den Zählern mit den Rollen
+     * battery_charge und battery_discharge: geladen, entladen, Verluste,
+     * Wirkungsgrad, Vollzyklen (nur mit battery_capacity_kwh am Ladezähler).
+     * Die Quoten für Eigenverbrauch und Autarkie ändern sich dadurch nicht.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    private function batteryByYear(array $erzeugung): array
+    {
+        $acc = []; $capacity = 0.0;
+        foreach ($erzeugung['meters'] ?? [] as $pm) {
+            $role = \Energietracker\Config\Utilities::roleOf('pv_erzeugung', $pm['meter'] ?? []);
+            if (!in_array($role, ['battery_charge', 'battery_discharge'], true)) continue;
+            if ($role === 'battery_charge') $capacity += (float)($pm['meter']['battery_capacity_kwh'] ?? 0);
+            foreach ($pm['monthly'] ?? [] as $m) {
+                $yr = (int)($m['year'] ?? 0);
+                $acc[$yr][$role] = ($acc[$yr][$role] ?? 0.0) + (float)($m['kwh'] ?? 0);
+            }
+        }
+        $out = [];
+        foreach ($acc as $yr => $v) {
+            $in = (float)($v['battery_charge'] ?? 0); $outKwh = (float)($v['battery_discharge'] ?? 0);
+            $out[$yr] = [
+                'charged_kwh'    => round($in, 1),
+                'discharged_kwh' => round($outKwh, 1),
+                'losses_kwh'     => $in > 0 && $outKwh > 0 ? round($in - $outKwh, 1) : null,
+                'efficiency_pct' => $in > 0 && $outKwh > 0 ? round($outKwh / $in * 100, 1) : null,
+                'full_cycles'    => $capacity > 0 ? round($in / $capacity, 1) : null,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * v3.1.0 (H7, CALC-29) — Amortisation, wenn am Erzeugungszähler eine
+     * Investition steht: Nutzen = vermiedener Bezug + Einspeiseerlös seit der
+     * Inbetriebnahme; ist die Investition noch nicht zurück, die Hochrechnung mit
+     * dem Nutzen der letzten zwölf Monate. Ohne Investition null.
+     *
+     * @return array<string,mixed>|null
+     */
+    private function payback(array $genMeters, array $monthly): ?array
+    {
+        $inv = 0.0; $since = null;
+        foreach ($genMeters as $m) {
+            if (!isset($m['investment_eur']) || !is_numeric($m['investment_eur'])) continue;
+            $inv += (float)$m['investment_eur'];
+            $c = (string)($m['commissioned_on'] ?? '');
+            if ($c !== '' && ($since === null || $c < $since)) $since = $c;
+        }
+        if ($inv <= 0) return null;
+        $sinceYm = $since !== null ? substr($since, 0, 7) : null;
+        $cum = 0.0; $series = []; $breakEven = null;
+        foreach ($monthly as $row) {
+            if ($sinceYm !== null && $row['ym'] < $sinceYm) continue;
+            $benefit = (float)($row['savings_eur'] ?? 0) + (float)($row['feed_in_revenue_eur'] ?? 0);
+            $cum += $benefit; $series[] = $benefit;
+            if ($breakEven === null && $cum >= $inv) $breakEven = (string)$row['ym'];
+        }
+        $last = array_slice($series, -12);
+        $perYear = $last !== [] ? array_sum($last) * 12 / count($last) : null;
+        $projected = false;
+        if ($breakEven === null && $perYear !== null && $perYear > 0 && $monthly !== []) {
+            $left = (int)ceil(($inv - $cum) / ($perYear / 12));
+            $breakEven = date('Y-m', (int)strtotime(end($monthly)['ym'] . "-01 +$left months"));
+            $projected = true;
+        }
+        return [
+            'investment_eur'      => round($inv, 2),
+            'commissioned_on'     => $since,
+            'benefit_to_date_eur' => round($cum, 2),
+            'avg_benefit_12m_eur' => $perYear !== null ? round($perYear, 2) : null,
+            'years_to_break_even' => $perYear !== null && $perYear > 0 ? round($inv / $perYear, 1) : null,
+            'break_even_ym'       => $breakEven,
+            'break_even_projected' => $projected,
         ];
     }
 

@@ -38,7 +38,8 @@ final class ReadingController
     public function create(Request $req): never
     {
         $r = $this->readings->create($req->param('utility'), (array)$req->body);
-        Response::json($r, 201);
+        // v3.1.0 (FE-32) — schon mit derselben client_ref angelegt: 200 statt 201
+        Response::json($r, !empty($r['duplicate']) ? 200 : 201);
     }
 
     public function update(Request $req): never

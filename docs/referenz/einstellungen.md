@@ -21,7 +21,7 @@ Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `language` | `de` | Sprache | Sprache der Oberfläche: de, en, fr, it, es, pt, nl. Karte „Sprache & Land“. |
+| `language` | `de` | Standardsprache der Installation | de, en, fr, it, es, pt, nl. Gilt für Geräte ohne eigene Wahl, für Jahresbericht und CSV-Dateien, für Meldungen an Home Assistant und Skripte. Seit v3.1.0 wählt jedes Gerät daneben seine eigene Sprache („Sprache auf diesem Gerät“, im Browser gespeichert); die App schickt sie als `X-ET-Language`, Bezeichnungen und Meldungen der API folgen ihr. |
 | `country` | `DE` | Land | Land (ISO-Code). Ein Wechsel bietet an, das Länderprofil zu übernehmen — siehe [Länderprofile](../verstehen/14-laenderprofile.md). |
 | `currency` | `EUR` | Währung | Währung (ISO-Code) für die Anzeige; es wird nichts umgerechnet. |
 | `timezone` | `Europe/Berlin` | Zeitzone | Zeitzone für „heute“, Stichtage und Erinnerungen. |
@@ -50,10 +50,39 @@ Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `wohnflaeche_m2` | 100 | Wohnfläche | Beheizte Fläche — Nenner der Effizienzkennzahl. |
+| `wohnflaeche_m2` | 100 | Wohnfläche | Beheizte Fläche — Nenner der Effizienzkennzahl. Seit v3.1.0 auch Fläche für die CO₂-Stufe ([CO₂-Preis](../verstehen/16-co2-preis.md)); zur Miete geht die Wohnfläche aus dem Mietverhältnis vor. |
 | `gebaeudetyp` | `efh` | Gebäudetyp | Mehrfamilienhaus heißt: ab drei Wohnungen. Werte: `efh` Ein-/Zweifamilienhaus, `rh` Reihenhaus, `mfh` Mehrfamilienhaus, `whg` Wohnung. Bestimmt die Bezugsfläche der energieausweis-nahen Kennzahl. |
 | `beheizter_keller` | aus | Beheizter Keller | Ein-/Zweifamilien- oder Reihenhaus mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2) — für die Kennzahl nach Energieausweis. |
 | `warmwasser_dezentral` | aus | Warmwasser dezentral | Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält 20 kWh/m²·a Zuschlag. |
+
+### Wohnen und Warmwasser *(v3.1.0)*
+
+Wer zur Miete wohnt, bekommt unter Kosten die Seite „Mietverhältnis“; der
+Energieträger bestimmt den CO₂-Wert der Heizwärme. Für Mieter Schritt für
+Schritt: [Als Mieter](../anleitungen/mieter.md); die Rechnung:
+[Heizwärme](../verstehen/15-waerme.md).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `wohnverhaeltnis` | `eigentum` | Ich wohne | „im Eigentum“ (`eigentum`) oder „zur Miete“ (`miete`). Zur Miete: Unter Kosten & Verträge erscheint die Seite „Mietverhältnis“ (Vorauszahlung, Hilfsrechnung, Nebenkostenabrechnungen), und Agenda und Kalender kennen die beiden Fristen der Nebenkostenabrechnung. In Deutschland teilt die App außerdem die CO₂-Kosten zwischen Mieter und Vermieter auf ([CO₂-Kosten teilen](../anleitungen/co2-aufteilung.md)). Im Eigentum ändert sich nichts. |
+| `waerme_energietraeger` | leer | Heizwärme kommt aus | Für den CO₂-Wert der Verbrauchsart Heizwärme – eine Näherung, denn gezählt wird die Wärme, nicht der Brennstoff. Werte: `gas`, `heizoel`, `pellets`, `fernwaerme`, `strom` (Wärmepumpe, Durchlauferhitzer) oder leer („keine Angabe“) — dann ist der CO₂-Wert 0. Gerechnet wird mit dem CO₂-Faktor dieses Energieträgers (Strom je Jahr). |
+| `warmwasser_energietraeger` | leer | Warmwasser wird erwärmt mit | Womit das Warmwasser erwärmt wird: dieselben Werte und zusätzlich `waerme` („Heizwärme (zentral)“). Nur zur Information; die Rechnung ändert sich dadurch nicht. |
+| `warmwasser_temp_c` | 60 | Warmwassertemperatur | Für die Wärme der Warmwasserzähler nach HeizkostenV § 9 Abs. 2: 2,5 kWh je m³ und Grad über 10 °C (30–90 °C). Unbekannt: 60 °C — dann ist 1 m³ Warmwasser 125 kWh. Wirkt nur auf Wasserzähler mit der Rolle „Warmwasser“. |
+
+### Eigene Vergleichswerte *(v3.1.0)*
+
+Für die Karte „Einordnung {Jahr}“ auf der Übersicht. Die App liefert keine
+Tabellen aus Strom- oder Heizspiegel mit — deren Nutzung verlangt eine
+Genehmigung —; du trägst die Werte ein, die dir etwa der Stromspiegel für
+deinen Haushalt nennt. Leer = keine Einordnung
+([API](api.md#einordnung-get-apibenchmarkscomparison-v310)).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `reference_strom_kwh` | leer (`null`) | Vergleichswert Haushaltsstrom | kWh im Jahr (0–100000), ohne Wärmepumpe und Wallbox. Die App stellt den Haushaltsstrom eines vollen Jahres daneben — alle Stromzähler ohne die Rollen Wärmepumpe und Wallbox — und nennt die Abweichung in %. |
+| `reference_heat_kwh_m2` | leer (`null`) | Vergleichswert Heizung | kWh je m² Wohnfläche und Jahr (0–1000). Verglichen wird je Heizart, witterungsbereinigt, wo es das Heizmodell gibt. Der Heizspiegel rechnet mit dem ganzen Gebäude; für eine Wohnung ist das nur ein Anhaltspunkt. |
+| `reference_source` | leer | Quelle | Text bis 120 Zeichen, etwa Titel und Jahrgang; steht unter der Einordnung. |
+| `warmwasser_elektrisch` | aus | Warmwasser mit Strom | Durchlauferhitzer oder elektrischer Boiler. Der Stromspiegel unterscheidet danach; die App gibt die Angabe mit der Einordnung aus, rechnet aber nicht damit. |
 
 ### Wasser-Referenzwerte
 
@@ -70,7 +99,7 @@ Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `active_utilities` | `gas, strom, wasser` | Aktive Verbrauchsarten | Welche Verbrauchsarten Menü und Auswertungen zeigen. Abgewählte behalten ihre Daten. |
+| `active_utilities` | `gas, strom, wasser` | Aktive Verbrauchsarten | Welche Verbrauchsarten Menü und Auswertungen zeigen. Abgewählte behalten ihre Daten. Seit v3.1.0 gibt es neun; die neue Heizwärme (`waerme`) ist nicht standardmäßig aktiv — wer sie braucht, wählt sie hier. |
 
 ### Abrechnungszyklus
 
@@ -109,6 +138,13 @@ Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 | `co2_fernwaerme` | 280 | CO₂ Fernwärme | BAFA-Pauschale. Genauer ist der Wert Ihres Wärmenetzes — er steht beim Versorger. Früherer Standard 180. |
 | `co2_heizoel` | 266 | CO₂ Heizöl | BAFA, bezogen auf den Heizwert — so, wie die App Heizöl rechnet. |
 | `co2_pellets` | 36 | CO₂ Pellets | BAFA, CO₂-Äquivalente einschließlich Vorkette. Früherer Standard 26. |
+| `co2_pv_avoided` | leer (`null`) | CO₂ vermieden durch PV | *(v3.1.0)* Eigener Vermeidungsfaktor in g/kWh (0–2000) für PV-Erzeugung und -Einspeisung. Leer = Strommix wie bei „CO₂ Strom“ (bisheriges Verhalten). Einen Wert schlägt die App nicht vor; einen Anhaltspunkt gibt die Emissionsbilanz erneuerbarer Energieträger des Umweltbundesamts. |
+
+### Photovoltaik *(v3.1.0)*
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `pv_assumed_self_consumption_pct` | leer (`null`) | Eigenverbrauch angenommen | Anteil der Erzeugung in % (0–100), den der Haushalt selbst nutzt — für ein Balkonkraftwerk ohne Einspeisezähler. Wirkt nur, wenn ein Erzeugungszähler als Balkonkraftwerk markiert ist und es keinen Einspeisezähler gibt: Dann ist der Eigenverbrauch Erzeugung × Anteil. Leer = keine Annahme, keine Quote ([PV](../verstehen/12-pv.md#8-balkonkraftwerk-v310)). |
 
 ## Einstellungen → Wetterdaten
 
@@ -131,6 +167,30 @@ Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 
 ## Einstellungen → Experte
 
+Oben stehen seit v3.1.0 die Gruppen „Belege“ und „Texterkennung im Heimnetz“;
+die Rechenparameter (Regression & Prognose, Empfehlungen & Verteilung, seit
+v3.1.0 CO₂-Preis) liegen darunter eingeklappt hinter „Rechenparameter
+anzeigen“.
+
+### Belege *(v3.1.0)*
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `attachments_max_mb` | 500 | Speicher für Belege, höchstens | Obergrenze für alle Belege zusammen (Fotos, PDFs) in MB, 10–100000. Ist sie erreicht, lehnt die App neue Belege ab. Ab 80 % warnt die Backup-Karte unter Einstellungen → Daten. Ein einzelnes Foto darf höchstens 3 MB haben, ein PDF 10 MB. |
+
+### Texterkennung im Heimnetz *(v3.1.0)*
+
+Liest den Zählerstand aus einem Foto über einen eigenen Dienst wie Ollama oder
+LM Studio — nur im eigenen Netz. Einrichtung:
+[Texterkennung im Heimnetz](../anleitungen/texterkennung.md).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `ocr_endpoint` | leer | Adresse des Dienstes | Basisadresse mit `http://` oder `https://`, etwa `http://192.168.178.20:11434` (Ollama) oder `http://192.168.178.20:1234/v1` (LM Studio); den Pfad hängt die App an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt die Texterkennung ab. |
+| `ocr_api` | `ollama` | Schnittstelle | `ollama` (`/api/chat`) oder `openai` — OpenAI-kompatibel (`/v1/chat/completions`), etwa LM Studio oder LocalAI. |
+| `ocr_model` | leer | Modell | Name eines Bildmodells, wie der Dienst es kennt, etwa `qwen2.5vl`, `llama3.2-vision` oder `minicpm-v` (höchstens 200 Zeichen). |
+| `ocr_timeout_s` | 30 | Zeitlimit | Sekunden, die der Server auf die Antwort wartet (5–300). Auf einem NAS ohne Grafikkarte brauchen Bildmodelle oft 20 bis 60 Sekunden. Im Docker-Image wartet nginx seit v3.1.0 bis zu 310 Sekunden, das ganze Zeitlimit läuft also durch; hinter einem eigenen Webserver oder Reverse-Proxy gilt dessen Grenze. |
+
 ### Regression & Prognose
 
 | Schlüssel | Standard | In der App | Wirkung |
@@ -151,6 +211,18 @@ Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 | `recommendation_anomaly_sigma` | 2 | Empfehlung Anomalie-Schwelle | Dieselbe Art Schwelle für die Empfehlungen: erst ab dieser Abweichung entsteht ein Hinweis. |
 | `recommendation_trend_pct_year` | 3 | Empfehlung Trend-Schwelle | Ab welchem Anstieg je Jahr die Empfehlungen einen steigenden Verbrauch melden. |
 | `delivery_baseload_share` | 0,15 | Sockel-Anteil Verteilung | Anteil des Verbrauchs als wetterunabhängige Grundlast (Rest HGT-gewichtet). |
+
+### CO₂-Preis *(v3.1.0)*
+
+Der CO₂-Preis im Brennstoff (BEHG) — Hintergrund und Rechnung unter
+[CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md). Nur in Ländern mit
+CO₂-Preis wirksam, heute Deutschland.
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `co2_price_eur_t_years` | leer (`{}`) = Länderprofil | CO₂-Preis je Jahr | Eigene Jahreswerte in € je Tonne als Tabelle Jahr → €/t (Jahre 1990–2100, Werte 0–1000); sie gehen dem Länderprofil vor (Deutschland: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). Für ein Jahr ohne Wert gilt der letzte bekannte als Annahme. Über die API ein Objekt `{"2027": 65}` oder eine Liste `[{year, eur_t}]`. |
+| `co2_price_scenario_eur_t` | leer (`null`) = aus | Szenario: CO₂-Preis | Vorbelegung des Felds „CO₂-Preis ab 2028 (€/t)“ der Prognose (0–1000 €/t): Die Prognose zeigt dann, was dieser Preis mehr kosten würde. Leer = aus. |
+| `co2_price_scenario_from` | 2028 | Szenario ab Jahr | Erstes Jahr, für das das Szenario gilt (2021–2100). 2028 soll der europäische Emissionshandel (ETS2) die Festpreise ablösen. |
 
 ## Nur über die API
 
