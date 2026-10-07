@@ -94,7 +94,9 @@ const utilColors = [...utilPhp.matchAll(/'color'\s*=>\s*'(#[0-9a-fA-F]{6})'/g)].
 // Die festen Paletten der Ansichten (Modelle, Jahre, Angebote) laufen über dieselbe Tönung
 const palettes = ['analysis.js', 'tariff.js'].flatMap(f =>
   [...readFileSync(resolve(ROOT, 'views', f), 'utf8').matchAll(/'(#[0-9a-fA-F]{6})'/g)].map(m => m[1]));
-t('Farben gefunden', utilColors.length === 8 && palettes.length >= 10, `${utilColors.length} Verbrauchsarten, ${palettes.length} Palettenfarben`);
+// v3.1.0 — die Zahl der Verbrauchsarten aus derselben Datei (fest 8 brach mit `waerme`)
+const utilCount = [...utilPhp.matchAll(/'reading_kind'\s*=>/g)].length;
+t('Farben gefunden', utilCount >= 9 && utilColors.length === utilCount && palettes.length >= 10, `${utilColors.length} Verbrauchsarten, ${palettes.length} Palettenfarben`);
 const CARD = { dark: '#111827', light: '#ffffff' };
 const low = [];
 for (const theme of ['dark', 'light']) {
