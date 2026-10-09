@@ -6,7 +6,7 @@
 #
 # Die Laufzeit bleibt Composer-frei (Hand-rolled-Autoloader in
 # src/bootstrap.php) — es wird KEIN `composer install` ausgeführt.
-FROM php:8.4-fpm-alpine
+FROM php:8.5-fpm-alpine
 
 # v3.0.0 — Lizenz und Quelle auch bei lokal gebauten Images (das GHCR-Image
 # bekommt dieselben Angaben zusätzlich aus docker/metadata-action).
