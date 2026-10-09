@@ -190,7 +190,7 @@ jobs:
           coverage: none
 
       - name: Composer-Cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: vendor
           key: composer-${{ runner.os }}-php${{ matrix.php }}-${{ hashFiles('composer.lock') }}
