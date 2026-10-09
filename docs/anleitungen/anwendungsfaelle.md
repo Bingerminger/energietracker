@@ -4,18 +4,41 @@
 
 [← Kompendium-Index](../README.md)
 
-Fünf durchgerechnete Praxisfälle, die zeigen, wie Energietracker in konkreten
+Sieben durchgerechnete Praxisfälle, die zeigen, wie Energietracker in konkreten
 Wohnsituationen eingerichtet und genutzt wird. Jeder Fall nennt die **Zähler**,
 die **Einstellungen** und einen **typischen Ablauf**. Für die Grundeinrichtung
 siehe zuerst [Erste Schritte](../einstieg/erste-schritte.md).
 
-| Use-Case | Schwerpunkt | Features |
-|---|---|---|
-| [A — WG mit geteilten Zählern](#a--wg-mit-geteilten-zählern) | Subzähler, Kostenteilung | F1006 |
-| [B — Smart Home / Home Assistant](#b--smart-home--home-assistant-vollausbau) | Automatischer Push | F1009 |
-| [C — PV-Haushalt mit Wärmepumpe](#c--pv-haushalt-mit-wärmepumpe) | PV + Subzähler | F1005, F1006 |
-| [D — Vermieter mit mehreren Einheiten](#d--vermieter-mit-mehreren-einheiten) | Zähler je Einheit | F1006 |
-| [E — Wallbox und Dienstwagen](#e--wallbox-und-dienstwagen) | Ladestrom-Nachweis, § 14a EnWG | v3.1.0 |
+| Use-Case | Schwerpunkt | Features | Beispielhaushalt |
+|---|---|---|---|
+| [A — WG mit geteilten Zählern](#a--wg-mit-geteilten-zählern) | Subzähler, Kostenteilung | F1006 | — |
+| [B — Smart Home / Home Assistant](#b--smart-home--home-assistant-vollausbau) | Automatischer Push | F1009 | — |
+| [C — PV-Haushalt mit Wärmepumpe](#c--pv-haushalt-mit-wärmepumpe) | PV + Subzähler | F1005, F1006 | Eigenheim mit Wärmepumpe und PV |
+| [D — Vermieter mit mehreren Einheiten](#d--vermieter-mit-mehreren-einheiten) | Zähler je Einheit | F1006 | — |
+| [E — Wallbox und Dienstwagen](#e--wallbox-und-dienstwagen) | Ladestrom-Nachweis, § 14a EnWG | v3.1.0 | Eigenheim mit Wärmepumpe und PV |
+| [F — Fernwärme oder Heizwärme?](#f--fernwärme-oder-heizwärme) | die passende Verbrauchsart | v3.1.0, F1018 | Ich wohne zur Miete · Eigentumswohnung mit Fernwärme · Eigenheim mit Wärmepumpe und PV |
+| [G — Steuern mit evcc oder Home Assistant](#g--steuern-mit-evcc-oder-home-assistant--nachrechnen-im-energietracker) | nachrechnen statt steuern | F1009, F1022 | Eigenheim mit Wärmepumpe und PV |
+
+## Beispielhaushalte zum Ansehen *(v3.2.0)*
+
+Vier Haushalte gibt es fertig eingerichtet, mit erfundenen Daten. So lädst du
+einen:
+
+1. Einstellungen → Allgemein → **„Einrichtungsassistent starten“**.
+2. Bei „Wer bist du?“ den Haushalt wählen: „Ich wohne zur Miete“,
+   „Eigentumswohnung mit Fernwärme“, „Eigenheim mit Gas, Öl oder Pellets“ oder
+   „Eigenheim mit Wärmepumpe und PV“. „Erst einmal alles ansehen“ lädt den
+   Haushalt mit allen neun Verbrauchsarten.
+3. Am Ende **„Mit Beispieldaten ansehen“** wählen.
+
+Das ersetzt **alle** Daten dieser Installation. Vorher legt die App einen
+Snapshot an; unter Einstellungen → Daten spielst du ihn wieder ein. Sind
+Benutzer eingerichtet, darf das nur ein Verwalter.
+
+In der [öffentlichen Demo](https://bingerminger.github.io/energietracker/)
+fragt der Assistent beim ersten Aufruf von selbst, welchen Haushalt du sehen
+willst. Einen anderen wählst du dort ebenso über Einstellungen → Allgemein →
+Einrichtungsassistent. Mehr: [Einrichtung](../einstieg/einrichtung.md).
 
 ---
 
@@ -149,6 +172,10 @@ ebenfalls aus HA zieht, kombiniert das mit Use-Case B (Alias
 `strom_waermepumpe`, für die Wärmemenge etwa `waerme_wp` —
 [Home Assistant](home-assistant.md#use-case-c--wärmepumpe-mit-wärmemengenzähler)).
 
+**Zum Ansehen:** Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“ —
+PV-Anlage mit 9,8 kWp, Speicher mit 10 kWh, Wärmepumpe mit eigenem Zähler und
+Wärmemengenzähler, Wallbox ([Beispielhaushalte](#beispielhaushalte-zum-ansehen-v320)).
+
 ---
 
 ## D — Vermieter mit mehreren Einheiten
@@ -201,7 +228,9 @@ eine Aufstellung je Monat.
 2. `strom` *„Wallbox“* mit der Rolle **„Wallbox“** und dem Elternzähler
    *„Hausanschluss“* → Subzähler.
 3. Die Wallbox monatlich ablesen, am besten am Monatsersten — von Hand, per
-   Home Assistant oder aus dem Portal der Wallbox.
+   Home Assistant oder aus dem Portal der Wallbox. Seit v3.2.0 kommen die
+   Zählerstände auch mit den Ladevorgängen aus evcc
+   ([Ladevorgänge aus evcc](evcc.md)).
 4. Optional: Ist die Wallbox nach § 14a EnWG steuerbar, im Stromvertrag die
    Liste „Reduziertes Netzentgelt (§ 14a EnWG, Modul 1)“ füllen.
 
@@ -220,17 +249,272 @@ Beispiel (erfunden), Vertragspreis, März:
 Eine Aufstellung, keine Steuerberatung — Schritt für Schritt:
 [Ladestrom für den Dienstwagen nachweisen](ladestrom-nachweis.md).
 
+**Zum Ansehen:** Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“ — die
+Wallbox hängt als Subzähler am Haushaltszähler, ihre Ladevorgänge kommen aus
+evcc ([Use-Case G](#g--steuern-mit-evcc-oder-home-assistant--nachrechnen-im-energietracker)).
+
+---
+
+## F — Fernwärme oder Heizwärme?
+
+**Situation.** Zwei Verbrauchsarten klingen fast gleich und zählen beide Wärme
+in kWh: **Fernwärme** und **Heizwärme**. Der Unterschied liegt nicht im Zähler,
+sondern im Vertrag — wer schickt dir die Rechnung?
+
+| | Fernwärme | Heizwärme |
+|---|---|---|
+| Liefervertrag | **dein eigener** mit dem Wärmeversorger | keiner auf deinen Namen |
+| Bezahlt wird | an den Versorger: Arbeitspreis, Grundpreis, Leistungs- und Messpreis | über die Nebenkostenabrechnung der Miete — oder gar nicht eigens, weil es die Wärme deiner Wärmepumpe ist |
+| In der App | Verträge, Abschläge, Saldo, Rechnungsprüfung | keine Verträge; Kosten über das [Mietverhältnis](mieter.md), bei der Wärmepumpe die Jahresarbeitszahl |
+
+**Die Faustregel:** Hast du selbst einen Vertrag mit dem Wärmeversorger, lege
+**Fernwärme** an. Sonst ist es **Heizwärme**. Das gilt auch, wenn dein Mietshaus
+am Fernwärmenetz hängt: Den Vertrag hat der Vermieter, für dich ist es
+Heizwärme. Unter Einstellungen → Haushalt & Gebäude → „Heizwärme kommt aus“
+wählst du dann „Fernwärme“ — das zählt nur für die CO₂-Näherung
+([Heizwärme §5](../verstehen/15-waerme.md#5-co₂--eine-näherung)). Ebenso in
+einer Eigentumswohnung, in der die Gemeinschaft den Vertrag hat und die Wärme
+über das Hausgeld abrechnet.
+
+Drei Beispielhaushalte zeigen die Fälle
+([laden](#beispielhaushalte-zum-ansehen-v320)):
+
+**1. „Ich wohne zur Miete“ — Heizwärme aus der Verbrauchsinfo.** Mietwohnung
+mit 62 m²; die Zentralheizung (Gas) im Keller gehört dem Vermieter.
+
+- `strom` *„Stromzähler Wohnung“* mit eigenem Stromvertrag — der einzige eigene
+  Liefervertrag.
+- `waerme` *„Heizung laut Verbrauchsinfo“* mit der Erfassung **„Verbrauch je
+  Zeitraum“**: je Monat der Wert aus der monatlichen Verbrauchsinformation des
+  Messdienstes, dazu die Vergleichswerte. Monatlich muss sie kommen, sobald die
+  Geräte fernablesbar sind (HeizkostenV § 6a, seit 2022).
+- `wasser` *„Kaltwasserzähler“* und *„Warmwasserzähler“* (Rolle „Warmwasser“).
+- Ein **Mietverhältnis** mit Vorauszahlungen für Heizung und Betriebskosten und
+  den Abrechnungen 2024 und 2025.
+
+```text
+Verbrauchsinfo April 2026 (erfunden):
+  Heizwärme 297 kWh · Vormonat 679 kWh · Vorjahresmonat 316 kWh · Durchschnittsnutzer 341 kWh
+Nebenkostenabrechnung 2025: Heizwärme 4.668 kWh, Heizkosten 649,79 €
+```
+
+Schritt für Schritt: [Als Mieter](mieter.md#3-einen-zähler-für-die-verbrauchsinfo-anlegen).
+
+**2. „Eigentumswohnung mit Fernwärme“ — eigener Liefervertrag.** 85 m², eine
+Wohnungsstation im Flur; die Zählerstände kommen aus dem Kundenportal des
+Versorgers.
+
+- `fernwaerme` *„Wärmemengenzähler“* mit dem Vertrag *„Fernwärme Wohnen“*:
+  Arbeitspreis, Grundpreis, Anschlussleistung, Leistungs- und Messpreis,
+  CO₂-Faktor des Netzes, Abschlag.
+- `strom` *„Stromzähler Wohnung“* mit eigenem Stromvertrag.
+
+```text
+Feste Kosten je Monat ab April 2025 (erfunden):
+  Grundpreis 4,20 € + 6,5 kW × 57,60 €/(kW·a) / 12 + Messpreis 96 €/a / 12
+  = 4,20 € + 31,20 € + 8,00 € = 43,40 €
+Arbeitspreis ab 2026: 12,5 ct/kWh · CO₂-Faktor des Netzes: 198 g/kWh
+```
+
+Die Felder für Anschlussleistung, Leistungs- und Messpreis zeigt der
+Vertragsdialog in der Stufe „Experte“; gerechnet wird mit ihnen in jeder Stufe
+([Fernwärme](../verstehen/04-fernwaerme.md#feste-kosten-leistungs--und-messpreis-v310)).
+
+**3. „Eigenheim mit Wärmepumpe und PV“ — Heizwärme als Wärmemenge der
+Wärmepumpe.** Hier gibt es gar keine Wärmerechnung, bezahlt wird der Strom der
+Wärmepumpe. Den Wärmemengenzähler legst du an, damit die App die
+Jahresarbeitszahl rechnet.
+
+- `strom` *„Wärmepumpe“*: eigener Zähler mit der Rolle „Wärmepumpe
+  (Heizstrom)“ und eigenem Vertrag *„Wärmepumpenstrom“*, darin das reduzierte
+  Netzentgelt nach § 14a EnWG (Modul 1).
+- `waerme` *„Wärmemengenzähler Wärmepumpe“* mit der Rolle „Wärmemenge der
+  Wärmepumpe“, verknüpft mit dem Stromzähler *„Wärmepumpe“*.
+
+```text
+Karte „Wärmepumpe 2025“ (erfunden):
+  12.953 kWh Wärme / 3.896 kWh Strom = Jahresarbeitszahl 3,3 · Heizperiode 3,4
+```
+
+Die Karte steht in der Stufe „Experte“
+([Heizwärme §7](../verstehen/15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310)).
+
+> **Nicht doppelt.** Die Wärmemenge der Wärmepumpe zählt weder in den Summen der
+> Heizwärme noch in der Effizienzkennzahl — dort steht die Wärmepumpe schon mit
+> ihrem Strom ([Heizwärme §4](../verstehen/15-waerme.md#4-effizienzkennzahl)).
+
+---
+
+## G — Steuern mit evcc oder Home Assistant — nachrechnen im Energietracker
+
+**Situation.** Ein Energieberater fragt nach einem „Controller“: Er soll den
+Hausspeicher und das Auto laden, wenn Strom an der Börse billig oder sogar
+negativ ist, und das Auto bidirektional als Speicher fürs Haus nutzen.
+
+**Die Haltung.** Der Energietracker steuert nichts. Er schaltet keine Wallbox,
+keinen Speicher und keine Wärmepumpe. Das machen Werkzeuge, die dafür gebaut
+sind:
+
+- **evcc** lädt das Auto mit PV-Überschuss oder, mit einem dynamischen Tarif,
+  in den Stunden unter einer Preisgrenze
+  ([evcc: Dynamische Stromtarife](https://docs.evcc.io/de/features/dynamic-prices));
+  unterstützt der Wechselrichter es, lädt evcc auch den Hausspeicher in
+  günstigen Stunden aus dem Netz.
+- **Home Assistant** schaltet mit Automatisierungen, was es erreicht — etwa
+  nach dem Börsenpreis der nächsten Stunden.
+
+Der Energietracker **rechnet nach**, was dabei herauskam:
+
+| Frage | Im Energietracker | Woher die Werte kommen |
+|---|---|---|
+| Wie viel hat das Auto geladen, wie viel davon aus der Sonne, zu welchem Preis? | Wallbox → Karte „Ladevorgänge aus evcc“ (ab Stufe „Erfahren“) | CSV-Export aus evcc oder „Von evcc abrufen“ ([Ladevorgänge aus evcc](evcc.md)) |
+| Was kostet der Ladestrom des Dienstwagens? | Wallbox → Karte „Ladestrom-Nachweis (Dienstwagen)“ | Zählerstände aus evcc, Home Assistant oder von Hand ([Use-Case E](#e--wallbox-und-dienstwagen)) |
+| Hätte sich ein dynamischer Tarif gelohnt? | Kosten & Verträge → Wechsel prüfen → „Börsenstrompreise“ und ein Angebot „Dynamischer Tarif“ | Börsenpreise von SMARD, nur auf Knopfdruck ([Strom → Dynamische Tarife](../verstehen/02-strom.md#dynamische-tarife-v310)) |
+| Wie gut arbeitet die Wärmepumpe, was bringt § 14a Modul 1? | Karte „Wärmepumpe {Jahr}“; im Vertrag „Reduziertes Netzentgelt (§ 14a EnWG, Modul 1)“ | eigener Zähler und Wärmemengenzähler ([Use-Case C](#c--pv-haushalt-mit-wärmepumpe)) |
+| Was verliert der Speicher? | PV-Erzeugung → Karte „Speicher {Jahr}“ | Lade- und Entladezähler ([PV §7](../verstehen/12-pv.md#7-speicher-v310)) |
+| Alle Stände ohne Abtippen | jede Verbrauchsart | Home Assistant schickt sie abends über `POST /api/ingest` ([Home Assistant](home-assistant.md)) |
+
+Ladestrom-Nachweis, Wärmepumpen-Karte und Börsenpreise zeigt die App in der
+Stufe „Experte“.
+
+**Im Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“:**
+
+```text
+Ladevorgänge aus evcc 2025 (erfunden): 152 Vorgänge, 2.618 kWh,
+  davon rund 27 % aus der Sonne (April bis September knapp 50 %, Oktober bis März 9 bis 14 %),
+  Preis laut evcc zusammen 629 €
+Angebot „Strom Dynamisch“ zum Vergleich: Aufschlag 19,4 ct/kWh, Grundpreis 11,90 €/Monat
+```
+
+Börsenpreise bringt der Beispielhaushalt nicht mit; in deiner Installation
+holst du sie mit „Von SMARD laden“.
+
+**Was der Energietracker nicht kann (Stand v3.2.0).**
+
+- Er rechnet in Tagen und Monaten, nicht in Viertelstunden. Ob das Auto in den
+  günstigen Stunden geladen hat, zeigt nur der Preis laut evcc.
+- Der Dynamik-Check nimmt das Monatsmittel der Börse. Wer Verbrauch in
+  günstige Stunden schiebt, zahlt real weniger, als der Check zeigt.
+- § 14a Modul 3, die zeitvariablen Netzentgelte, rechnet er nicht.
+- Strom, den das Auto zurückgibt (V2H, V2G), bildet er nicht ab; die
+  Ladevorgänge aus evcc zählen nur, was geladen wurde.
+- Stunden mit negativem Börsenpreis zählt er nicht. Für neue PV-Anlagen weist
+  er nur auf die Regel hin
+  ([PV §10](../verstehen/12-pv.md#10-negative-börsenpreise-v310)).
+
+**Geplant: „Flexibilität bewerten“ (v3.3.0, ohne Termin).** Der Energietracker
+soll Werte je Viertelstunde speichern — aus Portaldateien, aus Home Assistant
+(Ingest mit Zeitstempel) und Börsenpreise von SMARD, nur auf Knopfdruck — und
+damit zeigen:
+
+- **Erfolg der Verschiebung:** kWh in günstigen und negativen Stunden, eigener
+  Durchschnittspreis gegen das Börsenmittel, je Monat und je steuerbarem Zähler
+  (Wallbox, Wärmepumpe, Speicher).
+- **Dynamik-Check mit echtem Lastgang** statt Monatsmittel.
+- **Speicher nach Stunden:** was Laden bei niedrigen und Entladen bei hohen
+  Preisen bringt.
+- **§ 14a Modul 3:** die Ersparnis durch Verschieben in die
+  Niedrigtarif-Zeitfenster des Netzbetreibers.
+
+Gesteuert wird auch dann außerhalb.
+
+### Rechtslage kurz (Stand 9. Oktober 2026)
+
+Keine Rechtsberatung — maßgeblich sind Gesetz, Festlegung und die Preisblätter
+deines Netzbetreibers.
+
+- **§ 14a EnWG — steuerbare Verbrauchseinrichtungen.** Seit 1. Januar 2024
+  gelten dafür zwei Festlegungen der Bundesnetzagentur — zur Steuerung
+  (Beschlusskammer 6, BK6-22-300) und zu den Netzentgelten (BK8-22/010-A) —,
+  etwa für Wärmepumpen und private Wallboxen: Der Netzbetreiber darf sie bei Engpässen
+  drosseln, dafür sinkt das Netzentgelt. **Modul 1** ist eine pauschale
+  Reduzierung im Jahr. **Modul 2** senkt mit eigenem Zähler den
+  Netzentgelt-Arbeitspreis auf 40 %. **Modul 3** ist ein zeitvariables
+  Netzentgelt in drei Stufen (Hochlast, Standard, Niedriglast) — nur zusätzlich
+  zu Modul 1 und mit intelligentem Messsystem. Netzbetreiber müssen Modul 3
+  seit dem 1. April 2025 anbieten und abrechnen; im Mai 2026 stellte die
+  Bundesnetzagentur fest, dass das vielerorts nicht oder nur unzureichend
+  geschieht, und drohte zwei Netzbetreibern Zwangsgelder an (Frist
+  30.09.2026). Quellen:
+  [Bundesnetzagentur, 27.11.2023](https://www.bundesnetzagentur.de/SharedDocs/Pressemitteilungen/DE/2023/20231127_14a.html),
+  [Bundesnetzagentur, Reduzierung des Netzentgelts](https://www.bundesnetzagentur.de/DE/Vportal/Energie/SteuerbareVBE/Netzentgelt_table.html),
+  [Bundesnetzagentur, 28.05.2026](https://www.bundesnetzagentur.de/1108084).
+- **Negative Preise — „Solarspitzengesetz“.** Das Gesetz zur Vermeidung von
+  temporären Erzeugungsüberschüssen (BGBl. 2025 I Nr. 51, verkündet am
+  24.02.2025) gilt für PV-Anlagen, die **ab dem 25.02.2025** in Betrieb gehen.
+  In Zeiten mit negativem Börsenpreis sinkt ihre Vergütung auf null (§ 51 EEG) —
+  bei Anlagen unter 100 kW ab dem Kalenderjahr nach dem Einbau eines
+  intelligenten Messsystems. Dafür verlängert sich die Förderdauer
+  (§ 51a EEG). Bis ein intelligentes Messsystem eingebaut und die Steuerung
+  getestet ist, dürfen neue Anlagen unter 100 kW mit Einspeisevergütung höchstens
+  60 % ihrer installierten Leistung einspeisen (§ 9 Abs. 2 EEG;
+  Steckersolargeräte bis 2 kW ausgenommen). Ältere Anlagen bleiben beim alten
+  Recht (§ 100 Abs. 3b und 46 EEG) — auch die von 2023 im Beispielhaushalt.
+  Quellen: [BGBl. 2025 I Nr. 51](https://www.recht.bund.de/bgbl/1/2025/51/VO.html),
+  [§ 51 EEG](https://www.gesetze-im-internet.de/eeg_2014/__51.html),
+  [§ 51a EEG](https://www.gesetze-im-internet.de/eeg_2014/__51a.html),
+  [§ 9 EEG](https://www.gesetze-im-internet.de/eeg_2014/__9.html),
+  [§ 100 EEG](https://www.gesetze-im-internet.de/eeg_2014/__100.html).
+- **MiSpeL — Speicher mit Netz- und Solarstrom.** Am 1. Oktober 2026 hat die
+  Bundesnetzagentur die Festlegung zur Marktintegration von Speichern und
+  Ladepunkten beschlossen (Az. 618-25-02). Speicher und bidirektionale
+  Ladepunkte dürfen damit Netz- und Solarstrom gemischt speichern und
+  zurückspeisen, ohne die EEG-Förderung zu verlieren. Zwei Wege: die
+  **Abgrenzungsoption** (eigener Zähler, Erfassung je Viertelstunde, für alle)
+  und die **Pauschaloption** für Solaranlagen bis 30 kWp (ein
+  viertelstundengenauer Zähler am Hausanschluss genügt). Als Förderung gibt es
+  in beiden nur die Marktprämie, also die Direktvermarktung; mit fester
+  Einspeisevergütung — wie im Beispielhaushalt — bleibt es bei der
+  „Ausschließlichkeitsoption“, der Speicher darf dann für die Förderung nur
+  Strom aus der eigenen Anlage speichern. Bis zum 30.09.2027 gilt die
+  Festlegung nur im Einverständnis mit Netz- und Messstellenbetreiber; die
+  Pauschaloption wartet außerdem auf die beihilferechtliche Genehmigung der
+  EU-Kommission. Quellen:
+  [Bundesnetzagentur, 01.10.2026](https://www.bundesnetzagentur.de/SharedDocs/Pressemitteilungen/DE/2026/20261001_Mispel.html),
+  [Verfahrensseite MiSpeL](https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/ErneuerbareEnergien/EEG_Aufsicht/MiSpeL/start.html),
+  [Hintergrundpapier](https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/ErneuerbareEnergien/EEG_Aufsicht/MiSpeL/DL/Hintergrundpapier.pdf?__blob=publicationFile&v=3),
+  [Festlegung](https://www.bundesnetzagentur.de/DE/Fachthemen/ElektrizitaetundGas/ErneuerbareEnergien/EEG_Aufsicht/MiSpeL/DL/MiSpeL_TenorMitBegruendung.pdf?__blob=publicationFile&v=2)
+  (Tenorziffern 5 und 9).
+- **Bidirektionales Laden.** Geklärt ist: Für die Netzentgeltbefreiung von
+  Speichern verweist § 118 Abs. 6 Satz 3 EnWG auf § 21 EnFG, und der stellt
+  Ladepunkte für E-Autos Stromspeichern gleich. Für Netzstrom, den das Auto
+  später zurück ins Netz gibt, entfallen damit Umlagen und Netzentgelte; für
+  den Fahrstrom fallen sie weiter an. Die Mengen sind mess- und
+  eichrechtskonform zu erfassen; wie genau, regelt MiSpeL — laut
+  Bundesnetzagentur gehen V2H und V2G damit „auch ohne zweiten Zähler“. Offen
+  ist: die Übergangszeit bis 30.09.2027 und die Genehmigung der Pauschaloption
+  (siehe MiSpeL). Wie Netzentgelte für Speicher und bidirektionale Ladepunkte
+  künftig aussehen, klärt die Bundesnetzagentur im laufenden Verfahren zur
+  allgemeinen Netzentgeltsystematik (AgNes). Die Befreiung nach § 118 Abs. 6
+  EnWG gilt nur für Speicher, die bis zum 04.08.2029 in Betrieb gehen, für 20
+  Jahre und nur für die Entgelte für den Netzzugang. **Stromsteuer:** Wer beim
+  bidirektionalen Laden Strom aus dem Auto abgibt, gilt insoweit nicht als
+  Versorger; wird der Strom am Ladepunkt ohne öffentliches Netz verbraucht
+  (V2H), entsteht keine Stromsteuer (§ 5a Abs. 3 StromStG). Für V2G ins Netz
+  sagt die Vorschrift das nicht. Quellen:
+  [§ 118 EnWG](https://www.gesetze-im-internet.de/enwg_2005/__118.html),
+  [§ 21 EnFG](https://www.gesetze-im-internet.de/enfg/__21.html),
+  [§ 5a StromStG](https://www.gesetze-im-internet.de/stromstg/__5a.html),
+  Hintergrundpapier und Festlegung (Begründung, Abschnitt 3.2.2.2) wie oben.
+
 ---
 
 ## Welcher Use-Case passt zu mir?
 
-- **Ich tippe Werte selbst ab, will aber Ordnung bei Haupt-/Unterzählern.** → A
-- **Ich habe Home Assistant und will nie wieder abtippen.** → B
-- **Ich habe PV (+ Wärmepumpe).** → C
-- **Ich verwalte mehrere Wohneinheiten.** → D
-- **Ich lade einen Dienstwagen zu Hause.** → E
+| Wenn du sagst … | Use-Case | Zum Ansehen ([laden](#beispielhaushalte-zum-ansehen-v320)) |
+|---|---|---|
+| „Ich tippe Werte selbst ab, will aber Ordnung bei Haupt-/Unterzählern.“ | A | „Eigenheim mit Gas, Öl oder Pellets“ (Gartenzähler als Subzähler) |
+| „Ich habe Home Assistant und will nie wieder abtippen.“ | B | — |
+| „Ich habe PV (+ Wärmepumpe).“ | C | „Eigenheim mit Wärmepumpe und PV“ |
+| „Ich verwalte mehrere Wohneinheiten.“ | D | — |
+| „Ich lade einen Dienstwagen zu Hause.“ | E | „Eigenheim mit Wärmepumpe und PV“ |
+| „Ich wohne zur Miete; die Heizung kommt mit der Verbrauchsinfo.“ | F | „Ich wohne zur Miete“ |
+| „Ich habe einen Fernwärmevertrag.“ | F | „Eigentumswohnung mit Fernwärme“ |
+| „Ich heize mit Gas, Öl oder Pellets.“ | [Erste Schritte](../einstieg/erste-schritte.md) | „Eigenheim mit Gas, Öl oder Pellets“ |
+| „evcc oder Home Assistant steuern bei mir Auto, Speicher oder Wärmepumpe.“ | G (+ B) | „Eigenheim mit Wärmepumpe und PV“ |
+| „Ich will erst einmal alles sehen.“ | — | „Erst einmal alles ansehen“ (alle neun Verbrauchsarten) |
 
-Alle fünf lassen sich kombinieren — z. B. Vermieter (D) mit HA-Push (B) je
+Alle Fälle lassen sich kombinieren — z. B. Vermieter (D) mit HA-Push (B) je
 Einheit. Für den Einstieg: [Erste Schritte](../einstieg/erste-schritte.md).
 
 ---

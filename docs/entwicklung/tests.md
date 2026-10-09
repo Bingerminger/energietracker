@@ -124,6 +124,12 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   Ansichten und Komponenten: Textknoten in HTML-Vorlagen und Literale mit
   Umlaut oder ß fallen auf. Erlaubt sind Einheiten, Formelzeichen und Namen
   (Liste im Test).
+- **`tests/levels.test.mjs`** (v3.2.0) — Nutzungsstufen und Schaubilder ohne
+  Server: woher die Stufe kommt (Person vor Installation, unbekannt = Experte),
+  welche Seite welche Stufe braucht, Navigation und CSS folgen ihr; das
+  Geld-Bild rechnet mit dem Abrechnungszeitraum (`balance_path`), das
+  Wetter-Bild braucht sechs Monate mit bereinigtem Wert und Vorjahr. Der
+  Demo-Klicktest geht jeden Beispielhaushalt in zwei Stufen durch.
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`, für Tests über HTTP seit

@@ -66,6 +66,23 @@ final class EvChargingReportTest extends ServiceTestCase
         self::assertSame(['date' => '2025-01-01', 'counter' => 0.0], $rows['2025-01']['first_reading']);
     }
 
+    /** v3.2.0 — PV lädt hinter dem Hauszähler: Die Wallbox misst mehr als der Netzbezug, der Grundpreis zählt höchstens ganz. */
+    public function testPvBehindTheMeterNeverChargesMoreThanTheWholeStandingCharge(): void
+    {
+        $dev = fn(string $m) => $this->meters->get('strom', $m)['devices'][0]['id'];
+        $all = [];
+        foreach ([[$this->house, 300.0], [$this->wallbox, 400.0]] as [$m, $perMonth]) {
+            for ($i = 0; $i <= 2; $i++) {
+                $all[] = ['id' => "r_{$m}_$i", 'meter_id' => $m, 'device_id' => $dev($m), 'date' => date('Y-m-d', (int)strtotime("2025-06-01 +$i months")),
+                          'counter' => $perMonth * $i, 'price_cents' => null, 'note' => '', 'is_estimated' => false, 'is_future' => false];
+            }
+        }
+        $this->store->write('strom/readings.json', $all);
+        $this->contract();
+        $rows = array_column($this->service()->report($this->wallbox, 2025, 'contract')['rows'], null, 'ym');
+        self::assertEqualsWithDelta(12.0, $rows['2025-06']['base_share_eur'], 0.01, 'nicht 12 € × 400/300');
+    }
+
     /** Spezifikation: 3.000 kWh mit der Pauschale 2026 (34 ct) = 1.020 €. */
     public function testFlatRate(): void
     {

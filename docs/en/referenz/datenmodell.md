@@ -21,7 +21,9 @@ backup).
 > `tenancies.json` and `tenancy_statements.json` (tenancy), `market_prices.json`
 > (wholesale electricity prices), `periods.json`
 > (consumption per period) and `bills.json` (supplier bills) per utility and the
-> new utility `waerme/` created empty, as well as missing basic pots (v3.1.0).
+> new utility `waerme/` created empty, as well as missing basic pots (v3.1.0) ·
+> v3.2.0 **without** a schema step: `ev_sessions.json` (charging sessions from
+> evcc) is created by the first import, people are stored in `auth.json`.
 
 ---
 
@@ -31,7 +33,7 @@ backup).
 data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
 ├── settings.json             # settings (defaults: SettingsService::DEFAULTS)
-├── auth.json                 # sign-in, HA token, API keys — hashes only, never plaintext
+├── auth.json                 # sign-in, people (v3.2.0), HA token, API keys — passwords and keys only as hashes; not in the backup
 ├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max, source }, … } — source since v2.8.0
 ├── climate_normal.json       # climate normal at the location (v2.8.0) — key figures only, no raw data
 ├── weather_sync.json         # state of the last Open-Meteo sync (v2.8.0)
@@ -42,6 +44,7 @@ data/
 ├── tenancies.json            # tenancies (v3.1.0, schema 1.7.0)
 ├── tenancy_statements.json   # service charge statements (v3.1.0, schema 1.7.0)
 ├── market_prices.json        # wholesale electricity prices as monthly averages (v3.1.0, schema 1.7.0)
+├── ev_sessions.json          # charging sessions from evcc (v3.2.0) — created by the first import
 ├── instance.json             # identifier of the installation (v3.1.0) — not in the backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -119,13 +122,15 @@ same identifier.
 >   "token_hash": "…sha256…", "created_at": "…", "token_last_used_at": "…",  // HA ingest (F1009)
 >   "mode": "password",                 // off | password | proxy (ET_AUTH takes precedence)
 >   "password_hash": "$2y$10$…",        // password_hash(); ET_ADMIN_PASSWORD_HASH takes precedence
->   "session_secret": "…",              // HMAC key of the session cookies; new with every new password
+>   "session_secret": "…",              // HMAC key of the session cookies; new with every new installation password
 >   "login_failures": { "count": 1, "first_at": 1758700000, "locked_until": 0 },
 >   "api_keys": [ { "id": "k_…", "name": "backup script", "scope": "read",
->                   "hash": "…sha256…", "created_at": "…", "last_used_at": null } ]
+>                   "hash": "…sha256…", "created_at": "…", "last_used_at": null } ],
+>   "users": [ … ]                      // people in the household (v3.2.0)
 > }
 > ```
 >
+> The people: [People in `auth.json`](#people-in-authjson-v320).
 > Details: [Security](../betrieb/sicherheit.md), [API reference → sign-in](api.md).
 
 ---
@@ -508,7 +513,7 @@ CO₂ details
   "items": [                         // other items, not recalculated
     { "label": "Metering", "amount_eur": 12.5, "kind": "fee" }   // levy | fee | credit | other
   ],
-  "co2": { "emissions_kg": 2981.5, "cost_eur": 163.98 },   // optional; amount net, plus stated_factor?
+  "co2": { "emissions_kg": 2981.5, "cost_eur": 163.98 },   // optional; amount incl. VAT as on the bill (CO2KostAufG § 3(3)), plus stated_factor?
   "attachment_ids": [],              // receipts (PDF, photo)
   "special_payment_id": null,        // set once the result is booked
   "note": "",
@@ -667,6 +672,75 @@ back-/advance-payment lowers it). Only the `*_mit` types carry `new_advance_eur`
 backward-compatible — if the field is missing, it becomes `[]` on normalisation (no
 migration step).
 
+### Charging sessions (`ev_sessions.json`) *(v3.2.0)*
+
+Wall box charging sessions from evcc, one list across all meters — filled from
+the CSV export or the fetch in the home network
+([API](api.md#charging-sessions-from-evcc-v320)). The file is created by the
+first import; no schema step.
+
+```json
+{ "id": "evs_1a2b3c4d5e6f", "meter_id": "m_wallbox",
+  "created": "2026-09-30T17:02:11+02:00", "finished": "2026-09-30T21:40:03+02:00",
+  "date": "2026-09-30", "loadpoint": "Garage", "vehicle": "Small car",
+  "charged_kwh": 18.402, "solar_pct": 0, "price_eur": 5.15, "price_per_kwh": 0.28,
+  "meter_start": 4120.551, "meter_stop": 4138.953, "source": "csv" }
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | `evs_` and 12 hex digits from start and charging point — the same session gives the same identifier, a second import replaces it |
+| `meter_id` | electricity meter the session was taken over to (wall box) |
+| `created`, `finished` | start and end, ISO 8601 with time zone; times without a zone from evcc are taken in the installation’s time zone |
+| `date` | day of the end (`YYYY-MM-DD`) — year and month count by it |
+| `loadpoint`, `vehicle` | charging point and vehicle as in evcc, at most 60 characters each, may be empty |
+| `charged_kwh` | charged energy in kWh (3 decimals) |
+| `solar_pct` | solar share in % (0–100), if evcc reports it |
+| `price_eur`, `price_per_kwh` | price of the session and per kWh according to evcc, if reported — figures from evcc, not a calculation of the Energietracker |
+| `meter_start`, `meter_stop` | wall box meter reading at start and end in kWh, if the wall box measures it |
+| `source` | `csv` (CSV export) or `evcc` (fetch) |
+
+Fields without a value are left out. The meter readings an import derives are
+not stored here but as ordinary readings in `strom/readings.json` (note
+`evcc`). Part of the backup as the pot `ev_sessions`; the import checks `id`,
+`meter_id`, `date` (calendar date) and `charged_kwh`.
+
+### People in `auth.json` *(v3.2.0)*
+
+With sign-in switched on, a household can have several people
+([API](api.md#people-in-the-household-v320)). They are stored under `users` in
+`data/auth.json` — like password and keys **not in the backup**: a backup
+restored on another installation brings no access with it. No schema step.
+
+```jsonc
+"users": [
+  { "id": "u_admin", "name": "admin", "role": "admin", "source": "password",
+    "prefs": {}, "created_at": "…" },                       // first admin: password = password_hash above
+  { "id": "u_3f9a1c2e", "name": "Alex", "role": "member", "source": "password",
+    "password_hash": "$2y$10$…", "prefs": { "ui_level": "beginner" }, "created_at": "…" },
+  { "id": "u_8b0d4f17", "name": "kim", "role": "admin", "source": "proxy",
+    "prefs": {}, "created_at": "…" }
+]
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | `u_` and eight hex digits; `u_admin` is the first admin from before v3.2 |
+| `name` | 1–40 characters, unique regardless of upper and lower case; with `proxy` the reported name |
+| `role` | `admin` or `member`; at least one person stays admin |
+| `source` | `password` (sign-in in the app) or `proxy` (upstream service, created on the first visit) |
+| `password_hash` | only with `password`: hash from `password_hash()` (bcrypt), **never the password itself**. `u_admin` has none of its own and uses the installation password (`password_hash` at the top level or `ET_ADMIN_PASSWORD_HASH`) |
+| `prefs` | own settings: `ui_level`, `language`. Without a level the installation’s applies; without a language that of the device or the installation |
+| `created_at` | created (ISO 8601) |
+| `session_epoch` | counts every new password of this person; missing until the first change. A session cookie only counts with the current epoch — a new password signs the person out on every device |
+
+As long as nobody adds a person, `users` is missing; `u_admin` then only exists
+in the API responses, as long as a password is set. The lock after failed
+attempts (`login_failures`) applies to all people together. Session cookies
+carry the person’s identifier (`<expiry>.<id>.<hmac>`); the v3.1 form without
+an identifier stands for `u_admin` until that password is set anew for the
+first time. A deleted person no longer has a valid session.
+
 ---
 
 ## 3. Settings (`settings.json`)
@@ -717,9 +791,13 @@ here a selection with background:
 | `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — symbol and minor unit; amounts are not converted, `*_eur`/`ct_*` mean major/minor unit |
 | `timezone` | Europe/Berlin | *(v2.7.0)* IANA time zone: "today", due dates, day boundaries of the weather data |
 | `gas_cv_unit` | kwh | *(v2.7.0)* input unit of the calorific value (`kwh`, `mj`, `gj`); storage is always kWh/m³ |
-| `frame_ancestors` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (CSP `frame-ancestors`), e.g. `http://homeassistant.local:8123` |
+| `frame_ancestors` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (CSP `frame-ancestors`), e.g. `http://homeassistant.local:8123`; since v3.2.0 admins only |
 | `attachments_max_mb` | 500 | *(v3.1.0)* storage for all receipts together in MB (10–100000) |
-| `ocr_endpoint`, `ocr_api`, `ocr_model`, `ocr_timeout_s` | *(empty)*, ollama, *(empty)*, 30 | *(v3.1.0)* text recognition in the home network; empty = off, no connection — [settings](einstellungen.md), [guide](../anleitungen/texterkennung.md) |
+| `ocr_endpoint`, `ocr_api`, `ocr_model`, `ocr_timeout_s` | *(empty)*, ollama, *(empty)*, 30 | *(v3.1.0)* text recognition in the home network; empty = off, no connection — [settings](einstellungen.md), [guide](../anleitungen/texterkennung.md). Since v3.2.0 only admins change `ocr_endpoint` |
+| `evcc_endpoint` | *(empty)* | *(v3.2.0)* address of evcc in the home network for fetching the charging sessions; empty = off, no connection, local addresses only; admins only — [Charging sessions from evcc](../anleitungen/evcc.md) |
+| `ui_level` | expert | *(v3.2.0)* experience level of the installation: `beginner`, `advanced`, `expert` — what the interface shows, not what the app calculates. People have their own in `auth.json` (`prefs.ui_level`); existing installations after the update: Expert |
+| `setup_pending` | false | *(v3.2.0)* `true` only after the first start of a new installation, until the setup assistant is finished or skipped |
+| `setup_persona` | null | *(v3.2.0)* persona chosen last in the assistant or example household loaded (`mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern`, `showcase`) |
 | `co2_price_eur_t_years` | `{}` | *(v3.1.0)* your own CO₂ prices per year in €/t (year → value, 0–1000); empty = country profile — [CO₂ price](../verstehen/16-co2-preis.md) |
 | `co2_price_scenario_eur_t`, `co2_price_scenario_from` | null, 2028 | *(v3.1.0)* CO₂ price scenario of the forecast: price in €/t (empty = off) and first year |
 | `co2_pv_avoided` | null | *(v3.1.0)* your own PV avoidance factor in g/kWh (0–2000); empty = electricity mix |
@@ -770,6 +848,18 @@ without touching existing values.
 The migration path (1.0.0 → current schema) is additionally checked in the CI via a
 separate migration smoke test. Before every migration the migrator creates a
 snapshot `pre-migration-…` (since v2.5.3).
+
+**Example households *(v3.2.0)*.** Next to this demo household (the
+“showcase” with every utility) there are four example households under
+`demo-data/personas/<persona>.json`: `mieterin`, `etw-fernwaerme`,
+`eigenheim-klassisch`, `eigenheim-modern`. They use backup format 3.0 with
+schema 1.7.0 and contain every pot of every utility, empty ones included — so
+an example household replaces the whole household. `tools/build-personas.mjs`
+generates them from a daily model with a fixed seed: every run writes the same
+files, `--check` only compares. Names are made up, market location IDs
+synthetic. When loaded, `DemoDataAligner` carries them forward to today like
+the showcase. The Docker image contains them
+([API](api.md#example-households-v320)).
 
 **Downgrade protection (v2.6.0).** A downgrade is not supported — but it is now
 detected: if the `schema_version` of the data is **newer** than the app, it

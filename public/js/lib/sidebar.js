@@ -79,6 +79,9 @@ window.addEventListener('et:route', (e) => {
   markActive(lastRoute);
 });
 
+// v3.2.0 (F1019) — andere Nutzungsstufe: andere Einträge
+window.addEventListener('et:levelchange', () => { buildSidebar().catch(() => {}); });
+
 // v2.11.0 (FE-12) — Verbrauchsarten an- oder abgewählt: Leiste neu aufbauen.
 window.addEventListener('et:settingschange', (e) => {
   if (!e.detail?.keys?.includes('active_utilities')) return;

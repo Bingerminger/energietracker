@@ -1,25 +1,26 @@
 # Energietracker — Roadmap
 
-> **Kurzfassung.** Jetzt: v3.1.0 — für jeden Haushalt; damit sind alle
-> Pakete A bis H des Gesamtreviews umgesetzt, darunter das Mieter-Paket
-> (F1008, [#15](https://github.com/Bingerminger/energietracker/issues/15)),
-> Verträge je Zählergruppe (F1017, [#17](https://github.com/Bingerminger/energietracker/issues/17))
-> und die engere Home-Assistant-Anbindung. Bewusst nicht: eigene
-> Smart-Meter-Auslesung (das macht Home Assistant), ein Cloud-Dienst, Konten.
+> **Kurzfassung.** Jetzt: v3.2.0 — leicht für jeden: Einrichtungsassistent mit
+> Beispielhaushalten, Nutzungsstufen, Schaubilder, Personen im Haushalt und
+> Ladevorgänge aus evcc. Als Nächstes: v3.3.0 „Flexibilität bewerten“ mit
+> Viertelstundenwerten (Schema 1.8.0). Bewusst nicht: eigene
+> Smart-Meter-Auslesung (das macht Home Assistant), ein Cloud-Dienst mit Konten,
+> eine eigene Steuerung von Speicher und Auto (das machen evcc und Home Assistant).
 >
-> *In English:* now v3.1.0 (for every household; review packages A to H are
-> done, including the tenant package #15, contracts per meter group #17 and the
-> deeper Home Assistant integration). Deliberately not: reading smart meters
-> ourselves (Home Assistant does that), a cloud service, accounts.
+> *In English:* now v3.2.0 (easy for everyone: setup assistant with example
+> households, experience levels, explainers, several people per household,
+> charging sessions from evcc). Next: v3.3.0, valuing flexibility with
+> quarter-hour data. Deliberately not: reading smart meters ourselves (Home
+> Assistant does that), a cloud service, controlling battery and car ourselves.
 >
 > Der Rest dieser Seite ist das Planungsdokument mit Entscheidungen und
 > Historie; es wird mit jedem Release fortgeschrieben. Bei Konflikt zwischen
 > Reihenfolge und akutem Bedarf (etwa einem kritischen Fehler) gewinnt der
 > Bedarf.
 
-**Stand:** 2026-09-25 (synchron mit v2.16.0; Pakete A, B, Länderprofile, C, D, E und F aus dem Gesamtreview)
-**Aktuelle Baseline:** v2.16.0
-**Schema:** 1.6.0
+**Stand:** 2026-10-09 (synchron mit v3.2.0; Gesamtreview A–H fertig, dazu F1018–F1020, F1022, F1023)
+**Aktuelle Baseline:** v3.2.0
+**Schema:** 1.7.0
 
 ---
 
@@ -75,6 +76,15 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | F1016 | Auswertungen, die man sieht (Teil 1, Diagramme, die stimmen): Chart-Schicht mit Registry (ein Chart je Canvas, Aufräumen beim Seitenwechsel), Farben je Theme auch beim Umschalten, Hellmodus ≥ 3:1; Teilmonate blass/hohl mit erfassten Tagen; Trends gegen dieselben vollen Monate des Vorjahres (witterungsbereinigt, wo möglich); Zeitraum je Übersichtskarte; Daten als Tabelle und Kurzbeschreibungen; Jahr und Zähler in der Adresse, Jahr je Verbrauchsart; Chart.js 4.5.1 | v2.15.0 | 2026-09-25 |
 | F1016 | Auswertungen, die man sieht (Teil 2, was die Rechnung weiß): Saldo-Verlauf im Abrechnungszeitraum (`balance_path` aus derselben Rechnung wie der erwartete Saldo), Monatschart mit Vorjahr und Umschalter gemessen/witterungsbereinigt (`heat_adjusted`), Spalte „bereinigt“, PV-Energiefluss, Übersicht als kleine Vielfache mit „Energie gesamt (kWh)“, Temperaturband | v2.16.0 | 2026-09-25 |
 | N1017 | Frei zum Ausprobieren: Lizenz GNU AGPL v3.0 oder neuer (Versionen bis 2.16.0 bleiben MIT, alle Releases, Tags und Images bestehen), öffentliche Demo auf GitHub Pages (Antworten vom echten Server beim Bauen, sieben Sprachen, beim Release und montags neu), Demo-Daten beim Import bis heute fortgeschrieben (`DemoDataAligner`), Quellcode-Link auf den Versions-Tag, `CREDITS.md`/`TRADEMARKS.md` | v3.0.0 | 2026-10-07 |
+| F1008 | Mieter-Paket (GitHub #15): Heizwärme als neunte Verbrauchsart, Verbrauch je Zeitraum (monatliche Verbrauchsinfo), Zählerrollen, Warmwasser-Wärme, Mietverhältnis mit Budget, Nebenkostenabrechnungen und Fristen; CO₂-Kostenaufteilung; Schema 1.7.0 | v3.1.0 | 2026-10-07 |
+| F1010 | Home Assistant liest mit: `GET /api/summary` (REST-Sensoren), Agenda und Kalender-Abo, Stapel-Ingest | v3.1.0 | 2026-10-07 |
+| F1017 | Verträge pro Zählergruppe (GitHub #17): ein Vertrag für HT/NT mit Arbeitspreis je Mitglied, § 14a Modul 1, Börsenpreise und Dynamik-Check, Ladestrom-Nachweis | v3.1.0 | 2026-10-07 |
+| N1018 | Ökosystem und Betrieb: Sprache pro Gerät, CSV in der Landessprache, Belege und Offline-Erfassung, Texterkennung im Heimnetz, Ingress, Vorlagen für Unraid/CasaOS/Umbrel, PHP ab 8.2 (Pakete G und H2) | v3.1.0 | 2026-10-07 |
+| F1019 | Nutzungsstufen Einsteiger/Erfahren/Experte: Umschalter in der Kopfleiste, Einsteiger-Übersicht mit drei Antworten, Vorschläge zum Hochstufen; ausblenden, nicht abschalten; Bestand bleibt Experte | v3.2.0 | 2026-10-09 |
+| F1020 | Schaubilder mit den eigenen Daten: Wohin geht mein Geld, Energiefluss, Kälter oder mehr verbraucht, Vertrags-Zeitstrahl (SVG + CSS, still bei reduzierter Bewegung) | v3.2.0 | 2026-10-09 |
+| F1018 | Einrichtungsassistent mit vier Beispielhaushalten und Schaufenster (Mietwohnung mit Heizwärme, Eigentumswohnung mit Fernwärme, Eigenheim klassisch, Eigenheim mit Wärmepumpe/PV/Speicher/Wallbox), auch in der GitHub-Demo | v3.2.0 | 2026-10-09 |
+| F1023 | Personen im Haushalt: eigene Anmeldung mit Name oder Proxy, Verwalter und Mitglieder, Stufe und Sprache je Person, neues Passwort meldet ab | v3.2.0 | 2026-10-09 |
+| F1022 | Ladevorgänge aus evcc: CSV-Export oder Abruf im Heimnetz, Sonnenanteil und Preis je Monat, Zählerstände der Wallbox | v3.2.0 | 2026-10-09 |
 
 > **Lücke in dieser Tabelle:** v2.2.0 (Vollreview, Tarifvergleich neu, Assets
 > selbst gehostet) und v2.3.0 (Tarifvergleich wird zur Wechselentscheidung)
@@ -123,8 +133,12 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **F1008** | NKA für Mieter (modulares Datenmodell, GitHub #15) | v3.1.0 | L | 1.6.0 → 1.7.0 | **umgesetzt in v3.1.0** (Paket H3); dazu CO₂-Kostenaufteilung (H4) und Rechnungsprüfung für alle Arten (H5) — s. Abschnitt F1008 unten |
-| **F1017** | Verträge pro Zählergruppe (GitHub #17) | v3.1.0 | M | additiv | **umgesetzt in v3.1.0** (Paket H6): Gruppenvertrag mit Arbeitspreis je Mitglied (HT/NT) — s. Abschnitt F1017 unten |
+| **F1019** | Nutzungsstufen Einsteiger · Erfahren · Experte (je Installation), vereinfachte Ansichten, Vorschlag zum Hochstufen | v3.2.0 | M | — (Einstellung) | geplant — Grundlage für F1018 |
+| **F1020** | Schaubilder: animierte Erklärgrafiken mit den eigenen Daten (SVG, ohne Bibliothek) | v3.2.0 | M | — | geplant |
+| **F1018** | Einrichtungsassistent mit Personas und Beispielhaushalten (Mieterin mit Heizwärme, Eigenheim Gas/Fernwärme, Eigenheim mit Wärmepumpe/PV/Wallbox) | v3.2.0 | M–L | — (Einstellung) | geplant — braucht F1019, nutzt F1020 |
+| **F1022** | Ladevorgänge aus evcc übernehmen (Ladestrom-Nachweis, Anteil aus PV) | v3.2.0 | S–M | offen (additiv) | geplant |
+| **F1023** | Benutzer im Haushalt: eigene Benutzer mit Passwort oder vom Proxy gemeldet, Verwalter und Mitglieder, Stufe und Sprache je Person | v3.2.0 | M | — (`auth.json` additiv) | geplant — Stufe je Person ersetzt dort die Stufe der Installation |
+| **F1021** | Flexibilität bewerten: Verbrauch und Börsenpreis je Viertelstunde, Erfolg der Verschiebung, Dynamik-Check mit echtem Lastgang, Speicher nach Stunden, § 14a Modul 3 | v3.3.0 | L | 1.7.0 → 1.8.0 | geplant — nach v3.2.0 |
 
 > **Sprach-Wellen 2+** (cs, uk, pl, el, tr, hr, sr, sl, fi, no, da, lv, et, hu, bg, ro …)
 > sind bewusst zurückgestellt (User-Entscheidung 2026-06-10) und werden
@@ -766,15 +780,132 @@ baut sie nicht auf. Doku: [Ladestrom-Nachweis](docs/anleitungen/ladestrom-nachwe
 
 ---
 
-## Backlog (ungeplant, ohne Slot)
+## v3.2.0 — Detail-Konzept (Release-Schnitt 2026-10-09) — ausgeliefert 2026-10-09
 
-Mit der Einsortierung vom 2026-05-31 wurde der gesamte bisherige Backlog in
-die „Geplante Reihenfolge" überführt (siehe oben). Aktuell steht hier nichts
-Offenes mehr. Neue Themen ohne festen Slot landen wieder hier; F-/N-Codes
-sind dann vorläufig und werden bei Übernahme in „Geplant" fortlaufend
-vergeben.
+> Umgesetzt wie unten beschlossen; F1023 kam mit ins Release (kein
+> Schemaschritt nötig). Zusätzlich: Sitzungs-Epoche je Person (neues Passwort
+> meldet ab), Börsenpreise im Beispielhaushalt mit Wärmepumpe, Fehler im
+> Dynamik-Check (Angebot mit künftigem Beginn) behoben.
 
-*— derzeit leer —*
+**Ziel:** Der Einstieg wird leicht, ohne dass Erfahrene etwas verlieren. Ein
+Release bis Prod mit F1019, F1020, F1018, F1022, dem Anwendungsfall
+„Steuerung“ in der Hilfe und den offenen Punkten aus v3.1.0 (Patch-Pool).
+
+**Entscheidungen (alle 2026-10-09, im Chat):**
+
+1. **Nutzungsstufe je Installation**, nicht je Gerät — sonst wechselt sie mit
+   jedem Gerät (iPad, iPhone, Mac). Stufen je Person erst mit Benutzerkonten
+   (F1023, Eingang). Umschalter in der Kopfleiste neben Tag/Nacht.
+2. **Ausblenden ist nicht abschalten.** Die App rechnet in jeder Stufe alles;
+   API, Daten und Export bleiben gleich. Bestandsinstallationen stehen nach dem
+   Update auf „Experte“ — es verschwindet nichts.
+3. **Stufen-Matrix** wie vorgeschlagen:
+
+   | Bereich | Einsteiger | Erfahren | Experte |
+   |---|---|---|---|
+   | Übersicht | eigene Ansicht: drei Antworten (Geld zurück? mehr als im Vorjahr? was ist zu tun?) mit einem Schaubild | heutige Übersicht | heutige Übersicht + Schaubilder |
+   | Zählerstände | erfassen, Foto | + CSV-Import | + Zeitreihen, Texterkennung |
+   | Verbrauch je Art | Monatsverlauf, Saldo | + Vorjahr, witterungsbereinigt, Tabelle | alles (Anomalien, CO₂-Preis, JAZ, Ladestrom) |
+   | Verträge | einfach (Arbeitspreis, Grundpreis, Abschlag) | + Preiswechsel, Boni, Kündigung, Sonderzahlungen | + Gruppen/HT-NT, § 14a, Schattenverträge, Monatspreise, Fernwärme-Leistungspreis |
+   | Wechsel, Rechnung prüfen | ausgeblendet (Empfehlungen verweisen) | ja | + Dynamik-Check, Börsenpreise |
+   | Mietverhältnis (bei Miete) | Budget-Karte | ganze Seite | + CO₂-Aufteilung und Prüfung |
+   | Auswertungen | Jahresbericht | + Analyse, Prognose | + Zäsur, Modelle, Szenarien |
+   | Zähler-Aufbau | ausgeblendet | Subzähler, Rollen | + Gruppen, Alias, Geräte |
+   | Einstellungen | Allgemein, Haushalt, Verbrauchsarten, Sicherung | + Wetter, Integrationen | alles |
+
+4. **Vorschlag zum Hochstufen** an Systemgrenzen, nicht blockierend, mit einem
+   Klick und gemerkter Ablehnung — etwa wenn Daten vorliegen, die erst eine
+   höhere Stufe zeigt (Subzähler, zweiter Vertrag, Preiswechsel,
+   Home-Assistant-Push), ein Link auf eine ausgeblendete Seite führt oder die
+   Hilfe einen Begriff einer höheren Stufe öffnet.
+5. **Personas und Beispielhaushalte:** Mieterin (Strom, Heizwärme aus der
+   monatlichen Verbrauchsinfo, Warm-/Kaltwasser, Mietverhältnis),
+   Eigentumswohnung mit Fernwärme, Eigenheim klassisch (Gas/Heizöl/Pellets),
+   Eigenheim modern (Wärmepumpe, PV, Speicher, Wallbox) — je ein
+   Beispielhaushalt; der heutige Haushalt mit allen Arten bleibt als
+   Schaufenster für Experten. Damit zeigen Demo und Anwendungsfälle auch den
+   Unterschied zwischen Fernwärme (eigener Liefervertrag) und Heizwärme
+   (gemessen, bezahlt über die Miete oder als Wärmemenge der Wärmepumpe).
+6. **Einrichtungsassistent:** Persona → Energieträger (Vorschlag aus der
+   Persona, frei kombinierbar) → Erfahrung → optional erster Zähler und
+   Vertrag → Zusammenfassung. Erscheint beim allerersten Start und in der
+   GitHub-Demo (dort mit Wahl des Beispielhaushalts), nicht nach einem
+   Update; erneut startbar in den Einstellungen.
+7. **Schaubilder (F1020):** „Wohin geht mein Geld“, „Energiefluss im Haus“,
+   „Kälter oder mehr verbraucht“, „Vertrags-Zeitstrahl“ — SVG mit
+   CSS-Animation ohne Bibliothek, Theme, Text für Screenreader, still bei
+   reduzierter Bewegung; mit den eigenen Daten.
+8. **evcc (F1022):** CSV-Export aus evcc hochladen und optional „Von evcc
+   laden“ über dessen Schnittstelle — nur im eigenen Netz wie die
+   Texterkennung, kein neuer Weg ins Internet. Feldnamen vor der Umsetzung an
+   der evcc-Doku prüfen.
+9. **Steuerung von Speicher und Auto:** kein Controller im Energietracker.
+   Anwendungsfall in der Hilfe: evcc oder Home Assistant steuern, der
+   Energietracker rechnet nach (dynamischer Tarif, Ladestrom-Nachweis,
+   Ingest). Rechtslage (EnWG-Novelle 2025, MiSpeL) vor dem Schreiben an den
+   Quellen prüfen.
+
+10. **Benutzer im Haushalt (F1023, nachgezogen am 2026-10-09):** eigene
+    Benutzer mit Name und Passwort im Modus „Passwort“; im Proxy-Modus erkennt
+    die App die Person am gemeldeten Namen. Das bisherige Passwort wird zum
+    ersten Benutzer (Verwalter). **Verwalter** ändern Zugriff (Benutzer,
+    Schlüssel, Anmeldung) und spielen Backups ein; **Mitglieder** erfassen,
+    sehen alles und stellen ihre eigene Stufe und Sprache ein. Mit Benutzern
+    gilt die Stufe je Person, ohne Anmeldung die der Installation. Benutzer
+    stehen wie das Passwort in `data/auth.json` (nicht im Backup) — kein
+    Schemaschritt.
+
+**Reihenfolge:** Stufen-Matrix und Umschalter (F1019) → Schaubild-Komponente
+(F1020) → Ansichten Einsteiger/Erfahren → Assistent und Beispielhaushalte
+(F1018) → Vorschläge zum Hochstufen → evcc (F1022) → Doku, Anwendungsfälle,
+Altlasten.
+
+**Schema:** voraussichtlich kein Schritt — Stufe, Persona und „Assistent
+erledigt“ sind neue Einstellungsschlüssel (Namen beim Bauen festlegen);
+evcc-Ladevorgänge additiv.
+
+**Reihenfolge F1023:** nach F1019 (die Stufe wird je Person gespeichert),
+vor dem Assistenten (der beim Erststart den ersten Verwalter anlegen kann).
+
+---
+
+## v3.3.0 — Detail-Konzept F1021 „Flexibilität bewerten“
+
+**Ziel:** Wer mit evcc, Home Assistant oder einem Speicher Verbrauch in
+günstige Stunden verschiebt, sieht, was es gebracht hat. Gesteuert wird
+weiter außerhalb — der Energietracker rechnet nach.
+
+**Entscheidungen (2026-10-09):** eigenes Release nach v3.2.0, Schema
+1.7.0 → 1.8.0; Werte **je Viertelstunde** gespeichert (wie das intelligente
+Messsystem und der Day-Ahead-Markt), Quellen: Portaldateien (Ausbau des
+Zeitreihen-Imports), Home Assistant (Ingest mit Zeitstempel) und SMARD
+(Börsenpreise je Viertelstunde, nur auf Knopfdruck). Inhalt — alle vier:
+
+1. **Erfolg der Verschiebung:** kWh in günstigen und negativen Stunden,
+   eigener Durchschnittspreis gegen das Börsenmittel (Profilfaktor), je
+   Monat und je steuerbarem Zähler (Wallbox, Wärmepumpe, Speicher).
+2. **Dynamik-Check mit echtem Lastgang:** der Tarifvergleich nimmt das
+   eigene Viertelstundenprofil statt des Monatsmittels, wo es vorliegt.
+3. **Speicher nach Stunden:** Laden bei niedrigen, Entladen bei hohen
+   Preisen — wirtschaftlicher Ertrag des Hausspeichers.
+4. **§ 14a Modul 3:** zeitvariable Netzentgelte mit den Zeitfenstern des
+   Netzbetreibers; Ersparnis durch Verschieben in die Niedrigtarifzeiten.
+
+**Offen beim Bauen:** Ablage der Viertelstundenwerte (je Zähler und Jahr),
+Größe und Aufräumen alter Jahre, Rechtslage (MiSpeL, Modul 3) an den Quellen.
+
+---
+
+## Eingang (besprochen, noch ohne Release)
+
+Seit 2026-10-09 der **Eingang**: Jede besprochene Idee landet hier noch in
+derselben Sitzung — vorläufiger Code, Nutzen in einem Satz, Größe,
+Abhängigkeiten, Auslöser. Beim Release-Schnitt (siehe Prozess-Regeln) wird
+daraus ausgewählt.
+
+| Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
+|---|---|---|---|---|
+| — | *derzeit leer — F1021 und F1023 am 2026-10-09 eingeplant* | | | |
 
 ---
 
@@ -783,12 +914,31 @@ vergeben.
 Kleine Verbesserungen ohne F- oder N-Code. Werden in PATCH-Releases
 gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 
+**Offen aus v3.1.0** (Abschlussbericht 2026-10-07; mit v3.2.0 abgearbeitet, was ging):
+
+- ~~GitHub #15 und #17 mit Verweis auf v3.1.0 schließen.~~ — mit v3.2.0 erledigt.
+- Dependabot-PRs #22–#26 (Actions) nach dem Release auf die neue Basis gebracht;
+  **#27 (Docker-Image auf PHP 8.5) bewusst zurückgestellt** — das Image bleibt bei
+  PHP 8.4, bis 8.5 in der CI-Matrix steht.
+- ~~Rechtsangaben der Doku gegen die Quellen prüfen~~ — Prüfbericht v3.2.0; Ergebnis im CHANGELOG.
+- Anleitungen ungetestet: Ollama, LM Studio, Unraid, openHAB.
+- ~~Versorgerrechnungen lassen sich in der Oberfläche nur anlegen und löschen~~ — bearbeiten seit v3.2.0.
+- Home-Assistant-App und HACS-Integration als eigene öffentliche Repos — Entscheidung offen.
+
 *— weitere offene GitHub-Issues und beobachtete Polituren landen hier —*
 
 ---
 
 ## Prozess-Regeln
 
+- **Release-Schnitt im Assist-Modus (seit 2026-10-09).** Am Ende einer
+  Entwicklungsphase legt der Assistent alles Offene als Auswahl vor —
+  Eingang, Patch-Pool, offene GitHub-Issues, offene Punkte des letzten
+  Abschlussberichts, Dependabot. Der Maintainer wählt im Chat, was ins
+  Release kommt, und entscheidet die Architekturfragen gleich mit. Danach
+  vergibt der Assistent die endgültigen Codes, schreibt den Plan hierher und
+  liefert bis Prod. Ein Release hat ein Thema plus Altlasten und höchstens
+  einen Schemaschritt.
 - **Reihenfolge ist verbindlich**, bis sich neue Erkenntnisse ergeben (ein
   Bug mit hoher Priorität schiebt sich vor; ein neues User-Feedback kann
   einen Slot übernehmen).
@@ -854,6 +1004,9 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-09-25 | v2.15.0 ausgeliefert (Minor, F1016) | **Diagramme, die stimmen** — Paket F, erster Teil (F1). `components/chart.js` als Chart-Schicht (Registry, `et:route` räumt ab, `et:themechange` zeichnet neu samt der von Chart.js kopierten Achsenfarben, Fehler nie im Toast), `utilColor()`/`tokenColor()` als Funktionen, Hellmodus über `themedColor`; `lib/chart-data.js` (Teilmonat, `yoyTrend`, Fenster, Kurzbeschreibung); Teilmonate in Monatschart, Tabelle, Übersicht und Analyse; Trend im Banner und auf den Karten gegen dieselben Monate des Vorjahres; Datentabellen, Kurzbeschreibungen mit Kernaussage, vertauschte Beschreibungen in der Analyse korrigiert, Linienstil je Jahr; `?year=`/`?meter=` in der Adresse, Jahr je Verbrauchsart; Prognose-Rennen und Tarif-Leck behoben; Chart.js 4.5.1 aus dem npm-Paket (Integrität geprüft). Der Render-Test lädt die echte Chart-Schicht (bis v2.14 ein Stub). Keine API-Änderung, kein Schema-Wechsel. 455 → 456 Testmethoden, `tests/chart.test.mjs` neu, 22 Gegenproben. Nächstes: v2.16.0 (F2: witterungsbereinigt, Übersicht als kleine Vielfache, Saldo-Verlauf, PV-Energiefluss). |
 | 2026-09-25 | v2.16.0 ausgeliefert (Minor, F1016) | **Was die Rechnung weiß** — Paket F, zweiter Teil (F2); **Pakete A bis F damit umgesetzt.** `ConsumptionService::balanceProjection()` liefert am laufenden Vertrag `balance_path` (Monatsreihe; letzter Punkt = `projected_end_balance`, Test), die Saldo-Karte zeigt Kosten gegen Bezahltes; Monatschart mit Vorjahr (Umriss) und Umschalter gemessen/witterungsbereinigt über `heat_adjusted` (nicht das Altfeld `weather_adjusted`), Spalte „bereinigt“, Zählertausch im Tooltip; PV-Energiefluss aus `pv-summary` (Summen nur über gedeckte Monate); Übersicht als kleine Vielfache, „Energie gesamt (kWh)“ gestapelt statt Zwei-Achsen-Linie; Temperaturband. API additiv, kein Schema-Wechsel. 456 → 459 Testmethoden, 14 Gegenproben. Offen aus dem Review: Paket G (International, Rest) und H (Ökosystem) — nicht beauftragt; als Nächstes F1008 (NKA für Mieter, #15). |
 | 2026-10-07 | v3.0.0 ausgeliefert (Major ohne Bruch, N1017) | **Frei zum Ausprobieren** — Lizenzwechsel zur AGPL-3.0-or-later nach dem Vorbild des Schwesterprojekts, aber ohne dessen Neustart: Releases, Tags und GHCR-Images bleiben, bis 2.16.0 gilt MIT. Öffentliche Demo (Review MKT-22) über `tools/build-demo.mjs` + `lib/demo-mode.js` + `pages.yml`, abgesichert durch `tests/demo.test.mjs` (45 Seiten). Demo-Daten wachsen beim Import bis heute (Stände je Zähler ab dem letzten Stand mit dem Vorjahresverbrauch). `TankModelTest` kalenderfest. 459 → 472 Testmethoden, 14 Gegenproben. Als Nächstes: Pakete G (International, Rest) und H (Ökosystem) zusammen in einem Release. |
+| 2026-10-07 | v3.1.0 ausgeliefert (Minor, F1008 + F1010 + F1017 + N1018, Schema 1.7.0) | **Für jeden Haushalt** — Pakete G und H1–H8 des Gesamtreviews in einem Release; damit sind alle Pakete A–H umgesetzt. Codes nachgetragen am 2026-10-09. |
+| 2026-10-09 | v3.2.0 geplant, Eingang eingeführt | Erster Release-Schnitt im Assist-Modus: F1019 Nutzungsstufen (je Installation — Stufen je Nutzer erst mit Benutzerkonten, F1023 im Eingang), F1020 Schaubilder, F1018 Einrichtungsassistent mit Personas und Beispielhaushalten, F1022 evcc-Ladevorgänge; Anfrage eines Energieberaters zu Speicher- und Ladesteuerung bewertet: kein Controller, Anwendungsfall in der Hilfe, F1021 Flexibilität bewerten in den Eingang. Backlog heißt jetzt Eingang. |
+| 2026-10-09 | v3.2.0 ausgeliefert (Minor, F1018 + F1019 + F1020 + F1022 + F1023, kein Schemaschritt) | **Leicht für jeden** — Nutzungsstufen (Bestand bleibt Experte), Schaubilder, Einrichtungsassistent mit vier Beispielhaushalten und Schaufenster, Personen im Haushalt (F1023 nachgezogen, kein Schema nötig; Stufe und Sprache je Person, neues Passwort meldet ab), Ladevorgänge aus evcc (CSV oder Abruf im Heimnetz). Altlasten: Rechnungen bearbeiten, #15/#17 geschlossen, Rechtsangaben geprüft. Fehler gefunden über die Beispielhaushalte: Dynamik-Check mit künftigem Angebot, Haushaltswechsel ließ einen neuen Topf stehen. F1021 bleibt v3.3.0 (Schema 1.8.0). |
 | 2026-09-24 | v2.5.3 ausgeliefert (Patch) | **Keine stillen Fehlbuchungen** — Paket A aus einem Gesamtreview (Berechnungen, Oberfläche Mac/iPhone, Übersetzungen, Doku, API). Schwerpunkt: Eingaben, die bisher still in eine gültige Buchung verwandelt wurden (leeres Zahlenfeld → 0, „12,5" je nach Browser → nichts, HA-Sensor „unavailable" → Zählerstand 0 durch `float(0)` in der eigenen Vorlage, unlesbarer Stichtag → 01-01, leerer Vertrag → „aktiv"). Dazu CSRF-Schutz, Escaping gespeicherter Werte, Datumsprüfung auf allen Schreibpfaden, Beschädigung als 503 mit Quarantäne-Kopie, globale Schreibsperre, Snapshot vor Migration, iPhone-Überbreite (13 von 21 Ansichten → keine), Glossar-Vorzeichen, fachliche Fehlübersetzungen. Kein Schema-Bump, keine Schnittstellenänderung. 256 → 285 Testmethoden, zwei neue Node-Tests in der CI. Die weiteren Pakete folgen als eigene Releases: „Verlässlich und sicher im Heimnetz" (optionale Anmeldung), Länderprofile, „Richtig rechnen", „Mobil und aufgeräumt", „Versteht sich von selbst", „Auswertungen, die man sieht". |
 | 2026-09-15 | v2.5.2 ausgeliefert (Patch) | UX-Politur an der Rechnungsprüfung: je Abschnitt **Stand alt / Stand neu** mit Ableseart wie die Fußnoten der Rechnung — abgelesen, als geschätzt erfasst (`S`), Ersatzwert (`E`, tagesgenau interpoliert, kein Stand über einen Zählertausch hinweg). Anlass: Beim Abgleich zweier echter Jahresrechnungen war nicht zu sehen, welche Abschnittsgrenzen auf echten Ablesungen ruhen und welche auf Schätzungen — bei der zweiten Rechnung vier von sieben Endständen. `bill-check` liefert `counter_*` + `counter_*_kind`. 254 → 256 Tests, der Browser-Test führt die Prüfung jetzt wirklich aus, 7 Toggles greifend. Doku DE + EN. Nächster Slot: F1008. |
 | 2026-09-15 | v2.5.1 ausgeliefert (Patch) | UX-Politur ohne Code: Die Tabelle *Verträge & Abschläge* zeigt je Vertrag jetzt eine Spalte **Sonderzahlungen** (Netto aus Kundensicht, Einzelposten im Tooltip, Hinweistext; nur Gas/Strom/Fernwärme). Aufgefallen beim Nachrechnen einer echten Endabrechnung mit der neuen Rechnungsprüfung: Die gebuchte Gutschrift war in der Vertragshistorie unsichtbar, nur *Bonus* hatte eine Spalte. Drei Weichen per Multiple-Choice (eigene Spalte statt „Boni & Sonder"-Saldo — Bonus ist Vertragsbestandteil, Sonderzahlung Geld außerhalb des Plans; Netto mit Kundenvorzeichen; PATCH statt F-Code). `contract-status` liefert dafür `special_payments[]`. 250 → 254 Tests, 9 Toggles greifend, ein zehnter fand totes `abs()`. Doku DE + EN. Nächster Slot: F1008. |

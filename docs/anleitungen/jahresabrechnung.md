@@ -19,7 +19,7 @@ Alle Zahlen sind erfunden, aber durchgerechnet; so oder ähnlich sieht der Teil
 einer Gasrechnung aus, auf den es ankommt:
 
 ```text
-Stadtwerke Musterstadt · Erdgas Klassik          Abrechnungszeitraum 01.01.2025 – 31.12.2025
+Stadtwerke Musterstadt · Gas Basis 24            Abrechnungszeitraum 01.01.2025 – 31.12.2025
 
 Zählerstände           01.01.2025    12.480 m³   Ableseart K (Kundenablesung)
                        31.12.2025    14.010 m³   Ableseart S (Schätzung)
@@ -201,7 +201,7 @@ der Tabelle die Karte **„Laut Rechnung“** für den gewählten Zähler.
 | Gezahlte Abschläge | 1.800,00 |
 | Nachzahlung / Guthaben | leer lassen: Die App rechnet Betrag − Abschläge = −145,00. **Positiv = Nachzahlung**, negativ = Guthaben |
 | Weitere Posten | Umlagen, Gebühren, Gutschriften mit Bezeichnung und Betrag (Gutschrift negativ) — die App rechnet sie nicht nach, sondern zählt sie zur eigenen Summe |
-| Emissionen (kg CO₂), CO₂-Kosten laut Rechnung | nur bei Gas: die CO₂-Angaben der Rechnung, den Betrag netto, wie er dort steht. Sie gehen dem Standardfaktor vor ([CO₂-Preis](../verstehen/16-co2-preis.md)) und setzen zur Miete die Frist für die Erstattung ([CO₂-Kosten teilen](co2-aufteilung.md)) |
+| Emissionen (kg CO₂), CO₂-Kosten laut Rechnung | nur bei Gas: die CO₂-Angaben der Rechnung, den Betrag so, wie er dort steht (mit Umsatzsteuer, CO2KostAufG § 3 Abs. 3). Sie gehen dem Standardfaktor vor ([CO₂-Preis](../verstehen/16-co2-preis.md)) und setzen zur Miete die Frist für die Erstattung ([CO₂-Kosten teilen](co2-aufteilung.md)) |
 | Rechnung anhängen (PDF oder Foto) | der Beleg; die Liste zeigt ihn als 📄 |
 
 **„Rechnung speichern“** legt sie an und zeigt gleich den Vergleich.

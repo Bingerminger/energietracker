@@ -27,9 +27,12 @@ Die Datei ist fast immer eine CSV-Datei, manchmal als „Export“ oder
 
 **Ein Recht auf die eigenen Daten.** Seit dem 12. September 2025 gilt der EU
 Data Act (Verordnung (EU) 2023/2854): Wer ein vernetztes Gerät nutzt — etwa
-einen Wechselrichter, eine Wärmepumpe oder eine Wallbox —, kann die Daten, die
-es erzeugt, vom Hersteller verlangen, in einem gängigen, maschinenlesbaren
-Format, und sie auch an einen Dritten weitergeben lassen. Der Energietracker
+einen Wechselrichter, eine Wärmepumpe oder eine Wallbox —, kann vom
+Dateninhaber, meist dem Hersteller oder dem Anbieter der zugehörigen App, die
+ohne Weiteres verfügbaren Daten des Geräts verlangen: unentgeltlich, in einem
+gängigen, maschinenlesbaren Format, auf Wunsch auch an einen Dritten (Art. 4
+und 5). Ausgenommen sind Geräte von Kleinst- und Kleinunternehmen (Art. 7).
+Der Energietracker
 ist in diesem Bild der Empfänger, mit einer Besonderheit: Er läuft auf deinem
 eigenen Server, die Daten bleiben bei dir. Eine Schnittstelle zu Herstellern
 hat er nicht; er liest die Datei, die du bekommst. Das ist ein Hinweis, keine

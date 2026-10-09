@@ -89,6 +89,10 @@ async function enumerate(get) {
     '/api/tenancies', '/api/market-prices', '/api/benchmarks/comparison');
 
   const settings = (await get('/api/settings')).json?.data ?? {};
+  // v3.2.0 (F1018) — Mietverhältnis der Beispielhaushalte: Budget und Abrechnungen
+  for (const ten of (await get('/api/tenancies')).json?.data ?? []) {
+    add(`/api/tenancies/${ten.id}/budget`, `/api/tenancies/${ten.id}/statements`);
+  }
   const utilities = (await get('/api/utilities')).json?.data ?? [];
   const allMeters = [];
   const months = Number.isInteger(Number(settings.forecast_months)) ? Number(settings.forecast_months) : 12;
@@ -124,7 +128,7 @@ async function enumerate(get) {
         add(`/api/utility/${k}/meters/${id}/forecast?` + new URLSearchParams({
           temp_offset: 0, price_factor: 1, model, forecast_months: months }).toString());
       }
-      allMeters.push({ utility: k, id, billCheck: !!u.supports_bill_check });
+      allMeters.push({ utility: k, id, billCheck: !!u.supports_bill_check, role: m.role || null });
     }
     for (const c of (await get(`/api/utility/${k}/contracts`)).json?.data ?? []) {
       add(`/api/utility/${k}/contracts/${c.id}`);
@@ -144,6 +148,11 @@ async function enumerate(get) {
       // Rechnungsprüfung: Vorbelegung (Vorjahr) und der Verweis je Jahr aus der
       // Verbrauchsansicht — seit v3.1.0 (H5) für jede Art mit Rechnungsprüfung
       if (m.billCheck) add(`/api/utility/${k}/meters/${m.id}/bill-check?from=${y}-01-01&to=${y + 1}-01-01`);
+      // v3.2.0 — Ladestrom-Nachweis der Wallbox (Vorbelegung: Vertragspreis)
+      if (m.role === 'ev_charger') {
+        add(`/api/reports/ev-charging?meter_id=${encodeURIComponent(m.id)}&year=${y}&method=contract`);
+        add(`/api/ev-sessions?meter_id=${encodeURIComponent(m.id)}&year=${y}`);   // F1022 — Ladevorgänge aus evcc
+      }
     }
   }
   const files = [];
@@ -181,14 +190,16 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
 
     // Demo-Daten laden — fortgeschrieben bis heute, Namen und Notizen in der Sprache
     // der Anfrage (v3.1.0, I18N-24). Je Sprache neu, die IDs bleiben dieselben.
-    const importDemo = async (lang) => {
+    // v3.2.0 (F1018) — je Beispielhaushalt (Persona) eine eigene Ablage:
+    // „showcase" (alle Arten) an der bisherigen Stelle, die anderen unter p/<persona>/
+    const importDemo = async (lang, persona) => {
       const imp = await fetchRaw('/api/demo/import', lang, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ force: true }) });
-      if (imp.status !== 200) throw new Error(`Demo-Import (${lang}): HTTP ${imp.status} ${imp.buf.toString('utf8').slice(0, 300)}`);
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: true, ...(persona === 'showcase' ? {} : { persona }) }) });
+      if (imp.status !== 200) throw new Error(`Demo-Import (${persona}, ${lang}): HTTP ${imp.status} ${imp.buf.toString('utf8').slice(0, 300)}`);
     };
-    await importDemo('de');
-
-    const { keys, files, years } = await enumerate(get);
+    await importDemo('de', 'showcase');
+    const personas = (await get('/api/demo/status')).json?.data?.personas || ['showcase'];
     const languages = Object.keys(JSON.parse(readFileSync(join(ROOT, 'public/locales/languages.json'), 'utf8')));
 
     rmSync(out, { recursive: true, force: true });
@@ -211,33 +222,44 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
       return JSON.stringify(json);
     };
 
-    // Jede Sprache vollständig; gleiche Antworten liegen dank Inhaltsadresse nur einmal da
-    const index = Object.fromEntries(languages.map(l => [l, {}]));
-    const firstOf = {};
-    for (const lang of languages) {
-      await importDemo(lang);
-      for (const key of keys) {
-        let text;
-        try { text = asStored(await get(key, lang)); }
-        catch (e) { throw new Error(`${key} (${lang}): ${e.message}`); }
-        index[lang][key] = store(text);
-        firstOf[key] ??= index[lang][key];
+    let keys = [], files = [], years = [], varying = [];
+    const allKeys = new Set();
+    for (const persona of personas) {
+      const dir = persona === 'showcase' ? join(out, 'demo-api') : join(out, 'demo-api', 'p', persona);
+      mkdirSync(dir, { recursive: true });
+      await importDemo('de', persona);
+      const found = await enumerate(get);
+      if (persona === 'showcase') ({ keys, files, years } = found);
+      found.keys.forEach(k => allKeys.add(k));
+
+      // Jede Sprache vollständig; gleiche Antworten liegen dank Inhaltsadresse nur einmal da
+      const index = Object.fromEntries(languages.map(l => [l, {}]));
+      const firstOf = {};
+      for (const lang of languages) {
+        await importDemo(lang, persona);
+        for (const key of found.keys) {
+          let text;
+          try { text = asStored(await get(key, lang)); }
+          catch (e) { throw new Error(`${key} (${persona}, ${lang}): ${e.message}`); }
+          index[lang][key] = store(text);
+          firstOf[key] ??= index[lang][key];
+        }
+        writeFileSync(join(dir, `index-${lang}.json`), JSON.stringify(index[lang]));
+        // Datei-Downloads dieser Sprache, solange ihre Daten geladen sind
+        for (const f of found.files) {
+          // „local" in der Sprache der Demo (im Betrieb: Standardsprache der Installation)
+          const r = await fetchRaw(f.includes('format=local') ? `${f}&lang=${lang}` : f, lang);
+          if (r.status !== 200) throw new Error(`${f} (${persona}, ${lang}): HTTP ${r.status}`);
+          const target = join(dir, 'files', lang, demoFileName(f));
+          mkdirSync(dirname(target), { recursive: true });
+          writeFileSync(target, r.buf);
+          stats.files++;
+          stats.bytes += r.buf.length;
+        }
       }
-      writeFileSync(join(out, 'demo-api', `index-${lang}.json`), JSON.stringify(index[lang]));
-      // Datei-Downloads dieser Sprache, solange ihre Daten geladen sind
-      for (const f of files) {
-        // „local" in der Sprache der Demo (im Betrieb: Standardsprache der Installation)
-        const r = await fetchRaw(f.includes('format=local') ? `${f}&lang=${lang}` : f, lang);
-        if (r.status !== 200) throw new Error(`${f} (${lang}): HTTP ${r.status}`);
-        const target = join(out, 'demo-api', 'files', lang, demoFileName(f));
-        mkdirSync(dirname(target), { recursive: true });
-        writeFileSync(target, r.buf);
-        stats.files++;
-        stats.bytes += r.buf.length;
-      }
+      if (persona === 'showcase') varying = keys.filter(k => languages.some(l => index[l][k] !== firstOf[k]));
     }
-    const varying = keys.filter(k => languages.some(l => index[l][k] !== firstOf[k]));
-    stats.keys = keys.length;
+    stats.keys = allKeys.size;
     stats.responses = stored.size;
 
     // App-Hülle: index.php wie im Betrieb gerendert, mit `data-demo`
@@ -258,7 +280,7 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
     const health = (await get('/api/health')).json?.data ?? {};
     writeFileSync(join(out, 'demo-api', 'meta.json'), JSON.stringify({
       version, today: localToday(), built_at: new Date().toISOString(),
-      schema: health.schema_version ?? null, languages, years, keys: keys.length, varying: varying.length,
+      schema: health.schema_version ?? null, languages, years, keys: keys.length, varying: varying.length, personas,
     }, null, 1));
     log(`Demo gebaut: ${keys.length} Anfragen (${varying.length} sprachabhängig), ` +
       `${stored.size} Antworten, ${stats.files} Dateien, ${(stats.bytes / 1e6).toFixed(1)} MB → ${out}`);

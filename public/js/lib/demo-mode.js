@@ -23,6 +23,34 @@ export const DEMO = typeof document !== 'undefined'
 
 const ROOT = 'demo-api';
 const LANG_KEY = 'et-demo-lang';
+// v3.2.0 (F1018) — gewählter Beispielhaushalt (Einrichtungsassistent)
+const PERSONA_KEY = 'et-demo-persona';
+const PERSONAS = ['mieterin', 'etw-fernwaerme', 'eigenheim-klassisch', 'eigenheim-modern', 'showcase'];
+
+/**
+ * Beispielhaushalt der Demo: `?persona=` vor gespeicherter Wahl, sonst
+ * „showcase" (alle Arten). `strict`: null, solange keiner gewählt ist — dann
+ * startet der Assistent.
+ */
+export function demoPersona(strict = false) {
+  let p = null;
+  try { p = new URLSearchParams(location.search).get('persona'); } catch { /* ohne location */ }
+  try {
+    if (p && PERSONAS.includes(p)) localStorage.setItem(PERSONA_KEY, p);
+    else p = localStorage.getItem(PERSONA_KEY);
+  } catch { /* Speicher gesperrt: nur diese Sitzung */ }
+  return PERSONAS.includes(p) ? p : (strict ? null : 'showcase');
+}
+
+export function setDemoPersona(p) {
+  try { if (PERSONAS.includes(p)) localStorage.setItem(PERSONA_KEY, p); } catch { /* gilt bis zum Neuladen */ }
+}
+
+/** Ablage eines Beispielhaushalts: showcase an der bisherigen Stelle, die anderen unter p/<persona>/. */
+const personaRoot = () => {
+  const p = demoPersona();
+  return p === 'showcase' ? ROOT : `${ROOT}/p/${p}`;
+};
 const REPO = 'https://github.com/Bingerminger/energietracker';
 
 /** Schlüssel ohne gespeicherte Antwort — für den Abdeckungstest. */
@@ -40,10 +68,15 @@ function loadJson(url) {
 }
 
 function loadIndex(lang) {
-  if (!indexes.has(lang)) {
-    indexes.set(lang, loadJson(`${ROOT}/index-${lang}.json`).catch(() => ({})));
+  // je Haushalt und Sprache — ein Wechsel des Haushalts braucht kein Neuladen der Module
+  const key = `${demoPersona()}|${lang}`;
+  if (!indexes.has(key)) {
+    // ältere Bauten kennen nur den einen Haushalt: dann dessen Antworten
+    indexes.set(key, loadJson(`${personaRoot()}/index-${lang}.json`)
+      .catch(() => loadJson(`${ROOT}/index-${lang}.json`))
+      .catch(() => ({})));
   }
-  return indexes.get(lang);
+  return indexes.get(key);
 }
 
 /** Bautag und Version der Demo: `{ built_at, today, version, languages }`. */
@@ -87,7 +120,7 @@ export async function demoRequest(method, path, lang) {
 
 /** Datei-Downloads (CSV, PDF) als fertige Datei je Sprache, s. demoFileName(). */
 export function demoFileUrl(path, lang) {
-  return `${ROOT}/files/${lang}/${demoFileName(path)}`;
+  return `${personaRoot()}/files/${lang}/${demoFileName(path)}`;
 }
 
 /** Sprache der Demo: `?lang=` vor gespeicherter Wahl vor Browser. */

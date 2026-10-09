@@ -24,6 +24,8 @@ final class DemoController
     public function import(Request $req): never
     {
         $force = (bool)$req->input('force', false);
-        Response::json($this->demo->import($force));
+        // v3.2.0 (F1018) — Beispielhaushalt einer Persona (leer = alle Arten)
+        $persona = (string)$req->input('persona', '');
+        Response::json($this->demo->import($force, null, $persona === '' ? null : $persona));
     }
 }

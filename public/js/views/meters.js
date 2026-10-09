@@ -236,7 +236,7 @@ function renderMeterCard(meter, u, groups, isSub) {
       <div class="row-actions" style="flex-direction:column; gap: 4px">
         ${meter.capture === 'period' ? '' : `<button class="btn btn--sm" data-replace-device="${escapeHtml(meter.id)}">${t('meters.card.replace')}</button>`}
         <button class="btn btn--sm" data-import-readings="${escapeHtml(meter.id)}">${t('meters.card.csvImport')}</button>
-        ${u.reading_kind === 'delivery' ? '' : `<button class="btn btn--sm btn--ghost" data-import-series="${escapeHtml(meter.id)}">${t('import.series.button')}</button>`}
+        ${u.reading_kind === 'delivery' ? '' : `<button class="btn btn--sm btn--ghost" data-min-level="expert" data-import-series="${escapeHtml(meter.id)}">${t('import.series.button')}</button>`}
         <button class="btn btn--sm btn--ghost" data-edit-meter="${escapeHtml(meter.id)}">${t('meters.card.edit')}</button>
         <button class="btn btn--sm btn--danger btn--quiet" data-delete-meter="${escapeHtml(meter.id)}">${t('meters.card.delete')}</button>
       </div>
@@ -291,7 +291,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             </select>
             <small class="muted">${t('meters.modal.parentHint')}</small>
           </div>
-          <div class="field">
+          <div class="field" data-min-level="expert">
             <label>${t('meters.modal.group')}</label>
             <select class="input" name="meter_group_id">
               <option value="">${t('meters.modal.groupNone')}</option>
@@ -360,7 +360,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           </div>
         </div>
         <small class="muted" id="mf-malo-hint">${t('meters.modal.maloHint')}</small>`}
-        <div class="field">
+        <div class="field" data-min-level="expert">
           <label>${t('meters.baseline.title')}</label>
           <small class="muted">${t('meters.baseline.hint')}</small>
           <div id="bl-list" style="margin:8px 0"></div>
@@ -390,7 +390,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
         ` : ''}
         ${u.key === 'pv_erzeugung' ? `
           <!-- v3.1.0 (H7, CALC-29) — Balkonkraftwerk, Amortisation, Speicher -->
-          <fieldset class="field"><legend>${t('meters.pv.title')}</legend>
+          <fieldset class="field" data-min-level="expert"><legend>${t('meters.pv.title')}</legend>
             <label class="settings-field__check"><input type="checkbox" name="plug_in" ${existing?.plug_in ? 'checked' : ''}> ${t('meters.pv.plugIn')}</label>
             <span class="settings-field__hint">${t('meters.pv.plugInHint')}</span>
             <div class="form-row">
@@ -405,7 +405,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
           </fieldset>` : ''}
         ${u.key === 'waerme' ? `
           <!-- v3.1.0 (H7, MKT-18) — Stromzähler der Wärmepumpe für die Jahresarbeitszahl -->
-          <fieldset class="field" data-role="hp-link"><legend>${t('meters.heatPumpLink.title')}</legend>
+          <fieldset class="field" data-role="hp-link" data-min-level="expert"><legend>${t('meters.heatPumpLink.title')}</legend>
             <div data-role="hp-list" class="muted small">${t('meters.heatPumpLink.loading')}</div>
             <span class="settings-field__hint">${t('meters.heatPumpLink.hint')}</span>
           </fieldset>` : ''}

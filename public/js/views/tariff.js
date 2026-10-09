@@ -122,7 +122,7 @@ export async function render(container) {
 
     <section id="t-checklist" style="margin-top: var(--sp-5)"></section>
 
-    <section id="t-market" style="margin-top: var(--sp-5)"></section>
+    <section id="t-market" data-min-level="expert" style="margin-top: var(--sp-5)"></section>
 
     <section id="t-retro" style="margin-top: var(--sp-5)"></section>
   `;
@@ -740,7 +740,7 @@ function openShadowForm(container, existing) {
           value="${esc(existing?.provider || '')}"
           placeholder="${esc(t('tariff.shadow.providerPlaceholder'))}"></label>
         ${sel.utility === 'strom' ? `
-        <label class="settings-field__check" style="grid-column: 1 / -1"><input type="checkbox" id="s-dyn" ${isDyn ? 'checked' : ''}>
+        <label class="settings-field__check" data-min-level="expert" style="grid-column: 1 / -1"><input type="checkbox" id="s-dyn" ${isDyn ? 'checked' : ''}>
           ${esc(t('tariff.dynamic.toggle'))}${info('dynamicTariff')}</label>
         <label data-dyn>${esc(t('tariff.dynamic.markup'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-markup"
           value="${esc(formatForInput(existing?.dynamic?.markup_ct_per_kwh))}">

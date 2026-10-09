@@ -11,6 +11,14 @@ the landlord’s share. Since **v3.1.0** the Energietracker works out this share
 with your own gas boiler it claims it for you, with central heating it checks
 the heating cost statement.
 
+Since 29 Jul 2026 the act also covers newly installed gas and oil heating
+systems under § 43 of the Building Modernisation Act (GModG; the GEG has had
+this name since July 2026): there, tenant and landlord each bear half of the
+gas grid charges and the CO₂ costs from 2028 and of the costs of the mandatory
+fuel shares (such as biomethane) from 2029, with a hardship rule (§§ 5a–5d
+CO2KostAufG, as of 9 Oct 2026). The app does not calculate this. The ten stages
+below are unchanged.
+
 > **An estimate, not legal advice.** The app calculates with your data and the
 > rules of the act, but does not judge whether and how they apply in your case.
 > Tenants’ associations or legal advice can help with questions.
@@ -84,7 +92,8 @@ with the BEHG standard factor and the year’s CO₂ price.
 card **“According to the bill”**
 ([Annual bill](jahresabrechnung.md#7-on-the-bill-enter-compare-book)): there
 **“Emissions (kg CO₂)”** and **“CO₂ cost on the bill”** as they are on the bill
-— the supplier states them net — and the **bill date**. The app then uses the
+— the supplier states the amount including VAT (§ 3(3)) — and the **bill
+date**. The app then uses the
 supplier’s figures, and the deadline follows from the bill date.
 
 **3. Enter reductions.** In the “Edit tenancy” dialog, field group **“CO₂ costs
@@ -92,10 +101,13 @@ supplier’s figures, and the deadline follows from the bill date.
 
 | Field | Effect |
 |---|---|
-| “Gas also for own appliances (e.g. gas cooker) – refund −5%” | The landlord’s share drops to 95 % (§ 6(3)). |
+| “Gas also for own appliances (e.g. gas cooker) – refund −5%” | The refund is reduced by 5 % (§ 6(3), second sentence). |
 | “Public-law restrictions (§ 9)”: none | no reduction |
 | … “against renovation or replacing the heating (share halved)” | A restriction such as a listed building prevents one of them: share halved. |
 | … “against both (no sharing)” | The landlord bears nothing. |
+
+The landlord can only rely on a restriction under § 9 if he proves it to you
+(§ 9(3)).
 
 **4. Read it.** The card **“Sharing CO₂ costs {year}”** on the Tenancy page
 shows the previous year: the case in one sentence, **CO₂ per m² and year**,
@@ -128,11 +140,12 @@ next service charge statement or pay it out. The supplier’s bill is enclosed.�
 You add your name, address, date and signature yourself and enclose the
 supplier’s bill. The PDF is in the installation’s default language.
 
-**6. Mind the deadline.** The claim must reach the landlord in text form
-**within twelve months of receiving the supplier’s bill** (§ 6(2)) — an email
-counts as text form. The app takes the gas bill’s **bill date** as the date of
-receipt, without a date the day after the billing period, and puts the deadline
-in the agenda and calendar ([section 7](#7-deadline-in-the-calendar)).
+**6. Mind the deadline.** The claim must be asserted to the landlord in text
+form **within twelve months of the date the supplier billed you** (§ 6(2),
+third sentence) — an email counts as text form. The app takes the gas bill’s
+**bill date** as the billing date, without a date the day after the billing
+period, and puts the deadline in the agenda and calendar
+([section 7](#7-deadline-in-the-calendar)).
 
 ## 6. Central heating: check the statement
 
@@ -174,7 +187,7 @@ more deadline:
 | “CO₂ cost {year}: last day to claim the landlord’s share of {amount}” | bill date of the year’s gas bill + 12 months | in the [calendar subscription](kalender.md) up to 365 days ahead, under “To do” from 30 days before |
 
 Without a recorded gas bill for the year there is no deadline — the app does not
-know the date of receipt then. A click leads to the Tenancy page.
+know the billing date then. A click leads to the Tenancy page.
 
 ## 8. Limits
 

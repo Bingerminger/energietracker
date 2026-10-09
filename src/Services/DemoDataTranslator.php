@@ -28,7 +28,8 @@ final class DemoDataTranslator
     public static function translate(array $payload, string $lang, array $strings): array
     {
         if ($lang === 'de' || $strings === []) return $payload;
-        foreach (['utilities', 'reminders'] as $part) {
+        // v3.2.0 (F1018) — auch Mietverhältnis und Nebenkostenabrechnungen der Beispielhaushalte
+        foreach (['utilities', 'reminders', 'tenancies', 'tenancy_statements'] as $part) {
             if (isset($payload[$part]) && is_array($payload[$part])) {
                 $payload[$part] = self::walk($payload[$part], $lang, $strings);
             }

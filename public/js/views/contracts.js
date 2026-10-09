@@ -29,11 +29,11 @@ const GROUPS = [
 
 // v3.1.0 (H5, CALC-31) — Fernwärme: Leistungspreis je kW und Jahr, Messpreis je Jahr
 const FW_GROUPS = [
-  { key: 'capacity_prices', titleKey: 'contracts.fw.capacityPrice', dateKey: 'from', amountKey: 'eur_per_kw_year', amountKey_: 'contracts.unit.eurPerKwYear' },
-  { key: 'metering_prices', titleKey: 'contracts.fw.meteringPrice', dateKey: 'from', amountKey: 'eur_per_year',    amountKey_: 'contracts.unit.eurPerYear' },
+  { key: 'capacity_prices', titleKey: 'contracts.fw.capacityPrice', dateKey: 'from', amountKey: 'eur_per_kw_year', amountKey_: 'contracts.unit.eurPerKwYear', level: 'expert' },
+  { key: 'metering_prices', titleKey: 'contracts.fw.meteringPrice', dateKey: 'from', amountKey: 'eur_per_year',    amountKey_: 'contracts.unit.eurPerYear', level: 'expert' },
 ];
 // v3.1.0 (H6, MKT-13) — § 14a EnWG Modul 1: pauschale Reduzierung des Netzentgelts je Jahr (Strom)
-const GRID_GROUP = { key: 'grid_reduction', titleKey: 'contracts.gridReduction.title', dateKey: 'from', amountKey: 'eur_per_year', amountKey_: 'contracts.unit.eurPerYear' };
+const GRID_GROUP = { key: 'grid_reduction', titleKey: 'contracts.gridReduction.title', dateKey: 'from', amountKey: 'eur_per_year', amountKey_: 'contracts.unit.eurPerYear', level: 'expert' };
 const groupsFor = (u) => (u?.key === 'fernwaerme' ? [...GROUPS, ...FW_GROUPS] : u?.key === 'strom' ? [...GROUPS, GRID_GROUP] : GROUPS);
 // v3.1.0 (H6, #17) — Arbeitspreis je Zähler eines Gruppenvertrags (HT/NT)
 const memberGroup = (m) => ({ key: `wpm:${m.id}`, title: m.name || m.id, dateKey: 'from', amountKey: 'ct_per_kwh', amountKey_: 'contracts.unit.ctPerKwh' });
@@ -340,7 +340,7 @@ function renderContractCard(c, meters, u, groups = []) {
           <span class="status-pill ${st.cls}">${st.label}</span></h2>
         <div class="section-actions">
           <button class="btn btn--sm btn--ghost" data-edit-contract="${escapeHtml(c.id)}">${t('contracts.card.edit')}</button>
-          ${u.key !== 'wasser' && u.accounting_kind !== 'feed_in' && !c.is_shadow ? `<label class="btn btn--sm btn--ghost">${t('contracts.priceImport.button')}
+          ${u.key !== 'wasser' && u.accounting_kind !== 'feed_in' && !c.is_shadow ? `<label class="btn btn--sm btn--ghost" data-min-level="expert">${t('contracts.priceImport.button')}
             <input type="file" accept=".csv,text/csv,text/plain" class="sr-only" data-import-prices="${escapeHtml(c.id)}"></label>` : ''}
           <button class="btn btn--sm btn--danger btn--quiet" data-delete-contract="${escapeHtml(c.id)}" title="${t('contracts.deleteContract')}" aria-label="${t('contracts.deleteContract')}"><span aria-hidden="true">×</span></button>
         </div>
@@ -423,8 +423,9 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         </div>
         <!-- v2.3.1 — Wechselplanung. Diese drei speisen den Tarifvergleich:
              Ohne Kündigungsfrist kann er keinen Wechseltermin errechnen und
-             nicht vor ablaufenden Fristen warnen. Alle optional. -->
-        <div class="form-row">
+             nicht vor ablaufenden Fristen warnen. Alle optional.
+             v3.2.0 (F1019) — ab „Erfahren“; ausgeblendet bleiben die Werte im Formular -->
+        <div class="form-row" data-min-level="advanced">
           <div class="field">
             <label>${t('contracts.modal.noticePeriod')}</label>
             <!-- v2.9.0 (CALC-11) — Frist in Monaten, Wochen oder Tagen -->
@@ -446,7 +447,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
             <span class="settings-field__hint">${t('contracts.modal.priceGuaranteeHint')}</span>
           </div>
         </div>
-        <div class="form-row">
+        <div class="form-row" data-min-level="advanced">
           <div class="field">
             <label>${t('contracts.modal.noticeMode')}</label>
             <select class="input" name="notice_mode">
@@ -461,7 +462,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
             <span class="settings-field__hint">${t('contracts.modal.minTermEndHint')}</span>
           </div>
         </div>
-        <div class="field">
+        <div class="field" data-min-level="advanced">
           <label class="settings-field__check">
             <input type="checkbox" name="auto_renews" ${initial.auto_renews === false ? '' : 'checked'}>
             ${t('contracts.modal.autoRenews')}
@@ -474,9 +475,9 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         </div>
 
         ${groupsFor(u).map(g => renderGroupSection(g, initial[g.key] || [])).join('')}
-        <div data-role="member-prices">${memberPricesHtml(initial.meter_group_id, meters, initial.working_prices_by_meter)}</div>
+        <div data-role="member-prices" data-min-level="expert">${memberPricesHtml(initial.meter_group_id, meters, initial.working_prices_by_meter)}</div>
         ${u?.key === 'fernwaerme' ? `
-        <fieldset class="field"><legend>${t('contracts.fw.title')}</legend>
+        <fieldset class="field" data-min-level="expert"><legend>${t('contracts.fw.title')}</legend>
           <div class="form-row">
             <div class="field"><label>${t('contracts.fw.capacityKw')}</label>
               <input class="input" name="capacity_kw" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.capacity_kw))}"></div>
@@ -601,10 +602,11 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
 function renderGroupSection(g, entries) {
   if (entries.length === 0) entries = [{ [g.dateKey]: '', [g.amountKey]: '' }];
   return `
-    <div class="entry-group" data-group="${escapeHtml(g.key)}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}">
+    <div class="entry-group" data-group="${escapeHtml(g.key)}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}"${g.level ? ` data-min-level="${g.level}"` : ''}>
       <div class="entry-group__head">
         <div class="entry-group__title">${g.title ? escapeHtml(g.title) : t(g.titleKey)}</div>
-        <button type="button" class="btn btn--sm btn--ghost" data-action="add-row">${t('contracts.group.addRow')}</button>
+        <!-- v3.2.0 (F1019) — Preiswechsel ab „Erfahren“; vorhandene Zeilen bleiben sichtbar -->
+        <button type="button" class="btn btn--sm btn--ghost" data-action="add-row" data-min-level="advanced">${t('contracts.group.addRow')}</button>
       </div>
       <div class="field-error" data-role="group-msg" role="alert" hidden></div>
       <div class="entries">
@@ -821,7 +823,7 @@ function validateAllGroups(modalEl) {
 function renderBonusSection(bonuses) {
   if (!bonuses || bonuses.length === 0) bonuses = [];
   return `
-    <div class="entry-group" data-section="bonus">
+    <div class="entry-group" data-section="bonus" data-min-level="advanced">
       <div class="entry-group__head">
         <div class="entry-group__title">${t('contracts.bonus.title')}</div>
         <button type="button" class="btn btn--sm btn--ghost" data-action="add-bonus">${t('contracts.bonus.add')}</button>
@@ -884,7 +886,7 @@ function bindBonusRow(row) {
 function renderSpecialPaymentSection(items) {
   if (!Array.isArray(items)) items = [];
   return `
-    <div class="entry-group" data-section="special">
+    <div class="entry-group" data-section="special" data-min-level="advanced">
       <div class="entry-group__head">
         <div class="entry-group__title">${t('contracts.special.title')}</div>
         <button type="button" class="btn btn--sm btn--ghost" data-action="add-special">${t('contracts.special.add')}</button>
@@ -1009,7 +1011,7 @@ function noticeInitial(c) {
 
 // v3.1.0 (H7, MKT-16) — Gutschriften des Direktvermarkters (Einspeisung): Zeitraum und Betrag
 function renderRevenueSection(items) {
-  return `<fieldset class="field"><legend>${t('contracts.revenue.title')}</legend>
+  return `<fieldset class="field" data-min-level="expert"><legend>${t('contracts.revenue.title')}</legend>
     <span class="settings-field__hint">${t('contracts.revenue.hint')}</span>
     <div data-role="revenue-rows">${items.map(revenueRowHtml).join('')}</div>
     <button type="button" class="btn btn--sm btn--ghost" data-action="add-revenue">${t('contracts.revenue.add')}</button>

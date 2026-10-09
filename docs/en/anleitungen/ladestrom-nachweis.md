@@ -24,7 +24,9 @@ line.
   the household meter, sometimes a meter of the grid operator of its own
   (§ 14a EnWG, module 2, see
   [Electricity](../verstehen/02-strom.md#controllable-consumers-v310)). Without
-  a meter of its own, the charged amount cannot be shown.
+  a meter of its own, the charged amount cannot be shown. The BMF letter also
+  accepts a mobile meter or one built into the wall box or the car (para. 27)
+  — what matters is that the charged amount is measured.
 - **Meter readings** of the wall box, ideally at the turn of the month. A
   month’s amount is the difference of the readings, spread over the months day
   by day; readings on the first of the month make it exact.
@@ -135,6 +137,9 @@ built-in PDF fonts cannot set, the app answers `422`.
   tariff, entered with “Import monthly prices”), the contract price follows
   them ([Electricity](../verstehen/02-strom.md#dynamic-tariffs-v310)).
 - **Several wall boxes:** one record per meter.
+- **Self-employed.** For the self-employed with a business EV the same applies
+  under the BMF letter of 21 Jul 2026; there the choice applies per financial
+  year (as of 9 Oct 2026).
 
 ## 7. Via the API
 

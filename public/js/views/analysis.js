@@ -97,7 +97,7 @@ async function renderForMeter(u, meterId, body) {
 
   body.innerHTML = `
     ${renderContractReminders(contractStatus)}
-    ${renderBaselineBlock(baseline, comparison, u)}
+    <div data-min-level="expert">${renderBaselineBlock(baseline, comparison, u)}</div>
     ${u.key === 'wasser' ? await renderWaterSparindex(monthly) : ''}
     <div class="grid grid-2">
       ${u.hgt_relevant && meterData.regressions_note === 'delivery_modelled' ? `

@@ -27,6 +27,7 @@ import { renderError } from './components/error.js';
 import { setNavigationSignal } from './api.js';
 import { activeUtilities, getSettingsSync } from './state.js';
 import { sectionPages } from './lib/nav-model.js';
+import { viewAllowed, viewLevel, saveLevel } from './lib/levels.js';
 
 // Pfad (ohne „#" und Query) → Ansicht. Alte Adressen bleiben gültig.
 const ROUTES = [
@@ -176,6 +177,11 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
       detail: { view, section: def.section, key: activeKey, utility: view === 'utility' || view === 'meters' ? params[0] : null },
     }));
 
+    // v3.2.0 (F1019) — Seite über der Nutzungsstufe (Link, Lesezeichen): sie
+    // öffnet trotzdem, darüber steht der Vorschlag, umzustellen
+    const gateKey = view === 'settings' ? activeKey : view;
+    if (!viewAllowed(gateKey)) host.prepend(levelHint(viewLevel(gateKey)));
+
     let body = host;
     if (TABBED.has(def.section)) {
       let utilities = [];
@@ -183,7 +189,7 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
       if (token !== navSeq) return;
       const tabs = sectionTabsHtml(def.section, activeKey, utilities);
       if (tabs) {
-        host.innerHTML = `${tabs}<div class="view-body"></div>`;
+        host.insertAdjacentHTML('beforeend', `${tabs}<div class="view-body"></div>`);
         body = host.querySelector('.view-body');
         window.dispatchEvent(new CustomEvent('et:badges-slots'));
       }
@@ -217,8 +223,26 @@ export function startRouter(container, { routes = ROUTES, views = VIEWS } = {}) 
     }
   };
   window.addEventListener('hashchange', () => handle(false));
+  // v3.2.0 — andere Stufe: Tabs und Ansicht neu
+  window.addEventListener('et:levelchange', () => handle(false));
   handle(true);
   return { reload: () => handle(false) };
+}
+
+/** v3.2.0 — Hinweis über einer Seite, die erst eine höhere Stufe zeigt. */
+function levelHint(level) {
+  const el = document.createElement('div');
+  el.className = 'banner banner--info level-hint';
+  el.setAttribute('role', 'note');
+  const name = t('level.' + level);
+  el.innerHTML = `<span>${escapeHtml(t('level.hint.page', { level: name }))}</span>
+    <span class="level-hint__actions">
+      <button type="button" class="btn btn--sm btn--primary" data-act="raise">${escapeHtml(t('level.hint.switch', { level: name }))}</button>
+      <button type="button" class="btn btn--sm btn--ghost" data-act="close" aria-label="${escapeHtml(t('common.close'))}">✕</button>
+    </span>`;
+  el.querySelector('[data-act="raise"]').addEventListener('click', () => { saveLevel(level).catch(() => {}); });
+  el.querySelector('[data-act="close"]').addEventListener('click', () => el.remove());
+  return el;
 }
 
 export function navigate(route) {

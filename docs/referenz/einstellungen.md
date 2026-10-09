@@ -10,6 +10,14 @@ Schlüssel ([API-Referenz](api.md)); ungültige Werte lehnt die App mit 400 ab.
 Schlüssel bleiben stabil: Entfernt wird erst mit einer neuen Hauptversion und
 nach Ankündigung — die veralteten stehen am Ende.
 
+Seit v3.2.0 kann ein Haushalt mehrere Personen mit Rollen haben
+([Benutzer im Haushalt](../anleitungen/benutzer.md)). Drei Schlüssel ändern
+dann nur Verwalter, weil die App mit ihnen andere Adressen anspricht oder sich
+einbetten lässt: `frame_ancestors`, `ocr_endpoint` und `evcc_endpoint`. Ein
+Mitglied, das einen davon mitschickt, bekommt `403` `errors.auth.adminOnly`;
+alle anderen Schlüssel dürfen auch Mitglieder ändern. Ohne Anmeldung gilt die
+Einschränkung nicht.
+
 Die Standardwerte gelten für eine neue Installation in Deutschland. Ein anderes
 Land setzt beim ersten Start sein Profil (Standort, Währung, Zeitzone,
 Heizgrenze, CO₂-Faktoren …) — siehe [Länderprofile](../verstehen/14-laenderprofile.md).
@@ -25,6 +33,19 @@ Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 | `country` | `DE` | Land | Land (ISO-Code). Ein Wechsel bietet an, das Länderprofil zu übernehmen — siehe [Länderprofile](../verstehen/14-laenderprofile.md). |
 | `currency` | `EUR` | Währung | Währung (ISO-Code) für die Anzeige; es wird nichts umgerechnet. |
 | `timezone` | `Europe/Berlin` | Zeitzone | Zeitzone für „heute“, Stichtage und Erinnerungen. |
+
+### Nutzungsstufe und Einrichtung *(v3.2.0)*
+
+Die Stufe bestimmt, was die Oberfläche zeigt, nicht was die App rechnet:
+Berechnungen, API und Export sind in jeder Stufe dieselben. Eine Seite über der
+Stufe bleibt erreichbar und zeigt einen Hinweis, mit dem ein Klick die Stufe
+hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `ui_level` | `expert` | Umschalter oben neben Tag/Nacht; Karte „Nutzungsstufe und Einrichtung“ | `beginner` (🌱 Einsteiger), `advanced` (🌿 Erfahren) oder `expert` (🌳 Experte). Einsteiger: Übersicht mit drei Antworten, Zählerstände, einfache Verträge, Jahresbericht. Erfahren: dazu Auswertungen, Prognose, Wechsel, Rechnungsprüfung und Zähler-Aufbau. Experte: alles, mit Schaubildern, Gruppen, Rechenparametern und Zugriff. Der Standard Experte heißt: Eine bestehende Installation sieht nach dem Update alles wie bisher; eine Neuinstallation wählt die Stufe im Einrichtungsassistenten. Mit Anmeldung hat jede Person ihre eigene Stufe (`PATCH /api/session/me`); dieser Schlüssel gilt dann für Personen ohne eigene Wahl. |
+| `setup_pending` | `false` | — | `true` heißt: Beim nächsten Öffnen erscheint der Einrichtungsassistent. Gesetzt wird es nur beim allerersten Start einer Neuinstallation, nie nach einem Update; der Assistent setzt es zurück, wenn er fertig ist oder übersprungen wird, ebenso das Laden eines Beispielhaushalts. Erneut starten lässt sich der Assistent jederzeit über „Einrichtungsassistent starten“ auf der Karte „Nutzungsstufe und Einrichtung“ — dafür braucht es diesen Schlüssel nicht. |
+| `setup_persona` | leer (`null`) | Einrichtungsassistent, erste Frage | Die zuletzt gewählte Persona: `mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern` oder `showcase` („Erst einmal alles ansehen“); leer oder `none` = keine. Der Assistent schlägt damit die Antwort vor; das Laden eines Beispielhaushalts setzt die geladene Persona. Rechnet nichts. |
 
 ### Anzeige
 
@@ -52,7 +73,7 @@ Ein Test prüft, dass diese Seite jeden Schlüssel nennt.
 |---|---|---|---|
 | `wohnflaeche_m2` | 100 | Wohnfläche | Beheizte Fläche — Nenner der Effizienzkennzahl. Seit v3.1.0 auch Fläche für die CO₂-Stufe ([CO₂-Preis](../verstehen/16-co2-preis.md)); zur Miete geht die Wohnfläche aus dem Mietverhältnis vor. |
 | `gebaeudetyp` | `efh` | Gebäudetyp | Mehrfamilienhaus heißt: ab drei Wohnungen. Werte: `efh` Ein-/Zweifamilienhaus, `rh` Reihenhaus, `mfh` Mehrfamilienhaus, `whg` Wohnung. Bestimmt die Bezugsfläche der energieausweis-nahen Kennzahl. |
-| `beheizter_keller` | aus | Beheizter Keller | Ein-/Zweifamilien- oder Reihenhaus mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2) — für die Kennzahl nach Energieausweis. |
+| `beheizter_keller` | aus | Beheizter Keller | Wohngebäude mit bis zu zwei Wohnungen (Ein-/Zweifamilienhaus, auch Reihenhaus) mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2; § 82 Abs. 2 GModG, bis Juli 2026 GEG) — für die Kennzahl nach Energieausweis. Wirkt nur bei `gebaeudetyp` `efh` oder `rh`. |
 | `warmwasser_dezentral` | aus | Warmwasser dezentral | Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält 20 kWh/m²·a Zuschlag. |
 
 ### Wohnen und Warmwasser *(v3.1.0)*
@@ -163,14 +184,15 @@ deinen Haushalt nennt. Leer = keine Einordnung
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `frame_ancestors` | leer | Erlaubte Einbettungs-Adressen | Adresse mit Schema und Port, z. B. http://homeassistant.local:8123; mehrere durch Leerzeichen trennen. Leer = nur diese Installation selbst. Adressen, die die App einbetten dürfen (Content-Security-Policy), z. B. ein Home-Assistant-Dashboard. |
+| `frame_ancestors` | leer | Erlaubte Einbettungs-Adressen | Adresse mit Schema und Port, z. B. http://homeassistant.local:8123; mehrere durch Leerzeichen trennen. Leer = nur diese Installation selbst. Adressen, die die App einbetten dürfen (Content-Security-Policy), z. B. ein Home-Assistant-Dashboard. Seit v3.2.0 nur Verwalter. |
 
 ## Einstellungen → Experte
 
-Oben stehen seit v3.1.0 die Gruppen „Belege“ und „Texterkennung im Heimnetz“;
-die Rechenparameter (Regression & Prognose, Empfehlungen & Verteilung, seit
-v3.1.0 CO₂-Preis) liegen darunter eingeklappt hinter „Rechenparameter
-anzeigen“.
+Oben stehen seit v3.1.0 die Gruppen „Belege“ und „Texterkennung im Heimnetz“,
+seit v3.2.0 auch „evcc im Heimnetz“; die Rechenparameter (Regression &
+Prognose, Empfehlungen & Verteilung, seit v3.1.0 CO₂-Preis) liegen darunter
+eingeklappt hinter „Rechenparameter anzeigen“. Die Seite gehört zur Stufe
+Experte.
 
 ### Belege *(v3.1.0)*
 
@@ -186,10 +208,21 @@ LM Studio — nur im eigenen Netz. Einrichtung:
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `ocr_endpoint` | leer | Adresse des Dienstes | Basisadresse mit `http://` oder `https://`, etwa `http://192.168.178.20:11434` (Ollama) oder `http://192.168.178.20:1234/v1` (LM Studio); den Pfad hängt die App an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt die Texterkennung ab. |
+| `ocr_endpoint` | leer | Adresse des Dienstes | Basisadresse mit `http://` oder `https://`, etwa `http://192.168.178.20:11434` (Ollama) oder `http://192.168.178.20:1234/v1` (LM Studio); den Pfad hängt die App an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt die Texterkennung ab. Seit v3.2.0 nur Verwalter. |
 | `ocr_api` | `ollama` | Schnittstelle | `ollama` (`/api/chat`) oder `openai` — OpenAI-kompatibel (`/v1/chat/completions`), etwa LM Studio oder LocalAI. |
 | `ocr_model` | leer | Modell | Name eines Bildmodells, wie der Dienst es kennt, etwa `qwen2.5vl`, `llama3.2-vision` oder `minicpm-v` (höchstens 200 Zeichen). |
 | `ocr_timeout_s` | 30 | Zeitlimit | Sekunden, die der Server auf die Antwort wartet (5–300). Auf einem NAS ohne Grafikkarte brauchen Bildmodelle oft 20 bis 60 Sekunden. Im Docker-Image wartet nginx seit v3.1.0 bis zu 310 Sekunden, das ganze Zeitlimit läuft also durch; hinter einem eigenen Webserver oder Reverse-Proxy gilt dessen Grenze. |
+
+### evcc im Heimnetz *(v3.2.0)*
+
+Holt die Ladevorgänge der Wallbox direkt aus evcc, wenn du in der
+Wallbox-Ansicht auf „Von evcc abrufen“ tippst. Die CSV-Datei aus evcc geht
+immer, auch ohne diesen Schlüssel. Einrichtung:
+[Ladevorgänge aus evcc](../anleitungen/evcc.md).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `evcc_endpoint` | leer | Adresse von evcc | Basisadresse mit `http://` oder `https://`, unter der du evcc im Browser öffnest, etwa `http://192.168.178.30:7070` oder `http://evcc.local:7070`; die App hängt `/api/sessions` an. Leer = aus, die App baut keine Verbindung auf. Jede Adresse, auf die der Name zeigt, muss im eigenen Netz liegen, sonst lehnt der Abruf ab (wie bei der Texterkennung). Nur Verwalter. |
 
 ### Regression & Prognose
 
@@ -220,7 +253,7 @@ CO₂-Preis wirksam, heute Deutschland.
 
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
-| `co2_price_eur_t_years` | leer (`{}`) = Länderprofil | CO₂-Preis je Jahr | Eigene Jahreswerte in € je Tonne als Tabelle Jahr → €/t (Jahre 1990–2100, Werte 0–1000); sie gehen dem Länderprofil vor (Deutschland: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). Für ein Jahr ohne Wert gilt der letzte bekannte als Annahme. Über die API ein Objekt `{"2027": 65}` oder eine Liste `[{year, eur_t}]`. |
+| `co2_price_eur_t_years` | leer (`{}`) = Länderprofil | CO₂-Preis je Jahr | Eigene Jahreswerte in € je Tonne als Tabelle Jahr → €/t (Jahre 1990–2100, Werte 0–1000); sie gehen dem Länderprofil vor (Deutschland: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). Für ein Jahr ohne Wert gilt der letzte bekannte als Annahme — für 2027 also 60, obwohl dafür nach § 4 Abs. 1 Nr. 3 CO2KostAufG der Durchschnitt der Versteigerungen vom 1. Juli bis 30. November 2026 maßgeblich ist; das Umweltbundesamt veröffentlicht ihn spätestens zehn Werktage vor Jahresbeginn, dann hier eintragen. Über die API ein Objekt `{"2027": 65}` oder eine Liste `[{year, eur_t}]`. |
 | `co2_price_scenario_eur_t` | leer (`null`) = aus | Szenario: CO₂-Preis | Vorbelegung des Felds „CO₂-Preis ab 2028 (€/t)“ der Prognose (0–1000 €/t): Die Prognose zeigt dann, was dieser Preis mehr kosten würde. Leer = aus. |
 | `co2_price_scenario_from` | 2028 | Szenario ab Jahr | Erstes Jahr, für das das Szenario gilt (2021–2100). 2028 soll der europäische Emissionshandel (ETS2) die Festpreise ablösen. |
 

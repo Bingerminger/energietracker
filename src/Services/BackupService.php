@@ -56,6 +56,8 @@ final class BackupService
         'tenancy_statements'        => 'tenancy_statements.json',
         // v3.1.0 (H6, B7) — Großhandelspreise je Monat (SMARD bzw. Datei)
         'market_prices'             => 'market_prices.json',
+        // v3.2.0 (F1022) — Ladevorgänge aus evcc
+        'ev_sessions'               => 'ev_sessions.json',
     ];
 
     /**
@@ -277,6 +279,7 @@ final class BackupService
                 }
             }
             if ($key === 'reminders') $this->checkList($payload[$key], $key, ['id'], [], $problem);
+            if ($key === 'ev_sessions') $this->checkList($payload[$key], $key, ['id', 'meter_id', 'date', 'charged_kwh'], ['date'], $problem);
             if ($key === 'tenancies') $this->checkList($payload[$key], $key, ['id', 'start'], ['start'], $problem);
             if ($key === 'tenancy_statements') {
                 $this->checkList($payload[$key], $key, ['id', 'tenancy_id', 'period_from', 'period_to'], ['period_from', 'period_to'], $problem);

@@ -40,6 +40,7 @@ jobs:
       # v2.6.0 — Rückfragen bei der Erfassung (Sprung, Rückgang, gleicher Tag).
       # v2.11.0 — Router (veraltete Antworten, Zurück-Taste) und Kontraste (WCAG AA).
       # v2.15.0 — Chart-Schicht (Registry, Theme, Farben) und Monatsreihen (Teilmonate, Trends).
+      # v3.2.0 — Nutzungsstufen (Navigation, CSS, Quelle der Stufe) und Schaubilder.
       - name: Frontend-Unit-Tests (Zahlenparser, HA-Vorlage, Plausibilität, Router, Kontraste, Charts)
         run: |
           node tests/format.test.mjs
@@ -51,6 +52,7 @@ jobs:
           node tests/plural.test.mjs
           node tests/hardcoded-text.test.mjs
           node tests/outbox.test.mjs
+          node tests/levels.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata

@@ -10,7 +10,8 @@
     "actions": "Acties",
     "invalidNumber": "Voer een geldig getal in, bijv. {example}.",
     "undo": "Ongedaan maken",
-    "hddShort": "GD"
+    "hddShort": "GD",
+    "guide": "Handleiding"
   },
   "app": {
     "themeToggle": "Thema wisselen",
@@ -188,6 +189,38 @@
       "prev": "Een jaar eerder",
       "alt": "Staafdiagram: {label} per maand van {from} tot {to}.",
       "altPrev": "Staafdiagram: {label} per maand van {from} tot {to}; de lijn toont dezelfde maanden een jaar eerder."
+    },
+    "explainers": {
+      "title": "Uitleg in beeld"
+    },
+    "beginner": {
+      "capture": "Meterstand toevoegen",
+      "money": {
+        "title": "Krijg ik geld terug?",
+        "credit": "ongeveer {amount} terug",
+        "due": "ongeveer {amount} bijbetaling",
+        "even": "ongeveer quitte",
+        "until": "afrekening op {date}",
+        "none": "Nog geen contract met voorschotten.",
+        "add": "Contract toevoegen"
+      },
+      "trend": {
+        "title": "Meer of minder dan vorig jaar?",
+        "more": "{pct} meer dan vorig jaar",
+        "less": "{pct} minder dan vorig jaar",
+        "same": "ongeveer zoals vorig jaar",
+        "none": "Nog geen vorig jaar om te vergelijken."
+      },
+      "rent": {
+        "title": "Is het voorschot genoeg?",
+        "enough": "Ja — naar verwachting ongeveer {amount} terug.",
+        "short": "Krap — naar verwachting ongeveer {amount} bijbetaling.",
+        "suggest": "Passend voorschot: {amount} per maand."
+      },
+      "todo": {
+        "title": "Wat moet er gebeuren?",
+        "none": "Op dit moment niets — prima."
+      }
     }
   },
   "readingsEntry": {
@@ -1203,7 +1236,8 @@
       "frameAncestors": "http://homeassistant.local:8123",
       "ocrEndpoint": "http://192.168.178.20:11434",
       "ocrModel": "qwen2.5vl",
-      "referenceSource": "bijv. index 2025"
+      "referenceSource": "bijv. index 2025",
+      "evccEndpoint": "http://192.168.178.30:7070"
     },
     "loading": "Laden…",
     "saved": "Instellingen opgeslagen",
@@ -1214,7 +1248,8 @@
       "deviceLabel": "Taal op dit apparaat",
       "deviceFollow": "Zoals de installatie ({lang})",
       "defaultLabel": "Standaardtaal van de installatie",
-      "defaultSaved": "Standaardtaal gewijzigd"
+      "defaultSaved": "Standaardtaal gewijzigd",
+      "personLabel": "Mijn taal (op al mijn apparaten)"
     },
     "unit": {
       "days": "dagen",
@@ -1266,6 +1301,10 @@
       "reference": {
         "title": "Eigen vergelijkingswaarden",
         "hint": "Voor de vergelijking op het overzicht. De app levert geen tabellen mee; voer de waarden in die een stroom- of verwarmingsindex je geeft."
+      },
+      "evcc": {
+        "title": "evcc in het thuisnetwerk",
+        "hint": "Haalt de laadsessies op uit evcc als je in de wallbox-weergave op ‘Ophalen uit evcc’ tikt. Alleen adressen in je eigen netwerk. Leeg = uit; het CSV-bestand uit evcc werkt altijd."
       }
     },
     "field": {
@@ -1325,7 +1364,7 @@
       },
       "beheizter_keller": {
         "label": "Verwarmde kelder",
-        "hint": "Een-/tweegezins- of rijwoning met verwarmde kelder: gebruiksoppervlakte = 1,35 × woonoppervlakte (anders 1,2) — voor het kengetal naar energielabel."
+        "hint": "Woongebouw met hoogstens twee woningen (een-/tweegezins- of rijwoning) met verwarmde kelder: gebruiksoppervlakte = 1,35 × woonoppervlakte (anders 1,2) — voor het kengetal naar energielabel."
       },
       "warmwasser_dezentral": {
         "label": "Warm water decentraal",
@@ -1409,6 +1448,10 @@
       "warmwasser_elektrisch": {
         "label": "Warm water met stroom",
         "hint": "Elektrische doorstromer of boiler — stroomindexen maken daar onderscheid in."
+      },
+      "evcc_endpoint": {
+        "label": "Adres van evcc",
+        "hint": "Bijvoorbeeld http://192.168.178.30:7070 of http://evcc.local:7070 — het adres waarop je evcc in de browser opent."
       }
     },
     "boolActive": "aan",
@@ -1821,6 +1864,44 @@
       "fernwaerme": "Stadsverwarming",
       "strom": "Elektriciteit (warmtepomp, doorstroomverwarmer)",
       "waerme": "Warmte (centraal)"
+    },
+    "level": {
+      "title": "Gebruiksniveau en instellen",
+      "hint": "Bepaalt wat de interface toont — elk niveau rekent alles. Geldt voor alle apparaten van deze installatie.",
+      "hintPerson": "Bepaalt wat de interface toont — elk niveau rekent alles. Geldt voor jou ({name}) op alle apparaten.",
+      "describe": {
+        "beginner": "Overzicht met drie antwoorden, meterstanden, eenvoudige contracten, jaarverslag.",
+        "advanced": "Plus analyses, prognose, overstappen, afrekening controleren en meteropbouw.",
+        "expert": "Alles, met uitleg in beeld, groepen, rekenparameters en toegang."
+      },
+      "saved": "Niveau opgeslagen."
+    },
+    "me": {
+      "title": "Mijn account: {name}",
+      "proxyHint": "Ingelogd via de dienst vóór de app; het wachtwoord wijzig je daar.",
+      "passwordChanged": "Wachtwoord gewijzigd."
+    },
+    "users": {
+      "title": "Gebruikers en rechten",
+      "hint": "Iedereen logt in met naam en wachtwoord en heeft een eigen niveau en taal. De gegevens van het huishouden zijn gedeeld.",
+      "hintProxy": "Het inloggen regelt de dienst vóór de app; de app herkent iedereen aan de naam. Wie als eerste komt, beheert.",
+      "memberHint": "De toegang beheert wie de installatie beheert. Je eigen wachtwoord wijzig je onder Instellingen → Algemeen.",
+      "passwordHint": "Iedereen wijzigt het eigen wachtwoord onder Instellingen → Algemeen → Mijn account.",
+      "role": {
+        "admin": "Beheer",
+        "member": "Lid"
+      },
+      "roleLabel": "Rol van {name}",
+      "name": "Naam",
+      "roleHead": "Rol",
+      "you": "jij",
+      "resetPassword": "Wachtwoord opnieuw instellen",
+      "delete": "Persoon verwijderen",
+      "deleteConfirm": "Deze persoon kan daarna niet meer inloggen. De gegevens van het huishouden blijven.",
+      "add": "Persoon toevoegen",
+      "addButton": "Toevoegen",
+      "added": "{name} kan nu inloggen.",
+      "saved": "Opgeslagen."
     }
   },
   "reminders": {
@@ -2423,7 +2504,7 @@
       "noLivingArea": "Woonoppervlak niet ingesteld — vul het in bij de instellingen voor de efficiëntieklasse.",
       "noHeatData": "Geen verwarmingsgegevens gevonden voor {year}.",
       "multipleSources": "Meerdere warmtebronnen actief — de klasse per bron zegt meer dan de gecombineerde som. De gecombineerde weergave is alleen zinvol bij bewust gecombineerd stoken (bijv. basis- en pieklast).",
-      "noScale": "Voor {country} is geen efficiëntieschaal beschikbaar. De klassen A+ t/m H volgen de Duitse gebouwenenergiewet (GEG) en worden daarom niet getoond.",
+      "noScale": "Voor {country} is geen efficiëntieschaal beschikbaar. De klassen A+ t/m H volgen de Duitse wet op de gebouwenmodernisering (GModG, voorheen GEG) en worden daarom niet getoond.",
       "incompleteYear": "De gegevens voor {year} beslaan niet het hele jaar — geen klasse; het kengetal geldt alleen voor de gemeten periode."
     },
     "forecast": {
@@ -2600,7 +2681,8 @@
     "demo": {
       "backupNotFound": "Demo-back-up niet gevonden.",
       "dataExists": "Er bestaan al gegevens. De import overschrijft ze (vooraf wordt automatisch een momentopname gemaakt). Bevestig om door te gaan.",
-      "backupInvalid": "De demo-back-up is ongeldig (geen JSON)."
+      "backupInvalid": "De demo-back-up is ongeldig (geen JSON).",
+      "personaUnknown": "Er bestaat geen voorbeeldhuishouden ‘{persona}’."
     },
     "migration": {
       "noVersionField": "Geen “version”-veld in de back-up — waarschijnlijk geen v0.9.0-back-up. Verwacht worden v0.9.0-back-ups met versie “2.1” of ouder.",
@@ -2655,7 +2737,8 @@
       "modeFixed": "Aanmelden is via de omgeving (ET_AUTH) ingesteld en kan hier niet worden uitgeschakeld.",
       "passwordTooShort": "Het wachtwoord moet minstens {min} tekens hebben.",
       "scopeInvalid": "Onbekend bereik – read, admin en calendar zijn toegestaan.",
-      "keyNotFound": "API-sleutel niet gevonden."
+      "keyNotFound": "API-sleutel niet gevonden.",
+      "adminOnly": "Alleen wie deze installatie beheert, mag dat doen."
     },
     "weather": {
       "badFormat": "Open-Meteo antwoordde in een onverwacht formaat.",
@@ -2726,6 +2809,26 @@
     },
     "heatPump": {
       "yearInvalid": "Jaar ‘{year}’ is ongeldig"
+    },
+    "users": {
+      "noUser": "Zonder inloggen zijn er geen eigen instellingen — het niveau geldt dan voor de hele installatie.",
+      "proxyNoPassword": "Log je in via de dienst vóór de app, wijzig het wachtwoord dan daar.",
+      "nameInvalid": "De naam mag niet leeg zijn en hoogstens {max} tekens hebben.",
+      "nameTaken": "Deze naam bestaat al.",
+      "roleInvalid": "De rol moet ‘Beheer’ of ‘Lid’ zijn (API: admin, member).",
+      "lastAdmin": "Minstens één persoon moet de installatie beheren.",
+      "notFound": "Deze persoon bestaat niet meer.",
+      "notSelf": "Jezelf verwijderen kan niet — een andere persoon die de installatie beheert, kan dat doen."
+    },
+    "evcc": {
+      "off": "Geen adres van evcc ingesteld (Instellingen → Expert).",
+      "notLocal": "evcc moet in je eigen netwerk draaien – ‘{host}’ is geen adres in het thuisnetwerk.",
+      "unreachable": "evcc is niet bereikbaar.",
+      "badAnswer": "evcc heeft geen lijst met laadsessies teruggegeven.",
+      "noSessions": "Geen afgeronde laadsessies gevonden.",
+      "columns": "Dit lijkt niet op de CSV-export uit evcc: de kolommen voor begin en energie ontbreken.",
+      "countersInvalid": "Onbekende keuze voor de meterstanden: ‘{value}’.",
+      "loadpointNeeded": "Meerdere laadpunten ({names}): meterstanden horen bij één wallbox – kies het laadpunt daarvan of neem alleen de sessies over."
     }
   },
   "login": {
@@ -2733,7 +2836,9 @@
     "password": "Wachtwoord",
     "submit": "Inloggen",
     "forgot": "Wachtwoord vergeten? Zet op de server in data/auth.json ‘mode’ op ‘off’ – dan is inloggen uitgeschakeld. In de Docker-container doet de omgevingsvariabele ET_AUTH=off hetzelfde.",
-    "logout": "Uitloggen"
+    "logout": "Uitloggen",
+    "name": "Naam",
+    "forgotNamed": "Wachtwoord vergeten? Iemand die deze installatie beheert, kan het opnieuw instellen onder Instellingen → Toegang."
   },
   "readingCheck": {
     "title": "Controleer dit",
@@ -2814,7 +2919,8 @@
       "itemAmount": "Bedrag (creditering negatief)",
       "co2Cost": "CO₂-kosten volgens factuur",
       "attach": "Factuur bijvoegen (pdf of foto)",
-      "save": "Factuur opslaan"
+      "save": "Factuur opslaan",
+      "update": "Wijzigingen opslaan"
     },
     "saved": "Factuur opgeslagen",
     "book": "Boeken als bijzondere betaling",
@@ -2841,7 +2947,10 @@
       "price_missing": "Het contract heeft voor een deel van de periode geen prijs – daar ontbreken ook kosten.",
       "gaps": "Binnen de periode ontbreken meterstanden."
     },
-    "ownTotalOnly": "Nagerekend: {total}"
+    "ownTotalOnly": "Nagerekend: {total}",
+    "updated": "Factuur gewijzigd",
+    "editing": "Je bewerkt de factuur van {from} tot {to}.",
+    "editBookedNote": "Ze is al geboekt als bijzondere betaling – de boeking in het contract verandert niet mee."
   },
   "glossary": {
     "hdd": {
@@ -2998,7 +3107,7 @@
     },
     "co2Price": {
       "term": "CO₂-prijs (BEHG)",
-      "text": "Sinds 2021 betalen leveranciers van gas en stookolie in Duitsland een prijs per ton CO₂ en rekenen die door in de eenheidsprijs: 55 euro in 2025, 60 euro per ton in 2026. De app toont hem – het is geen toeslag. Gerekend wordt met de standaardfactoren van de BEHG; hout, pellets en elektriciteit dragen hem niet."
+      "text": "Sinds 2021 betalen leveranciers van gas en stookolie in Duitsland een prijs per ton CO₂ en rekenen die door in de eenheidsprijs: 55 euro vast in 2025; in 2026 geveild binnen een bandbreedte van 55 tot 65 euro – facturen en stookkostenafrekeningen rekenen met 60 euro per ton. De app toont hem – het is geen toeslag. Gerekend wordt met de standaardfactoren van de BEHG; hout, pellets en elektriciteit dragen hem niet."
     },
     "co2Split": {
       "term": "Verdeling van CO₂-kosten",
@@ -3010,7 +3119,7 @@
     },
     "module14a": {
       "term": "§ 14a EnWG (stuurbare verbruikers)",
-      "text": "De netbeheerder mag warmtepompen, laadpalen en opslag boven 4,2 kW bij knelpunten afknijpen; in ruil daalt het nettarief. Module 1: een vast bedrag per jaar. Module 2: een eigen meter met 40% van de netto-eenheidsprijs. Module 3: tijdsafhankelijke nettarieven bovenop module 1."
+      "text": "De netbeheerder mag warmtepompen, laadpalen, airconditioners en opslag boven 4,2 kW die sinds 2024 in bedrijf zijn bij knelpunten afknijpen – nooit onder 4,2 kW; in ruil daalt het nettarief. Module 1: een vast bedrag per jaar. Module 2: een eigen meter met 40% van de netto-eenheidsprijs. Module 3: tijdsafhankelijke nettarieven bovenop module 1."
     },
     "jaz": {
       "term": "Seizoensprestatiefactor (SPF)",
@@ -3039,7 +3148,9 @@
       "homeAssistant": "Home Assistant koppelen",
       "englishOnly": "De documentatie bestaat in het Duits en het Engels; de links leiden naar de Engelse versie.",
       "faq": "Veelgestelde vragen",
-      "troubleshoot": "Problemen oplossen"
+      "troubleshoot": "Problemen oplossen",
+      "setup": "Instellen, voorbeeldhuishoudens en niveaus",
+      "useCases": "Toepassingen"
     },
     "support": {
       "title": "Vragen en fouten",
@@ -3049,9 +3160,25 @@
     },
     "privacy": {
       "title": "Je gegevens",
-      "text": "Alles blijft op je server: geen accounts, geen reclame, geen telemetrie. De app praat alleen met Open-Meteo — bij de dagelijkse weersynchronisatie (alleen de op ongeveer 1 km afgeronde locatie, uit te schakelen onder Instellingen → Weergegevens) en bij het zoeken naar een plaats als je dat gebruikt — en, alleen als je die invult, met je eigen tekstherkenningsdienst in het thuisnetwerk. Tik je op ‘Laden van SMARD’, dan haalt de app de groothandelsprijzen voor stroom op bij de Bundesnetzagentur; daarbij gaat niets van jou naar buiten."
+      "text": "Alles blijft op je server: geen accounts, geen reclame, geen telemetrie. De app praat alleen met Open-Meteo — bij de dagelijkse weersynchronisatie (alleen de op ongeveer 1 km afgeronde locatie, uit te schakelen onder Instellingen → Weergegevens) en bij het zoeken naar een plaats als je dat gebruikt — en, alleen als je ze invult, met je eigen tekstherkenningsdienst en je evcc in het thuisnetwerk. Tik je op ‘Laden van SMARD’, dan haalt de app de groothandelsprijzen voor stroom op bij de Bundesnetzagentur; daarbij gaat niets van jou naar buiten."
     },
-    "onYourBill": "Op je rekening ({country}): “{term}”"
+    "onYourBill": "Op je rekening ({country}): “{term}”",
+    "cases": {
+      "title": "Toepassingen",
+      "heat": {
+        "title": "Stadsverwarming of warmte?",
+        "text": "Stadsverwarming koop je zelf bij de leverancier – met een eigen contract, eenheidsprijs, vastrecht en een factuur; daarvoor is het type ‘Stadsverwarming’. Warmte is gemeten warmte zonder eigen leveringscontract: in een huurwoning betaald via de servicekostenafrekening (met de maandelijkse verbruiksinformatie), in je eigen huis de warmte van de warmtepomp – daarvoor is ‘Warmte’. De voorbeeldhuishoudens ‘Koopappartement met stadsverwarming’, ‘Ik huur mijn woning’ en ‘Eigen huis met warmtepomp en zonnepanelen’ laten alle drie de gevallen zien."
+      },
+      "control": {
+        "title": "Aansturen met evcc of Home Assistant",
+        "text": "De Energietracker schakelt niets. Batterij, wallbox en warmtepomp worden aangestuurd door evcc of Home Assistant – met zonnestroom, in goedkope uren of bij negatieve groothandelsprijzen. De Energietracker rekent na: laadsessies uit evcc met hun zonaandeel, meterstanden via Home Assistant, de dynamische-tariefcheck met groothandelsprijzen en het laadstroomoverzicht laten zien wat de aansturing opleverde."
+      },
+      "levels": {
+        "title": "Eerst eenvoudig, later alles",
+        "text": "Het niveau bovenaan naast dag/nacht bepaalt hoeveel je ziet: beginners krijgen drie antwoorden op het overzicht, gevorderden ook tariefwissel, factuurcontrole en analyses, experts alles. Op elk niveau wordt alles berekend – je kunt altijd wisselen. Om het uit te proberen laadt de instelassistent een voorbeeldhuishouden dat bij je past."
+      },
+      "tryExample": "Voorbeeldhuishouden uitproberen"
+    }
   },
   "onboarding": {
     "done": "klaar",
@@ -3500,7 +3627,7 @@
     "plugIn": {
       "assumed": "Plug-in-zonnepaneel: eigen verbruik aangenomen op {pct}% van de opwek (instellingen)."
     },
-    "hint51": "In bedrijf sinds 25-02-2025: geen terugleververgoeding voor periodes met een negatieve groothandelsprijs zodra een slimme meter is geplaatst (§ 51 EEG). Dat wordt gecompenseerd met een langere subsidieduur."
+    "hint51": "In bedrijf sinds 25-02-2025: geen terugleververgoeding voor periodes met een negatieve groothandelsprijs – onder 100 kW vanaf het jaar na plaatsing van een slimme meter (§ 51 EEG). Een langere subsidieduur compenseert dat deels."
   },
   "comparison": {
     "title": "Vergelijking {year}",
@@ -3556,6 +3683,186 @@
         "one": "{count} dag, {from} (de laatste stand van de dag)",
         "other": "{count} dagen van {from} tot {to} (de laatste stand per dag)"
       }
+    }
+  },
+  "level": {
+    "switch": "Gebruiksniveau",
+    "beginner": "Beginner",
+    "advanced": "Gevorderd",
+    "expert": "Expert",
+    "hint": {
+      "page": "Deze pagina hoort bij het niveau ‘{level}’. Ze is toch geopend.",
+      "switch": "Overschakelen naar ‘{level}’",
+      "data": "Je gegevens kunnen meer dan dit niveau laat zien — ‘{level}’ toont het.",
+      "dismiss": "Niet meer vragen"
+    },
+    "reason": {
+      "subMeters": "tussenmeters",
+      "homeAssistant": "waarden van Home Assistant",
+      "severalMeters": "meerdere meters voor één verbruikssoort",
+      "heatPump": "warmtepomp",
+      "battery": "accu",
+      "wallbox": "laadpaal"
+    }
+  },
+  "explainer": {
+    "money": {
+      "title": "Waar gaat mijn geld naartoe?",
+      "paid": "Voorschotten",
+      "cost": "Kosten",
+      "energy": "Verbruik",
+      "base": "Vastrecht",
+      "estimate": "nog geschat",
+      "credit": "ongeveer {amount} tegoed",
+      "due": "ongeveer {amount} bijbetaling",
+      "even": "vrijwel precies quitte",
+      "text": "Tot de afrekening op {date} betaal je {paid} aan voorschotten; verbruik en vastrecht kosten naar verwachting {cost}. Dat geeft {result}."
+    },
+    "energy": {
+      "title": "Energiestroom in huis",
+      "pv": "Zonnepanelen",
+      "house": "Huis",
+      "grid": "Net",
+      "battery": "Accu",
+      "text": "{year}: de installatie wekte {gen} kWh op. Het huis gebruikte daarvan zelf {self} kWh, {feed} kWh ging naar het net en {grid} kWh kwam van het net. Zelfvoorziening: {autarky}."
+    },
+    "weather": {
+      "title": "Kouder of meer verbruikt?",
+      "usage": "Verbruik",
+      "hdd": "Graaddagen",
+      "before": "dezelfde maanden een jaar eerder",
+      "now": "recent",
+      "adjusted": "weergecorrigeerd {pct}",
+      "text": {
+        "less": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: je hebt echt minder verbruikt.",
+        "more": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: je hebt echt meer verbruikt — niet alleen door het weer.",
+        "same": "Verbruik {cons}, graaddagen {hdd} ten opzichte van dezelfde maanden een jaar eerder. Weergecorrigeerd {adj}: ongeveer gelijk — het verschil komt door het weer."
+      }
+    },
+    "timeline": {
+      "title": "Contract in één oogopslag",
+      "start": "Begin",
+      "cancel": "Opzeggen vóór",
+      "price": "Prijsverhoging",
+      "end": "Einde",
+      "today": "vandaag",
+      "text": "Contract sinds {start}. Wil je overstappen, zeg dan op vóór {cancel}; het eindigt dan op {end}.",
+      "textOpen": "Contract sinds {start}; het loopt door tot je opzegt. Uiterlijk op {cancel} opgezegd, eindigt het op {end}.",
+      "textNoNotice": "Contract sinds {start}, einde: {end}.",
+      "textRunning": "Contract sinds {start}; het loopt door tot je opzegt. Er is geen opzegtermijn ingevoerd."
+    }
+  },
+  "setup": {
+    "title": "Instellen",
+    "intro": "Drie vragen, dan laat de app zien wat bij je past. Alles is later te wijzigen.",
+    "progress": "Stap {n} van {total}",
+    "persona": {
+      "title": "Wie ben je?",
+      "tenant": {
+        "title": "Ik huur mijn woning",
+        "text": "Stroom met een eigen contract; verwarming en water betaal ik via de servicekosten."
+      },
+      "flat": {
+        "title": "Koopappartement met stadsverwarming",
+        "text": "Stadsverwarming en stroom met eigen contracten en afrekeningen."
+      },
+      "houseClassic": {
+        "title": "Eigen huis met gas, olie of pellets",
+        "text": "Verwarming, stroom en water met eigen contracten."
+      },
+      "houseModern": {
+        "title": "Eigen huis met warmtepomp en zonnepanelen",
+        "text": "Warmtepomp, zonnepanelen, accu en laadpaal."
+      },
+      "showcase": {
+        "title": "Eerst alles bekijken",
+        "text": "Bijna alle verbruikssoorten in één voorbeeldhuishouden – om elke functie te leren kennen."
+      }
+    },
+    "utilities": {
+      "title": "Welke energiebronnen gebruik je?",
+      "hint": "Voorgesteld op basis van je antwoord — vrij te combineren.",
+      "heatNote": "Stadsverwarming of warmte? Stadsverwarming heeft een eigen leveringscontract met een afrekening van de leverancier. Warmte wordt alleen gemeten — betaald via de huur, of het is de warmte van een warmtepomp."
+    },
+    "level": {
+      "title": "Hoeveel ervaring heb je?",
+      "later": "Het niveau is altijd bovenaan te wijzigen, naast licht/donker."
+    },
+    "finish": {
+      "title": "Zo gaat het verder",
+      "summary": "{persona} · niveau ‘{level}’",
+      "demo": "Bekijken met voorbeeldgegevens",
+      "demoHint": "Laadt het passende voorbeeldhuishouden. Eerst bewaart de app de huidige stand.",
+      "demoPublic": "De demo toont nu het voorbeeldhuishouden ‘{persona}’. Een ander kies je onder Instellingen → Algemeen → ‘Instelassistent starten’.",
+      "own": "Beginnen met eigen gegevens",
+      "ownHint": "Daarna: meters controleren en de eerste stand invoeren."
+    },
+    "skip": "Overslaan",
+    "back": "Terug",
+    "next": "Volgende",
+    "done": "Aan de slag",
+    "restart": "Instelassistent starten"
+  },
+  "evcc": {
+    "title": "Laadsessies uit evcc {year}",
+    "intro": "evcc stuurt de wallbox aan – met zonnestroom of in goedkope uren. Hier reken je na wat dat opleverde: hoeveelheid, aandeel zon en prijs per maand. De meterstanden van de wallbox komen meteen mee.",
+    "summary": {
+      "one": "{count} laadsessie, {kwh} kWh, waarvan {solar} van de zon",
+      "other": "{count} laadsessies, {kwh} kWh, waarvan {solar} van de zon"
+    },
+    "priceTotal": "{amount} volgens evcc",
+    "col": {
+      "month": "Maand",
+      "sessions": "Sessies",
+      "solar": "Zon",
+      "price": "Prijs (evcc)"
+    },
+    "empty": "Nog geen laadsessies uit evcc voor {year}.",
+    "countersLabel": "Meterstanden",
+    "counters": {
+      "auto": "van de meter in de wallbox (anders opgeteld)",
+      "energy": "optellen uit de geladen energie",
+      "none": "geen – alleen de sessies"
+    },
+    "chooseCsv": "CSV uit evcc kiezen …",
+    "sync": "Ophalen uit evcc",
+    "syncHint": "Beide tonen eerst een voorbeeld. Herhalen kan geen kwaad: dezelfde sessie wordt vervangen, niet dubbel geteld.",
+    "noEndpoint": "Download de CSV in evcc onder Sessies. Om direct op te halen vul je het adres van evcc in onder Instellingen → Expert.",
+    "preview": {
+      "title": "Laadsessies overnemen?",
+      "sessions": {
+        "one": "{count} laadsessie van {from} tot {to}, samen {kwh} kWh.",
+        "other": "{count} laadsessies van {from} tot {to}, samen {kwh} kWh."
+      },
+      "noReadings": "Meterstanden blijven ongewijzigd.",
+      "readings": {
+        "meter": {
+          "one": "Plus {count} meterstand van de meter in de wallbox.",
+          "other": "Plus {count} meterstanden van de meter in de wallbox."
+        },
+        "energy": {
+          "one": "Plus {count} meterstand, opgeteld vanaf de laatste stand daarvoor.",
+          "other": "Plus {count} meterstanden, opgeteld vanaf de laatste stand daarvoor."
+        }
+      },
+      "replaces": {
+        "one": "{count} bestaande meterstand op dezelfde dag wordt vervangen.",
+        "other": "{count} bestaande meterstanden op dezelfde dagen worden vervangen."
+      },
+      "running": "Er loopt nog een sessie; die komt er de volgende keer bij.",
+      "loadpoints": "Het bestand bevat meerdere laadpunten ({names}); ze komen allemaal bij deze meter.",
+      "apply": "Overnemen",
+      "onlyLoadpoint": "Alleen laadpunt {name}."
+    },
+    "done": {
+      "one": "{count} laadsessie overgenomen.",
+      "other": "{count} laadsessies overgenomen."
+    },
+    "pick": {
+      "title": "Welk laadpunt hoort bij deze meter?",
+      "hint": "De laadsessies komen van meerdere laadpunten. Meterstanden horen bij precies één wallbox – kies het laadpunt daarvan. Voor alle laadpunten samen kies je bij de meterstanden ‘geen – alleen de sessies’.",
+      "label": "Laadpunt",
+      "ok": "Verder"
     }
   }
 }

@@ -35,7 +35,9 @@ Since v3.1.0 the dynamic tariff check uses monthly day-ahead wholesale prices
 for Germany/Luxembourg: source **Bundesnetzagentur | SMARD.de**, licensed under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The app names the
 source next to the prices. SMARD is contacted only when you tap “Load from
-SMARD”; you can import a SMARD download file instead.
+SMARD”; you can import a SMARD download file instead. Since v3.2.0 the example
+household “Own house with heat pump and solar” (`demo-data/personas/`) ships
+these monthly averages for 2023 to 2026, from the same source.
 
 ## Development only — not shipped
 
@@ -48,8 +50,8 @@ SMARD”; you can import a SMARD download file instead.
 
 The default CO₂ factors follow the published emission factors of the German
 Federal Office for Economic Affairs and Export Control (BAFA) and the German
-Environment Agency (UBA); efficiency classes follow the German Building Energy
-Act (GEG). Sources and years are listed in section 8 (CO₂) of the
+Environment Agency (UBA); efficiency classes follow the German Building
+Modernisation Act (GModG, called GEG until July 2026). Sources and years are listed in section 8 (CO₂) of the
 [calculation overview](docs/en/verstehen/00-overview.md) and in the
 [country profiles](docs/en/verstehen/14-laenderprofile.md).
 
@@ -89,7 +91,9 @@ Deutschland/Luxemburg als Monatsmittel: Quelle **Bundesnetzagentur |
 SMARD.de**, unter [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Die
 App nennt die Quelle neben den Preisen. SMARD wird nur angesprochen, wenn du auf
 „Von SMARD laden“ tippst; stattdessen kannst du eine SMARD-Downloaddatei
-importieren.
+importieren. Seit v3.2.0 bringt der Beispielhaushalt „Eigenheim mit Wärmepumpe
+und PV“ (`demo-data/personas/`) diese Monatsmittel für 2023 bis 2026 mit, aus
+derselben Quelle.
 
 ### Nur in der Entwicklung — nicht ausgeliefert
 
@@ -100,6 +104,6 @@ importieren.
 
 Die voreingestellten CO₂-Faktoren folgen den veröffentlichten
 Emissionsfaktoren von BAFA und Umweltbundesamt, die Effizienzklassen dem
-Gebäudeenergiegesetz (GEG). Quellen und Jahre stehen in Abschnitt 8 (CO₂) der
+Gebäudemodernisierungsgesetz (GModG, bis Juli 2026 GEG). Quellen und Jahre stehen in Abschnitt 8 (CO₂) der
 [Rechenübersicht](docs/verstehen/00-overview.md) und bei den
 [Länderprofilen](docs/verstehen/14-laenderprofile.md).

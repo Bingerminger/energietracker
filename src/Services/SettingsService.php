@@ -26,6 +26,10 @@ final class SettingsService
      * (CV_UNITS); CountriesTest hält beide Listen gleich.
      */
     public const GAS_CV_UNITS = ['kwh', 'mj', 'gj'];
+    /** v3.2.0 (F1019) — Nutzungsstufen: was die Oberfläche zeigt, nicht was sie rechnet. */
+    public const UI_LEVELS = ['beginner', 'advanced', 'expert'];
+    /** v3.2.0 (F1018) — Personas des Einrichtungsassistenten (= Beispielhaushalte, showcase = alle Arten). */
+    public const PERSONAS = ['mieterin', 'etw-fernwaerme', 'eigenheim-klassisch', 'eigenheim-modern', 'showcase'];
 
     /** @var array<string,mixed> */
     private const DEFAULTS = [
@@ -159,6 +163,16 @@ final class SettingsService
         'reference_source'         => '',
         // Warmwasser wird mit Strom bereitet (Durchlauferhitzer, Boiler) — Kontext der Einordnung
         'warmwasser_elektrisch'    => false,
+
+        // ── v3.2.0 — Einstieg (F1018, F1019) ──
+        // Nutzungsstufe der Installation; mit Benutzern (F1023) hat jede Person
+        // ihre eigene. Bestand nach dem Update: Experte (= die bisherige Oberfläche).
+        'ui_level'                 => 'expert',  // beginner | advanced | expert
+        // true nur bei einer Neuinstallation, bis der Assistent fertig oder übersprungen ist
+        'setup_pending'            => false,
+        'setup_persona'            => null,      // s. PERSONAS
+        // ── v3.2.0 (F1022) — evcc im Heimnetz (leer = aus, nur lokale Adressen) ──
+        'evcc_endpoint'            => '',
 
         // ── v1.3.0 — Gebäude-Stammdaten für kWh/m²-Benchmark ──
         'wohnflaeche_m2'           => 100,
@@ -383,7 +397,7 @@ final class SettingsService
             // Zeitzone würde date_default_timezone_set() beim nächsten Start
             // mit einer Warnung quittieren und still UTC rechnen.
             // v3.1.0 — „keine Angabe" aus der Oberfläche (none/leer) ist null
-            if (in_array($k, ['waerme_energietraeger', 'warmwasser_energietraeger'], true) && ($v === '' || $v === 'none')) $v = null;
+            if (in_array($k, ['waerme_energietraeger', 'warmwasser_energietraeger', 'setup_persona'], true) && ($v === '' || $v === 'none')) $v = null;
             $allowed = match ($k) {
                 'country'     => Countries::codes(),
                 'currency'    => array_keys(Countries::CURRENCIES),
@@ -391,6 +405,8 @@ final class SettingsService
                 'timezone'    => \DateTimeZone::listIdentifiers(\DateTimeZone::ALL_WITH_BC),
                 'gas_cv_unit' => self::GAS_CV_UNITS,
                 'ocr_api'     => ['ollama', 'openai'],   // v3.1.0
+                'ui_level'      => self::UI_LEVELS,        // v3.2.0
+                'setup_persona' => [null, ...self::PERSONAS],
                 'wohnverhaeltnis' => ['eigentum', 'miete'],
                 'waerme_energietraeger'     => [null, 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom'],
                 'warmwasser_energietraeger' => [null, 'gas', 'heizoel', 'pellets', 'fernwaerme', 'strom', 'waerme'],
@@ -413,7 +429,7 @@ final class SettingsService
                 default              => null,
             };
             $bad = ($range !== null && (!is_numeric($v) || (int)$v != $v || (int)$v < $range[0] || (int)$v > $range[1]))
-                || ($k === 'ocr_endpoint' && !self::isHttpUrlOrEmpty($v))
+                || (in_array($k, ['ocr_endpoint', 'evcc_endpoint'], true) && !self::isHttpUrlOrEmpty($v))
                 || ($k === 'ocr_model' && (!is_string($v) || strlen($v) > 200));
             if ($bad) {
                 throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', [
@@ -436,7 +452,8 @@ final class SettingsService
                     throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => $k, 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
                 } else $v = round((float)$v, 2);
             }
-            if ($k === 'ocr_endpoint' || $k === 'ocr_model') $v = trim((string)$v);
+            if ($k === 'ocr_endpoint' || $k === 'ocr_model' || $k === 'evcc_endpoint') $v = trim((string)$v);
+            if ($k === 'setup_pending') $v = (bool)$v;
             // v3.1.0 (H8) — Quelle der Vergleichswerte: kurzer Text
             if ($k === 'reference_source') $v = mb_substr(trim((string)$v), 0, 120);
             if ($k === 'warmwasser_elektrisch') $v = (bool)$v;

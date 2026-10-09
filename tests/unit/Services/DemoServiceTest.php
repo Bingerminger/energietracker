@@ -7,6 +7,7 @@ use PHPUnit\Framework\TestCase;
 use Energietracker\Storage\JsonStore;
 use Energietracker\Services\DemoService;
 use Energietracker\Services\BackupService;
+use Energietracker\Services\EvccService;
 use Energietracker\Services\I18nService;
 use Energietracker\Services\SettingsService;
 
@@ -290,5 +291,34 @@ final class DemoServiceTest extends TestCase
         $this->assertNotEmpty($d['tank_levels'] ?? [], 'demo-data/heizoel/meters.json soll einen Peilstand vorführen');
         $this->assertEquals($d['tank_levels'], $b['tank_levels'] ?? [],
             'Verzeichnisform und Backup müssen denselben Peilstand führen');
+    }
+
+    /**
+     * v3.2.0 (F1018) — Ein Beispielhaushalt ersetzt den ganzen Haushalt: Nach
+     * der Mieterin bleibt beim Schaufenster kein Mietverhältnis stehen, und die
+     * eigene Nutzungsstufe überlebt den Import.
+     */
+    public function testSwitchingHouseholdsLeavesNoRemainsAndKeepsTheLevel(): void
+    {
+        $svc = $this->service();
+        $this->store->write('settings.json', ['ui_level' => 'beginner', 'setup_pending' => true]);
+        $report = $svc->import(false, null, 'mieterin');
+        $this->assertSame('mieterin', $report['persona']);
+        $this->assertNotEmpty($this->store->read('tenancies.json', []));
+        $settings = $this->store->read('settings.json', []);
+        $this->assertSame(['beginner', false, 'mieterin'], [$settings['ui_level'] ?? null, $settings['setup_pending'] ?? null, $settings['setup_persona'] ?? null]);
+
+        $svc->import(true);
+        $this->assertSame([], $this->store->read('tenancies.json', []), 'kein Mietverhältnis der Mieterin mehr');
+        $this->assertSame([], $this->store->read('waerme/periods.json', []), 'keine Zeiträume der Mieterin mehr');
+        $this->assertContains('mieterin', $svc->status()['personas']);
+
+        // F1022 — die Ladevorgänge des Hauses mit Wallbox bleiben beim Wechsel nicht stehen
+        $svc->import(true, null, 'eigenheim-modern');
+        $this->assertNotEmpty($this->store->read(EvccService::FILE, []));
+        $svc->import(true);
+        $this->assertSame([], $this->store->read(EvccService::FILE, []), 'keine Ladevorgänge mehr');
+        $this->expectException(\InvalidArgumentException::class);
+        $svc->import(true, null, 'gibt-es-nicht');
     }
 }

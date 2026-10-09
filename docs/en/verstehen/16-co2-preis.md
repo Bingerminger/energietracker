@@ -22,7 +22,8 @@ Since 2021, suppliers of natural gas and heating oil in Germany pay a price for
 every tonne of CO₂ produced when their fuels are burned — under the **Fuel
 Emissions Trading Act (BEHG)**. They pass it on to their customers through the
 unit price. Up to 2025 the price was fixed per year; for 2026 a corridor of
-55 to 65 € per tonne applies.
+55 to 65 € per tonne applies. A bill (Bundestag printed paper 21/7869) would
+extend the corridor to 2027; it has not been passed yet (as of 9 Oct 2026).
 
 After that, the **European emissions trading system for buildings and transport
 (ETS2)** is to replace the national price — as things stand, from 2028. How
@@ -39,10 +40,18 @@ The app does **not** add the CO₂ price to your costs — it is part of the uni
 price you entered on the contract. It only works out which share of it is CO₂
 price:
 
-- **gross**, i.e. with 19 % VAT, like the unit price on your bill — the large
-  figure on the card;
-- **net** in the line below. That is also how bills state it (CO2KostAufG
-  § 3(3)).
+- **including VAT**, like the unit price on your bill — that is also how bills
+  state the CO₂ share (CO2KostAufG § 3(3): emissions × CO₂ price “plus any VAT
+  payable on this amount”); this is the large figure on the card;
+- **excluding VAT** (net) in the line below.
+
+**Which VAT rate.** Usually 19 %. For gas through the natural gas grid and for
+district heating, 7 % applied from 1 Oct 2022 to 31 Mar 2024 (§ 28(5) and (6)
+UStG); heating oil stayed at 19 %. The app sets the rate per month and weights
+it by consumption for the year: gas in 2023 is calculated entirely at 7 %, gas
+in 2024 only for January to March. Without consumption in the year it takes
+the average of the twelve months. The API gives the rate applied per row in the
+field `vat`.
 
 The figure helps to put things in context: which share of the price is set by
 policy, and what changes if the CO₂ price goes up?
@@ -68,7 +77,9 @@ monthly table and the emissions on the “CO₂ price” card.
 1. **Supplier bill** (`bill`) — a recorded bill whose period ends in this year
    and carries CO₂ details
    ([Annual bill](../anleitungen/jahresabrechnung.md#7-on-the-bill-enter-compare-book)).
-   If the CO₂ amount is on it too, the app takes it as the net amount.
+   If the CO₂ amount is on it too, the app takes it as the amount **including
+   VAT**, as it is on the bill, and works out the net amount (amount ÷
+   (1 + VAT)). Up to v3.1 it read it as net and added the tax a second time.
 2. **Contract** (`contract`) — for district heating the network’s emission
    factor.
 3. **Calculated** (`computed`) — the year’s consumption × standard factor.
@@ -84,23 +95,32 @@ The values of the German country profile in € per tonne:
 |---|---|---|---|---|---|---|
 | Price | 25 | 30 | 30 | 45 | 55 | 60 |
 
-2021 to 2025 are the fixed prices, 2026 the middle of the 55 to 65 € corridor.
-For a later year the app uses the **last known value as an assumption** — 60 €
-for 2027 — and says below: “This year’s price is not fixed yet; the last known
-one is used.”
+2021 to 2025 are the fixed prices, 2026 the midpoint of the 55 to 65 € corridor
+(§ 4(1) no. 2 CO2KostAufG). For **2027** the average of the auctions from
+1 July to 30 November 2026 applies (§ 4(1) no. 3); the German Environment
+Agency publishes it no later than ten working days before the year begins
+(§ 4(2)). As long as it is not in the country profile, the app uses the **last
+known value as an assumption** for 2027 and later years — i.e. 60 € — and says
+below: “This year’s price is not fixed yet; the last known one is used.” The
+60 € are only a placeholder, not the 2027 price.
 
 You enter your own values under **Settings → Expert → calculation parameters →
 “CO₂ price” → “CO₂ price per year”** (year and € per tonne). They take
-precedence over the country profile — for instance once the 2027 price is fixed
-or your supplier states a different value ([Settings](../referenz/einstellungen.md#co₂-price-v310)).
+precedence over the country profile and replace the assumption — for instance
+once the German Environment Agency has published the 2027 price or if your
+supplier states a different value ([Settings](../referenz/einstellungen.md#co₂-price-v310)).
 
 ## 5. How it is calculated
 
 ```text
 Emissions [kg]     = consumption [kWh] × factor [kg/kWh]
 Amount net [€]     = emissions [kg] / 1000 × price [€/t]
-Amount gross [€]   = amount net × 1.19
+Amount gross [€]   = amount net × (1 + VAT)      VAT 19 %, gas and district heating 10/2022–3/2024 7 %
 per kWh [ct]       = amount gross / consumption [kWh] × 100
+
+with the CO₂ amount from the bill:
+Amount gross [€]   = CO₂ amount on the bill
+Amount net [€]     = amount gross / (1 + VAT)
 ```
 
 **Example** (invented figures): 10,000 kWh of gas in 2025.
@@ -112,7 +132,8 @@ gross         99.76 € × 1.19               =   118.72 €
 per kWh       118.72 € / 10,000 kWh        =     1.19 ct
 ```
 
-So about 1.2 ct of every kilowatt-hour of gas was CO₂ price in 2025.
+So about 1.2 ct of every kilowatt-hour of gas was CO₂ price in 2025. The same
+amount in 2023 (30 €/t, VAT 7 %): 54.42 € net × 1.07 = 58.23 €.
 
 **Per m² of floor area.** The API also works out the emissions of all rows per
 m² of floor area and the **stage under the CO2KostAufG** (ten stages, rounded
@@ -172,7 +193,8 @@ Example gas:              (150 − 60) × 0.18139 / 10 × 1.19 = 1.94 ct/kWh
   calculates the calendar year.
 - **Heat is an approximation.** It counts the heat arriving in the flat, not the
   fuel used for it. The heating system’s losses are missing, so the figure tends
-  to be too low.
+  to be too low. The VAT follows the energy source set under “Heat comes from”
+  — for gas and district heating that includes the 7 % from 10/2022 to 3/2024.
 - **District heating** only with your heat network’s factor. The supplier
   publishes it, often on the price sheet or the bill.
 - **Future prices** are assumptions until they are fixed.

@@ -140,8 +140,12 @@ a socket. In Germany, since the Solarpaket I (2024):
   charge** — there is no feed-in tariff.
 - **Meter:** an old Ferraris meter without a backstop may run backwards for a
   transition period, until the metering operator replaces it with a modern
-  meter. A modern meter counts import and feed-in separately or only the
-  import — it never runs backwards.
+  meter (§ 10a EEG; applies to devices commissioned since 16 May 2024). A
+  modern meter counts import and feed-in separately or only the import — it
+  never runs backwards.
+- **Renting:** the landlord must as a rule permit a plug-in solar device
+  (§ 554(1) BGB, since October 2024) but may have a say in how it is installed
+  (as of 9 Oct 2026).
 
 Up to v3.0 this page said a backward-running meter was “automatically
 excluded” by modern meters — for old Ferraris meters that was not true.

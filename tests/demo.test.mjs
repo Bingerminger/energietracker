@@ -59,7 +59,7 @@ function serve(dir, port) {
     const langs = Object.keys(JSON.parse(readFileSync(join(ROOT, 'public/locales/languages.json'), 'utf8')));
     const sameKeys = langs.every(l => {
       const idx = JSON.parse(readFileSync(join(out, `demo-api/index-${l}.json`), 'utf8'));
-      return Object.keys(idx).length === built.keys;
+      return Object.keys(idx).length === meta.keys;   // v3.2.0 — built.keys zählt alle Haushalte
     });
     t('Index je Sprache vollständig', sameKeys, langs.join(' '));
     // v3.1.0 — Server-Texte in der Sprache der Demo (X-ET-Language), nicht in der Standardsprache
@@ -121,6 +121,10 @@ function serve(dir, port) {
       }
     };
 
+    // v3.2.0 (F1018) — der Rundgang zeigt das Schaufenster; ohne gewählten Haushalt
+    // öffnet die Demo den Einrichtungsassistenten (geprüft weiter unten)
+    w.localStorage.setItem('et-demo-persona', 'showcase');
+    w.localStorage.setItem('et-demo-level', 'expert');
     await import(pathToFileURL(join(out, 'public/js/app.js')).href);
     await settle();
     await sleep(200);
@@ -164,6 +168,43 @@ function serve(dir, port) {
     t(`${routes.length} Seiten ohne fehlende Antworten`, misses.length === 0, misses.slice(0, 8).join(' · '));
     const newErrors = errors.slice(before);
     t('keine Fehler beim Durchklicken', newErrors.length === 0, newErrors.slice(0, 5).join(' | '));
+
+    // v3.2.0 (F1018) — der Einrichtungsassistent bietet die Beispielhaushalte an
+    const { openSetupWizard } = await import(pathToFileURL(join(out, 'public/js/components/setup-wizard.js')).href);
+    await openSetupWizard({ firstRun: true });
+    await settle();
+    const choices = w.document.querySelectorAll('.modal input[name="setup-persona"]').length;
+    t('Einrichtungsassistent mit fünf Personas', choices === 5, String(choices));
+    w.document.querySelector('.modal .modal__close')?.click();
+
+    // v3.2.0 (F1018, F1019) — jeder Beispielhaushalt, als Einsteiger und als Experte
+    const state = await import(pathToFileURL(join(out, 'public/js/state.js')).href);
+    const levels = await import(pathToFileURL(join(out, 'public/js/lib/levels.js')).href);
+    for (const persona of (meta.personas || []).filter(x => x !== 'showcase')) {
+      w.localStorage.setItem('et-demo-persona', persona);
+      state.invalidateSettings(); state.invalidateUtilities();
+      w.__etDemoMisses?.clear();
+      const pErrors = errors.length;
+      const pSettings = await api.settings();
+      const pUtils = (await api.listUtilities()).filter(u => (pSettings.active_utilities || []).includes(u.key));
+      const pRoutes = ['#/dashboard', '#/zaehlerstaende', ...pUtils.map(u => `#/utility/${u.key}`), '#/contracts',
+        '#/tariffs', '#/bill-check', '#/report', ...(pSettings.wohnverhaeltnis === 'miete' ? ['#/tenancy'] : [])];
+      for (const level of ['beginner', 'expert']) {
+        w.localStorage.setItem('et-demo-level', level);
+        levels.applyLevel(level);
+        for (const r of pRoutes) {
+          w.location.hash = r + (r.includes('?') ? '&' : '?') + 'p=' + persona + level;
+          await settle();
+          const broken = w.document.getElementById('view').querySelector('.banner--error')?.textContent?.trim();
+          if (broken) errors.push(`${persona} ${r}: ${broken.slice(0, 160)}`);
+        }
+      }
+      const pMisses = [...(w.__etDemoMisses || [])];
+      t(`Beispielhaushalt ${persona}: ${pRoutes.length} Seiten × 2 Stufen ohne Lücke`,
+        pMisses.length === 0 && errors.length === pErrors, [...pMisses.slice(0, 5), ...errors.slice(pErrors, pErrors + 3)].join(' · '));
+    }
+    w.localStorage.setItem('et-demo-persona', 'showcase');
+    state.invalidateSettings(); state.invalidateUtilities();
 
     let code = null;
     try { await api.createReading('gas', { meter_id: 'x', date: '2026-01-01', counter: 1 }); }

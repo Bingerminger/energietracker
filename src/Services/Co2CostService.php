@@ -66,7 +66,7 @@ final class Co2CostService
         $rows = [];
         foreach (self::UTILITIES as $u) {
             if (!Utilities::exists($u)) continue;
-            $row = $this->row($u, $year, $price['eur_t'], $vat);
+            $row = $this->row($u, $year, $price['eur_t'], $scheme);
             if ($row !== null) $rows[] = $row;
         }
         $total = null;
@@ -154,18 +154,27 @@ final class Co2CostService
     // ── intern ───────────────────────────────────────────────────────────
 
     /** @return array<string,mixed>|null */
-    private function row(string $u, int $year, ?float $priceEurT, float $vat): ?array
+    private function row(string $u, int $year, ?float $priceEurT, string $scheme): ?array
     {
-        $kwh = 0.0; $days = [];
+        $kwh = 0.0; $days = []; $kwhByMonth = [];
         foreach ($this->meters->list($u) as $meter) {
             if (!MeterService::countsInTotals($meter)) continue;
             if ($u === 'waerme' && Utilities::roleOf('waerme', $meter) !== 'consumption') continue;
             foreach ($this->consumption->forMeter($u, $meter) as $m) {
                 if ((int)($m['year'] ?? 0) !== $year) continue;
                 $kwh += (float)($m['kwh'] ?? 0);
+                $kwhByMonth[(int)$m['month']] = ($kwhByMonth[(int)$m['month']] ?? 0.0) + (float)($m['kwh'] ?? 0);
                 $days[(int)$m['month']] = max($days[(int)$m['month']] ?? 0, (int)($m['days'] ?? 0));
             }
         }
+        // v3.2.0 — Umsatzsteuer je Monat (7 % auf Gas und Fernwärme 10/2022–3/2024),
+        // für das Jahr nach Verbrauch gewichtet; ohne Verbrauch das Mittel der Monate
+        // Heizwärme: der Satz des Energieträgers dahinter (Gas, Fernwärme …)
+        $vatUtility = $u === 'waerme' ? (string)($this->settings->get('waerme_energietraeger') ?? '') : $u;
+        $vatOf = fn(int $m) => Countries::co2Vat($scheme, $vatUtility, sprintf('%04d-%02d', $year, $m));
+        $vat = $kwh > 0
+            ? array_sum(array_map(fn($m, $k) => $vatOf((int)$m) * $k, array_keys($kwhByMonth), $kwhByMonth)) / $kwh
+            : array_sum(array_map($vatOf, range(1, 12))) / 12;
         $bill = $this->fromBills($u, $year);
         $source = 'computed';
         $factor = null;
@@ -179,9 +188,17 @@ final class Co2CostService
             if ($u === 'fernwaerme') $source = 'contract';
         }
         if ($emissions <= 0 || $priceEurT === null) return null;
-        // Rechnungen weisen den CO₂-Preisbestandteil netto aus (CO2KostAufG § 3 Abs. 3)
-        $net = $bill !== null && isset($bill['cost_eur']) ? (float)$bill['cost_eur'] : $emissions / 1000 * $priceEurT;
-        $gross = $net * (1 + $vat);
+        // v3.2.0 — Die Rechnung weist den CO₂-Preisbestandteil „zuzüglich einer
+        // auf diesen Betrag anfallenden Umsatzsteuer“ aus (CO2KostAufG § 3 Abs. 3),
+        // also brutto. Bis v3.1 wurde er als netto gelesen und die Steuer ein
+        // zweites Mal aufgeschlagen.
+        if ($bill !== null && isset($bill['cost_eur'])) {
+            $gross = (float)$bill['cost_eur'];
+            $net = $gross / (1 + $vat);
+        } else {
+            $net = $emissions / 1000 * $priceEurT;
+            $gross = $net * (1 + $vat);
+        }
         return [
             'utility'           => $u,
             'kwh'               => round($kwh, 1),
@@ -192,6 +209,7 @@ final class Co2CostService
             'cost_eur_gross'    => round($gross, 2),
             'ct_per_kwh'        => $kwh > 0 ? round($gross / $kwh * 100, 3) : null,
             'source'            => $source,
+            'vat'               => round($vat, 4),   // v3.2.0 — angewandte Umsatzsteuer (7 % für Gas/Fernwärme 10/2022–3/2024)
             'approx'            => $u === 'waerme' && $source === 'computed',
             'coverage_days'     => array_sum($days),
         ];
@@ -216,7 +234,8 @@ final class Co2CostService
 
     /**
      * Frist für die Erstattung bei Etagenheizung (CO2KostAufG § 6 Abs. 2): zwölf
-     * Monate nach Zugang der Gasrechnung, deren Zeitraum im Jahr endet. Ohne
+     * Monate, nachdem der Lieferant abgerechnet hat (Rechnungsdatum der
+     * Gasrechnung, deren Zeitraum im Jahr endet). Ohne
      * Rechnungsdatum gilt der Tag nach dem Zeitraum. Null ohne Rechnung (H5).
      */
     public function claimDeadline(int $year): ?string

@@ -144,8 +144,12 @@ Hausnetz ein. Seit dem Solarpaket I (2024) gilt:
   ab — eine Vergütung gibt es nicht.
 - **Zähler:** Ein alter Ferraris-Zähler ohne Rücklaufsperre darf übergangsweise
   rückwärts laufen, bis der Messstellenbetreiber ihn gegen einen modernen
-  Zähler tauscht. Ein moderner Zähler zählt Bezug und Einspeisung getrennt
+  Zähler tauscht (§ 10a EEG; gilt für Geräte, die seit dem 16.05.2024 in
+  Betrieb sind). Ein moderner Zähler zählt Bezug und Einspeisung getrennt
   oder nur den Bezug — rückwärts läuft er nie.
+- **Zur Miete:** Der Vermieter muss ein Steckersolargerät in der Regel erlauben
+  (§ 554 Abs. 1 BGB, seit Oktober 2024); über das Wie kann er mitreden (Stand
+  09.10.2026).
 
 Bis v3.0 stand hier, ein rückwärts laufender Zähler sei mit modernen Zählern
 „automatisch ausgeschlossen“ — für alte Ferraris-Zähler stimmte das nicht.

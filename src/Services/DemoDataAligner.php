@@ -21,6 +21,8 @@ namespace Energietracker\Services;
  * - **Lieferungen:** Was im Jahr vor dem Export geliefert wurde, kommt ein Jahr
  *   später wieder (seltene Ereignisse — daher ab dem Exporttag, nicht ab der
  *   letzten Lieferung).
+ * - **Zeiträume (v3.2.0):** Monatswerte der Verbrauchsinfo, Monat für Monat mit
+ *   dem Wert desselben Monats im Vorjahr, bis zum letzten ganzen Monat.
  * - **Temperaturen:** Tag für Tag der Wert vom selben Tag des Vorjahres, um Δ
  *   über den letzten Eintrag hinaus. Weil
  *   Verbrauch und Temperatur aus demselben Vorjahr stammen, passen Heizmodell
@@ -61,7 +63,14 @@ final class DemoDataAligner
             if (is_array($data['deliveries'] ?? null)) {
                 $data['deliveries'] = self::extendEvents($data['deliveries'], $ref, $horizon);
             }
+            if (is_array($data['periods'] ?? null) && $data['periods'] !== []) {
+                $data['periods'] = self::extendPeriods($data['periods'], $horizon);
+            }
             $payload['utilities'][$u] = $data;
+        }
+
+        if (is_array($payload['ev_sessions'] ?? null) && $payload['ev_sessions'] !== []) {
+            $payload['ev_sessions'] = self::extendSessions($payload['ev_sessions'], $ref, $horizon);
         }
 
         if (is_array($payload['temperatures'] ?? null) && $payload['temperatures'] !== []) {
@@ -84,6 +93,44 @@ final class DemoDataAligner
             }
         }
         return $last;
+    }
+
+    // ── Zeiträume (v3.2.0, F1018) ────────────────────────────────────────
+
+    /**
+     * Monatszeiträume je Zähler fortschreiben: nach dem letzten Zeitraum je
+     * ganzem Kalendermonat bis zum Monat vor `$horizon` der Wert desselben
+     * Monats im Vorjahr. Fehlt das Vorjahr, endet die Reihe dort.
+     *
+     * @param array<int,array<string,mixed>> $periods
+     * @return array<int,array<string,mixed>>
+     */
+    private static function extendPeriods(array $periods, string $horizon): array
+    {
+        $byMeter = [];
+        foreach ($periods as $p) $byMeter[(string)($p['meter_id'] ?? '')][] = $p;
+        $out = $periods;
+        foreach ($byMeter as $meterId => $list) {
+            usort($list, fn($a, $b) => strcmp((string)$a['from'], (string)$b['from']));
+            $byFrom = [];
+            foreach ($list as $p) $byFrom[(string)$p['from']] = $p;
+            $last = end($list);
+            $from = self::addDays((string)$last['to'], 1);
+            while (true) {
+                $to = date('Y-m-t', (int)strtotime($from));
+                if ($to >= $horizon || substr($from, 8, 2) !== '01') break;
+                $src = $byFrom[self::addYears($from, -1)] ?? null;
+                if ($src === null) break;
+                $new = $src;
+                $new['id'] = 'p_' . substr(md5($meterId . '|' . $from), 0, 12);
+                $new['from'] = $from;
+                $new['to'] = $to;
+                unset($new['client_ref'], $new['attachment_id']);
+                $out[] = $byFrom[$from] = $new;
+                $from = self::addDays($to, 1);
+            }
+        }
+        return $out;
     }
 
     // ── Zählerstände ─────────────────────────────────────────────────────
@@ -239,6 +286,40 @@ final class DemoDataAligner
                 $copy = $e;
                 $copy['id'] = preg_replace('/_p\d+$/', '', (string)($e['id'] ?? 'del')) . '_p' . $k;
                 $copy['date'] = $date;
+                $out[] = $copy;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * v3.2.0 (F1022) — Ladevorgänge aus evcc wie Lieferungen: was im Jahr vor
+     * dem Export geladen wurde, ein Jahr später noch einmal. Die Zählerstände
+     * der Wallbox fallen bei den Kopien weg — sie passen nicht zu den
+     * fortgeschriebenen Ablesungen; Menge, Sonnenanteil und Preis bleiben.
+     *
+     * @param array<int,array<string,mixed>> $sessions
+     * @return array<int,array<string,mixed>>
+     */
+    private static function extendSessions(array $sessions, string $ref, string $horizon): array
+    {
+        $out = $sessions;
+        for ($k = 1; self::addYears($ref, $k - 1) < $horizon; $k++) {
+            $winFrom = self::addYears($ref, $k - 2);
+            $winTo   = self::addYears($ref, $k - 1);
+            foreach ($out as $s) {
+                $d = (string)($s['date'] ?? '');
+                if ($d <= $winFrom || $d > $winTo) continue;
+                $date = self::addYears($d, 1);
+                if ($date > $horizon) continue;
+                $copy = $s;
+                foreach (['created', 'finished'] as $f) {
+                    $t = (string)($s[$f] ?? '');
+                    if (strlen($t) >= 10) $copy[$f] = self::addYears(substr($t, 0, 10), 1) . substr($t, 10);
+                }
+                unset($copy['meter_start'], $copy['meter_stop']);
+                $copy['date'] = $date;
+                $copy['id'] = 'evs_' . substr(sha1((string)($copy['created'] ?? $date) . '|' . (string)($s['loadpoint'] ?? '')), 0, 12);
                 $out[] = $copy;
             }
         }

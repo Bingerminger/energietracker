@@ -59,6 +59,10 @@ The detailed feature overview. What the views look like is shown in the
   [Connect Home Assistant](../anleitungen/home-assistant.md). ioBroker,
   Node-RED and openHAB send readings the same way — see
   [Other systems](../anleitungen/andere-systeme.md).
+- **Charging sessions from evcc** (v3.2.0): upload the CSV export from evcc or
+  fetch it directly from evcc in the home network, with a preview; per month
+  amount, solar share and the price according to evcc, with the wallbox meter
+  readings along — see [Charging sessions from evcc](../anleitungen/evcc.md).
 - **Time series from portals** (v3.1.0): files from the grid operator,
   metering operator, inverter or heat pump — quarter-hour, hourly or daily
   values — read with a column mapping, condensed into daily values, daylight
@@ -146,6 +150,11 @@ The detailed feature overview. What the views look like is shown in the
 
 ## Understand and look ahead
 
+- **Explainers** (v3.2.0): “Where does my money go?”, “Energy flow in the
+  house”, “Colder, or used more?” and “Contract at a glance” — animated
+  pictures with your own figures, still with “Reduce motion”, with the
+  statement as text — see
+  [Setup and experience levels](einrichtung.md#4-explainers).
 - **Heating degree days** from your own location against the heating limit
   (default 15 °C), plus a **heating model** with base load and **weather
   adjustment**: "used more, or was it just colder?" — every month against its
@@ -163,8 +172,8 @@ The detailed feature overview. What the views look like is shown in the
   what-if (temperature offset, price factor, since v3.1.0 a higher CO₂ price).
 - **Anomalies** (months far from their expectation), **year-on-year**
   comparison month by month and the **water saving index** per person.
-- **Efficiency** in kWh/m²·yr — classes A+ to H per the German GEG, only for
-  whole years — and next to it a **certificate-style figure** (net calorific
+- **Efficiency** in kWh/m²·yr — classes A+ to H per the German GModG
+  (formerly GEG), only for whole years — and next to it a **certificate-style figure** (net calorific
   value, weather-adjusted, building floor area).
 - **Heat** (v3.1.0): the warmth that arrives in the home, as a utility of its
   own with heating model, weather adjustment and forecast; CO₂ as an
@@ -213,8 +222,18 @@ The detailed feature overview. What the views look like is shown in the
   gas units and the terms on the country's bill — see
   [Country profiles](../verstehen/14-laenderprofile.md).
 - **Light, dark or like the system**.
+- **Experience levels** (v3.2.0): Beginner, Experienced or Expert — the level
+  decides what the interface shows, every level calculates everything. For
+  beginners an overview with three answers; suggestions to move up when the
+  data holds more — see
+  [Setup and experience levels](einrichtung.md#3-experience-levels).
+- **Setup assistant** (v3.2.0) on the first start: three questions, then
+  matching utilities and level; start it again from the settings at any time.
 - **Sample data** to try it out without losing your own (the app saves the
-  current state first).
+  current state first); since v3.2.0 four sample households — rented flat,
+  owner-occupied flat with district heating, classic and modern house — next
+  to the showcase with almost every utility — see
+  [Setup and experience levels](einrichtung.md#2-the-sample-households).
 
 ## Run
 
@@ -233,6 +252,10 @@ The detailed feature overview. What the views look like is shown in the
   with read or manage rights and separate keys for the calendar subscription
   only — see
   [Security & network operation](../betrieb/sicherheit.md).
+- **Users in the household** (v3.2.0): with sign-in, people of their own with
+  name and password or reported by the proxy, the roles admin and member,
+  level and language per person — see
+  [Users in the household](../anleitungen/benutzer.md).
 - **Diagnostics** under Settings → System and `GET /api/health` for the Docker
   health check and uptime monitors.
 - **Open REST API** with a stability promise — see the

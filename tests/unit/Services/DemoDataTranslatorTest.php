@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Energietracker\Tests\Services;
 
 use Energietracker\Services\DemoDataTranslator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -42,11 +43,9 @@ final class DemoDataTranslatorTest extends TestCase
         return array_values(array_unique($out));
     }
 
-    public function testEveryDemoTextIsTranslatedIntoEveryLanguage(): void
+    /** @return string[] Texte ohne Übersetzung, je Sprache ("en: …") */
+    private static function untranslated(array $texts): array
     {
-        $b = self::backup();
-        $texts = self::texts(['utilities' => $b['utilities'], 'reminders' => $b['reminders']]);
-        self::assertGreaterThan(40, count($texts));
         $langs = array_diff(array_keys(json_decode((string)file_get_contents(self::root() . '/public/locales/languages.json'), true)), ['de']);
         $strings = self::strings();
         $missing = [];
@@ -55,7 +54,39 @@ final class DemoDataTranslatorTest extends TestCase
                 if (trim((string)($strings[$text][$l] ?? '')) === '') $missing[] = "$l: $text";
             }
         }
-        self::assertSame([], $missing, 'Demo-Texte ohne Übersetzung');
+        return $missing;
+    }
+
+    public function testEveryDemoTextIsTranslatedIntoEveryLanguage(): void
+    {
+        $b = self::backup();
+        $texts = self::texts(['utilities' => $b['utilities'], 'reminders' => $b['reminders']]);
+        self::assertGreaterThan(40, count($texts));
+        self::assertSame([], self::untranslated($texts), 'Demo-Texte ohne Übersetzung');
+    }
+
+    /** @return array<string,array{0:string}> */
+    public static function personaFiles(): array
+    {
+        $out = [];
+        foreach (glob(self::root() . '/demo-data/personas/*.json') ?: [] as $f) $out[basename($f, '.json')] = [$f];
+        return $out;
+    }
+
+    /**
+     * F1018 (v3.2.0) — dasselbe für die Beispielhaushalte (demo-data/personas/),
+     * einschließlich der Bezeichnungen in Mietverhältnis und Abrechnungen.
+     */
+    #[DataProvider('personaFiles')]
+    public function testEveryPersonaTextIsTranslatedIntoEveryLanguage(string $file): void
+    {
+        $p = json_decode((string)file_get_contents($file), true);
+        $texts = self::texts(array_intersect_key($p, array_flip(['utilities', 'reminders', 'tenancies', 'tenancy_statements'])));
+        self::assertGreaterThan(10, count($texts));
+        self::assertSame([], self::untranslated($texts), basename($file) . ': Texte ohne Übersetzung');
+        $en = DemoDataTranslator::translate($p, 'en', self::strings());
+        self::assertSame(array_column($p['utilities']['strom']['contracts'], 'provider'), array_column($en['utilities']['strom']['contracts'], 'provider'),
+            'Firmennamen bleiben Eigennamen');
     }
 
     public function testTranslateChangesTextsButNotIdsNumbersOrCompanyNames(): void
@@ -71,6 +102,17 @@ final class DemoDataTranslatorTest extends TestCase
         self::assertSame(array_column($b['utilities']['gas']['contracts'], 'provider'), array_column($gas['contracts'], 'provider'),
             'Firmennamen bleiben Eigennamen');
         self::assertSame($b, DemoDataTranslator::translate($b, 'de', self::strings()), 'Deutsch bleibt unverändert');
+    }
+
+    /** v3.2.0 (F1018) — auch Mietverhältnis und Posten der Nebenkostenabrechnung werden übersetzt. */
+    public function testTenancyTextsAreTranslatedToo(): void
+    {
+        $b = json_decode((string)file_get_contents(self::root() . '/demo-data/personas/mieterin.json'), true);
+        $en = DemoDataTranslator::translate($b, 'en', self::strings());
+        self::assertNotSame($b['tenancies'][0]['label'], $en['tenancies'][0]['label']);
+        $labels = fn(array $p) => array_column($p['tenancy_statements'][0]['positions'] ?? [], 'label');
+        self::assertNotSame($labels($b), $labels($en));
+        self::assertSame(count($labels($b)), count($labels($en)));
     }
 
     public function testTheDockerImageShipsTheTranslations(): void

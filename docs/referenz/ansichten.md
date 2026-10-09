@@ -11,7 +11,9 @@
 > Erfassung, Einstellungen und Import-Vorschau v2.12.0, Hilfe und Erklärungen
 > v2.13.0, Analyse v2.15.0, Übersicht, Gas, PV und Temperaturen v2.16.0). Wer sie
 > selbst neu erzeugen will: Demo-Daten laden und die Views nacheinander
-> aufnehmen — die App braucht dafür keinen Build-Schritt.
+> aufnehmen — die App braucht dafür keinen Build-Schritt. Die Bilder stammen
+> aus der Zeit vor den Nutzungsstufen (v3.2.0): Sie zeigen, was heute die
+> Stufe „Experte“ zeigt, und noch ohne den Umschalter der Stufe.
 
 Die App ist eine Single-Page-Anwendung. Seit **v2.11.0** folgt die
 Navigation den Fragen der Nutzer: sieben Bereiche statt 17 Einträgen.
@@ -30,11 +32,43 @@ Die Seiten eines Bereichs stehen als **Tabs** über der Ansicht. Menüname und
 Seitentitel sind gleich, und der Tab des Browsers nennt die Ansicht. Frühere
 Adressen (`#/tariffs`, `#/temperatures` …) bleiben gültig. Die Seitenleiste
 zeigt nur die *aktiven* Verbrauchsarten (Einstellungen → Verbrauchsarten &
-Abrechnung → Aktive Verbrauchsarten) und folgt einer Änderung sofort.
+Abrechnung → Aktive Verbrauchsarten) und folgt einer Änderung sofort. Seit
+v3.2.0 fehlen in Navigation und Tabs die Seiten, die erst eine höhere
+Nutzungsstufe zeigt (unten).
 
 **Mac:** Seitenleiste links. In der Kopfleiste steht **＋ Erfassen**:
 Zählerstände, Lieferung und Peilstand bei Heizöl und Pellets, Termin.
-Daneben der Umschalter für die Darstellung (wie das System, hell, dunkel).
+Daneben der Umschalter für die Darstellung (wie das System, hell, dunkel),
+seit v3.2.0 davor die Auswahl der Nutzungsstufe.
+
+**Nutzungsstufe (v3.2.0):** Vor dem Tag/Nacht-Knopf steht die Auswahl
+**„Nutzungsstufe“** mit 🌱 **Einsteiger**, 🌿 **Erfahren** und 🌳
+**Experte** — am Mac ein Menü, am iPhone das Rad des Systems; dort zeigt die
+Kopfleiste nur das Symbol. Die Stufe gilt sofort: Seitenleiste, Tabs und die
+offene Ansicht bauen sich neu auf. Sie bestimmt, was die Oberfläche zeigt,
+nicht was die App rechnet — API, CSV-Export, Backup und Home Assistant
+liefern in jeder Stufe dasselbe. Ausgeblendete Formularfelder bleiben im
+Formular: Ein Vertrag, den ein Einsteiger speichert, behält seine
+Kündigungsfrist. Ohne Anmeldung gilt die Stufe für die Installation
+(`ui_level`), mit Anmeldung für die angemeldete Person
+([Benutzer im Haushalt](../anleitungen/benutzer.md)); in der öffentlichen Demo
+merkt sie sich der Browser. Eine bestehende Installation steht nach dem
+Update auf „Experte“.
+
+| ab Stufe | Seiten | Teile von Seiten |
+|---|---|---|
+| 🌱 Einsteiger | Übersicht (eigene Ansicht, §1), Zählerstände, Verbrauch je Art, Verträge & Abschläge, Jahresbericht, Termine & Wartung, Empfehlungen, Hilfe; Einstellungen → Allgemein, Haushalt & Gebäude, Verbrauchsarten & Abrechnung, Daten | — |
+| 🌿 Erfahren | Wechsel prüfen, Rechnung prüfen, Mietverhältnis, Analyse, Prognose, Zählerverwaltung einer Art (`#/utility/…/meters`), Wetterdaten, Einstellungen → Integrationen | die Übersicht mit allen Kennzahlen; in der Verbrauchsansicht die CO₂-Kachel, „Gemessen“/„Witterungsbereinigt“, die Monatstabelle, der Energiefluss der PV, „Rechnung prüfen“ und „Ladevorgänge aus evcc“ (§3); im Vertragsdialog Kündigungsfrist, Preisgarantie, Kündigungsweise, Mindestlaufzeit, „Verlängert sich ohne Kündigung“, Boni und Sonderzahlungen; in den Einstellungen Anzeige, Erinnerungen, Eigene Vergleichswerte, Wasser-Referenzwerte, Physikalische Konstanten und Energieträger (Lieferung) |
+| 🌳 Experte | Einstellungen → Zugriff, Experte, System | auf der Übersicht der Abschnitt „Schaubilder“; in der Verbrauchsansicht Warmwasser-Wärme, CO₂-Preis im Brennstoff, Ladestrom-Nachweis, Wärmepumpe sowie Speicher und Amortisation der PV; in der Analyse Zäsur und „Wirkung der Maßnahme“; in der Prognose Modell und CO₂-Preis-Szenario; unter Wechsel prüfen der dynamische Tarif und „Börsenstrompreise“; im Vertragsdialog Leistungs- und Messpreis und Kennwerte der Fernwärme, reduziertes Netzentgelt (§ 14a), Arbeitspreis je Zähler einer Gruppe, Gutschriften des Direktvermarkters und „Monatspreise importieren“; im Zählerdialog Gruppe, Analyse-Zäsuren, PV-Anlage, Stromzähler der Wärmepumpe und „Zeitreihe importieren“; im Mietverhältnis „CO₂-Kosten teilen“; in den Einstellungen CO₂-Emissionsfaktoren und Photovoltaik |
+
+Ein Bereich zeigt als Tabs nur die Seiten seiner Stufe, bei einer einzigen
+Seite gar keine; „Auswertungen“ in der Seitenleiste führt Einsteiger zum
+Jahresbericht. Ein Link, ein Lesezeichen oder eine alte Adresse öffnet eine
+ausgeblendete Seite trotzdem. Darüber steht dann der Hinweis „Diese Seite
+gehört zur Stufe „Erfahren“. Sie ist trotzdem offen.“ mit **„Auf „Erfahren“
+umstellen“** und ✕ — so etwa, wenn ein Einsteiger in der Verbrauchsansicht
+auf „⚙️ Zähler“ tippt. Einzelheiten:
+[Einrichten und Nutzungsstufen](../einstieg/einrichtung.md#3-nutzungsstufen).
 
 ![Navigation am Mac](../ui/screenshots/navigation-mac.png)
 
@@ -163,6 +197,68 @@ verlinkt die Karte „Stromspiegel: eigene Klasse prüfen“ und „Heizspiegel:
 Heizkosten prüfen“ ↗. Ohne Werte und ohne Links entfällt sie.
 
 ![Dashboard](../ui/screenshots/dashboard.png)
+
+**Übersicht für Einsteiger (v3.2.0):** In der Stufe „Einsteiger“ zeigt die
+Übersicht, sobald Verbrauchsdaten da sind, statt aller Kennzahlen drei
+Antworten; oben steht der Knopf **„Zählerstand erfassen“**. Ohne Daten steht
+in jeder Stufe das Willkommen.
+
+- 💶 **„Bekomme ich Geld zurück?“** — je Zähler mit laufendem Vertrag (ohne
+  Subzähler und PV) „rund … zurück“ in Grün, „rund … Nachzahlung“ in Rot oder
+  „etwa ausgeglichen“ (unter 1 €), dazu „Abrechnung am …“. Ohne Vertrag:
+  „Noch kein Vertrag mit Abschlag erfasst.“ mit dem Link „Vertrag eintragen“.
+- 📈 **„Mehr oder weniger als im Vorjahr?“** — je Verbrauchsart die letzten
+  zwölf Monate gegen dieselben Monate ein Jahr zuvor, ab sechs vergleichbaren
+  Monaten: „… mehr als im Vorjahr“, „… weniger als im Vorjahr“ oder unter 2 %
+  „etwa wie im Vorjahr“ — grün, wenn es gut ist (bei PV mehr), sonst rot.
+  Ohne Vorjahr: „Noch kein Vorjahr zum Vergleichen.“
+- 🏢 **„Reicht die Vorauszahlung?“** — nur „zur Miete“ mit laufendem
+  Mietverhältnis: „Ja — voraussichtlich rund … zurück.“ oder „Knapp —
+  voraussichtlich rund … Nachzahlung.“, dann mit „Passende Vorauszahlung: …
+  im Monat.“
+- ✅ **„Was ist zu tun?“** — die ersten vier Einträge aus „Zu tun“, je mit
+  „›“; sonst „Gerade nichts — gut so.“
+
+Darunter erklärt das Schaubild „Wohin geht mein Geld?“ den Vertrag mit dem
+höchsten Abschlag. Die Zahlen sind dieselben wie in den anderen Stufen
+(`GET /api/summary`, Vertragsstatus).
+
+**Vorschlag zum Hochstufen (v3.2.0):** Zeigen die Daten mehr, als die Stufe
+anzeigt, steht oben auf der Übersicht „Deine Daten können mehr, als diese
+Stufe zeigt — „…“ blendet es ein.“ mit dem Anlass in kleiner Schrift. Für
+Einsteiger sind das Subzähler, Werte von Home Assistant (ein Zähler mit
+Alias) und mehrere Zähler einer Verbrauchsart — Vorschlag „Erfahren“; für
+Erfahrene ein Zähler mit der Rolle Wärmepumpe, Speicher oder Wallbox —
+Vorschlag „Experte“. **„Auf „…“ umstellen“** stuft mit einem Klick hoch,
+**„Nicht mehr fragen“** merkt sich dieses Gerät je Stufe und Anlass. Der
+Vorschlag blockiert nichts.
+
+**Schaubilder (v3.2.0, Stufe Experte):** Zwischen „Zu tun“ mit den Karten
+Effizienz, Tanks, Strom-Saldo und Empfehlungen und den Karten der
+Verbrauchsarten steht der Abschnitt 🎞️
+**„Schaubilder“**: „Wohin geht mein Geld?“ und „Vertrag auf einen Blick“ für
+den Vertrag mit dem höchsten Abschlag, „Energiefluss im Haus“ für das Vorjahr
+(sonst das letzte Jahr mit PV-Daten) und „Kälter oder mehr verbraucht?“ für
+den ersten Heizzähler. Jedes Bild erscheint nur mit seinen Daten; fehlen sie
+für alle, entfällt der Abschnitt.
+
+Die vier Schaubilder sind Erklärgrafiken mit den eigenen Zahlen — sie
+beantworten je eine Frage, statt eine Reihe zu zeigen:
+
+| Schaubild | Was es zeigt | Leer, wenn … |
+|---|---|---|
+| **„Wohin geht mein Geld?“** | zwei Balken bis zum Ende des Abrechnungszeitraums: „Abschläge“ gegen „Kosten“, die Kosten geteilt in „Verbrauch“, „Grundpreis“ (abzüglich Boni) und „noch geschätzt“; der Abstand als Guthaben oder Nachzahlung. Text: „Bis zur Abrechnung am … zahlst du … Abschläge; Verbrauch und Grundpreis kosten voraussichtlich …. Das ergibt rund … Guthaben.“ | kein laufender Vertrag mit Saldo-Verlauf da ist |
+| **„Energiefluss im Haus“** | ☀️ PV, 🏠 Haus, ⚡ Netz und, mit Speicherzählern, 🔋 Speicher; die Breite jedes Flusses folgt der Menge. Text: „{Jahr}: Die Anlage erzeugte … kWh. Das Haus nutzte … kWh davon selbst, … kWh gingen ins Netz, … kWh kamen aus dem Netz. Autarkie: ….“ | das Jahr keine Erzeugung hat |
+| **„Kälter oder mehr verbraucht?“** | „Verbrauch“ und „Heizgradtage“, je „dieselben Monate im Vorjahr“ gegen „zuletzt“ mit der Abweichung in %, darunter die Plakette „witterungsbereinigt …“. Der Text sagt „Du hast wirklich weniger verbraucht“, „Du hast wirklich mehr verbraucht — nicht nur das Wetter“ oder „etwa gleich — der Unterschied kommt vom Wetter“ (Grenze ±2 %) | weniger als sechs ganze Monate mit witterungsbereinigtem Wert (`heat_adjusted`) aus den letzten zwölf ein Vorjahr haben |
+| **„Vertrag auf einen Blick“** | ein Zeitstrahl mit „Beginn“, „Kündigen bis“, „Preiserhöhung“, „Ende“ und „heute“; die Strecke bis heute ist gefüllt. Bei einem weiterlaufenden Vertrag ist das Ende der Tag, an dem er nach einer Kündigung bis „Kündigen bis“ endet | der Vertrag keinen Beginn hat |
+
+Balken wachsen und Flüsse laufen, sobald ein Bild ins Blickfeld kommt. Mit
+„Bewegung reduzieren“ am Gerät steht gleich das fertige Bild da, ebenso beim
+Drucken. Die Grafik ist für Screenreader ausgeblendet; ihre Aussage steht als
+Text darunter. Die Bilder sind SVG mit CSS-Animation, ohne Bibliothek, und
+folgen Tag/Nacht. Wo sie sonst stehen: in jeder Verbrauchsansicht (§3) und
+auf der Übersicht für Einsteiger
+([Schaubilder](../einstieg/einrichtung.md#4-schaubilder)).
 
 ---
 
@@ -375,6 +471,44 @@ die Werte des Feldtests zur Einordnung. Fehlt der Wärmezähler, die Verknüpfun
 oder ein gemeinsamer Monat, sagt die Karte das
 ([Heizwärme §7](../verstehen/15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310)).
 
+**Schaubilder (v3.2.0):** Unter der Saldo-Karte steht in jeder Stufe die
+Karte **„Schaubilder“** mit denen, die zur Art passen (§1): bei einem
+laufenden Vertrag „Wohin geht mein Geld?“ und „Vertrag auf einen Blick“
+(nicht bei der Einspeisung), bei Heizarten — auch Heizöl und Pellets (§4) —
+„Kälter oder mehr verbraucht?“ über die letzten zwölf Monate, bei beiden
+PV-Arten „Energiefluss im Haus“ für das gewählte Jahr. Passt keines, fehlt
+die Karte.
+
+**Ladevorgänge aus evcc (v3.2.0):** Bei einem Stromzähler mit der Rolle
+„Wallbox“ folgt ab der Stufe „Erfahren“ die Karte **„Ladevorgänge aus evcc
+{Jahr}“** für das gewählte Jahr. Ein Satz erklärt, dass evcc die Wallbox
+steuert und die App nachrechnet. Mit Ladevorgängen steht dort „… Ladevorgänge,
+… kWh, davon … aus der Sonne“, wenn evcc Preise liefert mit „· laut evcc …“,
+und eine Tabelle mit Monat, Vorgänge, kWh, Sonne und „Preis (evcc)“; ohne
+„Für {Jahr} sind noch keine Ladevorgänge aus evcc da.“ Darunter die Auswahl
+**„Zählerstände“** — „vom Zähler der Wallbox (sonst aufsummiert)“, „aus der
+geladenen Energie aufsummieren“ oder „keine – nur die Ladevorgänge“ — und die
+Knöpfe **„CSV aus evcc wählen …“** und, wenn unter Einstellungen → Experte
+eine Adresse steht, **„Von evcc abrufen“**. Beides zeigt erst die Vorschau
+„Ladevorgänge übernehmen?“: Zahl und Zeitraum der Vorgänge mit kWh, wie viele
+Zählerstände dazukommen und wie viele vorhandene am selben Tag ersetzt
+werden, ein noch laufender Vorgang, mehrere Ladepunkte in der Datei.
+„Übernehmen“ schreibt, die Meldung nennt die Zahl der Vorgänge. Ohne Adresse
+sagt die Karte, wo es in evcc die CSV-Datei gibt; „Anleitung“ führt zu
+[Ladevorgänge aus evcc](../anleitungen/evcc.md).
+
+**Was die Stufen zeigen (v3.2.0):** Einsteiger sehen Jahr und Zähler, die
+Kacheln Verbrauch, Kosten, Abschläge und Tagesschnitt, Saldo-Karte,
+Schaubilder, Verträge, den Monatschart und die Ablesungen, Zeiträume oder
+Lieferungen. Ab „Erfahren“ kommen die CO₂-Kachel, der Umschalter
+„Gemessen“/„Witterungsbereinigt“, die Monatstabelle, bei PV der Energiefluss
+sowie die Karten „Rechnung prüfen“ und „Ladevorgänge aus evcc“ dazu. Erst
+„Experte“ zeigt Warmwasser-Wärme, CO₂-Preis im Brennstoff,
+Ladestrom-Nachweis, Wärmepumpe und bei der PV-Erzeugung Speicher,
+Amortisation und Hinweise. „⚙️ Zähler“ im Kopf der Ansicht führt in die
+Zählerverwaltung; sie gehört zur Stufe „Erfahren“, Einsteiger sehen sie mit
+dem Hinweis von oben.
+
 ![Gas-Ansicht](../ui/screenshots/gas-view.png)
 
 ---
@@ -533,6 +667,19 @@ Sonderzahlung buchen“** (danach die Marke „gebucht“) und 🗑️. Der Verg
 stellt Nachgerechnet, Laut Rechnung und Abweichung für Menge, Betrag und
 Abschläge nebeneinander, mit dem Urteil **„passt“** oder **„prüfen“** und den
 möglichen Gründen ([Jahresabrechnung](../anleitungen/jahresabrechnung.md#7-laut-rechnung-erfassen-vergleichen-buchen)).
+
+**Rechnung bearbeiten (v3.2.0):** Jede Zeile der Liste trägt vor 🗑️ ein
+✏️ („Bearbeiten“). Es füllt die Karte „Laut Rechnung“ mit den Werten dieser
+Rechnung — Zeitraum, Rechnungsdatum, Menge, Betrag, Abschläge,
+Nachzahlung/Guthaben, weitere Posten, bei Gas die CO₂-Angaben und die
+angehängten Belege — und sagt über den Knöpfen „Du bearbeitest die Rechnung
+vom … bis ….“ Ist sie schon gebucht, folgt „Sie ist schon als Sonderzahlung gebucht –
+die Buchung im Vertrag ändert sich nicht mit.“ Der Knopf heißt dann
+**„Änderungen speichern“** (Meldung „Rechnung geändert“, danach der
+Vergleich), daneben steht **„Abbrechen“**. Bis v3.1 ließ sich eine Rechnung
+nur löschen und neu anlegen; die Schnittstelle (`PATCH
+/api/utility/{utility}/bills/{id}`) gab es schon. Die Seite gehört zur Stufe
+„Erfahren“.
 
 ### Wechsel prüfen (Tarifvergleich)
 
@@ -871,17 +1018,17 @@ Maximum eine gefüllte Fläche, das Mittel die Linie darin.
 
 Seit v2.12.0 **neun Unterseiten** statt einer langen Seite:
 
-| Seite | Inhalt |
-|---|---|
-| Allgemein | Sprache & Land, Übersicht (Monate, Prognosehorizont, Warnung nach Tagen ohne Ablesung), Vertragserinnerungen |
-| Haushalt & Gebäude | Wohnfläche, Gebäudetyp, beheizter Keller, Warmwasser; seit v3.1.0 „Wohnen und Warmwasser“ und „Eigene Vergleichswerte“ (für die Einordnung); Personen im Haushalt |
-| Verbrauchsarten & Abrechnung | aktive Verbrauchsarten (seit v3.1.0 auch Heizwärme), alle Abrechnungsstichtage in einer Karte, Physikalische Konstanten (Gasfaktoren, Heizgrenze), Heizwerte und Tankwarnung, CO₂-Faktoren (seit v3.1.0 mit „CO₂ vermieden durch PV“), seit v3.1.0 „Photovoltaik“ (angenommener Eigenverbrauch eines Balkonkraftwerks) |
-| Wetterdaten | §10 |
-| Daten | CSV-Export (Tabelle in der Standardsprache oder Format 1), Backup & Wiederherstellung mit Snapshots, Demo-Daten, Migration aus v0.9.0; Verweis zum Jahresbericht |
-| Integrationen | Home-Assistant-Anbindung |
-| Zugriff | Anmeldung & Zugriff, Einbetten |
-| Experte | seit v3.1.0 oben Belege (Speichergrenze) und Texterkennung im Heimnetz; darunter eingeklappt („Rechenparameter anzeigen“) und mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen, seit v3.1.0 CO₂-Preis |
-| System | Version, Lizenz, System-Diagnose |
+| Seite | Inhalt | ab Stufe (v3.2.0) |
+|---|---|---|
+| Allgemein | seit v3.2.0 oben „Nutzungsstufe und Einrichtung“ und, mit Anmeldung, „Mein Konto“; Sprache & Land, Übersicht (Monate, Prognosehorizont, Warnung nach Tagen ohne Ablesung), Vertragserinnerungen | Einsteiger; die Gruppen „Anzeige“ und „Erinnerungen“ ab Erfahren |
+| Haushalt & Gebäude | Wohnfläche, Gebäudetyp, beheizter Keller, Warmwasser; seit v3.1.0 „Wohnen und Warmwasser“ und „Eigene Vergleichswerte“ (für die Einordnung); Wasser-Referenzwerte mit der Zahl der Personen im Haushalt | Einsteiger; „Eigene Vergleichswerte“ und „Wasser-Referenzwerte“ ab Erfahren |
+| Verbrauchsarten & Abrechnung | aktive Verbrauchsarten (seit v3.1.0 auch Heizwärme), alle Abrechnungsstichtage in einer Karte, Physikalische Konstanten (Gasfaktoren, Heizgrenze), Heizwerte und Tankwarnung, CO₂-Faktoren (seit v3.1.0 mit „CO₂ vermieden durch PV“), seit v3.1.0 „Photovoltaik“ (angenommener Eigenverbrauch eines Balkonkraftwerks) | Einsteiger; Physikalische Konstanten und Heizwerte ab Erfahren, CO₂-Faktoren und Photovoltaik ab Experte |
+| Wetterdaten | §10 | Erfahren |
+| Daten | CSV-Export (Tabelle in der Standardsprache oder Format 1), Backup & Wiederherstellung mit Snapshots, Demo-Daten, Migration aus v0.9.0; Verweis zum Jahresbericht | Einsteiger |
+| Integrationen | Home-Assistant-Anbindung | Erfahren |
+| Zugriff | Anmeldung & Zugriff, seit v3.2.0 „Benutzer und Rechte“, Einbetten | Experte |
+| Experte | seit v3.1.0 oben Belege (Speichergrenze) und Texterkennung im Heimnetz, seit v3.2.0 „evcc im Heimnetz“; darunter eingeklappt („Rechenparameter anzeigen“) und mit Warnung: Regression, Prognosemodell, Anomalie- und Empfehlungsschwellen, seit v3.1.0 CO₂-Preis | Experte |
+| System | Version, Lizenz, System-Diagnose | Experte |
 
 Gespeichert wird je Seite über eine Leiste unten („Verwerfen" · „Speichern"),
 die erst bei einer Änderung erscheint. Wer die Seite mit ungespeicherten
@@ -900,7 +1047,29 @@ unter Auswertungen. Nach Demo-Daten, Backup-Import oder Wiederherstellung
 startet die App neu, damit Seitenleiste, Sprache und Zwischenspeicher zum
 neuen Stand passen.
 
-Oben die Karte **Sprache & Land** (v2.7.0): Sprache, Land, Währung und
+**Nutzungsstufe und Einrichtung (v3.2.0, Seite Allgemein):** Die Karte 🌱
+steht ganz oben. Der Hinweis sagt „Bestimmt, was die Oberfläche zeigt —
+gerechnet wird in jeder Stufe alles.“ und für wen die Stufe gilt: „Gilt für
+alle Geräte dieser Installation.“ bzw. mit Anmeldung „Gilt für dich (…) auf
+allen Geräten.“ Darunter die Auswahl „Nutzungsstufe“ — dieselbe wie in der
+Kopfleiste, sie speichert sofort („Stufe gespeichert.“) — und je Stufe eine
+Zeile, was sie zeigt: Einsteiger „Übersicht mit drei Antworten,
+Zählerstände, einfache Verträge, Jahresbericht.“, Erfahren „Dazu
+Auswertungen, Prognose, Wechsel, Rechnungsprüfung und Zähler-Aufbau.“,
+Experte „Alles, mit Schaubildern, Gruppen, Rechenparametern und Zugriff.“ Die
+Knöpfe **„Einrichtungsassistent starten“** (§16) und **„Anleitung“**
+([Einrichten und Nutzungsstufen](../einstieg/einrichtung.md)) schließen die
+Karte ab.
+
+**Mein Konto (v3.2.0, Seite Allgemein):** Nur mit Anmeldung und einer
+angemeldeten Person — 👤 **„Mein Konto: {Name}“** mit der Rolle
+(„Verwaltung“ oder „Mitglied“). Wer sich mit Passwort anmeldet, ändert es
+hier mit „Bisheriges Passwort“, „Neues Passwort“ (mindestens 8 Zeichen) und
+**„Passwort ändern“**; im Proxy-Modus steht stattdessen „Angemeldet über den
+vorgeschalteten Dienst; das Passwort wird dort geändert.“
+([Benutzer im Haushalt](../anleitungen/benutzer.md)).
+
+Darunter die Karte **Sprache & Land** (v2.7.0): Sprache, Land, Währung und
 Zeitzone, alle mit sofortiger Wirkung. Seit v3.1.0 gibt es zwei
 Sprachfelder:
 
@@ -911,6 +1080,10 @@ Sprachfelder:
 - **Standardsprache der Installation** — die Einstellung `language`. Sie
   gilt für Geräte ohne eigene Wahl und für alles, was ohne Gerät entsteht:
   PDF-Jahresbericht, CSV-Dateien, Meldungen an Home Assistant und Skripte.
+
+Mit Anmeldung und einer angemeldeten Person (v3.2.0) speichert die Wahl unter
+„Sprache auf diesem Gerät“ zugleich die Sprache dieser Person; sie gilt dann
+auf allen ihren Geräten und geht der Wahl im Browser vor.
 
 Bis v3.0 stellte eine Person die Sprache für alle Geräte um. Beim Wechsel des
 Landes zeigt ein
@@ -984,6 +1157,14 @@ LocalAI)“), „Modell“ und „Zeitlimit“. Leer gelassen bleibt die Texterk
 aus ([Einstellungen](einstellungen.md#texterkennung-im-heimnetz-v310),
 [Anleitung](../anleitungen/texterkennung.md)).
 
+**evcc im Heimnetz (v3.2.0, Seite Experte):** Die Gruppe 🚗 steht neben Belegen
+und Texterkennung vor dem eingeklappten Teil. Ihr Feld **„Adresse von evcc“**
+(`evcc_endpoint`) nimmt die Adresse, unter der evcc im Browser läuft, etwa
+`http://192.168.178.30:7070` oder `http://evcc.local:7070`; nur Adressen im
+eigenen Netz. Leer bleibt der Abruf aus — die CSV-Datei aus evcc geht immer.
+Mit Adresse zeigt die Karte „Ladevorgänge aus evcc“ den Knopf „Von evcc
+abrufen“ (§3, [Ladevorgänge aus evcc](../anleitungen/evcc.md)).
+
 **CO₂-Preis (v3.1.0, Seite Experte, unter „Rechenparameter anzeigen“):** Die
 Gruppe 🏷️ mit „CO₂-Preis je Jahr“ — einer Tabelle Jahr → €/t mit Löschen je
 Zeile und den Feldern Jahr und €/t zum Hinzufügen; eigene Werte gehen dem
@@ -1000,7 +1181,37 @@ nach einer Rückfrage („Link erzeugen“) anlegt (Bereich „nur Kalender-Abo�
 Widerrufen beendet das Abo. Was per
 Umgebungsvariable festgelegt ist, ist hier nur zu sehen. Die
 Home-Assistant-Karte zeigt seit v2.6.0, wann zuletzt ein Wert mit dem Token
-ankam, und warnt, wenn die Anmeldung an ist, aber kein Token existiert.
+ankam, und warnt, wenn die Anmeldung an ist, aber kein Token existiert. Sind
+Personen angelegt (v3.2.0), fehlen hier die Felder zum Ändern des Passworts;
+an ihrer Stelle steht „Jede Person ändert ihr Passwort unter Einstellungen →
+Allgemein → Mein Konto.“
+
+**Benutzer und Rechte (v3.2.0, Seite Zugriff):** Mit eingeschalteter
+Anmeldung folgt unter „Anmeldung & Zugriff“ die Karte 👥 **„Personen im
+Haushalt“** mit dem Hinweis „Jede Person meldet sich mit Name und Passwort an
+und hat ihre eigene Stufe und Sprache. Die Daten des Haushalts teilen sich
+alle.“ — im Proxy-Modus „… die App kennt jede Person an ihrem Namen. Wer
+zuerst kommt, verwaltet.“ — und dem Link „Anleitung“. Die Tabelle nennt je
+Person Name (die eigene Zeile mit „(du)“) und Rolle als Auswahl „Verwaltung“
+oder „Mitglied“, die sofort speichert; dazu **„Passwort neu setzen“** (bei
+Personen mit Passwort, im Dialog „Neues Passwort“; die Person wird auf allen
+Geräten abgemeldet) und **„Person löschen“** (nicht bei der eigenen Zeile;
+Rückfrage „Die Person kann sich danach nicht mehr anmelden. Die Daten des
+Haushalts bleiben.“). Im Modus „Passwort“ legt **„Person hinzufügen“** mit
+Name, „Neues Passwort“ (mindestens 8 Zeichen) und Rolle (vorgewählt
+„Mitglied“) eine Person an — „{Name} kann sich jetzt anmelden.“ Vor der
+ersten neuen Person steht dort nur der Verwalter „admin“; ihm gehört das
+bisherige Passwort der Installation. Die letzte Person, die verwaltet, lässt
+sich weder löschen noch zum Mitglied machen („Mindestens eine Person muss die
+Installation verwalten.“).
+
+Die Seite Zugriff zeigt einem **Mitglied** nur „Den Zugriff verwaltet, wer
+die Installation verwaltet. Dein eigenes Passwort änderst du unter
+Einstellungen → Allgemein.“ Was nur Verwalter dürfen — Personen,
+API-Schlüssel und Anmeldung, Backup oder Snapshot einspielen, Beispieldaten
+laden, die Adressen für Einbetten, Texterkennung und evcc —, lehnt der Server
+für Mitglieder mit „Das darf nur, wer die Installation verwaltet.“ ab
+([Benutzer im Haushalt](../anleitungen/benutzer.md)).
 
 ![Einstellungen](../ui/screenshots/einstellungen.png)
 
@@ -1187,7 +1398,8 @@ zeigt, wo die Daten es hergeben:
 - bei einem Balkonkraftwerk ohne Einspeisezähler „Balkonkraftwerk:
   Eigenverbrauch angenommen mit … % der Erzeugung (Einstellungen).“;
 - in Deutschland bei Inbetriebnahme ab dem 25.02.2025 der Hinweis zu § 51 EEG
-  (keine Vergütung bei negativem Börsenpreis mit intelligentem Messsystem).
+  (keine Vergütung bei negativem Börsenpreis, unter 100 kW ab dem Jahr nach
+  dem Einbau eines intelligenten Messsystems).
 
 Mehr in [PV §7–10](../verstehen/12-pv.md#7-speicher-v310).
 
@@ -1205,6 +1417,17 @@ Offline-Daten dieses Browsers). Läuft eine Sitzung ab, erscheint der
 Bildschirm statt einer Reihe von Fehlermeldungen. Einrichtung und Hintergründe:
 [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
 
+**Name (v3.2.0):** Sind unter Einstellungen → Zugriff Personen angelegt
+(`named_login` in `GET /api/session`), steht über dem Passwort das Feld
+**„Name“**, und der Cursor beginnt dort. Groß- und Kleinschreibung zählen
+beim Namen nicht. Ein leeres Namensfeld meldet mit dem bisherigen Passwort
+der Installation an, solange es den ersten Verwalter „admin“ noch gibt. Der
+Hinweis darunter heißt dann „Passwort vergessen? Eine Person, die die
+Installation verwaltet, setzt es unter Einstellungen → Zugriff neu.“ Im
+Proxy-Modus meldet der vorgeschaltete Dienst an; die App erkennt die Person
+an dem Namen, den er meldet
+([Benutzer im Haushalt](../anleitungen/benutzer.md)).
+
 **Offline-Hinweis:** Kommen Daten aus dem Offline-Speicher der installierten
 App, zeigt die Kopfleiste „Offline – Stand vom …". Änderungen ohne Verbindung
 meldet die App als „Keine Verbindung zum Energietracker – nichts gespeichert."
@@ -1216,22 +1439,36 @@ meldet die App als „Keine Verbindung zum Energietracker – nichts gespeichert
 ## 15. Hilfe (v2.13.0)
 
 Erreichbar über die Fußzeile der Seitenleiste, am iPhone unter „Mehr“
-(`#/help`). Vier Karten und das Glossar:
+(`#/help`). Vier Karten, seit v3.2.0 die Anwendungsfälle und das Glossar:
 
 - **Erste Schritte:** dieselbe Liste wie im Willkommen, mit Häkchen aus den
   Daten; sind alle Schritte erledigt, steht das da.
 - **Dokumentation:** Einstieg, häufige Fragen, Kompendium, Glossar,
   Home-Assistant-Anleitung und Fehlersuche auf GitHub (FAQ und Fehlersuche seit
-  v2.14.0) — auf Deutsch in deutscher Oberfläche, sonst auf Englisch (mit
-  Hinweis, wenn die eigene Sprache fehlt).
+  v2.14.0), seit v3.2.0 dazu „Einrichten, Beispielhaushalte und Stufen“
+  ([Einrichten und Nutzungsstufen](../einstieg/einrichtung.md)) und
+  „Anwendungsfälle“ ([Anwendungsfälle](../anleitungen/anwendungsfaelle.md)) —
+  auf Deutsch in deutscher Oberfläche, sonst auf Englisch (mit Hinweis, wenn
+  die eigene Sprache fehlt).
 - **Fragen und Fehler:** GitHub-Issues und der Verweis auf die Diagnose unter
   Einstellungen → System, deren Angaben eine Meldung braucht.
 - **Deine Daten:** Alles bleibt auf dem eigenen Server — keine Konten, keine
   Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo:
   beim täglichen Wetterabgleich (Standort auf rund 1 km gerundet) und bei der
   Ortssuche — und, nur wenn eingetragen, mit dem eigenen Texterkennungsdienst
-  im Heimnetz (v3.1.0) — und, nur auf Knopfdruck („Von SMARD laden“ unter
-  Wechsel prüfen), mit SMARD für die Börsenstrompreise (v3.1.0).
+  im Heimnetz (v3.1.0) und mit evcc im Heimnetz (v3.2.0) — und, nur auf
+  Knopfdruck („Von SMARD laden“ unter Wechsel prüfen), mit SMARD für die
+  Börsenstrompreise (v3.1.0).
+- **Anwendungsfälle (v3.2.0):** eine eigene Karte zwischen den Karten oben
+  und dem Glossar, in allen Sprachen der App — die Dokumentation gibt es nur
+  auf Deutsch und Englisch. Drei Fälle mit Titel und Erklärung: **„Fernwärme
+  oder Heizwärme?“** (eigener Liefervertrag gegen gemessene Wärme ohne
+  Vertrag), **„Steuern mit evcc oder Home Assistant“** („Der Energietracker
+  schaltet nichts.“ — er rechnet nach, was die Steuerung gebracht hat) und
+  **„Erst einfach, später alles“** (die Nutzungsstufen). Darunter
+  **„Beispielhaushalt ausprobieren“** — führt zu Einstellungen → Allgemein
+  mit „Einrichtungsassistent starten“ — und „Anwendungsfälle“ zur
+  [Anleitung](../anleitungen/anwendungsfaelle.md).
 - **Begriffe:** seit v3.1.0 43 Einträge (in v2.13.0 33) in allen sieben Sprachen mit Suche. Dieselben
   Texte öffnet das ⓘ in der App; `#/help?term=hdd` springt zu einem Begriff.
   Seit v3.1.0 steht unter Rechnungsbegriffen, wie die Rechnung des
@@ -1239,6 +1476,68 @@ Erreichbar über die Fußzeile der Seitenleiste, am iPhone unter „Mehr“
   „Mensualité““).
 
 ![Hilfe](../ui/screenshots/hilfe.png)
+
+---
+
+## 16. Einrichtungsassistent (v3.2.0)
+
+Der Dialog **„Einrichten“** stellt drei Fragen und richtet danach
+Verbrauchsarten, Wohnverhältnis und Nutzungsstufe ein; zum Schluss zeigt er
+einen passenden Beispielhaushalt oder führt zu den eigenen Daten. Erklärt in
+[Einrichten und Nutzungsstufen](../einstieg/einrichtung.md).
+
+**Wann er erscheint:**
+
+- beim **allerersten Start** einer neuen Installation — die Einstellung
+  `setup_pending` setzt nur der Erststart, nie ein Update. Er kommt bei jedem
+  Öffnen der App wieder, bis er abgeschlossen oder übersprungen ist;
+- auf Wunsch über Einstellungen → Allgemein → **„Einrichtungsassistent
+  starten“** (§11) — dann sind die aktiven Verbrauchsarten und die Stufe
+  vorgewählt;
+- in der **öffentlichen Demo**, solange dieser Browser keinen
+  Beispielhaushalt gewählt hat.
+
+**Die Schritte** — die Fußzeile zeigt „Schritt 1 von 4“, „Zurück“, „Weiter“
+und „Überspringen“:
+
+1. **„Wer bist du?“** — fünf Antworten mit Symbol und einem Satz. Die Antwort
+   hakt in Schritt 2 ihre Verbrauchsarten an; beim ersten Start schlägt sie
+   auch die Stufe vor.
+2. **„Welche Energieträger nutzt du?“** — alle Verbrauchsarten zum Ankreuzen,
+   „Vorgeschlagen nach deiner Antwort — frei kombinierbar.“; ohne Haken geht
+   es nicht weiter. Darunter der Hinweis „Fernwärme oder Heizwärme? …“.
+3. **„Wie viel Erfahrung hast du?“** — die drei Stufen mit denselben Zeilen
+   wie in den Einstellungen und „Die Stufe lässt sich jederzeit oben neben
+   Tag/Nacht umstellen.“
+4. **„So geht es weiter“** — „{Antwort} · Stufe „…““ und die Wahl
+   **„Mit Beispieldaten ansehen“** („Lädt den passenden Beispielhaushalt.
+   Vorher sichert die App den jetzigen Stand.“) oder **„Mit eigenen Daten
+   starten“** („Als Nächstes: Zähler prüfen und den ersten Stand
+   erfassen.“). Der Knopf heißt hier **„Los geht’s“**.
+
+| Antwort in Schritt 1 | Beispielhaushalt | vorgeschlagene Verbrauchsarten | Stufe |
+|---|---|---|---|
+| 🏢 „Ich wohne zur Miete“ | `mieterin` | Strom, Heizwärme, Wasser | Einsteiger |
+| 🏙️ „Eigentumswohnung mit Fernwärme“ | `etw-fernwaerme` | Strom, Fernwärme | Einsteiger |
+| 🏡 „Eigenheim mit Gas, Öl oder Pellets“ | `eigenheim-klassisch` | Gas, Strom, Wasser | Erfahren |
+| ☀️ „Eigenheim mit Wärmepumpe und PV“ | `eigenheim-modern` | Strom, Heizwärme, Wasser, PV-Erzeugung, PV-Einspeisung | Erfahren |
+| 🔍 „Erst einmal alles ansehen“ | `showcase` (Schaufenster) | alle | Experte |
+
+Erst „Los geht’s“ speichert: die aktiven Verbrauchsarten, „Ich wohne“ („zur
+Miete“ bei „Ich wohne zur Miete“, sonst „im Eigentum“), die Antwort
+(`setup_persona`) und die Stufe. Danach lädt die App den Beispielhaushalt —
+sind schon Daten da, fragt sie vorher wie bei „Demo-Daten laden“ — und
+startet neu, oder sie öffnet die Zählerstand-Erfassung. Ein Beispielhaushalt
+ersetzt den ganzen Haushalt und behält die Stufe; einen laden darf nur, wer
+die Installation verwaltet (§11). „Überspringen“ ändert nichts und beendet
+den Erststart.
+
+**Öffentliche Demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/)):
+drei Schritte, ohne „Welche Energieträger nutzt du?“. Am Ende steht „Die Demo
+zeigt jetzt den Beispielhaushalt „…“. Einen anderen wählst du über die
+Einstellungen → Allgemein → Einrichtungsassistent.“; „Los geht’s“ lädt die
+Seite mit diesem Haushalt neu. Beispielhaushalt und Stufe merkt sich der
+Browser, „Überspringen“ zeigt das Schaufenster.
 
 ---
 

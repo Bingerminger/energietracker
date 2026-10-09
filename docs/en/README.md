@@ -13,8 +13,8 @@ The Energietracker is a self-hosted web app for a household's energy and water
 consumption: nine utilities, contracts and billing, weather adjustment,
 forecast and switch decision — without a database, everything as JSON files on
 your own server. It talks only to Open-Meteo (weather data), on request to
-SMARD (wholesale electricity prices) — and, if you set one up, to your own
-text recognition service in the home network.
+SMARD (wholesale electricity prices) — and, if you set them up, to your own
+text recognition service and to evcc in the home network.
 
 ---
 
@@ -23,6 +23,7 @@ text recognition service in the home network.
 | Document | Contents |
 |---|---|
 | [Getting started](einstieg/erste-schritte.md) | Installation → first meter → first reading → first contract → first forecast |
+| [Setup and experience levels](einstieg/einrichtung.md) | Setup assistant, the four sample households and the showcase, Beginner · Experienced · Expert, explainers, public demo |
 | [What the Energietracker does](einstieg/funktionen.md) | All features, ordered by question |
 | [Questions and answers](einstieg/faq.md) | The most common questions, answered briefly |
 | [Use on your phone](einstieg/handy.md) | Open it on the home network, install it as an app, photo as a receipt, offline queue |
@@ -39,8 +40,10 @@ text recognition service in the home network.
 | [Deadlines and dates in your calendar](anleitungen/kalender.md) | Calendar subscription in Apple Calendar, Thunderbird and Google Calendar |
 | [Text recognition in the home network](anleitungen/texterkennung.md) | Let a photo suggest the meter reading: set up Ollama or LM Studio, privacy, troubleshooting |
 | [Record charging electricity for a company car](anleitungen/ladestrom-nachweis.md) | Wall box as a meter, contract price or flat electricity rate, statement as CSV and PDF — not tax advice |
+| [Charging sessions from evcc](anleitungen/evcc.md) | Upload the CSV from evcc or fetch it in the home network, wallbox meter readings, solar share and price per month, several charging points |
+| [Users in the household](anleitungen/benutzer.md) | People with name and password or via the proxy, admin and member, own level and language, forgotten password |
 | [Import time series from portals](anleitungen/daten-aus-portalen.md) | Read files from the grid operator, inverter or heat pump with a column mapping, time stamps and daylight saving time, Data Act |
-| [Use cases](anleitungen/anwendungsfaelle.md) | Shared flat with shared meters, smart home, PV household with a heat pump, landlord, wall box and company car |
+| [Use cases](anleitungen/anwendungsfaelle.md) | Shared flat with shared meters, smart home, PV household with a heat pump, landlord, wall box and company car, district heating or heat, control with evcc or Home Assistant |
 | [Moving from v0.9.0](anleitungen/migration-v090.md) | Take over an old backup |
 
 ## 📚 Concepts — *how things are calculated*

@@ -50,7 +50,7 @@ export async function render(container) {
           <label for="price-factor">${t('forecast.priceFactor')}</label>
           <input class="input" id="price-factor" type="text" inputmode="decimal" autocomplete="off" value="${formatForInput(1)}">
         </div>
-        <div class="field">
+        <div class="field" data-min-level="expert">
           <label for="model">${t('forecast.model')}</label>
           <select class="select" id="model">
             <option value="linear">${t('forecast.models.linear')}</option>
@@ -65,7 +65,7 @@ export async function render(container) {
           <input class="input" id="months" type="text" inputmode="numeric" autocomplete="off" value="12">
         </div>
         <!-- v3.1.0 (H4, MKT-26) — CO₂-Preis-Szenario (leer = aus) -->
-        <div class="field">
+        <div class="field" data-min-level="expert">
           <label for="co2-scenario"><span data-role="co2-label">${t('forecast.co2Scenario.label', { year: 2028 })}</span>${info('co2Price')}</label>
           <input class="input" id="co2-scenario" type="text" inputmode="decimal" autocomplete="off" placeholder="${escapeHtml(t('forecast.co2Scenario.placeholder'))}">
         </div>

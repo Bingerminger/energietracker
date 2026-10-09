@@ -47,6 +47,12 @@ Typische Fälle:
   Stromzähler verknüpft, ergibt er die Jahresarbeitszahl
   ([§7](#7-jahresarbeitszahl-der-wärmepumpe-v310)).
 
+Hängt das Haus am Fernwärmenetz, du hast aber keinen eigenen Vertrag mit dem
+Versorger, ist es für dich ebenfalls Heizwärme; „Heizwärme kommt aus“ steht
+dann auf Fernwärme ([§5](#5-co₂--eine-näherung)). Die Verbrauchsart
+[Fernwärme](04-fernwaerme.md) ist für den eigenen Liefervertrag. Alle drei Fälle
+als Beispielhaushalt: [Anwendungsfall F](../anleitungen/anwendungsfaelle.md#f--fernwärme-oder-heizwärme).
+
 **Einschalten:** Einstellungen → Verbrauchsarten & Abrechnung → Aktive
 Verbrauchsarten → **Heizwärme**. Die Datentöpfe (`data/waerme/`) legt die
 Schema-Stufe 1.7.0 leer an, auch in bestehenden Installationen. Einen

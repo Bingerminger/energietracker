@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Dokumentation zu Energietracker **v3.1.0**, geordnet nach dem, was du
+> Dokumentation zu Energietracker **v3.2.0**, geordnet nach dem, was du
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
@@ -14,8 +14,8 @@ Wasserverbrauch eines Haushalts: neun Verbrauchsarten, Verträge und
 Abrechnung, Wetterbereinigung, Prognose und Wechselentscheidung — ohne
 Datenbank, alles als JSON-Dateien auf dem eigenen Server. Nach außen spricht sie
 nur mit Open-Meteo (Wetterdaten), auf Knopfdruck mit SMARD (Börsenstrompreise)
-— und, wenn du ihn einträgst, mit deinem eigenen Texterkennungsdienst im
-Heimnetz.
+— und, wenn du sie einträgst, mit deinem eigenen Texterkennungsdienst und mit
+evcc im Heimnetz.
 
 ---
 
@@ -24,6 +24,7 @@ Heimnetz.
 | Dokument | Inhalt |
 |---|---|
 | [Erste Schritte](einstieg/erste-schritte.md) | Installation → erster Zähler → erste Ablesung → erster Vertrag → erste Prognose |
+| [Einrichten und Nutzungsstufen](einstieg/einrichtung.md) | Einrichtungsassistent, die vier Beispielhaushalte und das Schaufenster, Einsteiger · Erfahren · Experte, Schaubilder, öffentliche Demo |
 | [Was der Energietracker kann](einstieg/funktionen.md) | Alle Funktionen, nach Fragen geordnet |
 | [Fragen und Antworten](einstieg/faq.md) | Die häufigsten Fragen, kurz beantwortet |
 | [Auf dem Handy nutzen](einstieg/handy.md) | Im Heimnetz aufrufen, als App installieren, Foto als Beleg, Offline-Warteschlange |
@@ -40,8 +41,10 @@ Heimnetz.
 | [Fristen und Termine im Kalender](anleitungen/kalender.md) | Kalender-Abo in Apple Kalender, Thunderbird und Google Kalender |
 | [Texterkennung im Heimnetz](anleitungen/texterkennung.md) | Zählerstand vom Foto vorschlagen lassen: Ollama oder LM Studio einrichten, Datenschutz, Fehlersuche |
 | [Ladestrom für den Dienstwagen nachweisen](anleitungen/ladestrom-nachweis.md) | Wallbox als Zähler, Vertragspreis oder Strompreispauschale, Aufstellung als CSV und PDF — keine Steuerberatung |
+| [Ladevorgänge aus evcc](anleitungen/evcc.md) | CSV aus evcc hochladen oder im Heimnetz abrufen, Zählerstände der Wallbox, Sonnenanteil und Preis je Monat, mehrere Ladepunkte |
+| [Benutzer im Haushalt](anleitungen/benutzer.md) | Personen mit Name und Passwort oder über den Proxy, Verwaltung und Mitglied, eigene Stufe und Sprache, Passwort vergessen |
 | [Zeitreihen aus Portalen übernehmen](anleitungen/daten-aus-portalen.md) | Dateien von Netzbetreiber, Wechselrichter oder Wärmepumpe mit Spaltenzuordnung einlesen, Zeitstempel und Zeitumstellung, Data Act |
-| [Anwendungsfälle](anleitungen/anwendungsfaelle.md) | WG mit geteilten Zählern, Smart Home, PV-Haushalt mit Wärmepumpe, Vermieter, Wallbox und Dienstwagen |
+| [Anwendungsfälle](anleitungen/anwendungsfaelle.md) | WG mit geteilten Zählern, Smart Home, PV-Haushalt mit Wärmepumpe, Vermieter, Wallbox und Dienstwagen, Fernwärme oder Heizwärme, Steuern mit evcc oder Home Assistant |
 | [Umstieg von v0.9.0](anleitungen/migration-v090.md) | Altes Backup übernehmen |
 
 ## 📚 Verstehen — *wie gerechnet wird*

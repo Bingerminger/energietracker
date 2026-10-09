@@ -33,6 +33,13 @@ Apache, nginx — stehen in [Installation](../betrieb/installation.md) und
 Beim ersten Start legt die App automatisch Standard-Zähler für Gas, Strom und
 Wasser an. Du kannst sie behalten, umbenennen oder löschen.
 
+> **Seit v3.2.0 begrüßt dich der Einrichtungsassistent:** drei Fragen — wer
+> du bist, welche Energieträger du nutzt, wie viel Erfahrung du hast —, danach
+> stehen Verbrauchsarten und Nutzungsstufe. Für dieses Beispiel „Eigenheim mit
+> Gas, Öl oder Pellets“ wählen und am Ende „Mit eigenen Daten starten“; wer
+> lieber erst schaut, nimmt „Mit Beispieldaten ansehen“. Einzelheiten:
+> [Einrichten und Nutzungsstufen](einrichtung.md).
+
 ---
 
 ## 1. Verbrauchsarten wählen
@@ -163,6 +170,12 @@ Backup & Wiederherstellung → Demo-Daten laden** spielt einen vollständigen
 Beispieldatensatz über acht Verbrauchsarten ein — alle außer Heizwärme (mit
 Warnung + Auto-Snapshot, falls schon Daten vorhanden sind). Danach kannst du sofort bei
 [Schritt 6](#6-auswerten) weitermachen.
+
+Seit v3.2.0 gibt es dazu vier kleinere Beispielhaushalte — Mietwohnung,
+Eigentumswohnung mit Fernwärme, Eigenheim klassisch und modern. Du lädst sie
+über den Einrichtungsassistenten (Einstellungen → Allgemein →
+„Einrichtungsassistent starten“), siehe
+[Die Beispielhaushalte](einrichtung.md#2-die-beispielhaushalte).
 
 Seit v3.0.0 reicht der Beispielhaushalt bis heute: Zählerstände, Lieferungen
 und Temperaturen werden beim Laden mit den Werten desselben Zeitraums im

@@ -22,8 +22,8 @@ namespace Energietracker\Config;
  *   - Heizgrenze: nationale Gradtag-Konvention, wo sie eine reine Basis-
  *     temperatur ist (FR DJU 18 °C, IT gradi giorno 20 °C nach DPR 412/93,
  *     NL graaddagen 18 °C, UK HDD 15,5 °C); sonst 15 °C wie bisher.
- *   - Effizienzklassen: nur die deutsche GEG-Skala (Endenergie) ist
- *     hinterlegt. Andere Länder rechnen mit Primärenergie, Kosten oder
+ *   - Effizienzklassen: nur die deutsche Skala nach GModG (bis Juli 2026
+ *     GEG) Anlage 10 (Endenergie) ist hinterlegt. Andere Länder rechnen mit Primärenergie, Kosten oder
  *     Referenzgebäuden — eine Klasse aus gemessenem Verbrauch wäre dort
  *     irreführend (ein französischer Nutzer liest „E" als DPE-Klasse).
  *   - Gas: Die Rechnung nennt den Brennwert in UK und NL in MJ/m³ (UK dazu
@@ -50,17 +50,21 @@ final class Countries
 
     /**
      * v3.1.0 (Paket H4, B4) — maßgeblicher CO₂-Preis in €/t (CO2KostAufG § 4,
-     * BEHG § 10): 2021–2025 Festpreise, 2026 Mitte des Korridors 55–65 €/t. Für
-     * spätere Jahre gilt der letzte Wert als Annahme (Co2CostService meldet das),
-     * bis er hier oder in der Einstellung co2_price_eur_t_years steht.
+     * BEHG § 10): 2021–2025 Festpreise, 2026 Mitte des Korridors 55–65 €/t. Ab
+     * 2027 gilt der Durchschnitt der Versteigerungen vom 1. Juli bis 30. November
+     * des Vorjahres (CO2KostAufG § 4 Abs. 1 Nr. 3), veröffentlicht vom
+     * Umweltbundesamt spätestens zehn Werktage vor Jahresbeginn (§ 4 Abs. 2). Bis
+     * er hier oder in der Einstellung co2_price_eur_t_years steht, gilt der
+     * letzte Wert als Annahme (Co2CostService meldet das).
      */
     public const CO2_PRICE_DE_BEHG = [2021 => 25.0, 2022 => 30.0, 2023 => 30.0, 2024 => 45.0, 2025 => 55.0, 2026 => 60.0];
 
     /**
      * v3.1.0 (H6, MKT-14) — Strompreispauschale für das Laden des Dienstwagens
      * zu Hause in ct/kWh (BMF-Schreiben vom 11.11.2025, Rn. 30): Destatis-Preis
-     * des 1. Halbjahres des Vorjahres, Band 5.000–15.000 kWh, abgerundet.
-     * 2026: 34 ct (1. Hj. 2025: 34,36 ct). Spätere Jahre erst, wenn veröffentlicht.
+     * des 1. Halbjahres des Vorjahres, Band 5.000 bis unter 15.000 kWh,
+     * abgerundet. 2026: 34 ct (1. Hj. 2025: 34,36 ct). 2027 noch nicht
+     * eingetragen (Grundlage: Destatis-Preis des 1. Halbjahres 2026).
      */
     public const EV_FLAT_RATE_DE = [2026 => 34.0];
 
@@ -74,8 +78,28 @@ final class Countries
      */
     public const CO2_BEHG_FACTORS = ['gas' => 0.18139, 'heizoel' => 0.2664];
 
-    /** v3.1.0 — Umsatzsteuer auf den CO₂-Preis (CO2KostAufG § 3 Abs. 3), je Schema. */
+    /**
+     * v3.1.0 — Regelsatz der Umsatzsteuer auf den CO₂-Preis, je Schema. Der
+     * Preisbestandteil auf der Rechnung enthält sie: Emissionen × Preis
+     * „zuzüglich einer auf diesen Betrag anfallenden Umsatzsteuer“
+     * (CO2KostAufG § 3 Abs. 3).
+     */
     public const CO2_VAT = ['behg' => 0.19];
+
+    /**
+     * v3.2.0 — befristet ermäßigte Umsatzsteuer je Schema: Gas über das
+     * Erdgasnetz und Fernwärme 7 % vom 01.10.2022 bis 31.03.2024 (§ 28 UStG).
+     */
+    public const CO2_VAT_REDUCED = ['behg' => [['from' => '2022-10', 'to' => '2024-03', 'rate' => 0.07, 'utilities' => ['gas', 'fernwaerme']]]];
+
+    /** Umsatzsteuer auf den CO₂-Preis einer Verbrauchsart in einem Monat (JJJJ-MM). */
+    public static function co2Vat(string $scheme, string $utility, string $ym): float
+    {
+        foreach (self::CO2_VAT_REDUCED[$scheme] ?? [] as $r) {
+            if ($ym >= $r['from'] && $ym <= $r['to'] && in_array($utility, $r['utilities'], true)) return (float)$r['rate'];
+        }
+        return (float)(self::CO2_VAT[$scheme] ?? 0.0);
+    }
 
     /** Währungen mit Untereinheit (Katalog-Platzhalter {code}, {cur}, {minor}). */
     public const CURRENCIES = [

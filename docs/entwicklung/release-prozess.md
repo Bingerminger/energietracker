@@ -762,6 +762,32 @@ abgenommen ist.
   übersprang dabei die doppelte Stunde der Zeitumstellung im Herbst — der Test
   erwartete einen Tag mit 24 Stunden, wo der Zähler 25 misst. Der Generator
   läuft jetzt über UTC-Zeitstempel.
+- **Eine Liste von Hand ist eine Liste, die veraltet (v3.2.0).** Der Wechsel
+  zwischen Beispielhaushalten legte fehlende Töpfe leer an — aus einer eigenen
+  Aufzählung. Der erste neue Topf (`ev_sessions`) fehlte darin, und die
+  Ladevorgänge des vorigen Haushalts blieben stehen. Jetzt liest der Code
+  `BackupService::TOP_POTS`; eine Gegenprobe hält das fest.
+- **Zustandslose Sitzungen brauchen eine Epoche (v3.2.0).** Ein signiertes
+  Cookie bleibt gültig, solange sich nichts ändert, was mitsigniert ist. Mit
+  Personen im Haushalt hätte ein neues Passwort die anderen Geräte der Person
+  nicht abgemeldet. Jede Person trägt jetzt eine Sitzungs-Epoche, die jedes
+  neue Passwort erhöht; die Signatur schließt sie ein.
+- **Beispieldaten sind Tests mit echten Fragen (v3.2.0).** Der Haushalt mit
+  Wallbox und dynamischem Angebot zeigte „keine Marktdaten“, obwohl die Preise
+  da waren: Der dynamische Schattenvertrag begann seine Monatspreise erst mit
+  seinem künftigen Vertragsbeginn. Kein Unit-Test hatte ein Angebot mit
+  künftigem Beginn — ein realistischer Beispielhaushalt schon.
+- **Ausblenden statt abschalten (v3.2.0).** Die Nutzungsstufen kosten wenig,
+  weil sie nur die Oberfläche betreffen: eine Mindeststufe je Seite
+  (`VIEW_LEVEL`), ein Attribut am Element (`data-min-level`), CSS blendet aus.
+  Gerechnet, gespeichert und exportiert wird in jeder Stufe dasselbe;
+  ausgeblendete Formularfelder bleiben im Formular.
+- **Eine Rechtsprüfung ist eine Rechenprüfung (v3.2.0).** Die Doku sagte, der
+  Lieferant weise die CO₂-Kosten netto aus, und der Code rechnete danach.
+  § 3 Abs. 3 CO2KostAufG sagt „zuzüglich einer auf diesen Betrag anfallenden
+  Umsatzsteuer“ — der Betrag auf der Rechnung ist brutto, jede Erstattung lag
+  19 % zu hoch. Rechtsangaben werden seitdem mit Quelle und Stand geprüft,
+  bevor sie Rechenregel werden.
 
 ---
 

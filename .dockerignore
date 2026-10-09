@@ -11,6 +11,7 @@ demo-data
 # der Rest von demo-data/ bleibt außen vor.
 !demo-data/energietracker-demo-backup.json
 !demo-data/translations.json
+!demo-data/personas/
 tests
 # Nur das Composer-Verzeichnis im Wurzelpfad — public/vendor/ (Schriften und
 # Chart.js, seit v2.2.0 selbst gehostet) muss ins Image.

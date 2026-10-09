@@ -5,8 +5,8 @@
 [← Meter topology](13-meter-topologie.md) · [Compendium index](../README.md)
 
 Up to **v2.6.0** Energietracker was German in everything but the interface
-language: euros, efficiency classes under the German Buildings Energy Act,
-the German grid mix as CO₂ factor, a heating threshold of 15 °C, Leipzig as
+language: euros, efficiency classes under the German Buildings Energy Act
+(now the Building Modernisation Act), the German grid mix as CO₂ factor, a heating threshold of 15 °C, Leipzig as
 weather location and the time zone Europe/Berlin. Since **v2.7.0** a
 **country profile** bundles these defaults for nine countries.
 
@@ -21,7 +21,7 @@ previous behaviour (a test keeps both equal).
 
 | Country | Currency | Time zone | Heating threshold | CO₂ electricity | Location | Efficiency class | Calorific value in |
 |---|---|---|---|---|---|---|---|
-| Germany | EUR | Europe/Berlin | 15 °C | per year ¹ | Leipzig | GEG (A+ to H) | kWh/m³ |
+| Germany | EUR | Europe/Berlin | 15 °C | per year ¹ | Leipzig | GModG, formerly GEG (A+ to H) | kWh/m³ |
 | Austria | EUR | Europe/Vienna | 15 °C | 103 g/kWh | Wien | – | kWh/m³ |
 | Switzerland | CHF | Europe/Zurich | 15 °C | 35 g/kWh | Bern | – | kWh/m³ |
 | France | EUR | Europe/Paris | 18 °C (DJU) | 40 g/kWh | Paris | – | kWh/m³ |
@@ -116,8 +116,9 @@ of the chosen currency — so backup, CSV and the API stay unchanged.
 
 ## 5. Efficiency class only with a scale
 
-Classes A+ to H come from the German Buildings Energy Act (final energy per
-m² and year). Other countries rate differently — France (DPE) by primary
+Classes A+ to H come from the German Building Modernisation Act (GModG,
+formerly the Buildings Energy Act, GEG), Annex 10 to § 86 (final energy per m²
+and year). Other countries rate differently — France (DPE) by primary
 energy and CO₂, Austria (HWB) by heating demand under a reference climate. A
 class under German law would mislead there: a French user reads "E" as a DPE
 class.

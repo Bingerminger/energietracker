@@ -18,6 +18,7 @@ final class OutboundHostsTest extends TestCase
         'WeatherService.php' => 'Open-Meteo',
         'OcrService.php'     => 'eigener Texterkennungsdienst im Heimnetz',
         'MarketPriceService.php' => 'SMARD (Bundesnetzagentur), nur auf Knopfdruck',   // v3.1.0 (H6)
+        'EvccService.php'    => 'eigenes evcc im Heimnetz, nur auf Knopfdruck',         // v3.2.0 (F1022)
     ];
 
     public function testOnlyTheListedServicesOpenConnections(): void
@@ -47,5 +48,7 @@ final class OutboundHostsTest extends TestCase
         self::assertStringContainsString('text recognition', $en, 'README.md names the text recognition in the home network');
         self::assertStringContainsString('SMARD', $de, 'README.de.md nennt den Abruf der Marktpreise');
         self::assertStringContainsString('SMARD', $en, 'README.md names the market price download');
+        self::assertStringContainsString('evcc im', $de, 'README.de.md nennt den Abruf aus evcc');
+        self::assertStringContainsString('evcc in your home network', $en, 'README.md names the evcc download');
     }
 }

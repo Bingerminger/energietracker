@@ -27,9 +27,11 @@ Save an Excel file as CSV first.
 
 **A right to your own data.** Since 12 September 2025 the EU Data Act
 (Regulation (EU) 2023/2854) applies: whoever uses a connected device — such as
-an inverter, a heat pump or a wall box — can request the data it generates from
-the manufacturer, in a common, machine-readable format, and have it passed on
-to a third party as well. In this picture the Energietracker is the recipient,
+an inverter, a heat pump or a wall box — can ask the data holder, usually the
+manufacturer or the provider of the companion app, for the device’s readily
+available data: free of charge, in a common, machine-readable format, and on
+request also to a third party (Art. 4 and 5). Devices from micro and small
+enterprises are exempt (Art. 7). In this picture the Energietracker is the recipient,
 with one particularity: it runs on your own server, so the data stays with you.
 It has no interface to manufacturers; it reads the file you receive. This is a
 note, not legal advice.

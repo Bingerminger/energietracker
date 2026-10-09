@@ -20,6 +20,13 @@ kWh directly). Typically the fixed share is high: next to the working price
 there is a **capacity charge** based on the connected load and often a
 **metering charge** for the meter and billing.
 
+**District heating or heat?** Create district heating if you have a supply
+contract with the heat supplier yourself and receive its bill. If the heat is
+only measured and paid through the service charges of your rent — even when the
+building is on a district heating network —, it is
+[Heat](15-waerme.md#1-what-heat-is). Both cases with sample households:
+[use case F](../anleitungen/anwendungsfaelle.md#f--district-heating-or-heat).
+
 ## What Energietracker does with it
 
 - Monthly consumption via linear interpolation of the kWh meter readings.

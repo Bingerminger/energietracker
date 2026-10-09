@@ -1329,6 +1329,10 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .help-links { margin: 0 0 var(--sp-2); padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
 .help-subtitle { margin-top: var(--sp-4); }
 .help-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-2) 0 0; }
+/* v3.2.0 — Anwendungsfälle */
+.help-cases__list { margin: var(--sp-2) 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--sp-3) var(--sp-5); }
+.help-cases__item dt { font-weight: 600; margin-bottom: 4px; }
+.help-cases__item dd { margin: 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
 .help-glossary .card__head { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
 .help-glossary__search { max-width: 260px; }
 .glossary-list { margin: var(--sp-3) 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--sp-3) var(--sp-5); }
@@ -1393,3 +1397,91 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .reading-thumb { width: 100%; height: 100%; object-fit: cover; border-radius: var(--r-sm); display: block; }
 .photo-lightbox { display: block; max-width: 100%; max-height: 70vh; margin: 0 auto; border-radius: var(--r-sm); }
 .settings-card__hint--warn { color: var(--warning); }
+
+/* ── v3.2.0 (F1020) — Schaubilder (components/explainer.js) ─────────────
+   Ausgangszustände gelten erst mit .ex--ready (playExplainers); ohne Skript
+   und beim Drucken steht das Endbild. Bei „Bewegung reduzieren“ gibt es keine
+   Animation, nur das Endbild. */
+.explainer { margin: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.explainer__title { font-weight: 600; font-size: var(--fs-md, 15px); }
+.explainer__svg { width: 100%; max-width: 560px; height: auto; overflow: visible; }
+.explainer__text { margin: 0; color: var(--text-2); font-size: var(--fs-sm); }
+.explainer .ex-label { fill: var(--text-1); font-size: 11px; font-family: var(--font-sans, inherit); }
+.explainer .ex-small { font-size: 9.5px; }
+.explainer .ex-muted { fill: var(--text-2); }
+.explainer .ex-value { font-family: var(--font-mono); font-size: 10.5px; }
+.explainer .ex-icon { font-size: 18px; }
+.explainer .ex-bar--paid { fill: var(--accent); }
+.explainer .ex-bar--estimate { opacity: .3; stroke: currentColor; stroke-dasharray: 3 2; }
+.explainer .ex-bar--prev { fill: var(--text-2); opacity: .45; }
+.explainer .ex-bar--now { fill: var(--accent); }
+.explainer .ex-bar--cold { fill: var(--info); }
+.explainer .ex-gap--credit { fill: var(--success); }
+.explainer .ex-gap--due { fill: var(--warning); }
+.explainer .ex-badge { stroke: none; }
+.explainer .ex-badge--less { fill: var(--success-soft, rgba(45,232,164,.14)); }
+.explainer .ex-badge--more { fill: var(--warning-soft, rgba(245,200,66,.16)); }
+.explainer .ex-badge--same { fill: var(--bg-2); }
+.explainer .ex-badge__text { font-weight: 600; }
+.explainer .ex-node circle { fill: var(--bg-2); stroke: var(--border-2); }
+.explainer .ex-flow { fill: none; stroke-linecap: round; stroke-dasharray: 6 8; opacity: .85; }
+.explainer .ex-flow--pv { stroke: var(--warning); }
+.explainer .ex-flow--feed { stroke: var(--success); }
+.explainer .ex-flow--grid { stroke: var(--text-2); }
+.explainer .ex-flow--bat { stroke: var(--accent); }
+.explainer .ex-axis { stroke: var(--border-2); stroke-width: 3; stroke-linecap: round; }
+.explainer .ex-progress { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.explainer .ex-mark circle { fill: var(--bg-1); stroke: var(--text-1); stroke-width: 2; }
+.explainer .ex-mark--cancel circle { stroke: var(--warning); }
+.explainer .ex-mark--price circle { stroke: var(--danger); }
+.explainer .ex-today line { stroke: var(--accent); stroke-width: 2; }
+
+.explainer.ex--ready .ex-grow { transform-box: fill-box; transform-origin: left center; transform: scaleX(0); }
+.explainer.ex--ready .ex-fade { opacity: 0; }
+.explainer.ex--play .ex-grow { animation: ex-grow .9s cubic-bezier(.2, .8, .2, 1) forwards; animation-delay: var(--d, 0s); }
+.explainer.ex--play .ex-fade { animation: ex-fade .6s ease-out forwards; animation-delay: var(--d, .6s); }
+.explainer.ex--play .ex-flow { animation: ex-dash 1.4s linear infinite; }
+@keyframes ex-grow { to { transform: scaleX(1); } }
+@keyframes ex-fade { to { opacity: 1; } }
+@keyframes ex-dash { to { stroke-dashoffset: -28; } }
+@media (prefers-reduced-motion: reduce) {
+  .explainer.ex--ready .ex-grow { transform: none; }
+  .explainer.ex--ready .ex-fade { opacity: 1; }
+  .explainer.ex--play .ex-grow, .explainer.ex--play .ex-fade, .explainer.ex--play .ex-flow { animation: none; }
+}
+@media print {
+  .explainer .ex-grow { transform: none !important; animation: none !important; }
+  .explainer .ex-fade { opacity: 1 !important; animation: none !important; }
+}
+.explainer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--sp-4); }
+
+/* v3.2.0 (F1019) — Übersicht der Einsteiger: drei Antworten */
+.dash-answer__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.dash-answer__row { display: flex; gap: var(--sp-2); align-items: baseline; }
+.dash-explainer + .dash-explainer { border-top: 1px solid var(--border-1); padding-top: var(--sp-4); }
+@media (min-width: 900px) { .dash-explainer + .dash-explainer { border-top: 0; padding-top: 0; } }
+/* v3.2.0 — eine Karte, die erst gefüllt sichtbar wird (Schaubilder) */
+.card[hidden] { display: none; }
+
+/* ── v3.2.0 (F1018) — Einrichtungsassistent ─────────────────────────── */
+.setup { display: flex; flex-direction: column; gap: var(--sp-3); }
+.setup__question { margin: 0; font-size: var(--fs-lg, 18px); }
+.setup__progress { margin-right: auto; }
+.setup-choices { display: grid; gap: var(--sp-2); }
+@media (min-width: 640px) { .setup-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.setup-choice {
+  display: flex; gap: var(--sp-3); align-items: flex-start;
+  padding: var(--sp-3); border: 1px solid var(--border-2); border-radius: var(--r-md);
+  cursor: pointer; background: var(--bg-1);
+}
+.setup-choice:hover { border-color: var(--border-strong); }
+.setup-choice--on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
+.setup-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.setup-choice:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.setup-choice__icon { font-size: 24px; line-height: 1; }
+.setup-choice__body { display: flex; flex-direction: column; gap: 2px; }
+.setup-utilities { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--sp-2); }
+.settings-level-list { margin: var(--sp-2) 0 var(--sp-3); padding-left: var(--sp-4); display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
+.settings-subtitle { font-size: var(--fs-md, 15px); margin: var(--sp-4) 0 var(--sp-2); }
+/* Beschriftung auf Linien: Hof in der Kartenfarbe, damit die Zahl lesbar bleibt */
+.explainer .ex-halo { paint-order: stroke; stroke: var(--bg-1); stroke-width: 4px; stroke-linejoin: round; }

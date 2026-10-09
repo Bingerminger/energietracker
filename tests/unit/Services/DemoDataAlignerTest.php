@@ -166,6 +166,40 @@ final class DemoDataAlignerTest extends TestCase
         self::assertSame($count($demo) + 2, $count(DemoDataAligner::align($demo, self::plusDays($ref, 730))));
     }
 
+    /** v3.2.0 (F1018) — Monatswerte der Verbrauchsinfo laufen mit dem Vorjahr weiter, bis zum letzten ganzen Monat. */
+    public function testMonthlyPeriodsContinueWithLastYearsValues(): void
+    {
+        $periods = [];
+        foreach (['2025-01' => 900, '2025-02' => 800, '2025-03' => 600, '2026-01' => 950] as $ym => $v) {
+            $periods[] = ['id' => "p_$ym", 'meter_id' => 'm_uvi', 'from' => "$ym-01", 'to' => date('Y-m-t', strtotime("$ym-01")),
+                          'value' => $v, 'value_unit' => 'consumption', 'is_estimated' => false, 'source' => 'manual'];
+        }
+        $payload = ['exported_at' => '2026-02-01T00:00:00+01:00', 'utilities' => ['waerme' => ['meters' => [], 'periods' => $periods]]];
+        $out = DemoDataAligner::align($payload, '2026-04-15')['utilities']['waerme']['periods'];
+        $byFrom = array_column($out, 'value', 'from');
+        self::assertSame(800, $byFrom['2026-02-01'] ?? null, 'Februar wie im Vorjahr');
+        self::assertSame(600, $byFrom['2026-03-01'] ?? null, 'März wie im Vorjahr');
+        self::assertArrayNotHasKey('2026-04-01', $byFrom, 'der laufende Monat ist noch nicht ganz');
+        self::assertSame(count($out), count(array_unique(array_column($out, 'id'))), 'eindeutige IDs');
+    }
+
+    /** v3.2.0 (F1022) — Ladevorgänge aus evcc laufen wie Lieferungen mit dem Vorjahr weiter, ohne Wallbox-Zählerstand. */
+    public function testChargingSessionsRepeatTheYearBefore(): void
+    {
+        $s = fn(string $d, string $time) => ['id' => 'evs_' . $d, 'meter_id' => 'm_wb', 'created' => "{$d}T$time+02:00", 'finished' => "{$d}T13:00:00+02:00",
+            'date' => $d, 'loadpoint' => 'Wallbox', 'charged_kwh' => 10.0, 'solar_pct' => 60.0, 'meter_start' => 100.0, 'meter_stop' => 110.0];
+        $payload = ['exported_at' => '2026-05-31T12:00:00+02:00', 'utilities' => [],
+            'ev_sessions' => [$s('2025-05-20', '11:00:00'), $s('2025-07-02', '11:00:00'), $s('2026-05-20', '11:00:00')]];
+        $out = DemoDataAligner::align($payload, '2026-08-01')['ev_sessions'];
+        $byDate = array_column($out, null, 'date');
+        self::assertArrayHasKey('2026-07-02', $byDate, 'Juli wie im Vorjahr');
+        self::assertSame('2026-07-02T11:00:00+02:00', $byDate['2026-07-02']['created']);
+        self::assertArrayNotHasKey('meter_stop', $byDate['2026-07-02'], 'kein Zählerstand der Wallbox in der Kopie');
+        self::assertSame(10.0, $byDate['2026-07-02']['charged_kwh']);
+        self::assertCount(4, $out, 'Mai 2025 lag vor dem Fenster, Mai 2026 ist echt');
+        self::assertSame(count($out), count(array_unique(array_column($out, 'id'))), 'eindeutige IDs');
+    }
+
     public function testLeapDayDoesNotOverflowIntoMarch(): void
     {
         self::assertSame('2025-02-28', DemoDataAligner::addYears('2024-02-29', 1));

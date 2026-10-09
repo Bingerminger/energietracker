@@ -10,7 +10,8 @@
     "actions": "Aktionen",
     "invalidNumber": "Bitte eine gültige Zahl eingeben, z. B. {example}.",
     "undo": "Rückgängig",
-    "hddShort": "HGT"
+    "hddShort": "HGT",
+    "guide": "Anleitung"
   },
   "app": {
     "themeToggle": "Theme wechseln",
@@ -188,6 +189,38 @@
       "prev": "Ein Jahr zuvor",
       "alt": "Balkendiagramm: {label} je Monat von {from} bis {to}.",
       "altPrev": "Balkendiagramm: {label} je Monat von {from} bis {to}; die Linie zeigt dieselben Monate ein Jahr zuvor."
+    },
+    "explainers": {
+      "title": "Schaubilder"
+    },
+    "beginner": {
+      "capture": "Zählerstand erfassen",
+      "money": {
+        "title": "Bekomme ich Geld zurück?",
+        "credit": "rund {amount} zurück",
+        "due": "rund {amount} Nachzahlung",
+        "even": "etwa ausgeglichen",
+        "until": "Abrechnung am {date}",
+        "none": "Noch kein Vertrag mit Abschlag erfasst.",
+        "add": "Vertrag eintragen"
+      },
+      "trend": {
+        "title": "Mehr oder weniger als im Vorjahr?",
+        "more": "{pct} mehr als im Vorjahr",
+        "less": "{pct} weniger als im Vorjahr",
+        "same": "etwa wie im Vorjahr",
+        "none": "Noch kein Vorjahr zum Vergleichen."
+      },
+      "rent": {
+        "title": "Reicht die Vorauszahlung?",
+        "enough": "Ja — voraussichtlich rund {amount} zurück.",
+        "short": "Knapp — voraussichtlich rund {amount} Nachzahlung.",
+        "suggest": "Passende Vorauszahlung: {amount} im Monat."
+      },
+      "todo": {
+        "title": "Was ist zu tun?",
+        "none": "Gerade nichts — gut so."
+      }
     }
   },
   "readingsEntry": {
@@ -1203,7 +1236,8 @@
       "frameAncestors": "http://homeassistant.local:8123",
       "ocrEndpoint": "http://192.168.178.20:11434",
       "ocrModel": "qwen2.5vl",
-      "referenceSource": "z. B. Stromspiegel 2025"
+      "referenceSource": "z. B. Stromspiegel 2025",
+      "evccEndpoint": "http://192.168.178.30:7070"
     },
     "loading": "Lädt …",
     "saved": "Einstellungen gespeichert",
@@ -1214,7 +1248,8 @@
       "deviceLabel": "Sprache auf diesem Gerät",
       "deviceFollow": "Wie die Installation ({lang})",
       "defaultLabel": "Standardsprache der Installation",
-      "defaultSaved": "Standardsprache geändert"
+      "defaultSaved": "Standardsprache geändert",
+      "personLabel": "Meine Sprache (auf allen meinen Geräten)"
     },
     "unit": {
       "days": "Tage",
@@ -1266,6 +1301,10 @@
       "reference": {
         "title": "Eigene Vergleichswerte",
         "hint": "Für die Einordnung auf der Übersicht. Die App liefert keine Tabellen mit; trag die Werte ein, die dir etwa der Strom- oder Heizspiegel nennt."
+      },
+      "evcc": {
+        "title": "evcc im Heimnetz",
+        "hint": "Holt die Ladevorgänge aus evcc, wenn du in der Wallbox-Ansicht auf „Von evcc abrufen“ tippst. Nur Adressen im eigenen Netz. Leer = aus; die CSV-Datei aus evcc geht immer."
       }
     },
     "field": {
@@ -1325,7 +1364,7 @@
       },
       "beheizter_keller": {
         "label": "Beheizter Keller",
-        "hint": "Ein-/Zweifamilien- oder Reihenhaus mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2) — für die Kennzahl nach Energieausweis."
+        "hint": "Wohngebäude mit bis zu zwei Wohnungen (Ein-/Zweifamilien- oder Reihenhaus) mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2) — für die Kennzahl nach Energieausweis."
       },
       "warmwasser_dezentral": {
         "label": "Warmwasser dezentral",
@@ -1409,6 +1448,10 @@
       "warmwasser_elektrisch": {
         "label": "Warmwasser mit Strom",
         "hint": "Durchlauferhitzer oder elektrischer Boiler — der Stromspiegel unterscheidet danach."
+      },
+      "evcc_endpoint": {
+        "label": "Adresse von evcc",
+        "hint": "Zum Beispiel http://192.168.178.30:7070 oder http://evcc.local:7070 — die Adresse, unter der du evcc im Browser öffnest."
       }
     },
     "boolActive": "aktiv",
@@ -1821,6 +1864,44 @@
       "fernwaerme": "Fernwärme",
       "strom": "Strom (Wärmepumpe, Durchlauferhitzer)",
       "waerme": "Heizwärme (zentral)"
+    },
+    "level": {
+      "title": "Nutzungsstufe und Einrichtung",
+      "hint": "Bestimmt, was die Oberfläche zeigt — gerechnet wird in jeder Stufe alles. Gilt für alle Geräte dieser Installation.",
+      "hintPerson": "Bestimmt, was die Oberfläche zeigt — gerechnet wird in jeder Stufe alles. Gilt für dich ({name}) auf allen Geräten.",
+      "describe": {
+        "beginner": "Übersicht mit drei Antworten, Zählerstände, einfache Verträge, Jahresbericht.",
+        "advanced": "Dazu Auswertungen, Prognose, Wechsel, Rechnungsprüfung und Zähler-Aufbau.",
+        "expert": "Alles, mit Schaubildern, Gruppen, Rechenparametern und Zugriff."
+      },
+      "saved": "Stufe gespeichert."
+    },
+    "me": {
+      "title": "Mein Konto: {name}",
+      "proxyHint": "Angemeldet über den vorgeschalteten Dienst; das Passwort wird dort geändert.",
+      "passwordChanged": "Passwort geändert."
+    },
+    "users": {
+      "title": "Benutzer und Rechte",
+      "hint": "Jede Person meldet sich mit Name und Passwort an und hat ihre eigene Stufe und Sprache. Die Daten des Haushalts teilen sich alle.",
+      "hintProxy": "Die Anmeldung übernimmt der vorgeschaltete Dienst; die App kennt jede Person an ihrem Namen. Wer zuerst kommt, verwaltet.",
+      "memberHint": "Den Zugriff verwaltet, wer die Installation verwaltet. Dein eigenes Passwort änderst du unter Einstellungen → Allgemein.",
+      "passwordHint": "Jede Person ändert ihr Passwort unter Einstellungen → Allgemein → Mein Konto.",
+      "role": {
+        "admin": "Verwaltung",
+        "member": "Mitglied"
+      },
+      "roleLabel": "Rolle von {name}",
+      "name": "Name",
+      "roleHead": "Rolle",
+      "you": "du",
+      "resetPassword": "Passwort neu setzen",
+      "delete": "Person löschen",
+      "deleteConfirm": "Die Person kann sich danach nicht mehr anmelden. Die Daten des Haushalts bleiben.",
+      "add": "Person hinzufügen",
+      "addButton": "Hinzufügen",
+      "added": "{name} kann sich jetzt anmelden.",
+      "saved": "Gespeichert."
     }
   },
   "reminders": {
@@ -2423,7 +2504,7 @@
       "noLivingArea": "Wohnfläche nicht gesetzt — für die Effizienzklasse bitte in den Einstellungen eintragen.",
       "noHeatData": "Keine Heizenergiedaten für {year} gefunden.",
       "multipleSources": "Mehrere Heizquellen aktiv — die Klasse je Quelle ist aussagekräftiger als die kombinierte Summe. Die kombinierte Sicht ist nur bei bewusst kombiniertem Heizbetrieb (z. B. Grund- und Spitzenlast) sinnvoll.",
-      "noScale": "Für {country} ist keine Effizienzskala hinterlegt. Die Klassen A+ bis H folgen dem deutschen Gebäudeenergiegesetz und werden deshalb nicht angezeigt.",
+      "noScale": "Für {country} ist keine Effizienzskala hinterlegt. Die Klassen A+ bis H folgen dem deutschen Gebäudemodernisierungsgesetz (bis Juli 2026 Gebäudeenergiegesetz) und werden deshalb nicht angezeigt.",
       "incompleteYear": "Für {year} liegen nicht für das ganze Jahr Daten vor — keine Klasse; die Kennzahl gilt nur für den gemessenen Zeitraum."
     },
     "forecast": {
@@ -2600,7 +2681,8 @@
     "demo": {
       "backupNotFound": "Demo-Backup nicht gefunden.",
       "dataExists": "Es sind bereits Daten vorhanden. Der Import überschreibt sie (vorher wird automatisch ein Snapshot angelegt). Zum Fortfahren bestätigen.",
-      "backupInvalid": "Demo-Backup ist ungültig (kein JSON)."
+      "backupInvalid": "Demo-Backup ist ungültig (kein JSON).",
+      "personaUnknown": "Einen Beispielhaushalt „{persona}“ gibt es nicht."
     },
     "migration": {
       "noVersionField": "Kein „version“-Feld im Backup — vermutlich kein v0.9.0-Backup. Erwartet werden v0.9.0-Backups mit version „2.1“ oder älter.",
@@ -2655,7 +2737,8 @@
       "modeFixed": "Die Anmeldung ist über die Umgebung (ET_AUTH) festgelegt und lässt sich hier nicht ausschalten.",
       "passwordTooShort": "Das Passwort braucht mindestens {min} Zeichen.",
       "scopeInvalid": "Unbekannter Bereich – erlaubt sind read, admin und calendar.",
-      "keyNotFound": "API-Schlüssel nicht gefunden."
+      "keyNotFound": "API-Schlüssel nicht gefunden.",
+      "adminOnly": "Das darf nur, wer die Installation verwaltet."
     },
     "weather": {
       "badFormat": "Open-Meteo hat in einem unerwarteten Format geantwortet.",
@@ -2726,6 +2809,26 @@
     },
     "heatPump": {
       "yearInvalid": "Jahr „{year}“ ist ungültig"
+    },
+    "users": {
+      "noUser": "Ohne Anmeldung gibt es keine eigenen Einstellungen — die Stufe gilt dann für die ganze Installation.",
+      "proxyNoPassword": "Bei Anmeldung über den vorgeschalteten Dienst wird das Passwort dort geändert.",
+      "nameInvalid": "Der Name darf nicht leer sein und höchstens {max} Zeichen haben.",
+      "nameTaken": "Diesen Namen gibt es schon.",
+      "roleInvalid": "Die Rolle muss „Verwaltung“ oder „Mitglied“ sein (API: admin, member).",
+      "lastAdmin": "Mindestens eine Person muss die Installation verwalten.",
+      "notFound": "Diese Person gibt es nicht mehr.",
+      "notSelf": "Die eigene Person lässt sich nicht löschen — das erledigt eine andere Person, die die Installation verwaltet."
+    },
+    "evcc": {
+      "off": "Keine Adresse von evcc eingetragen (Einstellungen → Experte).",
+      "notLocal": "evcc muss im eigenen Netz laufen – „{host}“ ist keine Adresse im Heimnetz.",
+      "unreachable": "evcc ist nicht erreichbar.",
+      "badAnswer": "evcc hat keine Liste von Ladevorgängen geliefert.",
+      "noSessions": "Keine abgeschlossenen Ladevorgänge gefunden.",
+      "columns": "Das sieht nicht nach dem CSV-Export aus evcc aus: Es fehlen die Spalten für Beginn und Energie.",
+      "countersInvalid": "Unbekannte Wahl für die Zählerstände: „{value}“.",
+      "loadpointNeeded": "Mehrere Ladepunkte ({names}): Zählerstände gehören zu einer Wallbox – wähle ihren Ladepunkt oder übernimm nur die Ladevorgänge."
     }
   },
   "login": {
@@ -2733,7 +2836,9 @@
     "password": "Passwort",
     "submit": "Anmelden",
     "forgot": "Passwort vergessen? Auf dem Server in data/auth.json den Wert von „mode“ auf „off“ setzen – dann ist die Anmeldung aus. Im Docker-Container geht das auch mit der Umgebungsvariablen ET_AUTH=off.",
-    "logout": "Abmelden"
+    "logout": "Abmelden",
+    "name": "Name",
+    "forgotNamed": "Passwort vergessen? Eine Person, die die Installation verwaltet, setzt es unter Einstellungen → Zugriff neu."
   },
   "readingCheck": {
     "title": "Bitte prüfen",
@@ -2814,7 +2919,8 @@
       "itemAmount": "Betrag (Gutschrift negativ)",
       "co2Cost": "CO₂-Kosten laut Rechnung",
       "attach": "Rechnung anhängen (PDF oder Foto)",
-      "save": "Rechnung speichern"
+      "save": "Rechnung speichern",
+      "update": "Änderungen speichern"
     },
     "saved": "Rechnung gespeichert",
     "book": "Als Sonderzahlung buchen",
@@ -2841,7 +2947,10 @@
       "price_missing": "Für einen Teil des Zeitraums fehlt im Vertrag ein Preis – dort fehlen auch Kosten.",
       "gaps": "Im Zeitraum fehlen Zählerstände."
     },
-    "ownTotalOnly": "Nachgerechnet: {total}"
+    "ownTotalOnly": "Nachgerechnet: {total}",
+    "updated": "Rechnung geändert",
+    "editing": "Du bearbeitest die Rechnung vom {from} bis {to}.",
+    "editBookedNote": "Sie ist schon als Sonderzahlung gebucht – die Buchung im Vertrag ändert sich nicht mit."
   },
   "glossary": {
     "hdd": {
@@ -2998,7 +3107,7 @@
     },
     "co2Price": {
       "term": "CO₂-Preis (BEHG)",
-      "text": "Seit 2021 zahlen Lieferanten von Gas und Heizöl in Deutschland für jede Tonne CO₂ einen Preis und geben ihn im Arbeitspreis weiter: 2025 55 Euro, 2026 60 Euro je Tonne. Die App weist ihn aus – er ist kein Aufschlag. Gerechnet wird mit den Standardfaktoren des BEHG; Holz, Pellets und Strom tragen keinen."
+      "text": "Seit 2021 zahlen Lieferanten von Gas und Heizöl in Deutschland für jede Tonne CO₂ einen Preis und geben ihn im Arbeitspreis weiter: 2025 fest 55 Euro, 2026 ersteigert im Korridor von 55 bis 65 Euro – auf Rechnung und Heizkostenabrechnung angesetzt mit 60 Euro je Tonne. Die App weist ihn aus – er ist kein Aufschlag. Gerechnet wird mit den Standardfaktoren des BEHG; Holz, Pellets und Strom tragen keinen."
     },
     "co2Split": {
       "term": "CO₂-Kostenaufteilung",
@@ -3010,7 +3119,7 @@
     },
     "module14a": {
       "term": "§ 14a EnWG (steuerbare Verbraucher)",
-      "text": "Wärmepumpen, Wallboxen und Speicher über 4,2 kW darf der Netzbetreiber bei Engpässen drosseln; dafür sinkt das Netzentgelt. Modul 1: ein fester Betrag im Jahr. Modul 2: ein eigener Zähler mit 40 % des Netz-Arbeitspreises. Modul 3: zeitvariable Netzentgelte zusätzlich zu Modul 1."
+      "text": "Wärmepumpen, Wallboxen, Klimaanlagen und Speicher über 4,2 kW, die seit 2024 in Betrieb gegangen sind, darf der Netzbetreiber bei Engpässen drosseln – nie unter 4,2 kW; dafür sinkt das Netzentgelt. Modul 1: ein fester Betrag im Jahr. Modul 2: ein eigener Zähler mit 40 % des Netz-Arbeitspreises. Modul 3: zeitvariable Netzentgelte zusätzlich zu Modul 1."
     },
     "jaz": {
       "term": "Jahresarbeitszahl (JAZ)",
@@ -3039,7 +3148,9 @@
       "homeAssistant": "Home Assistant anbinden",
       "englishOnly": "Die Dokumentation gibt es auf Deutsch und Englisch; die Links führen zur englischen Fassung.",
       "faq": "Häufige Fragen",
-      "troubleshoot": "Fehlersuche"
+      "troubleshoot": "Fehlersuche",
+      "setup": "Einrichten, Beispielhaushalte und Stufen",
+      "useCases": "Anwendungsfälle"
     },
     "support": {
       "title": "Fragen und Fehler",
@@ -3049,9 +3160,25 @@
     },
     "privacy": {
       "title": "Deine Daten",
-      "text": "Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo — beim täglichen Wetterabgleich (nur der auf rund 1 km gerundete Standort, abschaltbar unter Einstellungen → Wetterdaten) und bei der Ortssuche, wenn du sie benutzt — und, nur wenn du ihn einträgst, mit deinem eigenen Texterkennungsdienst im Heimnetz. Tippst du auf „Von SMARD laden“, holt die App die Börsenstrompreise der Bundesnetzagentur; dabei geht nichts von dir hinaus."
+      "text": "Alles bleibt auf deinem Server: keine Konten, keine Werbung, keine Telemetrie. Nach außen spricht die App nur mit Open-Meteo — beim täglichen Wetterabgleich (nur der auf rund 1 km gerundete Standort, abschaltbar unter Einstellungen → Wetterdaten) und bei der Ortssuche, wenn du sie benutzt — und, nur wenn du sie einträgst, mit deinem eigenen Texterkennungsdienst und deinem evcc im Heimnetz. Tippst du auf „Von SMARD laden“, holt die App die Börsenstrompreise der Bundesnetzagentur; dabei geht nichts von dir hinaus."
     },
-    "onYourBill": "Auf deiner Rechnung ({country}): „{term}“"
+    "onYourBill": "Auf deiner Rechnung ({country}): „{term}“",
+    "cases": {
+      "title": "Anwendungsfälle",
+      "heat": {
+        "title": "Fernwärme oder Heizwärme?",
+        "text": "Fernwärme kaufst du selbst beim Versorger – mit eigenem Vertrag, Arbeits- und Grundpreis und einer Rechnung; dafür ist die Verbrauchsart „Fernwärme“. Heizwärme ist gemessene Wärme ohne eigenen Liefervertrag: in der Mietwohnung über die Nebenkostenabrechnung bezahlt (mit der monatlichen Verbrauchsinformation), im eigenen Haus die Wärmemenge der Wärmepumpe – dafür ist „Heizwärme“. Die Beispielhaushalte „Eigentumswohnung mit Fernwärme“, „Ich wohne zur Miete“ und „Eigenheim mit Wärmepumpe und PV“ zeigen alle drei Fälle."
+      },
+      "control": {
+        "title": "Steuern mit evcc oder Home Assistant",
+        "text": "Der Energietracker schaltet nichts. Speicher, Wallbox und Wärmepumpe steuern evcc oder Home Assistant – mit Sonnenstrom, in günstigen Stunden oder bei negativen Börsenpreisen. Der Energietracker rechnet nach: Ladevorgänge aus evcc mit Sonnenanteil, Zählerstände per Home Assistant, der Dynamik-Check mit Börsenpreisen und der Ladestrom-Nachweis zeigen, was die Steuerung gebracht hat."
+      },
+      "levels": {
+        "title": "Erst einfach, später alles",
+        "text": "Die Stufe oben neben Tag/Nacht bestimmt, wie viel du siehst: Einsteiger bekommen drei Antworten auf der Übersicht, Erfahrene dazu Tarifwechsel, Rechnungsprüfung und Analysen, Experten alles. Gerechnet wird in jeder Stufe alles – du kannst jederzeit wechseln. Zum Ausprobieren lädt der Einrichtungsassistent einen Beispielhaushalt, der zu dir passt."
+      },
+      "tryExample": "Beispielhaushalt ausprobieren"
+    }
   },
   "onboarding": {
     "done": "erledigt",
@@ -3500,7 +3627,7 @@
     "plugIn": {
       "assumed": "Balkonkraftwerk: Eigenverbrauch angenommen mit {pct} % der Erzeugung (Einstellungen)."
     },
-    "hint51": "In Betrieb seit dem 25.02.2025: Für Zeiten mit negativem Börsenpreis gibt es keine Einspeisevergütung, sobald ein intelligentes Messsystem eingebaut ist (§ 51 EEG). Ausgeglichen wird das über eine längere Förderdauer."
+    "hint51": "In Betrieb seit dem 25.02.2025: Für Zeiten mit negativem Börsenpreis gibt es keine Einspeisevergütung – unter 100 kW ab dem Jahr nach dem Einbau eines intelligenten Messsystems (§ 51 EEG). Zum Teil ausgeglichen wird das durch eine längere Förderdauer."
   },
   "comparison": {
     "title": "Einordnung {year}",
@@ -3556,6 +3683,186 @@
         "one": "{count} Tag, {from} (der letzte Stand des Tages)",
         "other": "{count} Tage vom {from} bis {to} (je Tag der letzte Stand)"
       }
+    }
+  },
+  "level": {
+    "switch": "Nutzungsstufe",
+    "beginner": "Einsteiger",
+    "advanced": "Erfahren",
+    "expert": "Experte",
+    "hint": {
+      "page": "Diese Seite gehört zur Stufe „{level}“. Sie ist trotzdem offen.",
+      "switch": "Auf „{level}“ umstellen",
+      "data": "Deine Daten können mehr, als diese Stufe zeigt — „{level}“ blendet es ein.",
+      "dismiss": "Nicht mehr fragen"
+    },
+    "reason": {
+      "subMeters": "Subzähler",
+      "homeAssistant": "Werte von Home Assistant",
+      "severalMeters": "mehrere Zähler einer Verbrauchsart",
+      "heatPump": "Wärmepumpe",
+      "battery": "Speicher",
+      "wallbox": "Wallbox"
+    }
+  },
+  "explainer": {
+    "money": {
+      "title": "Wohin geht mein Geld?",
+      "paid": "Abschläge",
+      "cost": "Kosten",
+      "energy": "Verbrauch",
+      "base": "Grundpreis",
+      "estimate": "noch geschätzt",
+      "credit": "rund {amount} Guthaben",
+      "due": "rund {amount} Nachzahlung",
+      "even": "ziemlich genau ausgeglichen",
+      "text": "Bis zur Abrechnung am {date} zahlst du {paid} Abschläge; Verbrauch und Grundpreis kosten voraussichtlich {cost}. Das ergibt {result}."
+    },
+    "energy": {
+      "title": "Energiefluss im Haus",
+      "pv": "PV",
+      "house": "Haus",
+      "grid": "Netz",
+      "battery": "Speicher",
+      "text": "{year}: Die Anlage erzeugte {gen} kWh. Das Haus nutzte {self} kWh davon selbst, {feed} kWh gingen ins Netz, {grid} kWh kamen aus dem Netz. Autarkie: {autarky}."
+    },
+    "weather": {
+      "title": "Kälter oder mehr verbraucht?",
+      "usage": "Verbrauch",
+      "hdd": "Heizgradtage",
+      "before": "dieselben Monate im Vorjahr",
+      "now": "zuletzt",
+      "adjusted": "witterungsbereinigt {pct}",
+      "text": {
+        "less": "Verbrauch {cons}, Heizgradtage {hdd} gegenüber denselben Monaten im Vorjahr. Witterungsbereinigt {adj}: Du hast wirklich weniger verbraucht.",
+        "more": "Verbrauch {cons}, Heizgradtage {hdd} gegenüber denselben Monaten im Vorjahr. Witterungsbereinigt {adj}: Du hast wirklich mehr verbraucht — nicht nur das Wetter.",
+        "same": "Verbrauch {cons}, Heizgradtage {hdd} gegenüber denselben Monaten im Vorjahr. Witterungsbereinigt {adj}: etwa gleich — der Unterschied kommt vom Wetter."
+      }
+    },
+    "timeline": {
+      "title": "Vertrag auf einen Blick",
+      "start": "Beginn",
+      "cancel": "Kündigen bis",
+      "price": "Preiserhöhung",
+      "end": "Ende",
+      "today": "heute",
+      "text": "Vertrag seit {start}. Wer wechseln will, kündigt bis {cancel}; dann endet er am {end}.",
+      "textOpen": "Vertrag seit {start}; er läuft weiter, bis du kündigst. Spätestens am {cancel} gekündigt, endet er am {end}.",
+      "textNoNotice": "Vertrag seit {start}, Ende: {end}.",
+      "textRunning": "Vertrag seit {start}; er läuft weiter, bis du kündigst. Eine Kündigungsfrist ist nicht eingetragen."
+    }
+  },
+  "setup": {
+    "title": "Einrichten",
+    "intro": "Drei Fragen, dann zeigt die App, was zu dir passt. Alles lässt sich später ändern.",
+    "progress": "Schritt {n} von {total}",
+    "persona": {
+      "title": "Wer bist du?",
+      "tenant": {
+        "title": "Ich wohne zur Miete",
+        "text": "Strom mit eigenem Vertrag; Heizung und Wasser bezahle ich über die Nebenkosten."
+      },
+      "flat": {
+        "title": "Eigentumswohnung mit Fernwärme",
+        "text": "Fernwärme und Strom mit eigenen Verträgen und Rechnungen."
+      },
+      "houseClassic": {
+        "title": "Eigenheim mit Gas, Öl oder Pellets",
+        "text": "Heizung, Strom und Wasser mit eigenen Verträgen."
+      },
+      "houseModern": {
+        "title": "Eigenheim mit Wärmepumpe und PV",
+        "text": "Wärmepumpe, Photovoltaik, Speicher und Wallbox."
+      },
+      "showcase": {
+        "title": "Erst einmal alles ansehen",
+        "text": "Fast alle Verbrauchsarten in einem Beispielhaushalt – zum Kennenlernen jeder Funktion."
+      }
+    },
+    "utilities": {
+      "title": "Welche Energieträger nutzt du?",
+      "hint": "Vorgeschlagen nach deiner Antwort — frei kombinierbar.",
+      "heatNote": "Fernwärme oder Heizwärme? Fernwärme hat einen eigenen Liefervertrag mit Rechnung vom Versorger. Heizwärme wird nur gemessen — bezahlt über die Miete, oder es ist die Wärme einer Wärmepumpe."
+    },
+    "level": {
+      "title": "Wie viel Erfahrung hast du?",
+      "later": "Die Stufe lässt sich jederzeit oben neben Tag/Nacht umstellen."
+    },
+    "finish": {
+      "title": "So geht es weiter",
+      "summary": "{persona} · Stufe „{level}“",
+      "demo": "Mit Beispieldaten ansehen",
+      "demoHint": "Lädt den passenden Beispielhaushalt. Vorher sichert die App den jetzigen Stand.",
+      "demoPublic": "Die Demo zeigt jetzt den Beispielhaushalt „{persona}“. Einen anderen wählst du über Einstellungen → Allgemein → „Einrichtungsassistent starten“.",
+      "own": "Mit eigenen Daten starten",
+      "ownHint": "Als Nächstes: Zähler prüfen und den ersten Stand erfassen."
+    },
+    "skip": "Überspringen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "done": "Los geht’s",
+    "restart": "Einrichtungsassistent starten"
+  },
+  "evcc": {
+    "title": "Ladevorgänge aus evcc {year}",
+    "intro": "evcc steuert die Wallbox – mit Sonnenstrom oder in günstigen Stunden. Hier rechnest du nach, was dabei herauskam: Menge, Anteil aus der Sonne und der Preis je Monat. Die Zählerstände der Wallbox kommen gleich mit.",
+    "summary": {
+      "one": "{count} Ladevorgang, {kwh} kWh, davon {solar} aus der Sonne",
+      "other": "{count} Ladevorgänge, {kwh} kWh, davon {solar} aus der Sonne"
+    },
+    "priceTotal": "laut evcc {amount}",
+    "col": {
+      "month": "Monat",
+      "sessions": "Vorgänge",
+      "solar": "Sonne",
+      "price": "Preis (evcc)"
+    },
+    "empty": "Für {year} sind noch keine Ladevorgänge aus evcc da.",
+    "countersLabel": "Zählerstände",
+    "counters": {
+      "auto": "vom Zähler der Wallbox (sonst aufsummiert)",
+      "energy": "aus der geladenen Energie aufsummieren",
+      "none": "keine – nur die Ladevorgänge"
+    },
+    "chooseCsv": "CSV aus evcc wählen …",
+    "sync": "Von evcc abrufen",
+    "syncHint": "Beides zeigt erst eine Vorschau. Wiederholen schadet nicht: Derselbe Ladevorgang wird ersetzt, nicht doppelt gezählt.",
+    "noEndpoint": "In evcc unter Ladevorgänge als CSV herunterladen. Zum direkten Abruf trägst du die Adresse von evcc unter Einstellungen → Experte ein.",
+    "preview": {
+      "title": "Ladevorgänge übernehmen?",
+      "sessions": {
+        "one": "{count} Ladevorgang vom {from} bis {to}, zusammen {kwh} kWh.",
+        "other": "{count} Ladevorgänge vom {from} bis {to}, zusammen {kwh} kWh."
+      },
+      "noReadings": "Zählerstände bleiben unverändert.",
+      "readings": {
+        "meter": {
+          "one": "Dazu {count} Zählerstand vom Zähler der Wallbox.",
+          "other": "Dazu {count} Zählerstände vom Zähler der Wallbox."
+        },
+        "energy": {
+          "one": "Dazu {count} Zählerstand, aufsummiert ab dem letzten Stand davor.",
+          "other": "Dazu {count} Zählerstände, aufsummiert ab dem letzten Stand davor."
+        }
+      },
+      "replaces": {
+        "one": "{count} vorhandener Zählerstand am selben Tag wird ersetzt.",
+        "other": "{count} vorhandene Zählerstände an denselben Tagen werden ersetzt."
+      },
+      "running": "Ein Ladevorgang läuft noch; er kommt beim nächsten Mal dazu.",
+      "loadpoints": "Die Datei enthält mehrere Ladepunkte ({names}); alle landen an diesem Zähler.",
+      "apply": "Übernehmen",
+      "onlyLoadpoint": "Nur Ladepunkt {name}."
+    },
+    "done": {
+      "one": "{count} Ladevorgang übernommen.",
+      "other": "{count} Ladevorgänge übernommen."
+    },
+    "pick": {
+      "title": "Welcher Ladepunkt gehört zu diesem Zähler?",
+      "hint": "Die Ladevorgänge stammen von mehreren Ladepunkten. Zählerstände gehören zu genau einer Wallbox – wähle ihren Ladepunkt. Für alle Ladepunkte zusammen wähle bei den Zählerständen „keine – nur die Ladevorgänge“.",
+      "label": "Ladepunkt",
+      "ok": "Weiter"
     }
   }
 }

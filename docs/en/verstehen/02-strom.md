@@ -68,10 +68,11 @@ group; details under
 
 ## Controllable consumers *(v3.1.0)*
 
-Heat pumps, wall boxes and battery storage above 4.2 kW count as
-**controllable consumer devices** under § 14a EnWG: the grid operator may
-throttle their power temporarily during a bottleneck, and in return the grid
-fee drops. Three modules:
+Heat pumps, wall boxes, air conditioners and battery storage above 4.2 kW that
+go into operation from 1 Jan 2024 count as **controllable consumer devices**
+under § 14a EnWG: the grid operator may throttle their power temporarily during
+a bottleneck — to at least 4.2 kW, not to zero — and in return the grid fee
+drops. Three modules:
 
 | Module | What it is | In the app |
 |---|---|---|

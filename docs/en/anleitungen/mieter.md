@@ -291,10 +291,12 @@ is what counts:
   consumption every month, with the previous month, the same month last year
   and an average user.
 - **§ 5 — retrofitting.** Devices that cannot be read remotely must be
-  retrofitted or replaced by 31 December 2026.
-- **§ 12 — right to reduce.** If remotely readable devices or the consumption
-  information are missing, the ordinance provides for a reduction of the cost
-  share by 3 %; if the costs are not billed by consumption, by 15 %.
+  retrofitted or replaced by 31 December 2026 — unless this is technically
+  impossible or unreasonable in the individual case.
+- **§ 12 — right to reduce.** If remotely readable devices are missing although
+  they are required (installed since 1 December 2021, all others from 2027), or
+  the consumption information is missing or incomplete, you may reduce your
+  cost share by 3 %; if the costs are not billed by consumption, by 15 %.
 
 If no consumption information arrives although the meters can be read
 remotely, ask the landlord or the managing agent.

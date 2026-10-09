@@ -26,7 +26,7 @@ use Energietracker\Services\{
     AgendaService, CalendarService, SummaryService, InstanceService,
     AttachmentService, OcrService, PeriodService, TenancyService, TenancyBudgetService,
     Co2CostService, Co2SplitService, BillService, MarketPriceService, EvChargingReportService, HeatPumpService,
-    SeriesImportService, ReferenceService
+    SeriesImportService, ReferenceService, EvccService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -39,7 +39,7 @@ use Energietracker\Controllers\{
     StromSaldoController, PvSummaryController, HealthController, DemoController,
     AuthController, IngestController, SessionController, ManifestController, AgendaController,
     AttachmentController, PeriodController, TenancyController, Co2Controller, BillController, MarketPriceController, EvChargingController, HeatPumpController,
-    SeriesImportController
+    SeriesImportController, EvccController
 };
 
 /**
@@ -108,6 +108,7 @@ final class App
     public HeatPumpService $heatPumps;      // v3.1.0 (H7, MKT-18)
     public SeriesImportService $seriesImport; // v3.1.0 (H8, MKT-19)
     public ReferenceService $references;    // v3.1.0 (H8, MKT-11)
+    public EvccService $evcc;               // v3.2.0 (F1022)
 
     public function __construct(string $dataDir)
     {
@@ -205,6 +206,8 @@ final class App
         // v3.1.0 (Paket H2) — Belege und Texterkennung im Heimnetz
         $this->attachments  = new AttachmentService($this->store, $this->settings, $this->i18n);
         $this->ocr          = new OcrService($this->settings, $this->attachments);
+        // v3.2.0 (F1022) — Ladevorgänge aus evcc (CSV oder Abruf im Heimnetz)
+        $this->evcc         = new EvccService($this->store, $this->meters, $this->readings, $this->readingImport, $this->settings);
 
         // Auto-migrate or initialize on first run.
         // Reihenfolge wichtig: ein komplett leeres Verzeichnis (echter
@@ -229,8 +232,10 @@ final class App
                 $result = $migrator->runOnStartup(fn(string $from): string => $this->backups->saveSnapshot(
                     'pre-migration-' . preg_replace('/[^0-9A-Za-z.]/', '', $from) . '_'
                 ));
-                if ($firstStart !== null && ($result['action'] ?? null) === 'fresh' && $firstStart !== []) {
-                    $this->settings->set($firstStart);
+                // v3.2.0 (F1018) — eine Neuinstallation beginnt mit dem
+                // Einrichtungsassistenten; nach einem Update nie
+                if ($firstStart !== null && ($result['action'] ?? null) === 'fresh') {
+                    $this->settings->set($firstStart + ['setup_pending' => true]);
                 }
                 $this->logStartup($result, $dataDir);
             } finally {
@@ -369,6 +374,11 @@ final class App
         if ($this->readOnlyKey && !in_array($req->method, ['GET', 'HEAD', 'OPTIONS'], true)) {
             Response::error($this->i18n->t('errors.auth.readOnlyKey'), 403, null, 'errors.auth.readOnlyKey');
         }
+        // v3.2.0 (F1023) — Mitglieder erfassen und sehen alles; Zugriff,
+        // Backups einspielen und Netzadressen ändern nur Verwalter
+        if ($this->role === 'member' && $this->adminOnly($req)) {
+            Response::error($this->i18n->t('errors.auth.adminOnly'), 403, null, 'errors.auth.adminOnly');
+        }
 
         if (in_array($req->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             $this->writeLock->acquire();   // endet mit dem Prozess der Anfrage
@@ -380,6 +390,44 @@ final class App
     private bool $authenticated = false;
     /** v2.6.0 — die Anfrage kam mit einem API-Schlüssel, der nur lesen darf. */
     private bool $readOnlyKey = false;
+    /** v3.2.0 (F1023) — angemeldete Person dieser Anfrage (ohne Anmeldung: null) */
+    private ?string $userId = null;
+    /** v3.2.0 (F1023) — admin | member; ohne Anmeldung darf jeder alles (admin) */
+    private string $role = 'admin';
+
+    /**
+     * v3.2.0 (F1023) — Routen nur für Verwalter: Personen, API-Schlüssel,
+     * Ingest-Token und Anmeldung; Backups und Beispieldaten einspielen (beides
+     * ersetzt alle Daten); Einstellungen, die die App mit anderen Adressen
+     * sprechen lassen — bei diesen zählt nur eine echte Änderung: Die Seite
+     * „Experte“ schickt alle ihre Felder mit, auch unveränderte Adressen.
+     */
+    private function adminOnly(Request $req): bool
+    {
+        $p = $req->path;
+        if (str_starts_with($p, '/api/users') || str_starts_with($p, '/api/auth/')) return true;
+        if ($p === '/api/session/password') return true;
+        if ($req->method === 'POST' && ($p === '/api/backup/import' || $p === '/api/demo/import'
+            || preg_match('#^/api/backup/snapshots/[^/]+/restore$#', $p))) return true;
+        if (in_array($req->method, ['PATCH', 'PUT', 'POST'], true) && $p === '/api/settings' && is_array($req->body)) {
+            foreach (self::ADMIN_SETTINGS as $k) {
+                if (array_key_exists($k, $req->body)
+                    && trim((string)$req->body[$k]) !== trim((string)$this->settings->get($k, ''))) return true;
+            }
+        }
+        return false;
+    }
+
+    /** Einstellungen, die nur Verwalter ändern (Einbettung, Adressen im Netz). */
+    private const ADMIN_SETTINGS = ['frame_ancestors', 'ocr_endpoint', 'evcc_endpoint'];
+
+    /** v3.2.0 — Person dieser Anfrage (öffentlich, mit Einstellungen), sonst null. */
+    public function currentUser(): ?array
+    {
+        if ($this->userId === null) return null;
+        $u = $this->auth->userById($this->userId);
+        return $u === null ? null : AuthService::publicUser($u);
+    }
 
     /**
      * Angemeldet: Anmeldung aus, gültiges Sitzungs-Cookie, API-Schlüssel
@@ -398,14 +446,24 @@ final class App
         if ($req->path === '/api/calendar.ics' && $feedToken !== null && $feedToken !== '') {
             return $this->auth->apiKeyScope($feedToken) === 'calendar';
         }
-        if ($this->auth->validSession($_COOKIE[AuthService::COOKIE] ?? null)) return true;
+        $sessionUser = $this->auth->sessionUserId($_COOKIE[AuthService::COOKIE] ?? null);
+        if ($sessionUser !== null) {
+            $this->userId = $sessionUser;
+            $this->role = (string)($this->auth->userById($sessionUser)['role'] ?? 'member');
+            return true;
+        }
         $scope = $this->auth->apiKeyScope($req->bearerToken());
         if ($scope === 'calendar') return false;
         if ($scope !== null) {
             $this->readOnlyKey = $scope === 'read';
             return true;
         }
-        return $mode === 'proxy' && $this->auth->proxyUser($_SERVER) !== null;
+        $proxyName = $mode === 'proxy' ? $this->auth->proxyUser($_SERVER) : null;
+        if ($proxyName === null) return false;
+        $user = $this->auth->proxyUserRecord($proxyName);
+        $this->userId = (string)$user['id'];
+        $this->role = (string)($user['role'] ?? 'member');
+        return true;
     }
 
     /**
@@ -520,6 +578,12 @@ final class App
         // v3.1.0 (H8, MKT-19) — Zeitreihe mit Spaltenzuordnung (Body: {csv, mapping})
         $siCtrl = new SeriesImportController($this->seriesImport);
         $r->post('/api/utility/{utility}/meters/{id}/import-series', fn($req) => $siCtrl->import($req));
+
+        // v3.2.0 (F1022) — Ladevorgänge aus evcc: CSV-Export oder Abruf im Heimnetz
+        $evccCtrl = new EvccController($this->evcc, $this->i18n);
+        $r->post('/api/utility/strom/meters/{id}/import-evcc', fn($req) => $evccCtrl->importCsv($req));
+        $r->post('/api/utility/strom/meters/{id}/sync-evcc',   fn($req) => $evccCtrl->sync($req));
+        $r->get('/api/ev-sessions',                            fn($req) => $evccCtrl->sessions($req));
 
         // v3.1.0 (Paket H5) — Versorgerrechnungen erfassen, prüfen, buchen
         $billCtrl = new BillController($this->bills);
@@ -675,7 +739,8 @@ final class App
         $r->get('/api/health', fn($req) => $hCtrl->index($req));
 
         // ── v2.6.0 — Anmeldung (opt-in) und API-Schlüssel ──
-        $sessCtrl = new SessionController($this->auth, $this->i18n, fn(): bool => $this->authenticated);
+        $sessCtrl = new SessionController($this->auth, $this->i18n, fn(): bool => $this->authenticated,
+            fn(): ?array => $this->currentUser(), fn(): string => $this->role);
         $r->get('/api/session',              fn($req) => $sessCtrl->status($req));
         $r->post('/api/session',             fn($req) => $sessCtrl->login($req));
         $r->delete('/api/session',           fn($req) => $sessCtrl->logout($req));
@@ -684,6 +749,14 @@ final class App
         $r->get('/api/auth/keys',            fn($req) => $sessCtrl->listKeys($req));
         $r->post('/api/auth/keys',           fn($req) => $sessCtrl->createKey($req));
         $r->delete('/api/auth/keys/{id}',    fn($req) => $sessCtrl->revokeKey($req));
+        // v3.2.0 (F1023) — Benutzer im Haushalt: eigene Einstellungen, eigenes
+        // Passwort; Personen verwalten nur Verwalter (adminOnly)
+        $r->patch('/api/session/me',          fn($req) => $sessCtrl->updateMe($req));
+        $r->post('/api/session/me/password',  fn($req) => $sessCtrl->changeMyPassword($req));
+        $r->get('/api/users',                 fn($req) => $sessCtrl->listUsers($req));
+        $r->post('/api/users',                fn($req) => $sessCtrl->createUser($req));
+        $r->patch('/api/users/{id}',          fn($req) => $sessCtrl->updateUser($req));
+        $r->delete('/api/users/{id}',         fn($req) => $sessCtrl->deleteUser($req));
 
         // ── F1007 (v1.7.4) — Demo-Daten-Komfort-Import ──
         $demoCtrl = new DemoController($this->demo);

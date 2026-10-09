@@ -60,6 +60,10 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   [Home Assistant anbinden](../anleitungen/home-assistant.md). ioBroker,
   Node-RED und openHAB schicken Stände über denselben Weg — siehe
   [Andere Systeme](../anleitungen/andere-systeme.md).
+- **Ladevorgänge aus evcc** (v3.2.0): den CSV-Export aus evcc hochladen oder
+  direkt bei evcc im Heimnetz abrufen, mit Vorschau; je Monat Menge,
+  Sonnenanteil und der Preis laut evcc, die Zählerstände der Wallbox gleich
+  mit — siehe [Ladevorgänge aus evcc](../anleitungen/evcc.md).
 - **Zeitreihen aus Portalen** (v3.1.0): Dateien von Netzbetreiber,
   Messstellenbetreiber, Wechselrichter oder Wärmepumpe — Viertelstunden-,
   Stunden- oder Tageswerte — mit Spaltenzuordnung einlesen, zu Tageswerten
@@ -149,6 +153,11 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 
 ## Verstehen und vorhersehen
 
+- **Schaubilder** (v3.2.0): „Wohin geht mein Geld?“, „Energiefluss im Haus“,
+  „Kälter oder mehr verbraucht?“ und „Vertrag auf einen Blick“ — bewegte
+  Erklärbilder mit den eigenen Zahlen, still bei „Bewegung reduzieren“, mit
+  der Aussage als Text — siehe
+  [Einrichten und Nutzungsstufen](einrichtung.md#4-schaubilder).
 - **Heizgradtage** vom eigenen Standort gegen die Heizgrenze (Standard
   15 °C), dazu ein **Heizmodell** mit Grundlast und die **Wetterbereinigung**:
   „mehr verbraucht oder nur kälter?“ — jeder Monat gegen seine Erwartung bei
@@ -167,7 +176,8 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   CO₂-Preis).
 - **Anomalien** (Monate weit weg von ihrer Erwartung), **Jahresvergleich**
   Monat für Monat und **Wasser-Spar-Index** je Person.
-- **Effizienz** in kWh/m²·a — Klassen A+ bis H nach GEG, nur für ganze Jahre —
+- **Effizienz** in kWh/m²·a — Klassen A+ bis H nach GModG (bis Juli 2026
+  GEG), nur für ganze Jahre —
   und daneben eine **energieausweis-nahe Kennzahl** (Heizwert,
   witterungsbereinigt, Gebäudenutzfläche).
 - **Heizwärme** (v3.1.0): die Wärme, die in der Wohnung ankommt, als eigene
@@ -217,8 +227,18 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   CO₂-Faktor, Gaseinheiten und die Begriffe der Rechnung des Landes — siehe
   [Länderprofile](../verstehen/14-laenderprofile.md).
 - **Hell, dunkel oder wie das System**.
+- **Nutzungsstufen** (v3.2.0): Einsteiger, Erfahren oder Experte — die Stufe
+  bestimmt, was die Oberfläche zeigt, gerechnet wird in jeder alles. Für
+  Einsteiger eine Übersicht mit drei Antworten; Vorschläge zum Hochstufen,
+  wenn die Daten mehr hergeben — siehe
+  [Einrichten und Nutzungsstufen](einrichtung.md#3-nutzungsstufen).
+- **Einrichtungsassistent** (v3.2.0) beim ersten Start: drei Fragen, danach
+  passende Verbrauchsarten und Stufe; jederzeit erneut aus den Einstellungen.
 - **Beispieldaten** zum Ausprobieren, ohne die eigenen zu verlieren (vorher
-  sichert die App den jetzigen Stand).
+  sichert die App den jetzigen Stand); seit v3.2.0 vier Beispielhaushalte —
+  Mietwohnung, Eigentumswohnung mit Fernwärme, Eigenheim klassisch und
+  modern — neben dem Schaufenster mit fast allen Verbrauchsarten — siehe
+  [Einrichten und Nutzungsstufen](einrichtung.md#2-die-beispielhaushalte).
 
 ## Betreiben
 
@@ -237,6 +257,10 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   API-Schlüssel mit Lese- oder Verwaltungsrecht und eigene Schlüssel nur für
   das Kalender-Abo — siehe
   [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
+- **Benutzer im Haushalt** (v3.2.0): mit Anmeldung eigene Personen mit Name
+  und Passwort oder vom Proxy gemeldet, Rollen Verwaltung und Mitglied,
+  Stufe und Sprache je Person — siehe
+  [Benutzer im Haushalt](../anleitungen/benutzer.md).
 - **Diagnose** unter Einstellungen → System und `GET /api/health` für
   Docker-Healthcheck und Uptime-Monitore.
 - **Offene REST-API** mit Stabilitätszusage — siehe

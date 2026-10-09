@@ -5,7 +5,7 @@
 name: energietracker
 services:
   energietracker:
-    image: ghcr.io/bingerminger/energietracker:3.1.0
+    image: ghcr.io/bingerminger/energietracker:3.2.0
     container_name: energietracker
     restart: unless-stopped
     ports:
@@ -22,7 +22,7 @@ services:
 
 x-casaos:
   id: io.github.bingerminger.energietracker
-  version: "3.1.0"
+  version: "3.2.0"
   architectures:
     - amd64
     - arm64

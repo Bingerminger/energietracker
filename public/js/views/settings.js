@@ -20,6 +20,9 @@ import { setBillContext } from '../components/info.js';
 import { CV_UNITS, cvUnit, gasFactorOf } from '../lib/gas-factor.js';
 import { buildSidebar } from '../lib/sidebar.js';
 import { copyText as copyToClipboard } from '../lib/clipboard.js';
+// v3.2.0 (F1018, F1019, F1023) — Nutzungsstufe, Einrichtungsassistent, Personen
+import { LEVELS, LEVEL_ICONS, currentLevel, saveLevel } from '../lib/levels.js';
+import { openSetupWizard } from '../components/setup-wizard.js';
 
 // Each group renders as a settings card. `hint` is an optional explanatory
 // line under the card title; each field may carry its own `hint` too.
@@ -29,12 +32,13 @@ import { copyText as copyToClipboard } from '../lib/clipboard.js';
 // (kWh/m³, °C, σ …) bleiben literal.
 const GROUPS = [
   // ── Allgemein ──
-  { gkey: 'dashboard', page: 'general', icon: '🏠', fields: [
+  // v3.2.0 (F1019) — level: ab welcher Nutzungsstufe die Gruppe erscheint
+  { gkey: 'dashboard', page: 'general', icon: '🏠', level: 'advanced', fields: [
     { key: 'dashboard_months',         step: '1' },
     { key: 'forecast_months',          unitKey: 'settings.unit.months', step: '1' },
     { key: 'alert_days_since_reading', unitKey: 'settings.unit.daysNoReading', step: '1' },
   ]},
-  { gkey: 'contractReminders', page: 'general', icon: '🔔', fields: [
+  { gkey: 'contractReminders', page: 'general', icon: '🔔', level: 'advanced', fields: [
     { key: 'contract_remind_days_1', unitKey: 'settings.unit.days', step: '1' },
     { key: 'contract_remind_days_2', unitKey: 'settings.unit.days', step: '1' },
     { key: 'contract_remind_days_3', unitKey: 'settings.unit.days', step: '1' },
@@ -58,13 +62,13 @@ const GROUPS = [
     { key: 'warmwasser_temp_c', unit: '°C', step: '1' },
   ]},
   // v3.1.0 (H8, MKT-11) — Einordnung mit eigenen Vergleichswerten (z. B. aus Strom-/Heizspiegel)
-  { gkey: 'reference', page: 'household', icon: '📏', fields: [
+  { gkey: 'reference', page: 'household', icon: '📏', level: 'advanced', fields: [
     { key: 'reference_strom_kwh',   unit: 'kWh/a', step: '1' },
     { key: 'reference_heat_kwh_m2', unit: 'kWh/m²·a', step: '1' },
     { key: 'reference_source',      type: 'text', placeholderKey: 'settings.placeholder.referenceSource' },
     { key: 'warmwasser_elektrisch', type: 'bool' },
   ]},
-  { gkey: 'water', page: 'household', icon: '💧', fields: [
+  { gkey: 'water', page: 'household', icon: '💧', level: 'advanced', fields: [
     { key: 'wasser_personen_anzahl',   step: '1' },
     { key: 'wasser_personen_referenz', unitKey: 'settings.unit.lPerPersonDay', step: '1' },
     { key: 'wasser_sparindex_gut',     step: '1' },
@@ -83,18 +87,18 @@ const GROUPS = [
     // rechnet dagegen nach einem, das Feld fehlte
     { key: 'billing_cycle_anchor_pv_einspeisung', type: 'datemd', placeholderKey: 'settings.placeholder.dayMonth' },
   ]},
-  { gkey: 'physical', page: 'utilities', icon: '🔬', wide: true, fields: [
+  { gkey: 'physical', page: 'utilities', icon: '🔬', wide: true, level: 'advanced', fields: [
     // v2.5.0 — F1012: datierte Liste (Zustandszahl × Brennwert je Stichtag)
     // statt eines Skalars. Eigener Feldtyp, siehe renderGasFactors().
     { key: 'gas_conversion_factors', type: 'gasfactors' },
     { key: 'hdd_base_temp', unit: '°C', step: '0.5' },
   ]},
-  { gkey: 'delivery', page: 'utilities', icon: '🛢️', fields: [
+  { gkey: 'delivery', page: 'utilities', icon: '🛢️', level: 'advanced', fields: [
     { key: 'heizoel_kwh_per_l', unit: 'kWh/L', step: '0.1' },
     { key: 'pellets_kwh_per_kg', unit: 'kWh/kg', step: '0.1' },
     { key: 'tank_warn_pct', unitKey: 'settings.unit.pctRemaining', step: '1' },
   ]},
-  { gkey: 'co2', page: 'utilities', icon: '🌍', fields: [
+  { gkey: 'co2', page: 'utilities', icon: '🌍', level: 'expert', fields: [
     { key: 'co2_gas',    unit: 'g/kWh', step: '1' },
     { key: 'co2_strom',  unit: 'g/kWh', step: '1' },
     // v2.10.0 (CALC-19) — Strom je Jahr (Umweltbundesamt), eigener Feldtyp
@@ -108,7 +112,7 @@ const GROUPS = [
     { key: 'co2_pv_avoided', unit: 'g/kWh', step: '1' },
   ]},
   // v3.1.0 (H7, CALC-29) — Balkonkraftwerk ohne Einspeisezähler
-  { gkey: 'pv', page: 'utilities', icon: '☀️', fields: [
+  { gkey: 'pv', page: 'utilities', icon: '☀️', level: 'expert', fields: [
     { key: 'pv_assumed_self_consumption_pct', unit: '%', step: '1' },
   ]},
   // ── Zugriff ──
@@ -151,6 +155,10 @@ const GROUPS = [
     { key: 'ocr_model',     type: 'text', placeholderKey: 'settings.placeholder.ocrModel' },
     { key: 'ocr_timeout_s', unitKey: 'settings.unit.seconds', step: '1' },
   ]},
+  // v3.2.0 (F1022) — Ladevorgänge aus evcc abrufen, nur im Heimnetz
+  { gkey: 'evcc', page: 'expert', icon: '🚗', visible: true, fields: [
+    { key: 'evcc_endpoint', type: 'text', placeholderKey: 'settings.placeholder.evccEndpoint' },
+  ]},
   // Der Standort steht seit v2.12.0 nur noch bei den Wetterdaten (temperatures.js).
 ];
 
@@ -189,7 +197,7 @@ export async function render(container, params = [], ctx = {}) {
     needs('utilities', 'data', 'integrations') ? api.listUtilities().catch(() => []) : [],
     needs('integrations') ? api.authStatus().catch(() => ({ enabled: false, created_at: null })) : null,
     // v2.6.0 — Anmeldung, API-Schlüssel, gespeicherte Snapshots
-    needs('access', 'integrations') ? api.session().catch(() => ({ mode: 'off', authenticated: true })) : null,
+    needs('general', 'access', 'integrations') ? api.session().catch(() => ({ mode: 'off', authenticated: true })) : null,
     needs('access') ? api.apiKeys().catch(() => []) : [],
     needs('data') ? api.snapshots().catch(() => []) : [],
     // v2.7.0 — Länderprofile für die Karte „Sprache & Land"
@@ -199,6 +207,14 @@ export async function render(container, params = [], ctx = {}) {
     // v3.1.0 (H2) — Belege: Anzahl und Speicher für die Backup-Karte
     needs('data') ? api.attachments().catch(() => null) : null,
   ]);
+
+  // v3.2.0 (F1023) — Personen im Haushalt (nur Verwalter, nur mit Anmeldung)
+  const isAdmin = (session?.role || 'admin') === 'admin';
+  // Mit Anmeldung ist die Sprachwahl die der Person (auf allen ihren Geräten)
+  const signedIn = !!(session?.user && session.mode !== 'off');
+  const personLang = { signedIn, value: signedIn ? (session.user?.prefs?.language || null) : deviceLanguage() };
+  const users = page === 'access' && isAdmin && session?.mode && session.mode !== 'off'
+    ? await api.users().catch(() => []) : [];
 
   // F1009 — Zähler je (nicht-Delivery-)Utility für die Alias-Verwaltung laden.
   const haUtilities = (utilities || []).filter(u => u.reading_kind !== 'delivery');
@@ -218,15 +234,17 @@ export async function render(container, params = [], ctx = {}) {
   const visibleHtml = page === 'expert' ? grid(groups.filter(g => g.visible)) : '';
   const bodies = {
     general: `
+      ${renderLevelCard(session)}
+      ${renderMyAccountCard(session)}
       <div class="card settings-card">
         <h2 class="card__title">${t('settings.lang.title')}</h2>
         <p class="settings-card__hint">${t('settings.lang.hint')}</p>
         <div class="settings-fields">
           <div class="field settings-field">
-            <label for="lang-select">${t('settings.lang.deviceLabel')}</label>
+            <label for="lang-select">${t(personLang.signedIn ? 'settings.lang.personLabel' : 'settings.lang.deviceLabel')}</label>
             <select class="select" id="lang-select">
-              <option value="" ${deviceLanguage() ? '' : 'selected'}>${escapeHtml(t('settings.lang.deviceFollow', { lang: getLanguages()[settings.language] || getLanguages()[getLocale()] || '' }))}</option>
-              ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === deviceLanguage() ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
+              <option value="" ${personLang.value ? '' : 'selected'}>${escapeHtml(t('settings.lang.deviceFollow', { lang: getLanguages()[settings.language] || getLanguages()[getLocale()] || '' }))}</option>
+              ${Object.entries(getLanguages()).map(([code, name]) => `<option value="${code}" ${code === personLang.value ? 'selected' : ''}>${escapeHtml(name)}</option>`).join('')}
             </select>
           </div>
           <div class="field settings-field">
@@ -267,7 +285,10 @@ export async function render(container, params = [], ctx = {}) {
         <a class="btn btn--ghost btn--sm" href="#/report">${escapeHtml(t('nav.report'))}</a>
       </div>`,
     integrations: renderHomeAssistantCard(authStatus, haUtilities, metersByUtility, session),
-    access: `${renderSecurityCard(session, apiKeys)}${groupsHtml}`,
+    // v3.2.0 (F1023) — Mitglieder sehen nur, wer den Zugriff verwaltet
+    access: isAdmin
+      ? `${renderSecurityCard(session, apiKeys)}${renderUsersCard(users, session)}${groupsHtml}`
+      : `<div class="card settings-card"><p class="muted">${escapeHtml(t('settings.users.memberHint'))}</p></div>`,
     expert: `
       ${visibleHtml}
       <details class="settings-expert">
@@ -379,6 +400,8 @@ export async function render(container, params = [], ctx = {}) {
   container.querySelector('#lang-select')?.addEventListener('change', async (e) => {
     const lang = e.target.value || null;
     setDeviceLanguage(lang);
+    // v3.2.0 (F1023) — mit Anmeldung ist es die Sprache der Person (auf jedem Gerät)
+    if (session?.user && session.mode !== 'off') api.updateMe({ language: lang }).catch(() => {});
     try { await applyLanguage(lang || settings.language); }
     catch (err) { toastErr(err.message); }
   });
@@ -412,6 +435,8 @@ export async function render(container, params = [], ctx = {}) {
 
   if (page === 'data') wireDataPage(container, utilities, () => render(container, params, ctx));
   if (page === 'access') wireAccessPage(container, () => render(container, params, ctx));
+  if (page === 'access') wireUsersCard(container, session, () => render(container, params, ctx));
+  if (page === 'general') wireLevelCard(container, session);
   if (page === 'integrations') wireIntegrationsPage(container, () => render(container, params, ctx));
 
   // Der Router ruft diese Funktion beim Verlassen der Ansicht auf.
@@ -1081,6 +1106,152 @@ function haSensorMeters(haUtilities, metersByUtility) {
 // wie bisher. Die Karte zeigt den Modus, schaltet die Passwort-Anmeldung ein
 // und aus und verwaltet API-Schlüssel für Skripte. Was über Umgebungsvariablen
 // festgelegt ist (ET_AUTH, ET_ADMIN_PASSWORD_HASH), lässt sich hier nicht ändern.
+// ── v3.2.0 (F1019, F1018) — Nutzungsstufe und Einrichtung ───────────────
+
+function renderLevelCard(session) {
+  const person = session?.user && session.mode !== 'off' ? session.user.name : null;
+  return `
+    <div class="card settings-card">
+      <h2 class="card__title"><span aria-hidden="true">🌱</span> ${escapeHtml(t('settings.level.title'))}</h2>
+      <p class="settings-card__hint">${escapeHtml(person ? t('settings.level.hintPerson', { name: person }) : t('settings.level.hint'))}</p>
+      <div class="settings-fields">
+        <div class="field settings-field">
+          <label for="level-select-settings">${escapeHtml(t('level.switch'))}</label>
+          <select class="select" id="level-select-settings">
+            ${LEVELS.map(l => `<option value="${l}" ${l === currentLevel() ? 'selected' : ''}>${LEVEL_ICONS[l]} ${escapeHtml(t('level.' + l))}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <ul class="settings-level-list">
+        ${LEVELS.map(l => `<li><strong>${LEVEL_ICONS[l]} ${escapeHtml(t('level.' + l))}</strong> — ${escapeHtml(t('settings.level.describe.' + l))}</li>`).join('')}
+      </ul>
+      <div class="section-actions">
+        <button type="button" class="btn btn--ghost" id="btn-setup-wizard">${escapeHtml(t('setup.restart'))}</button>
+        <a class="btn btn--ghost" href="${escapeHtml(docUrl('setup'))}" target="_blank" rel="noopener">${escapeHtml(t('common.guide'))}</a>
+      </div>
+    </div>`;
+}
+
+function wireLevelCard(container, session) {
+  container.querySelector('#level-select-settings')?.addEventListener('change', async (e) => {
+    try { await saveLevel(e.target.value); toastOk(t('settings.level.saved')); }
+    catch (err) { toastErr(err.message); e.target.value = currentLevel(); }
+  });
+  container.querySelector('#btn-setup-wizard')?.addEventListener('click', () => openSetupWizard({ session }));
+  wireMyAccount(container);
+}
+
+// ── v3.2.0 (F1023) — Mein Konto und Personen im Haushalt ─────────────────
+
+function renderMyAccountCard(session) {
+  const u = session?.user;
+  if (!u || session.mode === 'off') return '';
+  const pw = (id, key, ac) => `<div class="field"><label for="${id}">${escapeHtml(t(key))}</label>
+    <input class="input input--text" id="${id}" type="password" autocomplete="${ac}"></div>`;
+  return `
+    <div class="card settings-card">
+      <h2 class="card__title"><span aria-hidden="true">👤</span> ${escapeHtml(t('settings.me.title', { name: u.name }))}</h2>
+      <p class="settings-card__hint">${escapeHtml(t('settings.users.role.' + (session.role || u.role)))}</p>
+      ${u.source === 'password' ? `
+      <div class="form-row" style="align-items:flex-end">
+        ${pw('me-current', 'settings.security.currentPassword', 'current-password')}
+        ${pw('me-new', 'settings.security.newPassword', 'new-password')}
+        <div class="field"><button type="button" class="btn" id="btn-me-password">${escapeHtml(t('settings.security.change'))}</button></div>
+      </div>` : `<p class="muted small">${escapeHtml(t('settings.me.proxyHint'))}</p>`}
+    </div>`;
+}
+
+function wireMyAccount(container) {
+  container.querySelector('#btn-me-password')?.addEventListener('click', async () => {
+    const cur = container.querySelector('#me-current')?.value || '';
+    const next = container.querySelector('#me-new')?.value || '';
+    if (next.length < 8) { toastErr(t('errors.auth.passwordTooShort', { min: 8 })); return; }
+    try {
+      await api.changeMyPassword(cur, next);
+      container.querySelector('#me-current').value = '';
+      container.querySelector('#me-new').value = '';
+      toastOk(t('settings.me.passwordChanged'));
+    } catch (e) { toastErr(e.message); }
+  });
+}
+
+function renderUsersCard(users, session) {
+  if (!session?.mode || session.mode === 'off') return '';
+  const meId = session.user?.id;
+  const roleSelect = (u) => `<select class="select select--sm" data-user-role="${escapeHtml(u.id)}" aria-label="${escapeHtml(t('settings.users.roleLabel', { name: u.name }))}">
+      ${['admin', 'member'].map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${escapeHtml(t('settings.users.role.' + r))}</option>`).join('')}
+    </select>`;
+  return `
+    <div class="card settings-card settings-card--wide">
+      <h2 class="card__title"><span aria-hidden="true">👥</span> ${escapeHtml(t('settings.users.title'))}</h2>
+      <p class="settings-card__hint">${escapeHtml(t(session.mode === 'proxy' ? 'settings.users.hintProxy' : 'settings.users.hint'))}
+        <a href="${escapeHtml(docUrl('users'))}" target="_blank" rel="noopener">${escapeHtml(t('common.guide'))}</a></p>
+      <table class="table">
+        <thead><tr><th>${escapeHtml(t('settings.users.name'))}</th><th>${escapeHtml(t('settings.users.roleHead'))}</th><th></th></tr></thead>
+        <tbody>
+          ${(users || []).map(u => `<tr>
+            <td>${escapeHtml(u.name)}${u.id === meId ? ` <span class="muted small">(${escapeHtml(t('settings.users.you'))})</span>` : ''}</td>
+            <td>${roleSelect(u)}</td>
+            <td class="row-actions">
+              ${u.source === 'password' ? `<button type="button" class="btn btn--sm btn--ghost" data-user-password="${escapeHtml(u.id)}">${escapeHtml(t('settings.users.resetPassword'))}</button>` : ''}
+              ${u.id === meId ? '' : `<button type="button" class="btn btn--sm btn--danger btn--quiet" data-user-delete="${escapeHtml(u.id)}">${escapeHtml(t('settings.users.delete'))}</button>`}
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      ${session.mode === 'password' ? `
+      <h3 class="settings-subtitle">${escapeHtml(t('settings.users.add'))}</h3>
+      <div class="form-row" style="align-items:flex-end">
+        <div class="field"><label for="user-new-name">${escapeHtml(t('settings.users.name'))}</label>
+          <input class="input input--text" id="user-new-name" autocomplete="off" maxlength="40"></div>
+        <div class="field"><label for="user-new-password">${escapeHtml(t('settings.security.newPassword'))}</label>
+          <input class="input input--text" id="user-new-password" type="password" autocomplete="new-password"></div>
+        <div class="field"><label for="user-new-role">${escapeHtml(t('settings.users.roleHead'))}</label>
+          <select class="select" id="user-new-role">${['member', 'admin'].map(r => `<option value="${r}">${escapeHtml(t('settings.users.role.' + r))}</option>`).join('')}</select></div>
+        <div class="field"><button type="button" class="btn btn--primary" id="btn-user-add">${escapeHtml(t('settings.users.addButton'))}</button></div>
+      </div>` : ''}
+    </div>`;
+}
+
+function wireUsersCard(container, session, rerender) {
+  container.querySelector('#btn-user-add')?.addEventListener('click', async () => {
+    const name = container.querySelector('#user-new-name').value.trim();
+    const password = container.querySelector('#user-new-password').value;
+    const role = container.querySelector('#user-new-role').value;
+    if (password.length < 8) { toastErr(t('errors.auth.passwordTooShort', { min: 8 })); return; }
+    try { await api.createUser({ name, password, role }); toastOk(t('settings.users.added', { name })); rerender(); }
+    catch (e) { toastErr(e.message); }
+  });
+  container.querySelectorAll('[data-user-role]').forEach(sel => sel.addEventListener('change', async () => {
+    try { await api.updateUser(sel.getAttribute('data-user-role'), { role: sel.value }); toastOk(t('settings.users.saved')); }
+    catch (e) { toastErr(e.message); rerender(); }
+  }));
+  container.querySelectorAll('[data-user-password]').forEach(btn => btn.addEventListener('click', () => {
+    openModal({
+      title: t('settings.users.resetPassword'),
+      body: `<div class="field"><label for="user-reset-pw">${escapeHtml(t('settings.security.newPassword'))}</label>
+        <input class="input input--text" id="user-reset-pw" type="password" autocomplete="new-password"></div>`,
+      footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
+        <button type="button" class="btn btn--primary" data-act="ok">${escapeHtml(t('common.save'))}</button>`,
+      onMount({ modalEl, close }) {
+        modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
+        modalEl.querySelector('[data-act="ok"]').addEventListener('click', async () => {
+          const pw = modalEl.querySelector('#user-reset-pw').value;
+          if (pw.length < 8) { toastErr(t('errors.auth.passwordTooShort', { min: 8 })); return; }
+          try { await api.updateUser(btn.getAttribute('data-user-password'), { password: pw }); close(true); toastOk(t('settings.users.saved')); }
+          catch (e) { toastErr(e.message); }
+        });
+      },
+    });
+  }));
+  container.querySelectorAll('[data-user-delete]').forEach(btn => btn.addEventListener('click', async () => {
+    const ok = await confirmModal({ title: t('settings.users.delete'), message: t('settings.users.deleteConfirm'), confirmLabel: t('settings.users.delete'), danger: true });
+    if (!ok) return;
+    try { await api.deleteUser(btn.getAttribute('data-user-delete')); rerender(); }
+    catch (e) { toastErr(e.message); }
+  }));
+}
+
 function renderSecurityCard(session, keys) {
   const mode = ['off', 'password', 'proxy'].includes(session?.mode) ? session.mode : 'off';
   const modeFixed = !!session?.mode_fixed;
@@ -1104,8 +1275,10 @@ function renderSecurityCard(session, keys) {
       </div>
       <p class="settings-field__hint">${t('settings.security.enableHint')}</p>`;
   } else if (mode === 'password') {
+    // v3.2.0 (F1023) — mit Personen ändert jede ihr Passwort unter „Mein Konto“
     body = pwFixed
       ? `<p class="settings-field__hint">${t('settings.security.passwordFixed')}</p>`
+      : session?.named_login ? `<p class="settings-field__hint">${t('settings.users.passwordHint')}</p>`
       : `<div class="form-row" style="align-items:flex-end">
           ${pwField('sec-current', 'settings.security.currentPassword', 'current-password')}
           ${pwField('sec-new', 'settings.security.newPassword', 'new-password')}
@@ -1337,7 +1510,7 @@ function haAutomationEntries(haUtilities, metersByUtility) {
 
 function renderGroup(g, settings) {
   return `
-    <div class="card settings-card${g.wide ? ' settings-card--wide' : ''}">
+    <div class="card settings-card${g.wide ? ' settings-card--wide' : ''}"${g.level ? ` data-min-level="${g.level}"` : ''}>
       <h2 class="card__title">${g.icon ? `<span aria-hidden="true">${g.icon}</span> ` : ''}${t('settings.group.' + g.gkey + '.title')}</h2>
       <p class="settings-card__hint">${t('settings.group.' + g.gkey + '.hint')}</p>
       <div class="settings-fields">

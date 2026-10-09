@@ -12,6 +12,14 @@ Quadratmeter ausstößt, desto größer ist der Anteil des Vermieters. Seit
 Gastherme fordert er ihn für dich an, bei einer Zentralheizung prüft er die
 Heizkostenabrechnung nach.
 
+Seit dem 29.07.2026 regelt das Gesetz außerdem neu eingebaute Gas- und
+Ölheizungen nach § 43 des Gebäudemodernisierungsgesetzes (GModG; so heißt das
+GEG seit Juli 2026): Dort tragen Mieter und Vermieter ab 2028 die Gasnetzentgelte und die
+CO₂-Kosten und ab 2029 die Kosten der vorgeschriebenen Brennstoffanteile (etwa
+Biomethan) je zur Hälfte, mit einer Härtefallregel (§§ 5a–5d CO2KostAufG,
+Stand 09.10.2026). Das rechnet die App nicht. Die zehn Stufen unten gelten
+unverändert.
+
 > **Eine Hilfsrechnung, keine Rechtsberatung.** Die App rechnet mit deinen
 > Daten und den Regeln des Gesetzes, beurteilt aber nicht, ob und wie sie im
 > Einzelfall gelten. Bei Fragen helfen Mietervereine oder eine Rechtsberatung.
@@ -85,8 +93,8 @@ Kalenderjahres mit dem Standardfaktor des BEHG und dem CO₂-Preis des Jahres.
 prüfen**, Karte **„Laut Rechnung“**
 ([Jahresabrechnung](jahresabrechnung.md#7-laut-rechnung-erfassen-vergleichen-buchen)):
 dort **„Emissionen (kg CO₂)“** und **„CO₂-Kosten laut Rechnung“** so, wie sie
-auf der Rechnung stehen — der Lieferant weist sie netto aus —, und das
-**Rechnungsdatum**. Dann rechnet die App mit den Werten des Lieferanten, und
+auf der Rechnung stehen — der Lieferant weist den Betrag mit Umsatzsteuer aus
+(§ 3 Abs. 3) —, und das **Rechnungsdatum**. Dann rechnet die App mit den Werten des Lieferanten, und
 aus dem Rechnungsdatum entsteht die Frist.
 
 **3. Kürzungen eintragen.** Im Dialog „Mietverhältnis bearbeiten“, Feldgruppe
@@ -94,10 +102,13 @@ aus dem Rechnungsdatum entsteht die Frist.
 
 | Feld | Wirkung |
 |---|---|
-| „Gas auch für eigene Geräte (z. B. Gasherd) – Erstattung −5 %“ | Der Anteil des Vermieters sinkt auf 95 % (§ 6 Abs. 3). |
+| „Gas auch für eigene Geräte (z. B. Gasherd) – Erstattung −5 %“ | Die Erstattung sinkt um 5 % (§ 6 Abs. 3 Satz 2). |
 | „Öffentlich-rechtliche Vorgaben (§ 9)“: keine | keine Kürzung |
 | … „gegen Sanierung oder Heizungstausch (Anteil halbiert)“ | Eine Vorgabe wie Denkmalschutz verhindert eines davon: Anteil halbiert. |
 | … „gegen beides (keine Aufteilung)“ | Der Vermieter trägt nichts. |
+
+Auf eine Vorgabe nach § 9 kann sich der Vermieter nur berufen, wenn er sie dir
+nachweist (§ 9 Abs. 3).
 
 **4. Ablesen.** Die Karte **„CO₂-Kosten teilen {Jahr}“** auf der Seite
 Mietverhältnis zeigt das Vorjahr: den Fall in einem Satz, **CO₂ je m² und
@@ -132,11 +143,12 @@ Lieferanten liegt bei.“ Name, Anschrift, Datum und Unterschrift ergänzt du
 selbst, die Rechnung des Lieferanten legst du bei. Das PDF steht in der
 Standardsprache der Installation.
 
-**6. Frist beachten.** Der Anspruch muss binnen **zwölf Monaten nach Zugang
-der Lieferantenabrechnung** in Textform beim Vermieter sein (§ 6 Abs. 2) —
-eine E-Mail genügt der Textform. Die App nimmt das **Rechnungsdatum** der
-Gasrechnung als Zugang, ohne Datum den Tag nach dem Abrechnungszeitraum, und
-trägt die Frist in Agenda und Kalender ein ([Abschnitt 7](#7-frist-im-kalender)).
+**6. Frist beachten.** Der Anspruch muss binnen **zwölf Monaten, nachdem der
+Lieferant abgerechnet hat,** in Textform beim Vermieter geltend gemacht werden
+(§ 6 Abs. 2 Satz 3) — eine E-Mail genügt der Textform. Die App nimmt das
+**Rechnungsdatum** der Gasrechnung als Tag der Abrechnung, ohne Datum den Tag
+nach dem Abrechnungszeitraum, und trägt die Frist in Agenda und Kalender ein
+([Abschnitt 7](#7-frist-im-kalender)).
 
 ## 6. Zentralheizung: die Abrechnung prüfen
 
@@ -178,7 +190,7 @@ die Agenda eine weitere Frist:
 | „CO₂-Kosten {Jahr}: Vermieteranteil von {Betrag} bis heute einfordern“ | Rechnungsdatum der Gasrechnung des Jahres + 12 Monate | im [Kalender-Abo](kalender.md) bis zu 365 Tage vorher, unter „Zu tun“ ab 30 Tagen vorher |
 
 Ohne erfasste Gasrechnung des Jahres gibt es keine Frist — die App kennt dann
-den Zugang nicht. Ein Klick führt zur Seite Mietverhältnis.
+das Abrechnungsdatum nicht. Ein Klick führt zur Seite Mietverhältnis.
 
 ## 8. Grenzen
 

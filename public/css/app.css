@@ -184,6 +184,33 @@ h1, h2, h3, h4 { margin: 0; }
 }
 .topbar__btn-icon { display: inline-block; }
 
+/* v3.2.0 (F1019) — Umschalter der Nutzungsstufe neben Tag/Nacht */
+.topbar__select {
+  height: 32px; max-width: 150px;
+  padding: 0 var(--sp-2);
+  background: transparent; color: var(--text-1);
+  border: 1px solid var(--border-2); border-radius: var(--r-sm);
+  font-size: var(--fs-sm); cursor: pointer;
+}
+.topbar__select:hover { background: var(--bg-2); border-color: var(--border-strong); }
+.topbar__select:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+@media (max-width: 640px) {
+  .topbar__select { max-width: 52px; font-size: 16px; }   /* am iPhone nur das Symbol sichtbar; 16 px gegen Zoom */
+}
+
+/* v3.2.0 (F1019) — was erst eine höhere Stufe zeigt. Ausgeblendet, nicht
+   entfernt: Formularfelder bleiben im Formular (lib/levels.js). */
+html[data-level="beginner"] [data-min-level="advanced"],
+html[data-level="beginner"] [data-min-level="expert"],
+html[data-level="advanced"] [data-min-level="expert"] { display: none !important; }
+
+/* Hinweis über einer Seite der höheren Stufe, und Vorschläge zum Hochstufen */
+.level-hint {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-4);
+}
+.level-hint__actions { display: inline-flex; gap: var(--sp-2); }
+
 /* ── Sidebar ────────────────────────────────────────────────────── */
 .sidebar {
   grid-area: sidebar;

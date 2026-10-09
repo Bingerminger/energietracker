@@ -227,7 +227,7 @@ Auswertung mit Heizgradtagen Temperaturen für den eigenen Standort (Einstellung
 ### Warum fehlt die Effizienzklasse?
 
 Klassen gibt es nur für ganze Jahre und nur in Ländern mit einer Skala
-(Deutschland: GEG). Anderswo zeigt die Karte kWh/m²·a und nennt den Grund.
+(Deutschland: GModG, bis Juli 2026 GEG). Anderswo zeigt die Karte kWh/m²·a und nennt den Grund.
 
 ### Was heißt „geschätzt“?
 

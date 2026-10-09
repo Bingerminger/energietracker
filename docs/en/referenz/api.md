@@ -13,7 +13,7 @@ All endpoints under `/api/…`. A uniform response envelope:
 
 `{utility}` is one of: `gas`, `strom`, `wasser`, `fernwaerme`, `heizoel`,
 `pellets`, `pv_einspeisung`, `pv_erzeugung` and, since v3.1.0, `waerme`
-(heat). As of: **135 routes**, v3.1.0 —
+(heat). As of: **144 routes**, v3.2.0 —
 `ReleaseConsistencyTest` checks that every registered route appears in the
 table below (German and English).
 
@@ -25,16 +25,16 @@ table below (German and English).
 
 | Code | When |
 |------|------|
-| `400` | Invalid input. Since v2.5.3 on every write path: a date that is not a calendar date (`2026-02-30`, text), or an amount/meter reading that is not a number. Up to v2.5.2 both were stored. Since v2.6.0 also query parameters outside their range (forecast, annual report, temperature sync). *(v3.1.0)* A receipt with the wrong content, too large, or storage full (`errors.attachment.*`) — also an upload above PHP's `post_max_size`, then with that limit in the message (`errors.attachment.size`); text recognition not set up or not in the home network (`errors.ocr.off`, `errors.ocr.notLocal`); a meter reading on a meter with consumption per period (`errors.reading.periodMeter`), overlapping periods (`errors.period.overlap`), errors in the tenancy (`errors.tenancy.*`); an invalid year for the CO₂ price (`errors.co2.yearInvalid`), errors in a supplier bill (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), a bill check for a utility without one (`errors.billCheck.unsupportedUtility`), an invalid market or metering location ID (`errors.meter.maloInvalid`, `…meloInvalid`), a capacity charge without a connected load (`errors.contract.capacityMissing`), deleting a meter that still has periods or bills (`errors.meter.hasPeriods`, `…hasBills`); a group contract on an unsuitable group or with prices for non-members (`errors.contract.targetInvalid`), a member with its own contract in the same period (`errors.contract.groupMemberOverlap`), deleting a group with contracts (`errors.meter.groupHasContracts`), a dynamic tariff as a real contract or outside electricity (`errors.contract.dynamicShadowOnly`), an unknown price model (`errors.contract.priceModelInvalid`), monthly prices without a readable line or for water and feed-in (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), wholesale prices without values (`errors.marketPrices.noRows`), a charging record without a paying contract, without a flat rate or with invalid parameters (`errors.evReport.*`), an invalid heat pump year (`errors.heatPump.yearInvalid`), a link to an electricity meter without the heat pump role (`errors.meter.heatPumpLinkInvalid`), an invalid PV value on the meter (`errors.meter.valueInvalid`), a time series with an unsuitable mapping or without a starting reading (`errors.import.mappingInvalid`, `…anchorMissing`) — all v3.1.0. |
-| `401` | `/api/ingest` with a token set but a missing or wrong bearer header. *(v2.6.0)* With sign-in switched on: any non-public route without a session or API key (`errors.auth.required`); wrong password. *(v3.1.0)* A calendar key on any route other than `/api/calendar.ics`, a `read` or `admin` key as `?token=` in the calendar link. |
-| `403` | *(v2.5.3)* Writing request (`POST`/`PUT`/`PATCH`/`DELETE`) from the browser of a **foreign** website — checked via `Sec-Fetch-Site`, falling back to `Origin` against `Host`. Requests without these headers (Home Assistant, curl, scripts) are not affected. *(v2.6.0)* Writing request with a read-only key (`errors.auth.readOnlyKey`). |
-| `404` | Unknown route or unknown record. Since v2.6.0 consistently also for records addressed in the URL (up to v2.5.3 partly 400). *(v3.1.0)* Also an unknown period (`errors.period.notFound`), tenancy (`errors.tenancy.notFound`), statement (`errors.tenancy.statementNotFound`) or supplier bill (`errors.bill.notFound`). |
+| `400` | Invalid input. Since v2.5.3 on every write path: a date that is not a calendar date (`2026-02-30`, text), or an amount/meter reading that is not a number. Up to v2.5.2 both were stored. Since v2.6.0 also query parameters outside their range (forecast, annual report, temperature sync). *(v3.1.0)* A receipt with the wrong content, too large, or storage full (`errors.attachment.*`) — also an upload above PHP's `post_max_size`, then with that limit in the message (`errors.attachment.size`); text recognition not set up or not in the home network (`errors.ocr.off`, `errors.ocr.notLocal`); a meter reading on a meter with consumption per period (`errors.reading.periodMeter`), overlapping periods (`errors.period.overlap`), errors in the tenancy (`errors.tenancy.*`); an invalid year for the CO₂ price (`errors.co2.yearInvalid`), errors in a supplier bill (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), a bill check for a utility without one (`errors.billCheck.unsupportedUtility`), an invalid market or metering location ID (`errors.meter.maloInvalid`, `…meloInvalid`), a capacity charge without a connected load (`errors.contract.capacityMissing`), deleting a meter that still has periods or bills (`errors.meter.hasPeriods`, `…hasBills`); a group contract on an unsuitable group or with prices for non-members (`errors.contract.targetInvalid`), a member with its own contract in the same period (`errors.contract.groupMemberOverlap`), deleting a group with contracts (`errors.meter.groupHasContracts`), a dynamic tariff as a real contract or outside electricity (`errors.contract.dynamicShadowOnly`), an unknown price model (`errors.contract.priceModelInvalid`), monthly prices without a readable line or for water and feed-in (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), wholesale prices without values (`errors.marketPrices.noRows`), a charging record without a paying contract, without a flat rate or with invalid parameters (`errors.evReport.*`), an invalid heat pump year (`errors.heatPump.yearInvalid`), a link to an electricity meter without the heat pump role (`errors.meter.heatPumpLinkInvalid`), an invalid PV value on the meter (`errors.meter.valueInvalid`), a time series with an unsuitable mapping or without a starting reading (`errors.import.mappingInvalid`, `…anchorMissing`) — all v3.1.0. *(v3.2.0)* An unknown example household (`errors.demo.personaUnknown`); a person’s name empty or too long, an unknown role, deleting your own person (`errors.users.nameInvalid`, `…roleInvalid`, `…notSelf`), own settings without a signed-in person, the password of a person from the proxy (`errors.users.noUser`, `…proxyNoPassword`); evcc not set up or not in the home network, no finished charging sessions, a CSV without the required columns, an unknown choice for the meter readings, meter readings of several charging points (`errors.evcc.off`, `…notLocal`, `…noSessions`, `…columns`, `…countersInvalid`, `…loadpointNeeded`). |
+| `401` | `/api/ingest` with a token set but a missing or wrong bearer header. *(v2.6.0)* With sign-in switched on: any non-public route without a session or API key (`errors.auth.required`); wrong password, since v3.2.0 also an unknown name (`errors.auth.wrongPassword`). *(v3.1.0)* A calendar key on any route other than `/api/calendar.ics`, a `read` or `admin` key as `?token=` in the calendar link. |
+| `403` | *(v2.5.3)* Writing request (`POST`/`PUT`/`PATCH`/`DELETE`) from the browser of a **foreign** website — checked via `Sec-Fetch-Site`, falling back to `Origin` against `Host`. Requests without these headers (Home Assistant, curl, scripts) are not affected. *(v2.6.0)* Writing request with a read-only key (`errors.auth.readOnlyKey`). *(v3.2.0)* A member on a route for admins only (`errors.auth.adminOnly`) — [People in the household](#people-in-the-household-v320). |
+| `404` | Unknown route or unknown record. Since v2.6.0 consistently also for records addressed in the URL (up to v2.5.3 partly 400). *(v3.1.0)* Also an unknown period (`errors.period.notFound`), tenancy (`errors.tenancy.notFound`), statement (`errors.tenancy.statementNotFound`) or supplier bill (`errors.bill.notFound`). *(v3.2.0)* An unknown person (`errors.users.notFound`). |
 | `405` | *(v2.6.0)* Known path, wrong method — with an `Allow` header. `HEAD` is answered like `GET`, `OPTIONS` with `204` and `Allow`. Up to v2.5.3: `404`. |
-| `409` | *(v2.6.0)* The safety snapshot before an import/restore failed (`errors.backup.snapshotFailed`) — possible anyway with `?allow_without_snapshot=1`. Password or sign-in mode are fixed by the environment. |
+| `409` | *(v2.6.0)* The safety snapshot before an import/restore failed (`errors.backup.snapshotFailed`) — possible anyway with `?allow_without_snapshot=1`. Password or sign-in mode are fixed by the environment. *(v3.2.0)* A person’s name is taken (`errors.users.nameTaken`), the last admin would become a member or be deleted (`errors.users.lastAdmin`), the first admin’s password is fixed by the environment (`errors.auth.passwordFixed`). |
 | `421` | *(v2.6.0)* Host name not in `ET_ALLOWED_HOSTS` (only when set; IP addresses and `localhost` are always allowed). |
 | `422` | *(v3.1.0)* PDF annual report, CO₂ letter or charging record in a language the built-in PDF fonts cannot set (`errors.report.pdfUnsupportedLanguage`) — the print view can. |
 | `429` | *(v2.6.0)* Sign-in locked for 5 minutes after five failures within 15 minutes (`errors.auth.locked`). |
-| `502` | A service outside the app does not answer or answers with nothing usable — a fault on the other side, not invalid input: the place search (`errors.temperature.geocodeFailed`); *(v3.1.0)* `POST /api/ocr/reading` when your own text recognition service does not answer in time, cannot be reached or returns nothing usable (`errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.ocr.badAnswer`); *(v3.1.0)* `POST /api/market-prices/sync-smard` when SMARD cannot be reached or returns no values (`errors.marketPrices.syncFailed`). |
+| `502` | A service outside the app does not answer or answers with nothing usable — a fault on the other side, not invalid input: the place search (`errors.temperature.geocodeFailed`); *(v3.1.0)* `POST /api/ocr/reading` when your own text recognition service does not answer in time, cannot be reached or returns nothing usable (`errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.ocr.badAnswer`); *(v3.1.0)* `POST /api/market-prices/sync-smard` when SMARD cannot be reached or returns no values (`errors.marketPrices.syncFailed`); *(v3.2.0)* `POST …/sync-evcc` when evcc cannot be reached or returns no list of charging sessions (`errors.evcc.unreachable`, `errors.evcc.badAnswer`). |
 | `503` | *(v2.5.3)* A data file is corrupt (not valid JSON). The file stays untouched; a quarantine copy `<file>.corrupt-<checksum>` is placed next to it. Up to v2.5.2 it was read as empty and overwritten on the next write. Since v3.1.0 the message is in the language of the request (up to v3.0 always German); `code` stays `errors.storage.corrupted`. *(v2.6.0)* The data comes from a **newer** version (e.g. after rolling back the image tag): all routes except `/api/health`, nothing is written (`errors.storage.dataTooNew`). `/api/health` itself answers `503` when `status` = `error`. |
 | `500` | Unexpected error. Since v2.6.0 with `error_id`; the server log holds the details under the same ID. |
 
@@ -107,6 +107,15 @@ route, not even as an `Authorization` header (`401`). With a session (the
 browser) or a `read`/`admin` key in the header, `/api/calendar.ics` can be
 fetched like any other route.
 
+**People and roles *(v3.2.0)*.** With sign-in, every person in the household
+can have an account of their own (mode `password`: name and password; mode
+`proxy`: the reported name). Admins (`admin`) may do everything; members
+(`member`) record and see everything but do not change access, do not restore
+data and do not change network addresses — there the app answers `403`
+`errors.auth.adminOnly`. Without sign-in and with an API key there is no
+person; a request may then do what it could before. Which routes only admins
+reach: [People in the household](#people-in-the-household-v320).
+
 ### Stability promise *(v2.6.0)*
 
 Whoever builds on the API — Home Assistant, scripts, own evaluations — needs a
@@ -116,7 +125,7 @@ promise about what may change. Three classes:
 |---|---|---|
 | **A — interfaces for other systems** | `POST /api/ingest` (also as a batch), `GET /api/health`, `GET /api/summary` (`summary_version: 1`, v3.1.0), `GET /api/calendar.ics` (shape and UIDs, v3.1.0), backup format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV exports in format 1 and the CSV imports ([CSV formats](#csv-formats-v310)), master data (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`; since v3.1.0 `periods` including `periods.csv` and the period import, `tenancies` and `statements`), uploading and fetching receipts (`POST /api/attachments`, `GET /api/attachments/{id}`, v3.1.0), error envelope with `code` | Additive changes only. Renaming or removing only with a **major version**, announced at least one minor version earlier in the CHANGELOG under "Deprecated". Old field names stay valid as aliases. |
 | **B — evaluations** | consumption, balance, forecast, tariff comparison/switch, bill check, efficiency, recommendations, PV/balance, `readings-overview`, `agenda` (v3.1.0), the tenancy budget (`tenancies/{id}/budget`, v3.1.0), CO₂ price and sharing (`co2-costs`, `co2-split`, `reports/co2-split.pdf`, v3.1.0), supplier bills (`bills` including `check` and `book`, v3.1.0), the evaluations of a meter group (`meter-groups/{id}/…`, v3.1.0), the charging record (`reports/ev-charging` as JSON, CSV and PDF, v3.1.0), the seasonal performance factor (`heat-pump`, v3.1.0), the benchmark (`benchmarks/comparison`, v3.1.0) | Documented fields keep their name and meaning; new ones are added. **Values** may change when a calculation is corrected — the CHANGELOG says so. |
-| **C — user interface** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09`, `countries`, the receipt list and deleting (`GET /api/attachments`, `DELETE /api/attachments/{id}`) and `ocr/reading` (v3.1.0), wholesale electricity prices (`market-prices` including import and SMARD download), monthly prices from a file (`contracts/{id}/prices/import-csv`) and time series with a column mapping (`meters/{id}/import-series`, all v3.1.0) | Built for the app's own interface; changes are possible but listed in the CHANGELOG. |
+| **C — user interface** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09`, `countries`, the receipt list and deleting (`GET /api/attachments`, `DELETE /api/attachments/{id}`) and `ocr/reading` (v3.1.0), wholesale electricity prices (`market-prices` including import and SMARD download), monthly prices from a file (`contracts/{id}/prices/import-csv`) and time series with a column mapping (`meters/{id}/import-series`, all v3.1.0), people (`users`, `session/me`, v3.2.0), charging sessions from evcc (`import-evcc`, `sync-evcc`, `ev-sessions`, v3.2.0) | Built for the app's own interface; changes are possible but listed in the CHANGELOG. |
 
 Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 (`surcharge`/`refund`/`balanced`) — without notice. That must not happen again.
@@ -128,19 +137,25 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | health check: `status` ok/degraded/error, checks, last ingest (HTTP 503 on `error`); also `HEAD` |
-| GET | `/api/session` | sign-in mode, signed in?, fixed by the environment? *(v2.6.0)* |
-| POST | `/api/session` | sign in `{password}` → session cookie *(v2.6.0)* |
+| GET | `/api/session` | sign-in mode, signed in?, fixed by the environment? *(v2.6.0)*; since v3.2.0 `named_login`, `user`, `role` — [People](#people-in-the-household-v320) |
+| POST | `/api/session` | sign in `{name?, password}` → session cookie *(v2.6.0; `name` since v3.2.0)* |
 | DELETE | `/api/session` | sign out *(v2.6.0)* |
-| POST | `/api/session/password` | set/change the password `{password, current?}` — switches sign-in on *(v2.6.0)* |
-| DELETE | `/api/session/password` | switch sign-in off `{current}` *(v2.6.0)* |
-| GET | `/api/auth/keys` | API keys (without plaintext) *(v2.6.0)* |
-| POST | `/api/auth/keys` | create a key `{name, scope: read\|admin\|calendar}`; plaintext once *(v2.6.0; `calendar` since v3.1.0)* |
-| DELETE | `/api/auth/keys/{id}` | revoke a key *(v2.6.0)* |
+| POST | `/api/session/password` | set/change the password `{password, current?}` — switches sign-in on *(v2.6.0)*; since v3.2.0 admins only |
+| DELETE | `/api/session/password` | switch sign-in off `{current}` *(v2.6.0)*; since v3.2.0 admins only |
+| PATCH | `/api/session/me` | *(v3.2.0)* own settings of the signed-in person `{ui_level?, language?}` — [People](#people-in-the-household-v320) |
+| POST | `/api/session/me/password` | *(v3.2.0)* change your own password `{current, password}` |
+| GET | `/api/users` | *(v3.2.0)* people in the household, without password hash — admins only |
+| POST | `/api/users` | *(v3.2.0)* add a person `{name, password, role?}`; `201` — admins only |
+| PATCH | `/api/users/{id}` | *(v3.2.0)* change name, role or password `{name?, role?, password?}` — admins only |
+| DELETE | `/api/users/{id}` | *(v3.2.0)* delete a person; the last admin stays — admins only |
+| GET | `/api/auth/keys` | API keys (without plaintext) *(v2.6.0)*; since v3.2.0 admins only |
+| POST | `/api/auth/keys` | create a key `{name, scope: read\|admin\|calendar}`; plaintext once *(v2.6.0; `calendar` since v3.1.0)*; since v3.2.0 admins only |
+| DELETE | `/api/auth/keys/{id}` | revoke a key *(v2.6.0)*; since v3.2.0 admins only |
 | GET | `/api/diagnostics` | system status, write permissions, schema |
 | GET | `/api/utilities` | list of utilities + configuration; since v2.13.0 each with `has_contracts`, `has_advance_payment_contracts` and `accounting_kind` (`consumption`, `feed_in`, `generation`); since v3.1.0 `meter_roles` for utilities with meter roles and `supports_bill_check` (bill check available: gas, electricity, water, district heating) |
 | GET | `/api/manifest` | *(v3.1.0)* web app manifest in one language (`?lang=`, otherwise the device or installation language); reachable without sign-in, contains no data. Class C |
 | GET | `/api/settings` | settings |
-| PATCH | `/api/settings` | change settings |
+| PATCH | `/api/settings` | change settings; `frame_ancestors`, `ocr_endpoint` and `evcc_endpoint` since v3.2.0 admins only |
 | GET | `/api/countries` | country profiles: defaults per country *(v2.7.0)*; since v3.1.0 with bill terms (`bill_terms`) and the official tariff comparison (`comparison_portal`) — see below |
 | GET | `/api/settings/default-updates` | corrected defaults this installation does not use yet (CO₂, water reference) *(v2.10.0)* — see below |
 | GET | `/api/temperatures` | daily temperatures (map) |
@@ -171,6 +186,8 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | DELETE | `/api/utility/{u}/readings/{id}` | delete (a photo is detached and cleaned up after 24 hours) |
 | POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV bulk import; `?dry_run=1` only reads (preview, v2.12.0); since v3.1.0 headers and date formats of every language — see below |
 | POST | `/api/utility/{u}/meters/{id}/import-series` | *(v3.1.0)* time series from a portal with a column mapping `{csv, mapping}`, condensed into daily values; `?dry_run=1` only reads — [Import time series](#import-time-series-v310) |
+| POST | `/api/utility/strom/meters/{id}/import-evcc` | *(v3.2.0)* charging sessions from evcc’s CSV export `{csv, counters?, loadpoint?}`, plus the wall box meter readings; `?dry_run=1` only reads — [Charging sessions from evcc](#charging-sessions-from-evcc-v320) |
+| POST | `/api/utility/strom/meters/{id}/sync-evcc` | *(v3.2.0)* the same straight from evcc in the home network (`evcc_endpoint`) `{counters?, loadpoint?}`; `?dry_run=1` only reads, `502` on errors of evcc |
 | GET | `/api/utility/{u}/periods` | *(v3.1.0)* consumption per period, sorted by start; `?meter_id=` only this meter — [Consumption per period](#consumption-per-period-v310) |
 | POST | `/api/utility/{u}/periods` | *(v3.1.0)* create a period `{meter_id, from, to, value}` or `{meter_id, month, value}`; `client_ref` as for readings (`200` with `duplicate: true`) |
 | PATCH | `/api/utility/{u}/periods/{id}` | *(v3.1.0)* change a period |
@@ -232,6 +249,7 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/reports/ev-charging` | *(v3.1.0)* charging record for a company car per month, `?meter_id=&year=&method=contract\|flat[&flat_ct=]` — [Charging record](#charging-record-v310) |
 | GET | `/api/reports/ev-charging.csv` | *(v3.1.0)* the same as CSV; `format`, `lang` as for the CSV exports |
 | GET | `/api/reports/ev-charging.pdf` | *(v3.1.0)* the same as PDF with meter readings and a signature line; `?inline=1` |
+| GET | `/api/ev-sessions` | *(v3.2.0)* stored charging sessions from evcc, newest first, `?meter_id=&year=`; with both parameters also monthly totals `monthly` — [Charging sessions from evcc](#charging-sessions-from-evcc-v320) |
 | GET | `/api/agenda` | *(v3.1.0)* deadlines and dates of the next `?days=` days (default 90) plus anything overdue; source of “To do” on the dashboard — [Agenda](#get-apiagendadays90-v310) |
 | GET | `/api/calendar.ics` | *(v3.1.0)* the same events as a calendar subscription (iCalendar, 365 days) — [Calendar](#get-apicalendarics-v310) |
 | GET | `/api/summary` | *(v3.1.0)* key figures per meter for Home Assistant and scripts, `?utility=&meter=` — [Summary](#get-apisummary-v310) |
@@ -246,21 +264,21 @@ Reason: v2.0.0 silently switched `verdict` from "Nachzahlung/Erstattung" to keys
 | GET | `/api/export/{u}/periods.csv` | *(v3.1.0)* consumption per period as CSV, all meters of the utility; `format`, `lang` as above |
 | GET | `/api/export/temperatures.csv` | temperature series as CSV; `format`, `lang` as above |
 | GET | `/api/backup/export` | full backup JSON; since v3.1.0 with the receipts (`attachment_files`), `?attachments=0` without the files — [see below](#snapshots-and-import-v260) |
-| POST | `/api/backup/import` | restore a backup; `?dry_run=1` only checks, `?allow_without_snapshot=1` see 409 |
+| POST | `/api/backup/import` | restore a backup; `?dry_run=1` only checks, `?allow_without_snapshot=1` see 409; since v3.2.0 admins only |
 | POST | `/api/backup/snapshot` | place a snapshot |
 | GET | `/api/backup/snapshots` | snapshots: name, size, time, occasion *(v2.6.0)* |
 | GET | `/api/backup/snapshots/{name}` | download a snapshot (file) *(v2.6.0)* |
-| POST | `/api/backup/snapshots/{name}/restore` | restore a snapshot (saving the current state first) *(v2.6.0)* |
+| POST | `/api/backup/snapshots/{name}/restore` | restore a snapshot (saving the current state first) *(v2.6.0)*; since v3.2.0 admins only |
 | DELETE | `/api/backup/snapshots/{name}` | delete a snapshot *(v2.6.0)* |
 | POST | `/api/migration/v09/preview` | analyse a v0.9.0 backup |
 | POST | `/api/migration/v09/import` | adopt a v0.9.0 backup |
 | GET | `/api/strom-saldo` | electricity balance (import − PV feed-in), F1005 |
 | GET | `/api/pv-summary` | PV self-consumption + self-sufficiency rate, F1005; since v2.10.0 over jointly covered months, with savings — see below; since v3.1.0 battery, payback, the assumption for plug-in solar and the § 51 EEG note ([PV](#pv-battery-plug-in-solar-payback-v310-additive)) |
-| GET | `/api/demo/status` | demo data available/store empty? (F1007) |
-| POST | `/api/demo/import` | load the demo dataset (F1007); since v3.0.0 carried forward to today (readings, deliveries, temperatures as in the same period a year earlier, reminders relative to today) |
-| GET | `/api/auth/token` | API token status (never the token itself), F1009 |
-| POST | `/api/auth/token` | generate a token (one-time plaintext), F1009 |
-| DELETE | `/api/auth/token` | revoke the token → API open again, F1009 |
+| GET | `/api/demo/status` | demo data available/store empty? (F1007); since v3.2.0 with `personas` — [Example households](#example-households-v320) |
+| POST | `/api/demo/import` | load the demo dataset (F1007); since v3.0.0 carried forward to today (readings, deliveries, temperatures as in the same period a year earlier, reminders relative to today); since v3.2.0 `{persona}` for an example household, admins only |
+| GET | `/api/auth/token` | API token status (never the token itself), F1009; since v3.2.0 admins only |
+| POST | `/api/auth/token` | generate a token (one-time plaintext), F1009; since v3.2.0 admins only |
+| DELETE | `/api/auth/token` | revoke the token → API open again, F1009; since v3.2.0 admins only |
 | **POST** | **`/api/ingest`** | **idempotent meter-reading push for Home Assistant (F1009); since v3.1.0 also as a batch of up to 500 readings** |
 
 ---
@@ -1483,8 +1501,9 @@ keep their definitions.
   generation × share, and the months carry `self_consumption_assumed: true`.
 - `hints: ["negative_prices"]` — country Germany and commissioning on or after
   25 Feb 2025: there is no feed-in tariff for periods with a negative wholesale
-  price once a smart metering system is installed (§ 51 EEG); it is offset by a
-  longer funding period.
+  price — for systems below 100 kW from the calendar year after a smart
+  metering system is installed (§ 51 EEG). A longer funding period partly
+  offsets this (§ 51a EEG).
 
 The setting `co2_pv_avoided` (g/kWh) replaces the electricity mix in the
 avoided CO₂ of PV generation and feed-in ([Settings](einstellungen.md)).
@@ -1619,10 +1638,10 @@ Pot `<utility>/bills.json` (schema 1.7.0, part of the backup), one entry
 | `contract_id` | optional: the contract `book` books into; without it, the contract that applied at the end of the period |
 | `kind` | `annual` (annual bill, default), `final` (final bill), `interim` (interim bill) |
 | `period_from`, `period_to` | billed period, **both inclusive**; not a date or start after end → `400` `errors.bill.periodInvalid` |
-| `issued_on` | bill date (optional) — date of the booking and date of receipt for the CO₂ deadline |
+| `issued_on` | bill date (optional) — date of the booking and start of the CO₂ deadline (the day the supplier billed) |
 | `invoice` | `energy_kwh` (for water `volume_m3`), `amount_eur` (bill amount incl. VAT), `advances_paid_eur`, `result_eur` (**positive = additional payment**, negative = credit; without it `amount_eur − advances_paid_eur`), `net` (optional, only stored). Every value optional; not a number or out of range → `400` `errors.bill.amountInvalid` |
 | `items` | other items `{label, amount_eur, kind}` with `kind` ∈ `levy`, `fee`, `credit`, `other` (default); description at most 120 characters. The app does not recalculate them |
-| `co2` | optional, meaningful for gas: `{emissions_kg, cost_eur?, stated_factor?}` — emissions and CO₂ amount **net** as on the bill, stated factor in kg/kWh. Take precedence over the standard factor for the [CO₂ price](#co₂-price-and-sharing-v310) |
+| `co2` | optional, meaningful for gas: `{emissions_kg, cost_eur?, stated_factor?}` — emissions and CO₂ amount as on the bill, the amount **including VAT**, as the bill states it (CO2KostAufG § 3(3); read as net up to v3.1), stated factor in kg/kWh. Take precedence over the standard factor for the [CO₂ price](#co₂-price-and-sharing-v310) |
 | `attachment_ids` | receipts (`kind: bill_pdf`, otherwise `other`); a receipt removed from the list is released, the receipt’s `ref.type` is `bill` |
 | `special_payment_id` | set once the result is booked |
 | `note`, `created_at` | note (at most 2000 characters), time of creation |
@@ -1689,7 +1708,7 @@ of gas, heating oil and district heating (CALC-27). **Shown, not added**:
     { "utility": "gas", "kwh": 10000.0, "factor_kg_per_kwh": 0.18139,
       "emissions_kg": 1813.9, "price_eur_t": 55.0,
       "cost_eur_net": 99.76, "cost_eur_gross": 118.72, "ct_per_kwh": 1.187,
-      "source": "computed", "approx": false, "coverage_days": 365 } ],
+      "source": "computed", "vat": 0.19, "approx": false, "coverage_days": 365 } ],
   "total": { "emissions_kg": 1813.9, "cost_eur_net": 99.76, "cost_eur_gross": 118.72 },
   "per_m2": { "kg": 18.1, "area_m2": 100.0, "stage": 3, "landlord_share_pct": 20 },
   "price": { "eur_t": 55.0, "assumed": false },
@@ -1702,16 +1721,17 @@ of gas, heating oil and district heating (CALC-27). **Shown, not added**:
 | `kwh` | consumption of the calendar year |
 | `factor_kg_per_kwh` | BEHG standard factor — gas 0.18139 (per kWh gross calorific value), heating oil 0.2664 (per kWh net calorific value) —, for district heating the contract’s `co2_g_per_kwh` / 1000, for heat the factor of the energy source (`waerme_energietraeger`, gas or heating oil only); with figures from the bill emissions ÷ consumption |
 | `source` | `bill` (supplier bills whose period ends in the year and carry `co2.emissions_kg` — summed), `contract` (district heating with network factor) or `computed` (consumption × standard factor). In this order; district heating without a network factor, pellets and electricity never appear |
-| `price_eur_t` | applicable price of the year: setting `co2_price_eur_t_years`, otherwise the country profile (DE 2021: 25, 2022: 30, 2023: 30, 2024: 45, 2025: 55, 2026: 60), otherwise the last known value (`price.assumed: true`) |
-| `cost_eur_net` | emissions / 1000 × price; with bills their `co2.cost_eur` (net, CO2KostAufG § 3(3)) if every one of them carries it |
-| `cost_eur_gross` | net × (1 + `vat`) |
+| `price_eur_t` | applicable price of the year: setting `co2_price_eur_t_years`, otherwise the country profile (DE 2021: 25, 2022: 30, 2023: 30, 2024: 45, 2025: 55, 2026: 60), otherwise the last known value (`price.assumed: true`). For 2027, CO2KostAufG § 4(1) no. 3 sets the average of the auctions from 1 July to 30 November 2026; until it is entered, the API uses the last known value (60) as an assumption |
+| `cost_eur_net` | emissions / 1000 × price; with bills their `co2.cost_eur` ÷ (1 + `vat`) if every one of them carries it — the bill amount includes VAT (CO2KostAufG § 3(3)) |
+| `cost_eur_gross` | net × (1 + `vat`); with bills their `co2.cost_eur` (since v3.2.0; up to v3.1 net × (1 + `vat`), i.e. the tax twice) |
 | `ct_per_kwh` | gross per kWh in ct |
+| `vat` | *(v3.2.0)* VAT rate applied to the row: per month 19 %, for `gas` and `fernwaerme` (and heat from gas or district heating) 7 % from 10/2022 to 3/2024 (§ 28(5) and (6) UStG), weighted by consumption for the year, without consumption the average of the twelve months. Gas 2023: `0.07`; heating oil always `0.19`; heat by its energy source (`waerme_energietraeger`) |
 | `approx` | `true` for heat with a calculated value — the heat is counted, not the fuel |
 | `coverage_days` | days of the year with consumption data |
 | `total` | totals of all rows, `null` without rows |
 | `per_m2` | emissions per m² of floor area (one decimal place) with `stage` (1–10) and `landlord_share_pct` per the annex to the CO2KostAufG; area from the year’s tenancy (with `wohnverhaeltnis: miete`), otherwise `wohnflaeche_m2`. `null` without rows or area |
 | `price` | `{eur_t, assumed}` |
-| `vat` | VAT on the CO₂ price (`0.19`) |
+| `vat` | standard VAT rate on the CO₂ price (`0.19`); the rate applied per row is in `rows[].vat` |
 
 Stages (kg CO₂ per m² and year, upper limit exclusive → landlord’s share):
 < 12 → 0 %, < 17 → 10 %, < 22 → 20 %, < 27 → 30 %, < 32 → 40 %, < 37 → 50 %,
@@ -1750,7 +1770,7 @@ determines the case:
 | `source` | `self_supplied`: the sources of the rows from `/api/co2-costs`, joined with a comma (for instance `bill` or `bill,computed`); `central`: `statement` |
 | `checks[]` | `central`: `stage`, `share`, `amount` (difference above 0.50 €), `missing_values` (emissions or area missing); `self_supplied`: `area_missing` (no stage without an area) |
 | `reductions[]` | `own_appliances`, `restriction_one`, `restriction_both` |
-| `deadline` | `self_supplied` only: deadline for the refund (§ 6(2)) = receipt of the gas bill whose period ends in the year (`issued_on`, otherwise the day after the period) + 12 months; `null` without a recorded gas bill |
+| `deadline` | `self_supplied` only: deadline for the refund (§ 6(2): twelve months from the date the supplier billed) = bill date of the gas bill whose period ends in the year (`issued_on`, otherwise the day after the period) + 12 months; `null` without a recorded gas bill |
 | `statement_id`, `days`, `stated` | `central` only: the statement, the days of its period and its figures `{stage, landlord_share_pct, landlord_amount_eur}` |
 | `price`, `utilities` | `self_supplied` only: price as above and the utilities included (`gas`, `heizoel`) |
 
@@ -2192,6 +2212,117 @@ CSV in format 1 with a fixed header:
 Monat;Zaehler-ID;kWh;Preis ct/kWh;Grundpreis-Anteil;Betrag;Methode
 ```
 
+*(v3.2.0)* The wall box meter readings can come from evcc — as readings on the
+meter they enter the record like recorded ones:
+[Charging sessions from evcc](#charging-sessions-from-evcc-v320).
+
+### Charging sessions from evcc *(v3.2.0)*
+
+evcc controls the wall box — with solar power or in cheap hours — and keeps,
+per charging session, start, end, energy, solar share, price and, where the
+wall box measures it, the meter reading. The Energietracker takes over these
+sessions and does the maths; it controls nothing. Two ways with the same
+processing: the CSV export from evcc (charging sessions → download) or the
+fetch through the evcc API in your own network. Step by step:
+[Charging sessions from evcc](../anleitungen/evcc.md). Class C.
+
+| Route | Body | Purpose |
+|---|---|---|
+| `POST /api/utility/strom/meters/{id}/import-evcc[?dry_run=1]` | `{csv, counters?, loadpoint?}` | take over the CSV export |
+| `POST /api/utility/strom/meters/{id}/sync-evcc[?dry_run=1]` | `{counters?, loadpoint?}` | fetch the sessions from `GET <evcc_endpoint>/api/sessions` |
+| `GET /api/ev-sessions?meter_id=&year=` | — | stored sessions and monthly totals |
+
+`{id}` is an electricity meter with meter readings. The interface offers both
+in the view of a meter with the role `ev_charger` (wall box).
+
+| Field | Meaning |
+|---|---|
+| `csv` | content of the file as text. Header in one of the languages de, en, fr, it, es, pt, nl or with the English field names (`created`, `chargedEnergy` …); a BOM is removed; separator comma or semicolon (decided from the header); numbers with a point or a comma. The columns for start and energy are required |
+| `counters` | where the meter readings come from: `auto` (default) — the wall box meter readings, if they are missing the summed-up energy; `energy` — always sum up, from the last reading before the first session, without one from the initial reading of the installed device (say when the meter in the Energietracker is not the one in the wall box); `none` — only the sessions, no readings |
+| `loadpoint` | only sessions of this charging point (name as in evcc); if missing, all |
+
+Processing:
+
+- A session needs start and energy (not negative), otherwise it counts under
+  `skipped`. If it is still running (end empty or `0001-01-01…`), it counts
+  under `running` and comes complete with the next import.
+- Times without a time zone are taken in the installation’s time zone
+  (`timezone`); `date` is the day of the end.
+- Every session gets an identifier from start and charging point. Importing
+  the same session again replaces it instead of counting it twice.
+- Meter readings (a reading on day D counts as the reading at the start of D):
+  with wall box meter readings (`counter_source: "meter"`) the start reading on
+  the day of the start and the end reading on the day after the end (the
+  highest per day); otherwise (`"energy"`) the reading up to the day of the
+  first session plus the charged energy, on the day after each session.
+  Readings after today and a drop are left out. They go to the meter as
+  readings with the note `evcc`; an existing reading on the same day is
+  replaced.
+- Meter readings belong to one wall box: if the sessions come from several
+  charging points and `counters` is not `none`, the route answers `400`
+  `errors.evcc.loadpointNeeded` — then give `loadpoint`.
+
+Response, here the preview with `?dry_run=1`:
+
+```json
+{ "sessions": 12, "skipped": 0, "running": 1, "loadpoints": ["Garage"],
+  "from": "2026-09-02", "to": "2026-09-30",
+  "charged_kwh": 214.37, "solar_kwh": 131.902,
+  "readings": 12, "replaces": 0, "counter_source": "meter", "dry_run": true }
+```
+
+| Field | Meaning |
+|---|---|
+| `sessions` | sessions taken over (after the `loadpoint` filter) |
+| `skipped`, `running` | unreadable or still running sessions |
+| `loadpoints` | every charging point in the file or the answer — also those `loadpoint` filters out |
+| `from`, `to` | first and last day |
+| `charged_kwh`, `solar_kwh` | charged energy and the part from the sun (energy × solar share per session) |
+| `readings`, `replaces` | derived meter readings; `replaces` of them replace an existing reading on the same day |
+| `counter_source` | `meter`, `energy` or `none` |
+| `import` | only without `dry_run`: result of the reading import as for the CSV import (`imported`, `overwritten`, `skipped`, `errors`); `null` without meter readings |
+
+**Fetch — `sync-evcc`.** The server fetches `GET <evcc_endpoint>/api/sessions`
+(at most 30 seconds) and expects a list with the fields `created`, `finished`,
+`loadpoint`, `vehicle`, `meterStart`, `meterStop`, `chargedEnergy`,
+`solarPercentage`, `price`, `pricePerKWh`; the envelope `{result: […]}` of
+older evcc versions is unwrapped. As with
+[text recognition](#post-apiocrreading), home network only: the name is
+resolved, every address must be local, the connection goes to exactly the
+checked address, redirects are not followed.
+
+**Stored sessions — `GET /api/ev-sessions`.**
+
+```json
+{ "sessions": [ { "id": "evs_1a2b3c4d5e6f", "meter_id": "m_wallbox",
+      "created": "2026-09-30T17:02:11+02:00", "finished": "2026-09-30T21:40:03+02:00",
+      "date": "2026-09-30", "loadpoint": "Garage", "vehicle": "Small car",
+      "charged_kwh": 18.402, "solar_pct": 0, "price_eur": 5.15, "price_per_kwh": 0.28,
+      "meter_start": 4120.551, "meter_stop": 4138.953, "source": "csv" } ],
+  "monthly": { "2026-09": { "kwh": 214.37, "solar_kwh": 131.902, "solar_pct": 61.5,
+                            "price_eur": 38.4, "sessions": 12 } } }
+```
+
+`meter_id` and `year` filter, both are optional; an unknown meter gives an
+empty list. `monthly` only exists with both, otherwise `null`: per month
+`kwh`, `solar_kwh`, `solar_pct` (weighted by energy), `price_eur` (sum of the
+prices according to evcc, `null` without prices) and `sessions`. A `year`
+outside 2017–2100 → `400` `errors.evReport.yearInvalid`. The fields per
+session: [Data model](datenmodell.md#charging-sessions-ev_sessionsjson-v320).
+
+| Status | `code` | When |
+|---|---|---|
+| `404` | `errors.common.meterNotFound` | no electricity meter with this ID |
+| `400` | `errors.reading.periodMeter` | a meter with consumption per period — it takes no readings |
+| `400` | `errors.evcc.countersInvalid` | `counters` is not `auto`, `energy` or `none` |
+| `400` | `errors.evcc.loadpointNeeded` | sessions of several charging points with meter readings — give `loadpoint` or `counters: "none"` |
+| `400` | `errors.evcc.columns` | a CSV without the columns for start or energy |
+| `400` | `errors.evcc.noSessions` | no finished session — also for an empty file or a `loadpoint` without a match |
+| `400` | `errors.evcc.off` | `sync-evcc`: `evcc_endpoint` is empty |
+| `400` | `errors.evcc.notLocal` | `sync-evcc`: an address of evcc is not in your own network |
+| `502` | `errors.evcc.unreachable` | `sync-evcc`: name does not resolve, no connection or an HTTP error |
+| `502` | `errors.evcc.badAnswer` | `sync-evcc`: the answer is not a list of charging sessions |
+
 ### `GET /api/agenda?days=90` *(v3.1.0)*
 
 Deadlines and dates from **one** source: the dashboard (“To do”), the calendar
@@ -2230,7 +2361,7 @@ already due or overdue is added. Sorted by date, then kind.
 | `tank_reorder` | heating oil/pellets: stock low (recommendation R5) | today | always, as long as the recommendation is not dismissed |
 | `tenancy_statement_due` *(v3.1.0)* | service charge statement for the last completed billing period due (§ 556 (3) BGB) — only as long as no statement for that period has been recorded | end of the period + 12 months | never |
 | `objection_deadline` *(v3.1.0)* | last day to object to a statement | receipt (`received_on`) + 12 months | from 30 days before (`severity` then `due`) |
-| `co2_claim_deadline` *(v3.1.0)* | self-contained heating in a rented home: claim the landlord’s share of the CO₂ costs (CO2KostAufG § 6(2)) — only with `case: self_supplied` and an amount above 0 | `deadline` from `/api/co2-split`: receipt of the gas bill + 12 months | from 30 days before (`severity` then `due`) |
+| `co2_claim_deadline` *(v3.1.0)* | self-contained heating in a rented home: claim the landlord’s share of the CO₂ costs (CO2KostAufG § 6(2)) — only with `case: self_supplied` and an amount above 0 | `deadline` from `/api/co2-split`: bill date of the gas bill + 12 months | from 30 days before (`severity` then `due`) |
 
 **Period meters *(v3.1.0)*.** For a meter with consumption per period,
 `reading_due` counts from the end of the last period instead of the last
@@ -2669,7 +2800,8 @@ plaintext **once** on creation. Since v2.6.0 `GET` also reports `last_used_at`
 ```jsonc
 // GET /api/session
 { "mode": "off", "authenticated": true, "mode_fixed": false,
-  "password_fixed": false, "has_password": false }
+  "password_fixed": false, "has_password": false,
+  "named_login": false, "user": null, "role": "admin" }   // the last three since v3.2.0
 
 // POST /api/session/password   (switch on: password only; change: + current)
 { "password": "at-least-8-characters", "current": "previous" }
@@ -2687,6 +2819,111 @@ plaintext **once** on creation. Since v2.6.0 `GET` also reports `last_used_at`
   off.
 - `GET /api/auth/keys` returns `id`, `name`, `scope`, `created_at`,
   `last_used_at` — never the key or its hash.
+- *(v3.2.0)* `/api/session/password`, `/api/auth/keys` and `/api/auth/token`
+  are reached by admins only. `POST /api/session/password` sets the
+  installation password (that of the first admin `u_admin`); `current` is the
+  password of the signed-in person. Every person changes their own password via
+  `POST /api/session/me/password`.
+
+### People in the household *(v3.2.0)*
+
+With sign-in switched on, every person in the household can have an account of
+their own: their own sign-in, their own experience level and language. Everyone
+shares the household’s data. People are stored in `data/auth.json`, not in the
+backup, without a schema step
+([Data model](datenmodell.md#people-in-authjson-v320)). Guide:
+[Users in the household](../anleitungen/benutzer.md).
+
+| Role | `role` | may |
+|---|---|---|
+| Admin | `admin` | everything |
+| Member | `member` | record and see everything; change their own level, language and password |
+
+**Admins only** — a member gets `403` `errors.auth.adminOnly`:
+
+- `/api/users…`, `/api/auth/keys…`, `/api/auth/token` and
+  `/api/session/password` — every method, `GET` included;
+- `POST /api/backup/import`, `POST /api/backup/snapshots/{name}/restore` and
+  `POST /api/demo/import` — all three replace the data;
+- `PATCH /api/settings` with `frame_ancestors`, `ocr_endpoint` or
+  `evcc_endpoint` in the body — settings that make the app talk to other
+  addresses or let it be embedded. Without these keys, members may change
+  settings too.
+
+The role applies to signed-in people. Without sign-in and with an API key there
+is no person; a request may then do what it could before (a `read` key still
+only reads).
+
+**Transition from v3.1.** Up to v3.1 there was one password. It now belongs to
+the first admin: identifier `u_admin`, name `admin`. As long as nobody adds a
+person, it only appears in the list (`GET /api/users`); with the first change
+it is written into `auth.json`. It still signs in **without a name**, with the
+installation password or `ET_ADMIN_PASSWORD_HASH`. Sessions from v3.1 stay
+valid for it. If `u_admin` is deleted, the installation password goes, and with
+it sign-in without a name.
+
+**Proxy.** In mode `proxy` the app recognises the person by the reported name
+([Sign-in](#sign-in-v260-opt-in)) and creates them on the first visit
+(`source: "proxy"`, name cut to 40 characters): as an admin while there is no
+admin from the proxy, otherwise as a member. They have no password in the app.
+
+**Person.** Every response with a person has these fields, never a password
+hash:
+
+```json
+{ "id": "u_3f9a1c2e", "name": "Alex", "role": "member", "source": "password",
+  "prefs": { "ui_level": "beginner", "language": "en" },
+  "created_at": "2026-10-09T18:20:11+02:00" }
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | `u_` and eight hex digits; the first admin `u_admin` |
+| `name` | 1–40 characters without control characters, repeated white space becomes one; unique regardless of upper and lower case |
+| `role` | `admin` or `member` |
+| `source` | `password` (sign-in in the app) or `proxy` (from the upstream service) |
+| `prefs` | own settings, only those set: `ui_level` (`beginner`, `advanced`, `expert`) and `language`. Without an own level the installation’s applies, without an own language that of the device or the installation |
+| `created_at` | created (ISO 8601) |
+
+**`GET /api/session`** additionally reports since v3.2.0:
+
+```jsonc
+{ "mode": "password", "authenticated": true, "mode_fixed": false,
+  "password_fixed": false, "has_password": true,
+  "named_login": true,
+  "user": { "id": "u_3f9a1c2e", "name": "Alex", "role": "member", "source": "password",
+            "prefs": { "ui_level": "beginner" }, "created_at": "…" },
+  "role": "member" }
+```
+
+- `named_login`: mode `password`, and there is at least one added person with a
+  password other than `u_admin` — sign-in then asks for the name.
+- `user`: the person of this session; `null` without sign-in, with an API key
+  and when not signed in.
+- `role`: `admin` or `member`; `null` when not signed in, `admin` without a
+  person.
+
+**`POST /api/session`** — `{name?, password}`. Without a name (empty or
+missing) the first admin with the installation password applies. The name
+counts regardless of upper and lower case and only for people with
+`source: "password"`. An unknown name and a wrong password answer the same:
+`401` `errors.auth.wrongPassword`. The lock after five failures (`429`) applies
+to the whole installation, not per person. Outside mode `password` → `400`
+`errors.auth.notPasswordMode`.
+
+| Route | Body | Response | Errors |
+|---|---|---|---|
+| `PATCH /api/session/me` | `{ui_level?, language?}`; `null` or `""` removes your own value | your own person | `400` `errors.users.noUser` (no person signed in: without sign-in or with an API key); `400` `errors.settings.valueInvalid` (unknown level or language) |
+| `POST /api/session/me/password` | `{current, password}` | `{changed: true}` and a new session cookie | `400` `errors.users.noUser`; `400` `errors.users.proxyNoPassword` (person from the proxy); `401` `errors.auth.wrongPassword` or `429` `errors.auth.locked` (previous password); `400` `errors.auth.passwordTooShort` (fewer than 8 characters); `409` `errors.auth.passwordFixed` (`u_admin` with `ET_ADMIN_PASSWORD_HASH`) |
+| `GET /api/users` | — | list of people, including `u_admin` while it exists | — |
+| `POST /api/users` | `{name, password, role?}`; `role` default `member` | `201` with the person (`source: "password"`) | `400` `errors.users.nameInvalid`, `errors.users.roleInvalid`, `errors.auth.passwordTooShort`; `409` `errors.users.nameTaken` |
+| `PATCH /api/users/{id}` | `{name?, role?, password?}`, each field on its own; the password without the previous one (“Reset password”) | the changed person | `404` `errors.users.notFound`; `400` as when adding; `409` `errors.users.nameTaken`, `errors.users.lastAdmin` (the last admin would become a member), `errors.auth.passwordFixed` |
+| `DELETE /api/users/{id}` | — | `{deleted: true}` | `400` `errors.users.notSelf` (your own person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` with `ET_ADMIN_PASSWORD_HASH`) |
+
+A deleted person is signed out at once: their session cookie no longer counts.
+A new password — changed by the person or reset by an admin — signs that person
+out on every device; whoever changes their own gets a new cookie for the
+current device right away. The other people stay signed in.
 
 ### Snapshots and import *(v2.6.0)*
 
@@ -2742,6 +2979,51 @@ unknown key.
   themselves (base64: about a third more); upload limits for restoring:
   [Web server](../betrieb/webserver.md).
 
+**Charging sessions in the backup *(v3.2.0)*.** New pot `ev_sessions` (the
+format stays `3.0`); every entry needs `id`, `meter_id`, `date` and
+`charged_kwh`, and `date` must be a calendar date. An older backup without the
+pot leaves the stored charging sessions unchanged (`untouched`). People and
+passwords (`auth.json`) are still not part of the backup.
+
+### Example households *(v3.2.0)*
+
+Next to the previous demo household with every utility (now the “showcase”,
+`showcase`) there are four example households, one for each persona of the
+setup assistant ([Setup](../einstieg/einrichtung.md)). Class C.
+
+`GET /api/demo/status`:
+
+```json
+{ "available": true, "is_empty": true,
+  "personas": ["mieterin", "etw-fernwaerme", "eigenheim-klassisch", "eigenheim-modern", "showcase"] }
+```
+
+- `available`: the showcase is included.
+- `is_empty`: nothing recorded yet — no reading, delivery, period or contract
+  in any utility. Since v3.2.0 the default meters of a new installation no
+  longer count as data.
+- `personas`: the example households whose file is present; `showcase` is
+  always in it.
+
+`POST /api/demo/import` — body `{force?, persona?}`, admins only:
+
+| `persona` | Household |
+|---|---|
+| `mieterin` | rented flat: electricity, heat from the monthly consumption information, hot and cold water, tenancy with service charge statements |
+| `etw-fernwaerme` | owner-occupied flat with district heating (own supply contract) and electricity |
+| `eigenheim-klassisch` | detached house with gas, electricity and water including a garden meter |
+| `eigenheim-modern` | heat pump, PV with battery, wall box with charging sessions from evcc |
+| `showcase` or empty | the showcase with every utility |
+
+- An unknown persona → `400` `errors.demo.personaUnknown`; if there is data
+  already and `force: true` is missing → `400` `errors.demo.dataExists`.
+- An example household replaces the **whole** household: every pot of every
+  utility, also those it does not use. The app takes a snapshot of the current
+  state first. The experience level (`ui_level`) stays; `setup_pending` becomes
+  `false`, `setup_persona` the loaded persona.
+- Response: the report of the backup import, plus `demo_import: true` and
+  `persona`.
+
 ### `GET|HEAD /api/health` *(N1003; extended in v2.6.0)*
 
 ```json
@@ -2786,6 +3068,8 @@ Previously accepted silently, now `400` with `code` and — for the forecast —
 | `/api/reports/ev-charging…` | `year` | 2017–2100, default previous year, otherwise `errors.evReport.yearInvalid` (v3.1.0) |
 | | `method` | `contract`, `flat`, otherwise `errors.evReport.methodInvalid` |
 | | `flat_ct` | 0–200 ct/kWh, otherwise `errors.evReport.flatInvalid` |
+| `/api/ev-sessions` | `year` | 2017–2100 or empty (all years), otherwise `errors.evReport.yearInvalid` (v3.2.0) |
+| `…/import-evcc`, `…/sync-evcc` | `counters` | `auto` (default), `energy`, `none`, otherwise `errors.evcc.countersInvalid` (v3.2.0) |
 | `/api/heat-pump` | `year` | 1990–2100, default previous year, otherwise `errors.heatPump.yearInvalid` (v3.1.0) |
 | `/api/benchmarks/comparison` | `year` | a year, default previous year (v3.1.0) |
 | `/api/export/…` | `format` | `1` (default) or `local`, otherwise `errors.export.formatInvalid` (v3.1.0) |

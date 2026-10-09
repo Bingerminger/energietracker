@@ -10,7 +10,8 @@
     "actions": "Actions",
     "invalidNumber": "Please enter a valid number, e.g. {example}.",
     "undo": "Undo",
-    "hddShort": "HDD"
+    "hddShort": "HDD",
+    "guide": "Guide"
   },
   "app": {
     "themeToggle": "Switch theme",
@@ -188,6 +189,38 @@
       "prev": "A year earlier",
       "alt": "Bar chart: {label} by month from {from} to {to}.",
       "altPrev": "Bar chart: {label} by month from {from} to {to}; the line shows the same months a year earlier."
+    },
+    "explainers": {
+      "title": "Explainers"
+    },
+    "beginner": {
+      "capture": "Add reading",
+      "money": {
+        "title": "Will I get money back?",
+        "credit": "about {amount} back",
+        "due": "about {amount} additional payment",
+        "even": "about even",
+        "until": "bill on {date}",
+        "none": "No contract with advance payments yet.",
+        "add": "Add contract"
+      },
+      "trend": {
+        "title": "More or less than last year?",
+        "more": "{pct} more than last year",
+        "less": "{pct} less than last year",
+        "same": "about the same as last year",
+        "none": "No previous year to compare yet."
+      },
+      "rent": {
+        "title": "Does the prepayment cover it?",
+        "enough": "Yes — probably about {amount} back.",
+        "short": "Tight — probably about {amount} additional payment.",
+        "suggest": "Suitable prepayment: {amount} a month."
+      },
+      "todo": {
+        "title": "What needs doing?",
+        "none": "Nothing right now — good."
+      }
     }
   },
   "readingsEntry": {
@@ -1203,7 +1236,8 @@
       "frameAncestors": "http://homeassistant.local:8123",
       "ocrEndpoint": "http://192.168.178.20:11434",
       "ocrModel": "qwen2.5vl",
-      "referenceSource": "e.g. benchmark 2025"
+      "referenceSource": "e.g. benchmark 2025",
+      "evccEndpoint": "http://192.168.178.30:7070"
     },
     "loading": "Loading…",
     "saved": "Settings saved",
@@ -1214,7 +1248,8 @@
       "deviceLabel": "Language on this device",
       "deviceFollow": "Same as the installation ({lang})",
       "defaultLabel": "Default language of the installation",
-      "defaultSaved": "Default language changed"
+      "defaultSaved": "Default language changed",
+      "personLabel": "My language (on all my devices)"
     },
     "unit": {
       "days": "days",
@@ -1266,6 +1301,10 @@
       "reference": {
         "title": "Own reference values",
         "hint": "For the benchmark on the overview. The app ships no tables; enter the values an electricity or heating benchmark gives you."
+      },
+      "evcc": {
+        "title": "evcc in your home network",
+        "hint": "Fetches the charging sessions from evcc when you tap “Fetch from evcc” in the wallbox view. Only addresses in your own network. Empty = off; the CSV file from evcc always works."
       }
     },
     "field": {
@@ -1325,7 +1364,7 @@
       },
       "beheizter_keller": {
         "label": "Heated basement",
-        "hint": "Single-/two-family or terraced house with heated basement: usable floor area = 1.35 × living area (otherwise 1.2) — for the certificate-style figure."
+        "hint": "Residential building with up to two dwellings (single-/two-family or terraced house) with heated basement: usable floor area = 1.35 × living area (otherwise 1.2) — for the certificate-style figure."
       },
       "warmwasser_dezentral": {
         "label": "Decentralised hot water",
@@ -1409,6 +1448,10 @@
       "warmwasser_elektrisch": {
         "label": "Hot water by electricity",
         "hint": "Instantaneous electric heater or electric boiler — electricity benchmarks distinguish by it."
+      },
+      "evcc_endpoint": {
+        "label": "evcc address",
+        "hint": "For example http://192.168.178.30:7070 or http://evcc.local:7070 — the address you open evcc at in the browser."
       }
     },
     "boolActive": "on",
@@ -1821,6 +1864,44 @@
       "fernwaerme": "District heating",
       "strom": "Electricity (heat pump, instantaneous water heater)",
       "waerme": "Heat (central)"
+    },
+    "level": {
+      "title": "Experience level and setup",
+      "hint": "Decides what the interface shows — every level calculates everything. Applies to all devices of this installation.",
+      "hintPerson": "Decides what the interface shows — every level calculates everything. Applies to you ({name}) on all devices.",
+      "describe": {
+        "beginner": "Overview with three answers, meter readings, simple contracts, annual report.",
+        "advanced": "Plus analyses, forecast, switching, bill check and meter structure.",
+        "expert": "Everything, with explainers, groups, calculation parameters and access."
+      },
+      "saved": "Level saved."
+    },
+    "me": {
+      "title": "My account: {name}",
+      "proxyHint": "Signed in through the service in front of the app; change the password there.",
+      "passwordChanged": "Password changed."
+    },
+    "users": {
+      "title": "Users and roles",
+      "hint": "Each person signs in with name and password and has their own level and language. Everyone shares the household’s data.",
+      "hintProxy": "The service in front of the app handles sign-in; the app knows each person by name. The first one to arrive manages.",
+      "memberHint": "Access is managed by whoever manages the installation. Change your own password under Settings → General.",
+      "passwordHint": "Each person changes their password under Settings → General → My account.",
+      "role": {
+        "admin": "Admin",
+        "member": "Member"
+      },
+      "roleLabel": "Role of {name}",
+      "name": "Name",
+      "roleHead": "Role",
+      "you": "you",
+      "resetPassword": "Reset password",
+      "delete": "Delete person",
+      "deleteConfirm": "This person will no longer be able to sign in. The household’s data stays.",
+      "add": "Add a person",
+      "addButton": "Add",
+      "added": "{name} can now sign in.",
+      "saved": "Saved."
     }
   },
   "reminders": {
@@ -2423,7 +2504,7 @@
       "noLivingArea": "Living area not set — please enter it in the settings to get an efficiency class.",
       "noHeatData": "No heating energy data found for {year}.",
       "multipleSources": "Several heat sources active — the class per source is more meaningful than the combined total. The combined view only makes sense for deliberately combined heating (e.g. base and peak load).",
-      "noScale": "No efficiency scale is available for {country}. Classes A+ to H follow the German Buildings Energy Act (GEG) and are therefore not shown.",
+      "noScale": "No efficiency scale is available for {country}. Classes A+ to H follow the German Building Modernisation Act (GModG, formerly GEG) and are therefore not shown.",
       "incompleteYear": "Data for {year} does not cover the whole year — no class; the figure only covers the measured period."
     },
     "forecast": {
@@ -2600,7 +2681,8 @@
     "demo": {
       "backupNotFound": "Demo backup not found.",
       "dataExists": "Data already exists. The import overwrites it (a snapshot is created automatically beforehand). Confirm to continue.",
-      "backupInvalid": "Demo backup is invalid (not JSON)."
+      "backupInvalid": "Demo backup is invalid (not JSON).",
+      "personaUnknown": "There is no sample household “{persona}”."
     },
     "migration": {
       "noVersionField": "No “version” field in the backup — probably not a v0.9.0 backup. Expected are v0.9.0 backups with version “2.1” or older.",
@@ -2655,7 +2737,8 @@
       "modeFixed": "Sign-in is set via the environment (ET_AUTH) and cannot be turned off here.",
       "passwordTooShort": "The password needs at least {min} characters.",
       "scopeInvalid": "Unknown scope – read, admin and calendar are allowed.",
-      "keyNotFound": "API key not found."
+      "keyNotFound": "API key not found.",
+      "adminOnly": "Only someone who manages this installation may do that."
     },
     "weather": {
       "badFormat": "Open-Meteo replied in an unexpected format.",
@@ -2726,6 +2809,26 @@
     },
     "heatPump": {
       "yearInvalid": "Year “{year}” is invalid"
+    },
+    "users": {
+      "noUser": "Without sign-in there are no personal settings — the level then applies to the whole installation.",
+      "proxyNoPassword": "When you sign in through the service in front of the app, change the password there.",
+      "nameInvalid": "The name must not be empty and may have at most {max} characters.",
+      "nameTaken": "This name already exists.",
+      "roleInvalid": "The role must be “Admin” or “Member” (API: admin, member).",
+      "lastAdmin": "At least one person must manage the installation.",
+      "notFound": "This person no longer exists.",
+      "notSelf": "You cannot delete yourself — another person who manages the installation can do that."
+    },
+    "evcc": {
+      "off": "No evcc address set up (Settings → Expert).",
+      "notLocal": "evcc has to run in your own network – “{host}” is not an address in the home network.",
+      "unreachable": "evcc cannot be reached.",
+      "badAnswer": "evcc did not return a list of charging sessions.",
+      "noSessions": "No completed charging sessions found.",
+      "columns": "This does not look like the CSV export from evcc: the columns for start and energy are missing.",
+      "countersInvalid": "Unknown choice for the meter readings: “{value}”.",
+      "loadpointNeeded": "Several charging points ({names}): meter readings belong to one wallbox – choose its charging point or take over only the sessions."
     }
   },
   "login": {
@@ -2733,7 +2836,9 @@
     "password": "Password",
     "submit": "Sign in",
     "forgot": "Forgot the password? On the server, set “mode” to “off” in data/auth.json – that switches sign-in off. In the Docker container, the environment variable ET_AUTH=off does the same.",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "name": "Name",
+    "forgotNamed": "Forgot your password? Someone who manages this installation can reset it under Settings → Access."
   },
   "readingCheck": {
     "title": "Please check",
@@ -2814,7 +2919,8 @@
       "itemAmount": "Amount (credit negative)",
       "co2Cost": "CO₂ cost on the bill",
       "attach": "Attach bill (PDF or photo)",
-      "save": "Save bill"
+      "save": "Save bill",
+      "update": "Save changes"
     },
     "saved": "Bill saved",
     "book": "Book as special payment",
@@ -2841,7 +2947,10 @@
       "price_missing": "The contract has no price for part of the period – costs are missing there too.",
       "gaps": "Meter readings are missing within the period."
     },
-    "ownTotalOnly": "Recalculated: {total}"
+    "ownTotalOnly": "Recalculated: {total}",
+    "updated": "Bill updated",
+    "editing": "You are editing the bill from {from} to {to}.",
+    "editBookedNote": "It is already booked as a special payment – the booking in the contract does not change with it."
   },
   "glossary": {
     "hdd": {
@@ -2998,7 +3107,7 @@
     },
     "co2Price": {
       "term": "CO₂ price (BEHG)",
-      "text": "Since 2021 suppliers of gas and heating oil in Germany pay a price for every tonne of CO₂ and pass it on in the unit price: 55 euros in 2025, 60 euros per tonne in 2026. The app shows it – it is not a surcharge. It is calculated with the standard BEHG factors; wood, pellets and electricity carry none."
+      "text": "Since 2021 suppliers of gas and heating oil in Germany pay a price for every tonne of CO₂ and pass it on in the unit price: 55 euros fixed in 2025; in 2026 auctioned within a corridor of 55 to 65 euros – bills and heating cost statements use 60 euros per tonne. The app shows it – it is not a surcharge. It is calculated with the standard BEHG factors; wood, pellets and electricity carry none."
     },
     "co2Split": {
       "term": "Sharing CO₂ costs",
@@ -3010,7 +3119,7 @@
     },
     "module14a": {
       "term": "§ 14a EnWG (controllable consumers)",
-      "text": "The grid operator may throttle heat pumps, wall boxes and storage above 4.2 kW during bottlenecks; in return the grid fee drops. Module 1: a fixed amount per year. Module 2: a separate meter with 40% of the grid unit price. Module 3: time-variable grid fees on top of module 1."
+      "text": "The grid operator may throttle heat pumps, wall boxes, air conditioners and storage above 4.2 kW that went into operation from 2024 during bottlenecks – never below 4.2 kW; in return the grid fee drops. Module 1: a fixed amount per year. Module 2: a separate meter with 40% of the grid unit price. Module 3: time-variable grid fees on top of module 1."
     },
     "jaz": {
       "term": "Seasonal performance factor (SPF)",
@@ -3039,7 +3148,9 @@
       "homeAssistant": "Connect Home Assistant",
       "englishOnly": "The documentation exists in German and English; the links lead to the English version.",
       "faq": "Frequently asked questions",
-      "troubleshoot": "Troubleshooting"
+      "troubleshoot": "Troubleshooting",
+      "setup": "Setup, example households and levels",
+      "useCases": "Use cases"
     },
     "support": {
       "title": "Questions and bugs",
@@ -3049,9 +3160,25 @@
     },
     "privacy": {
       "title": "Your data",
-      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it — and, only if you enter it, to your own text recognition service in your home network. When you tap “Load from SMARD”, the app fetches wholesale electricity prices from the Federal Network Agency; nothing of yours is sent."
+      "text": "Everything stays on your server: no accounts, no ads, no telemetry. The app only talks to Open-Meteo — for the daily weather sync (only the location rounded to about 1 km, can be switched off under Settings → Weather data) and for the place search when you use it — and, only if you enter them, to your own text recognition service and your evcc in your home network. When you tap “Load from SMARD”, the app fetches wholesale electricity prices from the Federal Network Agency; nothing of yours is sent."
     },
-    "onYourBill": "On your bill ({country}): “{term}”"
+    "onYourBill": "On your bill ({country}): “{term}”",
+    "cases": {
+      "title": "Use cases",
+      "heat": {
+        "title": "District heating or heat?",
+        "text": "You buy district heating yourself from the supplier – with your own contract, energy and standing charge and a bill; that is what the “District heating” type is for. Heat is measured heat without a supply contract of your own: in a rented flat it is paid through the service charge statement (with the monthly consumption information), in your own house it is the heat output of the heat pump – that is what “Heat” is for. The example households “Owner-occupied flat with district heating”, “I rent my home” and “Own house with heat pump and solar” show all three cases."
+      },
+      "control": {
+        "title": "Control with evcc or Home Assistant",
+        "text": "The Energietracker switches nothing. evcc or Home Assistant control the battery, wallbox and heat pump – with solar power, in cheap hours or at negative wholesale prices. The Energietracker checks the result: charging sessions from evcc with their solar share, meter readings via Home Assistant, the dynamic tariff check with wholesale prices and the charging record show what the control achieved."
+      },
+      "levels": {
+        "title": "Simple first, everything later",
+        "text": "The level at the top next to day/night decides how much you see: beginners get three answers on the overview, the experienced level adds tariff switch, bill check and analyses, experts see everything. Everything is calculated at every level – you can switch at any time. To try it out, the setup assistant loads an example household that fits you."
+      },
+      "tryExample": "Try an example household"
+    }
   },
   "onboarding": {
     "done": "done",
@@ -3500,7 +3627,7 @@
     "plugIn": {
       "assumed": "Plug-in solar: self-consumption assumed at {pct}% of generation (settings)."
     },
-    "hint51": "In operation since 25 Feb 2025: there is no feed-in tariff for periods with a negative wholesale price once a smart metering system is installed (§ 51 EEG). This is offset by a longer funding period."
+    "hint51": "In operation since 25 Feb 2025: no feed-in tariff for periods with a negative wholesale price – below 100 kW from the year after a smart metering system is installed (§ 51 EEG). A longer funding period partly offsets this."
   },
   "comparison": {
     "title": "Benchmark {year}",
@@ -3556,6 +3683,186 @@
         "one": "{count} day, {from} (the last reading of the day)",
         "other": "{count} days from {from} to {to} (the last reading of each day)"
       }
+    }
+  },
+  "level": {
+    "switch": "Experience level",
+    "beginner": "Beginner",
+    "advanced": "Experienced",
+    "expert": "Expert",
+    "hint": {
+      "page": "This page belongs to the “{level}” level. It is open anyway.",
+      "switch": "Switch to “{level}”",
+      "data": "Your data holds more than this level shows — “{level}” shows it.",
+      "dismiss": "Don’t ask again"
+    },
+    "reason": {
+      "subMeters": "sub-meters",
+      "homeAssistant": "values from Home Assistant",
+      "severalMeters": "several meters for one utility",
+      "heatPump": "heat pump",
+      "battery": "battery",
+      "wallbox": "wallbox"
+    }
+  },
+  "explainer": {
+    "money": {
+      "title": "Where does my money go?",
+      "paid": "Advance payments",
+      "cost": "Cost",
+      "energy": "Consumption",
+      "base": "Standing charge",
+      "estimate": "still estimated",
+      "credit": "about {amount} credit",
+      "due": "about {amount} additional payment",
+      "even": "almost exactly even",
+      "text": "By the bill on {date} you pay {paid} in advance payments; consumption and standing charge will probably cost {cost}. That makes {result}."
+    },
+    "energy": {
+      "title": "Energy flow in the house",
+      "pv": "Solar",
+      "house": "House",
+      "grid": "Grid",
+      "battery": "Battery",
+      "text": "{year}: The system produced {gen} kWh. The house used {self} kWh of it itself, {feed} kWh went to the grid, {grid} kWh came from the grid. Self-sufficiency: {autarky}."
+    },
+    "weather": {
+      "title": "Colder, or used more?",
+      "usage": "Consumption",
+      "hdd": "Heating degree days",
+      "before": "the same months a year earlier",
+      "now": "recently",
+      "adjusted": "weather-adjusted {pct}",
+      "text": {
+        "less": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: you really used less.",
+        "more": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: you really used more — not just the weather.",
+        "same": "Consumption {cons}, heating degree days {hdd} compared with the same months a year earlier. Weather-adjusted {adj}: about the same — the difference is the weather."
+      }
+    },
+    "timeline": {
+      "title": "Contract at a glance",
+      "start": "Start",
+      "cancel": "Cancel by",
+      "price": "Price increase",
+      "end": "End",
+      "today": "today",
+      "text": "Contract since {start}. To switch, cancel by {cancel}; it then ends on {end}.",
+      "textOpen": "Contract since {start}; it runs on until you cancel. Cancelled by {cancel} at the latest, it ends on {end}.",
+      "textNoNotice": "Contract since {start}, end: {end}.",
+      "textRunning": "Contract since {start}; it runs on until you cancel. No notice period has been entered."
+    }
+  },
+  "setup": {
+    "title": "Set up",
+    "intro": "Three questions, then the app shows what suits you. Everything can be changed later.",
+    "progress": "Step {n} of {total}",
+    "persona": {
+      "title": "Who are you?",
+      "tenant": {
+        "title": "I rent my home",
+        "text": "Electricity on my own contract; heating and water I pay through the service charges."
+      },
+      "flat": {
+        "title": "Owner-occupied flat with district heating",
+        "text": "District heating and electricity on my own contracts and bills."
+      },
+      "houseClassic": {
+        "title": "Own house with gas, oil or pellets",
+        "text": "Heating, electricity and water on my own contracts."
+      },
+      "houseModern": {
+        "title": "Own house with heat pump and solar",
+        "text": "Heat pump, solar, battery and wallbox."
+      },
+      "showcase": {
+        "title": "Just look at everything first",
+        "text": "Almost every utility in one sample household – to get to know every feature."
+      }
+    },
+    "utilities": {
+      "title": "Which energy sources do you use?",
+      "hint": "Suggested from your answer — combine freely.",
+      "heatNote": "District heating or heat? District heating has its own supply contract with a bill from the supplier. Heat is only measured — paid through the rent, or it is the output of a heat pump."
+    },
+    "level": {
+      "title": "How much experience do you have?",
+      "later": "You can change the level at any time at the top, next to light/dark."
+    },
+    "finish": {
+      "title": "What comes next",
+      "summary": "{persona} · level “{level}”",
+      "demo": "Look at it with sample data",
+      "demoHint": "Loads the matching sample household. The app saves the current state first.",
+      "demoPublic": "The demo now shows the sample household “{persona}”. Pick another under Settings → General → “Start the setup assistant”.",
+      "own": "Start with my own data",
+      "ownHint": "Next: check the meters and add the first reading."
+    },
+    "skip": "Skip",
+    "back": "Back",
+    "next": "Next",
+    "done": "Let’s go",
+    "restart": "Start the setup assistant"
+  },
+  "evcc": {
+    "title": "Charging sessions from evcc {year}",
+    "intro": "evcc controls the wallbox – with solar power or in cheap hours. Here you check what came of it: amount, solar share and price per month. The wallbox meter readings come along too.",
+    "summary": {
+      "one": "{count} charging session, {kwh} kWh, {solar} of it from the sun",
+      "other": "{count} charging sessions, {kwh} kWh, {solar} of it from the sun"
+    },
+    "priceTotal": "{amount} according to evcc",
+    "col": {
+      "month": "Month",
+      "sessions": "Sessions",
+      "solar": "Solar",
+      "price": "Price (evcc)"
+    },
+    "empty": "No charging sessions from evcc for {year} yet.",
+    "countersLabel": "Meter readings",
+    "counters": {
+      "auto": "from the wallbox meter (otherwise added up)",
+      "energy": "add up from the energy charged",
+      "none": "none – only the sessions"
+    },
+    "chooseCsv": "Choose CSV from evcc …",
+    "sync": "Fetch from evcc",
+    "syncHint": "Both show a preview first. Repeating does no harm: the same session is replaced, not counted twice.",
+    "noEndpoint": "Download the CSV in evcc under Sessions. To fetch directly, enter the evcc address under Settings → Expert.",
+    "preview": {
+      "title": "Take over the charging sessions?",
+      "sessions": {
+        "one": "{count} charging session from {from} to {to}, {kwh} kWh in total.",
+        "other": "{count} charging sessions from {from} to {to}, {kwh} kWh in total."
+      },
+      "noReadings": "Meter readings stay as they are.",
+      "readings": {
+        "meter": {
+          "one": "Plus {count} reading from the wallbox meter.",
+          "other": "Plus {count} readings from the wallbox meter."
+        },
+        "energy": {
+          "one": "Plus {count} reading, added up from the last reading before.",
+          "other": "Plus {count} readings, added up from the last reading before."
+        }
+      },
+      "replaces": {
+        "one": "{count} existing reading on the same day will be replaced.",
+        "other": "{count} existing readings on the same days will be replaced."
+      },
+      "running": "One session is still running; it will be added next time.",
+      "loadpoints": "The file contains several charging points ({names}); all of them go to this meter.",
+      "apply": "Take over",
+      "onlyLoadpoint": "Only charging point {name}."
+    },
+    "done": {
+      "one": "{count} charging session taken over.",
+      "other": "{count} charging sessions taken over."
+    },
+    "pick": {
+      "title": "Which charging point belongs to this meter?",
+      "hint": "The charging sessions come from several charging points. Meter readings belong to exactly one wallbox – choose its charging point. For all charging points together, choose “none – only the sessions” for the meter readings.",
+      "label": "Charging point",
+      "ok": "Continue"
     }
   }
 }

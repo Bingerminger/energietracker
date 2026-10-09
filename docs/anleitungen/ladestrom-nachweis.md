@@ -23,7 +23,10 @@ mit Zählerständen und Unterschriftszeile.
 - Einen **eigenen Zähler für die Wallbox** — meist ein Zwischenzähler hinter
   dem Haushaltszähler, manchmal ein eigener Zähler des Netzbetreibers (§ 14a
   EnWG, Modul 2, siehe [Strom](../verstehen/02-strom.md#steuerbare-verbraucher-v310)).
-  Ohne eigenen Zähler lässt sich die geladene Menge nicht belegen.
+  Ohne eigenen Zähler lässt sich die geladene Menge nicht belegen. Das
+  BMF-Schreiben lässt dafür auch einen mobilen oder in Wallbox oder Fahrzeug
+  eingebauten Zähler gelten (Rn. 27) — entscheidend ist, dass die geladene
+  Menge gemessen ist.
 - **Zählerstände** der Wallbox, am besten zum Monatswechsel. Die Menge eines
   Monats ist die Differenz der Stände, tagesgenau auf die Monate verteilt;
   Stände am Monatsersten machen sie exakt.
@@ -136,6 +139,9 @@ die eingebauten PDF-Schriften nicht setzen können, antwortet die App mit
   Tarif, eingetragen mit „Monatspreise importieren“), folgt der Vertragspreis
   ihnen ([Strom](../verstehen/02-strom.md#dynamische-tarife-v310)).
 - **Mehrere Wallboxen:** je Zähler ein Nachweis.
+- **Selbständige.** Für Selbständige mit betrieblichem E-Auto gilt dasselbe
+  nach dem BMF-Schreiben vom 21.07.2026; die Wahl gilt dort je Wirtschaftsjahr
+  (Stand 09.10.2026).
 
 ## 7. Über die API
 

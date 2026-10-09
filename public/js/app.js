@@ -18,6 +18,10 @@ import { intlLocale, setCountry, fmt } from './lib/format.js';
 import { installInfoPopovers, setBillContext } from './components/info.js';
 // v3.0.0 — öffentliche Demo: Sprache vom Browser, Kennzeichen und Hinweisleiste
 import { DEMO, demoLanguage, mountDemoUi } from './lib/demo-mode.js';
+// v3.2.0 (F1019, F1023) — Nutzungsstufe und Person dieser Sitzung
+import { setSession, resolveLevel, applyLevel } from './lib/levels.js';
+import { mountLevelSwitch, refreshLevelSwitch } from './lib/level-switch.js';
+import { maybeStartSetup } from './components/setup-wizard.js';
 
 // v2.13.0 — ⓘ-Erklärungen: ein Handler für alle Knöpfe
 installInfoPopovers();
@@ -35,6 +39,7 @@ function applyShellStrings() {
   document.documentElement.setAttribute('lang', getLocale());
 
   refreshThemeToggle();
+  refreshLevelSwitch();
   // v2.11.0 — weitere Shell-Texte tragen ihren Schlüssel in data-shell
   document.querySelectorAll('[data-shell]').forEach(el => { el.textContent = t(el.getAttribute('data-shell')); });
   document.getElementById('tabbar')?.setAttribute('aria-label', t('nav.tabbar'));
@@ -61,7 +66,7 @@ function applyShellStrings() {
 // ohne Sitzung zeigt die Shell den Anmeldebildschirm statt einer Kaskade von
 // 401-Fehlern. Die Sprache kommt dann aus <html lang> (index.php liest sie
 // serverseitig aus den Einstellungen).
-window.addEventListener('et:auth-required', () => showLogin());
+window.addEventListener('et:auth-required', () => { api.session().then(showLogin, () => showLogin()); });
 
 // v2.6.0 — Offline-Hinweis, wenn Daten aus dem Cache des Service Workers kommen.
 window.addEventListener('et:offline', (ev) => {
@@ -88,11 +93,12 @@ api.session()
   .then(async (session) => {
     if (session.mode !== 'off' && !session.authenticated) {
       await initI18n(deviceLanguage() || document.documentElement.lang || 'de');
-      showLogin();
+      showLogin(session);
       return;
     }
+    setSession(session);
     if (session.mode === 'password') mountLogoutButton();
-    await boot();
+    await boot(session);
   });
 
 /** Abmelden-Knopf in der Kopfleiste (nur bei Passwort-Anmeldung). */
@@ -116,18 +122,22 @@ window.addEventListener('et:session-changed', (ev) => {
   else document.getElementById('logout-btn')?.remove();
 });
 
-const boot = () => Promise.all([getSettings(), getCountries()])
+const boot = (session = null) => Promise.all([getSettings(), getCountries()])
   .then(([s, countries]) => {
     // v2.7.0 — Länderprofil: Währung und Region vor dem ersten Rendern
     setCurrencyParams(s?.currency);
     setCountry(s?.country, countries.find(c => c.code === s?.country)?.languages);
     setBillContext(countries.find(c => c.code === s?.country) || null);
-    // v3.1.0 — eigene Sprache des Geräts vor der Standardsprache der Installation
-    return initI18n(DEMO ? demoLanguage() : (deviceLanguage() || s?.language));
+    // v3.2.0 (F1019) — Stufe vor dem ersten Rendern (CSS blendet nach ihr aus)
+    applyLevel(resolveLevel(s, session));
+    // v3.1.0 — eigene Sprache des Geräts vor der Standardsprache der Installation;
+    // v3.2.0 (F1023) — mit Anmeldung zuerst die Sprache der Person
+    return initI18n(DEMO ? demoLanguage() : (session?.user?.prefs?.language || deviceLanguage() || s?.language));
   })
   .catch(() => initI18n(DEMO ? demoLanguage() : 'de'))
   .finally(async () => {
     applyShellStrings();
+    mountLevelSwitch(document.querySelector('.topbar__actions'));
     // v3.1.0 (I18N-30) — Manifest in der Sprache dieses Geräts (beim Installieren gelesen)
     document.querySelector('link[rel="manifest"]')?.setAttribute('href',
       DEMO ? `manifest-${getLocale()}.webmanifest` : `api.php/api/manifest?lang=${getLocale()}`);
@@ -153,6 +163,8 @@ const boot = () => Promise.all([getSettings(), getCountries()])
     startRouter(container);
     // v2.11.0 — Meldung von vor einem Neustart (Import, Demo-Daten)
     showPendingToast();
+    // v3.2.0 (F1018) — Einrichtungsassistent: Neuinstallation oder Demo ohne Haushalt
+    maybeStartSetup(session).catch((e) => console.error('Einrichtung', e));
     // Badges nachreichen — sie sind Beiwerk und dürfen den ersten Inhalt
     // nicht aufhalten.
     refreshSidebarBadges().catch(() => {});

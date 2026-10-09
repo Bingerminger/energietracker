@@ -44,6 +44,12 @@ Typical cases:
   ([roles](#3-meter-roles)); linked to its electricity meter, it gives the
   seasonal performance factor ([§7](#7-seasonal-performance-factor-of-the-heat-pump-v310)).
 
+If the building is on a district heating network but you have no contract of
+your own with the supplier, it is heat for you as well; “Heat comes from” is
+then set to district heating ([§5](#5-co₂--an-approximation)). The utility
+[District heating](04-fernwaerme.md) is for a supply contract of your own. All
+three cases as sample households: [use case F](../anleitungen/anwendungsfaelle.md#f--district-heating-or-heat).
+
 **Switching it on:** Settings → Utilities & billing → Active utilities →
 **Heat**. Schema step 1.7.0 creates the data pots (`data/waerme/`) empty, also
 in existing installations. There is no default meter: create it under

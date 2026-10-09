@@ -262,15 +262,20 @@ async function drawBills(container, u, meter) {
           <input type="file" accept="application/pdf,image/*" data-role="bill-pdf" class="sr-only"></label>
         <span class="muted small" data-role="bill-pdf-n"></span>
       </div>
-      <div class="form-actions"><button type="button" class="btn btn--primary" id="bi-save">${t('billCheck.invoice.save')}</button></div>
+      <p class="muted small" data-role="bill-editing" hidden></p>
+      <div class="form-actions">
+        <button type="button" class="btn btn--primary" id="bi-save">${t('billCheck.invoice.save')}</button>
+        <button type="button" class="btn btn--ghost" id="bi-cancel" hidden>${t('common.cancel')}</button>
+      </div>
     </form>
     <div data-role="bill-list">${billList(bills, water)}</div>
     <div data-role="bill-compare"></div>`;
 
   let attachments = [];
-  const itemRow = () => `<div class="form-row bill-item">
-      <div class="field"><label>${t('billCheck.invoice.itemLabel')}</label><input class="input input--text" data-i="label" type="text" maxlength="120"></div>
-      <div class="field"><label>${t('billCheck.invoice.itemAmount')}</label><input class="input" data-i="amount_eur" type="text" inputmode="decimal"></div>
+  let editing = null;   // v3.2.0 — Rechnung, die gerade bearbeitet wird
+  const itemRow = (it = {}) => `<div class="form-row bill-item">
+      <div class="field"><label>${t('billCheck.invoice.itemLabel')}</label><input class="input input--text" data-i="label" type="text" maxlength="120" value="${escapeHtml(it.label ?? '')}"></div>
+      <div class="field"><label>${t('billCheck.invoice.itemAmount')}</label><input class="input" data-i="amount_eur" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(it.amount_eur))}"></div>
       <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn btn--ghost btn--sm" data-del-item aria-label="${escapeHtml(t('tenancy.form.removeRow'))}">✕</button></div>
     </div>`;
   el.querySelector('[data-add-item]').addEventListener('click', () => el.querySelector('[data-items]').insertAdjacentHTML('beforeend', itemRow()));
@@ -303,16 +308,43 @@ async function drawBills(container, u, meter) {
       };
     } catch (err) { toastErr(err.message); return; }
     try {
-      const b = await api.createBill(u.key, data);
-      toastOk(t('billCheck.saved'));
+      const b = editing ? await api.updateBill(u.key, editing.id, data) : await api.createBill(u.key, data);
+      toastOk(t(editing ? 'billCheck.updated' : 'billCheck.saved'));
       await drawBills(container, u, meter);
       showCompare(container, u, b.id);
     } catch (err) { toastErr(err.message); }
   });
+  // v3.2.0 (Patch-Pool) — Rechnung bearbeiten: Formular mit ihren Werten füllen
+  const startEdit = (b) => {
+    const f = el.querySelector('#bi-form');
+    const v = (x) => formatForInput(x);
+    editing = b;
+    f.period_from.value = b.period_from || '';
+    f.period_to.value = b.period_to || '';
+    f.issued_on.value = b.issued_on || '';
+    f.qty.value = v(water ? b.invoice?.volume_m3 : b.invoice?.energy_kwh);
+    f.amount.value = v(b.invoice?.amount_eur);
+    f.advances.value = v(b.invoice?.advances_paid_eur);
+    f.result.value = v(b.invoice?.result_eur);
+    if (f.co2_kg) { f.co2_kg.value = v(b.co2?.emissions_kg); f.co2_eur.value = v(b.co2?.cost_eur); }
+    el.querySelector('[data-items]').innerHTML = (b.items || []).map(itemRow).join('');
+    attachments = [...(b.attachment_ids || [])];
+    el.querySelector('[data-role="bill-pdf-n"]').textContent = attachments.length ? tp('tenancy.statement.attached', attachments.length) : '';
+    const note = el.querySelector('[data-role="bill-editing"]');
+    note.textContent = t('billCheck.editing', { from: fmt.date(b.period_from), to: fmt.date(b.period_to) })
+      + (b.special_payment_id ? ' ' + t('billCheck.editBookedNote') : '');
+    note.hidden = false;
+    el.querySelector('#bi-save').textContent = t('billCheck.invoice.update');
+    el.querySelector('#bi-cancel').hidden = false;
+    f.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+  };
+  el.querySelector('#bi-cancel').addEventListener('click', () => drawBills(container, u, meter));
   el.querySelector('[data-role="bill-list"]').addEventListener('click', async (e) => {
     const chk = e.target.closest('[data-bill-check]');
     const book = e.target.closest('[data-bill-book]');
     const del = e.target.closest('[data-bill-del]');
+    const edit = e.target.closest('[data-bill-edit]');
+    if (edit) { const b = bills.find(x => x.id === edit.dataset.billEdit); if (b) startEdit(b); }
     if (chk) showCompare(container, u, chk.dataset.billCheck);
     if (book) {
       try { await api.bookBill(u.key, book.dataset.billBook); toastOk(t('billCheck.booked')); drawBills(container, u, meter); }
@@ -347,6 +379,7 @@ function billList(bills, water) {
         <button type="button" class="btn btn--ghost btn--sm" data-bill-check="${escapeHtml(b.id)}">${t('billCheck.compare')}</button>
         ${b.special_payment_id ? `<span class="tag">${t('billCheck.bookedTag')}</span>`
           : (b.invoice?.result_eur ? `<button type="button" class="btn btn--ghost btn--sm" data-bill-book="${escapeHtml(b.id)}">${t('billCheck.book')}</button>` : '')}
+        <button type="button" class="icon-btn" data-bill-edit="${escapeHtml(b.id)}" aria-label="${escapeHtml(t('utility.readingsTable.edit'))}"><span aria-hidden="true">✏️</span></button>
         <button type="button" class="icon-btn" data-bill-del="${escapeHtml(b.id)}" aria-label="${escapeHtml(t('utility.readingsTable.delete'))}"><span aria-hidden="true">🗑️</span></button>
       </td>
     </tr>`).join('')}</tbody>

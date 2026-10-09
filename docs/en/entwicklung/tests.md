@@ -115,6 +115,12 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
 - **`tests/hardcoded-text.test.mjs`** (v3.1.0) — no texts in the code of views
   and components: text nodes in HTML templates and literals with an umlaut or ß
   stand out. Units, formula symbols and names are allowed (list in the test).
+- **`tests/levels.test.mjs`** (v3.2.0) — experience levels and explainers
+  without a server: where a level comes from (person before installation,
+  unknown = expert), which page needs which level, navigation and CSS follow
+  the level; the money explainer uses the billing period (`balance_path`), the
+  weather explainer needs six months with an adjusted value and last year. The
+  demo click test walks through every example household at two levels.
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`, since v3.1.0 `HttpServerTestCase` for tests over

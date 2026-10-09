@@ -63,7 +63,7 @@ export async function render(container) {
   const co2 = await api.co2Split(co2Year).catch(() => null);
   container.innerHTML = `${header}
     ${budgetCard(budget)}
-    ${co2Card(co2, co2Year)}
+    <div data-min-level="expert">${co2Card(co2, co2Year)}</div>
     ${detailsCard(ten, utilities)}
     ${statementsCard(statements)}`;
   wire(container, ten, utilities, statements);

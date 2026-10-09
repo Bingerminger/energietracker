@@ -25,6 +25,9 @@ import { t, tp, getCurrencyMinor, getCurrencySymbol } from '../lib/i18n.js';
 import { info, infoNote } from '../components/info.js';
 import { isFeedIn as feedInKind, isGeneration as generationKind, isPv, usesGasFactors, balanceView, moreIsBetter } from '../lib/semantics.js';
 import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBetween } from '../lib/plausibility.js';
+// v3.2.0 (F1020) — Schaubilder zu dieser Verbrauchsart
+import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
+import { docUrl } from '../lib/docs.js';
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -357,14 +360,14 @@ async function rerender(container) {
         <div class="kpi__sub">${tp('utility.kpi.daysCount', totDays, { days: totDays })}</div>
       </div>
       ${isFeedIn || isGeneration ? `
-      <div class="kpi c-violet">
+      <div class="kpi c-violet" data-min-level="advanced">
         <div class="kpi__label">${t('utility.kpi.co2Avoided', { year: yr })}${info('co2Avoided')}</div>
         <!-- v2.13.0 — „vermieden“ ohne Minus: das Wort trägt die Richtung (wie im Jahresbericht) -->
         <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2AvoidedSub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
       </div>
       ` : `
-      <div class="kpi c-violet">
+      <div class="kpi c-violet" data-min-level="advanced">
         <div class="kpi__label">${t('utility.kpi.co2', { year: yr })}</div>
         <div class="kpi__value">${fmt.int(totCO2)} <span style="font-size:14px;color:var(--text-2)">kg</span></div>
         <div class="kpi__sub">${t('utility.kpi.co2Sub', { tons: fmt.num(totCO2 / 1000, 2) })}</div>
@@ -372,6 +375,7 @@ async function rerender(container) {
     </div>`}
 
     ${!isDelivery && currentContract ? groupNote + balanceCard(currentContract, u, country) : ''}
+    <div class="card" data-role="explainers" hidden></div>
 
     ${!isDelivery && u.has_contracts !== false ? `
     <div class="card">
@@ -386,7 +390,7 @@ async function rerender(container) {
 
     ${noValues ? '' : `<div class="card">
       <div class="card__title">${u.icon} ${t(isFeedIn ? 'utility.cards.monthlyChartFeedIn' : isGeneration ? 'utility.cards.monthlyChartGeneration' : 'utility.cards.monthlyChart', { year: yr })}
-        ${canAdjust ? `<span class="card__title-action seg" role="group" aria-label="${escapeHtml(t('utility.chart.modeLabel'))}">
+        ${canAdjust ? `<span class="card__title-action seg" data-min-level="advanced" role="group" aria-label="${escapeHtml(t('utility.chart.modeLabel'))}">
           <button type="button" class="seg__btn ${chartMode === 'measured' ? 'active' : ''}" data-chart-mode="measured" aria-pressed="${chartMode === 'measured'}">${escapeHtml(t('utility.chart.modeMeasured'))}</button>
           <button type="button" class="seg__btn ${chartMode === 'adjusted' ? 'active' : ''}" data-chart-mode="adjusted" aria-pressed="${chartMode === 'adjusted'}">${escapeHtml(t('utility.chart.modeAdjusted'))}</button>
         </span>${info('weatherAdjusted')}` : ''}
@@ -395,10 +399,10 @@ async function rerender(container) {
       <p class="chart-note" data-role="month-chart-note">${monthChartNote(monthlyYear, chartMode)}</p>
     </div>
 
-    ${pvFlowRows.length ? pvFlowHtml(pvFlowRows, yr) : ''}
-    ${u.key === 'pv_erzeugung' ? pvExtrasHtml(pvSummary, yr) : ''}
+    ${pvFlowRows.length ? `<div data-min-level="advanced">${pvFlowHtml(pvFlowRows, yr)}</div>` : ''}
+    ${u.key === 'pv_erzeugung' ? `<div data-min-level="expert">${pvExtrasHtml(pvSummary, yr)}</div>` : ''}
 
-    <div class="card">
+    <div class="card" data-min-level="advanced">
       <div class="card__title">${t('utility.cards.monthlyTable', { year: yr })}</div>
       ${monthlyTable(monthlyYear, u, hasContract)}
     </div>`}
@@ -447,10 +451,10 @@ async function rerender(container) {
     </div>
     `}
     ${u.supports_bill_check ? billCheckLink(u, meter, yr) : ''}
-    ${dhwNote(monthly, yr)}
-    <div data-role="co2-cost"></div>
-    ${u.key === 'strom' && meter.role === 'ev_charger' ? '<div data-role="ev-report"></div>' : ''}
-    ${(u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output') ? '<div data-role="heat-pump"></div>' : ''}
+    <div data-min-level="expert">${dhwNote(monthly, yr)}</div>
+    <div data-role="co2-cost" data-min-level="expert"></div>
+    ${u.key === 'strom' && meter.role === 'ev_charger' ? '<div data-role="evcc" data-min-level="advanced"></div><div data-role="ev-report" data-min-level="expert"></div>' : ''}
+    ${(u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output') ? '<div data-role="heat-pump" data-min-level="expert"></div>' : ''}
   `;
   // v3.1.0 (H7, MKT-18) — Jahresarbeitszahl am Strom- und am Wärmezähler der Wärmepumpe
   if ((u.key === 'strom' && meter.role === 'heat_pump') || (u.key === 'waerme' && meter.role === 'heat_pump_output')) {
@@ -461,7 +465,10 @@ async function rerender(container) {
     }).catch(() => {});
   }
   // v3.1.0 (H6, MKT-14) — Wallbox: Ladestrom-Nachweis für den Dienstwagen
-  if (u.key === 'strom' && meter.role === 'ev_charger') loadEvReport(container, meter, new Date().getFullYear() - 1);
+  if (u.key === 'strom' && meter.role === 'ev_charger') {
+    loadEvReport(container, meter, new Date().getFullYear() - 1);
+    loadEvcc(container, meter, yr, my);   // v3.2.0 (F1022)
+  }
   // v3.1.0 (H4, CALC-27) — CO₂-Preis im Brennstoff (nur wo das Land ihn kennt)
   if (['gas', 'heizoel', 'fernwaerme', 'waerme'].includes(u.key)) {
     api.co2Costs(yr).then(c => {
@@ -471,6 +478,9 @@ async function rerender(container) {
       el.innerHTML = co2CostCard(row, c, yr);
     }).catch(() => {});
   }
+
+  // v3.2.0 (F1020) — Schaubilder: Geld und Vertrag, Wetter, Energiefluss
+  fillExplainers(container, { u, contract: isDelivery ? null : currentContract, monthly, yr, pvSummary, feedIn: isFeedIn });
 
   // Chart
   if (!noValues) drawMonthChart('month-chart', monthlyYear, u, yr, prevYear, chartMode);
@@ -484,12 +494,37 @@ async function rerender(container) {
   syncAddress(u, latestYear);
 }
 
+/**
+ * v3.2.0 (F1020) — Schaubilder einer Verbrauchsart in jeder Stufe: Sie
+ * erklären, was die Karten darüber in Zahlen sagen.
+ */
+function fillExplainers(container, { u, contract, monthly, yr, pvSummary, feedIn }) {
+  const box = container.querySelector('[data-role="explainers"]');
+  if (!box) return;
+  const parts = [];
+  if (contract && !feedIn) {
+    parts.push(moneyHtml(contract, { color: u.color }));
+    parts.push(timelineHtml(contract, todayIso()));
+  }
+  if (u.hgt_relevant) parts.push(weatherHtml(monthly));
+  if (isPv(u)) {
+    const years = pvSummary?.yearly || [];
+    parts.push(energyHtml(years.find(y => y.year === yr) || years[years.length - 1]));
+  }
+  const html = parts.filter(Boolean);
+  if (!html.length) return;
+  box.innerHTML = `<h2 class="card__title">${escapeHtml(t('dashboard.explainers.title'))}</h2>
+    <div class="explainer-grid">${html.map(x => `<div>${x}</div>`).join('')}</div>`;
+  box.hidden = false;
+  playExplainers(box);
+}
+
 // ── F1012: Rechnungsprüfung — seit v2.11.0 eine eigene Seite (views/bill-check.js)
 // v3.1.0 (H5) — für jede Art mit Rechnungsprüfung (Strom, Wasser, Fernwärme, Gas)
 function billCheckLink(u, meter, year) {
   const href = `#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(meter.id)}&from=${year}-01-01&to=${year + 1}-01-01`;
   return `
-    <div class="card card--link">
+    <div class="card card--link" data-min-level="advanced">
       <div class="card__title">${t('nav.billCheck')}</div>
       <p class="muted">${u.key === 'gas' ? t('utility.billCheck.hint') : t('utility.billCheck.hintGeneric')}</p>
       <a class="btn btn--ghost btn--sm" href="${href}">${escapeHtml(t('utility.billCheck.open', { year }))}</a>
@@ -1181,6 +1216,103 @@ async function loadEvReport(container, meter, year, method = 'contract', flat = 
   el.querySelector('#ev-year').addEventListener('change', reload);
   el.querySelector('#ev-method').addEventListener('change', reload);
   el.querySelector('#ev-flat')?.addEventListener('change', reload);
+}
+
+// v3.2.0 (F1022) — Ladevorgänge aus evcc: Monatssummen mit Sonnenanteil und dem
+// Preis, den evcc ausgewiesen hat; Übernahme per CSV-Export oder Abruf im
+// Heimnetz, jeweils mit Vorschau. Der Energietracker steuert nichts — er
+// rechnet nach, was evcc (oder Home Assistant) gesteuert hat.
+async function loadEvcc(container, meter, year, my) {
+  const el = container.querySelector('[data-role="evcc"]');
+  if (!el) return;
+  const [res, settings] = await Promise.all([api.evSessions(meter.id, year).catch(() => null), getSettings().catch(() => ({}))]);
+  if (my !== rerenderSeq) return;
+  const months = Object.entries(res?.monthly || {});
+  const sum = months.reduce((a, [, m]) => ({ kwh: a.kwh + m.kwh, solar: a.solar + m.solar_kwh, n: a.n + m.sessions,
+    price: m.price_eur == null ? a.price : (a.price ?? 0) + m.price_eur }), { kwh: 0, solar: 0, n: 0, price: null });
+  const hasEndpoint = !!String(settings?.evcc_endpoint || '').trim();
+  el.innerHTML = `<div class="card">
+    <h2 class="card__title">${escapeHtml(t('evcc.title', { year }))}</h2>
+    <p class="muted small">${escapeHtml(t('evcc.intro'))}</p>
+    ${months.length ? `
+      <p><strong>${escapeHtml(tp('evcc.summary', sum.n, { kwh: fmt.num(sum.kwh, 0), solar: fmt.pct(sum.kwh > 0 ? sum.solar / sum.kwh : 0, 0) }))}</strong>
+        ${sum.price != null ? ` · ${escapeHtml(t('evcc.priceTotal', { amount: fmt.eur(sum.price) }))}` : ''}</p>
+      <div class="table-wrap"><table class="table table--compact">
+        <thead><tr><th>${escapeHtml(t('evcc.col.month'))}</th><th class="num">${escapeHtml(t('evcc.col.sessions'))}</th>
+          <th class="num">kWh</th><th class="num">${escapeHtml(t('evcc.col.solar'))}</th><th class="num">${escapeHtml(t('evcc.col.price'))}</th></tr></thead>
+        <tbody>${months.map(([ym, m]) => `<tr><td>${escapeHtml(fmt.month(ym))}</td><td class="num">${fmt.int(m.sessions)}</td>
+          <td class="num">${fmt.num(m.kwh, 1)}</td><td class="num">${m.solar_pct == null ? '–' : fmt.pct(m.solar_pct / 100, 0)}</td>
+          <td class="num">${m.price_eur == null ? '–' : fmt.eur(m.price_eur)}</td></tr>`).join('')}</tbody>
+      </table></div>` : `<p class="muted">${escapeHtml(t('evcc.empty', { year }))}</p>`}
+    <div class="form-row" style="align-items:flex-end">
+      <div class="field"><label for="evcc-counters">${escapeHtml(t('evcc.countersLabel'))}</label>
+        <select class="select" id="evcc-counters">${['auto', 'energy', 'none'].map(c => `<option value="${c}">${escapeHtml(t('evcc.counters.' + c))}</option>`).join('')}</select></div>
+      <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2)">
+        <label class="btn btn--ghost">${escapeHtml(t('evcc.chooseCsv'))}<input type="file" id="evcc-file" accept=".csv,text/csv" hidden></label>
+        ${hasEndpoint ? `<button type="button" class="btn btn--ghost" id="evcc-sync">${escapeHtml(t('evcc.sync'))}</button>` : ''}
+      </div>
+    </div>
+    <p class="muted small">${escapeHtml(t(hasEndpoint ? 'evcc.syncHint' : 'evcc.noEndpoint'))}
+      <a href="${escapeHtml(docUrl('evcc'))}" target="_blank" rel="noopener">${escapeHtml(t('common.guide'))}</a></p>
+  </div>`;
+
+  // Vorschau (Trockenlauf) → bestätigen → übernehmen. Mehrere Ladepunkte mit
+  // Zählerständen: erst den Ladepunkt dieses Zählers wählen (Stände gehören
+  // zu genau einer Wallbox)
+  const run = async (call) => {
+    const counters = el.querySelector('#evcc-counters').value;
+    let p, loadpoint = null;
+    try { p = await call({ dryRun: true, counters }); }
+    catch (e) {
+      if (e.code !== 'errors.evcc.loadpointNeeded') { toastErr(e.message); return; }
+      try {
+        const names = (await call({ dryRun: true, counters: 'none' })).loadpoints || [];
+        loadpoint = await pickLoadpoint(names);
+        if (loadpoint == null) return;
+        p = await call({ dryRun: true, counters, loadpoint });
+      } catch (e2) { toastErr(e2.message); return; }
+    }
+    const lines = [
+      tp('evcc.preview.sessions', p.sessions, { from: fmt.date(p.from), to: fmt.date(p.to), kwh: fmt.num(p.charged_kwh, 1) }),
+      p.counter_source === 'none' ? t('evcc.preview.noReadings') : tp('evcc.preview.readings.' + p.counter_source, p.readings),
+    ];
+    if (p.replaces) lines.push(tp('evcc.preview.replaces', p.replaces));
+    if (p.running) lines.push(t('evcc.preview.running'));
+    if (loadpoint) lines.push(t('evcc.preview.onlyLoadpoint', { name: loadpoint }));
+    else if ((p.loadpoints || []).length > 1) lines.push(t('evcc.preview.loadpoints', { names: p.loadpoints.join(', ') }));
+    if (!await confirmModal({ title: t('evcc.preview.title'), message: lines.join(' '), confirmLabel: t('evcc.preview.apply') })) return;
+    try {
+      const r = await call({ counters, loadpoint });
+      toastOk(tp('evcc.done', r.sessions));
+      rerender(container);
+    } catch (e) { toastErr(e.message); }
+  };
+  el.querySelector('#evcc-file').addEventListener('change', async (ev) => {
+    const file = ev.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    ev.target.value = '';
+    run(opts => api.importEvcc(meter.id, text, opts));
+  });
+  el.querySelector('#evcc-sync')?.addEventListener('click', () => run(opts => api.syncEvcc(meter.id, opts)));
+}
+
+/** Ladepunkt wählen (F1022) — null bei Abbruch. */
+function pickLoadpoint(names) {
+  const ctrl = openModal({
+    title: t('evcc.pick.title'),
+    body: `<p class="muted">${escapeHtml(t('evcc.pick.hint'))}</p>
+      <div class="field"><label for="evcc-lp">${escapeHtml(t('evcc.pick.label'))}</label>
+      <select class="select" id="evcc-lp">${names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('')}</select></div>`,
+    footer: `<button type="button" class="btn btn--ghost" data-act="cancel">${escapeHtml(t('common.cancel'))}</button>
+      <button type="button" class="btn btn--primary" data-act="ok">${escapeHtml(t('evcc.pick.ok'))}</button>`,
+    onMount({ modalEl, close }) {
+      modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
+      modalEl.querySelector('[data-act="ok"]').addEventListener('click', () => close(modalEl.querySelector('#evcc-lp').value));
+    },
+  });
+  // Escape, Zurück oder Abbrechen: null
+  return ctrl.closedPromise.then(v => (typeof v === 'string' && v !== '' ? v : null));
 }
 
 // v3.1.0 (H7, MKT-18) — Jahresarbeitszahl: Wärme ÷ Strom der Wärmepumpe

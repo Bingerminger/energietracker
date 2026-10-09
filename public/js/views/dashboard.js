@@ -14,6 +14,9 @@ import { tankLevel } from '../lib/tank.js';
 import { info, infoNote } from '../components/info.js';
 import { isFeedIn, isGeneration, isPv, moreIsBetter } from '../lib/semantics.js';
 import { setupSteps, setupListHtml } from '../lib/onboarding.js';
+// v3.2.0 (F1019, F1020) — Einsteiger-Übersicht, Schaubilder, Vorschlag zum Hochstufen
+import { currentLevel, atLeast, nextLevel, saveLevel, isDismissed, dismiss } from '../lib/levels.js';
+import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
@@ -91,6 +94,11 @@ export async function render(container) {
 
   // A — Leerzustand: keinerlei Verbrauchsdaten in irgendeiner aktiven Art.
   const hasAnyData = datasets.some(d => ((d.consumption?.monthly_total) || []).length > 0);
+
+  // v3.2.0 (F1019) — Einsteiger: drei Antworten statt aller Kennzahlen
+  if (hasAnyData && currentLevel() === 'beginner') {
+    return renderBeginner(container, { utilities, datasets, todo, settings });
+  }
 
   // Insight-Karten (Effizienz, Tanks, Strom-Saldo, Empfehlungen, Termine).
   const insightsHtml = `
@@ -231,8 +239,13 @@ export async function render(container) {
       <div data-role="setup"></div>
     </section>
     ` : `
+    <div data-role="level-hint"></div>
     ${todoHtml(todo)}
     ${insightsHtml}
+    ${atLeast('expert') ? `<section class="card dash-explainers" aria-labelledby="dash-ex-title" style="margin-top: var(--sp-5)">
+      <h2 class="card__title" id="dash-ex-title"><span aria-hidden="true">🎞️</span> ${escapeHtml(t('dashboard.explainers.title'))}</h2>
+      <div class="explainer-grid" data-role="explainers"><div class="loading">${escapeHtml(t('common.loading'))}</div></div>
+    </section>` : ''}
 
     <div class="grid grid-2" style="margin-top: var(--sp-5)">
       ${datasets.map(d => renderUtilityCard(d)).join('')}
@@ -256,6 +269,15 @@ export async function render(container) {
       const box = container.querySelector('[data-role="setup"]');
       if (box?.isConnected) box.innerHTML = setupListHtml(steps);
     }).catch(() => { /* ohne Liste bleibt der Einstieg bedienbar */ });
+  }
+
+  // v3.2.0 — Schaubilder (Experte) und Vorschlag zum Hochstufen nachladen;
+  // beides darf den ersten Inhalt nicht aufhalten
+  if (hasAnyData) {
+    const exBox = container.querySelector('[data-role="explainers"]');
+    if (exBox) loadExplainers(utilities, exBox).catch(() => { exBox.closest('section')?.remove(); });
+    const hintBox = container.querySelector('[data-role="level-hint"]');
+    if (hintBox) levelSuggestion(utilities).then(html => { if (hintBox.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {});
   }
 
   // v2.16.0 (Review FE-17) — kleine Vielfache: je Karte ein eigener Verlauf mit
@@ -608,4 +630,187 @@ function comparisonCardHtml(c, utilities = []) {
         ${!hasOwn ? `<p class="muted small">${escapeHtml(t('comparison.empty'))}</p>` : ''}
         ${links.length ? `<p class="small">${links.map(([k, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('comparison.link.' + k))}</a>`).join(' · ')}</p>` : ''}
       </div>`;
+}
+
+// ── v3.2.0 (F1019) — Übersicht für Einsteiger ───────────────────────────
+//
+// Drei Antworten statt aller Kennzahlen: Bekomme ich Geld zurück? Mehr oder
+// weniger als im Vorjahr? Was ist zu tun? Bei Miete dazu: Reicht die
+// Vorauszahlung? Ein Schaubild erklärt die erste Antwort. Gerechnet wird
+// dasselbe wie in den anderen Stufen (contract-status, /api/summary).
+
+async function renderBeginner(container, { utilities, datasets, todo, settings }) {
+  const byKey = new Map(utilities.map(u => [u.key, u]));
+  const [summary, budget] = await Promise.all([
+    api.summary().catch(() => null),
+    settings.wohnverhaeltnis === 'miete' ? tenancyBudget().catch(() => null) : Promise.resolve(null),
+  ]);
+  const withContract = (summary?.meters || []).filter(m => m.contract && !m.is_sub_meter && byKey.has(m.utility)
+    && m.contract.projected_end_balance != null && !isPv(byKey.get(m.utility)));
+
+  const moneyLines = withContract.map(m => {
+    const u = byKey.get(m.utility);
+    const v = Number(m.contract.projected_end_balance);
+    const credit = v < 0, even = Math.abs(v) < 1;
+    const text = even ? t('dashboard.beginner.money.even')
+      : t(credit ? 'dashboard.beginner.money.credit' : 'dashboard.beginner.money.due', { amount: fmt.eur(Math.abs(v)) });
+    return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
+      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${even ? '' : credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</span>
+      ${m.contract.period_end ? `<span class="muted small"> · ${escapeHtml(t('dashboard.beginner.money.until', { date: fmt.date(m.contract.period_end) }))}</span>` : ''}</span></li>`;
+  });
+
+  const trendLines = datasets.filter(d => (d.consumption?.monthly_total || []).length).map(({ utility: u, consumption }) => {
+    const monthly = consumption.monthly_total;
+    const key = u.consumption_unit === 'kWh' ? 'kwh' : 'm3';
+    const win = lastMonths(monthly, 12);
+    const trend = yoyTrend(monthly, key, { months: 12, minMonths: 6, within: win?.rows.map(m => m.ym) });
+    if (!trend) {
+      return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
+        <span><strong>${escapeHtml(u.label)}:</strong> <span class="muted">${escapeHtml(t('dashboard.beginner.trend.none'))}</span></span></li>`;
+    }
+    const good = moreIsBetter(u) ? trend.pct > 0 : trend.pct < 0;
+    const same = Math.abs(trend.pct) < 2;
+    const word = same ? t('dashboard.beginner.trend.same')
+      : t(trend.pct > 0 ? 'dashboard.beginner.trend.more' : 'dashboard.beginner.trend.less', { pct: fmt.pct(Math.abs(trend.pct) / 100, 0) });
+    return `<li class="dash-answer__row"><span aria-hidden="true">${escapeHtml(u.icon)}</span>
+      <span><strong>${escapeHtml(u.label)}:</strong> <span class="${same ? '' : good ? 'success-text' : 'danger-text'}">${escapeHtml(word)}</span></span></li>`;
+  });
+
+  // Schaubild zur ersten Antwort: der Vertrag mit dem höchsten Abschlag
+  const main = [...withContract].sort((a, b) => Math.abs(Number(b.contract.advance_month) || 0) - Math.abs(Number(a.contract.advance_month) || 0))[0];
+  let explainer = '';
+  if (main) {
+    try {
+      const st = await api.contractStatus(main.utility, main.meter_id);
+      const row = (st?.contracts || []).find(c => c.is_current);
+      explainer = moneyHtml(row, { color: byKey.get(main.utility)?.color });
+    } catch { /* ohne Schaubild */ }
+  }
+
+  container.innerHTML = `
+    <div class="section-head">
+      <h1>${t('dashboard.title')}</h1>
+      <div class="section-actions">
+        <a class="btn btn--primary" href="#/zaehlerstaende">${escapeHtml(t('dashboard.beginner.capture'))}</a>
+      </div>
+    </div>
+    <div data-role="level-hint"></div>
+    <div class="grid grid-2 dash-answers">
+      <section class="card dash-answer" aria-labelledby="dash-a-money">
+        <h2 class="card__title" id="dash-a-money"><span aria-hidden="true">💶</span> ${escapeHtml(t('dashboard.beginner.money.title'))}</h2>
+        ${moneyLines.length ? `<ul class="dash-answer__list">${moneyLines.join('')}</ul>`
+          : `<p class="muted">${escapeHtml(t('dashboard.beginner.money.none'))} <a href="#/contracts">${escapeHtml(t('dashboard.beginner.money.add'))}</a></p>`}
+      </section>
+      <section class="card dash-answer" aria-labelledby="dash-a-trend">
+        <h2 class="card__title" id="dash-a-trend"><span aria-hidden="true">📈</span> ${escapeHtml(t('dashboard.beginner.trend.title'))}</h2>
+        <ul class="dash-answer__list">${trendLines.join('')}</ul>
+      </section>
+      ${budget ? tenancyAnswerHtml(budget) : ''}
+      <section class="card dash-answer" aria-labelledby="dash-a-todo">
+        <h2 class="card__title" id="dash-a-todo"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.beginner.todo.title'))}</h2>
+        ${todo.length ? `<ul class="dash-todo__list">${todo.slice(0, 4).map(x => `<li class="dash-todo__item dash-todo__item--${x.tone}">
+          <a class="dash-todo__link" href="${x.href}"><span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
+          <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}</span>
+          <span class="dash-todo__chev" aria-hidden="true">›</span></a></li>`).join('')}</ul>`
+          : `<p class="muted">${escapeHtml(t('dashboard.beginner.todo.none'))}</p>`}
+      </section>
+    </div>
+    ${explainer ? `<section class="card" style="margin-top: var(--sp-5)">${explainer}</section>` : ''}`;
+  playExplainers(container);
+  const hintBox = container.querySelector('[data-role="level-hint"]');
+  levelSuggestion(utilities, summary).then(html => { if (hintBox?.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {});
+}
+
+/** Mietverhältnis (Miete): Budget des ersten laufenden Mietverhältnisses. */
+async function tenancyBudget() {
+  const list = await api.tenancies();
+  const today = new Date().toISOString().slice(0, 10);
+  const current = (list || []).find(x => !x.end || x.end >= today);
+  return current ? api.tenancyBudget(current.id) : null;
+}
+
+function tenancyAnswerHtml(b) {
+  const r = Number(b.projected_result_eur);
+  if (!Number.isFinite(r)) return '';
+  const credit = r <= 0;
+  const text = t(credit ? 'dashboard.beginner.rent.enough' : 'dashboard.beginner.rent.short', { amount: fmt.eur(Math.abs(r)) });
+  return `<section class="card dash-answer" aria-labelledby="dash-a-rent">
+    <h2 class="card__title" id="dash-a-rent"><span aria-hidden="true">🏢</span> ${escapeHtml(t('dashboard.beginner.rent.title'))}</h2>
+    <p class="${credit ? 'success-text' : 'danger-text'}">${escapeHtml(text)}</p>
+    ${!credit && b.suggested_prepayment_eur ? `<p class="muted small">${escapeHtml(t('dashboard.beginner.rent.suggest', { amount: fmt.eur(b.suggested_prepayment_eur) }))}</p>` : ''}
+  </section>`;
+}
+
+// ── v3.2.0 (F1020) — Schaubilder auf der Übersicht (Experte) ────────────
+
+async function loadExplainers(utilities, box) {
+  const byKey = new Map(utilities.map(u => [u.key, u]));
+  const today = new Date().toISOString().slice(0, 10);
+  const [summary, pv] = await Promise.all([api.summary().catch(() => null), api.pvSummary().catch(() => null)]);
+  const meters = (summary?.meters || []).filter(m => byKey.has(m.utility) && !m.is_sub_meter);
+  const withContract = meters.filter(m => m.contract && !isPv(byKey.get(m.utility)));
+  const main = [...withContract].sort((a, b) => Math.abs(Number(b.contract.advance_month) || 0) - Math.abs(Number(a.contract.advance_month) || 0))[0];
+  const heat = meters.find(m => byKey.get(m.utility)?.hgt_relevant && (m.role == null || m.role === 'consumption'));
+  const [status, heatRows] = await Promise.all([
+    main ? api.contractStatus(main.utility, main.meter_id).catch(() => null) : null,
+    heat ? api.meterConsumption(heat.utility, heat.meter_id).then(r => r?.monthly || r).catch(() => null) : null,
+  ]);
+  const row = (status?.contracts || []).find(c => c.is_current);
+  const years = pv?.yearly || [];
+  const cy = new Date().getFullYear();
+  const pvYear = years.find(y => y.year === cy - 1) || years[years.length - 1];
+  const parts = [
+    moneyHtml(row, { color: main ? byKey.get(main.utility)?.color : undefined }),
+    energyHtml(pvYear),
+    weatherHtml(Array.isArray(heatRows) ? heatRows : []),
+    timelineHtml(row, today),
+  ].filter(Boolean);
+  if (!box.isConnected) return;
+  if (!parts.length) { box.closest('section')?.remove(); return; }
+  box.innerHTML = parts.map(p => `<div class="dash-explainer">${p}</div>`).join('');
+  playExplainers(box);
+}
+
+// ── v3.2.0 (F1019) — Vorschlag zum Hochstufen ───────────────────────────
+//
+// Die Daten zeigen mehr, als die Stufe anzeigt: Subzähler, Home Assistant,
+// Wärmepumpe oder Speicher. Der Vorschlag blockiert nichts; „Nicht mehr
+// fragen" merkt sich das Gerät je Stufe und Anlass.
+
+async function levelSuggestion(utilities, summary = null) {
+  const next = nextLevel();
+  if (!next) return '';
+  const data = summary || await api.summary().catch(() => null);
+  const meters = (data?.meters || []).filter(m => utilities.some(u => u.key === m.utility));
+  const reasons = [];
+  if (currentLevel() === 'beginner') {
+    if (meters.some(m => m.is_sub_meter)) reasons.push('subMeters');
+    if (meters.some(m => m.external_id)) reasons.push('homeAssistant');
+    if (utilities.some(u => meters.filter(m => m.utility === u.key && !m.is_sub_meter).length > 1)) reasons.push('severalMeters');
+  } else {
+    if (meters.some(m => ['heat_pump', 'heat_pump_output'].includes(m.role))) reasons.push('heatPump');
+    if (meters.some(m => ['battery_charge', 'battery_discharge'].includes(m.role))) reasons.push('battery');
+    if (meters.some(m => m.role === 'ev_charger')) reasons.push('wallbox');
+  }
+  const open = reasons.filter(r => !isDismissed(r));
+  if (!open.length) return '';
+  const name = t('level.' + next);
+  return `<div class="banner banner--info level-hint" role="note" data-reasons="${escapeHtml(open.join(' '))}" data-next="${next}">
+    <span>${escapeHtml(t('level.hint.data', { level: name }))}
+      <span class="muted small">${open.map(r => escapeHtml(t('level.reason.' + r))).join(' · ')}</span></span>
+    <span class="level-hint__actions">
+      <button type="button" class="btn btn--sm btn--primary" data-act="raise">${escapeHtml(t('level.hint.switch', { level: name }))}</button>
+      <button type="button" class="btn btn--sm btn--ghost" data-act="dismiss">${escapeHtml(t('level.hint.dismiss'))}</button>
+    </span>
+  </div>`;
+}
+
+function bindLevelHint(box) {
+  const el = box.querySelector('.level-hint');
+  if (!el) return;
+  el.querySelector('[data-act="raise"]')?.addEventListener('click', () => { saveLevel(el.dataset.next).catch(e => toastErr(e.message)); });
+  el.querySelector('[data-act="dismiss"]')?.addEventListener('click', () => {
+    (el.dataset.reasons || '').split(' ').filter(Boolean).forEach(dismiss);
+    el.remove();
+  });
 }

@@ -5,7 +5,8 @@
 [← Meter-Topologie](13-meter-topologie.md) · [Kompendium-Index](../README.md)
 
 Bis **v2.6.0** war Energietracker in allem außer der Oberflächensprache
-deutsch: Euro, Effizienzklassen nach dem Gebäudeenergiegesetz, der deutsche
+deutsch: Euro, Effizienzklassen nach dem Gebäudeenergiegesetz (heute
+Gebäudemodernisierungsgesetz), der deutsche
 Strommix als CO₂-Faktor, eine Heizgrenze von 15 °C, Leipzig als
 Wetterstandort und die Zeitzone Europe/Berlin. Seit **v2.7.0** bündelt ein
 **Länderprofil** diese Voreinstellungen für neun Länder.
@@ -21,7 +22,7 @@ bisherige Verhalten (ein Test hält beides gleich).
 
 | Land | Währung | Zeitzone | Heizgrenze | CO₂ Strom | Standort | Effizienzklasse | Brennwert in |
 |---|---|---|---|---|---|---|---|
-| Deutschland | EUR | Europe/Berlin | 15 °C | je Jahr ¹ | Leipzig | GEG (A+ bis H) | kWh/m³ |
+| Deutschland | EUR | Europe/Berlin | 15 °C | je Jahr ¹ | Leipzig | GModG, bis 07/2026 GEG (A+ bis H) | kWh/m³ |
 | Österreich | EUR | Europe/Vienna | 15 °C | 103 g/kWh | Wien | – | kWh/m³ |
 | Schweiz | CHF | Europe/Zurich | 15 °C | 35 g/kWh | Bern | – | kWh/m³ |
 | Frankreich | EUR | Europe/Paris | 18 °C (DJU) | 40 g/kWh | Paris | – | kWh/m³ |
@@ -117,8 +118,9 @@ unverändert.
 
 ## 5. Effizienzklasse nur mit Skala
 
-Die Klassen A+ bis H stammen aus dem deutschen Gebäudeenergiegesetz
-(Endenergie je m² und Jahr). Andere Länder bewerten anders — Frankreich
+Die Klassen A+ bis H stammen aus dem deutschen Gebäudemodernisierungsgesetz
+(GModG, bis Juli 2026 Gebäudeenergiegesetz), Anlage 10 zu § 86 (Endenergie je
+m² und Jahr). Andere Länder bewerten anders — Frankreich
 (DPE) nach Primärenergie und CO₂, Österreich (HWB) nach Heizwärmebedarf am
 Referenzklima. Eine Klasse nach deutschem Recht wäre dort irreführend: Ein
 französischer Nutzer liest „E" als DPE-Klasse.

@@ -291,10 +291,13 @@ Zur Orientierung, ohne Gewähr — maßgeblich ist der Text der Verordnung:
   an Heizung und Warmwasser erfahren, mit Vormonat, Vorjahresmonat und einem
   Durchschnittsnutzer.
 - **§ 5 — Nachrüstung.** Geräte, die nicht fernablesbar sind, müssen bis
-  31.12.2026 nachgerüstet oder ersetzt werden.
-- **§ 12 — Kürzungsrecht.** Fehlen fernablesbare Geräte oder die Verbrauchsinfo,
-  sieht die Verordnung eine Kürzung des Kostenanteils um 3 % vor; werden die
-  Kosten nicht verbrauchsabhängig abgerechnet, um 15 %.
+  31.12.2026 nachgerüstet oder ersetzt werden — außer, das ist im Einzelfall
+  technisch nicht möglich oder unbillig.
+- **§ 12 — Kürzungsrecht.** Fehlen fernablesbare Geräte, obwohl sie
+  vorgeschrieben sind (bei Einbau seit dem 01.12.2021, für alle übrigen ab
+  2027), oder kommt die Verbrauchsinfo nicht oder unvollständig, darfst du
+  deinen Kostenanteil um 3 % kürzen; werden die Kosten nicht verbrauchsabhängig
+  abgerechnet, um 15 %.
 
 Kommt keine Verbrauchsinfo, obwohl die Zähler fernablesbar sind, frag beim
 Vermieter oder der Verwaltung nach.

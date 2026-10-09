@@ -21,7 +21,7 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v3.1.0';
+const VERSION = 'v3.2.0';
 // v3.1.0 (Ökosystem G1) — Caches tragen den Scope der Installation im Namen.
 // Zwei Installationen auf einem Ursprung (ACC und Prod auf derselben NAS,
 // die App unter Home-Assistant-Ingress neben HAs eigenem Worker) löschten

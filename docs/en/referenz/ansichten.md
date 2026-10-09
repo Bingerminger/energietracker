@@ -12,6 +12,8 @@
 > v2.14.0 the views show the
 > English interface; dialogs, the sign-in and the iPhone captures are still
 > German. How the images are made: [Screenshots](../entwicklung/screenshots.md).
+> The images predate the experience levels (v3.2.0): they show what the
+> “Expert” level shows today, and they do not show the level switch yet.
 
 The app is a single-page application. Since **v2.11.0** its navigation follows
 the users' questions: seven areas instead of 17 entries.
@@ -30,11 +32,39 @@ The pages of an area appear as **tabs** above the view. Menu name and page title
 match, and the browser tab names the view. Earlier addresses (`#/tariffs`,
 `#/temperatures` …) keep working. The sidebar shows only the *active* utilities
 (Settings → Utilities & billing → Active utilities) and follows a change
-immediately.
+immediately. Since v3.2.0 navigation and tabs leave out the pages that only a
+higher experience level shows (below).
 
 **Mac:** sidebar on the left. The top bar holds **＋ Add**: meter readings,
 delivery and tank reading for heating oil and pellets, reminder. Next to it the
-appearance switch (system, light, dark).
+appearance switch (system, light, dark), since v3.2.0 with the experience
+level in front of it.
+
+**Experience level (v3.2.0):** in front of the light/dark button sits the
+choice **“Experience level”** with 🌱 **Beginner**, 🌿 **Experienced** and 🌳
+**Expert** — a menu on the Mac, the system’s wheel on the iPhone, where the
+top bar shows only the symbol. The level applies at once: sidebar, tabs and
+the open view rebuild. It decides what the interface shows, not what the app
+calculates — API, CSV export, backup and Home Assistant deliver the same at
+every level. Hidden form fields stay in the form: a contract saved by a
+beginner keeps its notice period. Without sign-in the level applies to the
+installation (`ui_level`), with sign-in to the person signed in
+([Users in the household](../anleitungen/benutzer.md)); the public demo keeps
+it in the browser. An existing installation is on “Expert” after the update.
+
+| From level | Pages | Parts of pages |
+|---|---|---|
+| 🌱 Beginner | Overview (a view of its own, §1), Meter readings, Consumption per utility, Contracts & payments, Annual report, Reminders & maintenance, Recommendations, Help; Settings → General, Household & building, Utilities & billing, Data | — |
+| 🌿 Experienced | Tariff switch, Check a bill, Tenancy, Analysis, Forecast, meter management of a utility (`#/utility/…/meters`), Weather data, Settings → Integrations | the overview with every key figure; in the consumption view the CO₂ tile, “Measured”/“Weather-adjusted”, the monthly table, the PV energy flow, “Check a bill” and “Charging sessions from evcc” (§3); in the contract dialog notice period, price guarantee, how cancellation takes effect, minimum term, “Renews unless cancelled”, bonuses and special payments; in the settings Display, Reminders, Own reference values, Water reference values, Physical constants and Energy sources (delivery) |
+| 🌳 Expert | Settings → Access, Expert, System | on the overview the “Explainers” section; in the consumption view hot-water heat, CO₂ price in the fuel, charging record, heat pump and the PV battery and payback; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract dialog capacity and metering charge and the key figures of district heating, the reduced grid fee (§ 14a), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates, PV system, the heat pump’s electricity meter and “Import time series”; in the tenancy “Sharing CO₂ costs”; in the settings CO₂ emission factors and Photovoltaics |
+
+An area shows as tabs only the pages of its level, none if just one is left;
+“Insights” in the sidebar takes beginners to the annual report. A link, a
+bookmark or an old address still opens a hidden page. A notice then sits on
+top: “This page belongs to the “Experienced” level. It is open anyway.” with
+**“Switch to “Experienced””** and ✕ — for example when a beginner taps
+“⚙️ Meters” in the consumption view. Details:
+[Setup and experience levels](../einstieg/einrichtung.md#3-experience-levels).
 
 ![Navigation on the Mac](../../ui/screenshots/en/navigation-mac.png)
 
@@ -161,6 +191,66 @@ card links “Stromspiegel: check your class (German)” and “Heizspiegel: che
 heating costs (German)” ↗. Without values and without links it is left out.
 
 ![Dashboard](../../ui/screenshots/en/dashboard.png)
+
+**Overview for beginners (v3.2.0):** at the “Beginner” level, as soon as there
+is consumption data, the overview shows three answers instead of every key
+figure; the **“Add reading”** button sits at the top. Without data, every level
+shows the welcome.
+
+- 💶 **“Will I get money back?”** — per meter with a running contract (without
+  sub-meters and PV) “about … back” in green, “about … additional payment” in
+  red or “about even” (below €1), plus “bill on …”. Without a contract: “No
+  contract with advance payments yet.” with the link “Add contract”.
+- 📈 **“More or less than last year?”** — per utility the last twelve months
+  against the same months a year earlier, from six comparable months on: “…
+  more than last year”, “… less than last year” or, below 2 %, “about the
+  same as last year” — green when it is good (for PV, more), otherwise red.
+  Without a previous year: “No previous year to compare yet.”
+- 🏢 **“Does the prepayment cover it?”** — only “in a rented home” with a
+  running tenancy: “Yes — probably about … back.” or “Tight — probably about …
+  additional payment.”, then with “Suitable prepayment: … a month.”
+- ✅ **“What needs doing?”** — the first four entries from “To do”, each with
+  “›”; otherwise “Nothing right now — good.”
+
+Below, the explainer “Where does my money go?” explains the contract with the
+highest advance payment. The figures are the same as at the other levels
+(`GET /api/summary`, contract status).
+
+**Suggestion to move up (v3.2.0):** if the data holds more than the level
+shows, the top of the overview reads “Your data holds more than this level
+shows — “…” shows it.” with the reason in small print. For beginners that is
+sub-meters, values from Home Assistant (a meter with an alias) and several
+meters for one utility — suggestion “Experienced”; for the experienced level a
+meter with the role heat pump, battery or wallbox — suggestion “Expert”.
+**“Switch to “…””** moves up with one click, **“Don’t ask again”** is
+remembered on this device per level and reason. The suggestion blocks nothing.
+
+**Explainers (v3.2.0, Expert level):** between “To do” with the efficiency,
+tank, electricity-balance and recommendation cards and the cards of the
+utilities sits the section 🎞️ **“Explainers”**: “Where
+does my money go?” and “Contract at a glance” for the contract with the
+highest advance payment, “Energy flow in the house” for the previous year
+(otherwise the last year with PV data) and “Colder, or used more?” for the
+first heating meter. Each picture appears only with its data; if all of them
+lack it, the section is left out.
+
+The four explainers are explanatory graphics with your own figures — each
+answers one question instead of showing a series:
+
+| Explainer | What it shows | Empty when … |
+|---|---|---|
+| **“Where does my money go?”** | two bars up to the end of the billing period: “Advance payments” against “Cost”, the cost split into “Consumption”, “Standing charge” (less bonuses) and “still estimated”; the gap as credit or additional payment. Text: “By the bill on … you pay … in advance payments; consumption and standing charge will probably cost …. That makes about … credit.” | there is no running contract with a balance path |
+| **“Energy flow in the house”** | ☀️ Solar, 🏠 House, ⚡ Grid and, with battery meters, 🔋 Battery; the width of every flow follows the amount. Text: “{year}: The system produced … kWh. The house used … kWh of it itself, … kWh went to the grid, … kWh came from the grid. Self-sufficiency: ….” | the year has no generation |
+| **“Colder, or used more?”** | “Consumption” and “Heating degree days”, each “the same months a year earlier” against “recently” with the change in %, below it the badge “weather-adjusted …”. The text says “you really used less”, “you really used more — not just the weather” or “about the same — the difference is the weather” (threshold ±2 %) | fewer than six whole months with a weather-adjusted value (`heat_adjusted`) from the last twelve have a previous year |
+| **“Contract at a glance”** | a timeline with “Start”, “Cancel by”, “Price increase”, “End” and “today”; the stretch up to today is filled. For a contract that runs on, the end is the day it ends after a cancellation by “Cancel by” | the contract has no start |
+
+Bars grow and flows run as soon as a picture comes into view. With “Reduce
+motion” on the device the finished picture appears at once, and so it does
+when printing. The graphic is hidden from screen readers; its message is the
+text below it. The pictures are SVG with CSS animation, without a library, and
+follow light/dark. Where else they appear: in every consumption view (§3) and
+on the overview for beginners
+([Explainers](../einstieg/einrichtung.md#4-explainers)).
 
 ---
 
@@ -364,6 +454,42 @@ performance factor; below it the field-test values for context. If the heat
 meter, the link or a common month is missing, the card says so
 ([Heat §7](../verstehen/15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310)).
 
+**Explainers (v3.2.0):** below the balance card, every level shows the card
+**“Explainers”** with those that fit the utility (§1): with a running contract
+“Where does my money go?” and “Contract at a glance” (not for feed-in), for
+heating utilities — heating oil and pellets too (§4) — “Colder, or used more?”
+over the last twelve months, for both PV utilities “Energy flow in the house”
+for the selected year. If none fits, the card is left out.
+
+**Charging sessions from evcc (v3.2.0):** for an electricity meter with the
+role “Wallbox”, from the “Experienced” level on, the card **“Charging sessions
+from evcc {year}”** follows for the selected year. A sentence explains that
+evcc controls the wallbox and the app checks the result. With sessions it reads
+“… charging sessions, … kWh, … of it from the sun”, with “· … according to
+evcc” when evcc supplies prices, and a table with Month, Sessions, kWh, Solar
+and “Price (evcc)”; without them “No charging sessions from evcc for {year}
+yet.” Below it the choice **“Meter readings”** — “from the wallbox meter
+(otherwise added up)”, “add up from the energy charged” or “none – only the
+sessions” — and the buttons **“Choose CSV from evcc …”** and, when an address
+is set under Settings → Expert, **“Fetch from evcc”**. Both show the preview
+“Take over the charging sessions?” first: number and period of the sessions
+with kWh, how many meter readings come along and how many existing ones on the
+same day are replaced, a session still running, several charging points in the
+file. “Take over” writes, the message names the number of sessions. Without an
+address the card says where evcc offers the CSV file; “Guide” leads to
+[Charging sessions from evcc](../anleitungen/evcc.md).
+
+**What the levels show (v3.2.0):** beginners see year and meter, the tiles
+consumption, cost, advances and daily average, balance card, explainers,
+contracts, the monthly chart and the readings, periods or deliveries. From
+“Experienced” on the CO₂ tile, the “Measured”/“Weather-adjusted” switch, the
+monthly table, for PV the energy flow and the cards “Check a bill” and
+“Charging sessions from evcc” are added. Only “Expert” shows hot-water heat,
+CO₂ price in the fuel, the charging record, the heat pump and, for PV
+generation, battery, payback and notes. “⚙️ Meters” in the header of the view
+leads to the meter management; it belongs to the “Experienced” level, and
+beginners see it with the notice described above.
+
 ![Gas view](../../ui/screenshots/en/gas-view.png)
 
 ---
@@ -518,6 +644,18 @@ as special payment”** (afterwards the tag “booked”) and 🗑️. The compa
 recalculated, on the bill and difference side by side for quantity, amount and
 advances, with the verdict **“matches”** or **“check”** and the possible
 reasons ([Annual bill](../anleitungen/jahresabrechnung.md#7-on-the-bill-enter-compare-book)).
+
+**Editing a bill (v3.2.0):** every row of the list carries a ✏️ (“Edit”)
+before the 🗑️. It fills the “According to the bill” card with the values of
+that bill — period, bill date, quantity, amount, advances, additional
+payment/credit, other items, for gas the CO₂ figures and the attached
+receipts — and says above the buttons “You are editing the bill from … to ….”
+If it is already booked, “It is already booked as a special payment – the
+booking in the contract does not change with it.” follows. The button then
+reads **“Save changes”** (message “Bill updated”, then the comparison), next
+to it **“Cancel”**. Up to v3.1 a bill could only be deleted and entered again;
+the interface (`PATCH /api/utility/{utility}/bills/{id}`) already existed. The
+page belongs to the “Experienced” level.
 
 ### Tariff switch (tariff comparison)
 
@@ -847,17 +985,17 @@ area, the average the line inside it.
 
 Since v2.12.0 **nine sub-pages** instead of one long page:
 
-| Page | Contents |
-|---|---|
-| General | Language & country, overview (months, forecast horizon, warn after days without a reading), contract reminders |
-| Household & building | living area, building type, heated basement, hot water; since v3.1.0 “Home and hot water” and “Own reference values” (for the benchmark); persons in the household |
-| Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar) |
-| Weather data | §10 |
-| Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data, migration from v0.9.0; link to the annual report |
-| Integrations | Home Assistant integration |
-| Access | Sign-in & access, embedding |
-| Expert | since v3.1.0 at the top receipts (storage limit) and text recognition in the home network; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price |
-| System | version, licence, system diagnostics |
+| Page | Contents | From level (v3.2.0) |
+|---|---|---|
+| General | since v3.2.0 at the top “Experience level and setup” and, with sign-in, “My account”; Language & country, overview (months, forecast horizon, warn after days without a reading), contract reminders | Beginner; the groups “Display” and “Reminders” from Experienced |
+| Household & building | living area, building type, heated basement, hot water; since v3.1.0 “Home and hot water” and “Own reference values” (for the benchmark); water reference values with the number of people in the household | Beginner; “Own reference values” and “Water reference values” from Experienced |
+| Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar) | Beginner; physical constants and calorific values from Experienced, CO₂ factors and Photovoltaics from Expert |
+| Weather data | §10 | Experienced |
+| Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data, migration from v0.9.0; link to the annual report | Beginner |
+| Integrations | Home Assistant integration | Experienced |
+| Access | Sign-in & access, since v3.2.0 “Users and roles”, embedding | Expert |
+| Expert | since v3.1.0 at the top receipts (storage limit) and text recognition in the home network, since v3.2.0 “evcc in your home network”; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price | Expert |
+| System | version, licence, system diagnostics | Expert |
 
 Each page saves through a bar at the bottom ("Discard" · "Save") that appears
 only after a change. Leaving the page with unsaved changes asks first.
@@ -874,7 +1012,27 @@ The PDF annual report sits under Insights since v2.11.0. After demo data, backup
 or a restore the app restarts, so that sidebar, language and cache match the
 new state.
 
-At the top the card **Language & country** (v2.7.0): language, country, currency
+**Experience level and setup (v3.2.0, General page):** the 🌱 card sits at
+the very top. Its hint reads “Decides what the interface shows — every level
+calculates everything.” and says who the level applies to: “Applies to all
+devices of this installation.” or, with sign-in, “Applies to you (…) on all
+devices.” Below it the choice “Experience level” — the same as in the top bar;
+it saves at once (“Level saved.”) — and one line per level on what it shows:
+Beginner “Overview with three answers, meter readings, simple contracts,
+annual report.”, Experienced “Plus analyses, forecast, switching, bill check
+and meter structure.”, Expert “Everything, with explainers, groups,
+calculation parameters and access.” The buttons **“Start the setup
+assistant”** (§16) and **“Guide”**
+([Setup and experience levels](../einstieg/einrichtung.md)) close the card.
+
+**My account (v3.2.0, General page):** only with sign-in and a person signed
+in — 👤 **“My account: {name}”** with the role (“Admin” or “Member”). Whoever
+signs in with a password changes it here with “Current password”, “New
+password” (at least 8 characters) and **“Change password”**; in proxy mode it
+says “Signed in through the service in front of the app; change the password
+there.” instead ([Users in the household](../anleitungen/benutzer.md)).
+
+Below that the card **Language & country** (v2.7.0): language, country, currency
 and time zone, all taking effect immediately. Since v3.1.0 there are two
 language fields:
 
@@ -886,6 +1044,10 @@ language fields:
   applies to devices without a choice of their own and to everything produced
   without a device: PDF annual report, CSV files, messages to Home Assistant
   and scripts.
+
+With sign-in and a person signed in (v3.2.0), the choice under “Language on
+this device” also saves that person’s language; it then applies on all of
+their devices and takes precedence over the choice in the browser.
 
 Up to v3.0 one person switched the language for every device. When the country
 changes, a dialog
@@ -954,6 +1116,15 @@ LocalAI)”), “Model” and “Time limit”. Left empty, text recognition sta
 ([Settings](einstellungen.md#text-recognition-in-the-home-network-v310),
 [guide](../anleitungen/texterkennung.md)).
 
+**evcc in your home network (v3.2.0, Expert page):** the 🚗 group sits next to
+receipts and text recognition, before the collapsed part. Its field **“evcc
+address”** (`evcc_endpoint`) takes the address you open evcc at in the
+browser, such as `http://192.168.178.30:7070` or `http://evcc.local:7070`;
+only addresses in your own network. Left empty, fetching stays off — the CSV
+file from evcc always works. With an address, the card “Charging sessions from
+evcc” shows the button “Fetch from evcc” (§3,
+[Charging sessions from evcc](../anleitungen/evcc.md)).
+
 **CO₂ price (v3.1.0, Expert page, under “Show calculation parameters”):** the
 group 🏷️ with “CO₂ price per year” — a table year → €/t with delete per row and
 the fields year and €/t for adding; your own values take precedence over the
@@ -969,6 +1140,33 @@ link”; scope “calendar subscription only”); revoking one ends the
 subscription. Whatever is fixed by an
 environment variable is only displayed here. Since v2.6.0 the Home Assistant card shows when a value
 last arrived with the token and warns when sign-in is on but no token exists.
+Once people have been added (v3.2.0), the fields for changing the password are
+gone here; instead it says “Each person changes their password under Settings
+→ General → My account.”
+
+**Users and roles (v3.2.0, Access page):** with sign-in switched on,
+the card 👥 **“Users and roles”** follows “Sign-in & access”, with the
+hint “Each person signs in with name and password and has their own level and
+language. Everyone shares the household’s data.” — in proxy mode “… the app
+knows each person by name. The first one to arrive manages.” — and the link
+“Guide”. The table lists per person the name (your own row with “(you)”) and
+the role as a choice of “Admin” or “Member”, which saves at once; plus
+**“Reset password”** (for people with a password, “New password” in a dialog;
+the person is signed out on every device) and **“Delete person”** (not on your
+own row; it asks “This person will no longer be able to sign in. The
+household’s data stays.”). In password mode **“Add a person”** with name, “New
+password” (at least 8 characters) and role (“Member” preselected) creates a
+person — “{name} can now sign in.” Before the first new person, the list only
+holds the admin “admin”; the installation’s previous password belongs to
+them. The last person who manages can neither be deleted nor made a member
+(“At least one person must manage the installation.”).
+
+To a **member** the Access page shows only “Access is managed by whoever
+manages the installation. Change your own password under Settings → General.”
+What only admins may do — people, API keys and sign-in, restoring a backup or
+snapshot, loading sample data, the addresses for embedding, text recognition
+and evcc — the server refuses for members with “Only someone who manages this
+installation may do that.” ([Users in the household](../anleitungen/benutzer.md)).
 
 ![Settings](../../ui/screenshots/en/einstellungen.png)
 
@@ -1132,8 +1330,8 @@ data allows:
 - for plug-in solar without a feed-in meter “Plug-in solar: self-consumption
   assumed at …% of generation (settings).”;
 - in Germany, for commissioning on or after 25 Feb 2025, the note on § 51 EEG
-  (no feed-in tariff at negative wholesale prices with a smart metering
-  system).
+  (no feed-in tariff at negative wholesale prices, below 100 kW from the year
+  after a smart metering system is installed).
 
 More in [PV §7–10](../verstehen/12-pv.md#7-battery-v310).
 
@@ -1150,6 +1348,16 @@ button (it also discards this browser's offline data). When a session expires,
 the screen appears instead of a series of error messages. Setup and background:
 [Security & network operation](../betrieb/sicherheit.md).
 
+**Name (v3.2.0):** once people have been added under Settings → Access
+(`named_login` in `GET /api/session`), the field **“Name”** sits above the
+password, and the cursor starts there. Upper and lower case do not matter in
+the name. An empty name field signs in with the installation’s previous
+password as long as the first admin “admin” still exists. The note below then
+reads “Forgot your password? Someone who manages this installation can reset
+it under Settings → Access.” In proxy mode the service in front of the app
+signs you in; the app recognises the person by the name it reports
+([Users in the household](../anleitungen/benutzer.md)).
+
 **Offline notice:** when data comes from the offline storage of the installed
 app, the top bar shows "Offline – data as of …". Changes without a connection
 are reported as "No connection to Energietracker – nothing was saved."
@@ -1161,28 +1369,100 @@ are reported as "No connection to Energietracker – nothing was saved."
 ## 15. Help (v2.13.0)
 
 Reached from the footer of the sidebar, on the iPhone under "More"
-(`#/help`). Four cards and the glossary:
+(`#/help`). Four cards, since v3.2.0 the use cases, and the glossary:
 
 - **First steps:** the same list as in the welcome, with ticks from the data;
   once everything is done, it says so.
 - **Documentation:** getting started, frequently asked questions, compendium,
   glossary, Home Assistant guide and troubleshooting on GitHub (FAQ and
-  troubleshooting since v2.14.0) — in German for a German interface, otherwise in
-  English (with a note when your own language is missing).
+  troubleshooting since v2.14.0), since v3.2.0 also “Setup, example households
+  and levels” ([Setup and experience levels](../einstieg/einrichtung.md)) and
+  “Use cases” ([Use cases](../anleitungen/anwendungsfaelle.md)) — in German for
+  a German interface, otherwise in English (with a note when your own language
+  is missing).
 - **Questions and bugs:** GitHub issues and the pointer to the diagnostics
   under Settings → System, whose details a bug report needs.
 - **Your data:** everything stays on your own server — no accounts, no
   advertising, no telemetry. The app talks only to Open-Meteo: for the daily
   weather sync (location rounded to about 1 km) and the place search — and,
   only if set up, to your own text recognition service in the home network
-  (v3.1.0) — and, only on request (“Load from SMARD” under Tariff switch), to
-  SMARD for wholesale electricity prices (v3.1.0).
+  (v3.1.0) and to evcc in your home network (v3.2.0) — and, only on request
+  (“Load from SMARD” under Tariff switch), to SMARD for wholesale electricity
+  prices (v3.1.0).
+- **Use cases (v3.2.0):** a card of its own between the cards above and the
+  glossary, in every language of the app — the documentation exists only in
+  German and English. Three cases with title and explanation: **“District
+  heating or heat?”** (a supply contract of your own against measured heat
+  without one), **“Control with evcc or Home Assistant”** (“The Energietracker
+  switches nothing.” — it checks what the control achieved) and **“Simple
+  first, everything later”** (the experience levels). Below them **“Try an
+  example household”** — it leads to Settings → General with “Start the setup
+  assistant” — and “Use cases” to the
+  [guide](../anleitungen/anwendungsfaelle.md).
 - **Terms:** since v3.1.0 43 entries (33 in v2.13.0) in all seven languages with a search. The ⓘ in the app
   opens the same texts; `#/help?term=hdd` jumps to a term. Since v3.1.0
   billing terms also show what the bill of the configured country calls them
   ("On your bill (France): “Mensualité”").
 
 ![Help](../../ui/screenshots/en/hilfe.png)
+
+---
+
+## 16. Setup assistant (v3.2.0)
+
+The **“Set up”** dialog asks three questions and then sets the utilities, the
+tenure and the experience level; at the end it shows a matching sample
+household or leads to your own data. Explained in
+[Setup and experience levels](../einstieg/einrichtung.md).
+
+**When it appears:**
+
+- on the **very first start** of a new installation — only the first start
+  sets `setup_pending`, never an update. It comes back every time the app
+  opens until it is finished or skipped;
+- on request under Settings → General → **“Start the setup assistant”** (§11)
+  — then the active utilities and the level are preselected;
+- in the **public demo**, as long as this browser has not picked a sample
+  household.
+
+**The steps** — the footer shows “Step 1 of 4”, “Back”, “Next” and “Skip”:
+
+1. **“Who are you?”** — five answers with a symbol and a sentence. The answer
+   ticks its utilities in step 2; on the first start it also suggests the
+   level.
+2. **“Which energy sources do you use?”** — every utility to tick, “Suggested
+   from your answer — combine freely.”; without a tick you cannot go on. Below
+   it the note “District heating or heat? …”.
+3. **“How much experience do you have?”** — the three levels with the same
+   lines as in the settings and “You can change the level at any time at the
+   top, next to light/dark.”
+4. **“What comes next”** — “{answer} · level “…”” and the choice **“Look at
+   it with sample data”** (“Loads the matching sample household. The app saves
+   the current state first.”) or **“Start with my own data”** (“Next: check
+   the meters and add the first reading.”). The button here reads **“Let’s
+   go”**.
+
+| Answer in step 1 | Sample household | Suggested utilities | Level |
+|---|---|---|---|
+| 🏢 “I rent my home” | `mieterin` | Electricity, Heat, Water | Beginner |
+| 🏙️ “Owner-occupied flat with district heating” | `etw-fernwaerme` | Electricity, District heating | Beginner |
+| 🏡 “Own house with gas, oil or pellets” | `eigenheim-klassisch` | Gas, Electricity, Water | Experienced |
+| ☀️ “Own house with heat pump and solar” | `eigenheim-modern` | Electricity, Heat, Water, PV generation, PV feed-in | Experienced |
+| 🔍 “Just look at everything first” | `showcase` | all | Expert |
+
+Only “Let’s go” saves: the active utilities, “I live” (“in a rented home” for
+“I rent my home”, otherwise “in my own home”), the answer (`setup_persona`)
+and the level. Then the app loads the sample household — if there is data
+already, it asks first, as with “Load demo data” — and restarts, or it opens
+the meter-reading capture. A sample household replaces the whole household and
+keeps the level; only someone who manages the installation may load one
+(§11). “Skip” changes nothing and ends the first start.
+
+**Public demo** ([bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/)):
+three steps, without “Which energy sources do you use?”. At the end it says
+“The demo now shows the sample household “…”. Pick another under Settings →
+General → Setup assistant.”; “Let’s go” reloads the page with that household.
+The browser remembers sample household and level; “Skip” shows the showcase.
 
 ---
 

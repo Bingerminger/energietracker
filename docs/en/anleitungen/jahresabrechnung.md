@@ -18,7 +18,7 @@ All figures are invented, but calculated through; the part of a German gas bill
 that matters looks roughly like this (German terms in brackets):
 
 ```text
-Stadtwerke Musterstadt · Erdgas Klassik          Billing period 01.01.2025 – 31.12.2025
+Stadtwerke Musterstadt · Gas Basis 24            Billing period 01.01.2025 – 31.12.2025
 
 Readings (Zählerstände)   01.01.2025   12,480 m³   type K (customer reading)
                           31.12.2025   14,010 m³   type S (estimate)
@@ -201,7 +201,7 @@ its own calculation. On **Check a bill**, below the table, is the card
 | Advance payments made | 1,800.00 |
 | Additional payment / credit | leave empty: the app calculates amount − advances = −145.00. **Positive = additional payment**, negative = credit |
 | Other items | levies, fees, credits with description and amount (credit negative) — the app does not recalculate them but adds them to its own total |
-| Emissions (kg CO₂), CO₂ cost on the bill | gas only: the bill’s CO₂ details, the amount net, as stated there. They take precedence over the standard factor ([CO₂ price](../verstehen/16-co2-preis.md)) and, for tenants, set the deadline for the refund ([Share CO₂ costs](co2-aufteilung.md)) |
+| Emissions (kg CO₂), CO₂ cost on the bill | gas only: the bill’s CO₂ details, the amount as stated there (including VAT, CO2KostAufG § 3(3)). They take precedence over the standard factor ([CO₂ price](../verstehen/16-co2-preis.md)) and, for tenants, set the deadline for the refund ([Share CO₂ costs](co2-aufteilung.md)) |
 | Attach bill (PDF or photo) | the receipt; the list shows it as 📄 |
 
 **“Save bill”** creates it and shows the comparison straight away.

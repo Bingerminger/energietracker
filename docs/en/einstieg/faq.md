@@ -219,7 +219,7 @@ needs temperatures for your location (Settings → Weather data).
 ### Why is the efficiency class missing?
 
 Classes exist only for whole years and only in countries with a scale
-(Germany: GEG). Elsewhere the card shows kWh/m²·yr and gives the reason.
+(Germany: GModG, formerly GEG). Elsewhere the card shows kWh/m²·yr and gives the reason.
 
 ### What does "estimated" mean?
 

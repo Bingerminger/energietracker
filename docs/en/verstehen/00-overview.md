@@ -337,8 +337,8 @@ metric = (Σ heating kWh of the year) / living_area_m²     [kWh / (m²·a)]
 and classifies it using the band limits (`efficiency_class_thresholds`, default
 A+ up to 30, A up to 50, B up to 75, C up to 100, D up to 130, E up to 160, F up to
 200, G up to 250, otherwise H). Since v2.10.0 a limit is **inclusive** ("up to
-100" is C), as in GEG Annex 10; previously a value exactly on the limit landed
-one class worse.
+100" is C), as in Annex 10 of the GModG (Building Modernisation Act, formerly
+GEG); previously a value exactly on the limit landed one class worse.
 
 **Classes only for full years (since v2.10.0).** If the reference year covers
 fewer than 360 days, there is no class, and a note says that the figure only
@@ -350,7 +350,8 @@ consumption per m² of living area, as measured. Alongside it there is a
 **certificate-style** figure (`certificate`):
 
 ```text
-AN      = living area × 1.2      (× 1.35 for a single/two-family or terraced house with heated basement, § 82 GEG)
+AN      = living area × 1.2      (× 1.35 for residential buildings with up to two dwellings and a heated basement,
+                                 § 82(2) GModG, formerly GEG; in the app a detached or terraced house)
 E       = Σ heat sources: weather-adjusted annual consumption,
           gas × 0.906 (gross → net calorific value)
 metric  = E / AN  (+ 20 kWh/m²·a with decentralised hot water)

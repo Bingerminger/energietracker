@@ -70,10 +70,11 @@ die ganze Gruppe; Einzelheiten unter
 
 ## Steuerbare Verbraucher *(v3.1.0)*
 
-Wärmepumpen, Wallboxen und Batteriespeicher mit mehr als 4,2 kW gelten als
-**steuerbare Verbrauchseinrichtungen** nach § 14a EnWG: Der Netzbetreiber darf
-ihre Leistung bei einem Engpass vorübergehend drosseln, dafür sinkt das
-Netzentgelt. Drei Module:
+Wärmepumpen, Wallboxen, Klimaanlagen und Batteriespeicher mit mehr als 4,2 kW,
+die seit dem 01.01.2024 in Betrieb gehen, gelten als **steuerbare
+Verbrauchseinrichtungen** nach § 14a EnWG: Der Netzbetreiber darf ihre Leistung
+bei einem Engpass vorübergehend drosseln — auf mindestens 4,2 kW, nicht auf
+null —, dafür sinkt das Netzentgelt. Drei Module:
 
 | Modul | Was es ist | In der App |
 |---|---|---|

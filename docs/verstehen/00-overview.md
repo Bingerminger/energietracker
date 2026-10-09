@@ -347,8 +347,8 @@ und ordnet ihn anhand der Bandgrenzen
 (`efficiency_class_thresholds`, Default A+ bis 30, A bis 50, B bis 75,
 C bis 100, D bis 130, E bis 160, F bis 200, G bis 250, sonst H) ein. Seit
 v2.10.0 gilt eine Grenze **einschließlich** („bis 100" ist C), wie in
-GEG Anlage 10; vorher lag ein Wert genau auf der Grenze eine Klasse
-schlechter.
+Anlage 10 des GModG (Gebäudemodernisierungsgesetz, bis Juli 2026 GEG); vorher
+lag ein Wert genau auf der Grenze eine Klasse schlechter.
 
 **Klassen nur für ganze Jahre (seit v2.10.0).** Deckt das Bezugsjahr
 weniger als 360 Tage ab, gibt es keine Klasse, und ein Hinweis sagt, dass
@@ -360,7 +360,8 @@ Verbrauch je m² Wohnfläche, so wie gemessen. Daneben steht eine
 **energieausweis-nahe** Kennzahl (`certificate`):
 
 ```text
-AN        = Wohnfläche × 1,2      (× 1,35 bei Ein-/Zweifamilien- oder Reihenhaus mit beheiztem Keller, § 82 GEG)
+AN        = Wohnfläche × 1,2      (× 1,35 bei Wohngebäuden mit bis zu zwei Wohnungen und beheiztem Keller,
+                                   § 82 Abs. 2 GModG, bis Juli 2026 GEG; in der App EFH oder Reihenhaus)
 E         = Σ Heizquellen: witterungsbereinigter Jahresverbrauch,
             Gas × 0,906 (Brennwert → Heizwert)
 Kennzahl  = E / AN  (+ 20 kWh/m²·a bei dezentralem Warmwasser)

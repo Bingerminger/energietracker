@@ -6,6 +6,159 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.2.0] — 2026-10-09 — Leicht für jeden
+
+MINOR-Release: Der Einstieg wird leicht, ohne dass Erfahrene etwas verlieren.
+**F1019** Nutzungsstufen, **F1020** Schaubilder, **F1018** Einrichtungsassistent
+mit vier Beispielhaushalten, **F1023** Personen im Haushalt und **F1022**
+Ladevorgänge aus evcc. **Kein Schemaschritt** (bleibt 1.7.0). API, CSV-Format 1,
+Backup-Format 3.0 und der Home-Assistant-Ingest wachsen additiv; nichts entfällt.
+
+### ⚠️ Für bestehende Installationen
+
+- **Es verschwindet nichts:** Nach dem Update steht die Installation auf der
+  Stufe „Experte“ — die Oberfläche sieht aus wie bisher. Der
+  Einrichtungsassistent erscheint nur beim allerersten Start einer neuen
+  Installation, nicht nach einem Update.
+- **Anmeldung mit Passwort:** Das bisherige Passwort gehört jetzt dem ersten
+  Verwalter („admin“). Die Anmeldung ohne Namen funktioniert weiter, bis du
+  Personen anlegst; danach fragt die Anmeldung nach dem Namen.
+- **Proxy-Anmeldung:** Die erste Person, die der vorgeschaltete Dienst meldet,
+  wird Verwalter; alle weiteren sind Mitglieder, bis ein Verwalter das ändert.
+- **Docker:** Das Image enthält jetzt auch die Beispielhaushalte
+  (`demo-data/personas/`, zusammen rund 1,2 MB).
+- **CO₂-Kostenaufteilung (Mieter):** Wer unter v3.1.0 die CO₂-Kosten aus einer
+  Versorgerrechnung eingetragen hat, bekam rund 19 % zu viel ausgewiesen (siehe
+  „Fixed“). Ein damit erstelltes Anschreiben an den Vermieter bitte neu
+  erzeugen.
+
+### Added
+
+- **Nutzungsstufen (F1019):** Einsteiger 🌱, Erfahren 🌿, Experte 🌳 — ein
+  Umschalter in der Kopfleiste neben Tag/Nacht und eine Karte unter
+  Einstellungen → Allgemein. Die Stufe bestimmt, was die Oberfläche zeigt,
+  nicht was die App rechnet: API, Daten und Export sind in jeder Stufe gleich,
+  ausgeblendete Formularfelder bleiben beim Speichern erhalten. Einsteiger
+  sehen auf der Übersicht drei Antworten (Geld zurück? Mehr als im Vorjahr?
+  Was ist zu tun?) mit einem Schaubild. Seiten über der Stufe öffnen mit einem
+  Hinweis zum Hochstufen; die Übersicht schlägt eine höhere Stufe vor, wenn
+  Daten da sind, die erst sie zeigt (Subzähler, Home Assistant, Wärmepumpe,
+  Speicher, Wallbox) — abgelehnt bleibt abgelehnt. Einstellung `ui_level`.
+- **Schaubilder (F1020):** „Wohin geht mein Geld“, „Energiefluss im Haus“,
+  „Kälter oder mehr verbraucht“ und „Vertrags-Zeitstrahl“ — mit den eigenen
+  Daten, als SVG mit CSS-Bewegung ohne Bibliothek, still bei „Bewegung
+  reduzieren“, die Aussage als Text für Screenreader. Auf der Übersicht
+  (Experte: eigener Abschnitt) und in der Verbrauchsansicht jeder Art.
+- **Einrichtungsassistent und Beispielhaushalte (F1018):** Haushalt wählen →
+  Verbrauchsarten → Erfahrung → eigene Daten oder Beispiel laden. Vier
+  Beispielhaushalte über drei Jahre — Mietwohnung mit Heizwärme aus der
+  monatlichen Verbrauchsinfo und Nebenkostenabrechnung, Eigentumswohnung mit
+  Fernwärme, Eigenheim mit Gas, Eigenheim mit Wärmepumpe, PV, Speicher und
+  Wallbox — dazu der bisherige Haushalt mit allen Arten als Schaufenster. Sie
+  zeigen auch den Unterschied zwischen Fernwärme (eigener Liefervertrag) und
+  Heizwärme (gemessen, bezahlt über die Miete oder als Wärmemenge der
+  Wärmepumpe). In der GitHub-Demo mit Wahl des Haushalts. Einstellungen
+  `setup_pending`, `setup_persona`; `POST /api/demo/import` nimmt `persona`,
+  `GET /api/demo/status` nennt `personas`.
+- **Personen im Haushalt (F1023):** eigene Personen mit Name und Passwort,
+  im Proxy-Betrieb am gemeldeten Namen erkannt. **Verwalter** ändern den
+  Zugriff (Personen, Schlüssel, Anmeldung), spielen Backups und
+  Beispielhaushalte ein und tragen Netzadressen ein; **Mitglieder** erfassen,
+  sehen alles und stellen ihre eigene Stufe und Sprache ein. Ein neues Passwort
+  meldet die Person auf allen Geräten ab. Personen stehen in `auth.json`, nicht
+  im Backup. Neue Routen `PATCH /api/session/me`,
+  `POST /api/session/me/password`, `GET/POST /api/users`,
+  `PATCH/DELETE /api/users/{id}`; `GET /api/session` nennt zusätzlich
+  `named_login`, `user`, `role`.
+- **Ladevorgänge aus evcc (F1022):** den CSV-Export aus evcc hochladen (jede
+  Sprache von evcc) oder — mit eingetragener Adresse — „Von evcc abrufen“, nur
+  im eigenen Netz wie die Texterkennung. Je Vorgang Menge, Sonnenanteil und
+  Preis laut evcc; die Zählerstände der Wallbox kommen gleich mit (aus ihrem
+  Zähler oder aufsummiert). Vorschau zuerst, Wiederholen ersetzt statt zu
+  verdoppeln. Karte in der Wallbox-Ansicht; neuer Backup-Topf `ev_sessions`,
+  Einstellung `evcc_endpoint`, Routen `POST …/strom/meters/{id}/import-evcc`,
+  `…/sync-evcc`, `GET /api/ev-sessions`.
+- **Hilfe:** Anwendungsfälle in allen sieben Sprachen — „Fernwärme oder
+  Heizwärme?“, „Steuern mit evcc oder Home Assistant“ (der Energietracker
+  steuert nichts, er rechnet nach) und „Erst einfach, später alles“. Neue
+  Anleitungen [Einrichten](docs/einstieg/einrichtung.md),
+  [Personen im Haushalt](docs/anleitungen/benutzer.md),
+  [Ladevorgänge aus evcc](docs/anleitungen/evcc.md).
+- **Versorgerrechnungen bearbeiten** — bisher nur anlegen und löschen.
+
+### Changed
+
+- **Beispieldaten:** Der Haushalt „Eigenheim mit Wärmepumpe und PV“ bringt die
+  Börsenstrompreise (Monatsmittel 2023–2026, Bundesnetzagentur | SMARD.de,
+  CC BY 4.0) für den Dynamik-Check mit; Ladevorgänge werden wie Lieferungen
+  bis heute fortgeschrieben.
+- **README / Hilfe „Deine Daten“:** nennt den Abruf aus evcc im Heimnetz.
+
+### Fixed
+
+- **CO₂-Kosten laut Rechnung doppelt besteuert:** Der Lieferant weist den
+  CO₂-Preisbestandteil mit Umsatzsteuer aus („zuzüglich einer auf diesen Betrag
+  anfallenden Umsatzsteuer“, § 3 Abs. 3 CO2KostAufG). Die App las ihn als netto
+  und schlug 19 % auf — Erstattung und Anschreiben lagen rund 19 % zu hoch.
+  Jetzt gilt der Rechnungsbetrag als brutto.
+- **Umsatzsteuer auf Gas und Fernwärme 10/2022–3/2024:** Gerechnete CO₂-Kosten
+  nahmen immer 19 %; in dieser Zeit galten 7 % (§ 28 UStG) — auch für
+  Heizwärme aus Gas oder Fernwärme. Jetzt je Monat, für
+  das Jahr nach Verbrauch gewichtet; `GET /api/co2-costs` nennt je Zeile `vat`.
+- **Dynamischer Tarif als Angebot mit künftigem Beginn** meldete „keine
+  Marktdaten“: Die Monatspreise begannen erst mit dem Vertragsbeginn. Ein
+  Schattenvertrag ist ein Preisblatt für den ganzen Zeitraum — jetzt auch der
+  dynamische.
+- **Ladestrom-Nachweis:** Lädt PV hinter dem Hauszähler, misst die Wallbox mehr
+  als der Netzbezug; der Anteil am Grundpreis überstieg dann den ganzen
+  Grundpreis. Jetzt höchstens 100 %.
+- **Beispieldaten laden ersetzt den ganzen Haushalt** — Töpfe, die eine
+  Demo-Datei nicht kennt, werden leer eingespielt statt stehen zu bleiben.
+- **Rechtsangaben der Doku** gegen die Primärquellen geprüft (56 Aussagen,
+  Stand 09.10.2026) und korrigiert, wo sie abwichen — darunter § 51 EEG
+  (negative Preise erst ab dem Jahr nach dem Einbau des intelligenten
+  Messsystems), Fristen der CO₂-Erstattung und die Umbenennung des GEG in
+  Gebäudemodernisierungsgesetz (GModG) seit 29.07.2026.
+
+### Migration
+
+Kein Schemaschritt. Neue Einstellungsschlüssel (`ui_level`, `setup_pending`,
+`setup_persona`, `evcc_endpoint`) haben Defaults; `ev_sessions.json` entsteht
+beim ersten Import. Das Backup-Format bleibt 3.0; ältere Versionen ignorieren
+den neuen Topf.
+
+### Tests
+
+- Neue Testklassen `HouseholdUsersTest`, `HouseholdAccessTest`,
+  `EvccServiceTest`, `PersonaDemoTest`; erweitert `DemoServiceTest`,
+  `DemoDataAlignerTest`, `DemoDataTranslatorTest`, `EvChargingReportTest`,
+  `MarketPriceTest`, `FirstStartProfileTest`, `OutboundHostsTest`.
+- Neue Node-Suite `tests/levels.test.mjs` (Stufen, Navigation, CSS,
+  Schaubilder); der Demo-Klicktest geht jeden Beispielhaushalt in zwei Stufen
+  durch.
+- 679 Testmethoden (+40). 32 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Eine Liste von Hand ist eine Liste, die veraltet.** `completePayload`
+  zählte die Töpfe selbst auf und vergaß den ersten neuen; jetzt liest es
+  `BackupService::TOP_POTS`.
+- **Zustandslose Sitzungen brauchen eine Epoche.** Ein signiertes Cookie
+  überlebt einen Passwortwechsel, wenn nichts an der Person sich ändert, das
+  mitsigniert ist.
+- **Beispieldaten sind Tests mit echten Fragen.** Der Haushalt mit Wallbox und
+  dynamischem Angebot fand den Fehler im Dynamik-Check, den kein Unit-Test
+  gesucht hatte.
+- **Ausblenden statt abschalten** hält die Stufen billig: eine Mindeststufe je
+  Seite und ein Attribut am Element, gerechnet wird immer alles.
+- **Eine Rechtsprüfung ist eine Rechenprüfung.** Der Wortlaut „zuzüglich
+  Umsatzsteuer“ entschied, ob ein Betrag brutto oder netto ist — und damit über
+  19 % in jeder Erstattung.
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
+---
+
 ## [3.1.0] — 2026-10-07 — Für jeden Haushalt
 
 MINOR-Release mit den letzten beiden Paketen des Gesamtreviews in einem

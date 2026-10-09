@@ -75,7 +75,9 @@ final class EvChargingReportService
                 if ($p !== null && !empty($p['contract_id']) && (float)($p['kwh'] ?? 0) > 0) {
                     $price = (float)$p['kwh_cost'] / (float)$p['kwh'] * 100;
                     $base = (float)($p['base_price_eur'] ?? 0);
-                    $baseShare = $payer === $meter ? $base : $base * $kwh / (float)$p['kwh'];
+                    // v3.2.0 — höchstens der ganze Grundpreis: Lädt PV hinter dem
+                    // Hauszähler, misst die Wallbox mehr, als aus dem Netz kam
+                    $baseShare = $payer === $meter ? $base : $base * min(1.0, $kwh / (float)$p['kwh']);
                 }
             }
             if ($price === null) $missing = true;

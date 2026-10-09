@@ -29,7 +29,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.1.0
+├── VERSION                ← 3.2.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein
@@ -107,7 +107,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:3.1.0
+  ghcr.io/bingerminger/energietracker:3.2.0
 ```
 
 > **Docker Desktop (Mac, Windows):** Ein Ordner unter dem Benutzerverzeichnis

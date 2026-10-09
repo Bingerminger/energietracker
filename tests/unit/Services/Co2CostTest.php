@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace Energietracker\Tests\Services;
 
+use Energietracker\Config\Countries;
 use Energietracker\Services\Co2CostService;
 use Energietracker\Services\Co2SplitService;
 use Energietracker\Services\ForecastService;
@@ -92,12 +93,36 @@ final class Co2CostTest extends ServiceTestCase
         $gas = array_values(array_filter($this->costs()->forYear(2025)['rows'], fn($x) => $x['utility'] === 'gas'))[0];
         self::assertSame('bill', $gas['source']);
         self::assertSame(1800.0, $gas['emissions_kg']);
-        self::assertSame(99.0, $gas['cost_eur_net']);
+        // v3.2.0 — die Rechnung nennt den Betrag mit Umsatzsteuer (§ 3 Abs. 3 CO2KostAufG): kein zweiter Aufschlag
+        self::assertSame(99.0, $gas['cost_eur_gross']);
+        self::assertEqualsWithDelta(99.0 / 1.19, $gas['cost_eur_net'], 0.01);
 
         $p = Co2CostService::priceForYear($this->settings, 2027);
         self::assertSame(['eur_t' => 60.0, 'assumed' => true], $p);
         $this->settings->set(['co2_price_eur_t_years' => ['2027' => '65']]);
         self::assertSame(['eur_t' => 65.0, 'assumed' => false], Co2CostService::priceForYear($this->settings, 2027));
+    }
+
+    /** v3.2.0 — 7 % Umsatzsteuer auf Gas vom 01.10.2022 bis 31.03.2024 (§ 28 UStG), danach wieder 19 %. */
+    public function testTheReducedVatOnGasCountsMonthByMonth(): void
+    {
+        self::assertSame(0.07, Countries::co2Vat('behg', 'gas', '2023-06'));
+        self::assertSame(0.07, Countries::co2Vat('behg', 'fernwaerme', '2024-03'));
+        self::assertSame(0.19, Countries::co2Vat('behg', 'gas', '2024-04'));
+        self::assertSame(0.19, Countries::co2Vat('behg', 'heizoel', '2023-06'), 'Heizöl war nicht ermäßigt');
+        $this->gasYear(2023, 10000);
+        $gas = array_values(array_filter($this->costs()->forYear(2023)['rows'], fn($x) => $x['utility'] === 'gas'))[0];
+        self::assertSame(0.07, $gas['vat']);
+        self::assertEqualsWithDelta($gas['cost_eur_net'] * 1.07, $gas['cost_eur_gross'], 0.02);
+
+        // Heizwärme: der Satz des Energieträgers dahinter
+        $heat = (string)$this->meters->create('waerme', ['name' => 'Heizwärme', 'installed_on' => '2023-01-01'])['id'];
+        $this->setReadings('waerme', $heat, [['date' => '2023-01-01', 'counter' => 0], ['date' => '2024-01-01', 'counter' => 8000]]);
+        $row = fn() => array_values(array_filter($this->costs()->forYear(2023)['rows'], fn($x) => $x['utility'] === 'waerme'))[0];
+        $this->settings->set(['waerme_energietraeger' => 'gas']);
+        self::assertSame(0.07, $row()['vat']);
+        $this->settings->set(['waerme_energietraeger' => 'heizoel']);
+        self::assertSame(0.19, $row()['vat']);
     }
 
     public function testCountriesWithoutSchemeSayNo(): void

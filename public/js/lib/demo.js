@@ -12,10 +12,10 @@ import { toastErr, toastAfterReload } from '../components/toast.js';
  * Lädt die Demo-Daten und startet die App neu (Seitenleiste, Sprache und
  * Zwischenspeicher passen dann zum neuen Stand).
  *
- * @param {{beforeReload?: () => void}} [opts]
+ * @param {{beforeReload?: () => void, persona?: string|null}} [opts]  v3.2.0 — Beispielhaushalt je Persona
  * @returns {Promise<boolean>} false, wenn abgebrochen oder nicht verfügbar
  */
-export async function loadDemo({ beforeReload } = {}) {
+export async function loadDemo({ beforeReload, persona = null } = {}) {
   const status = await api.demoStatus();
   if (!status.available) {
     toastErr(t('settings.backup.demoUnavailable'));
@@ -29,7 +29,7 @@ export async function loadDemo({ beforeReload } = {}) {
     });
     if (!ok) return false;
   }
-  const report = await api.importDemo(!status.is_empty);
+  const report = await api.importDemo(!status.is_empty, persona);
   const snap = report?.auto_snapshot_before_restore;
   beforeReload?.();
   toastAfterReload(typeof snap === 'string'

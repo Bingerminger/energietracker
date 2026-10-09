@@ -22,11 +22,13 @@ final class FirstStartProfileTest extends TestCase
     private string $base = '';
     private string $dataDir = '';
 
-    private function start(string $acceptLanguage): void
+    /** @param array<string,mixed> $seed Dateien im Datenverzeichnis vor dem Start (Bestand) */
+    private function start(string $acceptLanguage, array $seed = []): void
     {
         $root = dirname(__DIR__, 3);
         $this->dataDir = sys_get_temp_dir() . '/et-first-' . bin2hex(random_bytes(4));
         mkdir($this->dataDir, 0755, true);
+        foreach ($seed as $file => $content) file_put_contents("$this->dataDir/$file", json_encode($content));
         $s = stream_socket_server('tcp://127.0.0.1:0');
         $port = (int)substr(strrchr(stream_socket_get_name($s, false), ':'), 1);
         fclose($s);
@@ -112,5 +114,24 @@ final class FirstStartProfileTest extends TestCase
             ? json_decode((string)file_get_contents($this->dataDir . '/settings.json'), true) : [];
         self::assertSame([], array_intersect(array_keys($stored ?: []), ['language', 'country', 'currency', 'timezone']),
             'Beim deutschen Erststart entspricht alles dem Default — nichts wird festgeschrieben');
+    }
+
+    /** v3.2.0 (F1018) — der Einrichtungsassistent erscheint beim allerersten Start … */
+    public function testTheVeryFirstStartOpensTheSetupAssistant(): void
+    {
+        $this->start('de-DE');
+        $s = $this->get('/api/settings', 'de-DE');
+        self::assertTrue($s['setup_pending']);
+        self::assertSame('expert', $s['ui_level']);
+    }
+
+    /** … nicht nach einem Update: Bestand bleibt bei „Experte“ und ohne Assistent. */
+    public function testAnUpdateDoesNotOpenIt(): void
+    {
+        $this->start('de-DE', ['meta.json' => ['schema_version' => '1.7.0'], 'settings.json' => ['wohnflaeche_m2' => 90]]);
+        $s = $this->get('/api/settings', 'de-DE');
+        self::assertFalse($s['setup_pending']);
+        self::assertSame('expert', $s['ui_level']);
+        self::assertSame(90, $s['wohnflaeche_m2']);
     }
 }

@@ -10,6 +10,13 @@ API, `GET`/`PATCH /api/settings` reads and writes the same keys
 stable: anything is removed only with a new major version and after notice — the
 deprecated ones are at the end.
 
+Since v3.2.0 a household can have several people with roles
+([Users in the household](../anleitungen/benutzer.md)). Three keys can then
+only be changed by admins, because they make the app talk to other addresses or
+let it be embedded: `frame_ancestors`, `ocr_endpoint` and `evcc_endpoint`. A
+member who sends one of them gets `403` `errors.auth.adminOnly`; members may
+change every other key. Without sign-in the restriction does not apply.
+
 The defaults apply to a new installation in Germany. Another country sets its
 profile on the first start (location, currency, time zone, heating limit, CO₂
 factors …) — see [Country profiles](../verstehen/14-laenderprofile.md). A test
@@ -25,6 +32,19 @@ checks that this page names every key.
 | `country` | `DE` | Country | Country (ISO code). Changing it offers to apply the country profile — see [Country profiles](../verstehen/14-laenderprofile.md). |
 | `currency` | `EUR` | Currency | Currency (ISO code) for display; nothing is converted. |
 | `timezone` | `Europe/Berlin` | Time zone | Time zone for "today", billing dates and reminders. |
+
+### Experience level and setup *(v3.2.0)*
+
+The level decides what the interface shows, not what the app calculates:
+calculations, API and export are the same at every level. A page above the
+level stays reachable and shows a note whose one click raises the level. More:
+[Setup](../einstieg/einrichtung.md).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `ui_level` | `expert` | Switch at the top next to day/night; card “Experience level and setup” | `beginner` (🌱 Beginner), `advanced` (🌿 Experienced) or `expert` (🌳 Expert). Beginner: overview with three answers, meter readings, simple contracts, annual report. Experienced: plus analyses, forecast, switching, bill check and meter structure. Expert: everything, with explainers, groups, calculation parameters and access. The default Expert means: an existing installation sees everything as before after the update; a new installation picks the level in the setup assistant. With sign-in every person has their own level (`PATCH /api/session/me`); this key then applies to people without a choice of their own. |
+| `setup_pending` | `false` | — | `true` means: the setup assistant appears the next time the app opens. It is only set on the very first start of a new installation, never after an update; the assistant resets it when it is finished or skipped, and so does loading an example household. The assistant can be started again at any time with “Start the setup assistant” on the card “Experience level and setup” — that does not need this key. |
+| `setup_persona` | empty (`null`) | Setup assistant, first question | The persona chosen last: `mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern` or `showcase` (“Just look at everything first”); empty or `none` = none. The assistant suggests the answer from it; loading an example household sets the loaded persona. Calculates nothing. |
 
 ### Display
 
@@ -52,7 +72,7 @@ checks that this page names every key.
 |---|---|---|---|
 | `wohnflaeche_m2` | 100 | Living area | Heated area — denominator of the efficiency metric. Since v3.1.0 also the area for the CO₂ stage ([CO₂ price](../verstehen/16-co2-preis.md)); when you rent, the floor area from the tenancy takes precedence. |
 | `gebaeudetyp` | `efh` | Building type | Multi-family means three or more flats. Values: `efh` detached/semi-detached, `rh` terraced house, `mfh` apartment building, `whg` flat. Determines the reference area of the certificate-style figure. |
-| `beheizter_keller` | off | Heated basement | Single-/two-family or terraced house with heated basement: usable floor area = 1.35 × living area (otherwise 1.2) — for the certificate-style figure. |
+| `beheizter_keller` | off | Heated basement | Residential building with up to two dwellings (detached/semi-detached, also terraced house) with heated basement: usable floor area = 1.35 × living area (otherwise 1.2; § 82(2) GModG, formerly GEG) — for the certificate-style figure. Only takes effect with `gebaeudetyp` `efh` or `rh`. |
 | `warmwasser_dezentral` | off | Decentralised hot water | Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a 20 kWh/m²·yr surcharge. |
 
 ### Home and hot water *(v3.1.0)*
@@ -163,14 +183,15 @@ benchmark gives for your household. Empty = no benchmark
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `frame_ancestors` | empty | Allowed embedding addresses | Address with scheme and port, e.g. http://homeassistant.local:8123; separate several with spaces. Empty = only this installation itself. Addresses allowed to embed the app (Content Security Policy), such as a Home Assistant dashboard. |
+| `frame_ancestors` | empty | Allowed embedding addresses | Address with scheme and port, e.g. http://homeassistant.local:8123; separate several with spaces. Empty = only this installation itself. Addresses allowed to embed the app (Content Security Policy), such as a Home Assistant dashboard. Since v3.2.0 admins only. |
 
 ## Settings → Expert
 
 Since v3.1.0 the groups “Receipts” and “Text recognition in the home network”
-come first; the calculation parameters (regression & forecast,
-recommendations & distribution, since v3.1.0 CO₂ price) sit below, collapsed
-behind “Show calculation parameters”.
+come first, since v3.2.0 also “evcc in your home network”; the calculation
+parameters (regression & forecast, recommendations & distribution, since
+v3.1.0 CO₂ price) sit below, collapsed behind “Show calculation parameters”.
+The page belongs to the Expert level.
 
 ### Receipts *(v3.1.0)*
 
@@ -186,10 +207,21 @@ or LM Studio — only in your own network. Setup:
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `ocr_endpoint` | empty | Service address | Base address with `http://` or `https://`, for example `http://192.168.178.20:11434` (Ollama) or `http://192.168.178.20:1234/v1` (LM Studio); the app appends the path. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise text recognition refuses. |
+| `ocr_endpoint` | empty | Service address | Base address with `http://` or `https://`, for example `http://192.168.178.20:11434` (Ollama) or `http://192.168.178.20:1234/v1` (LM Studio); the app appends the path. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise text recognition refuses. Since v3.2.0 admins only. |
 | `ocr_api` | `ollama` | Interface | `ollama` (`/api/chat`) or `openai` — OpenAI-compatible (`/v1/chat/completions`), such as LM Studio or LocalAI. |
 | `ocr_model` | empty | Model | Name of a vision model as the service knows it, for example `qwen2.5vl`, `llama3.2-vision` or `minicpm-v` (at most 200 characters). |
 | `ocr_timeout_s` | 30 | Time limit | Seconds the server waits for the answer (5–300). On a NAS without a graphics card, vision models often need 20 to 60 seconds. Since v3.1.0 nginx in the Docker image waits up to 310 seconds, so the whole time limit applies; behind your own web server or reverse proxy, its limit counts. |
+
+### evcc in your home network *(v3.2.0)*
+
+Fetches the wall box charging sessions straight from evcc when you tap “Fetch
+from evcc” in the wall box view. The CSV file from evcc always works, also
+without this key. Setup:
+[Charging sessions from evcc](../anleitungen/evcc.md).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `evcc_endpoint` | empty | evcc address | Base address with `http://` or `https://` at which you open evcc in the browser, for example `http://192.168.178.30:7070` or `http://evcc.local:7070`; the app appends `/api/sessions`. Empty = off, the app opens no connection. Every address the name points to must be in your own network, otherwise the fetch refuses (as with text recognition). Admins only. |
 
 ### Regression & forecast
 
@@ -220,7 +252,7 @@ with a CO₂ price, today Germany.
 
 | Key | Default | In the app | Effect |
 |---|---|---|---|
-| `co2_price_eur_t_years` | empty (`{}`) = country profile | CO₂ price per year | Your own yearly values in € per tonne as a table year → €/t (years 1990–2100, values 0–1000); they take precedence over the country profile (Germany: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). For a year without a value the last known one applies as an assumption. Via the API an object `{"2027": 65}` or a list `[{year, eur_t}]`. |
+| `co2_price_eur_t_years` | empty (`{}`) = country profile | CO₂ price per year | Your own yearly values in € per tonne as a table year → €/t (years 1990–2100, values 0–1000); they take precedence over the country profile (Germany: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). For a year without a value the last known one applies as an assumption — for 2027 therefore 60, although § 4(1) no. 3 CO2KostAufG makes the average of the auctions from 1 July to 30 November 2026 the applicable price; the German Environment Agency publishes it no later than ten working days before the year begins, enter it here then. Via the API an object `{"2027": 65}` or a list `[{year, eur_t}]`. |
 | `co2_price_scenario_eur_t` | empty (`null`) = off | Scenario: CO₂ price | Default for the forecast field “CO₂ price from 2028 (€/t)” (0–1000 €/t): the forecast then shows what this price would cost extra. Empty = off. |
 | `co2_price_scenario_from` | 2028 | Scenario from year | First year the scenario applies to (2021–2100). In 2028 the European emissions trading (ETS2) is to replace the fixed prices. |
 

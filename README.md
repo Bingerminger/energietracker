@@ -12,11 +12,11 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-639-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-679-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -69,7 +69,7 @@ and help inside the app with a glossary and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.1.0
+  ghcr.io/bingerminger/energietracker:3.2.0
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
@@ -91,9 +91,10 @@ Without Docker, PHP 8.2 or later is enough: `git clone`, then
 Everything stays on your server: no accounts, no ads, no telemetry, no
 database — just JSON files. The app talks only to Open-Meteo: for the daily
 weather sync (it sends your location rounded to about 1 km, and can be switched
-off) and the place search, if you use it. Two more paths are yours to switch
+off) and the place search, if you use it. Three more paths are yours to switch
 on: your own text recognition service in your home network, if you set one up,
-and wholesale electricity prices for the dynamic tariff check, when you tap
+your evcc in your home network, when you fetch its charging sessions, and
+wholesale electricity prices for the dynamic tariff check, when you tap
 “Load from SMARD” (Federal Network Agency; nothing of yours is sent). Fonts and
 Chart.js ship with the repository.
 
@@ -118,20 +119,21 @@ Portuguese and Dutch; country profiles for Germany, Austria, Switzerland,
 France, Italy, Spain, Portugal, the Netherlands and the United Kingdom set
 currency, formats, time zone, weather location, heating limit, CO₂ factor and
 gas units. In substance the Energietracker is at home in Germany: efficiency
-classes per the GEG, CO₂ factors from BAFA and the German Environment Agency,
+classes per the GModG (formerly GEG), CO₂ factors from BAFA and the German
+Environment Agency,
 the special right to cancel under the EnWG. Elsewhere it calculates without
 classes and says why; it does not convert currencies —
 [Country profiles](docs/en/verstehen/14-laenderprofile.md).
 
 ## Status and outlook
 
-**v3.1.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
+**v3.2.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
 APIs, CSV formats and the backup format change only additively; anything is
-removed only with a new major version and after notice. With 3.1.0 the tenant
-package ([#15](https://github.com/Bingerminger/energietracker/issues/15)) and
-contracts per meter group
-([#17](https://github.com/Bingerminger/energietracker/issues/17)) have arrived;
-what comes next is in the [roadmap](roadmap.md) (in German). Coming from a
+removed only with a new major version and after notice. 3.2.0 makes the start
+easy without taking anything from experienced users: a setup assistant with
+example households, three experience levels, animated explainers with your own
+data, several people per household and charging sessions from evcc. What comes
+next is in the [roadmap](roadmap.md) (in German). Coming from a
 private v0.9.0:
 [migration](docs/en/anleitungen/migration-v090.md).
 

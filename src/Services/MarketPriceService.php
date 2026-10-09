@@ -148,18 +148,22 @@ final class MarketPriceService
         $d = $c['dynamic'];
         $vat = (float)($d['vat_pct'] ?? 19) / 100;
         $markup = (float)($d['markup_ct_per_kwh'] ?? 0);
-        $start = max(substr((string)($c['start'] ?? $fromYm . '-01'), 0, 7), $fromYm);
+        // v3.2.0 — dynamisch gibt es nur als Schattenvertrag, und der ist ein
+        // Preisblatt für den ganzen Zeitraum (CALC-21): Ein Angebot, das erst
+        // nächstes Jahr beginnen würde, rechnet trotzdem mit den Preisen jedes
+        // Monats. Bis v3.1 begann die Reihe beim Vertragsbeginn — ein künftiges
+        // Angebot meldete „keine Marktdaten“.
         $prices = []; $assumed = []; $missing = [];
-        for ($t = strtotime($start . '-01'); $t !== false && date('Y-m', $t) <= $toYm; $t = strtotime('+1 month', $t)) {
+        for ($t = strtotime($fromYm . '-01'); $t !== false && date('Y-m', $t) <= $toYm; $t = strtotime('+1 month', $t)) {
             $ym = date('Y-m', $t);
             $spot = $this->monthCt($ym);
             if ($spot === null) { $missing[] = $ym; continue; }
             if ($spot['assumed']) $assumed[] = $ym;
-            $prices[] = ['from' => max($ym . '-01', (string)($c['start'] ?? '')), 'ct_per_kwh' => round($spot['ct'] * (1 + $vat) + $markup, 4)];
+            $prices[] = ['from' => $ym . '-01', 'ct_per_kwh' => round($spot['ct'] * (1 + $vat) + $markup, 4)];
         }
         $c['working_prices'] = $prices;
         $c['base_prices'] = isset($d['base_eur_month']) && is_numeric($d['base_eur_month'])
-            ? [['from' => (string)($c['start'] ?? $fromYm . '-01'), 'eur_per_month' => (float)$d['base_eur_month']]] : [];
+            ? [['from' => $fromYm . '-01', 'eur_per_month' => (float)$d['base_eur_month']]] : [];
         $c['dynamic_assumed'] = $assumed;
         $c['dynamic_missing'] = $missing;
         return $c;

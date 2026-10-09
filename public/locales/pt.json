@@ -10,7 +10,8 @@
     "actions": "Ações",
     "invalidNumber": "Introduza um número válido, p. ex. {example}.",
     "undo": "Anular",
-    "hddShort": "GD"
+    "hddShort": "GD",
+    "guide": "Guia"
   },
   "app": {
     "themeToggle": "Mudar tema",
@@ -188,6 +189,38 @@
       "prev": "Um ano antes",
       "alt": "Gráfico de barras: {label} por mês de {from} a {to}.",
       "altPrev": "Gráfico de barras: {label} por mês de {from} a {to}; a linha mostra os mesmos meses um ano antes."
+    },
+    "explainers": {
+      "title": "Esquemas explicativos"
+    },
+    "beginner": {
+      "capture": "Adicionar leitura",
+      "money": {
+        "title": "Vou receber dinheiro de volta?",
+        "credit": "cerca de {amount} de volta",
+        "due": "cerca de {amount} de acerto a pagar",
+        "even": "praticamente equilibrado",
+        "until": "fatura a {date}",
+        "none": "Ainda não há contrato com adiantamentos.",
+        "add": "Adicionar contrato"
+      },
+      "trend": {
+        "title": "Mais ou menos do que no ano passado?",
+        "more": "{pct} mais do que no ano passado",
+        "less": "{pct} menos do que no ano passado",
+        "same": "praticamente como no ano passado",
+        "none": "Ainda não há ano anterior para comparar."
+      },
+      "rent": {
+        "title": "O adiantamento de encargos chega?",
+        "enough": "Sim — provavelmente cerca de {amount} de volta.",
+        "short": "Apertado — provavelmente cerca de {amount} de acerto a pagar.",
+        "suggest": "Adiantamento adequado: {amount} por mês."
+      },
+      "todo": {
+        "title": "O que há a fazer?",
+        "none": "Nada de momento — ótimo."
+      }
     }
   },
   "readingsEntry": {
@@ -1203,7 +1236,8 @@
       "frameAncestors": "http://homeassistant.local:8123",
       "ocrEndpoint": "http://192.168.178.20:11434",
       "ocrModel": "qwen2.5vl",
-      "referenceSource": "p. ex. índice 2025"
+      "referenceSource": "p. ex. índice 2025",
+      "evccEndpoint": "http://192.168.178.30:7070"
     },
     "loading": "A carregar…",
     "saved": "Definições guardadas",
@@ -1214,7 +1248,8 @@
       "deviceLabel": "Idioma neste dispositivo",
       "deviceFollow": "Como a instalação ({lang})",
       "defaultLabel": "Idioma predefinido da instalação",
-      "defaultSaved": "Idioma predefinido alterado"
+      "defaultSaved": "Idioma predefinido alterado",
+      "personLabel": "Idioma próprio (em todos os dispositivos)"
     },
     "unit": {
       "days": "dias",
@@ -1266,6 +1301,10 @@
       "reference": {
         "title": "Valores de referência próprios",
         "hint": "Para a comparação na visão geral. A aplicação não inclui tabelas; introduza os valores que um índice de eletricidade ou aquecimento lhe indica."
+      },
+      "evcc": {
+        "title": "evcc na rede doméstica",
+        "hint": "Obtém os carregamentos do evcc ao tocar em «Obter do evcc» na vista do posto de carregamento. Apenas endereços da rede própria. Vazio = desligado; o ficheiro CSV do evcc funciona sempre."
       }
     },
     "field": {
@@ -1325,7 +1364,7 @@
       },
       "beheizter_keller": {
         "label": "Cave aquecida",
-        "hint": "Moradia uni- ou bifamiliar ou em banda com cave aquecida: área útil = 1,35 × área habitável (caso contrário 1,2), para o valor tipo certificado."
+        "hint": "Edifício residencial com até duas habitações (moradia uni- ou bifamiliar ou em banda) com cave aquecida: área útil = 1,35 × área habitável (caso contrário 1,2), para o valor tipo certificado."
       },
       "warmwasser_dezentral": {
         "label": "Água quente descentralizada",
@@ -1409,6 +1448,10 @@
       "warmwasser_elektrisch": {
         "label": "Água quente elétrica",
         "hint": "Esquentador elétrico ou termoacumulador elétrico — os índices de eletricidade distinguem por isso."
+      },
+      "evcc_endpoint": {
+        "label": "Endereço do evcc",
+        "hint": "Por exemplo http://192.168.178.30:7070 ou http://evcc.local:7070 — o endereço com que o evcc é aberto no navegador."
       }
     },
     "boolActive": "ativado",
@@ -1821,6 +1864,44 @@
       "fernwaerme": "Aquecimento urbano",
       "strom": "Eletricidade (bomba de calor, esquentador elétrico)",
       "waerme": "Calor (central)"
+    },
+    "level": {
+      "title": "Nível de utilização e configuração",
+      "hint": "Define o que a interface mostra — todos os níveis calculam tudo. Aplica-se a todos os dispositivos desta instalação.",
+      "hintPerson": "Define o que a interface mostra — todos os níveis calculam tudo. Aplica-se a {name} em todos os dispositivos.",
+      "describe": {
+        "beginner": "Resumo com três respostas, leituras, contratos simples, relatório anual.",
+        "advanced": "Mais análises, previsão, mudança de fornecedor, verificação de fatura e estrutura de contadores.",
+        "expert": "Tudo, com esquemas explicativos, grupos, parâmetros de cálculo e acesso."
+      },
+      "saved": "Nível guardado."
+    },
+    "me": {
+      "title": "A minha conta: {name}",
+      "proxyHint": "Sessão iniciada pelo serviço à frente da aplicação; a palavra-passe muda-se lá.",
+      "passwordChanged": "Palavra-passe alterada."
+    },
+    "users": {
+      "title": "Utilizadores e permissões",
+      "hint": "Cada pessoa inicia sessão com nome e palavra-passe e tem nível e idioma próprios. Os dados do agregado são partilhados.",
+      "hintProxy": "O início de sessão fica a cargo do serviço à frente da aplicação; a aplicação reconhece cada pessoa pelo nome. Quem chega primeiro administra.",
+      "memberHint": "O acesso é gerido por quem administra a instalação. A palavra-passe própria muda-se em Definições → Geral.",
+      "passwordHint": "Cada pessoa muda a palavra-passe em Definições → Geral → A minha conta.",
+      "role": {
+        "admin": "Administração",
+        "member": "Membro"
+      },
+      "roleLabel": "Função de {name}",
+      "name": "Nome",
+      "roleHead": "Função",
+      "you": "a sua conta",
+      "resetPassword": "Redefinir palavra-passe",
+      "delete": "Eliminar pessoa",
+      "deleteConfirm": "Esta pessoa deixa de poder iniciar sessão. Os dados do agregado mantêm-se.",
+      "add": "Adicionar uma pessoa",
+      "addButton": "Adicionar",
+      "added": "{name} já pode iniciar sessão.",
+      "saved": "Guardado."
     }
   },
   "reminders": {
@@ -2423,7 +2504,7 @@
       "noLivingArea": "Área habitável não definida — introduza-a nas definições para obter a classe de eficiência.",
       "noHeatData": "Não foram encontrados dados de energia de aquecimento para {year}.",
       "multipleSources": "Várias fontes de calor ativas — a classe por fonte é mais expressiva do que a soma combinada. A vista combinada só faz sentido com aquecimento deliberadamente combinado (p. ex. carga de base e de ponta).",
-      "noScale": "Não existe escala de eficiência para {country}. As classes A+ a H seguem a lei alemã de energia nos edifícios (GEG) e por isso não são mostradas.",
+      "noScale": "Não existe escala de eficiência para {country}. As classes A+ a H seguem a lei alemã de modernização dos edifícios (GModG, antiga GEG) e por isso não são mostradas.",
       "incompleteYear": "Os dados de {year} não cobrem o ano todo: sem classe; o valor vale só para o período medido."
     },
     "forecast": {
@@ -2600,7 +2681,8 @@
     "demo": {
       "backupNotFound": "Cópia de segurança de demonstração não encontrada.",
       "dataExists": "Já existem dados. A importação substitui-os (antes é criado um instantâneo automaticamente). Confirme para continuar.",
-      "backupInvalid": "A cópia de segurança de demonstração é inválida (não é JSON)."
+      "backupInvalid": "A cópia de segurança de demonstração é inválida (não é JSON).",
+      "personaUnknown": "Não existe o agregado de exemplo «{persona}»."
     },
     "migration": {
       "noVersionField": "Sem campo «version» na cópia de segurança — provavelmente não é uma cópia v0.9.0. São esperadas cópias v0.9.0 com a versão «2.1» ou anterior.",
@@ -2655,7 +2737,8 @@
       "modeFixed": "O início de sessão é definido através do ambiente (ET_AUTH) e não pode ser desativado aqui.",
       "passwordTooShort": "A palavra-passe precisa de pelo menos {min} caracteres.",
       "scopeInvalid": "Âmbito desconhecido – são permitidos read, admin e calendar.",
-      "keyNotFound": "Chave de API não encontrada."
+      "keyNotFound": "Chave de API não encontrada.",
+      "adminOnly": "Só quem administra esta instalação o pode fazer."
     },
     "weather": {
       "badFormat": "A Open-Meteo respondeu num formato inesperado.",
@@ -2726,6 +2809,26 @@
     },
     "heatPump": {
       "yearInvalid": "O ano «{year}» não é válido"
+    },
+    "users": {
+      "noUser": "Sem início de sessão não há definições pessoais — o nível aplica-se então a toda a instalação.",
+      "proxyNoPassword": "Com início de sessão pelo serviço à frente da aplicação, a palavra-passe muda-se lá.",
+      "nameInvalid": "O nome não pode estar vazio e pode ter no máximo {max} caracteres.",
+      "nameTaken": "Este nome já existe.",
+      "roleInvalid": "A função tem de ser «Administração» ou «Membro» (API: admin, member).",
+      "lastAdmin": "Pelo menos uma pessoa tem de administrar a instalação.",
+      "notFound": "Esta pessoa já não existe.",
+      "notSelf": "Não é possível eliminar a própria conta — outra pessoa que administre a instalação pode fazê-lo."
+    },
+    "evcc": {
+      "off": "Nenhum endereço do evcc configurado (Definições → Especialista).",
+      "notLocal": "O evcc tem de funcionar na rede própria – «{host}» não é um endereço da rede doméstica.",
+      "unreachable": "O evcc não está acessível.",
+      "badAnswer": "O evcc não devolveu uma lista de carregamentos.",
+      "noSessions": "Não foram encontrados carregamentos concluídos.",
+      "columns": "Não parece a exportação CSV do evcc: faltam as colunas de início e energia.",
+      "countersInvalid": "Opção desconhecida para as leituras: «{value}».",
+      "loadpointNeeded": "Vários postos de carregamento ({names}): as leituras pertencem a um posto – escolha o respetivo ou incorpore apenas os carregamentos."
     }
   },
   "login": {
@@ -2733,7 +2836,9 @@
     "password": "Palavra-passe",
     "submit": "Entrar",
     "forgot": "Esqueceu-se da palavra-passe? No servidor, em data/auth.json, defina «mode» como «off» – o início de sessão fica desligado. No contentor Docker, a variável de ambiente ET_AUTH=off faz o mesmo.",
-    "logout": "Terminar sessão"
+    "logout": "Terminar sessão",
+    "name": "Nome",
+    "forgotNamed": "Esqueceu-se da palavra-passe? Quem administra esta instalação pode redefini-la em Definições → Acesso."
   },
   "readingCheck": {
     "title": "Verifique",
@@ -2814,7 +2919,8 @@
       "itemAmount": "Montante (crédito negativo)",
       "co2Cost": "Custo de CO₂ segundo a fatura",
       "attach": "Anexar fatura (PDF ou foto)",
-      "save": "Guardar fatura"
+      "save": "Guardar fatura",
+      "update": "Guardar alterações"
     },
     "saved": "Fatura guardada",
     "book": "Registar como pagamento extraordinário",
@@ -2841,7 +2947,10 @@
       "price_missing": "O contrato não tem preço para parte do período – aí também faltam custos.",
       "gaps": "Faltam leituras dentro do período."
     },
-    "ownTotalOnly": "Recalculado: {total}"
+    "ownTotalOnly": "Recalculado: {total}",
+    "updated": "Fatura alterada",
+    "editing": "A editar a fatura de {from} a {to}.",
+    "editBookedNote": "Já está registada como pagamento extraordinário – o lançamento no contrato não se altera."
   },
   "glossary": {
     "hdd": {
@@ -2998,7 +3107,7 @@
     },
     "co2Price": {
       "term": "Preço do CO₂ (BEHG)",
-      "text": "Desde 2021, na Alemanha, os fornecedores de gás e gasóleo pagam um preço por cada tonelada de CO₂ e repercutem-no no preço unitário: 55 euros em 2025, 60 euros por tonelada em 2026. A aplicação indica-o – não é um acréscimo. Calcula-se com os fatores padrão do BEHG; lenha, pellets e eletricidade não o têm."
+      "text": "Desde 2021, na Alemanha, os fornecedores de gás e gasóleo pagam um preço por cada tonelada de CO₂ e repercutem-no no preço unitário: 55 euros fixos em 2025; em 2026, leiloado num corredor de 55 a 65 euros – faturas e acertos do aquecimento aplicam 60 euros por tonelada. A aplicação indica-o – não é um acréscimo. Calcula-se com os fatores padrão do BEHG; lenha, pellets e eletricidade não o têm."
     },
     "co2Split": {
       "term": "Repartição dos custos de CO₂",
@@ -3010,7 +3119,7 @@
     },
     "module14a": {
       "term": "§ 14a EnWG (consumidores controláveis)",
-      "text": "O operador de rede pode limitar bombas de calor, carregadores e baterias acima de 4,2 kW em caso de congestionamento; em troca, a tarifa de rede baixa. Módulo 1: um montante fixo por ano. Módulo 2: um contador próprio com 40% do preço unitário de rede. Módulo 3: tarifas de rede variáveis além do módulo 1."
+      "text": "O operador de rede pode limitar bombas de calor, carregadores, aparelhos de ar condicionado e baterias acima de 4,2 kW instalados desde 2024 em caso de congestionamento – nunca abaixo de 4,2 kW; em troca, a tarifa de rede baixa. Módulo 1: um montante fixo por ano. Módulo 2: um contador próprio com 40% do preço unitário de rede. Módulo 3: tarifas de rede variáveis além do módulo 1."
     },
     "jaz": {
       "term": "Fator de desempenho sazonal (SPF)",
@@ -3039,7 +3148,9 @@
       "homeAssistant": "Ligar o Home Assistant",
       "englishOnly": "A documentação existe em alemão e inglês; as ligações levam à versão inglesa.",
       "faq": "Perguntas frequentes",
-      "troubleshoot": "Resolução de problemas"
+      "troubleshoot": "Resolução de problemas",
+      "setup": "Configuração, casas de exemplo e níveis",
+      "useCases": "Casos de utilização"
     },
     "support": {
       "title": "Perguntas e erros",
@@ -3049,9 +3160,25 @@
     },
     "privacy": {
       "title": "Os seus dados",
-      "text": "Tudo fica no seu servidor: sem contas, sem publicidade, sem telemetria. A aplicação só comunica com o Open-Meteo — na sincronização meteorológica diária (apenas a localização arredondada a cerca de 1 km, desativável em Definições → Dados meteorológicos) e na pesquisa de local quando a usa — e, apenas se for introduzido, com o serviço próprio de reconhecimento de texto na rede doméstica. Ao tocar em «Carregar do SMARD», a aplicação obtém os preços grossistas de eletricidade da Bundesnetzagentur; não é enviado nenhum dado do utilizador."
+      "text": "Tudo fica no seu servidor: sem contas, sem publicidade, sem telemetria. A aplicação só comunica com o Open-Meteo — na sincronização meteorológica diária (apenas a localização arredondada a cerca de 1 km, desativável em Definições → Dados meteorológicos) e na pesquisa de local quando a usa — e, apenas se forem introduzidos, com o serviço próprio de reconhecimento de texto e o evcc na rede doméstica. Ao tocar em «Carregar do SMARD», a aplicação obtém os preços grossistas de eletricidade da Bundesnetzagentur; não é enviado nenhum dado do utilizador."
     },
-    "onYourBill": "Na sua fatura ({country}): «{term}»"
+    "onYourBill": "Na sua fatura ({country}): «{term}»",
+    "cases": {
+      "title": "Casos de utilização",
+      "heat": {
+        "title": "Aquecimento urbano ou calor?",
+        "text": "O aquecimento urbano é comprado diretamente ao fornecedor – com contrato próprio, preço unitário, termo fixo e fatura; é para isso o serviço «Aquecimento urbano». O calor é calor medido sem contrato de fornecimento próprio: numa casa arrendada é pago pela liquidação das despesas (com a informação mensal de consumo), numa moradia própria é o calor produzido pela bomba de calor – é para isso o «Calor». As casas de exemplo «Apartamento próprio com aquecimento urbano», «Vivo numa casa arrendada» e «Moradia com bomba de calor e fotovoltaico» mostram os três casos."
+      },
+      "control": {
+        "title": "Controlar com o evcc ou o Home Assistant",
+        "text": "O Energietracker não comanda nada. A bateria, o posto de carregamento e a bomba de calor são controlados pelo evcc ou pelo Home Assistant – com energia solar, em horas baratas ou com preços grossistas negativos. O Energietracker faz as contas: os carregamentos do evcc com a parte solar, as leituras pelo Home Assistant, a verificação da tarifa dinâmica com preços grossistas e o registo de carregamento mostram o que o controlo trouxe."
+      },
+      "levels": {
+        "title": "Primeiro simples, depois tudo",
+        "text": "O nível no topo, ao lado de dia/noite, decide o que se vê: principiantes recebem três respostas na vista geral, o nível intermédio acrescenta a mudança de tarifa, a verificação da fatura e as análises, especialistas veem tudo. Em todos os níveis tudo é calculado – é possível mudar a qualquer momento. Para experimentar, o assistente de configuração carrega uma casa de exemplo adequada."
+      },
+      "tryExample": "Experimentar uma casa de exemplo"
+    }
   },
   "onboarding": {
     "done": "feito",
@@ -3500,7 +3627,7 @@
     "plugIn": {
       "assumed": "Kit solar: autoconsumo assumido em {pct}% da produção (definições)."
     },
-    "hint51": "Em funcionamento desde 25/02/2025: não há remuneração de injeção nos períodos com preço grossista negativo, logo que esteja instalado um contador inteligente (§ 51 EEG). Compensa-se com um período de apoio mais longo."
+    "hint51": "Em funcionamento desde 25/02/2025: não há remuneração de injeção nos períodos com preço grossista negativo – abaixo de 100 kW, a partir do ano seguinte à instalação de um contador inteligente (§ 51 EEG). Um período de apoio mais longo compensa-o em parte."
   },
   "comparison": {
     "title": "Comparação {year}",
@@ -3556,6 +3683,186 @@
         "one": "{count} dia, {from} (a última leitura do dia)",
         "other": "{count} dias de {from} a {to} (a última leitura de cada dia)"
       }
+    }
+  },
+  "level": {
+    "switch": "Nível de utilização",
+    "beginner": "Principiante",
+    "advanced": "Intermédio",
+    "expert": "Especialista",
+    "hint": {
+      "page": "Esta página pertence ao nível «{level}». Está aberta na mesma.",
+      "switch": "Mudar para «{level}»",
+      "data": "Os dados dizem mais do que este nível mostra — «{level}» mostra-o.",
+      "dismiss": "Não perguntar mais"
+    },
+    "reason": {
+      "subMeters": "subcontadores",
+      "homeAssistant": "valores do Home Assistant",
+      "severalMeters": "vários contadores de um serviço",
+      "heatPump": "bomba de calor",
+      "battery": "bateria",
+      "wallbox": "wallbox"
+    }
+  },
+  "explainer": {
+    "money": {
+      "title": "Para onde vai o meu dinheiro?",
+      "paid": "Adiantamentos",
+      "cost": "Custo",
+      "energy": "Consumo",
+      "base": "Termo fixo",
+      "estimate": "ainda estimado",
+      "credit": "cerca de {amount} de crédito",
+      "due": "cerca de {amount} de acerto a pagar",
+      "even": "um saldo quase nulo",
+      "text": "Até à fatura de {date} paga {paid} em adiantamentos; consumo e termo fixo deverão custar {cost}. Resultado: {result}."
+    },
+    "energy": {
+      "title": "Fluxo de energia em casa",
+      "pv": "Solar",
+      "house": "Casa",
+      "grid": "Rede",
+      "battery": "Bateria",
+      "text": "{year}: o sistema produziu {gen} kWh. A casa usou {self} kWh diretamente, {feed} kWh foram para a rede e {grid} kWh vieram da rede. Autossuficiência: {autarky}."
+    },
+    "weather": {
+      "title": "Mais frio ou mais consumo?",
+      "usage": "Consumo",
+      "hdd": "Graus-dia",
+      "before": "os mesmos meses do ano anterior",
+      "now": "recentemente",
+      "adjusted": "corrigido do clima {pct}",
+      "text": {
+        "less": "Consumo {cons}, graus-dia {hdd} face aos mesmos meses do ano anterior. Corrigido do clima {adj}: o consumo baixou mesmo.",
+        "more": "Consumo {cons}, graus-dia {hdd} face aos mesmos meses do ano anterior. Corrigido do clima {adj}: o consumo subiu mesmo — não é só o tempo.",
+        "same": "Consumo {cons}, graus-dia {hdd} face aos mesmos meses do ano anterior. Corrigido do clima {adj}: praticamente igual — a diferença é o tempo."
+      }
+    },
+    "timeline": {
+      "title": "O contrato num relance",
+      "start": "Início",
+      "cancel": "Rescindir até",
+      "price": "Aumento de preço",
+      "end": "Fim",
+      "today": "hoje",
+      "text": "Contrato desde {start}. Para mudar, rescinda até {cancel}; termina então a {end}.",
+      "textOpen": "Contrato desde {start}; continua até ser rescindido. Rescindido até {cancel}, termina a {end}.",
+      "textNoNotice": "Contrato desde {start}, fim: {end}.",
+      "textRunning": "Contrato desde {start}; continua até ser rescindido. Não há prazo de pré-aviso registado."
+    }
+  },
+  "setup": {
+    "title": "Configuração",
+    "intro": "Três perguntas e a aplicação mostra o que lhe convém. Tudo se pode alterar depois.",
+    "progress": "Passo {n} de {total}",
+    "persona": {
+      "title": "Qual é a sua situação?",
+      "tenant": {
+        "title": "Vivo numa casa arrendada",
+        "text": "Eletricidade com contrato próprio; aquecimento e água pagos através dos encargos."
+      },
+      "flat": {
+        "title": "Apartamento próprio com aquecimento urbano",
+        "text": "Aquecimento urbano e eletricidade com contratos e faturas próprios."
+      },
+      "houseClassic": {
+        "title": "Moradia própria a gás, gasóleo ou pellets",
+        "text": "Aquecimento, eletricidade e água com contratos próprios."
+      },
+      "houseModern": {
+        "title": "Moradia com bomba de calor e fotovoltaico",
+        "text": "Bomba de calor, fotovoltaico, bateria e wallbox."
+      },
+      "showcase": {
+        "title": "Ver tudo primeiro",
+        "text": "Quase todos os serviços num agregado de exemplo – para conhecer cada função."
+      }
+    },
+    "utilities": {
+      "title": "Que fontes de energia utiliza?",
+      "hint": "Sugerido com base na resposta — combine à vontade.",
+      "heatNote": "Aquecimento urbano ou calor? O aquecimento urbano tem contrato de fornecimento próprio, com fatura do fornecedor. O calor é apenas medido — pago com a renda, ou é o produzido por uma bomba de calor."
+    },
+    "level": {
+      "title": "Qual é a sua experiência?",
+      "later": "O nível pode ser alterado a qualquer momento no topo, junto a dia/noite."
+    },
+    "finish": {
+      "title": "Próximos passos",
+      "summary": "{persona} · nível «{level}»",
+      "demo": "Ver com dados de exemplo",
+      "demoHint": "Carrega o agregado de exemplo correspondente. Antes, a aplicação guarda o estado atual.",
+      "demoPublic": "A demonstração mostra agora o agregado de exemplo «{persona}». Para escolher outro: Definições → Geral → «Iniciar o assistente de configuração».",
+      "own": "Começar com dados próprios",
+      "ownHint": "A seguir: verificar os contadores e registar a primeira leitura."
+    },
+    "skip": "Saltar",
+    "back": "Voltar",
+    "next": "Seguinte",
+    "done": "Começar",
+    "restart": "Iniciar o assistente de configuração"
+  },
+  "evcc": {
+    "title": "Carregamentos do evcc {year}",
+    "intro": "O evcc controla o posto de carregamento – com energia solar ou em horas baratas. Aqui confere-se o resultado: quantidade, parte solar e preço por mês. As leituras do contador do posto chegam ao mesmo tempo.",
+    "summary": {
+      "one": "{count} carregamento, {kwh} kWh, dos quais {solar} do sol",
+      "other": "{count} carregamentos, {kwh} kWh, dos quais {solar} do sol"
+    },
+    "priceTotal": "{amount} segundo o evcc",
+    "col": {
+      "month": "Mês",
+      "sessions": "Carregamentos",
+      "solar": "Sol",
+      "price": "Preço (evcc)"
+    },
+    "empty": "Ainda não há carregamentos do evcc para {year}.",
+    "countersLabel": "Leituras",
+    "counters": {
+      "auto": "do contador do posto (caso contrário, somadas)",
+      "energy": "somar a partir da energia carregada",
+      "none": "nenhuma – apenas os carregamentos"
+    },
+    "chooseCsv": "Escolher CSV do evcc …",
+    "sync": "Obter do evcc",
+    "syncHint": "Ambos mostram primeiro uma pré-visualização. Repetir não faz mal: o mesmo carregamento é substituído, não contado duas vezes.",
+    "noEndpoint": "O CSV descarrega-se no evcc, em Sessões. Para obter diretamente, indique o endereço do evcc em Definições → Especialista.",
+    "preview": {
+      "title": "Incorporar os carregamentos?",
+      "sessions": {
+        "one": "{count} carregamento de {from} a {to}, {kwh} kWh no total.",
+        "other": "{count} carregamentos de {from} a {to}, {kwh} kWh no total."
+      },
+      "noReadings": "As leituras ficam inalteradas.",
+      "readings": {
+        "meter": {
+          "one": "Mais {count} leitura do contador do posto.",
+          "other": "Mais {count} leituras do contador do posto."
+        },
+        "energy": {
+          "one": "Mais {count} leitura, somada a partir da última leitura anterior.",
+          "other": "Mais {count} leituras, somadas a partir da última leitura anterior."
+        }
+      },
+      "replaces": {
+        "one": "{count} leitura existente do mesmo dia será substituída.",
+        "other": "{count} leituras existentes dos mesmos dias serão substituídas."
+      },
+      "running": "Um carregamento ainda está em curso; será acrescentado da próxima vez.",
+      "loadpoints": "O ficheiro contém vários postos de carregamento ({names}); todos vão para este contador.",
+      "apply": "Incorporar",
+      "onlyLoadpoint": "Apenas o posto de carregamento {name}."
+    },
+    "done": {
+      "one": "{count} carregamento incorporado.",
+      "other": "{count} carregamentos incorporados."
+    },
+    "pick": {
+      "title": "Que posto de carregamento pertence a este contador?",
+      "hint": "Os carregamentos vêm de vários postos de carregamento. As leituras pertencem a um único posto – escolha o respetivo. Para todos os postos em conjunto, escolha «nenhuma – apenas os carregamentos» nas leituras.",
+      "label": "Posto de carregamento",
+      "ok": "Continuar"
     }
   }
 }

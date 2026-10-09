@@ -6,7 +6,7 @@ manifestVersion: 1
 id: energietracker
 category: finance
 name: Energietracker
-version: "3.1.0"
+version: "3.2.0"
 tagline: Meter readings, contracts and costs for energy and water
 description: >-
   Record meter readings and fuel deliveries, keep supply contracts with prices and advance

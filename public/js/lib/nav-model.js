@@ -15,6 +15,8 @@
 // =====================================================================
 
 import { t } from './i18n.js';
+// v3.2.0 (F1019) — Seiten über der Nutzungsstufe stehen nicht in Navigation und Tabs
+import { viewAllowed } from './levels.js';
 
 /**
  * Die Seiten eines Bereichs, in Tab-Reihenfolge. `view` ist der Schlüssel
@@ -25,7 +27,11 @@ import { t } from './i18n.js';
  *        tenant (v3.1.0) — „Ich wohne zur Miete": Seite „Mietverhältnis" unter Kosten
  * @returns {Array<{view: string, href: string, label: string, badge?: string, utility?: string}>}
  */
-export function sectionPages(section, { utilities = [], tenant = false } = {}) {
+export function sectionPages(section, ctx = {}) {
+  return allSectionPages(section, ctx).filter(p => viewAllowed(p.view));
+}
+
+function allSectionPages(section, { utilities = [], tenant = false } = {}) {
   switch (section) {
     case 'consumption':
       return utilities.map(u => ({ view: 'utility:' + u.key, href: `#/utility/${u.key}`, label: u.label, icon: u.icon, utility: u.key }));
@@ -91,7 +97,8 @@ export function sidebarModel(utilities) {
       })),
     },
     { key: 'costs', section: 'costs', href: '#/contracts', icon: '💶', label: t('nav.group.costs') },
-    { key: 'analysis', section: 'analysis', href: '#/analysis', icon: '📊', label: t('nav.group.analysis') },
+    // v3.2.0 — Einsteiger sehen hier nur den Jahresbericht
+    { key: 'analysis', section: 'analysis', href: sectionPages('analysis')[0]?.href || '#/report', icon: '📊', label: t('nav.group.analysis') },
     { key: 'hints', section: 'hints', href: '#/reminders', icon: '📌', label: t('nav.group.hints'), badge: 'hints' },
     { key: 'settings', section: 'settings', href: '#/settings', icon: '⚙️', label: t('nav.settings') },
   ];

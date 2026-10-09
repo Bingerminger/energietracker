@@ -116,6 +116,28 @@ final class MarketPriceTest extends ServiceTestCase
         self::assertGreaterThan(0, $cand[0]['dynamic_assumed_months']);
     }
 
+    /** v3.2.0 — ein Angebot mit künftigem Beginn ist ein Preisblatt für den ganzen Zeitraum (wie jeder Schattenvertrag). */
+    public function testADynamicOfferStartingNextYearStillComparesThisYear(): void
+    {
+        $rows = [];
+        for ($m = 0; $m <= 12; $m++) {
+            $rows[] = ['date' => date('Y-m-d', (int)strtotime("2025-01-01 +$m months")), 'counter' => 250.0 * $m, 'device_id' => 'd1'];
+        }
+        $this->setReadings('strom', $this->meterId, $rows);
+        $this->contracts->create('strom', ['meter_id' => $this->meterId, 'provider' => 'A', 'start' => '2025-01-01',
+            'working_prices' => [['from' => '2025-01-01', 'ct_per_kwh' => 30.0]], 'base_prices' => [['from' => '2025-01-01', 'eur_per_month' => 12.0]]]);
+        $dyn = $this->contracts->create('strom', ['meter_id' => $this->meterId, 'provider' => 'B', 'start' => '2027-01-01',
+            'is_shadow' => true, 'shadow_label' => 'Angebot', 'price_model' => 'dynamic',
+            'dynamic' => ['markup_ct_per_kwh' => '15', 'base_eur_month' => 10, 'vat_pct' => 19]]);
+        $this->market()->importCsv(implode("\n", array_map(fn($m) => sprintf('2025-%02d;100', $m), range(1, 12))));
+        $r = (new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n, $this->market()))
+            ->compare('strom', $this->meterId, 2025);
+        self::assertFalse($r['dynamic_missing_market']);
+        $row = array_values(array_filter($r['rows'], fn($x) => $x['contract_id'] === $dyn['id']))[0] ?? null;
+        self::assertNotNull($row, 'das Angebot steht im Vergleich');
+        self::assertEqualsWithDelta(927.0, $row['total_eur'], 0.05);
+    }
+
     public function testDynamicIsOnlyAShadowForElectricity(): void
     {
         foreach ([['strom', false], ['gas', true]] as [$u, $shadow]) {

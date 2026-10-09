@@ -33,6 +33,13 @@ Apache, nginx — are in [Installation](../betrieb/installation.md) and
 On the first start the app automatically creates default meters for gas,
 electricity and water. You can keep, rename or delete them.
 
+> **Since v3.2.0 the setup assistant greets you:** three questions — who you
+> are, which energy sources you use, how much experience you have — and then
+> the utilities and the experience level are set. For this example choose
+> “Own house with gas, oil or pellets” and “Start with my own data” at the
+> end; if you would rather look first, take “Look at it with sample data”.
+> Details: [Setup and experience levels](einrichtung.md).
+
 ---
 
 ## 1. Choose utilities
@@ -160,6 +167,11 @@ restore → Load demo data** imports a complete example dataset across eight
 utilities — all except heat (with a warning + auto-snapshot if data already
 exists). After that you
 can continue right at [step 6](#6-evaluate).
+
+Since v3.2.0 there are also four smaller sample households — rented flat,
+owner-occupied flat with district heating, classic and modern house. You load
+them through the setup assistant (Settings → General → “Start the setup
+assistant”), see [The sample households](einrichtung.md#2-the-sample-households).
 
 Since v3.0.0 the sample household reaches up to today: readings, deliveries and
 temperatures are carried forward on loading with the values of the same period

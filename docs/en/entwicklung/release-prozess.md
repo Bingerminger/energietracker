@@ -712,6 +712,31 @@ accepted.
   values counted with `modify('+15 minutes')` in local time and skipped the
   repeated hour of the autumn clock change — the test expected a 24-hour day
   where the meter measures 25. The generator now runs over UTC timestamps.
+- **A list kept by hand is a list that goes stale (v3.2.0).** Switching
+  between example households created missing stores empty — from its own
+  enumeration. The first new store (`ev_sessions`) was missing from it, and the
+  charging sessions of the previous household stayed behind. The code now reads
+  `BackupService::TOP_POTS`; a mutation check keeps it that way.
+- **Stateless sessions need an epoch (v3.2.0).** A signed cookie stays valid
+  as long as nothing that is signed along changes. With several people per
+  household, a new password would not have signed that person out on their
+  other devices. Every person now carries a session epoch that each new
+  password raises; the signature includes it.
+- **Example data are tests with real questions (v3.2.0).** The household with
+  a wallbox and a dynamic offer showed “no market data” although the prices were
+  there: the dynamic shadow contract only started its monthly prices at its
+  future contract start. No unit test had an offer starting in the future — a
+  realistic example household did.
+- **Hide, don’t switch off (v3.2.0).** The experience levels cost little
+  because they only touch the interface: a minimum level per page
+  (`VIEW_LEVEL`), an attribute on the element (`data-min-level`), CSS hides it.
+  Calculation, storage and export are the same at every level; hidden form
+  fields stay in the form.
+- **A legal check is a calculation check (v3.2.0).** The docs said the supplier
+  shows the CO₂ costs net, and the code calculated accordingly. § 3 (3)
+  CO2KostAufG says “plus the VAT due on this amount” — the amount on the bill is
+  gross, and every refund was 19 % too high. Legal statements are now checked
+  with source and date before they become a calculation rule.
 
 ---
 

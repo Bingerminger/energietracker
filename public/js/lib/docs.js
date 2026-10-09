@@ -26,12 +26,16 @@ const PAGES = {
   co2split:      ['docs/anleitungen/co2-aufteilung.md',  'docs/en/anleitungen/co2-aufteilung.md'],    // v3.1.0 (H4)
   evcharging:    ['docs/anleitungen/ladestrom-nachweis.md', 'docs/en/anleitungen/ladestrom-nachweis.md'], // v3.1.0 (H6)
   portals:       ['docs/anleitungen/daten-aus-portalen.md', 'docs/en/anleitungen/daten-aus-portalen.md'], // v3.1.0 (H8)
+  setup:         ['docs/einstieg/einrichtung.md',        'docs/en/einstieg/einrichtung.md'],          // v3.2.0 (F1018, F1019)
+  users:         ['docs/anleitungen/benutzer.md',        'docs/en/anleitungen/benutzer.md'],          // v3.2.0 (F1023)
+  evcc:          ['docs/anleitungen/evcc.md',            'docs/en/anleitungen/evcc.md'],              // v3.2.0 (F1022)
+  useCases:      ['docs/anleitungen/anwendungsfaelle.md', 'docs/en/anleitungen/anwendungsfaelle.md'], // v3.2.0
 };
 
 /** Die Repo-Pfade aller verlinkten Seiten — ein Test prüft, dass es sie gibt. */
 export const DOC_PATHS = Object.values(PAGES).flat();
 
-/** Adresse einer Doku-Seite (`start`, `faq`, `troubleshoot`, `compendium`, `homeAssistant`, `glossary`, `calendar`, `otherSystems`, `ocr`, `tenant`, `heat`, `co2price`, `co2split`, `evcharging`, `portals`). */
+/** Adresse einer Doku-Seite (`start`, `faq`, `troubleshoot`, `compendium`, `homeAssistant`, `glossary`, `calendar`, `otherSystems`, `ocr`, `tenant`, `heat`, `co2price`, `co2split`, `evcharging`, `portals`, `setup`, `users`, `evcc`). */
 export function docUrl(page) {
   const [de, en] = PAGES[page] || PAGES.compendium;
   return `${REPO_URL}/blob/main/${getLocale() === 'de' ? de : en}`;

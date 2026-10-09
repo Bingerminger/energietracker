@@ -224,11 +224,35 @@ final class AuthService
         return $secret;
     }
 
-    /** Neuer Sitzungswert für das Cookie: <ablauf>.<hmac> */
-    public function issueSession(): string
+    /**
+     * Neuer Sitzungswert für das Cookie: <ablauf>.<benutzer>.<hmac>.
+     * v3.2.0 (F1023) — mit der Benutzerkennung; ohne Kennung die alte Form
+     * <ablauf>.<hmac>, die für den Verwalter steht.
+     */
+    public function issueSession(?string $userId = null): string
     {
         $exp = (string)(time() + self::SESSION_TTL);
-        return $exp . '.' . hash_hmac('sha256', 'et-session|' . $exp, $this->sessionSecret());
+        if ($userId === null) {
+            return $exp . '.' . hash_hmac('sha256', 'et-session|' . $exp, $this->sessionSecret());
+        }
+        $user = $this->userById($userId);
+        return $exp . '.' . $userId . '.' . hash_hmac('sha256', self::sessionPayload($exp, $userId, $user === null ? 0 : self::epochOf($user)), $this->sessionSecret());
+    }
+
+    /**
+     * v3.2.0 — Was signiert wird. Die Sitzungs-Epoche einer Person steigt mit
+     * jedem neuen Passwort; ältere Cookies passen dann nicht mehr. Epoche 0
+     * (nie geändert) signiert wie bisher.
+     */
+    private static function sessionPayload(string $exp, string $userId, int $epoch): string
+    {
+        return 'et-session|' . $exp . '|' . $userId . ($epoch > 0 ? '|' . $epoch : '');
+    }
+
+    /** @param array<string,mixed> $user */
+    private static function epochOf(array $user): int
+    {
+        return max(0, (int)($user['session_epoch'] ?? 0));
     }
 
     public function sessionTtl(): int
@@ -238,11 +262,289 @@ final class AuthService
 
     public function validSession(?string $value): bool
     {
-        if ($value === null || !preg_match('/^(\d{9,12})\.([0-9a-f]{64})$/', $value, $m)) return false;
-        if ((int)$m[1] < time()) return false;
+        return $this->sessionUserId($value) !== null;
+    }
+
+    /**
+     * v3.2.0 (F1023) — Benutzer einer gültigen Sitzung, sonst null. Ein Cookie
+     * der alten Form (bis v3.1) gehört dem Verwalter; die Sitzung eines
+     * gelöschten Benutzers ist ungültig.
+     */
+    public function sessionUserId(?string $value): ?string
+    {
+        if ($value === null) return null;
         $secret = (string)($this->data()['session_secret'] ?? '');
-        if ($secret === '') return false;
-        return hash_equals(hash_hmac('sha256', 'et-session|' . $m[1], $secret), $m[2]);
+        if ($secret === '') return null;
+        if (preg_match('/^(\d{9,12})\.([0-9a-f]{64})$/', $value, $m)) {
+            if ((int)$m[1] < time() || !hash_equals(hash_hmac('sha256', 'et-session|' . $m[1], $secret), $m[2])) return null;
+            // Ohne Personen und ohne Passwort (z. B. Proxy-Betrieb) steht die
+            // alte Form weiter für die Installation; sonst nur, solange es den
+            // alten Verwalter gibt
+            if ($this->storedUsers() === [] && $this->passwordHash() === null) return self::LEGACY_ADMIN;
+            // … und nur, bis er sein Passwort ändert
+            $admin = $this->userById(self::LEGACY_ADMIN);
+            return $admin !== null && self::epochOf($admin) === 0 ? self::LEGACY_ADMIN : null;
+        }
+        if (!preg_match('/^(\d{9,12})\.(u_[0-9a-z]{1,32})\.([0-9a-f]{64})$/', $value, $m)) return null;
+        if ((int)$m[1] < time()) return null;
+        $user = $this->userById($m[2]);
+        if ($user === null) return null;
+        if (!hash_equals(hash_hmac('sha256', self::sessionPayload($m[1], $m[2], self::epochOf($user)), $secret), $m[3])) return null;
+        return $m[2];
+    }
+
+    // ── Benutzer im Haushalt (v3.2.0, F1023) ────────────────────────────
+    //
+    // Mehrere Personen mit eigener Anmeldung und eigenen Einstellungen
+    // (Nutzungsstufe, Sprache). Die Daten des Haushalts teilen sich alle.
+    // Verwalter (`admin`) ändern den Zugriff und spielen Backups ein,
+    // Mitglieder (`member`) erfassen und sehen alles. Benutzer stehen wie das
+    // Passwort in auth.json — nicht im Backup, kein Schemaschritt.
+    //
+    // Übergang: Bis v3.1 gab es genau ein Passwort. Es gehört dem Verwalter
+    // `u_admin` (Name „admin“), der ohne eigenen Hash das bisherige Passwort
+    // (oder ET_ADMIN_PASSWORD_HASH) benutzt. Solange niemand Benutzer anlegt,
+    // steht er nur virtuell in der Liste; die Anmeldung ohne Namen bleibt.
+
+    public const ROLES = ['admin', 'member'];
+    public const LEGACY_ADMIN = 'u_admin';
+    private const NAME_MAX = 40;
+
+    /** @return list<array<string,mixed>> gespeicherte Benutzer (mit Hash) */
+    private function storedUsers(): array
+    {
+        return array_values(array_filter((array)($this->data()['users'] ?? []), 'is_array'));
+    }
+
+    /** @return list<array<string,mixed>> Benutzer samt virtuellem Verwalter (mit Hash) */
+    private function allUsers(): array
+    {
+        $users = $this->storedUsers();
+        if ($users === [] && $this->passwordHash() !== null) {
+            $users = [['id' => self::LEGACY_ADMIN, 'name' => 'admin', 'role' => 'admin', 'source' => 'password',
+                       'prefs' => [], 'created_at' => (string)($this->data()['created_at'] ?? '')]];
+        }
+        return $users;
+    }
+
+    /** Den virtuellen Verwalter fest eintragen, bevor die Liste geändert wird. */
+    private function materialize(): array
+    {
+        $stored = $this->storedUsers();
+        if ($stored === []) $stored = $this->allUsers();
+        return $stored;
+    }
+
+    /** @param array<string,mixed> $u */
+    public static function publicUser(array $u): array
+    {
+        return [
+            'id'         => (string)$u['id'],
+            'name'       => (string)($u['name'] ?? ''),
+            'role'       => in_array($u['role'] ?? '', self::ROLES, true) ? (string)$u['role'] : 'member',
+            'source'     => (string)($u['source'] ?? 'password'),
+            'prefs'      => (object)array_filter((array)($u['prefs'] ?? []), fn($v) => $v !== null && $v !== ''),
+            'created_at' => (string)($u['created_at'] ?? ''),
+        ];
+    }
+
+    /** @return list<array<string,mixed>> ohne Passwort-Hash */
+    public function users(): array
+    {
+        return array_map([self::class, 'publicUser'], $this->allUsers());
+    }
+
+    /** Gibt es angelegte Personen (dann fragt die Anmeldung nach dem Namen)? */
+    public function hasNamedUsers(): bool
+    {
+        foreach ($this->storedUsers() as $u) {
+            if (($u['source'] ?? 'password') === 'password' && ($u['id'] ?? '') !== self::LEGACY_ADMIN) return true;
+        }
+        return false;
+    }
+
+    /** @return array<string,mixed>|null mit Hash */
+    public function userById(string $id): ?array
+    {
+        foreach ($this->allUsers() as $u) if (($u['id'] ?? null) === $id) return $u;
+        return null;
+    }
+
+    /** @return array<string,mixed>|null mit Hash; Name ohne Rücksicht auf Groß/klein */
+    private function userByName(string $name, ?string $source = null): ?array
+    {
+        $key = mb_strtolower(trim($name));
+        foreach ($this->allUsers() as $u) {
+            if (mb_strtolower((string)($u['name'] ?? '')) !== $key) continue;
+            if ($source !== null && ($u['source'] ?? 'password') !== $source) continue;
+            return $u;
+        }
+        return null;
+    }
+
+    private static function cleanName(string $name): string
+    {
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+        if ($name === '' || mb_strlen($name) > self::NAME_MAX || preg_match('/[\x00-\x1F\x7F]/u', $name)) {
+            throw new \InvalidArgumentException('name_invalid');
+        }
+        return $name;
+    }
+
+    /** @param list<array<string,mixed>> $users */
+    private static function adminCount(array $users): int
+    {
+        return count(array_filter($users, fn($u) => ($u['role'] ?? '') === 'admin'));
+    }
+
+    /**
+     * Person anlegen (Anmeldung mit Passwort).
+     *
+     * @return array<string,mixed> öffentlich
+     * @throws \InvalidArgumentException name_invalid | name_taken | password_too_short | role_invalid
+     */
+    public function createUser(string $name, string $password, string $role): array
+    {
+        $name = self::cleanName($name);
+        if (!in_array($role, self::ROLES, true)) throw new \InvalidArgumentException('role_invalid');
+        if (mb_strlen($password) < self::MIN_PASSWORD) throw new \InvalidArgumentException('password_too_short');
+        if ($this->userByName($name) !== null) throw new \InvalidArgumentException('name_taken');
+        $users = $this->materialize();
+        $user = ['id' => 'u_' . bin2hex(random_bytes(4)), 'name' => $name, 'role' => $role, 'source' => 'password',
+                 'password_hash' => password_hash($password, PASSWORD_DEFAULT), 'prefs' => [], 'created_at' => date('c')];
+        $users[] = $user;
+        $this->save(['users' => $users]);
+        return self::publicUser($user);
+    }
+
+    /**
+     * Name, Rolle oder Passwort ändern. Der letzte Verwalter bleibt Verwalter.
+     *
+     * @param array{name?:string, role?:string, password?:string} $patch
+     * @return array<string,mixed> öffentlich
+     */
+    public function updateUser(string $id, array $patch): array
+    {
+        $users = $this->materialize();
+        $i = array_search($id, array_column($users, 'id'), true);
+        if ($i === false) throw new \InvalidArgumentException('not_found');
+        if (array_key_exists('name', $patch)) {
+            $name = self::cleanName((string)$patch['name']);
+            $other = $this->userByName($name);
+            if ($other !== null && $other['id'] !== $id) throw new \InvalidArgumentException('name_taken');
+            $users[$i]['name'] = $name;
+        }
+        if (array_key_exists('role', $patch)) {
+            $role = (string)$patch['role'];
+            if (!in_array($role, self::ROLES, true)) throw new \InvalidArgumentException('role_invalid');
+            if ($role !== 'admin' && ($users[$i]['role'] ?? '') === 'admin' && self::adminCount($users) <= 1) {
+                throw new \InvalidArgumentException('last_admin');
+            }
+            $users[$i]['role'] = $role;
+        }
+        if (array_key_exists('password', $patch)) {
+            if (mb_strlen((string)$patch['password']) < self::MIN_PASSWORD) throw new \InvalidArgumentException('password_too_short');
+            if ($id === self::LEGACY_ADMIN && $this->passwordFixedByEnv()) throw new \InvalidArgumentException('password_fixed');
+            if ($id === self::LEGACY_ADMIN) {
+                // Der Verwalter aus der Zeit vor v3.2 benutzt das Passwort der Installation
+                $this->save(['password_hash' => password_hash((string)$patch['password'], PASSWORD_DEFAULT)]);
+            } else {
+                $users[$i]['password_hash'] = password_hash((string)$patch['password'], PASSWORD_DEFAULT);
+            }
+            // Alle Sitzungen dieser Person enden (auch auf anderen Geräten)
+            $users[$i]['session_epoch'] = self::epochOf($users[$i]) + 1;
+        }
+        $this->save(['users' => $users]);
+        return self::publicUser($users[$i]);
+    }
+
+    /** Person löschen; der letzte Verwalter bleibt. */
+    public function deleteUser(string $id): void
+    {
+        $users = $this->materialize();
+        $i = array_search($id, array_column($users, 'id'), true);
+        if ($i === false) throw new \InvalidArgumentException('not_found');
+        if (($users[$i]['role'] ?? '') === 'admin' && self::adminCount($users) <= 1) throw new \InvalidArgumentException('last_admin');
+        if ($id === self::LEGACY_ADMIN && $this->passwordFixedByEnv()) throw new \InvalidArgumentException('password_fixed');
+        array_splice($users, $i, 1);
+        $patch = ['users' => $users];
+        // Ohne den alten Verwalter gilt auch die Anmeldung ohne Namen nicht mehr
+        if ($id === self::LEGACY_ADMIN) $patch['password_hash'] = null;
+        $this->save($patch);
+    }
+
+    /**
+     * Eigene Einstellungen einer Person (Nutzungsstufe, Sprache); null löscht.
+     * Die Werte prüft der Aufrufer (Controller kennt Stufen und Sprachen).
+     *
+     * @param array<string,mixed> $prefs
+     * @return array<string,mixed> öffentlich
+     */
+    public function setPrefs(string $id, array $prefs): array
+    {
+        $users = $this->materialize();
+        $i = array_search($id, array_column($users, 'id'), true);
+        if ($i === false) throw new \InvalidArgumentException('not_found');
+        $current = (array)($users[$i]['prefs'] ?? []);
+        foreach ($prefs as $k => $v) {
+            if ($v === null || $v === '') unset($current[$k]);
+            else $current[$k] = $v;
+        }
+        $users[$i]['prefs'] = $current;
+        $this->save(['users' => $users]);
+        return self::publicUser($users[$i]);
+    }
+
+    /**
+     * Anmeldung mit Name und Passwort. Ohne Namen gilt das Passwort der
+     * Installation (der Verwalter aus der Zeit vor v3.2).
+     *
+     * @return array{status:'ok'|'wrong'|'locked', user?:string}
+     */
+    public function checkLogin(string $name, string $password): array
+    {
+        $data = $this->data();
+        $fail = (array)($data['login_failures'] ?? []);
+        if (($fail['locked_until'] ?? 0) > time()) return ['status' => 'locked'];
+        $user = trim($name) === '' ? $this->userById(self::LEGACY_ADMIN) : $this->userByName($name, 'password');
+        $hash = $user === null ? null
+            : (isset($user['password_hash']) && $user['password_hash'] !== '' ? (string)$user['password_hash']
+                : ($user['id'] === self::LEGACY_ADMIN ? $this->passwordHash() : null));
+        if ($hash !== null && password_verify($password, $hash)) {
+            if ($fail !== []) $this->save(['login_failures' => null]);
+            return ['status' => 'ok', 'user' => (string)$user['id']];
+        }
+        $first = (int)($fail['first_at'] ?? 0);
+        $count = $first > time() - self::FAILURE_WINDOW ? (int)($fail['count'] ?? 0) + 1 : 1;
+        $this->save(['login_failures' => [
+            'count'        => $count,
+            'first_at'     => $count === 1 ? time() : $first,
+            'locked_until' => $count >= self::MAX_FAILURES ? time() + self::LOCK_SECONDS : 0,
+        ]]);
+        return ['status' => $count >= self::MAX_FAILURES ? 'locked' : 'wrong'];
+    }
+
+    /**
+     * Proxy-Modus: die Person zum gemeldeten Namen; beim ersten Mal wird sie
+     * angelegt — als Verwalter, solange es keinen gibt, sonst als Mitglied.
+     *
+     * @return array<string,mixed> mit Hash
+     */
+    public function proxyUserRecord(string $name): array
+    {
+        $name = mb_substr(trim($name), 0, self::NAME_MAX);
+        $found = $this->userByName($name, 'proxy');
+        if ($found !== null) return $found;
+        // materialize: ein altes Passwort (Verwalter u_admin) bleibt erhalten,
+        // zählt aber nicht als Verwalter des Proxy-Betriebs
+        $users = $this->materialize();
+        $proxyAdmins = array_filter($users, fn($u) => ($u['role'] ?? '') === 'admin' && ($u['source'] ?? '') === 'proxy');
+        $user = ['id' => 'u_' . bin2hex(random_bytes(4)), 'name' => $name,
+                 'role' => $proxyAdmins === [] ? 'admin' : 'member',
+                 'source' => 'proxy', 'prefs' => [], 'created_at' => date('c')];
+        $users[] = $user;
+        try { $this->save(['users' => $users]); } catch (\Throwable) { /* nur lesend erreichbar: gilt für diese Anfrage */ }
+        return $user;
     }
 
     /**

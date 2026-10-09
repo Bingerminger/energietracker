@@ -13,6 +13,9 @@ import { GLOSSARY, glossaryTerm, glossaryText, billLine } from '../components/in
 import { setupSteps, setupListHtml, openSteps } from '../lib/onboarding.js';
 import { docUrl, docsInOtherLanguage, ISSUES_URL } from '../lib/docs.js';
 
+// v3.2.0 — Anwendungsfälle in jeder Sprache (die Doku gibt es nur deutsch und englisch)
+const CASES = ['heat', 'control', 'levels'];
+
 export async function render(container, _params = [], ctx = {}) {
   const terms = GLOSSARY
     .map(id => ({ id, term: glossaryTerm(id), text: glossaryText(id) }))
@@ -40,6 +43,8 @@ export async function render(container, _params = [], ctx = {}) {
           ${doc('faq', 'help.docs.faq')}
           ${doc('compendium', 'help.docs.compendium')}
           ${doc('glossary', 'help.docs.glossary')}
+          ${doc('setup', 'help.docs.setup')}
+          ${doc('useCases', 'help.docs.useCases')}
           ${doc('homeAssistant', 'help.docs.homeAssistant')}
           ${doc('troubleshoot', 'help.docs.troubleshoot')}
         </ul>
@@ -56,6 +61,20 @@ export async function render(container, _params = [], ctx = {}) {
         <p class="small">${escapeHtml(t('help.privacy.text'))}</p>
       </section>
     </div>
+
+    <section class="card help-cases" aria-labelledby="help-cases">
+      <h2 class="card__title" id="help-cases">${escapeHtml(t('help.cases.title'))}</h2>
+      <dl class="help-cases__list">
+        ${CASES.map(c => `<div class="help-cases__item" id="case-${c}">
+          <dt>${escapeHtml(t(`help.cases.${c}.title`))}</dt>
+          <dd>${escapeHtml(t(`help.cases.${c}.text`))}</dd>
+        </div>`).join('')}
+      </dl>
+      <p class="help-actions">
+        <a class="btn btn--ghost btn--sm" href="#/settings/general">${escapeHtml(t('help.cases.tryExample'))}</a>
+        <a class="btn btn--ghost btn--sm" href="${escapeHtml(docUrl('useCases'))}" target="_blank" rel="noopener">${escapeHtml(t('help.docs.useCases'))}</a>
+      </p>
+    </section>
 
     <section class="card help-glossary" aria-labelledby="help-glossary">
       <div class="card__head">

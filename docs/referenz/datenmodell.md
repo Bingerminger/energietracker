@@ -22,7 +22,9 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.7.0**
 > `tenancy_statements.json` (Mietverhältnis), `market_prices.json`
 > (Börsenstrompreise), je Verbrauchsart `periods.json`
 > (Verbrauch je Zeitraum) und `bills.json` (Versorgerrechnungen) und die neue
-> Verbrauchsart `waerme/` leer angelegt, ebenso fehlende Grundtöpfe (v3.1.0).
+> Verbrauchsart `waerme/` leer angelegt, ebenso fehlende Grundtöpfe (v3.1.0) ·
+> v3.2.0 **ohne** Schema-Schritt: `ev_sessions.json` (Ladevorgänge aus evcc)
+> entsteht beim ersten Import, Personen stehen in `auth.json`.
 
 ---
 
@@ -32,7 +34,7 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.7.0**
 data/
 ├── meta.json                 # { schema_version, migrated_at, log[] }
 ├── settings.json             # Einstellungen (Defaults: SettingsService::DEFAULTS)
-├── auth.json                 # Anmeldung, HA-Token, API-Schlüssel — nur Hashes, nie Klartext
+├── auth.json                 # Anmeldung, Personen (v3.2.0), HA-Token, API-Schlüssel — Passwörter und Schlüssel nur als Hash; nicht im Backup
 ├── temperatures.json         # { "YYYY-MM-DD": { avg, min, max, source }, … } — source seit v2.8.0
 ├── climate_normal.json       # Klimanormal am Standort (v2.8.0) — nur Kennzahlen, keine Rohdaten
 ├── weather_sync.json         # Zustand des letzten Open-Meteo-Abgleichs (v2.8.0)
@@ -43,6 +45,7 @@ data/
 ├── tenancies.json            # Mietverhältnisse (v3.1.0, Schema 1.7.0)
 ├── tenancy_statements.json   # Nebenkostenabrechnungen (v3.1.0, Schema 1.7.0)
 ├── market_prices.json        # Börsenstrompreise als Monatsmittel (v3.1.0, Schema 1.7.0)
+├── ev_sessions.json          # Ladevorgänge aus evcc (v3.2.0) — entsteht beim ersten Import
 ├── instance.json             # Kennung der Installation (v3.1.0) — nicht im Backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -121,13 +124,15 @@ Kennung.
 >   "token_hash": "…sha256…", "created_at": "…", "token_last_used_at": "…",  // HA-Ingest (F1009)
 >   "mode": "password",                 // off | password | proxy (ET_AUTH hat Vorrang)
 >   "password_hash": "$2y$10$…",        // password_hash(); ET_ADMIN_PASSWORD_HASH hat Vorrang
->   "session_secret": "…",              // HMAC-Schlüssel der Sitzungs-Cookies; neu bei jedem neuen Passwort
+>   "session_secret": "…",              // HMAC-Schlüssel der Sitzungs-Cookies; neu bei jedem neuen Passwort der Installation
 >   "login_failures": { "count": 1, "first_at": 1758700000, "locked_until": 0 },
 >   "api_keys": [ { "id": "k_…", "name": "Backup-Skript", "scope": "read",
->                   "hash": "…sha256…", "created_at": "…", "last_used_at": null } ]
+>                   "hash": "…sha256…", "created_at": "…", "last_used_at": null } ],
+>   "users": [ … ]                      // Personen im Haushalt (v3.2.0)
 > }
 > ```
 >
+> Die Personen: [Personen in `auth.json`](#personen-in-authjson-v320).
 > Details: [Sicherheit](../betrieb/sicherheit.md), [API-Referenz → Anmeldung](api.md).
 
 ---
@@ -513,7 +518,7 @@ das Buchen des Ergebnisses und die CO₂-Angaben
   "items": [                         // weitere Posten, nicht nachgerechnet
     { "label": "Messstellenbetrieb", "amount_eur": 12.5, "kind": "fee" }   // levy | fee | credit | other
   ],
-  "co2": { "emissions_kg": 2981.5, "cost_eur": 163.98 },   // optional; Betrag netto, dazu stated_factor?
+  "co2": { "emissions_kg": 2981.5, "cost_eur": 163.98 },   // optional; Betrag mit USt wie auf der Rechnung (CO2KostAufG § 3 Abs. 3), dazu stated_factor?
   "attachment_ids": [],              // Belege (PDF, Foto)
   "special_payment_id": null,        // gesetzt, sobald das Ergebnis gebucht ist
   "note": "",
@@ -674,6 +679,76 @@ Saldo, Nach-/Abschlagszahlung senkt ihn). Nur `*_mit`-Arten tragen
 effektiven Abschlagsplan gemischt. Additiv & abwärtskompatibel — fehlt
 das Feld, wird es beim Normalisieren zu `[]` (kein Migrationsschritt).
 
+### Ladevorgänge (`ev_sessions.json`) *(v3.2.0)*
+
+Ladevorgänge der Wallbox aus evcc, eine Liste über alle Zähler — gefüllt aus
+dem CSV-Export oder dem Abruf im Heimnetz
+([API](api.md#ladevorgänge-aus-evcc-v320)). Die Datei entsteht beim ersten
+Import; kein Schema-Schritt.
+
+```json
+{ "id": "evs_1a2b3c4d5e6f", "meter_id": "m_wallbox",
+  "created": "2026-09-30T17:02:11+02:00", "finished": "2026-09-30T21:40:03+02:00",
+  "date": "2026-09-30", "loadpoint": "Garage", "vehicle": "Kleinwagen",
+  "charged_kwh": 18.402, "solar_pct": 0, "price_eur": 5.15, "price_per_kwh": 0.28,
+  "meter_start": 4120.551, "meter_stop": 4138.953, "source": "csv" }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `id` | `evs_` und 12 Hexziffern aus Beginn und Ladepunkt — derselbe Vorgang ergibt dieselbe Kennung, ein zweiter Import ersetzt ihn |
+| `meter_id` | Stromzähler, an den der Vorgang übernommen wurde (Wallbox) |
+| `created`, `finished` | Beginn und Ende, ISO 8601 mit Zeitzone; Zeiten ohne Zone aus evcc gelten in der Zeitzone der Installation |
+| `date` | Tag des Endes (`JJJJ-MM-TT`) — danach zählen Jahr und Monat |
+| `loadpoint`, `vehicle` | Ladepunkt und Fahrzeug wie in evcc, je höchstens 60 Zeichen, auch leer |
+| `charged_kwh` | geladene Energie in kWh (3 Nachkommastellen) |
+| `solar_pct` | Sonnenanteil in % (0–100), wenn evcc ihn nennt |
+| `price_eur`, `price_per_kwh` | Preis des Vorgangs und je kWh laut evcc, wenn genannt — Angaben von evcc, keine Rechnung des Energietrackers |
+| `meter_start`, `meter_stop` | Zählerstand der Wallbox zu Beginn und Ende in kWh, wenn die Wallbox misst |
+| `source` | `csv` (CSV-Export) oder `evcc` (Abruf) |
+
+Felder ohne Wert fehlen. Die Zählerstände, die ein Import ableitet, stehen
+nicht hier, sondern als gewöhnliche Ablesungen in `strom/readings.json` (Notiz
+`evcc`). Teil des Backups als Topf `ev_sessions`; der Import prüft `id`,
+`meter_id`, `date` (Kalenderdatum) und `charged_kwh`.
+
+### Personen in `auth.json` *(v3.2.0)*
+
+Mit eingeschalteter Anmeldung kann ein Haushalt mehrere Personen haben
+([API](api.md#personen-im-haushalt-v320)). Sie stehen unter `users` in
+`data/auth.json` — wie Passwort und Schlüssel **nicht im Backup**: Ein Backup,
+das auf einer anderen Installation eingespielt wird, bringt keine Zugänge mit.
+Kein Schema-Schritt.
+
+```jsonc
+"users": [
+  { "id": "u_admin", "name": "admin", "role": "admin", "source": "password",
+    "prefs": {}, "created_at": "…" },                       // erster Verwalter: Passwort = password_hash oben
+  { "id": "u_3f9a1c2e", "name": "Alex", "role": "member", "source": "password",
+    "password_hash": "$2y$10$…", "prefs": { "ui_level": "beginner" }, "created_at": "…" },
+  { "id": "u_8b0d4f17", "name": "kim", "role": "admin", "source": "proxy",
+    "prefs": {}, "created_at": "…" }
+]
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `id` | `u_` und acht Hexziffern; `u_admin` ist der erste Verwalter aus der Zeit vor v3.2 |
+| `name` | 1–40 Zeichen, eindeutig ohne Rücksicht auf Groß- und Kleinschreibung; bei `proxy` der gemeldete Name |
+| `role` | `admin` (Verwaltung) oder `member` (Mitglied); mindestens eine Person bleibt Verwalter |
+| `source` | `password` (Anmeldung in der App) oder `proxy` (vorgeschalteter Dienst, angelegt beim ersten Besuch) |
+| `password_hash` | nur bei `password`: Hash nach `password_hash()` (bcrypt), **nie das Passwort selbst**. `u_admin` hat keinen eigenen und benutzt das Passwort der Installation (`password_hash` auf oberster Ebene bzw. `ET_ADMIN_PASSWORD_HASH`) |
+| `prefs` | eigene Einstellungen: `ui_level`, `language`. Fehlt die Stufe, gilt die der Installation; fehlt die Sprache, die des Geräts bzw. der Installation |
+| `created_at` | angelegt (ISO 8601) |
+| `session_epoch` | zählt jedes neue Passwort dieser Person; fehlt bis zur ersten Änderung. Ein Sitzungs-Cookie gilt nur mit der aktuellen Epoche — ein neues Passwort meldet die Person auf allen Geräten ab |
+
+Solange niemand eine Person anlegt, fehlt `users`; `u_admin` gibt es dann nur
+in den Antworten der API, solange ein Passwort gesetzt ist. Die Sperre nach
+Fehlversuchen (`login_failures`) gilt für alle Personen gemeinsam. Sitzungs-Cookies
+tragen die Kennung der Person (`<ablauf>.<id>.<hmac>`); die Form aus v3.1 ohne
+Kennung steht für `u_admin`, bis dessen Passwort zum ersten Mal neu gesetzt
+wird. Eine gelöschte Person hat keine gültige Sitzung mehr.
+
 ---
 
 ## 3. Einstellungen (`settings.json`)
@@ -724,9 +799,13 @@ eine Auswahl mit Hintergrund:
 | `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — Symbol und Untereinheit; Beträge werden nicht umgerechnet, `*_eur`/`ct_*` meinen Haupt-/Untereinheit |
 | `timezone` | Europe/Berlin | *(v2.7.0)* IANA-Zeitzone: „heute“, Fälligkeiten, Tagesgrenzen der Wetterdaten |
 | `gas_cv_unit` | kwh | *(v2.7.0)* Eingabeeinheit des Brennwerts (`kwh`, `mj`, `gj`); gespeichert wird immer kWh/m³ |
-| `frame_ancestors` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (CSP `frame-ancestors`), z. B. `http://homeassistant.local:8123` |
+| `frame_ancestors` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (CSP `frame-ancestors`), z. B. `http://homeassistant.local:8123`; seit v3.2.0 nur Verwalter |
 | `attachments_max_mb` | 500 | *(v3.1.0)* Speicher für alle Belege zusammen in MB (10–100000) |
-| `ocr_endpoint`, `ocr_api`, `ocr_model`, `ocr_timeout_s` | *(leer)*, ollama, *(leer)*, 30 | *(v3.1.0)* Texterkennung im Heimnetz; leer = aus, keine Verbindung — [Einstellungen](einstellungen.md), [Anleitung](../anleitungen/texterkennung.md) |
+| `ocr_endpoint`, `ocr_api`, `ocr_model`, `ocr_timeout_s` | *(leer)*, ollama, *(leer)*, 30 | *(v3.1.0)* Texterkennung im Heimnetz; leer = aus, keine Verbindung — [Einstellungen](einstellungen.md), [Anleitung](../anleitungen/texterkennung.md). `ocr_endpoint` ändern seit v3.2.0 nur Verwalter |
+| `evcc_endpoint` | *(leer)* | *(v3.2.0)* Adresse von evcc im Heimnetz für den Abruf der Ladevorgänge; leer = aus, keine Verbindung, nur lokale Adressen; nur Verwalter — [Ladevorgänge aus evcc](../anleitungen/evcc.md) |
+| `ui_level` | expert | *(v3.2.0)* Nutzungsstufe der Installation: `beginner`, `advanced`, `expert` — was die Oberfläche zeigt, nicht was die App rechnet. Personen haben ihre eigene in `auth.json` (`prefs.ui_level`); Bestand nach dem Update: Experte |
+| `setup_pending` | false | *(v3.2.0)* `true` nur nach dem Erststart einer Neuinstallation, bis der Einrichtungsassistent fertig oder übersprungen ist |
+| `setup_persona` | null | *(v3.2.0)* zuletzt gewählte Persona des Assistenten bzw. geladener Beispielhaushalt (`mieterin`, `etw-fernwaerme`, `eigenheim-klassisch`, `eigenheim-modern`, `showcase`) |
 | `co2_price_eur_t_years` | `{}` | *(v3.1.0)* eigene CO₂-Preise je Jahr in €/t (Jahr → Wert, 0–1000); leer = Länderprofil — [CO₂-Preis](../verstehen/16-co2-preis.md) |
 | `co2_price_scenario_eur_t`, `co2_price_scenario_from` | null, 2028 | *(v3.1.0)* CO₂-Preis-Szenario der Prognose: Preis in €/t (leer = aus) und erstes Jahr |
 | `co2_pv_avoided` | null | *(v3.1.0)* eigener Vermeidungsfaktor der PV in g/kWh (0–2000); leer = Strommix |
@@ -781,6 +860,18 @@ Werte anzutasten. Der
 Migrationspfad (1.0.0 → aktuelles Schema) wird zusätzlich in der CI über
 einen separaten Migrations-Smoke geprüft. Vor jeder Migration legt der
 Migrator einen Snapshot `pre-migration-…` an (seit v2.5.3).
+
+**Beispielhaushalte *(v3.2.0)*.** Neben diesem Demo-Haushalt (dem
+„Schaufenster“ mit allen Verbrauchsarten) liegen vier Beispielhaushalte unter
+`demo-data/personas/<persona>.json`: `mieterin`, `etw-fernwaerme`,
+`eigenheim-klassisch`, `eigenheim-modern`. Sie haben das Backup-Format 3.0 mit
+Schema 1.7.0 und enthalten alle Töpfe aller Verbrauchsarten, auch leere — so
+ersetzt ein Beispielhaushalt den ganzen Haushalt. Erzeugt werden sie von
+`tools/build-personas.mjs` aus einem Tagesmodell mit festem Startwert: Jeder
+Lauf schreibt dieselben Dateien, `--check` vergleicht nur. Namen sind
+erfunden, Marktlokations-IDs synthetisch. Beim Laden schreibt sie
+`DemoDataAligner` wie das Schaufenster bis heute fort. Das Docker-Image enthält
+sie ([API](api.md#beispielhaushalte-v320)).
 
 **Downgrade-Schutz (v2.6.0).** Ein Downgrade wird nicht unterstützt — aber
 jetzt erkannt: Ist `schema_version` der Daten **neuer** als die App, schreibt

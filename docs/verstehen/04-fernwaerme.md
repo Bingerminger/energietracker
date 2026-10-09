@@ -20,6 +20,13 @@ kWh-Zähler, stark heizgetrieben — aber **ohne** Volumenumrechnung
 dem Arbeitspreis ein **Leistungspreis** nach der Anschlussleistung und oft ein
 **Messpreis** für Zähler und Abrechnung.
 
+**Fernwärme oder Heizwärme?** Fernwärme legst du an, wenn du selbst einen
+Liefervertrag mit dem Wärmeversorger hast und seine Rechnung bekommst. Wird die
+Wärme nur gemessen und über die Nebenkosten der Miete bezahlt — auch wenn das
+Haus am Fernwärmenetz hängt —, ist es
+[Heizwärme](15-waerme.md#1-was-heizwärme-ist). Beide Fälle mit
+Beispielhaushalten: [Anwendungsfall F](../anleitungen/anwendungsfaelle.md#f--fernwärme-oder-heizwärme).
+
 ## Was Energietracker damit macht
 
 - Monatsverbrauch durch lineare Interpolation der kWh-Zählerstände.

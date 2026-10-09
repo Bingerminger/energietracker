@@ -834,7 +834,10 @@ async function renderView(modPath, params = [], ctx = {}) {
     // v2.14.0 — jeder Link zeigt auf eine Seite aus lib/docs.js (DocsIntegrityTest prüft, dass es sie gibt)
     const docs = await import(`${ROOT}/lib/docs.js`);
     const hrefs = [...view.querySelectorAll('.help-links a')].map(a => a.getAttribute('href') || '');
-    t('help: Doku-Links auf echte Seiten', hrefs.length === 6 && hrefs.every(h => docs.DOC_PATHS.some(p => h.endsWith('/' + p))), hrefs.join(' '));
+    // v3.2.0 — dazu Einrichten und Anwendungsfälle (8 Links)
+    t('help: Doku-Links auf echte Seiten', hrefs.length === 8 && hrefs.every(h => docs.DOC_PATHS.some(p => h.endsWith('/' + p))), hrefs.join(' '));
+    t('help: Anwendungsfälle in jeder Sprache', view.querySelectorAll('.help-cases__item').length === 3
+      && ![...view.querySelectorAll('.help-cases__item')].some(el => /help\.cases\./.test(el.textContent)));
     t('help: FAQ und Fehlersuche verlinkt', hrefs.some(h => /einstieg\/faq\.md$/.test(h)) && hrefs.some(h => /betrieb\/fehlersuche\.md$/.test(h)));
     t('help: Checkliste Erste Schritte', !!view.querySelector('[data-role="setup"] .setup-list, [data-role="setup"] .banner--success'));
   } catch (e) { t('help: render', false, e.message); }

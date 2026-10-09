@@ -13,8 +13,8 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **135 Routen**,
-v3.1.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+`waerme` (Heizwärme). Stand: **144 Routen**,
+v3.2.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -25,16 +25,16 @@ Tabelle unten steht (DE und EN).
 
 | Code | Wann |
 |------|------|
-| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. Seit v2.6.0 auch Abfrageparameter außerhalb ihres Bereichs (Prognose, Jahresbericht, Temperatur-Sync). *(v3.1.0)* Beleg mit falschem Inhalt, zu groß oder Speicher voll (`errors.attachment.*`) — auch ein Upload über der PHP-Grenze `post_max_size`, dann mit dieser Grenze in der Meldung (`errors.attachment.size`); Texterkennung nicht eingetragen oder nicht im Heimnetz (`errors.ocr.off`, `errors.ocr.notLocal`); Zählerstand auf einem Zähler mit Verbrauch je Zeitraum (`errors.reading.periodMeter`), sich überschneidende Zeiträume (`errors.period.overlap`), Fehler im Mietverhältnis (`errors.tenancy.*`); ungültiges Jahr beim CO₂-Preis (`errors.co2.yearInvalid`), Fehler in einer Versorgerrechnung (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), Rechnungsprüfung für eine Art ohne Prüfung (`errors.billCheck.unsupportedUtility`), ungültige Markt- oder Messlokations-ID (`errors.meter.maloInvalid`, `…meloInvalid`), Leistungspreis ohne Anschlussleistung (`errors.contract.capacityMissing`), Zähler löschen, an dem noch Zeiträume oder Rechnungen hängen (`errors.meter.hasPeriods`, `…hasBills`); Gruppenvertrag auf eine ungeeignete Gruppe oder mit Preisen für Fremde (`errors.contract.targetInvalid`), ein Mitglied mit eigenem Vertrag im selben Zeitraum (`errors.contract.groupMemberOverlap`), Gruppe mit Verträgen löschen (`errors.meter.groupHasContracts`), dynamischer Tarif als echter Vertrag oder nicht bei Strom (`errors.contract.dynamicShadowOnly`), unbekanntes Preismodell (`errors.contract.priceModelInvalid`), Monatspreise ohne lesbare Zeile oder für Wasser und Einspeisung (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), Börsenpreise ohne Werte (`errors.marketPrices.noRows`), Ladestrom-Nachweis ohne zahlenden Vertrag, ohne Pauschale oder mit ungültigen Parametern (`errors.evReport.*`), ungültiges Jahr der Wärmepumpe (`errors.heatPump.yearInvalid`), Verknüpfung mit einem Stromzähler ohne Rolle Wärmepumpe (`errors.meter.heatPumpLinkInvalid`), ungültige PV-Angabe am Zähler (`errors.meter.valueInvalid`), Zeitreihe mit unpassender Zuordnung oder ohne Anfangsstand (`errors.import.mappingInvalid`, `…anchorMissing`) — alle v3.1.0. |
-| `401` | `/api/ingest` bei gesetztem Token ohne oder mit falschem Bearer-Header. *(v2.6.0)* Mit eingeschalteter Anmeldung: jede nicht öffentliche Route ohne Sitzung oder API-Schlüssel (`errors.auth.required`); falsches Passwort. *(v3.1.0)* Ein Kalender-Schlüssel auf einer anderen Route als `/api/calendar.ics`, ein `read`- oder `admin`-Schlüssel als `?token=` im Kalender-Link. |
-| `403` | *(v2.5.3)* Schreibende Anfrage (`POST`/`PUT`/`PATCH`/`DELETE`) aus dem Browser einer **fremden** Webseite — geprüft über `Sec-Fetch-Site`, ersatzweise `Origin` gegen `Host`. Anfragen ohne diese Kopfzeilen (Home Assistant, curl, Skripte) sind nicht betroffen. *(v2.6.0)* Schreibende Anfrage mit einem Lese-Schlüssel (`errors.auth.readOnlyKey`). |
-| `404` | Unbekannte Route oder unbekannter Datensatz. Seit v2.6.0 einheitlich auch für Datensätze in der URL (bis v2.5.3 teils 400). *(v3.1.0)* Auch unbekannter Zeitraum (`errors.period.notFound`), Mietverhältnis (`errors.tenancy.notFound`), Abrechnung (`errors.tenancy.statementNotFound`) oder Versorgerrechnung (`errors.bill.notFound`). |
+| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. Seit v2.6.0 auch Abfrageparameter außerhalb ihres Bereichs (Prognose, Jahresbericht, Temperatur-Sync). *(v3.1.0)* Beleg mit falschem Inhalt, zu groß oder Speicher voll (`errors.attachment.*`) — auch ein Upload über der PHP-Grenze `post_max_size`, dann mit dieser Grenze in der Meldung (`errors.attachment.size`); Texterkennung nicht eingetragen oder nicht im Heimnetz (`errors.ocr.off`, `errors.ocr.notLocal`); Zählerstand auf einem Zähler mit Verbrauch je Zeitraum (`errors.reading.periodMeter`), sich überschneidende Zeiträume (`errors.period.overlap`), Fehler im Mietverhältnis (`errors.tenancy.*`); ungültiges Jahr beim CO₂-Preis (`errors.co2.yearInvalid`), Fehler in einer Versorgerrechnung (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), Rechnungsprüfung für eine Art ohne Prüfung (`errors.billCheck.unsupportedUtility`), ungültige Markt- oder Messlokations-ID (`errors.meter.maloInvalid`, `…meloInvalid`), Leistungspreis ohne Anschlussleistung (`errors.contract.capacityMissing`), Zähler löschen, an dem noch Zeiträume oder Rechnungen hängen (`errors.meter.hasPeriods`, `…hasBills`); Gruppenvertrag auf eine ungeeignete Gruppe oder mit Preisen für Fremde (`errors.contract.targetInvalid`), ein Mitglied mit eigenem Vertrag im selben Zeitraum (`errors.contract.groupMemberOverlap`), Gruppe mit Verträgen löschen (`errors.meter.groupHasContracts`), dynamischer Tarif als echter Vertrag oder nicht bei Strom (`errors.contract.dynamicShadowOnly`), unbekanntes Preismodell (`errors.contract.priceModelInvalid`), Monatspreise ohne lesbare Zeile oder für Wasser und Einspeisung (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), Börsenpreise ohne Werte (`errors.marketPrices.noRows`), Ladestrom-Nachweis ohne zahlenden Vertrag, ohne Pauschale oder mit ungültigen Parametern (`errors.evReport.*`), ungültiges Jahr der Wärmepumpe (`errors.heatPump.yearInvalid`), Verknüpfung mit einem Stromzähler ohne Rolle Wärmepumpe (`errors.meter.heatPumpLinkInvalid`), ungültige PV-Angabe am Zähler (`errors.meter.valueInvalid`), Zeitreihe mit unpassender Zuordnung oder ohne Anfangsstand (`errors.import.mappingInvalid`, `…anchorMissing`) — alle v3.1.0. *(v3.2.0)* Unbekannter Beispielhaushalt (`errors.demo.personaUnknown`); Name einer Person leer oder zu lang, unbekannte Rolle, die eigene Person löschen (`errors.users.nameInvalid`, `…roleInvalid`, `…notSelf`), eigene Einstellungen ohne angemeldete Person, Passwort einer Person vom Proxy (`errors.users.noUser`, `…proxyNoPassword`); evcc nicht eingetragen oder nicht im Heimnetz, keine abgeschlossenen Ladevorgänge, CSV ohne die nötigen Spalten, unbekannte Wahl für die Zählerstände, Zählerstände mehrerer Ladepunkte (`errors.evcc.off`, `…notLocal`, `…noSessions`, `…columns`, `…countersInvalid`, `…loadpointNeeded`). |
+| `401` | `/api/ingest` bei gesetztem Token ohne oder mit falschem Bearer-Header. *(v2.6.0)* Mit eingeschalteter Anmeldung: jede nicht öffentliche Route ohne Sitzung oder API-Schlüssel (`errors.auth.required`); falsches Passwort, seit v3.2.0 auch ein unbekannter Name (`errors.auth.wrongPassword`). *(v3.1.0)* Ein Kalender-Schlüssel auf einer anderen Route als `/api/calendar.ics`, ein `read`- oder `admin`-Schlüssel als `?token=` im Kalender-Link. |
+| `403` | *(v2.5.3)* Schreibende Anfrage (`POST`/`PUT`/`PATCH`/`DELETE`) aus dem Browser einer **fremden** Webseite — geprüft über `Sec-Fetch-Site`, ersatzweise `Origin` gegen `Host`. Anfragen ohne diese Kopfzeilen (Home Assistant, curl, Skripte) sind nicht betroffen. *(v2.6.0)* Schreibende Anfrage mit einem Lese-Schlüssel (`errors.auth.readOnlyKey`). *(v3.2.0)* Ein Mitglied an einer Route nur für Verwalter (`errors.auth.adminOnly`) — [Personen im Haushalt](#personen-im-haushalt-v320). |
+| `404` | Unbekannte Route oder unbekannter Datensatz. Seit v2.6.0 einheitlich auch für Datensätze in der URL (bis v2.5.3 teils 400). *(v3.1.0)* Auch unbekannter Zeitraum (`errors.period.notFound`), Mietverhältnis (`errors.tenancy.notFound`), Abrechnung (`errors.tenancy.statementNotFound`) oder Versorgerrechnung (`errors.bill.notFound`). *(v3.2.0)* Unbekannte Person (`errors.users.notFound`). |
 | `405` | *(v2.6.0)* Pfad bekannt, Methode nicht — mit Kopfzeile `Allow`. `HEAD` wird wie `GET` beantwortet, `OPTIONS` mit `204` und `Allow`. Bis v2.5.3: `404`. |
-| `409` | *(v2.6.0)* Der Sicherungs-Snapshot vor einem Import/Einspielen ist gescheitert (`errors.backup.snapshotFailed`) — mit `?allow_without_snapshot=1` trotzdem möglich. Passwort oder Anmeldemodus sind über die Umgebung festgelegt. |
+| `409` | *(v2.6.0)* Der Sicherungs-Snapshot vor einem Import/Einspielen ist gescheitert (`errors.backup.snapshotFailed`) — mit `?allow_without_snapshot=1` trotzdem möglich. Passwort oder Anmeldemodus sind über die Umgebung festgelegt. *(v3.2.0)* Der Name einer Person ist vergeben (`errors.users.nameTaken`), der letzte Verwalter soll Mitglied werden oder gelöscht werden (`errors.users.lastAdmin`), das Passwort des ersten Verwalters ist über die Umgebung festgelegt (`errors.auth.passwordFixed`). |
 | `421` | *(v2.6.0)* Hostname nicht in `ET_ALLOWED_HOSTS` (nur, wenn gesetzt; IP-Adressen und `localhost` sind immer erlaubt). |
 | `422` | *(v3.1.0)* PDF-Jahresbericht, CO₂-Anschreiben oder Ladestrom-Nachweis in einer Sprache, die die eingebauten PDF-Schriften nicht setzen können (`errors.report.pdfUnsupportedLanguage`) — die Druckansicht kann es. |
 | `429` | *(v2.6.0)* Anmeldung nach fünf Fehlversuchen innerhalb von 15 Minuten für 5 Minuten gesperrt (`errors.auth.locked`). |
-| `502` | Ein Dienst außerhalb der App antwortet nicht oder unbrauchbar — ein Fehler auf der anderen Seite, keine falsche Eingabe: die Ortssuche (`errors.temperature.geocodeFailed`); *(v3.1.0)* `POST /api/ocr/reading`, wenn der eigene Texterkennungsdienst nicht in der Zeit antwortet, nicht erreichbar ist oder nichts Verwertbares liefert (`errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.ocr.badAnswer`); *(v3.1.0)* `POST /api/market-prices/sync-smard`, wenn SMARD nicht erreichbar ist oder keine Werte liefert (`errors.marketPrices.syncFailed`). |
+| `502` | Ein Dienst außerhalb der App antwortet nicht oder unbrauchbar — ein Fehler auf der anderen Seite, keine falsche Eingabe: die Ortssuche (`errors.temperature.geocodeFailed`); *(v3.1.0)* `POST /api/ocr/reading`, wenn der eigene Texterkennungsdienst nicht in der Zeit antwortet, nicht erreichbar ist oder nichts Verwertbares liefert (`errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.ocr.badAnswer`); *(v3.1.0)* `POST /api/market-prices/sync-smard`, wenn SMARD nicht erreichbar ist oder keine Werte liefert (`errors.marketPrices.syncFailed`); *(v3.2.0)* `POST …/sync-evcc`, wenn evcc nicht erreichbar ist oder keine Liste von Ladevorgängen liefert (`errors.evcc.unreachable`, `errors.evcc.badAnswer`). |
 | `503` | *(v2.5.3)* Eine Datendatei ist beschädigt (kein gültiges JSON). Die Datei bleibt unverändert, daneben liegt eine Quarantäne-Kopie `<datei>.corrupt-<prüfsumme>`. Bis v2.5.2 wurde sie als leer gelesen und beim nächsten Schreiben überschrieben. Seit v3.1.0 steht die Meldung in der Sprache der Anfrage (bis v3.0 immer deutsch); `code` bleibt `errors.storage.corrupted`. *(v2.6.0)* Die Daten stammen von einer **neueren** Version (etwa nach dem Zurückdrehen des Image-Tags): alle Routen außer `/api/health`, geschrieben wird nichts (`errors.storage.dataTooNew`). `/api/health` selbst antwortet `503`, wenn `status` = `error`. |
 | `500` | Unerwarteter Fehler. Seit v2.6.0 mit `error_id`; dieselbe ID steht mit allen Einzelheiten im Server-Log. |
 
@@ -111,6 +111,15 @@ Umgekehrt öffnet ein Kalender-Schlüssel keine andere Route, auch nicht als
 `read`-/`admin`-Schlüssel in der Kopfzeile ist `/api/calendar.ics` abrufbar wie
 jede andere Route.
 
+**Personen und Rollen *(v3.2.0)*.** Mit Anmeldung kann jede Person des
+Haushalts ein eigenes Konto haben (Modus `password`: Name und Passwort; Modus
+`proxy`: der gemeldete Name). Verwalter (`admin`) dürfen alles; Mitglieder
+(`member`) erfassen und sehen alles, ändern aber nicht den Zugriff, spielen
+keine Daten ein und ändern keine Netzadressen — dort antwortet die App mit
+`403` `errors.auth.adminOnly`. Ohne Anmeldung und mit einem API-Schlüssel gibt
+es keine Person; eine Anfrage darf dann, was sie bisher durfte. Welche Routen
+nur Verwalter erreichen: [Personen im Haushalt](#personen-im-haushalt-v320).
+
 ### Stabilitätszusage *(v2.6.0)*
 
 Wer auf der API aufbaut — Home Assistant, Skripte, eigene Auswertungen —,
@@ -120,7 +129,7 @@ braucht eine Zusage, was sich ändern darf. Drei Klassen:
 |---|---|---|
 | **A — Schnittstellen für Fremdsysteme** | `POST /api/ingest` (auch als Stapel), `GET /api/health`, `GET /api/summary` (`summary_version: 1`, v3.1.0), `GET /api/calendar.ics` (Form und UIDs, v3.1.0), Backup-Format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV-Exporte im Format 1 und die CSV-Importe ([CSV-Formate](#csv-formate-v310)), Stammdaten (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`; seit v3.1.0 `periods` samt `periods.csv` und Zeitraum-Import, `tenancies` und `statements`), Belege hochladen und abrufen (`POST /api/attachments`, `GET /api/attachments/{id}`, v3.1.0), Fehlerhülle mit `code` | Nur additive Änderungen. Umbenennen oder Entfernen erst mit einer **Major-Version**, angekündigt mindestens eine Minor-Version vorher im CHANGELOG unter „Deprecated". Alte Feldnamen bleiben als Alias gültig. |
 | **B — Auswertungen** | Verbrauch, Saldo, Prognose, Tarifvergleich/-wechsel, Rechnungsprüfung, Effizienz, Empfehlungen, PV/Saldo, `readings-overview`, `agenda` (v3.1.0), Budget des Mietverhältnisses (`tenancies/{id}/budget`, v3.1.0), CO₂-Preis und Aufteilung (`co2-costs`, `co2-split`, `reports/co2-split.pdf`, v3.1.0), Versorgerrechnungen (`bills` samt `check` und `book`, v3.1.0), die Auswertungen einer Zählergruppe (`meter-groups/{id}/…`, v3.1.0), Ladestrom-Nachweis (`reports/ev-charging` als JSON, CSV und PDF, v3.1.0), Jahresarbeitszahl (`heat-pump`, v3.1.0), Einordnung (`benchmarks/comparison`, v3.1.0) | Dokumentierte Felder bleiben mit Namen und Bedeutung erhalten; neue kommen hinzu. **Werte** können sich ändern, wenn eine Berechnung korrigiert wird — das steht im CHANGELOG. |
-| **C — Oberfläche** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09`, `countries`, Belegliste und Löschen (`GET /api/attachments`, `DELETE /api/attachments/{id}`) und `ocr/reading` (v3.1.0), Börsenstrompreise (`market-prices` samt Import und SMARD-Abruf), Monatspreise aus einer Datei (`contracts/{id}/prices/import-csv`) und Zeitreihen mit Spaltenzuordnung (`meters/{id}/import-series`, alle v3.1.0) | Für die eigene Oberfläche gebaut; Änderungen möglich, stehen aber im CHANGELOG. |
+| **C — Oberfläche** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09`, `countries`, Belegliste und Löschen (`GET /api/attachments`, `DELETE /api/attachments/{id}`) und `ocr/reading` (v3.1.0), Börsenstrompreise (`market-prices` samt Import und SMARD-Abruf), Monatspreise aus einer Datei (`contracts/{id}/prices/import-csv`) und Zeitreihen mit Spaltenzuordnung (`meters/{id}/import-series`, alle v3.1.0), Personen (`users`, `session/me`, v3.2.0), Ladevorgänge aus evcc (`import-evcc`, `sync-evcc`, `ev-sessions`, v3.2.0) | Für die eigene Oberfläche gebaut; Änderungen möglich, stehen aber im CHANGELOG. |
 
 Anlass: v2.0.0 hat `verdict` von „Nachzahlung/Erstattung" still auf Schlüssel
 (`surcharge`/`refund`/`balanced`) umgestellt — ohne Ankündigung. Das soll
@@ -133,19 +142,25 @@ nicht wieder passieren.
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/api/health` | Health-Check: `status` ok/degraded/error, Prüfungen, letzter Ingest (HTTP 503 bei `error`); auch `HEAD` |
-| GET | `/api/session` | Anmeldemodus, angemeldet?, per Umgebung festgelegt? *(v2.6.0)* |
-| POST | `/api/session` | Anmelden `{password}` → Sitzungs-Cookie *(v2.6.0)* |
+| GET | `/api/session` | Anmeldemodus, angemeldet?, per Umgebung festgelegt? *(v2.6.0)*; seit v3.2.0 `named_login`, `user`, `role` — [Personen](#personen-im-haushalt-v320) |
+| POST | `/api/session` | Anmelden `{name?, password}` → Sitzungs-Cookie *(v2.6.0; `name` seit v3.2.0)* |
 | DELETE | `/api/session` | Abmelden *(v2.6.0)* |
-| POST | `/api/session/password` | Passwort setzen/ändern `{password, current?}` — schaltet die Anmeldung ein *(v2.6.0)* |
-| DELETE | `/api/session/password` | Anmeldung ausschalten `{current}` *(v2.6.0)* |
-| GET | `/api/auth/keys` | API-Schlüssel (ohne Klartext) *(v2.6.0)* |
-| POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin\|calendar}`; Klartext einmalig *(v2.6.0; `calendar` seit v3.1.0)* |
-| DELETE | `/api/auth/keys/{id}` | Schlüssel widerrufen *(v2.6.0)* |
+| POST | `/api/session/password` | Passwort setzen/ändern `{password, current?}` — schaltet die Anmeldung ein *(v2.6.0)*; seit v3.2.0 nur Verwalter |
+| DELETE | `/api/session/password` | Anmeldung ausschalten `{current}` *(v2.6.0)*; seit v3.2.0 nur Verwalter |
+| PATCH | `/api/session/me` | *(v3.2.0)* eigene Einstellungen der angemeldeten Person `{ui_level?, language?}` — [Personen](#personen-im-haushalt-v320) |
+| POST | `/api/session/me/password` | *(v3.2.0)* eigenes Passwort ändern `{current, password}` |
+| GET | `/api/users` | *(v3.2.0)* Personen im Haushalt, ohne Passwort-Hash — nur Verwalter |
+| POST | `/api/users` | *(v3.2.0)* Person anlegen `{name, password, role?}`; `201` — nur Verwalter |
+| PATCH | `/api/users/{id}` | *(v3.2.0)* Name, Rolle oder Passwort ändern `{name?, role?, password?}` — nur Verwalter |
+| DELETE | `/api/users/{id}` | *(v3.2.0)* Person löschen; der letzte Verwalter bleibt — nur Verwalter |
+| GET | `/api/auth/keys` | API-Schlüssel (ohne Klartext) *(v2.6.0)*; seit v3.2.0 nur Verwalter |
+| POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin\|calendar}`; Klartext einmalig *(v2.6.0; `calendar` seit v3.1.0)*; seit v3.2.0 nur Verwalter |
+| DELETE | `/api/auth/keys/{id}` | Schlüssel widerrufen *(v2.6.0)*; seit v3.2.0 nur Verwalter |
 | GET | `/api/diagnostics` | Systemstatus, Schreibrechte, Schema |
 | GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration; seit v2.13.0 je Art `has_contracts`, `has_advance_payment_contracts` und `accounting_kind` (`consumption`, `feed_in`, `generation`); seit v3.1.0 `meter_roles` bei Arten mit Zählerrollen und `supports_bill_check` (Rechnungsprüfung möglich: Gas, Strom, Wasser, Fernwärme) |
 | GET | `/api/manifest` | *(v3.1.0)* Web-App-Manifest in einer Sprache (`?lang=`, sonst Sprache des Geräts bzw. der Installation); ohne Anmeldung erreichbar, enthält keine Daten. Klasse C |
 | GET | `/api/settings` | Einstellungen |
-| PATCH | `/api/settings` | Einstellungen ändern |
+| PATCH | `/api/settings` | Einstellungen ändern; `frame_ancestors`, `ocr_endpoint` und `evcc_endpoint` seit v3.2.0 nur Verwalter |
 | GET | `/api/countries` | Länderprofile: Voreinstellungen je Land *(v2.7.0)*; seit v3.1.0 mit Rechnungsbegriffen (`bill_terms`) und amtlichem Tarifvergleich (`comparison_portal`) — s. u. |
 | GET | `/api/settings/default-updates` | Korrigierte Standardwerte, die diese Installation noch nicht nutzt (CO₂, Wasser-Referenz) *(v2.10.0)* — s. u. |
 | GET | `/api/temperatures` | Tagestemperaturen (Map) |
@@ -176,6 +191,8 @@ nicht wieder passieren.
 | DELETE | `/api/utility/{u}/readings/{id}` | löschen (ein Foto wird gelöst und nach 24 Stunden aufgeräumt) |
 | POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV-Bulk-Import; `?dry_run=1` liest nur (Vorschau, v2.12.0); seit v3.1.0 Kopfzeilen und Datumsschreibweisen aller Sprachen — s. u. |
 | POST | `/api/utility/{u}/meters/{id}/import-series` | *(v3.1.0)* Zeitreihe aus einem Portal mit Spaltenzuordnung `{csv, mapping}`, zu Tageswerten verdichtet; `?dry_run=1` liest nur — [Zeitreihe importieren](#zeitreihe-importieren-v310) |
+| POST | `/api/utility/strom/meters/{id}/import-evcc` | *(v3.2.0)* Ladevorgänge aus dem CSV-Export von evcc `{csv, counters?, loadpoint?}`, dazu die Zählerstände der Wallbox; `?dry_run=1` liest nur — [Ladevorgänge aus evcc](#ladevorgänge-aus-evcc-v320) |
+| POST | `/api/utility/strom/meters/{id}/sync-evcc` | *(v3.2.0)* dasselbe direkt von evcc im Heimnetz (`evcc_endpoint`) `{counters?, loadpoint?}`; `?dry_run=1` liest nur, `502` bei Fehlern von evcc |
 | GET | `/api/utility/{u}/periods` | *(v3.1.0)* Verbrauch je Zeitraum, nach Beginn sortiert; `?meter_id=` nur dieser Zähler — [Verbrauch je Zeitraum](#verbrauch-je-zeitraum-v310) |
 | POST | `/api/utility/{u}/periods` | *(v3.1.0)* Zeitraum anlegen `{meter_id, from, to, value}` oder `{meter_id, month, value}`; `client_ref` wie bei Ablesungen (`200` mit `duplicate: true`) |
 | PATCH | `/api/utility/{u}/periods/{id}` | *(v3.1.0)* Zeitraum ändern |
@@ -237,6 +254,7 @@ nicht wieder passieren.
 | GET | `/api/reports/ev-charging` | *(v3.1.0)* Ladestrom-Nachweis für den Dienstwagen je Monat, `?meter_id=&year=&method=contract\|flat[&flat_ct=]` — [Ladestrom-Nachweis](#ladestrom-nachweis-v310) |
 | GET | `/api/reports/ev-charging.csv` | *(v3.1.0)* dasselbe als CSV; `format`, `lang` wie bei den CSV-Exporten |
 | GET | `/api/reports/ev-charging.pdf` | *(v3.1.0)* dasselbe als PDF mit Zählerständen und Unterschriftszeile; `?inline=1` |
+| GET | `/api/ev-sessions` | *(v3.2.0)* gespeicherte Ladevorgänge aus evcc, neueste zuerst, `?meter_id=&year=`; mit beiden Parametern dazu Monatssummen `monthly` — [Ladevorgänge aus evcc](#ladevorgänge-aus-evcc-v320) |
 | GET | `/api/agenda` | *(v3.1.0)* Fristen und Termine der nächsten `?days=` Tage (Standard 90) samt Überfälligem; Quelle für „Zu tun“ im Dashboard — [Agenda](#get-apiagendadays90-v310) |
 | GET | `/api/calendar.ics` | *(v3.1.0)* Dieselben Ereignisse als Kalender-Abo (iCalendar, 365 Tage) — [Kalender](#get-apicalendarics-v310) |
 | GET | `/api/summary` | *(v3.1.0)* Kennzahlen je Zähler für Home Assistant und Skripte, `?utility=&meter=` — [Kennzahlen](#get-apisummary-v310) |
@@ -251,21 +269,21 @@ nicht wieder passieren.
 | GET | `/api/export/{u}/periods.csv` | *(v3.1.0)* Verbrauch je Zeitraum als CSV, alle Zähler der Art; `format`, `lang` wie oben |
 | GET | `/api/export/temperatures.csv` | Temperaturreihe als CSV; `format`, `lang` wie oben |
 | GET | `/api/backup/export` | Voll-Backup JSON; seit v3.1.0 mit den Belegen (`attachment_files`), `?attachments=0` ohne die Dateien — [s. u.](#snapshots-und-import-v260) |
-| POST | `/api/backup/import` | Backup zurückspielen; `?dry_run=1` prüft nur, `?allow_without_snapshot=1` s. 409 |
+| POST | `/api/backup/import` | Backup zurückspielen; `?dry_run=1` prüft nur, `?allow_without_snapshot=1` s. 409; seit v3.2.0 nur Verwalter |
 | POST | `/api/backup/snapshot` | Snapshot ablegen |
 | GET | `/api/backup/snapshots` | Snapshots: Name, Größe, Zeitpunkt, Anlass *(v2.6.0)* |
 | GET | `/api/backup/snapshots/{name}` | Snapshot herunterladen (Datei) *(v2.6.0)* |
-| POST | `/api/backup/snapshots/{name}/restore` | Snapshot einspielen (vorher Sicherung des jetzigen Stands) *(v2.6.0)* |
+| POST | `/api/backup/snapshots/{name}/restore` | Snapshot einspielen (vorher Sicherung des jetzigen Stands) *(v2.6.0)*; seit v3.2.0 nur Verwalter |
 | DELETE | `/api/backup/snapshots/{name}` | Snapshot löschen *(v2.6.0)* |
 | POST | `/api/migration/v09/preview` | v0.9.0-Backup analysieren |
 | POST | `/api/migration/v09/import` | v0.9.0-Backup übernehmen |
 | GET | `/api/strom-saldo` | Strom-Saldo (Bezug − PV-Einspeisung), F1005 |
 | GET | `/api/pv-summary` | PV-Eigenverbrauch + Autarkiequote, F1005; seit v2.10.0 über gemeinsam abgedeckte Monate, mit Ersparnis — s. u.; seit v3.1.0 Speicher, Amortisation, Annahme für ein Balkonkraftwerk und Hinweis zu § 51 EEG ([PV](#pv-speicher-balkonkraftwerk-amortisation-v310-additiv)) |
-| GET | `/api/demo/status` | Demo-Daten verfügbar/Store leer? (F1007) |
-| POST | `/api/demo/import` | Demo-Datensatz laden (F1007); seit v3.0.0 bis heute fortgeschrieben (Stände, Lieferungen, Temperaturen wie im Vorjahreszeitraum, Termine relativ zu heute) |
-| GET | `/api/auth/token` | API-Token-Status (nie der Token selbst), F1009 |
-| POST | `/api/auth/token` | Token erzeugen (einmalig Klartext), F1009 |
-| DELETE | `/api/auth/token` | Token widerrufen → API wieder offen, F1009 |
+| GET | `/api/demo/status` | Demo-Daten verfügbar/Store leer? (F1007); seit v3.2.0 mit `personas` — [Beispielhaushalte](#beispielhaushalte-v320) |
+| POST | `/api/demo/import` | Demo-Datensatz laden (F1007); seit v3.0.0 bis heute fortgeschrieben (Stände, Lieferungen, Temperaturen wie im Vorjahreszeitraum, Termine relativ zu heute); seit v3.2.0 `{persona}` für einen Beispielhaushalt, nur Verwalter |
+| GET | `/api/auth/token` | API-Token-Status (nie der Token selbst), F1009; seit v3.2.0 nur Verwalter |
+| POST | `/api/auth/token` | Token erzeugen (einmalig Klartext), F1009; seit v3.2.0 nur Verwalter |
+| DELETE | `/api/auth/token` | Token widerrufen → API wieder offen, F1009; seit v3.2.0 nur Verwalter |
 | **POST** | **`/api/ingest`** | **idempotenter Zählerstand-Push für Home Assistant (F1009); seit v3.1.0 auch als Stapel bis 500 Stände** |
 
 ---
@@ -1498,9 +1516,10 @@ definiert wie bisher.
   `pv_assumed_self_consumption_pct` einen Wert hat. Dann ist der Eigenverbrauch
   Erzeugung × Anteil, und die Monate tragen `self_consumption_assumed: true`.
 - `hints: ["negative_prices"]` — Land Deutschland und Inbetriebnahme ab dem
-  25.02.2025: Für Zeiten mit negativem Börsenpreis gibt es keine Vergütung,
-  sobald ein intelligentes Messsystem eingebaut ist (§ 51 EEG); ausgeglichen
-  wird über eine längere Förderdauer.
+  25.02.2025: Für Zeiten mit negativem Börsenpreis gibt es keine Vergütung —
+  bei Anlagen unter 100 kW ab dem Kalenderjahr nach dem Einbau eines
+  intelligenten Messsystems (§ 51 EEG). Zum Teil ausgeglichen wird das durch
+  einen längeren Vergütungszeitraum (§ 51a EEG).
 
 Die Einstellung `co2_pv_avoided` (g/kWh) ersetzt für PV-Erzeugung und
 -Einspeisung den Strommix im vermiedenen CO₂ ([Einstellungen](einstellungen.md)).
@@ -1635,10 +1654,10 @@ Topf `<art>/bills.json` (Schema 1.7.0, im Backup), ein Eintrag (Beispielwerte):
 | `contract_id` | optional: der Vertrag, in den `book` bucht; ohne Angabe der Vertrag, der am Ende des Zeitraums galt |
 | `kind` | `annual` (Jahresabrechnung, Standard), `final` (Schlussrechnung), `interim` (Zwischenrechnung) |
 | `period_from`, `period_to` | abgerechneter Zeitraum, **beide einschließlich**; kein Datum oder Beginn nach Ende → `400` `errors.bill.periodInvalid` |
-| `issued_on` | Rechnungsdatum (optional) — Datum der Buchung und Zugang für die CO₂-Frist |
+| `issued_on` | Rechnungsdatum (optional) — Datum der Buchung und Beginn der CO₂-Frist (der Tag, an dem der Lieferant abgerechnet hat) |
 | `invoice` | `energy_kwh` (bei Wasser `volume_m3`), `amount_eur` (Rechnungsbetrag brutto), `advances_paid_eur`, `result_eur` (**positiv = Nachzahlung**, negativ = Guthaben; ohne Angabe `amount_eur − advances_paid_eur`), `net` (optional, wird nur gespeichert). Jeder Wert optional; keine Zahl oder außerhalb des Bereichs → `400` `errors.bill.amountInvalid` |
 | `items` | weitere Posten `{label, amount_eur, kind}` mit `kind` ∈ `levy` (Umlage), `fee` (Gebühr), `credit` (Gutschrift), `other` (Standard); Bezeichnung höchstens 120 Zeichen. Die App rechnet sie nicht nach |
-| `co2` | optional, nur sinnvoll bei Gas: `{emissions_kg, cost_eur?, stated_factor?}` — Emissionen und CO₂-Betrag **netto** laut Rechnung, angegebener Faktor in kg/kWh. Gehen beim [CO₂-Preis](#co₂-preis-und-aufteilung-v310) dem Standardfaktor vor |
+| `co2` | optional, nur sinnvoll bei Gas: `{emissions_kg, cost_eur?, stated_factor?}` — Emissionen und CO₂-Betrag laut Rechnung, der Betrag **mit Umsatzsteuer**, wie die Rechnung ihn ausweist (CO2KostAufG § 3 Abs. 3; bis v3.1 als netto gelesen), angegebener Faktor in kg/kWh. Gehen beim [CO₂-Preis](#co₂-preis-und-aufteilung-v310) dem Standardfaktor vor |
 | `attachment_ids` | Belege (`kind: bill_pdf`, sonst `other`); ein aus der Liste entfernter Beleg wird gelöst, `ref.type` des Belegs ist `bill` |
 | `special_payment_id` | gesetzt, sobald das Ergebnis gebucht ist |
 | `note`, `created_at` | Notiz (höchstens 2000 Zeichen), Zeitpunkt des Anlegens |
@@ -1706,7 +1725,7 @@ Heizöl und Fernwärme steckt (CALC-27). Ein **Ausweis, kein Aufschlag**:
     { "utility": "gas", "kwh": 10000.0, "factor_kg_per_kwh": 0.18139,
       "emissions_kg": 1813.9, "price_eur_t": 55.0,
       "cost_eur_net": 99.76, "cost_eur_gross": 118.72, "ct_per_kwh": 1.187,
-      "source": "computed", "approx": false, "coverage_days": 365 } ],
+      "source": "computed", "vat": 0.19, "approx": false, "coverage_days": 365 } ],
   "total": { "emissions_kg": 1813.9, "cost_eur_net": 99.76, "cost_eur_gross": 118.72 },
   "per_m2": { "kg": 18.1, "area_m2": 100.0, "stage": 3, "landlord_share_pct": 20 },
   "price": { "eur_t": 55.0, "assumed": false },
@@ -1719,16 +1738,17 @@ Heizöl und Fernwärme steckt (CALC-27). Ein **Ausweis, kein Aufschlag**:
 | `kwh` | Verbrauch des Kalenderjahres |
 | `factor_kg_per_kwh` | Standardfaktor des BEHG — Gas 0,18139 (je kWh Brennwert), Heizöl 0,2664 (je kWh Heizwert) —, bei Fernwärme `co2_g_per_kwh` des Vertrags / 1000, bei Heizwärme der Faktor des Energieträgers (`waerme_energietraeger`, nur Gas oder Heizöl); bei Werten aus der Rechnung Emissionen ÷ Verbrauch |
 | `source` | `bill` (Versorgerrechnungen, deren Zeitraum im Jahr endet und die `co2.emissions_kg` tragen — summiert), `contract` (Fernwärme mit Netzfaktor) oder `computed` (Verbrauch × Standardfaktor). In dieser Reihenfolge; Fernwärme ohne Netzfaktor, Pellets und Strom erscheinen nie |
-| `price_eur_t` | maßgeblicher Preis des Jahres: Einstellung `co2_price_eur_t_years`, sonst Länderprofil (DE 2021: 25, 2022: 30, 2023: 30, 2024: 45, 2025: 55, 2026: 60), sonst der letzte bekannte Wert (`price.assumed: true`) |
-| `cost_eur_net` | Emissionen / 1000 × Preis; mit Rechnung deren `co2.cost_eur` (netto, CO2KostAufG § 3 Abs. 3), sofern jede dieser Rechnungen ihn trägt |
-| `cost_eur_gross` | netto × (1 + `vat`) |
+| `price_eur_t` | maßgeblicher Preis des Jahres: Einstellung `co2_price_eur_t_years`, sonst Länderprofil (DE 2021: 25, 2022: 30, 2023: 30, 2024: 45, 2025: 55, 2026: 60), sonst der letzte bekannte Wert (`price.assumed: true`). Für 2027 gilt nach CO2KostAufG § 4 Abs. 1 Nr. 3 der Durchschnitt der Versteigerungen vom 1. Juli bis 30. November 2026; bis er eingetragen ist, rechnet die API mit dem letzten bekannten Wert (60) als Annahme |
+| `cost_eur_net` | Emissionen / 1000 × Preis; mit Rechnung deren `co2.cost_eur` ÷ (1 + `vat`), sofern jede dieser Rechnungen ihn trägt — der Rechnungsbetrag enthält die Umsatzsteuer (CO2KostAufG § 3 Abs. 3) |
+| `cost_eur_gross` | netto × (1 + `vat`); mit Rechnung deren `co2.cost_eur` (seit v3.2.0; bis v3.1 netto × (1 + `vat`), die Steuer also doppelt) |
 | `ct_per_kwh` | brutto je kWh in ct |
+| `vat` | *(v3.2.0)* angewandte Umsatzsteuer der Zeile: je Monat 19 %, bei `gas` und `fernwaerme` (und Heizwärme aus Gas oder Fernwärme) vom 10/2022 bis 3/2024 7 % (§ 28 Abs. 5 und 6 UStG), für das Jahr nach Verbrauch gewichtet, ohne Verbrauch das Mittel der zwölf Monate. Gas 2023: `0.07`; Heizöl immer `0.19`; Heizwärme nach dem Energieträger (`waerme_energietraeger`) |
 | `approx` | `true` bei Heizwärme mit gerechnetem Wert — gezählt wird die Wärme, nicht der Brennstoff |
 | `coverage_days` | Tage des Jahres mit Verbrauchsdaten |
 | `total` | Summen aller Zeilen, `null` ohne Zeile |
 | `per_m2` | Emissionen je m² Wohnfläche (auf eine Nachkommastelle) mit `stage` (1–10) und `landlord_share_pct` nach der Anlage zum CO2KostAufG; Fläche aus dem Mietverhältnis des Jahres (bei `wohnverhaeltnis: miete`), sonst `wohnflaeche_m2`. `null` ohne Zeilen oder Fläche |
 | `price` | `{eur_t, assumed}` |
-| `vat` | Umsatzsteuer auf den CO₂-Preis (`0.19`) |
+| `vat` | Regelsatz der Umsatzsteuer auf den CO₂-Preis (`0.19`); den je Zeile angewandten Satz nennt `rows[].vat` |
 
 Stufen (kg CO₂ je m² und Jahr, Obergrenze ausschließlich → Anteil des
 Vermieters): < 12 → 0 %, < 17 → 10 %, < 22 → 20 %, < 27 → 30 %, < 32 → 40 %,
@@ -1768,7 +1788,7 @@ Fall bestimmt die App:
 | `source` | `self_supplied`: die Quellen der Zeilen aus `/api/co2-costs`, mit Komma verbunden (etwa `bill` oder `bill,computed`); `central`: `statement` |
 | `checks[]` | `central`: `stage`, `share`, `amount` (Abweichung über 0,50 €), `missing_values` (Emissionen oder Fläche fehlen); `self_supplied`: `area_missing` (ohne Fläche keine Stufe) |
 | `reductions[]` | `own_appliances`, `restriction_one`, `restriction_both` |
-| `deadline` | nur `self_supplied`: Frist für die Erstattung (§ 6 Abs. 2) = Zugang der Gasrechnung, deren Zeitraum im Jahr endet (`issued_on`, sonst Tag nach dem Zeitraum), + 12 Monate; `null` ohne erfasste Gasrechnung |
+| `deadline` | nur `self_supplied`: Frist für die Erstattung (§ 6 Abs. 2: zwölf Monate, nachdem der Lieferant abgerechnet hat) = Rechnungsdatum der Gasrechnung, deren Zeitraum im Jahr endet (`issued_on`, sonst Tag nach dem Zeitraum), + 12 Monate; `null` ohne erfasste Gasrechnung |
 | `statement_id`, `days`, `stated` | nur `central`: die Abrechnung, die Tage ihres Zeitraums und ihre Angaben `{stage, landlord_share_pct, landlord_amount_eur}` |
 | `price`, `utilities` | nur `self_supplied`: Preis wie oben und die Arten der Rechnung (`gas`, `heizoel`) |
 
@@ -2218,6 +2238,116 @@ CSV im Format 1 mit festem Kopf:
 Monat;Zaehler-ID;kWh;Preis ct/kWh;Grundpreis-Anteil;Betrag;Methode
 ```
 
+*(v3.2.0)* Die Zählerstände der Wallbox können aus evcc kommen — als
+Ablesungen am Zähler gehen sie in den Nachweis ein wie erfasste:
+[Ladevorgänge aus evcc](#ladevorgänge-aus-evcc-v320).
+
+### Ladevorgänge aus evcc *(v3.2.0)*
+
+evcc steuert die Wallbox — mit Sonnenstrom oder in günstigen Stunden — und
+führt je Ladevorgang Beginn, Ende, Energie, Sonnenanteil, Preis und, wo die
+Wallbox misst, den Zählerstand. Der Energietracker übernimmt diese Vorgänge
+und rechnet nach; er steuert nichts. Zwei Wege mit derselben Verarbeitung: der
+CSV-Export aus evcc (Ladevorgänge → herunterladen) oder der Abruf über die
+evcc-API im eigenen Netz. Schritt für Schritt:
+[Ladevorgänge aus evcc](../anleitungen/evcc.md). Klasse C.
+
+| Route | Body | Zweck |
+|---|---|---|
+| `POST /api/utility/strom/meters/{id}/import-evcc[?dry_run=1]` | `{csv, counters?, loadpoint?}` | CSV-Export übernehmen |
+| `POST /api/utility/strom/meters/{id}/sync-evcc[?dry_run=1]` | `{counters?, loadpoint?}` | Vorgänge von `GET <evcc_endpoint>/api/sessions` holen |
+| `GET /api/ev-sessions?meter_id=&year=` | — | gespeicherte Vorgänge und Monatssummen |
+
+`{id}` ist ein Stromzähler mit Zählerständen. Die Oberfläche bietet beides in
+der Ansicht eines Zählers mit der Rolle `ev_charger` (Wallbox) an.
+
+| Feld | Bedeutung |
+|---|---|
+| `csv` | Inhalt der Datei als Text. Kopfzeile in einer der Sprachen de, en, fr, it, es, pt, nl oder mit den englischen Feldnamen (`created`, `chargedEnergy` …); ein BOM wird entfernt; Trenner Komma oder Semikolon (entschieden an der Kopfzeile); Zahlen mit Punkt oder Komma. Nötig sind die Spalten für Beginn und Energie |
+| `counters` | woher die Zählerstände kommen: `auto` (Standard) — die Zählerstände der Wallbox, fehlen sie, die aufsummierte Energie; `energy` — immer aufsummieren, ab dem letzten Stand vor dem ersten Vorgang, ohne ihn ab dem Anfangsstand des eingebauten Geräts (etwa wenn der Zähler im Energietracker nicht der in der Wallbox ist); `none` — nur die Vorgänge, keine Ablesungen |
+| `loadpoint` | nur Vorgänge dieses Ladepunkts (Name wie in evcc); fehlt er, alle |
+
+Verarbeitung:
+
+- Ein Vorgang braucht Beginn und Energie (nicht negativ), sonst zählt er unter
+  `skipped`. Läuft er noch (Ende leer oder `0001-01-01…`), zählt er unter
+  `running` und kommt beim nächsten Import vollständig.
+- Zeiten ohne Zeitzone gelten in der Zeitzone der Installation (`timezone`);
+  `date` ist der Tag des Endes.
+- Jeder Vorgang bekommt eine Kennung aus Beginn und Ladepunkt. Ein zweiter
+  Import desselben Vorgangs ersetzt ihn, statt ihn doppelt zu zählen.
+- Zählerstände (ein Stand am Tag D gilt als Stand zu Beginn von D): mit
+  Zählerständen der Wallbox (`counter_source: "meter"`) der Anfangsstand am
+  Tag des Beginns und der Endstand am Tag nach dem Ende (je Tag der höchste);
+  sonst (`"energy"`) der Stand bis zum Tag des ersten Vorgangs plus die
+  geladene Energie, am Tag nach jedem Vorgang. Stände nach heute und ein
+  Rückgang entfallen. Sie gehen als Ablesungen mit der Notiz `evcc` an den
+  Zähler; ein vorhandener Stand am selben Tag wird ersetzt.
+- Zählerstände gehören zu einer Wallbox: Stammen die Vorgänge von mehreren
+  Ladepunkten und ist `counters` nicht `none`, antwortet die Route mit `400`
+  `errors.evcc.loadpointNeeded` — dann `loadpoint` angeben.
+
+Antwort, hier die Vorschau mit `?dry_run=1`:
+
+```json
+{ "sessions": 12, "skipped": 0, "running": 1, "loadpoints": ["Garage"],
+  "from": "2026-09-02", "to": "2026-09-30",
+  "charged_kwh": 214.37, "solar_kwh": 131.902,
+  "readings": 12, "replaces": 0, "counter_source": "meter", "dry_run": true }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `sessions` | übernommene Vorgänge (nach dem Filter `loadpoint`) |
+| `skipped`, `running` | unlesbare bzw. noch laufende Vorgänge |
+| `loadpoints` | alle Ladepunkte der Datei bzw. der Antwort — auch die, die `loadpoint` ausfiltert |
+| `from`, `to` | erster und letzter Tag |
+| `charged_kwh`, `solar_kwh` | geladene Energie und der Teil aus der Sonne (Energie × Sonnenanteil je Vorgang) |
+| `readings`, `replaces` | abgeleitete Zählerstände; `replaces` davon ersetzen einen vorhandenen Stand am selben Tag |
+| `counter_source` | `meter`, `energy` oder `none` |
+| `import` | nur ohne `dry_run`: Ergebnis des Ablesungs-Imports wie beim CSV-Import (`imported`, `overwritten`, `skipped`, `errors`); `null` ohne Zählerstände |
+
+**Abruf — `sync-evcc`.** Der Server holt `GET <evcc_endpoint>/api/sessions`
+(höchstens 30 Sekunden) und erwartet eine Liste mit den Feldern `created`,
+`finished`, `loadpoint`, `vehicle`, `meterStart`, `meterStop`,
+`chargedEnergy`, `solarPercentage`, `price`, `pricePerKWh`; die Hülle
+`{result: […]}` älterer evcc-Versionen wird ausgepackt. Wie bei der
+[Texterkennung](#post-apiocrreading) nur im eigenen Netz: Der Name wird
+aufgelöst, jede Adresse muss lokal sein, verbunden wird mit genau der
+geprüften, Weiterleitungen werden nicht verfolgt.
+
+**Gespeicherte Vorgänge — `GET /api/ev-sessions`.**
+
+```json
+{ "sessions": [ { "id": "evs_1a2b3c4d5e6f", "meter_id": "m_wallbox",
+      "created": "2026-09-30T17:02:11+02:00", "finished": "2026-09-30T21:40:03+02:00",
+      "date": "2026-09-30", "loadpoint": "Garage", "vehicle": "Kleinwagen",
+      "charged_kwh": 18.402, "solar_pct": 0, "price_eur": 5.15, "price_per_kwh": 0.28,
+      "meter_start": 4120.551, "meter_stop": 4138.953, "source": "csv" } ],
+  "monthly": { "2026-09": { "kwh": 214.37, "solar_kwh": 131.902, "solar_pct": 61.5,
+                            "price_eur": 38.4, "sessions": 12 } } }
+```
+
+`meter_id` und `year` filtern, beide sind optional; ein unbekannter Zähler
+ergibt eine leere Liste. `monthly` gibt es nur mit beiden, sonst `null`: je
+Monat `kwh`, `solar_kwh`, `solar_pct` (nach Energie gewichtet), `price_eur`
+(Summe der Preise laut evcc, `null` ohne Preise) und `sessions`. `year`
+außerhalb 2017–2100 → `400` `errors.evReport.yearInvalid`. Die Felder je
+Vorgang: [Datenmodell](datenmodell.md#ladevorgänge-ev_sessionsjson-v320).
+
+| Status | `code` | Wann |
+|---|---|---|
+| `404` | `errors.common.meterNotFound` | kein Stromzähler mit dieser ID |
+| `400` | `errors.reading.periodMeter` | Zähler mit Verbrauch je Zeitraum — er nimmt keine Stände an |
+| `400` | `errors.evcc.countersInvalid` | `counters` ist nicht `auto`, `energy` oder `none` |
+| `400` | `errors.evcc.loadpointNeeded` | Vorgänge mehrerer Ladepunkte mit Zählerständen — `loadpoint` angeben oder `counters: "none"` |
+| `400` | `errors.evcc.columns` | CSV ohne die Spalten für Beginn oder Energie |
+| `400` | `errors.evcc.noSessions` | kein abgeschlossener Vorgang — auch bei leerer Datei oder einem `loadpoint` ohne Treffer |
+| `400` | `errors.evcc.off` | `sync-evcc`: `evcc_endpoint` ist leer |
+| `400` | `errors.evcc.notLocal` | `sync-evcc`: eine Adresse von evcc liegt nicht im eigenen Netz |
+| `502` | `errors.evcc.unreachable` | `sync-evcc`: Name nicht auflösbar, keine Verbindung oder HTTP-Fehler |
+| `502` | `errors.evcc.badAnswer` | `sync-evcc`: die Antwort ist keine Liste von Ladevorgängen |
+
 ### `GET /api/agenda?days=90` *(v3.1.0)*
 
 Fristen und Termine aus **einer** Quelle: Das Dashboard („Zu tun“), der
@@ -2256,7 +2386,7 @@ alles, was schon fällig oder überfällig ist. Sortiert nach Datum, dann Art.
 | `tank_reorder` | Heizöl/Pellets: Bestand niedrig (Empfehlung R5) | heute | immer, solange die Empfehlung nicht ausgeblendet ist |
 | `tenancy_statement_due` *(v3.1.0)* | Nebenkostenabrechnung des letzten abgelaufenen Abrechnungszeitraums fällig (§ 556 Abs. 3 BGB) — nur, solange für diesen Zeitraum keine Abrechnung erfasst ist | Ende des Zeitraums + 12 Monate | nie |
 | `objection_deadline` *(v3.1.0)* | letzter Tag für Einwände gegen eine Abrechnung | Zugang (`received_on`) + 12 Monate | ab 30 Tagen vorher (`severity` dann `due`) |
-| `co2_claim_deadline` *(v3.1.0)* | Etagenheizung zur Miete: Anteil des Vermieters an den CO₂-Kosten einfordern (CO2KostAufG § 6 Abs. 2) — nur mit `case: self_supplied` und Betrag über 0 | `deadline` aus `/api/co2-split`: Zugang der Gasrechnung + 12 Monate | ab 30 Tagen vorher (`severity` dann `due`) |
+| `co2_claim_deadline` *(v3.1.0)* | Etagenheizung zur Miete: Anteil des Vermieters an den CO₂-Kosten einfordern (CO2KostAufG § 6 Abs. 2) — nur mit `case: self_supplied` und Betrag über 0 | `deadline` aus `/api/co2-split`: Rechnungsdatum der Gasrechnung + 12 Monate | ab 30 Tagen vorher (`severity` dann `due`) |
 
 **Zeitraum-Zähler *(v3.1.0)*.** Für einen Zähler mit Verbrauch je Zeitraum
 rechnet `reading_due` ab dem Ende des letzten Zeitraums statt ab der letzten
@@ -2701,7 +2831,8 @@ Klartext zurückgegeben. Seit v2.6.0 nennt `GET` zusätzlich `last_used_at`
 ```jsonc
 // GET /api/session
 { "mode": "off", "authenticated": true, "mode_fixed": false,
-  "password_fixed": false, "has_password": false }
+  "password_fixed": false, "has_password": false,
+  "named_login": false, "user": null, "role": "admin" }   // die letzten drei seit v3.2.0
 
 // POST /api/session/password   (Einschalten: nur password; Ändern: + current)
 { "password": "mindestens-8-Zeichen", "current": "bisheriges" }
@@ -2720,6 +2851,110 @@ Klartext zurückgegeben. Seit v2.6.0 nennt `GET` zusätzlich `last_used_at`
   Ausschalten.
 - `GET /api/auth/keys` liefert `id`, `name`, `scope`, `created_at`,
   `last_used_at` — nie den Schlüssel oder seinen Hash.
+- *(v3.2.0)* `/api/session/password`, `/api/auth/keys` und `/api/auth/token`
+  erreichen nur Verwalter. `POST /api/session/password` setzt das Passwort der
+  Installation (das des ersten Verwalters `u_admin`); `current` ist das
+  Passwort der angemeldeten Person. Das eigene Passwort ändert jede Person über
+  `POST /api/session/me/password`.
+
+### Personen im Haushalt *(v3.2.0)*
+
+Mit eingeschalteter Anmeldung kann jede Person des Haushalts ein eigenes Konto
+haben: eigene Anmeldung, eigene Nutzungsstufe und Sprache. Die Daten des
+Haushalts teilen sich alle. Personen stehen in `data/auth.json`, nicht im
+Backup, ohne Schemaschritt ([Datenmodell](datenmodell.md#personen-in-authjson-v320)).
+Anleitung: [Benutzer im Haushalt](../anleitungen/benutzer.md).
+
+| Rolle | `role` | darf |
+|---|---|---|
+| Verwaltung | `admin` | alles |
+| Mitglied | `member` | erfassen und alles sehen; die eigene Stufe, Sprache und das eigene Passwort ändern |
+
+**Nur für Verwalter** — ein Mitglied bekommt `403` `errors.auth.adminOnly`:
+
+- `/api/users…`, `/api/auth/keys…`, `/api/auth/token` und
+  `/api/session/password` — jede Methode, auch `GET`;
+- `POST /api/backup/import`, `POST /api/backup/snapshots/{name}/restore` und
+  `POST /api/demo/import` — alle drei ersetzen die Daten;
+- `PATCH /api/settings` mit `frame_ancestors`, `ocr_endpoint` oder
+  `evcc_endpoint` im Body — Einstellungen, mit denen die App andere Adressen
+  anspricht oder sich einbetten lässt. Ohne diese Schlüssel dürfen auch
+  Mitglieder Einstellungen ändern.
+
+Die Rolle gilt für angemeldete Personen. Ohne Anmeldung und mit einem
+API-Schlüssel gibt es keine Person; eine Anfrage darf dann, was sie bisher
+durfte (ein `read`-Schlüssel weiter nur lesen).
+
+**Übergang aus v3.1.** Bis v3.1 gab es ein Passwort. Es gehört jetzt dem
+ersten Verwalter: Kennung `u_admin`, Name `admin`. Solange niemand eine Person
+anlegt, steht er nur in der Liste (`GET /api/users`); mit der ersten Änderung
+wird er in `auth.json` eingetragen. Er meldet sich weiter **ohne Namen** an,
+mit dem Passwort der Installation bzw. `ET_ADMIN_PASSWORD_HASH`. Sitzungen aus
+v3.1 gelten für ihn weiter. Wird `u_admin` gelöscht, entfällt das Passwort der
+Installation und mit ihm die Anmeldung ohne Namen.
+
+**Proxy.** Im Modus `proxy` erkennt die App die Person am gemeldeten Namen
+([Anmeldung](#anmeldung-v260-opt-in)) und legt sie beim ersten Besuch an
+(`source: "proxy"`, Name auf 40 Zeichen gekürzt): als Verwalter, solange es
+keinen Verwalter vom Proxy gibt, sonst als Mitglied. Ein Passwort hat sie in
+der App nicht.
+
+**Person.** Jede Antwort mit einer Person hat diese Felder, nie einen
+Passwort-Hash:
+
+```json
+{ "id": "u_3f9a1c2e", "name": "Alex", "role": "member", "source": "password",
+  "prefs": { "ui_level": "beginner", "language": "en" },
+  "created_at": "2026-10-09T18:20:11+02:00" }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `id` | `u_` und acht Hexziffern; der erste Verwalter `u_admin` |
+| `name` | 1–40 Zeichen ohne Steuerzeichen, mehrfacher Leerraum wird zu einem; eindeutig ohne Rücksicht auf Groß- und Kleinschreibung |
+| `role` | `admin` oder `member` |
+| `source` | `password` (Anmeldung in der App) oder `proxy` (vom vorgeschalteten Dienst) |
+| `prefs` | eigene Einstellungen, nur die gesetzten: `ui_level` (`beginner`, `advanced`, `expert`) und `language`. Ohne eigene Stufe gilt die der Installation, ohne eigene Sprache die des Geräts bzw. der Installation |
+| `created_at` | angelegt (ISO 8601) |
+
+**`GET /api/session`** nennt seit v3.2.0 zusätzlich:
+
+```jsonc
+{ "mode": "password", "authenticated": true, "mode_fixed": false,
+  "password_fixed": false, "has_password": true,
+  "named_login": true,
+  "user": { "id": "u_3f9a1c2e", "name": "Alex", "role": "member", "source": "password",
+            "prefs": { "ui_level": "beginner" }, "created_at": "…" },
+  "role": "member" }
+```
+
+- `named_login`: Modus `password`, und es gibt mindestens eine angelegte Person
+  mit Passwort außer `u_admin` — die Anmeldung fragt dann nach dem Namen.
+- `user`: die Person dieser Sitzung; `null` ohne Anmeldung, mit API-Schlüssel
+  und nicht angemeldet.
+- `role`: `admin` oder `member`; nicht angemeldet `null`, ohne Person `admin`.
+
+**`POST /api/session`** — `{name?, password}`. Ohne Namen (leer oder fehlend)
+gilt der erste Verwalter mit dem Passwort der Installation. Der Name zählt ohne
+Rücksicht auf Groß- und Kleinschreibung und nur für Personen mit
+`source: "password"`. Unbekannter Name und falsches Passwort antworten gleich:
+`401` `errors.auth.wrongPassword`. Die Sperre nach fünf Fehlversuchen (`429`)
+gilt für die ganze Installation, nicht je Person. Außerhalb des Modus
+`password` → `400` `errors.auth.notPasswordMode`.
+
+| Route | Body | Antwort | Fehler |
+|---|---|---|---|
+| `PATCH /api/session/me` | `{ui_level?, language?}`; `null` oder `""` löscht den eigenen Wert | die eigene Person | `400` `errors.users.noUser` (keine Person angemeldet: ohne Anmeldung oder mit API-Schlüssel); `400` `errors.settings.valueInvalid` (unbekannte Stufe oder Sprache) |
+| `POST /api/session/me/password` | `{current, password}` | `{changed: true}` und ein neues Sitzungs-Cookie | `400` `errors.users.noUser`; `400` `errors.users.proxyNoPassword` (Person vom Proxy); `401` `errors.auth.wrongPassword` bzw. `429` `errors.auth.locked` (bisheriges Passwort); `400` `errors.auth.passwordTooShort` (unter 8 Zeichen); `409` `errors.auth.passwordFixed` (`u_admin` bei `ET_ADMIN_PASSWORD_HASH`) |
+| `GET /api/users` | — | Liste der Personen, samt `u_admin`, solange es ihn gibt | — |
+| `POST /api/users` | `{name, password, role?}`; `role` Standard `member` | `201` mit der Person (`source: "password"`) | `400` `errors.users.nameInvalid`, `errors.users.roleInvalid`, `errors.auth.passwordTooShort`; `409` `errors.users.nameTaken` |
+| `PATCH /api/users/{id}` | `{name?, role?, password?}`, jedes Feld für sich; das Passwort ohne das bisherige („Passwort neu setzen“) | die geänderte Person | `404` `errors.users.notFound`; `400` wie beim Anlegen; `409` `errors.users.nameTaken`, `errors.users.lastAdmin` (der letzte Verwalter würde Mitglied), `errors.auth.passwordFixed` |
+| `DELETE /api/users/{id}` | — | `{deleted: true}` | `400` `errors.users.notSelf` (die eigene Person); `404` `errors.users.notFound`; `409` `errors.users.lastAdmin`, `errors.auth.passwordFixed` (`u_admin` bei `ET_ADMIN_PASSWORD_HASH`) |
+
+Eine gelöschte Person ist sofort abgemeldet: Ihr Sitzungs-Cookie gilt nicht
+mehr. Ein neues Passwort — selbst geändert oder vom Verwalter neu gesetzt —
+meldet die Person auf allen Geräten ab; wer es selbst ändert, bekommt für das
+eigene Gerät gleich ein neues Cookie. Die anderen Personen bleiben angemeldet.
 
 ### Snapshots und Import *(v2.6.0)*
 
@@ -2777,6 +3012,52 @@ jeder Datei, base64-kodiert: `{"att_…": "<base64>"}`. Ältere Versionen
   Dateien selbst (base64: rund ein Drittel mehr); Grenzen für den Upload beim
   Einspielen: [Webserver](../betrieb/webserver.md).
 
+**Ladevorgänge im Backup *(v3.2.0)*.** Neuer Topf `ev_sessions` (Format bleibt
+`3.0`); jeder Eintrag braucht `id`, `meter_id`, `date` und `charged_kwh`, und
+`date` muss ein Kalenderdatum sein. Ein älteres Backup ohne den Topf lässt die
+gespeicherten Ladevorgänge unverändert (`untouched`). Personen und Passwörter
+(`auth.json`) gehören weiterhin nicht zum Backup.
+
+### Beispielhaushalte *(v3.2.0)*
+
+Neben dem bisherigen Demo-Haushalt mit allen Verbrauchsarten (jetzt
+„Schaufenster“, `showcase`) gibt es vier Beispielhaushalte, je einen für eine
+Persona des Einrichtungsassistenten
+([Einrichtung](../einstieg/einrichtung.md)). Klasse C.
+
+`GET /api/demo/status`:
+
+```json
+{ "available": true, "is_empty": true,
+  "personas": ["mieterin", "etw-fernwaerme", "eigenheim-klassisch", "eigenheim-modern", "showcase"] }
+```
+
+- `available`: Das Schaufenster liegt bei.
+- `is_empty`: noch nichts erfasst — keine Ablesung, Lieferung, kein Zeitraum
+  und kein Vertrag in irgendeiner Verbrauchsart. Seit v3.2.0 zählen die
+  Standardzähler einer Neuinstallation nicht mehr als Daten.
+- `personas`: die Beispielhaushalte, deren Datei vorliegt; `showcase` steht
+  immer darin.
+
+`POST /api/demo/import` — Body `{force?, persona?}`, nur Verwalter:
+
+| `persona` | Haushalt |
+|---|---|
+| `mieterin` | Mietwohnung: Strom, Heizwärme aus der monatlichen Verbrauchsinfo, Warm- und Kaltwasser, Mietverhältnis mit Nebenkostenabrechnungen |
+| `etw-fernwaerme` | Eigentumswohnung mit Fernwärme (eigener Liefervertrag) und Strom |
+| `eigenheim-klassisch` | Einfamilienhaus mit Gas, Strom und Wasser samt Gartenzähler |
+| `eigenheim-modern` | Wärmepumpe, PV mit Speicher, Wallbox mit Ladevorgängen aus evcc |
+| `showcase` oder leer | das Schaufenster mit allen Verbrauchsarten |
+
+- Unbekannte Persona → `400` `errors.demo.personaUnknown`; sind schon Daten
+  da und fehlt `force: true` → `400` `errors.demo.dataExists`.
+- Ein Beispielhaushalt ersetzt den **ganzen** Haushalt: alle Töpfe aller
+  Verbrauchsarten, auch die, die er nicht nutzt. Vorher legt die App einen
+  Snapshot des jetzigen Stands an. Die Nutzungsstufe (`ui_level`) bleibt;
+  `setup_pending` wird `false`, `setup_persona` die geladene Persona.
+- Antwort: der Bericht des Backup-Imports, dazu `demo_import: true` und
+  `persona`.
+
 ### `GET|HEAD /api/health` *(N1003; v2.6.0 erweitert)*
 
 ```json
@@ -2822,6 +3103,8 @@ Bisher still übernommen, jetzt `400` mit `code` und — bei der Prognose —
 | `/api/reports/ev-charging…` | `year` | 2017–2100, Standard Vorjahr, sonst `errors.evReport.yearInvalid` (v3.1.0) |
 | | `method` | `contract`, `flat`, sonst `errors.evReport.methodInvalid` |
 | | `flat_ct` | 0–200 ct/kWh, sonst `errors.evReport.flatInvalid` |
+| `/api/ev-sessions` | `year` | 2017–2100 oder leer (alle Jahre), sonst `errors.evReport.yearInvalid` (v3.2.0) |
+| `…/import-evcc`, `…/sync-evcc` | `counters` | `auto` (Standard), `energy`, `none`, sonst `errors.evcc.countersInvalid` (v3.2.0) |
 | `/api/heat-pump` | `year` | 1990–2100, Standard Vorjahr, sonst `errors.heatPump.yearInvalid` (v3.1.0) |
 | `/api/benchmarks/comparison` | `year` | Jahreszahl, Standard Vorjahr (v3.1.0) |
 | `/api/export/…` | `format` | `1` (Standard) oder `local`, sonst `errors.export.formatInvalid` (v3.1.0) |

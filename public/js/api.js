@@ -211,6 +211,8 @@ export const api = {
     return request('GET', `/api/utility/${u}/meters/${id}/consumption${q}`);
   },
   contractStatus:     (u, id)           => request('GET', `/api/utility/${u}/meters/${id}/contract-status`),
+  // v3.2.0 — Kennzahlen je Zähler (wie für Home Assistant): Übersicht der Einsteiger, Schaubilder
+  summary:            ()                => request('GET', '/api/summary'),
   // v2.5.0 — F1012: Rechnungsprüfung (nur Gas)
   billCheck:          (u, id, from, to) => request('GET', `/api/utility/${u}/meters/${id}/bill-check?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
 
@@ -261,7 +263,14 @@ export const api = {
 
   // v2.6.0 — Anmeldung (opt-in) und API-Schlüssel
   session:         ()                  => request('GET',    '/api/session'),
-  login:           (password)          => request('POST',   '/api/session', { password }),
+  // v3.2.0 (F1023) — mit Namen, sobald es Personen gibt
+  login:           (password, name = '') => request('POST', '/api/session', { name, password }),
+  updateMe:        (prefs)             => request('PATCH',  '/api/session/me', prefs),
+  changeMyPassword: (current, password) => request('POST',  '/api/session/me/password', { current, password }),
+  users:           ()                  => request('GET',    '/api/users'),
+  createUser:      (data)              => request('POST',   '/api/users', data),
+  updateUser:      (id, data)          => request('PATCH',  `/api/users/${encodeURIComponent(id)}`, data),
+  deleteUser:      (id)                => request('DELETE', `/api/users/${encodeURIComponent(id)}`),
   logout:          ()                  => request('DELETE', '/api/session'),
   setPassword:     (password, current) => request('POST',   '/api/session/password', { password, current }),
   disableLogin:    (current)           => request('DELETE', '/api/session/password', { current }),
@@ -271,7 +280,7 @@ export const api = {
 
   // Demo-Daten-Import (F1007)
   demoStatus:    ()                    => request('GET',  '/api/demo/status'),
-  importDemo:    (force = false)       => request('POST', '/api/demo/import', { force }, { timeoutMs: TIMEOUT_LONG_MS }),
+  importDemo:    (force = false, persona = null) => request('POST', '/api/demo/import', { force, ...(persona ? { persona } : {}) }, { timeoutMs: TIMEOUT_LONG_MS }),
 
   // ── v1.3.0 (F1009) — Home-Assistant-Anbindung: API-Token ──
   authStatus:    ()                    => request('GET',    '/api/auth/token'),
@@ -375,6 +384,12 @@ export const api = {
   evReport:    (meterId, year, method = 'contract', flat = '') =>
     request('GET', `/api/reports/ev-charging?${evQuery(meterId, year, method, flat)}`),
   evReportUrl: (meterId, year, method, flat, ext) => fileUrl(`/api/reports/ev-charging.${ext}?${evQuery(meterId, year, method, flat)}`),
+  // ── v3.2.0 (F1022) — Ladevorgänge aus evcc: CSV-Export oder Abruf im Heimnetz ──
+  evSessions:  (meterId, year)         => request('GET', `/api/ev-sessions?meter_id=${encodeURIComponent(meterId)}&year=${encodeURIComponent(year)}`),
+  importEvcc:  (meterId, csv, { dryRun = false, counters = 'auto', loadpoint = null } = {}) =>
+    request('POST', `/api/utility/strom/meters/${encodeURIComponent(meterId)}/import-evcc${dryRun ? '?dry_run=1' : ''}`, { csv, counters, loadpoint }),
+  syncEvcc:    (meterId, { dryRun = false, counters = 'auto', loadpoint = null } = {}) =>
+    request('POST', `/api/utility/strom/meters/${encodeURIComponent(meterId)}/sync-evcc${dryRun ? '?dry_run=1' : ''}`, { counters, loadpoint }, { timeoutMs: TIMEOUT_LONG_MS }),
   // ── v3.1.0 (H3, F1008) — Mietverhältnis ──
   tenancies:       ()                  => request('GET', '/api/tenancies'),
   createTenancy:   (data)              => request('POST', '/api/tenancies', data),

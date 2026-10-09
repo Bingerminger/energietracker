@@ -10,7 +10,8 @@
     "actions": "Azioni",
     "invalidNumber": "Inserisci un numero valido, ad es. {example}.",
     "undo": "Annulla",
-    "hddShort": "GG"
+    "hddShort": "GG",
+    "guide": "Guida"
   },
   "app": {
     "themeToggle": "Cambia tema",
@@ -188,6 +189,38 @@
       "prev": "Un anno prima",
       "alt": "Grafico a barre: {label} per mese da {from} a {to}.",
       "altPrev": "Grafico a barre: {label} per mese da {from} a {to}; la linea mostra gli stessi mesi un anno prima."
+    },
+    "explainers": {
+      "title": "Schemi illustrativi"
+    },
+    "beginner": {
+      "capture": "Aggiungi lettura",
+      "money": {
+        "title": "Riavrò dei soldi?",
+        "credit": "circa {amount} di rimborso",
+        "due": "circa {amount} di conguaglio",
+        "even": "più o meno in pari",
+        "until": "bolletta il {date}",
+        "none": "Ancora nessun contratto con acconti.",
+        "add": "Aggiungi contratto"
+      },
+      "trend": {
+        "title": "Più o meno dell’anno scorso?",
+        "more": "{pct} in più dell’anno scorso",
+        "less": "{pct} in meno dell’anno scorso",
+        "same": "più o meno come l’anno scorso",
+        "none": "Ancora nessun anno precedente da confrontare."
+      },
+      "rent": {
+        "title": "L’anticipo spese basta?",
+        "enough": "Sì, probabilmente circa {amount} di rimborso.",
+        "short": "Scarso: probabilmente circa {amount} di conguaglio.",
+        "suggest": "Anticipo adeguato: {amount} al mese."
+      },
+      "todo": {
+        "title": "Cosa c’è da fare?",
+        "none": "Niente per ora, bene così."
+      }
     }
   },
   "readingsEntry": {
@@ -1203,7 +1236,8 @@
       "frameAncestors": "http://homeassistant.local:8123",
       "ocrEndpoint": "http://192.168.178.20:11434",
       "ocrModel": "qwen2.5vl",
-      "referenceSource": "ad es. indice 2025"
+      "referenceSource": "ad es. indice 2025",
+      "evccEndpoint": "http://192.168.178.30:7070"
     },
     "loading": "Caricamento…",
     "saved": "Impostazioni salvate",
@@ -1214,7 +1248,8 @@
       "deviceLabel": "Lingua su questo dispositivo",
       "deviceFollow": "Come l’installazione ({lang})",
       "defaultLabel": "Lingua predefinita dell’installazione",
-      "defaultSaved": "Lingua predefinita modificata"
+      "defaultSaved": "Lingua predefinita modificata",
+      "personLabel": "La mia lingua (su tutti i miei dispositivi)"
     },
     "unit": {
       "days": "giorni",
@@ -1266,6 +1301,10 @@
       "reference": {
         "title": "Valori di riferimento propri",
         "hint": "Per il confronto nella panoramica. L’app non include tabelle; inserisci i valori che ti indica un indice di elettricità o riscaldamento."
+      },
+      "evcc": {
+        "title": "evcc nella rete domestica",
+        "hint": "Recupera le ricariche da evcc quando tocchi «Recupera da evcc» nella vista della wallbox. Solo indirizzi della tua rete. Vuoto = disattivato; il file CSV di evcc funziona sempre."
       }
     },
     "field": {
@@ -1325,7 +1364,7 @@
       },
       "beheizter_keller": {
         "label": "Cantina riscaldata",
-        "hint": "Casa uni- o bifamiliare o a schiera con cantina riscaldata: superficie utile = 1,35 × superficie abitabile (altrimenti 1,2), per il valore tipo attestato."
+        "hint": "Edificio residenziale con al massimo due unità abitative (casa uni- o bifamiliare o a schiera) con cantina riscaldata: superficie utile = 1,35 × superficie abitabile (altrimenti 1,2), per il valore tipo attestato."
       },
       "warmwasser_dezentral": {
         "label": "Acqua calda decentralizzata",
@@ -1409,6 +1448,10 @@
       "warmwasser_elektrisch": {
         "label": "Acqua calda elettrica",
         "hint": "Scaldabagno elettrico istantaneo o boiler elettrico — gli indici di elettricità ne tengono conto."
+      },
+      "evcc_endpoint": {
+        "label": "Indirizzo di evcc",
+        "hint": "Per esempio http://192.168.178.30:7070 o http://evcc.local:7070 — l’indirizzo con cui apri evcc nel browser."
       }
     },
     "boolActive": "attivo",
@@ -1821,6 +1864,44 @@
       "fernwaerme": "Teleriscaldamento",
       "strom": "Elettricità (pompa di calore, scaldabagno istantaneo)",
       "waerme": "Calore (centralizzato)"
+    },
+    "level": {
+      "title": "Livello di utilizzo e configurazione",
+      "hint": "Stabilisce cosa mostra l’interfaccia: ogni livello calcola tutto. Vale per tutti i dispositivi di questa installazione.",
+      "hintPerson": "Stabilisce cosa mostra l’interfaccia: ogni livello calcola tutto. Vale per te ({name}) su tutti i dispositivi.",
+      "describe": {
+        "beginner": "Panoramica con tre risposte, letture, contratti semplici, rapporto annuale.",
+        "advanced": "In più analisi, previsione, cambio fornitore, verifica bolletta e struttura dei contatori.",
+        "expert": "Tutto, con schemi illustrativi, gruppi, parametri di calcolo e accesso."
+      },
+      "saved": "Livello salvato."
+    },
+    "me": {
+      "title": "Il mio account: {name}",
+      "proxyHint": "Accesso tramite il servizio davanti all’app; la password si cambia lì.",
+      "passwordChanged": "Password cambiata."
+    },
+    "users": {
+      "title": "Utenti e ruoli",
+      "hint": "Ogni persona accede con nome e password e ha livello e lingua propri. I dati della famiglia sono condivisi.",
+      "hintProxy": "L’accesso lo gestisce il servizio davanti all’app; l’app riconosce ogni persona dal nome. Chi arriva per primo amministra.",
+      "memberHint": "L’accesso lo gestisce chi amministra l’installazione. La tua password la cambi in Impostazioni → Generale.",
+      "passwordHint": "Ogni persona cambia la propria password in Impostazioni → Generale → Il mio account.",
+      "role": {
+        "admin": "Amministrazione",
+        "member": "Membro"
+      },
+      "roleLabel": "Ruolo di {name}",
+      "name": "Nome",
+      "roleHead": "Ruolo",
+      "you": "tu",
+      "resetPassword": "Reimposta password",
+      "delete": "Elimina persona",
+      "deleteConfirm": "Questa persona non potrà più accedere. I dati della famiglia restano.",
+      "add": "Aggiungi una persona",
+      "addButton": "Aggiungi",
+      "added": "{name} ora può accedere.",
+      "saved": "Salvato."
     }
   },
   "reminders": {
@@ -2423,7 +2504,7 @@
       "noLivingArea": "Superficie abitabile non impostata — inseriscila nelle impostazioni per ottenere la classe di efficienza.",
       "noHeatData": "Nessun dato di energia per riscaldamento trovato per il {year}.",
       "multipleSources": "Più fonti di calore attive — la classe per fonte è più significativa della somma combinata. La vista combinata ha senso solo con riscaldamento volutamente combinato (p. es. carico base e di punta).",
-      "noScale": "Per {country} non è disponibile una scala di efficienza. Le classi da A+ a H seguono la legge tedesca sull’energia negli edifici (GEG) e quindi non vengono mostrate.",
+      "noScale": "Per {country} non è disponibile una scala di efficienza. Le classi da A+ a H seguono la legge tedesca sulla modernizzazione degli edifici (GModG, già GEG) e quindi non vengono mostrate.",
       "incompleteYear": "I dati del {year} non coprono tutto l’anno: nessuna classe; il valore vale solo per il periodo misurato."
     },
     "forecast": {
@@ -2600,7 +2681,8 @@
     "demo": {
       "backupNotFound": "Backup demo non trovato.",
       "dataExists": "Esistono già dei dati. L’import li sovrascrive (prima viene creata automaticamente un’istantanea). Conferma per continuare.",
-      "backupInvalid": "Il backup demo non è valido (non è JSON)."
+      "backupInvalid": "Il backup demo non è valido (non è JSON).",
+      "personaUnknown": "Non esiste una famiglia di esempio «{persona}»."
     },
     "migration": {
       "noVersionField": "Nessun campo «version» nel backup — probabilmente non è un backup v0.9.0. Sono attesi backup v0.9.0 con versione «2.1» o precedente.",
@@ -2655,7 +2737,8 @@
       "modeFixed": "L’accesso è impostato tramite l’ambiente (ET_AUTH) e non si può disattivare qui.",
       "passwordTooShort": "La password deve avere almeno {min} caratteri.",
       "scopeInvalid": "Ambito sconosciuto – sono consentiti read, admin e calendar.",
-      "keyNotFound": "Chiave API non trovata."
+      "keyNotFound": "Chiave API non trovata.",
+      "adminOnly": "Solo chi amministra questa installazione può farlo."
     },
     "weather": {
       "badFormat": "Open-Meteo ha risposto in un formato inatteso.",
@@ -2726,6 +2809,26 @@
     },
     "heatPump": {
       "yearInvalid": "L’anno «{year}» non è valido"
+    },
+    "users": {
+      "noUser": "Senza accesso non ci sono impostazioni personali: il livello vale allora per l’intera installazione.",
+      "proxyNoPassword": "Con l’accesso tramite il servizio davanti all’app, la password si cambia lì.",
+      "nameInvalid": "Il nome non può essere vuoto e può avere al massimo {max} caratteri.",
+      "nameTaken": "Questo nome esiste già.",
+      "roleInvalid": "Il ruolo deve essere «Amministrazione» o «Membro» (API: admin, member).",
+      "lastAdmin": "Almeno una persona deve amministrare l’installazione.",
+      "notFound": "Questa persona non esiste più.",
+      "notSelf": "Non puoi eliminare te stesso: può farlo un’altra persona che amministra l’installazione."
+    },
+    "evcc": {
+      "off": "Nessun indirizzo di evcc configurato (Impostazioni → Esperto).",
+      "notLocal": "evcc deve girare nella tua rete – «{host}» non è un indirizzo della rete domestica.",
+      "unreachable": "evcc non è raggiungibile.",
+      "badAnswer": "evcc non ha restituito un elenco di ricariche.",
+      "noSessions": "Nessuna ricarica conclusa trovata.",
+      "columns": "Non sembra l’esportazione CSV di evcc: mancano le colonne per inizio ed energia.",
+      "countersInvalid": "Scelta sconosciuta per le letture: «{value}».",
+      "loadpointNeeded": "Più punti di ricarica ({names}): le letture appartengono a una wallbox – scegli il suo punto di ricarica o acquisisci solo le ricariche."
     }
   },
   "login": {
@@ -2733,7 +2836,9 @@
     "password": "Password",
     "submit": "Accedi",
     "forgot": "Password dimenticata? Sul server, in data/auth.json, imposta «mode» su «off»: l’accesso viene disattivato. Nel container Docker si ottiene lo stesso con la variabile d’ambiente ET_AUTH=off.",
-    "logout": "Esci"
+    "logout": "Esci",
+    "name": "Nome",
+    "forgotNamed": "Password dimenticata? Chi amministra questa installazione può reimpostarla in Impostazioni → Accesso."
   },
   "readingCheck": {
     "title": "Controlla",
@@ -2814,7 +2919,8 @@
       "itemAmount": "Importo (accredito negativo)",
       "co2Cost": "Costo della CO₂ in bolletta",
       "attach": "Allega la bolletta (PDF o foto)",
-      "save": "Salva la bolletta"
+      "save": "Salva la bolletta",
+      "update": "Salva le modifiche"
     },
     "saved": "Bolletta salvata",
     "book": "Registra come pagamento straordinario",
@@ -2841,7 +2947,10 @@
       "price_missing": "Il contratto non ha un prezzo per parte del periodo – lì mancano anche i costi.",
       "gaps": "Nel periodo mancano letture."
     },
-    "ownTotalOnly": "Ricalcolato: {total}"
+    "ownTotalOnly": "Ricalcolato: {total}",
+    "updated": "Bolletta modificata",
+    "editing": "Stai modificando la bolletta dal {from} al {to}.",
+    "editBookedNote": "È già registrata come pagamento straordinario – la registrazione nel contratto non cambia."
   },
   "glossary": {
     "hdd": {
@@ -2998,7 +3107,7 @@
     },
     "co2Price": {
       "term": "Prezzo della CO₂ (BEHG)",
-      "text": "Dal 2021 in Germania i fornitori di gas e gasolio pagano un prezzo per ogni tonnellata di CO₂ e lo ribaltano nel prezzo unitario: 55 euro nel 2025, 60 euro a tonnellata nel 2026. L’app lo indica – non è un supplemento. Si calcola con i fattori standard del BEHG; legna, pellet ed elettricità non lo prevedono."
+      "text": "Dal 2021 in Germania i fornitori di gas e gasolio pagano un prezzo per ogni tonnellata di CO₂ e lo ribaltano nel prezzo unitario: 55 euro fissi nel 2025; nel 2026 messo all’asta in un corridoio da 55 a 65 euro – bollette e rendiconti del riscaldamento applicano 60 euro a tonnellata. L’app lo indica – non è un supplemento. Si calcola con i fattori standard del BEHG; legna, pellet ed elettricità non lo prevedono."
     },
     "co2Split": {
       "term": "Ripartizione dei costi della CO₂",
@@ -3010,7 +3119,7 @@
     },
     "module14a": {
       "term": "§ 14a EnWG (utenze controllabili)",
-      "text": "Il gestore di rete può limitare pompe di calore, wallbox e accumuli oltre 4,2 kW in caso di congestione; in cambio gli oneri di rete scendono. Modulo 1: un importo fisso all’anno. Modulo 2: un contatore dedicato con il 40% del prezzo unitario di rete. Modulo 3: oneri di rete variabili in aggiunta al modulo 1."
+      "text": "Il gestore di rete può limitare pompe di calore, wallbox, condizionatori e accumuli oltre 4,2 kW entrati in funzione dal 2024 in caso di congestione – mai sotto i 4,2 kW; in cambio gli oneri di rete scendono. Modulo 1: un importo fisso all’anno. Modulo 2: un contatore dedicato con il 40% del prezzo unitario di rete. Modulo 3: oneri di rete variabili in aggiunta al modulo 1."
     },
     "jaz": {
       "term": "Fattore di prestazione stagionale (SPF)",
@@ -3039,7 +3148,9 @@
       "homeAssistant": "Collegare Home Assistant",
       "englishOnly": "La documentazione esiste in tedesco e in inglese; i link portano alla versione inglese.",
       "faq": "Domande frequenti",
-      "troubleshoot": "Risoluzione dei problemi"
+      "troubleshoot": "Risoluzione dei problemi",
+      "setup": "Configurazione, famiglie di esempio e livelli",
+      "useCases": "Casi d’uso"
     },
     "support": {
       "title": "Domande ed errori",
@@ -3049,9 +3160,25 @@
     },
     "privacy": {
       "title": "I tuoi dati",
-      "text": "Tutto resta sul tuo server: nessun account, nessuna pubblicità, nessuna telemetria. L’app parla solo con Open-Meteo — per l’allineamento meteo giornaliero (solo la posizione arrotondata a circa 1 km, disattivabile in Impostazioni → Dati meteo) e per la ricerca del luogo quando la usi — e, solo se lo inserisci, con il tuo servizio di riconoscimento del testo nella rete domestica. Se tocchi «Carica da SMARD», l’app scarica i prezzi all’ingrosso dell’elettricità dalla Bundesnetzagentur; nessun tuo dato viene inviato."
+      "text": "Tutto resta sul tuo server: nessun account, nessuna pubblicità, nessuna telemetria. L’app parla solo con Open-Meteo — per l’allineamento meteo giornaliero (solo la posizione arrotondata a circa 1 km, disattivabile in Impostazioni → Dati meteo) e per la ricerca del luogo quando la usi — e, solo se li inserisci, con il tuo servizio di riconoscimento del testo e il tuo evcc nella rete domestica. Se tocchi «Carica da SMARD», l’app scarica i prezzi all’ingrosso dell’elettricità dalla Bundesnetzagentur; nessun tuo dato viene inviato."
     },
-    "onYourBill": "Sulla tua bolletta ({country}): «{term}»"
+    "onYourBill": "Sulla tua bolletta ({country}): «{term}»",
+    "cases": {
+      "title": "Casi d’uso",
+      "heat": {
+        "title": "Teleriscaldamento o calore?",
+        "text": "Il teleriscaldamento lo compri tu dal fornitore – con un tuo contratto, prezzo unitario, quota fissa e bolletta; a questo serve il tipo «Teleriscaldamento». Il calore è calore misurato senza un tuo contratto di fornitura: in affitto si paga con il rendiconto delle spese condominiali (con l’informazione mensile sui consumi), in casa tua è il calore prodotto dalla pompa di calore – a questo serve «Calore». Le famiglie di esempio «Appartamento di proprietà con teleriscaldamento», «Vivo in affitto» e «Casa con pompa di calore e fotovoltaico» mostrano tutti e tre i casi."
+      },
+      "control": {
+        "title": "Gestire con evcc o Home Assistant",
+        "text": "L’Energietracker non comanda nulla. Batteria, wallbox e pompa di calore li gestiscono evcc o Home Assistant – con l’energia solare, nelle ore convenienti o con prezzi all’ingrosso negativi. L’Energietracker fa i conti: ricariche da evcc con la quota solare, letture tramite Home Assistant, la verifica della tariffa dinamica con i prezzi all’ingrosso e il prospetto di ricarica mostrano cosa ha reso la gestione."
+      },
+      "levels": {
+        "title": "Prima semplice, poi tutto",
+        "text": "Il livello in alto accanto a giorno/notte decide quanto vedi: i principianti ricevono tre risposte nella panoramica, il livello intermedio aggiunge cambio tariffa, verifica della bolletta e analisi, gli esperti vedono tutto. In ogni livello si calcola tutto – puoi cambiare in qualsiasi momento. Per provare, la configurazione guidata carica una famiglia di esempio adatta a te."
+      },
+      "tryExample": "Prova una famiglia di esempio"
+    }
   },
   "onboarding": {
     "done": "fatto",
@@ -3500,7 +3627,7 @@
     "plugIn": {
       "assumed": "Impianto plug-in: autoconsumo ipotizzato al {pct}% della produzione (impostazioni)."
     },
-    "hint51": "In funzione dal 25/02/2025: nessuna tariffa di immissione nei periodi con prezzo all’ingrosso negativo, una volta installato un contatore intelligente (§ 51 EEG). In compenso si allunga la durata dell’incentivo."
+    "hint51": "In funzione dal 25/02/2025: nessuna tariffa di immissione nei periodi con prezzo all’ingrosso negativo – sotto i 100 kW dall’anno successivo all’installazione di un contatore intelligente (§ 51 EEG). Una durata dell’incentivo più lunga compensa in parte."
   },
   "comparison": {
     "title": "Confronto {year}",
@@ -3556,6 +3683,186 @@
         "one": "{count} giorno, {from} (l’ultima lettura del giorno)",
         "other": "{count} giorni dal {from} al {to} (l’ultima lettura di ogni giorno)"
       }
+    }
+  },
+  "level": {
+    "switch": "Livello di utilizzo",
+    "beginner": "Principiante",
+    "advanced": "Intermedio",
+    "expert": "Esperto",
+    "hint": {
+      "page": "Questa pagina fa parte del livello «{level}». È comunque aperta.",
+      "switch": "Passa a «{level}»",
+      "data": "I tuoi dati dicono di più di quanto mostri questo livello: «{level}» lo mostra.",
+      "dismiss": "Non chiedere più"
+    },
+    "reason": {
+      "subMeters": "sottocontatori",
+      "homeAssistant": "valori da Home Assistant",
+      "severalMeters": "più contatori per un tipo di consumo",
+      "heatPump": "pompa di calore",
+      "battery": "batteria",
+      "wallbox": "wallbox"
+    }
+  },
+  "explainer": {
+    "money": {
+      "title": "Dove vanno i miei soldi?",
+      "paid": "Acconti",
+      "cost": "Costi",
+      "energy": "Consumi",
+      "base": "Quota fissa",
+      "estimate": "ancora stimato",
+      "credit": "circa {amount} di credito",
+      "due": "circa {amount} di conguaglio",
+      "even": "un saldo quasi pari a zero",
+      "text": "Fino alla bolletta del {date} paghi {paid} di acconti; consumi e quota fissa costeranno probabilmente {cost}. Risultato: {result}."
+    },
+    "energy": {
+      "title": "Flusso di energia in casa",
+      "pv": "Fotovoltaico",
+      "house": "Casa",
+      "grid": "Rete",
+      "battery": "Batteria",
+      "text": "{year}: l’impianto ha prodotto {gen} kWh. La casa ne ha usati {self} kWh da sé, {feed} kWh sono andati in rete, {grid} kWh sono arrivati dalla rete. Autosufficienza: {autarky}."
+    },
+    "weather": {
+      "title": "Più freddo o più consumo?",
+      "usage": "Consumi",
+      "hdd": "Gradi giorno",
+      "before": "gli stessi mesi dell’anno prima",
+      "now": "di recente",
+      "adjusted": "corretto per il clima {pct}",
+      "text": {
+        "less": "Consumi {cons}, gradi giorno {hdd} rispetto agli stessi mesi dell’anno prima. Corretto per il clima {adj}: hai davvero consumato meno.",
+        "more": "Consumi {cons}, gradi giorno {hdd} rispetto agli stessi mesi dell’anno prima. Corretto per il clima {adj}: hai davvero consumato di più, non è solo il meteo.",
+        "same": "Consumi {cons}, gradi giorno {hdd} rispetto agli stessi mesi dell’anno prima. Corretto per il clima {adj}: più o meno uguale, la differenza è il meteo."
+      }
+    },
+    "timeline": {
+      "title": "Il contratto in sintesi",
+      "start": "Inizio",
+      "cancel": "Disdire entro",
+      "price": "Aumento di prezzo",
+      "end": "Fine",
+      "today": "oggi",
+      "text": "Contratto dal {start}. Per cambiare, disdici entro il {cancel}; termina poi il {end}.",
+      "textOpen": "Contratto dal {start}, prosegue finché non lo disdici. Disdetto entro il {cancel}, termina il {end}.",
+      "textNoNotice": "Contratto dal {start}, fine: {end}.",
+      "textRunning": "Contratto dal {start}, prosegue finché non lo disdici. Nessun termine di disdetta inserito."
+    }
+  },
+  "setup": {
+    "title": "Configurazione",
+    "intro": "Tre domande, poi l’app mostra ciò che fa per te. Tutto si può cambiare in seguito.",
+    "progress": "Passo {n} di {total}",
+    "persona": {
+      "title": "Chi sei?",
+      "tenant": {
+        "title": "Vivo in affitto",
+        "text": "Luce con un contratto mio; riscaldamento e acqua li pago con le spese condominiali."
+      },
+      "flat": {
+        "title": "Appartamento di proprietà con teleriscaldamento",
+        "text": "Teleriscaldamento e luce con contratti e bollette miei."
+      },
+      "houseClassic": {
+        "title": "Casa di proprietà a gas, gasolio o pellet",
+        "text": "Riscaldamento, luce e acqua con contratti miei."
+      },
+      "houseModern": {
+        "title": "Casa con pompa di calore e fotovoltaico",
+        "text": "Pompa di calore, fotovoltaico, batteria e wallbox."
+      },
+      "showcase": {
+        "title": "Prima vedere tutto",
+        "text": "Quasi tutti i tipi di consumo in una famiglia di esempio – per conoscere ogni funzione."
+      }
+    },
+    "utilities": {
+      "title": "Quali fonti di energia usi?",
+      "hint": "Suggerito in base alla tua risposta: combina liberamente.",
+      "heatNote": "Teleriscaldamento o calore? Il teleriscaldamento ha un proprio contratto di fornitura con bolletta del fornitore. Il calore viene solo misurato: pagato con l’affitto, oppure è quello di una pompa di calore."
+    },
+    "level": {
+      "title": "Quanta esperienza hai?",
+      "later": "Il livello si cambia in qualsiasi momento in alto, accanto a giorno/notte."
+    },
+    "finish": {
+      "title": "Come continuare",
+      "summary": "{persona} · livello «{level}»",
+      "demo": "Guarda con dati di esempio",
+      "demoHint": "Carica la famiglia di esempio adatta. Prima l’app salva lo stato attuale.",
+      "demoPublic": "La demo mostra ora la famiglia di esempio «{persona}». Per sceglierne un’altra: Impostazioni → Generali → «Avvia la configurazione guidata».",
+      "own": "Inizia con i miei dati",
+      "ownHint": "Poi: controlla i contatori e inserisci la prima lettura."
+    },
+    "skip": "Salta",
+    "back": "Indietro",
+    "next": "Avanti",
+    "done": "Si parte",
+    "restart": "Avvia la configurazione guidata"
+  },
+  "evcc": {
+    "title": "Ricariche da evcc {year}",
+    "intro": "evcc gestisce la wallbox – con l’energia solare o nelle ore convenienti. Qui verifichi il risultato: quantità, quota solare e prezzo per mese. Le letture della wallbox arrivano insieme.",
+    "summary": {
+      "one": "{count} ricarica, {kwh} kWh, di cui {solar} dal sole",
+      "other": "{count} ricariche, {kwh} kWh, di cui {solar} dal sole"
+    },
+    "priceTotal": "{amount} secondo evcc",
+    "col": {
+      "month": "Mese",
+      "sessions": "Ricariche",
+      "solar": "Sole",
+      "price": "Prezzo (evcc)"
+    },
+    "empty": "Nessuna ricarica da evcc per il {year} finora.",
+    "countersLabel": "Letture",
+    "counters": {
+      "auto": "dal contatore della wallbox (altrimenti sommate)",
+      "energy": "sommare dall’energia caricata",
+      "none": "nessuna – solo le ricariche"
+    },
+    "chooseCsv": "Scegli il CSV di evcc …",
+    "sync": "Recupera da evcc",
+    "syncHint": "Entrambi mostrano prima un’anteprima. Ripetere non fa danni: la stessa ricarica viene sostituita, non contata due volte.",
+    "noEndpoint": "Scarica il CSV in evcc sotto Sessioni. Per il recupero diretto inserisci l’indirizzo di evcc in Impostazioni → Esperto.",
+    "preview": {
+      "title": "Acquisire le ricariche?",
+      "sessions": {
+        "one": "{count} ricarica dal {from} al {to}, in totale {kwh} kWh.",
+        "other": "{count} ricariche dal {from} al {to}, in totale {kwh} kWh."
+      },
+      "noReadings": "Le letture restano invariate.",
+      "readings": {
+        "meter": {
+          "one": "In più {count} lettura dal contatore della wallbox.",
+          "other": "In più {count} letture dal contatore della wallbox."
+        },
+        "energy": {
+          "one": "In più {count} lettura, sommata a partire dall’ultima precedente.",
+          "other": "In più {count} letture, sommate a partire dall’ultima precedente."
+        }
+      },
+      "replaces": {
+        "one": "{count} lettura esistente dello stesso giorno verrà sostituita.",
+        "other": "{count} letture esistenti degli stessi giorni verranno sostituite."
+      },
+      "running": "Una ricarica è ancora in corso; verrà aggiunta la prossima volta.",
+      "loadpoints": "Il file contiene più punti di ricarica ({names}); finiscono tutti su questo contatore.",
+      "apply": "Acquisisci",
+      "onlyLoadpoint": "Solo il punto di ricarica {name}."
+    },
+    "done": {
+      "one": "{count} ricarica acquisita.",
+      "other": "{count} ricariche acquisite."
+    },
+    "pick": {
+      "title": "Quale punto di ricarica appartiene a questo contatore?",
+      "hint": "Le ricariche provengono da più punti di ricarica. Le letture appartengono a una sola wallbox – scegli il suo punto di ricarica. Per tutti i punti di ricarica insieme, scegli «nessuna – solo le ricariche» per le letture.",
+      "label": "Punto di ricarica",
+      "ok": "Continua"
     }
   }
 }
