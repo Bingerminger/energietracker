@@ -28,6 +28,8 @@ export const GLOSSARY = [
   'dynamicTariff', 'module14a',
   // v3.1.0 (H7) — Wärmepumpe
   'jaz',
+  // v3.3.0 (F1021) — Flexibilität
+  'profileFactor',
 ];
 
 export const glossaryTerm = (id) => t(`glossary.${id}.term`);

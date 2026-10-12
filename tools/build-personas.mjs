@@ -80,6 +80,71 @@ const SMARD_MONTHLY = {
   '2025-07': 8.78, '2025-08': 7.699, '2025-09': 8.351, '2025-10': 8.44, '2025-11': 10.188, '2025-12': 9.347,
   '2026-01': 11.009, '2026-02': 9.658, '2026-03': 9.929, '2026-04': 7.852, '2026-05': 9.754,
 };
+/**
+ * v3.3.0 (F1021) — § 14a Modul 3 im Haushalt mit Wärmepumpe: Netzentgelt
+ * (Arbeitspreis) Standard 8,1 ct, Niedrigtarif 00–06 Uhr ganzjährig 2,4 ct,
+ * Hochtarif 17–20 Uhr im ersten und vierten Quartal 11,9 ct (erfundene Werte
+ * in der Größenordnung veröffentlichter Preisblätter).
+ */
+const GRID_TOU = {
+  standard_ct: 8.1,
+  windows: [
+    { quarters: [1, 2, 3, 4], from: '00:00', to: '06:00', ct: 2.4 },
+    { quarters: [1, 4], from: '17:00', to: '20:00', ct: 11.9 },
+  ],
+};
+/** Börsenpreise 2025 je Viertelstunde (SMARD, CC BY 4.0) — Quelle für die Beispieldaten. */
+const SMARD_QH_2025 = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'demo-data', 'sources', 'smard-day-ahead-de-lu-2025-qh.json'), 'utf8'));
+
+/** Beginn der Sommerzeit (UTC) — letzter Sonntag im März/Oktober, 01:00 UTC. */
+const dstUtc = (y, m) => { const d = new Date(Date.UTC(y, m, 0)); d.setUTCDate(d.getUTCDate() - d.getUTCDay()); d.setUTCHours(1); return d.getTime() / 1000; };
+const berlinAt = (ts) => {
+  const y = new Date(ts * 1000).getUTCFullYear();
+  const off = ts >= dstUtc(y, 3) && ts < dstUtc(y, 10) ? 7200 : 3600;
+  const l = new Date((ts + off) * 1000);
+  return { day: l.toISOString().slice(0, 10), hour: l.getUTCHours(), off };
+};
+
+/**
+ * Viertelstundenreihen eines Jahres wie IntervalService sie ablegt: Index
+ * {series, samples} und je Reihe {id, kind, year, step, start, values}. Eine
+ * Reihe aus Tageswerten verteilt jeden Tag nach `shape(stunde)`, eine aus
+ * `slots` übernimmt UTC-Viertelstunde → kWh.
+ */
+function intervalSeries(year, defs) {
+  const start = Date.UTC(year - 1, 11, 31, 23) / 1000;                  // 1.1. 00:00 MEZ
+  const end = Date.UTC(year, 11, 31, 23) / 1000;
+  const n = (end - start) / 900;
+  const clock = Array.from({ length: n }, (_, i) => berlinAt(start + i * 900));
+  const isoAt = (ts) => { const c = berlinAt(ts); const l = new Date((ts + c.off) * 1000).toISOString().slice(0, 19); return `${l}${c.off === 7200 ? '+02:00' : '+01:00'}`; };
+  const series = [], files = {};
+  const add = (meta, values, unit, decimals) => {
+    const filled = values.reduce((k, v) => k + (v === null ? 0 : 1), 0);
+    const first = values.findIndex(v => v !== null);
+    let last = -1; for (let i = values.length - 1; i >= 0; i--) if (values[i] !== null) { last = i; break; }
+    const vals = values.map(v => (v === null ? null : round(v, decimals)));
+    files[meta.id] = { id: meta.id, kind: meta.kind, year, step: 900, start: isoAt(start), values: vals };
+    series.push({ ...meta, unit, year, step: 900, slots: n, filled,
+      from: first >= 0 ? isoAt(start + first * 900) : null, to: last >= 0 ? isoAt(start + (last + 1) * 900) : null,
+      source: meta.kind === 'price' ? 'smard' : 'import', updated_at: EXPORTED_AT });
+  };
+  for (const d of defs) {
+    let values;
+    if (d.slots) {
+      values = clock.map((_, i) => d.slots.get(start + i * 900) ?? 0);
+    } else {
+      const wsum = new Map();
+      clock.forEach(c => wsum.set(c.day, (wsum.get(c.day) ?? 0) + d.shape(c.hour)));
+      values = clock.map(c => { const w = wsum.get(c.day); return w > 0 ? (d.daily.get(c.day) ?? 0) * d.shape(c.hour) / w : 0; });
+    }
+    const id = `e-${d.utility}-${d.meter}-${year}`.replace(/[^A-Za-z0-9_.-]/g, '-').toLowerCase();
+    add({ id, kind: 'energy', utility: d.utility, meter_id: d.meter }, values, 'kWh', 4);
+  }
+  if (SMARD_QH_2025.year === year && SMARD_QH_2025.values.length === n) {
+    add({ id: `p-de-lu-${year}`, kind: 'price', area: 'DE-LU' }, SMARD_QH_2025.values, 'ct/kWh', 3);
+  }
+  return { index: { series, samples: {} }, files };
+}
 const daysInMonth = (ym) => new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7), 0)).getUTCDate();
 const doy = (s) => daysBetween(s.slice(0, 4) + '-01-01', s);
 function* days(from, toExcl) { for (let d = from; d < toExcl; d = addDays(d, 1)) yield d; }
@@ -766,7 +831,8 @@ function eigenheimModern() {
     wp: wp(['2022-11-01', 31.9], ['2023-01-01', 36.4], ['2024-01-01', 27.9], ['2025-01-01', 25.6], ['2026-01-01', 24.9]),
     bp: bp(['2022-11-01', 9.5], ['2024-01-01', 10.9]),
     ap: ap(['2022-11-01', 105], ['2024-03-01', 95], ['2025-03-01', 85]), notice: 1,
-    extra: { grid_reduction: [{ from: '2024-04-01', eur_per_year: 152.4, module: 1 }] },
+    // v3.3.0 (F1021) — § 14a Modul 3: zeitvariables Netzentgelt (Zeitfenster des Netzbetreibers)
+    extra: { grid_reduction: [{ from: '2024-04-01', eur_per_year: 152.4, module: 1 }], grid_tou: GRID_TOU },
   });
   const eeg = contract('c_pv_eeg', mFeed.id, 'Netzbetrieb Mitte', 'EEG-Einspeisevergütung (IB 04/2023)', COMMISSIONED, '2043-12-31', {
     notes: 'Feste Einspeisevergütung über 20 Jahre nach EEG 2023, §48 (Anlagen ≤ 10 kWp). Nach Ablauf typischerweise Vermarktung über sonstige Direktvermarktung.',
@@ -802,9 +868,37 @@ function eigenheimModern() {
     });
   }
 
+  // v3.3.0 (F1021) — Viertelstunden 2025: aus den Tageswerten mit einem Tagesgang
+  // je Zähler, die Wallbox aus ihren Ladevorgängen; dazu die Börsenpreise je
+  // Viertelstunde (SMARD, demo-data/sources/). Die Wärmepumpe ist gesteuert: Sie
+  // läuft bevorzugt im Niedrigtarif-Fenster (00–06 Uhr) und meidet 17–20 Uhr.
+  const shape = {
+    hp: (h) => (h < 6 ? 1.7 : h >= 17 && h < 20 ? 0.35 : 1),
+    house: (h) => (h < 6 ? 0.45 : h < 9 ? 1.3 : h < 17 ? 0.9 : h < 22 ? 1.6 : 0.8),
+    charge: (h) => (h >= 10 && h < 16 ? Math.sin(Math.PI * (h - 9.5) / 6.5) : 0),
+    discharge: (h) => (h >= 17 ? 1.3 : h < 6 ? 0.6 : 0),
+  };
+  const evSlots = new Map();
+  for (const s of evSessions) {
+    const a = Date.parse(s.created) / 1000, b = Date.parse(s.finished) / 1000;
+    if (!(b > a)) continue;
+    for (let t = Math.floor(a / 900) * 900; t < b; t += 900) {
+      const overlap = Math.min(b, t + 900) - Math.max(a, t);
+      if (overlap > 0) evSlots.set(t, (evSlots.get(t) ?? 0) + s.charged_kwh * overlap / (b - a));
+    }
+  }
+  const intervals = intervalSeries(2025, [
+    { utility: 'strom', meter: mHaus.id, daily: importHh, shape: shape.house },
+    { utility: 'strom', meter: mWp.id, daily: wpElec, shape: shape.hp },
+    { utility: 'strom', meter: mEv.id, slots: evSlots },
+    { utility: 'pv_erzeugung', meter: mCharge.id, daily: charge, shape: shape.charge },
+    { utility: 'pv_erzeugung', meter: mDischarge.id, daily: discharge, shape: shape.discharge },
+  ]);
+
   return {
     id: P,
     ev_sessions: evSessions,
+    intervals,
     // Börsenpreise wie nach „Von SMARD laden“ — der dynamische Schattenvertrag rechnet damit
     market_prices: {
       source: 'smard', area: 'DE-LU', unit: 'ct/kWh',
@@ -872,6 +966,9 @@ function backup(p) {
     tenancy_statements: p.tenancy_statements,
     market_prices: p.market_prices ?? [],
     ev_sessions: p.ev_sessions ?? [],
+    // v3.3.0 (F1021) — Viertelstundenreihen (Index + Reihen wie im Backup)
+    intervals: p.intervals?.index ?? { series: [], samples: {} },
+    interval_files: p.intervals?.files ?? {},
     utilities,
   };
 }
@@ -902,7 +999,10 @@ if (!CHECK) mkdirSync(OUT_DIR, { recursive: true });
 for (const build of [mieterin, etwFernwaerme, eigenheimKlassisch, eigenheimModern]) {
   const p = build();
   const payload = backup(p);
-  const json = JSON.stringify(payload, null, 4) + '\n';
+  // Werte je Viertelstunde in einer Zeile (35.040 Zahlen je Reihe), der Rest eingerückt
+  const compact = {};
+  for (const [id, f] of Object.entries(payload.interval_files)) { compact[id] = JSON.stringify(f.values); f.values = `@@VALUES:${id}@@`; }
+  const json = JSON.stringify(payload, null, 4).replace(/"@@VALUES:([^@]+)@@"/g, (_, id) => compact[id]) + '\n';
   const file = join(OUT_DIR, `${p.id}.json`);
   const same = existsSync(file) && readFileSync(file, 'utf8') === json;
   if (CHECK) {

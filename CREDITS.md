@@ -37,7 +37,10 @@ for Germany/Luxembourg: source **Bundesnetzagentur | SMARD.de**, licensed under
 source next to the prices. SMARD is contacted only when you tap “Load from
 SMARD”; you can import a SMARD download file instead. Since v3.2.0 the example
 household “Own house with heat pump and solar” (`demo-data/personas/`) ships
-these monthly averages for 2023 to 2026, from the same source.
+these monthly averages for 2023 to 2026, from the same source. Since v3.3.0 the
+page “Flexibility” loads day-ahead prices per quarter hour of a year from SMARD
+(only on tap), and the same example household ships the quarter-hour prices of
+2025; the source file is `demo-data/sources/smard-day-ahead-de-lu-2025-qh.json`.
 
 ## Development only — not shipped
 
@@ -93,7 +96,10 @@ App nennt die Quelle neben den Preisen. SMARD wird nur angesprochen, wenn du auf
 „Von SMARD laden“ tippst; stattdessen kannst du eine SMARD-Downloaddatei
 importieren. Seit v3.2.0 bringt der Beispielhaushalt „Eigenheim mit Wärmepumpe
 und PV“ (`demo-data/personas/`) diese Monatsmittel für 2023 bis 2026 mit, aus
-derselben Quelle.
+derselben Quelle. Seit v3.3.0 lädt die Seite „Flexibilität“ die Day-Ahead-Preise
+je Viertelstunde eines Jahres von SMARD (nur auf Knopfdruck), und derselbe
+Beispielhaushalt bringt die Viertelstundenpreise 2025 mit; die Quelldatei ist
+`demo-data/sources/smard-day-ahead-de-lu-2025-qh.json`.
 
 ### Nur in der Entwicklung — nicht ausgeliefert
 

@@ -17,7 +17,7 @@ siehe zuerst [Erste Schritte](../einstieg/erste-schritte.md).
 | [D — Vermieter mit mehreren Einheiten](#d--vermieter-mit-mehreren-einheiten) | Zähler je Einheit | F1006 | — |
 | [E — Wallbox und Dienstwagen](#e--wallbox-und-dienstwagen) | Ladestrom-Nachweis, § 14a EnWG | v3.1.0 | Eigenheim mit Wärmepumpe und PV |
 | [F — Fernwärme oder Heizwärme?](#f--fernwärme-oder-heizwärme) | die passende Verbrauchsart | v3.1.0, F1018 | Ich wohne zur Miete · Eigentumswohnung mit Fernwärme · Eigenheim mit Wärmepumpe und PV |
-| [G — Steuern mit evcc oder Home Assistant](#g--steuern-mit-evcc-oder-home-assistant--nachrechnen-im-energietracker) | nachrechnen statt steuern | F1009, F1022 | Eigenheim mit Wärmepumpe und PV |
+| [G — Steuern mit evcc oder Home Assistant](#g--steuern-mit-evcc-oder-home-assistant--nachrechnen-im-energietracker) | nachrechnen statt steuern | F1009, F1021, F1022 | Eigenheim mit Wärmepumpe und PV |
 
 ## Beispielhaushalte zum Ansehen *(v3.2.0)*
 
@@ -369,13 +369,14 @@ Der Energietracker **rechnet nach**, was dabei herauskam:
 |---|---|---|
 | Wie viel hat das Auto geladen, wie viel davon aus der Sonne, zu welchem Preis? | Wallbox → Karte „Ladevorgänge aus evcc“ (ab Stufe „Erfahren“) | CSV-Export aus evcc oder „Von evcc abrufen“ ([Ladevorgänge aus evcc](evcc.md)) |
 | Was kostet der Ladestrom des Dienstwagens? | Wallbox → Karte „Ladestrom-Nachweis (Dienstwagen)“ | Zählerstände aus evcc, Home Assistant oder von Hand ([Use-Case E](#e--wallbox-und-dienstwagen)) |
-| Hätte sich ein dynamischer Tarif gelohnt? | Kosten & Verträge → Wechsel prüfen → „Börsenstrompreise“ und ein Angebot „Dynamischer Tarif“ | Börsenpreise von SMARD, nur auf Knopfdruck ([Strom → Dynamische Tarife](../verstehen/02-strom.md#dynamische-tarife-v310)) |
+| Hätte sich ein dynamischer Tarif gelohnt? | Kosten & Verträge → Wechsel prüfen → „Börsenstrompreise“ und ein Angebot „Dynamischer Tarif“; seit v3.3.0 im Rückblick mit dem eigenen Lastgang | Börsenpreise von SMARD, nur auf Knopfdruck ([Strom → Dynamische Tarife](../verstehen/02-strom.md#dynamische-tarife-v310)); Viertelstunden wie in der nächsten Zeile |
+| Hat das Verschieben in günstige Viertelstunden etwas gebracht? Was bringen Speicher und § 14a Modul 3? | Auswertungen → Flexibilität (seit v3.3.0) | Verbrauch je Viertelstunde aus einer Portaldatei oder aus Home Assistant, Börsenpreise je Viertelstunde von SMARD ([Flexibilität bewerten](flexibilitaet.md)) |
 | Wie gut arbeitet die Wärmepumpe, was bringt § 14a Modul 1? | Karte „Wärmepumpe {Jahr}“; im Vertrag „Reduziertes Netzentgelt (§ 14a EnWG, Modul 1)“ | eigener Zähler und Wärmemengenzähler ([Use-Case C](#c--pv-haushalt-mit-wärmepumpe)) |
 | Was verliert der Speicher? | PV-Erzeugung → Karte „Speicher {Jahr}“ | Lade- und Entladezähler ([PV §7](../verstehen/12-pv.md#7-speicher-v310)) |
 | Alle Stände ohne Abtippen | jede Verbrauchsart | Home Assistant schickt sie abends über `POST /api/ingest` ([Home Assistant](home-assistant.md)) |
 
-Ladestrom-Nachweis, Wärmepumpen-Karte und Börsenpreise zeigt die App in der
-Stufe „Experte“.
+Ladestrom-Nachweis, Wärmepumpen-Karte, Börsenpreise und die Seite Flexibilität
+zeigt die App in der Stufe „Experte“.
 
 **Im Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“:**
 
@@ -384,39 +385,49 @@ Ladevorgänge aus evcc 2025 (erfunden): 152 Vorgänge, 2.618 kWh,
   davon rund 27 % aus der Sonne (April bis September knapp 50 %, Oktober bis März 9 bis 14 %),
   Preis laut evcc zusammen 629 €
 Angebot „Strom Dynamisch“ zum Vergleich: Aufschlag 19,4 ct/kWh, Grundpreis 11,90 €/Monat
+Flexibilität 2025 (Verbrauch erfunden, Börsenpreise je Viertelstunde echt von SMARD):
+  Wärmepumpe Profilfaktor 0,95 · Speicher lädt zu Ø 4,51 ct, entlädt zu Ø 10,68 ct (rund 104 €)
+  · § 14a Modul 3 an der Wärmepumpe rund 81 € Ersparnis
 ```
 
-Börsenpreise bringt der Beispielhaushalt nicht mit; in deiner Installation
-holst du sie mit „Von SMARD laden“.
+Die Monatsmittel der Börsenpreise und für 2025 die Börsenpreise je
+Viertelstunde bringt der Beispielhaushalt mit; in deiner Installation holst du
+sie mit „Von SMARD laden“ bzw. auf der Seite Flexibilität. Alle Zahlen:
+[Flexibilität bewerten → Beispielhaushalt](flexibilitaet.md#9-zum-ansehen-der-beispielhaushalt).
 
-**Was der Energietracker nicht kann (Stand v3.2.0).**
+**Seit v3.3.0: „Flexibilität bewerten“.** Der Energietracker speichert Werte je
+Viertelstunde — aus Portaldateien, aus Home Assistant (Ingest mit Zeitstempel)
+und Börsenpreise von SMARD, nur auf Knopfdruck — und zeigt damit unter
+Auswertungen → Flexibilität:
 
-- Er rechnet in Tagen und Monaten, nicht in Viertelstunden. Ob das Auto in den
-  günstigen Stunden geladen hat, zeigt nur der Preis laut evcc.
-- Der Dynamik-Check nimmt das Monatsmittel der Börse. Wer Verbrauch in
-  günstige Stunden schiebt, zahlt real weniger, als der Check zeigt.
-- § 14a Modul 3, die zeitvariablen Netzentgelte, rechnet er nicht.
-- Strom, den das Auto zurückgibt (V2H, V2G), bildet er nicht ab; die
-  Ladevorgänge aus evcc zählen nur, was geladen wurde.
-- Stunden mit negativem Börsenpreis zählt er nicht. Für neue PV-Anlagen weist
-  er nur auf die Regel hin
-  ([PV §10](../verstehen/12-pv.md#10-negative-börsenpreise-v310)).
-
-**Geplant: „Flexibilität bewerten“ (v3.3.0, ohne Termin).** Der Energietracker
-soll Werte je Viertelstunde speichern — aus Portaldateien, aus Home Assistant
-(Ingest mit Zeitstempel) und Börsenpreise von SMARD, nur auf Knopfdruck — und
-damit zeigen:
-
-- **Erfolg der Verschiebung:** kWh in günstigen und negativen Stunden, eigener
-  Durchschnittspreis gegen das Börsenmittel, je Monat und je steuerbarem Zähler
-  (Wallbox, Wärmepumpe, Speicher).
-- **Dynamik-Check mit echtem Lastgang** statt Monatsmittel.
-- **Speicher nach Stunden:** was Laden bei niedrigen und Entladen bei hohen
+- **Erfolg der Verschiebung:** kWh in günstigen und negativen Viertelstunden,
+  eigener Durchschnittspreis gegen das Börsenmittel (Profilfaktor) und der
+  Vorteil beim Börsenanteil, je Monat und je Stromzähler; Wallbox und
+  Wärmepumpe als steuerbar vorn.
+- **Dynamik-Check mit echtem Lastgang** statt Monatsmittel, im Rückblick unter
+  Wechsel prüfen.
+- **Speicher nach Börsenpreis:** was Laden bei niedrigen und Entladen bei hohen
   Preisen bringt.
 - **§ 14a Modul 3:** die Ersparnis durch Verschieben in die
-  Niedrigtarif-Zeitfenster des Netzbetreibers.
+  Niedrigtarif-Zeitfenster des Netzbetreibers, mit den Zeitfenstern am Vertrag.
 
-Gesteuert wird auch dann außerhalb.
+Gesteuert wird auch dann außerhalb. Schritt für Schritt:
+[Flexibilität bewerten](flexibilitaet.md).
+
+**Was der Energietracker nicht kann (Stand v3.3.0).**
+
+- Viertelstunden bekommt er nur aus einer Portaldatei oder aus Home Assistant;
+  aus den Ladevorgängen von evcc bildet er keine.
+- Die Wechselentscheidung nach vorn rechnet einen dynamischen Tarif weiter mit
+  Monatsmitteln; den eigenen Lastgang nimmt nur der Rückblick.
+- Modul 3 ändert die Kosten des Vertrags nicht: Saldo, Prognose und
+  Rechnungsprüfung rechnen mit dem eingetragenen Arbeitspreis; die Ersparnis
+  steht nur auf der Seite Flexibilität.
+- Strom, den das Auto zurückgibt (V2H, V2G), bildet er nicht ab; die
+  Ladevorgänge aus evcc zählen nur, was geladen wurde.
+- Einspeisung bei negativem Börsenpreis zählt er nicht. Für neue PV-Anlagen
+  weist er nur auf die Regel hin
+  ([PV §10](../verstehen/12-pv.md#10-negative-börsenpreise-v310)).
 
 ### Rechtslage kurz (Stand 9. Oktober 2026)
 

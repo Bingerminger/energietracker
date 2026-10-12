@@ -139,7 +139,7 @@ final class MeterRolesAndHeatTest extends ServiceTestCase
         self::assertTrue($mig->needsV170Upgrade());
         self::assertTrue($mig->needsMigration());
         $mig->migrate();
-        self::assertSame('1.7.0', $this->store->read('meta.json', [])['schema_version']);
+        self::assertSame('1.8.0', $this->store->read('meta.json', [])['schema_version']);
         foreach (Migrator::V170_TOP_POTS as $f) self::assertSame([], $this->store->read($f, null), $f);
         self::assertSame([], $this->store->read('waerme/meters.json', null), 'neue Verbrauchsart: leere Töpfe');
         self::assertSame([], $this->store->read('gas/periods.json', null));

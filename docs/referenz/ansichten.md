@@ -24,7 +24,7 @@ Navigation den Fragen der Nutzer: sieben Bereiche statt 17 Einträgen.
 | Zählerstände | alle Zähler in einem Durchgang |
 | Verbrauch | eine Seite je aktive Verbrauchsart |
 | Kosten & Verträge | Verträge & Abschläge · Wechsel prüfen · Rechnung prüfen · Mietverhältnis (v3.1.0, nur „zur Miete“) |
-| Auswertungen | Analyse · Prognose · Jahresbericht |
+| Auswertungen | Analyse · Prognose · Flexibilität (v3.3.0) · Jahresbericht |
 | Hinweise | Termine & Wartung · Empfehlungen (eine Zahl an der Seitenleiste) |
 | Einstellungen | Allgemein · Haushalt & Gebäude · Verbrauchsarten & Abrechnung · Wetterdaten · Daten · Integrationen · Zugriff · Experte · System |
 
@@ -59,7 +59,7 @@ Update auf „Experte“.
 |---|---|---|
 | 🌱 Einsteiger | Übersicht (eigene Ansicht, §1), Zählerstände, Verbrauch je Art, Verträge & Abschläge, Jahresbericht, Termine & Wartung, Empfehlungen, Hilfe; Einstellungen → Allgemein, Haushalt & Gebäude, Verbrauchsarten & Abrechnung, Daten | — |
 | 🌿 Erfahren | Wechsel prüfen, Rechnung prüfen, Mietverhältnis, Analyse, Prognose, Zählerverwaltung einer Art (`#/utility/…/meters`), Wetterdaten, Einstellungen → Integrationen | die Übersicht mit allen Kennzahlen; in der Verbrauchsansicht die CO₂-Kachel, „Gemessen“/„Witterungsbereinigt“, die Monatstabelle, der Energiefluss der PV, „Rechnung prüfen“ und „Ladevorgänge aus evcc“ (§3); im Vertragsdialog Kündigungsfrist, Preisgarantie, Kündigungsweise, Mindestlaufzeit, „Verlängert sich ohne Kündigung“, Boni und Sonderzahlungen; in den Einstellungen Anzeige, Erinnerungen, Eigene Vergleichswerte, Wasser-Referenzwerte, Physikalische Konstanten und Energieträger (Lieferung) |
-| 🌳 Experte | Einstellungen → Zugriff, Experte, System | auf der Übersicht der Abschnitt „Schaubilder“; in der Verbrauchsansicht Warmwasser-Wärme, CO₂-Preis im Brennstoff, Ladestrom-Nachweis, Wärmepumpe sowie Speicher und Amortisation der PV; in der Analyse Zäsur und „Wirkung der Maßnahme“; in der Prognose Modell und CO₂-Preis-Szenario; unter Wechsel prüfen der dynamische Tarif und „Börsenstrompreise“; im Vertragsdialog Leistungs- und Messpreis und Kennwerte der Fernwärme, reduziertes Netzentgelt (§ 14a), Arbeitspreis je Zähler einer Gruppe, Gutschriften des Direktvermarkters und „Monatspreise importieren“; im Zählerdialog Gruppe, Analyse-Zäsuren, PV-Anlage, Stromzähler der Wärmepumpe und „Zeitreihe importieren“; im Mietverhältnis „CO₂-Kosten teilen“; in den Einstellungen CO₂-Emissionsfaktoren und Photovoltaik |
+| 🌳 Experte | Flexibilität (v3.3.0); Einstellungen → Zugriff, Experte, System | auf der Übersicht der Abschnitt „Schaubilder“; in der Verbrauchsansicht Warmwasser-Wärme, CO₂-Preis im Brennstoff, Ladestrom-Nachweis, Wärmepumpe sowie Speicher und Amortisation der PV; in der Analyse Zäsur und „Wirkung der Maßnahme“; in der Prognose Modell und CO₂-Preis-Szenario; unter Wechsel prüfen der dynamische Tarif und „Börsenstrompreise“; im Vertragsdialog Leistungs- und Messpreis und Kennwerte der Fernwärme, reduziertes Netzentgelt (§ 14a), zeitvariables Netzentgelt (§ 14a Modul 3, v3.3.0), Arbeitspreis je Zähler einer Gruppe, Gutschriften des Direktvermarkters und „Monatspreise importieren“; im Zählerdialog Gruppe, Analyse-Zäsuren, PV-Anlage, Stromzähler der Wärmepumpe und „Zeitreihe importieren“; im Mietverhältnis „CO₂-Kosten teilen“; in den Einstellungen CO₂-Emissionsfaktoren und Photovoltaik |
 
 Ein Bereich zeigt als Tabs nur die Seiten seiner Stufe, bei einer einzigen
 Seite gar keine; „Auswertungen“ in der Seitenleiste führt Einsteiger zum
@@ -591,6 +591,56 @@ Energieträger ([CO₂-Preis im Brennstoff](../verstehen/16-co2-preis.md#6-wo-du
 
 ![Prognose](../ui/screenshots/prognose.png)
 
+### Flexibilität bewerten (v3.3.0, unter Auswertungen)
+
+Die Seite **„Flexibilität bewerten“** (`#/flexibility?year=…`, Stufe
+Experte) beantwortet: Hat das Verschieben etwas gebracht? Sie rechnet mit
+Verbrauch und Börsenpreis je Viertelstunde, nur den Börsenanteil — gesteuert
+wird woanders (evcc, Home Assistant, der Speicher selbst). Der Einleitungstext
+sagt das und verlinkt die **Anleitung**
+([Flexibilität bewerten](../anleitungen/flexibilitaet.md)); Daten liefert
+`GET /api/flexibility` ([API](api.md#flexibilität-bewerten-v330)).
+
+- **Kopf:** die Auswahl **„Jahr“** (das laufende und die drei Jahre davor,
+  vorbelegt das Vorjahr; ein Jahr in der Adresse gilt von 2018 bis heute) und
+  der Knopf **„Börsenpreise {Jahr} von SMARD laden“**. Er holt die Preise je
+  Viertelstunde — nur auf Knopfdruck —, meldet „Börsenpreise {Jahr} geladen:
+  … Viertelstunden.“ und baut die Seite neu auf.
+- **Hinweise:** ohne Preise „Für {Jahr} fehlen die Börsenpreise je
+  Viertelstunde — oben von SMARD laden.“; ohne Verbrauch je Viertelstunde
+  „Für {Jahr} gibt es noch keinen Verbrauch je Viertelstunde. Er kommt aus
+  einer Portaldatei (Zähler → Zeitreihe importieren) oder aus Home Assistant
+  mit Zeitstempel.“
+- **Je Stromzähler eine Karte** (nur mit Preisen), Wärmepumpe und Wallbox
+  zuerst mit der Marke **„steuerbar“**. Kennzahlen: „Verbrauch mit Preis“,
+  „In günstigen Viertelstunden“ (Anteil), „Bei negativem Preis“, „Eigener Ø /
+  Börse Ø“, **„Profilfaktor“** mit ⓘ und „Vorteil (Börsenanteil)“. Darunter
+  ein Satz, etwa „Günstiger als der Durchschnitt: 18,78 € gespart beim
+  Börsenanteil (Profilfaktor 0,95).“ oder „Teurer als der Durchschnitt: … — es
+  wird eher zu teuren Zeiten verbraucht.“ Aufklappbar **„Je Monat“**: Monat,
+  kWh, günstig, negativ, eigener Ø, Börse Ø, Vorteil, Abdeckung. Ohne
+  gemeinsame Viertelstunde steht „Keine Viertelstunde mit Verbrauch und
+  Börsenpreis.“
+- **„Speicher nach Börsenpreis“** — mit Reihen für Laden und Entladen des
+  Speichers (PV-Erzeugung): „Geladen · Ø Preis“, „Entladen · Ø Preis“ und
+  „Wert der Verschiebung“ samt Erklärung.
+- **„§ 14a Modul 3 — {Zähler}“** mit ⓘ — für jeden Zähler, dessen Vertrag
+  Zeitfenster trägt (§12), auch ohne Börsenpreise: „Im Niedrigtarif“, „Im
+  Hochtarif“, „Im Standardtarif“ (kWh) und „Ersparnis gegen Standard“, darunter
+  der Hinweis, dass es zeitvariable Netzentgelte nur zusätzlich zu Modul 1 und
+  mit intelligentem Messsystem gibt.
+- **„Viertelstundenreihen“** — die Liste aller Reihen: Reihe („Börsenpreise
+  DE-LU“ bzw. Verbrauchsart · Zähler-ID), Jahr, Abdeckung, Quelle („Datei“,
+  „Home Assistant“, „SMARD“) und 🗑️ „Reihe löschen“ mit der Rückfrage „Diese
+  Reihe löschen? Zählerstände und Tageswerte bleiben.“
+
+Mit Preisen steht unten die Quelle „Börsenpreise: Bundesnetzagentur |
+SMARD.de (CC BY 4.0)“. Das ⓘ am Profilfaktor erklärt: „Dein Börsenpreis je kWh
+(nach Verbrauch gewichtet) geteilt durch das Börsenmittel. Unter 1: Du
+verbrauchst eher, wenn Strom billig ist; über 1: eher, wenn er teuer ist.“ Der
+Begriff steht auch im Glossar der Hilfe. Zum Ausprobieren: der
+Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“ mit dem Jahr 2025.
+
 ### Jahresbericht (seit v2.11.0 unter Auswertungen)
 
 Ein Jahr auf einen Blick: Übersicht je Verbrauchsart, Effizienz,
@@ -811,7 +861,13 @@ In Rangliste und Rückblick steht unter einem solchen Angebot „Börsenpreis al
 Monatsmittel — als verteile sich dein Verbrauch gleichmäßig über den Tag;
 Abendverbrauch ist meist teurer.“ und, wenn nötig, für wie viele Monate der
 Vorjahresmonat angenommen wurde. Fehlen die Börsenpreise, erscheint statt des
-Angebots der Hinweis, sie unter „Börsenstrompreise“ zu laden.
+Angebots der Hinweis, sie unter „Börsenstrompreise“ zu laden. Seit v3.3.0
+rechnet der Rückblick mit dem eigenen Lastgang, wo für den Zähler Verbrauch
+und Börsenpreis je Viertelstunde vorliegen (Monate mit mindestens 90 %
+Abdeckung); unter dem Angebot steht dann statt des Satzes zum Monatsmittel
+„Börsenpreis mit deinem Lastgang je Viertelstunde in {N} Monaten, sonst
+Monatsmittel.“ Die Rangliste der Wechselentscheidung bleibt beim Monatsmittel
+([Flexibilität](#flexibilität-bewerten-v330-unter-auswertungen)).
 
 **Börsenstrompreise (v3.1.0, Strom):** Die Karte **„Börsenstrompreise“** mit ⓘ
 nennt den Bereich der vorhandenen Monatsmittel („Monatsmittel vorhanden: … bis
@@ -1108,7 +1164,11 @@ dürfen, etwa ein Home-Assistant-Dashboard. Die **🏠 Home-Assistant-Anbindung
 (F1009)** auf der Seite Integrationen
 — API-Token verwalten, Zähler-Aliase pflegen und drei fertige Vorlagen
 kopieren: REST-Command, Eintrag für die `secrets.yaml` und (seit v2.5.3) eine
-Automatisierung aus den Aliasen, die vor jedem Push `has_value` prüft. Seit
+Automatisierung aus den Aliasen, die vor jedem Push `has_value` prüft. Der
+REST-Command schickt seit v3.3.0 zusätzlich
+`"timestamp": "{{ now().isoformat() }}"`. Die Automatisierung sendet
+weiterhin einmal am Tag (23:55); wer Verbrauch je Viertelstunde will, stellt
+ihren Auslöser auf alle 15 Minuten um (`time_pattern`, `minutes: "/15"`). Seit
 v3.1.0 folgt **„Schritt 5 · Werte zurück nach Home Assistant“**: REST-Sensoren
 für die `configuration.yaml`, die `GET /api/summary` einmal je Stunde abfragen —
 je Zähler Saldo (bei Arten mit Vertrag), Prognose der nächsten 12 Monate und
@@ -1301,6 +1361,20 @@ Stichtag, leer gilt der Arbeitspreis oben. Die Vertragskarte nennt dann
 **„Reduziertes Netzentgelt (§ 14a EnWG, Modul 1)“** in € je Jahr, mit
 Stichtag ([Strom](../verstehen/02-strom.md#steuerbare-verbraucher-v310)).
 
+**Zeitvariables Netzentgelt (v3.3.0):** Nach den Preislisten steht im
+Stromvertrag, Stufe Experte, der Abschnitt **„§ 14a Modul 3: zeitvariables Netzentgelt“** mit dem
+Hinweis „Standardtarif und Zeitfenster aus dem Preisblatt deines
+Netzbetreibers (Netzentgelt je kWh). Ein Fenster über Mitternacht sind zwei
+Fenster. Ausgewertet unter Auswertungen → Flexibilität.“ Felder:
+„Standardtarif (ct/kWh)“ und je Zeitfenster „Quartale“ (Q1–Q4 zum
+Ankreuzen, neu alle vier), „Von“, „Bis (HH:MM, auch 24:00)“ und „ct/kWh im
+Fenster“, dazu ✕ „Zeitfenster entfernen“ und **„+ Zeitfenster“**. Bleiben
+Standardtarif und Fenster leer, hat der Vertrag kein Modul 3. Ungültige
+Angaben lehnt die App mit „Zeitfenster für Modul 3 ungültig (…): Quartale 1–4,
+Zeiten HH:MM mit Von vor Bis, Preise 0–100 ct und ein Standardtarif.“ ab
+([API](api.md#verträge-zeitvariables-netzentgelt-modul-3-v330-additiv)). Saldo
+und Prognose ändern sich dadurch nicht.
+
 **Gutschriften des Direktvermarkters (v3.1.0):** Der Vertragsdialog der
 Einspeisung hat den Abschnitt **„Gutschriften des Direktvermarkters“** mit
 „Von“, „Bis einschließlich“ und „Betrag“ je Zeile und „Gutschrift hinzufügen“
@@ -1329,6 +1403,10 @@ Zählerstände), „Einheit der Werte“, „Zeitstempel bezeichnet“ (Beginn o
 des Intervalls) und „Startwert (Zählerstand)“. „Vorschau“ nennt Tage,
 Zeitraum und Summe; „Übernehmen“ schreibt und merkt sich die Zuordnung je
 Zähler im Browser ([Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md)).
+Seit v3.3.0 behält „Übernehmen“ Werte im Takt von 15, 30 oder 60 Minuten
+zusätzlich je Viertelstunde — für Auswertungen → Flexibilität; die Vorschau
+nennt sie in einer Zeile „Dazu {Anzahl} Werte je Viertelstunde (Takt {N}
+Minuten) — ausgewertet unter Auswertungen → Flexibilität.“
 
 **Mindestlaufzeit über 24 Monate (v3.1.0):** Endet die Mindestlaufzeit eines
 Vertrags mehr als 24 Monate nach seinem Beginn, zeigt die App nach dem

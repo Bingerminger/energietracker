@@ -8,8 +8,9 @@ Netzbetreiber, Messstellenbetreiber, Wechselrichter und Wärmepumpen geben ihre
 Messwerte oft als Datei heraus: Viertelstundenwerte (Lastgang), Stunden- oder
 Tageswerte. Seit **v3.1.0** liest der Energietracker solche Dateien mit einer
 **Spaltenzuordnung** ein und verdichtet sie zu Tageswerten — als Zählerstände
-oder als Verbrauch je Tag. Eine Verbindung zu den Portalen baut die App nicht
-auf: Du lädst die Datei herunter und liest sie ein.
+oder als Verbrauch je Tag. Seit **v3.3.0** bewahrt er Werte im 15-, 30- oder
+60-Minuten-Takt zusätzlich je Viertelstunde auf (§ 4). Eine Verbindung zu den
+Portalen baut die App nicht auf: Du lädst die Datei herunter und liest sie ein.
 
 ---
 
@@ -101,8 +102,29 @@ Ohne Anfangsstand fragt die App danach: „Für Verbrauchswerte braucht es einen
 Anfangsstand: eine Ablesung am … oder einen Startwert“.
 
 Danach rechnet alles wie bei Ständen, die du eintippst: Monatsverbrauch,
-Kosten, Saldo, Prognose, Plausibilität. Gespeichert werden Tageswerte, keine
-Viertelstunden — die Auswertungen der App rechnen in Tagen und Monaten.
+Kosten, Saldo, Prognose, Plausibilität — in Tagen und Monaten.
+
+### Zusätzlich je Viertelstunde *(v3.3.0)*
+
+Stehen die Werte im 15-, 30- oder 60-Minuten-Takt in der Datei, bewahrt die App
+sie zusätzlich je Viertelstunde auf. Damit rechnen
+[Flexibilität bewerten](flexibilitaet.md) — Verbrauch gegen den Börsenpreis je
+Viertelstunde, Speicher, § 14a Modul 3 — und der Dynamik-Check im Rückblick.
+
+- **Takt:** der häufigste Abstand zwischen zwei Zeitstempeln. Tageswerte
+  ergeben keine Viertelstunden.
+- **Verbrauch je Intervall** verteilt sich gleichmäßig auf seine
+  Viertelstunden — ein Stundenwert auf vier, ein Halbstundenwert auf zwei.
+- **Zählerstände** ergeben die Differenz zweier aufeinanderfolgender Stände;
+  fehlt dazwischen ein Stempel oder sinkt der Stand, bleibt die Lücke leer.
+- Ein neuer Wert ersetzt einen vorhandenen in derselben Viertelstunde; die
+  Vorschau schreibt nichts.
+- Ausgewertet werden Stromzähler und die Speicherzähler unter PV-Erzeugung.
+
+Die Vorschau nennt sie in einer eigenen Zeile („Dazu … Werte je Viertelstunde
+(Takt … Minuten)“). Nach „Übernehmen“ steht die Reihe unter Auswertungen →
+Flexibilität in der Liste „Viertelstundenreihen“ (Stufe „Experte“); dort lässt
+sie sich auch löschen, ohne die Tageswerte anzutasten. Ein Jahr Viertelstunden belegt je Zähler bis zu rund 250 KB.
 
 ## 5. Zeitstempel und Zeitumstellung
 
@@ -173,8 +195,10 @@ Kopfzeilen 1 · Datum Spalte 1 · Wert Spalte 2 · „Zählerstände“ · kWh �
 
 - **Keine Abrufe.** Die App holt nichts aus Portalen; für laufende Werte ohne
   Datei ist [Home Assistant](home-assistant.md) der Weg.
-- **Tageswerte, keine Viertelstunden.** Eine Abrechnung je Viertelstunde, wie
-  sie ein dynamischer Tarif braucht, bildet die App nicht nach
+- **Kosten in Tagen und Monaten.** Nur [Flexibilität bewerten](flexibilitaet.md)
+  und der Dynamik-Check im Rückblick nutzen die Viertelstunden.
+  Einen eigenen dynamischen Vertrag rechnet die App weiter mit Preisen je Monat,
+  nicht je Viertelstunde
   ([Strom → Dynamische Tarife](../verstehen/02-strom.md#dynamische-tarife-v310)).
 - **Fehlerhafte Zeilen** ohne erkennbares Datum oder Wert überspringt die App
   und nennt die ersten zwanzig („Zeile 12: kein Datum oder Wert erkannt …“).
@@ -194,6 +218,11 @@ Vorschau; im Körper die Datei als Text und die Zuordnung mit Spalten ab 0:
                "value_kind": "consumption", "unit_factor": 1,
                "interval_stamp": "end", "start_counter": 40211.0 } }
 ```
+
+Seit v3.3.0 nennt die Antwort in `intervals` den erkannten Takt in Sekunden
+(900, 1800 oder 3600) und die Zahl der Viertelstunden, etwa
+`{"step": 900, "slots": 35040}`, bei Tageswerten `null` — auch in der Vorschau,
+die nichts schreibt.
 
 Alle Felder und Fehlercodes:
 [API-Referenz → Zeitreihe importieren](../referenz/api.md#zeitreihe-importieren-v310).

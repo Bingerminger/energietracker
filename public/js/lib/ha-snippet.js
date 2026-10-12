@@ -32,7 +32,9 @@ export function haRestCommandYaml(baseUrl) {
     '        "utility": "{{ utility }}",',
     '        "meter": "{{ meter }}",',
     '        "value": {{ states(sensor_entity) | float }},',
-    `        "date": "{{ now().strftime('%Y-%m-%d') }}"`,
+    `        "date": "{{ now().strftime('%Y-%m-%d') }}",`,
+    // v3.3.0 (F1021) — mit Zeitstempel: Verbrauch je Viertelstunde, wenn öfter gesendet wird
+    '        "timestamp": "{{ now().isoformat() }}"',
     '      }',
   ].join('\n');
 }

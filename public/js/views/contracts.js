@@ -475,6 +475,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         </div>
 
         ${groupsFor(u).map(g => renderGroupSection(g, initial[g.key] || [])).join('')}
+        ${u?.key === 'strom' ? gridTouHtml(initial.grid_tou) : ''}
         <div data-role="member-prices" data-min-level="expert">${memberPricesHtml(initial.meter_group_id, meters, initial.working_prices_by_meter)}</div>
         ${u?.key === 'fernwaerme' ? `
         <fieldset class="field" data-min-level="expert"><legend>${t('contracts.fw.title')}</legend>
@@ -589,6 +590,15 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         modalEl.querySelector('[data-role="revenue-rows"]')?.addEventListener('click', ev => {
           ev.target.closest('[data-action="remove-revenue"]')?.closest('.revenue-row')?.remove();
         });
+        // v3.3.0 (F1021) — Zeitfenster für § 14a Modul 3
+        modalEl.querySelector('[data-action="add-tou"]')?.addEventListener('click', () => {
+          const rows = modalEl.querySelector('[data-role="tou-rows"]');
+          rows.insertAdjacentHTML('beforeend', gridTouRow({}));
+          associateFieldLabels(rows);
+        });
+        modalEl.querySelector('[data-role="tou-rows"]')?.addEventListener('click', ev => {
+          ev.target.closest('[data-action="remove-tou"]')?.closest('.tou-row')?.remove();
+        });
         try { bindSpecialPaymentHandlers(modalEl); }
         catch (e) { console.warn('contract modal: special-payment binding failed:', e); }
         // A11y: alle Formularfelder mit ihren Labels verknüpfen.
@@ -596,6 +606,45 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
       }
     });
   });
+}
+
+// ───── v3.3.0 (F1021) — § 14a Modul 3: zeitvariables Netzentgelt ─────
+function gridTouRow(w = {}) {
+  const q = new Set(w.quarters || [1, 2, 3, 4]);
+  return `<div class="form-row tou-row">
+    <div class="field"><span class="label">${t('contracts.gridTou.quarters')}</span>
+      <span class="tou-quarters">${[1, 2, 3, 4].map(n => `<label class="settings-field__check"><input type="checkbox" data-q="${n}" ${q.has(n) ? 'checked' : ''}> Q${n}</label>`).join('')}</span></div>
+    <div class="field"><label>${t('contracts.gridTou.from')}</label><input class="input" data-role="tou-from" type="time" value="${escapeHtml(w.from || '')}"></div>
+    <div class="field"><label>${t('contracts.gridTou.to')}</label><input class="input" data-role="tou-to" type="text" inputmode="numeric" placeholder="HH:MM" value="${escapeHtml(w.to || '')}"></div>
+    <div class="field"><label>${t('contracts.gridTou.ct')}</label><input class="input" data-role="tou-ct" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(w.ct))}"></div>
+    <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn btn--ghost btn--sm" data-action="remove-tou" aria-label="${escapeHtml(t('contracts.gridTou.removeWindow'))}">✕</button></div>
+  </div>`;
+}
+
+function gridTouHtml(tou) {
+  return `<fieldset class="field entry-group" data-role="grid-tou" data-min-level="expert">
+    <legend>${t('contracts.gridTou.title')}</legend>
+    <p class="muted small">${escapeHtml(t('contracts.gridTou.hint'))}</p>
+    <div class="field"><label>${t('contracts.gridTou.standard')}</label>
+      <input class="input" data-role="tou-standard" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(tou?.standard_ct))}"></div>
+    <div data-role="tou-rows">${(tou?.windows || []).map(gridTouRow).join('')}</div>
+    <button type="button" class="btn btn--sm btn--ghost" data-action="add-tou">${t('contracts.gridTou.addWindow')}</button>
+  </fieldset>`;
+}
+
+/** Zeitfenster aus dem Formular; ohne Standardpreis und Fenster: null (= keins). */
+function collectGridTou(form) {
+  const box = form.querySelector('[data-role="grid-tou"]');
+  if (!box) return undefined;
+  const standard = box.querySelector('[data-role="tou-standard"]').value.trim();
+  const windows = [...box.querySelectorAll('.tou-row')].map(r => ({
+    quarters: [...r.querySelectorAll('[data-q]:checked')].map(c => Number(c.dataset.q)),
+    from: r.querySelector('[data-role="tou-from"]').value.trim(),
+    to: r.querySelector('[data-role="tou-to"]').value.trim(),
+    ct: amountValue(r.querySelector('[data-role="tou-ct"]').value.trim()),
+  })).filter(w => w.from || w.to || w.ct !== '');
+  if (!standard && !windows.length) return null;
+  return { standard_ct: amountValue(standard), windows };
 }
 
 // ───── Group rendering ──────────────────────────────────────────────
@@ -1070,6 +1119,9 @@ function collectPayload(form, u = null) {
   for (const g of groupsFor(u)) {
     payload[g.key] = collectEntries(form.querySelector(`[data-group="${g.key}"]`), g);
   }
+  // v3.3.0 (F1021) — § 14a Modul 3
+  const tou = collectGridTou(form);
+  if (tou !== undefined) payload.grid_tou = tou;
   // v3.1.0 (H6, #17) — Gruppenvertrag mit Arbeitspreisen je Mitglied
   if (target.startsWith('g:')) {
     payload.meter_group_id = target.slice(2);

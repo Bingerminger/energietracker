@@ -54,7 +54,8 @@ The detailed feature overview. What the views look like is shown in the
   of your own.
 - **Home Assistant** pushes readings automatically (`POST /api/ingest`,
   idempotent, with token and meter alias, since v3.1.0 also as a batch for
-  backfilling) and reads balance, forecast and “days since reading” back as
+  backfilling, since v3.3.0 with a timestamp for consumption per quarter hour)
+  and reads balance, forecast and “days since reading” back as
   sensors (`GET /api/summary`) — see
   [Connect Home Assistant](../anleitungen/home-assistant.md). ioBroker,
   Node-RED and openHAB send readings the same way — see
@@ -66,7 +67,8 @@ The detailed feature overview. What the views look like is shown in the
 - **Time series from portals** (v3.1.0): files from the grid operator,
   metering operator, inverter or heat pump — quarter-hour, hourly or daily
   values — read with a column mapping, condensed into daily values, daylight
-  saving time included — see
+  saving time included; since v3.3.0 values in 15-, 30- or 60-minute steps are
+  also kept per quarter hour — see
   [Time series from portals](../anleitungen/daten-aus-portalen.md).
 - **Temperatures** automatically from Open-Meteo for your own location (place
   search, daily sync, 30-year climate normal) or as CSV.
@@ -85,7 +87,9 @@ The detailed feature overview. What the views look like is shown in the
   [Meter topology](../verstehen/13-meter-topologie.md#group-contract-v310).
 - **Controllable consumers** (v3.1.0): the reduced grid fee under § 14a EnWG
   (module 1) in the electricity contract, module 2 as a meter of its own with
-  its own contract; **monthly prices** from a file for a dynamic contract;
+  its own contract, since v3.3.0 module 3 with the grid operator’s time windows
+  on the contract ([Valuing flexibility](../anleitungen/flexibilitaet.md));
+  **monthly prices** from a file for a dynamic contract;
   **credit notes from the direct marketer** for the feed-in — see
   [Electricity](../verstehen/02-strom.md).
 - **Charging record** (v3.1.0) for a company car: per month the amount at the
@@ -138,8 +142,11 @@ The detailed feature overview. What the views look like is shown in the
 - For the PV feed-in the other way round: the higher remuneration comes first.
 - **Dynamic tariff check** (v3.1.0, electricity): what would a dynamic tariff
   have cost? With the monthly wholesale averages from SMARD (only on request)
-  or from a file, mark-up and VAT — an approximation without a load profile —
-  see [Electricity → Dynamic tariffs](../verstehen/02-strom.md#dynamic-tariffs-v310).
+  or from a file, mark-up and VAT — see
+  [Electricity → Dynamic tariffs](../verstehen/02-strom.md#dynamic-tariffs-v310).
+  Since v3.3.0 the look back calculates months with quarter hours with your own
+  load profile instead of the monthly average
+  ([Valuing flexibility](../anleitungen/flexibilitaet.md#7-dynamic-tariff-check-with-your-own-load-profile)).
 - The country's **official tariff comparison** is linked where there is one
   (Austria, France, Italy, Spain, Portugal).
 - **Have ready for switching** (v3.1.0): market location ID, meter number and
@@ -193,6 +200,13 @@ The detailed feature overview. What the views look like is shown in the
 - **Heat pump** (v3.1.0): seasonal performance factor from heat and
   electricity meters, per month and for the heating season, with field-test
   values for context — see [Heat](../verstehen/15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310).
+- **Valuing flexibility** (v3.3.0, electricity): did shifting pay off?
+  Consumption and wholesale price per quarter hour — from portal files, from
+  Home Assistant and from SMARD — give per meter the share in cheap and
+  negative quarter hours, your own wholesale price against the average
+  (profile factor) and the advantage on the wholesale share; plus the value of
+  shifting with the battery and the saving from § 14a module 3. Control happens
+  elsewhere — see [Valuing flexibility](../anleitungen/flexibilitaet.md).
 - **Benchmark** (v3.1.0): household electricity and heating per m² against your
   own reference values, e.g. from the German electricity or heating
   benchmarks, with links for checking yourself in Germany.
@@ -215,7 +229,7 @@ The detailed feature overview. What the views look like is shown in the
   contrast per WCAG AA, installable as an app — see
   [Use on your phone](handy.md).
 - **Help in the app**: first steps with ticks from your data, a glossary with
-  43 terms and an ⓘ next to every key figure.
+  44 terms and an ⓘ next to every key figure.
 - **Seven languages** (German, English, French, Italian, Spanish, Portuguese,
   Dutch), chosen per device, and **country profiles** for nine countries:
   currency, formats, time zone, weather location, heating limit, CO₂ factor,

@@ -30,6 +30,7 @@ final class IngestService
         private ReadingService $readings,
         private I18nService $i18n,
         private ?JsonStore $store = null,   // v3.1.0 — Stapel schreiben einmal je Datei
+        private ?IntervalService $intervals = null,   // v3.3.0 (F1021) — Stände mit Zeitstempel
     ) {}
 
     /**
@@ -57,9 +58,27 @@ final class IngestService
         }
         $value = (float)$rawValue;
 
+        // v3.3.0 (F1021) — `timestamp` (ISO 8601 mit Zone): der Stand zu genau
+        // diesem Zeitpunkt; daraus Verbrauch je Viertelstunde. Ohne `date` gilt
+        // der Tag des Zeitstempels in der Zeitzone der Installation.
+        $at = null;
+        $tsRaw = trim((string)($input['timestamp'] ?? ''));
+        if ($tsRaw !== '') {
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/', $tsRaw)) {
+                throw new \Energietracker\Support\LocalizedException('errors.ingest.timestampFormat', ['timestamp' => mb_substr($tsRaw, 0, 40)], 'ingest timestamp');
+            }
+            try { $at = new \DateTimeImmutable($tsRaw); } catch (\Exception) {
+                throw new \Energietracker\Support\LocalizedException('errors.ingest.timestampFormat', ['timestamp' => mb_substr($tsRaw, 0, 40)], 'ingest timestamp');
+            }
+            if (trim((string)($input['date'] ?? '')) === '' && $this->intervals !== null) {
+                $input['date'] = $at->setTimezone($this->intervals->tz())->format('Y-m-d');
+            }
+        }
+
         // Datum: optional, Default heute. Akzeptiert YYYY-MM-DD; ein voller
         // ISO-Zeitstempel (HA `now().isoformat()`) wird auf das Datum gekürzt.
         $date = trim((string)($input['date'] ?? ''));
+        if ($at !== null && $date === '') $date = $at->format('Y-m-d');
         if ($date === '') {
             $date = date('Y-m-d');
         } else {
@@ -109,13 +128,17 @@ final class IngestService
         $suspect  = $previous !== null && $value < (float)$previous['counter']
             && ConsumptionService::rolloverAmount((float)$previous['counter'], $value, $this->meters->deviceOnDate($meter, $date)) === null;
 
+        // v3.3.0 (F1021) — mit Zeitstempel: Verbrauch je Viertelstunde (nicht bei Verdacht)
+        $slots = ($at !== null && !$suspect && $this->intervals !== null)
+            ? $this->intervals->addCounterSample($utility, $meterId, $at->getTimestamp(), $value) : null;
+
         if ($existing !== null) {
             $updated = $this->readings->update($utility, (string)$existing['id'], [
                 'counter'    => $value,
                 'is_suspect' => $suspect,
                 'source'     => 'ingest',
             ]);
-            return $this->result('updated', $utility, $meterId, $date, $updated, $suspect, $previous);
+            return $this->result('updated', $utility, $meterId, $date, $updated, $suspect, $previous) + ($slots !== null ? ['intervals' => $slots] : []);
         }
 
         $created = $this->readings->create($utility, [
@@ -126,7 +149,7 @@ final class IngestService
             'source'     => 'ingest',
             'is_suspect' => $suspect,
         ]);
-        return $this->result('created', $utility, $meterId, $date, $created, $suspect, $previous);
+        return $this->result('created', $utility, $meterId, $date, $created, $suspect, $previous) + ($slots !== null ? ['intervals' => $slots] : []);
     }
 
     /** Obergrenze eines Stapels (API-34). */
@@ -150,9 +173,12 @@ final class IngestService
         if (count($items) > self::BULK_MAX) {
             throw new \InvalidArgumentException($this->i18n->t('errors.ingest.tooMany', ['max' => self::BULK_MAX, 'count' => count($items)]));
         }
+        // v3.3.0 — mit Zeitstempel auch nach der Uhrzeit (die Viertelstunden brauchen die Reihenfolge)
         $key = fn($x) => is_array($x)
-            ? [(string)($x['utility'] ?? ''), (string)($x['meter'] ?? $x['meter_id'] ?? ''), (string)($x['date'] ?? '9999')]
-            : ['', '', ''];
+            ? [(string)($x['utility'] ?? ''), (string)($x['meter'] ?? $x['meter_id'] ?? ''),
+               (string)($x['date'] ?? (isset($x['timestamp']) ? substr((string)$x['timestamp'], 0, 10) : '9999')),
+               isset($x['timestamp']) ? (int)strtotime((string)$x['timestamp']) : 0]
+            : ['', '', '', 0];
         $order = array_keys($items);
         usort($order, fn($a, $b) => [$key($items[$a]), $a] <=> [$key($items[$b]), $b]);
 

@@ -99,7 +99,8 @@
         "other": "{count} Stände noch nicht gespeichert"
       }
     },
-    "tenancy": "Mietverhältnis"
+    "tenancy": "Mietverhältnis",
+    "flexibility": "Flexibilität"
   },
   "dashboard": {
     "loading": "Lade Übersicht …",
@@ -984,6 +985,17 @@
       "from": "Von",
       "to": "Bis einschließlich",
       "amount": "Betrag"
+    },
+    "gridTou": {
+      "title": "§ 14a Modul 3: zeitvariables Netzentgelt",
+      "hint": "Standardtarif und Zeitfenster aus dem Preisblatt deines Netzbetreibers (Netzentgelt je kWh). Ein Fenster über Mitternacht sind zwei Fenster. Ausgewertet unter Auswertungen → Flexibilität.",
+      "standard": "Standardtarif (ct/kWh)",
+      "quarters": "Quartale",
+      "from": "Von",
+      "to": "Bis (HH:MM, auch 24:00)",
+      "ct": "ct/kWh im Fenster",
+      "addWindow": "+ Zeitfenster",
+      "removeWindow": "Zeitfenster entfernen"
     }
   },
   "meters": {
@@ -2226,7 +2238,11 @@
         "one": "{count} Monat ohne Marktwert: Vorjahresmonat angenommen.",
         "other": "{count} Monate ohne Marktwert: Vorjahresmonat angenommen."
       },
-      "missingMarket": "Für den dynamischen Tarif fehlen Börsenpreise — lade sie unten bei „Börsenstrompreise“."
+      "missingMarket": "Für den dynamischen Tarif fehlen Börsenpreise — lade sie unten bei „Börsenstrompreise“.",
+      "profileMonths": {
+        "one": "Börsenpreis mit deinem Lastgang je Viertelstunde in {count} Monat, sonst Monatsmittel.",
+        "other": "Börsenpreis mit deinem Lastgang je Viertelstunde in {count} Monaten, sonst Monatsmittel."
+      }
     },
     "market": {
       "title": "Börsenstrompreise",
@@ -2630,7 +2646,8 @@
       "dynamicShadowOnly": "Ein dynamischer Tarif lässt sich nur als Angebot (Schattenvertrag) für Strom durchrechnen — einen echten dynamischen Vertrag trägst du mit Monatspreisen ein",
       "priceModelInvalid": "Unbekanntes Preismodell „{value}“",
       "priceImportEmpty": "Die Datei enthält keine Zeile im Format Monat;Preis",
-      "priceImportUnsupported": "Monatspreise gibt es nur für Verträge mit Arbeitspreis je kWh"
+      "priceImportUnsupported": "Monatspreise gibt es nur für Verträge mit Arbeitspreis je kWh",
+      "gridTouInvalid": "Zeitfenster für Modul 3 ungültig ({field}): Quartale 1–4, Zeiten HH:MM mit Von vor Bis, Preise 0–100 ct und ein Standardtarif."
     },
     "delivery": {
       "notFound": "Lieferung nicht gefunden: {id}",
@@ -2655,7 +2672,8 @@
       "tokenRequiredWithLogin": "Die Anmeldung ist eingeschaltet – der Push braucht dann einen API-Token. Bitte in den Einstellungen einen Token erzeugen.",
       "tooMany": "Zu viele Einträge in einem Stapel (höchstens {max}, erhalten: {count}).",
       "bodyInvalid": "Ungültiger Eintrag: erwartet wird ein Objekt mit utility, meter und value.",
-      "periodMeter": "Der Zähler „{meter}“ erfasst Verbrauch je Zeitraum und nimmt keine Zählerstände an."
+      "periodMeter": "Der Zähler „{meter}“ erfasst Verbrauch je Zeitraum und nimmt keine Zählerstände an.",
+      "timestampFormat": "Zeitstempel „{timestamp}“ nicht lesbar — erwartet ISO 8601 mit Zeitzone, z. B. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
       "noVersionField": "Kein backup_version-Feld — kein gültiges Backup",
@@ -2798,7 +2816,8 @@
     },
     "marketPrices": {
       "noRows": "Die Datei enthält keine Großhandelspreise — erwartet wird ein SMARD-Download oder Zeilen wie 2025-01;114,14",
-      "syncFailed": "SMARD war nicht erreichbar oder lieferte keine Werte — versuch es später noch einmal oder importiere eine Datei"
+      "syncFailed": "SMARD war nicht erreichbar oder lieferte keine Werte — versuch es später noch einmal oder importiere eine Datei",
+      "syncQuarterHoursFailed": "SMARD war nicht erreichbar oder lieferte für dieses Jahr keine Viertelstundenpreise — versuch es später noch einmal"
     },
     "evReport": {
       "methodInvalid": "Unbekannte Methode „{value}“ — erlaubt sind contract und flat",
@@ -2829,6 +2848,12 @@
       "columns": "Das sieht nicht nach dem CSV-Export aus evcc aus: Es fehlen die Spalten für Beginn und Energie.",
       "countersInvalid": "Unbekannte Wahl für die Zählerstände: „{value}“.",
       "loadpointNeeded": "Mehrere Ladepunkte ({names}): Zählerstände gehören zu einer Wallbox – wähle ihren Ladepunkt oder übernimm nur die Ladevorgänge."
+    },
+    "intervals": {
+      "notFound": "Reihe „{id}“ nicht gefunden."
+    },
+    "flexibility": {
+      "yearInvalid": "Ungültiges Jahr: {year}."
     }
   },
   "login": {
@@ -3124,6 +3149,10 @@
     "jaz": {
       "term": "Jahresarbeitszahl (JAZ)",
       "text": "Wie viel Wärme eine Wärmepumpe aus einer kWh Strom macht, gemessen über ein Jahr: Wärme ÷ Strom. Braucht einen Wärmezähler an der Wärmepumpe. Im Feldtest lagen Luft/Wasser-Geräte bei rund 3,4, Sole/Wasser bei 4,3."
+    },
+    "profileFactor": {
+      "term": "Profilfaktor",
+      "text": "Dein Börsenpreis je kWh (nach Verbrauch gewichtet) geteilt durch das Börsenmittel. Unter 1: Du verbrauchst eher, wenn Strom billig ist; über 1: eher, wenn er teuer ist."
     }
   },
   "help": {
@@ -3682,7 +3711,8 @@
       "summaryCounter": {
         "one": "{count} Tag, {from} (der letzte Stand des Tages)",
         "other": "{count} Tage vom {from} bis {to} (je Tag der letzte Stand)"
-      }
+      },
+      "intervals": "Dazu {slots} Werte je Viertelstunde (Takt {minutes} Minuten) — ausgewertet unter Auswertungen → Flexibilität."
     }
   },
   "level": {
@@ -3863,6 +3893,68 @@
       "hint": "Die Ladevorgänge stammen von mehreren Ladepunkten. Zählerstände gehören zu genau einer Wallbox – wähle ihren Ladepunkt. Für alle Ladepunkte zusammen wähle bei den Zählerständen „keine – nur die Ladevorgänge“.",
       "label": "Ladepunkt",
       "ok": "Weiter"
+    }
+  },
+  "flex": {
+    "title": "Flexibilität bewerten",
+    "year": "Jahr",
+    "loadPrices": "Börsenpreise {year} von SMARD laden",
+    "intro": "Hat das Verschieben etwas gebracht? Gerechnet wird mit deinem Verbrauch und dem Börsenpreis je Viertelstunde — nur der Börsenanteil, ohne Steuern, Umlagen und Netzentgelt. Gesteuert wird woanders (evcc, Home Assistant, der Speicher selbst).",
+    "noPrices": "Für {year} fehlen die Börsenpreise je Viertelstunde — oben von SMARD laden.",
+    "noIntervals": "Für {year} gibt es noch keinen Verbrauch je Viertelstunde. Er kommt aus einer Portaldatei (Zähler → Zeitreihe importieren) oder aus Home Assistant mit Zeitstempel.",
+    "attribution": "Börsenpreise: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
+    "pricesLoaded": "Börsenpreise {year} geladen: {slots} Viertelstunden.",
+    "controllable": "steuerbar",
+    "kpi": {
+      "kwh": "Verbrauch mit Preis",
+      "cheap": "In günstigen Viertelstunden",
+      "negative": "Bei negativem Preis",
+      "own": "Eigener Ø / Börse Ø",
+      "factor": "Profilfaktor",
+      "advantage": "Vorteil (Börsenanteil)"
+    },
+    "noOverlap": "Keine Viertelstunde mit Verbrauch und Börsenpreis.",
+    "verdict": {
+      "good": "Günstiger als der Durchschnitt: {eur} gespart beim Börsenanteil (Profilfaktor {factor}).",
+      "bad": "Teurer als der Durchschnitt: {eur} mehr beim Börsenanteil (Profilfaktor {factor}) — es wird eher zu teuren Zeiten verbraucht."
+    },
+    "months": "Je Monat",
+    "col": {
+      "month": "Monat",
+      "cheap": "günstig",
+      "negative": "negativ",
+      "own": "eigener Ø",
+      "market": "Börse Ø",
+      "advantage": "Vorteil",
+      "coverage": "Abdeckung"
+    },
+    "battery": {
+      "title": "Speicher nach Börsenpreis",
+      "charged": "Geladen · Ø Preis",
+      "discharged": "Entladen · Ø Preis",
+      "value": "Wert der Verschiebung",
+      "hint": "Entladene kWh zum Börsenpreis der Entladung minus geladene kWh zum Börsenpreis der Ladung — was das Verschieben über den Tag wert war, ohne Verluste beim Eigenverbrauch und ohne Netzentgelt."
+    },
+    "module3": {
+      "title": "§ 14a Modul 3 — {name}",
+      "low": "Im Niedrigtarif",
+      "high": "Im Hochtarif",
+      "standard": "Im Standardtarif",
+      "saving": "Ersparnis gegen Standard",
+      "hint": "Aus den Zeitfenstern am Vertrag dieses Zählers: Netzentgelt je kWh im Fenster gegen den Standardtarif. Zeitvariable Netzentgelte gibt es nur zusätzlich zu Modul 1 und mit intelligentem Messsystem."
+    },
+    "series": {
+      "title": "Viertelstundenreihen",
+      "what": "Reihe",
+      "source": "Quelle",
+      "prices": "Börsenpreise DE-LU",
+      "delete": "Reihe löschen",
+      "confirmDelete": "Diese Reihe löschen? Zählerstände und Tageswerte bleiben.",
+      "sources": {
+        "import": "Datei",
+        "ingest": "Home Assistant",
+        "smard": "SMARD"
+      }
     }
   }
 }

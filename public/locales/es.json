@@ -99,7 +99,8 @@
         "other": "{count} lecturas aún sin guardar"
       }
     },
-    "tenancy": "Alquiler"
+    "tenancy": "Alquiler",
+    "flexibility": "Flexibilidad"
   },
   "dashboard": {
     "loading": "Cargando el resumen…",
@@ -984,6 +985,17 @@
       "from": "Desde",
       "to": "Hasta (incluido)",
       "amount": "Importe"
+    },
+    "gridTou": {
+      "title": "§ 14a módulo 3: peaje de red variable",
+      "hint": "Tarifa estándar y franjas de la hoja de precios de tu operador de red (peaje de red por kWh). Una franja que pasa la medianoche son dos franjas. Se evalúa en Evaluaciones → Flexibilidad.",
+      "standard": "Tarifa estándar (ct/kWh)",
+      "quarters": "Trimestres",
+      "from": "Desde",
+      "to": "Hasta (HH:MM, también 24:00)",
+      "ct": "ct/kWh en la franja",
+      "addWindow": "+ Franja horaria",
+      "removeWindow": "Quitar franja horaria"
     }
   },
   "meters": {
@@ -2226,7 +2238,11 @@
         "one": "{count} mes sin valor de mercado: se toma el mismo mes del año anterior.",
         "other": "{count} meses sin valor de mercado: se toman los mismos meses del año anterior."
       },
-      "missingMarket": "Faltan precios mayoristas para la tarifa dinámica — cárgalos abajo en «Precios mayoristas de la electricidad»."
+      "missingMarket": "Faltan precios mayoristas para la tarifa dinámica — cárgalos abajo en «Precios mayoristas de la electricidad».",
+      "profileMonths": {
+        "one": "Precio mayorista con tu curva de carga por cuarto de hora en {count} mes, si no la media mensual.",
+        "other": "Precio mayorista con tu curva de carga por cuarto de hora en {count} meses, si no la media mensual."
+      }
     },
     "market": {
       "title": "Precios mayoristas de la electricidad",
@@ -2630,7 +2646,8 @@
       "dynamicShadowOnly": "Una tarifa dinámica solo se puede calcular como oferta (contrato hipotético) para electricidad — un contrato dinámico real se registra con precios mensuales",
       "priceModelInvalid": "Modelo de precio desconocido «{value}»",
       "priceImportEmpty": "El archivo no contiene ninguna línea con el formato mes;precio",
-      "priceImportUnsupported": "Los precios mensuales solo existen para contratos con precio unitario por kWh"
+      "priceImportUnsupported": "Los precios mensuales solo existen para contratos con precio unitario por kWh",
+      "gridTouInvalid": "Franjas del módulo 3 no válidas ({field}): trimestres 1–4, horas HH:MM con inicio antes del fin, precios 0–100 ct y una tarifa estándar."
     },
     "delivery": {
       "notFound": "Entrega no encontrada: {id}",
@@ -2655,7 +2672,8 @@
       "tokenRequiredWithLogin": "El inicio de sesión está activado: el envío necesita entonces un token de API. Crea uno en los ajustes.",
       "tooMany": "Demasiadas entradas en un lote (como máximo {max}, recibidas: {count}).",
       "bodyInvalid": "Entrada no válida: se espera un objeto con utility, meter y value.",
-      "periodMeter": "El contador «{meter}» registra el consumo por periodo y no acepta lecturas."
+      "periodMeter": "El contador «{meter}» registra el consumo por periodo y no acepta lecturas.",
+      "timestampFormat": "Marca de tiempo «{timestamp}» ilegible — se espera ISO 8601 con zona horaria, p. ej. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
       "noVersionField": "No hay campo backup_version — no es una copia de seguridad válida",
@@ -2798,7 +2816,8 @@
     },
     "marketPrices": {
       "noRows": "El archivo no contiene precios mayoristas — se espera una descarga de SMARD o líneas como 2025-01;114,14",
-      "syncFailed": "No se pudo acceder a SMARD o no devolvió valores — inténtalo más tarde o importa un archivo"
+      "syncFailed": "No se pudo acceder a SMARD o no devolvió valores — inténtalo más tarde o importa un archivo",
+      "syncQuarterHoursFailed": "No se pudo acceder a SMARD o no devolvió precios cuartohorarios para este año — inténtalo más tarde"
     },
     "evReport": {
       "methodInvalid": "Método desconocido «{value}» — se admiten contract y flat",
@@ -2829,6 +2848,12 @@
       "columns": "No parece la exportación CSV de evcc: faltan las columnas de inicio y energía.",
       "countersInvalid": "Opción desconocida para las lecturas: «{value}».",
       "loadpointNeeded": "Varios puntos de carga ({names}): las lecturas pertenecen a un punto de carga – elige el suyo o incorpora solo las cargas."
+    },
+    "intervals": {
+      "notFound": "Serie «{id}» no encontrada."
+    },
+    "flexibility": {
+      "yearInvalid": "Año no válido: {year}."
     }
   },
   "login": {
@@ -3124,6 +3149,10 @@
     "jaz": {
       "term": "Factor de rendimiento estacional (SPF)",
       "text": "Cuánto calor produce una bomba de calor con un kWh de electricidad, medido durante un año: calor ÷ electricidad. Necesita un contador de calor en la bomba. En un ensayo de campo, los equipos aire/agua rondaron 3,4 y los de salmuera/agua 4,3."
+    },
+    "profileFactor": {
+      "term": "Factor de perfil",
+      "text": "Tu precio mayorista por kWh (ponderado por consumo) dividido por la media del mercado. Por debajo de 1: consumes más cuando la electricidad es barata; por encima: cuando es cara."
     }
   },
   "help": {
@@ -3682,7 +3711,8 @@
       "summaryCounter": {
         "one": "{count} día, {from} (la última lectura del día)",
         "other": "{count} días del {from} al {to} (la última lectura de cada día)"
-      }
+      },
+      "intervals": "Además, {slots} valores cuartohorarios (cada {minutes} minutos) — se evalúan en Evaluaciones → Flexibilidad."
     }
   },
   "level": {
@@ -3863,6 +3893,68 @@
       "hint": "Las cargas vienen de varios puntos de carga. Las lecturas pertenecen a un solo punto de carga – elige el suyo. Para todos los puntos de carga juntos, elige «ninguna – solo las cargas» en las lecturas.",
       "label": "Punto de carga",
       "ok": "Continuar"
+    }
+  },
+  "flex": {
+    "title": "Valorar la flexibilidad",
+    "year": "Año",
+    "loadPrices": "Cargar precios mayoristas {year} desde SMARD",
+    "intro": "¿Ha merecido la pena desplazar el consumo? Se calcula con tu consumo y el precio mayorista por cuarto de hora — solo la parte mayorista, sin impuestos, cargos ni peaje de red. El control se hace en otro sitio (evcc, Home Assistant, la propia batería).",
+    "noPrices": "Faltan los precios mayoristas por cuarto de hora de {year} — cárgalos desde SMARD arriba.",
+    "noIntervals": "Todavía no hay consumo por cuarto de hora de {year}. Llega desde un archivo del portal (contadores → importar serie temporal) o desde Home Assistant con marca de tiempo.",
+    "attribution": "Precios mayoristas: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
+    "pricesLoaded": "Precios mayoristas {year} cargados: {slots} cuartos de hora.",
+    "controllable": "controlable",
+    "kpi": {
+      "kwh": "Consumo con precio",
+      "cheap": "En cuartos de hora baratos",
+      "negative": "Con precio negativo",
+      "own": "Media propia / media mercado",
+      "factor": "Factor de perfil",
+      "advantage": "Ventaja (parte mayorista)"
+    },
+    "noOverlap": "Ningún cuarto de hora con consumo y precio mayorista.",
+    "verdict": {
+      "good": "Más barato que la media: {eur} ahorrados en la parte mayorista (factor de perfil {factor}).",
+      "bad": "Más caro que la media: {eur} más en la parte mayorista (factor de perfil {factor}) — se consume más bien en horas caras."
+    },
+    "months": "Por mes",
+    "col": {
+      "month": "Mes",
+      "cheap": "barato",
+      "negative": "negativo",
+      "own": "media propia",
+      "market": "media mercado",
+      "advantage": "ventaja",
+      "coverage": "cobertura"
+    },
+    "battery": {
+      "title": "Batería según el precio mayorista",
+      "charged": "Cargado · precio medio",
+      "discharged": "Descargado · precio medio",
+      "value": "Valor del desplazamiento",
+      "hint": "kWh descargados al precio mayorista de la descarga menos kWh cargados al precio mayorista de la carga — lo que valió desplazar a lo largo del día, sin pérdidas ni peaje de red."
+    },
+    "module3": {
+      "title": "§ 14a módulo 3 — {name}",
+      "low": "En tarifa baja",
+      "high": "En tarifa alta",
+      "standard": "En tarifa estándar",
+      "saving": "Ahorro frente al estándar",
+      "hint": "Según las franjas del contrato de este contador: peaje de red por kWh en la franja frente a la tarifa estándar. Los peajes variables solo existen además del módulo 1 y con un sistema de medición inteligente."
+    },
+    "series": {
+      "title": "Series por cuarto de hora",
+      "what": "Serie",
+      "source": "Fuente",
+      "prices": "Precios mayoristas DE-LU",
+      "delete": "Eliminar serie",
+      "confirmDelete": "¿Eliminar esta serie? Las lecturas y los valores diarios se mantienen.",
+      "sources": {
+        "import": "Archivo",
+        "ingest": "Home Assistant",
+        "smard": "SMARD"
+      }
     }
   }
 }

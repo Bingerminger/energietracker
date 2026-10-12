@@ -58,6 +58,8 @@ final class BackupService
         'market_prices'             => 'market_prices.json',
         // v3.2.0 (F1022) — Ladevorgänge aus evcc
         'ev_sessions'               => 'ev_sessions.json',
+        // v3.3.0 (F1021) — Index der Viertelstundenreihen; die Reihen unter interval_files
+        'intervals'                 => 'intervals.json',
     ];
 
     /**
@@ -104,7 +106,22 @@ final class BackupService
                 $payload['attachment_files'][$id] = base64_encode((string)file_get_contents($path));
             }
         }
+        // v3.3.0 (F1021) — Viertelstundenreihen sind Daten, keine Belege: immer dabei
+        $payload['interval_files'] = [];
+        foreach ($this->intervalIds() as $id) $payload['interval_files'][$id] = $this->store->read(IntervalService::DIR . "/$id.json", []);
         return $payload;
+    }
+
+    /** Reihen laut Index mit vorhandener Datei. @return list<string> */
+    private function intervalIds(): array
+    {
+        $idx = $this->store->exists(IntervalService::INDEX) ? $this->store->read(IntervalService::INDEX, []) : [];
+        $ids = [];
+        foreach ((array)($idx['series'] ?? []) as $s) {
+            $id = (string)($s['id'] ?? '');
+            if (preg_match(IntervalService::ID, $id) && $this->store->exists(IntervalService::DIR . "/$id.json")) $ids[] = $id;
+        }
+        return $ids;
     }
 
     /**
@@ -237,6 +254,16 @@ final class BackupService
             throw $e;
         }
 
+        // v3.3.0 (F1021) — kam ein neuer Index, fallen Reihen ohne Eintrag weg
+        // (sonst lägen nach einem Haushaltswechsel Reihen des vorigen herum)
+        if (array_key_exists(IntervalService::INDEX, $writes)) {
+            $keep = [];
+            foreach ((array)($writes[IntervalService::INDEX]['series'] ?? []) as $s) $keep[(string)($s['id'] ?? '')] = true;
+            foreach ($this->store->glob(IntervalService::DIR . '/*.json') as $base) {
+                if (!isset($keep[substr($base, 0, -5)])) $this->store->delete(IntervalService::DIR . '/' . $base);
+            }
+        }
+
         return $report + ['auto_snapshot_before_restore' => $autoSnapshot];
     }
 
@@ -291,7 +318,8 @@ final class BackupService
                 }
             }
             $writes[$file] = $payload[$key];
-            $report[$key] = count($payload[$key]);
+            // der Index der Viertelstundenreihen zählt seine Reihen, nicht seine zwei Schlüssel
+            $report[$key] = $key === 'intervals' ? count((array)($payload[$key]['series'] ?? [])) : count($payload[$key]);
         }
 
         // v3.1.0 — Belege: jede Datei gegen sha256 und Inhaltstyp des Index
@@ -316,6 +344,26 @@ final class BackupService
                 $binaries['attachments/' . $id . '.' . AttachmentService::extension((string)$a['mime'])] = $b64;
             }
             $report['attachment_files'] = count($binaries);
+        }
+
+        // v3.3.0 (F1021) — Viertelstundenreihen: nur solche aus dem Index des
+        // Backups, mit gültiger ID und einer Werteliste
+        if (isset($payload['interval_files'])) {
+            $known = [];
+            foreach ((array)($payload['intervals']['series'] ?? []) as $s) if (is_array($s)) $known[(string)($s['id'] ?? '')] = true;
+            $files = is_array($payload['interval_files']) ? $payload['interval_files'] : null;
+            if ($files === null) $problem('interval_files', null, 'not_an_object');
+            $n = 0;
+            foreach ($files ?? [] as $id => $content) {
+                $id = (string)$id;
+                if (!preg_match(IntervalService::ID, $id) || !isset($known[$id]) || !is_array($content['values'] ?? null)) {
+                    $problem('interval_files', null, "invalid:$id");
+                    continue;
+                }
+                $writes[IntervalService::DIR . "/$id.json"] = $content;
+                $n++;
+            }
+            $report['interval_files'] = $n;
         }
 
         $utilities = $payload['utilities'] ?? null;
@@ -455,6 +503,12 @@ final class BackupService
             }
             $w('}');
         }
+        // v3.3.0 (F1021) — Viertelstundenreihen
+        $w(',"interval_files":{');
+        foreach ($this->intervalIds() as $i => $id) {
+            $w(($i ? ',' : '') . $enc($id) . ':' . $this->rawPot(IntervalService::DIR . "/$id.json", '{}'));
+        }
+        $w('}');
         $w('}');
     }
 

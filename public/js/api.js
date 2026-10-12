@@ -384,6 +384,11 @@ export const api = {
   evReport:    (meterId, year, method = 'contract', flat = '') =>
     request('GET', `/api/reports/ev-charging?${evQuery(meterId, year, method, flat)}`),
   evReportUrl: (meterId, year, method, flat, ext) => fileUrl(`/api/reports/ev-charging.${ext}?${evQuery(meterId, year, method, flat)}`),
+  // ── v3.3.0 (F1021) — Flexibilität: Viertelstunden, Börsenpreise je Viertelstunde ──
+  flexibility:       (year) => request('GET', `/api/flexibility?year=${encodeURIComponent(year)}`),
+  intervals:         ()     => request('GET', '/api/intervals'),
+  deleteInterval:    (id)   => request('DELETE', `/api/intervals/${encodeURIComponent(id)}`),
+  syncSmardIntervals: (year) => request('POST', `/api/market-prices/sync-smard-intervals?year=${encodeURIComponent(year)}`, {}, { timeoutMs: TIMEOUT_LONG_MS }),
   // ── v3.2.0 (F1022) — Ladevorgänge aus evcc: CSV-Export oder Abruf im Heimnetz ──
   evSessions:  (meterId, year)         => request('GET', `/api/ev-sessions?meter_id=${encodeURIComponent(meterId)}&year=${encodeURIComponent(year)}`),
   importEvcc:  (meterId, csv, { dryRun = false, counters = 'auto', loadpoint = null } = {}) =>

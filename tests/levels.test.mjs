@@ -69,6 +69,7 @@ t('Erfahren: Wechsel, Rechnung prüfen, Zähler — Experten-Einstellungen nicht
   allowed('advanced', 'tariffs') && allowed('advanced', 'bill-check') && allowed('advanced', 'meters')
   && !allowed('advanced', 'settings:expert') && !allowed('advanced', 'settings:access'));
 t('Experte: alles', Object.keys(L.VIEW_LEVEL).every(v => allowed('expert', v)));
+t('Flexibilität (Viertelstunden) erst für Experten', !allowed('advanced', 'flexibility') && allowed('expert', 'flexibility'));
 t('nächste Stufe', L.nextLevel('beginner') === 'advanced' && L.nextLevel('advanced') === 'expert' && L.nextLevel('expert') === null);
 
 L.applyLevel('beginner');

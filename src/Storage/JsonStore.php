@@ -11,6 +11,9 @@ namespace Energietracker\Storage;
  */
 final class JsonStore
 {
+    /** v3.3.0 — Dateien unter diesem Verzeichnis werden kompakt geschrieben (IntervalService::DIR). */
+    private const COMPACT_DIR = 'intervals/';
+
     public function __construct(private string $rootDir)
     {
         if (!is_dir($this->rootDir)) {
@@ -197,10 +200,12 @@ final class JsonStore
         // v2.6.0 — JSON_INVALID_UTF8_SUBSTITUTE als letzte Verteidigung: Ein
         // CSV in Windows-1252 brach bisher mitten im Import mit HTTP 500 ab,
         // nachdem die ersten Zeilen schon geschrieben waren.
-        $json = json_encode(
-            $data,
-            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE
-        );
+        // v3.3.0 (F1021) — Viertelstundenreihen (35 040 Zahlen je Datei, mit
+        // Home Assistant bis zu 96-mal am Tag neu geschrieben) liest nur die
+        // App: kompakt statt eine Zahl je Zeile, weniger als die Hälfte der Größe.
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE;
+        if (!str_starts_with($relative, self::COMPACT_DIR)) $flags |= JSON_PRETTY_PRINT;
+        $json = json_encode($data, $flags);
         if ($json === false) {
             throw new \RuntimeException('JSON-Kodierung fehlgeschlagen für ' . $relative);
         }

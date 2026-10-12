@@ -42,6 +42,7 @@ export const VIEW_LEVEL = {
   'tenancy': 'advanced',            // Einsteiger: Budget-Karte auf der Übersicht
   'analysis': 'advanced',
   'forecast': 'advanced',
+  'flexibility': 'expert',          // v3.3.0 (F1021) — Viertelstunden und Börsenpreise
   'meters': 'advanced',             // Zähler-Aufbau (Subzähler, Rollen, Geräte)
   'temperatures': 'advanced',
   'settings:integrations': 'advanced',

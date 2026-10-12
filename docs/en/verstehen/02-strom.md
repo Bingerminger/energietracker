@@ -78,7 +78,7 @@ drops. Three modules:
 |---|---|---|
 | **1** | a fixed amount per year by which the grid fee drops | in the electricity contract the list **“Reduced grid fee (§ 14a EnWG, module 1)”**: from when and how much per year. The app deducts the amount day-exact from the fixed costs — €120 a year is €10 per month — and shows it per month |
 | **2** | a separate meter for the heat pump or wall box; its grid unit price drops to 40 % | an electricity meter of its own with the role “Heat pump (heating electricity)” or “Wallbox (EV charger)” and a contract of its own with the lower unit price. If it sits behind the household meter, as a sub-meter ([Meter topology](13-meter-topologie.md#module-2-a-separate-meter-with-its-own-contract-v310)) |
-| **3** | time-variable grid fees on top of module 1, per quarter hour | not implemented — it needs quarter-hour values; the app calculates in days and months |
+| **3** | time-variable grid fees on top of module 1, per quarter hour | *(v3.3.0)* in the electricity contract (level “Expert”) the time windows from the grid operator’s price sheet: standard grid fee and windows with their own price per quarter. With quarter-hour values, [Valuing flexibility](../anleitungen/flexibilitaet.md#6--14a-module-3-time-variable-grid-fee) works out the saving against the standard grid fee; costs, balance and bill check still calculate without it |
 
 In the tariff comparison and the switch decision the reduction is left out: it
 applies equally to every supplier.
@@ -109,13 +109,17 @@ For future months without a wholesale value the app assumes the same month of
 the previous year and says for how many months. Without wholesale prices the
 offer does not appear; a note does instead.
 
-**What the check cannot do.** It calculates with the monthly average, as if
-your consumption were spread evenly across the day. In the evening, when many
-people cook and heat, electricity is usually dearer than average; whoever uses
-a lot then pays more with a dynamic tariff than the check shows. Whoever can
-shift consumption into cheap hours — wall box, heat pump, battery — pays less.
-The app deliberately uses no load profile (the BDEW standard load profile H25):
-it is published without a licence.
+**What the check cannot do.** Without quarter-hour values it calculates with
+the monthly average, as if your consumption were spread evenly across the day.
+In the evening, when many people cook and heat, electricity is usually dearer
+than average; whoever uses a lot then pays more with a dynamic tariff than the
+check shows. Whoever can shift consumption into cheap hours — wall box, heat
+pump, battery — pays less. The app deliberately uses no load profile (the BDEW
+standard load profile H25): it is published without a licence. *(v3.3.0)* If at
+least 90 % of a month’s quarter hours have your consumption and the exchange
+price, the review uses your own load profile instead
+([Dynamic tariff check with your own load profile](../anleitungen/flexibilitaet.md#7-dynamic-tariff-check-with-your-own-load-profile));
+the ranking for switching still uses the monthly average.
 
 **Keeping a dynamic contract.** If you have one, enter it as a real contract
 with **prices per month**: on the contract card **“Import monthly prices”**

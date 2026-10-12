@@ -1,26 +1,27 @@
 # Energietracker — Roadmap
 
-> **Kurzfassung.** Jetzt: v3.2.0 — leicht für jeden: Einrichtungsassistent mit
-> Beispielhaushalten, Nutzungsstufen, Schaubilder, Personen im Haushalt und
-> Ladevorgänge aus evcc. Als Nächstes: v3.3.0 „Flexibilität bewerten“ mit
-> Viertelstundenwerten (Schema 1.8.0). Bewusst nicht: eigene
+> **Kurzfassung.** Jetzt: v3.3.0 — was Flexibilität wert ist: Verbrauch und
+> Börsenpreis je Viertelstunde, Profilfaktor, Wert des Speichers, § 14a Modul 3
+> und der Dynamik-Check mit eigenem Lastgang (Schema 1.8.0). Davor v3.2.0 mit
+> Einrichtungsassistent, Nutzungsstufen, Schaubildern, Personen im Haushalt und
+> evcc. Als Nächstes: offen — der Eingang ist leer. Bewusst nicht: eigene
 > Smart-Meter-Auslesung (das macht Home Assistant), ein Cloud-Dienst mit Konten,
 > eine eigene Steuerung von Speicher und Auto (das machen evcc und Home Assistant).
 >
-> *In English:* now v3.2.0 (easy for everyone: setup assistant with example
-> households, experience levels, explainers, several people per household,
-> charging sessions from evcc). Next: v3.3.0, valuing flexibility with
-> quarter-hour data. Deliberately not: reading smart meters ourselves (Home
-> Assistant does that), a cloud service, controlling battery and car ourselves.
+> *In English:* now v3.3.0 (what flexibility is worth: consumption and exchange
+> price per quarter hour, profile factor, battery value, time-variable grid fees
+> and the dynamic-tariff check with your own load profile). Next: open.
+> Deliberately not: reading smart meters ourselves (Home Assistant does that), a
+> cloud service, controlling battery and car ourselves.
 >
 > Der Rest dieser Seite ist das Planungsdokument mit Entscheidungen und
 > Historie; es wird mit jedem Release fortgeschrieben. Bei Konflikt zwischen
 > Reihenfolge und akutem Bedarf (etwa einem kritischen Fehler) gewinnt der
 > Bedarf.
 
-**Stand:** 2026-10-09 (synchron mit v3.2.0; Gesamtreview A–H fertig, dazu F1018–F1020, F1022, F1023)
-**Aktuelle Baseline:** v3.2.0
-**Schema:** 1.7.0
+**Stand:** 2026-10-12 (synchron mit v3.3.0; Gesamtreview A–H fertig, dazu F1018–F1023)
+**Aktuelle Baseline:** v3.3.0
+**Schema:** 1.8.0
 
 ---
 
@@ -85,6 +86,7 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | F1018 | Einrichtungsassistent mit vier Beispielhaushalten und Schaufenster (Mietwohnung mit Heizwärme, Eigentumswohnung mit Fernwärme, Eigenheim klassisch, Eigenheim mit Wärmepumpe/PV/Speicher/Wallbox), auch in der GitHub-Demo | v3.2.0 | 2026-10-09 |
 | F1023 | Personen im Haushalt: eigene Anmeldung mit Name oder Proxy, Verwalter und Mitglieder, Stufe und Sprache je Person, neues Passwort meldet ab | v3.2.0 | 2026-10-09 |
 | F1022 | Ladevorgänge aus evcc: CSV-Export oder Abruf im Heimnetz, Sonnenanteil und Preis je Monat, Zählerstände der Wallbox | v3.2.0 | 2026-10-09 |
+| F1021 | Flexibilität bewerten: Verbrauch und Börsenpreis je Viertelstunde (Home Assistant mit Zeitstempel, Portaldateien, SMARD), Profilfaktor und Vorteil je Zähler, Wert des Speichers, § 14a Modul 3, Dynamik-Check mit eigenem Lastgang; Schema 1.8.0 | v3.3.0 | 2026-10-12 |
 
 > **Lücke in dieser Tabelle:** v2.2.0 (Vollreview, Tarifvergleich neu, Assets
 > selbst gehostet) und v2.3.0 (Tarifvergleich wird zur Wechselentscheidung)
@@ -133,12 +135,7 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| **F1019** | Nutzungsstufen Einsteiger · Erfahren · Experte (je Installation), vereinfachte Ansichten, Vorschlag zum Hochstufen | v3.2.0 | M | — (Einstellung) | geplant — Grundlage für F1018 |
-| **F1020** | Schaubilder: animierte Erklärgrafiken mit den eigenen Daten (SVG, ohne Bibliothek) | v3.2.0 | M | — | geplant |
-| **F1018** | Einrichtungsassistent mit Personas und Beispielhaushalten (Mieterin mit Heizwärme, Eigenheim Gas/Fernwärme, Eigenheim mit Wärmepumpe/PV/Wallbox) | v3.2.0 | M–L | — (Einstellung) | geplant — braucht F1019, nutzt F1020 |
-| **F1022** | Ladevorgänge aus evcc übernehmen (Ladestrom-Nachweis, Anteil aus PV) | v3.2.0 | S–M | offen (additiv) | geplant |
-| **F1023** | Benutzer im Haushalt: eigene Benutzer mit Passwort oder vom Proxy gemeldet, Verwalter und Mitglieder, Stufe und Sprache je Person | v3.2.0 | M | — (`auth.json` additiv) | geplant — Stufe je Person ersetzt dort die Stufe der Installation |
-| **F1021** | Flexibilität bewerten: Verbrauch und Börsenpreis je Viertelstunde, Erfolg der Verschiebung, Dynamik-Check mit echtem Lastgang, Speicher nach Stunden, § 14a Modul 3 | v3.3.0 | L | 1.7.0 → 1.8.0 | geplant — nach v3.2.0 |
+| — | *derzeit nichts eingeplant — F1018–F1023 ausgeliefert mit v3.2.0 und v3.3.0; der nächste Schnitt wählt aus dem Eingang* | | | | |
 
 > **Sprach-Wellen 2+** (cs, uk, pl, el, tr, hr, sr, sl, fi, no, da, lv, et, hu, bg, ro …)
 > sind bewusst zurückgestellt (User-Entscheidung 2026-06-10) und werden
@@ -869,7 +866,17 @@ vor dem Assistenten (der beim Erststart den ersten Verwalter anlegen kann).
 
 ---
 
-## v3.3.0 — Detail-Konzept F1021 „Flexibilität bewerten“
+## v3.3.0 — Detail-Konzept F1021 „Flexibilität bewerten“ — ausgeliefert 2026-10-12
+
+> Umgesetzt mit allen vier Teilen. Beim Bauen entschieden: eine Reihe je
+> Zähler und Jahr (`intervals/<id>.json`, 35 040 Werte, Jahresgrenzen in der
+> Zeitzone der Installation), Index `intervals.json` als einziger
+> Schemaschritt; „günstig“ heißt unter dem Monatsmittel des Börsenpreises;
+> Zählerstände aus Home Assistant werden über höchstens sechs Stunden
+> verteilt; der Dynamik-Check nimmt das eigene Profil erst ab 90 % Abdeckung
+> eines Monats. Alte Jahre löscht man je Reihe (Expertenkarte). Modul 3 rechnet
+> mit den Zeitfenstern, die am Vertrag stehen — die App schreibt keine
+> Netzbetreiber-Werte vor.
 
 **Ziel:** Wer mit evcc, Home Assistant oder einem Speicher Verbrauch in
 günstige Stunden verschiebt, sieht, was es gebracht hat. Gesteuert wird
@@ -905,7 +912,7 @@ daraus ausgewählt.
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|
-| — | *derzeit leer — F1021 und F1023 am 2026-10-09 eingeplant* | | | |
+| — | *derzeit leer — F1021 ausgeliefert mit v3.3.0 (2026-10-12)* | | | |
 
 ---
 
@@ -1007,6 +1014,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-10-07 | v3.1.0 ausgeliefert (Minor, F1008 + F1010 + F1017 + N1018, Schema 1.7.0) | **Für jeden Haushalt** — Pakete G und H1–H8 des Gesamtreviews in einem Release; damit sind alle Pakete A–H umgesetzt. Codes nachgetragen am 2026-10-09. |
 | 2026-10-09 | v3.2.0 geplant, Eingang eingeführt | Erster Release-Schnitt im Assist-Modus: F1019 Nutzungsstufen (je Installation — Stufen je Nutzer erst mit Benutzerkonten, F1023 im Eingang), F1020 Schaubilder, F1018 Einrichtungsassistent mit Personas und Beispielhaushalten, F1022 evcc-Ladevorgänge; Anfrage eines Energieberaters zu Speicher- und Ladesteuerung bewertet: kein Controller, Anwendungsfall in der Hilfe, F1021 Flexibilität bewerten in den Eingang. Backlog heißt jetzt Eingang. |
 | 2026-10-09 | v3.2.0 ausgeliefert (Minor, F1018 + F1019 + F1020 + F1022 + F1023, kein Schemaschritt) | **Leicht für jeden** — Nutzungsstufen (Bestand bleibt Experte), Schaubilder, Einrichtungsassistent mit vier Beispielhaushalten und Schaufenster, Personen im Haushalt (F1023 nachgezogen, kein Schema nötig; Stufe und Sprache je Person, neues Passwort meldet ab), Ladevorgänge aus evcc (CSV oder Abruf im Heimnetz). Altlasten: Rechnungen bearbeiten, #15/#17 geschlossen, Rechtsangaben geprüft. Fehler gefunden über die Beispielhaushalte: Dynamik-Check mit künftigem Angebot, Haushaltswechsel ließ einen neuen Topf stehen. F1021 bleibt v3.3.0 (Schema 1.8.0). |
+| 2026-10-12 | v3.3.0 ausgeliefert (Minor, F1021, Schema 1.8.0) | **Was Flexibilität wert ist** — Viertelstundenreihen je Zähler und Jahr (`intervals.json` + `intervals/`), gespeist aus Home Assistant (Ingest mit `timestamp`, Differenzen anteilig verteilt, nichts über Pausen > 6 h), Portaldateien (Takt 15/30/60 min) und SMARD (Day-Ahead DE-LU je Viertelstunde, auf Knopfdruck). Neue Expertenseite: Profilfaktor und Vorteil je Stromzähler (günstig = unter dem Monatsmittel), Wert des Speichers, § 14a Modul 3 aus Zeitfenstern am Vertrag (`grid_tou`). Dynamik-Check mit eigenem Lastgang ab 90 % Abdeckung je Monat. Backup trägt die Reihen mit. Beispielhaushalt mit Wärmepumpe bekommt ein Jahr Viertelstunden und echte Börsenpreise 2025. Eingang leer. |
 | 2026-09-24 | v2.5.3 ausgeliefert (Patch) | **Keine stillen Fehlbuchungen** — Paket A aus einem Gesamtreview (Berechnungen, Oberfläche Mac/iPhone, Übersetzungen, Doku, API). Schwerpunkt: Eingaben, die bisher still in eine gültige Buchung verwandelt wurden (leeres Zahlenfeld → 0, „12,5" je nach Browser → nichts, HA-Sensor „unavailable" → Zählerstand 0 durch `float(0)` in der eigenen Vorlage, unlesbarer Stichtag → 01-01, leerer Vertrag → „aktiv"). Dazu CSRF-Schutz, Escaping gespeicherter Werte, Datumsprüfung auf allen Schreibpfaden, Beschädigung als 503 mit Quarantäne-Kopie, globale Schreibsperre, Snapshot vor Migration, iPhone-Überbreite (13 von 21 Ansichten → keine), Glossar-Vorzeichen, fachliche Fehlübersetzungen. Kein Schema-Bump, keine Schnittstellenänderung. 256 → 285 Testmethoden, zwei neue Node-Tests in der CI. Die weiteren Pakete folgen als eigene Releases: „Verlässlich und sicher im Heimnetz" (optionale Anmeldung), Länderprofile, „Richtig rechnen", „Mobil und aufgeräumt", „Versteht sich von selbst", „Auswertungen, die man sieht". |
 | 2026-09-15 | v2.5.2 ausgeliefert (Patch) | UX-Politur an der Rechnungsprüfung: je Abschnitt **Stand alt / Stand neu** mit Ableseart wie die Fußnoten der Rechnung — abgelesen, als geschätzt erfasst (`S`), Ersatzwert (`E`, tagesgenau interpoliert, kein Stand über einen Zählertausch hinweg). Anlass: Beim Abgleich zweier echter Jahresrechnungen war nicht zu sehen, welche Abschnittsgrenzen auf echten Ablesungen ruhen und welche auf Schätzungen — bei der zweiten Rechnung vier von sieben Endständen. `bill-check` liefert `counter_*` + `counter_*_kind`. 254 → 256 Tests, der Browser-Test führt die Prüfung jetzt wirklich aus, 7 Toggles greifend. Doku DE + EN. Nächster Slot: F1008. |
 | 2026-09-15 | v2.5.1 ausgeliefert (Patch) | UX-Politur ohne Code: Die Tabelle *Verträge & Abschläge* zeigt je Vertrag jetzt eine Spalte **Sonderzahlungen** (Netto aus Kundensicht, Einzelposten im Tooltip, Hinweistext; nur Gas/Strom/Fernwärme). Aufgefallen beim Nachrechnen einer echten Endabrechnung mit der neuen Rechnungsprüfung: Die gebuchte Gutschrift war in der Vertragshistorie unsichtbar, nur *Bonus* hatte eine Spalte. Drei Weichen per Multiple-Choice (eigene Spalte statt „Boni & Sonder"-Saldo — Bonus ist Vertragsbestandteil, Sonderzahlung Geld außerhalb des Plans; Netto mit Kundenvorzeichen; PATCH statt F-Code). `contract-status` liefert dafür `special_payments[]`. 250 → 254 Tests, 9 Toggles greifend, ein zehnter fand totes `abs()`. Doku DE + EN. Nächster Slot: F1008. |

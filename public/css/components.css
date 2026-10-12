@@ -1329,6 +1329,11 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .help-links { margin: 0 0 var(--sp-2); padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
 .help-subtitle { margin-top: var(--sp-4); }
 .help-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-2) 0 0; }
+/* v3.3.0 (F1021) — Flexibilität und Modul-3-Zeitfenster */
+.flex-months summary { cursor: pointer; margin: var(--sp-2) 0; color: var(--text-2); }
+.tou-quarters { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding-top: 6px; }
+.tou-row { align-items: flex-end; }
+
 /* v3.2.0 — Anwendungsfälle */
 .help-cases__list { margin: var(--sp-2) 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--sp-3) var(--sp-5); }
 .help-cases__item dt { font-weight: 600; margin-bottom: 4px; }

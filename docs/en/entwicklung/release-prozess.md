@@ -737,6 +737,28 @@ accepted.
   CO2KostAufG says “plus the VAT due on this amount” — the amount on the bill is
   gross, and every refund was 19 % too high. Legal statements are now checked
   with source and date before they become a calculation rule.
+- **A quarter hour is a local time (v3.3.0).** The series count their 35,040
+  slots in UTC, but which month and which time window a quarter hour belongs to
+  depends on the installation's time zone. A monthly mean or a module 3 window
+  “5 to 8 pm” taken in UTC shifts by two hours in summer.
+  `IntervalService::localClock()` works out both once per year from the clock
+  changes; the tests use a year with daylight saving time. The other way round,
+  a portal file without a time zone names the repeated autumn hour twice with
+  the same clock time, and PHP reads both as winter time — the second
+  occurrence overwrote the first until the import placed the first one hour
+  earlier.
+- **A wrapper around a return value stays silent (v3.3.0).**
+  `ContractService::resolveForDate()` returns `['contract' => …, 'assumed' => …]`,
+  not the contract. `$c['grid_tou'] ?? null` on the wrapper was silently `null` —
+  module 3 stayed empty without an error. Only the test with an expected saving
+  in cents found it; a test for “key present” would have been green.
+- **Side effects only after success (v3.3.0).** The portal import wrote the
+  quarter hours first and the daily values afterwards — if the check of the
+  daily values failed, the quarter hours stayed behind anyway. The import now
+  collects them and writes them only on the paths that end successfully.
+- **JSON has no decimal with a zero (v3.3.0).** `10.0` is written as `10` and
+  read back as an integer; a strict comparison in a test fell for it.
+  `IntervalService::values()` therefore always returns floats.
 
 ---
 

@@ -35,14 +35,15 @@ text recognition service and to evcc in the home network.
 | [Enter and check the annual bill](anleitungen/jahresabrechnung.md) | Take readings, prices, gas factors and the credit from a bill and recalculate it — for gas, electricity, water and district heating; record the bill, compare it and book it as a special payment |
 | [As a tenant: heating, water and service charges](anleitungen/mieter.md) | Consumption information month by month, hot and cold water, prepayment against expected costs, the service charge statement and its deadlines |
 | [Share CO₂ costs with the landlord](anleitungen/co2-aufteilung.md) | The landlord’s share under the CO2KostAufG: work it out and claim it with your own gas boiler, check the statement with central heating; deadline and letter |
-| [Connect Home Assistant](anleitungen/home-assistant.md) | Push readings automatically: token, meter alias, REST command; balance and forecast back as sensors, backfilling after an outage |
+| [Connect Home Assistant](anleitungen/home-assistant.md) | Push readings automatically: token, meter alias, REST command, quarter hours with a timestamp; balance and forecast back as sensors, backfilling after an outage |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Send readings from other systems: the common contract and one recipe each |
 | [Deadlines and dates in your calendar](anleitungen/kalender.md) | Calendar subscription in Apple Calendar, Thunderbird and Google Calendar |
 | [Text recognition in the home network](anleitungen/texterkennung.md) | Let a photo suggest the meter reading: set up Ollama or LM Studio, privacy, troubleshooting |
 | [Record charging electricity for a company car](anleitungen/ladestrom-nachweis.md) | Wall box as a meter, contract price or flat electricity rate, statement as CSV and PDF — not tax advice |
 | [Charging sessions from evcc](anleitungen/evcc.md) | Upload the CSV from evcc or fetch it in the home network, wallbox meter readings, solar share and price per month, several charging points |
 | [Users in the household](anleitungen/benutzer.md) | People with name and password or via the proxy, admin and member, own level and language, forgotten password |
-| [Import time series from portals](anleitungen/daten-aus-portalen.md) | Read files from the grid operator, inverter or heat pump with a column mapping, time stamps and daylight saving time, Data Act |
+| [Import time series from portals](anleitungen/daten-aus-portalen.md) | Read files from the grid operator, inverter or heat pump with a column mapping, time stamps and daylight saving time, quarter hours for flexibility, Data Act |
+| [Valuing flexibility](anleitungen/flexibilitaet.md) | Consumption and wholesale price per quarter hour: profile factor and advantage per electricity meter, battery, § 14a module 3 with time windows on the contract, dynamic tariff check with your own load profile |
 | [Use cases](anleitungen/anwendungsfaelle.md) | Shared flat with shared meters, smart home, PV household with a heat pump, landlord, wall box and company car, district heating or heat, control with evcc or Home Assistant |
 | [Moving from v0.9.0](anleitungen/migration-v090.md) | Take over an old backup |
 

@@ -24,7 +24,7 @@ the users' questions: seven areas instead of 17 entries.
 | Meter readings | all meters in one go |
 | Consumption | one page per active utility |
 | Costs & contracts | Contracts & payments · Tariff switch · Check a bill · Tenancy (v3.1.0, only “in a rented home”) |
-| Insights | Analysis · Forecast · Annual report |
+| Insights | Analysis · Forecast · Flexibility (v3.3.0) · Annual report |
 | Reminders & tips | Reminders & maintenance · Recommendations (one count in the sidebar) |
 | Settings | General · Household & building · Utilities & billing · Weather data · Data · Integrations · Access · Expert · System |
 
@@ -56,7 +56,7 @@ it in the browser. An existing installation is on “Expert” after the update.
 |---|---|---|
 | 🌱 Beginner | Overview (a view of its own, §1), Meter readings, Consumption per utility, Contracts & payments, Annual report, Reminders & maintenance, Recommendations, Help; Settings → General, Household & building, Utilities & billing, Data | — |
 | 🌿 Experienced | Tariff switch, Check a bill, Tenancy, Analysis, Forecast, meter management of a utility (`#/utility/…/meters`), Weather data, Settings → Integrations | the overview with every key figure; in the consumption view the CO₂ tile, “Measured”/“Weather-adjusted”, the monthly table, the PV energy flow, “Check a bill” and “Charging sessions from evcc” (§3); in the contract dialog notice period, price guarantee, how cancellation takes effect, minimum term, “Renews unless cancelled”, bonuses and special payments; in the settings Display, Reminders, Own reference values, Water reference values, Physical constants and Energy sources (delivery) |
-| 🌳 Expert | Settings → Access, Expert, System | on the overview the “Explainers” section; in the consumption view hot-water heat, CO₂ price in the fuel, charging record, heat pump and the PV battery and payback; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract dialog capacity and metering charge and the key figures of district heating, the reduced grid fee (§ 14a), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates, PV system, the heat pump’s electricity meter and “Import time series”; in the tenancy “Sharing CO₂ costs”; in the settings CO₂ emission factors and Photovoltaics |
+| 🌳 Expert | Flexibility (v3.3.0); Settings → Access, Expert, System | on the overview the “Explainers” section; in the consumption view hot-water heat, CO₂ price in the fuel, charging record, heat pump and the PV battery and payback; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract dialog capacity and metering charge and the key figures of district heating, the reduced grid fee (§ 14a), the time-variable grid fee (§ 14a module 3, v3.3.0), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates, PV system, the heat pump’s electricity meter and “Import time series”; in the tenancy “Sharing CO₂ costs”; in the settings CO₂ emission factors and Photovoltaics |
 
 An area shows as tabs only the pages of its level, none if just one is left;
 “Insights” in the sidebar takes beginners to the annual report. A link, a
@@ -571,6 +571,55 @@ source ([CO₂ price in fuel](../verstehen/16-co2-preis.md#6-where-you-see-it)).
 
 ![Forecast](../../ui/screenshots/en/prognose.png)
 
+### Valuing flexibility (v3.3.0, under Insights)
+
+The page **“Valuing flexibility”** (`#/flexibility?year=…`, Expert level)
+answers: did shifting pay off? It calculates with consumption and wholesale
+price per quarter hour, only the wholesale share — control happens elsewhere
+(evcc, Home Assistant, the battery itself). The introduction says so and links
+the **Guide** ([Valuing flexibility](../anleitungen/flexibilitaet.md)); the
+data comes from `GET /api/flexibility` ([API](api.md#valuing-flexibility-v330)).
+
+- **Header:** the choice **“Year”** (the current one and the three before it,
+  pre-set to the previous year; a year in the address counts from 2018 to
+  today) and the button **“Load wholesale prices {year} from SMARD”**. It
+  fetches the prices per quarter hour — only on request —, reports “Wholesale
+  prices {year} loaded: … quarter hours.” and rebuilds the page.
+- **Notes:** without prices “The wholesale prices per quarter hour for {year}
+  are missing — load them from SMARD above.”; without consumption per quarter
+  hour “There is no consumption per quarter hour for {year} yet. It comes from
+  a portal file (meters → import time series) or from Home Assistant with a
+  timestamp.”
+- **One card per electricity meter** (only with prices), heat pump and wall
+  box first with the tag **“controllable”**. Key figures: “Consumption with
+  price”, “In cheap quarter hours” (share), “At negative prices”, “Own avg. /
+  market avg.”, **“Profile factor”** with an ⓘ and “Advantage (wholesale
+  share)”. Below it a sentence such as “Cheaper than average: €18.78 saved on
+  the wholesale share (profile factor 0.95).” or “More expensive than average:
+  … — consumption tends to fall in expensive times.” Expandable **“Per
+  month”**: month, kWh, cheap, negative, own avg., market avg., advantage,
+  coverage. Without a common quarter hour it says “No quarter hour with both
+  consumption and wholesale price.”
+- **“Battery by wholesale price”** — with series for charging and discharging
+  the battery (PV generation): “Charged · avg. price”, “Discharged · avg.
+  price” and “Value of shifting” with an explanation.
+- **“§ 14a module 3 — {meter}”** with an ⓘ — for every meter whose contract
+  carries time windows (§12), also without wholesale prices: “In the low
+  tariff”, “In the high tariff”, “In the standard tariff” (kWh) and “Saving
+  vs. standard”, below it the note that time-variable grid fees only exist on
+  top of module 1 and with a smart metering system.
+- **“Quarter-hour series”** — the list of all series: series (“Wholesale
+  prices DE-LU” or utility · meter ID), year, coverage, source (“File”, “Home
+  Assistant”, “SMARD”) and 🗑️ “Delete series” with the question “Delete this
+  series? Meter readings and daily values stay.”
+
+With prices the source “Wholesale prices: Bundesnetzagentur | SMARD.de (CC BY
+4.0)” appears at the bottom. The ⓘ on the profile factor explains: “Your
+wholesale price per kWh (weighted by consumption) divided by the market
+average. Below 1: you use more when electricity is cheap; above 1: more when it
+is expensive.” The term is also in the glossary of the help. To try it out: the
+example household “Own house with heat pump and solar” with the year 2025.
+
 ### Annual report (under Insights since v2.11.0)
 
 One year at a glance: overview per utility, efficiency, monthly tables and open
@@ -782,7 +831,13 @@ the look-back, such an offer carries “Wholesale price as a monthly average —
 if your consumption were spread evenly across the day; evening use usually
 costs more.” and, if needed, for how many months the previous year’s month was
 assumed. If wholesale prices are missing, a note to load them under “Wholesale
-electricity prices” appears instead of the offer.
+electricity prices” appears instead of the offer. Since v3.3.0 the look-back
+uses your own load profile where consumption and wholesale price per quarter
+hour exist for the meter (months with at least 90 % coverage); the offer then
+carries “Wholesale price with your quarter-hour load profile in {N} months,
+otherwise the monthly average.” instead of the sentence about the monthly
+average. The ranking of the switching decision stays with the monthly average
+([Flexibility](#valuing-flexibility-v330-under-insights)).
 
 **Wholesale electricity prices (v3.1.0, electricity):** the card **“Wholesale
 electricity prices”** with an ⓘ names the range of available monthly averages
@@ -1070,6 +1125,10 @@ such as a Home Assistant dashboard. The **🏠 Home Assistant integration
 (F1009)** on the Integrations page — manage the API token, maintain meter aliases and copy three
 ready-made templates: the REST command, the `secrets.yaml` entry and (since v2.5.3)
 an automation built from the aliases that checks `has_value` before every push.
+Since v3.3.0 the REST command also sends
+`"timestamp": "{{ now().isoformat() }}"`. The automation still sends once a day
+(23:55); for consumption per quarter hour, switch its trigger to every 15
+minutes (`time_pattern`, `minutes: "/15"`).
 Since v3.1.0 **“Step 5 · Values back into Home Assistant”** follows: REST
 sensors for `configuration.yaml` that query `GET /api/summary` once an hour —
 per meter the balance (for utilities with a contract), the forecast for the
@@ -1235,6 +1294,20 @@ group: …” instead of the meter
 **“Reduced grid fee (§ 14a EnWG, module 1)”** in € per year, with an effective
 date ([Electricity](../verstehen/02-strom.md#controllable-consumers-v310)).
 
+**Time-variable grid fee (v3.3.0):** after the price lists, the electricity
+contract has, at the Expert level, the section **“§ 14a module 3:
+time-variable grid fee”** with the hint “Standard tariff and time windows from
+your grid operator’s price sheet (grid fee per kWh). A window across midnight is
+two windows. Evaluated under Insights → Flexibility.” Fields: “Standard tariff
+(ct/kWh)” and per time window “Quarters” (Q1–Q4 to tick, all four for a new
+one), “From”, “Until (HH:MM, also 24:00)” and “ct/kWh in the window”, plus ✕
+“Remove time window” and **“+ Time window”**. If standard tariff and windows
+stay empty, the contract has no module 3. The app rejects invalid entries with
+“Module 3 time windows invalid (…): quarters 1–4, times HH:MM with from before
+until, prices 0–100 ct and a standard tariff.”
+([API](api.md#contracts-time-variable-grid-fee-module-3-v330-additive)). Balance
+and forecast do not change because of it.
+
 **Credit notes from the direct marketer (v3.1.0):** the feed-in contract
 dialog has the section **“Credit notes from the direct marketer”** with “From”,
 “To (inclusive)” and “Amount” per row and “Add credit note”
@@ -1262,7 +1335,11 @@ column”, “The values are” (consumption per interval or meter readings), �
 of the values”, “Time stamp marks” (start or end of the interval) and “Start
 value (meter reading)”. “Preview” names days, period and total; “Import”
 writes and remembers the mapping per meter in the browser
-([Time series from portals](../anleitungen/daten-aus-portalen.md)).
+([Time series from portals](../anleitungen/daten-aus-portalen.md)). Since
+v3.3.0 “Import” also keeps values at 15, 30 or 60 minute intervals per quarter
+hour — for Insights → Flexibility; the preview names them in a line “Plus
+{count} quarter-hour values (every {N} minutes) — evaluated under Insights →
+Flexibility.”
 
 **Minimum term over 24 months (v3.1.0):** if a contract’s minimum term ends more
 than 24 months after its start, the app shows after saving the note “The minimum

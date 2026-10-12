@@ -12,11 +12,11 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-679-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-695-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -69,7 +69,7 @@ and help inside the app with a glossary and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.2.0
+  ghcr.io/bingerminger/energietracker:3.3.0
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
@@ -127,12 +127,15 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.2.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
+**v3.3.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
 APIs, CSV formats and the backup format change only additively; anything is
-removed only with a new major version and after notice. 3.2.0 makes the start
-easy without taking anything from experienced users: a setup assistant with
-example households, three experience levels, animated explainers with your own
-data, several people per household and charging sessions from evcc. What comes
+removed only with a new major version and after notice. 3.3.0 shows what
+flexibility is worth: quarter-hour values from Home Assistant or the grid
+operator's portal, exchange prices per quarter hour, your own profile factor
+on a dynamic tariff, the value of a battery and time-variable grid fees
+(module 3). Since 3.2.0 there is a setup assistant with example households,
+three experience levels, several people per household and charging sessions
+from evcc. What comes
 next is in the [roadmap](roadmap.md) (in German). Coming from a
 private v0.9.0:
 [migration](docs/en/anleitungen/migration-v090.md).

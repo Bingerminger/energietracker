@@ -99,7 +99,8 @@
         "other": "{count} meterstanden nog niet opgeslagen"
       }
     },
-    "tenancy": "Huur"
+    "tenancy": "Huur",
+    "flexibility": "Flexibiliteit"
   },
   "dashboard": {
     "loading": "Overzicht laden…",
@@ -984,6 +985,17 @@
       "from": "Van",
       "to": "Tot en met",
       "amount": "Bedrag"
+    },
+    "gridTou": {
+      "title": "§ 14a module 3: tijdsafhankelijk nettarief",
+      "hint": "Standaardtarief en tijdvensters uit het tarievenblad van je netbeheerder (nettarief per kWh). Een venster over middernacht zijn twee vensters. Beoordeeld onder Inzichten → Flexibiliteit.",
+      "standard": "Standaardtarief (ct/kWh)",
+      "quarters": "Kwartalen",
+      "from": "Van",
+      "to": "Tot (HH:MM, ook 24:00)",
+      "ct": "ct/kWh in het venster",
+      "addWindow": "+ Tijdvenster",
+      "removeWindow": "Tijdvenster verwijderen"
     }
   },
   "meters": {
@@ -2226,7 +2238,11 @@
         "one": "{count} maand zonder marktwaarde: dezelfde maand van vorig jaar aangenomen.",
         "other": "{count} maanden zonder marktwaarde: dezelfde maanden van vorig jaar aangenomen."
       },
-      "missingMarket": "Voor het dynamische tarief ontbreken groothandelsprijzen — laad ze hieronder bij ‘Groothandelsprijzen stroom’."
+      "missingMarket": "Voor het dynamische tarief ontbreken groothandelsprijzen — laad ze hieronder bij ‘Groothandelsprijzen stroom’.",
+      "profileMonths": {
+        "one": "Groothandelsprijs met je verbruiksprofiel per kwartier in {count} maand, anders het maandgemiddelde.",
+        "other": "Groothandelsprijs met je verbruiksprofiel per kwartier in {count} maanden, anders het maandgemiddelde."
+      }
     },
     "market": {
       "title": "Groothandelsprijzen stroom",
@@ -2630,7 +2646,8 @@
       "dynamicShadowOnly": "Een dynamisch tarief kan alleen als aanbod (schaduwcontract) voor stroom worden doorgerekend — een echt dynamisch contract voer je in met maandprijzen",
       "priceModelInvalid": "Onbekend prijsmodel ‘{value}’",
       "priceImportEmpty": "Het bestand bevat geen regel in het formaat maand;prijs",
-      "priceImportUnsupported": "Maandprijzen bestaan alleen voor contracten met een eenheidsprijs per kWh"
+      "priceImportUnsupported": "Maandprijzen bestaan alleen voor contracten met een eenheidsprijs per kWh",
+      "gridTouInvalid": "Tijdvensters module 3 ongeldig ({field}): kwartalen 1–4, tijden HH:MM met van vóór tot, prijzen 0–100 ct en een standaardtarief."
     },
     "delivery": {
       "notFound": "Levering niet gevonden: {id}",
@@ -2655,7 +2672,8 @@
       "tokenRequiredWithLogin": "Aanmelden is ingeschakeld – de push heeft dan een API-token nodig. Maak er een aan in de instellingen.",
       "tooMany": "Te veel items in één batch (hoogstens {max}, ontvangen: {count}).",
       "bodyInvalid": "Ongeldig item: verwacht wordt een object met utility, meter en value.",
-      "periodMeter": "De meter ‘{meter}’ registreert verbruik per periode en neemt geen meterstanden aan."
+      "periodMeter": "De meter ‘{meter}’ registreert verbruik per periode en neemt geen meterstanden aan.",
+      "timestampFormat": "Tijdstempel ‘{timestamp}’ niet leesbaar — verwacht ISO 8601 met tijdzone, bijv. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
       "noVersionField": "Geen backup_version-veld — geen geldige back-up",
@@ -2798,7 +2816,8 @@
     },
     "marketPrices": {
       "noRows": "Het bestand bevat geen groothandelsprijzen — verwacht wordt een SMARD-download of regels zoals 2025-01;114,14",
-      "syncFailed": "SMARD was niet bereikbaar of gaf geen waarden — probeer het later opnieuw of importeer een bestand"
+      "syncFailed": "SMARD was niet bereikbaar of gaf geen waarden — probeer het later opnieuw of importeer een bestand",
+      "syncQuarterHoursFailed": "SMARD was niet bereikbaar of gaf voor dit jaar geen kwartierprijzen — probeer het later opnieuw"
     },
     "evReport": {
       "methodInvalid": "Onbekende methode ‘{value}’ — toegestaan zijn contract en flat",
@@ -2829,6 +2848,12 @@
       "columns": "Dit lijkt niet op de CSV-export uit evcc: de kolommen voor begin en energie ontbreken.",
       "countersInvalid": "Onbekende keuze voor de meterstanden: ‘{value}’.",
       "loadpointNeeded": "Meerdere laadpunten ({names}): meterstanden horen bij één wallbox – kies het laadpunt daarvan of neem alleen de sessies over."
+    },
+    "intervals": {
+      "notFound": "Reeks ‘{id}’ niet gevonden."
+    },
+    "flexibility": {
+      "yearInvalid": "Ongeldig jaar: {year}."
     }
   },
   "login": {
@@ -3124,6 +3149,10 @@
     "jaz": {
       "term": "Seizoensprestatiefactor (SPF)",
       "text": "Hoeveel warmte een warmtepomp uit één kWh stroom maakt, gemeten over een jaar: warmte ÷ stroom. Vereist een warmtemeter op de warmtepomp. In een praktijktest haalden lucht/water-toestellen ongeveer 3,4, bodem/water 4,3."
+    },
+    "profileFactor": {
+      "term": "Profielfactor",
+      "text": "Jouw groothandelsprijs per kWh (gewogen naar verbruik) gedeeld door het beursgemiddelde. Onder 1: je verbruikt vooral als stroom goedkoop is; boven 1: vooral als hij duur is."
     }
   },
   "help": {
@@ -3682,7 +3711,8 @@
       "summaryCounter": {
         "one": "{count} dag, {from} (de laatste stand van de dag)",
         "other": "{count} dagen van {from} tot {to} (de laatste stand per dag)"
-      }
+      },
+      "intervals": "Daarnaast {slots} kwartierwaarden (elke {minutes} minuten) — beoordeeld onder Inzichten → Flexibiliteit."
     }
   },
   "level": {
@@ -3863,6 +3893,68 @@
       "hint": "De laadsessies komen van meerdere laadpunten. Meterstanden horen bij precies één wallbox – kies het laadpunt daarvan. Voor alle laadpunten samen kies je bij de meterstanden ‘geen – alleen de sessies’.",
       "label": "Laadpunt",
       "ok": "Verder"
+    }
+  },
+  "flex": {
+    "title": "Flexibiliteit beoordelen",
+    "year": "Jaar",
+    "loadPrices": "Groothandelsprijzen {year} laden van SMARD",
+    "intro": "Heeft verschuiven iets opgeleverd? Gerekend wordt met je verbruik en de groothandelsprijs per kwartier — alleen het groothandelsdeel, zonder belastingen, heffingen en nettarief. Aansturen gebeurt elders (evcc, Home Assistant, de batterij zelf).",
+    "noPrices": "De groothandelsprijzen per kwartier voor {year} ontbreken — laad ze hierboven van SMARD.",
+    "noIntervals": "Er is nog geen verbruik per kwartier voor {year}. Het komt uit een portaalbestand (meters → tijdreeks importeren) of uit Home Assistant met tijdstempel.",
+    "attribution": "Groothandelsprijzen: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
+    "pricesLoaded": "Groothandelsprijzen {year} geladen: {slots} kwartieren.",
+    "controllable": "stuurbaar",
+    "kpi": {
+      "kwh": "Verbruik met prijs",
+      "cheap": "In goedkope kwartieren",
+      "negative": "Bij negatieve prijs",
+      "own": "Eigen gem. / beursgem.",
+      "factor": "Profielfactor",
+      "advantage": "Voordeel (groothandelsdeel)"
+    },
+    "noOverlap": "Geen kwartier met zowel verbruik als groothandelsprijs.",
+    "verdict": {
+      "good": "Goedkoper dan gemiddeld: {eur} bespaard op het groothandelsdeel (profielfactor {factor}).",
+      "bad": "Duurder dan gemiddeld: {eur} meer op het groothandelsdeel (profielfactor {factor}) — er wordt vooral op dure momenten verbruikt."
+    },
+    "months": "Per maand",
+    "col": {
+      "month": "Maand",
+      "cheap": "goedkoop",
+      "negative": "negatief",
+      "own": "eigen gem.",
+      "market": "beursgem.",
+      "advantage": "voordeel",
+      "coverage": "dekking"
+    },
+    "battery": {
+      "title": "Batterij volgens groothandelsprijs",
+      "charged": "Geladen · gem. prijs",
+      "discharged": "Ontladen · gem. prijs",
+      "value": "Waarde van het verschuiven",
+      "hint": "Ontladen kWh tegen de groothandelsprijs bij ontladen min geladen kWh tegen de groothandelsprijs bij laden — wat het verschuiven over de dag waard was, zonder verliezen en zonder nettarief."
+    },
+    "module3": {
+      "title": "§ 14a module 3 — {name}",
+      "low": "In het laagtarief",
+      "high": "In het hoogtarief",
+      "standard": "In het standaardtarief",
+      "saving": "Besparing t.o.v. standaard",
+      "hint": "Uit de tijdvensters in het contract van deze meter: nettarief per kWh in het venster tegenover het standaardtarief. Tijdsafhankelijke nettarieven bestaan alleen bovenop module 1 en met een slim meetsysteem."
+    },
+    "series": {
+      "title": "Kwartierreeksen",
+      "what": "Reeks",
+      "source": "Bron",
+      "prices": "Groothandelsprijzen DE-LU",
+      "delete": "Reeks verwijderen",
+      "confirmDelete": "Deze reeks verwijderen? Meterstanden en dagwaarden blijven.",
+      "sources": {
+        "import": "Bestand",
+        "ingest": "Home Assistant",
+        "smard": "SMARD"
+      }
     }
   }
 }

@@ -788,6 +788,30 @@ abgenommen ist.
   Umsatzsteuer“ — der Betrag auf der Rechnung ist brutto, jede Erstattung lag
   19 % zu hoch. Rechtsangaben werden seitdem mit Quelle und Stand geprüft,
   bevor sie Rechenregel werden.
+- **Eine Viertelstunde ist eine Ortszeit (v3.3.0).** Die Reihen zählen ihre
+  35 040 Plätze in UTC, aber welcher Monat und welches Zeitfenster eine
+  Viertelstunde ist, hängt an der Zeitzone der Installation. Ein Monatsmittel
+  oder ein Modul-3-Fenster „17 bis 20 Uhr“ nach UTC verschiebt sich im Sommer
+  um zwei Stunden. `IntervalService::localClock()` rechnet beides einmal je Jahr
+  aus den Zeitumstellungen; die Tests nehmen ein Jahr mit Sommerzeit. Umgekehrt
+  nennt eine Portaldatei ohne Zeitzone die doppelte Herbststunde zweimal mit
+  derselben Uhrzeit, und PHP liest beide als Winterzeit — das erste Vorkommen
+  wurde vom zweiten überschrieben, bis der Import es eine Stunde früher
+  einsortierte.
+- **Eine Hülle um den Rückgabewert schweigt (v3.3.0).**
+  `ContractService::resolveForDate()` gibt `['contract' => …, 'assumed' => …]`
+  zurück, nicht den Vertrag. `$c['grid_tou'] ?? null` auf der Hülle war still
+  `null` — Modul 3 blieb leer, ohne Fehler. Gefunden hat es erst der Test mit
+  einer erwarteten Ersparnis in Cent; ein Test auf „Schlüssel vorhanden“ wäre
+  grün gewesen.
+- **Nebenwirkungen erst nach dem Erfolg (v3.3.0).** Der Portal-Import schrieb
+  die Viertelstunden zuerst, die Tageswerte danach — scheiterte die Prüfung der
+  Tageswerte, blieben die Viertelstunden trotzdem liegen. Jetzt sammelt der
+  Import sie und schreibt sie nur auf den Wegen, die erfolgreich enden.
+- **JSON kennt keine Kommazahl mit Null (v3.3.0).** `10.0` wird als `10`
+  geschrieben und als Ganzzahl zurückgelesen; ein strenger Vergleich in einem
+  Test fiel darauf herein. `IntervalService::values()` liefert deshalb immer
+  Kommazahlen.
 
 ---
 

@@ -99,7 +99,8 @@
         "other": "{count} relevés pas encore enregistrés"
       }
     },
-    "tenancy": "Bail"
+    "tenancy": "Bail",
+    "flexibility": "Flexibilité"
   },
   "dashboard": {
     "loading": "Chargement de l’aperçu…",
@@ -984,6 +985,17 @@
       "from": "Du",
       "to": "Jusqu’au (inclus)",
       "amount": "Montant"
+    },
+    "gridTou": {
+      "title": "§ 14a module 3 : tarif réseau variable",
+      "hint": "Tarif standard et plages horaires de la grille tarifaire de votre gestionnaire de réseau (tarif réseau par kWh). Une plage passant minuit compte pour deux plages. Évalué sous Évaluations → Flexibilité.",
+      "standard": "Tarif standard (ct/kWh)",
+      "quarters": "Trimestres",
+      "from": "De",
+      "to": "Jusqu’à (HH:MM, aussi 24:00)",
+      "ct": "ct/kWh dans la plage",
+      "addWindow": "+ Plage horaire",
+      "removeWindow": "Supprimer la plage horaire"
     }
   },
   "meters": {
@@ -2226,7 +2238,11 @@
         "one": "{count} mois sans valeur de marché : mois de l’année précédente retenu.",
         "other": "{count} mois sans valeur de marché : mois de l’année précédente retenus."
       },
-      "missingMarket": "Il manque les prix de gros pour le tarif dynamique — chargez-les ci-dessous dans « Prix de gros de l’électricité »."
+      "missingMarket": "Il manque les prix de gros pour le tarif dynamique — chargez-les ci-dessous dans « Prix de gros de l’électricité ».",
+      "profileMonths": {
+        "one": "Prix de gros avec votre courbe de charge au quart d’heure pour {count} mois, sinon moyenne mensuelle.",
+        "other": "Prix de gros avec votre courbe de charge au quart d’heure pour {count} mois, sinon moyenne mensuelle."
+      }
     },
     "market": {
       "title": "Prix de gros de l’électricité",
@@ -2630,7 +2646,8 @@
       "dynamicShadowOnly": "Un tarif dynamique ne peut être calculé que comme offre (contrat fictif) pour l’électricité — saisissez un vrai contrat dynamique avec des prix mensuels",
       "priceModelInvalid": "Modèle de prix inconnu « {value} »",
       "priceImportEmpty": "Le fichier ne contient aucune ligne au format mois;prix",
-      "priceImportUnsupported": "Les prix mensuels n’existent que pour les contrats avec un prix unitaire par kWh"
+      "priceImportUnsupported": "Les prix mensuels n’existent que pour les contrats avec un prix unitaire par kWh",
+      "gridTouInvalid": "Plages du module 3 non valides ({field}) : trimestres 1–4, heures HH:MM avec début avant fin, prix 0–100 ct et un tarif standard."
     },
     "delivery": {
       "notFound": "Livraison introuvable : {id}",
@@ -2655,7 +2672,8 @@
       "tokenRequiredWithLogin": "La connexion est activée – l’envoi nécessite alors un jeton d’API. Veuillez en créer un dans les paramètres.",
       "tooMany": "Trop d’entrées dans un lot (au plus {max}, reçues : {count}).",
       "bodyInvalid": "Entrée non valide : un objet avec utility, meter et value est attendu.",
-      "periodMeter": "Le compteur « {meter} » enregistre la consommation par période et n’accepte pas de relevés."
+      "periodMeter": "Le compteur « {meter} » enregistre la consommation par période et n’accepte pas de relevés.",
+      "timestampFormat": "Horodatage « {timestamp} » illisible — format attendu ISO 8601 avec fuseau, p. ex. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
       "noVersionField": "Aucun champ backup_version — ce n’est pas une sauvegarde valide",
@@ -2798,7 +2816,8 @@
     },
     "marketPrices": {
       "noRows": "Le fichier ne contient aucun prix de gros — attendu : un téléchargement SMARD ou des lignes comme 2025-01;114,14",
-      "syncFailed": "SMARD est injoignable ou n’a renvoyé aucune valeur — réessayez plus tard ou importez un fichier"
+      "syncFailed": "SMARD est injoignable ou n’a renvoyé aucune valeur — réessayez plus tard ou importez un fichier",
+      "syncQuarterHoursFailed": "SMARD est injoignable ou n’a renvoyé aucun prix au quart d’heure pour cette année — réessayez plus tard"
     },
     "evReport": {
       "methodInvalid": "Méthode inconnue « {value} » — valeurs admises : contract et flat",
@@ -2829,6 +2848,12 @@
       "columns": "Ceci ne ressemble pas à l’export CSV d’evcc : les colonnes début et énergie manquent.",
       "countersInvalid": "Choix inconnu pour les relevés : « {value} ».",
       "loadpointNeeded": "Plusieurs points de charge ({names}) : les relevés appartiennent à une seule borne – choisissez son point de charge ou ne reprenez que les sessions."
+    },
+    "intervals": {
+      "notFound": "Série « {id} » introuvable."
+    },
+    "flexibility": {
+      "yearInvalid": "Année non valide : {year}."
     }
   },
   "login": {
@@ -3124,6 +3149,10 @@
     "jaz": {
       "term": "Coefficient de performance annuel (SPF)",
       "text": "La chaleur qu’une pompe à chaleur tire d’un kWh d’électricité, mesurée sur un an : chaleur ÷ électricité. Nécessite un compteur de chaleur sur la pompe. Dans un essai terrain, les appareils air/eau atteignaient environ 3,4, eau glycolée/eau 4,3."
+    },
+    "profileFactor": {
+      "term": "Facteur de profil",
+      "text": "Votre prix de gros par kWh (pondéré par la consommation) divisé par la moyenne du marché. En dessous de 1 : vous consommez plutôt quand l’électricité est bon marché ; au-dessus : plutôt quand elle est chère."
     }
   },
   "help": {
@@ -3682,7 +3711,8 @@
       "summaryCounter": {
         "one": "{count} jour, {from} (dernier relevé du jour)",
         "other": "{count} jours du {from} au {to} (dernier relevé de chaque jour)"
-      }
+      },
+      "intervals": "En plus, {slots} valeurs au quart d’heure (pas de {minutes} minutes) — évaluées sous Évaluations → Flexibilité."
     }
   },
   "level": {
@@ -3863,6 +3893,68 @@
       "hint": "Les sessions de recharge proviennent de plusieurs points de charge. Les relevés appartiennent à une seule borne – choisissez son point de charge. Pour tous les points de charge ensemble, choisissez « aucun – seulement les sessions » pour les relevés.",
       "label": "Point de charge",
       "ok": "Continuer"
+    }
+  },
+  "flex": {
+    "title": "Évaluer la flexibilité",
+    "year": "Année",
+    "loadPrices": "Charger les prix de gros {year} depuis SMARD",
+    "intro": "Le décalage a-t-il porté ses fruits ? Le calcul utilise votre consommation et le prix de gros par quart d’heure — uniquement la part du prix de gros, sans taxes, prélèvements ni tarif réseau. Le pilotage se fait ailleurs (evcc, Home Assistant, la batterie elle-même).",
+    "noPrices": "Les prix de gros par quart d’heure manquent pour {year} — chargez-les depuis SMARD ci-dessus.",
+    "noIntervals": "Pas encore de consommation par quart d’heure pour {year}. Elle provient d’un fichier de portail (compteurs → importer une série) ou de Home Assistant avec horodatage.",
+    "attribution": "Prix de gros : Bundesnetzagentur | SMARD.de (CC BY 4.0)",
+    "pricesLoaded": "Prix de gros {year} chargés : {slots} quarts d’heure.",
+    "controllable": "pilotable",
+    "kpi": {
+      "kwh": "Consommation avec prix",
+      "cheap": "Dans les quarts d’heure bon marché",
+      "negative": "À prix négatif",
+      "own": "Moy. propre / moy. marché",
+      "factor": "Facteur de profil",
+      "advantage": "Avantage (part du prix de gros)"
+    },
+    "noOverlap": "Aucun quart d’heure avec consommation et prix de gros.",
+    "verdict": {
+      "good": "Moins cher que la moyenne : {eur} économisés sur la part du prix de gros (facteur de profil {factor}).",
+      "bad": "Plus cher que la moyenne : {eur} de plus sur la part du prix de gros (facteur de profil {factor}) — la consommation tombe plutôt aux heures chères."
+    },
+    "months": "Par mois",
+    "col": {
+      "month": "Mois",
+      "cheap": "bon marché",
+      "negative": "négatif",
+      "own": "moy. propre",
+      "market": "moy. marché",
+      "advantage": "avantage",
+      "coverage": "couverture"
+    },
+    "battery": {
+      "title": "Batterie selon le prix de gros",
+      "charged": "Chargé · prix moyen",
+      "discharged": "Déchargé · prix moyen",
+      "value": "Valeur du décalage",
+      "hint": "kWh déchargés au prix de gros de la décharge moins kWh chargés au prix de gros de la charge — ce que valait le décalage dans la journée, sans pertes ni tarif réseau."
+    },
+    "module3": {
+      "title": "§ 14a module 3 — {name}",
+      "low": "En tarif bas",
+      "high": "En tarif haut",
+      "standard": "En tarif standard",
+      "saving": "Économie par rapport au standard",
+      "hint": "D’après les plages horaires du contrat de ce compteur : tarif réseau par kWh dans la plage comparé au tarif standard. Les tarifs réseau variables n’existent qu’en plus du module 1 et avec un système de comptage intelligent."
+    },
+    "series": {
+      "title": "Séries au quart d’heure",
+      "what": "Série",
+      "source": "Source",
+      "prices": "Prix de gros DE-LU",
+      "delete": "Supprimer la série",
+      "confirmDelete": "Supprimer cette série ? Les relevés et valeurs journalières restent.",
+      "sources": {
+        "import": "Fichier",
+        "ingest": "Home Assistant",
+        "smard": "SMARD"
+      }
     }
   }
 }

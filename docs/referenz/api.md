@@ -13,8 +13,8 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **144 Routen**,
-v3.2.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+`waerme` (Heizwärme). Stand: **148 Routen**,
+v3.3.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -25,16 +25,16 @@ Tabelle unten steht (DE und EN).
 
 | Code | Wann |
 |------|------|
-| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. Seit v2.6.0 auch Abfrageparameter außerhalb ihres Bereichs (Prognose, Jahresbericht, Temperatur-Sync). *(v3.1.0)* Beleg mit falschem Inhalt, zu groß oder Speicher voll (`errors.attachment.*`) — auch ein Upload über der PHP-Grenze `post_max_size`, dann mit dieser Grenze in der Meldung (`errors.attachment.size`); Texterkennung nicht eingetragen oder nicht im Heimnetz (`errors.ocr.off`, `errors.ocr.notLocal`); Zählerstand auf einem Zähler mit Verbrauch je Zeitraum (`errors.reading.periodMeter`), sich überschneidende Zeiträume (`errors.period.overlap`), Fehler im Mietverhältnis (`errors.tenancy.*`); ungültiges Jahr beim CO₂-Preis (`errors.co2.yearInvalid`), Fehler in einer Versorgerrechnung (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), Rechnungsprüfung für eine Art ohne Prüfung (`errors.billCheck.unsupportedUtility`), ungültige Markt- oder Messlokations-ID (`errors.meter.maloInvalid`, `…meloInvalid`), Leistungspreis ohne Anschlussleistung (`errors.contract.capacityMissing`), Zähler löschen, an dem noch Zeiträume oder Rechnungen hängen (`errors.meter.hasPeriods`, `…hasBills`); Gruppenvertrag auf eine ungeeignete Gruppe oder mit Preisen für Fremde (`errors.contract.targetInvalid`), ein Mitglied mit eigenem Vertrag im selben Zeitraum (`errors.contract.groupMemberOverlap`), Gruppe mit Verträgen löschen (`errors.meter.groupHasContracts`), dynamischer Tarif als echter Vertrag oder nicht bei Strom (`errors.contract.dynamicShadowOnly`), unbekanntes Preismodell (`errors.contract.priceModelInvalid`), Monatspreise ohne lesbare Zeile oder für Wasser und Einspeisung (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), Börsenpreise ohne Werte (`errors.marketPrices.noRows`), Ladestrom-Nachweis ohne zahlenden Vertrag, ohne Pauschale oder mit ungültigen Parametern (`errors.evReport.*`), ungültiges Jahr der Wärmepumpe (`errors.heatPump.yearInvalid`), Verknüpfung mit einem Stromzähler ohne Rolle Wärmepumpe (`errors.meter.heatPumpLinkInvalid`), ungültige PV-Angabe am Zähler (`errors.meter.valueInvalid`), Zeitreihe mit unpassender Zuordnung oder ohne Anfangsstand (`errors.import.mappingInvalid`, `…anchorMissing`) — alle v3.1.0. *(v3.2.0)* Unbekannter Beispielhaushalt (`errors.demo.personaUnknown`); Name einer Person leer oder zu lang, unbekannte Rolle, die eigene Person löschen (`errors.users.nameInvalid`, `…roleInvalid`, `…notSelf`), eigene Einstellungen ohne angemeldete Person, Passwort einer Person vom Proxy (`errors.users.noUser`, `…proxyNoPassword`); evcc nicht eingetragen oder nicht im Heimnetz, keine abgeschlossenen Ladevorgänge, CSV ohne die nötigen Spalten, unbekannte Wahl für die Zählerstände, Zählerstände mehrerer Ladepunkte (`errors.evcc.off`, `…notLocal`, `…noSessions`, `…columns`, `…countersInvalid`, `…loadpointNeeded`). |
+| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. Seit v2.6.0 auch Abfrageparameter außerhalb ihres Bereichs (Prognose, Jahresbericht, Temperatur-Sync). *(v3.1.0)* Beleg mit falschem Inhalt, zu groß oder Speicher voll (`errors.attachment.*`) — auch ein Upload über der PHP-Grenze `post_max_size`, dann mit dieser Grenze in der Meldung (`errors.attachment.size`); Texterkennung nicht eingetragen oder nicht im Heimnetz (`errors.ocr.off`, `errors.ocr.notLocal`); Zählerstand auf einem Zähler mit Verbrauch je Zeitraum (`errors.reading.periodMeter`), sich überschneidende Zeiträume (`errors.period.overlap`), Fehler im Mietverhältnis (`errors.tenancy.*`); ungültiges Jahr beim CO₂-Preis (`errors.co2.yearInvalid`), Fehler in einer Versorgerrechnung (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), Rechnungsprüfung für eine Art ohne Prüfung (`errors.billCheck.unsupportedUtility`), ungültige Markt- oder Messlokations-ID (`errors.meter.maloInvalid`, `…meloInvalid`), Leistungspreis ohne Anschlussleistung (`errors.contract.capacityMissing`), Zähler löschen, an dem noch Zeiträume oder Rechnungen hängen (`errors.meter.hasPeriods`, `…hasBills`); Gruppenvertrag auf eine ungeeignete Gruppe oder mit Preisen für Fremde (`errors.contract.targetInvalid`), ein Mitglied mit eigenem Vertrag im selben Zeitraum (`errors.contract.groupMemberOverlap`), Gruppe mit Verträgen löschen (`errors.meter.groupHasContracts`), dynamischer Tarif als echter Vertrag oder nicht bei Strom (`errors.contract.dynamicShadowOnly`), unbekanntes Preismodell (`errors.contract.priceModelInvalid`), Monatspreise ohne lesbare Zeile oder für Wasser und Einspeisung (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), Börsenpreise ohne Werte (`errors.marketPrices.noRows`), Ladestrom-Nachweis ohne zahlenden Vertrag, ohne Pauschale oder mit ungültigen Parametern (`errors.evReport.*`), ungültiges Jahr der Wärmepumpe (`errors.heatPump.yearInvalid`), Verknüpfung mit einem Stromzähler ohne Rolle Wärmepumpe (`errors.meter.heatPumpLinkInvalid`), ungültige PV-Angabe am Zähler (`errors.meter.valueInvalid`), Zeitreihe mit unpassender Zuordnung oder ohne Anfangsstand (`errors.import.mappingInvalid`, `…anchorMissing`) — alle v3.1.0. *(v3.2.0)* Unbekannter Beispielhaushalt (`errors.demo.personaUnknown`); Name einer Person leer oder zu lang, unbekannte Rolle, die eigene Person löschen (`errors.users.nameInvalid`, `…roleInvalid`, `…notSelf`), eigene Einstellungen ohne angemeldete Person, Passwort einer Person vom Proxy (`errors.users.noUser`, `…proxyNoPassword`); evcc nicht eingetragen oder nicht im Heimnetz, keine abgeschlossenen Ladevorgänge, CSV ohne die nötigen Spalten, unbekannte Wahl für die Zählerstände, Zählerstände mehrerer Ladepunkte (`errors.evcc.off`, `…notLocal`, `…noSessions`, `…columns`, `…countersInvalid`, `…loadpointNeeded`). *(v3.3.0)* Ungültige Zeitfenster für § 14a Modul 3 am Stromvertrag (`errors.contract.gridTouInvalid`), ein Zeitstempel beim Ingest ohne Zeitzone oder in anderer Form als ISO 8601 (`errors.ingest.timestampFormat`), ein Jahr außerhalb 2018–2100 bei der Flexibilität und beim Abruf der Viertelstundenpreise (`errors.flexibility.yearInvalid`). |
 | `401` | `/api/ingest` bei gesetztem Token ohne oder mit falschem Bearer-Header. *(v2.6.0)* Mit eingeschalteter Anmeldung: jede nicht öffentliche Route ohne Sitzung oder API-Schlüssel (`errors.auth.required`); falsches Passwort, seit v3.2.0 auch ein unbekannter Name (`errors.auth.wrongPassword`). *(v3.1.0)* Ein Kalender-Schlüssel auf einer anderen Route als `/api/calendar.ics`, ein `read`- oder `admin`-Schlüssel als `?token=` im Kalender-Link. |
 | `403` | *(v2.5.3)* Schreibende Anfrage (`POST`/`PUT`/`PATCH`/`DELETE`) aus dem Browser einer **fremden** Webseite — geprüft über `Sec-Fetch-Site`, ersatzweise `Origin` gegen `Host`. Anfragen ohne diese Kopfzeilen (Home Assistant, curl, Skripte) sind nicht betroffen. *(v2.6.0)* Schreibende Anfrage mit einem Lese-Schlüssel (`errors.auth.readOnlyKey`). *(v3.2.0)* Ein Mitglied an einer Route nur für Verwalter (`errors.auth.adminOnly`) — [Personen im Haushalt](#personen-im-haushalt-v320). |
-| `404` | Unbekannte Route oder unbekannter Datensatz. Seit v2.6.0 einheitlich auch für Datensätze in der URL (bis v2.5.3 teils 400). *(v3.1.0)* Auch unbekannter Zeitraum (`errors.period.notFound`), Mietverhältnis (`errors.tenancy.notFound`), Abrechnung (`errors.tenancy.statementNotFound`) oder Versorgerrechnung (`errors.bill.notFound`). *(v3.2.0)* Unbekannte Person (`errors.users.notFound`). |
+| `404` | Unbekannte Route oder unbekannter Datensatz. Seit v2.6.0 einheitlich auch für Datensätze in der URL (bis v2.5.3 teils 400). *(v3.1.0)* Auch unbekannter Zeitraum (`errors.period.notFound`), Mietverhältnis (`errors.tenancy.notFound`), Abrechnung (`errors.tenancy.statementNotFound`) oder Versorgerrechnung (`errors.bill.notFound`). *(v3.2.0)* Unbekannte Person (`errors.users.notFound`). *(v3.3.0)* Unbekannte Viertelstundenreihe (`errors.intervals.notFound`). |
 | `405` | *(v2.6.0)* Pfad bekannt, Methode nicht — mit Kopfzeile `Allow`. `HEAD` wird wie `GET` beantwortet, `OPTIONS` mit `204` und `Allow`. Bis v2.5.3: `404`. |
 | `409` | *(v2.6.0)* Der Sicherungs-Snapshot vor einem Import/Einspielen ist gescheitert (`errors.backup.snapshotFailed`) — mit `?allow_without_snapshot=1` trotzdem möglich. Passwort oder Anmeldemodus sind über die Umgebung festgelegt. *(v3.2.0)* Der Name einer Person ist vergeben (`errors.users.nameTaken`), der letzte Verwalter soll Mitglied werden oder gelöscht werden (`errors.users.lastAdmin`), das Passwort des ersten Verwalters ist über die Umgebung festgelegt (`errors.auth.passwordFixed`). |
 | `421` | *(v2.6.0)* Hostname nicht in `ET_ALLOWED_HOSTS` (nur, wenn gesetzt; IP-Adressen und `localhost` sind immer erlaubt). |
 | `422` | *(v3.1.0)* PDF-Jahresbericht, CO₂-Anschreiben oder Ladestrom-Nachweis in einer Sprache, die die eingebauten PDF-Schriften nicht setzen können (`errors.report.pdfUnsupportedLanguage`) — die Druckansicht kann es. |
 | `429` | *(v2.6.0)* Anmeldung nach fünf Fehlversuchen innerhalb von 15 Minuten für 5 Minuten gesperrt (`errors.auth.locked`). |
-| `502` | Ein Dienst außerhalb der App antwortet nicht oder unbrauchbar — ein Fehler auf der anderen Seite, keine falsche Eingabe: die Ortssuche (`errors.temperature.geocodeFailed`); *(v3.1.0)* `POST /api/ocr/reading`, wenn der eigene Texterkennungsdienst nicht in der Zeit antwortet, nicht erreichbar ist oder nichts Verwertbares liefert (`errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.ocr.badAnswer`); *(v3.1.0)* `POST /api/market-prices/sync-smard`, wenn SMARD nicht erreichbar ist oder keine Werte liefert (`errors.marketPrices.syncFailed`); *(v3.2.0)* `POST …/sync-evcc`, wenn evcc nicht erreichbar ist oder keine Liste von Ladevorgängen liefert (`errors.evcc.unreachable`, `errors.evcc.badAnswer`). |
+| `502` | Ein Dienst außerhalb der App antwortet nicht oder unbrauchbar — ein Fehler auf der anderen Seite, keine falsche Eingabe: die Ortssuche (`errors.temperature.geocodeFailed`); *(v3.1.0)* `POST /api/ocr/reading`, wenn der eigene Texterkennungsdienst nicht in der Zeit antwortet, nicht erreichbar ist oder nichts Verwertbares liefert (`errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.ocr.badAnswer`); *(v3.1.0)* `POST /api/market-prices/sync-smard`, wenn SMARD nicht erreichbar ist oder keine Werte liefert (`errors.marketPrices.syncFailed`); *(v3.2.0)* `POST …/sync-evcc`, wenn evcc nicht erreichbar ist oder keine Liste von Ladevorgängen liefert (`errors.evcc.unreachable`, `errors.evcc.badAnswer`); *(v3.3.0)* `POST /api/market-prices/sync-smard-intervals`, wenn SMARD nicht erreichbar ist, ein Wochenpaket nicht liefert oder für das Jahr keinen Wert hat (`errors.marketPrices.syncQuarterHoursFailed`). |
 | `503` | *(v2.5.3)* Eine Datendatei ist beschädigt (kein gültiges JSON). Die Datei bleibt unverändert, daneben liegt eine Quarantäne-Kopie `<datei>.corrupt-<prüfsumme>`. Bis v2.5.2 wurde sie als leer gelesen und beim nächsten Schreiben überschrieben. Seit v3.1.0 steht die Meldung in der Sprache der Anfrage (bis v3.0 immer deutsch); `code` bleibt `errors.storage.corrupted`. *(v2.6.0)* Die Daten stammen von einer **neueren** Version (etwa nach dem Zurückdrehen des Image-Tags): alle Routen außer `/api/health`, geschrieben wird nichts (`errors.storage.dataTooNew`). `/api/health` selbst antwortet `503`, wenn `status` = `error`. |
 | `500` | Unerwarteter Fehler. Seit v2.6.0 mit `error_id`; dieselbe ID steht mit allen Einzelheiten im Server-Log. |
 
@@ -128,8 +128,8 @@ braucht eine Zusage, was sich ändern darf. Drei Klassen:
 | Klasse | Umfang | Zusage |
 |---|---|---|
 | **A — Schnittstellen für Fremdsysteme** | `POST /api/ingest` (auch als Stapel), `GET /api/health`, `GET /api/summary` (`summary_version: 1`, v3.1.0), `GET /api/calendar.ics` (Form und UIDs, v3.1.0), Backup-Format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV-Exporte im Format 1 und die CSV-Importe ([CSV-Formate](#csv-formate-v310)), Stammdaten (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`; seit v3.1.0 `periods` samt `periods.csv` und Zeitraum-Import, `tenancies` und `statements`), Belege hochladen und abrufen (`POST /api/attachments`, `GET /api/attachments/{id}`, v3.1.0), Fehlerhülle mit `code` | Nur additive Änderungen. Umbenennen oder Entfernen erst mit einer **Major-Version**, angekündigt mindestens eine Minor-Version vorher im CHANGELOG unter „Deprecated". Alte Feldnamen bleiben als Alias gültig. |
-| **B — Auswertungen** | Verbrauch, Saldo, Prognose, Tarifvergleich/-wechsel, Rechnungsprüfung, Effizienz, Empfehlungen, PV/Saldo, `readings-overview`, `agenda` (v3.1.0), Budget des Mietverhältnisses (`tenancies/{id}/budget`, v3.1.0), CO₂-Preis und Aufteilung (`co2-costs`, `co2-split`, `reports/co2-split.pdf`, v3.1.0), Versorgerrechnungen (`bills` samt `check` und `book`, v3.1.0), die Auswertungen einer Zählergruppe (`meter-groups/{id}/…`, v3.1.0), Ladestrom-Nachweis (`reports/ev-charging` als JSON, CSV und PDF, v3.1.0), Jahresarbeitszahl (`heat-pump`, v3.1.0), Einordnung (`benchmarks/comparison`, v3.1.0) | Dokumentierte Felder bleiben mit Namen und Bedeutung erhalten; neue kommen hinzu. **Werte** können sich ändern, wenn eine Berechnung korrigiert wird — das steht im CHANGELOG. |
-| **C — Oberfläche** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09`, `countries`, Belegliste und Löschen (`GET /api/attachments`, `DELETE /api/attachments/{id}`) und `ocr/reading` (v3.1.0), Börsenstrompreise (`market-prices` samt Import und SMARD-Abruf), Monatspreise aus einer Datei (`contracts/{id}/prices/import-csv`) und Zeitreihen mit Spaltenzuordnung (`meters/{id}/import-series`, alle v3.1.0), Personen (`users`, `session/me`, v3.2.0), Ladevorgänge aus evcc (`import-evcc`, `sync-evcc`, `ev-sessions`, v3.2.0) | Für die eigene Oberfläche gebaut; Änderungen möglich, stehen aber im CHANGELOG. |
+| **B — Auswertungen** | Verbrauch, Saldo, Prognose, Tarifvergleich/-wechsel, Rechnungsprüfung, Effizienz, Empfehlungen, PV/Saldo, `readings-overview`, `agenda` (v3.1.0), Budget des Mietverhältnisses (`tenancies/{id}/budget`, v3.1.0), CO₂-Preis und Aufteilung (`co2-costs`, `co2-split`, `reports/co2-split.pdf`, v3.1.0), Versorgerrechnungen (`bills` samt `check` und `book`, v3.1.0), die Auswertungen einer Zählergruppe (`meter-groups/{id}/…`, v3.1.0), Ladestrom-Nachweis (`reports/ev-charging` als JSON, CSV und PDF, v3.1.0), Jahresarbeitszahl (`heat-pump`, v3.1.0), Einordnung (`benchmarks/comparison`, v3.1.0), Flexibilität (`flexibility`, v3.3.0) | Dokumentierte Felder bleiben mit Namen und Bedeutung erhalten; neue kommen hinzu. **Werte** können sich ändern, wenn eine Berechnung korrigiert wird — das steht im CHANGELOG. |
+| **C — Oberfläche** | `session`, `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `migration/v09`, `countries`, Belegliste und Löschen (`GET /api/attachments`, `DELETE /api/attachments/{id}`) und `ocr/reading` (v3.1.0), Börsenstrompreise (`market-prices` samt Import und SMARD-Abruf), Monatspreise aus einer Datei (`contracts/{id}/prices/import-csv`) und Zeitreihen mit Spaltenzuordnung (`meters/{id}/import-series`, alle v3.1.0), Personen (`users`, `session/me`, v3.2.0), Ladevorgänge aus evcc (`import-evcc`, `sync-evcc`, `ev-sessions`, v3.2.0), Viertelstundenreihen (`intervals`) und Börsenpreise je Viertelstunde (`market-prices/sync-smard-intervals`, beide v3.3.0) | Für die eigene Oberfläche gebaut; Änderungen möglich, stehen aber im CHANGELOG. |
 
 Anlass: v2.0.0 hat `verdict` von „Nachzahlung/Erstattung" still auf Schlüssel
 (`surcharge`/`refund`/`balanced`) umgestellt — ohne Ankündigung. Das soll
@@ -190,7 +190,7 @@ nicht wieder passieren.
 | PATCH | `/api/utility/{u}/readings/{id}` | ändern; seit v3.1.0 auch `attachment_id` (`null` löst das Foto); auf einen Zähler mit Verbrauch je Zeitraum umhängen → `400` `errors.reading.periodMeter` |
 | DELETE | `/api/utility/{u}/readings/{id}` | löschen (ein Foto wird gelöst und nach 24 Stunden aufgeräumt) |
 | POST | `/api/utility/{u}/meters/{id}/readings/import-csv` | CSV-Bulk-Import; `?dry_run=1` liest nur (Vorschau, v2.12.0); seit v3.1.0 Kopfzeilen und Datumsschreibweisen aller Sprachen — s. u. |
-| POST | `/api/utility/{u}/meters/{id}/import-series` | *(v3.1.0)* Zeitreihe aus einem Portal mit Spaltenzuordnung `{csv, mapping}`, zu Tageswerten verdichtet; `?dry_run=1` liest nur — [Zeitreihe importieren](#zeitreihe-importieren-v310) |
+| POST | `/api/utility/{u}/meters/{id}/import-series` | *(v3.1.0)* Zeitreihe aus einem Portal mit Spaltenzuordnung `{csv, mapping}`, zu Tageswerten verdichtet; `?dry_run=1` liest nur — [Zeitreihe importieren](#zeitreihe-importieren-v310); seit v3.3.0 Werte im Takt von 15, 30 oder 60 Minuten zusätzlich je Viertelstunde (`intervals`) |
 | POST | `/api/utility/strom/meters/{id}/import-evcc` | *(v3.2.0)* Ladevorgänge aus dem CSV-Export von evcc `{csv, counters?, loadpoint?}`, dazu die Zählerstände der Wallbox; `?dry_run=1` liest nur — [Ladevorgänge aus evcc](#ladevorgänge-aus-evcc-v320) |
 | POST | `/api/utility/strom/meters/{id}/sync-evcc` | *(v3.2.0)* dasselbe direkt von evcc im Heimnetz (`evcc_endpoint`) `{counters?, loadpoint?}`; `?dry_run=1` liest nur, `502` bei Fehlern von evcc |
 | GET | `/api/utility/{u}/periods` | *(v3.1.0)* Verbrauch je Zeitraum, nach Beginn sortiert; `?meter_id=` nur dieser Zähler — [Verbrauch je Zeitraum](#verbrauch-je-zeitraum-v310) |
@@ -205,7 +205,7 @@ nicht wieder passieren.
 | DELETE | `/api/utility/{u}/deliveries/{id}` | löschen |
 | GET | `/api/utility/{u}/meters/{id}/stock-history` | Tank-Bestandskurve; seit v2.10.0 Tankbuch mit Stützstellen und Schätzbeginn — s. u. |
 | GET | `/api/utility/{u}/contracts` | Verträge |
-| POST | `/api/utility/{u}/contracts` | anlegen; seit v3.1.0 Fernwärme mit Leistungs- und Messpreis, Antwort ggf. mit `warnings` — [s. u.](#verträge-fernwärme-fixkosten-warnings-v310-additiv); für eine Zählergruppe mit `meter_group_id` ([Gruppenvertrag](#gruppenvertrag-v310)); Strom mit `grid_reduction`, Preismodell `price_model`/`dynamic`, Einspeisung mit `revenue_statements` ([s. u.](#verträge-reduziertes-netzentgelt-preismodell-gutschriften-v310-additiv)) |
+| POST | `/api/utility/{u}/contracts` | anlegen; seit v3.1.0 Fernwärme mit Leistungs- und Messpreis, Antwort ggf. mit `warnings` — [s. u.](#verträge-fernwärme-fixkosten-warnings-v310-additiv); für eine Zählergruppe mit `meter_group_id` ([Gruppenvertrag](#gruppenvertrag-v310)); Strom mit `grid_reduction`, Preismodell `price_model`/`dynamic`, Einspeisung mit `revenue_statements` ([s. u.](#verträge-reduziertes-netzentgelt-preismodell-gutschriften-v310-additiv)); seit v3.3.0 Strom mit `grid_tou` ([zeitvariables Netzentgelt](#verträge-zeitvariables-netzentgelt-modul-3-v330-additiv)) |
 | GET | `/api/utility/{u}/contracts/{id}` | einzeln |
 | PATCH | `/api/utility/{u}/contracts/{id}` | ändern; wie beim Anlegen |
 | DELETE | `/api/utility/{u}/contracts/{id}` | löschen |
@@ -213,11 +213,12 @@ nicht wieder passieren.
 | GET | `/api/market-prices` | *(v3.1.0)* Großhandelspreise Strom (Day-Ahead DE/LU) als Monatsmittel, mit Namensnennung — [Börsenstrompreise](#börsenstrompreise-und-dynamik-check-v310) |
 | POST | `/api/market-prices/import-csv` | *(v3.1.0)* Börsenpreise aus einer Datei (SMARD-Download oder `JJJJ-MM;€/MWh`); `?dry_run=1` liest nur |
 | POST | `/api/market-prices/sync-smard` | *(v3.1.0)* Monatswerte von SMARD holen — nur auf Knopfdruck |
+| POST | `/api/market-prices/sync-smard-intervals` | *(v3.3.0)* Börsenpreise eines Jahres je Viertelstunde von SMARD holen, `?year=` (Standard Vorjahr) — nur auf Knopfdruck, `502` bei Fehlern von SMARD — [Flexibilität](#flexibilität-bewerten-v330) |
 | GET | `/api/utility/{u}/consumption` | Monatsverbrauch (utility-weit) |
 | GET | `/api/utility/{u}/meters/{id}/consumption` | Verbrauch + Anomalien + Regressionen |
 | GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, nur Gas/Strom/Fernwärme); seit v2.8.0 nach Kalender bis heute, seit v2.9.0 tagesgenau mit Kündigungsstichtag — s. u. |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | Prognose mit Unsicherheitsband, Klimanormal und Hinweisen (v2.8.0); seit v3.1.0 CO₂-Preis-Szenario `?co2_scenario_eur_t=&co2_scenario_from=` — s. u. |
-| GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick) |
+| GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick); seit v3.3.0 rechnet ein dynamischer Schattenvertrag mit dem eigenen Lastgang, wo Viertelstunden vorliegen (`dynamic_profile_months`) — [Dynamik-Check](#börsenstrompreise-und-dynamik-check-v310) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
 | GET | `/api/utility/{u}/meters/{id}/bill-check` | Rechnungsprüfung: Abschnitte je Ablesung und Brennwertwechsel bzw. Preisstichtag, mit Kosten, `?from=&to=` (F1012; bis v3.0 nur Gas, seit v3.1.0 Gas, Strom, Wasser, Fernwärme, sonst 400) — [s. u.](#get-apiutilityumetersidbill-checkfromto-f1012-v250-alle-arten-seit-v310) |
 | GET | `/api/utility/{u}/bills` | *(v3.1.0)* Versorgerrechnungen, die neueste zuerst; `?meter_id=` nur dieser Zähler — [Versorgerrechnungen](#versorgerrechnungen-v310) |
@@ -229,6 +230,9 @@ nicht wieder passieren.
 | GET | `/api/benchmarks/efficiency` | Effizienzklasse pro Heizquelle; seit v2.10.0 mit Abdeckung und energieausweis-naher Kennzahl — s. u. |
 | GET | `/api/benchmarks/comparison` | *(v3.1.0)* Einordnung des Jahresverbrauchs an eigenen Vergleichswerten (Haushaltsstrom, Heizung je m²), `?year=` (Standard Vorjahr) — [Einordnung](#einordnung-get-apibenchmarkscomparison-v310) |
 | GET | `/api/heat-pump` | *(v3.1.0)* Jahresarbeitszahl je Wärmepumpe: Wärme ÷ Strom je Monat und Jahr, `?year=` (Standard Vorjahr) — [Wärmepumpe](#jahresarbeitszahl-der-wärmepumpe-v310) |
+| GET | `/api/flexibility` | *(v3.3.0)* Flexibilität eines Jahres aus Verbrauch und Börsenpreis je Viertelstunde: je Stromzähler Profilfaktor und Vorteil, Speicher, § 14a Modul 3; `?year=` (Standard Vorjahr) — [Flexibilität](#flexibilität-bewerten-v330) |
+| GET | `/api/intervals` | *(v3.3.0)* Index der Viertelstundenreihen (Verbrauch je Zähler, Börsenpreise) |
+| DELETE | `/api/intervals/{id}` | *(v3.3.0)* eine Viertelstundenreihe löschen; Zählerstände und Tageswerte bleiben |
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden |
 | DELETE | `/api/recommendations/{id}/dismiss` | Ausblenden zurücknehmen (v2.12.0); eine nicht ausgeblendete ID ist kein Fehler |
@@ -268,7 +272,7 @@ nicht wieder passieren.
 | GET | `/api/export/{u}/deliveries.csv` | **v1.4.2** Lieferungen als CSV (Heizöl/Pellets); `format`, `lang` wie oben |
 | GET | `/api/export/{u}/periods.csv` | *(v3.1.0)* Verbrauch je Zeitraum als CSV, alle Zähler der Art; `format`, `lang` wie oben |
 | GET | `/api/export/temperatures.csv` | Temperaturreihe als CSV; `format`, `lang` wie oben |
-| GET | `/api/backup/export` | Voll-Backup JSON; seit v3.1.0 mit den Belegen (`attachment_files`), `?attachments=0` ohne die Dateien — [s. u.](#snapshots-und-import-v260) |
+| GET | `/api/backup/export` | Voll-Backup JSON; seit v3.1.0 mit den Belegen (`attachment_files`), `?attachments=0` ohne die Dateien — [s. u.](#snapshots-und-import-v260); seit v3.3.0 immer mit den Viertelstundenreihen (`interval_files`) |
 | POST | `/api/backup/import` | Backup zurückspielen; `?dry_run=1` prüft nur, `?allow_without_snapshot=1` s. 409; seit v3.2.0 nur Verwalter |
 | POST | `/api/backup/snapshot` | Snapshot ablegen |
 | GET | `/api/backup/snapshots` | Snapshots: Name, Größe, Zeitpunkt, Anlass *(v2.6.0)* |
@@ -284,7 +288,7 @@ nicht wieder passieren.
 | GET | `/api/auth/token` | API-Token-Status (nie der Token selbst), F1009; seit v3.2.0 nur Verwalter |
 | POST | `/api/auth/token` | Token erzeugen (einmalig Klartext), F1009; seit v3.2.0 nur Verwalter |
 | DELETE | `/api/auth/token` | Token widerrufen → API wieder offen, F1009; seit v3.2.0 nur Verwalter |
-| **POST** | **`/api/ingest`** | **idempotenter Zählerstand-Push für Home Assistant (F1009); seit v3.1.0 auch als Stapel bis 500 Stände** |
+| **POST** | **`/api/ingest`** | **idempotenter Zählerstand-Push für Home Assistant (F1009); seit v3.1.0 auch als Stapel bis 500 Stände; seit v3.3.0 mit `timestamp` für Verbrauch je Viertelstunde** |
 
 ---
 
@@ -771,6 +775,47 @@ Vergütung, tagesgenau auf die Monate verteilt. Ein Monat trägt dann
 `revenue_source: "statement"` (ganz abgedeckt) oder `"mixed"`. Beispiel: Eine
 Gutschrift für Juni 2026 über 23,40 € steht genau so im Juni.
 
+### Verträge: zeitvariables Netzentgelt (Modul 3) *(v3.3.0, additiv)*
+
+**§ 14a EnWG, Modul 3** — nur Strom: `grid_tou` beschreibt das zeitvariable
+Netzentgelt aus dem Preisblatt des Netzbetreibers, einen Standardtarif und
+Zeitfenster mit einem anderen Preis je kWh. Beispiel mit erfundenen Preisen,
+so wie am Wärmepumpenvertrag des Beispielhaushalts „Eigenheim mit Wärmepumpe
+und PV“ (`eigenheim-modern`):
+
+```json
+"grid_tou": {
+  "standard_ct": 8.1,
+  "windows": [
+    { "quarters": [1, 2, 3, 4], "from": "00:00", "to": "06:00", "ct": 2.4 },
+    { "quarters": [1, 4],       "from": "17:00", "to": "20:00", "ct": 11.9 }
+  ]
+}
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `standard_ct` | Netzentgelt je kWh außerhalb der Fenster, ct/kWh (0–100); Pflicht, sobald es Fenster gibt |
+| `windows[].quarters` | Quartale, in denen das Fenster gilt: 1 = Januar–März … 4 = Oktober–Dezember; gespeichert sortiert und ohne doppelte |
+| `windows[].from`, `windows[].to` | Ortszeit `HH:MM`, `to` auch `24:00`; `from` liegt vor `to` — ein Fenster über Mitternacht sind zwei (`22:00`–`24:00` und `00:00`–`06:00`) |
+| `windows[].ct` | Netzentgelt je kWh im Fenster (0–100); unter `standard_ct` Niedrigtarif, darüber Hochtarif |
+
+Höchstens 24 Fenster. Zahlen dürfen auch als Text mit Dezimalkomma kommen
+(`"2,4"`). Überschneiden sich zwei Fenster, gilt das erste der Liste. Ungültig
+→ `400` `errors.contract.gridTouInvalid`; die Meldung nennt die Stelle
+(`standard_ct`, `windows[1]`, `windows[1].ct` oder `windows`). `null`, `{}`
+oder ein Objekt ohne Standardtarif und ohne Fenster entfernt das Feld; ein
+Fenster, das kein Objekt ist, fällt weg. Bei anderen Arten als Strom wird
+`grid_tou` nicht gespeichert.
+
+Saldo, Prognose und Tarifvergleich rechnen weiter mit den Preisen des
+Vertrags. Ausgewertet wird `grid_tou` nur in der
+[Flexibilität](#flexibilität-bewerten-v330): je Monat mit dem echten Vertrag
+des Zählers (kein Schattenvertrag), der am Monatsersten gilt. Modul 3 gibt es
+nur zusätzlich zu Modul 1 (`grid_reduction`) und mit intelligentem
+Messsystem — Festlegung BK8-22/010-A der Bundesnetzagentur; Stand und Quellen:
+[Anwendungsfälle](../anleitungen/anwendungsfaelle.md), Abschnitt G.
+
 ### Börsenstrompreise und Dynamik-Check *(v3.1.0)*
 
 Was hätte ein dynamischer Stromtarif gekostet? Dafür hält die App die
@@ -810,11 +855,164 @@ Vorjahres (bis drei Jahre zurück) als Annahme. Die Zeile des Kandidaten trägt
 Monate). Fehlen die Marktdaten ganz, entfällt der Kandidat, und die Antwort
 trägt `dynamic_missing_market: true`.
 
-Bewusst **ohne Lastprofil**: Gerechnet wird mit dem Monatsmittel, als
-verteile sich der Verbrauch gleichmäßig über den Tag. Abendverbrauch ist meist
-teurer; ein echter dynamischer Tarif wird je Viertelstunde über ein
-intelligentes Messsystem abgerechnet (§ 41a EnWG). Hintergrund:
+Ohne Viertelstunden rechnet der Check **ohne Lastprofil** mit dem
+Monatsmittel, als verteile sich der Verbrauch gleichmäßig über den Tag.
+Abendverbrauch ist meist teurer; ein echter dynamischer Tarif wird je
+Viertelstunde über ein intelligentes Messsystem abgerechnet (§ 41a EnWG).
+Hintergrund:
 [Strom → Dynamische Tarife](../verstehen/02-strom.md#dynamische-tarife-v310).
+
+**Mit eigenem Lastgang *(v3.3.0)*.** Liegen für den Zähler Verbrauch und
+Börsenpreis je Viertelstunde vor ([Flexibilität](#flexibilität-bewerten-v330)),
+nimmt der Rückblick (`tariff-comparison`) in jedem Monat, in dem mindestens
+90 % der Viertelstunden beides haben, den nach Verbrauch gewichteten
+Börsenpreis statt des Monatsmittels:
+
+```text
+Spot (Monat)  = Σ (kWh × ct/kWh) ÷ Σ kWh      über die Viertelstunden mit Verbrauch und Preis
+Arbeitspreis  = Spot × (1 + USt) + Aufschlag
+```
+
+Die Zeile des Kandidaten trägt dazu `dynamic_profile_months` — die Zahl dieser
+Monate, sonst 0. Die Wechselentscheidung (`tariff-switch`) blickt nach vorn
+und bleibt beim Monatsmittel.
+
+### Flexibilität bewerten *(v3.3.0)*
+
+Hat das Verschieben etwas gebracht? Gesteuert wird außerhalb — von evcc, Home
+Assistant oder dem Speicher selbst; der Energietracker rechnet mit Verbrauch
+und Börsenpreis **je Viertelstunde** nach. Gerechnet wird nur über
+Viertelstunden, für die beides vorliegt, und nur der Börsenanteil — ohne
+Steuern, Umlagen und Netzentgelt. Schritt für Schritt:
+[Flexibilität bewerten](../anleitungen/flexibilitaet.md); Ablage der Reihen:
+[Datenmodell](datenmodell.md#viertelstundenreihen-intervalsjson-v330).
+
+| Route | Zweck | Klasse |
+|---|---|---|
+| `GET /api/flexibility?year=` | Auswertung eines Kalenderjahres | B |
+| `GET /api/intervals` | Index der Viertelstundenreihen | C |
+| `DELETE /api/intervals/{id}` | eine Reihe löschen | C |
+| `POST /api/market-prices/sync-smard-intervals?year=` | Börsenpreise je Viertelstunde von SMARD holen | C |
+
+`year` ist ein Kalenderjahr von 2018 bis 2100, ohne Angabe das Vorjahr. Das
+Jahr läuft in der Zeitzone der Installation (`timezone`) vom 1. Januar 0:00
+bis zum 1. Januar 0:00.
+
+**Woher die Viertelstunden kommen.**
+
+| Quelle | Weg | `source` |
+|---|---|---|
+| Datei aus einem Portal (Netzbetreiber, Messstellenbetreiber, Wechselrichter) | `POST …/import-series` mit Werten im Takt von 15, 30 oder 60 Minuten — [Zeitreihe importieren](#zeitreihe-importieren-v310) | `import` |
+| Home Assistant, Node-RED, Skripte | `POST /api/ingest` mit `timestamp` — [Zeitstempel und Viertelstunden](#zeitstempel-und-viertelstunden-v330) | `ingest` |
+| Börsenpreise Day-Ahead DE-LU | `POST /api/market-prices/sync-smard-intervals` — s. u. | `smard` |
+
+Ein neuer Wert ersetzt den alten in derselben Viertelstunde. Verbrauch gibt es
+für jeden Zähler einer Art mit Zählerständen; ausgewertet werden Strom und die
+Speicherzähler der PV-Erzeugung.
+
+**Auswertung — `GET /api/flexibility`.** Beispiel: der Beispielhaushalt
+`eigenheim-modern` im Jahr 2025 (Verbrauch erfunden, Börsenpreise von SMARD),
+Listen gekürzt:
+
+```json
+{ "year": 2025,
+  "prices": { "available": true, "coverage": 1, "area": "DE-LU" },
+  "meters": [
+    { "meter_id": "m_strom_waermepumpe", "name": "Wärmepumpe", "role": "heat_pump",
+      "controllable": true, "coverage": 1,
+      "months": [ { "month": 1, "kwh": 768.82, "coverage": 1, "priced_kwh": 768.82,
+                    "cheap_kwh": 430.98, "negative_kwh": 12.49, "own_ct": 10.634,
+                    "market_ct": 11.414, "profile_factor": 0.932, "advantage_eur": 6 }, "…" ],
+      "total": { "priced_kwh": 3890.98, "cheap_kwh": 2125.88, "cheap_share": 0.5464,
+                 "negative_kwh": 111.98, "own_ct": 9.596, "market_ct": 10.079,
+                 "profile_factor": 0.952, "advantage_eur": 18.78 } },
+    "…" ],
+  "battery": {
+    "months": [ { "charged_kwh": 99.26, "discharged_kwh": 91.32, "charge_ct": 10.097,
+                  "discharge_ct": 10.597, "value_eur": -0.34, "month": 1 }, "…" ],
+    "total": { "charged_kwh": 1951.54, "discharged_kwh": 1795.46, "charge_ct": 4.514,
+               "discharge_ct": 10.684, "value_eur": 103.72 } },
+  "module3": [
+    { "meter_id": "m_strom_waermepumpe", "name": "Wärmepumpe",
+      "months": [ { "month": 1, "low_kwh": 298.74, "high_kwh": 30.75,
+                    "standard_kwh": 439.33, "saving_eur": 15.86 }, "…" ],
+      "total": { "low_kwh": 1511.79, "high_kwh": 129.41, "standard_kwh": 2249.78,
+                 "saving_eur": 81.25 } } ] }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `prices` | `available`: Preisreihe des Jahres vorhanden; `coverage`: Anteil der Viertelstunden des Jahres mit Preis (0–1); `area`: Gebotszone `DE-LU` |
+| `meters[]` | je Stromzähler mit einer Verbrauchsreihe des Jahres: `meter_id`, `name`, `role`, `controllable` (Rolle `heat_pump` oder `ev_charger` — Verbrauch, der sich verschieben lässt), `coverage` (Anteil der Viertelstunden mit Verbrauch). Ohne Preise `months: []` und `total: null` |
+| `months[]` | je Monat mit Verbrauch: `month` (1–12), `kwh` (Verbrauch des Monats), `priced_kwh` (davon in Viertelstunden mit Preis), `coverage` (Anteil der Viertelstunden des Monats mit Verbrauch und Preis), `cheap_kwh`, `negative_kwh`, `own_ct`, `market_ct`, `profile_factor`, `advantage_eur` — `own_ct`, `profile_factor` und `advantage_eur` sind `null` ohne Viertelstunde mit Verbrauch und Preis, `market_ct` ohne Preis im Monat |
+| `total` | über die Monate mit eigenem Preis und Börsenmittel: dieselben Größen ohne `month`, `kwh` und `coverage`, dazu `cheap_share` (Anteil von `cheap_kwh` an `priced_kwh`); `null`, wenn keine Viertelstunde Verbrauch und Preis hat |
+| `battery` | Speicher: je Monat und gesamt `charged_kwh`, `discharged_kwh`, `charge_ct` und `discharge_ct` (Börsenpreis, nach Menge gewichtet; `null` ohne Menge) und `value_eur`. Braucht je eine Verbrauchsreihe der PV-Erzeugung mit der Rolle `battery_charge` („Speicher – Ladung“) und `battery_discharge` („Speicher – Entladung“) und Preise, sonst `null` |
+| `module3[]` | je Stromzähler mit Verbrauchsreihe, dessen echter Vertrag an mindestens einem Monatsersten des Jahres `grid_tou` trägt ([Modul 3](#verträge-zeitvariables-netzentgelt-modul-3-v330-additiv)): je Monat und gesamt `low_kwh`, `high_kwh`, `standard_kwh` (Verbrauch im Niedrig-, Hoch- und Standardtarif) und `saving_eur`. Braucht keine Börsenpreise |
+
+```text
+günstig         = Viertelstunde mit Preis unter dem einfachen Börsenmittel ihres Monats
+own_ct          = Σ (kWh × ct/kWh) ÷ Σ kWh             eigener Börsenpreis, nach Verbrauch gewichtet
+market_ct       = einfaches Börsenmittel des Monats; im Jahr nach den kWh je Monat gewichtet
+profile_factor  = own_ct ÷ market_ct                   unter 1: mehr Verbrauch in günstigen Viertelstunden
+advantage_eur   = (market_ct − own_ct) × kWh ÷ 100     positiv: gespart gegenüber gleichmäßigem Verbrauch
+value_eur       = (Σ kWh entladen × ct/kWh − Σ kWh geladen × ct/kWh) ÷ 100
+saving_eur      = Σ kWh × (standard_ct − ct/kWh des Fensters) ÷ 100
+
+Beispiel Wärmepumpe 2025: (10,079 − 9,596) ct/kWh × 3.890,98 kWh ÷ 100 ≈ 18,8 €
+                          Profilfaktor 9,596 ÷ 10,079 = 0,952
+```
+
+`profile_factor` ist `null`, wenn das Börsenmittel bei 0 liegt (Betrag bis
+0,01 ct). Für Modul 3 zählen Quartal und Uhrzeit jeder Viertelstunde in
+Ortszeit; Monate ohne Vertrag mit `grid_tou` fehlen in `months`.
+
+**Reihen — `GET /api/intervals`.**
+
+```json
+{ "series": [
+  { "id": "e-strom-m_strom_waermepumpe-2025", "kind": "energy", "utility": "strom",
+    "meter_id": "m_strom_waermepumpe", "unit": "kWh", "year": 2025, "step": 900,
+    "slots": 35040, "filled": 35040, "from": "2025-01-01T00:00:00+01:00",
+    "to": "2026-01-01T00:00:00+01:00", "source": "import", "updated_at": "…" },
+  { "id": "p-de-lu-2025", "kind": "price", "area": "DE-LU", "unit": "ct/kWh",
+    "year": 2025, "step": 900, "slots": 35040, "filled": 35040,
+    "from": "2025-01-01T00:00:00+01:00", "to": "2026-01-01T00:00:00+01:00",
+    "source": "smard", "updated_at": "…" } ] }
+```
+
+Sortiert nach `kind`, Zähler und Jahr. `slots` sind die Plätze des Jahres,
+`filled` die mit Wert; `from` und `to` Beginn der ersten und Ende der letzten
+Viertelstunde mit Wert (Ortszeit, `null` ohne Wert); `source` die Quelle des
+letzten Schreibens. Die Felder im Einzelnen:
+[Datenmodell](datenmodell.md#viertelstundenreihen-intervalsjson-v330).
+
+**Löschen — `DELETE /api/intervals/{id}`** entfernt Indexeintrag und Datei
+und antwortet `{"deleted": true}`. Zählerstände, Tageswerte und die
+Monatsmittel der Börse bleiben.
+
+**Börsenpreise — `POST /api/market-prices/sync-smard-intervals?year=`**, ohne
+Körper. Holt den Großhandelspreis Day-Ahead DE-LU je Viertelstunde von SMARD
+(Bundesnetzagentur): erst das Verzeichnis der Wochenpakete, dann jedes Paket
+des Jahres — rund 53 Abrufe. Umrechnung €/MWh ÷ 10 = ct/kWh. Vor dem
+1. Oktober 2025 wurden Stunden gehandelt; SMARD führt dann den Stundenwert in
+allen vier Viertelstunden. Viertelstundenwerte hat SMARD ab Oktober 2018.
+Künftige Viertelstunden bleiben leer, vorhandene Werte werden ersetzt. **Nur
+auf Knopfdruck**, nie im Hintergrund; hinaus geht nur die Anfrage an SMARD,
+keine eigenen Daten.
+
+```json
+{ "year": 2025, "slots": 35040, "from": "2025-01-01", "to": "2025-12-31" }
+```
+
+`slots` zählt die übernommenen Viertelstunden, `from` und `to` sind der erste
+und letzte Tag mit Wert. Namensnennung: „Bundesnetzagentur | SMARD.de (CC BY
+4.0)“.
+
+| Status | `code` | Wann |
+|---|---|---|
+| `400` | `errors.flexibility.yearInvalid` | `year` ist keine Jahreszahl von 2018 bis 2100 (`flexibility`, `sync-smard-intervals`) |
+| `404` | `errors.intervals.notFound` | `DELETE`: keine Reihe mit dieser ID im Index |
+| `502` | `errors.marketPrices.syncQuarterHoursFailed` | `sync-smard-intervals`: SMARD nicht erreichbar, ein Paket mit HTTP-Fehler oder kein Wert für das Jahr — gespeichert wird dann nichts |
 
 ### `GET /api/utility/{u}/meters/{id}/forecast` *(v2.8.0 erweitert)*
 
@@ -992,6 +1190,7 @@ Antwort:
 { "rows_read": 35040, "skipped": 0, "errors": [], "days": 365,
   "from": "2025-01-01", "to": "2025-12-31", "total": 3412.618,
   "value_kind": "consumption",
+  "intervals": { "step": 900, "slots": 35040 },
   "preview": [ { "date": "2025-01-01", "value": 9.412 }, "…" ],
   "target": "readings", "readings": 366,
   "result": { "imported": 366, "overwritten": 0, "skipped": 0, "errors": [] } }
@@ -1004,6 +1203,20 @@ Trockenlauf entfällt `result`, bei Ständen steht `dry_run: true`. Mit
 Zuordnung mit ungültigen Werten oder eine Datei ohne einen einzigen Tag →
 `400` `errors.import.mappingInvalid`. Schritt für Schritt:
 [Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md).
+
+**Viertelstunden *(v3.3.0, additiv)*.** Liegen die Werte im Takt von 15, 30
+oder 60 Minuten — maßgeblich ist der häufigste Abstand der Stempel —, behält
+der Import sie zusätzlich je Viertelstunde für die
+[Flexibilität](#flexibilität-bewerten-v330). `intervals` nennt den Takt in
+Sekunden (`step`) und die Zahl der Viertelstunden (`slots`); bei gröberen
+Werten (Tageswerte) oder weniger als zwei Zeilen ist es `null`. Ein Verbrauch
+je Intervall verteilt sich gleichmäßig auf dessen Viertelstunden (mit
+`interval_stamp: "end"` endet das Intervall am Stempel). Bei Zählerständen
+verteilt sich die Differenz zweier Stände, die genau einen Takt auseinander
+liegen; über eine Lücke oder einen Rückgang hinweg entsteht nichts. Der
+Trockenlauf zählt nur; gespeichert wird beim Übernehmen (Quelle `import`),
+für Zähler mit Ständen wie mit Zeiträumen. Vorhandene Werte derselben
+Viertelstunden werden ersetzt.
 
 ### `GET /api/utility/{u}/meters/{id}/tariff-switch` — Prognosegüte *(v2.8.0 erweitert)*
 
@@ -2716,6 +2929,52 @@ zurückdatiert statt die Ablesung abzulehnen (typisch beim Nachtragen älterer
 Stände nach einer Neuinstallation). Ein Datum in einer Lücke zwischen zwei
 Geräten bleibt ein `400`.
 
+#### Zeitstempel und Viertelstunden *(v3.3.0)*
+
+Optional `timestamp` — der Zeitpunkt, zu dem der Stand galt, als ISO 8601
+**mit Zeitzone**: `JJJJ-MM-TTTHH:MM[:SS[.ffffff]]` und dahinter `Z`,
+`±HH:MM` oder `±HHMM`, so wie Home Assistant `now().isoformat()` schreibt.
+Anderes → `400` `errors.ingest.timestampFormat`. Ohne `date` gilt der Tag des
+Zeitstempels in der Zeitzone der Installation. Die Ablesung des Tages bleibt,
+wie sie war: ein Stand je Zähler und Tag, der letzte Push gewinnt.
+
+```json
+{ "utility": "strom", "meter": "stromzaehler_haus", "value": 12345.6,
+  "timestamp": "2026-10-12T14:37:00+02:00" }
+```
+
+Aus zwei Ständen mit Zeitstempel entsteht Verbrauch je Viertelstunde: Die
+Differenz verteilt sich nach Zeitanteil auf die Viertelstunden dazwischen.
+
+```text
+Stand 12.345,0 um 14:07, Stand 12.345,6 um 14:37  →  0,6 kWh in 30 Minuten
+14:00–14:15   8 Minuten  → 0,16 kWh   zum Anteil vor 14:07 dazu
+14:15–14:30  15 Minuten  → 0,30 kWh
+14:30–14:45   7 Minuten  → 0,14 kWh   den Rest bringt der nächste Stand
+```
+
+Nichts verteilt wird beim ersten Stand mit Zeitstempel, bei einem Zeitpunkt
+gleich oder vor dem vorigen (der vorige bleibt Bezug), bei einem Rückgang und
+bei einer Lücke über sechs Stunden — in den beiden letzten Fällen ist der neue
+Stand der neue Anfang.
+Ein Stand unter Verdacht (`suspect: true`) zählt gar nicht. Mit `timestamp`
+trägt die Antwort zusätzlich `intervals`, die Zahl der berührten
+Viertelstunden (`0`, wenn nichts verteilt wurde); bei Verdacht fehlt das Feld.
+
+```json
+{ "status": "updated", "utility": "strom", "meter_id": "m_strom_main",
+  "date": "2026-10-12", "counter": 12345.6, "reading_id": "20261012-1a2b3c4d",
+  "suspect": false, "intervals": 3 }
+```
+
+Für ein Profil je Viertelstunde muss der Stand mindestens alle 15 Minuten
+kommen — in Home Assistant eine Automatisierung mit `time_pattern` und
+`minutes: "/15"`. Der REST-Command der Vorlage schickt `timestamp` seit v3.3.0
+mit; ihre Automatisierung sendet aber einmal am Tag (23:55), und über mehr als
+sechs Stunden verteilt sich nichts
+([Home Assistant](../anleitungen/home-assistant.md)). Stände im Abstand bis
+sechs Stunden verteilen sich gleichmäßig über ihren Abstand.
+
 #### Stapel *(v3.1.0)*
 
 Mehrere Stände in einer Anfrage — zum Nachliefern nach einem Ausfall von Home
@@ -2738,9 +2997,11 @@ beim Einzel-Push.
 - Jeder Eintrag wird wie ein Einzel-Push behandelt: gleiche Prüfungen, Upsert je
   Zähler und Tag, gleiche Antwortfelder. Ein fehlerhafter Eintrag hält die
   anderen nicht auf.
-- Verarbeitet wird nach Verbrauchsart, Zähler und Datum. So sieht die
-  Verdachtsprüfung frühere Stände desselben Stapels. Jede Datendatei wird
-  einmal geschrieben.
+- Verarbeitet wird nach Verbrauchsart, Zähler und Datum, seit v3.3.0 am
+  selben Tag nach `timestamp` (für die Reihenfolge zählt bei einem Eintrag
+  ohne `date` das Datum am Anfang seines Zeitstempels). So sieht die Verdachtsprüfung frühere Stände
+  desselben Stapels, und die Viertelstunden entstehen in der richtigen
+  Reihenfolge. Jede Datendatei wird einmal geschrieben.
 - Antwort **`200` auch bei Teilfehlern**, die Ergebnisse in Eingabereihenfolge:
 
 ```json
@@ -3018,6 +3279,22 @@ jeder Datei, base64-kodiert: `{"att_…": "<base64>"}`. Ältere Versionen
 gespeicherten Ladevorgänge unverändert (`untouched`). Personen und Passwörter
 (`auth.json`) gehören weiterhin nicht zum Backup.
 
+**Viertelstundenreihen im Backup *(v3.3.0)*.** Das Format bleibt `3.0`. Neu
+sind der Topf `intervals` (der Index `intervals.json` samt `samples`) und der
+Schlüssel `interval_files` mit jeder Reihe des Index:
+`{"<id>": {id, kind, year, step, start, values}}`. Er steht immer im Backup,
+auch mit `?attachments=0` und in jedem Snapshot — eine Reihe ist Daten, kein
+Beleg, und belegt als Datei bis zu rund 250 KB je Jahr.
+
+- Beim Einspielen braucht jede Reihe eine gültige ID, einen Eintrag im Index
+  des Backups und eine Liste `values`; sonst meldet die Prüfung `invalid:<id>`
+  (Topf `interval_files`, kein Objekt: `not_an_object`), und nichts wird
+  eingespielt. Der Bericht zählt die Reihen unter `interval_files`.
+- Bringt das Backup den Topf `intervals` mit, werden danach Reihen ohne
+  Eintrag im neuen Index gelöscht — nach einem Haushaltswechsel liegen keine
+  Reihen des vorigen herum. Ohne den Topf bleiben die vorhandenen Reihen
+  unverändert (`untouched`).
+
 ### Beispielhaushalte *(v3.2.0)*
 
 Neben dem bisherigen Demo-Haushalt mit allen Verbrauchsarten (jetzt
@@ -3106,6 +3383,8 @@ Bisher still übernommen, jetzt `400` mit `code` und — bei der Prognose —
 | `/api/ev-sessions` | `year` | 2017–2100 oder leer (alle Jahre), sonst `errors.evReport.yearInvalid` (v3.2.0) |
 | `…/import-evcc`, `…/sync-evcc` | `counters` | `auto` (Standard), `energy`, `none`, sonst `errors.evcc.countersInvalid` (v3.2.0) |
 | `/api/heat-pump` | `year` | 1990–2100, Standard Vorjahr, sonst `errors.heatPump.yearInvalid` (v3.1.0) |
+| `/api/flexibility`, `…/sync-smard-intervals` | `year` | 2018–2100, Standard Vorjahr, sonst `errors.flexibility.yearInvalid` (v3.3.0) |
+| `POST /api/ingest` | `timestamp` | ISO 8601 mit Zeitzone oder leer, sonst `errors.ingest.timestampFormat` (v3.3.0) |
 | `/api/benchmarks/comparison` | `year` | Jahreszahl, Standard Vorjahr (v3.1.0) |
 | `/api/export/…` | `format` | `1` (Standard) oder `local`, sonst `errors.export.formatInvalid` (v3.1.0) |
 | | `lang` | Sprachkürzel für `format=local`; unbekannt = Standardsprache |

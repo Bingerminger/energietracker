@@ -30,6 +30,7 @@ const PAGES = {
   users:         ['docs/anleitungen/benutzer.md',        'docs/en/anleitungen/benutzer.md'],          // v3.2.0 (F1023)
   evcc:          ['docs/anleitungen/evcc.md',            'docs/en/anleitungen/evcc.md'],              // v3.2.0 (F1022)
   useCases:      ['docs/anleitungen/anwendungsfaelle.md', 'docs/en/anleitungen/anwendungsfaelle.md'], // v3.2.0
+  flexibility:   ['docs/anleitungen/flexibilitaet.md',   'docs/en/anleitungen/flexibilitaet.md'],     // v3.3.0 (F1021)
 };
 
 /** Die Repo-Pfade aller verlinkten Seiten — ein Test prüft, dass es sie gibt. */

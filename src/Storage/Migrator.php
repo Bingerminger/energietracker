@@ -43,7 +43,10 @@ use Energietracker\Config\Utilities;
  */
 final class Migrator
 {
-    public const SCHEMA_VERSION = '1.7.0';
+    public const SCHEMA_VERSION = '1.8.0';
+
+    /** v3.3.0 (F1021) — Index der Viertelstundenreihen (die Reihen selbst unter intervals/). */
+    public const V180_INDEX = 'intervals.json';
 
     /**
      * v3.1.0 (Paket H, ein Schemaschritt für alle neuen Töpfe) — legt die
@@ -145,6 +148,7 @@ final class Migrator
         ['needsV150Upgrade',           'upgradeToV150'],
         ['needsV160Upgrade',           'upgradeToV160'],
         ['needsV170Upgrade',           'upgradeToV170'],
+        ['needsV180Upgrade',           'upgradeToV180'],
     ];
 
     /** Nur zum Prüfen von außen (Test hält die Liste vollständig). */
@@ -237,6 +241,25 @@ final class Migrator
         $made = $this->missingV170Pots();
         foreach ($made as $file) $this->store->write($file, []);
         return [$made ? 'v1.7.0: angelegt: ' . implode(', ', $made) : 'v1.7.0: alle Töpfe waren schon da'];
+    }
+
+    /**
+     * v1.7.0 → v1.8.0 (v3.3.0, F1021) — Werte je Viertelstunde: ein leerer
+     * Index `intervals.json`. Die Reihen entstehen erst mit dem ersten Import.
+     * Ändert keinen vorhandenen Datensatz.
+     */
+    public function needsV180Upgrade(): bool
+    {
+        $v = (string)($this->store->read('meta.json', [])['schema_version'] ?? '');
+        if ($v !== '' && version_compare($v, '1.8.0', '>=')) return false;
+        return !$this->store->exists(self::V180_INDEX);
+    }
+
+    public function upgradeToV180(): array
+    {
+        if ($this->store->exists(self::V180_INDEX)) return ['v1.8.0: intervals.json war schon da'];
+        $this->store->write(self::V180_INDEX, ['series' => [], 'samples' => (object)[]]);
+        return ['v1.8.0: angelegt: intervals.json'];
     }
 
     public function needsMigration(): bool
@@ -889,6 +912,8 @@ final class Migrator
         }
         // v3.1.0 — Töpfe der Stufe 1.7.0
         foreach ($this->missingV170Pots() as $file) $this->store->write($file, []);
+        // v3.3.0 — Index der Viertelstundenreihen (Stufe 1.8.0)
+        if (!$this->store->exists(self::V180_INDEX)) $this->store->write(self::V180_INDEX, ['series' => [], 'samples' => (object)[]]);
         $this->store->write('meta.json', [
             'schema_version' => self::SCHEMA_VERSION,
             'created_at'     => date('c'),

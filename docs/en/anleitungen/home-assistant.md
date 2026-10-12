@@ -13,8 +13,9 @@ feature F1009).
 > ⚠️ **Beware of circulating forum guides.** There is a popular but
 > **technically wrong** guide (AI-generated) that describes `POST /api.php` with
 > a `{"action":"add_reading", "value":…, "timestamp":…}` and a token from
-> `settings.json`. **None of that exists in Energietracker.** Use only the
-> interface described here (`POST /api/ingest`).
+> `settings.json`. **None of that exists in Energietracker** — a `timestamp`
+> field exists only in `POST /api/ingest` (since v3.3.0, step 3). Use only the
+> interface described here.
 
 ---
 
@@ -103,7 +104,8 @@ rest_command:
         "utility": "{{ utility }}",
         "meter": "{{ meter }}",
         "value": {{ states(sensor_entity) | float }},
-        "date": "{{ now().strftime('%Y-%m-%d') }}"
+        "date": "{{ now().strftime('%Y-%m-%d') }}",
+        "timestamp": "{{ now().isoformat() }}"
       }
 ```
 
@@ -170,6 +172,52 @@ mode: single
 > **Idempotent:** A repeated push on the same day (e.g. a manual test + the
 > automation) creates **no** duplicate — Energietracker updates the existing daily
 > value (upsert per meter & date).
+
+### Quarter hours: additionally every 15 minutes *(v3.3.0)*
+
+Since v3.3.0 the template from step 3 also sends `timestamp` — the moment of
+the reading with time zone (`{{ now().isoformat() }}`). If readings come often
+enough, Energietracker spreads the difference to the previous reading over the
+quarter hours in between, by share of time. [Valuing flexibility](flexibilitaet.md)
+calculates with that: when consumption happened and at what wholesale price.
+For this a second automation sends every 15 minutes; the daily one above stays
+as it is:
+
+```yaml
+alias: "Energy: electricity per quarter hour to Energietracker"
+description: "Sends the meter reading with a timestamp every 15 minutes"
+triggers:
+  - trigger: time_pattern
+    minutes: "/15"
+actions:
+  - if:
+      - condition: template
+        value_template: "{{ has_value('sensor.stromzaehler_total_kwh') }}"
+    then:
+      - action: rest_command.energietracker_push
+        data:
+          utility: "strom"
+          meter: "stromzaehler_haus"
+          sensor_entity: "sensor.stromzaehler_total_kwh"
+mode: single
+```
+
+- **Only electricity meters** (and the battery meters under PV generation)
+  belong in it: only they are evaluated by the Flexibility page. Meters of their
+  own for the heat pump and the wall box tell the most.
+- Each push still updates the day’s reading (`"status":"updated"`). The
+  response additionally names `intervals`, the number of quarter hours the
+  reading touched.
+- **Nothing is spread** for the first reading with a timestamp, for a reading
+  that is not newer than or lower than the previous one, and after a gap of more
+  than six hours — the reading then counts as a new start. The daily push alone
+  therefore gives no quarter hours.
+- Without `date`, the day of the timestamp in the installation’s time zone
+  applies.
+- **Copied the template before v3.3.0?** Then the line `"timestamp"` is
+  missing: put a comma after the `date` line and add
+  `"timestamp": "{{ now().isoformat() }}"`. Without a timestamp everything works
+  as before, just without quarter hours.
 
 ---
 
@@ -307,7 +355,10 @@ meter swaps without loss.
 
 **Data volume:** one push per day and meter is enough. Further ones on the same
 day overwrite that day's reading (`"status":"updated"`) — the file grows by one
-entry per day, about 90 KB a year per meter.
+entry per day, about 90 KB a year per meter. A push every 15 minutes does not
+change that; it additionally creates a quarter-hour series of up to about
+250 KB per meter and year
+([Valuing flexibility](flexibilitaet.md#8-managing-quarter-hour-series)).
 
 > **Data quality:** only send real, absolute meter readings — never a substitute
 > value. When a meter is replaced, record it in Energietracker (meter view →
@@ -483,6 +534,12 @@ msg.headers = { Authorization: 'Bearer ' + env.get('ET_TOKEN') };
 return msg;
 ```
 
+With a `timestamp` per entry, backfilling creates quarter hours too; the batch
+processes the entries per meter in time order. That only applies to readings
+newer than this meter’s last reading with a timestamp — a gap after which Home
+Assistant is already sending again can only be filled by a
+[portal file](daten-aus-portalen.md).
+
 How a function node then evaluates `failed`, and how Home Assistant does it with
 `response_variable`, is in the [API reference](../referenz/api.md#batch-v310);
 the complete recipes for Node-RED, ioBroker and openHAB are under
@@ -528,6 +585,8 @@ Assistant sidebar), the following applies since v3.1.0:
 | Response `created`/`updated`, but the value does not appear | The utility is deselected under Settings → Utilities & billing → Active utilities (then it is missing from the menu, but the value is stored anyway), or the view shows another meter or another year. A meter set to "inactive" also accepts values and counts. |
 | Sensors from step 5: `401` or “unknown” | `401`: sign-in switched on, but no read key (`energietracker_read`) — the ingest token does not work for this. “unknown”: `key` does not match (it names the internal meter ID, not the alias) or the value is missing (no current contract, no forecast yet). The template in the settings fills in the keys correctly. |
 | Batch: response `200`, but readings are missing | Individual entries failed — `failed` and the entries with `"status": "error"` name the reason (`code`) and position (`index`). |
+| `400 Timestamp “…” not readable` | `timestamp` without a time zone or in another format. ISO 8601 with a zone is expected, e.g. `2026-10-12T14:15:00+02:00`; the template `{{ now().isoformat() }}` delivers that. |
+| No quarter hours (`"intervals": 0`) | First reading with a timestamp, a gap of more than six hours (e.g. only the daily push) or a reading that is not newer than or lower than the previous one — see [quarter hours](#quarter-hours-additionally-every-15-minutes-v330). If `intervals` is missing from the response altogether, the REST command sends no `timestamp`, or the reading is marked as suspect. |
 
 **Quick test** (from the HA machine, open mode or with a token):
 

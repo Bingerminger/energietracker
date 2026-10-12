@@ -56,6 +56,7 @@ final class TariffComparisonService
         private MeterService $meters,
         private I18nService $i18n,
         private ?MarketPriceService $market = null,   // v3.1.0 (H6, MKT-12)
+        private ?FlexibilityService $flex = null,     // v3.3.0 (F1021) — eigener Lastgang
     ) {}
 
     /**
@@ -140,7 +141,9 @@ final class TariffComparisonService
         foreach (array_map(fn($c) => $this->consumption->contractView($utility, $meter, $c), $this->contracts->list($utility, $meterId)) as $c) {
             // v3.1.0 (H6, MKT-12) — dynamischer Schattenvertrag: Monatspreise aus den Marktdaten
             if (($c['price_model'] ?? null) === 'dynamic') {
-                $c = $this->market?->expand($c, (string)$from, (string)$to) ?? $c;
+                // v3.3.0 (F1021) — mit Viertelstunden: der eigene Lastgang statt des Monatsmittels
+                $weighted = $this->flex?->weightedSpot($utility, $meterId, (string)$from, (string)$to) ?? [];
+                $c = $this->market?->expand($c, (string)$from, (string)$to, $weighted) ?? $c;
                 if (empty($c['working_prices'])) { $dynamicNoData = true; continue; }
             }
             // v2.9.0 (Review CALC-21) — ein Schattenvertrag ist ein Preisblatt
@@ -183,6 +186,7 @@ final class TariffComparisonService
                 'is_shadow'          => $isShadow,
                 'price_model'        => (string)($c['price_model'] ?? 'fixed'),             // v3.1.0 (H6)
                 'dynamic_assumed_months' => count((array)($c['dynamic_assumed'] ?? [])),
+                'dynamic_profile_months' => count((array)($c['dynamic_profile'] ?? [])),   // v3.3.0 (F1021)
                 'provider'           => (string)($c['provider'] ?? ''),
                 'tariff_name'        => (string)($c['tariff_name'] ?? ''),
                 'months_covered'     => $calc['months'],

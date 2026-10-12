@@ -5,7 +5,7 @@
 [← API reference](api.md) · [Compendium index](../README.md)
 
 All data is stored as flat JSON files under `data/`. No database. Writes are
-serialised by `LOCK_EX`. Schema level: **1.7.0** (in `data/meta.json` and in every
+serialised by `LOCK_EX`. Schema level: **1.8.0** (in `data/meta.json` and in every
 backup).
 
 > **Schema history (short form):** 1.0.0 utility-oriented layout · 1.0.3 water
@@ -23,7 +23,9 @@ backup).
 > (consumption per period) and `bills.json` (supplier bills) per utility and the
 > new utility `waerme/` created empty, as well as missing basic pots (v3.1.0) ·
 > v3.2.0 **without** a schema step: `ev_sessions.json` (charging sessions from
-> evcc) is created by the first import, people are stored in `auth.json`.
+> evcc) is created by the first import, people are stored in `auth.json` ·
+> **1.8.0** index `intervals.json` for values per quarter hour created empty;
+> the series under `intervals/` arise with the first import (v3.3.0).
 
 ---
 
@@ -45,6 +47,8 @@ data/
 ├── tenancy_statements.json   # service charge statements (v3.1.0, schema 1.7.0)
 ├── market_prices.json        # wholesale electricity prices as monthly averages (v3.1.0, schema 1.7.0)
 ├── ev_sessions.json          # charging sessions from evcc (v3.2.0) — created by the first import
+├── intervals.json            # index of the quarter-hour series { series, samples } (v3.3.0, schema 1.8.0)
+├── intervals/                # quarter-hour series <id>.json, per meter or wholesale price and calendar year (v3.3.0)
 ├── instance.json             # identifier of the installation (v3.1.0) — not in the backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -65,7 +69,8 @@ determines the occasion (`reason` in `GET /api/backup/snapshots`). Retention: of
 your own the last ten, automatic ones 30 days, at least the three newest per
 occasion. A snapshot is streamed into a temporary file and only renamed at the
 end. Since v3.1.0 it contains the receipts (base64) — so `backups/` grows with
-every photo, once per snapshot.
+every photo, once per snapshot. Since v3.3.0 it also contains the quarter-hour
+series, up to about 250 KB per series and year.
 
 Cumulative utilities (gas, electricity, water, district heating, PV, since
 v3.1.0 heat) have `readings.json`; delivery-based utilities (heating oil,
@@ -645,6 +650,25 @@ optional, missing = as before:
 
 No schema step: the fields travel with the contract in the backup.
 
+**Time-variable grid fee (v3.3.0)** — electricity only, optional: § 14a EnWG,
+module 3, from the grid operator’s price sheet.
+
+```json
+"grid_tou": { "standard_ct": 8.1,
+              "windows": [ { "quarters": [1, 2, 3, 4], "from": "00:00", "to": "06:00", "ct": 2.4 } ] }
+```
+
+| Field | Meaning |
+|---|---|
+| `standard_ct` | grid fee per kWh outside the windows (ct/kWh, 0–100) |
+| `windows[]` | at most 24 windows: `quarters` (1–4, sorted, without duplicates), `from` and `to` as local time `HH:MM` (`to` up to `24:00`, `from` before `to`), `ct` (0–100). A window across midnight is two; if windows overlap, the first applies |
+
+Without a standard tariff and windows the field is missing. It changes neither
+balance nor forecast nor tariff comparison; flexibility uses it to calculate the
+saving against the standard tariff — validation and errors:
+[API](api.md#contracts-time-variable-grid-fee-module-3-v330-additive). No
+schema step.
+
 Water additionally uses a three-component model (drinking/waste/rainwater), see
 [Water](../verstehen/03-wasser.md).
 
@@ -704,6 +728,83 @@ Fields without a value are left out. The meter readings an import derives are
 not stored here but as ordinary readings in `strom/readings.json` (note
 `evcc`). Part of the backup as the pot `ev_sessions`; the import checks `id`,
 `meter_id`, `date` (calendar date) and `charged_kwh`.
+
+### Quarter-hour series (`intervals.json`) *(v3.3.0)*
+
+Values per quarter hour for [flexibility](api.md#valuing-flexibility-v330):
+consumption per meter and wholesale price, one series per calendar year. The
+index is in `intervals.json`, each series in a file of its own
+`intervals/<id>.json`. Schema 1.8.0 creates the empty index
+`{"series": [], "samples": {}}`; series only arise with the first import. Meter
+readings and daily values stay where they are — the quarter hours are an
+additional store.
+
+**Index:**
+
+```json
+{ "series": [
+    { "id": "e-strom-m_strom_waermepumpe-2025", "kind": "energy", "utility": "strom",
+      "meter_id": "m_strom_waermepumpe", "unit": "kWh", "year": 2025, "step": 900,
+      "slots": 35040, "filled": 35040, "from": "2025-01-01T00:00:00+01:00",
+      "to": "2026-01-01T00:00:00+01:00", "source": "import",
+      "updated_at": "2026-05-31T13:19:08+02:00" } ],
+  "samples": { "strom/m_strom_main": { "ts": 1791808620, "counter": 12345.6 } } }
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | identifier and file name: consumption `e-<utility>-<meter>-<year>`, wholesale price `p-de-lu-<year>`; lower case, characters other than `A–Z`, `a–z`, `0–9`, `_`, `.` and `-` become `-`. Pattern `^[a-z0-9][a-z0-9_.-]{1,100}$` |
+| `kind` | `energy` (consumption) or `price` (wholesale price) |
+| `utility`, `meter_id` | only for `energy`: utility and meter |
+| `area` | only for `price`: bidding zone `DE-LU` |
+| `unit` | `kWh` (consumption per quarter hour) or `ct/kWh` (wholesale price, net) |
+| `year` | calendar year in the installation’s time zone |
+| `step` | `900` — seconds per place |
+| `slots`, `filled` | places of the year and those of them with a value |
+| `from`, `to` | start of the first and end of the last quarter hour with a value, ISO 8601 in local time; `null` without a value |
+| `source` | source of the last write: `import` (time series import), `ingest` (meter reading with timestamp), `smard` (wholesale prices) |
+| `updated_at` | time of the last write |
+
+`samples` holds, per `<utility>/<meter>`, the last meter reading with a
+timestamp from the ingest — `ts` in Unix seconds and `counter` —, the reference
+for the next push ([API](api.md#timestamps-and-quarter-hours-v330)).
+
+**Series** (`intervals/<id>.json`):
+
+```json
+{ "id": "p-de-lu-2025", "kind": "price", "year": 2025, "step": 900,
+  "start": "2025-01-01T00:00:00+01:00",
+  "values": [0.216, 0.216, 0.216, 0.216, 0.16, "…"] }
+```
+
+`values` has a place for every quarter hour of the year; place *i* starts at
+`start` + *i* × 900 seconds. The year runs from 1 January 0:00 to 1 January 0:00
+in the installation’s time zone (`timezone`):
+
+```text
+places = (start of the following year − start of the year) ÷ 900 s
+2025:  365 days × 96 = 35,040        leap year 2028:  366 × 96 = 35,136
+day of the change to summer time: 92 places, back to winter time: 100
+```
+
+Missing values are `null`. Consumption is stored in kWh with four decimals,
+prices in ct/kWh with three; a full series takes about 250 KB as a file (written
+compactly, not indented like the other files).
+The calculation uses the start of the year in the installation’s **current**
+time zone; `start` records it at the time of writing — if the time zone changes
+later, the places shift by the difference.
+
+- **Only series in the index count.** The app does not read a file without an
+  index entry, and the backup does not take it along.
+- **A new value replaces the old one** at the same place. Exception for the
+  ingest: if the previous meter reading lay in the middle of a quarter hour, the
+  new share is added to the existing one.
+- **Deleting** (`DELETE /api/intervals/{id}`) removes entry and file; `samples`
+  stays, the next push continues spreading from that reading.
+- **Backup:** pot `intervals` (the index) and key `interval_files`
+  `{"<id>": series}` — always, also without receipts. On restore every series
+  needs an entry in the backup’s index; afterwards series without an entry in
+  the new index are dropped ([API](api.md#snapshots-and-import-v260)).
 
 ### People in `auth.json` *(v3.2.0)*
 
@@ -789,7 +890,7 @@ here a selection with background:
 | `language` | de | default language of the installation (devices without a choice of their own, PDF, CSV, Home Assistant); a device can differ via `X-ET-Language` (v3.1.0) |
 | `country` | DE | *(v2.7.0)* country: formats (together with the language), efficiency scale — [country profiles](../verstehen/14-laenderprofile.md) |
 | `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — symbol and minor unit; amounts are not converted, `*_eur`/`ct_*` mean major/minor unit |
-| `timezone` | Europe/Berlin | *(v2.7.0)* IANA time zone: "today", due dates, day boundaries of the weather data |
+| `timezone` | Europe/Berlin | *(v2.7.0)* IANA time zone: "today", due dates, day boundaries of the weather data; since v3.3.0 also the year boundaries and places of the [quarter-hour series](#quarter-hour-series-intervalsjson-v330) |
 | `gas_cv_unit` | kwh | *(v2.7.0)* input unit of the calorific value (`kwh`, `mj`, `gj`); storage is always kWh/m³ |
 | `frame_ancestors` | *(empty)* | *(v2.6.0)* origins allowed to embed the app (CSP `frame-ancestors`), e.g. `http://homeassistant.local:8123`; since v3.2.0 admins only |
 | `attachments_max_mb` | 500 | *(v3.1.0)* storage for all receipts together in MB (10–100000) |
@@ -836,13 +937,17 @@ does not store unknown keys and names them in `ignored_keys` since v2.6.0.
   `periods.json` and `bills.json` empty — so an existing installation also gets the folder of
   the new utility `waerme/`, without default meters. No existing record is
   changed; a first start creates the same pots,
-- raises the version step by step to the current state (**1.7.0**).
+- in 1.8.0 (v3.3.0) creates the empty index of the quarter-hour series
+  `intervals.json` (`{series: [], samples: {}}`); the folder `intervals/`
+  arises with the first series. No existing record changes; a first start
+  creates the index as well,
+- raises the version step by step to the current state (**1.8.0**).
 
 Each step has its own `needsVXXXUpgrade()` + `upgradeToVXXX()` pair and is
 idempotent in itself (a repeated run is a no-op).
 
 The bundled demo data carries `schema_version: 1.1.0` and is migrated additively to
-the current state (1.7.0) on first start — adding `meter_groups.json` per utility
+the current state (1.8.0) on first start — adding `meter_groups.json` per utility
 (1.2.0) and the meter fields `external_id` (1.3.0) and `baseline_events` (1.4.0)
 without touching existing values.
 The migration path (1.0.0 → current schema) is additionally checked in the CI via a
@@ -853,8 +958,14 @@ snapshot `pre-migration-…` (since v2.5.3).
 “showcase” with every utility) there are four example households under
 `demo-data/personas/<persona>.json`: `mieterin`, `etw-fernwaerme`,
 `eigenheim-klassisch`, `eigenheim-modern`. They use backup format 3.0 with
-schema 1.7.0 and contain every pot of every utility, empty ones included — so
-an example household replaces the whole household. `tools/build-personas.mjs`
+schema 1.8.0 and contain every pot of every utility, empty ones included — so
+an example household replaces the whole household. Since v3.3.0
+`eigenheim-modern` brings quarter-hour series for 2025: household, heat pump
+(controlled, preferably 0–6 h), wall box from its charging sessions, charging
+and discharging of the battery, plus the 2025 wholesale prices per quarter hour
+from SMARD (`demo-data/sources/smard-day-ahead-de-lu-2025-qh.json`,
+Bundesnetzagentur | SMARD.de, CC BY 4.0) and module 3 time windows with made-up
+prices on the heat pump contract. `tools/build-personas.mjs`
 generates them from a daily model with a fixed seed: every run writes the same
 files, `--check` only compares. Names are made up, market location IDs
 synthetic. When loaded, `DemoDataAligner` carries them forward to today like

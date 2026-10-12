@@ -5,7 +5,7 @@
 [← API-Referenz](api.md) · [Kompendium-Index](../README.md)
 
 Alle Daten liegen als flache JSON-Dateien unter `data/`. Keine Datenbank.
-Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.7.0**
+Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.8.0**
 (in `data/meta.json` und in jedem Backup).
 
 > **Schema-Historie (Kurzfassung):** 1.0.0 utility-orientiertes Layout ·
@@ -24,7 +24,9 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.7.0**
 > (Verbrauch je Zeitraum) und `bills.json` (Versorgerrechnungen) und die neue
 > Verbrauchsart `waerme/` leer angelegt, ebenso fehlende Grundtöpfe (v3.1.0) ·
 > v3.2.0 **ohne** Schema-Schritt: `ev_sessions.json` (Ladevorgänge aus evcc)
-> entsteht beim ersten Import, Personen stehen in `auth.json`.
+> entsteht beim ersten Import, Personen stehen in `auth.json` ·
+> **1.8.0** Index `intervals.json` für Werte je Viertelstunde leer angelegt;
+> die Reihen unter `intervals/` entstehen mit dem ersten Import (v3.3.0).
 
 ---
 
@@ -46,6 +48,8 @@ data/
 ├── tenancy_statements.json   # Nebenkostenabrechnungen (v3.1.0, Schema 1.7.0)
 ├── market_prices.json        # Börsenstrompreise als Monatsmittel (v3.1.0, Schema 1.7.0)
 ├── ev_sessions.json          # Ladevorgänge aus evcc (v3.2.0) — entsteht beim ersten Import
+├── intervals.json            # Index der Viertelstundenreihen { series, samples } (v3.3.0, Schema 1.8.0)
+├── intervals/                # Viertelstundenreihen <id>.json, je Zähler bzw. Börsenpreis und Kalenderjahr (v3.3.0)
 ├── instance.json             # Kennung der Installation (v3.1.0) — nicht im Backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -66,7 +70,8 @@ bestimmt den Anlass (`reason` in `GET /api/backup/snapshots`). Aufbewahrung:
 von den eigenen die letzten zehn, automatische 30 Tage, je Anlass mindestens
 die drei neuesten. Ein Snapshot entsteht gestreamt über eine Temp-Datei und
 wird erst am Ende umbenannt. Seit v3.1.0 enthält er die Belege (base64) —
-`backups/` wächst deshalb mit jedem Foto, je Snapshot einmal.
+`backups/` wächst deshalb mit jedem Foto, je Snapshot einmal. Seit v3.3.0
+enthält er auch die Viertelstundenreihen, bis zu rund 250 KB je Reihe und Jahr.
 
 Kumulative Arten (Gas, Strom, Wasser, Fernwärme, PV, seit v3.1.0 Heizwärme)
 haben `readings.json`; lieferbasierte Arten (Heizöl, Pellets) haben stattdessen
@@ -651,6 +656,25 @@ optional, fehlend = wie bisher:
 
 Kein Schema-Schritt: Die Felder reisen mit dem Vertrag im Backup.
 
+**Zeitvariables Netzentgelt (v3.3.0)** — nur Strom, optional: § 14a EnWG,
+Modul 3, aus dem Preisblatt des Netzbetreibers.
+
+```json
+"grid_tou": { "standard_ct": 8.1,
+              "windows": [ { "quarters": [1, 2, 3, 4], "from": "00:00", "to": "06:00", "ct": 2.4 } ] }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `standard_ct` | Netzentgelt je kWh außerhalb der Fenster (ct/kWh, 0–100) |
+| `windows[]` | höchstens 24 Fenster: `quarters` (1–4, sortiert, ohne doppelte), `from` und `to` als Ortszeit `HH:MM` (`to` bis `24:00`, `from` vor `to`), `ct` (0–100). Ein Fenster über Mitternacht sind zwei; bei Überschneidung gilt das erste |
+
+Ohne Standardtarif und Fenster fehlt das Feld. Es ändert weder Saldo noch
+Prognose noch Tarifvergleich; die Flexibilität rechnet damit die Ersparnis
+gegen den Standardtarif — Validierung und Fehler:
+[API](api.md#verträge-zeitvariables-netzentgelt-modul-3-v330-additiv). Kein
+Schema-Schritt.
+
 Wasser nutzt zusätzlich ein
 Drei-Komponenten-Modell (Trink-/Schmutz-/Niederschlagswasser), siehe
 [Wasser](../verstehen/03-wasser.md).
@@ -711,6 +735,83 @@ Felder ohne Wert fehlen. Die Zählerstände, die ein Import ableitet, stehen
 nicht hier, sondern als gewöhnliche Ablesungen in `strom/readings.json` (Notiz
 `evcc`). Teil des Backups als Topf `ev_sessions`; der Import prüft `id`,
 `meter_id`, `date` (Kalenderdatum) und `charged_kwh`.
+
+### Viertelstundenreihen (`intervals.json`) *(v3.3.0)*
+
+Werte je Viertelstunde für die
+[Flexibilität](api.md#flexibilität-bewerten-v330): Verbrauch je Zähler und
+Börsenpreis, je Kalenderjahr eine Reihe. Der Index steht in `intervals.json`,
+jede Reihe in einer eigenen Datei `intervals/<id>.json`. Schema 1.8.0 legt den
+leeren Index `{"series": [], "samples": {}}` an; Reihen entstehen erst mit dem
+ersten Import. Zählerstände und Tageswerte bleiben, wo sie sind — die
+Viertelstunden sind eine zusätzliche Ablage.
+
+**Index:**
+
+```json
+{ "series": [
+    { "id": "e-strom-m_strom_waermepumpe-2025", "kind": "energy", "utility": "strom",
+      "meter_id": "m_strom_waermepumpe", "unit": "kWh", "year": 2025, "step": 900,
+      "slots": 35040, "filled": 35040, "from": "2025-01-01T00:00:00+01:00",
+      "to": "2026-01-01T00:00:00+01:00", "source": "import",
+      "updated_at": "2026-05-31T13:19:08+02:00" } ],
+  "samples": { "strom/m_strom_main": { "ts": 1791808620, "counter": 12345.6 } } }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `id` | Kennung und Dateiname: Verbrauch `e-<art>-<zähler>-<jahr>`, Börsenpreis `p-de-lu-<jahr>`; klein geschrieben, andere Zeichen als `A–Z`, `a–z`, `0–9`, `_`, `.` und `-` werden zu `-`. Muster `^[a-z0-9][a-z0-9_.-]{1,100}$` |
+| `kind` | `energy` (Verbrauch) oder `price` (Börsenpreis) |
+| `utility`, `meter_id` | nur bei `energy`: Verbrauchsart und Zähler |
+| `area` | nur bei `price`: Gebotszone `DE-LU` |
+| `unit` | `kWh` (Verbrauch je Viertelstunde) bzw. `ct/kWh` (Großhandelspreis, netto) |
+| `year` | Kalenderjahr in der Zeitzone der Installation |
+| `step` | `900` — Sekunden je Platz |
+| `slots`, `filled` | Plätze des Jahres und davon die mit Wert |
+| `from`, `to` | Beginn der ersten und Ende der letzten Viertelstunde mit Wert, ISO 8601 in Ortszeit; `null` ohne Wert |
+| `source` | Quelle des letzten Schreibens: `import` (Zeitreihen-Import), `ingest` (Zählerstand mit Zeitstempel), `smard` (Börsenpreise) |
+| `updated_at` | Zeitpunkt des letzten Schreibens |
+
+`samples` hält je `<art>/<zähler>` den letzten Zählerstand mit Zeitstempel aus
+dem Ingest — `ts` in Unix-Sekunden und `counter` —, den Bezug für den nächsten
+Push ([API](api.md#zeitstempel-und-viertelstunden-v330)).
+
+**Reihe** (`intervals/<id>.json`):
+
+```json
+{ "id": "p-de-lu-2025", "kind": "price", "year": 2025, "step": 900,
+  "start": "2025-01-01T00:00:00+01:00",
+  "values": [0.216, 0.216, 0.216, 0.216, 0.16, "…"] }
+```
+
+`values` hat für jede Viertelstunde des Jahres einen Platz; Platz *i* beginnt
+um `start` + *i* × 900 Sekunden. Das Jahr läuft vom 1. Januar 0:00 bis zum
+1. Januar 0:00 in der Zeitzone der Installation (`timezone`):
+
+```text
+Plätze = (Beginn des Folgejahres − Beginn des Jahres) ÷ 900 s
+2025:  365 Tage × 96 = 35.040        Schaltjahr 2028:  366 × 96 = 35.136
+Tag der Umstellung auf Sommerzeit: 92 Plätze, zurück auf Winterzeit: 100
+```
+
+Fehlende Werte sind `null`. Verbrauch steht in kWh mit vier, Preise in ct/kWh
+mit drei Nachkommastellen; eine volle Reihe belegt als Datei rund 250 KB (kompakt
+geschrieben, nicht eingerückt wie die übrigen Dateien).
+Gerechnet wird mit dem Jahresbeginn in der **aktuellen** Zeitzone der
+Installation, `start` hält ihn beim Schreiben fest — wechselt die Zeitzone
+später, verschieben sich die Plätze um den Unterschied.
+
+- **Nur Reihen im Index zählen.** Eine Datei ohne Indexeintrag liest die App
+  nicht, und das Backup nimmt sie nicht mit.
+- **Ein neuer Wert ersetzt den alten** am selben Platz. Ausnahme beim Ingest:
+  Lag der vorige Zählerstand mitten in einer Viertelstunde, kommt der neue
+  Anteil zum vorhandenen dazu.
+- **Löschen** (`DELETE /api/intervals/{id}`) entfernt Eintrag und Datei;
+  `samples` bleibt, der nächste Push verteilt ab diesem Stand weiter.
+- **Backup:** Topf `intervals` (der Index) und Schlüssel `interval_files`
+  `{"<id>": Reihe}` — immer, auch ohne Belege. Beim Einspielen braucht jede
+  Reihe einen Eintrag im Index des Backups; danach fallen Reihen ohne Eintrag
+  im neuen Index weg ([API](api.md#snapshots-und-import-v260)).
 
 ### Personen in `auth.json` *(v3.2.0)*
 
@@ -797,7 +898,7 @@ eine Auswahl mit Hintergrund:
 | `language` | de | Standardsprache der Installation (Geräte ohne eigene Wahl, PDF, CSV, Home Assistant); ein Gerät kann per `X-ET-Language` abweichen (v3.1.0) |
 | `country` | DE | *(v2.7.0)* Land: Schreibweise (mit der Sprache), Effizienzskala — [Länderprofile](../verstehen/14-laenderprofile.md) |
 | `currency` | EUR | *(v2.7.0)* `EUR`, `CHF`, `GBP` — Symbol und Untereinheit; Beträge werden nicht umgerechnet, `*_eur`/`ct_*` meinen Haupt-/Untereinheit |
-| `timezone` | Europe/Berlin | *(v2.7.0)* IANA-Zeitzone: „heute“, Fälligkeiten, Tagesgrenzen der Wetterdaten |
+| `timezone` | Europe/Berlin | *(v2.7.0)* IANA-Zeitzone: „heute“, Fälligkeiten, Tagesgrenzen der Wetterdaten; seit v3.3.0 auch Jahresgrenzen und Plätze der [Viertelstundenreihen](#viertelstundenreihen-intervalsjson-v330) |
 | `gas_cv_unit` | kwh | *(v2.7.0)* Eingabeeinheit des Brennwerts (`kwh`, `mj`, `gj`); gespeichert wird immer kWh/m³ |
 | `frame_ancestors` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (CSP `frame-ancestors`), z. B. `http://homeassistant.local:8123`; seit v3.2.0 nur Verwalter |
 | `attachments_max_mb` | 500 | *(v3.1.0)* Speicher für alle Belege zusammen in MB (10–100000) |
@@ -847,13 +948,17 @@ Schlüssel speichert `PATCH /api/settings` nicht und nennt sie seit v2.6.0 in
   Ordner der neuen Verbrauchsart `waerme/`, ohne Standardzähler. Ein
   vorhandener Datensatz wird dabei nicht verändert; ein Erststart legt
   dieselben Töpfe an,
-- hebt die Version schrittweise auf den aktuellen Stand (**1.7.0**).
+- legt in 1.8.0 (v3.3.0) den leeren Index der Viertelstundenreihen
+  `intervals.json` an (`{series: [], samples: {}}`); der Ordner `intervals/`
+  entsteht mit der ersten Reihe. Kein vorhandener Datensatz ändert sich; ein
+  Erststart legt den Index ebenso an,
+- hebt die Version schrittweise auf den aktuellen Stand (**1.8.0**).
 
 Jede Stufe hat ein eigenes `needsVXXXUpgrade()` + `upgradeToVXXX()`-Paar und
 ist für sich idempotent (wiederholtes Ausführen ist ein No-Op).
 
 Die mitgelieferten Demo-Daten tragen `schema_version: 1.1.0` und werden
-beim ersten Start additiv auf den aktuellen Stand (1.7.0) migriert —
+beim ersten Start additiv auf den aktuellen Stand (1.8.0) migriert —
 dabei kommen `meter_groups.json` je Utility (1.2.0) und die Zähler-Felder
 `external_id` (1.3.0) und `baseline_events` (1.4.0) hinzu, ohne bestehende
 Werte anzutasten. Der
@@ -865,8 +970,14 @@ Migrator einen Snapshot `pre-migration-…` an (seit v2.5.3).
 „Schaufenster“ mit allen Verbrauchsarten) liegen vier Beispielhaushalte unter
 `demo-data/personas/<persona>.json`: `mieterin`, `etw-fernwaerme`,
 `eigenheim-klassisch`, `eigenheim-modern`. Sie haben das Backup-Format 3.0 mit
-Schema 1.7.0 und enthalten alle Töpfe aller Verbrauchsarten, auch leere — so
-ersetzt ein Beispielhaushalt den ganzen Haushalt. Erzeugt werden sie von
+Schema 1.8.0 und enthalten alle Töpfe aller Verbrauchsarten, auch leere — so
+ersetzt ein Beispielhaushalt den ganzen Haushalt. Seit v3.3.0 bringt
+`eigenheim-modern` Viertelstundenreihen für 2025 mit: Haushalt, Wärmepumpe
+(gesteuert, bevorzugt 0–6 Uhr), Wallbox aus ihren Ladevorgängen, Laden und
+Entladen des Speichers, dazu die Börsenpreise 2025 je Viertelstunde von SMARD
+(`demo-data/sources/smard-day-ahead-de-lu-2025-qh.json`, Bundesnetzagentur |
+SMARD.de, CC BY 4.0) und Modul-3-Zeitfenster mit erfundenen Preisen am
+Vertrag der Wärmepumpe. Erzeugt werden sie von
 `tools/build-personas.mjs` aus einem Tagesmodell mit festem Startwert: Jeder
 Lauf schreibt dieselben Dateien, `--check` vergleicht nur. Namen sind
 erfunden, Marktlokations-IDs synthetisch. Beim Laden schreibt sie

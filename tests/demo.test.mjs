@@ -143,7 +143,7 @@ function serve(dir, port) {
     const routes = ['#/dashboard', '#/zaehlerstaende',
       ...active.flatMap(u => [`#/utility/${u.key}`, `#/utility/${u.key}/meters`, `#/utility/${u.key}/contracts`]),
       `#/utility/gas?year=${year - 1}`,
-      '#/contracts', '#/tariffs', '#/bill-check', '#/analysis', '#/forecast', '#/report', '#/report/print',
+      '#/contracts', '#/tariffs', '#/bill-check', '#/analysis', '#/forecast', '#/flexibility', '#/report', '#/report/print',
       '#/reminders', '#/recommendations', '#/help', '#/temperatures',
       '#/settings', '#/settings/household', '#/settings/utilities', '#/settings/data',
       '#/settings/integrations', '#/settings/access', '#/settings/expert', '#/settings/system'];
@@ -188,7 +188,7 @@ function serve(dir, port) {
       const pSettings = await api.settings();
       const pUtils = (await api.listUtilities()).filter(u => (pSettings.active_utilities || []).includes(u.key));
       const pRoutes = ['#/dashboard', '#/zaehlerstaende', ...pUtils.map(u => `#/utility/${u.key}`), '#/contracts',
-        '#/tariffs', '#/bill-check', '#/report', ...(pSettings.wohnverhaeltnis === 'miete' ? ['#/tenancy'] : [])];
+        '#/tariffs', '#/bill-check', '#/report', `#/flexibility?year=${new Date().getFullYear() - 1}`, ...(pSettings.wohnverhaeltnis === 'miete' ? ['#/tenancy'] : [])];
       for (const level of ['beginner', 'expert']) {
         w.localStorage.setItem('et-demo-level', level);
         levels.applyLevel(level);

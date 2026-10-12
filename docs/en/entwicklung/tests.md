@@ -256,6 +256,29 @@ variables (`ET_AUTH` …), and removes both afterwards. `AgendaAccessTest` and
   line with the app's template (`haRestSensorYaml`), without comments, address
   and names.
 
+**Quarter hours and flexibility (v3.3.0):**
+
+- `IntervalServiceTest` — migration to 1.8.0; slots per year with clock
+  changes (35,040, leap year 35,136, March four quarter hours fewer, October
+  four more) and local time per slot; values land in their quarter hour, also
+  across the turn of the year; meter readings from Home Assistant (spread by
+  minutes, nothing for a repeated or falling reading and across a gap of more
+  than six hours); only series in the index count; backup round trip, series
+  without an entry are removed, the check rejects unknown series; portal import
+  with quarter hours, also without a time zone on the day the clocks go back
+  (100 quarter hours, none overwritten); ingest with `timestamp`; SMARD fetch
+  against a stub (€/MWh → ct/kWh, values of the previous year in the first
+  weekly package stay out; if it fails, an error code of its own and nothing is
+  stored).
+- `FlexibilityTest` — shifting metrics (cheap, negative, profile factor,
+  advantage), the battery with a known result in euros, module 3 with a known
+  saving in cents, validation of the time windows on the contract and the
+  weighted exchange price in the dynamic check — a month below 90 % coverage
+  falls back to the monthly mean.
+- The render test builds the “Flexibility” page without data (two hints, the
+  button for the year's exchange prices); the demo click test opens it with the
+  example households, the levels test knows its minimum level (expert).
+
 This exact sequence runs automated in the **CI pipeline**
 (`.github/workflows/ci.yml`) on every push and pull request against `main`. Four
 jobs: **lint-php** (syntax check of all `*.php`), **phpunit** (service suite),

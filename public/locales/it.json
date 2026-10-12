@@ -99,7 +99,8 @@
         "other": "{count} letture non ancora salvate"
       }
     },
-    "tenancy": "Locazione"
+    "tenancy": "Locazione",
+    "flexibility": "Flessibilità"
   },
   "dashboard": {
     "loading": "Caricamento della panoramica…",
@@ -984,6 +985,17 @@
       "from": "Dal",
       "to": "Fino al (incluso)",
       "amount": "Importo"
+    },
+    "gridTou": {
+      "title": "§ 14a modulo 3: oneri di rete variabili",
+      "hint": "Tariffa standard e fasce orarie dal listino del tuo gestore di rete (oneri di rete per kWh). Una fascia oltre la mezzanotte sono due fasce. Valutato in Valutazioni → Flessibilità.",
+      "standard": "Tariffa standard (ct/kWh)",
+      "quarters": "Trimestri",
+      "from": "Dalle",
+      "to": "Fino alle (HH:MM, anche 24:00)",
+      "ct": "ct/kWh nella fascia",
+      "addWindow": "+ Fascia oraria",
+      "removeWindow": "Rimuovi fascia oraria"
     }
   },
   "meters": {
@@ -2226,7 +2238,11 @@
         "one": "{count} mese senza valore di mercato: preso lo stesso mese dell’anno precedente.",
         "other": "{count} mesi senza valore di mercato: presi gli stessi mesi dell’anno precedente."
       },
-      "missingMarket": "Mancano i prezzi all’ingrosso per la tariffa dinamica — caricali qui sotto in «Prezzi all’ingrosso dell’elettricità»."
+      "missingMarket": "Mancano i prezzi all’ingrosso per la tariffa dinamica — caricali qui sotto in «Prezzi all’ingrosso dell’elettricità».",
+      "profileMonths": {
+        "one": "Prezzo all’ingrosso con il tuo profilo di carico al quarto d’ora in {count} mese, altrimenti media mensile.",
+        "other": "Prezzo all’ingrosso con il tuo profilo di carico al quarto d’ora in {count} mesi, altrimenti media mensile."
+      }
     },
     "market": {
       "title": "Prezzi all’ingrosso dell’elettricità",
@@ -2630,7 +2646,8 @@
       "dynamicShadowOnly": "Una tariffa dinamica si può calcolare solo come offerta (contratto ipotetico) per l’elettricità — un vero contratto dinamico si inserisce con prezzi mensili",
       "priceModelInvalid": "Modello di prezzo sconosciuto «{value}»",
       "priceImportEmpty": "Il file non contiene righe nel formato mese;prezzo",
-      "priceImportUnsupported": "I prezzi mensili esistono solo per contratti con prezzo unitario per kWh"
+      "priceImportUnsupported": "I prezzi mensili esistono solo per contratti con prezzo unitario per kWh",
+      "gridTouInvalid": "Fasce del modulo 3 non valide ({field}): trimestri 1–4, orari HH:MM con inizio prima della fine, prezzi 0–100 ct e una tariffa standard."
     },
     "delivery": {
       "notFound": "Consegna non trovata: {id}",
@@ -2655,7 +2672,8 @@
       "tokenRequiredWithLogin": "L’accesso è attivo – l’invio richiede quindi un token API. Creane uno nelle impostazioni.",
       "tooMany": "Troppe voci in un lotto (al massimo {max}, ricevute: {count}).",
       "bodyInvalid": "Voce non valida: è atteso un oggetto con utility, meter e value.",
-      "periodMeter": "Il contatore «{meter}» registra il consumo per periodo e non accetta letture."
+      "periodMeter": "Il contatore «{meter}» registra il consumo per periodo e non accetta letture.",
+      "timestampFormat": "Marca temporale «{timestamp}» non leggibile — atteso ISO 8601 con fuso orario, p. es. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
       "noVersionField": "Nessun campo backup_version — non è un backup valido",
@@ -2798,7 +2816,8 @@
     },
     "marketPrices": {
       "noRows": "Il file non contiene prezzi all’ingrosso — previsto un download SMARD o righe come 2025-01;114,14",
-      "syncFailed": "SMARD non è raggiungibile o non ha restituito valori — riprova più tardi o importa un file"
+      "syncFailed": "SMARD non è raggiungibile o non ha restituito valori — riprova più tardi o importa un file",
+      "syncQuarterHoursFailed": "SMARD non è raggiungibile o non ha restituito prezzi al quarto d’ora per quest’anno — riprova più tardi"
     },
     "evReport": {
       "methodInvalid": "Metodo sconosciuto «{value}» — ammessi contract e flat",
@@ -2829,6 +2848,12 @@
       "columns": "Non sembra l’esportazione CSV di evcc: mancano le colonne per inizio ed energia.",
       "countersInvalid": "Scelta sconosciuta per le letture: «{value}».",
       "loadpointNeeded": "Più punti di ricarica ({names}): le letture appartengono a una wallbox – scegli il suo punto di ricarica o acquisisci solo le ricariche."
+    },
+    "intervals": {
+      "notFound": "Serie «{id}» non trovata."
+    },
+    "flexibility": {
+      "yearInvalid": "Anno non valido: {year}."
     }
   },
   "login": {
@@ -3124,6 +3149,10 @@
     "jaz": {
       "term": "Fattore di prestazione stagionale (SPF)",
       "text": "Quanto calore una pompa di calore produce da un kWh di elettricità, misurato su un anno: calore ÷ elettricità. Serve un contatore di calore sulla pompa. In un test sul campo gli apparecchi aria/acqua erano intorno a 3,4, salamoia/acqua a 4,3."
+    },
+    "profileFactor": {
+      "term": "Fattore di profilo",
+      "text": "Il tuo prezzo all’ingrosso per kWh (ponderato sul consumo) diviso per la media di borsa. Sotto 1: consumi soprattutto quando l’elettricità costa poco; sopra 1: quando costa molto."
     }
   },
   "help": {
@@ -3682,7 +3711,8 @@
       "summaryCounter": {
         "one": "{count} giorno, {from} (l’ultima lettura del giorno)",
         "other": "{count} giorni dal {from} al {to} (l’ultima lettura di ogni giorno)"
-      }
+      },
+      "intervals": "In più {slots} valori al quarto d’ora (intervallo di {minutes} minuti) — valutati in Valutazioni → Flessibilità."
     }
   },
   "level": {
@@ -3863,6 +3893,68 @@
       "hint": "Le ricariche provengono da più punti di ricarica. Le letture appartengono a una sola wallbox – scegli il suo punto di ricarica. Per tutti i punti di ricarica insieme, scegli «nessuna – solo le ricariche» per le letture.",
       "label": "Punto di ricarica",
       "ok": "Continua"
+    }
+  },
+  "flex": {
+    "title": "Valutare la flessibilità",
+    "year": "Anno",
+    "loadPrices": "Carica i prezzi all’ingrosso {year} da SMARD",
+    "intro": "Spostare i consumi è servito? Il calcolo usa il tuo consumo e il prezzo all’ingrosso per quarto d’ora — solo la quota all’ingrosso, senza imposte, oneri e oneri di rete. La gestione avviene altrove (evcc, Home Assistant, l’accumulo stesso).",
+    "noPrices": "Mancano i prezzi all’ingrosso per quarto d’ora del {year} — caricali da SMARD qui sopra.",
+    "noIntervals": "Per il {year} non c’è ancora un consumo per quarto d’ora. Arriva da un file del portale (contatori → importa serie temporale) o da Home Assistant con marca temporale.",
+    "attribution": "Prezzi all’ingrosso: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
+    "pricesLoaded": "Prezzi all’ingrosso {year} caricati: {slots} quarti d’ora.",
+    "controllable": "controllabile",
+    "kpi": {
+      "kwh": "Consumo con prezzo",
+      "cheap": "Nei quarti d’ora convenienti",
+      "negative": "A prezzo negativo",
+      "own": "Media propria / media borsa",
+      "factor": "Fattore di profilo",
+      "advantage": "Vantaggio (quota all’ingrosso)"
+    },
+    "noOverlap": "Nessun quarto d’ora con consumo e prezzo all’ingrosso.",
+    "verdict": {
+      "good": "Più conveniente della media: {eur} risparmiati sulla quota all’ingrosso (fattore di profilo {factor}).",
+      "bad": "Più caro della media: {eur} in più sulla quota all’ingrosso (fattore di profilo {factor}) — si consuma soprattutto nelle ore care."
+    },
+    "months": "Per mese",
+    "col": {
+      "month": "Mese",
+      "cheap": "conveniente",
+      "negative": "negativo",
+      "own": "media propria",
+      "market": "media borsa",
+      "advantage": "vantaggio",
+      "coverage": "copertura"
+    },
+    "battery": {
+      "title": "Accumulo secondo il prezzo all’ingrosso",
+      "charged": "Caricato · prezzo medio",
+      "discharged": "Scaricato · prezzo medio",
+      "value": "Valore dello spostamento",
+      "hint": "kWh scaricati al prezzo all’ingrosso dello scarico meno kWh caricati al prezzo all’ingrosso della carica — quanto valeva lo spostamento nella giornata, senza perdite e senza oneri di rete."
+    },
+    "module3": {
+      "title": "§ 14a modulo 3 — {name}",
+      "low": "In fascia bassa",
+      "high": "In fascia alta",
+      "standard": "In fascia standard",
+      "saving": "Risparmio rispetto allo standard",
+      "hint": "Dalle fasce orarie del contratto di questo contatore: oneri di rete per kWh nella fascia rispetto alla tariffa standard. Gli oneri di rete variabili esistono solo in aggiunta al modulo 1 e con un sistema di misura intelligente."
+    },
+    "series": {
+      "title": "Serie al quarto d’ora",
+      "what": "Serie",
+      "source": "Fonte",
+      "prices": "Prezzi all’ingrosso DE-LU",
+      "delete": "Elimina serie",
+      "confirmDelete": "Eliminare questa serie? Letture e valori giornalieri restano.",
+      "sources": {
+        "import": "File",
+        "ingest": "Home Assistant",
+        "smard": "SMARD"
+      }
     }
   }
 }

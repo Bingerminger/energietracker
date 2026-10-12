@@ -55,7 +55,8 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   Export-Datei ebenso.
 - **Home Assistant** pusht Zählerstände automatisch (`POST /api/ingest`,
   idempotent, mit Token und Zähler-Alias, seit v3.1.0 auch als Stapel zum
-  Nachliefern) und liest Saldo, Prognose und „Tage seit Ablesung“ als
+  Nachliefern, seit v3.3.0 mit Zeitstempel für den Verbrauch je Viertelstunde)
+  und liest Saldo, Prognose und „Tage seit Ablesung“ als
   Sensoren zurück (`GET /api/summary`) — siehe
   [Home Assistant anbinden](../anleitungen/home-assistant.md). ioBroker,
   Node-RED und openHAB schicken Stände über denselben Weg — siehe
@@ -67,7 +68,8 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Zeitreihen aus Portalen** (v3.1.0): Dateien von Netzbetreiber,
   Messstellenbetreiber, Wechselrichter oder Wärmepumpe — Viertelstunden-,
   Stunden- oder Tageswerte — mit Spaltenzuordnung einlesen, zu Tageswerten
-  verdichtet, Zeitumstellung inklusive — siehe
+  verdichtet, Zeitumstellung inklusive; seit v3.3.0 bleiben Werte im 15-, 30-
+  oder 60-Minuten-Takt zusätzlich je Viertelstunde erhalten — siehe
   [Zeitreihen aus Portalen](../anleitungen/daten-aus-portalen.md).
 - **Temperaturen** automatisch von Open-Meteo für den eigenen Standort
   (Ortssuche, täglicher Abgleich, 30-jähriges Klimanormal) oder als CSV.
@@ -86,7 +88,8 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   [Meter-Topologie](../verstehen/13-meter-topologie.md#gruppenvertrag-v310).
 - **Steuerbare Verbraucher** (v3.1.0): das reduzierte Netzentgelt nach § 14a
   EnWG (Modul 1) im Stromvertrag, Modul 2 als eigener Zähler mit eigenem
-  Vertrag; **Monatspreise** aus einer Datei für einen dynamischen Vertrag;
+  Vertrag, seit v3.3.0 Modul 3 mit den Zeitfenstern des Netzbetreibers am
+  Vertrag ([Flexibilität bewerten](../anleitungen/flexibilitaet.md)); **Monatspreise** aus einer Datei für einen dynamischen Vertrag;
   **Gutschriften des Direktvermarkters** bei der Einspeisung — siehe
   [Strom](../verstehen/02-strom.md).
 - **Ladestrom-Nachweis** (v3.1.0) für den Dienstwagen: je Monat die Menge an
@@ -141,8 +144,11 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - Bei der PV-Einspeisung umgekehrt: Die höhere Vergütung steht vorn.
 - **Dynamik-Check** (v3.1.0, Strom): Was hätte ein dynamischer Tarif gekostet?
   Mit den Monatsmitteln der Börsenpreise von SMARD (nur auf Knopfdruck) oder
-  aus einer Datei, Aufschlag und Umsatzsteuer — eine Näherung ohne Lastprofil —
-  siehe [Strom → Dynamische Tarife](../verstehen/02-strom.md#dynamische-tarife-v310).
+  aus einer Datei, Aufschlag und Umsatzsteuer — siehe
+  [Strom → Dynamische Tarife](../verstehen/02-strom.md#dynamische-tarife-v310).
+  Seit v3.3.0 rechnet der Rückblick Monate mit Viertelstunden mit dem eigenen
+  Lastgang statt dem Monatsmittel
+  ([Flexibilität bewerten](../anleitungen/flexibilitaet.md#7-dynamik-check-mit-eigenem-lastgang)).
 - Der **amtliche Tarifvergleich** des Landes ist verlinkt, wo es einen gibt
   (Österreich, Frankreich, Italien, Spanien, Portugal).
 - **Für den Wechsel bereithalten** (v3.1.0): Marktlokations-ID, Zählernummer
@@ -199,6 +205,13 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 - **Wärmepumpe** (v3.1.0): Jahresarbeitszahl aus Wärmemengen- und Stromzähler,
   je Monat und für die Heizperiode, mit Werten eines Feldtests zur Einordnung
   — siehe [Heizwärme](../verstehen/15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310).
+- **Flexibilität bewerten** (v3.3.0, Strom): Hat das Verschieben etwas
+  gebracht? Verbrauch und Börsenpreis je Viertelstunde — aus Portaldateien,
+  aus Home Assistant und von SMARD — ergeben je Zähler den Anteil in günstigen
+  und negativen Viertelstunden, den eigenen Börsenpreis gegen das Mittel
+  (Profilfaktor) und den Vorteil beim Börsenanteil; dazu den Wert der
+  Speicherverschiebung und die Ersparnis durch § 14a Modul 3. Gesteuert wird
+  woanders — siehe [Flexibilität bewerten](../anleitungen/flexibilitaet.md).
 - **Einordnung** (v3.1.0): Haushaltsstrom und Heizung je m² gegen eigene
   Vergleichswerte, etwa aus Strom- oder Heizspiegel, mit Links zur
   Selbstprüfung in Deutschland.
@@ -220,7 +233,7 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   44-px-Tippziele, Kontraste nach WCAG AA, installierbar als App — siehe
   [Auf dem Handy nutzen](handy.md).
 - **Hilfe in der App**: erste Schritte mit Häkchen aus den Daten, ein Glossar
-  mit 43 Begriffen und ein ⓘ an jeder Kennzahl.
+  mit 44 Begriffen und ein ⓘ an jeder Kennzahl.
 - **Sieben Sprachen** (Deutsch, Englisch, Französisch, Italienisch, Spanisch,
   Portugiesisch, Niederländisch), je Gerät wählbar, und **Länderprofile** für
   neun Länder: Währung, Formate, Zeitzone, Wetterstandort, Heizgrenze,

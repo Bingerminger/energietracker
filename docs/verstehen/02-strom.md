@@ -80,7 +80,7 @@ null —, dafür sinkt das Netzentgelt. Drei Module:
 |---|---|---|
 | **1** | ein fester Betrag im Jahr, um den das Netzentgelt sinkt | im Stromvertrag die Liste **„Reduziertes Netzentgelt (§ 14a EnWG, Modul 1)“**: ab wann und wie viel im Jahr. Die App zieht den Betrag tagesgenau von den festen Kosten ab — 120 € im Jahr sind 10 € je Monat — und weist ihn je Monat aus |
 | **2** | ein eigener Zähler für Wärmepumpe oder Wallbox; dessen Netz-Arbeitspreis sinkt auf 40 % | ein eigener Stromzähler mit der Rolle „Wärmepumpe (Heizstrom)“ bzw. „Wallbox“ und ein eigener Vertrag mit dem niedrigeren Arbeitspreis. Hängt er hinter dem Haushaltszähler, als Subzähler ([Meter-Topologie](13-meter-topologie.md#modul-2-ein-eigener-zähler-mit-eigenem-vertrag-v310)) |
-| **3** | zeitvariable Netzentgelte zusätzlich zu Modul 1, je Viertelstunde | nicht umgesetzt — dafür braucht es Viertelstundenwerte; die App rechnet in Tagen und Monaten |
+| **3** | zeitvariable Netzentgelte zusätzlich zu Modul 1, je Viertelstunde | *(v3.3.0)* im Stromvertrag (Stufe „Experte“) die Zeitfenster aus dem Preisblatt des Netzbetreibers: Standard-Netzentgelt und Fenster mit eigenem Preis je Quartal. Mit Viertelstundenwerten rechnet [Flexibilität bewerten](../anleitungen/flexibilitaet.md#6--14a-modul-3-zeitvariables-netzentgelt) die Ersparnis gegen das Standard-Netzentgelt aus; Kosten, Saldo und Rechnungsprüfung rechnen weiter ohne sie |
 
 Im Tarifvergleich und in der Wechselentscheidung bleibt die Reduzierung außen
 vor: Sie gilt für jeden Lieferanten gleich.
@@ -111,13 +111,17 @@ Für künftige Monate ohne Börsenwert nimmt die App denselben Monat des Vorjahr
 an und sagt, für wie viele Monate. Ohne Börsenpreise erscheint das Angebot
 nicht, sondern ein Hinweis.
 
-**Was der Check nicht kann.** Er rechnet mit dem Monatsmittel, als verteile
-sich dein Verbrauch gleichmäßig über den Tag. Abends, wenn viele kochen und
-heizen, ist Strom meist teurer als im Mittel; wer dann viel verbraucht, zahlt
-mit einem dynamischen Tarif mehr, als der Check zeigt. Wer Verbrauch in
-günstige Stunden schieben kann — Wallbox, Wärmepumpe, Speicher —, zahlt
-weniger. Ein Lastprofil (das Standardlastprofil H25 des BDEW) nutzt die App
-bewusst nicht: Es ist ohne Lizenz veröffentlicht.
+**Was der Check nicht kann.** Ohne Viertelstundenwerte rechnet er mit dem
+Monatsmittel, als verteile sich dein Verbrauch gleichmäßig über den Tag.
+Abends, wenn viele kochen und heizen, ist Strom meist teurer als im Mittel; wer
+dann viel verbraucht, zahlt mit einem dynamischen Tarif mehr, als der Check
+zeigt. Wer Verbrauch in günstige Stunden schieben kann — Wallbox, Wärmepumpe,
+Speicher —, zahlt weniger. Ein Lastprofil (das Standardlastprofil H25 des BDEW)
+nutzt die App bewusst nicht: Es ist ohne Lizenz veröffentlicht. *(v3.3.0)*
+Liegen für einen Monat mindestens 90 % der Viertelstunden mit deinem Verbrauch
+und dem Börsenpreis vor, nimmt der Rückblick stattdessen deinen eigenen
+Lastgang ([Dynamik-Check mit eigenem Lastgang](../anleitungen/flexibilitaet.md#7-dynamik-check-mit-eigenem-lastgang));
+die Rangliste für den Wechsel rechnet weiter mit dem Monatsmittel.
 
 **Einen dynamischen Vertrag führen.** Hast du einen, trägst du ihn als echten
 Vertrag mit **Preisen je Monat** ein: auf der Vertragskarte **„Monatspreise

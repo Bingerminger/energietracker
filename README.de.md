@@ -12,11 +12,11 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.2.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](CHANGELOG.md)
 [![Lizenz: AGPL-3.0-or-later](https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-679-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-695-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
 [![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-9-f59e0b.svg)](docs/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -69,7 +69,7 @@ Hilfe in der App mit Glossar und ⓘ an jeder Kennzahl.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.2.0
+  ghcr.io/bingerminger/energietracker:3.3.0
 ```
 
 Dann <http://localhost:8080> öffnen. **„Mit Beispieldaten ausprobieren“** zeigt
@@ -127,12 +127,15 @@ er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
 
 ## Stand und Ausblick
 
-**v3.2.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
+**v3.3.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
 CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
-mit einer neuen Hauptversion und nach Ankündigung. 3.2.0 macht den Einstieg
-leicht, ohne Erfahrenen etwas zu nehmen: ein Einrichtungsassistent mit
-Beispielhaushalten, drei Nutzungsstufen, bewegte Schaubilder mit den eigenen
-Daten, mehrere Personen im Haushalt und Ladevorgänge aus evcc. Was als Nächstes
+mit einer neuen Hauptversion und nach Ankündigung. 3.3.0 bewertet, was
+Flexibilität bringt: Viertelstundenwerte aus Home Assistant oder dem
+Netzbetreiber-Portal, Börsenpreise in Viertelstunden, der eigene Profilfaktor
+im dynamischen Tarif, der Wert eines Speichers und das zeitvariable Netzentgelt
+(Modul 3). Seit 3.2.0 gibt es den Einrichtungsassistenten mit
+Beispielhaushalten, drei Nutzungsstufen, mehrere Personen im Haushalt und
+Ladevorgänge aus evcc. Was als Nächstes
 kommt, steht in der [Roadmap](roadmap.md). Wer von einer privaten
 v0.9.0 kommt:
 [Migration](docs/anleitungen/migration-v090.md).

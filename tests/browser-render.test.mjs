@@ -626,6 +626,17 @@ async function renderView(modPath, params = [], ctx = {}) {
     } catch (e) { t(`utility(${pvKey}): render`, false, e.message); }
   }
 
+  // ── v3.3.0 (F1021) — Flexibilität ohne Viertelstunden: Hinweise statt Fehler ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/flexibility.js`, [], { query: new URLSearchParams('year=2025') });
+    await new Promise(r => setTimeout(r, 400));
+    const html = view.innerHTML;
+    t('flexibility: render ohne Exception', html.includes('section-head') && !html.includes('banner--error'));
+    t('flexibility: Hinweis ohne Preise und ohne Viertelstunden', view.querySelectorAll('.banner--info').length === 2);
+    t('flexibility: SMARD-Knopf mit Jahr', /2025/.test(view.querySelector('#flex-smard')?.textContent || ''));
+    t('flexibility: keine rohen Schlüssel', !/flex\.[a-z]/.test(view.textContent));
+  } catch (e) { t('flexibility: render', false, e.message); }
+
   // ── 8. Forecast-View: alle 5 Modelle wählbar (Bug-Fix v1.4.1) ──
   try {
     const { view } = await renderView(`${ROOT}/views/forecast.js`);

@@ -189,7 +189,10 @@ async function loadMarket(container) {
 // v3.1.0 (H6) — Hinweis unter einem dynamischen Kandidaten
 function dynamicNote(r) {
   if (r.price_model !== 'dynamic') return '';
-  return `<div class="muted small">${esc(t('tariff.dynamic.flatNote'))}${r.dynamic_assumed_months
+  // v3.3.0 (F1021) — mit Viertelstunden: eigener Lastgang statt Monatsmittel
+  const profile = r.dynamic_profile_months
+    ? esc(tp('tariff.dynamic.profileMonths', r.dynamic_profile_months)) : esc(t('tariff.dynamic.flatNote'));
+  return `<div class="muted small">${profile}${r.dynamic_assumed_months
     ? ' ' + esc(tp('tariff.dynamic.assumedMonths', r.dynamic_assumed_months)) : ''}</div>`;
 }
 

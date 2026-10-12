@@ -43,6 +43,7 @@ const ROUTES = [
   [/^\/tenancy$/,                    'tenancy'],        // v3.1.0 (H3, F1008)
   [/^\/analysis$/,                   'analysis'],
   [/^\/forecast$/,                   'forecast'],
+  [/^\/flexibility$/,                'flexibility'],   // v3.3.0 (F1021)
   [/^\/report$/,                     'report'],
   [/^\/report\/print$/,              'report-print'],   // v3.1.0 (I18N-12)
   [/^\/reminders$/,                  'reminders'],
@@ -67,6 +68,7 @@ const VIEWS = {
   'tenancy':            { section: 'costs',       load: () => import('./views/tenancy.js') },
   'analysis':           { section: 'analysis',    load: () => import('./views/analysis.js') },
   'forecast':           { section: 'analysis',    load: () => import('./views/forecast.js') },
+  'flexibility':        { section: 'analysis',    load: () => import('./views/flexibility.js') },   // v3.3.0 (F1021)
   'report':             { section: 'analysis',    load: () => import('./views/report.js') },
   'report-print':       { section: 'analysis', tab: 'report', load: () => import('./views/report-print.js') },
   'reminders':          { section: 'hints',       load: () => import('./views/reminders.js') },

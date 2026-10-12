@@ -86,7 +86,8 @@ async function enumerate(get) {
     // v3.1.0 (H1) — „Zu tun" aus der Agenda; Kennzahlen wie für Home Assistant
     '/api/agenda?days=90', '/api/summary', '/api/attachments',   // v3.1.0 — H1, H2
     // v3.1.0 (H3–H8) — Mietverhältnis, Börsenpreise, Einordnung auf der Übersicht
-    '/api/tenancies', '/api/market-prices', '/api/benchmarks/comparison');
+    '/api/tenancies', '/api/market-prices', '/api/benchmarks/comparison',
+    '/api/intervals', '/api/flexibility');   // v3.3.0 (F1021) — Vorbelegung: Vorjahr
 
   const settings = (await get('/api/settings')).json?.data ?? {};
   // v3.2.0 (F1018) — Mietverhältnis der Beispielhaushalte: Budget und Abrechnungen
@@ -141,6 +142,7 @@ async function enumerate(get) {
   for (const y of years) add(`/api/co2-costs?year=${y}`);       // v3.1.0 (H4) — CO₂-Preis-Karte in der Verbrauchsansicht
   // v3.1.0 (H4, H7, H8) — CO₂-Aufteilung, Wärmepumpen-Karte, Einordnung je Jahr
   for (const y of years) add(`/api/co2-split?year=${y}`, `/api/heat-pump?year=${y}`, `/api/benchmarks/comparison?year=${y}`);
+  for (const y of years) add(`/api/flexibility?year=${y}`);   // v3.3.0 (F1021)
   for (const m of allMeters) {
     const k = m.utility;
     for (const y of years) {

@@ -272,6 +272,29 @@ Umgebungsvariablen (`ET_AUTH` …) und räumt beides danach ab. Auf ihr bauen
   zeilenweise mit der Vorlage der App (`haRestSensorYaml`), ohne Kommentare,
   Adresse und Namen.
 
+**Viertelstunden und Flexibilität (v3.3.0):**
+
+- `IntervalServiceTest` — Migration auf 1.8.0; Plätze je Jahr mit
+  Zeitumstellung (35 040, Schaltjahr 35 136, März vier Viertelstunden weniger,
+  Oktober vier mehr) und Ortszeit je Platz; Werte landen in ihrer
+  Viertelstunde, auch über den Jahreswechsel; Zählerstände aus Home Assistant
+  (nach Minuten verteilt, nichts bei doppeltem oder fallendem Stand und über
+  eine Pause von mehr als sechs Stunden); nur Reihen im Index zählen; Backup
+  hin und zurück, Reihen ohne Eintrag fallen weg, unbekannte Reihen lehnt die
+  Prüfung ab; Portal-Import mit Viertelstunden, auch ohne Zeitzone am Tag der
+  Umstellung auf Winterzeit (100 Viertelstunden, keine überschrieben); Ingest
+  mit `timestamp`; SMARD-Abruf gegen eine Attrappe (€/MWh → ct/kWh, Werte des
+  Vorjahres im ersten Wochenpaket bleiben draußen; scheitert er, kommt ein
+  eigener Fehlercode und nichts wird gespeichert).
+- `FlexibilityTest` — Kennzahlen der Verschiebung (günstig, negativ,
+  Profilfaktor, Vorteil), der Speicher mit bekanntem Ergebnis in Euro, Modul 3
+  mit bekannter Ersparnis in Cent, Prüfung der Zeitfenster am Vertrag und der
+  gewichtete Börsenpreis im Dynamik-Check — ein Monat unter 90 % Abdeckung
+  fällt auf das Monatsmittel zurück.
+- Der Render-Test baut die Seite „Flexibilität“ ohne Daten (zwei Hinweise,
+  Knopf für die Börsenpreise des Jahres); der Demo-Klicktest öffnet sie mit den
+  Beispielhaushalten, der Stufentest kennt ihre Mindeststufe (Experte).
+
 Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 (`.github/workflows/ci.yml`) bei jedem Push und Pull Request gegen
 `main`. Vier Jobs: **lint-php** (Syntax-Check aller `*.php`),

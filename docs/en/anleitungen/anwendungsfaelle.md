@@ -17,7 +17,7 @@ used in concrete living situations. Each case names the **meters**, the
 | [D — Landlord with several units](#d--landlord-with-several-units) | Meters per unit | F1006 | — |
 | [E — Wall box and company car](#e--wall-box-and-company-car) | Charging record, § 14a EnWG | v3.1.0 | Own house with heat pump and solar |
 | [F — District heating or heat?](#f--district-heating-or-heat) | the right utility | v3.1.0, F1018 | I rent my home · Owner-occupied flat with district heating · Own house with heat pump and solar |
-| [G — Control with evcc or Home Assistant](#g--control-with-evcc-or-home-assistant--check-the-numbers-in-energietracker) | check the numbers, not control | F1009, F1022 | Own house with heat pump and solar |
+| [G — Control with evcc or Home Assistant](#g--control-with-evcc-or-home-assistant--check-the-numbers-in-energietracker) | check the numbers, not control | F1009, F1021, F1022 | Own house with heat pump and solar |
 
 ## Sample households to look at *(v3.2.0)*
 
@@ -370,13 +370,14 @@ Energietracker **checks the numbers** of what came out of it:
 |---|---|---|
 | How much did the car charge, how much of it from the sun, at what price? | wall box → card “Charging sessions from evcc” (from level “Experienced”) | CSV export from evcc or “Fetch from evcc” ([Charging sessions from evcc](evcc.md)) |
 | What does the company car’s charging electricity cost? | wall box → card “Charging record (company car)” | readings from evcc, Home Assistant or by hand ([use case E](#e--wall-box-and-company-car)) |
-| Would a dynamic tariff have paid off? | Costs & contracts → Tariff switch → “Wholesale electricity prices” and an offer “Dynamic tariff” | wholesale prices from SMARD, only when you tap it ([Electricity → Dynamic tariffs](../verstehen/02-strom.md#dynamic-tariffs-v310)) |
+| Would a dynamic tariff have paid off? | Costs & contracts → Tariff switch → “Wholesale electricity prices” and an offer “Dynamic tariff”; since v3.3.0 with your own load profile when looking back | wholesale prices from SMARD, only when you tap it ([Electricity → Dynamic tariffs](../verstehen/02-strom.md#dynamic-tariffs-v310)); quarter hours as in the next row |
+| Did shifting into cheap quarter hours pay off? What do the battery and § 14a module 3 bring? | Insights → Flexibility (since v3.3.0) | consumption per quarter hour from a portal file or from Home Assistant, wholesale prices per quarter hour from SMARD ([Valuing flexibility](flexibilitaet.md)) |
 | How well does the heat pump work, what does § 14a module 1 bring? | card “Heat pump {year}”; in the contract “Reduced grid fee (§ 14a EnWG, module 1)” | a meter of its own and a heat meter ([use case C](#c--pv-household-with-a-heat-pump)) |
 | What does the battery lose? | PV generation → card “Battery {year}” | charging and discharging meters ([PV §7](../verstehen/12-pv.md#7-battery-v310)) |
 | All readings without typing | every utility | Home Assistant sends them in the evening via `POST /api/ingest` ([Home Assistant](home-assistant.md)) |
 
-The app shows the charging record, the heat pump card and the wholesale prices
-at the level “Expert”.
+The app shows the charging record, the heat pump card, the wholesale prices and
+the Flexibility page at the level “Expert”.
 
 **In the sample household “Own house with heat pump and solar”:**
 
@@ -385,40 +386,49 @@ Charging sessions from evcc 2025 (made up): 152 sessions, 2,618 kWh,
   about 27 % of it from the sun (April to September almost 50 %, October to March 9 to 14 %),
   price according to evcc €629 in total
 Offer “Electricity Dynamic” for comparison: mark-up 19.4 ct/kWh, standing charge €11.90/month
+Flexibility 2025 (consumption made up, wholesale prices per quarter hour real from SMARD):
+  heat pump profile factor 0.95 · battery charges at avg. 4.51 ct, discharges at avg. 10.68 ct (about €104)
+  · § 14a module 3 on the heat pump about €81 saving
 ```
 
-The sample household brings no wholesale prices; in your installation you fetch
-them with “Load from SMARD”.
+The sample household brings the monthly wholesale averages and, for 2025, the
+wholesale prices per quarter hour; in your installation you fetch them with
+“Load from SMARD” or on the Flexibility page. All figures:
+[Valuing flexibility → sample household](flexibilitaet.md#9-to-look-at-the-sample-household).
 
-**What Energietracker cannot do (as of v3.2.0).**
+**Since v3.3.0: “Valuing flexibility”.** Energietracker stores values per
+quarter hour — from portal files, from Home Assistant (ingest with a
+timestamp) and wholesale prices from SMARD, only when you tap it — and with
+them shows under Insights → Flexibility:
 
-- It calculates in days and months, not in quarter hours. Whether the car
-  charged in the cheap hours shows only in the price according to evcc.
-- The dynamic tariff check uses the monthly wholesale average. Whoever shifts
-  consumption into cheap hours really pays less than the check shows.
-- It does not calculate § 14a module 3, the time-variable grid fees.
+- **Success of shifting:** kWh in cheap and negative quarter hours, your own
+  average price against the wholesale average (profile factor) and the
+  advantage on the wholesale share, per month and per electricity meter; wall
+  box and heat pump first as controllable.
+- **Dynamic tariff check with your real load profile** instead of the monthly
+  average, when looking back under Tariff switch.
+- **Battery by wholesale price:** what charging at low and discharging at high
+  prices brings.
+- **§ 14a module 3:** the saving from shifting into the grid operator’s
+  low-tariff time windows, with the time windows on the contract.
+
+Control stays outside even then. Step by step:
+[Valuing flexibility](flexibilitaet.md).
+
+**What Energietracker cannot do (as of v3.3.0).**
+
+- It gets quarter hours only from a portal file or from Home Assistant; it
+  builds none from the charging sessions of evcc.
+- The switching decision ahead still calculates a dynamic tariff with monthly
+  averages; only the look back uses your own load profile.
+- Module 3 does not change the contract’s costs: balance, forecast and bill
+  check calculate with the unit price entered; the saving appears only on the
+  Flexibility page.
 - It does not record electricity that the car gives back (V2H, V2G); the
   charging sessions from evcc count only what was charged.
-- It does not count hours with a negative wholesale price. For new PV systems it
+- It does not count feed-in at a negative wholesale price. For new PV systems it
   only points out the rule
   ([PV §10](../verstehen/12-pv.md#10-negative-wholesale-prices-v310)).
-
-**Planned: “Assess flexibility” (v3.3.0, no date yet).** Energietracker is to
-store values per quarter hour — from portal files, from Home Assistant (ingest
-with a timestamp) and wholesale prices from SMARD, only when you tap it — and
-show with them:
-
-- **Success of shifting:** kWh in cheap and negative hours, your own average
-  price against the wholesale average, per month and per controllable meter
-  (wall box, heat pump, battery).
-- **Dynamic tariff check with your real load profile** instead of the monthly
-  average.
-- **Battery by the hour:** what charging at low and discharging at high prices
-  brings.
-- **§ 14a module 3:** the saving from shifting into the grid operator’s
-  low-tariff time windows.
-
-Control stays outside even then.
 
 ### The legal situation in brief (as of 9 October 2026)
 

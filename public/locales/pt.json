@@ -99,7 +99,8 @@
         "other": "{count} leituras ainda não guardadas"
       }
     },
-    "tenancy": "Arrendamento"
+    "tenancy": "Arrendamento",
+    "flexibility": "Flexibilidade"
   },
   "dashboard": {
     "loading": "A carregar a visão geral…",
@@ -984,6 +985,17 @@
       "from": "De",
       "to": "Até (inclusive)",
       "amount": "Montante"
+    },
+    "gridTou": {
+      "title": "§ 14a módulo 3: tarifa de rede variável",
+      "hint": "Tarifa padrão e janelas horárias da tabela de preços do operador de rede (tarifa de rede por kWh). Uma janela que passa a meia-noite são duas janelas. Avaliado em Avaliações → Flexibilidade.",
+      "standard": "Tarifa padrão (ct/kWh)",
+      "quarters": "Trimestres",
+      "from": "Das",
+      "to": "Até (HH:MM, também 24:00)",
+      "ct": "ct/kWh na janela",
+      "addWindow": "+ Janela horária",
+      "removeWindow": "Remover janela horária"
     }
   },
   "meters": {
@@ -2226,7 +2238,11 @@
         "one": "{count} mês sem valor de mercado: assumido o mesmo mês do ano anterior.",
         "other": "{count} meses sem valor de mercado: assumidos os mesmos meses do ano anterior."
       },
-      "missingMarket": "Faltam preços grossistas para a tarifa dinâmica — carregue-os abaixo em «Preços grossistas de eletricidade»."
+      "missingMarket": "Faltam preços grossistas para a tarifa dinâmica — carregue-os abaixo em «Preços grossistas de eletricidade».",
+      "profileMonths": {
+        "one": "Preço grossista com o perfil de carga por quarto de hora em {count} mês, caso contrário a média mensal.",
+        "other": "Preço grossista com o perfil de carga por quarto de hora em {count} meses, caso contrário a média mensal."
+      }
     },
     "market": {
       "title": "Preços grossistas de eletricidade",
@@ -2630,7 +2646,8 @@
       "dynamicShadowOnly": "Uma tarifa dinâmica só pode ser calculada como oferta (contrato hipotético) para eletricidade — um contrato dinâmico real regista-se com preços mensais",
       "priceModelInvalid": "Modelo de preço desconhecido «{value}»",
       "priceImportEmpty": "O ficheiro não contém nenhuma linha no formato mês;preço",
-      "priceImportUnsupported": "Os preços mensais só existem para contratos com preço unitário por kWh"
+      "priceImportUnsupported": "Os preços mensais só existem para contratos com preço unitário por kWh",
+      "gridTouInvalid": "Janelas do módulo 3 inválidas ({field}): trimestres 1–4, horas HH:MM com início antes do fim, preços 0–100 ct e uma tarifa padrão."
     },
     "delivery": {
       "notFound": "Entrega não encontrada: {id}",
@@ -2655,7 +2672,8 @@
       "tokenRequiredWithLogin": "O início de sessão está ativo – o envio precisa então de um token de API. Crie um nas definições.",
       "tooMany": "Demasiadas entradas num lote (no máximo {max}, recebidas: {count}).",
       "bodyInvalid": "Entrada inválida: espera-se um objeto com utility, meter e value.",
-      "periodMeter": "O contador «{meter}» regista o consumo por período e não aceita leituras."
+      "periodMeter": "O contador «{meter}» regista o consumo por período e não aceita leituras.",
+      "timestampFormat": "Carimbo temporal «{timestamp}» ilegível — esperado ISO 8601 com fuso horário, p. ex. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
       "noVersionField": "Sem campo backup_version — não é uma cópia de segurança válida",
@@ -2798,7 +2816,8 @@
     },
     "marketPrices": {
       "noRows": "O ficheiro não contém preços grossistas — espera-se um download do SMARD ou linhas como 2025-01;114,14",
-      "syncFailed": "O SMARD não está acessível ou não devolveu valores — tente mais tarde ou importe um ficheiro"
+      "syncFailed": "O SMARD não está acessível ou não devolveu valores — tente mais tarde ou importe um ficheiro",
+      "syncQuarterHoursFailed": "O SMARD não está acessível ou não devolveu preços por quarto de hora para este ano — tente mais tarde"
     },
     "evReport": {
       "methodInvalid": "Método desconhecido «{value}» — são permitidos contract e flat",
@@ -2829,6 +2848,12 @@
       "columns": "Não parece a exportação CSV do evcc: faltam as colunas de início e energia.",
       "countersInvalid": "Opção desconhecida para as leituras: «{value}».",
       "loadpointNeeded": "Vários postos de carregamento ({names}): as leituras pertencem a um posto – escolha o respetivo ou incorpore apenas os carregamentos."
+    },
+    "intervals": {
+      "notFound": "Série «{id}» não encontrada."
+    },
+    "flexibility": {
+      "yearInvalid": "Ano inválido: {year}."
     }
   },
   "login": {
@@ -3124,6 +3149,10 @@
     "jaz": {
       "term": "Fator de desempenho sazonal (SPF)",
       "text": "Quanto calor uma bomba de calor produz com um kWh de eletricidade, medido ao longo de um ano: calor ÷ eletricidade. Precisa de um contador de calor na bomba. Num ensaio de campo, os aparelhos ar/água ficaram em cerca de 3,4 e os de salmoura/água em 4,3."
+    },
+    "profileFactor": {
+      "term": "Fator de perfil",
+      "text": "O preço grossista por kWh (ponderado pelo consumo) dividido pela média do mercado. Abaixo de 1: consome-se mais quando a eletricidade é barata; acima de 1: quando é cara."
     }
   },
   "help": {
@@ -3682,7 +3711,8 @@
       "summaryCounter": {
         "one": "{count} dia, {from} (a última leitura do dia)",
         "other": "{count} dias de {from} a {to} (a última leitura de cada dia)"
-      }
+      },
+      "intervals": "Além disso, {slots} valores por quarto de hora (intervalo de {minutes} minutos) — avaliados em Avaliações → Flexibilidade."
     }
   },
   "level": {
@@ -3863,6 +3893,68 @@
       "hint": "Os carregamentos vêm de vários postos de carregamento. As leituras pertencem a um único posto – escolha o respetivo. Para todos os postos em conjunto, escolha «nenhuma – apenas os carregamentos» nas leituras.",
       "label": "Posto de carregamento",
       "ok": "Continuar"
+    }
+  },
+  "flex": {
+    "title": "Avaliar a flexibilidade",
+    "year": "Ano",
+    "loadPrices": "Carregar preços grossistas {year} do SMARD",
+    "intro": "Deslocar o consumo compensou? O cálculo usa o consumo e o preço grossista por quarto de hora — apenas a parte grossista, sem impostos, taxas nem tarifa de rede. O controlo é feito noutro sítio (evcc, Home Assistant, a própria bateria).",
+    "noPrices": "Faltam os preços grossistas por quarto de hora de {year} — carregar do SMARD acima.",
+    "noIntervals": "Ainda não há consumo por quarto de hora de {year}. Chega de um ficheiro do portal (contadores → importar série temporal) ou do Home Assistant com carimbo temporal.",
+    "attribution": "Preços grossistas: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
+    "pricesLoaded": "Preços grossistas {year} carregados: {slots} quartos de hora.",
+    "controllable": "controlável",
+    "kpi": {
+      "kwh": "Consumo com preço",
+      "cheap": "Em quartos de hora baratos",
+      "negative": "Com preço negativo",
+      "own": "Média própria / média mercado",
+      "factor": "Fator de perfil",
+      "advantage": "Vantagem (parte grossista)"
+    },
+    "noOverlap": "Nenhum quarto de hora com consumo e preço grossista.",
+    "verdict": {
+      "good": "Mais barato do que a média: {eur} poupados na parte grossista (fator de perfil {factor}).",
+      "bad": "Mais caro do que a média: {eur} a mais na parte grossista (fator de perfil {factor}) — o consumo cai sobretudo em horas caras."
+    },
+    "months": "Por mês",
+    "col": {
+      "month": "Mês",
+      "cheap": "barato",
+      "negative": "negativo",
+      "own": "média própria",
+      "market": "média mercado",
+      "advantage": "vantagem",
+      "coverage": "cobertura"
+    },
+    "battery": {
+      "title": "Bateria segundo o preço grossista",
+      "charged": "Carregado · preço médio",
+      "discharged": "Descarregado · preço médio",
+      "value": "Valor do deslocamento",
+      "hint": "kWh descarregados ao preço grossista da descarga menos kWh carregados ao preço grossista da carga — o valor do deslocamento ao longo do dia, sem perdas nem tarifa de rede."
+    },
+    "module3": {
+      "title": "§ 14a módulo 3 — {name}",
+      "low": "Na tarifa baixa",
+      "high": "Na tarifa alta",
+      "standard": "Na tarifa padrão",
+      "saving": "Poupança face ao padrão",
+      "hint": "A partir das janelas horárias do contrato deste contador: tarifa de rede por kWh na janela face à tarifa padrão. As tarifas de rede variáveis só existem em complemento ao módulo 1 e com sistema de contagem inteligente."
+    },
+    "series": {
+      "title": "Séries por quarto de hora",
+      "what": "Série",
+      "source": "Fonte",
+      "prices": "Preços grossistas DE-LU",
+      "delete": "Eliminar série",
+      "confirmDelete": "Eliminar esta série? As leituras e os valores diários mantêm-se.",
+      "sources": {
+        "import": "Ficheiro",
+        "ingest": "Home Assistant",
+        "smard": "SMARD"
+      }
     }
   }
 }

@@ -6,6 +6,123 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.3.0] — 2026-10-12 — Was Flexibilität wert ist
+
+MINOR-Release mit Schemaschritt: **F1021** rechnet nach, was das Verschieben
+von Verbrauch gebracht hat — Wallbox, Wärmepumpe und Speicher gegen den
+Börsenpreis je Viertelstunde, dazu das zeitvariable Netzentgelt nach § 14a
+EnWG (Modul 3). Gesteuert wird weiter außerhalb (evcc, Home Assistant, der
+Speicher selbst); der Energietracker misst nach. **Schema 1.7.0 → 1.8.0**
+(neuer Datentopf für Viertelstundenreihen). API, CSV-Format 1, Backup-Format
+3.0 und der Home-Assistant-Ingest wachsen additiv; nichts entfällt.
+
+### ⚠️ Für bestehende Installationen
+
+- **Schemaschritt 1.8.0:** Der erste Aufruf nach dem Update legt
+  `data/intervals.json` an (leerer Index) — mit Sicherung vorher wie bei jedem
+  Schritt. Bestehende Daten bleiben unverändert.
+- **Neue Seite nur für Experten:** „Flexibilität“ unter Auswertungen erscheint
+  in der Stufe Experte; nach einem Update steht die Installation dort ohnehin.
+- **Home Assistant:** Die Vorlage in den Einstellungen schickt jetzt
+  `"timestamp"` mit; die Automatisierung bleibt bei einem Push am Tag. Für
+  Viertelstunden kommt eine zweite Automatisierung alle 15 Minuten dazu
+  ([Anleitung](docs/anleitungen/home-assistant.md)). Wer die alte Vorlage
+  behält, verliert nichts — der Tageswert kommt weiter an.
+- **Docker:** Die Beispielhaushalte bringen ein Jahr Viertelstunden mit und
+  wachsen zusammen auf rund 2,2 MB.
+
+### Added
+
+- **Flexibilität bewerten (F1021):** neue Seite „Flexibilität“ je Jahr.
+  - **Je Stromzähler mit Viertelstunden:** kWh gesamt, davon in günstigen
+    Viertelstunden (Börsenpreis unter dem Monatsmittel) und bei negativem
+    Preis; eigener Durchschnittspreis (nach Verbrauch gewichtet) gegen das
+    Börsenmittel, **Profilfaktor** = eigener ÷ Börsenmittel (unter 1: mehr in
+    günstigen Zeiten) und der Vorteil in Euro — nur der Börsenanteil, ohne
+    Steuern, Umlagen und Netzentgelte. Aufklappbar je Monat.
+  - **Speicher** (Zähler mit Rolle Laden/Entladen): geladen und entladen zu
+    welchem Börsenpreis — der Wert der Verschiebung.
+  - **Modul 3:** Zeitfenster mit eigenem Netzentgelt je Quartal am Vertrag
+    (`grid_tou`, Expertenfeld im Vertragsdialog); die Seite rechnet die
+    Ersparnis gegen das Standard-Netzentgelt aus den eigenen Viertelstunden.
+  - Gerechnet wird nur über Viertelstunden, für die Verbrauch und Preis
+    vorliegen; die Abdeckung steht jeweils dabei.
+- **Viertelstundenreihen:** je Zähler und Jahr eine Reihe mit 35 040
+  Viertelstunden (Schaltjahr 35 136), Jahresgrenzen in der Zeitzone der
+  Installation. Drei Quellen:
+  - **Home Assistant:** `POST /api/ingest` nimmt optional `timestamp` (ISO 8601
+    mit Zone). Die Differenz zum vorigen Stand verteilt sich anteilig auf die
+    Viertelstunden dazwischen; nach mehr als sechs Stunden Pause, bei
+    fallendem, doppeltem oder älterem Stand wird nichts verteilt. Ein als
+    unplausibel markierter Stand zählt nicht.
+  - **Netzbetreiber-Portal:** Der Import von Lastgängen behält bei einem Takt
+    von 15, 30 oder 60 Minuten auch die Viertelstunden; die Antwort nennt
+    `intervals` (Takt, Zahl).
+  - **Börsenpreise:** „Börsenpreise … von SMARD laden“ holt den Day-Ahead-Preis DE-LU je
+    Viertelstunde eines Jahres von SMARD (Bundesnetzagentur | SMARD.de,
+    CC BY 4.0) — nur auf Knopfdruck. Vor dem 1. Oktober 2025 gab es
+    Stundenprodukte; dann gilt derselbe Wert für alle vier Viertelstunden.
+- **Dynamik-Check mit eigenem Lastgang:** Liegen für einen Monat mindestens
+  90 % der Viertelstunden mit Verbrauch und Preis vor, rechnet der dynamische
+  Schattentarif mit dem nach Verbrauch gewichteten Börsenpreis statt dem
+  einfachen Monatsmittel. Der Tarifvergleich nennt, für wie viele Monate
+  (`dynamic_profile_months`).
+- **Neue Routen:** `GET /api/flexibility?year=`, `GET /api/intervals`,
+  `DELETE /api/intervals/{id}`, `POST /api/market-prices/sync-smard-intervals?year=`.
+  Neue Fehlercodes `errors.flexibility.yearInvalid`,
+  `errors.intervals.notFound`, `errors.ingest.timestampFormat`,
+  `errors.contract.gridTouInvalid`,
+  `errors.marketPrices.syncQuarterHoursFailed`.
+- **Glossar:** „Profilfaktor“ in allen sieben Sprachen; neue Anleitung
+  [Flexibilität bewerten](docs/anleitungen/flexibilitaet.md).
+- **Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“:** ein Jahr
+  Viertelstunden für Haushalt, Wärmepumpe, Wallbox und Speicher, echte
+  Börsenpreise je Viertelstunde 2025 (SMARD, CC BY 4.0) und ein Vertrag mit
+  Modul-3-Zeitfenstern. Die Zeitfenster und ihre Preise sind erfunden.
+
+### Changed
+
+- **Backup:** Die Viertelstundenreihen reisen im Backup mit (Topf
+  `intervals`, Dateien in `interval_files`). Bringt ein Backup den Topf mit,
+  werden beim Einspielen Reihen entfernt, die es nicht kennt; ein älteres
+  Backup ohne den Topf lässt die Reihen stehen (Teil-Restore wie bisher). Wie
+  jedes Backup mit neuerem Schema lässt sich eines aus 3.3.0 nicht in eine
+  ältere Version einspielen.
+- **Home-Assistant-Vorlage** mit `"timestamp": "{{ now().isoformat() }}"`.
+- **Zeitreihen-Import:** Die Vorschau nennt die Werte je Viertelstunde.
+- **Speicherung:** Viertelstundenreihen werden kompakt geschrieben (bis zu rund
+  250 KB je Reihe und Jahr), alle übrigen Dateien weiter eingerückt.
+
+### Migration
+
+Schema **1.7.0 → 1.8.0**: legt `intervals.json` an (`{"series": {},
+"samples": {}}`). Die Reihen selbst liegen unter `data/intervals/` und
+entstehen erst mit dem ersten Viertelstundenwert. Der Schritt ändert keine
+bestehenden Daten.
+
+### Tests
+
+- Neue Testklassen `IntervalServiceTest` (Migration, Zeitumstellung,
+  Zählerstände, Backup, Portal-Import, Ingest, SMARD) und `FlexibilityTest`
+  (Verschiebung, Speicher, Modul 3, Validierung, gewichteter Börsenpreis).
+- Render-Test der Seite „Flexibilität“; Stufen- und Demo-Klicktest kennen sie.
+- 695 Testmethoden (+16). 22 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Eine Viertelstunde ist eine Ortszeit.** Ein Jahr hat 35 040 Viertelstunden
+  in UTC gezählt, aber der Monat und die Uhrzeit eines Zeitfensters hängen an
+  der Zeitzone — zweimal im Jahr fehlen oder doppeln sich vier davon.
+- **Ein Zählerstand ohne Zeitpunkt ist ein Tageswert.** Erst der Zeitstempel
+  aus Home Assistant macht aus Ständen einen Lastgang; ohne ihn bleibt alles,
+  wie es war.
+- **Rechnen nur mit Abdeckung.** Eine Ersparnis aus der Hälfte der
+  Viertelstunden sieht genauso genau aus wie eine aus allen; deshalb steht die
+  Abdeckung neben jeder Zahl, und der Dynamik-Check fällt unter 90 % auf das
+  Monatsmittel zurück.
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
 ## [3.2.0] — 2026-10-09 — Leicht für jeden
 
 MINOR-Release: Der Einstieg wird leicht, ohne dass Erfahrene etwas verlieren.

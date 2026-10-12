@@ -99,7 +99,8 @@
         "other": "{count} readings not saved yet"
       }
     },
-    "tenancy": "Tenancy"
+    "tenancy": "Tenancy",
+    "flexibility": "Flexibility"
   },
   "dashboard": {
     "loading": "Loading overview…",
@@ -984,6 +985,17 @@
       "from": "From",
       "to": "To (inclusive)",
       "amount": "Amount"
+    },
+    "gridTou": {
+      "title": "§ 14a module 3: time-variable grid fee",
+      "hint": "Standard tariff and time windows from your grid operator’s price sheet (grid fee per kWh). A window across midnight is two windows. Evaluated under Insights → Flexibility.",
+      "standard": "Standard tariff (ct/kWh)",
+      "quarters": "Quarters",
+      "from": "From",
+      "to": "Until (HH:MM, also 24:00)",
+      "ct": "ct/kWh in the window",
+      "addWindow": "+ Time window",
+      "removeWindow": "Remove time window"
     }
   },
   "meters": {
@@ -2226,7 +2238,11 @@
         "one": "{count} month without a market value: same month of the previous year assumed.",
         "other": "{count} months without a market value: same month of the previous year assumed."
       },
-      "missingMarket": "Wholesale prices for the dynamic tariff are missing — load them below under “Wholesale electricity prices”."
+      "missingMarket": "Wholesale prices for the dynamic tariff are missing — load them below under “Wholesale electricity prices”.",
+      "profileMonths": {
+        "one": "Wholesale price with your quarter-hour load profile in {count} month, otherwise the monthly average.",
+        "other": "Wholesale price with your quarter-hour load profile in {count} months, otherwise the monthly average."
+      }
     },
     "market": {
       "title": "Wholesale electricity prices",
@@ -2630,7 +2646,8 @@
       "dynamicShadowOnly": "A dynamic tariff can only be calculated as an offer (shadow contract) for electricity — record a real dynamic contract with monthly prices",
       "priceModelInvalid": "Unknown price model “{value}”",
       "priceImportEmpty": "The file contains no line in the format month;price",
-      "priceImportUnsupported": "Monthly prices are only available for contracts with a unit price per kWh"
+      "priceImportUnsupported": "Monthly prices are only available for contracts with a unit price per kWh",
+      "gridTouInvalid": "Module 3 time windows invalid ({field}): quarters 1–4, times HH:MM with from before until, prices 0–100 ct and a standard tariff."
     },
     "delivery": {
       "notFound": "Delivery not found: {id}",
@@ -2655,7 +2672,8 @@
       "tokenRequiredWithLogin": "Sign-in is enabled – the push then needs an API token. Please create one in the settings.",
       "tooMany": "Too many entries in one batch (at most {max}, received: {count}).",
       "bodyInvalid": "Invalid entry: an object with utility, meter and value is expected.",
-      "periodMeter": "The meter “{meter}” records consumption per period and does not accept meter readings."
+      "periodMeter": "The meter “{meter}” records consumption per period and does not accept meter readings.",
+      "timestampFormat": "Timestamp “{timestamp}” not readable — expected ISO 8601 with time zone, e.g. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
       "noVersionField": "No backup_version field — not a valid backup",
@@ -2798,7 +2816,8 @@
     },
     "marketPrices": {
       "noRows": "The file contains no wholesale prices — expected a SMARD download or lines like 2025-01;114.14",
-      "syncFailed": "SMARD could not be reached or returned no values — try again later or import a file"
+      "syncFailed": "SMARD could not be reached or returned no values — try again later or import a file",
+      "syncQuarterHoursFailed": "SMARD could not be reached or returned no quarter-hour prices for this year — try again later"
     },
     "evReport": {
       "methodInvalid": "Unknown method “{value}” — allowed are contract and flat",
@@ -2829,6 +2848,12 @@
       "columns": "This does not look like the CSV export from evcc: the columns for start and energy are missing.",
       "countersInvalid": "Unknown choice for the meter readings: “{value}”.",
       "loadpointNeeded": "Several charging points ({names}): meter readings belong to one wallbox – choose its charging point or take over only the sessions."
+    },
+    "intervals": {
+      "notFound": "Series “{id}” not found."
+    },
+    "flexibility": {
+      "yearInvalid": "Invalid year: {year}."
     }
   },
   "login": {
@@ -3124,6 +3149,10 @@
     "jaz": {
       "term": "Seasonal performance factor (SPF)",
       "text": "How much heat a heat pump makes from one kWh of electricity, measured over a year: heat ÷ electricity. Needs a heat meter on the heat pump. In a field test, air/water units reached about 3.4, brine/water 4.3."
+    },
+    "profileFactor": {
+      "term": "Profile factor",
+      "text": "Your wholesale price per kWh (weighted by consumption) divided by the market average. Below 1: you use more when electricity is cheap; above 1: more when it is expensive."
     }
   },
   "help": {
@@ -3682,7 +3711,8 @@
       "summaryCounter": {
         "one": "{count} day, {from} (the last reading of the day)",
         "other": "{count} days from {from} to {to} (the last reading of each day)"
-      }
+      },
+      "intervals": "Plus {slots} quarter-hour values (every {minutes} minutes) — evaluated under Insights → Flexibility."
     }
   },
   "level": {
@@ -3863,6 +3893,68 @@
       "hint": "The charging sessions come from several charging points. Meter readings belong to exactly one wallbox – choose its charging point. For all charging points together, choose “none – only the sessions” for the meter readings.",
       "label": "Charging point",
       "ok": "Continue"
+    }
+  },
+  "flex": {
+    "title": "Valuing flexibility",
+    "year": "Year",
+    "loadPrices": "Load wholesale prices {year} from SMARD",
+    "intro": "Did shifting pay off? The calculation uses your consumption and the wholesale price per quarter hour — only the wholesale share, without taxes, levies and grid fee. Control happens elsewhere (evcc, Home Assistant, the battery itself).",
+    "noPrices": "The wholesale prices per quarter hour for {year} are missing — load them from SMARD above.",
+    "noIntervals": "There is no consumption per quarter hour for {year} yet. It comes from a portal file (meters → import time series) or from Home Assistant with a timestamp.",
+    "attribution": "Wholesale prices: Bundesnetzagentur | SMARD.de (CC BY 4.0)",
+    "pricesLoaded": "Wholesale prices {year} loaded: {slots} quarter hours.",
+    "controllable": "controllable",
+    "kpi": {
+      "kwh": "Consumption with price",
+      "cheap": "In cheap quarter hours",
+      "negative": "At negative prices",
+      "own": "Own avg. / market avg.",
+      "factor": "Profile factor",
+      "advantage": "Advantage (wholesale share)"
+    },
+    "noOverlap": "No quarter hour with both consumption and wholesale price.",
+    "verdict": {
+      "good": "Cheaper than average: {eur} saved on the wholesale share (profile factor {factor}).",
+      "bad": "More expensive than average: {eur} more on the wholesale share (profile factor {factor}) — consumption tends to fall in expensive times."
+    },
+    "months": "Per month",
+    "col": {
+      "month": "Month",
+      "cheap": "cheap",
+      "negative": "negative",
+      "own": "own avg.",
+      "market": "market avg.",
+      "advantage": "advantage",
+      "coverage": "coverage"
+    },
+    "battery": {
+      "title": "Battery by wholesale price",
+      "charged": "Charged · avg. price",
+      "discharged": "Discharged · avg. price",
+      "value": "Value of shifting",
+      "hint": "Discharged kWh at the wholesale price of discharging minus charged kWh at the wholesale price of charging — what shifting across the day was worth, without self-consumption losses and without grid fee."
+    },
+    "module3": {
+      "title": "§ 14a module 3 — {name}",
+      "low": "In the low tariff",
+      "high": "In the high tariff",
+      "standard": "In the standard tariff",
+      "saving": "Saving vs. standard",
+      "hint": "From the time windows on this meter’s contract: grid fee per kWh in the window against the standard tariff. Time-variable grid fees only exist on top of module 1 and with a smart metering system."
+    },
+    "series": {
+      "title": "Quarter-hour series",
+      "what": "Series",
+      "source": "Source",
+      "prices": "Wholesale prices DE-LU",
+      "delete": "Delete series",
+      "confirmDelete": "Delete this series? Meter readings and daily values stay.",
+      "sources": {
+        "import": "File",
+        "ingest": "Home Assistant",
+        "smard": "SMARD"
+      }
     }
   }
 }

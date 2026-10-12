@@ -13,8 +13,9 @@ Feature F1009).
 > ⚠️ **Achtung vor kursierenden Forenanleitungen.** Es gibt eine populäre, aber
 > **technisch falsche** Anleitung (KI-generiert), die `POST /api.php` mit einem
 > `{"action":"add_reading", "value":…, "timestamp":…}` und einen Token aus
-> `settings.json` beschreibt. **Nichts davon existiert im Energietracker.** Nutze
-> ausschließlich die hier beschriebene Schnittstelle (`POST /api/ingest`).
+> `settings.json` beschreibt. **Nichts davon existiert im Energietracker** — ein
+> Feld `timestamp` gibt es nur in `POST /api/ingest` (seit v3.3.0, Schritt 3).
+> Nutze ausschließlich die hier beschriebene Schnittstelle.
 
 ---
 
@@ -103,7 +104,8 @@ rest_command:
         "utility": "{{ utility }}",
         "meter": "{{ meter }}",
         "value": {{ states(sensor_entity) | float }},
-        "date": "{{ now().strftime('%Y-%m-%d') }}"
+        "date": "{{ now().strftime('%Y-%m-%d') }}",
+        "timestamp": "{{ now().isoformat() }}"
       }
 ```
 
@@ -170,6 +172,51 @@ mode: single
 > **Idempotent:** Ein erneuter Push am selben Tag (z. B. manueller Test +
 > Automatik) erzeugt **kein** Duplikat — der Energietracker aktualisiert den
 > bestehenden Tageswert (Upsert pro Zähler & Datum).
+
+### Viertelstunden: zusätzlich alle 15 Minuten *(v3.3.0)*
+
+Die Vorlage aus Schritt 3 schickt seit v3.3.0 auch `timestamp` — den
+Zeitpunkt des Stands mit Zeitzone (`{{ now().isoformat() }}`). Kommen die
+Stände oft genug, verteilt der Energietracker die Differenz zum vorigen Stand
+nach Zeitanteil auf die Viertelstunden dazwischen. Damit rechnet
+[Flexibilität bewerten](flexibilitaet.md): wann verbraucht wurde und zu welchem
+Börsenpreis. Dafür sendet eine zweite Automatisierung alle 15 Minuten; die
+tägliche oben bleibt, wie sie ist:
+
+```yaml
+alias: "Energie: Strom je Viertelstunde an Energietracker"
+description: "Sendet alle 15 Minuten den Zählerstand mit Zeitstempel"
+triggers:
+  - trigger: time_pattern
+    minutes: "/15"
+actions:
+  - if:
+      - condition: template
+        value_template: "{{ has_value('sensor.stromzaehler_total_kwh') }}"
+    then:
+      - action: rest_command.energietracker_push
+        data:
+          utility: "strom"
+          meter: "stromzaehler_haus"
+          sensor_entity: "sensor.stromzaehler_total_kwh"
+mode: single
+```
+
+- **Nur Stromzähler** (und die Speicherzähler unter PV-Erzeugung) gehören
+  hinein: Nur sie wertet die Seite Flexibilität aus. Am meisten sagen eigene
+  Zähler für Wärmepumpe und Wallbox.
+- Jeder Push aktualisiert wie bisher den Stand des Tages
+  (`"status":"updated"`). Die Antwort nennt zusätzlich `intervals`, die Zahl der
+  Viertelstunden, die der Stand berührt hat.
+- **Nichts verteilt** wird beim ersten Stand mit Zeitstempel, bei einem Stand,
+  der nicht neuer oder kleiner ist als der vorige, und nach einer Lücke von
+  mehr als sechs Stunden — der Stand gilt dann als neuer Anfang. Der tägliche
+  Push allein ergibt deshalb keine Viertelstunden.
+- Fehlt `date`, gilt der Tag des Zeitstempels in der Zeitzone der Installation.
+- **Vorlage vor v3.3.0 übernommen?** Dann fehlt die Zeile `"timestamp"`: hinter
+  die `date`-Zeile ein Komma setzen und
+  `"timestamp": "{{ now().isoformat() }}"` ergänzen. Ohne Zeitstempel läuft alles
+  wie bisher, nur ohne Viertelstunden.
 
 ---
 
@@ -309,7 +356,10 @@ Zählertausch verlustfrei heraus.
 
 **Datenmenge:** Ein Push je Tag und Zähler genügt. Weitere am selben Tag
 überschreiben den Stand dieses Tages (`"status":"updated"`) — die Datei wächst
-um einen Eintrag je Tag, rund 90 KB im Jahr je Zähler.
+um einen Eintrag je Tag, rund 90 KB im Jahr je Zähler. Daran ändert auch ein
+Push alle 15 Minuten nichts; er legt zusätzlich je Zähler und Jahr eine
+Viertelstundenreihe von bis zu rund 250 KB an
+([Flexibilität bewerten](flexibilitaet.md#8-viertelstundenreihen-verwalten)).
 
 > **Datenqualität:** Nur echte, absolute Zählerstände senden — nie einen
 > Ersatzwert. Wird ein Zähler getauscht, gehört das in den Energietracker
@@ -487,6 +537,12 @@ msg.headers = { Authorization: 'Bearer ' + env.get('ET_TOKEN') };
 return msg;
 ```
 
+Mit `timestamp` je Eintrag entstehen auch beim Nachliefern Viertelstunden; der
+Stapel verarbeitet die Einträge je Zähler in zeitlicher Reihenfolge. Das gilt
+nur für Stände, die neuer sind als der letzte Stand mit Zeitstempel dieses
+Zählers — eine Lücke, nach der Home Assistant schon wieder sendet, füllt nur
+noch eine [Portaldatei](daten-aus-portalen.md).
+
 Wie ein Funktionsknoten danach `failed` auswertet und wie Home Assistant das
 mit `response_variable` tut, steht in der
 [API-Referenz](../referenz/api.md#stapel-v310); die vollständigen Rezepte für
@@ -532,6 +588,8 @@ die Seitenleiste von Home Assistant), gilt seit v3.1.0:
 | Antwort `created`/`updated`, aber der Wert taucht nicht auf | Die Verbrauchsart ist unter Einstellungen → Verbrauchsarten & Abrechnung → Aktive Verbrauchsarten abgewählt (dann fehlt sie im Menü, gespeichert ist der Wert trotzdem), oder die Ansicht zeigt einen anderen Zähler bzw. ein anderes Jahr. Auch ein auf „inaktiv“ gesetzter Zähler nimmt Werte an und zählt mit. |
 | Sensoren aus Schritt 5: `401` oder „unbekannt“ | `401`: Anmeldung eingeschaltet, aber kein Lese-Schlüssel (`energietracker_read`) — der Ingest-Token gilt dafür nicht. „unbekannt“: `key` passt nicht (er nennt die interne Zähler-ID, nicht den Alias) oder der Wert fehlt (kein laufender Vertrag, noch keine Prognose). Die Vorlage in den Einstellungen setzt die Schlüssel richtig ein. |
 | Stapel: Antwort `200`, aber Stände fehlen | Einzelne Einträge sind gescheitert — `failed` und die Einträge mit `"status": "error"` nennen Grund (`code`) und Position (`index`). |
+| `400 Zeitstempel „…“ nicht lesbar` | `timestamp` ohne Zeitzone oder in einem anderen Format. Erwartet ist ISO 8601 mit Zone, etwa `2026-10-12T14:15:00+02:00`; die Vorlage `{{ now().isoformat() }}` liefert das. |
+| Keine Viertelstunden (`"intervals": 0`) | Erster Stand mit Zeitstempel, eine Lücke über sechs Stunden (etwa nur der tägliche Push) oder ein Stand, der nicht neuer oder kleiner ist als der vorige — siehe [Viertelstunden](#viertelstunden-zusätzlich-alle-15-minuten-v330). Fehlt `intervals` in der Antwort ganz, schickt der REST-Command keinen `timestamp`, oder der Stand ist als Verdacht markiert. |
 
 **Schnelltest** (von der HA-Maschine aus, offener Modus oder mit Token):
 

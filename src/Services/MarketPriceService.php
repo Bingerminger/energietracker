@@ -33,7 +33,56 @@ final class MarketPriceService
         private JsonStore $store,
         private I18nService $i18n,
         private ?\Closure $fetch = null,
+        private ?IntervalService $intervals = null,   // v3.3.0 (F1021)
     ) {}
+
+    /**
+     * v3.3.0 (F1021) — Börsenpreise je Viertelstunde eines Jahres von SMARD
+     * (Day-Ahead DE-LU, €/MWh → ct/kWh). SMARD liefert Wochenpakete; vor dem
+     * 1. Oktober 2025 (Stundenprodukte) steht derselbe Wert in allen vier
+     * Viertelstunden einer Stunde. Nur auf Knopfdruck; nichts geht hinaus.
+     *
+     * @return array{year:int, slots:int, from:?string, to:?string}
+     */
+    public function syncSmardIntervals(int $year): array
+    {
+        if ($this->intervals === null) throw new LocalizedException(self::QH_FAILED, [], 'no interval store');
+        try {
+            return $this->fetchSmardIntervals($year);
+        } catch (LocalizedException $e) {
+            // eigene Meldung: für Viertelstundenpreise gibt es keinen Dateiimport als Ausweg
+            if ($e->key !== 'errors.marketPrices.syncFailed') throw $e;
+            throw new LocalizedException(self::QH_FAILED, [], $e->getMessage());
+        }
+    }
+
+    /** Fehlercode des Viertelstundenabrufs (v3.3.0) — der Monatsabruf behält `syncFailed`. */
+    public const QH_FAILED = 'errors.marketPrices.syncQuarterHoursFailed';
+
+    /** @return array{year:int, slots:int, from:?string, to:?string} */
+    private function fetchSmardIntervals(int $year): array
+    {
+        $index = json_decode((string)$this->fetch(self::SMARD . 'index_quarterhour.json'), true);
+        $stamps = is_array($index['timestamps'] ?? null) ? $index['timestamps'] : [];
+        $from = ($this->intervals->yearStart($year) - 7 * 86400) * 1000;
+        $to = $this->intervals->yearStart($year + 1) * 1000;
+        $slots = [];
+        foreach ($stamps as $ts) {
+            if (!is_numeric($ts) || $ts < $from || $ts >= $to) continue;
+            $chunk = json_decode((string)$this->fetch(self::SMARD . '4169_DE_quarterhour_' . (int)$ts . '.json'), true);
+            foreach ((array)($chunk['series'] ?? []) as $pt) {
+                if (!is_array($pt) || !is_numeric($pt[0] ?? null) || !is_numeric($pt[1] ?? null)) continue;
+                $t = intdiv((int)$pt[0], 1000);
+                if ($t * 1000 < $from + 7 * 86400 * 1000 || $t * 1000 >= $to) continue;
+                $slots[$t] = round((float)$pt[1] / 10, 4);
+            }
+        }
+        if ($slots === []) throw new LocalizedException(self::QH_FAILED, [], 'smard quarterhour empty');
+        ksort($slots);
+        $r = $this->intervals->mergePrices($slots, 'smard');
+        $iso = fn(int $t) => (new \DateTimeImmutable('@' . $t))->setTimezone($this->intervals->tz())->format('Y-m-d');
+        return ['year' => $year, 'slots' => $r['slots'], 'from' => $iso((int)array_key_first($slots)), 'to' => $iso((int)array_key_last($slots))];
+    }
 
     /** @return array{source:?string, area:string, unit:string, months:array<string,array{avg_ct:float}>, imported_at:?string} */
     public function get(): array
@@ -140,9 +189,14 @@ final class MarketPriceService
      * Grundpreis fest. Monate ohne Marktwert nehmen den Vorjahresmonat
      * (`dynamic_assumed`). Andere Verträge bleiben, wie sie sind.
      *
+     * v3.3.0 (F1021) — `$weighted` (JJJJ-MM → ct, FlexibilityService::weightedSpot):
+     * Monate mit eigenem Lastgang rechnen mit dem nach Verbrauch gewichteten
+     * Börsenpreis statt dem Monatsmittel (`dynamic_profile`).
+     *
+     * @param array<string,float> $weighted
      * @return array<string,mixed>
      */
-    public function expand(array $c, string $fromYm, string $toYm): array
+    public function expand(array $c, string $fromYm, string $toYm, array $weighted = []): array
     {
         if (($c['price_model'] ?? 'fixed') !== 'dynamic' || !is_array($c['dynamic'] ?? null)) return $c;
         $d = $c['dynamic'];
@@ -153,9 +207,14 @@ final class MarketPriceService
         // nächstes Jahr beginnen würde, rechnet trotzdem mit den Preisen jedes
         // Monats. Bis v3.1 begann die Reihe beim Vertragsbeginn — ein künftiges
         // Angebot meldete „keine Marktdaten“.
-        $prices = []; $assumed = []; $missing = [];
+        $prices = []; $assumed = []; $missing = []; $profile = [];
         for ($t = strtotime($fromYm . '-01'); $t !== false && date('Y-m', $t) <= $toYm; $t = strtotime('+1 month', $t)) {
             $ym = date('Y-m', $t);
+            if (isset($weighted[$ym])) {
+                $profile[] = $ym;
+                $prices[] = ['from' => $ym . '-01', 'ct_per_kwh' => round((float)$weighted[$ym] * (1 + $vat) + $markup, 4)];
+                continue;
+            }
             $spot = $this->monthCt($ym);
             if ($spot === null) { $missing[] = $ym; continue; }
             if ($spot['assumed']) $assumed[] = $ym;
@@ -166,6 +225,7 @@ final class MarketPriceService
             ? [['from' => $fromYm . '-01', 'eur_per_month' => (float)$d['base_eur_month']]] : [];
         $c['dynamic_assumed'] = $assumed;
         $c['dynamic_missing'] = $missing;
+        $c['dynamic_profile'] = $profile;
         return $c;
     }
 

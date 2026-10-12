@@ -53,6 +53,8 @@ function allSectionPages(section, { utilities = [], tenant = false } = {}) {
       return [
         { view: 'analysis', href: '#/analysis', label: t('nav.analysis') },
         { view: 'forecast', href: '#/forecast', label: t('nav.forecast') },
+        // v3.3.0 (F1021) — Flexibilität bewerten (Viertelstunden)
+        { view: 'flexibility', href: '#/flexibility', label: t('nav.flexibility') },
         { view: 'report', href: '#/report', label: t('nav.report') },
       ];
     case 'hints':

@@ -8,8 +8,9 @@ Grid operators, metering operators, inverters and heat pumps often hand out
 their measurements as a file: quarter-hour values (load profile), hourly or
 daily values. Since **v3.1.0** the Energietracker reads such files with a
 **column mapping** and condenses them into daily values — as meter readings or
-as consumption per day. The app does not connect to the portals: you download
-the file and import it.
+as consumption per day. Since **v3.3.0** it also keeps values in 15-, 30- or
+60-minute steps per quarter hour (§ 4). The app does not connect to the
+portals: you download the file and import it.
 
 ---
 
@@ -98,8 +99,29 @@ Without a starting reading the app asks for one: “Consumption values need a
 starting reading: a reading on … or a start value”.
 
 After that everything calculates as with readings you type in: monthly
-consumption, costs, balance, forecast, plausibility. Daily values are stored,
-not quarter hours — the app’s evaluations work in days and months.
+consumption, costs, balance, forecast, plausibility — in days and months.
+
+### Also per quarter hour *(v3.3.0)*
+
+If the file holds values in 15-, 30- or 60-minute steps, the app also keeps
+them per quarter hour. [Valuing flexibility](flexibilitaet.md) calculates with
+them — consumption against the wholesale price per quarter hour, battery,
+§ 14a module 3 — and so does the dynamic tariff check when looking back.
+
+- **Step:** the most frequent gap between two time stamps. Daily values give no
+  quarter hours.
+- **Consumption per interval** is spread evenly over its quarter hours — an
+  hourly value over four, a half-hourly value over two.
+- **Meter readings** give the difference between two consecutive readings; if
+  a stamp is missing in between or the reading drops, the gap stays empty.
+- A new value replaces an existing one in the same quarter hour; the preview
+  writes nothing.
+- Electricity meters and the battery meters under PV generation are evaluated.
+
+The preview names them in a line of their own (“Plus … quarter-hour values
+(every … minutes)”). After “Import” the series appears under Insights →
+Flexibility in the list “Quarter-hour series” (level “Expert”); it can also be
+deleted there without touching the daily values. A year of quarter hours takes up to about 250 KB per meter.
 
 ## 5. Time stamps and daylight saving time
 
@@ -169,8 +191,10 @@ Header rows 1 · date column 1 · value column 2 · “Meter readings” · kWh 
 
 - **No fetching.** The app retrieves nothing from portals; for ongoing values
   without a file, [Home Assistant](home-assistant.md) is the way.
-- **Daily values, not quarter hours.** Billing per quarter hour, as a dynamic
-  tariff needs it, is not reproduced by the app
+- **Costs in days and months.** Only [Valuing flexibility](flexibilitaet.md)
+  and the dynamic tariff check when looking back use the quarter hours. The app
+  still calculates a dynamic contract of your own with prices per month, not
+  per quarter hour
   ([Electricity → Dynamic tariffs](../verstehen/02-strom.md#dynamic-tariffs-v310)).
 - **Faulty lines** without a recognisable date or value are skipped, and the
   first twenty are named (“Line 12: no date or value recognised …”). If the
@@ -190,6 +214,11 @@ preview; in the body the file as text and the mapping with columns from 0:
                "value_kind": "consumption", "unit_factor": 1,
                "interval_stamp": "end", "start_counter": 40211.0 } }
 ```
+
+Since v3.3.0 the response names in `intervals` the detected step in seconds
+(900, 1800 or 3600) and the number of quarter hours, e.g.
+`{"step": 900, "slots": 35040}`, and `null` for daily values — also in the
+preview, which writes nothing.
 
 All fields and error codes:
 [API reference → Import time series](../referenz/api.md#import-time-series-v310).

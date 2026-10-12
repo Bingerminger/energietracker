@@ -26,7 +26,7 @@ use Energietracker\Services\{
     AgendaService, CalendarService, SummaryService, InstanceService,
     AttachmentService, OcrService, PeriodService, TenancyService, TenancyBudgetService,
     Co2CostService, Co2SplitService, BillService, MarketPriceService, EvChargingReportService, HeatPumpService,
-    SeriesImportService, ReferenceService, EvccService
+    SeriesImportService, ReferenceService, EvccService, IntervalService, FlexibilityService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -39,7 +39,7 @@ use Energietracker\Controllers\{
     StromSaldoController, PvSummaryController, HealthController, DemoController,
     AuthController, IngestController, SessionController, ManifestController, AgendaController,
     AttachmentController, PeriodController, TenancyController, Co2Controller, BillController, MarketPriceController, EvChargingController, HeatPumpController,
-    SeriesImportController, EvccController
+    SeriesImportController, EvccController, FlexibilityController
 };
 
 /**
@@ -109,6 +109,8 @@ final class App
     public SeriesImportService $seriesImport; // v3.1.0 (H8, MKT-19)
     public ReferenceService $references;    // v3.1.0 (H8, MKT-11)
     public EvccService $evcc;               // v3.2.0 (F1022)
+    public IntervalService $intervals;      // v3.3.0 (F1021)
+    public FlexibilityService $flexibility; // v3.3.0 (F1021)
 
     public function __construct(string $dataDir)
     {
@@ -166,8 +168,11 @@ final class App
             $this->consumption, $this->readings, $this->meters, $this->temperatures, $this->deliveries, $this->i18n
         );
         $this->benchmark    = new BenchmarkService($this->consumption, $this->meters, $this->settings, $this->i18n, $this->climate);
-        $this->marketPrices = new MarketPriceService($this->store, $this->i18n);   // v3.1.0 (H6)
-        $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n, $this->marketPrices);
+        // v3.3.0 (F1021) — Werte je Viertelstunde und was das Verschieben gebracht hat
+        $this->intervals    = new IntervalService($this->store, $this->settings);
+        $this->flexibility  = new FlexibilityService($this->intervals, $this->meters, $this->contracts);
+        $this->marketPrices = new MarketPriceService($this->store, $this->i18n, null, $this->intervals);   // v3.1.0 (H6)
+        $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n, $this->marketPrices, $this->flexibility);
         $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n, $this->marketPrices);
         $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries, $this->i18n);
         $this->reminders    = new ReminderService($this->store, $this->settings, $this->i18n);
@@ -180,7 +185,7 @@ final class App
         $this->demo         = new DemoService($this->store, $this->backups, $this->i18n);
         // F1009 — HA-Anbindung: Token-Auth + idempotenter Push-Ingest.
         $this->auth         = new AuthService($this->store);
-        $this->ingest       = new IngestService($this->meters, $this->readings, $this->i18n, $this->store);
+        $this->ingest       = new IngestService($this->meters, $this->readings, $this->i18n, $this->store, $this->intervals);
         // v3.1.0 (Paket H1) — Agenda, Kalender, Kennzahlen für Home Assistant
         $this->instance     = new InstanceService($this->store);
         // v3.1.0 (Paket H3) — Verbrauch je Zeitraum, Mietverhältnis
@@ -194,7 +199,7 @@ final class App
         $this->evCharging   = new EvChargingReportService($this->meters, $this->readings, $this->consumption, $this->settings, $this->i18n);
         $this->heatPumps    = new HeatPumpService($this->meters, $this->consumption);
         // v3.1.0 (Paket H8) — Zeitreihen aus Portalen, Einordnung mit eigenen Vergleichswerten
-        $this->seriesImport = new SeriesImportService($this->readingImport, $this->readings, $this->meters, $this->periods, $this->settings, $this->i18n);
+        $this->seriesImport = new SeriesImportService($this->readingImport, $this->readings, $this->meters, $this->periods, $this->settings, $this->i18n, $this->intervals);
         $this->references   = new ReferenceService($this->consumption, $this->meters, $this->settings);
         // v3.1.0 (Paket H5) — Versorgerrechnungen
         $this->bills        = new BillService($this->store, $this->meters, $this->contracts, $this->consumption, $this->i18n);
@@ -584,6 +589,13 @@ final class App
         $r->post('/api/utility/strom/meters/{id}/import-evcc', fn($req) => $evccCtrl->importCsv($req));
         $r->post('/api/utility/strom/meters/{id}/sync-evcc',   fn($req) => $evccCtrl->sync($req));
         $r->get('/api/ev-sessions',                            fn($req) => $evccCtrl->sessions($req));
+
+        // v3.3.0 (F1021) — Flexibilität bewerten: Viertelstunden, Börsenpreise, Auswertung
+        $flexCtrl = new FlexibilityController($this->flexibility, $this->intervals, $this->marketPrices, $this->i18n);
+        $r->get('/api/flexibility',                         fn($req) => $flexCtrl->analyze($req));
+        $r->get('/api/intervals',                           fn($req) => $flexCtrl->list($req));
+        $r->delete('/api/intervals/{id}',                   fn($req) => $flexCtrl->delete($req));
+        $r->post('/api/market-prices/sync-smard-intervals', fn($req) => $flexCtrl->syncSmard($req));
 
         // v3.1.0 (Paket H5) — Versorgerrechnungen erfassen, prüfen, buchen
         $billCtrl = new BillController($this->bills);

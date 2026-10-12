@@ -191,6 +191,7 @@ final class ContractService
                 $base['working_prices_by_meter'] = $input['working_prices_by_meter'] ?? [];
             }
             if ($utility === 'strom' && array_key_exists('grid_reduction', $input)) $base['grid_reduction'] = $input['grid_reduction'];
+            if ($utility === 'strom' && array_key_exists('grid_tou', $input)) $base['grid_tou'] = $input['grid_tou'];   // v3.3.0 (F1021)
             // v3.1.0 (H7, MKT-16) — Einspeisung: Gutschriften des Direktvermarkters
             if (Utilities::isFeedIn($utility) && array_key_exists('revenue_statements', $input)) $base['revenue_statements'] = $input['revenue_statements'];
             // v3.1.0 (H6, MKT-12) — Preismodell: fest (fehlt), Monatspreise, dynamisch (Schattenvertrag Strom)
@@ -233,7 +234,7 @@ final class ContractService
                'special_payments',
                'is_shadow', 'shadow_label'], $switchFields);
         if ($utility === 'fernwaerme') $standardFields = array_merge($standardFields, self::DISTRICT_HEATING_FIELDS);   // v3.1.0
-        if ($utility === 'strom') $standardFields[] = 'grid_reduction';   // v3.1.0 (H6, MKT-13)
+        if ($utility === 'strom') array_push($standardFields, 'grid_reduction', 'grid_tou');   // v3.1.0 (H6, MKT-13); v3.3.0 Modul 3
         array_push($standardFields, 'price_model', 'dynamic');            // v3.1.0 (H6, MKT-12)
         $waterFields    = array_merge(['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                            'trinkwasser', 'schmutzwasser', 'niederschlagswasser',
@@ -314,6 +315,11 @@ final class ContractService
         if (array_key_exists('grid_reduction', $c)) {
             $c['grid_reduction'] = array_map(fn($e) => $e + ['module' => 1],
                 $this->normalizePriceList((array)($c['grid_reduction'] ?? []), 'from', 'eur_per_year', $this->i18n->t('contracts.gridReduction.title')));
+        }
+        // v3.3.0 (F1021) — § 14a Modul 3: zeitvariables Netzentgelt
+        if (array_key_exists('grid_tou', $c)) {
+            $tou = self::normalizeGridTou($c['grid_tou']);
+            if ($tou === null) unset($c['grid_tou']); else $c['grid_tou'] = $tou;
         }
         // v3.1.0 (H7, MKT-16) — Gutschriften des Direktvermarkters (Einspeisung)
         if (array_key_exists('revenue_statements', $c)) $c['revenue_statements'] = $this->normalizeRevenueStatements((array)($c['revenue_statements'] ?? []));
@@ -1254,6 +1260,40 @@ final class ContractService
                 throw new LocalizedException('errors.contract.groupMemberOverlap', ['start' => (string)($o['start'] ?? '')], 'group member overlap');
             }
         }
+    }
+
+    /**
+     * v3.3.0 (F1021) — § 14a Modul 3: {standard_ct, windows: [{quarters, from,
+     * to, ct}]}. Zeiten „HH:MM“ (bis 24:00), from < to — ein Fenster über
+     * Mitternacht sind zwei. Leer (ohne Standardpreis und Fenster) = null.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function normalizeGridTou(mixed $in): ?array
+    {
+        if ($in === null || $in === '' || $in === []) return null;
+        if (!is_array($in)) throw new LocalizedException('errors.contract.gridTouInvalid', ['field' => 'grid_tou'], 'grid_tou');
+        $ct = function (mixed $v, string $field): float {
+            $n = is_string($v) ? ReadingImportService::parseNum($v) : (is_numeric($v) ? (float)$v : null);
+            if ($n === null || $n < 0 || $n > 100) throw new LocalizedException('errors.contract.gridTouInvalid', ['field' => $field], "grid_tou $field");
+            return round($n, 4);
+        };
+        $windows = [];
+        foreach (array_values((array)($in['windows'] ?? [])) as $i => $w) {
+            if (!is_array($w)) continue;
+            $q = array_values(array_unique(array_map('intval', array_filter((array)($w['quarters'] ?? []), 'is_numeric'))));
+            sort($q);
+            $from = (string)($w['from'] ?? ''); $to = (string)($w['to'] ?? '');
+            $ok = fn(string $t) => (bool)preg_match('/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/', $t);
+            if ($q === [] || array_diff($q, [1, 2, 3, 4]) !== [] || !$ok($from) || !$ok($to)
+                || FlexibilityService::minutes($from) >= FlexibilityService::minutes($to)) {
+                throw new LocalizedException('errors.contract.gridTouInvalid', ['field' => "windows[$i]"], "grid_tou window $i");
+            }
+            $windows[] = ['quarters' => $q, 'from' => $from, 'to' => $to, 'ct' => $ct($w['ct'] ?? null, "windows[$i].ct")];
+        }
+        if (count($windows) > 24) throw new LocalizedException('errors.contract.gridTouInvalid', ['field' => 'windows'], 'grid_tou too many');
+        if ($windows === [] && (($in['standard_ct'] ?? '') === '' || $in['standard_ct'] === null)) return null;
+        return ['standard_ct' => $ct($in['standard_ct'] ?? null, 'standard_ct'), 'windows' => $windows];
     }
 
     /**

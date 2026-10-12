@@ -1143,6 +1143,7 @@ async function openImportSeriesModal(u, meter) {
                 ? tp('import.series.summary', r.days, { from: fmt.date(r.from), to: fmt.date(r.to), total: fmt.num(r.total, 1), unit: u.consumption_unit || u.unit })
                 : tp('import.series.summaryCounter', r.days, { from: fmt.date(r.from), to: fmt.date(r.to) }))}</strong></p>
               ${r.skipped ? `<p class="muted small">${escapeHtml(tp('import.series.skipped', r.skipped))}</p>` : ''}
+              ${r.intervals ? `<p class="muted small">${escapeHtml(t('import.series.intervals', { slots: fmt.int(r.intervals.slots), minutes: r.intervals.step / 60 }))}</p>` : ''}
               <div class="table-wrap"><table class="table table--compact"><tbody>${(r.preview || []).map(p => `<tr><td>${fmt.date(p.date)}</td><td class="num">${fmt.num(p.value, 3)}</td></tr>`).join('')}</tbody></table></div>`;
             ok = true;
             q('[data-act="import"]').disabled = false;
