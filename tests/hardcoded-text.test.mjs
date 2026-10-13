@@ -21,10 +21,18 @@ const ALLOW = new Set(['kWh', 'm³', 'm²', '°C', 'CO₂', 'R²', 'L', 'kg', 'M
 // Ersetzen kann aus Resten neue Kommentarzeichen zusammensetzen
 // (Code-Scanning: unvollständige Bereinigung mehrteiliger Zeichenfolgen).
 const untilStable = (s, f) => { for (let prev = null; prev !== s;) { prev = s; s = f(s); } return s; };
-const strip = src => untilStable(src, s => s
+// HTML-Kommentare in Templates ohne Regex: von „<!--“ bis zum nächsten „-->“
+const dropHtmlComments = s => {
+  for (let i = s.indexOf('<!--'); i >= 0; i = s.indexOf('<!--', i)) {
+    const j = s.indexOf('-->', i + 4);
+    if (j < 0) break;
+    s = s.slice(0, i) + s.slice(j + 3);
+  }
+  return s;
+};
+const strip = src => untilStable(src, s => dropHtmlComments(s
   .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))   // Blockkommentare
-  .replace(/(^|[^:\\])\/\/.*$/gm, '$1')                           // Zeilenkommentare
-  .replace(/<!--[\s\S]*?-->/g, ''));                               // HTML-Kommentare in Templates
+  .replace(/(^|[^:\\])\/\/.*$/gm, '$1')));                          // Zeilenkommentare
 
 let failed = 0, passed = 0;
 const hits = [];

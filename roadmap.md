@@ -997,6 +997,12 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 - ~~Versorgerrechnungen lassen sich in der Oberfläche nur anlegen und löschen~~ — bearbeiten seit v3.2.0.
 - Home-Assistant-App und HACS-Integration als eigene öffentliche Repos — Entscheidung offen.
 
+**Nach v3.4.0 auf main** (kommt mit dem nächsten Release):
+
+- Code-Scanning meldete drei Fehlalarme (unvollständige Bereinigung): Der
+  Markdown-Renderer und der Text-Test entfernen Tags bzw. HTML-Kommentare jetzt
+  ohne Regex (`stripTags`), gleiches Ergebnis, Handbuch-Test grün.
+
 *— weitere offene GitHub-Issues und beobachtete Polituren landen hier —*
 
 ---

@@ -36,9 +36,26 @@ const EXTERNAL = /^(?:https?:|mailto:)/i;
 const SAFE_SRC = /^(?![a-z][a-z0-9+.-]*:)[a-z0-9._~-][^\s\\"'<>\u0000-\u001f]*$/i;
 const ANCHOR_ID = /^[a-z0-9-]+$/;
 
+/**
+ * Tags entfernen wie `/<[^>]+>/g` — aber in einem Durchgang ohne Regex: von
+ * jedem „<“ bis zum nächsten „>“, wenn dazwischen mindestens ein Zeichen
+ * steht. Ein einmaliges Regex-Ersetzen meldet das Code-Scanning als
+ * unvollständige Bereinigung; hier gibt es nichts, was sich neu zusammensetzt.
+ */
+export function stripTags(s) {
+  const str = String(s);
+  let out = '';
+  for (let i = 0; i < str.length;) {
+    const j = str[i] === '<' ? str.indexOf('>', i + 1) : -1;
+    if (j > i + 1) { i = j + 1; continue; }
+    out += str[i++];
+  }
+  return out;
+}
+
 /** Anker einer Überschrift nach GitHubs Regel (wie DocsIntegrityTest::anchors). */
 export function slug(text) {
-  let t = String(text).replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/<[^>]+>/g, '').replace(/[`*]/g, '');
+  let t = stripTags(String(text).replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')).replace(/[`*]/g, '');
   t = t.toLowerCase().replace(/[^\p{L}\p{N}\p{M} _-]/gu, '');
   return t.replace(/ /g, '-');
 }
@@ -248,7 +265,7 @@ function blocks(lines, ctx) {
       if (k) id = `${id}-${k}`;
       ctx.ids.push(id);
       const inner = inline(text, ctx);
-      ctx.headings.push({ level, id: ID_PREFIX + id, html: inner.replace(/<[^>]*>/g, '') });
+      ctx.headings.push({ level, id: ID_PREFIX + id, html: stripTags(inner) });
       html += `<h${level} id="${esc(ID_PREFIX + id)}">${inner}</h${level}>\n`;
       i++;
       continue;
