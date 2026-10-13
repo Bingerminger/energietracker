@@ -98,7 +98,7 @@ interface nor through the API or Home Assistant. There is no meter swap for it.
   Without a network the entry goes into the queue like a meter reading
   ([meter-reading capture](11-zaehlerstaende.md)).
 - **Consumption view:** instead of the readings it shows the table
-  **“Periods {year}”** with “+ Period”, edit and delete. Here you can enter any
+  **“Periods”** (with a year selection and “All years”) with “+ Period”, edit and delete. Here you can enter any
   period (from, to inclusive), not only whole months.
 - **CSV:** Consumption → *utility* → Meters → **CSV import** reads periods —
   one line each `month;consumption[;note]` (month as `01.2026`, `01/2026` or

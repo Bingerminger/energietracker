@@ -29,6 +29,21 @@
   RewriteRule ^(composer\.(json|lock)|phpunit\.xml\.dist|router\.php|Dockerfile|docker-compose\.yml|VERSION|requirements\.txt|[^/]+\.md)$ - [R=404,L]
 </IfModule>
 
+# ── v3.4.0 (N1020) — Rückfall ohne mod_rewrite ─────────────────────────
+# Fehlt mod_rewrite, wirken die Regeln oben nicht, und data/ samt Backups
+# wäre still erreichbar. mod_alias sperrt dieselben Pfade (RedirectMatch
+# braucht wie die Regeln oben nur AllowOverride FileInfo). Die Muster sehen
+# den ganzen URL-Pfad, auch in einem Unterverzeichnis wie /energietracker/;
+# was unter public/ liegt (etwa public/vendor/), bleibt frei. Ob der Schutz
+# wirkt, prüft die App selbst: Einstellungen → Zugriff → Sicherheits-Check.
+<IfModule !mod_rewrite.c>
+  <IfModule mod_alias.c>
+    RedirectMatch 404 "^(?:(?!/public/).)*/(data|src|tests|scripts|docker|docs|vendor|demo-data|graphify-out|node_modules|tools|dist|deploy)(/|$)"
+    RedirectMatch 404 "/\."
+    RedirectMatch 404 "^(?:(?!/public/).)*/(composer\.(json|lock)|phpunit\.xml\.dist|router\.php|Dockerfile|docker-compose\.yml|VERSION|requirements\.txt|[^/]+\.md)$"
+  </IfModule>
+</IfModule>
+
 # ── v2.6.0 — Bearer-Token für den Home-Assistant-Push ───────────────────
 # Apache reicht den Authorization-Header nicht immer an PHP-FPM weiter; dann
 # käme trotz richtigem Token 401. SetEnvIf braucht nur FileInfo.

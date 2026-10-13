@@ -183,6 +183,16 @@ h1, h2, h3, h4 { margin: 0; }
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 .topbar__btn-icon { display: inline-block; }
+/* v3.4.0 (N1021) — Darstellung: Das Symbol zeigt, was gilt (☀️/🌙); folgt die
+   App dem System, sagt es ein kleines „A" (Automatik) unten rechts. */
+#theme-toggle { position: relative; }
+.topbar__badge {
+  position: absolute; right: -5px; bottom: -5px;
+  min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px;
+  background: var(--accent); color: var(--accent-fg);
+  font-family: var(--font-sans); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+  box-shadow: 0 0 0 2px var(--bg-1); pointer-events: none;
+}
 
 /* v3.2.0 (F1019) — Umschalter der Nutzungsstufe neben Tag/Nacht */
 .topbar__select {

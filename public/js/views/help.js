@@ -6,21 +6,24 @@
 // passenden Sprache, der Weg zu Fragen und Fehlermeldungen und was mit den
 // Daten geschieht. Für Französisch, Italienisch, Spanisch, Portugiesisch und
 // Niederländisch gibt es keine Doku — dort ist diese Seite die Hilfe.
+//
+// v3.4.0 (N1019) — Das Handbuch liegt auf dem eigenen Server und öffnet in
+// der App (views/help-doc.js), passend zur Version und ohne Internet. Die
+// Anwendungsfälle zeigen alle Fälle A–G und die Stufen als Kurztext in jeder
+// Sprache, jeder mit dem Sprung in seinen Abschnitt (lib/docs.js CASES).
 // =====================================================================
 import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/format.js';
 import { GLOSSARY, glossaryTerm, glossaryText, billLine } from '../components/info.js';
 import { setupSteps, setupListHtml, openSteps } from '../lib/onboarding.js';
-import { docUrl, docsInOtherLanguage, ISSUES_URL } from '../lib/docs.js';
-
-// v3.2.0 — Anwendungsfälle in jeder Sprache (die Doku gibt es nur deutsch und englisch)
-const CASES = ['heat', 'control', 'levels'];
+import { docUrl, docsInOtherLanguage, ISSUES_URL, CASES } from '../lib/docs.js';
 
 export async function render(container, _params = [], ctx = {}) {
   const terms = GLOSSARY
     .map(id => ({ id, term: glossaryTerm(id), text: glossaryText(id) }))
     .sort((a, b) => a.term.localeCompare(b.term));
-  const doc = (page, key) => `<li><a href="${escapeHtml(docUrl(page))}" target="_blank" rel="noopener">${escapeHtml(t(key))}</a></li>`;
+  const doc = (page, key) => `<li><a href="${escapeHtml(docUrl(page))}">${escapeHtml(t(key))}</a></li>`;
+  const version = document.body?.getAttribute('data-app-version') || '';
 
   container.innerHTML = `
     <div class="view-header">
@@ -38,16 +41,19 @@ export async function render(container, _params = [], ctx = {}) {
 
       <section class="card" aria-labelledby="help-docs">
         <h2 class="card__title" id="help-docs">${escapeHtml(t('help.docs.title'))}</h2>
+        <p class="help-actions help-docs__open">
+          <a class="btn btn--primary btn--sm" href="${escapeHtml(docUrl('compendium'))}" data-role="handbook"><span aria-hidden="true">📖</span> ${escapeHtml(t('help.docs.open'))}</a>
+        </p>
         <ul class="help-links">
           ${doc('start', 'help.docs.start')}
           ${doc('faq', 'help.docs.faq')}
-          ${doc('compendium', 'help.docs.compendium')}
           ${doc('glossary', 'help.docs.glossary')}
           ${doc('setup', 'help.docs.setup')}
           ${doc('useCases', 'help.docs.useCases')}
           ${doc('homeAssistant', 'help.docs.homeAssistant')}
           ${doc('troubleshoot', 'help.docs.troubleshoot')}
         </ul>
+        <p class="muted small">${escapeHtml(t('help.docs.local', { version }))}</p>
         ${docsInOtherLanguage() ? `<p class="muted small">${escapeHtml(t('help.docs.englishOnly'))}</p>` : ''}
 
         <h2 class="card__title help-subtitle" id="help-support">${escapeHtml(t('help.support.title'))}</h2>
@@ -65,14 +71,15 @@ export async function render(container, _params = [], ctx = {}) {
     <section class="card help-cases" aria-labelledby="help-cases">
       <h2 class="card__title" id="help-cases">${escapeHtml(t('help.cases.title'))}</h2>
       <dl class="help-cases__list">
-        ${CASES.map(c => `<div class="help-cases__item" id="case-${c}">
-          <dt>${escapeHtml(t(`help.cases.${c}.title`))}</dt>
-          <dd>${escapeHtml(t(`help.cases.${c}.text`))}</dd>
+        ${CASES.map(c => `<div class="help-cases__item" id="${escapeHtml(c.anchor)}">
+          <dt>${escapeHtml(t(`help.cases.${c.id}.title`))}</dt>
+          <dd>${escapeHtml(t(`help.cases.${c.id}.text`))}</dd>
+          <dd class="help-cases__more"><a href="${escapeHtml(docUrl(c.page, c.anchor))}">${escapeHtml(t('help.cases.more'))}</a></dd>
         </div>`).join('')}
       </dl>
       <p class="help-actions">
         <a class="btn btn--ghost btn--sm" href="#/settings/general">${escapeHtml(t('help.cases.tryExample'))}</a>
-        <a class="btn btn--ghost btn--sm" href="${escapeHtml(docUrl('useCases'))}" target="_blank" rel="noopener">${escapeHtml(t('help.docs.useCases'))}</a>
+        <a class="btn btn--ghost btn--sm" href="${escapeHtml(docUrl('useCases'))}">${escapeHtml(t('help.docs.useCases'))}</a>
       </p>
     </section>
 

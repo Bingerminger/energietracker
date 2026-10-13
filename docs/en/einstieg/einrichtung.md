@@ -122,6 +122,7 @@ with “There is no sample household “…”.”
 
 ---
 
+<a id="case-levels"></a>
 ## 3. Experience levels
 
 Three levels: **🌱 Beginner**, **🌿 Experienced** and **🌳 Expert**. They decide
@@ -210,9 +211,9 @@ Four pictures, each answering one question — with your figures:
 | Explainer | What it shows | Appears when … |
 |---|---|---|
 | **“Where does my money go?”** | advance payments against cost up to the bill, the cost split into consumption, standing charge and “still estimated”; the result as a credit or an additional payment | there is a running contract with advance payments (not for the feed-in) |
-| **“Energy flow in the house”** | solar, house, grid and battery over one year: produced, used in the house, fed in, drawn from the grid, self-sufficiency | PV generation is recorded; the battery shows with battery meters |
+| **“Energy flow in the house”** | solar, grid, battery, house and the consumers heat pump, wallbox and other for a year or a month: produced, fed in, drawn, charged and discharged, self-sufficiency; buttons highlight the flows of a node (since v3.4.0) | PV generation is recorded; battery and consumers show with the meters of those roles |
 | **“Colder, or used more?”** | consumption and heating degree days against the same months a year earlier, plus the weather-adjusted result: “you really used less”, “you really used more — not just the weather” or “about the same — the difference is the weather” (threshold ±2 %) | a heating energy (gas, district heating, heating oil, wood pellets, heat) has weather-adjusted months — only whole months with an adjusted value from the last twelve count, at least six with a previous year |
-| **“Contract at a glance”** | start, today, “Cancel by”, price increase and end on a timeline | there is a running contract |
+| **“Contract at a glance”** | start, today, “Cancel by” or “cancel any time”, end or earliest end, minimum term, price guarantee, price increase and next contract on a timeline around today | there is a running contract |
 
 **Where they appear:**
 

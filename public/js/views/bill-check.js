@@ -13,19 +13,67 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { activeUtilities } from '../state.js';
-import { fmt, escapeHtml, parseDecimal, formatForInput } from '../lib/format.js';
+import { activeUtilities, getSettings } from '../state.js';
+import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso } from '../lib/format.js';
 import { toastErr, toastOk } from '../components/toast.js';
 import { confirmModal } from '../components/modal.js';
 import { t, tp, getCurrencyMinor } from '../lib/i18n.js';
 import { info } from '../components/info.js';
+import { lastClosedPeriod, exclusiveEnd, addDays } from '../lib/billing-period.js';
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * v3.4.0 (N1021) — Zeitraum aus der Adresse: `from` + `until` (einschließlich),
+ * ältere Verweise mit `to` (ausschließlich, bis v3.3) gelten weiter.
+ * @returns {{from: string, until: string}|null}
+ */
+export function periodFromQuery(query) {
+  const from = query.get('from') || '';
+  if (!ISO.test(from)) return null;
+  const until = query.get('until') || '';
+  if (ISO.test(until)) return { from, until };
+  const to = query.get('to') || '';
+  return ISO.test(to) ? { from, until: addDays(to, -1) } : null;
+}
+
+/**
+ * v3.4.0 (N1021) — Die Seite rechnet immer gleich: mit dem Zeitraum aus der
+ * Adresse, sonst der letzten abgeschlossenen Abrechnungsperiode der Art
+ * (Stichtag `billing_cycle_anchor_<art>`). Bis v3.3 rechnete sie nur mit
+ * Zeitraum in der Adresse — über „Kosten → Rechnung prüfen“ blieb das
+ * Ergebnis leer, und die Verbrauchsliste schien zu fehlen. Ein Wechsel von Art
+ * oder Zähler behält den Zeitraum und rechnet neu; die Auswahl steht per
+ * replaceState in der Adresse.
+ */
 export async function render(container, _params = [], ctx = {}) {
   const query = ctx.query || new URLSearchParams();
-  const utils = (await activeUtilities().catch(() => [])).filter(u => u.supports_bill_check);
-  const u = utils.find(x => x.key === query.get('utility')) || utils.find(x => x.key === 'gas') || utils[0];
+  const [all, settings] = await Promise.all([
+    activeUtilities().catch(() => []),
+    getSettings().catch(() => ({})),
+  ]);
+  const sel = {
+    utils: all.filter(u => u.supports_bill_check),
+    settings: settings || {},
+    utility: query.get('utility'),
+    meter: query.get('meter'),
+    period: periodFromQuery(query),
+  };
+  await draw(container, sel);
+}
+
+/** Auswahl in die Adresse — teilbar, übersteht Neuladen, ohne neuen Verlaufseintrag. */
+function syncAddress(u, meter, period) {
+  const q = new URLSearchParams({ utility: u.key, meter: meter.id, from: period.from, until: period.until });
+  const hash = `#/bill-check?${q}`;
+  if (window.location.hash !== hash) {
+    try { history.replaceState(history.state, '', hash); } catch { /* egal */ }
+  }
+}
+
+async function draw(container, sel) {
+  const { utils } = sel;
+  const u = utils.find(x => x.key === sel.utility) || utils.find(x => x.key === 'gas') || utils[0];
   // v3.1.0 (H5) — Untertitel je Art: Gas mit Zustandszahl und Brennwert, sonst Arbeits- und Grundpreis
   const header = `
     <div class="view-header">
@@ -44,11 +92,8 @@ export async function render(container, _params = [], ctx = {}) {
     return;
   }
 
-  const wanted = query.get('meter');
-  let current = meters.find(m => m.id === wanted) || meters[0];
-  const year = new Date().getFullYear() - 1;
-  const from = ISO.test(query.get('from') || '') ? query.get('from') : `${year}-01-01`;
-  const to   = ISO.test(query.get('to') || '')   ? query.get('to')   : `${year + 1}-01-01`;
+  let current = meters.find(m => m.id === sel.meter) || meters[0];
+  const period = sel.period || lastClosedPeriod(sel.settings[`billing_cycle_anchor_${u.key}`], todayIso());
 
   container.innerHTML = `${header}
     <div class="card" data-utility="${escapeHtml(u.key)}">
@@ -68,41 +113,54 @@ export async function render(container, _params = [], ctx = {}) {
           </select>
         </div>` : ''}
       </div>
-      ${billCheckForm(from, to)}
+      ${billCheckForm(period.from, period.until)}
+      ${sel.period ? '' : `<p class="muted small" data-role="period-hint">${escapeHtml(t('billCheck.periodDefault'))}</p>`}
+      <div id="bc-result"></div>
     </div>
-    <div class="card" data-role="bills"></div>`;
+    <details class="card bill-capture" data-role="bills"><summary class="card__title">${escapeHtml(t('billCheck.invoice.capture'))}</summary></details>`;
 
-  container.querySelector('#bc-utility')?.addEventListener('change', (e) => {
-    location.hash = `#/bill-check?utility=${encodeURIComponent(e.target.value)}`;
+  const readPeriod = () => ({
+    from: container.querySelector('#bc-from')?.value || '',
+    until: container.querySelector('#bc-until')?.value || '',
+  });
+  container.querySelector('#bc-utility')?.addEventListener('change', async (e) => {
+    // Zeitraum behalten, Zähler der neuen Art; dann neu rechnen
+    const p = readPeriod();
+    await draw(container, { ...sel, utility: e.target.value, meter: null,
+      period: ISO.test(p.from) && ISO.test(p.until) ? p : sel.period });
+    container.querySelector('#bc-utility')?.focus();
   });
   container.querySelector('#bc-meter')?.addEventListener('change', (e) => {
     current = meters.find(m => m.id === e.target.value) || current;
-    container.querySelector('#bc-result').innerHTML = '';
-    drawBills(container, u, current);
+    container.querySelector('#bc-run')?.click();
+    drawBills(container, u, current, readPeriod);
   });
-  wireBillCheck(container, u, () => current);
-  drawBills(container, u, current);
-  // Mit Zeitraum in der Adresse gleich rechnen (Verweis von der Gas-Seite)
-  if (query.get('from') && query.get('to')) container.querySelector('#bc-run')?.click();
+  wireBillCheck(container, u, () => current, (p) => { syncAddress(u, current, p); showBillPeriod(container); });
+  ['#bc-from', '#bc-until'].forEach(s => container.querySelector(s)?.addEventListener('change', () => showBillPeriod(container)));
+  drawBills(container, u, current, readPeriod);
+  container.querySelector('#bc-run')?.click();
 }
 
-/** Eingaben „von – bis" und Ergebnisbereich. */
-export function billCheckForm(from, to) {
+/**
+ * Eingaben „Von – Bis einschließlich“ und der Knopf. Seit v3.4.0 (N1021)
+ * einschließlich wie auf der Rechnung und wie beim Erfassen; bis v3.3 hieß es
+ * hier „Bis (ausschließlich)“ mit dem 01.01. des Folgejahres.
+ */
+export function billCheckForm(from, until) {
   return `
-      <div class="form-row" style="align-items:flex-end; margin-bottom:10px">
-        <div class="field">
+      <div class="fgrid">
+        <div class="field field--s">
           <label for="bc-from">${t('utility.billCheck.from')}</label>
           <input class="input" id="bc-from" type="date" value="${escapeHtml(from)}">
         </div>
-        <div class="field">
-          <label for="bc-to">${t('utility.billCheck.to')}</label>
-          <input class="input" id="bc-to" type="date" value="${escapeHtml(to)}">
+        <div class="field field--s">
+          <label for="bc-until">${t('billCheck.invoice.toInclusive')}</label>
+          <input class="input" id="bc-until" type="date" value="${escapeHtml(until)}">
         </div>
-        <div class="field">
+        <div class="field field--s">
           <button type="button" class="btn btn--util" id="bc-run">${t('utility.billCheck.run')}</button>
         </div>
-      </div>
-      <div id="bc-result"></div>`;
+      </div>`;
 }
 
 function reasonLabel(reason) {
@@ -202,20 +260,23 @@ export function renderBillCheck(bill, u = { key: 'gas' }) {
  * @param {HTMLElement} container
  * @param {{key: string}} u
  * @param {() => {id: string}} getMeter  der gerade gewählte Zähler
+ * @param {(p: {from: string, until: string}) => void} [onRun]  Zeitraum gerechnet (Adresse)
  */
-export function wireBillCheck(container, u, getMeter) {
+export function wireBillCheck(container, u, getMeter, onRun = () => {}) {
   const btn = container.querySelector('#bc-run');
   const out = container.querySelector('#bc-result');
   if (!btn || !out) return;
   let seq = 0;
   btn.addEventListener('click', async () => {
-    const from = container.querySelector('#bc-from')?.value;
-    const to   = container.querySelector('#bc-to')?.value;
-    if (!from || !to || from >= to) { toastErr(t('utility.billCheck.errRange')); return; }
+    const from  = container.querySelector('#bc-from')?.value;
+    const until = container.querySelector('#bc-until')?.value;
+    if (!ISO.test(from || '') || !ISO.test(until || '') || from > until) { toastErr(t('utility.billCheck.errRange')); return; }
+    onRun({ from, until });
     const my = ++seq;   // nur die letzte Rechnung zeigt ihr Ergebnis
     out.innerHTML = `<div class="loading">${t('common.loading')}</div>`;
     try {
-      const bill = await api.billCheck(u.key, getMeter().id, from, to);
+      // Die Schnittstelle nimmt `to` ausschließlich
+      const bill = await api.billCheck(u.key, getMeter().id, from, exclusiveEnd(until));
       if (my === seq) out.innerHTML = renderBillCheck(bill, u);
     } catch (e) {
       if (my !== seq) return;
@@ -227,40 +288,43 @@ export function wireBillCheck(container, u, getMeter) {
 
 // ── v3.1.0 (H5, UI-35) — „Laut Rechnung": Werte des Versorgers ───────
 
-async function drawBills(container, u, meter) {
+// v3.4.0 (N1021) — „Rechnung des Versorgers erfassen (optional)“: eingeklappt
+// unter dem Ergebnis, mit der Liste der erfassten Rechnungen. Der Zeitraum ist
+// der eine oben (bis einschließlich); bis v3.3 hatte das Formular einen
+// eigenen, und es stand gleich unter der Auswahl — die Seite las sich wie
+// „Rechnung erfassen“. Bearbeiten setzt den Zeitraum oben auf den der Rechnung.
+async function drawBills(container, u, meter, readPeriod) {
   const el = container.querySelector('[data-role="bills"]');
   if (!el) return;
   const water = u.key === 'wasser';
   const bills = await api.bills(u.key, meter.id).catch(() => []);
-  const year = new Date().getFullYear() - 1;
   el.innerHTML = `
-    <h2 class="card__title">${t('billCheck.invoice.title')}${info('utilityStatement')}</h2>
+    <summary class="card__title">${escapeHtml(t('billCheck.invoice.capture'))}${bills.length ? ` <span class="muted small" data-role="bill-count">· ${escapeHtml(tp('billCheck.invoice.captured', bills.length))}</span>` : ''}</summary>
+    <h2 class="settings-subhead">${t('billCheck.invoice.title')}${info('utilityStatement')}</h2>
     <p class="muted">${t('billCheck.invoice.hint')}</p>
     <form id="bi-form" class="bill-form">
-      <div class="form-row">
-        <div class="field"><label for="bi-from">${t('utility.billCheck.from')}</label><input class="input" id="bi-from" name="period_from" type="date" value="${year}-01-01"></div>
-        <div class="field"><label for="bi-to">${t('billCheck.invoice.toInclusive')}</label><input class="input" id="bi-to" name="period_to" type="date" value="${year}-12-31"></div>
-        <div class="field"><label for="bi-issued">${t('billCheck.invoice.issued')}</label><input class="input" id="bi-issued" name="issued_on" type="date"></div>
+      <p class="muted small" data-role="bill-period"></p>
+      <!-- v3.4.0 (N1021) — Formularraster wie in den Dialogen -->
+      <div class="fgrid">
+        <div class="field field--s"><label for="bi-issued">${t('billCheck.invoice.issued')}</label><input class="input" id="bi-issued" name="issued_on" type="date"></div>
+        <div class="field field--s"><label for="bi-qty">${water ? t('billCheck.invoice.m3') : t('billCheck.invoice.kwh')}</label><input class="input" id="bi-qty" name="qty" type="text" inputmode="decimal"></div>
+        <div class="field field--s"><label for="bi-amount">${t('billCheck.invoice.amount')}</label><input class="input" id="bi-amount" name="amount" type="text" inputmode="decimal"></div>
+        <div class="field field--s"><label for="bi-adv">${t('billCheck.invoice.advances')}</label><input class="input" id="bi-adv" name="advances" type="text" inputmode="decimal"></div>
+        <div class="field field--s"><label for="bi-res">${t('billCheck.invoice.result')}</label><input class="input" id="bi-res" name="result" type="text" inputmode="decimal" placeholder="${escapeHtml(t('billCheck.invoice.resultHint'))}"></div>
+        ${u.key === 'gas' ? `
+        <div class="field field--s"><label for="bi-co2kg">${t('co2split.statement.emissions')}</label><input class="input" id="bi-co2kg" name="co2_kg" type="text" inputmode="decimal"></div>
+        <div class="field field--s"><label for="bi-co2eur">${t('billCheck.invoice.co2Cost')}</label><input class="input" id="bi-co2eur" name="co2_eur" type="text" inputmode="decimal"></div>` : ''}
       </div>
-      <div class="form-row">
-        <div class="field"><label for="bi-qty">${water ? t('billCheck.invoice.m3') : t('billCheck.invoice.kwh')}</label><input class="input" id="bi-qty" name="qty" type="text" inputmode="decimal"></div>
-        <div class="field"><label for="bi-amount">${t('billCheck.invoice.amount')}</label><input class="input" id="bi-amount" name="amount" type="text" inputmode="decimal"></div>
-        <div class="field"><label for="bi-adv">${t('billCheck.invoice.advances')}</label><input class="input" id="bi-adv" name="advances" type="text" inputmode="decimal"></div>
-        <div class="field"><label for="bi-res">${t('billCheck.invoice.result')}</label><input class="input" id="bi-res" name="result" type="text" inputmode="decimal" placeholder="${escapeHtml(t('billCheck.invoice.resultHint'))}"></div>
-      </div>
-      <fieldset class="field"><legend>${t('billCheck.invoice.items')}</legend>
-        <div data-items></div>
-        <button type="button" class="btn btn--ghost btn--sm" data-add-item>${t('billCheck.invoice.addItem')}</button>
+      <fieldset class="fgroup"><legend>${t('billCheck.invoice.items')}</legend>
+        <button type="button" class="btn btn--ghost btn--sm fgroup__add" data-add-item>${t('billCheck.invoice.addItem')}</button>
+        <div class="rowlist rowlist--label" data-items></div>
       </fieldset>
-      ${u.key === 'gas' ? `
-      <div class="form-row">
-        <div class="field"><label for="bi-co2kg">${t('co2split.statement.emissions')}</label><input class="input" id="bi-co2kg" name="co2_kg" type="text" inputmode="decimal"></div>
-        <div class="field"><label for="bi-co2eur">${t('billCheck.invoice.co2Cost')}</label><input class="input" id="bi-co2eur" name="co2_eur" type="text" inputmode="decimal"></div>
-      </div>` : ''}
-      <div class="field">
-        <label class="btn btn--ghost btn--sm"><span aria-hidden="true">📄</span> ${t('billCheck.invoice.attach')}
-          <input type="file" accept="application/pdf,image/*" data-role="bill-pdf" class="sr-only"></label>
-        <span class="muted small" data-role="bill-pdf-n"></span>
+      <div class="fgrid">
+        <div class="field field--full">
+          <label class="btn btn--ghost btn--sm"><span aria-hidden="true">📄</span> ${t('billCheck.invoice.attach')}
+            <input type="file" accept="application/pdf,image/*" data-role="bill-pdf" class="sr-only"></label>
+          <span class="muted small" data-role="bill-pdf-n"></span>
+        </div>
       </div>
       <p class="muted small" data-role="bill-editing" hidden></p>
       <div class="form-actions">
@@ -273,10 +337,11 @@ async function drawBills(container, u, meter) {
 
   let attachments = [];
   let editing = null;   // v3.2.0 — Rechnung, die gerade bearbeitet wird
-  const itemRow = (it = {}) => `<div class="form-row bill-item">
+  // v3.4.0 (N1021) — Bezeichnung | Betrag | ✕ im Zeilenraster
+  const itemRow = (it = {}) => `<div class="rowlist__row bill-item">
       <div class="field"><label>${t('billCheck.invoice.itemLabel')}</label><input class="input input--text" data-i="label" type="text" maxlength="120" value="${escapeHtml(it.label ?? '')}"></div>
       <div class="field"><label>${t('billCheck.invoice.itemAmount')}</label><input class="input" data-i="amount_eur" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(it.amount_eur))}"></div>
-      <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn btn--ghost btn--sm" data-del-item aria-label="${escapeHtml(t('tenancy.form.removeRow'))}">✕</button></div>
+      <button type="button" class="btn btn--danger btn--icon rowlist__del" data-del-item title="${escapeHtml(t('tenancy.form.removeRow'))}" aria-label="${escapeHtml(t('tenancy.form.removeRow'))}"><span aria-hidden="true">×</span></button>
     </div>`;
   el.querySelector('[data-add-item]').addEventListener('click', () => el.querySelector('[data-items]').insertAdjacentHTML('beforeend', itemRow()));
   el.addEventListener('click', (e) => { const d = e.target.closest('[data-del-item]'); if (d) d.closest('.bill-item')?.remove(); });
@@ -300,7 +365,7 @@ async function drawBills(container, u, meter) {
       invoice[water ? 'volume_m3' : 'energy_kwh'] = n(f.qty.value);
       Object.keys(invoice).forEach(k => invoice[k] == null && delete invoice[k]);
       data = {
-        meter_id: meter.id, period_from: f.period_from.value, period_to: f.period_to.value, issued_on: f.issued_on.value || null,
+        meter_id: meter.id, period_from: readPeriod().from, period_to: readPeriod().until, issued_on: f.issued_on.value || null,
         invoice,
         items: [...el.querySelectorAll('.bill-item')].map(r => ({ label: r.querySelector('[data-i="label"]').value, amount_eur: n(r.querySelector('[data-i="amount_eur"]').value) ?? 0 })),
         co2: f.co2_kg ? { emissions_kg: n(f.co2_kg.value), cost_eur: n(f.co2_eur.value) } : null,
@@ -310,7 +375,7 @@ async function drawBills(container, u, meter) {
     try {
       const b = editing ? await api.updateBill(u.key, editing.id, data) : await api.createBill(u.key, data);
       toastOk(t(editing ? 'billCheck.updated' : 'billCheck.saved'));
-      await drawBills(container, u, meter);
+      await drawBills(container, u, meter, readPeriod);
       showCompare(container, u, b.id);
     } catch (err) { toastErr(err.message); }
   });
@@ -319,8 +384,14 @@ async function drawBills(container, u, meter) {
     const f = el.querySelector('#bi-form');
     const v = (x) => formatForInput(x);
     editing = b;
-    f.period_from.value = b.period_from || '';
-    f.period_to.value = b.period_to || '';
+    // v3.4.0 (N1021) — ein Zeitraum für Prüfen und Erfassen: oben setzen und nachrechnen
+    const fromEl = container.querySelector('#bc-from'), untilEl = container.querySelector('#bc-until');
+    if (fromEl && untilEl && b.period_from && b.period_to) {
+      fromEl.value = b.period_from;
+      untilEl.value = b.period_to;
+      container.querySelector('#bc-run')?.click();
+      showBillPeriod(container);
+    }
     f.issued_on.value = b.issued_on || '';
     f.qty.value = v(water ? b.invoice?.volume_m3 : b.invoice?.energy_kwh);
     f.amount.value = v(b.invoice?.amount_eur);
@@ -338,7 +409,7 @@ async function drawBills(container, u, meter) {
     el.querySelector('#bi-cancel').hidden = false;
     f.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
   };
-  el.querySelector('#bi-cancel').addEventListener('click', () => drawBills(container, u, meter));
+  el.querySelector('#bi-cancel').addEventListener('click', () => drawBills(container, u, meter, readPeriod));
   el.querySelector('[data-role="bill-list"]').addEventListener('click', async (e) => {
     const chk = e.target.closest('[data-bill-check]');
     const book = e.target.closest('[data-bill-book]');
@@ -347,16 +418,25 @@ async function drawBills(container, u, meter) {
     if (edit) { const b = bills.find(x => x.id === edit.dataset.billEdit); if (b) startEdit(b); }
     if (chk) showCompare(container, u, chk.dataset.billCheck);
     if (book) {
-      try { await api.bookBill(u.key, book.dataset.billBook); toastOk(t('billCheck.booked')); drawBills(container, u, meter); }
+      try { await api.bookBill(u.key, book.dataset.billBook); toastOk(t('billCheck.booked')); drawBills(container, u, meter, readPeriod); }
       catch (err) { toastErr(err.message); }
     }
     if (del) {
       const ok = await confirmModal({ message: t('billCheck.confirmDelete'), confirmLabel: t('utility.readingsTable.delete'), danger: true });
       if (!ok) return;
-      try { await api.deleteBill(u.key, del.dataset.billDel); drawBills(container, u, meter); }
+      try { await api.deleteBill(u.key, del.dataset.billDel); drawBills(container, u, meter, readPeriod); }
       catch (err) { toastErr(err.message); }
     }
   });
+  showBillPeriod(container);
+}
+
+/** v3.4.0 (N1021) — die Erfassung übernimmt den Zeitraum oben; der Satz nennt ihn. */
+function showBillPeriod(container) {
+  const el = container.querySelector('[data-role="bill-period"]');
+  const from = container.querySelector('#bc-from')?.value;
+  const until = container.querySelector('#bc-until')?.value;
+  if (el) el.textContent = t('billCheck.invoice.period', { from: fmt.date(from), to: fmt.date(until) });
 }
 
 function billList(bills, water) {

@@ -66,7 +66,11 @@ Beispiele aus der Historie:
    wurden.)*
 2. **`VERSION`** aktualisieren (einzige Quelle der Versionsnummer).
 3. **`CHANGELOG.md`**: neuer Abschnitt nach „Keep a Changelog"
-   (`Added` / `Changed` / `Fixed` / `Migration` / `Hinweise`).
+   (`Added` / `Changed` / `Fixed` / `Migration` / `Hinweise`). Seit v3.4.0
+   dazu derselbe Abschnitt auf Englisch in **`CHANGELOG.en.md`**; die
+   Release-Notes auf GitHub sind zweisprachig (Englisch zuerst, dann
+   Deutsch), `ReleaseConsistencyTest` prüft, dass beide Dateien ab 3.4.0
+   dieselben Versionen führen.
 4. **Versionsstempel** synchron ziehen: `README.md` (Badge + Status),
    `INSTALL.md`-Verweis, Kompendium-Header (`docs/README.md` und die
    betroffenen Kapitel).
@@ -812,6 +816,27 @@ abgenommen ist.
   geschrieben und als Ganzzahl zurückgelesen; ein strenger Vergleich in einem
   Test fiel darauf herein. `IntervalService::values()` liefert deshalb immer
   Kommazahlen.
+- **Parallel bauen heißt sorgfältig zusammenführen (v3.4.0).** Sechs Pakete
+  entstanden in getrennten Arbeitskopien. Beim Zusammenführen blieben einmal
+  Konfliktmarker in der CI-Datei stehen, weil nur das Ende der Merge-Ausgabe
+  gelesen wurde. Seitdem: nach jedem Zusammenführen das ganze Repo nach
+  Markern durchsuchen und die Liste der offenen Dateien (`git diff
+  --diff-filter=U`) prüfen; Übersetzungen nicht textuell mergen, sondern die
+  Schlüsseldatei des Pakets neu einspielen.
+- **Eine Formel an zwei Stellen braucht eine gemeinsame Probe (v3.4.0).** Die
+  Autarkie rechnen Server und Schaubild; beide prüft dieselbe Datei
+  `tests/fixtures/energy-flows.json`.
+- **Ein Stichtag „heute“ ist kein Stichtag (v3.4.0).** Weiterlaufende Verträge
+  meldeten jeden Tag eine neue Kündigungsfrist; Kalender und Home Assistant
+  zeigten sie als Termin. Eine Erinnerung braucht ein festes Datum oder gar
+  keins.
+- **Ausblenden muss überall wirken (v3.4.0).** `.form-grid label
+  {display:flex}` übersteuerte das `hidden`-Attribut; Felder des dynamischen
+  Tarifs standen sichtbar daneben. Eine globale `[hidden]`-Regel ersetzt
+  sieben Einzelflicken.
+- **Vertrauen in Kopfzeilen braucht einen Filter davor (v3.4.0).** Eine
+  Benutzer-Kopfzeile ist nur so vertrauenswürdig wie der Dienst, der sie setzt
+  und gleichnamige vom Client entfernt.
 
 ---
 

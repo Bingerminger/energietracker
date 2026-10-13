@@ -17,6 +17,8 @@ final class CalendarService
 {
     /** Arten mit Vorab-Erinnerung (VALARM) im Kalender. */
     private const ALARM_KINDS = ['reminder', 'cancel_by', 'term_end', 'price_guarantee_end', 'price_increase'];
+    /** v3.4.0 (F1024) — Vorsatz für erledigte Ereignisse. */
+    public const DONE_MARK = '✓ ';
 
     public function __construct(
         private AgendaService $agenda,
@@ -45,15 +47,18 @@ final class CalendarService
         foreach ($events as $e) {
             $date = str_replace('-', '', (string)$e['date']);
             $next = date('Ymd', (int)strtotime($e['date'] . ' +1 day'));
+            // v3.4.0 (F1024) — Erledigtes bleibt im Kalender (gleiche UID), mit
+            // Haken vor dem Titel und ohne Vorab-Erinnerung
+            $done = !empty($e['done']);
             $lines[] = 'BEGIN:VEVENT';
             $lines[] = 'UID:' . self::text($e['uid'] . '@' . $instance);
             $lines[] = 'DTSTAMP:' . $stamp;
             $lines[] = 'DTSTART;VALUE=DATE:' . $date;
             $lines[] = 'DTEND;VALUE=DATE:' . $next;
-            $lines[] = 'SUMMARY:' . self::text((string)$e['title']);
+            $lines[] = 'SUMMARY:' . self::text(($done ? self::DONE_MARK : '') . (string)$e['title']);
             $lines[] = 'CATEGORIES:' . strtoupper((string)$e['kind']);
             $lines[] = 'TRANSP:TRANSPARENT';
-            if ($warn > 0 && in_array($e['kind'], self::ALARM_KINDS, true)) {
+            if ($warn > 0 && !$done && in_array($e['kind'], self::ALARM_KINDS, true)) {
                 $lines[] = 'BEGIN:VALARM';
                 $lines[] = 'ACTION:DISPLAY';
                 $lines[] = 'DESCRIPTION:' . self::text((string)$e['title']);

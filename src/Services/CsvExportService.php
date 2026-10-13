@@ -118,12 +118,12 @@ final class CsvExportService
             foreach ($this->readings->list($utility) as $r) {
                 $rows[] = [
                     $r['meter_id'] ?? '',
-                    $this->text($meterNames[$r['meter_id'] ?? ''] ?? ''),
+                    ($meterNames[$r['meter_id'] ?? ''] ?? ''),
                     $r['device_id'] ?? '',
                     $this->date($r['date'] ?? ''),
                     $this->num($r['counter'] ?? null),
                     $this->num($r['price_cents'] ?? null),
-                    $this->text((string)($r['note'] ?? '')),
+                    ((string)($r['note'] ?? '')),
                     $this->bool(!empty($r['is_estimated'])),
                     $this->bool(!empty($r['is_future'])),
                 ];
@@ -167,13 +167,13 @@ final class CsvExportService
                     : ($qty !== null && $upc !== null ? $qty * $upc / 100.0 : null);
                 $rows[] = [
                     $d['meter_id'] ?? '',
-                    $this->text($meterNames[$d['meter_id'] ?? ''] ?? ''),
+                    ($meterNames[$d['meter_id'] ?? ''] ?? ''),
                     $this->date($d['date'] ?? ''),
                     $this->num($qty),
                     $this->num($upc),
                     $this->num($tot),
-                    $this->text((string)($d['supplier'] ?? '')),
-                    $this->text((string)($d['note'] ?? '')),
+                    ((string)($d['supplier'] ?? '')),
+                    ((string)($d['note'] ?? '')),
                     $this->bool(!empty($d['is_planned'])),
                 ];
             }
@@ -205,9 +205,9 @@ final class CsvExportService
                     $this->date((string)($p['from'] ?? '')),
                     $this->date((string)($p['to'] ?? '')),
                     $this->num($p['value'] ?? null),
-                    $this->text((string)($p['note'] ?? '')),
+                    ((string)($p['note'] ?? '')),
                     $p['meter_id'] ?? '',
-                    $this->text((string)($meterNames[$p['meter_id'] ?? ''] ?? '')),
+                    ((string)($meterNames[$p['meter_id'] ?? ''] ?? '')),
                     ($p['value_unit'] ?? 'consumption') === 'meter' ? $u['unit'] : $u['consumption_unit'],
                     $this->bool(!empty($p['is_estimated'])),
                     (string)($p['source'] ?? 'manual'),
@@ -344,17 +344,22 @@ final class CsvExportService
      * v2.6.0 — Freitext (Namen, Notizen, Lieferant) gegen Formel-Injection:
      * Excel und LibreOffice werten auch gequotete Zellen mit führendem
      * = + - @ als Formel aus; eine präparierte Notiz wurde so zum Link.
-     * Das vorangestellte Apostroph zeigt die Tabelle nicht an. Zahlen laufen
-     * über num() und bleiben unberührt (auch negative).
+     * Das vorangestellte Apostroph zeigt die Tabelle nicht an.
+     *
+     * v3.4.0 (N1020) — zentral in cell() für jede Zelle, die keine Zahl ist:
+     * Bis v3.3 lief nur Freitext hindurch, Zähler- und Geräte-IDs gingen roh
+     * hinaus (Geräte-IDs wählt der Client). Zahlen aus num() — auch negative,
+     * mit Punkt oder Komma — bleiben unberührt.
      */
-    private function text(string $s): string
+    private static function guardFormula(string $s): string
     {
-        return preg_match('/^[=+\-@\t\r]/', $s) ? "'" . $s : $s;
+        if (!preg_match('/^[=+\-@\t\r]/', $s) || preg_match('/^-?\d+([.,]\d+)?$/', $s)) return $s;
+        return "'" . $s;
     }
 
     private function cell(string|int|float|null $value): string
     {
-        $s = $value === null ? '' : (string)$value;
+        $s = $value === null ? '' : (is_string($value) ? self::guardFormula($value) : (string)$value);
         if (str_contains($s, $this->d['sep']) || preg_match('/["\r\n]/', $s)) {
             $s = '"' . str_replace('"', '""', $s) . '"';
         }

@@ -18,7 +18,7 @@ Sicherheitslücken bitte **nicht** als Issue, sondern wie in
 
 ## Einrichten
 
-PHP ab 8.2 genügt zum Laufen (die CI prüft 8.2, 8.3 und 8.4), ohne Composer,
+PHP ab 8.2 genügt zum Laufen (die CI prüft 8.2 bis 8.5), ohne Composer,
 ohne Build-Schritt:
 
 ```bash

@@ -112,9 +112,12 @@ einmal ([Strom](../verstehen/02-strom.md#hoch--und-niedertarif-ein-vertrag-für-
 **Kosten & Verträge → Rechnung prüfen** (oder auf der Seite der Verbrauchsart
 „Rechnung … prüfen“). Seit v3.1.0 gibt es die Prüfung für **Gas, Strom, Wasser
 und Fernwärme** — oben wählst du die Verbrauchsart, daneben den Zähler, wenn es
-mehrere gibt. Dann **Von** 01.01.2025 und **Bis (ausschließlich)** 01.01.2026
-und **„Nachrechnen“**. Der Link von der Verbrauchsart setzt Art, Zähler und Jahr
-schon ein.
+mehrere gibt. Seit v3.4.0 rechnet die Seite sofort, auf beiden Wegen, mit der
+letzten abgeschlossenen Abrechnungsperiode: Stichtag unter Einstellungen →
+Verbrauchsarten & Abrechnung, Standard 1. Januar — im Beispiel also **Von**
+01.01.2025 und **Bis einschließlich** 31.12.2025, wie auf der Rechnung. Weicht
+der Zeitraum der Rechnung ab, beide Daten ändern und **„Nachrechnen“**. Ein
+Wechsel von Art oder Zähler behält den Zeitraum und rechnet neu.
 
 Die Tabelle schneidet den Zeitraum in Abschnitte — wie die Zeilen der
 Rechnung:
@@ -188,13 +191,16 @@ Seit v3.1.0 geht das auch mit einem Knopf aus der erfassten Rechnung
 
 Seit **v3.1.0** hält die App die Rechnung des Versorgers selbst fest und
 stellt sie der eigenen Rechnung gegenüber. Auf **Rechnung prüfen** steht unter
-der Tabelle die Karte **„Laut Rechnung“** für den gewählten Zähler.
+der Tabelle für den gewählten Zähler der eingeklappte Abschnitt **„Rechnung des
+Versorgers erfassen (optional)“** mit der Karte **„Laut Rechnung“** und der
+Liste der erfassten Rechnungen. Seit v3.4.0 gilt dort der Zeitraum von oben
+(Schritt 4) — ein Zeitraum für Prüfen und Erfassen.
 
 **Erfassen.** Aus dem Beispiel:
 
 | Feld | Eintrag |
 |---|---|
-| Von / Bis einschließlich | 01.01.2025 / 31.12.2025 — hier zählt der letzte Tag mit, wie auf der Rechnung |
+| Zeitraum | oben unter „Von“ / „Bis einschließlich“: 01.01.2025 / 31.12.2025 — der letzte Tag zählt mit, wie auf der Rechnung |
 | Rechnungsdatum | das Datum der Rechnung, etwa 10.02.2026 |
 | Verbrauch laut Rechnung (kWh) | 16.437 — bei Wasser in m³ |
 | Rechnungsbetrag (brutto) | 1.655,00 |

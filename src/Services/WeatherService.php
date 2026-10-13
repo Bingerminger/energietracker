@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Energietracker\Services;
 
+use Energietracker\Support\Outbound;
+
 /**
  * Open-Meteo-API-Client. Holt zwei Datenquellen für eine Koordinate:
  *   1. Archive (`archive-api.open-meteo.com`): historische Tageswerte
@@ -163,18 +165,20 @@ final class WeatherService implements WeatherSource
     {
         if (function_exists('curl_init')) {
             $ch = curl_init($url);
+            // v3.4.0 (N1020) — nur HTTPS (auch nach Weiterleitung), höchstens zwei
+            // Weiterleitungen, Antwort höchstens 20 MB (Support\Outbound)
+            $body = '';
             curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => $timeout,
                 CURLOPT_CONNECTTIMEOUT => 10,
-                CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_USERAGENT      => 'Energietracker/1.0 (PHP)',
-            ]);
-            $body  = curl_exec($ch);
+            ] + Outbound::curlOptions(true, true, $body));
+            curl_exec($ch);
             $errno = curl_errno($ch);
             $cerr  = curl_error($ch);
             $code  = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
             if ($errno) {
+                if (Outbound::tooLarge($errno)) $cerr = 'response larger than ' . Outbound::MAX_BYTES . ' bytes';
                 return ['ok' => false, 'body' => null, 'http_code' => null,
                         'error' => "cURL #$errno: " . ($cerr ?: 'unknown'), 'error_code' => 'network',
                         'detail' => $cerr ?: "cURL #$errno"];
@@ -190,11 +194,17 @@ final class WeatherService implements WeatherSource
             return ['ok' => false, 'body' => null, 'http_code' => null,
                     'error' => 'Neither cURL nor allow_url_fopen available', 'error_code' => 'noTransport'];
         }
+        // v3.4.0 (N1020) — ohne curl: keine Weiterleitungen (der Stream-Wrapper
+        // kann das Protokoll danach nicht auf HTTPS beschränken), Größe begrenzt
         $ctx = stream_context_create(['http' => [
-            'timeout' => $timeout, 'ignore_errors' => true,
+            'timeout' => $timeout, 'ignore_errors' => true, 'follow_location' => 0,
             'user_agent' => 'Energietracker/1.0 (PHP)',
         ]]);
-        $r = @file_get_contents($url, false, $ctx);
+        $r = @file_get_contents($url, false, $ctx, 0, Outbound::MAX_BYTES + 1);
+        if (is_string($r) && strlen($r) > Outbound::MAX_BYTES) {
+            return ['ok' => false, 'body' => null, 'http_code' => null, 'error' => 'response too large',
+                    'error_code' => 'network', 'detail' => 'response larger than ' . Outbound::MAX_BYTES . ' bytes'];
+        }
         if ($r === false) {
             $err = error_get_last();
             return ['ok' => false, 'body' => null, 'http_code' => null,

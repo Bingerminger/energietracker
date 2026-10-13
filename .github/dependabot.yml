@@ -11,3 +11,10 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+  # v3.4.0 (N1020) — Actions sind per Commit-SHA gepinnt (Kommentar = Version);
+  # Dependabot hebt SHA und Kommentar gemeinsam. Dazu PHPUnit (composer, nur
+  # für die Tests — die Laufzeit hat keine Abhängigkeiten).
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "monthly"

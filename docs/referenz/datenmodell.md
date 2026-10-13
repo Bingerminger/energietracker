@@ -26,7 +26,9 @@ Schreibvorgänge sind durch `LOCK_EX` serialisiert. Schema-Stand: **1.8.0**
 > v3.2.0 **ohne** Schema-Schritt: `ev_sessions.json` (Ladevorgänge aus evcc)
 > entsteht beim ersten Import, Personen stehen in `auth.json` ·
 > **1.8.0** Index `intervals.json` für Werte je Viertelstunde leer angelegt;
-> die Reihen unter `intervals/` entstehen mit dem ersten Import (v3.3.0).
+> die Reihen unter `intervals/` entstehen mit dem ersten Import (v3.3.0) ·
+> v3.4.0 **ohne** Schema-Schritt: `activity.json` (Verlauf erledigter
+> Hinweise) entsteht mit dem ersten Eintrag.
 
 ---
 
@@ -50,6 +52,7 @@ data/
 ├── ev_sessions.json          # Ladevorgänge aus evcc (v3.2.0) — entsteht beim ersten Import
 ├── intervals.json            # Index der Viertelstundenreihen { series, samples } (v3.3.0, Schema 1.8.0)
 ├── intervals/                # Viertelstundenreihen <id>.json, je Zähler bzw. Börsenpreis und Kalenderjahr (v3.3.0)
+├── activity.json             # Verlauf erledigter Hinweise (v3.4.0) — entsteht mit dem ersten Eintrag
 ├── instance.json             # Kennung der Installation (v3.1.0) — nicht im Backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -812,6 +815,53 @@ später, verschieben sich die Plätze um den Unterschied.
   `{"<id>": Reihe}` — immer, auch ohne Belege. Beim Einspielen braucht jede
   Reihe einen Eintrag im Index des Backups; danach fallen Reihen ohne Eintrag
   im neuen Index weg ([API](api.md#snapshots-und-import-v260)).
+
+### Verlauf erledigter Hinweise (`activity.json`) *(v3.4.0)*
+
+Was erledigt wurde, wann und von wem
+([Anleitung](../anleitungen/hinweise-erledigen.md),
+[API](api.md#erledigt-mit-verlauf-v340)). Eine Liste; die Datei entsteht mit
+dem ersten Eintrag, fehlt sie, ist der Verlauf leer. Kein Schema-Schritt.
+
+```json
+{ "id": "act_3f9a1c2e4b5d", "action": "done",
+  "subject": { "kind": "cancel_by", "uid": "cancel_by-c_strom_003",
+               "occurrence": "cancel_by-c_strom_003@2026-12-31" },
+  "ref": { "utility": "strom", "meter_id": "m_strom_main", "contract_id": "c_strom_003", "cancelled": true },
+  "title_key": "calendar.event.cancelBy",
+  "params": { "label": "Strom", "provider": "Stadtwerke Musterstadt" },
+  "title": "Strom: letzter Tag für die Kündigung (Stadtwerke Musterstadt)",
+  "done_on": "2026-10-12", "recorded_at": "2026-10-13T08:15:02+02:00",
+  "by": { "type": "person", "id": "u_3f9a1c2e", "name": "Alex" },
+  "note": "per Einschreiben", "attachment_id": "att_0123456789abcdef",
+  "revert": { "type": "contract_auto_renews", "utility": "strom", "id": "c_strom_003", "before": null, "after": false } }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `id` | `act_` und 12 Hexziffern |
+| `action` | `done` (von Hand abgehakt), `auto_done` (aus den Daten erledigt: lückenloser Folgevertrag, Ablesung, Lieferung, Nebenkostenabrechnung) oder `dismissed` (Empfehlung ausgeblendet) |
+| `subject` | `kind` = Art wie in der Agenda (`reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, `reading_due`, `tenancy_statement_due`) bzw. `contract` (Folgevertrag) oder `recommendation`; `uid` wie in der Agenda; `occurrence` = `uid@anker` — Vertrag: sein Ende bzw. `renewed`/`open`, Tank: letzte Lieferung, Termin: Fälligkeit, Fristen: ihr Datum. Ein Haken gilt nur für dieses Vorkommen |
+| `ref` | Verweise: `utility`, `meter_id` bzw. `meter_group_id`, `contract_id`, `successor_id`, `reminder_id`, `tenancy_id`, `statement_id`, `delivery_id`, `recommendation_id`, `cancelled` (bei der Kündigung `auto_renews` auf `false` gesetzt) |
+| `title_key`, `params` | Katalogschlüssel und Bausteine — der Titel lässt sich in jeder Sprache neu darstellen; Tage stehen als `JJJJ-MM-TT` darin |
+| `title` | Titel als Momentaufnahme in der Sprache beim Erledigen |
+| `done_on` | Tag der Tat, rückdatierbar, nicht in der Zukunft |
+| `recorded_at` | Zeitpunkt des Eintrags (ISO 8601) |
+| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API-Schlüssel), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (von selbst) oder `null` (ohne Anmeldung). Nach „ehemalige Person“: `{type: "person", former: true}` |
+| `reason` | bei `auto_done` und `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed` |
+| `note`, `attachment_id` | Notiz (bis 500 Zeichen, auch leer) und optional ein Beleg ([Belege](#belege-v310), Verweisart `activity`) |
+| `undone` | `{at, by}` nach Rückgängig — der Eintrag bleibt, durchgestrichen |
+| `revert` | was Rückgängig zurückstellt: `reminder` (Fälligkeit, Status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — nur, solange niemand es inzwischen anders geändert hat |
+
+**Aufbewahrung:** `activity_keep_months` (Standard 60, `0` = unbegrenzt);
+aufgeräumt wird beim Schreiben, nach `done_on`.
+
+**Backup:** Topf `activity`. Die Namen stehen darin als **Momentaufnahme** —
+wer ein Backup weitergibt, gibt sie mit; die Personenliste selbst bleibt in
+`auth.json`. Der Import prüft `id`, `action` (eine der drei), `subject`
+(`kind` und `occurrence`) und `done_on` (Kalenderdatum). Ein Backup ohne den
+Topf lässt den Verlauf unverändert. Beispielhaushalte und Demo bringen
+`"activity": []` mit.
 
 ### Personen in `auth.json` *(v3.2.0)*
 

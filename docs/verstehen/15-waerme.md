@@ -101,7 +101,7 @@ gibt es für ihn nicht.
   ihnen nicht. Ohne Netz wandert der Eintrag in die Warteschlange wie ein
   Zählerstand ([Zählerstand-Erfassung](11-zaehlerstaende.md)).
 - **Verbrauchsansicht:** Statt der Ablesungen steht dort die Tabelle
-  **„Zeiträume {Jahr}“** mit „+ Zeitraum“, Bearbeiten und Löschen. Hier lassen
+  **„Zeiträume“** (mit Jahreswahl und „Alle Jahre“) mit „+ Zeitraum“, Bearbeiten und Löschen. Hier lassen
   sich beliebige Zeiträume eintragen (von, bis einschließlich), nicht nur ganze
   Monate.
 - **CSV:** Verbrauch → *Verbrauchsart* → Zähler → **CSV-Import** liest

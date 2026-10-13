@@ -9,12 +9,22 @@ final class Request
     public readonly string $path;
     /** @var array<string,string> */
     public readonly array $query;
-    /** @var mixed json-decoded body */
+    /**
+     * @var mixed json-decoded body
+     *
+     * v3.4.0 (N1020) — `body` und `rawBody` werden erst beim ersten Zugriff
+     * gelesen (__get). Die App prüft vorher Anmeldung und Größe: Ein Gerät
+     * ohne Anmeldung bringt den Server nicht mehr mit großen Körpern an die
+     * Speichergrenze, denn gelesen und dekodiert wurde bis v3.3 vor allem.
+     */
     public readonly mixed $body;
     public readonly string $rawBody;
 
     /** @param array<string,mixed> $params route params (filled by router) */
     public array $params = [];
+
+    /** v3.4.0 (N1020) — Obergrenze des Körpers in Bytes (null = keine eigene). */
+    private ?int $bodyLimit = null;
 
     public function __construct()
     {
@@ -46,7 +56,66 @@ final class Request
         $q = [];
         parse_str(parse_url($uri, PHP_URL_QUERY) ?? '', $q);
         $this->query = $q;
-        $raw = file_get_contents('php://input') ?: '';
+        // v3.4.0 (N1020) — Körper erst bei Bedarf lesen, s. __get()
+        unset($this->body, $this->rawBody);
+    }
+
+    /** Liest den Körper beim ersten Zugriff auf `body` oder `rawBody`. */
+    public function __get(string $name): mixed
+    {
+        if ($name !== 'body' && $name !== 'rawBody') {
+            throw new \Error('Undefined property: ' . self::class . '::$' . $name);
+        }
+        $this->loadBody();
+        return $this->$name;
+    }
+
+    public function __isset(string $name): bool
+    {
+        if ($name !== 'body' && $name !== 'rawBody') return false;
+        $this->loadBody();
+        return $this->$name !== null;
+    }
+
+    /** Länge laut `Content-Length` (null ohne Angabe, etwa bei chunked). */
+    public static function declaredLength(): ?int
+    {
+        $len = $_SERVER['CONTENT_LENGTH'] ?? $_SERVER['HTTP_CONTENT_LENGTH'] ?? null;
+        return $len === null || $len === '' || !is_numeric($len) ? null : max(0, (int)$len);
+    }
+
+    /**
+     * v3.4.0 (N1020) — Obergrenze setzen und gegen `Content-Length` prüfen,
+     * bevor ein Byte gelesen ist. Ohne Längenangabe greift die Grenze beim
+     * Lesen (es wird höchstens eine Grenze plus ein Byte gelesen).
+     *
+     * @throws HttpStatusException 413
+     */
+    public function limitBody(int $bytes): void
+    {
+        $this->bodyLimit = $bytes;
+        $declared = self::declaredLength();
+        if ($declared !== null && $declared > $bytes) throw self::tooLarge($bytes);
+    }
+
+    private static function tooLarge(int $bytes): HttpStatusException
+    {
+        return new HttpStatusException(413, 'errors.http.tooLarge',
+            ['max' => max(1, (int)ceil($bytes / 1048576))], [], "request body over $bytes bytes");
+    }
+
+    private function loadBody(): void
+    {
+        if ((new \ReflectionProperty(self::class, 'rawBody'))->isInitialized($this)) return;
+        $raw = '';
+        $fp = @fopen('php://input', 'rb');
+        if ($fp !== false) {
+            $raw = (string)($this->bodyLimit === null
+                ? stream_get_contents($fp)
+                : stream_get_contents($fp, $this->bodyLimit + 1));
+            fclose($fp);
+        }
+        if ($this->bodyLimit !== null && strlen($raw) > $this->bodyLimit) throw self::tooLarge($this->bodyLimit);
         $this->rawBody = $raw;
         $decoded = json_decode($raw, true);
         $this->body = is_array($decoded) ? $decoded : null;

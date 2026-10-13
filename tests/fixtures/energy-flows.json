@@ -1,0 +1,45 @@
+{
+  "_comment": "v3.4.0 (F1026) — Energiefluss aus Mengen (kWh): eine Formel an zwei Stellen, PvSummaryService::flows() (PHP) und flowsFromTotals() in public/js/components/energy-flow.js. PvSummaryServiceTest und tests/explainer.test.mjs rechnen jeden Fall nach. Erwartungen von Hand gerechnet, Toleranz 0,05 kWh bzw. 0,0001.",
+  "cases": [
+    {
+      "name": "ohne Speicher: wie die alte Formel Eigenverbrauch / (Eigenverbrauch + Bezug)",
+      "in": { "gen": 6500, "feed": 4200, "grid": 3800, "charged": 0, "discharged": 0 },
+      "out": { "pv_house": 2300, "pv_battery": 0, "pv_grid": 4200, "grid_house": 3800, "grid_battery": 0, "battery_house": 0, "house": 6100, "grid_in_house": 3800, "autarky": 0.377 }
+    },
+    {
+      "name": "Speicher aus Sonnenstrom: Verluste zählen nicht als selbst genutzt",
+      "in": { "gen": 9187.5, "feed": 5145.8, "grid": 6298.2, "charged": 1944.8, "discharged": 1789.3 },
+      "out": { "pv_house": 2096.9, "pv_battery": 1944.8, "pv_grid": 5145.8, "grid_house": 6298.2, "grid_battery": 0, "battery_house": 1789.3, "house": 10184.4, "grid_in_house": 6298.2, "autarky": 0.3816 }
+    },
+    {
+      "name": "Netzladung im Winter: geladener Netzstrom bleibt Netzstrom",
+      "in": { "gen": 180, "feed": 10, "grid": 900, "charged": 260, "discharged": 240 },
+      "out": { "pv_house": 0, "pv_battery": 170, "pv_grid": 10, "grid_house": 810, "grid_battery": 90, "battery_house": 240, "house": 1050, "grid_in_house": 900, "autarky": 0.1429 }
+    },
+    {
+      "name": "ohne Bezug: ganz autark",
+      "in": { "gen": 14000, "feed": 9000, "grid": 0, "charged": 2500, "discharged": 2300 },
+      "out": { "pv_house": 2500, "pv_battery": 2500, "pv_grid": 9000, "grid_house": 0, "grid_battery": 0, "battery_house": 2300, "house": 4800, "grid_in_house": 0, "autarky": 1 }
+    },
+    {
+      "name": "Monat, in dem der Speicher mehr abgab als er aufnahm",
+      "in": { "gen": 300, "feed": 0, "grid": 200, "charged": 50, "discharged": 80 },
+      "out": { "pv_house": 250, "pv_battery": 50, "pv_grid": 0, "grid_house": 200, "grid_battery": 0, "battery_house": 80, "house": 530, "grid_in_house": 200, "autarky": 0.6226 }
+    },
+    {
+      "name": "Datenfehler: mehr eingespeist als erzeugt",
+      "in": { "gen": 100, "feed": 150, "grid": 50, "charged": 0, "discharged": 0 },
+      "out": { "pv_house": 0, "pv_battery": 0, "pv_grid": 100, "grid_house": 50, "grid_battery": 0, "battery_house": 0, "house": 50, "grid_in_house": 50, "autarky": 0 }
+    },
+    {
+      "name": "Datenfehler: mehr Netzladung als Bezug",
+      "in": { "gen": 10, "feed": 0, "grid": 20, "charged": 100, "discharged": 90 },
+      "out": { "pv_house": 0, "pv_battery": 10, "pv_grid": 0, "grid_house": 0, "grid_battery": 90, "battery_house": 90, "house": 90, "grid_in_house": 20, "autarky": 0.7778 }
+    },
+    {
+      "name": "nichts erzeugt, nichts verbraucht",
+      "in": { "gen": 0, "feed": 0, "grid": 0, "charged": 0, "discharged": 0 },
+      "out": { "pv_house": 0, "pv_battery": 0, "pv_grid": 0, "grid_house": 0, "grid_battery": 0, "battery_house": 0, "house": 0, "grid_in_house": 0, "autarky": null }
+    }
+  ]
+}

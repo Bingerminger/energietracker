@@ -29,7 +29,13 @@
       "toggle": "Darstellung: {mode} – umschalten",
       "system": "wie das System",
       "light": "hell",
-      "dark": "dunkel"
+      "dark": "dunkel",
+      "autoBadge": "A",
+      "applied": {
+        "system": "Automatisch – folgt dem System",
+        "light": "Hell",
+        "dark": "Dunkel"
+      }
     }
   },
   "meterNames": {
@@ -100,7 +106,8 @@
       }
     },
     "tenancy": "Mietverhältnis",
-    "flexibility": "Flexibilität"
+    "flexibility": "Flexibilität",
+    "activity": "Erledigt"
   },
   "dashboard": {
     "loading": "Lade Übersicht …",
@@ -179,7 +186,12 @@
       "readingsDue": {
         "one": "{count} Zähler wartet auf eine Ablesung",
         "other": "{count} Zähler warten auf eine Ablesung"
-      }
+      },
+      "successorGap": {
+        "one": "Folgevertrag erst ab {date} – {count} Tag Lücke",
+        "other": "Folgevertrag erst ab {date} – {count} Tage Lücke"
+      },
+      "tenancyAction": "Zum Mietverhältnis"
     },
     "welcome": {
       "title": "Willkommen beim Energietracker",
@@ -377,17 +389,13 @@
       "monthlyTable": "📋 Monatstabelle {year}",
       "stockTank": "🛢️ Bestand & Tank",
       "deliveries": "🚚 Lieferungen",
-      "readingsYear": "📋 Ablesungen {year}",
       "monthlyChartFeedIn": "Einspeisung je Monat {year}",
       "monthlyChartGeneration": "Erzeugung je Monat {year}",
       "deliveriesCount": {
         "one": "{count} Lieferung gesamt",
         "other": "{count} Lieferungen gesamt"
       },
-      "readingsCount": {
-        "one": "{count} Ablesung gesamt",
-        "other": "{count} Ablesungen gesamt"
-      }
+      "readings": "📋 Ablesungen"
     },
     "balance": {
       "title": "⚖️ Saldo aktueller Vertrag — {name}",
@@ -477,14 +485,10 @@
       "colBonus": "Bonus",
       "colBalanceToday": "Saldo heute",
       "colBalanceExpected": "Erw. Saldo",
-      "stateActive": "AKTIV",
-      "statePast": "VERGANGEN",
-      "stateFuture": "ZUKÜNFTIG",
       "periodOpen": "{start} → laufend",
       "gpSuffix": "Grundpreis {value} {cur}/Monat",
       "colSpecial": "Sonderzahlungen",
       "hint": "Bonus = Gutschriften aus dem Vertrag (Sofort-, Wechsel-, Neukundenbonus). Sonderzahlungen = Rückzahlungen (+), Nach- und Abschlagszahlungen (−) außerhalb des Abschlagsplans; beide gehen in den Saldo ein. Antippen zeigt die Einzelposten; gepflegt werden sie in der Vertragsverwaltung.",
-      "stateRenewed": "VERLÄNGERT",
       "colEarned": "Vergütung",
       "colReceived": "Erhalten"
     },
@@ -531,6 +535,10 @@
       "emptyYearHint": {
         "one": "Insgesamt ist {count} Ablesung erfasst — über die Jahresauswahl oben erreichbar.",
         "other": "Insgesamt sind {count} Ablesungen erfasst — über die Jahresauswahl oben erreichbar."
+      },
+      "onlyFlagged": {
+        "one": "Nur auffällige ({count})",
+        "other": "Nur auffällige ({count})"
       }
     },
     "deliveriesTable": {
@@ -640,7 +648,6 @@
     "billCheck": {
       "hint": "Rechnet die Gasrechnung nach: je Abschnitt m³ × Zustandszahl × Brennwert = kWh, wie die Zeilen der Versorgerrechnung. Ein neuer Abschnitt beginnt an jeder Ablesung und jedem Brennwertwechsel.",
       "from": "Von",
-      "to": "Bis (ausschließlich)",
       "run": "Nachrechnen",
       "empty": "Keine Abschnitte im gewählten Zeitraum.",
       "noReading": "keine Ablesung",
@@ -679,7 +686,8 @@
         "one": "{count} Abschnitt ohne umschließende Ablesung — dort fehlt der Verbrauch.",
         "other": "{count} Abschnitte ohne umschließende Ablesung — dort fehlt der Verbrauch."
       },
-      "hintGeneric": "Rechnet die Jahresabrechnung nach: je Abschnitt Verbrauch × Arbeitspreis plus feste Kosten, wie die Zeilen der Versorgerrechnung. Ein neuer Abschnitt beginnt an jeder Ablesung und jedem Preiswechsel."
+      "hintGeneric": "Rechnet die Jahresabrechnung nach: je Abschnitt Verbrauch × Arbeitspreis plus feste Kosten, wie die Zeilen der Versorgerrechnung. Ein neuer Abschnitt beginnt an jeder Ablesung und jedem Preiswechsel.",
+      "openPeriod": "Abrechnung {from} – {to} prüfen"
     },
     "warnings": {
       "title": "Unplausible Zählerstände: {count}",
@@ -717,11 +725,7 @@
       "removed": "Foto entfernt"
     },
     "periods": {
-      "title": "Zeiträume {year}",
-      "count": {
-        "one": "{count} Zeitraum",
-        "other": "{count} Zeiträume"
-      },
+      "title": "Zeiträume",
       "add": "+ Zeitraum",
       "edit": "Zeitraum bearbeiten",
       "empty": "Noch kein Zeitraum in diesem Jahr",
@@ -745,7 +749,19 @@
     "water": {
       "dhwNote": "Wärme für dieses Warmwasser {year}: rund {kwh} kWh bei {temp} °C – Rechenwert nach HeizkostenV § 9, kein Messwert."
     },
-    "groupContractNote": "Dieser Zähler rechnet über den Gruppenvertrag „{name}“. Saldo und Abschläge gelten für die ganze Gruppe."
+    "groupContractNote": "Dieser Zähler rechnet über den Gruppenvertrag „{name}“. Saldo und Abschläge gelten für die ganze Gruppe.",
+    "list": {
+      "yearLabel": "Jahr der Liste",
+      "allYears": "Alle Jahre",
+      "countInYear": {
+        "one": "{count} in {year}",
+        "other": "{count} in {year}"
+      },
+      "countTotal": {
+        "one": "{count} gesamt",
+        "other": "{count} gesamt"
+      }
+    }
   },
   "contracts": {
     "priceGroup": {
@@ -782,10 +798,15 @@
       "meterLabel": "Zähler:",
       "open": "offen",
       "noMeter": "—",
-      "shadowHint": "Schattenvertrag — reine Was-wäre-wenn-Hypothese für den Tarifvergleich. Zählt nicht in Kosten, Saldo oder Prognose.",
-      "groupLabel": "Zählergruppe:"
+      "groupLabel": "Zählergruppe:",
+      "workingValue": "Arbeitspreis {value} {minor}/{unit}",
+      "feedInValue": "Vergütung {value} {minor}/{unit}",
+      "baseValue": "Grundpreis {value} {cur}/Monat",
+      "advanceValue": "Abschlag {value}/Monat",
+      "valuesOn": "Stand {date}",
+      "noValues": "Noch keine Preise eingetragen",
+      "since": "seit {year}"
     },
-    "status": { "active": "AKTIV", "past": "VERGANGEN", "future": "ZUKÜNFTIG" },
     "summary": {
       "twPrices": {
         "one": "{count} Trinkwasserpreis",
@@ -877,7 +898,11 @@
       "noticeModeHint": "Automatisch: zum Vertragsende, ohne Ende jederzeit zum Monatsende. Die Grundversorgung ist zum Beispiel jederzeit mit zwei Wochen kündbar.",
       "autoRenews": "Verlängert sich ohne Kündigung",
       "autoRenewsHint": "Nach dem Ende läuft der Vertrag zu den letzten Preisen weiter, bis er gekündigt wird — dann mit höchstens einem Monat Frist. Abwählen, wenn gekündigt ist.",
-      "groupTargets": "Zählergruppen (ein Vertrag für alle)"
+      "groupTargets": "Zählergruppen (ein Vertrag für alle)",
+      "section": {
+        "contract": "Vertrag",
+        "term": "Laufzeit und Kündigung"
+      }
     },
     "delete": { "title": "Vertrag löschen?", "confirm": "Löschen", "deleted": "Vertrag gelöscht", "messageNamed": "Vertrag „{name}“ dauerhaft löschen? Seine Preise, Abschläge und Boni gehen verloren." },
     "deleteContract": "Vertrag löschen",
@@ -996,6 +1021,24 @@
       "ct": "ct/kWh im Fenster",
       "addWindow": "+ Zeitfenster",
       "removeWindow": "Zeitfenster entfernen"
+    },
+    "phase": {
+      "future": "ZUKÜNFTIG",
+      "current": "AKTIV",
+      "renewed": "VERLÄNGERT",
+      "past": "BEENDET",
+      "shadow": "ANGEBOT"
+    },
+    "phaseGroup": {
+      "future": "Zukünftig",
+      "current": "Aktuell",
+      "past": {
+        "one": "Beendet ({count})",
+        "other": "Beendet ({count})"
+      },
+      "shadow": "Angebote zum Vergleich – rechnen nicht mit",
+      "shadowHint": "Angebote (Schattenverträge) sind Was-wäre-wenn-Rechnungen und zählen nicht in Kosten, Saldo oder Prognose.",
+      "toTariffs": "Zum Tarifvergleich"
     }
   },
   "meters": {
@@ -1088,7 +1131,14 @@
       "captureHint": "Verbrauch je Zeitraum: für Werte, die schon als Verbrauch vorliegen – etwa die monatliche Verbrauchsinfo des Messdienstes. Wechseln geht, solange der Zähler keine Daten hat.",
       "malo": "Marktlokations-ID (MaLo)",
       "melo": "Messlokations-ID (MeLo)",
-      "maloHint": "Für den Lieferantenwechsel, steht auf der Rechnung. MaLo: 11 Ziffern; MeLo: 33 Zeichen ab „DE“."
+      "maloHint": "Für den Lieferantenwechsel, steht auf der Rechnung. MaLo: 11 Ziffern; MeLo: 33 Zeichen ab „DE“.",
+      "section": {
+        "meter": "Zähler",
+        "tank": "Tank",
+        "device": "Gerät",
+        "topology": "Aufbau",
+        "market": "Marktlokation"
+      }
     },
     "replace": {
       "title": "Zählertausch: {name}",
@@ -1249,7 +1299,8 @@
       "ocrEndpoint": "http://192.168.178.20:11434",
       "ocrModel": "qwen2.5vl",
       "referenceSource": "z. B. Stromspiegel 2025",
-      "evccEndpoint": "http://192.168.178.30:7070"
+      "evccEndpoint": "http://192.168.178.30:7070",
+      "allowedHosts": "energie.example.org, *.home.arpa"
     },
     "loading": "Lädt …",
     "saved": "Einstellungen gespeichert",
@@ -1317,6 +1368,10 @@
       "evcc": {
         "title": "evcc im Heimnetz",
         "hint": "Holt die Ladevorgänge aus evcc, wenn du in der Wallbox-Ansicht auf „Von evcc abrufen“ tippst. Nur Adressen im eigenen Netz. Leer = aus; die CSV-Datei aus evcc geht immer."
+      },
+      "hosts": {
+        "title": "Hostnamen",
+        "hint": "Nenne die Namen, unter denen du die App aufrufst. Dann antwortet sie nur noch unter diesen Namen – das schützt ohne Anmeldung vor fremden Webseiten, die ihren Namen auf deine Adresse umbiegen (DNS-Rebinding). IP-Adressen gelten immer."
       }
     },
     "field": {
@@ -1464,6 +1519,10 @@
       "evcc_endpoint": {
         "label": "Adresse von evcc",
         "hint": "Zum Beispiel http://192.168.178.30:7070 oder http://evcc.local:7070 — die Adresse, unter der du evcc im Browser öffnest."
+      },
+      "allowed_hosts": {
+        "label": "Erlaubte Hostnamen",
+        "hint": "Kommagetrennt, ohne http:// und Port, z. B. energie.example.org, *.home.arpa. Der Name, unter dem du die App gerade aufrufst, muss dabei sein. Leer = alle Namen (wie bisher). Gilt zusammen mit ET_ALLOWED_HOSTS."
       }
     },
     "boolActive": "aktiv",
@@ -1514,9 +1573,6 @@
       "importConfirmBtn": "Importieren",
       "importedSnap": "Backup importiert. Sicherheits-Snapshot: {snap}",
       "imported": "Backup importiert",
-      "migrateSubhead": "📦 Migration aus v0.9.0",
-      "migrateHint": "Lade ein altes v0.9.0-Backup (JSON mit <code>version: \"2.1\"</code>) hoch. Das Backup wird vor dem Schreiben analysiert; danach entscheidest du zwischen <strong>Ersetzen</strong> (alles überschreiben) oder <strong>Zusammenführen</strong> (nur neue IDs hinzufügen). In beiden Fällen wird vorher automatisch ein Sicherheits-Snapshot der aktuellen Daten angelegt.",
-      "migrateBtn": "v0.9.0-Backup analysieren …",
       "migrateReadError": "Fehler beim Lesen: {msg}",
       "snapshotsTitle": "Gespeicherte Snapshots",
       "snapshotsHint": "Snapshots liegen auf dem Server unter data/backups/. Automatische Snapshots (vor Import, Migration, Demo-Daten) räumt die App nach 30 Tagen auf, mindestens drei je Anlass bleiben; von den eigenen bleiben die letzten zehn.",
@@ -1568,7 +1624,9 @@
         "date": "ungültiges Datum in „{field}“",
         "counter": "Zählerstand ist keine Zahl",
         "devices": "Geräteliste ungültig",
-        "entry": "ungültiger Eintrag {what}"
+        "entry": "ungültiger Eintrag {what}",
+        "unsafe_id": "Kennung in „{field}“ enthält unzulässige Zeichen",
+        "id": "ungültige Kennung"
       },
       "attachments": {
         "one": "Belege: {count} Datei, {size} MB von {max} MB – im Backup enthalten.",
@@ -1635,7 +1693,8 @@
         "title": "Schritt 5 · Werte zurück nach Home Assistant",
         "intro": "REST-Sensoren für Saldo, Prognose der nächsten 12 Monate und Tage seit der letzten Ablesung — in die configuration.yaml. Eine Abfrage je Stunde für alle Sensoren.",
         "keyHint": "Mit eingeschalteter Anmeldung braucht Home Assistant zum Lesen einen API-Schlüssel mit Bereich „lesen“ (Einstellungen → Zugriff), in der secrets.yaml:"
-      }
+      },
+      "setupTitle": "Zähler und Vorlagen für Home Assistant"
     },
     "diag": {
       "title": "🩺 System-Diagnose",
@@ -1661,32 +1720,6 @@
       "tempStored": {
         "one": "<strong>{count}</strong> Tageswert gespeichert.",
         "other": "<strong>{count}</strong> Tageswerte gespeichert."
-      }
-    },
-    "migrationDialog": {
-      "title": "Migration aus v0.9.0",
-      "detected": "Erkanntes <strong>v0.9.0-Backup-Format {version}</strong>. Daten wurden auf das aktuelle Schema übersetzt (noch nicht geschrieben).",
-      "whatImported": "Was importiert würde",
-      "readings": "Ablesungen",
-      "contracts": "Verträge",
-      "tempSettings": "{temps} Temperaturtage · {settings} Einstellungen",
-      "candidatesHint": "— nach dem Import als Zählertausch nachtragen?",
-      "colUtility": "Verbrauchsart",
-      "colDate": "Datum",
-      "colCounter": "Stand",
-      "colComment": "Kommentar",
-      "candidatesNote": "Nach dem Import unter <em>Zähler & Geräte → Zählertausch</em> (oder API: <code>POST /api/utility/{u}/meters/{id}/replace-device</code>) nachmodellieren.",
-      "howWrite": "Wie schreiben?",
-      "replaceLabel": "Ersetzen",
-      "replaceDesc": "— vorhandene Daten werden gelöscht und durch das Backup ersetzt. <em>Vorher wird automatisch ein Sicherheits-Snapshot der aktuellen Daten unter <code>data/backups/</code> abgelegt.</em>",
-      "mergeLabel": "Zusammenführen",
-      "mergeDesc": "— nur Ablesungen/Verträge mit neuer ID werden ergänzt. Bestehende Daten bleiben. Temperaturtage werden nur ergänzt, wenn das Datum noch nicht existiert.",
-      "import": "Importieren",
-      "done": "Migration OK · {total} Ablesungen geschrieben · Snapshot {snapshot}",
-      "failed": "Import fehlgeschlagen: {msg}",
-      "candidates": {
-        "one": "{count} möglicher Zählerwechsel erkannt",
-        "other": "{count} mögliche Zählerwechsel erkannt"
       }
     },
     "gasFactors": {
@@ -1758,7 +1791,10 @@
       "keyRevokeTitle": "Schlüssel widerrufen?",
       "keyRevokeMsg": "Programme, die den Schlüssel „{name}“ verwenden, haben danach keinen Zugriff mehr.",
       "keyRevoked": "Schlüssel widerrufen.",
-      "scopeCalendar": "nur Kalender-Abo"
+      "scopeCalendar": "nur Kalender-Abo",
+      "logoutEverywhere": "Überall abmelden",
+      "logoutEverywhereTitle": "Auf allen Geräten abmelden?",
+      "logoutEverywhereMsg": "Alle Sitzungen deiner Anmeldung enden – auf jedem Gerät, auch auf diesem. API-Schlüssel und der Home-Assistant-Token bleiben gültig."
     },
     "region": {
       "country": "Land",
@@ -1913,7 +1949,24 @@
       "add": "Person hinzufügen",
       "addButton": "Hinzufügen",
       "added": "{name} kann sich jetzt anmelden.",
-      "saved": "Gespeichert."
+      "saved": "Gespeichert.",
+      "anonymizeActivity": "Im Verlauf den Namen durch „ehemalige Person“ ersetzen"
+    },
+    "securityCheck": {
+      "title": "Sicherheits-Check",
+      "hint": "Prüft, was von außen sichtbar ist und ob die Anmeldung richtig eingestellt ist.",
+      "dataPending": "Prüfe den Zugriff auf data/ …",
+      "dataOk": "Der Webserver liefert data/ nicht aus – Daten und Backups sind nur über die App erreichbar.",
+      "dataExposed": "<strong>Der Webserver liefert <code>data/</code> aus.</strong> Alle Daten und Backups sind ohne Anmeldung abrufbar. Auf Apache: <code>AllowOverride</code> mindestens <code>FileInfo</code> und <code>mod_rewrite</code> oder <code>mod_alias</code> einschalten, sonst wirken die Regeln in <code>.htaccess</code> nicht.",
+      "proxyHeader": "Die Anmeldung über einen Proxy liest den Benutzer aus der ersten von mehreren Kopfzeilen. Je nach Proxy kann sich so jemand als andere Person ausgeben. Lege die eine Kopfzeile deines Proxys fest: <code>ET_PROXY_USER_HEADER</code> (z. B. <code>X-Forwarded-User</code>). Unter Home-Assistant-Ingress ist nichts zu tun.",
+      "openNoHosts": "Die App ist ohne Anmeldung und ohne Hostliste erreichbar. Eine fremde Webseite, die ihren Namen auf diese Adresse umbiegt (DNS-Rebinding), könnte dann Daten lesen und ändern. Abhilfe: Anmeldung einschalten oder unter Einstellungen → Zugriff die Hostnamen eintragen.",
+      "adoptHost": "Aktuellen Host übernehmen: {host}",
+      "adopted": "Hostliste gespeichert: {host}. Unter anderen Namen antwortet die App jetzt nicht mehr."
+    },
+    "support": {
+      "title": "Energietracker unterstützen",
+      "text": "Der Energietracker ist unabhängig und Open Source, ohne Werbung und ohne Konto. Wenn er dir nützt, kannst du die Weiterentwicklung unterstützen – ganz freiwillig, die App bleibt dieselbe.",
+      "link": "Über Buy Me a Coffee unterstützen"
     }
   },
   "reminders": {
@@ -1974,7 +2027,8 @@
     "everyMonths": {
       "one": "Jeden Monat",
       "other": "Alle {count} Monate"
-    }
+    },
+    "lastDone": "Zuletzt erledigt {when}"
   },
   "temperatures": {
     "loading": "Lädt …",
@@ -2072,6 +2126,15 @@
         "detail": {
           "one": "Der Vertrag „{provider}“ endet in {days} Tag. Jetzt Tarifvergleich starten und ggf. wechseln.",
           "other": "Der Vertrag „{provider}“ endet in {days} Tagen. Jetzt Tarifvergleich starten und ggf. wechseln."
+        },
+        "detailCancelNoSwitch": "Damit der Vertrag „{provider}“ zum {end} endet und nicht weiterläuft, muss die Kündigung bis {date} beim Anbieter sein.",
+        "detailNoSwitch": {
+          "one": "Der Vertrag „{provider}“ endet in {days} Tag. Die Preise für die Zeit danach nennt der Versorger.",
+          "other": "Der Vertrag „{provider}“ endet in {days} Tagen. Die Preise für die Zeit danach nennt der Versorger."
+        },
+        "gap": {
+          "one": "Der Folgevertrag „{provider}“ beginnt erst am {date} – dazwischen {count} Tag ohne Vertrag.",
+          "other": "Der Folgevertrag „{provider}“ beginnt erst am {date} – dazwischen {count} Tage ohne Vertrag."
         }
       },
       "r7": {
@@ -2091,7 +2154,10 @@
       "urgent": "Keine dringenden Empfehlungen — alles im grünen Bereich.",
       "warning": "Keine Warnungen — alles im grünen Bereich.",
       "info": "Keine Hinweise — alles im grünen Bereich."
-    }
+    },
+    "dismissUntil": "Bis {date} ausblenden",
+    "dismissUntilNamed": "Bis {date} ausblenden: {title}",
+    "dismissedUntilNamed": "„{title}“ bis {date} ausgeblendet"
   },
   "tariff": {
     "loading": "Lädt …",
@@ -2430,25 +2496,6 @@
   "report": {
     "createdOn": "Erstellt am {date}",
     "title": "Jahresbericht {year}",
-    "overview": "Übersicht {year}",
-    "efficiencyClass": "Effizienzklasse · {label}",
-    "livingArea": "Wohnfläche {area} m²",
-    "efficiencyPerSource": "Effizienz je Heizquelle (kWh/m²·a)",
-    "class": "Klasse {class}",
-    "noEfficiencyData": "Keine Effizienzdaten.",
-    "consumptionCosts": "Verbrauch & Kosten",
-    "colUtility": "Verbrauchsart",
-    "colConsumption": "Verbrauch",
-    "colCost": "Kosten",
-    "colCo2": "CO₂",
-    "recommendations": "Empfehlungen",
-    "recommendationsCont": "Empfehlungen (Forts.)",
-    "noRecommendations": "Keine offenen Empfehlungen — alles im grünen Bereich.",
-    "kpiAnnual": "Jahresverbrauch",
-    "kpiAvgMonth": "Ø pro Monat",
-    "kpiTotalCost": "Gesamtkosten",
-    "kpiPeakMonth": "Stärkster Monat",
-    "kpiLowMonth": "Schwächster Monat",
     "tableMonth": "Monat",
     "tableCost": "Kosten {cur}",
     "tableTemp": "ø Temp",
@@ -2456,36 +2503,505 @@
     "tableWeatherAdj": "bereinigt",
     "tableDelta": "Δ%",
     "continued": "(Forts.)",
-    "meterPageTitle": "{label} {year} — {meter}",
-    "heatDemand": "Heizenergie · {label}",
     "weatherNote": "Witterungsbereinigt: Wettereinfluss laut Heizmodell auf ein Normaljahr umgerechnet, eigene Abweichungen des Monats bleiben. Δ %: Verbrauch gegen die Erwartung bei diesem Wetter.",
-    "co2Avoided": "{kg} kg vermieden",
-    "co2InGeneration": "in der Erzeugung enthalten",
-    "revenueValue": "Erlös {amount}",
-    "kpiRevenue": "Erlös gesamt",
     "tableRevenue": "Erlös {cur}",
-    "certificate": "Energieausweis-nah: {value} kWh/m²·a (Heizwert, witterungsbereinigt, {area} m² Gebäudenutzfläche)",
     "page": {
       "subtitle": "Ein Jahr auf einen Blick — zum Drucken, Ablegen oder Teilen.",
       "open": "Im Browser öffnen",
       "note": "Auf dem iPhone öffnet sich der Bericht in einem neuen Tab; von dort lässt er sich sichern oder teilen.",
       "pdfHeading": "PDF-Datei",
-      "languageNote": "Das PDF entsteht in der Standardsprache der Installation ({lang}); die Druckansicht folgt der Sprache dieses Geräts."
+      "languageNote": "Das PDF entsteht in der Sprache dieses Geräts ({lang}), ebenso die Druckansicht.",
+      "title": "{label} {year}",
+      "sentence": "{label} {year}: {value}, {pct} gegenüber {prev} ({prevValue}).",
+      "sentenceNoPrevious": "{label} {year}: {value}.",
+      "cost": "Kosten: {amount}; Arbeitspreis im Mittel {price} ct/{unit}.",
+      "costTenancy": "Kosten: über die Nebenkosten des Mietverhältnisses „{label}“.",
+      "costTenancyEstimate": "Kosten: über die Nebenkosten des Mietverhältnisses „{label}“, nach dessen Preisen {amount}.",
+      "costNone": "Kosten: Für diese Verbrauchsart sind keine Preise hinterlegt.",
+      "coverage": {
+        "one": "Daten für {count} von 12 Monaten.",
+        "other": "Daten für {count} von 12 Monaten."
+      },
+      "estimatedNote": "Schraffierte Balken enthalten geschätzte Tage.",
+      "weatherTitle": "Kälter oder mehr verbraucht?",
+      "weather": {
+        "less": "Gemessen {cons}, die Heizgradtage {hdd}. Witterungsbereinigt bleibt {adj}: Es wurde weniger geheizt, unabhängig vom Wetter.",
+        "more": "Gemessen {cons}, die Heizgradtage {hdd}. Witterungsbereinigt bleibt {adj}: Es wurde mehr geheizt, als das Wetter erklärt.",
+        "same": "Gemessen {cons}, die Heizgradtage {hdd}. Witterungsbereinigt {adj}: Der Unterschied kommt vom Wetter."
+      },
+      "efficiencyTitle": "Einordnung",
+      "efficiency": "Klasse {class}: {value} kWh je m² Wohnfläche ({area} m²) und Jahr.",
+      "rolesTitle": "Wofür der Strom gebraucht wurde",
+      "role": {
+        "household": "Haushalt",
+        "heat_pump": "Wärmepumpe",
+        "ev_charger": "Wallbox"
+      },
+      "roles": "Zusammen {total} kWh.",
+      "rolesWithPv": "Zusammen {total} kWh, einschließlich des selbst genutzten Sonnenstroms. Die Wallbox ist ein Teil des Haushaltsstroms.",
+      "water": {
+        "one": "Das sind rund {liters} Liter am Tag für {count} Person.",
+        "other": "Das sind rund {liters} Liter je Person und Tag ({count} Personen)."
+      },
+      "subMeter": "Davon {name}: {value} (Subzähler, in der Summe von „{parent}“ enthalten; die Kosten laufen über dessen Vertrag).",
+      "heatPumpOutput": "{name}: {value} Wärme – bezahlt über den Strom der Wärmepumpe, deshalb ohne eigene Kosten.",
+      "outsideTotals": "{name}: {value} (nicht in der Summe).",
+      "tank": "Bestand heute: {stock} {unit}. Bei üblichem Verbrauch reicht er etwa bis {until}.",
+      "tankNoRange": "Bestand heute: {stock} {unit}.",
+      "heatDemand": "Heizenergie: {value} kWh je m² Wohnfläche ({area} m²) und Jahr.",
+      "howToRead": "Jahresbericht lesen"
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), soweit nicht selbst erfasst.",
     "print": {
       "open": "Druckansicht öffnen",
       "button": "Drucken / als PDF sichern",
       "back": "← Jahresbericht",
-      "hint": "Der Bericht in der Sprache und Schreibweise der Oberfläche. „Drucken“ bringt ihn auf Papier oder sichert ihn als PDF — auf dem iPhone über Teilen → Drucken."
+      "hint": "Der Bericht in der Sprache und Schreibweise der Oberfläche. „Drucken“ bringt ihn auf Papier oder sichert ihn als PDF — auf dem iPhone über Teilen → Drucken.",
+      "detail": "Mit Anhang „Zahlen im Detail“",
+      "priority": "Priorität {n}"
+    },
+    "fmt": {
+      "approx": "ca. {amount}",
+      "pct": "{value} %"
+    },
+    "footer": {
+      "page": "Seite {page} von {pages}"
+    },
+    "section": {
+      "important": "Das Wichtigste",
+      "successes": "Was hat sich gelohnt",
+      "successesNone": "Für {year} lässt sich keine Einsparung gegenüber {prev} belegen. Den Vergleich mit dem Vorjahr zeigt der Abschnitt „Gut zu wissen“.",
+      "goodToKnow": "Gut zu wissen",
+      "tasks": "Was ist zu tun",
+      "tasksIntro": "Nach Dringlichkeit sortiert, Priorität 1 zuerst. Fristen und Beträge: Stand heute ({date}).",
+      "tasksNone": "Nichts zu tun: keine offenen Aufgaben und keine Termine.",
+      "tasksNoneButAgenda": "Keine dringenden Aufgaben. Die nächsten Termine stehen unter „Fristen und Termine“.",
+      "agenda": "Fristen und Termine",
+      "agendaIntro": "Die nächsten zwölf Monate und alles Überfällige, Stand heute ({date}).",
+      "agendaNone": "Keine Fristen und Termine in den nächsten zwölf Monaten.",
+      "money": "Geld",
+      "topicPv": "Sonnenstrom",
+      "topicHeatPump": "Wärmepumpe",
+      "topicEv": "E-Auto laden",
+      "topicFlex": "Günstige Stunden",
+      "topicTenancy": "Mietwohnung: Nebenkosten",
+      "glossary": "Kleines Wörterbuch",
+      "sources": "Quellen",
+      "appendix": "Zahlen im Detail",
+      "topTasks": "Die wichtigsten Aufgaben",
+      "lights": "Auf einen Blick",
+      "asOfToday": "Stand heute ({date})",
+      "contracts": "Laufende Verträge",
+      "balances": "Abrechnung: Abschläge gegen Kosten",
+      "costsByUtility": "Kosten je Verbrauchsart",
+      "costsByMonth": "Kosten je Monat",
+      "estimated": "geschätzt",
+      "reference": "Feldtest-Mittel",
+      "cop": "Arbeitszahl je Monat",
+      "solarShare": "davon Sonnenstrom",
+      "cheapShare": "Anteil in günstigen Stunden",
+      "errors": "Hinweis: Einzelne Abschnitte fehlen, weil ihre Daten nicht gelesen werden konnten."
+    },
+    "tile": {
+      "cost": "Energiekosten",
+      "consumption": "Energieverbrauch",
+      "consumptionAdjusted": "Energieverbrauch (Heizung witterungsbereinigt)",
+      "co2": "CO₂-Ausstoß",
+      "pv": "Nutzen der Solaranlage",
+      "vsPrevious": "{pct} gegenüber {prev}",
+      "noPrevious": "kein Vergleich mit {prev}",
+      "sparkNote": "Linien in den Kacheln: Verlauf {from}–{to}."
+    },
+    "light": {
+      "title": {
+        "cost": "Kosten",
+        "consumption": "Verbrauch",
+        "billing": "Abrechnung",
+        "deadlines": "Fristen"
+      },
+      "today": "Stand heute",
+      "cost": {
+        "ok": "Kosten im Rahmen",
+        "warn": "Kosten gestiegen",
+        "alert": "Kosten deutlich gestiegen",
+        "none": "Kein Vergleich"
+      },
+      "consumption": {
+        "ok": "Nicht mehr verbraucht",
+        "warn": "Etwas mehr verbraucht",
+        "alert": "Deutlich mehr verbraucht",
+        "none": "Kein Vergleich"
+      },
+      "billing": {
+        "ok": "Abschläge passen",
+        "warn": "Kleine Nachzahlung möglich",
+        "alert": "Nachzahlung zu erwarten",
+        "none": "Keine Abschläge"
+      },
+      "deadlines": {
+        "ok": "Keine Frist in Kürze",
+        "warn": "Frist in Sicht",
+        "alert": "Frist eilt"
+      },
+      "noPrevious": "Für {prev} fehlen vergleichbare Daten.",
+      "costDetail": "{pct} gegenüber {prev}. Preise: {price}, Menge: {volume}.",
+      "consumptionAdjusted": "{pct} gegenüber {prev}, Heizung witterungsbereinigt.",
+      "consumptionRaw": "{pct} gegenüber {prev}.",
+      "billingDue": "{label}: zur Abrechnung voraussichtlich {amount} Nachzahlung.",
+      "billingCredit": "{label}: zur Abrechnung voraussichtlich {amount} Guthaben.",
+      "billingNone": "Kein laufender Vertrag mit Abschlägen.",
+      "deadlineNext": "Nächste Frist: {title} am {date}.",
+      "deadlineOverdue": "Überfällig seit {date}: {title}.",
+      "deadlinesNone": {
+        "one": "Keine Frist im nächsten Tag.",
+        "other": "Keine Frist in den nächsten {days} Tagen."
+      }
+    },
+    "euro": {
+      "saves": {
+        "year": "bringt {amount} im Jahr",
+        "once": "bringt {amount}",
+        "per100": "{amount} je 100 kWh"
+      },
+      "avoids": {
+        "once": "vermeidet {amount} Nachzahlung"
+      },
+      "refund": {
+        "once": "{amount} Guthaben zu erwarten"
+      },
+      "costs": {
+        "year": "kostet {amount} im Jahr",
+        "once": "kostete {amount}"
+      },
+      "earned": {
+        "year": "brachte {amount} im Jahr"
+      },
+      "basis": {
+        "measured": "gemessen",
+        "projected": "hochgerechnet",
+        "example": "Rechenbeispiel"
+      }
+    },
+    "agenda": {
+      "overdue": "überfällig",
+      "today": "heute",
+      "inDays": {
+        "one": "in {days} Tag",
+        "other": "in {days} Tagen"
+      }
+    },
+    "timeline": {
+      "start": "Beginn",
+      "cancel": "Kündigung bis",
+      "price": "Preiserhöhung",
+      "end": "Ende",
+      "today": "heute",
+      "text": "Vertrag seit {start}. Damit er zum {end} endet, muss die Kündigung bis {cancel} beim Anbieter sein.",
+      "textOpen": "Vertrag seit {start}, ohne festes Ende. Mit einer Kündigung bis {cancel} endet er zum {end}.",
+      "textNoNotice": "Vertrag von {start} bis {end}.",
+      "textRunning": "Vertrag seit {start}, ohne festes Ende."
+    },
+    "advice": {
+      "deadline": "bis {date}",
+      "advance": {
+        "title": "Abschlag anpassen: {label}",
+        "reasonDue": "Bis zur Abrechnung am {date} fehlen voraussichtlich {amount}: Die Kosten liegen über den Abschlägen von {advance} im Monat.",
+        "reasonCredit": "Zur Abrechnung am {date} ist ein Guthaben von {amount} zu erwarten: Die Abschläge von {advance} im Monat liegen über den Kosten.",
+        "stepRaise": "Ein Abschlag von {new} statt {old} im Monat gleicht das aus; die Änderung ist beim Anbieter möglich.",
+        "stepLower": "Ein Abschlag von {new} statt {old} im Monat genügt; die Änderung ist beim Anbieter möglich.",
+        "stepLowerNoAmount": "Eine Senkung des Abschlags ist möglich. Einen Betrag nennt der Bericht nicht: Bis zur Abrechnung reichen die gezahlten Abschläge schon."
+      },
+      "advanceOk": {
+        "title": "Abschlag passt: {label}",
+        "reason": "Abschläge und Kosten liegen bis zur Abrechnung am {date} nah beieinander (Unterschied {amount})."
+      },
+      "cancel": {
+        "title": "Kündigung oder Wechsel: {label}",
+        "reason": "Damit der Vertrag „{provider}“ zum {end} endet, muss die Kündigung bis {date} beim Anbieter sein.",
+        "stepOffer": "Mit dem gespeicherten Angebot „{offer}“ wären es ab dem zweiten Jahr {amount} weniger im Jahr (ohne Bonus).",
+        "stepPortal": "Für ein Vergleichsportal: Jahresverbrauch rund {value} {unit}.",
+        "stepRenew": "Ohne Kündigung läuft der Vertrag weiter."
+      },
+      "cancelMissed": {
+        "title": "Kündigungsfrist verpasst: {label}",
+        "reason": "Der Vertrag „{provider}“ läuft weiter; die nächste Gelegenheit kommt zum {end}."
+      },
+      "priceIncrease": {
+        "title": "Preiserhöhung: {label}",
+        "reason": "Ab {date} gelten neue Preise. {parts}",
+        "reasonWp": "Der Arbeitspreis steigt von {old} auf {new} ct/{unit}.",
+        "reasonBp": "Der Grundpreis steigt von {old} auf {new} im Monat.",
+        "legalDe": "In Deutschland gibt eine Preiserhöhung ein Sonderkündigungsrecht zum Tag der Änderung (§ 41 Abs. 5 EnWG)."
+      },
+      "heatingRise": {
+        "title": "Heizverbrauch gestiegen: {label}",
+        "reason": "Witterungsbereinigt {pct} gegenüber {prev}, rund {kwh} kWh mehr.",
+        "step": "Häufige Ursachen: höhere Raumtemperatur, längeres Lüften, eine geänderte Einstellung der Heizung."
+      },
+      "heatingFall": {
+        "title": "Weniger geheizt: {label}",
+        "reason": "Witterungsbereinigt {pct} gegenüber {prev}, rund {kwh} kWh weniger."
+      },
+      "anomaly": {
+        "title": "Auffälliger Monat: {label}, {month}",
+        "reason": "Im {month} wurden {actual} {unit} verbraucht, zu erwarten waren {expected} {unit} ({pct}).",
+        "step": "Häufige Ursachen: Besuch, ein defektes Gerät, eine geschätzte oder falsch eingetragene Ablesung."
+      },
+      "efficiency": {
+        "title": "Effizienzklasse {class}: {label}",
+        "reason": "{value} kWh je m² und Jahr – das liegt im unteren Teil der Skala.",
+        "step": "Ansatzpunkte: hydraulischer Abgleich, Einstellung der Heizung, Dämmung. Was davon passt, klärt eine Energieberatung."
+      },
+      "heatPumpLow": {
+        "title": "Wärmepumpe unter dem Feldtest-Mittel",
+        "reason": "Jahresarbeitszahl {jaz}; im Feldtest (Fraunhofer ISE, 2025) lag das Mittel für Luft/Wasser bei {ref}.",
+        "step": "Ansatzpunkte: Vorlauftemperatur, Heizkurve und Taktung – ein Thema für die nächste Wartung."
+      },
+      "heatPumpGood": {
+        "title": "Wärmepumpe arbeitet effizient",
+        "reason": "Jahresarbeitszahl {jaz}; im Feldtest (Fraunhofer ISE, 2025) lag das Mittel für Luft/Wasser bei {ref}."
+      },
+      "heatPumpOk": {
+        "title": "Wärmepumpe im üblichen Bereich",
+        "reason": "Jahresarbeitszahl {jaz}, nah am Feldtest-Mittel von {ref} für Luft/Wasser."
+      },
+      "pvBenefit": {
+        "title": "Solaranlage",
+        "reason": "Selbst genutzter Sonnenstrom sparte {savings} Strombezug, die Einspeisung brachte {feed}."
+      },
+      "pvSelfUse": {
+        "title": "Mehr Sonnenstrom selbst nutzen",
+        "reason": "{pct} des Sonnenstroms wurden selbst genutzt; der Rest ging für {feed} ct/kWh ins Netz.",
+        "step": "Geräte, die tagsüber statt abends laufen (Waschmaschine, Spülmaschine), verschieben Verbrauch in die Sonnenstunden."
+      },
+      "batteryLoss": {
+        "title": "Speicherverluste hoch",
+        "reason": "Wirkungsgrad {pct}: {kwh} kWh gingen beim Laden und Entladen verloren.",
+        "step": "Ein Thema für den Installationsbetrieb: Einstellungen und Ruheverbrauch des Speichers."
+      },
+      "battery": {
+        "title": "Speicher",
+        "reason": "{kwh} kWh kamen aus dem Speicher statt aus dem Netz."
+      },
+      "flex": {
+        "title": "Teure Stunden: {name}",
+        "reason": "„{name}“ lief eher in teuren Stunden (Profilfaktor {pf}).",
+        "step": "Ansatz: die Zeitsteuerung auf günstige Stunden legen, etwa mittags oder nachts. Der Betrag zählt nur den Börsenanteil des Preises."
+      },
+      "module3": {
+        "title": "Zeitvariables Netzentgelt (Modul 3)",
+        "reason": "Die Wärmepumpe lief oft im Niedrigtarif-Fenster."
+      },
+      "evSolar": {
+        "title": "Sonnenstrom im Auto",
+        "reason": "{pct} des Ladestroms kam von der eigenen Anlage ({kwh} kWh)."
+      },
+      "tenancy": {
+        "title": "Nebenkosten-Vorauszahlung: {label}",
+        "reasonDue": "Bis zum Ende des Abrechnungszeitraums am {date} fehlen voraussichtlich {amount}.",
+        "step": "Eine Vorauszahlung von {new} im Monat würde reichen – das ist mit dem Vermieter zu klären."
+      },
+      "tenancyCredit": {
+        "title": "Nebenkosten-Guthaben erwartet: {label}",
+        "reason": "Zum Ende des Abrechnungszeitraums am {date} ist ein Guthaben von {amount} zu erwarten."
+      },
+      "tenancyOk": {
+        "title": "Vorauszahlung passt: {label}",
+        "reason": "Vorauszahlung und erwartete Nebenkosten liegen bis {date} nah beieinander."
+      },
+      "co2Claim": {
+        "title": "CO₂-Kosten vom Vermieter",
+        "reason": "Für {year} stehen {amount} vom Vermieter zu (Aufteilung nach CO2KostAufG).",
+        "step": "Ein Anschreiben dafür erstellt der Energietracker unter „Mietverhältnis“."
+      },
+      "co2Central": {
+        "title": "CO₂-Kosten aufgeteilt",
+        "reason": "Für {year} trägt der Vermieter {amount} der CO₂-Kosten; die Nebenkostenabrechnung weist das aus."
+      },
+      "agenda": {
+        "title": "{title}",
+        "kind": {
+          "reminder": "Ein Termin aus dem Kalender des Energietrackers.",
+          "tank_reorder": "Der Vorrat reicht nicht mehr lange; eine Lieferung braucht Vorlauf.",
+          "tenancy_statement_due": "Die Nebenkostenabrechnung steht an.",
+          "objection_deadline": "Einwände gegen die Nebenkostenabrechnung sind nur bis zu dieser Frist möglich."
+        }
+      },
+      "readings": {
+        "title": "Zählerstände ablesen",
+        "reason": "Letzte Ablesung am {date}: {meters}."
+      },
+      "bill": {
+        "title": "Rechnung prüfen: {label}",
+        "reasonHigher": "Die Rechnung für {from} bis {to} liegt {amount} über der eigenen Rechnung.",
+        "reasonLower": "Die Rechnung für {from} bis {to} liegt {amount} unter der eigenen Rechnung.",
+        "step": "Die Gegenüberstellung steht im Energietracker unter „Rechnung prüfen“."
+      },
+      "baseline": {
+        "title": "Maßnahme wirkt: {label}",
+        "reason": "Seit {date} ({event}) braucht die Heizung je Gradtag {pct}; im Normaljahr sind das rund {kwh} kWh weniger."
+      },
+      "costDown": {
+        "title": "Kosten gesunken",
+        "reason": "Die Energiekosten lagen {pct} gegenüber {prev}."
+      },
+      "neutral": {
+        "title": "Vergleich mit dem Vorjahr",
+        "reason": "Kosten {cost}, Verbrauch {consumption} gegenüber {prev}.",
+        "noPrevious": "Für {prev} fehlen Daten zum Vergleich."
+      },
+      "overdueSince": "überfällig seit {date}"
+    },
+    "money": {
+      "sentence": "Energiekosten {year}: {amount}, {pct} gegenüber {prev}. Auf geänderte Preise gehen {price}, auf die verbrauchte Menge {volume}.",
+      "sentenceNoPrevious": "Energiekosten {year}: {amount}.",
+      "revenue": "{label}: Erlös {amount}.",
+      "bonus": "Im {month} wurde ein Bonus von {amount} gutgeschrieben; die Kosten dieses Monats sind deshalb niedriger.",
+      "balanceDue": "Zur Abrechnung am {date}: voraussichtlich {amount} Nachzahlung.",
+      "balanceCredit": "Zur Abrechnung am {date}: voraussichtlich {amount} Guthaben.",
+      "balanceEven": "Zur Abrechnung am {date}: Abschläge und Kosten gleichen sich aus.",
+      "advanceSuggested": "Passender Abschlag: {new} statt {old} im Monat.",
+      "advanceLower": "Der Abschlag kann sinken. Einen Betrag nennt der Bericht nicht: Die gezahlten Abschläge reichen bis zur Abrechnung schon.",
+      "balanceLegend": "Linie über null: Nachzahlung, unter null: Guthaben. Gestrichelt: Schätzung bis zur Abrechnung.",
+      "forecast": "Erwartete Kosten der nächsten zwölf Monate: {amount} (Prognose, Stand heute)."
+    },
+    "topic": {
+      "pv": {
+        "generated": "Erzeugt",
+        "autarky": "Autarkiequote",
+        "selfRate": "Eigenverbrauch",
+        "benefit": "Nutzen",
+        "sentence": "{gen} kWh Sonnenstrom: {self} kWh selbst genutzt, {feed} kWh eingespeist. Aus dem Netz kamen {grid} kWh; die eigene Anlage deckte {autarky} des Verbrauchs.",
+        "nodePv": "Sonne",
+        "nodeGrid": "Netz",
+        "nodeHouse": "Haus",
+        "nodeBattery": "Speicher",
+        "monthsTitle": "Erzeugung je Monat",
+        "paybackTitle": "Amortisation",
+        "payback": "Bisher eingespielt: {paid} von {investment}. Bei gleichem Nutzen ist die Anlage etwa {date} bezahlt (Stand heute).",
+        "paybackOpen": "Bisher eingespielt: {paid} von {investment} (Stand heute).",
+        "batteryTitle": "Speicher",
+        "battery": "Geladen {charged} kWh, entladen {discharged} kWh, rund {cycles} volle Zyklen, Wirkungsgrad {eff}.",
+        "co2Avoided": "Vermiedenes CO₂: {kg}, gerechnet mit dem CO₂-Faktor für Strom aus den Einstellungen."
+      },
+      "heatPump": {
+        "sentence": "Die Wärmepumpe machte aus {elec} kWh Strom {heat} kWh Wärme: Jahresarbeitszahl {jaz}.",
+        "reference": "Gestrichelte Linie: Mittel im Feldtest „WP-QS im Bestand“ (Fraunhofer ISE, 2025) für Luft/Wasser {air}; Sole/Wasser lag bei {ground}."
+      },
+      "ev": {
+        "sentence": "{name}: {kwh} kWh geladen.",
+        "sentenceSolar": "{name}: {kwh} kWh geladen, davon {solar} kWh Sonnenstrom ({pct}).",
+        "cost": "Kosten laut Ladestrom-Nachweis: {amount}.",
+        "subMeter": "Die Wallbox ist ein Subzähler von „{parent}“: Ihr Strom steckt in dessen Verbrauch und Kosten. Mit Sonnenstrom hinter dem Hauszähler kann sie in Sommermonaten mehr messen als der Bezug.",
+        "grid": "Ladestrom",
+        "kwh": "Geladen (kWh)"
+      },
+      "flex": {
+        "sentence": "Wie viel Strom in günstigen Stunden lief, gemessen an den Börsenpreisen je Viertelstunde.",
+        "row": "{share} günstig · Profilfaktor {pf}",
+        "module3": "Zeitvariables Netzentgelt (Modul 3) brachte {amount}.",
+        "battery": "Der Speicher lud eher in billigen und entlud in teuren Stunden: Wert {amount} (nur Börsenanteil).",
+        "note": "Profilfaktor unter 1: Der Strom lief in günstigeren Stunden als im Mittel. Beträge zählen nur den Börsenanteil des Preises."
+      },
+      "tenancy": {
+        "budget": "Abrechnungszeitraum {from} bis {to}: erwartete Nebenkosten {expected}, Vorauszahlungen {prepaid}.",
+        "statementDue": "Abrechnung {year}: {amount} Nachzahlung.",
+        "statementCredit": "Abrechnung {year}: {amount} Guthaben.",
+        "co2Central": "CO₂-Kosten {year}: Der Vermieter trägt {amount}.",
+        "co2Claim": "CO₂-Kosten {year}: {amount} vom Vermieter, Frist {date}.",
+        "pathLegend": "Linie über null: Nachzahlung zu erwarten, unter null: Guthaben. Gestrichelt: Schätzung."
+      }
+    },
+    "appendix": {
+      "total": "Summe"
+    },
+    "sources": {
+      "heatPump": "Wärmepumpen-Referenz: Feldtest „WP-QS im Bestand“, Fraunhofer ISE, 2025.",
+      "market": "Börsenstrompreise: Bundesnetzagentur | SMARD.de (CC BY 4.0).",
+      "own": "Alle Beträge stammen aus den eigenen Ablesungen und Vertragspreisen; Schätzungen und Rechenbeispiele sind gekennzeichnet."
+    },
+    "glossary": {
+      "heatAdjusted": {
+        "term": "Witterungsbereinigt",
+        "text": "Verbrauch, umgerechnet auf ein Jahr mit normalem Wetter. So zeigt sich, ob mehr oder weniger geheizt wurde – unabhängig davon, ob der Winter kalt war."
+      },
+      "hdd": {
+        "term": "Heizgradtage",
+        "text": "Ein Maß dafür, wie kalt ein Zeitraum war: je kälter, desto mehr Heizgradtage."
+      },
+      "balance": {
+        "term": "Saldo",
+        "text": "Der Unterschied zwischen den Kosten des Verbrauchs und den gezahlten Abschlägen. Guthaben: mehr gezahlt als verbraucht. Nachzahlung: Der Verbrauch kostete mehr."
+      },
+      "advance": {
+        "term": "Abschlag",
+        "text": "Ein fester Betrag, der jeden Monat an den Anbieter geht. Die Jahresabrechnung vergleicht ihn mit den tatsächlichen Kosten."
+      },
+      "profileFactor": {
+        "term": "Profilfaktor",
+        "text": "Der eigene Börsenpreis im Verhältnis zum Monatsmittel. Unter 1 lief der Strom eher in günstigen Stunden."
+      },
+      "module14a": {
+        "term": "Modul 3 (§ 14a EnWG)",
+        "text": "Zeitvariables Netzentgelt für steuerbare Geräte wie Wärmepumpen: In bestimmten Stunden ist das Netzentgelt niedriger."
+      },
+      "subMeter": {
+        "term": "Subzähler",
+        "text": "Ein Zähler hinter einem anderen, etwa für Wallbox oder Garten. Sein Verbrauch steckt schon im Hauptzähler und zählt nicht doppelt."
+      },
+      "prepayment": {
+        "term": "Vorauszahlung",
+        "text": "Ein monatlicher Betrag an den Vermieter für Heizung, Wasser und Betriebskosten; die Nebenkostenabrechnung gleicht ihn mit den Kosten ab."
+      },
+      "co2Split": {
+        "term": "CO₂-Kostenaufteilung",
+        "text": "In deutschen Mietwohnungen teilen sich Mieter und Vermieter die CO₂-Kosten der Heizung nach zehn Stufen (CO2KostAufG)."
+      },
+      "baseline": {
+        "term": "Zäsur",
+        "text": "Ein eingetragenes Datum, etwa eine Sanierung. Der Bericht vergleicht den Verbrauch je Gradtag davor und danach."
+      },
+      "noticeDeadline": {
+        "term": "Kündigungsstichtag",
+        "text": "Der letzte Tag, an dem die Kündigung beim Anbieter sein muss, damit der Vertrag zum Ende der Laufzeit endet."
+      },
+      "estimated": {
+        "term": "Geschätzt",
+        "text": "Für Tage ohne Ablesung rechnet der Energietracker mit einer Schätzung aus dem bisherigen Verbrauch."
+      },
+      "efficiency": {
+        "term": "Effizienzklasse",
+        "text": "Einordnung der Heizenergie je Quadratmeter Wohnfläche auf einer Skala von A+ (sehr gut) bis H, ähnlich dem Energieausweis."
+      },
+      "workingPrice": {
+        "term": "Arbeitspreis",
+        "text": "Der Preis je verbrauchter Einheit, zum Beispiel Cent je kWh."
+      },
+      "basePrice": {
+        "term": "Grundpreis",
+        "text": "Ein fester Betrag je Monat, unabhängig vom Verbrauch."
+      },
+      "selfConsumption": {
+        "term": "Eigenverbrauch",
+        "text": "Sonnenstrom, der im Haus verbraucht statt eingespeist wird."
+      },
+      "autarky": {
+        "term": "Autarkiequote",
+        "text": "Der Anteil des Stromverbrauchs, den die eigene Anlage deckt."
+      },
+      "feedIn": {
+        "term": "Einspeisung",
+        "text": "Sonnenstrom, der ins Netz geht; dafür gibt es eine Vergütung."
+      },
+      "jaz": {
+        "term": "Jahresarbeitszahl",
+        "text": "Wie viel Wärme eine Wärmepumpe aus einer Kilowattstunde Strom macht, über ein ganzes Jahr gerechnet. 3 heißt: Aus 1 kWh Strom werden 3 kWh Wärme."
+      },
+      "tankBook": {
+        "term": "Tankbuch",
+        "text": "Lieferungen und Bestände von Heizöl oder Pellets; daraus rechnet der Energietracker Verbrauch und Reichweite."
+      }
     }
-  },
-  "migration": {
-    "warnNoSettings": "Keine Einstellungen im Backup gefunden — es gelten die Standardwerte.",
-    "warnNoWater": "Version 0.9.0 kannte kein Wasser — der Wasserbereich wird leer angelegt.",
-    "swapKeywordFound": "Schlüsselwort im Kommentar erkannt",
-    "meterNote": "Aus v0.9.0-Migration angelegt",
-    "meterNoteWater": "Aus v0.9.0-Migration angelegt (v0.9.0 kannte kein Wasser)."
   },
   "csv": {
     "month": "Monat",
@@ -2587,7 +3103,8 @@
       "hasBills": "Zähler hat noch Rechnungen — bitte zuerst die Rechnungen löschen",
       "groupHasContracts": "Die Zählergruppe hat noch Verträge — bitte zuerst die Gruppenverträge löschen oder umhängen",
       "heatPumpLinkInvalid": "Zähler „{id}“ ist kein Stromzähler mit der Rolle Wärmepumpe",
-      "valueInvalid": "{field}: „{value}“ ist kein gültiger Wert"
+      "valueInvalid": "{field}: „{value}“ ist kein gültiger Wert",
+      "idInvalid": "Ungültige Kennung „{id}“ – erlaubt sind Buchstaben, Ziffern, _ und - (höchstens 64 Zeichen)."
     },
     "common": {
       "unknownUtility": "Unbekannte Verbrauchsart: {utility}",
@@ -2676,8 +3193,8 @@
       "timestampFormat": "Zeitstempel „{timestamp}“ nicht lesbar — erwartet ISO 8601 mit Zeitzone, z. B. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
-      "noVersionField": "Kein backup_version-Feld — kein gültiges Backup",
-      "versionUnsupported": "Backup-Version {ver} wird nicht direkt unterstützt. Bitte zuerst über die Migration in v1.0.0 einspielen oder ein neueres Backup verwenden.",
+      "noVersionField": "Kein backup_version-Feld — kein gültiges Backup. Ein Backup aus v0.9.0 liest nur noch v3.3.0: dort einspielen, dann aktualisieren.",
+      "versionUnsupported": "Backup-Version {ver} wird nicht unterstützt. Bitte ein Backup im Format 3.0 oder neuer verwenden.",
       "schemaNewer": "Backup-Schema {schema} ist neuer als das App-Schema {appSchema}. Bitte erst die App aktualisieren, dann das Backup einspielen.",
       "invalid": "Das Backup ist unvollständig oder beschädigt (Probleme: {count}). Es wurde nichts eingespielt.",
       "snapshotFailed": "Der Sicherungs-Snapshot vor dem Einspielen ist fehlgeschlagen. Ohne ihn gibt es keinen Rückweg. Nur mit ausdrücklicher Zustimmung trotzdem einspielen.",
@@ -2702,13 +3219,6 @@
       "backupInvalid": "Demo-Backup ist ungültig (kein JSON).",
       "personaUnknown": "Einen Beispielhaushalt „{persona}“ gibt es nicht."
     },
-    "migration": {
-      "noVersionField": "Kein „version“-Feld im Backup — vermutlich kein v0.9.0-Backup. Erwartet werden v0.9.0-Backups mit version „2.1“ oder älter.",
-      "versionUnrecognized": "Backup-Version „{ver}“ wird nicht erkannt. Unterstützt werden v0.9.0-Backup-Formate: {supported}. Für native v1.0.3-Backups (backup_version 3.0+) bitte den Standard-Import unter Einstellungen → Daten → Backup & Wiederherstellung nutzen.",
-      "invalidMode": "Ungültiger Modus: {mode} (erlaubt: replace, merge)",
-      "backupMissing": "Das Feld „backup“ fehlt oder ist kein Objekt.",
-      "translatedMissing": "Das Feld „translated“ fehlt oder ist kein Objekt."
-    },
     "csv": {
       "notDeliveryBased": "„{utility}“ wird über Zählerstände erfasst, nicht über Lieferungen — bitte den Ablesungs-Export nutzen."
     },
@@ -2722,7 +3232,8 @@
       "factorHalfPair": "Zustandszahl und Brennwert gehören zusammen — bitte beide angeben oder den Faktor direkt",
       "factorMissing": "Ein Eintrag braucht entweder Zustandszahl und Brennwert oder einen Faktor in kWh/m³",
       "factorOutOfRange": "Umrechnungsfaktor {value} ist unplausibel — erwartet wird 5 bis 15 kWh/m³",
-      "valueInvalid": "Ungültiger Wert „{value}“ für {key}"
+      "valueInvalid": "Ungültiger Wert „{value}“ für {key}",
+      "hostNotListed": "Die Hostliste muss den Namen enthalten, unter dem du die App gerade aufrufst („{host}“) – sonst sperrst du dich aus."
     },
     "billCheck": {
       "gasOnly": "Die Rechnungsprüfung gibt es nur für Gas",
@@ -2732,7 +3243,9 @@
     "http": {
       "crossSite": "Abgelehnt: Die Anfrage kam von einer fremden Webseite. Ändern lässt sich nur aus dem Energietracker selbst.",
       "internal": "Interner Fehler ({id}). Die Einzelheiten stehen im Server-Log.",
-      "hostNotAllowed": "Der Hostname „{host}“ ist nicht freigegeben (ET_ALLOWED_HOSTS)."
+      "hostNotAllowed": "Der Hostname „{host}“ ist nicht freigegeben (Einstellungen → Zugriff → Hostnamen oder ET_ALLOWED_HOSTS).",
+      "tooLarge": "Die Anfrage ist zu groß (höchstens {max} MB).",
+      "busy": "Gerade läuft ein anderer Schreibvorgang. Bitte in ein paar Sekunden noch einmal versuchen."
     },
     "storage": {
       "dataTooNew": "Die Daten stammen von einer neueren Version (Schema {schema}). Diese Version kennt nur Schema {app} und schreibt nichts, um sie nicht zu beschädigen. Bitte die neuere Version wieder starten.",
@@ -2854,6 +3367,17 @@
     },
     "flexibility": {
       "yearInvalid": "Ungültiges Jahr: {year}."
+    },
+    "docs": {
+      "notFound": "Diese Seite gehört nicht zum Handbuch dieser Version."
+    },
+    "activity": {
+      "notFound": "Eintrag im Verlauf nicht gefunden.",
+      "eventNotFound": "Diesen Hinweis gibt es nicht (mehr): {uid}",
+      "notManual": "Dieser Hinweis erledigt sich von selbst – mit einer neuen Ablesung oder einer erfassten Abrechnung. Abhaken geht hier nicht.",
+      "occurrenceChanged": "Der Hinweis hat sich inzwischen geändert (etwa ein neues Vertragsende). Bitte die Seite neu laden.",
+      "dateInvalid": "„{value}“ ist kein gültiger Tag. Erwartet: JJJJ-MM-TT, nicht in der Zukunft.",
+      "noteInvalid": "Die Notiz darf höchstens {max} Zeichen lang sein."
     }
   },
   "login": {
@@ -2914,7 +3438,16 @@
       "other": "noch {count} Tage"
     },
     "advance": "Abschlag {amount} im Monat",
-    "expected": "Erwartet zum {date}:"
+    "expected": "Erwartet zum {date}:",
+    "successor": "Folgevertrag {provider} ab {date}",
+    "successorUnnamed": "Folgevertrag ab {date}",
+    "successorGap": {
+      "one": "Folgevertrag erst ab {date} – {count} Tag Lücke",
+      "other": "Folgevertrag erst ab {date} – {count} Tage Lücke"
+    },
+    "history": "Verlauf ({count})",
+    "historyTitle": "Verlauf: {name}",
+    "anytime": "Jederzeit kündbar"
   },
   "billCheck": {
     "noMeter": "Die Rechnungsprüfung rechnet die Jahresabrechnung für Gas, Strom, Wasser und Fernwärme nach. Lege zuerst einen Zähler an.",
@@ -2945,7 +3478,13 @@
       "co2Cost": "CO₂-Kosten laut Rechnung",
       "attach": "Rechnung anhängen (PDF oder Foto)",
       "save": "Rechnung speichern",
-      "update": "Änderungen speichern"
+      "update": "Änderungen speichern",
+      "capture": "Rechnung des Versorgers erfassen (optional)",
+      "captured": {
+        "one": "{count} erfasst",
+        "other": "{count} erfasst"
+      },
+      "period": "Zeitraum wie oben: {from} bis einschließlich {to}."
     },
     "saved": "Rechnung gespeichert",
     "book": "Als Sonderzahlung buchen",
@@ -2975,7 +3514,8 @@
     "ownTotalOnly": "Nachgerechnet: {total}",
     "updated": "Rechnung geändert",
     "editing": "Du bearbeitest die Rechnung vom {from} bis {to}.",
-    "editBookedNote": "Sie ist schon als Sonderzahlung gebucht – die Buchung im Vertrag ändert sich nicht mit."
+    "editBookedNote": "Sie ist schon als Sonderzahlung gebucht – die Buchung im Vertrag ändert sich nicht mit.",
+    "periodDefault": "Vorbelegt ist die letzte abgeschlossene Abrechnungsperiode. Den Stichtag je Verbrauchsart stellst du unter Einstellungen → Verbrauchsarten & Abrechnung ein."
   },
   "glossary": {
     "hdd": {
@@ -3172,14 +3712,15 @@
     "docs": {
       "title": "Dokumentation",
       "start": "Einstieg",
-      "compendium": "Handbuch und Methodik",
       "glossary": "Glossar und Formeln",
       "homeAssistant": "Home Assistant anbinden",
-      "englishOnly": "Die Dokumentation gibt es auf Deutsch und Englisch; die Links führen zur englischen Fassung.",
+      "englishOnly": "Das Handbuch gibt es auf Deutsch und Englisch; für deine Sprache zeigt die App die englische Fassung.",
       "faq": "Häufige Fragen",
       "troubleshoot": "Fehlersuche",
       "setup": "Einrichten, Beispielhaushalte und Stufen",
-      "useCases": "Anwendungsfälle"
+      "useCases": "Anwendungsfälle",
+      "open": "Handbuch öffnen",
+      "local": "Das Handbuch liegt auf deinem Server und gehört zu Version {version} – es öffnet sich auch ohne Internet."
     },
     "support": {
       "title": "Fragen und Fehler",
@@ -3206,7 +3747,33 @@
         "title": "Erst einfach, später alles",
         "text": "Die Stufe oben neben Tag/Nacht bestimmt, wie viel du siehst: Einsteiger bekommen drei Antworten auf der Übersicht, Erfahrene dazu Tarifwechsel, Rechnungsprüfung und Analysen, Experten alles. Gerechnet wird in jeder Stufe alles – du kannst jederzeit wechseln. Zum Ausprobieren lädt der Einrichtungsassistent einen Beispielhaushalt, der zu dir passt."
       },
-      "tryExample": "Beispielhaushalt ausprobieren"
+      "tryExample": "Beispielhaushalt ausprobieren",
+      "more": "Im Handbuch weiterlesen",
+      "sharedMeters": {
+        "title": "WG mit geteilten Zählern",
+        "text": "Ein gemeinsamer Hauptzähler, dazu ein eigener Zähler für ein Zimmer oder ein Gerät: Lege den zweiten als Subzähler des Hauptzählers an. Die App zieht ihn vom Hauptzähler ab – die Gesamtsumme bleibt richtig, und der Anteil für die interne Abrechnung steht als eigene Zahl da. Der Vertrag gehört an den Hauptzähler."
+      },
+      "homeAssistant": {
+        "title": "Smart Home mit Home Assistant",
+        "text": "Home Assistant liest die Zähler ohnehin aus? Dann schickt es die Stände abends an den Energietracker: einen API-Token in den Einstellungen erzeugen, jedem Zähler einen Alias geben, die fertige Vorlage in Home Assistant einfügen. Ein zweiter Wert am selben Tag ersetzt den ersten, statt ihn zu verdoppeln."
+      },
+      "pvHeatPump": {
+        "title": "PV-Haushalt mit Wärmepumpe",
+        "text": "Einspeisung und Erzeugung als eigene Verbrauchsarten, die Wärmepumpe als Subzähler am Hausanschluss: Die App zeigt Strom-Saldo, Autarkiequote und Eigenverbrauch, dazu den Heizstrom der Wärmepumpe, ohne die Gesamtsumme zu verdoppeln. Mit einem Wärmemengenzähler kommt die Jahresarbeitszahl hinzu, mit Lade- und Entladezählern der Speicher."
+      },
+      "landlord": {
+        "title": "Vermieter mit mehreren Einheiten",
+        "text": "Je Wohnung und Verbrauchsart ein eigener Zähler mit eigenem Vertrag: Die Verbrauchsansicht zeigt jeden Zähler mit Verbrauch, Kosten und Saldo, die Übersicht die Summe je Verbrauchsart. Mehrere Zähler derselben Art in einer Wohnung fasst eine Gruppe zusammen, auf Wunsch mit einem Vertrag für die ganze Gruppe. Eine Nebenkostenabrechnung für Mieter erstellt die App nicht."
+      },
+      "wallbox": {
+        "title": "Wallbox und Dienstwagen",
+        "text": "Die Wallbox als Subzähler am Hausanschluss mit der Rolle „Wallbox“, monatlich abgelesen – von Hand, per Home Assistant oder mit den Ladevorgängen aus evcc. Ihre Verbrauchsansicht zeigt den Ladestrom-Nachweis für den Arbeitgeber: Vertragspreis mit anteiligem Grundpreis oder Pauschale, als CSV oder PDF. Die Gesamtsumme bleibt richtig."
+      }
+    },
+    "doc": {
+      "handbook": "Handbuch",
+      "toc": "Inhalt",
+      "language": "Sprache des Handbuchs"
     }
   },
   "onboarding": {
@@ -3750,11 +4317,43 @@
     },
     "energy": {
       "title": "Energiefluss im Haus",
-      "pv": "PV",
-      "house": "Haus",
-      "grid": "Netz",
-      "battery": "Speicher",
-      "text": "{year}: Die Anlage erzeugte {gen} kWh. Das Haus nutzte {self} kWh davon selbst, {feed} kWh gingen ins Netz, {grid} kWh kamen aus dem Netz. Autarkie: {autarky}."
+      "text": "{period}: Die Sonne lieferte {gen}, davon gingen {feed} ins Netz. Das Haus brauchte {house}; {grid} davon kamen aus dem Netz. Autarkie: {autarky}.",
+      "node": {
+        "pv": "Sonne",
+        "grid": "Netz",
+        "battery": "Speicher",
+        "house": "Haus",
+        "heatPump": "Wärmepumpe",
+        "wallbox": "Wallbox",
+        "other": "Übriges"
+      },
+      "textBattery": "Der Speicher nahm {in} auf und gab {out} ab.",
+      "textGridCharge": "Aus dem Netz flossen {kwh} in den Speicher (der Bogen über der Linie der Sonne); das zählt als Netzstrom.",
+      "textDevices": "Davon: {list}.",
+      "calc": "(rechnerisch)",
+      "calcNote": "Gestrichelt: aus Monatssummen gerechnet, nicht gemessen.",
+      "assumedNote": "Die Einspeisung ist angenommen: Es gibt keinen Einspeisezähler.",
+      "flowItem": "{from} → {to}: {value}",
+      "detail": "{node}: {flows}",
+      "chip": {
+        "pv": "Sonne: {value}, {share} selbst genutzt",
+        "house": "Haus: {value}, {autarky} autark",
+        "battery": "Speicher: {in} geladen, {out} entladen",
+        "grid": "Netz: {in} bezogen, {out} eingespeist"
+      },
+      "chipsGroup": "Knoten hervorheben",
+      "scope": {
+        "year": "Jahr",
+        "month": "Monat"
+      },
+      "periodGroup": "Zeitraum",
+      "prev": "Früherer Zeitraum",
+      "next": "Späterer Zeitraum",
+      "yearPart": "{year} ({span})",
+      "months": {
+        "one": "{count} Monat",
+        "other": "{count} Monate"
+      }
     },
     "weather": {
       "title": "Kälter oder mehr verbraucht?",
@@ -3777,9 +4376,29 @@
       "end": "Ende",
       "today": "heute",
       "text": "Vertrag seit {start}. Wer wechseln will, kündigt bis {cancel}; dann endet er am {end}.",
-      "textOpen": "Vertrag seit {start}; er läuft weiter, bis du kündigst. Spätestens am {cancel} gekündigt, endet er am {end}.",
       "textNoNotice": "Vertrag seit {start}, Ende: {end}.",
-      "textRunning": "Vertrag seit {start}; er läuft weiter, bis du kündigst. Eine Kündigungsfrist ist nicht eingetragen."
+      "textRunning": "Vertrag seit {start}; er läuft weiter, bis du kündigst. Eine Kündigungsfrist ist nicht eingetragen.",
+      "termEnd": "Laufzeitende",
+      "minTerm": "Mindestlaufzeit endet",
+      "guarantee": "Preisgarantie bis",
+      "missed": "Frist verpasst",
+      "earliest": "Frühestes Ende",
+      "successor": "Folgevertrag",
+      "anytime": "jederzeit kündbar",
+      "textMissed": "Vertrag seit {start}. Die Frist zum Kündigen lief am {cancel} ab; ohne Kündigung läuft er nach dem {end} weiter.",
+      "textNoRenew": "Vertrag seit {start}; er endet am {end}, ohne dass du kündigen musst.",
+      "textRenewed": "Vertrag seit {start}. Die Laufzeit endete am {term}; seitdem läuft er weiter und ist jederzeit kündbar — heute gekündigt, endet er frühestens am {end}.",
+      "textAnytime": "Vertrag seit {start}; er läuft weiter, bis du kündigst. Er ist jederzeit kündbar — heute gekündigt, endet er frühestens am {end}.",
+      "textMinTerm": "Vertrag seit {start}, mit Mindestlaufzeit: Heute gekündigt, endet er frühestens am {end}.",
+      "textMinTermUntil": "Die Mindestlaufzeit endet am {date}.",
+      "textGuarantee": "Die Preise sind bis {date} garantiert.",
+      "textPrice": "Ab {date} steigen die Preise.",
+      "textSuccessor": "Ab {start} folgt der Vertrag mit {provider}.",
+      "textSuccessorPlain": "Ab {start} folgt ein neuer Vertrag.",
+      "gap": {
+        "one": "Dazwischen liegt {count} Tag ohne Vertrag.",
+        "other": "Dazwischen liegen {count} Tage ohne Vertrag."
+      }
     }
   },
   "setup": {
@@ -3956,5 +4575,108 @@
         "smard": "SMARD"
       }
     }
+  },
+  "pager": {
+    "label": "Seiten der Liste",
+    "prev": "Zurück",
+    "next": "Weiter",
+    "range": "{from}–{to} von {total}",
+    "size": "Zeilen je Seite"
+  },
+  "activity": {
+    "reason": {
+      "successor": "Folgevertrag {provider} ab {date}",
+      "reading": "Zählerstand vom {date} erfasst",
+      "delivery": "Lieferung vom {date} erfasst",
+      "statement": "Abrechnung bis {date} erfasst",
+      "dismissed": "ausgeblendet bis {date}"
+    },
+    "markDone": "Als erledigt markieren",
+    "markDoneNamed": "Erledigt: {title}",
+    "dialog": {
+      "title": "Als erledigt markieren",
+      "date": "Erledigt am",
+      "note": "Notiz (optional)",
+      "attachment": "Beleg (optional, Foto oder PDF)",
+      "cancelled": "Gekündigt – der Vertrag verlängert sich nicht",
+      "save": "Erledigt",
+      "dateInvalid": "Bitte einen Tag bis heute wählen."
+    },
+    "toast": {
+      "done": "„{title}“ erledigt",
+      "undone": "„{title}“ ist wieder offen",
+      "error": "Fehler: {msg}"
+    },
+    "by": {
+      "former": "ehemalige Person",
+      "key": "API-Schlüssel „{name}“",
+      "auto": "automatisch"
+    },
+    "on": "am {date}",
+    "onBy": "am {date} von {by}",
+    "onAuto": "am {date} automatisch",
+    "title": "Erledigt",
+    "subtitle": "Was erledigt wurde – von wem und wann. Automatische Einträge nennen ihren Grund.",
+    "loadError": "Der Verlauf ließ sich nicht laden: {msg}",
+    "manage": {
+      "button": "Verlauf verwalten",
+      "title": "Verlauf verwalten",
+      "keep": "Aufbewahren (Monate, 0 = unbegrenzt)",
+      "keepHint": "Ältere Einträge fallen beim nächsten Eintrag heraus.",
+      "keepInvalid": "Bitte eine ganze Zahl von 0 bis 1200 eingeben.",
+      "saved": "Aufbewahrung gespeichert",
+      "clearTitle": "Verlauf leeren",
+      "before": "Einträge erledigt vor (leer = alle)",
+      "clearHint": "Gelöscht ist gelöscht – einen Rückweg bietet ein Snapshot unter Einstellungen → Daten.",
+      "clear": "Leeren",
+      "confirmBefore": "Alle Einträge löschen, die vor dem {date} erledigt wurden?",
+      "confirmAll": "Den ganzen Verlauf löschen?",
+      "cleared": {
+        "one": "{count} Eintrag gelöscht",
+        "other": "{count} Einträge gelöscht"
+      }
+    },
+    "filter": {
+      "label": "Verlauf filtern",
+      "person": "Person",
+      "everyone": "Alle",
+      "period": "Zeitraum",
+      "area": "Bereich"
+    },
+    "period": {
+      "all": "Gesamter Verlauf",
+      "m3": "Letzte 3 Monate",
+      "m12": "Letzte 12 Monate",
+      "thisYear": "Dieses Jahr",
+      "lastYear": "Letztes Jahr"
+    },
+    "area": {
+      "all": "Alle Bereiche",
+      "reminders": "Termine",
+      "contracts": "Verträge",
+      "readings": "Ablesungen",
+      "tank": "Tank und Lager",
+      "tenancy": "Mietverhältnis",
+      "recommendations": "Empfehlungen"
+    },
+    "empty": "Noch nichts erledigt. Hake Hinweise unter „Zu tun“ auf der Übersicht oder bei den Terminen ab – Folgeverträge, Ablesungen und Lieferungen tragen sich von selbst ein.",
+    "emptyFiltered": "Für diese Auswahl gibt es keine Einträge.",
+    "count": {
+      "one": "({count} Eintrag)",
+      "other": "({count} Einträge)"
+    },
+    "action": {
+      "auto": "automatisch",
+      "dismissed": "ausgeblendet"
+    },
+    "attachment": "Beleg",
+    "undoneLine": "Rückgängig gemacht {when}",
+    "undoNamed": "Rückgängig: {title}",
+    "note": {
+      "edit": "Notiz bearbeiten",
+      "editNamed": "Notiz bearbeiten: {title}",
+      "saved": "Notiz gespeichert"
+    },
+    "reasonLine": "Grund: {reason}"
   }
 }

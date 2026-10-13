@@ -218,9 +218,21 @@ The detailed feature overview. What the views look like is shown in the
   own calendar, with
   advance warning for reminders and contracts — see
   [Subscribing to the calendar](../anleitungen/kalender.md).
+- **Done with history** (v3.4.0): tick off notices — with date, note and
+  receipt —, undo, and a history of who did what when. A follow-on contract
+  without a gap, a due reading, a delivery or the service-charge statement
+  clear their notice by themselves — see
+  [Ticking off notices](../anleitungen/hinweise-erledigen.md).
 - **Annual report** as a print view in the language of the device — print it
   or save it as a PDF, on the iPhone via Share → Print — and as a ready-made
-  PDF file in the browser or as a download.
+  PDF file in the browser or as a download. Since v3.4.0 for readers without a
+  technical background: at a glance with four status lights and the three most
+  important tasks, what paid off, what needs doing (with priority, an amount
+  from the household’s own data and a deadline), deadlines, money, one page per
+  utility with charts, topic pages for solar power, heat pump, electric car,
+  cheap hours and rented home, a short glossary; the monthly tables as an
+  optional appendix. Via link also as a partial report or in another
+  language — see [Reading the annual report](../anleitungen/jahresbericht-lesen.md).
 
 ## Use
 
@@ -229,13 +241,19 @@ The detailed feature overview. What the views look like is shown in the
   contrast per WCAG AA, installable as an app — see
   [Use on your phone](handy.md).
 - **Help in the app**: first steps with ticks from your data, a glossary with
-  44 terms and an ⓘ next to every key figure.
+  44 terms and an ⓘ next to every key figure. Since v3.4.0 also the whole
+  **handbook** (German and English) from your own server, matching the version
+  and without internet access, with a table of contents and a language switch;
+  the use cases as short texts in all seven languages, each with a jump to its
+  section — see [Views → Help](../referenz/ansichten.md#handbook-in-the-app-v340).
 - **Seven languages** (German, English, French, Italian, Spanish, Portuguese,
   Dutch), chosen per device, and **country profiles** for nine countries:
   currency, formats, time zone, weather location, heating limit, CO₂ factor,
   gas units and the terms on the country's bill — see
   [Country profiles](../verstehen/14-laenderprofile.md).
-- **Light, dark or like the system**.
+- **Light, dark or like the system** — one button cycles through them; the
+  icon shows what applies (☀️/🌙), a small “A” says that the app follows the
+  system (v3.4.0).
 - **Experience levels** (v3.2.0): Beginner, Experienced or Expert — the level
   decides what the interface shows, every level calculates everything. For
   beginners an overview with three answers; suggestions to move up when the
@@ -253,7 +271,7 @@ The detailed feature overview. What the views look like is shown in the
 
 - **No database, no runtime dependencies**: PHP 8.2 or newer and plain JSON
   files; Chart.js and the fonts ship with the repository.
-- **Docker** (amd64 and arm64, with PHP 8.4) or any web server with PHP — see
+- **Docker** (amd64 and arm64, with PHP 8.5) or any web server with PHP — see
   [Installation](../betrieb/installation.md); templates for Synology, Unraid,
   CasaOS and Umbrel under [Docker operation](../betrieb/docker.md).
 - **Backup** as one JSON file (format 3.0), checked and previewed before it is

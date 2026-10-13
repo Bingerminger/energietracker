@@ -25,7 +25,7 @@ the users' questions: seven areas instead of 17 entries.
 | Consumption | one page per active utility |
 | Costs & contracts | Contracts & payments · Tariff switch · Check a bill · Tenancy (v3.1.0, only “in a rented home”) |
 | Insights | Analysis · Forecast · Flexibility (v3.3.0) · Annual report |
-| Reminders & tips | Reminders & maintenance · Recommendations (one count in the sidebar) |
+| Reminders & tips | Reminders & maintenance · Recommendations (one count in the sidebar) · Done (v3.4.0) |
 | Settings | General · Household & building · Utilities & billing · Weather data · Data · Integrations · Access · Expert · System |
 
 The pages of an area appear as **tabs** above the view. Menu name and page title
@@ -39,6 +39,15 @@ higher experience level shows (below).
 delivery and tank reading for heating oil and pellets, reminder. Next to it the
 appearance switch (system, light, dark), since v3.2.0 with the experience
 level in front of it.
+
+**Appearance (v3.4.0):** each click moves on — like the system → light → dark
+→ like the system again. The icon shows what currently applies: ☀️ light, 🌙
+dark. While the app follows the system, the button also carries a small
+**“A”** (automatic); in the evening it then switches along with the system.
+After each click a short message says what applies now (“Automatic – follows
+the system”, “Light”, “Dark”) — the step to “like the system” often changes
+nothing visible. Up to v3.3 the icon showed the mode (🖥️ for “like the
+system”).
 
 **Experience level (v3.2.0):** in front of the light/dark button sits the
 choice **“Experience level”** with 🌱 **Beginner**, 🌿 **Experienced** and 🌳
@@ -55,8 +64,8 @@ it in the browser. An existing installation is on “Expert” after the update.
 | From level | Pages | Parts of pages |
 |---|---|---|
 | 🌱 Beginner | Overview (a view of its own, §1), Meter readings, Consumption per utility, Contracts & payments, Annual report, Reminders & maintenance, Recommendations, Help; Settings → General, Household & building, Utilities & billing, Data | — |
-| 🌿 Experienced | Tariff switch, Check a bill, Tenancy, Analysis, Forecast, meter management of a utility (`#/utility/…/meters`), Weather data, Settings → Integrations | the overview with every key figure; in the consumption view the CO₂ tile, “Measured”/“Weather-adjusted”, the monthly table, the PV energy flow, “Check a bill” and “Charging sessions from evcc” (§3); in the contract dialog notice period, price guarantee, how cancellation takes effect, minimum term, “Renews unless cancelled”, bonuses and special payments; in the settings Display, Reminders, Own reference values, Water reference values, Physical constants and Energy sources (delivery) |
-| 🌳 Expert | Flexibility (v3.3.0); Settings → Access, Expert, System | on the overview the “Explainers” section; in the consumption view hot-water heat, CO₂ price in the fuel, charging record, heat pump and the PV battery and payback; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract dialog capacity and metering charge and the key figures of district heating, the reduced grid fee (§ 14a), the time-variable grid fee (§ 14a module 3, v3.3.0), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates, PV system, the heat pump’s electricity meter and “Import time series”; in the tenancy “Sharing CO₂ costs”; in the settings CO₂ emission factors and Photovoltaics |
+| 🌿 Experienced | Tariff switch, Check a bill, Tenancy, Analysis, Forecast, meter management of a utility (`#/utility/…/meters`), Weather data, Reminders & tips → Done (v3.4.0), Settings → Integrations | the overview with every key figure; in the consumption view the CO₂ tile, “Measured”/“Weather-adjusted”, the monthly table, the PV energy flow, “Check a bill” and “Charging sessions from evcc” (§3); in the contract dialog notice period, price guarantee, how cancellation takes effect, minimum term, “Renews unless cancelled”, bonuses and special payments; in the settings Display, Reminders, Own reference values, Water reference values, Physical constants and Energy sources (delivery) |
+| 🌳 Expert | Flexibility (v3.3.0); Settings → Access, Expert, System | on the overview the “Explainers” section; in the consumption view hot-water heat, CO₂ price in the fuel, charging record, heat pump and the PV battery and payback; in the analysis the baseline date and “Effect of the measure”; in the forecast the model and the CO₂ price scenario; under Tariff switch the dynamic tariff and “Wholesale electricity prices”; in the contract list the counts per contract (v3.4.0); in the contract dialog capacity and metering charge and the key figures of district heating, the reduced grid fee (§ 14a), the time-variable grid fee (§ 14a module 3, v3.3.0), the energy price per meter of a group, credit notes from the direct marketer and “Import monthly prices”; in the meter dialog group, baseline dates, PV system, the heat pump’s electricity meter and “Import time series”; in the tenancy “Sharing CO₂ costs”; in the settings CO₂ emission factors and Photovoltaics |
 
 An area shows as tabs only the pages of its level, none if just one is left;
 “Insights” in the sidebar takes beginners to the annual report. A link, a
@@ -79,7 +88,7 @@ top: “This page belongs to the “Experienced” level. It is open anyway.” 
   on every focus.
 - As a home-screen app the page extends under the clock and home indicator.
 
-<p><img src="../../ui/screenshots/navigation-iphone.png" alt="Overview with tab bar on the iPhone" width="260"> <img src="../../ui/screenshots/erfassen-iphone.png" alt="Add sheet on the iPhone" width="260"></p>
+<p><img src="../../ui/screenshots/en/navigation-iphone.png" alt="Overview with tab bar on the iPhone" width="260"> <img src="../../ui/screenshots/en/erfassen-iphone.png" alt="Add sheet on the iPhone" width="260"></p>
 
 **Explanations on tap (v2.13.0):** technical terms carry an **ⓘ** — heating
 degree days, R², moving average, balance, baseline date, break-even, notice deadline
@@ -94,7 +103,7 @@ bill of the configured country, such as "On your bill (Austria):
 “Teilbetrag”" for the advance payment
 ([country profiles §8](../verstehen/14-laenderprofile.md#8-what-your-bill-calls-it)).
 
-<p><img src="../../ui/screenshots/en/erklaerung-mac.png" alt="Explanation of heating degree days on the Mac" width="420"> <img src="../../ui/screenshots/erklaerung-iphone.png" alt="The same explanation as a sheet on the iPhone" width="260"></p>
+<p><img src="../../ui/screenshots/en/erklaerung-mac.png" alt="Explanation of heating degree days on the Mac" width="420"> <img src="../../ui/screenshots/en/erklaerung-iphone.png" alt="The same explanation as a sheet on the iPhone" width="260"></p>
 
 The **help** sits in the footer of the sidebar, on the iPhone under "More".
 
@@ -151,6 +160,18 @@ come from the agenda (`GET /api/agenda`, every event with `due_now`) — the sam
 source as the calendar subscription (§9) and the sensors for Home Assistant.
 The rules are the same as before; up to v3.0 the browser assembled the list
 itself.
+
+**Ticking off (v3.4.0):** to the right of a row that can be done by hand
+(reminder, cancellation deadline, contract end, price increase, plan a
+delivery, objection and CO₂ deadlines) there is a tick **✓** — a button of its
+own, not part of the link. It opens the dialog **“Mark as done”** with “Done
+on” (today, can be backdated), note and receipt, for a cancellation deadline
+also “Cancelled – the contract does not renew”. The row then disappears; the
+message at the bottom offers “Undo”. “Read the meter” has no tick — a reading
+clears it. New under “To do” are price increases and the objection and CO₂
+deadlines as soon as they are due; a follow-on contract with a gap is named in
+the second line. The beginner overview has the tick as well.
+[Ticking off notices](../anleitungen/hinweise-erledigen.md).
 
 **Without data (v2.13.0)** a welcome replaces the empty tiles: what the
 Energietracker does, the first steps with ticks taken from the data (location,
@@ -240,17 +261,83 @@ answers one question instead of showing a series:
 | Explainer | What it shows | Empty when … |
 |---|---|---|
 | **“Where does my money go?”** | two bars up to the end of the billing period: “Advance payments” against “Cost”, the cost split into “Consumption”, “Standing charge” (less bonuses) and “still estimated”; the gap as credit or additional payment. Text: “By the bill on … you pay … in advance payments; consumption and standing charge will probably cost …. That makes about … credit.” | there is no running contract with a balance path |
-| **“Energy flow in the house”** | ☀️ Solar, 🏠 House, ⚡ Grid and, with battery meters, 🔋 Battery; the width of every flow follows the amount. Text: “{year}: The system produced … kWh. The house used … kWh of it itself, … kWh went to the grid, … kWh came from the grid. Self-sufficiency: ….” | the year has no generation |
+| **“Energy flow in the house”** | Solar, Grid, Battery, House and up to three consumers (Heat pump, Wallbox, Other) with the flows between them, for a year or a month — details below. Text: “{period}: the solar system delivered …, of which … went to the grid. The house needed …; … of it came from the grid. Self-sufficiency: ….”, with a battery also “The battery took in … and gave back ….” | the year has no generation |
 | **“Colder, or used more?”** | “Consumption” and “Heating degree days”, each “the same months a year earlier” against “recently” with the change in %, below it the badge “weather-adjusted …”. The text says “you really used less”, “you really used more — not just the weather” or “about the same — the difference is the weather” (threshold ±2 %) | fewer than six whole months with a weather-adjusted value (`heat_adjusted`) from the last twelve have a previous year |
-| **“Contract at a glance”** | a timeline with “Start”, “Cancel by”, “Price increase”, “End” and “today”; the stretch up to today is filled. For a contract that runs on, the end is the day it ends after a cancellation by “Cancel by” | the contract has no start |
+| **“Contract at a glance”** | a timeline with “Start”, “today” and, depending on the contract, “Cancel by” or “Deadline missed”, “End” or “Earliest end”, “Term ended”, “Minimum term ends”, “Price guaranteed until” (as a band on the axis), “Price increase” and “Next contract” — details below | the contract has no start |
+
+For money and weather, labels and amounts sit above the bars; the bars leave
+room on the right for the percentage, and the legend wraps instead of running
+into the next item (v3.4.0).
+
+**Energy flow in the house (v3.4.0, F1026).** Solar sits at the top, the grid
+on the left, the battery on the right, the house at the bottom in the middle;
+below it the consumers “Heat pump” and “Wallbox” (electricity meters with that
+role) and “Other” as the remainder. No flow crosses another and no number sits
+on a line: the amounts are inside the nodes — generation in Solar, consumption
+in House, ↓ drawn and ↑ fed in at the grid, ↓ charged and ↑ discharged at the
+battery. All nodes use the same unit (kWh, from 100,000 kWh in MWh). The width
+of a flow follows the amount; the dots on it move at the same speed and their
+density follows the amount — so a longer line does not suggest a larger
+amount. The rings around the nodes show shares: at Solar, where the generation
+went; at House, where the power came from (the grid share is exactly
+1 − self-sufficiency); at Battery, what came back and what was lost; at Grid,
+drawn against fed in.
+
+- **Year or month.** Above the picture, **“Year”** and **“Month”** switch the
+  period, the arrows ‹ › step back or forward. Within a year, values, bands and
+  rings glide to the new period in place. A year with fewer than twelve months
+  with all three meters is called, for example, “2023 (7 months)” — only those
+  months count, as for the key figure.
+- **Highlight.** The buttons below the picture (“Solar: …, … used yourself”,
+  “House: …, … self-sufficient”, “Battery: … charged, … discharged”, “Grid: …
+  drawn, … fed in”) highlight the flows of their node; the line below names
+  them. Tapping the node in the picture does the same, tapping again clears it.
+- **Calculated.** The meters do not measure whether the battery was charged
+  from solar or from the grid. Solar → Battery and Grid → Battery are therefore
+  calculated from the monthly totals and drawn dashed; the note “Dashed:
+  calculated from monthly totals, not measured.” says so.
+- **Grid charging.** If the battery took in more than the solar surplus, a flat
+  arc Grid → Battery appears; where it crosses the solar line it passes over it
+  as a bridge. The text explains it: this power counts as grid power.
+- **Motion.** The nodes pop up one after another, the flows draw themselves,
+  the rings turn in and the numbers count up; then the dots start moving. With
+  “Reduce motion” the final picture appears at once, arrows show the direction
+  and nothing moves.
+
+The calculation is the same as for the key figure “self-sufficiency”
+([Photovoltaics](../verstehen/12-pv.md#4-self-consumption--self-sufficiency-rate)).
+
+**Contract at a glance (v3.4.0, F1026).** The axis shows a window around
+today: a good year back and a good two years ahead. Whatever lies before or
+after sits dashed at the edge, with its date. Labels are spread over levels
+above and below the axis by proximity and are left- or right-aligned at the
+edges. “today” is the local date.
+
+| Contract | Marks | Text |
+|---|---|---|
+| fixed term with notice period | “Cancel by”, “End” | “To switch, cancel by …; it then ends on ….” |
+| deadline missed | “Deadline missed”, “End” | “The deadline to cancel passed on …; without cancellation it runs on after ….” |
+| does not renew | “End” | “… it ends on … without you having to cancel.” |
+| renewed (term over) | “Term ended”, “Earliest end”, at “today” “cancel any time” | “Its term ended on …; since then it has been running on and can be cancelled at any time — cancelled today, it ends on … at the earliest.” |
+| open-ended with notice | “Earliest end”, “cancel any time” | “… You can cancel at any time — cancelled today, it ends on … at the earliest.” |
+| open-ended with minimum term | “Earliest end” (end of the minimum term) | “… with a minimum term: cancelled today, it ends on … at the earliest.” |
+| open-ended without notice | — | “… No notice period has been entered.” |
+
+“Earliest end” is the day before the earliest switch (`switch_date − 1`). In
+addition, where entered: “Minimum term ends”, the price guarantee as a green
+band up to “Price guaranteed until”, the next “Price increase” and — as soon as
+`contract-status` reports it — the “Next contract” with its own stretch; a gap
+before it starts is dashed red and stated in the text (“In between there are
+… days without a contract.”).
 
 Bars grow and flows run as soon as a picture comes into view. With “Reduce
 motion” on the device the finished picture appears at once, and so it does
 when printing. The graphic is hidden from screen readers; its message is the
-text below it. The pictures are SVG with CSS animation, without a library, and
-follow light/dark. Where else they appear: in every consumption view (§3) and
-on the overview for beginners
-([Explainers](../einstieg/einrichtung.md#4-explainers)).
+text below it, for the energy flow also the list of flows. The pictures are
+SVG with CSS animation (dots: SMIL), without a library, with vector symbols
+instead of emoji, and follow light/dark; the colours come from the utilities.
+Where else they appear: in every consumption view (§3) and on the overview for
+beginners ([Explainers](../einstieg/einrichtung.md#4-explainers)).
 
 ---
 
@@ -362,6 +449,18 @@ the tooltip; gas/electricity/district heating only), balance today and
 expected balance. The standing charge is spelled out ("standing charge
 12.95 €/month" instead of "13 € base").
 
+**Order and status of the contracts (v3.4.0):** the table runs backwards
+through time, grouped under header rows: **Upcoming**, **Current** (a renewed
+contract too) and **Ended (n)** — in Upcoming and Current the latest start on
+top, in Ended the latest end. From three ended contracts the group is
+collapsed; a click on “Ended (n)” expands it. A group contract is sorted in
+instead of hanging at the end, and the special payments of a cell list the
+newest first. The status (ACTIVE · RENEWED · FUTURE · ENDED) comes from the
+server (`phase`) and reads the same in **Costs → Contracts**. Up to v3.3 the
+oldest row was on top, and an expired contract running on was called “PAST”
+there and “RENEWED” here. A contract replaced by one that started later is
+listed under Ended.
+
 **Balance from the customer's side (v2.13.0):** card and tile name the balance
 with a word and without a sign — "Credit €120.00" in green, "Additional
 payment €60.00" in red, with the period it covers. In tables **+ means credit** and
@@ -391,13 +490,29 @@ meter swap. In the readings table they carry "CHECK" or "IMPLAUSIBLE" (since
 v2.13.0 with an ⓘ and the reason, before in the tooltip); ✅ confirms a suspect reading — only then does it count. The
 reading dialog asks the same questions as the meter-reading capture.
 
+**Readings and paging (v3.4.0):** the **“Readings”** card names the number in
+the selected year and in total (“10 in 2026 · 43 in total”; up to v3.3 only the
+total stood above a list of the year). On the right of its header sits a small
+year selection, newest years first, plus **“All years”**: a year switches the
+whole page like the year selection at the top, “All years” only the list. If
+the list has more than 50 rows — daily values from Home Assistant or evcc,
+“All years” —, the paging bar **“‹ Previous · 1–25 of 365 · Next ›”** appears
+below it with **“Rows per page”** (25, 50, 100). The device remembers the page
+size per list; not the page: every visit starts on page 1 with the newest
+readings, so does another year or another meter, and after editing you stay on
+the page. If a long list holds readings with CHECK or IMPLAUSIBLE, the tick box
+**“Only flagged (n)”** shows exactly those. Paging happens in the browser; the
+interface still delivers all readings.
+
 **Photo with the reading (v3.1.0):** if a reading carries a photo, the readings
 table shows a small thumbnail. A click opens the large view with “Open in new
 tab” and “Remove photo” — removing detaches the photo from the reading; the
 file is cleaned up after 24 hours.
 
 **Periods instead of readings (v3.1.0):** for a meter with “consumption per
-period” the readings table gives way to the card **“Periods {year}”** with
+period” the readings table gives way to the card **“Periods”** (since v3.4.0
+with the number in the year and in total, year selection and paging as for
+readings) with
 period, consumption and the comparison values (previous month · same month
 last year · average user), ✏️ and 🗑️ per row. **“+ Period”** opens the dialog
 with “From”, “To (inclusive)” — pre-filled with the month after the last
@@ -417,9 +532,13 @@ temperature comes from Settings → Household & building → Home and hot water.
 
 **Check a bill (v3.1.0):** gas, electricity, water and district heating carry
 the card **“Check a bill”** below the tables with the button “Check the {year}
-bill”. It opens the page with utility, meter and the year on display
-(`#/bill-check?utility=…&meter=…&from=…&to=…`) and recalculates straight away.
-Up to v3.0 the link existed for gas only.
+bill”. It opens the page with utility, meter and the last completed billing
+period after the utility’s settlement date
+(`#/bill-check?utility=…&meter=…&from=…&until=…`) and recalculates straight away.
+If the settlement date is not 1 January, the button reads “Check the bill
+{from} – {to}”. Up to v3.3 it took the year on display, mostly the current one
+— with a gap up to 31 Dec and “no reading”. Up to v3.0 the link existed for gas
+only.
 
 **CO₂ price in the fuel (v3.1.0):** for gas, heating oil, district heating and
 heat — in Germany — the card **“CO₂ price in the fuel {year}”** follows, with an
@@ -458,8 +577,9 @@ meter, the link or a common month is missing, the card says so
 **“Explainers”** with those that fit the utility (§1): with a running contract
 “Where does my money go?” and “Contract at a glance” (not for feed-in), for
 heating utilities — heating oil and pellets too (§4) — “Colder, or used more?”
-over the last twelve months, for both PV utilities “Energy flow in the house”
-for the selected year. If none fits, the card is left out.
+over the last twelve months, for both PV utilities “Energy flow in the house”,
+first for the selected year, switchable to the months (§1). If none fits, the
+card is left out.
 
 **Charging sessions from evcc (v3.2.0):** for an electricity meter with the
 role “Wallbox”, from the “Experienced” level on, the card **“Charging sessions
@@ -622,8 +742,12 @@ example household “Own house with heat pump and solar” with the year 2025.
 
 ### Annual report (under Insights since v2.11.0)
 
-One year at a glance: overview per utility, efficiency, monthly tables and open
-recommendations. Up to v2.10 the report lived in the settings.
+One year at a glance. Up to v2.10 the report lived in the settings. Since
+v3.4.0 (“Annual report for everyone”) it is built for readers without a
+technical background: at a glance with status lights and the three most
+important tasks, what paid off, what needs doing, deadlines, money, one page per
+utility, topic pages only with data, a short glossary — structure, lights and
+rules in [Reading the annual report](../anleitungen/jahresbericht-lesen.md).
 
 **Print view (v3.1.0)** is the main button: **Open print view** shows the report
 of the chosen year as a page inside the app (`#/report/print?year=…`) — in the
@@ -632,16 +756,24 @@ of the interface, the charts as vector graphics. **Print / save as PDF** opens
 the browser's print dialog; when printing, the page hides sidebar, header, tabs
 and buttons and sets A4. On the iPhone this works via Share → Print, where the
 report can also be saved as a PDF. The data comes from
-`GET /api/reports/yearly`.
+`GET /api/reports/yearly`. Since v3.4.0 the print view shows the same model as
+the PDF (`model`): all sentences, the app’s explainer graphics (money, energy
+flow, “Colder, or more used?”, contract timeline) and simple bars; the
+checkbox **“With appendix ‘Figures in detail’”** adds the monthly tables
+(`#/report/print?year=…&detail=1`). It is the accessible version: real
+headings, tables with header rows, every chart with its message as text.
 
 Below it the **PDF file** stays as before: **Open in browser** shows the PDF in
 a new tab (`yearly.pdf?inline=1`) — in the home-screen app on the iPhone a
-download often never arrived —, **Download annual report** saves it. A note
-says: "The PDF is created in the installation’s default language (…); the
-print view follows this device’s language." The built-in PDF fonts only know
+download often never arrived —, **Download annual report** saves it. Since
+v3.4.0 the link carries this device’s language (`lang`); the note says: "The
+PDF is created in the language of this device (…), as is the print view." The
+built-in PDF fonts only know
 Western European characters (CP1252); since v3.1.0 "CO₂" becomes "CO2" there
 instead of "CO". For a language the PDF cannot set, the block disappears and
 the print view remains.
+
+![Print view of the annual report](../../ui/screenshots/en/jahresbericht.png)
 
 ---
 
@@ -653,7 +785,11 @@ Per utility and meter, the current contract:
 
 - provider, tariff and term, or "renews automatically"
 - **Cancel by** with the days left, highlighted from six weeks before; a
-  missed deadline in red
+  missed deadline in red. Since v3.4.0 a follow-on contract without a gap shows
+  **“Follow-on contract … from …”** (green) instead, with a gap “Follow-on
+  contract only from … – a gap of n days” next to it
+- *(v3.4.0)* **“History (n)”** as soon as the contract has entries: what was
+  done (cancellation, follow-on contract …), when and by whom
 - the advance payment per month
 - what to expect at the next bill: credit (green) or back-payment (red)
 
@@ -669,9 +805,21 @@ are no longer listed since v2.13.0 — their costs sit on the deliveries, and th
 Up to v2.10 the bill check sat at the end of the gas page, since v2.11.0 it is a
 page of its own (`#/bill-check`), since **v3.1.0** for **gas, electricity, water
 and district heating**. At the top the selection **“Utility”** (with several)
-and **“Meter”** (with several), below it “From”, “To (exclusive)” and
-**“Recalculate”**. The utility’s page links here with utility, meter and year
-(`?utility=…&meter=…&from=…&to=…`).
+and **“Meter”** (with several), below it “From”, **“To (inclusive)”** and
+**“Recalculate”**.
+
+**Calculated at once, on both routes (v3.4.0):** the page calculates as soon
+as it opens — via **Costs → Check a bill** just as via the button on the
+utility’s page. It is pre-filled with the last completed billing period after
+the utility’s settlement date (Settings → Utilities & billing, default 1
+January = last year), with a note saying so below. Switching utility or meter
+keeps the period and recalculates; utility, meter and period are in the
+address (`?utility=…&meter=…&from=…&until=…`, `until` inclusive), without a
+new history entry. Older links with `to` (exclusive) still work. Up to v3.3 the
+page only calculated with a period in the address: via Costs the result stayed
+empty, and right below the selection stood the “According to the bill” form
+with a second period meant differently (“To (exclusive)” at the top, “To
+(inclusive)” there).
 
 The table cuts the period like the supplier bill: for gas at every reading and
 every calorific-value change (m³ × correction factor × calorific value = kWh),
@@ -681,8 +829,11 @@ type, days, boundary, quantity and since v3.1.0 **Price**, **Consumption cost**
 and **Fixed costs**; below it “Recalculated: …” (less any bonus) and the legend
 of the reading types.
 
-**According to the bill (v3.1.0):** the second card takes the figures of the
-supplier bill — From, “To (inclusive)”, bill date, consumption on the bill (kWh
+**According to the bill (v3.1.0):** since v3.4.0 it sits collapsed below the
+result as **“Record the supplier’s bill (optional)”**, with the number of
+bills recorded (“· 2 recorded”). It takes the period from above (“Period as
+above: … to … (inclusive).”) and the figures of the
+supplier bill — bill date, consumption on the bill (kWh
 or m³), bill amount (incl. VAT), advance payments made, additional
 payment/credit (positive = additional payment; empty = amount − advances),
 **“Other items”** (levies, fees, credits with “Add item”), for gas “Emissions (kg
@@ -696,9 +847,10 @@ reasons ([Annual bill](../anleitungen/jahresabrechnung.md#7-on-the-bill-enter-co
 
 **Editing a bill (v3.2.0):** every row of the list carries a ✏️ (“Edit”)
 before the 🗑️. It fills the “According to the bill” card with the values of
-that bill — period, bill date, quantity, amount, advances, additional
+that bill — bill date, quantity, amount, advances, additional
 payment/credit, other items, for gas the CO₂ figures and the attached
-receipts — and says above the buttons “You are editing the bill from … to ….”
+receipts; since v3.4.0 it puts the bill’s period into the fields at the top and
+recalculates it — and says above the buttons “You are editing the bill from … to ….”
 If it is already booked, “It is already booked as a special payment – the
 booking in the contract does not change with it.” follows. The button then
 reads **“Save changes”** (message “Bill updated”, then the comparison), next
@@ -963,7 +1115,11 @@ Purely data-driven, no advertising. Since v2.11.0 under **Reminders & tips**;
 the button reads "Hide for 30 days" instead of "✕". Since v2.12.0 the message
 names the recommendation and offers **"Undo"** for ten seconds. Since v2.13.0
 the page says when there is too little data (no meter with three readings)
-that it is too early for recommendations — before, it read "all clear".
+that it is too early for recommendations — before, it read "all clear". Since
+v3.4.0 a recommendation with a deadline more than 30 days away (cancellation,
+contract end, price increase) has the button **“Hide until …”** — it does not
+come back before the deadline; every hide is recorded in the history
+(Reminders & tips → Done).
 
 ![Recommendations](../../ui/screenshots/en/empfehlungen.png)
 
@@ -984,6 +1140,11 @@ appears at the field instead of in a message at the bottom right; the delete
 question names the reminder. An interval in months reads "Every 48 months"
 instead of "Every N months (48)".
 
+Since v3.4.0 **✓** opens the dialog “Mark as done” (date, note, receipt);
+every completion is recorded in the history, “Undo” restores date and status
+and strikes the entry through. Below the title it says **“Last done on … by
+…”** (the person only with sign-in).
+
 **Subscribe in your calendar (v3.1.0):** the button above the list opens a
 dialog with two addresses to copy — `webcal://…` (opens the calendar app
 directly) and `https://…`. The subscription holds reminders, cancellation
@@ -995,6 +1156,31 @@ Access. Notes on Apple Calendar and Google Calendar are in the dialog. Setup
 per calendar app: [Deadlines in your calendar](../anleitungen/kalender.md).
 
 ![Appointments](../../ui/screenshots/en/termine.png)
+
+### Done (v3.4.0, under Reminders & tips)
+
+The third tab under **Reminders & tips**, from the “Experienced” level: the
+history of done notices, grouped by month, newest first, with the number of
+entries per month.
+
+- **Filters:** “Person” (only if people appear in the history), “Period”
+  (entire history, last 3 or 12 months, this and last year) and “Area”
+  (reminders, contracts, meter readings, tank and store, tenancy,
+  recommendations).
+- **Entry:** title in the interface language, “on … by …” (without sign-in
+  only the day), for automatic entries the badge “automatic” and “Reason:
+  Follow-on contract … from …”, “hidden” for a recommendation, note and
+  receipt (📎).
+- **✎** changes the note, **“Undo”** strikes the entry through (“Undone on …
+  by …”) and restores what it changed. Automatic entries have no “Undo” —
+  they follow the data.
+- **“Manage history”** (admins only): retention in months
+  (`activity_keep_months`, default 60, 0 = unlimited) and “Clear history” —
+  all entries before a day, or all of them.
+
+Guide: [Ticking off notices](../anleitungen/hinweise-erledigen.md).
+
+![Reminders & tips → Done](../../ui/screenshots/en/erledigt.png)
 
 ---
 
@@ -1046,14 +1232,31 @@ Since v2.12.0 **nine sub-pages** instead of one long page:
 | Household & building | living area, building type, heated basement, hot water; since v3.1.0 “Home and hot water” and “Own reference values” (for the benchmark); water reference values with the number of people in the household | Beginner; “Own reference values” and “Water reference values” from Experienced |
 | Utilities & billing | active utilities (since v3.1.0 including heat), all billing dates in one card, physical constants (gas factors, heating threshold), calorific values and tank warning, CO₂ factors (since v3.1.0 with “CO₂ avoided by PV”), since v3.1.0 “Photovoltaics” (assumed self-consumption of plug-in solar) | Beginner; physical constants and calorific values from Experienced, CO₂ factors and Photovoltaics from Expert |
 | Weather data | §10 | Experienced |
-| Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data, migration from v0.9.0; link to the annual report | Beginner |
+| Data | CSV export (spreadsheet in the default language or format 1), backup & restore with snapshots, demo data; link to the annual report | Beginner |
 | Integrations | Home Assistant integration | Experienced |
-| Access | Sign-in & access, since v3.2.0 “Users and roles”, embedding | Expert |
+| Access | since v3.4.0 “Security check” (does the web server serve `data/`?, proxy header, open operation without a host list), sign-in & access with “Sign out everywhere”, since v3.2.0 “Users and roles”, embedding, since v3.4.0 “Host names” | Expert |
 | Expert | since v3.1.0 at the top receipts (storage limit) and text recognition in the home network, since v3.2.0 “evcc in your home network”; below, collapsed (“Show calculation parameters”) and with a warning: regression, forecast model, anomaly and recommendation thresholds, since v3.1.0 CO₂ price | Expert |
-| System | version, licence, system diagnostics | Expert |
+| System | version, licence, since v3.4.0 “Support Energietracker”, security check (v3.4.0), system diagnostics | Expert |
 
 Each page saves through a bar at the bottom ("Discard" · "Save") that appears
 only after a change. Leaving the page with unsaved changes asks first.
+
+**Cards in a grid (v3.4.0):** every sub-page lays all its cards out in one
+grid — three columns on the Mac, two or one on the iPad, one on the iPhone.
+Narrow cards (such as “Active utilities” with the checkboxes in two columns,
+“Language & country”, “Sign-in & access”) sit side by side and aligned at the
+top; wide cards with tables (physical constants, data export, backup, API
+keys, users and roles, system diagnostics, “Meters and templates for Home
+Assistant”) span the full width at the end of the page. The Home Assistant
+integration is split for this: status and token in a narrow card, meter
+aliases and YAML templates in a wide one; likewise “Sign-in & access”
+(narrow) and “API keys for scripts” (wide). Number fields in wide cards are at
+most 12 rem wide.
+
+**Support Energietracker (v3.4.0, GitHub #28):** under System, next to “About
+Energietracker”, a small card links to Buy Me a Coffee
+(`buymeacoffee.com/bingerminger`, opens a new tab). Support is voluntary; the
+app stays the same and nothing depends on it.
 
 **Since v2.13.0:** 18 more fields carry a hint on what they do. The card of
 billing dates lists the **PV feed-in** (its remuneration is calculated up to
@@ -1245,6 +1448,47 @@ and at least one working price; the start is prefilled with the day after the
 current commitment, and the app asks before a new contract supersedes a running one. Since v2.12.0 the first price rows apply from the contract start and follow it until someone changes their date; a pre-filled row without an amount stays empty. "From start" (up to v2.11 "⇧ Start") sets a row to the contract start. The contract card counts in the right plural ("1 working price"), delete is an outlined button, and the question names the contract. Since v2.9.0 the **Notice period** takes months, weeks or days, plus **Cancellation takes effect** ("automatic", "at the end of the term", "any time, at month end", "any time, to any day") and the **"Renews unless cancelled"** checkbox — clear it once you have cancelled. A meter with *Active* cleared still counts in every total, but no longer appears in the reading entry and raises no warnings. Below the unit prices of a gas contract, **"Convert a price per m³"** (v2.7.0) turns a price per m³ or Smc into ct/kWh and enters it. For oil/pellets only the tank/store
 management is relevant here. When creating or editing a tank, **tank capacity** and **initial stock** are captured (instead of a cumulative meter reading), since v2.10.0 optionally the **price of the initial stock** (empty = price of the first delivery). For cumulative meters the **register digits** can be maintained since v2.6.0 — the evaluation then calculates a rollover (99,999 → 0) correctly; the device line shows them.
 
+**Contract list (v3.4.0):** the contracts of a utility (Costs → Contracts →
+“Manage contracts”) stand in one view, backwards through time and grouped:
+**Upcoming**, **Current** (renewed too), **Ended (n)** — collapsible from three
+entries — and at the end **“Quotes for comparison – not counted”** with the
+shadow contracts and a link to the tariff switch. In Upcoming and Current the
+latest start is on top, in Ended the latest end; a contract replaced by one
+that started later counts as ended. Every card carries the status tag from the
+server’s phase (as in the “Contracts & advances” table), the years
+(“2024–2025”, “since 2022”) and, instead of the counts, the values that apply
+today: “Unit price … ct/kWh · Standing charge … €/month · Advance payment
+… €/month” — for an ended contract those of its last day, for an upcoming one
+those of its first, then with “(as of …)”. The counts (“1 unit price · 1
+standing charge …”) appear at the “Expert” level. Up to v3.3 the list sorted
+by start only: a quote for next year stood on top as the “newest contract”,
+the open-ended heat pump contract among the ended ones. In the contract dialog
+the price rows (unit price, standing charge, advance payment, for district
+heating capacity and metering charge, for water all price lists) also list the
+newest first, and **“+ Row”** adds on top; saving still stores them in
+ascending order.
+
+![Meters & contracts: contract list of a utility](../../ui/screenshots/en/zaehler-vertraege.png)
+
+**One form grid (v3.4.0):** all dialogs — contract, meter, device replacement,
+group, delivery, tank reading, period, reminder, offer, tenancy and statement —
+and the “As billed” form lay out their fields in the same six-column grid:
+dates and numbers narrow, text wide, notes across the full width, two columns
+on the iPhone. Label, field and hint of one row line up, even when a label
+wraps. Fields that belong together sit in a box with a heading; its fields have
+their own surface, in dark mode too. Lists of rows (prices, bonuses, special
+payments, time windows, prepayments, items) share one grid — date | amount |
+extra | ✕ — with the labels only above the first row. The **contract dialog**
+orders its boxes like a bill: contract → term and cancellation → unit price,
+standing charge, advance payment → grid fee (§ 14a module 1 and module 3) →
+bonuses → special payments → credit notes → notes at the end. The module 3
+time windows take “from” and “until” the same way (also “6” or “1530”, which
+the app writes as 06:00 and 15:30). The **meter dialog** starts with name,
+icon, role and recording, then device, structure, market location, system,
+baseline dates, notes.
+
+![Contract dialog in the form grid](../../ui/screenshots/en/vertragsdialog.png)
+
 **Role and recording (v3.1.0):** for electricity, water, PV generation and
 heat, the meter dialog has the choice **“Role”** with a hint below — it
 replaces the former “Heating electricity (heat pump)” checkbox:
@@ -1368,8 +1612,6 @@ example CSV are in the interface language.
 
 ![CSV import preview](../../ui/screenshots/import-vorschau.png)
 
-![Meters & contracts](../../ui/screenshots/en/zaehler-vertraege.png)
-
 ---
 
 ## 13. PV — feed-in & generation (F1005)
@@ -1450,13 +1692,16 @@ Reached from the footer of the sidebar, on the iPhone under "More"
 
 - **First steps:** the same list as in the welcome, with ticks from the data;
   once everything is done, it says so.
-- **Documentation:** getting started, frequently asked questions, compendium,
-  glossary, Home Assistant guide and troubleshooting on GitHub (FAQ and
-  troubleshooting since v2.14.0), since v3.2.0 also “Setup, example households
-  and levels” ([Setup and experience levels](../einstieg/einrichtung.md)) and
-  “Use cases” ([Use cases](../anleitungen/anwendungsfaelle.md)) — in German for
-  a German interface, otherwise in English (with a note when your own language
-  is missing).
+- **Documentation:** since v3.4.0 **“Open the handbook”** at the top (the
+  index of this handbook), below it getting started, frequently asked
+  questions, glossary, “Setup, example households and levels”
+  ([Setup and experience levels](../einstieg/einrichtung.md)), “Use cases”
+  ([Use cases](../anleitungen/anwendungsfaelle.md)), the Home Assistant guide
+  and troubleshooting. All of them open **in the app** (up to v3.3 on GitHub,
+  as of `main`) — in German for a German interface, otherwise in English, with
+  a note when your own language is missing. A sentence below says that the
+  handbook lives on your own server, matches the version and opens without
+  internet access.
 - **Questions and bugs:** GitHub issues and the pointer to the diagnostics
   under Settings → System, whose details a bug report needs.
 - **Your data:** everything stays on your own server — no accounts, no
@@ -1468,20 +1713,52 @@ Reached from the footer of the sidebar, on the iPhone under "More"
   prices (v3.1.0).
 - **Use cases (v3.2.0):** a card of its own between the cards above and the
   glossary, in every language of the app — the documentation exists only in
-  German and English. Three cases with title and explanation: **“District
-  heating or heat?”** (a supply contract of your own against measured heat
-  without one), **“Control with evcc or Home Assistant”** (“The Energietracker
-  switches nothing.” — it checks what the control achieved) and **“Simple
-  first, everything later”** (the experience levels). Below them **“Try an
-  example household”** — it leads to Settings → General with “Start the setup
-  assistant” — and “Use cases” to the
-  [guide](../anleitungen/anwendungsfaelle.md).
+  German and English. Since v3.4.0 all seven cases of the
+  [guide](../anleitungen/anwendungsfaelle.md) (A–G: shared flat with shared
+  meters, smart home with Home Assistant, solar household with a heat pump,
+  landlord with several units, wallbox and company car, **“District heating
+  or heat?”**, **“Control with evcc or Home Assistant”**) and **“Simple first,
+  everything later”** (the experience levels), each with title, a short
+  explanation and **“Read more in the handbook”** — the jump leads exactly to
+  the section, in German or English. Below them **“Try an example
+  household”** — it leads to Settings → General with “Start the setup
+  assistant” — and “Use cases” to the whole guide.
 - **Terms:** since v3.1.0 43 entries (33 in v2.13.0) in all seven languages with a search. The ⓘ in the app
   opens the same texts; `#/help?term=hdd` jumps to a term. Since v3.1.0
   billing terms also show what the bill of the configured country calls them
   ("On your bill (France): “Mensualité”").
 
 ![Help](../../ui/screenshots/en/hilfe.png)
+
+### Handbook in the app (v3.4.0)
+
+`#/help/doc/<path>` shows a page of this handbook, loaded from your own server
+in the version that is running — the same files as on GitHub for that tag. It
+opens without internet access; pages that were open before also open without a
+connection to the server (service worker).
+
+- **Header:** “Help › Handbook” and the **Deutsch | English** switch when the
+  page exists in both languages; a jump target is kept when switching.
+- **Note** in French, Italian, Spanish, Portuguese and Dutch: the handbook
+  exists in German and English, the app shows the English version.
+- **Contents:** a collapsible table of contents of the headings (from three
+  sections on); a tap jumps to the section without reloading the page.
+- **Text:** headings, lists, tables, code, quotes and images as on GitHub. Wide
+  tables and code blocks scroll within themselves, so the page stays as wide
+  as the screen on the iPhone.
+- **Links:** links within the docs, to the changes (CHANGELOG), the licence and
+  the notes on security and contributing stay in the app. Other files of the
+  project (roadmap, templates, sample data) open GitHub at the tag of this
+  version, external pages a new tab.
+- A page that does not exist says so, with the way back to the handbook; an old
+  path (before v2.14.0) leads to the new page.
+
+Every way there — Help, “Guide” at Home Assistant, setup, users, evcc and
+flexibility — opens in the app. Only “Open the GitHub project”, the link in the
+sidebar and the source code of the version under Settings → System still lead
+to GitHub. Technical details: [Docs in the app](api.md#docs-in-the-app-get-apidocs-v340).
+
+![Handbook in the app](../../ui/screenshots/en/handbuch.png)
 
 ---
 

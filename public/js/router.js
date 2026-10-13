@@ -48,10 +48,12 @@ const ROUTES = [
   [/^\/report\/print$/,              'report-print'],   // v3.1.0 (I18N-12)
   [/^\/reminders$/,                  'reminders'],
   [/^\/recommendations$/,            'recommendations'],
+  [/^\/activity$/,                   'activity'],       // v3.4.0 (F1024) — Erledigt mit Verlauf
   [/^\/settings$/,                   'settings'],
   [/^\/settings\/([a-z]+)$/,         'settings'],   // v2.12.0 — Unterseiten
   [/^\/temperatures$/,               'temperatures'],
   [/^\/help$/,                       'help'],           // v2.13.0
+  [/^\/help\/doc\/(.+)$/,            'help-doc'],       // v3.4.0 (N1019) — Doku vom eigenen Server
 ];
 
 // Ansicht → Modul und Bereich. `tab` nennt den Tab, der bei einer Unterseite
@@ -73,9 +75,11 @@ const VIEWS = {
   'report-print':       { section: 'analysis', tab: 'report', load: () => import('./views/report-print.js') },
   'reminders':          { section: 'hints',       load: () => import('./views/reminders.js') },
   'recommendations':    { section: 'hints',       load: () => import('./views/recommendations.js') },
+  'activity':           { section: 'hints',       load: () => import('./views/activity.js') },   // v3.4.0 (F1024)
   'settings':           { section: 'settings',    load: () => import('./views/settings.js') },
   'temperatures':       { section: 'settings',    load: () => import('./views/temperatures.js') },
   'help':               { section: 'help',        load: () => import('./views/help.js') },
+  'help-doc':           { section: 'help', tab: 'help', load: () => import('./views/help-doc.js') },   // v3.4.0 (N1019)
 };
 
 // Bereiche, deren Seiten als Tabs über der Ansicht stehen. Die Verbrauchsarten

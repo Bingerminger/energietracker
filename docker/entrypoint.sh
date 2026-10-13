@@ -4,6 +4,10 @@
 # und startet danach den eigentlichen Prozess (supervisord).
 set -e
 
+# v3.4.0 (N1020) — gehärteter Betrieb mit `read_only: true`: /run und
+# /var/lib/nginx/tmp sind dann leere tmpfs; nginx braucht sein PID-Verzeichnis.
+mkdir -p /run/nginx /var/lib/nginx/tmp 2>/dev/null || true
+
 # v2.6.0 — nur umstellen, wenn der Besitzer nicht stimmt. Ein `chown -R` bei
 # jedem Start dauerte auf großen Bind-Mounts lange und änderte bei jedem
 # Neustart die Besitzrechte auf dem Host.

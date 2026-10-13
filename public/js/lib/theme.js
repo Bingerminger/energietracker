@@ -11,13 +11,20 @@
 // gerade gilt („Darstellung: System"), statt nur „gedrückt". Und
 // `theme-color` folgt der Wahl — die Statusleiste der Home-Bildschirm-App
 // richtete sich bisher nur nach dem System.
+//
+// v3.4.0 (N1021, Entscheidung „Kreislauf mit Abzeichen") — Das Symbol zeigt
+// die WIRKSAME Darstellung (☀️ hell, 🌙 dunkel), nicht mehr den Modus (🖥️).
+// Folgt die App dem System, trägt der Knopf ein kleines „A". Jeder Klick
+// meldet kurz, was jetzt gilt — der Schritt auf „wie das System" ändert oft
+// nichts Sichtbares und wirkte bis v3.3 wie ein toter Klick.
 // =====================================================================
 
 import { t, hasTranslation } from './i18n.js';
+import { toast } from '../components/toast.js';
 
 const STORAGE_KEY = 'et-theme';
 const MODES = ['system', 'light', 'dark'];
-const ICONS = { system: '🖥️', light: '☀️', dark: '🌙' };
+const ICONS = { light: '☀️', dark: '🌙' };
 // Hintergrund der Kopfleiste (--bg-1) je Theme — Farbe der Statusleiste
 const BAR_COLOR = { light: '#ffffff', dark: '#111827' };
 
@@ -59,6 +66,7 @@ function toggleTheme() {
 }
 
 let updateButton = () => {};
+let dismissNotice = null;
 
 /** Beschriftung neu setzen (nach dem Laden der Sprache). */
 export function refreshThemeToggle() { updateButton(); }
@@ -70,9 +78,21 @@ export function refreshThemeToggle() { updateButton(); }
 export function mountThemeToggle(btn) {
   if (!btn) return;
   const iconEl = btn.querySelector('.topbar__btn-icon') || btn;
+  // Abzeichen „A" (Automatik); index.php kennt es nicht, es kommt hier dazu
+  let badge = btn.querySelector('[data-theme-badge]');
+  if (!badge) {
+    badge = document.createElement('span');
+    badge.className = 'topbar__badge';
+    badge.setAttribute('data-theme-badge', '');
+    badge.setAttribute('aria-hidden', 'true');
+    btn.appendChild(badge);
+  }
   updateButton = () => {
     const mode = storedMode();
-    iconEl.textContent = ICONS[mode];
+    iconEl.textContent = ICONS[currentTheme()];
+    badge.hidden = mode !== 'system';
+    badge.textContent = hasTranslation('app.theme.autoBadge') ? t('app.theme.autoBadge') : 'A';
+    btn.dataset.themeMode = mode;
     // Vor dem Laden der Sprache bleibt die Beschriftung aus index.php stehen
     if (!hasTranslation('app.theme.toggle')) return;
     const label = t('app.theme.toggle', { mode: t('app.theme.' + mode) });
@@ -80,7 +100,15 @@ export function mountThemeToggle(btn) {
     btn.setAttribute('title', label);
     btn.removeAttribute('aria-pressed');
   };
-  btn.addEventListener('click', () => { toggleTheme(); updateButton(); });
+  btn.addEventListener('click', () => {
+    toggleTheme();
+    updateButton();
+    // Kurze Meldung: Am iPhone gibt es keinen Tooltip, der den Modus nennt
+    // (die vorige Meldung weicht, schnelles Weiterklicken stapelt sonst)
+    const mode = storedMode();
+    dismissNotice?.();
+    if (hasTranslation('app.theme.applied.' + mode)) dismissNotice = toast(t('app.theme.applied.' + mode), 'info', 2500);
+  });
   // theme-color und color-scheme zum gespeicherten Stand bringen
   applyTheme(storedMode());
   updateButton();

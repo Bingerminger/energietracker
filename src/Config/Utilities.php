@@ -73,6 +73,8 @@ final class Utilities
             // v3.1.0 (H3, B9/CALC-28) — warm: Warmwasserzähler (Wärme nach
             // HeizkostenV § 9 als Rechenwert), garden: Gartenwasser
             'meter_roles'     => ['cold', 'warm', 'garden'],
+            // v3.4.0 (F1025) — der Versorger ist gesetzt: kein Tarifwechsel
+            'switchable'      => false,
         ],
 
         // ── v1.3.0 — Fernwärme: kumulativer kWh-Zähler, analog Strom, aber HGT-relevant ──
@@ -284,6 +286,16 @@ final class Utilities
     public static function hasContracts(string $key): bool
     {
         return (bool)(self::get($key)['has_contracts'] ?? true);
+    }
+
+    /**
+     * v3.4.0 (F1025) — Lässt sich der Anbieter wechseln? Nur bei Arten mit
+     * Verträgen; Wasser nicht (Versorger vor Ort, kein Markt). Empfehlungen
+     * und Jahresbericht raten dort nicht zum Tarifvergleich.
+     */
+    public static function isSwitchable(string $key): bool
+    {
+        return self::hasContracts($key) && (bool)(self::get($key)['switchable'] ?? true);
     }
 
     /**

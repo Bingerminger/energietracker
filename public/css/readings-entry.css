@@ -217,7 +217,6 @@
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2);
   margin-top: var(--sp-2);
 }
-.reading-card__photo[hidden] { display: none; }
 .reading-card__thumb {
   width: 72px; height: 72px; object-fit: cover;
   border-radius: var(--r-sm); border: 1px solid var(--border-2);
@@ -225,7 +224,6 @@
 .reading-card__ocr { flex: 1 1 12rem; font-size: var(--fs-sm); color: var(--text-2); }
 
 .readings-entry__outbox { margin-bottom: var(--sp-4); border-left: 3px solid var(--warning); }
-.readings-entry__outbox[hidden] { display: none; }
 .outbox-list { list-style: none; margin: var(--sp-2) 0; padding: 0; display: grid; gap: var(--sp-2); }
 .outbox-item {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;

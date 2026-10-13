@@ -61,7 +61,10 @@ Examples from the history:
    documented from memory.)*
 2. **`VERSION`** updated (the single source of the version number).
 3. **`CHANGELOG.md`**: a new section per "Keep a Changelog" (`Added` / `Changed` /
-   `Fixed` / `Migration` / `Notes`).
+   `Fixed` / `Migration` / `Notes`). Since v3.4.0 the same section in English in
+   **`CHANGELOG.en.md`**; the release notes on GitHub are bilingual (English
+   first, then German), and `ReleaseConsistencyTest` checks that both files list
+   the same versions from 3.4.0 on.
 4. **Version stamps** pulled in sync: `README.md` (badge + status), the `INSTALL.md`
    reference, the compendium header (`docs/README.md` and the affected chapters).
 5. **Maintain the compendium** — *mandatory at every release from v1.4.2*: changed
@@ -759,6 +762,24 @@ accepted.
 - **JSON has no decimal with a zero (v3.3.0).** `10.0` is written as `10` and
   read back as an integer; a strict comparison in a test fell for it.
   `IntervalService::values()` therefore always returns floats.
+- **Building in parallel means merging carefully (v3.4.0).** Six packages
+  were built in separate working copies. Once, conflict markers stayed in the
+  CI file because only the end of the merge output was read. Since then: after
+  every merge search the whole repository for markers and check the list of
+  unmerged files (`git diff --diff-filter=U`); don't merge translations
+  textually but re-apply the package's key file.
+- **One formula in two places needs a shared check (v3.4.0).** Self-sufficiency
+  is computed by the server and by the explainer; both are checked against the
+  same file `tests/fixtures/energy-flows.json`.
+- **A deadline of “today” is no deadline (v3.4.0).** Contracts that kept
+  running reported a new cancellation deadline every day; calendar and Home
+  Assistant showed it as an event. A reminder needs a fixed date or none.
+- **Hiding has to work everywhere (v3.4.0).** `.form-grid label
+  {display:flex}` overrode the `hidden` attribute; dynamic tariff fields stood
+  visibly next to the unit price. One global `[hidden]` rule replaces seven
+  single patches.
+- **Trusting headers needs a filter in front (v3.4.0).** A user header is only
+  as trustworthy as the service that sets it and strips the client's own.
 
 ---
 

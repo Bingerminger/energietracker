@@ -12,7 +12,7 @@
 ## Warum Docker?
 
 Ein **Container** ist eine fertig geschnürte Box, in der schon alles steckt,
-was Energietracker braucht (PHP 8.4, nginx, der App-Code). Du musst auf deinem
+was Energietracker braucht (PHP 8.5, nginx, der App-Code). Du musst auf deinem
 Rechner/Server **nichts** außer Docker installieren. Vorteile:
 
 - **Ein Befehl, läuft überall** gleich (Mac, Linux, Windows, Synology/NAS).
@@ -45,6 +45,11 @@ Für 32-Bit-ARM (`linux/arm/v7`, ältere Raspberry Pi und NAS) gibt es noch
 kein veröffentlichtes Image. Ein Probelauf in der CI baut und startet es
 bereits (seit v3.1.0); erst wenn er verlässlich durchläuft, kommt die
 Plattform ins veröffentlichte Image.
+
+**Was im Image steckt (seit v3.4.0):** neben der App ihr Handbuch — die
+Dokumentation auf Deutsch und Englisch samt Bildern, dazu der CHANGELOG. Die
+Hilfe zeigt es in der App, passend zur Version des Images und ohne Internet.
+Tests, Werkzeuge, Vorlagen und Werbebilder bleiben draußen.
 
 ---
 
@@ -257,6 +262,11 @@ Besonderheiten in der Anleitung [Home Assistant](../anleitungen/home-assistant.m
 
 Die mitgelieferte `docker-compose.yml` pinnt eine feste Version.
 
+Seit v3.4.0 baut GitHub den neuesten Release-Tag **jede Woche** auf dem
+aktuellen Basis-Image neu (gleicher Code, aktuelle Alpine- und PHP-Pakete) und
+schiebt ihn unter denselben Namen. Ein festgeschriebener Tag bekommt so
+Sicherheitsupdates des Unterbaus; `docker compose pull` holt sie.
+
 Best Practice für einen Server: eine **konkrete Versionsnummer** pinnen und
 Updates bewusst durchführen.
 
@@ -308,8 +318,10 @@ docker run -e ET_LOG_LEVEL=debug …   # bzw. in docker-compose.yml unter enviro
 | `ET_LOG_FILE` | `<dataDir>/logs/app.log` | Pfad, wenn `ET_LOG_DEST=file` |
 | `ET_AUTH` | *(leer)* | *(v2.6.0)* `off` \| `password` \| `proxy` — legt den Anmeldemodus fest; leer = in den Einstellungen umschaltbar. `ET_AUTH=off` ist auch der Notausgang bei vergessenem Passwort |
 | `ET_ADMIN_PASSWORD_HASH` | *(leer)* | *(v2.6.0)* Passwort als `password_hash()`-Wert; in Compose jedes `$` verdoppeln |
-| `ET_TRUSTED_PROXIES` | *(leer)* | *(v2.6.0)* Adressen/Netze des vorgeschalteten Proxys (kommagetrennt, CIDR erlaubt) — nur von dort gilt `Remote-User` |
-| `ET_ALLOWED_HOSTS` | *(leer = alle)* | *(v2.6.0)* erlaubte Hostnamen, kommagetrennt, `*.domain` möglich; andere → 421. IP-Adressen und `localhost` immer |
+| `ET_TRUSTED_PROXIES` | *(leer)* | *(v2.6.0)* Adressen/Netze des vorgeschalteten Proxys (kommagetrennt, CIDR erlaubt) — nur von dort gilt eine Benutzer-Kopfzeile, und nur von dort zählt `X-Forwarded-For` für die Sperre nach Fehlversuchen (v3.4.0) |
+| `ET_PROXY_USER_HEADER` | *(leer)* | *(v3.4.0)* die eine Kopfzeile, aus der der Proxy-Modus den Benutzer liest (z. B. `X-Forwarded-User`); empfohlen für jeden Proxy außer Home-Assistant-Ingress — [Sicherheit § 6](sicherheit.md#6-anmeldung-über-einen-vorgeschalteten-proxy) |
+| `ET_ALLOWED_HOSTS` | *(leer = alle)* | *(v2.6.0)* erlaubte Hostnamen, kommagetrennt, `*.domain` möglich; andere → 421. IP-Adressen und `localhost` immer. Seit v3.4.0 auch in den Einstellungen (`allowed_hosts`); beide Listen gelten |
+| `ET_LOCK_WAIT_S` | `15` | *(v3.4.0)* wie lange eine schreibende Anfrage auf die Schreibsperre wartet (1–120 s), danach `503` mit `Retry-After` |
 | `ET_FRAME_ANCESTORS` | *(leer)* | *(v2.6.0)* Ursprünge, die die App einbetten dürfen (z. B. das Home-Assistant-Dashboard) |
 | `ET_DEBUG` | *(leer)* | *(v2.6.0)* `1` = Datei/Zeile in Fehlerantworten — nur kurz zur Fehlersuche |
 
@@ -318,12 +330,15 @@ Was die Anmeldung bewirkt und wann du sie brauchst:
 [Sicherheit & Netzbetrieb](sicherheit.md).
 
 **PHP-Einstellungen (seit v2.6.0):** Das Image bringt eine eigene `php.ini`
-mit — `max_execution_time` 120 s, Fehlerausgabe aus, OPcache an. Seit v3.1.0
+mit — `max_execution_time` 120 s, Fehlerausgabe aus, OPcache an. Seit v3.4.0
+läuft es auf **PHP 8.5** (OPcache ist dort fest eingebaut). Seit v3.1.0
 `post_max_size`/`upload_max_filesize` **256 MB** und `memory_limit` **768 MB**
-(vorher 32 MB und 256 MB), nginx nimmt Anfragen bis 256 MB an
-(`client_max_body_size`, vorher 32 MB): Mit Belegen (Fotos, PDFs) wird ein
+(vorher 32 MB und 256 MB): Mit Belegen (Fotos, PDFs) wird ein
 Backup schnell größer, und der Import hält es beim Einspielen etwa doppelt im
-Speicher. Bis v2.5.3 galten die PHP-Vorgaben (128 MB, 8 MB); ein Backup mit
+Speicher. nginx nimmt seit v3.4.0 so große Anfragen nur noch für den
+Backup-Import, Belege und die CSV-/Zeitreihen-Importe an, sonst höchstens
+8 MB (`client_max_body_size`; v3.1 bis v3.3 256 MB überall) —
+[Größengrenzen](sicherheit.md#12-größengrenzen-und-schreibsperre-v340). Bis v2.5.3 galten die PHP-Vorgaben (128 MB, 8 MB); ein Backup mit
 vielen Jahren Tagesdaten ließ sich damit nicht zurückspielen. Ebenfalls seit
 v3.1.0 wartet nginx bis zu **310 Sekunden** auf PHP (`fastcgi_read_timeout`,
 vorher 120 s): Die Texterkennung im Heimnetz darf bis 300 Sekunden rechnen
@@ -407,7 +422,54 @@ docker run -d --name energietracker -p 8080:80 \
 ```
 
 Das Image bündelt nginx + php-fpm (von `supervisord` zusammengehalten) und
-nutzt für den Container-`HEALTHCHECK` den Endpoint `GET /api/health`.
+nutzt für den Container-`HEALTHCHECK` den Endpoint `GET /api/health`. php-fpm
+lauscht seit v3.4.0 nur auf `127.0.0.1:9000` (eigene Pool-Datei
+`zzz-energietracker.conf`); andere Container erreichen FastCGI nicht.
+
+---
+
+## Gehärteter Betrieb *(v3.4.0)*
+
+Wer den Container mit weniger Rechten laufen lassen will: keine neuen
+Privilegien, nur die Capabilities, die nginx, php-fpm und der Start brauchen,
+ein nur lesbares Dateisystem (geschrieben wird allein in `/data` und in
+flüchtige `tmpfs`) und der Port nur auf `127.0.0.1` — erreichbar dann über
+einen Reverse-Proxy auf demselben Rechner. Die CI startet das Image bei jedem
+Lauf genau so.
+
+```yaml
+services:
+  energietracker:
+    image: ghcr.io/bingerminger/energietracker:X.Y.Z
+    container_name: energietracker
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - ./data:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - KILL
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+      - /var/lib/nginx/tmp
+```
+
+Die sechs Capabilities braucht der Betrieb: `CHOWN` stellt `/data` auf
+`www-data`, `SETUID`/`SETGID` lassen php-fpm und nginx ihre Arbeitsprozesse
+als eigener Benutzer starten, `KILL` lässt sie diese wieder beenden,
+`NET_BIND_SERVICE` öffnet Port 80, `DAC_OVERRIDE` lässt den Start in `/data`
+nachsehen. Ohne Reverse-Proxy auf demselben Rechner `127.0.0.1:` weglassen.
 
 ---
 

@@ -41,6 +41,8 @@ Auch im offenen Betrieb gelten seit v2.5.3/v2.6.0:
 | Fehlermeldungen | Keine Pfade, Dateinamen oder Zeilennummern in API-Antworten (nur mit `ET_DEBUG=1`); ein Serverfehler nennt eine Fehler-ID, die Einzelheiten stehen im Protokoll. |
 | Belege *(v3.1.0)* | Fotos und PDFs werden am Inhalt geprüft und nur über die API ausgeliefert, ein PDF ohne Skripte (§ 9). |
 | Texterkennung *(v3.1.0)* | Der Server verbindet sich nur mit Adressen im eigenen Netz, geprüft bei jedem Aufruf (§ 9). |
+| Größe und Schreibsperre *(v3.4.0)* | Große Anfragen nur dort, wo sie hingehören, gelesen wird erst nach der Anmeldung; ein langsamer Dienst hält keinen Schreibzugriff auf (§ 12). |
+| Hostliste *(v3.4.0)* | In den Einstellungen setzbar, damit eine fremde Seite ihren Namen nicht auf deine Adresse umbiegen kann (§ 8). |
 
 Das schützt vor fremden **Webseiten**, nicht vor fremden **Menschen oder
 Geräten im Netz** — dafür ist die Anmeldung da.
@@ -50,8 +52,17 @@ Geräten im Netz** — dafür ist die Anmeldung da.
 **In der App:** Einstellungen → Zugriff → „Anmeldung & Zugriff" → Passwort
 (mindestens 8 Zeichen) zweimal eingeben → „Anmeldung einschalten". Dieser
 Browser bleibt angemeldet; jeder andere fragt einmal nach dem Passwort und
-bleibt dann **30 Tage** angemeldet. Abmelden geht über den Knopf in der
-Kopfleiste.
+bleibt dann angemeldet — seit v3.4.0 **30 Tage ab der letzten Nutzung**
+(gleitend; bis v3.3 30 Tage ab der Anmeldung). Abmelden geht über den Knopf
+in der Kopfleiste. Abmelden löscht das Cookie dieses Browsers und die
+gespeicherten Antworten der App in seinem Cache (seit v3.4.0 wieder
+vollständig; v3.1 bis v3.3 ließen sie liegen).
+
+**Überall abmelden** *(v3.4.0)*: Einstellungen → Allgemein → „Mein Konto“
+bzw. Einstellungen → Zugriff. Alle Sitzungen dieser Person enden auf jedem
+Gerät, auch auf diesem — etwa nach einem verlorenen Handy oder wenn jemand
+das Cookie kopiert haben könnte. API-Schlüssel und der Home-Assistant-Token
+bleiben gültig; die widerruft man einzeln.
 
 Was sich damit ändert:
 
@@ -65,7 +76,12 @@ Was sich damit ändert:
 - `/api/health` antwortet ohne Anmeldung nur noch mit `{status, version}` —
   genug für Docker und Uptime-Monitore.
 - Nach **fünf** falschen Passwörtern innerhalb von 15 Minuten ist die
-  Anmeldung **5 Minuten** gesperrt.
+  Anmeldung **für dieses Gerät 5 Minuten** gesperrt; zehn Fehlversuche für
+  denselben Namen sperren diesen Namen, hundert insgesamt alle (Notbremse).
+  Bis v3.3 galt eine Sperre für den ganzen Haushalt — jedes Gerät im Netz
+  konnte so alle aussperren. Hinter einem Reverse-Proxy zählt die Adresse aus
+  `X-Forwarded-For`, aber nur, wenn der Proxy in `ET_TRUSTED_PROXIES` steht.
+- Die Antwortzeit verrät nicht, ob es einen Namen gibt (v3.4.0).
 - Ein neues Passwort meldet alle anderen Geräte ab.
 
 **Passwort vergessen?** Auf dem Server in `data/auth.json` den Wert von
@@ -85,7 +101,7 @@ Einen Hash erzeugen:
 ```bash
 php -r 'echo password_hash("dein-passwort", PASSWORD_DEFAULT), PHP_EOL;'
 # oder ohne lokales PHP:
-docker run --rm php:8.4-cli php -r 'echo password_hash("dein-passwort", PASSWORD_DEFAULT), PHP_EOL;'
+docker run --rm php:8.5-cli php -r 'echo password_hash("dein-passwort", PASSWORD_DEFAULT), PHP_EOL;'
 ```
 
 > In `docker-compose.yml` jedes `$` im Hash verdoppeln (`$$2y$$10$$…`) —
@@ -157,17 +173,32 @@ ET_AUTH=proxy
 ET_TRUSTED_PROXIES=172.18.0.0/16   # Adresse(n) oder Netze des Proxys, kommagetrennt
 ```
 
-Der Energietracker übernimmt dann den Benutzer aus `Remote-User`,
-`X-Forwarded-User`, `X-Remote-User` oder — seit v3.1.0 — `X-Remote-User-Name`
-bzw. `X-Remote-User-Id` (so meldet Home Assistant unter Ingress den Benutzer)
-— **nur** bei Anfragen von den Adressen in `ET_TRUSTED_PROXIES`. Von anderswo
-gilt die Kopfzeile nicht, sonst könnte jeder sie selbst setzen. Der Proxy muss
-diese Kopfzeilen aus den Anfragen der Nutzer **entfernen**, bevor er seine
-eigenen setzt (bei den genannten Diensten Standard). API-Schlüssel
-funktionieren im Proxy-Modus zusätzlich.
+Den Benutzer meldet der Proxy in einer Kopfzeile — und die gilt **nur** bei
+Anfragen von den Adressen in `ET_TRUSTED_PROXIES`. Von anderswo zählt sie
+nicht, sonst könnte jeder sie selbst setzen. Welche Kopfzeile zählt
+(seit v3.4.0):
+
+| Betrieb | Es zählt |
+|---|---|
+| `ET_PROXY_USER_HEADER` ist gesetzt (z. B. `X-Forwarded-User`, `Remote-User`) | genau diese eine Kopfzeile — **empfohlen** für jeden Proxy außer Home Assistant |
+| Home-Assistant-Ingress (erkennbar an `X-Ingress-Path` bzw. `X-Remote-User-Id`) | nur `X-Remote-User-Id` und `X-Remote-User-Name`; die Person wird über die stabile Kennung geführt (eine Umbenennung in Home Assistant macht keine neue Person) |
+| keines von beiden | wie bis v3.3 die erste nicht leere von `Remote-User`, `X-Forwarded-User`, `X-Remote-User`, `X-Remote-User-Name`, `X-Remote-User-Id` — mit Warnung im Sicherheits-Check |
+
+```bash
+ET_PROXY_USER_HEADER=X-Forwarded-User   # die Kopfzeile, die dein Proxy setzt
+```
+
+Warum die feste Kopfzeile: Manche Proxys entfernen nur ihre eigene Kopfzeile
+aus den Anfragen der Nutzer und reichen andere unverändert durch. Gilt dann
+die erste Kopfzeile einer Liste, kann sich eine angemeldete Person als eine
+andere ausgeben — auch als Verwalter. Mit `ET_PROXY_USER_HEADER` zählt nur
+die Kopfzeile, die der Proxy selbst setzt. API-Schlüssel funktionieren im
+Proxy-Modus zusätzlich.
 
 Unter Home-Assistant-Ingress ist der Proxy der Supervisor:
-`ET_AUTH=proxy` und `ET_TRUSTED_PROXIES=172.30.32.2` — Einzelheiten in
+`ET_AUTH=proxy` und `ET_TRUSTED_PROXIES=172.30.32.2`; `ET_PROXY_USER_HEADER`
+bleibt leer. Den internen Hostnamen für die Vorlagen meldet die App seit
+v3.4.0 ebenfalls nur dem Supervisor. Einzelheiten in
 [Home Assistant](../anleitungen/home-assistant.md).
 
 ## 7. HTTPS
@@ -190,18 +221,29 @@ den Rest frei, etwa die Synology mit Let's Encrypt oder Caddy.
 
 ## 8. Hostnamen und Einbetten
 
-**`ET_ALLOWED_HOSTS`** (opt-in) schützt gegen *DNS-Rebinding*: Eine fremde
+Eine **Hostliste** (opt-in) schützt gegen *DNS-Rebinding*: Eine fremde
 Seite biegt ihre Domain auf die Adresse im Heimnetz um und wäre dann für den
 Browser „dieselbe Seite". Mit gesetzter Liste beantwortet die App nur
-bekannte Hostnamen, alle anderen mit `421`:
+bekannte Hostnamen, alle anderen mit `421`. Zwei Wege, beide gelten
+zusammen:
+
+- **In der App** *(v3.4.0)*: Einstellungen → Zugriff → „Hostnamen“ (nur
+  Verwalter, Einstellung `allowed_hosts`). Für Apache und die Synology, die
+  keine Umgebungsvariablen kennen. Beim Speichern muss der Name dabei sein,
+  unter dem du die App gerade aufrufst — sonst lehnt die App ab, statt dich
+  auszusperren. Der Sicherheits-Check (Einstellungen → Zugriff) meldet den
+  offenen Betrieb ohne Hostliste und bietet an, den aktuellen Namen zu
+  übernehmen.
+- **Über die Umgebung:**
 
 ```bash
 ET_ALLOWED_HOSTS=energie.example.org,*.fritz.box
 ```
 
-IP-Adressen und `localhost` sind immer erlaubt. Mit eingeschalteter
-Anmeldung ist Rebinding ohnehin wirkungslos (das Cookie gehört nicht zur
-fremden Domain); die Liste ist die zweite Linie für den offenen Betrieb.
+IP-Adressen und `localhost` sind immer erlaubt — wer die App über ihre
+Adresse aufruft, kommt immer hinein. Mit eingeschalteter Anmeldung ist
+Rebinding ohnehin wirkungslos (das Cookie gehört nicht zur fremden Domain);
+die Liste ist die zweite Linie für den offenen Betrieb.
 
 **Einbetten:** Fremde Seiten dürfen die App nicht in einem Rahmen anzeigen —
 sonst ließen sich Klicks auf „Demo-Daten laden" oder „Token erzeugen"
@@ -216,7 +258,7 @@ getrennt.
 | Pfad | Inhalt |
 |---|---|
 | `data/` | alle Nutzdaten, `auth.json`, Backups und Snapshots |
-| `src/`, `tests/`, `scripts/`, `docker/`, `docs/`, `demo-data/`, `vendor/`, `tools/`, `dist/`, `deploy/` | Quelltext, Tests, Hilfsdateien, Vorlagen (die drei letzten seit v3.1.0) |
+| `src/`, `tests/`, `scripts/`, `docker/`, `docs/`, `demo-data/`, `vendor/`, `tools/`, `dist/`, `deploy/` | Quelltext, Tests, Hilfsdateien, Vorlagen (die drei letzten seit v3.1.0). Das Handbuch unter `docs/` liest die App seit v3.4.0 über `GET /api/docs` — nur aus einer Freigabeliste und mit Anmeldung, falls eingeschaltet; direkt bleibt es gesperrt |
 | `.git/`, `.github/`, `.env` und alle Punktdateien | Historie, Konfiguration |
 | `composer.json`, `Dockerfile`, `VERSION`, `*.md` im Wurzelverzeichnis | Projektdateien |
 
@@ -225,6 +267,9 @@ getrennt.
   `.htaccess` sperrt diese Pfade mit `mod_rewrite` (404); `data/.htaccess`
   ist die zweite Sicherung. Voraussetzung: `AllowOverride` mindestens
   `FileInfo` und ein aktives `mod_rewrite` — in der Web Station Standard.
+  Fehlt `mod_rewrite`, sperrt seit v3.4.0 `mod_alias` dieselben Pfade
+  (`RedirectMatch 404`, ebenfalls nur `FileInfo`); bis v3.3 war der Schutz
+  dann still aus.
 - **Eigener nginx:** die `location`-Regeln aus `docker/nginx.conf`
   übernehmen.
 - **Entwicklungsserver:** immer mit Router starten —
@@ -232,7 +277,12 @@ getrennt.
   PHP-Server jede Datei aus, auch `data/`. Nie auf `0.0.0.0` für andere
   freigeben.
 
-**Prüfen** (Adresse anpassen) — alle drei müssen `404` liefern:
+**Selbsttest in der App** *(v3.4.0)*: Einstellungen → Zugriff (und System)
+→ „Sicherheits-Check“. Der Browser fragt dort selbst nach `data/meta.json`;
+liefert der Webserver die Datei aus, steht der Punkt rot da — dann wirken die
+Regeln nicht (`AllowOverride` zu eng oder keines der beiden Module aktiv).
+
+**Prüfen von Hand** (Adresse anpassen) — alle drei müssen `404` liefern:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' http://nas.local/energietracker/data/meta.json
@@ -264,8 +314,10 @@ Fotos: Wer ein Backup weitergibt, gibt die Fotos mit.
 **Texterkennung nur im Heimnetz.** Ist ein Texterkennungsdienst eingetragen
 (`ocr_endpoint`), verbindet sich der **Server** mit ihm — nie der Browser,
 dessen Content-Security-Policy nur die eigene Seite erlaubt. Jede Adresse, auf
-die der Name zeigt, muss lokal sein (Loopback, private Netze, Link-local,
-`100.64.0.0/10`, IPv6-ULA). Geprüft wird bei jedem Aufruf nach der
+die der Name zeigt, muss lokal sein (Loopback, private Netze,
+`100.64.0.0/10`, IPv6-ULA). Link-local (`169.254.0.0/16`, `fe80::/10`) zählt
+seit v3.4.0 nicht mehr dazu: Dort antworten bei gemieteten Servern die
+Metadatendienste der Anbieter. Geprüft wird bei jedem Aufruf nach der
 Namensauflösung, verbunden wird mit genau der geprüften Adresse, Weiterleitungen
 werden nicht verfolgt. So schickt weder ein Tippfehler noch ein umgebogener
 DNS-Eintrag (DNS-Rebinding) ein Zählerfoto ins Internet. Einen Schalter dagegen
@@ -273,6 +325,12 @@ gibt es nicht; leer heißt: keine Verbindung. Das Ziel bestimmt, wer die
 Einstellungen ändern darf — mit eingeschalteter Anmeldung nur Angemeldete und
 `admin`-Schlüssel. Einrichtung:
 [Texterkennung im Heimnetz](../anleitungen/texterkennung.md).
+
+**Verbindungen nach außen** *(v3.4.0)*: Wetter (Open-Meteo) und
+Börsenpreise (SMARD) nur über HTTPS, auch nach einer Weiterleitung, und
+höchstens zwei Weiterleitungen; Texterkennung und evcc im Heimnetz ohne
+Weiterleitung. Jede Antwort höchstens 20 MB — eine größere bricht die App ab,
+statt sie in den Speicher zu laden.
 
 ## 10. Protokoll und Fehlersuche
 
@@ -286,16 +344,73 @@ Einstellungen ändern darf — mit eingeschalteter Anmeldung nur Angemeldete und
 
 ## 11. Checkliste vor der Freigabe nach außen
 
-- [ ] Anmeldung eingeschaltet (§ 3) oder Proxy-Anmeldung (§ 6)
+- [ ] Anmeldung eingeschaltet (§ 3) oder Proxy-Anmeldung mit `ET_PROXY_USER_HEADER` (§ 6)
 - [ ] HTTPS über den Reverse-Proxy (§ 7)
 - [ ] Home Assistant mit Token, Rückkanal mit `read`-Schlüssel (§ 4)
 - [ ] Kalender-Abo nur mit Kalender-Schlüssel im Link (§ 5)
-- [ ] `data/` & Co. liefern `404` (§ 9)
-- [ ] `ET_ALLOWED_HOSTS` gesetzt (§ 8)
+- [ ] `data/` & Co. liefern `404` — der Sicherheits-Check zeigt es (§ 9)
+- [ ] Hostliste gesetzt: Einstellungen → Zugriff oder `ET_ALLOWED_HOSTS` (§ 8)
 - [ ] `ET_DEBUG` nicht gesetzt (§ 10)
+- [ ] Docker: gehärtet und Port nur auf `127.0.0.1` hinter dem Reverse-Proxy (§ 13)
 - [ ] Besser noch: VPN statt Freigabe (§ 1)
 
-## 12. Sicherheitslücke gefunden?
+## 12. Größengrenzen und Schreibsperre *(v3.4.0)*
+
+**Größe einer Anfrage.** Die App prüft die angegebene Größe, bevor sie ein
+Byte liest, und liest den Körper erst nach der Anmeldung. Bis v3.3 las sie
+jede Anfrage vorab ganz ein — wenige parallele Anfragen eines Geräts ohne
+Anmeldung brachten ein NAS an die Speichergrenze.
+
+| Route | Höchstens |
+|---|---|
+| ohne Anmeldung erreichbar: `POST /api/ingest`, `POST /api/session` | 1 MB |
+| Backup-Import, Belege, CSV- und Zeitreihen-Importe (`…/import-csv`, `…/import-series`, `…/import-evcc`) | 256 MB |
+| alle anderen | 8 MB |
+
+Darüber antwortet die App mit `413`. Im Docker-Image setzt nginx dieselben
+Grenzen (`client_max_body_size` 8 MB, 256 MB nur für diese Routen). Mit
+**Apache** gehört die Entsprechung in die Server- oder VirtualHost-
+Konfiguration — `LimitRequestBody` ist in `.htaccess` nur mit
+`AllowOverride All` erlaubt und würde sonst jede Anfrage mit `500`
+beantworten:
+
+```apache
+LimitRequestBody 8388608
+<LocationMatch "/api(\.php/api)?/(backup/import|attachments|.+/import-(csv|series|evcc))$">
+    LimitRequestBody 268435456
+</LocationMatch>
+```
+
+**Schreibsperre.** Schreibende Anfragen laufen nacheinander (sonst gingen bei
+gleichzeitigen Schreibern Änderungen verloren). Seit v3.4.0 hält ein Aufruf
+eines fremden Dienstes die Sperre nicht mehr: Die Texterkennung schreibt
+nichts und sperrt gar nicht, Wetter, SMARD und evcc holen erst die Daten und
+sperren dann nur für das Schreiben. Bis v3.3 blockierte eine Texterkennung bis
+zu fünf Minuten jeden Schreibzugriff, auch den Home-Assistant-Push. Wartet
+eine Anfrage länger als 15 Sekunden auf die Sperre, antwortet die App mit
+`503` und `Retry-After: 5`, statt unbegrenzt zu warten (`ET_LOCK_WAIT_S`
+ändert die Frist, 1 bis 120 Sekunden).
+
+## 13. Container härten *(v3.4.0)*
+
+**php-fpm nur intern.** Das Basis-Image lässt php-fpm auf allen
+Schnittstellen lauschen. Seit v3.4.0 bindet das Image es an `127.0.0.1`;
+andere Container im selben Docker-Netz — bei `network_mode: host` jedes Gerät
+im Netz — erreichen FastCGI nicht mehr direkt, an jeder Anmeldung vorbei. Die
+CI prüft das bei jedem Lauf am laufenden Container.
+
+**Gehärteter Betrieb.** Wer mag, startet den Container mit weniger Rechten:
+keine neuen Privilegien, nur die nötigen Capabilities, nur lesbares
+Dateisystem und der Port nur auf `127.0.0.1` hinter einem Reverse-Proxy. Das
+Beispiel steht in [Docker-Betrieb](docker.md#gehärteter-betrieb-v340); die CI
+startet das Image bei jedem Lauf genau so.
+
+**Aktuelles Basis-Image.** Jede Woche baut GitHub den neuesten Release-Tag
+auf dem aktuellen Basis-Image neu (gleicher Code, neue Pakete) und prüft das
+Image auf bekannte Lücken. Ein festgeschriebener Tag wie `3.4.0` bekommt so
+Sicherheitsupdates von Alpine und PHP, ohne dass sich an der App etwas ändert.
+
+## 14. Sicherheitslücke gefunden?
 
 Bitte **nicht** als öffentliches Issue melden, sondern wie in
 [`SECURITY.md`](../../SECURITY.md) beschrieben.

@@ -26,6 +26,9 @@ use Energietracker\Support\LocalizedException;
  */
 final class MeterService
 {
+    /** v3.4.0 (N1020) — Zeichensatz für Kennungen, die der Client wählt (Geräte beim Anlegen). */
+    public const ID = '/^[A-Za-z0-9_-]{1,64}$/';
+
     public function __construct(private JsonStore $store, private I18nService $i18n) {}
 
     /** @return array<int,array<string,mixed>> */
@@ -112,6 +115,13 @@ final class MeterService
         // Devices: entweder explizit als komplettes Array übergeben,
         // oder aus den convenience-Feldern abgeleitet.
         if (isset($input['devices']) && is_array($input['devices']) && count($input['devices']) > 0) {
+            // v3.4.0 (N1020) — Kennungen, die der Client wählt, nur aus einem
+            // sicheren Zeichensatz (sie landen in CSV, Selektoren und Vorlagen)
+            foreach ($input['devices'] as $d) {
+                if (is_array($d) && isset($d['id']) && !preg_match(self::ID, (string)$d['id'])) {
+                    throw new LocalizedException('errors.meter.idInvalid', ['id' => mb_substr((string)$d['id'], 0, 40)], 'unsafe device id');
+                }
+            }
             $devices = array_map(fn($d) => [
                 'id'              => (string)($d['id'] ?? 'd_' . bin2hex(random_bytes(4))),
                 'serial'          => $d['serial'] ?? null,

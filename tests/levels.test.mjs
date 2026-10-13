@@ -44,7 +44,7 @@ const { initI18n } = await import(`${JS}/lib/i18n.js`);
 await initI18n('de');
 const L = await import(`${JS}/lib/levels.js`);
 const { sectionPages } = await import(`${JS}/lib/nav-model.js`);
-const { moneyHtml, weatherHtml, timelineHtml } = await import(`${JS}/components/explainer.js`);
+const { moneyHtml, energyHtml, weatherHtml, timelineHtml } = await import(`${JS}/components/explainer.js`);
 
 // ── Stufen ──────────────────────────────────────────────────────────────
 console.log('Nutzungsstufen');
@@ -89,6 +89,29 @@ t('CSS blendet je Stufe aus',
   && css.includes('html[data-level="beginner"] [data-min-level="expert"]')
   && css.includes('html[data-level="advanced"] [data-min-level="expert"]'));
 
+// ── v3.4.0 (F1024) — Hinweise › Erledigt ────────────────────────────────
+console.log('Erledigt mit Verlauf');
+t('Tab „Erledigt" ab Erfahren', !allowed('beginner', 'activity') && allowed('advanced', 'activity'));
+L.applyLevel('beginner');
+const hintsB = sectionPages('hints').map(p => p.view);
+L.applyLevel('advanced');
+const hintsA = sectionPages('hints').map(p => p.view);
+t('… Navigation: Einsteiger ohne, Erfahren mit', !hintsB.includes('activity') && hintsA.join() === 'reminders,recommendations,activity', hintsA.join());
+const A = await import(`${JS}/lib/activity.js`);
+const entry = { title_key: 'calendar.event.cancelBy', params: { label: 'Strom', provider: 'Testwerk' }, title: 'alt' };
+t('Titel in der Sprache der Oberfläche (title_key), nicht die Momentaufnahme', A.entryTitle(entry).includes('Kündigung') && !A.entryTitle(entry).includes('alt'));
+t('… ohne Schlüssel die Momentaufnahme', A.entryTitle({ title: 'Empfehlung X' }) === 'Empfehlung X');
+t('Grund mit Datum in Landesschreibweise',
+  A.reasonText({ key: 'activity.reason.successor', params: { provider: 'Neuwerk', date: '2027-01-01' } }).includes('01.01.2027'));
+t('wer: Person, ehemalige Person, Schlüssel, Integration, ohne Anmeldung niemand',
+  A.byText({ type: 'person', id: 'u1', name: 'Anna' }) === 'Anna' && A.byText({ type: 'person', former: true }) !== ''
+  && A.byText({ type: 'key', name: 'Skript' }).includes('Skript') && A.byText({ type: 'integration', name: 'home_assistant' }) === 'Home Assistant'
+  && A.byText(null) === '');
+t('Bereiche: jede Agenda-Art hat einen', ['reminder', 'cancel_by', 'term_end', 'price_increase', 'tank_reorder', 'reading_due',
+  'tenancy_statement_due', 'objection_deadline', 'co2_claim_deadline', 'contract', 'recommendation'].every(k => A.AREA_KEYS.includes(A.AREAS[k])));
+t('Personen im Verlauf (für den Filter)', A.personsIn([{ by: { type: 'person', id: 'u2', name: 'Ben' } }, { by: { type: 'person', id: 'u1', name: 'Anna' } },
+  { by: null }, { by: { type: 'person', former: true } }]).map(p => p.name).join() === 'Anna,Ben');
+
 // ── Schaubilder ─────────────────────────────────────────────────────────
 console.log('Schaubilder');
 const money = moneyHtml({
@@ -112,6 +135,15 @@ const fewAdjusted = twoYears.map((r, i) => (i < 12 || i >= 20 ? r : { ...r, heat
 t('Wetter: unter sechs Monaten mit bereinigtem Wert kein Bild', weatherHtml(fewAdjusted) === '');
 const sixAdjusted = twoYears.map((r, i) => (i < 12 || i >= 18 ? r : { ...r, heat_adjusted: null }));
 t('Wetter: ab sechs Monaten ein Bild', weatherHtml(sixAdjusted).includes('ex-weather'));
+
+// v3.4.0 (F1026) — Energiefluss: eine Jahreszeile reicht (Druckansicht), die
+// ganze Antwort schaltet Jahr und Monat; Einzelprüfungen in explainer.test.mjs
+const pvYear = { year: 2025, erzeugung_kwh: 6500, einspeisung_kwh: 4200, eigenverbrauch_kwh: 2300, bezug_kwh: 3800 };
+const energy = energyHtml(pvYear);
+t('Energie: Bild aus einer Jahreszeile', energy.includes('ex-energy') && energy.includes('Sonne') && !energy.includes('ef-period'));
+t('Energie: Autarkie aus dem Fluss (ohne Speicher wie bisher)', energy.includes('38') && /Autarkie: 38/.test(energy));
+t('Energie: mit Monaten umschaltbar', energyHtml({ yearly: [pvYear], monthly: [{ ym: '2025-06', year: 2025, flow: null }, { ym: '2025-07', year: 2025, erzeugung_kwh: 900, einspeisung_kwh: 600, bezug_kwh: 200 }] }).includes('data-ef-scope="month"'));
+t('Energie: ohne Erzeugung kein Bild', energyHtml({ year: 2025, erzeugung_kwh: 0, bezug_kwh: 3000 }) === '');
 
 const running = timelineHtml({ start: '2024-01-01', is_open_ended: true }, '2026-10-09');
 t('Zeitstrahl: weiterlaufender Vertrag ohne Frist', running.includes('läuft weiter'));

@@ -44,7 +44,7 @@ export async function render(container, _params = [], ctx = {}) {
         <button type="button" class="btn btn--ghost" id="flex-smard">${esc(t('flex.loadPrices', { year }))}</button>
       </div>
     </div>
-    <p class="muted">${esc(t('flex.intro'))} <a href="${esc(docUrl('flexibility'))}" target="_blank" rel="noopener">${esc(t('common.guide'))}</a></p>
+    <p class="muted">${esc(t('flex.intro'))} <a href="${esc(docUrl('flexibility'))}">${esc(t('common.guide'))}</a></p>
     ${!r.prices?.available ? `<div class="banner banner--info">${esc(t('flex.noPrices', { year }))}</div>` : ''}
     ${!meters.length ? `<div class="banner banner--info">${esc(t('flex.noIntervals', { year }))}</div>` : ''}
     ${r.prices?.available ? meters.map(m => meterCard(m, r.year)).join('') : ''}

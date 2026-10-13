@@ -64,7 +64,10 @@ final class PdfCharsetTest extends TestCase
         self::assertSame('kWh/m²·a', $back('kWh/m²·a'), 'Mittelpunkt existiert in CP1252');
         self::assertSame("Total\u{00A0}: 12\u{00A0}%", $back("Total\u{202F}: 12\u{202F}%"), 'schmales Leerzeichen → geschütztes');
         $w = new PdfWriter(false);
-        self::assertEqualsWithDelta(7 * 10 * 0.52, $w->textWidth('Énergie', 10), 0.001, 'Zeichen zählen, nicht UTF-8-Bytes');
+        // v3.4.0 (F1025) — echte Helvetica-Breiten statt 0,52 em je Zeichen:
+        // „É“ ist ein Zeichen so breit wie „E“, nicht zwei UTF-8-Bytes
+        self::assertEqualsWithDelta($w->textWidth('Energie', 10), $w->textWidth('Énergie', 10), 0.001, 'Zeichen zählen, nicht UTF-8-Bytes');
+        self::assertEqualsWithDelta(34.46, $w->textWidth('Énergie', 10), 0.001, 'Breiten aus den AFM-Tabellen');
     }
 
     public function testLanguageWithoutCp1252IsNotSupported(): void

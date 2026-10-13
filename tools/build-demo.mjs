@@ -17,6 +17,11 @@
    Ansehen: `php -S 127.0.0.1:8090 -t dist/demo` (der PHP-Server liefert hier
    nur Dateien aus) und http://127.0.0.1:8090/ öffnen.
 
+   Seit v3.4.0 (N1019) gehört das Handbuch dazu: jede Seite, die der Server
+   unter /api/docs freigibt (eigener Index `demo-api/docs-index.json`, für
+   alle Haushalte und Sprachen derselbe), und ihre Bilder unter
+   `demo-api/docs/`.
+
    Abgelegt werden die Antworten inhaltsadressiert (`r/<hash>.json`); was in
    allen Sprachen gleich ist, liegt nur einmal da. Ein Server-Fehler (5xx)
    bricht den Bau ab — die Demo zeigt sonst einen Fehler, den es im
@@ -25,11 +30,12 @@
 
 import { spawn, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { demoKey, demoFileName } from '../public/js/lib/demo-key.js';
+import { normalizeAnchor } from '../public/js/lib/billing-period.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FORECAST_MODELS = ['linear', 'polynomial', 'robust', 'segmented', 'sigmoid'];
@@ -87,7 +93,8 @@ async function enumerate(get) {
     '/api/agenda?days=90', '/api/summary', '/api/attachments',   // v3.1.0 — H1, H2
     // v3.1.0 (H3–H8) — Mietverhältnis, Börsenpreise, Einordnung auf der Übersicht
     '/api/tenancies', '/api/market-prices', '/api/benchmarks/comparison',
-    '/api/intervals', '/api/flexibility');   // v3.3.0 (F1021) — Vorbelegung: Vorjahr
+    '/api/intervals', '/api/flexibility',    // v3.3.0 (F1021) — Vorbelegung: Vorjahr
+    '/api/activity');                         // v3.4.0 (F1024) — Hinweise › Erledigt, Verlauf je Vertrag
 
   const settings = (await get('/api/settings')).json?.data ?? {};
   // v3.2.0 (F1018) — Mietverhältnis der Beispielhaushalte: Budget und Abrechnungen
@@ -138,7 +145,8 @@ async function enumerate(get) {
   const years = [];
   for (let y = firstYear; y <= lastYear; y++) years.push(y);
   for (const y of years) add(`/api/benchmarks/efficiency?year=${y}`);
-  for (const y of years) add(`/api/reports/yearly?year=${y}`);   // v3.1.0 — Druckansicht
+  // v3.1.0 — Druckansicht; v3.4.0 (F1025) — immer mit Anhang, die Ansicht blendet ihn ein
+  for (const y of years) add(`/api/reports/yearly?year=${y}&detail=1`);
   for (const y of years) add(`/api/co2-costs?year=${y}`);       // v3.1.0 (H4) — CO₂-Preis-Karte in der Verbrauchsansicht
   // v3.1.0 (H4, H7, H8) — CO₂-Aufteilung, Wärmepumpen-Karte, Einordnung je Jahr
   for (const y of years) add(`/api/co2-split?year=${y}`, `/api/heat-pump?year=${y}`, `/api/benchmarks/comparison?year=${y}`);
@@ -150,6 +158,9 @@ async function enumerate(get) {
       // Rechnungsprüfung: Vorbelegung (Vorjahr) und der Verweis je Jahr aus der
       // Verbrauchsansicht — seit v3.1.0 (H5) für jede Art mit Rechnungsprüfung
       if (m.billCheck) add(`/api/utility/${k}/meters/${m.id}/bill-check?from=${y}-01-01&to=${y + 1}-01-01`);
+      // v3.4.0 (N1021) — Vorbelegung seit v3.4.0: die Abrechnungsperiode nach dem Stichtag der Art
+      const anchor = normalizeAnchor(settings[`billing_cycle_anchor_${k}`]);
+      if (m.billCheck) add(`/api/utility/${k}/meters/${m.id}/bill-check?from=${y}-${anchor}&to=${y + 1}-${anchor}`);
       // v3.2.0 — Ladestrom-Nachweis der Wallbox (Vorbelegung: Vertragspreis)
       if (m.role === 'ev_charger') {
         add(`/api/reports/ev-charging?meter_id=${encodeURIComponent(m.id)}&year=${y}&method=contract`);
@@ -171,10 +182,33 @@ async function enumerate(get) {
   return { keys: [...keys].sort(), files, years };
 }
 
+/**
+ * v3.4.0 (N1019) — Kandidaten für das Handbuch der Demo: alle Markdown-Dateien
+ * und PNG unter docs/, dazu die Dateien im Wurzelverzeichnis. Was davon
+ * ausgeliefert wird, entscheidet der Server (Freigabeliste in DocsService) —
+ * hier steht keine zweite Liste.
+ */
+function docCandidates() {
+  const pages = [], images = [];
+  const walk = (dir, rel) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isSymbolicLink()) continue;
+      if (e.isDirectory()) walk(join(dir, e.name), `${rel}${e.name}/`);
+      else if (e.name.endsWith('.md')) pages.push(rel + e.name);
+      else if (/\.png$/i.test(e.name)) images.push(rel + e.name);
+    }
+  };
+  walk(join(ROOT, 'docs'), '');
+  for (const e of readdirSync(ROOT, { withFileTypes: true })) {
+    if (e.isFile() && (e.name.endsWith('.md') || e.name === 'LICENSE')) pages.push(`root/${e.name}`);
+  }
+  return { pages: pages.sort(), images: images.sort() };
+}
+
 export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896, log = console.log } = {}) {
   const dataDir = mkdtempSync(join(tmpdir(), 'et-demo-'));
   const { proc, base } = await startServer(port, dataDir);
-  const stats = { keys: 0, responses: 0, files: 0, bytes: 0 };
+  const stats = { keys: 0, responses: 0, files: 0, bytes: 0, docs: 0, docImages: 0 };
   try {
     // v3.1.0 — `X-ET-Language` wie die Oberfläche (Sprache pro Gerät): Bezeichnungen
     // und Meldungen kommen so in jeder Sprache, nicht in der Standardsprache des Servers.
@@ -261,6 +295,30 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
       }
       if (persona === 'showcase') varying = keys.filter(k => languages.some(l => index[l][k] !== firstOf[k]));
     }
+    // v3.4.0 (N1019) — Handbuch: in allen Haushalten und Sprachen dasselbe, also
+    // ein eigener Index (docs-index.json) und die Bilder als fertige Dateien.
+    // Gespeichert wird auch die 404 einer Weiterleitung (nennt ihr Ziel).
+    const docsIndex = {};
+    const docCand = docCandidates();
+    for (const p of docCand.pages) {
+      const path = `/api/docs?path=${encodeURIComponent(p)}`;
+      const r = await get(path);
+      if (r.status === 404 && !r.json?.detail?.moved_to) continue;   // nicht freigegeben
+      try { docsIndex[demoKey(path)] = store(asStored(r)); }
+      catch (e) { throw new Error(`${path}: ${e.message}`); }
+      if (r.status === 200) stats.docs++;
+    }
+    writeFileSync(join(out, 'demo-api', 'docs-index.json'), JSON.stringify(docsIndex));
+    for (const img of docCand.images) {
+      const r = await fetchRaw(`/api/docs/asset?path=${encodeURIComponent(img)}`);
+      if (r.status !== 200) continue;
+      const target = join(out, 'demo-api', 'docs', img);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, r.buf);
+      stats.docImages++;
+      stats.bytes += r.buf.length;
+    }
+
     stats.keys = allKeys.size;
     stats.responses = stored.size;
 
@@ -283,9 +341,11 @@ export async function buildDemo({ out = join(ROOT, 'dist', 'demo'), port = 8896,
     writeFileSync(join(out, 'demo-api', 'meta.json'), JSON.stringify({
       version, today: localToday(), built_at: new Date().toISOString(),
       schema: health.schema_version ?? null, languages, years, keys: keys.length, varying: varying.length, personas,
+      docs: stats.docs, doc_images: stats.docImages,
     }, null, 1));
     log(`Demo gebaut: ${keys.length} Anfragen (${varying.length} sprachabhängig), ` +
-      `${stored.size} Antworten, ${stats.files} Dateien, ${(stats.bytes / 1e6).toFixed(1)} MB → ${out}`);
+      `${stored.size} Antworten, ${stats.files} Dateien, Handbuch ${stats.docs} Seiten + ${stats.docImages} Bilder, ` +
+      `${(stats.bytes / 1e6).toFixed(1)} MB → ${out}`);
     return { out, ...stats, varying: varying.length, keyList: keys };
   } finally {
     proc.kill();

@@ -67,6 +67,20 @@ function loadJson(url) {
   });
 }
 
+// v3.4.0 (N1019) — Handbuch: Seiten und Bilder sind in allen Haushalten und
+// Sprachen dieselben; build-demo.mjs legt sie einmal ab (docs-index.json,
+// Bilder unter demo-api/docs/).
+let docsIndex = null;
+function loadDocsIndex() {
+  docsIndex ??= loadJson(`${ROOT}/docs-index.json`).catch(() => ({}));
+  return docsIndex;
+}
+
+/** Bild der Doku in der Demo: fertige Datei statt /api/docs/asset. */
+export function demoDocAssetUrl(path) {
+  return `${ROOT}/docs/${String(path).split('/').map(encodeURIComponent).join('/')}`;
+}
+
 function loadIndex(lang) {
   // je Haushalt und Sprache — ein Wechsel des Haushalts braucht kein Neuladen der Module
   const key = `${demoPersona()}|${lang}`;
@@ -101,7 +115,9 @@ function demoError(code, status = 0) {
 export async function demoRequest(method, path, lang) {
   if (method !== 'GET') throw demoError('demo.readOnly', 403);
   const key = demoKey(path);
-  const file = (await loadIndex(lang))[key] ?? (await loadIndex('de'))[key];
+  const file = key.startsWith('/api/docs?')
+    ? (await loadDocsIndex())[key]
+    : (await loadIndex(lang))[key] ?? (await loadIndex('de'))[key];
   if (!file) {
     demoMisses.add(key);
     throw demoError('demo.unavailable', 404);

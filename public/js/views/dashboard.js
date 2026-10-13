@@ -4,7 +4,7 @@
 
 import { api } from '../api.js';
 import { getUtilities, getSettings } from '../state.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { makeChart, chartColor, withAlpha, tokenColor, chartTableHtml } from '../components/chart.js';
 import { isPartial, daysInMonth, yoyTrend, lastMonths, shiftYm } from '../lib/chart-data.js';
 import { toastErr } from '../components/toast.js';
@@ -17,6 +17,8 @@ import { setupSteps, setupListHtml } from '../lib/onboarding.js';
 // v3.2.0 (F1019, F1020) — Einsteiger-Übersicht, Schaubilder, Vorschlag zum Hochstufen
 import { currentLevel, atLeast, nextLevel, saveLevel, isDismissed, dismiss } from '../lib/levels.js';
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
+// v3.4.0 (F1024) — Hinweise abhaken
+import { markEventDone } from '../components/done-dialog.js';
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
@@ -240,7 +242,7 @@ export async function render(container) {
     </section>
     ` : `
     <div data-role="level-hint"></div>
-    ${todoHtml(todo)}
+    <div data-role="todo" data-variant="full">${todoHtml(todo)}</div>
     ${insightsHtml}
     ${atLeast('expert') ? `<section class="card dash-explainers" aria-labelledby="dash-ex-title" style="margin-top: var(--sp-5)">
       <h2 class="card__title" id="dash-ex-title"><span aria-hidden="true">🎞️</span> ${escapeHtml(t('dashboard.explainers.title'))}</h2>
@@ -270,6 +272,9 @@ export async function render(container) {
       if (box?.isConnected) box.innerHTML = setupListHtml(steps);
     }).catch(() => { /* ohne Liste bleibt der Einstieg bedienbar */ });
   }
+
+  // v3.4.0 (F1024) — Haken in „Zu tun"
+  if (hasAnyData) renderTodoBox(container.querySelector('[data-role="todo"]'), todo);
 
   // v3.2.0 — Schaubilder (Experte) und Vorschlag zum Hochstufen nachladen;
   // beides darf den ersten Inhalt nicht aufhalten
@@ -305,13 +310,14 @@ function buildTodo(events, recs) {
   const items = [];
   const due = (events || []).filter(e => e.due_now);
   const recById = new Map((recs || []).map(r => [r.id, r]));
+  // v3.4.0 (F1024) — `ev`: das Ereignis, das der Haken erledigt (can_mark_done)
   for (const e of due.filter(x => x.kind === 'reminder')) {
     const d = e.ref?.days_until;
     const when = d == null ? fmt.date(e.date)
       : d < 0 ? tp('dashboard.reminders.overdueDays', -d)
       : d === 0 ? t('dashboard.reminders.now') : tp('dashboard.reminders.inDaysN', d);
     items.push({ icon: '📌', tone: e.severity === 'overdue' ? 'alert' : 'warn', text: e.params?.title ?? e.title, sub: when,
-      href: e.href, action: t('dashboard.todo.reminderAction') });
+      href: e.href, action: t('dashboard.todo.reminderAction'), ev: e });
   }
   // Bis zu zwei Zähler einzeln (mit Sprung zur Karte), mehr als eine Zeile —
   // sonst schiebt ein monatlicher Ablesetag die ganze Übersicht nach unten
@@ -332,12 +338,41 @@ function buildTodo(events, recs) {
   for (const e of due.filter(x => ['cancel_by', 'term_end', 'tank_reorder'].includes(x.kind))) {
     const isTank = e.kind === 'tank_reorder';
     const rec = recById.get(e.ref?.recommendation_id);
+    // v3.4.0 (F1024) — Folgevertrag mit Lücke: die Lücke steht darunter
+    const gap = Number(e.ref?.successor?.gap_days) || 0;
     items.push({ icon: isTank ? '🛢️' : '📄', tone: e.severity === 'urgent' ? 'alert' : 'warn', text: rec?.title ?? e.title,
-      recId: e.ref?.recommendation_id, href: e.href,
+      sub: gap > 0 ? tp('dashboard.todo.successorGap', gap, { date: fmt.date(e.ref.successor.start) }) : '',
+      recId: e.ref?.recommendation_id, href: e.href, ev: e,
       action: t(isTank ? 'dashboard.todo.tankAction' : 'dashboard.todo.contractAction') });
+  }
+  // v3.4.0 (F1024) — Preiserhöhung, Einwand- und CO₂-Frist: jetzt abhakbar, also auch hier
+  for (const e of due.filter(x => ['price_increase', 'objection_deadline', 'co2_claim_deadline'].includes(x.kind))) {
+    const rec = recById.get(e.ref?.recommendation_id);
+    const isContract = e.kind === 'price_increase';
+    items.push({ icon: isContract ? '📄' : '🧾', tone: e.severity === 'urgent' ? 'alert' : 'warn', text: rec?.title ?? e.title,
+      recId: e.ref?.recommendation_id, href: e.href, ev: e,
+      action: t(isContract ? 'dashboard.todo.contractAction' : 'dashboard.todo.tenancyAction') });
   }
   // Überfälliges zuerst
   return items.sort((a, b) => (a.tone === 'alert' ? 0 : 1) - (b.tone === 'alert' ? 0 : 1));
+}
+
+/**
+ * Zeilen von „Zu tun". Die ganze Zeile ist der Link (am iPhone ein Tippziel
+ * statt eines umbrechenden Knopfs unter dem Text); v3.4.0 (F1024) — daneben
+ * der Haken, wo sich der Hinweis von Hand erledigen lässt.
+ */
+function todoItemsHtml(items, { go = true } = {}) {
+  return items.map((x, i) => `<li class="dash-todo__item dash-todo__item--${x.tone}${x.ev?.can_mark_done ? ' dash-todo__item--check' : ''}">
+    <a class="dash-todo__link" href="${x.href}">
+      <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
+      <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}</span>
+      ${go ? `<span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>` : ''}
+      <span class="dash-todo__chev" aria-hidden="true">›</span>
+    </a>
+    ${x.ev?.can_mark_done ? `<button type="button" class="btn btn--sm btn--ghost dash-todo__done" data-todo-done="${i}"
+      title="${escapeHtml(t('activity.markDone'))}" aria-label="${escapeHtml(t('activity.markDoneNamed', { title: x.text }))}"><span aria-hidden="true">✓</span></button>` : ''}
+  </li>`).join('');
 }
 
 function todoHtml(items) {
@@ -345,19 +380,38 @@ function todoHtml(items) {
   return `
     <section class="card dash-todo" aria-labelledby="dash-todo-title">
       <h2 class="card__title" id="dash-todo-title"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.todo.title'))}</h2>
-      <ul class="dash-todo__list">
-        ${items.map(x => `<li class="dash-todo__item dash-todo__item--${x.tone}">
-          <!-- die ganze Zeile ist der Link: am iPhone ein Tippziel statt eines
-               umbrechenden Knopfs unter dem Text -->
-          <a class="dash-todo__link" href="${x.href}">
-            <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
-            <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}</span>
-            <span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>
-            <span class="dash-todo__chev" aria-hidden="true">›</span>
-          </a>
-        </li>`).join('')}
-      </ul>
+      <ul class="dash-todo__list">${todoItemsHtml(items)}</ul>
     </section>`;
+}
+
+/** Einsteiger: höchstens vier Zeilen, ohne Knopf „Zum …". */
+function beginnerTodoHtml(items) {
+  return items.length ? `<ul class="dash-todo__list">${todoItemsHtml(items.slice(0, 4), { go: false })}</ul>`
+    : `<p class="muted">${escapeHtml(t('dashboard.beginner.todo.none'))}</p>`;
+}
+
+/**
+ * v3.4.0 (F1024) — „Zu tun" in seinen Kasten zeichnen und die Haken binden:
+ * kleiner Dialog (Datum, Notiz, Beleg), danach ist die Zeile weg; „Rückgängig"
+ * im Hinweis holt sie zurück.
+ */
+function renderTodoBox(box, items) {
+  if (!box?.isConnected) return;
+  box.innerHTML = box.dataset.variant === 'beginner' ? beginnerTodoHtml(items) : todoHtml(items);
+  const refresh = () => refreshTodo(box);
+  box.querySelectorAll('[data-todo-done]').forEach(btn => btn.addEventListener('click', async () => {
+    const x = items[Number(btn.dataset.todoDone)];
+    if (!x?.ev) return;
+    if (await markEventDone(x.ev, { title: x.text, onChange: refresh })) btn.closest('li')?.remove();
+  }));
+}
+
+async function refreshTodo(box) {
+  try {
+    const [events, recs] = await Promise.all([api.agenda(90).then(d => d?.events || []), api.recommendations().catch(() => [])]);
+    renderTodoBox(box, buildTodo(events, recs));
+  } catch { /* der alte Stand bleibt stehen */ }
+  window.dispatchEvent(new CustomEvent('et:badges-refresh'));
 }
 
 function renderUtilityCard({ utility, consumption }) {
@@ -708,14 +762,11 @@ async function renderBeginner(container, { utilities, datasets, todo, settings }
       ${budget ? tenancyAnswerHtml(budget) : ''}
       <section class="card dash-answer" aria-labelledby="dash-a-todo">
         <h2 class="card__title" id="dash-a-todo"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.beginner.todo.title'))}</h2>
-        ${todo.length ? `<ul class="dash-todo__list">${todo.slice(0, 4).map(x => `<li class="dash-todo__item dash-todo__item--${x.tone}">
-          <a class="dash-todo__link" href="${x.href}"><span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
-          <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}</span>
-          <span class="dash-todo__chev" aria-hidden="true">›</span></a></li>`).join('')}</ul>`
-          : `<p class="muted">${escapeHtml(t('dashboard.beginner.todo.none'))}</p>`}
+        <div data-role="todo" data-variant="beginner">${beginnerTodoHtml(todo)}</div>
       </section>
     </div>
     ${explainer ? `<section class="card" style="margin-top: var(--sp-5)">${explainer}</section>` : ''}`;
+  renderTodoBox(container.querySelector('[data-role="todo"]'), todo);   // v3.4.0 (F1024)
   playExplainers(container);
   const hintBox = container.querySelector('[data-role="level-hint"]');
   levelSuggestion(utilities, summary).then(html => { if (hintBox?.isConnected) { hintBox.innerHTML = html; bindLevelHint(hintBox); } }).catch(() => {});
@@ -745,7 +796,9 @@ function tenancyAnswerHtml(b) {
 
 async function loadExplainers(utilities, box) {
   const byKey = new Map(utilities.map(u => [u.key, u]));
-  const today = new Date().toISOString().slice(0, 10);
+  // v3.4.0 (F1026) — „heute“ in Ortszeit wie in der Verbrauchsansicht (UTC lag
+  // zwischen 0 und 2 Uhr einen Tag zurück)
+  const today = todayIso();
   const [summary, pv] = await Promise.all([api.summary().catch(() => null), api.pvSummary().catch(() => null)]);
   const meters = (summary?.meters || []).filter(m => byKey.has(m.utility) && !m.is_sub_meter);
   const withContract = meters.filter(m => m.contract && !isPv(byKey.get(m.utility)));
@@ -761,7 +814,8 @@ async function loadExplainers(utilities, box) {
   const pvYear = years.find(y => y.year === cy - 1) || years[years.length - 1];
   const parts = [
     moneyHtml(row, { color: main ? byKey.get(main.utility)?.color : undefined }),
-    energyHtml(pvYear),
+    // v3.4.0 (F1026) — die ganze Antwort: Jahr und Monat umschaltbar
+    pv ? energyHtml(pv, { year: pvYear?.year }) : '',
     weatherHtml(Array.isArray(heatRows) ? heatRows : []),
     timelineHtml(row, today),
   ].filter(Boolean);

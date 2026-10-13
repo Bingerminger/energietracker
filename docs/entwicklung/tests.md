@@ -130,6 +130,53 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   Geld-Bild rechnet mit dem Abrechnungszeitraum (`balance_path`), das
   Wetter-Bild braucht sechs Monate mit bereinigtem Wert und Vorjahr. Der
   Demo-Klicktest geht jeden Beispielhaushalt in zwei Stufen durch.
+- **`tests/explainer.test.mjs`** (v3.4.0) — Schaubilder, zweite Fassung, ohne
+  Server: die Formel des Energieflusses gegen
+  `tests/fixtures/energy-flows.json` (dieselbe Datei prüft
+  `PvSummaryServiceTest` in PHP), Bilanz (Sonne raus = Erzeugung, Haus =
+  Zuflüsse), Geometrie R1–R5 (kein Text auf Text, auf Linien oder fremden
+  Knoten, keine Kreuzung außer der erklärten Brücke, alles im Bild) über zwölf
+  Fälle in allen sieben Sprachen, keine Hex-Farben und keine Emoji im Bild,
+  „Bewegung reduzieren“, Hervorhebung, Jahr/Monat an Ort und Stelle; der
+  Zeitstrahl mit gebauten Verträgen ohne Überlappung; Geld und Wetter mit
+  Extremwerten. Textbreiten sind geschätzt (0,56 em bzw. 0,6 em für Ziffern)
+  mit 10 % Reserve.
+- **`tests/docs.test.mjs`** (v3.4.0) — das Handbuch in der App: holt die
+  Freigabeliste vom echten `DocsService` (PHP-Kommandozeile) und rendert jede
+  Seite mit `lib/markdown.js` und den Linkregeln aus `lib/docs.js`. Jedes
+  In-App-Ziel ist freigegeben, jede Sprungmarke existiert, jedes Bild kommt
+  über den Endpunkt, die Ausgabe enthält nur erlaubte Tags und Attribute, keine
+  Markdown-Reste; rund 40 Angriffs-Payloads werden entschärft — im Renderer
+  allein und in den Linkregeln allein; der Service Worker hält die Doku offline
+  vor.
+- **`tests/cache-names.test.mjs`** (v3.4.0) — führt `sw.js` in einer Sandbox
+  aus und gleicht die Cache-Namen, die der Worker wirklich anlegt, mit
+  `lib/cache-names.js` ab: Abmelden leert die API-Antworten dieser
+  Installation, nicht die einer zweiten auf demselben Ursprung; `data/` fängt
+  der Worker nicht ab.
+- **`tests/forms.test.mjs`** (v3.4.0) — die aufgeräumte Oberfläche ohne
+  Server: ein Formularraster im CSS (sechs Spalten, schmal zwei, Unterraster,
+  Feldgruppen, Zeilenlisten mit Beschriftung nur oben), `[hidden]` gilt immer,
+  keine Einzel-Flicken in den Ansichten (Versalien, `flex-end`, `.form-grid`);
+  Uhrzeiten der Zeitfenster als HH:MM; der Umschalter der Darstellung zeigt
+  die wirksame Darstellung mit „A“ bei Automatik und meldet jeden Schritt; die
+  Doku sagt dasselbe.
+- **`tests/poisoned-render.test.mjs`** (v3.4.0) — startet den Server mit den
+  Demo-Daten, in denen jeder Freitext (und der Pfad des Datenverzeichnisses)
+  HTML und Anführungszeichen trägt, lädt die echte `app.js` in JSDOM und ruft
+  jede Seite auf. Landet ein Wert ungeschützt im DOM, entsteht ein Element mit
+  `data-xss` — rot. Dazu der Selbsttest „data/ gesperrt“ unter Zugriff.
+  Wählt einen freien Port selbst.
+- **`tests/lists.test.mjs`** (v3.4.0) — Listen ohne und mit Server: die
+  Reihenfolge der Verträge (`lib/contract-order.js`), das Blättern
+  (`components/pager.js`: Schwelle 50, Seitengröße je Liste gemerkt) und die
+  Abrechnungsperiode nach dem Stichtag (`lib/billing-period.js`). Dann der
+  Beispielhaushalt „eigenheim-modern“ mit einem Testzähler (beendet,
+  weiterlaufend) und 400 Tageswerten in der echten `app.js`: beide
+  Vertragslisten in derselben Reihenfolge und mit derselben Phase, Ablesungen
+  mit „N in Jahr · M gesamt“, „Alle Jahre“, Blättern und „nur auffällige“,
+  Rechnung prüfen ohne Zeitraum und beim Wechsel von Art und Zähler. Port aus
+  `ET_LISTS_PORT`, sonst ein freier.
 
 Hinzu kommt die **PHPUnit-Suite** für die Service-Schicht
 (`tests/unit/…`, Basisklasse `ServiceTestCase`, für Tests über HTTP seit
@@ -150,8 +197,13 @@ jede deutsche Seite hat ihren englischen Spiegel unter demselben Pfad;
 niemand verlinkt eine Weiterleitung; der Index führt jede Seite; die
 [Einstellungsreferenz](../referenz/einstellungen.md) nennt jeden Schlüssel aus
 `SettingsService::DEFAULTS`; und jeder Doku-Link der App (`lib/docs.js`) zeigt
-auf eine echte Seite. `ReleaseConsistencyTest` prüft daneben weiter die
-API-Referenz gegen die Routen.
+auf eine echte Seite. Seit v3.4.0 hat jeder Anwendungsfall „## X — …“ einen
+Kurztext im Katalog und jeder Kurztext seinen Anker `case-…` in DE und EN, und
+die Doku reist im Docker-Image mit. `ReleaseConsistencyTest` prüft daneben
+weiter die API-Referenz gegen die Routen und seit v3.4.0, dass das Frontend
+GitHub nur für Fehlermeldung, Projektseite und Quellcode der Version verlinkt.
+`DocsEndpointTest` (über HTTP) und `DocsServiceTest` sichern die
+Freigabeliste von `/api/docs`.
 Ausführen mit `vendor/bin/phpunit --no-coverage`. Sie ist das
 **Pflicht-Gate vor jedem Commit** (siehe
 [Release-Prozess](release-prozess.md)).
@@ -295,6 +347,23 @@ Umgebungsvariablen (`ET_AUTH` …) und räumt beides danach ab. Auf ihr bauen
   Knopf für die Börsenpreise des Jahres); der Demo-Klicktest öffnet sie mit den
   Beispielhaushalten, der Stufentest kennt ihre Mindeststufe (Experte).
 
+**v3.4.0 — Hilfe, Sicherheit, Bericht, Verlauf, Oberfläche:**
+
+- `DocsServiceTest`, `DocsEndpointTest` — Freigabeliste der Doku, kein Pfad
+  hinaus, Weiterleitungen, Anmeldung.
+- `HouseholdSecurityTest`, `HouseholdHardeningTest`, `ContainerHardeningTest`
+  — Proxy-Kopfzeilen, Rollen, Sperre je Gerät, Größengrenzen, Hostliste,
+  Container- und Webserver-Regeln.
+- `PdfWriterTest`, `ReportModelServiceTest`, `ReportAdviceServiceTest` —
+  PDF-Struktur, Grafik und Box-Protokoll (nichts über den Rand, keine
+  Überlappung), Seiten je Beispielhaushalt in sieben Sprachen, Regeln der
+  Handlungsempfehlungen mit Betrag und Priorität.
+- `ContractPhaseTest`, `ContractPhaseEndpointTest`,
+  `ContractStatusTimelineTest` — Phase eines Vertrags, Felder des Zeitstrahls.
+- `ActivityServiceTest`, `ActivityAccessTest` — Folgevertrag erledigt
+  Hinweise, Abhaken und Rückgängig, wer was erledigt hat, Backup-Rundreise,
+  Aufbewahrung, Rollen.
+
 Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 (`.github/workflows/ci.yml`) bei jedem Push und Pull Request gegen
 `main`. Vier Jobs: **lint-php** (Syntax-Check aller `*.php`),
@@ -302,9 +371,17 @@ Genau diese Sequenz läuft automatisiert in der **CI-Pipeline**
 Frontend-API-Shape + Browser-Render über `router.php`) und **docker**
 (Image bauen + Container-Smoke gegen `/api/health`). Seit v3.1.0 laufen
 **lint-php** und **phpunit** je unter PHP 8.2, 8.3 und 8.4 — der
-Mindestversion, der Version von Ubuntu 24.04 und der im Docker-Image. Ein
+Mindestversion, der Version von Ubuntu 24.04 und der im Docker-Image; seit
+v3.4.0 auch unter 8.5 (dem Docker-Image). Der Job **docker** prüft seit v3.4.0
+zusätzlich, dass php-fpm nur im Container erreichbar ist, und startet das Image
+gehärtet (Beispiel aus [Docker-Betrieb](../betrieb/docker.md#gehärteter-betrieb-v340));
+der Job **test** schickt die App mit präparierten Daten durch alle Seiten
+(`tests/poisoned-render.test.mjs`). Alle Workflows laufen mit Leserechten,
+Actions anderer Anbieter sind per Commit-SHA gepinnt. Ein
 separater Workflow `docker-publish.yml` veröffentlicht bei jedem Versions-Tag
-das Multi-Arch-Image (amd64 + arm64) nach GHCR. `docker-armv7-probe.yml`
+das Multi-Arch-Image (amd64 + arm64) nach GHCR; `docker-rebuild.yml`
+(v3.4.0) baut den neuesten Release-Tag jede Woche neu und prüft das Image auf
+bekannte Lücken (nicht blockierend). `docker-armv7-probe.yml`
 (v3.1.0, nur von Hand gestartet) baut das Image für `linux/arm/v7` unter QEMU
 und startet es, ohne zu veröffentlichen; erst wenn er grün ist, kommt arm/v7 in
 die Plattformliste.

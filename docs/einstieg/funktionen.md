@@ -222,9 +222,21 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   Nebenkostenabrechnung und der CO₂-Erstattung im eigenen Kalender, bei
   Terminen und Verträgen mit Vorwarnung — siehe
   [Kalender abonnieren](../anleitungen/kalender.md).
+- **Erledigt mit Verlauf** (v3.4.0): Hinweise abhaken — mit Datum, Notiz und
+  Beleg —, Rückgängig, und ein Verlauf, wer was wann erledigt hat. Ein
+  lückenloser Folgevertrag, eine fällige Ablesung, eine Lieferung oder die
+  Nebenkostenabrechnung erledigen ihren Hinweis von selbst — siehe
+  [Hinweise erledigen](../anleitungen/hinweise-erledigen.md).
 - **Jahresbericht** als Druckansicht in der Sprache des Geräts — drucken oder
   als PDF sichern, am iPhone über Teilen → Drucken — und als fertige
-  PDF-Datei im Browser oder zum Herunterladen.
+  PDF-Datei im Browser oder zum Herunterladen. Seit v3.4.0 für Leser ohne
+  Technikhintergrund: das Wichtigste mit vier Ampeln und den drei wichtigsten
+  Aufgaben, was sich gelohnt hat, was zu tun ist (mit Priorität, Betrag aus den
+  eigenen Daten und Frist), Fristen, Geld, je Verbrauchsart eine Seite mit
+  Diagrammen, Themenseiten für Sonnenstrom, Wärmepumpe, E-Auto, günstige
+  Stunden und Mietwohnung, ein kleines Wörterbuch; die Monatstabellen als
+  Anhang auf Wunsch. Per Link auch als Teilbericht oder in einer anderen
+  Sprache — siehe [Jahresbericht lesen](../anleitungen/jahresbericht-lesen.md).
 
 ## Bedienen
 
@@ -233,13 +245,19 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   44-px-Tippziele, Kontraste nach WCAG AA, installierbar als App — siehe
   [Auf dem Handy nutzen](handy.md).
 - **Hilfe in der App**: erste Schritte mit Häkchen aus den Daten, ein Glossar
-  mit 44 Begriffen und ein ⓘ an jeder Kennzahl.
+  mit 44 Begriffen und ein ⓘ an jeder Kennzahl. Seit v3.4.0 auch das ganze
+  **Handbuch** (Deutsch und Englisch) vom eigenen Server, passend zur Version
+  und ohne Internet, mit Inhaltsverzeichnis und Sprachumschalter; die
+  Anwendungsfälle als Kurztext in allen sieben Sprachen, je mit dem Sprung in
+  ihren Abschnitt — siehe [Ansichten → Hilfe](../referenz/ansichten.md#handbuch-in-der-app-v340).
 - **Sieben Sprachen** (Deutsch, Englisch, Französisch, Italienisch, Spanisch,
   Portugiesisch, Niederländisch), je Gerät wählbar, und **Länderprofile** für
   neun Länder: Währung, Formate, Zeitzone, Wetterstandort, Heizgrenze,
   CO₂-Faktor, Gaseinheiten und die Begriffe der Rechnung des Landes — siehe
   [Länderprofile](../verstehen/14-laenderprofile.md).
-- **Hell, dunkel oder wie das System**.
+- **Hell, dunkel oder wie das System** — ein Knopf schaltet im Kreis; das
+  Symbol zeigt, was gilt (☀️/🌙), ein kleines „A“ sagt, dass die App dem System
+  folgt (v3.4.0).
 - **Nutzungsstufen** (v3.2.0): Einsteiger, Erfahren oder Experte — die Stufe
   bestimmt, was die Oberfläche zeigt, gerechnet wird in jeder alles. Für
   Einsteiger eine Übersicht mit drei Antworten; Vorschläge zum Hochstufen,
@@ -257,7 +275,7 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
 
 - **Keine Datenbank, keine Laufzeit-Abhängigkeiten**: PHP ab 8.2 und flache
   JSON-Dateien; Chart.js und die Schriften liegen im Repository.
-- **Docker** (amd64 und arm64, mit PHP 8.4) oder jeder Webserver mit PHP —
+- **Docker** (amd64 und arm64, mit PHP 8.5) oder jeder Webserver mit PHP —
   siehe [Installation](../betrieb/installation.md); Vorlagen für Synology,
   Unraid, CasaOS und Umbrel unter [Docker-Betrieb](../betrieb/docker.md).
 - **Backup** als eine JSON-Datei (Format 3.0), vor dem Einspielen geprüft und

@@ -239,6 +239,12 @@ final class CountryProfileTest extends ServiceTestCase
             $rows[] = ['date' => $d->format('Y-m-d'), 'counter' => 1000.0 + $i * 250.0, 'device_id' => 'ds'];
         }
         $this->setReadings('strom', $meterId, $rows);
+        // v3.4.0 (F1025) — ohne Vertrag nennt der Bericht keine Kosten mehr
+        // („keine Preise hinterlegt“ statt 0,00); Beträge also mit Vertrag prüfen
+        $this->contracts->create('strom', [
+            'meter_id' => $meterId, 'provider' => 'Tarif', 'tariff_name' => 'Tarif', 'start' => '2023-12-01', 'end' => '2043-12-31',
+            'working_prices' => [['from' => '2023-12-01', 'ct_per_kwh' => 30.0]],
+        ]);
 
         $this->useRegion('en', 'GB', 'GBP');
         $texts = $this->pdfTexts($this->pdf()->build(2024));

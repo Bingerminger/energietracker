@@ -6452,6 +6452,7 @@
         "samples": {}
     },
     "interval_files": {},
+    "activity": [],
     "utilities": {
         "gas": {
             "meters": [],

@@ -40,10 +40,13 @@ final class OcrServiceTest extends ServiceTestCase
     {
         return [
             ['127.0.0.1', true], ['192.168.178.10', true], ['10.0.0.5', true], ['172.16.0.1', true], ['172.31.255.1', true],
-            ['169.254.10.1', true], ['100.100.1.2', true], ['::1', true], ['fd12:3456::1', true], ['fe80::1', true],
+            ['100.100.1.2', true], ['::1', true], ['fd12:3456::1', true],
             ['::ffff:192.168.0.2', true],
             ['8.8.8.8', false], ['172.32.0.1', false], ['100.128.0.1', false], ['1.1.1.1', false], ['2001:4860::8888', false],
             ['::ffff:8.8.8.8', false], ['kein-ip', false],
+            // v3.4.0 (N1020) — Link-local und Metadatendienste gemieteter Server gelten nicht als Heimnetz
+            ['169.254.169.254', false], ['169.254.10.1', false], ['::ffff:169.254.169.254', false],
+            ['fe80::1', false], ['fd00:ec2::254', false],
         ];
     }
 

@@ -171,6 +171,8 @@ final class IntervalService
             $byYear[$this->yearOf($ts)][$ts] = (float)$v;
         }
         if ($byYear === []) return ['series' => 0, 'slots' => 0];
+        // v3.4.0 (N1020) — Sperre vor dem Lesen-Ändern-Schreiben (beim SMARD-Abruf erst nach dem Abruf)
+        $this->store->lock();
         $idx = $this->index();
         $total = 0;
         foreach ($byYear as $year => $vals) {

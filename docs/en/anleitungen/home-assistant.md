@@ -268,6 +268,13 @@ rest:
   currency of your settings.
 - A sensor shows “unknown” when the value does not exist — for example without a
   current contract or before the forecast has enough data.
+- *(v3.4.0)* **Done items do not count:** `agenda.due`, `agenda.overdue` and
+  `agenda.next` leave out notices that were ticked off or cleared by
+  themselves; `contract.cancel_by` is empty when a follow-on contract continues
+  without a gap or the contract can be cancelled at any time (up to v3.3 it
+  then said “today” every day). Readings from Home Assistant only appear in the
+  history (“Home Assistant”) when the reading was due —
+  [Ticking off notices](hinweise-erledigen.md).
 
 **With sign-in switched on**, Home Assistant needs an API key with scope
 **“Read”** to read (Settings → Access → “API keys for scripts”). The ingest
@@ -558,14 +565,23 @@ Assistant sidebar), the following applies since v3.1.0:
 - **Address in the templates.** The Ingress address needs an HA session and
   changes. The templates in the settings therefore name
   `http://<container hostname>` — Home Assistant reaches the app that way on the
-  internal network.
+  internal network. Since v3.4.0 the app reports the host name only to requests
+  from the Supervisor; this needs `ET_TRUSTED_PROXIES=172.30.32.2` (otherwise
+  the templates name the address the page is currently opened under).
 - **Sign-in via Home Assistant.** Ingress only lets signed-in HA users through.
   If the app should take over the user, set `ET_AUTH=proxy` and
   `ET_TRUSTED_PROXIES=172.30.32.2` (the address Ingress requests come from).
   Home Assistant sends `X-Remote-User-Name` and `X-Remote-User-Id`;
-  Energietracker recognises them since v3.1.0. Push and sensors do not go
-  through Ingress and then need the token or read key as above. More:
-  [Security & network operation](../betrieb/sicherheit.md).
+  Energietracker recognises them since v3.1.0. Since v3.4.0 **only** these two
+  count under Ingress (the Supervisor filters them from user requests but passes
+  `Remote-User` through), and a person is kept by `X-Remote-User-Id` — renaming
+  in Home Assistant does not create a new person. Leave `ET_PROXY_USER_HEADER`
+  empty for this. Push and sensors do not go through Ingress and then need the
+  token or read key as above. More:
+  [Security & network operation](../betrieb/sicherheit.md#6-sign-in-via-an-upstream-proxy).
+- **Templates with your own names.** Since v3.4.0 meter names, addresses and
+  aliases are quoted in the templates; a name with quotes or a line break no
+  longer changes the configuration you paste.
 - **Uploads up to 16 MiB.** Without `ingress_stream: true` in the app’s
   configuration, Home Assistant limits uploads through Ingress to 16 MiB. Restore
   a larger backup via the direct port.

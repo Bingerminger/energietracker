@@ -1,7 +1,7 @@
 ## User data — never committed
 # v2.5.3 — Freigabeliste statt Sperrliste: Alles unter data/ bleibt privat,
 # auch Laufzeitdateien, die eine feste Liste nicht kennt (.write.lock,
-# *.corrupt-*, Temp-Reste, Logs, v0.9-Sicherungen). Nur die .gitkeep-Platzhalter
+# *.corrupt-*, Temp-Reste, Logs). Nur die .gitkeep-Platzhalter
 # sind versioniert.
 /data/*
 !/data/.gitkeep

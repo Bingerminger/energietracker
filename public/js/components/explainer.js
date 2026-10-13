@@ -16,25 +16,58 @@
 // sehen: Ausgeblendet wird erst, wenn playExplainers die Bilder übernimmt.
 // Jedes Bild trägt seine Aussage als Text (figcaption); die Grafik selbst
 // ist für Screenreader ausgeblendet.
+//
+// v3.4.0 (F1026) — zweite Fassung: Energiefluss neu (components/energy-flow.js,
+// Jahr und Monat), Zeitstrahl mit Mindestlaufzeit, Preisgarantie und
+// Folgevertrag, Beschriftungen ohne Überlappung in allen Sprachen (Geld und
+// Wetter: Beschriftung über dem Balken, Legende bricht um). Schriftgrößen
+// stehen als Attribut am Text, damit die Prüfung (tests/explainer.test.mjs)
+// mit denselben Maßen rechnet wie das Bild.
 // =====================================================================
 
-import { t } from '../lib/i18n.js';
-import { fmt, escapeHtml } from '../lib/format.js';
+import { t, tp } from '../lib/i18n.js';
+import { fmt, escapeHtml, todayIso } from '../lib/format.js';
 import { lastMonths, yoyTrend, isPartial, daysInMonth } from '../lib/chart-data.js';
+import { energyFigureHtml, bindEnergyFigure, startEnergyFigure } from './energy-flow.js';
 
 const esc = escapeHtml;
+const W = 320;
 
 function figure(cls, title, svg, caption) {
   return `<figure class="explainer ${cls}">
     <figcaption class="explainer__title">${esc(title)}</figcaption>
-    <svg class="explainer__svg" viewBox="0 0 320 ${svg.h}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">${svg.body}</svg>
+    <svg class="explainer__svg" viewBox="0 0 ${W} ${svg.h}" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">${svg.body}</svg>
     <p class="explainer__text">${esc(caption)}</p>
   </figure>`;
 }
 
+// Schriftgrößen (Einheiten der viewBox) und geschätzte Zeichenbreite: Sans
+// 0,56 em, Ziffernschrift 0,6 em — mit 10 % Reserve für die Anordnung
+const FS = { label: 11, small: 9.5, value: 10.5 };
+const textWidth = (text, fs, mono = false) => [...String(text)].length * fs * (mono ? 0.6 : 0.56) * 1.1;
+
 /** Text im SVG: Werte und Beschriftungen (nur Anzeige, die Aussage steht im Text darunter). */
-const label = (x, y, text, cls = '', anchor = 'start') =>
-  `<text x="${x}" y="${y}" class="ex-label ${cls}" text-anchor="${anchor}">${esc(text)}</text>`;
+const label = (x, y, text, cls = '', anchor = 'start') => {
+  const fs = /ex-value/.test(cls) ? FS.value : /ex-small/.test(cls) ? FS.small : FS.label;
+  return `<text x="${typeof x === 'number' ? +x.toFixed(1) : x}" y="${y}" class="ex-label ${cls}" font-size="${fs}" text-anchor="${anchor}">${esc(text)}</text>`;
+};
+
+/**
+ * Legende, die umbricht, statt in das nächste Feld zu laufen.
+ * @param {Array<{text: string, swatch: string}>} items  swatch = Attribute des Farbfelds
+ * @returns {{svg: string, h: number}}
+ */
+function legend(items, y0, d = '.9s') {
+  let x = 0, y = y0;
+  const out = items.map((it) => {
+    const w = 14 + textWidth(it.text, FS.small) + 12;
+    if (x > 0 && x + w > W) { x = 0; y += 16; }
+    const s = `<rect x="${x}" y="${y}" width="10" height="10" rx="2" ${it.swatch}/>${label(x + 14, y + 9, it.text, 'ex-small')}`;
+    x += w;
+    return s;
+  });
+  return { svg: `<g class="ex-legend ex-fade" style="--d:${d}">${out.join('')}</g>`, h: y + 10 - y0 };
+}
 
 // ── 1. Wohin geht mein Geld ─────────────────────────────────────────────
 
@@ -56,7 +89,10 @@ export function moneyHtml(row, { color } = {}) {
   const rest = Math.max(0, cost - energy - base);
   if (!(paid > 0 || cost > 0)) return '';
   const max = Math.max(paid, cost, 1);
-  const W = 150, x0 = 90;
+  // v3.4.0 (F1026) — Beschriftung und Betrag stehen über dem Balken, der Balken
+  // nutzt die ganze Breite: „Advance payments“ lief vorher in den Balken, „0 €“
+  // auf die Beschriftung
+  const x0 = 0;
   const w = (v) => Math.max(0, v / max * W);
   const c = color || 'var(--accent)';
   const balance = Number(row.projected_end_balance);
@@ -65,76 +101,39 @@ export function moneyHtml(row, { color } = {}) {
   const result = Math.abs(balance) < 1 ? t('explainer.money.even')
     : t(credit ? 'explainer.money.credit' : 'explainer.money.due', { amount: fmt.eur(Math.abs(balance)) });
   const gapX = x0 + Math.min(w(paid), w(cost)), gapW = Math.abs(w(paid) - w(cost));
+  const leg = legend([
+    { text: t('explainer.money.energy'), swatch: `style="fill:${c}"` },
+    { text: t('explainer.money.base'), swatch: `style="fill:${c}; opacity:.55"` },
+    { text: t('explainer.money.estimate'), swatch: `class="ex-bar--estimate" style="fill:${c}"` },
+  ], 96);
   const body = `
-    ${label(0, 30, t('explainer.money.paid'))}
-    <rect class="ex-grow ex-bar--paid" style="--d:.0s" x="${x0}" y="16" width="${w(paid).toFixed(1)}" height="20" rx="3"/>
-    ${label(x0 + w(paid) + 4, 30, fmt.eur(paid), 'ex-fade ex-value')}
-    ${label(0, 74, t('explainer.money.cost'))}
-    <rect class="ex-grow" style="--d:.25s; fill:${c}" x="${x0}" y="60" width="${w(energy).toFixed(1)}" height="20" rx="3"/>
-    <rect class="ex-grow" style="--d:.45s; fill:${c}; opacity:.55" x="${(x0 + w(energy)).toFixed(1)}" y="60" width="${w(base).toFixed(1)}" height="20"/>
-    <rect class="ex-grow ex-bar--estimate" style="--d:.65s; fill:${c}" x="${(x0 + w(energy) + w(base)).toFixed(1)}" y="60" width="${w(rest).toFixed(1)}" height="20"/>
-    ${label(x0 + w(cost) + 4, 74, fmt.eur(cost), 'ex-fade ex-value')}
-    ${gapW > 2 ? `<rect class="ex-fade ${credit ? 'ex-gap--credit' : 'ex-gap--due'}" style="--d:1s" x="${gapX.toFixed(1)}" y="${credit ? 40 : 84}" width="${gapW.toFixed(1)}" height="6" rx="3"/>` : ''}
-    <g class="ex-legend ex-fade" style="--d:.9s">
-      <rect x="0" y="100" width="10" height="10" rx="2" style="fill:${c}"/>${label(14, 109, t('explainer.money.energy'), 'ex-small')}
-      <rect x="100" y="100" width="10" height="10" rx="2" style="fill:${c}; opacity:.55"/>${label(114, 109, t('explainer.money.base'), 'ex-small')}
-      <rect x="200" y="100" width="10" height="10" rx="2" class="ex-bar--estimate" style="fill:${c}"/>${label(214, 109, t('explainer.money.estimate'), 'ex-small')}
-    </g>`;
+    ${label(0, 12, t('explainer.money.paid'))}
+    ${label(W, 12, fmt.eur(paid), 'ex-fade ex-value', 'end')}
+    <rect class="ex-grow ex-bar--paid" style="--d:.0s" x="${x0}" y="18" width="${w(paid).toFixed(1)}" height="18" rx="3"/>
+    ${label(0, 56, t('explainer.money.cost'))}
+    ${label(W, 56, fmt.eur(cost), 'ex-fade ex-value', 'end')}
+    <rect class="ex-grow" style="--d:.25s; fill:${c}" x="${x0}" y="62" width="${w(energy).toFixed(1)}" height="18" rx="3"/>
+    <rect class="ex-grow" style="--d:.45s; fill:${c}; opacity:.55" x="${(x0 + w(energy)).toFixed(1)}" y="62" width="${w(base).toFixed(1)}" height="18"/>
+    <rect class="ex-grow ex-bar--estimate" style="--d:.65s; fill:${c}" x="${(x0 + w(energy) + w(base)).toFixed(1)}" y="62" width="${w(rest).toFixed(1)}" height="18"/>
+    ${gapW > 2 ? `<rect class="ex-fade ${credit ? 'ex-gap--credit' : 'ex-gap--due'}" style="--d:1s" x="${gapX.toFixed(1)}" y="${credit ? 38 : 82}" width="${gapW.toFixed(1)}" height="5" rx="2.5"/>` : ''}
+    ${leg.svg}`;
   const caption = t('explainer.money.text', {
     date: fmt.date(`${end.ym}-${String(daysInMonth(end.ym)).padStart(2, '0')}`), paid: fmt.eur(paid), cost: fmt.eur(cost), result,
   });
-  return figure('ex-money', t('explainer.money.title'), { h: 120, body }, caption);
+  return figure('ex-money', t('explainer.money.title'), { h: 96 + leg.h + 4, body }, caption);
 }
 
 // ── 2. Energiefluss im Haus ─────────────────────────────────────────────
 
 /**
- * @param {object} year  Jahreszeile aus pv-summary: year, erzeugung_kwh,
- *   eigenverbrauch_kwh, einspeisung_kwh, bezug_kwh, autarkiequote, battery
+ * v3.4.0 (F1026) — zweite Fassung in components/energy-flow.js.
+ * @param {object} input  pv-summary-Antwort ({monthly, yearly}: Jahr und Monat
+ *   umschaltbar) oder eine einzelne Jahreszeile (nur dieses Jahr)
+ * @param {{year?: number}} [opts]  gewünschtes Jahr
  * @returns {string} leer ohne Erzeugung
  */
-export function energyHtml(year) {
-  const gen = Number(year?.erzeugung_kwh) || 0;
-  if (!(gen > 0)) return '';
-  const self = Number(year.eigenverbrauch_kwh) || 0;
-  const feed = Number(year.einspeisung_kwh) || 0;
-  const grid = Number(year.bezug_kwh) || 0;
-  const charged = Number(year.battery?.charged_kwh) || 0;
-  const discharged = Number(year.battery?.discharged_kwh) || 0;
-  const max = Math.max(gen, grid, 1);
-  const sw = (v) => (v > 0 ? 2 + v / max * 14 : 0).toFixed(1);
-  // Knoten: PV oben in der Mitte, Netz links, Haus rechts, Speicher unten
-  const N = { pv: [160, 32], grid: [40, 120], house: [280, 120], bat: [160, 190] };
-  const node = (k, icon, text) => `<g class="ex-node">
-      <circle cx="${N[k][0]}" cy="${N[k][1]}" r="20"/>
-      <text x="${N[k][0]}" y="${N[k][1] + 6}" text-anchor="middle" class="ex-icon">${icon}</text>
-      ${k === 'pv' ? label(N[k][0] + 26, N[k][1] + 4, text, 'ex-small') : label(N[k][0], N[k][1] + 34, text, 'ex-small', 'middle')}
-    </g>`;
-  const flow = (a, b, v, cls, d) => {
-    if (!(v > 0)) return '';
-    const [x1, y1] = N[a], [x2, y2] = N[b];
-    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-    // Bogen nach außen; die Zahl sitzt auf dem Bogen, mit Hof aus der Kartenfarbe
-    const bend = x1 === x2 ? [mx + 22, my] : [mx, my - 16];
-    return `<path class="ex-flow ${cls}" style="--d:${d}s" d="M${x1},${y1} Q${bend[0]},${bend[1]} ${x2},${y2}" stroke-width="${sw(v)}"/>`
-      + label((mx + bend[0]) / 2, (my + bend[1]) / 2 + 3, `${fmt.num(v, 0)} kWh`, 'ex-small ex-fade ex-value ex-halo', 'middle');
-  };
-  const directSelf = Math.max(0, self - discharged);
-  const body = `
-    ${flow('pv', 'house', directSelf, 'ex-flow--pv', 0)}
-    ${flow('pv', 'grid', feed, 'ex-flow--feed', .2)}
-    ${flow('grid', 'house', grid, 'ex-flow--grid', .4)}
-    ${charged > 0 ? flow('pv', 'bat', charged, 'ex-flow--pv', .6) : ''}
-    ${discharged > 0 ? flow('bat', 'house', discharged, 'ex-flow--bat', .8) : ''}
-    ${node('pv', '☀️', t('explainer.energy.pv'))}
-    ${node('house', '🏠', t('explainer.energy.house'))}
-    ${node('grid', '⚡', t('explainer.energy.grid'))}
-    ${charged > 0 || discharged > 0 ? node('bat', '🔋', t('explainer.energy.battery')) : ''}`;
-  const caption = t('explainer.energy.text', {
-    year: year.year, gen: fmt.num(gen, 0), self: fmt.num(self, 0), feed: fmt.num(feed, 0), grid: fmt.num(grid, 0),
-    autarky: year.autarkiequote == null ? '–' : fmt.pct(year.autarkiequote, 0),
-  });
-  return figure('ex-energy', t('explainer.energy.title'), { h: charged > 0 || discharged > 0 ? 235 : 165, body }, caption);
+export function energyHtml(input, opts = {}) {
+  return energyFigureHtml(input, opts);
 }
 
 // ── 3. Kälter oder mehr verbraucht ──────────────────────────────────────
@@ -158,71 +157,183 @@ export function weatherHtml(monthly) {
   const p = (v) => (v > 0 ? '+' : '') + fmt.pct(v / 100, 0);
   const max = Math.max(cons.current, cons.previous, 1);
   const maxH = Math.max(hdd.current, hdd.previous, 1);
-  const W = 170, x0 = 120;
-  const bar = (y, v, m, cls, d) => `<rect class="ex-grow ${cls}" style="--d:${d}s" x="${x0}" y="${y}" width="${(v / m * W).toFixed(1)}" height="12" rx="2"/>`;
+  // v3.4.0 (F1026) — Beschriftung über den Balken; die Balken lassen rechts
+  // Platz für die längere der beiden Prozentzahlen (+250 % lief über den Rand)
+  const pc = p(cons.pct), ph = p(hdd.pct);
+  const x0 = 0, BW = W - Math.max(textWidth(pc, FS.value, true), textWidth(ph, FS.value, true)) - 6;
+  const bar = (y, v, m, cls, d) => `<rect class="ex-grow ${cls}" style="--d:${d}s" x="${x0}" y="${y}" width="${(v / m * BW).toFixed(1)}" height="11" rx="2"/>`;
   const verdict = adj.pct < -2 ? 'less' : adj.pct > 2 ? 'more' : 'same';
+  const badge = t('explainer.weather.adjusted', { pct: p(adj.pct) });
+  const bw = Math.min(W, Math.max(170, textWidth(badge, FS.label) + 24));
+  const leg = legend([
+    { text: t('explainer.weather.before'), swatch: 'class="ex-bar--prev"' },
+    { text: t('explainer.weather.now'), swatch: 'class="ex-bar--now"' },
+  ], 138);
   const body = `
-    ${label(0, 20, t('explainer.weather.usage'))}
-    ${bar(8, cons.previous, max, 'ex-bar--prev', 0)}${bar(24, cons.current, max, 'ex-bar--now', .2)}
-    ${label(x0 + cons.current / max * W + 4, 34, p(cons.pct), 'ex-fade ex-value')}
-    ${label(0, 66, t('explainer.weather.hdd'))}
-    ${bar(54, hdd.previous, maxH, 'ex-bar--prev', .4)}${bar(70, hdd.current, maxH, 'ex-bar--cold', .6)}
-    ${label(x0 + hdd.current / maxH * W + 4, 80, p(hdd.pct), 'ex-fade ex-value')}
+    ${label(0, 10, t('explainer.weather.usage'))}
+    ${bar(15, cons.previous, max, 'ex-bar--prev', 0)}${bar(29, cons.current, max, 'ex-bar--now', .2)}
+    ${label(x0 + cons.current / max * BW + 4, 38, pc, 'ex-fade ex-value')}
+    ${label(0, 60, t('explainer.weather.hdd'))}
+    ${bar(65, hdd.previous, maxH, 'ex-bar--prev', .4)}${bar(79, hdd.current, maxH, 'ex-bar--cold', .6)}
+    ${label(x0 + hdd.current / maxH * BW + 4, 88, ph, 'ex-fade ex-value')}
     <g class="ex-fade" style="--d:1s">
-      <rect class="ex-badge ex-badge--${verdict}" x="${x0}" y="94" width="${W}" height="24" rx="12"/>
-      ${label(x0 + W / 2, 110, t('explainer.weather.adjusted', { pct: p(adj.pct) }), 'ex-badge__text', 'middle')}
+      <rect class="ex-badge ex-badge--${verdict}" x="${((W - bw) / 2).toFixed(1)}" y="102" width="${bw.toFixed(1)}" height="24" rx="12"/>
+      ${label(W / 2, 118, badge, 'ex-badge__text', 'middle')}
     </g>
-    <g class="ex-legend ex-fade" style="--d:.9s">
-      <rect x="0" y="128" width="10" height="10" rx="2" class="ex-bar--prev"/>${label(14, 137, t('explainer.weather.before'), 'ex-small')}
-      <rect x="170" y="128" width="10" height="10" rx="2" class="ex-bar--now"/>${label(184, 137, t('explainer.weather.now'), 'ex-small')}
-    </g>`;
+    ${leg.svg}`;
   const caption = t(`explainer.weather.text.${verdict}`, { cons: p(cons.pct), hdd: p(hdd.pct), adj: p(adj.pct) });
-  return figure('ex-weather', t('explainer.weather.title'), { h: 145, body }, caption);
+  return figure('ex-weather', t('explainer.weather.title'), { h: 138 + leg.h + 4, body }, caption);
 }
 
 // ── 4. Vertrags-Zeitstrahl ──────────────────────────────────────────────
+//
+// v3.4.0 (F1026) — zweite Fassung. Was der Vertrag vorhat, steht in
+// `contract-status`; das Bild unterscheidet:
+//   befristet          Kündigen bis (cancel_by) → Ende (end); Stichtag verpasst
+//                      → eigener Text; verlängert sich nicht (auto_renews:
+//                      false) → kein Stichtag, endet ohnehin
+//   verlängert         Laufzeit abgelaufen, läuft weiter (renewed): jederzeit
+//                      kündbar, frühestens Ende = switch_date − 1
+//   unbefristet        jederzeit kündbar, frühestens Ende = switch_date − 1
+//                      (mit Mindestlaufzeit deren Ende); ohne Frist kein Termin
+// Dazu Mindestlaufzeit, Preisgarantie (Band auf der Achse), Preiserhöhung und
+// der Folgevertrag (`successor`, sobald contract-status ihn liefert).
+// Die Achse zeigt ein Fenster um heute (gut ein Jahr zurück, gut zwei voraus);
+// was davor oder danach liegt, sitzt am Rand. Beschriftungen liegen nach Nähe
+// auf Ebenen über und unter der Achse, am Rand links- bzw. rechtsbündig.
+
+const DAY = 86400000;
+const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}/.test(s);
+const dayNum = (iso) => { const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number); return Date.UTC(y, m - 1, d) / DAY; };
+const isoOf = (n) => new Date(n * DAY).toISOString().slice(0, 10);   // Tageszahl, keine Zeitzone
+const addDays = (iso, n) => isoOf(dayNum(iso) + n);
+
+/** Welche Art Vertrag das Bild erzählt (s. o.). */
+function timelineKind(row) {
+  const basis = row.notice_basis || null;
+  const earliest = isDate(row.switch_date) ? addDays(row.switch_date, -1) : null;
+  if ((row.renewed || basis === 'renewed') && earliest) return { kind: 'renewed', earliest };
+  if (row.is_open_ended || basis === 'open_ended' || basis === 'min_term') {
+    if (!earliest) return { kind: 'running', earliest: null };
+    return { kind: basis === 'min_term' ? 'minTerm' : 'anytime', earliest };
+  }
+  if (!isDate(row.end)) return { kind: 'running', earliest: null };
+  if (row.auto_renews === false) return { kind: 'noRenew', earliest: null };
+  if (isDate(row.cancel_by)) return { kind: row.cancel_missed ? 'missed' : 'fixed', earliest: null };
+  return { kind: 'noNotice', earliest: null };
+}
 
 /**
- * @param {object} row  Zeile aus contract-status: start, effective_end,
- *   is_open_ended, cancel_by, switch_date, price_increase
- * @param {string} today  JJJJ-MM-TT
+ * @param {object} row  Zeile aus contract-status: start, end, is_open_ended,
+ *   renewed, notice_basis, cancel_by, cancel_missed, switch_date, auto_renews,
+ *   min_term_end, price_guarantee_until, price_increase; optional
+ *   successor {contract_id, provider, start, gap_days}
+ * @param {string} [today]  JJJJ-MM-TT in Ortszeit
  */
-export function timelineHtml(row, today) {
-  if (!row?.start) return '';
-  // Ein weiterlaufender Vertrag endet erst mit der Kündigung (switch_date)
-  const end = row.is_open_ended ? (row.cancel_by ? row.switch_date : null) : (row.end || row.effective_end || null);
-  const points = [
-    { key: 'start', date: row.start },
-    { key: 'cancel', date: row.cancel_by },
-    { key: 'price', date: row.price_increase?.from || null },
-    { key: 'end', date: end },
-  ].filter(x => x.date);
-  const dates = [...points.map(x => x.date), today].sort();
-  const t0 = Date.parse(dates[0]), t1 = Date.parse(dates[dates.length - 1]);
-  if (!(t1 > t0)) return '';
-  const X = (d) => 16 + (Date.parse(d) - t0) / (t1 - t0) * 288;
-  let row2 = false;
-  const marks = points.map((x, i) => {
-    const xx = X(x.date);
-    const up = (row2 = !row2);
-    return `<g class="ex-fade ex-mark ex-mark--${x.key}" style="--d:${(.3 + i * .2).toFixed(1)}s">
-      <circle cx="${xx.toFixed(1)}" cy="60" r="6"/>
-      ${label(xx, up ? 38 : 88, t('explainer.timeline.' + x.key), 'ex-small', 'middle')}
-      ${label(xx, up ? 26 : 100, fmt.date(x.date), 'ex-small ex-muted', 'middle')}
+export function timelineHtml(row, today = todayIso()) {
+  if (!isDate(row?.start) || !isDate(today)) return '';
+  const { kind, earliest } = timelineKind(row);
+  const anytime = kind === 'renewed' || kind === 'anytime' || kind === 'minTerm';
+  const end = anytime ? earliest : (isDate(row.end) && kind !== 'running' ? row.end : null);
+  const succ = row.successor && isDate(row.successor.start) ? row.successor : null;
+
+  const marks = [{ key: 'start', date: row.start }];
+  if (kind === 'renewed' && isDate(row.end)) marks.push({ key: 'termEnd', date: row.end });
+  if (isDate(row.min_term_end) && row.min_term_end !== end && row.min_term_end !== row.end) marks.push({ key: 'minTerm', date: row.min_term_end });
+  if (isDate(row.price_guarantee_until)) marks.push({ key: 'guarantee', date: row.price_guarantee_until });
+  if (isDate(row.price_increase?.from)) marks.push({ key: 'price', date: row.price_increase.from });
+  if (kind === 'fixed' || kind === 'missed') marks.push({ key: kind === 'missed' ? 'missed' : 'cancel', date: row.cancel_by });
+  if (end) marks.push({ key: anytime ? 'earliest' : 'end', date: end });
+  if (succ) marks.push({ key: 'successor', date: succ.start });
+
+  // Fenster um heute
+  const now = dayNum(today);
+  const days = marks.map(m => dayNum(m.date));
+  let w0 = Math.max(Math.min(now, ...days), now - 400);
+  let w1 = Math.min(Math.max(now, ...days), now + 760);
+  if (w1 - w0 < 60) { const pad = (60 - (w1 - w0)) / 2; w0 -= pad; w1 += pad; }
+  const PAD = 10, X = (d) => PAD + (Math.min(w1, Math.max(w0, d)) - w0) / (w1 - w0) * (W - 2 * PAD);
+
+  // Beschriftungen: je Marke zwei Zeilen (Name, Datum), heute eine oder zwei
+  const items = marks.map((m, i) => ({ ...m, x: X(dayNum(m.date)), clip: dayNum(m.date) < w0 || dayNum(m.date) > w1,
+    lines: [t(`explainer.timeline.${m.key}`), fmt.date(m.date)], d: (0.3 + i * 0.15).toFixed(2) }));
+  items.push({ key: 'today', x: X(now), lines: anytime ? [t('explainer.timeline.today'), t('explainer.timeline.anytime')] : [t('explainer.timeline.today')], d: '0.2' });
+  const lanes = [];                      // je Ebene das rechte Ende der letzten Beschriftung
+  const order = ['u0', 'd0', 'u1', 'd1', 'u2', 'd2', 'u3', 'd3'];
+  [...items].sort((a, b) => a.x - b.x || (a.key === 'today' ? 1 : -1)).forEach((it) => {
+    const w = Math.max(...it.lines.map(s => textWidth(s, FS.small)));
+    let anchor = 'middle', tx = it.x;
+    if (it.x - w / 2 < 2) { anchor = 'start'; tx = Math.max(2, it.x - 4); }
+    else if (it.x + w / 2 > W - 2) { anchor = 'end'; tx = Math.min(W - 2, it.x + 4); }
+    const x0 = anchor === 'start' ? tx : anchor === 'end' ? tx - w : tx - w / 2;
+    const lane = order.find(l => (lanes[l] ?? -Infinity) + 6 <= x0) || order[order.length - 1];
+    lanes[lane] = x0 + w;
+    Object.assign(it, { anchor, tx, lane });
+  });
+  const used = (s) => order.filter(l => l[0] === s && lanes[l] !== undefined).map(l => Number(l[1]));
+  const nUp = Math.max(0, ...used('u').map(i => i + 1)), nDown = Math.max(0, ...used('d').map(i => i + 1));
+  const A = nUp ? 38 + 26 * (nUp - 1) : 14;
+  const H = nDown ? A + 34 + 26 * (nDown - 1) + 6 : A + 14;
+  const ys = (it) => {
+    const i = Number(it.lane[1]);
+    // oben: Name nah an der Achse, Datum darüber; unten: Name, Datum darunter
+    return it.lane[0] === 'u' ? [A - 16 - 26 * i, A - 28 - 26 * i] : [A + 22 + 26 * i, A + 34 + 26 * i];
+  };
+
+  const xs = (d) => X(dayNum(d)).toFixed(1);
+  const ranges = [];
+  // Preisgarantie: Band auf der Achse vom Beginn bis zum Ende der Garantie
+  if (isDate(row.price_guarantee_until)) ranges.push(`<line class="ex-grow ex-range--guarantee" style="--d:.5s" x1="${xs(row.start)}" y1="${A}" x2="${xs(row.price_guarantee_until)}" y2="${A}"/>`);
+  // Folgevertrag: eigene Strecke ab seinem Beginn, eine Lücke davor gestrichelt
+  if (succ) {
+    ranges.push(`<line class="ex-fade ex-range--next" style="--d:1s" x1="${xs(succ.start)}" y1="${A}" x2="${(W - PAD).toFixed(1)}" y2="${A}"/>`);
+    if (end && Number(succ.gap_days) > 0) ranges.push(`<line class="ex-fade ex-range--gap" style="--d:1s" x1="${xs(addDays(end, 1))}" y1="${A}" x2="${xs(succ.start)}" y2="${A}"/>`);
+  }
+  const cutLeft = dayNum(row.start) < w0, cutRight = days.some(d => d > w1);
+  const markSvg = items.filter(it => it.key !== 'today').map((it) => {
+    const [ly, dy] = ys(it);
+    const past = dayNum(it.date) < now ? ' ex-mark--past' : '';
+    return `<g class="ex-fade ex-mark ex-mark--${it.key}${it.clip ? ' ex-mark--clip' : ''}${past}" style="--d:${it.d}s">
+      <circle cx="${it.x.toFixed(1)}" cy="${A}" r="5"/>
+      ${label(it.tx, ly, it.lines[0], 'ex-small', it.anchor)}
+      ${label(it.tx, dy, it.lines[1], 'ex-small ex-muted', it.anchor)}
     </g>`;
   }).join('');
-  const tx = X(today);
+  const today_ = items.find(it => it.key === 'today');
+  const [tly, tdy] = ys(today_);
   const body = `
-    <line class="ex-axis" x1="16" y1="60" x2="304" y2="60"/>
-    <line class="ex-grow ex-progress" style="--d:0s" x1="16" y1="60" x2="${tx.toFixed(1)}" y2="60"/>
-    ${marks}
-    <g class="ex-fade ex-today" style="--d:.2s"><line x1="${tx.toFixed(1)}" y1="46" x2="${tx.toFixed(1)}" y2="74"/>${label(tx, 118, t('explainer.timeline.today'), 'ex-small', 'middle')}</g>`;
-  const caption = row.cancel_by
-    ? t(row.is_open_ended ? 'explainer.timeline.textOpen' : 'explainer.timeline.text', {
-        start: fmt.date(row.start), cancel: fmt.date(row.cancel_by), end: end ? fmt.date(end) : '–' })
-    : end ? t('explainer.timeline.textNoNotice', { start: fmt.date(row.start), end: fmt.date(end) })
-      : t('explainer.timeline.textRunning', { start: fmt.date(row.start) });
-  return figure('ex-timeline', t('explainer.timeline.title'), { h: 125, body }, caption);
+    <line class="ex-axis" x1="${PAD}" y1="${A}" x2="${W - PAD}" y2="${A}"/>
+    ${cutLeft ? `<line class="ex-axis ex-axis--cut" x1="0" y1="${A}" x2="${PAD}" y2="${A}"/>` : ''}
+    ${cutRight ? `<line class="ex-axis ex-axis--cut" x1="${W - PAD}" y1="${A}" x2="${W}" y2="${A}"/>` : ''}
+    ${ranges.join('')}
+    <line class="ex-grow ex-progress" style="--d:0s" x1="${xs(isoOf(Math.max(dayNum(row.start), w0)))}" y1="${A}" x2="${today_.x.toFixed(1)}" y2="${A}"/>
+    ${markSvg}
+    <g class="ex-fade ex-today" style="--d:.2s"><line x1="${today_.x.toFixed(1)}" y1="${A - 10}" x2="${today_.x.toFixed(1)}" y2="${A + 10}"/>
+      ${label(today_.tx, tly, today_.lines[0], 'ex-small', today_.anchor)}${today_.lines[1] ? label(today_.tx, tdy, today_.lines[1], 'ex-small ex-muted', today_.anchor) : ''}</g>`;
+
+  // Aussage als Text (die Grafik ist für Screenreader ausgeblendet)
+  const D = fmt.date;
+  const p = { start: D(row.start), end: end ? D(end) : '–', cancel: isDate(row.cancel_by) ? D(row.cancel_by) : '–' };
+  const base = {
+    fixed: () => t('explainer.timeline.text', p),
+    missed: () => t('explainer.timeline.textMissed', p),
+    noRenew: () => t('explainer.timeline.textNoRenew', p),
+    noNotice: () => t('explainer.timeline.textNoNotice', p),
+    renewed: () => t('explainer.timeline.textRenewed', { ...p, term: D(row.end) }),
+    anytime: () => t('explainer.timeline.textAnytime', p),
+    minTerm: () => t('explainer.timeline.textMinTerm', p),
+    running: () => t('explainer.timeline.textRunning', p),
+  }[kind]();
+  const extra = [];
+  if (marks.some(m => m.key === 'minTerm') && dayNum(row.min_term_end) >= now) extra.push(t('explainer.timeline.textMinTermUntil', { date: D(row.min_term_end) }));
+  if (isDate(row.price_guarantee_until) && dayNum(row.price_guarantee_until) >= now) extra.push(t('explainer.timeline.textGuarantee', { date: D(row.price_guarantee_until) }));
+  if (isDate(row.price_increase?.from)) extra.push(t('explainer.timeline.textPrice', { date: D(row.price_increase.from) }));
+  if (succ) {
+    extra.push(succ.provider ? t('explainer.timeline.textSuccessor', { provider: succ.provider, start: D(succ.start) })
+      : t('explainer.timeline.textSuccessorPlain', { start: D(succ.start) }));
+    if (Number(succ.gap_days) > 0) extra.push(tp('explainer.timeline.gap', Number(succ.gap_days)));
+  }
+  return figure('ex-timeline', t('explainer.timeline.title'), { h: H, body }, [base, ...extra].join(' '));
 }
 
 // ── Abspielen ───────────────────────────────────────────────────────────
@@ -230,20 +341,27 @@ export function timelineHtml(row, today) {
 /**
  * Bewegung starten, sobald ein Bild sichtbar wird. Erst hier werden die
  * Ausgangszustände gesetzt (`ex--ready`): Ohne Skript bleibt das Endbild.
+ * v3.4.0 — der Energiefluss bekommt hier seine Bedienung (Zeitraum,
+ * Hervorhebung) und zählt beim Erscheinen hoch.
  * @param {ParentNode} root
  */
 export function playExplainers(root) {
   const figs = [...(root?.querySelectorAll?.('.explainer:not(.ex--ready)') || [])];
   if (!figs.length) return;
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  figs.filter(f => f.classList.contains('ex-energy')).forEach(bindEnergyFigure);
+  const reduce = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const play = (f) => {
+    f.classList.add('ex--play');
+    if (f.classList.contains('ex-energy')) startEnergyFigure(f, { reduce });
+  };
   if (reduce || typeof IntersectionObserver === 'undefined') {
-    figs.forEach(f => f.classList.add('ex--ready', 'ex--play'));
+    figs.forEach(f => { f.classList.add('ex--ready'); play(f); });
     return;
   }
   const io = new IntersectionObserver((entries) => {
     entries.forEach(e => {
       if (!e.isIntersecting) return;
-      e.target.classList.add('ex--play');
+      play(e.target);
       io.unobserve(e.target);
     });
   }, { threshold: 0.3 });

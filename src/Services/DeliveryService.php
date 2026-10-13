@@ -36,6 +36,32 @@ final class DeliveryService
         private I18nService $i18n,
     ) {}
 
+    /** v3.4.0 (F1024) — Verlauf: eine Lieferung bei niedrigem Bestand erledigt „Lieferung planen". */
+    private ?ActivityService $activity = null;
+
+    public function attachActivity(ActivityService $activity): void
+    {
+        $this->activity = $activity;
+    }
+
+    /**
+     * v3.4.0 (F1024) — Tag der letzten erfolgten (nicht geplanten) Lieferung,
+     * der Anker des Hinweises „Lieferung planen" (Agenda, R5, Verlauf).
+     *
+     * @param array<int,array<string,mixed>> $deliveries eines Tanks
+     */
+    public static function lastDelivered(array $deliveries, ?string $today = null): ?string
+    {
+        $today ??= date('Y-m-d');
+        $last = null;
+        foreach ($deliveries as $d) {
+            $date = (string)($d['date'] ?? '');
+            if (!empty($d['is_planned']) || $date === '' || $date > $today) continue;
+            if ($last === null || $date > $last) $last = $date;
+        }
+        return $last;
+    }
+
     /** @return array<int,array<string,mixed>> */
     public function list(string $utility, ?string $meterId = null): array
     {
@@ -66,8 +92,15 @@ final class DeliveryService
 
         $all = $this->list($utility);
         $payload['id'] = $payload['id'] ?? 'del_' . $utility . '_' . substr(bin2hex(random_bytes(4)), 0, 6);
+        // v3.4.0 (F1024) — Stand vor der Lieferung: niedriger Bestand, letzte Lieferung
+        $meterId = (string)($payload['meter_id'] ?? '');
+        $wasLow = $this->activity !== null && empty($payload['is_planned']) && $this->activity->tankWasLow($utility, $meterId);
+        $prevLatest = self::lastDelivered(array_filter($all, fn($d) => ($d['meter_id'] ?? null) === $meterId));
         $all[] = $payload;
         $this->store->write("$utility/deliveries.json", $all);
+        if ($wasLow && ($meter = $this->meters->get($utility, $meterId)) !== null) {
+            $this->activity->deliveryRecorded($utility, $meter, $payload, $prevLatest, true);
+        }
         return $payload;
     }
 

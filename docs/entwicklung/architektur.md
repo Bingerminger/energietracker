@@ -143,7 +143,6 @@ und kennt **kein HTTP**.
 | `ReminderService` | Termine/Wartung, Recurrence-Fortschreibung |
 | `PdfReportService` + `Pdf\PdfWriter` | Jahresbericht, eigener PDF-Generator |
 | `BackupService` | Export/Import Format 3.0 mit Prüfung vor dem Schreiben und Rückweg; Snapshots (Liste, Download, Einspielen, Rotation); seit v3.1.0 mit Belegen (`attachment_files`, geprüft gegen `sha256`), Export und Snapshot gestreamt |
-| `MigrationService` | v0.9.0-Import (Preview + Apply) |
 | `ReadingImportService` | CSV-Bulk-Import von Ablesungen; seit v3.1.0 Kopfzeilen aller Sprachen und Datum über `Support\Dates::parseUserDate()` |
 | `CsvExportService` | tabellarischer Export (inkl. Lieferungen); seit v3.1.0 Format 1 (eingefroren) und „local“ in der Standardsprache — [CSV-Formate](../referenz/api.md#csv-formate-v310) |
 | `DiagnosticsService` | Systemstatus, Schreibrechte, Datenzählung |
@@ -169,6 +168,7 @@ und kennt **kein HTTP**.
 | `HeatPumpService` | **(v3.1.0)** Jahresarbeitszahl: Wärme des Zählers mit Rolle `heat_pump_output` ÷ Strom der verknüpften Zähler, nur Monate mit beiden Seiten |
 | `SeriesImportService` | **(v3.1.0)** Zeitreihen aus Portalen mit Spaltenzuordnung zu Tageswerten verdichten — als Ablesungen (über `ReadingImportService`) oder Zeiträume (über `PeriodService`) |
 | `ReferenceService` | **(v3.1.0)** Einordnung an eigenen Vergleichswerten: Haushaltsstrom ohne Wärmepumpe und Wallbox, Heizung je m², Links zur Selbstprüfung (nur DE) |
+| `DocsService` | **(v3.4.0)** Hilfe auf dem Server: Freigabeliste der Doku aus dem Dateibestand (Seiten unter `docs/` ohne Weiterleitungen, PNG unter `docs/ui/screenshots/`, feste Liste im Wurzelverzeichnis als `root/…`), reiner Nachschlag ohne Pfadverkettung, keine symbolischen Links; Sprache, Spiegel und Ziel einer Weiterleitung. Gerendert wird im Browser (`public/js/lib/markdown.js`) |
 
 Seit v3.1.0 kennt `ConsumptionService` außerdem den **Gruppenvertrag**
 (`contractScope()`, `computeForGroup()`, `contractView()` für den Mischpreis),
@@ -190,7 +190,7 @@ Jeder Controller ist `final`, eine Klasse pro Datei. Methoden geben
 `ConsumptionController`, `ForecastController`, `DeliveryController`,
 `BenchmarkController`, `TariffComparisonController`,
 `TariffSwitchController`, `RecommendationController`, `ReminderController`, `ReportController`,
-`ExportController`, `BackupController`, `MigrationController`,
+`ExportController`, `BackupController`,
 `DiagnosticsController`, `HealthController`, `DemoController`,
 `PvSummaryController`, `StromSaldoController`, `AuthController`,
 `IngestController`, `SessionController`, `ManifestController` (v3.1.0:
@@ -200,7 +200,8 @@ Web-App-Manifest in der Sprache des Geräts), `AgendaController` (v3.1.0:
 `Co2Controller`, `BillController` (alle v3.1.0), `MarketPriceController`
 (`/api/market-prices`), `EvChargingController` (`/api/reports/ev-charging…`),
 `HeatPumpController` (`/api/heat-pump`), `SeriesImportController`
-(`…/import-series`, alle v3.1.0). Die Einordnung liegt im
+(`…/import-series`, alle v3.1.0), `DocsController` (v3.4.0: `/api/docs`,
+`/api/docs/asset`). Die Einordnung liegt im
 `BenchmarkController`, der Monatspreis-Import im `ContractController`, die
 Auswertungen einer Zählergruppe in denselben Controllern wie die eines Zählers.
 
@@ -215,6 +216,12 @@ API-Schlüssel oder Proxy-Benutzer. Öffentlich bleiben Ingest, Health (in
 Minimalform) und die Anmeldung selbst. Das Kalender-Abo (v3.1.0) nimmt
 zusätzlich einen Schlüssel des Bereichs `calendar` als `?token=…` an — nur
 dort und nur so; ein Lese- oder Admin-Schlüssel im Link wird abgelehnt.
+Seit v3.4.0 (N1020) gilt die Hostliste aus Umgebung **und** Einstellung
+(`Http\HostList`); der Körper einer Anfrage wird erst nach der Anmeldung und
+nach der Größenprüfung gelesen (`Request::limitBody()`, `App::bodyLimit()`);
+die Schreibsperre hat eine Frist (`WriteLock`, sonst `503`), und Abgleiche mit
+fremden Diensten sperren erst nach dem Abruf (`App::LOCK_LATE`,
+`JsonStore::lock()`). Verbindungen nach außen begrenzt `Support\Outbound`.
 Details: [Sicherheit](../betrieb/sicherheit.md).
 
 Die vollständige Routen-Liste steht in der
@@ -233,6 +240,7 @@ Die vollständige Routen-Liste steht in der
 | `Http\NotFoundException` | 404 | Ressource fehlt (seit v2.2.1 als Typ statt Textmuster; seit v2.6.0 auch für Datensätze in der URL) |
 | `Http\ConflictException` | 409 | Konflikt, z. B. Sicherungs-Snapshot gescheitert (v2.6.0) |
 | `Storage\StorageCorruptedException` | 503 | Datendatei beschädigt (v2.5.3); seit v3.1.0 übersetzt der ErrorHandler die Meldung (`errors.storage.<art>`), `code` bleibt `errors.storage.corrupted` |
+| `Http\HttpStatusException` | 413, 503 | Körper zu groß (`errors.http.tooLarge`) bzw. Schreibsperre nicht frei (`errors.http.busy`, mit `Retry-After`) — Status, Schlüssel und Kopfzeilen reisen mit (v3.4.0) |
 | sonstige | 500 | unerwarteter Fehler — generische Meldung mit `error_id`, Einzelheiten im Log (v2.6.0) |
 
 Antwort-Hülle einheitlich:

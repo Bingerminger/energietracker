@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Support\LocalizedException;
+use Energietracker\Support\Outbound;
 
 /**
  * v3.1.0 (Paket H6, B7/MKT-12) — Großhandelspreise Strom (Day-Ahead DE-LU)
@@ -234,6 +235,8 @@ final class MarketPriceService
     /** @param array<string,array{avg_ct:float}> $months */
     private function merge(array $months, string $source): void
     {
+        // v3.4.0 (N1020) — die Schreibsperre erst nach dem Abruf (s. App::LOCK_LATE)
+        $this->store->lock();
         $cur = $this->get()['months'];
         foreach ($months as $ym => $v) $cur[$ym] = $v;
         ksort($cur);
@@ -267,11 +270,13 @@ final class MarketPriceService
         if ($this->fetch !== null) return ($this->fetch)($url);
         if (!function_exists('curl_init')) throw new LocalizedException('errors.marketPrices.syncFailed', [], 'no curl');
         $ch = curl_init($url);
-        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 10,
-                                CURLOPT_USERAGENT => 'Energietracker (PHP)']);
-        $body = curl_exec($ch);
+        // v3.4.0 (N1020) — nur HTTPS, höchstens zwei Weiterleitungen, Antwort höchstens 20 MB
+        $body = '';
+        curl_setopt_array($ch, [CURLOPT_TIMEOUT => 20, CURLOPT_CONNECTTIMEOUT => 10,
+                                CURLOPT_USERAGENT => 'Energietracker (PHP)'] + Outbound::curlOptions(true, true, $body));
+        $ok = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if ($body === false || $code !== 200) throw new LocalizedException('errors.marketPrices.syncFailed', [], "smard http $code");
-        return (string)$body;
+        if ($ok === false || $code !== 200) throw new LocalizedException('errors.marketPrices.syncFailed', [], "smard http $code errno " . curl_errno($ch));
+        return $body;
     }
 }

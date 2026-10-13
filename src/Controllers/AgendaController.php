@@ -14,6 +14,8 @@ use Energietracker\Services\SummaryService;
  *   GET /api/agenda?days=90   Ereignisse (Klasse B), Quelle für „Zu tun"
  *   GET /api/calendar.ics     Kalender-Abo (Klasse A: Form und UIDs)
  *   GET /api/summary          Kennzahlen für Home Assistant (Klasse A)
+ *   POST /api/agenda/done     v3.4.0 (F1024) — Hinweis abhaken {uid, occurrence?,
+ *                             done_on?, note?, attachment_id?, cancelled?} (Klasse C)
  */
 final class AgendaController
 {
@@ -27,6 +29,13 @@ final class AgendaController
     {
         $days = (int)($req->queryParam('days') ?? 90);
         Response::json(['events' => $this->agenda->events($days)]);
+    }
+
+    /** v3.4.0 (F1024) — 201 mit dem Verlaufseintrag; schon erledigt: 200 mit `duplicate`. */
+    public function done(Request $req): never
+    {
+        $r = $this->agenda->markDone(is_array($req->body) ? $req->body : []);
+        Response::json($r, empty($r['duplicate']) ? 201 : 200);
     }
 
     public function calendar(Request $req): never

@@ -269,6 +269,13 @@ rest:
   steht für die Währung deiner Einstellungen.
 - Ein Sensor zeigt „unbekannt“, wenn es den Wert nicht gibt — etwa ohne
   laufenden Vertrag oder bevor die Prognose genug Daten hat.
+- *(v3.4.0)* **Erledigtes zählt nicht mit:** `agenda.due`, `agenda.overdue`
+  und `agenda.next` lassen abgehakte und von selbst erledigte Hinweise weg;
+  `contract.cancel_by` ist leer, wenn ein Folgevertrag lückenlos anschließt
+  oder der Vertrag jederzeit kündbar ist (bis v3.3 stand dort dann jeden Tag
+  „heute“). Stände aus Home Assistant tragen sich nur dann in den Verlauf ein
+  („Home Assistant“), wenn die Ablesung fällig war —
+  [Hinweise erledigen](hinweise-erledigen.md).
 
 **Mit eingeschalteter Anmeldung** braucht Home Assistant zum Lesen einen
 API-Schlüssel mit Bereich **„Lesen“** (Einstellungen → Zugriff → „API-Schlüssel
@@ -561,14 +568,23 @@ die Seitenleiste von Home Assistant), gilt seit v3.1.0:
 - **Adresse in den Vorlagen.** Die Ingress-Adresse braucht eine HA-Sitzung und
   wechselt. Die Vorlagen in den Einstellungen nennen deshalb
   `http://<Container-Hostname>` — darüber erreicht Home Assistant die App im
-  internen Netz.
+  internen Netz. Den Hostnamen meldet die App seit v3.4.0 nur Anfragen vom
+  Supervisor; dafür muss `ET_TRUSTED_PROXIES=172.30.32.2` gesetzt sein (sonst
+  nennen die Vorlagen die Adresse, unter der die Seite gerade aufgerufen wird).
 - **Anmeldung über Home Assistant.** Ingress lässt nur angemeldete HA-Benutzer
   durch. Soll die App den Benutzer übernehmen, setze `ET_AUTH=proxy` und
   `ET_TRUSTED_PROXIES=172.30.32.2` (die Adresse, von der Ingress-Anfragen
   kommen). Home Assistant schickt `X-Remote-User-Name` und `X-Remote-User-Id`;
-  der Energietracker erkennt sie seit v3.1.0. Push und Sensoren laufen nicht über
-  Ingress und brauchen dann Token bzw. Lese-Schlüssel wie oben. Mehr:
-  [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
+  der Energietracker erkennt sie seit v3.1.0. Seit v3.4.0 zählen unter Ingress
+  **nur** diese beiden (der Supervisor filtert sie aus den Anfragen der Nutzer,
+  `Remote-User` reicht er dagegen durch), und eine Person wird über
+  `X-Remote-User-Id` geführt — eine Umbenennung in Home Assistant macht keine
+  neue Person. `ET_PROXY_USER_HEADER` bleibt dafür leer. Push und Sensoren
+  laufen nicht über Ingress und brauchen dann Token bzw. Lese-Schlüssel wie
+  oben. Mehr: [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md#6-anmeldung-über-einen-vorgeschalteten-proxy).
+- **Vorlagen mit eigenen Namen.** Seit v3.4.0 stehen Zählernamen, Adressen und
+  Aliase gequotet in den Vorlagen; ein Name mit Anführungszeichen oder
+  Zeilenumbruch ändert die eingefügte Konfiguration nicht mehr.
 - **Uploads bis 16 MiB.** Ohne `ingress_stream: true` in der Konfiguration der
   App begrenzt Home Assistant Uploads über Ingress auf 16 MiB. Ein größeres
   Backup spielst du über den direkten Port ein.

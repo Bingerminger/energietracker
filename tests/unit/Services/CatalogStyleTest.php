@@ -311,6 +311,29 @@ final class CatalogStyleTest extends TestCase
         }
     }
 
+    /**
+     * v3.4.0 (N1020) — HTML in den Katalogen nur als `<strong>`, `<em>` und
+     * `<code>`, ohne Attribute. t() setzt Platzhalter roh ein, und manche
+     * Aufrufstellen geben Katalogtexte als HTML aus; mehr als Auszeichnung darf
+     * auf diesem Weg nicht in die Seite. `<token>` in Meldungen des Servers
+     * (errors.*) ist ein Platzhalter im Text — Meldungen werden escaped.
+     */
+    public function testCatalogHtmlIsOnlyStrongEmCode(): void
+    {
+        $hits = [];
+        foreach (self::languages() as $lang) {
+            foreach (self::catalog($lang) as $key => $value) {
+                preg_match_all('#</?[A-Za-z][^>]*>#u', $value, $m);
+                foreach ($m[0] as $tag) {
+                    if (preg_match('#^</?(strong|em|code)>$#', $tag)) continue;
+                    if (str_starts_with($key, 'errors.') && $tag === '<token>') continue;
+                    $hits[] = "$lang $key: $tag";
+                }
+            }
+        }
+        self::assertSame([], $hits, "Nicht erlaubtes HTML im Katalog:\n" . implode("\n", $hits));
+    }
+
     /** I18N-10: Dateinamen der CSV-Exporte bleiben ASCII-Slugs in jeder Sprache. */
     public function testCsvFileSlugs(): void
     {

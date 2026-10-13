@@ -10,8 +10,9 @@ use Energietracker\Services\BackupService;
 
 /**
  * Backup-Endpoints: Export als JSON, Import (nur Format 3.0+),
- * Snapshot-Erzeugung im Datenverzeichnis. Für v0.9.0-Backups
- * stattdessen den MigrationController benutzen.
+ * Snapshot-Erzeugung im Datenverzeichnis. v0.9.0-Backups liest seit
+ * v3.4.0 keine Version mehr ein (Weg: v3.3.0 installieren, dort migrieren,
+ * dann aktualisieren).
  *
  * v2.6.0 — Import mit `?dry_run=1` (nur prüfen) und
  * `?allow_without_snapshot=1` (auch wenn der Sicherungs-Snapshot scheitert,

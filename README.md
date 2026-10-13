@@ -3,6 +3,8 @@
 
 # Energietracker
 
+<p align="center"><img src="docs/assets/promo/banner.png" alt="Energietracker – know your energy costs, save real money: costs and advance payments, usage, contracts and deadlines, solar, battery, heat pump and EV in one self-hosted app" width="860"></p>
+
 **Home Assistant measures — the Energietracker does the billing.** Meter
 readings in, answers out: Will I get money back? Is my gas bill right? Is
 switching worth it? Did I use more, or was it just colder?
@@ -12,14 +14,15 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-695-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-813-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-ffdd00.svg)](https://buymeacoffee.com/bingerminger)
 
 <p align="center"><img src="docs/ui/screenshots/en/dashboard.png" alt="Overview with to-dos, key figures per utility and history" width="860"></p>
 
@@ -69,7 +72,7 @@ and help inside the app with a glossary and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.3.0
+  ghcr.io/bingerminger/energietracker:3.4.0
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
@@ -127,18 +130,19 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.3.0** is the current version — [CHANGELOG](CHANGELOG.md) (in German).
-APIs, CSV formats and the backup format change only additively; anything is
-removed only with a new major version and after notice. 3.3.0 shows what
-flexibility is worth: quarter-hour values from Home Assistant or the grid
-operator's portal, exchange prices per quarter hour, your own profile factor
-on a dynamic tariff, the value of a battery and time-variable grid fees
-(module 3). Since 3.2.0 there is a setup assistant with example households,
-three experience levels, several people per household and charging sessions
-from evcc. What comes
+**v3.4.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
+version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
+change only additively; anything is removed only with a new major version and
+after notice. 3.4.0 makes the app clear and secure for everyone in the
+household: the handbook comes from your own server, also without internet; a
+yearly report for readers without a technical background, with successes and
+recommended actions; done hints with a history of who did what; a tidier
+interface; and a security package. Since 3.3.0 the app values flexibility with
+quarter-hour data, since 3.2.0 there is a setup assistant, experience levels,
+several people per household and evcc. What comes
 next is in the [roadmap](roadmap.md) (in German). Coming from a
-private v0.9.0:
-[migration](docs/en/anleitungen/migration-v090.md).
+private v0.9.0: since 3.4.0 no version reads its backups any more — install
+3.3.0, migrate there, then update.
 
 ## Contributing
 
@@ -149,6 +153,14 @@ a few lines of code for the plural rule and the country assignment; the
 checklist is in [Translating and languages](docs/en/entwicklung/uebersetzen.md).
 Please do not report security issues publicly, but as described in
 [SECURITY.md](SECURITY.md).
+
+## Support
+
+The Energietracker is independent: no company behind it, no advertising, no
+cloud account, no data collection. If it saves you money or time and you want
+to give something back, you can
+[buy me a coffee](https://buymeacoffee.com/bingerminger) — entirely voluntary.
+Stars, bug reports and telling others about it help just as much.
 
 ## Licence
 

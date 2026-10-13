@@ -51,7 +51,7 @@ function serve(dir, port) {
   const out = mkdtempSync(join(tmpdir(), 'et-demo-dist-'));
   let server;
   try {
-    const built = await buildDemo({ out, port: 8895, log: () => {} });
+    const built = await buildDemo({ out, port: Number(process.env.ET_DEMO_BUILD_PORT) || 8895, log: () => {} });
     t('Demo gebaut', built.keys > 100 && built.files > 10, `${built.keys} Anfragen, ${built.responses} Antworten, ${built.files} Dateien`);
     const meta = JSON.parse(readFileSync(join(out, 'demo-api/meta.json'), 'utf8'));
     t('meta.json: Version und Bautag', meta.version === readFileSync(join(ROOT, 'VERSION'), 'utf8').trim()
@@ -81,8 +81,9 @@ function serve(dir, port) {
     const html = readFileSync(join(out, 'index.html'), 'utf8');
     t('index.html: data-demo, kein Service Worker', html.includes(' data-demo') && !html.includes("serviceWorker.register('sw.js')"));
 
-    server = await serve(out, 8894);
-    const BASE = 'http://127.0.0.1:8894/';
+    const port = Number(process.env.ET_DEMO_PORT) || 8894;   // v3.4.0 — parallele Läufe auf eigenem Port
+    server = await serve(out, port);
+    const BASE = `http://127.0.0.1:${port}/`;
     const dom = new JSDOM(html, { url: BASE + '?lang=de#/dashboard', pretendToBeVisual: true });
     const w = dom.window;
     for (const k of ['window', 'document', 'location', 'history', 'HTMLElement', 'Node', 'CustomEvent', 'Event',
@@ -145,6 +146,9 @@ function serve(dir, port) {
       `#/utility/gas?year=${year - 1}`,
       '#/contracts', '#/tariffs', '#/bill-check', '#/analysis', '#/forecast', '#/flexibility', '#/report', '#/report/print',
       '#/reminders', '#/recommendations', '#/help', '#/temperatures',
+      // v3.4.0 (N1019) — Handbuch: Index, Sprung in einen Abschnitt, Seite mit Bildern, Datei im Wurzelverzeichnis
+      '#/help/doc/README.md', '#/help/doc/anleitungen/anwendungsfaelle.md?h=case-heat',
+      '#/help/doc/en/referenz/ansichten.md', '#/help/doc/root/CHANGELOG.md',
       '#/settings', '#/settings/household', '#/settings/utilities', '#/settings/data',
       '#/settings/integrations', '#/settings/access', '#/settings/expert', '#/settings/system'];
     const before = errors.length;
@@ -163,7 +167,29 @@ function serve(dir, port) {
         const link = view.querySelector('[data-source-link]')?.getAttribute('href') || '';
         t('System: Link auf den Quellcode dieser Version', link.endsWith(`/tree/v${meta.version}`), link);
       }
+      // v3.4.0 (N1019) — das Handbuch liest sich auch in der Demo
+      if (r === '#/help/doc/README.md') {
+        t('Handbuch in der Demo: Index mit Inhalt und Sprachumschalter', !!view.querySelector('.doc-body h1')
+          && !!view.querySelector('.doc-langs a[href="#/help/doc/en/README.md"]'), w.document.title);
+      }
+      if (r.startsWith('#/help/doc/anleitungen/anwendungsfaelle.md')) {
+        t('Handbuch in der Demo: Sprungmarke des Anwendungsfalls', !!view.querySelector('#d-case-heat'));
+      }
+      if (r === '#/help/doc/en/referenz/ansichten.md') {
+        const srcs = [...view.querySelectorAll('.doc-body img')].map(i => i.getAttribute('src'));
+        const first = srcs[0] ? await browserFetch(srcs[0]) : null;
+        const png = first?.ok ? Buffer.from(await first.arrayBuffer()).subarray(1, 4).toString() : '';
+        t('Handbuch in der Demo: Bilder als fertige Dateien', srcs.length > 5
+          && srcs.every(s => s.startsWith('demo-api/docs/ui/screenshots/')) && png === 'PNG', `${srcs.length} Bilder, ${srcs[0]}`);
+      }
     }
+    // alter Pfad (Weiterleitung seit v2.14.0) → neue Seite
+    w.location.hash = '#/help/doc/ERSTE-SCHRITTE.md';
+    await settle();
+    await settle();
+    t('Handbuch in der Demo: alter Pfad führt zur neuen Seite', w.location.hash === '#/help/doc/einstieg/erste-schritte.md'
+      && !!w.document.querySelector('#view .doc-body h1'), w.location.hash);
+    t('Handbuch in der Demo: Seiten und Bilder abgelegt', meta.docs > 50 && meta.doc_images > 20, `${meta.docs} Seiten, ${meta.doc_images} Bilder`);
     const misses = [...(w.__etDemoMisses || [])];
     t(`${routes.length} Seiten ohne fehlende Antworten`, misses.length === 0, misses.slice(0, 8).join(' · '));
     const newErrors = errors.slice(before);

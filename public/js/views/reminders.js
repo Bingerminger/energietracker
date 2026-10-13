@@ -9,6 +9,9 @@ import { showFieldError } from '../lib/form.js';
 import { t, tp } from '../lib/i18n.js';
 import { escapeHtml as esc, todayIso, fmt } from '../lib/format.js';
 import { copyText } from '../lib/clipboard.js';
+// v3.4.0 (F1024) — Erledigt mit Verlauf
+import { openDoneDialog } from '../components/done-dialog.js';
+import { whenWho } from '../lib/activity.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
@@ -82,26 +85,29 @@ async function draw(container) {
   container.querySelectorAll('[data-done]').forEach(b =>
     b.addEventListener('click', async () => {
       const prev = list.find(r => r.id === b.dataset.done);
-      try {
-        const res = await api.reminderDone(b.dataset.done);
-        // v2.12.0 (Review UI-22) — mit Namen, nächstem Termin und „Rückgängig"
-        const title = prev?.title || '';
-        const msg = res?.active === false
-          ? t('reminders.toast.doneOnce', { title })
-          : t('reminders.toast.doneNext', { title, date: fmt.date(res?.next_due) });
-        toastUndo(msg, async () => {
-          try {
-            await api.updateReminder(prev.id, {
-              next_due: prev.next_due, active: prev.active !== false, last_done: prev.last_done ?? null,
-            });
-            toastOk(t('reminders.toast.undone', { title }));
-            badgesChanged();
-            if (container.isConnected) await draw(container);
-          } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
-        });
-        badgesChanged();
-        await draw(container);
-      } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
+      const title = prev?.title || '';
+      // v3.4.0 (F1024) — kleiner Dialog: Datum (rückdatierbar), Notiz, Beleg; ein Eintrag im Verlauf
+      const res = await openDoneDialog({ title, submit: (v) => api.reminderDone(prev.id, v.done_on,
+        { note: v.note, attachmentId: v.attachment_id }) });
+      if (!res) return;
+      // v2.12.0 (Review UI-22) — mit Namen, nächstem Termin und „Rückgängig"
+      const msg = res?.active === false
+        ? t('reminders.toast.doneOnce', { title })
+        : t('reminders.toast.doneNext', { title, date: fmt.date(res?.next_due) });
+      toastUndo(msg, async () => {
+        try {
+          // v3.4.0 (F1024) — Rückgängig über den Verlauf: stellt den Termin zurück und streicht den Eintrag durch
+          if (res.activity_id) await api.undoActivity(res.activity_id);
+          else await api.updateReminder(prev.id, {
+            next_due: prev.next_due, active: prev.active !== false, last_done: prev.last_done ?? null,
+          });
+          toastOk(t('reminders.toast.undone', { title }));
+          badgesChanged();
+          if (container.isConnected) await draw(container);
+        } catch (e) { toastErr(t('reminders.toast.error', { msg: e.message || e })); }
+      });
+      badgesChanged();
+      await draw(container);
     }));
   container.querySelectorAll('[data-del]').forEach(b =>
     b.addEventListener('click', async () => {
@@ -126,8 +132,10 @@ function rowHtml(r) {
     : tp('reminders.due.agoDays', -days, { days: -days });
   // v2.7.0 — Datum in der Schreibweise von Sprache und Land (fmt.date escapt Unlesbares)
   const dueStr = fmt.date(r.next_due) + (dueLabel ? ` <span class="muted">(${dueLabel})</span>` : '');
+  // v3.4.0 (F1024) — „zuletzt erledigt am … von …" (Person aus dem Verlauf)
+  const last = r.last_done ? `<br><span class="muted small">${esc(t('reminders.lastDone', { when: whenWho(r.last_done, r.last_done_by) }))}</span>` : '';
   return `<tr>
-    <td><strong>${esc(r.title)}</strong>${r.notes ? `<br><span class="muted small">${esc(r.notes)}</span>` : ''}</td>
+    <td><strong>${esc(r.title)}</strong>${r.notes ? `<br><span class="muted small">${esc(r.notes)}</span>` : ''}${last}</td>
     <td>${esc(catLabel(r.category))}</td>
     <td>${dueStr}</td>
     <td>${esc(r.recurrence === 'custom-months' && r.recurrence_months
@@ -152,27 +160,30 @@ function openForm(container, existing) {
 
   const ctrl = openModal({
     title: existing ? t('reminders.form.titleEdit') : t('reminders.form.titleNew'),
+    // v3.4.0 (N1021) — Formularraster statt `.form-grid` (eigene Schrift,
+    // Höhe und Satzschreibung waren ein zweites System neben `.field`)
     body: `
-      <div class="form-grid">
+      <div class="fgrid">
         <!-- v2.12.0 (Review UI-22) — Fehler am Feld statt im Toast -->
-        <label>${t('reminders.form.fTitle')}<input type="text" id="f-title" value="${esc(r.title)}" placeholder="${t('reminders.form.fTitlePlaceholder')}" aria-describedby="f-title-msg"></label>
-        <div class="field-error" id="f-title-msg" role="alert" hidden></div>
-        <label>${t('reminders.form.fCategory')}<select id="f-cat">${catOpts}</select></label>
-        <label>${t('reminders.form.fDue')}<input type="date" id="f-due" value="${esc(r.next_due)}" aria-describedby="f-due-msg"></label>
-        <div class="field-error" id="f-due-msg" role="alert" hidden></div>
-        <label>${t('reminders.form.fRecurrence')}<select id="f-rec">${recOpts}</select></label>
-        <label id="f-rm-wrap" style="${r.recurrence === 'custom-months' ? '' : 'display:none'}">
-          ${t('reminders.form.fInterval')}<input type="text" inputmode="numeric" autocomplete="off" id="f-rm" value="${esc(String(r.recurrence_months || 12))}" aria-describedby="f-rm-msg">
-        </label>
-        <div class="field-error" id="f-rm-msg" role="alert" hidden></div>
-        <label>${t('reminders.form.fNotes')}<input type="text" id="f-notes" value="${esc(r.notes || '')}"></label>
+        <div class="field field--full"><label for="f-title">${t('reminders.form.fTitle')}</label>
+          <input class="input input--text" type="text" id="f-title" value="${esc(r.title)}" placeholder="${t('reminders.form.fTitlePlaceholder')}" aria-describedby="f-title-msg">
+          <div class="field-error" id="f-title-msg" role="alert" hidden></div></div>
+        <div class="field"><label for="f-cat">${t('reminders.form.fCategory')}</label><select class="select" id="f-cat">${catOpts}</select></div>
+        <div class="field field--s"><label for="f-due">${t('reminders.form.fDue')}</label>
+          <input class="input" type="date" id="f-due" value="${esc(r.next_due)}" aria-describedby="f-due-msg">
+          <div class="field-error" id="f-due-msg" role="alert" hidden></div></div>
+        <div class="field field--new"><label for="f-rec">${t('reminders.form.fRecurrence')}</label><select class="select" id="f-rec">${recOpts}</select></div>
+        <div class="field field--s" id="f-rm-wrap" ${r.recurrence === 'custom-months' ? '' : 'hidden'}><label for="f-rm">${t('reminders.form.fInterval')}</label>
+          <input class="input" type="text" inputmode="numeric" autocomplete="off" id="f-rm" value="${esc(String(r.recurrence_months || 12))}" aria-describedby="f-rm-msg">
+          <div class="field-error" id="f-rm-msg" role="alert" hidden></div></div>
+        <div class="field field--full"><label for="f-notes">${t('reminders.form.fNotes')}</label><input class="input input--text" type="text" id="f-notes" value="${esc(r.notes || '')}"></div>
       </div>`,
     footer: `
       <button class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
       <button class="btn btn--primary" data-act="save">${t('reminders.form.save')}</button>`,
     onMount: ({ bodyEl, modalEl, close }) => {
       bodyEl.querySelector('#f-rec').addEventListener('change', e => {
-        bodyEl.querySelector('#f-rm-wrap').style.display = e.target.value === 'custom-months' ? '' : 'none';
+        bodyEl.querySelector('#f-rm-wrap').hidden = e.target.value !== 'custom-months';
       });
       modalEl.querySelector('[data-act="cancel"]').addEventListener('click', () => close(null));
       const saveBtn = modalEl.querySelector('[data-act="save"]');

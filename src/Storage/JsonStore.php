@@ -34,9 +34,41 @@ final class JsonStore
         return $this->rootDir;
     }
 
+    /**
+     * v3.4.0 (N1020) — Schreibsperre vor jedem Schreiben (vom App-Container
+     * gesetzt, s. WriteLock). Schreibende Anfragen holen sie wie bisher
+     * vorab; Abgleiche mit fremden Diensten (Wetter, SMARD, evcc) holen erst
+     * die Daten und sperren dann über lock() — so blockiert ein langsamer
+     * Dienst keinen anderen Schreibzugriff mehr.
+     *
+     * @var (callable(): void)|null
+     */
+    private $writeGuard = null;
+
+    public function setWriteGuard(?callable $guard): void
+    {
+        $this->writeGuard = $guard;
+    }
+
+    /**
+     * Sperre holen (idempotent), bevor ein Lesen-Ändern-Schreiben beginnt.
+     * Ohne Wächter (Tests, Werkzeuge) ohne Wirkung.
+     */
+    public function lock(): void
+    {
+        if ($this->writeGuard !== null) ($this->writeGuard)();
+    }
+
     public function path(string $relative): string
     {
-        $path = $this->rootDir . '/' . ltrim($relative, '/');
+        // v3.4.0 (N1020) — lexikalisch vor dem realpath-Abgleich: Der greift nur
+        // bei vorhandenen Dateien, beim Neuanlegen also nicht. Heute verhindern
+        // die Positivlisten der Dienste Pfadtricks; dies ist die zweite Linie.
+        if ($relative === '' || str_contains($relative, "\0") || str_contains($relative, '\\')
+            || $relative[0] === '/' || preg_match('#(^|/)\.\.?(/|$)#', $relative)) {
+            throw new \InvalidArgumentException('Ungültiger Speicherpfad: ' . str_replace("\0", '\0', $relative));
+        }
+        $path = $this->rootDir . '/' . $relative;
         // Defense-in-depth: resolve and assert that the resulting path stays
         // inside rootDir. This catches any '../' traversal attempts that slip
         // through the Service-layer whitelist validation.
@@ -152,6 +184,7 @@ final class JsonStore
             throw new \InvalidArgumentException('Binary files belong under attachments/: ' . $relative);
         }
         $path = $this->path($relative);
+        $this->lock();
         $dir = dirname($path);
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
         $tmp = $path . '.tmp.' . bin2hex(random_bytes(4));
@@ -194,6 +227,7 @@ final class JsonStore
     private function writeNow(string $relative, mixed $data): void
     {
         $path = $this->path($relative);
+        $this->lock();
         $dir = dirname($path);
         if (!is_dir($dir)) @mkdir($dir, 0755, true);
 
@@ -261,6 +295,7 @@ final class JsonStore
     {
         $path = $this->path($relative);
         if ($this->buffer !== null) unset($this->buffer[$relative]);
+        if (is_file($path)) $this->lock();
         $this->generation++;
         return is_file($path) ? @unlink($path) : true;
     }

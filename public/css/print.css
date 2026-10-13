@@ -36,6 +36,69 @@
 .report-print__rec--warning { border-left-color: var(--warning, #d97706); }
 .report-print__sev { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
 
+/* v3.4.0 (F1025) — Jahresbericht für alle: Kacheln, Ampeln, Aufgaben, „Stand heute“ */
+.report-print__detail { display: inline-flex; gap: var(--sp-1); align-items: center; font-size: .9rem; }
+.report-print p { margin: 0 0 var(--sp-2); }
+.report-print h4 { margin: var(--sp-3) 0 var(--sp-1); font-size: .95rem; }
+.report-print__tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.report-print__spark { width: 74px; height: 18px; display: block; margin-top: var(--sp-1); }
+.report-print__spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.6; }
+.report-print__lights {
+  list-style: none; padding: 0; margin: 0 0 var(--sp-4);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3);
+}
+.report-print__light { display: flex; flex-direction: column; gap: 2px; }
+.report-print__light-title { font-size: .8rem; color: var(--text-2); font-weight: 600; }
+.report-print__light-word { font-weight: 700; }
+.report-print__light--ok .report-print__light-word { color: var(--success); }
+.report-print__light--warn .report-print__light-word { color: var(--warning); }
+.report-print__light--alert .report-print__light-word { color: var(--danger); }
+.report-print__light--none .report-print__light-word { color: var(--text-2); }
+.report-print__today {
+  border: 1px solid var(--warning); background: var(--warning-soft); border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4); margin: var(--sp-3) 0;
+}
+.report-print__today-label { font-size: .8rem; font-weight: 700; color: var(--warning); margin: 0 0 var(--sp-2); }
+.report-print__tasks, .report-print__successes, .report-print__infos { list-style: none; padding: 0; margin: 0; }
+.report-print__tasks > li, .report-print__successes > li, .report-print__infos > li { margin: 0 0 var(--sp-3); }
+.report-print__task-head { display: flex; gap: var(--sp-2); align-items: baseline; }
+.report-print__prio {
+  display: inline-grid; place-items: center; min-width: 1.4em; height: 1.4em; border-radius: 50%;
+  font-size: .8rem; font-weight: 700; color: #fff; background: var(--text-2);
+}
+.report-print__task--p1 .report-print__prio { background: var(--danger-strong); }
+.report-print__task--p2 .report-print__prio { background: var(--warning); }
+.report-print__meta { font-weight: 600; color: var(--text-2); margin: 2px 0 var(--sp-1); }
+.report-print__task--p1 .report-print__meta { color: var(--danger); }
+.report-print__task--p2 .report-print__meta { color: var(--warning); }
+.report-print__meta--good { color: var(--success); }
+.report-print__overdue td { color: var(--danger); }
+.report-print__hbars { display: grid; gap: var(--sp-2); margin: 0 0 var(--sp-3); }
+.report-print__hbar { display: grid; grid-template-columns: minmax(90px, 28%) 1fr auto; gap: var(--sp-2); align-items: center; }
+.report-print__hbar-track { background: var(--bg-2); border-radius: 3px; height: 12px; overflow: hidden; }
+.report-print__hbar-fill { display: block; height: 100%; background: var(--c, var(--accent)); }
+.report-print__hbar-value { font-weight: 600; white-space: nowrap; }
+.report-print__bars .rp-now { fill: var(--c, var(--accent)); }
+.report-print__bars .rp-hatch-bg { fill: var(--c, var(--accent)); }
+.report-print__bars .rp-hatch-line { stroke: #fff; stroke-width: 1.4; }
+.report-print__bars .rp-prev { fill: #7d8898; }
+.rp-key { display: inline-block; width: .8em; height: .8em; border-radius: 2px; vertical-align: -1px; margin-left: var(--sp-2); }
+.rp-key--now { background: var(--c, var(--accent)); }
+.rp-key--prev { background: #7d8898; }
+.rp-key--est { background: repeating-linear-gradient(45deg, var(--c, var(--accent)) 0 2px, #fff 2px 4px); }
+.report-print__scale { list-style: none; padding: 0; margin: 0 0 var(--sp-2); display: flex; gap: 2px; }
+.report-print__scale li {
+  flex: 1; text-align: center; font-weight: 700; padding: 2px 0; border-radius: 2px;
+  background: var(--bg-2); color: var(--text-2);
+}
+.report-print__scale li.is-current { background: var(--text-1); color: var(--bg-1); }
+.report-print__glossary-list dt { font-weight: 700; margin-top: var(--sp-2); }
+.report-print__glossary-list dd { margin: 0; }
+.report-print progress { width: 100%; max-width: 320px; }
+
 /* ── Papier ───────────────────────────────────────────────────────────── */
 @media print {
   @page { size: A4; margin: 15mm; }
@@ -60,6 +123,13 @@
   }
   .report-print__tile, .report-print__kpi { background: #f1f5f9 !important; }
   .report-print__table, .report-print__table tr { break-inside: avoid; }
+  /* v3.4.0 — Druckfarben: Farbton der Verbrauchsart, abgedunkelt (≥ 3:1 auf Weiß) */
+  .report-print [style*="--cp"] { --c: var(--cp) !important; }
+  .report-print__today, .report-print__hbar-fill, .report-print__prio, .rp-key, .report-print__scale li {
+    print-color-adjust: exact; -webkit-print-color-adjust: exact;
+  }
+  .report-print__today { background: #fffbeb !important; border-color: #d97706 !important; }
+  .report-print__tasks > li, .report-print__successes > li, .report-print__timeline, .report-print__balance { break-inside: avoid; }
   .table-wrap, .table-scroll { overflow: visible !important; }
   a { color: inherit; text-decoration: none; }
 }

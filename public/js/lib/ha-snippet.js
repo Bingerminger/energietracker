@@ -13,15 +13,26 @@
 //    (FE-01, DOC-01). Die Automatisierung prüft zusätzlich `has_value`.
 //
 // Die Kommentare im YAML sind übersetzt, die Struktur ist es nicht.
+//
+// v3.4.0 (N1020) — Werte aus den Daten (Zählernamen, Adressen, Aliase) stehen
+// JSON-gequotet im YAML (`q()`), Schlüssel in Jinja-Ausdrücken sind auf einen
+// sicheren Zeichensatz gefiltert (`key()`). Ein präparierter Zählername konnte
+// sonst die Konfiguration ändern, die man in Home Assistant einfügt. Für
+// gewöhnliche Werte bleibt die Ausgabe Zeichen für Zeichen gleich.
 // =====================================================================
 import { t } from './i18n.js';
+
+/** YAML-Wert in doppelten Anführungszeichen (JSON-Zeichenkette ist gültiges YAML). */
+const q = (v) => JSON.stringify(String(v ?? ''));
+/** Schlüssel für Jinja-Zeichenketten in '…': nur Buchstaben, Ziffern, _ . - */
+const key = (v) => String(v ?? '').replace(/[^A-Za-z0-9_.-]/g, '');
 
 /** REST-Command für die configuration.yaml. */
 export function haRestCommandYaml(baseUrl) {
   return [
     'rest_command:',
     '  energietracker_push:',
-    `    url: "${baseUrl}/api.php/api/ingest"`,
+    `    url: ${q(`${baseUrl}/api.php/api/ingest`)}`,
     '    method: POST',
     '    headers:',
     `      Authorization: !secret energietracker_auth   # ${t('settings.ha.yaml.secretComment')}`,
@@ -49,12 +60,12 @@ export function haRestCommandYaml(baseUrl) {
  */
 export function haRestSensorYaml(baseUrl, meters) {
   const list = meters.length ? meters : [{ key: 'strom.m_strom_default', name: 'Strom', unit: 'kWh', hasContract: true }];
-  const pick = (key, path) => `{{ value_json.data.meters | selectattr('key', 'eq', '${key}')`
+  const pick = (k, path) => `{{ value_json.data.meters | selectattr('key', 'eq', '${key(k)}')`
     + ` | map(attribute='${path}', default=none) | first }}`;
   const deviceClass = (unit) => (unit === 'kWh' ? 'energy' : 'water');
   const lines = [
     'rest:',
-    `  - resource: "${baseUrl}/api.php/api/summary"`,
+    `  - resource: ${q(`${baseUrl}/api.php/api/summary`)}`,
     `    scan_interval: 3600   # ${t('settings.ha.yaml.scanComment')}`,
     '    headers:',
     `      Authorization: !secret energietracker_read   # ${t('settings.ha.yaml.readKeyComment')}`,
@@ -64,22 +75,22 @@ export function haRestSensorYaml(baseUrl, meters) {
     const id = m.key.replace(/[^a-z0-9_]/gi, '_').toLowerCase();
     if (m.hasContract) {
       lines.push(
-        `      - name: "${m.name} – ${t('settings.ha.yaml.sensorBalance')}"`,
+        `      - name: ${q(`${m.name} – ${t('settings.ha.yaml.sensorBalance')}`)}`,
         `        unique_id: energietracker_${id}_balance`,
-        `        value_template: "${pick(m.key, 'contract.balance')}"`,
+        `        value_template: ${q(pick(m.key, 'contract.balance'))}`,
         '        device_class: monetary',
         '        unit_of_measurement: "EUR"',
       );
     }
     lines.push(
-      `      - name: "${m.name} – ${t('settings.ha.yaml.sensorForecast')}"`,
+      `      - name: ${q(`${m.name} – ${t('settings.ha.yaml.sensorForecast')}`)}`,
       `        unique_id: energietracker_${id}_forecast_12m`,
-      `        value_template: "${pick(m.key, 'forecast_12m.value')}"`,
+      `        value_template: ${q(pick(m.key, 'forecast_12m.value'))}`,
       `        device_class: ${deviceClass(m.unit)}`,
-      `        unit_of_measurement: "${m.unit}"`,
-      `      - name: "${m.name} – ${t('settings.ha.yaml.sensorDaysSince')}"`,
+      `        unit_of_measurement: ${q(m.unit)}`,
+      `      - name: ${q(`${m.name} – ${t('settings.ha.yaml.sensorDaysSince')}`)}`,
       `        unique_id: energietracker_${id}_days_since_reading`,
-      `        value_template: "${pick(m.key, 'days_since_reading')}"`,
+      `        value_template: ${q(pick(m.key, 'days_since_reading'))}`,
       '        device_class: duration',
       '        unit_of_measurement: "d"',
     );
@@ -108,7 +119,7 @@ export function haAutomationYaml(entries) {
     { utility: 'strom', meter: 'stromzaehler_haus', sensor: 'sensor.stromzaehler_total_kwh' },
   ];
   const lines = [
-    `alias: "${t('settings.ha.yaml.automationAlias')}"`,
+    `alias: ${q(t('settings.ha.yaml.automationAlias'))}`,
     'triggers:',
     '  - trigger: time',
     '    at: "23:55:00"',
@@ -119,13 +130,13 @@ export function haAutomationYaml(entries) {
     lines.push(
       '  - if:',
       '      - condition: template',
-      `        value_template: "{{ has_value('${e.sensor}') }}"`,
+      `        value_template: ${q(`{{ has_value('${key(e.sensor)}') }}`)}`,
       '    then:',
       '      - action: rest_command.energietracker_push',
       '        data:',
-      `          utility: "${e.utility}"`,
-      `          meter: "${e.meter}"`,
-      `          sensor_entity: "${e.sensor}"`,
+      `          utility: ${q(e.utility)}`,
+      `          meter: ${q(e.meter)}`,
+      `          sensor_entity: ${q(e.sensor)}`,
     );
   }
   lines.push('mode: single');

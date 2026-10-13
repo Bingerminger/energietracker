@@ -14,6 +14,9 @@ import { api } from '../api.js';
 import { activeUtilities } from '../state.js';
 import { fmt, escapeHtml } from '../lib/format.js';
 import { t, tp } from '../lib/i18n.js';
+// v3.4.0 (F1024) — Folgevertrag und Verlauf je Vertrag
+import { openModal } from '../components/modal.js';
+import { entryTitle, reasonText, whenWho } from '../lib/activity.js';
 
 export async function render(container) {
   const header = `
@@ -33,6 +36,8 @@ export async function render(container) {
     return;
   }
 
+  // v3.4.0 (F1024) — Verlauf je Vertrag (erledigte Hinweise, Folgevertrag)
+  const activityP = api.activity().catch(() => []);
   // Je Verbrauchsart die Zähler, je Zähler der Vertragsstatus — parallel
   const blocks = await Promise.all(utilities.map(async u => {
     try {
@@ -47,7 +52,35 @@ export async function render(container) {
     }
   }));
 
+  const byContract = new Map();
+  for (const e of await activityP) {
+    const cid = e.ref?.contract_id;
+    if (!cid) continue;
+    if (!byContract.has(cid)) byContract.set(cid, []);
+    byContract.get(cid).push(e);
+  }
+  historyByContract = byContract;
   container.innerHTML = `${header}${blocks.map(utilityCard).join('')}`;
+  container.querySelectorAll('[data-history]').forEach(b => b.addEventListener('click', () => openHistory(b.dataset.history, b.dataset.name)));
+}
+
+/** v3.4.0 (F1024) — Verlauf je Vertrags-ID (neueste zuerst, aus GET /api/activity). */
+let historyByContract = new Map();
+
+/** Verlauf eines Vertrags: was erledigt wurde, von wem und wann. */
+function openHistory(cid, name) {
+  const list = historyByContract.get(cid) || [];
+  openModal({
+    title: t('contractsOverview.historyTitle', { name }),
+    body: list.length ? `<ul class="activity-list">${list.map(e => `<li class="activity-item${e.undone ? ' activity-item--undone' : ''}">
+        <div class="activity-item__body">
+          <div class="activity-item__title">${e.undone ? `<s>${escapeHtml(entryTitle(e))}</s>` : escapeHtml(entryTitle(e))}</div>
+          <div class="muted small">${escapeHtml(whenWho(e.done_on, e.by))}</div>
+          ${e.reason ? `<div class="muted small">${escapeHtml(t('activity.reasonLine', { reason: reasonText(e.reason) }))}</div>` : ''}
+          ${e.note ? `<div class="activity-item__note">${escapeHtml(e.note)}</div>` : ''}
+        </div></li>`).join('')}</ul>`
+      : `<p class="muted">${escapeHtml(t('activity.empty'))}</p>`,
+  });
 }
 
 function utilityCard({ u, rows, error }) {
@@ -87,13 +120,28 @@ function meterBlock(u, meter, contracts, showMeter) {
       : t('contractsOverview.term', { start: fmt.date(c.start), end: fmt.date(c.end) });
 
   const facts = [];
-  if (c.cancel_missed) {
+  // v3.4.0 (F1024) — lückenloser Folgevertrag: nichts mehr zu kündigen
+  const next = c.successor;
+  const gapless = next && Number(next.gap_days) === 0;
+  if (gapless) {
+    facts.push(`<span class="success-text">${escapeHtml(next.provider
+      ? t('contractsOverview.successor', { provider: next.provider, date: fmt.date(next.start) })
+      : t('contractsOverview.successorUnnamed', { date: fmt.date(next.start) }))}</span>`);
+  } else if (c.cancel_missed) {
     facts.push(`<span class="danger-text">${escapeHtml(t('contractsOverview.cancelMissed', { date: fmt.date(c.cancel_by) }))}</span>`);
-  } else if (c.cancel_by) {
+  } else if (c.renewed || c.is_open_ended) {
+    // v3.4.0 — weiterlaufend oder unbefristet: kein datierter Stichtag (vorher
+    // „Kündigen bis heute“, jeden Tag ein anderes Datum)
+    facts.push(escapeHtml(t('contractsOverview.anytime')));
+  } else if (c.cancel_by && c.remind_basis === 'cancel_by') {
     const days = Number(c.days_to_cancel);
     const soon = Number.isFinite(days) && days >= 0 && days <= 42;
     facts.push(`<span${soon ? ' class="warning-text"' : ''}>${escapeHtml(t('contractsOverview.cancelBy', { date: fmt.date(c.cancel_by) }))}${
       Number.isFinite(days) && days >= 0 ? ` (${escapeHtml(tp('contractsOverview.daysLeft', days))})` : ''}</span>`);
+  }
+  // v3.4.0 (F1024) — Folgevertrag mit Lücke: die Frist bleibt, die Lücke steht daneben
+  if (next && !gapless) {
+    facts.push(`<span class="warning-text">${escapeHtml(tp('contractsOverview.successorGap', Number(next.gap_days), { date: fmt.date(next.start) }))}</span>`);
   }
   if (c.current_advance_amount != null) {
     facts.push(escapeHtml(t('contractsOverview.advance', { amount: fmt.eur(c.current_advance_amount) })));
@@ -110,11 +158,19 @@ function meterBlock(u, meter, contracts, showMeter) {
       </div>`
     : '';
 
+  // v3.4.0 (F1024) — Verlauf an der Vertragskarte, sobald es Einträge gibt
+  const entries = historyByContract.get(c.contract_id) || [];
+  const historyBtn = entries.length
+    ? `<button type="button" class="btn btn--ghost btn--sm contract-overview__history" data-history="${escapeHtml(c.contract_id)}" data-name="${escapeHtml(name)}">
+        ${escapeHtml(t('contractsOverview.history', { count: entries.length }))}</button>`
+    : '';
+
   return `<div class="contract-overview__row">
       ${meterLine}
       <div class="contract-overview__name">${escapeHtml(name)}</div>
       <div class="muted">${escapeHtml(term)}</div>
       ${facts.length ? `<div class="contract-overview__facts">${facts.join('<span aria-hidden="true"> · </span>')}</div>` : ''}
       ${expected}
+      ${historyBtn}
     </div>`;
 }

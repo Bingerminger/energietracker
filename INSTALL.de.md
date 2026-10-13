@@ -11,8 +11,8 @@
 
 ## Voraussetzungen
 
-- PHP ≥ 8.2 (seit v3.1.0; die CI prüft 8.2, 8.3 und 8.4, das Docker-Image
-  bringt 8.4 mit; CLI ist für die Entwicklung ausreichend)
+- PHP ≥ 8.2 (seit v3.1.0; die CI prüft 8.2 bis 8.5, das Docker-Image bringt
+  seit v3.4.0 8.5 mit; CLI ist für die Entwicklung ausreichend)
 - Web-Browser mit ES Modules (alles ab Mitte 2020)
 - Optional: Apache, nginx, Caddy für Produktivbetrieb
 
@@ -29,7 +29,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.3.0
+├── VERSION                ← 3.4.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP-Backend
 ├── data/                  ← muss schreibbar sein
@@ -107,7 +107,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:3.3.0
+  ghcr.io/bingerminger/energietracker:3.4.0
 ```
 
 > **Docker Desktop (Mac, Windows):** Ein Ordner unter dem Benutzerverzeichnis
@@ -160,11 +160,13 @@ den aktuellen Stand. Mehr dazu in [`demo-data/README.md`](demo-data/README.md).
 
 ## Migration aus v0.9.0
 
-Wer ein altes v0.9.0-Backup hat: nach der Installation einfach in der
-UI öffnen unter **Einstellungen → Daten → Backup & Wiederherstellung →
-📦 Migration aus v0.9.0** und die JSON-Datei hochladen.
-
-Detaillierte Anleitung: [Umstieg von v0.9.0](docs/anleitungen/migration-v090.md).
+Seit v3.4.0 ist der Import alter v0.9.0-Backups entfallen (er war das letzte
+Stück aus der Zeit vor 1.0 und stand dem Rollenmodell im Weg). Wer noch eines
+hat: **v3.3.0** installieren (`git checkout v3.3.0` oder das Image
+`ghcr.io/bingerminger/energietracker:3.4.0`), dort unter Einstellungen → Daten
+→ Backup & Wiederherstellung → Migration aus v0.9.0 einspielen, danach wie
+gewohnt auf die aktuelle Version aktualisieren. Ein Datenverzeichnis, das noch
+im Aufbau von v0.9.0 vorliegt, wandelt die App beim ersten Start weiterhin um.
 
 ## Home Assistant anbinden (optional)
 

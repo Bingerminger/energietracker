@@ -20,8 +20,10 @@ node_modules
 composer.lock
 phpunit.xml.dist
 roadmap.md
-CHANGELOG.md
-docs
+# v3.4.0 (N1019) — docs/ und CHANGELOG.md reisen mit: Die Hilfe liest die Doku
+# dieses Release über GET /api/docs (nginx sperrt docs/ weiter für direkte
+# Aufrufe). Werbebilder gehören nicht zur Doku.
+docs/assets/promo
 scripts
 *.log
 # v3.0.0 — Bauwerkzeug und Bauergebnis der öffentlichen Demo

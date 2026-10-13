@@ -5,7 +5,7 @@
 import { api } from '../api.js';
 import { toastOk, toastErr, toastUndo } from '../components/toast.js';
 import { t } from '../lib/i18n.js';
-import { escapeHtml as esc } from '../lib/format.js';
+import { escapeHtml as esc, fmt } from '../lib/format.js';
 
 const SEV_CLS = { urgent: 'danger', warning: 'warning', info: 'info' };
 const sevLabel = (k) => t('recommendations.sev.' + k);
@@ -62,10 +62,15 @@ export async function render(container) {
         const id = b.dataset.dismiss;
         const rec = recs.find(r => r.id === id);
         try {
-          await api.dismissRecommendation(id);
+          const res = await api.dismissRecommendation(id);
           recs = recs.filter(r => r.id !== id);
           // v2.12.0 (Review UI-22) — mit Namen und „Rückgängig"
-          toastUndo(t('recommendations.dismissedNamed', { title: rec?.title || '' }), async () => {
+          // v3.4.0 (F1024) — mit Frist: ausgeblendet bis zum Stichtag (sagt der Server)
+          const until = holdsUntil(rec);
+          const msg = until && res?.until
+            ? t('recommendations.dismissedUntilNamed', { title: rec?.title || '', date: fmt.date(res.until) })
+            : t('recommendations.dismissedNamed', { title: rec?.title || '' });
+          toastUndo(msg, async () => {
             try {
               await api.restoreRecommendation(id);
               if (rec && !recs.some(r => r.id === id)) recs = [rec, ...recs];
@@ -88,9 +93,24 @@ function segBtn(sev, label) {
   return `<button class="seg__btn ${active ? 'active' : ''}" data-sev="${sev}" aria-pressed="${active}">${label}</button>`;
 }
 
+/**
+ * v3.4.0 (F1024) — Hinweis mit Frist (Kündigung, Vertragsende, Preiserhöhung):
+ * Ausblenden hält bis zu diesem Tag, wenn er weiter als 30 Tage weg ist.
+ * @returns {string|null} JJJJ-MM-TT
+ */
+function holdsUntil(r) {
+  const d = r?.evidence?.deadline;
+  if (!d) return null;
+  const in30 = new Date();
+  in30.setDate(in30.getDate() + 30);
+  const lim = `${in30.getFullYear()}-${String(in30.getMonth() + 1).padStart(2, '0')}-${String(in30.getDate()).padStart(2, '0')}`;
+  return d > lim ? d : null;
+}
+
 function card(r) {
   const sevKey = SEV_CLS[r.severity] ? r.severity : 'info';
   const cls = SEV_CLS[sevKey];
+  const until = holdsUntil(r);
   return `
     <div class="rec-card rec-card--${cls}">
       <div class="rec-card__head">
@@ -99,7 +119,8 @@ function card(r) {
         <!-- v2.11.0 (Review UI-26) — sichtbarer Text statt „✕": Das Kreuz sah
              nach „löschen" aus und blendete doch nur 30 Tage aus -->
         <button type="button" class="btn btn--ghost btn--sm rec-card__dismiss" data-dismiss="${esc(r.id)}"
-          aria-label="${esc(t('recommendations.dismissNamed', { title: r.title }))}">${esc(t('recommendations.dismiss'))}</button>
+          aria-label="${esc(until ? t('recommendations.dismissUntilNamed', { title: r.title, date: fmt.date(until) }) : t('recommendations.dismissNamed', { title: r.title }))}">${esc(until
+            ? t('recommendations.dismissUntil', { date: fmt.date(until) }) : t('recommendations.dismiss'))}</button>
       </div>
       <div class="rec-card__title">${esc(r.title)}</div>
       <div class="rec-card__detail">${esc(r.detail)}</div>

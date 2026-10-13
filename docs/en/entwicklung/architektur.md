@@ -141,7 +141,6 @@ HTTP**.
 | `ReminderService` | appointments/maintenance, recurrence roll-forward |
 | `PdfReportService` + `Pdf\PdfWriter` | annual report, custom PDF generator |
 | `BackupService` | export/import format 3.0 with a check before writing and a way back; snapshots (list, download, restore, rotation); since v3.1.0 with receipts (`attachment_files`, checked against `sha256`), export and snapshot streamed |
-| `MigrationService` | v0.9.0 import (preview + apply) |
 | `ReadingImportService` | CSV bulk import of readings; since v3.1.0 headers of every language and dates via `Support\Dates::parseUserDate()` |
 | `CsvExportService` | tabular export (incl. deliveries); since v3.1.0 format 1 (frozen) and "local" in the default language — [CSV formats](../referenz/api.md#csv-formats-v310) |
 | `DiagnosticsService` | system status, write permissions, data count |
@@ -167,6 +166,7 @@ HTTP**.
 | `HeatPumpService` | **(v3.1.0)** seasonal performance factor: heat of the meter with role `heat_pump_output` ÷ electricity of the linked meters, only months with both sides |
 | `SeriesImportService` | **(v3.1.0)** condense time series from portals into daily values with a column mapping — as readings (via `ReadingImportService`) or periods (via `PeriodService`) |
 | `ReferenceService` | **(v3.1.0)** benchmark against your own reference values: household electricity without heat pump and wall box, heating per m², links for checking yourself (Germany only) |
+| `DocsService` | **(v3.4.0)** help on the server: allowlist of the docs built from the files (pages under `docs/` without redirects, PNG under `docs/ui/screenshots/`, a fixed list in the root directory as `root/…`), a pure lookup without joining paths, no symbolic links; language, mirror and the target of a redirect. Rendering happens in the browser (`public/js/lib/markdown.js`) |
 
 Since v3.1.0 `ConsumptionService` also knows the **group contract**
 (`contractScope()`, `computeForGroup()`, `contractView()` for the blended
@@ -189,7 +189,7 @@ directly via `Response::json()` / `Response::csv()` / `Response::error()`.
 `BenchmarkController`, `TariffComparisonController`, `TariffSwitchController`,
 `RecommendationController`,
 `ReminderController`, `ReportController`, `ExportController`, `BackupController`,
-`MigrationController`, `DiagnosticsController`, `HealthController`,
+`DiagnosticsController`, `HealthController`,
 `DemoController`, `PvSummaryController`, `StromSaldoController`, `AuthController`,
 `IngestController`, `SessionController`, `ManifestController` (v3.1.0: web app
 manifest in the language of the device), `AgendaController` (v3.1.0:
@@ -198,7 +198,8 @@ manifest in the language of the device), `AgendaController` (v3.1.0:
 `TenancyController`, `Co2Controller`, `BillController` (all v3.1.0),
 `MarketPriceController` (`/api/market-prices`), `EvChargingController`
 (`/api/reports/ev-charging…`), `HeatPumpController` (`/api/heat-pump`),
-`SeriesImportController` (`…/import-series`, all v3.1.0). The benchmark lives
+`SeriesImportController` (`…/import-series`, all v3.1.0), `DocsController`
+(v3.4.0: `/api/docs`, `/api/docs/asset`). The benchmark lives
 in `BenchmarkController`, the monthly price import in `ContractController`, the
 evaluations of a meter group in the same controllers as those of a meter.
 
@@ -212,6 +213,12 @@ and — with sign-in switched on — the session, API key or proxy user. Ingest,
 health (in minimal form) and sign-in itself stay public. The calendar
 subscription (v3.1.0) also accepts a key of scope `calendar` as `?token=…` —
 only there and only that way; a read or admin key in the link is refused.
+Since v3.4.0 (N1020) the host list from the environment **and** the setting
+applies (`Http\HostList`); a request body is read only after sign-in and after
+the size check (`Request::limitBody()`, `App::bodyLimit()`); the write lock has
+a deadline (`WriteLock`, otherwise `503`), and syncs with outside services lock
+only after fetching (`App::LOCK_LATE`, `JsonStore::lock()`). `Support\Outbound`
+limits outgoing connections.
 Details: [Security](../betrieb/sicherheit.md).
 
 The full route list is in the [API reference](../referenz/api.md).
@@ -229,6 +236,7 @@ The full route list is in the [API reference](../referenz/api.md).
 | `Http\NotFoundException` | 404 | resource missing (a type instead of a text pattern since v2.2.1; since v2.6.0 also for records addressed in the URL) |
 | `Http\ConflictException` | 409 | conflict, e.g. the safety snapshot failed (v2.6.0) |
 | `Storage\StorageCorruptedException` | 503 | data file corrupt (v2.5.3); since v3.1.0 the ErrorHandler translates the message (`errors.storage.<kind>`), `code` stays `errors.storage.corrupted` |
+| `Http\HttpStatusException` | 413, 503 | body too large (`errors.http.tooLarge`) or write lock not free (`errors.http.busy`, with `Retry-After`) — status, key and headers travel with it (v3.4.0) |
 | other | 500 | unexpected error — generic message with `error_id`, details in the log (v2.6.0) |
 
 A uniform response envelope: `{ "success": true, "data": … }` or

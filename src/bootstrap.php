@@ -5,6 +5,8 @@ namespace Energietracker;
 
 use Energietracker\Http\CrossSiteGuard;
 use Energietracker\Http\ErrorHandler;
+use Energietracker\Http\HostList;
+use Energietracker\Http\HttpStatusException;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Http\Router;
@@ -17,7 +19,7 @@ use Energietracker\Services\{
     MeterService, ReadingService, ContractService, ConsumptionService,
     TemperatureService, RegressionService, ForecastService, AnomalyService,
     WeatherService, BackupService, SettingsService, DiagnosticsService,
-    MigrationService, ReadingImportService, CsvExportService,
+    ReadingImportService, CsvExportService,
     DeliveryService, DeliveryConsumptionService, BenchmarkService, ConversionFactorService,
     TariffComparisonService, TariffSwitchService,
     RecommendationService, ReminderService, PdfReportService,
@@ -26,20 +28,21 @@ use Energietracker\Services\{
     AgendaService, CalendarService, SummaryService, InstanceService,
     AttachmentService, OcrService, PeriodService, TenancyService, TenancyBudgetService,
     Co2CostService, Co2SplitService, BillService, MarketPriceService, EvChargingReportService, HeatPumpService,
-    SeriesImportService, ReferenceService, EvccService, IntervalService, FlexibilityService
+    SeriesImportService, ReferenceService, EvccService, IntervalService, FlexibilityService,
+    DocsService, ReportModelService, ReportAdviceService, ActivityService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
     ConsumptionController, ForecastController, TemperatureController,
     SettingsController, BackupController, DiagnosticsController, UtilitiesController,
-    MigrationController, ExportController,
+    ExportController,
     DeliveryController, BenchmarkController, TariffComparisonController,
     TariffSwitchController,
     RecommendationController, ReminderController, ReportController,
     StromSaldoController, PvSummaryController, HealthController, DemoController,
     AuthController, IngestController, SessionController, ManifestController, AgendaController,
     AttachmentController, PeriodController, TenancyController, Co2Controller, BillController, MarketPriceController, EvChargingController, HeatPumpController,
-    SeriesImportController, EvccController, FlexibilityController
+    SeriesImportController, EvccController, FlexibilityController, DocsController, ActivityController
 };
 
 /**
@@ -72,7 +75,6 @@ final class App
     public AnomalyService $anomalies;
     public BackupService $backups;
     public DiagnosticsService $diagnostics;
-    public MigrationService $migrationLegacy;
     public ReadingImportService $readingImport;
     public CsvExportService $csvExport;
     public DeliveryService $deliveries;
@@ -111,6 +113,8 @@ final class App
     public EvccService $evcc;               // v3.2.0 (F1022)
     public IntervalService $intervals;      // v3.3.0 (F1021)
     public FlexibilityService $flexibility; // v3.3.0 (F1021)
+    public ReportModelService $reportModel; // v3.4.0 (F1025)
+    public ActivityService $activity;       // v3.4.0 (F1024)
 
     public function __construct(string $dataDir)
     {
@@ -160,8 +164,8 @@ final class App
         );
         $this->anomalies    = new AnomalyService($this->regression, $this->settings);
         $this->backups      = new BackupService($this->store, $this->i18n);
-        $this->diagnostics  = new DiagnosticsService($this->store, $this->settings);
-        $this->migrationLegacy = new MigrationService($this->store, $this->backups, $this->i18n);
+        // v3.4.0 (N1020) — dazu die Sicherheitshinweise (Proxy-Kopfzeile, Hostliste)
+        $this->diagnostics  = new DiagnosticsService($this->store, $this->settings, fn(): array => $this->securityStatus());
         $this->readingImport = new ReadingImportService($this->readings, $this->meters, $this->i18n);
         $this->deliveries   = new DeliveryService($this->store, $this->meters, $this->i18n);
         $this->csvExport    = new CsvExportService(
@@ -176,7 +180,6 @@ final class App
         $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n, $this->marketPrices);
         $this->recommendations = new RecommendationService($this->store, $this->meters, $this->consumption, $this->settings, $this->benchmark, $this->deliveries, $this->i18n);
         $this->reminders    = new ReminderService($this->store, $this->settings, $this->i18n);
-        $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark, $this->recommendations, $this->i18n);
         // F1005 + N1003 (v1.7.0)
         $this->stromSaldo   = new StromSaldoService($this->consumption);
         $this->pvSummary    = new PvSummaryService($this->consumption, $this->settings);
@@ -213,6 +216,22 @@ final class App
         $this->ocr          = new OcrService($this->settings, $this->attachments);
         // v3.2.0 (F1022) — Ladevorgänge aus evcc (CSV oder Abruf im Heimnetz)
         $this->evcc         = new EvccService($this->store, $this->meters, $this->readings, $this->readingImport, $this->settings);
+        // v3.4.0 (F1025) — Jahresbericht für alle: ein Datenmodell für PDF und
+        // Druckansicht, Empfehlungen mit Priorität, € und Frist
+        $this->reportModel  = new ReportModelService($this->meters, $this->consumption, $this->contracts, $this->settings, $this->i18n,
+            $this->benchmark, $this->recommendations, new ReportAdviceService($this->i18n), $this->agenda, $this->pvSummary,
+            $this->heatPumps, $this->flexibility, $this->evcc, $this->evCharging, $this->tenancies, $this->tenancyBudget,
+            $this->co2Split, $this->bills, $this->tariffSwitch, $this->deliveries, $this->forecasts);
+        $this->reports      = new PdfReportService($this->meters, $this->consumption, $this->settings, $this->benchmark,
+            $this->recommendations, $this->i18n, $this->reportModel);
+        // v3.4.0 (F1024) — Erledigt mit Verlauf: wer hat einen Hinweis wann
+        // erledigt. Die Dienste, die Hinweise erledigen (von Hand oder durch
+        // neue Daten), schreiben dorthin; Rückgängig stellt über sie zurück.
+        $this->activity     = new ActivityService($this->store, $this->settings, $this->i18n, fn(): ?array => $this->actor());
+        foreach ([$this->readings, $this->deliveries, $this->tenancies, $this->contracts, $this->reminders,
+                  $this->recommendations, $this->agenda] as $svc) $svc->attachActivity($this->activity);
+        $this->activity->attach($this->reminders, $this->contracts, $this->recommendations);
+        $this->activity->setTankProbe(fn(string $u, string $m): bool => $this->recommendations->tankLow($u, $m));
 
         // Auto-migrate or initialize on first run.
         // Reihenfolge wichtig: ein komplett leeres Verzeichnis (echter
@@ -224,9 +243,12 @@ final class App
         // Sperre verhindert, dass zwei gleichzeitige erste Anfragen nach
         // einem Update beide migrieren; runOnStartup prüft danach erneut.
         $this->writeLock = new WriteLock($this->store->rootDir());
+        // v3.4.0 (N1020) — jedes Schreiben holt die Sperre (mit Frist), auch
+        // das eines Abgleichs, der erst nach dem Abruf sperrt (s. LOCK_LATE)
+        $this->store->setWriteGuard(fn() => $this->lockOrFail());
         $migrator = new Migrator($this->store, $this->i18n);
         if ($migrator->isPristine() || $migrator->needsMigration() || !$migrator->isAlreadyMigrated()) {
-            $this->writeLock->acquire();
+            $this->lockOrFail();
             try {
                 // v2.7.0 — Erststart (I18N-01): Sprache und Land aus dem Browser,
                 // BEVOR die Standard-Zähler ihren Namen bekommen. Bis v2.6.0
@@ -254,6 +276,56 @@ final class App
 
     /** v2.5.3 — eine Sperre je schreibender Anfrage, s. Storage\WriteLock */
     private WriteLock $writeLock;
+
+    /**
+     * v3.4.0 (N1020) — Schreibsperre holen; ist sie innerhalb der Frist nicht
+     * frei, 503 mit `Retry-After` statt unbegrenzt zu warten. Ein nicht
+     * beschreibbares Datenverzeichnis meldet das Schreiben selbst.
+     */
+    private function lockOrFail(): void
+    {
+        if ($this->writeLock->acquire() || !$this->writeLock->timedOut()) return;
+        throw new HttpStatusException(503, 'errors.http.busy', [], ['Retry-After' => '5'], 'write lock busy');
+    }
+
+    /**
+     * v3.4.0 (N1020) — Abgleiche mit Diensten außerhalb (Texterkennung,
+     * Wetter, SMARD, evcc) sperren nicht vorab: Die Texterkennung schreibt gar
+     * nichts, die übrigen holen erst die Daten und sperren dann für das
+     * Schreiben (JsonStore::lock()). Bis v3.3 hielt jede dieser Anfragen die
+     * Sperre für die ganze Wartezeit auf den fremden Dienst — bis zu fünf
+     * Minuten, in denen kein Zählerstand gespeichert werden konnte.
+     */
+    private const LOCK_LATE = [
+        '#^/api/ocr/reading$#',
+        '#^/api/temperatures/sync-open-meteo$#',
+        '#^/api/market-prices/sync-smard(-intervals)?$#',
+        '#^/api/utility/strom/meters/[^/]+/sync-evcc$#',
+    ];
+
+    public static function locksLate(Request $req): bool
+    {
+        if ($req->method !== 'POST') return false;
+        foreach (self::LOCK_LATE as $re) if (preg_match($re, $req->path)) return true;
+        return false;
+    }
+
+    /**
+     * v3.4.0 (N1020) — Größe des Körpers. Ohne Anmeldung erreichbare Routen
+     * (Ingest, Anmeldung) höchstens 1 MB; Backup-Import, Belege und die
+     * CSV-/Zeitreihen-Importe bis 256 MB; alles andere 8 MB. Dieselbe Liste
+     * steht in docker/nginx.conf (WebrootRulesTest gleicht ab).
+     */
+    public const BODY_PUBLIC = 1048576;
+    public const BODY_DEFAULT = 8 * 1048576;
+    public const BODY_LARGE = 256 * 1048576;
+    public const LARGE_BODY_ROUTES = '#^/api/(backup/import|attachments|.+/import-(csv|series|evcc))$#';
+
+    public static function bodyLimit(Request $req): int
+    {
+        if (self::isPublic($req)) return self::BODY_PUBLIC;
+        return preg_match(self::LARGE_BODY_ROUTES, $req->path) ? self::BODY_LARGE : self::BODY_DEFAULT;
+    }
 
     /**
      * v2.7.0 — Einstellungen einer Neuinstallation aus Accept-Language:
@@ -348,7 +420,9 @@ final class App
         // v2.6.0 — Host-Liste (opt-in, ET_ALLOWED_HOSTS) gegen DNS-Rebinding:
         // Eine fremde Domain, die auf die LAN-Adresse zeigt, wäre sonst
         // „same-origin" und läse alles. IP-Adressen und localhost gelten immer.
-        if (!self::hostAllowed((string)($_SERVER['HTTP_HOST'] ?? ''))) {
+        // v3.4.0 (N1020) — dazu die Einstellung `allowed_hosts` (Apache und
+        // Synology haben keine Umgebungsvariablen)
+        if (!self::hostAllowed((string)($_SERVER['HTTP_HOST'] ?? ''), (string)$this->settings->get('allowed_hosts', ''))) {
             Response::error($this->i18n->t('errors.http.hostNotAllowed', [
                 'host' => (string)($_SERVER['HTTP_HOST'] ?? ''),
             ]), 421, null, 'errors.http.hostNotAllowed');
@@ -376,6 +450,9 @@ final class App
         if (!$this->authenticated && !self::isPublic($req)) {
             Response::error($this->i18n->t('errors.auth.required'), 401, null, 'errors.auth.required');
         }
+        // v3.4.0 (N1020) — der Körper wird erst jetzt gelesen, nach der
+        // Anmeldung und nach der Prüfung seiner angegebenen Größe (413)
+        $req->limitBody(self::bodyLimit($req));
         if ($this->readOnlyKey && !in_array($req->method, ['GET', 'HEAD', 'OPTIONS'], true)) {
             Response::error($this->i18n->t('errors.auth.readOnlyKey'), 403, null, 'errors.auth.readOnlyKey');
         }
@@ -385,8 +462,8 @@ final class App
             Response::error($this->i18n->t('errors.auth.adminOnly'), 403, null, 'errors.auth.adminOnly');
         }
 
-        if (in_array($req->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
-            $this->writeLock->acquire();   // endet mit dem Prozess der Anfrage
+        if (in_array($req->method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) && !self::locksLate($req)) {
+            $this->lockOrFail();   // endet mit dem Prozess der Anfrage
         }
         $this->router->dispatch($req);
     }
@@ -414,17 +491,30 @@ final class App
         if ($p === '/api/session/password') return true;
         if ($req->method === 'POST' && ($p === '/api/backup/import' || $p === '/api/demo/import'
             || preg_match('#^/api/backup/snapshots/[^/]+/restore$#', $p))) return true;
+        // v3.4.0 (N1020) — auch Snapshots löschen: Darunter sind die
+        // Sicherungen vor einem Import (pre-restore-*), der Rückweg
+        if ($req->method === 'DELETE' && preg_match('#^/api/backup/snapshots/[^/]+$#', $p)) return true;
+        // v3.4.0 (F1024) — den Verlauf leeren (abhaken, Rückgängig und Notiz dürfen Mitglieder)
+        if ($req->method === 'DELETE' && $p === '/api/activity') return true;
         if (in_array($req->method, ['PATCH', 'PUT', 'POST'], true) && $p === '/api/settings' && is_array($req->body)) {
             foreach (self::ADMIN_SETTINGS as $k) {
-                if (array_key_exists($k, $req->body)
-                    && trim((string)$req->body[$k]) !== trim((string)$this->settings->get($k, ''))) return true;
+                if (!array_key_exists($k, $req->body)) continue;
+                $new = is_scalar($req->body[$k]) || $req->body[$k] === null ? (string)$req->body[$k] : '*';
+                $old = (string)$this->settings->get($k, '');
+                $changed = $k === 'allowed_hosts'
+                    ? HostList::parse($new) !== HostList::parse($old)
+                    : trim($new) !== trim($old);
+                if ($changed) return true;
             }
         }
         return false;
     }
 
-    /** Einstellungen, die nur Verwalter ändern (Einbettung, Adressen im Netz). */
-    private const ADMIN_SETTINGS = ['frame_ancestors', 'ocr_endpoint', 'evcc_endpoint'];
+    /**
+     * Einstellungen, die nur Verwalter ändern (Einbettung, Adressen im Netz,
+     * Hostliste; v3.4.0 (F1024) — wie lange der Verlauf aufbewahrt wird).
+     */
+    private const ADMIN_SETTINGS = ['frame_ancestors', 'ocr_endpoint', 'evcc_endpoint', 'allowed_hosts', 'activity_keep_months'];
 
     /** v3.2.0 — Person dieser Anfrage (öffentlich, mit Einstellungen), sonst null. */
     public function currentUser(): ?array
@@ -432,6 +522,24 @@ final class App
         if ($this->userId === null) return null;
         $u = $this->auth->userById($this->userId);
         return $u === null ? null : AuthService::publicUser($u);
+    }
+
+    /** v3.4.0 (F1024) — Name des API-Schlüssels dieser Anfrage (für den Verlauf). */
+    private ?string $keyName = null;
+
+    /**
+     * v3.4.0 (F1024) — Wer handelt (für den Verlauf): die angemeldete Person,
+     * sonst der API-Schlüssel; ohne Anmeldung niemand (null).
+     *
+     * @return array{type:string, id?:string, name:string}|null
+     */
+    public function actor(): ?array
+    {
+        if ($this->userId !== null) {
+            $u = $this->currentUser();
+            return $u === null ? null : ['type' => 'person', 'id' => (string)$u['id'], 'name' => (string)$u['name']];
+        }
+        return $this->keyName !== null ? ['type' => 'key', 'name' => $this->keyName] : null;
     }
 
     /**
@@ -451,24 +559,64 @@ final class App
         if ($req->path === '/api/calendar.ics' && $feedToken !== null && $feedToken !== '') {
             return $this->auth->apiKeyScope($feedToken) === 'calendar';
         }
-        $sessionUser = $this->auth->sessionUserId($_COOKIE[AuthService::COOKIE] ?? null);
+        $cookie = $_COOKIE[AuthService::COOKIE] ?? null;
+        $sessionUser = $this->auth->sessionUserId(is_string($cookie) ? $cookie : null);
         if ($sessionUser !== null) {
             $this->userId = $sessionUser;
             $this->role = (string)($this->auth->userById($sessionUser)['role'] ?? 'member');
+            // v3.4.0 (N1020) — gleitende Verlängerung (nicht beim Abmelden selbst)
+            if (!($req->method !== 'GET' && str_starts_with($req->path, '/api/session'))) {
+                $renewed = $this->auth->renewedSession((string)$cookie);
+                if ($renewed !== null) SessionController::cookie($renewed, $this->auth->sessionTtl());
+            }
             return true;
         }
         $scope = $this->auth->apiKeyScope($req->bearerToken());
         if ($scope === 'calendar') return false;
         if ($scope !== null) {
             $this->readOnlyKey = $scope === 'read';
+            $this->keyName = $this->auth->apiKeyName($req->bearerToken());   // v3.4.0 (F1024)
             return true;
         }
-        $proxyName = $mode === 'proxy' ? $this->auth->proxyUser($_SERVER) : null;
-        if ($proxyName === null) return false;
-        $user = $this->auth->proxyUserRecord($proxyName);
+        // v3.4.0 (N1020) — Proxy: nur die eine zuständige Kopfzeile (s.
+        // AuthService::proxyHeaderMode), Personen aus Home Assistant über ihre Kennung
+        $proxy = $mode === 'proxy' ? $this->auth->proxyIdentity($_SERVER) : null;
+        if ($proxy === null) return false;
+        $user = $this->auth->proxyUserRecord($proxy['name'], $proxy['id']);
         $this->userId = (string)$user['id'];
         $this->role = (string)($user['role'] ?? 'member');
         return true;
+    }
+
+    /**
+     * v3.4.0 (N1020) — Sicherheitshinweise für Zugriff und Diagnose
+     * (`GET /api/diagnostics` → `security`): Proxy-Anmeldung ohne feste
+     * Kopfzeile, offener Betrieb ohne Hostliste. Den Selbsttest „liefert der
+     * Webserver data/ aus?" macht der Browser.
+     *
+     * @return array<string,mixed>
+     */
+    public function securityStatus(): array
+    {
+        $mode = $this->auth->mode();
+        $setting = HostList::parse((string)$this->settings->get('allowed_hosts', ''));
+        $host = HostList::hostOf((string)($_SERVER['HTTP_HOST'] ?? ''));
+        $notices = [];
+        $proxyMode = AuthService::proxyHeaderMode($_SERVER);
+        if ($mode === 'proxy' && $proxyMode === 'legacy') {
+            $notices[] = ['code' => 'proxy_header', 'level' => 'warning', 'headers' => AuthService::LEGACY_PROXY_HEADERS];
+        }
+        if ($mode === 'off' && HostList::fromEnv() === [] && $setting === []) {
+            $notices[] = ['code' => 'open_without_hosts', 'level' => 'warning',
+                          'host' => $host !== '' && !HostList::isAddress($host) ? $host : null];
+        }
+        return [
+            'auth_mode'     => $mode,
+            'proxy_header'  => ['mode' => $proxyMode, 'header' => AuthService::configuredProxyHeader()],
+            'allowed_hosts' => ['env' => HostList::fromEnv(), 'setting' => $setting],
+            'current_host'  => $host,
+            'notices'       => $notices,
+        ];
     }
 
     /**
@@ -485,21 +633,13 @@ final class App
             || $req->method === 'OPTIONS';
     }
 
-    /** ET_ALLOWED_HOSTS: Kommaliste, `*.example.org` als Platzhalter. Leer = alle. */
-    public static function hostAllowed(string $hostHeader): bool
+    /**
+     * ET_ALLOWED_HOSTS: Kommaliste, `*.example.org` als Platzhalter. Leer = alle.
+     * v3.4.0 (N1020) — zusammen mit der Einstellung `allowed_hosts` (beide Listen gelten).
+     */
+    public static function hostAllowed(string $hostHeader, string $setting = ''): bool
     {
-        $list = array_filter(array_map(fn($h) => strtolower(trim($h)), explode(',', (string)getenv('ET_ALLOWED_HOSTS'))));
-        if ($list === []) return true;
-        $host = strtolower($hostHeader);
-        if (preg_match('/^\[(.+)\](:\d+)?$/', $host, $m)) $host = $m[1];              // [IPv6]:port
-        elseif (substr_count($host, ':') === 1) $host = explode(':', $host)[0];         // name:port
-        if ($host === '' ) return false;
-        if ($host === 'localhost' || filter_var($host, FILTER_VALIDATE_IP) !== false) return true;
-        foreach ($list as $allowed) {
-            if ($allowed === $host) return true;
-            if (str_starts_with($allowed, '*.') && str_ends_with($host, substr($allowed, 1))) return true;
-        }
-        return false;
+        return HostList::allows($hostHeader, array_values(array_unique(array_merge(HostList::fromEnv(), HostList::parse($setting)))));
     }
 
     private function registerRoutes(): void
@@ -513,6 +653,12 @@ final class App
         // ── v3.1.0 (I18N-30) — Web-App-Manifest in der Sprache des Geräts ──
         $manifestCtrl = new ManifestController($this->i18n);
         $r->get('/api/manifest', fn($req) => $manifestCtrl->show($req));
+
+        // ── v3.4.0 (N1019) — Hilfe auf dem Server: die Doku dieses Release ──
+        // Nur über die Freigabeliste (DocsService); Anmeldung wie jede Route.
+        $docsCtrl = new DocsController(new DocsService(dirname(__DIR__)), $this->i18n);
+        $r->get('/api/docs',       fn($req) => $docsCtrl->show($req));
+        $r->get('/api/docs/asset', fn($req) => $docsCtrl->asset($req));
 
         // ── Meters per utility ──
         $meterCtrl = new MeterController($this->meters, $this->i18n);
@@ -586,8 +732,9 @@ final class App
 
         // v3.2.0 (F1022) — Ladevorgänge aus evcc: CSV-Export oder Abruf im Heimnetz
         $evccCtrl = new EvccController($this->evcc, $this->i18n);
-        $r->post('/api/utility/strom/meters/{id}/import-evcc', fn($req) => $evccCtrl->importCsv($req));
-        $r->post('/api/utility/strom/meters/{id}/sync-evcc',   fn($req) => $evccCtrl->sync($req));
+        // v3.4.0 (F1024) — im Verlauf erledigt „evcc", nicht die Person am Knopf
+        $r->post('/api/utility/strom/meters/{id}/import-evcc', function ($req) use ($evccCtrl) { $this->activity->actAs('evcc'); $evccCtrl->importCsv($req); });
+        $r->post('/api/utility/strom/meters/{id}/sync-evcc',   function ($req) use ($evccCtrl) { $this->activity->actAs('evcc'); $evccCtrl->sync($req); });
         $r->get('/api/ev-sessions',                            fn($req) => $evccCtrl->sessions($req));
 
         // v3.3.0 (F1021) — Flexibilität bewerten: Viertelstunden, Börsenpreise, Auswertung
@@ -631,7 +778,7 @@ final class App
         $r->delete('/api/utility/{utility}/contracts/{id}', fn($req) => $contractCtrl->destroy($req));
 
         // ── Consumption (monthly aggregates) ──
-        $cCtrl = new ConsumptionController($this->consumption, $this->anomalies, $this->meters, $this->regression, $this->settings, $this->i18n);
+        $cCtrl = new ConsumptionController($this->consumption, $this->anomalies, $this->meters, $this->regression, $this->settings, $this->i18n, $this->contracts);
         $r->get('/api/utility/{utility}/consumption',              fn($req) => $cCtrl->utility($req));
         $r->get('/api/utility/{utility}/meters/{id}/consumption',  fn($req) => $cCtrl->meter($req));
         $r->get('/api/utility/{utility}/meters/{id}/contract-status', fn($req) => $cCtrl->contractStatus($req));
@@ -676,10 +823,8 @@ final class App
         $r->get('/api/export/{utility}/deliveries.csv',  fn($req) => $exCtrl->deliveries($req));
         $r->get('/api/export/{utility}/periods.csv',     fn($req) => $exCtrl->periods($req));   // v3.1.0
 
-        // ── Migration aus v0.9.0 ──
-        $mgCtrl = new MigrationController($this->migrationLegacy, $this->i18n);
-        $r->post('/api/migration/v09/preview', fn($req) => $mgCtrl->preview($req));
-        $r->post('/api/migration/v09/import',  fn($req) => $mgCtrl->import($req));
+        // v3.4.0 (N1020) — die Migration aus v0.9.0 ist entfallen (wer noch eine
+        // v0.9.0 hat: v3.3.0 installieren, dort migrieren, dann aktualisieren)
 
         $dCtrl = new DiagnosticsController($this->diagnostics);
         $r->get('/api/diagnostics', fn($req) => $dCtrl->index($req));
@@ -731,6 +876,15 @@ final class App
         $r->get('/api/calendar.ics',  fn($req) => $agCtrl->calendar($req));
         $r->get('/api/summary',       fn($req) => $agCtrl->summary($req));
 
+        // v3.4.0 (F1024) — Erledigt mit Verlauf: abhaken, Verlauf, Rückgängig, Notiz;
+        // leeren nur Verwalter (adminOnly)
+        $r->post('/api/agenda/done',  fn($req) => $agCtrl->done($req));
+        $actCtrl = new ActivityController($this->activity);
+        $r->get('/api/activity',              fn($req) => $actCtrl->index($req));
+        $r->delete('/api/activity',           fn($req) => $actCtrl->clear($req));
+        $r->post('/api/activity/{id}/undo',   fn($req) => $actCtrl->undo($req));
+        $r->patch('/api/activity/{id}',       fn($req) => $actCtrl->update($req));
+
         // v3.1.0 (Paket H2) — Belege (Fotos, PDFs) und Texterkennung
         $attCtrl = new AttachmentController($this->attachments, $this->ocr, $this->i18n);
         $r->get('/api/attachments',          fn($req) => $attCtrl->index($req));
@@ -752,10 +906,12 @@ final class App
 
         // ── v2.6.0 — Anmeldung (opt-in) und API-Schlüssel ──
         $sessCtrl = new SessionController($this->auth, $this->i18n, fn(): bool => $this->authenticated,
-            fn(): ?array => $this->currentUser(), fn(): string => $this->role);
+            fn(): ?array => $this->currentUser(), fn(): string => $this->role,
+            fn(string $id) => $this->activity->anonymize($id));   // v3.4.0 (F1024)
         $r->get('/api/session',              fn($req) => $sessCtrl->status($req));
         $r->post('/api/session',             fn($req) => $sessCtrl->login($req));
         $r->delete('/api/session',           fn($req) => $sessCtrl->logout($req));
+        $r->post('/api/session/logout-everywhere', fn($req) => $sessCtrl->logoutEverywhere($req));   // v3.4.0 (N1020)
         $r->post('/api/session/password',    fn($req) => $sessCtrl->setPassword($req));
         $r->delete('/api/session/password',  fn($req) => $sessCtrl->disable($req));
         $r->get('/api/auth/keys',            fn($req) => $sessCtrl->listKeys($req));
@@ -781,6 +937,7 @@ final class App
         $r->post('/api/auth/token',   fn($req) => $authCtrl->generate($req));
         $r->delete('/api/auth/token', fn($req) => $authCtrl->revoke($req));
         $ingestCtrl = new IngestController($this->ingest, $this->auth, $this->i18n);
-        $r->post('/api/ingest',       fn($req) => $ingestCtrl->store($req));
+        // v3.4.0 (F1024) — Verlauf: Home Assistant als Integration
+        $r->post('/api/ingest',       function ($req) use ($ingestCtrl) { $this->activity->actAs('home_assistant'); $ingestCtrl->store($req); });
     }
 }

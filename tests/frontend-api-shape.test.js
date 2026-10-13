@@ -98,6 +98,21 @@ globalThis.fetch = async (url, init) => {
     Array.isArray(ag.events) && ag.events.length > 0 && ev && typeof ev.uid === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ev.date)
       && typeof ev.due_now === 'boolean' && ['overdue', 'urgent', 'due', 'upcoming'].includes(ev.severity),
     `${(ag.events || []).length} Ereignisse, ${(ag.events || []).filter(e => e.due_now).length} jetzt`);
+  // v3.4.0 (F1024) — Erledigt mit Verlauf: Vorkommen, abhakbar, erledigt; Verlauf; 422 für Ablesung
+  check('GET /api/agenda → occurrence (uid@anker), can_mark_done, done',
+    (ag.events || []).every(e => typeof e.occurrence === 'string' && e.occurrence.startsWith(e.uid + '@')
+      && typeof e.can_mark_done === 'boolean' && 'done' in e && typeof e.title_key === 'string'));
+  check('… Ablesung fällig ist nicht abhakbar, Termine schon',
+    (ag.events || []).filter(e => e.kind === 'reading_due').every(e => e.can_mark_done === false)
+      && (ag.events || []).filter(e => e.kind === 'reminder' && !e.done).every(e => e.can_mark_done === true));
+  const act = await j('/api/activity');
+  check('GET /api/activity → Array', Array.isArray(act), `${act.length} Einträge`);
+  const rd = (ag.events || []).find(e => e.kind === 'reading_due');
+  if (rd) {
+    const r422 = await fetch(`${BASE}/api/agenda/done`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: rd.uid }) });
+    const b422 = await r422.json().catch(() => ({}));
+    check('POST /api/agenda/done für reading_due → 422 errors.activity.notManual', r422.status === 422 && b422.code === 'errors.activity.notManual', `${r422.status} ${b422.code}`);
+  }
   const sum = await j('/api/summary');
   const sm = (sum.meters || [])[0];
   check('GET /api/summary → summary_version 1, meters[].contract/forecast_12m, agenda',
@@ -109,6 +124,22 @@ globalThis.fetch = async (url, init) => {
   check('GET /api/calendar.ics → text/calendar, BEGIN:VCALENDAR',
     ics.status === 200 && (ics.headers.get('content-type') || '').startsWith('text/calendar') && icsBody.startsWith('BEGIN:VCALENDAR\r\n'),
     `${(icsBody.match(/BEGIN:VEVENT/g) || []).length} Ereignisse`);
+
+  // v3.4.0 (N1019) — Hilfe auf dem Server: eine Seite der Doku und ihre Bilder
+  {
+    const page = await fetch(`${BASE}/api/docs?path=${encodeURIComponent('en/README.md')}`);
+    const d = (await page.json()).data || {};
+    check('GET /api/docs?path=en/README.md → {path, lang, mirror, root_files, markdown}',
+      page.status === 200 && d.path === 'en/README.md' && d.lang === 'en' && d.mirror === 'README.md'
+        && Array.isArray(d.root_files) && d.root_files.includes('CHANGELOG.md') && /^# /.test(d.markdown || ''),
+      `${(d.markdown || '').length} Zeichen`);
+    const bad = await fetch(`${BASE}/api/docs?path=${encodeURIComponent('../VERSION')}`);
+    check('GET /api/docs?path=../VERSION → 404 errors.docs.notFound', bad.status === 404 && (await bad.json()).code === 'errors.docs.notFound');
+    const png = await fetch(`${BASE}/api/docs/asset?path=${encodeURIComponent('ui/screenshots/dashboard.png')}`);
+    const head = Buffer.from(await png.arrayBuffer()).subarray(1, 4).toString();
+    check('GET /api/docs/asset → image/png, nosniff', png.status === 200 && png.headers.get('content-type') === 'image/png'
+      && png.headers.get('x-content-type-options') === 'nosniff' && head === 'PNG');
+  }
 
   // v3.1.0 (H2) — Beleg hochladen (roher Body), ausliefern, an eine Ablesung
   // hängen; doppeltes Senden mit derselben client_ref legt keinen zweiten Stand an
@@ -319,6 +350,29 @@ globalThis.fetch = async (url, init) => {
       && rm && Array.isArray(rm.months) && typeof rm.kpis?.sum === 'number' && typeof rm.unit === 'string'
       && Array.isArray(rep.recommendations) && rep.efficiency && typeof rep.has_generation === 'boolean',
     `${(rep.meters || []).length} Zähler`);
+  // v3.4.0 (F1025) — additiv: das Datenmodell des Berichts (PDF und Druckansicht)
+  const md = rep.model || {};
+  check('GET /api/reports/yearly → model (Kacheln, vier Ampeln, Aufgaben, Seiten je Art, Themen, Wörterbuch)',
+    md.version === 1 && md.year === rep.year && Array.isArray(md.headline?.tiles) && md.headline?.lights?.length === 4
+      && Array.isArray(md.tasks) && Array.isArray(md.successes) && Array.isArray(md.pages) && md.pages.length > 0
+      && typeof md.topics === 'object' && Array.isArray(md.glossary) && Array.isArray(md.errors) && md.errors.length === 0
+      && md.utilities.every(u => /^#[0-9a-f]{6}$/i.test(u.print_color)),
+    `${(md.pages || []).length} Seiten, Fehler: ${(md.errors || []).join(',')}`);
+  const repPart = await j(`/api/reports/yearly?year=${rep.year}&utilities=wasser&lang=en&detail=1`);
+  check('GET /api/reports/yearly?utilities=wasser&lang=en&detail=1 → Teilbericht englisch mit Anhang',
+    repPart.model?.lang === 'en' && repPart.model.pages.every(p => p.utility === 'wasser')
+      && repPart.utilities.every(u => u.utility === 'wasser') && Array.isArray(repPart.model.appendix),
+    `${repPart.model?.lang} ${(repPart.model?.pages || []).map(p => p.utility).join(',')}`);
+  const repUnknown = await fetch(`${BASE}/api/reports/yearly?utilities=gas,xyz`);
+  const repUnknownBody = await repUnknown.json().catch(() => ({}));
+  check('GET /api/reports/yearly?utilities=gas,xyz → 400 errors.common.unknownUtility',
+    repUnknown.status === 400 && repUnknownBody.code === 'errors.common.unknownUtility', `${repUnknown.status} ${repUnknownBody.code}`);
+  const repPdf = await fetch(`${BASE}/api/reports/yearly.pdf?year=${rep.year}&lang=fr&utilities=gas,wasser`);
+  const repPdfBody = Buffer.from(await repPdf.arrayBuffer()).toString('latin1');
+  check('GET /api/reports/yearly.pdf?lang=fr&utilities=gas,wasser → PDF französisch, Dateiname mit Arten',
+    repPdf.status === 200 && repPdfBody.startsWith('%PDF') && repPdfBody.includes('/Lang (fr)')
+      && /energietracker-\d{4}-gas-wasser\.pdf/.test(repPdf.headers.get('content-disposition') || ''),
+    `${repPdf.status} ${repPdf.headers.get('content-disposition')}`);
   const repBad = await fetch(`${BASE}/api/reports/yearly?year=1999`);
   const repBadBody = await repBad.json().catch(() => ({}));
   check('GET /api/reports/yearly?year=1999 → 400 errors.report.yearRange',
@@ -345,6 +399,16 @@ globalThis.fetch = async (url, init) => {
   check('pv-summary (v2.10.0): months_covered, savings_eur, feed_in_revenue_eur',
     !pvy || (Number.isInteger(pvy.months_covered) && 'savings_eur' in pvy && 'feed_in_revenue_eur' in pvy),
     pvy ? `${pvy.year}: ${pvy.months_covered} Monate` : 'keine PV');
+  // v3.4.0 (F1026) — Energiefluss: Monatszeilen mit Speicher und Verbrauchern,
+  // Fluss je abgedecktem Monat und Jahr; Autarkie = Kennzahl des Flusses
+  const pvm = (pvs.monthly || []).find(m => m.covered);
+  const flowKeys = ['pv_house', 'pv_battery', 'pv_grid', 'grid_house', 'grid_battery', 'battery_house', 'house', 'grid_in_house', 'heat_pump', 'ev_charger', 'autarky'];
+  check('pv-summary (v3.4.0): monthly[].battery/heat_pump_kwh/ev_charger_kwh/flow, yearly[].flow mit months, autarkiequote = flow.autarky',
+    (pvs.monthly || []).every(m => ['battery', 'heat_pump_kwh', 'ev_charger_kwh', 'flow'].every(k => k in m))
+      && (!pvm || (flowKeys.every(k => k in pvm.flow) && pvm.autarkiequote === pvm.flow.autarky))
+      && (pvs.yearly || []).every(y => 'flow' in y && 'heat_pump_kwh' in y && 'ev_charger_kwh' in y
+        && (y.flow === null || (Number.isInteger(y.flow.months) && y.autarkiequote === y.flow.autarky))),
+    pvm ? `${pvm.ym}: Haus ${pvm.flow.house} kWh, Autarkie ${pvm.flow.autarky}` : 'keine PV');
 
   // 4a. v2.7.0 — Länderprofile: settings.js, temperatures.js und app.js lesen
   //     code/languages/currency/timezone/location_name/latitude/longitude
@@ -557,6 +621,16 @@ globalThis.fetch = async (url, init) => {
       !!curC && ['renewed', 'cancel_by', 'days_to_cancel', 'switch_date', 'notice_basis', 'remind_basis', 'cancel_missed', 'price_increase']
         .every(k => k in curC) && typeof curC.renewed === 'boolean',
       curC ? `basis ${curC.notice_basis}` : 'kein laufender Vertrag');
+    // v3.4.0 (F1026) — Zeitstrahl: Mindestlaufzeit, Preisgarantie, Verlängerung
+    check('contract-status(gas): min_term_end, price_guarantee_until, auto_renews (bool)',
+      (cs.contracts || []).every(c => 'min_term_end' in c && 'price_guarantee_until' in c && typeof c.auto_renews === 'boolean'),
+      curC ? `auto_renews ${curC.auto_renews}` : 'kein laufender Vertrag');
+    // v3.4.0 (F1024) — Folgevertrag: null oder {contract_id, provider, start, gap_days}
+    check('contract-status(gas): successor null oder {contract_id, provider, start, gap_days}',
+      (cs.contracts || []).every(c => 'successor' in c && (c.successor === null
+        || (typeof c.successor.contract_id === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.successor.start)
+          && Number.isInteger(c.successor.gap_days) && c.successor.gap_days >= 0 && 'provider' in c.successor))),
+      (cs.contracts || []).map(c => c.successor ? `→ ${c.successor.start} (+${c.successor.gap_days})` : '–').join(' '));
     const withSp = (cs.contracts || []).find(c => Array.isArray(c.special_payments) && c.special_payments.length);
     check('contract-status(gas): special_payments[] mit Einzelposten', !!withSp,
       withSp ? `${withSp.special_payments.length} Posten` : 'kein Vertrag mit Sonderzahlungen in den Demo-Daten');
@@ -569,6 +643,20 @@ globalThis.fetch = async (url, init) => {
           s + (String(p.kind).startsWith('rueckzahlung') ? p.amount_eur : -p.amount_eur), 0)) < 0.005,
         String(withSp.special_payment_net));
     }
+    // v3.4.0 (N1021) — Phase je Vertrag (eine Quelle für beide Vertragslisten)
+    // und die Werte, die eine Vertragskarte nennt
+    const PHASES = ['future', 'current', 'renewed', 'past', 'shadow'];
+    check('contract-status(gas): phase je Vertrag (future|current|renewed|past)',
+      (cs.contracts || []).length > 0 && (cs.contracts || []).every(c => PHASES.includes(c.phase) && c.phase !== 'shadow')
+        && (cs.contracts || []).filter(c => c.phase === 'current' || c.phase === 'renewed').length >= 1,
+      (cs.contracts || []).map(c => c.phase).join(','));
+    const gasContracts = await j('/api/utility/gas/contracts');
+    check('GET contracts(gas): phase und values_on {date, working_price_ct, base_price_eur, advance_eur}',
+      Array.isArray(gasContracts) && gasContracts.length > 0 && gasContracts.every(c => PHASES.includes(c.phase)
+        && c.values_on && ['date', 'working_price_ct', 'base_price_eur', 'advance_eur'].every(k => k in c.values_on)),
+      (gasContracts || []).map(c => c.phase).join(','));
+    check('contract-status und contracts: dieselbe Phase',
+      (cs.contracts || []).every(c => gasContracts.find(x => x.id === c.contract_id)?.phase === c.phase));
     const wasserMeters = await j('/api/utility/wasser/meters');
     if (Array.isArray(wasserMeters) && wasserMeters.length) {
       const wcs = await j(`/api/utility/wasser/meters/${wasserMeters[0].id}/contract-status`);

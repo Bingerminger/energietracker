@@ -9,13 +9,14 @@
 import { api } from '../api.js';
 import { getUtility, getSettings } from '../state.js';
 import { gasEntryOn } from '../lib/gas-factor.js';
-import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput } from '../lib/format.js';
+import { fmt, escapeHtml, todayIso, parseDecimal, formatForInput, normalizeTime } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
 import { t, tp } from '../lib/i18n.js';
 import { associateFieldLabels } from '../lib/a11y.js';
 import { showFieldError } from '../lib/form.js';
 import { renderError } from '../components/error.js';
+import { groupContracts, phasePill, yearsOf } from '../lib/contract-order.js';
 
 // Titel/Labels werden zur Render-Zeit über t() aufgelöst (nicht beim Modul-
 // Laden, da der Sprachkatalog dann ggf. noch nicht steht).
@@ -117,8 +118,11 @@ async function refresh(container, u) {
     return;
   }
 
-  // C — neueste Verträge zuerst (nach Startdatum absteigend).
-  const sorted = [...contracts].sort((a, b) => String(b.start || '').localeCompare(String(a.start || '')));
+  // v3.4.0 (N1021) — rückwärts durch die Zeit, gruppiert nach Phase:
+  // Zukünftig · Aktuell · Beendet (ab drei eingeklappt) · Angebote zum Vergleich.
+  // Bis v3.3 nur nach Beginn: Angebote für das nächste Jahr standen als
+  // „neuester Vertrag“ oben, ein lange laufender Vertrag ganz unten.
+  const grouped = groupContracts(contracts);
 
   container.innerHTML = `
     <div data-utility="${u.key}">
@@ -135,8 +139,8 @@ async function refresh(container, u) {
       ` : ''}
 
       <div id="contracts-list">
-        ${sorted.length === 0 ? `<p class="muted">${t('contracts.empty')}</p>${meters.length ? `<button type="button" class="btn btn--util" data-action="new-contract">${t('contracts.emptyCta')}</button>` : ''}` : ''}
-        ${sorted.map(c => renderContractCard(c, meters, u, groups)).join('')}
+        ${contracts.length === 0 ? `<p class="muted">${t('contracts.empty')}</p>${meters.length ? `<button type="button" class="btn btn--util" data-action="new-contract">${t('contracts.emptyCta')}</button>` : ''}` : ''}
+        ${grouped.map(g => renderContractGroup(g, meters, u, groups)).join('')}
       </div>
     </div>
   `;
@@ -290,19 +294,50 @@ function checkContractBasics(form, { workingRows, workingMsg, workingLabel, date
   return null;
 }
 
-// A — Vertragsstatus aus Start/Ende ableiten (heute liegt im Intervall?).
-// v2.2.0 — Schattenverträge zuerst: sie sind reine Hypothesen für den
-// Tarifvergleich und werden von Saldo, Vertragsstatus und Prognose
-// herausgefiltert. Als „aktiv" ausgezeichnet suggerierten sie einen laufenden
-// Vertrag, der nirgends in den Kosten auftaucht.
-function contractStatus(c) {
-  if (c.is_shadow) return { cls: 'shadow', label: t('tariff.shadowBadge') };
-  const today = todayIso();
-  const start = c.start || '';
-  const end = c.end || '';
-  if (start && start > today) return { cls: 'future', label: t('contracts.status.future') };
-  if (end && end < today)     return { cls: 'past',   label: t('contracts.status.past') };
-  return { cls: 'active', label: t('contracts.status.active') };
+// v3.4.0 (N1021) — Der Status kommt aus der Phase des Servers (phasePill in
+// lib/contract-order.js). Bis v3.3 leitete diese Ansicht ihn aus Beginn und
+// Ende ab und kannte keine Verlängerung: Ein abgelaufener, weiterlaufender
+// Vertrag hieß hier „VERGANGEN“, auf der Seite der Verbrauchsart „VERLÄNGERT“.
+// Angebote (Schattenverträge) rechnen nirgends mit und stehen am Ende.
+
+/** Eine Gruppe der Vertragsliste; „Beendet“ zum Aufklappen. */
+function renderContractGroup(g, meters, u, groups) {
+  const cards = g.items.map(c => renderContractCard(c, meters, u, groups)).join('');
+  if (g.group === 'past') {
+    return `<details class="contract-group" data-phase-group="past"${g.collapsed ? '' : ' open'}>
+      <summary class="contract-group__title">${escapeHtml(tp('contracts.phaseGroup.past', g.items.length))}</summary>
+      ${cards}
+    </details>`;
+  }
+  const intro = g.group === 'shadow'
+    ? `<p class="muted small">${escapeHtml(t('contracts.phaseGroup.shadowHint'))} <a href="#/tariffs">${escapeHtml(t('contracts.phaseGroup.toTariffs'))}</a></p>` : '';
+  return `<section class="contract-group" data-phase-group="${g.group}">
+      <h2 class="contract-group__title">${escapeHtml(t('contracts.phaseGroup.' + g.group))}</h2>
+      ${intro}${cards}
+    </section>`;
+}
+
+// v3.4.0 (N1021) — ct mit zwei Stellen, wenn der Preis so gepflegt ist, sonst vier
+const ctValue = (v) => fmt.num(v, Math.abs(v * 100 - Math.round(v * 100)) < 1e-6 ? 2 : 4);
+
+/**
+ * v3.4.0 (N1021) — was die Karte nennt: Arbeitspreis, Grundpreis, Abschlag am
+ * Stichtag des Servers (`values_on`: heute, beim beendeten Vertrag sein letzter
+ * Tag, beim künftigen sein erster). Bis v3.3 standen hier nur Zählungen
+ * („1 Arbeitspreis · 1 Grundpreis …“) — die gibt es jetzt ab „Experte“.
+ */
+function contractValuesHtml(c, u) {
+  const v = c.values_on || {};
+  const unit = u.key === 'wasser' ? 'm³' : (u.consumption_unit || 'kWh');
+  const parts = [
+    v.working_price_ct != null ? t(u.accounting_kind === 'feed_in' ? 'contracts.card.feedInValue' : 'contracts.card.workingValue',
+      { value: ctValue(v.working_price_ct), unit }) : null,
+    v.base_price_eur != null ? t('contracts.card.baseValue', { value: fmt.num(v.base_price_eur, 2) }) : null,
+    v.advance_eur != null ? t('contracts.card.advanceValue', { value: fmt.eur(v.advance_eur) }) : null,
+  ].filter(Boolean);
+  if (!parts.length) return `<span class="muted">${escapeHtml(t('contracts.card.noValues'))}</span>`;
+  const on = v.date && v.date !== todayIso() ? ` <span class="muted">(${escapeHtml(t('contracts.card.valuesOn', { date: fmt.date(v.date) }))})</span>` : '';
+  return `<strong>${parts.map(escapeHtml).join(' · ')}</strong>${on}`;
 }
 
 function renderContractCard(c, meters, u, groups = []) {
@@ -332,12 +367,13 @@ function renderContractCard(c, meters, u, groups = []) {
           : []),
     ].join(' · ');
   }
-  const st = contractStatus(c);
+  const yrs = yearsOf(c);
   return `
-    <div class="card" style="margin-top: var(--sp-3)" data-utility="${u.key}">
+    <div class="card contract-card" style="margin-top: var(--sp-3)" data-utility="${u.key}" data-contract-id="${escapeHtml(c.id)}">
       <div class="section-head">
-        <h2 style="margin:0;font-size:var(--fs-lg)">${escapeHtml(c.provider || t('contracts.card.fallbackProvider'))}${c.tariff_name ? ' · ' + escapeHtml(c.tariff_name) : ''}
-          <span class="status-pill ${st.cls}">${st.label}</span></h2>
+        <h3 style="margin:0;font-size:var(--fs-lg)">${escapeHtml(c.provider || t('contracts.card.fallbackProvider'))}${c.tariff_name ? ' · ' + escapeHtml(c.tariff_name) : ''}
+          ${phasePill(c)}
+          <span class="contract-card__years muted">${escapeHtml(yrs.since ? t('contracts.card.since', { year: yrs.since }) : yrs.span)}</span></h3>
         <div class="section-actions">
           <button class="btn btn--sm btn--ghost" data-edit-contract="${escapeHtml(c.id)}">${t('contracts.card.edit')}</button>
           ${u.key !== 'wasser' && u.accounting_kind !== 'feed_in' && !c.is_shadow ? `<label class="btn btn--sm btn--ghost" data-min-level="expert">${t('contracts.priceImport.button')}
@@ -345,14 +381,14 @@ function renderContractCard(c, meters, u, groups = []) {
           <button class="btn btn--sm btn--danger btn--quiet" data-delete-contract="${escapeHtml(c.id)}" title="${t('contracts.deleteContract')}" aria-label="${t('contracts.deleteContract')}"><span aria-hidden="true">×</span></button>
         </div>
       </div>
+      <p class="contract-card__values" style="margin:var(--sp-1) 0">${contractValuesHtml(c, u)}</p>
       <div class="muted" style="font-size: var(--fs-sm)">
         ${fmt.date(c.start)} – ${c.end ? fmt.date(c.end) : t('contracts.card.open')}
         · ${c.meter_group_id
           ? `${t('contracts.card.groupLabel')} <strong>${escapeHtml(group?.name || c.meter_group_id)}</strong>`
           : `${t('contracts.card.meterLabel')} <strong>${escapeHtml(meter?.name || t('contracts.card.noMeter'))}</strong>`}
-        · ${summary}
+        <span class="contract-card__counts" data-min-level="expert">· ${summary}</span>
       </div>
-      ${c.is_shadow ? `<p class="muted" style="margin-top:var(--sp-2);font-size:var(--fs-xs)">${t('contracts.card.shadowHint')}</p>` : ''}
       ${c.notes ? `<p style="margin-top:var(--sp-2)">${escapeHtml(c.notes)}</p>` : ''}
     </div>
   `;
@@ -389,111 +425,123 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
     // v3.1.0 (H6, #17) — Gruppen mit Mitgliedern als Vertragsziel (Gas, Strom, Fernwärme)
     const targetGroups = hasAdvancePaymentContracts(u) ? groups.filter(g => meters.some(m => m.meter_group_id === g.id)) : [];
     const body = document.createElement('div');
+    // v3.4.0 (N1021) — ein Raster, Gruppen in fester Reihenfolge: Vertrag →
+    // Laufzeit & Kündigung → Preise → Netzentgelt § 14a (Modul 1, Modul 3) →
+    // Boni → Sonderzahlungen → Erlöse → Notizen. Bis v3.3 standen die
+    // Notizen zwischen Kopf und Preisen, fünf Spaltensysteme übereinander.
+    const priceGroups = groupsFor(u).filter(g => g.key !== GRID_GROUP.key);
     body.innerHTML = `
       <form id="contract-form">
-        <div class="form-row">
-          <div class="field">
-            <label>${t('contracts.modal.provider')}</label>
-            <input class="input input--text" name="provider" value="${escapeHtml(initial.provider || '')}">
-            <div class="field-error" data-role="name-msg" role="alert" hidden></div>
-          </div>
-          <div class="field">
-            <label>${t('contracts.modal.tariff')}</label>
-            <input class="input input--text" name="tariff_name" value="${escapeHtml(initial.tariff_name || '')}">
-          </div>
-          <div class="field">
-            <label>${t('contracts.modal.meter')}</label>
-            <select class="select" name="meter_id">
-              ${meters.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === initial.meter_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
-              ${targetGroups.length ? `<optgroup label="${escapeHtml(t('contracts.modal.groupTargets'))}">${targetGroups.map(g =>
-                `<option value="g:${escapeHtml(g.id)}" ${g.id === initial.meter_group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}</optgroup>` : ''}
-            </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label>${t('contracts.modal.start')}</label>
-            <input class="input" type="date" name="start" required value="${escapeHtml(initial.start || '')}">
-            <div class="field-error" data-role="start-msg" role="alert" hidden></div>
-          </div>
-          <div class="field">
-            <label>${t('contracts.modal.end')}</label>
-            <input class="input" type="date" name="end" value="${escapeHtml(initial.end || '')}">
-          </div>
-        </div>
-        <!-- v2.3.1 — Wechselplanung. Diese drei speisen den Tarifvergleich:
-             Ohne Kündigungsfrist kann er keinen Wechseltermin errechnen und
-             nicht vor ablaufenden Fristen warnen. Alle optional.
-             v3.2.0 (F1019) — ab „Erfahren“; ausgeblendet bleiben die Werte im Formular -->
-        <div class="form-row" data-min-level="advanced">
-          <div class="field">
-            <label>${t('contracts.modal.noticePeriod')}</label>
-            <!-- v2.9.0 (CALC-11) — Frist in Monaten, Wochen oder Tagen -->
-            <div class="input-pair">
-              <input class="input" type="text" inputmode="numeric" name="notice_value"
-                     value="${escapeHtml(noticeInitial(initial).value)}"
-                     placeholder="${escapeHtml(t('contracts.modal.noticePeriodPlaceholder'))}">
-              <select class="input" name="notice_unit" aria-label="${escapeHtml(t('contracts.modal.noticeUnitLabel'))}">
-                ${['months', 'weeks', 'days'].map(un => `<option value="${un}" ${noticeInitial(initial).unit === un ? 'selected' : ''}>${t('contracts.modal.noticeUnit.' + un)}</option>`).join('')}
+        <fieldset class="fgroup" data-section="contract">
+          <legend>${t('contracts.modal.section.contract')}</legend>
+          <div class="fgrid">
+            <div class="field field--m">
+              <label>${t('contracts.modal.provider')}</label>
+              <input class="input input--text" name="provider" value="${escapeHtml(initial.provider || '')}">
+              <div class="field-error" data-role="name-msg" role="alert" hidden></div>
+            </div>
+            <div class="field field--m">
+              <label>${t('contracts.modal.tariff')}</label>
+              <input class="input input--text" name="tariff_name" value="${escapeHtml(initial.tariff_name || '')}">
+            </div>
+            <div class="field field--m">
+              <label>${t('contracts.modal.meter')}</label>
+              <select class="select" name="meter_id">
+                ${meters.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === initial.meter_id ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
+                ${targetGroups.length ? `<optgroup label="${escapeHtml(t('contracts.modal.groupTargets'))}">${targetGroups.map(g =>
+                  `<option value="g:${escapeHtml(g.id)}" ${g.id === initial.meter_group_id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}</optgroup>` : ''}
               </select>
             </div>
-            <span class="settings-field__hint">${t('contracts.modal.noticePeriodHint')}</span>
-            <div class="field-error" data-role="notice-msg" role="alert" hidden></div>
           </div>
-          <div class="field">
-            <label>${t('contracts.modal.priceGuarantee')}</label>
-            <input class="input" type="date" name="price_guarantee_until"
-                   value="${escapeHtml(initial.price_guarantee_until || '')}">
-            <span class="settings-field__hint">${t('contracts.modal.priceGuaranteeHint')}</span>
-          </div>
-        </div>
-        <div class="form-row" data-min-level="advanced">
-          <div class="field">
-            <label>${t('contracts.modal.noticeMode')}</label>
-            <select class="input" name="notice_mode">
-              ${['', 'term_end', 'month_end', 'any_day'].map(mo => `<option value="${mo}" ${(initial.notice_mode || '') === mo ? 'selected' : ''}>${t('contracts.modal.noticeModeOption.' + (mo || 'auto'))}</option>`).join('')}
-            </select>
-            <span class="settings-field__hint">${t('contracts.modal.noticeModeHint')}</span>
-          </div>
-          <div class="field">
-            <label>${t('contracts.modal.minTermEnd')}</label>
-            <input class="input" type="date" name="min_term_end"
-                   value="${escapeHtml(initial.min_term_end || '')}">
-            <span class="settings-field__hint">${t('contracts.modal.minTermEndHint')}</span>
-          </div>
-        </div>
-        <div class="field" data-min-level="advanced">
-          <label class="settings-field__check">
-            <input type="checkbox" name="auto_renews" ${initial.auto_renews === false ? '' : 'checked'}>
-            ${t('contracts.modal.autoRenews')}
-          </label>
-          <span class="settings-field__hint">${t('contracts.modal.autoRenewsHint')}</span>
-        </div>
-        <div class="field">
-          <label>${t('contracts.modal.notes')}</label>
-          <textarea class="input input--text" name="notes">${escapeHtml(initial.notes || '')}</textarea>
-        </div>
+        </fieldset>
 
-        ${groupsFor(u).map(g => renderGroupSection(g, initial[g.key] || [])).join('')}
-        ${u?.key === 'strom' ? gridTouHtml(initial.grid_tou) : ''}
+        <fieldset class="fgroup" data-section="term">
+          <legend>${t('contracts.modal.section.term')}</legend>
+          <div class="fgrid">
+            <div class="field field--s">
+              <label>${t('contracts.modal.start')}</label>
+              <input class="input" type="date" name="start" required value="${escapeHtml(initial.start || '')}">
+              <div class="field-error" data-role="start-msg" role="alert" hidden></div>
+            </div>
+            <div class="field field--s">
+              <label>${t('contracts.modal.end')}</label>
+              <input class="input" type="date" name="end" value="${escapeHtml(initial.end || '')}">
+            </div>
+            <!-- v2.3.1 — Wechselplanung. Diese Felder speisen den Tarifvergleich:
+                 Ohne Kündigungsfrist kann er keinen Wechseltermin errechnen und
+                 nicht vor ablaufenden Fristen warnen. Alle optional.
+                 v3.2.0 (F1019) — ab „Erfahren“; ausgeblendet bleiben die Werte im Formular -->
+            <div class="field field--s" data-min-level="advanced">
+              <label>${t('contracts.modal.priceGuarantee')}</label>
+              <input class="input" type="date" name="price_guarantee_until"
+                     value="${escapeHtml(initial.price_guarantee_until || '')}">
+              <span class="settings-field__hint">${t('contracts.modal.priceGuaranteeHint')}</span>
+            </div>
+            <div class="field field--m field--new" data-min-level="advanced">
+              <label for="cf-notice">${t('contracts.modal.noticePeriod')}</label>
+              <!-- v2.9.0 (CALC-11) — Frist in Monaten, Wochen oder Tagen -->
+              <div class="input-pair">
+                <input class="input" id="cf-notice" type="text" inputmode="numeric" name="notice_value"
+                       value="${escapeHtml(noticeInitial(initial).value)}"
+                       placeholder="${escapeHtml(t('contracts.modal.noticePeriodPlaceholder'))}">
+                <select class="input" name="notice_unit" aria-label="${escapeHtml(t('contracts.modal.noticeUnitLabel'))}">
+                  ${['months', 'weeks', 'days'].map(un => `<option value="${un}" ${noticeInitial(initial).unit === un ? 'selected' : ''}>${t('contracts.modal.noticeUnit.' + un)}</option>`).join('')}
+                </select>
+              </div>
+              <span class="settings-field__hint">${t('contracts.modal.noticePeriodHint')}</span>
+              <div class="field-error" data-role="notice-msg" role="alert" hidden></div>
+            </div>
+            <div class="field field--m" data-min-level="advanced">
+              <label>${t('contracts.modal.noticeMode')}</label>
+              <select class="input" name="notice_mode">
+                ${['', 'term_end', 'month_end', 'any_day'].map(mo => `<option value="${mo}" ${(initial.notice_mode || '') === mo ? 'selected' : ''}>${t('contracts.modal.noticeModeOption.' + (mo || 'auto'))}</option>`).join('')}
+              </select>
+              <span class="settings-field__hint">${t('contracts.modal.noticeModeHint')}</span>
+            </div>
+            <div class="field field--s" data-min-level="advanced">
+              <label>${t('contracts.modal.minTermEnd')}</label>
+              <input class="input" type="date" name="min_term_end"
+                     value="${escapeHtml(initial.min_term_end || '')}">
+              <span class="settings-field__hint">${t('contracts.modal.minTermEndHint')}</span>
+            </div>
+            <div class="field field--full" data-min-level="advanced">
+              <label class="check">
+                <input type="checkbox" name="auto_renews" ${initial.auto_renews === false ? '' : 'checked'}>
+                ${t('contracts.modal.autoRenews')}
+              </label>
+              <span class="settings-field__hint">${t('contracts.modal.autoRenewsHint')}</span>
+            </div>
+          </div>
+        </fieldset>
+
+        ${priceGroups.map(g => renderGroupSection(g, initial[g.key] || [])).join('')}
         <div data-role="member-prices" data-min-level="expert">${memberPricesHtml(initial.meter_group_id, meters, initial.working_prices_by_meter)}</div>
         ${u?.key === 'fernwaerme' ? `
-        <fieldset class="field" data-min-level="expert"><legend>${t('contracts.fw.title')}</legend>
-          <div class="form-row">
-            <div class="field"><label>${t('contracts.fw.capacityKw')}</label>
+        <fieldset class="fgroup" data-min-level="expert"><legend>${t('contracts.fw.title')}</legend>
+          <p class="fgroup__hint">${t('contracts.fw.hint')}</p>
+          <div class="fgrid">
+            <div class="field field--m"><label>${t('contracts.fw.capacityKw')}</label>
               <input class="input" name="capacity_kw" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.capacity_kw))}"></div>
-            <div class="field"><label>${t('contracts.fw.co2Factor')}</label>
+            <div class="field field--m"><label>${t('contracts.fw.co2Factor')}</label>
               <input class="input" name="co2_g_per_kwh" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.co2_g_per_kwh))}"></div>
-            <div class="field"><label>${t('contracts.fw.primaryEnergy')}</label>
+            <div class="field field--m"><label>${t('contracts.fw.primaryEnergy')}</label>
               <input class="input" name="primary_energy_factor" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(initial.primary_energy_factor))}"></div>
           </div>
-          <span class="settings-field__hint">${t('contracts.fw.hint')}</span>
         </fieldset>` : ''}
+
+        ${u?.key === 'strom' ? renderGroupSection(GRID_GROUP, initial[GRID_GROUP.key] || []) + gridTouHtml(initial.grid_tou) : ''}
 
         ${renderBonusSection(initial.bonuses || [])}
 
         ${hasAdvancePaymentContracts(u) ? renderSpecialPaymentSection(initial.special_payments || []) : ''}
         ${u?.accounting_kind === 'feed_in' ? renderRevenueSection(initial.revenue_statements || []) : ''}
+
+        <div class="fgrid">
+          <div class="field field--full">
+            <label>${t('contracts.modal.notes')}</label>
+            <textarea class="input input--text" name="notes">${escapeHtml(initial.notes || '')}</textarea>
+          </div>
+        </div>
       </form>
     `;
 
@@ -599,6 +647,11 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
         modalEl.querySelector('[data-role="tou-rows"]')?.addEventListener('click', ev => {
           ev.target.closest('[data-action="remove-tou"]')?.closest('.tou-row')?.remove();
         });
+        // v3.4.0 (N1021) — Uhrzeit beim Verlassen in HH:MM zeigen („6" → 06:00)
+        modalEl.querySelector('[data-role="tou-rows"]')?.addEventListener('focusout', ev => {
+          const el = ev.target.closest?.('[data-role="tou-from"], [data-role="tou-to"]');
+          if (el) el.value = normalizeTime(el.value);
+        });
         try { bindSpecialPaymentHandlers(modalEl); }
         catch (e) { console.warn('contract modal: special-payment binding failed:', e); }
         // A11y: alle Formularfelder mit ihren Labels verknüpfen.
@@ -609,26 +662,32 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
 }
 
 // ───── v3.3.0 (F1021) — § 14a Modul 3: zeitvariables Netzentgelt ─────
+// v3.4.0 (N1021) — Zeile im Listenraster: von | bis | ct | Quartale | ✕.
+// „von" und „bis" sind beide Textfelder (bis v3.3 war „von" ein
+// Uhrzeitfeld, „bis" ein Textfeld, weil 24:00 kein Uhrzeitwert ist).
 function gridTouRow(w = {}) {
   const q = new Set(w.quarters || [1, 2, 3, 4]);
-  return `<div class="form-row tou-row">
+  const time = (role, v) => `<input class="input" data-role="${role}" type="text" inputmode="decimal" autocomplete="off" maxlength="5" placeholder="HH:MM" value="${escapeHtml(v || '')}">`;
+  return `<div class="rowlist__row tou-row">
+    <div class="field"><label>${t('contracts.gridTou.from')}</label>${time('tou-from', w.from)}</div>
+    <div class="field"><label>${t('contracts.gridTou.to')}</label>${time('tou-to', w.to)}</div>
+    <div class="field"><label>${t('contracts.gridTou.ct')}</label><input class="input" data-role="tou-ct" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(w.ct))}"></div>
     <div class="field"><span class="label">${t('contracts.gridTou.quarters')}</span>
-      <span class="tou-quarters">${[1, 2, 3, 4].map(n => `<label class="settings-field__check"><input type="checkbox" data-q="${n}" ${q.has(n) ? 'checked' : ''}> Q${n}</label>`).join('')}</span></div>
-    <div class="field"><label>${t('contracts.gridTou.from')}</label><input class="input" data-role="tou-from" type="time" value="${escapeHtml(w.from || '')}"></div>
-    <div class="field"><label>${t('contracts.gridTou.to')}</label><input class="input" data-role="tou-to" type="text" inputmode="numeric" placeholder="HH:MM" value="${escapeHtml(w.to || '')}"></div>
-    <div class="field"><label>${t('contracts.gridTou.ct')}</label><input class="input" data-role="tou-ct" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(w.ct))}"></div>
-    <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn btn--ghost btn--sm" data-action="remove-tou" aria-label="${escapeHtml(t('contracts.gridTou.removeWindow'))}">✕</button></div>
+      <span class="tou-quarters">${[1, 2, 3, 4].map(n => `<label class="check"><input type="checkbox" data-q="${n}" ${q.has(n) ? 'checked' : ''}> Q${n}</label>`).join('')}</span></div>
+    <button type="button" class="btn btn--danger btn--icon rowlist__del" data-action="remove-tou" title="${escapeHtml(t('contracts.gridTou.removeWindow'))}" aria-label="${escapeHtml(t('contracts.gridTou.removeWindow'))}"><span aria-hidden="true">×</span></button>
   </div>`;
 }
 
 function gridTouHtml(tou) {
-  return `<fieldset class="field entry-group" data-role="grid-tou" data-min-level="expert">
+  return `<fieldset class="fgroup" data-role="grid-tou" data-min-level="expert">
     <legend>${t('contracts.gridTou.title')}</legend>
-    <p class="muted small">${escapeHtml(t('contracts.gridTou.hint'))}</p>
-    <div class="field"><label>${t('contracts.gridTou.standard')}</label>
-      <input class="input" data-role="tou-standard" type="text" inputmode="decimal" value="${escapeHtml(formatForInput(tou?.standard_ct))}"></div>
-    <div data-role="tou-rows">${(tou?.windows || []).map(gridTouRow).join('')}</div>
-    <button type="button" class="btn btn--sm btn--ghost" data-action="add-tou">${t('contracts.gridTou.addWindow')}</button>
+    <button type="button" class="btn btn--sm btn--ghost fgroup__add" data-action="add-tou">${t('contracts.gridTou.addWindow')}</button>
+    <p class="fgroup__hint">${escapeHtml(t('contracts.gridTou.hint'))}</p>
+    <div class="fgrid">
+      <div class="field field--s"><label>${t('contracts.gridTou.standard')}</label>
+        <input class="input" data-role="tou-standard" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(tou?.standard_ct))}"></div>
+    </div>
+    <div class="rowlist rowlist--tou" data-role="tou-rows">${(tou?.windows || []).map(gridTouRow).join('')}</div>
   </fieldset>`;
 }
 
@@ -639,8 +698,8 @@ function collectGridTou(form) {
   const standard = box.querySelector('[data-role="tou-standard"]').value.trim();
   const windows = [...box.querySelectorAll('.tou-row')].map(r => ({
     quarters: [...r.querySelectorAll('[data-q]:checked')].map(c => Number(c.dataset.q)),
-    from: r.querySelector('[data-role="tou-from"]').value.trim(),
-    to: r.querySelector('[data-role="tou-to"]').value.trim(),
+    from: normalizeTime(r.querySelector('[data-role="tou-from"]').value),
+    to: normalizeTime(r.querySelector('[data-role="tou-to"]').value),
     ct: amountValue(r.querySelector('[data-role="tou-ct"]').value.trim()),
   })).filter(w => w.from || w.to || w.ct !== '');
   if (!standard && !windows.length) return null;
@@ -648,39 +707,49 @@ function collectGridTou(form) {
 }
 
 // ───── Group rendering ──────────────────────────────────────────────
-function renderGroupSection(g, entries) {
-  if (entries.length === 0) entries = [{ [g.dateKey]: '', [g.amountKey]: '' }];
-  return `
-    <div class="entry-group" data-group="${escapeHtml(g.key)}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}"${g.level ? ` data-min-level="${g.level}"` : ''}>
-      <div class="entry-group__head">
-        <div class="entry-group__title">${g.title ? escapeHtml(g.title) : t(g.titleKey)}</div>
-        <!-- v3.2.0 (F1019) — Preiswechsel ab „Erfahren“; vorhandene Zeilen bleiben sichtbar -->
-        <button type="button" class="btn btn--sm btn--ghost" data-action="add-row" data-min-level="advanced">${t('contracts.group.addRow')}</button>
-      </div>
+// v3.4.0 (N1021) — Preiszeilen wie die Vertragslisten: die neueste oben, „+ Zeile“
+// fügt oben ein. Nur die Anzeige; der Server speichert weiter aufsteigend.
+const newestFirst = (entries, dateKey) => [...entries].sort((a, b) => String(b?.[dateKey] || '').localeCompare(String(a?.[dateKey] || '')));
+
+// v3.4.0 (N1021) — jede Preisliste ist eine Feldgruppe (Kasten, Legende im
+// Kasten, „+ Zeile" rechts im Kopf); `nested` = Liste innerhalb einer Gruppe
+// (Preise je Zähler eines Gruppenvertrags) ohne eigenen Kasten.
+function renderGroupSection(g, entries, nested = false) {
+  entries = entries.length === 0 ? [{ [g.dateKey]: '', [g.amountKey]: '' }] : newestFirst(entries, g.dateKey);
+  const title = g.title ? escapeHtml(g.title) : t(g.titleKey);
+  // v3.2.0 (F1019) — Preiswechsel ab „Erfahren“; vorhandene Zeilen bleiben sichtbar
+  const add = `<button type="button" class="btn btn--sm btn--ghost${nested ? '' : ' fgroup__add'}" data-action="add-row" data-min-level="advanced">${t('contracts.group.addRow')}</button>`;
+  const attrs = `data-group="${escapeHtml(g.key)}" data-date-key="${g.dateKey}" data-amount-key="${g.amountKey}"${g.level ? ` data-min-level="${g.level}"` : ''}`;
+  const inner = `
       <div class="field-error" data-role="group-msg" role="alert" hidden></div>
-      <div class="entries">
+      <div class="entries rowlist">
         ${entries.map(e => renderEntryRow(g, e)).join('')}
       </div>
-      ${g.key === 'working_prices' && perM3Ctx ? renderPerM3() : ''}
-    </div>
-  `;
+      ${g.key === 'working_prices' && perM3Ctx ? renderPerM3() : ''}`;
+  return nested
+    ? `<div class="entry-group entry-group--nested" ${attrs}>
+        <div class="entry-group__head"><span class="fgroup__title">${title}</span>${add}</div>${inner}
+      </div>`
+    : `<fieldset class="fgroup entry-group" ${attrs}>
+        <legend>${title}</legend>${add}${inner}
+      </fieldset>`;
 }
 
 function renderPerM3() {
   return `
     <details class="perm3" data-perm3>
       <summary>${t('contracts.perM3.toggleTitle')}</summary>
-      <div class="form-row perm3__row">
-        <div class="field">
+      <div class="fgrid">
+        <div class="field field--s">
           <label for="perm3-price">${t('contracts.perM3.label')}</label>
           <input class="input" id="perm3-price" type="text" inputmode="decimal" autocomplete="off">
         </div>
-        <div class="field">
+        <div class="field field--s">
           <label for="perm3-date">${t('contracts.row.validFrom')}</label>
           <input class="input" id="perm3-date" type="date">
         </div>
-        <div class="field">
-          <button type="button" class="btn btn--sm btn--ghost" data-action="perm3-apply" disabled>${t('contracts.perM3.apply')}</button>
+        <div class="field field--s">
+          <button type="button" class="btn btn--ghost" data-action="perm3-apply" disabled>${t('contracts.perM3.apply')}</button>
         </div>
       </div>
       <p class="muted perm3__result" data-perm3-result aria-live="polite"></p>
@@ -725,7 +794,7 @@ function bindPerM3(modalEl) {
       || rowsOf().find(r => !r.querySelector('[data-role="amount"]')?.value.trim());
     if (!row) {
       group?.querySelector('[data-action="add-row"]')?.click();
-      row = rowsOf().at(-1);
+      row = rowsOf()[0];   // v3.4.0 — neue Zeilen stehen oben
     }
     if (!row) return;
     const dIn = row.querySelector('[data-role="date"]');
@@ -744,9 +813,12 @@ function amountInput(role, value, digits = 6) {
   return `<input class="input" type="text" inputmode="decimal" autocomplete="off" data-role="${role}" value="${escapeHtml(formatForInput(value, digits))}">`;
 }
 
+// v3.4.0 (N1021) — Zeile im Listenraster: Gültig ab | Betrag | „Ab Beginn" | ✕;
+// die Beschriftung zeigt nur die erste Zeile (CSS), die übrigen tragen sie
+// für Screenreader weiter
 function renderEntryRow(g, e) {
   return `
-    <div class="entry-row">
+    <div class="entry-row rowlist__row">
       <div class="field">
         <label>${t('contracts.row.validFrom')}</label>
         <input class="input" type="date" data-role="date" value="${escapeHtml(e[g.dateKey] || '')}"${e.__auto ? ' data-auto="1"' : ''}>
@@ -756,7 +828,7 @@ function renderEntryRow(g, e) {
         ${amountInput('amount', e[g.amountKey])}
       </div>
       <button type="button" class="btn btn--sm btn--ghost" data-action="copy-start" title="${t('contracts.row.copyStartTitle')}">${t('contracts.row.copyStart')}</button>
-      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
+      <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
     </div>
   `;
 }
@@ -775,7 +847,7 @@ function bindEntryGroupHandlers(modalEl, root = modalEl) {
       const wrap = document.createElement('div');
       wrap.innerHTML = renderEntryRow(g, { [g.dateKey]: '', [g.amountKey]: '' });
       const row = wrap.firstElementChild;
-      group.querySelector('.entries').appendChild(row);
+      group.querySelector('.entries').prepend(row);   // v3.4.0 (N1021) — neueste oben
       bindRowHandlers(modalEl, row);
       associateFieldLabels(row);
     });
@@ -790,9 +862,9 @@ function memberPricesHtml(gid, meters, byMeter = {}) {
   if (!gid) return '';
   const members = meters.filter(m => m.meter_group_id === gid);
   if (!members.length) return '';
-  return `<fieldset class="field"><legend>${t('contracts.groupPrices.title')}</legend>
-    <span class="settings-field__hint">${t('contracts.groupPrices.hint')}</span>
-    ${members.map(m => renderGroupSection(memberGroup(m), (byMeter || {})[m.id] || [])).join('')}
+  return `<fieldset class="fgroup"><legend>${t('contracts.groupPrices.title')}</legend>
+    <p class="fgroup__hint">${t('contracts.groupPrices.hint')}</p>
+    ${members.map(m => renderGroupSection(memberGroup(m), (byMeter || {})[m.id] || [], true)).join('')}
   </fieldset>`;
 }
 
@@ -872,21 +944,20 @@ function validateAllGroups(modalEl) {
 function renderBonusSection(bonuses) {
   if (!bonuses || bonuses.length === 0) bonuses = [];
   return `
-    <div class="entry-group" data-section="bonus" data-min-level="advanced">
-      <div class="entry-group__head">
-        <div class="entry-group__title">${t('contracts.bonus.title')}</div>
-        <button type="button" class="btn btn--sm btn--ghost" data-action="add-bonus">${t('contracts.bonus.add')}</button>
-      </div>
-      <div class="entries">
+    <fieldset class="fgroup entry-group" data-section="bonus" data-min-level="advanced">
+      <legend>${t('contracts.bonus.title')}</legend>
+      <button type="button" class="btn btn--sm btn--ghost fgroup__add" data-action="add-bonus">${t('contracts.bonus.add')}</button>
+      <div class="entries rowlist">
         ${bonuses.map(b => renderBonusRow(b)).join('')}
       </div>
-    </div>
+    </fieldset>
   `;
 }
 
+// Gutschrift am | Betrag | Art | ✕
 function renderBonusRow(b = {}) {
   return `
-    <div class="entry-row bonus-row">
+    <div class="entry-row bonus-row rowlist__row">
       <div class="field">
         <label>${t('contracts.bonus.creditDate')}</label>
         <input class="input" type="date" data-role="date" value="${escapeHtml(b.credit_date || '')}">
@@ -903,7 +974,7 @@ function renderBonusRow(b = {}) {
           <option value="neukunde"   ${b.type === 'neukunde'   ? 'selected' : ''}>${t('contracts.bonusTypes.neukunde')}</option>
         </select>
       </div>
-      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-bonus" title="${t('contracts.bonus.remove')}" aria-label="${t('contracts.bonus.remove')}"><span aria-hidden="true">×</span></button>
+      <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-bonus" title="${t('contracts.bonus.remove')}" aria-label="${t('contracts.bonus.remove')}"><span aria-hidden="true">×</span></button>
     </div>
   `;
 }
@@ -935,29 +1006,25 @@ function bindBonusRow(row) {
 function renderSpecialPaymentSection(items) {
   if (!Array.isArray(items)) items = [];
   return `
-    <div class="entry-group" data-section="special" data-min-level="advanced">
-      <div class="entry-group__head">
-        <div class="entry-group__title">${t('contracts.special.title')}</div>
-        <button type="button" class="btn btn--sm btn--ghost" data-action="add-special">${t('contracts.special.add')}</button>
-      </div>
-      <div class="muted" style="font-size:var(--fs-sm);margin:-4px 0 8px">
-        ${t('contracts.special.hint')}
-      </div>
-      <div class="entries">
+    <fieldset class="fgroup entry-group" data-section="special" data-min-level="advanced">
+      <legend>${t('contracts.special.title')}</legend>
+      <button type="button" class="btn btn--sm btn--ghost fgroup__add" data-action="add-special">${t('contracts.special.add')}</button>
+      <p class="fgroup__hint">${t('contracts.special.hint')}</p>
+      <div class="entries rowlist">
         ${items.map(s => renderSpecialPaymentRow(s)).join('')}
       </div>
-    </div>
+    </fieldset>
   `;
 }
 
 function renderSpecialPaymentRow(s = {}) {
   const kind = s.kind || 'abschlagszahlung';
   const showAdvance = SPECIAL_KIND_AFFECTS_ADVANCE.has(kind);
-  // v2.5.3 (UI-11) — Eigenes Raster statt des allgemeinen Zeilenrasters: Mit
-  // sieben Kindern in vier Spalten schrumpfte das Datum auf 25 px, und die
-  // Abschlagsanpassung rutschte neben den Entfernen-Knopf.
+  // v2.5.3 (UI-11) — Datum | Betrag | Art | ✕, darunter Notiz und
+  // Abschlagsanpassung. v3.4.0 (N1021) — im Listenraster wie alle Zeilen;
+  // Notiz und Anpassung bleiben in jeder Zeile beschriftet (rowlist__sub).
   return `
-    <div class="entry-row special-row" data-kind="${escapeHtml(kind)}">
+    <div class="entry-row special-row rowlist__row" data-kind="${escapeHtml(kind)}">
       <div class="field">
         <label>${t('contracts.special.date')}</label>
         <input class="input" type="date" data-role="date" value="${escapeHtml(s.date || '')}">
@@ -974,11 +1041,11 @@ function renderSpecialPaymentRow(s = {}) {
           ).join('')}
         </select>
       </div>
-      <div class="field special-row__note">
+      <div class="field special-row__note rowlist__sub">
         <label>${t('contracts.special.note')}</label>
         <input class="input input--text" data-role="note" value="${escapeHtml(s.note || '')}">
       </div>
-      <div class="special-advance" data-role="advance-block" ${showAdvance ? '' : 'hidden'}>
+      <div class="special-advance rowlist__sub" data-role="advance-block" ${showAdvance ? '' : 'hidden'}>
         <div class="field">
           <label>${t('contracts.special.newAdvance')}</label>
           ${amountInput('new-advance', s.new_advance_eur, 2)}
@@ -988,7 +1055,7 @@ function renderSpecialPaymentRow(s = {}) {
           <input class="input" type="date" data-role="advance-from" value="${escapeHtml(s.advance_from || '')}">
         </div>
       </div>
-      <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-special" title="${t('contracts.special.remove')}" aria-label="${t('contracts.special.remove')}"><span aria-hidden="true">×</span></button>
+      <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-special" title="${t('contracts.special.remove')}" aria-label="${t('contracts.special.remove')}"><span aria-hidden="true">×</span></button>
     </div>
   `;
 }
@@ -1060,19 +1127,20 @@ function noticeInitial(c) {
 
 // v3.1.0 (H7, MKT-16) — Gutschriften des Direktvermarkters (Einspeisung): Zeitraum und Betrag
 function renderRevenueSection(items) {
-  return `<fieldset class="field" data-min-level="expert"><legend>${t('contracts.revenue.title')}</legend>
-    <span class="settings-field__hint">${t('contracts.revenue.hint')}</span>
-    <div data-role="revenue-rows">${items.map(revenueRowHtml).join('')}</div>
-    <button type="button" class="btn btn--sm btn--ghost" data-action="add-revenue">${t('contracts.revenue.add')}</button>
+  return `<fieldset class="fgroup" data-min-level="expert"><legend>${t('contracts.revenue.title')}</legend>
+    <button type="button" class="btn btn--sm btn--ghost fgroup__add" data-action="add-revenue">${t('contracts.revenue.add')}</button>
+    <p class="fgroup__hint">${t('contracts.revenue.hint')}</p>
+    <div class="rowlist rowlist--period" data-role="revenue-rows">${items.map(revenueRowHtml).join('')}</div>
   </fieldset>`;
 }
 
+// von | bis | Betrag | ✕
 function revenueRowHtml(s) {
-  return `<div class="entry-row revenue-row">
+  return `<div class="entry-row revenue-row rowlist__row">
     <div class="field"><label>${t('contracts.revenue.from')}</label><input class="input" type="date" data-role="rev-from" value="${escapeHtml(s.from || '')}"></div>
     <div class="field"><label>${t('contracts.revenue.to')}</label><input class="input" type="date" data-role="rev-to" value="${escapeHtml(s.to || '')}"></div>
     <div class="field"><label>${t('contracts.revenue.amount')}</label>${amountInput('rev-amount', s.amount_eur, 2)}</div>
-    <button type="button" class="btn btn--sm btn--danger btn--icon" data-action="remove-revenue" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
+    <button type="button" class="btn btn--sm btn--danger btn--icon rowlist__del" data-action="remove-revenue" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button>
   </div>`;
 }
 
@@ -1283,22 +1351,21 @@ function waterFormHtml(c, meters, u) {
 
   return `
     <form id="water-contract-form">
-      <div class="form-row">
+      <!-- v3.4.0 (N1021) — Kopf im Formularraster wie der Standardvertrag -->
+      <div class="fgrid">
         <div class="field"><label>${t('contracts.water.provider')}</label>
           <input class="input input--text" name="provider" value="${escapeHtml(c.provider || '')}">
           <div class="field-error" data-role="name-msg" role="alert" hidden></div></div>
         <div class="field"><label>${t('contracts.water.tariff')}</label>
           <input class="input input--text" name="tariff_name" value="${escapeHtml(c.tariff_name || '')}"></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label>${t('contracts.water.start')}</label><input class="input" type="date" name="start" value="${escapeHtml(c.start || '')}" required>
+        <div class="field field--s"><label>${t('contracts.water.start')}</label><input class="input" type="date" name="start" value="${escapeHtml(c.start || '')}" required>
           <div class="field-error" data-role="start-msg" role="alert" hidden></div></div>
-        <div class="field"><label>${t('contracts.water.end')}</label><input class="input" type="date" name="end" value="${escapeHtml(c.end || '')}"></div>
-        <div class="field"><label>${t('contracts.water.meter')}</label><select class="select" name="meter_id" required>${meterOpts}</select></div>
-      </div>
-      <div class="field">
-        <label>${t('contracts.water.notes')}</label>
-        <input class="input input--text" name="notes" value="${escapeHtml(c.notes || '')}">
+        <div class="field field--s"><label>${t('contracts.water.end')}</label><input class="input" type="date" name="end" value="${escapeHtml(c.end || '')}"></div>
+        <div class="field field--m"><label>${t('contracts.water.meter')}</label><select class="select" name="meter_id" required>${meterOpts}</select></div>
+        <div class="field field--full">
+          <label>${t('contracts.water.notes')}</label>
+          <input class="input input--text" name="notes" value="${escapeHtml(c.notes || '')}">
+        </div>
       </div>
 
       <!-- Trinkwasser -->
@@ -1316,15 +1383,15 @@ function waterFormHtml(c, meters, u) {
         <div style="margin-top:12px">
           <div class="field">
             <label>${t('contracts.water.basis')}</label>
-            <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:normal">
+            <label class="check">
               <input type="radio" name="schmutz-basis" value="trinkwasser" ${basis === 'trinkwasser' ? 'checked' : ''}>
               <span>${t('contracts.water.basisTw')}</span>
             </label>
-            <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:normal">
+            <label class="check">
               <input type="radio" name="schmutz-basis" value="separater_zaehler" ${basis === 'separater_zaehler' ? 'checked' : ''}>
               <span>${t('contracts.water.basisSep')}</span>
             </label>
-            <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:normal">
+            <label class="check">
               <input type="radio" name="schmutz-basis" value="trinkwasser_minus_abzug" ${basis === 'trinkwasser_minus_abzug' ? 'checked' : ''}>
               <span>${t('contracts.water.basisDeduct')}</span>
             </label>
@@ -1337,7 +1404,7 @@ function waterFormHtml(c, meters, u) {
           <fieldset class="field" id="schmutz-abzug-row" style="${basis === 'trinkwasser_minus_abzug' ? '' : 'display:none'};border:0;padding:0;margin:0">
             <legend>${t('contracts.water.deductMeters')}</legend>
             ${otherMeters.length ? otherMeters.map(m => `
-            <label style="display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0;font-weight:normal">
+            <label class="check">
               <input type="checkbox" name="schmutz_abzug" value="${escapeHtml(m.id)}" ${(sw.abzug_meter_ids || []).includes(m.id) ? 'checked' : ''}>
               <span>${escapeHtml(m.name)}</span>
             </label>`).join('') : `<p class="muted small">${t('contracts.water.noMoreMeters')}</p>`}
@@ -1375,7 +1442,7 @@ function waterFormHtml(c, meters, u) {
 }
 
 function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
-  if (!entries.length) entries = [Object.fromEntries(fields.map(f => [f, '']))];
+  entries = entries.length ? newestFirst(entries, fields[0]) : [Object.fromEntries(fields.map(f => [f, '']))];
   const inputs = fields.map((f, i) => `<th scope="col">${escapeHtml(labels[i])}</th>`).join('');
   const rows = entries.map((e, idx) => `
     <tr data-row="${idx}">
@@ -1393,7 +1460,7 @@ function renderWaterEntryGroup(groupKey, title, entries, fields, labels) {
     <div class="field" data-group="${escapeHtml(groupKey)}" data-fields='${escapeHtml(JSON.stringify(fields))}'>
       <label>${escapeHtml(title)}</label>
       <div class="field-error" data-role="group-msg" role="alert" hidden></div>
-      <table class="table table--compact" style="width:100%">
+      <table class="table table--compact water-table">
         <thead><tr>${inputs}<th scope="col"><span class="sr-only">${t('common.actions')}</span></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1420,7 +1487,7 @@ function renderWaterBonusGroup(bonuses) {
   `).join('');
   return `
     <div class="field" data-group="bonuses" data-fields='["credit_date","amount_eur","label"]'>
-      <table class="table table--compact" style="width:100%">
+      <table class="table table--compact water-table">
         <thead><tr><th scope="col">${t('contracts.water.bonusCredit')}</th><th scope="col">${t('contracts.water.bonusAmount')}</th><th scope="col">${t('contracts.water.bonusLabel')}</th><th scope="col"><span class="sr-only">${t('common.actions')}</span></th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1454,7 +1521,9 @@ function bindWaterEntryHandlers(modalEl) {
         return `<td>${waterNumberInput(f, '')}</td>`;
       }).join('');
       tr.innerHTML = `${cells}<td><button type="button" class="btn btn--sm btn--ghost" data-act="del-row" title="${t('contracts.row.removeRow')}" aria-label="${t('contracts.row.removeRow')}"><span aria-hidden="true">×</span></button></td>`;
-      tbody.appendChild(tr);
+      // v3.4.0 (N1021) — Preiszeilen: neueste oben; Boni bleiben in Erfassungsreihenfolge
+      if (group.getAttribute('data-group') === 'bonuses') tbody.appendChild(tr);
+      else tbody.prepend(tr);
     }
   });
 }

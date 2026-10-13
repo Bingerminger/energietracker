@@ -6,6 +6,7 @@ namespace Energietracker\Controllers;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
 use Energietracker\Services\ConsumptionService;
+use Energietracker\Services\ContractService;
 use Energietracker\Services\AnomalyService;
 use Energietracker\Services\MeterService;
 use Energietracker\Services\RegressionService;
@@ -28,6 +29,7 @@ final class ConsumptionController
         private RegressionService $regression,
         private SettingsService $settings,
         private I18nService $i18n,
+        private ?ContractService $contracts = null,   // v3.4.0 (N1021) — Phase je Vertrag
     ) {}
 
     /** GET /api/utility/{utility}/consumption — all meters + totals */
@@ -107,7 +109,25 @@ final class ConsumptionController
         $utility = $req->param('utility');
         $meter = $this->meters->target($utility, $meterId);   // v3.1.0 (H6): auch Gruppe
         if (!$meter) Response::error($this->i18n->t('errors.meter.notFound'), 404);
-        Response::json($this->consumption->contractStatus($utility, $meter));
+        Response::json($this->withPhases((string)$utility, $this->consumption->contractStatus($utility, $meter)));
+    }
+
+    /**
+     * v3.4.0 (N1021) — additiv `phase` je Vertrag, aus derselben Quelle wie
+     * `GET …/contracts` ({@see ContractService::phase()}). Die Tabelle
+     * „Verträge & Abschläge“ liest den Status nur noch daraus.
+     */
+    private function withPhases(string $utility, array $status): array
+    {
+        if ($this->contracts === null || !is_array($status['contracts'] ?? null)) return $status;
+        $all = $this->contracts->list($utility);
+        $byId = array_column($all, null, 'id');
+        foreach ($status['contracts'] as &$row) {
+            $c = $byId[$row['contract_id'] ?? ''] ?? null;
+            if ($c !== null) $row['phase'] = $this->contracts->phase($c, $all);
+        }
+        unset($row);
+        return $status;
     }
 
     /**

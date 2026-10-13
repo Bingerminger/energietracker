@@ -75,6 +75,61 @@ final class ContractService
         private I18nService $i18n,
     ) {}
 
+    /** v3.4.0 (F1024) — Verlauf: ein lückenloser Folgevertrag erledigt die Hinweise des Vorgängers. */
+    private ?ActivityService $activity = null;
+
+    public function attachActivity(ActivityService $activity): void
+    {
+        $this->activity = $activity;
+    }
+
+    /**
+     * v3.4.0 (F1024) — Nach dem Speichern oder Löschen eines Vertrags: Für
+     * jeden Vorgänger desselben Ziels, dem er lückenlos folgt (und der noch
+     * läuft), ein automatischer Eintrag „erledigt: Folgevertrag"; Einträge,
+     * die nicht mehr stimmen, werden durchgestrichen. Die Agenda liest den
+     * Folgevertrag ohnehin aus den Daten (contractStatus); hier geht es nur um
+     * „wann und von wem".
+     */
+    private function noteSuccession(string $utility, string $contractId, ?array $saved): void
+    {
+        if ($this->activity === null) return;
+        $all = $this->list($utility);
+        $real = array_values(array_filter($all, fn($c) => empty($c['is_shadow'])));
+        $today = date('Y-m-d');
+        $peers = function (array $c) use ($real): array {
+            $gid = $c['meter_group_id'] ?? null;
+            return array_values(array_filter($real, fn($o) => !empty($gid)
+                ? ($o['meter_group_id'] ?? null) === $gid
+                : empty($o['meter_group_id']) && ($o['meter_id'] ?? null) === ($c['meter_id'] ?? null)));
+        };
+        $renewedIn = function (array $c, array $list) use ($today): bool {
+            $r = $this->resolveForDate($list, $today);
+            return $r !== null && $r['assumed'] && ($r['contract']['id'] ?? null) === ($c['id'] ?? null);
+        };
+        // noch ein lückenloser Folgevertrag?
+        $this->activity->successorRevoked($contractId, function (string $pid) use ($real, $peers, $renewedIn, $contractId): bool {
+            foreach ($real as $p) {
+                if (($p['id'] ?? null) !== $pid) continue;
+                $list = $peers($p);
+                $s = self::successorOf($p, $list, $renewedIn($p, $list));
+                return $s !== null && $s['contract_id'] === $contractId && $s['gap_days'] === 0;
+            }
+            return false;
+        });
+        if ($saved === null || !empty($saved['is_shadow'])) return;
+        $list = $peers($saved);
+        foreach ($list as $p) {
+            if (($p['id'] ?? null) === $contractId) continue;
+            $renewed = $renewedIn($p, $list);
+            // abgelaufen und nicht weiterlaufend: nichts mehr zu erinnern
+            if (!$renewed && !empty($p['end']) && (string)$p['end'] < $today) continue;
+            $s = self::successorOf($p, $list, $renewed);
+            if ($s === null || $s['contract_id'] !== $contractId || $s['gap_days'] > 0) continue;
+            $this->activity->successorRecorded($utility, $p, $s, $renewed);
+        }
+    }
+
     public function list(string $utility, ?string $meterId = null): array
     {
         if (!Utilities::exists($utility)) {
@@ -207,6 +262,7 @@ final class ContractService
         $this->assertNoGroupOverlap($utility, $contract, $all);
         $all[] = $contract;
         $this->store->write("$utility/contracts.json", $all);
+        $this->noteSuccession($utility, (string)$contract['id'], $contract);   // v3.4.0 (F1024)
         return $contract + self::warnings($contract);
     }
 
@@ -268,6 +324,7 @@ final class ContractService
         unset($c);
         if (!$found) throw new NotFoundException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $all);
+        $this->noteSuccession($utility, $id, $found);   // v3.4.0 (F1024)
         return $found + self::warnings($found);
     }
 
@@ -278,6 +335,7 @@ final class ContractService
         $kept = array_values(array_filter($all, fn($c) => ($c['id'] ?? null) !== $id));
         if (count($kept) === count($all)) throw new NotFoundException($this->i18n->t('errors.contract.notFound'));
         $this->store->write("$utility/contracts.json", $kept);
+        $this->noteSuccession($utility, $id, null);   // v3.4.0 (F1024)
     }
 
     /**
@@ -658,6 +716,59 @@ final class ContractService
             'cancel_by'      => $today,
             'days_to_cancel' => 0,
             'basis'          => $basis,
+        ];
+    }
+
+    /**
+     * v3.4.0 (F1024) — Hat der Vertrag einen datierten Kündigungsstichtag?
+     * Nur ein befristeter Vertrag, der zum Laufzeitende kündbar ist (der
+     * erste Zweig von switchTiming()). Weiterlaufende, unbefristete und
+     * jederzeit kündbare Verträge haben keinen: Dort liefert switchTiming() als
+     * `cancel_by` „heute" — für die Wechselplanung richtig (kündigen und
+     * wechseln geht ab sofort), als Termin aber ein Ereignis, das täglich
+     * weiterwandert. switchTiming() selbst bleibt unverändert.
+     */
+    public static function hasFixedCancelBy(array $contract, bool $renewed = false): bool
+    {
+        return !$renewed && !empty($contract['end'])
+            && in_array($contract['notice_mode'] ?? null, [null, '', 'term_end'], true);
+    }
+
+    /**
+     * v3.4.0 (F1024) — Der Folgevertrag: der nächste echte Vertrag desselben
+     * Ziels (Zähler oder Gruppe; die Liste stellt der Aufrufer), der später
+     * beginnt und nicht vor diesem endet. `gap_days` = Tage ohne Vertrag
+     * zwischen Ende + 1 und Beginn (0 = lückenlos, auch bei Überlappung). Ein
+     * weiterlaufender oder unbefristeter Vertrag läuft bis zum Folgevertrag —
+     * dort ist die Lücke immer 0. Schattenverträge zählen nie.
+     *
+     * @param array<int,array<string,mixed>> $contracts
+     * @return array{contract_id:string, provider:string, start:string, gap_days:int}|null
+     */
+    public static function successorOf(array $contract, array $contracts, bool $renewed = false): ?array
+    {
+        $id    = (string)($contract['id'] ?? '');
+        $start = (string)($contract['start'] ?? '');
+        $end   = (string)($contract['end'] ?? '');
+        $best  = null;
+        foreach ($contracts as $o) {
+            if ((string)($o['id'] ?? '') === $id || !empty($o['is_shadow'])) continue;
+            $os = (string)($o['start'] ?? '');
+            if ($os === '' || $os <= $start) continue;
+            // endet er nicht nach diesem, folgt er ihm nicht (liegt darin)
+            if ($end !== '' && !empty($o['end']) && (string)$o['end'] <= $end) continue;
+            if ($best === null || $os < (string)$best['start']) $best = $o;
+        }
+        if ($best === null) return null;
+        $gap = 0;
+        if ($end !== '' && !$renewed) {
+            $gap = max(0, self::daysBetween(date('Y-m-d', (int)strtotime("$end +1 day")), (string)$best['start']));
+        }
+        return [
+            'contract_id' => (string)$best['id'],
+            'provider'    => (string)(($best['provider'] ?? '') ?: ($best['tariff_name'] ?? '')),
+            'start'       => (string)$best['start'],
+            'gap_days'    => $gap,
         ];
     }
 
@@ -1149,6 +1260,92 @@ final class ContractService
             if ($best === null || $end > (string)$best['end']) $best = $c;
         }
         return $best;
+    }
+
+    /** v3.4.0 (N1021) — Phasen eines Vertrags für die Anzeige, in der Rangfolge der Listen. */
+    public const PHASES = ['future', 'current', 'renewed', 'past', 'shadow'];
+
+    /**
+     * v3.4.0 (N1021) — Phase eines Vertrags an einem Tag: eine Quelle für
+     * „Kosten → Verträge“ und „Verträge & Abschläge“. Bis v3.3 leitete jede
+     * Ansicht den Status selbst ab, und derselbe abgelaufene Vertrag hieß dort
+     * „VERGANGEN“, hier „VERLÄNGERT“.
+     *
+     *  - `shadow`  Angebot zum Vergleich (Schattenvertrag), rechnet nirgends mit
+     *  - `future`  beginnt nach dem Tag
+     *  - `current` gilt an dem Tag ({@see resolveForDate()} für sein Ziel)
+     *  - `renewed` ist beendet und läuft ohne Kündigung weiter
+     *  - `past`    beendet oder von einem später begonnenen Vertrag abgelöst
+     *
+     * Verglichen wird nur mit Verträgen desselben Ziels (Zähler bzw.
+     * Zählergruppe); Schattenverträge zählen dabei nicht.
+     *
+     * @param array<int,array<string,mixed>> $all Verträge der Verbrauchsart
+     */
+    public function phase(array $contract, array $all, ?string $today = null): string
+    {
+        if (!empty($contract['is_shadow'])) return 'shadow';
+        $today ??= date('Y-m-d');
+        if ((string)($contract['start'] ?? '') > $today) return 'future';
+        $target = self::targetKey($contract);
+        $id = $contract['id'] ?? null;
+        $peers = array_values(array_filter($all, fn($c) => empty($c['is_shadow']) && self::targetKey($c) === $target
+            && ($c['id'] ?? null) !== $id));
+        $peers[] = $contract;
+        $r = $this->resolveForDate($peers, $today);
+        if ($r !== null && ($r['contract']['id'] ?? null) === $id) return $r['assumed'] ? 'renewed' : 'current';
+        return 'past';
+    }
+
+    /** Ziel eines Vertrags: Zählergruppe oder Zähler. */
+    private static function targetKey(array $c): string
+    {
+        $gid = (string)($c['meter_group_id'] ?? '');
+        return $gid !== '' ? "g:$gid" : 'm:' . (string)($c['meter_id'] ?? '');
+    }
+
+    /**
+     * v3.4.0 (N1021) — die Werte, die eine Vertragskarte nennt, an einem
+     * Stichtag `date`: heute, bei einem beendeten Vertrag sein letzter Tag
+     * (so rechnet auch die Verlängerung), bei einem künftigen sein erster.
+     * Arbeitspreis in der Untereinheit je Verbrauchseinheit (Wasser:
+     * Trinkwasser je m³), Grundpreis je Monat (Wasser: Trinkwasser), Abschlag
+     * nach dem effektiven Plan, also mit Sonderzahlungen, die ihn ändern.
+     * Fehlt ein Wert, steht null.
+     *
+     * @return array{date:string,working_price_ct:?float,base_price_eur:?float,advance_eur:?float}
+     */
+    public function valuesOn(array $c, ?string $today = null): array
+    {
+        $date = $today ?? date('Y-m-d');
+        $start = (string)($c['start'] ?? '');
+        $end = (string)($c['end'] ?? '');
+        if ($start !== '' && $date < $start) $date = $start;
+        if ($end !== '' && $date > $end) $date = $end;
+        $water = is_array($c['trinkwasser'] ?? null);
+        return [
+            'date'             => $date,
+            'working_price_ct' => $water ? $this->valueOnDate((array)($c['trinkwasser']['working_prices'] ?? []), 'ct_per_m3', $date)
+                                         : $this->valueOnDate((array)($c['working_prices'] ?? []), 'ct_per_kwh', $date),
+            'base_price_eur'   => $this->valueOnDate((array)($water ? ($c['trinkwasser']['base_prices'] ?? []) : ($c['base_prices'] ?? [])), 'eur_per_month', $date),
+            'advance_eur'      => $this->valueOnDate($this->effectiveAdvanceSchedule($c), 'amount_eur', $date),
+        ];
+    }
+
+    /**
+     * v3.4.0 (N1021) — Verträge für die Antwort: additiv `phase` und
+     * `values_on`. Gespeichert wird beides nicht (update() übernimmt nur
+     * bekannte Felder).
+     *
+     * @param array<int,array<string,mixed>> $list Verträge der Antwort
+     * @param array<int,array<string,mixed>> $all  alle Verträge der Verbrauchsart
+     */
+    public function withPhase(array $list, array $all, ?string $today = null): array
+    {
+        return array_map(fn($c) => array_merge($c, [
+            'phase'     => $this->phase($c, $all, $today),
+            'values_on' => $this->valuesOn($c, $today),
+        ]), $list);
     }
 
     /**

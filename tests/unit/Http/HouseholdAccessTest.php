@@ -57,6 +57,9 @@ final class HouseholdAccessTest extends HttpServerTestCase
             ['PATCH', '/api/settings', ['ocr_endpoint' => 'http://192.168.178.20:11434']],
             ['PATCH', '/api/settings', ['evcc_endpoint' => 'http://192.168.178.30:7070']],
             ['DELETE', '/api/session/password', ['current' => 'annas-passwort']],
+            // v3.4.0 (N1020) — Snapshots löschen (darunter der Rückweg vor einem Import) und die Hostliste
+            ['DELETE', '/api/backup/snapshots/pre-restore-2026-01-01_000000.json', null],
+            ['PATCH', '/api/settings', ['allowed_hosts' => 'nas.local']],
         ] as [$method, $path, $body]) {
             $r = $this->request($method, $path, array_merge(['Content-Type: application/json'], $member), $body === null ? null : json_encode($body));
             self::assertSame(403, $r['status'], "$method $path");
@@ -65,7 +68,7 @@ final class HouseholdAccessTest extends HttpServerTestCase
         self::assertSame(200, $this->request('GET', '/api/users', $admin)['status'], 'der Verwalter darf');
         // Die Seite „Experte“ schickt alle Felder mit — unveränderte Adressen sperren das Speichern nicht
         self::assertSame(200, $this->request('PATCH', '/api/settings', array_merge(['Content-Type: application/json'], $member),
-            json_encode(['ocr_endpoint' => '', 'evcc_endpoint' => '', 'anomaly_threshold' => 2.5]))['status']);
+            json_encode(['ocr_endpoint' => '', 'evcc_endpoint' => '', 'allowed_hosts' => '', 'anomaly_threshold' => 2.5]))['status']);
 
         // Eigenes Passwort ändern: mit dem bisherigen
         self::assertSame(401, $this->post('/api/session/me/password', ['current' => 'falsch', 'password' => 'neues-passwort'], $member)['status']);

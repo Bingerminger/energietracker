@@ -17,7 +17,7 @@ export async function load(url, context, nextLoad) {
       let src = await readFile(path, 'utf8');
       src = src.replace(
         "const BASE = 'api.php';",
-        "const BASE = 'http://127.0.0.1:8899/api.php';"
+        `const BASE = '${(process.env.ET_TEST_HOST || 'http://127.0.0.1:8899').replace(/\/$/, '')}/api.php';`
       );
       return { format: 'module', source: src, shortCircuit: true };
     }

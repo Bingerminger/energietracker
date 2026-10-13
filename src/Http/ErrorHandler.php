@@ -86,7 +86,12 @@ final class ErrorHandler
             $code = $e instanceof \Energietracker\Storage\StorageCorruptedException ? 'errors.storage.corrupted' : null;
             $message = $e->getMessage();
             // v3.1.0 (Review I18N-14) — Schlüssel statt Rohtext: in der Sprache der Anfrage
-            if ($e instanceof \Energietracker\Support\LocalizedException) {
+            // v3.4.0 (N1020) — 413/503 mit Schlüssel und Kopfzeilen (Retry-After)
+            if ($e instanceof HttpStatusException) {
+                $code = $e->key;
+                if (self::$translate) $message = (self::$translate)($e->key, $e->params);
+                if (!headers_sent()) foreach ($e->headers as $k => $v) header($k . ': ' . $v);
+            } elseif ($e instanceof \Energietracker\Support\LocalizedException) {
                 $code = $e->key;
                 if (self::$translate) $message = (self::$translate)($e->key, $e->params);
             } elseif ($e instanceof \Energietracker\Storage\StorageCorruptedException && self::$translate) {
@@ -133,6 +138,7 @@ final class ErrorHandler
         // nicht „Serverfehler" (die Anwendung arbeitet korrekt, sie weigert sich
         // nur, eine kaputte Datei zu überschreiben).
         if ($e instanceof \Energietracker\Storage\StorageCorruptedException) return 503;
+        if ($e instanceof HttpStatusException) return $e->status;   // v3.4.0 (N1020)
         if ($e instanceof NotFoundException) return 404;
         if ($e instanceof ConflictException) return 409;   // v2.6.0
         if ($e instanceof \InvalidArgumentException) return 400;

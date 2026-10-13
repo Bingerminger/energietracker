@@ -70,6 +70,8 @@ final class SummaryService
         $due = array_values(array_filter($events, fn($e) => $e['due_now']));
         $next = null;
         foreach ($events as $e) {
+            // v3.4.0 (F1024) — Erledigtes ist nicht „als Nächstes" (due zählt ohnehin nur due_now)
+            if (!empty($e['done'])) continue;
             if ($e['date'] >= $today && in_array($e['kind'], ['cancel_by', 'term_end', 'reminder', 'price_increase', 'price_guarantee_end'], true)) {
                 $next = ['kind' => $e['kind'], 'date' => $e['date'], 'title' => $e['title']];
                 break;
@@ -151,6 +153,9 @@ final class SummaryService
         }
         foreach ($status['contracts'] ?? [] as $c) {
             if (empty($c['is_current'])) continue;
+            // v3.4.0 (F1024) — nur ein datierter Stichtag (sonst wanderte der Sensor
+            // jeden Tag auf „heute"), und keiner mehr, wenn ein Folgevertrag lückenlos anschließt
+            $dated = ($c['remind_basis'] ?? null) === 'cancel_by' && (int)($c['successor']['gap_days'] ?? 1) !== 0;
             return [
                 'contract_id'               => (string)($c['contract_id'] ?? ''),
                 'provider'                  => (string)($c['provider'] ?? ''),
@@ -164,8 +169,8 @@ final class SummaryService
                 'verdict'                   => $c['verdict'] ?? null,
                 'balance_as_of'             => $c['balance_as_of'] ?? null,
                 'period_end'                => $c['effective_end'] ?? null,
-                'cancel_by'                 => $c['cancel_by'] ?? null,
-                'days_to_cancel'            => $c['days_to_cancel'] ?? null,
+                'cancel_by'                 => $dated ? ($c['cancel_by'] ?? null) : null,
+                'days_to_cancel'            => $dated ? ($c['days_to_cancel'] ?? null) : null,
                 'price_increase_from'       => $c['price_increase']['from'] ?? null,
             ];
         }

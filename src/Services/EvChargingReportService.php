@@ -133,55 +133,53 @@ final class EvChargingReportService
             $y += 15;
         }
         $y += 10;
-        $cols = [[$this->i18n->t('evReport.col.month'), 0], [$this->i18n->t('evReport.col.readings'), 70],
-                 [$this->i18n->t('evReport.col.kwh'), 250], [$this->i18n->t('evReport.col.price'), 315],
-                 [$this->i18n->t('evReport.col.baseShare'), 400], [$this->i18n->t('evReport.col.amount'), $w]];
-        foreach ($cols as $i => [$label, $off]) {
-            $i === 0 || $i === 1 ? $pdf->text($x + $off, $y, $label, 9, true) : $pdf->textRight($x + $off + ($i === 5 ? 0 : 50), $y, $label, 9, true);
+        // v3.4.0 (F1025, Mangel 9) — Spalten mit fester Breite, Köpfe umbrochen:
+        // „Cent/kWhGrundpreis-Anteil“ stieß zusammen, sobald ein Kopf breiter war
+        // als geschätzt. Linke Spalten: Monat, Zählerstände; rechtsbündig: kWh,
+        // Preis, Grundpreis-Anteil, Betrag (rechte Kante und Breite je Spalte).
+        $right = [[$this->i18n->t('evReport.col.kwh'), 230.0, 48.0], [$this->i18n->t('evReport.col.price'), 300.0, 62.0],
+                  [$this->i18n->t('evReport.col.baseShare'), 400.0, 92.0], [$this->i18n->t('evReport.col.amount'), $w, 80.0]];
+        $head = [[$this->i18n->t('evReport.col.month'), 0.0, 60.0, false], [$this->i18n->t('evReport.col.readings'), 62.0, 120.0, false]];
+        foreach ($right as [$label, $edge, $cw]) $head[] = [$label, $edge, $cw, true];
+        $rows = 1;
+        foreach ($head as [$label, , $cw]) $rows = max($rows, count($pdf->wrap($label, 8.5, $cw, true)));
+        foreach ($head as [$label, $off, $cw, $alignRight]) {
+            foreach ($pdf->wrap($label, 8.5, $cw, true) as $k => $line) {
+                $alignRight ? $pdf->textRight($x + $off, $y + $k * 10, $line, 8.5, true) : $pdf->text($x + $off, $y + $k * 10, $line, 8.5, true);
+            }
         }
-        $y += 6;
+        $y += ($rows - 1) * 10 + 6;
         $pdf->line($x, $y, $x + $w, $y);
         $y += 14;
         foreach ($r['rows'] as $row) {
             if ($y > $pdf->pageHeight() - 90) { $pdf->addPage(); $y = 64.0; }
             $reads = $row['first_reading'] && $row['last_reading']
-                ? $this->i18n->date($row['first_reading']['date']) . ' ' . $num($row['first_reading']['counter'], 1) . ' – '
-                  . $this->i18n->date($row['last_reading']['date']) . ' ' . $num($row['last_reading']['counter'], 1)
-                : '–';
+                ? [$this->i18n->date($row['first_reading']['date']) . ' ' . $num($row['first_reading']['counter'], 1),
+                   $this->i18n->date($row['last_reading']['date']) . ' ' . $num($row['last_reading']['counter'], 1)]
+                : ['–'];
             $pdf->text($x, $y, $this->i18n->month((string)$row['ym']), 9);
-            $pdf->text($x + 70, $y, $reads, 8);
-            $pdf->textRight($x + 300, $y, $num($row['kwh'], 1), 9);
-            $pdf->textRight($x + 365, $y, $num($row['price_ct'], 2), 9);
-            $pdf->textRight($x + 450, $y, $eur($row['base_share_eur']), 9);
+            foreach ($reads as $k => $line) $pdf->text($x + 62, $y + $k * 9.5, $line, 7.5);
+            $pdf->textRight($x + 230, $y, $num($row['kwh'], 1), 9);
+            $pdf->textRight($x + 300, $y, $num($row['price_ct'], 2), 9);
+            $pdf->textRight($x + 400, $y, $eur($row['base_share_eur']), 9);
             $pdf->textRight($x + $w, $y, $eur($row['amount_eur']), 9);
-            $y += 15;
+            $y += count($reads) > 1 ? 22 : 15;
         }
         $pdf->line($x, $y - 8, $x + $w, $y - 8);
         $y += 4;
         $pdf->text($x, $y, $this->i18n->t('evReport.col.total'), 10, true);
-        $pdf->textRight($x + 300, $y, $num($r['total']['kwh'], 1), 10, true);
+        $pdf->textRight($x + 230, $y, $num($r['total']['kwh'], 1), 10, true);
         $pdf->textRight($x + $w, $y, $eur($r['total']['amount_eur']), 10, true);
         $y += 40;
         foreach ([$this->i18n->t('evReport.pdf.basis'), $this->i18n->t('evReport.disclaimer')] as $p) {
-            foreach ($this->wrap($pdf, $p, 9, $w) as $line) { $pdf->text($x, $y, $line, 9); $y += 13; }
+            if ($y > $pdf->pageHeight() - 90) { $pdf->addPage(); $y = 64.0; }
+            foreach ($pdf->wrap($p, 9, $w) as $line) { $pdf->text($x, $y, $line, 9); $y += 13; }
             $y += 6;
         }
+        if ($y > $pdf->pageHeight() - 80) { $pdf->addPage(); $y = 64.0; }
         $y += 30;
         $pdf->line($x, $y, $x + 220, $y);
         $pdf->text($x, $y + 12, $this->i18n->t('evReport.pdf.signature'), 8);
         return $pdf->output();
-    }
-
-    /** @return list<string> */
-    private function wrap(PdfWriter $pdf, string $text, float $size, float $width): array
-    {
-        $lines = []; $line = '';
-        foreach (preg_split('/\s+/u', trim($text)) ?: [] as $word) {
-            $try = $line === '' ? $word : "$line $word";
-            if ($line !== '' && $pdf->textWidth($try, $size) > $width) { $lines[] = $line; $line = $word; }
-            else $line = $try;
-        }
-        if ($line !== '') $lines[] = $line;
-        return $lines;
     }
 }

@@ -17,10 +17,14 @@ const ALLOW = new Set(['kWh', 'm³', 'm²', '°C', 'CO₂', 'R²', 'L', 'kg', 'M
   'PDF', 'API', 'Home Assistant', 'Open-Meteo', 'Open-Meteo.com', 'Energietracker', 'ENERGIETRACKER', 'GitHub', 'YAML', 'HTTPS',
   'ID', 'OK', 'z', 'Hs', 'kWh/m²·a', 'kWh/m³', 'g/kWh', 'configuration.yaml', 'secrets.yaml']);
 
-const strip = src => src
+// v3.4.0 — so lange wiederholen, bis sich nichts mehr ändert: Ein einmaliges
+// Ersetzen kann aus Resten neue Kommentarzeichen zusammensetzen
+// (Code-Scanning: unvollständige Bereinigung mehrteiliger Zeichenfolgen).
+const untilStable = (s, f) => { for (let prev = null; prev !== s;) { prev = s; s = f(s); } return s; };
+const strip = src => untilStable(src, s => s
   .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))   // Blockkommentare
   .replace(/(^|[^:\\])\/\/.*$/gm, '$1')                           // Zeilenkommentare
-  .replace(/<!--[\s\S]*?-->/g, '');                                // HTML-Kommentare in Templates
+  .replace(/<!--[\s\S]*?-->/g, ''));                               // HTML-Kommentare in Templates
 
 let failed = 0, passed = 0;
 const hits = [];

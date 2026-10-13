@@ -29,7 +29,13 @@
       "toggle": "Appearance: {mode} – switch",
       "system": "system",
       "light": "light",
-      "dark": "dark"
+      "dark": "dark",
+      "autoBadge": "A",
+      "applied": {
+        "system": "Automatic – follows the system",
+        "light": "Light",
+        "dark": "Dark"
+      }
     }
   },
   "meterNames": {
@@ -100,7 +106,8 @@
       }
     },
     "tenancy": "Tenancy",
-    "flexibility": "Flexibility"
+    "flexibility": "Flexibility",
+    "activity": "Done"
   },
   "dashboard": {
     "loading": "Loading overview…",
@@ -179,7 +186,12 @@
       "readingsDue": {
         "one": "{count} meter is waiting for a reading",
         "other": "{count} meters are waiting for a reading"
-      }
+      },
+      "successorGap": {
+        "one": "Follow-on contract only from {date} – a gap of {count} day",
+        "other": "Follow-on contract only from {date} – a gap of {count} days"
+      },
+      "tenancyAction": "Open tenancy"
     },
     "welcome": {
       "title": "Welcome to Energietracker",
@@ -377,17 +389,13 @@
       "monthlyTable": "📋 Monthly table {year}",
       "stockTank": "🛢️ Stock & tank",
       "deliveries": "🚚 Deliveries",
-      "readingsYear": "📋 Readings {year}",
       "monthlyChartFeedIn": "Feed-in per month {year}",
       "monthlyChartGeneration": "Generation per month {year}",
       "deliveriesCount": {
         "one": "{count} delivery total",
         "other": "{count} deliveries total"
       },
-      "readingsCount": {
-        "one": "{count} reading total",
-        "other": "{count} readings total"
-      }
+      "readings": "📋 Readings"
     },
     "balance": {
       "title": "⚖️ Balance current contract — {name}",
@@ -477,14 +485,10 @@
       "colBonus": "Bonus",
       "colBalanceToday": "Balance today",
       "colBalanceExpected": "Exp. balance",
-      "stateActive": "ACTIVE",
-      "statePast": "PAST",
-      "stateFuture": "FUTURE",
       "periodOpen": "{start} → ongoing",
       "gpSuffix": "standing charge {value} {cur}/month",
       "colSpecial": "Special payments",
       "hint": "Bonus = credits from the contract (instant, switching, new-customer bonus). Special payments = refunds (+), back-payments and extra advance payments (−) outside the advance schedule; both feed into the balance. Tap to see the individual items; they are maintained in the contract management.",
-      "stateRenewed": "RENEWED",
       "colEarned": "Earned",
       "colReceived": "Received"
     },
@@ -531,6 +535,10 @@
       "emptyYearHint": {
         "one": "{count} reading is recorded in total — reachable via the year selector above.",
         "other": "{count} readings are recorded in total — reachable via the year selector above."
+      },
+      "onlyFlagged": {
+        "one": "Only flagged ({count})",
+        "other": "Only flagged ({count})"
       }
     },
     "deliveriesTable": {
@@ -640,7 +648,6 @@
     "billCheck": {
       "hint": "Recalculates the gas bill: per section m³ × volume correction factor × calorific value = kWh, like the lines of a supplier bill. A new section starts at every reading and every calorific-value change.",
       "from": "From",
-      "to": "To (exclusive)",
       "run": "Recalculate",
       "empty": "No sections in the chosen range.",
       "noReading": "no reading",
@@ -679,7 +686,8 @@
         "one": "{count} section without an enclosing reading — consumption is missing there.",
         "other": "{count} sections without an enclosing reading — consumption is missing there."
       },
-      "hintGeneric": "Recalculates the annual bill: per section consumption × unit price plus fixed costs, like the lines of a supplier bill. A new section starts at every reading and every price change."
+      "hintGeneric": "Recalculates the annual bill: per section consumption × unit price plus fixed costs, like the lines of a supplier bill. A new section starts at every reading and every price change.",
+      "openPeriod": "Check the bill {from} – {to}"
     },
     "warnings": {
       "title": "Implausible meter readings: {count}",
@@ -717,11 +725,7 @@
       "removed": "Photo removed"
     },
     "periods": {
-      "title": "Periods {year}",
-      "count": {
-        "one": "{count} period",
-        "other": "{count} periods"
-      },
+      "title": "Periods",
       "add": "+ Period",
       "edit": "Edit period",
       "empty": "No period this year yet",
@@ -745,7 +749,19 @@
     "water": {
       "dhwNote": "Heat for this hot water in {year}: about {kwh} kWh at {temp} °C – calculated under HeizkostenV § 9, not measured."
     },
-    "groupContractNote": "This meter is billed through the group contract “{name}”. Balance and advance payments apply to the whole group."
+    "groupContractNote": "This meter is billed through the group contract “{name}”. Balance and advance payments apply to the whole group.",
+    "list": {
+      "yearLabel": "Year of the list",
+      "allYears": "All years",
+      "countInYear": {
+        "one": "{count} in {year}",
+        "other": "{count} in {year}"
+      },
+      "countTotal": {
+        "one": "{count} in total",
+        "other": "{count} in total"
+      }
+    }
   },
   "contracts": {
     "priceGroup": {
@@ -782,10 +798,15 @@
       "meterLabel": "Meter:",
       "open": "open",
       "noMeter": "—",
-      "shadowHint": "Shadow contract — a what-if scenario for the tariff comparison only. Not counted in costs, balance or forecast.",
-      "groupLabel": "Meter group:"
+      "groupLabel": "Meter group:",
+      "workingValue": "Unit price {value} {minor}/{unit}",
+      "feedInValue": "Feed-in tariff {value} {minor}/{unit}",
+      "baseValue": "Standing charge {value} {cur}/month",
+      "advanceValue": "Advance payment {value}/month",
+      "valuesOn": "as of {date}",
+      "noValues": "No prices entered yet",
+      "since": "since {year}"
     },
-    "status": { "active": "ACTIVE", "past": "PAST", "future": "FUTURE" },
     "summary": {
       "twPrices": {
         "one": "{count} drinking-water price",
@@ -877,7 +898,11 @@
       "noticeModeHint": "Automatic: at the end of the term; without an end, any time at month end. Default supply (Grundversorgung), for example, can be cancelled any time with two weeks’ notice.",
       "autoRenews": "Renews unless cancelled",
       "autoRenewsHint": "After the end the contract runs on at its last prices until it is cancelled — then with at most one month’s notice. Clear this once you have cancelled.",
-      "groupTargets": "Meter groups (one contract for all)"
+      "groupTargets": "Meter groups (one contract for all)",
+      "section": {
+        "contract": "Contract",
+        "term": "Term and cancellation"
+      }
     },
     "delete": { "title": "Delete contract?", "confirm": "Delete", "deleted": "Contract deleted", "messageNamed": "Delete the contract “{name}” permanently? Its prices, advance payments and bonuses are lost." },
     "deleteContract": "Delete contract",
@@ -996,6 +1021,24 @@
       "ct": "ct/kWh in the window",
       "addWindow": "+ Time window",
       "removeWindow": "Remove time window"
+    },
+    "phase": {
+      "future": "FUTURE",
+      "current": "ACTIVE",
+      "renewed": "RENEWED",
+      "past": "ENDED",
+      "shadow": "QUOTE"
+    },
+    "phaseGroup": {
+      "future": "Upcoming",
+      "current": "Current",
+      "past": {
+        "one": "Ended ({count})",
+        "other": "Ended ({count})"
+      },
+      "shadow": "Quotes for comparison – not counted",
+      "shadowHint": "Quotes (shadow contracts) are what-if calculations and do not count towards costs, balance or forecast.",
+      "toTariffs": "Open the tariff switch"
     }
   },
   "meters": {
@@ -1088,7 +1131,14 @@
       "captureHint": "Consumption per period: for values that already come as consumption – such as the monthly consumption information from the metering service. Switching is possible while the meter has no data.",
       "malo": "Market location ID (MaLo)",
       "melo": "Metering location ID (MeLo)",
-      "maloHint": "For switching supplier; shown on the bill. MaLo: 11 digits; MeLo: 33 characters starting with “DE”."
+      "maloHint": "For switching supplier; shown on the bill. MaLo: 11 digits; MeLo: 33 characters starting with “DE”.",
+      "section": {
+        "meter": "Meter",
+        "tank": "Tank",
+        "device": "Device",
+        "topology": "Structure",
+        "market": "Market location"
+      }
     },
     "replace": {
       "title": "Meter swap: {name}",
@@ -1249,7 +1299,8 @@
       "ocrEndpoint": "http://192.168.178.20:11434",
       "ocrModel": "qwen2.5vl",
       "referenceSource": "e.g. benchmark 2025",
-      "evccEndpoint": "http://192.168.178.30:7070"
+      "evccEndpoint": "http://192.168.178.30:7070",
+      "allowedHosts": "energie.example.org, *.home.arpa"
     },
     "loading": "Loading…",
     "saved": "Settings saved",
@@ -1317,6 +1368,10 @@
       "evcc": {
         "title": "evcc in your home network",
         "hint": "Fetches the charging sessions from evcc when you tap “Fetch from evcc” in the wallbox view. Only addresses in your own network. Empty = off; the CSV file from evcc always works."
+      },
+      "hosts": {
+        "title": "Host names",
+        "hint": "List the names you use to open the app. It then only answers to these names – without sign-in this protects against other websites that point their name at your address (DNS rebinding). IP addresses always work."
       }
     },
     "field": {
@@ -1464,6 +1519,10 @@
       "evcc_endpoint": {
         "label": "evcc address",
         "hint": "For example http://192.168.178.30:7070 or http://evcc.local:7070 — the address you open evcc at in the browser."
+      },
+      "allowed_hosts": {
+        "label": "Allowed host names",
+        "hint": "Comma-separated, without http:// and port, e.g. energie.example.org, *.home.arpa. The name you are using right now must be included. Empty = all names (as before). Applies together with ET_ALLOWED_HOSTS."
       }
     },
     "boolActive": "on",
@@ -1514,9 +1573,6 @@
       "importConfirmBtn": "Import",
       "importedSnap": "Backup imported. Safety snapshot: {snap}",
       "imported": "Backup imported",
-      "migrateSubhead": "📦 Migration from v0.9.0",
-      "migrateHint": "Upload an old v0.9.0 backup (JSON with <code>version: \"2.1\"</code>). The backup is analysed before writing; then you choose between <strong>Replace</strong> (overwrite everything) or <strong>Merge</strong> (add new IDs only). In both cases a safety snapshot of the current data is created automatically beforehand.",
-      "migrateBtn": "Analyse v0.9.0 backup…",
       "migrateReadError": "Error while reading: {msg}",
       "snapshotsTitle": "Stored snapshots",
       "snapshotsHint": "Snapshots are kept on the server under data/backups/. Automatic snapshots (before import, migration, demo data) are cleaned up after 30 days, keeping at least three per occasion; of your own, the last ten are kept.",
@@ -1568,7 +1624,9 @@
         "date": "invalid date in “{field}”",
         "counter": "meter reading is not a number",
         "devices": "invalid device list",
-        "entry": "invalid entry {what}"
+        "entry": "invalid entry {what}",
+        "unsafe_id": "identifier in “{field}” contains forbidden characters",
+        "id": "invalid identifier"
       },
       "attachments": {
         "one": "Receipts: {count} file, {size} MB of {max} MB – included in the backup.",
@@ -1635,7 +1693,8 @@
         "title": "Step 5 · Values back into Home Assistant",
         "intro": "REST sensors for balance, 12-month forecast and days since the last reading — into configuration.yaml. One request per hour for all sensors.",
         "keyHint": "With sign-in enabled, Home Assistant needs an API key with scope “read” (Settings → Access) to read, in secrets.yaml:"
-      }
+      },
+      "setupTitle": "Meters and templates for Home Assistant"
     },
     "diag": {
       "title": "🩺 System diagnostics",
@@ -1661,32 +1720,6 @@
       "tempStored": {
         "one": "<strong>{count}</strong> daily value stored.",
         "other": "<strong>{count}</strong> daily values stored."
-      }
-    },
-    "migrationDialog": {
-      "title": "Migration from v0.9.0",
-      "detected": "Detected <strong>v0.9.0 backup format {version}</strong>. Data has been translated to the current schema (not yet written).",
-      "whatImported": "What would be imported",
-      "readings": "Readings",
-      "contracts": "Contracts",
-      "tempSettings": "{temps} temperature days · {settings} settings keys",
-      "candidatesHint": "— model as meter swap after the import?",
-      "colUtility": "Utility",
-      "colDate": "Date",
-      "colCounter": "Reading",
-      "colComment": "Comment",
-      "candidatesNote": "After the import, model them under <em>Meters & devices → Meter swap</em> (or API: <code>POST /api/utility/{u}/meters/{id}/replace-device</code>).",
-      "howWrite": "How to write?",
-      "replaceLabel": "Replace",
-      "replaceDesc": "— existing data is deleted and replaced by the backup. <em>A safety snapshot of the current data is stored under <code>data/backups/</code> automatically beforehand.</em>",
-      "mergeLabel": "Merge",
-      "mergeDesc": "— only readings/contracts with a new ID are added. Existing data is kept. Temperature days are only added if the date does not yet exist.",
-      "import": "Import",
-      "done": "Migration OK · {total} readings written · snapshot {snapshot}",
-      "failed": "Import failed: {msg}",
-      "candidates": {
-        "one": "{count} possible meter swap detected",
-        "other": "{count} possible meter swaps detected"
       }
     },
     "gasFactors": {
@@ -1758,7 +1791,10 @@
       "keyRevokeTitle": "Revoke key?",
       "keyRevokeMsg": "Programs using the key “{name}” will lose access.",
       "keyRevoked": "Key revoked.",
-      "scopeCalendar": "calendar subscription only"
+      "scopeCalendar": "calendar subscription only",
+      "logoutEverywhere": "Sign out everywhere",
+      "logoutEverywhereTitle": "Sign out on all devices?",
+      "logoutEverywhereMsg": "All sessions of your sign-in end – on every device, including this one. API keys and the Home Assistant token stay valid."
     },
     "region": {
       "country": "Country",
@@ -1913,7 +1949,24 @@
       "add": "Add a person",
       "addButton": "Add",
       "added": "{name} can now sign in.",
-      "saved": "Saved."
+      "saved": "Saved.",
+      "anonymizeActivity": "Replace the name in the history with “former member”"
+    },
+    "securityCheck": {
+      "title": "Security check",
+      "hint": "Checks what is visible from outside and whether sign-in is set up correctly.",
+      "dataPending": "Checking access to data/…",
+      "dataOk": "The web server does not serve data/ – data and backups are only reachable through the app.",
+      "dataExposed": "<strong>The web server serves <code>data/</code>.</strong> All data and backups can be downloaded without signing in. On Apache: set <code>AllowOverride</code> to at least <code>FileInfo</code> and enable <code>mod_rewrite</code> or <code>mod_alias</code>, otherwise the rules in <code>.htaccess</code> have no effect.",
+      "proxyHeader": "Sign-in through a proxy reads the user from the first of several headers. Depending on the proxy, someone could pose as another person. Set the one header your proxy uses: <code>ET_PROXY_USER_HEADER</code> (e.g. <code>X-Forwarded-User</code>). Under Home Assistant Ingress nothing needs to be done.",
+      "openNoHosts": "The app is reachable without sign-in and without a host list. A foreign website that points its name at this address (DNS rebinding) could then read and change data. Remedy: switch sign-in on or enter the host names under Settings → Access.",
+      "adoptHost": "Use current host: {host}",
+      "adopted": "Host list saved: {host}. The app no longer answers to other names."
+    },
+    "support": {
+      "title": "Support Energietracker",
+      "text": "Energietracker is independent and open source, with no ads and no account. If it is useful to you, you can support its development – entirely voluntary, the app stays the same.",
+      "link": "Support via Buy Me a Coffee"
     }
   },
   "reminders": {
@@ -1974,7 +2027,8 @@
     "everyMonths": {
       "one": "Every month",
       "other": "Every {count} months"
-    }
+    },
+    "lastDone": "Last done {when}"
   },
   "temperatures": {
     "loading": "Loading…",
@@ -2072,6 +2126,15 @@
         "detail": {
           "one": "The contract “{provider}” ends in {days} day. Start a tariff comparison now and switch if needed.",
           "other": "The contract “{provider}” ends in {days} days. Start a tariff comparison now and switch if needed."
+        },
+        "detailCancelNoSwitch": "For the contract “{provider}” to end on {end} and not continue, notice must reach the supplier by {date}.",
+        "detailNoSwitch": {
+          "one": "The contract “{provider}” ends in {days} day. The supplier will state the prices for the time after.",
+          "other": "The contract “{provider}” ends in {days} days. The supplier will state the prices for the time after."
+        },
+        "gap": {
+          "one": "The follow-on contract “{provider}” only starts on {date} – {count} day without a contract in between.",
+          "other": "The follow-on contract “{provider}” only starts on {date} – {count} days without a contract in between."
         }
       },
       "r7": {
@@ -2091,7 +2154,10 @@
       "urgent": "No urgent recommendations — all clear.",
       "warning": "No warnings — all clear.",
       "info": "No notes — all clear."
-    }
+    },
+    "dismissUntil": "Hide until {date}",
+    "dismissUntilNamed": "Hide until {date}: {title}",
+    "dismissedUntilNamed": "“{title}” hidden until {date}"
   },
   "tariff": {
     "loading": "Loading…",
@@ -2430,25 +2496,6 @@
   "report": {
     "createdOn": "Created on {date}",
     "title": "Annual report {year}",
-    "overview": "Overview {year}",
-    "efficiencyClass": "Efficiency class · {label}",
-    "livingArea": "Living area {area} m²",
-    "efficiencyPerSource": "Efficiency per heat source (kWh/m²·a)",
-    "class": "Class {class}",
-    "noEfficiencyData": "No efficiency data.",
-    "consumptionCosts": "Consumption & costs",
-    "colUtility": "Utility",
-    "colConsumption": "Consumption",
-    "colCost": "Costs",
-    "colCo2": "CO₂",
-    "recommendations": "Recommendations",
-    "recommendationsCont": "Recommendations (cont.)",
-    "noRecommendations": "No open recommendations — everything looks good.",
-    "kpiAnnual": "Annual consumption",
-    "kpiAvgMonth": "Avg. per month",
-    "kpiTotalCost": "Total costs",
-    "kpiPeakMonth": "Peak month",
-    "kpiLowMonth": "Lowest month",
     "tableMonth": "Month",
     "tableCost": "Cost {cur}",
     "tableTemp": "avg temp",
@@ -2456,36 +2503,505 @@
     "tableWeatherAdj": "weather-adj.",
     "tableDelta": "Δ%",
     "continued": "(cont.)",
-    "meterPageTitle": "{label} {year} — {meter}",
-    "heatDemand": "Heating energy · {label}",
     "weatherNote": "Weather-adjusted: the weather effect per the heating model converted to a normal year; the month’s own deviations stay. Δ %: consumption against the expectation for this weather.",
-    "co2Avoided": "{kg} kg avoided",
-    "co2InGeneration": "included in generation",
-    "revenueValue": "Revenue {amount}",
-    "kpiRevenue": "Total revenue",
     "tableRevenue": "Revenue {cur}",
-    "certificate": "Certificate-style: {value} kWh/m²·yr (net calorific value, weather-adjusted, {area} m² usable floor area)",
     "page": {
       "subtitle": "A year at a glance — to print, file or share.",
       "open": "Open in browser",
       "note": "On the iPhone the report opens in a new tab; from there you can save or share it.",
       "pdfHeading": "PDF file",
-      "languageNote": "The PDF is created in the installation’s default language ({lang}); the print view follows this device’s language."
+      "languageNote": "The PDF is created in the language of this device ({lang}), as is the print view.",
+      "title": "{label} {year}",
+      "sentence": "{label} {year}: {value}, {pct} compared with {prev} ({prevValue}).",
+      "sentenceNoPrevious": "{label} {year}: {value}.",
+      "cost": "Costs: {amount}; average unit price {price} ct/{unit}.",
+      "costTenancy": "Costs: through the service charges of the tenancy “{label}”.",
+      "costTenancyEstimate": "Costs: through the service charges of the tenancy “{label}”; at its prices {amount}.",
+      "costNone": "Costs: no prices are stored for this utility.",
+      "coverage": {
+        "one": "Data for {count} of 12 months.",
+        "other": "Data for {count} of 12 months."
+      },
+      "estimatedNote": "Hatched bars contain estimated days.",
+      "weatherTitle": "Colder, or more used?",
+      "weather": {
+        "less": "Measured {cons}, heating degree days {hdd}. Weather-adjusted, {adj} remains: less heating, regardless of the weather.",
+        "more": "Measured {cons}, heating degree days {hdd}. Weather-adjusted, {adj} remains: more heating than the weather explains.",
+        "same": "Measured {cons}, heating degree days {hdd}. Weather-adjusted {adj}: the difference comes from the weather."
+      },
+      "efficiencyTitle": "Rating",
+      "efficiency": "Class {class}: {value} kWh per m² of living space ({area} m²) and year.",
+      "rolesTitle": "What the electricity was used for",
+      "role": {
+        "household": "Household",
+        "heat_pump": "Heat pump",
+        "ev_charger": "Wallbox"
+      },
+      "roles": "Together {total} kWh.",
+      "rolesWithPv": "Together {total} kWh, including self-consumed solar power. The wallbox is part of the household electricity.",
+      "water": {
+        "one": "That is about {liters} litres a day for {count} person.",
+        "other": "That is about {liters} litres per person and day ({count} people)."
+      },
+      "subMeter": "Of which {name}: {value} (sub-meter, included in the total of “{parent}”; the costs run through its contract).",
+      "heatPumpOutput": "{name}: {value} of heat – paid for through the heat pump’s electricity, so no separate costs.",
+      "outsideTotals": "{name}: {value} (not in the total).",
+      "tank": "Stock today: {stock} {unit}. At the usual consumption it lasts until about {until}.",
+      "tankNoRange": "Stock today: {stock} {unit}.",
+      "heatDemand": "Heating energy: {value} kWh per m² of living space ({area} m²) and year.",
+      "howToRead": "Reading the annual report"
     },
     "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself.",
     "print": {
       "open": "Open print view",
       "button": "Print / save as PDF",
       "back": "← Annual report",
-      "hint": "The report in the language and notation of the interface. “Print” puts it on paper or saves it as PDF — on the iPhone via Share → Print."
+      "hint": "The report in the language and notation of the interface. “Print” puts it on paper or saves it as PDF — on the iPhone via Share → Print.",
+      "detail": "With appendix “Figures in detail”",
+      "priority": "Priority {n}"
+    },
+    "fmt": {
+      "approx": "about {amount}",
+      "pct": "{value}%"
+    },
+    "footer": {
+      "page": "Page {page} of {pages}"
+    },
+    "section": {
+      "important": "At a glance",
+      "successes": "What paid off",
+      "successesNone": "No saving compared with {prev} can be shown for {year}. The comparison with the previous year is under “Good to know”.",
+      "goodToKnow": "Good to know",
+      "tasks": "What needs doing",
+      "tasksIntro": "Sorted by urgency, priority 1 first. Deadlines and amounts as of today ({date}).",
+      "tasksNone": "Nothing to do: no open tasks and no appointments.",
+      "tasksNoneButAgenda": "No urgent tasks. The next appointments are listed under “Deadlines and appointments”.",
+      "agenda": "Deadlines and appointments",
+      "agendaIntro": "The next twelve months and anything overdue, as of today ({date}).",
+      "agendaNone": "No deadlines or appointments in the next twelve months.",
+      "money": "Money",
+      "topicPv": "Solar power",
+      "topicHeatPump": "Heat pump",
+      "topicEv": "Charging the electric car",
+      "topicFlex": "Cheap hours",
+      "topicTenancy": "Rented home: service charges",
+      "glossary": "Short glossary",
+      "sources": "Sources",
+      "appendix": "Figures in detail",
+      "topTasks": "The most important tasks",
+      "lights": "Status",
+      "asOfToday": "As of today ({date})",
+      "contracts": "Current contracts",
+      "balances": "Bill: advance payments against costs",
+      "costsByUtility": "Costs per utility",
+      "costsByMonth": "Costs per month",
+      "estimated": "estimated",
+      "reference": "Field test average",
+      "cop": "Performance factor per month",
+      "solarShare": "of which solar",
+      "cheapShare": "Share in cheap hours",
+      "errors": "Note: some sections are missing because their data could not be read."
+    },
+    "tile": {
+      "cost": "Energy costs",
+      "consumption": "Energy use",
+      "consumptionAdjusted": "Energy use (heating weather-adjusted)",
+      "co2": "CO₂ emissions",
+      "pv": "Benefit of the solar system",
+      "vsPrevious": "{pct} compared with {prev}",
+      "noPrevious": "no comparison with {prev}",
+      "sparkNote": "Lines in the tiles: trend {from}–{to}."
+    },
+    "light": {
+      "title": {
+        "cost": "Costs",
+        "consumption": "Consumption",
+        "billing": "Bill",
+        "deadlines": "Deadlines"
+      },
+      "today": "as of today",
+      "cost": {
+        "ok": "Costs on track",
+        "warn": "Costs up",
+        "alert": "Costs clearly up",
+        "none": "No comparison"
+      },
+      "consumption": {
+        "ok": "No more used",
+        "warn": "Slightly more used",
+        "alert": "Clearly more used",
+        "none": "No comparison"
+      },
+      "billing": {
+        "ok": "Advance payments fit",
+        "warn": "Small additional payment possible",
+        "alert": "Additional payment expected",
+        "none": "No advance payments"
+      },
+      "deadlines": {
+        "ok": "No deadline soon",
+        "warn": "Deadline ahead",
+        "alert": "Deadline is urgent"
+      },
+      "noPrevious": "Comparable data for {prev} are missing.",
+      "costDetail": "{pct} compared with {prev}. Prices: {price}, quantity: {volume}.",
+      "consumptionAdjusted": "{pct} compared with {prev}, heating weather-adjusted.",
+      "consumptionRaw": "{pct} compared with {prev}.",
+      "billingDue": "{label}: an additional payment of {amount} is expected with the bill.",
+      "billingCredit": "{label}: a credit of {amount} is expected with the bill.",
+      "billingNone": "No current contract with advance payments.",
+      "deadlineNext": "Next deadline: {title} on {date}.",
+      "deadlineOverdue": "Overdue since {date}: {title}.",
+      "deadlinesNone": {
+        "one": "No deadline in the next day.",
+        "other": "No deadline in the next {days} days."
+      }
+    },
+    "euro": {
+      "saves": {
+        "year": "saves {amount} a year",
+        "once": "brings in {amount}",
+        "per100": "{amount} per 100 kWh"
+      },
+      "avoids": {
+        "once": "avoids an additional payment of {amount}"
+      },
+      "refund": {
+        "once": "{amount} credit expected"
+      },
+      "costs": {
+        "year": "costs {amount} a year",
+        "once": "cost {amount}"
+      },
+      "earned": {
+        "year": "brought {amount} in the year"
+      },
+      "basis": {
+        "measured": "measured",
+        "projected": "projected",
+        "example": "worked example"
+      }
+    },
+    "agenda": {
+      "overdue": "overdue",
+      "today": "today",
+      "inDays": {
+        "one": "in {days} day",
+        "other": "in {days} days"
+      }
+    },
+    "timeline": {
+      "start": "Start",
+      "cancel": "Notice by",
+      "price": "Price increase",
+      "end": "End",
+      "today": "today",
+      "text": "Contract since {start}. For it to end on {end}, notice must reach the supplier by {cancel}.",
+      "textOpen": "Contract since {start}, with no fixed end. With notice by {cancel}, it ends on {end}.",
+      "textNoNotice": "Contract from {start} to {end}.",
+      "textRunning": "Contract since {start}, with no fixed end."
+    },
+    "advice": {
+      "deadline": "by {date}",
+      "advance": {
+        "title": "Advance payment adjustment: {label}",
+        "reasonDue": "By the bill on {date}, a shortfall of {amount} is expected: costs are higher than the advance payments of {advance} a month.",
+        "reasonCredit": "A credit of {amount} is expected with the bill on {date}: the advance payments of {advance} a month exceed the costs.",
+        "stepRaise": "An advance payment of {new} instead of {old} a month would even this out; the supplier can change it.",
+        "stepLower": "An advance payment of {new} instead of {old} a month would be enough; the supplier can change it.",
+        "stepLowerNoAmount": "The advance payment can be lowered. The report gives no amount: the payments made already cover the costs up to the bill."
+      },
+      "advanceOk": {
+        "title": "Advance payment fits: {label}",
+        "reason": "Advance payments and costs up to the bill on {date} are close together (difference {amount})."
+      },
+      "cancel": {
+        "title": "Notice or switch: {label}",
+        "reason": "For the contract “{provider}” to end on {end}, notice must reach the supplier by {date}.",
+        "stepOffer": "With the saved offer “{offer}”, it would be {amount} less a year from the second year (without bonus).",
+        "stepPortal": "For a comparison website: annual consumption about {value} {unit}.",
+        "stepRenew": "Without notice, the contract continues."
+      },
+      "cancelMissed": {
+        "title": "Notice deadline missed: {label}",
+        "reason": "The contract “{provider}” continues; the next opportunity comes on {end}."
+      },
+      "priceIncrease": {
+        "title": "Price increase: {label}",
+        "reason": "New prices apply from {date}. {parts}",
+        "reasonWp": "The unit price rises from {old} to {new} ct/{unit}.",
+        "reasonBp": "The standing charge rises from {old} to {new} a month.",
+        "legalDe": "In Germany, a price increase gives a special right to terminate as of the day of the change (§ 41(5) EnWG)."
+      },
+      "heatingRise": {
+        "title": "Heating use up: {label}",
+        "reason": "Weather-adjusted {pct} compared with {prev}, about {kwh} kWh more.",
+        "step": "Common causes: a higher room temperature, longer ventilation, a changed heating setting."
+      },
+      "heatingFall": {
+        "title": "Less heating: {label}",
+        "reason": "Weather-adjusted {pct} compared with {prev}, about {kwh} kWh less."
+      },
+      "anomaly": {
+        "title": "Unusual month: {label}, {month}",
+        "reason": "In {month}, {actual} {unit} were used; {expected} {unit} would have been expected ({pct}).",
+        "step": "Common causes: visitors, a faulty appliance, an estimated or mistyped reading."
+      },
+      "efficiency": {
+        "title": "Efficiency class {class}: {label}",
+        "reason": "{value} kWh per m² and year – in the lower part of the scale.",
+        "step": "Starting points: hydronic balancing, heating settings, insulation. An energy advisor can say which fits."
+      },
+      "heatPumpLow": {
+        "title": "Heat pump below the field test average",
+        "reason": "Seasonal performance factor {jaz}; in the field test (Fraunhofer ISE, 2025) the air/water average was {ref}.",
+        "step": "Starting points: flow temperature, heating curve and cycling – a topic for the next service."
+      },
+      "heatPumpGood": {
+        "title": "Heat pump works efficiently",
+        "reason": "Seasonal performance factor {jaz}; in the field test (Fraunhofer ISE, 2025) the air/water average was {ref}."
+      },
+      "heatPumpOk": {
+        "title": "Heat pump in the usual range",
+        "reason": "Seasonal performance factor {jaz}, close to the field test average of {ref} for air/water."
+      },
+      "pvBenefit": {
+        "title": "Solar system",
+        "reason": "Self-consumed solar power saved {savings} in grid electricity; feed-in brought {feed}."
+      },
+      "pvSelfUse": {
+        "title": "Using more of the solar power",
+        "reason": "{pct} of the solar power was used at home; the rest went to the grid for {feed} ct/kWh.",
+        "step": "Appliances that run during the day instead of the evening (washing machine, dishwasher) shift use into the sunny hours."
+      },
+      "batteryLoss": {
+        "title": "High battery losses",
+        "reason": "Efficiency {pct}: {kwh} kWh were lost in charging and discharging.",
+        "step": "A topic for the installer: settings and standby consumption of the battery."
+      },
+      "battery": {
+        "title": "Battery",
+        "reason": "{kwh} kWh came from the battery instead of the grid."
+      },
+      "flex": {
+        "title": "Expensive hours: {name}",
+        "reason": "“{name}” tended to run in expensive hours (profile factor {pf}).",
+        "step": "Approach: scheduling it for cheap hours, such as midday or night. The amount counts only the market share of the price."
+      },
+      "module3": {
+        "title": "Time-variable grid fee (module 3)",
+        "reason": "The heat pump often ran in the low-tariff window."
+      },
+      "evSolar": {
+        "title": "Solar power in the car",
+        "reason": "{pct} of the charging power came from the own system ({kwh} kWh)."
+      },
+      "tenancy": {
+        "title": "Service charge prepayment: {label}",
+        "reasonDue": "By the end of the billing period on {date}, a shortfall of {amount} is expected.",
+        "step": "A prepayment of {new} a month would be enough – something to agree with the landlord."
+      },
+      "tenancyCredit": {
+        "title": "Service charge credit expected: {label}",
+        "reason": "A credit of {amount} is expected at the end of the billing period on {date}."
+      },
+      "tenancyOk": {
+        "title": "Prepayment fits: {label}",
+        "reason": "Prepayment and expected service charges up to {date} are close together."
+      },
+      "co2Claim": {
+        "title": "CO₂ costs from the landlord",
+        "reason": "For {year}, {amount} is due from the landlord (split under CO2KostAufG).",
+        "step": "Energietracker creates a letter for this under “Tenancy”."
+      },
+      "co2Central": {
+        "title": "CO₂ costs shared",
+        "reason": "For {year}, the landlord bears {amount} of the CO₂ costs; the service charge statement shows this."
+      },
+      "agenda": {
+        "title": "{title}",
+        "kind": {
+          "reminder": "An appointment from the Energietracker calendar.",
+          "tank_reorder": "The stock will not last much longer; a delivery needs lead time.",
+          "tenancy_statement_due": "The service charge statement is due.",
+          "objection_deadline": "Objections to the service charge statement are only possible until this deadline."
+        }
+      },
+      "readings": {
+        "title": "Meter readings due",
+        "reason": "Last reading on {date}: {meters}."
+      },
+      "bill": {
+        "title": "Bill check: {label}",
+        "reasonHigher": "The bill for {from} to {to} is {amount} above the own calculation.",
+        "reasonLower": "The bill for {from} to {to} is {amount} below the own calculation.",
+        "step": "The comparison is in Energietracker under “Check a bill”."
+      },
+      "baseline": {
+        "title": "Measure is working: {label}",
+        "reason": "Since {date} ({event}), heating needs {pct} per degree day; in a normal year that is about {kwh} kWh less."
+      },
+      "costDown": {
+        "title": "Costs down",
+        "reason": "Energy costs were {pct} compared with {prev}."
+      },
+      "neutral": {
+        "title": "Comparison with the previous year",
+        "reason": "Costs {cost}, consumption {consumption} compared with {prev}.",
+        "noPrevious": "Data for comparison with {prev} are missing."
+      },
+      "overdueSince": "overdue since {date}"
+    },
+    "money": {
+      "sentence": "Energy costs {year}: {amount}, {pct} compared with {prev}. Changed prices account for {price}, the quantity used for {volume}.",
+      "sentenceNoPrevious": "Energy costs {year}: {amount}.",
+      "revenue": "{label}: revenue {amount}.",
+      "bonus": "A bonus of {amount} was credited in {month}; costs for that month are lower as a result.",
+      "balanceDue": "Bill on {date}: an additional payment of {amount} is expected.",
+      "balanceCredit": "Bill on {date}: a credit of {amount} is expected.",
+      "balanceEven": "Bill on {date}: advance payments and costs balance out.",
+      "advanceSuggested": "Suitable advance payment: {new} instead of {old} a month.",
+      "advanceLower": "The advance payment can go down. The report gives no amount: the payments made already cover the costs up to the bill.",
+      "balanceLegend": "Line above zero: additional payment; below zero: credit. Dashed: estimate up to the bill.",
+      "forecast": "Expected costs for the next twelve months: {amount} (forecast, as of today)."
+    },
+    "topic": {
+      "pv": {
+        "generated": "Generated",
+        "autarky": "Self-sufficiency",
+        "selfRate": "Self-consumption",
+        "benefit": "Benefit",
+        "sentence": "{gen} kWh of solar power: {self} kWh used at home, {feed} kWh fed in. {grid} kWh came from the grid; the own system covered {autarky} of consumption.",
+        "nodePv": "Solar",
+        "nodeGrid": "Grid",
+        "nodeHouse": "House",
+        "nodeBattery": "Battery",
+        "monthsTitle": "Generation per month",
+        "paybackTitle": "Payback",
+        "payback": "Recovered so far: {paid} of {investment}. With the same benefit, the system will be paid off around {date} (as of today).",
+        "paybackOpen": "Recovered so far: {paid} of {investment} (as of today).",
+        "batteryTitle": "Battery",
+        "battery": "Charged {charged} kWh, discharged {discharged} kWh, about {cycles} full cycles, efficiency {eff}.",
+        "co2Avoided": "CO₂ avoided: {kg}, calculated with the CO₂ factor for electricity from the settings."
+      },
+      "heatPump": {
+        "sentence": "The heat pump turned {elec} kWh of electricity into {heat} kWh of heat: seasonal performance factor {jaz}.",
+        "reference": "Dashed line: average in the field test “WP-QS im Bestand” (Fraunhofer ISE, 2025) for air/water {air}; brine/water was {ground}."
+      },
+      "ev": {
+        "sentence": "{name}: {kwh} kWh charged.",
+        "sentenceSolar": "{name}: {kwh} kWh charged, of which {solar} kWh solar ({pct}).",
+        "cost": "Costs according to the charging record: {amount}.",
+        "subMeter": "The wallbox is a sub-meter of “{parent}”: its electricity is part of that meter’s consumption and costs. With solar power behind the house meter, it can measure more than the grid supply in summer months.",
+        "grid": "Charging power",
+        "kwh": "Charged (kWh)"
+      },
+      "flex": {
+        "sentence": "How much electricity ran in cheap hours, measured against the market prices per quarter hour.",
+        "row": "{share} cheap · profile factor {pf}",
+        "module3": "The time-variable grid fee (module 3) brought {amount}.",
+        "battery": "The battery tended to charge in cheap and discharge in expensive hours: value {amount} (market share only).",
+        "note": "Profile factor below 1: the electricity ran in cheaper hours than on average. Amounts count only the market share of the price."
+      },
+      "tenancy": {
+        "budget": "Billing period {from} to {to}: expected service charges {expected}, prepayments {prepaid}.",
+        "statementDue": "Statement {year}: additional payment of {amount}.",
+        "statementCredit": "Statement {year}: credit of {amount}.",
+        "co2Central": "CO₂ costs {year}: the landlord bears {amount}.",
+        "co2Claim": "CO₂ costs {year}: {amount} from the landlord, deadline {date}.",
+        "pathLegend": "Line above zero: additional payment expected; below zero: credit. Dashed: estimate."
+      }
+    },
+    "appendix": {
+      "total": "Total"
+    },
+    "sources": {
+      "heatPump": "Heat pump reference: field test “WP-QS im Bestand”, Fraunhofer ISE, 2025.",
+      "market": "Market electricity prices: Bundesnetzagentur | SMARD.de (CC BY 4.0).",
+      "own": "All amounts come from the own meter readings and contract prices; estimates and worked examples are marked."
+    },
+    "glossary": {
+      "heatAdjusted": {
+        "term": "Weather-adjusted",
+        "text": "Consumption converted to a year with normal weather. It shows whether more or less heating was used, regardless of how cold the winter was."
+      },
+      "hdd": {
+        "term": "Heating degree days",
+        "text": "A measure of how cold a period was: the colder, the more heating degree days."
+      },
+      "balance": {
+        "term": "Balance",
+        "text": "The difference between the cost of consumption and the advance payments made. Credit: more paid than used. Additional payment: consumption cost more."
+      },
+      "advance": {
+        "term": "Advance payment",
+        "text": "A fixed amount paid to the supplier every month. The annual bill compares it with the actual costs."
+      },
+      "profileFactor": {
+        "term": "Profile factor",
+        "text": "The own market price relative to the monthly average. Below 1, the electricity tended to run in cheap hours."
+      },
+      "module14a": {
+        "term": "Module 3 (§ 14a EnWG)",
+        "text": "Time-variable grid fee for controllable devices such as heat pumps: in certain hours the grid fee is lower."
+      },
+      "subMeter": {
+        "term": "Sub-meter",
+        "text": "A meter behind another one, for example for a wallbox or the garden. Its consumption is already in the main meter and does not count twice."
+      },
+      "prepayment": {
+        "term": "Prepayment",
+        "text": "A monthly amount paid to the landlord for heating, water and operating costs; the service charge statement settles it against the costs."
+      },
+      "co2Split": {
+        "term": "Sharing CO₂ costs",
+        "text": "In German rented homes, tenant and landlord share the CO₂ costs of heating in ten stages (CO2KostAufG)."
+      },
+      "baseline": {
+        "term": "Baseline date",
+        "text": "A date that has been entered, for example a renovation. The report compares consumption per degree day before and after."
+      },
+      "noticeDeadline": {
+        "term": "Notice deadline",
+        "text": "The last day on which notice must reach the supplier for the contract to end at the end of its term."
+      },
+      "estimated": {
+        "term": "Estimated",
+        "text": "For days without a reading, Energietracker uses an estimate based on previous consumption."
+      },
+      "efficiency": {
+        "term": "Efficiency class",
+        "text": "A rating of heating energy per square metre of living space on a scale from A+ (very good) to H, similar to an energy certificate."
+      },
+      "workingPrice": {
+        "term": "Unit price",
+        "text": "The price per unit consumed, for example cents per kWh."
+      },
+      "basePrice": {
+        "term": "Standing charge",
+        "text": "A fixed amount per month, regardless of consumption."
+      },
+      "selfConsumption": {
+        "term": "Self-consumption",
+        "text": "Solar power used in the house instead of being fed into the grid."
+      },
+      "autarky": {
+        "term": "Self-sufficiency",
+        "text": "The share of electricity consumption covered by the own system."
+      },
+      "feedIn": {
+        "term": "Feed-in",
+        "text": "Solar power that goes into the grid; it earns a feed-in payment."
+      },
+      "jaz": {
+        "term": "Seasonal performance factor",
+        "text": "How much heat a heat pump makes from one kilowatt hour of electricity, over a whole year. 3 means: 1 kWh of electricity becomes 3 kWh of heat."
+      },
+      "tankBook": {
+        "term": "Tank ledger",
+        "text": "Deliveries and stock levels of heating oil or pellets; from these, Energietracker calculates consumption and how long the stock lasts."
+      }
     }
-  },
-  "migration": {
-    "warnNoSettings": "No settings found in the backup — the defaults apply.",
-    "warnNoWater": "Version 0.9.0 had no water — the water section is created empty.",
-    "swapKeywordFound": "Keyword found in the comment",
-    "meterNote": "Created by the v0.9.0 migration",
-    "meterNoteWater": "Created by the v0.9.0 migration (v0.9.0 had no water)."
   },
   "csv": {
     "month": "Month",
@@ -2587,7 +3103,8 @@
       "hasBills": "Meter still has bills — please delete the bills first",
       "groupHasContracts": "The meter group still has contracts — please delete or reassign the group contracts first",
       "heatPumpLinkInvalid": "Meter “{id}” is not an electricity meter with the heat pump role",
-      "valueInvalid": "{field}: “{value}” is not a valid value"
+      "valueInvalid": "{field}: “{value}” is not a valid value",
+      "idInvalid": "Invalid identifier “{id}” – letters, digits, _ and - are allowed (at most 64 characters)."
     },
     "common": {
       "unknownUtility": "Unknown utility: {utility}",
@@ -2676,8 +3193,8 @@
       "timestampFormat": "Timestamp “{timestamp}” not readable — expected ISO 8601 with time zone, e.g. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
-      "noVersionField": "No backup_version field — not a valid backup",
-      "versionUnsupported": "Backup version {ver} is not directly supported. Please import it via the migration into v1.0.0 first, or use a newer backup.",
+      "noVersionField": "No backup_version field — not a valid backup. A backup from v0.9.0 can only be read by v3.3.0: import it there, then update.",
+      "versionUnsupported": "Backup version {ver} is not supported. Please use a backup in format 3.0 or newer.",
       "schemaNewer": "Backup schema {schema} is newer than the app schema {appSchema}. Please update the app first, then import the backup.",
       "invalid": "The backup is incomplete or damaged (problems: {count}). Nothing was restored.",
       "snapshotFailed": "The safety snapshot before restoring failed. Without it there is no way back. Restore anyway only with explicit consent.",
@@ -2702,13 +3219,6 @@
       "backupInvalid": "Demo backup is invalid (not JSON).",
       "personaUnknown": "There is no sample household “{persona}”."
     },
-    "migration": {
-      "noVersionField": "No “version” field in the backup — probably not a v0.9.0 backup. Expected are v0.9.0 backups with version “2.1” or older.",
-      "versionUnrecognized": "Backup version “{ver}” is not recognised. Supported are v0.9.0 backup formats: {supported}. For native v1.0.3 backups (backup_version 3.0+) please use the standard import in Settings → Backup & Restore.",
-      "invalidMode": "Invalid mode: {mode} (allowed: replace, merge)",
-      "backupMissing": "The “backup” field is missing or not an object.",
-      "translatedMissing": "The “translated” field is missing or not an object."
-    },
     "csv": {
       "notDeliveryBased": "Utility “{utility}” is not delivery-based; use the readings export."
     },
@@ -2722,7 +3232,8 @@
       "factorHalfPair": "Volume correction factor and calorific value belong together — give both, or the factor directly",
       "factorMissing": "An entry needs either volume correction factor and calorific value, or a factor in kWh/m³",
       "factorOutOfRange": "Conversion factor {value} is implausible — expected 5 to 15 kWh/m³",
-      "valueInvalid": "Invalid value “{value}” for {key}"
+      "valueInvalid": "Invalid value “{value}” for {key}",
+      "hostNotListed": "The host list must include the name you are using right now (“{host}”) – otherwise you would lock yourself out."
     },
     "billCheck": {
       "gasOnly": "Bill verification is only available for gas",
@@ -2732,7 +3243,9 @@
     "http": {
       "crossSite": "Rejected: the request came from another website. Changes can only be made from within Energietracker.",
       "internal": "Internal error ({id}). The details are in the server log.",
-      "hostNotAllowed": "The host name “{host}” is not allowed (ET_ALLOWED_HOSTS)."
+      "hostNotAllowed": "The host name “{host}” is not allowed (Settings → Access → Host names or ET_ALLOWED_HOSTS).",
+      "tooLarge": "The request is too large (at most {max} MB).",
+      "busy": "Another write is in progress. Please try again in a few seconds."
     },
     "storage": {
       "dataTooNew": "The data comes from a newer version (schema {schema}). This version only knows schema {app} and writes nothing so as not to damage it. Please start the newer version again.",
@@ -2854,6 +3367,17 @@
     },
     "flexibility": {
       "yearInvalid": "Invalid year: {year}."
+    },
+    "docs": {
+      "notFound": "This page is not part of the handbook of this version."
+    },
+    "activity": {
+      "notFound": "History entry not found.",
+      "eventNotFound": "This notice does not exist (any more): {uid}",
+      "notManual": "This notice clears itself – with a new meter reading or a recorded statement. It cannot be ticked off.",
+      "occurrenceChanged": "The notice has changed in the meantime (a new contract end, for example). Please reload the page.",
+      "dateInvalid": "“{value}” is not a valid day. Expected: YYYY-MM-DD, not in the future.",
+      "noteInvalid": "The note can be at most {max} characters long."
     }
   },
   "login": {
@@ -2914,7 +3438,16 @@
       "other": "{count} days left"
     },
     "advance": "Advance payment {amount} per month",
-    "expected": "Expected on {date}:"
+    "expected": "Expected on {date}:",
+    "successor": "Follow-on contract {provider} from {date}",
+    "successorUnnamed": "Follow-on contract from {date}",
+    "successorGap": {
+      "one": "Follow-on contract only from {date} – a gap of {count} day",
+      "other": "Follow-on contract only from {date} – a gap of {count} days"
+    },
+    "history": "History ({count})",
+    "historyTitle": "History: {name}",
+    "anytime": "Can be cancelled any time"
   },
   "billCheck": {
     "noMeter": "The bill check recalculates the annual bill for gas, electricity, water and district heating. Set up a meter first.",
@@ -2945,7 +3478,13 @@
       "co2Cost": "CO₂ cost on the bill",
       "attach": "Attach bill (PDF or photo)",
       "save": "Save bill",
-      "update": "Save changes"
+      "update": "Save changes",
+      "capture": "Record the supplier’s bill (optional)",
+      "captured": {
+        "one": "{count} recorded",
+        "other": "{count} recorded"
+      },
+      "period": "Period as above: {from} to {to} (inclusive)."
     },
     "saved": "Bill saved",
     "book": "Book as special payment",
@@ -2975,7 +3514,8 @@
     "ownTotalOnly": "Recalculated: {total}",
     "updated": "Bill updated",
     "editing": "You are editing the bill from {from} to {to}.",
-    "editBookedNote": "It is already booked as a special payment – the booking in the contract does not change with it."
+    "editBookedNote": "It is already booked as a special payment – the booking in the contract does not change with it.",
+    "periodDefault": "Pre-filled with the last completed billing period. The settlement date per utility is set under Settings → Utilities & billing."
   },
   "glossary": {
     "hdd": {
@@ -3172,14 +3712,15 @@
     "docs": {
       "title": "Documentation",
       "start": "Getting started",
-      "compendium": "Handbook and methodology",
       "glossary": "Glossary and formulas",
       "homeAssistant": "Connect Home Assistant",
-      "englishOnly": "The documentation exists in German and English; the links lead to the English version.",
+      "englishOnly": "The handbook exists in German and English; for your language the app shows the English version.",
       "faq": "Frequently asked questions",
       "troubleshoot": "Troubleshooting",
       "setup": "Setup, example households and levels",
-      "useCases": "Use cases"
+      "useCases": "Use cases",
+      "open": "Open the handbook",
+      "local": "The handbook lives on your server and matches version {version} – it opens without internet access too."
     },
     "support": {
       "title": "Questions and bugs",
@@ -3206,7 +3747,33 @@
         "title": "Simple first, everything later",
         "text": "The level at the top next to day/night decides how much you see: beginners get three answers on the overview, the experienced level adds tariff switch, bill check and analyses, experts see everything. Everything is calculated at every level – you can switch at any time. To try it out, the setup assistant loads an example household that fits you."
       },
-      "tryExample": "Try an example household"
+      "tryExample": "Try an example household",
+      "more": "Read more in the handbook",
+      "sharedMeters": {
+        "title": "Shared flat with shared meters",
+        "text": "One shared main meter plus a meter of its own for a room or a device: create the second one as a sub-meter of the main meter. The app deducts it from the main meter – the total stays correct, and the share for splitting the costs appears as a figure of its own. The contract belongs to the main meter."
+      },
+      "homeAssistant": {
+        "title": "Smart home with Home Assistant",
+        "text": "Home Assistant already reads your meters? Then it sends the readings to the Energietracker every evening: create an API token in the settings, give each meter an alias, paste the ready-made template into Home Assistant. A second value on the same day replaces the first instead of doubling it."
+      },
+      "pvHeatPump": {
+        "title": "Solar household with a heat pump",
+        "text": "Feed-in and generation as utilities of their own, the heat pump as a sub-meter of the grid connection: the app shows the electricity balance, self-sufficiency and self-consumption, plus the heat pump’s electricity without doubling the total. A heat meter adds the seasonal performance factor, charging and discharging meters add the battery."
+      },
+      "landlord": {
+        "title": "Landlord with several units",
+        "text": "A meter with its own contract for each flat and utility: the consumption view shows every meter with consumption, costs and balance, the overview the total per utility. Several meters of the same utility in one flat form a group, if you like with one contract for the whole group. The app does not prepare service charge statements for tenants."
+      },
+      "wallbox": {
+        "title": "Wallbox and company car",
+        "text": "The wallbox as a sub-meter of the grid connection with the role “Wallbox (EV charger)”, read monthly – by hand, via Home Assistant or with the charging sessions from evcc. Its consumption view shows the charging record for the employer: contract price with a share of the standing charge or a flat rate, as CSV or PDF. The total stays correct."
+      }
+    },
+    "doc": {
+      "handbook": "Handbook",
+      "toc": "Contents",
+      "language": "Language of the handbook"
     }
   },
   "onboarding": {
@@ -3750,11 +4317,43 @@
     },
     "energy": {
       "title": "Energy flow in the house",
-      "pv": "Solar",
-      "house": "House",
-      "grid": "Grid",
-      "battery": "Battery",
-      "text": "{year}: The system produced {gen} kWh. The house used {self} kWh of it itself, {feed} kWh went to the grid, {grid} kWh came from the grid. Self-sufficiency: {autarky}."
+      "text": "{period}: the solar system delivered {gen}, of which {feed} went to the grid. The house needed {house}; {grid} of it came from the grid. Self-sufficiency: {autarky}.",
+      "node": {
+        "pv": "Solar",
+        "grid": "Grid",
+        "battery": "Battery",
+        "house": "House",
+        "heatPump": "Heat pump",
+        "wallbox": "Wallbox",
+        "other": "Other"
+      },
+      "textBattery": "The battery took in {in} and gave back {out}.",
+      "textGridCharge": "The grid charged {kwh} into the battery (the arc above the solar line); that counts as grid power.",
+      "textDevices": "Of this: {list}.",
+      "calc": "(calculated)",
+      "calcNote": "Dashed: calculated from monthly totals, not measured.",
+      "assumedNote": "Feed-in is assumed: there is no feed-in meter.",
+      "flowItem": "{from} → {to}: {value}",
+      "detail": "{node}: {flows}",
+      "chip": {
+        "pv": "Solar: {value}, {share} used yourself",
+        "house": "House: {value}, {autarky} self-sufficient",
+        "battery": "Battery: {in} charged, {out} discharged",
+        "grid": "Grid: {in} drawn, {out} fed in"
+      },
+      "chipsGroup": "Highlight a node",
+      "scope": {
+        "year": "Year",
+        "month": "Month"
+      },
+      "periodGroup": "Period",
+      "prev": "Earlier period",
+      "next": "Later period",
+      "yearPart": "{year} ({span})",
+      "months": {
+        "one": "{count} month",
+        "other": "{count} months"
+      }
     },
     "weather": {
       "title": "Colder, or used more?",
@@ -3777,9 +4376,29 @@
       "end": "End",
       "today": "today",
       "text": "Contract since {start}. To switch, cancel by {cancel}; it then ends on {end}.",
-      "textOpen": "Contract since {start}; it runs on until you cancel. Cancelled by {cancel} at the latest, it ends on {end}.",
       "textNoNotice": "Contract since {start}, end: {end}.",
-      "textRunning": "Contract since {start}; it runs on until you cancel. No notice period has been entered."
+      "textRunning": "Contract since {start}; it runs on until you cancel. No notice period has been entered.",
+      "termEnd": "Term ended",
+      "minTerm": "Minimum term ends",
+      "guarantee": "Price guaranteed until",
+      "missed": "Deadline missed",
+      "earliest": "Earliest end",
+      "successor": "Next contract",
+      "anytime": "cancel any time",
+      "textMissed": "Contract since {start}. The deadline to cancel passed on {cancel}; without cancellation it runs on after {end}.",
+      "textNoRenew": "Contract since {start}; it ends on {end} without you having to cancel.",
+      "textRenewed": "Contract since {start}. Its term ended on {term}; since then it has been running on and can be cancelled at any time — cancelled today, it ends on {end} at the earliest.",
+      "textAnytime": "Contract since {start}; it runs on until you cancel. You can cancel at any time — cancelled today, it ends on {end} at the earliest.",
+      "textMinTerm": "Contract since {start}, with a minimum term: cancelled today, it ends on {end} at the earliest.",
+      "textMinTermUntil": "The minimum term ends on {date}.",
+      "textGuarantee": "Prices are guaranteed until {date}.",
+      "textPrice": "Prices rise from {date}.",
+      "textSuccessor": "From {start} it is followed by the contract with {provider}.",
+      "textSuccessorPlain": "A new contract follows from {start}.",
+      "gap": {
+        "one": "In between there is {count} day without a contract.",
+        "other": "In between there are {count} days without a contract."
+      }
     }
   },
   "setup": {
@@ -3956,5 +4575,108 @@
         "smard": "SMARD"
       }
     }
+  },
+  "pager": {
+    "label": "List pages",
+    "prev": "Previous",
+    "next": "Next",
+    "range": "{from}–{to} of {total}",
+    "size": "Rows per page"
+  },
+  "activity": {
+    "reason": {
+      "successor": "Follow-on contract {provider} from {date}",
+      "reading": "Meter reading of {date} recorded",
+      "delivery": "Delivery of {date} recorded",
+      "statement": "Statement up to {date} recorded",
+      "dismissed": "hidden until {date}"
+    },
+    "markDone": "Mark as done",
+    "markDoneNamed": "Done: {title}",
+    "dialog": {
+      "title": "Mark as done",
+      "date": "Done on",
+      "note": "Note (optional)",
+      "attachment": "Receipt (optional, photo or PDF)",
+      "cancelled": "Cancelled – the contract does not renew",
+      "save": "Done",
+      "dateInvalid": "Please choose a day up to today."
+    },
+    "toast": {
+      "done": "“{title}” done",
+      "undone": "“{title}” is open again",
+      "error": "Error: {msg}"
+    },
+    "by": {
+      "former": "former member",
+      "key": "API key “{name}”",
+      "auto": "automatically"
+    },
+    "on": "on {date}",
+    "onBy": "on {date} by {by}",
+    "onAuto": "on {date}, automatically",
+    "title": "Done",
+    "subtitle": "What was done – by whom and when. Automatic entries state their reason.",
+    "loadError": "The history could not be loaded: {msg}",
+    "manage": {
+      "button": "Manage history",
+      "title": "Manage history",
+      "keep": "Keep (months, 0 = unlimited)",
+      "keepHint": "Older entries drop out with the next entry.",
+      "keepInvalid": "Please enter a whole number from 0 to 1200.",
+      "saved": "Retention saved",
+      "clearTitle": "Clear history",
+      "before": "Entries done before (empty = all)",
+      "clearHint": "Deleted is deleted – a snapshot under Settings → Data gives you a way back.",
+      "clear": "Clear",
+      "confirmBefore": "Delete all entries done before {date}?",
+      "confirmAll": "Delete the entire history?",
+      "cleared": {
+        "one": "{count} entry deleted",
+        "other": "{count} entries deleted"
+      }
+    },
+    "filter": {
+      "label": "Filter history",
+      "person": "Person",
+      "everyone": "Everyone",
+      "period": "Period",
+      "area": "Area"
+    },
+    "period": {
+      "all": "Entire history",
+      "m3": "Last 3 months",
+      "m12": "Last 12 months",
+      "thisYear": "This year",
+      "lastYear": "Last year"
+    },
+    "area": {
+      "all": "All areas",
+      "reminders": "Reminders",
+      "contracts": "Contracts",
+      "readings": "Meter readings",
+      "tank": "Tank and store",
+      "tenancy": "Tenancy",
+      "recommendations": "Recommendations"
+    },
+    "empty": "Nothing done yet. Tick off notices under “To do” on the overview or among the reminders – follow-on contracts, meter readings and deliveries add themselves.",
+    "emptyFiltered": "There are no entries for this selection.",
+    "count": {
+      "one": "({count} entry)",
+      "other": "({count} entries)"
+    },
+    "action": {
+      "auto": "automatic",
+      "dismissed": "hidden"
+    },
+    "attachment": "Receipt",
+    "undoneLine": "Undone {when}",
+    "undoNamed": "Undo: {title}",
+    "note": {
+      "edit": "Edit note",
+      "editNamed": "Edit note: {title}",
+      "saved": "Note saved"
+    },
+    "reasonLine": "Reason: {reason}"
   }
 }

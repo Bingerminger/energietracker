@@ -224,48 +224,48 @@ async function openTenancyModal(ten, utilities, done) {
   ]);
   const ids = ten?.meter_ids || { heat: [], warm_water: [], cold_water: [] };
   const meterBoxes = (role, meters) => meters.length
-    ? meters.map(m => `<label class="settings-field__check"><input type="checkbox" data-meter-role="${role}" value="${esc(m.id)}" ${(ids[role] || []).includes(m.id) ? 'checked' : ''}> ${esc(m.name)}</label>`).join('')
+    ? `<div class="check-grid">${meters.map(m => `<label class="check"><input type="checkbox" data-meter-role="${role}" value="${esc(m.id)}" ${(ids[role] || []).includes(m.id) ? 'checked' : ''}> ${esc(m.name)}</label>`).join('')}</div>`
     : `<span class="muted small">${t('tenancy.form.noMeters')}</span>`;
   const rowsHtml = (kind, list) => (list || []).map(e => datedRow(kind, e)).join('');
+  // v3.4.0 (N1021) — Formularraster und Feldgruppen wie im Vertrag; „+ Zeile"
+  // rechts im Kopf jeder Gruppe statt als Balken über die volle Breite
+  const listGroup = (kind, legend, hint) => `<fieldset class="fgroup"><legend>${legend}</legend>
+        <button type="button" class="btn btn--ghost btn--sm fgroup__add" data-add-row="${kind}">${t('tenancy.form.addRow')}</button>
+        ${hint ? `<p class="fgroup__hint">${hint}</p>` : ''}
+        <div class="rowlist ${DATED_COLS[kind]}" data-rows="${kind}">${rowsHtml(kind, kind === 'prepayment' ? ten?.prepayments : kind === 'price' ? ten?.prices : ten?.fixed_costs)}</div>
+      </fieldset>`;
   const body = `
     <form id="ten-form">
-      <div class="form-row">
-        <div class="field"><label for="tf-label">${t('tenancy.field.label')}</label><input class="input input--text" id="tf-label" name="label" maxlength="120" value="${esc(ten?.label || '')}"></div>
-        <div class="field"><label for="tf-landlord">${t('tenancy.field.landlord')}</label><input class="input input--text" id="tf-landlord" name="landlord" maxlength="120" value="${esc(ten?.landlord || '')}"></div>
-        <div class="field"><label for="tf-area">${t('tenancy.field.area')}</label><input class="input" id="tf-area" name="wohnflaeche_m2" type="text" inputmode="decimal" placeholder="${esc(t('tenancy.field.areaPlaceholder'))}" value="${esc(formatForInput(ten?.wohnflaeche_m2))}"></div>
+      <div class="fgrid">
+        <div class="field field--m"><label for="tf-label">${t('tenancy.field.label')}</label><input class="input input--text" id="tf-label" name="label" maxlength="120" value="${esc(ten?.label || '')}"></div>
+        <div class="field field--m"><label for="tf-landlord">${t('tenancy.field.landlord')}</label><input class="input input--text" id="tf-landlord" name="landlord" maxlength="120" value="${esc(ten?.landlord || '')}"></div>
+        <div class="field field--s"><label for="tf-area">${t('tenancy.field.area')}</label><input class="input" id="tf-area" name="wohnflaeche_m2" type="text" inputmode="decimal" placeholder="${esc(t('tenancy.field.areaPlaceholder'))}" value="${esc(formatForInput(ten?.wohnflaeche_m2))}"></div>
+        <div class="field field--s"><label for="tf-start">${t('tenancy.field.start')}</label><input class="input" id="tf-start" name="start" type="date" required value="${esc(ten?.start || todayIso())}"></div>
+        <div class="field field--s"><label for="tf-end">${t('tenancy.field.end')}</label><input class="input" id="tf-end" name="end" type="date" value="${esc(ten?.end || '')}"></div>
+        <div class="field field--s"><label for="tf-anchor">${t('tenancy.field.anchor')}</label><input class="input" id="tf-anchor" name="billing_anchor" type="text" placeholder="${esc(t('settings.placeholder.dayMonth'))}" value="${esc(ddmm(ten?.billing_anchor || '01-01'))}"></div>
       </div>
-      <div class="form-row">
-        <div class="field"><label for="tf-start">${t('tenancy.field.start')}</label><input class="input" id="tf-start" name="start" type="date" required value="${esc(ten?.start || todayIso())}"></div>
-        <div class="field"><label for="tf-end">${t('tenancy.field.end')}</label><input class="input" id="tf-end" name="end" type="date" value="${esc(ten?.end || '')}"></div>
-        <div class="field"><label for="tf-anchor">${t('tenancy.field.anchor')}</label><input class="input" id="tf-anchor" name="billing_anchor" type="text" placeholder="${esc(t('settings.placeholder.dayMonth'))}" value="${esc(ddmm(ten?.billing_anchor || '01-01'))}"></div>
+      ${listGroup('prepayment', `${t('tenancy.field.prepayments')}${info('prepayment')}`, '')}
+      ${listGroup('price', t('tenancy.field.prices'), t('tenancy.form.pricesHint'))}
+      ${listGroup('fixed', t('tenancy.field.fixedCosts'), t('tenancy.form.fixedHint'))}
+      <fieldset class="fgroup"><legend>${t('tenancy.field.meters')}</legend>
+        <div class="fgrid">
+          <div class="field field--full"><span class="label">${t('tenancy.meters.heat')}</span>${meterBoxes('heat', heatMeters)}</div>
+          <div class="field field--full"><span class="label">${t('tenancy.meters.warm_water')}</span>${meterBoxes('warm_water', waterMeters)}</div>
+          <div class="field field--full"><span class="label">${t('tenancy.meters.cold_water')}</span>${meterBoxes('cold_water', waterMeters)}</div>
+        </div>
+      </fieldset>
+      <fieldset class="fgroup"><legend>${t('co2split.form.title')}</legend>
+        <div class="fgrid">
+          <div class="field field--full"><label class="check"><input type="checkbox" name="co2_own_appliances" ${ten?.co2_own_appliances ? 'checked' : ''}> ${t('co2split.form.ownAppliances')}</label></div>
+          <div class="field"><label for="tf-co2r">${t('co2split.form.restriction')}</label>
+            <select class="input" id="tf-co2r" name="co2_restriction">
+              ${['none', 'one', 'both'].map(v => `<option value="${v}" ${(ten?.co2_restriction || 'none') === v ? 'selected' : ''}>${esc(t('co2split.form.restrictions.' + v))}</option>`).join('')}
+            </select></div>
+        </div>
+      </fieldset>
+      <div class="fgrid">
+        <div class="field field--full"><label for="tf-notes">${t('tenancy.field.notes')}</label><textarea class="input input--text" id="tf-notes" name="notes">${esc(ten?.notes || '')}</textarea></div>
       </div>
-      <fieldset class="field"><legend>${t('tenancy.field.prepayments')}${info('prepayment')}</legend>
-        <div data-rows="prepayment">${rowsHtml('prepayment', ten?.prepayments)}</div>
-        <button type="button" class="btn btn--ghost btn--sm" data-add-row="prepayment">${t('tenancy.form.addRow')}</button>
-      </fieldset>
-      <fieldset class="field"><legend>${t('tenancy.field.prices')}</legend>
-        <p class="muted small">${t('tenancy.form.pricesHint')}</p>
-        <div data-rows="price">${rowsHtml('price', ten?.prices)}</div>
-        <button type="button" class="btn btn--ghost btn--sm" data-add-row="price">${t('tenancy.form.addRow')}</button>
-      </fieldset>
-      <fieldset class="field"><legend>${t('tenancy.field.fixedCosts')}</legend>
-        <p class="muted small">${t('tenancy.form.fixedHint')}</p>
-        <div data-rows="fixed">${rowsHtml('fixed', ten?.fixed_costs)}</div>
-        <button type="button" class="btn btn--ghost btn--sm" data-add-row="fixed">${t('tenancy.form.addRow')}</button>
-      </fieldset>
-      <fieldset class="field"><legend>${t('tenancy.field.meters')}</legend>
-        <div class="field"><strong>${t('tenancy.meters.heat')}</strong> ${meterBoxes('heat', heatMeters)}</div>
-        <div class="field"><strong>${t('tenancy.meters.warm_water')}</strong> ${meterBoxes('warm_water', waterMeters)}</div>
-        <div class="field"><strong>${t('tenancy.meters.cold_water')}</strong> ${meterBoxes('cold_water', waterMeters)}</div>
-      </fieldset>
-      <fieldset class="field"><legend>${t('co2split.form.title')}</legend>
-        <label class="settings-field__check"><input type="checkbox" name="co2_own_appliances" ${ten?.co2_own_appliances ? 'checked' : ''}> ${t('co2split.form.ownAppliances')}</label>
-        <div class="field"><label for="tf-co2r">${t('co2split.form.restriction')}</label>
-          <select class="input" id="tf-co2r" name="co2_restriction">
-            ${['none', 'one', 'both'].map(v => `<option value="${v}" ${(ten?.co2_restriction || 'none') === v ? 'selected' : ''}>${esc(t('co2split.form.restrictions.' + v))}</option>`).join('')}
-          </select></div>
-      </fieldset>
-      <div class="field"><label for="tf-notes">${t('tenancy.field.notes')}</label><textarea class="input input--text" id="tf-notes" name="notes">${esc(ten?.notes || '')}</textarea></div>
     </form>`;
   openModal({
     title: ten ? t('tenancy.form.titleEdit') : t('tenancy.form.titleNew'),
@@ -317,6 +317,9 @@ async function openTenancyModal(ten, utilities, done) {
   });
 }
 
+// v3.4.0 (N1021) — Spaltenfolge je Liste im gemeinsamen Zeilenraster
+const DATED_COLS = { prepayment: 'rowlist--three', price: 'rowlist--four', fixed: 'rowlist--fixed' };
+
 /** Eine Zeile einer datierten Liste (Vorauszahlung, Preise, Umlagen). */
 function datedRow(kind, e = {}) {
   const num = (name, label, v) => `<div class="field"><label>${label}</label><input class="input" data-f="${name}" type="text" inputmode="decimal" autocomplete="off" value="${esc(formatForInput(v))}"></div>`;
@@ -330,10 +333,10 @@ function datedRow(kind, e = {}) {
     fixed: `<div class="field"><label>${t('tenancy.form.fixedLabel')}</label><input class="input input--text" data-f="label" type="text" maxlength="120" value="${esc(e.label || '')}"></div>`
       + num('eur_per_year', t('tenancy.form.perYear'), e.eur_per_year),
   }[kind];
-  return `<div class="form-row dated-row" data-kind="${kind}">
+  return `<div class="rowlist__row dated-row" data-kind="${kind}">
     <div class="field"><label>${t('tenancy.form.from')}</label><input class="input" data-f="from" type="date" value="${esc(e.from || '')}"></div>
     ${cells}
-    <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn btn--ghost btn--sm" data-del-row aria-label="${esc(t('tenancy.form.removeRow'))}">✕</button></div>
+    <button type="button" class="btn btn--danger btn--icon rowlist__del" data-del-row title="${esc(t('tenancy.form.removeRow'))}" aria-label="${esc(t('tenancy.form.removeRow'))}"><span aria-hidden="true">×</span></button>
   </div>`;
 }
 
@@ -365,62 +368,59 @@ function collectRows(root, kind) {
 // ── Abrechnung erfassen ──────────────────────────────────────────────
 
 function openStatementModal(ten, st, done) {
-  const posRow = (p = {}) => `<div class="form-row dated-row pos-row">
+  // v3.4.0 (N1021) — Bezeichnung | Kategorie | Betrag | Verbrauch | ✕
+  const posRow = (p = {}) => `<div class="rowlist__row dated-row pos-row">
     <div class="field"><label>${t('tenancy.statement.posLabel')}</label><input class="input input--text" data-p="label" type="text" maxlength="120" value="${esc(p.label || '')}"></div>
     <div class="field"><label>${t('tenancy.statement.posCategory')}</label><select class="input" data-p="category">
       ${CATEGORIES.map(c => `<option value="${c}" ${c === (p.category || 'other') ? 'selected' : ''}>${esc(t('tenancy.category.' + c))}</option>`).join('')}
     </select></div>
     <div class="field"><label>${t('tenancy.statement.posAmount')}</label><input class="input" data-p="amount_eur" type="text" inputmode="decimal" value="${esc(formatForInput(p.amount_eur))}"></div>
     <div class="field"><label>${t('tenancy.statement.posConsumption')}</label><input class="input" data-p="consumption" type="text" inputmode="decimal" value="${esc(formatForInput(p.consumption))}"></div>
-    <div class="field" style="display:flex;align-items:flex-end"><button type="button" class="btn btn--ghost btn--sm" data-del-row aria-label="${esc(t('tenancy.form.removeRow'))}">✕</button></div>
+    <button type="button" class="btn btn--danger btn--icon rowlist__del" data-del-row title="${esc(t('tenancy.form.removeRow'))}" aria-label="${esc(t('tenancy.form.removeRow'))}"><span aria-hidden="true">×</span></button>
   </div>`;
   let attachments = [...(st?.attachment_ids || [])];
   const body = `
     <form id="st-form">
-      <div class="form-row">
-        <div class="field"><label for="sf-from">${t('tenancy.statement.from')}</label><input class="input" id="sf-from" name="period_from" type="date" required value="${esc(st?.period_from || '')}"></div>
-        <div class="field"><label for="sf-to">${t('tenancy.statement.to')}</label><input class="input" id="sf-to" name="period_to" type="date" required value="${esc(st?.period_to || '')}"></div>
-        <div class="field"><label for="sf-received">${t('tenancy.statement.received')}</label><input class="input" id="sf-received" name="received_on" type="date" value="${esc(st?.received_on || '')}"></div>
+      <div class="fgrid">
+        <div class="field field--s"><label for="sf-from">${t('tenancy.statement.from')}</label><input class="input" id="sf-from" name="period_from" type="date" required value="${esc(st?.period_from || '')}"></div>
+        <div class="field field--s"><label for="sf-to">${t('tenancy.statement.to')}</label><input class="input" id="sf-to" name="period_to" type="date" required value="${esc(st?.period_to || '')}"></div>
+        <div class="field field--s"><label for="sf-received">${t('tenancy.statement.received')}</label><input class="input" id="sf-received" name="received_on" type="date" value="${esc(st?.received_on || '')}"></div>
+        <div class="field field--s"><label for="sf-total">${t('tenancy.statement.total')}</label><input class="input" id="sf-total" name="total_cost_eur" type="text" inputmode="decimal" required value="${esc(formatForInput(st?.total_cost_eur))}"></div>
+        <div class="field field--s"><label for="sf-prepaid">${t('tenancy.statement.prepaid')}</label><input class="input" id="sf-prepaid" name="prepaid_eur" type="text" inputmode="decimal" required value="${esc(formatForInput(st?.prepaid_eur))}"></div>
+        <div class="field field--s field--new"><label for="sf-heat">${t('tenancy.statement.heatKwh')}</label><input class="input" id="sf-heat" name="heat_kwh" type="text" inputmode="decimal" value="${esc(formatForInput(st?.heat?.consumption))}"></div>
+        <div class="field field--s"><label for="sf-heatcost">${t('tenancy.statement.heatCost')}</label><input class="input" id="sf-heatcost" name="heat_cost" type="text" inputmode="decimal" value="${esc(formatForInput(st?.heat?.cost_eur))}"></div>
       </div>
-      <div class="form-row">
-        <div class="field"><label for="sf-total">${t('tenancy.statement.total')}</label><input class="input" id="sf-total" name="total_cost_eur" type="text" inputmode="decimal" required value="${esc(formatForInput(st?.total_cost_eur))}"></div>
-        <div class="field"><label for="sf-prepaid">${t('tenancy.statement.prepaid')}</label><input class="input" id="sf-prepaid" name="prepaid_eur" type="text" inputmode="decimal" required value="${esc(formatForInput(st?.prepaid_eur))}"></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label for="sf-heat">${t('tenancy.statement.heatKwh')}</label><input class="input" id="sf-heat" name="heat_kwh" type="text" inputmode="decimal" value="${esc(formatForInput(st?.heat?.consumption))}"></div>
-        <div class="field"><label for="sf-heatcost">${t('tenancy.statement.heatCost')}</label><input class="input" id="sf-heatcost" name="heat_cost" type="text" inputmode="decimal" value="${esc(formatForInput(st?.heat?.cost_eur))}"></div>
-      </div>
-      <fieldset class="field"><legend>${t('tenancy.statement.positions')}</legend>
-        <p class="muted small">${t('tenancy.statement.positionsHint')}</p>
-        <div data-pos>${(st?.positions || []).map(posRow).join('')}</div>
-        <button type="button" class="btn btn--ghost btn--sm" data-add-pos>${t('tenancy.form.addRow')}</button>
+      <fieldset class="fgroup"><legend>${t('tenancy.statement.positions')}</legend>
+        <button type="button" class="btn btn--ghost btn--sm fgroup__add" data-add-pos>${t('tenancy.form.addRow')}</button>
+        <p class="fgroup__hint">${t('tenancy.statement.positionsHint')}</p>
+        <div class="rowlist rowlist--pos" data-pos>${(st?.positions || []).map(posRow).join('')}</div>
       </fieldset>
-      <fieldset class="field"><legend>${t('co2split.statement.title')}</legend>
-        <div class="form-row">
-          <div class="field"><label for="sf-co2-kg">${t('co2split.statement.emissions')}</label><input class="input" id="sf-co2-kg" name="co2_emissions" type="text" inputmode="decimal" value="${esc(formatForInput(st?.co2?.emissions_kg))}"></div>
-          <div class="field"><label for="sf-co2-eur">${t('co2split.statement.cost')}</label><input class="input" id="sf-co2-eur" name="co2_cost" type="text" inputmode="decimal" value="${esc(formatForInput(st?.co2?.cost_eur))}"></div>
-        </div>
-        <div class="form-row">
-          <div class="field"><label for="sf-co2-stage">${t('co2split.statement.stage')}</label><input class="input" id="sf-co2-stage" name="co2_stage" type="text" inputmode="numeric" value="${esc(st?.co2?.stage ?? '')}"></div>
-          <div class="field"><label for="sf-co2-share">${t('co2split.statement.share')}</label><input class="input" id="sf-co2-share" name="co2_share" type="text" inputmode="numeric" value="${esc(st?.co2?.landlord_share_pct ?? '')}"></div>
-          <div class="field"><label for="sf-co2-amount">${t('co2split.statement.amount')}</label><input class="input" id="sf-co2-amount" name="co2_amount" type="text" inputmode="decimal" value="${esc(formatForInput(st?.co2?.landlord_amount_eur))}"></div>
+      <fieldset class="fgroup"><legend>${t('co2split.statement.title')}</legend>
+        <div class="fgrid">
+          <div class="field field--s"><label for="sf-co2-kg">${t('co2split.statement.emissions')}</label><input class="input" id="sf-co2-kg" name="co2_emissions" type="text" inputmode="decimal" value="${esc(formatForInput(st?.co2?.emissions_kg))}"></div>
+          <div class="field field--s"><label for="sf-co2-eur">${t('co2split.statement.cost')}</label><input class="input" id="sf-co2-eur" name="co2_cost" type="text" inputmode="decimal" value="${esc(formatForInput(st?.co2?.cost_eur))}"></div>
+          <div class="field field--s field--new"><label for="sf-co2-stage">${t('co2split.statement.stage')}</label><input class="input" id="sf-co2-stage" name="co2_stage" type="text" inputmode="numeric" value="${esc(st?.co2?.stage ?? '')}"></div>
+          <div class="field field--s"><label for="sf-co2-share">${t('co2split.statement.share')}</label><input class="input" id="sf-co2-share" name="co2_share" type="text" inputmode="numeric" value="${esc(st?.co2?.landlord_share_pct ?? '')}"></div>
+          <div class="field field--s"><label for="sf-co2-amount">${t('co2split.statement.amount')}</label><input class="input" id="sf-co2-amount" name="co2_amount" type="text" inputmode="decimal" value="${esc(formatForInput(st?.co2?.landlord_amount_eur))}"></div>
         </div>
       </fieldset>
-      <fieldset class="field"><legend>${t('tenancy.statement.newPrepayment')}</legend>
-        <div class="form-row">
-          <div class="field"><label for="sf-np-from">${t('tenancy.form.from')}</label><input class="input" id="sf-np-from" name="np_from" type="date" value="${esc(st?.new_prepayment?.from || '')}"></div>
-          <div class="field"><label for="sf-np-h">${t('tenancy.form.heatingMonth')}</label><input class="input" id="sf-np-h" name="np_heating" type="text" inputmode="decimal" value="${esc(formatForInput(st?.new_prepayment?.heating_eur_month))}"></div>
-          <div class="field"><label for="sf-np-o">${t('tenancy.form.operatingMonth')}</label><input class="input" id="sf-np-o" name="np_operating" type="text" inputmode="decimal" value="${esc(formatForInput(st?.new_prepayment?.operating_eur_month))}"></div>
+      <fieldset class="fgroup"><legend>${t('tenancy.statement.newPrepayment')}</legend>
+        <div class="fgrid">
+          <div class="field field--s"><label for="sf-np-from">${t('tenancy.form.from')}</label><input class="input" id="sf-np-from" name="np_from" type="date" value="${esc(st?.new_prepayment?.from || '')}"></div>
+          <div class="field field--s"><label for="sf-np-h">${t('tenancy.form.heatingMonth')}</label><input class="input" id="sf-np-h" name="np_heating" type="text" inputmode="decimal" value="${esc(formatForInput(st?.new_prepayment?.heating_eur_month))}"></div>
+          <div class="field field--s"><label for="sf-np-o">${t('tenancy.form.operatingMonth')}</label><input class="input" id="sf-np-o" name="np_operating" type="text" inputmode="decimal" value="${esc(formatForInput(st?.new_prepayment?.operating_eur_month))}"></div>
         </div>
       </fieldset>
-      <div class="field">
-        <label class="btn btn--ghost btn--sm"><span aria-hidden="true">📄</span> ${t('tenancy.statement.attachPdf')}
-          <input type="file" accept="application/pdf,image/*" data-role="pdf" class="sr-only"></label>
-        <span class="muted small" data-role="pdf-list">${esc(tp('tenancy.statement.attached', attachments.length))}</span>
+      <div class="fgrid">
+        <div class="field field--full">
+          <label class="btn btn--ghost btn--sm"><span aria-hidden="true">📄</span> ${t('tenancy.statement.attachPdf')}
+            <input type="file" accept="application/pdf,image/*" data-role="pdf" class="sr-only"></label>
+          <span class="muted small" data-role="pdf-list">${esc(tp('tenancy.statement.attached', attachments.length))}</span>
+        </div>
+        <div class="field field--full"><label class="check"><input type="checkbox" name="apply_prices" checked> ${t('tenancy.statement.applyPrices')}</label></div>
+        <div class="field field--full"><label class="check"><input type="checkbox" name="apply_prepayment" checked> ${t('tenancy.statement.applyPrepayment')}</label></div>
+        <div class="field field--full"><label for="sf-note">${t('tenancy.field.notes')}</label><input class="input input--text" id="sf-note" name="note" maxlength="2000" value="${esc(st?.note || '')}"></div>
       </div>
-      <div class="field"><label><input type="checkbox" name="apply_prices" checked> ${t('tenancy.statement.applyPrices')}</label></div>
-      <div class="field"><label><input type="checkbox" name="apply_prepayment" checked> ${t('tenancy.statement.applyPrepayment')}</label></div>
-      <div class="field"><label for="sf-note">${t('tenancy.field.notes')}</label><input class="input input--text" id="sf-note" name="note" maxlength="2000" value="${esc(st?.note || '')}"></div>
     </form>`;
   openModal({
     title: st ? t('tenancy.statement.titleEdit') : t('tenancy.statement.titleNew'),

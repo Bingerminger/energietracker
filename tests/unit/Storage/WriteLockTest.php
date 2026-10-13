@@ -48,6 +48,29 @@ final class WriteLockTest extends TestCase
         self::assertFalse($lock->isHeld());
     }
 
+    /**
+     * v3.4.0 (N1020) — Mit Frist: Ist die Sperre belegt, gibt acquire() nach
+     * der Frist auf (die App antwortet dann 503 mit Retry-After), statt
+     * unbegrenzt zu warten. Zwei Handles derselben Datei sperren einander auch
+     * im selben Prozess (flock gilt je geöffneter Datei).
+     */
+    public function testAcquireGivesUpAfterTheDeadline(): void
+    {
+        $holder = new WriteLock($this->dir);
+        self::assertTrue($holder->acquire());
+        $waiter = new WriteLock($this->dir);
+        $t0 = microtime(true);
+        self::assertFalse($waiter->acquire(0.3));
+        self::assertTrue($waiter->timedOut(), 'an der Frist gescheitert, nicht an der Datei');
+        self::assertGreaterThanOrEqual(0.25, microtime(true) - $t0);
+        self::assertLessThan(3.0, microtime(true) - $t0);
+        $holder->release();
+        self::assertTrue($waiter->acquire(0.3), 'frei: sofort');
+        self::assertFalse($waiter->timedOut());
+        $waiter->release();
+        self::assertSame(WriteLock::WAIT_SECONDS, WriteLock::waitSeconds(), 'Vorgabe ohne ET_LOCK_WAIT_S');
+    }
+
     public function testParallelReadModifyWriteLosesNothing(): void
     {
         if (!function_exists('proc_open')) self::markTestSkipped('proc_open nicht verfügbar');

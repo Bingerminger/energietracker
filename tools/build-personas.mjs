@@ -763,7 +763,7 @@ function eigenheimModern() {
   const evDay = new Map();
   const ev = series(d => {
     const m = +d.slice(5, 7);
-    evDay.set(d, m >= 4 && m <= 9 ? 0.55 : 0.15);   // Anteil, der mittags lädt
+    evDay.set(d, m >= 4 && m <= 9 ? 0.35 : 0.1);   // Anteil, der mittags lädt (Dienstwagen: werktags unterwegs)
     if (d < WALLBOX || inRanges(d, away)) return 0;
     return re() < 0.42 ? between(re, 6, 20) * season(d, 0.12) : 0;
   });
@@ -776,15 +776,19 @@ function eigenheimModern() {
     return SHARE[+d.slice(5, 7) - 1] / shareSum / daysInMonth(d.slice(0, 7)) * clamp(1 + 0.45 * gauss(rp), 0.2, 1.75);
   }), 9400);
 
-  // Tagesbilanz: direkt verbraucht, Speicher laden/entladen, Rest ins Netz
+  // Tagesbilanz: direkt verbraucht, Speicher laden/entladen, Rest ins Netz.
+  // v3.4.0 (F1025) — Der Speicher versorgt nur den Haushalt, nicht das Auto
+  // (wie die übliche Einstellung „Hausbatterie nicht fürs Fahrzeug“). Vorher
+  // entlud er nachts bis zu 20 kWh je Ladetag in die Wallbox: Der Ladestrom kam
+  // dann zum größten Teil hinter dem Bezugszähler aus Sonne und Speicher, und
+  // die Wallbox (Subzähler) maß im Jahr mehr als ihr Elternzähler.
   const charge = new Map(), discharge = new Map(), feedIn = new Map(), importHh = new Map();
   for (const d of days(SIM_START, END_EXCL)) {
     const g = gen.get(d), h = household.get(d), e = ev.get(d);
     const loadDay = h * 0.45 + e * evDay.get(d);
-    const loadNight = h + e - loadDay;
     const direct = Math.min(g, loadDay) * 0.9;
     const surplus = g - direct;
-    const c = Math.min(surplus, USABLE, loadNight / ROUND_TRIP);
+    const c = Math.min(surplus, USABLE, h * 0.55 / ROUND_TRIP);
     charge.set(d, c);
     discharge.set(d, c * ROUND_TRIP);
     feedIn.set(d, surplus - c);
@@ -813,12 +817,12 @@ function eigenheimModern() {
     wp: wp(['2023-01-01', 39.5]), bp: bp(['2023-01-01', 13.9]), ap: ap(['2023-01-01', 95]), notice: 1,
   });
   const hh2 = contract('c_strom_direkt_2024', mHaus.id, 'Energie Nordring', 'Strom Direkt 12 — Verlängerung', '2024-01-01', '2024-12-31', {
-    wp: wp(['2024-01-01', 32.9]), bp: bp(['2024-01-01', 13.9]), ap: ap(['2024-01-01', 70]), notice: 1,
+    wp: wp(['2024-01-01', 32.9]), bp: bp(['2024-01-01', 13.9]), ap: ap(['2024-01-01', 82]), notice: 1,
   });
   const kwhHh = (a, b) => sum(importHh, a, b);
   hh2.special_payments.push(settlementPayment(`${P}|sp|strom-2024`, '2025-01-24', settle(hh2, kwhHh, '2024-01-01', '2025-01-01'), 'Schlussrechnung Strom Direkt 12'));
   const hh3 = contract('c_strom_online', mHaus.id, 'Beispiel-Energie', 'Strom Online 24', '2025-01-01', '2026-12-31', {
-    wp: wp(['2025-01-01', 29.8]), bp: bp(['2025-01-01', 12.9]), ap: ap(['2025-01-01', 62]), notice: 1, guarantee: '2026-12-31',
+    wp: wp(['2025-01-01', 29.8]), bp: bp(['2025-01-01', 12.9]), ap: ap(['2025-01-01', 76]), notice: 1, guarantee: '2026-12-31',
     bonuses: [{ credit_date: '2025-03-15', amount_eur: 100, type: 'neukunde', label: 'Neukundenbonus' }],
   });
   const dyn = contract('c_strom_dynamisch', mHaus.id, 'Beispiel-Energie', 'Strom Dynamisch', '2027-01-01', null, {
@@ -850,7 +854,7 @@ function eigenheimModern() {
   for (const d of days(START, END_EXCL)) {
     const kwh = ev.get(d);
     if (!(kwh > 0)) continue;
-    const midday = evDay.get(d) >= 0.5;
+    const midday = evDay.get(d) >= 0.3;
     const loadDay = household.get(d) * 0.45 + kwh * evDay.get(d);
     const solar = clamp(evDay.get(d) * Math.min(gen.get(d), loadDay) * 0.9 / loadDay, 0, 1);
     const startMin = (midday ? 10 * 60 + 30 : 17 * 60 + 15) + Math.floor(between(rt, 0, 50));
@@ -969,6 +973,8 @@ function backup(p) {
     // v3.3.0 (F1021) — Viertelstundenreihen (Index + Reihen wie im Backup)
     intervals: p.intervals?.index ?? { series: [], samples: {} },
     interval_files: p.intervals?.files ?? {},
+    // v3.4.0 (F1024) — Verlauf erledigter Hinweise: leer (keine Namen im öffentlichen Repo)
+    activity: [],
     utilities,
   };
 }

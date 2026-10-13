@@ -37,8 +37,9 @@ The shipped `.htaccess` implements points 1, 4 and 5, `data/.htaccess` is the
 second safeguard. Requirements:
 
 - `AllowOverride` at least `FileInfo` for the project directory,
-- the modules `mod_rewrite`, `mod_headers` and `mod_setenvif`,
-- PHP 8.2 or newer (PHP-FPM or `mod_php`).
+- the modules `mod_rewrite` (or alternatively `mod_alias`, since v3.4.0),
+  `mod_headers` and `mod_setenvif`,
+- PHP 8.2 or newer (PHP-FPM or `mod_php`; tested up to 8.5).
 
 A VirtualHost for it:
 
@@ -60,11 +61,19 @@ A VirtualHost for it:
 
     # optional: data outside the web root
     # SetEnv ET_DATA_DIR /srv/energietracker-data
+
+    # v3.4.0 — size limits like the app: 8 MB, large only for the imports
+    LimitRequestBody 8388608
+    <LocationMatch "/api(\.php/api)?/(backup/import|attachments|.+/import-(csv|series|evcc))$">
+        LimitRequestBody 268435456
+    </LocationMatch>
 </VirtualHost>
 ```
 
 `AllowOverride None` silences the `.htaccess` — then Apache serves `data/`, and
-the cache rules are missing. Running in a sub-directory (such as
+the cache rules are missing. If only `mod_rewrite` is missing, a fallback with
+`mod_alias` (`RedirectMatch 404`) blocks the same paths since v3.4.0. Whether
+the protection works is shown under Settings → Access → "Security check". Running in a sub-directory (such as
 `/energietracker/`) works without changes; the rules of the `.htaccess` are
 relative.
 
@@ -149,7 +158,7 @@ same values:
 | PHP | `post_max_size`, `upload_max_filesize` | `256M` | the largest backup import, a PDF receipt up to 10 MB |
 | PHP | `memory_limit` | `768M` | importing a large backup needs about twice its size in PHP memory |
 | PHP | `max_execution_time` | `120` | large imports |
-| nginx | `client_max_body_size` | `256m` | otherwise `413 Request Entity Too Large` before PHP |
+| nginx | `client_max_body_size` | `8m`, `256m` only for backup import, receipts and imports *(v3.4.0)* | otherwise `413 Request Entity Too Large` before PHP |
 | nginx | `fastcgi_read_timeout` | `310s` | large imports, text recognition: its time limit (`ocr_timeout_s`) goes up to 300 s; previously `120s`, when nginx cut off a slow recognition before PHP |
 
 - **PHP values** go into `php.ini` or the PHP-FPM pool
@@ -157,6 +166,14 @@ same values:
   PHP profile under the script language settings.
 - **Apache** limits the body itself with `LimitRequestBody`; current versions
   allow 1 GB by default — that is enough.
+- **Since v3.4.0 small wherever possible:** the app itself accepts at most
+  8 MB outside the backup import, receipts and the CSV/time-series imports,
+  routes reachable without sign-in at most 1 MB (`413`), and reads the body
+  only after sign-in. The web server should do the same, so large bodies never
+  reach PHP: for nginx the two locations from `docker/nginx.conf`, for Apache
+  `LimitRequestBody` in the server or VirtualHost configuration (in `.htaccess`
+  only with `AllowOverride All`) —
+  [Security § 12](sicherheit.md#12-size-limits-and-write-lock-v340).
 - For photos (at most 3 MB) the PHP defaults (8 MB) are enough. For PDF
   receipts and backups with many photos raise the limits — otherwise the upload
   aborts ([Troubleshooting](fehlersuche.md)).

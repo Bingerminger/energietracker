@@ -141,10 +141,16 @@ final class PvSemanticsTest extends ServiceTestCase
         preg_match_all('/\((.*?)\) Tj/s', $pdf, $m);
         $texts = array_map(fn($t) => (string)iconv('CP1252', 'UTF-8', stripslashes($t)), $m[1]);
 
-        // Übersichtszelle „Erlös 144,00 €" — nicht die Kachel „Erlös gesamt" oder der Spaltenkopf
-        self::assertNotEmpty(array_filter($texts, fn($t) => preg_match('/^Erlös \d/u', $t) === 1), 'Einspeisung als Erlös, nicht als Kosten');
-        $avoided = array_values(array_filter($texts, fn($t) => str_ends_with($t, 'kg vermieden')));
-        self::assertCount(1, $avoided, 'vermiedenes CO₂ genau einmal (bei der Erzeugung)');
-        self::assertContains('in der Erzeugung enthalten', $texts);
+        // v3.4.0 (F1025) — neue Gestaltung, dieselbe Regel: Die Einspeisung steht
+        // als Erlös auf der Geld-Seite („PV-Einspeisung: Erlös ca. 144 €“), die
+        // Energiekosten enthalten nur den Strombezug, und vermiedenes CO₂ steht
+        // genau einmal — bei der Erzeugung auf der Seite „Sonnenstrom“
+        $all = implode(' ', $texts);
+        self::assertMatchesRegularExpression('/PV-Einspeisung: Erlös ca\. \d/u', $all, 'Einspeisung als Erlös, nicht als Kosten');
+        $model = (new PdfReportService($this->meters, $this->consumption, $this->settings, $benchmark, $recs, $this->i18n))->yearlyData(2024)['model'];
+        $stromCost = array_sum(array_column(array_filter($model['money']['by_utility'], fn($r) => $r['utility'] === 'strom'), 'cost'));
+        self::assertEqualsWithDelta($stromCost, $model['money']['total']['cost'], 0.01, 'Energiekosten ohne die Vergütung');
+        self::assertSame([], array_filter($model['money']['by_utility'], fn($r) => $r['utility'] === 'pv_einspeisung'));
+        self::assertSame(1, substr_count(mb_strtolower($all), 'vermieden'), 'vermiedenes CO₂ genau einmal (bei der Erzeugung)');
     }
 }

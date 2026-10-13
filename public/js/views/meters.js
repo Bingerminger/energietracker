@@ -270,161 +270,179 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
   // v2.6.0 — Stellen des Zählwerks am eingebauten Gerät (Überlauf-Erkennung)
   const activeDigits = (existing?.devices || []).find(d => !d.removed_on)?.digits ?? '';
   return new Promise(resolve => {
+    // v3.4.0 (N1021) — ein Raster wie im Vertrag. Rolle und Erfassung
+    // bestimmen den Zähler und stehen jetzt oben (bis v3.3 hinter Notizen
+    // und Zäsuren); Gerät, Aufbau, Marktlokation, Anlage, Zäsuren je als
+    // Gruppe, Notizen und „Aktiv" am Ende.
+    const hasRoles = Array.isArray(u.meter_roles) && u.meter_roles.length > 0;
     const body = `
       <form id="meter-form">
-        <div class="form-row">
-          <div class="field">
-            <label>${t('meters.modal.name')}</label>
-            <input class="input input--text" name="name" required value="${escapeHtml(existing?.name || '')}" placeholder="${t('meters.modal.namePlaceholder')}">
-          </div>
-          <div class="field">
-            <label>${t('meters.modal.icon')}</label>
-            <input class="input input--text" name="icon" value="${escapeHtml(existing?.icon || u.icon)}">
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
-            <label>${t('meters.modal.parent')}</label>
-            <select class="input" name="parent_meter_id">
-              <option value="">${t('meters.modal.parentNone')}</option>
-              ${parentOptions.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === curParent ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
-            </select>
-            <small class="muted">${t('meters.modal.parentHint')}</small>
-          </div>
-          <div class="field" data-min-level="expert">
-            <label>${t('meters.modal.group')}</label>
-            <select class="input" name="meter_group_id">
-              <option value="">${t('meters.modal.groupNone')}</option>
-              ${(groups || []).map(g => `<option value="${escapeHtml(g.id)}" ${g.id === curGroup ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        ${existing ? '' : `
-          <div class="form-row">
+        <fieldset class="fgroup" data-section="meter">
+          <legend>${t('meters.modal.section.meter')}</legend>
+          <div class="fgrid">
+            <div class="field field--l">
+              <label>${t('meters.modal.name')}</label>
+              <input class="input input--text" name="name" required value="${escapeHtml(existing?.name || '')}" placeholder="${t('meters.modal.namePlaceholder')}">
+            </div>
+            <div class="field field--s">
+              <label>${t('meters.modal.icon')}</label>
+              <input class="input input--text" name="icon" value="${escapeHtml(existing?.icon || u.icon)}">
+            </div>
+            ${hasRoles ? `
             <div class="field">
+              <label for="mf-role">${t('meters.modal.role')}</label>
+              <select class="input" id="mf-role" name="role" aria-describedby="mf-role-hint">
+                ${u.meter_roles.map(r => `<option value="${r}" ${r === roleOf(u, existing) ? 'selected' : ''}>${escapeHtml(t(`meters.roles.${u.key}.${r}`))}</option>`).join('')}
+              </select>
+              <span class="settings-field__hint" id="mf-role-hint">${t(`meters.modal.roleHint.${u.key}`)}</span>
+            </div>` : ''}
+            ${isDelivery ? '' : `
+            <div class="field">
+              <label for="mf-capture">${t('meters.modal.capture')}</label>
+              <select class="input" id="mf-capture" name="capture" aria-describedby="mf-capture-hint">
+                <option value="counter" ${existing?.capture === 'period' ? '' : 'selected'}>${t('meters.capture.counter')}</option>
+                <option value="period" ${existing?.capture === 'period' ? 'selected' : ''}>${t('meters.capture.period')}</option>
+              </select>
+              <span class="settings-field__hint" id="mf-capture-hint">${t('meters.modal.captureHint')}</span>
+            </div>`}
+          </div>
+        </fieldset>
+        ${isDelivery ? `
+        <fieldset class="fgroup" data-section="tank">
+          <legend>${t('meters.modal.section.tank')}</legend>
+          <div class="fgrid">
+            <div class="field field--s">
+              <label>${t('meters.modal.capacity', { unit: volUnit })}</label>
+              <input class="input" name="capacity" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(existing?.capacity))}">
+            </div>
+            <div class="field field--s">
+              <label>${t('meters.modal.initialStock', { unit: volUnit })}</label>
+              <input class="input" name="initial_stock" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(existing?.initial_stock))}">
+            </div>
+            <div class="field field--s">
+              <label for="mf-initial-price">${t('meters.modal.initialStockPrice', { unit: volUnit })}</label>
+              <input class="input" id="mf-initial-price" name="initial_stock_price_ct" type="text" inputmode="decimal" autocomplete="off"
+                     value="${escapeHtml(formatForInput(existing?.initial_stock_price_ct))}" aria-describedby="mf-initial-price-hint">
+              <small class="settings-field__hint" id="mf-initial-price-hint">${t('meters.modal.initialStockPriceHint')}</small>
+            </div>
+          </div>
+        </fieldset>` : ''}
+        ${existing && isDelivery ? '' : `
+        <fieldset class="fgroup" data-section="device">
+          <legend>${t('meters.modal.section.device')}</legend>
+          <div class="fgrid">
+            ${existing ? '' : `
+            <div class="field field--s">
               <label>${t('meters.modal.deviceSerial')}</label>
               <input class="input" name="device_serial" type="text">
             </div>
-            <div class="field">
+            <div class="field field--s">
               <label>${t('meters.modal.installedOn')}</label>
               <input class="input" name="installed_on" type="date" value="${todayIso()}">
             </div>
             ${isDelivery ? '' : `
-            <div class="field">
+            <div class="field field--s">
               <label>${t('meters.modal.initialCounter', { unit: u.unit })}</label>
               <input class="input" name="initial_counter" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(0))}">
-            </div>
-            `}
+            </div>`}`}
+            ${isDelivery ? '' : `
+            <div class="field field--l field--new">
+              <label for="mf-digits">${t('meters.modal.digits')}</label>
+              <input class="input input--short" id="mf-digits" name="digits" type="text" inputmode="numeric" autocomplete="off" maxlength="2"
+                     value="${escapeHtml(String(activeDigits))}" aria-describedby="mf-digits-hint">
+              <small class="settings-field__hint" id="mf-digits-hint">${t('meters.modal.digitsHint')}</small>
+            </div>`}
           </div>
-        `}
-        ${isDelivery ? '' : `
-          <div class="field">
-            <label for="mf-digits">${t('meters.modal.digits')}</label>
-            <input class="input" id="mf-digits" name="digits" type="text" inputmode="numeric" autocomplete="off" maxlength="2"
-                   style="max-width:8rem" value="${escapeHtml(String(activeDigits))}" aria-describedby="mf-digits-hint">
-            <small class="muted" id="mf-digits-hint">${t('meters.modal.digitsHint')}</small>
-          </div>
-        `}
-        ${isDelivery ? `
-          <div class="form-row">
+        </fieldset>`}
+        <fieldset class="fgroup" data-section="topology">
+          <legend>${t('meters.modal.section.topology')}</legend>
+          <div class="fgrid">
             <div class="field">
-              <label>${t('meters.modal.capacity', { unit: volUnit })}</label>
-              <input class="input" name="capacity" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(existing?.capacity))}">
+              <label>${t('meters.modal.parent')}</label>
+              <select class="input" name="parent_meter_id">
+                <option value="">${t('meters.modal.parentNone')}</option>
+                ${parentOptions.map(m => `<option value="${escapeHtml(m.id)}" ${m.id === curParent ? 'selected' : ''}>${escapeHtml(m.name)}</option>`).join('')}
+              </select>
+              <small class="settings-field__hint">${t('meters.modal.parentHint')}</small>
             </div>
-            <div class="field">
-              <label>${t('meters.modal.initialStock', { unit: volUnit })}</label>
-              <input class="input" name="initial_stock" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(existing?.initial_stock))}">
+            <div class="field" data-min-level="expert">
+              <label>${t('meters.modal.group')}</label>
+              <select class="input" name="meter_group_id">
+                <option value="">${t('meters.modal.groupNone')}</option>
+                ${(groups || []).map(g => `<option value="${escapeHtml(g.id)}" ${g.id === curGroup ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('')}
+              </select>
             </div>
           </div>
-          <div class="field">
-            <label for="mf-initial-price">${t('meters.modal.initialStockPrice', { unit: volUnit })}</label>
-            <input class="input" id="mf-initial-price" name="initial_stock_price_ct" type="text" inputmode="decimal" autocomplete="off"
-                   style="max-width:10rem" value="${escapeHtml(formatForInput(existing?.initial_stock_price_ct))}" aria-describedby="mf-initial-price-hint">
-            <small class="muted" id="mf-initial-price-hint">${t('meters.modal.initialStockPriceHint')}</small>
-          </div>
-        ` : ''}
-        <div class="field">
-          <label>${t('meters.modal.notes')}</label>
-          <textarea class="input input--text" name="notes">${escapeHtml(existing?.notes || '')}</textarea>
-        </div>
+        </fieldset>
         ${isDelivery ? '' : `
         <!-- v3.1.0 (H5, MKT-24) — für den Lieferantenwechsel -->
-        <div class="form-row">
-          <div class="field">
-            <label for="mf-malo">${t('meters.modal.malo')}</label>
-            <input class="input" id="mf-malo" name="malo_id" type="text" inputmode="numeric" autocomplete="off" maxlength="11" value="${escapeHtml(existing?.malo_id || '')}" aria-describedby="mf-malo-hint">
-          </div>
-          <div class="field">
-            <label for="mf-melo">${t('meters.modal.melo')}</label>
-            <input class="input" id="mf-melo" name="melo_id" type="text" autocomplete="off" maxlength="33" value="${escapeHtml(existing?.melo_id || '')}">
-          </div>
-        </div>
-        <small class="muted" id="mf-malo-hint">${t('meters.modal.maloHint')}</small>`}
-        <div class="field" data-min-level="expert">
-          <label>${t('meters.baseline.title')}</label>
-          <small class="muted">${t('meters.baseline.hint')}</small>
-          <div id="bl-list" style="margin:8px 0"></div>
-          <div class="form-row">
+        <fieldset class="fgroup" data-section="market">
+          <legend>${t('meters.modal.section.market')}</legend>
+          <div class="fgrid">
             <div class="field">
+              <label for="mf-malo">${t('meters.modal.malo')}</label>
+              <input class="input" id="mf-malo" name="malo_id" type="text" inputmode="numeric" autocomplete="off" maxlength="11" value="${escapeHtml(existing?.malo_id || '')}" aria-describedby="mf-malo-hint">
+            </div>
+            <div class="field">
+              <label for="mf-melo">${t('meters.modal.melo')}</label>
+              <input class="input" id="mf-melo" name="melo_id" type="text" autocomplete="off" maxlength="33" value="${escapeHtml(existing?.melo_id || '')}" aria-describedby="mf-malo-hint">
+            </div>
+          </div>
+          <p class="fgroup__hint" id="mf-malo-hint">${t('meters.modal.maloHint')}</p>
+        </fieldset>`}
+        ${u.key === 'pv_erzeugung' ? `
+        <!-- v3.1.0 (H7, CALC-29) — Balkonkraftwerk, Amortisation, Speicher -->
+        <fieldset class="fgroup" data-min-level="expert"><legend>${t('meters.pv.title')}</legend>
+          <div class="fgrid">
+            <div class="field field--full">
+              <label class="check"><input type="checkbox" name="plug_in" ${existing?.plug_in ? 'checked' : ''}> ${t('meters.pv.plugIn')}</label>
+              <span class="settings-field__hint">${t('meters.pv.plugInHint')}</span>
+            </div>
+            <div class="field field--s"><label for="mf-invest">${t('meters.pv.investment')}</label>
+              <input class="input" id="mf-invest" name="investment_eur" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(existing?.investment_eur))}"></div>
+            <div class="field field--s"><label for="mf-comm">${t('meters.pv.commissionedOn')}</label>
+              <input class="input" id="mf-comm" name="commissioned_on" type="date" value="${escapeHtml(existing?.commissioned_on || '')}"></div>
+            <div class="field field--s"><label for="mf-batcap">${t('meters.pv.batteryCapacity')}</label>
+              <input class="input" id="mf-batcap" name="battery_capacity_kwh" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(existing?.battery_capacity_kwh))}"></div>
+          </div>
+          <p class="fgroup__hint">${t('meters.pv.hint')}</p>
+        </fieldset>` : ''}
+        ${u.key === 'waerme' ? `
+        <!-- v3.1.0 (H7, MKT-18) — Stromzähler der Wärmepumpe für die Jahresarbeitszahl -->
+        <fieldset class="fgroup" data-role="hp-link" data-min-level="expert"><legend>${t('meters.heatPumpLink.title')}</legend>
+          <div data-role="hp-list" class="check-grid muted small">${t('meters.heatPumpLink.loading')}</div>
+          <p class="fgroup__hint">${t('meters.heatPumpLink.hint')}</p>
+        </fieldset>` : ''}
+        <fieldset class="fgroup" data-section="baseline" data-min-level="expert">
+          <legend>${t('meters.baseline.title')}</legend>
+          <p class="fgroup__hint">${t('meters.baseline.hint')}</p>
+          <div id="bl-list" class="fgroup__list"></div>
+          <div class="fgrid">
+            <div class="field field--s">
               <label for="bl-date">${t('meters.baseline.date')}</label>
               <input class="input" id="bl-date" type="date">
             </div>
-            <div class="field">
+            <div class="field field--s">
               <label for="bl-label">${t('meters.baseline.label')}</label>
               <input class="input input--text" id="bl-label" type="text"
                      maxlength="80" placeholder="${t('meters.baseline.labelPlaceholder')}">
             </div>
-            <div class="field" style="display:flex; align-items:flex-end">
+            <div class="field field--s">
               <button type="button" class="btn btn--ghost" id="bl-add">${t('meters.baseline.add')}</button>
             </div>
           </div>
-        </div>
-        ${Array.isArray(u.meter_roles) && u.meter_roles.length ? `
-          <div class="field">
-            <label for="mf-role">${t('meters.modal.role')}</label>
-            <select class="input" id="mf-role" name="role" aria-describedby="mf-role-hint">
-              ${u.meter_roles.map(r => `<option value="${r}" ${r === roleOf(u, existing) ? 'selected' : ''}>${escapeHtml(t(`meters.roles.${u.key}.${r}`))}</option>`).join('')}
-            </select>
-            <span class="settings-field__hint" id="mf-role-hint">${t(`meters.modal.roleHint.${u.key}`)}</span>
+        </fieldset>
+        <div class="fgrid">
+          <div class="field field--full">
+            <label>${t('meters.modal.notes')}</label>
+            <textarea class="input input--text" name="notes">${escapeHtml(existing?.notes || '')}</textarea>
           </div>
-        ` : ''}
-        ${u.key === 'pv_erzeugung' ? `
-          <!-- v3.1.0 (H7, CALC-29) — Balkonkraftwerk, Amortisation, Speicher -->
-          <fieldset class="field" data-min-level="expert"><legend>${t('meters.pv.title')}</legend>
-            <label class="settings-field__check"><input type="checkbox" name="plug_in" ${existing?.plug_in ? 'checked' : ''}> ${t('meters.pv.plugIn')}</label>
-            <span class="settings-field__hint">${t('meters.pv.plugInHint')}</span>
-            <div class="form-row">
-              <div class="field"><label for="mf-invest">${t('meters.pv.investment')}</label>
-                <input class="input" id="mf-invest" name="investment_eur" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(existing?.investment_eur))}"></div>
-              <div class="field"><label for="mf-comm">${t('meters.pv.commissionedOn')}</label>
-                <input class="input" id="mf-comm" name="commissioned_on" type="date" value="${escapeHtml(existing?.commissioned_on || '')}"></div>
-              <div class="field"><label for="mf-batcap">${t('meters.pv.batteryCapacity')}</label>
-                <input class="input" id="mf-batcap" name="battery_capacity_kwh" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(existing?.battery_capacity_kwh))}"></div>
-            </div>
-            <span class="settings-field__hint">${t('meters.pv.hint')}</span>
-          </fieldset>` : ''}
-        ${u.key === 'waerme' ? `
-          <!-- v3.1.0 (H7, MKT-18) — Stromzähler der Wärmepumpe für die Jahresarbeitszahl -->
-          <fieldset class="field" data-role="hp-link" data-min-level="expert"><legend>${t('meters.heatPumpLink.title')}</legend>
-            <div data-role="hp-list" class="muted small">${t('meters.heatPumpLink.loading')}</div>
-            <span class="settings-field__hint">${t('meters.heatPumpLink.hint')}</span>
-          </fieldset>` : ''}
-        ${isDelivery ? '' : `
-          <div class="field">
-            <label for="mf-capture">${t('meters.modal.capture')}</label>
-            <select class="input" id="mf-capture" name="capture" aria-describedby="mf-capture-hint">
-              <option value="counter" ${existing?.capture === 'period' ? '' : 'selected'}>${t('meters.capture.counter')}</option>
-              <option value="period" ${existing?.capture === 'period' ? 'selected' : ''}>${t('meters.capture.period')}</option>
-            </select>
-            <span class="settings-field__hint" id="mf-capture-hint">${t('meters.modal.captureHint')}</span>
-          </div>
-        `}
-        ${existing ? `
-          <div class="field">
-            <label><input type="checkbox" name="active" ${existing.active ? 'checked' : ''}> ${t('meters.modal.active')}</label>
+          ${existing ? `
+          <div class="field field--full">
+            <label class="check"><input type="checkbox" name="active" ${existing.active ? 'checked' : ''}> ${t('meters.modal.active')}</label>
             <span class="settings-field__hint">${t('meters.modal.activeHint')}</span>
-          </div>
-        ` : ''}
+          </div>` : ''}
+        </div>
       </form>
     `;
     openModal({
@@ -500,7 +518,7 @@ async function openMeterModal(u, existing, allMeters = [], groups = []) {
             const pumps = list.filter(m => m.role === 'heat_pump' || m.heat_source);
             const linked = new Set(existing?.heat_pump_meter_ids || []);
             hpList.innerHTML = pumps.length
-              ? pumps.map(m => `<label class="settings-field__check"><input type="checkbox" data-hp-meter="${escapeHtml(m.id)}" ${linked.has(m.id) ? 'checked' : ''}> ${escapeHtml(m.name)}</label>`).join('')
+              ? pumps.map(m => `<label class="check"><input type="checkbox" data-hp-meter="${escapeHtml(m.id)}" ${linked.has(m.id) ? 'checked' : ''}> ${escapeHtml(m.name)}</label>`).join('')
               : escapeHtml(t('meters.heatPumpLink.none'));
           }).catch(() => { hpList.textContent = t('meters.heatPumpLink.none'); });
         }
@@ -631,29 +649,29 @@ async function openReplaceDeviceModal(u, meter) {
     const body = `
       <p>${t('meters.replace.intro')}</p>
         <form id="replace-form">
-        <div class="form-row">
-          <div class="field">
+        <!-- v3.4.0 (N1021) — Formularraster: Die lange Beschriftung des
+             Anfangsstands brach um und schob das Feld 17 px tiefer -->
+        <div class="fgrid">
+          <div class="field field--s">
             <label>${t('meters.replace.date')}</label>
             <input class="input" name="date" type="date" required value="${todayIso()}">
           </div>
-          <div class="field">
+          <div class="field field--s">
             <label>${t('meters.replace.oldFinal', { unit: u.unit })}</label>
             <input class="input" name="old_final_counter" type="text" inputmode="decimal" autocomplete="off" required aria-describedby="rp-old-msg rp-old-hint">
-            ${last ? `<small class="muted" id="rp-old-hint">${t('meters.replace.lastKnown', { value: fmt.num(last.counter, 2), unit: u.unit, date: fmt.date(last.date) })}</small>` : ''}
+            ${last ? `<small class="settings-field__hint" id="rp-old-hint">${t('meters.replace.lastKnown', { value: fmt.num(last.counter, 2), unit: u.unit, date: fmt.date(last.date) })}</small>` : ''}
             <div class="field-error" id="rp-old-msg" role="alert" hidden></div>
           </div>
-          <div class="field">
+          <div class="field field--s">
             <label>${t('meters.replace.newInitial', { unit: u.unit })}</label>
             <input class="input" name="new_initial_counter" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(0))}" aria-describedby="rp-new-msg">
             <div class="field-error" id="rp-new-msg" role="alert" hidden></div>
           </div>
-        </div>
-        <div class="form-row">
-          <div class="field">
+          <div class="field field--s">
             <label>${t('meters.replace.serial')}</label>
             <input class="input" name="serial" type="text">
           </div>
-          <div class="field">
+          <div class="field field--l">
             <label>${t('meters.replace.reason')}</label>
             <input class="input input--text" name="reason" type="text" placeholder="${t('meters.replace.reasonPlaceholder')}">
           </div>
@@ -982,11 +1000,12 @@ async function openMergeModal(u, meters, groups) {
     const body = `
       <p>${t('meters.mergeModal.intro')}</p>
       <form id="merge-form">
-        <div class="field">
-          <label>${t('meters.mergeModal.select')}</label>
-          <div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto;border:1px solid var(--border,#ccc);border-radius:var(--r-md);padding:8px">
+        <!-- v3.4.0 (N1021) — Auswahl als Feldgruppe, Kästchen in Satzschreibung -->
+        <fieldset class="fgroup">
+          <legend>${t('meters.mergeModal.select')}</legend>
+          <div class="check-grid check-scroll">
             ${meters.map(m => `
-              <label style="display:flex;align-items:center;gap:8px;font-weight:normal">
+              <label class="check">
                 <input type="checkbox" name="meter_ids" value="${escapeHtml(m.id)}">
                 ${escapeHtml(m.name)}
                 ${m.meter_group_id ? `<span class="tag tag--util">${t('meters.mergeModal.alreadyInGroup')}</span>` : ''}
@@ -995,8 +1014,8 @@ async function openMergeModal(u, meters, groups) {
           </div>
           <!-- v2.12.0 (Review UI-22) — Fehler am Feld statt im Toast -->
           <div class="field-error" data-role="select-msg" role="alert" hidden></div>
-        </div>
-        <div class="form-row">
+        </fieldset>
+        <div class="fgrid">
           <div class="field">
             <label>${t('meters.mergeModal.existingGroup')}</label>
             <select class="input" name="group_id">

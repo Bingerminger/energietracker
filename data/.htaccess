@@ -6,3 +6,10 @@
   RewriteEngine On
   RewriteRule ^ - [R=404,L]
 </IfModule>
+
+# v3.4.0 (N1020) — dasselbe ohne mod_rewrite (mod_alias, braucht nur FileInfo)
+<IfModule !mod_rewrite.c>
+  <IfModule mod_alias.c>
+    RedirectMatch 404 ".*"
+  </IfModule>
+</IfModule>

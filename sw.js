@@ -21,7 +21,7 @@
 // VERSION, damit das Bumpen nicht vergessen werden kann.
 // =====================================================================
 
-const VERSION = 'v3.3.0';
+const VERSION = 'v3.4.0';
 // v3.1.0 (Ökosystem G1) — Caches tragen den Scope der Installation im Namen.
 // Zwei Installationen auf einem Ursprung (ACC und Prod auf derselben NAS,
 // die App unter Home-Assistant-Ingress neben HAs eigenem Worker) löschten
@@ -127,8 +127,10 @@ async function networkFirst(request, cacheName, fallback) {
 // `ignoreSearch` bekam `?meter_id=garten` offline die Antwort zum Hauptzähler.
 // Eine Antwort aus dem Cache trägt `X-ET-Offline` (Stand laut Date-Header),
 // damit die Oberfläche „Offline – Stand vom …" zeigen kann.
+// v3.4.0 (N1019) — dazu die Doku (`docs`, `docs/asset`): Gelesene Seiten und
+// ihre Bilder öffnen sich auch ohne Verbindung zum Server.
 const SCOPE_PATH = new URL(self.registration.scope).pathname;
-const CACHEABLE_API = /^(utilities|settings|countries|readings-overview|reminders|recommendations|temperatures|pv-summary|strom-saldo|benchmarks\/efficiency|utility\/[^/]+\/(meters|readings|contracts|consumption|deliveries|meter-groups))(\/|$)/;
+const CACHEABLE_API = /^(utilities|settings|countries|readings-overview|reminders|recommendations|temperatures|pv-summary|strom-saldo|benchmarks\/efficiency|docs|utility\/[^/]+\/(meters|readings|contracts|consumption|deliveries|meter-groups))(\/|$)/;
 
 function apiPath(url) {
   if (!url.pathname.startsWith(SCOPE_PATH)) return null;
@@ -160,6 +162,10 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   const sameOrigin = url.origin === self.location.origin;
+
+  // v3.4.0 (N1020) — data/ ist nie Auslieferungsgut: Der Selbsttest unter
+  // Einstellungen → Zugriff fragt den Webserver, nicht einen Cache.
+  if (sameOrigin && url.pathname.startsWith(SCOPE_PATH + 'data/')) return;
 
   // API-Lesezugriffe: network-first; offline der letzte Stand der Freigabeliste.
   // Vor dem Navigationszweig: Ein Download-Link (Snapshot, CSV, PDF) ist eine

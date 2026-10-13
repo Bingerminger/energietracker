@@ -262,3 +262,18 @@ export function formatForInput(v, maxDigits = 6) {
 export function yearOf(dateStr) {
   return dateStr ? Number(String(dateStr).slice(0, 4)) : null;
 }
+
+/**
+ * v3.4.0 (N1021) — Uhrzeit, wie ein Preisblatt sie schreibt, als HH:MM:
+ * „6" → 06:00, „1530" → 15:30, „6,30" → 06:30, „24" → 24:00 (Ende des Tages).
+ * Unlesbares bleibt, wie es ist — der Server lehnt es mit Feldangabe ab,
+ * statt still ein anderes Zeitfenster zu nehmen.
+ */
+export function normalizeTime(raw) {
+  const s = String(raw ?? '').trim();
+  const m = /^(\d{1,2})(?:[:.,h]?(\d{2}))?$/.exec(s);
+  if (!m) return s;
+  const h = Number(m[1]), min = Number(m[2] ?? 0);
+  if (h > 24 || min > 59 || (h === 24 && min !== 0)) return s;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}

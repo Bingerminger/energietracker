@@ -41,6 +41,8 @@ Since v2.5.3/v2.6.0 the following also applies in open operation:
 | Error messages | No paths, file names or line numbers in API responses (only with `ET_DEBUG=1`); a server error names an error ID, the details are in the log. |
 | Receipts *(v3.1.0)* | Photos and PDFs are checked by their content and only served through the API, a PDF without scripts (§ 9). |
 | Text recognition *(v3.1.0)* | The server only connects to addresses in your own network, checked on every call (§ 9). |
+| Size and write lock *(v3.4.0)* | Large requests only where they belong, the body is read only after sign-in; a slow service no longer holds up any write (§ 12). |
+| Host list *(v3.4.0)* | Can be set in the settings, so a foreign site cannot point its name at your address (§ 8). |
 
 This protects against foreign **websites**, not against foreign **people or
 devices on the network** — that is what sign-in is for.
@@ -49,8 +51,17 @@ devices on the network** — that is what sign-in is for.
 
 **In the app:** Settings → Access → "Sign-in & access" → enter a password (at
 least 8 characters) twice → "Switch sign-in on". This browser stays signed in;
-every other one asks for the password once and then stays signed in for
-**30 days**. Sign out with the button in the top bar.
+every other one asks for the password once and then stays signed in — since
+v3.4.0 for **30 days after the last use** (sliding; up to v3.3 30 days after
+signing in). Sign out with the button in the top bar. Signing out deletes this
+browser's cookie and the app's stored responses in its cache (complete again
+since v3.4.0; v3.1 to v3.3 left them behind).
+
+**Sign out everywhere** *(v3.4.0)*: Settings → General → "My account" or
+Settings → Access. All sessions of this person end on every device, including
+this one — for example after a lost phone or if someone might have copied the
+cookie. API keys and the Home Assistant token stay valid; revoke them
+individually.
 
 What changes:
 
@@ -63,8 +74,14 @@ What changes:
   creates it when you subscribe (since v3.1.0).
 - Without sign-in `/api/health` only answers `{status, version}` — enough for
   Docker and uptime monitors.
-- After **five** wrong passwords within 15 minutes sign-in is locked for
-  **5 minutes**.
+- After **five** wrong passwords within 15 minutes sign-in is locked **for
+  this device for 5 minutes**; ten failed attempts for the same name lock
+  that name, a hundred in total lock everyone (emergency brake). Up to v3.3
+  one lock applied to the whole household — any device on the network could
+  lock everyone out. Behind a reverse proxy the address from
+  `X-Forwarded-For` counts, but only if the proxy is listed in
+  `ET_TRUSTED_PROXIES`.
+- The response time does not reveal whether a name exists (v3.4.0).
 - A new password signs out all other devices.
 
 **Forgot the password?** On the server, set `"mode"` to `"off"` in
@@ -84,7 +101,7 @@ Create a hash:
 ```bash
 php -r 'echo password_hash("your-password", PASSWORD_DEFAULT), PHP_EOL;'
 # or without a local PHP:
-docker run --rm php:8.4-cli php -r 'echo password_hash("your-password", PASSWORD_DEFAULT), PHP_EOL;'
+docker run --rm php:8.5-cli php -r 'echo password_hash("your-password", PASSWORD_DEFAULT), PHP_EOL;'
 ```
 
 > In `docker-compose.yml` double every `$` in the hash (`$$2y$$10$$…`) —
@@ -153,18 +170,31 @@ ET_AUTH=proxy
 ET_TRUSTED_PROXIES=172.18.0.0/16   # address(es) or networks of the proxy, comma-separated
 ```
 
-Energietracker then takes the user from `Remote-User`, `X-Forwarded-User`,
-`X-Remote-User` or — since v3.1.0 — `X-Remote-User-Name` or `X-Remote-User-Id`
-(this is how Home Assistant reports the user under Ingress) — **only** for
-requests from the addresses in `ET_TRUSTED_PROXIES`. From anywhere else the
-header does not count, otherwise anyone could set it themselves. The proxy
-must **remove** these headers from user requests before setting its own (the
-standard behaviour of the services named). API keys work in proxy mode as
-well.
+The proxy reports the user in a header — and it counts **only** for requests
+from the addresses in `ET_TRUSTED_PROXIES`. From anywhere else it does not
+count, otherwise anyone could set it themselves. Which header counts (since
+v3.4.0):
+
+| Operation | What counts |
+|---|---|
+| `ET_PROXY_USER_HEADER` is set (e.g. `X-Forwarded-User`, `Remote-User`) | exactly this one header — **recommended** for every proxy except Home Assistant |
+| Home Assistant Ingress (recognised by `X-Ingress-Path` or `X-Remote-User-Id`) | only `X-Remote-User-Id` and `X-Remote-User-Name`; the person is kept by the stable ID (renaming in Home Assistant does not create a new person) |
+| neither | as up to v3.3, the first non-empty one of `Remote-User`, `X-Forwarded-User`, `X-Remote-User`, `X-Remote-User-Name`, `X-Remote-User-Id` — with a warning in the security check |
+
+```bash
+ET_PROXY_USER_HEADER=X-Forwarded-User   # the header your proxy sets
+```
+
+Why one fixed header: some proxies only remove their own header from user
+requests and pass others through unchanged. If the first header of a list
+counts, a signed-in person can then pose as another — including an
+administrator. With `ET_PROXY_USER_HEADER` only the header the proxy sets
+itself counts. API keys work in proxy mode as well.
 
 Under Home Assistant Ingress the proxy is the Supervisor: `ET_AUTH=proxy` and
-`ET_TRUSTED_PROXIES=172.30.32.2` — details in
-[Home Assistant](../anleitungen/home-assistant.md).
+`ET_TRUSTED_PROXIES=172.30.32.2`; leave `ET_PROXY_USER_HEADER` empty. Since
+v3.4.0 the app also reports the internal host name for the templates only to
+the Supervisor. Details in [Home Assistant](../anleitungen/home-assistant.md).
 
 ## 7. HTTPS
 
@@ -186,18 +216,27 @@ the rest, for example the Synology with Let's Encrypt, or Caddy.
 
 ## 8. Host names and embedding
 
-**`ET_ALLOWED_HOSTS`** (opt-in) protects against *DNS rebinding*: a foreign
-page points its domain to the address in your home network and would then be
-"the same site" for the browser. With the list set, the app only answers known
-host names and all others with `421`:
+A **host list** (opt-in) protects against *DNS rebinding*: a foreign page
+points its domain to the address in your home network and would then be "the
+same site" for the browser. With the list set, the app only answers known host
+names and all others with `421`. Two ways, both apply together:
+
+- **In the app** *(v3.4.0)*: Settings → Access → "Host names" (administrators
+  only, setting `allowed_hosts`). For Apache and the Synology, which have no
+  environment variables. When saving, the name you are using right now must
+  be included — otherwise the app refuses instead of locking you out. The
+  security check (Settings → Access) reports open operation without a host
+  list and offers to take over the current name.
+- **Via the environment:**
 
 ```bash
 ET_ALLOWED_HOSTS=energy.example.org,*.fritz.box
 ```
 
-IP addresses and `localhost` are always allowed. With sign-in switched on,
-rebinding is ineffective anyway (the cookie does not belong to the foreign
-domain); the list is the second line of defence for open operation.
+IP addresses and `localhost` are always allowed — whoever opens the app by its
+address always gets in. With sign-in switched on, rebinding is ineffective
+anyway (the cookie does not belong to the foreign domain); the list is the
+second line of defence for open operation.
 
 **Embedding:** foreign pages may not show the app in a frame — otherwise clicks
 on "Load demo data" or "Generate token" could be slipped in. For a webpage card
@@ -211,7 +250,7 @@ on a Home Assistant dashboard, enter its address: Settings → Access →
 | Path | Content |
 |---|---|
 | `data/` | all user data, `auth.json`, backups and snapshots |
-| `src/`, `tests/`, `scripts/`, `docker/`, `docs/`, `demo-data/`, `vendor/`, `tools/`, `dist/`, `deploy/` | source code, tests, auxiliary files, templates (the last three since v3.1.0) |
+| `src/`, `tests/`, `scripts/`, `docker/`, `docs/`, `demo-data/`, `vendor/`, `tools/`, `dist/`, `deploy/` | source code, tests, auxiliary files, templates (the last three since v3.1.0). Since v3.4.0 the app reads the handbook under `docs/` via `GET /api/docs` — only from an allowlist and with sign-in when that is on; directly it stays blocked |
 | `.git/`, `.github/`, `.env` and all dotfiles | history, configuration |
 | `composer.json`, `Dockerfile`, `VERSION`, `*.md` in the root directory | project files |
 
@@ -219,13 +258,20 @@ on a Home Assistant dashboard, enter its address: Settings → Access →
 - **Apache (Synology Web Station, shared hosting):** the bundled `.htaccess`
   blocks these paths with `mod_rewrite` (404); `data/.htaccess` is the second
   safeguard. Prerequisite: `AllowOverride` at least `FileInfo` and an active
-  `mod_rewrite` — the default in Web Station.
+  `mod_rewrite` — the default in Web Station. If `mod_rewrite` is missing,
+  `mod_alias` blocks the same paths since v3.4.0 (`RedirectMatch 404`, also
+  only `FileInfo`); up to v3.3 the protection was then silently off.
 - **Own nginx:** adopt the `location` rules from `docker/nginx.conf`.
 - **Development server:** always start it with the router —
   `php -S 127.0.0.1:8080 router.php`. Without `router.php` the PHP server serves
   every file, including `data/`. Never expose it on `0.0.0.0` to others.
 
-**Check** (adjust the address) — all three must return `404`:
+**Self-test in the app** *(v3.4.0)*: Settings → Access (and System) →
+"Security check". The browser itself asks for `data/meta.json` there; if the
+web server serves the file, the item turns red — then the rules have no effect
+(`AllowOverride` too narrow or neither module active).
+
+**Check by hand** (adjust the address) — all three must return `404`:
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' http://nas.local/energietracker/data/meta.json
@@ -256,14 +302,21 @@ whoever passes on a backup passes on the photos.
 **Text recognition in the home network only.** If a text recognition service
 is set up (`ocr_endpoint`), the **server** connects to it — never the browser,
 whose Content Security Policy only allows its own site. Every address the name
-points to must be local (loopback, private networks, link-local,
-`100.64.0.0/10`, IPv6 ULA). The check runs on every call after name
+points to must be local (loopback, private networks, `100.64.0.0/10`, IPv6
+ULA). Link-local (`169.254.0.0/16`, `fe80::/10`) no longer counts since
+v3.4.0: on rented servers that is where the providers' metadata services
+answer. The check runs on every call after name
 resolution, the connection goes to exactly the checked address, redirects are
 not followed. So neither a typo nor a bent DNS entry (DNS rebinding) sends a
 meter photo to the internet. There is no switch to lift this; empty means no
 connection. The target is set by whoever may change the settings — with sign-in
 switched on, only signed-in users and `admin` keys. Setup:
 [Text recognition in the home network](../anleitungen/texterkennung.md).
+
+**Outgoing connections** *(v3.4.0)*: weather (Open-Meteo) and exchange prices
+(SMARD) only via HTTPS, also after a redirect, and at most two redirects; text
+recognition and evcc in the home network without redirects. Every response at
+most 20 MB — the app aborts a larger one instead of loading it into memory.
 
 ## 10. Logging and troubleshooting
 
@@ -277,16 +330,71 @@ switched on, only signed-in users and `admin` keys. Setup:
 
 ## 11. Checklist before exposing it
 
-- [ ] Sign-in switched on (§ 3) or proxy sign-in (§ 6)
+- [ ] Sign-in switched on (§ 3) or proxy sign-in with `ET_PROXY_USER_HEADER` (§ 6)
 - [ ] HTTPS via the reverse proxy (§ 7)
 - [ ] Home Assistant with a token, the way back with a `read` key (§ 4)
 - [ ] Calendar subscription only with a calendar key in the link (§ 5)
-- [ ] `data/` & co. return `404` (§ 9)
-- [ ] `ET_ALLOWED_HOSTS` set (§ 8)
+- [ ] `data/` & co. return `404` — the security check shows it (§ 9)
+- [ ] Host list set: Settings → Access or `ET_ALLOWED_HOSTS` (§ 8)
 - [ ] `ET_DEBUG` not set (§ 10)
+- [ ] Docker: hardened, port only on `127.0.0.1` behind the reverse proxy (§ 13)
 - [ ] Better still: VPN instead of exposure (§ 1)
 
-## 12. Found a vulnerability?
+## 12. Size limits and write lock *(v3.4.0)*
+
+**Size of a request.** The app checks the declared size before it reads a
+single byte, and reads the body only after sign-in. Up to v3.3 it read every
+request in full beforehand — a few parallel requests from one device without
+sign-in brought a NAS to its memory limit.
+
+| Route | At most |
+|---|---|
+| reachable without sign-in: `POST /api/ingest`, `POST /api/session` | 1 MB |
+| backup import, receipts, CSV and time-series imports (`…/import-csv`, `…/import-series`, `…/import-evcc`) | 256 MB |
+| all others | 8 MB |
+
+Above that the app answers `413`. In the Docker image nginx sets the same
+limits (`client_max_body_size` 8 MB, 256 MB only for these routes). With
+**Apache** the equivalent belongs in the server or VirtualHost configuration —
+`LimitRequestBody` is only allowed in `.htaccess` with `AllowOverride All` and
+would otherwise answer every request with `500`:
+
+```apache
+LimitRequestBody 8388608
+<LocationMatch "/api(\.php/api)?/(backup/import|attachments|.+/import-(csv|series|evcc))$">
+    LimitRequestBody 268435456
+</LocationMatch>
+```
+
+**Write lock.** Writing requests run one after another (otherwise changes would
+be lost with simultaneous writers). Since v3.4.0 a call to an outside service
+no longer holds the lock: text recognition writes nothing and does not lock at
+all, weather, SMARD and evcc first fetch the data and only lock for writing.
+Up to v3.3 a text recognition blocked every write for up to five minutes,
+including the Home Assistant push. If a request waits longer than 15 seconds
+for the lock, the app answers `503` with `Retry-After: 5` instead of waiting
+forever (`ET_LOCK_WAIT_S` changes the deadline, 1 to 120 seconds).
+
+## 13. Hardening the container *(v3.4.0)*
+
+**php-fpm internal only.** The base image lets php-fpm listen on all
+interfaces. Since v3.4.0 the image binds it to `127.0.0.1`; other containers on
+the same Docker network — with `network_mode: host` every device on the
+network — no longer reach FastCGI directly, past any sign-in. CI checks this on
+every run against the running container.
+
+**Hardened operation.** If you like, start the container with fewer rights: no
+new privileges, only the capabilities needed, a read-only file system and the
+port only on `127.0.0.1` behind a reverse proxy. The example is in
+[Docker operation](docker.md#hardened-operation-v340); CI starts the image
+exactly like that on every run.
+
+**Current base image.** Every week GitHub rebuilds the latest release tag on
+the current base image (same code, new packages) and scans the image for known
+vulnerabilities. A pinned tag such as `3.4.0` thus receives security updates of
+Alpine and PHP without anything in the app changing.
+
+## 14. Found a vulnerability?
 
 Please do **not** report it as a public issue, but as described in
 [`SECURITY.md`](../../../SECURITY.md).

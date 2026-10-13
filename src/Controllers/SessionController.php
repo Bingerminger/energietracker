@@ -18,6 +18,7 @@ use Energietracker\Services\SettingsService;
  *                                    `named_login` (Anmeldung fragt nach dem Namen)
  *   POST   /api/session            → anmelden {name?, password}; setzt das Cookie
  *   DELETE /api/session            → abmelden
+ *   POST   /api/session/logout-everywhere → alle Sitzungen der Person beenden (v3.4.0)
  *   POST   /api/session/password   → Passwort setzen/ändern {current?, password}
  *                                    (setzen schaltet die Anmeldung ein)
  *   DELETE /api/session/password   → Anmeldung ausschalten {current}
@@ -31,7 +32,8 @@ use Energietracker\Services\SettingsService;
  *   GET    /api/users                → Personen (nur Verwalter)
  *   POST   /api/users                → {name, password, role}
  *   PATCH  /api/users/{id}           → {name?, role?, password?}
- *   DELETE /api/users/{id}
+ *   DELETE /api/users/{id}           v3.4.0 (F1024): `?anonymize_activity=1` ersetzt
+ *                                    den Namen im Verlauf durch „ehemalige Person"
  */
 final class SessionController
 {
@@ -40,12 +42,17 @@ final class SessionController
      * @param (callable(): ?array)|null $currentUser Person dieser Anfrage
      * @param (callable(): string)|null $role admin | member
      */
+    /**
+     * @param (callable(string): void)|null $anonymizeActivity v3.4.0 (F1024) — Name einer
+     *        gelöschten Person im Verlauf durch „ehemalige Person" ersetzen
+     */
     public function __construct(
         private AuthService $auth,
         private I18nService $i18n,
         private $authenticated,
         private $currentUser = null,
         private $role = null,
+        private $anonymizeActivity = null,
     ) {}
 
     private function user(): ?array
@@ -74,7 +81,7 @@ final class SessionController
         if ($this->auth->mode() !== 'password') {
             Response::error($this->i18n->t('errors.auth.notPasswordMode'), 400);
         }
-        $r = $this->auth->checkLogin((string)$req->input('name', ''), (string)$req->input('password', ''));
+        $r = $this->auth->checkLogin((string)$req->input('name', ''), (string)$req->input('password', ''), self::client());
         $this->failOn($r['status']);
         self::cookie($this->auth->issueSession($r['user']), $this->auth->sessionTtl());
         Response::json(['authenticated' => true]);
@@ -84,6 +91,25 @@ final class SessionController
     {
         self::cookie('', -1);
         Response::json(['authenticated' => false]);
+    }
+
+    /**
+     * v3.4.0 (N1020) — POST /api/session/logout-everywhere: alle Sitzungen der
+     * angemeldeten Person enden, auf jedem Gerät (auch diesem). Abmelden allein
+     * löscht nur das Cookie dieses Browsers; ein kopiertes Cookie galt weiter.
+     */
+    public function logoutEverywhere(Request $req): never
+    {
+        $me = $this->user() ?? Response::error($this->i18n->t('errors.users.noUser'), 400, null, 'errors.users.noUser');
+        $this->auth->logoutEverywhere((string)$me['id']);
+        self::cookie('', -1);
+        Response::json(['authenticated' => false, 'logged_out_everywhere' => true]);
+    }
+
+    /** Adresse des Geräts für die Sperre nach Fehlversuchen (v3.4.0). */
+    private static function client(): string
+    {
+        return AuthService::clientIp($_SERVER);
     }
 
     public function setPassword(Request $req): never
@@ -174,7 +200,7 @@ final class SessionController
             Response::error($this->i18n->t('errors.users.proxyNoPassword'), 400, null, 'errors.users.proxyNoPassword');
         }
         $name = $me['id'] === AuthService::LEGACY_ADMIN ? '' : (string)$me['name'];
-        $this->failOn($this->auth->checkLogin($name, (string)$req->input('current', ''))['status']);
+        $this->failOn($this->auth->checkLogin($name, (string)$req->input('current', ''), self::client())['status']);
         $this->userCall(fn() => $this->auth->updateUser((string)$me['id'], ['password' => (string)$req->input('password', '')]));
         self::cookie($this->auth->issueSession((string)$me['id']), $this->auth->sessionTtl());
         Response::json(['changed' => true]);
@@ -214,7 +240,10 @@ final class SessionController
             Response::error($this->i18n->t('errors.users.notSelf'), 400, null, 'errors.users.notSelf');
         }
         $this->userCall(fn() => $this->auth->deleteUser($id));
-        Response::json(['deleted' => true]);
+        // v3.4.0 (F1024) — auf Wunsch des Verwalters: im Verlauf „ehemalige Person"
+        $anon = $this->anonymizeActivity !== null && $req->queryParam('anonymize_activity') === '1';
+        if ($anon) ($this->anonymizeActivity)($id);
+        Response::json(['deleted' => true, 'activity_anonymized' => $anon]);
     }
 
     /** Fehler der Benutzerverwaltung als Meldung mit stabilem Code. */
@@ -245,7 +274,7 @@ final class SessionController
     {
         $me = $this->user();
         $name = $me === null || $me['id'] === AuthService::LEGACY_ADMIN ? '' : (string)$me['name'];
-        $this->failOn($this->auth->checkLogin($name, $password)['status']);
+        $this->failOn($this->auth->checkLogin($name, $password, self::client())['status']);
     }
 
     private function failOn(string $status): void

@@ -20,7 +20,7 @@ sees, as all-day events of the next 365 days, plus anything already due:
 |---|---|
 | a date from “Reminders & maintenance” (smoke alarms, calibration deadline …) | on its next due date |
 | “Electricity: take a meter reading (…)” | when the last reading is older than set under Settings → General → “Warn after” (default 45 days); if that is already the case, the entry is today |
-| “…: last day to cancel (provider)” | on the cancellation deadline of a current or future contract — the contract needs a notice period for this |
+| “…: last day to cancel (provider)” | on the cancellation deadline of a current or future contract — the contract needs a notice period and a fixed end for this. Since v3.4.0 no longer for contracts that renew, have no end or can be cancelled at any time: their “last day” was always today and moved through the calendar every day |
 | “…: contract ends (provider)” | on the fixed contract end; not for contracts that renew |
 | “…: price guarantee ends (provider)” | on the last day of the price guarantee |
 | “…: price increase (provider) — check special termination” | on the day of a recorded price increase; since v3.1.0 also under “To do” while the recommendation “price increase” for it stands (in Germany) |
@@ -38,7 +38,10 @@ CO₂ refund from the gas bill
 deadline applies in a particular case the app does not judge.
 
 **Done** moves a date to its next due date; in the calendar the same entry
-moves along, no duplicate appears. The texts are in the **default language of
+moves along, no duplicate appears. Since v3.4.0 a **done notice** (ticked off
+by hand or by a follow-on contract without a gap) stays with the same UID, gets
+“✓ ” in front of its title and no advance reminder any more — how it works:
+[Ticking off notices](hinweise-erledigen.md). The texts are in the **default language of
 the installation** (Settings → General), because calendars send no language.
 
 ---
@@ -151,7 +154,8 @@ Technical details (shape of the events, UIDs, access rules):
 |---|---|
 | The calendar stays empty or outdated | The fetching device cannot reach the app: subscription in iCloud instead of “On My Mac/iPhone”, on the road outside the home network, or Google without access from the internet. |
 | Error “unauthorised” (401) | The calendar key was revoked, or the address contains a read or manage key. Get a new address via “Subscribe in your calendar”. |
-| A cancellation deadline is missing | The contract has no notice period, or the deadline is more than 365 days ahead. |
+| A cancellation deadline is missing | The contract has no notice period, the deadline is more than 365 days ahead, or the contract renews, has no end or can be cancelled at any time (since v3.4.0 without a dated deadline). |
+| An entry shows “✓ ” and no longer alerts | It is done — ticked off or by a follow-on contract without a gap (v3.4.0). Undo under Reminders & tips → Done. |
 | No advance reminder | Advance reminder set to 0, alerts removed in the subscription, or Google Calendar. |
 | The service charge deadlines are missing | Settings → Household & building says “I live: in my own home”, there is no tenancy, or the statement has no “Received on” (then there is no objection deadline). Once the statement for the last period is recorded, the reminder for it goes away. |
 | The deadline for the CO₂ refund is missing | No gas bill for the year recorded under Check a bill → “According to the bill”, the country is not Germany, the heating cost statement carries CO₂ details (then central heating applies and the landlord calculates), or the amount is 0 (stage 1 or reduced to 0). |

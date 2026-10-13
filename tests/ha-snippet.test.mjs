@@ -103,6 +103,25 @@ for (const file of DOCS) {
 ok(haRestSensorYaml('x', []).includes("selectattr('key', 'eq', 'strom.m_strom_default')"), 'App: Sensor-Vorlage ohne Zähler zeigt ein Beispiel');
 ok(haReadSecretYaml().startsWith('energietracker_read: "Bearer etk_'), 'App: Lese-Schlüssel als ganzer Header-Wert');
 
+// v3.4.0 (N1020) — Werte aus den Daten ändern die Struktur nicht: Namen und
+// Adressen JSON-gequotet, Schlüssel in Jinja-Ausdrücken gefiltert.
+{
+  const evilName = 'Keller"\n    evil_key: injected #';
+  const evilKey = "strom.m_x') | list }}{{ states('sensor.secret";
+  const sensors = haRestSensorYaml('http://x"\nevil: 1', [{ key: evilKey, name: evilName, unit: 'kWh', hasContract: true }]);
+  const lines = sensors.split('\n');
+  ok(!lines.some(l => /^\s*evil(_key)?:/.test(l)), 'Sensoren: ein präparierter Name oder eine Adresse erzeugt keine neue YAML-Zeile');
+  ok(lines.filter(l => l.trimStart().startsWith('- name: ')).every(l => {
+    try { return typeof JSON.parse(l.trim().slice('- name: '.length)) === 'string'; } catch { return false; }
+  }), 'Sensoren: jeder Name ist eine gequotete Zeichenkette');
+  ok(!sensors.includes("states('sensor.secret") && !sensors.includes("') | list"), 'Sensoren: der Schlüssel im Jinja-Ausdruck ist gefiltert');
+  const auto = haAutomationYaml([{ utility: 'strom"\nx: 1', meter: 'm', sensor: "sensor.a') }}{{ states('sensor.b" }]);
+  ok(!auto.split('\n').some(l => /^x:/.test(l.trim())), 'Automatisierung: ein präparierter Wert erzeugt keine neue YAML-Zeile');
+  ok(!auto.split('\n').filter(l => l.includes('value_template')).some(l => l.includes("states('sensor.b")),
+    'Automatisierung: die Entität im Jinja-Ausdruck ist gefiltert');
+  ok(haRestCommandYaml('http://x"\nevil: 1').split('\n').every(l => !/^evil:/.test(l)), 'REST-Command: die Adresse ist gequotet');
+}
+
 // Die App-Vorlagen selbst
 ok(!haRestCommandYaml('x').includes('float(0)'), 'App: REST-Command ohne float(0)');
 ok(haRestCommandYaml('x').includes('Authorization: !secret energietracker_auth'), 'App: !secret als ganzer Wert');

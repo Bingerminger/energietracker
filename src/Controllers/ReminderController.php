@@ -13,7 +13,8 @@ use Energietracker\Services\ReminderService;
  *   POST   /api/reminders
  *   PATCH  /api/reminders/{id}
  *   DELETE /api/reminders/{id}
- *   POST   /api/reminders/{id}/done   {done_date?}
+ *   POST   /api/reminders/{id}/done   {done_date?, note?, attachment_id?}
+ *          v3.4.0 (F1024) — mit Verlaufseintrag, Antwort zusätzlich `activity_id`
  */
 final class ReminderController
 {
@@ -42,7 +43,8 @@ final class ReminderController
 
     public function done(Request $req): never
     {
-        $doneDate = is_array($req->body) ? ($req->body['done_date'] ?? null) : null;
-        Response::json($this->reminders->markDone($req->param('id'), $doneDate));
+        $b = is_array($req->body) ? $req->body : [];
+        $str = fn(string $k): ?string => isset($b[$k]) && is_scalar($b[$k]) && $b[$k] !== '' ? (string)$b[$k] : null;
+        Response::json($this->reminders->markDone($req->param('id'), $str('done_date'), $str('note'), $str('attachment_id')));
     }
 }

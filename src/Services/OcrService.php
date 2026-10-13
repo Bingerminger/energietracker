@@ -4,12 +4,14 @@ declare(strict_types=1);
 namespace Energietracker\Services;
 
 use Energietracker\Support\LocalizedException;
+use Energietracker\Support\Outbound;
 
 /**
  * v3.1.0 (Paket H2, MKT-08 Stufe 2) — Texterkennung für Zählerfotos über einen
  * eigenen Dienst im Heimnetz (Ollama oder ein OpenAI-kompatibler Server wie
  * LM Studio). Kein Cloud-Dienst: Die Adresse muss auf ein lokales Netz zeigen
- * (Loopback, RFC 1918, Link-local, IPv6-ULA, 100.64.0.0/10 für Tailscale).
+ * (Loopback, RFC 1918, IPv6-ULA, 100.64.0.0/10 für Tailscale; Link-local seit
+ * v3.4.0 nicht mehr).
  * Geprüft wird bei jedem Aufruf nach der Namensauflösung, und die Verbindung
  * geht an genau die geprüfte Adresse (DNS-Rebinding). Weiterleitungen werden
  * nicht verfolgt.
@@ -125,13 +127,20 @@ final class OcrService
         return $ips[0];
     }
 
-    /** Loopback, RFC 1918, Link-local, 100.64.0.0/10, IPv6 ::1, fc00::/7, fe80::/10. */
+    /**
+     * Loopback, RFC 1918, 100.64.0.0/10, IPv6 ::1 und fc00::/7.
+     *
+     * v3.4.0 (N1020) — Link-local (169.254.0.0/16, fe80::/10) gilt nicht mehr
+     * als Heimnetz: Dort antworten bei gemieteten Servern die Metadatendienste
+     * der Anbieter (samt Zugangsdaten). Aus demselben Grund ist deren
+     * IPv6-Adresse fd00:ec2::254 trotz ULA gesperrt.
+     */
     public static function isLocalIp(string $ip): bool
     {
         if (preg_match('/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i', $ip, $m)) $ip = $m[1];
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             $n = ip2long($ip);
-            foreach ([['127.0.0.0', 8], ['10.0.0.0', 8], ['172.16.0.0', 12], ['192.168.0.0', 16], ['169.254.0.0', 16], ['100.64.0.0', 10]] as [$net, $bits]) {
+            foreach ([['127.0.0.0', 8], ['10.0.0.0', 8], ['172.16.0.0', 12], ['192.168.0.0', 16], ['100.64.0.0', 10]] as [$net, $bits]) {
                 $mask = -1 << (32 - $bits);
                 if (($n & $mask) === (ip2long($net) & $mask)) return true;
             }
@@ -141,9 +150,8 @@ final class OcrService
             $bin = inet_pton($ip);
             if ($bin === false) return false;
             if ($bin === inet_pton('::1')) return true;
-            $first = ord($bin[0]);
-            return ($first & 0xFE) === 0xFC                                   // fc00::/7 (ULA)
-                || ($first === 0xFE && (ord($bin[1]) & 0xC0) === 0x80);      // fe80::/10
+            if ($bin === inet_pton('fd00:ec2::254')) return false;           // Metadatendienst (IPv6)
+            return (ord($bin[0]) & 0xFE) === 0xFC;                           // fc00::/7 (ULA)
         }
         return false;
     }
@@ -217,22 +225,21 @@ final class OcrService
         $port = (int)($p['port'] ?? (($p['scheme'] ?? 'http') === 'https' ? 443 : 80));
         $host = trim((string)($p['host'] ?? ''), '[]');
         $ch = curl_init($url);
+        // v3.4.0 (N1020) — ohne Weiterleitungen, Antwort höchstens 20 MB (Support\Outbound)
+        $body = '';
         $opts = [
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => $json,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-            CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => $timeout,
             CURLOPT_CONNECTTIMEOUT => min(10, $timeout),
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_USERAGENT      => 'Energietracker (PHP)',
-        ];
+        ] + Outbound::curlOptions(false, false, $body);
         if ($ip !== null && !filter_var($host, FILTER_VALIDATE_IP)) {
             $opts[CURLOPT_RESOLVE] = [$host . ':' . $port . ':' . (str_contains($ip, ':') ? "[$ip]" : $ip)];
         }
         curl_setopt_array($ch, $opts);
-        $body = curl_exec($ch);
+        curl_exec($ch);
         $errno = curl_errno($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         if ($errno) {

@@ -11,9 +11,10 @@ stable: anything is removed only with a new major version and after notice — t
 deprecated ones are at the end.
 
 Since v3.2.0 a household can have several people with roles
-([Users in the household](../anleitungen/benutzer.md)). Three keys can then
-only be changed by admins, because they make the app talk to other addresses or
-let it be embedded: `frame_ancestors`, `ocr_endpoint` and `evcc_endpoint`. A
+([Users in the household](../anleitungen/benutzer.md)). Five keys can then
+only be changed by admins, because they make the app talk to other addresses,
+let it be embedded, block names or shorten the history: `frame_ancestors`, `ocr_endpoint`,
+`evcc_endpoint` and (since v3.4.0) `allowed_hosts` and `activity_keep_months`. A
 member who sends one of them gets `403` `errors.auth.adminOnly`; members may
 change every other key. Without sign-in the restriction does not apply.
 
@@ -63,6 +64,16 @@ level stays reachable and shows a note whose one click raises the level. More:
 | `contract_remind_days_3` | 1 | Level 3 — urgent | third stage |
 | `reminder_warn_days_before` | 14 | Reminder “due soon” from | From this many days before the date, a reminder counts as “due soon”. |
 | `reminder_overdue_days` | 0 | Grace until “overdue” | For this many days after the date a reminder still counts as due, then as overdue. 0 = from the next day. |
+
+### History of done notices *(v3.4.0)*
+
+Not under Settings, but under **Reminders & tips → Done → “Manage history”** —
+where the history is
+([Ticking off notices](../anleitungen/hinweise-erledigen.md)).
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `activity_keep_months` | 60 | Keep (months, 0 = unlimited) | History entries that are older (day they were done) drop out with the next entry; their receipts are released. 0–1200, `0` = unlimited. Admins only. |
 
 ## Settings → Household & building
 
@@ -184,6 +195,12 @@ benchmark gives for your household. Empty = no benchmark
 | Key | Default | In the app | Effect |
 |---|---|---|---|
 | `frame_ancestors` | empty | Allowed embedding addresses | Address with scheme and port, e.g. http://homeassistant.local:8123; separate several with spaces. Empty = only this installation itself. Addresses allowed to embed the app (Content Security Policy), such as a Home Assistant dashboard. Since v3.2.0 admins only. |
+
+### Host names *(v3.4.0)*
+
+| Key | Default | In the app | Effect |
+|---|---|---|---|
+| `allowed_hosts` | empty | Allowed host names | Comma list without scheme and port, `*.domain` as a wildcard, at most 20 entries; stored as `a.example, *.b.example`. Empty = all names. Otherwise the app answers other names with `421` (against DNS rebinding); IP addresses and `localhost` always work. Applies together with `ET_ALLOWED_HOSTS`. When saving, the name the request comes in on must be included, otherwise `400` `errors.settings.hostNotListed`. Admins only — [Security § 8](../betrieb/sicherheit.md#8-host-names-and-embedding). |
 
 ## Settings → Expert
 

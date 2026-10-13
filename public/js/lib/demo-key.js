@@ -23,11 +23,16 @@ export function demoKey(path) {
 /**
  * Datei-Downloads (CSV, PDF) liegen in der Demo als fertige Dateien. Die
  * Query wandert vor die Endung, damit GitHub Pages den Typ richtig meldet;
- * `inline=1` (anzeigen statt herunterladen) spielt dafür keine Rolle.
- * `/api/reports/yearly.pdf?year=2025&inline=1` → `api/reports/yearly-year-2025.pdf`
+ * `inline=1` (anzeigen statt herunterladen) spielt dafür keine Rolle, `lang`
+ * (v3.4.0, Sprache des PDFs) auch nicht — die Dateien liegen je Sprache in
+ * einem eigenen Ordner.
+ * `/api/reports/yearly.pdf?year=2025&inline=1&lang=de` → `api/reports/yearly-year-2025.pdf`
  */
 export function demoFileName(path) {
-  const key = demoKey(String(path).replace(/([?&])inline=1(&|$)/, (m, a, b) => (b ? a : '')));
+  const key = demoKey(String(path)
+    .replace(/([?&])inline=1(&|$)/, (m, a, b) => (b ? a : ''))
+    .replace(/([?&])lang=[A-Za-z-]*(&|$)/, (m, a, b) => (b ? a : ''))
+    .replace(/[?&]$/, ''));
   const [p, q] = key.split('?');
   if (!q) return p.replace(/^\//, '');
   const dot = p.lastIndexOf('.');

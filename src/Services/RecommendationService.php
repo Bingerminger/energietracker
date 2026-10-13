@@ -32,6 +32,24 @@ final class RecommendationService
         private I18nService $i18n,
     ) {}
 
+    /**
+     * v3.4.0 (F1024) — Verlauf: Ausblenden wird protokolliert; ein von Hand
+     * abgehakter Hinweis (Kündigung, Vertragsende, Preiserhöhung, Tank)
+     * erscheint für dieses Vorkommen nicht mehr als Empfehlung.
+     */
+    private ?ActivityService $activity = null;
+
+    public function attachActivity(ActivityService $activity): void
+    {
+        $this->activity = $activity;
+    }
+
+    /** Für dieses Vorkommen von Hand (oder automatisch) erledigt? */
+    private function doneFor(string $uid, string $anchor): bool
+    {
+        return $this->activity?->doneEntry(ActivityService::occurrence($uid, $anchor)) !== null;
+    }
+
     /** Lokalisiertes Verbrauchsart-Label (zentraler Fallback seit v2.2.0). */
     private function utilLabel(string $utility): string
     {
@@ -85,12 +103,41 @@ final class RecommendationService
         return $recs;
     }
 
-    public function dismiss(string $id, ?string $until = null): void
+    /**
+     * v3.4.0 (F1025) — IDs, die am Stichtag ausgeblendet sind. Der
+     * Jahresbericht lässt dieselben Hinweise weg wie die Oberfläche.
+     *
+     * @return list<string>
+     */
+    public function dismissedIds(?string $today = null): array
     {
+        $today ??= date('Y-m-d');
+        return array_values(array_map('strval', array_keys(array_filter($this->dismissedMap(), fn($until) => (string)$until >= $today))));
+    }
+
+    /**
+     * Ausblenden bis `$until`, Standard 30 Tage.
+     *
+     * v3.4.0 (F1024) — Eine Empfehlung mit Frist (Kündigung, Vertragsende,
+     * Preiserhöhung: `evidence.deadline`) bleibt mindestens bis zu diesem Tag
+     * ausgeblendet; bis v3.3 kam „Kündigung bis 30.11." am 11.11. zurück. Mit
+     * Verlauf entsteht ein Eintrag `dismissed`.
+     *
+     * @return array{until:string, activity_id:?string}
+     */
+    public function dismiss(string $id, ?string $until = null): array
+    {
+        $rec = $this->activity !== null || !$until ? $this->find($id) : null;
+        if (!$until) {
+            $until = date('Y-m-d', strtotime('+30 days'));
+            $deadline = (string)($rec['evidence']['deadline'] ?? '');
+            if ($deadline > $until) $until = $deadline;
+        }
         $map = $this->dismissedMap();
-        // Default: 30 Tage ausblenden
-        $map[$id] = $until ?: date('Y-m-d', strtotime('+30 days'));
+        $map[$id] = $until;
         $this->store->write('recommendations_dismissed.json', $map);
+        $entry = $this->activity?->dismissed($rec ?? ['id' => $id, 'title' => $id], $until);
+        return ['until' => $until, 'activity_id' => $entry['id'] ?? null];
     }
 
     /**
@@ -100,9 +147,39 @@ final class RecommendationService
     public function restore(string $id): void
     {
         $map = $this->dismissedMap();
-        if (!array_key_exists($id, $map)) return;
-        unset($map[$id]);
-        $this->store->write('recommendations_dismissed.json', $map);
+        if (array_key_exists($id, $map)) {
+            unset($map[$id]);
+            $this->store->write('recommendations_dismissed.json', $map);
+        }
+        $this->activity?->dismissalRestored($id);   // v3.4.0 (F1024)
+    }
+
+    /**
+     * v3.4.0 (F1024) — Rückgängig im Verlauf: wieder einblenden, solange die
+     * Empfehlung noch so ausgeblendet ist wie damals.
+     */
+    public function restoreIfUntil(string $id, string $until): bool
+    {
+        if (($this->dismissedMap()[$id] ?? null) !== $until) return false;
+        $this->restore($id);
+        return true;
+    }
+
+    /** Eine Empfehlung (auch ausgeblendet) über ihre ID. */
+    private function find(string $id): ?array
+    {
+        foreach ($this->all(true) as $r) if ($r['id'] === $id) return $r;
+        return null;
+    }
+
+    /**
+     * v3.4.0 (F1024) — Ist der Bestand eines Tanks niedrig (wie R5)? Vor dem
+     * Speichern einer Lieferung gefragt: Nur dann erledigt sie „Lieferung planen".
+     */
+    public function tankLow(string $utility, string $meterId): bool
+    {
+        $meter = Utilities::isDelivery($utility) ? $this->meters->get($utility, $meterId) : null;
+        return $meter !== null && $this->tankStatus($utility, $meter) !== null;
     }
 
     // ─── Regelfamilien ───────────────────────────────────────────────────
@@ -273,33 +350,43 @@ final class RecommendationService
     /** R5 — Tank-/Lagerbestand kritisch (Heizöl/Pellets). */
     private function ruleTankLevel(string $utility, array $meter): array
     {
+        $s = $this->tankStatus($utility, $meter);
+        if ($s === null) return [];
+        // v3.4.0 (F1024) — Vorkommen: seit der letzten Lieferung; von Hand
+        // abgehakt („nachbestellt") ruht der Hinweis bis zur nächsten
+        $anchor = DeliveryService::lastDelivered($this->deliveries->list($utility, (string)$meter['id'])) ?? 'none';
+        if ($this->doneFor(AgendaService::uid('tank_reorder', $utility, (string)$meter['id']), $anchor)) return [];
+        $warnPct = (float)$this->settings->get('tank_warn_pct', 15);
+        return [$this->mk(
+            'r5', [$utility, $meter['id']],
+            $s['pct'] <= ($warnPct / 2) ? 'urgent' : 'warning', 'bestand',
+            $this->i18n->t('recommendations.engine.r5.title', ['label' => $this->utilLabel($utility), 'pct' => (int)round($s['pct'])]),
+            $this->i18n->t('recommendations.engine.r5.detail', [
+                'name'  => (string)($meter['name'] ?? $meter['id']),
+                'stock' => $this->i18n->number($s['stock'], 0),
+                'unit'  => $s['unit'],
+                'pct'   => (int)round($s['pct']),
+            ]),
+            ['utility' => $utility, 'meter_id' => $meter['id'], 'anchor' => $anchor]
+        )];
+    }
+
+    /** Bestand unter `tank_warn_pct`: {pct, stock, unit}, sonst null. */
+    private function tankStatus(string $utility, array $meter): ?array
+    {
         $warnPct = (float)$this->settings->get('tank_warn_pct', 15);
         try {
             $hist = $this->deliveries->stockHistory($utility, (string)$meter['id'], $this->consumption);
         } catch (\Throwable) {
-            return [];
+            return null;
         }
         $cap = $hist['capacity'] ?? null;
         $days = $hist['days'] ?? [];
-        if (!$cap || $cap <= 0 || empty($days)) return [];
+        if (!$cap || $cap <= 0 || empty($days)) return null;
         $last = end($days);
         $stock = (float)($last['stock'] ?? 0);
         $pct = $stock / $cap * 100;
-        if ($pct <= $warnPct) {
-            return [$this->mk(
-                'r5', [$utility, $meter['id']],
-                $pct <= ($warnPct / 2) ? 'urgent' : 'warning', 'bestand',
-                $this->i18n->t('recommendations.engine.r5.title', ['label' => $this->utilLabel($utility), 'pct' => (int)round($pct)]),
-                $this->i18n->t('recommendations.engine.r5.detail', [
-                    'name'  => (string)($meter['name'] ?? $meter['id']),
-                    'stock' => $this->i18n->number($stock, 0),
-                    'unit'  => $hist['capacity_unit'] ?? '',
-                    'pct'   => (int)round($pct),
-                ]),
-                ['utility' => $utility, 'meter_id' => $meter['id']]
-            )];
-        }
-        return [];
+        return $pct <= $warnPct ? ['pct' => $pct, 'stock' => $stock, 'unit' => (string)($hist['capacity_unit'] ?? '')] : null;
     }
 
     /** R6 — Vertragsende naht. */
@@ -318,14 +405,18 @@ final class RecommendationService
             foreach ($status['contracts'] ?? [] as $c) {
                 $from = $c['price_increase']['from'] ?? null;
                 if (!is_string($from) || $from < $today || (empty($c['is_current']) && empty($c['is_future']))) continue;
+                $cid = (string)($c['contract_id'] ?? $c['id'] ?? '');
+                // v3.4.0 (F1024) — mit lückenlosem Folgevertrag oder von Hand
+                // abgehakt ist die Frage „Sonderkündigung?" beantwortet
+                if (self::gapless($c) || $this->doneFor(AgendaService::uid('price_increase', $cid, $from), ActivityService::contractAnchor($c))) continue;
                 $out[] = $this->mk(
-                    'r_price_increase', [$utility, $meter['id'], (string)($c['contract_id'] ?? $c['id'] ?? ''), $from],
+                    'r_price_increase', [$utility, $meter['id'], $cid, $from],
                     'warning', 'vertrag',
                     $this->i18n->t('recommendations.engine.rPriceIncrease.title', ['label' => $this->utilLabel($utility), 'date' => $this->i18n->date($from)]),
                     $this->i18n->t('recommendations.engine.rPriceIncrease.detail', [
                         'provider' => (string)($c['provider'] ?? $c['tariff_name'] ?? '—'), 'date' => $this->i18n->date($from),
                     ]),
-                    ['utility' => $utility, 'meter_id' => $meter['id'], 'contract_id' => (string)($c['contract_id'] ?? ''), 'from' => $from]
+                    ['utility' => $utility, 'meter_id' => $meter['id'], 'contract_id' => $cid, 'from' => $from, 'deadline' => $from]
                 );
             }
         }
@@ -337,21 +428,37 @@ final class RecommendationService
             $byCancel = ($c['remind_basis'] ?? null) === 'cancel_by';
             $days = $byCancel ? ($c['days_to_cancel'] ?? null) : ($c['days_until_end'] ?? null);
             if ($days === null || $days < 0) continue;
+            $cid = (string)($c['contract_id'] ?? $c['id'] ?? '');
+            // v3.4.0 (F1024) — von Hand abgehakt (gekündigt bzw. erledigt): ruht bis zum nächsten Vertragsende
+            if ($this->doneFor(AgendaService::uid($byCancel ? 'cancel_by' : 'term_end', $cid), ActivityService::contractAnchor($c))) continue;
             $provider = (string)($c['provider'] ?? $c['tariff_name'] ?? '—');
+            // v3.4.0 (F1025, Mangel 6) — Wasser lässt sich nicht wechseln: kein
+            // „Tarifvergleich starten und ggf. wechseln“
+            $switch = Utilities::isSwitchable($utility) ? '' : 'NoSwitch';
+            $detail = $byCancel
+                ? $this->i18n->t('recommendations.engine.r6.detailCancel' . $switch, [
+                    'provider' => $provider,
+                    'date'     => $this->i18n->date((string)$c['cancel_by']),
+                    'end'      => $this->i18n->date((string)($c['end'] ?? '')),
+                ])
+                : $this->i18n->tp('recommendations.engine.r6.detail' . $switch, (int)$days, ['provider' => $provider, 'days' => $days]);
+            // v3.4.0 (F1024) — Folgevertrag mit Lücke: die Erinnerung bleibt, der Text nennt die Lücke
+            $succ = $c['successor'] ?? null;
+            if (is_array($succ) && (int)$succ['gap_days'] > 0) {
+                $detail .= ' ' . $this->i18n->tp('recommendations.engine.r6.gap', (int)$succ['gap_days'], [
+                    'provider' => (string)($succ['provider'] ?: '—'), 'date' => $this->i18n->date((string)$succ['start']),
+                ]);
+            }
             $out[] = $this->mk(
-                'r6', [$utility, $meter['id'], (string)($c['contract_id'] ?? $c['id'] ?? '')],
+                'r6', [$utility, $meter['id'], $cid],
                 $days <= 14 ? 'urgent' : 'warning', 'vertrag',
                 $byCancel
                     ? $this->i18n->tp('recommendations.engine.r6.titleCancel', (int)$days, ['label' => $this->utilLabel($utility), 'days' => $days, 'date' => $this->i18n->date((string)$c['cancel_by'])])
                     : $this->i18n->tp('recommendations.engine.r6.title', (int)$days, ['label' => $this->utilLabel($utility), 'days' => $days]),
-                $byCancel
-                    ? $this->i18n->t('recommendations.engine.r6.detailCancel', [
-                        'provider' => $provider,
-                        'date'     => $this->i18n->date((string)$c['cancel_by']),
-                        'end'      => $this->i18n->date((string)($c['end'] ?? '')),
-                    ])
-                    : $this->i18n->tp('recommendations.engine.r6.detail', (int)$days, ['provider' => $provider, 'days' => $days]),
-                ['utility' => $utility, 'meter_id' => $meter['id']]
+                $detail,
+                // v3.4.0 (F1024) — additiv: Vertrag und Frist (Ausblenden hält mindestens bis dahin)
+                ['utility' => $utility, 'meter_id' => $meter['id'], 'contract_id' => $cid,
+                 'deadline' => (string)($byCancel ? $c['cancel_by'] : ($c['end'] ?? ''))]
             );
         }
         return $out;
@@ -388,6 +495,13 @@ final class RecommendationService
     }
 
     // ─── Helfer ──────────────────────────────────────────────────────────
+
+    /** v3.4.0 (F1024) — Vertragszeile mit lückenlosem Folgevertrag? */
+    private static function gapless(array $statusRow): bool
+    {
+        $s = $statusRow['successor'] ?? null;
+        return is_array($s) && (int)($s['gap_days'] ?? 1) === 0;
+    }
 
     /**
      * v2.7.0 — Vorzeichenbehaftete Zahl in der Schreibweise von Sprache und

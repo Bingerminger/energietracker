@@ -125,6 +125,7 @@ endet mit „Einen Beispielhaushalt „…“ gibt es nicht.“
 
 ---
 
+<a id="case-levels"></a>
 ## 3. Nutzungsstufen
 
 Drei Stufen: **🌱 Einsteiger**, **🌿 Erfahren** und **🌳 Experte**. Sie
@@ -215,9 +216,9 @@ Vier Bilder, die je eine Frage beantworten — mit deinen Zahlen:
 | Schaubild | Was es zeigt | Erscheint, wenn … |
 |---|---|---|
 | **„Wohin geht mein Geld?“** | Abschläge gegen Kosten bis zur Abrechnung, die Kosten geteilt in Verbrauch, Grundpreis und „noch geschätzt“; das Ergebnis als Guthaben oder Nachzahlung | ein laufender Vertrag mit Abschlag da ist (nicht bei der Einspeisung) |
-| **„Energiefluss im Haus“** | PV, Haus, Netz und Speicher eines Jahres: erzeugt, selbst genutzt, eingespeist, bezogen, Autarkie | eine PV-Erzeugung erfasst ist; den Speicher zeigt es mit Speicherzählern |
+| **„Energiefluss im Haus“** | Sonne, Netz, Speicher, Haus und die Verbraucher Wärmepumpe, Wallbox und Übriges eines Jahres oder Monats: erzeugt, eingespeist, bezogen, geladen und entladen, Autarkie; Knöpfe heben die Flüsse eines Knotens hervor (seit v3.4.0) | eine PV-Erzeugung erfasst ist; Speicher und Verbraucher zeigt es mit den Zählern dieser Rollen |
 | **„Kälter oder mehr verbraucht?“** | Verbrauch und Heizgradtage gegen dieselben Monate im Vorjahr, dazu das witterungsbereinigte Ergebnis: „Du hast wirklich weniger verbraucht“, „Du hast wirklich mehr verbraucht — nicht nur das Wetter“ oder „etwa gleich — der Unterschied kommt vom Wetter“ (Grenze ±2 %) | eine Heizenergie (Gas, Fernwärme, Heizöl, Holzpellets, Heizwärme) witterungsbereinigte Monate hat — gezählt werden nur ganze Monate mit bereinigtem Wert aus den letzten zwölf, mindestens sechs mit Vorjahr |
-| **„Vertrag auf einen Blick“** | Beginn, heute, „Kündigen bis“, Preiserhöhung und Ende auf einem Zeitstrahl | ein laufender Vertrag da ist |
+| **„Vertrag auf einen Blick“** | Beginn, heute, „Kündigen bis“ bzw. „jederzeit kündbar“, Ende bzw. frühestes Ende, Mindestlaufzeit, Preisgarantie, Preiserhöhung und Folgevertrag auf einem Zeitstrahl um heute | ein laufender Vertrag da ist |
 
 **Wo sie stehen:**
 

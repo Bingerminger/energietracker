@@ -6,7 +6,8 @@
 #
 # Die Laufzeit bleibt Composer-frei (Hand-rolled-Autoloader in
 # src/bootstrap.php) — es wird KEIN `composer install` ausgeführt.
-FROM php:8.4-fpm-alpine
+# v3.4.0 — PHP 8.5 (Dependabot #27); die CI prüft 8.2 bis 8.5.
+FROM php:8.5-fpm-alpine
 
 # v3.0.0 — Lizenz und Quelle auch bei lokal gebauten Images (das GHCR-Image
 # bekommt dieselben Angaben zusätzlich aus docker/metadata-action).
@@ -15,9 +16,11 @@ LABEL org.opencontainers.image.title="Energietracker" \
       org.opencontainers.image.source="https://github.com/Bingerminger/energietracker"
 
 # nginx + supervisor für den Single-Container-Betrieb; OPcache ist im Image
-# enthalten und wird nur eingeschaltet (v2.6.0).
+# enthalten und wird nur eingeschaltet (v2.6.0). v3.4.0 — ab PHP 8.5 ist
+# OPcache fest eingebaut; docker-php-ext-enable scheiterte dort, deshalb nur,
+# wenn es noch nicht geladen ist.
 RUN apk add --no-cache nginx supervisor \
-    && docker-php-ext-enable opcache
+    && if ! php -r 'exit(extension_loaded("Zend OPcache") ? 0 : 1);'; then docker-php-ext-enable opcache; fi
 
 WORKDIR /app
 
@@ -25,6 +28,8 @@ WORKDIR /app
 COPY docker/nginx.conf       /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/php-fpm-app.conf /usr/local/etc/php-fpm.d/zz-app.conf
+# v3.4.0 (N1020) — php-fpm nur auf 127.0.0.1 (lädt nach zz-docker.conf des Basis-Images)
+COPY docker/php-fpm-listen.conf /usr/local/etc/php-fpm.d/zzz-energietracker.conf
 COPY docker/php.ini          /usr/local/etc/php/conf.d/zz-energietracker.ini
 COPY docker/entrypoint.sh    /usr/local/bin/entrypoint.sh
 

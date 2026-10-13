@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Storage\JsonStore;
 use Energietracker\Support\LocalizedException;
+use Energietracker\Support\Outbound;
 
 /**
  * v3.2.0 (F1022) — Ladevorgänge aus evcc übernehmen.
@@ -116,6 +117,8 @@ final class EvccService
                 'price' => $s['price'] ?? null, 'price_per_kwh' => $s['pricePerKWh'] ?? null,
             ];
         }
+        // v3.4.0 (N1020) — erst abrufen, dann sperren und schreiben (s. App::LOCK_LATE)
+        if (empty($opts['dry_run'])) $this->store->lock();
         return $this->apply($meterId, $rows, 'evcc', $opts);
     }
 
@@ -386,21 +389,20 @@ final class EvccService
         $port = (int)($p['port'] ?? (($p['scheme'] ?? 'http') === 'https' ? 443 : 80));
         $host = trim((string)($p['host'] ?? ''), '[]');
         $ch = curl_init($url);
+        // v3.4.0 (N1020) — ohne Weiterleitungen, Antwort höchstens 20 MB (Support\Outbound)
+        $body = '';
         $opts = [
             CURLOPT_HTTPGET        => true,
             CURLOPT_HTTPHEADER     => ['Accept: application/json'],
-            CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => $timeout,
             CURLOPT_CONNECTTIMEOUT => min(10, $timeout),
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_PROTOCOLS      => CURLPROTO_HTTP | CURLPROTO_HTTPS,
             CURLOPT_USERAGENT      => 'Energietracker (PHP)',
-        ];
+        ] + Outbound::curlOptions(false, false, $body);
         if ($ip !== null && !filter_var($host, FILTER_VALIDATE_IP)) {
             $opts[CURLOPT_RESOLVE] = [$host . ':' . $port . ':' . (str_contains($ip, ':') ? "[$ip]" : $ip)];
         }
         curl_setopt_array($ch, $opts);
-        $body = curl_exec($ch);
+        curl_exec($ch);
         $errno = curl_errno($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         if ($errno) return ['ok' => false, 'body' => null, 'http_code' => null, 'error_code' => $errno === CURLE_OPERATION_TIMEDOUT ? 'timeout' : 'network'];

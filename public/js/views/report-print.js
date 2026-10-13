@@ -8,20 +8,31 @@
 // (druckt scharf). „Drucken" bringt ihn auf Papier oder als PDF auf die Platte;
 // print.css blendet dabei Seitenleiste und Knöpfe aus.
 //
-// Daten: GET /api/reports/yearly?year=JJJJ (dieselbe Auswahl wie das PDF).
+// v3.4.0 (F1025) — „Jahresbericht für alle“: dasselbe Datenmodell wie das PDF
+// (`model` aus GET /api/reports/yearly, ReportModelService). Die Sätze kommen
+// fertig in der Sprache dieses Geräts vom Server; Grafiken über die
+// Schaubilder aus components/explainer.js (Geld, Energiefluss, „Kälter oder
+// mehr verbraucht?“, Vertrags-Zeitstrahl) und schlichte SVG-Balken. Die
+// Druckansicht ist die barrierefreie Fassung des Berichts: echte Überschriften,
+// Tabellen mit Kopfzeilen, jede Grafik mit ihrer Aussage als Text.
 // =====================================================================
 
 import { api } from '../api.js';
-import { fmt, escapeHtml, monthShortNames } from '../lib/format.js';
+import { fmt, escapeHtml } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { renderError } from '../components/error.js';
+import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
 
 const esc = escapeHtml;
+
+/** Ampel: Symbol UND Wort, nie nur Farbe. */
+const LIGHT_SYMBOL = { ok: '✔', warn: '▲', alert: '✖', none: '●' };
 
 export async function render(container, params, ctx) {
   const now = new Date().getFullYear();
   const asked = Number(ctx?.query?.get('year'));
   const year = asked >= 2000 && asked <= 2100 ? asked : now - 1;
+  const detail = ctx?.query?.get('detail') === '1';
 
   const toolbar = `
     <div class="view-header no-print">
@@ -34,6 +45,7 @@ export async function render(container, params, ctx) {
         <select class="select" id="print-year" aria-label="${esc(t('settings.pdf.year'))}">
           ${Array.from({ length: 7 }, (_, i) => now - i).map(y => `<option value="${y}"${y === year ? ' selected' : ''}>${y}</option>`).join('')}
         </select>
+        <label class="report-print__detail"><input type="checkbox" id="print-detail"${detail ? ' checked' : ''}> ${esc(t('report.print.detail'))}</label>
         <button type="button" class="btn btn--primary" id="print-now">${esc(t('report.print.button'))}</button>
       </div>
     </div>`;
@@ -41,162 +53,313 @@ export async function render(container, params, ctx) {
 
   let d;
   try {
-    d = await api.yearlyReport(year);
+    // immer mit Anhang (eine Antwort je Jahr, auch in der Demo); gezeigt wird er nur auf Wunsch
+    d = await api.yearlyReport(year, { detail: true });
   } catch (e) {
     renderError(container.querySelector('.loading'), e, () => render(container, params, ctx));
     return;
   }
+  const m = d.model || {};
 
   container.innerHTML = `${toolbar}
-    <article class="report-print">
-      ${cover(d)}
-      ${overview(d)}
-      ${(d.meters || []).map(m => meterSection(m, d.year)).join('')}
-      ${recommendations(d)}
+    <article class="report-print" lang="${esc(m.lang || '')}">
+      ${important(m)}
+      ${successes(m)}
+      ${tasks(m)}
+      ${agenda(m)}
+      ${money(m)}
+      ${(m.pages || []).map(p => utilityPage(p, m)).join('')}
+      ${topicPv(m)}
+      ${topicHeatPump(m)}
+      ${topicEv(m)}
+      ${topicFlex(m)}
+      ${topicTenancy(m)}
+      ${glossary(m)}
+      ${detail ? appendix(m) : ''}
     </article>`;
+  playExplainers(container);
 
   container.querySelector('#print-now')?.addEventListener('click', () => window.print());
-  container.querySelector('#print-year')?.addEventListener('change', (e) => {
-    location.hash = `#/report/print?year=${e.target.value}`;
-  });
+  const go = () => {
+    const y = container.querySelector('#print-year')?.value || year;
+    const det = container.querySelector('#print-detail')?.checked ? '&detail=1' : '';
+    location.hash = `#/report/print?year=${y}${det}`;
+  };
+  container.querySelector('#print-year')?.addEventListener('change', go);
+  container.querySelector('#print-detail')?.addEventListener('change', go);
 }
 
-function cover(d) {
+// ── Bausteine ────────────────────────────────────────────────────────
+
+const section = (cls, title, body) => `
+    <section class="print-section ${cls}">
+      <h2>${esc(title)}</h2>
+      ${body}
+    </section>`;
+
+/** Kasten „Stand heute (Datum)“ um Angaben, die nicht zum Berichtsjahr gehören. */
+const today = (m, body) => `<div class="report-print__today"><p class="report-print__today-label">${esc(m.texts?.asOfToday || '')}</p>${body}</div>`;
+
+const para = (text, cls = '') => (text ? `<p${cls ? ` class="${cls}"` : ''}>${esc(text)}</p>` : '');
+
+/** Farbe einer Verbrauchsart: am Bildschirm die Oberflächenfarbe, im Druck die abgedunkelte. */
+function colorVars(m, utility) {
+  const u = (m.utilities || []).find(x => x.utility === utility);
+  return u ? `--c:${esc(u.color)};--cp:${esc(u.print_color)}` : '';
+}
+
+let hatchSeq = 0;
+
+/** Monatsbalken mit Vorjahr (grau), geschätzte Monate schraffiert. */
+function monthBars(months, { label, unit, digits = 0, style = '' }) {
+  const hatch = `rp-hatch-${++hatchSeq}`;
+  const vals = months.flatMap(x => [Number(x.value) || 0, Number(x.prev) || 0]);
+  const max = Math.max(1e-9, ...vals);
+  const w = 11, gap = 8, h = 90;
+  const cols = months.map((x, i) => {
+    const x0 = i * (2 * w + gap);
+    const ph = Math.round((Number(x.prev) || 0) / max * h);
+    const vh = Math.round((Number(x.value) || 0) / max * h);
+    const title = `${x.label}: ${fmt.unit(x.value, unit, digits)}${x.prev != null ? ` · ${fmt.unit(x.prev, unit, digits)}` : ''}`;
+    return `<g><title>${esc(title)}</title>
+      ${ph > 0 ? `<rect class="rp-prev" x="${x0}" y="${h - ph}" width="${w}" height="${ph}" rx="1"/>` : ''}
+      ${vh > 0 ? `<rect class="rp-now"${x.estimated ? ` style="fill:url(#${hatch})"` : ''} x="${x0 + w}" y="${h - vh}" width="${w}" height="${vh}" rx="1"/>` : ''}
+      <text x="${x0 + w}" y="${h + 13}" text-anchor="middle">${esc(x.label)}</text></g>`;
+  }).join('');
+  return `<svg class="report-print__bars" viewBox="0 0 ${12 * (2 * w + gap)} ${h + 18}" role="img" aria-label="${esc(label)}" style="${style}">
+    <defs><pattern id="${hatch}" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="4" height="4" class="rp-hatch-bg"/><line x1="0" y1="0" x2="0" y2="4" class="rp-hatch-line"/></pattern></defs>
+    ${cols}</svg>`;
+}
+
+/** Waagrechte Balken (Kosten je Art, Rollen, Anteile). */
+function hbars(rows, { style = '' } = {}) {
+  const max = Math.max(1e-9, ...rows.map(r => Math.abs(Number(r.value) || 0)));
+  return `<div class="report-print__hbars">${rows.map(r => `
+    <div class="report-print__hbar" style="${r.style || style}">
+      <span class="report-print__hbar-label">${esc(r.label)}</span>
+      <span class="report-print__hbar-track"><span class="report-print__hbar-fill" style="width:${(Math.abs(Number(r.value) || 0) / max * 100).toFixed(1)}%"></span></span>
+      <span class="report-print__hbar-value">${esc(r.text)}</span>
+    </div>`).join('')}</div>`;
+}
+
+function sparkline(values) {
+  const nums = values.filter(v => v != null);
+  if (nums.length < 2) return '';
+  const lo = Math.min(...nums), hi = Math.max(...nums), span = hi - lo || 1;
+  const pts = values.map((v, i) => (v == null ? null : [i / (values.length - 1) * 70, 14 - (v - lo) / span * 12])).filter(Boolean);
+  return `<svg class="report-print__spark" viewBox="-2 -2 74 18" aria-hidden="true" focusable="false"><polyline points="${pts.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ')}"/></svg>`;
+}
+
+function taskItem(x, compact = false) {
+  const meta = [x.euro ? `${x.euro.text} (${x.euro.basis_text})` : '', x.deadline_text || ''].filter(Boolean).join(' · ');
+  return `<li class="report-print__task report-print__task--p${esc(x.priority ?? 3)}">
+    <div class="report-print__task-head"><span class="report-print__prio" aria-label="${esc(t('report.print.priority', { n: x.priority ?? 3 }))}">${esc(x.priority ?? 3)}</span> <strong>${esc(x.title)}</strong></div>
+    ${meta ? `<p class="report-print__meta">${esc(meta)}</p>` : ''}
+    ${para(x.reason)}
+    ${compact ? '' : (x.steps || []).map(s => para(s, 'muted')).join('')}
+  </li>`;
+}
+
+// ── Abschnitte ───────────────────────────────────────────────────────
+
+function important(m) {
+  const tx = m.texts || {};
+  const tiles = (m.headline?.tiles || []).map(x => `
+    <div class="report-print__tile">
+      <div class="muted small">${esc(x.label)}</div>
+      <div class="report-print__big">${esc(x.value_text)}</div>
+      <div class="muted small">${esc(x.sub)}</div>
+      ${sparkline(x.spark || [])}
+    </div>`).join('');
+  const lights = (m.headline?.lights || []).map(l => `
+    <li class="report-print__light report-print__light--${esc(l.level)}">
+      <span class="report-print__light-title">${esc(t(`report.light.title.${l.key}`))}${l.as_of_today ? ` · ${esc(t('report.light.today'))}` : ''}</span>
+      <span class="report-print__light-word"><span aria-hidden="true">${LIGHT_SYMBOL[l.level] || '●'}</span> ${esc(l.word)}</span>
+      <span class="small">${esc(l.detail)}</span>
+    </li>`).join('');
+  const top = m.headline?.top_tasks || [];
   return `
     <section class="print-section report-print__cover">
       <div class="report-print__brand">ENERGIETRACKER</div>
-      <h2 class="report-print__title">${esc(t('report.title', { year: d.year }))}</h2>
-      ${d.location_name ? `<p class="report-print__location">${esc(d.location_name)}</p>` : ''}
-      <p class="muted">${esc(t('report.createdOn', { date: fmt.date(d.created_on) }))}</p>
-      <p class="muted small">${esc(`Energietracker v${d.version || ''}`)}</p>
+      <h2 class="report-print__title">${esc(tx.title || '')}</h2>
+      ${m.location_name ? `<p class="report-print__location">${esc(m.location_name)}</p>` : ''}
+      <p class="muted">${esc(t('report.createdOn', { date: fmt.date(m.created_on) }))}</p>
+      <h3>${esc(tx.important || '')}</h3>
+      <div class="report-print__tiles">${tiles}</div>
+      <h3>${esc(tx.lights || '')}</h3>
+      <ul class="report-print__lights">${lights}</ul>
+      ${today(m, `<h3>${esc(tx.topTasks || '')}</h3>${top.length
+        ? `<ol class="report-print__tasks">${top.map(x => taskItem(x, true)).join('')}</ol>`
+        : para((m.agenda?.events || []).length ? tx.tasksNoneButAgenda : tx.tasksNone)}`)}
     </section>`;
 }
 
-const perM2 = (v) => `${fmt.num(v, 0)} kWh/m²·a`;
-
-function efficiency(eff) {
-  const sources = eff?.per_source || [];
-  if (!sources.length) return `<p class="muted">${esc(eff?.note || t('report.noEfficiencyData'))}</p>`;
-  const hasScale = eff.scale != null;
-  let html;
-  if (sources.length === 1) {
-    const s = sources[0];
-    html = `
-      <div class="report-print__tile">
-        <div class="muted">${esc(t(hasScale ? 'report.efficiencyClass' : 'report.heatDemand', { label: s.label }))}</div>
-        <div class="report-print__big">${esc(hasScale ? (s.class ?? '–') : perM2(s.kwh_per_m2))}</div>
-        ${hasScale ? `<div><strong>${esc(perM2(s.kwh_per_m2))}</strong></div>` : ''}
-        <div class="muted small">${esc(t('report.livingArea', { area: fmt.num(eff.wohnflaeche_m2, 0) }))}</div>
-      </div>`;
-  } else {
-    html = `
-      <h3>${esc(t('report.efficiencyPerSource'))}</h3>
-      <table class="table report-print__table"><tbody>
-        ${sources.map(s => `<tr><td>${esc(s.label)}</td>${hasScale ? `<td>${esc(t('report.class', { class: s.class ?? '–' }))}</td>` : ''}<td class="num">${esc(perM2(s.kwh_per_m2))}</td></tr>`).join('')}
-      </tbody></table>`;
-  }
-  const c = eff.certificate;
-  if (c) {
-    html += `<p class="muted small">${esc(t('report.certificate', { value: fmt.num(c.kwh_per_m2, 0), area: fmt.num(c.area_m2, 0) }))}${hasScale && c.class ? ` · ${esc(t('report.class', { class: c.class }))}` : ''}</p>`;
-  }
-  if (sources.some(s => s.complete === false) && eff.note) html += `<p class="muted small">${esc(eff.note)}</p>`;
-  if (!hasScale && eff.scale_note) html += `<p class="muted small">${esc(eff.scale_note)}</p>`;
-  return html;
+function successes(m) {
+  const tx = m.texts || {};
+  const items = m.successes || [];
+  const infos = m.infos || [];
+  const list = items.length ? `<ul class="report-print__successes">${items.map(s => `
+    <li><strong><span aria-hidden="true">★</span> ${esc(s.title)}</strong>
+      ${s.euro ? `<p class="report-print__meta report-print__meta--good">${esc(`${s.euro.text} (${s.euro.basis_text})`)}</p>` : ''}
+      ${para(s.reason)}</li>`).join('')}</ul>` : para(tx.successesNone, 'muted');
+  const info = infos.length ? `<h3>${esc(tx.goodToKnow || '')}</h3><ul class="report-print__infos">${infos.map(i => `<li><strong>${esc(i.title)}</strong>${para(i.reason)}</li>`).join('')}</ul>` : '';
+  return section('report-print__successes-section', tx.successes || '', list + info);
 }
 
-function overview(d) {
-  const rows = (d.utilities || []).map(u => {
-    const value = fmt.unit(u.consumption, u.unit, u.unit === 'kWh' ? 0 : 1);
-    const avoided = t('report.co2Avoided', { kg: fmt.num(u.co2_kg, 0) });
-    const cost = u.accounting_kind === 'feed_in' ? t('report.revenueValue', { amount: fmt.money(u.cost) })
-      : u.accounting_kind === 'generation' ? '–' : fmt.money(u.cost);
-    const co2 = u.accounting_kind === 'generation' ? avoided
-      : u.accounting_kind === 'feed_in' ? (d.has_generation ? t('report.co2InGeneration') : avoided)
-      : fmt.unit(u.co2_kg, 'kg', 0);
-    return `<tr><td>${esc(u.label)}</td><td class="num">${esc(value)}</td><td class="num">${esc(cost)}</td><td class="num">${esc(co2)}</td></tr>`;
+function tasks(m) {
+  const tx = m.texts || {};
+  const list = m.tasks || [];
+  return section('report-print__tasks-section', tx.tasks || '', today(m, `${para(tx.tasksIntro, 'muted small')}${list.length
+    ? `<ol class="report-print__tasks">${list.map(x => taskItem(x)).join('')}</ol>`
+    : para((m.agenda?.events || []).length ? tx.tasksNoneButAgenda : tx.tasksNone)}`));
+}
+
+function agenda(m) {
+  const tx = m.texts || {};
+  const ev = m.agenda?.events || [];
+  const tl = m.agenda?.timelines || [];
+  if (!ev.length && !tl.length) return '';
+  const table = ev.length ? `<table class="table report-print__table">
+      <tbody>${ev.map(e => `<tr class="${e.days < 0 ? 'report-print__overdue' : ''}"><td>${esc(fmt.date(e.date))}</td><td>${esc(e.title)}</td><td class="num">${esc(e.state)}</td></tr>`).join('')}</tbody>
+    </table>` : para(tx.agendaNone);
+  const lines = tl.map(c => `
+    <div class="report-print__timeline" style="${colorVars(m, c.utility)}">
+      <h4>${esc(c.label)}${c.provider ? ` · ${esc(c.provider)}` : ''}</h4>
+      ${timelineHtml(c.explainer, m.today)}
+      ${para(c.sentence)}
+    </div>`).join('');
+  return section('report-print__agenda', tx.agenda || '', today(m, `${para(tx.agendaIntro, 'muted small')}${table}`) + (tl.length ? `<h3>${esc(tx.contracts || '')}</h3>${lines}` : ''));
+}
+
+function money(m) {
+  const mo = m.money;
+  if (!mo) return '';
+  const tx = m.texts || {};
+  const by = (mo.by_utility || []).map(r => ({ label: r.label, value: r.cost, text: r.text, style: colorVars(m, r.utility) }));
+  const monthly = (mo.monthly || []).filter(x => x.value != null || x.prev != null).length
+    ? monthBars(mo.monthly, { label: tx.costsByMonth || '', unit: '€', digits: 0 }) : '';
+  const balances = (mo.balances || []).map(b => {
+    const u = (m.utilities || []).find(x => x.utility === b.utility);
+    return `<div class="report-print__balance">
+      <h4>${esc(b.label)}${b.provider ? ` · ${esc(b.provider)}` : ''}</h4>
+      ${moneyHtml(b.explainer, { color: u?.color })}
+      <p><strong>${esc(b.text)}</strong></p>
+      ${para(b.advance_text)}
+    </div>`;
   }).join('');
+  return section('report-print__money', tx.money || '', `
+    ${para(mo.total?.sentence)}
+    ${by.length ? `<h3>${esc(tx.costsByUtility || '')}</h3>${hbars(by)}` : ''}
+    ${(mo.revenue || []).map(r => para(r.text)).join('')}
+    ${monthly ? `<h3>${esc(tx.costsByMonth || '')}</h3>${monthly}` : ''}
+    ${(mo.bonus_notes || []).map(b => para(b, 'muted small')).join('')}
+    ${balances ? `<h3>${esc(tx.balances || '')}</h3>${today(m, balances + para(t('report.money.balanceLegend'), 'muted small'))}` : ''}
+    ${mo.forecast ? para(mo.forecast.text, 'muted small') : ''}`);
+}
+
+function utilityPage(p, m) {
+  const tx = m.texts || {};
+  const style = colorVars(m, p.utility);
+  const digits = p.unit === 'kWh' ? 0 : 1;
+  const eff = p.efficiency;
+  const scale = eff?.thresholds ? Object.keys(eff.thresholds) : [];
+  const effHtml = eff ? `<h3>${esc(t('report.page.efficiencyTitle'))}</h3>
+    ${scale.length ? `<ol class="report-print__scale" aria-hidden="true">${[...scale, 'H'].filter((c, i, a) => a.indexOf(c) === i).map(c => `<li class="${c === eff.class ? 'is-current' : ''}">${esc(c)}</li>`).join('')}</ol>` : ''}
+    ${para(eff.text)}` : '';
+  const roles = p.roles ? `<h3>${esc(t('report.page.rolesTitle'))}</h3>${hbars(p.roles.rows.map(r => ({ label: r.label, value: r.kwh, text: r.text })), { style })}${para(p.roles.text, 'muted small')}` : '';
   return `
-    <section class="print-section">
-      <h2>${esc(t('report.overview', { year: d.year }))}</h2>
-      ${efficiency(d.efficiency)}
-      <h3>${esc(t('report.consumptionCosts'))}</h3>
-      <table class="table report-print__table">
-        <thead><tr><th>${esc(t('report.colUtility'))}</th><th class="num">${esc(t('report.colConsumption'))}</th><th class="num">${esc(t('report.colCost'))}</th><th class="num">${esc(t('report.colCo2'))}</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+    <section class="print-section report-print__utility" data-utility="${esc(p.utility)}" style="${style}">
+      <h2>${esc(t('report.page.title', { label: p.label, year: m.year }))}</h2>
+      <p class="report-print__big">${esc(fmt.unit(p.value, p.unit, digits))}</p>
+      ${para(p.sentence)}
+      ${para(p.cost?.text)}
+      ${monthBars(p.months || [], { label: p.sentence, unit: p.unit, digits, style })}
+      <p class="muted small report-print__legend"><span class="rp-key rp-key--now"></span> ${esc(String(m.year))} <span class="rp-key rp-key--prev"></span> ${esc(String(m.year - 1))}${(p.months || []).some(x => x.estimated) ? ` <span class="rp-key rp-key--est"></span> ${esc(tx.estimated || '')}` : ''}</p>
+      ${p.weather ? `<h3>${esc(t('report.page.weatherTitle'))}</h3>${weatherHtml(p.weather_rows)}${para(p.weather.text)}` : ''}
+      ${effHtml}
+      ${roles}
+      ${p.water ? para(p.water.text) : ''}
+      ${p.tank ? today(m, para(p.tank.text)) : ''}
+      ${(p.sub_meters || []).map(s => para(s.text, 'muted small')).join('')}
+      ${(p.notes || []).map(n => para(n, 'muted small')).join('')}
     </section>`;
 }
 
-/** Monatsbalken als SVG — druckt scharf, anders als ein Canvas. */
-function bars(m) {
-  const names = monthShortNames();
-  const byMonth = new Map(m.months.map(x => [Number(x.ym.slice(5, 7)) - 1, x.value]));
-  const max = Math.max(1, ...byMonth.values());
-  const w = 24, gap = 6, h = 90;
-  const cols = names.map((n, i) => {
-    const v = byMonth.get(i) ?? 0;
-    const bh = Math.round((v / max) * h);
-    const x = i * (w + gap);
-    return `<rect x="${x}" y="${h - bh}" width="${w}" height="${bh}" rx="2"><title>${esc(n)}: ${esc(fmt.unit(v, m.unit, m.unit === 'kWh' ? 0 : 1))}</title></rect>`
-      + `<text x="${x + w / 2}" y="${h + 14}" text-anchor="middle">${esc(n)}</text>`;
-  }).join('');
-  return `<svg class="report-print__bars" viewBox="0 0 ${12 * (w + gap)} ${h + 18}" role="img"
-      aria-label="${esc(`${m.label} · ${m.meter_name}`)}"
-      style="fill: var(--util-${esc(m.utility)}, var(--accent))">${cols}</svg>`;
+function topicPv(m) {
+  const pv = m.topics?.pv;
+  if (!pv) return '';
+  const tx = m.texts || {};
+  return section('report-print__pv', tx.topicPv || '', `
+    <div class="report-print__tiles">${pv.tiles.map(x => `<div class="report-print__tile"><div class="muted small">${esc(x.label)}</div><div class="report-print__big">${esc(x.text)}</div>${x.sub ? `<div class="muted small">${esc(x.sub)}</div>` : ''}</div>`).join('')}</div>
+    ${energyHtml(pv.year_row)}
+    ${para(pv.sentence)}
+    ${para(pv.co2_text)}
+    ${pv.payback ? today(m, `<h3>${esc(t('report.topic.pv.paybackTitle'))}</h3><progress max="${esc(pv.payback.investment_eur)}" value="${esc(Math.min(pv.payback.benefit_to_date_eur, pv.payback.investment_eur))}"></progress>${para(pv.payback.text)}`) : ''}
+    ${pv.battery ? `<h3>${esc(t('report.topic.pv.batteryTitle'))}</h3>${para(pv.battery.text)}` : ''}`);
 }
 
-function meterSection(m, year) {
-  const dec = m.unit === 'kWh' ? 0 : 1;
-  const k = m.kpis || {};
-  const kpis = [
-    [t('report.kpiAnnual'), fmt.unit(k.sum, m.unit, dec)],
-    [t('report.kpiAvgMonth'), fmt.unit(k.avg_month, m.unit, dec)],
-  ];
-  if (m.accounting_kind === 'feed_in') kpis.push([t('report.kpiRevenue'), fmt.money(k.cost)]);
-  else if (m.accounting_kind !== 'generation') kpis.push([t('report.kpiTotalCost'), fmt.money(k.cost)]);
-  const peak = (p) => (p ? `${fmt.month(p.ym)} · ${fmt.num(p.value, dec)}` : '–');
-  kpis.push([t('report.kpiPeakMonth'), peak(k.peak)], [t('report.kpiLowMonth'), peak(k.low)]);
-
-  const wa = m.has_weather_adjusted;
-  const head = [t('report.tableMonth'), m.unit,
-    m.accounting_kind === 'feed_in' ? t('report.tableRevenue') : t('report.tableCost'),
-    t('report.tableTemp'), t('report.tableHdd'), ...(wa ? [t('report.tableWeatherAdj'), t('report.tableDelta')] : [])];
-  const rows = m.months.map(x => {
-    const cells = [fmt.month(x.ym), fmt.num(x.value, dec),
-      m.accounting_kind === 'generation' ? '–' : fmt.num(x.cost, 2),
-      x.avg_temp != null ? fmt.num(x.avg_temp, 1) : '–', x.hdd != null ? fmt.num(x.hdd, 0) : '–'];
-    if (wa) {
-      cells.push(x.heat_adjusted != null ? fmt.num(x.heat_adjusted, 0) : '–');
-      cells.push(x.weather_delta_pct != null ? `${x.weather_delta_pct > 0 ? '+' : ''}${fmt.pct(x.weather_delta_pct / 100, 0)}` : '–');
-    }
-    return `<tr>${cells.map((c, i) => `<td${i ? ' class="num"' : ''}>${esc(c)}</td>`).join('')}</tr>`;
-  }).join('');
-
-  return `
-    <section class="print-section">
-      <h2>${esc(t('report.meterPageTitle', { label: m.label, year, meter: m.meter_name }))}</h2>
-      <div class="report-print__kpis">
-        ${kpis.map(([l, v]) => `<div class="report-print__kpi"><div class="muted small">${esc(l)}</div><strong>${esc(v)}</strong></div>`).join('')}
-      </div>
-      ${bars(m)}
-      <table class="table report-print__table">
-        <thead><tr>${head.map((h, i) => `<th${i ? ' class="num"' : ''}>${esc(h)}</th>`).join('')}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      ${wa ? `<p class="muted small">${esc(t('report.weatherNote'))}</p>` : ''}
-      ${m.has_temperature ? `<p class="muted small">${esc(t('report.weatherSource'))}</p>` : ''}
-    </section>`;
+function topicHeatPump(m) {
+  const hp = m.topics?.heat_pump;
+  if (!hp) return '';
+  const tx = m.texts || {};
+  return section('report-print__heatpump', tx.topicHeatPump || '', hp.pumps.map(p => `
+    ${para(p.sentence)}
+    ${monthBars(p.months, { label: p.sentence, unit: '', digits: 1, style: colorVars(m, 'waerme') })}
+    ${para(p.reference_text, 'muted small')}`).join(''));
 }
 
-function recommendations(d) {
-  const recs = d.recommendations || [];
-  return `
-    <section class="print-section">
-      <h2>${esc(t('report.recommendations'))}</h2>
-      ${recs.length ? recs.map(r => `
-        <div class="report-print__rec report-print__rec--${esc(r.severity)}">
-          <div><span class="report-print__sev">${esc(t(`recommendations.sev.${r.severity}`))}</span> <strong>${esc(r.title)}</strong></div>
-          <p class="muted">${esc(r.detail)}</p>
-        </div>`).join('') : `<p class="muted">${esc(t('report.noRecommendations'))}</p>`}
-    </section>`;
+function topicEv(m) {
+  const ev = m.topics?.ev;
+  if (!ev) return '';
+  const tx = m.texts || {};
+  return section('report-print__ev', tx.topicEv || '', ev.meters.map(e => `
+    ${para(e.sentence)}
+    ${para(e.cost_text)}
+    ${monthBars(e.months.map(x => ({ ...x, prev: x.part })), { label: e.sentence, unit: 'kWh', style: colorVars(m, 'strom') })}
+    ${e.has_solar ? `<p class="muted small report-print__legend"><span class="rp-key rp-key--prev"></span> ${esc(tx.solarShare || '')}</p>` : ''}
+    ${para(e.sub_text, 'muted small')}`).join(''));
+}
+
+function topicFlex(m) {
+  const fx = m.topics?.flexibility;
+  if (!fx) return '';
+  const tx = m.texts || {};
+  return section('report-print__flex', tx.topicFlex || '', `
+    ${para(fx.sentence)}
+    <h3>${esc(tx.cheapShare || '')}</h3>
+    ${hbars(fx.rows.map(r => ({ label: r.name, value: r.cheap_share, text: r.text })), { style: colorVars(m, 'strom') })}
+    ${para(fx.module3_text)}
+    ${para(fx.battery_text)}
+    ${para(t('report.topic.flex.note'), 'muted small')}`);
+}
+
+function topicTenancy(m) {
+  const tn = m.topics?.tenancy;
+  if (!tn) return '';
+  const tx = m.texts || {};
+  return section('report-print__tenancy', tx.topicTenancy || '', today(m, `<h3>${esc(tn.label)}</h3>${tn.sentences.map(s => para(s)).join('')}`));
+}
+
+function glossary(m) {
+  const tx = m.texts || {};
+  const g = m.glossary || [];
+  return section('report-print__glossary', tx.glossary || '', `
+    <dl class="report-print__glossary-list">${g.map(x => `<dt>${esc(x.term)}</dt><dd>${esc(x.text)}</dd>`).join('')}</dl>
+    <h3>${esc(tx.sources || '')}</h3>
+    ${(m.sources || []).map(s => para(s, 'muted small')).join('')}
+    ${(m.errors || []).length ? para(tx.errors, 'muted small') : ''}`);
+}
+
+function appendix(m) {
+  const tables = m.appendix || [];
+  if (!tables.length) return '';
+  const tx = m.texts || {};
+  return section('report-print__appendix', tx.appendix || '', tables.map(tb => `
+    <h3>${esc(tb.label)}</h3>
+    <table class="table report-print__table">
+      <thead><tr>${tb.head.map((h, i) => `<th${i ? ' class="num"' : ''} scope="col">${esc(h)}</th>`).join('')}</tr></thead>
+      <tbody>${tb.rows.map(r => `<tr>${r.map((c, i) => (i ? `<td class="num">${esc(c)}</td>` : `<th scope="row">${esc(c)}</th>`)).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr>${tb.total.map((c, i) => (i ? `<td class="num"><strong>${esc(c)}</strong></td>` : `<th scope="row">${esc(c)}</th>`)).join('')}</tr></tfoot>
+    </table>
+    ${tb.notes.map(n => para(n, 'muted small')).join('')}`).join(''));
 }

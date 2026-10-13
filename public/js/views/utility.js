@@ -28,6 +28,10 @@ import { typicalPerDay, checkReading, confirmIssues, issueText, deviceChangedBet
 // v3.2.0 (F1020) — Schaubilder zu dieser Verbrauchsart
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
 import { docUrl } from '../lib/docs.js';
+// v3.4.0 (N1021) — Vertragsreihenfolge, Blättern, Abrechnungsperiode
+import { groupContracts, phasePill } from '../lib/contract-order.js';
+import { paginate, pagerHtml, wirePager, pageSize, PAGER_THRESHOLD } from '../components/pager.js';
+import { lastClosedPeriod, calendarYearOf } from '../lib/billing-period.js';
 
 let _chart = null;
 let _stockChart = null;   // v2.10.0 — Bestandsverlauf (Tankbuch)
@@ -47,7 +51,17 @@ const state = {
   yearByUtility: {},
   // v2.16.0 (Review FE-19) — Monatschart gemessen oder witterungsbereinigt, je Verbrauchsart
   chartMode: {},
+  // v3.4.0 (N1021) — Liste der Ablesungen bzw. Zeiträume: Seite und Filter
+  // gelten, solange Art, Zähler, Jahr und „Alle Jahre“ gleich bleiben
+  // (Bearbeiten bleibt auf der Seite); jeder Aufruf der Ansicht beginnt auf
+  // Seite 1 bei den neuesten Einträgen.
+  list: { key: '', page: 1, flaggedOnly: false },
+  listAllYears: false,
 };
+
+/** Seitengröße gemerkt je Liste (components/pager.js). */
+const READINGS_PAGER = 'utility-readings';
+const PERIODS_PAGER = 'utility-periods';
 
 /**
  * v2.15.0 (Review FE-29) — Auswahl in der Adresse: `#/utility/gas?year=2025&meter=…`
@@ -78,6 +92,8 @@ export async function render(container, params, ctx = {}) {
     return;
   }
   state.utility = utility;
+  state.list = { key: '', page: 1, flaggedOnly: false };
+  state.listAllYears = false;
   container.setAttribute('data-utility', utility.key);
 
   container.innerHTML = `<div class="loading">${t('utility.loading')}</div>`;
@@ -292,6 +308,17 @@ async function rerender(container) {
   // Zähler mit weniger als zwei Ständen: noch keine Monatswerte
   const noValues = !isDelivery && monthly.length === 0;
 
+  // v3.4.0 (N1021) — Ablesungen bzw. Zeiträume: Anzahl im Jahr und gesamt
+  // („10 in 2026 · 43 gesamt“; bis v3.3 stand nur die Gesamtzahl über einer
+  // Liste des Jahres), Jahreswahl in der Karte, „Alle Jahre“ blättert
+  const listAll = isPeriod ? periods : readings;
+  const inListYear = isPeriod
+    ? (p) => yearOf(p.from) === yr || yearOf(p.to) === yr
+    : (r) => yearOf(r.date) === yr;
+  const listInYear = listAll.filter(inListYear);
+  const listKey = `${u.key}|${meter.id}|${yr}|${state.listAllYears ? 'all' : ''}`;
+  if (state.list.key !== listKey) state.list = { key: listKey, page: 1, flaggedOnly: false };
+
   // ── Compute year totals for KPIs ────────────────────────────────
   // v1.6.1 — Fix #14: nutze utility-spezifischen Feldnamen (consKey)
   // statt hartkodiertem `m.kwh`, sonst zeigt das Wasser-Dashboard 0.
@@ -304,7 +331,11 @@ async function rerender(container) {
   const yearBalance = totCost - totAdv;
   const yearBalanceView = balanceView(yearBalance, u);
   const hasContract = monthlyYear.some(m => m.contract_id);
-  const currentContract = contracts.find(c => c.is_current);
+  // v3.4.0 (N1021) — der laufende Vertrag nach der Phase des Servers: Bei
+  // überlappenden Verträgen ist der abgelöste ältere zwar noch „im Zeitraum“
+  // (`is_current`), gilt aber nicht mehr
+  const currentContract = contracts.find(c => c.phase === 'current' || c.phase === 'renewed')
+    || contracts.find(c => c.is_current && !c.phase);
   // v2.8.0 — Die Kacheln summieren die Monatszeilen, also nur abgelesene
   // Monate. Liegt die letzte Ablesung im laufenden Jahr zurück, nennt die
   // Abschlagskachel ihren Stand — sonst stünde „Abschläge 2026: 390 €" neben
@@ -430,27 +461,29 @@ async function rerender(container) {
       ${deliveriesTable(deliveries, u)}
     </div>
     ` : isPeriod ? `
-    <div class="card">
-      <div class="card__title">${t('utility.periods.title', { year: yr })}
+    <div class="card" data-role="list-card">
+      <div class="card__title">${t('utility.periods.title')}
         <span class="card__title-action">
-          <span class="muted" style="font-size:12px;margin-right:8px">${tp('utility.periods.count', periods.length)}</span>
+          ${listYearSelect(years, yr)}
+          <span class="muted list-count" data-role="list-count">${listCountText(listInYear.length, listAll.length, yr)}</span>
           <button class="btn btn-${u.key} btn--sm" id="btn-new-period">${t('utility.periods.add')}</button>
         </span>
       </div>
-      ${periodsTable(periods, u, yr)}
+      <div data-role="list-body"></div>
     </div>
     ` : `
-    <div class="card">
-      <div class="card__title">${t('utility.cards.readingsYear', { year: yr })}
+    <div class="card" data-role="list-card">
+      <div class="card__title">${t('utility.cards.readings')}
         <span class="card__title-action">
-          <span class="muted" style="font-size:12px;margin-right:8px">${tp('utility.cards.readingsCount', readings.length)}</span>
+          ${listYearSelect(years, yr)}
+          <span class="muted list-count" data-role="list-count">${listCountText(listInYear.length, listAll.length, yr)}</span>
           <button class="btn btn-${u.key} btn--sm" id="btn-new-reading">${t('utility.action.newReading')}</button>
         </span>
       </div>
-      ${readingsTable(readings, u, yr, warnByReading)}
+      <div data-role="list-body"></div>
     </div>
     `}
-    ${u.supports_bill_check ? billCheckLink(u, meter, yr) : ''}
+    ${u.supports_bill_check ? billCheckLink(u, meter, settings) : ''}
     <div data-min-level="expert">${dhwNote(monthly, yr)}</div>
     <div data-role="co2-cost" data-min-level="expert"></div>
     ${u.key === 'strom' && meter.role === 'ev_charger' ? '<div data-role="evcc" data-min-level="advanced"></div><div data-role="ev-report" data-min-level="expert"></div>' : ''}
@@ -490,6 +523,10 @@ async function rerender(container) {
 
   // Wire up events
   wireEvents(container, u, meter, readings, contracts, deliveries, monthly, periods);
+  if (!isDelivery) {
+    wireList(container, { u, meter, isPeriod, rows: state.listAllYears ? listAll : listInYear, total: listAll.length,
+      yr, readings, periods, warnByReading });
+  }
   if (isDelivery) wireTankLevels(container, u, meter);
   syncAddress(u, latestYear);
 }
@@ -507,10 +544,9 @@ function fillExplainers(container, { u, contract, monthly, yr, pvSummary, feedIn
     parts.push(timelineHtml(contract, todayIso()));
   }
   if (u.hgt_relevant) parts.push(weatherHtml(monthly));
-  if (isPv(u)) {
-    const years = pvSummary?.yearly || [];
-    parts.push(energyHtml(years.find(y => y.year === yr) || years[years.length - 1]));
-  }
+  // v3.4.0 (F1026) — die ganze Antwort: Jahr und Monat umschaltbar, Start im
+  // gewählten Jahr (sonst das jüngste)
+  if (isPv(u) && pvSummary) parts.push(energyHtml(pvSummary, { year: yr }));
   const html = parts.filter(Boolean);
   if (!html.length) return;
   box.innerHTML = `<h2 class="card__title">${escapeHtml(t('dashboard.explainers.title'))}</h2>
@@ -521,13 +557,21 @@ function fillExplainers(container, { u, contract, monthly, yr, pvSummary, feedIn
 
 // ── F1012: Rechnungsprüfung — seit v2.11.0 eine eigene Seite (views/bill-check.js)
 // v3.1.0 (H5) — für jede Art mit Rechnungsprüfung (Strom, Wasser, Fernwärme, Gas)
-function billCheckLink(u, meter, year) {
-  const href = `#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(meter.id)}&from=${year}-01-01&to=${year + 1}-01-01`;
+// v3.4.0 (N1021) — mit der letzten abgeschlossenen Abrechnungsperiode nach dem
+// Stichtag der Art (wie die Seite selbst, wenn sie ohne Zeitraum öffnet). Bis
+// v3.3 nahm der Verweis das angezeigte, meist laufende Jahr — eine Lücke bis
+// zum 31.12. mit „keine Ablesung“.
+function billCheckLink(u, meter, settings = {}) {
+  const period = lastClosedPeriod(settings[`billing_cycle_anchor_${u.key}`], todayIso());
+  const href = `#/bill-check?utility=${encodeURIComponent(u.key)}&meter=${encodeURIComponent(meter.id)}&from=${period.from}&until=${period.until}`;
+  const year = calendarYearOf(period);
+  const label = year != null ? t('utility.billCheck.open', { year })
+    : t('utility.billCheck.openPeriod', { from: fmt.date(period.from), to: fmt.date(period.until) });
   return `
     <div class="card card--link" data-min-level="advanced">
       <div class="card__title">${t('nav.billCheck')}</div>
       <p class="muted">${u.key === 'gas' ? t('utility.billCheck.hint') : t('utility.billCheck.hintGeneric')}</p>
-      <a class="btn btn--ghost btn--sm" href="${href}">${escapeHtml(t('utility.billCheck.open', { year }))}</a>
+      <a class="btn btn--ghost btn--sm" href="${href}">${escapeHtml(label)}</a>
     </div>`;
 }
 
@@ -891,6 +935,46 @@ function contractsTable(contracts, u) {
   // liefert (Gas/Strom/Fernwärme). Wasser und Einspeisung kennen keine
   // Sonderzahlungen; bei ihnen fehlt das Feld, und die Spalte entfällt.
   const showSpecial = contracts.some(c => Array.isArray(c.special_payments));
+  // v3.4.0 (N1021) — wie Kosten → Verträge: Zukünftig · Aktuell · Beendet,
+  // jeweils der neueste oben (lib/contract-order.js), „Beendet“ ab drei
+  // Einträgen eingeklappt. Bis v3.3 die Reihenfolge des Servers: älteste oben,
+  // der Gruppenvertrag hinten angehängt.
+  const cols = showSpecial ? 11 : 10;
+  const groupBody = (g) => {
+    const head = g.group === 'past'
+      ? `<button type="button" class="link-btn contracts-table__toggle" data-toggle-group="past" aria-expanded="${!g.collapsed}">${escapeHtml(tp('contracts.phaseGroup.past', g.items.length))}</button>`
+      : escapeHtml(t('contracts.phaseGroup.' + g.group));
+    return `<tbody data-phase-group="${g.group}">
+      <tr class="contracts-table__group"><th scope="rowgroup" colspan="${cols}">${head}</th></tr>
+      ${g.items.map(c => contractRow(c, g.collapsed)).join('')}
+    </tbody>`;
+  };
+  const contractRow = (c, hidden) => {
+      const cur = c.current_balance, proj = c.projected_end_balance;
+      const period = c.is_open_ended
+        ? t('utility.contractsTable.periodOpen', { start: fmt.date(c.start) })
+        : `${fmt.date(c.start)} → ${fmt.date(c.end)}`;
+      const tariffParts = [];
+      if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + ' ' + getCurrencyMinor());
+      // v2.13.0 — ausgeschrieben statt „GP“, auf den Cent statt gerundet
+      if (c.current_base_price_eur   != null) tariffParts.push(t('utility.contractsTable.gpSuffix', { value: fmt.num(c.current_base_price_eur, 2) }));
+      // Je Preis eine Zeile, ohne Umbruch darin (sonst „Grundpreis 11,90 / €/Monat“)
+      const tariffStr = tariffParts.length ? tariffParts.map(p => `<span class="tariff-part">${p}</span>`).join('<br>') : '–';
+      const bonusStr = c.actual_bonus_total > 0 ? fmt.eur(c.actual_bonus_total) : '–';
+      return `<tr data-group-row data-contract-id="${escapeHtml(c.contract_id || '')}"${hidden ? ' hidden' : ''}>
+        <td class="provider-cell">${escapeHtml(c.provider || '–')}${c.tariff_name ? `<small>${escapeHtml(c.tariff_name)}</small>` : ''}</td>
+        <td class="period-cell">${period}</td>
+        <td>${phasePill(c)}</td>
+        <td class="num muted" style="font-size:11px">${tariffStr}</td>
+        <td class="num">${c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) : '–'}</td>
+        <td class="num">${fmt.eur(c.cost_to_date ?? c.actual_cost)}</td>
+        <td class="num">${fmt.eur(c.advance_paid)}</td>
+        <td class="num success-text">${bonusStr}</td>
+        ${showSpecial ? specialCell(c) : ''}
+        ${balCell(cur)}
+        ${balCell(proj, true)}
+      </tr>`;
+  };
   return `<div class="table-wrap"><table class="table contracts-table">
     <thead><tr>
       <th scope="col">${t('utility.contractsTable.colProvider')}</th>
@@ -906,36 +990,7 @@ function contractsTable(contracts, u) {
       <th scope="col" class="num">${t('utility.contractsTable.colBalanceToday')}${info('balance')}</th>
       <th scope="col" class="num">${t('utility.contractsTable.colBalanceExpected')}</th>
     </tr></thead>
-    <tbody>
-    ${contracts.map(c => {
-      const stateCls = c.is_current ? 'active' : c.is_past ? 'past' : 'future';
-      const stateLabel = c.renewed ? t('utility.contractsTable.stateRenewed') : c.is_current ? t('utility.contractsTable.stateActive') : c.is_past ? t('utility.contractsTable.statePast') : t('utility.contractsTable.stateFuture');
-      const cur = c.current_balance, proj = c.projected_end_balance;
-      const period = c.is_open_ended
-        ? t('utility.contractsTable.periodOpen', { start: fmt.date(c.start) })
-        : `${fmt.date(c.start)} → ${fmt.date(c.end)}`;
-      const tariffParts = [];
-      if (c.current_working_price_ct != null) tariffParts.push(fmt.num(c.current_working_price_ct, 4) + ' ' + getCurrencyMinor());
-      // v2.13.0 — ausgeschrieben statt „GP“, auf den Cent statt gerundet
-      if (c.current_base_price_eur   != null) tariffParts.push(t('utility.contractsTable.gpSuffix', { value: fmt.num(c.current_base_price_eur, 2) }));
-      // Je Preis eine Zeile, ohne Umbruch darin (sonst „Grundpreis 11,90 / €/Monat“)
-      const tariffStr = tariffParts.length ? tariffParts.map(p => `<span class="tariff-part">${p}</span>`).join('<br>') : '–';
-      const bonusStr = c.actual_bonus_total > 0 ? fmt.eur(c.actual_bonus_total) : '–';
-      return `<tr>
-        <td class="provider-cell">${escapeHtml(c.provider || '–')}${c.tariff_name ? `<small>${escapeHtml(c.tariff_name)}</small>` : ''}</td>
-        <td class="period-cell">${period}</td>
-        <td><span class="status-pill ${stateCls}">${stateLabel}</span></td>
-        <td class="num muted" style="font-size:11px">${tariffStr}</td>
-        <td class="num">${c.current_advance_amount != null ? fmt.eur(c.current_advance_amount) : '–'}</td>
-        <td class="num">${fmt.eur(c.cost_to_date ?? c.actual_cost)}</td>
-        <td class="num">${fmt.eur(c.advance_paid)}</td>
-        <td class="num success-text">${bonusStr}</td>
-        ${showSpecial ? specialCell(c) : ''}
-        ${balCell(cur)}
-        ${balCell(proj, true)}
-      </tr>`;
-    }).join('')}
-    </tbody>
+    ${groupContracts(contracts).map(groupBody).join('')}
   </table></div>
   <p class="muted" style="font-size:11px;margin:8px 4px 0">${t(feedInKind(u) ? 'saldo.tableLegendFeedIn' : 'saldo.tableLegend')}${showSpecial ? ' ' + t('utility.contractsTable.hint') : ''}</p>`;
 }
@@ -946,7 +1001,9 @@ function contractsTable(contracts, u) {
 // v2.13.0 (Review UI-17) — die Einzelposten zum Aufklappen statt im Tooltip,
 // den es auf dem iPhone nicht gibt.
 function specialCell(c) {
-  const items = Array.isArray(c.special_payments) ? c.special_payments : [];
+  // v3.4.0 (N1021) — die neueste Zahlung oben, wie die Vertragslisten
+  const items = (Array.isArray(c.special_payments) ? [...c.special_payments] : [])
+    .sort((a, b) => String(b?.date || '').localeCompare(String(a?.date || '')));
   if (!items.length) return `<td class="num muted special-cell">–</td>`;
   const net = c.special_payment_net || 0;
   const cls = net > 0 ? 'success-text' : net < 0 ? 'danger-text' : 'muted';
@@ -1082,22 +1139,18 @@ function warningText(w, u) {
   return `${base.date}: ${base.counter} ${u.unit}`;
 }
 
-function readingsTable(readings, u, year = null, warnByReading = new Map()) {
-  if (!readings.length) return `<div class="empty" style="padding:32px"><div class="empty-icon">📋</div><h2>${t('utility.readingsTable.emptyTitle')}</h2></div>`;
-
-  const inYear = year == null
-    ? readings
-    : readings.filter(r => String(r.date || '').slice(0, 4) === String(year));
-
-  if (!inYear.length) {
-    return `<div class="empty" style="padding:32px">
+// v3.4.0 (N1021) — Leerzustände der Liste: gar keine Ablesung, keine im Jahr
+function readingsEmpty(total, year) {
+  if (!total) return `<div class="empty" style="padding:32px"><div class="empty-icon">📋</div><h2>${t('utility.readingsTable.emptyTitle')}</h2></div>`;
+  return `<div class="empty" style="padding:32px">
       <div class="empty-icon">📋</div>
       <h2>${t('utility.readingsTable.emptyYear', { year })}</h2>
-      <p class="muted">${tp('utility.readingsTable.emptyYearHint', readings.length)}</p>
+      <p class="muted">${tp('utility.readingsTable.emptyYearHint', total)}</p>
     </div>`;
-  }
+}
 
-  const sorted = [...inYear].sort((a, b) => b.date.localeCompare(a.date));
+/** Tabelle der übergebenen Ablesungen (schon gefiltert, sortiert und ggf. eine Seite). */
+function readingsTable(sorted, u, warnByReading = new Map()) {
   return `<div class="table-wrap"><table class="table">
     <thead><tr>
       <th scope="col">${t('utility.readingsTable.colDate')}</th>
@@ -1130,10 +1183,140 @@ function readingsTable(readings, u, year = null, warnByReading = new Map()) {
 }
 
 // ── v3.1.0 (H3, B2) — Verbrauch je Zeitraum ──────────────────────────
-function periodsTable(periods, u, year = null) {
+// ── v3.4.0 (N1021) — Liste der Ablesungen bzw. Zeiträume ────────────
+// Jahr direkt in der Karte (mit „Alle Jahre“), Anzahl im Jahr und gesamt,
+// Blättern ab mehr als 50 Zeilen (Tagesdaten aus Home Assistant oder evcc),
+// „nur auffällige“, damit PRÜFEN/UNPLAUSIBEL nicht auf Seite 7 verschwinden.
+
+/** Kleine Jahreswahl der Karte: neueste Jahre zuerst, dazu „Alle Jahre“. */
+function listYearSelect(years, yr) {
+  if (!years.length) return '';
+  const opts = [...years].sort((a, b) => b - a)
+    .map(y => `<option value="${y}"${!state.listAllYears && y === yr ? ' selected' : ''}>${y}</option>`).join('');
+  return `<select class="select list-year" data-role="list-year" aria-label="${escapeHtml(t('utility.list.yearLabel'))}">${opts}
+    <option value="all"${state.listAllYears ? ' selected' : ''}>${escapeHtml(t('utility.list.allYears'))}</option></select>`;
+}
+
+/** „10 in 2026 · 43 gesamt“, bei „Alle Jahre“ nur die Gesamtzahl. */
+function listCountText(inYear, total, yr) {
+  const all = tp('utility.list.countTotal', total);
+  return escapeHtml(state.listAllYears ? all : `${tp('utility.list.countInYear', inYear, { year: yr })} · ${all}`);
+}
+
+/**
+ * Liste zeichnen und bedienen. Blättern und Filter zeichnen nur die Liste neu;
+ * die Zeilenaktionen hängen deshalb an der Liste, nicht an jeder Zeile.
+ */
+function wireList(container, { u, meter, isPeriod, rows, total, yr, readings, periods, warnByReading }) {
+  const card = container.querySelector('[data-role="list-card"]');
+  const body = card?.querySelector('[data-role="list-body"]');
+  if (!body) return;
+  const listKey = isPeriod ? PERIODS_PAGER : READINGS_PAGER;
+  const flagged = (r) => !isPeriod && (r.is_suspect || warnByReading.has(r.id));
+  const sorted = isPeriod
+    ? [...rows].sort((a, b) => b.from.localeCompare(a.from))
+    : [...rows].sort((a, b) => b.date.localeCompare(a.date));
+  const nFlagged = sorted.filter(flagged).length;
+  if (!nFlagged) state.list.flaggedOnly = false;
+
+  const draw = () => {
+    const shown = state.list.flaggedOnly ? sorted.filter(flagged) : sorted;
+    const p = paginate(shown, { page: state.list.page, size: pageSize(listKey) });
+    state.list.page = p.page;
+    const filter = nFlagged && (state.list.flaggedOnly || sorted.length > PAGER_THRESHOLD)
+      ? `<label class="settings-field__check list-filter"><input type="checkbox" data-role="flagged-only"${state.list.flaggedOnly ? ' checked' : ''}> ${escapeHtml(tp('utility.readingsTable.onlyFlagged', nFlagged))}</label>`
+      : '';
+    const table = isPeriod ? periodsTable(p.items, u)
+      : (p.items.length ? readingsTable(p.items, u, warnByReading) : readingsEmpty(total, yr));
+    body.innerHTML = filter + table + pagerHtml(p, { listKey });
+    wirePager(body, p, { listKey, onChange: ({ page }) => { state.list.page = page; draw(); } });
+    body.querySelector('[data-role="flagged-only"]')?.addEventListener('change', (ev) => {
+      state.list.flaggedOnly = ev.target.checked;
+      state.list.page = 1;
+      draw();
+      body.querySelector('[data-role="flagged-only"]')?.focus();
+    });
+  };
+  draw();
+
+  card.querySelector('[data-role="list-year"]')?.addEventListener('change', (ev) => {
+    const v = ev.target.value;
+    state.listAllYears = v === 'all';
+    if (v !== 'all') state.yearByUtility[u.key] = Number(v);
+    rerender(container);
+  });
+
+  body.addEventListener('click', async (ev) => {
+    const btn = ev.target.closest('[data-action]');
+    if (!btn || !body.contains(btn)) return;
+    const id = btn.getAttribute('data-id');
+    switch (btn.getAttribute('data-action')) {
+      case 'edit-reading':
+        openReadingModal(container, u, meter, readings.find(r => r.id === id), readings);
+        break;
+      // v3.1.0 (H2, MKT-08) — Foto zur Ablesung groß ansehen, entfernen
+      case 'view-photo': {
+        const reading = readings.find(r => r.id === id);
+        if (!reading?.attachment_id) return;
+        const m = openModal({
+          title: `${t('readingsEntry.photo.alt')} · ${fmt.date(reading.date)}`,
+          size: 'lg',
+          body: `<img class="photo-lightbox" src="${escapeHtml(api.attachmentUrl(reading.attachment_id))}" alt="${escapeHtml(t('readingsEntry.photo.alt'))} ${escapeHtml(fmt.date(reading.date))}">`,
+          footer: `<a class="btn btn--ghost" href="${escapeHtml(api.attachmentUrl(reading.attachment_id))}" target="_blank" rel="noopener">${t('utility.photo.open')}</a>
+            <button type="button" class="btn btn--danger" data-action="photo-remove">${t('readingsEntry.photo.remove')}</button>`,
+        });
+        m.modalEl.querySelector('[data-action="photo-remove"]').addEventListener('click', guardSubmit(m.modalEl.querySelector('[data-action="photo-remove"]'), async () => {
+          try {
+            await api.updateReading(u.key, reading.id, { attachment_id: null });
+            m.close(true);
+            toastOk(t('utility.photo.removed'));
+            rerender(container);
+          } catch (e) { toastErr(e.message); }
+        }));
+        break;
+      }
+      // v2.6.0 — Verdacht aus Home Assistant bestätigen: Der Stand zählt wieder.
+      case 'confirm-reading':
+        try {
+          await api.updateReading(u.key, id, { is_suspect: false });
+          toastOk(t('utility.toast.readingConfirmed'));
+          rerender(container);
+        } catch (e) { toastErr(e.message); }
+        break;
+      case 'delete-reading': {
+        const reading = readings.find(r => r.id === id);
+        const ok = await confirmModal({
+          message: t('utility.confirm.deleteReading', { date: fmt.date(reading?.date) }),
+          confirmLabel: t('utility.readingsTable.delete'), danger: true,
+        });
+        if (!ok) return;
+        try { await api.deleteReading(u.key, id); toastOk(t('utility.toast.readingDeleted')); rerender(container); }
+        catch (e) { toastErr(e.message); }
+        break;
+      }
+      // v3.1.0 (H3, B2) — Zeiträume bearbeiten, löschen
+      case 'edit-period':
+        openPeriodModal(container, u, meter, periods.find(p => p.id === id), periods);
+        break;
+      case 'delete-period': {
+        const p = periods.find(x => x.id === id);
+        const ok = await confirmModal({
+          message: t('utility.periods.confirmDelete', { from: fmt.date(p?.from), to: fmt.date(p?.to) }),
+          confirmLabel: t('utility.readingsTable.delete'), danger: true,
+        });
+        if (!ok) return;
+        try { await api.deletePeriod(u.key, p.id); toastOk(t('utility.periods.deleted')); rerender(container); }
+        catch (e) { toastErr(e.message); }
+        break;
+      }
+      default:
+    }
+  });
+}
+
+// v3.4.0 (N1021) — bekommt die Zeilen schon gefiltert und sortiert (Jahr bzw. „Alle Jahre“, Seite)
+function periodsTable(list, u) {
   const unitOf = (p) => p.value_unit === 'meter' ? u.unit : (u.consumption_unit || u.unit);
-  const list = [...periods].filter(p => year == null || p.from.slice(0, 4) === String(year) || p.to.slice(0, 4) === String(year))
-    .sort((a, b) => b.from.localeCompare(a.from));
   if (!list.length) {
     return `<div class="empty" style="padding:32px"><div class="empty-icon">📅</div><h2>${t('utility.periods.empty')}</h2>
       <p class="muted">${t('utility.periods.emptyHint')}</p></div>`;
@@ -1244,16 +1427,18 @@ async function loadEvcc(container, meter, year, my) {
           <td class="num">${fmt.num(m.kwh, 1)}</td><td class="num">${m.solar_pct == null ? '–' : fmt.pct(m.solar_pct / 100, 0)}</td>
           <td class="num">${m.price_eur == null ? '–' : fmt.eur(m.price_eur)}</td></tr>`).join('')}</tbody>
       </table></div>` : `<p class="muted">${escapeHtml(t('evcc.empty', { year }))}</p>`}
-    <div class="form-row" style="align-items:flex-end">
+    <div class="fgrid">
       <div class="field"><label for="evcc-counters">${escapeHtml(t('evcc.countersLabel'))}</label>
         <select class="select" id="evcc-counters">${['auto', 'energy', 'none'].map(c => `<option value="${c}">${escapeHtml(t('evcc.counters.' + c))}</option>`).join('')}</select></div>
-      <div style="display:flex;flex-wrap:wrap;gap:var(--sp-2)">
-        <label class="btn btn--ghost">${escapeHtml(t('evcc.chooseCsv'))}<input type="file" id="evcc-file" accept=".csv,text/csv" hidden></label>
-        ${hasEndpoint ? `<button type="button" class="btn btn--ghost" id="evcc-sync">${escapeHtml(t('evcc.sync'))}</button>` : ''}
+      <div class="field">
+        <div class="field__actions">
+          <label class="btn btn--ghost">${escapeHtml(t('evcc.chooseCsv'))}<input type="file" id="evcc-file" accept=".csv,text/csv" hidden></label>
+          ${hasEndpoint ? `<button type="button" class="btn btn--ghost" id="evcc-sync">${escapeHtml(t('evcc.sync'))}</button>` : ''}
+        </div>
       </div>
     </div>
     <p class="muted small">${escapeHtml(t(hasEndpoint ? 'evcc.syncHint' : 'evcc.noEndpoint'))}
-      <a href="${escapeHtml(docUrl('evcc'))}" target="_blank" rel="noopener">${escapeHtml(t('common.guide'))}</a></p>
+      <a href="${escapeHtml(docUrl('evcc'))}">${escapeHtml(t('common.guide'))}</a></p>
   </div>`;
 
   // Vorschau (Trockenlauf) → bestätigen → übernehmen. Mehrere Ladepunkte mit
@@ -1400,30 +1585,31 @@ function openPeriodModal(container, u, meter, period, periods = []) {
   const ref = period?.reference || {};
   const body = `
     <form id="period-form">
-      <div class="form-row">
-        <div class="field"><label for="pf-from">${t('utility.periods.from')}</label><input class="input" id="pf-from" name="from" type="date" required value="${escapeHtml(from)}"></div>
-        <div class="field"><label for="pf-to">${t('utility.periods.to')}</label><input class="input" id="pf-to" name="to" type="date" required value="${escapeHtml(to)}"></div>
-      </div>
-      <div class="form-row">
-        <div class="field"><label for="pf-value">${t('utility.periods.value')}</label>
+      <!-- v3.4.0 (N1021) — Formularraster -->
+      <div class="fgrid">
+        <div class="field field--s"><label for="pf-from">${t('utility.periods.from')}</label><input class="input" id="pf-from" name="from" type="date" required value="${escapeHtml(from)}"></div>
+        <div class="field field--s"><label for="pf-to">${t('utility.periods.to')}</label><input class="input" id="pf-to" name="to" type="date" required value="${escapeHtml(to)}"></div>
+        <div class="field field--s field--new"><label for="pf-value">${t('utility.periods.value')}</label>
           <input class="input" id="pf-value" name="value" type="text" inputmode="decimal" autocomplete="off" required value="${escapeHtml(formatForInput(period?.value))}"></div>
-        <div class="field"><label for="pf-unit">${t('utility.periods.unit')}</label>
+        <div class="field field--s"><label for="pf-unit">${t('utility.periods.unit')}</label>
           <select class="input" id="pf-unit" name="value_unit" ${isGas ? '' : 'disabled'}>
             <option value="consumption" ${period?.value_unit === 'meter' ? '' : 'selected'}>${escapeHtml(u.consumption_unit)}</option>
             ${isGas ? `<option value="meter" ${period?.value_unit === 'meter' ? 'selected' : ''}>${escapeHtml(u.unit)}</option>` : ''}
           </select></div>
       </div>
-      <fieldset class="field">
+      <fieldset class="fgroup">
         <legend>${t('readingsEntry.period.reference')}</legend>
-        <div class="form-row">
+        <div class="fgrid">
           ${['prev_month', 'prev_year_month', 'average_user'].map(k => `
-          <div class="field"><label for="pf-${k}">${t('utility.periods.ref.' + k)}</label>
+          <div class="field field--s"><label for="pf-${k}">${t('utility.periods.ref.' + k)}</label>
             <input class="input" id="pf-${k}" data-ref="${k}" type="text" inputmode="decimal" autocomplete="off" value="${escapeHtml(formatForInput(ref[k]))}"></div>`).join('')}
         </div>
       </fieldset>
-      <div class="field"><label><input type="checkbox" name="is_estimated" ${period?.is_estimated ? 'checked' : ''}> ${t('utility.readingsTable.estimated')}</label></div>
-      <div class="field"><label for="pf-note">${t('utility.readingsTable.colNote')}</label>
-        <input class="input input--text" id="pf-note" name="note" type="text" maxlength="500" value="${escapeHtml(period?.note || '')}"></div>
+      <div class="fgrid">
+        <div class="field field--full"><label class="check"><input type="checkbox" name="is_estimated" ${period?.is_estimated ? 'checked' : ''}> ${t('utility.readingsTable.estimated')}</label></div>
+        <div class="field field--full"><label for="pf-note">${t('utility.readingsTable.colNote')}</label>
+          <input class="input input--text" id="pf-note" name="note" type="text" maxlength="500" value="${escapeHtml(period?.note || '')}"></div>
+      </div>
     </form>`;
   openModal({
     title: period ? t('utility.periods.edit') : t('utility.periods.add'),
@@ -1651,19 +1837,22 @@ function openTankLevelModal(container, u, meter) {
   const unit = meter.capacity_unit || u.volume_unit || 'L';
   const body = `
     <form id="level-form">
-      <div class="field">
-        <label for="lf-date">${t('utility.tank.levelDate')}</label>
-        <input class="input" id="lf-date" type="date" name="date" value="${escapeHtml(todayIso())}" max="${escapeHtml(todayIso())}" required>
-      </div>
-      <div class="field">
-        <label for="lf-level">${t('utility.tank.levelValue', { unit })}</label>
-        <input class="input" id="lf-level" type="text" inputmode="decimal" autocomplete="off" name="level" required aria-describedby="lf-level-hint lf-level-msg">
-        <small class="muted" id="lf-level-hint">${t('utility.tank.levelHint')}</small>
-        <div class="field-error" id="lf-level-msg" role="alert" hidden></div>
-      </div>
-      <div class="field">
-        <label for="lf-note">${t('utility.tank.levelNote')}</label>
-        <input class="input input--text" id="lf-note" type="text" name="note" maxlength="80">
+      <!-- v3.4.0 (N1021) — Formularraster: Datum und Stand nebeneinander -->
+      <div class="fgrid">
+        <div class="field field--s">
+          <label for="lf-date">${t('utility.tank.levelDate')}</label>
+          <input class="input" id="lf-date" type="date" name="date" value="${escapeHtml(todayIso())}" max="${escapeHtml(todayIso())}" required>
+        </div>
+        <div class="field field--l">
+          <label for="lf-level">${t('utility.tank.levelValue', { unit })}</label>
+          <input class="input" id="lf-level" type="text" inputmode="decimal" autocomplete="off" name="level" required aria-describedby="lf-level-hint lf-level-msg">
+          <small class="settings-field__hint" id="lf-level-hint">${t('utility.tank.levelHint')}</small>
+          <div class="field-error" id="lf-level-msg" role="alert" hidden></div>
+        </div>
+        <div class="field field--full">
+          <label for="lf-note">${t('utility.tank.levelNote')}</label>
+          <input class="input input--text" id="lf-note" type="text" name="note" maxlength="80">
+        </div>
       </div>
     </form>`;
   const footer = `
@@ -1844,6 +2033,7 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = [], m
   container.querySelectorAll('.year-pills .pill').forEach(p => {
     p.addEventListener('click', () => {
       state.yearByUtility[u.key] = Number(p.getAttribute('data-year'));
+      state.listAllYears = false;   // v3.4.0 — ein Jahr gewählt: die Liste folgt ihm
       rerender(container);
     });
   });
@@ -1861,74 +2051,16 @@ function wireEvents(container, u, meter, readings, contracts, deliveries = [], m
       ? openPeriodModal(container, u, meter, null, periods)
       : openReadingModal(container, u, meter, null, readings)));
   });
-  // v3.1.0 (H3, B2) — Zeiträume anlegen, bearbeiten, löschen
+  // v3.1.0 (H3, B2) — Zeiträume anlegen; Bearbeiten, Löschen und die
+  // Aktionen je Ablesung hängen seit v3.4.0 an der Liste (wireList)
   container.querySelector('#btn-new-period')?.addEventListener('click', () => openPeriodModal(container, u, meter, null, periods));
-  container.querySelectorAll('[data-action="edit-period"]').forEach(btn => {
-    btn.addEventListener('click', () => openPeriodModal(container, u, meter, periods.find(p => p.id === btn.getAttribute('data-id')), periods));
-  });
-  container.querySelectorAll('[data-action="delete-period"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const p = periods.find(x => x.id === btn.getAttribute('data-id'));
-      const ok = await confirmModal({
-        message: t('utility.periods.confirmDelete', { from: fmt.date(p?.from), to: fmt.date(p?.to) }),
-        confirmLabel: t('utility.readingsTable.delete'), danger: true,
-      });
-      if (!ok) return;
-      try { await api.deletePeriod(u.key, p.id); toastOk(t('utility.periods.deleted')); rerender(container); }
-      catch (e) { toastErr(e.message); }
-    });
-  });
 
-  container.querySelectorAll('[data-action="edit-reading"]').forEach(btn => {
+  // v3.4.0 (N1021) — die Gruppe „Beendet“ der Vertragstabelle auf- und zuklappen
+  container.querySelectorAll('[data-toggle-group]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = btn.getAttribute('data-id');
-      const reading = readings.find(r => r.id === id);
-      openReadingModal(container, u, meter, reading, readings);
-    });
-  });
-  // v3.1.0 (H2, MKT-08) — Foto zur Ablesung groß ansehen, entfernen
-  container.querySelectorAll('[data-action="view-photo"]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const reading = readings.find(r => r.id === btn.getAttribute('data-id'));
-      if (!reading?.attachment_id) return;
-      const m = openModal({
-        title: `${t('readingsEntry.photo.alt')} · ${fmt.date(reading.date)}`,
-        size: 'lg',
-        body: `<img class="photo-lightbox" src="${escapeHtml(api.attachmentUrl(reading.attachment_id))}" alt="${escapeHtml(t('readingsEntry.photo.alt'))} ${escapeHtml(fmt.date(reading.date))}">`,
-        footer: `<a class="btn btn--ghost" href="${escapeHtml(api.attachmentUrl(reading.attachment_id))}" target="_blank" rel="noopener">${t('utility.photo.open')}</a>
-          <button type="button" class="btn btn--danger" data-action="photo-remove">${t('readingsEntry.photo.remove')}</button>`,
-      });
-      m.modalEl.querySelector('[data-action="photo-remove"]').addEventListener('click', guardSubmit(m.modalEl.querySelector('[data-action="photo-remove"]'), async () => {
-        try {
-          await api.updateReading(u.key, reading.id, { attachment_id: null });
-          m.close(true);
-          toastOk(t('utility.photo.removed'));
-          rerender(container);
-        } catch (e) { toastErr(e.message); }
-      }));
-    });
-  });
-  // v2.6.0 — Verdacht aus Home Assistant bestätigen: Der Stand zählt wieder.
-  container.querySelectorAll('[data-action="confirm-reading"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      try {
-        await api.updateReading(u.key, btn.getAttribute('data-id'), { is_suspect: false });
-        toastOk(t('utility.toast.readingConfirmed'));
-        rerender(container);
-      } catch (e) { toastErr(e.message); }
-    });
-  });
-  container.querySelectorAll('[data-action="delete-reading"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-id');
-      const reading = readings.find(r => r.id === id);
-      const ok = await confirmModal({
-        message: t('utility.confirm.deleteReading', { date: fmt.date(reading?.date) }),
-        confirmLabel: t('utility.readingsTable.delete'), danger: true,
-      });
-      if (!ok) return;
-      try { await api.deleteReading(u.key, id); toastOk(t('utility.toast.readingDeleted')); rerender(container); }
-      catch (e) { toastErr(e.message); }
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', String(open));
+      btn.closest('tbody')?.querySelectorAll('tr[data-group-row]').forEach(tr => { tr.hidden = !open; });
     });
   });
 
@@ -1993,7 +2125,7 @@ function openReadingModal(container, u, meter, reading, readings = []) {
         <input class="input input--text" id="rf-note" type="text" name="note" value="${escapeHtml(reading?.note || '')}">
       </div>
       <div class="field">
-        <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
+        <label class="check">
           <input type="checkbox" name="is_estimated" ${reading?.is_estimated ? 'checked' : ''}>
           <span>${t('utility.readingModal.estimated')}</span>
         </label>
@@ -2098,45 +2230,48 @@ function openDeliveryModal(container, u, meter, delivery) {
   const unit = u.volume_unit || u.unit || 'L';
   const body = `
     <form id="delivery-form">
-      <div class="field">
-        <label for="df-date">${t('utility.deliveryModal.date')}</label>
-        <input class="input" id="df-date" type="date" name="date" value="${escapeHtml(delivery?.date || today)}" required>
-      </div>
-      <div class="field">
-        <label for="df-quantity">${t('utility.deliveryModal.quantity', { unit })}</label>
-        <input class="input" id="df-quantity" type="text" inputmode="decimal" autocomplete="off" name="quantity" value="${escapeHtml(formatForInput(delivery?.quantity))}" required aria-describedby="df-quantity-msg">
-        <div class="field-error" id="df-quantity-msg" role="alert" hidden></div>
-      </div>
-      <div class="field">
-        <label for="df-unit-price">${t('utility.deliveryModal.unitPrice', { unit })}</label>
-        <input class="input" id="df-unit-price" type="text" inputmode="decimal" autocomplete="off" name="unit_price_cents" value="${escapeHtml(formatForInput(delivery?.unit_price_cents))}" aria-describedby="df-unit-price-msg">
-        <div class="field-error" id="df-unit-price-msg" role="alert" hidden></div>
-      </div>
-      <div class="field">
-        <label for="df-total">${t('utility.deliveryModal.total')}</label>
-        <input class="input" id="df-total" type="text" inputmode="decimal" autocomplete="off" name="total_eur" value="${escapeHtml(formatForInput(delivery?.total_eur))}" aria-describedby="df-total-msg">
-        <div class="field-error" id="df-total-msg" role="alert" hidden></div>
-      </div>
-      <div class="field">
-        <label for="df-supplier">${t('utility.deliveryModal.supplier')}</label>
-        <input class="input input--text" id="df-supplier" type="text" name="supplier" value="${escapeHtml(delivery?.supplier || '')}">
-      </div>
-      <div class="field">
-        <label for="df-note">${t('utility.deliveryModal.note')}</label>
-        <input class="input input--text" id="df-note" type="text" name="note" value="${escapeHtml(delivery?.note || '')}">
-      </div>
-      <div class="field">
-        <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
-          <input type="checkbox" name="fill_to_full" ${delivery?.fill_to_full ? 'checked' : ''} aria-describedby="df-full-hint">
-          <span>${t('utility.deliveryModal.fillToFull')}</span>
-        </label>
-        <small class="muted" id="df-full-hint">${t('utility.deliveryModal.fillToFullHint')}</small>
-      </div>
-      <div class="field">
-        <label style="display:flex;align-items:center;gap:8px;text-transform:none;letter-spacing:0">
-          <input type="checkbox" name="is_planned" ${delivery?.is_planned ? 'checked' : ''}>
-          <span>${t('utility.deliveryModal.planned')}</span>
-        </label>
+      <!-- v3.4.0 (N1021) — Formularraster: Datum, Menge, Preis in einer Zeile -->
+      <div class="fgrid">
+        <div class="field field--s">
+          <label for="df-date">${t('utility.deliveryModal.date')}</label>
+          <input class="input" id="df-date" type="date" name="date" value="${escapeHtml(delivery?.date || today)}" required>
+        </div>
+        <div class="field field--s">
+          <label for="df-quantity">${t('utility.deliveryModal.quantity', { unit })}</label>
+          <input class="input" id="df-quantity" type="text" inputmode="decimal" autocomplete="off" name="quantity" value="${escapeHtml(formatForInput(delivery?.quantity))}" required aria-describedby="df-quantity-msg">
+          <div class="field-error" id="df-quantity-msg" role="alert" hidden></div>
+        </div>
+        <div class="field field--s">
+          <label for="df-unit-price">${t('utility.deliveryModal.unitPrice', { unit })}</label>
+          <input class="input" id="df-unit-price" type="text" inputmode="decimal" autocomplete="off" name="unit_price_cents" value="${escapeHtml(formatForInput(delivery?.unit_price_cents))}" aria-describedby="df-unit-price-msg">
+          <div class="field-error" id="df-unit-price-msg" role="alert" hidden></div>
+        </div>
+        <div class="field field--s">
+          <label for="df-total">${t('utility.deliveryModal.total')}</label>
+          <input class="input" id="df-total" type="text" inputmode="decimal" autocomplete="off" name="total_eur" value="${escapeHtml(formatForInput(delivery?.total_eur))}" aria-describedby="df-total-msg">
+          <div class="field-error" id="df-total-msg" role="alert" hidden></div>
+        </div>
+        <div class="field field--l">
+          <label for="df-supplier">${t('utility.deliveryModal.supplier')}</label>
+          <input class="input input--text" id="df-supplier" type="text" name="supplier" value="${escapeHtml(delivery?.supplier || '')}">
+        </div>
+        <div class="field field--full">
+          <label for="df-note">${t('utility.deliveryModal.note')}</label>
+          <input class="input input--text" id="df-note" type="text" name="note" value="${escapeHtml(delivery?.note || '')}">
+        </div>
+        <div class="field field--full">
+          <label class="check">
+            <input type="checkbox" name="fill_to_full" ${delivery?.fill_to_full ? 'checked' : ''} aria-describedby="df-full-hint">
+            <span>${t('utility.deliveryModal.fillToFull')}</span>
+          </label>
+          <small class="settings-field__hint" id="df-full-hint">${t('utility.deliveryModal.fillToFullHint')}</small>
+        </div>
+        <div class="field field--full">
+          <label class="check">
+            <input type="checkbox" name="is_planned" ${delivery?.is_planned ? 'checked' : ''}>
+            <span>${t('utility.deliveryModal.planned')}</span>
+          </label>
+        </div>
       </div>
     </form>
   `;

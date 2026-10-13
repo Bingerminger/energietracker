@@ -20,7 +20,7 @@ final class IngressTest extends HttpServerTestCase
 {
     public function testUnderIngressNoServiceWorkerAndAnInternalAddress(): void
     {
-        $this->startServer();
+        $this->startServer(['language' => 'de'], ['ET_TRUSTED_PROXIES' => '127.0.0.1']);
         $plain = $this->request('GET', '/');
         self::assertStringContainsString("serviceWorker.register('sw.js')", $plain['body']);
         self::assertStringNotContainsString('et-ingress-host', $plain['body']);
@@ -29,6 +29,20 @@ final class IngressTest extends HttpServerTestCase
         self::assertSame(200, $ingress['status']);
         self::assertStringNotContainsString("serviceWorker.register('sw.js')", $ingress['body'], 'kein eigener Worker unter Ingress');
         self::assertMatchesRegularExpression('/<meta name="et-ingress-host" content="[^"]+">/', $ingress['body']);
+    }
+
+    /**
+     * v3.4.0 (N1020) — Den Hostnamen des Containers meldet die Shell nur dem
+     * Supervisor (ET_TRUSTED_PROXIES), nicht jedem, der die Kopfzeile setzt.
+     * Ohne eigenen Worker bleibt die Seite unter Ingress trotzdem.
+     */
+    public function testIngressHostOnlyForTrustedProxies(): void
+    {
+        $this->startServer();
+        $ingress = $this->request('GET', '/', ['X-Ingress-Path: /api/hassio_ingress/abc123']);
+        self::assertSame(200, $ingress['status']);
+        self::assertStringNotContainsString('et-ingress-host', $ingress['body'], 'kein Hostname ohne vertrauenswürdigen Proxy');
+        self::assertStringNotContainsString("serviceWorker.register('sw.js')", $ingress['body']);
     }
 
     public function testCachesAndWorkersAreScopedToThisInstallation(): void
@@ -53,6 +67,12 @@ final class IngressTest extends HttpServerTestCase
             self::assertSame('anna', $auth->proxyUser(['REMOTE_ADDR' => '172.30.32.2', 'HTTP_X_REMOTE_USER_NAME' => 'anna']));
             self::assertSame('u-42', $auth->proxyUser(['REMOTE_ADDR' => '172.30.32.2', 'HTTP_X_REMOTE_USER_ID' => 'u-42']));
             self::assertNull($auth->proxyUser(['REMOTE_ADDR' => '172.30.32.9', 'HTTP_X_REMOTE_USER_NAME' => 'anna']), 'nur vom Supervisor');
+            // v3.4.0 (N1020) — unter Ingress zählt nur, was der Supervisor filtert
+            $id = $auth->proxyIdentity(['REMOTE_ADDR' => '172.30.32.2', 'HTTP_X_INGRESS_PATH' => '/api/hassio_ingress/x',
+                'HTTP_REMOTE_USER' => 'admin', 'HTTP_X_REMOTE_USER_ID' => 'ha-7', 'HTTP_X_REMOTE_USER_NAME' => 'bob']);
+            self::assertSame(['name' => 'bob', 'id' => 'ha-7', 'via' => 'ingress'], $id, 'selbst gesetztes Remote-User gilt unter Ingress nicht');
+            self::assertNull($auth->proxyIdentity(['REMOTE_ADDR' => '172.30.32.2', 'HTTP_X_INGRESS_PATH' => '/x', 'HTTP_REMOTE_USER' => 'admin']),
+                'unter Ingress ohne X-Remote-User-* keine Person');
         } finally {
             putenv($prev === false ? 'ET_TRUSTED_PROXIES' : "ET_TRUSTED_PROXIES=$prev");
         }

@@ -204,4 +204,70 @@ final class DocsIntegrityTest extends TestCase
             self::assertFalse(self::isStub($rel), "$rel ist nur eine Weiterleitung");
         }
     }
+
+    /**
+     * v3.4.0 (N1019) — Anwendungsfälle: der Kurztext in sieben Sprachen steht
+     * im Katalog, der ganze Abschnitt in der Doku; verbunden über einen
+     * sprachneutralen Anker `<a id="case-…">` (lib/docs.js CASES). Jeder Fall
+     * „## X — …" hat einen Kurztext, jeder Kurztext seinen Anker in DE und EN.
+     */
+    public function testEveryUseCaseHasATeaserAndEveryTeaserItsAnchor(): void
+    {
+        $js = (string)file_get_contents(self::root() . '/public/js/lib/docs.js');
+        preg_match_all("#^\s*(\w+):\s*\['(docs/[^']+\.md)',\s*'(docs/en/[^']+\.md)'\]#m", $js, $pm, PREG_SET_ORDER);
+        $pages = [];
+        foreach ($pm as $p) $pages[$p[1]] = [$p[2], $p[3]];
+        preg_match_all("#\{\s*id:\s*'(\w+)',\s*page:\s*'(\w+)',\s*anchor:\s*'([a-z0-9-]+)'\s*\}#", $js, $cm, PREG_SET_ORDER);
+        self::assertGreaterThanOrEqual(8, count($cm), 'CASES in lib/docs.js nicht gefunden');
+
+        $catalog = json_decode((string)file_get_contents(self::root() . '/public/locales/de.json'), true);
+        $teasers = array_keys(array_filter((array)($catalog['help']['cases'] ?? []),
+            fn($v) => is_array($v) && isset($v['title'], $v['text'])));
+        $ids = array_column($cm, 1);
+        sort($teasers);
+        $sorted = $ids;
+        sort($sorted);
+        self::assertSame($teasers, $sorted, 'Kurztexte im Katalog (help.cases.*) und CASES in lib/docs.js weichen ab');
+
+        $missing = [];
+        foreach ($cm as [, $id, $page, $anchor]) {
+            self::assertArrayHasKey($page, $pages, "CASES $id: Seite $page fehlt in PAGES");
+            foreach ($pages[$page] as $rel) {
+                if (!isset(self::anchors($rel)[$anchor])) $missing[] = "$rel#$anchor ($id)";
+            }
+        }
+        self::assertSame([], $missing, "Anker der Kurztexte fehlen in der Doku:\n" . implode("\n", $missing));
+
+        // jeder Fall der Anleitung hat seinen Kurztext — über den Anker direkt davor
+        $anchors = array_column($cm, 3);
+        foreach ($pages['useCases'] as $rel) {
+            $lines = preg_split('/\R/', (string)file_get_contents(self::root() . '/' . $rel)) ?: [];
+            $cases = 0;
+            foreach ($lines as $n => $line) {
+                if (!preg_match('/^## [A-Z] — /u', $line)) continue;
+                $cases++;
+                $prev = trim($lines[$n - 1] ?? '');
+                self::assertMatchesRegularExpression('/^<a id="(case-[a-z0-9-]+)"><\/a>$/', $prev, "$rel: „{$line}“ ohne Anker davor");
+                preg_match('/"(case-[a-z0-9-]+)"/', $prev, $a);
+                self::assertContains($a[1], $anchors, "$rel: {$a[1]} hat keinen Kurztext in CASES");
+            }
+            self::assertSame(count(array_filter($cm, fn($c) => $c[2] === 'useCases')), $cases, "$rel: Zahl der Fälle und der Kurztexte");
+        }
+    }
+
+    /**
+     * v3.4.0 (N1019) — Die Doku reist im Docker-Image mit (die Hilfe liest sie
+     * über /api/docs), die Werbebilder nicht; jede Datei des Wurzelverzeichnisses,
+     * die DocsService ausliefert, steht ebenfalls im Image.
+     */
+    public function testTheDocsTravelInTheDockerImage(): void
+    {
+        $ignored = array_map(fn($l) => trim(trim($l), '/'), array_filter(
+            file(self::root() . '/.dockerignore') ?: [], fn($l) => trim($l) !== '' && !str_starts_with(trim($l), '#')));
+        self::assertNotContains('docs', $ignored, '.dockerignore schließt docs/ aus — die Hilfe hätte im Image keine Doku');
+        self::assertContains('docs/assets/promo', $ignored, 'Werbebilder gehören nicht ins Image');
+        foreach (array_keys(\Energietracker\Services\DocsService::ROOT_FILES) as $name) {
+            self::assertNotContains($name, $ignored, "$name fehlt im Image, DocsService liefert es aber aus");
+        }
+    }
 }

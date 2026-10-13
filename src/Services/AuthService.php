@@ -35,9 +35,25 @@ final class AuthService
     public const MODES = ['off', 'password', 'proxy'];
     public const COOKIE = 'et_session';
     private const SESSION_TTL = 30 * 86400;
-    private const MAX_FAILURES = 5;
+    /** v3.4.0 (N1020) — gleitend: eine Sitzung, die älter als ein Tag ist, bekommt bei Gebrauch wieder die volle Dauer. */
+    private const SESSION_RENEW_AFTER = 86400;
+    /**
+     * v3.4.0 (N1020) — Sperre nach Fehlversuchen je Gerät (Client-Adresse) und
+     * je Name; für alle zusammen nur eine hohe Notbremse. Bis v3.3 galt eine
+     * einzige Sperre für alle: Jedes Gerät im Netz sperrte mit fünf falschen
+     * Versuchen den ganzen Haushalt aus, beliebig wiederholbar.
+     */
+    private const LIMITS = ['ip' => 5, 'name' => 10, 'all' => 100];
     private const FAILURE_WINDOW = 900;
     private const LOCK_SECONDS = 300;
+    /** Höchstzahl gemerkter Zähler (viele Adressen, z. B. IPv6, lassen auth.json sonst wachsen). */
+    private const THROTTLE_MAX_ENTRIES = 500;
+    /**
+     * Ziel des Laufzeitausgleichs, wenn es noch kein Passwort gibt: Bei einem
+     * unbekannten Namen läuft password_verify trotzdem (sonst verriete die
+     * Antwortzeit, welche Namen es gibt).
+     */
+    private const DUMMY_HASH = '$2y$12$eFRbCNPkROi8SkpUGCP1t.gyTYBpos1A6.5f.2vCsK7ZePTaaWGRm';
     private const MIN_PASSWORD = 8;
 
     public function __construct(private JsonStore $store) {}
@@ -178,6 +194,7 @@ final class AuthService
             'password_hash'  => password_hash($password, PASSWORD_DEFAULT),
             'session_secret' => bin2hex(random_bytes(32)),
             'login_failures' => null,
+            'login_throttle' => null,
         ];
         if (!$this->modeFixedByEnv()) $patch['mode'] = 'password';
         $this->save($patch);
@@ -190,28 +207,14 @@ final class AuthService
     }
 
     /**
-     * Passwort prüfen, mit Sperre nach wiederholten Fehlversuchen.
+     * Passwort der Installation prüfen (ohne Namen), mit Sperre nach
+     * wiederholten Fehlversuchen — derselbe Weg wie checkLogin().
      *
      * @return 'ok'|'wrong'|'locked'
      */
-    public function checkPassword(string $password): string
+    public function checkPassword(string $password, string $client = ''): string
     {
-        $data = $this->data();
-        $fail = (array)($data['login_failures'] ?? []);
-        if (($fail['locked_until'] ?? 0) > time()) return 'locked';
-        $hash = $this->passwordHash();
-        if ($hash !== null && password_verify($password, $hash)) {
-            if ($fail !== []) $this->save(['login_failures' => null]);
-            return 'ok';
-        }
-        $first = (int)($fail['first_at'] ?? 0);
-        $count = $first > time() - self::FAILURE_WINDOW ? (int)($fail['count'] ?? 0) + 1 : 1;
-        $this->save(['login_failures' => [
-            'count'        => $count,
-            'first_at'     => $count === 1 ? time() : $first,
-            'locked_until' => $count >= self::MAX_FAILURES ? time() + self::LOCK_SECONDS : 0,
-        ]]);
-        return $count >= self::MAX_FAILURES ? 'locked' : 'wrong';
+        return $this->checkLogin('', $password, $client)['status'];
     }
 
     private function sessionSecret(): string
@@ -291,6 +294,39 @@ final class AuthService
         if ($user === null) return null;
         if (!hash_equals(hash_hmac('sha256', self::sessionPayload($m[1], $m[2], self::epochOf($user)), $secret), $m[3])) return null;
         return $m[2];
+    }
+
+    /**
+     * v3.4.0 (N1020) — gleitende Verlängerung: Ist eine gültige Sitzung älter
+     * als SESSION_RENEW_AFTER, ein neuer Wert derselben Form mit voller Dauer
+     * (30 Tage ab jetzt), sonst null. Wer die App nutzt, bleibt angemeldet;
+     * ein liegengebliebenes Cookie läuft 30 Tage nach dem letzten Gebrauch ab.
+     */
+    public function renewedSession(?string $value): ?string
+    {
+        if ($value === null || !preg_match('/^(\d{9,12})\./', $value, $m)) return null;
+        if ((int)$m[1] - time() > self::SESSION_TTL - self::SESSION_RENEW_AFTER) return null;
+        $user = $this->sessionUserId($value);
+        if ($user === null) return null;
+        return preg_match('/^\d{9,12}\.[0-9a-f]{64}$/', $value) ? $this->issueSession() : $this->issueSession($user);
+    }
+
+    /**
+     * v3.4.0 (N1020) — „Überall abmelden": Die Sitzungs-Epoche der Person
+     * steigt, alle ihre Sitzungen enden — auf allen Geräten, auch auf diesem.
+     * API-Schlüssel bleiben gültig. Ohne Personen und ohne Passwort (Proxy-
+     * Betrieb mit altem Cookie) gilt ein neues Sitzungsgeheimnis.
+     */
+    public function logoutEverywhere(string $userId): void
+    {
+        $users = $this->materialize();
+        $i = array_search($userId, array_column($users, 'id'), true);
+        if ($i === false) {
+            $this->save(['session_secret' => bin2hex(random_bytes(32))]);
+            return;
+        }
+        $users[$i]['session_epoch'] = self::epochOf($users[$i]) + 1;
+        $this->save(['users' => $users]);
     }
 
     // ── Benutzer im Haushalt (v3.2.0, F1023) ────────────────────────────
@@ -499,42 +535,135 @@ final class AuthService
      * Anmeldung mit Name und Passwort. Ohne Namen gilt das Passwort der
      * Installation (der Verwalter aus der Zeit vor v3.2).
      *
+     * v3.4.0 (N1020) — Sperre je Gerät (`$client`, s. clientIp()), je Name und
+     * als Notbremse für alle; Laufzeitausgleich bei unbekanntem Namen.
+     *
      * @return array{status:'ok'|'wrong'|'locked', user?:string}
      */
-    public function checkLogin(string $name, string $password): array
+    public function checkLogin(string $name, string $password, string $client = ''): array
     {
-        $data = $this->data();
-        $fail = (array)($data['login_failures'] ?? []);
-        if (($fail['locked_until'] ?? 0) > time()) return ['status' => 'locked'];
+        $buckets = ['ip:' . ($client !== '' ? $client : '-'), 'name:' . mb_strtolower(trim($name)), 'all'];
+        $throttle = $this->throttle();
+        $now = time();
+        foreach ($buckets as $b) {
+            if ((int)($throttle[$b]['locked_until'] ?? 0) > $now) return ['status' => 'locked'];
+        }
         $user = trim($name) === '' ? $this->userById(self::LEGACY_ADMIN) : $this->userByName($name, 'password');
         $hash = $user === null ? null
             : (isset($user['password_hash']) && $user['password_hash'] !== '' ? (string)$user['password_hash']
                 : ($user['id'] === self::LEGACY_ADMIN ? $this->passwordHash() : null));
-        if ($hash !== null && password_verify($password, $hash)) {
-            if ($fail !== []) $this->save(['login_failures' => null]);
+        if ($hash === null) {
+            // gleiche Arbeit wie bei einem bekannten Namen, Ergebnis ohne Bedeutung
+            password_verify($password, $this->passwordHash() ?? self::DUMMY_HASH);
+        } elseif (password_verify($password, $hash)) {
+            if (isset($throttle[$buckets[0]]) || isset($throttle[$buckets[1]]) || array_key_exists('login_failures', $this->data())) {
+                unset($throttle[$buckets[0]], $throttle[$buckets[1]]);
+                $this->save(['login_throttle' => $throttle, 'login_failures' => null]);
+            }
             return ['status' => 'ok', 'user' => (string)$user['id']];
         }
-        $first = (int)($fail['first_at'] ?? 0);
-        $count = $first > time() - self::FAILURE_WINDOW ? (int)($fail['count'] ?? 0) + 1 : 1;
-        $this->save(['login_failures' => [
-            'count'        => $count,
-            'first_at'     => $count === 1 ? time() : $first,
-            'locked_until' => $count >= self::MAX_FAILURES ? time() + self::LOCK_SECONDS : 0,
-        ]]);
-        return ['status' => $count >= self::MAX_FAILURES ? 'locked' : 'wrong'];
+        $locked = false;
+        foreach ($buckets as $b) {
+            $kind = explode(':', $b, 2)[0];
+            $e = (array)($throttle[$b] ?? []);
+            $first = (int)($e['first_at'] ?? 0);
+            $count = $first > $now - self::FAILURE_WINDOW ? (int)($e['count'] ?? 0) + 1 : 1;
+            $hit = $count >= self::LIMITS[$kind];
+            $throttle[$b] = ['count' => $count, 'first_at' => $count === 1 ? $now : $first,
+                             'locked_until' => $hit ? $now + self::LOCK_SECONDS : 0];
+            $locked = $locked || $hit;
+        }
+        $this->save(['login_throttle' => self::prune($throttle, $now), 'login_failures' => null]);
+        return ['status' => $locked ? 'locked' : 'wrong'];
+    }
+
+    /** @return array<string,array{count:int,first_at:int,locked_until:int}> */
+    private function throttle(): array
+    {
+        $t = $this->data()['login_throttle'] ?? [];
+        return is_array($t) ? array_filter($t, 'is_array') : [];
+    }
+
+    /**
+     * Abgelaufene Zähler weg, höchstens THROTTLE_MAX_ENTRIES (die jüngsten).
+     *
+     * @param array<string,array<string,int>> $t
+     * @return array<string,array<string,int>>
+     */
+    private static function prune(array $t, int $now): array
+    {
+        $t = array_filter($t, fn($e) => (int)($e['locked_until'] ?? 0) > $now
+            || (int)($e['first_at'] ?? 0) > $now - self::FAILURE_WINDOW);
+        if (count($t) > self::THROTTLE_MAX_ENTRIES) {
+            uasort($t, fn($a, $b) => (int)($b['first_at'] ?? 0) <=> (int)($a['first_at'] ?? 0));
+            $t = array_slice($t, 0, self::THROTTLE_MAX_ENTRIES, true);
+        }
+        return $t;
+    }
+
+    /**
+     * v3.4.0 (N1020) — Adresse des Geräts für die Sperre: REMOTE_ADDR; kommt
+     * die Anfrage von einem vertrauenswürdigen Proxy (`ET_TRUSTED_PROXIES`),
+     * die letzte Adresse in `X-Forwarded-For`, die nicht selbst ein solcher
+     * Proxy ist. Ohne diese Regel teilten sich hinter einem Reverse-Proxy alle
+     * Geräte eine Sperre.
+     */
+    public static function clientIp(array $server): string
+    {
+        $remote = (string)($server['REMOTE_ADDR'] ?? '');
+        $trusted = self::trustedProxies();
+        if ($trusted === [] || !self::ipInList($remote, $trusted)) return $remote;
+        $chain = array_reverse(array_filter(array_map('trim', explode(',', (string)($server['HTTP_X_FORWARDED_FOR'] ?? '')))));
+        foreach ($chain as $ip) {
+            if (filter_var($ip, FILTER_VALIDATE_IP) === false) break;
+            if (!self::ipInList($ip, $trusted)) return $ip;
+        }
+        return $remote;
+    }
+
+    /** @return list<string> Adressen und Netze aus ET_TRUSTED_PROXIES */
+    public static function trustedProxies(): array
+    {
+        return array_values(array_filter(array_map('trim', explode(',', (string)getenv('ET_TRUSTED_PROXIES')))));
+    }
+
+    /** Kommt die Anfrage von einem vertrauenswürdigen Proxy? */
+    public static function fromTrustedProxy(array $server): bool
+    {
+        $trusted = self::trustedProxies();
+        return $trusted !== [] && self::ipInList((string)($server['REMOTE_ADDR'] ?? ''), $trusted);
     }
 
     /**
      * Proxy-Modus: die Person zum gemeldeten Namen; beim ersten Mal wird sie
      * angelegt — als Verwalter, solange es keinen gibt, sonst als Mitglied.
      *
+     * v3.4.0 (N1020) — mit `$externalId` (Home Assistant: X-Remote-User-Id)
+     * gilt die Kennung, nicht der Name: Eine Person bleibt dieselbe, auch wenn
+     * sie in Home Assistant umbenannt wird, und zwei Personen mit gleichem
+     * Anzeigenamen bleiben zwei. Wer schon vor v3.4 über den Namen angelegt
+     * wurde, bekommt beim ersten Mal die Kennung dazu.
+     *
      * @return array<string,mixed> mit Hash
      */
-    public function proxyUserRecord(string $name): array
+    public function proxyUserRecord(string $name, ?string $externalId = null): array
     {
         $name = mb_substr(trim($name), 0, self::NAME_MAX);
-        $found = $this->userByName($name, 'proxy');
-        if ($found !== null) return $found;
+        if ($externalId !== null && $externalId !== '') {
+            foreach ($this->allUsers() as $u) {
+                if (($u['source'] ?? '') === 'proxy' && ($u['proxy_id'] ?? null) === $externalId) return $u;
+            }
+            $byName = $this->userByName($name, 'proxy');
+            if ($byName !== null && !isset($byName['proxy_id'])) {
+                $users = $this->materialize();
+                foreach ($users as $i => $u) if (($u['id'] ?? null) === $byName['id']) $users[$i]['proxy_id'] = $externalId;
+                try { $this->save(['users' => $users]); } catch (\Throwable) { /* nur lesend erreichbar */ }
+                return $byName + ['proxy_id' => $externalId];
+            }
+        } else {
+            $found = $this->userByName($name, 'proxy');
+            if ($found !== null) return $found;
+        }
         // materialize: ein altes Passwort (Verwalter u_admin) bleibt erhalten,
         // zählt aber nicht als Verwalter des Proxy-Betriebs
         $users = $this->materialize();
@@ -542,27 +671,89 @@ final class AuthService
         $user = ['id' => 'u_' . bin2hex(random_bytes(4)), 'name' => $name,
                  'role' => $proxyAdmins === [] ? 'admin' : 'member',
                  'source' => 'proxy', 'prefs' => [], 'created_at' => date('c')];
+        if ($externalId !== null && $externalId !== '') $user['proxy_id'] = mb_substr($externalId, 0, 200);
         $users[] = $user;
         try { $this->save(['users' => $users]); } catch (\Throwable) { /* nur lesend erreichbar: gilt für diese Anfrage */ }
         return $user;
     }
 
     /**
-     * Proxy-Modus: angemeldeter Benutzer aus `Remote-User`/`X-Forwarded-User`
-     * — nur, wenn die Anfrage von einer Adresse aus `ET_TRUSTED_PROXIES` kommt.
-     * Sonst könnte jeder den Header selbst setzen.
+     * Proxy-Modus: angemeldeter Benutzer — nur, wenn die Anfrage von einer
+     * Adresse aus `ET_TRUSTED_PROXIES` kommt. Sonst könnte jeder den Header
+     * selbst setzen. Liefert den Namen; Einzelheiten in proxyIdentity().
      */
     public function proxyUser(array $server): ?string
     {
-        $trusted = array_filter(array_map('trim', explode(',', (string)getenv('ET_TRUSTED_PROXIES'))));
-        $remote = (string)($server['REMOTE_ADDR'] ?? '');
-        if ($trusted === [] || !self::ipInList($remote, $trusted)) return null;
-        // v3.1.0 (Ökosystem G2) — Home Assistant (Ingress) schickt X-Remote-User-Name
-        // und X-Remote-User-Id, nicht X-Remote-User
-        foreach (['HTTP_REMOTE_USER', 'HTTP_X_FORWARDED_USER', 'HTTP_X_REMOTE_USER',
-                  'HTTP_X_REMOTE_USER_NAME', 'HTTP_X_REMOTE_USER_ID'] as $h) {
-            $u = trim((string)($server[$h] ?? ''));
-            if ($u !== '') return $u;
+        return $this->proxyIdentity($server)['name'] ?? null;
+    }
+
+    /** Kopfzeilen, die bis v3.3 in dieser Reihenfolge galten (erste nicht leere gewinnt). */
+    public const LEGACY_PROXY_HEADERS = ['Remote-User', 'X-Forwarded-User', 'X-Remote-User', 'X-Remote-User-Name', 'X-Remote-User-Id'];
+
+    /**
+     * v3.4.0 (N1020) — Welche Kopfzeile den Benutzer meldet:
+     *
+     *   - `configured`: `ET_PROXY_USER_HEADER` nennt genau eine Kopfzeile, nur sie
+     *     zählt. Sie geht vor, weil eine ausdrückliche Einstellung nicht von
+     *     Kopfzeilen der Anfrage abhängen darf.
+     *   - `ingress`: Home Assistant (erkennbar an `X-Ingress-Path` oder
+     *     `X-Remote-User-Id`). Es zählen nur `X-Remote-User-Id` (stabile Kennung)
+     *     und `X-Remote-User-Name` — die filtert der Supervisor aus den Anfragen
+     *     der Nutzer, `Remote-User` und `X-Forwarded-User` reicht er dagegen
+     *     unverändert durch.
+     *   - `legacy`: das Verhalten bis v3.3 (erste nicht leere Kopfzeile der
+     *     Liste). Bleibt für bestehende Installationen; die Diagnose rät dann
+     *     zu `ET_PROXY_USER_HEADER`, denn je nach Proxy gewinnt eine vom Nutzer
+     *     selbst gesetzte Kopfzeile.
+     *
+     * @return 'configured'|'ingress'|'legacy'
+     */
+    public static function proxyHeaderMode(array $server): string
+    {
+        if (self::configuredProxyHeader() !== null) return 'configured';
+        if (trim((string)($server['HTTP_X_INGRESS_PATH'] ?? '')) !== ''
+            || trim((string)($server['HTTP_X_REMOTE_USER_ID'] ?? '')) !== '') return 'ingress';
+        return 'legacy';
+    }
+
+    /** Die Kopfzeile aus `ET_PROXY_USER_HEADER` (nur gültige Namen), sonst null. */
+    public static function configuredProxyHeader(): ?string
+    {
+        $h = trim((string)getenv('ET_PROXY_USER_HEADER'));
+        return preg_match('/^[A-Za-z0-9-]{1,64}$/', $h) ? $h : null;
+    }
+
+    private static function serverKey(string $header): string
+    {
+        return 'HTTP_' . strtoupper(str_replace('-', '_', $header));
+    }
+
+    /**
+     * Angemeldete Person vom vertrauenswürdigen Proxy.
+     *
+     * @return array{name:string, id:?string, via:string}|null `id`: stabile Kennung
+     *         (Home Assistant), `via`: proxyHeaderMode()
+     */
+    public function proxyIdentity(array $server): ?array
+    {
+        if (!self::fromTrustedProxy($server)) return null;
+        $mode = self::proxyHeaderMode($server);
+        $val = fn(string $h): string => mb_substr(trim((string)($server[self::serverKey($h)] ?? '')), 0, 200);
+        if ($mode === 'configured') {
+            $u = $val((string)self::configuredProxyHeader());
+            return $u === '' ? null : ['name' => $u, 'id' => null, 'via' => $mode];
+        }
+        if ($mode === 'ingress') {
+            // v3.1.0 (Ökosystem G2) — Home Assistant schickt X-Remote-User-Name
+            // und X-Remote-User-Id; geführt wird die Person über die Kennung
+            $id = $val('X-Remote-User-Id');
+            $name = $val('X-Remote-User-Name');
+            if ($id === '' && $name === '') return null;
+            return ['name' => $name !== '' ? $name : $id, 'id' => $id !== '' ? $id : null, 'via' => $mode];
+        }
+        foreach (self::LEGACY_PROXY_HEADERS as $h) {
+            $u = $val($h);
+            if ($u !== '') return ['name' => $u, 'id' => null, 'via' => $mode];
         }
         return null;
     }
@@ -627,6 +818,17 @@ final class AuthService
         if (count($kept) === count($keys)) return false;
         $this->save(['api_keys' => $kept]);
         return true;
+    }
+
+    /** v3.4.0 (F1024) — Name eines gültigen API-Schlüssels (für den Verlauf), sonst null. */
+    public function apiKeyName(?string $key): ?string
+    {
+        if ($key === null || !str_starts_with($key, 'etk_')) return null;
+        $hash = hash('sha256', $key);
+        foreach ((array)($this->data()['api_keys'] ?? []) as $k) {
+            if (hash_equals((string)($k['hash'] ?? ''), $hash)) return (string)($k['name'] ?? '');
+        }
+        return null;
     }
 
     /** Scope eines gültigen API-Schlüssels, sonst null. */

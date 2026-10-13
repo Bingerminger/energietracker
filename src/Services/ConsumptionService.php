@@ -78,6 +78,12 @@ final class ConsumptionService
         private ?ClimateNormalService $climate = null,
     ) {}
 
+    /** v3.4.0 (F1025) — der Vertragsdienst dieser Rechnung (für Dienste ohne eigene Verdrahtung). */
+    public function contractService(): ContractService
+    {
+        return $this->contracts;
+    }
+
     /**
      * v2.5.0 — F1012: Lazy-Getter für die datierten Umrechnungsfaktoren.
      * Optional injiziert, damit die Test-Basisklasse unverändert bleibt.
@@ -368,7 +374,11 @@ final class ConsumptionService
             $remindBasis = null;
             $ref = null;
             $cancelMissed = false;
-            if ($timing['basis'] === 'fixed_end' && $timing['cancel_by'] !== null && !$isPast && !$renewed) {
+            // v3.4.0 (F1024) — nur ein datierter Stichtag trägt die Erinnerung;
+            // ein jederzeit kündbarer befristeter Vertrag erinnert ans Ende
+            // (sonst „Kündigung bis heute" an jedem Tag)
+            if ($timing['basis'] === 'fixed_end' && $timing['cancel_by'] !== null && !$isPast && !$renewed
+                && ContractService::hasFixedCancelBy($c)) {
                 $remindBasis = 'cancel_by';
                 $ref = $timing['days_to_cancel'];
                 $cancelMissed = $ref < 0 && $daysUntilEnd !== null && $daysUntilEnd >= 0;
@@ -376,7 +386,15 @@ final class ConsumptionService
                 $remindBasis = 'end';
                 $ref = $daysUntilEnd;
             }
-            if ($ref !== null && $ref >= 0) {
+            // v3.4.0 (F1024) — Folgevertrag desselben Zählers bzw. derselben
+            // Gruppe (kein Schattenvertrag, s. oben). Schließt er lückenlos an
+            // (Beginn ≤ Ende + 1), ist nichts mehr zu kündigen oder zu
+            // erinnern: R6, die Banner der Auswertung und „Kündigen bis"
+            // entfallen. Mit Lücke bleibt die Erinnerung, der Text nennt sie.
+            $successor = ContractService::successorOf($c, $contracts, $renewed);
+            $gapless = $successor !== null && $successor['gap_days'] === 0;
+            if ($gapless) $cancelMissed = false;
+            if ($ref !== null && $ref >= 0 && !$gapless) {
                 $r1 = (int)$this->settings->get('contract_remind_days_1', 90);
                 $r2 = (int)$this->settings->get('contract_remind_days_2', 30);
                 $r3 = (int)$this->settings->get('contract_remind_days_3', 1);
@@ -430,6 +448,14 @@ final class ConsumptionService
                 'cancel_missed'               => $cancelMissed,
                 'price_increase'              => $isCur && !$isFeedIn && $utility !== 'wasser'
                     ? $this->upcomingPriceIncrease($c, $today) : null,
+                // v3.4.0 (F1026) — für den Zeitstrahl „Vertrag auf einen Blick“
+                // (additiv): Mindestlaufzeit, Preisgarantie und ob er sich ohne
+                // Kündigung verlängert (wirksamer Wert: fehlt = ja)
+                'min_term_end'                => $c['min_term_end'] ?? null,
+                'price_guarantee_until'       => $c['price_guarantee_until'] ?? null,
+                'auto_renews'                 => ContractService::renews($c),
+                // v3.4.0 (F1024) — {contract_id, provider, start, gap_days} oder null (additiv)
+                'successor'                   => $successor,
                 // v2.8.0 — wie gerechnet wurde (additiv)
                 'balance_as_of'               => $projection['as_of'] ?? $today,
                 'projection_method'           => $projection !== null ? $projection['method'] : 'flat_average',

@@ -45,6 +45,7 @@ export const VIEW_LEVEL = {
   'flexibility': 'expert',          // v3.3.0 (F1021) — Viertelstunden und Börsenpreise
   'meters': 'advanced',             // Zähler-Aufbau (Subzähler, Rollen, Geräte)
   'temperatures': 'advanced',
+  'activity': 'advanced',           // v3.4.0 (F1024) — Hinweise › Erledigt
   'settings:integrations': 'advanced',
   'settings:access': 'expert',
   'settings:expert': 'expert',

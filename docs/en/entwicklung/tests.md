@@ -121,6 +121,50 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   the level; the money explainer uses the billing period (`balance_path`), the
   weather explainer needs six months with an adjusted value and last year. The
   demo click test walks through every example household at two levels.
+- **`tests/explainer.test.mjs`** (v3.4.0) — explainers, second edition,
+  without a server: the energy-flow formula against
+  `tests/fixtures/energy-flows.json` (the same file is checked in PHP by
+  `PvSummaryServiceTest`), balance (solar out = generation, house = inflows),
+  geometry R1–R5 (no text on text, on lines or on other nodes, no crossing
+  except the explained bridge, everything inside the picture) over twelve
+  cases in all seven languages, no hex colours and no emoji in the picture,
+  “reduce motion”, highlighting, year/month in place; the timeline with built
+  contracts without overlaps; money and weather with extreme values. Text
+  widths are estimated (0.56 em, 0.6 em for digits) with a 10 % reserve.
+- **`tests/docs.test.mjs`** (v3.4.0) — the handbook in the app: fetches the
+  allowlist from the real `DocsService` (PHP command line) and renders every
+  page with `lib/markdown.js` and the link rules from `lib/docs.js`. Every
+  in-app target is allowed, every jump target exists, every image comes through
+  the endpoint, the output holds only allowed tags and attributes and no
+  Markdown leftovers; around 40 attack payloads are defused — in the renderer
+  alone and in the link rules alone; the service worker keeps the docs for
+  offline use.
+- **`tests/cache-names.test.mjs`** (v3.4.0) — runs `sw.js` in a sandbox and
+  matches the cache names the worker really creates against
+  `lib/cache-names.js`: signing out clears the API responses of this
+  installation, not those of a second one on the same origin; the worker does
+  not intercept `data/`.
+- **`tests/forms.test.mjs`** (v3.4.0) — the tidied-up interface without a
+  server: one form grid in the CSS (six columns, two when narrow, subgrid,
+  field groups, row lists with labels only on top), `[hidden]` always applies,
+  no one-off patches in the views (upper case, `flex-end`, `.form-grid`); time
+  windows as HH:MM; the appearance switch shows the effective appearance with an
+  “A” for automatic and announces each step; the docs say the same.
+- **`tests/poisoned-render.test.mjs`** (v3.4.0) — starts the server with the
+  demo data in which every free text (and the path of the data directory)
+  carries HTML and quotes, loads the real `app.js` in JSDOM and opens every
+  page. If a value lands in the DOM unprotected, an element with `data-xss`
+  appears — red. Plus the self-test “data/ blocked” under Access. Picks a free
+  port itself.
+- **`tests/lists.test.mjs`** (v3.4.0) — lists without and with a server: the
+  order of contracts (`lib/contract-order.js`), paging (`components/pager.js`:
+  threshold 50, page size remembered per list) and the billing period after the
+  settlement date (`lib/billing-period.js`). Then the example household
+  “eigenheim-modern” with a test meter (ended, renewing) and 400 daily values
+  in the real `app.js`: both contract lists in the same order and with the
+  same phase, readings with “N in year · M in total”, “All years”, paging and
+  “only flagged”, checking a bill without a period and when switching utility
+  and meter. Port from `ET_LISTS_PORT`, otherwise a free one.
 
 In addition there is the **PHPUnit suite** for the service layer (`tests/unit/…`,
 base class `ServiceTestCase`, since v3.1.0 `HttpServerTestCase` for tests over
@@ -142,8 +186,14 @@ and lower case, macOS does not); every anchor exists in the target; every German
 page has its English mirror under the same path; nobody links a redirect; the
 index lists every page; the [settings reference](../referenz/einstellungen.md)
 names every key from `SettingsService::DEFAULTS`; and every documentation link
-of the app (`lib/docs.js`) points to a real page. Next to it,
-`ReleaseConsistencyTest` keeps checking the API reference against the routes.
+of the app (`lib/docs.js`) points to a real page. Since v3.4.0 every use case
+“## X — …” has a short text in the catalogue and every short text its anchor
+`case-…` in German and English, and the docs travel in the Docker image. Next
+to it, `ReleaseConsistencyTest` keeps checking the API reference against the
+routes and, since v3.4.0, that the frontend links to GitHub only for bug
+reports, the project page and the source code of the version.
+`DocsEndpointTest` (over HTTP) and `DocsServiceTest` secure the allowlist of
+`/api/docs`.
 
 **Calculation cores with synthetic data (v2.8.0).** `WeatherModelTest` generates
 temperatures and consumption according to a known formula
@@ -279,15 +329,40 @@ variables (`ET_AUTH` …), and removes both afterwards. `AgendaAccessTest` and
   button for the year's exchange prices); the demo click test opens it with the
   example households, the levels test knows its minimum level (expert).
 
+**v3.4.0 — help, security, report, history, interface:**
+
+- `DocsServiceTest`, `DocsEndpointTest` — the docs allowlist, no path out,
+  redirects, sign-in.
+- `HouseholdSecurityTest`, `HouseholdHardeningTest`, `ContainerHardeningTest`
+  — proxy headers, roles, lockout per device, size limits, host list,
+  container and web server rules.
+- `PdfWriterTest`, `ReportModelServiceTest`, `ReportAdviceServiceTest` — PDF
+  structure, graphics and box log (nothing past the margin, no overlap), pages
+  per example household in seven languages, rules of the recommendations with
+  amount and priority.
+- `ContractPhaseTest`, `ContractPhaseEndpointTest`,
+  `ContractStatusTimelineTest` — a contract's phase, timeline fields.
+- `ActivityServiceTest`, `ActivityAccessTest` — a follow-on contract settles
+  hints, ticking off and undo, who did what, backup round trip, retention,
+  roles.
+
 This exact sequence runs automated in the **CI pipeline**
 (`.github/workflows/ci.yml`) on every push and pull request against `main`. Four
 jobs: **lint-php** (syntax check of all `*.php`), **phpunit** (service suite),
 **test** (migration smoke + frontend API shape + browser render via `router.php`)
 and **docker** (build image + container smoke against `/api/health`). Since
 v3.1.0 **lint-php** and **phpunit** each run under PHP 8.2, 8.3 and 8.4 — the
-minimum version, the version in Ubuntu 24.04 and the one in the Docker image. A
+minimum version, the version in Ubuntu 24.04 and the one in the Docker image;
+since v3.4.0 also under 8.5 (the Docker image). Since v3.4.0 the **docker** job
+also checks that php-fpm is only reachable inside the container and starts the
+image hardened (example from [Docker operation](../betrieb/docker.md#hardened-operation-v340));
+the **test** job sends the app with prepared data through every page
+(`tests/poisoned-render.test.mjs`). All workflows run with read permissions,
+actions of other vendors are pinned by commit SHA. A
 separate workflow `docker-publish.yml` publishes the multi-arch image (amd64 +
-arm64) to GHCR on every version tag. `docker-armv7-probe.yml` (v3.1.0, started
+arm64) to GHCR on every version tag; `docker-rebuild.yml` (v3.4.0) rebuilds the
+latest release tag every week and scans the image for known vulnerabilities
+(non-blocking). `docker-armv7-probe.yml` (v3.1.0, started
 by hand only) builds the image for `linux/arm/v7` under QEMU and starts it
 without publishing; only once it is green does arm/v7 join the platform list.
 

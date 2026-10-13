@@ -20,7 +20,7 @@ als ganztägige Termine der nächsten 365 Tage, dazu alles schon Fällige:
 |---|---|
 | Termin aus „Termine & Wartung“ (Rauchmelder, Eichfrist …) | am Tag der nächsten Fälligkeit |
 | „Strom: Zählerstand ablesen (…)“ | wenn die letzte Ablesung länger her ist als unter Einstellungen → Allgemein → „Warnung nach“ eingestellt (Standard 45 Tage); ist das schon so, steht der Eintrag heute |
-| „…: letzter Tag für die Kündigung (Anbieter)“ | am Kündigungsstichtag eines laufenden oder künftigen Vertrags — dafür braucht der Vertrag eine Kündigungsfrist |
+| „…: letzter Tag für die Kündigung (Anbieter)“ | am Kündigungsstichtag eines laufenden oder künftigen Vertrags — dafür braucht der Vertrag eine Kündigungsfrist und ein festes Ende. Seit v3.4.0 nicht mehr bei Verträgen, die weiterlaufen, unbefristet oder jederzeit kündbar sind: Ihr „letzter Tag“ war immer heute und wanderte täglich durch den Kalender |
 | „…: Vertragsende (Anbieter)“ | am festen Vertragsende; nicht bei Verträgen, die sich verlängern |
 | „…: Preisgarantie endet (Anbieter)“ | am letzten Tag der Preisgarantie |
 | „…: Preiserhöhung (Anbieter) — Sonderkündigung prüfen“ | am Tag einer eingetragenen Preiserhöhung; seit v3.1.0 auch unter „Zu tun“, solange die Empfehlung „Preiserhöhung“ dazu steht (in Deutschland) |
@@ -38,7 +38,11 @@ CO₂-Erstattung aus der Gasrechnung
 Einzelfall gilt, beurteilt die App nicht.
 
 **Erledigt** rückt einen Termin auf seine nächste Fälligkeit; im Kalender
-wandert derselbe Eintrag mit, ein Duplikat entsteht nicht. Die Texte stehen in
+wandert derselbe Eintrag mit, ein Duplikat entsteht nicht. Seit v3.4.0 bleibt
+ein **erledigter Hinweis** (von Hand abgehakt oder durch einen lückenlosen
+Folgevertrag) mit derselben UID stehen, bekommt „✓ “ vor den Titel und keine
+Vorab-Erinnerung mehr — wie das geht:
+[Hinweise erledigen](hinweise-erledigen.md). Die Texte stehen in
 der **Standardsprache der Installation** (Einstellungen → Allgemein), denn
 Kalender schicken keine Sprache mit.
 
@@ -153,7 +157,8 @@ Technische Einzelheiten (Form der Ereignisse, UIDs, Zugriffsregeln):
 |---|---|
 | Der Kalender bleibt leer oder alt | Das abrufende Gerät erreicht die App nicht: Abo in iCloud statt „Auf meinem Mac/iPhone“, unterwegs außerhalb des Heimnetzes, oder Google ohne Erreichbarkeit aus dem Internet. |
 | Fehler „nicht autorisiert“ (401) | Der Kalender-Schlüssel wurde widerrufen, oder in der Adresse steht ein Lese- bzw. Verwaltungs-Schlüssel. Über „Im Kalender abonnieren“ eine neue Adresse holen. |
-| Ein Kündigungsstichtag fehlt | Am Vertrag ist keine Kündigungsfrist gepflegt, oder der Stichtag liegt mehr als 365 Tage voraus. |
+| Ein Kündigungsstichtag fehlt | Am Vertrag ist keine Kündigungsfrist gepflegt, der Stichtag liegt mehr als 365 Tage voraus, oder der Vertrag läuft weiter, ist unbefristet bzw. jederzeit kündbar (seit v3.4.0 ohne datierten Stichtag). |
+| Ein Eintrag trägt „✓ “ und erinnert nicht mehr | Er ist erledigt — abgehakt oder durch einen lückenlosen Folgevertrag (v3.4.0). Rückgängig unter Hinweise → Erledigt. |
 | Keine Vorwarnung | Vorwarnung auf 0 gestellt, im Abo die Hinweise entfernt, oder Google Kalender. |
 | Die Fristen der Nebenkostenabrechnung fehlen | Unter Einstellungen → Haushalt & Gebäude steht „Ich wohne: im Eigentum“, es gibt kein Mietverhältnis, oder bei der Abrechnung fehlt „Erhalten am“ (dann gibt es keine Einwandfrist). Ist die Abrechnung für den letzten Zeitraum erfasst, entfällt die Erinnerung an sie. |
 | Die Frist für die CO₂-Erstattung fehlt | Keine Gasrechnung des Jahres unter Rechnung prüfen → „Laut Rechnung“ erfasst, das Land ist nicht Deutschland, die Heizkostenabrechnung trägt CO₂-Angaben (dann gilt Zentralheizung, und der Vermieter rechnet), oder der Betrag ist 0 (Stufe 1 oder Kürzung auf 0). |

@@ -16,8 +16,9 @@ use Energietracker\Support\Dates;
  * Backwards-compatible reading:
  *   - v3.0+ → preferred
  *   - v2.x  → recognized, mapped to v3.0 on restore via Migrator path
- *   - v1.x  → recognized as raw v0.9.0 data → not supported here; user should
- *             run the migrator first.
+ *   - v1.x  → recognized as raw v0.9.0 data → not supported here. Since
+ *             v3.4.0 no version reads them (install v3.3.0, migrate there,
+ *             then update).
  *
  * v2.6.0 — Das Format bleibt 3.0; neu sind nur zusätzliche Töpfe und Wege:
  *   - `recommendations_dismissed` wird mitgesichert (fehlte, Lektion 18).
@@ -60,6 +61,8 @@ final class BackupService
         'ev_sessions'               => 'ev_sessions.json',
         // v3.3.0 (F1021) — Index der Viertelstundenreihen; die Reihen unter interval_files
         'intervals'                 => 'intervals.json',
+        // v3.4.0 (F1024) — Verlauf erledigter Hinweise (Namen als Momentaufnahme)
+        'activity'                  => 'activity.json',
     ];
 
     /**
@@ -308,6 +311,16 @@ final class BackupService
             if ($key === 'reminders') $this->checkList($payload[$key], $key, ['id'], [], $problem);
             if ($key === 'ev_sessions') $this->checkList($payload[$key], $key, ['id', 'meter_id', 'date', 'charged_kwh'], ['date'], $problem);
             if ($key === 'tenancies') $this->checkList($payload[$key], $key, ['id', 'start'], ['start'], $problem);
+            // v3.4.0 (F1024) — Verlauf: Kennung, Aktion, Gegenstand, Tag
+            if ($key === 'activity') {
+                $this->checkList($payload[$key], $key, ['id', 'action', 'subject', 'done_on'], ['done_on'], $problem);
+                foreach (array_is_list($payload[$key]) ? $payload[$key] : [] as $i => $e) {
+                    if (!is_array($e)) continue;
+                    if (array_key_exists('action', $e) && !in_array($e['action'], ActivityService::ACTIONS, true)) $problem($key, $i, 'action');
+                    if (array_key_exists('subject', $e) && (!is_array($e['subject']) || !is_string($e['subject']['kind'] ?? null)
+                        || !is_string($e['subject']['occurrence'] ?? null))) $problem($key, $i, 'subject');
+                }
+            }
             if ($key === 'tenancy_statements') {
                 $this->checkList($payload[$key], $key, ['id', 'tenancy_id', 'period_from', 'period_to'], ['period_from', 'period_to'], $problem);
             }
@@ -423,8 +436,31 @@ final class BackupService
             if (isset($row['devices']) && (!is_array($row['devices']) || !array_is_list($row['devices']))) {
                 $problem($pot, $i, 'devices'); $ok = false;
             }
+            // v3.4.0 (N1020) — Kennungen ohne offensichtlich gefährliche Zeichen
+            foreach ($row as $f => $v) {
+                if (!is_string($f) || ($f !== 'id' && !str_ends_with($f, '_id')) || $v === null || self::safeId($v)) continue;
+                $problem($pot, $i, "unsafe_id:$f"); $ok = false;
+            }
+            foreach (is_array($row['devices'] ?? null) ? $row['devices'] : [] as $d) {
+                if (!is_array($d) || !isset($d['id']) || self::safeId($d['id'])) continue;
+                $problem($pot, $i, 'unsafe_id:devices.id'); $ok = false;
+                break;
+            }
         }
         return $ok;
+    }
+
+    /**
+     * v3.4.0 (N1020) — Kennung aus einem Backup: Text bis 200 Zeichen ohne
+     * Steuerzeichen, Anführungszeichen, spitze Klammern und Backslash. Mehr
+     * nicht: Bestehende Installationen mit ungewöhnlichen, aber harmlosen
+     * Kennungen sollen ihr Backup weiter einspielen können. Neu angelegte
+     * Kennungen prüft MeterService::ID enger.
+     */
+    public static function safeId(mixed $v): bool
+    {
+        return (is_string($v) || is_int($v)) && strlen((string)$v) <= 200
+            && !preg_match('/[\x00-\x1F\x7F<>"\'`\\\\]/', (string)$v);
     }
 
     /**

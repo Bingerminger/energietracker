@@ -5,7 +5,7 @@
 // =====================================================================
 
 import { getLocale, t } from './lib/i18n.js';
-import { DEMO, demoRequest, demoFileUrl } from './lib/demo-mode.js';
+import { DEMO, demoRequest, demoFileUrl, demoDocAssetUrl } from './lib/demo-mode.js';
 
 const BASE = 'api.php';
 
@@ -270,8 +270,12 @@ export const api = {
   users:           ()                  => request('GET',    '/api/users'),
   createUser:      (data)              => request('POST',   '/api/users', data),
   updateUser:      (id, data)          => request('PATCH',  `/api/users/${encodeURIComponent(id)}`, data),
-  deleteUser:      (id)                => request('DELETE', `/api/users/${encodeURIComponent(id)}`),
+  // v3.4.0 (F1024) — auf Wunsch den Namen im Verlauf durch „ehemalige Person" ersetzen
+  deleteUser:      (id, { anonymizeActivity = false } = {}) =>
+    request('DELETE', `/api/users/${encodeURIComponent(id)}${anonymizeActivity ? '?anonymize_activity=1' : ''}`),
   logout:          ()                  => request('DELETE', '/api/session'),
+  // v3.4.0 (N1020) — alle Sitzungen der Person beenden, auf jedem Gerät
+  logoutEverywhere: ()                 => request('POST',   '/api/session/logout-everywhere'),
   setPassword:     (password, current) => request('POST',   '/api/session/password', { password, current }),
   disableLogin:    (current)           => request('DELETE', '/api/session/password', { current }),
   apiKeys:         ()                  => request('GET',    '/api/auth/keys'),
@@ -296,9 +300,6 @@ export const api = {
   exportDeliveriesCsvUrl:   (u, f = '1') => fileUrl(`/api/export/${u}/deliveries.csv${csvQuery(f)}`),
   exportTemperaturesCsvUrl: (f = '1')    => fileUrl(`/api/export/temperatures.csv${csvQuery(f)}`),
 
-  // ── Migration aus v0.9.0 ──
-  migrationV09Preview: (backup)         => request('POST', '/api/migration/v09/preview', { backup }),
-  migrationV09Import:  (translated, mode) => request('POST', '/api/migration/v09/import',  { translated, mode }, { timeoutMs: TIMEOUT_LONG_MS }),
   diagnostics:   ()                    => request('GET',  '/api/diagnostics'),
 
   // ── v1.3.0 — Lieferungen (Heizöl/Pellets) ──
@@ -339,14 +340,30 @@ export const api = {
   createReminder:(data)       => request('POST',  '/api/reminders', data),
   updateReminder:(id, data)   => request('PATCH', `/api/reminders/${id}`, data),
   deleteReminder:(id)         => request('DELETE',`/api/reminders/${id}`),
-  reminderDone:  (id, dt=null)=> request('POST',  `/api/reminders/${id}/done`, dt ? { done_date: dt } : {}),
+  // v3.4.0 (F1024) — dazu Notiz und Beleg; die Antwort trägt `activity_id`
+  reminderDone:  (id, dt=null, { note = '', attachmentId = null } = {}) => request('POST', `/api/reminders/${id}/done`,
+    { ...(dt ? { done_date: dt } : {}), ...(note ? { note } : {}), ...(attachmentId ? { attachment_id: attachmentId } : {}) }),
+
+  // ── v3.4.0 (F1024) — Erledigt mit Verlauf ──
+  agendaDone:      (data)        => request('POST',   '/api/agenda/done', data),
+  // Ohne Filter: der ganze Verlauf (die Ansicht filtert selbst; die Demo hält genau diese Antwort vor)
+  activity:        (filter = {}) => {
+    const q = new URLSearchParams(Object.entries(filter).filter(([, v]) => v != null && v !== '')).toString();
+    return request('GET', `/api/activity${q ? `?${q}` : ''}`);
+  },
+  undoActivity:    (id)          => request('POST',   `/api/activity/${encodeURIComponent(id)}/undo`),
+  updateActivity:  (id, data)    => request('PATCH',  `/api/activity/${encodeURIComponent(id)}`, data),
+  clearActivity:   (before = '') => request('DELETE', `/api/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`),
 
   // ── v1.3.0 — PDF-Jahresbericht (Datei-Download, kein JSON) ──
   // v2.11.0 — `inline`: im Browser anzeigen statt herunterladen
   // v3.1.0 (I18N-12) — derselbe Bericht als Daten für die Druckansicht
-  yearlyReport: (year) => request('GET', `/api/reports/yearly?year=${year}`),
-  yearlyReportUrl: (year, { inline = false } = {}) => {
-    const q = [year ? `year=${year}` : '', inline ? 'inline=1' : ''].filter(Boolean).join('&');
+  // v3.4.0 (F1025) — `detail`: Anhang „Zahlen im Detail“; `lang`: Sprache des
+  // PDFs (ein Download schickt keinen Sprach-Header, sonst Standardsprache)
+  yearlyReport: (year, { detail = false } = {}) => request('GET', `/api/reports/yearly?year=${year}${detail ? '&detail=1' : ''}`),
+  yearlyReportUrl: (year, { inline = false, lang = '', detail = false } = {}) => {
+    const q = [year ? `year=${year}` : '', inline ? 'inline=1' : '', detail ? 'detail=1' : '',
+      lang ? `lang=${encodeURIComponent(lang)}` : ''].filter(Boolean).join('&');
     return fileUrl(`/api/reports/yearly.pdf${q ? '?' + q : ''}`);
   },
 
@@ -414,4 +431,15 @@ export const api = {
   attachmentUrl:    (id)                => `${BASE}/api/attachments/${encodeURIComponent(id)}`,
   deleteAttachment: (id)                => request('DELETE', `/api/attachments/${encodeURIComponent(id)}`),
   ocrReading:       (attachmentId)      => request('POST', '/api/ocr/reading', { attachment_id: attachmentId }, { timeoutMs: TIMEOUT_LONG_MS }),
+
+  // ── v3.4.0 (N1019) — Hilfe auf dem Server: eine Seite der Doku dieses Release und ihre Bilder ──
+  docPage:     (path) => request('GET', `/api/docs?path=${encodeURIComponent(path)}`),
+  // Die Version in der Adresse macht das Bild unveränderlich (Cache) — in der Demo eine fertige Datei
+  docAssetUrl: (path) => (DEMO ? demoDocAssetUrl(path)
+    : `${BASE}/api/docs/asset?path=${encodeURIComponent(path)}&v=${encodeURIComponent(appVersion())}`),
 };
+
+/** Version der ausgelieferten App (index.php setzt sie an <body>). */
+function appVersion() {
+  return (typeof document !== 'undefined' && document.body?.getAttribute('data-app-version')) || '';
+}

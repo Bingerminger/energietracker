@@ -61,6 +61,8 @@ function allSectionPages(section, { utilities = [], tenant = false } = {}) {
       return [
         { view: 'reminders', href: '#/reminders', label: t('nav.reminders'), badge: 'reminders' },
         { view: 'recommendations', href: '#/recommendations', label: t('nav.recommendations'), badge: 'recommendations' },
+        // v3.4.0 (F1024) — was erledigt wurde, von wem und wann (ab „Erfahren", levels.js)
+        { view: 'activity', href: '#/activity', label: t('nav.activity') },
       ];
     case 'settings':
       // v2.12.0 (Review UI-13) — Unterseiten statt einer langen Seite; die

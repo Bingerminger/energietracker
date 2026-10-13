@@ -9,6 +9,7 @@
 import { api } from '../api.js';
 import { t } from '../lib/i18n.js';
 import { escapeHtml } from '../lib/format.js';
+import { isRuntimeCache } from '../lib/cache-names.js';
 
 /**
  * @param {{named_login?: boolean}|null} [session] Antwort von GET /api/session —
@@ -63,12 +64,20 @@ export function showLogin(session = null) {
   });
 }
 
-/** Abmelden: Sitzung beenden, Offline-Daten dieses Browsers verwerfen, neu laden. */
-export async function logout() {
-  try { await api.logout(); } catch { /* auch ohne Antwort abmelden */ }
+/**
+ * Abmelden: Sitzung beenden, Offline-Daten dieses Browsers verwerfen, neu laden.
+ * v3.4.0 (N1020) — `everywhere`: alle Sitzungen der Person, auf jedem Gerät.
+ */
+export async function logout({ everywhere = false } = {}) {
+  try { await (everywhere ? api.logoutEverywhere() : api.logout()); } catch { /* auch ohne Antwort abmelden */ }
+  await clearRuntimeCaches();
+  location.reload();
+}
+
+/** v3.4.0 (N1020) — die API-Antworten dieser Installation aus der Cache Storage. */
+export async function clearRuntimeCaches() {
   try {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k.startsWith('et-runtime-')).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(k => isRuntimeCache(k)).map(k => caches.delete(k)));
   } catch { /* keine Cache-API */ }
-  location.reload();
 }

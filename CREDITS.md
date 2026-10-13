@@ -17,6 +17,12 @@ the MIT licence and remain available under it.
 Both are vendored so that the app works without internet access; nothing is
 loaded from a CDN at runtime.
 
+Since v3.4.0 the PDF reports measure text with the character widths of the
+standard PDF fonts Helvetica, Helvetica-Bold and ZapfDingbats, taken from
+Adobe's Core 14 AFM font metrics (`src/Services/Pdf/Metrics.php`). Only the
+numbers are included, no AFM files and no fonts — the PDF viewer supplies the
+fonts.
+
 ## Services used at runtime
 
 ### Open-Meteo
@@ -78,6 +84,12 @@ MIT-Lizenz erschienen und bleiben unter ihr verfügbar.
 
 Beides liegt im Repository, damit die App ohne Internetzugang funktioniert;
 zur Laufzeit wird nichts von einem CDN geladen.
+
+Seit v3.4.0 misst der PDF-Bericht Text mit den Zeichenbreiten der
+PDF-Standardschriften Helvetica, Helvetica-Bold und ZapfDingbats aus Adobes
+Core-14-AFM-Schriftmetriken (`src/Services/Pdf/Metrics.php`). Enthalten sind
+nur die Zahlenwerte, keine AFM-Dateien und keine Schriften — die Schriften
+liefert der PDF-Betrachter.
 
 ### Dienste zur Laufzeit
 

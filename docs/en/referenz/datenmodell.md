@@ -25,7 +25,9 @@ backup).
 > v3.2.0 **without** a schema step: `ev_sessions.json` (charging sessions from
 > evcc) is created by the first import, people are stored in `auth.json` ·
 > **1.8.0** index `intervals.json` for values per quarter hour created empty;
-> the series under `intervals/` arise with the first import (v3.3.0).
+> the series under `intervals/` arise with the first import (v3.3.0) ·
+> v3.4.0 **without** a schema step: `activity.json` (history of done notices)
+> is created with the first entry.
 
 ---
 
@@ -49,6 +51,7 @@ data/
 ├── ev_sessions.json          # charging sessions from evcc (v3.2.0) — created by the first import
 ├── intervals.json            # index of the quarter-hour series { series, samples } (v3.3.0, schema 1.8.0)
 ├── intervals/                # quarter-hour series <id>.json, per meter or wholesale price and calendar year (v3.3.0)
+├── activity.json             # history of done notices (v3.4.0) — created with the first entry
 ├── instance.json             # identifier of the installation (v3.1.0) — not in the backup
 ├── gas/        { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
 ├── strom/      { meters.json, readings.json, contracts.json, meter_groups.json, periods.json, bills.json }
@@ -805,6 +808,53 @@ later, the places shift by the difference.
   `{"<id>": series}` — always, also without receipts. On restore every series
   needs an entry in the backup’s index; afterwards series without an entry in
   the new index are dropped ([API](api.md#snapshots-and-import-v260)).
+
+### History of done notices (`activity.json`) *(v3.4.0)*
+
+What was done, when and by whom
+([guide](../anleitungen/hinweise-erledigen.md),
+[API](api.md#done-with-history-v340)). A list; the file is created with the
+first entry, if it is missing the history is empty. No schema step.
+
+```json
+{ "id": "act_3f9a1c2e4b5d", "action": "done",
+  "subject": { "kind": "cancel_by", "uid": "cancel_by-c_strom_003",
+               "occurrence": "cancel_by-c_strom_003@2026-12-31" },
+  "ref": { "utility": "strom", "meter_id": "m_strom_main", "contract_id": "c_strom_003", "cancelled": true },
+  "title_key": "calendar.event.cancelBy",
+  "params": { "label": "Electricity", "provider": "Stadtwerke Musterstadt" },
+  "title": "Electricity: last day to cancel (Stadtwerke Musterstadt)",
+  "done_on": "2026-10-12", "recorded_at": "2026-10-13T08:15:02+02:00",
+  "by": { "type": "person", "id": "u_3f9a1c2e", "name": "Alex" },
+  "note": "by registered letter", "attachment_id": "att_0123456789abcdef",
+  "revert": { "type": "contract_auto_renews", "utility": "strom", "id": "c_strom_003", "before": null, "after": false } }
+```
+
+| Field | Meaning |
+|---|---|
+| `id` | `act_` and 12 hex digits |
+| `action` | `done` (ticked off by hand), `auto_done` (done from the data: follow-on contract without a gap, reading, delivery, service-charge statement) or `dismissed` (recommendation hidden) |
+| `subject` | `kind` = kind as in the agenda (`reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, `reading_due`, `tenancy_statement_due`) or `contract` (follow-on contract) or `recommendation`; `uid` as in the agenda; `occurrence` = `uid@anchor` — contract: its end or `renewed`/`open`, tank: last delivery, reminder: due date, deadlines: their date. A tick only applies to this occurrence |
+| `ref` | references: `utility`, `meter_id` or `meter_group_id`, `contract_id`, `successor_id`, `reminder_id`, `tenancy_id`, `statement_id`, `delivery_id`, `recommendation_id`, `cancelled` (the cancellation set `auto_renews` to `false`) |
+| `title_key`, `params` | catalogue key and parts — the title can be rendered again in any language; days are stored as `YYYY-MM-DD` |
+| `title` | title as a snapshot in the language at the time it was done |
+| `done_on` | day of the deed, may be backdated, not in the future |
+| `recorded_at` | time of the entry (ISO 8601) |
+| `by` | `{type: "person", id, name}`, `{type: "key", name}` (API key), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (by itself) or `null` (without sign-in). After “former member”: `{type: "person", former: true}` |
+| `reason` | for `auto_done` and `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed` |
+| `note`, `attachment_id` | note (up to 500 characters, may be empty) and optionally a receipt ([Receipts](#receipts-v310), reference type `activity`) |
+| `undone` | `{at, by}` after undo — the entry stays, struck through |
+| `revert` | what undo restores: `reminder` (due date, status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — only as long as nobody has changed it differently in the meantime |
+
+**Retention:** `activity_keep_months` (default 60, `0` = unlimited); cleaned up
+when writing, by `done_on`.
+
+**Backup:** pot `activity`. The names are in it **as a snapshot** — whoever
+passes a backup on passes them on too; the list of people itself stays in
+`auth.json`. The import checks `id`, `action` (one of the three), `subject`
+(`kind` and `occurrence`) and `done_on` (calendar date). A backup without the
+pot leaves the history unchanged. Sample households and the demo come with
+`"activity": []`.
 
 ### People in `auth.json` *(v3.2.0)*
 

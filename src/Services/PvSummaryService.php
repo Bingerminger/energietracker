@@ -11,8 +11,11 @@ namespace Energietracker\Services;
  *                          (was die Anlage produzierte UND ich selbst verbrauchte)
  *   eigenverbrauchsquote = eigenverbrauch_kwh / pv_erzeugung_kwh
  *                          (Anteil der Produktion, der nicht ins Netz ging)
- *   autarkiequote        = eigenverbrauch_kwh / (eigenverbrauch_kwh + bezug_kwh)
- *                          (Anteil meines Stroms, der aus eigener PV kam)
+ *   autarkiequote        = 1 − Netzstrom im Haus / Hausverbrauch
+ *                          (Anteil meines Stroms, der nicht aus dem Netz kam;
+ *                          seit v3.4.0 aus dem Energiefluss, s. flows() —
+ *                          ohne Speicher dasselbe wie bisher
+ *                          eigenverbrauch_kwh / (eigenverbrauch_kwh + bezug_kwh))
  *
  * Eigenverbrauchs- und Autarkiequote sind nur sinnvoll definiert, wenn
  * sowohl pv_erzeugung als auch pv_einspeisung Daten haben. Ohne
@@ -65,6 +68,10 @@ final class PvSummaryService
         $pct = $this->settings?->get('pv_assumed_self_consumption_pct');
         $plugInPct = is_numeric($pct) && array_filter($genMeters, fn($m) => !empty($m['plug_in'])) && empty($einspeisung['meters'] ?? [])
             ? (float)$pct : null;
+        // v3.4.0 (F1026) — je Monat Speicher und die Verbraucher Wärmepumpe und
+        // Wallbox (Rollen der Stromzähler): Grundlage für den Energiefluss
+        $battery = $this->roleKwhByMonth($erzeugung, 'pv_erzeugung', ['battery_charge', 'battery_discharge']);
+        $devices = $this->roleKwhByMonth($strom, 'strom', ['heat_pump', 'ev_charger']);
 
         foreach ($byYm as $ym => &$row) {
             // Quoten nur, wo alle drei Zähler Daten haben: Ein Erzeugungszähler
@@ -78,6 +85,26 @@ final class PvSummaryService
                 $row['eigenverbrauchsquote'] = $row['erzeugung_kwh'] > 0.1 ? round($plugInPct / 100, 4) : null;
                 $row['autarkiequote'] = ($eigen + $row['bezug_kwh']) > 0.1 ? round($eigen / ($eigen + $row['bezug_kwh']), 4) : null;
                 $row['self_consumption_assumed'] = true;
+            }
+            $row['battery'] = $battery['has'] ? [
+                'charged_kwh'    => round($battery['kwh'][$ym]['battery_charge'] ?? 0.0, 1),
+                'discharged_kwh' => round($battery['kwh'][$ym]['battery_discharge'] ?? 0.0, 1),
+            ] : null;
+            foreach (['heat_pump', 'ev_charger'] as $role) {
+                $row[$role . '_kwh'] = isset($devices['roles'][$role]) ? round($devices['kwh'][$ym][$role] ?? 0.0, 1) : null;
+            }
+            $row['flow'] = null;
+            if ($row['covered']) {
+                // Eingespeist ist, was nicht selbst genutzt wurde — beim
+                // Balkonkraftwerk ohne Einspeisezähler die Annahme
+                $row['flow'] = $this->withDevices(self::flows(
+                    (float)$row['erzeugung_kwh'],
+                    (float)$row['erzeugung_kwh'] - (float)$row['eigenverbrauch_kwh'],
+                    (float)$row['bezug_kwh'],
+                    (float)($row['battery']['charged_kwh'] ?? 0.0),
+                    (float)($row['battery']['discharged_kwh'] ?? 0.0),
+                ), $row);
+                $row['autarkiequote'] = $row['flow']['autarky'];
             }
             if (!$row['covered']) {
                 $row['eigenverbrauch_kwh'] = null;
@@ -102,8 +129,9 @@ final class PvSummaryService
                     'year' => $yr,
                     'bezug_kwh' => 0.0, 'einspeisung_kwh' => 0.0, 'erzeugung_kwh' => 0.0,
                     'months_with_data' => 0, 'months_covered' => 0,
-                    '_ev' => 0.0, '_erz' => 0.0, '_bez' => 0.0,
+                    '_ev' => 0.0, '_erz' => 0.0, '_bez' => 0.0, '_flow' => null,
                     'savings_eur' => null, 'feed_in_revenue_eur' => 0.0,
+                    'heat_pump_kwh' => null, 'ev_charger_kwh' => null,
                 ];
             }
             $y = &$yearly[$yr];
@@ -112,12 +140,19 @@ final class PvSummaryService
             $y['erzeugung_kwh']    += $row['erzeugung_kwh'];
             $y['months_with_data']++;
             $y['feed_in_revenue_eur'] += (float)$row['feed_in_revenue_eur'];
+            foreach (['heat_pump_kwh', 'ev_charger_kwh'] as $k) {
+                if ($row[$k] !== null) $y[$k] = ($y[$k] ?? 0.0) + $row[$k];
+            }
             if ($row['covered']) {
                 $y['months_covered']++;
                 $y['_ev']  += (float)$row['eigenverbrauch_kwh'];
                 $y['_erz'] += $row['erzeugung_kwh'];
                 $y['_bez'] += $row['bezug_kwh'];
                 if ($row['savings_eur'] !== null) $y['savings_eur'] = ($y['savings_eur'] ?? 0.0) + $row['savings_eur'];
+                // v3.4.0 (F1026) — der Fluss des Jahres ist die Summe der
+                // Monatsflüsse: Netzladung im Winter verschwindet nicht hinter
+                // dem Überschuss im Sommer
+                $y['_flow'] = self::addFlows($y['_flow'], $row['flow']);
             }
             unset($y);
         }
@@ -127,12 +162,16 @@ final class PvSummaryService
             $covered = $y['months_covered'] > 0;
             $y['eigenverbrauch_kwh']   = $covered ? round($y['_ev'], 1) : null;
             $y['eigenverbrauchsquote'] = $covered && $y['_erz'] > 0.1 ? round($y['_ev'] / $y['_erz'], 4) : null;
-            $y['autarkiequote']        = $covered && ($y['_ev'] + $y['_bez']) > 0.1 ? round($y['_ev'] / ($y['_ev'] + $y['_bez']), 4) : null;
+            // v3.4.0 (F1026) — Autarkie aus dem Energiefluss derselben Monate wie
+            // das Schaubild; Speicherverluste zählen nicht als selbst genutzt
+            $y['flow'] = $covered && $y['_flow'] !== null ? self::finishFlow($y['_flow'], $y['months_covered']) : null;
+            $y['autarkiequote'] = $y['flow']['autarky'] ?? null;
             foreach (['bezug_kwh', 'einspeisung_kwh', 'erzeugung_kwh'] as $k) $y[$k] = round($y[$k], 1);
+            foreach (['heat_pump_kwh', 'ev_charger_kwh'] as $k) $y[$k] = $y[$k] !== null ? round($y[$k], 1) : null;
             $y['feed_in_revenue_eur'] = round($y['feed_in_revenue_eur'], 2);
             $y['savings_eur'] = $y['savings_eur'] !== null ? round($y['savings_eur'], 2) : null;
             $y['pv_benefit_eur'] = $y['savings_eur'] !== null ? round($y['savings_eur'] + $y['feed_in_revenue_eur'], 2) : null;
-            unset($y['_ev'], $y['_erz'], $y['_bez']);
+            unset($y['_ev'], $y['_erz'], $y['_bez'], $y['_flow']);
         }
         unset($y);
         ksort($yearly);
@@ -150,6 +189,106 @@ final class PvSummaryService
             'hints'                => $since !== null && $since >= '2025-02-25'
                 && (string)($this->settings?->get('country', 'DE') ?? 'DE') === 'DE' ? ['negative_prices'] : [],
         ];
+    }
+
+    /**
+     * v3.4.0 (F1026) — Energiefluss eines Zeitraums aus Mengen (kWh). Eine
+     * Rechnung für die Kennzahl `autarkiequote` und das Schaubild „Energiefluss
+     * im Haus“; dieselbe Formel steht in `public/js/lib/energy-flow.js`
+     * (`flowsFromTotals`), `tests/fixtures/energy-flows.json` prüft beide.
+     *
+     * Reihenfolge wie Home Assistant: Die Sonne lädt zuerst den Speicher, den
+     * Rest der Ladung lieferte das Netz; eingespeist wird nur Sonnenstrom.
+     *
+     *   PV→Netz        = Einspeisung
+     *   PV→Speicher    = min(geladen, Erzeugung − Einspeisung)
+     *   Netz→Speicher  = geladen − PV→Speicher
+     *   PV→Haus        = Erzeugung − Einspeisung − PV→Speicher
+     *   Speicher→Haus  = entladen
+     *   Netz→Haus      = max(0, Bezug − Netz→Speicher)
+     *   Haus           = PV→Haus + Speicher→Haus + Netz→Haus
+     *   Netzstrom im Haus = min(Bezug, Netz→Haus + min(Netz→Speicher, Speicher→Haus))
+     *   Autarkie       = 1 − Netzstrom im Haus / Haus
+     *
+     * Speicherverluste (geladen − entladen) erreichen das Haus nicht und zählen
+     * deshalb nicht als selbst genutzt. Aus dem Netz geladener Strom zählt auch
+     * nach dem Umweg über den Speicher als Netzstrom. Ohne Speicher ergibt das
+     * die bisherige Formel Eigenverbrauch / (Eigenverbrauch + Bezug).
+     *
+     * @return array{pv_house:float,pv_battery:float,pv_grid:float,grid_house:float,grid_battery:float,battery_house:float,house:float,grid_in_house:float,autarky:?float}
+     */
+    public static function flows(float $gen, float $feed, float $grid, float $charged = 0.0, float $discharged = 0.0): array
+    {
+        [$gen, $feed, $grid, $charged, $discharged] = array_map(fn($v) => max(0.0, $v), [$gen, $feed, $grid, $charged, $discharged]);
+        $feed = min($feed, $gen);
+        $pvAvail = $gen - $feed;
+        $pvBat = min($charged, $pvAvail);
+        $gridBat = $charged - $pvBat;
+        $f = [
+            'pv_house'      => $pvAvail - $pvBat,
+            'pv_battery'    => $pvBat,
+            'pv_grid'       => $feed,
+            'grid_house'    => max(0.0, $grid - $gridBat),
+            'grid_battery'  => $gridBat,
+            'battery_house' => $discharged,
+        ];
+        $f['house'] = $f['pv_house'] + $f['battery_house'] + $f['grid_house'];
+        $f['grid_in_house'] = min($grid, $f['grid_house'] + min($gridBat, $discharged));
+        return self::finishFlow($f);
+    }
+
+    /** Rundet einen Fluss und rechnet die Autarkie aus seinen Summen. */
+    private static function finishFlow(array $f, ?int $months = null): array
+    {
+        foreach ($f as $k => $v) if (is_float($v) || is_int($v)) $f[$k] = round((float)$v, 1);
+        $f['autarky'] = $f['house'] > 0.1 ? round(1 - $f['grid_in_house'] / $f['house'], 4) : null;
+        if ($months !== null) $f['months'] = $months;
+        return $f;
+    }
+
+    /** Summe zweier Flüsse (Jahr = Summe der Monate); Verbraucher null, solange keiner da ist. */
+    private static function addFlows(?array $acc, ?array $f): ?array
+    {
+        if ($f === null) return $acc;
+        if ($acc === null) { unset($f['autarky']); return $f; }
+        foreach ($f as $k => $v) {
+            if ($k === 'autarky' || $v === null) continue;
+            $acc[$k] = ($acc[$k] ?? 0.0) + $v;
+        }
+        return $acc;
+    }
+
+    /** Wärmepumpe und Wallbox eines Monats am Fluss (null ohne Zähler dieser Rolle). */
+    private function withDevices(array $flow, array $row): array
+    {
+        $flow['heat_pump']  = $row['heat_pump_kwh'];
+        $flow['ev_charger'] = $row['ev_charger_kwh'];
+        return $flow;
+    }
+
+    /**
+     * v3.4.0 (F1026) — kWh je Monat der Zähler einer Art mit bestimmten Rollen
+     * (Speicher bei PV-Erzeugung, Wärmepumpe und Wallbox beim Strom). Zähler
+     * mit einer dieser Rollen zählen, auch als Subzähler: Sie schlüsseln auf,
+     * was das Haus verbrauchte bzw. der Speicher bewegte.
+     *
+     * @return array{has:bool,roles:array<string,bool>,kwh:array<string,array<string,float>>}
+     */
+    private function roleKwhByMonth(array $util, string $utility, array $roles): array
+    {
+        $out = ['has' => false, 'roles' => [], 'kwh' => []];
+        foreach ($util['meters'] ?? [] as $pm) {
+            $role = \Energietracker\Config\Utilities::roleOf($utility, $pm['meter'] ?? []);
+            if (!in_array($role, $roles, true)) continue;
+            $out['has'] = true;
+            $out['roles'][$role] = true;
+            foreach ($pm['monthly'] ?? [] as $m) {
+                $ym = (string)($m['ym'] ?? '');
+                if ($ym === '') continue;
+                $out['kwh'][$ym][$role] = ($out['kwh'][$ym][$role] ?? 0.0) + (float)($m['kwh'] ?? 0);
+            }
+        }
+        return $out;
     }
 
     /**

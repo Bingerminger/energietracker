@@ -735,38 +735,41 @@ function openShadowForm(container, existing) {
     title: isEdit ? t('tariff.shadow.titleEdit') : t('tariff.shadow.title'),
     body: `
       <p class="muted small">${esc(t('tariff.shadow.intro'))}</p>
-      <div class="form-grid">
-        <label>${esc(t('tariff.shadow.label'))}<input type="text" id="s-label"
+      <!-- v3.4.0 (N1021) — Formularraster statt .form-grid: Dort übersteuerte
+           label{display:flex} das hidden-Attribut, und „Aufschlag" und
+           „Umsatzsteuer" standen auch ohne dynamischen Tarif im Formular -->
+      <div class="fgrid">
+        <div class="field"><label for="s-label">${esc(t('tariff.shadow.label'))}</label><input class="input input--text" type="text" id="s-label"
           value="${esc(existing?.shadow_label || existing?.tariff_name || '')}"
-          placeholder="${esc(t('tariff.shadow.labelPlaceholder'))}"></label>
-        <label>${esc(t('tariff.shadow.provider'))}<input type="text" id="s-prov"
+          placeholder="${esc(t('tariff.shadow.labelPlaceholder'))}"></div>
+        <div class="field"><label for="s-prov">${esc(t('tariff.shadow.provider'))}</label><input class="input input--text" type="text" id="s-prov"
           value="${esc(existing?.provider || '')}"
-          placeholder="${esc(t('tariff.shadow.providerPlaceholder'))}"></label>
+          placeholder="${esc(t('tariff.shadow.providerPlaceholder'))}"></div>
         ${sel.utility === 'strom' ? `
-        <label class="settings-field__check" data-min-level="expert" style="grid-column: 1 / -1"><input type="checkbox" id="s-dyn" ${isDyn ? 'checked' : ''}>
-          ${esc(t('tariff.dynamic.toggle'))}${info('dynamicTariff')}</label>
-        <label data-dyn>${esc(t('tariff.dynamic.markup'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-markup"
+        <div class="field field--full" data-min-level="expert"><label class="check"><input type="checkbox" id="s-dyn" ${isDyn ? 'checked' : ''}>
+          ${esc(t('tariff.dynamic.toggle'))}${info('dynamicTariff')}</label></div>
+        <div class="field field--s" data-dyn><label for="s-markup">${esc(t('tariff.dynamic.markup'))}</label><input class="input" type="text" inputmode="decimal" autocomplete="off" id="s-markup"
           value="${esc(formatForInput(existing?.dynamic?.markup_ct_per_kwh))}">
-          <span class="settings-field__hint">${esc(t('tariff.dynamic.markupHint'))}</span></label>
-        <label data-dyn>${esc(t('tariff.dynamic.vat'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-vat"
-          value="${esc(formatForInput(existing?.dynamic?.vat_pct ?? 19))}"></label>` : ''}
-        <label data-fixed>${esc(t('tariff.shadow.workingPrice', { unit }))}<input type="text" inputmode="decimal" autocomplete="off" id="s-wp"
-          value="${esc(formatForInput(wp0.ct_per_kwh))}" placeholder="${esc(t('tariff.shadow.workingPlaceholder'))}"></label>
-        <label>${esc(t('tariff.shadow.basePrice'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-bp"
-          value="${esc(formatForInput(bp0.eur_per_month))}" placeholder="${esc(t('tariff.shadow.basePlaceholder'))}"></label>
-        <label>${esc(t('tariff.shadow.signupBonus'))}<input type="text" inputmode="decimal" autocomplete="off" id="s-bonus"
+          <span class="settings-field__hint">${esc(t('tariff.dynamic.markupHint'))}</span></div>
+        <div class="field field--s" data-dyn><label for="s-vat">${esc(t('tariff.dynamic.vat'))}</label><input class="input" type="text" inputmode="decimal" autocomplete="off" id="s-vat"
+          value="${esc(formatForInput(existing?.dynamic?.vat_pct ?? 19))}"></div>` : ''}
+        <div class="field field--s" data-fixed><label for="s-wp">${esc(t('tariff.shadow.workingPrice', { unit }))}</label><input class="input" type="text" inputmode="decimal" autocomplete="off" id="s-wp"
+          value="${esc(formatForInput(wp0.ct_per_kwh))}" placeholder="${esc(t('tariff.shadow.workingPlaceholder'))}"></div>
+        <div class="field field--s"><label for="s-bp">${esc(t('tariff.shadow.basePrice'))}</label><input class="input" type="text" inputmode="decimal" autocomplete="off" id="s-bp"
+          value="${esc(formatForInput(bp0.eur_per_month))}" placeholder="${esc(t('tariff.shadow.basePlaceholder'))}"></div>
+        <div class="field field--s"><label for="s-bonus">${esc(t('tariff.shadow.signupBonus'))}</label><input class="input" type="text" inputmode="decimal" autocomplete="off" id="s-bonus"
           value="${esc(formatForInput(existing?.signup_bonus_eur, 2))}" placeholder="${esc(t('tariff.shadow.signupBonusPlaceholder'))}">
-          <span class="settings-field__hint">${esc(t('tariff.shadow.signupBonusHint'))}</span></label>
-        <label>${esc(t('tariff.shadow.priceGuarantee'))}<input type="date" id="s-guarantee"
+          <span class="settings-field__hint">${esc(t('tariff.shadow.signupBonusHint'))}</span></div>
+        <div class="field field--s field--new"><label for="s-start">${esc(t('tariff.shadow.start'))}</label><input class="input" type="date" id="s-start" value="${esc(start)}"></div>
+        <div class="field field--s"><label for="s-end">${esc(t('tariff.shadow.end'))}</label><input class="input" type="date" id="s-end" value="${esc(existing?.end || '')}">
+          <span class="settings-field__hint">${esc(t('tariff.shadow.endHint'))}</span></div>
+        <div class="field field--s"><label for="s-guarantee">${esc(t('tariff.shadow.priceGuarantee'))}</label><input class="input" type="date" id="s-guarantee"
           value="${esc(existing?.price_guarantee_until || '')}">
-          <span class="settings-field__hint">${esc(t('tariff.shadow.priceGuaranteeHint'))}</span></label>
-        <label>${esc(t('tariff.shadow.start'))}<input type="date" id="s-start" value="${esc(start)}"></label>
-        <label>${esc(t('tariff.shadow.end'))}<input type="date" id="s-end" value="${esc(existing?.end || '')}">
-          <span class="settings-field__hint">${esc(t('tariff.shadow.endHint'))}</span></label>
-        <label>${esc(t('tariff.shadow.noticePeriod'))}<input type="text" inputmode="numeric" autocomplete="off" id="s-notice"
+          <span class="settings-field__hint">${esc(t('tariff.shadow.priceGuaranteeHint'))}</span></div>
+        <div class="field field--s"><label for="s-notice">${esc(t('tariff.shadow.noticePeriod'))}</label><input class="input" type="text" inputmode="numeric" autocomplete="off" id="s-notice"
           value="${esc(String(existing?.notice_period_months ?? ''))}"
           placeholder="${esc(t('tariff.shadow.noticePeriodPlaceholder'))}">
-          <span class="settings-field__hint">${esc(t('tariff.shadow.noticePeriodHint'))}</span></label>
+          <span class="settings-field__hint">${esc(t('tariff.shadow.noticePeriodHint'))}</span></div>
       </div>`,
     footer: `
       <button type="button" class="btn btn--ghost" data-act="cancel">${esc(t('common.cancel'))}</button>

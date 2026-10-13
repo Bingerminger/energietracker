@@ -4,9 +4,11 @@
 #
 # Standardmäßig wird das veröffentlichte GHCR-Image gezogen. Zum lokalen
 # Bauen die `image:`-Zeile auskommentieren und `build: .` aktivieren.
+# Gehärteter Betrieb (weniger Rechte, nur lesbares Dateisystem, Port nur auf
+# 127.0.0.1 hinter einem Reverse-Proxy): docs/betrieb/docker.md (v3.4.0).
 services:
   energietracker:
-    image: ghcr.io/bingerminger/energietracker:3.3.0
+    image: ghcr.io/bingerminger/energietracker:3.4.0
     # build: .
     container_name: energietracker
     restart: unless-stopped

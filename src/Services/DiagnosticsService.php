@@ -14,9 +14,14 @@ use Energietracker\Config\Utilities;
  */
 final class DiagnosticsService
 {
+    /**
+     * @param (\Closure(): array<string,mixed>)|null $security v3.4.0 (N1020) —
+     *        Sicherheitshinweise der Anfrage (App::securityStatus)
+     */
     public function __construct(
         private JsonStore $store,
         private SettingsService $settings,
+        private ?\Closure $security = null,
     ) {}
 
     public function run(): array
@@ -65,6 +70,8 @@ final class DiagnosticsService
         ];
         $info['settings_known_keys'] = $this->settings->knownKeys();
         $info['migration_needed'] = (new Migrator($this->store))->needsMigration();
+        // v3.4.0 (N1020) — additiv: Hinweise zu Proxy-Kopfzeile und Hostliste
+        $info['security'] = $this->security !== null ? ($this->security)() : null;
 
         return $info;
     }

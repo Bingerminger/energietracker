@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace Energietracker\Controllers;
 
+use Energietracker\Http\HostList;
 use Energietracker\Http\Request;
 use Energietracker\Http\Response;
+use Energietracker\Support\LocalizedException;
 use Energietracker\Config\Countries;
 use Energietracker\Services\SettingsService;
 
@@ -24,6 +26,17 @@ final class SettingsController
     public function update(Request $req): never
     {
         $patch = (array)$req->body;
+        // v3.4.0 (N1020) — Hostliste: Der Name, unter dem die App gerade
+        // aufgerufen wird, muss danach noch gelten, sonst sperrte man sich
+        // selbst aus. Über eine IP-Adresse aufgerufen gilt sie immer.
+        if (array_key_exists('allowed_hosts', $patch) && is_string($patch['allowed_hosts'])) {
+            $list = HostList::parse($patch['allowed_hosts']);
+            $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+            if ($list !== [] && !HostList::allows($host, array_merge(HostList::fromEnv(), $list))) {
+                throw new LocalizedException('errors.settings.hostNotListed', ['host' => HostList::hostOf($host)],
+                    'allowed_hosts would lock out the current host');
+            }
+        }
         $result = $this->settings->set($patch);
         // v2.6.0 — unbekannte Schlüssel wurden still verworfen; ein Skript mit
         // dem Altschlüssel `gas_conversion_factor` (bis v2.4) bekam „Erfolg"

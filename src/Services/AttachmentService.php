@@ -133,6 +133,7 @@ final class AttachmentService
             'period'  => Utilities::exists($u) ? "$u/periods.json" : null,
             'bill'    => Utilities::exists($u) ? "$u/bills.json" : null,
             'tenancy_statement' => 'tenancy_statements.json',
+            'activity' => ActivityService::FILE,   // v3.4.0 (F1024) — Beleg eines erledigten Hinweises
             default   => null,
         };
     }

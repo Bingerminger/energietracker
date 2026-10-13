@@ -84,7 +84,10 @@ browser then stays signed in for 30 days; “Sign out” is in the top bar.
 their sessions end at once; the household’s data stays. Your own person is
 deleted by another person who manages. In proxy operation deleting does not
 lock anyone out: if the person comes back through the proxy, the app creates
-them again — locking out is the proxy’s job.
+them again — locking out is the proxy’s job. Since v3.4.0 the dialog also asks
+whether to replace their name in the history of done notices with **“former
+member”** (default: no)
+([Ticking off notices](hinweise-erledigen.md#5-retention-clearing-privacy)).
 
 ---
 
@@ -96,6 +99,8 @@ them again — locking out is the proxy’s job.
 | see everything, annual report, CSV export, download a backup | ✓ | ✓ |
 | household settings (floor area, utilities, weather, calculation parameters …) | ✓ | ✓ |
 | own experience level, own language, own password | ✓ | ✓ |
+| tick off notices, undo, note in the history *(v3.4.0)* | ✓ | ✓ |
+| clear the history, retention of the history *(v3.4.0)* | ✓ | — |
 | add people, change roles, reset passwords, delete people | ✓ | — |
 | switch sign-in on and off, API keys, Home Assistant token | ✓ | — |
 | restore a backup, restore a snapshot, load a sample household | ✓ | — |
@@ -176,6 +181,9 @@ This file is **not** part of the backup or the snapshots:
 - After moving with a backup, set up sign-in and people again. Moving the
   whole data directory (e.g. the Docker volume) takes them along.
 - Users need no schema step; the household data stays as it is.
+- *(v3.4.0)* The **history** of done notices, on the other hand, is part of the
+  backup — and with it the names of the people who did something, as a
+  snapshot. Whoever passes a backup on passes them on too.
 
 ---
 
@@ -209,7 +217,7 @@ POST   /api/session/me/password   own password {current, password}
 GET    /api/users                 people (admins only)
 POST   /api/users                 {name, password, role: admin|member}
 PATCH  /api/users/{id}            {name?, role?, password?}
-DELETE /api/users/{id}
+DELETE /api/users/{id}            ?anonymize_activity=1 — replace the name in the history (v3.4.0)
 ```
 
 `named_login` is `true` as soon as sign-in asks for the name. Status codes and

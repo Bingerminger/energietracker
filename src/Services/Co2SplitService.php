@@ -114,7 +114,8 @@ final class Co2SplitService
         $eur = fn(?float $v): string => $v === null ? '–' : $this->i18n->money($v);
         $num = fn(?float $v, int $d = 1): string => $v === null ? '–' : $this->i18n->number($v, $d);
         $para = function (string $text, float $size = 10.5, bool $bold = false) use ($pdf, $x, $w, &$y): void {
-            foreach ($this->wrap($pdf, $text, $size, $bold, $w) as $line) { $pdf->text($x, $y, $line, $size, $bold); $y += $size * 1.45; }
+            // v3.4.0 — Umbruch im Writer (echte Zeichenbreiten), nicht mehr je Dienst
+            foreach ($pdf->wrap($text, $size, $w, $bold) as $line) { $pdf->text($x, $y, $line, $size, $bold); $y += $size * 1.45; }
             $y += 6;
         };
         $t = !empty($r['tenancy_id']) ? $this->tenancies->get((string)$r['tenancy_id']) : null;
@@ -146,19 +147,6 @@ final class Co2SplitService
         $y += 12;
         $para($this->i18n->t('co2split.disclaimer'), 9);
         return $pdf->output();
-    }
-
-    /** @return list<string> */
-    private function wrap(PdfWriter $pdf, string $text, float $size, bool $bold, float $width): array
-    {
-        $lines = []; $line = '';
-        foreach (preg_split('/\s+/u', trim($text)) ?: [] as $word) {
-            $try = $line === '' ? $word : "$line $word";
-            if ($line !== '' && $pdf->textWidth($try, $size, $bold) > $width) { $lines[] = $line; $line = $word; }
-            else $line = $try;
-        }
-        if ($line !== '') $lines[] = $line;
-        return $lines;
     }
 
     /** Das Mietverhältnis, das im Jahr galt (das jüngste). */

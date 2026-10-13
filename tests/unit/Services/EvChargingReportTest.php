@@ -119,4 +119,21 @@ final class EvChargingReportTest extends ServiceTestCase
         self::assertSame("2025-01;{$this->wallbox};250;30;6;81;contract", $lines[1]);
         self::assertStringStartsWith('%PDF', $this->service()->pdf($r));
     }
+
+    /**
+     * v3.4.0 (F1025, Mangel 9) — Spaltenköpfe stießen zusammen
+     * („Cent/kWhGrundpreis-Anteil“). Jetzt feste Spalten, Köpfe umbrochen: In
+     * keiner Sprache überdecken sich Texte, nichts läuft über den Rand.
+     */
+    public function testPdfColumnsDoNotCollideInAnyLanguage(): void
+    {
+        $this->contract();
+        foreach ($this->i18n->supported() as $lang) {
+            $this->i18n->setLocale($lang);
+            $pdf = $this->service()->pdf($this->service()->report($this->wallbox, 2025, 'contract'));
+            self::assertSame([], \Energietracker\Tests\Support\PdfInspector::structureIssues($pdf), $lang);
+            self::assertSame([], \Energietracker\Tests\Support\PdfInspector::boxIssues(
+                \Energietracker\Tests\Support\PdfInspector::textBoxes($pdf), 595.28, 841.89, 48.0), $lang);
+        }
+    }
 }

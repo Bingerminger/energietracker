@@ -199,8 +199,12 @@ With a generation meter, the following are additionally shown:
 ```
 self_consumption_kwh   = pv_generation_kwh − pv_feedin_kwh
 self_consumption_rate  = self_consumption / pv_generation
-self_sufficiency_rate  = self_consumption / (self_consumption + import)
+self_sufficiency_rate  = self_consumption / (self_consumption + import)          (without a battery)
+self_sufficiency_rate  = 1 − grid power in the house / house consumption        (in general, since v3.4.0)
 ```
+
+With a battery its losses do not count as used in the house; the whole
+calculation is in [PV §4](12-pv.md#4-self-consumption--self-sufficiency-rate).
 
 | System | SC rate | Self-sufficiency rate |
 |---|---|---|

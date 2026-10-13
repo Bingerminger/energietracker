@@ -85,7 +85,10 @@ Browser bleibt danach 30 Tage angemeldet; „Abmelden“ steht in der Kopfleiste
 mehr anmelden, ihre Sitzungen enden sofort; die Daten des Haushalts bleiben.
 Die eigene Person löscht eine andere Person, die verwaltet. Im Proxy-Betrieb
 sperrt Löschen niemanden aus: Kommt die Person wieder über den Proxy, legt die
-App sie neu an — aussperren muss dort der Proxy.
+App sie neu an — aussperren muss dort der Proxy. Seit v3.4.0 fragt der Dialog
+zusätzlich, ob ihr Name im Verlauf erledigter Hinweise durch **„ehemalige
+Person“** ersetzt werden soll (vorgewählt: nein)
+([Hinweise erledigen](hinweise-erledigen.md#5-aufbewahrung-leeren-datenschutz)).
 
 ---
 
@@ -97,6 +100,8 @@ App sie neu an — aussperren muss dort der Proxy.
 | alles ansehen, Jahresbericht, CSV-Export, Backup herunterladen | ✓ | ✓ |
 | Einstellungen des Haushalts (Wohnfläche, Verbrauchsarten, Wetter, Rechenparameter …) | ✓ | ✓ |
 | eigene Nutzungsstufe, eigene Sprache, eigenes Passwort | ✓ | ✓ |
+| Hinweise abhaken, Rückgängig, Notiz im Verlauf *(v3.4.0)* | ✓ | ✓ |
+| Verlauf leeren, Aufbewahrung des Verlaufs *(v3.4.0)* | ✓ | — |
 | Personen anlegen, Rollen ändern, Passwörter neu setzen, Personen löschen | ✓ | — |
 | Anmeldung ein- und ausschalten, API-Schlüssel, Home-Assistant-Token | ✓ | — |
 | Backup einspielen, Snapshot einspielen, Beispielhaushalt laden | ✓ | — |
@@ -182,6 +187,9 @@ Snapshots:
   sie mit.
 - Die Benutzer brauchen keinen Schemaschritt; die Nutzdaten bleiben, wie sie
   sind.
+- *(v3.4.0)* Der **Verlauf** erledigter Hinweise gehört dagegen zum Backup —
+  und mit ihm die Namen der Personen, die etwas erledigt haben, als
+  Momentaufnahme. Wer ein Backup weitergibt, gibt sie mit.
 
 ---
 
@@ -215,7 +223,7 @@ POST   /api/session/me/password   eigenes Passwort {current, password}
 GET    /api/users                 Personen (nur Verwaltung)
 POST   /api/users                 {name, password, role: admin|member}
 PATCH  /api/users/{id}            {name?, role?, password?}
-DELETE /api/users/{id}
+DELETE /api/users/{id}            ?anonymize_activity=1 — Name im Verlauf ersetzen (v3.4.0)
 ```
 
 `named_login` ist `true`, sobald die Anmeldung nach dem Namen fragt. Statuscodes

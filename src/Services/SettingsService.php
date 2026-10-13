@@ -132,6 +132,12 @@ final class SettingsService
         // z. B. eine Home-Assistant-Instanz auf anderer Adresse. Leer = nur
         // die eigene Seite. Gelesen von index.php.
         'frame_ancestors'          => '',
+        // v3.4.0 (N1020) — Hostnamen, unter denen die App antwortet (gegen
+        // DNS-Rebinding), Kommaliste, `*.domain` als Platzhalter. Wirkt
+        // zusammen mit ET_ALLOWED_HOSTS; leer = alle. IP-Adressen und
+        // localhost gelten immer. Nur Verwalter; beim Speichern muss der Name
+        // enthalten sein, unter dem man die App gerade aufruft.
+        'allowed_hosts'            => '',
 
         // ── v3.1.0 (Paket H2) — Belege und Texterkennung ──
         'attachments_max_mb'       => 500,      // alle Belege zusammen (Fotos, PDFs)
@@ -222,6 +228,9 @@ final class SettingsService
         // ── v1.3.0 — Termin-Erinnerungen ──
         'reminder_warn_days_before' => 14,
         'reminder_overdue_days'     => 0,
+        // v3.4.0 (F1024) — Verlauf erledigter Hinweise: so viele Monate
+        // aufbewahren (0 = unbegrenzt), aufgeräumt wird beim Schreiben
+        'activity_keep_months'      => 60,
 
         // ── v1.3.0 — Empfehlungs-Engine (statistische Insights) ──
         'recommendation_anomaly_sigma'   => 2.0,  // Mehrverbrauch ohne Wetterkontext
@@ -426,6 +435,7 @@ final class SettingsService
                 'ocr_timeout_s'      => [5, 300],
                 'warmwasser_temp_c'  => [30, 90],
                 'co2_price_scenario_from' => [2021, 2100],
+                'activity_keep_months' => [0, 1200],   // v3.4.0 (F1024)
                 default              => null,
             };
             $bad = ($range !== null && (!is_numeric($v) || (int)$v != $v || (int)$v < $range[0] || (int)$v > $range[1]))
@@ -453,6 +463,8 @@ final class SettingsService
                 } else $v = round((float)$v, 2);
             }
             if ($k === 'ocr_endpoint' || $k === 'ocr_model' || $k === 'evcc_endpoint') $v = trim((string)$v);
+            // v3.4.0 (N1020) — Hostliste: kanonisch „a.example, *.b.example"
+            if ($k === 'allowed_hosts') $v = self::normalizeHostList($v, $this->translator());
             if ($k === 'setup_pending') $v = (bool)$v;
             // v3.1.0 (H8) — Quelle der Vergleichswerte: kurzer Text
             if ($k === 'reference_source') $v = mb_substr(trim((string)$v), 0, 120);
@@ -466,6 +478,29 @@ final class SettingsService
         }
         $this->store->write('settings.json', $current);
         return $this->all();
+    }
+
+    /**
+     * v3.4.0 (N1020) — Hostliste prüfen: höchstens 20 Einträge, je ein Name
+     * oder `*.domain` ohne Schema, Port und Pfad. IP-Adressen gehören nicht
+     * hinein (sie gelten ohnehin immer).
+     */
+    public static function normalizeHostList(mixed $v, callable $t): string
+    {
+        if ($v === null) return '';
+        if (!is_string($v) || mb_strlen($v) > 1000) {
+            throw new \InvalidArgumentException($t('errors.settings.valueInvalid', ['key' => 'allowed_hosts', 'value' => is_scalar($v) ? (string)$v : gettype($v)]));
+        }
+        $list = \Energietracker\Http\HostList::parse($v);
+        foreach ($list as $h) {
+            if (strlen($h) > 253 || !preg_match(\Energietracker\Http\HostList::ENTRY, $h) || filter_var($h, FILTER_VALIDATE_IP) !== false) {
+                throw new \InvalidArgumentException($t('errors.settings.valueInvalid', ['key' => 'allowed_hosts', 'value' => $h]));
+            }
+        }
+        if (count($list) > 20) {
+            throw new \InvalidArgumentException($t('errors.settings.valueInvalid', ['key' => 'allowed_hosts', 'value' => (string)count($list)]));
+        }
+        return implode(', ', $list);
     }
 
     /** v3.1.0 — leer oder eine http(s)-Adresse mit Host. */

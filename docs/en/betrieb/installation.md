@@ -19,7 +19,7 @@ PHP-capable web server and a browser are enough.
 
 | Component | At least | Recommended | Purpose |
 |---|---|---|---|
-| PHP | 8.2 | 8.4 | backend runtime; CI tests 8.2, 8.3 and 8.4, the Docker image ships 8.4 (minimum 8.2 since v3.1.0, before that 8.4) |
+| PHP | 8.2 | 8.5 | backend runtime; CI tests 8.2 to 8.5, since v3.4.0 the Docker image ships 8.5 (minimum 8.2 since v3.1.0, before that 8.4) |
 | PHP extensions | `json`, `mbstring` *(optional)* | ditto | JSON store; `iconv` for PDF umlauts; `curl` for text recognition (v3.1.0) |
 | Web server | PHP built-in server | Apache/nginx | delivery |
 | Browser | a current Chromium/Firefox/Safari | ditto | SPA frontend (ES modules) |
@@ -148,7 +148,9 @@ Simply copying the entire `data/` directory is also a complete backup.
    migration cannot be undone.
 2. **Read the CHANGELOG** — whatever is listed under “Migration” applies to you.
 3. Replace the program files (everything except `data/`). Docker:
-   [Performing updates](docker.md#performing-updates).
+   [Performing updates](docker.md#performing-updates). Since v3.4.0 this
+   includes `docs/`: Help shows the handbook from that directory, matching the
+   version — if it is missing, every page is reported as not available.
 4. Open the app in the browser — the migrator raises the schema automatically and
    idempotently as needed. Since v2.5.3 it first stores a snapshot in
    `data/backups/`. If the snapshot fails (e.g. disk full), the migration still
@@ -158,8 +160,10 @@ A downgrade to an older schema version is **not** supported; newer utilities
 would be ignored by old versions. The way back is only the old program version
 **and** the backup from step 1.
 
-Migration from an old private **v0.9.0** backup: see
-[Migration from v0.9.0](../anleitungen/migration-v090.md).
+Since v3.4.0 no version reads an old private **v0.9.0** backup any more:
+install v3.3.0, import it there under Settings → Data → Migration from v0.9.0,
+then update as above. A data directory still in the v0.9.0 layout is still
+converted on the first start.
 
 ---
 

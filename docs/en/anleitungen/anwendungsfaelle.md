@@ -41,6 +41,7 @@ More: [Setup](../einstieg/einrichtung.md).
 
 ---
 
+<a id="case-shared-meters"></a>
 ## A — Shared flat with shared meters
 
 **Situation.** Four-person shared flat, one common main electricity meter. One
@@ -74,6 +75,7 @@ correct without double counting. Details:
 
 ---
 
+<a id="case-home-assistant"></a>
 ## B — Smart home / Home Assistant (full build-out)
 
 **Situation.** A tech-savvy household with Home Assistant (HA) that already reads
@@ -120,6 +122,7 @@ step-by-step guide including troubleshooting is in
 
 ---
 
+<a id="case-pv-heat-pump"></a>
 ## C — PV household with a heat pump
 
 **Situation.** A detached house with a PV system and a heat pump. Wanted:
@@ -180,6 +183,7 @@ meter, a wall box ([sample households](#sample-households-to-look-at-v320)).
 
 ---
 
+<a id="case-landlord"></a>
 ## D — Landlord with several units
 
 **Situation.** A two-family house, rented out. Each residential unit has its own
@@ -217,6 +221,7 @@ unit.
 
 ---
 
+<a id="case-wallbox"></a>
 ## E — Wall box and company car
 
 **Situation.** A detached house with a wall box behind the household meter. The
@@ -256,6 +261,7 @@ evcc ([use case G](#g--control-with-evcc-or-home-assistant--check-the-numbers-in
 
 ---
 
+<a id="case-heat"></a>
 ## F — District heating or heat?
 
 **Situation.** Two utilities sound almost the same and both count heat in kWh:
@@ -347,6 +353,7 @@ The card appears at the level “Expert”
 
 ---
 
+<a id="case-control"></a>
 ## G — Control with evcc or Home Assistant — check the numbers in Energietracker
 
 **Situation.** An energy consultant asks for a “controller”: it should charge

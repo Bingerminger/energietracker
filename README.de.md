@@ -3,6 +3,8 @@
 
 # Energietracker
 
+<p align="center"><img src="docs/assets/promo/banner.de.png" alt="Energietracker – Energiekosten verstehen, bares Geld sparen: Kosten und Abschläge, Verbrauch, Verträge und Fristen, Sonne, Speicher, Wärmepumpe und E-Auto in einer selbst gehosteten App" width="860"></p>
+
 **Home Assistant misst — der Energietracker rechnet ab.** Zählerstände rein,
 Antworten raus: Bekomme ich Geld zurück? Stimmt die Gasrechnung? Lohnt sich der
 Wechsel? Habe ich mehr verbraucht, oder war es nur kälter?
@@ -12,14 +14,15 @@ Beispielhaushalt, bis heute fortgeschrieben, in sieben Sprachen, ohne Installati
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.3.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](CHANGELOG.md)
 [![Lizenz: AGPL-3.0-or-later](https://img.shields.io/badge/Lizenz-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Abhängigkeiten: 0](https://img.shields.io/badge/Abh%C3%A4ngigkeiten-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-695-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-813-success.svg)](tests/)
 [![Sprachen](https://img.shields.io/badge/Sprachen-7-7c5cff.svg)](public/locales/)
 [![Verbrauchsarten](https://img.shields.io/badge/Verbrauchsarten-9-f59e0b.svg)](docs/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-ffdd00.svg)](https://buymeacoffee.com/bingerminger)
 
 <p align="center"><img src="docs/ui/screenshots/dashboard.png" alt="Übersicht mit „Zu tun“, Kennzahlen je Verbrauchsart und Verlauf" width="860"></p>
 
@@ -69,7 +72,7 @@ Hilfe in der App mit Glossar und ⓘ an jeder Kennzahl.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.3.0
+  ghcr.io/bingerminger/energietracker:3.4.0
 ```
 
 Dann <http://localhost:8080> öffnen. **„Mit Beispieldaten ausprobieren“** zeigt
@@ -127,18 +130,19 @@ er ohne Klassen und sagt warum; Währungen rechnet er nicht um —
 
 ## Stand und Ausblick
 
-**v3.3.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
+**v3.4.0** ist die aktuelle Version — [CHANGELOG](CHANGELOG.md). Schnittstellen,
 CSV-Formate und das Backup-Format ändern sich nur additiv; entfernt wird erst
-mit einer neuen Hauptversion und nach Ankündigung. 3.3.0 bewertet, was
-Flexibilität bringt: Viertelstundenwerte aus Home Assistant oder dem
-Netzbetreiber-Portal, Börsenpreise in Viertelstunden, der eigene Profilfaktor
-im dynamischen Tarif, der Wert eines Speichers und das zeitvariable Netzentgelt
-(Modul 3). Seit 3.2.0 gibt es den Einrichtungsassistenten mit
-Beispielhaushalten, drei Nutzungsstufen, mehrere Personen im Haushalt und
-Ladevorgänge aus evcc. Was als Nächstes
+mit einer neuen Hauptversion und nach Ankündigung. 3.4.0 macht die App für alle
+im Haushalt klar und sicherer: Das Handbuch kommt vom eigenen Server, auch ohne
+Internet; ein Jahresbericht für Leser ohne Technikhintergrund mit Erfolgen und
+Handlungsempfehlungen; erledigte Hinweise mit Verlauf, wer was erledigt hat;
+eine aufgeräumte Oberfläche und ein Sicherheitspaket. Seit 3.3.0 bewertet die
+App Flexibilität mit Viertelstundenwerten, seit 3.2.0 gibt es den
+Einrichtungsassistenten, Nutzungsstufen, mehrere Personen im Haushalt und evcc.
+Was als Nächstes
 kommt, steht in der [Roadmap](roadmap.md). Wer von einer privaten
-v0.9.0 kommt:
-[Migration](docs/anleitungen/migration-v090.md).
+v0.9.0 kommt: Seit 3.4.0 liest keine Version deren Backups mehr ein —
+3.3.0 installieren, dort migrieren, dann aktualisieren.
 
 ## Mitwirken
 
@@ -150,6 +154,14 @@ Länderzuordnung; die Checkliste steht unter
 [Übersetzen und Sprachen](docs/entwicklung/uebersetzen.md).
 Sicherheitslücken bitte nicht öffentlich melden, sondern wie in
 [SECURITY.md](SECURITY.md) beschrieben.
+
+## Unterstützen
+
+Der Energietracker ist unabhängig: keine Firma dahinter, keine Werbung, kein
+Cloud-Konto, keine Datensammlung. Wenn er dir Geld oder Zeit spart und du
+etwas zurückgeben möchtest, kannst du mir
+[einen Kaffee spendieren](https://buymeacoffee.com/bingerminger) — ganz
+freiwillig. Sterne, Fehlermeldungen und Weitersagen helfen genauso.
 
 ## Lizenz
 

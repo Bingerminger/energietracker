@@ -206,8 +206,12 @@ Mit einem Erzeugungszähler werden zusätzlich angezeigt:
 ```
 eigenverbrauch_kwh   = pv_erzeugung_kwh − pv_einspeisung_kwh
 eigenverbrauchsquote = eigenverbrauch / pv_erzeugung
-autarkiequote        = eigenverbrauch / (eigenverbrauch + bezug)
+autarkiequote        = eigenverbrauch / (eigenverbrauch + bezug)          (ohne Speicher)
+autarkiequote        = 1 − Netzstrom im Haus / Hausverbrauch           (allgemein, seit v3.4.0)
 ```
+
+Mit Speicher zählen dessen Verluste nicht als selbst genutzt; die ganze
+Rechnung steht in [PV §4](12-pv.md#4-eigenverbrauch--autarkiequote).
 
 | Anlage | EV-Quote | Autarkiequote |
 |---|---|---|

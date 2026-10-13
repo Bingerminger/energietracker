@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Energietracker · Banner</title>
+<!--
+  Werbebanner für die README (1720 × 860 px, im README mit width="860").
+  Englisch ist Vorgabe, ?lang=de schaltet Texte und Bilder auf Deutsch.
+  Aufnahme: docs/entwicklung/screenshots.md → „Werbebilder“.
+  Bilder: echte App-Screenshots aus docs/ui/screenshots/ (Beispieldaten).
+  Farben aus public/css/tokens.css (helles Theme) und den Farben der
+  Verbrauchsarten (src/Config/Utilities.php); Schrift DM Sans aus public/vendor/.
+-->
+<style>
+  @font-face {
+    font-family: 'DM Sans';
+    font-style: normal;
+    font-weight: 100 1000;
+    src: url(../../../public/vendor/fonts/dm-sans.woff2) format('woff2');
+  }
+  :root {
+    --ink:      #0f172a;
+    --ink-2:    #334155;
+    --muted:    #5b6b82;
+    --accent:   #2563eb;
+    --paper:    #f6f8fa;
+    --line:     #dde4ed;
+    --gas:      #f59e0b;
+    --strom:    #22d3ee;
+    --wasser:   #3b82f6;
+    --waerme:   #f43f5e;
+    --oel:      #8b5cf6;
+    --pv:       #10b981;
+    --sonne:    #fbbf24;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1720px; height: 860px; overflow: hidden; }
+  body {
+    font-family: 'DM Sans', -apple-system, 'Segoe UI', Roboto, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .banner {
+    position: relative; width: 1720px; height: 860px; overflow: hidden;
+    background:
+      radial-gradient(1100px 700px at 78% 40%, rgba(37, 99, 235, .10), transparent 62%),
+      linear-gradient(180deg, #fbfcfe 0%, #f1f4f9 100%);
+  }
+  /* feines Punktraster rechts, läuft nach links aus */
+  .dots {
+    position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(15, 23, 42, .10) 1.2px, transparent 1.3px);
+    background-size: 26px 26px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 30%, #000 75%);
+            mask-image: linear-gradient(90deg, transparent 30%, #000 75%);
+  }
+  /* Farbkreis wie im App-Symbol: die Farben der Verbrauchsarten */
+  .wheel {
+    position: absolute; width: 780px; height: 780px; left: 900px; top: -10px;
+    border-radius: 50%;
+    background: conic-gradient(from 200deg, var(--gas), var(--waerme), var(--oel),
+      var(--wasser), var(--strom), var(--pv), var(--sonne), var(--gas));
+    filter: blur(70px); opacity: .38;
+  }
+  .wheel::after {
+    content: ""; position: absolute; inset: 190px; border-radius: 50%;
+    background: #f4f6fa;
+  }
+
+  /* ── Text links ─────────────────────────────────────────────────── */
+  .copy { position: absolute; left: 88px; top: 64px; width: 700px; z-index: 5; }
+  .brand { display: flex; align-items: center; gap: 18px; margin-bottom: 36px; }
+  .brand img {
+    width: 72px; height: 72px; border-radius: 18px; display: block;
+    box-shadow: 0 10px 26px -8px rgba(15, 23, 42, .35), 0 0 0 1px rgba(15, 23, 42, .06);
+  }
+  .brand .name { font-size: 34px; font-weight: 750; letter-spacing: -.4px; }
+  .brand .eyebrow { display: block; font-size: 16px; font-weight: 500; color: var(--muted); letter-spacing: .1px; margin-top: 2px; }
+
+  h1 { font-size: 56px; line-height: 1.08; font-weight: 800; letter-spacing: -1.8px; margin-bottom: 22px; white-space: nowrap; }
+  h1 .accent {
+    background: linear-gradient(92deg, #2563eb 0%, #0e9f9a 55%, #10b981 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  p.lead { font-size: 21px; line-height: 1.5; color: var(--ink-2); max-width: 640px; margin-bottom: 34px; }
+
+  ul.points { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 22px 26px; max-width: 670px; }
+  ul.points li { display: flex; gap: 14px; align-items: flex-start; }
+  .ic {
+    flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px;
+    display: grid; place-items: center; color: #fff;
+    box-shadow: 0 8px 18px -8px currentColor;
+  }
+  .ic svg { width: 24px; height: 24px; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .ic.c1 { background: linear-gradient(150deg, #3b82f6, #2563eb); color: #2563eb; }
+  .ic.c2 { background: linear-gradient(150deg, #34d399, #059669); color: #059669; }
+  .ic.c3 { background: linear-gradient(150deg, #a78bfa, #7c3aed); color: #7c3aed; }
+  .ic.c4 { background: linear-gradient(150deg, #fbbf24, #ea580c); color: #ea580c; }
+  .pt b { display: block; font-size: 18px; font-weight: 700; line-height: 1.25; letter-spacing: -.2px; }
+  .pt span { display: block; font-size: 15px; line-height: 1.4; color: var(--muted); margin-top: 3px; }
+
+  /* ── Leiste unten ───────────────────────────────────────────────── */
+  .strip {
+    position: absolute; left: 88px; right: 88px; bottom: 44px; z-index: 6;
+    display: flex; align-items: center; gap: 30px;
+    padding-top: 20px; border-top: 1px solid var(--line);
+    font-size: 16px; font-weight: 600; color: var(--ink-2);
+  }
+  .strip .it { display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+  .strip svg { width: 18px; height: 18px; stroke: var(--pv); fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .strip .sep { width: 4px; height: 4px; border-radius: 50%; background: #b8c2d0; }
+  .strip .note { margin-left: auto; font-weight: 500; color: var(--muted); }
+
+  /* ── Geräte rechts ──────────────────────────────────────────────── */
+  .laptop { position: absolute; left: 900px; top: 96px; width: 764px; z-index: 3; }
+  .lid {
+    background: linear-gradient(180deg, #1e293b, #0f172a);
+    border-radius: 20px 20px 8px 8px; padding: 14px 14px 20px;
+    box-shadow: 0 50px 90px -30px rgba(15, 23, 42, .55), 0 0 0 1px rgba(255, 255, 255, .05) inset;
+    position: relative;
+  }
+  .lid::before { /* Kamera */
+    content: ""; position: absolute; top: 5px; left: 50%; width: 5px; height: 5px; margin-left: -2.5px;
+    border-radius: 50%; background: #334155;
+  }
+  .screen { border-radius: 6px; overflow: hidden; aspect-ratio: 16 / 10; background: #fff; }
+  .screen img { width: 100%; height: 100%; object-fit: cover; object-position: top left; display: block; }
+  .base {
+    position: relative; height: 18px; margin: 0 -46px;
+    background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 55%, #94a3b8 100%);
+    border-radius: 2px 2px 16px 16px;
+    box-shadow: 0 18px 30px -12px rgba(15, 23, 42, .45);
+  }
+  .base::before { /* Griffmulde */
+    content: ""; position: absolute; top: 0; left: 50%; width: 130px; height: 7px; margin-left: -65px;
+    background: #94a3b8; border-radius: 0 0 8px 8px;
+  }
+
+  .phone {
+    position: absolute; left: 812px; top: 282px; width: 232px; z-index: 4;
+    background: #0b1220; border-radius: 40px; padding: 10px;
+    box-shadow: 0 44px 80px -24px rgba(15, 23, 42, .6), 0 0 0 2px #334155 inset;
+  }
+  .phone .scr { border-radius: 32px; overflow: hidden; background: #fff; aspect-ratio: 375 / 812; }
+  .phone .scr img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+
+  /* Ausschnitt aus der PV-Ansicht: Energiefluss im Haus */
+  .card {
+    position: absolute; left: 1424px; top: 428px; width: 270px; z-index: 5;
+    background: #fff; border-radius: 18px; padding: 10px;
+    box-shadow: 0 30px 60px -22px rgba(15, 23, 42, .45), 0 0 0 1px rgba(15, 23, 42, .06);
+  }
+  .card .cap { display: flex; align-items: center; gap: 8px; padding: 6px 8px 2px; font-size: 14px; font-weight: 700; color: var(--ink); }
+  .card .cap i { width: 10px; height: 10px; border-radius: 50%; background: var(--pv); box-shadow: 0 0 0 4px rgba(16, 185, 129, .18); }
+  .card .crop { width: 250px; height: 270px; overflow: hidden; border-radius: 10px; position: relative; }
+  .card .crop img { position: absolute; width: 1000px; max-width: none; left: -412px; top: -538px; }
+</style>
+</head>
+<body>
+  <div class="banner">
+    <div class="dots"></div>
+    <div class="wheel"></div>
+
+    <div class="copy">
+      <div class="brand">
+        <img src="../../../public/img/icon-light-180.png" alt="">
+        <div><span class="name">Energietracker</span><span class="eyebrow" data-t="eyebrow">Self-hosted energy cockpit for your home</span></div>
+      </div>
+      <h1><span data-t="h1a">Know your energy costs.</span><br><span class="accent" data-t="h1b">Save real money.</span></h1>
+      <p class="lead" data-t="lead">Meter readings in, answers out: refund or back-payment, which tariff pays off and whether you really used less.</p>
+      <ul class="points">
+        <li class="pt"><span class="ic c1"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span>
+          <div><b data-t="p1">Costs &amp; advance payments</b><span data-t="p1s">Expected bill every day, adjust in time</span></div></li>
+        <li class="pt"><span class="ic c2"><svg viewBox="0 0 24 24"><path d="M3 6l6 6 4-4 8 8"/><path d="M15 16h6v-6"/></svg></span>
+          <div><b data-t="p2">Understand usage, save</b><span data-t="p2s">Weather-adjusted trends, forecast, tips</span></div></li>
+        <li class="pt"><span class="ic c3"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M9 15l2 2 4-4"/></svg></span>
+          <div><b data-t="p3">Contracts &amp; deadlines</b><span data-t="p3s">Notice periods, price guarantees, switch check</span></div></li>
+        <li class="pt"><span class="ic c4"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+          <div><b data-t="p4">Solar, battery, heat pump, EV</b><span data-t="p4s">Energy flow, self-consumption, payback</span></div></li>
+      </ul>
+    </div>
+
+    <div class="laptop">
+      <div class="lid"><div class="screen"><img data-shot="gas-view.png" src="../../ui/screenshots/en/gas-view.png" alt=""></div></div>
+      <div class="base"></div>
+    </div>
+    <div class="phone"><div class="scr"><img data-shot="navigation-iphone.png" src="../../ui/screenshots/en/navigation-iphone.png" alt=""></div></div>
+    <div class="card"><div class="cap"><i></i><span data-t="flow">Energy flow at home</span></div><div class="crop"><img data-shot="pv.png" src="../../ui/screenshots/en/pv.png" alt=""></div></div>
+
+    <div class="strip">
+      <span class="it"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg><span data-t="s1">Open source (AGPL)</span></span>
+      <span class="sep"></span>
+      <span class="it"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg><span data-t="s2">Self-hosted</span></span>
+      <span class="sep"></span>
+      <span class="it"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg><span data-t="s3">No cloud, no telemetry</span></span>
+      <span class="sep"></span>
+      <span class="it"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg><span data-t="s4">Independent of any supplier</span></span>
+      <span class="note" data-t="note">9 utilities · 7 languages · sample data shown</span>
+    </div>
+  </div>
+  <script>
+    /* Englisch ist Vorgabe; ?lang=de schaltet Texte und Screenshots um. */
+    const TEXT = {
+      en: {
+        eyebrow: 'Self-hosted energy cockpit for your home',
+        h1a: 'Know your energy costs.', h1b: 'Save real money.',
+        lead: 'Meter readings in, answers out: refund or back-payment, which tariff pays off and whether you really used less.',
+        p1: 'Costs & advance payments', p1s: 'Expected bill every day, adjust in time',
+        p2: 'Understand usage, save', p2s: 'Weather-adjusted trends, forecast, tips',
+        p3: 'Contracts & deadlines', p3s: 'Notice periods, price guarantees, switch check',
+        p4: 'Solar, battery, heat pump, EV', p4s: 'Energy flow, self-consumption, payback',
+        s1: 'Open source (AGPL)', s2: 'Self-hosted', s3: 'No cloud, no telemetry', s4: 'Independent of any supplier',
+        note: '9 utilities · 7 languages · sample data shown',
+        flow: 'Energy flow at home',
+      },
+      de: {
+        eyebrow: 'Das Energie-Cockpit für dein Zuhause, selbst gehostet',
+        h1a: 'Energiekosten verstehen.', h1b: 'Bares Geld sparen.',
+        lead: 'Zählerstände rein, Antworten raus: Rückzahlung oder Nachzahlung, welcher Tarif sich lohnt und ob du wirklich weniger verbraucht hast.',
+        p1: 'Kosten & Abschläge', p1s: 'Abrechnung jeden Tag im Blick, rechtzeitig anpassen',
+        p2: 'Verbrauch verstehen, sparen', p2s: 'Witterungsbereinigt, mit Prognose und Tipps',
+        p3: 'Verträge & Fristen', p3s: 'Kündigungsfristen, Preisgarantien, Wechsel-Check',
+        p4: 'Sonne, Speicher, Wärmepumpe, E-Auto', p4s: 'Energiefluss, Eigenverbrauch, Amortisation',
+        s1: 'Open Source (AGPL)', s2: 'Selbst gehostet', s3: 'Keine Cloud, keine Telemetrie', s4: 'Unabhängig von Anbietern',
+        note: '9 Verbrauchsarten · 7 Sprachen · Beispieldaten',
+        flow: 'Energiefluss im Haus',
+      },
+    };
+    const lang = new URLSearchParams(location.search).get('lang') === 'de' ? 'de' : 'en';
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-t]').forEach((n) => { n.textContent = TEXT[lang][n.dataset.t]; });
+    document.querySelectorAll('img[data-shot]').forEach((i) => {
+      i.src = '../../ui/screenshots/' + (lang === 'en' ? 'en/' : '') + i.dataset.shot;
+    });
+  </script>
+</body>
+</html>

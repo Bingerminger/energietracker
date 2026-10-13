@@ -358,6 +358,14 @@ final class PersonaDemoTest extends ServiceTestCase
         self::assertSame($ev['parent_meter_id'], $report['payer_meter_id']);
         self::assertGreaterThanOrEqual(2000.0, $report['total']['kwh']);
         self::assertLessThanOrEqual(3000.0, $report['total']['kwh']);
+        // v3.4.0 (F1025) — der Subzähler misst im Jahr weniger als sein Elternzähler:
+        // Der Hausspeicher entlädt nicht ins Auto (vorher 2.613 kWh Wallbox gegen
+        // 2.402 kWh Bezug). Einzelne Sommermonate dürfen darüber liegen — die
+        // Sonne lädt hinter dem Bezugszähler mit.
+        foreach ([2024, 2025] as $y) {
+            self::assertLessThan(self::annual($this->meterRows('strom', (string)$ev['parent_meter_id']), $y),
+                self::annual($this->meterRows('strom', (string)$ev['id']), $y), "Wallbox ≤ Bezug $y");
+        }
 
         // Wärmepumpentarif mit § 14a Modul 1, dynamischer Schattenvertrag
         $wp = array_values(array_filter($this->meters->list('strom'), fn($m) => Utilities::roleOf('strom', $m) === 'heat_pump'))[0];

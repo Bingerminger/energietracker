@@ -192,7 +192,7 @@ final class PdfReportServiceTest extends ServiceTestCase
         $this->seedYear('gas', $meterId, 'd1');
         $this->settings->set(['active_utilities' => ['gas']]);
 
-        $without = implode(' ', $this->pdfTexts($this->service()->build(2024)));
+        $without = implode(' ', $this->pdfTexts($this->service()->build(2024, ['detail' => true])));
         self::assertStringNotContainsString('Open-Meteo', $without, 'Ohne Temperaturen keine Quellenangabe');
 
         $temps = [];
@@ -200,7 +200,8 @@ final class PdfReportServiceTest extends ServiceTestCase
             $temps[$d->format('Y-m-d')] = ['avg' => 5.0, 'min' => 1.0, 'max' => 9.0, 'source' => 'archive'];
         }
         $this->store->write('temperatures.json', $temps);
-        $with = implode(' ', $this->pdfTexts($this->service()->build(2024)));
+        // v3.4.0 (F1025) — Temperaturen und Gradtage stehen im Anhang „Zahlen im Detail“
+        $with = implode(' ', $this->pdfTexts($this->service()->build(2024, ['detail' => true])));
         // Klammern stehen im PDF-Textoperator maskiert: \( … \)
         self::assertStringContainsString('Open-Meteo.com', $with, 'Quelle fehlt');
         self::assertStringContainsString('CC BY 4.0', $with, 'Lizenz fehlt');

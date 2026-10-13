@@ -28,17 +28,23 @@ final class ContractController
             (string)$req->rawBody, $req->queryParam('dry_run') === '1'));
     }
 
+    // v3.4.0 (N1021) — je Vertrag additiv `phase` (future, current, renewed,
+    // past, shadow) und `values_on` (Preise und Abschlag am Stichtag)
     public function index(Request $req): never
     {
+        $utility = (string)$req->param('utility');
         $meterId = $req->queryParam('meter_id');
-        Response::json($this->contracts->list($req->param('utility'), $meterId));
+        $list = $this->contracts->list($utility, $meterId);
+        $all = $meterId === null ? $list : $this->contracts->list($utility);
+        Response::json($this->contracts->withPhase($list, $all));
     }
 
     public function show(Request $req): never
     {
-        $c = $this->contracts->get($req->param('utility'), $req->param('id'));
+        $utility = (string)$req->param('utility');
+        $c = $this->contracts->get($utility, $req->param('id'));
         if (!$c) Response::error($this->i18n->t('errors.contract.notFound'), 404);
-        Response::json($c);
+        Response::json($this->contracts->withPhase([$c], $this->contracts->list($utility))[0]);
     }
 
     public function create(Request $req): never

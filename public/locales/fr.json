@@ -29,7 +29,13 @@
       "toggle": "Apparence : {mode} – changer",
       "system": "comme le système",
       "light": "clair",
-      "dark": "sombre"
+      "dark": "sombre",
+      "autoBadge": "A",
+      "applied": {
+        "system": "Automatique – suit le système",
+        "light": "Clair",
+        "dark": "Sombre"
+      }
     }
   },
   "meterNames": {
@@ -100,7 +106,8 @@
       }
     },
     "tenancy": "Bail",
-    "flexibility": "Flexibilité"
+    "flexibility": "Flexibilité",
+    "activity": "Fait"
   },
   "dashboard": {
     "loading": "Chargement de l’aperçu…",
@@ -179,7 +186,12 @@
       "readingsDue": {
         "one": "{count} compteur attend un relevé",
         "other": "{count} compteurs attendent un relevé"
-      }
+      },
+      "successorGap": {
+        "one": "Contrat suivant seulement à partir du {date} – {count} jour d’interruption",
+        "other": "Contrat suivant seulement à partir du {date} – {count} jours d’interruption"
+      },
+      "tenancyAction": "Voir le bail"
     },
     "welcome": {
       "title": "Bienvenue dans Energietracker",
@@ -377,17 +389,13 @@
       "monthlyTable": "📋 Tableau mensuel {year}",
       "stockTank": "🛢️ Stock et cuve",
       "deliveries": "🚚 Livraisons",
-      "readingsYear": "📋 Relevés {year}",
       "monthlyChartFeedIn": "Injection par mois {year}",
       "monthlyChartGeneration": "Production par mois {year}",
       "deliveriesCount": {
         "one": "{count} livraison au total",
         "other": "{count} livraisons au total"
       },
-      "readingsCount": {
-        "one": "{count} relevé au total",
-        "other": "{count} relevés au total"
-      }
+      "readings": "📋 Relevés"
     },
     "balance": {
       "title": "⚖️ Solde du contrat en cours — {name}",
@@ -477,14 +485,10 @@
       "colBonus": "Prime",
       "colBalanceToday": "Solde aujourd’hui",
       "colBalanceExpected": "Solde prév.",
-      "stateActive": "ACTIF",
-      "statePast": "PASSÉ",
-      "stateFuture": "FUTUR",
       "periodOpen": "{start} → en cours",
       "gpSuffix": "abonnement {value} {cur}/mois",
       "colSpecial": "Paiements exceptionnels",
       "hint": "Primes = avoirs issus du contrat (prime immédiate, de changement, de nouveau client). Paiements exceptionnels = remboursements (+), compléments et acomptes supplémentaires (−) hors échéancier ; les deux entrent dans le solde. Touchez pour voir le détail ; la saisie se fait dans la gestion des contrats.",
-      "stateRenewed": "PROLONGÉ",
       "colEarned": "Rémunération",
       "colReceived": "Reçu"
     },
@@ -531,6 +535,10 @@
       "emptyYearHint": {
         "one": "{count} relevé est enregistré au total — accessible via le sélecteur d’année ci-dessus.",
         "other": "{count} relevés sont enregistrés au total — accessibles via le sélecteur d’année ci-dessus."
+      },
+      "onlyFlagged": {
+        "one": "Seulement les relevés signalés ({count})",
+        "other": "Seulement les relevés signalés ({count})"
       }
     },
     "deliveriesTable": {
@@ -640,7 +648,6 @@
     "billCheck": {
       "hint": "Recalcule la facture de gaz : par tranche m³ × coefficient de correction × pouvoir calorifique = kWh, comme les lignes de la facture du fournisseur. Une nouvelle tranche commence à chaque relevé et à chaque changement de pouvoir calorifique.",
       "from": "Du",
-      "to": "Au (exclu)",
       "run": "Recalculer",
       "empty": "Aucune tranche dans la période choisie.",
       "noReading": "aucun relevé",
@@ -679,7 +686,8 @@
         "one": "{count} tranche sans relevé englobant — la consommation y manque.",
         "other": "{count} tranches sans relevé englobant — la consommation y manque."
       },
-      "hintGeneric": "Recalcule la facture annuelle : par tranche consommation × prix unitaire plus coûts fixes, comme les lignes de la facture du fournisseur. Une nouvelle tranche commence à chaque relevé et à chaque changement de prix."
+      "hintGeneric": "Recalcule la facture annuelle : par tranche consommation × prix unitaire plus coûts fixes, comme les lignes de la facture du fournisseur. Une nouvelle tranche commence à chaque relevé et à chaque changement de prix.",
+      "openPeriod": "Vérifier la facture du {from} au {to}"
     },
     "warnings": {
       "title": "Relevés invraisemblables : {count}",
@@ -717,11 +725,7 @@
       "removed": "Photo retirée"
     },
     "periods": {
-      "title": "Périodes {year}",
-      "count": {
-        "one": "{count} période",
-        "other": "{count} périodes"
-      },
+      "title": "Périodes",
       "add": "+ Période",
       "edit": "Modifier la période",
       "empty": "Aucune période cette année",
@@ -745,7 +749,19 @@
     "water": {
       "dhwNote": "Chaleur pour cette eau chaude en {year} : environ {kwh} kWh à {temp} °C – valeur calculée selon la HeizkostenV § 9, non mesurée."
     },
-    "groupContractNote": "Ce compteur est facturé via le contrat de groupe « {name} ». Le solde et les acomptes valent pour tout le groupe."
+    "groupContractNote": "Ce compteur est facturé via le contrat de groupe « {name} ». Le solde et les acomptes valent pour tout le groupe.",
+    "list": {
+      "yearLabel": "Année de la liste",
+      "allYears": "Toutes les années",
+      "countInYear": {
+        "one": "{count} en {year}",
+        "other": "{count} en {year}"
+      },
+      "countTotal": {
+        "one": "{count} au total",
+        "other": "{count} au total"
+      }
+    }
   },
   "contracts": {
     "priceGroup": {
@@ -782,10 +798,15 @@
       "meterLabel": "Compteur :",
       "open": "ouvert",
       "noMeter": "—",
-      "shadowHint": "Contrat fictif — simple scénario pour la comparaison des tarifs. N’entre ni dans les coûts, ni dans le solde, ni dans la prévision.",
-      "groupLabel": "Groupe de compteurs :"
+      "groupLabel": "Groupe de compteurs :",
+      "workingValue": "Prix unitaire {value} {minor}/{unit}",
+      "feedInValue": "Rémunération {value} {minor}/{unit}",
+      "baseValue": "Abonnement {value} {cur}/mois",
+      "advanceValue": "Acompte {value}/mois",
+      "valuesOn": "au {date}",
+      "noValues": "Aucun prix saisi pour l’instant",
+      "since": "depuis {year}"
     },
-    "status": { "active": "ACTIF", "past": "PASSÉ", "future": "FUTUR" },
     "summary": {
       "twPrices": {
         "one": "{count} prix eau potable",
@@ -877,7 +898,11 @@
       "noticeModeHint": "Automatique : à la fin de la durée ; sans fin, à tout moment en fin de mois. La fourniture de base, par exemple, se résilie à tout moment avec deux semaines de préavis.",
       "autoRenews": "Se prolonge sans résiliation",
       "autoRenewsHint": "Après la fin, le contrat continue aux derniers prix jusqu’à sa résiliation — alors avec un préavis d’un mois au plus. Décocher une fois résilié.",
-      "groupTargets": "Groupes de compteurs (un contrat pour tous)"
+      "groupTargets": "Groupes de compteurs (un contrat pour tous)",
+      "section": {
+        "contract": "Contrat",
+        "term": "Durée et résiliation"
+      }
     },
     "delete": { "title": "Supprimer le contrat ?", "confirm": "Supprimer", "deleted": "Contrat supprimé", "messageNamed": "Supprimer définitivement le contrat « {name} » ? Ses prix, acomptes et primes seront perdus." },
     "deleteContract": "Supprimer le contrat",
@@ -996,6 +1021,24 @@
       "ct": "ct/kWh dans la plage",
       "addWindow": "+ Plage horaire",
       "removeWindow": "Supprimer la plage horaire"
+    },
+    "phase": {
+      "future": "FUTUR",
+      "current": "ACTIF",
+      "renewed": "PROLONGÉ",
+      "past": "TERMINÉ",
+      "shadow": "OFFRE"
+    },
+    "phaseGroup": {
+      "future": "À venir",
+      "current": "En cours",
+      "past": {
+        "one": "Terminé ({count})",
+        "other": "Terminés ({count})"
+      },
+      "shadow": "Offres à comparer – non comptées",
+      "shadowHint": "Les offres (contrats fictifs) sont des simulations : elles ne comptent ni dans les coûts, ni dans le solde, ni dans la prévision.",
+      "toTariffs": "Vers le changement de tarif"
     }
   },
   "meters": {
@@ -1088,7 +1131,14 @@
       "captureHint": "Consommation par période : pour des valeurs déjà exprimées en consommation – par exemple l’information mensuelle du prestataire de comptage. Le changement est possible tant que le compteur n’a pas de données.",
       "malo": "Identifiant du point de livraison (MaLo)",
       "melo": "Identifiant du point de comptage (MeLo)",
-      "maloHint": "Pour changer de fournisseur ; figure sur la facture. MaLo : 11 chiffres ; MeLo : 33 caractères commençant par « DE »."
+      "maloHint": "Pour changer de fournisseur ; figure sur la facture. MaLo : 11 chiffres ; MeLo : 33 caractères commençant par « DE ».",
+      "section": {
+        "meter": "Compteur",
+        "tank": "Réservoir",
+        "device": "Appareil",
+        "topology": "Structure",
+        "market": "Point de livraison"
+      }
     },
     "replace": {
       "title": "Changement de compteur : {name}",
@@ -1249,7 +1299,8 @@
       "ocrEndpoint": "http://192.168.178.20:11434",
       "ocrModel": "qwen2.5vl",
       "referenceSource": "p. ex. barème 2025",
-      "evccEndpoint": "http://192.168.178.30:7070"
+      "evccEndpoint": "http://192.168.178.30:7070",
+      "allowedHosts": "energie.example.org, *.home.arpa"
     },
     "loading": "Chargement…",
     "saved": "Paramètres enregistrés",
@@ -1317,6 +1368,10 @@
       "evcc": {
         "title": "evcc dans le réseau domestique",
         "hint": "Récupère les sessions de recharge depuis evcc lorsque vous touchez « Récupérer depuis evcc » dans la vue de la borne. Uniquement des adresses de votre réseau. Vide = désactivé ; le fichier CSV d’evcc fonctionne toujours."
+      },
+      "hosts": {
+        "title": "Noms d’hôte",
+        "hint": "Indiquez les noms sous lesquels vous ouvrez l’application. Elle ne répond alors plus qu’à ces noms – sans connexion, cela protège contre les sites tiers qui font pointer leur nom vers votre adresse (DNS rebinding). Les adresses IP fonctionnent toujours."
       }
     },
     "field": {
@@ -1464,6 +1519,10 @@
       "evcc_endpoint": {
         "label": "Adresse d’evcc",
         "hint": "Par exemple http://192.168.178.30:7070 ou http://evcc.local:7070 — l’adresse à laquelle vous ouvrez evcc dans le navigateur."
+      },
+      "allowed_hosts": {
+        "label": "Noms d’hôte autorisés",
+        "hint": "Séparés par des virgules, sans http:// ni port, p. ex. energie.example.org, *.home.arpa. Le nom sous lequel vous ouvrez l’application en ce moment doit en faire partie. Vide = tous les noms (comme jusqu’ici). S’applique avec ET_ALLOWED_HOSTS."
       }
     },
     "boolActive": "activé",
@@ -1514,9 +1573,6 @@
       "importConfirmBtn": "Importer",
       "importedSnap": "Sauvegarde importée. Instantané de sécurité : {snap}",
       "imported": "Sauvegarde importée",
-      "migrateSubhead": "📦 Migration depuis v0.9.0",
-      "migrateHint": "Téléversez une ancienne sauvegarde v0.9.0 (JSON avec <code>version: \"2.1\"</code>). La sauvegarde est analysée avant l’écriture ; vous choisissez ensuite entre <strong>Remplacer</strong> (tout écraser) ou <strong>Fusionner</strong> (n’ajouter que les nouveaux ID). Dans les deux cas, un instantané de sécurité des données actuelles est créé automatiquement au préalable.",
-      "migrateBtn": "Analyser une sauvegarde v0.9.0…",
       "migrateReadError": "Erreur lors de la lecture : {msg}",
       "snapshotsTitle": "Instantanés enregistrés",
       "snapshotsHint": "Les instantanés sont conservés sur le serveur sous data/backups/. Les instantanés automatiques (avant import, migration, données de démo) sont supprimés après 30 jours, au moins trois par occasion sont conservés ; parmi les vôtres, les dix derniers.",
@@ -1568,7 +1624,9 @@
         "date": "date invalide dans « {field} »",
         "counter": "l’index n’est pas un nombre",
         "devices": "liste d’appareils invalide",
-        "entry": "entrée invalide {what}"
+        "entry": "entrée invalide {what}",
+        "unsafe_id": "l’identifiant dans « {field} » contient des caractères interdits",
+        "id": "identifiant invalide"
       },
       "attachments": {
         "one": "Justificatifs : {count} fichier, {size} Mo sur {max} Mo – inclus dans la sauvegarde.",
@@ -1635,7 +1693,8 @@
         "title": "Étape 5 · Les valeurs dans Home Assistant",
         "intro": "Capteurs REST pour le solde, la prévision sur 12 mois et les jours depuis le dernier relevé — dans configuration.yaml. Une requête par heure pour tous les capteurs.",
         "keyHint": "Avec la connexion activée, Home Assistant a besoin pour lire d’une clé d’API de portée « lecture » (Paramètres → Accès), dans secrets.yaml :"
-      }
+      },
+      "setupTitle": "Compteurs et modèles pour Home Assistant"
     },
     "diag": {
       "title": "🩺 Diagnostic système",
@@ -1661,32 +1720,6 @@
       "tempStored": {
         "one": "<strong>{count}</strong> valeur journalière enregistrée.",
         "other": "<strong>{count}</strong> valeurs journalières enregistrées."
-      }
-    },
-    "migrationDialog": {
-      "title": "Migration depuis v0.9.0",
-      "detected": "Format de sauvegarde <strong>v0.9.0 {version}</strong> détecté. Les données ont été converties vers le schéma actuel (pas encore écrites).",
-      "whatImported": "Ce qui serait importé",
-      "readings": "Relevés",
-      "contracts": "Contrats",
-      "tempSettings": "{temps} jours de température · {settings} clés de paramètres",
-      "candidatesHint": "— les modéliser comme changement d’appareil après l’import ?",
-      "colUtility": "Énergie",
-      "colDate": "Date",
-      "colCounter": "Relevé",
-      "colComment": "Commentaire",
-      "candidatesNote": "Après l’import, modélisez-les sous <em>Compteurs et appareils → Changement de compteur</em> (ou API : <code>POST /api/utility/{u}/meters/{id}/replace-device</code>).",
-      "howWrite": "Comment écrire ?",
-      "replaceLabel": "Remplacer",
-      "replaceDesc": "— les données existantes sont supprimées et remplacées par la sauvegarde. <em>Un instantané de sécurité des données actuelles est enregistré automatiquement sous <code>data/backups/</code> au préalable.</em>",
-      "mergeLabel": "Fusionner",
-      "mergeDesc": "— seuls les relevés/contrats avec un nouvel ID sont ajoutés. Les données existantes sont conservées. Les jours de température ne sont ajoutés que si la date n’existe pas encore.",
-      "import": "Importer",
-      "done": "Migration OK · {total} relevés écrits · instantané {snapshot}",
-      "failed": "Échec de l’import : {msg}",
-      "candidates": {
-        "one": "{count} changement de compteur possible détecté",
-        "other": "{count} changements de compteur possibles détectés"
       }
     },
     "gasFactors": {
@@ -1758,7 +1791,10 @@
       "keyRevokeTitle": "Révoquer la clé ?",
       "keyRevokeMsg": "Les programmes qui utilisent la clé « {name} » perdront l’accès.",
       "keyRevoked": "Clé révoquée.",
-      "scopeCalendar": "abonnement d’agenda uniquement"
+      "scopeCalendar": "abonnement d’agenda uniquement",
+      "logoutEverywhere": "Se déconnecter partout",
+      "logoutEverywhereTitle": "Se déconnecter sur tous les appareils ?",
+      "logoutEverywhereMsg": "Toutes les sessions de votre compte prennent fin – sur chaque appareil, y compris celui-ci. Les clés d’API et le jeton Home Assistant restent valables."
     },
     "region": {
       "country": "Pays",
@@ -1913,7 +1949,24 @@
       "add": "Ajouter une personne",
       "addButton": "Ajouter",
       "added": "{name} peut maintenant se connecter.",
-      "saved": "Enregistré."
+      "saved": "Enregistré.",
+      "anonymizeActivity": "Remplacer le nom dans l’historique par « ancien membre »"
+    },
+    "securityCheck": {
+      "title": "Contrôle de sécurité",
+      "hint": "Ce qui est visible de l’extérieur, et si la connexion est correctement configurée.",
+      "dataPending": "Vérification de l’accès à data/…",
+      "dataOk": "Le serveur web ne livre pas data/ – les données et sauvegardes ne sont accessibles que par l’application.",
+      "dataExposed": "<strong>Le serveur web livre <code>data/</code>.</strong> Toutes les données et sauvegardes sont téléchargeables sans connexion. Sous Apache : réglez <code>AllowOverride</code> au moins sur <code>FileInfo</code> et activez <code>mod_rewrite</code> ou <code>mod_alias</code>, sinon les règles de <code>.htaccess</code> restent sans effet.",
+      "proxyHeader": "La connexion via un proxy lit l’utilisateur dans le premier de plusieurs en-têtes. Selon le proxy, quelqu’un pourrait ainsi se faire passer pour une autre personne. Définissez l’en-tête unique de votre proxy : <code>ET_PROXY_USER_HEADER</code> (p. ex. <code>X-Forwarded-User</code>). Sous Home Assistant Ingress, rien à faire.",
+      "openNoHosts": "L’application est accessible sans connexion et sans liste d’hôtes. Un site tiers qui fait pointer son nom vers cette adresse (DNS rebinding) pourrait alors lire et modifier les données. Solution : activez la connexion ou indiquez les noms d’hôte dans Paramètres → Accès.",
+      "adoptHost": "Reprendre l’hôte actuel : {host}",
+      "adopted": "Liste d’hôtes enregistrée : {host}. L’application ne répond plus aux autres noms."
+    },
+    "support": {
+      "title": "Soutenir Energietracker",
+      "text": "Energietracker est indépendant et open source, sans publicité ni compte. S’il vous est utile, vous pouvez soutenir son développement – de façon entièrement volontaire, l’application reste la même.",
+      "link": "Soutenir via Buy Me a Coffee"
     }
   },
   "reminders": {
@@ -1974,7 +2027,8 @@
     "everyMonths": {
       "one": "Tous les mois",
       "other": "Tous les {count} mois"
-    }
+    },
+    "lastDone": "Dernière exécution {when}"
   },
   "temperatures": {
     "loading": "Chargement…",
@@ -2072,6 +2126,15 @@
         "detail": {
           "one": "Le contrat « {provider} » se termine dans {days} jour. Lancez dès maintenant un comparatif tarifaire et changez si nécessaire.",
           "other": "Le contrat « {provider} » se termine dans {days} jours. Lancez dès maintenant un comparatif tarifaire et changez si nécessaire."
+        },
+        "detailCancelNoSwitch": "Pour que le contrat « {provider} » prenne fin le {end} et ne se poursuive pas, la résiliation doit parvenir au fournisseur avant le {date}.",
+        "detailNoSwitch": {
+          "one": "Le contrat « {provider} » prend fin dans {days} jour. Le fournisseur indiquera les prix pour la suite.",
+          "other": "Le contrat « {provider} » prend fin dans {days} jours. Le fournisseur indiquera les prix pour la suite."
+        },
+        "gap": {
+          "one": "Le contrat suivant « {provider} » ne commence que le {date} – entre-temps {count} jour sans contrat.",
+          "other": "Le contrat suivant « {provider} » ne commence que le {date} – entre-temps {count} jours sans contrat."
         }
       },
       "r7": {
@@ -2091,7 +2154,10 @@
       "urgent": "Aucune recommandation urgente — tout va bien.",
       "warning": "Aucun avertissement — tout va bien.",
       "info": "Aucune note — tout va bien."
-    }
+    },
+    "dismissUntil": "Masquer jusqu’au {date}",
+    "dismissUntilNamed": "Masquer jusqu’au {date} : {title}",
+    "dismissedUntilNamed": "« {title} » masqué jusqu’au {date}"
   },
   "tariff": {
     "loading": "Chargement…",
@@ -2430,25 +2496,6 @@
   "report": {
     "createdOn": "Créé le {date}",
     "title": "Rapport annuel {year}",
-    "overview": "Aperçu {year}",
-    "efficiencyClass": "Classe d’efficacité · {label}",
-    "livingArea": "Surface habitable {area} m²",
-    "efficiencyPerSource": "Efficacité par source de chaleur (kWh/m²·a)",
-    "class": "Classe {class}",
-    "noEfficiencyData": "Aucune donnée d’efficacité.",
-    "consumptionCosts": "Consommation et coûts",
-    "colUtility": "Énergie",
-    "colConsumption": "Consommation",
-    "colCost": "Coûts",
-    "colCo2": "CO₂",
-    "recommendations": "Recommandations",
-    "recommendationsCont": "Recommandations (suite)",
-    "noRecommendations": "Aucune recommandation en cours — tout semble en ordre.",
-    "kpiAnnual": "Consommation annuelle",
-    "kpiAvgMonth": "Moy. par mois",
-    "kpiTotalCost": "Coûts totaux",
-    "kpiPeakMonth": "Mois le plus élevé",
-    "kpiLowMonth": "Mois le plus bas",
     "tableMonth": "Mois",
     "tableCost": "Coût {cur}",
     "tableTemp": "temp. moy.",
@@ -2456,36 +2503,505 @@
     "tableWeatherAdj": "corr. climat",
     "tableDelta": "Δ%",
     "continued": "(suite)",
-    "meterPageTitle": "{label} {year} — {meter}",
-    "heatDemand": "Énergie de chauffage · {label}",
     "weatherNote": "Corrigé du climat : effet météo selon le modèle de chauffage ramené à une année normale ; les écarts propres au mois restent. Δ % : consommation par rapport à l’attendu pour ce temps.",
-    "co2Avoided": "{kg} kg évités",
-    "co2InGeneration": "inclus dans la production",
-    "revenueValue": "Recette {amount}",
-    "kpiRevenue": "Recettes totales",
     "tableRevenue": "Recette {cur}",
-    "certificate": "Type certificat : {value} kWh/m²·an (PCI, corrigé du climat, {area} m² de surface utile)",
     "page": {
       "subtitle": "Une année en un coup d’œil — à imprimer, archiver ou partager.",
       "open": "Ouvrir dans le navigateur",
       "note": "Sur l’iPhone, le rapport s’ouvre dans un nouvel onglet ; de là, vous pouvez l’enregistrer ou le partager.",
       "pdfHeading": "Fichier PDF",
-      "languageNote": "Le PDF est créé dans la langue par défaut de l’installation ({lang}) ; la vue d’impression suit la langue de cet appareil."
+      "languageNote": "Le PDF est créé dans la langue de cet appareil ({lang}), tout comme la vue d’impression.",
+      "title": "{label} {year}",
+      "sentence": "{label} {year} : {value}, {pct} par rapport à {prev} ({prevValue}).",
+      "sentenceNoPrevious": "{label} {year} : {value}.",
+      "cost": "Coûts : {amount} ; prix unitaire moyen {price} ct/{unit}.",
+      "costTenancy": "Coûts : via les charges du bail « {label} ».",
+      "costTenancyEstimate": "Coûts : via les charges du bail « {label} » ; à ses prix, {amount}.",
+      "costNone": "Coûts : aucun prix n’est enregistré pour ce type de consommation.",
+      "coverage": {
+        "one": "Données pour {count} mois sur 12.",
+        "other": "Données pour {count} mois sur 12."
+      },
+      "estimatedNote": "Les barres hachurées contiennent des jours estimés.",
+      "weatherTitle": "Plus froid ou plus consommé ?",
+      "weather": {
+        "less": "Mesuré : {cons}, degrés-jours : {hdd}. Corrigé du climat, il reste {adj} : moins de chauffage, indépendamment de la météo.",
+        "more": "Mesuré : {cons}, degrés-jours : {hdd}. Corrigé du climat, il reste {adj} : plus de chauffage que ce que la météo explique.",
+        "same": "Mesuré : {cons}, degrés-jours : {hdd}. Corrigé du climat : {adj} ; l’écart vient de la météo."
+      },
+      "efficiencyTitle": "Classement",
+      "efficiency": "Classe {class} : {value} kWh par m² de surface habitable ({area} m²) et par an.",
+      "rolesTitle": "À quoi a servi l’électricité",
+      "role": {
+        "household": "Ménage",
+        "heat_pump": "Pompe à chaleur",
+        "ev_charger": "Borne de recharge"
+      },
+      "roles": "Au total {total} kWh.",
+      "rolesWithPv": "Au total {total} kWh, autoconsommation solaire comprise. La borne de recharge fait partie de l’électricité du ménage.",
+      "water": {
+        "one": "Cela représente environ {liters} litres par jour pour {count} personne.",
+        "other": "Cela représente environ {liters} litres par personne et par jour ({count} personnes)."
+      },
+      "subMeter": "Dont {name} : {value} (sous-compteur, inclus dans le total de « {parent} » ; les coûts passent par son contrat).",
+      "heatPumpOutput": "{name} : {value} de chaleur – payée via l’électricité de la pompe à chaleur, donc sans coûts propres.",
+      "outsideTotals": "{name} : {value} (hors total).",
+      "tank": "Stock actuel : {stock} {unit}. À la consommation habituelle, il dure jusqu’à environ {until}.",
+      "tankNoRange": "Stock actuel : {stock} {unit}.",
+      "heatDemand": "Énergie de chauffage : {value} kWh par m² de surface habitable ({area} m²) et par an.",
+      "howToRead": "Lire le rapport annuel"
     },
     "weatherSource": "Températures : Open-Meteo.com (CC BY 4.0), sauf saisie personnelle.",
     "print": {
       "open": "Ouvrir la vue d’impression",
       "button": "Imprimer / enregistrer en PDF",
       "back": "← Rapport annuel",
-      "hint": "Le rapport dans la langue et la notation de l’interface. « Imprimer » le met sur papier ou l’enregistre en PDF — sur iPhone via Partager → Imprimer."
+      "hint": "Le rapport dans la langue et la notation de l’interface. « Imprimer » le met sur papier ou l’enregistre en PDF — sur iPhone via Partager → Imprimer.",
+      "detail": "Avec l’annexe « Chiffres détaillés »",
+      "priority": "Priorité {n}"
+    },
+    "fmt": {
+      "approx": "environ {amount}",
+      "pct": "{value} %"
+    },
+    "footer": {
+      "page": "Page {page} sur {pages}"
+    },
+    "section": {
+      "important": "L’essentiel",
+      "successes": "Ce qui a porté ses fruits",
+      "successesNone": "Aucune économie par rapport à {prev} n’est attestée pour {year}. La comparaison avec l’année précédente figure sous « Bon à savoir ».",
+      "goodToKnow": "Bon à savoir",
+      "tasks": "Ce qu’il reste à faire",
+      "tasksIntro": "Classé par urgence, priorité 1 d’abord. Échéances et montants : état au {date}.",
+      "tasksNone": "Rien à faire : aucune tâche en cours ni aucun rendez-vous.",
+      "tasksNoneButAgenda": "Aucune tâche urgente. Les prochains rendez-vous figurent sous « Échéances et rendez-vous ».",
+      "agenda": "Échéances et rendez-vous",
+      "agendaIntro": "Les douze prochains mois et tout ce qui est en retard, état au {date}.",
+      "agendaNone": "Aucune échéance ni aucun rendez-vous dans les douze prochains mois.",
+      "money": "Argent",
+      "topicPv": "Électricité solaire",
+      "topicHeatPump": "Pompe à chaleur",
+      "topicEv": "Recharge de la voiture électrique",
+      "topicFlex": "Heures avantageuses",
+      "topicTenancy": "Logement loué : charges",
+      "glossary": "Petit lexique",
+      "sources": "Sources",
+      "appendix": "Chiffres détaillés",
+      "topTasks": "Les tâches les plus importantes",
+      "lights": "En un coup d’œil",
+      "asOfToday": "État au {date}",
+      "contracts": "Contrats en cours",
+      "balances": "Décompte : acomptes et coûts",
+      "costsByUtility": "Coûts par type de consommation",
+      "costsByMonth": "Coûts par mois",
+      "estimated": "estimé",
+      "reference": "Moyenne de l’essai terrain",
+      "cop": "Coefficient de performance par mois",
+      "solarShare": "dont solaire",
+      "cheapShare": "Part aux heures avantageuses",
+      "errors": "Remarque : certaines sections manquent, car leurs données n’ont pas pu être lues."
+    },
+    "tile": {
+      "cost": "Coûts de l’énergie",
+      "consumption": "Consommation d’énergie",
+      "consumptionAdjusted": "Consommation d’énergie (chauffage corrigé du climat)",
+      "co2": "Émissions de CO₂",
+      "pv": "Gain de l’installation solaire",
+      "vsPrevious": "{pct} par rapport à {prev}",
+      "noPrevious": "pas de comparaison avec {prev}",
+      "sparkNote": "Lignes dans les vignettes : évolution {from}–{to}."
+    },
+    "light": {
+      "title": {
+        "cost": "Coûts",
+        "consumption": "Consommation",
+        "billing": "Décompte",
+        "deadlines": "Échéances"
+      },
+      "today": "état actuel",
+      "cost": {
+        "ok": "Coûts maîtrisés",
+        "warn": "Coûts en hausse",
+        "alert": "Coûts nettement en hausse",
+        "none": "Pas de comparaison"
+      },
+      "consumption": {
+        "ok": "Pas plus consommé",
+        "warn": "Un peu plus consommé",
+        "alert": "Nettement plus consommé",
+        "none": "Pas de comparaison"
+      },
+      "billing": {
+        "ok": "Acomptes adaptés",
+        "warn": "Petit complément possible",
+        "alert": "Complément à prévoir",
+        "none": "Pas d’acomptes"
+      },
+      "deadlines": {
+        "ok": "Pas d’échéance proche",
+        "warn": "Échéance en vue",
+        "alert": "Échéance urgente"
+      },
+      "noPrevious": "Il manque des données comparables pour {prev}.",
+      "costDetail": "{pct} par rapport à {prev}. Prix : {price}, quantité : {volume}.",
+      "consumptionAdjusted": "{pct} par rapport à {prev}, chauffage corrigé du climat.",
+      "consumptionRaw": "{pct} par rapport à {prev}.",
+      "billingDue": "{label} : complément d’{amount} probable au décompte.",
+      "billingCredit": "{label} : crédit d’{amount} probable au décompte.",
+      "billingNone": "Aucun contrat en cours avec acomptes.",
+      "deadlineNext": "Prochaine échéance : {title} le {date}.",
+      "deadlineOverdue": "En retard depuis le {date} : {title}.",
+      "deadlinesNone": {
+        "one": "Aucune échéance dans le prochain jour.",
+        "other": "Aucune échéance dans les {days} prochains jours."
+      }
+    },
+    "euro": {
+      "saves": {
+        "year": "rapporte {amount} par an",
+        "once": "rapporte {amount}",
+        "per100": "{amount} par 100 kWh"
+      },
+      "avoids": {
+        "once": "évite un complément d’{amount}"
+      },
+      "refund": {
+        "once": "crédit d’{amount} à prévoir"
+      },
+      "costs": {
+        "year": "coûte {amount} par an",
+        "once": "a coûté {amount}"
+      },
+      "earned": {
+        "year": "a rapporté {amount} sur l’année"
+      },
+      "basis": {
+        "measured": "mesuré",
+        "projected": "extrapolé",
+        "example": "exemple de calcul"
+      }
+    },
+    "agenda": {
+      "overdue": "en retard",
+      "today": "aujourd’hui",
+      "inDays": {
+        "one": "dans {days} jour",
+        "other": "dans {days} jours"
+      }
+    },
+    "timeline": {
+      "start": "Début",
+      "cancel": "Résiliation avant",
+      "price": "Hausse de prix",
+      "end": "Fin",
+      "today": "aujourd’hui",
+      "text": "Contrat depuis le {start}. Pour qu’il prenne fin le {end}, la résiliation doit parvenir au fournisseur avant le {cancel}.",
+      "textOpen": "Contrat depuis le {start}, sans fin fixe. Avec une résiliation avant le {cancel}, il prend fin le {end}.",
+      "textNoNotice": "Contrat du {start} au {end}.",
+      "textRunning": "Contrat depuis le {start}, sans fin fixe."
+    },
+    "advice": {
+      "deadline": "avant le {date}",
+      "advance": {
+        "title": "Ajuster l’acompte : {label}",
+        "reasonDue": "D’ici au décompte du {date}, il manquera probablement {amount} : les coûts dépassent les acomptes de {advance} par mois.",
+        "reasonCredit": "Au décompte du {date}, un crédit d’{amount} est à prévoir : les acomptes de {advance} par mois dépassent les coûts.",
+        "stepRaise": "Un acompte de {new} au lieu de {old} par mois compenserait l’écart ; le fournisseur peut le modifier.",
+        "stepLower": "Un acompte de {new} au lieu de {old} par mois suffirait ; le fournisseur peut le modifier.",
+        "stepLowerNoAmount": "L’acompte peut être réduit. Le rapport n’indique pas de montant : les acomptes déjà versés couvrent les coûts jusqu’au décompte."
+      },
+      "advanceOk": {
+        "title": "Acompte adapté : {label}",
+        "reason": "Acomptes et coûts sont proches jusqu’au décompte du {date} (écart {amount})."
+      },
+      "cancel": {
+        "title": "Résiliation ou changement : {label}",
+        "reason": "Pour que le contrat « {provider} » prenne fin le {end}, la résiliation doit parvenir au fournisseur avant le {date}.",
+        "stepOffer": "Avec l’offre enregistrée « {offer} », ce serait {amount} de moins par an à partir de la deuxième année (sans prime).",
+        "stepPortal": "Pour un comparateur : consommation annuelle d’environ {value} {unit}.",
+        "stepRenew": "Sans résiliation, le contrat se poursuit."
+      },
+      "cancelMissed": {
+        "title": "Délai de résiliation dépassé : {label}",
+        "reason": "Le contrat « {provider} » se poursuit ; la prochaine occasion se présente le {end}."
+      },
+      "priceIncrease": {
+        "title": "Hausse de prix : {label}",
+        "reason": "De nouveaux prix s’appliquent à partir du {date}. {parts}",
+        "reasonWp": "Le prix unitaire passe de {old} à {new} ct/{unit}.",
+        "reasonBp": "L’abonnement passe de {old} à {new} par mois.",
+        "legalDe": "En Allemagne, une hausse de prix ouvre un droit de résiliation exceptionnel à la date du changement (§ 41 al. 5 EnWG)."
+      },
+      "heatingRise": {
+        "title": "Chauffage en hausse : {label}",
+        "reason": "Corrigé du climat : {pct} par rapport à {prev}, soit environ {kwh} kWh de plus.",
+        "step": "Causes fréquentes : température ambiante plus élevée, aération plus longue, réglage du chauffage modifié."
+      },
+      "heatingFall": {
+        "title": "Moins de chauffage : {label}",
+        "reason": "Corrigé du climat : {pct} par rapport à {prev}, soit environ {kwh} kWh de moins."
+      },
+      "anomaly": {
+        "title": "Mois inhabituel : {label}, {month}",
+        "reason": "En {month}, {actual} {unit} ont été consommés, pour {expected} {unit} attendus ({pct}).",
+        "step": "Causes fréquentes : visite, appareil défectueux, relevé estimé ou mal saisi."
+      },
+      "efficiency": {
+        "title": "Classe d’efficacité {class} : {label}",
+        "reason": "{value} kWh par m² et par an – dans le bas de l’échelle.",
+        "step": "Pistes : équilibrage hydraulique, réglage du chauffage, isolation. Un conseil en énergie précise ce qui convient."
+      },
+      "heatPumpLow": {
+        "title": "Pompe à chaleur sous la moyenne de l’essai terrain",
+        "reason": "Coefficient de performance annuel {jaz} ; dans l’essai terrain (Fraunhofer ISE, 2025), la moyenne air/eau était de {ref}.",
+        "step": "Pistes : température de départ, courbe de chauffe et cycles – un sujet pour le prochain entretien."
+      },
+      "heatPumpGood": {
+        "title": "La pompe à chaleur fonctionne efficacement",
+        "reason": "Coefficient de performance annuel {jaz} ; dans l’essai terrain (Fraunhofer ISE, 2025), la moyenne air/eau était de {ref}."
+      },
+      "heatPumpOk": {
+        "title": "Pompe à chaleur dans la moyenne",
+        "reason": "Coefficient de performance annuel {jaz}, proche de la moyenne de l’essai terrain de {ref} pour air/eau."
+      },
+      "pvBenefit": {
+        "title": "Installation solaire",
+        "reason": "L’autoconsommation a économisé {savings} d’électricité du réseau, l’injection a rapporté {feed}."
+      },
+      "pvSelfUse": {
+        "title": "Utiliser davantage d’électricité solaire",
+        "reason": "{pct} de l’électricité solaire a été autoconsommée ; le reste est parti sur le réseau à {feed} ct/kWh.",
+        "step": "Les appareils qui tournent le jour plutôt que le soir (lave-linge, lave-vaisselle) déplacent la consommation vers les heures d’ensoleillement."
+      },
+      "batteryLoss": {
+        "title": "Pertes élevées de la batterie",
+        "reason": "Rendement {pct} : {kwh} kWh perdus à la charge et à la décharge.",
+        "step": "Un sujet pour l’installateur : paramètres et consommation au repos de la batterie."
+      },
+      "battery": {
+        "title": "Batterie",
+        "reason": "{kwh} kWh sont venus de la batterie plutôt que du réseau."
+      },
+      "flex": {
+        "title": "Heures chères : {name}",
+        "reason": "« {name} » a plutôt fonctionné aux heures chères (facteur de profil {pf}).",
+        "step": "Piste : programmer le fonctionnement aux heures avantageuses, par exemple à midi ou la nuit. Le montant ne compte que la part bourse du prix."
+      },
+      "module3": {
+        "title": "Tarif de réseau variable (module 3)",
+        "reason": "La pompe à chaleur a souvent fonctionné pendant la plage à tarif réduit."
+      },
+      "evSolar": {
+        "title": "Électricité solaire dans la voiture",
+        "reason": "{pct} de l’électricité de recharge provenait de l’installation ({kwh} kWh)."
+      },
+      "tenancy": {
+        "title": "Provisions pour charges : {label}",
+        "reasonDue": "D’ici la fin de la période de décompte le {date}, il manquera probablement {amount}.",
+        "step": "Une provision de {new} par mois suffirait – à voir avec le bailleur."
+      },
+      "tenancyCredit": {
+        "title": "Crédit de charges attendu : {label}",
+        "reason": "Un crédit d’{amount} est à prévoir à la fin de la période de décompte le {date}."
+      },
+      "tenancyOk": {
+        "title": "Provisions adaptées : {label}",
+        "reason": "Provisions et charges attendues jusqu’au {date} sont proches."
+      },
+      "co2Claim": {
+        "title": "Coûts du CO₂ à la charge du bailleur",
+        "reason": "Pour {year}, le bailleur doit {amount} (partage selon la CO2KostAufG).",
+        "step": "Energietracker rédige un courrier à ce sujet sous « Bail »."
+      },
+      "co2Central": {
+        "title": "Coûts du CO₂ partagés",
+        "reason": "Pour {year}, le bailleur prend en charge {amount} des coûts du CO₂ ; le décompte de charges l’indique."
+      },
+      "agenda": {
+        "title": "{title}",
+        "kind": {
+          "reminder": "Un rendez-vous du calendrier d’Energietracker.",
+          "tank_reorder": "Le stock ne durera plus longtemps ; une livraison demande un délai.",
+          "tenancy_statement_due": "Le décompte de charges est attendu.",
+          "objection_deadline": "Les contestations du décompte de charges ne sont possibles que jusqu’à cette échéance."
+        }
+      },
+      "readings": {
+        "title": "Relever les compteurs",
+        "reason": "Dernier relevé le {date} : {meters}."
+      },
+      "bill": {
+        "title": "Vérifier la facture : {label}",
+        "reasonHigher": "La facture du {from} au {to} dépasse le calcul propre : écart {amount}.",
+        "reasonLower": "La facture du {from} au {to} est inférieure au calcul propre : écart {amount}.",
+        "step": "La comparaison se trouve dans Energietracker sous « Vérifier une facture »."
+      },
+      "baseline": {
+        "title": "La mesure porte ses fruits : {label}",
+        "reason": "Depuis le {date} ({event}), le chauffage consomme {pct} par degré-jour ; sur une année normale, cela fait environ {kwh} kWh de moins."
+      },
+      "costDown": {
+        "title": "Coûts en baisse",
+        "reason": "Les coûts de l’énergie ont évolué de {pct} par rapport à {prev}."
+      },
+      "neutral": {
+        "title": "Comparaison avec l’année précédente",
+        "reason": "Coûts {cost}, consommation {consumption} par rapport à {prev}.",
+        "noPrevious": "Les données de comparaison pour {prev} manquent."
+      },
+      "overdueSince": "en retard depuis le {date}"
+    },
+    "money": {
+      "sentence": "Coûts de l’énergie {year} : {amount}, {pct} par rapport à {prev}. Les variations de prix pèsent {price}, la quantité consommée {volume}.",
+      "sentenceNoPrevious": "Coûts de l’énergie {year} : {amount}.",
+      "revenue": "{label} : recette {amount}.",
+      "bonus": "Une prime d’{amount} a été créditée en {month} ; les coûts de ce mois sont donc plus bas.",
+      "balanceDue": "Décompte du {date} : complément d’{amount} probable.",
+      "balanceCredit": "Décompte du {date} : crédit d’{amount} probable.",
+      "balanceEven": "Décompte du {date} : acomptes et coûts s’équilibrent.",
+      "advanceSuggested": "Acompte adapté : {new} au lieu de {old} par mois.",
+      "advanceLower": "L’acompte peut baisser. Le rapport n’indique pas de montant : les acomptes versés couvrent déjà les coûts jusqu’au décompte.",
+      "balanceLegend": "Ligne au-dessus de zéro : complément ; en dessous : crédit. En pointillés : estimation jusqu’au décompte.",
+      "forecast": "Coûts attendus sur les douze prochains mois : {amount} (prévision, état actuel)."
+    },
+    "topic": {
+      "pv": {
+        "generated": "Produit",
+        "autarky": "Taux d’autarcie",
+        "selfRate": "Autoconsommation",
+        "benefit": "Gain",
+        "sentence": "{gen} kWh d’électricité solaire : {self} kWh autoconsommés, {feed} kWh injectés. {grid} kWh sont venus du réseau ; l’installation a couvert {autarky} de la consommation.",
+        "nodePv": "Solaire",
+        "nodeGrid": "Réseau",
+        "nodeHouse": "Maison",
+        "nodeBattery": "Batterie",
+        "monthsTitle": "Production par mois",
+        "paybackTitle": "Amortissement",
+        "payback": "Récupéré jusqu’ici : {paid} sur {investment}. À gain égal, l’installation sera amortie vers {date} (état actuel).",
+        "paybackOpen": "Récupéré jusqu’ici : {paid} sur {investment} (état actuel).",
+        "batteryTitle": "Batterie",
+        "battery": "Chargé {charged} kWh, déchargé {discharged} kWh, environ {cycles} cycles complets, rendement {eff}.",
+        "co2Avoided": "CO₂ évité : {kg}, calculé avec le facteur CO₂ de l’électricité des paramètres."
+      },
+      "heatPump": {
+        "sentence": "La pompe à chaleur a produit {heat} kWh de chaleur avec {elec} kWh d’électricité : coefficient de performance annuel {jaz}.",
+        "reference": "Ligne en pointillés : moyenne de l’essai terrain « WP-QS im Bestand » (Fraunhofer ISE, 2025) pour air/eau {air} ; eau glycolée/eau : {ground}."
+      },
+      "ev": {
+        "sentence": "{name} : {kwh} kWh rechargés.",
+        "sentenceSolar": "{name} : {kwh} kWh rechargés, dont {solar} kWh solaires ({pct}).",
+        "cost": "Coûts selon le justificatif de recharge : {amount}.",
+        "subMeter": "La borne de recharge est un sous-compteur de « {parent} » : son électricité fait partie de la consommation et des coûts de ce compteur. Avec du solaire derrière le compteur de la maison, elle peut mesurer en été plus que l’électricité tirée du réseau.",
+        "grid": "Électricité de recharge",
+        "kwh": "Rechargé (kWh)"
+      },
+      "flex": {
+        "sentence": "Part de l’électricité consommée aux heures avantageuses, d’après les prix de bourse par quart d’heure.",
+        "row": "{share} avantageux · facteur de profil {pf}",
+        "module3": "Le tarif de réseau variable (module 3) a rapporté {amount}.",
+        "battery": "La batterie a plutôt chargé aux heures bon marché et déchargé aux heures chères : valeur {amount} (part bourse seulement).",
+        "note": "Facteur de profil inférieur à 1 : l’électricité a été consommée à des heures moins chères que la moyenne. Les montants ne comptent que la part bourse du prix."
+      },
+      "tenancy": {
+        "budget": "Période de décompte du {from} au {to} : charges attendues {expected}, provisions {prepaid}.",
+        "statementDue": "Décompte {year} : complément d’{amount}.",
+        "statementCredit": "Décompte {year} : crédit d’{amount}.",
+        "co2Central": "Coûts du CO₂ {year} : le bailleur prend en charge {amount}.",
+        "co2Claim": "Coûts du CO₂ {year} : {amount} dus par le bailleur, échéance le {date}.",
+        "pathLegend": "Ligne au-dessus de zéro : complément à prévoir ; en dessous : crédit. En pointillés : estimation."
+      }
+    },
+    "appendix": {
+      "total": "Total"
+    },
+    "sources": {
+      "heatPump": "Référence pompe à chaleur : essai terrain « WP-QS im Bestand », Fraunhofer ISE, 2025.",
+      "market": "Prix de bourse de l’électricité : Bundesnetzagentur | SMARD.de (CC BY 4.0).",
+      "own": "Tous les montants proviennent des propres relevés et prix contractuels ; les estimations et exemples de calcul sont signalés."
+    },
+    "glossary": {
+      "heatAdjusted": {
+        "term": "Corrigé du climat",
+        "text": "Consommation ramenée à une année au climat normal. On voit ainsi si l’on a plus ou moins chauffé, que l’hiver ait été froid ou non."
+      },
+      "hdd": {
+        "term": "Degrés-jours",
+        "text": "Une mesure du froid sur une période : plus il fait froid, plus il y a de degrés-jours."
+      },
+      "balance": {
+        "term": "Solde",
+        "text": "L’écart entre le coût de la consommation et les acomptes versés. Crédit : plus payé que consommé. Complément : la consommation a coûté davantage."
+      },
+      "advance": {
+        "term": "Acompte",
+        "text": "Un montant fixe versé chaque mois au fournisseur. Le décompte annuel le compare aux coûts réels."
+      },
+      "profileFactor": {
+        "term": "Facteur de profil",
+        "text": "Le prix de bourse propre rapporté à la moyenne du mois. En dessous de 1, l’électricité a plutôt été consommée aux heures avantageuses."
+      },
+      "module14a": {
+        "term": "Module 3 (§ 14a EnWG)",
+        "text": "Tarif de réseau variable pour les appareils pilotables comme les pompes à chaleur : à certaines heures, le tarif de réseau est plus bas."
+      },
+      "subMeter": {
+        "term": "Sous-compteur",
+        "text": "Un compteur placé derrière un autre, par exemple pour une borne de recharge ou le jardin. Sa consommation est déjà dans le compteur principal et ne compte pas deux fois."
+      },
+      "prepayment": {
+        "term": "Provisions pour charges",
+        "text": "Un montant mensuel versé au bailleur pour le chauffage, l’eau et les charges ; le décompte de charges le compare aux coûts."
+      },
+      "co2Split": {
+        "term": "Partage des coûts du CO₂",
+        "text": "Dans les logements loués en Allemagne, locataire et bailleur se partagent les coûts du CO₂ du chauffage selon dix échelons (CO2KostAufG)."
+      },
+      "baseline": {
+        "term": "Rupture de référence",
+        "text": "Une date enregistrée, par exemple une rénovation. Le rapport compare la consommation par degré-jour avant et après."
+      },
+      "noticeDeadline": {
+        "term": "Date limite de résiliation",
+        "text": "Le dernier jour où la résiliation doit parvenir au fournisseur pour que le contrat prenne fin à son terme."
+      },
+      "estimated": {
+        "term": "Estimé",
+        "text": "Pour les jours sans relevé, Energietracker utilise une estimation fondée sur la consommation passée."
+      },
+      "efficiency": {
+        "term": "Classe d’efficacité",
+        "text": "Classement de l’énergie de chauffage par mètre carré habitable sur une échelle de A+ (très bon) à H, proche du certificat énergétique."
+      },
+      "workingPrice": {
+        "term": "Prix unitaire",
+        "text": "Le prix par unité consommée, par exemple en centimes par kWh."
+      },
+      "basePrice": {
+        "term": "Abonnement",
+        "text": "Un montant fixe par mois, indépendant de la consommation."
+      },
+      "selfConsumption": {
+        "term": "Autoconsommation",
+        "text": "Électricité solaire consommée dans la maison au lieu d’être injectée."
+      },
+      "autarky": {
+        "term": "Taux d’autarcie",
+        "text": "La part de la consommation d’électricité couverte par l’installation."
+      },
+      "feedIn": {
+        "term": "Injection",
+        "text": "Électricité solaire envoyée sur le réseau ; elle est rémunérée."
+      },
+      "jaz": {
+        "term": "Coefficient de performance annuel",
+        "text": "La chaleur qu’une pompe à chaleur produit avec un kilowattheure d’électricité, sur une année entière. 3 signifie : 1 kWh d’électricité donne 3 kWh de chaleur."
+      },
+      "tankBook": {
+        "term": "Registre de cuve",
+        "text": "Livraisons et stocks de fioul ou de granulés ; Energietracker en déduit la consommation et la durée du stock."
+      }
     }
-  },
-  "migration": {
-    "warnNoSettings": "Aucun réglage trouvé dans la sauvegarde — les valeurs par défaut s’appliquent.",
-    "warnNoWater": "La version 0.9.0 n’avait pas d’eau — la section eau est créée vide.",
-    "swapKeywordFound": "Mot-clé trouvé dans le commentaire",
-    "meterNote": "Créé par la migration v0.9.0",
-    "meterNoteWater": "Créé par la migration v0.9.0 (v0.9.0 n’avait pas d’eau)."
   },
   "csv": {
     "month": "Mois",
@@ -2587,7 +3103,8 @@
       "hasBills": "Le compteur a encore des factures — veuillez d’abord supprimer les factures",
       "groupHasContracts": "Le groupe de compteurs a encore des contrats — veuillez d’abord supprimer ou réaffecter les contrats de groupe",
       "heatPumpLinkInvalid": "Le compteur « {id} » n’est pas un compteur d’électricité avec le rôle pompe à chaleur",
-      "valueInvalid": "{field} : « {value} » n’est pas une valeur valide"
+      "valueInvalid": "{field} : « {value} » n’est pas une valeur valide",
+      "idInvalid": "Identifiant « {id} » invalide – lettres, chiffres, _ et - autorisés (64 caractères au plus)."
     },
     "common": {
       "unknownUtility": "Type de consommation inconnu : {utility}",
@@ -2676,8 +3193,8 @@
       "timestampFormat": "Horodatage « {timestamp} » illisible — format attendu ISO 8601 avec fuseau, p. ex. 2026-10-12T14:15:00+02:00."
     },
     "backup": {
-      "noVersionField": "Aucun champ backup_version — ce n’est pas une sauvegarde valide",
-      "versionUnsupported": "La version de sauvegarde {ver} n’est pas directement prise en charge. Veuillez d’abord l’importer via la migration vers v1.0.0, ou utiliser une sauvegarde plus récente.",
+      "noVersionField": "Aucun champ backup_version — ce n’est pas une sauvegarde valide. Une sauvegarde de v0.9.0 ne peut être lue que par v3.3.0 : importez-la là, puis mettez à jour.",
+      "versionUnsupported": "La version de sauvegarde {ver} n’est pas prise en charge. Veuillez utiliser une sauvegarde au format 3.0 ou plus récent.",
       "schemaNewer": "Le schéma de sauvegarde {schema} est plus récent que le schéma de l’app {appSchema}. Veuillez d’abord mettre à jour l’app, puis importer la sauvegarde.",
       "invalid": "La sauvegarde est incomplète ou endommagée (problèmes : {count}). Rien n’a été restauré.",
       "snapshotFailed": "L’instantané de sécurité avant la restauration a échoué. Sans lui, aucun retour en arrière n’est possible. Ne restaurer quand même qu’avec un accord explicite.",
@@ -2702,13 +3219,6 @@
       "backupInvalid": "La sauvegarde de démo est invalide (pas du JSON).",
       "personaUnknown": "Il n’existe pas de foyer d’exemple « {persona} »."
     },
-    "migration": {
-      "noVersionField": "Aucun champ « version » dans la sauvegarde — ce n’est probablement pas une sauvegarde v0.9.0. Sont attendues des sauvegardes v0.9.0 avec la version « 2.1 » ou antérieure.",
-      "versionUnrecognized": "La version de sauvegarde « {ver} » n’est pas reconnue. Sont pris en charge les formats de sauvegarde v0.9.0 : {supported}. Pour les sauvegardes natives v1.0.3 (backup_version 3.0+), veuillez utiliser l’import standard dans Paramètres → Sauvegarde et restauration.",
-      "invalidMode": "Mode invalide : {mode} (autorisés : replace, merge)",
-      "backupMissing": "Le champ « backup » est absent ou n’est pas un objet.",
-      "translatedMissing": "Le champ « translated » est absent ou n’est pas un objet."
-    },
     "csv": {
       "notDeliveryBased": "Le type de consommation « {utility} » n’est pas basé sur des livraisons ; utilisez l’export des relevés."
     },
@@ -2722,7 +3232,8 @@
       "factorHalfPair": "Coefficient de correction et pouvoir calorifique vont ensemble — indiquez les deux, ou le facteur directement",
       "factorMissing": "Une entrée nécessite soit coefficient de correction et pouvoir calorifique, soit un facteur en kWh/m³",
       "factorOutOfRange": "Facteur de conversion {value} invraisemblable — attendu entre 5 et 15 kWh/m³",
-      "valueInvalid": "Valeur « {value} » non valide pour {key}"
+      "valueInvalid": "Valeur « {value} » non valide pour {key}",
+      "hostNotListed": "La liste d’hôtes doit contenir le nom sous lequel vous ouvrez l’application en ce moment (« {host} ») – sinon vous vous excluriez vous-même."
     },
     "billCheck": {
       "gasOnly": "La vérification de facture n’existe que pour le gaz",
@@ -2732,7 +3243,9 @@
     "http": {
       "crossSite": "Refusé : la requête provient d’un autre site web. Les modifications ne sont possibles que depuis Energietracker.",
       "internal": "Erreur interne ({id}). Les détails figurent dans le journal du serveur.",
-      "hostNotAllowed": "Le nom d’hôte « {host} » n’est pas autorisé (ET_ALLOWED_HOSTS)."
+      "hostNotAllowed": "Le nom d’hôte « {host} » n’est pas autorisé (Paramètres → Accès → Noms d’hôte ou ET_ALLOWED_HOSTS).",
+      "tooLarge": "La requête est trop volumineuse (au plus {max} Mo).",
+      "busy": "Une autre écriture est en cours. Veuillez réessayer dans quelques secondes."
     },
     "storage": {
       "dataTooNew": "Les données proviennent d’une version plus récente (schéma {schema}). Cette version ne connaît que le schéma {app} et n’écrit rien pour ne pas les endommager. Veuillez relancer la version plus récente.",
@@ -2854,6 +3367,17 @@
     },
     "flexibility": {
       "yearInvalid": "Année non valide : {year}."
+    },
+    "docs": {
+      "notFound": "Cette page ne fait pas partie du manuel de cette version."
+    },
+    "activity": {
+      "notFound": "Entrée de l’historique introuvable.",
+      "eventNotFound": "Cette alerte n’existe pas (ou plus) : {uid}",
+      "notManual": "Cette alerte disparaît d’elle-même – avec un nouveau relevé ou un décompte saisi. Elle ne se coche pas.",
+      "occurrenceChanged": "L’alerte a changé entre-temps (par exemple une nouvelle fin de contrat). Veuillez recharger la page.",
+      "dateInvalid": "« {value} » n’est pas un jour valide. Attendu : AAAA-MM-JJ, pas dans le futur.",
+      "noteInvalid": "La note ne peut pas dépasser {max} caractères."
     }
   },
   "login": {
@@ -2914,7 +3438,16 @@
       "other": "encore {count} jours"
     },
     "advance": "Acompte {amount} par mois",
-    "expected": "Attendu au {date} :"
+    "expected": "Attendu au {date} :",
+    "successor": "Contrat suivant {provider} à partir du {date}",
+    "successorUnnamed": "Contrat suivant à partir du {date}",
+    "successorGap": {
+      "one": "Contrat suivant seulement à partir du {date} – {count} jour d’interruption",
+      "other": "Contrat suivant seulement à partir du {date} – {count} jours d’interruption"
+    },
+    "history": "Historique ({count})",
+    "historyTitle": "Historique : {name}",
+    "anytime": "Résiliable à tout moment"
   },
   "billCheck": {
     "noMeter": "La vérification recalcule la facture annuelle du gaz, de l’électricité, de l’eau et du réseau de chaleur. Créez d’abord un compteur.",
@@ -2945,7 +3478,13 @@
       "co2Cost": "Coût du CO₂ selon la facture",
       "attach": "Joindre la facture (PDF ou photo)",
       "save": "Enregistrer la facture",
-      "update": "Enregistrer les modifications"
+      "update": "Enregistrer les modifications",
+      "capture": "Saisir la facture du fournisseur (facultatif)",
+      "captured": {
+        "one": "{count} saisie",
+        "other": "{count} saisies"
+      },
+      "period": "Période comme ci-dessus : du {from} au {to} inclus."
     },
     "saved": "Facture enregistrée",
     "book": "Comptabiliser comme paiement exceptionnel",
@@ -2975,7 +3514,8 @@
     "ownTotalOnly": "Recalculé : {total}",
     "updated": "Facture modifiée",
     "editing": "Vous modifiez la facture du {from} au {to}.",
-    "editBookedNote": "Elle est déjà comptabilisée comme paiement exceptionnel – l’écriture dans le contrat ne change pas."
+    "editBookedNote": "Elle est déjà comptabilisée comme paiement exceptionnel – l’écriture dans le contrat ne change pas.",
+    "periodDefault": "Prérempli avec la dernière période de facturation close. La date de régularisation par type de consommation se définit dans Paramètres → Énergies et facturation."
   },
   "glossary": {
     "hdd": {
@@ -3172,14 +3712,15 @@
     "docs": {
       "title": "Documentation",
       "start": "Bien démarrer",
-      "compendium": "Manuel et méthodologie",
       "glossary": "Glossaire et formules",
       "homeAssistant": "Connecter Home Assistant",
-      "englishOnly": "La documentation existe en allemand et en anglais ; les liens mènent à la version anglaise.",
+      "englishOnly": "Le manuel existe en allemand et en anglais ; pour votre langue, l’application affiche la version anglaise.",
       "faq": "Questions fréquentes",
       "troubleshoot": "Dépannage",
       "setup": "Configuration, foyers d’exemple et niveaux",
-      "useCases": "Cas d’usage"
+      "useCases": "Cas d’usage",
+      "open": "Ouvrir le manuel",
+      "local": "Le manuel se trouve sur votre serveur et correspond à la version {version} – il s’ouvre aussi sans Internet."
     },
     "support": {
       "title": "Questions et bugs",
@@ -3206,7 +3747,33 @@
         "title": "D’abord simple, tout ensuite",
         "text": "Le niveau en haut, à côté de jour/nuit, détermine ce que vous voyez : les débutants obtiennent trois réponses sur la vue d’ensemble, le niveau intermédiaire ajoute le changement de tarif, la vérification de facture et les analyses, les experts voient tout. Tout est calculé à chaque niveau – vous pouvez changer à tout moment. Pour essayer, l’assistant de configuration charge un foyer d’exemple qui vous ressemble."
       },
-      "tryExample": "Essayer un foyer d’exemple"
+      "tryExample": "Essayer un foyer d’exemple",
+      "more": "Lire la suite dans le manuel (en anglais)",
+      "sharedMeters": {
+        "title": "Colocation avec compteurs partagés",
+        "text": "Un compteur principal commun et un compteur propre pour une pièce ou un appareil : créez le second comme sous-compteur du compteur principal. L’application le déduit du compteur principal – le total reste juste, et la part à répartir apparaît comme un chiffre à part. Le contrat est rattaché au compteur principal."
+      },
+      "homeAssistant": {
+        "title": "Maison connectée avec Home Assistant",
+        "text": "Home Assistant lit déjà vos compteurs ? Il envoie alors les relevés à l’Energietracker chaque soir : créez un jeton d’API dans les paramètres, donnez un alias à chaque compteur, collez le modèle prêt à l’emploi dans Home Assistant. Une deuxième valeur le même jour remplace la première au lieu de la doubler."
+      },
+      "pvHeatPump": {
+        "title": "Foyer photovoltaïque avec pompe à chaleur",
+        "text": "Injection et production comme types de consommation à part, la pompe à chaleur comme sous-compteur du raccordement : l’application affiche le solde électrique, l’autarcie et l’autoconsommation, ainsi que l’électricité de la pompe à chaleur sans doubler le total. Un compteur de chaleur ajoute le coefficient de performance annuel, des compteurs de charge et de décharge la batterie."
+      },
+      "landlord": {
+        "title": "Propriétaire bailleur avec plusieurs logements",
+        "text": "Pour chaque logement et chaque type de consommation, un compteur avec son propre contrat : la vue de consommation montre chaque compteur avec consommation, coûts et solde, l’aperçu le total par type de consommation. Plusieurs compteurs du même type dans un logement forment un groupe, si vous le souhaitez avec un contrat pour tout le groupe. L’application n’établit pas de décompte de charges pour les locataires."
+      },
+      "wallbox": {
+        "title": "Borne de recharge et véhicule de fonction",
+        "text": "La borne comme sous-compteur du raccordement avec le rôle « Borne de recharge », relevée chaque mois – à la main, via Home Assistant ou avec les sessions de recharge d’evcc. Sa vue de consommation affiche le justificatif de recharge pour l’employeur : prix du contrat avec une part de l’abonnement ou forfait, en CSV ou PDF. Le total reste juste."
+      }
+    },
+    "doc": {
+      "handbook": "Manuel",
+      "toc": "Sommaire",
+      "language": "Langue du manuel"
     }
   },
   "onboarding": {
@@ -3750,11 +4317,43 @@
     },
     "energy": {
       "title": "Flux d’énergie dans la maison",
-      "pv": "Solaire",
-      "house": "Maison",
-      "grid": "Réseau",
-      "battery": "Batterie",
-      "text": "{year} : l’installation a produit {gen} kWh. La maison en a consommé {self} kWh elle-même, {feed} kWh sont partis sur le réseau, {grid} kWh venaient du réseau. Autarcie : {autarky}."
+      "text": "{period} : l’installation solaire a fourni {gen}, dont {feed} injectés sur le réseau. La maison a eu besoin de {house}, dont {grid} venaient du réseau. Autarcie : {autarky}.",
+      "node": {
+        "pv": "Solaire",
+        "grid": "Réseau",
+        "battery": "Batterie",
+        "house": "Maison",
+        "heatPump": "Pompe à chaleur",
+        "wallbox": "Borne",
+        "other": "Autres"
+      },
+      "textBattery": "La batterie a stocké {in} et restitué {out}.",
+      "textGridCharge": "Le réseau a chargé {kwh} dans la batterie (l’arc au-dessus de la ligne solaire) ; cela compte comme électricité du réseau.",
+      "textDevices": "Dont : {list}.",
+      "calc": "(calculé)",
+      "calcNote": "En pointillés : calculé à partir des totaux mensuels, non mesuré.",
+      "assumedNote": "L’injection est supposée : il n’y a pas de compteur d’injection.",
+      "flowItem": "{from} → {to} : {value}",
+      "detail": "{node} : {flows}",
+      "chip": {
+        "pv": "Solaire : {value}, {share} autoconsommés",
+        "house": "Maison : {value}, {autarky} d’autarcie",
+        "battery": "Batterie : {in} chargés, {out} déchargés",
+        "grid": "Réseau : {in} soutirés, {out} injectés"
+      },
+      "chipsGroup": "Mettre un nœud en évidence",
+      "scope": {
+        "year": "Année",
+        "month": "Mois"
+      },
+      "periodGroup": "Période",
+      "prev": "Période précédente",
+      "next": "Période suivante",
+      "yearPart": "{year} ({span})",
+      "months": {
+        "one": "{count} mois",
+        "other": "{count} mois"
+      }
     },
     "weather": {
       "title": "Plus froid ou plus consommé ?",
@@ -3777,9 +4376,29 @@
       "end": "Fin",
       "today": "aujourd’hui",
       "text": "Contrat depuis le {start}. Pour changer, résiliez avant le {cancel} ; il prend alors fin le {end}.",
-      "textOpen": "Contrat depuis le {start}, reconduit jusqu’à résiliation. Résilié au plus tard le {cancel}, il prend fin le {end}.",
       "textNoNotice": "Contrat depuis le {start}, fin : {end}.",
-      "textRunning": "Contrat depuis le {start}, reconduit jusqu’à résiliation. Aucun délai de préavis n’est saisi."
+      "textRunning": "Contrat depuis le {start}, reconduit jusqu’à résiliation. Aucun délai de préavis n’est saisi.",
+      "termEnd": "Fin de la durée",
+      "minTerm": "Fin de la durée minimale",
+      "guarantee": "Prix garanti jusqu’au",
+      "missed": "Délai dépassé",
+      "earliest": "Fin au plus tôt",
+      "successor": "Contrat suivant",
+      "anytime": "résiliable à tout moment",
+      "textMissed": "Contrat depuis le {start}. Le délai de résiliation a expiré le {cancel} ; sans résiliation, il se poursuit après le {end}.",
+      "textNoRenew": "Contrat depuis le {start} ; il prend fin le {end} sans que vous ayez à le résilier.",
+      "textRenewed": "Contrat depuis le {start}. Sa durée a pris fin le {term} ; depuis, il se poursuit et est résiliable à tout moment — résilié aujourd’hui, il prend fin au plus tôt le {end}.",
+      "textAnytime": "Contrat depuis le {start}, reconduit jusqu’à résiliation. Il est résiliable à tout moment — résilié aujourd’hui, il prend fin au plus tôt le {end}.",
+      "textMinTerm": "Contrat depuis le {start}, avec une durée minimale : résilié aujourd’hui, il prend fin au plus tôt le {end}.",
+      "textMinTermUntil": "La durée minimale prend fin le {date}.",
+      "textGuarantee": "Les prix sont garantis jusqu’au {date}.",
+      "textPrice": "Les prix augmentent à partir du {date}.",
+      "textSuccessor": "À partir du {start}, le contrat avec {provider} prend le relais.",
+      "textSuccessorPlain": "Un nouveau contrat prend le relais à partir du {start}.",
+      "gap": {
+        "one": "Entre les deux, {count} jour reste sans contrat.",
+        "other": "Entre les deux, {count} jours restent sans contrat."
+      }
     }
   },
   "setup": {
@@ -3956,5 +4575,108 @@
         "smard": "SMARD"
       }
     }
+  },
+  "pager": {
+    "label": "Pages de la liste",
+    "prev": "Précédent",
+    "next": "Suivant",
+    "range": "{from}–{to} sur {total}",
+    "size": "Lignes par page"
+  },
+  "activity": {
+    "reason": {
+      "successor": "Contrat suivant {provider} à partir du {date}",
+      "reading": "Relevé du {date} saisi",
+      "delivery": "Livraison du {date} saisie",
+      "statement": "Décompte jusqu’au {date} saisi",
+      "dismissed": "masqué jusqu’au {date}"
+    },
+    "markDone": "Marquer comme fait",
+    "markDoneNamed": "Fait : {title}",
+    "dialog": {
+      "title": "Marquer comme fait",
+      "date": "Fait le",
+      "note": "Note (facultatif)",
+      "attachment": "Justificatif (facultatif, photo ou PDF)",
+      "cancelled": "Résilié – le contrat ne se prolonge pas",
+      "save": "Fait",
+      "dateInvalid": "Veuillez choisir un jour jusqu’à aujourd’hui."
+    },
+    "toast": {
+      "done": "« {title} » fait",
+      "undone": "« {title} » est de nouveau ouvert",
+      "error": "Erreur : {msg}"
+    },
+    "by": {
+      "former": "ancien membre",
+      "key": "clé d’API « {name} »",
+      "auto": "automatiquement"
+    },
+    "on": "le {date}",
+    "onBy": "le {date} par {by}",
+    "onAuto": "le {date}, automatiquement",
+    "title": "Fait",
+    "subtitle": "Ce qui a été fait – par qui et quand. Les entrées automatiques indiquent leur motif.",
+    "loadError": "Impossible de charger l’historique : {msg}",
+    "manage": {
+      "button": "Gérer l’historique",
+      "title": "Gérer l’historique",
+      "keep": "Conserver (mois, 0 = illimité)",
+      "keepHint": "Les entrées plus anciennes disparaissent à la prochaine entrée.",
+      "keepInvalid": "Veuillez saisir un nombre entier de 0 à 1200.",
+      "saved": "Durée de conservation enregistrée",
+      "clearTitle": "Vider l’historique",
+      "before": "Entrées faites avant le (vide = toutes)",
+      "clearHint": "Ce qui est supprimé l’est définitivement – un instantané sous Paramètres → Données permet de revenir en arrière.",
+      "clear": "Vider",
+      "confirmBefore": "Supprimer toutes les entrées faites avant le {date} ?",
+      "confirmAll": "Supprimer tout l’historique ?",
+      "cleared": {
+        "one": "{count} entrée supprimée",
+        "other": "{count} entrées supprimées"
+      }
+    },
+    "filter": {
+      "label": "Filtrer l’historique",
+      "person": "Personne",
+      "everyone": "Tout le monde",
+      "period": "Période",
+      "area": "Domaine"
+    },
+    "period": {
+      "all": "Tout l’historique",
+      "m3": "3 derniers mois",
+      "m12": "12 derniers mois",
+      "thisYear": "Cette année",
+      "lastYear": "L’année dernière"
+    },
+    "area": {
+      "all": "Tous les domaines",
+      "reminders": "Rappels",
+      "contracts": "Contrats",
+      "readings": "Relevés",
+      "tank": "Cuve et stock",
+      "tenancy": "Bail",
+      "recommendations": "Recommandations"
+    },
+    "empty": "Rien de fait pour l’instant. Cochez les alertes sous « À faire » dans la vue d’ensemble ou parmi les rappels – contrats suivants, relevés et livraisons s’inscrivent d’eux-mêmes.",
+    "emptyFiltered": "Aucune entrée pour cette sélection.",
+    "count": {
+      "one": "({count} entrée)",
+      "other": "({count} entrées)"
+    },
+    "action": {
+      "auto": "automatique",
+      "dismissed": "masqué"
+    },
+    "attachment": "Justificatif",
+    "undoneLine": "Annulé {when}",
+    "undoNamed": "Annuler : {title}",
+    "note": {
+      "edit": "Modifier la note",
+      "editNamed": "Modifier la note : {title}",
+      "saved": "Note enregistrée"
+    },
+    "reasonLine": "Motif : {reason}"
   }
 }

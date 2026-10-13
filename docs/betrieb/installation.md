@@ -19,7 +19,7 @@ genügt ein PHP-fähiger Webserver und ein Browser.
 
 | Komponente | Mindestens | Empfohlen | Zweck |
 |---|---|---|---|
-| PHP | 8.2 | 8.4 | Backend-Laufzeit; die CI prüft 8.2, 8.3 und 8.4, das Docker-Image bringt 8.4 mit (Mindestversion 8.2 seit v3.1.0, vorher 8.4) |
+| PHP | 8.2 | 8.5 | Backend-Laufzeit; die CI prüft 8.2 bis 8.5, das Docker-Image bringt seit v3.4.0 8.5 mit (Mindestversion 8.2 seit v3.1.0, vorher 8.4) |
 | PHP-Erweiterungen | `json`, `mbstring` *(optional)* | dito | JSON-Speicher; `iconv` für PDF-Umlaute; `curl` für die Texterkennung (v3.1.0) |
 | Webserver | PHP built-in server | Apache/nginx | Auslieferung |
 | Browser | aktueller Chromium/Firefox/Safari | dito | SPA-Frontend (ES-Module) |
@@ -155,7 +155,9 @@ ein vollständiges Backup.
    der einzige Rückweg: Eine Schema-Migration lässt sich nicht umkehren.
 2. **CHANGELOG lesen** — was unter „Migration" steht, betrifft dich.
 3. Programmdateien ersetzen (alles außer `data/`). Docker:
-   [Updates durchführen](docker.md#updates-durchführen).
+   [Updates durchführen](docker.md#updates-durchführen). Seit v3.4.0 gehört
+   `docs/` dazu: Die Hilfe zeigt das Handbuch aus diesem Verzeichnis, passend
+   zur Version — fehlt es, meldet sie jede Seite als nicht vorhanden.
 4. App im Browser aufrufen — der Migrator hebt das Schema bei Bedarf
    automatisch und idempotent an. Seit v2.5.3 legt er vorher einen
    Snapshot in `data/backups/` an. Scheitert der Snapshot (z. B. Platte
@@ -166,8 +168,10 @@ Ein Downgrade auf eine ältere Schema-Version wird **nicht** unterstützt;
 neuere Verbrauchsarten würden von alten Versionen ignoriert. Zurück geht
 es nur mit der alten Programmversion **und** dem Backup aus Schritt 1.
 
-Migration aus einem alten privaten **v0.9.0**-Backup:
-siehe [Migration aus v0.9.0](../anleitungen/migration-v090.md).
+Ein altes privates **v0.9.0**-Backup liest seit v3.4.0 keine Version mehr
+ein: v3.3.0 installieren, dort unter Einstellungen → Daten → Migration aus
+v0.9.0 einspielen, dann wie oben aktualisieren. Ein Datenverzeichnis im
+Aufbau von v0.9.0 wandelt die App beim ersten Start weiterhin um.
 
 ---
 

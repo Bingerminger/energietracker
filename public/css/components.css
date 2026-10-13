@@ -50,8 +50,40 @@
 .pill.active { background: var(--util, var(--accent)); border-color: var(--util, var(--accent)); color: var(--util-fg, #0a0d12); font-weight: 600; }
 
 /* ── Forms ──────────────────────────────────────────────────────── */
-.field { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-3); }
-.field label, .label { font-size: var(--fs-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; }
+/* v3.4.0 (N1021) — Steuerhöhe an einer Stelle: 36 px mit Maus, 44 px bei
+   Touch (Apple HIG). Eingaben, Auswahlfelder und die Knöpfe einer
+   Formularzeile sind damit gleich hoch; bis v3.3 waren Textfelder 34 px,
+   Datumsfelder 36 px und „Ab Beginn" 24 px hoch. */
+:root { --control-h: 36px; }
+@media (pointer: coarse), (max-width: 800px) { :root { --control-h: 44px; } }
+
+/* v3.4.0 (N1021) — `hidden` gilt immer, auch gegen display:flex/grid einer
+   Klasse. In „Angebot erfassen" standen die Felder für dynamische Tarife
+   trotz `hidden` neben dem Arbeitspreis, weil `.form-grid label{display:flex}`
+   gewann. Ersetzt sieben Einzelregeln der Art `.x[hidden]{display:none}`. */
+[hidden] { display: none !important; }
+
+.field { display: flex; flex-direction: column; gap: var(--sp-1); margin-bottom: var(--sp-3); min-width: 0; }
+/* v3.4.0 (N1021) — Versalien nur für die Beschriftung direkt über einem Feld.
+   Bis v3.3 traf `.field label` jedes Label, auch die Texte neben Checkboxen
+   („BALKONKRAFTWERK …") und Datei-Knöpfe; neun Stellen flickten das inline. */
+.field > label:not(.btn, .check, .settings-field__check), .label {
+  font-size: var(--fs-xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em;
+}
+/* Checkbox und Radio mit Text: Satzschreibung, Text neben dem Kästchen */
+.check, .settings-field__check {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-family: var(--font-sans); font-size: var(--fs-sm); font-weight: 400;
+  color: var(--text-1); text-transform: none; letter-spacing: 0;
+  cursor: pointer;
+}
+.check > input, .settings-field__check > input { flex: none; margin: 0; }
+.settings-field__check { padding: 6px 0; }
+/* ohne Klasse: Label mit Kästchen als direktes Kind eines Feldes (Rückfall) */
+.field > label:has(> input[type="checkbox"]), .field > label:has(> input[type="radio"]) {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--fs-sm); color: var(--text-1); text-transform: none; letter-spacing: 0;
+}
 
 .input, .select, textarea.input {
   background: var(--bg-2);
@@ -61,6 +93,7 @@
   padding: 8px 12px;
   font-family: var(--font-mono); font-size: var(--fs-sm);
   width: 100%;
+  min-height: var(--control-h);
   transition: var(--transition);
 }
 .input:focus, .select:focus, textarea.input:focus {
@@ -73,10 +106,11 @@
 .input--text { font-family: var(--font-sans); }
 
 textarea.input { min-height: 80px; resize: vertical; }
-.input[type="checkbox"] { width: auto; }
+.input[type="checkbox"], .input[type="radio"] { width: auto; min-height: 0; }
 
 .field-error { font-size: var(--fs-xs); color: var(--danger); margin-top: 2px; }
 
+/* Ältere Zeile mit gleich breiten Spalten (Zeitreihen-Import, Auswertungen) */
 .form-row {
   display: grid; gap: var(--sp-3);
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -86,65 +120,169 @@ textarea.input { min-height: 80px; resize: vertical; }
   margin-top: var(--sp-5); flex-wrap: wrap;
 }
 
-/* Group of dated entries (Arbeitspreis/Grundpreis/Abschlag rows) */
-.entry-group {
-  background: var(--bg-2); border: 1px solid var(--border-1);
-  border-radius: var(--r-md); padding: var(--sp-4);
-  margin-bottom: var(--sp-4);
+/* ── v3.4.0 (N1021) — ein Formularraster für alle Dialoge ──────────────
+   Bis v3.3 lagen in einem Vertragsdialog fünf Spaltensysteme übereinander
+   (`.form-row` je nach Feldzahl, Preis-, Bonus-, Sonderzahlungs- und
+   Zeitfensterzeilen), dazu `.form-grid` in Termin und Angebot. Jetzt:
+   sechs Spalten, die Breite eines Feldes nach seinem Inhalt —
+     .field--xs  1 Spalte  (Stellen, Einheit)
+     .field--s   2 Spalten (Datum, Zahl, Betrag, Uhrzeit)
+     .field--m   2 Spalten, schmal ganze Zeile (kurzer Text, Auswahl)
+     .field      3 Spalten (Text, Auswahl mit langem Text)
+     .field--l   4 Spalten
+     .field--full ganze Zeile (Notiz, Checkbox mit Erklärung, Listen)
+   Schmal (unter 34 rem Rasterbreite, am iPhone) zwei Spalten: Datum und Zahl
+   je eine halbe Zeile, alles andere die ganze. Das Raster richtet sich nach
+   seiner eigenen Breite (Container-Abfrage), nicht nach dem Fenster — im
+   Dialog wie in einer schmalen Einstellungskarte. */
+.fgrid {
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr));
+  column-gap: var(--sp-3); row-gap: 0; align-items: start;
+  container-type: inline-size;
 }
+/* Abstand nach unten statt `row-gap`: mit Unterraster (unten) kostete jede
+   leere Teilzeile eines Feldes sonst einen ganzen Zeilenabstand */
+.fgrid > * { grid-column: 1 / -1; min-width: 0; margin: 0 0 var(--sp-4); }
+/* Breite als Ende (`auto / span n`), damit `.field--new` nur den Anfang setzt */
+.fgrid > .field { grid-column: auto / span 3; }
+.fgrid > .field--xs { grid-column: auto / span 1; }
+.fgrid > .field--s, .fgrid > .field--m { grid-column: auto / span 2; }
+.fgrid > .field--l { grid-column: auto / span 4; }
+.fgrid > .field--full { grid-column: 1 / -1; }
+.fgrid > .field--new { grid-column-start: 1; }   /* beginnt eine neue Zeile */
+@media (max-width: 600px) {   /* Rückfall ohne Container-Abfrage */
+  .fgrid > .field, .fgrid > .field--m, .fgrid > .field--l { grid-column: 1 / -1; }
+  .fgrid > .field--s, .fgrid > .field--xs { grid-column: auto / span 3; }
+  .fgrid > .field--new { grid-column-start: 1; }
+}
+@container (max-width: 34rem) {
+  .fgrid > .field, .fgrid > .field--m, .fgrid > .field--l { grid-column: 1 / -1; }
+  .fgrid > .field--s, .fgrid > .field--xs { grid-column: auto / span 3; }
+  .fgrid > .field--new { grid-column-start: 1; }
+}
+/* Datumsfelder haben eine eigene Mindestbreite und liefen sonst aus der Spalte */
+.fgrid .input, .fgrid .select, .rowlist .input, .rowlist .select { min-width: 0; }
+/* Beschriftung, Feld und Hinweis einer Zeile auf gleicher Höhe: Jedes Feld
+   teilt die Zeilen des Rasters (Unterraster). Bricht eine Beschriftung um,
+   rückt das Feld daneben nicht mehr nach oben. Ohne Unterraster (Safari < 16)
+   bleibt das Feld eine Spalte — benutzbar, nur nicht ausgerichtet. */
+@supports (grid-template-rows: subgrid) {
+  .fgrid > .field { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: subgrid; grid-row: span 4; row-gap: var(--sp-1); align-content: start; }
+  .fgrid > .field > :first-child { grid-row: 1; align-self: end; }
+}
+/* Feld ohne Beschriftung (Checkbox, Knopf): auf Höhe der Eingaben daneben.
+   Ersetzt das Muster `style="display:flex;align-items:flex-end"`, das den
+   Knopf waagerecht statt senkrecht ausrichtete (✕ schwebte über der Zeile). */
+.fgrid > .field > :first-child:is(.check, .btn, .field__actions) { grid-row: 1 / span 2; align-self: end; }
+.field__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.fgrid > .field > .check:first-child { min-height: var(--control-h); }
+.fgrid > .field > .btn:first-child { justify-self: start; justify-content: center; }
+.fgrid .btn, .rowlist .btn { min-height: var(--control-h); }
+
+/* Feldgruppe: eigener Kasten, die Legende steht im Kasten (nicht auf der
+   Rahmenlinie wie beim Browser-Standard). Rechts im Kopf darf ein Knopf
+   stehen („+ Zeile"); er bricht nicht um. */
+fieldset.fgroup, .fgroup {
+  border: 1px solid var(--border-1); border-radius: var(--r-md);
+  background: var(--bg-2);
+  padding: var(--sp-4); margin: 0 0 var(--sp-4); min-inline-size: 0;
+}
+.fgroup > legend, .fgroup__title {
+  font-size: var(--fs-sm); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em;
+}
+.fgroup > legend {
+  float: left; max-width: 100%; padding: 0; margin: 0 var(--sp-3) var(--sp-3) 0;
+  line-height: 1.4; min-height: 28px; display: flex; align-items: center; gap: 4px;
+}
+.fgroup > .fgroup__add { float: right; flex: none; white-space: nowrap; margin: 0 0 var(--sp-3); }
+.fgroup > :not(legend, .fgroup__add) { clear: both; }
+.fgroup > :last-child { margin-bottom: 0; }
+/* der Abstand unter der letzten Rasterzeile gehört nicht in den Kasten */
+.fgroup > .fgrid:last-child, form > .fgrid:last-child { margin-bottom: calc(-1 * var(--sp-4)); }
+.fgroup__hint { margin: 0 0 var(--sp-3); font-size: var(--fs-xs); color: var(--text-2); line-height: 1.5; }
+.fgroup > .field-error { margin: 0 0 var(--sp-2); }
+/* Felder in einer Gruppe mit eigener Fläche — auch im Dunkelmodus vom
+   Gruppenkasten zu unterscheiden (bis v3.3 beide --bg-2) */
+.fgroup :is(.input, .select) { background: var(--bg-1); }
+
+/* Zeilenlisten (Preise, Boni, Sonderzahlungen, Zeitfenster, Umlagen …): ein
+   Raster für alle — Datum 10,5 rem | Betrag 9 rem | Zusatz | ✕. Andere
+   Spaltenfolgen setzen --row-cols. Die Beschriftung steht nur über der
+   ersten Zeile; in den folgenden bleibt sie für Screenreader (sr-only). */
+.rowlist { container-type: inline-size; display: flex; flex-direction: column; gap: var(--sp-2); }
+.rowlist__row {
+  display: grid; gap: var(--sp-2); align-items: end;
+  grid-template-columns: var(--row-cols, 10.5rem 9rem minmax(0, 1fr) auto);
+}
+.rowlist__row > .field { margin: 0; }
+.rowlist__row > .btn { justify-self: start; }
+.rowlist__row > .rowlist__del { grid-column: -2 / -1; grid-row: 1; justify-self: end; }
+.rowlist__row .btn--icon { min-width: var(--control-h); justify-content: center; }
+.rowlist__row > .rowlist__sub { grid-column: 1 / -2; }
+.rowlist__row + .rowlist__row > .field:not(.rowlist__sub) > :is(label, .label) {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.rowlist--period { --row-cols: 10.5rem 10.5rem 9rem minmax(0, 1fr) auto; }
+.rowlist--tou    { --row-cols: 7.5rem 7.5rem 8rem minmax(0, 1fr) auto; }
+.rowlist--label  { --row-cols: minmax(0, 1fr) 9rem auto; }
+.rowlist--three  { --row-cols: 10.5rem 9rem 9rem minmax(0, 1fr) auto; }
+.rowlist--four   { --row-cols: 10.5rem 8rem 8rem 8rem minmax(0, 1fr) auto; }
+.rowlist--pos    { --row-cols: minmax(0, 1fr) 10rem 8rem 8rem auto; }
+.rowlist--fixed  { --row-cols: 10.5rem minmax(0, 1fr) 9rem auto; }
+/* Schmal (iPhone): zwei Spalten — die ersten beiden Angaben stehen unter der
+   Beschriftung der ersten Zeile, jede weitere Angabe trägt ihre eigene; ✕
+   rechts in der letzten Zeile (bei der Sonderzahlung neben der Art) */
+@container (max-width: 34rem) {
+  .rowlist__row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .rowlist__row > .rowlist__del { grid-column: 2; grid-row: auto; }
+  .rowlist__row > .rowlist__sub { grid-column: 1 / -1; }
+  .special-row > .rowlist__del { grid-row: 2; }
+  .rowlist__row + .rowlist__row { border-top: 1px dashed var(--border-1); padding-top: var(--sp-2); }
+  .rowlist__row + .rowlist__row > .field:nth-child(n+3) > :is(label, .label) {
+    position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal;
+  }
+}
+@media (max-width: 600px) {   /* Rückfall ohne Container-Abfrage */
+  .rowlist__row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .rowlist__row > .rowlist__del { grid-column: 2; grid-row: auto; }
+  .rowlist__row > .rowlist__sub { grid-column: 1 / -1; }
+  .special-row > .rowlist__del { grid-row: 2; }
+}
+/* Sonderzahlung: Notiz und — nur bei Arten „mit Auswirkung" — die
+   Abschlagsanpassung unter der Zeile, immer beschriftet */
+.special-row { padding-bottom: var(--sp-2); border-bottom: 1px dashed var(--border-1); }
+.special-advance { display: grid; gap: var(--sp-2); grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.5rem), 12rem)); }
+.special-advance > .field { margin: 0; }
+
+/* Liste innerhalb einer Gruppe (Preise je Zähler einer Gruppe) */
+.entry-group--nested { margin: var(--sp-3) 0 0; }
 .entry-group__head {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: var(--sp-3);
+  display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
 }
-.entry-group__title { font-size: var(--fs-sm); color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; }
-
-.entry-row {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto; gap: var(--sp-2);
-  align-items: end; margin-bottom: var(--sp-2);
-}
-.entry-row .input { font-size: var(--fs-sm); }
-.entry-row .btn--icon { align-self: end; height: 36px; }
-/* v2.5.3 — Die Zeile hat eigene Abstände; der Feld-Außenabstand ließ die
-   Knöpfe (×, ⇧ Start) 12 px unter den Eingaben stehen. */
-.entry-row > .field, .special-advance > .field { margin-bottom: 0; }
+.entry-group__head > .btn { flex: none; white-space: nowrap; }
 /* v2.7.0 — Umrechnungshilfe „Preis je m³" unter den Gas-Arbeitspreisen */
-.perm3 { margin-top: var(--sp-2); font-size: var(--fs-sm); }
+.perm3 { margin-top: var(--sp-3); font-size: var(--fs-sm); }
 .perm3 > summary { cursor: pointer; color: var(--text-2); }
-.perm3__row { margin-top: var(--sp-2); align-items: flex-end; }
+.perm3 > .fgrid { margin-top: var(--sp-2); }
 .perm3__result { margin: var(--sp-1) 0 0; font-variant-numeric: tabular-nums; }
-.entry-group > .field-error { margin: -4px 0 var(--sp-2); }
-
-/* v2.5.3 (UI-11) — Sonderzahlung: eigenes Raster. Im allgemeinen Vier-Spalten-
-   Raster schrumpfte das Datum auf rund 25 px, der Betrag war abgeschnitten.
-   Zeile 1: Datum, Betrag, Art, ×. Darunter die Notiz und — nur bei Arten
-   „mit Auswirkung" — die Abschlagsanpassung. Der Entfernen-Knopf steht oben
-   rechts, obwohl er im DOM zuletzt kommt (Tab-Reihenfolge). */
-.entry-row.special-row {
-  grid-template-columns: minmax(140px, 160px) minmax(90px, 120px) minmax(0, 1fr) auto;
-  padding-bottom: var(--sp-3); margin-bottom: var(--sp-3);
-  border-bottom: 1px dashed var(--border-1);
-}
-.special-row > [data-action="remove-special"] { grid-column: 4; grid-row: 1; }
-.special-row > .special-row__note { grid-column: 1 / 4; }
-.special-row > .special-advance {
-  grid-column: 1 / 4;
-  display: grid; gap: var(--sp-2);
-  grid-template-columns: minmax(140px, 200px) minmax(140px, 200px);
-}
-.special-row > .special-advance[hidden] { display: none; }
-
-@media (max-width: 600px) {
-  .entry-row, .entry-row.special-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  /* v2.11.0 (Review UI-16) — Knöpfe der Zeile in ihrer Größe statt als
-     vollbreiter roter Balken mit winzigem „×" */
-  .entry-row > .btn { justify-self: start; }
-  .entry-row > .btn--icon { justify-self: end; }
-  .special-row > .special-row__kind,
-  .special-row > .special-row__note,
-  .special-row > .special-advance { grid-column: 1 / -1; }
-  .special-row > [data-action="remove-special"] { grid-column: 1 / -1; grid-row: auto; }
-  .special-row > .special-advance { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-}
+/* Uhrzeit, Quartale (§ 14a Modul 3) */
+.tou-quarters { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); min-height: var(--control-h); align-items: center; }
+/* Zweistellige Eingabe in einem breiten Feld (Stellen des Zählwerks) */
+.input--short { max-width: 8rem; }
+.fgroup__list { margin: 0 0 var(--sp-3); font-size: var(--fs-sm); }
+.fgroup__list p { margin: 0; }
+/* Wasservertrag: Zeilen als Tabelle mit Eingaben — feste Spalten, damit sie
+   am iPhone nicht über den Dialog hinauslaufen */
+.water-table { table-layout: fixed; width: 100%; }
+.water-table th, .water-table td { padding: 4px; }
+.water-table .input { min-width: 0; padding-inline: 6px; }
+.water-table th:last-child, .water-table td:last-child { width: calc(var(--control-h) + 8px); }
+/* Kästchen untereinander in einem Feld (Wärmepumpe, Mietverhältnis), bei Platz in Spalten */
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr)); gap: 0 var(--sp-3); }
+.check-grid > .check { min-height: 32px; }
+.check-scroll { max-height: 14rem; overflow-y: auto; }
 
 /* ── Tables ─────────────────────────────────────────────────────── */
 .table {
@@ -542,6 +680,36 @@ body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
 .status-pill.implausible { background: var(--warning-soft); color: var(--warning); cursor: help; }
 .table tr.row--flagged > td { background: color-mix(in srgb, var(--warning-soft) 60%, transparent); }
 
+/* v3.4.0 (N1021) — Vertragslisten nach Phase: Zukünftig · Aktuell · Beendet ·
+   Angebote; „Beendet“ zum Aufklappen (Kosten → Verträge als <details>, in der
+   Tabelle der Verbrauchsart als Kopfzeile mit Knopf) */
+.contract-group { margin-top: var(--sp-4); }
+.contract-group__title { margin: 0 0 var(--sp-1); font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.04em; }
+details.contract-group > summary.contract-group__title { cursor: pointer; }
+.contract-card__years { font-size: var(--fs-xs); font-weight: 400; margin-left: var(--sp-1); }
+.contracts-table tr.contracts-table__group > th {
+  text-align: left; background: var(--bg-2); color: var(--text-2);
+  font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.contracts-table__toggle {
+  background: none; border: 0; padding: 0; font: inherit; color: var(--accent, var(--text-1));
+  text-transform: inherit; letter-spacing: inherit; cursor: pointer; text-decoration: underline;
+}
+.contracts-table__toggle::before { content: '▸ '; text-decoration: none; display: inline-block; }
+.contracts-table__toggle[aria-expanded="true"]::before { content: '▾ '; }
+
+/* v3.4.0 (N1021) — Liste der Ablesungen: Jahr in der Karte, Filter, Blätterleiste */
+.list-year { width: auto; margin-right: var(--sp-2); }
+.list-count { font-size: 12px; margin-right: 8px; }
+.list-filter { margin: 0 0 var(--sp-2); }
+.pager { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); }
+.pager__range { font-variant-numeric: tabular-nums; color: var(--text-2); }
+.pager__size { display: inline-flex; align-items: center; gap: var(--sp-1); margin-left: auto; font-size: var(--fs-sm); color: var(--text-2); }
+.pager__size .select { width: auto; }
+/* v3.4.0 (N1021) — Rechnung prüfen: „Rechnung des Versorgers erfassen“ eingeklappt unter dem Ergebnis */
+details.bill-capture > summary { cursor: pointer; margin-bottom: 0; }
+details.bill-capture[open] > summary { margin-bottom: var(--sp-3); }
+
 /* v2.6.0 — Listen in Hinweisen und Dialogen (Warnungen, Rückfragen,
    Backup-Vorschau und -Fundstellen) */
 .warning-list,
@@ -613,13 +781,26 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 
 /* ── Settings: grouped cards in a responsive grid ───────────────── */
+/* v3.4.0 (N1021) — Jede Unterseite legt alle Karten in dieses Raster; die
+   Karten stehen oben bündig (bis v3.3 wurde eine Reihe auf die höchste Karte
+   gestreckt: Energieträger 1555 px hoch neben CO₂). Breite Karten
+   (`settings-card--wide`) über die ganze Zeile; sie stehen am Seitenende,
+   statt `grid-auto-flow: dense` Lücken füllen zu lassen — das trennte die
+   Lese- und Tab-Reihenfolge von der Anzeige. */
 .settings-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
   gap: var(--sp-4);
-  margin-bottom: var(--sp-2);
+  align-items: start;
+  margin-bottom: var(--sp-4);
 }
-.settings-card { margin-bottom: 0; }
+.settings-card { margin-bottom: 0; min-width: 0; }
+/* Zahlen und Stichtage in breiten Karten nicht über 1000 px ziehen */
+.settings-card--wide .settings-field > .input:not(.input--text) { max-width: 12rem; }
+/* Aktive Verbrauchsarten: Kästchen in Spalten statt neun Zeilen untereinander */
+.settings-fields.check-grid { display: grid; gap: 0 var(--sp-3); }
+/* Unterstützen (System): Link als Knopf */
+.support-card__link { margin-top: var(--sp-2); }
 .settings-card__hint {
   font-size: var(--fs-xs); color: var(--text-2);
   margin: -6px 0 var(--sp-4); line-height: 1.5;
@@ -644,12 +825,6 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
    damit das Paar auf dem iPhone nicht über den Rand wächst */
 .input-pair {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-2);
-}
-.settings-field__check {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--font-sans); font-size: var(--fs-sm);
-  color: var(--text-1); text-transform: none; letter-spacing: 0;
-  padding: 6px 0;
 }
 .settings-rule {
   border: none; border-top: 1px solid var(--border-1);
@@ -878,22 +1053,9 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .btn--xs { padding: 2px 7px; font-size: var(--fs-xs); }
 .small { font-size: var(--fs-xs); }
 
-/* Formular-Grid (Modals) */
-.form-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
-.form-grid label {
-  display: flex; flex-direction: column; gap: 4px;
-  font-size: var(--fs-sm); color: var(--text-2);
-}
-.form-grid input, .form-grid select {
-  padding: 8px 10px; font-size: var(--fs-base);
-  background: var(--bg-2); color: var(--text-1);
-  border: 1px solid var(--border-1); border-radius: var(--r-sm);
-}
-.form-grid input:focus, .form-grid select:focus {
-  outline: none; border-color: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-.form-grid input.invalid { border-color: var(--danger); }
+/* v3.4.0 (N1021) — `.form-grid` (Termin, Angebot) ist im Formularraster
+   `.fgrid` aufgegangen: eigene Schrift, Höhe und Satzschreibung der Labels
+   waren ein zweites System neben `.field`. */
 
 /* v1.3.0 — Tank-Bestandsbalken (Heizöl/Pellets) */
 .tank-bar-wrap { padding: var(--sp-2) 0; }
@@ -1154,7 +1316,8 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   .pill, .seg__btn { min-height: 44px; display: inline-flex; align-items: center; }
   .topbar__btn { width: 44px; height: 44px; }
   .modal__close { min-width: 44px; min-height: 44px; }
-  .input, .select, textarea.input { font-size: 16px; min-height: 44px; }
+  /* Höhe über --control-h (oben); unter 16 px zoomt Safari beim Antippen */
+  .input, .select, textarea.input { font-size: 16px; }
   .input[type="checkbox"], .input[type="radio"] { min-height: 0; }
   /* Abstand zwischen nebeneinanderliegenden Aktionen einer Tabellenzeile */
   td > .btn + .btn, td > .btn + a.btn, td > a.btn + .btn { margin-left: var(--sp-2); }
@@ -1199,7 +1362,6 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   background: var(--bg-1); border: 1px solid var(--border-2);
   border-radius: var(--r-md); box-shadow: var(--shadow-2);
 }
-.settings-savebar[hidden] { display: none; }
 .settings-savebar__text { flex: 1; font-weight: 600; color: var(--warning); }
 @media (max-width: 800px) {
   /* über der Tab-Leiste */
@@ -1247,16 +1409,32 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   .dash-todo__go { display: none; }
   .dash-todo__chev { display: block; }
 }
+/* v3.4.0 (F1024) — Haken neben der Zeile (eigenes Tippziel, nicht im Link) */
+.dash-todo__item--check { display: flex; align-items: center; gap: var(--sp-2); }
+.dash-todo__item--check .dash-todo__link { flex: 1 1 auto; min-width: 0; }
+.dash-todo__done { flex: none; min-width: 44px; min-height: 44px; justify-content: center; font-size: 18px; }
+
+/* v3.4.0 (F1024) — Dialog „Erledigt" und Tab „Erledigt" */
+.done-dialog__what { margin: 0 0 var(--sp-3); }
+.activity-filters { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.activity-month { margin-bottom: var(--sp-4); }
+.activity-list { list-style: none; margin: 0; padding: 0; }
+.activity-item { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-2) 0; border-top: 1px solid var(--border-1); }
+.activity-item:first-child { border-top: none; }
+.activity-item__icon { flex: none; width: 24px; text-align: center; font-size: 16px; line-height: 1.5; }
+.activity-item__body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.activity-item__title { font-weight: 600; overflow-wrap: anywhere; }
+.activity-item__note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.activity-item__actions { flex: none; display: flex; gap: var(--sp-1); }
+.activity-item--undone .activity-item__title,
+.activity-item--undone .activity-item__icon { color: var(--text-2); opacity: .75; }
+.contract-overview__history { margin-top: var(--sp-2); }
 
 /* v2.12.0 (Review UI-20) — Werkzeugleisten: beschriftete Auswahlfelder in
    Inhaltsbreite statt 100 %, Umbruch auf schmalen Bildschirmen */
 .toolbar { flex-wrap: wrap; }
 .toolbar label { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-2); }
 .toolbar .select, .toolbar .input, .switch-date-row .input { width: auto; min-width: 10rem; }
-/* Formulare in Dialogen: 16 px, sonst zoomt Safari beim Antippen */
-@media (pointer: coarse), (max-width: 800px) {
-  .form-grid input, .form-grid select { font-size: 16px; min-height: 44px; }
-}
 
 /* v2.12.0 — Vorschau des CSV-Imports (Review UI-23) */
 .import-preview { display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-sm); }
@@ -1268,8 +1446,6 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .import-preview__row--warn td:last-child { color: var(--text-1); }
 .import-preview__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }
 
-/* v2.12.0 — Feldfehler in Dialog-Formularen dicht am Feld */
-.form-grid > .field-error { margin-top: calc(-1 * var(--sp-2)); }
 
 /* ─────────────────────────────────────────────────────────────────────
    v2.13.0 — Hilfe (Review DOC-10, UI-17, UI-32)
@@ -1331,8 +1507,6 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .help-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-2) 0 0; }
 /* v3.3.0 (F1021) — Flexibilität und Modul-3-Zeitfenster */
 .flex-months summary { cursor: pointer; margin: var(--sp-2) 0; color: var(--text-2); }
-.tou-quarters { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding-top: 6px; }
-.tou-row { align-items: flex-end; }
 
 /* v3.2.0 — Anwendungsfälle */
 .help-cases__list { margin: var(--sp-2) 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--sp-3) var(--sp-5); }
@@ -1342,10 +1516,55 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .help-glossary__search { max-width: 260px; }
 .glossary-list { margin: var(--sp-3) 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--sp-3) var(--sp-5); }
 .glossary-list__item { scroll-margin-top: 80px; padding: var(--sp-2); border-radius: var(--r-sm); }
-.glossary-list__item[hidden] { display: none; }
 .glossary-list__item dt { font-weight: 600; margin-bottom: 2px; }
 .glossary-list__item dd { margin: 0; color: var(--text-2); font-size: var(--fs-sm); line-height: 1.5; }
 .glossary-list__item--focus { background: var(--c-blue-soft); }
+
+/* v3.4.0 (N1019) — Handbuch in der App (views/help-doc.js, lib/markdown.js).
+   Tabellen und Codeblöcke scrollen in sich, damit die Seite am iPhone nicht
+   breiter wird; position: relative, damit der Rahmen alles beschneidet. */
+.help-docs__open { margin: 0 0 var(--sp-3); }
+.help-cases__item dd.help-cases__more { margin-top: 4px; }
+.help-doc { max-width: 920px; }
+.doc-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2) var(--sp-4); margin-bottom: var(--sp-4); font-size: var(--fs-sm); }
+.doc-bar__path { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); color: var(--text-2); }
+.doc-langs { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border-2); border-radius: var(--r-sm); }
+.doc-langs__item { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 10px; border-radius: 4px; }
+.doc-langs__item--current { background: var(--bg-3); color: var(--text-1); font-weight: 600; }
+.doc-hint { margin-bottom: var(--sp-4); }
+.doc-toc { margin: 0 0 var(--sp-4); padding: var(--sp-3) var(--sp-4); background: var(--bg-1); border: 1px solid var(--border-1); border-radius: var(--r-md); }
+.doc-toc summary { cursor: pointer; font-weight: 600; color: var(--text-2); }
+.doc-body .doc-toc__list { margin: var(--sp-2) 0 0; padding: 0; list-style: none; columns: 2 280px; column-gap: var(--sp-6); font-size: var(--fs-sm); line-height: 1.5; }
+.doc-body .doc-toc__item { break-inside: avoid; margin: 3px 0; }
+.doc-body .doc-toc__item--3 { padding-left: 1.2em; font-size: var(--fs-xs); }
+.doc-body { line-height: 1.6; overflow-wrap: break-word; }
+.doc-body [id] { scroll-margin-top: calc(var(--topbar-total) + 12px); }
+.doc-body h1 { font-size: var(--fs-2xl); line-height: 1.2; margin: 0 0 var(--sp-4); }
+.doc-body h2 { font-size: var(--fs-xl); line-height: 1.3; margin: var(--sp-8) 0 var(--sp-3); padding-bottom: 6px; border-bottom: 1px solid var(--border-1); }
+.doc-body h3 { font-size: var(--fs-lg); margin: var(--sp-6) 0 var(--sp-2); }
+.doc-body h4, .doc-body h5, .doc-body h6 { font-size: var(--fs-md); margin: var(--sp-4) 0 var(--sp-2); }
+.doc-body p, .doc-body ul, .doc-body ol, .doc-body blockquote, .doc-body .doc-table, .doc-body .doc-code { margin: 0 0 var(--sp-3); }
+.doc-body li > ul, .doc-body li > ol, .doc-body li > p { margin: 4px 0; }
+.doc-body li + li { margin-top: 2px; }
+.doc-body blockquote { padding: var(--sp-2) var(--sp-4); border-left: 3px solid var(--accent); background: var(--bg-1); border-radius: 0 var(--r-sm) var(--r-sm) 0; color: var(--text-2); }
+.doc-body blockquote > :last-child { margin-bottom: 0; }
+.doc-body hr { border: 0; border-top: 1px solid var(--border-1); margin: var(--sp-6) 0; }
+.doc-body code { font-family: var(--font-mono); font-size: 0.9em; padding: 1px 4px; background: var(--bg-2); border-radius: 4px; overflow-wrap: anywhere; }
+.doc-body img { max-width: 100%; height: auto; border: 1px solid var(--border-1); border-radius: var(--r-sm); }
+.doc-body input[type="checkbox"] { margin: 0 6px 0 0; vertical-align: middle; }
+.doc-figures { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-3); }
+.doc-code { position: relative; max-width: 100%; overflow-x: auto; padding: var(--sp-3); background: var(--bg-2); border: 1px solid var(--border-1); border-radius: var(--r-md); font-size: var(--fs-xs); line-height: 1.5; -webkit-overflow-scrolling: touch; }
+.doc-body .doc-code code, .doc-code code { padding: 0; background: none; font-size: inherit; white-space: pre; overflow-wrap: normal; }
+.doc-plain code { white-space: pre-wrap; }
+.doc-table { position: relative; max-width: 100%; overflow-x: auto; border: 1px solid var(--border-1); border-radius: var(--r-md); -webkit-overflow-scrolling: touch; }
+.doc-table table { min-width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.doc-table th, .doc-table td { padding: 6px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border-1); }
+.doc-table thead th { background: var(--bg-2); font-weight: 600; }
+.doc-table tbody tr:last-child td { border-bottom: 0; }
+@media (max-width: 600px) {
+  .doc-body h1 { font-size: var(--fs-xl); }
+  .doc-body h2 { font-size: var(--fs-lg); }
+}
 
 /* v2.13.0 — Quellenangabe unter Diagrammen */
 .attribution { margin: var(--sp-2) 0 0; }
@@ -1384,7 +1603,6 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   background: var(--bg-1); color: var(--text-1);
   border: 1px solid var(--accent); box-shadow: 0 6px 24px rgba(0, 0, 0, .18);
 }
-.demo-bar[hidden] { display: none; }
 .demo-bar__text { flex: 1 1 22rem; margin: 0; font-size: var(--fs-sm); }
 .demo-bar__lang { font: inherit; font-size: var(--fs-sm); min-height: 32px; }
 .demo-bar__close {
@@ -1428,31 +1646,35 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .explainer .ex-badge--more { fill: var(--warning-soft, rgba(245,200,66,.16)); }
 .explainer .ex-badge--same { fill: var(--bg-2); }
 .explainer .ex-badge__text { font-weight: 600; }
-.explainer .ex-node circle { fill: var(--bg-2); stroke: var(--border-2); }
-.explainer .ex-flow { fill: none; stroke-linecap: round; stroke-dasharray: 6 8; opacity: .85; }
-.explainer .ex-flow--pv { stroke: var(--warning); }
-.explainer .ex-flow--feed { stroke: var(--success); }
-.explainer .ex-flow--grid { stroke: var(--text-2); }
-.explainer .ex-flow--bat { stroke: var(--accent); }
+/* Zeitstrahl (v3.4.0 F1026: Preisgarantie, Folgevertrag, Fenster um heute) */
 .explainer .ex-axis { stroke: var(--border-2); stroke-width: 3; stroke-linecap: round; }
+.explainer .ex-axis--cut { stroke-dasharray: 2 3; stroke-linecap: butt; }
 .explainer .ex-progress { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.explainer .ex-range--guarantee { stroke: var(--success); stroke-width: 7; stroke-linecap: round; opacity: .35; }
+.explainer .ex-range--next { stroke: var(--info); stroke-width: 3; stroke-linecap: round; stroke-dasharray: 6 3; }
+.explainer .ex-range--gap { stroke: var(--danger); stroke-width: 3; stroke-dasharray: 2 3; }
 .explainer .ex-mark circle { fill: var(--bg-1); stroke: var(--text-1); stroke-width: 2; }
 .explainer .ex-mark--cancel circle { stroke: var(--warning); }
+.explainer .ex-mark--missed circle { stroke: var(--danger); fill: var(--danger); }
 .explainer .ex-mark--price circle { stroke: var(--danger); }
+.explainer .ex-mark--guarantee circle { stroke: var(--success); }
+.explainer .ex-mark--minTerm circle { stroke: var(--text-2); }
+.explainer .ex-mark--earliest circle { stroke: var(--accent); stroke-dasharray: 2 2; }
+.explainer .ex-mark--successor circle { stroke: var(--info); fill: var(--info); }
+.explainer .ex-mark--past circle { opacity: .7; }
+.explainer .ex-mark--clip circle { stroke-dasharray: 2 2; }
 .explainer .ex-today line { stroke: var(--accent); stroke-width: 2; }
 
 .explainer.ex--ready .ex-grow { transform-box: fill-box; transform-origin: left center; transform: scaleX(0); }
 .explainer.ex--ready .ex-fade { opacity: 0; }
 .explainer.ex--play .ex-grow { animation: ex-grow .9s cubic-bezier(.2, .8, .2, 1) forwards; animation-delay: var(--d, 0s); }
 .explainer.ex--play .ex-fade { animation: ex-fade .6s ease-out forwards; animation-delay: var(--d, .6s); }
-.explainer.ex--play .ex-flow { animation: ex-dash 1.4s linear infinite; }
 @keyframes ex-grow { to { transform: scaleX(1); } }
 @keyframes ex-fade { to { opacity: 1; } }
-@keyframes ex-dash { to { stroke-dashoffset: -28; } }
 @media (prefers-reduced-motion: reduce) {
   .explainer.ex--ready .ex-grow { transform: none; }
   .explainer.ex--ready .ex-fade { opacity: 1; }
-  .explainer.ex--play .ex-grow, .explainer.ex--play .ex-fade, .explainer.ex--play .ex-flow { animation: none; }
+  .explainer.ex--play .ex-grow, .explainer.ex--play .ex-fade { animation: none; }
 }
 @media print {
   .explainer .ex-grow { transform: none !important; animation: none !important; }
@@ -1460,13 +1682,101 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 }
 .explainer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--sp-4); }
 
+/* ── v3.4.0 (F1026) — Energiefluss im Haus (components/energy-flow.js) ──
+   Farben aus der Utilities-SSOT (--util-*, je Thema getönt von
+   utility-theme.js), Rückfall auf Token, wenn eine Art nicht aktiv ist.
+   Ausgangszustände der Bewegung nur zwischen .ex--ready und .ex--play; ohne
+   Skript, im Druck und bei „Bewegung reduzieren“ steht das Endbild mit
+   Pfeilen statt Punkten. */
+.ef-c-pv   { --c: var(--util-pv_erzeugung, var(--warning)); }
+.ef-c-feed { --c: var(--util-pv_einspeisung, var(--success)); }
+.ef-c-grid { --c: var(--util-strom, var(--info)); }
+.ef-c-bat  { --c: var(--accent); }
+.ef-c-hp   { --c: var(--util-waerme, var(--danger)); }
+.ef-c-ev   { --c: var(--util-strom, var(--info)); }
+.ef-c-rest { --c: var(--text-2); }
+.ef-c-house { --c: var(--text-1); }
+.ef-period { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; justify-content: space-between; }
+.ef-seg { display: inline-flex; border: 1px solid var(--border-2); border-radius: 999px; overflow: hidden; }
+.ef-seg__btn, .ef-step__btn {
+  min-height: 36px; padding: 0 var(--sp-3); border: 0; background: transparent; color: var(--text-1);
+  font: inherit; font-size: var(--fs-sm); cursor: pointer;
+}
+.ef-seg__btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.ef-step { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.ef-step__btn { min-width: 36px; border: 1px solid var(--border-2); border-radius: 999px; font-size: var(--fs-md, 15px); }
+.ef-step__btn:disabled { opacity: .4; cursor: default; }
+.ef-period__label { min-width: 7.5em; text-align: center; font-variant-numeric: tabular-nums; font-size: var(--fs-sm); }
+.ef-stage { position: relative; }
+.explainer__svg.ef { display: block; margin: 0 auto; max-width: 380px; }
+.ef-chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ef-chip {
+  min-height: 32px; padding: 4px var(--sp-3); border: 1px solid color-mix(in srgb, var(--c) 45%, var(--border-2));
+  border-radius: 999px; background: transparent; color: var(--text-1); font: inherit; font-size: var(--fs-sm); cursor: pointer;
+}
+.ef-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--c) 18%, transparent); border-color: var(--c); }
+.ef-detail { margin: 0; min-height: 1.4em; font-size: var(--fs-sm); color: var(--text-1); }
+.ef-detail:empty { min-height: 0; }
+.ef-note { margin: 0; font-size: var(--fs-xs, 12px); color: var(--text-2); }
+.ef .ef-track { fill: none; stroke: var(--border-2); stroke-width: 1.5; }
+.ef .ef-band { fill: none; stroke: var(--c); stroke-linecap: round; opacity: .38; transition: stroke-width .6s ease, opacity .4s ease; }
+.ef .ef-calc { fill: none; stroke: var(--bg-1); stroke-dasharray: 3 4; stroke-linecap: butt; transition: stroke-width .6s ease, opacity .4s ease; }
+.ef .ef-bridge { fill: none; stroke: var(--bg-1); stroke-width: 12; }
+.ef .ef-dot { fill: var(--c); }
+.ef .ef-arrow { fill: none; stroke: var(--c); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: none; }
+.ef .ef-flow--off .ef-band, .ef .ef-flow--off .ef-calc, .ef .ef-flow--off .ef-arrow { opacity: 0; }
+.ef .ef-flow--off.ef-flow--bridge { opacity: 0; }
+.ef .ef-disc { fill: var(--bg-2); stroke: var(--border-2); stroke-width: 1; }
+.ef .ef-arc { fill: none; stroke: var(--c); stroke-width: 4; transition: stroke-dasharray .6s ease, stroke-dashoffset .6s ease; }
+.ef .ef-icon { color: var(--c); }
+.ef .ef-ico { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ef .ef-ico .ef-batfill { fill: currentColor; stroke: none; opacity: .35; transform-box: fill-box; transform-origin: bottom; }
+.ef .ef-val { fill: var(--text-1); font-family: var(--font-mono); font-weight: 600; }
+.ef .ef-val--sm { font-weight: 500; }
+.ef .ef-val--out { fill: var(--util-pv_einspeisung, var(--success)); }
+.ef .ef-unit, .ef .ef-name { fill: var(--text-2); font-family: var(--font-sans, inherit); }
+.ef .ef-node { cursor: pointer; transition: opacity .3s; }
+.ef .ef-node--hp, .ef .ef-node--ev, .ef .ef-node--rest { cursor: default; }
+.ef .ef-flow { transition: opacity .3s; }
+/* Hervorhebung: nur die Flüsse des gewählten Knotens bleiben kräftig */
+.ef[data-focus] .ef-flow:not(.ef-on) { opacity: .12; }
+.ef[data-focus] .ef-node:not(.ef-on) { opacity: .45; }
+/* Einblendung: Knoten springen auf, Bänder zeichnen sich, Ringe drehen ein,
+   dann setzen die Punkte ein; dauerhaft drehen Sonnenstrahlen und Lüfter */
+.explainer.ex--ready:not(.ex--play) .ef-node, .explainer.ex--ready:not(.ex--play) .ef-dots { opacity: 0; }
+.explainer.ex--ready:not(.ex--play) .ef-band { stroke-dasharray: var(--len) var(--len); stroke-dashoffset: var(--len); }
+.explainer.ex--play .ef-node { animation: ef-pop .55s cubic-bezier(.2, .9, .3, 1.35) backwards; animation-delay: var(--d); transform-box: fill-box; transform-origin: center; }
+.explainer.ex--play .ef-band { stroke-dasharray: var(--len) var(--len); animation: ef-draw .8s cubic-bezier(.3, .7, .2, 1) backwards; animation-delay: var(--d); }
+.explainer.ex--play .ef-arc { animation: ef-ring 1s cubic-bezier(.3, .7, .2, 1) backwards; animation-delay: var(--d); }
+.explainer.ex--play .ef-dots { animation: ef-in .5s ease-out 1.35s backwards; }
+.explainer.ex--play .ef-rays { animation: ef-spin 30s linear infinite; transform-box: fill-box; transform-origin: center; }
+.explainer.ex--play .ef-fan { animation: ef-spin 3s linear infinite; transform-box: fill-box; transform-origin: center; }
+.explainer.ex--play .ef-batfill { animation: ef-fill 1.2s ease-out 1s backwards; }
+.ef.ef--enter { animation: ef-in .35s ease-out; }
+@keyframes ef-in { from { opacity: 0; } }
+@keyframes ef-pop { from { opacity: 0; transform: scale(.55); } }
+@keyframes ef-draw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+@keyframes ef-ring { from { stroke-dasharray: 0 var(--cl, 400); } }
+@keyframes ef-spin { to { transform: rotate(360deg); } }
+@keyframes ef-fill { from { transform: scaleY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .explainer .ef-node, .explainer .ef-band, .explainer .ef-arc, .explainer .ef-dots, .explainer .ef-rays,
+  .explainer .ef-fan, .explainer .ef-batfill, .ef.ef--enter { animation: none !important; transition: none !important; opacity: 1; stroke-dashoffset: 0; }
+  .explainer .ef-dots { display: none; }
+  .explainer .ef-arrow { display: inline; }
+}
+@media print {
+  .explainer .ef-node, .explainer .ef-arc { animation: none !important; opacity: 1 !important; }
+  .explainer .ef-band { animation: none !important; stroke-dashoffset: 0 !important; }
+  .explainer .ef-dots, .ef-period, .ef-detail { display: none; }
+  .explainer .ef-arrow { display: inline; }
+}
+
 /* v3.2.0 (F1019) — Übersicht der Einsteiger: drei Antworten */
 .dash-answer__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 .dash-answer__row { display: flex; gap: var(--sp-2); align-items: baseline; }
 .dash-explainer + .dash-explainer { border-top: 1px solid var(--border-1); padding-top: var(--sp-4); }
 @media (min-width: 900px) { .dash-explainer + .dash-explainer { border-top: 0; padding-top: 0; } }
-/* v3.2.0 — eine Karte, die erst gefüllt sichtbar wird (Schaubilder) */
-.card[hidden] { display: none; }
 
 /* ── v3.2.0 (F1018) — Einrichtungsassistent ─────────────────────────── */
 .setup { display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -1488,5 +1798,12 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .setup-utilities { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--sp-2); }
 .settings-level-list { margin: var(--sp-2) 0 var(--sp-3); padding-left: var(--sp-4); display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
 .settings-subtitle { font-size: var(--fs-md, 15px); margin: var(--sp-4) 0 var(--sp-2); }
-/* Beschriftung auf Linien: Hof in der Kartenfarbe, damit die Zahl lesbar bleibt */
-.explainer .ex-halo { paint-order: stroke; stroke: var(--bg-1); stroke-width: 4px; stroke-linejoin: round; }
+
+/* v3.4.0 (N1020) — Sicherheits-Check unter Einstellungen → Zugriff und System */
+.security-check { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.security-check__item { position: relative; padding-left: 1.6em; }
+.security-check__item::before { content: '…'; position: absolute; left: 0; font-weight: 700; }
+.security-check__item--ok::before { content: '✓'; color: var(--success); }
+.security-check__item--warn::before { content: '!'; color: var(--warning); }
+.security-check__item--bad { color: var(--danger); font-weight: 600; }
+.security-check__item--bad::before { content: '✗'; }

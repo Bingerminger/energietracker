@@ -44,6 +44,14 @@ final class TenancyService
         private I18nService $i18n,
     ) {}
 
+    /** v3.4.0 (F1024) — Verlauf: eine erfasste Abrechnung erledigt „Nebenkostenabrechnung fällig". */
+    private ?ActivityService $activity = null;
+
+    public function attachActivity(ActivityService $activity): void
+    {
+        $this->activity = $activity;
+    }
+
     // ── Mietverhältnisse ─────────────────────────────────────────────────
 
     /** @return list<array<string,mixed>> */
@@ -134,9 +142,11 @@ final class TenancyService
         $this->linkAttachments($s, [], $input['attachment_ids'] ?? []);
         $all = $this->store->read('tenancy_statements.json', []);
         if (!is_array($all)) $all = [];
+        $before = $this->statements($tenancyId);   // v3.4.0 (F1024)
         $all[] = $s;
         $this->store->write('tenancy_statements.json', array_values($all));
         $this->applyToTenancy($t, $s, $input);
+        $this->activity?->statementRecorded($t, $s, $before);
         return $s;
     }
 

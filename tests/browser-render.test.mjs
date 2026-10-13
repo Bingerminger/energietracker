@@ -12,6 +12,8 @@ const require = createRequire(import.meta.url);
 const { JSDOM } = require('jsdom');
 
 const ROOT = resolve(__dir, '..', 'public', 'js');
+// v3.4.0 — Testserver aus ET_TEST_HOST (parallele Läufe auf eigenem Port), sonst wie bisher :8899
+const HOST = (process.env.ET_TEST_HOST || 'http://127.0.0.1:8899').replace(/\/$/, '');
 let pass = 0, fail = 0;
 const t = (n, ok, info = '') => {
   if (ok) { pass++; console.log(`  \u2713 ${n}${info ? ' \u2014 ' + info : ''}`); }
@@ -26,7 +28,7 @@ function freshDom() {
        <div id="toast-stack"></div>
        <div id="modal-root"></div>
      </body>`,
-    { url: 'http://127.0.0.1:8899/', pretendToBeVisual: true }
+    { url: HOST + '/', pretendToBeVisual: true }
   );
   // JSDOM-Globals für die Module bereitstellen
   // v2.15.0 — history: Ansichten schreiben ihre Auswahl per replaceState in die Adresse
@@ -47,7 +49,7 @@ function freshDom() {
   // api.js nutzt BASE='api.php' (relativ) — daher hier wie im Browser
   // gegen die JSDOM-Basis (dom.window.location) auflösen.
   const BASE_URL = (dom.window.location && dom.window.location.href)
-    || 'http://127.0.0.1:8899/';
+    || HOST + '/';
   const nativeFetch = global.fetch;
   // v3.1.0 — Antwort sofort zu Ende lesen: Ein ungelesener Körper lässt undici in
   // der CI mit `assert(!this.paused)` abbrechen, wenn der PHP-Server die
@@ -130,7 +132,7 @@ async function renderView(modPath, params = [], ctx = {}) {
         if (m[1].startsWith('.')) await crawl(new URL(m[1], u).href);
       }
     }
-    await crawl('http://127.0.0.1:8899/public/js/app.js');
+    await crawl(HOST + '/public/js/app.js');
     t('Modulgraph: app.js + alle Importe laden via HTTP', bad.length === 0,
       bad.length ? bad.join('; ') : seen.size + ' Module');
   } catch (e) { t('Modulgraph-Vorprüfung', false, e.message); }
@@ -388,6 +390,50 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('dashboard: keine Kachel „Aktive Zähler" mehr', !/Aktive Zähler/.test(html));
   } catch (e) { t('dashboard: render', false, e.message); }
 
+  // ── v3.4.0 (F1024) — Haken in „Zu tun", Dialog, Tab „Erledigt" mit Filtern und Rückgängig ──
+  try {
+    const { api } = await import(`${ROOT}/api.js`);
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const click = (el) => el?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    await api.clearActivity();
+    const { view } = await renderView(`${ROOT}/views/dashboard.js`);
+    await sleep(100);
+    const btn = view.querySelector('.dash-todo [data-todo-done]');
+    t('dashboard: Haken neben dem Hinweis (eigener Knopf, nicht im Link, mit Namen)',
+      !!btn && !btn.closest('a') && /: .+/.test(btn.getAttribute('aria-label') || ''));
+    t('dashboard: kein Haken an „Ablesung fällig"', !view.querySelector('.dash-todo a[href^="#/zaehlerstaende"]')?.closest('li')?.querySelector('[data-todo-done]'));
+    click(btn);
+    await sleep(50);
+    const modal = global.document.querySelector('#modal-root');
+    t('dashboard: Dialog mit Datum, Notiz und Beleg',
+      !!modal.querySelector('#dd-date') && !!modal.querySelector('#dd-note') && modal.querySelector('#dd-file')?.type === 'file');
+    modal.querySelector('#dd-note').value = 'Render-Test';
+    click(modal.querySelector('[data-act="save"]'));
+    let log = [];
+    for (let i = 0; i < 40 && !log.length; i++) { await sleep(50); log = await api.activity(); }
+    t('dashboard: abgehakt → Eintrag im Verlauf (ohne Anmeldung: niemand)',
+      log.length === 1 && log[0].action === 'done' && log[0].note === 'Render-Test' && log[0].by === null, JSON.stringify(log[0]?.subject));
+    t('dashboard: Hinweis mit Rückgängig', !!global.document.querySelector('#toast-stack .toast button'));
+
+    const { view: av } = await renderView(`${ROOT}/views/activity.js`);
+    t('activity: Seitenkopf und Filter Zeitraum/Bereich',
+      !!av.querySelector('.view-header .view-header__title') && !!av.querySelector('#act-period') && !!av.querySelector('#act-area'));
+    t('activity: nach Monaten gruppiert, Eintrag mit Notiz', av.querySelectorAll('.activity-month').length === 1 && av.innerHTML.includes('Render-Test'));
+    t('activity: ohne Personen kein Personenfilter', !av.querySelector('#act-person'));
+    t('activity: Verwalter sieht „Verlauf verwalten"', !!av.querySelector('#act-manage'));
+    const area = av.querySelector('#act-area');
+    area.value = log[0].subject.kind === 'reminder' ? 'contracts' : 'reminders';
+    area.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    t('activity: Filter Bereich blendet aus', !av.querySelector('.activity-item') && !!av.querySelector('.banner'));
+    const area2 = av.querySelector('#act-area');
+    area2.value = '';
+    area2.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    click(av.querySelector('[data-undo]'));
+    for (let i = 0; i < 40 && !av.querySelector('.activity-item--undone'); i++) await sleep(50);
+    t('activity: Rückgängig streicht durch statt zu löschen', !!av.querySelector('.activity-item--undone s') && av.querySelectorAll('.activity-item').length === 1);
+    await api.clearActivity();
+  } catch (e) { t('F1024: Haken und Verlauf', false, e.message); }
+
   // ── 5. Einstellungen — seit v2.12.0 Unterseiten (Review UI-13) ──
   const settingsPage = async (page) => (await renderView(`${ROOT}/views/settings.js`, page ? [page] : [])).view;
 
@@ -499,14 +545,128 @@ async function renderView(modPath, params = [], ctx = {}) {
     const view = await settingsPage('integrations');
     t('settings/integrationen: Home Assistant', !!view.querySelector('#btn-ha-generate, #btn-ha-revoke'));
     // v2.13.0 (I18N-25) — Anleitung als Link, nicht als Pfad im Fließtext
-    const guide = [...view.querySelectorAll('a[target="_blank"]')].find(a => /anleitungen\/home-assistant\.md$/.test(a.getAttribute('href') || ''));
-    t('settings/integrationen: HA-Anleitung verlinkt', !!guide && !view.textContent.includes('HOME-ASSISTANT.md'),
+    // v3.4.0 (N1019) — im Handbuch der App, ohne neuen Tab
+    const guide = [...view.querySelectorAll('a[href^="#/help/doc/"]')].find(a => /anleitungen\/home-assistant\.md$/.test(a.getAttribute('href') || ''));
+    t('settings/integrationen: HA-Anleitung verlinkt', !!guide && !guide.hasAttribute('target') && !view.textContent.includes('HOME-ASSISTANT.md'),
       guide?.getAttribute('href'));
     // v3.1.0 (H1, API-33) — Sensor-Vorlage auf /api/summary, je Zähler mit Schlüssel aus der Summary
     const sensors = view.querySelector('#ha-sensors')?.textContent || '';
     t('settings/integrationen: REST-Sensoren auf /api/summary', /^rest:\n  - resource: ".*\/api\.php\/api\/summary"/.test(sensors)
       && /selectattr\('key', 'eq', 'gas\.[^']+'\)/.test(sensors) && sensors.includes('device_class: monetary'), sensors.slice(0, 80));
   } catch (e) { t('settings/integrationen: render', false, e.message); }
+
+  // ── 5b. v3.4.0 (N1021) — ein Formularraster, Einstellungen im Raster ──
+  // Kästchen-Beschriftung in Satzschreibung: jedes Kästchen sitzt in einem
+  // Label mit .check (oder .settings-field__check), nie in einem nackten
+  // Feld-Label, das die Versalien erbt.
+  const caseOk = (root) => [...root.querySelectorAll('input[type="checkbox"], input[type="radio"]')]
+    .filter(i => i.closest('label')).every(i => i.closest('label').matches('.check, .settings-field__check'));
+  const noOldGrid = (root) => !root.querySelector('.form-row, .form-grid, [style*="flex-end"]');
+  try {
+    const { view } = await renderView(`${ROOT}/views/contracts.js`, ['strom']);
+    await new Promise(r => setTimeout(r, 400));
+    view.querySelector('[data-action="new-contract"]')?.click();
+    await new Promise(r => setTimeout(r, 400));
+    const form = global.document.querySelector('#modal-root #contract-form');
+    const order = [...(form?.querySelectorAll(':scope > fieldset.fgroup') || [])]
+      .map(f => f.dataset.section || f.dataset.group || f.dataset.role || '');
+    const want = ['contract', 'term', 'working_prices', 'base_prices', 'advance_payments', 'grid_reduction', 'grid-tou', 'bonus', 'special'];
+    t('N1021 Vertrag: Gruppen in der Reihenfolge der Rechnung', want.every((k, i) => order.indexOf(k) >= 0 && (i === 0 || order.indexOf(k) > order.indexOf(want[i - 1]))), order.join(' → '));
+    const notes = form?.querySelector('[name="notes"]');
+    const lastGroup = [...(form?.querySelectorAll('fieldset.fgroup') || [])].at(-1);
+    t('N1021 Vertrag: Notizen am Ende', !!notes && !!lastGroup && !!(lastGroup.compareDocumentPosition(notes) & global.window.Node.DOCUMENT_POSITION_FOLLOWING) && !notes.closest('fieldset'));
+    t('N1021 Vertrag: Legende im Kasten, Felder im Raster', !!form?.querySelector('fieldset.fgroup > legend') && !!form?.querySelector('.fgrid > .field.field--s [name="start"]'));
+    t('N1021 Vertrag: kein zweites Spaltensystem, kein flex-end', !!form && noOldGrid(form));
+    t('N1021 Vertrag: Kästchen in Satzschreibung', !!form && caseOk(form));
+    // Preiszeilen im Listenraster; die zweite Zeile ist „nicht die erste" (Beschriftung nur oben)
+    const wp = form?.querySelector('[data-group="working_prices"]');
+    wp?.querySelector('[data-action="add-row"]')?.click();
+    const rows = [...(wp?.querySelectorAll('.entries.rowlist > .rowlist__row.entry-row') || [])];
+    t('N1021 Vertrag: Preiszeilen im Zeilenraster mit ✕ als eigener Spalte', rows.length === 2 && rows.every(r => r.querySelector(':scope > .rowlist__del'))
+      && rows[1].matches('.rowlist__row + .rowlist__row') && !!rows[1].querySelector(':scope > .field > label'), `${rows.length} Zeilen`);
+    // Zeitfenster: von und bis gleich (Text), „+ Zeitfenster" im Kopf
+    form?.querySelector('[data-action="add-tou"]')?.click();
+    const tou = form?.querySelector('.tou-row');
+    t('N1021 Vertrag: Zeitfenster von/bis einheitlich, Knopf im Gruppenkopf',
+      tou?.querySelector('[data-role="tou-from"]')?.type === 'text' && tou?.querySelector('[data-role="tou-to"]')?.type === 'text'
+      && form.querySelector('[data-action="add-tou"]')?.classList.contains('fgroup__add'));
+  } catch (e) { t('N1021 Vertrag', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/meters.js`, ['strom']);
+    await new Promise(r => setTimeout(r, 400));
+    view.querySelector('[data-action="new-meter"]')?.click();
+    await new Promise(r => setTimeout(r, 300));
+    const form = global.document.querySelector('#modal-root #meter-form');
+    const first = form?.querySelector('fieldset.fgroup');
+    t('N1021 Zähler: Rolle und Erfassung in der ersten Gruppe', first?.dataset.section === 'meter'
+      && !!first.querySelector('[name="role"]') && !!first.querySelector('[name="capture"]') && !!first.querySelector('[name="name"]'));
+    const groups = [...(form?.querySelectorAll('fieldset.fgroup') || [])].map(f => f.dataset.section || f.dataset.role || '');
+    t('N1021 Zähler: Gerät → Aufbau → Marktlokation → Zäsuren', ['device', 'topology', 'market', 'baseline'].every((k, i, a) => groups.indexOf(k) > (i ? groups.indexOf(a[i - 1]) : 0)), groups.join(' → '));
+    const notes = form?.querySelector('[name="notes"]');
+    t('N1021 Zähler: Notizen am Ende, ohne Kasten', !!notes && !notes.closest('fieldset') && !!(form.querySelector('[data-section="baseline"]').compareDocumentPosition(notes) & global.window.Node.DOCUMENT_POSITION_FOLLOWING));
+    t('N1021 Zähler: Zäsur-Knopf im Raster statt flex-end', !!form?.querySelector('.fgrid > .field > #bl-add:first-child') && noOldGrid(form));
+  } catch (e) { t('N1021 Zähler', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/tariff.js`);
+    await new Promise(r => setTimeout(r, 300));
+    const util = view.querySelector('#t-util');
+    if (util) { util.value = 'strom'; util.dispatchEvent(new global.window.Event('change', { bubbles: true })); }
+    await new Promise(r => setTimeout(r, 600));
+    view.querySelector('#t-addshadow')?.click();
+    await new Promise(r => setTimeout(r, 200));
+    const body = global.document.querySelector('#modal-root .modal__body');
+    const dyn = [...(body?.querySelectorAll('[data-dyn]') || [])];
+    // Bis v3.3 übersteuerte `.form-grid label{display:flex}` das hidden-Attribut
+    t('N1021 Angebot: Felder des dynamischen Tarifs mit hidden, im Raster statt .form-grid',
+      dyn.length === 2 && dyn.every(el => el.hidden && el.matches('.fgrid > .field')) && !body.querySelector('.form-grid'), `${dyn.length} Felder`);
+    t('N1021 Angebot: Kästchen in Satzschreibung', !!body && caseOk(body));
+  } catch (e) { t('N1021 Angebot', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/reminders.js`);
+    view.querySelector('#rem-add')?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    const body = global.document.querySelector('#modal-root .modal__body');
+    t('N1021 Termin: Formularraster, Intervall per hidden', !!body?.querySelector('.fgrid > .field > #f-title') && body.querySelector('#f-rm-wrap')?.hidden === true
+      && !body.querySelector('.form-grid'));
+  } catch (e) { t('N1021 Termin', false, e.message); }
+
+  // Einstellungen: jede Karte im Raster, breite Karten am Ende
+  try {
+    const outside = [], order = [];
+    for (const page of ['general', 'household', 'utilities', 'data', 'integrations', 'access', 'expert', 'system']) {
+      const view = await settingsPage(page);
+      view.querySelectorAll('.card').forEach(c => { if (!c.parentElement?.classList.contains('settings-grid')) outside.push(`${page}:${c.id || c.className}`); });
+      // „Daten": der einzelne Verweis auf den Jahresbericht steht bewusst am Ende
+      if (page !== 'data') view.querySelectorAll('.settings-grid').forEach(g => {
+        const cards = [...g.children];
+        const firstWide = cards.findIndex(c => c.classList.contains('settings-card--wide'));
+        if (firstWide >= 0 && cards.slice(firstWide).some(c => !c.classList.contains('settings-card--wide'))) order.push(page);
+      });
+    }
+    t('N1021 Einstellungen: jede Karte im Raster', outside.length === 0, outside.join(', '));
+    t('N1021 Einstellungen: breite Karten am Seitenende', order.length === 0, order.join(', '));
+    const util = await settingsPage('utilities');
+    const au = util.querySelector('#active-utils-card');
+    t('N1021 Einstellungen: „Aktive Verbrauchsarten" schmal, Kästchen in Spalten',
+      !!au && !au.classList.contains('settings-card--wide') && util.querySelector('#active-utils')?.classList.contains('check-grid'));
+    const integ = await settingsPage('integrations');
+    t('N1021 Einstellungen: Home Assistant geteilt — Token schmal, Vorlagen breit',
+      !integ.querySelector('#ha-card').classList.contains('settings-card--wide') && !!integ.querySelector('#ha-card #btn-ha-generate, #ha-card #btn-ha-revoke')
+      && integ.querySelector('#ha-setup-card')?.classList.contains('settings-card--wide') && !!integ.querySelector('#ha-setup-card #ha-yaml'));
+    const access = await settingsPage('access');
+    t('N1021 Einstellungen: Anmeldung schmal, API-Schlüssel breit',
+      !!access.querySelector('#security-card') && !access.querySelector('#security-card').classList.contains('settings-card--wide')
+      && access.querySelector('#keys-card')?.classList.contains('settings-card--wide') && !!access.querySelector('#keys-card #btn-key-create')
+      && noOldGrid(access));
+    const system = await settingsPage('system');
+    const link = system.querySelector('#support-card a[data-support-link]');
+    t('N1021 System: „Energietracker unterstützen" mit Link in neuem Tab',
+      link?.getAttribute('href') === 'https://buymeacoffee.com/bingerminger' && link.getAttribute('target') === '_blank'
+      && link.getAttribute('rel') === 'noopener noreferrer' && !system.querySelector('#support-card').classList.contains('settings-card--wide'),
+      link?.outerHTML.slice(0, 120));
+  } catch (e) { t('N1021 Einstellungen', false, e.message); }
 
   // ── 6. Utility-View: Delivery-Modus (Heizöl) ──
   try {
@@ -599,6 +759,21 @@ async function renderView(modPath, params = [], ctx = {}) {
     for (let i = 0; i < 20 && !view.querySelector('#bi-form'); i++) await new Promise(r => setTimeout(r, 100));
     t('billCheck(strom): Formular „Laut Rechnung" ohne CO₂-Felder', !!view.querySelector('#bi-form') && !view.querySelector('#bi-co2kg'));
   } catch (e) { t('billCheck(strom): render', false, e.message); }
+
+  // v3.4.0 (N1021) — über „Kosten → Rechnung prüfen“ (ohne Parameter): Die
+  // Seite rechnet sofort mit der letzten abgeschlossenen Abrechnungsperiode.
+  // Bis v3.3 blieb das Ergebnis leer, bis jemand „Nachrechnen“ drückte.
+  try {
+    const { view } = await renderView(`${ROOT}/views/bill-check.js`, [], { query: new URLSearchParams('') });
+    for (let i = 0; i < 40 && !view.querySelector('#bc-result table'); i++) await new Promise(r => setTimeout(r, 100));
+    const y = new Date().getFullYear() - 1;
+    t('billCheck ohne Parameter: Tabelle ohne Klick', !!view.querySelector('#bc-result table'));
+    t('billCheck ohne Parameter: letzte abgeschlossene Periode, bis einschließlich',
+      view.querySelector('#bc-from')?.value === `${y}-01-01` && view.querySelector('#bc-until')?.value === `${y}-12-31`,
+      `${view.querySelector('#bc-from')?.value} – ${view.querySelector('#bc-until')?.value}`);
+    const cap = view.querySelector('details[data-role="bills"]');
+    t('billCheck ohne Parameter: Erfassen eingeklappt unter dem Ergebnis', !!cap && !cap.open && !!cap.querySelector('#bi-form'));
+  } catch (e) { t('billCheck ohne Parameter: render', false, e.message); }
 
   // ── 7a. Utility-View Wasser: KEINE Spalte Sonderzahlungen (kennt keine) ──
   try {
@@ -754,6 +929,11 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('contractsOverview: laufender Gasvertrag mit Erwartung zur Abrechnung',
       !!view.querySelector('.contract-overview[data-utility="gas"] .contract-overview__expected'));
     t('contractsOverview: Verweis auf die Vertragsverwaltung', !!view.querySelector('a[href="#/utility/gas/contracts"]'));
+    // v3.4.0 — unbefristet/weiterlaufend: „Jederzeit kündbar“ statt eines Stichtags „heute“
+    t('contractsOverview: unbefristeter Vertrag „Jederzeit kündbar“',
+      !!view.querySelector('.contract-overview[data-utility="fernwaerme"]')?.textContent.includes('Jederzeit kündbar'));
+    t('contractsOverview: befristeter Vertrag mit datiertem Stichtag',
+      !!view.querySelector('.contract-overview[data-utility="gas"]')?.textContent.includes('Kündigen bis'));
   } catch (e) { t('contractsOverview: render', false, e.message); }
 
   // ── 13. v2.11.0 — Jahresbericht als eigene Seite ──
@@ -773,17 +953,35 @@ async function renderView(modPath, params = [], ctx = {}) {
     for (const lang of ['de', 'fr']) {
       await i18n.initI18n(lang);
       const { view } = await renderView(`${ROOT}/views/report-print.js`, [], { query: new URLSearchParams(`year=${year}`) });
-      const sections = view.querySelectorAll('.report-print .print-section');
-      const meters = view.querySelectorAll('.report-print__bars').length;
+      // v3.4.0 (F1025) — dasselbe Modell wie das PDF: das Wichtigste, Erfolge,
+      // Aufgaben, je Verbrauchsart ein Abschnitt, Themen, Wörterbuch
+      const utilities = view.querySelectorAll('.report-print__utility').length;
       const text = view.querySelector('.report-print')?.textContent || '';
-      t(`report-print (${lang}): Deckblatt, Übersicht, je Zähler ein Abschnitt, Empfehlungen`,
-        sections.length === meters + 3 && meters >= 3, `${sections.length} Abschnitte, ${meters} Zähler`);
+      t(`report-print (${lang}): das Wichtigste, Erfolge, Aufgaben, Wörterbuch, je Verbrauchsart ein Abschnitt`,
+        !!view.querySelector('.report-print__cover') && !!view.querySelector('.report-print__successes-section')
+        && !!view.querySelector('.report-print__tasks-section') && !!view.querySelector('.report-print__glossary') && utilities >= 3,
+        `${utilities} Verbrauchsarten`);
+      const lights = [...view.querySelectorAll('.report-print__light')];
+      t(`report-print (${lang}): vier Ampeln, jede mit Symbol und Wort`,
+        lights.length === 4 && lights.every(l => /[✔▲✖●]\s*\S/.test(l.querySelector('.report-print__light-word')?.textContent || '')));
+      t(`report-print (${lang}): „Stand heute“ als Kasten`, view.querySelectorAll('.report-print__today').length >= 2);
+      t(`report-print (${lang}): Schaubilder aus explainer.js (Energiefluss der PV, Zeitstrahl)`,
+        !!view.querySelector('.explainer.ex-energy') && !!view.querySelector('.explainer.ex-timeline'));
+      t(`report-print (${lang}): ohne Häkchen kein Anhang`, !view.querySelector('.report-print__appendix'));
       t(`report-print (${lang}): kein Rohschlüssel, kein „undefined"`, !rawKey.test(text) && !/undefined|NaN/.test(text),
         (text.match(rawKey) || text.match(/undefined|NaN/) || [''])[0]);
       if (lang === 'fr') {
         t('report-print (fr): Zahlen mit geschütztem Tausendertrenner', /\d[  ]\d{3}/.test(text));
         t('report-print (fr): französische Überschriften', /Rapport annuel/.test(text) && !/Jahresbericht/.test(text));
       }
+    }
+    {
+      await i18n.initI18n('de');
+      const { view } = await renderView(`${ROOT}/views/report-print.js`, [], { query: new URLSearchParams(`year=${year}&detail=1`) });
+      const tables = view.querySelectorAll('.report-print__appendix table');
+      t('report-print: mit Häkchen der Anhang „Zahlen im Detail“, je Verbrauchsart eine Tabelle mit Kopfzeile',
+        tables.length >= 3 && [...tables].every(tb => tb.querySelector('thead th[scope="col"]')), `${tables.length} Tabellen`);
+      t('report-print: Häkchen gesetzt', view.querySelector('#print-detail')?.checked === true);
     }
     // v3.1.0 (I18N-18) — Hauptansichten in fr und en: kein Rohschlüssel, kein „undefined"
     for (const lang of ['fr', 'en']) {
@@ -843,15 +1041,73 @@ async function renderView(modPath, params = [], ctx = {}) {
     const shown = items.filter(el => !el.hidden).length;
     t('help: Suche filtert', shown >= 1 && shown < items.length, `${shown} Treffer`);
     // v2.14.0 — jeder Link zeigt auf eine Seite aus lib/docs.js (DocsIntegrityTest prüft, dass es sie gibt)
+    // v3.4.0 (N1019) — in der App (#/help/doc/…), nicht mehr auf GitHub
     const docs = await import(`${ROOT}/lib/docs.js`);
-    const hrefs = [...view.querySelectorAll('.help-links a')].map(a => a.getAttribute('href') || '');
-    // v3.2.0 — dazu Einrichten und Anwendungsfälle (8 Links)
-    t('help: Doku-Links auf echte Seiten', hrefs.length === 8 && hrefs.every(h => docs.DOC_PATHS.some(p => h.endsWith('/' + p))), hrefs.join(' '));
-    t('help: Anwendungsfälle in jeder Sprache', view.querySelectorAll('.help-cases__item').length === 3
-      && ![...view.querySelectorAll('.help-cases__item')].some(el => /help\.cases\./.test(el.textContent)));
+    const hrefs = [...view.querySelectorAll('.help-links a, [data-role="handbook"]')].map(a => a.getAttribute('href') || '');
+    const inApp = (h) => h.startsWith('#/help/doc/') && docs.DOC_PATHS.includes('docs/' + decodeURIComponent(h.slice('#/help/doc/'.length).split('?')[0]));
+    t('help: Handbuch und Doku-Links in der App', hrefs.length === 8 && hrefs.every(inApp)
+      && view.querySelector('[data-role="handbook"]')?.getAttribute('href') === '#/help/doc/README.md', hrefs.join(' '));
+    t('help: Doku-Links ohne neuen Tab', !view.querySelector('a[href^="#/help/doc/"][target]'));
+    // v3.4.0 — alle Anwendungsfälle A–G und die Stufen, je mit Sprung in den Abschnitt
+    const cases = [...view.querySelectorAll('.help-cases__item')];
+    const more = cases.map(el => el.querySelector('.help-cases__more a')?.getAttribute('href') || '');
+    t('help: Anwendungsfälle in jeder Sprache', cases.length === docs.CASES.length && docs.CASES.length >= 8
+      && !cases.some(el => /help\.cases\./.test(el.textContent)), `${cases.length} Fälle`);
+    t('help: jeder Fall springt in seinen Abschnitt', more.every((h, i) => inApp(h) && h.endsWith(`?h=${docs.CASES[i].anchor}`)), more.slice(0, 3).join(' '));
     t('help: FAQ und Fehlersuche verlinkt', hrefs.some(h => /einstieg\/faq\.md$/.test(h)) && hrefs.some(h => /betrieb\/fehlersuche\.md$/.test(h)));
+    t('help: Handbuch liegt auf dem Server (Hinweis mit Version)', view.textContent.includes('1.3.0'));
     t('help: Checkliste Erste Schritte', !!view.querySelector('[data-role="setup"] .setup-list, [data-role="setup"] .banner--success'));
   } catch (e) { t('help: render', false, e.message); }
+
+  // ── 16b. v3.4.0 (N1019) — Handbuch in der App, vom eigenen Server ──
+  try {
+    const { view } = await renderView(`${ROOT}/views/help-doc.js`, ['anleitungen/anwendungsfaelle.md'],
+      { query: new URLSearchParams('h=case-heat') });
+    t('help-doc: Seite vom Server gerendert', !!view.querySelector('.doc-body h1') && view.querySelector('.doc-body')?.getAttribute('lang') === 'de',
+      view.querySelector('.doc-body h1')?.textContent);
+    t('help-doc: Inhaltsverzeichnis mit Sprüngen', view.querySelectorAll('.doc-toc a[href^="#/help/doc/anleitungen/anwendungsfaelle.md?h="]').length >= 7);
+    t('help-doc: Sprungmarke des Anwendungsfalls (Präfix d-)', !!view.querySelector('#d-case-heat') && !view.querySelector('#case-heat'));
+    t('help-doc: Umschalter Deutsch/Englisch behält die Sprungmarke',
+      !!view.querySelector('.doc-langs a[href="#/help/doc/en/anleitungen/anwendungsfaelle.md?h=case-heat"]')
+      && view.querySelector('.doc-langs [aria-current]')?.getAttribute('lang') === 'de');
+    const links = [...view.querySelectorAll('.doc-body a[href]')].map(a => a.getAttribute('href'));
+    t('help-doc: Doku-Links bleiben in der App, kein blob/…/docs', links.filter(h => h.startsWith('#/help/doc/')).length > 20
+      && !links.some(h => /github\.com\/[^ ]*\/blob\//.test(h)), `${links.length} Links`);
+    t('help-doc: externe Links mit rel="noopener noreferrer"', [...view.querySelectorAll('.doc-body a[href^="http"]')]
+      .every(a => a.target === '_blank' && a.rel === 'noopener noreferrer'));
+    t('help-doc (de): kein Englisch-Hinweis', !view.querySelector('.doc-hint'));
+    // Sprung innerhalb der Seite: scrollen statt neu aufbauen
+    const toc = view.querySelector('.doc-toc a');
+    const ev = new global.window.MouseEvent('click', { bubbles: true, cancelable: true });
+    toc.dispatchEvent(ev);
+    t('help-doc: Inhaltsverzeichnis springt ohne Neuaufbau', ev.defaultPrevented && global.location.hash === toc.getAttribute('href'), global.location.hash);
+  } catch (e) { t('help-doc: render', false, e.message); }
+
+  try {
+    const { view } = await renderView(`${ROOT}/views/help-doc.js`, ['referenz/ansichten.md']);
+    const imgs = [...view.querySelectorAll('.doc-body img')];
+    const src = imgs[0]?.getAttribute('src') || '';
+    const r = src ? await fetch(src) : null;
+    t('help-doc: Bilder über /api/docs/asset mit Version', imgs.length > 10 && imgs.every(i => /\/api\/docs\/asset\?path=ui%2Fscreenshots%2F.+&v=1\.3\.0$/.test(i.getAttribute('src')))
+      && r?.ok && r.headers.get('content-type') === 'image/png', `${imgs.length} Bilder, ${src.slice(-60)}`);
+    t('help-doc: Tabellen und Code scrollen in sich', !!view.querySelector('.doc-body .doc-table > table'));
+    const lic = (await renderView(`${ROOT}/views/help-doc.js`, ['root/LICENSE'])).view;
+    t('help-doc: LICENSE als Text', !!lic.querySelector('pre.doc-plain') && /GNU AFFERO/.test(lic.textContent));
+    const nope = (await renderView(`${ROOT}/views/help-doc.js`, ['nope.md'])).view;
+    t('help-doc: unbekannte Seite → Hinweis und Weg zurück', !!nope.querySelector('.banner--warning') && !nope.querySelector('.doc-body')
+      && !!nope.querySelector('a[href="#/help/doc/README.md"]'), nope.querySelector('.banner--warning')?.textContent);
+    await renderView(`${ROOT}/views/help-doc.js`, ['ERSTE-SCHRITTE.md'], { query: new URLSearchParams() });
+    t('help-doc: alter Pfad führt zur neuen Seite', global.location.hash === '#/help/doc/einstieg/erste-schritte.md', global.location.hash);
+    const i18n = await import(`${ROOT}/lib/i18n.js`);
+    for (const lang of ['fr', 'en']) {
+      await i18n.initI18n(lang);
+      const v = (await renderView(`${ROOT}/views/help-doc.js`, ['en/README.md'])).view;
+      const hint = v.querySelector('.doc-hint')?.textContent || '';
+      if (lang === 'fr') t('help-doc (fr): Hinweis „englische Fassung“ auf Französisch', /version anglaise/.test(hint), hint);
+      else t('help-doc (en): kein Hinweis', !hint);
+    }
+    await i18n.initI18n('de');
+  } catch (e) { t('help-doc: Bilder, Text, Fehler', false, e.message); }
 
   try {
     const dom = freshDom();
@@ -873,7 +1129,7 @@ async function renderView(modPath, params = [], ctx = {}) {
       !!pop && pop.textContent.includes('Kleiner als der vorherige Stand.') && !pop.querySelector('.info-pop__more'));
 
     // v3.1.0 (I18N-27) — Rechnungsbegriff des eingestellten Landes
-    const countries = await (await global.fetch('http://127.0.0.1:8899/api.php/api/countries')).json().then(d => d.data ?? d);
+    const countries = await (await global.fetch(HOST + '/api.php/api/countries')).json().then(d => d.data ?? d);
     gl.setBillContext(countries.find(c => c.code === 'FR'));
     global.document.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     main.innerHTML = `<p>${gl.info('workingPrice')}</p>`;
@@ -1101,6 +1357,16 @@ async function renderView(modPath, params = [], ctx = {}) {
     // Die Teile ergeben das Ganze: erzeugt = selbst genutzt + eingespeist (nur gedeckte Monate)
     const nums = ((view.querySelector('#pv-flow-chart')?.getAttribute('aria-label') || '').match(/[\d.]+(?=\skWh)/g) || []).map(s => Number(s.replace(/\./g, '')));
     t('utility(pv_erzeugung): Kurzbeschreibung — erzeugt = selbst genutzt + eingespeist', nums.length >= 3 && Math.abs(nums[0] - nums[1] - nums[2]) <= 2, nums.join(' | '));
+    // v3.4.0 (F1026) — Schaubild Energiefluss aus der echten Antwort: Jahr/Monat,
+    // Knöpfe, Grafik aria-hidden; ein Wechsel auf den Monat bleibt im Bild
+    const ef = view.querySelector('.ex-energy');
+    const efSvg = ef?.querySelector('svg.ef');
+    t('utility(pv_erzeugung): Energiefluss mit Zeitraum und Knöpfen', !!efSvg && efSvg.getAttribute('aria-hidden') === 'true'
+      && ef.querySelectorAll('.ef-chip[aria-pressed]').length >= 3 && !!ef.querySelector('[data-ef-scope="month"]'),
+      ef?.querySelector('.explainer__text')?.textContent);
+    ef?.querySelector('[data-ef-scope="month"]')?.click();
+    t('utility(pv_erzeugung): Energiefluss auf Monat umgeschaltet', ef?.querySelector('[data-ef-scope="month"]')?.getAttribute('aria-pressed') === 'true'
+      && !/^\d{4}/.test(ef.querySelector('.ef-period__label')?.textContent || ''), ef?.querySelector('.ef-period__label')?.textContent);
   } catch (e) { t('utility(pv_erzeugung): F2', false, e.message); }
 
   try {

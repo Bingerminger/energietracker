@@ -126,6 +126,11 @@ $h = fn(string $v): string => htmlspecialchars($v, ENT_QUOTES);
 $demoBuild = getenv('ET_DEMO_BUILD') === '1';
 // v3.1.0 (Ökosystem G1/G3) — hinter Home-Assistant-Ingress?
 $ingress = trim((string)($_SERVER['HTTP_X_INGRESS_PATH'] ?? '')) !== '';
+// v3.4.0 (N1020) — den Hostnamen des Containers (für die HA-Vorlage) nur
+// melden, wenn die Anfrage wirklich vom Supervisor kommt (ET_TRUSTED_PROXIES);
+// bis v3.3 bekam ihn jeder, der die Kopfzeile selbst setzte.
+require_once __DIR__ . '/src/bootstrap.php';
+$ingressMeta = $ingress && \Energietracker\Services\AuthService::fromTrustedProxy($_SERVER);
 ?>
 <!doctype html>
 <html lang="<?= $h($lang) ?>"<?= $demoBuild ? ' data-demo' : '' ?>>
@@ -135,7 +140,7 @@ $ingress = trim((string)($_SERVER['HTTP_X_INGRESS_PATH'] ?? '')) !== '';
      reicht die Seite bis unter Uhr und Home-Balken; die Abstände dafür setzt
      das CSS über env(safe-area-inset-*). -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<?php if ($ingress): ?><meta name="et-ingress-host" content="<?= $h((string)gethostname()) ?>"><?php endif; ?>
+<?php if ($ingressMeta): ?><meta name="et-ingress-host" content="<?= $h((string)gethostname()) ?>"><?php endif; ?>
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111827">
 <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">

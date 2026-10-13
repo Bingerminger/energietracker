@@ -18,7 +18,7 @@ Please do **not** report security issues as an issue, but as described in
 
 ## Setting up
 
-PHP 8.2 or newer is enough to run it (the CI checks 8.2, 8.3 and 8.4), without
+PHP 8.2 or newer is enough to run it (the CI checks 8.2 to 8.5), without
 Composer, without a build step:
 
 ```bash

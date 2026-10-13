@@ -216,9 +216,17 @@ final class TemperatureService
             }
         }
 
+        // v3.4.0 (N1020) — erst alles abrufen (Archiv, Vorhersage, Klimanormal),
+        // dann sperren und schreiben: Bis v3.3 hielt der Abgleich die
+        // Schreibsperre für die ganze Wartezeit auf Open-Meteo (bis zu 120 s).
         $archiveRows = 0; $archiveError = null; $archiveCode = null;
-        if ($archiveFrom !== null) {
-            $res = $this->weather->fetchArchive($lat, $lon, $archiveFrom, $end);
+        $res = $archiveFrom !== null ? $this->weather->fetchArchive($lat, $lon, $archiveFrom, $end) : null;
+        // Vorhersage (und die jüngsten Tage): nur wo kein Messwert steht.
+        $forecast = $this->weather->fetchForecast($lat, $lon, 14, 7);
+        $climateFetch = $this->fetchClimateNormal($lat, $lon);
+
+        $this->store->lock();
+        if ($res !== null) {
             $archiveError = $this->weatherError($res);
             $archiveCode = $res['error_code'] ?? null;
             $archiveRows = $this->bulkUpsert($res['data'] ?? [], 'archive',
@@ -226,13 +234,10 @@ final class TemperatureService
                     ? !in_array($e['source'] ?? null, ['csv', 'manual'], true)
                     : !$measured($d, $e));
         }
-
-        // Vorhersage (und die jüngsten Tage): nur wo kein Messwert steht.
-        $forecast = $this->weather->fetchForecast($lat, $lon, 14, 7);
         $forecastRows = $this->bulkUpsert($forecast['data'] ?? [], 'forecast',
             fn(string $d, ?array $e): bool => !$measured($d, $e) || ($e['source'] ?? null) === 'forecast');
 
-        $climate = $this->ensureClimateNormal($lat, $lon);
+        $climate = $this->saveClimateNormal($climateFetch, $lat, $lon);
 
         $all = $this->all();
         $measuredUntil = null; $forecastUntil = null;
@@ -308,21 +313,30 @@ final class TemperatureService
     }
 
     /**
-     * Holt das Klimanormal, wenn es fehlt oder veraltet ist.
+     * Holt das Klimanormal, wenn es fehlt oder veraltet ist (ohne zu schreiben).
+     * @return array{res:array<string,mixed>, period:array<string,string>}|null null: vorhanden oder ohne Normaldienst
+     */
+    private function fetchClimateNormal(float $lat, float $lon): ?array
+    {
+        if ($this->climate === null || !$this->climate->isStale(round($lat, 2), round($lon, 2))) return null;
+        $period = ClimateNormalService::period();
+        return ['res' => $this->weather->fetchArchiveMeans($lat, $lon, $period['from'], $period['to']), 'period' => $period];
+    }
+
+    /**
+     * Speichert ein abgerufenes Klimanormal.
+     * @param array{res:array<string,mixed>, period:array<string,string>}|null $fetched aus fetchClimateNormal()
      * @return array<string,mixed>|null Zusammenfassung oder null ohne Normaldienst
      */
-    private function ensureClimateNormal(float $lat, float $lon): ?array
+    private function saveClimateNormal(?array $fetched, float $lat, float $lon): ?array
     {
         if ($this->climate === null) return null;
-        if (!$this->climate->isStale(round($lat, 2), round($lon, 2))) {
-            return ['status' => 'present'] + ($this->climate->summary() ?? []);
-        }
-        $period = ClimateNormalService::period();
-        $res = $this->weather->fetchArchiveMeans($lat, $lon, $period['from'], $period['to']);
+        if ($fetched === null) return ['status' => 'present'] + ($this->climate->summary() ?? []);
+        $res = $fetched['res'];
         if (($res['data'] ?? []) === []) {
             return ['status' => 'failed', 'error' => $this->weatherError($res), 'error_code' => $res['error_code'] ?? null] + ($this->climate->summary() ?? []);
         }
-        $this->climate->save(ClimateNormalService::compute($res['data'], $lat, $lon, $period));
+        $this->climate->save(ClimateNormalService::compute($res['data'], $lat, $lon, $fetched['period']));
         return ['status' => 'fetched'] + ($this->climate->summary() ?? []);
     }
 

@@ -14,10 +14,11 @@ on:
     - cron: '17 3 * * 1'
   workflow_dispatch:
 
+# v3.4.0 (N1020) — Rechte je Job: Gebaut wird nur mit Leserechten (dort laufen
+# PHP-Einrichtung und der Demo-Bau); schreiben darf allein der Job, der
+# veröffentlicht, und der führt nur Actions von GitHub selbst aus.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Eine Veröffentlichung zur Zeit; eine neuere ersetzt eine wartende.
 concurrency:
@@ -25,20 +26,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Demo bauen und veröffentlichen
+  build:
+    name: Demo bauen
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Neuestes Release auschecken
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          TAG="${{ github.event.release.tag_name }}"
+          TAG="$RELEASE_TAG"
           if [ -z "$TAG" ]; then
             TAG=$(git tag --list 'v*' --sort=-version:refname | head -n1)
           fi
@@ -46,7 +46,7 @@ jobs:
           echo "Demo aus $TAG"
 
       - name: PHP einrichten (8.4)
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: "8.4"
           extensions: mbstring, json
@@ -60,13 +60,24 @@ jobs:
       - name: Demo bauen
         run: node tools/build-demo.mjs --out dist/demo
 
-      - name: Pages einrichten
-        uses: actions/configure-pages@v6
-
       - name: Hochladen
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist/demo
+
+  deploy:
+    name: Demo veröffentlichen
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Pages einrichten
+        uses: actions/configure-pages@v6
 
       - name: Veröffentlichen
         id: deployment

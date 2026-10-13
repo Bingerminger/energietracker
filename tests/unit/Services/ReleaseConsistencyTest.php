@@ -77,6 +77,22 @@ final class ReleaseConsistencyTest extends TestCase
         );
     }
 
+    /**
+     * v3.4.0 — Release-Notes sind zweisprachig: Ab 3.4.0 hat jede Version
+     * neben dem deutschen auch einen englischen Abschnitt in CHANGELOG.en.md,
+     * und zwar für dieselben Versionen.
+     */
+    public function testEnglishChangelogFollowsTheGermanOneFrom340(): void
+    {
+        $de = (string)file_get_contents(self::root() . '/CHANGELOG.md');
+        $en = (string)file_get_contents(self::root() . '/CHANGELOG.en.md');
+        preg_match_all('/^## \[(\d+\.\d+\.\d+)\]/m', $de, $mDe);
+        preg_match_all('/^## \[(\d+\.\d+\.\d+)\]/m', $en, $mEn);
+        $from340 = array_values(array_filter($mDe[1], fn($v) => version_compare($v, '3.4.0', '>=')));
+        self::assertContains(self::version(), $mEn[1], 'CHANGELOG.en.md hat keinen Abschnitt für die aktuelle Version');
+        self::assertSame($from340, $mEn[1], 'CHANGELOG.en.md führt ab 3.4.0 nicht dieselben Versionen wie CHANGELOG.md');
+    }
+
     /** Die Versionsstempel der Einstiegsdokumente folgen dem Release. */
     public function testReadmeAndInstallCarryTheCurrentVersion(): void
     {
@@ -201,9 +217,9 @@ final class ReleaseConsistencyTest extends TestCase
                     && !preg_match('#url\(\s*["\']?https?://#i', $line)) {
                     continue;
                 }
-                // Der Projekt-Link in der Fußzeile ist ein Verweis, keine
-                // geladene Ressource.
-                if (str_contains($line, 'github.com/Bingerminger')) continue;
+                // v3.4.0 (N1019) — keine pauschale Ausnahme mehr für GitHub:
+                // Welche Links dorthin erlaubt sind, prüft
+                // testFrontendLinksToGithubOnlyForIssuesProjectAndSource.
                 // v2.13.0 — ein Link (<a href>) lädt nichts; geprüft bleiben
                 // src, url() und <link href> (etwa die Quellenangabe Open-Meteo)
                 $withoutLinks = preg_replace('#<a\s[^>]*href\s*=\s*["\']https?://[^"\']*["\']#i', '', $line);
@@ -216,6 +232,45 @@ final class ReleaseConsistencyTest extends TestCase
         }
         self::assertSame([], $offenders,
             "Externe Ressourcen im Frontend:\n" . implode("\n", $offenders));
+    }
+
+    /**
+     * v3.4.0 (N1019) — Die Doku kommt vom eigenen Server; nach GitHub führen
+     * aus dem Frontend nur noch die Fehlermeldung (`/issues`), die
+     * Projektseite (Repo-Wurzel, in der Demo auch ihre deutsche Fassung
+     * README.de.md als Installationsweg) und der Quellcode der Version
+     * (`/tree/v<version>`, AGPL § 13). Bis v3.3 zeigten 13 Stellen auf
+     * `blob/main/docs/…` — die Doku einer anderen Version, ohne Internet gar
+     * keine.
+     *
+     * Geprüft wird der Quelltext: jedes Literal der Repo-Adresse und jede
+     * Fortsetzung einer Konstante, die sie hält (`${REPO_URL}…`, `${REPO}…`,
+     * `${repo}…`).
+     */
+    public function testFrontendLinksToGithubOnlyForIssuesProjectAndSource(): void
+    {
+        $files = ['index.php', 'sw.js'];
+        $it = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(self::root() . '/public/js', \FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($it as $f) {
+            if ($f->isFile() && $f->getExtension() === 'js') $files[] = substr($f->getPathname(), strlen(self::root()) + 1);
+        }
+        // erlaubte Fortsetzungen hinter der Repo-Adresse
+        $allowed = '#^(?:$|/issues(?:$|/)|/tree/v|\#[a-z-]+$|/blob/main/README\.de\.md\#[a-z-]+$)#';
+        $offenders = [];
+        foreach ($files as $rel) {
+            foreach (file(self::root() . '/' . $rel) ?: [] as $n => $line) {
+                $suffixes = [];
+                if (preg_match_all('#github\.com/Bingerminger/energietracker([^\s\'"`<>)]*)#', $line, $m)) $suffixes = $m[1];
+                if (preg_match_all('#\$\{(?:REPO_URL|REPO|repo)\}([^\s\'"`<>)]*)#', $line, $m)) $suffixes = array_merge($suffixes, $m[1]);
+                foreach ($suffixes as $s) {
+                    if (!preg_match($allowed, $s) || str_contains($s, 'docs')) $offenders[] = "$rel:" . ($n + 1) . " → …energietracker$s";
+                }
+                if (preg_match('#/blob/[^\s\'"`]*docs/#', $line)) $offenders[] = "$rel:" . ($n + 1) . ' → blob/…/docs';
+            }
+        }
+        self::assertSame([], $offenders, "GitHub-Links außerhalb der Freigabe (Issues, Projekt, Quellcode der Version):\n" . implode("\n", $offenders));
     }
 
     /**

@@ -42,6 +42,7 @@ Einrichtungsassistent. Mehr: [Einrichtung](../einstieg/einrichtung.md).
 
 ---
 
+<a id="case-shared-meters"></a>
 ## A — WG mit geteilten Zählern
 
 **Situation.** Vierer-WG, ein gemeinsamer Stromhauptzähler. Eine Person betreibt
@@ -73,6 +74,7 @@ Doppelzählung bleiben. Details: [Meter-Topologie](../verstehen/13-meter-topolog
 
 ---
 
+<a id="case-home-assistant"></a>
 ## B — Smart Home / Home Assistant-Vollausbau
 
 **Situation.** Technikaffiner Haushalt mit Home Assistant (HA), das bereits alle
@@ -119,6 +121,7 @@ komplette Schritt-für-Schritt-Anleitung inkl. Fehlersuche steht in
 
 ---
 
+<a id="case-pv-heat-pump"></a>
 ## C — PV-Haushalt mit Wärmepumpe
 
 **Situation.** Eigenheim mit PV-Anlage und Wärmepumpe. Gewünscht: Autarkiequote,
@@ -178,6 +181,7 @@ Wärmemengenzähler, Wallbox ([Beispielhaushalte](#beispielhaushalte-zum-ansehen
 
 ---
 
+<a id="case-landlord"></a>
 ## D — Vermieter mit mehreren Einheiten
 
 **Situation.** Zweifamilienhaus, vermietet. Pro Wohneinheit eigene Zähler für
@@ -216,6 +220,7 @@ Verbrauchsart, nicht je Einheit.
 
 ---
 
+<a id="case-wallbox"></a>
 ## E — Wallbox und Dienstwagen
 
 **Situation.** Eigenheim mit Wallbox hinter dem Haushaltszähler. Der
@@ -255,6 +260,7 @@ evcc ([Use-Case G](#g--steuern-mit-evcc-oder-home-assistant--nachrechnen-im-ener
 
 ---
 
+<a id="case-heat"></a>
 ## F — Fernwärme oder Heizwärme?
 
 **Situation.** Zwei Verbrauchsarten klingen fast gleich und zählen beide Wärme
@@ -345,6 +351,7 @@ Die Karte steht in der Stufe „Experte“
 
 ---
 
+<a id="case-control"></a>
 ## G — Steuern mit evcc oder Home Assistant — nachrechnen im Energietracker
 
 **Situation.** Ein Energieberater fragt nach einem „Controller“: Er soll den

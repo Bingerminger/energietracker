@@ -52,6 +52,14 @@ final class ReminderService
         private I18nService $i18n,
     ) {}
 
+    /** v3.4.0 (F1024) — Verlauf: jedes Erledigen ein Eintrag (wer, wann, Notiz), Rückgängig stellt zurück. */
+    private ?ActivityService $activity = null;
+
+    public function attachActivity(ActivityService $activity): void
+    {
+        $this->activity = $activity;
+    }
+
     /** @return array<int,array<string,mixed>> */
     public function list(bool $includeInactive = false): array
     {
@@ -93,6 +101,11 @@ final class ReminderService
             }
             $r['days_until'] = $daysUntil;
             $r['status']     = $status;
+            // v3.4.0 (F1024) — „zuletzt erledigt am … von …" (additiv; ohne Verlauf null)
+            if ($this->activity !== null) {
+                $last = $this->activity->lastDone('reminder_id', (string)($r['id'] ?? ''));
+                $r['last_done_by'] = $last !== null ? ($last['by'] ?? null) : null;
+            }
             $out[] = $r;
         }
         return $out;
@@ -178,15 +191,26 @@ final class ReminderService
     /**
      * „Erledigt" — last_done = heute, next_due fortschreiben.
      * Bei recurrence=none wird der Eintrag deaktiviert (kein Wieder-Fällig).
+     *
+     * v3.4.0 (F1024) — mit Verlauf: ein Eintrag je Erledigen (Notiz und Beleg
+     * optional), die Antwort trägt `activity_id`; Rückgängig im Verlauf stellt
+     * Termin, Status und `last_done` zurück. Das Datum muss ein Kalendertag sein.
      */
-    public function markDone(string $id, ?string $doneDate = null): array
+    public function markDone(string $id, ?string $doneDate = null, ?string $note = null, ?string $attachmentId = null): array
     {
         $done = $doneDate ?: date('Y-m-d');
+        if (!Dates::isIsoDate($done)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.lastDoneInvalid'));
+        }
+        // erst prüfen, dann ändern (Notiz zu lang, Beleg unbekannt → 400 ohne Folgen)
+        $this->activity?->checkInput(['done_on' => $done, 'note' => $note, 'attachment_id' => $attachmentId]);
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $found = null;
+        $before = null;
         foreach ($all as &$r) {
             if (($r['id'] ?? null) !== $id) continue;
+            $before = ['next_due' => $r['next_due'] ?? null, 'active' => $r['active'] ?? true, 'last_done' => $r['last_done'] ?? null];
             $r['last_done'] = $done;
             $rec = (string)($r['recurrence'] ?? 'none');
             $months = match ($rec) {
@@ -208,6 +232,24 @@ final class ReminderService
         unset($r);
         if ($found === null) throw new NotFoundException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
         $this->store->write('reminders.json', $all);
+        if ($this->activity !== null && $before !== null) {
+            $uid = 'reminder-' . $id;
+            $entry = $this->activity->record([
+                'action'        => 'done',
+                'subject'       => ['kind' => 'reminder', 'uid' => $uid,
+                                    'occurrence' => ActivityService::occurrence($uid, (string)($before['next_due'] ?? ''))],
+                'ref'           => ['reminder_id' => $id, 'category' => (string)($found['category'] ?? '')],
+                'title_key'     => 'calendar.event.reminder',
+                'params'        => ['title' => (string)($found['title'] ?? '')],
+                'done_on'       => $done,
+                'note'          => $note,
+                'attachment_id' => $attachmentId,
+                'revert'        => ['type' => 'reminder', 'id' => $id, 'before' => $before, 'after' => [
+                    'next_due' => $found['next_due'] ?? null, 'active' => $found['active'] ?? true, 'last_done' => $found['last_done'] ?? null,
+                ]],
+            ]);
+            $found['activity_id'] = $entry['id'];
+        }
         return $found;
     }
 

@@ -11,9 +11,10 @@ Schlüssel bleiben stabil: Entfernt wird erst mit einer neuen Hauptversion und
 nach Ankündigung — die veralteten stehen am Ende.
 
 Seit v3.2.0 kann ein Haushalt mehrere Personen mit Rollen haben
-([Benutzer im Haushalt](../anleitungen/benutzer.md)). Drei Schlüssel ändern
-dann nur Verwalter, weil die App mit ihnen andere Adressen anspricht oder sich
-einbetten lässt: `frame_ancestors`, `ocr_endpoint` und `evcc_endpoint`. Ein
+([Benutzer im Haushalt](../anleitungen/benutzer.md)). Fünf Schlüssel ändern
+dann nur Verwalter, weil die App mit ihnen andere Adressen anspricht, sich
+einbetten lässt, Namen sperrt oder den Verlauf kürzt: `frame_ancestors`, `ocr_endpoint`,
+`evcc_endpoint` und (seit v3.4.0) `allowed_hosts` und `activity_keep_months`. Ein
 Mitglied, das einen davon mitschickt, bekommt `403` `errors.auth.adminOnly`;
 alle anderen Schlüssel dürfen auch Mitglieder ändern. Ohne Anmeldung gilt die
 Einschränkung nicht.
@@ -64,6 +65,16 @@ hebt. Mehr dazu: [Einrichtung](../einstieg/einrichtung.md).
 | `contract_remind_days_3` | 1 | Stufe 3 — dringend | dritte Stufe |
 | `reminder_warn_days_before` | 14 | Termin „bald fällig“ ab | Ab so vielen Tagen vor dem Termin gilt er als „bald fällig“. |
 | `reminder_overdue_days` | 0 | Kulanz bis „überfällig“ | So viele Tage nach dem Termin gilt er noch als fällig, danach als überfällig. 0 = ab dem Tag danach. |
+
+### Verlauf erledigter Hinweise *(v3.4.0)*
+
+Nicht unter Einstellungen, sondern unter **Hinweise → Erledigt → „Verlauf
+verwalten“** — dort, wo der Verlauf steht
+([Hinweise erledigen](../anleitungen/hinweise-erledigen.md)).
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `activity_keep_months` | 60 | Aufbewahren (Monate, 0 = unbegrenzt) | Einträge im Verlauf, die länger her sind (Tag des Erledigens), fallen beim nächsten Eintrag heraus; ihre Belege werden frei. 0–1200, `0` = unbegrenzt. Nur Verwalter. |
 
 ## Einstellungen → Haushalt & Gebäude
 
@@ -185,6 +196,12 @@ deinen Haushalt nennt. Leer = keine Einordnung
 | Schlüssel | Standard | In der App | Wirkung |
 |---|---|---|---|
 | `frame_ancestors` | leer | Erlaubte Einbettungs-Adressen | Adresse mit Schema und Port, z. B. http://homeassistant.local:8123; mehrere durch Leerzeichen trennen. Leer = nur diese Installation selbst. Adressen, die die App einbetten dürfen (Content-Security-Policy), z. B. ein Home-Assistant-Dashboard. Seit v3.2.0 nur Verwalter. |
+
+### Hostnamen *(v3.4.0)*
+
+| Schlüssel | Standard | In der App | Wirkung |
+|---|---|---|---|
+| `allowed_hosts` | leer | Erlaubte Hostnamen | Kommaliste ohne Schema und Port, `*.domain` als Platzhalter, höchstens 20 Einträge; gespeichert als `a.example, *.b.example`. Leer = alle Namen. Sonst beantwortet die App andere Namen mit `421` (gegen DNS-Rebinding); IP-Adressen und `localhost` gelten immer. Gilt zusammen mit `ET_ALLOWED_HOSTS`. Beim Speichern muss der Name dabei sein, unter dem die Anfrage kommt, sonst `400` `errors.settings.hostNotListed`. Nur Verwalter — [Sicherheit § 8](../betrieb/sicherheit.md#8-hostnamen-und-einbetten). |
 
 ## Einstellungen → Experte
 

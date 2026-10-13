@@ -38,8 +38,9 @@ Die mitgelieferte `.htaccess` setzt Punkt 1, 4 und 5 um, `data/.htaccess` ist
 die zweite Sicherung. Voraussetzungen:
 
 - `AllowOverride` mindestens `FileInfo` für das Projektverzeichnis,
-- die Module `mod_rewrite`, `mod_headers` und `mod_setenvif`,
-- PHP 8.2 oder neuer (PHP-FPM oder `mod_php`).
+- die Module `mod_rewrite` (oder ersatzweise `mod_alias`, seit v3.4.0),
+  `mod_headers` und `mod_setenvif`,
+- PHP 8.2 oder neuer (PHP-FPM oder `mod_php`; geprüft bis 8.5).
 
 Ein VirtualHost dafür:
 
@@ -61,11 +62,19 @@ Ein VirtualHost dafür:
 
     # optional: Daten außerhalb des Webroots
     # SetEnv ET_DATA_DIR /srv/energietracker-data
+
+    # v3.4.0 — Größengrenzen wie die App: 8 MB, groß nur für die Importe
+    LimitRequestBody 8388608
+    <LocationMatch "/api(\.php/api)?/(backup/import|attachments|.+/import-(csv|series|evcc))$">
+        LimitRequestBody 268435456
+    </LocationMatch>
 </VirtualHost>
 ```
 
 `AllowOverride None` legt die `.htaccess` still — dann liefert Apache `data/`
-aus, und die Cache-Regeln fehlen. Der Betrieb in einem Unterverzeichnis (etwa
+aus, und die Cache-Regeln fehlen. Fehlt nur `mod_rewrite`, sperrt seit v3.4.0
+ein Rückfall mit `mod_alias` (`RedirectMatch 404`) dieselben Pfade. Ob der
+Schutz wirkt, zeigt Einstellungen → Zugriff → „Sicherheits-Check“. Der Betrieb in einem Unterverzeichnis (etwa
 `/energietracker/`) funktioniert ohne Änderung; die Regeln der `.htaccess` sind
 relativ.
 
@@ -152,7 +161,7 @@ setzt du dieselben Werte:
 | PHP | `post_max_size`, `upload_max_filesize` | `256M` | größter Backup-Import, PDF-Beleg bis 10 MB |
 | PHP | `memory_limit` | `768M` | Der Import eines großen Backups braucht etwa die doppelte Größe an PHP-Speicher |
 | PHP | `max_execution_time` | `120` | große Importe |
-| nginx | `client_max_body_size` | `256m` | sonst `413 Request Entity Too Large` vor PHP |
+| nginx | `client_max_body_size` | `8m`, `256m` nur für Backup-Import, Belege und Importe *(v3.4.0)* | sonst `413 Request Entity Too Large` vor PHP |
 | nginx | `fastcgi_read_timeout` | `310s` | große Importe, Texterkennung: Ihr Zeitlimit (`ocr_timeout_s`) reicht bis 300 s; vorher `120s`, dann brach nginx eine langsame Erkennung vor PHP ab |
 
 - **PHP-Werte** stehen in der `php.ini` bzw. im PHP-FPM-Pool
@@ -160,6 +169,14 @@ setzt du dieselben Werte:
   PHP-Profil unter den Skriptsprache-Einstellungen.
 - **Apache** begrenzt den Körper selbst mit `LimitRequestBody`; aktuelle
   Versionen erlauben von Haus aus 1 GB — das reicht.
+- **Seit v3.4.0 klein, wo es geht:** Die App selbst nimmt außerhalb von
+  Backup-Import, Belegen und den CSV-/Zeitreihen-Importen höchstens 8 MB an,
+  ohne Anmeldung erreichbare Routen höchstens 1 MB (`413`), und liest den
+  Körper erst nach der Anmeldung. Der Webserver sollte dasselbe tun, damit
+  große Körper gar nicht erst bis PHP kommen: für nginx die zwei Locations aus
+  `docker/nginx.conf`, für Apache `LimitRequestBody` in der Server- oder
+  VirtualHost-Konfiguration (in `.htaccess` nur mit `AllowOverride All`) —
+  [Sicherheit § 12](sicherheit.md#12-größengrenzen-und-schreibsperre-v340).
 - Für Fotos (höchstens 3 MB) genügen die PHP-Vorgaben (8 MB). Für PDF-Belege
   und Backups mit vielen Fotos die Grenzen anheben — sonst bricht der Upload
   ab ([Fehlersuche](fehlersuche.md)).

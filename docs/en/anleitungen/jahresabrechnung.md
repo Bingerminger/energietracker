@@ -113,9 +113,12 @@ each register’s price. Standing charge and advance payment count once
 **Costs & contracts → Check a bill** (or on the utility’s page “Check the …
 bill”). Since v3.1.0 the check exists for **gas, electricity, water and district
 heating** — at the top you choose the utility, next to it the meter if there
-are several. Then **From** 01.01.2025 and **To (exclusive)** 01.01.2026 and
-**“Recalculate”**. The link from the utility page fills in utility, meter and
-year already.
+are several. Since v3.4.0 the page calculates at once, on both routes, with the
+last completed billing period: settlement date under Settings → Utilities &
+billing, default 1 January — in the example **From** 01.01.2025 and **To
+(inclusive)** 31.12.2025, as on the bill. If the bill’s period differs, change
+both dates and **“Recalculate”**. Switching utility or meter keeps the period
+and recalculates.
 
 The table cuts the period into sections — like the lines of the bill:
 
@@ -187,14 +190,17 @@ then always as the kind “not affecting advances”.
 ## 7. On the bill: enter, compare, book
 
 Since **v3.1.0** the app keeps the supplier’s bill itself and sets it against
-its own calculation. On **Check a bill**, below the table, is the card
-**“According to the bill”** for the selected meter.
+its own calculation. On **Check a bill**, below the table, is the collapsed
+section **“Record the supplier’s bill (optional)”** for the selected meter,
+with the card **“According to the bill”** and the list of recorded bills.
+Since v3.4.0 it uses the period from above (step 4) — one period for checking
+and recording.
 
 **Enter.** From the example:
 
 | Field | Entry |
 |---|---|
-| From / To (inclusive) | 01.01.2025 / 31.12.2025 — here the last day counts, as on the bill |
+| Period | at the top under “From” / “To (inclusive)”: 01.01.2025 / 31.12.2025 — the last day counts, as on the bill |
 | Bill date | the bill’s date, say 10.02.2026 |
 | Consumption on the bill (kWh) | 16,437 — for water in m³ |
 | Bill amount (incl. VAT) | 1,655.00 |

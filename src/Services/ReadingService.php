@@ -31,6 +31,31 @@ final class ReadingService
         private I18nService $i18n,
     ) {}
 
+    /** v3.4.0 (F1024) — Verlauf: eine Ablesung erledigt „Ablesung fällig", wenn sie fällig war. */
+    private ?ActivityService $activity = null;
+
+    public function attachActivity(ActivityService $activity): void
+    {
+        $this->activity = $activity;
+    }
+
+    /**
+     * Tag der letzten echten Ablesung eines Zählers (nicht geplant, nicht
+     * verdächtig) — wie die Erfassung und die Agenda sie sehen.
+     *
+     * @param array<int,array<string,mixed>> $all Ablesungen der Verbrauchsart
+     */
+    private static function lastRealDate(array $all, string $meterId): ?string
+    {
+        $last = null;
+        foreach ($all as $r) {
+            if (($r['meter_id'] ?? null) !== $meterId || !empty($r['is_future']) || !empty($r['is_suspect'])) continue;
+            $d = (string)($r['date'] ?? '');
+            if ($d !== '' && ($last === null || $d > $last)) $last = $d;
+        }
+        return $last;
+    }
+
     /** v3.1.0 (H3, B2) — ein Zähler mit Verbrauch je Zeitraum hat keine Stände. */
     public static function assertCounterMeter(array $meter): void
     {
@@ -127,9 +152,13 @@ final class ReadingService
 
         $all = $this->store->read("$utility/readings.json", []);
         if (!is_array($all)) $all = [];
+        $prevLast = self::lastRealDate($all, (string)$meterId);   // v3.4.0 (F1024)
         $all[] = $reading;
         usort($all, fn($a, $b) => strcmp($a['date'], $b['date']));
         $this->store->write("$utility/readings.json", $all);
+        if ($this->activity !== null && empty($reading['is_suspect']) && !$reading['is_future']) {
+            $this->activity->readingRecorded($utility, $meter, $date, $prevLast);
+        }
         return $reading;
     }
 
@@ -232,6 +261,8 @@ final class ReadingService
         $imported = $overwritten = $skipped = 0;
         $errors = [];
         $today = date('Y-m-d');
+        $prevLast = self::lastRealDate($all, $meterId);   // v3.4.0 (F1024)
+        $newest = null;
         foreach ($rows as $i => $row) {
             $line = (int)($row['line'] ?? $i + 1);
             try {
@@ -266,6 +297,7 @@ final class ReadingService
                 $all[] = $new;
                 $byDate[$date] = array_key_last($all);
                 $imported++;
+                if ($date <= $today && ($newest === null || $date > $newest)) $newest = $date;
             }
         }
 
@@ -273,6 +305,8 @@ final class ReadingService
             $all = array_values($all);
             usort($all, fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
             $this->store->write("$utility/readings.json", $all);
+            // v3.4.0 (F1024) — einmal je Import, mit dem neuesten neuen Stand
+            if ($this->activity !== null && $newest !== null) $this->activity->readingRecorded($utility, $meter, $newest, $prevLast);
         }
         return ['imported' => $imported, 'overwritten' => $overwritten, 'skipped' => $skipped, 'errors' => $errors];
     }

@@ -6,6 +6,307 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.4.0] — 2026-10-13 — Klar und sicher
+
+MINOR-Release ohne Schemaschritt (bleibt 1.8.0): Die App wird für alle im
+Haushalt lesbar, aufgeräumt und sicherer — auch ohne Internet. **N1019** Hilfe
+auf dem Server, **N1020** Sicher im Haushalt, **F1025** Jahresbericht für alle,
+**F1024** Erledigt mit Verlauf, **F1026** Schaubilder in zweiter Fassung,
+**N1021** Aufgeräumte Oberfläche. API, CSV-Format 1, Backup-Format 3.0 und der
+Home-Assistant-Ingest wachsen additiv; entfernt wird nur der Import alter
+v0.9.0-Backups (Stabilitätsklasse C).
+
+### ⚠️ Für bestehende Installationen
+
+- **v0.9.0-Backups:** Der Import entfällt. Wer noch eines hat: v3.3.0
+  installieren, dort migrieren, dann auf 3.4.0 aktualisieren.
+- **Proxy-Anmeldung:** Unter Home-Assistant-Ingress gelten nur noch die vom
+  Supervisor gesetzten Kopfzeilen; hinter einem anderen Proxy legt
+  `ET_PROXY_USER_HEADER` die eine Kopfzeile fest, die zählt. Ohne Einstellung
+  bleibt das bisherige Verhalten, der neue Sicherheits-Check unter Zugriff
+  rät dann zur Einstellung.
+- **Größere Uploads:** Anfragen sind standardmäßig auf 8 MB begrenzt, nur
+  Backup-Import, Belege und Datei-Importe dürfen größer sein (bis 256 MB).
+  Wer Apache selbst betreibt, findet die Entsprechung in der Doku.
+- **Docker:** Das Image läuft auf PHP 8.5, PHP ist im Container nur noch
+  intern erreichbar, und das Image enthält jetzt die Doku (rund 7 MB mehr).
+- **Beispielhaushalt „Eigenheim mit Wärmepumpe und PV“:** Der Hausspeicher
+  entlädt nicht mehr ins Auto; Bezug, Einspeisung, Speicherwerte und
+  Abschläge des Beispiels ändern sich.
+- **Autarkie mit Speicher korrigiert:** Speicherverluste zählen nicht mehr
+  als selbst genutzter Strom, Netzladung bleibt Netzstrom. Ohne Speicher
+  ändert sich nichts; mit Speicher sinkt der Wert meist um rund einen
+  Prozentpunkt (auch `summary.pv.autarky_pct_ytd`).
+- **Vertragsstatus:** „VERGANGEN“ heißt jetzt „BEENDET“; ein abgelaufener,
+  weiterlaufender Vertrag heißt in beiden Listen „VERLÄNGERT“.
+- **Erinnerungen an Verträge:** Ein lückenlos anschließender Folgevertrag
+  erledigt Kündigungsstichtag, Vertragsende, Preisgarantie und Preiserhöhung
+  des Vorgängers von selbst. Weiterlaufende und unbefristete Verträge haben
+  keinen täglich wandernden Stichtag mehr — wer den Kalender abonniert oder
+  `/api/summary` in Home Assistant nutzt, sieht dort entsprechend weniger
+  Termine.
+- **Backup:** Der neue Verlauf erledigter Hinweise reist im Backup mit, samt
+  den Namen der Personen als Momentaufnahme.
+
+### Added
+
+- **Hilfe auf dem Server (N1019):** Das Handbuch (Deutsch und Englisch) kommt
+  vom eigenen Server in der Fassung dieser Version und öffnet in der App
+  (`#/help/doc/…`) — mit Inhaltsverzeichnis, Umschalter Deutsch/Englisch und
+  Bildern; Tabellen und Code scrollen am iPhone in sich, gelesene Seiten gehen
+  offline, auch in der öffentlichen Demo. Die übrigen Oberflächensprachen
+  lesen die englische Fassung mit einem Hinweis. Alle sieben Anwendungsfälle
+  stehen als Kurztext in sieben Sprachen in der Hilfe, je mit Sprung in den
+  Abschnitt des Handbuchs. Ein eigener Markdown-Renderer ohne Abhängigkeit
+  zeigt die Seiten; er escaped alles und lässt nur erlaubte Links und Bilder
+  zu. Neue Routen `GET /api/docs?path=…` und `GET /api/docs/asset` liefern nur
+  Dateien aus einer Freigabeliste, mit Anmeldung, falls eingeschaltet. Nach
+  GitHub führen nur noch Fehlermeldung, Projektseite und Quellcode der
+  Version.
+- **Jahresbericht für alle (F1025):** Das PDF ist neu für Leser ohne
+  Technikhintergrund — „Das Wichtigste“ mit großen Zahlen, Drei-Jahres-Linien,
+  vier Ampeln (immer mit Symbol und Wort) und den drei wichtigsten Aufgaben;
+  „Was hat sich gelohnt“; „Was ist zu tun“; Fristen und Termine; Geld; je
+  Verbrauchsart eine Seite; Themenseiten Sonnenstrom und Speicher,
+  Wärmepumpe, E-Auto, günstige Stunden und Mietwohnung (nur mit Daten); ein
+  kleines Wörterbuch. Die Monatstabellen stehen auf Wunsch als Anhang
+  „Zahlen im Detail“ (`?detail=1`).
+  - **Handlungsempfehlungen** mit Priorität, Frist und Betrag — Beträge nur
+    aus eigenen Ablesungen und Vertragspreisen, gekennzeichnet als gemessen,
+    hochgerechnet oder Rechenbeispiel; was nicht zum Berichtsjahr gehört,
+    steht im Kasten „Stand heute“.
+  - **Grafiken** als PDF-Vektoren ohne Bibliothek: Monatsbalken mit Vorjahr,
+    Saldo-Linie, Effizienzskala, Ampeln, Zeitstrahl, Energiefluss; Farben aus
+    der Farbtabelle der Verbrauchsarten, für den Druck abgedunkelt.
+  - **Barrierearm:** Fließtext ab 10 pt, Fußzeile „Seite x von y“,
+    Dokumenttitel, Sprache und Lesezeichen im PDF; die Druckansicht zeigt
+    dasselbe als HTML.
+  - **Sprache und Teilbericht per Link:** `?lang=` und `?utilities=`; der
+    PDF-Link der Oberfläche entsteht in der Sprache des Geräts.
+  - Neue Anleitung [Jahresbericht lesen](docs/anleitungen/jahresbericht-lesen.md)
+    mit einem Rezept, wie Home Assistant den Bericht verschickt.
+- **Sicherheits-Check (N1020)** unter Einstellungen → Zugriff und System:
+  Anmeldeart, Proxy-Kopfzeile, Hostliste und ein Selbsttest, ob `data/` vom
+  Webserver gesperrt ist. **„Überall abmelden“** beendet die Sitzungen einer
+  Person auf allen Geräten (`POST /api/session/logout-everywhere`).
+- **Hostliste in der Oberfläche:** Verwalter tragen unter Zugriff ein, unter
+  welchen Namen die App erreichbar ist (`allowed_hosts`, zusätzlich zu
+  `ET_ALLOWED_HOSTS`); der aktuelle Name muss dabei sein, aussperren geht
+  nicht.
+- **Energiefluss im Haus neu (F1026):** kreuzungsfrei — Sonne oben, Netz
+  links, Speicher rechts, Haus unten, darunter Wärmepumpe, Wallbox und
+  Übriges; Werte nur in den Kreisen, Ringe für Herkunft und Verbleib, Bänder
+  nach Menge, Punkte mit gleichem Tempo und Dichte nach Menge; Jahr und Monat
+  umschaltbar mit Übergang an Ort und Stelle; ein Tippen auf Sonne, Netz,
+  Speicher oder Haus hebt dessen Flüsse hervor. „Bewegung reduzieren“ zeigt
+  das ruhige Endbild; Screenreader bekommen die Flüsse als Liste.
+- **Vertrag auf einen Blick** zeigt jetzt Mindestlaufzeit, Preisgarantie und
+  Folgevertrag.
+- **Blättern in langen Listen (N1021):** ab 51 Zeilen, 25/50/100 je Seite,
+  je Gerät gemerkt; Filter „Nur auffällige“. Ablesungen und Zeiträume zeigen
+  „N in Jahr · M gesamt“ und haben die Jahreswahl samt „Alle Jahre“ in der
+  Karte.
+- **API (additiv):** `phase` (`future`, `current`, `renewed`, `past`,
+  `shadow`) und `values_on` an den Vertragsantworten, `phase` auch an
+  `contract-status`; `contract-status` zusätzlich `min_term_end`,
+  `price_guarantee_until`, `auto_renews`; `pv-summary` je Monat und Jahr mit
+  `battery`, `heat_pump_kwh`, `ev_charger_kwh` und `flow`.
+- **Unterstützen (GitHub #28):** Einstellungen → System führt zu Buy Me a
+  Coffee; dazu ein Abschnitt im README und der „Sponsor“-Knopf auf GitHub.
+- **Erledigt mit Verlauf (F1024):** Hinweise lassen sich abhaken — Haken bei
+  „Zu tun“ und bei den Terminen, ein kleiner Dialog mit Datum
+  (rückdatierbar), Notiz und Beleg, bei einer Kündigung „gekündigt,
+  verlängert sich nicht“, Rückgängig im Hinweis. Neuer Tab **Hinweise →
+  Erledigt** (ab „Erfahren“): wer was wann erledigt hat, nach Monaten, mit
+  Filter nach Person, Zeitraum und Bereich; automatische Einträge nennen
+  ihren Grund (Folgevertrag, Ablesung, Lieferung, Nebenkostenabrechnung;
+  Home Assistant und evcc als Integration); Rückgängig streicht durch statt
+  zu löschen, Notizen lassen sich nachtragen. Verwalter stellen die
+  Aufbewahrung ein (`activity_keep_months`, Standard 60 Monate) und leeren
+  den Verlauf. Einwand- und CO₂-Erstattungsfrist sowie Preiserhöhungen sind
+  jetzt abhakbar und stehen unter „Zu tun“. Beim Löschen einer Person kann der
+  Verwalter ihren Namen im Verlauf durch „ehemalige Person“ ersetzen. Neue
+  Anleitung [Hinweise erledigen](docs/anleitungen/hinweise-erledigen.md).
+- **API (additiv, Klasse C):** `POST /api/agenda/done`, `GET`/`DELETE
+  /api/activity`, `POST /api/activity/{id}/undo`, `PATCH /api/activity/{id}`;
+  Agenda-Ereignisse mit `occurrence`, `can_mark_done`, `done`, `title_key`;
+  `contract-status` mit `successor`; `reminders/{id}/done` und `dismiss`
+  antworten zusätzlich mit `activity_id`.
+
+### Changed
+
+- **Doku-Links** in Hilfe, Home Assistant, Einrichtung, Personen, evcc,
+  Flexibilität und Jahresbericht öffnen das Handbuch in der App statt GitHub.
+- **Sitzung** gleitet: 30 Tage ab der letzten Nutzung statt ab der Anmeldung.
+- **Docker:** PHP 8.5 im Image und in der CI-Matrix (GitHub #27); das Image
+  enthält `docs/` und `CHANGELOG.md`; ein gehärtetes Compose-Beispiel steht
+  in der Doku, die CI startet das Image so; ein wöchentlicher Neubau des
+  neuesten Release-Tags mit Image-Scan hält die Basis aktuell.
+- **PDF-Schreiber** misst Text mit den echten Breiten der Standardschriften;
+  auch CO₂-Anschreiben und Ladestrom-Nachweis brechen damit sauber um.
+- **Verträge rückwärts durch die Zeit (N1021):** Kosten → Verträge und
+  „Verträge & Abschläge“ der Verbrauchsart zeigen eine Reihenfolge —
+  Zukünftig · Aktuell · Beendet (ab drei eingeklappt) · Angebote zum
+  Vergleich mit Verweis auf den Tarifvergleich; der Gruppenvertrag ist
+  eingereiht, Sonderzahlungen stehen neueste zuerst. Die Karten nennen die
+  heute gültigen Werte (Arbeitspreis, Grundpreis, Abschlag), die Zählungen
+  erst ab „Experte“. Im Vertragsdialog stehen die Preiszeilen neueste oben,
+  „+ Zeile“ fügt oben ein.
+- **Rechnung prüfen:** ein Zeitraum „bis einschließlich“ für Prüfen und
+  Erfassen; „Rechnung des Versorgers erfassen (optional)“ steht eingeklappt
+  unter dem Ergebnis.
+- **Ein Formularraster für alle Dialoge (N1021):** sechs Spalten, Breite nach
+  Inhalt (Datum und Zahl schmal, Text breit, Notiz über die volle Breite), am
+  iPhone zwei Spalten; Beschriftung, Feld und Hinweis einer Zeile stehen auf
+  gleicher Höhe. Zusammengehörige Felder stehen in einem Kasten mit
+  Überschrift und eigener Feldfläche, auch im Dunkelmodus. Zeilenlisten
+  (Preise, Boni, Sonderzahlungen, Zeitfenster, Posten) folgen einem Muster
+  — Datum | Betrag | Zusatz | ✕ —, beschriftet nur über der ersten Zeile.
+  Steuerelemente sind 36 px hoch, bei Touch 44 px.
+- **Vertragsdialog** in der Reihenfolge einer Rechnung: Vertrag → Laufzeit
+  und Kündigung → Preise → Netzentgelt § 14a → Boni → Sonderzahlungen →
+  Erlöse → Notizen. Im **Zählerdialog** stehen Rolle und Erfassung oben.
+- **Einstellungen:** alle Karten im Raster, oben bündig, schmale
+  nebeneinander, breite am Seitenende; „Aktive Verbrauchsarten“ ist schmal
+  mit Kästchen in Spalten; Home Assistant und „Anmeldung & Zugriff“ sind je in
+  zwei Karten geteilt.
+- **Darstellung (Hell/Dunkel):** Das Symbol zeigt, was gilt (☀️/🌙), ein „A“
+  markiert „wie das System“, und jeder Klick meldet kurz den neuen Zustand —
+  vorher sah der Schritt auf „wie das System“ wie ein wirkungsloser Klick aus.
+- **Folgevertrag statt Erinnerung:** Schließt ein Folgevertrag lückenlos an,
+  entfallen Kündigungsempfehlung, Hinweise der Auswertung und „Kündigen
+  bis“; die Übersicht zeigt „Folgevertrag … ab …“, mit Lücke nennt die
+  Erinnerung die Lücke. Weiterlaufende und unbefristete Verträge heißen in
+  der Übersicht „Jederzeit kündbar“.
+- **Kalender:** Erledigtes behält seine UID, bekommt „✓ “ und keine
+  Vorab-Erinnerung; `/api/summary` zählt Erledigtes nicht mehr.
+- **Ausblenden einer Kündigungsempfehlung** hält mindestens bis zur Frist
+  („Bis … ausblenden“).
+
+### Removed
+
+- **Import von v0.9.0-Backups** samt Routen `POST /api/migration/v09/*`,
+  Karte in den Einstellungen und Anleitung.
+
+### Security
+
+Beschrieben nach Klasse, nicht nach Schritten. Gefunden bei einer eigenen
+Sicherheitsprüfung; Hinweise bitte weiter wie in [SECURITY.md](SECURITY.md).
+
+- **Rechteausweitung im Proxy-Modus** über selbst gesetzte Benutzer-
+  Kopfzeilen geschlossen.
+- **Fehlende Rollenprüfung** beim Import alter Backups — die Funktion
+  entfällt; Snapshots löschen dürfen nur noch Verwalter.
+- **Docker:** PHP-FPM ist im Container nur noch über 127.0.0.1 erreichbar;
+  die CI prüft das.
+- **Sperre nach Fehlversuchen** je Gerät und je Name statt für den ganzen
+  Haushalt, dazu eine Notbremse; die Antwortzeit der Anmeldung verrät nicht
+  mehr, ob ein Name existiert.
+- **Schutz gegen DNS-Rebinding** per Hostliste in der Oberfläche.
+- **Verfügbarkeit:** Anfragekörper werden erst nach der Anmeldung und nur bis
+  zur Größengrenze gelesen (413); Aufrufe fremder Dienste halten die
+  Schreibsperre nicht mehr, die Sperre hat eine Frist (503 mit Retry-After).
+- **Apache:** Der Schutz von `data/` greift auch ohne mod_rewrite.
+- **Abmelden** leert die zwischengespeicherten Daten wieder vollständig
+  (Rückschritt aus v3.1.0).
+- **CSV-Export:** Formelschutz für alle Zellen außer Zahlen; Kennungen werden
+  beim Anlegen und im Backup geprüft. Werte in der Home-Assistant-Vorlage
+  sind gequotet.
+- **Verbindungen nach außen** begrenzt (Protokoll, Weiterleitungen,
+  Antwortgröße); Link-local-Adressen zählen nicht mehr als Heimnetz.
+- Der Hostname des Containers geht nur noch an den vertrauenswürdigen Proxy;
+  Speicherpfade werden lexikalisch geprüft; Katalogtexte dürfen nur noch
+  `strong`, `em` und `code` enthalten.
+- **Lieferkette:** fremde GitHub-Actions per Commit-Hash, ausdrückliche Rechte
+  je Workflow, Dependabot auch für Composer.
+
+### Fixed
+
+- **Jahresbericht:** Text lief über den rechten Rand; „-0“ in
+  Prozentspalten; „Jahresverbrauch“ über PV und Speicher; Temperatur und
+  Gradtage bei Strom, Wasser und PV; „0,00 €“ bei Subzählern, Wärmemenge und
+  Nebenkosten (jetzt erklärt, bei Miete der Betrag nach den Mietpreisen);
+  Empfehlungen aus anderen Jahren; „keine offenen Empfehlungen“ trotz
+  Terminen; Spaltenköpfe im Ladestrom-Nachweis; „Abschlag 0 €“ als
+  Vorschlag.
+- **Wasser** wird nicht mehr zum Tarifwechsel empfohlen — auch nicht in den
+  Empfehlungen der App.
+- **Rechnung prüfen** über Kosten → Rechnung prüfen zeigte keine
+  Verbrauchsliste: Die Seite rechnete nur mit einem Zeitraum in der Adresse.
+  Jetzt rechnet sie auf beiden Wegen sofort, mit der letzten abgeschlossenen
+  Abrechnungsperiode nach dem Stichtag der Art; ein Wechsel von Art oder
+  Zähler behält den Zeitraum.
+- **Ablesungen:** „43 Ablesungen“ im Kopf, aber 10 in der Liste — die Zahl
+  galt für alle Jahre, die Liste für das gewählte. Jetzt steht beides da.
+- **Saldo-Karte** zeigte bei überlappenden Verträgen den abgelösten älteren.
+- **Energiefluss:** Linien kreuzten sich mit Speicher, Zahlen lagen
+  übereinander; Sonne→Haus lieferte mehr, als erzeugt wurde; in
+  unvollständigen Jahren fehlte der Fluss Sonne→Haus.
+- **Vertrag auf einen Blick:** verlängerte Verträge zeigten ein vergangenes
+  Ende, unbefristete einen Kündigungsstichtag „heute“, ein verpasster
+  Stichtag wurde trotzdem als Frist genannt, Beschriftungen überlappten, und
+  „heute“ lag nachts einen Tag daneben.
+- **Geld- und Wetterbild:** Prozentzahlen liefen über den Rand, Legende und
+  Beschriftungen überlappten in einigen Sprachen.
+- **Überlappende und schwebende Felder** in Vertrags- und Zählerdialog,
+  Checkbox-Texte in Versalien, schwebende ✕-Knöpfe, „+ Zeile“ über die volle
+  Breite und das tiefer sitzende Feld im Zählertausch.
+- **„Angebot erfassen“** zeigte Aufschlag und Umsatzsteuer des dynamischen
+  Tarifs auch ohne dynamischen Tarif — `hidden` wirkt jetzt überall.
+- **§ 14a Modul 3:** „von“ und „bis“ werden gleich eingegeben; „6“ oder
+  „1530“ wird zu 06:00 bzw. 15:30.
+- **Wasservertrag** scrollte am iPhone seitlich.
+- **Wandernder Kündigungsstichtag:** Weiterlaufende und unbefristete
+  Verträge erzeugten jeden Tag einen neuen „letzten Tag für die Kündigung“ in
+  Agenda, Kalender und Home Assistant (`summary.contract.cancel_by` = heute).
+- **Ausgeblendete Kündigungsempfehlungen** kamen vor dem Stichtag zurück.
+- **Ein angelegter Folgevertrag** ließ alle Erinnerungen des Vorgängers
+  stehen.
+
+### Migration
+
+Kein Schemaschritt. Neue Einstellungen (`allowed_hosts`, `activity_keep_months`)
+haben Voreinstellungen; neue Umgebungsvariablen `ET_PROXY_USER_HEADER` und
+`ET_LOCK_WAIT_S` sind optional.
+
+### Tests
+
+- Neue PHPUnit-Klassen: `DocsServiceTest`, `DocsEndpointTest`,
+  `HouseholdSecurityTest`, `HouseholdHardeningTest`, `ContainerHardeningTest`,
+  `PdfWriterTest`, `ReportAdviceServiceTest`, `ReportModelServiceTest`,
+  `ContractPhaseTest`, `ContractPhaseEndpointTest`, `ContractStatusTimelineTest`,
+  `ActivityServiceTest`, `ActivityAccessTest`; erweitert u. a.
+  `PvSummaryServiceTest`, `PersonaDemoTest`, `WebrootRulesTest`, `IngressTest`.
+- Neue Node-Suiten: `docs.test` (jede Handbuchseite, Angriffs-Payloads),
+  `cache-names.test`, `poisoned-render.test` (präparierte Daten über alle
+  Ansichten), `lists.test`, `explainer.test` (Geometrie, Bilanz, 7 Sprachen),
+  `forms.test` (Formularraster).
+- Die Testwerkzeuge laufen parallel auf eigenen Ports (`ET_TEST_HOST`,
+  `ET_DEMO_PORT`).
+- 813 Testmethoden (+118). 265 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Parallel bauen heißt sorgfältig zusammenführen.** Sechs Pakete entstanden
+  in getrennten Arbeitskopien; beim Zusammenführen blieben einmal
+  Konfliktmarker in der CI-Datei stehen, weil nur das Ende der Merge-Ausgabe
+  gelesen wurde. Seitdem wird nach jedem Zusammenführen das ganze Repo nach
+  Markern durchsucht und die Liste der offenen Dateien geprüft.
+- **Eine Formel an zwei Stellen braucht eine gemeinsame Probe.** Die Autarkie
+  rechnen Server und Schaubild; beide prüft jetzt dieselbe Datei mit
+  Beispielfällen.
+- **Ein Stichtag „heute“ ist kein Stichtag.** Weiterlaufende Verträge meldeten
+  jeden Tag eine neue Frist; Kalender und Home Assistant zeigten sie als
+  Termin. Eine Erinnerung braucht ein festes Datum oder gar keins.
+- **Ausblenden muss überall wirken.** Eine Formularregel mit `display:flex`
+  übersteuerte `hidden`; Felder des dynamischen Tarifs standen sichtbar
+  daneben. Eine globale `[hidden]`-Regel ersetzt sieben Einzelflicken.
+- **Vertrauen in Kopfzeilen braucht einen Filter davor.** Eine
+  Benutzer-Kopfzeile ist nur so vertrauenswürdig wie der Dienst, der sie
+  setzt und fremde entfernt.
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
 ## [3.3.0] — 2026-10-12 — Was Flexibilität wert ist
 
 MINOR-Release mit Schemaschritt: **F1021** rechnet nach, was das Verschieben
@@ -5228,7 +5529,7 @@ Single-File-PHP-Backend, Vanilla-JS-SPA-Frontend, flat-file JSON-Persistenz.
 Eine private Vorgängerversion existierte unter dem Namen *Energietracker
 v0.9.0* (Backup-Format `version: "2.1"`). Backups aus dieser Version
 können mit dem eingebauten Migrator importiert werden — siehe
-[`docs/MIGRATION-FROM-V090.md`](docs/anleitungen/migration-v090.md). Außerhalb
+[`docs/anleitungen/migration-v090.md` in v3.3.0](https://github.com/Bingerminger/energietracker/tree/v3.3.0/docs/anleitungen/migration-v090.md) (entfallen mit v3.4.0). Außerhalb
 dieses Migrationspfads ist v0.9.0 für die öffentliche Codebase irrelevant.
 
 ### Funktionen
