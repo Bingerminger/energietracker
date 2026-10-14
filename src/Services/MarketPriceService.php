@@ -43,13 +43,17 @@ final class MarketPriceService
      * 1. Oktober 2025 (Stundenprodukte) steht derselbe Wert in allen vier
      * Viertelstunden einer Stunde. Nur auf Knopfdruck; nichts geht hinaus.
      *
+     * v3.5.1 — optional nur ein Monat (`$month` 1–12): Die Oberfläche lädt ein
+     * Jahr Monat für Monat und zeigt den Fortschritt; ohne Monat wie bisher das
+     * ganze Jahr in einer Anfrage (rund 53 Wochenpakete).
+     *
      * @return array{year:int, slots:int, from:?string, to:?string}
      */
-    public function syncSmardIntervals(int $year): array
+    public function syncSmardIntervals(int $year, ?int $month = null): array
     {
         if ($this->intervals === null) throw new LocalizedException(self::QH_FAILED, [], 'no interval store');
         try {
-            return $this->fetchSmardIntervals($year);
+            return $this->fetchSmardIntervals($year, $month);
         } catch (LocalizedException $e) {
             // eigene Meldung: für Viertelstundenpreise gibt es keinen Dateiimport als Ausweg
             if ($e->key !== 'errors.marketPrices.syncFailed') throw $e;
@@ -61,12 +65,22 @@ final class MarketPriceService
     public const QH_FAILED = 'errors.marketPrices.syncQuarterHoursFailed';
 
     /** @return array{year:int, slots:int, from:?string, to:?string} */
-    private function fetchSmardIntervals(int $year): array
+    private function fetchSmardIntervals(int $year, ?int $month = null): array
     {
         $index = json_decode((string)$this->fetch(self::SMARD . 'index_quarterhour.json'), true);
         $stamps = is_array($index['timestamps'] ?? null) ? $index['timestamps'] : [];
-        $from = ($this->intervals->yearStart($year) - 7 * 86400) * 1000;
-        $to = $this->intervals->yearStart($year + 1) * 1000;
+        if ($month === null) {
+            $start = $this->intervals->yearStart($year);
+            $end = $this->intervals->yearStart($year + 1);
+        } else {
+            // Monatsgrenzen in der Zeitzone der Installation (wie yearStart)
+            $first = new \DateTimeImmutable(sprintf('%04d-%02d-01 00:00:00', $year, $month), $this->intervals->tz());
+            $start = $first->getTimestamp();
+            $end = $first->modify('+1 month')->getTimestamp();
+        }
+        // ein Wochenpaket beginnt bis zu sieben Tage vor dem Zeitraum
+        $from = ($start - 7 * 86400) * 1000;
+        $to = $end * 1000;
         $slots = [];
         foreach ($stamps as $ts) {
             if (!is_numeric($ts) || $ts < $from || $ts >= $to) continue;
@@ -74,7 +88,7 @@ final class MarketPriceService
             foreach ((array)($chunk['series'] ?? []) as $pt) {
                 if (!is_array($pt) || !is_numeric($pt[0] ?? null) || !is_numeric($pt[1] ?? null)) continue;
                 $t = intdiv((int)$pt[0], 1000);
-                if ($t * 1000 < $from + 7 * 86400 * 1000 || $t * 1000 >= $to) continue;
+                if ($t < $start || $t * 1000 >= $to) continue;
                 $slots[$t] = round((float)$pt[1] / 10, 4);
             }
         }

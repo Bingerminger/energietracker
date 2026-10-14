@@ -7,6 +7,66 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.5.1] — 2026-10-14 — On the iPad
+
+PATCH release: bugs that showed up on the iPad (Safari), plus the first real
+test of text recognition with Ollama. No schema step (stays 1.8.0); the API
+only grows additively (`month` on fetching wholesale prices).
+
+### Fixed
+
+- **Setup assistant: cards looked selected several times.** After each
+  choice the focus jumped to the first card, whose focus ring looked like a
+  second selection; on top, Safari kept the hover border after a tap. Now the
+  focus stays on the chosen card, hover applies only with a mouse, and the
+  focus ring only when using the keyboard.
+- **“Check bill”: overlapping fields.** Date and time fields bring their own
+  minimum width in Safari and reached into the next column — they now follow
+  the form grid throughout the app.
+- **Setup assistant: country could not be chosen.** If fetching the country
+  list failed when the assistant first opened, it offered only the current
+  country; it now loads the list again. In the demo the country of the sample
+  household appears as text with an explanation instead of a locked field.
+- **Settings → Access:** notes in one font size; the password fields sit in a
+  form so Safari recognises it as a password form.
+- **Loading wholesale prices from SMARD without feedback:** the Flexibility
+  page now loads the year month by month with a progress bar (“March 2025,
+  3 of 12”); every button that is working shows a spinning wheel (still with
+  “Reduce motion”). API additive:
+  `POST /api/market-prices/sync-smard-intervals?year=&month=` (1–12),
+  `errors.flexibility.monthInvalid`.
+
+### Changed
+
+- **Home Assistant app easier to find:** an “Add the repository to Home
+  Assistant” button in the README (DE/EN) and the handbook, a “Home Assistant
+  App” badge, and a note with a link on the Home Assistant card in the app.
+- **Text recognition tried with Ollama:** Ollama 0.40.4 with the model
+  `glm-ocr` read a test image of a meter reading correctly in about
+  4 seconds; the model reports no confidence, and the value is only prefilled
+  as always.
+
+### Migration
+
+None. Schema stays 1.8.0.
+
+### Tests
+
+- `IntervalServiceTest` (wholesale prices for one month), `setup-wizard.test`
+  (focus on the chosen card, country list loaded again, demo country as
+  text), `forms.test` (hover, focus ring, date fields, access, wheel,
+  progress, Home Assistant app button).
+- 929 test methods (+1). 14 mutation checks, all red.
+
+### Lessons learned
+
+- **A visual check in Chromium alone is not enough.** Sticky hover, date
+  fields with their own width and password fields outside a form only show
+  up in Safari. UI changes need Safari/WebKit in the check — or acceptance on
+  the iPad.
+
+---
+
 ## [3.5.0] — 2026-10-14 — Who, when, where to
 
 MINOR release without a schema step (stays 1.8.0): household tasks get

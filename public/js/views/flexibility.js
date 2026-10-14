@@ -44,6 +44,9 @@ export async function render(container, _params = [], ctx = {}) {
         <button type="button" class="btn btn--ghost" id="flex-smard">${esc(t('flex.loadPrices', { year }))}</button>
       </div>
     </div>
+    <div class="load-progress" data-role="smard-progress" role="status" aria-live="polite" hidden>
+      <progress max="12" value="0"></progress> <span class="muted small" data-role="smard-text"></span>
+    </div>
     <p class="muted">${esc(t('flex.intro'))} <a href="${esc(docUrl('flexibility'))}">${esc(t('common.guide'))}</a></p>
     ${!r.prices?.available ? `<div class="banner banner--info">${esc(t('flex.noPrices', { year }))}</div>` : ''}
     ${!meters.length ? `<div class="banner banner--info">${esc(t('flex.noIntervals', { year }))}</div>` : ''}
@@ -54,13 +57,31 @@ export async function render(container, _params = [], ctx = {}) {
     ${r.prices?.available ? `<p class="muted small">${esc(t('flex.attribution'))}</p>` : ''}`;
 
   container.querySelector('#flex-year').addEventListener('change', (e) => { location.hash = `#/flexibility?year=${e.target.value}`; });
+  // v3.5.1 — Monat für Monat mit Fortschritt: ein ganzes Jahr sind rund 53
+  // Wochenpakete von smard.de; bei langsamer Verbindung wartete man bisher stumm
   container.querySelector('#flex-smard').addEventListener('click', async (e) => {
-    e.target.disabled = true;
+    const btn = e.currentTarget;
+    const box = container.querySelector('[data-role="smard-progress"]');
+    const bar = box.querySelector('progress');
+    const text = box.querySelector('[data-role="smard-text"]');
+    const now = new Date();
+    const last = year < now.getFullYear() ? 12 : now.getMonth() + 1;
+    btn.disabled = true; btn.setAttribute('aria-busy', 'true');
+    bar.max = last; bar.value = 0; box.hidden = false;
+    let slots = 0;
     try {
-      const s = await api.syncSmardIntervals(year);
-      toastOk(t('flex.pricesLoaded', { year, slots: fmt.int(s.slots) }));
+      for (let m = 1; m <= last; m++) {
+        text.textContent = t('flex.loadingPrices', { month: month(year, m), n: m, total: last });
+        const s = await api.syncSmardIntervals(year, m);
+        slots = s.slots;
+        bar.value = m;
+      }
+      toastOk(t('flex.pricesLoaded', { year, slots: fmt.int(slots) }));
       render(container, _params, ctx);
-    } catch (err) { toastErr(err.message); e.target.disabled = false; }
+    } catch (err) {
+      toastErr(err.message);
+      btn.disabled = false; btn.removeAttribute('aria-busy'); box.hidden = true;
+    }
   });
   container.querySelectorAll('[data-series-del]').forEach(b => b.addEventListener('click', async () => {
     if (!await confirmModal({ message: t('flex.series.confirmDelete'), confirmLabel: t('flex.series.delete'), danger: true })) return;

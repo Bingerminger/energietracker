@@ -1704,7 +1704,9 @@
         "intro": "REST-Sensoren für Saldo, Prognose der nächsten 12 Monate und Tage seit der letzten Ablesung — in die configuration.yaml. Eine Abfrage je Stunde für alle Sensoren.",
         "keyHint": "Mit eingeschalteter Anmeldung braucht Home Assistant zum Lesen einen API-Schlüssel mit Bereich „lesen“ (Einstellungen → Zugriff), in der secrets.yaml:"
       },
-      "setupTitle": "Zähler und Vorlagen für Home Assistant"
+      "setupTitle": "Zähler und Vorlagen für Home Assistant",
+      "appHint": "Du nutzt Home Assistant OS? Dann läuft der Energietracker auch als App direkt in Home Assistant, mit Eintrag in der Seitenleiste.",
+      "appAdd": "Repository zu Home Assistant hinzufügen"
     },
     "diag": {
       "title": "🩺 System-Diagnose",
@@ -3391,7 +3393,8 @@
       "notFound": "Reihe „{id}“ nicht gefunden."
     },
     "flexibility": {
-      "yearInvalid": "Ungültiges Jahr: {year}."
+      "yearInvalid": "Ungültiges Jahr: {year}.",
+      "monthInvalid": "Ungültiger Monat: {month} (erlaubt sind 1 bis 12)."
     },
     "docs": {
       "notFound": "Diese Seite gehört nicht zum Handbuch dieser Version."
@@ -4664,7 +4667,8 @@
         "ingest": "Home Assistant",
         "smard": "SMARD"
       }
-    }
+    },
+    "loadingPrices": "Börsenpreise werden geladen … {month} ({n} von {total})"
   },
   "pager": {
     "label": "Seiten der Liste",

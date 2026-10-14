@@ -687,6 +687,7 @@ function wireAccessPage(container, rerender) {
   };
   const sessionChanged = (mode) => window.dispatchEvent(new CustomEvent('et:session-changed', { detail: { mode } }));
 
+  container.querySelectorAll('form[data-role="sec-form"]').forEach(f => f.addEventListener('submit', (e) => e.preventDefault()));
   container.querySelector('#btn-sec-enable')?.addEventListener('click', async () => {
     const pw = newPassword();
     if (!pw) return;
@@ -1005,6 +1006,9 @@ function renderHomeAssistantCards(authStatus, haUtilities, metersByUtility, sess
              bis v2.12 stand hier der deutsche Pfad als Text -->
         <a href="${escapeHtml(docUrl('homeAssistant'))}">${escapeHtml(t('settings.ha.guide'))}</a>
       </p>
+      <!-- v3.5.1 — Home Assistant OS: die App aus dem eigenen Repository (energietracker-ha) -->
+      <p class="settings-card__hint" id="ha-app-hint">${escapeHtml(t('settings.ha.appHint'))}
+        <a href="${HA_APP_ADD_URL}" target="_blank" rel="noopener">${escapeHtml(t('settings.ha.appAdd'))}</a></p>
 
       <h4 class="settings-subhead">${t('settings.ha.step1')}</h4>
       <p class="muted" style="font-size:12px;margin:0 0 var(--sp-2)">
@@ -1271,6 +1275,9 @@ function wireUsersCard(container, session, rerender) {
 // v3.4.0 (N1021) — „Anmeldung & Zugriff" geteilt: Anmeldung (schmal) und
 // API-Schlüssel (breit, Tabelle); Eingaben im Formularraster statt einer
 // Zeile mit `align-items:flex-end`.
+/** v3.5.1 — „Repository zu Home Assistant hinzufügen“ (my.home-assistant.io öffnet die eigene Instanz). */
+const HA_APP_ADD_URL = 'https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha';
+
 function renderSecurityCard(session) {
   const mode = ['off', 'password', 'proxy'].includes(session?.mode) ? session.mode : 'off';
   const modeFixed = !!session?.mode_fixed;
@@ -1282,30 +1289,34 @@ function renderSecurityCard(session) {
       <input class="input input--text" id="${id}" type="password" autocomplete="${autocomplete}">
     </div>`;
 
+  // v3.5.1 — Passwortfelder stehen in einem Formular (mit Benutzername für
+  // Passwortmanager): Safari am iPad erkennt sonst kein Passwortformular und
+  // legt seine Vorschläge über die Felder. Abgeschickt wird nie (Knöpfe sind
+  // type="button", submit wird abgefangen).
+  const pwForm = (inner) => `<form class="fgrid" data-role="sec-form" autocomplete="on">
+        <input type="text" name="username" autocomplete="username" value="energietracker" hidden>
+        ${inner}
+      </form>`;
   let body = '';
   if (mode === 'off' && !modeFixed) {
     body = `
-      <div class="fgrid">
-        ${pwField('sec-new', 'settings.security.newPassword', 'new-password')}
+      ${pwForm(`${pwField('sec-new', 'settings.security.newPassword', 'new-password')}
         ${pwField('sec-repeat', 'settings.security.repeatPassword', 'new-password')}
         <div class="field">
           <button type="button" class="btn btn--primary" id="btn-sec-enable">${t('settings.security.enable')}</button>
-        </div>
-      </div>
+        </div>`)}
       <p class="settings-field__hint">${t('settings.security.enableHint')}</p>`;
   } else if (mode === 'password') {
     // v3.2.0 (F1023) — mit Personen ändert jede ihr Passwort unter „Mein Konto“
     body = pwFixed
       ? `<p class="settings-field__hint">${t('settings.security.passwordFixed')}</p>`
       : session?.named_login ? `<p class="settings-field__hint">${t('settings.users.passwordHint')}</p>`
-      : `<div class="fgrid">
-          ${pwField('sec-current', 'settings.security.currentPassword', 'current-password')}
+      : pwForm(`${pwField('sec-current', 'settings.security.currentPassword', 'current-password')}
           ${pwField('sec-new', 'settings.security.newPassword', 'new-password')}
           ${pwField('sec-repeat', 'settings.security.repeatPassword', 'new-password')}
           <div class="field">
             <button type="button" class="btn" id="btn-sec-change">${t('settings.security.change')}</button>
-          </div>
-        </div>`;
+          </div>`);
     body += `
       <div class="section-actions" style="margin-top:var(--sp-2)">
         <button type="button" class="btn btn--ghost" id="btn-sec-logout">${t('login.logout')}</button>
@@ -1319,7 +1330,7 @@ function renderSecurityCard(session) {
   return `
     <div class="card settings-card" id="security-card">
       <h2 class="card__title">${t('settings.security.title')}</h2>
-      <p class="muted" style="margin-bottom: var(--sp-3)">${t('settings.security.hint')}</p>
+      <p class="settings-card__hint">${t('settings.security.hint')}</p>
       <div class="section-actions" style="align-items:center;margin-bottom:var(--sp-3)">
         <span class="tag ${mode === 'off' ? 'tag--warning' : 'tag--success'}" id="sec-mode">${t('settings.security.' + label)}</span>
         ${modeFixed ? `<span class="muted" style="font-size:12px">${t('settings.security.modeFixed')}</span>` : ''}
@@ -2032,7 +2043,7 @@ function renderSecurityCheck(diag, isAdmin) {
   return `
     <div class="card settings-card" id="security-check">
       <h2 class="card__title">${escapeHtml(t('settings.securityCheck.title'))}</h2>
-      <p class="muted">${escapeHtml(t('settings.securityCheck.hint'))}</p>
+      <p class="settings-card__hint">${escapeHtml(t('settings.securityCheck.hint'))}</p>
       <ul class="security-check">
         <li class="security-check__item" id="security-data-probe" data-state="pending">${escapeHtml(t('settings.securityCheck.dataPending'))}</li>
         ${items}

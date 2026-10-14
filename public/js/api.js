@@ -418,7 +418,7 @@ export const api = {
   flexibility:       (year) => request('GET', `/api/flexibility?year=${encodeURIComponent(year)}`),
   intervals:         ()     => request('GET', '/api/intervals'),
   deleteInterval:    (id)   => request('DELETE', `/api/intervals/${encodeURIComponent(id)}`),
-  syncSmardIntervals: (year) => request('POST', `/api/market-prices/sync-smard-intervals?year=${encodeURIComponent(year)}`, {}, { timeoutMs: TIMEOUT_LONG_MS }),
+  syncSmardIntervals: (year, month = null) => request('POST', `/api/market-prices/sync-smard-intervals?year=${encodeURIComponent(year)}${month ? `&month=${encodeURIComponent(month)}` : ''}`, {}, { timeoutMs: TIMEOUT_LONG_MS }),
   // ── v3.5.0 (F1027) — Tagesfilm: Energiefluss je Viertelstunde ──
   energyFlowDays:       ()      => request('GET', '/api/energy-flow/days'),
   energyFlowDay:        (date)  => request('GET', `/api/energy-flow/day?date=${encodeURIComponent(date)}`),

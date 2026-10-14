@@ -74,6 +74,7 @@ const utilitiesFor = (lang) => [
 ];
 const json = (data) => new Response(JSON.stringify({ success: true, data }), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
+let countriesFailOnce = true;
 global.fetch = dom.window.fetch = async (url, opts = {}) => {
   const u = String(url);
   const loc = u.match(/public\/locales\/([a-z]+)\.json$/);
@@ -101,6 +102,8 @@ global.fetch = dom.window.fetch = async (url, opts = {}) => {
     settings = body.profile === false ? { ...settings, country: code } : { ...settings, ...values, co2_strom_years: values.co2_strom_years ?? [], country: code };
     return json(settings);
   }
+  // v3.5.1 — der erste Abruf scheitert (wie beim Erststart beobachtet); der Assistent lädt nach
+  if (path === '/api/countries' && countriesFailOnce) { countriesFailOnce = false; return new Response('{"success":false}', { status: 500 }); }
   if (path === '/api/countries') return json(COUNTRIES);
   if (path === '/api/utilities') return json(utilitiesFor(lang));
   if (path === '/api/session') return json({ mode: 'off', authenticated: true });
@@ -147,12 +150,19 @@ if (DEMO_RUN) {
   t('Demo: Schritte Sprache/Land → Haushalt → Stufe → Weiter', W.setupSteps().join() === 'region,persona,level,finish', W.setupSteps().join());
   await open({ firstRun: true });
   t('Demo: Schritt 1 fragt Sprache und Land', !!q('#setup-lang') && !!q('#setup-country') && /1 von 4/.test(q('[data-role="progress"]')?.textContent || ''));
-  t('Demo: Land gesperrt, Hinweis auf den Beispielhaushalt', q('#setup-country')?.disabled === true
-    && q('#setup-country')?.getAttribute('aria-describedby') === 'setup-country-demo' && !!q('#setup-country-demo')?.textContent);
+  // v3.5.1 — Land als Text mit Hinweis, kein gesperrtes Auswahlfeld (wirkte am iPad wie ein Fehler)
+  t('Demo: Land als Text, Hinweis auf den Beispielhaushalt', q('#setup-country')?.tagName === 'P'
+    && !q('select#setup-country') && q('#setup-country')?.dataset.country === 'DE' && !!q('#setup-country-demo')?.textContent);
   change(q('#setup-lang'), 'en');
   await tick(80);
   t('Demo: Sprache gilt sofort im Assistenten', q('.setup__question')?.textContent === 'Language and country' && i18n.getLocale() === 'en');
-  next(); q('input[name="setup-persona"][value="mieterin"]').click(); await tick();
+  // v3.5.1 — nach der Wahl bleibt der Fokus an der gewählten Karte, nicht an der ersten
+  // (eine Karte weiter hinten wählen, sonst fielen beide zusammen)
+  next(); q('input[name="setup-persona"][value="eigenheim-modern"]').click(); await tick();
+  t('Demo: Fokus bleibt an der gewählten Karte', document.activeElement === q('input[name="setup-persona"][value="eigenheim-modern"]')
+    && q('.setup-choice--on input')?.value === 'eigenheim-modern'
+    && document.activeElement !== q('input[name="setup-persona"]'));
+  q('input[name="setup-persona"][value="mieterin"]').click(); await tick();
   next(); q('input[name="setup-level"][value="beginner"]')?.click(); await tick();
   next(); await tick();
   calls.length = 0;
@@ -183,6 +193,9 @@ await open({ firstRun: true });
 t('Schritt 1 von 5 fragt Sprache und Land', q('.setup__question')?.textContent === 'Sprache und Land'
   && /1 von 5/.test(q('[data-role="progress"]')?.textContent || ''));
 t('Vorauswahl: Sprache dieses Geräts, Land der Installation', q('#setup-lang')?.value === 'de' && q('#setup-country')?.value === 'DE');
+t('Länderliste nach gescheitertem erstem Abruf nachgeladen (alle Länder wählbar)',
+  q('#setup-country')?.options.length === COUNTRIES.length && calls.filter(c => c.path === '/api/countries').length === 2,
+  `${q('#setup-country')?.options.length} Länder, ${calls.filter(c => c.path === '/api/countries').length} Abrufe`);
 t('alle Oberflächensprachen zur Wahl (languages.json)', q('#setup-lang')?.options.length === Object.keys(i18n.getLanguages()).length);
 t('Fokus im ersten Feld', document.activeElement === q('#setup-lang'));
 t('unverändert: „Eingestellt für Deutschland“ mit den eigenen Werten', /Eingestellt für Deutschland/.test(q('.setup-profile__title')?.textContent || '')

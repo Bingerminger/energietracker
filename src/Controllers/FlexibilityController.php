@@ -52,12 +52,23 @@ final class FlexibilityController
     public function syncSmard(Request $req): never
     {
         try {
-            $r = $this->prices->syncSmardIntervals($this->year($req));
+            $r = $this->prices->syncSmardIntervals($this->year($req), $this->month($req));
         } catch (LocalizedException $e) {
             if ($e->key !== MarketPriceService::QH_FAILED) throw $e;
             Response::error($this->i18n->t($e->key, $e->params), 502, null, $e->key);
         }
         Response::json($r);
+    }
+
+    /** v3.5.1 — optionaler Monat (1–12) für den Abruf in Schritten mit Fortschritt. */
+    private function month(Request $req): ?int
+    {
+        $m = (string)($req->queryParam('month') ?? '');
+        if ($m === '') return null;
+        if (!ctype_digit($m) || (int)$m < 1 || (int)$m > 12) {
+            Response::error($this->i18n->t('errors.flexibility.monthInvalid', ['month' => $m]), 400, null, 'errors.flexibility.monthInvalid');
+        }
+        return (int)$m;
     }
 
     private function year(Request $req): int

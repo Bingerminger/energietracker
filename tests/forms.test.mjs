@@ -158,5 +158,27 @@ for (const [lang, ans, fun] of [['de', 'docs/referenz/ansichten.md', 'docs/einst
   t(`${lang}: Unterstützen-Link wie in der App`, !!url && a.includes(url.replace(/^https:\/\//, '')));
 }
 
+// ── v3.5.1: Safari am iPad ────────────────────────────────────────────
+console.log('v3.5.1 (iPad, Safari)');
+const raw = read('public/css/components.css').replace(/\/\*[\s\S]*?\*\//g, '');
+t('Auswahlkarten: Hover nur mit Maus (@media (hover: hover))', /@media \(hover: hover\) \{\s*\.setup-choice:hover \{/.test(raw)
+  && !/(^|\})\s*\.setup-choice:hover \{/.test(raw.replace(/@media \(hover: hover\) \{\s*\.setup-choice:hover \{[^}]*\}\s*\}/, '')));
+t('Auswahlkarten: Fokusrahmen nur bei Tastatur (:focus-visible)', /\.setup-choice:has\(input:focus-visible\) \{/.test(C) && !/\.setup-choice:focus-within/.test(C));
+const dateRule = rule(C, '.input[type="date"], .input[type="month"], .input[type="time"], .input[type="datetime-local"]');
+t('Datumsfelder folgen dem Raster (appearance: none, min-width: 0)', /appearance: none/.test(dateRule) && /min-width: 0/.test(dateRule));
+t('Hinweise unter Zugriff in einer Größe', /font-size: var\(--fs-sm\)/.test(rule(C, '.security-check__item'))
+  && /class="settings-card__hint">\$\{t\('settings\.security\.hint'\)\}/.test(settingsSrc)
+  && /class="settings-card__hint">\$\{escapeHtml\(t\('settings\.securityCheck\.hint'\)\)\}/.test(settingsSrc));
+t('Passwortfelder im Formular (mit Benutzername für Passwortmanager)', /<form class="fgrid" data-role="sec-form"/.test(settingsSrc)
+  && /autocomplete="username"/.test(settingsSrc) && !/<div class="fgrid">\s*\$\{pwField\(/.test(settingsSrc));
+t('arbeitende Knöpfe zeigen ein Rad, still bei „Bewegung reduzieren“', /animation: et-spin/.test(rule(C, '.btn[aria-busy="true"]::after'))
+  && /prefers-reduced-motion: reduce\) \{ \.btn\[aria-busy="true"\]::after \{ animation: none; \}/.test(C));
+const flexSrc = read('public/js/views/flexibility.js');
+t('Börsenpreise Monat für Monat mit Fortschritt', /syncSmardIntervals\(year, m\)/.test(flexSrc) && /<progress/.test(flexSrc) && /flex\.loadingPrices/.test(flexSrc));
+const haAdd = 'https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha';
+t('Home-Assistant-App: Knopf in README (DE/EN), Handbuch (DE/EN) und App',
+  ['README.md', 'README.de.md', 'docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md'].every(f => read(f).includes(haAdd))
+  && settingsSrc.includes(`const HA_APP_ADD_URL = '${haAdd}'`));
+
 console.log(`\n  forms: ${pass} bestanden, ${fail} fehlgeschlagen`);
 process.exit(fail ? 1 : 0);

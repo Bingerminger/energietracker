@@ -200,9 +200,12 @@ function serve(dir, port) {
     await openSetupWizard({ firstRun: true });
     await settle();
     // v3.5.0 (N1022) — zuerst Sprache und Land; das Land ist das des Beispielhaushalts
-    t('Einrichtungsassistent: Schritt 1 Sprache und Land, Land in der Demo gesperrt',
+    // v3.5.1 — das Land steht in der Demo als Text mit Hinweis, kein gesperrtes Feld
+    t('Einrichtungsassistent: Schritt 1 Sprache und Land, Land in der Demo als Text',
       w.document.querySelector('.modal #setup-lang')?.options.length === langs.length
-      && w.document.querySelector('.modal #setup-country')?.disabled === true
+      && w.document.querySelector('.modal #setup-country')?.tagName === 'P'
+      && !w.document.querySelector('.modal select#setup-country')
+      && !!w.document.querySelector('.modal #setup-country-demo')
       && !!w.document.querySelector('.modal [data-fact="format"]'));
     w.document.querySelector('.modal [data-act="next"]')?.click();
     await settle();

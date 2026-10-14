@@ -1037,6 +1037,7 @@ last day with a value. Attribution: “Bundesnetzagentur | SMARD.de (CC BY 4.0)�
 | Status | `code` | When |
 |---|---|---|
 | `400` | `errors.flexibility.yearInvalid` | `year` is not a year from 2018 to 2100 (`flexibility`, `sync-smard-intervals`) |
+| `400` | `errors.flexibility.monthInvalid` | *(v3.5.1)* `month` is not a number from 1 to 12 (`sync-smard-intervals`) |
 | `404` | `errors.intervals.notFound` | `DELETE`: no series with this ID in the index |
 | `502` | `errors.marketPrices.syncQuarterHoursFailed` | `sync-smard-intervals`: SMARD unreachable, a package with an HTTP error or no value for the year — nothing is stored then |
 
@@ -3895,6 +3896,7 @@ Previously accepted silently, now `400` with `code` and — for the forecast —
 | `…/import-evcc`, `…/sync-evcc` | `counters` | `auto` (default), `energy`, `none`, otherwise `errors.evcc.countersInvalid` (v3.2.0) |
 | `/api/heat-pump` | `year` | 1990–2100, default previous year, otherwise `errors.heatPump.yearInvalid` (v3.1.0) |
 | `/api/flexibility`, `…/sync-smard-intervals` | `year` | 2018–2100, default previous year, otherwise `errors.flexibility.yearInvalid` (v3.3.0) |
+| `…/sync-smard-intervals` | `month` | optional 1–12: only this month (the interface loads month by month with progress), otherwise `errors.flexibility.monthInvalid` (v3.5.1) |
 | `POST /api/ingest` | `timestamp` | ISO 8601 with a time zone or empty, otherwise `errors.ingest.timestampFormat` (v3.3.0) |
 | `/api/energy-flow/day` | `date` | calendar day YYYY-MM-DD, year 2000–2100, required, otherwise `errors.energyFlow.dateInvalid` (v3.5.0) |
 | `/api/energy-flow/typical-day` | `month` | YYYY-MM, year 2000–2100, required, otherwise `errors.energyFlow.monthInvalid` (v3.5.0) |

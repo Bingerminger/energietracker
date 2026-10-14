@@ -855,6 +855,12 @@ abgenommen ist.
 - **Ein Testprozess ist keine Anfrage (v3.5.0).** PHPUnit sammelt über rund
   1000 Tests Speicher an; das Limit dafür steht in `phpunit.xml.dist`. Ob eine
   Anfrage unter 128 MB bleibt, prüft eine Messung der Anfrage selbst.
+- **Sichtprüfung nur in Chromium reicht nicht (v3.5.1).** Am iPad blieb das
+  Hover nach dem Antippen stehen, Datumsfelder brachten ihre eigene Breite mit,
+  und Passwortfelder ohne Formular verwirrten Safari — nichts davon zeigte
+  Chromium. Oberflächenänderungen brauchen Safari/WebKit in der Prüfung oder
+  die Abnahme am Gerät; ein programmatischer Fokus nach einer Auswahl gehört
+  auf das gewählte Feld, nicht auf das erste.
 
 ---
 

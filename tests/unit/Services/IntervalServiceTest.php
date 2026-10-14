@@ -198,6 +198,34 @@ final class IntervalServiceTest extends ServiceTestCase
         self::assertNull($this->iv->prices(2024), 'Vorjahr nicht angelegt');
     }
 
+    /**
+     * v3.5.1 — ein Monat für den Abruf in Schritten: nur die Wochenpakete, die
+     * den Monat berühren, und nur Werte des Monats (Grenzen in der Zeitzone der
+     * Installation). Ohne Monat bleibt alles wie bisher.
+     */
+    public function testSmardQuarterHoursForOneMonth(): void
+    {
+        $fetched = [];
+        $weeks = [$this->at('2025-01-27 00:00') * 1000, $this->at('2025-02-03 00:00') * 1000, $this->at('2025-03-03 00:00') * 1000];
+        $fetch = function (string $url) use ($weeks, &$fetched): string {
+            if (str_ends_with($url, 'index_quarterhour.json')) return json_encode(['timestamps' => $weeks]);
+            $fetched[] = $url;
+            if (str_contains($url, (string)$weeks[0])) {
+                return json_encode(['series' => [[$this->at('2025-01-31 23:45') * 1000, 50.0], [$this->at('2025-02-01 00:00') * 1000, 100.0]]]);
+            }
+            if (str_contains($url, (string)$weeks[1])) return json_encode(['series' => [[$this->at('2025-02-28 23:45') * 1000, 30.0]]]);
+            return json_encode(['series' => [[$this->at('2025-03-03 00:00') * 1000, 70.0]]]);
+        };
+        $r = (new MarketPriceService($this->store, $this->i18n, $fetch, $this->iv))->syncSmardIntervals(2025, 2);
+        self::assertCount(2, $fetched, 'nur die Pakete, die den Februar berühren');
+        self::assertSame(2, $r['slots']);
+        $p = $this->iv->prices(2025);
+        self::assertNull($p[$this->slotOf('2025-01-31 23:45')], 'Januar bleibt draußen');
+        self::assertSame(10.0, $p[$this->slotOf('2025-02-01 00:00')]);
+        self::assertSame(3.0, $p[$this->slotOf('2025-02-28 23:45')]);
+        self::assertNull($p[$this->slotOf('2025-03-03 00:00')], 'März bleibt draußen');
+    }
+
     /** Ohne Viertelstundenpreise oder bei einem HTTP-Fehler: eigener Code — für Viertelstunden gibt es keinen Dateiimport als Ausweg. */
     public function testSmardFailureHasItsOwnCode(): void
     {

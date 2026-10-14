@@ -62,6 +62,10 @@ feedback from real installations is welcome
 
 **Installing**
 
+In one click: [Add the repository to Home Assistant](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha) — opens your Home
+Assistant instance with the dialog and the address
+`https://github.com/Bingerminger/energietracker-ha`. By hand:
+
 1. Add the app repository: in Home Assistant, open the app store under
    **Settings → Apps**, choose **⋮ → Repositories** and enter
    `https://github.com/Bingerminger/energietracker-ha`. Or with one click:

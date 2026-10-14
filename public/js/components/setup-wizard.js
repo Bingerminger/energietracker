@@ -64,6 +64,10 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
   let [utilities, settings, countries] = await Promise.all([
     getUtilities().catch(() => []), getSettings().catch(() => ({})), getCountries().catch(() => []),
   ]);
+  // v3.5.1 — Blieb die Länderliste beim ersten Öffnen leer (Abruf gescheitert),
+  // bot der Assistent nur das aktuelle Land an, die Einstellungen später alle.
+  // Einmal direkt nachladen statt ein Feld mit einer einzigen Wahl zu zeigen.
+  if (!countries.length && !DEMO) countries = await api.countries().catch(() => []);
   // Was gilt, wenn der Assistent öffnet — Vergleich für „nur Abweichungen“ und fürs Zurücknehmen
   const start = { language: getLocale(), country: settings.country || 'DE' };
   const state = {
@@ -103,11 +107,16 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         </select>
       </div>
       <div class="field">
-        <label for="setup-country">${esc(t('settings.region.country'))}</label>
-        <select class="select" id="setup-country" name="setup-country"${DEMO ? ' disabled aria-describedby="setup-country-demo"' : ''}>
+        ${DEMO
+          // v3.5.1 — in der Demo gilt das Land der Beispieldaten: als Text mit
+          // Erklärung statt eines gesperrten Felds, das wie ein Fehler wirkte
+          ? `<span class="label">${esc(t('settings.region.country'))}</span>
+        <p class="setup-country-fixed" id="setup-country" data-country="${esc(state.country)}"><strong>${esc(t('countries.' + state.country))}</strong></p>
+        <p class="settings-field__hint" id="setup-country-demo">${esc(t('setup.region.demoCountry'))}</p>`
+          : `<label for="setup-country">${esc(t('settings.region.country'))}</label>
+        <select class="select" id="setup-country" name="setup-country">
           ${codes.map(c => `<option value="${esc(c)}"${c === state.country ? ' selected' : ''}>${esc(t('countries.' + c))}</option>`).join('')}
-        </select>
-        ${DEMO ? `<p class="settings-field__hint" id="setup-country-demo">${esc(t('setup.region.demoCountry'))}</p>` : ''}
+        </select>`}
       </div>
     </div>
     <div class="setup-profile" data-role="region-facts" aria-live="polite">${factsHtml()}</div>`;
@@ -247,7 +256,10 @@ export async function openSetupWizard({ session = null, firstRun = false } = {})
         }
         if (el.name === 'setup-level') state.level = el.value;
         if (el.name === 'setup-start') state.start = el.value;
-        draw();
+        // v3.5.1 — der Fokus bleibt am gewählten Feld. Bisher setzte draw() ihn
+        // aufs erste Feld; dessen Karte trug den Fokusrahmen und sah am iPad wie
+        // eine zweite Auswahl aus. Werte stammen aus festen Listen (a–z, _ , -).
+        draw(el.type === 'radio' || el.type === 'checkbox' ? `input[name="${el.name}"][value="${el.value}"]` : undefined);
       });
       back.addEventListener('click', () => { state.step = Math.max(0, state.step - 1); draw(); });
       modalEl.querySelector('[data-act="skip"]').addEventListener('click', async () => {

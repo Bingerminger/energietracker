@@ -445,6 +445,7 @@ GET    /api/flexibility?year=2025                         → {year, prices, met
 GET    /api/intervals                                     → {series: [...]}
 DELETE /api/intervals/{id}                                → {deleted: true}
 POST   /api/market-prices/sync-smard-intervals?year=2025  → {year, slots, from, to}
+POST   /api/market-prices/sync-smard-intervals?year=2025&month=3  → March only (v3.5.1)
 ```
 
 Without `year` the previous year applies. Quarter hours also arrive via

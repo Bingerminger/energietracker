@@ -105,8 +105,12 @@ entfällt dann.
 > mit Bildern als Base64, `/api/tags`, FAQ, Container-Image) und am App-Pfad:
 > Einstellungen, Foto hochladen und `POST /api/ocr/reading` liefen gegen
 > einen nachgebauten Dienst, der wie Ollama antwortet; die Meldung „nicht
-> erreichbar“ gegen einen nicht laufenden Dienst. Mit einem echten Ollama und
-> einem Bildmodell ist die Anleitung in diesem Release **nicht** ausprobiert.
+> erreichbar“ gegen einen nicht laufenden Dienst. **Ausprobiert** (v3.5.1,
+> Oktober 2026) mit Ollama 0.40.4 auf einem Mac und dem Modell `glm-ocr`
+> (1,1 Milliarden Parameter): Ein Testbild eines Zählerstands wurde in rund
+> 4 Sekunden richtig gelesen. Das Modell gibt keine Sicherheit an
+> (`confidence` 0) — der Wert wird ohnehin nur vorbelegt, prüfe ihn vor dem
+> Speichern.
 
 ---
 

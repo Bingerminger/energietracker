@@ -12,7 +12,7 @@ services:
       PROXY_AUTH_WHITELIST: "/api/ingest,/api.php/api/ingest"
 
   web:
-    image: ghcr.io/bingerminger/energietracker:3.5.0
+    image: ghcr.io/bingerminger/energietracker:3.5.1
     restart: on-failure
     stop_grace_period: 1m
     volumes:

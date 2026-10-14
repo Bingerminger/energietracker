@@ -8,7 +8,7 @@
 # 127.0.0.1 hinter einem Reverse-Proxy): docs/betrieb/docker.md (v3.4.0).
 services:
   energietracker:
-    image: ghcr.io/bingerminger/energietracker:3.5.0
+    image: ghcr.io/bingerminger/energietracker:3.5.1
     # build: .
     container_name: energietracker
     restart: unless-stopped

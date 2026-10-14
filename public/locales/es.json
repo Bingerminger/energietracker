@@ -1704,7 +1704,9 @@
         "intro": "Sensores REST para saldo, previsión a 12 meses y días desde la última lectura — en configuration.yaml. Una petición por hora para todos los sensores.",
         "keyHint": "Con el inicio de sesión activado, Home Assistant necesita para leer una clave de API con ámbito «lectura» (Ajustes → Acceso), en secrets.yaml:"
       },
-      "setupTitle": "Contadores y plantillas para Home Assistant"
+      "setupTitle": "Contadores y plantillas para Home Assistant",
+      "appHint": "¿Usas Home Assistant OS? Entonces Energietracker también funciona como app dentro de Home Assistant, con una entrada en la barra lateral.",
+      "appAdd": "Añadir el repositorio a Home Assistant"
     },
     "diag": {
       "title": "🩺 Diagnóstico del sistema",
@@ -3391,7 +3393,8 @@
       "notFound": "Serie «{id}» no encontrada."
     },
     "flexibility": {
-      "yearInvalid": "Año no válido: {year}."
+      "yearInvalid": "Año no válido: {year}.",
+      "monthInvalid": "Mes no válido: {month} (se admiten del 1 al 12)."
     },
     "docs": {
       "notFound": "Esta página no forma parte del manual de esta versión."
@@ -4664,7 +4667,8 @@
         "ingest": "Home Assistant",
         "smard": "SMARD"
       }
-    }
+    },
+    "loadingPrices": "Cargando precios mayoristas … {month} ({n} de {total})"
   },
   "pager": {
     "label": "Páginas de la lista",

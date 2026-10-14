@@ -6,6 +6,69 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.5.1] — 2026-10-14 — Am iPad
+
+PATCH-Release: Fehler, die bei der Nutzung am iPad (Safari) auffielen, dazu
+der erste echte Test der Texterkennung mit Ollama. Kein Schemaschritt (bleibt
+1.8.0); die Schnittstelle wächst nur additiv (`month` am Abruf der
+Börsenpreise).
+
+### Fixed
+
+- **Einrichtungsassistent: Karten wirkten mehrfach ausgewählt.** Nach jeder
+  Wahl sprang der Fokus auf die erste Karte, deren Fokusrahmen wie eine
+  zweite Auswahl aussah; dazu blieb in Safari der Hover-Rahmen nach dem
+  Antippen stehen. Jetzt bleibt der Fokus an der gewählten Karte, Hover gilt
+  nur mit Maus, der Fokusrahmen nur bei Tastaturbedienung.
+- **„Rechnung prüfen“: überlappende Felder.** Datums- und Zeitfelder bringen
+  in Safari eine eigene Mindestbreite mit und ragten in die Nachbarspalte —
+  sie folgen jetzt app-weit dem Formularraster.
+- **Einrichtungsassistent: Land nicht wählbar.** Schlug der Abruf der
+  Länderliste beim ersten Öffnen fehl, bot der Assistent nur das aktuelle
+  Land an; er lädt die Liste jetzt nach. In der Demo steht das Land des
+  Beispielhaushalts als Text mit Erklärung statt als gesperrtes Feld.
+- **Einstellungen → Zugriff:** Hinweise in einer Schriftgröße; die
+  Passwortfelder stehen in einem Formular, damit Safari sie als
+  Passwortformular erkennt.
+- **Börsenpreise von SMARD laden ohne Rückmeldung:** Die Seite Flexibilität
+  lädt das Jahr jetzt Monat für Monat mit Fortschrittsbalken („März 2025,
+  3 von 12“); jeder Knopf, der gerade arbeitet, zeigt ein drehendes Rad (bei
+  „Bewegung reduzieren“ steht es still). API additiv:
+  `POST /api/market-prices/sync-smard-intervals?year=&month=` (1–12),
+  `errors.flexibility.monthInvalid`.
+
+### Changed
+
+- **Home-Assistant-App sichtbarer:** Knopf „Repository zu Home Assistant
+  hinzufügen“ im README (DE/EN) und im Handbuch, Abzeichen
+  „Home Assistant App“, Hinweis mit Link auf der Karte Home Assistant in der
+  App.
+- **Texterkennung mit Ollama ausprobiert:** Ollama 0.40.4 mit dem Modell
+  `glm-ocr` las ein Testbild eines Zählerstands in rund 4 Sekunden richtig;
+  das Modell gibt keine Sicherheit an, der Wert wird wie immer nur
+  vorbelegt.
+
+### Migration
+
+Keine. Schema bleibt 1.8.0.
+
+### Tests
+
+- `IntervalServiceTest` (Börsenpreise für einen Monat), `setup-wizard.test`
+  (Fokus an der gewählten Karte, Länderliste nachgeladen, Demo-Land als
+  Text), `forms.test` (Hover, Fokusrahmen, Datumsfelder, Zugriff, Rad,
+  Fortschritt, Knopf zur Home-Assistant-App).
+- 929 Testmethoden (+1). 14 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Sichtprüfung nur in Chromium reicht nicht.** Klebendes Hover,
+  Datumsfelder mit Eigenbreite und Passwortfelder ohne Formular zeigen sich
+  erst in Safari. Für Oberflächenänderungen gehört Safari/WebKit in die
+  Prüfung — oder die Abnahme am iPad.
+
+---
+
 ## [3.5.0] — 2026-10-14 — Wer, wann, wohin
 
 MINOR-Release ohne Schemaschritt (bleibt 1.8.0): Aufgaben im Haushalt bekommen

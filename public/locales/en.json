@@ -1704,7 +1704,9 @@
         "intro": "REST sensors for balance, 12-month forecast and days since the last reading — into configuration.yaml. One request per hour for all sensors.",
         "keyHint": "With sign-in enabled, Home Assistant needs an API key with scope “read” (Settings → Access) to read, in secrets.yaml:"
       },
-      "setupTitle": "Meters and templates for Home Assistant"
+      "setupTitle": "Meters and templates for Home Assistant",
+      "appHint": "Using Home Assistant OS? Then Energietracker also runs as an app right inside Home Assistant, with an entry in the sidebar.",
+      "appAdd": "Add the repository to Home Assistant"
     },
     "diag": {
       "title": "🩺 System diagnostics",
@@ -3391,7 +3393,8 @@
       "notFound": "Series “{id}” not found."
     },
     "flexibility": {
-      "yearInvalid": "Invalid year: {year}."
+      "yearInvalid": "Invalid year: {year}.",
+      "monthInvalid": "Invalid month: {month} (1 to 12 are allowed)."
     },
     "docs": {
       "notFound": "This page is not part of the handbook of this version."
@@ -4664,7 +4667,8 @@
         "ingest": "Home Assistant",
         "smard": "SMARD"
       }
-    }
+    },
+    "loadingPrices": "Loading wholesale prices … {month} ({n} of {total})"
   },
   "pager": {
     "label": "List pages",

@@ -96,6 +96,14 @@
   min-height: var(--control-h);
   transition: var(--transition);
 }
+/* v3.5.1 — Safari (iPad, iPhone): Datums- und Zeitfelder bringen eine eigene
+   Mindestbreite mit, ignorieren width: 100% und ragten in die Nachbarspalte
+   („Rechnung prüfen“). Ohne Eigendarstellung folgen sie dem Raster; die
+   Auswahl öffnet weiter der Systemdialog. */
+.input[type="date"], .input[type="month"], .input[type="time"], .input[type="datetime-local"] {
+  -webkit-appearance: none; appearance: none; min-width: 0; max-width: 100%;
+}
+.input::-webkit-date-and-time-value { min-width: 0; margin: 0; text-align: start; }
 .input:focus, .select:focus, textarea.input:focus {
   outline: none; border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
@@ -1833,10 +1841,13 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   padding: var(--sp-3); border: 1px solid var(--border-2); border-radius: var(--r-md);
   cursor: pointer; background: var(--bg-1);
 }
-.setup-choice:hover { border-color: var(--border-strong); }
+/* v3.5.1 — Hover nur mit echter Maus: Safari am iPad lässt :hover nach dem
+   Antippen stehen; der Fokusrahmen nur bei Tastatur (:focus-visible), sonst
+   wirkten am iPad mehrere Karten ausgewählt. */
+@media (hover: hover) { .setup-choice:hover { border-color: var(--border-strong); } }
 .setup-choice--on { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent); }
 .setup-choice input { position: absolute; opacity: 0; pointer-events: none; }
-.setup-choice:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.setup-choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .setup-choice__icon { font-size: 24px; line-height: 1; }
 .setup-choice__body { display: flex; flex-direction: column; gap: 2px; }
 .setup-utilities { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--sp-2); }
@@ -1862,7 +1873,20 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 
 /* v3.4.0 (N1020) — Sicherheits-Check unter Einstellungen → Zugriff und System */
 .security-check { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.security-check__item { position: relative; padding-left: 1.6em; }
+/* v3.5.1 — arbeitende Knöpfe (guardSubmit, Abrufe) zeigen ein drehendes Rad;
+   bei „Bewegung reduzieren“ steht es still. Dazu ein Fortschrittsbalken für
+   Abrufe in Schritten (Börsenpreise von SMARD). */
+.btn[aria-busy="true"]::after {
+  content: ''; display: inline-block; width: 0.9em; height: 0.9em; margin-left: 0.5em;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+  vertical-align: -0.15em; animation: et-spin 0.8s linear infinite;
+}
+@keyframes et-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .btn[aria-busy="true"]::after { animation: none; } }
+.load-progress { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin: var(--sp-2) 0; }
+.load-progress progress { width: min(16rem, 100%); accent-color: var(--accent); }
+/* v3.5.1 — gleiche Schriftgröße wie die übrigen Hinweise unter Zugriff */
+.security-check__item { position: relative; padding-left: 1.6em; font-size: var(--fs-sm); }
 .security-check__item::before { content: '…'; position: absolute; left: 0; font-weight: 700; }
 .security-check__item--ok::before { content: '✓'; color: var(--success); }
 .security-check__item--warn::before { content: '!'; color: var(--warning); }

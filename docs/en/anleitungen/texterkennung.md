@@ -104,8 +104,12 @@ step 3 is then not needed.
 > `/api/chat` with images as base64, `/api/tags`, FAQ, container image) and
 > along the app's path: settings, photo upload and `POST /api/ocr/reading` ran
 > against a stand-in service that answers like Ollama; the “cannot be reached”
-> message against a service that was not running. With a real Ollama and a
-> vision model this guide has **not** been tried in this release.
+> message against a service that was not running. **Tried** (v3.5.1,
+> October 2026) with Ollama 0.40.4 on a Mac and the model `glm-ocr`
+> (1.1 billion parameters): a test image of a meter reading was read
+> correctly in about 4 seconds. The model reports no confidence
+> (`confidence` 0) — the value is only prefilled anyway; check it before
+> saving.
 
 ---
 

@@ -1,6 +1,6 @@
 # Energietracker — Roadmap
 
-> **Kurzfassung.** Jetzt: v3.5.0 — wer, wann, wohin: Termine mit zuständiger
+> **Kurzfassung.** Jetzt: v3.5.1 (Fehler am iPad behoben) auf v3.5.0 — wer, wann, wohin: Termine mit zuständiger
 > Person, Hinweis „Abrechnung erwartet“, der Energiefluss als Tagesfilm,
 > Home Assistant OS als App, ein Image ohne root und eine Einrichtung, die
 > zuerst nach Sprache und Land fragt. Davor v3.4.0 (klar und sicher) und
@@ -23,8 +23,8 @@
 > Reihenfolge und akutem Bedarf (etwa einem kritischen Fehler) gewinnt der
 > Bedarf.
 
-**Stand:** 2026-10-14 (synchron mit v3.5.0; Gesamtreview A–H fertig, dazu F1018–F1029, N1019–N1026)
-**Aktuelle Baseline:** v3.5.0
+**Stand:** 2026-10-14 (synchron mit v3.5.1; Gesamtreview A–H fertig, dazu F1018–F1029, N1019–N1026)
+**Aktuelle Baseline:** v3.5.1
 **Schema:** 1.8.0
 
 ---
@@ -1025,6 +1025,38 @@ Container; Verlauf als CSV, nicht als PDF.
 
 ---
 
+## v3.5.1 — iPad-Fehler (Bugfix) — ausgeliefert 2026-10-14
+
+> Entscheidung 2026-10-14 (Maintainer): die sechs Fehler sofort als Bugfix
+> v3.5.1, #33 bleibt in v3.6.0 (Wochenlimit). B3 trat in Demo und ACC auf.
+
+
+**Fehler aus der Nutzung am iPad (Safari), gemeldet 2026-10-14 vom
+Maintainer — alle behoben in v3.5.1:**
+
+| # | Fehler | Befund (vorläufig) | Größe |
+|---|---|---|---|
+| B1 | Einrichtungsassistent: Auswahlkarten wirken mehrfach ausgewählt, erst mehrfaches Antippen löst es | `.setup-choice:hover` bleibt auf Touch-Geräten „kleben“, `:focus-within` zeichnet einen Akzentrahmen wie die Auswahl → Hover nur unter `@media (hover: hover)`, Fokusrahmen nur bei Tastatur (`:focus-visible`); alle Auswahlkarten der App prüfen | S |
+| B2 | „Rechnung prüfen“: Formularfelder überlappen | Datumsfelder in Safari mit eigener Mindestbreite im Raster → `min-width: 0` / volle Breite, Formularraster N1021 nachziehen | S |
+| B3 | Einrichtungsassistent: Sprache wählbar, Land nicht (Einstellungen gehen) | Klären: in der Demo ist das Land im Assistenten bewusst gesperrt (N1022), in den Einstellungen nicht — Widerspruch; außerhalb der Demo bietet der Assistent nur das aktuelle Land an, wenn `/api/countries` scheitert → Ursache am iPad nachstellen, Verhalten an die Einstellungen angleichen | S |
+| B4 | Einstellungen → Zugriff: Formulare nicht sauber | Personen, Schlüssel, Token, Hostliste noch nicht im Formularraster (N1021) | S–M |
+| B5 | „SMARD-Daten laden“ (Börsenpreise) ohne Rückmeldung | Knopf wartet stumm auf den Abruf → Ladeanzeige mit Fortschritt (Wochen/Monate geladen) und Abbrechen, auch im Tarifvergleich | S–M |
+| B6 | Zusammenhang Hauptprojekt ↔ `energietracker-ha` zu wenig sichtbar | Knopf „Repository zu Home Assistant hinzufügen“ (my.home-assistant.io) im README (DE/EN), in der Doku und in der App (Karte Home Assistant), Verweise in beide Richtungen | S |
+
+**Test am Gerät:** Sichtprüfung in Chromium (iPad-Breite) plus Abnahme am iPad
+durch den Maintainer; WebKit fehlt in der Werkzeugkette noch (Eingang).
+
+---
+
+## v3.6.0 — Sammlung (seit 2026-10-14, noch kein Schnitt)
+
+**Kern:** F10xx Abrechnungsjahr statt Kalenderjahr (GitHub #33, Entscheidung
+2026-10-14: „richtig“ — Endpunkt tagesgenau, Umschalter in Verbrauchsart,
+Dashboard und Analyse, Option für Jahresbericht und CSV; Eingang). Dazu
+WebKit (Playwright) für Sichtprüfungen.
+
+---
+
 ## Eingang (besprochen, noch ohne Release)
 
 Seit 2026-10-09 der **Eingang**: Jede besprochene Idee landet hier noch in
@@ -1167,6 +1199,7 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-10-13 | v3.4.0 ausgeliefert (Minor, F1024–F1026 + N1019–N1021, kein Schemaschritt) | **Klar und sicher** — Hilfe auf dem Server, Sicherheitspaket (Proxy-Kopfzeilen, Rollen, Container, Lieferkette; v0.9.0-Import entfällt), Jahresbericht für alle, erledigte Hinweise mit Verlauf, Schaubilder zweite Fassung (Autarkie mit Speicher korrigiert), aufgeräumte Oberfläche; Altlasten PHP 8.5 (#27), Code-Scanning, zweisprachige Release-Notes, Buy-Me-a-Coffee (#28), Werbebilder. Gebaut in sechs parallelen Arbeitskopien. |
 | 2026-10-13 | v3.5.0 geplant (Release-Schnitt im Assist-Modus) | Gewählt: Tagesfilm (ein Tag und typischer Tag), Zuständig nur an Terminen, Abrechnung erwartet, Einrichtung mit Sprache und Land, iPad-Seitenleiste, Rootless-Image, Home-Assistant-App als eigenes Repo (keine HACS-Integration), Beispieldaten in den vier Haushalten, Altlasten (Rechtsstand 2027, Anleitungen, Dependabot). Doku-Kern und englische Screenshots zurückgestellt. |
 | 2026-10-14 | v3.5.0 ausgeliefert (Minor, F1027–F1029 + N1022–N1026, kein Schemaschritt) | **Wer, wann, wohin** — Tagesfilm, Zuständig an Terminen, Abrechnung erwartet (§ 40c EnWG, 120-Tage-Fenster), Verlauf als CSV, Einrichtung mit Sprache und Land, iPad-Navigation, Jahresbericht-Dialog, Image ohne root, Home-Assistant-App (eigenes Repo), Beispieldaten; Rechtsstand 2027 (Strompreispauschale 32 ct, GModG-Verfahren ab 2027); GitHub #34 (Sonderzahlungen Wasser) behoben, #33 auf v3.6.0 gelegt; Dependabot #29–#32. Gebaut in sieben parallelen Arbeitskopien. |
+| 2026-10-14 | v3.5.1 ausgeliefert (Patch) | Sechs Fehler am iPad (Safari) aus der Nutzung des Maintainers: Assistent-Karten wirkten mehrfach ausgewählt (Fokus aufs erste Feld, klebendes Hover), überlappende Datumsfelder in „Rechnung prüfen“, Land im Assistenten nicht wählbar (Liste nicht nachgeladen; Demo als Text), Zugriff-Formulare, SMARD-Abruf ohne Rückmeldung (Monat für Monat mit Fortschritt, `month` additiv), Home-Assistant-App sichtbarer. Ollama mit glm-ocr live geprüft. #33 bleibt v3.6.0. |
 | 2026-09-24 | v2.5.3 ausgeliefert (Patch) | **Keine stillen Fehlbuchungen** — Paket A aus einem Gesamtreview (Berechnungen, Oberfläche Mac/iPhone, Übersetzungen, Doku, API). Schwerpunkt: Eingaben, die bisher still in eine gültige Buchung verwandelt wurden (leeres Zahlenfeld → 0, „12,5" je nach Browser → nichts, HA-Sensor „unavailable" → Zählerstand 0 durch `float(0)` in der eigenen Vorlage, unlesbarer Stichtag → 01-01, leerer Vertrag → „aktiv"). Dazu CSRF-Schutz, Escaping gespeicherter Werte, Datumsprüfung auf allen Schreibpfaden, Beschädigung als 503 mit Quarantäne-Kopie, globale Schreibsperre, Snapshot vor Migration, iPhone-Überbreite (13 von 21 Ansichten → keine), Glossar-Vorzeichen, fachliche Fehlübersetzungen. Kein Schema-Bump, keine Schnittstellenänderung. 256 → 285 Testmethoden, zwei neue Node-Tests in der CI. Die weiteren Pakete folgen als eigene Releases: „Verlässlich und sicher im Heimnetz" (optionale Anmeldung), Länderprofile, „Richtig rechnen", „Mobil und aufgeräumt", „Versteht sich von selbst", „Auswertungen, die man sieht". |
 | 2026-09-15 | v2.5.2 ausgeliefert (Patch) | UX-Politur an der Rechnungsprüfung: je Abschnitt **Stand alt / Stand neu** mit Ableseart wie die Fußnoten der Rechnung — abgelesen, als geschätzt erfasst (`S`), Ersatzwert (`E`, tagesgenau interpoliert, kein Stand über einen Zählertausch hinweg). Anlass: Beim Abgleich zweier echter Jahresrechnungen war nicht zu sehen, welche Abschnittsgrenzen auf echten Ablesungen ruhen und welche auf Schätzungen — bei der zweiten Rechnung vier von sieben Endständen. `bill-check` liefert `counter_*` + `counter_*_kind`. 254 → 256 Tests, der Browser-Test führt die Prüfung jetzt wirklich aus, 7 Toggles greifend. Doku DE + EN. Nächster Slot: F1008. |
 | 2026-09-15 | v2.5.1 ausgeliefert (Patch) | UX-Politur ohne Code: Die Tabelle *Verträge & Abschläge* zeigt je Vertrag jetzt eine Spalte **Sonderzahlungen** (Netto aus Kundensicht, Einzelposten im Tooltip, Hinweistext; nur Gas/Strom/Fernwärme). Aufgefallen beim Nachrechnen einer echten Endabrechnung mit der neuen Rechnungsprüfung: Die gebuchte Gutschrift war in der Vertragshistorie unsichtbar, nur *Bonus* hatte eine Spalte. Drei Weichen per Multiple-Choice (eigene Spalte statt „Boni & Sonder"-Saldo — Bonus ist Vertragsbestandteil, Sonderzahlung Geld außerhalb des Plans; Netto mit Kundenvorzeichen; PATCH statt F-Code). `contract-status` liefert dafür `special_payments[]`. 250 → 254 Tests, 9 Toggles greifend, ein zehnter fand totes `abs()`. Doku DE + EN. Nächster Slot: F1008. |

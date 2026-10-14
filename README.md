@@ -14,14 +14,15 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.5.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.5.1-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-928-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-929-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
+[![Home Assistant App](https://img.shields.io/badge/Home%20Assistant-App-41BDF5.svg?logo=homeassistant&logoColor=white)](https://github.com/Bingerminger/energietracker-ha)
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-ffdd00.svg)](https://buymeacoffee.com/bingerminger)
 
 <p align="center"><img src="docs/ui/screenshots/en/dashboard.png" alt="Overview with to-dos, key figures per utility and history" width="860"></p>
@@ -72,16 +73,19 @@ and help inside the app with a glossary and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.5.0
+  ghcr.io/bingerminger/energietracker:3.5.1
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
 what everything looks like; your own data is not lost.
 
 With **Home Assistant OS**, no Docker host of your own is needed: install it as
-an app with an entry in the sidebar and sign-in via Home Assistant —
-[As an app in Home Assistant OS](docs/en/anleitungen/home-assistant.md#as-an-app-in-home-assistant-os)
-(new since 3.5.0).
+an app with an entry in the sidebar and sign-in via Home Assistant (new since
+3.5.0, repository [energietracker-ha](https://github.com/Bingerminger/energietracker-ha)):
+
+[![Add the Energietracker app repository to your Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha)
+
+Step by step: [As an app in Home Assistant OS](docs/en/anleitungen/home-assistant.md#as-an-app-in-home-assistant-os).
 
 Without Docker, PHP 8.2 or later is enough: `git clone`, then
 `php -S 127.0.0.1:8080 router.php`. For permanent use:
@@ -135,10 +139,10 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.5.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
+**v3.5.1** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
 version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
 change only additively; anything is removed only with a new major version and
-after notice. 3.5.0 is about who, when and where to: reminders get someone
+after notice. 3.5.1 fixes what showed up on the iPad (Safari). 3.5.0 is about who, when and where to: reminders get someone
 responsible, missing supplier bills stand out, and the energy flow plays a day
 in quarter hours. Home Assistant OS users can install it as an app, there is
 an image without root, and the setup asks for language and country first.

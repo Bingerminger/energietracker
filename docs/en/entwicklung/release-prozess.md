@@ -797,6 +797,11 @@ accepted.
 - **A test process is not a request (v3.5.0).** PHPUnit accumulates memory over
   about 1000 tests; the limit for that sits in `phpunit.xml.dist`. Whether a
   request stays below 128 MB is checked by measuring the request itself.
+- **A visual check in Chromium alone is not enough (v3.5.1).** On the iPad the
+  hover stayed after a tap, date fields brought their own width, and password
+  fields outside a form confused Safari — Chromium showed none of it. UI
+  changes need Safari/WebKit in the check or acceptance on the device; a
+  programmatic focus after a choice belongs on the chosen field, not the first.
 
 ---
 

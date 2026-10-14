@@ -1704,7 +1704,9 @@
         "intro": "REST-sensoren voor saldo, prognose voor 12 maanden en dagen sinds de laatste meterstand — in configuration.yaml. Eén verzoek per uur voor alle sensoren.",
         "keyHint": "Met inloggen ingeschakeld heeft Home Assistant om te lezen een API-sleutel met bereik “lezen” nodig (Instellingen → Toegang), in secrets.yaml:"
       },
-      "setupTitle": "Meters en sjablonen voor Home Assistant"
+      "setupTitle": "Meters en sjablonen voor Home Assistant",
+      "appHint": "Gebruik je Home Assistant OS? Dan draait Energietracker ook als app direct in Home Assistant, met een item in de zijbalk.",
+      "appAdd": "Repository aan Home Assistant toevoegen"
     },
     "diag": {
       "title": "🩺 Systeemdiagnose",
@@ -3391,7 +3393,8 @@
       "notFound": "Reeks ‘{id}’ niet gevonden."
     },
     "flexibility": {
-      "yearInvalid": "Ongeldig jaar: {year}."
+      "yearInvalid": "Ongeldig jaar: {year}.",
+      "monthInvalid": "Ongeldige maand: {month} (1 tot en met 12 zijn toegestaan)."
     },
     "docs": {
       "notFound": "Deze pagina hoort niet bij het handboek van deze versie."
@@ -4664,7 +4667,8 @@
         "ingest": "Home Assistant",
         "smard": "SMARD"
       }
-    }
+    },
+    "loadingPrices": "Groothandelsprijzen laden … {month} ({n} van {total})"
   },
   "pager": {
     "label": "Pagina’s van de lijst",
