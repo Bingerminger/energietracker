@@ -8,7 +8,8 @@
         "recurrence_months": null,
         "last_done": "2025-07-22",
         "notes": "Jahreswartung durch den Installateur",
-        "active": true
+        "active": true,
+        "assignee": "Paul"
     },
     {
         "id": "rem_demo0002",
@@ -19,7 +20,8 @@
         "recurrence_months": null,
         "last_done": null,
         "notes": "Tank unter 50 % — Angebote einholen",
-        "active": true
+        "active": true,
+        "assignee": "Anna"
     },
     {
         "id": "rem_demo0003",
@@ -30,7 +32,8 @@
         "recurrence_months": null,
         "last_done": "2026-03-15",
         "notes": "Kehrung und Abgasmessung",
-        "active": true
+        "active": true,
+        "assignee": "Paul"
     },
     {
         "id": "rem_demo0004",

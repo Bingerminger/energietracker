@@ -331,6 +331,36 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('reminders: „Erledigt" nennt den Termin', !doneBtn || /: .+/.test(doneBtn.getAttribute('aria-label') || ''));
   } catch (e) { t('reminders: render', false, e.message); }
 
+  // ── 2a. v3.5.0 (N1025) — Kalender-Abo unter Home-Assistant-Ingress: Die
+  //    Ingress-Adresse braucht eine HA-Sitzung, kein Kalender kann sie abrufen.
+  //    Dann die Adresse im Netz von Home Assistant (wie die HA-Vorlagen) samt
+  //    Hinweis; ohne Ingress bleibt alles wie bisher.
+  try {
+    const calendarDialog = async (ingressHost) => {
+      const { view } = await renderView(`${ROOT}/views/reminders.js`);
+      if (ingressHost) {
+        global.document.head.insertAdjacentHTML('beforeend', `<meta name="et-ingress-host" content="${ingressHost}">`);
+      }
+      view.querySelector('#rem-subscribe')?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+      for (let i = 0; i < 40 && !global.document.querySelector('#modal-root #cal-https'); i++) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      return {
+        https: global.document.querySelector('#modal-root #cal-https')?.value || '',
+        webcal: global.document.querySelector('#modal-root #cal-webcal')?.value || '',
+        hint: global.document.querySelector('#modal-root #cal-ingress-hint')?.textContent || '',
+      };
+    };
+    const plain = await calendarDialog(null);
+    t('Kalender-Abo ohne Ingress: Adresse der Seite, kein Hinweis',
+      plain.https.startsWith(`${HOST}/api.php/api/calendar.ics`) && plain.hint === '', plain.https);
+    const ingress = await calendarDialog('1a2b3c4d-energietracker');
+    t('Kalender-Abo unter Ingress: Adresse im Netz von Home Assistant',
+      ingress.https.startsWith('http://1a2b3c4d-energietracker/api.php/api/calendar.ics')
+        && ingress.webcal.startsWith('webcal://1a2b3c4d-energietracker/api.php/api/calendar.ics'), ingress.https);
+    t('Kalender-Abo unter Ingress: Hinweis auf den direkten Port', ingress.hint.includes('/api.php'), ingress.hint);
+  } catch (e) { t('Kalender-Abo unter Ingress', false, e.message); }
+
   // ── 3. Tarifvergleich (v2.3.0: Wechselentscheidung + Rückblick) ──
   try {
     const { view } = await renderView(`${ROOT}/views/tariff.js`);
@@ -379,6 +409,19 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('dashboard: Chart-Canvas eingebunden', !!canvas);
     // v2.10.0 — Effizienzkarte mit der zweiten Zahl (energieausweis-nah)
     t('dashboard: Effizienz mit energieausweis-naher Kennzahl', !!view.querySelector('.dash-eff__cert'));
+    // v3.5.0 — Verfahren des Rechentags: ⓘ nennt Basis und verlangte Monate; vor
+    // einem neuen Verfahren (GModG ab 2027) steht darunter die Vorschau
+    const effApi = await (await global.fetch(HOST + '/api.php/api/benchmarks/efficiency')).json().then(d => d.data ?? d);
+    const cert = effApi.certificate;
+    const certInfo = view.querySelector('.dash-eff__cert .info-btn')?.getAttribute('data-info-text') || '';
+    t('dashboard: ⓘ der Kennzahl nennt Basis und Datenzeitraum des Verfahrens',
+      !!cert && certInfo.includes(cert.fuel_basis === 'hs' ? 'nach Brennwert' : 'nach Heizwert')
+        && certInfo.includes(`verlangt ${cert.months_required} Monate`), certInfo);
+    const upLine = view.querySelector('[data-role="cert-upcoming"]');
+    t('dashboard: Vorschau auf das neue Verfahren genau dann, wenn die API eine liefert',
+      cert?.upcoming ? !!upLine && upLine.textContent.includes(`statt ${cert.months_required} Monate`)
+          && upLine.textContent.includes(cert.upcoming.from.split('-').reverse().join('.'))
+        : !upLine, upLine?.textContent || '(keine)');
     // v2.12.0 (Review UI-21) — „Zu tun" oben: fällige Ablesungen und Termine mit Sprung
     const todo = view.querySelector('.dash-todo');
     t('dashboard: „Zu tun" vorhanden', !!todo);
@@ -433,6 +476,82 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('activity: Rückgängig streicht durch statt zu löschen', !!av.querySelector('.activity-item--undone s') && av.querySelectorAll('.activity-item').length === 1);
     await api.clearActivity();
   } catch (e) { t('F1024: Haken und Verlauf', false, e.message); }
+
+  // ── v3.5.0 (F1028) — Zuständig: Feld im Dialog, Chip und Filter in Terminen und „Zu tun“;
+  //    (F1029) Abrechnung erwartet → Rechnung prüfen mit offenem Abschnitt; Verlauf als CSV ──
+  try {
+    const { api } = await import(`${ROOT}/api.js`);
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+    const click = (el) => el?.dispatchEvent(new global.window.MouseEvent('click', { bubbles: true }));
+    // der gemerkte Filter lebt im localStorage des Fensters
+    const useStorage = () => {
+      try { Object.defineProperty(global, 'localStorage', { value: global.window.localStorage, configurable: true, writable: true }); } catch { /* egal */ }
+    };
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const lena = await api.createReminder({ title: 'Render-Zuständig', category: 'custom', next_due: yesterday, recurrence: 'yearly', assignee: 'Lena' });
+    const other = await api.createReminder({ title: 'Render-Ohne', category: 'custom', next_due: yesterday, recurrence: 'yearly' });
+    try {
+      let { view } = await renderView(`${ROOT}/views/reminders.js`);
+      useStorage();
+      localStorage.removeItem('et-assignee-filter');
+      ({ view } = await renderView(`${ROOT}/views/reminders.js`));
+      useStorage();
+      t('Termine: Chip mit dem Namen der Zuständigen',
+        [...view.querySelectorAll('.chip--assignee')].some(c => c.textContent.includes('Lena')));
+      t('Termine: Filter „Zuständig“ mit Alle · Meine Aufgaben · Ohne Zuständigkeit · Namen',
+        [...(view.querySelector('#rem-assignee')?.options || [])].map(o => o.value).slice(0, 3).join() === 'all,mine,none'
+          && !!view.querySelector('#rem-assignee option[value="name:lena"]'));
+      const sel = view.querySelector('#rem-assignee');
+      sel.value = 'name:lena';
+      sel.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+      for (let i = 0; i < 40 && view.querySelector('.loading'); i++) await sleep(25);
+      const rows = [...view.querySelectorAll('tbody tr')];
+      t('Termine: Filter nach Name zeigt nur ihre Termine und nennt die übrigen',
+        rows.length >= 1 && rows.every(r => r.textContent.includes('Lena')) && !!view.querySelector('[data-role="assignee-hidden"]'),
+        `${rows.length} Zeilen`);
+      click(view.querySelector('#rem-add'));
+      const modal = global.document.querySelector('#modal-root');
+      const field = modal.querySelector('#f-assignee');
+      t('Termin-Dialog: Feld „Zuständig“ mit Vorschlägen (Namen, Personen)',
+        field?.getAttribute('list') === 'f-assignee-list' && [...modal.querySelectorAll('#f-assignee-list option')].some(o => o.value === 'Lena'));
+
+      const { view: dv } = await renderView(`${ROOT}/views/dashboard.js`);
+      useStorage();
+      await sleep(100);
+      t('Zu tun: Chip am Termin und Filter „Zuständig“',
+        !!dv.querySelector('.dash-todo .chip--assignee') && !!dv.querySelector('.dash-todo #todo-assignee'));
+      const tsel = dv.querySelector('#todo-assignee');
+      t('Zu tun: gemerkte Wahl gilt auch hier (Gerät)', tsel?.value === 'name:lena');
+      t('Zu tun: gefiltert — nur Lenas Termine, der Rest gezählt',
+        [...dv.querySelectorAll('.dash-todo__item')].every(li => li.textContent.includes('Lena')) && !!dv.querySelector('.dash-todo [data-role="assignee-hidden"]'));
+      tsel.value = 'all';
+      tsel.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+      const bill = dv.querySelector('.dash-todo a[href^="#/bill-check?"]');
+      const events = (await api.agenda(90))?.events || [];
+      const expected = events.filter(e => e.kind === 'bill_expected' && e.due_now);
+      t('Zu tun: „Abrechnung erwartet“ führt zum Erfassen der Rechnung', !expected.length || (!!bill && bill.getAttribute('href').includes('capture=1')),
+        `${expected.length} erwartet`);
+      // Sprungziel des Hinweises (aus der Agenda oder, wenn die Daten gerade keinen haben, in derselben Form)
+      const href = expected[0]?.href || '#/bill-check?utility=strom&from=2025-01-01&until=2025-12-31&capture=1';
+      const q = new URLSearchParams(href.split('?')[1]);
+      const { view: bv } = await renderView(`${ROOT}/views/bill-check.js`, [], { query: q });
+      t('Rechnung prüfen: Abschnitt „Rechnung des Versorgers“ geöffnet', bv.querySelector('[data-role="bills"]')?.open === true);
+      t('Rechnung prüfen: Zeitraum aus dem Hinweis', bv.querySelector('#bc-until')?.value === q.get('until'));
+    } finally {
+      try { localStorage.removeItem('et-assignee-filter'); } catch { /* egal */ }
+      await api.deleteReminder(lena.id).catch(() => {});
+      await api.deleteReminder(other.id).catch(() => {});
+    }
+
+    const { view: av } = await renderView(`${ROOT}/views/activity.js`);
+    const csv = av.querySelector('#act-csv');
+    t('Erledigt: Knopf „Als CSV“ mit Filter und Sprache', !!csv && /\/api\/activity\.csv\?.*format=local/.test(csv.getAttribute('href') || '')
+      && /lang=de/.test(csv.getAttribute('href') || ''));
+    const area = av.querySelector('#act-area');
+    area.value = 'contracts';
+    area.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    t('Erledigt: CSV folgt dem Filter Bereich', /kind=[^&]*bill_expected/.test(decodeURIComponent(av.querySelector('#act-csv')?.getAttribute('href') || '')));
+  } catch (e) { t('F1028/F1029: Zuständig, Abrechnung erwartet, CSV', false, e.message); }
 
   // ── 5. Einstellungen — seit v2.12.0 Unterseiten (Review UI-13) ──
   const settingsPage = async (page) => (await renderView(`${ROOT}/views/settings.js`, page ? [page] : [])).view;
@@ -591,6 +710,59 @@ async function renderView(modPath, params = [], ctx = {}) {
       tou?.querySelector('[data-role="tou-from"]')?.type === 'text' && tou?.querySelector('[data-role="tou-to"]')?.type === 'text'
       && form.querySelector('[data-action="add-tou"]')?.classList.contains('fgroup__add'));
   } catch (e) { t('N1021 Vertrag', false, e.message); }
+
+  // v3.5.0 (GitHub #34) — Wasservertrag: Abschnitt „Sonderzahlungen“ im Raster
+  // des Standardvertrags; die Zeile wird gespeichert (gegen den Testserver,
+  // danach zurückgesetzt)
+  try {
+    const { api } = await import(`${ROOT}/api.js`);
+    const { view } = await renderView(`${ROOT}/views/contracts.js`, ['wasser']);
+    await new Promise(r => setTimeout(r, 400));
+    const card = view.querySelector('.contract-card[data-utility="wasser"]');
+    const counts = card?.querySelector('.contract-card__counts')?.textContent || '';
+    t('#34 Wasservertrag: Karte zählt die Sonderzahlungen', /Sonderzahlung|special payment/i.test(counts), counts.replace(/\s+/g, ' ').trim());
+    const cid = card?.dataset.contractId;
+    card?.querySelector('[data-edit-contract]')?.click();
+    await new Promise(r => setTimeout(r, 300));
+    const form = global.document.querySelector('#modal-root #water-contract-form');
+    const sec = form?.querySelector('fieldset.fgroup.entry-group[data-section="special"]');
+    t('#34 Wasservertrag: Abschnitt Sonderzahlungen wie bei Gas (Kasten, Knopf im Kopf)', !!sec && !!sec.querySelector(':scope > legend')
+      && !!sec.querySelector(':scope > [data-action="add-special"].fgroup__add'));
+    sec?.querySelector('[data-action="add-special"]')?.click();
+    const row = sec?.querySelector('.entries.rowlist > .special-row.rowlist__row');
+    t('#34 Wasservertrag: Zeile im Zeilenraster mit Art und ✕', !!row?.querySelector('[data-role="kind"]') && !!row?.querySelector(':scope > .rowlist__del'));
+    // halbe Zeile (Datum ohne Betrag): markiert, nicht abgeschickt — wie bei Gas
+    row.querySelector('[data-role="date"]').value = '2025-03-15';
+    global.document.querySelector('#modal-root [data-act="save"]')?.click();
+    await new Promise(r => setTimeout(r, 200));
+    t('#34 Wasservertrag: halbe Sonderzahlung wird vor dem Absenden markiert',
+      row.querySelector('[data-role="amount"]')?.classList.contains('invalid') && !!global.document.querySelector('#modal-root #water-contract-form'));
+    row.querySelector('[data-role="amount"]').value = '42,50';
+    const kind = row.querySelector('[data-role="kind"]');
+    kind.value = 'nachzahlung_mit';
+    kind.dispatchEvent(new global.window.Event('change', { bubbles: true }));
+    t('#34 Wasservertrag: „mit Auswirkung“ zeigt die Abschlagsanpassung', row.querySelector('[data-role="advance-block"]')?.hidden === false);
+    row.querySelector('[data-role="new-advance"]').value = '45';
+    row.querySelector('[data-role="advance-from"]').value = '2025-04-01';
+    // collectWaterForm liest das Formular mit `new FormData(form)`; Nodes
+    // eigenes FormData kennt kein JSDOM-Formular — für den Klick das der Seite
+    const nodeFormData = global.FormData;
+    global.FormData = global.window.FormData;
+    let saved = null, sp = null;
+    try {
+      global.document.querySelector('#modal-root [data-act="save"]')?.click();
+      for (let i = 0; i < 40 && !sp; i++) {
+        await new Promise(r => setTimeout(r, 100));
+        saved = await api.contract('wasser', cid);
+        sp = (saved?.special_payments || []).find(p => p.date === '2025-03-15') || null;
+      }
+    } finally { global.FormData = nodeFormData; }
+    t('#34 Wasservertrag: Sonderzahlung gespeichert, mit neuem Abschlag',
+      sp?.kind === 'nachzahlung_mit' && sp.amount_eur === 42.5 && sp.new_advance_eur === 45 && sp.advance_from === '2025-04-01',
+      sp ? JSON.stringify(sp) : `nicht gespeichert: ${(global.document.querySelector('#toast-stack')?.textContent || '').trim()}`
+        + ` [${[...(form?.querySelectorAll('.invalid') || [])].map(el => el.getAttribute('data-field') || el.getAttribute('data-role') || el.name).join(',')}]`);
+    if (sp) await api.updateContract('wasser', cid, { special_payments: (saved.special_payments || []).filter(p => p !== sp) });
+  } catch (e) { t('#34 Wasservertrag', false, e.message); }
 
   try {
     const { view } = await renderView(`${ROOT}/views/meters.js`, ['strom']);
@@ -775,12 +947,15 @@ async function renderView(modPath, params = [], ctx = {}) {
     t('billCheck ohne Parameter: Erfassen eingeklappt unter dem Ergebnis', !!cap && !cap.open && !!cap.querySelector('#bi-form'));
   } catch (e) { t('billCheck ohne Parameter: render', false, e.message); }
 
-  // ── 7a. Utility-View Wasser: KEINE Spalte Sonderzahlungen (kennt keine) ──
+  // ── 7a. Utility-View Wasser: Spalte Sonderzahlungen wie bei Gas ──
+  // v3.5.0 (GitHub #34) — bis v3.4 hieß die Prüfung „keine Spalte
+  // Sonderzahlungen“ und hielt den Fehler fest: Wasser kannte keine.
   try {
     const { view } = await renderView(`${ROOT}/views/utility.js`, ['wasser']);
     await new Promise(r => setTimeout(r, 500));
     t('utility(wasser): render ohne Exception', view.innerHTML.length > 50);
-    t('utility(wasser): keine Spalte Sonderzahlungen', !view.querySelector('.contracts-table th.special-col'));
+    t('utility(wasser): Spalte Sonderzahlungen wie bei Gas (#34)', !!view.querySelector('.contracts-table th.special-col')
+      && view.querySelectorAll('.contracts-table td.special-cell').length >= 1);
   } catch (e) { t('utility(wasser): render', false, e.message); }
 
   // ── 7b. Utility-View Strom: Rechnungsprüfung seit v3.1.0 (H5) auch hier ──
@@ -1367,6 +1542,12 @@ async function renderView(modPath, params = [], ctx = {}) {
     ef?.querySelector('[data-ef-scope="month"]')?.click();
     t('utility(pv_erzeugung): Energiefluss auf Monat umgeschaltet', ef?.querySelector('[data-ef-scope="month"]')?.getAttribute('aria-pressed') === 'true'
       && !/^\d{4}/.test(ef.querySelector('.ef-period__label')?.textContent || ''), ef?.querySelector('.ef-period__label')?.textContent);
+    // v3.5.0 (F1027) — „Tag“ fragt den Server (energy-flow/days); ohne
+    // Viertelstunden des Netzbezugs bleibt er verborgen
+    const efDays = await (await fetch(`${HOST}/api/energy-flow/days`)).json();
+    const dayBtn = ef?.querySelector('[data-ef-scope="day"]');
+    t('utility(pv_erzeugung): „Tag“ nur mit Viertelstunden', !!dayBtn && dayBtn.hidden === !efDays.data?.available,
+      `available=${efDays.data?.available}, hidden=${dayBtn?.hidden}`);
   } catch (e) { t('utility(pv_erzeugung): F2', false, e.message); }
 
   try {

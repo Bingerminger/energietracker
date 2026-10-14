@@ -43,6 +43,99 @@ Alle Schritte lassen sich direkt im Energietracker unter
 **Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung** vorbereiten
 (inkl. Copy-&-Paste-YAML).
 
+Wo läuft der Energietracker? Mit **Home Assistant OS** als App direkt in Home
+Assistant (nächster Abschnitt). Läuft er schon als Docker-Container, auf einer
+NAS oder einem Webserver ([Installation](../betrieb/installation.md)), geht es
+mit [Schritt 1](#schritt-1--api-token-erzeugen) weiter.
+
+---
+
+## Als App in Home Assistant OS
+
+*Neu seit v3.5.0.* Mit Home Assistant OS (oder Supervised) läuft der
+Energietracker als App (früher „Add-on“) in Home Assistant — ohne eigenen
+Docker-Host, mit Eintrag in der Seitenleiste und Anmeldung über die Benutzer
+von Home Assistant. Die App nutzt dasselbe Image wie der Docker-Betrieb; ihre
+Version ist die des Energietrackers. Sie ist neu und vorerst als
+*experimentell* gekennzeichnet — Rückmeldungen aus echten Installationen sind
+willkommen ([Issues](https://github.com/Bingerminger/energietracker/issues)).
+
+**Installieren**
+
+1. Das Repository der App hinzufügen: in Home Assistant unter
+   **Einstellungen → Apps** den App-Store öffnen, im Menü **⋮ →
+   Repositories** die Adresse `https://github.com/Bingerminger/energietracker-ha`
+   eintragen. Oder mit einem Klick:
+   [Repository in Home Assistant hinzufügen](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha).
+2. **Energietracker** installieren und starten.
+3. In der Seitenleiste erscheint **Energietracker**. Die erste Person, die ihn
+   öffnet, verwaltet die Installation.
+
+**Was die App einstellt** (Auszug aus ihrer `config.yaml`):
+
+```yaml
+image: ghcr.io/bingerminger/energietracker   # dasselbe Image wie mit Docker
+arch: [aarch64, amd64]
+init: false            # das Image bringt supervisord mit
+ingress: true
+ingress_port: 80       # nginx im Image
+ingress_stream: true   # Uploads über 16 MiB (Backups mit Belegen)
+ports:
+  80/tcp: null         # direkter Port aus
+environment:
+  ET_DATA_DIR: "/data"
+  ET_AUTH: "proxy"
+  ET_TRUSTED_PROXIES: "172.30.32.2"
+```
+
+**Unterschiede zum Docker-Betrieb**
+
+| | App in Home Assistant OS | Docker |
+|---|---|---|
+| Aufruf | Seitenleiste (Ingress) | eigene Adresse mit Port |
+| Anmeldung | Benutzer von Home Assistant, fest eingestellt | aus, Passwort oder Proxy — nach Wahl |
+| Rollen | wer zuerst öffnet, verwaltet; alle weiteren sind Mitglieder | je nach Anmeldung |
+| Offline erfassen, als Handy-App installieren | nein — die Seite gehört Home Assistant | ja |
+| Daten | Speicher der App (`/data`), in den Sicherungen von Home Assistant enthalten | Volume oder Ordner |
+| Updates | als App-Update in Home Assistant | neues Image-Tag |
+| Umgebungsvariablen | legt die App fest | alle `ET_*` |
+| Protokoll | Reiter „Protokoll“ der App | `docker logs` |
+
+Jeder Benutzer von Home Assistant sieht den Eintrag in der Seitenleiste;
+Rollen änderst du unter Einstellungen → Zugriff. Eine Person wird über die
+Kennung des HA-Benutzers geführt, eine Umbenennung in Home Assistant macht
+keine neue. Der Gesundheitscheck des Images (`/api/health`) ist zugleich die
+Überwachung der App: Mit „Watchdog“ startet Home Assistant sie bei einem
+Fehler neu.
+
+**Zählerstände aus Home Assistant in die App.** Die Schritte 1 bis 5 unten
+gelten unverändert, nur die Adresse ist eine andere: Home Assistant erreicht
+die App in seinem eigenen Netz unter `http://<Hostname der App>` (Port 80,
+ohne Ingress), etwa `http://1a2b3c4d-energietracker`. Die Vorlagen unter
+Einstellungen → Integrationen → 🏠 Home-Assistant-Anbindung setzen den
+richtigen Namen ein. Weil die Anmeldung an ist, braucht der Push einen
+**Token** (Schritt 1) und die Sensoren einen **Lese-Schlüssel** (Schritt 5).
+
+**Umzug von einer Docker-Installation.** In der alten Installation unter
+Einstellungen → Daten → 💾 Backup & Wiederherstellung das JSON-Backup
+herunterladen, in der App an derselben Stelle einspielen (über Ingress bis
+256 MB, die App streamt Uploads). Personen, Token und Schlüssel gehören nicht
+zum Backup: Token und Lese-Schlüssel in der App neu erzeugen und die Adresse
+im `rest_command` und in den Sensoren anpassen. Die App darf nicht älter sein
+als die Installation, aus der das Backup stammt.
+
+**Direkter Port (optional).** Standardmäßig aus. Sollen Geräte außerhalb von
+Home Assistant die App erreichen (ein Push von einem anderen Rechner, ein
+Kalender-Abo auf dem Handy), gib in der App unter Konfiguration → Netzwerk
+einen Port frei, etwa `8095`. Dort kennt die App keine Person: Der Push
+braucht seinen Token, der Kalender seinen Schlüssel; die Oberfläche bleibt in
+der Seitenleiste. Unter Ingress nennt „Im Kalender abonnieren“ die Adresse im
+Netz von Home Assistant ([Kalender](kalender.md)) — für das Handy den Anfang
+bis `/api.php` durch `http://<Adresse von Home Assistant>:8095` ersetzen.
+
+Was unter Ingress sonst gilt, steht unter
+[Betrieb unter Home-Assistant-Ingress](#betrieb-unter-home-assistant-ingress).
+
 ---
 
 ## Schritt 1 — API-Token erzeugen
@@ -560,7 +653,9 @@ Node-RED, ioBroker und openHAB unter [Andere Systeme](andere-systeme.md).
 ## Betrieb unter Home-Assistant-Ingress
 
 Läuft der Energietracker selbst hinter Home-Assistant-Ingress (aufgerufen über
-die Seitenleiste von Home Assistant), gilt seit v3.1.0:
+die Seitenleiste von Home Assistant), gilt seit v3.1.0 das Folgende. Die
+[App](#als-app-in-home-assistant-os) stellt die genannten Variablen und
+`ingress_stream` bereits ein.
 
 - **Nicht offline.** Unter Ingress teilt die App ihren Ursprung mit Home
   Assistant und registriert keinen Service Worker. Offline erfassen geht nur beim
@@ -588,6 +683,14 @@ die Seitenleiste von Home Assistant), gilt seit v3.1.0:
 - **Uploads bis 16 MiB.** Ohne `ingress_stream: true` in der Konfiguration der
   App begrenzt Home Assistant Uploads über Ingress auf 16 MiB. Ein größeres
   Backup spielst du über den direkten Port ein.
+- **Kalender-Abo.** Die Ingress-Adresse braucht eine HA-Sitzung; ein
+  Kalender kann sie nicht abrufen. Seit v3.5.0 nennt „Im Kalender abonnieren“
+  deshalb unter Ingress die Adresse im Netz von Home Assistant
+  ([Kalender](kalender.md)).
+- **Datei `options.json`.** Der Supervisor legt vor jedem Start der App eine
+  `options.json` in deren Datenverzeichnis, nur für root lesbar. Seit v3.5.0
+  zählt der Gesundheitscheck sie nicht mehr als beschädigte Datei — vorher
+  galt die App ab dem zweiten Start als „unhealthy“.
 
 ---
 

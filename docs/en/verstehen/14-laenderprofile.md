@@ -118,7 +118,11 @@ of the chosen currency — so backup, CSV and the API stay unchanged.
 
 Classes A+ to H come from the German Building Modernisation Act (GModG,
 formerly the Buildings Energy Act, GEG), Annex 10 to § 86 (final energy per m²
-and year). Other countries rate differently — France (DPE) by primary
+and year; from 1 Jan 2027 "to § 86(1)"). The limits stay the same (BGBl. 2026 I
+no. 226, Art. 2 no. 54; explanatory memorandum, Bundestag printed paper
+21/6278, p. 122); what changes in 2027 is the procedure of the
+certificate-style figure ([Fundamentals §7](00-overview.md#7-efficiency-class)).
+Other countries rate differently — France (DPE) by primary
 energy and CO₂, Austria (HWB) by heating demand under a reference climate. A
 class under German law would mislead there: a French user reads "E" as a DPE
 class.

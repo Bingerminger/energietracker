@@ -72,7 +72,8 @@ final class SummaryService
         foreach ($events as $e) {
             // v3.4.0 (F1024) — Erledigtes ist nicht „als Nächstes" (due zählt ohnehin nur due_now)
             if (!empty($e['done'])) continue;
-            if ($e['date'] >= $today && in_array($e['kind'], ['cancel_by', 'term_end', 'reminder', 'price_increase', 'price_guarantee_end'], true)) {
+            // v3.5.0 (F1029) — die Frist einer erwarteten Abrechnung zählt wie die übrigen Fristen
+            if ($e['date'] >= $today && in_array($e['kind'], ['cancel_by', 'term_end', 'reminder', 'price_increase', 'price_guarantee_end', 'bill_expected'], true)) {
                 $next = ['kind' => $e['kind'], 'date' => $e['date'], 'title' => $e['title']];
                 break;
             }

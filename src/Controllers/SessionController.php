@@ -34,6 +34,8 @@ use Energietracker\Services\SettingsService;
  *   PATCH  /api/users/{id}           → {name?, role?, password?}
  *   DELETE /api/users/{id}           v3.4.0 (F1024): `?anonymize_activity=1` ersetzt
  *                                    den Namen im Verlauf durch „ehemalige Person"
+ *                                    (v3.5.0: auch als Zuständige an Terminen)
+ *   GET    /api/people               v3.5.0 (F1028) — nur ID und Name, für jede Rolle
  */
 final class SessionController
 {
@@ -45,6 +47,8 @@ final class SessionController
     /**
      * @param (callable(string): void)|null $anonymizeActivity v3.4.0 (F1024) — Name einer
      *        gelöschten Person im Verlauf durch „ehemalige Person" ersetzen
+     * @param (callable(string, bool): void)|null $personDeleted v3.5.0 (F1028) — eine Person
+     *        ist gelöscht (ID, Name ersetzen?): Zuständigkeit an den Terminen lösen
      */
     public function __construct(
         private AuthService $auth,
@@ -53,7 +57,18 @@ final class SessionController
         private $currentUser = null,
         private $role = null,
         private $anonymizeActivity = null,
+        private $personDeleted = null,
     ) {}
+
+    /**
+     * v3.5.0 (F1028) — GET /api/people: Personen für die Auswahl „Zuständig“,
+     * nur ID und Name (für jede angemeldete Rolle; die volle Liste mit Rollen
+     * bleibt `GET /api/users` für Verwalter). Ohne Anmeldung leer.
+     */
+    public function people(Request $req): never
+    {
+        Response::json($this->auth->people());
+    }
 
     private function user(): ?array
     {
@@ -243,6 +258,8 @@ final class SessionController
         // v3.4.0 (F1024) — auf Wunsch des Verwalters: im Verlauf „ehemalige Person"
         $anon = $this->anonymizeActivity !== null && $req->queryParam('anonymize_activity') === '1';
         if ($anon) ($this->anonymizeActivity)($id);
+        // v3.5.0 (F1028) — Termine: ID lösen; mit `anonymize_activity` auch den Namen ersetzen
+        if ($this->personDeleted !== null) ($this->personDeleted)($id, $anon);
         Response::json(['deleted' => true, 'activity_anonymized' => $anon]);
     }
 

@@ -41,7 +41,8 @@ final class ContainerHardeningTest extends TestCase
     public function testImageAndCiRunPhp85(): void
     {
         $docker = self::file('Dockerfile');
-        self::assertMatchesRegularExpression('/^FROM php:8\.5-fpm-alpine$/m', $docker);
+        // v3.5.0 (N1024) — gemeinsame Stufe `base` für Standard und „ohne root“
+        self::assertMatchesRegularExpression('/^FROM php:8\.5-fpm-alpine AS base$/m', $docker);
         self::assertStringContainsString('extension_loaded("Zend OPcache")', $docker, 'OPcache ist in 8.5 eingebaut: nur einschalten, wenn nicht geladen');
         $ci = self::file('.github/workflows/ci.yml');
         self::assertSame(2, substr_count($ci, 'php: ["8.2", "8.3", "8.4", "8.5"]'), 'lint-php und phpunit prüfen 8.2 bis 8.5');
@@ -60,7 +61,8 @@ final class ContainerHardeningTest extends TestCase
         sort($caps);
         foreach (['docs/betrieb/docker.md', 'docs/en/betrieb/docker.md'] as $doc) {
             preg_match_all('/```yaml\n(.*?)```/s', self::file($doc), $blocks);
-            $hardened = array_values(array_filter($blocks[1], fn($y) => str_contains($y, 'read_only:')));
+            // v3.5.0 — das Beispiel ohne root prüft RootlessImageTest
+            $hardened = array_values(array_filter($blocks[1], fn($y) => str_contains($y, 'read_only:') && !str_contains($y, '-rootless')));
             self::assertCount(1, $hardened, "$doc: gehärtetes Compose-Beispiel fehlt");
             $yaml = $hardened[0];
             foreach (['no-new-privileges:true', 'cap_drop:', '- ALL', 'read_only: true', '- /run', '- /tmp', '- /var/lib/nginx/tmp', '"127.0.0.1:8080:80"'] as $needle) {

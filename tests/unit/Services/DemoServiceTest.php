@@ -321,4 +321,30 @@ final class DemoServiceTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $svc->import(true, null, 'gibt-es-nicht');
     }
+
+    /**
+     * v3.5.0 (N1022) — Sprache und Land aus Schritt 1 der Einrichtung
+     * überleben den Beispielhaushalt. Bis v3.4 fiel die Sprache nach „Mit
+     * Beispieldaten ansehen“ auf Deutsch zurück: Der Haushalt bringt keine mit.
+     * Standort und CO₂ kommen dagegen aus dem Beispielhaushalt (Leipzig).
+     */
+    public function testLanguageAndCountryStayButTheHouseholdBringsItsLocation(): void
+    {
+        $svc = $this->service();
+        $this->store->write('settings.json', ['language' => 'en', 'country' => 'GB', 'currency' => 'GBP',
+            'timezone' => 'Europe/London', 'gas_cv_unit' => 'mj', 'location_name' => 'London', 'setup_pending' => true]);
+        $svc->import(false, null, 'mieterin');
+        $s = $this->store->read('settings.json', []);
+        $this->assertSame(['en', 'GB', 'GBP', 'Europe/London', 'mj'],
+            [$s['language'] ?? null, $s['country'] ?? null, $s['currency'] ?? null, $s['timezone'] ?? null, $s['gas_cv_unit'] ?? null]);
+        $this->assertNotSame('London', $s['location_name'] ?? null, 'Standort aus dem Beispielhaushalt');
+
+        // nichts festgeschrieben vorher → nichts festgeschrieben danach (Default bleibt Default)
+        $this->store->write('settings.json', []);
+        $svc->import(true, null, 'mieterin');
+        $after = $this->store->read('settings.json', []);
+        foreach (DemoService::KEEP_SETTINGS as $k) {
+            $this->assertArrayNotHasKey($k, $after, "$k war nicht festgeschrieben und bleibt es nicht");
+        }
+    }
 }

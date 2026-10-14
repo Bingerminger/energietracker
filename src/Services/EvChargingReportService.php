@@ -19,7 +19,8 @@ use Energietracker\Support\LocalizedException;
  *             (Arbeitskosten ÷ kWh, tagesgenau) plus Grundpreis anteilig nach
  *             kWh (Wallbox ÷ Elternzähler). Die Aufteilung nach kWh ist eine
  *             Annahme; das Schreiben sagt nur „anteilig".
- *   flat      Strompreispauschale je Jahr (Rn. 30; 2026: 34 ct/kWh) × kWh.
+ *   flat      Strompreispauschale je Jahr (Rn. 30; 2026: 34, 2027: 32 ct/kWh,
+ *             Countries::EV_FLAT_RATE_DE) × kWh.
  */
 final class EvChargingReportService
 {
@@ -106,7 +107,12 @@ final class EvChargingReportService
         ];
     }
 
-    /** Strompreispauschale eines Jahres in ct/kWh aus dem Länderprofil (DE: 2026 = 34), sonst null. */
+    /**
+     * Strompreispauschale eines Jahres in ct/kWh aus dem Länderprofil (DE: 2026 = 34,
+     * 2027 = 32), sonst null — auch für ein Jahr, dessen Wert Destatis noch nicht
+     * veröffentlicht hat: Die Pauschale wird jedes Jahr neu gebildet, der Vorjahreswert
+     * gilt nicht weiter.
+     */
     public static function flatRate(string $country, int $year): ?float
     {
         $map = (array)(Countries::get($country)['ev_flat_rate_ct_years'] ?? []);

@@ -164,6 +164,35 @@ final class OcrServiceTest extends ServiceTestCase
         $this->settings->set(['ocr_api' => 'cloud']);
     }
 
+    /**
+     * v3.5.0 — Die Anleitung nennt genau die Netze, die der Code annimmt. Bis
+     * v3.4.0 stand dort noch „Link-local“, das seit v3.4.0 (N1020) abgewiesen
+     * wird. Und: Die App schickt keinen API-Token — LM Studio darf keine
+     * Anmeldung verlangen; die Anleitung sagt es.
+     */
+    public function testTheGuideNamesTheNetworksTheCodeAccepts(): void
+    {
+        $samples = ['10.x' => '10.1.2.3', '172.16.x' => '172.16.0.1', '172.31.x' => '172.31.0.1', '192.168.x' => '192.168.1.1',
+                    '100.64.0.0/10' => '100.64.0.1', '::1' => '::1', 'fc00::/7' => 'fd00::1'];
+        $root = dirname(__DIR__, 3);
+        foreach (['docs/anleitungen/texterkennung.md' => '/Link-local.{0,60}nicht mehr/u', 'docs/en/anleitungen/texterkennung.md' => '/Link-local.{0,60}no longer/iu'] as $doc => $excluded) {
+            $md = (string)file_get_contents("$root/$doc");
+            self::assertSame(1, preg_match('/^## (?:Datenschutz|Privacy)[^\n]*\n\n- (.*?)\n- /ms', $md, $m), "$doc: Abschnitt Datenschutz");
+            $bullet = preg_replace('/\s+/', ' ', $m[1]);
+            foreach ($samples as $range => $ip) {
+                self::assertStringContainsString("`$range`", $bullet, "$doc nennt $range");
+                self::assertTrue(OcrService::isLocalIp($ip), "$range ($ip) nimmt der Code an");
+            }
+            self::assertMatchesRegularExpression($excluded, $bullet, "$doc: Link-local gilt nicht als Heimnetz");
+            self::assertFalse(OcrService::isLocalIp('169.254.1.1'));
+            self::assertFalse(OcrService::isLocalIp('fe80::1'));
+            self::assertSame(1, preg_match('/^## (?:LM Studio einrichten|Set up LM Studio)\n(.*?)^## /ms', $md, $lm), "$doc: Abschnitt LM Studio");
+            self::assertStringContainsString('Require Authentication', $lm[1], "$doc: LM Studio ohne Anmeldung (Einrichtung)");
+        }
+        self::assertStringNotContainsString('Authorization', (string)file_get_contents("$root/src/Services/OcrService.php"),
+            'die App schickt keinen Token (sonst stimmt die Anleitung zu LM Studio nicht)');
+    }
+
     private function key(callable $fn): string
     {
         try {

@@ -58,6 +58,8 @@ export async function render(container, _params = [], ctx = {}) {
     utility: query.get('utility'),
     meter: query.get('meter'),
     period: periodFromQuery(query),
+    // v3.5.0 (F1029) — Sprung aus „Abrechnung erwartet“: Abschnitt „Rechnung des Versorgers“ offen
+    capture: query.get('capture') === '1',
   };
   await draw(container, sel);
 }
@@ -137,6 +139,10 @@ async function draw(container, sel) {
   });
   wireBillCheck(container, u, () => current, (p) => { syncAddress(u, current, p); showBillPeriod(container); });
   ['#bc-from', '#bc-until'].forEach(s => container.querySelector(s)?.addEventListener('change', () => showBillPeriod(container)));
+  if (sel.capture) {
+    const capture = container.querySelector('[data-role="bills"]');
+    if (capture) capture.open = true;
+  }
   drawBills(container, u, current, readPeriod);
   container.querySelector('#bc-run')?.click();
 }

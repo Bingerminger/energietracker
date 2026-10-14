@@ -1,18 +1,20 @@
 # Energietracker — Roadmap
 
-> **Kurzfassung.** Jetzt: v3.4.0 — klar und sicher: das Handbuch kommt vom
-> eigenen Server (auch ohne Internet), ein Jahresbericht für Leser ohne
-> Technikhintergrund, erledigte Hinweise mit Verlauf (wer, wann), eine
-> aufgeräumte Oberfläche und ein Sicherheitspaket. Davor v3.3.0 mit
-> Viertelstunden und Flexibilität (Schema 1.8.0). Als Nächstes: offen — der
-> nächste Schnitt wählt aus dem Eingang. Bewusst nicht: eigene
+> **Kurzfassung.** Jetzt: v3.5.0 — wer, wann, wohin: Termine mit zuständiger
+> Person, Hinweis „Abrechnung erwartet“, der Energiefluss als Tagesfilm,
+> Home Assistant OS als App, ein Image ohne root und eine Einrichtung, die
+> zuerst nach Sprache und Land fragt. Davor v3.4.0 (klar und sicher) und
+> v3.3.0 mit Viertelstunden (Schema 1.8.0). Als Nächstes: v3.6.0 mit
+> Abrechnungsjahr statt Kalenderjahr (GitHub #33); den Rest wählt der nächste
+> Schnitt aus dem Eingang. Bewusst nicht: eigene
 > Smart-Meter-Auslesung (das macht Home Assistant), ein Cloud-Dienst mit Konten,
 > eine eigene Steuerung von Speicher und Auto (das machen evcc und Home
 > Assistant).
 >
-> *In English:* now v3.4.0 (clear and secure: the handbook comes from your own
-> server, also offline; a yearly report for non-technical readers; done hints
-> with history; a tidier interface; a security package). Next: open.
+> *In English:* now v3.5.0 (who, when, where to: someone responsible for
+> reminders, “bill expected”, the energy flow as a day film, Home Assistant OS
+> as an app, an image without root, setup asks for language and country).
+> Next: v3.6.0 with billing years instead of calendar years (GitHub #33).
 > Deliberately not: reading smart meters ourselves (Home Assistant does that), a
 > cloud service, controlling battery and car ourselves.
 >
@@ -21,8 +23,8 @@
 > Reihenfolge und akutem Bedarf (etwa einem kritischen Fehler) gewinnt der
 > Bedarf.
 
-**Stand:** 2026-10-13 (synchron mit v3.4.0; Gesamtreview A–H fertig, dazu F1018–F1026, N1019–N1021)
-**Aktuelle Baseline:** v3.4.0
+**Stand:** 2026-10-14 (synchron mit v3.5.0; Gesamtreview A–H fertig, dazu F1018–F1029, N1019–N1026)
+**Aktuelle Baseline:** v3.5.0
 **Schema:** 1.8.0
 
 ---
@@ -95,6 +97,14 @@ F-Codes (`F1`, `F2`, …) — diese Reihe ist mit `F1003` (v1.5.0) auf
 | F1024 | Erledigt mit Verlauf: Folgevertrag erledigt Hinweise, Abhaken mit Datum/Notiz/Beleg, Verlauf wer/wann, kein wandernder Kündigungsstichtag mehr | v3.4.0 | 2026-10-13 |
 | F1026 | Schaubilder zweite Fassung: Energiefluss kreuzungsfrei für Jahr und Monat, Autarkie korrigiert, Zeitstrahl mit Mindestlaufzeit, Preisgarantie und Folgevertrag | v3.4.0 | 2026-10-13 |
 | N1021 | Aufgeräumte Oberfläche: ein Formularraster, Einstellungen im Raster, Verträge neueste zuerst, Blättern in langen Listen, „Rechnung prüfen“ auf beiden Wegen, Theme-Abzeichen, Unterstützen-Link | v3.4.0 | 2026-10-13 |
+| F1027 | Tagesfilm: Energiefluss eines Tages oder typischen Tages in Viertelstunden, Börsenpreis mit Cursor, Lücken gekennzeichnet | v3.5.0 | 2026-10-14 |
+| F1028 | Zuständig an Terminen: Person oder freier Name, Filter „Meine Aufgaben“, Kalenderzeile; Verlauf als CSV | v3.5.0 | 2026-10-14 |
+| F1029 | Abrechnung erwartet: Hinweis bis 120 Tage nach dem Periodenende, „überfällig“ nach § 40c Abs. 2 EnWG nur bei Strom und Gas | v3.5.0 | 2026-10-14 |
+| N1022 | Einrichtung fragt zuerst Sprache und Land; Landwechsel speichert nur Abweichungen; Jahresbericht-Dialog | v3.5.0 | 2026-10-14 |
+| N1023 | iPad: Seitenleiste ab 900 px, darunter Tab-Leiste; eine Schwelle für CSS und Skript | v3.5.0 | 2026-10-14 |
+| N1024 | Image ohne root (`-rootless`, UID 10001, Port 8080), 503 statt 500 bei nicht beschreibbarem Datenverzeichnis | v3.5.0 | 2026-10-14 |
+| N1025 | Home-Assistant-App im eigenen Repo `energietracker-ha` (Ingress, HA-Benutzer, experimentell) | v3.5.0 | 2026-10-14 |
+| N1026 | Beispieldaten für Verlauf, Zuständigkeit, Versorgerrechnungen, Folgeverträge und Tagesfilm | v3.5.0 | 2026-10-14 |
 
 > **Lücke in dieser Tabelle:** v2.2.0 (Vollreview, Tarifvergleich neu, Assets
 > selbst gehostet) und v2.3.0 (Tarifvergleich wird zur Wechselentscheidung)
@@ -143,7 +153,7 @@ Leitlogik dieser Sequenz:
 
 | Code | Thema | Release | Größe | Schema | Status |
 |------|-------|---------|-------|--------|--------|
-| — | *derzeit nichts eingeplant — F1024–F1026 und N1019–N1021 ausgeliefert mit v3.4.0; der nächste Schnitt wählt aus dem Eingang* | | | | |
+| F10xx | Abrechnungsjahr statt Kalenderjahr (GitHub #33), siehe Eingang | v3.6.0 | L | — | entschieden 2026-10-14 |
 
 > **Sprach-Wellen 2+** (cs, uk, pl, el, tr, hr, sr, sl, fi, no, da, lv, et, hu, bg, ro …)
 > sind bewusst zurückgestellt (User-Entscheidung 2026-06-10) und werden
@@ -963,6 +973,58 @@ bleibt, wie sie ist.
 
 ---
 
+## v3.5.0 — Detail-Konzept (Release-Schnitt 2026-10-13) — „Wer, wann, wohin“ — ausgeliefert 2026-10-14
+
+> Umgesetzt wie unten beschlossen, in sieben parallelen Arbeitspaketen plus
+> GitHub #34; die Voreinstellungen stehen im CHANGELOG. Beim Zusammenführen
+> dazu: „Abrechnung erwartet“ nur bis 120 Tage nach dem Periodenende, die
+> GModG-Vorschau nur mit der deutschen Skala.
+
+**Ziel:** Aufgaben im Haushalt bekommen eine zuständige Person, fehlende
+Abrechnungen fallen auf, und der Energiefluss lässt sich über einen Tag
+abspielen. Dazu der Einstieg in Home Assistant OS als App, ein Image ohne
+root und eine Einrichtung, die zuerst nach Sprache und Land fragt. Ein
+Release, kein Patch vorab, kein Schemaschritt (bleibt 1.8.0; neue Felder sind
+optional).
+
+| Code | Thema | Größe |
+|---|---|---|
+| **F1027** | Tagesfilm: Der Energiefluss spielt einen Tag in Viertelstunden ab — wahlweise einen bestimmten Tag oder den typischen Tag eines Monats (Mittel je Viertelstunde). Abspielen, Pause, Schieberegler mit Uhrzeit, Börsenpreis läuft mit; ohne Bewegung bei „weniger Bewegung“. Nur wo Viertelstundenwerte vorliegen; Knoten ohne Daten entfallen. Additiver Endpunkt. | L |
+| **F1028** | Zuständig an Terminen: Feld „Zuständig“ (Person aus der Anmeldung oder freier Name), Anzeige in Terminen, „Zu tun“ und Kalender; Filter „Meine Aufgaben“ (angemeldet) bzw. nach Name (je Gerät gemerkt). Keine Benachrichtigung. Nur Termine — Zähler und Verträge bewusst nicht. | M |
+| **F1029** | Hinweis „Abrechnung erwartet“: Endet ein Abrechnungszeitraum (Vertragsende oder Stichtag) ohne erfasste Versorgerrechnung, erscheint ein Hinweis; nach der gesetzlichen Frist „überfällig, beim Versorger nachfragen“. Erledigt sich mit der erfassten Rechnung (Verlauf: automatisch), lässt sich abhaken. | S–M |
+| **N1022** | Einrichtung fragt zuerst Sprache und Land (Vorauswahl aus Browser bzw. Länderprofil, schreibt nur Abweichungen), auch in der Demo. | S |
+| **N1023** | iPad: Seitenleiste erst ab 900 px Breite, darunter die Tab-Leiste wie am Telefon — eine Schwelle für CSS und Skript. | S |
+| **N1024** | Image ohne root als zusätzliche Variante (`-rootless`), gleiche Plattformen, im wöchentlichen Neubau gescannt, in der CI gestartet; das Standard-Image bleibt unverändert. | M |
+| **N1025** | Home-Assistant-App: eigenes öffentliches Repo `energietracker-ha` (App mit Ingress, nutzt das GHCR-Image, Linter in der CI), Anleitung im Handbuch. Keine HACS-Integration. | M |
+| **N1026** | Beispieldaten für die neuen Anwendungsfälle: alle vier Haushalte bekommen Verlauf „Erledigt“, Folge- und verlängerte Verträge, Versorgerrechnungen (eine erwartet), Zuständigkeiten mit erfundenen Namen und — wo Sonnenstrom — Viertelstundenwerte für den Tagesfilm. | M |
+
+**Ergänzungen (Entscheidung im Assist-Modus):** Verlauf „Erledigt“ ohne Lücken
+(neuer Zeitraum bei Zeitraum-Zählern, geänderte Nebenkostenabrechnung) und
+als CSV zum Nachweis; Jahresbericht-Optionen (Jahr, Verbrauchsarten,
+Sprache, Anhang) in einem Dialog statt nur per Adresse.
+
+**Nachgemeldet (2026-10-14):** GitHub #34 — Sonderzahlungen bei
+Wasserverträgen (Fehler, kommt mit); GitHub #33 — Abrechnungsjahr statt
+Kalenderjahr bewertet und auf v3.6.0 gelegt (Eingang).
+
+**Altlasten im selben Release:** Strompreispauschale 2027 und GModG Art. 2
+(1.1.2027) gegen die Quellen prüfen und nachziehen; Anleitungen Ollama,
+LM Studio, Unraid, openHAB prüfen (soweit ohne Docker möglich, ehrlich
+gekennzeichnet); Dependabot #29–#32 (Actions); Code-Scanning-Nachtrag
+`stripTags` (d695549).
+
+**Entscheidungen (2026-10-13, Maintainer):** ein Release; Home-Assistant-App
+als eigenes Repo, keine HACS-Integration; Tagesfilm mit beiden Ansichten
+(ein Tag, typischer Tag); Zuständigkeit nur an Terminen; Beispieldaten in
+den vier vorhandenen Haushalten; Doku-Kern und englische Screenshots später.
+
+**Voreinstellungen = Empfehlung (im Abschlussbericht genannt):** Rootless als
+eigene Tag-Variante statt Umstellung des Standards; Docker Desktop bleibt
+aus — openHAB und Unraid werden gegen die offizielle Doku geprüft, nicht im
+Container; Verlauf als CSV, nicht als PDF.
+
+---
+
 ## Eingang (besprochen, noch ohne Release)
 
 Seit 2026-10-09 der **Eingang**: Jede besprochene Idee landet hier noch in
@@ -972,12 +1034,15 @@ daraus ausgewählt.
 
 | Code (vorläufig) | Thema | Größe | Abhängigkeit | Auslöser |
 |---|---|---|---|---|
-| N10xx | Übersetzter Doku-Kern (Erste Schritte, Einrichtung, Anwendungsfälle) für fr/it/es/pt/nl, jede Übersetzung mit Quell-Hash, veraltet → Englisch | M–L | N1019 | Release-Schnitt 2026-10-12 („Kern später“) |
-| F10xx | Energiefluss als „Tagesfilm“ aus Viertelstundenwerten | L | F1026, F1021 | Release-Schnitt 2026-10-12 |
-| F10xx | Zuständigkeit an Terminen und Zählern, Filter „Meine Aufgaben“ | M | F1024 | Release-Schnitt 2026-10-12 (bewusst nicht in v3.4.0) |
-| F10xx | Hinweis „Abrechnung erwartet“ je Vertrag | S | F1024 | Analyse Hinweise 2026-10-12 |
-| — | Seitenleiste am iPad hoch erst ab 900 px, darunter Tab-Leiste | S | N1015 | Analyse Einstellungen 2026-10-12 |
-| — | Rootless-Image als zusätzliche Variante | M | N1020 | Sicherheitsprüfung 2026-10-12 |
+| N10xx | Übersetzter Doku-Kern (Erste Schritte, Einrichtung, Anwendungsfälle) für fr/it/es/pt/nl, jede Übersetzung mit Quell-Hash, veraltet → Englisch | M–L | N1019 | Release-Schnitt 2026-10-12 („Kern später“; 2026-10-13 erneut zurückgestellt) |
+| F10xx | **Abrechnungsjahr statt Kalenderjahr** (GitHub #33): Umschalter in Verbrauchsart, Dashboard und Analyse; neuer Endpunkt rechnet beliebige Abrechnungsjahre tagesgenau (auch Stichtag mitten im Monat) samt Abschlägen und CO₂; Jahresbericht und CSV mit eigener Option; Benchmark bleibt Kalenderjahr. Zäsur und Wetterbereinigung je Periode | L | `billing_cycle_anchor_<art>`, F1029 | Entscheidung 2026-10-14: **v3.6.0** |
+| — | Wasser im Jahresbericht mit Saldo und Abschlags-Rat (`has_advance`), Kalender-Saldo (`suggested_advance`, `balance_path`) für Wasser | S–M | GitHub #34 | Nachzug aus v3.5.0 |
+| — | Englische Screenshots mit englischem Datumsformat (Browser-Region beim Aufnehmen) | S | — | v3.4.0, 2026-10-13 zurückgestellt |
+| F10xx | Zuständigkeit auch an Zählern und Verträgen (Fristen landen bei der Person) | S–M | F1028 | Release-Schnitt 2026-10-13 (nur Termine gewählt) |
+| F10xx | HACS-Integration mit eigenen Sensoren | M–L | N1025 | Release-Schnitt 2026-10-13 (nicht gewählt) |
+| N10xx | Barrierefreiheit der neuen Dialoge (Tastatur, Fokus, Bildschirmleser) mit automatischer Prüfung | M | — | Ideen 2026-10-13 |
+| N10xx | Messung mit großen Datenmengen (10 Jahre Tageswerte + Viertelstunden) als Auslöser für N1006 | S | — | Ideen 2026-10-13 |
+| — | Sichtprüfung in Safari/WebKit; Chart.js-Version in der Release-Prüfliste | S | — | Ideen 2026-10-13 |
 
 ---
 
@@ -993,15 +1058,27 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
   ~~**#27 (Docker-Image auf PHP 8.5)**~~ — mit v3.4.0 erledigt (Opcache nur
   einschalten, wenn nicht schon geladen; 8.5 in der CI-Matrix).
 - ~~Rechtsangaben der Doku gegen die Quellen prüfen~~ — Prüfbericht v3.2.0; Ergebnis im CHANGELOG.
-- Anleitungen ungetestet: Ollama, LM Studio, Unraid, openHAB.
+- Anleitungen ungetestet: Ollama, LM Studio, Unraid, openHAB — in v3.5.0.
 - ~~Versorgerrechnungen lassen sich in der Oberfläche nur anlegen und löschen~~ — bearbeiten seit v3.2.0.
-- Home-Assistant-App und HACS-Integration als eigene öffentliche Repos — Entscheidung offen.
+- Home-Assistant-App und HACS-Integration als eigene öffentliche Repos — entschieden
+  2026-10-13: App in v3.5.0 (N1025), HACS nicht (Eingang).
 
-**Nach v3.4.0 auf main** (kommt mit dem nächsten Release):
+**Nach v3.4.0 auf main** — mit v3.5.0 ausgeliefert:
 
-- Code-Scanning meldete drei Fehlalarme (unvollständige Bereinigung): Der
-  Markdown-Renderer und der Text-Test entfernen Tags bzw. HTML-Kommentare jetzt
-  ohne Regex (`stripTags`), gleiches Ergebnis, Handbuch-Test grün.
+- ~~Code-Scanning meldete drei Fehlalarme~~ — `stripTags` ohne Regex, in v3.5.0.
+
+**Offen aus v3.5.0:**
+
+- CO₂-Preis 2027 nach der Veröffentlichung des Umweltbundesamts (spätestens
+  zehn Werktage vor dem 1.1.2027) in `CO2_PRICE_DE_BEHG` eintragen (Patch);
+  BEHG-Entwurf (BT-Drs. 21/7869) nach der Lesung in der Doku nachziehen.
+- Strompreispauschale 2028 nach der Destatis-Veröffentlichung Ende September
+  2027 eintragen — als jährlicher Punkt „Jahreswerte“ in der Release-Prüfliste.
+- Ollama live ausprobieren (Anleitung bisher nach Herstellerdoku und mit
+  nachgebautem Dienst geprüft).
+- Home-Assistant-App: Rückmeldungen aus echten Installationen, danach
+  `stage: experimental` entfernen; Anzeigename statt Benutzername
+  (`X-Remote-User-Display-Name`).
 
 *— weitere offene GitHub-Issues und beobachtete Polituren landen hier —*
 
@@ -1088,6 +1165,8 @@ gebündelt oder vor dem nächsten MINOR mit hinein gezogen.
 | 2026-10-12 | v3.3.0 ausgeliefert (Minor, F1021, Schema 1.8.0) | **Was Flexibilität wert ist** — Viertelstundenreihen je Zähler und Jahr (`intervals.json` + `intervals/`), gespeist aus Home Assistant (Ingest mit `timestamp`, Differenzen anteilig verteilt, nichts über Pausen > 6 h), Portaldateien (Takt 15/30/60 min) und SMARD (Day-Ahead DE-LU je Viertelstunde, auf Knopfdruck). Neue Expertenseite: Profilfaktor und Vorteil je Stromzähler (günstig = unter dem Monatsmittel), Wert des Speichers, § 14a Modul 3 aus Zeitfenstern am Vertrag (`grid_tou`). Dynamik-Check mit eigenem Lastgang ab 90 % Abdeckung je Monat. Backup trägt die Reihen mit. Beispielhaushalt mit Wärmepumpe bekommt ein Jahr Viertelstunden und echte Börsenpreise 2025. Eingang leer. |
 | 2026-10-12 | v3.4.0 geplant (Release-Schnitt im Assist-Modus) | Sieben Analysen (Formulare, Listen, Schaubilder, Hilfe offline, PDF-Bericht, Hinweise, Sicherheit) aus den Rückmeldungen des Maintainers auf ACC, GitHub #28, Code-Scanning und PR #27. Gewählt: F1024 Erledigt mit Verlauf, F1025 Jahresbericht für alle, F1026 Schaubilder zweite Fassung, N1019 Hilfe auf dem Server, N1020 Sicher im Haushalt, N1021 Aufgeräumte Oberfläche, dazu Altlasten (v0.9.0-Migration entfällt, PHP 8.5, zweisprachige Release-Notes, Unterstützen-Link, Werbebilder). Ein Release, kein Patch vorab, kein Schemaschritt. Neu im Eingang: übersetzter Doku-Kern, Tagesfilm, Zuständigkeiten, „Abrechnung erwartet“, iPad-Seitenleiste, Rootless-Image. |
 | 2026-10-13 | v3.4.0 ausgeliefert (Minor, F1024–F1026 + N1019–N1021, kein Schemaschritt) | **Klar und sicher** — Hilfe auf dem Server, Sicherheitspaket (Proxy-Kopfzeilen, Rollen, Container, Lieferkette; v0.9.0-Import entfällt), Jahresbericht für alle, erledigte Hinweise mit Verlauf, Schaubilder zweite Fassung (Autarkie mit Speicher korrigiert), aufgeräumte Oberfläche; Altlasten PHP 8.5 (#27), Code-Scanning, zweisprachige Release-Notes, Buy-Me-a-Coffee (#28), Werbebilder. Gebaut in sechs parallelen Arbeitskopien. |
+| 2026-10-13 | v3.5.0 geplant (Release-Schnitt im Assist-Modus) | Gewählt: Tagesfilm (ein Tag und typischer Tag), Zuständig nur an Terminen, Abrechnung erwartet, Einrichtung mit Sprache und Land, iPad-Seitenleiste, Rootless-Image, Home-Assistant-App als eigenes Repo (keine HACS-Integration), Beispieldaten in den vier Haushalten, Altlasten (Rechtsstand 2027, Anleitungen, Dependabot). Doku-Kern und englische Screenshots zurückgestellt. |
+| 2026-10-14 | v3.5.0 ausgeliefert (Minor, F1027–F1029 + N1022–N1026, kein Schemaschritt) | **Wer, wann, wohin** — Tagesfilm, Zuständig an Terminen, Abrechnung erwartet (§ 40c EnWG, 120-Tage-Fenster), Verlauf als CSV, Einrichtung mit Sprache und Land, iPad-Navigation, Jahresbericht-Dialog, Image ohne root, Home-Assistant-App (eigenes Repo), Beispieldaten; Rechtsstand 2027 (Strompreispauschale 32 ct, GModG-Verfahren ab 2027); GitHub #34 (Sonderzahlungen Wasser) behoben, #33 auf v3.6.0 gelegt; Dependabot #29–#32. Gebaut in sieben parallelen Arbeitskopien. |
 | 2026-09-24 | v2.5.3 ausgeliefert (Patch) | **Keine stillen Fehlbuchungen** — Paket A aus einem Gesamtreview (Berechnungen, Oberfläche Mac/iPhone, Übersetzungen, Doku, API). Schwerpunkt: Eingaben, die bisher still in eine gültige Buchung verwandelt wurden (leeres Zahlenfeld → 0, „12,5" je nach Browser → nichts, HA-Sensor „unavailable" → Zählerstand 0 durch `float(0)` in der eigenen Vorlage, unlesbarer Stichtag → 01-01, leerer Vertrag → „aktiv"). Dazu CSRF-Schutz, Escaping gespeicherter Werte, Datumsprüfung auf allen Schreibpfaden, Beschädigung als 503 mit Quarantäne-Kopie, globale Schreibsperre, Snapshot vor Migration, iPhone-Überbreite (13 von 21 Ansichten → keine), Glossar-Vorzeichen, fachliche Fehlübersetzungen. Kein Schema-Bump, keine Schnittstellenänderung. 256 → 285 Testmethoden, zwei neue Node-Tests in der CI. Die weiteren Pakete folgen als eigene Releases: „Verlässlich und sicher im Heimnetz" (optionale Anmeldung), Länderprofile, „Richtig rechnen", „Mobil und aufgeräumt", „Versteht sich von selbst", „Auswertungen, die man sieht". |
 | 2026-09-15 | v2.5.2 ausgeliefert (Patch) | UX-Politur an der Rechnungsprüfung: je Abschnitt **Stand alt / Stand neu** mit Ableseart wie die Fußnoten der Rechnung — abgelesen, als geschätzt erfasst (`S`), Ersatzwert (`E`, tagesgenau interpoliert, kein Stand über einen Zählertausch hinweg). Anlass: Beim Abgleich zweier echter Jahresrechnungen war nicht zu sehen, welche Abschnittsgrenzen auf echten Ablesungen ruhen und welche auf Schätzungen — bei der zweiten Rechnung vier von sieben Endständen. `bill-check` liefert `counter_*` + `counter_*_kind`. 254 → 256 Tests, der Browser-Test führt die Prüfung jetzt wirklich aus, 7 Toggles greifend. Doku DE + EN. Nächster Slot: F1008. |
 | 2026-09-15 | v2.5.1 ausgeliefert (Patch) | UX-Politur ohne Code: Die Tabelle *Verträge & Abschläge* zeigt je Vertrag jetzt eine Spalte **Sonderzahlungen** (Netto aus Kundensicht, Einzelposten im Tooltip, Hinweistext; nur Gas/Strom/Fernwärme). Aufgefallen beim Nachrechnen einer echten Endabrechnung mit der neuen Rechnungsprüfung: Die gebuchte Gutschrift war in der Vertragshistorie unsichtbar, nur *Bonus* hatte eine Spalte. Drei Weichen per Multiple-Choice (eigene Spalte statt „Boni & Sonder"-Saldo — Bonus ist Vertragsbestandteil, Sonderzahlung Geld außerhalb des Plans; Netto mit Kundenvorzeichen; PATCH statt F-Code). `contract-status` liefert dafür `special_payments[]`. 250 → 254 Tests, 9 Toggles greifend, ein zehnter fand totes `abs()`. Doku DE + EN. Nächster Slot: F1008. |

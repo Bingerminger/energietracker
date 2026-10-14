@@ -2,10 +2,13 @@
 
 **Deutsch** · [English](../en/verstehen/10-sonderzahlungen.md)
 
-> Gilt für **Gas, Strom, Fernwärme** — die Energieträger mit
-> klassischem Abschlags-/Saldo-Modell. Wasser (Drei-Komponenten-Tarif)
-> und die lieferbasierten Träger Heizöl/Pellets haben keine
-> Abschlags-Saldierung und damit keine Sonderzahlungen.
+> Gilt für **Gas, Strom, Wasser und Fernwärme** — alle Arten mit
+> Zählerständen, Abschlägen und einer Abrechnung. Wasser seit v3.5.0
+> ([#34](https://github.com/Bingerminger/energietracker/issues/34)); bis
+> v3.4 fehlte dort der Abschnitt, obwohl auch die Wasserabrechnung mit einer
+> Nach- oder Rückzahlung endet. Keine Sonderzahlungen haben die
+> lieferbasierten Träger Heizöl/Pellets (keine Abschlags-Saldierung) und die
+> PV-Einspeisung (Vergütung nach Erzeugung, kein Abschlagsplan).
 
 ## Wozu
 
@@ -56,9 +59,18 @@ Abschlag und senkt die offene Schuld.
   bei mehreren Posten steht die Anzahl dahinter. Antippen klappt jeden Posten
   mit Datum, Art, Betrag und Notiz auf (bis v2.12 ein Tooltip). Ein
   Hinweistext unter der Tabelle erklärt beide Spalten.
-- Die Spalte gibt es nur bei Verbrauchsarten mit Abschlagsverträgen
-  (Gas, Strom, Fernwärme). Wasser und PV-Einspeisung kennen keine
-  Sonderzahlungen; dort entfällt sie.
+- Die Spalte gibt es bei Gas, Strom, Wasser (seit v3.5.0) und Fernwärme. Die
+  PV-Einspeisung kennt keine Sonderzahlungen; dort entfällt sie.
+- **Übersicht und Hochrechnung:** Der Saldo heute und der erwartete Saldo am
+  Vertragsende enthalten das Netto der Sonderzahlungen — bei Wasser genauso
+  wie bei Gas, Strom und Fernwärme. Eine Art *mit Auswirkung* setzt den
+  Abschlag ab ihrem Stichtag, auch in der **Prognose**.
+- **Versorgerrechnung buchen:** „Als Sonderzahlung buchen“ unter *Rechnung
+  prüfen* legt das Ergebnis als Sonderzahlung „ohne Auswirkung“ an — seit
+  v3.5.0 auch im Wasservertrag. Bis v3.4 hieß eine Wasserrechnung danach
+  „gebucht“, im Vertrag kam aber nichts an. Solche Rechnungen bieten das
+  Buchen wieder an, solange der Wasservertrag seither nicht gespeichert
+  wurde; sonst die Nach- oder Rückzahlung von Hand eintragen.
 - *Bonus* und *Sonderzahlungen* bleiben getrennt: Ein Bonus ist Teil des
   Vertrags (Sofort-, Wechsel-, Neukundenbonus) und mindert die Kosten; eine
   Sonderzahlung ist Geld, das außerhalb des Abschlagsplans geflossen ist.

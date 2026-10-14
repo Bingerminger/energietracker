@@ -27,6 +27,41 @@ const q = (v) => JSON.stringify(String(v ?? ''));
 /** Schlüssel für Jinja-Zeichenketten in '…': nur Buchstaben, Ziffern, _ . - */
 const key = (v) => String(v ?? '').replace(/[^A-Za-z0-9_.-]/g, '');
 
+/**
+ * Hostname des Containers, wenn die Seite unter Home-Assistant-Ingress läuft
+ * (der Server nennt ihn nur dem Supervisor, `<meta name="et-ingress-host">`),
+ * sonst null.
+ */
+export function ingressHost() {
+  return document.querySelector('meta[name="et-ingress-host"]')?.getAttribute('content') || null;
+}
+
+/**
+ * Adresse dieser Installation, wie Home Assistant sie aufrufen soll.
+ * v3.1.0 (Ökosystem G3) — Unter Ingress zeigt die Adresszeile
+ * https://ha…/api/hassio_ingress/<token>/: Das braucht eine HA-Sitzung, und das
+ * Token wechselt. Home Assistant erreicht die App dann im internen Netz unter
+ * ihrem Hostnamen. v3.5.0 (N1025) — aus settings.js hierher, weil das
+ * Kalender-Abo dieselbe Adresse braucht.
+ */
+export function haBaseUrl() {
+  const host = ingressHost();
+  if (host) return `http://${host}`;
+  return `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`.replace(/\/$/, '');
+}
+
+/**
+ * Eine Adresse dieser Installation (relativ zur Seite oder absolut) so, wie
+ * Home Assistant sie aufruft — unter Ingress ohne den Pfad
+ * /api/hassio_ingress/<token>/, sonst unverändert.
+ */
+export function haUrl(path) {
+  const abs = new URL(path, location.href);
+  const dir = location.pathname.replace(/[^/]*$/, '');
+  const rel = abs.pathname.startsWith(dir) ? abs.pathname.slice(dir.length) : abs.pathname.replace(/^\//, '');
+  return `${haBaseUrl()}/${rel}${abs.search}`;
+}
+
 /** REST-Command für die configuration.yaml. */
 export function haRestCommandYaml(baseUrl) {
   return [

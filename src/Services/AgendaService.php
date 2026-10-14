@@ -5,6 +5,7 @@ namespace Energietracker\Services;
 
 use Energietracker\Config\Utilities;
 use Energietracker\Http\HttpStatusException;
+use Energietracker\Support\Dates;
 
 /**
  * v3.1.0 (Paket H, B5) — Fristen und Termine aus einer Quelle.
@@ -29,6 +30,13 @@ use Energietracker\Http\HttpStatusException;
  *   co2_claim_deadline   v3.1.0 (H5) — Etagenheizung zur Miete: Vermieteranteil
  *                        der CO₂-Kosten bis 12 Monate nach Zugang der
  *                        Gasrechnung einfordern (CO2KostAufG § 6 Abs. 2)
+ *   bill_expected        v3.5.0 (F1029) — Abrechnungszeitraum eines Vertrags
+ *                        beendet, keine Versorgerrechnung erfasst
+ *                        (BillExpectedService); nach der gesetzlichen Frist
+ *                        „überfällig“ (EnWG § 40c Abs. 2, Strom/Gas in DE)
+ *
+ * v3.5.0 (F1028) — Jedes Ereignis trägt `assignee`, `assignee_id` und
+ * `assignee_former` (bei Terminen die Zuständigkeit, sonst null/false).
  *
  * Jedes Ereignis: {uid, kind, date, title, title_key, params, severity,
  * due_now, href, ref, occurrence, can_mark_done, done}.
@@ -54,10 +62,17 @@ final class AgendaService
 {
     public const KINDS = ['reminder', 'reading_due', 'cancel_by', 'term_end', 'price_guarantee_end',
                           'price_increase', 'tank_reorder', 'tenancy_statement_due', 'objection_deadline',
-                          'co2_claim_deadline'];
+                          'co2_claim_deadline', 'bill_expected'];
 
     /** v3.4.0 (F1024) — Verlauf (optional; ohne ihn gibt es nur die automatische Erledigung aus den Daten). */
     private ?ActivityService $activity = null;
+    /** v3.5.0 (F1029) — erwartete Abrechnungen (optional; ohne ihn keine `bill_expected`). */
+    private ?BillExpectedService $billsExpected = null;
+
+    public function attachBillExpectations(BillExpectedService $billsExpected): void
+    {
+        $this->billsExpected = $billsExpected;
+    }
 
     public function __construct(
         private SettingsService $settings,
@@ -110,7 +125,7 @@ final class AgendaService
                 ['title' => (string)($r['title'] ?? '')],
                 $status === 'overdue' ? 'overdue' : ($due ? 'due' : 'upcoming'), $due, '#/reminders',
                 ['reminder_id' => (string)$r['id'], 'category' => (string)($r['category'] ?? ''),
-                 'days_until' => $r['days_until'] ?? null], $date);
+                 'days_until' => $r['days_until'] ?? null], $date, null, $r);
         }
 
         // ── fällige Ablesungen (kumulative Zähler in Betrieb) ──
@@ -214,6 +229,25 @@ final class AgendaService
                 ['utility' => $u, 'meter_id' => $m, 'recommendation_id' => (string)$r['id']],
                 // v3.4.0 (F1024) — Vorkommen: seit der letzten Lieferung
                 (string)($r['evidence']['anchor'] ?? 'none'));
+        }
+
+        // ── v3.5.0 (F1029) — Abrechnung erwartet: Zeitraum beendet, keine Versorgerrechnung ──
+        // Fällig ab dem Ende des Zeitraums; nach der gesetzlichen Frist überfällig
+        // (Datum = Frist), ohne Frist bleibt es bei „erwartet“ (Datum = Tag nach dem Ende).
+        // Mit erfasster Rechnung entfällt das Ereignis (aus den Daten).
+        foreach ($this->billsExpected?->open($today) ?? [] as $x) {
+            $params = BillExpectedService::params($x, $this->i18n);
+            $titleKey = BillExpectedService::titleKey($x);
+            $ev = $this->event('bill_expected', (string)$x['uid'],
+                (string)($x['deadline'] ?? date('Y-m-d', (int)strtotime($x['until'] . ' +1 day'))),
+                $titleKey, $params, !empty($x['overdue']) ? 'overdue' : 'due', true, BillExpectedService::href($x),
+                ['utility' => (string)$x['utility'], 'meter_id' => (string)$x['target_id'], 'contract_id' => (string)$x['contract_id'],
+                 'period_from' => (string)$x['from'], 'period_until' => (string)$x['until'], 'final' => (bool)$x['final'],
+                 'deadline' => $x['deadline'], 'overdue' => (bool)$x['overdue']],
+                (string)$x['until']);
+            // Tage im Titel in der Schreibweise der Sprache (params bleiben JJJJ-MM-TT)
+            $ev['title'] = $this->i18n->t($titleKey, array_map(fn($v) => is_string($v) && Dates::isIsoDate($v) ? $this->i18n->date($v) : $v, $params));
+            $events[] = $ev;
         }
 
         // ── v3.1.0 (H3, F1008) — Fristen der Nebenkostenabrechnung ──
@@ -324,6 +358,8 @@ final class AgendaService
             'note'          => $note,
             'attachment_id' => $attachment,
             'revert'        => $revert,
+            // v3.5.0 (F1029) — von Hand abgehakt heißt: kam ohne Erfassung
+            'reason'        => $event['kind'] === 'bill_expected' ? ['key' => 'activity.reason.billWithout', 'params' => []] : null,
         ]);
         return ['activity_id' => $entry['id'], 'entry' => $entry, 'event' => self::markedDone($event, $entry)];
     }
@@ -352,11 +388,12 @@ final class AgendaService
      * @param array<string,mixed>  $ref
      * @param string               $anchor Anker des Vorkommens (s. ActivityService)
      * @param array<string,mixed>|null $autoDone aus den Daten erledigt (Folgevertrag)
+     * @param array<string,mixed>|null $assignee v3.5.0 (F1028) — Termin mit Zuständigkeit (ReminderService::withAssignee)
      * @return array<string,mixed>
      */
     private function event(string $kind, string $uid, string $date, string $titleKey, array $params,
                            string $severity, bool $dueNow, string $href, array $ref,
-                           string $anchor = '', ?array $autoDone = null): array
+                           string $anchor = '', ?array $autoDone = null, ?array $assignee = null): array
     {
         $occurrence = ActivityService::occurrence($uid, $anchor !== '' ? $anchor : $date);
         $done = $autoDone ?? $this->doneOf($occurrence);
@@ -376,6 +413,10 @@ final class AgendaService
             'occurrence'    => $occurrence,
             'can_mark_done' => $done === null && in_array($kind, ActivityService::MANUAL_KINDS, true),
             'done'          => $done,
+            // v3.5.0 (F1028) — Zuständigkeit (nur Termine haben eine)
+            'assignee'        => is_string($assignee['assignee'] ?? null) ? $assignee['assignee'] : null,
+            'assignee_id'     => is_string($assignee['assignee_id'] ?? null) ? $assignee['assignee_id'] : null,
+            'assignee_former' => !empty($assignee['assignee_former']),
         ];
     }
 

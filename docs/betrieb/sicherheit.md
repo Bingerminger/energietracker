@@ -351,7 +351,7 @@ statt sie in den Speicher zu laden.
 - [ ] `data/` & Co. liefern `404` — der Sicherheits-Check zeigt es (§ 9)
 - [ ] Hostliste gesetzt: Einstellungen → Zugriff oder `ET_ALLOWED_HOSTS` (§ 8)
 - [ ] `ET_DEBUG` nicht gesetzt (§ 10)
-- [ ] Docker: gehärtet und Port nur auf `127.0.0.1` hinter dem Reverse-Proxy (§ 13)
+- [ ] Docker: gehärtet oder ohne root, Port nur auf `127.0.0.1` hinter dem Reverse-Proxy (§ 13)
 - [ ] Besser noch: VPN statt Freigabe (§ 1)
 
 ## 12. Größengrenzen und Schreibsperre *(v3.4.0)*
@@ -405,9 +405,16 @@ Dateisystem und der Port nur auf `127.0.0.1` hinter einem Reverse-Proxy. Das
 Beispiel steht in [Docker-Betrieb](docker.md#gehärteter-betrieb-v340); die CI
 startet das Image bei jedem Lauf genau so.
 
+**Ohne root *(v3.5.0)*.** Noch einen Schritt weiter geht die Variante mit der
+Endung `-rootless`: Kein Prozess läuft als root, der Container braucht keine
+einzige Capability, und der Start stellt keine Rechte um. Dafür muss der
+Datenordner der UID des Containers (10001) gehören — Beispiel und Umstieg in
+[Docker-Betrieb → Ohne root](docker.md#ohne-root-v350). Die CI startet auch
+diese Variante bei jedem Lauf und prüft, dass kein Prozess mit UID 0 läuft.
+
 **Aktuelles Basis-Image.** Jede Woche baut GitHub den neuesten Release-Tag
-auf dem aktuellen Basis-Image neu (gleicher Code, neue Pakete) und prüft das
-Image auf bekannte Lücken. Ein festgeschriebener Tag wie `3.4.0` bekommt so
+auf dem aktuellen Basis-Image neu (gleicher Code, neue Pakete; seit v3.5.0
+beide Varianten) und prüft die Images auf bekannte Lücken. Ein festgeschriebener Tag wie `3.4.0` bekommt so
 Sicherheitsupdates von Alpine und PHP, ohne dass sich an der App etwas ändert.
 
 ## 14. Sicherheitslücke gefunden?

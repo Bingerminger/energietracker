@@ -42,13 +42,14 @@ die App zeigt es seit v3.1.0 in der Hilfe und an jedem ⓘ.
 | **Saldo** | Tatsächliche Kosten − geleistete Abschläge (dazu das Netto der Sonderzahlungen). **Positiv = Nachzahlung droht, negativ = Guthaben** — so rechnen API und CSV-Export. Die Oberfläche zeigt seit v2.13.0 die Kundensicht: „Guthaben“ bzw. „Nachzahlung“ ohne Vorzeichen, in Tabellen + = Guthaben. |
 | **Schattenvertrag** | Ein Tarif, den man nicht hat: entweder ein Angebot vom Vergleichsportal (für die Wechselentscheidung) oder eine Hypothese über die Vergangenheit („Was hätte das gekostet?"). Wirkt **nur** im Tarifvergleich — nie auf Saldo, Prognose oder Vertragsstatus. |
 | **Profilfaktor** | v3.3.0: Dein Börsenpreis je kWh (nach Verbrauch je Viertelstunde gewichtet) geteilt durch das Börsenmittel. Unter 1: Du verbrauchst eher, wenn Strom billig ist; über 1: eher, wenn er teuer ist ([Flexibilität bewerten](../anleitungen/flexibilitaet.md)). |
+| **Typischer Tag** | v3.5.0: Der Energiefluss eines Durchschnittstags im Monat — je Viertelstunde (Ortszeit) das Mittel über alle Tage des Monats mit Messwerten. Er zeigt das Muster, etwa wann die Mittagssonne den Speicher lädt, keinen echten Tag ([Ansichten](../referenz/ansichten.md#1-übersicht-dashboard), Energiefluss → „Tag“). |
 | **Kündigungsstichtag** | Letzter Tag, an dem die Kündigung beim Anbieter sein muss (`cancel_by`). Seit v2.9.0 zählen die Erinnerungsstufen bis zu diesem Tag, nicht bis zum Vertragsende. |
 | **Kündigungsweise** | v2.9.0 (`notice_mode`): zum Vertragsende, jederzeit zum Monatsende oder jederzeit zu jedem Tag (etwa die Grundversorgung mit zwei Wochen). |
 | **Weiterlaufender Vertrag** | v2.9.0: abgelaufen, ohne Nachfolger und nicht gekündigt — läuft zu den letzten Preisen weiter (`renewed`, Monatszeilen `contract_assumed`) und ist jederzeit mit höchstens einem Monat Frist kündbar. |
 | **Wechseltermin** | v2.3.0: Der erste Tag, an dem ein neuer Tarif liefern könnte. Ergibt sich aus Vertragsende und Kündigungsfrist; davon zu unterscheiden ist der **Kündigungsstichtag**, bis zu dem die Kündigung raus muss. |
 | **Break-even-Verbrauch** | v2.3.0: Die Jahresmenge, ab der ein Angebot den laufenden Vertrag schlägt (Spalte „Lohnt ab"). Liegt sie weit vom erwarteten Verbrauch weg, trägt die Wechselentscheidung auch bei ungenauer Prognose. |
 | **Neukundenbonus** | v2.3.0: Einmalbetrag am Angebot (`signup_bonus_eur`), der nur im ersten Jahr zählt. Die Rangfolge richtet sich bewusst nach den Kosten **ab** dem zweiten Jahr. |
-| **Sonderzahlung** | F1003: Rück-/Nachzahlung oder zusätzliche Abschlagszahlung. Saldo = Kosten - Abschläge + (Σ Rückzahlung - Σ Nachzahlung - Σ Abschlagszahlung). "mit Auswirkung" setzt zusätzlich den künftigen Abschlag. Nur Gas/Strom/Fernwärme. |
+| **Sonderzahlung** | F1003: Rück-/Nachzahlung oder zusätzliche Abschlagszahlung. Saldo = Kosten - Abschläge + (Σ Rückzahlung - Σ Nachzahlung - Σ Abschlagszahlung). "mit Auswirkung" setzt zusätzlich den künftigen Abschlag. Gas, Strom, Wasser (seit v3.5.0) und Fernwärme. |
 | **Zählerstand-Erfassung** | F1004 (v1.6.0): Zentraler View `#/zaehlerstaende` zur schnellen Vor-Ort-Erfassung aller kumulativen Zähler in einem Durchgang. Heizöl/Pellets nutzen Lieferungen; Zähler mit Verbrauch je Zeitraum bekommen seit v3.1.0 eine Karte mit Monat und Verbrauch. |
 | **Effizienzklasse** | kWh/m²·a-Einordnung der Heizenergie (A+…H), seit v1.4.0 pro Quelle. |
 | **Grundlast** | Wetterunabhängiger Sockel (Warmwasser, Standby). |
@@ -57,9 +58,9 @@ die App zeigt es seit v3.1.0 in der Hilfe und an jedem ⓘ.
 | **Tankbuch** | v2.10.0: eine Rechnung für Verbrauch, Kosten und Bestand bei Öl/Pellets, gestützt auf bekannte Bestände (Anfangsbestand, Lieferung „bis voll", Peilstand). |
 | **Stützstelle** | Tag mit bekanntem Tankbestand. Zwischen zwei Stützstellen ist der Verbrauch gerechnet, nicht geschätzt. |
 | **Peilstand** | Abgelesener Tankbestand (Anzeiger, Peilstab, Sensor), am Tank unter `tank_levels` gespeichert. |
-| **Energieausweis-nahe Kennzahl** | v2.10.0: zweite Effizienzzahl — Heizwert, witterungsbereinigt, je m² Gebäudenutzfläche, mit Warmwasser-Zuschlag bei dezentraler Bereitung. Kein Verbrauchsausweis (der verlangt 36 Monate). |
+| **Energieausweis-nahe Kennzahl** | v2.10.0: zweite Effizienzzahl — witterungsbereinigt, je m² Gebäudenutzfläche, mit Warmwasser-Zuschlag bei dezentraler Bereitung. Seit v3.5.0 nach dem Verfahren, das am Rechentag gilt: bis 31.12.2026 Heizwert und 20 kWh/m²·a Zuschlag, ab 01.01.2027 Brennwert und 16 kWh/m²·a (§ 82 GModG n. F.). Kein Verbrauchsausweis (der verlangt 36 Monate, ab 2027 zwei Jahre). |
 | **Gebäudenutzfläche (AN)** | Bezugsfläche des Energieausweises: 1,2 × Wohnfläche, 1,35 × bei Wohngebäuden mit bis zu zwei Wohnungen und beheiztem Keller — in der App Ein-/Zweifamilienhaus oder Reihenhaus (§ 82 Abs. 2 GModG, bis Juli 2026 GEG). |
-| **Brennwert / Heizwert** | Gas wird nach Brennwert abgerechnet (kWh inklusive Kondensationswärme), Energieausweis und BAFA-CO₂-Faktoren beziehen sich auf den Heizwert: Heizwert-kWh = Brennwert-kWh × 0,906. |
+| **Brennwert / Heizwert** | Gas wird nach Brennwert abgerechnet (kWh inklusive Kondensationswärme), die BAFA-CO₂-Faktoren beziehen sich auf den Heizwert: Heizwert-kWh = Brennwert-kWh × 0,906. Der Verbrauchsausweis rechnet bis 31.12.2026 nach Heizwert, ab 01.01.2027 nach Brennwert (§ 82 Abs. 2 GModG n. F.). |
 | **Ersparnis Eigenverbrauch** | v2.10.0: selbst genutzter PV-Strom × Arbeitspreis des Bezugs — was der Eigenverbrauch an Stromkosten vermeidet. |
 | **Recurrence** | Wiederholregel eines Termins (jährlich, …). |
 | **Zäsur** | F1011 (v2.4.0): datierte bauliche Änderung am Zähler (neue Heizung, Dämmung, Fenster). Ab ihrem Tag rechnen Heizmodell, Wetterbereinigung, Anomalien und Prognose neu; Monate davor bleiben sichtbar, aber grau. Die Karte „Wirkung der Maßnahme“ vergleicht vorher und nachher je Heizgradtag. |
@@ -78,7 +79,7 @@ die App zeigt es seit v3.1.0 in der Hilfe und an jedem ⓘ.
 | **§ 14a EnWG (steuerbare Verbraucher)** | v3.1.0: Wärmepumpen, Wallboxen, Klimaanlagen und Speicher über 4,2 kW, die seit dem 01.01.2024 in Betrieb gehen, darf der Netzbetreiber bei Engpässen drosseln – auf mindestens 4,2 kW, nicht auf null; dafür sinkt das Netzentgelt. Modul 1: ein fester Betrag im Jahr. Modul 2: ein eigener Zähler mit 40 % des Netz-Arbeitspreises. Modul 3: zeitvariable Netzentgelte zusätzlich zu Modul 1 ([Strom](02-strom.md#steuerbare-verbraucher-v310)). |
 | **Dynamischer Tarif** | v3.1.0: Ein Stromtarif, dessen Arbeitspreis dem Börsenpreis folgt (§ 41a EnWG). Abgerechnet wird er mit einem intelligenten Messsystem je Viertelstunde. Die App schätzt ihn mit dem Monatsmittel der Börse plus Aufschlag — eine Näherung, kein Ersatz für die Abrechnung ([Strom](02-strom.md#dynamische-tarife-v310)). |
 | **Jahresarbeitszahl (JAZ)** | v3.1.0: Wie viel Wärme eine Wärmepumpe aus einer kWh Strom macht, gemessen über ein Jahr: Wärme ÷ Strom. Braucht einen Wärmezähler an der Wärmepumpe. Im Feldtest lagen Luft/Wasser-Geräte bei rund 3,4, Sole/Wasser bei 4,3 ([Heizwärme](15-waerme.md#7-jahresarbeitszahl-der-wärmepumpe-v310)). |
-| **Strompreispauschale** | v3.1.0: Pauschaler Preis je kWh, mit dem der Arbeitgeber den zu Hause geladenen Strom eines Dienstwagens erstatten kann (BMF-Schreiben vom 11.11.2025; 2026: 34 ct/kWh) — Alternative zum Vertragspreis ([Ladestrom-Nachweis](../anleitungen/ladestrom-nachweis.md)). |
+| **Strompreispauschale** | v3.1.0: Pauschaler Preis je kWh, mit dem der Arbeitgeber den zu Hause geladenen Strom eines Dienstwagens erstatten kann (BMF-Schreiben vom 11.11.2025, Rn. 30; 2026: 34 ct/kWh, 2027: 32 ct/kWh; jeweils aus dem Destatis-Strompreis des 1. Halbjahres des Vorjahres) — Alternative zum Vertragspreis ([Ladestrom-Nachweis](../anleitungen/ladestrom-nachweis.md)). |
 
 ---
 
@@ -140,7 +141,9 @@ Kennzahl = (Σ Heiz-kWh des Jahres) / Wohnfläche_m²     [kWh / (m²·a)]
 
 ```text
 AN       = Wohnfläche × 1,2   (1,35 bei EFH/RH mit beheiztem Keller)
-Kennzahl = Σ bereinigte kWh (Gas × 0,906) / AN  (+ 20 bei dezentralem Warmwasser)
+Kennzahl = Σ bereinigte kWh / AN  (+ Zuschlag bei dezentralem Warmwasser)
+           bis 31.12.2026: Gas × 0,906 (Heizwert), Zuschlag 20
+           ab 01.01.2027:  Gas × 1 (Brennwert), Zuschlag 16
 ```
 
 **Tankbuch (Öl/Pellets, seit v2.10.0):**

@@ -22,13 +22,19 @@ Since 2021, suppliers of natural gas and heating oil in Germany pay a price for
 every tonne of CO₂ produced when their fuels are burned — under the **Fuel
 Emissions Trading Act (BEHG)**. They pass it on to their customers through the
 unit price. Up to 2025 the price was fixed per year; for 2026 a corridor of
-55 to 65 € per tonne applies. A bill (Bundestag printed paper 21/7869) would
-extend the corridor to 2027; it has not been passed yet (as of 9 Oct 2026).
+55 to 65 € per tonne applies (§ 10(2) BEHG).
 
-After that, the **European emissions trading system for buildings and transport
-(ETS2)** is to replace the national price — as things stand, from 2028. How
-high the price will be is not known. For years without a fixed price the app
-uses the last known value and says so ([§ 4](#4-price-per-year)).
+**2027 (as of 13 Oct 2026).** The draft Third Act amending the BEHG (Bundestag
+printed paper 21/7869, Art. 1 no. 4) extends the 55 to 65 € corridor to 2027.
+Without this change, the 2027 price under the BEHG in force would follow the
+auction prices of the European emissions trading system for industry and
+energy (EU ETS 1). The draft has not been passed yet; the second and third
+reading in the Bundestag is scheduled for 15 Oct 2026.
+
+The **European emissions trading system for buildings and road transport
+(ETS2)** starts in 2028: Art. 2 of Regulation (EU) 2026/667 postpones it by one
+year. How high the price will be is not known. For years without a fixed price
+the app uses the last known value and says so ([§ 4](#4-price-per-year)).
 
 The app knows the CO₂ price for **Germany** only (country profile DE). In other
 countries the card is missing; the API answers with `supported: false` and a
@@ -103,6 +109,33 @@ Agency publishes it no later than ten working days before the year begins
 known value as an assumption** for 2027 and later years — i.e. 60 € — and says
 below: “This year’s price is not fixed yet; the last known one is used.” The
 60 € are only a placeholder, not the 2027 price.
+
+**Where the 2027 value comes from.** For splitting CO₂ costs with the landlord,
+only § 4(1) no. 3 CO2KostAufG counts: the average price of the auctions under
+§ 10(1) BEHG from 1 July to 30 November 2026. The BEHG draft from
+[§ 1](#1-what-the-co₂-price-is) does not change that; it only concerns the
+BEHG, the Fuel Emissions Trading Ordinance and the BEHG double-counting
+ordinance. The app enters the value only once the German Environment Agency
+has published it (§ 4(2)) — it does not estimate it.
+
+**What the app does for 2027 as long as no value is entered:**
+
+- The card “CO₂ price in fuel” calculates with 60 € and says that this is an
+  assumption; the API reports `price.assumed: true`.
+- The **CO₂ cost split** with a self-contained heating system
+  ([guide](../anleitungen/co2-aufteilung.md)) uses the same assumption. The
+  card under the tenancy shows no separate note for it; the API there also
+  delivers the price with `assumed`. If the supplier’s bill with its CO₂
+  amount is entered, that amount applies
+  ([§ 3](#3-emissions-the-behg-standard-factors)) — the assumption then plays
+  no role.
+- The forecast **scenario** calculates the extra cost against these 60 €
+  ([§ 6](#6-where-you-see-it)).
+
+The price your supplier puts into the unit price in 2027 follows the BEHG and
+can differ from the value under the CO2KostAufG. The app keeps one value per
+year for both; if your bill shows a different CO₂ amount, enter the bill (it
+takes precedence) or the price under “CO₂ price per year”.
 
 You enter your own values under **Settings → Expert → calculation parameters →
 “CO₂ price” → “CO₂ price per year”** (year and € per tonne). They take

@@ -360,8 +360,9 @@ Consumption is in kWh per quarter hour, prices in ct/kWh. Only what is in the
 index counts.
 
 **Data volume.** A full series for a whole year takes about 250 KB (the file is
-written compactly). The sample household has six series for 2025, about 1 MB
-together.
+written compactly). The sample household has eight series for 2025, about
+1.5 MB together; loading it adds the last two to three months up to yesterday
+(§ 9).
 
 **Backup.** The backup contains all series, also a backup without receipts. If
 it brings an index of the series, restoring drops series that are not in it —
@@ -373,11 +374,17 @@ behind.
 ## 9. To look at: the sample household
 
 The sample household **“Own house with heat pump and solar”** has quarter
-hours for 2025: the household, the controlled heat pump (it prefers to run
-between 0 and 6 o’clock and avoids 17 to 20 o’clock), the wall box from its
-charging sessions and the battery. Plus the real wholesale prices 2025 per
-quarter hour from SMARD, and on the heat pump’s contract the module 3 windows
-from § 6. The consumption is made up.
+hours for 2025: the household (grid import), the controlled heat pump (it
+prefers to run between 0 and 6 o’clock and avoids 17 to 20 o’clock), the wall
+box from its charging sessions, since v3.5.0 also the solar generation and
+feed-in, and the battery — so that every quarter hour adds up on its own
+(generation = used directly + fed in + charged; the battery charges from the
+surplus and discharges into the house in the evening). Plus the real wholesale
+prices 2025 per quarter hour from SMARD, and on the heat pump’s contract the
+module 3 windows from § 6. When loading, the app carries the last two to three
+months up to yesterday forward — day by day from the same calendar day a year
+earlier, the wholesale prices too; the day film shows them. The consumption is
+made up.
 
 To load it: Settings → General → **“Start the setup assistant”**, “Own house
 with heat pump and solar”, choose the level **“Expert”**, at the end “Look at
@@ -390,10 +397,10 @@ Then **Insights → Flexibility**, year 2025:
 Meter                       with price  cheap  negative  own avg.  market avg.  profile factor  advantage
 Heat pump (controllable)     3,891 kWh   55 %   112 kWh   9.60 ct    10.08 ct        0.95          €18.78
 Wallbox (controllable)       2,618 kWh   48 %   469 kWh   9.41 ct     9.07 ct        1.04          −€9.01
-Household (grid import)      2,397 kWh   41 %    84 kWh  10.79 ct     9.70 ct        1.11         −€26.04
+Household (grid import)      2,862 kWh   40 %   303 kWh  10.79 ct     9.41 ct        1.15         −€39.46
 
-Battery      1,952 kWh charged at avg. 4.51 ct, 1,795 kWh discharged at avg. 10.68 ct
-             value = (1,795.46 × 10.684 − 1,951.54 × 4.514) ÷ 100 ≈ €103.72
+Battery      1,695 kWh charged at avg. 8.11 ct, 1,556 kWh discharged at avg. 11.61 ct
+             value = (1,555.91 × 11.612 − 1,694.70 × 8.114) ÷ 100 ≈ €43.15
 Module 3 (heat pump)
              1,512 kWh in the low tariff, 129 kWh in the high tariff, 2,250 kWh in the standard tariff
              saving = (1,511.79 × (8.1 − 2.4) + 129.41 × (8.1 − 11.9)) ÷ 100 ≈ €81.25
@@ -401,8 +408,10 @@ Module 3 (heat pump)
 
 Thanks to its control the heat pump consumes at about 5 % below the market
 average — €18.78 on the wholesale share. The wall box charges a lot at negative
-prices and still above the average; the household consumes, as usual, in the
-evening, when electricity is more expensive.
+prices and still above the average; the household draws from the grid, as
+usual, in the evening, when electricity is more expensive — at midday the sun
+covers it. The battery charges at midday, when wholesale power is cheap, and
+discharges in the evening.
 
 Looking back under Tariff switch, the offer “Electricity Dynamic” for the meter
 “Household (grid import)” calculates with its own load profile in twelve months

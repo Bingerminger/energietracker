@@ -151,6 +151,22 @@ export function demoLanguage() {
 }
 
 /**
+ * v3.5.0 (N1022) — Sprache der Demo festlegen (je Gerät, wie die Sprachwahl
+ * der Hinweisleiste). Steht `?lang=` in der Adresse, zieht es mit — sonst
+ * gewänne beim Neuladen die alte Adresse.
+ */
+export function setDemoLanguage(lang) {
+  try { localStorage.setItem(LANG_KEY, lang); } catch { /* Speicher gesperrt: nur diese Sitzung */ }
+  try {
+    const url = new URL(location.href);
+    if (url.searchParams.has('lang')) {
+      url.searchParams.set('lang', lang);
+      history.replaceState(history.state, '', url.toString());
+    }
+  } catch { /* ohne location */ }
+}
+
+/**
  * Kennzeichen in der Kopfleiste und Hinweisleiste mit Sprachwahl und dem Weg
  * zur eigenen Installation. Die Leiste lässt sich schließen; das Kennzeichen
  * öffnet sie wieder.

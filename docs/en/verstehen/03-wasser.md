@@ -30,6 +30,29 @@ Water has its own contract model with three components:
 This model was introduced with schema 1.0.3; an auto-migrator transfers old
 simple water tariffs into the drinking-water component.
 
+## Advances, balance and special payments *(v3.5.0)*
+
+Like gas and electricity, a water contract has monthly **advances** and, at the
+end of the billing period, a **back-payment or refund**. Since v3.5.0 you enter
+it as a **[special payment](10-sonderzahlungen.md)** in the contract (section
+“Special payments” in the water contract, after the bonuses) or book the result
+of the supplier bill under *Check a bill*
+([#34](https://github.com/Bingerminger/energietracker/issues/34)). A
+*with-effect* type sets the new advance from its effective date — in the months,
+in the balance and in the forecast.
+
+For water the balance is calculated over the months with readings, not by
+calendar as for gas, electricity and district heating
+([Fundamentals §10](00-overview.md#10-balance-to-date)):
+
+```text
+balance today     = costs of the read months − advances of those months + special payments net
+expected at end   = balance today + (average cost per month − current advance) × remaining months
+```
+
+The API marks this with `projection_method: flat_average`. The overview, the
+page *Contracts & payments* and the water consumption view show both values.
+
 ## Roles: cold, hot, garden *(v3.1.0)*
 
 Since v3.1.0 every water meter has a **role** (meter dialog → “Role”, API field

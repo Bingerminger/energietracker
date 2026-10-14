@@ -83,11 +83,32 @@ final class EvChargingReportTest extends ServiceTestCase
         self::assertEqualsWithDelta(12.0, $rows['2025-06']['base_share_eur'], 0.01, 'nicht 12 € × 400/300');
     }
 
-    /** Spezifikation: 3.000 kWh mit der Pauschale 2026 (34 ct) = 1.020 €. */
+    /**
+     * Spezifikation: 3.000 kWh mit der Pauschale 2026 (34 ct) = 1.020 €.
+     * v3.5.0 — 2027: 32 ct (Destatis 61243-0001, 1. Hj. 2026: 32,14 ct, abgerundet);
+     * 2028 steht erst nach dem 1. Halbjahr 2027 fest und fehlt — kein Vorjahreswert.
+     */
     public function testFlatRate(): void
     {
         self::assertSame(34.0, EvChargingReportService::flatRate('DE', 2026));
+        self::assertSame(32.0, EvChargingReportService::flatRate('DE', 2027));
+        self::assertNull(EvChargingReportService::flatRate('DE', 2028), 'der Vorjahreswert gilt nicht weiter');
+        self::assertNull(EvChargingReportService::flatRate('DE', 2025), 'die Pauschale je kWh gibt es erst seit 2026');
         self::assertNull(EvChargingReportService::flatRate('AT', 2026));
+        self::assertSame(32.0, $this->service()->report($this->wallbox, 2027, 'flat')['flat_ct'], 'ohne eigenen Wert: Länderprofil');
+        try {
+            $this->service()->report($this->wallbox, 2028, 'flat');
+            self::fail('Pauschale 2028 ist noch nicht veröffentlicht');
+        } catch (LocalizedException $e) {
+            self::assertSame('errors.evReport.flatMissing', $e->key);
+            self::assertSame(['year' => 2028], $e->params);
+        }
+        // Die Meldung sagt, woher der Wert kommt und ab wann es ihn gibt — in jeder Sprache
+        foreach (glob(dirname(__DIR__, 3) . '/public/locales/[a-z][a-z].json') ?: [] as $file) {
+            $msg = (string)(json_decode((string)file_get_contents($file), true)['errors']['evReport']['flatMissing'] ?? '');
+            self::assertStringContainsString('Destatis', $msg, basename($file));
+            self::assertStringContainsString('2026', $msg, basename($file));
+        }
         $r = $this->service()->report($this->wallbox, 2025, 'flat', 34.0);
         self::assertSame(34.0, $r['flat_ct']);
         self::assertEqualsWithDelta(3000, $r['total']['kwh'], 0.01);
@@ -98,6 +119,23 @@ final class EvChargingReportTest extends ServiceTestCase
             self::fail('Pauschale für 2025 gibt es nicht (bis 2025 galten Monatspauschalen)');
         } catch (LocalizedException $e) {
             self::assertSame('errors.evReport.flatMissing', $e->key);
+        }
+    }
+
+    /**
+     * v3.5.0 — Doku-Behauptungen brauchen Tests: Die Anleitung (DE und EN) nennt
+     * jeden Jahreswert aus Countries::EV_FLAT_RATE_DE in ihrer Tabelle, und keinen
+     * anderen. Kommt das nächste Jahr dazu, fällt die Anleitung hier auf.
+     */
+    public function testTheGuideNamesEveryFlatRate(): void
+    {
+        $root = dirname(__DIR__, 3);
+        foreach (['docs/anleitungen/ladestrom-nachweis.md', 'docs/en/anleitungen/ladestrom-nachweis.md'] as $rel) {
+            $doc = (string)file_get_contents("$root/$rel");
+            preg_match_all('/^\|\s*(20\d\d)\s*\|\s*(\d+) ct\/kWh\s*\|/m', $doc, $m, PREG_SET_ORDER);
+            $named = [];
+            foreach ($m as [, $y, $ct]) $named[(int)$y] = (float)$ct;
+            self::assertSame(\Energietracker\Config\Countries::EV_FLAT_RATE_DE, $named, "$rel: Tabelle der Pauschalen weicht vom Länderprofil ab");
         }
     }
 

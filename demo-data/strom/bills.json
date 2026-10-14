@@ -1,0 +1,22 @@
+[
+    {
+        "id": "b_f2c19ee46624",
+        "meter_id": "m_strom_main",
+        "period_from": "2023-01-01",
+        "period_to": "2023-12-31",
+        "issued_on": "2024-01-25",
+        "kind": "final",
+        "contract_id": "c_strom_001",
+        "invoice": {
+            "energy_kwh": 3259.4,
+            "amount_eur": 1518.94,
+            "advances_paid_eur": 1560,
+            "result_eur": -41.06
+        },
+        "items": [],
+        "co2": null,
+        "note": "Schlussrechnung nach dem Anbieterwechsel",
+        "attachment_ids": [],
+        "created_at": "2024-01-27T19:12:00+01:00"
+    }
+]

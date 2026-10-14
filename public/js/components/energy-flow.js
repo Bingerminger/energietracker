@@ -21,10 +21,21 @@
 // (`aria-pressed`) heben dessen Flüsse hervor, die Detailzeile sagt sie an
 // (`aria-live`), die Flüsse stehen zusätzlich als Liste für Screenreader;
 // die Grafik selbst ist `aria-hidden`.
+//
+// v3.5.0 (F1027) — Tagesfilm: „Tag“ als dritte Stufe, nur wenn es
+// Viertelstunden gibt (GET /api/energy-flow/days). „Ein Tag“ oder
+// „Typischer Tag“ eines Monats; dasselbe Bild spielt die Viertelstunden ab
+// (rund 15 s), in den Knoten die Leistung (kW = kWh × 4), in den Knöpfen die
+// aufgelaufenen Summen, darunter der Börsenpreis mit Cursor und die Lücken.
+// Schieberegler mit Uhrzeit, Leertaste spielt/hält an, Pfeile gehen eine
+// Viertelstunde. „Bewegung reduzieren“: kein Abspielen, keine Punkte — nur
+// der Schieberegler.
 // =====================================================================
 
 import { t, tp } from '../lib/i18n.js';
 import { fmt, escapeHtml, intlLocale } from '../lib/format.js';
+import { api } from '../api.js';
+import { info } from './info.js';
 
 const esc = escapeHtml;
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -179,8 +190,12 @@ const ICON = {
   rest: `<g class="ef-ico"><path d="M-3,6 H3 M-2.2,8.4 H2.2 M-3,6 C-3,2.5 -6,1 -6,-2.5 A6,6 0 1 1 6,-2.5 C6,1 3,2.5 3,6"/></g>`,
 };
 
-/** Eine Einheit für alle Knoten: kWh bis 99.999, darüber MWh. */
+/**
+ * Eine Einheit für alle Knoten: kWh bis 99.999, darüber MWh. Im Tagesfilm
+ * (`m.power`) Leistung in kW mit einer Stelle; in einer Lücke „–“.
+ */
 function units(m) {
+  if (m.power) return { big: false, unit: 'kW', num: (v) => (m.gap ? '–' : fmt.num(v, 1)) };
   const big = Math.max(m.gen, m.house, m.grid, m.feed, m.charged) >= 100000;
   return {
     big, unit: big ? 'MWh' : 'kWh',
@@ -196,7 +211,10 @@ function units(m) {
 export function flowSvg(m, L, uid = 'flow0') {
   const U = units(m);
   const val = (p) => (p.id.startsWith('house_') ? m.dev.find(d => `house_${d.key}` === p.id).v : m.f[p.id] || 0);
-  const maxF = Math.max(1, ...L.P.map(val));
+  // Tagesfilm: Bandbreite gegen das Maximum des Tages (nachts schmal, mittags
+  // breit), sichtbar schon ab kleinen Leistungen
+  const maxF = m.scaleMax || Math.max(1, ...L.P.map(val));
+  const minOn = m.minOn ?? 0.5;
   const texts = [];
   const tx = (x, y, txt, cls, fs, owner, { anchor = 'middle', key = null, count = null, mono = false } = {}) => {
     texts.push({ x, y, txt: String(txt), fs, mono, anchor, owner });
@@ -208,9 +226,9 @@ export function flowSvg(m, L, uid = 'flow0') {
   const paths = L.P.map((p, i) => {
     const v = val(p), pts = samplePath(p.d), len = pathLength(pts);
     const col = p.id.startsWith('house_') ? p.id.slice(6) : FLOW_COLOR[p.id];
-    const on = v > 0.5;
-    const w = (1.5 + 6.5 * v / maxF).toFixed(1);
-    const n = on ? Math.max(1, Math.min(8, Math.round(len * (0.012 + 0.05 * v / maxF)))) : 0;
+    const on = v > minOn;
+    const w = (1.5 + 6.5 * Math.min(1, v / maxF)).toFixed(1);
+    const n = on && !m.noDots ? Math.max(1, Math.min(8, Math.round(len * (0.012 + 0.05 * Math.min(1, v / maxF))))) : 0;
     const dur = (len / 34).toFixed(2);   // 34 Einheiten/s: eine längere Linie ist keine größere Menge
     const dots = Array.from({ length: n }, (_, j) =>
       `<circle class="ef-dot" r="${(2 + 1.2 * v / maxF).toFixed(1)}"><animateMotion dur="${dur}s" begin="-${(j * dur / n).toFixed(2)}s" repeatCount="indefinite" calcMode="linear"><mpath href="#${uid}-${p.id}" xlink:href="#${uid}-${p.id}"/></animateMotion></circle>`).join('');
@@ -300,7 +318,7 @@ function prepare(input, opts) {
   // Knoten je Jahr: der Speicher erscheint in Jahren mit Speicherdaten
   const sets = new Map(years.map(y => [y.row.year, nodeSet(y.flow, !!y.row.battery)]));
   const pick = years.find(y => y.row.year === opts.year) || years[years.length - 1];
-  return { years, months, sets, interactive: months.length > 0, scope: 'year', year: pick.row.year, ym: null, focus: null };
+  return { years, months, sets, interactive: months.length > 0, scope: 'year', year: pick.row.year, ym: null, focus: null, day: null };
 }
 
 function currentEntry(st) {
@@ -334,25 +352,33 @@ function renderView(st, uid) {
     return { from: p.from, to: p.to, text };
   }).filter(Boolean);
 
-  const chip = (key, text) => `<button type="button" class="ef-chip ef-c-${key}" data-node="${key}" aria-pressed="${st.focus === key}">${esc(text)}</button>`;
-  const chips = [
-    chip('pv', t('explainer.energy.chip.pv', { value: unitText(m.gen), share: pct(m.selfShare) })),
-    chip('house', t('explainer.energy.chip.house', { value: unitText(m.house), autarky: pct(m.autarky) })),
-    set.bat ? chip('bat', t('explainer.energy.chip.battery', { in: unitText(m.charged), out: unitText(m.discharged) })) : '',
-    chip('grid', t('explainer.energy.chip.grid', { in: unitText(m.grid), out: unitText(m.feed) })),
-  ].join('');
-
-  const parts = [t('explainer.energy.text', {
-    period: label, gen: unitText(m.gen), feed: unitText(m.feed), house: unitText(m.house), grid: unitText(m.gridIn), autarky: pct(m.autarky),
-  })];
-  if (m.charged > 0.5 || m.discharged > 0.5) parts.push(t('explainer.energy.textBattery', { in: unitText(m.charged), out: unitText(m.discharged) }));
-  if (m.f.grid_battery > 0.5) parts.push(t('explainer.energy.textGridCharge', { kwh: unitText(m.f.grid_battery) }));
-  const devs = m.dev.filter(d => d.key !== 'rest' && d.v > 0.5);
-  if (devs.length) parts.push(t('explainer.energy.textDevices', { list: devs.map(d => `${nodeName(d.key)} ${unitText(d.v)}`).join(', ') }));
   const notes = [];
   if (m.calc) notes.push(t('explainer.energy.calcNote'));
   if (e.row.self_consumption_assumed) notes.push(t('explainer.energy.assumedNote'));
-  return { svg, chips, items, label, caption: parts.join(' '), note: notes.join(' ') };
+  return { svg, chips: chipsHtml(st.focus, m, set), items, label, caption: captionText(m, label), note: notes.join(' ') };
+}
+
+/** Knöpfe je Knoten mit den Mengen des Modells (Zeitraum oder aufgelaufen). */
+function chipsHtml(focus, m, set, u = unitText) {
+  const chip = (key, text) => `<button type="button" class="ef-chip ef-c-${key}" data-node="${key}" aria-pressed="${focus === key}">${esc(text)}</button>`;
+  return [
+    chip('pv', t('explainer.energy.chip.pv', { value: u(m.gen), share: pct(m.selfShare) })),
+    chip('house', t('explainer.energy.chip.house', { value: u(m.house), autarky: pct(m.autarky) })),
+    set.bat ? chip('bat', t('explainer.energy.chip.battery', { in: u(m.charged), out: u(m.discharged) })) : '',
+    chip('grid', t('explainer.energy.chip.grid', { in: u(m.grid), out: u(m.feed) })),
+  ].join('');
+}
+
+/** Aussage des Bildes als Satz; `min` = kleinste Menge, die erwähnt wird. */
+function captionText(m, label, u = unitText, min = 0.5) {
+  const parts = [t('explainer.energy.text', {
+    period: label, gen: u(m.gen), feed: u(m.feed), house: u(m.house), grid: u(m.gridIn), autarky: pct(m.autarky),
+  })];
+  if (m.charged > min || m.discharged > min) parts.push(t('explainer.energy.textBattery', { in: u(m.charged), out: u(m.discharged) }));
+  if (m.f.grid_battery > min) parts.push(t('explainer.energy.textGridCharge', { kwh: u(m.f.grid_battery) }));
+  const devs = m.dev.filter(d => d.key !== 'rest' && d.v > min);
+  if (devs.length) parts.push(t('explainer.energy.textDevices', { list: devs.map(d => `${nodeName(d.key)} ${u(d.v)}`).join(', ') }));
+  return parts.join(' ');
 }
 
 // Zustand je Abbildung (für Wechsel und Hervorhebung); nur die jüngsten bleiben
@@ -373,10 +399,16 @@ export function energyFigureHtml(input, opts = {}) {
   FIGS.set(id, st);
   if (FIGS.size > 24) FIGS.delete(FIGS.keys().next().value);
   const v = renderView(st, id);
+  // v3.5.0 (F1027) — Plätze für den Tagesfilm (Auswahl, Abspielen, Summen),
+  // leer und verborgen, bis „Tag“ gewählt ist
+  const film = st.interactive;
   return `<figure class="explainer ex-energy" data-ef="${id}">
     <figcaption class="explainer__title">${esc(t('explainer.energy.title'))}</figcaption>
-    ${st.interactive ? controlsHtml(st, v.label) : ''}
+    ${film ? controlsHtml(st, v.label) : ''}
+    ${film ? '<div class="ef-day" hidden></div>' : ''}
     <div class="ef-stage">${v.svg}</div>
+    ${film ? '<div class="ef-player" hidden></div>' : ''}
+    ${film ? '<p class="ef-sums" hidden></p>' : ''}
     <div class="ef-chips" role="group" aria-label="${esc(t('explainer.energy.chipsGroup'))}">${v.chips}</div>
     <p class="ef-detail" aria-live="polite"></p>
     <ul class="sr-only ef-list">${v.items.map(i => `<li>${esc(i.text)}</li>`).join('')}</ul>
@@ -386,6 +418,11 @@ export function energyFigureHtml(input, opts = {}) {
 }
 
 function stepState(st) {
+  if (st.scope === 'day') {
+    const D = st.day;
+    const list = D.mode === 'typical' ? D.avail.months : D.avail.days;
+    return { list, i: list.indexOf(D.mode === 'typical' ? D.month : D.date) };
+  }
   const list = st.scope === 'month' ? st.months.map(x => x.row.ym) : st.years.map(y => y.row.year);
   const i = list.indexOf(st.scope === 'month' ? st.ym : st.year);
   return { list, i };
@@ -394,8 +431,10 @@ function stepState(st) {
 function controlsHtml(st, label) {
   const { list, i } = stepState(st);
   const seg = (scope) => `<button type="button" class="ef-seg__btn" data-ef-scope="${scope}" aria-pressed="${st.scope === scope}">${esc(t(`explainer.energy.scope.${scope}`))}</button>`;
+  // „Tag“ erst sichtbar, wenn es Viertelstunden gibt (checkDays)
+  const daySeg = seg('day').replace('<button ', `<button${st.day ? '' : ' hidden'} `);
   return `<div class="ef-period" role="group" aria-label="${esc(t('explainer.energy.periodGroup'))}">
-      <span class="ef-seg">${seg('year')}${seg('month')}</span>
+      <span class="ef-seg">${seg('year')}${seg('month')}${daySeg}</span>
       <span class="ef-step">
         <button type="button" class="ef-step__btn" data-ef-step="-1" aria-label="${esc(t('explainer.energy.prev'))}"${i <= 0 ? ' disabled' : ''}>‹</button>
         <span class="ef-period__label" aria-live="polite">${esc(label)}</span>
@@ -426,8 +465,11 @@ function countUp(el, from, to, final, big, ms = 800) {
 }
 const isBig = (svg) => /MWh/.test(svg?.querySelector('[data-k="u-pv"]')?.textContent || '');
 
-/** Neues Bild an Ort und Stelle: gleiche Knoten → Werte gleiten, sonst Überblendung. */
-function morph(stage, html, reduce) {
+/**
+ * Neues Bild an Ort und Stelle: gleiche Knoten → Werte gleiten, sonst
+ * Überblendung. `instant`: Zahlen ohne Hochzählen (Tagesfilm, je Viertelstunde).
+ */
+function morph(stage, html, reduce, instant = false) {
   const old = stage.querySelector('svg.ef');
   const box = document.createElement('div');
   box.innerHTML = html;
@@ -448,7 +490,7 @@ function morph(stage, html, reduce) {
     if (n.hasAttribute('data-count')) {
       const from = Number(o.getAttribute('data-count')) || 0, to = Number(n.getAttribute('data-count')) || 0;
       o.setAttribute('data-count', String(to));
-      if (reduce) o.textContent = n.textContent; else countUp(o, from, to, n.textContent, big, 600);
+      if (reduce || instant) o.textContent = n.textContent; else countUp(o, from, to, n.textContent, big, 600);
     } else if (n.tagName.toLowerCase() === 'text') o.textContent = n.textContent;
   });
 }
@@ -476,6 +518,8 @@ function applyFocus(fig, st) {
 }
 
 function update(fig, st) {
+  if (st.scope === 'day') { renderDaySlot(fig, st, { full: true }); return; }
+  hideDay(fig);
   const id = fig.getAttribute('data-ef');
   const v = renderView(st, id);
   st.view = v;
@@ -502,8 +546,8 @@ function update(fig, st) {
 }
 
 /**
- * Bedienung anbinden (einmal je Abbildung): Zeitraum, Hervorhebung.
- * Aufgerufen von playExplainers().
+ * Bedienung anbinden (einmal je Abbildung): Zeitraum, Hervorhebung, seit
+ * v3.5.0 der Tagesfilm. Aufgerufen von playExplainers().
  */
 export function bindEnergyFigure(fig) {
   if (!fig || fig.dataset.efBound) return;
@@ -513,19 +557,25 @@ export function bindEnergyFigure(fig) {
   st.view = renderView(st, fig.getAttribute('data-ef'));
   const toggle = (k) => { st.focus = st.focus === k ? null : k; applyFocus(fig, st); };
   fig.addEventListener('click', (ev) => {
-    const el = ev.target?.closest?.('[data-ef-scope],[data-ef-step],.ef-chip,[data-node]');
+    const el = ev.target?.closest?.('[data-ef-scope],[data-ef-step],[data-ef-mode],.ef-play,.ef-chip,[data-node]');
     if (!el || !fig.contains(el)) return;
     if (el.dataset.efScope) {
-      if (el.dataset.efScope === st.scope) return;
-      if (el.dataset.efScope === 'month') {
-        const inYear = st.months.filter(x => x.row.year === st.year || String(x.row.ym).startsWith(`${st.year}-`));
-        const last = (inYear.length ? inYear : st.months).slice(-1)[0];
-        if (!last) return;
-        st.scope = 'month'; st.ym = last.row.ym;
+      const to = el.dataset.efScope, from = st.scope;
+      if (to === from) return;
+      if (to === 'day') { enterDay(fig, st); return; }
+      // Bezug: Jahr bzw. Monat des bisherigen Zeitraums
+      const refYm = from === 'day' ? dayMonth(st.day) : st.ym;
+      const refYear = from === 'year' ? st.year : Number(String(refYm).slice(0, 4));
+      if (from === 'day') leaveDay(fig, st);
+      if (to === 'month') {
+        const exact = from === 'day' ? st.months.find(x => x.row.ym === refYm) : null;
+        const inYear = st.months.filter(x => x.row.year === refYear || String(x.row.ym).startsWith(`${refYear}-`));
+        const pick = exact || (inYear.length ? inYear : st.months).slice(-1)[0];
+        if (!pick) return;
+        st.scope = 'month'; st.ym = pick.row.ym;
       } else {
-        const y = Number(String(st.ym).slice(0, 4));
         st.scope = 'year';
-        st.year = st.years.some(x => x.row.year === y) ? y : st.year;
+        st.year = st.years.some(x => x.row.year === refYear) ? refYear : st.year;
       }
       update(fig, st);
       return;
@@ -534,13 +584,33 @@ export function bindEnergyFigure(fig) {
       const { list, i } = stepState(st);
       const j = i + Number(el.dataset.efStep);
       if (j < 0 || j >= list.length) return;
+      if (st.scope === 'day') {
+        if (st.day.mode === 'typical') st.day.month = list[j]; else st.day.date = list[j];
+        loadDay(fig, st);
+        return;
+      }
       if (st.scope === 'month') st.ym = list[j]; else st.year = list[j];
       update(fig, st);
       return;
     }
+    if (el.dataset.efMode) { setDayMode(fig, st, el.dataset.efMode); return; }
+    if (el.classList.contains('ef-play')) { togglePlay(fig, st); return; }
     const k = el.dataset.node;
     if (k && ['pv', 'grid', 'bat', 'house'].includes(k)) toggle(k);
   });
+  fig.addEventListener('change', (ev) => {
+    const el = ev.target;
+    if (!st.day || st.scope !== 'day') return;
+    if (el?.classList?.contains('ef-day-month')) { pickMonth(st.day, el.value); loadDay(fig, st); }
+    else if (el?.classList?.contains('ef-day-date')) { st.day.date = el.value; loadDay(fig, st); }
+  });
+  fig.addEventListener('input', (ev) => {
+    if (!ev.target?.classList?.contains('ef-slider') || !st.day?.model) return;
+    stopPlay(fig, st);
+    seek(fig, st, Number(ev.target.value));
+  });
+  fig.addEventListener('keydown', (ev) => onDayKey(ev, fig, st));
+  DAY_CHECK.set(fig, checkDays(fig, st));
 }
 
 /** Bewegung starten, wenn die Abbildung sichtbar wird (Zahlen zählen hoch). */
@@ -554,4 +624,419 @@ export function startEnergyFigure(fig, { reduce = reduceMotion() } = {}) {
     el.textContent = (final.match(/^[↓↑]/) || [''])[0] + fmt.int(0);
     setTimeout(() => countUp(el, 0, to, final, big, 900), 600);
   });
+}
+
+// ── 5. Tagesfilm (v3.5.0, F1027) ────────────────────────────────────────
+//
+// Daten: GET /api/energy-flow/day bzw. …/typical-day (EnergyFlowDayService):
+// je Viertelstunde die Mengen (kWh) und der Fluss des Servers (`flow`, null
+// = Lücke). Hier wird nur noch skaliert und aufsummiert — die Rechnung des
+// Flusses bleibt beim Server; die aufgelaufenen Summen rechnen mit
+// flowsFromTotals() wie ein Monat (Netzladung bleibt Netzstrom).
+
+/** Rund 15 Sekunden für einen Tag, gleich wie viele Viertelstunden er hat. */
+export const PLAY_MS = 15000;
+const SUM_KEYS = ['gen', 'feed', 'grid', 'charged', 'discharged'];
+const DAY_CHECK = new WeakMap();
+
+/** Versprechen der Prüfung „gibt es Viertelstunden?“ einer Abbildung (für Tests). */
+export function dayReady(fig) {
+  return DAY_CHECK.get(fig) || Promise.resolve();
+}
+
+/** Fluss einer Viertelstunde als Leistung in kW (kWh × 60 / Takt); null = Lücke. */
+export function slotPower(slot, stepMinutes = 15) {
+  if (!slot?.flow) return null;
+  const k = 60 / (Number(stepMinutes) || 15);
+  const out = {};
+  for (const [key, v] of Object.entries(slot.flow)) out[key] = key === 'autarky' || v == null ? v : Number(v) * k;
+  return out;
+}
+
+/** Aufgelaufene Mengen (kWh) bis einschließlich jeder Viertelstunde, nur vollständige; `n` = deren Zahl. */
+export function cumulative(slots) {
+  const acc = { gen: 0, feed: 0, grid: 0, charged: 0, discharged: 0, n: 0 };
+  return (slots || []).map((s) => {
+    if (s?.flow) {
+      SUM_KEYS.forEach(k => { acc[k] += Number(s[k]) || 0; });
+      acc.n++;
+    }
+    return { ...acc };
+  });
+}
+
+/**
+ * Alles, was ein Tag zum Abspielen braucht. Die Knoten stehen für den ganzen
+ * Tag fest (wie je Jahr), damit die Viertelstunden an Ort und Stelle wechseln;
+ * Knoten ohne Daten entfallen (nodeSet). Netz → Speicher erscheint, sobald
+ * eine Viertelstunde Netzladung hat.
+ */
+export function dayModel(data) {
+  const slots = Array.isArray(data?.slots) ? data.slots : [];
+  const step = Number(data?.step_minutes) || 15;
+  const power = slots.map(s => slotPower(s, step));
+  const any = (k) => slots.some(s => (Number(s?.flow?.[k]) || 0) > 0.0005);
+  const set = nodeSet(data?.totals?.flow || {}, !!data?.kinds?.battery);
+  if (any('grid_battery')) set.gridBat = true;
+  if (set.gridBat || any('battery_house') || any('pv_battery')) set.bat = true;
+  let maxKw = 0;
+  for (const p of power) if (p) for (const k of FLOW_KEYS) maxKw = Math.max(maxKw, Number(p[k]) || 0);
+  const prices = slots.map(s => (s?.price == null ? null : Number(s.price)));
+  return {
+    slots, step, power, set, L: flowLayout(set), cum: cumulative(slots),
+    maxKw: Math.max(maxKw, 0.1), prices, hasPrice: prices.some(v => v != null),
+    gaps: slots.filter(s => !s?.flow).length,
+  };
+}
+
+/** Uhrzeit einer Viertelstunde; die wiederholte Stunde der Zeitumstellung trägt einen Zusatz. */
+export function timeText(slot) {
+  if (!slot?.t) return '–';
+  return slot.repeat ? t('explainer.energy.day.repeat', { time: slot.t }) : slot.t;
+}
+
+/** Ohne Abspielen („Bewegung reduzieren“) beginnt der Film mittags. */
+export function startIndex(model) {
+  const i = (model?.slots || []).findIndex(s => s?.t === '12:00');
+  return i >= 0 ? i : 0;
+}
+
+const STRIP_W = 320;
+const stripX = (k, n) => (n > 1 ? 4 + (STRIP_W - 8) * k / (n - 1) : STRIP_W / 2);
+
+/**
+ * Leiste unter dem Schieberegler: Börsenpreis als Linie (Lücken unterbrechen
+ * sie, bei negativen Preisen eine Nulllinie), fehlende Viertelstunden als
+ * Marken, Cursor auf der aktuellen.
+ */
+export function stripSvg(M, i) {
+  const n = M.slots.length, H = 40;
+  const x = (k) => stripX(k, n);
+  const gaps = [];
+  let a = null;
+  M.slots.forEach((s, k) => {
+    if (!s?.flow) { if (a === null) a = k; }
+    else if (a !== null) { gaps.push([a, k - 1]); a = null; }
+  });
+  if (a !== null) gaps.push([a, n - 1]);
+  const gapSvg = gaps.map(([s, e]) => `<rect class="ef-strip__gap" x="${(x(s) - 1.5).toFixed(1)}" y="33" width="${(x(e) - x(s) + 3).toFixed(1)}" height="5" rx="1"/>`).join('');
+  let price = '';
+  if (M.hasPrice) {
+    const P = M.prices.filter(v => v != null);
+    const lo = Math.min(0, ...P), hi = Math.max(lo + 0.1, ...P);
+    const y = (v) => 3 + 25 * (hi - v) / (hi - lo);
+    const segs = [];
+    let cur = [];
+    M.prices.forEach((v, k) => {
+      if (v == null) { if (cur.length) segs.push(cur); cur = []; return; }
+      cur.push(`${x(k).toFixed(1)},${y(v).toFixed(1)}`);
+    });
+    if (cur.length) segs.push(cur);
+    if (lo < 0) price += `<line class="ef-strip__zero" x1="4" x2="${STRIP_W - 4}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>`;
+    price += segs.filter(s => s.length > 1).map(s => `<polyline class="ef-strip__price" points="${s.join(' ')}"/>`).join('');
+  }
+  const cx = x(Math.max(0, Math.min(i, n - 1))).toFixed(1);
+  return `<svg class="ef-strip" viewBox="0 0 ${STRIP_W} ${H}" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+    <rect class="ef-strip__base" x="4" y="33" width="${STRIP_W - 8}" height="5" rx="1"/>${gapSvg}${price}
+    <line class="ef-strip__cursor" x1="${cx}" x2="${cx}" y1="1" y2="${H - 1}"/></svg>`;
+}
+
+const dayLong = (d) => {
+  const [y, mo, da] = String(d).split('-').map(Number);
+  return new Intl.DateTimeFormat(intlLocale(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(y, mo - 1, da, 12));
+};
+const dayShort = (d) => {
+  const [y, mo, da] = String(d).split('-').map(Number);
+  return new Intl.DateTimeFormat(intlLocale(), { weekday: 'short', day: 'numeric', month: 'numeric' }).format(new Date(y, mo - 1, da, 12));
+};
+const dayMonth = (D) => (D.mode === 'typical' ? D.month : String(D.date || '').slice(0, 7));
+const dayLabel = (D) => (D.mode === 'typical' ? t('explainer.energy.day.typicalPeriod', { month: monthLong(D.month) }) : dayLong(D.date));
+const kwh1 = (v) => fmt.unit(v, 'kWh', 1);
+const kw1 = (v) => fmt.unit(v, 'kW', 1);
+
+/** Gibt es Viertelstunden? Erst dann erscheint „Tag“. Fehler: ohne Tagesfilm weiter wie bisher. */
+async function checkDays(fig, st) {
+  if (!st.interactive) return;
+  let avail = null;
+  try { avail = await api.energyFlowDays(); } catch { return; }
+  if (!avail?.available || !Array.isArray(avail.days) || !avail.days.length || !Array.isArray(avail.months)) return;
+  st.day = {
+    avail, mode: 'single',
+    date: avail.default_day || avail.days[avail.days.length - 1],
+    month: avail.default_month || avail.months[avail.months.length - 1],
+    i: 0, cache: new Map(), status: 'idle', error: '', playing: false, timer: null, data: null, model: null, key: null,
+  };
+  const btn = fig.querySelector('[data-ef-scope="day"]');
+  if (btn) btn.hidden = false;
+}
+
+function enterDay(fig, st) {
+  if (!st.day) return;
+  st.scope = 'day';
+  fig.classList.add('ef--film');
+  fig.querySelectorAll('[data-ef-scope]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.efScope === 'day')));
+  loadDay(fig, st);
+}
+
+function leaveDay(fig, st) {
+  stopPlay(fig, st);
+  hideDay(fig);
+}
+
+function hideDay(fig) {
+  fig.classList.remove('ef--film');
+  fig.querySelectorAll('.ef-day, .ef-player, .ef-sums').forEach(el => { el.hidden = true; });
+}
+
+/** Monat wählen: beim typischen Tag der Monat, sonst der letzte vollständige Tag darin. */
+function pickMonth(D, ym) {
+  if (!D.avail.months.includes(ym)) return;
+  D.month = ym;
+  if (D.mode === 'typical') return;
+  const inMonth = D.avail.days.filter(d => d.startsWith(`${ym}-`));
+  const complete = (D.avail.complete_days || []).filter(d => d.startsWith(`${ym}-`));
+  D.date = (complete.length ? complete : inMonth).slice(-1)[0] || D.date;
+}
+
+function setDayMode(fig, st, mode) {
+  const D = st.day;
+  if (!D || D.mode === mode || !['single', 'typical'].includes(mode)) return;
+  const ym = dayMonth(D);
+  D.mode = mode;
+  if (mode === 'typical') D.month = D.avail.months.includes(ym) ? ym : D.month;
+  else pickMonth(D, D.avail.months.includes(D.month) ? D.month : ym);
+  loadDay(fig, st);
+}
+
+/** Tag bzw. typischen Tag laden (gemerkt je Abbildung) und abspielen. */
+async function loadDay(fig, st) {
+  const D = st.day;
+  if (!D) return;
+  const key = D.mode === 'typical' ? `m:${D.month}` : `d:${D.date}`;
+  D.key = key;
+  stopPlay(fig, st);
+  let data = D.cache.get(key);
+  if (!data) {
+    D.status = 'loading';
+    renderDayFrame(fig, st);
+    try {
+      data = D.mode === 'typical' ? await api.energyFlowTypicalDay(D.month) : await api.energyFlowDay(D.date);
+    } catch (e) {
+      // inzwischen anderer Tag oder zurück zu Jahr/Monat: nichts zeigen
+      if (D.key !== key || st.scope !== 'day' || !fig.isConnected) return;
+      D.status = 'error';
+      D.error = e?.message || '';
+      renderDayFrame(fig, st);
+      return;
+    }
+    if (D.key !== key || st.scope !== 'day' || !fig.isConnected) return;
+    D.cache.set(key, data);
+    if (D.cache.size > 40) D.cache.delete(D.cache.keys().next().value);
+  }
+  D.data = data;
+  D.model = dayModel(data);
+  D.status = 'ready';
+  const reduce = reduceMotion();
+  D.i = reduce ? startIndex(D.model) : 0;
+  renderDayFrame(fig, st);
+  renderDaySlot(fig, st, { full: true });
+  // spielt von selbst — außer bei „Bewegung reduzieren“ (prüft startPlay, eine Stelle)
+  startPlay(fig, st);
+}
+
+/** Auswahl (Ein Tag / Typischer Tag, Monat, Tag) und Abspieler zeichnen. */
+function renderDayFrame(fig, st) {
+  const D = st.day;
+  const ctl = fig.querySelector('.ef-day');
+  if (ctl) {
+    ctl.hidden = false;
+    const A = D.avail;
+    const ym = dayMonth(D);
+    const complete = new Set(A.complete_days || []);
+    const mode = (m) => `<button type="button" class="ef-seg__btn" data-ef-mode="${m}" aria-pressed="${D.mode === m}">${esc(t(`explainer.energy.day.mode.${m}`))}</button>`;
+    const months = A.months.map(m => `<option value="${esc(m)}"${m === ym ? ' selected' : ''}>${esc(monthLong(m))}</option>`).join('');
+    const days = A.days.filter(d => d.startsWith(`${ym}-`)).map(d => `<option value="${esc(d)}"${d === D.date ? ' selected' : ''}>${
+      esc(complete.has(d) ? dayShort(d) : t('explainer.energy.day.gapsOption', { date: dayShort(d) }))}</option>`).join('');
+    const status = D.status === 'loading' ? t('common.loading') : D.status === 'error' ? D.error : '';
+    ctl.innerHTML = `<div class="ef-day__mode"><span class="ef-seg" role="group" aria-label="${esc(t('explainer.energy.day.modeGroup'))}">${mode('single')}${mode('typical')}</span>${info('typicalDay')}</div>
+      <div class="ef-day__pick">
+        <label class="ef-pick"><span class="ef-pick__label">${esc(t('explainer.energy.scope.month'))}</span><select class="ef-day-month">${months}</select></label>
+        ${D.mode === 'single' ? `<label class="ef-pick"><span class="ef-pick__label">${esc(t('explainer.energy.scope.day'))}</span><select class="ef-day-date">${days}</select></label>` : ''}
+      </div>
+      <p class="ef-day__status" aria-live="polite"${status ? '' : ' hidden'}>${esc(status)}</p>`;
+  }
+  const player = fig.querySelector('.ef-player');
+  if (player) {
+    const M = D.model;
+    player.hidden = !M || D.status !== 'ready';
+    if (M && D.status === 'ready') {
+      const slot = M.slots[D.i] || {};
+      const play = reduceMotion() ? ''
+        : `<button type="button" class="ef-play" aria-label="${esc(t('explainer.energy.day.play'))}"><span aria-hidden="true">▶</span></button>`;
+      player.innerHTML = `<div class="ef-player__row">${play}
+          <input type="range" class="ef-slider" min="0" max="${Math.max(0, M.slots.length - 1)}" step="1" value="${D.i}" aria-label="${esc(t('explainer.energy.day.time'))}" aria-valuetext="${esc(timeText(slot))}">
+          <output class="ef-time" aria-hidden="true">${esc(timeText(slot))}</output>
+        </div>
+        ${stripSvg(M, D.i)}
+        ${M.hasPrice ? '<p class="ef-price"></p>' : ''}`;
+    }
+  }
+}
+
+/** Inhalt einer Viertelstunde: Bild in kW, Knöpfe und Text mit den Summen bis dahin. */
+function daySlotView(st, uid) {
+  const D = st.day, M = D.model;
+  const i = Math.max(0, Math.min(D.i, M.slots.length - 1));
+  const slot = M.slots[i] || {};
+  const p = M.power[i] || null;
+  const m = flowModel(p || {}, M.set);
+  Object.assign(m, { power: true, gap: !p, scaleMax: M.maxKw, minOn: 0.01, noDots: reduceMotion() });
+  const { svg } = flowSvg(m, M.L, uid);
+  const time = timeText(slot);
+
+  // Liste für Screenreader: Leistung der Flüsse in dieser Viertelstunde
+  const items = p ? M.L.P.map(path => {
+    const v = m.f[path.id];
+    if (!(v > 0.01)) return null;
+    const calc = path.id === 'pv_battery' || path.id === 'grid_battery';
+    return { from: path.from, to: path.to, text: t('explainer.energy.flowItem', { from: nodeName(path.from), to: nodeName(path.to), value: kw1(v) }) + (calc ? ` ${t('explainer.energy.calc')}` : '') };
+  }).filter(Boolean) : [];
+
+  // Summen bis hierher — wie ein Monat aus Mengen gerechnet
+  const c = M.cum[i];
+  const cf = c?.n ? flowsFromTotals(c) : null;
+  const cm = flowModel(cf || {}, M.set);
+  const label = t('explainer.energy.day.until', { period: dayLabel(D), time });
+  const caption = [p ? '' : t('explainer.energy.day.gapAt', { time }), cf ? captionText(cm, label, kwh1, 0.05) : ''].filter(Boolean).join(' ');
+
+  const notes = [t('explainer.energy.day.powerNote')];
+  if (M.set.bat) notes.push(t('explainer.energy.day.calcNote'));
+  if (D.mode === 'typical') notes.push(tp('explainer.energy.day.typicalDays', Number(D.data?.days) || 0));
+  if (M.gaps) notes.push(tp('explainer.energy.day.gaps', M.gaps));
+  const missing = Array.isArray(D.data?.missing) ? D.data.missing : [];
+  const named = missing.filter(x => x.meter_id).map(x => x.name || x.meter_id);
+  if (named.length) notes.push(t('explainer.energy.day.missing', { list: named.join(', ') }));
+  if (missing.some(x => !x.meter_id && x.kind === 'feed')) notes.push(t('explainer.energy.day.missingFeed'));
+  if (missing.some(x => !x.meter_id && x.kind === 'gen')) notes.push(t('explainer.energy.day.missingGen'));
+
+  const price = slot.price == null ? t('explainer.energy.day.noPrice', { time })
+    : t('explainer.energy.day.price', { time, price: fmt.unit(slot.price, 'ct/kWh', 1) });
+  return { svg, chips: chipsHtml(st.focus, cm, M.set, kwh1), items, label: dayLabel(D), caption, note: notes.join(' '), time, price, i };
+}
+
+/** Eine Viertelstunde zeigen; `full` auch Zeitraum und Pfeile (nach dem Laden). */
+function renderDaySlot(fig, st, { full = false } = {}) {
+  const D = st.day;
+  if (!D?.model) return;
+  const v = daySlotView(st, fig.getAttribute('data-ef'));
+  st.view = v;
+  morph(fig.querySelector('.ef-stage'), v.svg, reduceMotion(), true);
+  const chips = fig.querySelector('.ef-chips');
+  if (chips) chips.innerHTML = v.chips;
+  const sums = fig.querySelector('.ef-sums');
+  if (sums) { sums.hidden = false; sums.textContent = t('explainer.energy.day.sums', { time: v.time }); }
+  const list = fig.querySelector('.ef-list');
+  if (list) list.innerHTML = v.items.map(x => `<li>${esc(x.text)}</li>`).join('');
+  const note = fig.querySelector('.ef-note');
+  if (note) { note.textContent = v.note; note.hidden = !v.note; }
+  const text = fig.querySelector('.explainer__text');
+  if (text) text.textContent = v.caption;
+  const slider = fig.querySelector('.ef-slider');
+  if (slider) { slider.value = String(v.i); slider.setAttribute('aria-valuetext', v.time); }
+  const out = fig.querySelector('.ef-time');
+  if (out) out.textContent = v.time;
+  const cur = fig.querySelector('.ef-strip__cursor');
+  if (cur) { const x = stripX(v.i, D.model.slots.length).toFixed(1); cur.setAttribute('x1', x); cur.setAttribute('x2', x); }
+  const price = fig.querySelector('.ef-price');
+  if (price) price.textContent = v.price;
+  if (full) {
+    const period = fig.querySelector('.ef-period');
+    if (period) {
+      const { list: l, i } = stepState(st);
+      period.querySelector('.ef-period__label').textContent = v.label;
+      period.querySelector('[data-ef-step="-1"]').disabled = i <= 0;
+      period.querySelector('[data-ef-step="1"]').disabled = i < 0 || i >= l.length - 1;
+      period.querySelectorAll('[data-ef-scope]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.efScope === 'day')));
+    }
+  }
+  if (st.focus && !fig.querySelector(`.ef-chip[data-node="${st.focus}"]`)) st.focus = null;
+  applyFocus(fig, st);
+}
+
+function seek(fig, st, i) {
+  const n = st.day.model.slots.length;
+  st.day.i = Math.max(0, Math.min(n - 1, Number.isFinite(i) ? i : 0));
+  renderDaySlot(fig, st);
+}
+
+function setPlayButton(fig, D) {
+  const b = fig.querySelector('.ef-play');
+  if (!b) return;
+  b.setAttribute('aria-label', t(D.playing ? 'explainer.energy.day.pause' : 'explainer.energy.day.play'));
+  b.classList.toggle('ef-play--on', D.playing);
+  const sym = b.querySelector('span');
+  if (sym) sym.textContent = D.playing ? '❚❚' : '▶';
+}
+
+/**
+ * Abspielen ab der aktuellen Viertelstunde (am Ende: von vorn), Tempo: ein
+ * Tag in PLAY_MS. Bei „Bewegung reduzieren“ nie — weder von selbst noch per
+ * Leertaste; dann gibt es nur den Schieberegler.
+ */
+function startPlay(fig, st) {
+  const D = st.day;
+  const n = D?.model?.slots.length || 0;
+  if (n < 2 || reduceMotion()) return;
+  if (D.i >= n - 1) D.i = 0;
+  clearTimeout(D.timer);
+  D.playing = true;
+  setPlayButton(fig, D);
+  const ms = PLAY_MS / n;
+  const tick = () => {
+    if (!D.playing) return;
+    if (!fig.isConnected || st.scope !== 'day') { stopPlay(fig, st); return; }
+    D.i += 1;
+    renderDaySlot(fig, st);
+    if (D.i >= n - 1) { stopPlay(fig, st); return; }
+    D.timer = setTimeout(tick, ms);
+  };
+  renderDaySlot(fig, st);
+  D.timer = setTimeout(tick, ms);
+}
+
+function stopPlay(fig, st) {
+  const D = st.day;
+  if (!D) return;
+  clearTimeout(D.timer);
+  D.timer = null;
+  D.playing = false;
+  setPlayButton(fig, D);
+}
+
+function togglePlay(fig, st) {
+  if (!st.day?.model) return;
+  if (st.day.playing) stopPlay(fig, st); else startPlay(fig, st);
+}
+
+/**
+ * Tastatur im Abspieler: Leertaste spielt bzw. hält an (auf dem Knopf
+ * erledigt das der Klick), Pfeile gehen eine Viertelstunde, Bild auf/ab eine
+ * Stunde, Pos1/Ende an den Anfang bzw. das Ende des Tages.
+ */
+function onDayKey(ev, fig, st) {
+  if (st.scope !== 'day' || !st.day?.model || !ev.target?.closest?.('.ef-player')) return;
+  const tag = String(ev.target.tagName || '').toUpperCase();
+  if (ev.key === ' ' || ev.key === 'Spacebar') {
+    if (tag === 'BUTTON') return;
+    ev.preventDefault();
+    togglePlay(fig, st);
+    return;
+  }
+  const n = st.day.model.slots.length;
+  const to = { ArrowLeft: st.day.i - 1, ArrowDown: st.day.i - 1, ArrowRight: st.day.i + 1, ArrowUp: st.day.i + 1,
+    PageDown: st.day.i - 4, PageUp: st.day.i + 4, Home: 0, End: n - 1 }[ev.key];
+  if (to === undefined) return;
+  ev.preventDefault();
+  stopPlay(fig, st);
+  seek(fig, st, to);
 }

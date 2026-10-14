@@ -34,7 +34,34 @@ final class DemoDataTranslator
                 $payload[$part] = self::walk($payload[$part], $lang, $strings);
             }
         }
+        if (isset($payload['activity']) && is_array($payload['activity'])) {
+            $payload['activity'] = self::activity($payload['activity'], $lang, $strings);
+        }
         return $payload;
+    }
+
+    /** Bausteine eines Verlaufseintrags, die übersetzt werden (Namen von Personen und Firmen bleiben). */
+    public const ACTIVITY_PARAMS = ['title', 'label', 'meter'];
+
+    /**
+     * v3.5.0 (N1026) — Verlauf „Erledigt“: Notiz und Titel, dazu die Bausteine
+     * in `params`, aus denen die Oberfläche den Titel je Sprache neu setzt
+     * (Termin, Verbrauchsart, Zähler). `by`, `provider` und Tage bleiben.
+     *
+     * @param array<int,mixed> $entries
+     * @param array<string,array<string,string>> $strings
+     * @return array<int,mixed>
+     */
+    private static function activity(array $entries, string $lang, array $strings): array
+    {
+        $tr = fn(mixed $v): mixed => is_string($v) ? ($strings[$v][$lang] ?? $v) : $v;
+        foreach ($entries as $i => $e) {
+            if (!is_array($e)) continue;
+            foreach (['title', 'note'] as $f) if (isset($e[$f])) $e[$f] = $tr($e[$f]);
+            foreach (self::ACTIVITY_PARAMS as $p) if (isset($e['params'][$p])) $e['params'][$p] = $tr($e['params'][$p]);
+            $entries[$i] = $e;
+        }
+        return $entries;
     }
 
     private static function walk(array $node, string $lang, array $strings): array

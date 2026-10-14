@@ -14,9 +14,11 @@ import { fmt } from './format.js';
 export const AREAS = {
   reminder: 'reminders',
   cancel_by: 'contracts', term_end: 'contracts', price_increase: 'contracts', price_guarantee_end: 'contracts', contract: 'contracts',
+  bill_expected: 'contracts',   // v3.5.0 (F1029) — Abrechnung erwartet
   reading_due: 'readings',
   tank_reorder: 'tank',
   tenancy_statement_due: 'tenancy', objection_deadline: 'tenancy', co2_claim_deadline: 'tenancy',
+  tenancy_statement: 'tenancy',  // v3.5.0 — Nebenkostenabrechnung geändert
   recommendation: 'recommendations',
 };
 export const AREA_KEYS = ['reminders', 'contracts', 'readings', 'tank', 'tenancy', 'recommendations'];

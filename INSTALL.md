@@ -29,7 +29,7 @@ cd energietracker
 energietracker/
 ├── api.php
 ├── index.php
-├── VERSION                ← 3.4.0
+├── VERSION                ← 3.5.0
 ├── public/                ← CSS + JS
 ├── src/                   ← PHP backend
 ├── data/                  ← must be writable
@@ -105,7 +105,7 @@ docker compose up -d        # → http://localhost:8080
 docker run -d --name energietracker \
   -p 8080:80 \
   -v "$PWD/data:/data" \
-  ghcr.io/bingerminger/energietracker:3.4.0
+  ghcr.io/bingerminger/energietracker:3.5.0
 ```
 
 > **Docker Desktop (Mac, Windows):** a folder under your home directory must be
@@ -160,7 +160,7 @@ the current state. More in [`demo-data/README.md`](demo-data/README.md).
 Since v3.4.0 the import of old v0.9.0 backups is gone (it was the last part of
 the pre-1.0 era and only got in the way of the role model). If you still have
 one: install **v3.3.0** (`git checkout v3.3.0` or the image
-`ghcr.io/bingerminger/energietracker:3.4.0`), import the backup there under
+`ghcr.io/bingerminger/energietracker:3.3.0`), import the backup there under
 Settings → Data → Backup & restore → Migration from v0.9.0, then update to the
 current version as usual. A data directory that is still in the v0.9.0 layout
 is still converted on the first start.
@@ -174,3 +174,7 @@ automatically? Energietracker has an official push endpoint for this
 
 Step-by-step instructions including REST command, automation and use cases
 (detached house, rented flat): [Connect Home Assistant](docs/en/anleitungen/home-assistant.md).
+
+With Home Assistant OS, since v3.5.0 you do not even need a server of your own:
+run it as an app right inside Home Assistant —
+[As an app in Home Assistant OS](docs/en/anleitungen/home-assistant.md#as-an-app-in-home-assistant-os).

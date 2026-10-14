@@ -9,9 +9,13 @@ import { showFieldError } from '../lib/form.js';
 import { t, tp } from '../lib/i18n.js';
 import { escapeHtml as esc, todayIso, fmt } from '../lib/format.js';
 import { copyText } from '../lib/clipboard.js';
+import { ingressHost, haUrl } from '../lib/ha-snippet.js';
 // v3.4.0 (F1024) — Erledigt mit Verlauf
 import { openDoneDialog } from '../components/done-dialog.js';
 import { whenWho } from '../lib/activity.js';
+// v3.5.0 (F1028) — Zuständig: Chip, Filter, Auswahl im Dialog
+import { assigneeOf, assigneeNames, anyAssigned, chipHtml, filterHtml, bindFilter, filterNoteHtml,
+  matchesAssignee, storedFilter, normName } from '../lib/assignee.js';
 
 // Labels werden zur Render-Zeit über t() aufgelöst.
 const STATUS_CLS  = { ok: 'ok', due_soon: 'warning', due: 'warning', overdue: 'danger' };
@@ -34,15 +38,21 @@ export async function render(container, _params, ctx = {}) {
   }
 }
 
+// v3.5.0 (F1028) — Personen (Anmeldung) und vergebene Namen für den Dialog
+const known = { people: [], names: [] };
+
 async function draw(container) {
   container.innerHTML = `<div class="loading">${t('reminders.loading')}</div>`;
-  let list;
+  let list, people;
   try {
-    list = await api.reminders();
+    // Personen nur mit Anmeldung; ohne sie (oder in der Demo) bleibt die Liste leer
+    [list, people] = await Promise.all([api.reminders(), api.people().catch(() => [])]);
   } catch (e) {
     container.innerHTML = `<div class="banner banner--error">${t('reminders.loadError', { msg: esc(e.message || e) })}</div>`;
     return;
   }
+  known.people = Array.isArray(people) ? people : [];
+  known.names = assigneeNames(list, known.people.map(p => p.name));
 
   // B — Sortierung: überfällige/fällige zuerst, dann nach Datum aufsteigend.
   const sorted = [...list].sort((a, b) => {
@@ -50,6 +60,11 @@ async function draw(container) {
     if (ra !== rb) return ra - rb;
     return String(a.next_due || '').localeCompare(String(b.next_due || ''));
   });
+  // v3.5.0 (F1028) — Filter nach Zuständigkeit, je Gerät gemerkt; ohne
+  // Zuständigkeiten (und ohne gemerkte Auswahl) bleibt er weg
+  const filter = storedFilter();
+  const withFilter = anyAssigned(list) || filter !== 'all';
+  const shown = withFilter ? sorted.filter(r => matchesAssignee(r, filter)) : sorted;
 
   container.innerHTML = `
     <div class="view-header">
@@ -67,17 +82,20 @@ async function draw(container) {
       ? `<div class="banner banner--info">${t('reminders.empty')}</div>
          <div style="margin-top:var(--sp-3)"><button class="btn btn--primary" data-rem-add>${t('reminders.emptyCta')}</button></div>`
       // v2.12.0 (Review UI-20) — die Tabelle in einer Karte wie auf den anderen Seiten
-      : `<div class="card"><div class="table-wrap"><table class="data-table">
+      : `${withFilter ? filterHtml({ id: 'rem-assignee', value: filter, names: assigneeNames(list) }) : ''}
+        ${shown.length ? `<div class="card"><div class="table-wrap"><table class="data-table">
           <thead><tr>
             <th scope="col">${t('reminders.col.title')}</th><th scope="col">${t('reminders.col.category')}</th><th scope="col">${t('reminders.col.due')}</th>
             <th scope="col">${t('reminders.col.recurrence')}</th><th scope="col">${t('reminders.col.status')}</th><th scope="col"><span class="sr-only">${t('common.actions')}</span></th>
           </tr></thead>
           <tbody>
-            ${sorted.map(rowHtml).join('')}
+            ${shown.map(rowHtml).join('')}
           </tbody>
-        </table></div></div>`}
+        </table></div></div>` : `<div class="banner banner--info" data-role="assignee-empty">${esc(t('assignee.emptyFiltered'))}</div>`}
+        ${withFilter ? filterNoteHtml(sorted.length - shown.length, filter) : ''}`}
   `;
 
+  bindFilter(container, () => draw(container));   // v3.5.0 (F1028)
   container.querySelectorAll('[data-rem-add]').forEach(b => b.addEventListener('click', () => openForm(container, null)));
   container.querySelector('#rem-subscribe')?.addEventListener('click', () => openCalendarSubscription());
   container.querySelectorAll('[data-edit]').forEach(b =>
@@ -135,7 +153,7 @@ function rowHtml(r) {
   // v3.4.0 (F1024) — „zuletzt erledigt am … von …" (Person aus dem Verlauf)
   const last = r.last_done ? `<br><span class="muted small">${esc(t('reminders.lastDone', { when: whenWho(r.last_done, r.last_done_by) }))}</span>` : '';
   return `<tr>
-    <td><strong>${esc(r.title)}</strong>${r.notes ? `<br><span class="muted small">${esc(r.notes)}</span>` : ''}${last}</td>
+    <td><strong>${esc(r.title)}</strong>${chipHtml(r)}${r.notes ? `<br><span class="muted small">${esc(r.notes)}</span>` : ''}${last}</td>
     <td>${esc(catLabel(r.category))}</td>
     <td>${dueStr}</td>
     <td>${esc(r.recurrence === 'custom-months' && r.recurrence_months
@@ -177,6 +195,13 @@ function openForm(container, existing) {
           <input class="input" type="text" inputmode="numeric" autocomplete="off" id="f-rm" value="${esc(String(r.recurrence_months || 12))}" aria-describedby="f-rm-msg">
           <div class="field-error" id="f-rm-msg" role="alert" hidden></div></div>
         <div class="field field--full"><label for="f-notes">${t('reminders.form.fNotes')}</label><input class="input input--text" type="text" id="f-notes" value="${esc(r.notes || '')}"></div>
+        <!-- v3.5.0 (F1028) — Zuständig: Person aus der Anmeldung oder freier Name -->
+        <div class="field field--l"><label for="f-assignee">${esc(t('assignee.label'))}</label>
+          <input class="input input--text" type="text" id="f-assignee" list="f-assignee-list" maxlength="60" autocomplete="off"
+            value="${esc(assigneeOf(r)?.name || '')}" placeholder="${esc(t('assignee.placeholder'))}" aria-describedby="f-assignee-hint f-assignee-msg">
+          <datalist id="f-assignee-list">${known.names.map(n => `<option value="${esc(n)}"></option>`).join('')}</datalist>
+          <small class="settings-field__hint" id="f-assignee-hint">${esc(t(known.people.length ? 'assignee.hintPeople' : 'assignee.hint'))}${assigneeOf(r)?.former ? ' ' + esc(t('assignee.wasFormer')) : ''}</small>
+          <div class="field-error" id="f-assignee-msg" role="alert" hidden></div></div>
       </div>`,
     footer: `
       <button class="btn btn--ghost" data-act="cancel">${t('common.cancel')}</button>
@@ -201,14 +226,18 @@ function openForm(container, existing) {
           recurrence: bodyEl.querySelector('#f-rec').value,
           recurrence_months: custom ? rm : null,
           notes: bodyEl.querySelector('#f-notes').value.trim(),
+          ...assigneePayload(bodyEl.querySelector('#f-assignee').value, existing),
         };
         const titleEl = bodyEl.querySelector('#f-title'), dueEl = bodyEl.querySelector('#f-due');
+        const asEl = bodyEl.querySelector('#f-assignee');
         showFieldError(titleEl, bodyEl.querySelector('#f-title-msg'), null);
         showFieldError(dueEl, bodyEl.querySelector('#f-due-msg'), null);
         showFieldError(rmEl, bodyEl.querySelector('#f-rm-msg'), null);
+        showFieldError(asEl, bodyEl.querySelector('#f-assignee-msg'), null);
         if (!payload.title) { showFieldError(titleEl, bodyEl.querySelector('#f-title-msg'), t('reminders.form.titleRequired')); return; }
         if (!payload.next_due) { showFieldError(dueEl, bodyEl.querySelector('#f-due-msg'), t('reminders.form.dueRequired')); return; }
         if (!rmOk) { showFieldError(rmEl, bodyEl.querySelector('#f-rm-msg'), t('reminders.form.intervalInvalid')); return; }
+        if ((payload.assignee ?? '').length > ASSIGNEE_MAX) { showFieldError(asEl, bodyEl.querySelector('#f-assignee-msg'), t('assignee.tooLong', { max: ASSIGNEE_MAX })); return; }
         try {
           if (existing) await api.updateReminder(existing.id, payload);
           else await api.createReminder(payload);
@@ -223,11 +252,36 @@ function openForm(container, existing) {
   return ctrl;
 }
 
+/** v3.5.0 (F1028) — längster Name, wie der Server (ReminderService::ASSIGNEE_MAX). */
+const ASSIGNEE_MAX = 60;
+
+/**
+ * v3.5.0 (F1028) — Zuständigkeit für den Server: Ein Name aus der
+ * Personenliste wird zur Person (`assignee_id`), sonst ist er ein freier
+ * Name; leer = niemand. Bleibt der Name des Termins unverändert, bleibt auch
+ * seine Person (auch wenn die Liste gerade fehlt, etwa ohne Anmeldung).
+ */
+export function assigneePayload(value, existing = null, people = known.people) {
+  const name = String(value ?? '').trim();
+  const person = name ? people.find(p => normName(p.name) === normName(name)) : null;
+  if (person) return { assignee: person.name, assignee_id: person.id };
+  const prev = assigneeOf(existing);
+  if (name && prev?.id && normName(prev.name) === normName(name)) return { assignee: prev.name, assignee_id: prev.id };
+  // „ehemalige Person“ bleibt stehen, bis jemand einen neuen Namen einträgt
+  if (!name && prev?.former) return {};
+  return { assignee: name, assignee_id: null };
+}
+
 // v3.1.0 (Paket H1, MKT-09) — Fristen und Termine als Kalender-Abo. Mit
 // eingeschalteter Anmeldung bekommt das Abo einen eigenen Schlüssel (Bereich
 // „calendar"), der nur für den Kalender gilt und im Link stehen darf.
 async function openCalendarSubscription() {
-  let url = new URL(api.calendarUrl(), location.href).href;
+  // v3.5.0 (N1025) — Unter Home-Assistant-Ingress braucht die Adresse aus der
+  // Adresszeile eine HA-Sitzung; kein Kalender kann sie abrufen. Dann die
+  // Adresse im Netz von Home Assistant (wie die HA-Vorlagen) und ein Hinweis,
+  // wie Handy und Computer sie über den direkten Port erreichen.
+  const underIngress = ingressHost() !== null;
+  let url = underIngress ? haUrl(api.calendarUrl()) : new URL(api.calendarUrl(), location.href).href;
   let tokenNote = '';
   try {
     const session = await api.session();
@@ -262,6 +316,7 @@ async function openCalendarSubscription() {
       ${field('cal-webcal', webcal)}
       ${field('cal-https', url)}
       ${tokenNote}
+      ${underIngress ? `<p class="muted small" id="cal-ingress-hint">${esc(t('calendar.ingressHint'))}</p>` : ''}
       <p class="muted small">${esc(t('calendar.appleHint'))}</p>
       <p class="muted small">${esc(t('calendar.googleHint'))}</p>`,
     onMount: ({ modalEl }) => {

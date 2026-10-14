@@ -160,9 +160,12 @@ final class TenancyService
             if (!is_array($s) || ($s['id'] ?? null) !== $sid || ($s['tenancy_id'] ?? null) !== $tenancyId) continue;
             $next = array_merge($s, $this->normalizeStatement($input, $s));
             if (array_key_exists('attachment_ids', $input)) $this->linkAttachments($next, (array)($s['attachment_ids'] ?? []), $input['attachment_ids']);
+            // v3.5.0 (Nachtrag F1024) — die übrigen Abrechnungen, für den Verlauf
+            $others = array_values(array_filter($this->statements($tenancyId), fn($o) => ($o['id'] ?? null) !== $sid));
             $all[$i] = $next;
             $this->store->write('tenancy_statements.json', array_values($all));
             $this->applyToTenancy($t, $next, $input);
+            $this->activity?->statementChanged($t, $s, $next, $others);
             return $next;
         }
         throw new NotFoundException($this->i18n->t('errors.tenancy.statementNotFound'));

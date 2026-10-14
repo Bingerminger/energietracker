@@ -186,7 +186,8 @@ final class SettingsService
         'gebaeudetyp'              => 'efh',   // efh|rh|mfh|whg (Oberfläche; „reihenhaus" wird auch gelesen)
         // v2.10.0 (CALC-07) — energieausweis-nahe Kennzahl: Gebäudenutzfläche
         // 1,35 × Wohnfläche bei EFH/RH mit beheiztem Keller (sonst 1,2);
-        // dezentrales Warmwasser bekommt 20 kWh/m²·a Zuschlag
+        // dezentrales Warmwasser bekommt einen Zuschlag: 20 kWh/m²·a bis
+        // 31.12.2026, ab 01.01.2027 16 (§ 82 Abs. 2 GModG n. F.; BenchmarkService::CERT_RULES)
         'beheizter_keller'         => false,
         'warmwasser_dezentral'     => false,
         // v3.1.0 (Paket H3) — Mieter-Paket (F1008) und Warmwasser (CALC-28).
@@ -238,8 +239,11 @@ final class SettingsService
         'confidence_band_sigma'          => 1.28, // Breite des Prognosebands in σ (1,28 ≈ 80 %); bis v2.7 ohne Wirkung
 
         // ── v1.3.0 — Effizienzklassen kWh/m²·a (Heizenergie kombiniert) ──
-        // Bandgrenzen orientiert an GEG/DENA-Klassifikation [Unverifiziert —
-        // bei P4-Implementierung gegen aktuelle GEG 2024 prüfen].
+        // Bandgrenzen = GModG (bis Juli 2026 GEG) Anlage 10 „Energieeffizienz-
+        // klassen von Wohngebäuden“, Endenergie, „bis“ einschließlich. v3.5.0
+        // geprüft: BGBl. 2026 I Nr. 226, Art. 2 Nr. 54 ändert ab 01.01.2027 nur
+        // Überschrift und Spaltenkopf, die Grenzen bleiben (Begründung,
+        // BT-Drs. 21/6278, S. 122).
         'efficiency_class_thresholds' => [
             'A+' =>  30,
             'A'  =>  50,
@@ -478,6 +482,40 @@ final class SettingsService
         }
         $this->store->write('settings.json', $current);
         return $this->all();
+    }
+
+    /**
+     * v3.5.0 (N1022) — Land wechseln, eine Regel für Erststart, Einrichtung und
+     * Einstellungen: Mit `$withProfile` gelten alle Werte des Länderprofils
+     * (Countries::settingsFor), sonst nur das Land. Festgeschrieben wird nur,
+     * was vom Default abweicht; ein Wert, der dem Default entspricht, verliert
+     * seine Festschreibung. Wer nach einem englischen Erststart (Profil GB)
+     * Deutschland wählt, behält so keine eingefrorenen deutschen Defaults —
+     * eine spätere Korrektur (etwa neue UBA-Jahreswerte) erreicht auch ihn
+     * (Lektion 45).
+     *
+     * @return array<string,mixed> alle Einstellungen nach dem Wechsel
+     */
+    public function applyCountry(string $code, bool $withProfile = true): array
+    {
+        if (!Countries::exists($code)) {
+            throw new \InvalidArgumentException(($this->translator())('errors.settings.valueInvalid', ['key' => 'country', 'value' => $code]));
+        }
+        $wanted = $withProfile ? Countries::settingsFor($code) : ['country' => $code];
+        $current = $this->store->read('settings.json', []);
+        if (!is_array($current)) $current = [];
+        foreach ($wanted as $k => $v) {
+            if (self::isDefault($k, $v)) unset($current[$k]);
+            else $current[$k] = $v;
+        }
+        $this->store->write('settings.json', $current);
+        return $this->all();
+    }
+
+    /** v3.5.0 — entspricht der Wert dem ausgelieferten Default (streng, wie beim Erststart)? */
+    public static function isDefault(string $key, mixed $value): bool
+    {
+        return array_key_exists($key, self::DEFAULTS) && self::DEFAULTS[$key] === $value;
     }
 
     /**

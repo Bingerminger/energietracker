@@ -22,6 +22,8 @@ import { fmt, escapeHtml } from '../lib/format.js';
 import { t } from '../lib/i18n.js';
 import { renderError } from '../components/error.js';
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
+// v3.5.0 — Optionen im Dialog (Jahr, Verbrauchsarten, Anhang)
+import { openReportDialog, reportHref } from '../components/report-dialog.js';
 
 const esc = escapeHtml;
 
@@ -33,6 +35,8 @@ export async function render(container, params, ctx) {
   const asked = Number(ctx?.query?.get('year'));
   const year = asked >= 2000 && asked <= 2100 ? asked : now - 1;
   const detail = ctx?.query?.get('detail') === '1';
+  // v3.5.0 — Teilbericht aus dem Dialog (`utilities=gas,strom`); leer = ganzer Bericht
+  const utilities = (ctx?.query?.get('utilities') || '').split(',').map(s => s.trim()).filter(s => /^[a-z_]+$/.test(s));
 
   const toolbar = `
     <div class="view-header no-print">
@@ -46,6 +50,7 @@ export async function render(container, params, ctx) {
           ${Array.from({ length: 7 }, (_, i) => now - i).map(y => `<option value="${y}"${y === year ? ' selected' : ''}>${y}</option>`).join('')}
         </select>
         <label class="report-print__detail"><input type="checkbox" id="print-detail"${detail ? ' checked' : ''}> ${esc(t('report.print.detail'))}</label>
+        <button type="button" class="btn btn--ghost" id="print-options">${esc(t('report.dialog.options'))}</button>
         <button type="button" class="btn btn--primary" id="print-now">${esc(t('report.print.button'))}</button>
       </div>
     </div>`;
@@ -54,15 +59,19 @@ export async function render(container, params, ctx) {
   let d;
   try {
     // immer mit Anhang (eine Antwort je Jahr, auch in der Demo); gezeigt wird er nur auf Wunsch
-    d = await api.yearlyReport(year, { detail: true });
+    d = await api.yearlyReport(year, { detail: true, utilities });
   } catch (e) {
     renderError(container.querySelector('.loading'), e, () => render(container, params, ctx));
     return;
   }
   const m = d.model || {};
+  // Teilbericht: welche Verbrauchsarten er zeigt (Bezeichnungen aus dem Modell)
+  const partial = utilities.length
+    ? `<p class="report-print__partial">${esc(t('report.dialog.partial', { list: (m.utilities || []).map(u => u.label).filter(Boolean).join(', ') }))}</p>` : '';
 
   container.innerHTML = `${toolbar}
     <article class="report-print" lang="${esc(m.lang || '')}">
+      ${partial}
       ${important(m)}
       ${successes(m)}
       ${tasks(m)}
@@ -80,13 +89,20 @@ export async function render(container, params, ctx) {
   playExplainers(container);
 
   container.querySelector('#print-now')?.addEventListener('click', () => window.print());
+  // Jahr und Anhang direkt; der Teilbericht bleibt dabei erhalten
   const go = () => {
-    const y = container.querySelector('#print-year')?.value || year;
-    const det = container.querySelector('#print-detail')?.checked ? '&detail=1' : '';
-    location.hash = `#/report/print?year=${y}${det}`;
+    location.hash = reportHref('print', {
+      year: container.querySelector('#print-year')?.value || year,
+      detail: !!container.querySelector('#print-detail')?.checked,
+      utilities: utilities.length ? utilities : null,
+    });
   };
   container.querySelector('#print-year')?.addEventListener('change', go);
   container.querySelector('#print-detail')?.addEventListener('change', go);
+  // v3.5.0 — alle Optionen im Dialog, vorbelegt mit dieser Ansicht
+  container.querySelector('#print-options')?.addEventListener('click', () => {
+    openReportDialog({ mode: 'print', initial: { year, detail, utilities: utilities.length ? utilities : null } });
+  });
 }
 
 // ── Bausteine ────────────────────────────────────────────────────────

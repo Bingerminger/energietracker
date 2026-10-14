@@ -120,7 +120,10 @@ unverändert.
 
 Die Klassen A+ bis H stammen aus dem deutschen Gebäudemodernisierungsgesetz
 (GModG, bis Juli 2026 Gebäudeenergiegesetz), Anlage 10 zu § 86 (Endenergie je
-m² und Jahr). Andere Länder bewerten anders — Frankreich
+m² und Jahr; ab 01.01.2027 „zu § 86 Absatz 1“). Die Grenzen bleiben dabei
+dieselben (BGBl. 2026 I Nr. 226, Art. 2 Nr. 54; Begründung BT-Drs. 21/6278,
+S. 122); was sich 2027 ändert, ist das Verfahren der energieausweis-nahen
+Kennzahl ([Grundlagen §7](00-overview.md#7-effizienzklasse)). Andere Länder bewerten anders — Frankreich
 (DPE) nach Primärenergie und CO₂, Österreich (HWB) nach Heizwärmebedarf am
 Referenzklima. Eine Klasse nach deutschem Recht wäre dort irreführend: Ein
 französischer Nutzer liest „E" als DPE-Klasse.

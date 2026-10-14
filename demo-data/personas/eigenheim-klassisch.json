@@ -6455,7 +6455,8 @@
             "recurrence_months": null,
             "last_done": "2025-09-18",
             "notes": "Jahreswartung durch den Installateur",
-            "active": true
+            "active": true,
+            "assignee": "Thomas"
         },
         {
             "id": "rem_07b786aa",
@@ -6466,7 +6467,8 @@
             "recurrence_months": null,
             "last_done": "2025-11-05",
             "notes": "Kehrung und Abgasmessung",
-            "active": true
+            "active": true,
+            "assignee": "Sabine"
         },
         {
             "id": "rem_fe18c799",
@@ -6489,6 +6491,18 @@
             "last_done": "2019-04-10",
             "notes": "Eichfrist nach MessEV",
             "active": true
+        },
+        {
+            "id": "rem_a0f6fb04",
+            "title": "Gartenwasser abstellen",
+            "category": "custom",
+            "next_due": "2026-10-30",
+            "recurrence": "yearly",
+            "recurrence_months": null,
+            "last_done": "2025-10-30",
+            "notes": "Außenhahn entleeren, bevor Frost kommt",
+            "active": true,
+            "assignee": "Jonas"
         }
     ],
     "recommendations_dismissed": [],
@@ -6502,7 +6516,678 @@
         "samples": {}
     },
     "interval_files": {},
-    "activity": [],
+    "activity": [
+        {
+            "id": "act_a1494c6c2ff0",
+            "action": "done",
+            "subject": {
+                "kind": "cancel_by",
+                "uid": "cancel_by-c_gas_klassik",
+                "occurrence": "cancel_by-c_gas_klassik@2024-06-30"
+            },
+            "ref": {
+                "utility": "gas",
+                "meter_id": "m_gas_haus",
+                "contract_id": "c_gas_klassik",
+                "cancelled": true
+            },
+            "title_key": "calendar.event.cancelBy",
+            "params": {
+                "label": "Gas",
+                "provider": "Stadtwerke Musterstadt"
+            },
+            "title": "Gas: letzter Tag für die Kündigung (Stadtwerke Musterstadt)",
+            "done_on": "2024-03-20",
+            "recorded_at": "2024-03-20T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "Kündigung per Einschreiben",
+            "revert": {
+                "type": "contract_auto_renews",
+                "utility": "gas",
+                "id": "c_gas_klassik",
+                "before": null,
+                "after": false
+            }
+        },
+        {
+            "id": "act_edd86836e92d",
+            "action": "auto_done",
+            "subject": {
+                "kind": "contract",
+                "uid": "contract-c_gas_klassik",
+                "occurrence": "contract-c_gas_klassik@2024-06-30"
+            },
+            "ref": {
+                "utility": "gas",
+                "meter_id": "m_gas_haus",
+                "contract_id": "c_gas_klassik",
+                "successor_id": "c_gas_fix"
+            },
+            "title_key": "calendar.event.termEnd",
+            "params": {
+                "label": "Gas",
+                "provider": "Stadtwerke Musterstadt"
+            },
+            "title": "Gas: Vertragsende (Stadtwerke Musterstadt)",
+            "done_on": "2024-03-20",
+            "recorded_at": "2024-03-20T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.successor",
+                "params": {
+                    "provider": "Energie Nordring",
+                    "date": "2024-07-01"
+                }
+            }
+        },
+        {
+            "id": "act_7d8f6a668997",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_gas_klassik-2024-06-30",
+                "occurrence": "bill_expected-c_gas_klassik-2024-06-30@2024-06-30"
+            },
+            "ref": {
+                "utility": "gas",
+                "meter_id": "m_gas_haus",
+                "contract_id": "c_gas_klassik",
+                "bill_id": "b_61d311cdd203"
+            },
+            "title_key": "calendar.event.finalBillExpected",
+            "params": {
+                "label": "Gas",
+                "provider": "Stadtwerke Musterstadt",
+                "from": "2023-07-01",
+                "until": "2024-06-30"
+            },
+            "title": "Schlussrechnung erwartet: Gas (Stadtwerke Musterstadt) für 01.07.2023 – 30.06.2024",
+            "done_on": "2024-08-06",
+            "recorded_at": "2024-08-06T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_b0fee241",
+                "name": "Sabine"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2024-06-30"
+                }
+            }
+        },
+        {
+            "id": "act_3fa69b2ab2c3",
+            "action": "done",
+            "subject": {
+                "kind": "cancel_by",
+                "uid": "cancel_by-c_strom_klassik",
+                "occurrence": "cancel_by-c_strom_klassik@2024-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_haus",
+                "contract_id": "c_strom_klassik",
+                "cancelled": true
+            },
+            "title_key": "calendar.event.cancelBy",
+            "params": {
+                "label": "Strom",
+                "provider": "Stadtwerke Musterstadt"
+            },
+            "title": "Strom: letzter Tag für die Kündigung (Stadtwerke Musterstadt)",
+            "done_on": "2024-11-15",
+            "recorded_at": "2024-11-15T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_b0fee241",
+                "name": "Sabine"
+            },
+            "note": "",
+            "revert": {
+                "type": "contract_auto_renews",
+                "utility": "strom",
+                "id": "c_strom_klassik",
+                "before": null,
+                "after": false
+            }
+        },
+        {
+            "id": "act_6e8c828630f6",
+            "action": "auto_done",
+            "subject": {
+                "kind": "contract",
+                "uid": "contract-c_strom_klassik",
+                "occurrence": "contract-c_strom_klassik@2024-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_haus",
+                "contract_id": "c_strom_klassik",
+                "successor_id": "c_strom_online"
+            },
+            "title_key": "calendar.event.termEnd",
+            "params": {
+                "label": "Strom",
+                "provider": "Stadtwerke Musterstadt"
+            },
+            "title": "Strom: Vertragsende (Stadtwerke Musterstadt)",
+            "done_on": "2024-11-15",
+            "recorded_at": "2024-11-15T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_b0fee241",
+                "name": "Sabine"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.successor",
+                "params": {
+                    "provider": "Beispiel-Energie",
+                    "date": "2025-01-01"
+                }
+            }
+        },
+        {
+            "id": "act_34d17f0077c6",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_strom_klassik-2024-12-31",
+                "occurrence": "bill_expected-c_strom_klassik-2024-12-31@2024-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_haus",
+                "contract_id": "c_strom_klassik",
+                "bill_id": "b_c4eb2a383132"
+            },
+            "title_key": "calendar.event.finalBillExpected",
+            "params": {
+                "label": "Strom",
+                "provider": "Stadtwerke Musterstadt",
+                "from": "2024-01-01",
+                "until": "2024-12-31"
+            },
+            "title": "Schlussrechnung erwartet: Strom (Stadtwerke Musterstadt) für 01.01.2024 – 31.12.2024",
+            "done_on": "2025-01-20",
+            "recorded_at": "2025-01-20T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_b0fee241",
+                "name": "Sabine"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2024-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_ff16ea0a9936",
+            "action": "dismissed",
+            "subject": {
+                "kind": "recommendation",
+                "uid": "r4_cc7d84f5a3c4",
+                "occurrence": "r4_cc7d84f5a3c4@2024-07-11"
+            },
+            "ref": {
+                "recommendation_id": "r4_cc7d84f5a3c4",
+                "utility": "wasser",
+                "meter_id": "m_wasser_garten"
+            },
+            "title_key": null,
+            "params": {},
+            "title": "Wasser Mai 2024: statistische Anomalie",
+            "done_on": "2024-06-11",
+            "recorded_at": "2024-06-11T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_b0fee241",
+                "name": "Sabine"
+            },
+            "note": "Rasen neu eingesät",
+            "reason": {
+                "key": "activity.reason.dismissed",
+                "params": {
+                    "date": "2024-07-11"
+                }
+            },
+            "revert": {
+                "type": "recommendation_dismiss",
+                "id": "r4_cc7d84f5a3c4",
+                "until": "2024-07-11"
+            }
+        },
+        {
+            "id": "act_a18fa6c285e0",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_gas_fix-2025-06-30",
+                "occurrence": "bill_expected-c_gas_fix-2025-06-30@2025-06-30"
+            },
+            "ref": {
+                "utility": "gas",
+                "meter_id": "m_gas_haus",
+                "contract_id": "c_gas_fix",
+                "bill_id": "b_04d57cf24b60"
+            },
+            "title_key": "calendar.event.billExpected",
+            "params": {
+                "label": "Gas",
+                "provider": "Energie Nordring",
+                "from": "2024-07-01",
+                "until": "2025-06-30"
+            },
+            "title": "Abrechnung erwartet: Gas (Energie Nordring) für 01.07.2024 – 30.06.2025",
+            "done_on": "2025-07-24",
+            "recorded_at": "2025-07-24T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2025-06-30"
+                }
+            }
+        },
+        {
+            "id": "act_1a8a767638c6",
+            "action": "auto_done",
+            "subject": {
+                "kind": "reading_due",
+                "uid": "reading-gas-m_gas_haus",
+                "occurrence": "reading-gas-m_gas_haus@2025-07-31"
+            },
+            "ref": {
+                "utility": "gas",
+                "meter_id": "m_gas_haus"
+            },
+            "title_key": "calendar.event.readingDue",
+            "params": {
+                "label": "Gas",
+                "meter": "Gaszähler"
+            },
+            "title": "Gas: Zählerstand ablesen (Gaszähler)",
+            "done_on": "2025-09-30",
+            "recorded_at": "2025-09-30T08:40:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.reading",
+                "params": {
+                    "date": "2025-09-30"
+                }
+            }
+        },
+        {
+            "id": "act_912d18f2fda5",
+            "action": "auto_done",
+            "subject": {
+                "kind": "reading_due",
+                "uid": "reading-strom-m_strom_haus",
+                "occurrence": "reading-strom-m_strom_haus@2025-07-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_haus"
+            },
+            "title_key": "calendar.event.readingDue",
+            "params": {
+                "label": "Strom",
+                "meter": "Hauptzähler Strom"
+            },
+            "title": "Strom: Zählerstand ablesen (Hauptzähler Strom)",
+            "done_on": "2025-09-30",
+            "recorded_at": "2025-09-30T08:40:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.reading",
+                "params": {
+                    "date": "2025-09-30"
+                }
+            }
+        },
+        {
+            "id": "act_0c4212e8306e",
+            "action": "auto_done",
+            "subject": {
+                "kind": "reading_due",
+                "uid": "reading-wasser-m_wasser_haupt",
+                "occurrence": "reading-wasser-m_wasser_haupt@2025-07-31"
+            },
+            "ref": {
+                "utility": "wasser",
+                "meter_id": "m_wasser_haupt"
+            },
+            "title_key": "calendar.event.readingDue",
+            "params": {
+                "label": "Wasser",
+                "meter": "Hauptzähler"
+            },
+            "title": "Wasser: Zählerstand ablesen (Hauptzähler)",
+            "done_on": "2025-09-30",
+            "recorded_at": "2025-09-30T08:40:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.reading",
+                "params": {
+                    "date": "2025-09-30"
+                }
+            }
+        },
+        {
+            "id": "act_df8d39662a6d",
+            "action": "auto_done",
+            "subject": {
+                "kind": "reading_due",
+                "uid": "reading-wasser-m_wasser_garten",
+                "occurrence": "reading-wasser-m_wasser_garten@2025-07-31"
+            },
+            "ref": {
+                "utility": "wasser",
+                "meter_id": "m_wasser_garten"
+            },
+            "title_key": "calendar.event.readingDue",
+            "params": {
+                "label": "Wasser",
+                "meter": "Gartenzähler"
+            },
+            "title": "Wasser: Zählerstand ablesen (Gartenzähler)",
+            "done_on": "2025-09-30",
+            "recorded_at": "2025-09-30T08:40:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.reading",
+                "params": {
+                    "date": "2025-09-30"
+                }
+            }
+        },
+        {
+            "id": "act_d3e77294d442",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_strom_online-2025-12-31",
+                "occurrence": "bill_expected-c_strom_online-2025-12-31@2025-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_haus",
+                "contract_id": "c_strom_online",
+                "bill_id": "b_745e552701be"
+            },
+            "title_key": "calendar.event.billExpected",
+            "params": {
+                "label": "Strom",
+                "provider": "Beispiel-Energie",
+                "from": "2025-01-01",
+                "until": "2025-12-31"
+            },
+            "title": "Abrechnung erwartet: Strom (Beispiel-Energie) für 01.01.2025 – 31.12.2025",
+            "done_on": "2026-01-22",
+            "recorded_at": "2026-01-22T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2025-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_4339a59caab0",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_wasser_2025-2025-12-31",
+                "occurrence": "bill_expected-c_wasser_2025-2025-12-31@2025-12-31"
+            },
+            "ref": {
+                "utility": "wasser",
+                "meter_id": "m_wasser_haupt",
+                "contract_id": "c_wasser_2025",
+                "bill_id": "b_5e2cf6f7660a"
+            },
+            "title_key": "calendar.event.billExpected",
+            "params": {
+                "label": "Wasser",
+                "provider": "Wasserwerke Musterstadt",
+                "from": "2025-01-01",
+                "until": "2025-12-31"
+            },
+            "title": "Abrechnung erwartet: Wasser (Wasserwerke Musterstadt) für 01.01.2025 – 31.12.2025",
+            "done_on": "2026-02-18",
+            "recorded_at": "2026-02-18T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_b0fee241",
+                "name": "Sabine"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2025-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_da1b090d572f",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_ba4ce869",
+                "occurrence": "reminder-rem_ba4ce869@2025-09-18"
+            },
+            "ref": {
+                "reminder_id": "rem_ba4ce869",
+                "category": "heizung_wartung"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Heizungswartung"
+            },
+            "title": "Heizungswartung",
+            "done_on": "2025-09-18",
+            "recorded_at": "2025-09-18T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_31afa4b1",
+                "name": "Thomas"
+            },
+            "note": "Brenner gereinigt, Abgaswerte in Ordnung",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_ba4ce869",
+                "before": {
+                    "next_due": "2025-09-18",
+                    "active": true,
+                    "last_done": "2024-09-18"
+                },
+                "after": {
+                    "next_due": "2026-09-18",
+                    "active": true,
+                    "last_done": "2025-09-18"
+                }
+            }
+        },
+        {
+            "id": "act_b7b5cb53d5e4",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_a0f6fb04",
+                "occurrence": "reminder-rem_a0f6fb04@2025-10-30"
+            },
+            "ref": {
+                "reminder_id": "rem_a0f6fb04",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Gartenwasser abstellen"
+            },
+            "title": "Gartenwasser abstellen",
+            "done_on": "2025-10-24",
+            "recorded_at": "2025-10-24T17:40:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_95ced969",
+                "name": "Jonas"
+            },
+            "note": "",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_a0f6fb04",
+                "before": {
+                    "next_due": "2025-10-30",
+                    "active": true,
+                    "last_done": "2024-10-30"
+                },
+                "after": {
+                    "next_due": "2026-10-24",
+                    "active": true,
+                    "last_done": "2025-10-24"
+                }
+            },
+            "undone": {
+                "at": "2025-10-24T20:15:00+02:00",
+                "by": {
+                    "type": "person",
+                    "id": "u_b0fee241",
+                    "name": "Sabine"
+                }
+            }
+        },
+        {
+            "id": "act_736ac5967c73",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_a0f6fb04",
+                "occurrence": "reminder-rem_a0f6fb04@2025-10-30"
+            },
+            "ref": {
+                "reminder_id": "rem_a0f6fb04",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Gartenwasser abstellen"
+            },
+            "title": "Gartenwasser abstellen",
+            "done_on": "2025-10-30",
+            "recorded_at": "2025-10-30T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_95ced969",
+                "name": "Jonas"
+            },
+            "note": "",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_a0f6fb04",
+                "before": {
+                    "next_due": "2025-10-30",
+                    "active": true,
+                    "last_done": "2024-10-30"
+                },
+                "after": {
+                    "next_due": "2026-10-30",
+                    "active": true,
+                    "last_done": "2025-10-30"
+                }
+            }
+        },
+        {
+            "id": "act_f2c61320d007",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_07b786aa",
+                "occurrence": "reminder-rem_07b786aa@2025-11-05"
+            },
+            "ref": {
+                "reminder_id": "rem_07b786aa",
+                "category": "schornsteinfeger"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Schornsteinfeger"
+            },
+            "title": "Schornsteinfeger",
+            "done_on": "2025-11-05",
+            "recorded_at": "2025-11-05T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_b0fee241",
+                "name": "Sabine"
+            },
+            "note": "",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_07b786aa",
+                "before": {
+                    "next_due": "2025-11-05",
+                    "active": true,
+                    "last_done": "2024-11-05"
+                },
+                "after": {
+                    "next_due": "2026-11-05",
+                    "active": true,
+                    "last_done": "2025-11-05"
+                }
+            }
+        }
+    ],
+    "demo_align": {
+        "billing_anchor_days_ago": {
+            "gas": 56
+        }
+    },
     "utilities": {
         "gas": {
             "meters": [
@@ -6835,17 +7520,6 @@
                     "is_future": false
                 },
                 {
-                    "id": "r_gas_haus_20250901",
-                    "meter_id": "m_gas_haus",
-                    "device_id": "d_gas_haus",
-                    "date": "2025-09-01",
-                    "counter": 22137.7,
-                    "price_cents": null,
-                    "note": "",
-                    "is_estimated": false,
-                    "is_future": false
-                },
-                {
                     "id": "r_gas_haus_20250930",
                     "meter_id": "m_gas_haus",
                     "device_id": "d_gas_haus",
@@ -6994,7 +7668,7 @@
                             "id": "sp_91708ee85c",
                             "date": "2024-08-06",
                             "kind": "rueckzahlung_ohne",
-                            "amount_eur": 230.28,
+                            "amount_eur": 229.28,
                             "note": "Schlussrechnung Gas Basis 24 — Guthaben",
                             "new_advance_eur": null,
                             "advance_from": null
@@ -7005,7 +7679,7 @@
                     "notice_period_months": 3,
                     "notice_period_days": null,
                     "notice_mode": null,
-                    "auto_renews": null,
+                    "auto_renews": false,
                     "min_term_end": null,
                     "price_guarantee_until": null,
                     "signup_bonus_eur": null
@@ -7049,7 +7723,7 @@
                             "id": "sp_59a8b0eaa2",
                             "date": "2025-07-24",
                             "kind": "nachzahlung_mit",
-                            "amount_eur": 121.62,
+                            "amount_eur": 121.73,
                             "note": "Jahresabrechnung Gas — Nachzahlung, Abschlag angepasst",
                             "new_advance_eur": 165,
                             "advance_from": "2025-09-01"
@@ -7060,7 +7734,7 @@
                     "notice_period_months": 1,
                     "notice_period_days": null,
                     "notice_mode": null,
-                    "auto_renews": null,
+                    "auto_renews": true,
                     "min_term_end": null,
                     "price_guarantee_until": "2026-06-30",
                     "signup_bonus_eur": null
@@ -7069,7 +7743,50 @@
             "deliveries": [],
             "meter_groups": [],
             "periods": [],
-            "bills": []
+            "bills": [
+                {
+                    "id": "b_61d311cdd203",
+                    "meter_id": "m_gas_haus",
+                    "period_from": "2023-07-01",
+                    "period_to": "2024-06-30",
+                    "issued_on": "2024-08-06",
+                    "kind": "final",
+                    "contract_id": "c_gas_klassik",
+                    "special_payment_id": "sp_91708ee85c",
+                    "invoice": {
+                        "energy_kwh": 20874.6,
+                        "amount_eur": 2890.72,
+                        "advances_paid_eur": 3120,
+                        "result_eur": -229.28
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2024-08-08T19:12:00+02:00"
+                },
+                {
+                    "id": "b_04d57cf24b60",
+                    "meter_id": "m_gas_haus",
+                    "period_from": "2024-07-01",
+                    "period_to": "2025-06-30",
+                    "issued_on": "2025-07-24",
+                    "kind": "annual",
+                    "contract_id": "c_gas_fix",
+                    "special_payment_id": "sp_59a8b0eaa2",
+                    "invoice": {
+                        "energy_kwh": 19648.2,
+                        "amount_eur": 1921.73,
+                        "advances_paid_eur": 1800,
+                        "result_eur": 121.73
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2025-07-26T19:12:00+02:00"
+                }
+            ]
         },
         "strom": {
             "meters": [
@@ -7397,17 +8114,6 @@
                     "is_future": false
                 },
                 {
-                    "id": "r_strom_haus_20250901",
-                    "meter_id": "m_strom_haus",
-                    "device_id": "d_strom_haus",
-                    "date": "2025-09-01",
-                    "counter": 70231.9,
-                    "price_cents": null,
-                    "note": "",
-                    "is_estimated": false,
-                    "is_future": false
-                },
-                {
                     "id": "r_strom_haus_20250930",
                     "meter_id": "m_strom_haus",
                     "device_id": "d_strom_haus",
@@ -7548,7 +8254,7 @@
                             "id": "sp_af3b73d81b",
                             "date": "2025-01-20",
                             "kind": "nachzahlung_ohne",
-                            "amount_eur": 52.58,
+                            "amount_eur": 52.45,
                             "note": "Schlussrechnung Strom Klassik — Nachzahlung",
                             "new_advance_eur": null,
                             "advance_from": null
@@ -7559,7 +8265,7 @@
                     "notice_period_months": 1,
                     "notice_period_days": null,
                     "notice_mode": null,
-                    "auto_renews": null,
+                    "auto_renews": false,
                     "min_term_end": null,
                     "price_guarantee_until": null,
                     "signup_bonus_eur": null
@@ -7603,7 +8309,7 @@
                             "id": "sp_7ccc28da02",
                             "date": "2026-01-22",
                             "kind": "rueckzahlung_mit",
-                            "amount_eur": 75.6,
+                            "amount_eur": 75.02,
                             "note": "Jahresabrechnung Strom — Guthaben, Abschlag angepasst",
                             "new_advance_eur": 115,
                             "advance_from": "2026-03-01"
@@ -7623,7 +8329,50 @@
             "deliveries": [],
             "meter_groups": [],
             "periods": [],
-            "bills": []
+            "bills": [
+                {
+                    "id": "b_c4eb2a383132",
+                    "meter_id": "m_strom_haus",
+                    "period_from": "2024-01-01",
+                    "period_to": "2024-12-31",
+                    "issued_on": "2025-01-20",
+                    "kind": "final",
+                    "contract_id": "c_strom_klassik",
+                    "special_payment_id": "sp_af3b73d81b",
+                    "invoice": {
+                        "energy_kwh": 4084.2,
+                        "amount_eur": 1542.45,
+                        "advances_paid_eur": 1490,
+                        "result_eur": 52.45
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2025-01-22T19:12:00+01:00"
+                },
+                {
+                    "id": "b_745e552701be",
+                    "meter_id": "m_strom_haus",
+                    "period_from": "2025-01-01",
+                    "period_to": "2025-12-31",
+                    "issued_on": "2026-01-22",
+                    "kind": "annual",
+                    "contract_id": "c_strom_online",
+                    "special_payment_id": "sp_7ccc28da02",
+                    "invoice": {
+                        "energy_kwh": 4116.3,
+                        "amount_eur": 1244.98,
+                        "advances_paid_eur": 1320,
+                        "result_eur": -75.02
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2026-01-24T19:12:00+01:00"
+                }
+            ]
         },
         "wasser": {
             "meters": [
@@ -7968,17 +8717,6 @@
                     "device_id": "d_wasser_haupt",
                     "date": "2025-07-31",
                     "counter": 914.4,
-                    "price_cents": null,
-                    "note": "",
-                    "is_estimated": false,
-                    "is_future": false
-                },
-                {
-                    "id": "r_wasser_haupt_20250901",
-                    "meter_id": "m_wasser_haupt",
-                    "device_id": "d_wasser_haupt",
-                    "date": "2025-09-01",
-                    "counter": 925.27,
                     "price_cents": null,
                     "note": "",
                     "is_estimated": false,
@@ -8381,17 +9119,6 @@
                     "is_future": false
                 },
                 {
-                    "id": "r_wasser_garten_20250901",
-                    "meter_id": "m_wasser_garten",
-                    "device_id": "d_wasser_garten",
-                    "date": "2025-09-01",
-                    "counter": 123.21,
-                    "price_cents": null,
-                    "note": "",
-                    "is_estimated": false,
-                    "is_future": false
-                },
-                {
                     "id": "r_wasser_garten_20250930",
                     "meter_id": "m_wasser_garten",
                     "device_id": "d_wasser_garten",
@@ -8687,7 +9414,34 @@
             "deliveries": [],
             "meter_groups": [],
             "periods": [],
-            "bills": []
+            "bills": [
+                {
+                    "id": "b_5e2cf6f7660a",
+                    "meter_id": "m_wasser_haupt",
+                    "period_from": "2025-01-01",
+                    "period_to": "2025-12-31",
+                    "issued_on": "2026-02-18",
+                    "kind": "annual",
+                    "contract_id": "c_wasser_2025",
+                    "invoice": {
+                        "volume_m3": 179.36,
+                        "amount_eur": 1241.59,
+                        "advances_paid_eur": 1032,
+                        "result_eur": 209.59
+                    },
+                    "items": [
+                        {
+                            "label": "Schmutzwasser (abzüglich Gartenwasser)",
+                            "amount_eur": 468.2,
+                            "kind": "fee"
+                        }
+                    ],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2026-02-20T19:12:00+01:00"
+                }
+            ]
         },
         "fernwaerme": {
             "meters": [],

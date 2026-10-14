@@ -6427,7 +6427,8 @@
             "recurrence_months": 60,
             "last_done": "2021-09-01",
             "notes": "Eichfrist nach MessEV",
-            "active": true
+            "active": true,
+            "assignee": "Katrin"
         },
         {
             "id": "rem_f38cc4d7",
@@ -6438,7 +6439,20 @@
             "recurrence_months": null,
             "last_done": "2025-10-03",
             "notes": "Vor Beginn der Heizperiode",
-            "active": true
+            "active": true,
+            "assignee": "Mehmet"
+        },
+        {
+            "id": "rem_6b863c94",
+            "title": "Wartung Wohnungsstation",
+            "category": "custom",
+            "next_due": "2026-11-18",
+            "recurrence": "yearly",
+            "recurrence_months": null,
+            "last_done": "2025-11-18",
+            "notes": "Übergabestation im Keller, Termin mit dem Versorger",
+            "active": true,
+            "assignee": "Hausmeister Petersen"
         }
     ],
     "recommendations_dismissed": [],
@@ -6452,7 +6466,430 @@
         "samples": {}
     },
     "interval_files": {},
-    "activity": [],
+    "activity": [
+        {
+            "id": "act_64e15dbedc0e",
+            "action": "done",
+            "subject": {
+                "kind": "cancel_by",
+                "uid": "cancel_by-c_strom_natur",
+                "occurrence": "cancel_by-c_strom_natur@2024-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_natur",
+                "cancelled": true
+            },
+            "title_key": "calendar.event.cancelBy",
+            "params": {
+                "label": "Strom",
+                "provider": "Grünquell Energie"
+            },
+            "title": "Strom: letzter Tag für die Kündigung (Grünquell Energie)",
+            "done_on": "2024-11-12",
+            "recorded_at": "2024-11-12T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_8aa5b277",
+                "name": "Katrin"
+            },
+            "note": "Per Mail gekündigt, Bestätigung liegt vor",
+            "revert": {
+                "type": "contract_auto_renews",
+                "utility": "strom",
+                "id": "c_strom_natur",
+                "before": null,
+                "after": false
+            }
+        },
+        {
+            "id": "act_e00a6151f1f1",
+            "action": "auto_done",
+            "subject": {
+                "kind": "contract",
+                "uid": "contract-c_strom_natur",
+                "occurrence": "contract-c_strom_natur@2024-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_natur",
+                "successor_id": "c_strom_online"
+            },
+            "title_key": "calendar.event.termEnd",
+            "params": {
+                "label": "Strom",
+                "provider": "Grünquell Energie"
+            },
+            "title": "Strom: Vertragsende (Grünquell Energie)",
+            "done_on": "2024-11-12",
+            "recorded_at": "2024-11-12T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_8aa5b277",
+                "name": "Katrin"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.successor",
+                "params": {
+                    "provider": "Beispiel-Energie",
+                    "date": "2025-01-01"
+                }
+            }
+        },
+        {
+            "id": "act_a608a0667b0d",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_strom_natur-2024-12-31",
+                "occurrence": "bill_expected-c_strom_natur-2024-12-31@2024-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_natur",
+                "bill_id": "b_642ad0fdabff"
+            },
+            "title_key": "calendar.event.finalBillExpected",
+            "params": {
+                "label": "Strom",
+                "provider": "Grünquell Energie",
+                "from": "2024-01-01",
+                "until": "2024-12-31"
+            },
+            "title": "Schlussrechnung erwartet: Strom (Grünquell Energie) für 01.01.2024 – 31.12.2024",
+            "done_on": "2025-01-23",
+            "recorded_at": "2025-01-23T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_70dd190d",
+                "name": "Mehmet"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2024-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_3b87b6bcd62d",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_fernwaerme-2024-12-31",
+                "occurrence": "bill_expected-c_fernwaerme-2024-12-31@2024-12-31"
+            },
+            "ref": {
+                "utility": "fernwaerme",
+                "meter_id": "m_fernwaerme_wohnung",
+                "contract_id": "c_fernwaerme",
+                "bill_id": "b_eec67a945a8a"
+            },
+            "title_key": "calendar.event.billExpected",
+            "params": {
+                "label": "Fernwärme",
+                "provider": "Stadtwerke Musterstadt",
+                "from": "2024-01-01",
+                "until": "2024-12-31"
+            },
+            "title": "Abrechnung erwartet: Fernwärme (Stadtwerke Musterstadt) für 01.01.2024 – 31.12.2024",
+            "done_on": "2025-02-14",
+            "recorded_at": "2025-02-14T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_8aa5b277",
+                "name": "Katrin"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2024-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_b6f8eeed68a7",
+            "action": "dismissed",
+            "subject": {
+                "kind": "recommendation",
+                "uid": "r6_beee58fb0afb",
+                "occurrence": "r6_beee58fb0afb@2025-10-31"
+            },
+            "ref": {
+                "recommendation_id": "r6_beee58fb0afb",
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_online"
+            },
+            "title_key": null,
+            "params": {},
+            "title": "Strom: Kündigung bis 30.11.2025 (60 Tage)",
+            "done_on": "2025-10-01",
+            "recorded_at": "2025-10-01T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_8aa5b277",
+                "name": "Katrin"
+            },
+            "note": "Erst Angebote vergleichen",
+            "reason": {
+                "key": "activity.reason.dismissed",
+                "params": {
+                    "date": "2025-10-31"
+                }
+            },
+            "revert": {
+                "type": "recommendation_dismiss",
+                "id": "r6_beee58fb0afb",
+                "until": "2025-10-31"
+            },
+            "undone": {
+                "at": "2025-10-20T19:20:00+02:00",
+                "by": {
+                    "type": "person",
+                    "id": "u_70dd190d",
+                    "name": "Mehmet"
+                }
+            }
+        },
+        {
+            "id": "act_8da1870396b2",
+            "action": "done",
+            "subject": {
+                "kind": "cancel_by",
+                "uid": "cancel_by-c_strom_online",
+                "occurrence": "cancel_by-c_strom_online@2025-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_online",
+                "cancelled": true
+            },
+            "title_key": "calendar.event.cancelBy",
+            "params": {
+                "label": "Strom",
+                "provider": "Beispiel-Energie"
+            },
+            "title": "Strom: letzter Tag für die Kündigung (Beispiel-Energie)",
+            "done_on": "2025-11-10",
+            "recorded_at": "2025-11-10T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_8aa5b277",
+                "name": "Katrin"
+            },
+            "note": "",
+            "revert": {
+                "type": "contract_auto_renews",
+                "utility": "strom",
+                "id": "c_strom_online",
+                "before": null,
+                "after": false
+            }
+        },
+        {
+            "id": "act_16c85de7e2b9",
+            "action": "auto_done",
+            "subject": {
+                "kind": "contract",
+                "uid": "contract-c_strom_online",
+                "occurrence": "contract-c_strom_online@2025-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_online",
+                "successor_id": "c_strom_flex"
+            },
+            "title_key": "calendar.event.termEnd",
+            "params": {
+                "label": "Strom",
+                "provider": "Beispiel-Energie"
+            },
+            "title": "Strom: Vertragsende (Beispiel-Energie)",
+            "done_on": "2025-11-10",
+            "recorded_at": "2025-11-10T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_70dd190d",
+                "name": "Mehmet"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.successor",
+                "params": {
+                    "provider": "Energie Nordring",
+                    "date": "2026-01-01"
+                }
+            }
+        },
+        {
+            "id": "act_0345a700efd1",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_strom_online-2025-12-31",
+                "occurrence": "bill_expected-c_strom_online-2025-12-31@2025-12-31"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_online",
+                "bill_id": "b_3a2828d59ecc"
+            },
+            "title_key": "calendar.event.finalBillExpected",
+            "params": {
+                "label": "Strom",
+                "provider": "Beispiel-Energie",
+                "from": "2025-01-01",
+                "until": "2025-12-31"
+            },
+            "title": "Schlussrechnung erwartet: Strom (Beispiel-Energie) für 01.01.2025 – 31.12.2025",
+            "done_on": "2026-02-04",
+            "recorded_at": "2026-02-04T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_8aa5b277",
+                "name": "Katrin"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2025-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_70e9eaab7367",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_fernwaerme-2025-12-31",
+                "occurrence": "bill_expected-c_fernwaerme-2025-12-31@2025-12-31"
+            },
+            "ref": {
+                "utility": "fernwaerme",
+                "meter_id": "m_fernwaerme_wohnung",
+                "contract_id": "c_fernwaerme",
+                "bill_id": "b_c10cacbd49c4"
+            },
+            "title_key": "calendar.event.billExpected",
+            "params": {
+                "label": "Fernwärme",
+                "provider": "Stadtwerke Musterstadt",
+                "from": "2025-01-01",
+                "until": "2025-12-31"
+            },
+            "title": "Abrechnung erwartet: Fernwärme (Stadtwerke Musterstadt) für 01.01.2025 – 31.12.2025",
+            "done_on": "2026-02-12",
+            "recorded_at": "2026-02-12T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_70dd190d",
+                "name": "Mehmet"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2025-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_ebc6f4faeb01",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_f38cc4d7",
+                "occurrence": "reminder-rem_f38cc4d7@2025-10-03"
+            },
+            "ref": {
+                "reminder_id": "rem_f38cc4d7",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Heizkörper entlüften"
+            },
+            "title": "Heizkörper entlüften",
+            "done_on": "2025-10-03",
+            "recorded_at": "2025-10-03T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_70dd190d",
+                "name": "Mehmet"
+            },
+            "note": "",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_f38cc4d7",
+                "before": {
+                    "next_due": "2025-10-03",
+                    "active": true,
+                    "last_done": "2024-10-03"
+                },
+                "after": {
+                    "next_due": "2026-10-03",
+                    "active": true,
+                    "last_done": "2025-10-03"
+                }
+            }
+        },
+        {
+            "id": "act_ff1072ab4475",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_6b863c94",
+                "occurrence": "reminder-rem_6b863c94@2025-11-18"
+            },
+            "ref": {
+                "reminder_id": "rem_6b863c94",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Wartung Wohnungsstation"
+            },
+            "title": "Wartung Wohnungsstation",
+            "done_on": "2025-11-18",
+            "recorded_at": "2025-11-18T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_8aa5b277",
+                "name": "Katrin"
+            },
+            "note": "Filter gereinigt, Druck nachgefüllt",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_6b863c94",
+                "before": {
+                    "next_due": "2025-11-18",
+                    "active": true,
+                    "last_done": "2024-11-18"
+                },
+                "after": {
+                    "next_due": "2026-11-18",
+                    "active": true,
+                    "last_done": "2025-11-18"
+                }
+            }
+        }
+    ],
+    "demo_align": {
+        "billing_anchor_days_ago": {
+            "strom": 30
+        }
+    },
     "utilities": {
         "gas": {
             "meters": [],
@@ -6936,7 +7373,7 @@
                             "id": "sp_0c77d9b163",
                             "date": "2025-01-23",
                             "kind": "nachzahlung_ohne",
-                            "amount_eur": 42.58,
+                            "amount_eur": 42.25,
                             "note": "Schlussrechnung Naturstrom 24 — Nachzahlung",
                             "new_advance_eur": null,
                             "advance_from": null
@@ -6947,7 +7384,7 @@
                     "notice_period_months": 1,
                     "notice_period_days": null,
                     "notice_mode": null,
-                    "auto_renews": null,
+                    "auto_renews": false,
                     "min_term_end": null,
                     "price_guarantee_until": null,
                     "signup_bonus_eur": null
@@ -6989,10 +7426,10 @@
                     "special_payments": [
                         {
                             "id": "sp_2d4fa8946c",
-                            "date": "2026-01-21",
+                            "date": "2026-02-04",
                             "kind": "rueckzahlung_ohne",
-                            "amount_eur": 108.2,
-                            "note": "Jahresabrechnung Strom — Guthaben",
+                            "amount_eur": 109.99,
+                            "note": "Schlussrechnung Strom Online 12 — Guthaben",
                             "new_advance_eur": null,
                             "advance_from": null
                         }
@@ -7002,29 +7439,29 @@
                     "notice_period_months": 1,
                     "notice_period_days": null,
                     "notice_mode": null,
-                    "auto_renews": null,
+                    "auto_renews": false,
                     "min_term_end": null,
                     "price_guarantee_until": null,
                     "signup_bonus_eur": null
                 },
                 {
-                    "id": "c_strom_online_2026",
+                    "id": "c_strom_flex",
                     "meter_id": "m_strom_wohnung",
-                    "provider": "Beispiel-Energie",
-                    "tariff_name": "Strom Online 12 — 2026",
+                    "provider": "Energie Nordring",
+                    "tariff_name": "Nordring Flex",
                     "start": "2026-01-01",
-                    "end": "2026-12-31",
-                    "notes": "",
+                    "end": null,
+                    "notes": "Unbefristet, frühestens zum Ende der Mindestlaufzeit kündbar",
                     "working_prices": [
                         {
                             "from": "2026-01-01",
-                            "ct_per_kwh": 29.5
+                            "ct_per_kwh": 28.9
                         }
                     ],
                     "base_prices": [
                         {
                             "from": "2026-01-01",
-                            "eur_per_month": 11.9
+                            "eur_per_month": 12.4
                         }
                     ],
                     "advance_payments": [
@@ -7039,17 +7476,60 @@
                     "shadow_label": null,
                     "notice_period_months": 1,
                     "notice_period_days": null,
-                    "notice_mode": null,
+                    "notice_mode": "month_end",
                     "auto_renews": null,
-                    "min_term_end": null,
-                    "price_guarantee_until": null,
+                    "min_term_end": "2026-12-31",
+                    "price_guarantee_until": "2027-06-30",
                     "signup_bonus_eur": null
                 }
             ],
             "deliveries": [],
             "meter_groups": [],
             "periods": [],
-            "bills": []
+            "bills": [
+                {
+                    "id": "b_642ad0fdabff",
+                    "meter_id": "m_strom_wohnung",
+                    "period_from": "2024-01-01",
+                    "period_to": "2024-12-31",
+                    "issued_on": "2025-01-23",
+                    "kind": "final",
+                    "contract_id": "c_strom_natur",
+                    "special_payment_id": "sp_0c77d9b163",
+                    "invoice": {
+                        "energy_kwh": 2363.6,
+                        "amount_eur": 1086.25,
+                        "advances_paid_eur": 1044,
+                        "result_eur": 42.25
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2025-01-25T19:12:00+01:00"
+                },
+                {
+                    "id": "b_3a2828d59ecc",
+                    "meter_id": "m_strom_wohnung",
+                    "period_from": "2025-01-01",
+                    "period_to": "2025-12-31",
+                    "issued_on": "2026-02-04",
+                    "kind": "final",
+                    "contract_id": "c_strom_online",
+                    "special_payment_id": "sp_2d4fa8946c",
+                    "invoice": {
+                        "energy_kwh": 2324.1,
+                        "amount_eur": 730.01,
+                        "advances_paid_eur": 840,
+                        "result_eur": -109.99
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2026-02-06T19:12:00+01:00"
+                }
+            ]
         },
         "wasser": {
             "meters": [],
@@ -7606,13 +8086,36 @@
             "periods": [],
             "bills": [
                 {
+                    "id": "b_eec67a945a8a",
+                    "meter_id": "m_fernwaerme_wohnung",
+                    "period_from": "2024-01-01",
+                    "period_to": "2024-12-31",
+                    "issued_on": "2025-02-14",
+                    "kind": "annual",
+                    "contract_id": "c_fernwaerme",
+                    "special_payment_id": "sp_29d5dfe3aa",
+                    "invoice": {
+                        "energy_kwh": 8288.5,
+                        "amount_eur": 1608.06,
+                        "advances_paid_eur": 1970,
+                        "result_eur": -361.94
+                    },
+                    "items": [],
+                    "co2": {
+                        "emissions_kg": 1641.1
+                    },
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2025-02-16T19:12:00+01:00"
+                },
+                {
                     "id": "b_c10cacbd49c4",
                     "meter_id": "m_fernwaerme_wohnung",
-                    "contract_id": "c_fernwaerme",
-                    "kind": "annual",
                     "period_from": "2025-01-01",
                     "period_to": "2025-12-31",
                     "issued_on": "2026-02-12",
+                    "kind": "annual",
+                    "contract_id": "c_fernwaerme",
                     "invoice": {
                         "energy_kwh": 8276.1,
                         "amount_eur": 1567.19,
@@ -7623,9 +8126,9 @@
                     "co2": {
                         "emissions_kg": 1638.7
                     },
-                    "attachment_ids": [],
                     "note": "",
-                    "created_at": "2026-02-15T18:40:00+01:00"
+                    "attachment_ids": [],
+                    "created_at": "2026-02-15T19:12:00+01:00"
                 }
             ]
         },

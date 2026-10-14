@@ -160,11 +160,11 @@
   z-index: 50;
   display: flex; justify-content: center;
 }
-@media (min-width: 801px) {
+@media (min-width: 900px) {
   .readings-entry__sticky { left: var(--sidebar-w); }
 }
 /* v2.11.0 — auf dem iPhone über der Tab-Leiste */
-@media (max-width: 800px) {
+@media (max-width: 899.98px) {
   .readings-entry__sticky {
     bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     padding-bottom: var(--sp-3);

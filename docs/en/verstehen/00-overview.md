@@ -338,7 +338,11 @@ and classifies it using the band limits (`efficiency_class_thresholds`, default
 A+ up to 30, A up to 50, B up to 75, C up to 100, D up to 130, E up to 160, F up to
 200, G up to 250, otherwise H). Since v2.10.0 a limit is **inclusive** ("up to
 100" is C), as in Annex 10 of the GModG (Building Modernisation Act, formerly
-GEG); previously a value exactly on the limit landed one class worse.
+GEG); previously a value exactly on the limit landed one class worse. The
+limits stay the same from 1 Jan 2027: Art. 2 no. 54 of the Act of 23 Jul 2026
+(BGBl. 2026 I no. 226) only changes the heading of Annex 10 ("to § 86(1)") and
+its column header, "to leave the efficiency classes unchanged" (explanatory
+memorandum, Bundestag printed paper 21/6278, p. 122).
 
 **Classes only for full years (since v2.10.0).** If the reference year covers
 fewer than 360 days, there is no class, and a note says that the figure only
@@ -352,10 +356,43 @@ consumption per m² of living area, as measured. Alongside it there is a
 ```text
 AN      = living area × 1.2      (× 1.35 for residential buildings with up to two dwellings and a heated basement,
                                  § 82(2) GModG, formerly GEG; in the app a detached or terraced house)
-E       = Σ heat sources: weather-adjusted annual consumption,
-          gas × 0.906 (gross → net calorific value)
-metric  = E / AN  (+ 20 kWh/m²·a with decentralised hot water)
+E       = Σ heat sources: weather-adjusted annual consumption, fuels depending on the procedure (below)
+metric  = E / AN  (+ hot water surcharge with decentralised hot water, depending on the procedure)
 ```
+
+**Which procedure (since v3.5.0).** On 1 Jan 2027 the way a consumption
+certificate is calculated changes (§ 82 GModG as amended by Art. 2 no. 32 of
+the Act of 23 Jul 2026, BGBl. 2026 I no. 226; in force under Art. 9(2)). The
+app calculates the figure **as if the certificate were issued today**: up to
+31 Dec 2026 with the previous procedure, from 1 Jan 2027 with the new one —
+for every reference year. What counts is the date of issue, not the period of
+the data; the Act itself distinguishes old and new certificates that way
+(§ 112(3) GModG as amended: certificates "issued before 1 January 2027"). The
+API names the procedure in the field `rules`.
+
+```text
+                      up to 31 Dec 2026 (geg2024)          from 1 Jan 2027 (gmodg2027)
+fuels                 net calorific value: gas × 0.906     gross calorific value: gas as counted (× 1)
+                      (announcement of 29 Mar 2021,        ("fuels are to be taken into account at
+                      BAnz AT 16.04.2021 B1, section 2)    their gross calorific value", § 82(2) sentence 2)
+decentral hot water   + 20 kWh/m²·a (§ 82(2))              + 16 kWh/m²·a (§ 82(2) sentence 3)
+data period           36 months (§ 82(4))                  "annually over a period of two years"
+                                                           (§ 82(1) sentence 2) = 24 months
+```
+
+District heating, heat and heat-pump electricity are not fuels and are never
+converted. The app counts **heating oil and pellets** at their net calorific
+value (kWh per litre or kg). The announcement gives the factor to the gross
+calorific value only by reference to a standard that is not freely available
+(DIN V 18599-1, table B.1); from 2027 they therefore stay at the net
+calorific value, and the API lists them in `fuel_basis_approx` as an
+approximation — the figure is somewhat too low for them. A gas-heated house
+with the same consumption gets a figure about 10 % higher from 2027
+(1 / 0.906) with the same class limits, so the same home can land in a
+different class.
+
+Before 1 Jan 2027 the overview shows under the figure what the new procedure
+changes and which figure it would give (API: `upcoming`).
 
 The adjustment runs month by month with the heating model (`heat_adjusted`)
 when every month of the year has such a value — the normal case for gas and
@@ -363,8 +400,11 @@ district heating with a heating model. Otherwise (heating oil, pellets, heat
 pump, months without a model or before a baseline cut) it is adjusted over the
 year with the climate normal (heating share only, VDI 3807). Without a climate normal the value
 stands as measured and is marked as such. This is **not a consumption
-certificate**: that requires 36 months and the climate factors of the DWD
-(German Meteorological Service). The settings *Heated basement* and
+certificate**: that covers the whole period (36 months, from 2027 two years)
+with the climate factors of the DWD (German Meteorological Service), from 2027
+also normalised to the usage conditions of DIN/TS 18599-10 (§ 82(3) as
+amended); the app calculates one reference year and does not reproduce the
+normalisation. The settings *Heated basement* and
 *Decentralised hot water* and the role *Heat pump (heating electricity)* on an
 electricity meter (up to v3.0 the flag *Heating electricity (heat pump)*) feed
 into it — with this role, a heat-pump house gets a figure too. Since v3.1.0

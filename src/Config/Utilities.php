@@ -268,12 +268,35 @@ final class Utilities
      * Saldierung. PV-Einspeisung hat zwar Verträge, aber kein
      * Abschlagsmodell (Verteilnetzbetreiber überweist nach Erzeugung,
      * nicht nach Plan). PV-Erzeugung hat gar keine Verträge.
-     * Single source of truth für den F1003-Scope.
+     *
+     * v3.5.0 (GitHub #34) — nicht mehr der Scope der Sonderzahlungen (das ist
+     * {@see hasSpecialPayments()}), sondern der Standardvertrag: Saldo nach
+     * Kalender mit Abschlagsvorschlag, Gruppenvertrag, Wechselentscheidung,
+     * Saldo und Abschlags-Rat im Jahresbericht. Wasser rechnet seinen Saldo
+     * über die Monate mit Ablesung und hat keine Gruppenverträge.
      */
     public static function hasAdvancePaymentContracts(string $key): bool
     {
         return self::isCumulative($key)
             && $key !== 'wasser'
+            && self::hasContracts($key)
+            && self::accountingKind($key) === 'consumption';
+    }
+
+    /**
+     * v3.5.0 (GitHub #34) — Sonderzahlungen (F1003: Rück-/Nachzahlung,
+     * Abschlagszahlung) am Vertrag: jede Art mit Zählerständen, Verträgen und
+     * Abschlägen, die abgerechnet werden — Gas, Strom, Wasser, Fernwärme.
+     * Bis v3.4 deckte sich der Scope mit hasAdvancePaymentContracts() und
+     * schloss Wasser aus, obwohl die Wasserabrechnung genauso mit einer Nach-
+     * oder Rückzahlung endet. Nicht: Heizöl/Pellets (Lieferungen, kein
+     * Abschlagsplan), PV-Einspeisung (Vergütung nach Erzeugung), PV-Erzeugung
+     * und Heizwärme (keine Verträge). Single source of truth für den
+     * F1003-Scope; umfasst hasAdvancePaymentContracts().
+     */
+    public static function hasSpecialPayments(string $key): bool
+    {
+        return self::isCumulative($key)
             && self::hasContracts($key)
             && self::accountingKind($key) === 'consumption';
     }

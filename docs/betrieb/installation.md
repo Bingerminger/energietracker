@@ -210,3 +210,15 @@ Umgebungsvariablen, Fehlersuche) im eigenen Kapitel:
 **[Docker-Betrieb (für Einsteiger)](docker.md)**. Dort stehen auch die
 Vorlagen für Synology, Unraid, CasaOS/ZimaOS und Umbrel (die drei letzten seit
 v3.1.0, Dateien unter `deploy/`).
+
+---
+
+## Home Assistant OS
+
+Seit **v3.5.0** gibt es den Energietracker als App für Home Assistant OS
+(früher „Add-on“, Repository `https://github.com/Bingerminger/energietracker-ha`):
+dasselbe Image, aufgerufen über die Seitenleiste von Home Assistant, Anmeldung
+über dessen Benutzer, Daten in dessen Sicherungen — ohne eigenen Docker-Host.
+Die App ist neu und vorerst als experimentell gekennzeichnet. Installation,
+Unterschiede zum Docker-Betrieb und Umzug:
+**[Als App in Home Assistant OS](../anleitungen/home-assistant.md#als-app-in-home-assistant-os)**.

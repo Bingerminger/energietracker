@@ -35,7 +35,9 @@ match, and the browser tab names the view. Earlier addresses (`#/tariffs`,
 immediately. Since v3.2.0 navigation and tabs leave out the pages that only a
 higher experience level shows (below).
 
-**Mac:** sidebar on the left. The top bar holds **＋ Add**: meter readings,
+**Mac and iPad in landscape:** sidebar on the left once the window is at least
+**900 px** wide (since v3.5.0; up to v3.4 from 801 px — the iPad in portrait got
+it and left two thirds of the width to the content). The top bar holds **＋ Add**: meter readings,
 delivery and tank reading for heating oil and pellets, reminder. Next to it the
 appearance switch (system, light, dark), since v3.2.0 with the experience
 level in front of it.
@@ -77,10 +79,15 @@ top: “This page belongs to the “Experienced” level. It is open anyway.” 
 
 ![Navigation on the Mac](../../ui/screenshots/en/navigation-mac.png)
 
-**iPhone:** a tab bar at the bottom, in thumb reach: Overview, Consumption,
+**iPhone and iPad in portrait (below 900 px):** a tab bar at the bottom, in thumb reach: Overview, Consumption,
 **＋ Add**, Costs, More.
 
 - "More" opens the sidebar as a menu.
+- **Tablet (v3.5.0):** what counts is the width of the window, not the device.
+  An iPad in portrait (744–834 px) shows the tab bar, in landscape (from
+  1024 px) the sidebar; in Split View the width of the app decides. Rotating
+  switches the navigation without a reload: an open menu closes, and focus in
+  the sidebar stays there, or moves to “More” when the sidebar becomes a drawer.
 - The utilities appear as tabs on their page.
 - Dialogs slide up as a sheet; header and footer stay in place.
 - The back gesture closes a dialog instead of leaving the page.
@@ -138,7 +145,11 @@ PV, the combined consumption history (as many months as set under *Months on
 dashboard* in the settings, since v2.9.0) and due appointments. Since v2.10.0 the
 **certificate-style figure** appears below the efficiency (with several heat
 sources one for all of them together, ⓘ with the reference area and the
-months); an incomplete year gets no class but a note instead. The PV card
+months); an incomplete year gets no class but a note instead. Since v3.5.0
+the ⓘ also names the basis (net or gross calorific value) and the months the
+procedure in force requires; up to 31 Dec 2026 a line below says what the new
+procedure changes from 2027 and which figure it would give
+([Fundamentals §7](../verstehen/00-overview.md#7-efficiency-class)). The PV card
 additionally shows the **self-consumption savings** and, as long as fewer than
 twelve months have data from all three meters, over how many months the rates
 are calculated. Since
@@ -288,6 +299,29 @@ drawn against fed in.
   rings glide to the new period in place. A year with fewer than twelve months
   with all three meters is called, for example, “2023 (7 months)” — only those
   months count, as for the key figure.
+- **Day (v3.5.0, F1027).** If there are values per quarter hour (imported from
+  a portal or from Home Assistant with a timestamp,
+  [Valuing flexibility](../anleitungen/flexibilitaet.md)), **“Day”** appears as
+  a third level — otherwise it does not. Below it you choose **“One day”**
+  (month and day; only days with data are offered, days with gaps read “… (with
+  gaps)”; the default is the last complete day) or **“Typical day”** (ⓘ: per
+  quarter hour the average over all days of the month with data — the pattern,
+  say when the midday sun charges the battery; the default is the latest month).
+  The picture plays the day in about 15 seconds: the nodes show the **power** of
+  the quarter hour in kW (kWh × 4), the buttons below what has **built up**
+  since midnight (“Running total up to 13:15:”), calculated like a month. The
+  bands are measured against the strongest flow of the day — thin at night,
+  wide at noon. **▶/❚❚** plays and pauses, the **slider** picks the time (screen
+  readers hear “13:15”); Space plays or pauses, the arrow keys move one quarter
+  hour, Page Up/Down one hour, Home/End to the start and end. Below the slider
+  the **wholesale price** of the quarter hour runs along as a small line with a
+  cursor (if loaded), and red marks show missing quarter hours — a gap shows as
+  “–” in the picture, never as 0. On the day the clocks change the film has 92
+  or 100 quarter hours; the repeated hour in October reads “02:15 (after the
+  clocks go back)”. Nodes without data are left out; which meters count and how
+  gaps arise: [API](api.md#day-film-energy-flow-per-quarter-hour-v350). With
+  “Reduce motion” there is no playback and no moving dots, only the slider
+  (starting at 12:00).
 - **Highlight.** The buttons below the picture (“Solar: …, … used yourself”,
   “House: …, … self-sufficient”, “Battery: … charged, … discharged”, “Grid: …
   drawn, … fed in”) highlight the flows of their node; the line below names
@@ -445,7 +479,7 @@ the current year is some time back, the tile is labelled "Advances up to
 ‹date›". The **Contracts & advances** table lists per contract tariff, advance,
 consumed, paid, bonus, **special payments** (since v2.5.1: net from the
 customer's perspective; since v2.13.0 the items expand instead of sitting in
-the tooltip; gas/electricity/district heating only), balance today and
+the tooltip; gas/electricity/district heating, since v3.5.0 water too), balance today and
 expected balance. The standing charge is spelled out ("standing charge
 12.95 €/month" instead of "13 € base").
 
@@ -1481,7 +1515,9 @@ payments, time windows, prepayments, items) share one grid — date | amount |
 extra | ✕ — with the labels only above the first row. The **contract dialog**
 orders its boxes like a bill: contract → term and cancellation → unit price,
 standing charge, advance payment → grid fee (§ 14a module 1 and module 3) →
-bonuses → special payments → credit notes → notes at the end. The module 3
+bonuses → special payments → credit notes → notes at the end. The **water
+contract** has the same box of special payments after its bonuses (since v3.5.0,
+[#34](https://github.com/Bingerminger/energietracker/issues/34)). The module 3
 time windows take “from” and “until” the same way (also “6” or “1530”, which
 the app writes as 06:00 and 15:30). The **meter dialog** starts with name,
 icon, role and recording, then device, structure, market location, system,

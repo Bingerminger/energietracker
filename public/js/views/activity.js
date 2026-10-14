@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { t, tp } from '../lib/i18n.js';
+import { t, tp, getLocale } from '../lib/i18n.js';
 import { fmt, escapeHtml as esc, todayIso, intlLocale } from '../lib/format.js';
 import { toastOk, toastErr } from '../components/toast.js';
 import { openModal, confirmModal, guardSubmit } from '../components/modal.js';
@@ -18,10 +18,23 @@ import { AREAS, AREA_KEYS, entryTitle, reasonText, whenWho, personsIn } from '..
 import { sessionRole } from '../lib/levels.js';
 import { getSettings, saveSettings } from '../state.js';
 import { docUrl } from '../lib/docs.js';
+import { DEMO } from '../lib/demo-mode.js';
 
 /** Zeiträume des Filters (Schlüssel unter activity.period.*). */
 const PERIODS = ['all', 'm3', 'm12', 'thisYear', 'lastYear'];
-const ICONS = { done: '✅', auto_done: '⚙️', dismissed: '💤' };
+// v3.5.0 — `updated`: geändert (Nebenkostenabrechnung), zum Nachweis
+const ICONS = { done: '✅', auto_done: '⚙️', dismissed: '💤', updated: '✏️' };
+
+/**
+ * v3.5.0 (Nachtrag F1024) — der Filter der Ansicht als Abfrage für
+ * `GET /api/activity.csv`: Person (`by`), Zeitraum (`from`/`to`), Bereich
+ * (`kind` = alle Arten des Bereichs). Titel in der Sprache der Oberfläche.
+ */
+export function csvQuery(f) {
+  const [from, to] = periodRange(f.period);
+  const kinds = f.area ? Object.keys(AREAS).filter(k => AREAS[k] === f.area).join(',') : '';
+  return { by: f.person || '', from, to, kind: kinds, format: 'local', lang: getLocale() };
+}
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${esc(t('common.loading'))}</div>`;
@@ -45,7 +58,11 @@ export async function render(container) {
           <h1 class="view-header__title">${esc(t('activity.title'))}</h1>
           <p class="view-header__subtitle">${esc(t('activity.subtitle'))} <a href="${esc(docUrl('done'))}">${esc(t('common.guide'))}</a></p>
         </div>
-        ${admin ? `<div class="view-header__actions"><button type="button" class="btn btn--ghost" id="act-manage">${esc(t('activity.manage.button'))}</button></div>` : ''}
+        <div class="view-header__actions">
+          ${DEMO ? '' : `<a class="btn btn--ghost" id="act-csv" href="${esc(api.activityCsvUrl(csvQuery(filter)))}" download
+            title="${esc(t('activity.csv.hint'))}"><span aria-hidden="true">⬇</span> ${esc(t('activity.csv.button'))}</a>`}
+          ${admin ? `<button type="button" class="btn btn--ghost" id="act-manage">${esc(t('activity.manage.button'))}</button>` : ''}
+        </div>
       </div>
       <div class="toolbar activity-filters" role="group" aria-label="${esc(t('activity.filter.label'))}">
         ${persons.length ? `<label>${esc(t('activity.filter.person'))}
@@ -152,13 +169,17 @@ function itemHtml(e) {
   const undone = !!e.undone;
   const title = entryTitle(e);
   const reason = reasonText(e.reason);
-  const badge = e.action === 'auto_done' ? t('activity.action.auto') : e.action === 'dismissed' ? t('activity.action.dismissed') : '';
+  const badge = e.action === 'auto_done' ? t('activity.action.auto') : e.action === 'dismissed' ? t('activity.action.dismissed')
+    : e.action === 'updated' ? t('activity.action.updated') : '';
+  // v3.5.0 (F1028) — wer zuständig war (Momentaufnahme beim Erledigen)
+  const assignee = e.assignee?.former ? t('activity.by.former') : (e.assignee?.name || '');
   return `<li class="activity-item activity-item--${esc(e.action)}${undone ? ' activity-item--undone' : ''}" data-id="${esc(e.id)}">
     <span class="activity-item__icon" aria-hidden="true">${ICONS[e.action] || '•'}</span>
     <div class="activity-item__body">
       <div class="activity-item__title">${undone ? `<s>${esc(title)}</s>` : esc(title)}
         ${badge ? ` <span class="badge badge--info">${esc(badge)}</span>` : ''}</div>
       <div class="muted small">${esc(whenWho(e.done_on, e.by))}</div>
+      ${assignee ? `<div class="muted small" data-role="assignee">${esc(t('activity.assigneeLine', { name: assignee }))}</div>` : ''}
       ${reason ? `<div class="muted small">${esc(t('activity.reasonLine', { reason }))}</div>` : ''}
       ${e.note ? `<div class="activity-item__note">${esc(e.note)}</div>` : ''}
       ${e.attachment_id ? `<a class="small" href="${esc(api.attachmentUrl(e.attachment_id))}" target="_blank" rel="noopener"><span aria-hidden="true">📎</span> ${esc(t('activity.attachment'))}</a>` : ''}
@@ -167,7 +188,7 @@ function itemHtml(e) {
     <div class="activity-item__actions">
       <button type="button" class="btn btn--xs btn--ghost" data-note="${esc(e.id)}" title="${esc(t('activity.note.edit'))}"
         aria-label="${esc(t('activity.note.editNamed', { title }))}"><span aria-hidden="true">✎</span></button>
-      ${!undone && e.action !== 'auto_done' ? `<button type="button" class="btn btn--xs btn--ghost" data-undo="${esc(e.id)}"
+      ${!undone && (e.action === 'done' || e.action === 'dismissed') ? `<button type="button" class="btn btn--xs btn--ghost" data-undo="${esc(e.id)}"
         aria-label="${esc(t('activity.undoNamed', { title }))}">${esc(t('common.undo'))}</button>` : ''}
     </div>
   </li>`;

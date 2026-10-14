@@ -8,7 +8,10 @@ Take a gas bill into the Energietracker, recalculate it and book the credit.
 Afterwards the app shows the same balance as the bill, and the forecast carries
 on with the new advance. Electricity, water and district heating work the same
 way without step 2 — since v3.1.0 including the bill check, and the bill’s
-figures can be recorded, compared and booked as a special payment (step 7).
+figures can be recorded, compared and booked as a special payment (step 7). For
+water the special payments of steps 6 and 7 exist only since v3.5.0
+([#34](https://github.com/Bingerminger/energietracker/issues/34)); before, a
+booking there never arrived in the contract.
 
 ---
 

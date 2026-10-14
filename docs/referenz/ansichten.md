@@ -36,7 +36,9 @@ Abrechnung → Aktive Verbrauchsarten) und folgt einer Änderung sofort. Seit
 v3.2.0 fehlen in Navigation und Tabs die Seiten, die erst eine höhere
 Nutzungsstufe zeigt (unten).
 
-**Mac:** Seitenleiste links. In der Kopfleiste steht **＋ Erfassen**:
+**Mac und iPad quer:** Seitenleiste links, sobald das Fenster mindestens
+**900 px** breit ist (seit v3.5.0; bis v3.4 ab 801 px — das iPad hochkant
+bekam sie und ließ dem Inhalt zwei Drittel der Breite). In der Kopfleiste steht **＋ Erfassen**:
 Zählerstände, Lieferung und Peilstand bei Heizöl und Pellets, Termin.
 Daneben der Umschalter für die Darstellung (wie das System, hell, dunkel),
 seit v3.2.0 davor die Auswahl der Nutzungsstufe.
@@ -80,10 +82,16 @@ auf „⚙️ Zähler“ tippt. Einzelheiten:
 
 ![Navigation am Mac](../ui/screenshots/navigation-mac.png)
 
-**iPhone:** Unten liegt eine Tab-Leiste in der Daumenzone: Übersicht,
+**iPhone und iPad hochkant (unter 900 px):** Unten liegt eine Tab-Leiste in der Daumenzone: Übersicht,
 Verbrauch, **＋ Erfassen**, Kosten, Mehr.
 
 - „Mehr" öffnet die Seitenleiste als Menü.
+- **Tablet (v3.5.0):** Maßgeblich ist die Breite des Fensters, nicht das
+  Gerät. Ein iPad hochkant (744–834 px) zeigt die Tab-Leiste, quer (ab
+  1024 px) die Seitenleiste; in Split View entscheidet die Breite der App.
+  Beim Drehen wechselt die Navigation ohne Neuladen: Ein offenes Menü
+  schließt, ein Fokus in der Seitenleiste bleibt dort bzw. springt auf
+  „Mehr“, wenn sie zur Schublade wird.
 - Die Verbrauchsarten stehen auf ihrer Seite als Tabs.
 - Dialoge erscheinen als Blatt von unten, Kopf- und Fußleiste stehen fest.
 - Die Zurück-Geste schließt einen Dialog, statt die Seite zu verlassen.
@@ -141,7 +149,11 @@ PV, kombinierter Verbrauchsverlauf (so viele Monate wie in den Einstellungen
 unter *Monate auf Dashboard*, seit v2.9.0) und fällige Termine. Seit v2.10.0
 steht unter der Effizienz die **energieausweis-nahe Kennzahl** (bei mehreren
 Heizquellen für alle zusammen, ⓘ mit Bezugsfläche und Monaten); ein
-unvollständiges Jahr bekommt keine Klasse, sondern einen Hinweis. Die
+unvollständiges Jahr bekommt keine Klasse, sondern einen Hinweis. Seit v3.5.0
+nennt das ⓘ auch die Basis (Heizwert oder Brennwert) und die Monate, die das
+geltende Verfahren verlangt; bis 31.12.2026 steht darunter, was sich mit dem
+neuen Verfahren ab 2027 ändert und welche Zahl es ergäbe
+([Grundlagen §7](../verstehen/00-overview.md#7-effizienzklasse)). Die
 PV-Karte zeigt zusätzlich die **Ersparnis durch Eigenverbrauch** und, solange
 weniger als zwölf Monate Daten aller drei Zähler haben, über wie viele Monate
 die Quoten rechnen. Seit v2.7.0 steht
@@ -296,6 +308,29 @@ Netz Bezug gegen Einspeisung.
   gleiten Werte, Bänder und Ringe an Ort und Stelle zum neuen Zeitraum. Ein
   Jahr mit weniger als zwölf Monaten mit allen drei Zählern heißt etwa „2023
   (7 Monate)“ — gerechnet wird nur über diese Monate, wie bei der Kennzahl.
+- **Tag (v3.5.0, F1027).** Gibt es Werte je Viertelstunde (Import aus einem
+  Portal oder Home Assistant mit Zeitstempel, [Flexibilität](../anleitungen/flexibilitaet.md)),
+  erscheint als dritte Stufe **„Tag“** — sonst nicht. Darunter wählst du
+  **„Ein Tag“** (Monat und Tag; angeboten werden nur Tage mit Daten, Tage mit
+  Lücken heißen „… (mit Lücken)“; vorbelegt ist der letzte vollständige Tag)
+  oder **„Typischer Tag“** (ⓘ: je Viertelstunde das Mittel über alle Tage des
+  Monats mit Daten — das Muster, etwa wann die Mittagssonne den Speicher lädt;
+  vorbelegt ist der jüngste Monat). Das Bild spielt den Tag in rund 15 Sekunden
+  ab: In den Knoten steht die **Leistung** der Viertelstunde in kW (kWh × 4),
+  in den Knöpfen darunter, was seit Mitternacht **aufgelaufen** ist („Bis 13:15
+  aufgelaufen:“), gerechnet wie ein Monat. Die Bänder messen sich am stärksten
+  Fluss des Tages — nachts schmal, mittags breit. **▶/❚❚** spielt ab und hält
+  an, der **Schieberegler** wählt die Uhrzeit (Bildschirmleser hören „13:15“);
+  Leertaste spielt bzw. hält an, Pfeile gehen eine Viertelstunde, Bild auf/ab
+  eine Stunde, Pos1/Ende an Anfang und Ende. Unter dem Regler läuft der
+  **Börsenpreis** der Viertelstunde als kleine Linie mit Cursor mit (wenn
+  geladen) und rote Marken zeigen fehlende Viertelstunden — eine Lücke steht
+  als „–“ im Bild, nie als 0. Am Tag der Zeitumstellung hat der Film 92 bzw. 100
+  Viertelstunden; die doppelte Stunde im Oktober heißt „02:15 (nach der
+  Zeitumstellung)“. Knoten ohne Daten entfallen; welche Zähler zählen und wie
+  Lücken entstehen: [API](api.md#tagesfilm-energiefluss-je-viertelstunde-v350).
+  Mit „Bewegung reduzieren“ gibt es kein Abspielen und keine laufenden Punkte,
+  nur den Schieberegler (Start 12:00).
 - **Hervorheben.** Die Knöpfe unter dem Bild („Sonne: …, … selbst genutzt“,
   „Haus: …, … autark“, „Speicher: … geladen, … entladen“, „Netz: … bezogen,
   … eingespeist“) heben die Flüsse ihres Knotens hervor; die Zeile darunter
@@ -456,8 +491,9 @@ summieren dagegen die abgelesenen Monate; liegt die letzte Ablesung im
 laufenden Jahr zurück, heißt die Kachel „Abschläge bis ‹Datum›". Die Tabelle
 **Verträge & Abschläge** führt je Vertrag Tarif, Abschlag, Verbraucht,
 Bezahlt, Bonus, **Sonderzahlungen** (seit v2.5.1: Netto aus Kundensicht;
-seit v2.13.0 die Einzelposten zum Aufklappen statt im Tooltip; nur bei
-Gas/Strom/Fernwärme) sowie Saldo heute und erwarteten Saldo. Der Grundpreis
+seit v2.13.0 die Einzelposten zum Aufklappen statt im Tooltip; bei
+Gas/Strom/Fernwärme, seit v3.5.0 auch Wasser) sowie Saldo heute und
+erwarteten Saldo. Der Grundpreis
 steht ausgeschrieben da („Grundpreis 12,95 €/Monat“ statt „13 € GP“).
 
 **Reihenfolge und Status der Verträge (v3.4.0):** Die Tabelle läuft rückwärts
@@ -1553,7 +1589,9 @@ Boni, Sonderzahlungen, Zeitfenster, Vorauszahlungen, Posten) haben ein Raster
 Zeile. Der **Vertragsdialog** ordnet seine Kästen wie eine Rechnung: Vertrag →
 Laufzeit und Kündigung → Arbeitspreis, Grundpreis, Abschlag → Netzentgelt
 (§ 14a Modul 1 und Modul 3) → Boni → Sonderzahlungen → Gutschriften →
-Notizen am Ende. Die Zeitfenster für Modul 3 nehmen „von“ und „bis“ gleich
+Notizen am Ende. Der **Wasservertrag** hat denselben Kasten Sonderzahlungen
+nach seinen Boni (seit v3.5.0,
+[#34](https://github.com/Bingerminger/energietracker/issues/34)). Die Zeitfenster für Modul 3 nehmen „von“ und „bis“ gleich
 entgegen (auch „6“ oder „1530“, die App schreibt daraus 06:00 bzw. 15:30). Der
 **Zählerdialog** beginnt mit Name, Symbol, Rolle und Erfassung, dann Gerät,
 Aufbau, Marktlokation, Anlage, Zäsuren, Notizen.

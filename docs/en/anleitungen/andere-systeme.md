@@ -174,8 +174,11 @@ Four nodes: **inject → function → http request → function**.
 ## openHAB
 
 A rule in the Rules DSL (`conf/rules/energietracker.rules`) with the HTTP action
-`sendHttpPostRequest(url, contentType, content, headers, timeout)`. It returns
-the response as text, `null` on failure.
+`sendHttpPostRequest(url, contentType, content, headers, timeout)` (time limit in
+milliseconds). It returns the response text — also for a rejected value
+(`400`) or a wrong token (`401`), then with `"success":false` and `code`. `null`
+only comes when no answer arrived (unreachable, time limit). The rule below
+handles both.
 
 ```java
 val String ET_URL  = "http://192.168.178.10:8080/api.php/api/ingest"
@@ -210,6 +213,12 @@ end
 - In JS Scripting the same action is called `actions.HTTP.sendHttpPostRequest`.
 - openHAB has no store for secrets in rules. Keep the file with the token
   readable only for the openHAB user.
+
+> **How it was checked (October 2026):** rule, action and units checked
+> against the openHAB documentation (version 5.2, “Actions” and “Rules DSL”)
+> and the source code of the HTTP action; request and response match the
+> `POST /api/ingest` endpoint. The rule has not been tried in a running openHAB
+> installation.
 
 ---
 

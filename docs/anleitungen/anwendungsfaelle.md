@@ -242,7 +242,7 @@ eine Aufstellung je Monat.
 **Was passiert.** Die Verbrauchsansicht der Wallbox zeigt die Karte
 **„Ladestrom-Nachweis (Dienstwagen)“**: Jahr wählen, Preis wählen —
 Vertragspreis mit anteiligem Grundpreis oder Strompreispauschale (2026:
-34 ct/kWh) —, CSV oder PDF herunterladen. Die Strom-Gesamtsumme bleibt richtig,
+34 ct/kWh, 2027: 32 ct/kWh) —, CSV oder PDF herunterladen. Die Strom-Gesamtsumme bleibt richtig,
 weil die Wallbox als Subzähler im Hausanschluss steckt.
 
 ```

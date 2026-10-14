@@ -61,12 +61,47 @@ final class Countries
 
     /**
      * v3.1.0 (H6, MKT-14) — Strompreispauschale für das Laden des Dienstwagens
-     * zu Hause in ct/kWh (BMF-Schreiben vom 11.11.2025, Rn. 30): Destatis-Preis
-     * des 1. Halbjahres des Vorjahres, Band 5.000 bis unter 15.000 kWh,
-     * abgerundet. 2026: 34 ct (1. Hj. 2025: 34,36 ct). 2027 noch nicht
-     * eingetragen (Grundlage: Destatis-Preis des 1. Halbjahres 2026).
+     * zu Hause in ct/kWh, Kalenderjahre 2026 bis 2030 (BMF-Schreiben vom
+     * 11.11.2025, Rn. 30; für betriebliche Fahrzeuge von Unternehmern je
+     * Wirtschaftsjahr: BMF-Schreiben vom 21.07.2026, Rn. 20). Regel: Destatis-
+     * Tabelle 61243-0001, Durchschnittspreis inkl. Steuern, Abgaben und Umlagen,
+     * Jahresverbrauch 5.000 bis unter 15.000 kWh, 1. Halbjahr des Vorjahres, auf
+     * volle Cent abgerundet.
+     *   2026: 34 (1. Hj. 2025: 34,36 ct)
+     *   2027: 32 (1. Hj. 2026: 32,14 ct, endgültig; veröffentlicht 30.09.2026) — v3.5.0
+     * Ein Jahr fehlt hier, bis Destatis das 1. Halbjahr des Vorjahres
+     * veröffentlicht hat (jeweils Ende September); dann den Wert ergänzen.
+     * Die Anleitung nennt jeden Wert (EvChargingReportTest prüft das).
      */
-    public const EV_FLAT_RATE_DE = [2026 => 34.0];
+    public const EV_FLAT_RATE_DE = [2026 => 34.0, 2027 => 32.0];
+
+    /**
+     * v3.5.0 (F1029) — gesetzliche Frist für die Abrechnung des Versorgers in
+     * Tagen, je Land und Verbrauchsart. Deutschland, Strom und Gas
+     * („Energie“ = Elektrizität, Gas, Wasserstoff, § 3 Nr. 31 EnWG):
+     * § 40c Abs. 2 EnWG — Rechnung „spätestens sechs Wochen nach Beendigung des
+     * abzurechnenden Zeitraums“, Abschlussrechnung „spätestens sechs Wochen nach
+     * Beendigung des Lieferverhältnisses“; bei monatlicher Abrechnung drei
+     * Wochen (bildet die App nicht ab — sie kennt nur Abrechnungszeiträume nach
+     * dem Stichtag, höchstens ein Jahr nach § 40b Abs. 1 S. 1 EnWG). Gerechnet
+     * schlicht Ende + 42 Tage (§§ 187 Abs. 1, 188 Abs. 2 BGB); ob § 193 BGB
+     * (Wochenende, Feiertag) die Frist verschiebt, ist ungeklärt und nicht
+     * modelliert.
+     * Keine gesetzliche Frist: Fernwärme (§ 24 Abs. 1 AVBFernwärmeV verweist auf
+     * §§ 4, 5 FFVAV; § 4 Abs. 3 FFVAV: „mindestens einmal jährlich“ — eine
+     * Sechs-Wochen-Frist steht nur in einem Referentenentwurf und gilt nicht),
+     * Wasser (§ 24 Abs. 1 AVBWasserV: Zeitabschnitte, die „zwölf Monate nicht
+     * wesentlich überschreiten“; kommunale Gebühren nach Landesrecht, § 35
+     * Abs. 1 AVBWasserV). Dort ist eine Abrechnung nur „erwartet“, nie
+     * „überfällig“. Geprüft gegen gesetze-im-internet.de am 2026-10-13.
+     */
+    public const BILL_DEADLINE_DAYS = ['DE' => ['strom' => 42, 'gas' => 42]];
+
+    /** v3.5.0 (F1029) — gesetzliche Abrechnungsfrist in Tagen oder null (keine bekannt). */
+    public static function billDeadlineDays(string $country, string $utility): ?int
+    {
+        return self::BILL_DEADLINE_DAYS[$country][$utility] ?? null;
+    }
 
     /**
      * v3.1.0 (H4) — Standardemissionsfaktoren des Brennstoffemissionshandels

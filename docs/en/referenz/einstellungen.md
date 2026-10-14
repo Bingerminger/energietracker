@@ -84,7 +84,7 @@ where the history is
 | `wohnflaeche_m2` | 100 | Living area | Heated area — denominator of the efficiency metric. Since v3.1.0 also the area for the CO₂ stage ([CO₂ price](../verstehen/16-co2-preis.md)); when you rent, the floor area from the tenancy takes precedence. |
 | `gebaeudetyp` | `efh` | Building type | Multi-family means three or more flats. Values: `efh` detached/semi-detached, `rh` terraced house, `mfh` apartment building, `whg` flat. Determines the reference area of the certificate-style figure. |
 | `beheizter_keller` | off | Heated basement | Residential building with up to two dwellings (detached/semi-detached, also terraced house) with heated basement: usable floor area = 1.35 × living area (otherwise 1.2; § 82(2) GModG, formerly GEG) — for the certificate-style figure. Only takes effect with `gebaeudetyp` `efh` or `rh`. |
-| `warmwasser_dezentral` | off | Decentralised hot water | Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a 20 kWh/m²·yr surcharge. |
+| `warmwasser_dezentral` | off | Decentralised hot water | Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a surcharge of 20 kWh/m²·yr, from 2027 of 16 kWh/m²·yr (§ 82 GModG). |
 
 ### Home and hot water *(v3.1.0)*
 
@@ -271,7 +271,7 @@ with a CO₂ price, today Germany.
 |---|---|---|---|
 | `co2_price_eur_t_years` | empty (`{}`) = country profile | CO₂ price per year | Your own yearly values in € per tonne as a table year → €/t (years 1990–2100, values 0–1000); they take precedence over the country profile (Germany: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). For a year without a value the last known one applies as an assumption — for 2027 therefore 60, although § 4(1) no. 3 CO2KostAufG makes the average of the auctions from 1 July to 30 November 2026 the applicable price; the German Environment Agency publishes it no later than ten working days before the year begins, enter it here then. Via the API an object `{"2027": 65}` or a list `[{year, eur_t}]`. |
 | `co2_price_scenario_eur_t` | empty (`null`) = off | Scenario: CO₂ price | Default for the forecast field “CO₂ price from 2028 (€/t)” (0–1000 €/t): the forecast then shows what this price would cost extra. Empty = off. |
-| `co2_price_scenario_from` | 2028 | Scenario from year | First year the scenario applies to (2021–2100). In 2028 the European emissions trading (ETS2) is to replace the fixed prices. |
+| `co2_price_scenario_from` | 2028 | Scenario from year | First year the scenario applies to (2021–2100). In 2028 the European emissions trading for buildings and road transport (ETS2) starts and replaces the national price (Art. 2 Regulation (EU) 2026/667). |
 
 ## Only via the API
 

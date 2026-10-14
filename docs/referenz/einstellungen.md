@@ -85,7 +85,7 @@ verwalten“** — dort, wo der Verlauf steht
 | `wohnflaeche_m2` | 100 | Wohnfläche | Beheizte Fläche — Nenner der Effizienzkennzahl. Seit v3.1.0 auch Fläche für die CO₂-Stufe ([CO₂-Preis](../verstehen/16-co2-preis.md)); zur Miete geht die Wohnfläche aus dem Mietverhältnis vor. |
 | `gebaeudetyp` | `efh` | Gebäudetyp | Mehrfamilienhaus heißt: ab drei Wohnungen. Werte: `efh` Ein-/Zweifamilienhaus, `rh` Reihenhaus, `mfh` Mehrfamilienhaus, `whg` Wohnung. Bestimmt die Bezugsfläche der energieausweis-nahen Kennzahl. |
 | `beheizter_keller` | aus | Beheizter Keller | Wohngebäude mit bis zu zwei Wohnungen (Ein-/Zweifamilienhaus, auch Reihenhaus) mit beheiztem Keller: Gebäudenutzfläche = 1,35 × Wohnfläche (sonst 1,2; § 82 Abs. 2 GModG, bis Juli 2026 GEG) — für die Kennzahl nach Energieausweis. Wirkt nur bei `gebaeudetyp` `efh` oder `rh`. |
-| `warmwasser_dezentral` | aus | Warmwasser dezentral | Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält 20 kWh/m²·a Zuschlag. |
+| `warmwasser_dezentral` | aus | Warmwasser dezentral | Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält einen Zuschlag von 20 kWh/m²·a, ab 2027 von 16 kWh/m²·a (§ 82 GModG). |
 
 ### Wohnen und Warmwasser *(v3.1.0)*
 
@@ -272,7 +272,7 @@ CO₂-Preis wirksam, heute Deutschland.
 |---|---|---|---|
 | `co2_price_eur_t_years` | leer (`{}`) = Länderprofil | CO₂-Preis je Jahr | Eigene Jahreswerte in € je Tonne als Tabelle Jahr → €/t (Jahre 1990–2100, Werte 0–1000); sie gehen dem Länderprofil vor (Deutschland: 2021 25, 2022 30, 2023 30, 2024 45, 2025 55, 2026 60). Für ein Jahr ohne Wert gilt der letzte bekannte als Annahme — für 2027 also 60, obwohl dafür nach § 4 Abs. 1 Nr. 3 CO2KostAufG der Durchschnitt der Versteigerungen vom 1. Juli bis 30. November 2026 maßgeblich ist; das Umweltbundesamt veröffentlicht ihn spätestens zehn Werktage vor Jahresbeginn, dann hier eintragen. Über die API ein Objekt `{"2027": 65}` oder eine Liste `[{year, eur_t}]`. |
 | `co2_price_scenario_eur_t` | leer (`null`) = aus | Szenario: CO₂-Preis | Vorbelegung des Felds „CO₂-Preis ab 2028 (€/t)“ der Prognose (0–1000 €/t): Die Prognose zeigt dann, was dieser Preis mehr kosten würde. Leer = aus. |
-| `co2_price_scenario_from` | 2028 | Szenario ab Jahr | Erstes Jahr, für das das Szenario gilt (2021–2100). 2028 soll der europäische Emissionshandel (ETS2) die Festpreise ablösen. |
+| `co2_price_scenario_from` | 2028 | Szenario ab Jahr | Erstes Jahr, für das das Szenario gilt (2021–2100). 2028 startet der europäische Emissionshandel für Gebäude und Straßenverkehr (ETS2) und löst den nationalen Preis ab (Art. 2 VO (EU) 2026/667). |
 
 ## Nur über die API
 

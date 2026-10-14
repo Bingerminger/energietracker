@@ -13,8 +13,8 @@ Alle Endpunkte unter `/api/…`. Antwort-Hülle einheitlich:
 
 `{utility}` ist eine von: `gas`, `strom`, `wasser`, `fernwaerme`,
 `heizoel`, `pellets`, `pv_einspeisung`, `pv_erzeugung` und seit v3.1.0
-`waerme` (Heizwärme). Stand: **154 Routen**,
-v3.4.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
+`waerme` (Heizwärme). Stand: **160 Routen**,
+v3.5.0 — `ReleaseConsistencyTest` prüft, dass jede registrierte Route in der
 Tabelle unten steht (DE und EN).
 
 > Ausführliche Request-/Response-Beispiele für die meistgenutzten Endpunkte
@@ -25,7 +25,7 @@ Tabelle unten steht (DE und EN).
 
 | Code | Wann |
 |------|------|
-| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. Seit v2.6.0 auch Abfrageparameter außerhalb ihres Bereichs (Prognose, Jahresbericht, Temperatur-Sync). *(v3.1.0)* Beleg mit falschem Inhalt, zu groß oder Speicher voll (`errors.attachment.*`) — auch ein Upload über der PHP-Grenze `post_max_size`, dann mit dieser Grenze in der Meldung (`errors.attachment.size`); Texterkennung nicht eingetragen oder nicht im Heimnetz (`errors.ocr.off`, `errors.ocr.notLocal`); Zählerstand auf einem Zähler mit Verbrauch je Zeitraum (`errors.reading.periodMeter`), sich überschneidende Zeiträume (`errors.period.overlap`), Fehler im Mietverhältnis (`errors.tenancy.*`); ungültiges Jahr beim CO₂-Preis (`errors.co2.yearInvalid`), Fehler in einer Versorgerrechnung (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), Rechnungsprüfung für eine Art ohne Prüfung (`errors.billCheck.unsupportedUtility`), ungültige Markt- oder Messlokations-ID (`errors.meter.maloInvalid`, `…meloInvalid`), Leistungspreis ohne Anschlussleistung (`errors.contract.capacityMissing`), Zähler löschen, an dem noch Zeiträume oder Rechnungen hängen (`errors.meter.hasPeriods`, `…hasBills`); Gruppenvertrag auf eine ungeeignete Gruppe oder mit Preisen für Fremde (`errors.contract.targetInvalid`), ein Mitglied mit eigenem Vertrag im selben Zeitraum (`errors.contract.groupMemberOverlap`), Gruppe mit Verträgen löschen (`errors.meter.groupHasContracts`), dynamischer Tarif als echter Vertrag oder nicht bei Strom (`errors.contract.dynamicShadowOnly`), unbekanntes Preismodell (`errors.contract.priceModelInvalid`), Monatspreise ohne lesbare Zeile oder für Wasser und Einspeisung (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), Börsenpreise ohne Werte (`errors.marketPrices.noRows`), Ladestrom-Nachweis ohne zahlenden Vertrag, ohne Pauschale oder mit ungültigen Parametern (`errors.evReport.*`), ungültiges Jahr der Wärmepumpe (`errors.heatPump.yearInvalid`), Verknüpfung mit einem Stromzähler ohne Rolle Wärmepumpe (`errors.meter.heatPumpLinkInvalid`), ungültige PV-Angabe am Zähler (`errors.meter.valueInvalid`), Zeitreihe mit unpassender Zuordnung oder ohne Anfangsstand (`errors.import.mappingInvalid`, `…anchorMissing`) — alle v3.1.0. *(v3.2.0)* Unbekannter Beispielhaushalt (`errors.demo.personaUnknown`); Name einer Person leer oder zu lang, unbekannte Rolle, die eigene Person löschen (`errors.users.nameInvalid`, `…roleInvalid`, `…notSelf`), eigene Einstellungen ohne angemeldete Person, Passwort einer Person vom Proxy (`errors.users.noUser`, `…proxyNoPassword`); evcc nicht eingetragen oder nicht im Heimnetz, keine abgeschlossenen Ladevorgänge, CSV ohne die nötigen Spalten, unbekannte Wahl für die Zählerstände, Zählerstände mehrerer Ladepunkte (`errors.evcc.off`, `…notLocal`, `…noSessions`, `…columns`, `…countersInvalid`, `…loadpointNeeded`). *(v3.3.0)* Ungültige Zeitfenster für § 14a Modul 3 am Stromvertrag (`errors.contract.gridTouInvalid`), ein Zeitstempel beim Ingest ohne Zeitzone oder in anderer Form als ISO 8601 (`errors.ingest.timestampFormat`), ein Jahr außerhalb 2018–2100 bei der Flexibilität und beim Abruf der Viertelstundenpreise (`errors.flexibility.yearInvalid`). *(v3.4.0)* Eine Hostliste, die den Namen der Anfrage nicht enthält (`errors.settings.hostNotListed`); eine selbst gewählte Geräte-ID außerhalb von Buchstaben, Ziffern, `_` und `-` (`errors.meter.idInvalid`); ein Backup mit Kennungen aus Steuerzeichen, Anführungszeichen, spitzen Klammern oder Backslash (Problem `unsafe_id:<feld>` in `detail.problems`). *(v3.4.0, F1024)* Erledigt-Tag kein Kalendertag oder in der Zukunft (`errors.activity.dateInvalid`), Notiz über 500 Zeichen (`errors.activity.noteInvalid`), unbekannter Beleg (`errors.attachment.notFound`). |
+| `400` | Ungültige Eingabe. Seit v2.5.3 auf allen Schreibpfaden: ein Datum, das kein Kalenderdatum ist (`2026-02-30`, Text), oder ein Betrag/Zählerstand, der keine Zahl ist. Bis v2.5.2 wurde beides gespeichert. Seit v2.6.0 auch Abfrageparameter außerhalb ihres Bereichs (Prognose, Jahresbericht, Temperatur-Sync). *(v3.1.0)* Beleg mit falschem Inhalt, zu groß oder Speicher voll (`errors.attachment.*`) — auch ein Upload über der PHP-Grenze `post_max_size`, dann mit dieser Grenze in der Meldung (`errors.attachment.size`); Texterkennung nicht eingetragen oder nicht im Heimnetz (`errors.ocr.off`, `errors.ocr.notLocal`); Zählerstand auf einem Zähler mit Verbrauch je Zeitraum (`errors.reading.periodMeter`), sich überschneidende Zeiträume (`errors.period.overlap`), Fehler im Mietverhältnis (`errors.tenancy.*`); ungültiges Jahr beim CO₂-Preis (`errors.co2.yearInvalid`), Fehler in einer Versorgerrechnung (`errors.bill.periodInvalid`, `…amountInvalid`, `…noResult`, `…noContract`), Rechnungsprüfung für eine Art ohne Prüfung (`errors.billCheck.unsupportedUtility`), ungültige Markt- oder Messlokations-ID (`errors.meter.maloInvalid`, `…meloInvalid`), Leistungspreis ohne Anschlussleistung (`errors.contract.capacityMissing`), Zähler löschen, an dem noch Zeiträume oder Rechnungen hängen (`errors.meter.hasPeriods`, `…hasBills`); Gruppenvertrag auf eine ungeeignete Gruppe oder mit Preisen für Fremde (`errors.contract.targetInvalid`), ein Mitglied mit eigenem Vertrag im selben Zeitraum (`errors.contract.groupMemberOverlap`), Gruppe mit Verträgen löschen (`errors.meter.groupHasContracts`), dynamischer Tarif als echter Vertrag oder nicht bei Strom (`errors.contract.dynamicShadowOnly`), unbekanntes Preismodell (`errors.contract.priceModelInvalid`), Monatspreise ohne lesbare Zeile oder für Wasser und Einspeisung (`errors.contract.priceImportEmpty`, `…priceImportUnsupported`), Börsenpreise ohne Werte (`errors.marketPrices.noRows`), Ladestrom-Nachweis ohne zahlenden Vertrag, ohne Pauschale oder mit ungültigen Parametern (`errors.evReport.*`), ungültiges Jahr der Wärmepumpe (`errors.heatPump.yearInvalid`), Verknüpfung mit einem Stromzähler ohne Rolle Wärmepumpe (`errors.meter.heatPumpLinkInvalid`), ungültige PV-Angabe am Zähler (`errors.meter.valueInvalid`), Zeitreihe mit unpassender Zuordnung oder ohne Anfangsstand (`errors.import.mappingInvalid`, `…anchorMissing`) — alle v3.1.0. *(v3.2.0)* Unbekannter Beispielhaushalt (`errors.demo.personaUnknown`); Name einer Person leer oder zu lang, unbekannte Rolle, die eigene Person löschen (`errors.users.nameInvalid`, `…roleInvalid`, `…notSelf`), eigene Einstellungen ohne angemeldete Person, Passwort einer Person vom Proxy (`errors.users.noUser`, `…proxyNoPassword`); evcc nicht eingetragen oder nicht im Heimnetz, keine abgeschlossenen Ladevorgänge, CSV ohne die nötigen Spalten, unbekannte Wahl für die Zählerstände, Zählerstände mehrerer Ladepunkte (`errors.evcc.off`, `…notLocal`, `…noSessions`, `…columns`, `…countersInvalid`, `…loadpointNeeded`). *(v3.3.0)* Ungültige Zeitfenster für § 14a Modul 3 am Stromvertrag (`errors.contract.gridTouInvalid`), ein Zeitstempel beim Ingest ohne Zeitzone oder in anderer Form als ISO 8601 (`errors.ingest.timestampFormat`), ein Jahr außerhalb 2018–2100 bei der Flexibilität und beim Abruf der Viertelstundenpreise (`errors.flexibility.yearInvalid`). *(v3.4.0)* Eine Hostliste, die den Namen der Anfrage nicht enthält (`errors.settings.hostNotListed`); eine selbst gewählte Geräte-ID außerhalb von Buchstaben, Ziffern, `_` und `-` (`errors.meter.idInvalid`); ein Backup mit Kennungen aus Steuerzeichen, Anführungszeichen, spitzen Klammern oder Backslash (Problem `unsafe_id:<feld>` in `detail.problems`). *(v3.4.0, F1024)* Erledigt-Tag kein Kalendertag oder in der Zukunft (`errors.activity.dateInvalid`), Notiz über 500 Zeichen (`errors.activity.noteInvalid`), unbekannter Beleg (`errors.attachment.notFound`). *(v3.5.0, F1027)* Tagesfilm: ein Datum, das kein Kalendertag ist oder außerhalb 2000–2100 liegt (`errors.energyFlow.dateInvalid`), ein ungültiger Monat (`errors.energyFlow.monthInvalid`). |
 | `401` | `/api/ingest` bei gesetztem Token ohne oder mit falschem Bearer-Header. *(v2.6.0)* Mit eingeschalteter Anmeldung: jede nicht öffentliche Route ohne Sitzung oder API-Schlüssel (`errors.auth.required`); falsches Passwort, seit v3.2.0 auch ein unbekannter Name (`errors.auth.wrongPassword`). *(v3.1.0)* Ein Kalender-Schlüssel auf einer anderen Route als `/api/calendar.ics`, ein `read`- oder `admin`-Schlüssel als `?token=` im Kalender-Link. |
 | `403` | *(v2.5.3)* Schreibende Anfrage (`POST`/`PUT`/`PATCH`/`DELETE`) aus dem Browser einer **fremden** Webseite — geprüft über `Sec-Fetch-Site`, ersatzweise `Origin` gegen `Host`. Anfragen ohne diese Kopfzeilen (Home Assistant, curl, Skripte) sind nicht betroffen. *(v2.6.0)* Schreibende Anfrage mit einem Lese-Schlüssel (`errors.auth.readOnlyKey`). *(v3.2.0)* Ein Mitglied an einer Route nur für Verwalter (`errors.auth.adminOnly`) — [Personen im Haushalt](#personen-im-haushalt-v320). |
 | `404` | Unbekannte Route oder unbekannter Datensatz. Seit v2.6.0 einheitlich auch für Datensätze in der URL (bis v2.5.3 teils 400). *(v3.1.0)* Auch unbekannter Zeitraum (`errors.period.notFound`), Mietverhältnis (`errors.tenancy.notFound`), Abrechnung (`errors.tenancy.statementNotFound`) oder Versorgerrechnung (`errors.bill.notFound`). *(v3.2.0)* Unbekannte Person (`errors.users.notFound`). *(v3.3.0)* Unbekannte Viertelstundenreihe (`errors.intervals.notFound`). *(v3.4.0)* Eine Seite oder ein Bild der Dokumentation außerhalb der Freigabeliste (`errors.docs.notFound`; bei einem alten Pfad mit `detail.moved_to`); ein Eintrag im Verlauf (`errors.activity.notFound`) oder ein Ereignis der Agenda (`errors.activity.eventNotFound`), das es nicht (mehr) gibt. |
@@ -36,7 +36,7 @@ Tabelle unten steht (DE und EN).
 | `422` | *(v3.1.0)* PDF-Jahresbericht, CO₂-Anschreiben oder Ladestrom-Nachweis in einer Sprache, die die eingebauten PDF-Schriften nicht setzen können (`errors.report.pdfUnsupportedLanguage`) — die Druckansicht kann es. *(v3.4.0)* `POST /api/agenda/done` für eine Art, die sich nur aus den Daten erledigt — „Ablesung fällig“, „Nebenkostenabrechnung fällig“, Ende der Preisgarantie (`errors.activity.notManual`). |
 | `429` | *(v2.6.0)* Anmeldung nach fünf Fehlversuchen innerhalb von 15 Minuten für 5 Minuten gesperrt (`errors.auth.locked`). *(v3.4.0)* Die Sperre gilt je Gerät (Client-Adresse; hinter einem Proxy aus `ET_TRUSTED_PROXIES` die aus `X-Forwarded-For`), nach zehn Fehlversuchen je Name, nach hundert für alle. |
 | `502` | Ein Dienst außerhalb der App antwortet nicht oder unbrauchbar — ein Fehler auf der anderen Seite, keine falsche Eingabe: die Ortssuche (`errors.temperature.geocodeFailed`); *(v3.1.0)* `POST /api/ocr/reading`, wenn der eigene Texterkennungsdienst nicht in der Zeit antwortet, nicht erreichbar ist oder nichts Verwertbares liefert (`errors.ocr.timeout`, `errors.ocr.unreachable`, `errors.ocr.badAnswer`); *(v3.1.0)* `POST /api/market-prices/sync-smard`, wenn SMARD nicht erreichbar ist oder keine Werte liefert (`errors.marketPrices.syncFailed`); *(v3.2.0)* `POST …/sync-evcc`, wenn evcc nicht erreichbar ist oder keine Liste von Ladevorgängen liefert (`errors.evcc.unreachable`, `errors.evcc.badAnswer`); *(v3.3.0)* `POST /api/market-prices/sync-smard-intervals`, wenn SMARD nicht erreichbar ist, ein Wochenpaket nicht liefert oder für das Jahr keinen Wert hat (`errors.marketPrices.syncQuarterHoursFailed`). |
-| `503` | *(v2.5.3)* Eine Datendatei ist beschädigt (kein gültiges JSON). Die Datei bleibt unverändert, daneben liegt eine Quarantäne-Kopie `<datei>.corrupt-<prüfsumme>`. Bis v2.5.2 wurde sie als leer gelesen und beim nächsten Schreiben überschrieben. Seit v3.1.0 steht die Meldung in der Sprache der Anfrage (bis v3.0 immer deutsch); `code` bleibt `errors.storage.corrupted`. *(v2.6.0)* Die Daten stammen von einer **neueren** Version (etwa nach dem Zurückdrehen des Image-Tags): alle Routen außer `/api/health`, geschrieben wird nichts (`errors.storage.dataTooNew`). `/api/health` selbst antwortet `503`, wenn `status` = `error`. *(v3.4.0)* Die Schreibsperre ist länger als 15 Sekunden belegt (`errors.http.busy`, Kopfzeile `Retry-After: 5`; `ET_LOCK_WAIT_S` ändert die Frist). |
+| `503` | *(v2.5.3)* Eine Datendatei ist beschädigt (kein gültiges JSON). Die Datei bleibt unverändert, daneben liegt eine Quarantäne-Kopie `<datei>.corrupt-<prüfsumme>`. Bis v2.5.2 wurde sie als leer gelesen und beim nächsten Schreiben überschrieben. Seit v3.1.0 steht die Meldung in der Sprache der Anfrage (bis v3.0 immer deutsch); `code` bleibt `errors.storage.corrupted`. *(v2.6.0)* Die Daten stammen von einer **neueren** Version (etwa nach dem Zurückdrehen des Image-Tags): alle Routen außer `/api/health`, geschrieben wird nichts (`errors.storage.dataTooNew`). `/api/health` selbst antwortet `503`, wenn `status` = `error`. *(v3.4.0)* Die Schreibsperre ist länger als 15 Sekunden belegt (`errors.http.busy`, Kopfzeile `Retry-After: 5`; `ET_LOCK_WAIT_S` ändert die Frist). *(v3.5.0)* Das Datenverzeichnis ist nicht beschreibbar, und die App müsste beim Start anlegen oder migrieren: alle Routen außer `/api/health` (`errors.storage.notWritable`; bis v3.4 kam `500`). `/api/health` meldet dann `data_dir_writable: false`. |
 | `500` | Unerwarteter Fehler. Seit v2.6.0 mit `error_id`; dieselbe ID steht mit allen Einzelheiten im Server-Log. |
 
 Schreibende Anfragen laufen seit v2.5.3 nacheinander (Sperre auf
@@ -133,7 +133,7 @@ braucht eine Zusage, was sich ändern darf. Drei Klassen:
 | Klasse | Umfang | Zusage |
 |---|---|---|
 | **A — Schnittstellen für Fremdsysteme** | `POST /api/ingest` (auch als Stapel), `GET /api/health`, `GET /api/summary` (`summary_version: 1`, v3.1.0), `GET /api/calendar.ics` (Form und UIDs, v3.1.0), Backup-Format 3.0 (`/api/backup/export`, `/api/backup/import`), CSV-Exporte im Format 1 und die CSV-Importe ([CSV-Formate](#csv-formate-v310)), Stammdaten (`meters`, `readings`, `contracts`, `deliveries`, `reminders`, `settings`, `temperatures`; seit v3.1.0 `periods` samt `periods.csv` und Zeitraum-Import, `tenancies` und `statements`), Belege hochladen und abrufen (`POST /api/attachments`, `GET /api/attachments/{id}`, v3.1.0), Fehlerhülle mit `code` | Nur additive Änderungen. Umbenennen oder Entfernen erst mit einer **Major-Version**, angekündigt mindestens eine Minor-Version vorher im CHANGELOG unter „Deprecated". Alte Feldnamen bleiben als Alias gültig. |
-| **B — Auswertungen** | Verbrauch, Saldo, Prognose, Tarifvergleich/-wechsel, Rechnungsprüfung, Effizienz, Empfehlungen, PV/Saldo, `readings-overview`, `agenda` (v3.1.0), Budget des Mietverhältnisses (`tenancies/{id}/budget`, v3.1.0), CO₂-Preis und Aufteilung (`co2-costs`, `co2-split`, `reports/co2-split.pdf`, v3.1.0), Versorgerrechnungen (`bills` samt `check` und `book`, v3.1.0), die Auswertungen einer Zählergruppe (`meter-groups/{id}/…`, v3.1.0), Ladestrom-Nachweis (`reports/ev-charging` als JSON, CSV und PDF, v3.1.0), Jahresarbeitszahl (`heat-pump`, v3.1.0), Einordnung (`benchmarks/comparison`, v3.1.0), Flexibilität (`flexibility`, v3.3.0) | Dokumentierte Felder bleiben mit Namen und Bedeutung erhalten; neue kommen hinzu. **Werte** können sich ändern, wenn eine Berechnung korrigiert wird — das steht im CHANGELOG. |
+| **B — Auswertungen** | Verbrauch, Saldo, Prognose, Tarifvergleich/-wechsel, Rechnungsprüfung, Effizienz, Empfehlungen, PV/Saldo, `readings-overview`, `agenda` (v3.1.0), Budget des Mietverhältnisses (`tenancies/{id}/budget`, v3.1.0), CO₂-Preis und Aufteilung (`co2-costs`, `co2-split`, `reports/co2-split.pdf`, v3.1.0), Versorgerrechnungen (`bills` samt `check` und `book`, v3.1.0), die Auswertungen einer Zählergruppe (`meter-groups/{id}/…`, v3.1.0), Ladestrom-Nachweis (`reports/ev-charging` als JSON, CSV und PDF, v3.1.0), Jahresarbeitszahl (`heat-pump`, v3.1.0), Einordnung (`benchmarks/comparison`, v3.1.0), Flexibilität (`flexibility`, v3.3.0), Tagesfilm (`energy-flow/day`, `energy-flow/typical-day`, `energy-flow/days`, v3.5.0) | Dokumentierte Felder bleiben mit Namen und Bedeutung erhalten; neue kommen hinzu. **Werte** können sich ändern, wenn eine Berechnung korrigiert wird — das steht im CHANGELOG. |
 | **C — Oberfläche** | `session` (seit v3.4.0 samt `session/logout-everywhere`), `auth/token`, `auth/keys`, `backup/snapshots`, `diagnostics`, `demo`, `countries`, Belegliste und Löschen (`GET /api/attachments`, `DELETE /api/attachments/{id}`) und `ocr/reading` (v3.1.0), Börsenstrompreise (`market-prices` samt Import und SMARD-Abruf), Monatspreise aus einer Datei (`contracts/{id}/prices/import-csv`) und Zeitreihen mit Spaltenzuordnung (`meters/{id}/import-series`, alle v3.1.0), Personen (`users`, `session/me`, v3.2.0), Ladevorgänge aus evcc (`import-evcc`, `sync-evcc`, `ev-sessions`, v3.2.0), Viertelstundenreihen (`intervals`) und Börsenpreise je Viertelstunde (`market-prices/sync-smard-intervals`, beide v3.3.0), Doku in der App (`docs`, `docs/asset`, v3.4.0), Verlauf erledigter Hinweise (`activity`, `agenda/done`, v3.4.0) | Für die eigene Oberfläche gebaut; Änderungen möglich, stehen aber im CHANGELOG. |
 
 Anlass: v2.0.0 hat `verdict` von „Nachzahlung/Erstattung" still auf Schlüssel
@@ -156,6 +156,7 @@ nicht wieder passieren.
 | PATCH | `/api/session/me` | *(v3.2.0)* eigene Einstellungen der angemeldeten Person `{ui_level?, language?}` — [Personen](#personen-im-haushalt-v320) |
 | POST | `/api/session/me/password` | *(v3.2.0)* eigenes Passwort ändern `{current, password}` |
 | GET | `/api/users` | *(v3.2.0)* Personen im Haushalt, ohne Passwort-Hash — nur Verwalter |
+| GET | `/api/people` | *(v3.5.0)* Personen für die Auswahl „Zuständig“: nur `[{id, name}]`, nach Namen sortiert, für jede angemeldete Rolle (auch Lese-Schlüssel); ohne eingeschaltete Anmeldung `[]` — [Zuständig](#zuständig-an-terminen-v350). Klasse C |
 | POST | `/api/users` | *(v3.2.0)* Person anlegen `{name, password, role?}`; `201` — nur Verwalter |
 | PATCH | `/api/users/{id}` | *(v3.2.0)* Name, Rolle oder Passwort ändern `{name?, role?, password?}` — nur Verwalter |
 | DELETE | `/api/users/{id}` | *(v3.2.0)* Person löschen; der letzte Verwalter bleibt — nur Verwalter; seit v3.4.0 ersetzt `?anonymize_activity=1` ihren Namen im Verlauf durch „ehemalige Person“ (Antwort `activity_anonymized`) |
@@ -163,13 +164,14 @@ nicht wieder passieren.
 | POST | `/api/auth/keys` | Schlüssel erzeugen `{name, scope: read\|admin\|calendar}`; Klartext einmalig *(v2.6.0; `calendar` seit v3.1.0)*; seit v3.2.0 nur Verwalter |
 | DELETE | `/api/auth/keys/{id}` | Schlüssel widerrufen *(v2.6.0)*; seit v3.2.0 nur Verwalter |
 | GET | `/api/diagnostics` | Systemstatus, Schreibrechte, Schema; seit v3.4.0 `security` (Anmeldemodus, Proxy-Kopfzeile, Hostlisten, `notices`: `proxy_header`, `open_without_hosts` samt Vorschlag `host`) |
-| GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration; seit v2.13.0 je Art `has_contracts`, `has_advance_payment_contracts` und `accounting_kind` (`consumption`, `feed_in`, `generation`); seit v3.1.0 `meter_roles` bei Arten mit Zählerrollen und `supports_bill_check` (Rechnungsprüfung möglich: Gas, Strom, Wasser, Fernwärme) |
+| GET | `/api/utilities` | Liste der Verbrauchsarten + Konfiguration; seit v2.13.0 je Art `has_contracts`, `has_advance_payment_contracts` und `accounting_kind` (`consumption`, `feed_in`, `generation`); seit v3.1.0 `meter_roles` bei Arten mit Zählerrollen und `supports_bill_check` (Rechnungsprüfung möglich: Gas, Strom, Wasser, Fernwärme); seit v3.5.0 `has_special_payments` (Sonderzahlungen am Vertrag: Gas, Strom, Wasser, Fernwärme — [#34](https://github.com/Bingerminger/energietracker/issues/34)); `has_advance_payment_contracts` bleibt ohne Wasser (Saldo nach Kalender, Gruppenvertrag) |
 | GET | `/api/manifest` | *(v3.1.0)* Web-App-Manifest in einer Sprache (`?lang=`, sonst Sprache des Geräts bzw. der Installation); ohne Anmeldung erreichbar, enthält keine Daten. Klasse C |
 | GET | `/api/docs` | *(v3.4.0)* Eine Seite der Dokumentation dieses Release: `?path=` (`README.md`, `en/anleitungen/kalender.md`, `root/CHANGELOG.md`) → `{path, lang, mirror, root_files, markdown}`; nur aus der Freigabeliste — [Doku in der App](#doku-in-der-app-get-apidocs-v340). Klasse C |
 | GET | `/api/docs/asset` | *(v3.4.0)* Ein Bild der Dokumentation (`?path=ui/screenshots/…png&v=<Version>`), `image/png`; mit der Version dieses Release unveränderlich zwischengespeichert. Klasse C |
 | GET | `/api/settings` | Einstellungen |
 | PATCH | `/api/settings` | Einstellungen ändern; `frame_ancestors`, `ocr_endpoint` und `evcc_endpoint` seit v3.2.0 nur Verwalter, ebenso `allowed_hosts` und `activity_keep_months` (v3.4.0) |
 | GET | `/api/countries` | Länderprofile: Voreinstellungen je Land *(v2.7.0)*; seit v3.1.0 mit Rechnungsbegriffen (`bill_terms`) und amtlichem Tarifvergleich (`comparison_portal`) — s. u. |
+| POST | `/api/settings/country` | Land wechseln: `{"country": "AT", "profile": true}` übernimmt das Länderprofil, `"profile": false` nur das Land; festgeschrieben wird nur, was vom Default abweicht *(v3.5.0)* — s. u. |
 | GET | `/api/settings/default-updates` | Korrigierte Standardwerte, die diese Installation noch nicht nutzt (CO₂, Wasser-Referenz) *(v2.10.0)* — s. u. |
 | GET | `/api/temperatures` | Tagestemperaturen (Map) |
 | POST | `/api/temperatures` | Tagesdatum upsert |
@@ -224,7 +226,7 @@ nicht wieder passieren.
 | POST | `/api/market-prices/sync-smard-intervals` | *(v3.3.0)* Börsenpreise eines Jahres je Viertelstunde von SMARD holen, `?year=` (Standard Vorjahr) — nur auf Knopfdruck, `502` bei Fehlern von SMARD — [Flexibilität](#flexibilität-bewerten-v330) |
 | GET | `/api/utility/{u}/consumption` | Monatsverbrauch (utility-weit) |
 | GET | `/api/utility/{u}/meters/{id}/consumption` | Verbrauch + Anomalien + Regressionen |
-| GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, nur Gas/Strom/Fernwärme); seit v2.8.0 nach Kalender bis heute, seit v2.9.0 tagesgenau mit Kündigungsstichtag, seit v3.4.0 mit `phase` — s. u. — und `min_term_end`, `price_guarantee_until`, `auto_renews` ([Schaubilder](#schaubilder-energiefluss-und-zeitstrahl-v340-additiv)) sowie `successor` ([Folgevertrag](#erledigt-mit-verlauf-v340)) |
+| GET | `/api/utility/{u}/meters/{id}/contract-status` | Saldo je Vertrag; seit v2.5.1 mit `special_payments[]` (Einzelposten, Gas/Strom/Fernwärme, seit v3.5.0 auch Wasser); seit v2.8.0 nach Kalender bis heute, seit v2.9.0 tagesgenau mit Kündigungsstichtag, seit v3.4.0 mit `phase` — s. u. — und `min_term_end`, `price_guarantee_until`, `auto_renews` ([Schaubilder](#schaubilder-energiefluss-und-zeitstrahl-v340-additiv)) sowie `successor` ([Folgevertrag](#erledigt-mit-verlauf-v340)) |
 | GET | `/api/utility/{u}/meters/{id}/forecast` | Prognose mit Unsicherheitsband, Klimanormal und Hinweisen (v2.8.0); seit v3.1.0 CO₂-Preis-Szenario `?co2_scenario_eur_t=&co2_scenario_from=` — s. u. |
 | GET | `/api/utility/{u}/meters/{id}/tariff-comparison` | Tarifvergleich echt vs. Schatten (Rückblick); seit v3.3.0 rechnet ein dynamischer Schattenvertrag mit dem eigenen Lastgang, wo Viertelstunden vorliegen (`dynamic_profile_months`) — [Dynamik-Check](#börsenstrompreise-und-dynamik-check-v310) |
 | GET | `/api/utility/{u}/meters/{id}/tariff-switch` | Wechselentscheidung ab Wechseltermin; optional `?switch_date=YYYY-MM-DD` |
@@ -241,12 +243,15 @@ nicht wieder passieren.
 | GET | `/api/flexibility` | *(v3.3.0)* Flexibilität eines Jahres aus Verbrauch und Börsenpreis je Viertelstunde: je Stromzähler Profilfaktor und Vorteil, Speicher, § 14a Modul 3; `?year=` (Standard Vorjahr) — [Flexibilität](#flexibilität-bewerten-v330) |
 | GET | `/api/intervals` | *(v3.3.0)* Index der Viertelstundenreihen (Verbrauch je Zähler, Börsenpreise) |
 | DELETE | `/api/intervals/{id}` | *(v3.3.0)* eine Viertelstundenreihe löschen; Zählerstände und Tageswerte bleiben |
+| GET | `/api/energy-flow/days` | *(v3.5.0)* Tage und Monate mit Viertelstunden des Netzbezugs, Vorbelegung für den Tagesfilm — [Tagesfilm](#tagesfilm-energiefluss-je-viertelstunde-v350) |
+| GET | `/api/energy-flow/day` | *(v3.5.0)* Energiefluss eines Tages je Viertelstunde, `?date=JJJJ-MM-TT` — [Tagesfilm](#tagesfilm-energiefluss-je-viertelstunde-v350) |
+| GET | `/api/energy-flow/typical-day` | *(v3.5.0)* typischer Tag eines Monats (Mittel je Viertelstunde), `?month=JJJJ-MM` — [Tagesfilm](#tagesfilm-energiefluss-je-viertelstunde-v350) |
 | GET | `/api/recommendations` | statistische Empfehlungen |
 | POST | `/api/recommendations/{id}/dismiss` | Empfehlung ausblenden; `{until?}`, sonst 30 Tage — seit v3.4.0 mit Frist (`evidence.deadline`) mindestens bis dahin; Antwort zusätzlich `until` und `activity_id` |
 | DELETE | `/api/recommendations/{id}/dismiss` | Ausblenden zurücknehmen (v2.12.0); eine nicht ausgeblendete ID ist kein Fehler |
-| GET | `/api/reminders` | Termine + Fälligkeitsstatus; seit v3.4.0 `last_done_by` (wer zuletzt erledigt hat, aus dem Verlauf) |
-| POST | `/api/reminders` | anlegen |
-| PATCH | `/api/reminders/{id}` | ändern; seit v2.12.0 auch `last_done` (Datum oder `null`) — für „Rückgängig" nach „Erledigt" |
+| GET | `/api/reminders` | Termine + Fälligkeitsstatus; seit v3.4.0 `last_done_by` (wer zuletzt erledigt hat, aus dem Verlauf); seit v3.5.0 je Termin `assignee`, `assignee_id`, `assignee_former` — [Zuständig](#zuständig-an-terminen-v350) |
+| POST | `/api/reminders` | anlegen; seit v3.5.0 optional `assignee` (Name) und `assignee_id` (Person) |
+| PATCH | `/api/reminders/{id}` | ändern; seit v2.12.0 auch `last_done` (Datum oder `null`) — für „Rückgängig" nach „Erledigt"; seit v3.5.0 `assignee`/`assignee_id` |
 | DELETE | `/api/reminders/{id}` | löschen |
 | POST | `/api/reminders/{id}/done` | erledigt, Recurrence fortschreiben; `{done_date?, note?, attachment_id?}` — seit v3.4.0 mit Eintrag im Verlauf, Antwort zusätzlich `activity_id` |
 | GET | `/api/tenancies` | *(v3.1.0)* Mietverhältnisse, das jüngste zuerst — [Mietverhältnis](#mietverhältnis-v310) |
@@ -271,6 +276,7 @@ nicht wieder passieren.
 | POST | `/api/agenda/done` | *(v3.4.0)* Hinweis abhaken `{uid, occurrence?, done_on?, note?, attachment_id?, cancelled?}`; `201` mit `{activity_id, entry, event}`, schon erledigt `200` mit `duplicate: true` — [Erledigt mit Verlauf](#erledigt-mit-verlauf-v340). Klasse C |
 | GET | `/api/activity` | *(v3.4.0)* Verlauf erledigter Hinweise, neueste zuerst; `?from=&to=` (Tag des Erledigens), `?by=` (Personen-ID oder `person`, `key`, `integration`, `auto`, `none`), `?kind=` (kommagetrennt), `?ref=` (eine Kennung, etwa Vertrags-ID), `?limit=` (Standard 500, höchstens 5000). Klasse C |
 | DELETE | `/api/activity` | *(v3.4.0)* Verlauf leeren: Einträge, die vor `?before=JJJJ-MM-TT` erledigt wurden, ohne Datum alle → `{deleted}` — nur Verwalter |
+| GET | `/api/activity.csv` | *(v3.5.0)* der Verlauf als CSV zum Nachweis: Filter wie `GET /api/activity`, `?format=1\|local&lang=`; Spalten Datum, Aktion, Titel, Wer, Grund, Notiz; ohne Durchgestrichenes — [Verlauf als CSV](#verlauf-als-csv-v350). Klasse C |
 | POST | `/api/activity/{id}/undo` | *(v3.4.0)* Rückgängig: streicht durch (`undone {at, by}`) und stellt zurück, was der Eintrag geändert hat → Eintrag mit `reverted` |
 | PATCH | `/api/activity/{id}` | *(v3.4.0)* Notiz ändern `{note}` (bis 500 Zeichen) |
 | GET | `/api/calendar.ics` | *(v3.1.0)* Dieselben Ereignisse als Kalender-Abo (iCalendar, 365 Tage) — [Kalender](#get-apicalendarics-v310) |
@@ -960,10 +966,10 @@ Listen gekürzt:
                  "profile_factor": 0.952, "advantage_eur": 18.78 } },
     "…" ],
   "battery": {
-    "months": [ { "charged_kwh": 99.26, "discharged_kwh": 91.32, "charge_ct": 10.097,
-                  "discharge_ct": 10.597, "value_eur": -0.34, "month": 1 }, "…" ],
-    "total": { "charged_kwh": 1951.54, "discharged_kwh": 1795.46, "charge_ct": 4.514,
-               "discharge_ct": 10.684, "value_eur": 103.72 } },
+    "months": [ { "charged_kwh": 103.05, "discharged_kwh": 94.8, "charge_ct": 10.373,
+                  "discharge_ct": 12.119, "value_eur": 0.8, "month": 1 }, "…" ],
+    "total": { "charged_kwh": 1694.7, "discharged_kwh": 1555.91, "charge_ct": 8.114,
+               "discharge_ct": 11.612, "value_eur": 43.15 } },
   "module3": [
     { "meter_id": "m_strom_waermepumpe", "name": "Wärmepumpe",
       "months": [ { "month": 1, "low_kwh": 298.74, "high_kwh": 30.75,
@@ -1694,6 +1700,18 @@ Danach ändert die Kopfzeile nichts mehr; ein Gerät wählt seine Sprache seit
 v3.1.0 über `X-ET-Language` ([Sprache der Antworten](#sprache-der-antworten-v310)). Details:
 [Länderprofile](../verstehen/14-laenderprofile.md).
 
+**Land wechseln *(v3.5.0)*:** `POST /api/settings/country` mit
+`{"country": "AT", "profile": true}` setzt das Land und alle Werte seines
+Profils (`currency`, `timezone`, `hdd_base_temp`, `co2_strom`,
+`co2_strom_years`, Standort, `gas_cv_unit`), mit `"profile": false` nur das
+Land. Es gilt dieselbe Regel wie beim Erststart: Ein Wert, der dem Default
+entspricht, wird nicht festgeschrieben, eine frühere Festschreibung entfällt.
+Wer nach einem englischen Erststart (Profil GB) Deutschland wählt, hat danach
+keinen Profilwert mehr in `settings.json`. Antwort: alle Einstellungen wie bei
+`PATCH`; ein unbekanntes Land endet mit 400 `errors.settings.valueInvalid`.
+Einrichtungsassistent und Einstellungen wechseln das Land über diesen Weg;
+`PATCH /api/settings` mit `country` bleibt gültig.
+
 ### CO₂-Faktoren je Jahr, korrigierte Standardwerte *(v2.10.0)*
 
 - `co2_strom_years`: Objekt `{"2024": 353, "2025": 344}` (Jahr → g/kWh).
@@ -1823,6 +1841,88 @@ Die Bedeutung von `cancel_by`, `switch_date` und `notice_basis` bleibt
 unverändert; das Schaubild „Vertrag auf einen Blick“ zeigt bei verlängerten und
 unbefristeten Verträgen „jederzeit kündbar“ und als frühestes Ende
 `switch_date − 1`.
+
+### Tagesfilm: Energiefluss je Viertelstunde *(v3.5.0)*
+
+Der Energiefluss eines Tages aus den Viertelstundenreihen
+([Flexibilität](#flexibilität-bewerten-v330), Ablage im
+[Datenmodell](datenmodell.md#viertelstundenreihen-intervalsjson-v330)) — für
+das Schaubild „Energiefluss im Haus“, Stufe **„Tag“**
+([Ansichten](ansichten.md#1-übersicht-dashboard)). Klasse B, nur lesend.
+
+| Route | Zweck |
+|---|---|
+| `GET /api/energy-flow/days` | Tage und Monate, die sich zeigen lassen; Vorbelegung |
+| `GET /api/energy-flow/day?date=JJJJ-MM-TT` | ein Tag je Viertelstunde |
+| `GET /api/energy-flow/typical-day?month=JJJJ-MM` | typischer Tag eines Monats |
+
+**Welche Zähler.** Wie im Energiefluss von Monat und Jahr: Netzbezug sind die
+Stromzähler, die in Summen zählen — **Subzähler zählen nicht** (F1006);
+Einspeisung und Erzeugung die PV-Zähler, die in Summen zählen; der Speicher die
+Zähler mit den Rollen `battery_charge` und `battery_discharge`. Eine Art ohne
+Zähler ist 0 (kein PV: Erzeugung und Einspeisung 0, das Haus ist der Bezug).
+
+**Vollständig oder Lücke.** Eine Viertelstunde ist vollständig, wenn jeder
+Zähler, der an dem Tag in Betrieb ist (aktiv, mit eingebautem Gerät), einen
+Wert hat. Sonst ist sie eine **Lücke**: die fehlende Art `null`, `house` und
+`flow` `null` — nie eine stille 0. Gibt es Erzeugung ohne Einspeisezähler
+(oder umgekehrt), fehlt die andere Hälfte immer: Ohne sie lässt sich die
+Erzeugung nicht aufteilen. Ohne Viertelstunden des Netzbezugs gibt es keinen
+Tagesfilm.
+
+**Ortszeit.** Ein Tag läuft von Mitternacht bis Mitternacht in der Zeitzone
+der Installation (`timezone`): 96 Viertelstunden, am Tag der Umstellung im
+März 92 (2:00–2:45 gibt es nicht), im Oktober 100 (2:00–2:45 zweimal, das
+zweite Mal mit `"repeat": true`). Der typische Tag mittelt nach Uhrzeit:
+96 Viertelstunden, `n` = Zahl der Viertelstunden im Mittel.
+
+**`GET /api/energy-flow/day?date=2025-06-14`** (Werte erfunden, gekürzt):
+
+```json
+{ "mode": "day", "date": "2025-06-14", "month": "2025-06",
+  "timezone": "Europe/Berlin", "step_minutes": 15,
+  "slots": [
+    { "t": "00:00", "grid": 0.082, "gen": 0, "feed": 0, "charged": 0, "discharged": 0.05,
+      "house": 0.132, "price": 9.84,
+      "flow": { "pv_house": 0, "pv_battery": 0, "pv_grid": 0, "grid_house": 0.082, "grid_battery": 0,
+                "battery_house": 0.05, "house": 0.132, "grid_in_house": 0.082, "autarky": 0.3788 } },
+    "…",
+    { "t": "15:00", "grid": null, "gen": 0.41, "feed": 0.12, "charged": 0, "discharged": 0,
+      "house": null, "price": 7.9, "flow": null },
+    "…" ],
+  "totals": { "grid": 6.412, "gen": 24.87, "feed": 11.903, "charged": 4.2, "discharged": 3.75,
+              "flow": { "house": 18.929, "grid_in_house": 6.412, "autarky": 0.6613, "…": "…" },
+              "house": 18.929, "autarky": 0.6613 },
+  "completeness": { "slots": 96, "complete": 94, "price": 96 },
+  "kinds": { "gen": true, "feed": true, "battery": true, "price": true },
+  "missing": [] }
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `slots[].t` | Beginn der Viertelstunde, Ortszeit `HH:MM`; `repeat` nur bei der zweiten Stunde im Oktober |
+| `slots[].grid`, `gen`, `feed`, `charged`, `discharged` | kWh in der Viertelstunde (Summe der Zähler der Art); `null` = fehlt |
+| `slots[].house` | Hausverbrauch aus dem Fluss; `null` in einer Lücke |
+| `slots[].price` | Börsenpreis der Viertelstunde in ct/kWh (SMARD, DE-LU); `null` ohne Preis |
+| `slots[].flow` | Fluss der Viertelstunde wie in [Schaubilder](#schaubilder-energiefluss-und-zeitstrahl-v340-additiv), Mengen in kWh mit 4 Stellen; `null` in einer Lücke |
+| `slots[].n` | nur typischer Tag: Zahl der Viertelstunden im Mittel |
+| `totals` | Mengen über die vollständigen Viertelstunden und der Fluss **aus diesen Mengen** — gerechnet wie ein Monat, damit Netzladung Netzstrom bleibt, auch wenn der Speicher erst abends entlädt; `house`, `autarky` daraus |
+| `completeness` | Zahl der Viertelstunden, der vollständigen und der mit Preis |
+| `kinds` | welche Arten es im Haushalt gibt (für die Knoten des Bildes) |
+| `missing[]` | `{kind, utility, meter_id, name}`: Zähler, die an dem Tag Werte liefern müssten, aber keine Viertelstundenreihe haben; `meter_id: null` = fehlende Hälfte der PV |
+| `days` | nur typischer Tag: Tage des Monats mit mindestens einer vollständigen Viertelstunde |
+
+Leistung in kW ist `kWh × 60 / step_minutes` (bei 15 Minuten × 4).
+
+**`GET /api/energy-flow/days`**: `available` (bool), `days[]` (Tage mit
+mindestens einer Viertelstunde Netzbezug, aufsteigend, ohne heute und später),
+`complete_days[]` (davon ohne Lücke), `months[]`, `default_day` (letzter
+vollständiger Tag, sonst der letzte mit Daten) und `default_month` (jüngster
+Monat) — `null` ohne Daten.
+
+Fehler: `400` mit `errors.energyFlow.dateInvalid` bzw.
+`errors.energyFlow.monthInvalid`, wenn `date` kein Kalendertag oder `month`
+kein Monat ist oder das Jahr außerhalb 2000–2100 liegt.
 
 ### `GET /api/utility/{u}/meters/{id}/bill-check?from=…&to=…` *(F1012, v2.5.0; alle Arten seit v3.1.0)*
 
@@ -2005,6 +2105,14 @@ weiterer Aufruf nichts und liefert die Rechnung unverändert. Ohne Ergebnis
 `errors.bill.noContract`. Wer die Rechnung löscht, behält die gebuchte
 Sonderzahlung im Vertrag.
 
+*(v3.5.0, [#34](https://github.com/Bingerminger/energietracker/issues/34))*
+Auch beim Wasservertrag: Bis v3.4 antwortete der Aufruf dort mit
+`special_payment_id`, der Vertrag verwarf die Sonderzahlung aber still. Eine
+so „gebuchte“ Rechnung liefern die Abfragen jetzt mit `special_payment_id: null`,
+solange ihr Vertrag das Feld `special_payments` gar nicht hat — sie lässt sich
+dann buchen. Übernimmt ein Vertrag die Sonderzahlung nicht, antwortet `book`
+mit `500` statt „gebucht“.
+
 ### CO₂-Preis und Aufteilung *(v3.1.0)*
 
 Paket H4. Beide Routen rechnen nur in Ländern mit CO₂-Schema
@@ -2179,7 +2287,13 @@ Seit **v1.4.0** pro Heizquelle:
   "certificate": { "area_m2": 120, "area_factor": 1.2, "kwh": 9681,
                    "kwh_per_m2": 80.7, "dhw_surcharge": 0,
                    "weather_adjusted": true, "complete": true,
-                   "class": "C", "months_36": 36 },
+                   "class": "C", "months_36": 36,
+                   "rules": "geg2024", "fuel_basis": "hi", "fuel_basis_approx": [],
+                   "dhw_rule": 20, "months_required": 36, "months_in_window": 36,
+                   "upcoming": { "from": "2027-01-01", "rules": "gmodg2027",
+                                 "kwh": 10685, "kwh_per_m2": 89, "dhw_surcharge": 0, "class": "C",
+                                 "fuel_basis": "hs", "fuel_basis_approx": [], "dhw_rule": 16,
+                                 "months_required": 24, "months_in_window": 24 } },
   "thresholds": { "A+": 30, "A": 50, "…": 0 },
   "scale": "geg", "scale_note": null,
   "note": null,
@@ -2209,12 +2323,30 @@ Grenzen gelten einschließlich („bis 100" = C). Stromzähler mit
 `strom`. *(v3.1.0)* Heizwärme (`waerme`) zählt nur mit Zählern der Rolle
 `consumption`; die Rolle `heat_pump_output` (Wärmemenge einer Wärmepumpe)
 bleibt draußen, sonst stünde dieselbe Wärme neben dem Heizstrom doppelt. `certificate` ist die
-energieausweis-nahe Kennzahl: Gas × 0,906 (Brennwert → Heizwert),
-witterungsbereinigt (`weather_adjusted`), bezogen auf `area_m2` =
-Wohnfläche × `area_factor` (1,2; 1,35 bei `gebaeudetyp` efh/rh mit
-`beheizter_keller`), plus `dhw_surcharge` (20 bei
-`warmwasser_dezentral`). `months_36` zählt die Monate mit Heizdaten in den
-drei Jahren bis zum Bezugsjahr — ein Verbrauchsausweis verlangt 36.
+energieausweis-nahe Kennzahl: witterungsbereinigt (`weather_adjusted`),
+bezogen auf `area_m2` = Wohnfläche × `area_factor` (1,2; 1,35 bei
+`gebaeudetyp` efh/rh mit `beheizter_keller`), plus `dhw_surcharge` bei
+`warmwasser_dezentral`. `months_36` zählt die Monate mit Heizdaten in den
+drei Jahren bis zum Bezugsjahr (Bedeutung unverändert).
+
+*(v3.5.0, additiv)* Die Kennzahl folgt dem Verfahren des Verbrauchsausweises,
+das **am Rechentag** gilt (§ 82 GModG; „als würde der Ausweis heute
+ausgestellt“), für jedes Bezugsjahr:
+
+| Feld | bis 31.12.2026 | ab 01.01.2027 |
+|---|---|---|
+| `rules` | `geg2024` | `gmodg2027` |
+| `fuel_basis` | `hi` — Heizwert, Gas × 0,906 | `hs` — Brennwert, Gas × 1 |
+| `dhw_rule` | 20 (Zuschlag je m² bei dezentralem Warmwasser) | 16 |
+| `months_required` | 36 | 24 (zwei Jahre) |
+
+`months_in_window` zählt die Monate mit Heizdaten im Zeitraum der Regel bis
+zum Bezugsjahr. `fuel_basis_approx` nennt Verbrauchsarten, die nicht auf
+`fuel_basis` umgerechnet sind (ab 2027 `heizoel` und `pellets`: die App zählt
+sie nach Heizwert, einen frei zugänglichen Faktor zum Brennwert gibt es
+nicht). `upcoming` steht bis zum Inkrafttreten der nächsten Regel da (`from`,
+dieselben Felder nach der neuen Regel), danach `null`. Klassengrenzen und
+`thresholds` sind in beiden Regeln gleich (Anlage 10).
 Formeln: [Grundlagen §7](../verstehen/00-overview.md#7-effizienzklasse).
 
 ### Einordnung: `GET /api/benchmarks/comparison` *(v3.1.0)*
@@ -2548,7 +2680,9 @@ Aufteilung nach kWh ist eine Annahme — das Schreiben sagt „anteilig“. Ohne
 zahlenden Vertrag `400` `errors.evReport.noContract`.
 
 **`flat`** — Strompreispauschale × kWh. Die Pauschale kommt aus `flat_ct` oder
-aus dem Länderprofil (`ev_flat_rate_ct_years`, Deutschland 2026: 34 ct/kWh);
+aus dem Länderprofil (`ev_flat_rate_ct_years`, Deutschland 2026: 34 ct/kWh,
+2027: 32 ct/kWh; ein Jahr fehlt, bis Destatis das 1. Halbjahr des Vorjahres
+veröffentlicht hat);
 fehlt sie, `400` `errors.evReport.flatMissing`. Beispiel des Schreibens:
 3.000 kWh × 0,34 € = 1.020 €. Die Wahl gilt einheitlich je Kalenderjahr.
 
@@ -2723,6 +2857,7 @@ alles, was schon fällig oder überfällig ist. Sortiert nach Datum, dann Art.
 | `tenancy_statement_due` *(v3.1.0)* | Nebenkostenabrechnung des letzten abgelaufenen Abrechnungszeitraums fällig (§ 556 Abs. 3 BGB) — nur, solange für diesen Zeitraum keine Abrechnung erfasst ist | Ende des Zeitraums + 12 Monate | nie |
 | `objection_deadline` *(v3.1.0)* | letzter Tag für Einwände gegen eine Abrechnung | Zugang (`received_on`) + 12 Monate | ab 30 Tagen vorher (`severity` dann `due`) |
 | `co2_claim_deadline` *(v3.1.0)* | Etagenheizung zur Miete: Anteil des Vermieters an den CO₂-Kosten einfordern (CO2KostAufG § 6 Abs. 2) — nur mit `case: self_supplied` und Betrag über 0 | `deadline` aus `/api/co2-split`: Rechnungsdatum der Gasrechnung + 12 Monate | ab 30 Tagen vorher (`severity` dann `due`) |
+| `bill_expected` *(v3.5.0)* | Abrechnungszeitraum eines Vertrags beendet, keine Versorgerrechnung erfasst — [Abrechnung erwartet](#abrechnung-erwartet-v350) | Strom/Gas in DE: Ende + 42 Tage (§ 40c Abs. 2 EnWG); sonst Tag nach dem Ende | immer; `severity` `due`, nach der gesetzlichen Frist `overdue` |
 
 **Zeitraum-Zähler *(v3.1.0)*.** Für einen Zähler mit Verbrauch je Zeitraum
 rechnet `reading_due` ab dem Ende des letzten Zeitraums statt ab der letzten
@@ -2763,6 +2898,57 @@ selbst; weiterlaufende und unbefristete Verträge haben kein `cancel_by` mehr
 (es stand jeden Tag auf heute). Einzelheiten:
 [Erledigt mit Verlauf](#erledigt-mit-verlauf-v340).
 
+**Zuständig *(v3.5.0, F1028)*.** Jedes Ereignis trägt additiv `assignee`,
+`assignee_id` und `assignee_former` — bei Terminen die Zuständigkeit
+([Zuständig an Terminen](#zuständig-an-terminen-v350)), sonst `null`, `null`,
+`false`.
+
+#### Abrechnung erwartet *(v3.5.0)*
+
+`bill_expected` (F1029): Endet ein Abrechnungszeitraum eines echten Vertrags
+(kein Schattenvertrag) einer Art mit Rechnungsprüfung (`supports_bill_check`:
+Gas, Strom, Wasser, Fernwärme — nie Heizöl, Pellets, Einspeisung) und deckt
+keine erfasste Versorgerrechnung ihn ab, steht das Ereignis in der Agenda.
+Je Vertrag nur der jüngste beendete Zeitraum:
+
+- **läuft** (auch weiterlaufend): die zuletzt abgeschlossene Periode nach
+  `billing_cycle_anchor_<art>`, ab Vertragsbeginn; kürzer als 60 Tage → kein
+  Ereignis;
+- **beendet**: Schlussrechnung vom letzten Stichtag bis zum Ende (ein
+  weiterlaufender Vertrag endet am Tag vor dem Folgevertrag); schließt ein
+  Folgevertrag desselben Versorgers lückenlos an, keine.
+
+Nicht für Zeiträume, die vor mehr als 120 Tagen endeten
+(`BillExpectedService::WINDOW_DAYS`: Frist 42 Tage plus gut elf Wochen; danach
+entfällt das Ereignis ohne Verlaufseintrag), die vor der ersten
+Ablesung (bzw. dem ersten Zeitraum) enden oder vor einer wirksamen
+Analyse-Zäsur. **Passend** ist eine Rechnung am Zähler, an einem Mitglied
+der Gruppe oder an der Gruppe, ohne oder mit diesem `contract_id`, deren
+`period_to` höchstens 31 Tage vom Periodenende abweicht — dann gibt es kein
+Ereignis.
+
+**Frist** (`Countries::BILL_DEADLINE_DAYS`): nur Strom und Gas in
+Deutschland, 42 Tage nach dem Ende (§ 40c Abs. 2 EnWG: sechs Wochen nach dem
+Abrechnungszeitraum bzw. nach Beendigung des Lieferverhältnisses); danach
+`overdue` mit dem Titel „… — gesetzliche Frist verstrichen, beim Versorger
+nachfragen“. Fernwärme (§ 4 Abs. 3 FFVAV) und Wasser (§ 24 Abs. 1
+AVBWasserV) kennen keine Frist: `deadline: null`, nie `overdue`. Die
+monatliche Abrechnung (drei Wochen) und § 193 BGB bildet die App nicht ab.
+
+| Feld | Wert |
+|---|---|
+| `uid` | `bill_expected-<vertrag>-<periodenende>`; `occurrence` = `uid@<periodenende>` |
+| `title_key` | `calendar.event.billExpected`, `…billOverdue`, `…finalBillExpected`, `…finalBillOverdue`; `params` `{label, provider, from, until}` (Tage als JJJJ-MM-TT, im `title` in der Schreibweise der Sprache) |
+| `date` | `deadline`, ohne Frist der Tag nach dem Periodenende |
+| `ref` | `{utility, meter_id (Zähler oder Gruppe), contract_id, period_from, period_until, final, deadline, overdue}` |
+| `href` | `#/bill-check?utility=…&meter=…&from=…&until=…&capture=1` — Rechnung prüfen mit diesem Zeitraum und offenem Abschnitt zum Erfassen |
+| `can_mark_done` | ja — abgehakt heißt „kam ohne Erfassung“ (`reason` `activity.reason.billWithout`) |
+
+Erfasst (`POST /api/utility/{u}/bills`) oder geändert, sodass eine Rechnung
+die Periode abdeckt, entsteht ein Verlaufseintrag `auto_done` mit `reason`
+`activity.reason.bill` und `ref.bill_id`; Löschen oder Verschieben der
+Rechnung streicht ihn durch, das Ereignis ist wieder offen.
+
 ### `GET /api/calendar.ics` *(v3.1.0)*
 
 Dieselben Ereignisse als abonnierbarer Kalender nach RFC 5545, ohne
@@ -2779,8 +2965,12 @@ Felder unten) und die **UIDs**; die Texte können sich mit einer Übersetzung
   `term_end-<vertrag>`, `price_guarantee_end-<vertrag>`,
   `price_increase-<vertrag>-<datum>`, `tank_reorder-<utility>-<zähler>`, seit
   v3.1.0 `tenancy_statement_due-<mietverhältnis>-<zeitraumende>`,
-  `objection_deadline-<abrechnung>` und `co2_claim_deadline-<jahr>`. Wird ein
+  `objection_deadline-<abrechnung>` und `co2_claim_deadline-<jahr>`, seit
+  v3.5.0 `bill_expected-<vertrag>-<periodenende>`. Wird ein
   Termin erledigt, steht beim nächsten Abruf dasselbe Ereignis am neuen Datum.
+- *(v3.5.0)* Ein Termin mit Zuständigkeit trägt `DESCRIPTION:Zuständig: <Name>`
+  (Text `calendar.assignee`; nach dem Löschen der Person mit „ehemalige
+  Person“) — nur die Zeile, keine Benachrichtigung.
 - Vorab-Erinnerung (`VALARM`, `TRIGGER:-P<n>D`) für Termine, Kündigungsstichtage,
   Vertragsenden, Preisgarantien und Preiserhöhungen; `<n>` ist
   `reminder_warn_days_before` (Einstellung, Standard 14, `0` = keine). Die
@@ -2879,7 +3069,7 @@ Abfrage für alle Sensoren statt `consumption`, `contract-status` und
 | `currency` | Währung der Beträge (Einstellung, nicht umgerechnet) |
 | `meters[]` | je Zähler in Betrieb der aktiven Verbrauchsarten ein Eintrag |
 | `pv` | Autarkie- und Eigenverbrauchsquote (%) und Strom-Saldo des laufenden Jahres, sonst `null` |
-| `agenda` | `due` = Einträge unter „Zu tun“, `overdue` = davon überfällig oder dringend, `next` = nächster Termin bzw. nächste Frist (`kind`, `date`, `title`) oder `null`; seit v3.4.0 jeweils ohne Erledigtes |
+| `agenda` | `due` = Einträge unter „Zu tun“, `overdue` = davon überfällig oder dringend, `next` = nächster Termin bzw. nächste Frist (`kind`, `date`, `title`) oder `null`; seit v3.4.0 jeweils ohne Erledigtes; seit v3.5.0 zählt `bill_expected` mit (überfällig nach der gesetzlichen Frist, `next` mit ihrem Datum) |
 | `warnings` | Zahl der unbestätigten verdächtigen Stände (Home Assistant) |
 
 Je Zähler:
@@ -2935,7 +3125,7 @@ erinnert ans Ende (`end`) statt täglich an „Kündigung bis heute“.
 |---|---|
 | `title_key` | Katalogschlüssel des Titels (mit `params` in jeder Sprache darstellbar) |
 | `occurrence` | `uid@anker`: Vertrag sein Ende bzw. `renewed`/`open`, Tank die letzte Lieferung (`none` ohne), Termin `next_due`, Ablesung die letzte Ablesung, Fristen der Miete ihr Datum. Ein Haken gilt für dieses Vorkommen; ändert sich der Anker, ist der Hinweis wieder offen |
-| `can_mark_done` | von Hand abhakbar: `reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline` — und noch nicht erledigt |
+| `can_mark_done` | von Hand abhakbar: `reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, seit v3.5.0 `bill_expected` — und noch nicht erledigt |
 | `done` | `null` oder `{auto, on, by, activity_id, note, reason, successor_id}` (Felder ohne Wert fehlen). `auto: true` mit `reason {key: "activity.reason.successor", params: {provider, date}}` = lückenloser Folgevertrag |
 
 Weiterlaufende und unbefristete Verträge sowie befristete, jederzeit kündbare
@@ -2970,7 +3160,23 @@ füllte der tägliche Home-Assistant-Ingest den Verlauf —, Lieferung bei
 niedrigem Bestand, Nebenkostenabrechnung für den offenen Zeitraum. `by` ist die
 handelnde Person bzw. der Schlüssel, beim Ingest `{type: "integration", name:
 "home_assistant"}`, bei evcc `name: "evcc"`, ohne Anmeldung `{type: "auto",
-reason}`.
+reason}`. Seit v3.5.0 dazu: neuer Zeitraum bei Zählern mit Verbrauch je
+Zeitraum (wie die Ablesung, nur wenn fällig; `reason` `activity.reason.period`
+mit `from`, `to`), erfasste Versorgerrechnung für eine erwartete Abrechnung
+(`activity.reason.bill`, `ref.bill_id`).
+
+**Geändert *(v3.5.0)*** (`action: "updated"`): Eine geänderte
+Nebenkostenabrechnung (`PATCH /api/tenancies/{id}/statements/{sid}`) steht
+als `subject.kind: "tenancy_statement"`, `title_key`
+`activity.changed.statement` im Verlauf — nur zum Nachweis, sie erledigt
+nichts und lässt sich nicht zurücknehmen. Schließt erst die Änderung den
+offenen Zeitraum, ist der Eintrag stattdessen das `auto_done` für
+`tenancy_statement_due` (nie zwei); öffnet die Änderung ihn wieder, wird diese
+Erledigung durchgestrichen. Unveränderte Abrechnungen erzeugen keinen Eintrag.
+
+**Zuständig *(v3.5.0)*.** Beim Erledigen eines Termins steht additiv
+`assignee` im Eintrag: `{name, id?}` als Momentaufnahme oder
+`{former: true}` nach „ehemalige Person“.
 
 **`GET /api/activity`** — Liste der Einträge (Felder im
 [Datenmodell](datenmodell.md#verlauf-erledigter-hinweise-activityjson-v340)),
@@ -3000,6 +3206,56 @@ leeren und `activity_keep_months` ändern nur Verwalter (`403`
 Eintrag `dismissed` an (`subject.kind: "recommendation"`); `DELETE …/dismiss`
 streicht ihn durch. **Aufbewahrung:** `activity_keep_months` (Standard 60,
 `0` = unbegrenzt), aufgeräumt beim Schreiben.
+
+### Verlauf als CSV *(v3.5.0)*
+
+`GET /api/activity.csv` — derselbe Verlauf als Datei zum Nachweis (etwa für
+Vermieter oder Hausverwaltung). Filter wie `GET /api/activity` (`from`, `to`,
+`by`, `kind`, `ref`, `limit`; ohne `limit` bis 5000 Einträge), neueste zuerst;
+durchgestrichene (zurückgenommene) Einträge fehlen. Format wie die übrigen
+CSV-Exporte ([CSV-Formate](#csv-formate-v310)): UTF-8 mit BOM, CRLF, Schutz
+gegen Formeln (Apostroph vor `=`, `+`, `-`, `@`).
+
+| `format` | Kopfzeile | Aktion | Sprache von Titel, Wer, Grund |
+|---|---|---|---|
+| `1` (Standard) | `Datum;Aktion;Titel;Wer;Grund;Notiz` | Code: `done`, `auto_done`, `dismissed`, `updated` | der Anfrage (ohne `X-ET-Language` die Standardsprache) |
+| `local` (`&lang=`) | `csvLocal.activity.*` der Sprache, Trenner `;` bei Dezimalkomma, sonst `,` | `activity.actionName.*` | `lang`, sonst die Standardsprache |
+
+Dateiname `energietracker-verlauf-JJJJ-MM-TT.csv` (Format 1) bzw. nach
+`csvLocal.file.activity`. Die Oberfläche lädt „Als CSV“ mit `format=local` und
+der Sprache des Geräts. Unbekanntes Format `400`
+`errors.export.formatInvalid`, ungültiger Tag `400`
+`errors.activity.dateInvalid`. Klasse C.
+
+### Zuständig an Terminen *(v3.5.0)*
+
+Ein Termin (`reminders.json`) hat optional eine zuständige Person (F1028).
+Kein Schemaschritt; fehlende Felder = niemand. Nur Termine — Zähler und
+Verträge nicht. Benachrichtigt wird niemand.
+
+| Feld | Bedeutung |
+|---|---|
+| `assignee` | Anzeigename, getrimmt, bis 60 Zeichen, ohne Steuerzeichen; leer bzw. fehlend = niemand |
+| `assignee_id` | Personen-ID aus `auth.json` ([Personen](#personen-im-haushalt-v320)), nur wenn aus der Personenliste gewählt; dann gilt der heutige Name der Person |
+| `assignee_former` | `true`, nachdem die Person gelöscht und ihr Name ersetzt wurde („ehemalige Person“) |
+
+`GET /api/reminders` liefert alle drei immer (`null`, `null`, `false` ohne
+Zuständigkeit). `POST`/`PATCH /api/reminders…` nehmen `assignee` und
+`assignee_id`: Eine bekannte `assignee_id` setzt den Namen der Person,
+`assignee` ohne `assignee_id` ist ein freier Name, beides leer = niemand; ein
+`PATCH` ohne die Felder ändert die Zuständigkeit nicht. Fehler `400`
+`errors.reminder.assigneeInvalid` (zu lang, Steuerzeichen, kein Text) bzw.
+`errors.reminder.assigneeUnknown` (unbekannte Person). Erledigen
+(`…/done`) lässt die Zuständigkeit stehen; der Verlaufseintrag nennt sie.
+
+**Person gelöscht** (`DELETE /api/users/{id}`): Ihre `assignee_id`
+verschwindet von den Terminen, der Name bleibt als freier Name; mit
+`?anonymize_activity=1` wird er durch `assignee_former: true` ersetzt — an den
+Terminen und im Verlauf.
+
+**Personenliste:** `GET /api/people` → `[{id, name}]` für jede angemeldete Rolle
+(die volle Liste `GET /api/users` bleibt Verwaltern), ohne Anmeldung `[]`. Der
+Verwalter aus der Zeit vor v3.2 zählt erst, wenn er eingetragen ist.
 
 ### Belege und Texterkennung *(v3.1.0)*
 
@@ -3684,6 +3940,8 @@ Bisher still übernommen, jetzt `400` mit `code` und — bei der Prognose —
 | `/api/heat-pump` | `year` | 1990–2100, Standard Vorjahr, sonst `errors.heatPump.yearInvalid` (v3.1.0) |
 | `/api/flexibility`, `…/sync-smard-intervals` | `year` | 2018–2100, Standard Vorjahr, sonst `errors.flexibility.yearInvalid` (v3.3.0) |
 | `POST /api/ingest` | `timestamp` | ISO 8601 mit Zeitzone oder leer, sonst `errors.ingest.timestampFormat` (v3.3.0) |
+| `/api/energy-flow/day` | `date` | Kalendertag JJJJ-MM-TT, Jahr 2000–2100, Pflicht, sonst `errors.energyFlow.dateInvalid` (v3.5.0) |
+| `/api/energy-flow/typical-day` | `month` | JJJJ-MM, Jahr 2000–2100, Pflicht, sonst `errors.energyFlow.monthInvalid` (v3.5.0) |
 | `/api/benchmarks/comparison` | `year` | Jahreszahl, Standard Vorjahr (v3.1.0) |
 | `/api/export/…` | `format` | `1` (Standard) oder `local`, sonst `errors.export.formatInvalid` (v3.1.0) |
 | | `lang` | Sprachkürzel für `format=local`; unbekannt = Standardsprache |

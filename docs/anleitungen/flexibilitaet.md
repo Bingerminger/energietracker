@@ -359,8 +359,9 @@ i × 15 Minuten nach dem 1. Januar, 00:00 Uhr Ortszeit. Leere Plätze sind
 was im Verzeichnis steht.
 
 **Datenmenge.** Eine volle Reihe für ein ganzes Jahr belegt rund 250 KB (die
-Datei wird kompakt geschrieben). Im Beispielhaushalt sind es sechs Reihen für
-2025, zusammen rund 1 MB.
+Datei wird kompakt geschrieben). Im Beispielhaushalt sind es acht Reihen für
+2025, zusammen rund 1,5 MB; beim Laden kommen die letzten zwei bis drei Monate
+bis gestern dazu (§ 9).
 
 **Backup.** Das Backup enthält alle Reihen, auch ein Backup ohne Belege. Bringt
 es ein Verzeichnis der Reihen mit, fallen beim Einspielen Reihen weg, die darin
@@ -372,11 +373,16 @@ des vorigen liegen.
 ## 9. Zum Ansehen: der Beispielhaushalt
 
 Der Beispielhaushalt **„Eigenheim mit Wärmepumpe und PV“** hat für 2025
-Viertelstunden: den Haushalt, die gesteuerte Wärmepumpe (sie läuft bevorzugt
-zwischen 0 und 6 Uhr und meidet 17 bis 20 Uhr), die Wallbox aus ihren
-Ladevorgängen und den Speicher. Dazu die echten Börsenpreise 2025 je
-Viertelstunde von SMARD und am Vertrag der Wärmepumpe die Modul-3-Fenster aus
-§ 6. Der Verbrauch ist erfunden.
+Viertelstunden: den Haushalt (Netzbezug), die gesteuerte Wärmepumpe (sie läuft
+bevorzugt zwischen 0 und 6 Uhr und meidet 17 bis 20 Uhr), die Wallbox aus ihren
+Ladevorgängen, seit v3.5.0 auch Erzeugung und Einspeisung der PV-Anlage und den
+Speicher — so, dass jede Viertelstunde für sich aufgeht (Erzeugung = selbst
+genutzt + eingespeist + geladen; der Speicher lädt vom Überschuss und entlädt
+abends ins Haus). Dazu die echten Börsenpreise 2025 je Viertelstunde von SMARD
+und am Vertrag der Wärmepumpe die Modul-3-Fenster aus § 6. Beim Laden schreibt
+die App die letzten zwei bis drei Monate bis gestern fort — Tag für Tag aus
+demselben Kalendertag des Vorjahres, auch die Börsenpreise; das zeigt der
+Tagesfilm. Der Verbrauch ist erfunden.
 
 So lädst du ihn: Einstellungen → Allgemein → **„Einrichtungsassistent
 starten“**, „Eigenheim mit Wärmepumpe und PV“, bei der Stufe **„Experte“**
@@ -389,10 +395,10 @@ Dann **Auswertungen → Flexibilität**, Jahr 2025:
 Zähler                    mit Preis  günstig  negativ   eigener Ø  Börse Ø   Profilfaktor  Vorteil
 Wärmepumpe (steuerbar)    3.891 kWh    55 %   112 kWh    9,60 ct   10,08 ct      0,95      18,78 €
 Wallbox (steuerbar)       2.618 kWh    48 %   469 kWh    9,41 ct    9,07 ct      1,04      −9,01 €
-Haushalt (Bezug)          2.397 kWh    41 %    84 kWh   10,79 ct    9,70 ct      1,11     −26,04 €
+Haushalt (Bezug)          2.862 kWh    40 %   303 kWh   10,79 ct    9,41 ct      1,15     −39,46 €
 
-Speicher       1.952 kWh geladen zu Ø 4,51 ct, 1.795 kWh entladen zu Ø 10,68 ct
-               Wert = (1.795,46 × 10,684 − 1.951,54 × 4,514) ÷ 100 ≈ 103,72 €
+Speicher       1.695 kWh geladen zu Ø 8,11 ct, 1.556 kWh entladen zu Ø 11,61 ct
+               Wert = (1.555,91 × 11,612 − 1.694,70 × 8,114) ÷ 100 ≈ 43,15 €
 Modul 3 (Wärmepumpe)
                1.512 kWh im Niedrigtarif, 129 kWh im Hochtarif, 2.250 kWh im Standardtarif
                Ersparnis = (1.511,79 × (8,1 − 2,4) + 129,41 × (8,1 − 11,9)) ÷ 100 ≈ 81,25 €
@@ -400,8 +406,9 @@ Modul 3 (Wärmepumpe)
 
 Die Wärmepumpe verbraucht dank der Steuerung zu rund 5 % unter dem
 Börsenmittel — 18,78 € beim Börsenanteil. Die Wallbox lädt viel bei negativen Preisen und
-trotzdem über dem Mittel; der Haushalt verbraucht, wie meist, abends, wenn
-Strom teurer ist.
+trotzdem über dem Mittel; der Haushalt bezieht, wie meist, abends Strom, wenn er
+teurer ist — mittags deckt ihn die Sonne. Der Speicher lädt mittags, wenn Strom
+an der Börse billig ist, und entlädt abends.
 
 Im Rückblick unter Wechsel prüfen rechnet das Angebot „Strom Dynamisch“ für den
 Zähler „Haushalt (Bezug)“ 2025 in zwölf Monaten mit dem eigenen Lastgang.

@@ -52,6 +52,9 @@ function applyShellStrings() {
   const out = document.getElementById('logout-btn');
   if (out) { out.textContent = t('login.logout'); out.setAttribute('aria-label', t('login.logout')); }
 }
+// v3.5.0 (N1022) — Sprache ohne Neuladen gewechselt (Einstellungen, Einrichtung):
+// Kopfleiste und Tab-Leiste in der neuen Sprache beschriften
+window.addEventListener('et:languagechange', () => applyShellStrings());
 
 // N1007 — zuerst die Sprache aus dem `language`-Setting laden und den
 // passenden Katalog initialisieren, BEVOR irgendeine View oder die Sidebar
@@ -128,11 +131,16 @@ const boot = (session = null) => Promise.all([getSettings(), getCountries()])
     setCurrencyParams(s?.currency);
     setCountry(s?.country, countries.find(c => c.code === s?.country)?.languages);
     setBillContext(countries.find(c => c.code === s?.country) || null);
-    // v3.2.0 (F1019) — Stufe vor dem ersten Rendern (CSS blendet nach ihr aus)
-    applyLevel(resolveLevel(s, session));
     // v3.1.0 — eigene Sprache des Geräts vor der Standardsprache der Installation;
     // v3.2.0 (F1023) — mit Anmeldung zuerst die Sprache der Person
-    return initI18n(DEMO ? demoLanguage() : (session?.user?.prefs?.language || deviceLanguage() || s?.language));
+    return initI18n(DEMO ? demoLanguage() : (session?.user?.prefs?.language || deviceLanguage() || s?.language))
+      // v3.2.0 (F1019) — Stufe vor dem ersten Rendern (CSS blendet nach ihr aus).
+      // v3.5.0 (N1022) — erst NACH der Sprache: Eine andere Stufe als „Experte“
+      // baut die Seitenleiste neu und holt dabei die Verbrauchsarten, deren
+      // Namen der Server übersetzt. Vorher geschah das noch in der
+      // Voreinstellung „de“, und eine englische Installation mit Stufe
+      // „Erfahren“ zeigte bis zum Sprachwechsel „Strom“ und „Wasser“.
+      .then(() => applyLevel(resolveLevel(s, session)));
   })
   .catch(() => initI18n(DEMO ? demoLanguage() : 'de'))
   .finally(async () => {

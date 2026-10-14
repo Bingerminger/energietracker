@@ -22,6 +22,16 @@ Einrichtungsassistenten „Schaufenster“; daneben gibt es vier kleinere
 Dazu Tagestemperaturen für Leipzig vom 01.01.2023 bis 30.06.2026 und sechs
 Termine. Die Anbieter- und Namen sind Beispiele; es sind keine echten Verträge.
 
+Seit v3.5.0 (N1026) außerdem: drei Termine mit Zuständigkeit (Anna, Paul), zwei
+erfasste Versorgerrechnungen (Strom 2023 als Schlussrechnung, Fernwärme 2025),
+der Verlauf „Erledigt“ (`activity`) und ein Abrechnungsstichtag Strom relativ
+zu heute (`demo_align`), so dass die App immer eine Jahresabrechnung als
+„erwartet“ zeigt. Diese Ergänzungen schreibt `tools/build-personas.mjs` (s. u.)
+in das Backup und in die Verzeichnisform (`reminders.json`, `activity.json`,
+`strom/bills.json`, `fernwaerme/bills.json`); alles andere bleibt byte-gleich.
+Viertelstunden für den Tagesfilm hat das Schaufenster bewusst nicht — die hat
+der Beispielhaushalt „Eigenheim modern“.
+
 ## Verwenden
 
 - **In der App:** auf der leeren Übersicht „Mit Beispieldaten ausprobieren“, sonst
@@ -50,10 +60,23 @@ Antwort auf „Wer bist du?“
 
 | Datei | Haushalt | Verbrauchsarten | Besonderes |
 |---|---|---|---|
-| `personas/mieterin.json` | Mietwohnung, 62 m², eine Person | Strom, Heizwärme, Wasser | Heizwärme als Monatswerte der Verbrauchsinfo, Kalt- und Warmwasserzähler, Mietverhältnis mit zwei Nebenkostenabrechnungen |
-| `personas/etw-fernwaerme.json` | Eigentumswohnung, 85 m², zwei Personen | Strom, Fernwärme | Fernwärmevertrag mit Leistungs- und Messpreis, Jahresrechnung 2025 |
-| `personas/eigenheim-klassisch.json` | Einfamilienhaus, 140 m², vier Personen | Gas, Strom, Wasser | Gasvertragswechsel, Sonderzahlungen, Zäsur „Hydraulischer Abgleich“, Gartenzähler als Subzähler |
-| `personas/eigenheim-modern.json` | Einfamilienhaus, 150 m², vier Personen | Strom, PV-Einspeisung, PV-Erzeugung, Heizwärme | Wärmepumpe mit eigenem Tarif (§ 14a EnWG, Modul 1), PV 9,8 kWp, Speicher 10 kWh, Wallbox mit Ladevorgängen aus evcc, dynamischer Tarif als Angebot |
+| `personas/mieterin.json` | Mietwohnung, 62 m², eine Person | Strom, Heizwärme, Wasser | Heizwärme als Monatswerte der Verbrauchsinfo, Kalt- und Warmwasserzähler, Mietverhältnis mit zwei Nebenkostenabrechnungen; Strom mit Anbieterwechsel, zwei Versorgerrechnungen, Verlängerung läuft weiter, ihre Jahresabrechnung ist erwartet |
+| `personas/etw-fernwaerme.json` | Eigentumswohnung, 85 m², zwei Personen | Strom, Fernwärme | Fernwärmevertrag mit Leistungs- und Messpreis, Jahresrechnungen 2024 und 2025; Strom mit zwei Anbieterwechseln (Schlussrechnungen erfasst), jetzt unbefristet mit Mindestlaufzeit und Preisgarantie, Abrechnung erwartet |
+| `personas/eigenheim-klassisch.json` | Einfamilienhaus, 140 m², vier Personen | Gas, Strom, Wasser | Gasvertragswechsel, Sonderzahlungen, Zäsur „Hydraulischer Abgleich“, Gartenzähler als Subzähler; Rechnungen für Gas, Strom und Wasser, Gas-Jahresabrechnung überfällig |
+| `personas/eigenheim-modern.json` | Einfamilienhaus, 150 m², vier Personen | Strom, PV-Einspeisung, PV-Erzeugung, Heizwärme | Wärmepumpe mit eigenem Tarif (§ 14a EnWG, Modul 1, gekündigt zum 30.09.2026, Folgevertrag), PV 9,8 kWp, Speicher 10 kWh, Wallbox mit Ladevorgängen aus evcc, dynamischer Tarif als Angebot; Viertelstunden für den Tagesfilm |
+
+Seit v3.5.0 (N1026) zeigen alle vier dazu den Verlauf „Erledigt“ mit
+erfundenen Personen (von Hand erledigt, automatisch mit Grund, eine
+ausgeblendete Empfehlung, ein zurückgenommener Eintrag), ein bis drei Termine
+mit Zuständigkeit (`assignee`, nie `assignee_id` — die Demo hat keine
+Anmeldung) und lückenlose Folgeverträge. Beim Laden wandert der Verlauf zu
+Terminen mit den Terminen; im Eigentums- und im klassischen Haus legt
+`demo_align` den Abrechnungsstichtag relativ zu heute, damit „Abrechnung
+erwartet“ immer zu sehen ist. „Eigenheim modern“ hat Viertelstunden für ganz
+2025 (Netzbezug, Wärmepumpe, Wallbox, Erzeugung, Einspeisung, Speicher und
+Börsenpreis, jede Viertelstunde stimmig, zwischen zwei Ablesungen genau die
+Differenz der Stände); beim Laden kommen die letzten zwei bis drei Monate bis
+gestern dazu, Tag für Tag aus demselben Kalendertag des Vorjahres.
 
 - **Format** wie ein Export (Backup-Format 3.0) mit allen Töpfen aller
   Verbrauchsarten, auch leeren — ein Import ersetzt so den ganzen Haushalt.
@@ -70,19 +93,21 @@ Antwort auf „Wer bist du?“
 Die Persona-Dateien pflegt niemand von Hand: [`tools/build-personas.mjs`](../tools/build-personas.mjs)
 erzeugt sie aus einem Tagesmodell mit festem Zufallsstartwert — Heizen nach
 den Heizgradtagen der Demo-Temperaturen, Strom mit Jahreszeitenverlauf, PV
-nach Monat und Wetter, Speicher als Tagesbilanz. Abrechnungen, Rechnungen,
-Sonderzahlungen und Ladevorgänge rechnet das Skript aus denselben Tageswerten
-nach, damit sie zu den Ständen passen. Jeder Lauf schreibt dieselben Dateien.
+nach Monat und Wetter, Speicher als Tagesbilanz, Viertelstunden aus Sonnenlauf
+und Lastgang so verteilt, dass die Tagessummen bleiben. Abrechnungen,
+Rechnungen, Sonderzahlungen und Ladevorgänge rechnet das Skript aus denselben
+Ständen nach wie die App, damit „Rechnung prüfen“ passt. Jeder Lauf schreibt
+dieselben Dateien.
 
 ```bash
-node tools/build-personas.mjs           # schreibt demo-data/personas/<id>.json
+node tools/build-personas.mjs           # schreibt demo-data/personas/<id>.json und die Ergänzungen des Schaufensters
 node tools/build-personas.mjs --check   # vergleicht nur, Exit 1 bei Abweichung
 ```
 
-Neue Texte (Namen, Notizen, Termine) brauchen einen Eintrag in
+Neue Texte (Namen, Notizen, Termine, Verlauf) brauchen einen Eintrag in
 [`translations.json`](translations.json); das Skript nennt fehlende. Der Test
 `PersonaDemoTest` spielt jede Datei wie ein Backup ein und prüft, dass jeder
-Zähler rechnet.
+Zähler rechnet; `PersonaUseCasesTest` prüft die Anwendungsfälle von v3.5.0.
 
 ## Ändern
 
@@ -131,3 +156,21 @@ the setup assistant or with `POST /api/demo/import` and
 daily model with a fixed seed (`--check` only compares, exit 1 on a
 difference); new texts need an entry in `translations.json`, and
 `PersonaDemoTest` imports every file like a backup.
+
+Since v3.5.0 (N1026) every household and the showcase also show the “Done”
+history (`activity`) with made-up people (done by hand, done automatically
+with a reason, a hidden recommendation, an entry that was undone), one to
+three reminders with someone in charge (`assignee`, never `assignee_id` — the
+demo has no sign-in), recorded supplier bills that match the app’s own
+calculation, follow-up contracts without a gap and a recently ended billing
+period without a bill (“bill expected”). Entries about reminders move with the
+reminders when loading; in the owner-occupied flat, the classic house and the
+showcase `demo_align` places the billing anchor relative to today, so the note
+can always be seen. The modern house has quarter hours for all of 2025 (grid
+import, heat pump, wall box, generation, feed-in, battery and wholesale price,
+consistent in every quarter hour) and gets the last two to three months up to
+yesterday when loading, day by day from the same calendar day a year earlier.
+The showcase deliberately has no quarter hours. `build-personas.mjs` also
+writes the showcase’s additions (backup and directory form: `reminders.json`,
+`activity.json`, `strom/bills.json`, `fernwaerme/bills.json`) and leaves the
+rest byte for byte; `PersonaUseCasesTest` checks the use cases.

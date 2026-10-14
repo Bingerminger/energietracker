@@ -26,6 +26,19 @@ final class HealthCheckService
     /** Verwaiste Temp-Dateien älter als das gelten als Rest eines Abbruchs. */
     private const TEMP_MAX_AGE = 3600;
 
+    /**
+     * v3.5.0 (N1025) — Dateien im Datenverzeichnis, die nicht der App gehören.
+     *
+     * Als Home-Assistant-App liegt das Datenverzeichnis in `/data`, und der
+     * Supervisor schreibt dort vor jedem Start `options.json` neu: als root,
+     * Rechte 0600. Der Entrypoint stellt den Besitz nur beim ersten Start um;
+     * ab dem zweiten kann PHP (www-data) die Datei nicht lesen. Als
+     * „beschädigt" gezählt, meldete der Healthcheck `error` (503), der
+     * Container galt als unhealthy, und der Watchdog von Home Assistant
+     * startete die App im Kreis neu.
+     */
+    private const FOREIGN_FILES = ['options.json'];
+
     public function __construct(
         private JsonStore $store,
     ) {}
@@ -125,6 +138,7 @@ final class HealthCheckService
         foreach ($files as $path) {
             $rel = substr($path, strlen($root) + 1);
             if (str_starts_with($rel, 'backups/')) continue;
+            if (in_array($rel, self::FOREIGN_FILES, true)) continue;
             $raw = @file_get_contents($path);
             if ($raw === false) { $bad[] = $rel; continue; }
             if (trim($raw) === '') continue;

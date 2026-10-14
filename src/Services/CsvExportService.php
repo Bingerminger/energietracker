@@ -43,6 +43,7 @@ final class CsvExportService
         'monthly' => 'monatsuebersicht', 'readings' => 'ablesungen',
         'deliveries' => 'lieferungen', 'temperatures' => 'temperaturen',
         'periods' => 'zeitraeume',   // v3.1.0
+        'activity' => 'verlauf',     // v3.5.0
     ];
 
     /** @var array{local:bool,sep:string,dec:string,yes:string,no:string} */
@@ -232,6 +233,38 @@ final class CsvExportService
             foreach ($report['rows'] as $r) {
                 $rows[] = [(string)$r['ym'], (string)$report['meter_id'], $this->num($r['kwh']), $this->num($r['price_ct']),
                            $this->num($r['base_share_eur']), $this->num($r['amount_eur']), (string)$report['method']];
+            }
+            return $this->build($rows);
+        });
+    }
+
+    /**
+     * v3.5.0 (Nachtrag F1024) — Verlauf „Erledigt“ zum Nachweis (etwa für
+     * Vermieter oder Hausverwaltung): Datum, Aktion, Titel, Wer, Grund, Notiz.
+     * Format 1: Kopf `Datum;Aktion;Titel;Wer;Grund;Notiz`, die Aktion als Code
+     * (`done`, `auto_done`, `dismissed`, `updated`); „local“: Kopf und Aktion in
+     * der Sprache der Datei. Titel, Wer und Grund stehen in der Sprache des
+     * Exports („local“) bzw. der Anfrage (Format 1). Freitext läuft wie jede
+     * Zelle durch den Schutz gegen Formeln (cell()).
+     *
+     * @param list<array<string,mixed>> $entries Einträge (ActivityService::list), neueste zuerst
+     */
+    public function activity(array $entries, ActivityService $activity, string $format = '1', ?string $lang = null): string
+    {
+        return $this->in($format, $lang, function () use ($entries, $activity): string {
+            $rows = [$this->d['local']
+                ? $this->headers('csvLocal.activity.', ['date', 'action', 'title', 'by', 'reason', 'note'])
+                : ['Datum', 'Aktion', 'Titel', 'Wer', 'Grund', 'Notiz']];
+            foreach ($entries as $e) {
+                $d = $activity->describe($e);
+                $rows[] = [
+                    $this->date((string)($e['done_on'] ?? '')),
+                    $this->d['local'] ? $d['action'] : (string)($e['action'] ?? ''),
+                    $d['title'],
+                    $d['by'],
+                    $d['reason'],
+                    (string)($e['note'] ?? ''),
+                ];
             }
             return $this->build($rows);
         });

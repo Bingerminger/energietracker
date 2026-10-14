@@ -14,11 +14,11 @@ sample household carried forward to today, in seven languages, nothing to instal
 
 [![CI](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/ci.yml)
 [![Docker Publish](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/Bingerminger/energietracker/actions/workflows/docker-publish.yml)
-[![Version](https://img.shields.io/badge/version-3.4.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-3.5.0-blue.svg)](CHANGELOG.md)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-success.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-%E2%89%A5%208.2-777BB4.svg)](composer.json)
 [![Dependencies: 0](https://img.shields.io/badge/dependencies-0-success.svg)](composer.json)
-[![Tests](https://img.shields.io/badge/Tests-813-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-928-success.svg)](tests/)
 [![Languages](https://img.shields.io/badge/languages-7-7c5cff.svg)](public/locales/)
 [![Utilities](https://img.shields.io/badge/utilities-9-f59e0b.svg)](docs/en/einstieg/funktionen.md)
 [![Docker](https://img.shields.io/badge/Docker-amd64%20%7C%20arm64-2496ed.svg)](docker-compose.yml)
@@ -72,11 +72,16 @@ and help inside the app with a glossary and an ⓘ next to every key figure.
 ```bash
 docker run -d --name energietracker -p 8080:80 \
   -v energietracker-data:/data \
-  ghcr.io/bingerminger/energietracker:3.4.0
+  ghcr.io/bingerminger/energietracker:3.5.0
 ```
 
 Then open <http://localhost:8080>. **"Try with sample data"** shows right away
 what everything looks like; your own data is not lost.
+
+With **Home Assistant OS**, no Docker host of your own is needed: install it as
+an app with an entry in the sidebar and sign-in via Home Assistant —
+[As an app in Home Assistant OS](docs/en/anleitungen/home-assistant.md#as-an-app-in-home-assistant-os)
+(new since 3.5.0).
 
 Without Docker, PHP 8.2 or later is enough: `git clone`, then
 `php -S 127.0.0.1:8080 router.php`. For permanent use:
@@ -130,14 +135,15 @@ classes and says why; it does not convert currencies —
 
 ## Status and outlook
 
-**v3.4.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
+**v3.5.0** is the current version — [CHANGELOG](CHANGELOG.en.md) (German
 version: [CHANGELOG.md](CHANGELOG.md)). APIs, CSV formats and the backup format
 change only additively; anything is removed only with a new major version and
-after notice. 3.4.0 makes the app clear and secure for everyone in the
-household: the handbook comes from your own server, also without internet; a
-yearly report for readers without a technical background, with successes and
-recommended actions; done hints with a history of who did what; a tidier
-interface; and a security package. Since 3.3.0 the app values flexibility with
+after notice. 3.5.0 is about who, when and where to: reminders get someone
+responsible, missing supplier bills stand out, and the energy flow plays a day
+in quarter hours. Home Assistant OS users can install it as an app, there is
+an image without root, and the setup asks for language and country first.
+Since 3.4.0 the handbook comes from your own server, with a yearly report for
+everyone and a history of who did what. Since 3.3.0 the app values flexibility with
 quarter-hour data, since 3.2.0 there is a setup assistant, experience levels,
 several people per household and evcc. What comes
 next is in the [roadmap](roadmap.md) (in German). Coming from a

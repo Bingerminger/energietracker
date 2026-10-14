@@ -44,7 +44,8 @@ const flicken = allCss.flatMap(([f, s]) => (s.match(/[.#\w-]+\[hidden\]\s*\{/g) 
 t('keine Einzelregeln .x[hidden] mehr', flicken.length === 0, flicken.join(', '));
 t('kein zweites System .form-grid', !allCss.some(([, s]) => /\.form-grid\b/.test(s)));
 t('Steuerhöhe 36 px, bei Touch 44 px', /:root \{ --control-h: 36px; \}/.test(C)
-  && /@media \(pointer: coarse\), \(max-width: 800px\) \{ :root \{ --control-h: 44px; \} \}/.test(C)
+  // v3.5.0 (N1023) — Touch-Größen bis zur Navigationsschwelle (nav-threshold.test.mjs)
+  && /@media \(pointer: coarse\), \(max-width: 899\.98px\) \{ :root \{ --control-h: 44px; \} \}/.test(C)
   && /min-height: var\(--control-h\)/.test(rule(C, '.input, .select, textarea.input')));
 t('.fgrid: sechs Spalten, eigene Breite als Maßstab', /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\)/.test(rule(C, '.fgrid'))
   && /container-type: inline-size/.test(rule(C, '.fgrid')));

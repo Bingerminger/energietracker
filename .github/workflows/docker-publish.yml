@@ -1,6 +1,8 @@
 name: Docker Publish
 
 # Baut das Image bei jedem Versions-Tag (v*) und veröffentlicht es auf GHCR.
+# v3.5.0 (N1024) — dazu die Variante ohne root aus derselben Dockerfile
+# (Ziel `rootless`): Tags mit der Endung `-rootless`, gleiche Plattformen.
 on:
   push:
     tags: ["v*"]
@@ -16,7 +18,8 @@ jobs:
 
     # N1012: GitHub erzwingt Node 24 für JS-Actions ab 2026-06-16. Wir opten
     # bereits jetzt darauf ein, damit die docker/*-Actions Node-24-erprobt sind
-    # und keine Deprecation-Warnung mehr ausgeben.
+    # und keine Deprecation-Warnung mehr ausgeben. (Seit v3.5.0 laufen alle
+    # hier genutzten Actions selbst auf Node 24; der Schalter schadet nicht.)
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -27,10 +30,10 @@ jobs:
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Buildx einrichten
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: An GHCR anmelden
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -38,7 +41,7 @@ jobs:
 
       - name: Tags & Labels ableiten
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ghcr.io/bingerminger/energietracker
           tags: |
@@ -57,5 +60,34 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # v2.6.0 — Herkunftsnachweis und Stückliste (SBOM) am Image
+          provenance: true
+          sbom: true
+
+      # v3.5.0 (N1024) — `latest` bleibt dem Standard-Image: kein automatisches
+      # latest (flavor latest=false), die Endung steht an jedem Tag selbst.
+      - name: Tags & Labels ableiten (ohne root)
+        id: meta-rootless
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/bingerminger/energietracker
+          flavor: |
+            latest=false
+          tags: |
+            type=semver,pattern={{version}},suffix=-rootless
+            type=semver,pattern={{major}}.{{minor}},suffix=-rootless
+            type=raw,value=latest-rootless
+
+      # Die Stufe `base` kommt aus dem Builder-Cache des Schritts davor.
+      - name: Bauen & pushen (ohne root)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: rootless
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-rootless.outputs.tags }}
+          labels: ${{ steps.meta-rootless.outputs.labels }}
+          cache-from: type=gha,scope=rootless
+          cache-to: type=gha,mode=max,scope=rootless
           provenance: true
           sbom: true

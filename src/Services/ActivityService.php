@@ -32,8 +32,14 @@ use Energietracker\Support\Dates;
  *                {type: integration, name} | {type: auto, reason}; ohne Anmeldung null
  *   reason       {key, params} — bei auto_done: warum
  *   note, attachment_id   optional
+ *   assignee     v3.5.0 (F1028) — beim Termin: wer zuständig war, als
+ *                Momentaufnahme {name, id?} bzw. {former: true}
  *   undone       {at, by} — Rückgängig streicht durch, statt zu löschen
  *   revert       was Rückgängig zurückstellt (Termin, Kündigung, Ausblenden)
+ *
+ * v3.5.0 — `updated` (geänderte Nebenkostenabrechnung) steht nur zum Nachweis
+ * im Verlauf und erledigt keinen Hinweis; `bill_expected` (F1029) erledigt
+ * sich mit der erfassten Versorgerrechnung (billRecorded) oder von Hand.
  *
  * Namen stehen als Momentaufnahme im Eintrag und damit im Backup; die
  * Personenliste selbst bleibt in auth.json. Beim Löschen einer Person kann der
@@ -45,9 +51,10 @@ use Energietracker\Support\Dates;
 final class ActivityService
 {
     public const FILE = 'activity.json';
-    public const ACTIONS = ['done', 'auto_done', 'dismissed'];
-    /** Agenda-Arten, die man von Hand abhaken kann (`can_mark_done`). */
-    public const MANUAL_KINDS = ['reminder', 'cancel_by', 'term_end', 'price_increase', 'tank_reorder',
+    /** v3.5.0 — `updated`: eine Änderung zum Nachweis (geänderte Nebenkostenabrechnung), erledigt nichts. */
+    public const ACTIONS = ['done', 'auto_done', 'dismissed', 'updated'];
+    /** Agenda-Arten, die man von Hand abhaken kann (`can_mark_done`); v3.5.0 (F1029) `bill_expected`. */
+    public const MANUAL_KINDS = ['reminder', 'cancel_by', 'term_end', 'price_increase', 'tank_reorder', 'bill_expected',
                                  'objection_deadline', 'co2_claim_deadline'];
     public const ID = '/^act_[0-9a-f]{12}$/';
     public const NOTE_MAX = 500;
@@ -257,6 +264,15 @@ final class ActivityService
             if (is_array($entry['by']) && ($entry['by']['type'] ?? null) === 'auto') $entry['by']['reason'] = $entry['reason'];
         }
         if ($attachment !== null) $entry['attachment_id'] = $attachment;
+        // v3.5.0 (F1028) — Zuständigkeit als Momentaufnahme
+        if (is_array($e['assignee'] ?? null)) {
+            $a = $e['assignee'];
+            $entry['assignee'] = !empty($a['former']) ? ['former' => true] : array_filter([
+                'name' => mb_substr((string)($a['name'] ?? ''), 0, self::NAME_MAX),
+                'id'   => isset($a['id']) && is_scalar($a['id']) ? (string)$a['id'] : null,
+            ], fn($v) => $v !== null && $v !== '');
+            if ($entry['assignee'] === []) unset($entry['assignee']);
+        }
         if (!empty($e['revert']) && is_array($e['revert'])) $entry['revert'] = $e['revert'];
 
         $all = $this->all();
@@ -319,6 +335,7 @@ final class ActivityService
     /**
      * Datenschutz beim Löschen einer Person: Ihr Name im Verlauf wird durch
      * „ehemalige Person" ersetzt (`former: true`, ohne ID und Namen).
+     * v3.5.0 (F1028) — ebenso als Zuständige eines Termins (`assignee`).
      */
     public function anonymize(string $personId): int
     {
@@ -329,6 +346,7 @@ final class ActivityService
         foreach ($all as $i => $e) {
             $all[$i]['by'] = $strip($e['by'] ?? null);
             if (is_array($e['undone'] ?? null)) $all[$i]['undone']['by'] = $strip($e['undone']['by'] ?? null);
+            if (is_array($e['assignee'] ?? null) && ($e['assignee']['id'] ?? null) === $personId) $all[$i]['assignee'] = ['former' => true];
             if ($all[$i] !== $e) $n++;
         }
         if ($n > 0) $this->store->write('activity.json', $all);
@@ -342,9 +360,12 @@ final class ActivityService
      * (letzte Ablesung länger her als `alert_days_since_reading` oder noch
      * keine). Sonst flutete der tägliche Home-Assistant-Ingest den Verlauf.
      *
+     * v3.5.0 — `$reason` für den Zeitraum (periodRecorded); Standard: Ablesung.
+     *
      * @param array<string,mixed> $meter
+     * @param array{key:string, params:array<string,scalar>}|null $reason
      */
-    public function readingRecorded(string $utility, array $meter, string $date, ?string $prevLast): ?array
+    public function readingRecorded(string $utility, array $meter, string $date, ?string $prevLast, ?array $reason = null): ?array
     {
         if (!Utilities::isCumulative($utility) || !MeterService::inService($meter) || !$this->utilityActive($utility)) return null;
         $today = date('Y-m-d');
@@ -363,8 +384,24 @@ final class ActivityService
             'params'    => ['label' => $this->i18n->utilityLabel($utility), 'meter' => (string)($meter['name'] ?? $mid)],
             'done_on'   => $date,
             'by'        => $this->actor() ?? ['type' => 'auto'],
-            'reason'    => ['key' => 'activity.reason.reading', 'params' => ['date' => $date]],
+            'reason'    => $reason ?? ['key' => 'activity.reason.reading', 'params' => ['date' => $date]],
         ]);
+    }
+
+    /**
+     * v3.5.0 (Nachtrag F1024) — Zähler mit Verbrauch je Zeitraum: Ein neuer
+     * Zeitraum erledigt „Zählerstand ablesen“ wie eine Ablesung — nur, wenn
+     * der Hinweis offen war (dieselbe Regel, kein Fluten durch Importe). Der
+     * Hinweis hängt am Ende des letzten Zeitraums (`$prevLast`).
+     *
+     * @param array<string,mixed> $meter
+     * @param array<string,mixed> $period der neue Zeitraum {from, to}
+     */
+    public function periodRecorded(string $utility, array $meter, array $period, ?string $prevLast): ?array
+    {
+        $to = (string)($period['to'] ?? '');
+        return $this->readingRecorded($utility, $meter, $to, $prevLast,
+            ['key' => 'activity.reason.period', 'params' => ['from' => (string)($period['from'] ?? ''), 'to' => $to]]);
     }
 
     /** Vor dem Speichern einer Lieferung: war der Bestand niedrig (Empfehlung R5)? */
@@ -430,6 +467,73 @@ final class ActivityService
             'done_on'   => Dates::isIsoDate($received) && $received <= $today ? $received : $today,
             'by'        => $this->actor() ?? ['type' => 'auto'],
             'reason'    => ['key' => 'activity.reason.statement', 'params' => ['date' => (string)($statement['period_to'] ?? '')]],
+        ]);
+    }
+
+    /**
+     * v3.5.0 (Nachtrag F1024) — Nebenkostenabrechnung geändert: ein Eintrag
+     * „geändert“ (`updated`) zum Nachweis. Schließt erst die Änderung den
+     * offenen Zeitraum (etwa ein korrigiertes Ende), ist es die Erledigung wie
+     * beim Erfassen (`auto_done`) — nie beides, und nie ein zweites
+     * `auto_done` für denselben Zeitraum. Öffnet die Änderung ihn wieder, wird
+     * die Erledigung durch diese Abrechnung durchgestrichen.
+     *
+     * @param array<string,mixed>       $tenancy
+     * @param array<string,mixed>       $old    die Abrechnung vorher
+     * @param array<string,mixed>       $new    die Abrechnung nachher
+     * @param list<array<string,mixed>> $others die übrigen Abrechnungen des Mietverhältnisses
+     */
+    public function statementChanged(array $tenancy, array $old, array $new, array $others): ?array
+    {
+        // unverändert gespeichert (Zahlen kommen aus JSON mal als 1250, mal als 1250.0): kein Eintrag
+        $strip = fn(array $s) => array_diff_key($s, array_flip(['updated_at']));
+        if ($strip($old) == $strip($new)) return null;
+        $today = date('Y-m-d');
+        $tid = (string)$tenancy['id'];
+        $sid = (string)($new['id'] ?? '');
+        $label = (string)(($tenancy['label'] ?? '') !== '' ? $tenancy['label'] : '—');
+        $miete = $this->settings->get('wohnverhaeltnis', 'eigentum') === 'miete';
+        $openBefore = $miete ? AgendaService::openStatementPeriod($tenancy, [...$others, $old], $today) : null;
+        $openAfter = $miete ? AgendaService::openStatementPeriod($tenancy, [...$others, $new], $today) : null;
+
+        if ($openBefore !== null && $openAfter === null) {
+            $occ = self::occurrence("tenancy_statement_due-$tid-$openBefore", $openBefore);
+            $existing = $this->doneEntry($occ);
+            if ($existing === null || ($existing['action'] ?? '') !== 'auto_done') {
+                $received = (string)($new['received_on'] ?? '');
+                return $this->record([
+                    'action'    => 'auto_done',
+                    'subject'   => ['kind' => 'tenancy_statement_due', 'uid' => "tenancy_statement_due-$tid-$openBefore", 'occurrence' => $occ],
+                    'ref'       => ['tenancy_id' => $tid, 'statement_id' => $sid],
+                    'title_key' => 'calendar.event.tenancyStatementDue',
+                    'params'    => ['label' => $label, 'period' => $openBefore],
+                    'done_on'   => Dates::isIsoDate($received) && $received <= $today ? $received : $today,
+                    'by'        => $this->actor() ?? ['type' => 'auto'],
+                    'reason'    => ['key' => 'activity.reason.statement', 'params' => ['date' => (string)($new['period_to'] ?? '')]],
+                ]);
+            }
+        }
+        if ($openAfter !== null && $openBefore === null) {
+            // die Änderung öffnet den Zeitraum wieder: Erledigung durch diese Abrechnung zurücknehmen
+            $occ = self::occurrence("tenancy_statement_due-$tid-$openAfter", $openAfter);
+            $all = $this->all();
+            $n = 0;
+            foreach ($all as $i => $e) {
+                if (($e['action'] ?? '') !== 'auto_done' || !empty($e['undone']) || ($e['subject']['occurrence'] ?? '') !== $occ) continue;
+                if (($e['ref']['statement_id'] ?? null) !== $sid) continue;
+                $all[$i]['undone'] = ['at' => date('c'), 'by' => ['type' => 'auto']];
+                $n++;
+            }
+            if ($n > 0) $this->store->write(self::FILE, $all);
+        }
+        $uid = "tenancy_statement-$sid";
+        return $this->record([
+            'action'    => 'updated',
+            'subject'   => ['kind' => 'tenancy_statement', 'uid' => $uid, 'occurrence' => self::occurrence($uid, (string)($new['period_to'] ?? ''))],
+            'ref'       => ['tenancy_id' => $tid, 'statement_id' => $sid],
+            'title_key' => 'activity.changed.statement',
+            'params'    => ['label' => $label, 'from' => (string)($new['period_from'] ?? ''), 'to' => (string)($new['period_to'] ?? '')],
+            'done_on'   => $today,
         ]);
     }
 
@@ -516,6 +620,92 @@ final class ActivityService
             $n++;
         }
         if ($n > 0) $this->store->write('activity.json', $all);
+    }
+
+    /**
+     * v3.5.0 (F1029) — Eine Versorgerrechnung deckt eine erwartete Abrechnung
+     * ab: „Abrechnung erwartet“ ist erledigt (`auto_done`, Grund „Rechnung
+     * erfasst“). Die Agenda erkennt das ohnehin aus den Daten; der Eintrag hält
+     * fest, wann und von wem. Kein zweites `auto_done` für denselben Zeitraum.
+     *
+     * @param array<string,mixed> $exp  Erwartung aus BillExpectedService::expected()
+     * @param array<string,mixed> $bill die erfasste Rechnung
+     */
+    public function billRecorded(array $exp, array $bill): ?array
+    {
+        $uid = (string)$exp['uid'];
+        $occ = self::occurrence($uid, (string)$exp['until']);
+        $existing = $this->doneEntry($occ);
+        if ($existing !== null && ($existing['action'] ?? '') === 'auto_done') return null;
+        $today = date('Y-m-d');
+        $issued = (string)($bill['issued_on'] ?? '');
+        return $this->record([
+            'action'    => 'auto_done',
+            'subject'   => ['kind' => 'bill_expected', 'uid' => $uid, 'occurrence' => $occ],
+            'ref'       => ['utility' => (string)$exp['utility'], 'meter_id' => (string)$exp['target_id'],
+                            'contract_id' => (string)$exp['contract_id'], 'bill_id' => (string)($bill['id'] ?? '')],
+            'title_key' => BillExpectedService::titleKey($exp, false),
+            'params'    => BillExpectedService::params($exp, $this->i18n),
+            'done_on'   => Dates::isIsoDate($issued) && $issued <= $today ? $issued : $today,
+            'by'        => $this->actor() ?? ['type' => 'auto'],
+            'reason'    => ['key' => 'activity.reason.bill', 'params' => ['date' => (string)($bill['period_to'] ?? '')]],
+        ]);
+    }
+
+    /**
+     * v3.5.0 (F1029) — Rechnung gelöscht oder geändert: Erledigungen durch sie
+     * werden durchgestrichen, außer `$covered(occurrence)` sagt, dass sie das
+     * Vorkommen weiter abdeckt. Die Agenda zeigt den Hinweis dann wieder.
+     *
+     * @param (callable(string): bool)|null $covered
+     */
+    public function billRevoked(string $billId, ?callable $covered = null): int
+    {
+        $all = $this->all();
+        $n = 0;
+        foreach ($all as $i => $e) {
+            if (($e['action'] ?? '') !== 'auto_done' || !empty($e['undone']) || ($e['ref']['bill_id'] ?? null) !== $billId) continue;
+            if ($covered !== null && $covered((string)($e['subject']['occurrence'] ?? ''))) continue;
+            $all[$i]['undone'] = ['at' => date('c'), 'by' => ['type' => 'auto']];
+            $n++;
+        }
+        if ($n > 0) $this->store->write(self::FILE, $all);
+        return $n;
+    }
+
+    /** Integrationen tragen Produktnamen — gleich in jeder Sprache (wie lib/activity.js). */
+    private const INTEGRATIONS = ['home_assistant' => 'Home Assistant', 'evcc' => 'evcc'];
+
+    /**
+     * v3.5.0 (Nachtrag F1024) — ein Eintrag in Worten, in der Sprache der
+     * Anfrage bzw. des Exports: Aktion, Titel (aus `title_key`, sonst die
+     * Momentaufnahme), wer, Grund. Für den Verlauf als CSV.
+     *
+     * @param array<string,mixed> $e
+     * @return array{action:string, title:string, by:string, reason:string}
+     */
+    public function describe(array $e): array
+    {
+        $text = function (mixed $key, mixed $params): ?string {
+            if (!is_string($key) || $key === '') return null;
+            $s = $this->i18n->t($key, $this->display(is_array($params) ? $params : []));
+            return $s !== $key ? $s : null;
+        };
+        $by = is_array($e['by'] ?? null) ? $e['by'] : null;
+        $who = match ($by['type'] ?? null) {
+            'person'      => !empty($by['former']) ? $this->i18n->t('activity.by.former') : (string)($by['name'] ?? ''),
+            'key'         => $this->i18n->t('activity.by.key', ['name' => (string)($by['name'] ?? '')]),
+            'integration' => self::INTEGRATIONS[(string)($by['name'] ?? '')] ?? (string)($by['name'] ?? ''),
+            'auto'        => $this->i18n->t('activity.by.auto'),
+            default       => '',
+        };
+        $action = (string)($e['action'] ?? '');
+        return [
+            'action' => in_array($action, self::ACTIONS, true) ? $this->i18n->t("activity.actionName.$action") : $action,
+            'title'  => $text($e['title_key'] ?? null, $e['params'] ?? []) ?? (string)($e['title'] ?? ''),
+            'by'     => $who,
+            'reason' => $text($e['reason']['key'] ?? null, $e['reason']['params'] ?? []) ?? '',
+        ];
     }
 
     /**

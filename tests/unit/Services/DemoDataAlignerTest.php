@@ -23,6 +23,14 @@ final class DemoDataAlignerTest extends TestCase
         return json_decode((string)$raw, true);
     }
 
+    /** v3.5.0 — Viertelstundenreihen sind große Listen: Speicher zurückgeben (Suite im Standardlimit). */
+    protected function tearDown(): void
+    {
+        parent::tearDown();
+        gc_collect_cycles();
+        gc_mem_caches();
+    }
+
     private static function plusDays(string $date, int $days): string
     {
         return (new \DateTimeImmutable($date))->modify("$days days")->format('Y-m-d');
@@ -236,5 +244,160 @@ final class DemoDataAlignerTest extends TestCase
         self::assertEqualsWithDelta(650.0, $new[0]['counter'], 0.01);
         self::assertEqualsWithDelta(740.0, $new[1]['counter'], 0.01);
         self::assertSame(['d2', 'd2'], array_column($new, 'device_id'));
+    }
+
+    // ── v3.5.0 (N1026) — Viertelstunden und Verlauf ─────────────────────
+
+    private static function persona(string $id): array
+    {
+        return json_decode((string)file_get_contents(dirname(__DIR__, 3) . "/demo-data/personas/$id.json"), true);
+    }
+
+    /** Plätze [von, bis) eines Tages im Jahr (Ortszeit Berlin). */
+    private static function dayRange(string $date): array
+    {
+        $tz = new \DateTimeZone('Europe/Berlin');
+        $y0 = (new \DateTimeImmutable(substr($date, 0, 4) . '-01-01 00:00:00', $tz))->getTimestamp();
+        $a = new \DateTimeImmutable("$date 00:00:00", $tz);
+        return [intdiv($a->getTimestamp() - $y0, 900), intdiv($a->modify('+1 day')->getTimestamp() - $y0, 900)];
+    }
+
+    /** Tage mit Werten in einer Reihe. @return list<string> */
+    private static function filledDays(array $values, int $year): array
+    {
+        $out = [];
+        for ($d = "$year-01-01"; $d < ($year + 1) . '-01-01'; $d = self::plusDays($d, 1)) {
+            [$a, $b] = self::dayRange($d);
+            if (array_filter(array_slice($values, $a, $b - $a), fn($v) => $v !== null) !== []) $out[] = $d;
+        }
+        return $out;
+    }
+
+    public function testQuarterHoursCoverTheLastMonthsUntilYesterday(): void
+    {
+        $p = self::persona('eigenheim-modern');
+        $out = DemoDataAligner::align($p, '2026-10-13');
+        $ids = array_column($out['intervals']['series'], 'id');
+        $new = array_values(array_filter($ids, fn($id) => str_ends_with($id, '-2026')));
+        self::assertCount(8, $new, 'alle Reihen des Haushalts, auch der Börsenpreis');
+        foreach ($new as $id) {
+            $v = $out['interval_files'][$id]['values'];
+            $days = self::filledDays($v, 2026);
+            self::assertSame('2026-08-01', $days[0], "$id beginnt am Ersten des vorvorigen Monats");
+            self::assertSame('2026-10-12', end($days), "$id endet gestern");
+            self::assertCount(73, $days, "$id lückenlos");
+            $entry = $out['intervals']['series'][array_search($id, $ids, true)];
+            self::assertSame(73 * 96, $entry['filled']);
+            self::assertSame('2026-08-01T00:00:00+02:00', $entry['from']);
+            self::assertSame('2026-10-13T00:00:00+02:00', $entry['to']);
+        }
+        // die Reihen von 2025 bleiben, wie sie sind
+        foreach ($p['interval_files'] as $id => $f) self::assertSame($f, $out['interval_files'][$id]);
+
+        // jede Viertelstunde geht auf, jeder Tag kommt aus demselben Kalendertag ein Jahr zuvor
+        $get = fn(int $y) => array_map(fn($k) => $out['interval_files'][str_replace('YYYY', (string)$y, $k)]['values'], [
+            'grid' => 'e-strom-m_strom_haushalt-YYYY', 'heat_pump' => 'e-strom-m_strom_waermepumpe-YYYY',
+            'wallbox' => 'e-strom-m_strom_wallbox-YYYY', 'gen' => 'e-pv_erzeugung-m_pv_erzeugung_wr-YYYY',
+            'feed' => 'e-pv_einspeisung-m_pv_einspeisung-YYYY', 'charged' => 'e-pv_erzeugung-m_pv_speicher_laden-YYYY',
+            'discharged' => 'e-pv_erzeugung-m_pv_speicher_entladen-YYYY', 'price' => 'p-de-lu-YYYY']);
+        $q26 = $get(2026);
+        $q25 = $get(2025);
+        [$a] = self::dayRange('2026-08-01');
+        [, $b] = self::dayRange('2026-10-12');
+        self::assertSame($b - $a, PersonaUseCasesTest::assertBalancedSlots($q26, $a, $b, 2026));
+        foreach (['2026-08-15', '2026-09-30', '2026-10-12'] as $d) {
+            [$ta, $tb] = self::dayRange($d);
+            [$sa, $sb] = self::dayRange(DemoDataAligner::addYears($d, -1));
+            foreach ($q26 as $k => $v) self::assertSame(array_slice($q25[$k], $sa, $sb - $sa), array_slice($v, $ta, $tb - $ta), "$k am $d");
+        }
+        // heute (noch nicht vorbei) bleibt leer
+        [$ta, $tb] = self::dayRange('2026-10-13');
+        self::assertSame([null], array_values(array_unique(array_slice($q26['grid'], $ta, $tb - $ta), SORT_REGULAR)));
+    }
+
+    public function testQuarterHoursFollowTheClockChange(): void
+    {
+        $p = self::persona('eigenheim-modern');
+        // Herbst 2026: 25. Oktober hat 100 Viertelstunden, die Stunde 2–3 Uhr zweimal
+        $out = DemoDataAligner::align($p, '2026-11-10');
+        $v = $out['interval_files']['e-pv_erzeugung-m_pv_speicher_entladen-2026']['values'];
+        [$a, $b] = self::dayRange('2026-10-25');
+        self::assertSame(100, $b - $a);
+        self::assertNotContains(null, array_slice($v, $a, 100));
+        self::assertSame(array_slice($v, $a + 8, 4), array_slice($v, $a + 12, 4), '2:00–2:45 Uhr zweimal mit denselben Werten');
+        // Frühjahr 2027: 28. März hat 92 Viertelstunden; Quelle ist 2025 (2026 hat dort keine Werte)
+        $out = DemoDataAligner::align($p, '2027-04-15');
+        $g = $out['interval_files']['e-strom-m_strom_haushalt-2027']['values'];
+        [$a, $b] = self::dayRange('2027-03-28');
+        self::assertSame(92, $b - $a);
+        self::assertNotContains(null, array_slice($g, $a, 92));
+        [$sa] = self::dayRange('2025-03-28');
+        $src = $p['interval_files']['e-strom-m_strom_haushalt-2025']['values'];
+        self::assertSame(array_slice($src, $sa, 8), array_slice($g, $a, 8), '0:00–1:45 Uhr wie am Quelltag');
+        self::assertSame(array_slice($src, $sa + 12, 80), array_slice($g, $a + 8, 80), 'ab 3:00 Uhr wie am Quelltag ab 3:00');
+        self::assertArrayNotHasKey('e-strom-m_strom_haushalt-2026', array_flip(array_column(
+            array_filter($out['intervals']['series'], fn($s) => ($s['filled'] ?? 0) > 0), 'id')), 'kein Jahr dazwischen erfunden');
+    }
+
+    public function testQuarterHoursStartOnlyAfterTheExport(): void
+    {
+        $p = self::persona('eigenheim-modern');
+        // drei Wochen nach dem Export: nur Juni, nicht April und Mai (dazu passen die Stände nicht)
+        $out = DemoDataAligner::align($p, '2026-06-21');
+        $days = self::filledDays($out['interval_files']['e-strom-m_strom_haushalt-2026']['values'], 2026);
+        self::assertSame('2026-06-01', $days[0]);
+        self::assertSame('2026-06-20', end($days));
+        // am Exporttag: nichts Neues
+        $same = DemoDataAligner::align($p, '2026-05-31');
+        self::assertSame($p['intervals'], $same['intervals']);
+        self::assertSame($p['interval_files'], $same['interval_files']);
+    }
+
+    public function testBillingAnchorFollowsTodayOnlyWhereTheDemoAsksForIt(): void
+    {
+        $payload = ['exported_at' => '2026-05-31T12:00:00+02:00', 'settings' => ['billing_cycle_anchor_gas' => '07-01', 'billing_cycle_anchor_wasser' => '04-01'],
+            'demo_align' => ['billing_anchor_days_ago' => ['gas' => 56, 'strom' => 30, 'kaffee' => 10, 'wasser' => 'viel']]];
+        $out = DemoDataAligner::align($payload, '2026-10-13');
+        self::assertArrayNotHasKey('demo_align', $out);
+        // letzte Periode endet 56 bzw. 30 Tage vor heute: Stichtag = der Tag danach
+        self::assertSame('08-19', $out['settings']['billing_cycle_anchor_gas']);
+        self::assertSame('09-14', $out['settings']['billing_cycle_anchor_strom']);
+        self::assertSame('04-01', $out['settings']['billing_cycle_anchor_wasser'], 'ungültige Angabe: unverändert');
+        self::assertArrayNotHasKey('billing_cycle_anchor_kaffee', $out['settings']);
+        // nie der 29. Februar (gibt es nicht in jedem Jahr)
+        $leap = DemoDataAligner::align(['settings' => [], 'demo_align' => ['billing_anchor_days_ago' => ['gas' => 1]]], '2028-02-29');
+        self::assertSame('03-01', $leap['settings']['billing_cycle_anchor_gas']);
+        // ohne Hinweis bleibt alles, wie es ist
+        self::assertSame($payload['settings'], DemoDataAligner::align(array_diff_key($payload, ['demo_align' => 1]), '2026-10-13')['settings']);
+    }
+
+    public function testHistoryOfRemindersMovesWithTheReminders(): void
+    {
+        foreach (['mieterin', 'eigenheim-modern'] as $id) {
+            $p = self::persona($id);
+            $today = '2026-10-13';
+            $shift = DemoDataAligner::reminderShift($p['reminders'], $today);
+            self::assertNotSame(0, $shift);
+            $out = DemoDataAligner::align($p, $today);
+            $rem = array_column($out['reminders'], null, 'id');
+            foreach ($p['activity'] as $i => $e) {
+                $o = $out['activity'][$i];
+                self::assertSame($e['id'], $o['id']);
+                self::assertLessThanOrEqual($today, $o['done_on']);
+                if ($e['subject']['kind'] !== 'reminder') {
+                    self::assertSame($e, $o, "{$e['subject']['kind']} bleibt am Datum seiner Daten");
+                    continue;
+                }
+                self::assertSame(self::plusDays($e['done_on'], $shift), $o['done_on']);
+                self::assertSame(self::plusDays(substr($e['recorded_at'], 0, 10), $shift), substr($o['recorded_at'], 0, 10));
+                [, $anchor] = explode('@', $e['subject']['occurrence']);
+                self::assertSame('reminder-' . $e['ref']['reminder_id'] . '@' . self::plusDays($anchor, $shift), $o['subject']['occurrence']);
+                if (!empty($e['undone'])) self::assertSame(self::plusDays(substr($e['undone']['at'], 0, 10), $shift), substr($o['undone']['at'], 0, 10));
+                // der letzte Haken passt weiter zum Termin
+                if (empty($o['undone']) && $o['revert']['after']['next_due'] === $rem[$e['ref']['reminder_id']]['next_due']) {
+                    self::assertSame($rem[$e['ref']['reminder_id']]['last_done'], $o['done_on']);
+                }
+            }
+        }
     }
 }

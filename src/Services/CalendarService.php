@@ -56,6 +56,10 @@ final class CalendarService
             $lines[] = 'DTSTART;VALUE=DATE:' . $date;
             $lines[] = 'DTEND;VALUE=DATE:' . $next;
             $lines[] = 'SUMMARY:' . self::text(($done ? self::DONE_MARK : '') . (string)$e['title']);
+            // v3.5.0 (F1028) — wer zuständig ist, als Zeile in DESCRIPTION
+            $who = is_string($e['assignee'] ?? null) && $e['assignee'] !== '' ? $e['assignee']
+                : (!empty($e['assignee_former']) ? $this->i18n->t('activity.by.former') : null);
+            if ($who !== null) $lines[] = 'DESCRIPTION:' . self::text($this->i18n->t('calendar.assignee', ['name' => $who]));
             $lines[] = 'CATEGORIES:' . strtoupper((string)$e['kind']);
             $lines[] = 'TRANSP:TRANSPARENT';
             if ($warn > 0 && !$done && in_array($e['kind'], self::ALARM_KINDS, true)) {

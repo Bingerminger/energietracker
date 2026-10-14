@@ -94,7 +94,19 @@ async function enumerate(get) {
     // v3.1.0 (H3–H8) — Mietverhältnis, Börsenpreise, Einordnung auf der Übersicht
     '/api/tenancies', '/api/market-prices', '/api/benchmarks/comparison',
     '/api/intervals', '/api/flexibility',    // v3.3.0 (F1021) — Vorbelegung: Vorjahr
-    '/api/activity');                         // v3.4.0 (F1024) — Hinweise › Erledigt, Verlauf je Vertrag
+    '/api/activity',                          // v3.4.0 (F1024) — Hinweise › Erledigt, Verlauf je Vertrag
+    '/api/people');                           // v3.5.0 (F1028) — Personen für „Zuständig“ (Demo: keine)
+
+  // v3.5.0 (F1027) — Tagesfilm: welche Tage es gibt, die Tage des Monats der
+  // Vorbelegung und der typische Tag je Monat. Andere Tage meldet die Demo als
+  // „nicht vorberechnet“ (der Film sagt es unter der Auswahl).
+  add('/api/energy-flow/days');
+  const efDays = (await get('/api/energy-flow/days')).json?.data;
+  if (efDays?.available) {
+    const ym = String(efDays.default_day || '').slice(0, 7);
+    for (const d of efDays.days.filter(x => x.startsWith(`${ym}-`))) add(`/api/energy-flow/day?date=${d}`);
+    for (const m of efDays.months) add(`/api/energy-flow/typical-day?month=${m}`);
+  }
 
   const settings = (await get('/api/settings')).json?.data ?? {};
   // v3.2.0 (F1018) — Mietverhältnis der Beispielhaushalte: Budget und Abrechnungen

@@ -57,6 +57,41 @@ final class HealthCheckServiceTest extends ServiceTestCase
         self::assertSame(['gas/readings.json'], $health['checks']['files']['corrupt']);
     }
 
+    /**
+     * v3.5.0 (N1025) — Als Home-Assistant-App teilt sich das Datenverzeichnis
+     * /data mit der `options.json` des Supervisors (root, 0600, vor jedem Start
+     * neu). Sie gehört nicht der App: nicht lesbar ist sie kein Fehler — sonst
+     * meldete der Healthcheck 503 und der Watchdog startete die App im Kreis.
+     * Eine eigene unlesbare Datei bleibt ein Fehler.
+     */
+    public function testTheSupervisorsOptionsFileIsNotOurs(): void
+    {
+        if (function_exists('posix_geteuid') && posix_geteuid() === 0) {
+            self::markTestSkipped('als root ist jede Datei lesbar');
+        }
+        $options = $this->dataDir . '/options.json';
+        file_put_contents($options, '{}');
+        chmod($options, 0000);
+        try {
+            $health = (new HealthCheckService($this->store))->run();
+            self::assertSame([], $health['checks']['files']['corrupt'], 'options.json zählt nicht als beschädigt');
+            self::assertSame('ok', $health['status']);
+
+            $own = $this->dataDir . '/reminders.json';
+            file_put_contents($own, '[]');
+            chmod($own, 0000);
+            try {
+                $health = (new HealthCheckService($this->store))->run();
+                self::assertSame(['reminders.json'], $health['checks']['files']['corrupt'], 'nur die eine fremde Datei ist ausgenommen');
+                self::assertSame('error', $health['status']);
+            } finally {
+                chmod($own, 0644);
+            }
+        } finally {
+            chmod($options, 0644);
+        }
+    }
+
     public function testDataFromANewerVersionIsAnErrorAndStaysUntouched(): void
     {
         $meta = $this->store->read('meta.json', []);

@@ -56,14 +56,20 @@ const SPECIAL_KIND_AFFECTS_ADVANCE = new Set(
   SPECIAL_PAYMENT_KINDS.filter(k => k.affectsAdvance).map(k => k.value)
 );
 
-// F1003-Scope (Spiegel von Utilities::hasAdvancePaymentContracts):
-// Standard-Abschlagsvertrag = kumulativ und nicht Wasser → Gas, Strom,
-// Fernwärme. Heizöl/Pellets (delivery) und Wasser bleiben außen vor.
+// Standard-Abschlagsvertrag (Spiegel von Utilities::hasAdvancePaymentContracts):
+// Gas, Strom, Fernwärme — hier nur noch für den Gruppenvertrag.
 // v2.13.0 (Review FE-14) — aus der SSOT (`/api/utilities`) statt einer Kopie
 // der Regel; die Kopie bot PV-Einspeisung Sonderzahlungen an, die der Server
 // still verwarf
 function hasAdvancePaymentContracts(u) {
   return u?.has_advance_payment_contracts === true;
+}
+
+// F1003-Scope (Spiegel von Utilities::hasSpecialPayments): Gas, Strom,
+// Wasser, Fernwärme. v3.5.0 (GitHub #34) — bis v3.4 hing der Abschnitt
+// „Sonderzahlungen“ an hasAdvancePaymentContracts, Wasser fehlte.
+function hasSpecialPayments(u) {
+  return u?.has_special_payments === true;
 }
 
 export async function render(container, params) {
@@ -344,6 +350,10 @@ function renderContractCard(c, meters, u, groups = []) {
   const meter = meters.find(m => m.id === c.meter_id);
   const group = c.meter_group_id ? groups.find(g => g.id === c.meter_group_id) : null;
   let summary;
+  // v3.5.0 (GitHub #34) — die Zahl der Sonderzahlungen auch bei Wasser
+  const special = hasSpecialPayments(u)
+    ? [tp('contracts.summary.specialPayments', c.special_payments?.length || 0)]
+    : [];
   if (u.key === 'wasser') {
     const tw = c.trinkwasser || {};
     const sw = c.schmutzwasser || {};
@@ -355,6 +365,7 @@ function renderContractCard(c, meters, u, groups = []) {
       tp('contracts.summary.nwDates',  nw.rates?.length || 0),
       tp('contracts.summary.advances', c.advance_payments?.length || 0),
       tp('contracts.summary.bonuses',  c.bonuses?.length || 0),
+      ...special,
     ].join(' · ');
   } else {
     summary = [
@@ -362,9 +373,7 @@ function renderContractCard(c, meters, u, groups = []) {
       tp('contracts.summary.basePrices',    c.base_prices?.length || 0),
       tp('contracts.summary.advances',      c.advance_payments?.length || 0),
       tp('contracts.summary.bonuses',       c.bonuses?.length || 0),
-      ...(hasAdvancePaymentContracts(u)
-          ? [tp('contracts.summary.specialPayments', c.special_payments?.length || 0)]
-          : []),
+      ...special,
     ].join(' · ');
   }
   const yrs = yearsOf(c);
@@ -533,7 +542,7 @@ async function openContractModal(u, meters, existing, contracts = [], groups = [
 
         ${renderBonusSection(initial.bonuses || [])}
 
-        ${hasAdvancePaymentContracts(u) ? renderSpecialPaymentSection(initial.special_payments || []) : ''}
+        ${hasSpecialPayments(u) ? renderSpecialPaymentSection(initial.special_payments || []) : ''}
         ${u?.accounting_kind === 'feed_in' ? renderRevenueSection(initial.revenue_statements || []) : ''}
 
         <div class="fgrid">
@@ -1104,6 +1113,33 @@ function bindSpecialPaymentRow(row) {
   });
 }
 
+// Sonderzahlungen aus den Zeilen des Abschnitts — für den Standard- und
+// (seit v3.5.0, GitHub #34) den Wasservertrag. Leere Vorlagezeilen fallen weg.
+function collectSpecialPayments(root) {
+  const entries = [];
+  root.querySelectorAll('.special-row').forEach(row => {
+    const date = row.querySelector('[data-role="date"]').value.trim();
+    const am   = row.querySelector('[data-role="amount"]').value.trim();
+    const kind = row.querySelector('[data-role="kind"]').value;
+    const note = row.querySelector('[data-role="note"]')?.value.trim() || '';
+    if (!date && !am) return; // leere Vorlagezeile überspringen
+    const entry = {
+      date,
+      amount_eur: amountValue(am),
+      kind,
+      note,
+    };
+    if (SPECIAL_KIND_AFFECTS_ADVANCE.has(kind)) {
+      const na = row.querySelector('[data-role="new-advance"]')?.value.trim() || '';
+      const af = row.querySelector('[data-role="advance-from"]')?.value.trim() || '';
+      entry.new_advance_eur = amountValue(na);
+      entry.advance_from    = af;
+    }
+    entries.push(entry);
+  });
+  return entries;
+}
+
 // ───── Payload extraction ───────────────────────────────────────────
 // Leer bleibt '' (das Backend meldet die halbe Zeile), Text wird zur Zahl.
 // Ein unlesbarer Rest geht als Text hinaus — auch den lehnt das Backend mit
@@ -1212,28 +1248,7 @@ function collectPayload(form, u = null) {
   payload.bonuses = bonusEntries;
 
   // F1003 — Sonderzahlungen
-  const specialEntries = [];
-  form.querySelectorAll('.special-row').forEach(row => {
-    const date = row.querySelector('[data-role="date"]').value.trim();
-    const am   = row.querySelector('[data-role="amount"]').value.trim();
-    const kind = row.querySelector('[data-role="kind"]').value;
-    const note = row.querySelector('[data-role="note"]')?.value.trim() || '';
-    if (!date && !am) return; // leere Vorlagezeile überspringen
-    const entry = {
-      date,
-      amount_eur: amountValue(am),
-      kind,
-      note,
-    };
-    if (SPECIAL_KIND_AFFECTS_ADVANCE.has(kind)) {
-      const na = row.querySelector('[data-role="new-advance"]')?.value.trim() || '';
-      const af = row.querySelector('[data-role="advance-from"]')?.value.trim() || '';
-      entry.new_advance_eur = amountValue(na);
-      entry.advance_from    = af;
-    }
-    specialEntries.push(entry);
-  });
-  payload.special_payments = specialEntries;
+  payload.special_payments = collectSpecialPayments(form);
 
   // v3.1.0 (H7, MKT-16) — Gutschriften (nur Einspeisung)
   if (u?.accounting_kind === 'feed_in') {
@@ -1277,6 +1292,7 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
       },
       advance_payments:[{ from: '', amount_eur: '' }],
       bonuses: [],
+      special_payments: [],
     };
 
     const body = document.createElement('div');
@@ -1294,6 +1310,9 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
       footer: footer.innerHTML,
       onMount({ modalEl, close }) {
         bindWaterEntryHandlers(modalEl);
+        // v3.5.0 (GitHub #34) — Sonderzahlungen wie im Standardvertrag
+        try { bindSpecialPaymentHandlers(modalEl); }
+        catch (e) { console.warn('water contract modal: special-payment binding failed:', e); }
         associateFieldLabels(modalEl);
 
         // Toggle separater Zähler input
@@ -1322,7 +1341,11 @@ async function openWaterContractModal(u, meters, existing, contracts = []) {
           // v2.2.0 — halb gefüllte Zeilen vor dem Absenden markieren (analog
           // validateAllGroups im Standard-Formular). Vorher rutschten sie als
           // stille 0 durch, siehe collectWaterForm().
-          if (!validateWaterRows(modalEl)) {
+          // v3.5.0 — die Sonderzahlungen sind Zeilen des Standardrasters
+          // (.entry-row); validateAllGroups prüft sie samt Abschlagsanpassung
+          const waterOk = validateWaterRows(modalEl);
+          const specialOk = validateAllGroups(modalEl);
+          if (!waterOk || !specialOk) {
             toastErr(t('contracts.modal.validationHalfRows'));
             return;
           }
@@ -1437,6 +1460,10 @@ function waterFormHtml(c, meters, u) {
           ${renderWaterBonusGroup(c.bonuses || [])}
         </div>
       </details>
+
+      <!-- v3.5.0 (GitHub #34) — Sonderzahlungen: derselbe Abschnitt wie im
+           Standardvertrag (Raster N1021), nach den Boni -->
+      ${hasSpecialPayments(u) ? `<div style="margin-top:var(--sp-3)">${renderSpecialPaymentSection(c.special_payments || [])}</div>` : ''}
     </form>
   `;
 }
@@ -1626,6 +1653,8 @@ function collectWaterForm(modalEl) {
       type: 'neukunde',
     })),
   };
+  // v3.5.0 (GitHub #34) — Sonderzahlungen, sofern der Abschnitt da ist
+  if (form.querySelector('[data-section="special"]')) payload.special_payments = collectSpecialPayments(form);
 
   if (!payload.start) throw new Error(t('contracts.water.startRequired'));
   return payload;

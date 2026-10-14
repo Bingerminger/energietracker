@@ -248,8 +248,10 @@ try {
   });
   t('Kosten → Verträge: Zukünftig · Aktuell · Beendet · Angebote, jeweils der neueste oben', sortedOk,
     cards.map(c => `${c.group}:${c.id}`).join(' '));
+  // v3.5.0 (N1026) — der Wärmepumpentarif wurde gewechselt: unbefristet ist der Folgevertrag
+  const wpOpen = api.find(c => c.meter_id === 'm_strom_waermepumpe' && !c.end && !c.is_shadow)?.id;
   t('Kosten → Verträge: unbefristeter Vertrag der Wärmepumpe steht unter „Aktuell“',
-    cards.find(c => c.id === 'c_strom_waermepumpe')?.group === 'current', cards.find(c => c.id === 'c_strom_waermepumpe')?.group);
+    !!wpOpen && cards.find(c => c.id === wpOpen)?.group === 'current', `${wpOpen}: ${cards.find(c => c.id === wpOpen)?.group}`);
   t('Kosten → Verträge: Angebot (Schattenvertrag) am Ende, mit Verweis auf den Tarifvergleich',
     cards.at(-1)?.group === 'shadow' && !!view().querySelector('[data-phase-group="shadow"] a[href="#/tariffs"]'), cards.at(-1)?.id);
   const pastBox = view().querySelector('details[data-phase-group="past"]');
@@ -258,7 +260,7 @@ try {
     && /Beendet \(\d+\)/.test(text(pastBox.querySelector('summary'))), `${nPast} beendet, offen=${pastBox?.open}`);
   t('Kosten → Verträge: weiterlaufender Vertrag heißt „VERLÄNGERT“', cards.find(c => c.id === renewedC.id)?.label === 'VERLÄNGERT'
     && cards.find(c => c.id === oldC.id)?.label === 'BEENDET', `${cards.find(c => c.id === renewedC.id)?.label}`);
-  const curCard = view().querySelector('.contract-card[data-contract-id="c_strom_waermepumpe"]');
+  const curCard = view().querySelector(`.contract-card[data-contract-id="${wpOpen}"]`);
   t('Kosten → Verträge: Karte nennt heutige Werte, Zählungen erst ab „Experte“',
     /Arbeitspreis [\d,.]+ ct\/kWh/.test(text(curCard?.querySelector('.contract-card__values')))
       && curCard?.querySelector('.contract-card__counts')?.dataset.minLevel === 'expert'

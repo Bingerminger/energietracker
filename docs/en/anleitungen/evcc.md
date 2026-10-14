@@ -94,8 +94,9 @@ means off; the CSV file always works.
 
 **Your own network only.** As with [text recognition](texterkennung.md), the
 app only accepts addresses in your own network: loopback, private networks
-(`10.x`, `172.16.x`–`172.31.x`, `192.168.x`), link-local, `100.64.0.0/10` and
-the matching IPv6 ranges. The name is resolved on every fetch, every address it
+(`10.x`, `172.16.x`–`172.31.x`, `192.168.x`), `100.64.0.0/10` and the matching
+IPv6 ranges; link-local (`169.254.x`, `fe80::`) has not counted as the home
+network since v3.4.0. The name is resolved on every fetch, every address it
 points to has to be local, the connection goes to exactly the checked address,
 and the app does not follow redirects. No new way into the internet is opened.
 A fetch waits at most 30 seconds.

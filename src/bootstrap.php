@@ -29,7 +29,7 @@ use Energietracker\Services\{
     AttachmentService, OcrService, PeriodService, TenancyService, TenancyBudgetService,
     Co2CostService, Co2SplitService, BillService, MarketPriceService, EvChargingReportService, HeatPumpService,
     SeriesImportService, ReferenceService, EvccService, IntervalService, FlexibilityService,
-    DocsService, ReportModelService, ReportAdviceService, ActivityService
+    DocsService, ReportModelService, ReportAdviceService, ActivityService, BillExpectedService
 };
 use Energietracker\Controllers\{
     MeterController, ReadingController, ContractController,
@@ -44,6 +44,8 @@ use Energietracker\Controllers\{
     AttachmentController, PeriodController, TenancyController, Co2Controller, BillController, MarketPriceController, EvChargingController, HeatPumpController,
     SeriesImportController, EvccController, FlexibilityController, DocsController, ActivityController
 };
+use Energietracker\Services\EnergyFlowDayService;        // v3.5.0 (F1027)
+use Energietracker\Controllers\EnergyFlowController;     // v3.5.0 (F1027)
 
 /**
  * Minimal hand-rolled autoloader for the Energietracker namespace.
@@ -113,8 +115,10 @@ final class App
     public EvccService $evcc;               // v3.2.0 (F1022)
     public IntervalService $intervals;      // v3.3.0 (F1021)
     public FlexibilityService $flexibility; // v3.3.0 (F1021)
+    public EnergyFlowDayService $energyFlowDay; // v3.5.0 (F1027)
     public ReportModelService $reportModel; // v3.4.0 (F1025)
     public ActivityService $activity;       // v3.4.0 (F1024)
+    public BillExpectedService $billsExpected; // v3.5.0 (F1029)
 
     public function __construct(string $dataDir)
     {
@@ -175,6 +179,7 @@ final class App
         // v3.3.0 (F1021) — Werte je Viertelstunde und was das Verschieben gebracht hat
         $this->intervals    = new IntervalService($this->store, $this->settings);
         $this->flexibility  = new FlexibilityService($this->intervals, $this->meters, $this->contracts);
+        $this->energyFlowDay = new EnergyFlowDayService($this->intervals, $this->meters);   // v3.5.0 (F1027) — Tagesfilm
         $this->marketPrices = new MarketPriceService($this->store, $this->i18n, null, $this->intervals);   // v3.1.0 (H6)
         $this->tariffs      = new TariffComparisonService($this->consumption, $this->contracts, $this->meters, $this->i18n, $this->marketPrices, $this->flexibility);
         $this->tariffSwitch = new TariffSwitchService($this->forecasts, $this->contracts, $this->meters, $this->i18n, $this->marketPrices);
@@ -232,6 +237,18 @@ final class App
                   $this->recommendations, $this->agenda] as $svc) $svc->attachActivity($this->activity);
         $this->activity->attach($this->reminders, $this->contracts, $this->recommendations);
         $this->activity->setTankProbe(fn(string $u, string $m): bool => $this->recommendations->tankLow($u, $m));
+        // v3.5.0 — Zuständig an Terminen (F1028), Abrechnung erwartet (F1029),
+        // Verlauf auch für Zeiträume und geänderte Abrechnungen (Nachtrag F1024)
+        $this->reminders->attachPeople(function (string $id): ?array {
+            $u = $this->auth->userById($id);
+            return $u === null ? null : ['id' => (string)$u['id'], 'name' => (string)($u['name'] ?? '')];
+        });
+        $this->periods->attachActivity($this->activity);
+        $this->billsExpected = new BillExpectedService($this->settings, $this->meters, $this->contracts,
+            $this->readings, $this->periods, $this->bills);
+        $this->bills->attachActivity($this->activity);
+        $this->bills->attachExpectations($this->billsExpected);
+        $this->agenda->attachBillExpectations($this->billsExpected);
 
         // Auto-migrate or initialize on first run.
         // Reihenfolge wichtig: ein komplett leeres Verzeichnis (echter
@@ -254,15 +271,19 @@ final class App
                 // BEVOR die Standard-Zähler ihren Namen bekommen. Bis v2.6.0
                 // begrüßte jede Neuinstallation auf Deutsch und schrieb
                 // „Hauptzähler" dauerhaft in die Daten.
-                $firstStart = $migrator->isPristine() ? $this->firstStartSettings($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null) : null;
-                if ($firstStart !== null) $this->i18n->setLocale($firstStart['language'] ?? null);
+                $firstStart = $migrator->isPristine() ? $this->firstStartChoice($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? null) : null;
+                if ($firstStart !== null) $this->i18n->setLocale($firstStart['language']);
                 $result = $migrator->runOnStartup(fn(string $from): string => $this->backups->saveSnapshot(
                     'pre-migration-' . preg_replace('/[^0-9A-Za-z.]/', '', $from) . '_'
                 ));
                 // v3.2.0 (F1018) — eine Neuinstallation beginnt mit dem
                 // Einrichtungsassistenten; nach einem Update nie
                 if ($firstStart !== null && ($result['action'] ?? null) === 'fresh') {
-                    $this->settings->set($firstStart + ['setup_pending' => true]);
+                    // v3.5.0 (N1022) — das Land über dieselbe Regel wie Einrichtung
+                    // und Einstellungen (SettingsService::applyCountry)
+                    $this->settings->applyCountry($firstStart['country']);
+                    $lang = SettingsService::isDefault('language', $firstStart['language']) ? [] : ['language' => $firstStart['language']];
+                    $this->settings->set($lang + ['setup_pending' => true]);
                 }
                 $this->logStartup($result, $dataDir);
             } finally {
@@ -328,21 +349,21 @@ final class App
     }
 
     /**
-     * v2.7.0 — Einstellungen einer Neuinstallation aus Accept-Language:
+     * v2.7.0 — Sprache und Land einer Neuinstallation aus Accept-Language:
      * Sprache (wie negotiate()), Land (Region im Header, sonst aus der
-     * Sprache) und die Werte des Länderprofils — nur, was vom Default
-     * abweicht. So greifen spätere Korrekturen der Defaults auch bei neuen
-     * deutschen Installationen. Ohne Header (CLI, Tests) bleibt alles deutsch.
+     * Sprache). Geschrieben werden danach die Werte des Länderprofils — nur,
+     * was vom Default abweicht (v3.5.0: SettingsService::applyCountry, dieselbe
+     * Regel wie im Einrichtungsassistenten). So greifen spätere Korrekturen der
+     * Defaults auch bei neuen deutschen Installationen. Ohne Header (CLI,
+     * Tests) bleibt alles deutsch.
      *
-     * @return array<string,mixed>
+     * @return array{language:string,country:string}
      */
-    private function firstStartSettings(?string $acceptLanguage): array
+    private function firstStartChoice(?string $acceptLanguage): array
     {
         $language = $this->i18n->negotiate($acceptLanguage) ?? I18nService::DEFAULT_LOCALE;
         $country  = Countries::fromAcceptLanguage($acceptLanguage) ?? Countries::forLanguage($language);
-        $wanted   = ['language' => $language] + Countries::settingsFor($country);
-        $defaults = $this->settings->all();
-        return array_filter($wanted, fn($v, $k) => ($defaults[$k] ?? null) !== $v, ARRAY_FILTER_USE_BOTH);
+        return ['language' => $language, 'country' => $country];
     }
 
     /**
@@ -352,10 +373,30 @@ final class App
      */
     private ?string $dataTooNew = null;
 
+    /**
+     * v3.5.0 (N1024) — Das Datenverzeichnis ist nicht beschreibbar, und die App
+     * müsste beim Start anlegen oder migrieren. Wie bei $dataTooNew antwortet
+     * nur /api/health (503, `data_dir_writable: false`), alle anderen Routen
+     * mit 503 und einer Meldung statt 500.
+     */
+    private bool $dataUnwritable = false;
+
     /** @param array<string,mixed>|null $result aus Migrator::runOnStartup() */
     private function logStartup(?array $result, string $dataDir): void
     {
         if ($result === null) return;
+        if ($result['action'] === 'unwritable') {
+            $this->dataUnwritable = true;
+            $uid = function_exists('posix_geteuid') ? posix_geteuid() : null;
+            $gid = function_exists('posix_getegid') ? posix_getegid() : null;
+            $this->logger->error('Datenverzeichnis nicht beschreibbar — Rechte am Volume anpassen', [
+                'data_dir' => $dataDir,
+                'uid'      => $uid,
+                'gid'      => $gid,
+                'hint'     => $uid !== null ? "auf dem Host: chown -R $uid:$gid <Datenordner>" : null,
+            ]);
+            return;
+        }
         if ($result['action'] === 'too-new') {
             $this->dataTooNew = (string)$result['schema'];
             $this->logger->error('Daten stammen von einer neueren Version — Zugriff gesperrt', [
@@ -432,6 +473,10 @@ final class App
             Response::error($this->i18n->t('errors.storage.dataTooNew', [
                 'schema' => $this->dataTooNew, 'app' => Migrator::SCHEMA_VERSION,
             ]), 503, null, 'errors.storage.dataTooNew');
+        }
+        // v3.5.0 (N1024) — Datenverzeichnis nicht beschreibbar: nur /api/health antwortet.
+        if ($this->dataUnwritable && $req->path !== '/api/health') {
+            Response::error($this->i18n->t('errors.storage.notWritable'), 503, null, 'errors.storage.notWritable');
         }
 
         // v2.5.3 — schreibende Anfragen fremder Webseiten abweisen (CSRF), s. CrossSiteGuard
@@ -744,6 +789,12 @@ final class App
         $r->delete('/api/intervals/{id}',                   fn($req) => $flexCtrl->delete($req));
         $r->post('/api/market-prices/sync-smard-intervals', fn($req) => $flexCtrl->syncSmard($req));
 
+        // v3.5.0 (F1027) — Tagesfilm: Energiefluss eines Tages bzw. des typischen Tages je Viertelstunde
+        $efCtrl = new EnergyFlowController($this->energyFlowDay, $this->i18n);
+        $r->get('/api/energy-flow/days',        fn($req) => $efCtrl->days($req));
+        $r->get('/api/energy-flow/day',         fn($req) => $efCtrl->day($req));
+        $r->get('/api/energy-flow/typical-day', fn($req) => $efCtrl->typicalDay($req));
+
         // v3.1.0 (Paket H5) — Versorgerrechnungen erfassen, prüfen, buchen
         $billCtrl = new BillController($this->bills);
         $r->get('/api/utility/{utility}/bills',              fn($req) => $billCtrl->index($req));
@@ -803,6 +854,7 @@ final class App
         $r->get('/api/settings',   fn($req) => $sCtrl->index($req));
         $r->patch('/api/settings', fn($req) => $sCtrl->update($req));
         $r->get('/api/countries',  fn($req) => $sCtrl->countries($req));   // v2.7.0 — Länderprofile
+        $r->post('/api/settings/country', fn($req) => $sCtrl->country($req));   // v3.5.0 (N1022) — Land wechseln
         $r->get('/api/settings/default-updates', fn($req) => $sCtrl->defaultUpdates($req));   // v2.10.0
 
         $bCtrl = new BackupController($this->backups);
@@ -879,8 +931,9 @@ final class App
         // v3.4.0 (F1024) — Erledigt mit Verlauf: abhaken, Verlauf, Rückgängig, Notiz;
         // leeren nur Verwalter (adminOnly)
         $r->post('/api/agenda/done',  fn($req) => $agCtrl->done($req));
-        $actCtrl = new ActivityController($this->activity);
+        $actCtrl = new ActivityController($this->activity, $this->csvExport);
         $r->get('/api/activity',              fn($req) => $actCtrl->index($req));
+        $r->get('/api/activity.csv',          fn($req) => $actCtrl->csv($req));   // v3.5.0 — zum Nachweis
         $r->delete('/api/activity',           fn($req) => $actCtrl->clear($req));
         $r->post('/api/activity/{id}/undo',   fn($req) => $actCtrl->undo($req));
         $r->patch('/api/activity/{id}',       fn($req) => $actCtrl->update($req));
@@ -907,7 +960,8 @@ final class App
         // ── v2.6.0 — Anmeldung (opt-in) und API-Schlüssel ──
         $sessCtrl = new SessionController($this->auth, $this->i18n, fn(): bool => $this->authenticated,
             fn(): ?array => $this->currentUser(), fn(): string => $this->role,
-            fn(string $id) => $this->activity->anonymize($id));   // v3.4.0 (F1024)
+            fn(string $id) => $this->activity->anonymize($id),   // v3.4.0 (F1024)
+            fn(string $id, bool $anon) => $this->reminders->personDeleted($id, $anon));   // v3.5.0 (F1028)
         $r->get('/api/session',              fn($req) => $sessCtrl->status($req));
         $r->post('/api/session',             fn($req) => $sessCtrl->login($req));
         $r->delete('/api/session',           fn($req) => $sessCtrl->logout($req));
@@ -922,6 +976,8 @@ final class App
         $r->patch('/api/session/me',          fn($req) => $sessCtrl->updateMe($req));
         $r->post('/api/session/me/password',  fn($req) => $sessCtrl->changeMyPassword($req));
         $r->get('/api/users',                 fn($req) => $sessCtrl->listUsers($req));
+        // v3.5.0 (F1028) — nur ID und Name, für die Auswahl „Zuständig“ (jede Rolle)
+        $r->get('/api/people',                fn($req) => $sessCtrl->people($req));
         $r->post('/api/users',                fn($req) => $sessCtrl->createUser($req));
         $r->patch('/api/users/{id}',          fn($req) => $sessCtrl->updateUser($req));
         $r->delete('/api/users/{id}',         fn($req) => $sessCtrl->deleteUser($req));

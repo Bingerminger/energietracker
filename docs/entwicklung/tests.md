@@ -140,7 +140,18 @@ Ohne Server laufen `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   „Bewegung reduzieren“, Hervorhebung, Jahr/Monat an Ort und Stelle; der
   Zeitstrahl mit gebauten Verträgen ohne Überlappung; Geld und Wetter mit
   Extremwerten. Textbreiten sind geschätzt (0,56 em bzw. 0,6 em für Ziffern)
-  mit 10 % Reserve.
+  mit 10 % Reserve. Seit v3.5.0 auch der Tagesfilm in kW (R1–R5 in allen
+  Sprachen, Lücke als „–“).
+- **`tests/day-film.test.mjs`** (v3.5.0) — Tagesfilm des Energieflusses ohne
+  Server, die API mit gebauten Antworten: Leistung = kWh × 4, aufgelaufene
+  Summen nur über vollständige Viertelstunden und aus den Mengen gerechnet
+  (Netzladung bleibt Netzstrom), Knoten je Tag, Leiste mit Börsenpreis und
+  Lücken; „Tag“ nur mit Viertelstunden, Abspielen von selbst (15 s je Tag),
+  Schieberegler mit `aria-valuetext`, Leertaste, Pfeile, Bild auf/ab, Pos1/Ende,
+  Lücke als „–“, Tag/Monat wählen, typischer Tag, Zeitumstellung (100
+  Viertelstunden), „Bewegung reduzieren“ ohne Abspielen und ohne Punkte.
+  Server-Seite: `EnergyFlowDayTest` (Subzähler, Lücken, Zeitumstellung März und
+  Oktober, typischer Tag, ohne PV, Speicher, fehlender Preis, Vorbelegung).
 - **`tests/docs.test.mjs`** (v3.4.0) — das Handbuch in der App: holt die
   Freigabeliste vom echten `DocsService` (PHP-Kommandozeile) und rendert jede
   Seite mit `lib/markdown.js` und den Linkregeln aus `lib/docs.js`. Jedes
@@ -283,7 +294,19 @@ falsch machen können; die Regeln dahinter stehen unter
   Manifest in der gewünschten Sprache.
 - `DemoDataTranslatorTest` — jeder Text der Demo-Daten ist in jede Sprache
   übersetzt (`demo-data/translations.json`), IDs, Zahlen und Firmennamen
-  bleiben.
+  bleiben; seit v3.5.0 auch Notizen und Bausteine im Verlauf „Erledigt“
+  (Namen von Personen bleiben).
+- `PersonaUseCasesTest` (v3.5.0, N1026) — jeder Beispielhaushalt und das
+  Schaufenster zeigen die neuen Anwendungsfälle: Verlauf mit allen
+  Aktionsarten, Termine mit Zuständigkeit (nie mit `assignee_id`),
+  Versorgerrechnungen mit dem Urteil „passt“, eine kürzlich beendete
+  Periode ohne Rechnung bei Strom oder Gas (mit Stichtag relativ zu heute zu
+  jedem Zeitpunkt), Folgeverträge; Viertelstunden, die je Viertelstunde
+  aufgehen und zwischen zwei Ablesungen die Differenz der Stände ergeben;
+  Backup-Rundlauf und die Tabelle in `docs/einstieg/einrichtung.md`.
+  `DemoDataAlignerTest` prüft dazu das Fenster der Viertelstunden (bis
+  gestern, nach dem Export, Zeitumstellung) und den Verlauf, der mit den
+  Terminen wandert.
 
 **Über HTTP (v3.1.0).** Kopfzeilen, Statuscodes und Zugriffsregeln sieht ein
 Service-Test nicht. Dafür gibt es die Basisklasse `HttpServerTestCase`
@@ -323,6 +346,32 @@ Umgebungsvariablen (`ET_AUTH` …) und räumt beides danach ab. Auf ihr bauen
   aus [Schritt 5 der Home-Assistant-Anleitung](../anleitungen/home-assistant.md)
   zeilenweise mit der Vorlage der App (`haRestSensorYaml`), ohne Kommentare,
   Adresse und Namen.
+
+**Home-Assistant-App (v3.5.0):** Die App liegt im eigenen Repo
+`energietracker-ha` (dort prüft der Linter `frenck/action-app-linter` die
+`config.yaml`) und nutzt das Standard-Image unverändert. Hier wird geprüft,
+was das Image dafür können muss:
+
+- `HomeAssistantAppTest` — gegen einen echten PHP-Server mit der Umgebung der
+  App (`ET_AUTH=proxy`, `ET_TRUSTED_PROXIES`): die `options.json` des
+  Supervisors (Rechte 0600) lässt `/api/health` gesund; unter Ingress keine
+  absoluten Pfade in der Shell, kein Service Worker, die HA-Person angemeldet
+  (die erste verwaltet), keine Warnung in der Diagnose; von anderen Adressen
+  zählen die Supervisor-Kopfzeilen nicht, der Push braucht seinen Token.
+- `HealthCheckServiceTest` — `options.json` gilt nicht als beschädigt, eine
+  eigene unlesbare Datei weiter.
+- `HomeAssistantAppDocsTest` — der Auszug der `config.yaml` in der Anleitung
+  ist in DE und EN gleich und passt zum Image: Port (`EXPOSE`, nginx),
+  Datenpfad, Image-Name und Plattformen aus `docker-publish.yml`,
+  `init: false` zu supervisord, `HEALTHCHECK` auf `/api/health`; jede
+  Variable liest die App, `ET_AUTH` ist ein gültiger Modus.
+- `tests/ha-snippet.test.mjs` — `haBaseUrl()` und `haUrl()`: unter Ingress
+  der Hostname der App statt `/api/hassio_ingress/<token>/`, sonst die Adresse
+  der Seite (auch im Unterverzeichnis); `tests/browser-render.test.mjs` prüft
+  damit das Kalender-Abo unter Ingress.
+- In der CI startet der Docker-Job das Image wie der Supervisor (Umgebung der
+  App, Volume `/data`, `options.json` als root vor dem zweiten Start) und
+  wartet auf „healthy“.
 
 **Viertelstunden und Flexibilität (v3.3.0):**
 
@@ -374,14 +423,18 @@ Frontend-API-Shape + Browser-Render über `router.php`) und **docker**
 Mindestversion, der Version von Ubuntu 24.04 und der im Docker-Image; seit
 v3.4.0 auch unter 8.5 (dem Docker-Image). Der Job **docker** prüft seit v3.4.0
 zusätzlich, dass php-fpm nur im Container erreichbar ist, und startet das Image
-gehärtet (Beispiel aus [Docker-Betrieb](../betrieb/docker.md#gehärteter-betrieb-v340));
+gehärtet (Beispiel aus [Docker-Betrieb](../betrieb/docker.md#gehärteter-betrieb-v340)),
+seit v3.5.0 auch die Variante ohne root (`--target rootless`: ohne
+Capabilities, keine UID 0, Schreiben ins Volume, klare Meldung bei fremdem
+Datenordner — [Ohne root](../betrieb/docker.md#ohne-root-v350));
 der Job **test** schickt die App mit präparierten Daten durch alle Seiten
 (`tests/poisoned-render.test.mjs`). Alle Workflows laufen mit Leserechten,
 Actions anderer Anbieter sind per Commit-SHA gepinnt. Ein
 separater Workflow `docker-publish.yml` veröffentlicht bei jedem Versions-Tag
-das Multi-Arch-Image (amd64 + arm64) nach GHCR; `docker-rebuild.yml`
-(v3.4.0) baut den neuesten Release-Tag jede Woche neu und prüft das Image auf
-bekannte Lücken (nicht blockierend). `docker-armv7-probe.yml`
+das Multi-Arch-Image (amd64 + arm64) nach GHCR, seit v3.5.0 dazu die
+Variante ohne root (Tags `-rootless`); `docker-rebuild.yml`
+(v3.4.0) baut den neuesten Release-Tag jede Woche neu und prüft die Images auf
+bekannte Lücken (nicht blockierend, beide Varianten). `docker-armv7-probe.yml`
 (v3.1.0, nur von Hand gestartet) baut das Image für `linux/arm/v7` unter QEMU
 und startet es, ohne zu veröffentlichen; erst wenn er grün ist, kommt arm/v7 in
 die Plattformliste.

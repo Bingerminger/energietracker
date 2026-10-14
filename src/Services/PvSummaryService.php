@@ -215,9 +215,13 @@ final class PvSummaryService
      * nach dem Umweg über den Speicher als Netzstrom. Ohne Speicher ergibt das
      * die bisherige Formel Eigenverbrauch / (Eigenverbrauch + Bezug).
      *
+     * v3.5.0 (F1027) — `$decimals`: Der Tagesfilm rechnet je Viertelstunde mit
+     * Mengen unter 0,1 kWh und rundet deshalb feiner; Monat und Jahr bleiben bei
+     * einer Stelle.
+     *
      * @return array{pv_house:float,pv_battery:float,pv_grid:float,grid_house:float,grid_battery:float,battery_house:float,house:float,grid_in_house:float,autarky:?float}
      */
-    public static function flows(float $gen, float $feed, float $grid, float $charged = 0.0, float $discharged = 0.0): array
+    public static function flows(float $gen, float $feed, float $grid, float $charged = 0.0, float $discharged = 0.0, int $decimals = 1): array
     {
         [$gen, $feed, $grid, $charged, $discharged] = array_map(fn($v) => max(0.0, $v), [$gen, $feed, $grid, $charged, $discharged]);
         $feed = min($feed, $gen);
@@ -234,13 +238,13 @@ final class PvSummaryService
         ];
         $f['house'] = $f['pv_house'] + $f['battery_house'] + $f['grid_house'];
         $f['grid_in_house'] = min($grid, $f['grid_house'] + min($gridBat, $discharged));
-        return self::finishFlow($f);
+        return self::finishFlow($f, null, $decimals);
     }
 
     /** Rundet einen Fluss und rechnet die Autarkie aus seinen Summen. */
-    private static function finishFlow(array $f, ?int $months = null): array
+    private static function finishFlow(array $f, ?int $months = null, int $decimals = 1): array
     {
-        foreach ($f as $k => $v) if (is_float($v) || is_int($v)) $f[$k] = round((float)$v, 1);
+        foreach ($f as $k => $v) if (is_float($v) || is_int($v)) $f[$k] = round((float)$v, $decimals);
         $f['autarky'] = $f['house'] > 0.1 ? round(1 - $f['grid_in_house'] / $f['house'], 4) : null;
         if ($months !== null) $f['months'] = $months;
         return $f;

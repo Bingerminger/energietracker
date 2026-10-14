@@ -2,10 +2,13 @@
 
 **English** · [Deutsch](../../verstehen/10-sonderzahlungen.md)
 
-> Applies to **gas, electricity, district heating** — the utilities with the
-> classic advance/balance model. Water (the three-component tariff) and the
-> delivery-based utilities heating oil/pellets have no advance balancing and thus
-> no special payments.
+> Applies to **gas, electricity, water and district heating** — every utility
+> with meter readings, advances and a bill. Water since v3.5.0
+> ([#34](https://github.com/Bingerminger/energietracker/issues/34)); up to v3.4
+> the section was missing there, although the water bill also ends with a
+> back-payment or a refund. No special payments for the delivery-based utilities
+> heating oil/pellets (no advance balancing) and for PV feed-in (paid by
+> generation, no advance plan).
 
 ## Purpose
 
@@ -53,9 +56,18 @@ debt.
   negative; with several items the count follows. Tapping expands every item
   with date, type, amount and note (up to v2.12 a tooltip). A hint below the
   table explains both columns.
-- The column exists only for utilities with advance-payment contracts (gas,
-  electricity, district heating). Water and PV feed-in have no special
-  payments; there it is omitted.
+- The column exists for gas, electricity, water (since v3.5.0) and district
+  heating. PV feed-in has no special payments; there it is omitted.
+- **Overview and projection:** today's balance and the expected balance at the
+  end of the contract include the net of the special payments — for water just
+  as for gas, electricity and district heating. A *with-effect* type sets the
+  advance from its effective date, in the **forecast** too.
+- **Booking a supplier bill:** “Book as special payment” under *Check a bill*
+  adds the result as a special payment “without effect” — since v3.5.0 in the
+  water contract too. Up to v3.4 a water bill was marked “booked” afterwards,
+  but nothing arrived in the contract. Such bills offer booking again as long
+  as the water contract has not been saved since; otherwise enter the
+  back-payment or refund by hand.
 - *Bonus* and *Special payments* stay separate: a bonus is part of the
   contract (instant, switching, new-customer bonus) and reduces the costs; a
   special payment is money that flowed outside the advance schedule. Both

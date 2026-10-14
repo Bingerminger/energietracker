@@ -25,6 +25,7 @@ als ganztägige Termine der nächsten 365 Tage, dazu alles schon Fällige:
 | „…: Preisgarantie endet (Anbieter)“ | am letzten Tag der Preisgarantie |
 | „…: Preiserhöhung (Anbieter) — Sonderkündigung prüfen“ | am Tag einer eingetragenen Preiserhöhung; seit v3.1.0 auch unter „Zu tun“, solange die Empfehlung „Preiserhöhung“ dazu steht (in Deutschland) |
 | „Heizöl: Lieferung planen (…)“ | heute, solange der Bestand niedrig ist (Heizöl, Pellets) |
+| „Abrechnung erwartet: Strom (Anbieter) für …“ bzw. „Schlussrechnung erwartet: …“ *(v3.5.0)* | nach dem Ende eines Abrechnungszeitraums ohne erfasste Versorgerrechnung — bei Strom und Gas am Tag der gesetzlichen Frist (Ende + 42 Tage, § 40c Abs. 2 EnWG; danach „überfällig“), bei Fernwärme und Wasser am Tag nach dem Ende (keine gesetzliche Frist) — s. [Hinweise erledigen](hinweise-erledigen.md#9-abrechnung-erwartet-v350) |
 | „Nebenkostenabrechnung bis zum … fällig: …“ *(v3.1.0)* | nur bei „Ich wohne: zur Miete“ — Ende des letzten abgelaufenen Abrechnungszeitraums plus 12 Monate (§ 556 Abs. 3 BGB), solange für diesen Zeitraum keine Abrechnung erfasst ist |
 | „Einwände gegen die Nebenkostenabrechnung bis heute: …“ *(v3.1.0)* | nur bei „zur Miete“ — Zugang der Abrechnung („Erhalten am“) plus 12 Monate; unter „Zu tun“ ab 30 Tagen vorher |
 | „CO₂-Kosten {Jahr}: Vermieteranteil von … bis heute einfordern“ *(v3.1.0)* | nur bei „zur Miete“ in Deutschland mit eigener Gastherme und einem Betrag über 0 — Rechnungsdatum der erfassten Gasrechnung plus 12 Monate; unter „Zu tun“ ab 30 Tagen vorher |
@@ -45,6 +46,12 @@ Vorab-Erinnerung mehr — wie das geht:
 [Hinweise erledigen](hinweise-erledigen.md). Die Texte stehen in
 der **Standardsprache der Installation** (Einstellungen → Allgemein), denn
 Kalender schicken keine Sprache mit.
+
+**Zuständig *(v3.5.0)*:** Ist an einem Termin jemand zuständig, steht in der
+Beschreibung des Eintrags die Zeile **„Zuständig: Name“** (nach dem Löschen
+einer Person gegebenenfalls „ehemalige Person“). Der Kalender ist für alle
+im Haushalt derselbe; benachrichtigt wird niemand —
+[Zuständig an Terminen](hinweise-erledigen.md#8-zuständig-an-terminen-v350).
 
 ---
 
@@ -107,6 +114,19 @@ Anmeldung** und Kalender-Schlüssel: In Google Kalender bei „Weitere Kalender�
 seltener als alle 12 Stunden, und übernimmt die Vorwarnungen aus Abos nicht
 verlässlich. Bevor du die App dafür ins Internet stellst: Checkliste in
 [Sicherheit & Netzbetrieb](../betrieb/sicherheit.md).
+
+### Mit der App in Home Assistant *(v3.5.0)*
+
+Läuft der Energietracker als
+[App in Home Assistant OS](home-assistant.md#als-app-in-home-assistant-os),
+kann kein Kalender die Ingress-Adresse aus der Adresszeile abrufen (sie
+braucht eine Sitzung von Home Assistant). Das Fenster nennt deshalb die
+Adresse der App im Netz von Home Assistant, etwa
+`http://1a2b3c4d-energietracker/api.php/api/calendar.ics?token=etk_…`. Sie
+erreicht nur Home Assistant selbst, zum Beispiel mit der Integration
+„Remote Calendar“. Für Kalender auf Handy oder Computer gib in der App unter
+Konfiguration → Netzwerk einen Port frei (etwa `8095`) und ersetze den Anfang
+bis `/api.php` durch `http://<Adresse von Home Assistant>:8095`.
 
 ---
 

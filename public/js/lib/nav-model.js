@@ -18,6 +18,24 @@ import { t } from './i18n.js';
 // v3.2.0 (F1019) — Seiten über der Nutzungsstufe stehen nicht in Navigation und Tabs
 import { viewAllowed } from './levels.js';
 
+// ── v3.5.0 (N1023) — eine Schwelle für Seitenleiste und Tab-Leiste ─────
+// Bis v3.4 kam die Seitenleiste ab 801 px — das iPad hochkant (744–834 px)
+// zeigte sie und ließ dem Inhalt zwei Drittel der Breite. Jetzt erst ab
+// 900 px Fensterbreite; darunter die Tab-Leiste mit „Mehr“ wie am iPhone.
+// Querformat (ab 1024 px) und der Mac behalten die Seitenleiste. CSS
+// (app.css, components.css, readings-entry.css) schreibt dieselben Abfragen;
+// tests/nav-threshold.test.mjs vergleicht jede mit diesen Konstanten.
+// Der Bruchteil (899.98) schließt die Lücke zwischen 899 und 900 px bei
+// gebrochenen Fensterbreiten (Zoom, Split View).
+export const NAV_SIDEBAR_MIN_PX = 900;
+export const NAV_SIDEBAR_QUERY = `(min-width: ${NAV_SIDEBAR_MIN_PX}px)`;
+export const NAV_TABBAR_QUERY = `(max-width: ${NAV_SIDEBAR_MIN_PX - 0.02}px)`;
+
+/** Welche Navigation bei dieser Fensterbreite gilt (CSS-Pixel). */
+export function navMode(width) {
+  return Number(width) >= NAV_SIDEBAR_MIN_PX ? 'sidebar' : 'tabbar';
+}
+
 /**
  * Die Seiten eines Bereichs, in Tab-Reihenfolge. `view` ist der Schlüssel
  * aus der Routentabelle (router.js).

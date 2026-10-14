@@ -912,7 +912,8 @@ Einzelposten als `[{date, kind, amount_eur, note}]` (nach Datum sortiert,
 Beträge positiv — die Richtung steckt in `kind`), Datenquelle für den
 Tooltip der Spalte *Sonderzahlungen*. `special_payment_net` ist das Netto aus
 Kundensicht (Σ Rückzahlung − Σ Nachzahlung − Σ Abschlagszahlung). Das Feld
-fehlt bei Wasser und PV-Einspeisung.
+fehlt bei der PV-Einspeisung; bei Wasser steht es seit v3.5.0
+([#34](https://github.com/Bingerminger/energietracker/issues/34)).
 
 **Seit v2.8.0** rechnet der Saldo bei Gas, Strom und Fernwärme **nach
 Kalender bis heute**: `advance_paid` zählt die Abschläge laut Zahlungsplan

@@ -169,8 +169,9 @@ accepted.
   migration step, the schema stays 1.1.0. Rule of thumb: keep a new contract
   subfield additive and default-`[]`, then it is backward-compatible by
   construction. Scope gating belongs in `Utilities` (single source of truth:
-  `hasAdvancePaymentContracts()`), not in hardcoded utility lists in the
-  service/frontend.
+  `hasAdvancePaymentContracts()`, since v3.5.0 `hasSpecialPayments()` — the
+  predicate of the advance-payment contract also kept water out of special
+  payments, #34), not in hardcoded utility lists in the service/frontend.
 - **The dev/CI server needs a router (v1.5.1).** `php -S host:port api.php` makes
   `api.php` the router for EVERYTHING — static assets (`/public/js/*`) then land in
   `api.php` → 404, the module-graph crawl of the browser render test breaks.
@@ -780,6 +781,22 @@ accepted.
   single patches.
 - **Trusting headers needs a filter in front (v3.4.0).** A user header is only
   as trustworthy as the service that sets it and strips the client's own.
+- **A predicate answers one question (v3.5.0).** `hasAdvancePaymentContracts()`
+  also decided where special payments exist; water dropped out of both,
+  although it has advances and back-payments (GitHub #34). A second question
+  gets its own predicate (`hasSpecialPayments()`), and a test pins down how
+  the two relate.
+- **A new notice needs a window for existing data (v3.5.0).** A full year back,
+  “Bill expected” would have flooded almost every installation with “overdue”,
+  because hardly anyone had recorded supplier bills. 120 days show what is
+  really still pending.
+- **New values need their examples in every package (v3.5.0).** A new history
+  action and a test “every action in every household” were built in parallel;
+  only the merged state showed the contradiction. Run the full suite after
+  every merge, not only at the end.
+- **A test process is not a request (v3.5.0).** PHPUnit accumulates memory over
+  about 1000 tests; the limit for that sits in `phpunit.xml.dist`. Whether a
+  request stays below 128 MB is checked by measuring the request itself.
 
 ---
 

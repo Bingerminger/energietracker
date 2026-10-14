@@ -932,8 +932,9 @@ function contractsTable(contracts, u) {
     return bv ? `<td class="num ${bv.cls}"${bold ? ' style="font-weight:600"' : ''}>${bv.signed}</td>` : '<td class="num muted">–</td>';
   };
   // v2.5.1 — Spalte „Sonderzahlungen": nur dort, wo das Backend Einzelposten
-  // liefert (Gas/Strom/Fernwärme). Wasser und Einspeisung kennen keine
-  // Sonderzahlungen; bei ihnen fehlt das Feld, und die Spalte entfällt.
+  // liefert (Gas/Strom/Fernwärme, seit v3.5.0 auch Wasser — GitHub #34). Die
+  // Einspeisung kennt keine Sonderzahlungen; dort fehlt das Feld, und die
+  // Spalte entfällt.
   const showSpecial = contracts.some(c => Array.isArray(c.special_payments));
   // v3.4.0 (N1021) — wie Kosten → Verträge: Zukünftig · Aktuell · Beendet,
   // jeweils der neueste oben (lib/contract-order.js), „Beendet“ ab drei

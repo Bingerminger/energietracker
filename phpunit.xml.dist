@@ -7,6 +7,12 @@
          failOnWarning="true"
          beStrictAboutOutputDuringTests="true"
          cacheDirectory=".phpunit.cache">
+    <!-- v3.5.0 — Der Testprozess sammelt über rund 1000 Tests Speicher an
+         (Beispielhaushalte mit Viertelstunden); einzeln braucht der
+         Aligner-Test 60 MB, ein Demo-Import als Anfrage bleibt unter 128 MB. -->
+    <php>
+        <ini name="memory_limit" value="512M"/>
+    </php>
     <testsuites>
         <testsuite name="unit">
             <directory>tests/unit</directory>

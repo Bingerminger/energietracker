@@ -476,14 +476,17 @@ html[data-level="advanced"] [data-min-level="expert"] { display: none !important
 /* Erfassen am Mac: Knopf in der Kopfleiste */
 .topbar__capture { gap: 4px; }
 
-/* Tab-Leiste und Menü-Hintergrund gibt es nur auf dem iPhone */
+/* Tab-Leiste und Menü-Hintergrund gibt es nur unter 900 px (iPhone, iPad hochkant) */
 .tabbar, .nav-backdrop { display: none; }
 
 /* ── Responsive ─────────────────────────────────────────────────────
    v2.11.0 (Review UI-05) — bis v2.10 stand hier die ganze Seitenleiste als
    Block über dem Inhalt (auf dem iPhone SE drei Viertel des Bildschirms).
-   Jetzt: Tab-Leiste unten, Seitenleiste als Menü hinter „Mehr". */
-@media (max-width: 800px) {
+   Jetzt: Tab-Leiste unten, Seitenleiste als Menü hinter „Mehr".
+   v3.5.0 (N1023) — Schwelle 900 px statt 800 px: auch das iPad hochkant
+   (744–834 px) bekommt die Tab-Leiste. Dieselbe Zahl in nav-model.js
+   (NAV_SIDEBAR_QUERY / NAV_TABBAR_QUERY), geprüft in tests/nav-threshold.test.mjs. */
+@media (max-width: 899.98px) {
   html, body { font-size: 1rem; }   /* 16 px Grundschrift */
   .layout {
     grid-template-columns: minmax(0, 1fr);

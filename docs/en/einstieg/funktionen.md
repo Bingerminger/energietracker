@@ -180,8 +180,9 @@ The detailed feature overview. What the views look like is shown in the
 - **Anomalies** (months far from their expectation), **year-on-year**
   comparison month by month and the **water saving index** per person.
 - **Efficiency** in kWh/m²·yr — classes A+ to H per the German GModG
-  (formerly GEG), only for whole years — and next to it a **certificate-style figure** (net calorific
-  value, weather-adjusted, building floor area).
+  (formerly GEG), only for whole years — and next to it a **certificate-style figure** (weather-adjusted,
+  building floor area; with the procedure currently in force: up to 2026 net,
+  from 2027 gross calorific value under § 82 GModG).
 - **Heat** (v3.1.0): the warmth that arrives in the home, as a utility of its
   own with heating model, weather adjustment and forecast; CO₂ as an
   approximation via the energy source of the heating. For hot-water meters the

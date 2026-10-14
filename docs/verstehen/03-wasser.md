@@ -30,6 +30,30 @@ Wasser hat ein eigenes Vertragsmodell mit drei Bestandteilen:
 Dieses Modell wurde mit Schema 1.0.3 eingeführt; ein Auto-Migrator
 übernimmt alte einfache Wassertarife in die Trinkwasser-Komponente.
 
+## Abschläge, Saldo und Sonderzahlungen *(v3.5.0)*
+
+Ein Wasservertrag hat wie Gas und Strom monatliche **Abschläge** und am Ende
+der Abrechnung eine **Nach- oder Rückzahlung**. Seit v3.5.0 trägst du sie als
+**[Sonderzahlung](10-sonderzahlungen.md)** im Vertrag ein (Abschnitt
+„Sonderzahlungen“ im Wasservertrag, nach den Boni) oder buchst das Ergebnis
+der Versorgerrechnung unter *Rechnung prüfen*
+([#34](https://github.com/Bingerminger/energietracker/issues/34)). Eine Art
+*mit Auswirkung* setzt den neuen Abschlag ab ihrem Stichtag — in den Monaten,
+im Saldo und in der Prognose.
+
+Der Saldo rechnet bei Wasser über die Monate mit Ablesung, nicht nach Kalender
+wie bei Gas, Strom und Fernwärme
+([Grundlagen §10](00-overview.md#10-saldo-bis-heute)):
+
+```text
+Saldo heute       = Kosten der abgelesenen Monate − Abschläge dieser Monate + Sonderzahlungen netto
+Erwartet am Ende  = Saldo heute + (Kosten je Monat im Schnitt − aktueller Abschlag) × verbleibende Monate
+```
+
+In der API steht dafür `projection_method: flat_average`. Die Übersicht, die
+Seite *Verträge & Abschläge* und die Verbrauchsansicht Wasser zeigen beide
+Werte.
+
 ## Rollen: Kalt, Warm, Garten *(v3.1.0)*
 
 Jeder Wasserzähler hat seit v3.1.0 eine **Rolle** (Zählerdialog → „Rolle“,

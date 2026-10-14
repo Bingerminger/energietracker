@@ -348,7 +348,11 @@ und ordnet ihn anhand der Bandgrenzen
 C bis 100, D bis 130, E bis 160, F bis 200, G bis 250, sonst H) ein. Seit
 v2.10.0 gilt eine Grenze **einschließlich** („bis 100" ist C), wie in
 Anlage 10 des GModG (Gebäudemodernisierungsgesetz, bis Juli 2026 GEG); vorher
-lag ein Wert genau auf der Grenze eine Klasse schlechter.
+lag ein Wert genau auf der Grenze eine Klasse schlechter. Die Grenzen bleiben
+auch ab 01.01.2027 dieselben: Art. 2 Nr. 54 des Gesetzes vom 23.07.2026
+(BGBl. 2026 I Nr. 226) ändert an Anlage 10 nur die Überschrift („zu § 86
+Absatz 1“) und den Spaltenkopf, „um die Effizienzklassen unverändert zu
+lassen“ (Begründung, BT-Drs. 21/6278, S. 122).
 
 **Klassen nur für ganze Jahre (seit v2.10.0).** Deckt das Bezugsjahr
 weniger als 360 Tage ab, gibt es keine Klasse, und ein Hinweis sagt, dass
@@ -362,10 +366,42 @@ Verbrauch je m² Wohnfläche, so wie gemessen. Daneben steht eine
 ```text
 AN        = Wohnfläche × 1,2      (× 1,35 bei Wohngebäuden mit bis zu zwei Wohnungen und beheiztem Keller,
                                    § 82 Abs. 2 GModG, bis Juli 2026 GEG; in der App EFH oder Reihenhaus)
-E         = Σ Heizquellen: witterungsbereinigter Jahresverbrauch,
-            Gas × 0,906 (Brennwert → Heizwert)
-Kennzahl  = E / AN  (+ 20 kWh/m²·a bei dezentralem Warmwasser)
+E         = Σ Heizquellen: witterungsbereinigter Jahresverbrauch, Brennstoffe je nach Verfahren (unten)
+Kennzahl  = E / AN  (+ Warmwasser-Zuschlag bei dezentralem Warmwasser, je nach Verfahren)
 ```
+
+**Welches Verfahren (seit v3.5.0).** Am 01.01.2027 ändert sich, wie ein
+Verbrauchsausweis rechnet (§ 82 GModG in der Fassung von Art. 2 Nr. 32 des
+Gesetzes vom 23.07.2026, BGBl. 2026 I Nr. 226; in Kraft nach Art. 9 Abs. 2).
+Die App rechnet die Kennzahl so, **als würde der Ausweis heute ausgestellt**:
+bis 31.12.2026 nach dem bisherigen Verfahren, ab 01.01.2027 nach dem neuen —
+für jedes Bezugsjahr. Maßgeblich ist das Ausstellungsdatum, nicht der
+Zeitraum der Daten; so unterscheidet auch das Gesetz alte und neue Ausweise
+(§ 112 Abs. 3 GModG n. F.: Ausweise, die „vor dem 1. Januar 2027 ausgestellt“
+wurden). Die API nennt das Verfahren im Feld `rules`.
+
+```text
+                      bis 31.12.2026 (geg2024)              ab 01.01.2027 (gmodg2027)
+Brennstoffe           Heizwert: Gas × 0,906                 Brennwert: Gas wie gezählt (× 1)
+                      (Bekanntmachung vom 29.03.2021,       („Brennstoffe sind mit ihrem Brennwert
+                      BAnz AT 16.04.2021 B1, Abschnitt 2)   zu berücksichtigen“, § 82 Abs. 2 Satz 2)
+Warmwasser dezentral  + 20 kWh/m²·a (§ 82 Abs. 2)           + 16 kWh/m²·a (§ 82 Abs. 2 Satz 3)
+Datenzeitraum         36 Monate (§ 82 Abs. 4)               „jährlich über einen Zeitraum von zwei
+                                                            Jahren“ (§ 82 Abs. 1 Satz 2) = 24 Monate
+```
+
+Fernwärme, Heizwärme und Wärmepumpen-Strom sind keine Brennstoffe und werden
+in keinem Verfahren umgerechnet. **Heizöl und Pellets** zählt die App nach
+Heizwert (kWh je Liter bzw. kg). Den Faktor zum Brennwert nennt die
+Bekanntmachung nur über eine nicht frei zugängliche Norm (DIN V 18599-1,
+Tabelle B.1); ab 2027 bleiben sie deshalb beim Heizwert, und die API führt sie
+in `fuel_basis_approx` als Näherung — die Kennzahl ist für sie etwas zu
+niedrig. Ein Gashaus mit gleichem Verbrauch bekommt ab 2027 eine um rund 10 %
+höhere Zahl (1 / 0,906) bei gleichen Klassengrenzen; dieselbe Wohnung kann
+also eine andere Klasse bekommen.
+
+Vor dem 01.01.2027 zeigt die Übersicht unter der Kennzahl, was das neue
+Verfahren ändert und welche Zahl es ergäbe (API: `upcoming`).
 
 Bereinigt wird Monat für Monat mit dem Heizmodell (`heat_adjusted`), wenn
 jeder Monat des Jahres einen solchen Wert hat — bei Gas und Fernwärme mit
@@ -373,7 +409,10 @@ Heizmodell der Normalfall. Sonst (Heizöl, Pellets, Wärmepumpe, Monate ohne
 Modell oder vor einer Zäsur) wird über das Jahr mit dem Klimanormal
 bereinigt (nur der Heizanteil, VDI 3807). Ohne Klimanormal steht der
 Wert wie gemessen da und ist so gekennzeichnet. Ein **Verbrauchsausweis ist
-das nicht**: Der verlangt 36 Monate und die Klimafaktoren des DWD. Die
+das nicht**: Der rechnet den ganzen Zeitraum (36 Monate, ab 2027 zwei Jahre)
+mit den Klimafaktoren des DWD, ab 2027 dazu normalisiert auf die
+Nutzungsrandbedingungen nach DIN/TS 18599-10 (§ 82 Abs. 3 n. F.); die App
+rechnet ein Bezugsjahr und bildet die Normalisierung nicht nach. Die
 Einstellungen *Beheizter Keller* und *Warmwasser dezentral* und die Rolle
 *Wärmepumpe (Heizstrom)* an einem Stromzähler (bis v3.0 das Kennzeichen
 *Heizstrom (Wärmepumpe)*) fließen hier ein — mit dieser Rolle bekommt auch ein

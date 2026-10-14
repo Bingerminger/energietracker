@@ -18,13 +18,14 @@ import { escapeHtml as esc, todayIso } from '../lib/format.js';
  *
  * @returns {Promise<object|null>} Antwort von `submit`, null bei Abbruch
  */
-export function openDoneDialog({ title, cancelOption = false, submit }) {
+export function openDoneDialog({ title, cancelOption = false, hint = '', submit }) {
   return new Promise(resolve => {
     const today = todayIso();
     const ctrl = openModal({
       title: t('activity.dialog.title'),
       body: `
         <p class="done-dialog__what"><strong>${esc(title)}</strong></p>
+        ${hint ? `<p class="muted small" data-role="done-hint">${esc(hint)}</p>` : ''}
         <div class="fgrid">
           <div class="field field--s">
             <label for="dd-date">${esc(t('activity.dialog.date'))}</label>
@@ -89,6 +90,8 @@ export async function markEventDone(ev, { title, onChange } = {}) {
   const res = await openDoneDialog({
     title: label,
     cancelOption: ev.kind === 'cancel_by',
+    // v3.5.0 (F1029) — abhaken heißt hier: Die Rechnung kam, wird aber nicht erfasst
+    hint: ev.kind === 'bill_expected' ? t('activity.dialog.billWithout') : '',
     submit: (v) => api.agendaDone({ uid: ev.uid, occurrence: ev.occurrence, done_on: v.done_on, note: v.note,
       attachment_id: v.attachment_id, cancelled: v.cancelled }),
   });

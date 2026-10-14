@@ -199,6 +199,14 @@ is wrong — on the host the folder then belongs to UID 82. If the Unraid tool
 *New Permissions* resets the permissions, restart the container; it changes
 them back.
 
+> **How it was checked (October 2026):** the template is checked against the
+> format Unraid's Docker tab writes (compared with templates from Community
+> Applications) and against the image: port, data path and every environment
+> variable of the table below except `ET_DATA_DIR`, `ET_LOG_FILE` and
+> `ET_DEBUG` — a test keeps template, image and documentation together. Icon,
+> images and links are reachable. The template has not been tried on an
+> Unraid server.
+
 ---
 
 ## CasaOS and ZimaOS
@@ -242,8 +250,11 @@ is not listed there yet.
 
 ## Home Assistant
 
-A Home Assistant app (formerly “add-on”) is in preparation. If you already embed
-the app in Home Assistant or run it under Ingress, the specifics are in the
+With Home Assistant OS you do not need your own container: since v3.5.0 the
+same image runs as a Home Assistant app (formerly “add-on”) with an entry in
+the sidebar — [As an app in Home Assistant OS](../anleitungen/home-assistant.md#as-an-app-in-home-assistant-os).
+If you run the container next to Home Assistant (Container or Core
+installation) or embed it yourself, the specifics are in the
 [Home Assistant](../anleitungen/home-assistant.md) guide.
 
 ---
@@ -258,10 +269,15 @@ the app in Home Assistant or run it under Ingress, the specifics are in the
 
 The bundled `docker-compose.yml` pins a fixed version.
 
+Since v3.5.0 each of these tags also exists without root, with the suffix
+`-rootless` (`X.Y.Z-rootless`, `X.Y-rootless`, `latest-rootless`) —
+[Without root](#without-root-v350).
+
 Since v3.4.0 GitHub rebuilds the latest release tag **every week** on the
 current base image (same code, current Alpine and PHP packages) and pushes it
-under the same names. A pinned tag thus receives security updates of the
-underlying system; `docker compose pull` fetches them.
+under the same names, since v3.5.0 the variant without root as well. A pinned
+tag thus receives security updates of the underlying system;
+`docker compose pull` fetches them.
 
 Best practice for a server: pin a **concrete version number** and perform updates
 consciously.
@@ -461,6 +477,109 @@ same machine, drop `127.0.0.1:`.
 
 ---
 
+## Without root *(v3.5.0)*
+
+Since v3.5.0 the image also comes as a variant in which **no process runs as
+root** — for platforms that refuse root containers (such as Kubernetes with
+`runAsNonRoot`), or when you want to allow the container as little as
+possible. App, environment variables and data path `/data` are the same. The
+standard image stays unchanged and remains the basis of the templates for
+Unraid, CasaOS and Umbrel.
+
+| | Standard | Without root |
+|---|---|---|
+| Tags | `X.Y.Z`, `X.Y`, `latest` | `X.Y.Z-rootless`, `X.Y-rootless`, `latest-rootless` |
+| User | starts as root; nginx and php-fpm work as their own users | UID `10001`, group `0` throughout |
+| Port in the container | `80` | `8080` |
+| Rights on `/data` | the start sets them to `www-data` (UID 82) | the start changes nothing — `/data` must be writable for UID 10001 |
+| Capabilities | six ([Hardened operation](#hardened-operation-v340)) | none |
+
+The platforms are the same (`linux/amd64`, `linux/arm64`), and GitHub rebuilds
+this variant every week and scans it for known vulnerabilities as well.
+
+```yaml
+services:
+  energietracker:
+    image: ghcr.io/bingerminger/energietracker:X.Y.Z-rootless
+    container_name: energietracker
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - energietracker-data:/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  energietracker-data:
+```
+
+Not a single capability: nginx listens on port 8080 instead of 80, no process
+switches users, and the start changes no rights. With `read_only: true` only
+`/data` and the volatile `/tmp` are written (PID files, nginx buffers, PHP
+uploads). CI starts the image exactly like this on every run, writes to the
+volume and checks that no process runs with UID 0.
+
+**Rights on the data folder:**
+
+- **Named volume** (as above): on first start a new volume takes over owner
+  and rights of `/data` from the image (`10001:0`, the group may write).
+  Nothing to do.
+- **Folder on the host** (`./data:/data`): it must belong to UID 10001,
+  otherwise the container may not write to it:
+
+  ```bash
+  mkdir -p data
+  sudo chown -R 10001:0 data
+  ```
+
+- **Your own UID:** if the files on the host should belong to your user, set
+  `user: "1000:1000"` in the Compose file (or `--user 1000:1000`, your UID and
+  group) — then the folder must belong to that UID. With group `0`
+  (`user: "1234:0"`, as OpenShift assigns it) any UID also writes to a fresh
+  named volume.
+
+**Switching from the standard image:**
+
+1. Take a backup (*Settings → Data → download JSON backup*).
+2. Stop the container: `docker compose down`.
+3. Hand over the existing data folder — so far it belongs to `www-data`
+   (UID 82):
+
+   ```bash
+   # folder on the host
+   sudo chown -R 10001:0 ./data
+   # or named volume
+   docker run --rm -v energietracker-data:/data alpine chown -R 10001:0 /data
+   ```
+
+4. In the Compose file set the tag to `X.Y.Z-rootless` and the port to
+   `"8080:8080"` (host port as before, now 8080 in the container), then
+   `docker compose up -d`.
+
+Going back is just as easy: reset tag and port; the standard image hands
+`/data` back to `www-data` on start by itself.
+
+**If `/data` is not writable,** the container starts anyway and says what is
+missing: the log shows `Datenverzeichnis nicht beschreibbar — Rechte am Volume
+anpassen` (data directory not writable — adjust the rights on the volume) with
+the UID and group that need to write; `GET /api/health` answers `503` with
+`data_dir_writable: false` (Docker shows *unhealthy*), and the app reports
+“Energietracker cannot write to its data directory …”. After the `chown`,
+reloading the page is enough.
+
+**Building it yourself:** `docker build --target rootless -t energietracker:rootless .`
+— without `--target` you get the standard image as before. The image sets
+`ET_IMAGE_VARIANT=rootless`; that is how the start recognises the variant (do
+not change it).
+
+---
+
 ## Common problems
 
 | Symptom | Cause / solution |
@@ -472,6 +591,7 @@ same machine, drop `127.0.0.1:`.
 | Port 8080 occupied | Choose another host port, e.g. `-p 9000:80`. |
 | "403/Permission denied" on `data` | The container sets the permissions on start; with your own host folder, check the write permissions if needed. |
 | Unraid: “data not writable” after *New Permissions* | Restart the container — it hands `/data` back to `www-data` (UID 82). |
+| Without root: log says “Datenverzeichnis nicht beschreibbar”, `/api/health` answers `503` | The data folder does not belong to the container's UID (10001). `sudo chown -R 10001:0 <folder>` or a named volume — [Without root](#without-root-v350). |
 | Text recognition “cannot be reached” although Ollama runs on the same computer | Inside the container, `localhost` is the container itself. Enter the address of the computer in the home network and start Ollama with `OLLAMA_HOST=0.0.0.0` — [Text recognition in the home network](../anleitungen/texterkennung.md#if-the-energietracker-runs-in-docker). |
 | Text recognition with a long time limit ends with `504` | Since v3.1.0 the image itself waits up to 310 s; a reverse proxy in front waits less. Set its time limit above 300 s or lower `ocr_timeout_s`. |
 

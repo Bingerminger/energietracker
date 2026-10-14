@@ -9,7 +9,10 @@ buchen. Danach zeigt die App denselben Saldo wie die Rechnung, und die
 Prognose rechnet mit dem neuen Abschlag weiter. Für Strom, Wasser und
 Fernwärme gilt dasselbe ohne Schritt 2 — seit v3.1.0 auch die
 Rechnungsprüfung, und die Werte der Rechnung lassen sich erfassen, vergleichen
-und als Sonderzahlung buchen (Schritt 7).
+und als Sonderzahlung buchen (Schritt 7). Beim Wasser gibt es die
+Sonderzahlungen aus Schritt 6 und 7 erst seit v3.5.0
+([#34](https://github.com/Bingerminger/energietracker/issues/34)); bis dahin
+kam eine Buchung dort nicht im Vertrag an.
 
 ---
 

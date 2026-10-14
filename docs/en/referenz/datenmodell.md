@@ -689,15 +689,20 @@ from SMARD (`"smard"`); an import replaces only the months it contains. Basis
 of the dynamic tariff check ([API](api.md#wholesale-electricity-prices-and-dynamic-tariff-check-v310)).
 Part of the backup; schema 1.7.0 creates the pot empty.
 
-**`special_payments` (F1003, from v1.5.0)** — only for gas/electricity/district
-heating (single source of truth: `Utilities::hasAdvancePaymentContracts()`).
+**`special_payments` (F1003, from v1.5.0)** — for gas, electricity, water (since
+v3.5.0, [#34](https://github.com/Bingerminger/energietracker/issues/34), next to
+the three components) and district heating (single source of truth:
+`Utilities::hasSpecialPayments()`, in `/api/utilities` as
+`has_special_payments`; up to v3.4 `hasAdvancePaymentContracts()`, which
+excludes water). Heating oil, pellets and PV feed-in drop the field on saving.
 `kind` ∈ {`rueckzahlung_mit`, `rueckzahlung_ohne`, `nachzahlung_mit`,
 `nachzahlung_ohne`, `abschlagszahlung`}. `amount_eur` is always positive; the sign
 in the balance follows from `kind` (a refund raises the balance, a
 back-/advance-payment lowers it). Only the `*_mit` types carry `new_advance_eur` +
 `advance_from`; these points are mixed into the effective advance plan. Additive &
 backward-compatible — if the field is missing, it becomes `[]` on normalisation (no
-migration step).
+migration step); an older water contract keeps it missing until special payments
+arrive and is read as `[]`.
 
 ### Charging sessions (`ev_sessions.json`) *(v3.2.0)*
 
@@ -809,6 +814,21 @@ later, the places shift by the difference.
   needs an entry in the backup’s index; afterwards series without an entry in
   the new index are dropped ([API](api.md#snapshots-and-import-v260)).
 
+### Reminder (`reminders.json`) — responsible *(v3.5.0)*
+
+Reminders are a list (`id`, `title`, `category`, `next_due`, `recurrence`,
+`recurrence_months`, `last_done`, `notes`, `active`). Since v3.5.0 optionally
+also, without a schema step — missing fields mean “nobody responsible”:
+
+| Field | Meaning |
+|---|---|
+| `assignee` | display name of the responsible person, trimmed, up to 60 characters |
+| `assignee_id` | person id from `auth.json`, only when picked from the list of people |
+| `assignee_former` | `true` after the person was deleted and their name replaced (“former member”) |
+
+The backup (pot `reminders`) carries the names as stored; the list of people
+stays in `auth.json`. Details: [API](api.md#responsible-for-reminders-v350).
+
 ### History of done notices (`activity.json`) *(v3.4.0)*
 
 What was done, when and by whom
@@ -833,7 +853,7 @@ first entry, if it is missing the history is empty. No schema step.
 | Field | Meaning |
 |---|---|
 | `id` | `act_` and 12 hex digits |
-| `action` | `done` (ticked off by hand), `auto_done` (done from the data: follow-on contract without a gap, reading, delivery, service-charge statement) or `dismissed` (recommendation hidden) |
+| `action` | `done` (ticked off by hand), `auto_done` (done from the data: follow-on contract without a gap, reading, delivery, service-charge statement; since v3.5.0 new period, supplier’s bill), `dismissed` (recommendation hidden) or since v3.5.0 `updated` (changed service-charge statement, `subject.kind: "tenancy_statement"` — proof only, clears nothing) |
 | `subject` | `kind` = kind as in the agenda (`reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, `reading_due`, `tenancy_statement_due`) or `contract` (follow-on contract) or `recommendation`; `uid` as in the agenda; `occurrence` = `uid@anchor` — contract: its end or `renewed`/`open`, tank: last delivery, reminder: due date, deadlines: their date. A tick only applies to this occurrence |
 | `ref` | references: `utility`, `meter_id` or `meter_group_id`, `contract_id`, `successor_id`, `reminder_id`, `tenancy_id`, `statement_id`, `delivery_id`, `recommendation_id`, `cancelled` (the cancellation set `auto_renews` to `false`) |
 | `title_key`, `params` | catalogue key and parts — the title can be rendered again in any language; days are stored as `YYYY-MM-DD` |
@@ -841,7 +861,8 @@ first entry, if it is missing the history is empty. No schema step.
 | `done_on` | day of the deed, may be backdated, not in the future |
 | `recorded_at` | time of the entry (ISO 8601) |
 | `by` | `{type: "person", id, name}`, `{type: "key", name}` (API key), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (by itself) or `null` (without sign-in). After “former member”: `{type: "person", former: true}` |
-| `reason` | for `auto_done` and `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed` |
+| `reason` | for `auto_done` and `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed`; since v3.5.0 `…period` (new period), `…bill` (supplier’s bill recorded), when ticking off `bill_expected` `…billWithout` (“arrived without being recorded”) |
+| `assignee` | *(v3.5.0)* only when a reminder with someone responsible is done: `{name, id?}` as a snapshot, after “former member” `{former: true}` |
 | `note`, `attachment_id` | note (up to 500 characters, may be empty) and optionally a receipt ([Receipts](#receipts-v310), reference type `activity`) |
 | `undone` | `{at, by}` after undo — the entry stays, struck through |
 | `revert` | what undo restores: `reminder` (due date, status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — only as long as nobody has changed it differently in the meantime |
@@ -851,7 +872,7 @@ when writing, by `done_on`.
 
 **Backup:** pot `activity`. The names are in it **as a snapshot** — whoever
 passes a backup on passes them on too; the list of people itself stays in
-`auth.json`. The import checks `id`, `action` (one of the three), `subject`
+`auth.json`. The import checks `id`, `action` (one of the four), `subject`
 (`kind` and `occurrence`) and `done_on` (calendar date). A backup without the
 pot leaves the history unchanged. Sample households and the demo come with
 `"activity": []`.
@@ -919,7 +940,7 @@ here a selection with background:
 | `forecast_model` | linear | default regression model |
 | `segmented_split_mode` | auto | breakpoint of the segmented regression |
 | `wohnflaeche_m2` | 100 | for the efficiency class |
-| `gebaeudetyp`, `beheizter_keller`, `warmwasser_dezentral` | efh, false, false | *(effective since v2.10.0)* usable floor area 1.2 or 1.35 × living area, hot-water surcharge 20 kWh/m²·a for the certificate-style figure |
+| `gebaeudetyp`, `beheizter_keller`, `warmwasser_dezentral` | efh, false, false | *(effective since v2.10.0)* usable floor area 1.2 or 1.35 × living area, hot-water surcharge 20 kWh/m²·a (from 1 Jan 2027: 16, § 82 GModG; v3.5.0) for the certificate-style figure |
 | `wasser_personen_referenz` | 122 | L per person and day, BDEW 2024 (*v2.10.0, previously 127*) |
 | `dashboard_months` | 12 | *(effective since v2.9.0)* months in the dashboard's consumption history (3–36) |
 | `alert_days_since_reading` | 45 | *(effective since v2.9.0)* "reading overdue": warning from ⅔, alert from the value itself |
@@ -1012,15 +1033,23 @@ schema 1.8.0 and contain every pot of every utility, empty ones included — so
 an example household replaces the whole household. Since v3.3.0
 `eigenheim-modern` brings quarter-hour series for 2025: household, heat pump
 (controlled, preferably 0–6 h), wall box from its charging sessions, charging
-and discharging of the battery, plus the 2025 wholesale prices per quarter hour
+and discharging of the battery, since v3.5.0 also generation and feed-in —
+consistent in every quarter hour (generation = used directly + fed in +
+charged) —, plus the 2025 wholesale prices per quarter hour
 from SMARD (`demo-data/sources/smard-day-ahead-de-lu-2025-qh.json`,
 Bundesnetzagentur | SMARD.de, CC BY 4.0) and module 3 time windows with made-up
-prices on the heat pump contract. `tools/build-personas.mjs`
+prices on the heat pump contract. Since v3.5.0 (N1026) every household and the
+showcase carry the “Done” history (`activity`, made-up names), reminders with
+someone in charge (`assignee`, without `assignee_id`), recorded supplier bills
+(`bills`) and follow-up contracts. `tools/build-personas.mjs`
 generates them from a daily model with a fixed seed: every run writes the same
 files, `--check` only compares. Names are made up, market location IDs
 synthetic. When loaded, `DemoDataAligner` carries them forward to today like
-the showcase. The Docker image contains them
-([API](api.md#example-households-v320)).
+the showcase — quarter hours for the last two to three months up to yesterday,
+the history of reminders moves with the reminders. An optional key
+`demo_align` in a demo backup asks for a billing anchor relative to today
+(`billing_anchor_days_ago: {utility: days}`); it is not imported. The Docker
+image contains them ([API](api.md#example-households-v320)).
 
 **Downgrade protection (v2.6.0).** A downgrade is not supported — but it is now
 detected: if the `schema_version` of the data is **newer** than the app, it

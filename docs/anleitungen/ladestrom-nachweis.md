@@ -90,12 +90,31 @@ Die Aufteilung des Grundpreises nach kWh ist eine Annahme: Das Schreiben
 verlangt nur, dass er „anteilig“ angesetzt wird. Ohne zahlenden Vertrag lehnt
 die App ab („Für die Wallbox gibt es keinen zahlenden Vertrag …“).
 
-**Strompreispauschale.** Geladene kWh × Pauschale. Für Deutschland kennt das
-Länderprofil die Pauschale für **2026: 34 ct/kWh**. Beispiel aus dem
-BMF-Schreiben: 3.000 kWh × 0,34 € = 1.020,00 €. Für ein Jahr ohne hinterlegte
-Pauschale trägst du sie im Feld „Pauschale je kWh (Cent)“ selbst ein (0 bis
-200 Cent); ohne Wert meldet die App „Für {Jahr} ist keine
-Strompreispauschale hinterlegt — trag sie selbst ein“.
+**Strompreispauschale.** Geladene kWh × Pauschale. Es gibt sie für die
+Kalenderjahre 2026 bis 2030 (BMF-Schreiben vom 11.11.2025, Rn. 30), und sie
+wird jedes Jahr neu gebildet: aus dem Strompreis für private Haushalte, den das
+Statistische Bundesamt (Destatis) in der Tabelle 61243-0001 für das
+**1. Halbjahr des Vorjahres** veröffentlicht — Durchschnittspreis
+einschließlich Steuern, Abgaben und Umlagen bei einem Jahresverbrauch von
+5.000 bis unter 15.000 kWh, auf volle Cent abgerundet. Das Länderprofil
+Deutschland kennt:
+
+| Jahr | Pauschale | Grundlage: Destatis, 1. Halbjahr des Vorjahres |
+|---|---|---|
+| 2026 | 34 ct/kWh | 1. Halbjahr 2025: 34,36 ct/kWh |
+| 2027 | 32 ct/kWh | 1. Halbjahr 2026: 32,14 ct/kWh (veröffentlicht am 30.09.2026) |
+
+Beispiel aus dem BMF-Schreiben: 3.000 kWh × 0,34 € = 1.020,00 € (2026). Mit
+der Pauschale 2027: 3.000 kWh × 0,32 € = 960,00 €.
+
+Den Wert eines Jahres gibt es erst, wenn Destatis das 1. Halbjahr des
+Vorjahres veröffentlicht hat, jeweils im Herbst; den Vorjahreswert übernimmt
+die App bewusst nicht. Für ein Jahr ohne hinterlegte Pauschale trägst du sie
+im Feld „Pauschale je kWh (Cent)“ selbst ein (0 bis 200 Cent); ohne Wert
+meldet die App „Für {Jahr} ist keine Strompreispauschale hinterlegt — trag sie
+selbst ein. Es gibt sie seit 2026; der Wert eines Jahres steht erst fest, wenn
+Destatis im Herbst des Vorjahres den Strompreis von dessen 1. Halbjahr
+veröffentlicht hat.“
 
 **Eine Methode je Jahr.** Wähle für ein Kalenderjahr eine der beiden Methoden
 und bleib dabei; ein Wechsel innerhalb des Jahres ist nicht vorgesehen. Die
@@ -140,8 +159,9 @@ die eingebauten PDF-Schriften nicht setzen können, antwortet die App mit
   ihnen ([Strom](../verstehen/02-strom.md#dynamische-tarife-v310)).
 - **Mehrere Wallboxen:** je Zähler ein Nachweis.
 - **Selbständige.** Für Selbständige mit betrieblichem E-Auto gilt dasselbe
-  nach dem BMF-Schreiben vom 21.07.2026; die Wahl gilt dort je Wirtschaftsjahr
-  (Stand 09.10.2026).
+  nach dem BMF-Schreiben vom 21.07.2026 (Rn. 20); die Wahl gilt dort je
+  Wirtschaftsjahr, maßgeblich ist das 1. Halbjahr des Kalenderjahres vor dem
+  Wirtschaftsjahr (Stand 13.10.2026).
 
 ## 7. Über die API
 

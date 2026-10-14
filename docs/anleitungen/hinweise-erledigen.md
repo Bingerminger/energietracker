@@ -21,8 +21,10 @@ jemand etwas abhakt.
 |---|---|
 | einen **Folgevertrag ohne Lücke** — derselbe Zähler oder dieselbe Zählergruppe, kein Angebot (Schattenvertrag), Beginn spätestens am Tag nach dem Ende | Kündigungsstichtag, Vertragsende, Ende der Preisgarantie und Preiserhöhung des bisherigen Vertrags. Die Empfehlung „Kündigung bis …“, der Hinweis in der Auswertung und „Kündigen bis …“ unter Verträge & Abschläge entfallen; dort steht stattdessen „Folgevertrag … ab …“ |
 | eine **Ablesung**, wenn sie fällig war (letzte Ablesung länger her als eingestellt) | „Zählerstand ablesen“ |
+| seit v3.5.0 einen **neuen Zeitraum** bei einem Zähler mit Verbrauch je Zeitraum, wenn er fällig war — wie eine Ablesung, beim CSV-Import einmal mit dem neuesten Zeitraum | „Zählerstand ablesen“ |
 | eine **Lieferung** Heizöl oder Pellets, wenn der Bestand vorher niedrig war | „Lieferung planen“ |
 | eine **Nebenkostenabrechnung** für den abgelaufenen Zeitraum (zur Miete) | „Nebenkostenabrechnung fällig“ |
+| seit v3.5.0 eine **Versorgerrechnung**, die einen abgelaufenen Abrechnungszeitraum abdeckt ([Abschnitt 9](#9-abrechnung-erwartet-v350)) | „Abrechnung erwartet“ |
 
 **Folgevertrag mit Lücke.** Beginnt der neue Vertrag später, bleibt die
 Erinnerung — sie nennt die Lücke: „Der Folgevertrag … beginnt erst am … –
@@ -61,6 +63,7 @@ Danach verschwindet die Zeile; der Hinweis unten bietet **Rückgängig**.
 | Kündigungsstichtag, Vertragsende, Preiserhöhung | ja |
 | Lieferung planen (Heizöl, Pellets) | ja — etwa „bestellt“; erledigt bis zur nächsten Lieferung |
 | Einwände gegen die Nebenkostenabrechnung, CO₂-Kosten einfordern | ja |
+| Abrechnung erwartet *(v3.5.0)* | ja — heißt „kam ohne Erfassung“; wer die Rechnung erfasst, braucht nichts abzuhaken |
 | Zählerstand ablesen | nein — das erledigt eine Ablesung |
 | Nebenkostenabrechnung fällig | nein — das erledigt die erfasste Abrechnung |
 
@@ -92,6 +95,15 @@ erledigt wurde, nach Monaten, das Neueste oben:
   Kündigung „verlängert sich ohne Kündigung“, bei einer Empfehlung blendet es
   sie wieder ein — solange niemand das inzwischen anders geändert hat.
 - **Notiz** (✎) lässt sich nachtragen und ändern.
+- Seit v3.5.0 steht bei einem erledigten Termin, **wer zuständig war**
+  (Momentaufnahme, [Abschnitt 8](#8-zuständig-an-terminen-v350)), und eine
+  **geänderte Nebenkostenabrechnung** erscheint mit dem Kennzeichen
+  „geändert“ — nur zum Nachweis, sie erledigt nichts. Schließt erst die
+  Änderung den offenen Zeitraum (etwa ein korrigiertes Ende), zählt sie als
+  Erledigung wie das Erfassen, nie doppelt.
+- **Als CSV** *(v3.5.0)* lädt den Verlauf mit den gewählten Filtern als
+  Tabelle — etwa als Nachweis für Vermieter oder Hausverwaltung
+  ([Abschnitt 10](#10-verlauf-als-csv-v350)).
 
 **Am Objekt:** Unter Kosten & Verträge → Verträge & Abschläge trägt ein
 Vertrag mit Einträgen den Knopf **„Verlauf (n)“**. Unter Termine & Wartung
@@ -167,12 +179,126 @@ GET    /api/activity               ?from&to&by&kind&ref&limit — neueste zuerst
 POST   /api/activity/{id}/undo     Rückgängig (streicht durch, stellt zurück)
 PATCH  /api/activity/{id}          {note}
 DELETE /api/activity               ?before=JJJJ-MM-TT — nur Verwaltung
+GET    /api/activity.csv           (v3.5.0) dieselben Filter, ?format=1|local&lang=
+GET    /api/people                 (v3.5.0) Personen für „Zuständig“: nur ID und Name
 ```
 
 `POST /api/reminders/{id}/done` und `POST /api/recommendations/{id}/dismiss`
-antworten zusätzlich mit `activity_id`. Felder, Statuscodes und Stabilität:
+antworten zusätzlich mit `activity_id`. Seit v3.5.0 nehmen
+`POST`/`PATCH /api/reminders…` `assignee` und `assignee_id` an. Felder,
+Statuscodes und Stabilität:
 [API-Referenz](../referenz/api.md#erledigt-mit-verlauf-v340); der Topf
 `activity`: [Datenmodell](../referenz/datenmodell.md).
+
+---
+
+## 8. Zuständig an Terminen *(v3.5.0)*
+
+Ein Termin unter **Hinweise → Termine & Wartung** kann eine zuständige Person
+haben — wer die Heizung warten lässt, wer den Rauchmelder prüft. **Nur
+Termine**: Zähler und Verträge bewusst nicht. **Benachrichtigt wird niemand**;
+dafür gibt es den [Kalender](kalender.md) und Home Assistant.
+
+**Eintragen:** Im Termin-Dialog das Feld **„Zuständig“**. Mit eingeschalteter
+Anmeldung schlägt es die Personen des Haushalts vor
+([Benutzer im Haushalt](benutzer.md)); wer einen davon wählt, ist als Person
+verknüpft — benennt der Verwalter sie um, zeigt der Termin den neuen Namen.
+Jeder andere Name geht auch (frei, bis 60 Zeichen), etwa „Oma Gerda“ oder der
+Hausmeister. Leer heißt: niemand.
+
+**Anzeige:** als Namens-Chip in der Terminliste, unter „Zu tun“ auf der
+Übersicht, in der Agenda (Home Assistant) und im Kalender als Zeile
+„Zuständig: …“ in der Beschreibung.
+
+**Filter:** In den Terminen und unter „Zu tun“ steht, sobald jemand zuständig
+ist, die Auswahl **Alle · Meine Aufgaben · Ohne Zuständigkeit · Namen**. Das
+Gerät merkt sich die Wahl. „Meine Aufgaben“ ist mit Anmeldung die
+angemeldete Person — per Verknüpfung oder gleichem Namen,
+Groß-/Kleinschreibung egal. **Ohne Anmeldung** fragt die App daneben
+**„Ich bin …“** und merkt sich die Antwort auf diesem Gerät. Unter „Zu tun“
+blendet der Filter auch Hinweise ohne Zuständigkeit aus (Ablesungen,
+Verträge); eine Zeile darunter sagt, wie viele.
+
+**Erledigen:** Ein wiederkehrender Termin behält seine Zuständigkeit. Der
+Eintrag im Verlauf nennt, wer zuständig war — als Momentaufnahme.
+
+**Person löschen:** Die Verknüpfung verschwindet von ihren Terminen, der Name
+bleibt als freier Name. Wählt der Verwalter beim Löschen „ehemalige Person“
+([Abschnitt 5](#5-aufbewahrung-leeren-datenschutz)), steht an den Terminen und
+im Verlauf **„ehemalige Person“** statt des Namens; der Filter zählt sie zu
+„Ohne Zuständigkeit“, bis jemand neu eingetragen ist.
+
+---
+
+## 9. Abrechnung erwartet *(v3.5.0)*
+
+Endet ein Abrechnungszeitraum eines Vertrags und ist dafür keine
+Versorgerrechnung erfasst (**Kosten → Rechnung prüfen → Rechnung des
+Versorgers erfassen**), erscheint unter „Zu tun“ **„Abrechnung erwartet:
+Strom (Anbieter) für 01.01.2025 – 31.12.2025“**. Der Knopf **„Rechnung
+erfassen“** öffnet die Rechnungsprüfung mit diesem Zeitraum und dem
+aufgeklappten Abschnitt zum Erfassen.
+
+| Fall | erwarteter Zeitraum |
+|---|---|
+| laufender (auch weiterlaufender) Vertrag | die zuletzt abgeschlossene Periode nach dem Abrechnungsstichtag der Verbrauchsart (Einstellungen → Verbrauchsarten, Standard 01.01.), ab Vertragsbeginn |
+| beendeter Vertrag | **Schlussrechnung** vom letzten Stichtag bis zum Vertragsende; ein weiterlaufender Vertrag endet am Tag vor dem Folgevertrag |
+| Folgevertrag **desselben Versorgers** ohne Lücke | keine Schlussrechnung — die Belieferung endet nicht |
+
+**Frist:**
+
+| Verbrauchsart | gesetzliche Frist | in der App |
+|---|---|---|
+| Strom, Gas (Deutschland) | Rechnung spätestens **sechs Wochen** nach Ende des Abrechnungszeitraums, Abschlussrechnung sechs Wochen nach Ende der Belieferung (§ 40c Abs. 2 EnWG); der Abrechnungszeitraum ist höchstens ein Jahr (§ 40b Abs. 1 EnWG) | nach Ende + 42 Tage **„überfällig — gesetzliche Frist verstrichen, beim Versorger nachfragen“**, rot unter „Zu tun“ |
+| Fernwärme | keine — abgerechnet wird „mindestens einmal jährlich“ (§ 4 Abs. 3 FFVAV, über § 24 Abs. 1 AVBFernwärmeV) | nur „erwartet“, nie „überfällig“ |
+| Wasser | keine (§ 24 Abs. 1 AVBWasserV; kommunale Gebühren nach Landesrecht, § 35 Abs. 1 AVBWasserV) | nur „erwartet“, nie „überfällig“ |
+| andere Länder | in der App nicht hinterlegt | nur „erwartet“ |
+
+Die monatliche Abrechnung (Frist drei Wochen, § 40c Abs. 2 EnWG) bildet die
+App nicht ab. Ob ein Wochenende oder Feiertag die Frist verschiebt, rechnet
+sie nicht — sie nimmt schlicht das Ende plus 42 Tage. Die Frist ist ein
+Hinweis, keine Rechtsberatung.
+
+**Nie erwartet:** Heizöl und Pellets (Rechnung je Lieferung),
+PV-Einspeisung (Gutschrift statt Rechnung), Angebote (Schattenverträge),
+Zähler außer Betrieb.
+
+**Passende Rechnung:** am Zähler, an einem Mitglied der Gruppe oder an der
+Gruppe; ohne oder mit genau diesem Vertrag; das Rechnungsende darf bis zu
+**31 Tage** vom Periodenende abweichen — Versorger lesen selten genau am
+Stichtag ab.
+
+**Wie lange:** Der Hinweis steht **bis 120 Tage nach Periodenende** — die
+gesetzliche Frist von 42 Tagen plus gut elf Wochen Spielraum. Danach
+verschwindet er ohne Eintrag im Verlauf. So sieht, wer Versorgerrechnungen
+bisher nicht erfasst hat, nach dem Update nicht für jeden Vertrag ein altes
+„überfällig“, obwohl die Rechnung längst da ist.
+
+**Kein Hinweis** für Zeiträume, die vor mehr als 120 Tagen endeten (nicht
+rückwirkend für alte Jahre), die vor der ersten Ablesung des Zählers enden oder
+vor einer [Zäsur](../verstehen/00-overview.md#wirkung-einer-maßnahme-zäsur). Begann ein Vertrag weniger als zwei
+Monate vor dem Stichtag, erwartet die App für dieses Stück keine eigene
+Rechnung: ob es eine gibt oder ob es in der nächsten Jahresrechnung steht,
+legt der Versorger fest.
+
+**Erledigen:** Mit der erfassten Rechnung verschwindet der Hinweis von selbst;
+der Verlauf zeigt „automatisch“ mit dem Grund „Rechnung bis … erfasst“.
+Gelöscht oder auf einen anderen Zeitraum geändert, ist er wieder offen. Wer die
+Rechnung nicht erfassen will, hakt ihn ab („kam ohne Erfassung“) —
+Rückgängig wie üblich.
+
+---
+
+## 10. Verlauf als CSV *(v3.5.0)*
+
+Unter **Hinweise → Erledigt** lädt **„Als CSV“** den Verlauf als Tabelle —
+mit genau den gewählten Filtern (Person, Zeitraum, Bereich). Spalten:
+**Datum, Aktion, Titel, Wer, Grund, Notiz**. Titel, Aktion und Grund stehen in
+der Sprache der Oberfläche, Datum und Trennzeichen wie bei den übrigen
+CSV-Exporten ([Datenexport](../referenz/api.md#csv-formate-v310)). Durchgestrichene
+(zurückgenommene) Einträge stehen nicht darin. Freitext, der mit `=`, `+`, `-`
+oder `@` beginnt, bekommt ein Apostroph davor, damit Excel ihn nicht als
+Formel ausführt.
 
 ---
 

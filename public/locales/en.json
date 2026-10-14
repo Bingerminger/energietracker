@@ -120,8 +120,14 @@
       "livingArea": "Living area {area} m²",
       "perSource": "per heat source · living area {area} m²",
       "certificate": "Certificate-style: {value} kWh/m²·yr{cls}",
-      "certificateTitle": "Net calorific value, weather-adjusted, based on {area} m² usable floor area. A consumption certificate requires 36 months; available: {months}.",
-      "certificateAll": "Certificate-style, all heat sources: {value} kWh/m²·yr{cls}"
+      "certificateTitle": "Weather-adjusted, {basis}, based on {area} m² usable floor area. A consumption certificate requires {required} months; available: {months}.",
+      "certificateAll": "Certificate-style, all heat sources: {value} kWh/m²·yr{cls}",
+      "basis": {
+        "hi": "on net calorific value",
+        "hs": "on gross calorific value"
+      },
+      "certificateApprox": "Counted on net calorific value (an approximation, the certificate requires gross): {fuels}.",
+      "certificateUpcoming": "From {date} the consumption certificate follows a new procedure (§ 82 GModG): {basis}, hot water surcharge {dhw} instead of {dhwOld} kWh/m²·yr, data over {required} instead of {requiredOld} months. That would give {value} kWh/m²·yr{cls}."
     },
     "tanks": { "title": "Tank levels" },
     "stromSaldo": {
@@ -191,7 +197,11 @@
         "one": "Follow-on contract only from {date} – a gap of {count} day",
         "other": "Follow-on contract only from {date} – a gap of {count} days"
       },
-      "tenancyAction": "Open tenancy"
+      "tenancyAction": "Open tenancy",
+      "billDeadline": "statutory deadline for the supplier: {date}",
+      "billOverdueSince": "statutory deadline passed on {date}",
+      "billNoDeadline": "no statutory deadline",
+      "billAction": "Record bill"
     },
     "welcome": {
       "title": "Welcome to Energietracker",
@@ -1435,7 +1445,7 @@
       },
       "warmwasser_dezentral": {
         "label": "Decentralised hot water",
-        "hint": "Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a 20 kWh/m²·yr surcharge."
+        "hint": "Hot water from an instantaneous heater or boiler, not from the heating: the certificate-style figure gets a surcharge of 20 kWh/m²·yr, from 2027 of 16 kWh/m²·yr (§ 82 GModG)."
       },
       "billing_cycle_anchor_pv_einspeisung": {
         "label": "Settlement date PV feed-in"
@@ -2510,7 +2520,6 @@
       "open": "Open in browser",
       "note": "On the iPhone the report opens in a new tab; from there you can save or share it.",
       "pdfHeading": "PDF file",
-      "languageNote": "The PDF is created in the language of this device ({lang}), as is the print view.",
       "title": "{label} {year}",
       "sentence": "{label} {year}: {value}, {pct} compared with {prev} ({prevValue}).",
       "sentenceNoPrevious": "{label} {year}: {value}.",
@@ -2549,7 +2558,8 @@
       "tank": "Stock today: {stock} {unit}. At the usual consumption it lasts until about {until}.",
       "tankNoRange": "Stock today: {stock} {unit}.",
       "heatDemand": "Heating energy: {value} kWh per m² of living space ({area} m²) and year.",
-      "howToRead": "Reading the annual report"
+      "howToRead": "Reading the annual report",
+      "choose": "Before opening you choose year, utilities, language and appendix; this device remembers the choice."
     },
     "weatherSource": "Temperatures: Open-Meteo.com (CC BY 4.0), unless entered yourself.",
     "print": {
@@ -3001,6 +3011,18 @@
         "term": "Tank ledger",
         "text": "Deliveries and stock levels of heating oil or pellets; from these, Energietracker calculates consumption and how long the stock lasts."
       }
+    },
+    "dialog": {
+      "title": "Create annual report",
+      "language": "Language of the PDF",
+      "printLanguage": "The print view appears in the language of this device ({lang}).",
+      "utilities": "Utilities",
+      "utilitiesHint": "All ticked: the full report. Otherwise a partial report with only these utilities, for example for the property manager.",
+      "utilitiesNone": "Choose at least one utility.",
+      "demoNote": "The demo only has the full report; partial reports and the appendix in the PDF work with your own installation.",
+      "remembered": "This device remembers the choice; the year starts at last year each time.",
+      "options": "Options…",
+      "partial": "Partial report: {list}"
     }
   },
   "csv": {
@@ -3048,7 +3070,9 @@
       "dueRequired": "A due date (YYYY-MM-DD) is required.",
       "recurrenceMonths": "“Every N months” needs an interval greater than 0.",
       "notFound": "Reminder not found: {id}",
-      "lastDoneInvalid": "“Last done” must be empty or a date (YYYY-MM-DD)."
+      "lastDoneInvalid": "“Last done” must be empty or a date (YYYY-MM-DD).",
+      "assigneeInvalid": "“Responsible” may be at most {max} characters long and must not contain control characters.",
+      "assigneeUnknown": "This person does not exist (any more). Pick a person from the list or enter a name."
     },
     "tariff": {
       "waterUnsupported": "Tariff comparison for water (three-component tariff) is not part of this version.",
@@ -3252,7 +3276,8 @@
       "corrupted": "The file {file} is damaged (not valid JSON). Please restore it from a backup or repair it; until then it will not be overwritten.",
       "corruptedCopy": "The file {file} is damaged (not valid JSON); a copy is at {copy}. Please restore it from a backup or repair it; until then it will not be overwritten.",
       "unreadable": "The file {file} cannot be read — please check the permissions of the data directory.",
-      "locked": "The file {file} cannot be locked. Please try again in a moment."
+      "locked": "The file {file} cannot be locked. Please try again in a moment.",
+      "notWritable": "Energietracker cannot write to its data directory — please adjust the permissions of the data folder or volume. The server log names the user that needs write access."
     },
     "report": {
       "yearRange": "The year must be a number between 2000 and 2100.",
@@ -3334,7 +3359,7 @@
     },
     "evReport": {
       "methodInvalid": "Unknown method “{value}” — allowed are contract and flat",
-      "flatMissing": "No flat electricity rate is known for {year} — enter it yourself",
+      "flatMissing": "No flat electricity rate is known for {year} — enter it yourself. It exists from 2026; a year’s value is only fixed once Destatis has published, in the autumn of the year before, that year’s first-half electricity price.",
       "noContract": "There is no paying contract for the wall box — neither its own nor one on the parent meter",
       "yearInvalid": "Year “{year}” is invalid",
       "flatInvalid": "Flat rate “{value}” is not a valid number (0 to 200 cents)"
@@ -3378,6 +3403,10 @@
       "occurrenceChanged": "The notice has changed in the meantime (a new contract end, for example). Please reload the page.",
       "dateInvalid": "“{value}” is not a valid day. Expected: YYYY-MM-DD, not in the future.",
       "noteInvalid": "The note can be at most {max} characters long."
+    },
+    "energyFlow": {
+      "dateInvalid": "Invalid date: {date} (expected YYYY-MM-DD between 2000 and 2100).",
+      "monthInvalid": "Invalid month: {month} (expected YYYY-MM between 2000 and 2100)."
     }
   },
   "login": {
@@ -3616,7 +3645,7 @@
     },
     "efficiency": {
       "term": "Efficiency figure",
-      "text": "Heating energy per m² and year (kWh/m²·yr). The home figure refers to the living area; the certificate-style figure calculates like an energy certificate (net calorific value, weather-adjusted, usable area). Not an official certificate."
+      "text": "Heating energy per m² and year (kWh/m²·yr). The home figure refers to the living area; the certificate-style figure calculates like a consumption-based energy certificate (weather-adjusted, usable area; until 2026 on net, from 2027 on gross calorific value). Not an official certificate."
     },
     "feedIn": {
       "term": "Feed-in",
@@ -3693,6 +3722,10 @@
     "profileFactor": {
       "term": "Profile factor",
       "text": "Your wholesale price per kWh (weighted by consumption) divided by the market average. Below 1: you use more when electricity is cheap; above 1: more when it is expensive."
+    },
+    "typicalDay": {
+      "term": "Typical day",
+      "text": "The energy flow of an average day in the month: for each quarter hour (local time), the average over all days of the month with readings. It shows the pattern — say, when the midday sun charges the battery — not a real day."
     }
   },
   "help": {
@@ -3878,7 +3911,8 @@
       "temperatures": "temperatures",
       "exampleReadings": "example-readings",
       "exampleTemperatures": "example-temperatures",
-      "periods": "periods"
+      "periods": "periods",
+      "activity": "history"
     },
     "periods": {
       "from": "From",
@@ -3899,6 +3933,14 @@
       "baseShare": "Standing charge share",
       "amount": "Amount",
       "method": "Method"
+    },
+    "activity": {
+      "date": "Date",
+      "action": "Action",
+      "title": "Title",
+      "by": "By",
+      "reason": "Reason",
+      "note": "Note"
     }
   },
   "calendar": {
@@ -3913,7 +3955,11 @@
       "tankReorder": "{label}: plan a delivery ({meter})",
       "tenancyStatementDue": "Service charge statement up to {period} due: {label}",
       "objectionDeadline": "Last day to object to the service charge statement: {label}",
-      "co2ClaimDeadline": "CO₂ cost {year}: last day to claim the landlord’s share of {amount}"
+      "co2ClaimDeadline": "CO₂ cost {year}: last day to claim the landlord’s share of {amount}",
+      "billExpected": "Bill expected: {label} ({provider}) for {from} – {until}",
+      "billOverdue": "Bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier",
+      "finalBillExpected": "Final bill expected: {label} ({provider}) for {from} – {until}",
+      "finalBillOverdue": "Final bill overdue: {label} ({provider}) for {from} – {until} — statutory deadline passed, ask the supplier"
     },
     "subscribe": "Subscribe in your calendar",
     "intro": "Dates, cancellation deadlines, contract ends, price guarantees and due readings as a calendar subscription. The calendar refreshes them every 12 hours.",
@@ -3926,7 +3972,9 @@
       "one": "There is already {count} calendar key – a new link creates another one.",
       "other": "There are already {count} calendar keys – a new link creates another one."
     },
-    "createLink": "Create link"
+    "createLink": "Create link",
+    "ingressHint": "When the app runs in Home Assistant, the link gives its address inside Home Assistant’s network — meant for Home Assistant itself, for example the Remote Calendar integration. For calendars on a phone or computer, open a port under Network in the app’s configuration and replace the start up to /api.php with Home Assistant’s address and that port.",
+    "assignee": "Responsible: {name}"
   },
   "tenancy": {
     "title": "Tenancy",
@@ -4344,7 +4392,8 @@
       "chipsGroup": "Highlight a node",
       "scope": {
         "year": "Year",
-        "month": "Month"
+        "month": "Month",
+        "day": "Day"
       },
       "periodGroup": "Period",
       "prev": "Earlier period",
@@ -4353,6 +4402,37 @@
       "months": {
         "one": "{count} month",
         "other": "{count} months"
+      },
+      "day": {
+        "mode": {
+          "single": "One day",
+          "typical": "Typical day"
+        },
+        "modeGroup": "Which day",
+        "play": "Play",
+        "pause": "Pause",
+        "time": "Time of day",
+        "repeat": "{time} (after the clocks go back)",
+        "until": "{period}, up to {time}",
+        "typicalPeriod": "Typical day in {month}",
+        "sums": "Running total up to {time}:",
+        "price": "Wholesale price at {time}: {price}",
+        "noPrice": "Wholesale price at {time}: none loaded",
+        "gapAt": "There are no readings for {time}.",
+        "gaps": {
+          "one": "{count} quarter hour without readings (a gap, not 0).",
+          "other": "{count} quarter hours without readings (gaps, not 0)."
+        },
+        "typicalDays": {
+          "one": "Average per quarter hour over {count} day.",
+          "other": "Average per quarter hour over {count} days."
+        },
+        "missing": "No quarter-hour values: {list} — so every quarter hour is a gap.",
+        "missingFeed": "There is no feed-in meter — without it, generation cannot be split.",
+        "missingGen": "There is no generation meter — without it, the house consumption is unknown.",
+        "calcNote": "Dashed: calculated per quarter hour, not measured.",
+        "powerNote": "In the nodes: the power in this quarter hour (kW). Below: the amounts since midnight (kWh).",
+        "gapsOption": "{date} (with gaps)"
       }
     },
     "weather": {
@@ -4403,7 +4483,7 @@
   },
   "setup": {
     "title": "Set up",
-    "intro": "Three questions, then the app shows what suits you. Everything can be changed later.",
+    "intro": "A few questions, then the app shows what suits you. Everything can be changed later.",
     "progress": "Step {n} of {total}",
     "persona": {
       "title": "Who are you?",
@@ -4441,7 +4521,7 @@
       "title": "What comes next",
       "summary": "{persona} · level “{level}”",
       "demo": "Look at it with sample data",
-      "demoHint": "Loads the matching sample household. The app saves the current state first.",
+      "demoHint": "Loads the matching sample household — with the “Done” history, people in charge of reminders and supplier bills. The app saves the current state first.",
       "demoPublic": "The demo now shows the sample household “{persona}”. Pick another under Settings → General → “Start the setup assistant”.",
       "own": "Start with my own data",
       "ownHint": "Next: check the meters and add the first reading."
@@ -4450,7 +4530,17 @@
     "back": "Back",
     "next": "Next",
     "done": "Let’s go",
-    "restart": "Start the setup assistant"
+    "restart": "Start the setup assistant",
+    "region": {
+      "title": "Language and country",
+      "language": "Language",
+      "current": "Current settings for {country}:",
+      "profile": "The country profile {country} sets:",
+      "format": "Number and date format",
+      "weather": "Weather location",
+      "heatingLimit": "Heating limit",
+      "demoCountry": "The demo uses the country of the sample household. In your own installation you choose it here."
+    }
   },
   "evcc": {
     "title": "Charging sessions from evcc {year}",
@@ -4589,7 +4679,10 @@
       "reading": "Meter reading of {date} recorded",
       "delivery": "Delivery of {date} recorded",
       "statement": "Statement up to {date} recorded",
-      "dismissed": "hidden until {date}"
+      "dismissed": "hidden until {date}",
+      "period": "Consumption {from} – {to} recorded",
+      "bill": "Bill up to {date} recorded",
+      "billWithout": "arrived without being recorded"
     },
     "markDone": "Mark as done",
     "markDoneNamed": "Done: {title}",
@@ -4600,7 +4693,8 @@
       "attachment": "Receipt (optional, photo or PDF)",
       "cancelled": "Cancelled – the contract does not renew",
       "save": "Done",
-      "dateInvalid": "Please choose a day up to today."
+      "dateInvalid": "Please choose a day up to today.",
+      "billWithout": "Ticking off here means: the bill arrived, but you are not recording it. If you record it under “Check a bill”, there is nothing to tick off – the notice then closes by itself."
     },
     "toast": {
       "done": "“{title}” done",
@@ -4667,7 +4761,8 @@
     },
     "action": {
       "auto": "automatic",
-      "dismissed": "hidden"
+      "dismissed": "hidden",
+      "updated": "changed"
     },
     "attachment": "Receipt",
     "undoneLine": "Undone {when}",
@@ -4677,6 +4772,43 @@
       "editNamed": "Edit note: {title}",
       "saved": "Note saved"
     },
-    "reasonLine": "Reason: {reason}"
+    "reasonLine": "Reason: {reason}",
+    "changed": {
+      "statement": "Service charge statement {from} – {to} changed: {label}"
+    },
+    "actionName": {
+      "done": "done",
+      "auto_done": "done automatically",
+      "dismissed": "hidden",
+      "updated": "changed"
+    },
+    "assigneeLine": "Responsible: {name}",
+    "csv": {
+      "button": "As CSV",
+      "hint": "The history with the chosen filters as a spreadsheet – for example as proof for a landlord or property manager"
+    }
+  },
+  "assignee": {
+    "label": "Responsible",
+    "placeholder": "Name (optional)",
+    "hint": "A name; empty = nobody. Nobody is notified.",
+    "hintPeople": "A person from the list or any name; empty = nobody. Nobody is notified.",
+    "wasFormer": "Until now: former member.",
+    "tooLong": "At most {max} characters.",
+    "filter": {
+      "label": "Filter by responsibility",
+      "all": "All",
+      "mine": "My tasks",
+      "none": "Unassigned",
+      "names": "Names"
+    },
+    "iAm": "I am",
+    "iAmPick": "– please choose –",
+    "pickMe": "Without sign-in: choose who you are under “I am” – this device remembers it.",
+    "hidden": {
+      "one": "{count} more entry hidden (filter “Responsible”)",
+      "other": "{count} more entries hidden (filter “Responsible”)"
+    },
+    "emptyFiltered": "Nothing for this selection."
   }
 }

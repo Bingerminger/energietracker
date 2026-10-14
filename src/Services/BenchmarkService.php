@@ -10,8 +10,8 @@ use Energietracker\Config\Utilities;
  * v1.3.0 / v1.4.0 — Effizienz-Benchmark.
  *
  * Berechnet den spezifischen Heizenergiebedarf in kWh/m²·a und ordnet ihn
- * einer Effizienzklasse A+..H zu (Bandgrenzen aus den Settings, an
- * GEG/DENA angelehnt).
+ * einer Effizienzklasse A+..H zu (Bandgrenzen aus den Settings, Standard =
+ * GModG Anlage 10, siehe unten).
  *
  * v1.4.0: Ausweisung **pro Heizquelle getrennt** (`per_source`) statt nur
  * summiert. Ein Haus heizt real meist mit einer Quelle; mehrere
@@ -24,9 +24,14 @@ use Energietracker\Config\Utilities;
  * v2.10.0 Stromzähler, die als Heizquelle markiert sind (Wärmepumpe,
  * `heat_source`). NICHT Wasser.
  *
- * [Unverifiziert] Die Default-Bandgrenzen sind branchenüblich; die exakten
- * GEG-2024-Grenzwerte sollten bei Bedarf in den Settings überschrieben
- * werden — der Service liest sie dort, kein Hardcoding.
+ * Die Default-Bandgrenzen sind die der Anlage 10 GModG (bis Juli 2026 GEG)
+ * „Energieeffizienzklassen von Wohngebäuden“: A+ bis 30, A bis 50, B bis 75,
+ * C bis 100, D bis 130, E bis 160, F bis 200, G bis 250, H darüber
+ * (kWh/(m²·a) Endenergie). v3.5.0 geprüft: BGBl. 2026 I Nr. 226, Art. 2 Nr. 54
+ * ändert ab 01.01.2027 nur Überschrift („zu § 86 Absatz 1“) und Spaltenkopf,
+ * nicht die Grenzen — „um die Effizienzklassen unverändert zu lassen, bis eine
+ * Anpassung der Anlage 10 erfolgt“ (Begründung, BT-Drs. 21/6278, S. 122).
+ * Abweichende Grenzen liest der Service aus den Settings, kein Hardcoding.
  *
  * v2.7.0 — Die Klassen gibt es nur, wo das Land eine Skala hat (Feld
  * `scale`, heute nur `geg` für Deutschland). Eine österreichische oder
@@ -35,10 +40,11 @@ use Energietracker\Config\Utilities;
  *
  * v2.10.0 (Review CALC-07) — **zwei Zahlen**:
  *   1. die Hauskennzahl wie bisher (Verbrauch je m² Wohnfläche, wie gemessen),
- *   2. `certificate`: energieausweis-nah — Gas auf den Heizwert umgerechnet,
- *      witterungsbereinigt, bezogen auf die Gebäudenutzfläche AN
- *      (1,2 × Wohnfläche, 1,35 bei Ein-/Zweifamilienhaus mit beheiztem
- *      Keller, § 82 GEG), Warmwasser-Zuschlag bei dezentraler Bereitung.
+ *   2. `certificate`: energieausweis-nah — witterungsbereinigt, bezogen auf
+ *      die Gebäudenutzfläche AN (1,2 × Wohnfläche, 1,35 bei Ein-/Zweifamilien-
+ *      haus mit beheiztem Keller, § 82 Abs. 2), Warmwasser-Zuschlag bei
+ *      dezentraler Bereitung; Brennstoffbasis, Zuschlag und Datenzeitraum seit
+ *      v3.5.0 nach dem Verfahren, das am Rechentag gilt (CERT_RULES).
  * Klassen nur für vollständige Jahre (≥ 360 Tage): Ein Nutzer, der im Juni
  * anfing, bekam bisher für sein halbes Jahr „A". Die Grenzen gelten „bis
  * einschließlich" (GEG Anlage 10: „bis 30", „bis 50" …).
@@ -56,19 +62,97 @@ final class BenchmarkService
     /** Erdgas Brennwert → Heizwert (BAFA-Infoblatt CO₂-Faktoren v3.4, Tabelle 3). */
     public const GAS_HS_TO_HI = 0.906;
 
-    /** Warmwasser-Zuschlag bei dezentraler Bereitung, kWh/(m²·a) AN (Bekanntmachung Verbrauchswerte 2021). */
+    /**
+     * Warmwasser-Zuschlag bei dezentraler Bereitung, kWh/(m²·a) AN, nach
+     * § 82 Abs. 2 GEG bis 31.12.2026 (Regel geg2024; ab 2027: CERT_RULES).
+     */
     public const DHW_SURCHARGE = 20.0;
+
+    /**
+     * v3.5.0 — Regeln der energieausweis-nahen Kennzahl je Rechtsstand des
+     * Verbrauchsausweises. Es gilt die Regel des Rechentags („als würde der
+     * Ausweis heute ausgestellt“), für jedes Bezugsjahr: Das Verfahren hängt am
+     * Ausstellungsdatum, nicht am Zeitraum der Daten — § 112 Abs. 3 GModG n. F.
+     * führt Ausweise, die „vor dem 1. Januar 2027 ausgestellt“ wurden, als
+     * „Energieverbrauchsausweis nach § 82 in der bis einschließlich 31. Dezember
+     * 2026 geltenden Fassung“.
+     *
+     *  geg2024    § 82 GEG in der bis 31.12.2026 geltenden Fassung mit der
+     *             Bekanntmachung der Regeln für Energieverbrauchswerte im
+     *             Wohngebäudebestand vom 29.03.2021 (BAnz AT 16.04.2021 B1),
+     *             Abschnitt 2: Brennstoffe nach Heizwert Hi (Brennwert-Angaben
+     *             sind umzurechnen); Warmwasser-Zuschlag 20 kWh/(m²·a)
+     *             (§ 82 Abs. 2); Abrechnungen über 36 Monate (§ 82 Abs. 4).
+     *  gmodg2027  § 82 GModG n. F. (BGBl. 2026 I Nr. 226, Art. 2 Nr. 32; in Kraft
+     *             am 01.01.2027 nach Art. 9 Abs. 2): „Brennstoffe sind mit ihrem
+     *             Brennwert zu berücksichtigen“ (Abs. 2 Satz 2); Warmwasser-
+     *             Zuschlag 16 kWh/(m²·a) Nutzfläche (Abs. 2 Satz 3); Verbrauch
+     *             „jährlich über einen Zeitraum von zwei Jahren“ (Abs. 1 Satz 2).
+     *
+     * Näherungen in beiden Regeln: Die Kennzahl rechnet ein Bezugsjahr, nicht
+     * den Mittelwert des ganzen Zeitraums; die Witterungsbereinigung nutzt das
+     * Klimanormal statt der Klimafaktoren des DWD; die Normalisierung auf die
+     * Nutzungsrandbedingungen nach DIN/TS 18599-10: 2025-10 Tabelle 5
+     * (§ 82 Abs. 3 n. F.) bildet die App nicht nach. Heizöl und Pellets zählt
+     * die App nach Heizwert; den Faktor zum Brennwert nennt die Bekanntmachung
+     * nur über DIN V 18599-1 Tabelle B.1 (nicht frei zugänglich). Unter
+     * gmodg2027 bleiben sie deshalb beim Heizwert und stehen in
+     * `fuel_basis_approx` — keine erfundene Zahl.
+     * Die Klassengrenzen (Anlage 10) sind in beiden Regeln dieselben.
+     */
+    public const CERT_RULES = [
+        'geg2024'   => ['from' => null,         'fuel_basis' => 'hi', 'dhw' => self::DHW_SURCHARGE, 'months' => 36],
+        'gmodg2027' => ['from' => '2027-01-01', 'fuel_basis' => 'hs', 'dhw' => 16.0,                'months' => 24],
+    ];
+
+    /**
+     * Brennstoffe und die Basis, nach der die App sie zählt: Gas wie die
+     * Rechnung nach Brennwert (Zustandszahl × Brennwert), Heizöl und Pellets
+     * nach Heizwert (kWh je Liter bzw. kg). Fernwärme, Heizwärme und Strom
+     * sind keine Brennstoffe und werden nie umgerechnet.
+     */
+    private const FUEL_BASIS = ['gas' => 'hs', 'heizoel' => 'hi', 'pellets' => 'hi'];
 
     private ?ClimateNormalService $climate;
 
+    /**
+     * @param string|null $today Rechentag JJJJ-MM-TT (Tests); null = heute.
+     *                           Bestimmt das Standard-Bezugsjahr und die Regel
+     *                           der energieausweis-nahen Kennzahl.
+     */
     public function __construct(
         private ConsumptionService $consumption,
         private MeterService $meters,
         private SettingsService $settings,
         private I18nService $i18n,
         ?ClimateNormalService $climate = null,
+        private ?string $today = null,
     ) {
         $this->climate = $climate;
+    }
+
+    /** Regel der energieausweis-nahen Kennzahl, die an `$today` gilt. */
+    public static function certRules(string $today): string
+    {
+        $key = '';
+        foreach (self::CERT_RULES as $k => $r) {
+            if ($r['from'] === null || $r['from'] <= $today) $key = $k;
+        }
+        return $key;
+    }
+
+    /** Die nächste Regel nach `$today` (noch nicht in Kraft), sonst null. */
+    public static function nextCertRules(string $today): ?string
+    {
+        foreach (self::CERT_RULES as $k => $r) {
+            if ($r['from'] !== null && $r['from'] > $today) return $k;
+        }
+        return null;
+    }
+
+    private function today(): string
+    {
+        return $this->today ?? date('Y-m-d');
     }
 
     /**
@@ -100,7 +184,7 @@ final class BenchmarkService
         }
 
         if ($year === null) {
-            $year = (int)date('Y') - 1; // letztes abgeschlossenes Jahr
+            $year = (int)substr($this->today(), 0, 4) - 1; // letztes abgeschlossenes Jahr
         }
 
         $country = (string)$this->settings->get('country', Countries::DEFAULT);
@@ -195,14 +279,23 @@ final class BenchmarkService
     }
 
     /**
-     * v2.10.0 — Energieausweis-nahe Kennzahl (Review CALC-07).
+     * v2.10.0 — Energieausweis-nahe Kennzahl (Review CALC-07), seit v3.5.0
+     * nach der Regel des Rechentags (CERT_RULES):
      *
-     *   AN      = Wohnfläche × 1,2 (× 1,35 bei EFH/Reihenhaus mit beheiztem Keller)
-     *   E       = Σ Quellen: witterungsbereinigter Verbrauch, Gas × 0,906 (Hs → Hi)
-     *   Kennzahl = E / AN (+ 20 kWh/m²·a bei dezentralem Warmwasser)
+     *   AN       = Wohnfläche × 1,2 (× 1,35 bei EFH/Reihenhaus mit beheiztem Keller)
+     *   E        = Σ Quellen: witterungsbereinigter Verbrauch
+     *              geg2024:   Gas × 0,906 (Brennwert → Heizwert)
+     *              gmodg2027: Gas wie gezählt (Brennwert); Heizöl/Pellets
+     *                         nach Heizwert als Näherung
+     *   Kennzahl = E / AN (+ Warmwasser-Zuschlag 20 bzw. 16 kWh/m²·a bei
+     *              dezentralem Warmwasser)
      *
-     * Kein Energieausweis: Der verlangt 36 Monate und die Klimafaktoren des
-     * DWD am Standort; hier bereinigt das Klimanormal (Open-Meteo, 30 Jahre).
+     * Kein Energieausweis: Der rechnet den ganzen Zeitraum (36 Monate bzw. zwei
+     * Jahre) mit den Klimafaktoren des DWD am Standort; hier bereinigt das
+     * Klimanormal (Open-Meteo, 30 Jahre) ein Bezugsjahr.
+     *
+     * Vor dem Inkrafttreten einer neuen Regel steht in `upcoming`, welche Zahl
+     * sie ergäbe (additiv, v3.5.0).
      *
      * @param array<string,array{kwh:float,adjusted:float,coverage_days:int,weather_adjusted:bool}> $sources
      * @return array<string,mixed>
@@ -215,31 +308,93 @@ final class BenchmarkService
         $factor = $smallHouse && $cellar ? 1.35 : 1.2;
         $area = $wohnflaeche * $factor;
 
-        $energy = 0.0;
         $complete = true;
         $weatherAdjusted = true;
-        $months = [];
+        $months = [];   // ym → true, im längsten Fenster aller Regeln
         foreach ($sources as $utility => $d) {
-            $energy += $d['adjusted'] * ($utility === 'gas' ? self::GAS_HS_TO_HI : 1.0);
             $complete = $complete && $d['coverage_days'] >= self::MIN_COVERAGE_DAYS;
             $weatherAdjusted = $weatherAdjusted && $d['weather_adjusted'];
             $months += $this->monthsWithData($utility, $year);
         }
-        $dhw = (bool)$this->settings->get('warmwasser_dezentral', false) ? self::DHW_SURCHARGE : 0.0;
-        $perM2 = round($energy / $area + $dhw, 1);
+        $dezentral = (bool)$this->settings->get('warmwasser_dezentral', false);
+
+        // Kennzahl und Fenster nach einer Regel
+        $calc = function (string $rules) use ($sources, $area, $dezentral, $months, $year, $complete, $scale, $thresholds): array {
+            $r = self::CERT_RULES[$rules];
+            $energy = 0.0;
+            $approx = [];
+            foreach ($sources as $utility => $d) {
+                $energy += $d['adjusted'] * self::fuelFactor($utility, $r['fuel_basis'], $approx);
+            }
+            $dhw = $dezentral ? (float)$r['dhw'] : 0.0;
+            $perM2 = round($energy / $area + $dhw, 1);
+            return [
+                'kwh'               => round($energy, 0),
+                'kwh_per_m2'        => $perM2,
+                'dhw_surcharge'     => $dhw,
+                'class'             => $scale !== null && $complete ? $this->classify($perM2, $thresholds) : null,
+                'rules'             => $rules,
+                'fuel_basis'        => $r['fuel_basis'],
+                'fuel_basis_approx' => $approx,
+                'dhw_rule'          => (float)$r['dhw'],
+                'months_required'   => (int)$r['months'],
+                'months_in_window'  => self::countInWindow($months, $year, (int)$r['months']),
+            ];
+        };
+        $now = $calc(self::certRules($this->today()));
+        $next = self::nextCertRules($this->today());
 
         return [
-            'area_m2'          => round($area, 1),
-            'area_factor'      => $factor,
-            'kwh'              => round($energy, 0),
-            'kwh_per_m2'       => $perM2,
-            'dhw_surcharge'    => $dhw,
-            'weather_adjusted' => $weatherAdjusted,
-            'complete'         => $complete,
-            'class'            => $scale !== null && $complete ? $this->classify($perM2, $thresholds) : null,
-            // § 82 GEG: Ein Verbrauchsausweis braucht 36 zusammenhängende Monate
-            'months_36'        => count($months),
+            'area_m2'           => round($area, 1),
+            'area_factor'       => $factor,
+            'kwh'               => $now['kwh'],
+            'kwh_per_m2'        => $now['kwh_per_m2'],
+            'dhw_surcharge'     => $now['dhw_surcharge'],
+            'weather_adjusted'  => $weatherAdjusted,
+            'complete'          => $complete,
+            'class'             => $now['class'],
+            // Monate mit Heizdaten in den 36 Monaten bis Ende des Bezugsjahrs
+            // (§ 82 Abs. 4 GEG bis 2026); Bedeutung seit v2.10.0 unverändert
+            'months_36'         => self::countInWindow($months, $year, 36),
+            // v3.5.0 — Regel des Rechentags und ihr Datenzeitraum
+            'rules'             => $now['rules'],
+            'fuel_basis'        => $now['fuel_basis'],
+            'fuel_basis_approx' => $now['fuel_basis_approx'],
+            'dhw_rule'          => $now['dhw_rule'],
+            'months_required'   => $now['months_required'],
+            'months_in_window'  => $now['months_in_window'],
+            // Die Vorschau nennt deutsches Recht (GModG) — nur mit der deutschen Skala
+            'upcoming'          => $next === null || $scale !== 'geg' ? null
+                : ['from' => (string)self::CERT_RULES[$next]['from']] + $calc($next),
         ];
+    }
+
+    /**
+     * Umrechnungsfaktor eines Brennstoffs auf die Basis der Regel. Ohne belegten
+     * Faktor (Heizwert → Brennwert bei Heizöl und Pellets) bleibt der Wert, und
+     * die Verbrauchsart landet in `$approx`.
+     *
+     * @param list<string> $approx
+     */
+    private static function fuelFactor(string $utility, string $basis, array &$approx): float
+    {
+        $own = self::FUEL_BASIS[$utility] ?? null;
+        if ($own === null || $own === $basis) return 1.0;
+        if ($own === 'hs' && $basis === 'hi' && $utility === 'gas') return self::GAS_HS_TO_HI;
+        $approx[] = $utility;
+        return 1.0;
+    }
+
+    /**
+     * Monate mit Daten in den letzten `$months` Monaten bis Ende des
+     * Bezugsjahrs (36 → Bezugsjahr und zwei Vorjahre, 24 → und ein Vorjahr).
+     *
+     * @param array<string,bool> $ymSet ym → true
+     */
+    private static function countInWindow(array $ymSet, int $year, int $months): int
+    {
+        $first = $year - intdiv($months, 12) + 1;
+        return count(array_filter(array_keys($ymSet), fn($ym) => (int)substr((string)$ym, 0, 4) >= $first));
     }
 
     /**
@@ -303,19 +458,21 @@ final class BenchmarkService
     }
 
     /**
-     * Monate mit Heizdaten in den 36 Monaten bis Ende des Bezugsjahrs.
+     * Monate mit Heizdaten im längsten Datenzeitraum der Regeln (36 Monate)
+     * bis Ende des Bezugsjahrs; kürzere Fenster zählt countInWindow().
      *
      * @return array<string,bool> ym → true
      */
     private function monthsWithData(string $utility, int $year): array
     {
+        $first = $year - intdiv(max(36, ...array_column(self::CERT_RULES, 'months')), 12) + 1;   // 36: months_36
         $out = [];
         foreach ($this->meters->list($utility) as $meter) {
             if (!MeterService::countsInTotals($meter)) continue;
             if (!self::countsAsHeat($utility, $meter)) continue;
             foreach ($this->consumption->forMeter($utility, $meter) as $m) {
                 $y = (int)($m['year'] ?? 0);
-                if ($y >= $year - 2 && $y <= $year && (float)($m['kwh'] ?? 0) > 0) $out[(string)$m['ym']] = true;
+                if ($y >= $first && $y <= $year && (float)($m['kwh'] ?? 0) > 0) $out[(string)$m['ym']] = true;
             }
         }
         return $out;

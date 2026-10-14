@@ -337,7 +337,7 @@ most 20 MB — the app aborts a larger one instead of loading it into memory.
 - [ ] `data/` & co. return `404` — the security check shows it (§ 9)
 - [ ] Host list set: Settings → Access or `ET_ALLOWED_HOSTS` (§ 8)
 - [ ] `ET_DEBUG` not set (§ 10)
-- [ ] Docker: hardened, port only on `127.0.0.1` behind the reverse proxy (§ 13)
+- [ ] Docker: hardened or without root, port only on `127.0.0.1` behind the reverse proxy (§ 13)
 - [ ] Better still: VPN instead of exposure (§ 1)
 
 ## 12. Size limits and write lock *(v3.4.0)*
@@ -389,9 +389,16 @@ port only on `127.0.0.1` behind a reverse proxy. The example is in
 [Docker operation](docker.md#hardened-operation-v340); CI starts the image
 exactly like that on every run.
 
+**Without root *(v3.5.0)*.** The variant with the suffix `-rootless` goes one
+step further: no process runs as root, the container needs not a single
+capability, and the start changes no rights. In return the data folder must
+belong to the container's UID (10001) — example and switch-over in
+[Docker operation → Without root](docker.md#without-root-v350). CI starts this
+variant on every run as well and checks that no process runs with UID 0.
+
 **Current base image.** Every week GitHub rebuilds the latest release tag on
-the current base image (same code, new packages) and scans the image for known
-vulnerabilities. A pinned tag such as `3.4.0` thus receives security updates of
+the current base image (same code, new packages; since v3.5.0 both variants)
+and scans the images for known vulnerabilities. A pinned tag such as `3.4.0` thus receives security updates of
 Alpine and PHP without anything in the app changing.
 
 ## 14. Found a vulnerability?

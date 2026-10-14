@@ -6,19 +6,19 @@
 // =====================================================================
 
 import { api } from '../api.js';
-import { invalidateUtilities, getCountries, saveSettings } from '../state.js';
+import { getCountries, saveSettings } from '../state.js';
 import { fmt, escapeHtml, parseDecimal, formatForInput, todayIso, intlLocale } from '../lib/format.js';
 import { toastOk, toastErr, toastAfterReload } from '../components/toast.js';
 import { confirmModal, openModal } from '../components/modal.js';
 import { logout } from '../components/login.js';
-import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml } from '../lib/ha-snippet.js';
-import { t, tp, getLocale, initI18n, getLanguages, setCurrencyParams, deviceLanguage, setDeviceLanguage, hasTranslation, getCurrencySymbol } from '../lib/i18n.js';
+import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml, haBaseUrl } from '../lib/ha-snippet.js';
+import { t, tp, getLocale, getLanguages, deviceLanguage, setDeviceLanguage, hasTranslation, getCurrencySymbol } from '../lib/i18n.js';
 import { loadDemo } from '../lib/demo.js';
 import { docUrl } from '../lib/docs.js';
-import { setCountry } from '../lib/format.js';
-import { setBillContext } from '../components/info.js';
 import { CV_UNITS, cvUnit, gasFactorOf } from '../lib/gas-factor.js';
-import { buildSidebar } from '../lib/sidebar.js';
+// v3.5.0 (N1022) — Land und Sprache über dieselben Bausteine wie der Einrichtungsassistent
+import { profileDiff, saveRegion, yearMap, yearsText } from '../lib/region.js';
+import { switchLanguage } from '../lib/language.js';
 import { copyText as copyToClipboard } from '../lib/clipboard.js';
 // v3.2.0 (F1018, F1019, F1023) — Nutzungsstufe, Einrichtungsassistent, Personen
 import { LEVELS, LEVEL_ICONS, currentLevel, saveLevel } from '../lib/levels.js';
@@ -412,10 +412,9 @@ export async function render(container, params = [], ctx = {}) {
   });
 
   // Sprache wechseln: i18n neu laden, Sidebar + View neu rendern.
+  // v3.5.0 (N1022) — derselbe Weg wie im Einrichtungsassistenten (lib/language.js)
   const applyLanguage = async (lang) => {
-    await initI18n(lang);
-    invalidateUtilities();   // Labels kommen lokalisiert vom Backend → neu laden
-    await buildSidebar();
+    await switchLanguage(lang);
     toastOk(t('settings.lang.saved'));
     render(container, params, ctx);
   };
@@ -441,17 +440,19 @@ export async function render(container, params = [], ctx = {}) {
 
   // v2.7.0 — Land, Währung und Zeitzone wirken wie die Sprache sofort. Beim
   // Land schlägt ein Dialog die abweichenden Werte des Länderprofils vor.
+  // v3.5.0 (N1022) — gespeichert über POST /api/settings/country (lib/region.js):
+  // nur, was vom Default abweicht, wie beim Erststart und in der Einrichtung
   container.querySelector('#country-select')?.addEventListener('change', async (e) => {
     const code = e.target.value;
     const profile = (countries || []).find(c => c.code === code);
     const diff = profile ? profileDiff(settings, profile) : [];
-    const patch = { country: code };
+    let withProfile = false;
     if (diff.length) {
       const choice = await chooseProfile(code, diff, profile);
       if (choice === null) { e.target.value = settings.country; return; }
-      if (choice === 'all') diff.forEach(d => Object.assign(patch, d.patch));
+      withProfile = choice === 'all';
     }
-    applyRegion(container, patch, countries, () => render(container, params, ctx));
+    applyRegion(container, { country: code, profile: withProfile }, countries, () => render(container, params, ctx));
   });
   container.querySelector('#currency-select')?.addEventListener('change', (e) => applyRegion(container, { currency: e.target.value }, countries, () => render(container, params, ctx)));
   container.querySelector('#tz-select')?.addEventListener('change', (e) => applyRegion(container, { timezone: e.target.value }, countries, () => render(container, params, ctx)));
@@ -915,30 +916,8 @@ function timeZones(current, countries) {
   return [...new Set([...all, ...countries.map(c => c.timezone), current || 'Europe/Berlin'])].sort();
 }
 
-/** Zeilen „bisher → Profil" für die Werte, in denen das Profil abweicht. */
-function profileDiff(settings, p) {
-  const rows = [];
-  const add = (key, label, now, next, patch) => {
-    if (now !== next) rows.push({ key, label, now, next, patch });
-  };
-  add('currency', t('settings.region.currency'), settings.currency, p.currency, { currency: p.currency });
-  add('timezone', t('settings.region.timezone'), settings.timezone, p.timezone, { timezone: p.timezone });
-  add('hdd_base_temp', t('settings.field.hdd_base_temp.label'),
-    fmt.num(settings.hdd_base_temp, 1) + ' °C', fmt.num(p.hdd_base_temp, 1) + ' °C', { hdd_base_temp: p.hdd_base_temp });
-  add('co2_strom', t('settings.field.co2_strom.label'),
-    fmt.num(settings.co2_strom, 0) + ' g/kWh', fmt.num(p.co2_strom, 0) + ' g/kWh', { co2_strom: p.co2_strom });
-  // v2.10.0 — Jahreswerte (nur Deutschland); andere Länder rechnen mit einem Wert
-  add('co2_strom_years', t('settings.field.co2_strom_years.label'),
-    defaultValueText('co2_strom_years', settings.co2_strom_years), defaultValueText('co2_strom_years', p.co2_strom_years),
-    { co2_strom_years: p.co2_strom_years ?? [] });
-  const loc = (name, lat, lon) => `${name} (${fmt.num(lat, 4)}, ${fmt.num(lon, 4)})`;
-  add('location', t('settings.group.location.title'),
-    loc(settings.location_name, settings.latitude, settings.longitude), loc(p.location_name, p.latitude, p.longitude),
-    { location_name: p.location_name, latitude: p.latitude, longitude: p.longitude });
-  const cv = (u) => cvUnit(u).label;
-  add('gas_cv_unit', t('settings.gasFactors.cvUnit'), cv(settings.gas_cv_unit), cv(p.gas_cv_unit), { gas_cv_unit: p.gas_cv_unit });
-  return rows;
-}
+// v3.5.0 (N1022) — profileDiff() und das Speichern stehen in lib/region.js;
+// der Einrichtungsassistent wechselt das Land über dieselben Bausteine.
 
 /** Dialog: alle Profilwerte übernehmen, nur das Land ändern oder abbrechen. */
 function chooseProfile(code, diff, profile) {
@@ -971,14 +950,10 @@ function chooseProfile(code, diff, profile) {
   return ctrl.closedPromise.then(v => (v === 'all' || v === 'country') ? v : null);
 }
 
-async function applyRegion(container, patch, countries = [], rerender = () => {}) {
+/** `change`: {country, profile} oder {currency} / {timezone} — s. saveRegion() */
+async function applyRegion(container, change, countries = [], rerender = () => {}) {
   try {
-    await saveSettings(patch);
-    if (patch.currency) setCurrencyParams(patch.currency);
-    if (patch.country) {
-      setCountry(patch.country, countries.find(c => c.code === patch.country)?.languages);
-      setBillContext(countries.find(c => c.code === patch.country) || null);
-    }
+    await saveRegion(change, countries);
     toastOk(t('settings.region.saved'));
     rerender();
   } catch (err) { toastErr(err.message); }
@@ -1537,17 +1512,6 @@ function afterRestore(message) {
   location.reload();
 }
 
-// Adresse dieser Installation, wie Home Assistant sie aufrufen soll.
-// v3.1.0 (Ökosystem G3) — Unter Ingress zeigt die Adresszeile
-// https://ha…/api/hassio_ingress/<token>/: Das braucht eine HA-Sitzung, und das
-// Token wechselt. Home Assistant erreicht die App dann im internen Netz unter
-// ihrem Hostnamen (der Server nennt ihn in <meta name="et-ingress-host">).
-function haBaseUrl() {
-  const host = document.querySelector('meta[name="et-ingress-host"]')?.getAttribute('content');
-  if (host) return `http://${host}`;
-  return `${location.origin}${location.pathname.replace(/\/[^/]*$/, '')}`.replace(/\/$/, '');
-}
-
 // Je Zähler mit Alias ein Eintrag. Die HA-Entität kennt die App nicht; der
 // Alias ist nur ein Vorschlag, den der Hinweistext zu ersetzen bittet.
 function haAutomationEntries(haUtilities, metersByUtility) {
@@ -1670,13 +1634,6 @@ function firstInvalidSetting(container) {
 // in einem versteckten JSON-Feld.
 
 /** Jahreswerte als Objekt {Jahr: g/kWh}; PHP liefert eine leere Liste als []. */
-function yearMap(value) {
-  if (Array.isArray(value)) {
-    return Object.fromEntries(value.filter(e => e && e.year != null).map(e => [String(e.year), e.g_per_kwh]));
-  }
-  return value && typeof value === 'object' ? { ...value } : {};
-}
-
 function renderCo2YearRows(map, key = 'co2_strom_years') {
   const years = Object.keys(map).sort();
   // v3.1.0 — der CO₂-Preis fällt ohne eigene Werte auf das Länderprofil zurück, nicht auf „CO₂ Strom"
@@ -1766,10 +1723,7 @@ function wireCo2Years(container) {
 // festgeschrieben, damit sich keine Zahl still ändert. Hier steht, was es
 // inzwischen Besseres gibt — übernommen wird nur auf Knopfdruck.
 function defaultValueText(key, v) {
-  if (key === 'co2_strom_years') {
-    const years = Object.keys(yearMap(v)).sort();
-    return years.length ? t('settings.defaultUpdates.years', { from: years[0], to: years[years.length - 1] }) : t('settings.defaultUpdates.noYears');
-  }
+  if (key === 'co2_strom_years') return yearsText(v);
   if (key === 'wasser_personen_referenz') return fmt.num(v, 0) + ' ' + t('settings.unit.lPerPersonDay');
   return fmt.num(v, 0) + ' g/kWh';
 }

@@ -10,7 +10,8 @@ import { DEMO, demoRequest, demoFileUrl, demoDocAssetUrl } from './lib/demo-mode
 const BASE = 'api.php';
 
 /** Datei-Downloads (CSV, PDF): im Echtbetrieb über api.php, in der Demo als fertige Datei (v3.0.0). */
-const fileUrl = (path) => (DEMO ? demoFileUrl(path, getLocale()) : `${BASE}${path}`);
+// v3.5.0 — `lang`: Sprache der Datei (Jahresbericht), sonst die der Oberfläche
+const fileUrl = (path, lang = '') => (DEMO ? demoFileUrl(path, lang || getLocale()) : `${BASE}${path}`);
 const csvQuery = (format) => (format === 'local' ? '?format=local' : '');
 
 // v2.11.0 (Review FE-05) — Lese-Anfragen gehören zur Ansicht, die sie stellt.
@@ -248,6 +249,8 @@ export const api = {
   updateSettings:(data)                => request('PATCH','/api/settings', data),
   // v2.7.0 — Länderprofile (Voreinstellungen je Land)
   countries:     ()                    => request('GET',  '/api/countries'),
+  // v3.5.0 (N1022) — Land wechseln (mit Profil oder nur das Land); nur Abweichungen vom Default
+  applyCountry:  (country, profile = true) => request('POST', '/api/settings/country', { country, profile }),
   settingsDefaultUpdates: ()           => request('GET',  '/api/settings/default-updates'),   // v2.10.0
   exportBackup:  ()                    => request('GET',  '/api/backup/export', null, { timeoutMs: TIMEOUT_LONG_MS }),
   // v2.6.0 — { dryRun, allowWithoutSnapshot } als Query-Flags
@@ -268,6 +271,8 @@ export const api = {
   updateMe:        (prefs)             => request('PATCH',  '/api/session/me', prefs),
   changeMyPassword: (current, password) => request('POST',  '/api/session/me/password', { current, password }),
   users:           ()                  => request('GET',    '/api/users'),
+  // v3.5.0 (F1028) — Personen für „Zuständig“: nur ID und Name, für jede Rolle
+  people:          ()                  => request('GET',    '/api/people'),
   createUser:      (data)              => request('POST',   '/api/users', data),
   updateUser:      (id, data)          => request('PATCH',  `/api/users/${encodeURIComponent(id)}`, data),
   // v3.4.0 (F1024) — auf Wunsch den Namen im Verlauf durch „ehemalige Person" ersetzen
@@ -354,17 +359,25 @@ export const api = {
   undoActivity:    (id)          => request('POST',   `/api/activity/${encodeURIComponent(id)}/undo`),
   updateActivity:  (id, data)    => request('PATCH',  `/api/activity/${encodeURIComponent(id)}`, data),
   clearActivity:   (before = '') => request('DELETE', `/api/activity${before ? `?before=${encodeURIComponent(before)}` : ''}`),
+  // v3.5.0 — der Verlauf als CSV zum Nachweis (Datei-Download; Filter wie die Liste)
+  activityCsvUrl:  (filter = {}) => {
+    const q = new URLSearchParams(Object.entries(filter).filter(([, v]) => v != null && v !== '')).toString();
+    return fileUrl(`/api/activity.csv${q ? `?${q}` : ''}`);
+  },
 
   // ── v1.3.0 — PDF-Jahresbericht (Datei-Download, kein JSON) ──
   // v2.11.0 — `inline`: im Browser anzeigen statt herunterladen
   // v3.1.0 (I18N-12) — derselbe Bericht als Daten für die Druckansicht
   // v3.4.0 (F1025) — `detail`: Anhang „Zahlen im Detail“; `lang`: Sprache des
   // PDFs (ein Download schickt keinen Sprach-Header, sonst Standardsprache)
-  yearlyReport: (year, { detail = false } = {}) => request('GET', `/api/reports/yearly?year=${year}${detail ? '&detail=1' : ''}`),
-  yearlyReportUrl: (year, { inline = false, lang = '', detail = false } = {}) => {
+  // v3.5.0 — `utilities`: Teilbericht (Liste der Schlüssel; leer = alle), aus dem Dialog
+  yearlyReport: (year, { detail = false, utilities = null } = {}) => request('GET', `/api/reports/yearly?year=${year}${detail ? '&detail=1' : ''}${utilities?.length ? `&utilities=${utilities.map(encodeURIComponent).join(',')}` : ''}`),
+  yearlyReportUrl: (year, { inline = false, lang = '', detail = false, utilities = null } = {}) => {
     const q = [year ? `year=${year}` : '', inline ? 'inline=1' : '', detail ? 'detail=1' : '',
+      utilities?.length ? `utilities=${utilities.map(encodeURIComponent).join(',')}` : '',
       lang ? `lang=${encodeURIComponent(lang)}` : ''].filter(Boolean).join('&');
-    return fileUrl(`/api/reports/yearly.pdf${q ? '?' + q : ''}`);
+    // in der Demo liegt das PDF je Sprache in einem eigenen Ordner
+    return fileUrl(`/api/reports/yearly.pdf${q ? '?' + q : ''}`, lang);
   },
 
   // ── v3.1.0 (H3, B2) — Verbrauch je Zeitraum ──
@@ -406,6 +419,10 @@ export const api = {
   intervals:         ()     => request('GET', '/api/intervals'),
   deleteInterval:    (id)   => request('DELETE', `/api/intervals/${encodeURIComponent(id)}`),
   syncSmardIntervals: (year) => request('POST', `/api/market-prices/sync-smard-intervals?year=${encodeURIComponent(year)}`, {}, { timeoutMs: TIMEOUT_LONG_MS }),
+  // ── v3.5.0 (F1027) — Tagesfilm: Energiefluss je Viertelstunde ──
+  energyFlowDays:       ()      => request('GET', '/api/energy-flow/days'),
+  energyFlowDay:        (date)  => request('GET', `/api/energy-flow/day?date=${encodeURIComponent(date)}`),
+  energyFlowTypicalDay: (month) => request('GET', `/api/energy-flow/typical-day?month=${encodeURIComponent(month)}`),
   // ── v3.2.0 (F1022) — Ladevorgänge aus evcc: CSV-Export oder Abruf im Heimnetz ──
   evSessions:  (meterId, year)         => request('GET', `/api/ev-sessions?meter_id=${encodeURIComponent(meterId)}&year=${encodeURIComponent(year)}`),
   importEvcc:  (meterId, csv, { dryRun = false, counters = 'auto', loadpoint = null } = {}) =>

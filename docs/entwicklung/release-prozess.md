@@ -181,8 +181,9 @@ abgenommen ist.
   bleibt 1.1.0. Faustregel: ein neues Vertrags-Unterfeld additiv und
   default-`[]` halten, dann ist es per Konstruktion abwärtskompatibel.
   Scope-Gating gehört in `Utilities` (Single Source of Truth:
-  `hasAdvancePaymentContracts()`), nicht in hartkodierte Utility-Listen
-  in Service/Frontend.
+  `hasAdvancePaymentContracts()`, seit v3.5.0 `hasSpecialPayments()` — das
+  Prädikat des Abschlagsvertrags schloss Wasser auch von den Sonderzahlungen
+  aus, #34), nicht in hartkodierte Utility-Listen in Service/Frontend.
 - **Dev/CI-Server braucht einen Router (v1.5.1).** `php -S host:port
   api.php` macht `api.php` zum Router für ALLES — statische Assets
   (`/public/js/*`) landen dann in `api.php` → 404, der Modulgraph-Crawl
@@ -837,6 +838,23 @@ abgenommen ist.
 - **Vertrauen in Kopfzeilen braucht einen Filter davor (v3.4.0).** Eine
   Benutzer-Kopfzeile ist nur so vertrauenswürdig wie der Dienst, der sie setzt
   und gleichnamige vom Client entfernt.
+- **Ein Prädikat beantwortet eine Frage (v3.5.0).**
+  `hasAdvancePaymentContracts()` entschied auch, wo es Sonderzahlungen gibt;
+  Wasser fiel bei beidem heraus, obwohl es Abschläge und Nachzahlungen hat
+  (GitHub #34). Eine zweite Frage bekommt ein eigenes Prädikat
+  (`hasSpecialPayments()`), ein Test hält fest, wie die beiden zueinander
+  stehen.
+- **Ein neuer Hinweis braucht ein Fenster für den Bestand (v3.5.0).** „Abrechnung
+  erwartet“ hätte ein Jahr rückwirkend fast jede Installation mit „überfällig“
+  überflutet, weil kaum jemand Versorgerrechnungen erfasst hat. 120 Tage zeigen,
+  was wirklich noch aussteht.
+- **Neue Werte brauchen ihre Beispiele in jedem Paket (v3.5.0).** Eine neue
+  Aktion im Verlauf und ein Test „jede Aktion in jedem Haushalt“ entstanden
+  parallel; erst der gemeinsame Stand zeigte den Widerspruch. Volltest nach
+  jedem Zusammenführen, nicht erst am Ende.
+- **Ein Testprozess ist keine Anfrage (v3.5.0).** PHPUnit sammelt über rund
+  1000 Tests Speicher an; das Limit dafür steht in `phpunit.xml.dist`. Ob eine
+  Anfrage unter 128 MB bleibt, prüft eine Messung der Anfrage selbst.
 
 ---
 

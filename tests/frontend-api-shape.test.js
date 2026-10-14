@@ -105,8 +105,25 @@ globalThis.fetch = async (url, init) => {
   check('… Ablesung fällig ist nicht abhakbar, Termine schon',
     (ag.events || []).filter(e => e.kind === 'reading_due').every(e => e.can_mark_done === false)
       && (ag.events || []).filter(e => e.kind === 'reminder' && !e.done).every(e => e.can_mark_done === true));
+  // v3.5.0 (F1028) — Zuständigkeit an jedem Ereignis und jedem Termin (additiv)
+  const trio = (x) => 'assignee' in x && 'assignee_id' in x && typeof x.assignee_former === 'boolean';
+  check('GET /api/agenda und /api/reminders → assignee, assignee_id, assignee_former',
+    (ag.events || []).every(trio) && rem.every(trio), `${rem.filter(r => r.assignee).length} Termine mit Zuständigkeit`);
+  // v3.5.0 (F1029) — Abrechnung erwartet: Zeitraum, Frist, Sprung zum Erfassen
+  const be = (ag.events || []).filter(e => e.kind === 'bill_expected');
+  check('GET /api/agenda → bill_expected mit period_from/until, deadline, href zum Erfassen, abhakbar',
+    be.every(e => /^\d{4}-\d{2}-\d{2}$/.test(e.ref.period_until) && 'deadline' in e.ref && typeof e.ref.final === 'boolean'
+      && e.href.startsWith('#/bill-check?') && e.href.includes('capture=1') && (e.done || e.can_mark_done)),
+    `${be.length} erwartet`);
+  const people = await j('/api/people');
+  check('GET /api/people → Array (ohne Anmeldung leer)', Array.isArray(people) && people.length === 0);
   const act = await j('/api/activity');
   check('GET /api/activity → Array', Array.isArray(act), `${act.length} Einträge`);
+  const actCsv = await fetch(`${BASE}/api/activity.csv?format=local`);
+  const actCsvBody = await actCsv.text();
+  check('GET /api/activity.csv → text/csv mit Kopfzeile',
+    actCsv.status === 200 && (actCsv.headers.get('content-type') || '').startsWith('text/csv') && actCsvBody.replace(/^\uFEFF/, '').startsWith('Datum;Aktion;Titel;Wer;Grund;Notiz\r\n'),
+    actCsv.headers.get('content-disposition') || `HTTP ${actCsv.status}`);
   const rd = (ag.events || []).find(e => e.kind === 'reading_due');
   if (rd) {
     const r422 = await fetch(`${BASE}/api/agenda/done`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid: rd.uid }) });
@@ -263,6 +280,25 @@ globalThis.fetch = async (url, init) => {
     if (ct) await send(`/api/utility/strom/contracts/${ct.id}`, { special_payments: (ct.special_payments || []).filter(p => p.id !== booked.data.special_payment_id) }, 'PATCH');
     const del = await fetch(`${BASE}/api/utility/strom/bills/${b.data.id}`, { method: 'DELETE' });
     check('DELETE bills/{id} → 200', del.status === 200);
+    // v3.5.0 (GitHub #34) — Wasser: die Buchung kommt im Vertrag an (bis v3.4
+    // meldete die API „gebucht“, der Vertrag verwarf die Sonderzahlung still)
+    const wc0 = (await j('/api/utility/wasser/contracts')).find(c => !c.is_shadow && c.meter_id);
+    if (!wc0) check('wasser: Vertrag in den Demo-Daten für die Buchung', false);
+    else {
+      const wb = await send('/api/utility/wasser/bills', { meter_id: wc0.meter_id, period_from: wc0.start, period_to: wc0.start,
+        invoice: { amount_eur: 300, advances_paid_eur: 280 } });
+      const wBooked = await send(`/api/utility/wasser/bills/${wb.data?.id}/book`, {});
+      const wc = (await j('/api/utility/wasser/contracts')).find(c => c.id === wBooked.data?.contract_id);
+      const stored = (wc?.special_payments || []).find(p => p.id === wBooked.data?.special_payment_id);
+      const wst = await j(`/api/utility/wasser/meters/${wc0.meter_id}/contract-status`);
+      const wrow = (wst.contracts || []).find(c => c.contract_id === wc?.id);
+      check('wasser: bills/{id}/book → Sonderzahlung im Wasservertrag, contract-status mit special_payments[] (v3.5.0, #34)',
+        wBooked.status === 200 && stored?.kind === 'nachzahlung_ohne' && stored?.amount_eur === 20
+          && Array.isArray(wrow?.special_payments) && wrow.special_payments.some(p => p.kind === 'nachzahlung_ohne' && p.amount_eur === 20),
+        `${wBooked.status} ${wBooked.code || ''} ${stored ? 'gespeichert' : 'nicht im Vertrag'}`);
+      if (wc) await send(`/api/utility/wasser/contracts/${wc.id}`, { special_payments: (wc.special_payments || []).filter(p => p.id !== wBooked.data.special_payment_id) }, 'PATCH');
+      if (wb.data?.id) await fetch(`${BASE}/api/utility/wasser/bills/${wb.data.id}`, { method: 'DELETE' });
+    }
     const oil = await send('/api/utility/heizoel/bills', { period_from: `${y}-01-01`, period_to: `${y}-12-31` });
     check('POST heizoel/bills → 400 errors.billCheck.unsupportedUtility', oil.status === 400 && oil.code === 'errors.billCheck.unsupportedUtility', `${oil.status} ${oil.code}`);
     const mal = await send(`/api/utility/strom/meters/${sm.id}`, { malo_id: '51234567894' }, 'PATCH');
@@ -391,6 +427,15 @@ globalThis.fetch = async (url, init) => {
     eff.certificate && typeof eff.certificate.kwh_per_m2 === 'number' && eff.certificate.area_factor >= 1.2
       && (eff.per_source || []).every(s => Number.isInteger(s.coverage_days) && typeof s.complete === 'boolean'),
     eff.certificate ? `${eff.certificate.kwh_per_m2} kWh/m²·a auf ${eff.certificate.area_m2} m²` : 'kein certificate');
+  // v3.5.0 — Verfahren des Rechentags (GModG ab 2027), additiv; months_36 bleibt
+  const ce = eff.certificate || {};
+  const ruleOk = (x) => ['geg2024', 'gmodg2027'].includes(x.rules) && ['hi', 'hs'].includes(x.fuel_basis)
+    && Array.isArray(x.fuel_basis_approx) && [36, 24].includes(x.months_required) && Number.isInteger(x.months_in_window)
+    && typeof x.dhw_rule === 'number';
+  check('Effizienz (v3.5.0): certificate.rules/fuel_basis/months_required/months_in_window, months_36 bleibt',
+    ruleOk(ce) && Number.isInteger(ce.months_36) && ce.months_in_window <= ce.months_36
+      && (ce.upcoming === null || (ruleOk(ce.upcoming) && /^\d{4}-\d{2}-\d{2}$/.test(ce.upcoming.from) && typeof ce.upcoming.kwh_per_m2 === 'number')),
+    `${ce.rules} · ${ce.months_in_window}/${ce.months_required} · upcoming ${ce.upcoming ? ce.upcoming.rules : 'null'}`);
   const du = await j('/api/settings/default-updates');
   check('default-updates (v2.10.0) → Liste (Demo: aktuelle Werte, also leer)', Array.isArray(du) && du.length === 0,
     JSON.stringify(du).slice(0, 80));
@@ -660,8 +705,9 @@ globalThis.fetch = async (url, init) => {
     const wasserMeters = await j('/api/utility/wasser/meters');
     if (Array.isArray(wasserMeters) && wasserMeters.length) {
       const wcs = await j(`/api/utility/wasser/meters/${wasserMeters[0].id}/contract-status`);
-      check('contract-status(wasser): kein special_payments-Feld',
-        (wcs.contracts || []).every(c => !('special_payments' in c)));
+      // v3.5.0 (GitHub #34) — bis v3.4 „kein special_payments-Feld“: genau der Fehler
+      check('contract-status(wasser): special_payments[] wie bei Gas (v3.5.0, #34)',
+        (wcs.contracts || []).length > 0 && (wcs.contracts || []).every(c => Array.isArray(c.special_payments)));
     }
   }
 
@@ -727,10 +773,43 @@ globalThis.fetch = async (url, init) => {
       && utilities.find(u => u.key === 'gas')?.has_advance_payment_contracts === true
       && utilities.find(u => u.key === 'wasser')?.has_advance_payment_contracts === false,
     utilities.map(u => `${u.key}:${u.accounting_kind}`).join(','));
+  // v3.5.0 (GitHub #34) — Sonderzahlungen auch bei Wasser; die Oberfläche fragt
+  // has_special_payments statt has_advance_payment_contracts
+  check('utilities: has_special_payments (v3.5.0) — Gas, Strom, Wasser, Fernwärme',
+    utilities.every(u => typeof u.has_special_payments === 'boolean')
+      && utilities.filter(u => u.has_special_payments).map(u => u.key).sort().join(',') === 'fernwaerme,gas,strom,wasser',
+    utilities.filter(u => u.has_special_payments).map(u => u.key).join(','));
   if (gMeters.length) {
     const gc = await j(`/api/utility/gas/meters/${gMeters[0].id}/consumption`);
     check('Verbrauch je Zähler liefert warnings[]', Array.isArray(gc.warnings), `${gc.warnings?.length} Warnungen`);
   }
+  // v3.5.0 (F1027) — Tagesfilm: Felder, die energy-flow.js liest
+  const efDays = await j('/api/energy-flow/days');
+  check('energy-flow/days: available, days[], complete_days[], months[], Vorbelegung',
+    typeof efDays.available === 'boolean' && Array.isArray(efDays.days) && Array.isArray(efDays.complete_days)
+      && Array.isArray(efDays.months) && 'default_day' in efDays && 'default_month' in efDays
+      && efDays.available === efDays.days.length > 0, `${efDays.days?.length} Tage`);
+  const efDay = await j('/api/energy-flow/day?date=2025-06-14');
+  const slotKeys = ['t', 'gen', 'feed', 'grid', 'charged', 'discharged', 'house', 'price', 'flow'];
+  check('energy-flow/day: 96 Viertelstunden mit t, Mengen, house, price, flow; Summen, Vollständigkeit, Arten',
+    efDay.mode === 'day' && efDay.step_minutes === 15 && efDay.slots?.length === 96
+      && efDay.slots.every(s => slotKeys.every(k => k in s)) && efDay.slots[0].t === '00:00' && efDay.slots[95].t === '23:45'
+      && 'flow' in efDay.totals && Number.isInteger(efDay.completeness?.complete)
+      && ['gen', 'feed', 'battery', 'price'].every(k => typeof efDay.kinds?.[k] === 'boolean') && Array.isArray(efDay.missing),
+    `${efDay.slots?.length} Plätze, ${efDay.completeness?.complete} vollständig`);
+  const efFall = await j('/api/energy-flow/day?date=2025-10-26');
+  check('energy-flow/day: Zeitumstellung Oktober = 100 Viertelstunden, zweite 2:00 mit repeat',
+    efFall.slots?.length === 100 && efFall.slots.filter(s => s.repeat).length === 4 && efFall.slots[12].t === '02:00' && efFall.slots[12].repeat === true);
+  const efTyp = await j('/api/energy-flow/typical-day?month=2025-06');
+  check('energy-flow/typical-day: 96 Viertelstunden mit n, Zahl der Tage',
+    efTyp.mode === 'typical' && efTyp.slots?.length === 96 && efTyp.slots.every(s => Number.isInteger(s.n)) && Number.isInteger(efTyp.days));
+  const efBad = await fetch(BASE + '/api/energy-flow/day?date=2025-02-30');
+  const efBadBody = await efBad.json().catch(() => ({}));
+  check('energy-flow/day: kein Kalendertag → 400 errors.energyFlow.dateInvalid', efBad.status === 400 && efBadBody.code === 'errors.energyFlow.dateInvalid', `HTTP ${efBad.status} ${efBadBody.code}`);
+  const efBadM = await fetch(BASE + '/api/energy-flow/typical-day?month=2025-13');
+  const efBadMBody = await efBadM.json().catch(() => ({}));
+  check('energy-flow/typical-day: Monat 13 → 400 errors.energyFlow.monthInvalid', efBadM.status === 400 && efBadMBody.code === 'errors.energyFlow.monthInvalid', `HTTP ${efBadM.status} ${efBadMBody.code}`);
+
   const head = await fetch(BASE + '/api/health', { method: 'HEAD' });
   check('HEAD /api/health → 200', head.status === 200, `HTTP ${head.status}`);
   const bad = await fetch(BASE + '/api/health', { method: 'DELETE' });

@@ -19,14 +19,30 @@ headings, tables, every chart with its message as text).
 
 ## 1. Getting the report
 
-**Insights → Annual report**, choose the year (the previous year is
-preselected):
+**Insights → Annual report**, then one of the three buttons:
 
 - **Open print view** shows the report as a page in the app. “Print / save as
   PDF” puts it on paper or into a file, on the iPhone via Share → Print. The
   checkbox **“With appendix ‘Figures in detail’”** adds the monthly tables.
 - **Open in browser** and **Download annual report** deliver the finished PDF
-  file. It is created in the language of this device.
+  file.
+
+**The “Create annual report” dialog (since v3.5.0)** asks first:
+
+| Field | What it does |
+|---|---|
+| **Year** | this year and the six before; the previous year is preselected |
+| **Language of the PDF** | one of the interface languages, preselected the one of this device — for relatives, say. The print view always appears in the language of this device; the dialog says so instead of offering a choice |
+| **Utilities** | a checkbox per *active* utility. All ticked gives the full report, otherwise a **partial report** with only these — for the property manager, say. The print view names it at the top (“Partial report: Gas, Water”). With nothing ticked: “Choose at least one utility.” |
+| **With appendix “Figures in detail”** | the monthly tables per utility |
+
+This device remembers utilities, language and appendix (in the browser); the
+year starts at last year each time. The buttons on the page are links with
+this remembered choice — a middle click opens them without the dialog. In the
+print view, **“Options…”** opens the same dialog, prefilled with what it
+currently shows. In the public demo the report only exists in full: utilities
+and the appendix in the PDF are locked there. The dialog produces exactly the
+additions from [§ 6](#6-partial-report-and-language-via-link).
 
 ## 2. Structure
 
@@ -115,7 +131,9 @@ increase, the special right to terminate under § 41(5) EnWG (Germany only).
 
 ## 6. Partial report and language via link
 
-The PDF address accepts three additions (also combined):
+The PDF address accepts three additions (also combined); the dialog from
+[§ 1](#1-getting-the-report) sets them, and the print view understands
+`utilities` and `detail` as well (`#/report/print?year=2025&utilities=wasser`):
 
 | Addition | Effect |
 |---|---|

@@ -89,12 +89,30 @@ Splitting the standing charge by kWh is an assumption: the letter only
 requires it to be taken into account “pro rata”. Without a paying contract the
 app refuses (“There is no paying contract for the wall box …”).
 
-**Flat electricity rate.** Charged kWh × flat rate. For Germany the country
-profile knows the flat rate for **2026: 34 ct/kWh**. Example from the BMF
-letter: 3,000 kWh × €0.34 = €1,020.00. For a year without a stored flat rate,
-enter it yourself in the field “Flat rate per kWh (cents)” (0 to 200 cents);
-without a value the app reports “No flat electricity rate is known for {year} —
-enter it yourself”.
+**Flat electricity rate.** Charged kWh × flat rate. It exists for the
+calendar years 2026 to 2030 (BMF letter of 11 Nov 2025, para. 30) and is set
+anew each year: from the household electricity price that the Federal
+Statistical Office (Destatis) publishes in table 61243-0001 for the
+**first half of the previous year** — average price including taxes, levies
+and surcharges at an annual consumption of 5,000 to under 15,000 kWh, rounded
+down to whole cents. The German country profile knows:
+
+| Year | Flat rate | Basis: Destatis, first half of the previous year |
+|---|---|---|
+| 2026 | 34 ct/kWh | first half of 2025: 34.36 ct/kWh |
+| 2027 | 32 ct/kWh | first half of 2026: 32.14 ct/kWh (published on 30 Sep 2026) |
+
+Example from the BMF letter: 3,000 kWh × €0.34 = €1,020.00 (2026). With the
+2027 flat rate: 3,000 kWh × €0.32 = €960.00.
+
+A year’s value only exists once Destatis has published the first half of the
+previous year, each autumn; the app deliberately does not carry over the
+previous year’s value. For a year without a stored flat rate, enter it
+yourself in the field “Flat rate per kWh (cents)” (0 to 200 cents); without a
+value the app reports “No flat electricity rate is known for {year} — enter it
+yourself. It exists from 2026; a year’s value is only fixed once Destatis has
+published, in the autumn of the year before, that year’s first-half
+electricity price.”
 
 **One method per year.** Choose one of the two methods for a calendar year and
 stick with it; switching within the year is not intended. The app calculates
@@ -138,8 +156,9 @@ built-in PDF fonts cannot set, the app answers `422`.
   them ([Electricity](../verstehen/02-strom.md#dynamic-tariffs-v310)).
 - **Several wall boxes:** one record per meter.
 - **Self-employed.** For the self-employed with a business EV the same applies
-  under the BMF letter of 21 Jul 2026; there the choice applies per financial
-  year (as of 9 Oct 2026).
+  under the BMF letter of 21 Jul 2026 (para. 20); there the choice applies per
+  financial year, based on the first half of the calendar year before the
+  financial year (as of 13 Oct 2026).
 
 ## 7. Via the API
 

@@ -25,6 +25,7 @@ sees, as all-day events of the next 365 days, plus anything already due:
 | “…: price guarantee ends (provider)” | on the last day of the price guarantee |
 | “…: price increase (provider) — check special termination” | on the day of a recorded price increase; since v3.1.0 also under “To do” while the recommendation “price increase” for it stands (in Germany) |
 | “Heating oil: plan a delivery (…)” | today, as long as the stock is low (heating oil, pellets) |
+| “Bill expected: Electricity (supplier) for …” or “Final bill expected: …” *(v3.5.0)* | after a billing period has ended without a recorded supplier’s bill — for electricity and gas on the day of the statutory deadline (end + 42 days, § 40c(2) EnWG; after that “overdue”), for district heating and water on the day after the end (no statutory deadline) — see [Ticking off notices](hinweise-erledigen.md#9-bill-expected-v350) |
 | “Service charge statement up to … due: …” *(v3.1.0)* | only with “I live: in a rented home” — end of the last completed billing period plus 12 months (German Civil Code, BGB § 556 (3)), as long as no statement is recorded for that period |
 | “Last day to object to the service charge statement: …” *(v3.1.0)* | only when renting — receipt of the statement (“Received on”) plus 12 months; under “To do” from 30 days before |
 | “CO₂ cost {year}: last day to claim the landlord’s share of …” *(v3.1.0)* | only when renting in Germany with your own gas boiler and an amount above 0 — bill date of the recorded gas bill plus 12 months; under “To do” from 30 days before |
@@ -43,6 +44,12 @@ by hand or by a follow-on contract without a gap) stays with the same UID, gets
 “✓ ” in front of its title and no advance reminder any more — how it works:
 [Ticking off notices](hinweise-erledigen.md). The texts are in the **default language of
 the installation** (Settings → General), because calendars send no language.
+
+**Responsible *(v3.5.0)*:** if someone is responsible for a reminder, the
+entry’s description carries the line **“Responsible: name”** (after a person
+was deleted possibly “former member”). The calendar is the same for everyone
+in the household; nobody is notified —
+[Responsible for reminders](hinweise-erledigen.md#8-responsible-for-reminders-v350).
 
 ---
 
@@ -105,6 +112,19 @@ calendar**. Google decides by itself how often it reloads, often less often
 than every 12 hours, and does not reliably take over the advance reminders of
 subscriptions. Before you put the app on the internet for this: checklist in
 [Security & network operation](../betrieb/sicherheit.md).
+
+### With the app in Home Assistant *(v3.5.0)*
+
+When Energietracker runs as an
+[app in Home Assistant OS](home-assistant.md#as-an-app-in-home-assistant-os),
+no calendar can fetch the Ingress address from the address bar (it needs a
+Home Assistant session). The window therefore gives the app’s address inside
+Home Assistant’s network, for example
+`http://1a2b3c4d-energietracker/api.php/api/calendar.ics?token=etk_…`. Only
+Home Assistant itself reaches it, for example with the “Remote Calendar”
+integration. For calendars on a phone or computer, open a port in the app
+under Configuration → Network (for example `8095`) and replace the start up to
+`/api.php` with `http://<Home Assistant address>:8095`.
 
 ---
 

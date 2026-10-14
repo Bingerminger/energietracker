@@ -23,14 +23,20 @@ Seit 2021 zahlen in Deutschland die Lieferanten von Erdgas und Heizöl für jede
 Tonne CO₂, die beim Verbrennen ihrer Brennstoffe entsteht, einen Preis — nach
 dem **Brennstoffemissionshandelsgesetz (BEHG)**. Sie geben ihn über den
 Arbeitspreis an ihre Kunden weiter. Bis 2025 war der Preis je Jahr fest, für
-2026 gilt ein Korridor von 55 bis 65 € je Tonne. Ein Gesetzentwurf
-(BT-Drucksache 21/7869) will den Korridor auf 2027 verlängern; beschlossen ist
-das noch nicht (Stand 09.10.2026).
+2026 gilt ein Korridor von 55 bis 65 € je Tonne (§ 10 Abs. 2 BEHG).
 
-Danach soll der **europäische Emissionshandel für Gebäude und Verkehr (ETS2)**
-den nationalen Preis ablösen — nach heutigem Stand ab 2028. Wie hoch der Preis
-dann ist, steht nicht fest. Für Jahre ohne festen Preis rechnet die App mit dem
-zuletzt bekannten Wert und sagt das dazu ([§ 4](#4-preis-je-jahr)).
+**2027 (Stand 13.10.2026).** Der Entwurf eines Dritten Gesetzes zur Änderung
+des BEHG (BT-Drucksache 21/7869, Art. 1 Nr. 4) verlängert den Korridor von 55
+bis 65 € auf 2027. Ohne diese Änderung ergäbe sich der Preis für 2027 nach dem
+geltenden BEHG aus den Versteigerungspreisen des europäischen Emissionshandels
+für Industrie und Energie (EU-ETS 1). Beschlossen ist der Entwurf noch nicht;
+die 2./3. Lesung im Bundestag ist für den 15.10.2026 angesetzt.
+
+Der **europäische Emissionshandel für Gebäude und Straßenverkehr (ETS2)**
+startet 2028: Art. 2 der Verordnung (EU) 2026/667 verschiebt ihn um ein Jahr.
+Wie hoch der Preis dann ist, steht nicht fest. Für Jahre ohne festen Preis
+rechnet die App mit dem zuletzt bekannten Wert und sagt das dazu
+([§ 4](#4-preis-je-jahr)).
 
 Den CO₂-Preis kennt die App nur für **Deutschland** (Länderprofil DE). In
 anderen Ländern fehlt die Karte; die API antwortet mit `supported: false` und
@@ -106,6 +112,33 @@ und spätere Jahre den **letzten bekannten Wert als Annahme** an — also 60 €
 und schreibt darunter: „Der Preis dieses Jahres steht noch nicht fest;
 angesetzt ist der zuletzt bekannte.“ Die 60 € sind nur ein Platzhalter, nicht
 der Preis für 2027.
+
+**Woher der Wert für 2027 kommt.** Für die CO₂-Kostenaufteilung mit dem
+Vermieter ist allein CO2KostAufG § 4 Abs. 1 Nr. 3 maßgeblich: der
+Durchschnittspreis der Versteigerungen nach § 10 Abs. 1 BEHG vom 1. Juli bis
+30. November 2026. Daran ändert der BEHG-Entwurf aus [§ 1](#1-was-der-co₂-preis-ist)
+nichts; er betrifft nur BEHG, Brennstoffemissionshandelsverordnung und
+BEHG-Doppelbilanzierungsverordnung. Die App trägt den Wert erst ein, wenn das
+Umweltbundesamt ihn veröffentlicht hat (§ 4 Abs. 2) — sie schätzt ihn nicht.
+
+**Was die App für 2027 tut, solange kein Wert eingetragen ist:**
+
+- Die Karte „CO₂-Preis im Brennstoff“ rechnet mit 60 € und sagt, dass das eine
+  Annahme ist; die API meldet `price.assumed: true`.
+- Die **CO₂-Kostenaufteilung** bei einer Etagenheizung
+  ([Anleitung](../anleitungen/co2-aufteilung.md)) rechnet mit derselben
+  Annahme. Einen eigenen Hinweis zeigt die Karte im Mietverhältnis dafür
+  nicht; die API liefert den Preis dort ebenfalls mit `assumed`. Ist die
+  Rechnung des Lieferanten mit ihrem CO₂-Betrag erfasst, gilt dieser Betrag
+  ([§ 3](#3-emissionen-die-standardfaktoren-des-behg)) — die Annahme spielt
+  dann keine Rolle.
+- Das **Szenario** der Prognose rechnet die Mehrkosten gegen diese 60 €
+  ([§ 6](#6-wo-du-ihn-siehst)).
+
+Der Preis, den dein Lieferant 2027 im Arbeitspreis ansetzt, folgt dem BEHG und
+kann vom Wert nach CO2KostAufG abweichen. Die App führt einen Wert je Jahr für
+beides; steht auf deiner Rechnung ein anderer CO₂-Betrag, trag die Rechnung
+ein (sie geht vor) oder den Preis unter „CO₂-Preis je Jahr“.
 
 Eigene Werte trägst du unter **Einstellungen → Experte → Rechenparameter →
 „CO₂-Preis“ → „CO₂-Preis je Jahr“** ein (Jahr und € je Tonne). Sie gehen dem

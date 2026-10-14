@@ -385,6 +385,11 @@ final class Migrator
      * Standard-Zählern bestückt — NICHT per migrate(), das ohne Altdaten einen
      * leeren Tracker hinterließe (Lektion 14).
      *
+     * v3.5.0 (N1024) — Ist das Datenverzeichnis nicht beschreibbar (etwa ein
+     * Volume, das einer anderen UID gehört), wird nichts versucht:
+     * `unwritable`. Bis v3.4 scheiterte der erste Schreibversuch, und jede
+     * Anfrage — auch /api/health — endete mit 500.
+     *
      * @param (callable(string):string)|null $snapshot bekommt die bisherige
      *        Schemaversion, liefert den Dateinamen der Sicherung
      * @return array{action:string, from?:string, snapshot?:?string, snapshot_error?:?string}|null
@@ -392,6 +397,9 @@ final class Migrator
      */
     public function runOnStartup(?callable $snapshot = null): ?array
     {
+        if (!is_writable($this->store->rootDir()) && $this->dataSchemaIsNewer() === null) {
+            return ['action' => 'unwritable'];
+        }
         if ($this->isPristine()) {
             $this->initFresh();
             return ['action' => 'fresh'];

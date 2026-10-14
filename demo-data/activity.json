@@ -1,0 +1,424 @@
+[
+    {
+        "id": "act_d85e56d2ffb9",
+        "action": "auto_done",
+        "subject": {
+            "kind": "contract",
+            "uid": "contract-c_strom_001",
+            "occurrence": "contract-c_strom_001@2023-12-31"
+        },
+        "ref": {
+            "utility": "strom",
+            "meter_id": "m_strom_main",
+            "contract_id": "c_strom_001",
+            "successor_id": "c_strom_002"
+        },
+        "title_key": "calendar.event.termEnd",
+        "params": {
+            "label": "Strom",
+            "provider": "Stadtwerke Musterstadt"
+        },
+        "title": "Strom: Vertragsende (Stadtwerke Musterstadt)",
+        "done_on": "2023-11-20",
+        "recorded_at": "2023-11-20T19:05:00+01:00",
+        "by": {
+            "type": "person",
+            "id": "u_c7a2ecac",
+            "name": "Paul"
+        },
+        "note": "",
+        "reason": {
+            "key": "activity.reason.successor",
+            "params": {
+                "provider": "Energie Nordring",
+                "date": "2024-01-01"
+            }
+        }
+    },
+    {
+        "id": "act_f5e878ed8c38",
+        "action": "dismissed",
+        "subject": {
+            "kind": "recommendation",
+            "uid": "r4_3577d6f2a1c2",
+            "occurrence": "r4_3577d6f2a1c2@2023-07-08"
+        },
+        "ref": {
+            "recommendation_id": "r4_3577d6f2a1c2",
+            "utility": "wasser",
+            "meter_id": "m_wasser_garten"
+        },
+        "title_key": null,
+        "params": {},
+        "title": "Wasser Mai 2023: statistische Anomalie",
+        "done_on": "2023-06-08",
+        "recorded_at": "2023-06-08T19:05:00+02:00",
+        "by": {
+            "type": "person",
+            "id": "u_a1fbab95",
+            "name": "Anna"
+        },
+        "note": "Neue Hecke gepflanzt und gewässert",
+        "reason": {
+            "key": "activity.reason.dismissed",
+            "params": {
+                "date": "2023-07-08"
+            }
+        },
+        "revert": {
+            "type": "recommendation_dismiss",
+            "id": "r4_3577d6f2a1c2",
+            "until": "2023-07-08"
+        }
+    },
+    {
+        "id": "act_d8d51d0ee270",
+        "action": "auto_done",
+        "subject": {
+            "kind": "bill_expected",
+            "uid": "bill_expected-c_strom_001-2023-12-31",
+            "occurrence": "bill_expected-c_strom_001-2023-12-31@2023-12-31"
+        },
+        "ref": {
+            "utility": "strom",
+            "meter_id": "m_strom_main",
+            "contract_id": "c_strom_001",
+            "bill_id": "b_f2c19ee46624"
+        },
+        "title_key": "calendar.event.finalBillExpected",
+        "params": {
+            "label": "Strom",
+            "provider": "Stadtwerke Musterstadt",
+            "from": "2023-01-01",
+            "until": "2023-12-31"
+        },
+        "title": "Schlussrechnung erwartet: Strom (Stadtwerke Musterstadt) für 01.01.2023 – 31.12.2023",
+        "done_on": "2024-01-25",
+        "recorded_at": "2024-01-25T19:05:00+01:00",
+        "by": {
+            "type": "person",
+            "id": "u_c7a2ecac",
+            "name": "Paul"
+        },
+        "note": "",
+        "reason": {
+            "key": "activity.reason.bill",
+            "params": {
+                "date": "2023-12-31"
+            }
+        }
+    },
+    {
+        "id": "act_e39a01f86ffd",
+        "action": "auto_done",
+        "subject": {
+            "kind": "contract",
+            "uid": "contract-c_gas_002",
+            "occurrence": "contract-c_gas_002@2024-12-31"
+        },
+        "ref": {
+            "utility": "gas",
+            "meter_id": "m_gas_main",
+            "contract_id": "c_gas_002",
+            "successor_id": "c_gas_003"
+        },
+        "title_key": "calendar.event.termEnd",
+        "params": {
+            "label": "Gas",
+            "provider": "Stadtwerke Musterstadt"
+        },
+        "title": "Gas: Vertragsende (Stadtwerke Musterstadt)",
+        "done_on": "2024-11-08",
+        "recorded_at": "2024-11-08T19:05:00+01:00",
+        "by": {
+            "type": "person",
+            "id": "u_a1fbab95",
+            "name": "Anna"
+        },
+        "note": "",
+        "reason": {
+            "key": "activity.reason.successor",
+            "params": {
+                "provider": "Nordwind Energie",
+                "date": "2025-01-01"
+            }
+        }
+    },
+    {
+        "id": "act_0841d9d70adc",
+        "action": "auto_done",
+        "subject": {
+            "kind": "contract",
+            "uid": "contract-c_strom_003",
+            "occurrence": "contract-c_strom_003@2025-12-31"
+        },
+        "ref": {
+            "utility": "strom",
+            "meter_id": "m_strom_main",
+            "contract_id": "c_strom_003",
+            "successor_id": "c_strom_004"
+        },
+        "title_key": "calendar.event.termEnd",
+        "params": {
+            "label": "Strom",
+            "provider": "Energie Nordring"
+        },
+        "title": "Strom: Vertragsende (Energie Nordring)",
+        "done_on": "2025-12-03",
+        "recorded_at": "2025-12-03T19:05:00+01:00",
+        "by": {
+            "type": "person",
+            "id": "u_c7a2ecac",
+            "name": "Paul"
+        },
+        "note": "",
+        "reason": {
+            "key": "activity.reason.successor",
+            "params": {
+                "provider": "Energie Nordring",
+                "date": "2026-01-01"
+            }
+        }
+    },
+    {
+        "id": "act_a4d4113bddba",
+        "action": "auto_done",
+        "subject": {
+            "kind": "contract",
+            "uid": "contract-c_gas_003",
+            "occurrence": "contract-c_gas_003@2025-12-31"
+        },
+        "ref": {
+            "utility": "gas",
+            "meter_id": "m_gas_main",
+            "contract_id": "c_gas_003",
+            "successor_id": "c_gas_004"
+        },
+        "title_key": "calendar.event.termEnd",
+        "params": {
+            "label": "Gas",
+            "provider": "Nordwind Energie"
+        },
+        "title": "Gas: Vertragsende (Nordwind Energie)",
+        "done_on": "2025-12-05",
+        "recorded_at": "2025-12-05T19:05:00+01:00",
+        "by": {
+            "type": "person",
+            "id": "u_a1fbab95",
+            "name": "Anna"
+        },
+        "note": "",
+        "reason": {
+            "key": "activity.reason.successor",
+            "params": {
+                "provider": "Nordwind Energie",
+                "date": "2026-01-01"
+            }
+        }
+    },
+    {
+        "id": "act_2cbece515684",
+        "action": "auto_done",
+        "subject": {
+            "kind": "bill_expected",
+            "uid": "bill_expected-c_fw_001-2025-12-31",
+            "occurrence": "bill_expected-c_fw_001-2025-12-31@2025-12-31"
+        },
+        "ref": {
+            "utility": "fernwaerme",
+            "meter_id": "m_fernwaerme_main",
+            "contract_id": "c_fw_001",
+            "bill_id": "b_a4c995ebc7fe"
+        },
+        "title_key": "calendar.event.billExpected",
+        "params": {
+            "label": "Fernwärme",
+            "provider": "Stadtwerke Musterstadt",
+            "from": "2025-01-01",
+            "until": "2025-12-31"
+        },
+        "title": "Abrechnung erwartet: Fernwärme (Stadtwerke Musterstadt) für 01.01.2025 – 31.12.2025",
+        "done_on": "2026-02-17",
+        "recorded_at": "2026-02-17T19:05:00+01:00",
+        "by": {
+            "type": "person",
+            "id": "u_a1fbab95",
+            "name": "Anna"
+        },
+        "note": "",
+        "reason": {
+            "key": "activity.reason.bill",
+            "params": {
+                "date": "2025-12-31"
+            }
+        }
+    },
+    {
+        "id": "act_82825e3af0a4",
+        "action": "done",
+        "subject": {
+            "kind": "reminder",
+            "uid": "reminder-rem_demo0001",
+            "occurrence": "reminder-rem_demo0001@2025-07-22"
+        },
+        "ref": {
+            "reminder_id": "rem_demo0001",
+            "category": "heizung_wartung"
+        },
+        "title_key": "calendar.event.reminder",
+        "params": {
+            "title": "Heizungswartung"
+        },
+        "title": "Heizungswartung",
+        "done_on": "2025-07-22",
+        "recorded_at": "2025-07-22T19:05:00+02:00",
+        "by": {
+            "type": "person",
+            "id": "u_c7a2ecac",
+            "name": "Paul"
+        },
+        "note": "Brennerdüse getauscht",
+        "revert": {
+            "type": "reminder",
+            "id": "rem_demo0001",
+            "before": {
+                "next_due": "2025-07-22",
+                "active": true,
+                "last_done": "2024-07-22"
+            },
+            "after": {
+                "next_due": "2026-07-22",
+                "active": true,
+                "last_done": "2025-07-22"
+            }
+        }
+    },
+    {
+        "id": "act_d47e4f56e2bd",
+        "action": "done",
+        "subject": {
+            "kind": "reminder",
+            "uid": "reminder-rem_demo0003",
+            "occurrence": "reminder-rem_demo0003@2025-09-15"
+        },
+        "ref": {
+            "reminder_id": "rem_demo0003",
+            "category": "schornsteinfeger"
+        },
+        "title_key": "calendar.event.reminder",
+        "params": {
+            "title": "Schornsteinfeger"
+        },
+        "title": "Schornsteinfeger",
+        "done_on": "2025-09-15",
+        "recorded_at": "2025-09-15T19:05:00+02:00",
+        "by": {
+            "type": "person",
+            "id": "u_a1fbab95",
+            "name": "Anna"
+        },
+        "note": "",
+        "revert": {
+            "type": "reminder",
+            "id": "rem_demo0003",
+            "before": {
+                "next_due": "2025-09-15",
+                "active": true,
+                "last_done": "2025-03-15"
+            },
+            "after": {
+                "next_due": "2026-03-15",
+                "active": true,
+                "last_done": "2025-09-15"
+            }
+        }
+    },
+    {
+        "id": "act_3aba71b4d10f",
+        "action": "done",
+        "subject": {
+            "kind": "reminder",
+            "uid": "reminder-rem_demo0003",
+            "occurrence": "reminder-rem_demo0003@2026-03-15"
+        },
+        "ref": {
+            "reminder_id": "rem_demo0003",
+            "category": "schornsteinfeger"
+        },
+        "title_key": "calendar.event.reminder",
+        "params": {
+            "title": "Schornsteinfeger"
+        },
+        "title": "Schornsteinfeger",
+        "done_on": "2026-03-12",
+        "recorded_at": "2026-03-12T07:55:00+01:00",
+        "by": {
+            "type": "person",
+            "id": "u_c7a2ecac",
+            "name": "Paul"
+        },
+        "note": "",
+        "revert": {
+            "type": "reminder",
+            "id": "rem_demo0003",
+            "before": {
+                "next_due": "2026-03-15",
+                "active": true,
+                "last_done": "2025-09-15"
+            },
+            "after": {
+                "next_due": "2026-09-12",
+                "active": true,
+                "last_done": "2026-03-12"
+            }
+        },
+        "undone": {
+            "at": "2026-03-12T07:56:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_c7a2ecac",
+                "name": "Paul"
+            }
+        }
+    },
+    {
+        "id": "act_867e7fe9899f",
+        "action": "done",
+        "subject": {
+            "kind": "reminder",
+            "uid": "reminder-rem_demo0003",
+            "occurrence": "reminder-rem_demo0003@2026-03-15"
+        },
+        "ref": {
+            "reminder_id": "rem_demo0003",
+            "category": "schornsteinfeger"
+        },
+        "title_key": "calendar.event.reminder",
+        "params": {
+            "title": "Schornsteinfeger"
+        },
+        "title": "Schornsteinfeger",
+        "done_on": "2026-03-15",
+        "recorded_at": "2026-03-15T19:05:00+01:00",
+        "by": {
+            "type": "person",
+            "id": "u_c7a2ecac",
+            "name": "Paul"
+        },
+        "note": "",
+        "revert": {
+            "type": "reminder",
+            "id": "rem_demo0003",
+            "before": {
+                "next_due": "2026-03-15",
+                "active": true,
+                "last_done": "2025-09-15"
+            },
+            "after": {
+                "next_due": "2026-09-15",
+                "active": true,
+                "last_done": "2026-03-15"
+            }
+        }
+    }
+]

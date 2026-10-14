@@ -42,13 +42,14 @@ v3.1.0 the app shows it in the help and at every ⓘ.
 | **Balance** | Actual costs − advances paid (plus the net of special payments). **Positive = back-payment looming, negative = credit** — that is how the API and the CSV export calculate. Since v2.13.0 the interface shows the customer's side: "credit" or "additional payment" without a sign, in tables + = credit. |
 | **Shadow contract** | A tariff you do not hold: either an offer from a comparison site (for the switching decision) or a hypothesis about the past ("what would that have cost?"). Takes effect **only** in the tariff comparison — never on the balance, forecast or contract status. |
 | **Profile factor** | v3.3.0: Your wholesale price per kWh (weighted by consumption per quarter hour) divided by the market average. Below 1: you use more when electricity is cheap; above 1: more when it is expensive ([Valuing flexibility](../anleitungen/flexibilitaet.md)). |
+| **Typical day** | v3.5.0: The energy flow of an average day in the month — per quarter hour (local time) the average over all days of the month with readings. It shows the pattern, say when the midday sun charges the battery, not a real day ([Views](../referenz/ansichten.md#1-overview-dashboard), energy flow → “Day”). |
 | **Cancellation deadline** | The last day by which the notice must reach the supplier (`cancel_by`). Since v2.9.0 the reminder levels count down to this day, not to the contract end. |
 | **Notice mode** | v2.9.0 (`notice_mode`): at the end of the term, any time at month end, or any time to any day (for example default supply, German *Grundversorgung*, with two weeks' notice). |
 | **Renewed contract** | v2.9.0: expired, without a successor and not cancelled — runs on at its last prices (`renewed`, monthly rows `contract_assumed`) and can be cancelled any time with at most one month's notice. |
 | **Switch date** | v2.3.0: the first day a new tariff could start supplying. Derived from the contract end and the notice period; distinct from the **cancellation deadline**, by which notice must be given. |
 | **Break-even consumption** | v2.3.0: the annual volume above which an offer beats the running contract (column "Pays off from"). If it sits far from the expected consumption, the switching decision holds even with an imprecise forecast. |
 | **Sign-up bonus** | v2.3.0: a one-off amount on the offer (`signup_bonus_eur`) that counts in the first year only. The ranking deliberately follows the cost **from** year two. |
-| **Special payment** | F1003: a refund/back-payment or an additional advance payment. Balance = costs - advances + (Σ refund - Σ back-payment - Σ advance payment). "with effect" additionally sets the future advance. Gas/electricity/district heating only. |
+| **Special payment** | F1003: a refund/back-payment or an additional advance payment. Balance = costs - advances + (Σ refund - Σ back-payment - Σ advance payment). "with effect" additionally sets the future advance. Gas, electricity, water (since v3.5.0) and district heating. |
 | **Meter-reading capture** | F1004 (v1.6.0): the central view `#/zaehlerstaende` for quickly recording all cumulative meters on site in one pass. Heating oil/pellets use deliveries; since v3.1.0, meters with consumption per period get a card with month and consumption. |
 | **Efficiency class** | The kWh/m²·a classification of heating energy (A+…H), per source since v1.4.0. |
 | **Base load** | The weather-independent base (hot water, standby). |
@@ -57,9 +58,9 @@ v3.1.0 the app shows it in the help and at every ⓘ.
 | **Tank log** | v2.10.0: one calculation for consumption, costs and stock of oil/pellets, based on known stock levels (initial stock, delivery "filled to full", tank reading). |
 | **Anchor (known stock level)** | A day with a known tank stock. Between two anchors the consumption is calculated, not estimated. |
 | **Tank reading** | A tank stock read off (gauge, dipstick, sensor), stored on the tank under `tank_levels`. |
-| **Certificate-style figure** | v2.10.0: the second efficiency figure — net calorific value, weather-adjusted, per m² of usable floor area, with a hot-water surcharge for decentralised hot water. Not a consumption certificate (that requires 36 months). |
+| **Certificate-style figure** | v2.10.0: the second efficiency figure — weather-adjusted, per m² of usable floor area, with a hot-water surcharge for decentralised hot water. Since v3.5.0 with the procedure in force on the day of calculation: up to 31 Dec 2026 net calorific value and a 20 kWh/m²·a surcharge, from 1 Jan 2027 gross calorific value and 16 kWh/m²·a (§ 82 GModG as amended). Not a consumption certificate (that requires 36 months, from 2027 two years). |
 | **Usable floor area (AN)** | The reference area of the energy performance certificate: 1.2 × living area, 1.35 × for residential buildings with up to two dwellings and a heated basement — in the app a single/two-family or terraced house (§ 82(2) GModG, the Building Modernisation Act, formerly GEG). |
-| **Gross / net calorific value** | Gas is billed by gross calorific value (kWh including the heat of condensation); the energy performance certificate and the BAFA CO₂ factors refer to the net calorific value: net kWh = gross kWh × 0.906. |
+| **Gross / net calorific value** | Gas is billed by gross calorific value (kWh including the heat of condensation); the BAFA CO₂ factors refer to the net calorific value: net kWh = gross kWh × 0.906. The consumption certificate uses the net calorific value up to 31 Dec 2026 and the gross calorific value from 1 Jan 2027 (§ 82(2) GModG as amended). |
 | **Self-consumption savings** | v2.10.0: self-used PV electricity × working price of the grid import — the electricity costs that self-consumption avoids. |
 | **Recurrence** | The repeat rule of an appointment (annual, …). |
 | **Baseline date** | F1011 (v2.4.0): a dated structural change on the meter (new heating, insulation, windows). From that day heating model, weather adjustment, anomalies and forecast start afresh; the months before stay visible but grey. The card "Effect of the measure" compares before and after per degree day. |
@@ -78,7 +79,7 @@ v3.1.0 the app shows it in the help and at every ⓘ.
 | **§ 14a EnWG (controllable consumers)** | v3.1.0: The grid operator may throttle heat pumps, wall boxes, air conditioners and storage above 4.2 kW that went into operation from 1 Jan 2024 during bottlenecks – to at least 4.2 kW, not to zero; in return the grid fee drops. Module 1: a fixed amount per year. Module 2: a separate meter with 40% of the grid unit price. Module 3: time-variable grid fees on top of module 1 ([Electricity](02-strom.md#controllable-consumers-v310)). |
 | **Dynamic tariff** | v3.1.0: An electricity tariff whose unit price follows the wholesale price (§ 41a EnWG). It is billed per quarter hour with a smart metering system. The app estimates it with the monthly wholesale average plus a mark-up — an approximation, not a substitute for the bill ([Electricity](02-strom.md#dynamic-tariffs-v310)). |
 | **Seasonal performance factor (SPF)** | v3.1.0: How much heat a heat pump makes from one kWh of electricity, measured over a year: heat ÷ electricity. Needs a heat meter on the heat pump. In a field test, air/water units reached about 3.4, brine/water 4.3 ([Heat](15-waerme.md#7-seasonal-performance-factor-of-the-heat-pump-v310)). |
-| **Flat electricity rate** | v3.1.0: a flat price per kWh with which an employer in Germany can reimburse the electricity used to charge a company car at home (BMF letter of 11 Nov 2025; 2026: 34 ct/kWh) — an alternative to the contract price ([Charging record](../anleitungen/ladestrom-nachweis.md)). |
+| **Flat electricity rate** | v3.1.0: a flat price per kWh with which an employer in Germany can reimburse the electricity used to charge a company car at home (BMF letter of 11 Nov 2025, para. 30; 2026: 34 ct/kWh, 2027: 32 ct/kWh; each from the Destatis electricity price for the first half of the previous year) — an alternative to the contract price ([Charging record](../anleitungen/ladestrom-nachweis.md)). |
 
 ---
 
@@ -140,7 +141,9 @@ metric = (Σ heating kWh of the year) / living_area_m²     [kWh / (m²·a)]
 
 ```text
 AN     = living area × 1.2   (1.35 for a single/two-family or terraced house with heated basement)
-metric = Σ adjusted kWh (gas × 0.906) / AN  (+ 20 with decentralised hot water)
+metric = Σ adjusted kWh / AN  (+ surcharge with decentralised hot water)
+         up to 31 Dec 2026: gas × 0.906 (net calorific value), surcharge 20
+         from 1 Jan 2027:   gas × 1 (gross calorific value), surcharge 16
 ```
 
 **Tank log (oil/pellets, since v2.10.0):**

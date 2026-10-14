@@ -22,6 +22,14 @@ use Energietracker\Http\NotFoundException;
  */
 final class DemoService
 {
+    /**
+     * v3.5.0 (N1022) — Einstellungen der Person bzw. des Landes, die ein
+     * Beispielhaushalt nicht ersetzt: Sprache, Land, Währung, Zeitzone und die
+     * Einheit, in der der Brennwert eingegeben wird. Ein Wert, der vorher nicht
+     * festgeschrieben war, bleibt es auch danach nicht (Default).
+     */
+    public const KEEP_SETTINGS = ['language', 'country', 'currency', 'timezone', 'gas_cv_unit'];
+
     public function __construct(
         private JsonStore $store,
         private BackupService $backups,
@@ -135,6 +143,14 @@ final class DemoService
         $after = $this->store->read('settings.json', []);
         if (is_array($after)) {
             if (is_array($before) && isset($before['ui_level'])) $after['ui_level'] = $before['ui_level'];
+            // v3.5.0 (N1022) — Sprache und Land aus Schritt 1 der Einrichtung
+            // bleiben ebenso (vorher fiel die Sprache auf Deutsch zurück, weil der
+            // Beispielhaushalt keine mitbringt). Standort, Heizgrenze und CO₂
+            // gehören zum Beispielhaushalt (Leipzig) und kommen aus ihm.
+            foreach (self::KEEP_SETTINGS as $k) {
+                if (is_array($before) && array_key_exists($k, $before)) $after[$k] = $before[$k];
+                else unset($after[$k]);
+            }
             $after['setup_pending'] = false;
             $after['setup_persona'] = $persona ?? 'showcase';
             $this->store->write('settings.json', $after);

@@ -290,8 +290,12 @@ final class ConsumptionService
             // F1003 — Sonderzahlungen verschieben den Saldo:
             //   current_balance = Kosten − gezahlte Abschläge + special_net
             //   special_net = Σ Rückzahlung − Σ Nachzahlung − Σ Abschlagszahlung
-            // Wasser hat keine special_payments → summary.net = 0 (No-op).
-            $spSummary = $this->contracts->specialPaymentSummary($c);
+            // v3.5.0 (GitHub #34) — auch Wasser; nur Arten mit Sonderzahlungen
+            // (Utilities::hasSpecialPayments) — bei Heizöl, Pellets und
+            // Einspeisung zählt ein Feld, das dort nie sein sollte, nicht mit.
+            $spSummary = $this->contracts->specialPaymentSummary(
+                Utilities::hasSpecialPayments($utility) ? $c : []
+            );
             $currentBalance = round($actualCost - $advancePaid + $spSummary['net'], 2);
 
             // Current tariff values (those valid today, for the active contract).
@@ -310,9 +314,9 @@ final class ConsumptionService
                 $curBp = $this->contracts->valueValidOn($c['base_prices']    ?? [], 'eur_per_month', $y, $mn);
                 $curSwWp = $curNwRate = $curNwArea = null;
             }
-            // F1003 — effektiver Abschlagsplan (Wasser hat keine
-            // special_payments → effectiveAdvanceSchedule ist dort ein
-            // No-op und liefert advance_payments unverändert zurück).
+            // F1003 — effektiver Abschlagsplan: „mit Auswirkung“ setzt den
+            // Abschlag ab Stichtag (seit v3.5.0 auch bei Wasser); ohne
+            // Sonderzahlungen ist er advance_payments.
             $curAp = $this->contracts->valueValidOn(
                 $this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn
             );
@@ -479,10 +483,10 @@ final class ConsumptionService
             }
             // v2.5.1 — die Einzelposten für die Tabelle „Verträge & Abschläge"
             // (Spalte Sonderzahlungen mit Tooltip). Nur dort, wo es
-            // Sonderzahlungen überhaupt gibt (Gas/Strom/Fernwärme, nicht
-            // Wasser, nicht Einspeisung) — das Fehlen des Felds ist für die
-            // UI das Signal, die Spalte gar nicht erst zu zeigen.
-            if (Utilities::hasAdvancePaymentContracts($utility)) {
+            // Sonderzahlungen überhaupt gibt (Gas/Strom/Fernwärme, seit v3.5.0
+            // auch Wasser; nicht Einspeisung) — das Fehlen des Felds ist für
+            // die UI das Signal, die Spalte gar nicht erst zu zeigen.
+            if (Utilities::hasSpecialPayments($utility)) {
                 $row['special_payments'] = array_values(array_map(fn($sp) => [
                     'date'       => (string)($sp['date'] ?? ''),
                     'kind'       => (string)($sp['kind'] ?? ''),
@@ -2975,7 +2979,11 @@ final class ConsumptionService
                 ? round(((float)$nwArea * (float)$nwRate) / 12.0, 2)
                 : 0.0;
 
-            $ap = $this->contracts->valueValidOn($c['advance_payments'] ?? [], 'amount_eur', $y, $mn);
+            // v3.5.0 (GitHub #34) — der effektive Abschlagsplan wie beim
+            // Standardvertrag: eine Rück- oder Nachzahlung „mit Auswirkung“
+            // setzt den Abschlag ab ihrem Stichtag (ohne Sonderzahlungen
+            // derselbe Wert wie advance_payments)
+            $ap = $this->contracts->valueValidOn($this->contracts->effectiveAdvanceSchedule($c), 'amount_eur', $y, $mn);
             $bn = $this->contracts->bonusForMonth($c, $y, $mn);
 
             $combined = round($twTotal + $swTotal + $nwTotal - $bn, 2);

@@ -33,9 +33,11 @@ Apache, nginx — stehen in [Installation](../betrieb/installation.md) und
 Beim ersten Start legt die App automatisch Standard-Zähler für Gas, Strom und
 Wasser an. Du kannst sie behalten, umbenennen oder löschen.
 
-> **Seit v3.2.0 begrüßt dich der Einrichtungsassistent:** drei Fragen — wer
-> du bist, welche Energieträger du nutzt, wie viel Erfahrung du hast —, danach
-> stehen Verbrauchsarten und Nutzungsstufe. Für dieses Beispiel „Eigenheim mit
+> **Seit v3.2.0 begrüßt dich der Einrichtungsassistent:** zuerst Sprache und
+> Land (seit v3.5.0; vorgewählt aus deinem Browser, darunter steht, was das
+> Länderprofil setzt), dann drei Fragen — wer du bist, welche Energieträger du
+> nutzt, wie viel Erfahrung du hast —, danach stehen Verbrauchsarten und
+> Nutzungsstufe. Für dieses Beispiel „Eigenheim mit
 > Gas, Öl oder Pellets“ wählen und am Ende „Mit eigenen Daten starten“; wer
 > lieber erst schaut, nimmt „Mit Beispieldaten ansehen“. Einzelheiten:
 > [Einrichten und Nutzungsstufen](einrichtung.md).

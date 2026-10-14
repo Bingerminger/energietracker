@@ -43,6 +43,64 @@ final class BillService
         private I18nService $i18n,
     ) {}
 
+    /** v3.5.0 (F1029) — Verlauf und erwartete Abrechnungen (nachträglich; beide kennen diesen Dienst). */
+    private ?ActivityService $activity = null;
+    private ?BillExpectedService $expected = null;
+
+    public function attachActivity(ActivityService $activity): void
+    {
+        $this->activity = $activity;
+    }
+
+    public function attachExpectations(BillExpectedService $expected): void
+    {
+        $this->expected = $expected;
+    }
+
+    /**
+     * v3.5.0 (F1029) — Erwartungen dieser Art, die vor dem Schreiben offen waren.
+     *
+     * @return list<array<string,mixed>>
+     */
+    private function openBefore(string $utility): array
+    {
+        if ($this->activity === null || $this->expected === null) return [];
+        try {
+            return array_values(array_filter($this->expected->open(), fn($x) => $x['utility'] === $utility));
+        } catch (\Throwable) {
+            return [];   // der Verlauf darf das Speichern einer Rechnung nie verhindern
+        }
+    }
+
+    /**
+     * v3.5.0 (F1029) — Nach dem Schreiben: Erledigungen durch diese Rechnung,
+     * die sie nicht mehr abdeckt, durchstreichen; Erwartungen, die sie jetzt
+     * abdeckt (und die vorher offen waren), im Verlauf erledigen.
+     *
+     * @param list<array<string,mixed>> $openBefore
+     * @param array<string,mixed>|null  $bill die Rechnung nach dem Schreiben (null = gelöscht)
+     */
+    private function noteExpectations(string $utility, string $billId, array $openBefore, ?array $bill): void
+    {
+        if ($this->activity === null || $this->expected === null) return;
+        try {
+            $covered = [];
+            foreach ($this->expected->expected() as $x) {
+                if ($x['utility'] === $utility && $x['bill_id'] === $billId) $covered[(string)$x['uid']] = $x;
+            }
+            $this->activity->billRevoked($billId, function (string $occurrence) use ($covered): bool {
+                foreach ($covered as $x) if (ActivityService::occurrence((string)$x['uid'], (string)$x['until']) === $occurrence) return true;
+                return false;
+            });
+            if ($bill === null) return;
+            foreach ($openBefore as $x) {
+                if (isset($covered[(string)$x['uid']])) $this->activity->billRecorded($covered[(string)$x['uid']], $bill);
+            }
+        } catch (\Throwable) {
+            // wie oben: nur der Verlauf fehlt, die Rechnung ist gespeichert
+        }
+    }
+
     /** @return list<array<string,mixed>> neueste zuerst */
     public function list(string $utility, ?string $meterId = null): array
     {
@@ -51,6 +109,22 @@ final class BillService
         $all = is_array($all) ? array_values(array_filter($all, 'is_array')) : [];
         if ($meterId !== null) $all = array_values(array_filter($all, fn($b) => ($b['meter_id'] ?? null) === $meterId));
         usort($all, fn($a, $b) => strcmp((string)($b['period_to'] ?? ''), (string)($a['period_to'] ?? '')));
+        // v3.5.0 (GitHub #34) — Bei Wasser kam die Buchung bis v3.4 nie an
+        // (ContractService::update() verwarf das Feld still), die Rechnung hieß
+        // trotzdem „gebucht“. Erkennbar daran, dass ihr Vertrag das Feld
+        // `special_payments` gar nicht hat — jede Buchung legt es an. Solche
+        // Rechnungen gelten als nicht gebucht (gelesen, nicht gespeichert) und
+        // lassen sich jetzt buchen; book() überschreibt die ID. Bewusst nicht
+        // „ID fehlt im Vertrag“: Der Vertragsdialog vergibt beim Speichern neue
+        // IDs, gebuchte Gas- und Stromrechnungen sähen sonst ungebucht aus.
+        $withoutField = [];
+        foreach ($this->contracts->list($utility) as $c) {
+            if (!array_key_exists('special_payments', $c)) $withoutField[(string)($c['id'] ?? '')] = true;
+        }
+        foreach ($all as &$b) {
+            if (!empty($b['special_payment_id']) && isset($withoutField[(string)($b['contract_id'] ?? '')])) $b['special_payment_id'] = null;
+        }
+        unset($b);
         return $all;
     }
 
@@ -72,10 +146,12 @@ final class BillService
         $b = ['id' => 'b_' . bin2hex(random_bytes(6)), 'meter_id' => $meterId]
             + $this->normalize($input, null) + ['attachment_ids' => [], 'created_at' => date('c')];
         $this->linkAttachments($utility, $b, [], $input['attachment_ids'] ?? []);
+        $openBefore = $this->openBefore($utility);   // v3.5.0 (F1029)
         $all = $this->store->read("$utility/bills.json", []);
         if (!is_array($all)) $all = [];
         $all[] = $b;
         $this->store->write("$utility/bills.json", array_values($all));
+        $this->noteExpectations($utility, (string)$b['id'], $openBefore, $b);
         return $b;
     }
 
@@ -89,8 +165,12 @@ final class BillService
             if (!is_array($b) || ($b['id'] ?? null) !== $id) continue;
             $next = array_merge($b, $this->normalize($input, $b));
             if (array_key_exists('attachment_ids', $input)) $this->linkAttachments($utility, $next, (array)($b['attachment_ids'] ?? []), $input['attachment_ids']);
+            // v3.5.0 (F1029) — nur wenn Zeitraum, Zähler oder Vertrag sich ändern
+            $moved = array_intersect_key($next, array_flip(['period_to', 'meter_id', 'contract_id'])) !== array_intersect_key($b, array_flip(['period_to', 'meter_id', 'contract_id']));
+            $openBefore = $moved ? $this->openBefore($utility) : [];
             $all[$i] = $next;
             $this->store->write("$utility/bills.json", array_values($all));
+            if ($moved) $this->noteExpectations($utility, $id, $openBefore, $next);
             return $next;
         }
         throw new NotFoundException($this->i18n->t('errors.bill.notFound'));
@@ -105,6 +185,7 @@ final class BillService
         if (count($kept) === count($all)) throw new NotFoundException($this->i18n->t('errors.bill.notFound'));
         $this->store->write("$utility/bills.json", $kept);
         AttachmentService::unlinkRef($this->store, 'bill', $id);
+        $this->noteExpectations($utility, $id, [], null);   // v3.5.0 (F1029) — Hinweis wieder offen
     }
 
     /**
@@ -165,7 +246,9 @@ final class BillService
 
     /**
      * Ergebnis der Rechnung als Sonderzahlung im Vertrag (F1003): Nachzahlung
-     * oder Rückzahlung „ohne Auswirkung" auf den Abschlag. Einmal je Rechnung.
+     * oder Rückzahlung „ohne Auswirkung" auf den Abschlag. Einmal je Rechnung —
+     * für Gas, Strom, Wasser und Fernwärme (Utilities::hasSpecialPayments
+     * deckt sich mit supportsBillCheck).
      *
      * @return array<string,mixed> die Rechnung mit special_payment_id
      */
@@ -193,7 +276,12 @@ final class BillService
         $payments = (array)($contract['special_payments'] ?? []);
         $payments[] = ['id' => $spId, 'date' => $date, 'kind' => (float)$result > 0 ? 'nachzahlung_ohne' : 'rueckzahlung_ohne',
                        'amount_eur' => abs((float)$result), 'note' => $this->i18n->t('billCheck.bookNote', ['from' => $this->i18n->date((string)$b['period_from']), 'to' => $this->i18n->date((string)$b['period_to'])])];
-        $this->contracts->update($utility, (string)$contract['id'], ['special_payments' => $payments]);
+        $saved = $this->contracts->update($utility, (string)$contract['id'], ['special_payments' => $payments]);
+        // v3.5.0 (GitHub #34) — nie „gebucht“ melden, wenn der Vertrag die
+        // Zahlung nicht übernommen hat (bis v3.4 bei jeder Wasserrechnung)
+        if (!in_array($spId, array_column((array)($saved['special_payments'] ?? []), 'id'), true)) {
+            throw new \LogicException("special payment not stored in contract ($utility)");
+        }
         return $this->update($utility, $id, ['special_payment_id' => $spId, 'contract_id' => (string)$contract['id']]);
     }
 

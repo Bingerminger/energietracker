@@ -115,6 +115,61 @@ final class DemoDataTranslatorTest extends TestCase
         self::assertSame(count($labels($b)), count($labels($en)));
     }
 
+    /**
+     * v3.5.0 (N1026) — Texte im Verlauf „Erledigt“: Notiz, Titel ohne
+     * Katalogschlüssel und die Bausteine, aus denen die Oberfläche den Titel je
+     * Sprache neu setzt (Termin, Verbrauchsart, Zähler).
+     *
+     * @return string[]
+     */
+    private static function activityTexts(array $entries): array
+    {
+        $out = [];
+        foreach ($entries as $e) {
+            if (($e['note'] ?? '') !== '') $out[] = $e['note'];
+            if (empty($e['title_key']) && ($e['title'] ?? '') !== '') $out[] = $e['title'];
+            foreach (DemoDataTranslator::ACTIVITY_PARAMS as $k) if (is_string($e['params'][$k] ?? null) && $e['params'][$k] !== '') $out[] = $e['params'][$k];
+        }
+        return array_values(array_unique($out));
+    }
+
+    /** @return array<string,array{0:string}> Beispielhaushalte und Schaufenster */
+    public static function demoFiles(): array
+    {
+        return self::personaFiles() + ['showcase' => [self::root() . '/demo-data/energietracker-demo-backup.json']];
+    }
+
+    #[DataProvider('demoFiles')]
+    public function testEveryHistoryTextIsTranslatedIntoEveryLanguage(string $file): void
+    {
+        $p = json_decode((string)file_get_contents($file), true);
+        $texts = self::activityTexts($p['activity']);
+        self::assertGreaterThan(3, count($texts), 'Verlauf mit Notizen und Bausteinen');
+        self::assertSame([], self::untranslated($texts), basename($file) . ': Verlauf ohne Übersetzung');
+    }
+
+    public function testHistoryIsTranslatedButNamesDatesAndCompaniesStay(): void
+    {
+        $p = json_decode((string)file_get_contents(self::root() . '/demo-data/personas/eigenheim-klassisch.json'), true);
+        $nl = DemoDataTranslator::translate($p, 'nl', self::strings());
+        self::assertSame(count($p['activity']), count($nl['activity']));
+        $changed = 0;
+        foreach ($p['activity'] as $i => $e) {
+            $o = $nl['activity'][$i];
+            foreach (['id', 'action', 'subject', 'ref', 'title_key', 'done_on', 'recorded_at', 'by', 'reason', 'revert', 'undone'] as $k) {
+                self::assertSame($e[$k] ?? null, $o[$k] ?? null, "$k bleibt");
+            }
+            self::assertSame($e['params']['provider'] ?? null, $o['params']['provider'] ?? null, 'Firmennamen bleiben');
+            if ($o['note'] !== $e['note'] || ($o['params'] ?? []) !== ($e['params'] ?? [])) $changed++;
+        }
+        self::assertGreaterThan(5, $changed);
+        $reminder = array_values(array_filter($nl['activity'], fn($e) => $e['subject']['kind'] === 'reminder'))[0];
+        self::assertSame('Onderhoud verwarming', $reminder['params']['title']);
+        // Zuständigkeit an Terminen: Namen bleiben, Titel werden übersetzt
+        self::assertSame(array_column($p['reminders'], 'assignee', 'id'), array_column($nl['reminders'], 'assignee', 'id'));
+        self::assertNotSame(array_column($p['reminders'], 'title'), array_column($nl['reminders'], 'title'));
+    }
+
     public function testTheDockerImageShipsTheTranslations(): void
     {
         self::assertStringContainsString('!demo-data/translations.json', (string)file_get_contents(self::root() . '/.dockerignore'));

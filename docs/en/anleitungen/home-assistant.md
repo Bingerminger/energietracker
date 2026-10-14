@@ -43,6 +43,97 @@ All steps can be prepared directly in Energietracker under
 **Settings → Integrations → 🏠 Home Assistant integration** (including
 copy-and-paste YAML).
 
+Where does Energietracker run? With **Home Assistant OS**, as an app right
+inside Home Assistant (next section). If it already runs as a Docker
+container, on a NAS or a web server ([Installation](../betrieb/installation.md)),
+continue with [step 1](#step-1--generate-an-api-token).
+
+---
+
+## As an app in Home Assistant OS
+
+*New since v3.5.0.* With Home Assistant OS (or Supervised), Energietracker
+runs as an app (formerly “add-on”) inside Home Assistant — no Docker host of
+your own, an entry in the sidebar and sign-in with your Home Assistant users.
+The app uses the same image as the Docker installation; its version is the
+Energietracker version. It is new and marked *experimental* for now —
+feedback from real installations is welcome
+([issues](https://github.com/Bingerminger/energietracker/issues)).
+
+**Installing**
+
+1. Add the app repository: in Home Assistant, open the app store under
+   **Settings → Apps**, choose **⋮ → Repositories** and enter
+   `https://github.com/Bingerminger/energietracker-ha`. Or with one click:
+   [add the repository to Home Assistant](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FBingerminger%2Fenergietracker-ha).
+2. Install **Energietracker** and start it.
+3. **Energietracker** appears in the sidebar. The first person to open it
+   manages the installation.
+
+**What the app sets** (excerpt from its `config.yaml`):
+
+```yaml
+image: ghcr.io/bingerminger/energietracker   # the same image as with Docker
+arch: [aarch64, amd64]
+init: false            # the image brings supervisord
+ingress: true
+ingress_port: 80       # nginx in the image
+ingress_stream: true   # uploads above 16 MiB (backups with receipts)
+ports:
+  80/tcp: null         # direct port off
+environment:
+  ET_DATA_DIR: "/data"
+  ET_AUTH: "proxy"
+  ET_TRUSTED_PROXIES: "172.30.32.2"
+```
+
+**Differences from running it with Docker**
+
+| | App in Home Assistant OS | Docker |
+|---|---|---|
+| Opening | sidebar (Ingress) | own address and port |
+| Sign-in | Home Assistant users, fixed | off, password or proxy — your choice |
+| Roles | whoever opens it first manages it; everyone after that is a member | depends on the sign-in |
+| Offline entry, install as phone app | no — the page belongs to Home Assistant | yes |
+| Data | the app’s storage (`/data`), included in Home Assistant backups | volume or folder |
+| Updates | as an app update in Home Assistant | new image tag |
+| Environment variables | set by the app | all `ET_*` |
+| Log | the app’s “Log” tab | `docker logs` |
+
+Every Home Assistant user sees the sidebar entry; you change roles under
+Settings → Access. A person is kept by the ID of the HA user, so renaming the
+user in Home Assistant does not create a new one. The image’s health check
+(`/api/health`) is also the app’s monitoring: with “Watchdog” on, Home
+Assistant restarts it when the check fails.
+
+**Readings from Home Assistant into the app.** Steps 1 to 5 below apply
+unchanged; only the address differs: Home Assistant reaches the app inside its
+own network at `http://<host name of the app>` (port 80, no Ingress), for
+example `http://1a2b3c4d-energietracker`. The templates under Settings →
+Integrations → 🏠 Home Assistant integration fill in the right name. Because
+sign-in is on, the push needs a **token** (step 1) and the sensors a **read
+key** (step 5).
+
+**Moving from a Docker installation.** In the old installation, download the
+JSON backup under Settings → Data → 💾 Backup & restore and import it in the
+app at the same place (up to 256 MB through Ingress; the app streams uploads).
+Persons, token and keys are not part of the backup: create the token and read
+key again in the app and change the address in the `rest_command` and the
+sensors. The app must not be older than the installation the backup comes
+from.
+
+**Direct port (optional).** Off by default. If devices outside Home Assistant
+should reach the app (a push from another machine, a calendar subscription on
+your phone), open a port in the app under Configuration → Network, for
+example `8095`. The app knows no person there: the push needs its token, the
+calendar its key; the interface stays in the sidebar. Under Ingress,
+“Subscribe in your calendar” gives the address inside Home Assistant’s network
+([Calendar](kalender.md)) — for a phone, replace the start up to `/api.php`
+with `http://<Home Assistant address>:8095`.
+
+Everything else that applies under Ingress is listed under
+[Running under Home Assistant Ingress](#running-under-home-assistant-ingress).
+
 ---
 
 ## Step 1 — Generate an API token
@@ -557,7 +648,9 @@ the complete recipes for Node-RED, ioBroker and openHAB are under
 ## Running under Home Assistant Ingress
 
 If Energietracker itself runs behind Home Assistant Ingress (opened from the Home
-Assistant sidebar), the following applies since v3.1.0:
+Assistant sidebar), the following applies since v3.1.0. The
+[app](#as-an-app-in-home-assistant-os) already sets the variables named here and
+`ingress_stream`.
 
 - **Not offline.** Under Ingress the app shares its origin with Home Assistant
   and registers no service worker. Offline entry only works when it is opened
@@ -585,6 +678,14 @@ Assistant sidebar), the following applies since v3.1.0:
 - **Uploads up to 16 MiB.** Without `ingress_stream: true` in the app’s
   configuration, Home Assistant limits uploads through Ingress to 16 MiB. Restore
   a larger backup via the direct port.
+- **Calendar subscription.** The Ingress address needs an HA session; a
+  calendar cannot fetch it. Since v3.5.0 “Subscribe in your calendar” therefore
+  gives the address inside Home Assistant’s network under Ingress
+  ([Calendar](kalender.md)).
+- **The file `options.json`.** Before every start of the app the Supervisor
+  writes an `options.json` into its data directory, readable by root only.
+  Since v3.5.0 the health check no longer counts it as a damaged file — before,
+  the app was “unhealthy” from its second start on.
 
 ---
 

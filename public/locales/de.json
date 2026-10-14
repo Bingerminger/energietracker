@@ -120,8 +120,14 @@
       "livingArea": "Wohnfläche {area} m²",
       "perSource": "je Heizquelle · Wohnfläche {area} m²",
       "certificate": "Energieausweis-nah: {value} kWh/m²·a{cls}",
-      "certificateTitle": "Heizwert, witterungsbereinigt, bezogen auf {area} m² Gebäudenutzfläche. Ein Verbrauchsausweis verlangt 36 Monate; vorhanden: {months}.",
-      "certificateAll": "Energieausweis-nah, alle Heizquellen: {value} kWh/m²·a{cls}"
+      "certificateTitle": "Witterungsbereinigt, {basis}, bezogen auf {area} m² Gebäudenutzfläche. Ein Verbrauchsausweis verlangt {required} Monate; vorhanden: {months}.",
+      "certificateAll": "Energieausweis-nah, alle Heizquellen: {value} kWh/m²·a{cls}",
+      "basis": {
+        "hi": "nach Heizwert",
+        "hs": "nach Brennwert"
+      },
+      "certificateApprox": "Nach Heizwert gerechnet (Näherung, der Ausweis verlangt den Brennwert): {fuels}.",
+      "certificateUpcoming": "Ab {date} gilt für den Verbrauchsausweis ein neues Verfahren (§ 82 GModG): {basis}, Warmwasser-Zuschlag {dhw} statt {dhwOld} kWh/m²·a, Daten über {required} statt {requiredOld} Monate. Damit wären es {value} kWh/m²·a{cls}."
     },
     "tanks": { "title": "Tank-Bestände" },
     "stromSaldo": {
@@ -191,7 +197,11 @@
         "one": "Folgevertrag erst ab {date} – {count} Tag Lücke",
         "other": "Folgevertrag erst ab {date} – {count} Tage Lücke"
       },
-      "tenancyAction": "Zum Mietverhältnis"
+      "tenancyAction": "Zum Mietverhältnis",
+      "billDeadline": "gesetzliche Frist für den Versorger: {date}",
+      "billOverdueSince": "gesetzliche Frist am {date} verstrichen",
+      "billNoDeadline": "keine gesetzliche Frist",
+      "billAction": "Rechnung erfassen"
     },
     "welcome": {
       "title": "Willkommen beim Energietracker",
@@ -1435,7 +1445,7 @@
       },
       "warmwasser_dezentral": {
         "label": "Warmwasser dezentral",
-        "hint": "Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält 20 kWh/m²·a Zuschlag."
+        "hint": "Warmwasser über Durchlauferhitzer oder Boiler, nicht über die Heizung: Die Kennzahl nach Energieausweis erhält einen Zuschlag von 20 kWh/m²·a, ab 2027 von 16 kWh/m²·a (§ 82 GModG)."
       },
       "billing_cycle_anchor_pv_einspeisung": {
         "label": "Stichtag PV-Einspeisung"
@@ -2510,7 +2520,6 @@
       "open": "Im Browser öffnen",
       "note": "Auf dem iPhone öffnet sich der Bericht in einem neuen Tab; von dort lässt er sich sichern oder teilen.",
       "pdfHeading": "PDF-Datei",
-      "languageNote": "Das PDF entsteht in der Sprache dieses Geräts ({lang}), ebenso die Druckansicht.",
       "title": "{label} {year}",
       "sentence": "{label} {year}: {value}, {pct} gegenüber {prev} ({prevValue}).",
       "sentenceNoPrevious": "{label} {year}: {value}.",
@@ -2549,7 +2558,8 @@
       "tank": "Bestand heute: {stock} {unit}. Bei üblichem Verbrauch reicht er etwa bis {until}.",
       "tankNoRange": "Bestand heute: {stock} {unit}.",
       "heatDemand": "Heizenergie: {value} kWh je m² Wohnfläche ({area} m²) und Jahr.",
-      "howToRead": "Jahresbericht lesen"
+      "howToRead": "Jahresbericht lesen",
+      "choose": "Vor dem Öffnen wählst du Jahr, Verbrauchsarten, Sprache und Anhang; dieses Gerät merkt sich die Auswahl."
     },
     "weatherSource": "Temperaturen: Open-Meteo.com (CC BY 4.0), soweit nicht selbst erfasst.",
     "print": {
@@ -3001,6 +3011,18 @@
         "term": "Tankbuch",
         "text": "Lieferungen und Bestände von Heizöl oder Pellets; daraus rechnet der Energietracker Verbrauch und Reichweite."
       }
+    },
+    "dialog": {
+      "title": "Jahresbericht erstellen",
+      "language": "Sprache des PDF",
+      "printLanguage": "Die Druckansicht erscheint in der Sprache dieses Geräts ({lang}).",
+      "utilities": "Verbrauchsarten",
+      "utilitiesHint": "Alle angehakt: der ganze Bericht. Sonst ein Teilbericht nur mit diesen Verbrauchsarten, etwa für die Hausverwaltung.",
+      "utilitiesNone": "Mindestens eine Verbrauchsart wählen.",
+      "demoNote": "In der Demo gibt es den Bericht nur vollständig; Teilbericht und Anhang im PDF gehen mit einer eigenen Installation.",
+      "remembered": "Dieses Gerät merkt sich die Auswahl; das Jahr steht jedes Mal wieder auf dem Vorjahr.",
+      "options": "Optionen …",
+      "partial": "Teilbericht: {list}"
     }
   },
   "csv": {
@@ -3048,7 +3070,9 @@
       "dueRequired": "Ein Fälligkeitsdatum (JJJJ-MM-TT) ist erforderlich.",
       "recurrenceMonths": "Bei „alle N Monate“ muss ein Intervall größer 0 angegeben werden.",
       "notFound": "Termin nicht gefunden: {id}",
-      "lastDoneInvalid": "„Zuletzt erledigt“ muss leer oder ein Datum (JJJJ-MM-TT) sein."
+      "lastDoneInvalid": "„Zuletzt erledigt“ muss leer oder ein Datum (JJJJ-MM-TT) sein.",
+      "assigneeInvalid": "„Zuständig“ darf höchstens {max} Zeichen lang sein und keine Steuerzeichen enthalten.",
+      "assigneeUnknown": "Diese Person gibt es nicht (mehr). Wähle eine Person aus der Liste oder trage einen Namen ein."
     },
     "tariff": {
       "waterUnsupported": "Der Tarifvergleich für Wasser (Drei-Komponenten-Tarif) ist in dieser Version nicht enthalten.",
@@ -3252,7 +3276,8 @@
       "corrupted": "Die Datei {file} ist beschädigt (kein gültiges JSON). Bitte aus einem Backup wiederherstellen oder die Datei reparieren; bis dahin wird sie nicht überschrieben.",
       "corruptedCopy": "Die Datei {file} ist beschädigt (kein gültiges JSON); eine Kopie liegt unter {copy}. Bitte aus einem Backup wiederherstellen oder die Datei reparieren; bis dahin wird sie nicht überschrieben.",
       "unreadable": "Die Datei {file} ist nicht lesbar — bitte die Dateirechte des Datenverzeichnisses prüfen.",
-      "locked": "Die Datei {file} lässt sich nicht sperren. Bitte gleich noch einmal versuchen."
+      "locked": "Die Datei {file} lässt sich nicht sperren. Bitte gleich noch einmal versuchen.",
+      "notWritable": "Energietracker kann nicht in sein Datenverzeichnis schreiben — bitte die Rechte am Datenordner bzw. am Volume anpassen. Welcher Benutzer schreiben muss, steht im Server-Log."
     },
     "report": {
       "yearRange": "Das Jahr muss eine Zahl zwischen 2000 und 2100 sein.",
@@ -3334,7 +3359,7 @@
     },
     "evReport": {
       "methodInvalid": "Unbekannte Methode „{value}“ — erlaubt sind contract und flat",
-      "flatMissing": "Für {year} ist keine Strompreispauschale hinterlegt — trag sie selbst ein",
+      "flatMissing": "Für {year} ist keine Strompreispauschale hinterlegt — trag sie selbst ein. Es gibt sie seit 2026; der Wert eines Jahres steht erst fest, wenn Destatis im Herbst des Vorjahres den Strompreis von dessen 1. Halbjahr veröffentlicht hat.",
       "noContract": "Für die Wallbox gibt es keinen zahlenden Vertrag — weder einen eigenen noch einen am übergeordneten Zähler",
       "yearInvalid": "Jahr „{year}“ ist ungültig",
       "flatInvalid": "Pauschale „{value}“ ist keine gültige Zahl (0 bis 200 Cent)"
@@ -3378,6 +3403,10 @@
       "occurrenceChanged": "Der Hinweis hat sich inzwischen geändert (etwa ein neues Vertragsende). Bitte die Seite neu laden.",
       "dateInvalid": "„{value}“ ist kein gültiger Tag. Erwartet: JJJJ-MM-TT, nicht in der Zukunft.",
       "noteInvalid": "Die Notiz darf höchstens {max} Zeichen lang sein."
+    },
+    "energyFlow": {
+      "dateInvalid": "Ungültiges Datum: {date} (erwartet JJJJ-MM-TT zwischen 2000 und 2100).",
+      "monthInvalid": "Ungültiger Monat: {month} (erwartet JJJJ-MM zwischen 2000 und 2100)."
     }
   },
   "login": {
@@ -3616,7 +3645,7 @@
     },
     "efficiency": {
       "term": "Effizienzkennzahl",
-      "text": "Heizenergie je m² und Jahr (kWh/m²·a). Die Hauskennzahl bezieht sich auf die Wohnfläche; die energieausweis-nahe Zahl rechnet wie ein Energieausweis (Heizwert, witterungsbereinigt, Nutzfläche). Kein offizieller Ausweis."
+      "text": "Heizenergie je m² und Jahr (kWh/m²·a). Die Hauskennzahl bezieht sich auf die Wohnfläche; die energieausweis-nahe Zahl rechnet wie ein Verbrauchsausweis (witterungsbereinigt, Nutzfläche; bis 2026 nach Heizwert, ab 2027 nach Brennwert). Kein offizieller Ausweis."
     },
     "feedIn": {
       "term": "Einspeisung",
@@ -3693,6 +3722,10 @@
     "profileFactor": {
       "term": "Profilfaktor",
       "text": "Dein Börsenpreis je kWh (nach Verbrauch gewichtet) geteilt durch das Börsenmittel. Unter 1: Du verbrauchst eher, wenn Strom billig ist; über 1: eher, wenn er teuer ist."
+    },
+    "typicalDay": {
+      "term": "Typischer Tag",
+      "text": "Der Energiefluss eines Durchschnittstags im Monat: für jede Viertelstunde (Ortszeit) das Mittel über alle Tage des Monats mit Messwerten. Er zeigt das Muster — etwa, wann die Mittagssonne den Speicher lädt —, keinen echten Tag."
     }
   },
   "help": {
@@ -3878,7 +3911,8 @@
       "temperatures": "temperaturen",
       "exampleReadings": "beispiel-ablesungen",
       "exampleTemperatures": "beispiel-temperaturen",
-      "periods": "zeitraeume"
+      "periods": "zeitraeume",
+      "activity": "verlauf"
     },
     "periods": {
       "from": "Von",
@@ -3899,6 +3933,14 @@
       "baseShare": "Grundpreis-Anteil",
       "amount": "Betrag",
       "method": "Methode"
+    },
+    "activity": {
+      "date": "Datum",
+      "action": "Aktion",
+      "title": "Titel",
+      "by": "Wer",
+      "reason": "Grund",
+      "note": "Notiz"
     }
   },
   "calendar": {
@@ -3913,7 +3955,11 @@
       "tankReorder": "{label}: Lieferung planen ({meter})",
       "tenancyStatementDue": "Nebenkostenabrechnung bis zum {period} fällig: {label}",
       "objectionDeadline": "Einwände gegen die Nebenkostenabrechnung bis heute: {label}",
-      "co2ClaimDeadline": "CO₂-Kosten {year}: Vermieteranteil von {amount} bis heute einfordern"
+      "co2ClaimDeadline": "CO₂-Kosten {year}: Vermieteranteil von {amount} bis heute einfordern",
+      "billExpected": "Abrechnung erwartet: {label} ({provider}) für {from} – {until}",
+      "billOverdue": "Abrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen",
+      "finalBillExpected": "Schlussrechnung erwartet: {label} ({provider}) für {from} – {until}",
+      "finalBillOverdue": "Schlussrechnung überfällig: {label} ({provider}) für {from} – {until} — gesetzliche Frist verstrichen, beim Versorger nachfragen"
     },
     "subscribe": "Im Kalender abonnieren",
     "intro": "Termine, Kündigungsstichtage, Vertragsenden, Preisgarantien und fällige Ablesungen als Kalender-Abo. Der Kalender holt sie alle 12 Stunden neu.",
@@ -3926,7 +3972,9 @@
       "one": "Es gibt schon {count} Kalender-Schlüssel – ein neuer Link legt einen weiteren an.",
       "other": "Es gibt schon {count} Kalender-Schlüssel – ein neuer Link legt einen weiteren an."
     },
-    "createLink": "Link erzeugen"
+    "createLink": "Link erzeugen",
+    "ingressHint": "Läuft die App in Home Assistant, nennt der Link ihre Adresse im Netz von Home Assistant — gedacht für Home Assistant selbst, etwa die Integration Remote Calendar. Für Kalender auf Handy oder Computer gib in der Konfiguration der App unter Netzwerk einen Port frei und ersetze den Anfang bis /api.php durch die Adresse von Home Assistant mit diesem Port.",
+    "assignee": "Zuständig: {name}"
   },
   "tenancy": {
     "title": "Mietverhältnis",
@@ -4344,7 +4392,8 @@
       "chipsGroup": "Knoten hervorheben",
       "scope": {
         "year": "Jahr",
-        "month": "Monat"
+        "month": "Monat",
+        "day": "Tag"
       },
       "periodGroup": "Zeitraum",
       "prev": "Früherer Zeitraum",
@@ -4353,6 +4402,37 @@
       "months": {
         "one": "{count} Monat",
         "other": "{count} Monate"
+      },
+      "day": {
+        "mode": {
+          "single": "Ein Tag",
+          "typical": "Typischer Tag"
+        },
+        "modeGroup": "Welcher Tag",
+        "play": "Abspielen",
+        "pause": "Anhalten",
+        "time": "Uhrzeit",
+        "repeat": "{time} (nach der Zeitumstellung)",
+        "until": "{period} bis {time}",
+        "typicalPeriod": "Typischer Tag im {month}",
+        "sums": "Bis {time} aufgelaufen:",
+        "price": "Börsenpreis {time}: {price}",
+        "noPrice": "Börsenpreis {time}: keiner geladen",
+        "gapAt": "Für {time} fehlen Messwerte.",
+        "gaps": {
+          "one": "{count} Viertelstunde ohne Messwerte (Lücke, nicht 0).",
+          "other": "{count} Viertelstunden ohne Messwerte (Lücken, nicht 0)."
+        },
+        "typicalDays": {
+          "one": "Mittel je Viertelstunde aus {count} Tag.",
+          "other": "Mittel je Viertelstunde aus {count} Tagen."
+        },
+        "missing": "Ohne Viertelstunden: {list} — deshalb ist dort jede Viertelstunde eine Lücke.",
+        "missingFeed": "Es gibt keinen Einspeisezähler — ohne ihn lässt sich die Erzeugung nicht aufteilen.",
+        "missingGen": "Es gibt keinen Erzeugungszähler — ohne ihn ist der Hausverbrauch nicht bekannt.",
+        "calcNote": "Gestrichelt: je Viertelstunde gerechnet, nicht gemessen.",
+        "powerNote": "In den Knoten: die Leistung in dieser Viertelstunde (kW). Darunter: die Mengen seit Mitternacht (kWh).",
+        "gapsOption": "{date} (mit Lücken)"
       }
     },
     "weather": {
@@ -4403,7 +4483,7 @@
   },
   "setup": {
     "title": "Einrichten",
-    "intro": "Drei Fragen, dann zeigt die App, was zu dir passt. Alles lässt sich später ändern.",
+    "intro": "Ein paar Fragen, dann zeigt die App, was zu dir passt. Alles lässt sich später ändern.",
     "progress": "Schritt {n} von {total}",
     "persona": {
       "title": "Wer bist du?",
@@ -4441,7 +4521,7 @@
       "title": "So geht es weiter",
       "summary": "{persona} · Stufe „{level}“",
       "demo": "Mit Beispieldaten ansehen",
-      "demoHint": "Lädt den passenden Beispielhaushalt. Vorher sichert die App den jetzigen Stand.",
+      "demoHint": "Lädt den passenden Beispielhaushalt — mit Verlauf „Erledigt“, Zuständigen an Terminen und Versorgerrechnungen. Vorher sichert die App den jetzigen Stand.",
       "demoPublic": "Die Demo zeigt jetzt den Beispielhaushalt „{persona}“. Einen anderen wählst du über Einstellungen → Allgemein → „Einrichtungsassistent starten“.",
       "own": "Mit eigenen Daten starten",
       "ownHint": "Als Nächstes: Zähler prüfen und den ersten Stand erfassen."
@@ -4450,7 +4530,17 @@
     "back": "Zurück",
     "next": "Weiter",
     "done": "Los geht’s",
-    "restart": "Einrichtungsassistent starten"
+    "restart": "Einrichtungsassistent starten",
+    "region": {
+      "title": "Sprache und Land",
+      "language": "Sprache",
+      "current": "Eingestellt für {country}:",
+      "profile": "Das Länderprofil {country} setzt:",
+      "format": "Schreibweise",
+      "weather": "Wetterort",
+      "heatingLimit": "Heizgrenze",
+      "demoCountry": "In der Demo gilt das Land des Beispielhaushalts. In einer eigenen Installation wählst du es hier."
+    }
   },
   "evcc": {
     "title": "Ladevorgänge aus evcc {year}",
@@ -4589,7 +4679,10 @@
       "reading": "Zählerstand vom {date} erfasst",
       "delivery": "Lieferung vom {date} erfasst",
       "statement": "Abrechnung bis {date} erfasst",
-      "dismissed": "ausgeblendet bis {date}"
+      "dismissed": "ausgeblendet bis {date}",
+      "period": "Verbrauch {from} – {to} erfasst",
+      "bill": "Rechnung bis {date} erfasst",
+      "billWithout": "kam ohne Erfassung"
     },
     "markDone": "Als erledigt markieren",
     "markDoneNamed": "Erledigt: {title}",
@@ -4600,7 +4693,8 @@
       "attachment": "Beleg (optional, Foto oder PDF)",
       "cancelled": "Gekündigt – der Vertrag verlängert sich nicht",
       "save": "Erledigt",
-      "dateInvalid": "Bitte einen Tag bis heute wählen."
+      "dateInvalid": "Bitte einen Tag bis heute wählen.",
+      "billWithout": "Abhaken heißt hier: Die Rechnung kam, du erfasst sie aber nicht. Wer sie unter „Rechnung prüfen“ erfasst, braucht nichts abzuhaken – der Hinweis erledigt sich dann von selbst."
     },
     "toast": {
       "done": "„{title}“ erledigt",
@@ -4667,7 +4761,8 @@
     },
     "action": {
       "auto": "automatisch",
-      "dismissed": "ausgeblendet"
+      "dismissed": "ausgeblendet",
+      "updated": "geändert"
     },
     "attachment": "Beleg",
     "undoneLine": "Rückgängig gemacht {when}",
@@ -4677,6 +4772,43 @@
       "editNamed": "Notiz bearbeiten: {title}",
       "saved": "Notiz gespeichert"
     },
-    "reasonLine": "Grund: {reason}"
+    "reasonLine": "Grund: {reason}",
+    "changed": {
+      "statement": "Nebenkostenabrechnung {from} – {to} geändert: {label}"
+    },
+    "actionName": {
+      "done": "erledigt",
+      "auto_done": "automatisch erledigt",
+      "dismissed": "ausgeblendet",
+      "updated": "geändert"
+    },
+    "assigneeLine": "Zuständig: {name}",
+    "csv": {
+      "button": "Als CSV",
+      "hint": "Der Verlauf mit den gewählten Filtern als Tabelle – etwa als Nachweis für Vermieter oder Hausverwaltung"
+    }
+  },
+  "assignee": {
+    "label": "Zuständig",
+    "placeholder": "Name (optional)",
+    "hint": "Ein Name, leer = niemand. Benachrichtigt wird niemand.",
+    "hintPeople": "Eine Person aus der Liste oder ein freier Name, leer = niemand. Benachrichtigt wird niemand.",
+    "wasFormer": "Bisher: ehemalige Person.",
+    "tooLong": "Höchstens {max} Zeichen.",
+    "filter": {
+      "label": "Nach Zuständigkeit filtern",
+      "all": "Alle",
+      "mine": "Meine Aufgaben",
+      "none": "Ohne Zuständigkeit",
+      "names": "Namen"
+    },
+    "iAm": "Ich bin",
+    "iAmPick": "– bitte wählen –",
+    "pickMe": "Ohne Anmeldung: Wähle bei „Ich bin“, wer du bist – dieses Gerät merkt es sich.",
+    "hidden": {
+      "one": "{count} weiterer Eintrag ausgeblendet (Filter „Zuständig“)",
+      "other": "{count} weitere Einträge ausgeblendet (Filter „Zuständig“)"
+    },
+    "emptyFiltered": "Für diese Auswahl gibt es nichts."
   }
 }

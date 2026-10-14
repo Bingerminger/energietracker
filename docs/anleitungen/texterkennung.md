@@ -27,9 +27,12 @@ iPhone mit Live Text („Text scannen“ im Feld).
 
 - Das Foto geht an **deinen** Dienst, nicht an einen Cloud-Anbieter. Als
   Adresse nimmt die App nur Ziele im eigenen Netz an: Loopback, private Netze
-  (`10.x`, `172.16.x`–`172.31.x`, `192.168.x`), Link-local, `100.64.0.0/10`
-  (Tailscale) und die entsprechenden IPv6-Bereiche. Eine öffentliche Adresse
-  lehnt sie ab. Einen Schalter, der das aufhebt, gibt es nicht.
+  (`10.x`, `172.16.x`–`172.31.x`, `192.168.x`), `100.64.0.0/10` (Tailscale)
+  und die entsprechenden IPv6-Bereiche (`::1`, `fc00::/7`). Link-local
+  (`169.254.x`, `fe80::`) gilt seit v3.4.0 nicht mehr als Heimnetz — dort
+  antworten bei gemieteten Servern die Metadatendienste der Anbieter. Eine
+  öffentliche Adresse lehnt sie ab. Einen Schalter, der das aufhebt, gibt es
+  nicht.
 - Geprüft wird bei **jedem** Aufruf, nach der Namensauflösung, und verbunden
   wird mit genau der geprüften Adresse. Ein Name, der plötzlich ins Internet
   zeigt (DNS-Rebinding), kommt so nicht durch. Weiterleitungen folgt die App
@@ -71,17 +74,17 @@ iPhone mit Live Text („Text scannen“ im Feld).
    ollama pull qwen2.5vl
    ```
 
-   Andere Bildmodelle sind etwa `llama3.2-vision` oder `minicpm-v`. Welches
-   deine Zähler am besten liest, hängt vom Zähler und vom Foto ab — probier es
-   aus.
+   Andere Bildmodelle sind etwa `llama3.2-vision`, `minicpm-v` oder das auf
+   Texterkennung ausgelegte `glm-ocr`. Welches deine Zähler am besten liest,
+   hängt vom Zähler und vom Foto ab — probier es aus.
 3. **Im Netz erreichbar machen.** Ollama hört von Haus aus nur auf
    `127.0.0.1`, also nur auf Anfragen vom selben Rechner. Damit der
    Energietracker es aus einem Container oder von einem NAS erreicht, muss es
    auf allen Schnittstellen hören: Umgebungsvariable `OLLAMA_HOST=0.0.0.0`
    setzen und Ollama neu starten. Wie das je Betriebssystem geht, steht in der
-   [Ollama-FAQ](https://github.com/ollama/ollama/blob/main/docs/faq.md)
+   [Ollama-FAQ](https://docs.ollama.com/faq)
    („How do I configure Ollama server?“). Im Container-Image `ollama/ollama`
-   ist das schon so eingestellt.
+   ist das schon so eingestellt (`OLLAMA_HOST=0.0.0.0:11434`).
    Ollama kennt keine Anmeldung: Jeder im Heimnetz kann das Modell dann
    nutzen. Gib den Port nicht ins Internet frei.
 4. **Prüfen**, am besten vom Server des Energietrackers aus:
@@ -98,15 +101,28 @@ Laufen Ollama und der Energietracker auf demselben Rechner und der
 Energietracker **nicht** in Docker, genügt `http://127.0.0.1:11434` — Schritt 3
 entfällt dann.
 
+> **Wie geprüft (Oktober 2026):** gegen die Herstellerdoku (API `/api/chat`
+> mit Bildern als Base64, `/api/tags`, FAQ, Container-Image) und am App-Pfad:
+> Einstellungen, Foto hochladen und `POST /api/ocr/reading` liefen gegen
+> einen nachgebauten Dienst, der wie Ollama antwortet; die Meldung „nicht
+> erreichbar“ gegen einen nicht laufenden Dienst. Mit einem echten Ollama und
+> einem Bildmodell ist die Anleitung in diesem Release **nicht** ausprobiert.
+
 ---
 
 ## LM Studio einrichten
 
 1. [LM Studio](https://lmstudio.ai) installieren und ein Bildmodell laden — in
    der Modellsuche als „Vision“ gekennzeichnet, etwa Qwen2.5-VL.
-2. **Server starten:** im Bereich **Developer** den Server einschalten
-   (Port 1234) und **„Serve on Local Network“** aktivieren. Sonst nimmt er nur
-   Anfragen vom selben Rechner an.
+2. **Server starten:** im Bereich **Developer** den Schalter **„Start
+   server“** einschalten (oder im Terminal `lms server start`). In den
+   Servereinstellungen:
+   - **„Serve on Local Network“** einschalten — sonst nimmt der Server nur
+     Anfragen vom selben Rechner an.
+   - **„Require Authentication“** ausgeschaltet lassen: Die App schickt
+     keinen API-Token mit, der Server würde jede Anfrage abweisen.
+   - Der Port steht unter **„Server Port“**; die Beispiele der LM-Studio-Doku
+     nutzen `1234`.
 3. **Prüfen:**
 
    ```sh
@@ -119,7 +135,16 @@ entfällt dann.
 
 Andere OpenAI-kompatible Server wie LocalAI gehen genauso: Schnittstelle
 „OpenAI-kompatibel“, Adresse bis einschließlich `/v1`. Das Modell muss Bilder
-annehmen; die App schickt das Foto als Data-URI.
+annehmen; die App schickt das Foto im OpenAI-Format als Data-URI
+(`image_url`).
+
+> **Wie geprüft (Oktober 2026):** nach der Herstellerdoku auf lmstudio.ai
+> (Server starten, Servereinstellungen, OpenAI-kompatible Endpunkte) —
+> **nicht ausprobiert**. Die Doku nennt für `/v1/chat/completions` „Text und
+> Bilder“, beschreibt das Bildformat aber nicht; dass LM Studio das Foto im
+> OpenAI-Format annimmt, ist deshalb nicht belegt. Der App-Pfad selbst
+> (Adresse mit `/v1`, Anfrage mit dem Foto als Data-URI) lief gegen einen
+> nachgebauten Dienst.
 
 ---
 
@@ -193,7 +218,7 @@ JSON mit Wert und Selbsteinschätzung. Technisch:
 |---|---|
 | „Die Texterkennung muss im eigenen Netz laufen – „…“ ist keine Adresse im Heimnetz.“ | Die Adresse — oder eine der Adressen, auf die der Name zeigt — liegt nicht im eigenen Netz. Die IP-Adresse des Rechners im Heimnetz eintragen. Ein Cloud-Dienst geht bewusst nicht. |
 | „Die Texterkennung hat nicht innerhalb von 30 Sekunden geantwortet.“ | Das Modell ist zu langsam für das Zeitlimit, besonders beim ersten Aufruf nach einer Pause, wenn der Dienst das Modell erst in den Speicher lädt. Zeitlimit erhöhen, ein kleineres Modell nehmen oder den Dienst auf einem schnelleren Rechner betreiben. |
-| „Die Texterkennung ist nicht erreichbar.“ | Der Dienst läuft nicht, hört nur auf `127.0.0.1` (`OLLAMA_HOST`, „Serve on Local Network“), eine Firewall sperrt den Port, im Container steht `localhost` ([Docker](#wenn-der-energietracker-in-docker-läuft)) oder der Name lässt sich nicht auflösen. Ebenso, wenn der Dienst mit einem Fehler antwortet — etwa weil es das Modell unter diesem Namen nicht gibt (`ollama list` zeigt die Namen) oder die Schnittstelle nicht passt — oder dem Server fehlt die PHP-Erweiterung curl. Erste Probe: das `curl` von oben, vom Server des Energietrackers aus. |
+| „Die Texterkennung ist nicht erreichbar.“ | Der Dienst läuft nicht, hört nur auf `127.0.0.1` (`OLLAMA_HOST`, „Serve on Local Network“), eine Firewall sperrt den Port, im Container steht `localhost` ([Docker](#wenn-der-energietracker-in-docker-läuft)) oder der Name lässt sich nicht auflösen. Ebenso, wenn der Dienst mit einem Fehler antwortet — etwa weil es das Modell unter diesem Namen nicht gibt (`ollama list` zeigt die Namen), die Schnittstelle nicht passt oder LM Studio eine Anmeldung verlangt („Require Authentication“) — oder dem Server fehlt die PHP-Erweiterung curl. Erste Probe: das `curl` von oben, vom Server des Energietrackers aus. |
 | „Die Texterkennung hat keine verwertbare Antwort geliefert.“ | Der Dienst hat geantwortet, aber ohne Text — etwa ein Modell, das mit dem Bild nichts anfangen kann, oder unter der Adresse antwortet ein anderer Dienst. |
 | „Kein Zählerstand erkannt – bitte von Hand eintragen.“ | Das Modell hat geantwortet, aber keine Zahl gefunden. Näher, gerader und schärfer fotografieren oder ein anderes Modell probieren. |
 | Der Vorschlag ist falsch oder Unsinn | Ein Modell **ohne Bildfähigkeit** weist das Bild ab (dann „nicht erreichbar“) oder antwortet, ohne es zu sehen — mit einem erfundenen oder ohne Wert. Ein Bildmodell eintragen, etwa `qwen2.5vl`, `llama3.2-vision` oder `minicpm-v`. Fehlen oder stören Nachkommastellen, den Wert vor dem Speichern korrigieren: Gespeichert wird nur, was im Feld steht. |

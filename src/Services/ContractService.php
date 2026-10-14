@@ -20,7 +20,8 @@ use Energietracker\Support\LocalizedException;
  *  - **Wasser** (v1.0.3): three priced components per contract — fresh-water
  *    (`trinkwasser`), waste-water (`schmutzwasser`), and storm-water
  *    (`niederschlagswasser`). Each component has its own price history.
- *    Plus the common `advance_payments` and `bonuses`.
+ *    Plus the common `advance_payments` and `bonuses`, and since v3.5.0
+ *    (GitHub #34) `special_payments` like Gas / Strom.
  *
  *    The component shapes:
  *      trinkwasser: { working_prices[{from,ct_per_m3}], base_prices[{from,eur_per_month}] }
@@ -215,6 +216,8 @@ final class ContractService
             $base['schmutzwasser']       = $input['schmutzwasser']       ?? [];
             $base['niederschlagswasser'] = $input['niederschlagswasser'] ?? [];
             $base['advance_payments']    = $input['advance_payments']    ?? [];
+            // v3.5.0 (GitHub #34) — Nach- und Rückzahlungen der Wasserabrechnung
+            $base['special_payments']    = $input['special_payments']    ?? [];
             $contract = $this->normalizeWater($base);
         } else {
             $base['working_prices']   = $input['working_prices']   ?? [];
@@ -227,10 +230,9 @@ final class ContractService
             $isFeedIn = Utilities::isFeedIn($utility);
             $base['base_prices']      = $isFeedIn ? [] : ($input['base_prices']      ?? []);
             $base['advance_payments'] = $isFeedIn ? [] : ($input['advance_payments'] ?? []);
-            // F1003 — Sonderzahlungen (nur Standard-Vertrags-Utilities mit
-            // Abschlags-Saldierung: Gas/Strom/Fernwärme). Bei Heizöl/Pellets
-            // und PV-Einspeisung existiert keine Abschlagslogik.
-            $base['special_payments'] = Utilities::hasAdvancePaymentContracts($utility)
+            // F1003 — Sonderzahlungen (Gas/Strom/Fernwärme; Wasser oben). Bei
+            // Heizöl/Pellets und PV-Einspeisung existiert keine Abschlagslogik.
+            $base['special_payments'] = Utilities::hasSpecialPayments($utility)
                 ? ($input['special_payments'] ?? [])
                 : [];
             // v3.1.0 (H5, CALC-31) — Fernwärme: Leistungs- und Messpreis, Netz-CO₂-Faktor
@@ -287,7 +289,6 @@ final class ContractService
                'is_shadow', 'shadow_label']
             : ['provider', 'tariff_name', 'start', 'end', 'notes', 'meter_id',
                'working_prices', 'base_prices', 'advance_payments', 'bonuses',
-               'special_payments',
                'is_shadow', 'shadow_label'], $switchFields);
         if ($utility === 'fernwaerme') $standardFields = array_merge($standardFields, self::DISTRICT_HEATING_FIELDS);   // v3.1.0
         if ($utility === 'strom') array_push($standardFields, 'grid_reduction', 'grid_tou');   // v3.1.0 (H6, MKT-13); v3.3.0 Modul 3
@@ -296,6 +297,14 @@ final class ContractService
                            'trinkwasser', 'schmutzwasser', 'niederschlagswasser',
                            'advance_payments', 'bonuses',
                            'is_shadow', 'shadow_label'], $switchFields);
+        // F1003 — Sonderzahlungen nur, wo es sie gibt (wie in create()). v3.5.0
+        // (GitHub #34): auch Wasser; bis v3.4 verwarf update() sie dort still —
+        // auch die Buchung einer Wasserrechnung (BillService::book) kam nie an.
+        // Heizöl/Pellets nahm update() bisher an, gerechnet wurde damit nie.
+        if (Utilities::hasSpecialPayments($utility)) {
+            $standardFields[] = 'special_payments';
+            $waterFields[]    = 'special_payments';
+        }
 
         foreach ($all as &$c) {
             if (($c['id'] ?? null) !== $id) continue;
@@ -430,7 +439,8 @@ final class ContractService
 
     /**
      * F4 for water: three component blocks (trinkwasser, schmutzwasser,
-     * niederschlagswasser) plus shared advance_payments and bonuses.
+     * niederschlagswasser) plus shared advance_payments, bonuses and (since
+     * v3.5.0) special_payments.
      */
     private function normalizeWater(array $c): array
     {
@@ -521,6 +531,13 @@ final class ContractService
             $c['advance_payments'] ?? [], 'from', 'amount_eur', $this->i18n->t('contracts.priceGroup.advance')
         );
         $c['bonuses'] = $this->normalizeBonuses($c['bonuses'] ?? []);
+        // v3.5.0 (GitHub #34) — Sonderzahlungen wie beim Standardvertrag. Ein
+        // älterer Wasservertrag ohne das Feld behält es fehlend, bis welche
+        // kommen (gelesen wird überall mit `?? []`); so bleiben Beispiel- und
+        // Bestandsdaten beim Speichern anderer Felder, wie sie sind.
+        if (array_key_exists('special_payments', $c)) {
+            $c['special_payments'] = $this->normalizeSpecialPayments((array)($c['special_payments'] ?? []));
+        }
         return $this->normalizeSwitchFields($c);
     }
 
@@ -1040,14 +1057,14 @@ final class ContractService
     }
 
     /**
-     * F1003 — der effektive Abschlagsplan eines Standard-Vertrags:
-     * `advance_payments` plus die synthetischen Punkte aus allen
-     * `*_mit`-Sonderzahlungen (new_advance_eur ab advance_from).
+     * F1003 — der effektive Abschlagsplan eines Vertrags (Standard und seit
+     * v3.5.0 auch Wasser): `advance_payments` plus die synthetischen Punkte
+     * aus allen `*_mit`-Sonderzahlungen (new_advance_eur ab advance_from).
      *
      * Wird von ConsumptionService anstelle von `$c['advance_payments']`
      * verwendet, damit "mit Auswirkung" automatisch in jede monatliche
      * Abschlagsbildung einfließt — ohne Sonderlogik in der Saldo-
-     * Aggregation.
+     * Aggregation. Ohne Sonderzahlungen ist er `advance_payments`.
      *
      * @return array<int,array{from:string,amount_eur:float}>
      */

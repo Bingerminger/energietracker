@@ -64,6 +64,21 @@ final class SettingsController
     }
 
     /**
+     * v3.5.0 (N1022) — Land wechseln (POST /api/settings/country):
+     * `{"country": "AT", "profile": true}` übernimmt das Länderprofil, mit
+     * `"profile": false` nur das Land. Festgeschrieben wird nur, was vom
+     * Default abweicht (SettingsService::applyCountry) — dieselbe Regel wie
+     * beim Erststart. Antwort: alle Einstellungen wie bei PATCH.
+     */
+    public function country(Request $req): never
+    {
+        $body = (array)$req->body;
+        $code = is_string($body['country'] ?? null) ? $body['country'] : '';
+        // ein unbekanntes Land meldet applyCountry() als 400 (errors.settings.valueInvalid)
+        Response::json($this->settings->applyCountry($code, ($body['profile'] ?? true) !== false));
+    }
+
+    /**
      * v2.10.0 — Korrigierte Standardwerte, die diese Installation noch nicht
      * nutzt (Migration 1.6.0 hat die alten festgeschrieben, Lektion 36).
      * Übernommen wird per PATCH /api/settings.

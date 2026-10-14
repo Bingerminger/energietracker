@@ -390,6 +390,27 @@ final class AuthService
         return array_map([self::class, 'publicUser'], $this->allUsers());
     }
 
+    /**
+     * v3.5.0 (F1028) — Personen für die Auswahl „Zuständig“: nur ID und Name,
+     * nach Namen sortiert; ohne eingeschaltete Anmeldung keine. Der Verwalter
+     * aus der Zeit vor v3.2 zählt erst, wenn er eingetragen ist (sonst wäre die
+     * Liste bei einem einzigen Passwort „admin“).
+     *
+     * @return list<array{id:string, name:string}>
+     */
+    public function people(): array
+    {
+        if ($this->mode() === 'off') return [];
+        $out = [];
+        foreach ($this->storedUsers() as $u) {
+            $name = trim((string)($u['name'] ?? ''));
+            if (($u['id'] ?? '') === '' || $name === '') continue;
+            $out[] = ['id' => (string)$u['id'], 'name' => $name];
+        }
+        usort($out, fn($a, $b) => strcasecmp($a['name'], $b['name']));
+        return $out;
+    }
+
     /** Gibt es angelegte Personen (dann fragt die Anmeldung nach dem Namen)? */
     public function hasNamedUsers(): bool
     {

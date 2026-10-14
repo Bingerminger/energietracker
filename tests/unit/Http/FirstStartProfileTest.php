@@ -104,6 +104,40 @@ final class FirstStartProfileTest extends TestCase
         self::assertSame('Europe/London', $s['timezone']);
     }
 
+    /**
+     * v3.5.0 (N1022) — Die Einrichtung fragt nach Sprache und Land. Wer nach
+     * einem englischen Erststart (Profil GB) Deutschland wählt, bekommt die
+     * Defaults zurück, ohne dass sie festgeschrieben werden — dieselbe Regel
+     * wie beim Erststart (POST /api/settings/country).
+     */
+    public function testSwitchingBackToGermanyStoresNoProfileValue(): void
+    {
+        $this->start('en-GB,en;q=0.9');
+        $s = $this->post('/api/settings/country', ['country' => 'DE', 'profile' => true]);
+        self::assertSame(['DE', 'EUR', 'kwh', 'Europe/Berlin'], [$s['country'] ?? null, $s['currency'] ?? null, $s['gas_cv_unit'] ?? null, $s['timezone'] ?? null]);
+        self::assertSame('en', $s['language'], 'die Sprache bleibt (en + DE schreibt wie en-GB)');
+        $stored = json_decode((string)file_get_contents($this->dataDir . '/settings.json'), true);
+        self::assertSame([], array_values(array_intersect(array_keys($stored), ['country', 'currency', 'timezone', 'gas_cv_unit',
+            'hdd_base_temp', 'co2_strom', 'co2_strom_years', 'location_name', 'latitude', 'longitude'])));
+        self::assertSame('en', $stored['language'] ?? null);
+
+        $bad = $this->post('/api/settings/country', ['country' => 'XX']);
+        self::assertSame('errors.settings.valueInvalid', $bad['code'] ?? null, 'unbekanntes Land: 400 mit stabilem Code');
+    }
+
+    /** @param array<string,mixed> $body */
+    private function post(string $path, array $body): mixed
+    {
+        $ctx = stream_context_create(['http' => [
+            'method' => 'POST', 'ignore_errors' => true,
+            'header' => "Content-Type: application/json\r\nOrigin: {$this->base}\r\nX-ET-Language: en",
+            'content' => json_encode($body),
+        ]]);
+        $raw = @file_get_contents($this->base . $path, false, $ctx);
+        $json = json_decode((string)$raw, true);
+        return is_array($json) && array_key_exists('data', $json) ? $json['data'] : $json;
+    }
+
     public function testGermanBrowserWritesNothing(): void
     {
         $this->start('de-DE,de;q=0.9');

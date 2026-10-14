@@ -55,7 +55,7 @@
    Formularzeile sind damit gleich hoch; bis v3.3 waren Textfelder 34 px,
    Datumsfelder 36 px und „Ab Beginn" 24 px hoch. */
 :root { --control-h: 36px; }
-@media (pointer: coarse), (max-width: 800px) { :root { --control-h: 44px; } }
+@media (pointer: coarse), (max-width: 899.98px) { :root { --control-h: 44px; } }
 
 /* v3.4.0 (N1021) — `hidden` gilt immer, auch gegen display:flex/grid einer
    Klasse. In „Angebot erfassen" standen die Felder für dynamische Tarife
@@ -379,7 +379,7 @@ fieldset.fgroup, .fgroup {
 /* v2.6.0 — Bei offenem Dialog oben: Unten rechts lag eine Fehlermeldung
    genau über „Speichern" und fing die Klicks ab, bis sie verschwand. */
 body:has(.modal-backdrop) .toast-stack { bottom: auto; top: 20px; }
-@media (max-width: 800px) {
+@media (max-width: 899.98px) {
   /* über der Tab-Leiste (v2.11.0) */
   .toast-stack { left: 12px; right: 12px; bottom: calc(12px + var(--tabbar-h) + env(safe-area-inset-bottom, 0px)); max-width: none; }
   body:has(.modal-backdrop) .toast-stack { bottom: auto; top: calc(12px + env(safe-area-inset-top, 0px)); }
@@ -1309,7 +1309,7 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
    Auf dem iPhone lagen alle Bedienelemente unter 44 pt (Apple HIG), rote
    „Löschen"-Knöpfe mit 28 × 24 px direkt neben „Bearbeiten". Eingaben unter
    16 px lassen Safari bei jedem Fokus in die Seite zoomen. */
-@media (pointer: coarse), (max-width: 800px) {
+@media (pointer: coarse), (max-width: 899.98px) {
   .btn { min-height: 44px; }
   .btn--sm { min-height: 40px; padding: 6px 12px; font-size: var(--fs-sm); }
   .btn--icon { min-width: 44px; justify-content: center; }
@@ -1363,7 +1363,7 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-md); box-shadow: var(--shadow-2);
 }
 .settings-savebar__text { flex: 1; font-weight: 600; color: var(--warning); }
-@media (max-width: 800px) {
+@media (max-width: 899.98px) {
   /* über der Tab-Leiste */
   .settings-savebar { bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--sp-2)); }
 }
@@ -1429,6 +1429,19 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .activity-item--undone .activity-item__title,
 .activity-item--undone .activity-item__icon { color: var(--text-2); opacity: .75; }
 .contract-overview__history { margin-top: var(--sp-2); }
+
+/* v3.5.0 (F1028) — Zuständig: Namens-Chip und Filter in Terminen und „Zu tun" */
+.chip--assignee {
+  font-family: inherit; font-size: var(--fs-xs); border-radius: 999px; padding: 1px 8px;
+  vertical-align: middle; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+}
+.chip--former { color: var(--text-2); font-style: italic; }
+.assignee-filter { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
+.assignee-filter label { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); color: var(--text-2); }
+.assignee-filter .select { width: auto; min-width: 10rem; }
+.dash-todo__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 var(--sp-3); }
+.dash-todo__head .assignee-filter { margin-bottom: var(--sp-2); }
+.dash-todo__text .chip--assignee { align-self: flex-start; margin-top: 2px; }
 
 /* v2.12.0 (Review UI-20) — Werkzeugleisten: beschriftete Auswahlfelder in
    Inhaltsbreite statt 100 %, Umbruch auf schmalen Bildschirmen */
@@ -1609,7 +1622,7 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   min-width: 32px; min-height: 32px; border: none; background: none;
   color: var(--text-2); font-size: 20px; line-height: 1; cursor: pointer;
 }
-@media (max-width: 800px) {
+@media (max-width: 899.98px) {
   .demo-bar { bottom: calc(var(--tabbar-h) + var(--sp-3) + env(safe-area-inset-bottom, 0px)); }
   .demo-bar__lang, .demo-bar__close { min-height: 44px; }
   .demo-bar__close { min-width: 44px; }
@@ -1771,6 +1784,37 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
   .explainer .ef-dots, .ef-period, .ef-detail { display: none; }
   .explainer .ef-arrow { display: inline; }
 }
+/* v3.5.0 (F1027) — Tagesfilm: Auswahl (Ein Tag / Typischer Tag, Monat, Tag),
+   Abspieler mit Schieberegler, Leiste mit Börsenpreis, Lücken und Cursor */
+.ef-day { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.ef-day__mode { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.ef-day__pick { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ef-pick { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--fs-sm); max-width: 100%; }
+.ef-pick__label { color: var(--text-2); }
+.ef-pick select { min-height: 36px; max-width: 100%; }
+.ef-day__status { flex-basis: 100%; margin: 0; font-size: var(--fs-sm); color: var(--text-2); }
+.ef-player { display: flex; flex-direction: column; gap: 2px; }
+.ef-player__row { display: flex; align-items: center; gap: var(--sp-2); }
+.ef-play {
+  min-width: 40px; min-height: 40px; border: 1px solid var(--border-2); border-radius: 999px;
+  background: transparent; color: var(--text-1); font: inherit; cursor: pointer;
+}
+.ef-play--on { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.ef-slider { flex: 1; min-width: 0; min-height: 32px; accent-color: var(--accent); }
+.ef-time { min-width: 3.2em; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--fs-sm); text-align: right; }
+.ef-strip { display: block; width: 100%; height: 40px; }
+.ef-strip__base { fill: var(--border-1); }
+.ef-strip__gap { fill: var(--danger); }
+.ef-strip__price { fill: none; stroke: var(--text-2); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.ef-strip__zero { stroke: var(--border-2); stroke-dasharray: 2 3; vector-effect: non-scaling-stroke; }
+.ef-strip__cursor { stroke: var(--accent); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.ef-price, .ef-sums { margin: 0; font-size: var(--fs-sm); color: var(--text-2); font-variant-numeric: tabular-nums; }
+/* Im Film wechseln die Viertelstunden schneller als die Übergänge von Jahr und Monat */
+.ef--film .ef .ef-band, .ef--film .ef .ef-calc, .ef--film .ef .ef-arc { transition-duration: .15s; }
+@media (prefers-reduced-motion: reduce) {
+  .ef--film .ef .ef-band, .ef--film .ef .ef-calc, .ef--film .ef .ef-arc { transition: none; }
+}
+@media print { .ef-day, .ef-player, .ef-sums { display: none; } }
 
 /* v3.2.0 (F1019) — Übersicht der Einsteiger: drei Antworten */
 .dash-answer__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -1796,6 +1840,23 @@ a.icon-btn { display: inline-flex; align-items: center; justify-content: center;
 .setup-choice__icon { font-size: 24px; line-height: 1; }
 .setup-choice__body { display: flex; flex-direction: column; gap: 2px; }
 .setup-utilities { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--sp-2); }
+/* v3.5.0 (N1022) — Schritt 1: was das Länderprofil setzt, als kurze Liste */
+.setup .fgrid { margin-bottom: calc(-1 * var(--sp-4)); }
+.setup-profile {
+  padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border-1); border-radius: var(--r-md);
+  background: var(--bg-2);
+}
+.setup-profile__title { margin: 0 0 var(--sp-2); font-weight: 600; font-size: var(--fs-sm); }
+.setup-profile__list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: var(--sp-2) var(--sp-4); margin: 0 0 var(--sp-2);
+}
+.setup-profile__row { min-width: 0; }
+.setup-profile__row dt { font-size: var(--fs-xs); color: var(--text-2); }
+.setup-profile__row dd { margin: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.setup-profile > :last-child { margin-bottom: 0; }
+/* v3.5.0 — Dialog „Jahresbericht“; Teilbericht in der Druckansicht kenntlich */
+.report-print__partial { margin: 0 0 var(--sp-3); font-weight: 600; }
 .settings-level-list { margin: var(--sp-2) 0 var(--sp-3); padding-left: var(--sp-4); display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
 .settings-subtitle { font-size: var(--fs-md, 15px); margin: var(--sp-4) 0 var(--sp-2); }
 

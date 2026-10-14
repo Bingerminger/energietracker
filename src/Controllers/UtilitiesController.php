@@ -21,6 +21,9 @@ use Energietracker\Services\I18nService;
  * standen die Felder nur, wenn sie in der Konfiguration gesetzt waren, und das
  * Frontend hielt eine eigene Kopie der Regel — sie bot PV-Einspeisung
  * Sonderzahlungen an, die der Server still verwarf.
+ *
+ * v3.5.0 (GitHub #34) — `has_special_payments` (additiv): Sonderzahlungen gibt
+ * es auch bei Wasser; `has_advance_payment_contracts` bleibt unverändert.
  */
 final class UtilitiesController
 {
@@ -39,6 +42,7 @@ final class UtilitiesController
             }
             $u['has_contracts']                 = Utilities::hasContracts($key);
             $u['has_advance_payment_contracts'] = Utilities::hasAdvancePaymentContracts($key);
+            $u['has_special_payments']          = Utilities::hasSpecialPayments($key);   // v3.5.0 (GitHub #34)
             $u['accounting_kind']               = Utilities::accountingKind($key);
             $u['supports_bill_check']           = Utilities::supportsBillCheck($key);   // v3.1.0 (H5)
         }

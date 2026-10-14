@@ -6,6 +6,191 @@ sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/) und
 
 ---
 
+## [3.5.0] — 2026-10-14 — Wer, wann, wohin
+
+MINOR-Release ohne Schemaschritt (bleibt 1.8.0): Aufgaben im Haushalt bekommen
+eine zuständige Person, fehlende Abrechnungen fallen auf, und der Energiefluss
+lässt sich über einen Tag abspielen. Dazu Home Assistant OS als App, ein Image
+ohne root und eine Einrichtung, die zuerst nach Sprache und Land fragt.
+**F1027** Tagesfilm, **F1028** Zuständig an Terminen, **F1029** Abrechnung
+erwartet, **N1022** Einrichtung mit Sprache und Land, **N1023** iPad,
+**N1024** Image ohne root, **N1025** Home-Assistant-App, **N1026**
+Beispieldaten; dazu der Rechtsstand 2027 und GitHub [#34]. API, CSV-Format 1,
+Backup-Format 3.0, Docker-Umgebung und der Home-Assistant-Ingest wachsen nur
+additiv.
+
+### ⚠️ Für bestehende Installationen
+
+- **Abrechnung erwartet:** Nach dem Update erscheint „Abrechnung erwartet“ für
+  Abrechnungszeiträume, die in den letzten 120 Tagen endeten und keine
+  erfasste Versorgerrechnung haben — abhaken oder die Rechnung erfassen. Die
+  Hinweise stehen auch in `summary.agenda` und im Kalender-Abo.
+- **Energieausweis-nahe Kennzahl ab 1. Januar 2027:** Sie rechnet nach dem
+  Verfahren, das am Rechentag gilt. Ab 2027 ist das § 82 GModG in neuer
+  Fassung (BGBl. 2026 I Nr. 226): Gas nach Brennwert statt Heizwert (die Zahl
+  steigt um rund 10 %), Warmwasser-Zuschlag 16 statt 20 kWh/(m²·a), Daten
+  über zwei Jahre statt 36 Monate. Die Klassengrenzen bleiben. Bis dahin
+  zeigt die Übersicht in Deutschland eine Vorschau.
+- **Wasserrechnungen, die seit v3.1.0 als Sonderzahlung „gebucht“ wurden,**
+  gelten wieder als nicht gebucht und lassen sich buchen — die Buchung war
+  nie im Vertrag angekommen. Sonderzahlungen, die per API an einem Heizöl-,
+  Pellet- oder Einspeisevertrag gespeichert wurden, zählen im Saldo nicht
+  mehr (die Oberfläche bot sie dort nie an).
+- **iPad hochkant:** Die Seitenleiste erscheint erst ab 900 px Breite,
+  darunter die Tab-Leiste mit „Mehr“ wie am Telefon.
+- **Nicht beschreibbares Datenverzeichnis:** Die App antwortet mit 503 und
+  `errors.storage.notWritable` statt 500; `/api/health` meldet
+  `data_dir_writable: false`, das Log nennt UID, Gruppe und den nötigen
+  `chown`.
+
+### Added
+
+- **Tagesfilm (F1027):** Der Energiefluss spielt einen Tag in Viertelstunden
+  ab, wahlweise einen bestimmten Tag oder den typischen Tag eines Monats
+  (Mittel je Viertelstunde). In den Knoten steht die Leistung, in den Knöpfen
+  die Summe seit Mitternacht, darunter der Börsenpreis mit Cursor. Lücken
+  sind gekennzeichnet, nie 0. Abspielen, Pause, Schieberegler mit Uhrzeit und
+  Tastatur; bei „Bewegung reduzieren“ nur der Schieberegler. Erscheint nur
+  mit Viertelstundenwerten des Netzbezugs. Neue Routen
+  `GET /api/energy-flow/days`, `/api/energy-flow/day?date=`,
+  `/api/energy-flow/typical-day?month=`.
+- **Zuständig an Terminen (F1028):** Feld „Zuständig“ im Termin-Dialog (Person
+  aus der Anmeldung oder freier Name), Namens-Chip in den Terminen und unter
+  „Zu tun“, Zeile „Zuständig: …“ im Kalender; Filter „Alle · Meine Aufgaben ·
+  Ohne Zuständigkeit · Namen“, ohne Anmeldung mit „Ich bin …“ je Gerät.
+  Keine Benachrichtigung. API: `assignee`, `assignee_id`, `assignee_former`
+  an Terminen und Agenda-Ereignissen, `GET /api/people`.
+- **Abrechnung erwartet (F1029):** Endet ein Abrechnungszeitraum (Stichtag
+  oder Vertragsende → Schlussrechnung) ohne erfasste Versorgerrechnung, steht
+  er unter „Zu tun“ mit Sprung zum Erfassen; bei Strom und Gas nach sechs
+  Wochen „überfällig — gesetzliche Frist verstrichen, beim Versorger
+  nachfragen“ (§ 40c Abs. 2 EnWG), Fernwärme und Wasser ohne gesetzliche
+  Frist nur „erwartet“. Erledigt sich mit der erfassten Rechnung, lässt sich
+  abhaken; bis 120 Tage nach dem Periodenende. Agenda-Art `bill_expected`.
+- **Verlauf als CSV** zum Nachweis (etwa für Vermieter oder Hausverwaltung):
+  Knopf „Als CSV“ unter Hinweise → Erledigt mit den gewählten Filtern;
+  `GET /api/activity.csv` (Datum, Aktion, Titel, Wer, Grund, Notiz; Format 1
+  oder „local“, Schutz gegen Formeln).
+- **Einrichtung fragt zuerst Sprache und Land (N1022):** Schritt 1 wählt
+  Sprache und Land, vorgewählt aus dem Browser; die Sprache gilt sofort, unter
+  dem Land steht, was das Länderprofil setzt. Gespeichert wird nur, was sich
+  ändert. Auch in der Demo (Sprache je Gerät). Neue Route
+  `POST /api/settings/country`: Erststart, Einstellungen und Einrichtung
+  speichern beim Landwechsel nur Abweichungen vom Standard.
+- **Jahresbericht mit Dialog:** Jahr, Verbrauchsarten (Teilbericht), Sprache
+  des PDF und Anhang; das Gerät merkt sich die Auswahl. Die Druckansicht
+  versteht den Teilbericht.
+- **Image ohne root (N1024):** zusätzliche Variante `X.Y.Z-rootless` /
+  `latest-rootless` — läuft als UID 10001 auf Port 8080, braucht keine
+  Capabilities, gleiche Plattformen, wöchentlich neu gebaut und gescannt, in
+  der CI gestartet; das Standard-Image bleibt unverändert.
+- **Home-Assistant-App (N1025):** Mit Home Assistant OS läuft der
+  Energietracker als App: eigenes Repository
+  [energietracker-ha](https://github.com/Bingerminger/energietracker-ha),
+  Seitenleiste über Ingress, Anmeldung über die HA-Benutzer, Daten in den
+  Sicherungen von Home Assistant, direkter Port standardmäßig aus. Gleiches
+  Image wie mit Docker, vorerst als experimentell gekennzeichnet.
+- **Beispieldaten (N1026):** Alle Beispielhaushalte und das Schaufenster
+  zeigen den Verlauf „Erledigt“ mit erfundenen Personen, Termine mit
+  Zuständigkeit, erfasste Versorgerrechnungen, eine Abrechnung, die noch
+  aussteht, und lückenlose Folgeverträge; das Eigenheim mit Wärmepumpe und PV
+  hat Viertelstunden für Erzeugung, Einspeisung und Speicher und beim Laden
+  die letzten Monate bis gestern für den Tagesfilm.
+- **Strompreispauschale 2027:** 32 ct/kWh im Länderprofil Deutschland
+  (Destatis, 1. Halbjahr 2026: 32,14 ct, abgerundet; BMF-Schreiben vom
+  11.11.2025, Rn. 30). Fehlt der Wert eines Jahres, sagt die Meldung, woher
+  er kommt und wann er feststeht.
+- **API additiv:** `certificate.rules`, `fuel_basis`, `fuel_basis_approx`,
+  `dhw_rule`, `months_required`, `months_in_window`, `upcoming` an der
+  Effizienz-Kennzahl (`months_36` unverändert); `has_special_payments` in
+  `/api/utilities`; `special_payments` am Wasservertrag und in dessen
+  `contract-status`.
+
+### Changed
+
+- **Verlauf „Erledigt“ ohne Lücken:** Ein neuer Zeitraum bei Zählern mit
+  Verbrauch je Zeitraum erledigt „Zählerstand ablesen“ wie eine Ablesung;
+  eine geänderte Nebenkostenabrechnung steht als „geändert“ im Verlauf (ohne
+  doppelte Erledigung).
+- **Effizienzklassen gegen das Gesetz geprüft:** A+ bis H sind die Grenzen
+  der Anlage 10 und bleiben ab 2027 unverändert (GModG Art. 2 Nr. 54;
+  BT-Drs. 21/6278). Heizöl und Pellets zählen ab 2027 als Näherung nach
+  Heizwert, bis ein amtlicher Faktor veröffentlicht ist.
+- **Doku CO₂-Preis:** Stand 2027 mit Fundstellen (BEHG-Entwurf BT-Drs.
+  21/7869, ETS2 ab 2028 nach VO (EU) 2026/667, Wert für die
+  Kostenaufteilung nach § 4 Abs. 1 Nr. 3 CO2KostAufG) und was die App für
+  2027 ohne eingetragenen Preis rechnet.
+- **Anleitungen geprüft** und je Anleitung gekennzeichnet, was ausprobiert
+  und was nach Herstellerdoku geprüft ist: Texterkennung (LM Studio ohne
+  „Require Authentication“), openHAB (Rückgabe der HTTP-Aktion),
+  Unraid-Vorlage (neu `ET_PROXY_USER_HEADER`, `ET_LOCK_WAIT_S`), evcc und
+  Texterkennung (Link-local gilt seit v3.4.0 nicht als Heimnetz).
+- **Actions aktualisiert** (Dependabot #29–#32): docker/login-action 4.6.0,
+  docker/metadata-action 6.2.0, docker/setup-buildx-action 4.4.1,
+  actions/setup-node 7; die CI testet mit Node 24.
+
+### Fixed
+
+- **Sonderzahlungen bei Wasserverträgen** ([#34]): Der Wasservertrag hat
+  jetzt den Abschnitt „Sonderzahlungen“ wie Gas, Strom und Fernwärme — Rück-
+  und Nachzahlung (mit oder ohne Auswirkung auf den Abschlag) und zusätzliche
+  Abschlagszahlung. Sie wirken im Saldo der Übersicht und der Verbrauchsart
+  und in der Hochrechnung bis Vertragsende; „mit Auswirkung“ setzt den
+  Abschlag ab dem Stichtag, auch in der Prognose. „Als Sonderzahlung buchen“
+  in der Rechnungsprüfung kommt beim Wasservertrag jetzt an.
+- **Home Assistant OS:** Die `options.json` des Supervisors (nur für root
+  lesbar) gilt nicht mehr als beschädigte Datei — bisher antwortete
+  `/api/health` ab dem zweiten Start mit 503, und der Watchdog startete die
+  App neu.
+- **Kalender-Abo unter Ingress:** nennt die Adresse im Netz von Home
+  Assistant statt der Ingress-Adresse, mit Hinweis für Handy und Computer.
+- **Beispielhaushalt laden** setzte Sprache und Land auf Deutsch zurück.
+- **Englische Installation** mit Stufe „Erfahren“ oder „Einsteiger“ zeigte
+  nach dem Start deutsche Namen der Verbrauchsarten in der Seitenleiste.
+- **„Mit eigenen Daten starten“** sprang zu „Zählerstände“ und gleich wieder
+  zurück.
+
+### Migration
+
+Kein Schemaschritt. Neue Felder sind optional; ältere Termine und
+Wasserverträge laufen unverändert weiter.
+
+### Tests
+
+- Neue PHPUnit-Klassen u. a.: `EnergyFlowDayTest`, `AssigneeTest`,
+  `AssigneeAccessTest`, `BillExpectedTest`, `ActivityAdditionsTest`,
+  `WaterSpecialPaymentsTest`, `RootlessImageTest`, `UnwritableDataDirTest`,
+  `OtherSystemsGuideTest`, `HomeAssistantAppTest`, `HomeAssistantAppDocsTest`,
+  `PersonaUseCasesTest`; erweitert u. a. `EfficiencyCertificateTest`,
+  `EvChargingReportTest`, `DemoDataAlignerTest`, `DeployTemplatesTest`.
+- Neue Node-Suiten: `day-film.test`, `assignee.test`, `setup-wizard.test`,
+  `nav-threshold.test`, `report-dialog.test`.
+- Neue CI-Schritte im Docker-Job: Image ohne root (Rechte, fremder
+  Datenordner, beliebige UID mit Gruppe 0) und „wie als Home-Assistant-App“.
+- 928 Testmethoden (+115). 300 Gegenproben, alle rot.
+
+### Lessons Learned
+
+- **Ein Prädikat beantwortet eine Frage.** „Hat Abschläge“ entschied auch, wo
+  es Sonderzahlungen gibt — Wasser fiel bei beidem heraus, obwohl es
+  Abschläge und Nachzahlungen hat. Jetzt fragt `hasSpecialPayments()` nur
+  das.
+- **Ein neuer Hinweis braucht ein Fenster für den Bestand.** Ein Jahr
+  rückwirkend hätte fast jede Installation nach dem Update mit „überfällig“
+  überflutet; 120 Tage zeigen, was noch aussteht.
+- **Neue Werte brauchen ihre Beispiele in jedem Paket.** Eine neue Aktion im
+  Verlauf und ein Test „jede Aktion in jedem Haushalt“ entstanden parallel —
+  erst der gemeinsame Stand zeigte den Widerspruch.
+- **Ein Testprozess ist keine Anfrage.** Über 1000 Tests sammelt PHPUnit
+  Speicher an; das Limit dafür steht jetzt in der Testkonfiguration, die
+  Anfrage selbst bleibt nachweislich unter 128 MB.
+
+Ausführlich: [Release-Prozess §5](docs/entwicklung/release-prozess.md).
+
+[#34]: https://github.com/Bingerminger/energietracker/issues/34
+
+---
+
 ## [3.4.0] — 2026-10-13 — Klar und sicher
 
 MINOR-Release ohne Schemaschritt (bleibt 1.8.0): Die App wird für alle im

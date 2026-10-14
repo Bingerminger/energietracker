@@ -243,7 +243,7 @@ wants a monthly statement.
 **What happens.** The wall box’s consumption view shows the card **“Charging
 record (company car)”**: choose the year, choose the price — contract price
 with a pro-rata standing charge or the flat electricity rate (2026:
-34 ct/kWh) —, download CSV or PDF. The electricity total stays right because
+34 ct/kWh, 2027: 32 ct/kWh) —, download CSV or PDF. The electricity total stays right because
 the wall box is contained in the house connection as a sub-meter.
 
 ```

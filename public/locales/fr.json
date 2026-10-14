@@ -120,8 +120,14 @@
       "livingArea": "Surface habitable {area} m²",
       "perSource": "par source de chaleur · surface habitable {area} m²",
       "certificate": "Type certificat : {value} kWh/m²·an{cls}",
-      "certificateTitle": "PCI, corrigé du climat, rapporté à {area} m² de surface utile. Un DPE sur consommation exige 36 mois ; disponibles : {months}.",
-      "certificateAll": "Type certificat, toutes sources de chaleur : {value} kWh/m²·an{cls}"
+      "certificateTitle": "Corrigé du climat, {basis}, rapporté à {area} m² de surface utile. Un DPE sur consommation exige {required} mois ; disponibles : {months}.",
+      "certificateAll": "Type certificat, toutes sources de chaleur : {value} kWh/m²·an{cls}",
+      "basis": {
+        "hi": "en PCI",
+        "hs": "en PCS"
+      },
+      "certificateApprox": "Compté en PCI (approximation, le certificat exige le PCS) : {fuels}.",
+      "certificateUpcoming": "À partir du {date}, le certificat sur consommation suit une nouvelle méthode (§ 82 GModG) : {basis}, supplément eau chaude {dhw} au lieu de {dhwOld} kWh/m²·an, données sur {required} au lieu de {requiredOld} mois. Cela donnerait {value} kWh/m²·an{cls}."
     },
     "tanks": { "title": "Niveaux de cuve" },
     "stromSaldo": {
@@ -191,7 +197,11 @@
         "one": "Contrat suivant seulement à partir du {date} – {count} jour d’interruption",
         "other": "Contrat suivant seulement à partir du {date} – {count} jours d’interruption"
       },
-      "tenancyAction": "Voir le bail"
+      "tenancyAction": "Voir le bail",
+      "billDeadline": "délai légal du fournisseur : {date}",
+      "billOverdueSince": "délai légal dépassé le {date}",
+      "billNoDeadline": "pas de délai légal",
+      "billAction": "Saisir la facture"
     },
     "welcome": {
       "title": "Bienvenue dans Energietracker",
@@ -1435,7 +1445,7 @@
       },
       "warmwasser_dezentral": {
         "label": "Eau chaude décentralisée",
-        "hint": "Eau chaude par chauffe-eau instantané ou ballon, pas par le chauffage : l’indicateur de type certificat reçoit un supplément de 20 kWh/m²·an."
+        "hint": "Eau chaude par chauffe-eau instantané ou ballon, pas par le chauffage : l’indicateur de type certificat reçoit un supplément de 20 kWh/m²·an, à partir de 2027 de 16 kWh/m²·an (§ 82 GModG)."
       },
       "billing_cycle_anchor_pv_einspeisung": {
         "label": "Date de régularisation injection PV"
@@ -2510,7 +2520,6 @@
       "open": "Ouvrir dans le navigateur",
       "note": "Sur l’iPhone, le rapport s’ouvre dans un nouvel onglet ; de là, vous pouvez l’enregistrer ou le partager.",
       "pdfHeading": "Fichier PDF",
-      "languageNote": "Le PDF est créé dans la langue de cet appareil ({lang}), tout comme la vue d’impression.",
       "title": "{label} {year}",
       "sentence": "{label} {year} : {value}, {pct} par rapport à {prev} ({prevValue}).",
       "sentenceNoPrevious": "{label} {year} : {value}.",
@@ -2549,7 +2558,8 @@
       "tank": "Stock actuel : {stock} {unit}. À la consommation habituelle, il dure jusqu’à environ {until}.",
       "tankNoRange": "Stock actuel : {stock} {unit}.",
       "heatDemand": "Énergie de chauffage : {value} kWh par m² de surface habitable ({area} m²) et par an.",
-      "howToRead": "Lire le rapport annuel"
+      "howToRead": "Lire le rapport annuel",
+      "choose": "Avant l’ouverture, vous choisissez l’année, les types de consommation, la langue et l’annexe ; cet appareil mémorise le choix."
     },
     "weatherSource": "Températures : Open-Meteo.com (CC BY 4.0), sauf saisie personnelle.",
     "print": {
@@ -3001,6 +3011,18 @@
         "term": "Registre de cuve",
         "text": "Livraisons et stocks de fioul ou de granulés ; Energietracker en déduit la consommation et la durée du stock."
       }
+    },
+    "dialog": {
+      "title": "Créer le rapport annuel",
+      "language": "Langue du PDF",
+      "printLanguage": "La vue d’impression s’affiche dans la langue de cet appareil ({lang}).",
+      "utilities": "Types de consommation",
+      "utilitiesHint": "Tout coché : le rapport complet. Sinon un rapport partiel avec ces seuls types de consommation, par exemple pour le gestionnaire de l’immeuble.",
+      "utilitiesNone": "Choisissez au moins un type de consommation.",
+      "demoNote": "La démo ne propose que le rapport complet ; le rapport partiel et l’annexe du PDF fonctionnent avec votre propre installation.",
+      "remembered": "Cet appareil mémorise le choix ; l’année revient chaque fois à l’année précédente.",
+      "options": "Options…",
+      "partial": "Rapport partiel : {list}"
     }
   },
   "csv": {
@@ -3048,7 +3070,9 @@
       "dueRequired": "Une date d’échéance (AAAA-MM-JJ) est requise.",
       "recurrenceMonths": "« Tous les N mois » nécessite un intervalle supérieur à 0.",
       "notFound": "Rappel introuvable : {id}",
-      "lastDoneInvalid": "« Dernière exécution » doit être vide ou une date (AAAA-MM-JJ)."
+      "lastDoneInvalid": "« Dernière exécution » doit être vide ou une date (AAAA-MM-JJ).",
+      "assigneeInvalid": "« Responsable » ne doit pas dépasser {max} caractères ni contenir de caractères de contrôle.",
+      "assigneeUnknown": "Cette personne n’existe pas (ou plus). Choisissez une personne dans la liste ou saisissez un nom."
     },
     "tariff": {
       "waterUnsupported": "La comparaison de tarifs pour l’eau (tarif à trois composantes) n’est pas incluse dans cette version.",
@@ -3252,7 +3276,8 @@
       "corrupted": "Le fichier {file} est endommagé (JSON non valide). Restaurez-le depuis une sauvegarde ou réparez-le ; d’ici là, il ne sera pas écrasé.",
       "corruptedCopy": "Le fichier {file} est endommagé (JSON non valide) ; une copie se trouve sous {copy}. Restaurez-le depuis une sauvegarde ou réparez-le ; d’ici là, il ne sera pas écrasé.",
       "unreadable": "Le fichier {file} n’est pas lisible — vérifiez les droits du répertoire de données.",
-      "locked": "Le fichier {file} ne peut pas être verrouillé. Réessayez dans un instant."
+      "locked": "Le fichier {file} ne peut pas être verrouillé. Réessayez dans un instant.",
+      "notWritable": "Energietracker ne peut pas écrire dans son répertoire de données — adaptez les droits du dossier de données ou du volume. Le journal du serveur indique l’utilisateur qui doit pouvoir y écrire."
     },
     "report": {
       "yearRange": "L’année doit être un nombre entre 2000 et 2100.",
@@ -3334,7 +3359,7 @@
     },
     "evReport": {
       "methodInvalid": "Méthode inconnue « {value} » — valeurs admises : contract et flat",
-      "flatMissing": "Aucun forfait électricité n’est connu pour {year} — saisissez-le vous-même",
+      "flatMissing": "Aucun forfait électricité n’est connu pour {year} — saisissez-le vous-même. Il existe depuis 2026 ; la valeur d’une année n’est fixée qu’une fois que Destatis a publié, à l’automne de l’année précédente, le prix de l’électricité de son premier semestre.",
       "noContract": "Aucun contrat payeur pour la borne — ni propre, ni sur le compteur parent",
       "yearInvalid": "L’année « {year} » n’est pas valide",
       "flatInvalid": "Le forfait « {value} » n’est pas un nombre valide (0 à 200 centimes)"
@@ -3378,6 +3403,10 @@
       "occurrenceChanged": "L’alerte a changé entre-temps (par exemple une nouvelle fin de contrat). Veuillez recharger la page.",
       "dateInvalid": "« {value} » n’est pas un jour valide. Attendu : AAAA-MM-JJ, pas dans le futur.",
       "noteInvalid": "La note ne peut pas dépasser {max} caractères."
+    },
+    "energyFlow": {
+      "dateInvalid": "Date non valide : {date} (attendu AAAA-MM-JJ entre 2000 et 2100).",
+      "monthInvalid": "Mois non valide : {month} (attendu AAAA-MM entre 2000 et 2100)."
     }
   },
   "login": {
@@ -3616,7 +3645,7 @@
     },
     "efficiency": {
       "term": "Indicateur d’efficacité",
-      "text": "Énergie de chauffage par m² et par an (kWh/m²·an). L’indicateur du logement se rapporte à la surface habitable ; l’indicateur proche du DPE calcule comme un certificat énergétique (PCI, corrigé du climat, surface utile). Ce n’est pas un certificat officiel."
+      "text": "Énergie de chauffage par m² et par an (kWh/m²·an). L’indicateur du logement se rapporte à la surface habitable ; l’indicateur proche du DPE calcule comme un certificat énergétique sur consommation (corrigé du climat, surface utile ; jusqu’en 2026 en PCI, à partir de 2027 en PCS). Ce n’est pas un certificat officiel."
     },
     "feedIn": {
       "term": "Injection",
@@ -3693,6 +3722,10 @@
     "profileFactor": {
       "term": "Facteur de profil",
       "text": "Votre prix de gros par kWh (pondéré par la consommation) divisé par la moyenne du marché. En dessous de 1 : vous consommez plutôt quand l’électricité est bon marché ; au-dessus : plutôt quand elle est chère."
+    },
+    "typicalDay": {
+      "term": "Journée type",
+      "text": "Le flux d’énergie d’une journée moyenne du mois : pour chaque quart d’heure (heure locale), la moyenne de tous les jours du mois avec des mesures. Elle montre le schéma — par exemple quand le soleil de midi charge la batterie —, pas une journée réelle."
     }
   },
   "help": {
@@ -3878,7 +3911,8 @@
       "temperatures": "temperatures",
       "exampleReadings": "exemple-releves",
       "exampleTemperatures": "exemple-temperatures",
-      "periods": "periodes"
+      "periods": "periodes",
+      "activity": "historique"
     },
     "periods": {
       "from": "Du",
@@ -3899,6 +3933,14 @@
       "baseShare": "Part de l’abonnement",
       "amount": "Montant",
       "method": "Méthode"
+    },
+    "activity": {
+      "date": "Date",
+      "action": "Action",
+      "title": "Titre",
+      "by": "Par",
+      "reason": "Motif",
+      "note": "Note"
     }
   },
   "calendar": {
@@ -3913,7 +3955,11 @@
       "tankReorder": "{label} : prévoir une livraison ({meter})",
       "tenancyStatementDue": "Décompte de charges jusqu’au {period} dû : {label}",
       "objectionDeadline": "Dernier jour pour contester le décompte de charges : {label}",
-      "co2ClaimDeadline": "Coût du CO₂ {year} : dernier jour pour réclamer la part du bailleur de {amount}"
+      "co2ClaimDeadline": "Coût du CO₂ {year} : dernier jour pour réclamer la part du bailleur de {amount}",
+      "billExpected": "Facture attendue : {label} ({provider}) pour {from} – {until}",
+      "billOverdue": "Facture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur",
+      "finalBillExpected": "Facture de clôture attendue : {label} ({provider}) pour {from} – {until}",
+      "finalBillOverdue": "Facture de clôture en retard : {label} ({provider}) pour {from} – {until} — délai légal dépassé, contactez le fournisseur"
     },
     "subscribe": "S’abonner dans votre agenda",
     "intro": "Rendez-vous, échéances de résiliation, fins de contrat, garanties de prix et relevés dus sous forme d’abonnement d’agenda. L’agenda les actualise toutes les 12 heures.",
@@ -3926,7 +3972,9 @@
       "one": "Il existe déjà {count} clé de calendrier – un nouveau lien en crée une autre.",
       "other": "Il existe déjà {count} clés de calendrier – un nouveau lien en crée une autre."
     },
-    "createLink": "Créer le lien"
+    "createLink": "Créer le lien",
+    "ingressHint": "Lorsque l’application fonctionne dans Home Assistant, le lien indique son adresse dans le réseau de Home Assistant — prévue pour Home Assistant lui-même, par exemple l’intégration Remote Calendar. Pour un agenda sur téléphone ou ordinateur, ouvrez un port sous Réseau dans la configuration de l’application et remplacez le début jusqu’à /api.php par l’adresse de Home Assistant avec ce port.",
+    "assignee": "Responsable : {name}"
   },
   "tenancy": {
     "title": "Bail",
@@ -4344,7 +4392,8 @@
       "chipsGroup": "Mettre un nœud en évidence",
       "scope": {
         "year": "Année",
-        "month": "Mois"
+        "month": "Mois",
+        "day": "Jour"
       },
       "periodGroup": "Période",
       "prev": "Période précédente",
@@ -4353,6 +4402,37 @@
       "months": {
         "one": "{count} mois",
         "other": "{count} mois"
+      },
+      "day": {
+        "mode": {
+          "single": "Un jour",
+          "typical": "Journée type"
+        },
+        "modeGroup": "Quelle journée",
+        "play": "Lire",
+        "pause": "Pause",
+        "time": "Heure",
+        "repeat": "{time} (après le changement d’heure)",
+        "until": "{period}, jusqu’à {time}",
+        "typicalPeriod": "Journée type de {month}",
+        "sums": "Cumul jusqu’à {time} :",
+        "price": "Prix de gros à {time} : {price}",
+        "noPrice": "Prix de gros à {time} : aucun chargé",
+        "gapAt": "Aucune mesure pour {time}.",
+        "gaps": {
+          "one": "{count} quart d’heure sans mesure (lacune, pas 0).",
+          "other": "{count} quarts d’heure sans mesure (lacunes, pas 0)."
+        },
+        "typicalDays": {
+          "one": "Moyenne par quart d’heure sur {count} jour.",
+          "other": "Moyenne par quart d’heure sur {count} jours."
+        },
+        "missing": "Sans valeurs au quart d’heure : {list} — chaque quart d’heure est donc une lacune.",
+        "missingFeed": "Il n’y a pas de compteur d’injection : sans lui, la production ne peut pas être répartie.",
+        "missingGen": "Il n’y a pas de compteur de production : sans lui, la consommation de la maison est inconnue.",
+        "calcNote": "En pointillés : calculé par quart d’heure, non mesuré.",
+        "powerNote": "Dans les nœuds : la puissance pendant ce quart d’heure (kW). En dessous : les quantités depuis minuit (kWh).",
+        "gapsOption": "{date} (avec lacunes)"
       }
     },
     "weather": {
@@ -4403,7 +4483,7 @@
   },
   "setup": {
     "title": "Configuration",
-    "intro": "Trois questions, puis l’application affiche ce qui vous convient. Tout reste modifiable ensuite.",
+    "intro": "Quelques questions, puis l’application affiche ce qui vous convient. Tout reste modifiable ensuite.",
     "progress": "Étape {n} sur {total}",
     "persona": {
       "title": "Qui êtes-vous ?",
@@ -4441,7 +4521,7 @@
       "title": "La suite",
       "summary": "{persona} · niveau « {level} »",
       "demo": "Voir avec des données d’exemple",
-      "demoHint": "Charge le foyer d’exemple correspondant. L’application sauvegarde d’abord l’état actuel.",
+      "demoHint": "Charge le foyer d’exemple correspondant — avec l’historique « Fait », les responsables des rappels et les factures du fournisseur. L’application sauvegarde d’abord l’état actuel.",
       "demoPublic": "La démo affiche maintenant le foyer d’exemple « {persona} ». Pour en choisir un autre : Paramètres → Général → « Lancer l’assistant de configuration ».",
       "own": "Commencer avec mes données",
       "ownHint": "Ensuite : vérifier les compteurs et saisir le premier relevé."
@@ -4450,7 +4530,17 @@
     "back": "Retour",
     "next": "Suivant",
     "done": "C’est parti",
-    "restart": "Lancer l’assistant de configuration"
+    "restart": "Lancer l’assistant de configuration",
+    "region": {
+      "title": "Langue et pays",
+      "language": "Langue",
+      "current": "Paramètres actuels pour {country} :",
+      "profile": "Le profil du pays {country} définit :",
+      "format": "Format des nombres et des dates",
+      "weather": "Lieu météo",
+      "heatingLimit": "Limite de chauffe",
+      "demoCountry": "La démo utilise le pays du foyer d’exemple. Dans votre propre installation, vous le choisissez ici."
+    }
   },
   "evcc": {
     "title": "Sessions de recharge evcc {year}",
@@ -4589,7 +4679,10 @@
       "reading": "Relevé du {date} saisi",
       "delivery": "Livraison du {date} saisie",
       "statement": "Décompte jusqu’au {date} saisi",
-      "dismissed": "masqué jusqu’au {date}"
+      "dismissed": "masqué jusqu’au {date}",
+      "period": "Consommation du {from} au {to} saisie",
+      "bill": "Facture jusqu’au {date} saisie",
+      "billWithout": "reçue sans saisie"
     },
     "markDone": "Marquer comme fait",
     "markDoneNamed": "Fait : {title}",
@@ -4600,7 +4693,8 @@
       "attachment": "Justificatif (facultatif, photo ou PDF)",
       "cancelled": "Résilié – le contrat ne se prolonge pas",
       "save": "Fait",
-      "dateInvalid": "Veuillez choisir un jour jusqu’à aujourd’hui."
+      "dateInvalid": "Veuillez choisir un jour jusqu’à aujourd’hui.",
+      "billWithout": "Cocher signifie ici : la facture est arrivée, mais vous ne la saisissez pas. Si vous la saisissez sous « Vérifier une facture », inutile de cocher – l’alerte se ferme alors d’elle-même."
     },
     "toast": {
       "done": "« {title} » fait",
@@ -4667,7 +4761,8 @@
     },
     "action": {
       "auto": "automatique",
-      "dismissed": "masqué"
+      "dismissed": "masqué",
+      "updated": "modifié"
     },
     "attachment": "Justificatif",
     "undoneLine": "Annulé {when}",
@@ -4677,6 +4772,43 @@
       "editNamed": "Modifier la note : {title}",
       "saved": "Note enregistrée"
     },
-    "reasonLine": "Motif : {reason}"
+    "reasonLine": "Motif : {reason}",
+    "changed": {
+      "statement": "Décompte de charges du {from} au {to} modifié : {label}"
+    },
+    "actionName": {
+      "done": "terminé",
+      "auto_done": "terminé automatiquement",
+      "dismissed": "masqué",
+      "updated": "modifié"
+    },
+    "assigneeLine": "Responsable : {name}",
+    "csv": {
+      "button": "En CSV",
+      "hint": "L’historique avec les filtres choisis sous forme de tableau – par exemple comme justificatif pour le bailleur ou le syndic"
+    }
+  },
+  "assignee": {
+    "label": "Responsable",
+    "placeholder": "Nom (facultatif)",
+    "hint": "Un nom ; vide = personne. Personne n’est averti.",
+    "hintPeople": "Une personne de la liste ou un nom libre ; vide = personne. Personne n’est averti.",
+    "wasFormer": "Jusqu’ici : ancien membre.",
+    "tooLong": "{max} caractères au maximum.",
+    "filter": {
+      "label": "Filtrer par responsable",
+      "all": "Tous",
+      "mine": "Mes tâches",
+      "none": "Sans responsable",
+      "names": "Noms"
+    },
+    "iAm": "Je suis",
+    "iAmPick": "– à choisir –",
+    "pickMe": "Sans connexion : indiquez qui vous êtes sous « Je suis » – cet appareil s’en souvient.",
+    "hidden": {
+      "one": "{count} autre entrée masquée (filtre « Responsable »)",
+      "other": "{count} autres entrées masquées (filtre « Responsable »)"
+    },
+    "emptyFiltered": "Rien pour cette sélection."
   }
 }

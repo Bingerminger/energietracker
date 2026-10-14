@@ -30,6 +30,8 @@ export const GLOSSARY = [
   'jaz',
   // v3.3.0 (F1021) — Flexibilität
   'profileFactor',
+  // v3.5.0 (F1027) — Tagesfilm
+  'typicalDay',
 ];
 
 export const glossaryTerm = (id) => t(`glossary.${id}.term`);

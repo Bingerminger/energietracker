@@ -94,8 +94,9 @@ Anmeldung heraus. Leer heißt aus; die CSV-Datei geht immer.
 
 **Nur im eigenen Netz.** Wie bei der [Texterkennung](texterkennung.md) nimmt
 die App nur Adressen im eigenen Netz an: Loopback, private Netze
-(`10.x`, `172.16.x`–`172.31.x`, `192.168.x`), Link-local, `100.64.0.0/10`
-und die entsprechenden IPv6-Bereiche. Der Name wird bei jedem Abruf
+(`10.x`, `172.16.x`–`172.31.x`, `192.168.x`), `100.64.0.0/10` und die
+entsprechenden IPv6-Bereiche; Link-local (`169.254.x`, `fe80::`) gilt seit
+v3.4.0 nicht als Heimnetz. Der Name wird bei jedem Abruf
 aufgelöst, jede Adresse, auf die er zeigt, muss lokal sein, verbunden wird mit
 genau der geprüften Adresse, Weiterleitungen folgt die App nicht. Ein neuer
 Weg ins Internet entsteht so nicht. Der Abruf wartet höchstens 30 Sekunden.

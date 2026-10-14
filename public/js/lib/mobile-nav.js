@@ -9,12 +9,13 @@
 //   • „Mehr" öffnet die Seitenleiste als Menü (Schublade von links),
 //   • „＋" öffnet das Erfassen-Blatt: Zählerstände, Lieferung und Peilstand
 //     (Heizöl, Pellets), Termin. Am Mac öffnet es der Knopf in der Kopfleiste.
-// Die Tab-Leiste zeigt nur das CSS unter 800 px; das Blatt gibt es überall.
+// Die Tab-Leiste zeigt nur das CSS unter 900 px (v3.5.0, N1023: bis v3.4
+// 800 px — das iPad hochkant bekam die Seitenleiste); das Blatt gibt es überall.
 // =====================================================================
 
 import { t } from './i18n.js';
 import { escapeHtml as esc } from './format.js';
-import { tabbarModel } from './nav-model.js';
+import { tabbarModel, NAV_SIDEBAR_QUERY } from './nav-model.js';
 import { openModal } from '../components/modal.js';
 import { activeUtilities } from '../state.js';
 
@@ -46,7 +47,8 @@ let menuOpen = false;
 let menuPushed = false;
 let menuReturnFocus = null;
 
-function toggleMenu(open) {
+/** @param {boolean} open  @param {{keepFocus?: boolean}} [opts] keepFocus: Fokus nicht zurückgeben */
+function toggleMenu(open, { keepFocus = false } = {}) {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar || open === menuOpen) return;
   menuOpen = open;
@@ -64,16 +66,42 @@ function toggleMenu(open) {
     sidebar.removeAttribute('role');
     sidebar.removeAttribute('aria-modal');
     sidebar.removeAttribute('aria-label');
-    if (menuReturnFocus && document.contains(menuReturnFocus)) menuReturnFocus.focus?.();
+    if (!keepFocus && menuReturnFocus && document.contains(menuReturnFocus)) menuReturnFocus.focus?.();
   }
 }
 
-function closeMenu(viaHistory = false) {
+function closeMenu(viaHistory = false, opts = {}) {
   if (!menuOpen) return;
-  toggleMenu(false);
+  toggleMenu(false, opts);
   if (menuPushed && !viaHistory) { menuPushed = false; history.back(); }
   menuPushed = false;
 }
+
+/** v3.5.0 (N1023) — Ist das Menü („Mehr") gerade offen? (für Tests und Prüfungen) */
+export function isMenuOpen() { return menuOpen; }
+
+// ── v3.5.0 (N1023) — über die Schwelle drehen ─────────────────────────────
+// Das iPad wechselt beim Drehen zwischen Tab-Leiste (hochkant) und
+// Seitenleiste (quer), ohne neu zu laden. Ein offenes Menü gibt es im
+// Seitenleisten-Layout nicht: Es schließt, und der Fokus bleibt, wo er war —
+// die Seitenleiste ist ja weiter sichtbar. Umgekehrt wird die Seitenleiste
+// zur verborgenen Schublade: Ein Fokus darin wandert auf „Mehr“, sonst
+// stünde er auf einem unsichtbaren Element. Kein zweiter Zustand: Was das
+// Layout bestimmt, bleibt die Abfrage NAV_SIDEBAR_QUERY (dieselbe wie im CSS).
+export function onNavLayoutChange(sidebarLayout) {
+  const sidebar = document.getElementById('sidebar');
+  const active = document.activeElement;
+  const inSidebar = !!(sidebar && active && sidebar.contains(active));
+  if (sidebarLayout) {
+    if (menuOpen) closeMenu(false, { keepFocus: inSidebar });
+  } else if (inSidebar) {
+    document.querySelector('#tabbar [data-action="more"]')?.focus();
+  }
+}
+const layoutQuery = typeof window !== 'undefined' ? window.matchMedia?.(NAV_SIDEBAR_QUERY) : null;
+const onLayoutQuery = (e) => onNavLayoutChange(!!e.matches);
+if (layoutQuery?.addEventListener) layoutQuery.addEventListener('change', onLayoutQuery);
+else layoutQuery?.addListener?.(onLayoutQuery);   // Safari vor 14
 
 window.addEventListener('popstate', () => { if (menuOpen) closeMenu(true); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && menuOpen) closeMenu(); });

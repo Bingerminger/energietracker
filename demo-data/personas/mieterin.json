@@ -6417,7 +6417,7 @@
         "wasser_personen_anzahl": 1,
         "waerme_energietraeger": "gas",
         "warmwasser_energietraeger": "waerme",
-        "billing_cycle_anchor_strom": "04-01",
+        "billing_cycle_anchor_strom": "10-01",
         "setup_persona": "mieterin"
     },
     "reminders": [
@@ -6430,7 +6430,8 @@
             "recurrence_months": null,
             "last_done": "2025-07-01",
             "notes": "Vertrag läuft weiter und ist monatlich kündbar",
-            "active": true
+            "active": true,
+            "assignee": "Lena"
         },
         {
             "id": "rem_f1209e2d",
@@ -6442,6 +6443,30 @@
             "last_done": "2025-06-20",
             "notes": "Belege beim Vermieter einsehen, Einwände innerhalb von zwölf Monaten",
             "active": true
+        },
+        {
+            "id": "rem_dfa1d374",
+            "title": "Kühlschrank abtauen",
+            "category": "custom",
+            "next_due": "2026-10-12",
+            "recurrence": "custom-months",
+            "recurrence_months": 6,
+            "last_done": "2026-04-12",
+            "notes": "Eisschicht über 5 mm kostet Strom",
+            "active": true,
+            "assignee": "Lena"
+        },
+        {
+            "id": "rem_82729612",
+            "title": "Rauchmelder-Wartung",
+            "category": "custom",
+            "next_due": "2026-11-03",
+            "recurrence": "yearly",
+            "recurrence_months": null,
+            "last_done": "2025-11-03",
+            "notes": "Termin hängt die Hausverwaltung im Treppenhaus aus",
+            "active": true,
+            "assignee": "Hausverwaltung Krüger"
         }
     ],
     "recommendations_dismissed": [],
@@ -6791,7 +6816,528 @@
         "samples": {}
     },
     "interval_files": {},
-    "activity": [],
+    "activity": [
+        {
+            "id": "act_7f490683bd62",
+            "action": "auto_done",
+            "subject": {
+                "kind": "contract",
+                "uid": "contract-c_strom_basis",
+                "occurrence": "contract-c_strom_basis@renewed"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_basis",
+                "successor_id": "c_strom_online"
+            },
+            "title_key": "calendar.event.termEnd",
+            "params": {
+                "label": "Strom",
+                "provider": "Stadtwerke Musterstadt"
+            },
+            "title": "Strom: Vertragsende (Stadtwerke Musterstadt)",
+            "done_on": "2024-08-20",
+            "recorded_at": "2024-08-20T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.successor",
+                "params": {
+                    "provider": "Beispiel-Energie",
+                    "date": "2024-10-01"
+                }
+            }
+        },
+        {
+            "id": "act_81dde376b1fe",
+            "action": "auto_done",
+            "subject": {
+                "kind": "bill_expected",
+                "uid": "bill_expected-c_strom_basis-2024-09-30",
+                "occurrence": "bill_expected-c_strom_basis-2024-09-30@2024-09-30"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_basis",
+                "bill_id": "b_0b44f01bbe6b"
+            },
+            "title_key": "calendar.event.finalBillExpected",
+            "params": {
+                "label": "Strom",
+                "provider": "Stadtwerke Musterstadt",
+                "from": "2023-10-01",
+                "until": "2024-09-30"
+            },
+            "title": "Schlussrechnung erwartet: Strom (Stadtwerke Musterstadt) für 01.10.2023 – 30.09.2024",
+            "done_on": "2024-10-17",
+            "recorded_at": "2024-10-17T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.bill",
+                "params": {
+                    "date": "2024-09-30"
+                }
+            }
+        },
+        {
+            "id": "act_e305a6210c77",
+            "action": "auto_done",
+            "subject": {
+                "kind": "contract",
+                "uid": "contract-c_strom_online",
+                "occurrence": "contract-c_strom_online@2025-09-30"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung",
+                "contract_id": "c_strom_online",
+                "successor_id": "c_strom_online_2025"
+            },
+            "title_key": "calendar.event.termEnd",
+            "params": {
+                "label": "Strom",
+                "provider": "Beispiel-Energie"
+            },
+            "title": "Strom: Vertragsende (Beispiel-Energie)",
+            "done_on": "2025-08-28",
+            "recorded_at": "2025-08-28T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.successor",
+                "params": {
+                    "provider": "Beispiel-Energie",
+                    "date": "2025-10-01"
+                }
+            }
+        },
+        {
+            "id": "act_d2e06a9248f0",
+            "action": "auto_done",
+            "subject": {
+                "kind": "reading_due",
+                "uid": "reading-strom-m_strom_wohnung",
+                "occurrence": "reading-strom-m_strom_wohnung@2025-07-29"
+            },
+            "ref": {
+                "utility": "strom",
+                "meter_id": "m_strom_wohnung"
+            },
+            "title_key": "calendar.event.readingDue",
+            "params": {
+                "label": "Strom",
+                "meter": "Stromzähler Wohnung"
+            },
+            "title": "Strom: Zählerstand ablesen (Stromzähler Wohnung)",
+            "done_on": "2025-10-01",
+            "recorded_at": "2025-10-01T08:40:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.reading",
+                "params": {
+                    "date": "2025-10-01"
+                }
+            }
+        },
+        {
+            "id": "act_9628a8483c55",
+            "action": "auto_done",
+            "subject": {
+                "kind": "tenancy_statement_due",
+                "uid": "tenancy_statement_due-t_2056e5e55595-2024-12-31",
+                "occurrence": "tenancy_statement_due-t_2056e5e55595-2024-12-31@2024-12-31"
+            },
+            "ref": {
+                "tenancy_id": "t_2056e5e55595",
+                "statement_id": "s_62d00cbd08c0"
+            },
+            "title_key": "calendar.event.tenancyStatementDue",
+            "params": {
+                "label": "Wohnung 2. OG links",
+                "period": "2024-12-31"
+            },
+            "title": "Nebenkostenabrechnung bis zum 31.12.2024 fällig: Wohnung 2. OG links",
+            "done_on": "2025-06-12",
+            "recorded_at": "2025-06-12T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.statement",
+                "params": {
+                    "date": "2024-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_ad021268fb59",
+            "action": "auto_done",
+            "subject": {
+                "kind": "tenancy_statement_due",
+                "uid": "tenancy_statement_due-t_2056e5e55595-2025-12-31",
+                "occurrence": "tenancy_statement_due-t_2056e5e55595-2025-12-31@2025-12-31"
+            },
+            "ref": {
+                "tenancy_id": "t_2056e5e55595",
+                "statement_id": "s_e10fc19f9e31"
+            },
+            "title_key": "calendar.event.tenancyStatementDue",
+            "params": {
+                "label": "Wohnung 2. OG links",
+                "period": "2025-12-31"
+            },
+            "title": "Nebenkostenabrechnung bis zum 31.12.2025 fällig: Wohnung 2. OG links",
+            "done_on": "2026-05-20",
+            "recorded_at": "2026-05-20T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "reason": {
+                "key": "activity.reason.statement",
+                "params": {
+                    "date": "2025-12-31"
+                }
+            }
+        },
+        {
+            "id": "act_2e5701bbed35",
+            "action": "updated",
+            "subject": {
+                "kind": "tenancy_statement",
+                "uid": "tenancy_statement-s_e10fc19f9e31",
+                "occurrence": "tenancy_statement-s_e10fc19f9e31@2025-12-31"
+            },
+            "ref": {
+                "tenancy_id": "t_2056e5e55595",
+                "statement_id": "s_e10fc19f9e31"
+            },
+            "title_key": "activity.changed.statement",
+            "params": {
+                "label": "Wohnung 2. OG links",
+                "from": "2025-01-01",
+                "to": "2025-12-31"
+            },
+            "title": "Nebenkostenabrechnung 01.01.2025 – 31.12.2025 geändert: Wohnung 2. OG links",
+            "done_on": "2026-05-27",
+            "recorded_at": "2026-05-27T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": ""
+        },
+        {
+            "id": "act_9fd32c8513a6",
+            "action": "dismissed",
+            "subject": {
+                "kind": "recommendation",
+                "uid": "r4_026c6bde98d5",
+                "occurrence": "r4_026c6bde98d5@2024-11-07"
+            },
+            "ref": {
+                "recommendation_id": "r4_026c6bde98d5",
+                "utility": "wasser",
+                "meter_id": "m_wasser_kalt"
+            },
+            "title_key": null,
+            "params": {},
+            "title": "Wasser Sept. 2024: statistische Anomalie",
+            "done_on": "2024-10-08",
+            "recorded_at": "2024-10-08T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "Nach dem Urlaub viel gewaschen",
+            "reason": {
+                "key": "activity.reason.dismissed",
+                "params": {
+                    "date": "2024-11-07"
+                }
+            },
+            "revert": {
+                "type": "recommendation_dismiss",
+                "id": "r4_026c6bde98d5",
+                "until": "2024-11-07"
+            }
+        },
+        {
+            "id": "act_69c35b3d7b83",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_f1209e2d",
+                "occurrence": "reminder-rem_f1209e2d@2025-06-20"
+            },
+            "ref": {
+                "reminder_id": "rem_f1209e2d",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Nebenkostenabrechnung prüfen"
+            },
+            "title": "Nebenkostenabrechnung prüfen",
+            "done_on": "2025-06-20",
+            "recorded_at": "2025-06-20T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_f1209e2d",
+                "before": {
+                    "next_due": "2025-06-20",
+                    "active": true,
+                    "last_done": "2024-06-20"
+                },
+                "after": {
+                    "next_due": "2026-06-20",
+                    "active": true,
+                    "last_done": "2025-06-20"
+                }
+            }
+        },
+        {
+            "id": "act_5534af14277e",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_fbac6e65",
+                "occurrence": "reminder-rem_fbac6e65@2025-07-01"
+            },
+            "ref": {
+                "reminder_id": "rem_fbac6e65",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Stromtarif vergleichen"
+            },
+            "title": "Stromtarif vergleichen",
+            "done_on": "2025-07-01",
+            "recorded_at": "2025-07-01T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "Angebote verglichen, die Verlängerung bleibt günstiger",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_fbac6e65",
+                "before": {
+                    "next_due": "2025-07-01",
+                    "active": true,
+                    "last_done": "2024-07-01"
+                },
+                "after": {
+                    "next_due": "2026-07-01",
+                    "active": true,
+                    "last_done": "2025-07-01"
+                }
+            }
+        },
+        {
+            "id": "act_df7408a5cacf",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_dfa1d374",
+                "occurrence": "reminder-rem_dfa1d374@2025-10-12"
+            },
+            "ref": {
+                "reminder_id": "rem_dfa1d374",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Kühlschrank abtauen"
+            },
+            "title": "Kühlschrank abtauen",
+            "done_on": "2025-10-12",
+            "recorded_at": "2025-10-12T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_dfa1d374",
+                "before": {
+                    "next_due": "2025-10-12",
+                    "active": true,
+                    "last_done": "2025-04-12"
+                },
+                "after": {
+                    "next_due": "2026-04-12",
+                    "active": true,
+                    "last_done": "2025-10-12"
+                }
+            }
+        },
+        {
+            "id": "act_2b280fc580c7",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_82729612",
+                "occurrence": "reminder-rem_82729612@2025-11-03"
+            },
+            "ref": {
+                "reminder_id": "rem_82729612",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Rauchmelder-Wartung"
+            },
+            "title": "Rauchmelder-Wartung",
+            "done_on": "2025-11-03",
+            "recorded_at": "2025-11-03T19:05:00+01:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "Alle drei Melder geprüft",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_82729612",
+                "before": {
+                    "next_due": "2025-11-03",
+                    "active": true,
+                    "last_done": "2024-11-03"
+                },
+                "after": {
+                    "next_due": "2026-11-03",
+                    "active": true,
+                    "last_done": "2025-11-03"
+                }
+            }
+        },
+        {
+            "id": "act_8c8fe8d6b2a4",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_dfa1d374",
+                "occurrence": "reminder-rem_dfa1d374@2026-04-12"
+            },
+            "ref": {
+                "reminder_id": "rem_dfa1d374",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Kühlschrank abtauen"
+            },
+            "title": "Kühlschrank abtauen",
+            "done_on": "2026-04-05",
+            "recorded_at": "2026-04-05T18:02:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_dfa1d374",
+                "before": {
+                    "next_due": "2026-04-12",
+                    "active": true,
+                    "last_done": "2025-10-12"
+                },
+                "after": {
+                    "next_due": "2026-10-05",
+                    "active": true,
+                    "last_done": "2026-04-05"
+                }
+            },
+            "undone": {
+                "at": "2026-04-05T18:03:00+02:00",
+                "by": {
+                    "type": "person",
+                    "id": "u_1ba213c7",
+                    "name": "Lena"
+                }
+            }
+        },
+        {
+            "id": "act_349e400939e5",
+            "action": "done",
+            "subject": {
+                "kind": "reminder",
+                "uid": "reminder-rem_dfa1d374",
+                "occurrence": "reminder-rem_dfa1d374@2026-04-12"
+            },
+            "ref": {
+                "reminder_id": "rem_dfa1d374",
+                "category": "custom"
+            },
+            "title_key": "calendar.event.reminder",
+            "params": {
+                "title": "Kühlschrank abtauen"
+            },
+            "title": "Kühlschrank abtauen",
+            "done_on": "2026-04-12",
+            "recorded_at": "2026-04-12T19:05:00+02:00",
+            "by": {
+                "type": "person",
+                "id": "u_1ba213c7",
+                "name": "Lena"
+            },
+            "note": "",
+            "revert": {
+                "type": "reminder",
+                "id": "rem_dfa1d374",
+                "before": {
+                    "next_due": "2026-04-12",
+                    "active": true,
+                    "last_done": "2025-10-12"
+                },
+                "after": {
+                    "next_due": "2026-10-12",
+                    "active": true,
+                    "last_done": "2026-04-12"
+                }
+            }
+        }
+    ],
     "utilities": {
         "gas": {
             "meters": [],
@@ -7128,17 +7674,6 @@
                     "is_future": false
                 },
                 {
-                    "id": "r_strom_wohnung_20250901",
-                    "meter_id": "m_strom_wohnung",
-                    "device_id": "d_strom_wohnung",
-                    "date": "2025-09-01",
-                    "counter": 11831.6,
-                    "price_cents": null,
-                    "note": "",
-                    "is_estimated": false,
-                    "is_future": false
-                },
-                {
                     "id": "r_strom_wohnung_20251001",
                     "meter_id": "m_strom_wohnung",
                     "device_id": "d_strom_wohnung",
@@ -7278,10 +7813,20 @@
                         }
                     ],
                     "bonuses": [],
-                    "special_payments": [],
+                    "special_payments": [
+                        {
+                            "id": "sp_3bf4595adc",
+                            "date": "2024-10-17",
+                            "kind": "nachzahlung_ohne",
+                            "amount_eur": 66.76,
+                            "note": "Schlussrechnung Strom Basis 24 — Nachzahlung",
+                            "new_advance_eur": null,
+                            "advance_from": null
+                        }
+                    ],
                     "is_shadow": false,
                     "shadow_label": null,
-                    "notice_period_months": null,
+                    "notice_period_months": 1,
                     "notice_period_days": null,
                     "notice_mode": null,
                     "auto_renews": null,
@@ -7294,30 +7839,30 @@
                     "meter_id": "m_strom_wohnung",
                     "provider": "Beispiel-Energie",
                     "tariff_name": "Strom Online 12",
-                    "start": "2024-04-01",
-                    "end": "2025-03-31",
+                    "start": "2024-10-01",
+                    "end": "2025-09-30",
                     "notes": "",
                     "working_prices": [
                         {
-                            "from": "2024-04-01",
+                            "from": "2024-10-01",
                             "ct_per_kwh": 29.6
                         }
                     ],
                     "base_prices": [
                         {
-                            "from": "2024-04-01",
+                            "from": "2024-10-01",
                             "eur_per_month": 11.5
                         }
                     ],
                     "advance_payments": [
                         {
-                            "from": "2024-04-01",
+                            "from": "2024-10-01",
                             "amount_eur": 47
                         }
                     ],
                     "bonuses": [
                         {
-                            "credit_date": "2024-06-15",
+                            "credit_date": "2024-12-15",
                             "amount_eur": 60,
                             "type": "neukunde",
                             "label": "Neukundenbonus"
@@ -7326,10 +7871,10 @@
                     "special_payments": [
                         {
                             "id": "sp_814fb9c827",
-                            "date": "2025-04-17",
-                            "kind": "nachzahlung_ohne",
-                            "amount_eur": 0.05,
-                            "note": "Schlussrechnung Strom Online 12 — Nachzahlung",
+                            "date": "2025-10-16",
+                            "kind": "rueckzahlung_ohne",
+                            "amount_eur": 2.28,
+                            "note": "Jahresabrechnung Strom — Guthaben",
                             "new_advance_eur": null,
                             "advance_from": null
                         }
@@ -7349,45 +7894,35 @@
                     "meter_id": "m_strom_wohnung",
                     "provider": "Beispiel-Energie",
                     "tariff_name": "Strom Online 12 — Verlängerung",
-                    "start": "2025-04-01",
-                    "end": "2026-03-31",
+                    "start": "2025-10-01",
+                    "end": "2026-09-30",
                     "notes": "Verlängert sich ohne Kündigung, danach monatlich kündbar",
                     "working_prices": [
                         {
-                            "from": "2025-04-01",
+                            "from": "2025-10-01",
                             "ct_per_kwh": 31.2
                         }
                     ],
                     "base_prices": [
                         {
-                            "from": "2025-04-01",
+                            "from": "2025-10-01",
                             "eur_per_month": 11.9
                         }
                     ],
                     "advance_payments": [
                         {
-                            "from": "2025-04-01",
-                            "amount_eur": 45
+                            "from": "2025-10-01",
+                            "amount_eur": 47
                         }
                     ],
                     "bonuses": [],
-                    "special_payments": [
-                        {
-                            "id": "sp_4c0f3ac2ce",
-                            "date": "2026-04-16",
-                            "kind": "nachzahlung_mit",
-                            "amount_eur": 117.81,
-                            "note": "Jahresabrechnung Strom — Nachzahlung, Abschlag angepasst",
-                            "new_advance_eur": 55,
-                            "advance_from": "2026-05-01"
-                        }
-                    ],
+                    "special_payments": [],
                     "is_shadow": false,
                     "shadow_label": null,
                     "notice_period_months": 1,
                     "notice_period_days": null,
                     "notice_mode": null,
-                    "auto_renews": null,
+                    "auto_renews": true,
                     "min_term_end": null,
                     "price_guarantee_until": null,
                     "signup_bonus_eur": null
@@ -7396,7 +7931,50 @@
             "deliveries": [],
             "meter_groups": [],
             "periods": [],
-            "bills": []
+            "bills": [
+                {
+                    "id": "b_0b44f01bbe6b",
+                    "meter_id": "m_strom_wohnung",
+                    "period_from": "2023-10-01",
+                    "period_to": "2024-09-30",
+                    "issued_on": "2024-10-17",
+                    "kind": "final",
+                    "contract_id": "c_strom_basis",
+                    "special_payment_id": "sp_3bf4595adc",
+                    "invoice": {
+                        "energy_kwh": 1663.2,
+                        "amount_eur": 810.76,
+                        "advances_paid_eur": 744,
+                        "result_eur": 66.76
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2024-10-19T19:12:00+02:00"
+                },
+                {
+                    "id": "b_3d95f823b595",
+                    "meter_id": "m_strom_wohnung",
+                    "period_from": "2024-10-01",
+                    "period_to": "2025-09-30",
+                    "issued_on": "2025-10-16",
+                    "kind": "annual",
+                    "contract_id": "c_strom_online",
+                    "special_payment_id": "sp_814fb9c827",
+                    "invoice": {
+                        "energy_kwh": 1634.2,
+                        "amount_eur": 561.72,
+                        "advances_paid_eur": 564,
+                        "result_eur": -2.28
+                    },
+                    "items": [],
+                    "co2": null,
+                    "note": "",
+                    "attachment_ids": [],
+                    "created_at": "2025-10-18T19:12:00+02:00"
+                }
+            ]
         },
         "wasser": {
             "meters": [
@@ -7741,17 +8319,6 @@
                     "device_id": "d_wasser_kalt",
                     "date": "2025-07-29",
                     "counter": 99.77,
-                    "price_cents": null,
-                    "note": "",
-                    "is_estimated": false,
-                    "is_future": false
-                },
-                {
-                    "id": "r_wasser_kalt_20250901",
-                    "meter_id": "m_wasser_kalt",
-                    "device_id": "d_wasser_kalt",
-                    "date": "2025-09-01",
-                    "counter": 101.228,
                     "price_cents": null,
                     "note": "",
                     "is_estimated": false,
@@ -8148,17 +8715,6 @@
                     "device_id": "d_wasser_warm",
                     "date": "2025-07-29",
                     "counter": 58.786,
-                    "price_cents": null,
-                    "note": "",
-                    "is_estimated": false,
-                    "is_future": false
-                },
-                {
-                    "id": "r_wasser_warm_20250901",
-                    "meter_id": "m_wasser_warm",
-                    "device_id": "d_wasser_warm",
-                    "date": "2025-09-01",
-                    "counter": 59.642,
                     "price_cents": null,
                     "note": "",
                     "is_estimated": false,

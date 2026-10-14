@@ -19,6 +19,8 @@ import { currentLevel, atLeast, nextLevel, saveLevel, isDismissed, dismiss } fro
 import { moneyHtml, energyHtml, weatherHtml, timelineHtml, playExplainers } from '../components/explainer.js';
 // v3.4.0 (F1024) — Hinweise abhaken
 import { markEventDone } from '../components/done-dialog.js';
+// v3.5.0 (F1028) — Zuständig: Chip und Filter in „Zu tun“
+import { assigneeOf, assigneeNames, chipHtml, filterHtml, bindFilter, filterNoteHtml, matchesAssignee, storedFilter } from '../lib/assignee.js';
 
 export async function render(container) {
   container.innerHTML = `<div class="loading">${t('dashboard.loading')}</div>`;
@@ -125,14 +127,7 @@ export async function render(container) {
           </div>
           <div class="kpi__sub">${t('dashboard.efficiency.perSource', { area: eff.wohnflaeche_m2 })}</div>
         `}
-        ${eff.certificate ? `
-          <p class="kpi__sub dash-eff__cert">${escapeHtml(t(eff.per_source.length > 1 ? 'dashboard.efficiency.certificateAll' : 'dashboard.efficiency.certificate', {
-            value: fmt.num(eff.certificate.kwh_per_m2, 0),
-            cls: eff.scale !== null && eff.certificate.class ? ' · ' + eff.certificate.class : '',
-          }))}${infoNote(t('glossary.efficiency.term'), t('dashboard.efficiency.certificateTitle', {
-            area: fmt.num(eff.certificate.area_m2, 0),
-            months: eff.certificate.months_36,
-          }))}</p>` : ''}
+        ${eff.certificate ? certificateHtml(eff, utilities) : ''}
         ${eff.per_source.some(s => s.complete === false) && eff.note ? `<p class="muted dash-eff__note">${escapeHtml(eff.note)}</p>` : ''}
         ${eff.scale_note ? `<p class="muted dash-eff__note">${escapeHtml(eff.scale_note)}</p>` : ''}
       </div>` : ''}
@@ -353,6 +348,15 @@ function buildTodo(events, recs) {
       recId: e.ref?.recommendation_id, href: e.href, ev: e,
       action: t(isContract ? 'dashboard.todo.contractAction' : 'dashboard.todo.tenancyAction') });
   }
+  // v3.5.0 (F1029) — Abrechnung erwartet bzw. überfällig: Sprung zum Erfassen, abhakbar („kam ohne Erfassung“).
+  // Eine gesetzliche Frist gibt es nur für Strom und Gas (§ 40c Abs. 2 EnWG) — sonst sagt die Zeile das
+  for (const e of due.filter(x => x.kind === 'bill_expected')) {
+    const deadline = e.ref?.deadline;
+    items.push({ icon: '🧾', tone: e.severity === 'overdue' ? 'alert' : 'warn', text: e.title,
+      sub: deadline ? t(e.ref?.overdue ? 'dashboard.todo.billOverdueSince' : 'dashboard.todo.billDeadline', { date: fmt.date(deadline) })
+        : t('dashboard.todo.billNoDeadline'),
+      href: e.href, ev: e, action: t('dashboard.todo.billAction') });
+  }
   // Überfälliges zuerst
   return items.sort((a, b) => (a.tone === 'alert' ? 0 : 1) - (b.tone === 'alert' ? 0 : 1));
 }
@@ -366,7 +370,7 @@ function todoItemsHtml(items, { go = true } = {}) {
   return items.map((x, i) => `<li class="dash-todo__item dash-todo__item--${x.tone}${x.ev?.can_mark_done ? ' dash-todo__item--check' : ''}">
     <a class="dash-todo__link" href="${x.href}">
       <span class="dash-todo__icon" aria-hidden="true">${escapeHtml(x.icon)}</span>
-      <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}</span>
+      <span class="dash-todo__text"><strong>${escapeHtml(x.text)}</strong>${x.sub ? `<span class="muted">${escapeHtml(x.sub)}</span>` : ''}${x.ev ? chipHtml(x.ev) : ''}</span>
       ${go ? `<span class="btn btn--sm btn--ghost dash-todo__go">${escapeHtml(x.action)}</span>` : ''}
       <span class="dash-todo__chev" aria-hidden="true">›</span>
     </a>
@@ -375,12 +379,21 @@ function todoItemsHtml(items, { go = true } = {}) {
   </li>`).join('');
 }
 
-function todoHtml(items) {
-  if (!items.length) return '';
+/**
+ * v3.5.0 (F1028) — `f`: Filter nach Zuständigkeit {filter, names, hidden};
+ * mit Filter bleibt die Karte auch ohne passende Zeile stehen (umschaltbar).
+ */
+function todoHtml(items, f = null) {
+  if (!items.length && !f) return '';
   return `
     <section class="card dash-todo" aria-labelledby="dash-todo-title">
-      <h2 class="card__title" id="dash-todo-title"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.todo.title'))}</h2>
-      <ul class="dash-todo__list">${todoItemsHtml(items)}</ul>
+      <div class="dash-todo__head">
+        <h2 class="card__title" id="dash-todo-title"><span aria-hidden="true">✅</span> ${escapeHtml(t('dashboard.todo.title'))}</h2>
+        ${f ? filterHtml({ id: 'todo-assignee', value: f.filter, names: f.names }) : ''}
+      </div>
+      ${items.length ? `<ul class="dash-todo__list">${todoItemsHtml(items)}</ul>`
+        : `<p class="muted" data-role="assignee-empty">${escapeHtml(t('assignee.emptyFiltered'))}</p>`}
+      ${f ? filterNoteHtml(f.hidden, f.filter) : ''}
     </section>`;
 }
 
@@ -397,10 +410,18 @@ function beginnerTodoHtml(items) {
  */
 function renderTodoBox(box, items) {
   if (!box?.isConnected) return;
-  box.innerHTML = box.dataset.variant === 'beginner' ? beginnerTodoHtml(items) : todoHtml(items);
+  const full = box.dataset.variant !== 'beginner';
+  // v3.5.0 (F1028) — Filter nach Zuständigkeit (volle Übersicht; je Gerät gemerkt)
+  const filter = storedFilter();
+  const withFilter = full && items.length > 0 && (items.some(x => assigneeOf(x.ev)) || filter !== 'all');
+  const shown = withFilter ? items.filter(x => matchesAssignee(x.ev || {}, filter)) : items;
+  box.innerHTML = full
+    ? todoHtml(shown, withFilter ? { filter, names: assigneeNames(items.map(x => x.ev).filter(Boolean)), hidden: items.length - shown.length } : null)
+    : beginnerTodoHtml(items);
+  if (withFilter) bindFilter(box, () => renderTodoBox(box, items));
   const refresh = () => refreshTodo(box);
   box.querySelectorAll('[data-todo-done]').forEach(btn => btn.addEventListener('click', async () => {
-    const x = items[Number(btn.dataset.todoDone)];
+    const x = shown[Number(btn.dataset.todoDone)];
     if (!x?.ev) return;
     if (await markEventDone(x.ev, { title: x.text, onChange: refresh })) btn.closest('li')?.remove();
   }));
@@ -660,6 +681,32 @@ function effClsTone(cls) {
   if (['C', 'D'].includes(cls)) return 'info';
   if (['E', 'F'].includes(cls)) return 'warning';
   return 'danger'; // G, H
+}
+
+// v3.5.0 — Energieausweis-nahe Kennzahl nach dem Verfahren, das heute gilt
+// (BenchmarkService::CERT_RULES, § 82 GEG bzw. ab 2027 GModG). Vor einem neuen
+// Verfahren steht darunter, was es ändert und welche Zahl es ergäbe (`upcoming`).
+function certificateHtml(eff, utilities = []) {
+  const c = eff.certificate;
+  const cls = (x) => eff.scale !== null && x.class ? ' · ' + x.class : '';
+  const basis = (x) => x.fuel_basis === 'hs' ? t('dashboard.efficiency.basis.hs') : t('dashboard.efficiency.basis.hi');
+  const label = (k) => utilities.find(u => u.key === k)?.label ?? k;
+  const approx = (x) => x.fuel_basis_approx?.length
+    ? ' ' + t('dashboard.efficiency.certificateApprox', { fuels: x.fuel_basis_approx.map(label).join(', ') }) : '';
+  const up = c.upcoming;
+  return `
+          <p class="kpi__sub dash-eff__cert">${escapeHtml(t(eff.per_source.length > 1 ? 'dashboard.efficiency.certificateAll' : 'dashboard.efficiency.certificate', {
+            value: fmt.num(c.kwh_per_m2, 0), cls: cls(c),
+          }))}${infoNote(t('glossary.efficiency.term'), t('dashboard.efficiency.certificateTitle', {
+            basis: basis(c), area: fmt.num(c.area_m2, 0),
+            required: c.months_required ?? 36, months: c.months_in_window ?? c.months_36,
+          }) + approx(c))}</p>
+          ${up ? `<p class="muted dash-eff__note" data-role="cert-upcoming">${escapeHtml(t('dashboard.efficiency.certificateUpcoming', {
+            date: fmt.date(up.from), basis: basis(up),
+            dhw: fmt.num(up.dhw_rule, 0), dhwOld: fmt.num(c.dhw_rule, 0),
+            required: up.months_required, requiredOld: c.months_required,
+            value: fmt.num(up.kwh_per_m2, 0), cls: cls(up),
+          }) + approx(up))}</p>` : ''}`;
 }
 
 // v3.1.0 (H8, MKT-11) — Einordnung des eigenen Verbrauchs an selbst eingetragenen

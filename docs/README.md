@@ -2,7 +2,7 @@
 
 [English](en/README.md) · **Deutsch**
 
-> Dokumentation zu Energietracker **v3.4.0**, geordnet nach dem, was du
+> Dokumentation zu Energietracker **v3.5.0**, geordnet nach dem, was du
 > vorhast. Deutsch ist die maßgebliche Fassung, Englisch der vollständige
 > Spiegel; die übrigen Oberflächensprachen haben die Hilfe in der App.
 >
@@ -36,7 +36,7 @@ evcc im Heimnetz.
 | [Jahresabrechnung eintragen und prüfen](anleitungen/jahresabrechnung.md) | Stände, Preise, Gasfaktoren und Guthaben einer Rechnung übernehmen und nachrechnen — für Gas, Strom, Wasser und Fernwärme; die Rechnung erfassen, vergleichen und als Sonderzahlung buchen |
 | [Als Mieter: Heizung, Wasser und Nebenkosten](anleitungen/mieter.md) | Verbrauchsinfo Monat für Monat, Warm- und Kaltwasser, Vorauszahlung gegen erwartete Kosten, Nebenkostenabrechnung und ihre Fristen |
 | [CO₂-Kosten mit dem Vermieter teilen](anleitungen/co2-aufteilung.md) | Anteil des Vermieters nach CO2KostAufG: bei eigener Gastherme ausrechnen und einfordern, bei Zentralheizung die Abrechnung prüfen; Frist und Anschreiben |
-| [Home Assistant anbinden](anleitungen/home-assistant.md) | Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall |
+| [Home Assistant anbinden](anleitungen/home-assistant.md) | Als App in Home Assistant OS (seit v3.5.0); Zählerstände automatisch pushen: Token, Zähler-Alias, REST-Command, Viertelstunden mit Zeitstempel; Saldo und Prognose als Sensoren zurück, Nachliefern nach einem Ausfall |
 | [ioBroker, Node-RED, openHAB](anleitungen/andere-systeme.md) | Zählerstände aus anderen Systemen senden: gemeinsamer Vertrag und je ein Rezept |
 | [Fristen und Termine im Kalender](anleitungen/kalender.md) | Kalender-Abo in Apple Kalender, Thunderbird und Google Kalender |
 | [Hinweise erledigen und der Verlauf](anleitungen/hinweise-erledigen.md) | Was sich von selbst erledigt (Folgevertrag, Ablesung, Lieferung), von Hand abhaken mit Datum, Notiz und Beleg, Rückgängig, Tab „Erledigt“, wer im Verlauf steht, Aufbewahrung und Datenschutz |

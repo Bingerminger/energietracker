@@ -192,6 +192,29 @@ for (const lang of LANGS) {
     }
   }
 }
+// v3.5.0 (F1027) — Tagesfilm: dieselbe Anordnung, Werte in kW mit einer
+// Stelle; auch große Anlagen und die Lücke („–“) ohne Überlappung
+section('Tagesfilm: Geometrie R1–R5 in kW × 7 Sprachen');
+const DAYCASES = {
+  'Mittag mit Speicher': { gen: 2.4, feed: 0.9, grid: 0, charged: 0.6, discharged: 0 },
+  'Nacht mit Netzladung': { gen: 0, feed: 0, grid: 1.1, charged: 0.8, discharged: 0 },
+  'Abend aus dem Speicher': { gen: 0, feed: 0, grid: 0.1, charged: 0, discharged: 0.5 },
+  'große Anlage, 99,9 kW': { gen: 24.975, feed: 18, grid: 3, charged: 2, discharged: 0 },
+};
+for (const lang of LANGS) {
+  await initI18n(lang);
+  const set = { bat: true, gridBat: true, dev: [] };
+  const L = EF.flowLayout(set);
+  for (const [name, v] of [...Object.entries(DAYCASES), ['Lücke', null]]) {
+    const kw = v ? EF.flowsFromTotals(Object.fromEntries(Object.entries(v).map(([k, x]) => [k, x * 4]))) : {};
+    const m = Object.assign(EF.flowModel(kw, set), { power: true, gap: !v, scaleMax: 100, minOn: 0.01 });
+    const svg = parse(EF.flowSvg(m, L, 'day').svg).querySelector('svg.ef');
+    const iss = checkFlow(svg);
+    t(`[${lang}] Tag ${name}: R1–R5`, !iss.length, iss.slice(0, 4).join(' | '));
+    if (lang === 'de' && !v) t('Lücke: „–“ in allen Knoten, kein Fluss an', [...svg.querySelectorAll('[data-k^="v-"]')].every(e => e.textContent.replace(/[↓↑]/, '') === '–')
+      && !svg.querySelector('.ef-flow:not(.ef-flow--off)'));
+  }
+}
 await initI18n('de');
 t('Netzladung: Brücke gezeichnet und im Text erklärt', (() => {
   const fig = parse(EX.energyHtml({ year: 2025, flow: flowFor(CASES['Netzladung im Winter']), battery: {} }));

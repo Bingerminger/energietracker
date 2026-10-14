@@ -173,8 +173,11 @@ Vier Knoten: **inject → function → http request → function**.
 ## openHAB
 
 Eine Regel in der Rules DSL (`conf/rules/energietracker.rules`) mit der
-HTTP-Aktion `sendHttpPostRequest(url, contentType, content, headers, timeout)`.
-Sie gibt die Antwort als Text zurück, im Fehlerfall `null`.
+HTTP-Aktion `sendHttpPostRequest(url, contentType, content, headers, timeout)`
+(Zeitlimit in Millisekunden). Sie gibt den Antworttext zurück — auch bei einem
+abgelehnten Wert (`400`) oder falschem Token (`401`), dann mit
+`"success":false` und `code`. `null` kommt nur, wenn keine Antwort kam
+(nicht erreichbar, Zeitlimit). Die Regel unten behandelt beides.
 
 ```java
 val String ET_URL  = "http://192.168.178.10:8080/api.php/api/ingest"
@@ -209,6 +212,12 @@ end
 - In JS Scripting heißt dieselbe Aktion `actions.HTTP.sendHttpPostRequest`.
 - openHAB hat keinen Speicher für Geheimnisse in Regeln. Die Datei mit dem
   Token nur für den openHAB-Benutzer lesbar halten.
+
+> **Wie geprüft (Oktober 2026):** Regel, Aktion und Einheiten gegen die
+> openHAB-Dokumentation (Version 5.2, „Actions“ und „Rules DSL“) und den
+> Quelltext der HTTP-Aktion geprüft; Anfrage und Antwort entsprechen dem
+> Eingang `POST /api/ingest`. In einer laufenden openHAB-Installation ist die
+> Regel nicht ausprobiert.
 
 ---
 

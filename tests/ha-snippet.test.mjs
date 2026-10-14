@@ -14,7 +14,8 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml } from '../public/js/lib/ha-snippet.js';
+import { haRestCommandYaml, haSecretsYaml, haAutomationYaml, haRestSensorYaml, haReadSecretYaml,
+  ingressHost, haBaseUrl, haUrl } from '../public/js/lib/ha-snippet.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = ['docs/anleitungen/home-assistant.md', 'docs/en/anleitungen/home-assistant.md'];
@@ -126,6 +127,28 @@ ok(haReadSecretYaml().startsWith('energietracker_read: "Bearer etk_'), 'App: Les
 ok(!haRestCommandYaml('x').includes('float(0)'), 'App: REST-Command ohne float(0)');
 ok(haRestCommandYaml('x').includes('Authorization: !secret energietracker_auth'), 'App: !secret als ganzer Wert');
 ok(haAutomationYaml([]).includes("has_value('sensor.stromzaehler_total_kwh')"), 'App: Beispiel-Automatisierung ohne Aliase prüft has_value');
+
+// v3.5.0 (N1025) — Adressen, die Home Assistant aufruft: unter Ingress der
+// Hostname der App (nicht /api/hassio_ingress/<token>/, das braucht eine
+// HA-Sitzung), sonst die Adresse der Seite — auch in einem Unterverzeichnis.
+{
+  const as = (href, host) => {
+    globalThis.location = new URL(href);
+    globalThis.document = { querySelector: (sel) => (host && sel === 'meta[name="et-ingress-host"]' ? { getAttribute: () => host } : null) };
+  };
+  as('https://ha.example:8123/api/hassio_ingress/Xy12/', '1a2b3c4d-energietracker');
+  ok(ingressHost() === '1a2b3c4d-energietracker', 'Ingress: Hostname aus dem Meta-Tag');
+  ok(haBaseUrl() === 'http://1a2b3c4d-energietracker', 'Ingress: Basis ist der Hostname der App');
+  ok(haUrl('api.php/api/calendar.ics?token=etk_1') === 'http://1a2b3c4d-energietracker/api.php/api/calendar.ics?token=etk_1',
+    'Ingress: Kalender-Adresse ohne den Ingress-Pfad');
+  as('https://nas.local/energietracker/index.php', null);
+  ok(ingressHost() === null, 'ohne Ingress kein Hostname');
+  ok(haBaseUrl() === 'https://nas.local/energietracker', 'ohne Ingress: Adresse der Seite im Unterverzeichnis');
+  ok(haUrl('api.php/api/calendar.ics') === 'https://nas.local/energietracker/api.php/api/calendar.ics',
+    'ohne Ingress: Kalender-Adresse unverändert');
+  delete globalThis.location;
+  delete globalThis.document;
+}
 
 console.log(`ha-snippet: ${passed} bestanden, ${failed} fehlgeschlagen`);
 process.exit(failed ? 1 : 0);

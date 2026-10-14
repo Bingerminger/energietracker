@@ -19,14 +19,31 @@ dieselben Sätze und Zahlen. Die Druckansicht ist die barrierefreie Fassung
 
 ## 1. Bericht holen
 
-**Auswertungen → Jahresbericht**, Jahr wählen (vorgewählt ist das Vorjahr):
+**Auswertungen → Jahresbericht**, dann einer der drei Knöpfe:
 
 - **Druckansicht öffnen** zeigt den Bericht als Seite in der App. „Drucken /
   als PDF sichern“ bringt ihn auf Papier oder in eine Datei, am iPhone über
   Teilen → Drucken. Das Häkchen **„Mit Anhang ‚Zahlen im Detail‘“** blendet die
   Monatstabellen ein.
 - **Im Browser öffnen** und **Jahresbericht herunterladen** liefern die
-  fertige PDF-Datei. Sie entsteht in der Sprache dieses Geräts.
+  fertige PDF-Datei.
+
+**Der Dialog „Jahresbericht erstellen“ (seit v3.5.0)** fragt vorher:
+
+| Feld | Was es bewirkt |
+|---|---|
+| **Jahr** | dieses und die sechs Jahre davor; vorgewählt ist das Vorjahr |
+| **Sprache des PDF** | eine der Oberflächensprachen, vorgewählt die dieses Geräts — etwa für Angehörige. Die Druckansicht erscheint immer in der Sprache dieses Geräts; der Dialog sagt das statt einer Auswahl |
+| **Verbrauchsarten** | Häkchen je *aktive* Verbrauchsart. Alle angehakt ergibt den ganzen Bericht, sonst einen **Teilbericht** nur mit diesen — etwa für die Hausverwaltung. Die Druckansicht nennt ihn oben („Teilbericht: Gas, Wasser“). Ohne Häkchen erscheint „Mindestens eine Verbrauchsart wählen.“ |
+| **Mit Anhang „Zahlen im Detail“** | die Monatstabellen je Verbrauchsart |
+
+Dieses Gerät merkt sich Verbrauchsarten, Sprache und Anhang (im Browser);
+das Jahr steht jedes Mal wieder auf dem Vorjahr. Die Knöpfe der Seite sind
+Links mit dieser gemerkten Auswahl — ein Mittelklick öffnet sie ohne Dialog.
+In der Druckansicht öffnet **„Optionen …“** denselben Dialog, vorbelegt mit
+dem, was sie gerade zeigt. In der öffentlichen Demo gibt es den Bericht nur
+ganz: Verbrauchsarten und der Anhang im PDF sind dort gesperrt. Der Dialog
+erzeugt genau die Zusätze aus [§ 6](#6-teilbericht-und-sprache-per-link).
 
 ## 2. Aufbau
 
@@ -116,7 +133,9 @@ Deutschland).
 
 ## 6. Teilbericht und Sprache per Link
 
-Die Adresse des PDFs nimmt drei Zusätze an (auch kombiniert):
+Die Adresse des PDFs nimmt drei Zusätze an (auch kombiniert); der Dialog aus
+[§ 1](#1-bericht-holen) setzt sie, und die Druckansicht versteht
+`utilities` und `detail` ebenso (`#/report/print?year=2025&utilities=wasser`):
 
 | Zusatz | Wirkung |
 |---|---|

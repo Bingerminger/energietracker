@@ -13,8 +13,8 @@ use PHPUnit\Framework\Attributes\CoversClass;
  * Der Vertragsstatus trägt je Vertrag die Einzelposten (`special_payments`)
  * und das Netto aus Kundensicht (`special_payment_net`: erhalten positiv,
  * gezahlt negativ). Die Liste gibt es nur für Verbrauchsarten mit
- * Abschlagsverträgen — ihr Fehlen ist für die UI das Signal, die Spalte
- * nicht zu zeigen.
+ * Sonderzahlungen (seit v3.5.0 auch Wasser) — ihr Fehlen ist für die UI das
+ * Signal, die Spalte nicht zu zeigen.
  */
 #[CoversClass(ConsumptionService::class)]
 final class ContractStatusSpecialPaymentsTest extends ServiceTestCase
@@ -85,18 +85,39 @@ final class ContractStatusSpecialPaymentsTest extends ServiceTestCase
         self::assertEqualsWithDelta(0.0, $c['special_payment_net'], 1e-9);
     }
 
-    public function testWaterStatusHasNoSpecialPaymentsField(): void
+    public function testWaterStatusCarriesTheSpecialPaymentsLikeGas(): void
     {
-        // Wasser kennt keine Sonderzahlungen (Drei-Komponenten-Tarif) — das
-        // Feld fehlt, die Spalte entfällt.
+        // v3.5.0 (GitHub #34) — bis v3.4 hieß dieser Test
+        // testWaterStatusHasNoSpecialPaymentsField und hielt genau den Fehler
+        // fest: Wasser kannte keine Sonderzahlungen, das Feld fehlte, die
+        // Spalte entfiel. Die Wasserabrechnung endet aber wie jede andere mit
+        // einer Nach- oder Rückzahlung.
         $meter = $this->meters->create('wasser', [
             'name' => 'Wasserzähler', 'installed_on' => '2024-01-01', 'initial_counter' => 0.0,
         ]);
         $this->contracts->create('wasser', [
             'meter_id' => $meter['id'], 'provider' => 'Stadt', 'tariff_name' => 'Wasser',
             'start' => '2024-01-01', 'end' => null,
+            'special_payments' => [['date' => '2024-03-15', 'kind' => 'nachzahlung_ohne', 'amount_eur' => 35.0, 'note' => 'Abrechnung']],
         ]);
         $c = $this->consumption->contractStatus('wasser', $meter)['contracts'][0];
+        self::assertArrayHasKey('special_payments', $c);
+        self::assertSame(['date', 'kind', 'amount_eur', 'note'], array_keys($c['special_payments'][0]));
+        self::assertEqualsWithDelta(-35.0, $c['special_payment_net'], 1e-9, 'gezahlt zählt negativ');
+    }
+
+    public function testFeedInStatusHasNoSpecialPaymentsField(): void
+    {
+        // Die Einspeisung kennt keine Sonderzahlungen — das Feld fehlt, die
+        // Spalte entfällt.
+        $meter = $this->meters->create('pv_einspeisung', [
+            'name' => 'Einspeisung', 'installed_on' => '2024-01-01', 'initial_counter' => 0.0,
+        ]);
+        $this->contracts->create('pv_einspeisung', [
+            'meter_id' => $meter['id'], 'provider' => 'Netz', 'start' => '2024-01-01',
+            'working_prices' => [['from' => '2024-01-01', 'ct_per_kwh' => 8.0]],
+        ]);
+        $c = $this->consumption->contractStatus('pv_einspeisung', $meter)['contracts'][0];
         self::assertArrayNotHasKey('special_payments', $c);
     }
 }

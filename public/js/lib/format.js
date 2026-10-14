@@ -40,17 +40,25 @@ export function setCountry(code, languages = []) {
   numCache.clear(); eurCache.clear(); decCache.clear(); dateCache.clear(); monthCache.clear(); pctCache.clear();
 }
 const regionCache = new Map();
-export const intlLocale = () => {
-  const lang = getLocale();
-  const key = `${lang}|${country}|${countryLanguages.join(',')}`;
+/**
+ * v3.5.0 (N1022) — die Regel als reine Funktion, damit der
+ * Einrichtungsassistent die Schreibweise einer noch nicht gespeicherten Wahl
+ * zeigen kann (Englisch + Deutschland → en-GB).
+ * @param {string} lang       Sprache (de, en, …)
+ * @param {string} code       Land (ISO 3166)
+ * @param {string[]} languages Sprachen des Landes laut Länderprofil
+ */
+export function regionLocale(lang, code, languages = []) {
+  const key = `${lang}|${code}|${(languages || []).join(',')}`;
   if (!regionCache.has(key)) {
-    const tag = `${lang}-${country}`;
-    let ok = countryLanguages.includes(lang);
+    const tag = `${lang}-${code}`;
+    let ok = Array.isArray(languages) && languages.includes(lang);
     try { ok = ok && Intl.NumberFormat.supportedLocalesOf([tag]).length > 0; } catch { ok = false; }
     regionCache.set(key, ok ? tag : (REGION[lang] || lang || 'de-DE'));
   }
   return regionCache.get(key);
-};
+}
+export const intlLocale = () => regionLocale(getLocale(), country, countryLanguages);
 
 // Formatter sind pro (locale, digits) gecached, damit nicht bei jedem Aufruf
 // ein neues Intl-Objekt entsteht.

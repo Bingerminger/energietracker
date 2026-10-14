@@ -184,8 +184,9 @@ unter [Grundlagen & Methodik](../verstehen/00-overview.md).
   Monat für Monat und **Wasser-Spar-Index** je Person.
 - **Effizienz** in kWh/m²·a — Klassen A+ bis H nach GModG (bis Juli 2026
   GEG), nur für ganze Jahre —
-  und daneben eine **energieausweis-nahe Kennzahl** (Heizwert,
-  witterungsbereinigt, Gebäudenutzfläche).
+  und daneben eine **energieausweis-nahe Kennzahl** (witterungsbereinigt,
+  Gebäudenutzfläche; nach dem Verfahren, das gerade gilt: bis 2026 Heizwert,
+  ab 2027 Brennwert nach § 82 GModG).
 - **Heizwärme** (v3.1.0): die Wärme, die in der Wohnung ankommt, als eigene
   Verbrauchsart mit Heizmodell, Wetterbereinigung und Prognose; CO₂ als
   Näherung über den Energieträger der Heizung. Für Warmwasserzähler rechnet

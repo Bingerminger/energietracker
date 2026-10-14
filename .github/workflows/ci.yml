@@ -34,9 +34,9 @@ jobs:
           coverage: none
 
       - name: Node.js einrichten (20)
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: jsdom installieren
         run: npm install jsdom
@@ -51,6 +51,8 @@ jobs:
       # v3.4.0 (F1026) — Schaubilder: Energiefluss (Formel, Bilanz, Geometrie
       # R1–R5 × 7 Sprachen, Bedienung), Zeitstrahl, Geld und Wetter.
       # v3.4.0 (N1021) — ein Formularraster, [hidden], Darstellung mit Abzeichen.
+      # v3.5.0 (F1027) — Tagesfilm: Viertelstundenmodell, Abspieler, Tastatur,
+      # „Bewegung reduzieren“, „Tag“ nur mit Viertelstunden.
       - name: Frontend-Unit-Tests (Zahlenparser, HA-Vorlage, Plausibilität, Router, Kontraste, Charts, Doku, Schaubilder, Formulare)
         run: |
           node tests/format.test.mjs
@@ -64,9 +66,17 @@ jobs:
           node tests/outbox.test.mjs
           node tests/levels.test.mjs
           node tests/explainer.test.mjs
+          node tests/day-film.test.mjs
           node tests/docs.test.mjs
           node tests/cache-names.test.mjs
           node tests/forms.test.mjs
+          # v3.5.0 (N1022, N1023) — Einrichtung mit Sprache und Land, eine
+          # Navigationsschwelle für CSS und Skript, Dialog zum Jahresbericht
+          node tests/setup-wizard.test.mjs
+          node tests/nav-threshold.test.mjs
+          node tests/report-dialog.test.mjs
+          # v3.5.0 (F1028) — Zuständig: Filter, „Ich bin …“, Chip, Dialog; Verlauf als CSV
+          node tests/assignee.test.mjs
 
       - name: Demo-Daten vorbereiten
         run: cp -r demo-data /tmp/etdata
@@ -334,14 +344,152 @@ jobs:
           curl -sf http://127.0.0.1:8081/public/js/app.js >/dev/null
           echo "gehärteter Betrieb ok"
 
+      # v3.5.0 (N1025) — wie als Home-Assistant-App: die Umgebung aus der
+      # config.yaml der App, /data als Volume, und vor dem zweiten Start legt
+      # root (wie der Supervisor vor jedem Start) eine options.json mit Rechten
+      # 0600 hinein. Der HEALTHCHECK des Images ist für Home Assistant die
+      # Überwachung der App; er muss danach weiter „healthy" melden. Ohne den
+      # Supervisor kennt die App keine Person: Daten zu, Push nur mit Token.
+      - name: Wie als Home-Assistant-App (options.json, HEALTHCHECK)
+        run: |
+          set -euo pipefail
+          cleanup() {
+            docker logs et-ha || true
+            docker rm -f et-ha >/dev/null 2>&1 || true
+            docker volume rm etdata-ha >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker volume create etdata-ha
+          docker run -d --name et-ha -e ET_DATA_DIR=/data -e ET_AUTH=proxy \
+            -e ET_TRUSTED_PROXIES=172.30.32.2 -e TZ=Europe/Berlin \
+            -v etdata-ha:/data -p 127.0.0.1:8082:80 energietracker:ci
+          wait_healthy() {
+            s=none
+            for i in $(seq 1 75); do
+              s=$(docker inspect -f '{{.State.Health.Status}}' et-ha)
+              if [ "$s" = "healthy" ]; then return 0; fi
+              if [ "$s" = "unhealthy" ]; then break; fi
+              sleep 2
+            done
+            echo "HEALTHCHECK: $s"
+            curl -s http://127.0.0.1:8082/api/health || true
+            return 1
+          }
+          wait_healthy
+          docker stop et-ha
+          docker run --rm --user root --entrypoint sh -v etdata-ha:/data energietracker:ci -c \
+            'printf "{}" > /data/options.json.new && chmod 600 /data/options.json.new && mv /data/options.json.new /data/options.json && ls -ln /data/options.json'
+          docker start et-ha
+          wait_healthy
+          curl -sf http://127.0.0.1:8082/api/health -o /tmp/health-ha.json
+          grep -q '"status":"ok"' /tmp/health-ha.json
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Ingress-Path: /api/hassio_ingress/x' \
+            -H 'X-Remote-User-Id: ha-1' http://127.0.0.1:8082/api/utilities)" = "401"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' \
+            -d '{"utility":"strom","meter":"x","value":1}' http://127.0.0.1:8082/api/ingest)" = "401"
+          echo "wie als Home-Assistant-App ok"
+
+      # v3.5.0 (N1024) — dieselbe Dockerfile, Ziel `rootless` (Stufe `base` aus
+      # dem Cache des Standard-Baus).
+      - name: Image ohne root bauen
+        run: docker build --target rootless -t energietracker:ci-rootless .
+
+      # Das Beispiel aus docs/betrieb/docker.md („Ohne root“): keine
+      # Capabilities, nur lesbares Dateisystem, Named Volume. Prüft Health,
+      # Schreiben ins Volume, einen Körper über dem Puffer von nginx
+      # (Zwischenspeicher unter /tmp) und dass kein Prozess als root läuft.
+      - name: Ohne root (Beispiel aus der Doku)
+        run: |
+          set -euo pipefail
+          docker volume create etdata-rootless
+          docker run -d --name et-rootless \
+            --security-opt no-new-privileges:true \
+            --cap-drop ALL \
+            --read-only --tmpfs /tmp \
+            -v etdata-rootless:/data -p 127.0.0.1:8082:8080 energietracker:ci-rootless
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8082/api/health -o /tmp/health-rootless.json; then break; fi
+            sleep 1
+          done
+          grep -q '"status":"ok"' /tmp/health-rootless.json
+          grep -q '"data_dir_writable":true' /tmp/health-rootless.json
+          curl -sf -X PATCH -H 'Content-Type: application/json' -d '{"wohnflaeche_m2": 92}' \
+            http://127.0.0.1:8082/api/settings -o /tmp/settings-rootless.json
+          grep -q '"wohnflaeche_m2":92' /tmp/settings-rootless.json
+          docker exec et-rootless test -s /data/settings.json
+          curl -sf http://127.0.0.1:8082/public/js/app.js >/dev/null
+          # 64 KB Körper: nginx puffert ihn in einer Datei (client_body_temp_path)
+          printf '{"location_name":"%s"}' "$(head -c 65536 /dev/zero | tr '\0' x)" > /tmp/big.json
+          curl -s -X PATCH -H 'Content-Type: application/json' --data-binary @/tmp/big.json \
+            http://127.0.0.1:8082/api/settings -o /tmp/big-answer.json
+          grep -q '"success"' /tmp/big-answer.json
+          # wirklich nicht root: die UID des Images, und kein Prozess mit UID 0
+          test "$(docker exec et-rootless id -u)" = "10001"
+          docker exec et-rootless sh -c 'for f in /proc/[0-9]*/status; do grep "^Uid:" "$f" 2>/dev/null; done' > /tmp/uids.txt || true
+          cat /tmp/uids.txt
+          test -s /tmp/uids.txt
+          # erst in eine Datei: `grep -q` am Ende einer Pipe beendet awk vorzeitig,
+          # und mit pipefail wäre die Bedingung dann still falsch (Lektion 30)
+          awk '{print $2; print $3}' /tmp/uids.txt > /tmp/uid-list.txt
+          if grep -qx 0 /tmp/uid-list.txt; then echo "Prozess als root"; exit 1; fi
+          echo "ohne root ok"
+
+      # Ein Datenordner, der einer anderen UID gehört (hier dem Runner): klare
+      # Meldung im Log und in /api/health statt 500. Gegenproben aus der Doku:
+      # derselbe Ordner mit `--user <Besitzer>` läuft, und eine beliebige UID
+      # mit Gruppe 0 schreibt in ein frisches Named Volume (g=u).
+      - name: Ohne root, Datenordner einer anderen UID
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/etdata-foreign
+          chmod 755 /tmp/etdata-foreign
+          docker run -d --name et-rootless-foreign \
+            -v /tmp/etdata-foreign:/data -p 127.0.0.1:8083:8080 energietracker:ci-rootless
+          code=000
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /tmp/health-foreign.json -w '%{http_code}' http://127.0.0.1:8083/api/health || true)
+            if [ "$code" = "503" ]; then break; fi
+            sleep 1
+          done
+          test "$code" = "503"
+          grep -q '"data_dir_writable":false' /tmp/health-foreign.json
+          test "$(curl -s -o /tmp/settings-foreign.json -w '%{http_code}' http://127.0.0.1:8083/api/settings)" = "503"
+          grep -q '"code":"errors.storage.notWritable"' /tmp/settings-foreign.json
+          docker logs et-rootless-foreign > /tmp/rootless-foreign.log 2>&1
+          grep -q 'Datenverzeichnis nicht beschreibbar' /tmp/rootless-foreign.log
+          docker rm -f et-rootless-foreign
+          docker run -d --name et-rootless-foreign --user "$(id -u):$(id -g)" \
+            -v /tmp/etdata-foreign:/data -p 127.0.0.1:8083:8080 energietracker:ci-rootless
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8083/api/health -o /tmp/health-foreign.json; then break; fi
+            sleep 1
+          done
+          grep -q '"status":"ok"' /tmp/health-foreign.json
+          test -s /tmp/etdata-foreign/meta.json
+          docker volume create etdata-gid0
+          docker run -d --name et-rootless-gid0 --user 12345:0 \
+            -v etdata-gid0:/data -p 127.0.0.1:8084:8080 energietracker:ci-rootless
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8084/api/health -o /tmp/health-gid0.json; then break; fi
+            sleep 1
+          done
+          grep -q '"status":"ok"' /tmp/health-gid0.json
+          curl -sf -X PATCH -H 'Content-Type: application/json' -d '{"wohnflaeche_m2": 93}' \
+            http://127.0.0.1:8084/api/settings -o /tmp/settings-gid0.json
+          grep -q '"wohnflaeche_m2":93' /tmp/settings-gid0.json
+          echo "Meldung, eigene UID und Gruppe 0 ok"
+
       - name: Container-Logs (Diagnose)
         if: always()
         run: |
           docker logs et || true
           docker logs et-hardened || true
+          docker logs et-rootless || true
+          docker logs et-rootless-foreign || true
+          docker logs et-rootless-gid0 || true
 
       - name: Aufräumen
         if: always()
         run: |
-          docker rm -f et et-hardened || true
-          docker volume rm etdata-hardened || true
+          docker rm -f et et-hardened et-rootless et-rootless-foreign et-rootless-gid0 || true
+          docker volume rm etdata-hardened etdata-rootless etdata-gid0 || true

@@ -912,7 +912,8 @@ individual items as `[{date, kind, amount_eur, note}]` (sorted by date,
 amounts positive — the direction is in `kind`), the data source for the
 tooltip of the *Special payments* column. `special_payment_net` is the net
 from the customer's perspective (Σ refund − Σ back-payment − Σ advance
-payment). The field is absent for water and PV feed-in.
+payment). The field is absent for PV feed-in; water has it since v3.5.0
+([#34](https://github.com/Bingerminger/energietracker/issues/34)).
 
 **Since v2.8.0** the balance for gas, electricity and district heating is
 computed **by calendar up to today**: `advance_paid` counts the advances according

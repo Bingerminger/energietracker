@@ -130,7 +130,18 @@ Without a server run `tests/format.test.mjs`, `tests/ha-snippet.test.mjs`,
   cases in all seven languages, no hex colours and no emoji in the picture,
   “reduce motion”, highlighting, year/month in place; the timeline with built
   contracts without overlaps; money and weather with extreme values. Text
-  widths are estimated (0.56 em, 0.6 em for digits) with a 10 % reserve.
+  widths are estimated (0.56 em, 0.6 em for digits) with a 10 % reserve. Since
+  v3.5.0 also the day film in kW (R1–R5 in all languages, a gap as “–”).
+- **`tests/day-film.test.mjs`** (v3.5.0) — the day film of the energy flow
+  without a server, the API with built answers: power = kWh × 4, running
+  totals only over complete quarter hours and calculated from the amounts
+  (grid charging stays grid power), nodes per day, strip with wholesale price
+  and gaps; “Day” only with quarter hours, plays by itself (15 s per day),
+  slider with `aria-valuetext`, Space, arrow keys, Page Up/Down, Home/End, a gap
+  as “–”, choosing day and month, typical day, clock change (100 quarter
+  hours), “reduce motion” without playback and without dots. Server side:
+  `EnergyFlowDayTest` (sub-meters, gaps, clock change in March and October,
+  typical day, without PV, battery, missing price, defaults).
 - **`tests/docs.test.mjs`** (v3.4.0) — the handbook in the app: fetches the
   allowlist from the real `DocsService` (PHP command line) and renders every
   page with `lib/markdown.js` and the link rules from `lib/docs.js`. Every
@@ -268,7 +279,18 @@ can get wrong; the rules behind them are in
   manifest in the requested language.
 - `DemoDataTranslatorTest` — every text of the demo data is translated into
   every language (`demo-data/translations.json`); IDs, numbers and company
-  names stay.
+  names stay; since v3.5.0 also notes and building blocks in the “Done”
+  history (people’s names stay).
+- `PersonaUseCasesTest` (v3.5.0, N1026) — every sample household and the
+  showcase show the new use cases: history with every kind of action,
+  reminders with someone in charge (never with `assignee_id`), supplier bills
+  judged “fine”, a recently ended period without a bill for electricity or
+  gas (at any time where the billing anchor is relative to today), follow-up
+  contracts; quarter hours that add up in every quarter hour and match the
+  difference of the readings between two readings; backup round trip and the
+  table in `docs/en/einstieg/einrichtung.md`. `DemoDataAlignerTest` also
+  checks the quarter-hour window (up to yesterday, after the export, clock
+  change) and the history that moves with the reminders.
 
 **Over HTTP (v3.1.0).** A service test cannot see headers, status codes and
 access rules. For those there is the base class `HttpServerTestCase`
@@ -305,6 +327,32 @@ variables (`ET_AUTH` …), and removes both afterwards. `AgendaAccessTest` and
   [step 5 of the Home Assistant guide](../anleitungen/home-assistant.md) line by
   line with the app's template (`haRestSensorYaml`), without comments, address
   and names.
+
+**Home Assistant app (v3.5.0):** the app lives in its own repository
+`energietracker-ha` (where the linter `frenck/action-app-linter` checks the
+`config.yaml`) and uses the standard image unchanged. Checked here is what the
+image has to provide for it:
+
+- `HomeAssistantAppTest` — against a real PHP server with the app's
+  environment (`ET_AUTH=proxy`, `ET_TRUSTED_PROXIES`): the Supervisor's
+  `options.json` (mode 0600) keeps `/api/health` healthy; under Ingress no
+  absolute paths in the shell, no service worker, the HA person signed in (the
+  first one manages), no warning in the diagnostics; from other addresses the
+  Supervisor headers do not count and the push needs its token.
+- `HealthCheckServiceTest` — `options.json` does not count as damaged, an
+  unreadable file of the app's own still does.
+- `HomeAssistantAppDocsTest` — the `config.yaml` excerpt in the guide is the
+  same in DE and EN and matches the image: port (`EXPOSE`, nginx), data path,
+  image name and platforms from `docker-publish.yml`, `init: false` to
+  supervisord, `HEALTHCHECK` on `/api/health`; the app reads every variable,
+  `ET_AUTH` is a valid mode.
+- `tests/ha-snippet.test.mjs` — `haBaseUrl()` and `haUrl()`: under Ingress the
+  app's host name instead of `/api/hassio_ingress/<token>/`, otherwise the page
+  address (also in a subdirectory); `tests/browser-render.test.mjs` uses this to
+  check the calendar subscription under Ingress.
+- In CI the Docker job starts the image the way the Supervisor does (the app's
+  environment, volume `/data`, `options.json` written as root before the second
+  start) and waits for “healthy”.
 
 **Quarter hours and flexibility (v3.3.0):**
 
@@ -355,14 +403,18 @@ v3.1.0 **lint-php** and **phpunit** each run under PHP 8.2, 8.3 and 8.4 — the
 minimum version, the version in Ubuntu 24.04 and the one in the Docker image;
 since v3.4.0 also under 8.5 (the Docker image). Since v3.4.0 the **docker** job
 also checks that php-fpm is only reachable inside the container and starts the
-image hardened (example from [Docker operation](../betrieb/docker.md#hardened-operation-v340));
+image hardened (example from [Docker operation](../betrieb/docker.md#hardened-operation-v340)),
+since v3.5.0 also the variant without root (`--target rootless`: no
+capabilities, no UID 0, writing to the volume, a clear message for a foreign
+data folder — [Without root](../betrieb/docker.md#without-root-v350));
 the **test** job sends the app with prepared data through every page
 (`tests/poisoned-render.test.mjs`). All workflows run with read permissions,
 actions of other vendors are pinned by commit SHA. A
 separate workflow `docker-publish.yml` publishes the multi-arch image (amd64 +
-arm64) to GHCR on every version tag; `docker-rebuild.yml` (v3.4.0) rebuilds the
-latest release tag every week and scans the image for known vulnerabilities
-(non-blocking). `docker-armv7-probe.yml` (v3.1.0, started
+arm64) to GHCR on every version tag, since v3.5.0 together with the variant
+without root (tags `-rootless`); `docker-rebuild.yml` (v3.4.0) rebuilds the
+latest release tag every week and scans the images for known vulnerabilities
+(non-blocking, both variants). `docker-armv7-probe.yml` (v3.1.0, started
 by hand only) builds the image for `linux/arm/v7` under QEMU and starts it
 without publishing; only once it is green does arm/v7 join the platform list.
 

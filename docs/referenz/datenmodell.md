@@ -696,15 +696,22 @@ von SMARD (`"smard"`); ein Import ersetzt nur die Monate, die er enthält.
 Grundlage des Dynamik-Checks ([API](api.md#börsenstrompreise-und-dynamik-check-v310)).
 Teil des Backups; Schema 1.7.0 legt den Topf leer an.
 
-**`special_payments` (F1003, ab v1.5.0)** — nur bei Gas/Strom/Fernwärme
-(Single-Source-of-Truth: `Utilities::hasAdvancePaymentContracts()`).
+**`special_payments` (F1003, ab v1.5.0)** — bei Gas, Strom, Wasser (seit
+v3.5.0, [#34](https://github.com/Bingerminger/energietracker/issues/34), neben
+den drei Komponenten) und Fernwärme (Single-Source-of-Truth:
+`Utilities::hasSpecialPayments()`, in `/api/utilities` als
+`has_special_payments`; bis v3.4 `hasAdvancePaymentContracts()`, das Wasser
+ausschließt). Heizöl, Pellets und PV-Einspeisung verwerfen das Feld beim
+Speichern.
 `kind` ∈ {`rueckzahlung_mit`, `rueckzahlung_ohne`, `nachzahlung_mit`,
 `nachzahlung_ohne`, `abschlagszahlung`}. `amount_eur` ist stets positiv;
 das Vorzeichen im Saldo ergibt sich aus `kind` (Rückzahlung erhöht den
 Saldo, Nach-/Abschlagszahlung senkt ihn). Nur `*_mit`-Arten tragen
 `new_advance_eur` + `advance_from`; diese Punkte werden in den
 effektiven Abschlagsplan gemischt. Additiv & abwärtskompatibel — fehlt
-das Feld, wird es beim Normalisieren zu `[]` (kein Migrationsschritt).
+das Feld, wird es beim Normalisieren zu `[]` (kein Migrationsschritt); ein
+älterer Wasservertrag behält es fehlend, bis Sonderzahlungen kommen, und wird
+wie `[]` gelesen.
 
 ### Ladevorgänge (`ev_sessions.json`) *(v3.2.0)*
 
@@ -816,6 +823,23 @@ später, verschieben sich die Plätze um den Unterschied.
   Reihe einen Eintrag im Index des Backups; danach fallen Reihen ohne Eintrag
   im neuen Index weg ([API](api.md#snapshots-und-import-v260)).
 
+### Termin (`reminders.json`) — Zuständig *(v3.5.0)*
+
+Termine stehen in einer Liste (`id`, `title`, `category`, `next_due`,
+`recurrence`, `recurrence_months`, `last_done`, `notes`, `active`). Seit
+v3.5.0 optional dazu, ohne Schema-Schritt — fehlende Felder heißen
+„niemand zuständig“:
+
+| Feld | Bedeutung |
+|---|---|
+| `assignee` | Anzeigename der zuständigen Person, getrimmt, bis 60 Zeichen |
+| `assignee_id` | Personen-ID aus `auth.json`, nur wenn aus der Personenliste gewählt |
+| `assignee_former` | `true`, nachdem die Person gelöscht und ihr Name ersetzt wurde („ehemalige Person“) |
+
+Das Backup (Topf `reminders`) trägt die Namen wie gespeichert; die
+Personenliste bleibt in `auth.json`. Einzelheiten:
+[API](api.md#zuständig-an-terminen-v350).
+
 ### Verlauf erledigter Hinweise (`activity.json`) *(v3.4.0)*
 
 Was erledigt wurde, wann und von wem
@@ -840,7 +864,7 @@ dem ersten Eintrag, fehlt sie, ist der Verlauf leer. Kein Schema-Schritt.
 | Feld | Bedeutung |
 |---|---|
 | `id` | `act_` und 12 Hexziffern |
-| `action` | `done` (von Hand abgehakt), `auto_done` (aus den Daten erledigt: lückenloser Folgevertrag, Ablesung, Lieferung, Nebenkostenabrechnung) oder `dismissed` (Empfehlung ausgeblendet) |
+| `action` | `done` (von Hand abgehakt), `auto_done` (aus den Daten erledigt: lückenloser Folgevertrag, Ablesung, Lieferung, Nebenkostenabrechnung; seit v3.5.0 neuer Zeitraum, Versorgerrechnung), `dismissed` (Empfehlung ausgeblendet) oder seit v3.5.0 `updated` (geänderte Nebenkostenabrechnung, `subject.kind: "tenancy_statement"` — nur Nachweis, erledigt nichts) |
 | `subject` | `kind` = Art wie in der Agenda (`reminder`, `cancel_by`, `term_end`, `price_increase`, `tank_reorder`, `objection_deadline`, `co2_claim_deadline`, `reading_due`, `tenancy_statement_due`) bzw. `contract` (Folgevertrag) oder `recommendation`; `uid` wie in der Agenda; `occurrence` = `uid@anker` — Vertrag: sein Ende bzw. `renewed`/`open`, Tank: letzte Lieferung, Termin: Fälligkeit, Fristen: ihr Datum. Ein Haken gilt nur für dieses Vorkommen |
 | `ref` | Verweise: `utility`, `meter_id` bzw. `meter_group_id`, `contract_id`, `successor_id`, `reminder_id`, `tenancy_id`, `statement_id`, `delivery_id`, `recommendation_id`, `cancelled` (bei der Kündigung `auto_renews` auf `false` gesetzt) |
 | `title_key`, `params` | Katalogschlüssel und Bausteine — der Titel lässt sich in jeder Sprache neu darstellen; Tage stehen als `JJJJ-MM-TT` darin |
@@ -848,7 +872,8 @@ dem ersten Eintrag, fehlt sie, ist der Verlauf leer. Kein Schema-Schritt.
 | `done_on` | Tag der Tat, rückdatierbar, nicht in der Zukunft |
 | `recorded_at` | Zeitpunkt des Eintrags (ISO 8601) |
 | `by` | `{type: "person", id, name}`, `{type: "key", name}` (API-Schlüssel), `{type: "integration", name}` (`home_assistant`, `evcc`), `{type: "auto", reason}` (von selbst) oder `null` (ohne Anmeldung). Nach „ehemalige Person“: `{type: "person", former: true}` |
-| `reason` | bei `auto_done` und `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed` |
+| `reason` | bei `auto_done` und `dismissed`: `{key, params}` — `activity.reason.successor`, `…reading`, `…delivery`, `…statement`, `…dismissed`; seit v3.5.0 `…period` (neuer Zeitraum), `…bill` (Versorgerrechnung erfasst), beim Abhaken von `bill_expected` `…billWithout` („kam ohne Erfassung“) |
+| `assignee` | *(v3.5.0)* nur beim Erledigen eines Termins mit Zuständigkeit: `{name, id?}` als Momentaufnahme, nach „ehemalige Person“ `{former: true}` |
 | `note`, `attachment_id` | Notiz (bis 500 Zeichen, auch leer) und optional ein Beleg ([Belege](#belege-v310), Verweisart `activity`) |
 | `undone` | `{at, by}` nach Rückgängig — der Eintrag bleibt, durchgestrichen |
 | `revert` | was Rückgängig zurückstellt: `reminder` (Fälligkeit, Status, `last_done`), `contract_auto_renews`, `recommendation_dismiss` — nur, solange niemand es inzwischen anders geändert hat |
@@ -858,7 +883,7 @@ aufgeräumt wird beim Schreiben, nach `done_on`.
 
 **Backup:** Topf `activity`. Die Namen stehen darin als **Momentaufnahme** —
 wer ein Backup weitergibt, gibt sie mit; die Personenliste selbst bleibt in
-`auth.json`. Der Import prüft `id`, `action` (eine der drei), `subject`
+`auth.json`. Der Import prüft `id`, `action` (eine der vier), `subject`
 (`kind` und `occurrence`) und `done_on` (Kalenderdatum). Ein Backup ohne den
 Topf lässt den Verlauf unverändert. Beispielhaushalte und Demo bringen
 `"activity": []` mit.
@@ -927,7 +952,7 @@ eine Auswahl mit Hintergrund:
 | `forecast_model` | linear | Standard-Regressionsmodell |
 | `segmented_split_mode` | auto | Knickpunkt der segmentierten Regression |
 | `wohnflaeche_m2` | 100 | für Effizienzklasse |
-| `gebaeudetyp`, `beheizter_keller`, `warmwasser_dezentral` | efh, false, false | *(v2.10.0 wirksam)* Gebäudenutzfläche 1,2 bzw. 1,35 × Wohnfläche, Warmwasser-Zuschlag 20 kWh/m²·a für die energieausweis-nahe Kennzahl |
+| `gebaeudetyp`, `beheizter_keller`, `warmwasser_dezentral` | efh, false, false | *(v2.10.0 wirksam)* Gebäudenutzfläche 1,2 bzw. 1,35 × Wohnfläche, Warmwasser-Zuschlag 20 kWh/m²·a (ab 01.01.2027: 16, § 82 GModG; v3.5.0) für die energieausweis-nahe Kennzahl |
 | `wasser_personen_referenz` | 122 | L je Person und Tag, BDEW 2024 (*v2.10.0, vorher 127*) |
 | `dashboard_months` | 12 | *(seit v2.9.0 wirksam)* Monate im Verbrauchsverlauf des Dashboards (3–36) |
 | `alert_days_since_reading` | 45 | *(seit v2.9.0 wirksam)* „Ablesung überfällig": Warnung ab ⅔, Alarm ab dem Wert |
@@ -1024,15 +1049,24 @@ Schema 1.8.0 und enthalten alle Töpfe aller Verbrauchsarten, auch leere — so
 ersetzt ein Beispielhaushalt den ganzen Haushalt. Seit v3.3.0 bringt
 `eigenheim-modern` Viertelstundenreihen für 2025 mit: Haushalt, Wärmepumpe
 (gesteuert, bevorzugt 0–6 Uhr), Wallbox aus ihren Ladevorgängen, Laden und
-Entladen des Speichers, dazu die Börsenpreise 2025 je Viertelstunde von SMARD
+Entladen des Speichers, seit v3.5.0 auch Erzeugung und Einspeisung — je
+Viertelstunde stimmig (Erzeugung = selbst genutzt + eingespeist + geladen) —,
+dazu die Börsenpreise 2025 je Viertelstunde von SMARD
 (`demo-data/sources/smard-day-ahead-de-lu-2025-qh.json`, Bundesnetzagentur |
 SMARD.de, CC BY 4.0) und Modul-3-Zeitfenster mit erfundenen Preisen am
-Vertrag der Wärmepumpe. Erzeugt werden sie von
+Vertrag der Wärmepumpe. Seit v3.5.0 (N1026) führen alle Haushalte und das
+Schaufenster den Verlauf „Erledigt“ (`activity`, erfundene Namen), Termine mit
+Zuständigkeit (`assignee`, ohne `assignee_id`), erfasste Versorgerrechnungen
+(`bills`) und Folgeverträge. Erzeugt werden sie von
 `tools/build-personas.mjs` aus einem Tagesmodell mit festem Startwert: Jeder
 Lauf schreibt dieselben Dateien, `--check` vergleicht nur. Namen sind
 erfunden, Marktlokations-IDs synthetisch. Beim Laden schreibt sie
-`DemoDataAligner` wie das Schaufenster bis heute fort. Das Docker-Image enthält
-sie ([API](api.md#beispielhaushalte-v320)).
+`DemoDataAligner` wie das Schaufenster bis heute fort — Viertelstunden für die
+letzten zwei bis drei Monate bis gestern, der Verlauf zu Terminen wandert mit
+den Terminen. Ein optionaler Schlüssel `demo_align` im Demo-Backup verlangt
+einen Abrechnungsstichtag relativ zu heute
+(`billing_anchor_days_ago: {Art: Tage}`); er wird nicht eingespielt. Das
+Docker-Image enthält sie ([API](api.md#beispielhaushalte-v320)).
 
 **Downgrade-Schutz (v2.6.0).** Ein Downgrade wird nicht unterstützt — aber
 jetzt erkannt: Ist `schema_version` der Daten **neuer** als die App, schreibt

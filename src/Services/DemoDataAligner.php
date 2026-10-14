@@ -29,12 +29,36 @@ namespace Energietracker\Services;
  *   und Witterungsbereinigung weiter zusammen — Winter bleibt Winter.
  * - **Termine:** relativ zu heute — der früheste aktive Termin ist seit einer
  *   Woche fällig, die übrigen behalten ihren Abstand. So zeigt die Demo immer
- *   beides: etwas Fälliges und etwas Kommendes.
+ *   beides: etwas Fälliges und etwas Kommendes. Die Zuständigkeit (`assignee`,
+ *   v3.5.0) bleibt, wie sie ist.
+ * - **Verlauf „Erledigt“ (v3.5.0, N1026):** Einträge zu Terminen wandern um
+ *   dieselbe Spanne wie die Termine (`done_on`, `recorded_at`, `undone.at`, der
+ *   Anker im Vorkommen, die Stände in `revert`) — so passt „zuletzt erledigt am
+ *   … von …“ weiter zum Termin. Alle anderen Einträge hängen an Daten, die
+ *   bleiben (Vertragsende, Rechnung, Ablesung, Abrechnung, Monat einer
+ *   Empfehlung), und behalten ihr Datum.
+ * - **Viertelstunden (v3.5.0, N1026):** die letzten zwei bis drei Monate bis
+ *   gestern — ab dem Ersten des vorvorigen Monats, frühestens nach dem Export —
+ *   je Tag aus demselben Kalendertag des jüngsten Vorjahres mit Werten, alle
+ *   Reihen (Verbrauch und Börsenpreis) aus demselben Quelltag, damit jede
+ *   Viertelstunde weiter aufgeht. Zugeordnet wird nach Ortszeit: Am Tag der
+ *   Zeitumstellung fehlt die Stunde 2–3 Uhr bzw. kommt zweimal vor. Weil die
+ *   Zählerstände desselben Zeitraums aus demselben Vorjahr stammen, passen
+ *   Viertelstunden und Stände zusammen. Nur ein begrenztes Fenster, damit
+ *   Datenverzeichnis und öffentliche Demo nicht mit jedem Jahr wachsen.
+ *
+ * - **Abrechnungsstichtag (v3.5.0, N1026):** nur wo das Demo-Backup es mit
+ *   `demo_align.billing_anchor_days_ago` verlangt — die letzte Periode der Art
+ *   endet dann so viele Tage vor heute, „Abrechnung erwartet“ (F1029) ist zu
+ *   jedem Zeitpunkt zu sehen. `demo_align` selbst wird nicht eingespielt.
  *
  * Verträge bleiben unverändert: Ein abgelaufener Vertrag läuft ohne Kündigung
  * weiter (`ContractService::resolveForDate`, v2.9.0) — genau das zeigt die Demo
- * dann auch. Bestehende Einträge werden nie verändert, nur ergänzt (Termine
- * ausgenommen). Reine Funktion: kein Speicher, kein Systemdatum.
+ * dann auch. Versorgerrechnungen bleiben ebenso, wie sie sind (v3.5.0): Eine
+ * Rechnung ist ein Beleg mit Beträgen, die sich nicht aus dem Vorjahr kopieren
+ * lassen. Bestehende Einträge werden nie verändert, nur ergänzt (Termine, ihr
+ * Verlauf und ein verlangter Stichtag ausgenommen). Reine Funktion: kein
+ * Speicher, kein Systemdatum.
  */
 final class DemoDataAligner
 {
@@ -48,7 +72,13 @@ final class DemoDataAligner
     public static function align(array $payload, string $today): array
     {
         $ref = self::referenceDate($payload);
-        $payload['reminders'] = self::alignReminders($payload['reminders'] ?? [], $today);
+        $payload = self::alignBillingAnchors($payload, $today);
+        $shift = self::reminderShift($payload['reminders'] ?? [], $today);
+        $payload['reminders'] = self::alignReminders($payload['reminders'] ?? [], $shift, $today);
+        // v3.5.0 (N1026) — der Verlauf zu Terminen wandert mit
+        if (is_array($payload['activity'] ?? null) && $payload['activity'] !== [] && $shift !== 0) {
+            $payload['activity'] = self::alignActivity($payload['activity'], $shift, $today, self::timezone($payload));
+        }
         if ($ref === null || $today <= $ref) {
             return $payload;
         }
@@ -77,7 +107,200 @@ final class DemoDataAligner
             $payload['temperatures'] = self::extendTemperatures(
                 $payload['temperatures'], self::days($ref, $today));
         }
+
+        // v3.5.0 (N1026) — Viertelstunden der letzten Monate (Tagesfilm)
+        if (is_array($payload['intervals']['series'] ?? null) && $payload['intervals']['series'] !== []
+            && is_array($payload['interval_files'] ?? null)) {
+            [$payload['intervals'], $payload['interval_files']] = self::extendIntervals(
+                $payload['intervals'], $payload['interval_files'], $ref, $today, self::timezone($payload));
+        }
         return $payload;
+    }
+
+    /**
+     * v3.5.0 (N1026) — Abrechnungsstichtag relativ zu heute, nur wo das
+     * Demo-Backup es verlangt: `demo_align.billing_anchor_days_ago` =
+     * {Verbrauchsart: Tage}. Die zuletzt beendete Abrechnungsperiode endet
+     * dann so viele Tage vor heute — die Demo zeigt „Abrechnung erwartet“
+     * (F1029) zu jedem Zeitpunkt, wie Termine immer etwas Fälliges zeigen.
+     * Der Schlüssel `demo_align` selbst wird nicht eingespielt.
+     */
+    private static function alignBillingAnchors(array $payload, string $today): array
+    {
+        $want = $payload['demo_align']['billing_anchor_days_ago'] ?? null;
+        unset($payload['demo_align']);
+        if (!is_array($want)) return $payload;
+        foreach ($want as $u => $days) {
+            if (!is_string($u) || !\Energietracker\Config\Utilities::exists($u) || !is_int($days) || $days < 1 || $days > 300) continue;
+            $anchor = substr(self::addDays($today, 1 - $days), 5, 5);
+            $payload['settings']['billing_cycle_anchor_' . $u] = $anchor === '02-29' ? '03-01' : $anchor;
+        }
+        return $payload;
+    }
+
+    /** Zeitzone der Installation laut Backup (wie IntervalService), sonst Berlin. */
+    private static function timezone(array $payload): \DateTimeZone
+    {
+        $tz = (string)($payload['settings']['timezone'] ?? 'Europe/Berlin');
+        return in_array($tz, \DateTimeZone::listIdentifiers(), true) ? new \DateTimeZone($tz) : new \DateTimeZone('Europe/Berlin');
+    }
+
+    /** Erster Tag des Fensters für Viertelstunden: Erster des vorvorigen Monats. */
+    public static function intervalWindowStart(string $today): string
+    {
+        return (new \DateTimeImmutable(substr($today, 0, 7) . '-01'))->modify('-2 months')->format('Y-m-d');
+    }
+
+    // ── Viertelstunden (v3.5.0, N1026) ───────────────────────────────────
+
+    /**
+     * Fenster [Erster des vorvorigen Monats, gestern], frühestens ab dem Tag
+     * nach dem Export, Tag für Tag aus demselben Kalendertag des jüngsten
+     * Vorjahres, in dem eine Verbrauchsreihe Werte hat. Alle Reihen kommen aus
+     * demselben Quelltag; Tage, an denen eine Reihe schon Werte hat, bleiben.
+     *
+     * @param array<string,mixed> $index  {series, samples}
+     * @param array<string,mixed> $files  id → {id, kind, year, step, start, values}
+     * @return array{0: array<string,mixed>, 1: array<string,mixed>}
+     */
+    private static function extendIntervals(array $index, array $files, string $ref, string $today, \DateTimeZone $tz): array
+    {
+        $from = max(self::intervalWindowStart($today), self::addDays($ref, 1));
+        $to = self::addDays($today, -1);
+        if ($from > $to) return [$index, $files];
+
+        // Reihen je Schlüssel (Art, Verbrauchsart, Zähler bzw. Gebotszone) und Jahr
+        $byKey = [];
+        foreach ($index['series'] as $pos => $s) {
+            if (!is_array($s) || !in_array($s['kind'] ?? null, ['energy', 'price'], true)) continue;
+            $id = (string)($s['id'] ?? '');
+            if (!is_array($files[$id]['values'] ?? null)) continue;
+            $key = ($s['kind'] ?? '') . '|' . ($s['utility'] ?? '') . '|' . ($s['meter_id'] ?? '') . '|' . ($s['area'] ?? '');
+            $byKey[$key][(int)$s['year']] = ['pos' => $pos, 'id' => $id];
+        }
+        if ($byKey === []) return [$index, $files];
+
+        // id → Werte. Geschrieben wird an Ort und Stelle in $values (je Reihe
+        // höchstens eine Kopie; eine Reihe hat 35.000 Plätze).
+        $values = [];
+        $touched = [];
+        for ($day = $from; $day <= $to; $day = self::addDays($day, 1)) {
+            $target = self::daySlots($day, $tz);
+            // Quelltag: jüngstes Vorjahr, in dem eine Verbrauchsreihe an dem Tag Werte hat
+            $source = null;
+            for ($k = 1; $k <= 10 && $source === null; $k++) {
+                $src = self::addYears($day, -$k);
+                $y = (int)substr($src, 0, 4);
+                $slots = self::daySlots($src, $tz);
+                foreach ($byKey as $key => $years) {
+                    if (!str_starts_with($key, 'energy|') || !isset($years[$y])) continue;
+                    $id = $years[$y]['id'];
+                    $v = $values[$id] ?? $files[$id]['values'];
+                    foreach ($slots as $sl) if (($v[$sl['i']] ?? null) !== null) { $source = [$src, $y, $slots]; break 2; }
+                }
+            }
+            if ($source === null) continue;
+            [, $sy, $sslots] = $source;
+            $lookup = [];
+            foreach ($sslots as $sl) $lookup[$sl['min'] . '#' . $sl['occ']] = $sl['i'];
+            $ty = (int)substr($day, 0, 4);
+            foreach ($byKey as $key => $years) {
+                if (!isset($years[$sy])) continue;
+                $sid = $years[$sy]['id'];
+                $src = $values[$sid] ?? $files[$sid]['values'];
+                if (!isset($years[$ty])) {
+                    $years[$ty] = self::newSeries($index, $files, $years[$sy], $ty, $tz);
+                    $byKey[$key] = $years;
+                }
+                $tid = $years[$ty]['id'];
+                if (!isset($values[$tid])) {
+                    // einmal herauslösen, danach an Ort und Stelle schreiben
+                    $values[$tid] = array_values((array)$files[$tid]['values']);
+                    $files[$tid]['values'] = null;
+                }
+                // schon Werte an diesem Tag: unverändert lassen
+                $has = false;
+                foreach ($target as $sl) if (($values[$tid][$sl['i']] ?? null) !== null) { $has = true; break; }
+                if ($has) continue;
+                foreach ($target as $sl) {
+                    $si = $lookup[$sl['min'] . '#' . $sl['occ']] ?? $lookup[$sl['min'] . '#0'] ?? null;
+                    if ($si !== null && array_key_exists($sl['i'], $values[$tid])) $values[$tid][$sl['i']] = $src[$si] ?? null;
+                }
+                $touched[$tid] = $years[$ty]['pos'];
+            }
+            unset($src);
+        }
+        foreach ($values as $id => $v) {
+            $files[$id]['values'] = $v;
+            if (isset($touched[$id])) {
+                $index['series'][$touched[$id]] = self::indexEntry($index['series'][$touched[$id]], $v, (int)$files[$id]['year'], $tz);
+            }
+        }
+        return [$index, $files];
+    }
+
+    /**
+     * Plätze eines Tages im Jahr (Ortszeit): je Platz Index, Minute des Tages
+     * und das wievielte Mal diese Uhrzeit am Tag vorkommt (Herbst: zweimal).
+     *
+     * @return list<array{i:int, min:int, occ:int}>
+     */
+    private static function daySlots(string $date, \DateTimeZone $tz): array
+    {
+        $yearStart = (new \DateTimeImmutable(substr($date, 0, 4) . '-01-01 00:00:00', $tz))->getTimestamp();
+        $a = (new \DateTimeImmutable("$date 00:00:00", $tz))->getTimestamp();
+        $b = (new \DateTimeImmutable("$date 00:00:00", $tz))->modify('+1 day')->getTimestamp();
+        $out = []; $seen = [];
+        for ($ts = $a; $ts < $b; $ts += IntervalService::STEP) {
+            $l = (new \DateTimeImmutable('@' . $ts))->setTimezone($tz);
+            $min = (int)$l->format('G') * 60 + (int)$l->format('i');
+            $occ = $seen[$min] = isset($seen[$min]) ? $seen[$min] + 1 : 0;
+            $out[] = ['i' => intdiv($ts - $yearStart, IntervalService::STEP), 'min' => $min, 'occ' => $occ];
+        }
+        return $out;
+    }
+
+    /**
+     * Neue Reihe eines Jahres nach dem Vorbild der Quellreihe (gleiche Art,
+     * Verbrauchsart, Zähler bzw. Gebotszone, Quelle), noch ohne Werte.
+     *
+     * @return array{pos:int, id:string}
+     */
+    private static function newSeries(array &$index, array &$files, array $like, int $year, \DateTimeZone $tz): array
+    {
+        $meta = $index['series'][$like['pos']];
+        $id = ($meta['kind'] ?? '') === 'price'
+            ? IntervalService::priceId($year)
+            : IntervalService::energyId((string)$meta['utility'], (string)$meta['meter_id'], $year);
+        $start = new \DateTimeImmutable("$year-01-01 00:00:00", $tz);
+        $slots = intdiv($start->modify('+1 year')->getTimestamp() - $start->getTimestamp(), IntervalService::STEP);
+        $files[$id] = ['id' => $id, 'kind' => $meta['kind'], 'year' => $year, 'step' => IntervalService::STEP,
+            'start' => $start->format('c'), 'values' => array_fill(0, $slots, null)];
+        $entry = $meta;
+        $entry['id'] = $id;
+        $entry['year'] = $year;
+        $entry['slots'] = $slots;
+        $index['series'][] = $entry;
+        return ['pos' => array_key_last($index['series']), 'id' => $id];
+    }
+
+    /** Indexeintrag nachführen wie IntervalService::write (filled, from, to). */
+    private static function indexEntry(array $entry, array $values, int $year, \DateTimeZone $tz): array
+    {
+        $start = (new \DateTimeImmutable("$year-01-01 00:00:00", $tz))->getTimestamp();
+        $n = 0; $first = null; $last = null;
+        foreach ($values as $i => $v) {
+            if ($v === null) continue;
+            $n++;
+            $first ??= $i;
+            $last = $i;
+        }
+        $iso = fn(int $i) => (new \DateTimeImmutable('@' . ($start + $i * IntervalService::STEP)))->setTimezone($tz)->format('c');
+        $entry['slots'] = count($values);
+        $entry['filled'] = $n;
+        $entry['from'] = $first !== null ? $iso($first) : null;
+        $entry['to'] = $last !== null ? $iso($last + 1) : null;
+        return $entry;
     }
 
     /** Der Tag, an dem der Schnappschuss stimmte: Export, sonst die letzte Ablesung. */
@@ -348,19 +571,28 @@ final class DemoDataAligner
     // ── Termine ──────────────────────────────────────────────────────────
 
     /**
+     * Tage, um die die Termine wandern: Der früheste aktive Termin ist danach
+     * seit REMINDER_OVERDUE_DAYS fällig. 0 ohne Termin.
+     *
      * @param array<int,array<string,mixed>> $reminders
-     * @return array<int,array<string,mixed>>
      */
-    private static function alignReminders(array $reminders, string $today): array
+    public static function reminderShift(array $reminders, string $today): int
     {
         $first = null;
         foreach ($reminders as $r) {
-            if (($r['active'] ?? true) === false) continue;
+            if (!is_array($r) || ($r['active'] ?? true) === false) continue;
             $due = (string)($r['next_due'] ?? '');
             if ($due !== '' && ($first === null || $due < $first)) $first = $due;
         }
-        if ($first === null) return $reminders;
-        $shift = self::days($first, self::addDays($today, -self::REMINDER_OVERDUE_DAYS));
+        return $first === null ? 0 : self::days($first, self::addDays($today, -self::REMINDER_OVERDUE_DAYS));
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $reminders
+     * @return array<int,array<string,mixed>>
+     */
+    private static function alignReminders(array $reminders, int $shift, string $today): array
+    {
         if ($shift === 0) return $reminders;
         foreach ($reminders as $i => $r) {
             foreach (['next_due', 'last_done'] as $f) {
@@ -372,6 +604,54 @@ final class DemoDataAligner
             $reminders[$i] = $r;
         }
         return $reminders;
+    }
+
+    // ── Verlauf (v3.5.0, N1026) ─────────────────────────────────────────
+
+    /**
+     * Einträge zu Terminen um dieselbe Spanne wie die Termine verschieben:
+     * Tag, Zeitpunkt des Eintrags und der Rücknahme, Anker des Vorkommens
+     * (`reminder-<id>@<fällig>`) und die Termin-Stände in `revert`. Nichts
+     * landet nach heute (wie `last_done`).
+     *
+     * @param array<int,mixed> $entries
+     * @return array<int,mixed>
+     */
+    private static function alignActivity(array $entries, int $shift, string $today, \DateTimeZone $tz): array
+    {
+        $day = function (mixed $d) use ($shift, $today): mixed {
+            if (!is_string($d) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) return $d;
+            return min(self::addDays($d, $shift), $today);
+        };
+        $stamp = function (mixed $t) use ($shift, $today, $tz): mixed {
+            if (!is_string($t) || strlen($t) < 10) return $t;
+            try {
+                $d = (new \DateTimeImmutable($t))->setTimezone($tz)->modify(($shift >= 0 ? '+' : '') . $shift . ' days');
+            } catch (\Exception) {
+                return $t;
+            }
+            return $d->format('Y-m-d') > $today ? (new \DateTimeImmutable("$today 12:00:00", $tz))->format('c') : $d->format('c');
+        };
+        foreach ($entries as $i => $e) {
+            if (!is_array($e) || ($e['subject']['kind'] ?? null) !== 'reminder') continue;
+            $e['done_on'] = $day($e['done_on'] ?? null);
+            $e['recorded_at'] = $stamp($e['recorded_at'] ?? null);
+            if (is_array($e['undone'] ?? null)) $e['undone']['at'] = $stamp($e['undone']['at'] ?? null);
+            $occ = (string)($e['subject']['occurrence'] ?? '');
+            if (preg_match('/^(.*@)(\d{4}-\d{2}-\d{2})$/', $occ, $m)) {
+                $e['subject']['occurrence'] = $m[1] . self::addDays($m[2], $shift);
+            }
+            foreach (['before', 'after'] as $side) {
+                foreach (['next_due', 'last_done'] as $f) {
+                    $v = $e['revert'][$side][$f] ?? null;
+                    if (!is_string($v) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) continue;
+                    // wie alignReminders: ein erledigt-am liegt nie nach heute
+                    $e['revert'][$side][$f] = $f === 'last_done' ? $day($v) : self::addDays($v, $shift);
+                }
+            }
+            $entries[$i] = $e;
+        }
+        return $entries;
     }
 
     // ── Datum ────────────────────────────────────────────────────────────

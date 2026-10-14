@@ -31,6 +31,16 @@ use Energietracker\Support\Dates;
  * [Unverifiziert] Die Eich-Intervalle (MessEV) sind branchenübliche
  * Richtwerte und können je nach Messgerät/Aufstellort abweichen — sie
  * dienen nur als Vorbelegung, der Nutzer kann jeden Wert überschreiben.
+ *
+ * v3.5.0 (F1028) — Zuständig, optional und additiv (kein Schemaschritt):
+ *   assignee         Anzeigename, getrimmt, bis 60 Zeichen; fehlt = niemand
+ *   assignee_id      Personen-ID aus auth.json, nur wenn aus der Personenliste
+ *                    gewählt — dann gilt der Name der Person
+ *   assignee_former  true, nachdem die zuständige Person gelöscht und ihr Name
+ *                    ersetzt wurde („ehemalige Person“, wie im Verlauf)
+ * Die Antworten tragen alle drei immer (null bzw. false). Wiederkehrende
+ * Termine behalten die Zuständigkeit beim Erledigen; der Verlaufseintrag nennt
+ * sie als Momentaufnahme. Benachrichtigt wird niemand.
  */
 final class ReminderService
 {
@@ -58,6 +68,18 @@ final class ReminderService
     public function attachActivity(ActivityService $activity): void
     {
         $this->activity = $activity;
+    }
+
+    /** v3.5.0 (F1028) — längster Name einer zuständigen Person (wie die Namen im Verlauf). */
+    public const ASSIGNEE_MAX = 60;
+
+    /** @var (callable(string): ?array)|null Person zu einer ID ({id, name}) oder null */
+    private $people = null;
+
+    /** v3.5.0 (F1028) — Personen aus auth.json nachschlagen (App: AuthService). */
+    public function attachPeople(callable $lookup): void
+    {
+        $this->people = $lookup;
     }
 
     /** @return array<int,array<string,mixed>> */
@@ -106,9 +128,116 @@ final class ReminderService
                 $last = $this->activity->lastDone('reminder_id', (string)($r['id'] ?? ''));
                 $r['last_done_by'] = $last !== null ? ($last['by'] ?? null) : null;
             }
-            $out[] = $r;
+            $out[] = $this->withAssignee($r);
         }
         return $out;
+    }
+
+    /**
+     * v3.5.0 (F1028) — Zuständigkeit für die Antwort: immer `assignee`,
+     * `assignee_id` und `assignee_former`. Ist eine Person gewählt, gilt ihr
+     * heutiger Name (umbenannt → neuer Name).
+     *
+     * @param array<string,mixed> $r
+     * @return array<string,mixed>
+     */
+    public function withAssignee(array $r): array
+    {
+        $name = is_string($r['assignee'] ?? null) && trim($r['assignee']) !== '' ? trim($r['assignee']) : null;
+        $id = is_string($r['assignee_id'] ?? null) && $r['assignee_id'] !== '' ? $r['assignee_id'] : null;
+        if ($id !== null && $this->people !== null && ($p = ($this->people)($id)) !== null && ($p['name'] ?? '') !== '') {
+            $name = (string)$p['name'];
+        }
+        $r['assignee'] = $name;
+        $r['assignee_id'] = $name !== null ? $id : null;
+        $r['assignee_former'] = $name === null && !empty($r['assignee_former']);
+        return $r;
+    }
+
+    /**
+     * v3.5.0 (F1028) — Zuständigkeit aus einer Eingabe prüfen. Gibt die
+     * Felder zurück, die am Termin stehen sollen (leer = niemand); null, wenn
+     * die Eingabe nichts dazu sagt. `assignee_id` muss eine Person sein; dann
+     * gilt deren Name. `assignee` ohne `assignee_id` ist ein freier Name.
+     *
+     * @param array<string,mixed> $input
+     * @return array{assignee?:string, assignee_id?:string}|null
+     */
+    private function assigneeInput(array $input): ?array
+    {
+        if (!array_key_exists('assignee', $input) && !array_key_exists('assignee_id', $input)) return null;
+        $raw = $input['assignee'] ?? null;
+        if ($raw !== null && !is_string($raw)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.assigneeInvalid', ['max' => self::ASSIGNEE_MAX]));
+        }
+        $name = trim((string)$raw);
+        if (mb_strlen($name) > self::ASSIGNEE_MAX || preg_match('/[\x00-\x1F\x7F]/u', $name)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.assigneeInvalid', ['max' => self::ASSIGNEE_MAX]));
+        }
+        $rawId = $input['assignee_id'] ?? null;
+        if ($rawId !== null && !is_string($rawId)) {
+            throw new \InvalidArgumentException($this->i18n->t('errors.reminder.assigneeUnknown'));
+        }
+        $id = trim((string)$rawId);
+        if ($id !== '') {
+            $person = $this->people !== null ? ($this->people)($id) : null;
+            if ($person === null) throw new \InvalidArgumentException($this->i18n->t('errors.reminder.assigneeUnknown'));
+            // aus der Personenliste gewählt: es gilt ihr Name
+            return ['assignee' => mb_substr((string)$person['name'], 0, self::ASSIGNEE_MAX), 'assignee_id' => $id];
+        }
+        return $name === '' ? [] : ['assignee' => $name];
+    }
+
+    /**
+     * Zuständigkeit an einen gespeicherten Termin schreiben: ersetzt alle drei
+     * Felder (auch „ehemalige Person“).
+     *
+     * @param array<string,mixed> $r
+     * @param array{assignee?:string, assignee_id?:string} $a
+     * @return array<string,mixed>
+     */
+    private static function applyAssignee(array $r, array $a): array
+    {
+        unset($r['assignee'], $r['assignee_id'], $r['assignee_former']);
+        return $r + $a;
+    }
+
+    /**
+     * v3.5.0 (F1028) — Eine Person wurde gelöscht: Ihre ID verschwindet von
+     * den Terminen (der Name bleibt als freier Name). Mit `$anonymize` (wie
+     * „ehemalige Person“ im Verlauf) auch der Name: `assignee_former: true`.
+     *
+     * @return int Zahl der geänderten Termine
+     */
+    public function personDeleted(string $personId, bool $anonymize): int
+    {
+        $all = $this->store->read('reminders.json', []);
+        if (!is_array($all) || $personId === '') return 0;
+        $n = 0;
+        foreach ($all as $i => $r) {
+            if (!is_array($r) || ($r['assignee_id'] ?? null) !== $personId) continue;
+            unset($all[$i]['assignee_id']);
+            if ($anonymize) {
+                unset($all[$i]['assignee']);
+                $all[$i]['assignee_former'] = true;
+            }
+            $n++;
+        }
+        if ($n > 0) $this->store->write('reminders.json', array_values($all));
+        return $n;
+    }
+
+    /**
+     * Zuständigkeit als Momentaufnahme für den Verlauf: {name, id?},
+     * {former: true} oder null.
+     *
+     * @param array<string,mixed> $r Termin (gespeichert oder mit withAssignee)
+     */
+    private function assigneeSnapshot(array $r): ?array
+    {
+        $r = $this->withAssignee($r);
+        if ($r['assignee'] !== null) return array_filter(['name' => $r['assignee'], 'id' => $r['assignee_id']], fn($v) => $v !== null);
+        return $r['assignee_former'] ? ['former' => true] : null;
     }
 
     public function create(array $input): array
@@ -125,6 +254,7 @@ final class ReminderService
         if (empty($input['next_due']) || !Dates::isIsoDate((string)$input['next_due'])) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.dueRequired'));
         }
+        $assignee = $this->assigneeInput($input) ?? [];   // v3.5.0 (F1028)
 
         $reminder = [
             'id'                => 'rem_' . substr(bin2hex(random_bytes(5)), 0, 8),
@@ -136,12 +266,12 @@ final class ReminderService
             'last_done'         => null,
             'notes'             => (string)($input['notes'] ?? ''),
             'active'            => true,
-        ];
+        ] + $assignee;
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $all[] = $reminder;
         $this->store->write('reminders.json', $all);
-        return $reminder;
+        return $this->withAssignee($reminder);
     }
 
     public function update(string $id, array $patch): array
@@ -157,6 +287,7 @@ final class ReminderService
             && !Dates::isIsoDate((string)$patch['last_done'])) {
             throw new \InvalidArgumentException($this->i18n->t('errors.reminder.lastDoneInvalid'));
         }
+        $assignee = $this->assigneeInput($patch);   // v3.5.0 (F1028) — null: unverändert
         $all = $this->store->read('reminders.json', []);
         if (!is_array($all)) $all = [];
         $found = null;
@@ -170,13 +301,14 @@ final class ReminderService
                             : $patch[$f]);
                 }
             }
+            if ($assignee !== null) $r = self::applyAssignee($r, $assignee);
             $found = $r;
             break;
         }
         unset($r);
         if ($found === null) throw new NotFoundException($this->i18n->t('errors.reminder.notFound', ['id' => $id]));
         $this->store->write('reminders.json', $all);
-        return $found;
+        return $this->withAssignee($found);
     }
 
     public function delete(string $id): void
@@ -244,13 +376,15 @@ final class ReminderService
                 'done_on'       => $done,
                 'note'          => $note,
                 'attachment_id' => $attachmentId,
+                // v3.5.0 (F1028) — wer zuständig war, als Momentaufnahme
+                'assignee'      => $this->assigneeSnapshot($found),
                 'revert'        => ['type' => 'reminder', 'id' => $id, 'before' => $before, 'after' => [
                     'next_due' => $found['next_due'] ?? null, 'active' => $found['active'] ?? true, 'last_done' => $found['last_done'] ?? null,
                 ]],
             ]);
             $found['activity_id'] = $entry['id'];
         }
-        return $found;
+        return $this->withAssignee($found);
     }
 
     /**

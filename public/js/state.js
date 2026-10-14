@@ -59,13 +59,31 @@ export function getSettings() {
  * @returns {Promise<Record<string, unknown>>}
  */
 export async function saveSettings(patch) {
-  const result = await api.updateSettings(patch);
+  return commit(await api.updateSettings(patch), Object.keys(patch || {}));
+}
+
+/**
+ * v3.5.0 (N1022) — Land wechseln (POST /api/settings/country): mit Profil
+ * alle Werte des Länderprofils, sonst nur das Land; der Server schreibt nur,
+ * was vom Default abweicht. Einrichtung und Einstellungen gehen beide hier
+ * entlang. Gemeldet werden die Schlüssel, die sich wirklich geändert haben.
+ *
+ * @param {string} country  ISO 3166 (AT, CH …)
+ * @param {boolean} [profile=true]
+ */
+export async function saveCountry(country, profile = true) {
+  const before = state.settings || {};
+  const result = await api.applyCountry(country, profile);
+  const keys = Object.keys(result || {}).filter(k => JSON.stringify(result[k]) !== JSON.stringify(before[k]));
+  return commit(result, keys);
+}
+
+/** Neuer Stand vom Server: Cache setzen und die Änderung melden. */
+function commit(result, keys) {
   const { ignored_keys: _ignored, ...settings } = result || {};
   state.settings = settings;
   state.settingsP = Promise.resolve(settings);
-  window.dispatchEvent(new CustomEvent('et:settingschange', {
-    detail: { keys: Object.keys(patch || {}), settings },
-  }));
+  window.dispatchEvent(new CustomEvent('et:settingschange', { detail: { keys, settings } }));
   return result;
 }
 

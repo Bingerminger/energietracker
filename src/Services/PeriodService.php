@@ -44,6 +44,26 @@ final class PeriodService
         private I18nService $i18n,
     ) {}
 
+    /** v3.5.0 (Nachtrag F1024) — ein neuer Zeitraum erledigt „Zählerstand ablesen“ wie eine Ablesung. */
+    private ?ActivityService $activity = null;
+
+    public function attachActivity(ActivityService $activity): void
+    {
+        $this->activity = $activity;
+    }
+
+    /** Ende des letzten Zeitraums eines Zählers (der Anker des Hinweises „Zählerstand ablesen“). */
+    private static function lastTo(array $all, string $meterId): ?string
+    {
+        $last = null;
+        foreach ($all as $p) {
+            if (!is_array($p) || ($p['meter_id'] ?? null) !== $meterId) continue;
+            $to = (string)($p['to'] ?? '');
+            if ($to !== '' && ($last === null || $to > $last)) $last = $to;
+        }
+        return $last;
+    }
+
     /** @return list<array<string,mixed>> nach Beginn sortiert */
     public function list(string $utility, ?string $meterId = null): array
     {
@@ -84,8 +104,10 @@ final class PeriodService
                 ['type' => 'period', 'utility' => $utility, 'id' => $p['id']]);
             $p['attachment_id'] = (string)$input['attachment_id'];
         }
+        $prevLast = self::lastTo($all, (string)$meter['id']);   // v3.5.0
         $all[] = $p;
         $this->store->write("$utility/periods.json", array_values($all));
+        $this->activity?->periodRecorded($utility, $meter, $p, $prevLast);
         return $p;
     }
 
@@ -213,7 +235,13 @@ final class PeriodService
         if ($dryRun) {
             return ['imported' => 0, 'skipped' => $skipped, 'errors' => $errors, 'dry_run' => true, 'rows' => $rows, 'would_import' => $imported];
         }
-        if ($new !== []) $this->store->write("$utility/periods.json", array_values(array_merge($all, $new)));
+        if ($new !== []) {
+            $this->store->write("$utility/periods.json", array_values(array_merge($all, $new)));
+            // v3.5.0 — einmal je Import, mit dem neuesten Zeitraum (wie der Ablesungs-Import)
+            $newest = null;
+            foreach ($new as $p) if ($newest === null || (string)$p['to'] > (string)$newest['to']) $newest = $p;
+            if ($newest !== null) $this->activity?->periodRecorded($utility, $meter, $newest, self::lastTo($all, (string)$meter['id']));
+        }
         return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
     }
 

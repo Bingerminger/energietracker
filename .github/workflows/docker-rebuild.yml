@@ -8,6 +8,8 @@ name: Docker Rebuild
 # neu (ohne Cache) und schiebt ihn unter denselben Namen (X.Y.Z, X.Y, latest).
 # Danach durchsucht ein Scan das Image nach bekannten Lücken — nicht
 # blockierend; die Treffer erscheinen unter Security → Code scanning.
+# v3.5.0 (N1024) — ebenso die Variante ohne root (X.Y.Z-rootless, X.Y-rootless,
+# latest-rootless), sobald der Release-Tag sie enthält; der Scan prüft beide.
 on:
   schedule:
     - cron: '41 4 * * 2'
@@ -31,6 +33,7 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     outputs:
       version: ${{ steps.tag.outputs.version }}
+      rootless: ${{ steps.tag.outputs.rootless }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -45,16 +48,22 @@ jobs:
           VERSION=${TAG#v}
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "minor=${VERSION%.*}" >> "$GITHUB_OUTPUT"
+          # Releases vor v3.5.0 kennen das Ziel `rootless` noch nicht
+          if grep -qE '^FROM .+ AS rootless$' Dockerfile; then
+            echo "rootless=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "rootless=false" >> "$GITHUB_OUTPUT"
+          fi
           echo "Neubau von $TAG"
 
       - name: QEMU einrichten (für arm64-Emulation beim Multi-Arch-Build)
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
 
       - name: Buildx einrichten
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: An GHCR anmelden
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -80,20 +89,54 @@ jobs:
           provenance: true
           sbom: true
 
+      - name: Bauen & pushen ohne root (ohne Cache, aktuelles Basis-Image)
+        if: steps.tag.outputs.rootless == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          target: rootless
+          platforms: linux/amd64,linux/arm64
+          push: true
+          pull: true
+          no-cache: true
+          tags: |
+            ghcr.io/bingerminger/energietracker:${{ steps.tag.outputs.version }}-rootless
+            ghcr.io/bingerminger/energietracker:${{ steps.tag.outputs.minor }}-rootless
+            ghcr.io/bingerminger/energietracker:latest-rootless
+          labels: |
+            org.opencontainers.image.title=Energietracker
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.source=https://github.com/Bingerminger/energietracker
+            org.opencontainers.image.version=${{ steps.tag.outputs.version }}-rootless
+          provenance: true
+          sbom: true
+
   scan:
-    name: Image auf bekannte Lücken prüfen (nicht blockierend)
+    name: Image auf bekannte Lücken prüfen (${{ matrix.variant }}, nicht blockierend)
     needs: rebuild
     runs-on: ubuntu-latest
     continue-on-error: true
     permissions:
       contents: read
       security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Kategorie des Standard-Images wie bis v3.4.0 (Verlauf der Treffer bleibt)
+          - variant: standard
+            suffix: ""
+            category: container-image
+          - variant: rootless
+            suffix: "-rootless"
+            category: container-image-rootless
     steps:
       - name: Scan (Grype)
         id: scan
+        if: matrix.variant == 'standard' || needs.rebuild.outputs.rootless == 'true'
         uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
-          image: ghcr.io/bingerminger/energietracker:${{ needs.rebuild.outputs.version }}
+          image: ghcr.io/bingerminger/energietracker:${{ needs.rebuild.outputs.version }}${{ matrix.suffix }}
           fail-build: false
           output-format: sarif
 
@@ -102,4 +145,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ steps.scan.outputs.sarif }}
-          category: container-image
+          category: ${{ matrix.category }}

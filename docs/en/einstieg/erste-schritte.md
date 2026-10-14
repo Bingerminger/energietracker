@@ -33,7 +33,9 @@ Apache, nginx — are in [Installation](../betrieb/installation.md) and
 On the first start the app automatically creates default meters for gas,
 electricity and water. You can keep, rename or delete them.
 
-> **Since v3.2.0 the setup assistant greets you:** three questions — who you
+> **Since v3.2.0 the setup assistant greets you:** first language and country
+> (since v3.5.0; preselected from your browser, with what the country profile
+> sets shown below), then three questions — who you
 > are, which energy sources you use, how much experience you have — and then
 > the utilities and the experience level are set. For this example choose
 > “Own house with gas, oil or pellets” and “Start with my own data” at the

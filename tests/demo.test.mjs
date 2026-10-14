@@ -199,6 +199,13 @@ function serve(dir, port) {
     const { openSetupWizard } = await import(pathToFileURL(join(out, 'public/js/components/setup-wizard.js')).href);
     await openSetupWizard({ firstRun: true });
     await settle();
+    // v3.5.0 (N1022) — zuerst Sprache und Land; das Land ist das des Beispielhaushalts
+    t('Einrichtungsassistent: Schritt 1 Sprache und Land, Land in der Demo gesperrt',
+      w.document.querySelector('.modal #setup-lang')?.options.length === langs.length
+      && w.document.querySelector('.modal #setup-country')?.disabled === true
+      && !!w.document.querySelector('.modal [data-fact="format"]'));
+    w.document.querySelector('.modal [data-act="next"]')?.click();
+    await settle();
     const choices = w.document.querySelectorAll('.modal input[name="setup-persona"]').length;
     t('Einrichtungsassistent mit fünf Personas', choices === 5, String(choices));
     w.document.querySelector('.modal .modal__close')?.click();

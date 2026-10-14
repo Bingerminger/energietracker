@@ -7,6 +7,189 @@ and [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [3.5.0] — 2026-10-14 — Who, when, where to
+
+MINOR release without a schema step (stays 1.8.0): household tasks get
+someone responsible, missing bills stand out, and the energy flow can be
+played over a day. Plus Home Assistant OS as an app, an image without root
+and a setup that asks for language and country first. **F1027** day film,
+**F1028** someone responsible for reminders, **F1029** bill expected,
+**N1022** setup with language and country, **N1023** iPad, **N1024** image
+without root, **N1025** Home Assistant app, **N1026** sample data; plus the
+legal state for 2027 and GitHub [#34]. API, CSV format 1, backup format 3.0,
+the Docker environment and the Home Assistant ingest only grow additively.
+
+### ⚠️ For existing installations
+
+- **Bill expected:** after the update “Bill expected” appears for billing
+  periods that ended within the last 120 days and have no recorded supplier’s
+  bill — tick it off or record the bill. The notices also show in
+  `summary.agenda` and in the calendar subscription.
+- **Certificate-style figure from 1 January 2027:** it follows the procedure
+  in force on the day of calculation. From 2027 that is § 82 GModG as amended
+  (BGBl. 2026 I no. 226): gas at gross instead of net calorific value (the
+  figure rises by about 10 %), hot-water surcharge 16 instead of
+  20 kWh/(m²·yr), data over two years instead of 36 months. Class limits
+  stay. Until then the overview shows a preview in Germany.
+- **Water bills “booked” as a special payment since v3.1.0** count as not
+  booked again and can be booked — the booking never arrived in the
+  contract. Special payments stored via the API on a heating-oil, pellet or
+  feed-in contract no longer count in the balance (the interface never
+  offered them there).
+- **iPad in portrait:** the sidebar appears only from 900 px width, below
+  that the tab bar with “More” as on the phone.
+- **Data directory not writable:** the app answers 503 with
+  `errors.storage.notWritable` instead of 500; `/api/health` reports
+  `data_dir_writable: false`, and the log names UID, group and the `chown`
+  needed.
+
+### Added
+
+- **Day film (F1027):** the energy flow plays a day in quarter hours, either a
+  specific day or the typical day of a month (average per quarter hour).
+  Power in the nodes, totals since midnight in the buttons, the wholesale
+  price with a cursor below. Gaps are marked, never 0. Play, pause, a slider
+  with the time of day and keyboard control; with “Reduce motion” only the
+  slider. Appears only with quarter-hour values of grid import. New routes
+  `GET /api/energy-flow/days`, `/api/energy-flow/day?date=`,
+  `/api/energy-flow/typical-day?month=`.
+- **Someone responsible for reminders (F1028):** a “Responsible” field in the
+  reminder dialog (a signed-in person or any name), a name chip in the
+  reminders and under “To do”, a line “Responsible: …” in the calendar;
+  filter “All · My tasks · Unassigned · names”, without sign-in with “I am …”
+  per device. No notifications. API: `assignee`, `assignee_id`,
+  `assignee_former` on reminders and agenda events, `GET /api/people`.
+- **Bill expected (F1029):** when a billing period ends (anchor date or
+  contract end → final bill) without a recorded supplier’s bill, it appears
+  under “To do” with a jump to record it; for electricity and gas after six
+  weeks “overdue — statutory deadline passed, ask the supplier” (§ 40c(2)
+  EnWG), district heating and water without a statutory deadline only
+  “expected”. Clears with the recorded bill, can be ticked off; up to 120 days
+  after the end of the period. Agenda kind `bill_expected`.
+- **The history as CSV** for proof (for example for a landlord or property
+  manager): an “As CSV” button under Reminders & tips → Done with the chosen
+  filters; `GET /api/activity.csv` (date, action, title, by, reason, note;
+  format 1 or “local”, protected against formulas).
+- **Setup asks for language and country first (N1022):** step 1 picks
+  language and country, preselected from the browser; the language applies at
+  once, and below the country you see what the country profile sets. Only
+  what changes is saved. In the demo too (language per device). New route
+  `POST /api/settings/country`: first start, settings and setup store only
+  deviations from the defaults when the country changes.
+- **Annual report with a dialog:** year, utilities (partial report), language
+  of the PDF and appendix; the device remembers the choice. The print view
+  understands the partial report.
+- **Image without root (N1024):** additional variant `X.Y.Z-rootless` /
+  `latest-rootless` — runs as UID 10001 on port 8080, needs no capabilities,
+  same platforms, rebuilt and scanned weekly, started in CI; the standard
+  image is unchanged.
+- **Home Assistant app (N1025):** with Home Assistant OS, Energietracker runs
+  as an app: its own repository
+  [energietracker-ha](https://github.com/Bingerminger/energietracker-ha),
+  sidebar via Ingress, sign-in with the HA users, data in Home Assistant’s
+  backups, direct port off by default. Same image as with Docker, marked
+  experimental for now.
+- **Sample data (N1026):** all sample households and the showcase show the
+  “Done” history with made-up people, reminders with someone responsible,
+  recorded supplier bills, a bill that is still pending and follow-up
+  contracts without a gap; the house with heat pump and solar has quarter
+  hours for generation, feed-in and battery and, when loaded, the last months
+  up to yesterday for the day film.
+- **Flat electricity rate 2027:** 32 ct/kWh in the German country profile
+  (Destatis, first half of 2026: 32.14 ct, rounded down; BMF letter of
+  11 Nov 2025, para. 30). If a year’s value is missing, the message says where
+  it comes from and when it is fixed.
+- **API additive:** `certificate.rules`, `fuel_basis`, `fuel_basis_approx`,
+  `dhw_rule`, `months_required`, `months_in_window`, `upcoming` on the
+  efficiency figure (`months_36` unchanged); `has_special_payments` in
+  `/api/utilities`; `special_payments` on the water contract and in its
+  `contract-status`.
+
+### Changed
+
+- **The “Done” history without gaps:** a new period on meters with
+  consumption per period clears “Read the meter” like a reading; a changed
+  service-charge statement appears as “changed” (without clearing twice).
+- **Efficiency classes checked against the law:** A+ to H are the limits of
+  Annex 10 and stay unchanged from 2027 (GModG Art. 2 no. 54; Bundestag
+  printed paper 21/6278). From 2027 heating oil and pellets count as an
+  approximation at net calorific value until an official factor is
+  published.
+- **CO₂ price docs:** state of 2027 with sources (BEHG draft 21/7869, ETS2
+  from 2028 under Regulation (EU) 2026/667, value for the cost split under
+  § 4(1) no. 3 CO2KostAufG) and what the app calculates for 2027 without an
+  entered price.
+- **Guides checked**, each marked with what was tried and what was checked
+  against the vendor documentation: text recognition (LM Studio without
+  “Require Authentication”), openHAB (return value of the HTTP action),
+  Unraid template (new `ET_PROXY_USER_HEADER`, `ET_LOCK_WAIT_S`), evcc and
+  text recognition (link-local has not counted as the home network since
+  v3.4.0).
+- **Actions updated** (Dependabot #29–#32): docker/login-action 4.6.0,
+  docker/metadata-action 6.2.0, docker/setup-buildx-action 4.4.1,
+  actions/setup-node 7; CI tests on Node 24.
+
+### Fixed
+
+- **Special payments for water contracts** ([#34]): the water contract now has
+  the “Special payments” section like gas, electricity and district heating —
+  refund and back-payment (with or without effect on the advance) and
+  additional advance payment. They count in the balance of the overview and
+  of the utility and in the projection to the end of the contract; “with
+  effect” sets the advance from its effective date, in the forecast too.
+  “Book as special payment” in the bill check now arrives in the water
+  contract.
+- **Home Assistant OS:** the Supervisor’s `options.json` (readable by root
+  only) no longer counts as a damaged file — until now `/api/health` answered
+  503 from the second start on, and the watchdog restarted the app.
+- **Calendar subscription under Ingress:** gives the address inside Home
+  Assistant’s network instead of the Ingress address, with a hint for phones
+  and computers.
+- **Loading a sample household** reset language and country to German.
+- **An English installation** at the “Experienced” or “Beginner” level showed
+  German utility names in the sidebar after starting.
+- **“Start with my own data”** jumped to “Meter readings” and straight back.
+
+### Migration
+
+No schema step. New fields are optional; older reminders and water contracts
+keep working unchanged.
+
+### Tests
+
+- New PHPUnit classes include `EnergyFlowDayTest`, `AssigneeTest`,
+  `AssigneeAccessTest`, `BillExpectedTest`, `ActivityAdditionsTest`,
+  `WaterSpecialPaymentsTest`, `RootlessImageTest`, `UnwritableDataDirTest`,
+  `OtherSystemsGuideTest`, `HomeAssistantAppTest`, `HomeAssistantAppDocsTest`,
+  `PersonaUseCasesTest`; extended include `EfficiencyCertificateTest`,
+  `EvChargingReportTest`, `DemoDataAlignerTest`, `DeployTemplatesTest`.
+- New Node suites: `day-film.test`, `assignee.test`, `setup-wizard.test`,
+  `nav-threshold.test`, `report-dialog.test`.
+- New CI steps in the Docker job: image without root (permissions, a foreign
+  data folder, any UID with group 0) and “as a Home Assistant app”.
+- 928 test methods (+115). 300 mutation checks, all red.
+
+### Lessons learned
+
+- **A predicate answers one question.** “Has advances” also decided where
+  special payments exist — water dropped out of both, although it has
+  advances and back-payments. Now `hasSpecialPayments()` asks only that.
+- **A new notice needs a window for existing data.** A full year back would
+  have flooded almost every installation with “overdue” after the update;
+  120 days show what is still pending.
+- **New values need their examples in every package.** A new history action
+  and a test “every action in every household” were built in parallel —
+  only the merged state showed the contradiction.
+- **A test process is not a request.** Over 1000 tests PHPUnit accumulates
+  memory; the limit for that now sits in the test configuration, while the
+  request itself provably stays below 128 MB.
+
+Details: [Release process §5](docs/en/entwicklung/release-prozess.md).
+
+[#34]: https://github.com/Bingerminger/energietracker/issues/34
+
+---
+
 ## [3.4.0] — 2026-10-13 — Clear and secure
 
 MINOR release without a schema step (stays 1.8.0): the app becomes readable,

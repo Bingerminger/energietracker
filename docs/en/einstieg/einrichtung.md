@@ -4,9 +4,10 @@
 
 [← Compendium index](../README.md)
 
-Since **v3.2.0** a new installation starts with three questions instead of an
-empty interface. The setup assistant then sets the utilities and the
-experience level and, if you like, shows a sample household that suits you.
+Since **v3.2.0** a new installation starts with a few questions instead of an
+empty interface — since **v3.5.0** first about language and country. The setup
+assistant then sets the utilities and the experience level and, if you like,
+shows a sample household that suits you.
 The experience level decides how much the interface shows — every level
 calculates everything. Explainers illustrate the key figures with your own
 data.
@@ -27,19 +28,34 @@ data.
 
 ### The steps
 
-The “Set up” dialog has four steps (“Step 1 of 4”):
+The “Set up” dialog has five steps (“Step 1 of 5”):
 
-1. **“Who are you?”** — one of five answers (table below). The answer
+1. **“Language and country”** *(since v3.5.0)* — two choices:
+   - **Language:** one of the seven interface languages. Preselected is the
+     language of this device, so on the very first start the browser’s. A
+     different choice applies at once: the assistant then speaks the new
+     language.
+   - **Country:** preselected is the country the first start derived from the
+     browser (`de-AT` → Austria, otherwise the country of the language).
+     Below it you see what applies, or what the country profile sets when you
+     switch: how numbers, amounts and dates are written, currency, time zone,
+     weather location, heating limit, CO₂ electricity and the unit of the
+     calorific value ([country profiles](../verstehen/14-laenderprofile.md)).
+     The writing style follows language *and* country, but only if the
+     language is spoken in that country — English with Germany writes the
+     British way (“1,234.5”, “31/12/2026”). The currency is only symbol and
+     labels; amounts are not converted.
+2. **“Who are you?”** — one of five answers (table below). The answer
    suggests utilities and a level.
-2. **“Which energy sources do you use?”** — the suggested utilities are
+3. **“Which energy sources do you use?”** — the suggested utilities are
    ticked; combine freely, at least one has to stay. A note explains the
    difference between district heating and heat
    ([§ 2](#district-heating-or-heat)).
-3. **“How much experience do you have?”** — Beginner, Experienced or Expert
+4. **“How much experience do you have?”** — Beginner, Experienced or Expert
    ([§ 3](#3-experience-levels)).
-4. **“What comes next”** — the summary and a choice:
+5. **“What comes next”** — the summary and a choice:
    - **“Look at it with sample data”** loads the sample household for your
-     answer in step 1 ([§ 2](#2-the-sample-households)). The app saves the
+     answer in step 2 ([§ 2](#2-the-sample-households)). The app saves the
      current state as a snapshot first.
    - **“Start with my own data”** takes you to “Meter readings”: check the
      meters, add the first reading — continue with
@@ -47,9 +63,22 @@ The “Set up” dialog has four steps (“Step 1 of 4”):
 
 Nothing is saved until **“Let’s go”**: the active utilities, the tenure
 (Settings → Household & building → “I live”: “in a rented home” for “I rent my
-home”, otherwise “in my own home”), your answer in step 1 and the level. “Back” goes back a step, “Skip” leaves everything as it is.
+home”, otherwise “in my own home”), your answer in step 2 and the level.
+Language and country only if you changed them:
 
-| Answer in step 1 | Suggested utilities | Suggested level |
+- The **language** becomes the installation’s default language (annual
+  report, CSV, new devices). If this device — or, with sign-in, your person —
+  has a language of its own, it follows.
+- The **country** takes the same route as in the settings and applies the
+  country profile. Only what differs from the defaults is stored — the same
+  rule as on first start. Whoever picks Germany after an English first start
+  has no frozen German defaults in the settings afterwards; a later correction
+  of a default reaches this installation too.
+
+“Back” goes back a step, “Skip” leaves everything as it is — a language
+picked in the assistant no longer applies either.
+
+| Answer in step 2 | Suggested utilities | Suggested level |
 |---|---|---|
 | “I rent my home” | Electricity, Heat, Water | Beginner |
 | “Owner-occupied flat with district heating” | Electricity, District heating | Beginner |
@@ -57,22 +86,24 @@ home”, otherwise “in my own home”), your answer in step 1 and the level. �
 | “Own house with heat pump and solar” | Electricity, Heat, Water, PV generation, PV feed-in | Experienced |
 | “Just look at everything first” | all | Expert |
 
-If you heat with oil or pellets, change the ticks in step 2: Heating oil or
+If you heat with oil or pellets, change the ticks in step 3: Heating oil or
 Wood pellets on, Gas off.
 
 ### Start it again
 
 Settings → General → card “Experience level and setup” → **“Start the setup
-assistant”**. When you start it again, your active utilities and your level
-are preselected. An answer in step 1 resets the ticks in step 2 to its
-suggestion and leaves the level alone. This is also how you load a different
+assistant”**. When you start it again, the language of this device, your
+country, your active utilities and your level are preselected; below the
+country you see what applies now (“Current settings for …”). An answer in
+step 2 resets the ticks in step 3 to its suggestion and leaves the level
+alone. This is also how you load a different
 sample household later.
 
 ---
 
 ## 2. The sample households
 
-There is a sample household for every answer in step 1 — four new ones and
+There is a sample household for every answer in step 2 — four new ones and
 the **showcase**, the previous demo household with almost every utility. All
 of them are invented: names, suppliers and meter numbers are examples. The
 location is Leipzig, the data cover three years and are carried forward to
@@ -81,15 +112,53 @@ values of the same period one year earlier, reminders relative to today.
 
 | Sample household | Utilities | What’s in it | Good for seeing |
 |---|---|---|---|
-| **Rented flat** (“I rent my home”) | Electricity, Heat, Water | 62 m², one person, central gas heating in the basement. Electricity on its own supply contract, with a switch of supplier and a renewal; heat as monthly values from the metering service’s consumption information (with previous month, same month last year and average user); cold and hot water meters; a tenancy with prepayments for heating and operating costs and two service charge statements including the landlord’s share of the CO₂ costs | the overview for beginners with “Does the prepayment cover it?”, heat without a contract of its own, [As a tenant](../anleitungen/mieter.md) |
-| **Owner-occupied flat with district heating** | Electricity, District heating | 85 m², two people; district heating provides heating and hot water. Heat meter with monthly readings from the customer portal; its own district heating contract with unit, standing, capacity (6.5 kW) and metering charges and several price changes; the 2025 annual bill is recorded; electricity with a switch of supplier | district heating as a supply contract with a bill, [Check the annual bill](../anleitungen/jahresabrechnung.md), calibration deadline as a reminder |
-| **Classic house** (“Own house with gas, oil or pellets”) | Gas, Electricity, Water | Detached house, 140 m², four people, gas condensing boiler. Gas contract switched after a price comparison, with a price guarantee; final bill with a credit and annual bill with an additional payment and a new advance as special payments; baseline date “Hydraulic balancing” in September 2024; water with a main meter and a garden meter as a sub-meter, drinking water, wastewater and rainwater; reminders for servicing, chimney sweep and calibration | weather adjustment and baseline date, tariff switch, sub-meters |
-| **Modern house** (“Own house with heat pump and solar”) | Electricity, PV feed-in, PV generation, Heat | Detached house, 150 m², four people. Household meter; heat pump with its own meter and a heat pump tariff with the reduced grid fee under § 14a EnWG (module 1); wallbox as a sub-meter of the household meter, with charging sessions from evcc; a dynamic tariff as an offer for comparison; 9.8 kWp PV on the east and west roof with feed-in remuneration; 10 kWh battery; heat meter of the heat pump | seasonal performance factor, energy flow and self-sufficiency, [Charging sessions from evcc](../anleitungen/evcc.md), [Charging record](../anleitungen/ladestrom-nachweis.md), dynamic tariff check |
+| **Rented flat** (“I rent my home”) | Electricity, Heat, Water | 62 m², one person, central gas heating in the basement. Electricity on its own supply contract (billing year from October), with a switch of supplier and its final bill and a renewal that has been running on since the end of September 2026; heat as monthly values from the metering service’s consumption information (with previous month, same month last year and average user); cold and hot water meters; a tenancy with prepayments for heating and operating costs and two service charge statements including the landlord’s share of the CO₂ costs | the overview for beginners with “Does the prepayment cover it?”, heat without a contract of its own, [As a tenant](../anleitungen/mieter.md) |
+| **Owner-occupied flat with district heating** | Electricity, District heating | 85 m², two people; district heating provides heating and hot water. Heat meter with monthly readings from the customer portal; its own district heating contract with unit, standing, capacity (6.5 kW) and metering charges and several price changes; the 2024 and 2025 annual bills are recorded (2025 not booked yet); electricity with two switches of supplier and their final bills, now open-ended with a minimum term and a price guarantee | district heating as a supply contract with a bill, [Check the annual bill](../anleitungen/jahresabrechnung.md), calibration deadline as a reminder |
+| **Classic house** (“Own house with gas, oil or pellets”) | Gas, Electricity, Water | Detached house, 140 m², four people, gas condensing boiler. Gas contract switched after a price comparison, with a price guarantee until June 2026, running on since; final bill and annual bill recorded as supplier bills and booked as special payments (electricity and water too); baseline date “Hydraulic balancing” in September 2024; water with a main meter and a garden meter as a sub-meter, drinking water, wastewater and rainwater; reminders for servicing, chimney sweep and calibration | weather adjustment and baseline date, tariff switch, sub-meters |
+| **Modern house** (“Own house with heat pump and solar”) | Electricity, PV feed-in, PV generation, Heat | Detached house, 150 m², four people. Household meter; heat pump with its own meter and a heat pump tariff with the reduced grid fee under § 14a EnWG (module 1), cancelled as of 30 Sep 2026, follow-up contract with a minimum term and a price guarantee; wallbox as a sub-meter of the household meter, with charging sessions from evcc; a dynamic tariff as an offer for comparison; 9.8 kWp PV on the east and west roof with feed-in remuneration; 10 kWh battery; heat meter of the heat pump | seasonal performance factor, energy flow and self-sufficiency, [Charging sessions from evcc](../anleitungen/evcc.md), [Charging record](../anleitungen/ladestrom-nachweis.md), dynamic tariff check |
 | **Showcase** (“Just look at everything first”) | Gas, Electricity, Water, District heating, Heating oil, Wood pellets, PV feed-in, PV generation | the previous demo household: a detached house with eight utilities — all except heat. Meter swap, baseline date, offers for comparison, tank book; details in [demo-data/README.md](../../../demo-data/README.md) | everything at once, for the “Expert” level |
+
+### New in v3.5.0: who, when, what is still missing
+
+Since v3.5.0 all sample households and the showcase also show:
+
+- **“Done” history** with made-up people: reminders done by hand (some with a
+  note), things done automatically with a reason (follow-up contract added,
+  supplier bill recorded, reading after a gap, service charge statement), a
+  hidden recommendation and an entry that was undone. Entries about reminders
+  move with the reminders when loading; all others keep the date of their
+  data.
+- **Someone in charge of reminders:** one to three reminders carry a name.
+- **Supplier bills:** recorded, compared with the app’s own calculation under
+  “Check bill” and mostly booked as special payments — plus a recently ended
+  billing period without a bill, for which the app expects a bill.
+- **Contracts:** follow-up contracts without a gap and a contract that runs on
+  or is open-ended with a minimum term and a price guarantee on the timeline.
+
+| Sample household | People in the history | In charge of reminders | Bill expected |
+|---|---|---|---|
+| Rented flat | Lena | Lena, Hausverwaltung Krüger | Electricity: annual bill of the renewal (period up to 30 Sep 2026) |
+| Owner-occupied flat with district heating | Katrin, Mehmet | Katrin, Mehmet, Hausmeister Petersen | Electricity with the new supplier, always for 30 days |
+| Classic house | Thomas, Sabine, Jonas | Thomas, Sabine, Jonas | Gas, always for 56 days — overdue |
+| Modern house | Julia, Ben | Julia, Ben | Electricity: final bill of the heat pump tariff (cancelled as of 30 Sep 2026) |
+| Showcase | Anna, Paul | Anna, Paul | Electricity, always for 21 days |
+
+Where it says “always for … days”, the app sets the billing anchor of this
+utility relative to today when loading — like the reminders, so that the note
+can be seen at any time. The two other notes belong to fixed periods and
+appear as long as their end is at most 120 days ago (until the end of January
+2027). The app does not carry bills forward when loading.
+
+**Day film:** the modern house has quarter hours for all of 2025 and gets the
+last two to three months up to yesterday when loading — grid import,
+generation, feed-in, battery and wholesale price, consistent in every quarter
+hour. The showcase deliberately has no quarter hours: it is meant to stay
+small, and the day film needs a household with a battery and consumers — the
+modern house is there for that.
 
 ### District heating or heat?
 
-The sample households show the difference that the note in step 2 explains:
+The sample households show the difference that the note in step 3 explains:
 
 - **District heating** has its own supply contract with a bill from the
   supplier — as in the owner-occupied flat
@@ -100,14 +169,18 @@ The sample households show the difference that the note in step 2 explains:
 
 ### Loading and going back
 
-- **In the assistant:** choose the answer in step 1, then “Look at it with
+- **In the assistant:** choose the answer in step 2, then “Look at it with
   sample data” at the end.
 - **Settings → Data → “Load demo data”** and **“Try with sample data”** on the
   empty overview load the showcase.
 
 A sample household **replaces the whole household**: meters, readings,
 contracts, tenancy, reminders and the household settings. Utilities it does
-not use are empty afterwards. **Your experience level stays.** The app saves a
+not use are empty afterwards. **Your experience level stays**, and since
+v3.5.0 so do **language, country, currency, time zone and the unit of the
+calorific value** (up to v3.4 the language fell back to German). Location,
+heating limit and CO₂ factors come with the sample household — it is in
+Leipzig. The app saves a
 snapshot first; if there is data already, it asks before. To go back: Settings
 → Data → “Stored snapshots” → “Restore…”. With
 [users](../anleitungen/benutzer.md), only someone who manages the installation
@@ -236,12 +309,16 @@ with CSS animation, without a library.
 ## 5. The public demo
 
 Without installing anything: [bingerminger.github.io/energietracker](https://bingerminger.github.io/energietracker/).
-On the first visit the assistant opens with three steps — “Who are you?”,
-“How much experience do you have?” and “What comes next”. The demo then shows
-the chosen sample household; “Skip” shows the showcase.
+On the first visit the assistant opens with four steps — “Language and
+country”, “Who are you?”, “How much experience do you have?” and “What comes
+next”. The demo then shows the chosen sample household; “Skip” shows the
+showcase.
 
-- **The browser remembers** the sample household and the level. Nothing else
-  is saved in the demo.
+- **Language:** applies per device, like the language choice in the notice
+  bar. The **country** in the demo is that of the sample household (Germany)
+  and cannot be changed — the demo has no server that could store it.
+- **The browser remembers** the language, the sample household and the level.
+  Nothing else is saved in the demo.
 - **Change it:** Settings → General → “Start the setup assistant”.
 - **Link directly:** `?persona=` with the name of the sample household, for
   example
